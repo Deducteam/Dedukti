@@ -1,15 +1,15 @@
 OCAMLC=ocamlc
 OCAMLOPT=ocamlopt
 
-COQSRC=..
+COQSRC=.
 
-MLDIRS=-I $(COQSRC)/config -I $(COQSRC)/lib -I $(COQSRC)/kernel -I +camlp4
-BYTEFLAGS=$(MLDIRS)
-OPTFLAGS=$(MLDIRS)
+MLDIRS=-I $(COQSRC)/config -I $(COQSRC)/lib -I $(COQSRC)/kernel -I +camlp5
+BYTEFLAGS=$(MLDIRS) -pp camlp5o
+OPTFLAGS=$(MLDIRS) -pp camlp5o
 
 CHECKERNAME=coqchk
 
-BINARIES=../bin/$(CHECKERNAME)$(EXE) ../bin/$(CHECKERNAME).opt$(EXE)
+BINARIES=./bin/$(CHECKERNAME)$(EXE) ./bin/$(CHECKERNAME).opt$(EXE)
 MCHECKERLOCAL :=\
   declarations.cmo environ.cmo \
   closure.cmo reduction.cmo \
@@ -17,35 +17,37 @@ MCHECKERLOCAL :=\
   modops.cmo \
   inductive.cmo typeops.cmo \
   indtypes.cmo subtyping.cmo mod_checking.cmo \
-validate.cmo \
   safe_typing.cmo check.cmo \
   check_stat.cmo checker.cmo
 
 MCHECKER:=\
   $(COQSRC)/config/coq_config.cmo \
   $(COQSRC)/lib/pp_control.cmo $(COQSRC)/lib/pp.cmo $(COQSRC)/lib/compat.cmo \
-  $(COQSRC)/lib/util.cmo $(COQSRC)/lib/option.cmo $(COQSRC)/lib/hashcons.cmo \
-  $(COQSRC)/lib/system.cmo $(COQSRC)/lib/flags.cmo \
+  $(COQSRC)/lib/flags.cmo $(COQSRC)/lib/util.cmo \
+  $(COQSRC)/lib/option.cmo $(COQSRC)/lib/hashcons.cmo \
+  $(COQSRC)/lib/system.cmo \
   $(COQSRC)/lib/predicate.cmo $(COQSRC)/lib/rtree.cmo \
   $(COQSRC)/kernel/names.cmo $(COQSRC)/kernel/univ.cmo \
+  $(COQSRC)/kernel/envars.cmo \
+  validate.cmo \
   $(COQSRC)/kernel/esubst.cmo term.cmo \
   $(MCHECKERLOCAL)
 
 all: $(BINARIES)
 
-byte : ../bin/$(CHECKERNAME)$(EXE)
-opt : ../bin/$(CHECKERNAME).opt$(EXE)
+byte : ./bin/$(CHECKERNAME)$(EXE)
+opt : ./bin/$(CHECKERNAME).opt$(EXE)
 
-check.cma: $(MCHECKERLOCAL)
+check.cma: $(MCHECKER)
 	ocamlc $(BYTEFLAGS) -a -o $@ $(MCHECKER)
 
-check.cmxa: $(MCHECKERLOCAL:.cmo=.cmx)
+check.cmxa: $(MCHECKER:.cmo=.cmx)
 	ocamlopt $(OPTFLAGS) -a -o $@ $(MCHECKER:.cmo=.cmx)
 
-../bin/$(CHECKERNAME)$(EXE): check.cma
+./bin/$(CHECKERNAME)$(EXE): check.cma
 	ocamlc $(BYTEFLAGS) -o $@ unix.cma gramlib.cma check.cma main.ml
 
-../bin/$(CHECKERNAME).opt$(EXE): check.cmxa
+./bin/$(CHECKERNAME).opt$(EXE): check.cmxa
 	ocamlopt $(OPTFLAGS) -o $@ unix.cmxa gramlib.cmxa check.cmxa main.ml
 
 stats:
@@ -80,7 +82,7 @@ stats:
 
 
 depend::
-	ocamldep *.ml* > .depend
+	ocamldep $(MLDIRS) -pp camlp5o config/*.{ml,mli} kernel/*.{ml,mli} lib/*.{ml,mli} *.{ml,mli} > .depend
 
 clean::
 	rm -f *.cm* *.o *.a *~ $(BINARIES)
