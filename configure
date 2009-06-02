@@ -48,15 +48,8 @@ usage () {
     echo "-mandir"
     echo "-docdir"
     printf "\tSpecifies where to install bin/lib/man/doc files resp.\n"
-    echo "-emacslib"
-    echo "-emacs"
-    printf "\tSpecifies where emacs files are to be installed\n"
-    echo "-coqdocdir"
-    printf "\tSpecifies where Coqdoc style files are to be installed\n"
     echo "-camldir"
     printf "\tSpecifies the path to the OCaml library\n"
-    echo "-lablgtkdir"
-    printf "\tSpecifies the path to the Lablgtk library\n"
     echo "-camlp5dir"
     printf "\tSpecifies where to look for the Camlp5 library and tells to use it\n"
     echo "-arch"
@@ -65,17 +58,8 @@ usage () {
     printf "\tSpecifies whether or not to use OCaml *.opt optimized compilers\n"
     echo "-natdynlink (yes|no)"
     printf "\tSpecifies whether or not to use dynamic loading of native code\n"
-    echo "-fsets (all|basic)"
-    echo "-reals (all|basic)"
-    printf "\tSpecifies whether or not to compile full FSets/Reals library\n"
-    echo "-coqide (opt|byte|no)"
-    printf "\tSpecifies whether or not to compile Coqide\n"
-    echo "-browser <command>"
-    printf "\tUse <command> to open URL %%s\n"
     echo "-with-doc (yes|no)"
     printf "\tSpecifies whether or not to compile the documentation\n"
-    echo "-with-geoproof (yes|no)"
-    printf "\tSpecifies whether or not to use Geoproof binding\n"
     echo "-with-cc <file>"
     echo "-with-ar <file>"
     echo "-with-ranlib <file>"
@@ -176,20 +160,11 @@ while : ; do
     -docdir|--docdir) docdir_spec=yes
                       docdir="$2"
 		      shift;;
-    -emacslib|--emacslib) emacslib_spec=yes
-                          emacslib="$2"
-			  shift;;
-    -emacs |--emacs) emacs_spec=yes
-		     emacs="$2"
-		     shift;;
     -coqdocdir|--coqdocdir) coqdocdir_spec=yes
 	              coqdocdir="$2"
 		      shift;;
     -camldir|--camldir) camldir_spec=yes
 	                camldir="$2"
-			shift;;
-    -lablgtkdir|--lablgtkdir) lablgtkdir_spec=yes
-	                lablgtkdir="$2"
 			shift;;
     -camlp5dir|--camlp5dir)
 	                camlp5dir="$2"
@@ -205,37 +180,12 @@ while : ; do
                           *) natdynlink=no
                         esac
                         shift;;
-    -fsets|--fsets) case "$2" in
-			yes|all) fsets=all;;
-			*) fsets=basic
-		    esac
-		    shift;;
-    -reals|--reals) case "$2" in
-			yes|all) reals=all;;
-			*) reals=basic
-		    esac
-		    shift;;
-    -coqide|--coqide) coqide_spec=yes
-		      case "$2" in
-			  byte|opt) COQIDE=$2;;
-			  *) COQIDE=no
-		      esac
-		      shift;;
-    -browser|--browser) browser_spec=yes
-		      BROWSER=$2
-		      shift;;
     -with-doc|--with-doc) with_doc_spec=yes
 		      case "$2" in
 			  yes|all) with_doc=all;;
 			  *) with_doc=no
 		      esac
 		      shift;;
-    -with-geoproof|--with-geoproof) 
-	  case "$2" in
-	      yes) with_geoproof=true;;
-	      no) with_geoproof=false;;
-	  esac
-	  shift;;
     -with-cc|-with-gcc|--with-cc|--with-gcc) 
 	  gcc_spec=yes
 	  gcc_exec=$2
@@ -316,7 +266,7 @@ esac
 if test -e .svn/entries ; then 
     checkedout=svn
 elif [ -d '{arch}' ]; then
-    checkedout=gnuarch
+	checkedout=gnuarch
 elif [ -z "${GIT_DIR}" ] && [ -d .git ] || [ -d "${GIT_DIR}" ]; then
     checkedout=git
 else
@@ -355,15 +305,6 @@ if [ "$MAKE" != "" ]; then
   esac
 else
   echo "Cannot find GNU Make 3.81"
-fi
-
-# Browser command
-
-if [ "$browser_spec" = "no" ]; then
-    case $ARCH in
-        win32) BROWSER='C:\PROGRA~1\INTERN~1\IEXPLORE %s' ;;
-        *) BROWSER='firefox -remote "OpenURL(%s,new-tab)" || firefox %s &' ;;
-    esac
 fi
 
 #########################################
@@ -582,63 +523,6 @@ case $ARCH in
   *) OSDEPLIBS="-cclib -lunix"
 esac
 
-# lablgtk2 and CoqIDE
-
-# -byte-only should imply -coqide byte, unless the user decides otherwise
-
-if [ "$best_compiler" = "byte" -a "$coqide_spec" = "no" ]; then 
-    coqide_spec=yes
-    COQIDE=byte
-fi
-
-# Which coqide is asked ? which one is possible ?
-
-if [ "$coqide_spec" = "yes" -a "$COQIDE" = "no" ]; then 
-    echo "CoqIde disabled as requested."
-else
-    case $lablgtkdir_spec in
-	no) 
-	    if [ -f "${CAMLLIB}/lablgtk2/glib.mli" ]; then
-		lablgtkdir=${CAMLLIB}/lablgtk2
-	    elif [ -f "${CAMLLIB}/site-lib/lablgtk2/glib.mli" ]; then
-		lablgtkdir=${CAMLLIB}/site-lib/lablgtk2
-	    fi;;
-	yes)
-	    if [ ! -f "$lablgtkdir/glib.mli" ]; then
-		echo "Incorrect LablGtk2 library (glib.mli not found)."
-		echo "Configuration script failed!"
-		exit 1
-	    fi;;
-    esac
-    if [ "$lablgtkdir" = "" ]; then
-	echo "LablGtk2 not found: CoqIde will not be available."
-	COQIDE=no
-    elif [ -z "`grep -w convert_with_fallback "$lablgtkdir/glib.mli"`" ]; then
-	echo "LablGtk2 found but too old: CoqIde will not be available."
-	COQIDE=no;
-    elif [ "$coqide_spec" = "yes" -a "$COQIDE" = "byte" ]; then 
-	echo "LablGtk2 found, bytecode CoqIde will be used as requested."
-	COQIDE=byte
-    elif [ ! -f "${CAMLLIB}/threads/threads.cmxa" ]; then 
-	echo "LablGtk2 found, no native threads: bytecode CoqIde will be available."
-	COQIDE=byte
-    else 
-	echo "LablGtk2 found, native threads: native CoqIde will be available."
-	COQIDE=opt
-    fi
-fi
-
-case $COQIDE in
-    byte|opt)
-        case $lablgtkdir_spec in
-            no)  LABLGTKLIB=+lablgtk2                   # Pour le message
-                 LABLGTKINCLUDES="-I $LABLGTKLIB";;     # Pour le makefile
-            yes) LABLGTKLIB="$lablgtkdir"               # Pour le message
-                 LABLGTKINCLUDES="-I \"$LABLGTKLIB\"";; # Pour le makefile
-        esac;;
-    no) LABLGTKINCLUDES="";;
-esac
-
 # strip command
 
 case $ARCH in
@@ -762,22 +646,6 @@ case $docdir_spec/$prefix_spec/$local in
 	esac;;
 esac
 
-case $emacslib_spec/$prefix_spec/$local in
-    yes/*/*) EMACSLIB=$emacslib;;
-    */yes/*)
-        case $ARCH in
-          win32) EMACSLIB=$prefix/emacs ;;
-          *)  EMACSLIB=$prefix/share/emacs/site-lisp ;;
-        esac ;;
-    */*/true) EMACSLIB=$COQTOP/tools/emacs ;;
-    *) printf "Where should I install the Coq Emacs mode [$emacslib_def]? "
-        read EMACSLIB
-	case $EMACSLIB in
-	    "") EMACSLIB=$emacslib_def;;
-	    *) true;;
-	esac;;
-esac
-
 case $coqdocdir_spec/$prefix_spec/$local in
     yes/*/*) COQDOCDIR=$coqdocdir;;
     */yes/*)
@@ -815,17 +683,6 @@ case $coqtoolsbyteflags_spec/$custom_spec/$CUSTOM_OS in
     *) COQTOOLSBYTEFLAGS="";;
 esac
 
-# case $emacs_spec in
-#     no) printf "Which Emacs command should I use to compile coq.el [$emacs_def]? "
-#         read EMACS
-	
-# 	case $EMACS in
-# 	    "") EMACS=$emacs_def;;
-# 	    *) true;;
-# 	esac;;
-#     yes) EMACS=$emacs;;
-# esac
-
 ###########################################
 # Summary of the configuration
 
@@ -845,34 +702,17 @@ echo "  Camlp4 library in                 : $CAMLP4LIB"
 if test "$best_compiler" = opt ; then
 echo "  Native dynamic link support       : $HASNATDYNLINK"
 fi
-if test "$COQIDE" != "no"; then
-echo "  Lablgtk2 library in               : $LABLGTKLIB"
-fi
-if test "$fsets" = "all"; then
-echo "  FSets theory                      : All"
-else
-echo "  FSets theory                      : Basic"
-fi
-if test "$reals" = "all"; then
-echo "  Reals theory                      : All"
-else
-echo "  Reals theory                      : Basic"
-fi
 if test "$with_doc" = "all"; then
 echo "  Documentation                     : All"
 else
 echo "  Documentation                     : None"
 fi
-echo "  CoqIde                            : $COQIDE"
-echo "  Web browser                       : $BROWSER"
-echo ""
 
 echo "  Paths for true installation:"
 echo "    binaries      will be copied in $BINDIR"
 echo "    library       will be copied in $LIBDIR"
 echo "    man pages     will be copied in $MANDIR"
 echo "    documentation will be copied in $DOCDIR"
-echo "    emacs mode    will be copied in $EMACSLIB"
 echo ""
 
 ##################################################
@@ -890,22 +730,6 @@ if test "$coq_debug_flag" = "-g" ; then
       $OCAMLDEBUGCOQ.template > $OCAMLDEBUGCOQ
   chmod a-w,a+x $OCAMLDEBUGCOQ
 fi
-
-####################################################
-# Fixing lablgtk types (before/after 2.6.0) 
-####################################################
-
-if [ ! "$COQIDE" = "no" ]; then 
-    if grep "class view " "$lablgtkdir/gText.mli" | grep -q "\[>" ; then
-       if grep -q "?accepts_tab:bool" "$lablgtkdir/gText.mli" ; then
-        cp -f ide/undo_lablgtk_ge212.mli ide/undo.mli
-       else
-	cp -f ide/undo_lablgtk_ge26.mli ide/undo.mli
-       fi
-    else
-	cp -f ide/undo_lablgtk_lt26.mli ide/undo.mli
-    fi
-fi  
 
 ##############################################
 # Creation of configuration files
@@ -1009,22 +833,6 @@ let with_geoproof = ref $with_geoproof
 let browser = "$BROWSER"
 
 END_OF_COQ_CONFIG
-
-# to be sure printf is found on windows when spaces occur in PATH variable
-PRINTF=`which printf`
-
-# Subdirectories of theories/ added in coq_config.ml
-subdirs () {
-    (cd $1; find * \( -name .svn -prune \) -o \( -type d -exec $PRINTF "\"%s\";\n" {} \; \) >> "$mlconfig_file")
-}
-
-echo "let theories_dirs = [" >> "$mlconfig_file"
-subdirs theories
-echo "]" >> "$mlconfig_file"
-
-echo "let plugins_dirs = [" >> "$mlconfig_file"
-subdirs plugins
-echo "]" >> "$mlconfig_file"
 
 chmod a-w "$mlconfig_file"
 
