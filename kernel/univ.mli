@@ -10,7 +10,15 @@
 
 (* Universes. *)
 
-type universe
+type universe_level =
+  | Set
+  | Level of Names.dir_path * int
+
+type universe =
+  | Atom of universe_level
+  | Max of universe_level list * universe_level list
+
+
 
 (* The universes hierarchy: Type 0- = Prop <= Type 0 = Set <= Type 1 <= ... *)
 (* Typing of universes: Type 0-, Type 0 : Type 1; Type i : Type (i+1) if i>0 *)
@@ -33,7 +41,7 @@ val sup   : universe -> universe -> universe
 
 (*s Graphs of universes. *)
 
-type universes
+type universes 
 
 type check_function = universes -> universe -> universe -> bool
 val check_geq : check_function
