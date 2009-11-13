@@ -4,7 +4,7 @@ OCAMLOPT=ocamlopt
 COQSRC=.
 
 MLDIRS=-I $(COQSRC)/config -I $(COQSRC)/lib -I $(COQSRC)/kernel -I +camlp5
-BYTEFLAGS=$(MLDIRS) -pp camlp5o
+BYTEFLAGS=$(MLDIRS) -pp camlp5o -g
 OPTFLAGS=$(MLDIRS) -pp camlp5o
 
 CHECKERNAME=coqchk
@@ -18,7 +18,7 @@ MCHECKERLOCAL :=\
   inductive.cmo typeops.cmo \
   indtypes.cmo subtyping.cmo mod_checking.cmo \
   safe_typing.cmo check.cmo \
-  check_stat.cmo checker.cmo
+  check_stat.cmo checker.cmo 
 
 MCHECKER:=\
   $(COQSRC)/config/coq_config.cmo \
@@ -49,6 +49,12 @@ check.cmxa: $(MCHECKER:.cmo=.cmx)
 
 ./bin/$(CHECKERNAME).opt$(EXE): check.cmxa
 	ocamlopt $(OPTFLAGS) -o $@ unix.cmxa gramlib.cmxa check.cmxa main.ml
+
+essai: $(MCHECKER) essai.cmo
+	ocamlc $(BYTEFLAGS) -o $@ unix.cma gramlib.cma $(MCHECKER) essai.cmo
+
+parse: $(MCHECKER) parse.cmo
+	ocamlc $(BYTEFLAGS) -o $@ unix.cma gramlib.cma $(MCHECKER) parse.cmo
 
 stats:
 	@echo STRUCTURE
@@ -85,6 +91,6 @@ depend::
 	ocamldep $(MLDIRS) -pp camlp5o config/*.{ml,mli} kernel/*.{ml,mli} lib/*.{ml,mli} *.{ml,mli} > .depend
 
 clean::
-	rm -f *.cm* *.o *.a *~ $(BINARIES)
+	rm -f *.cm* *.o *.a *~ $(BINARIES) lib/*.cm* kernel/*.cm* config/*.cm*
 
 -include .depend
