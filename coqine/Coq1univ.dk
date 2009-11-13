@@ -1,0 +1,89 @@
+Uset : Type.
+Uprop : Type.
+Utype : Type.
+
+eprop : x : Uprop -> Type.
+eset : x : Uset -> Type.
+etype : x : Utype -> Type.
+
+dotset : Utype.
+dotprop : Utype.
+
+; /!\ type : type /!\, should use universes
+dottype : Utype.
+
+; /!\ subtyping in coq, should be unidirectional /!\
+[] Uprop --> Utype.
+[] Uset --> Utype.
+
+dotpipp : x : Uprop -> y : (eprop x -> Uprop) -> Uprop.
+dotpips : x : Uprop -> y : (eprop x -> Uset)  -> Uset.
+dotpipt : x : Uprop -> y : (eprop x -> Utype) -> Utype.
+dotpisp : x : Uset  -> y : (eset x  -> Uprop) -> Uprop.
+dotpitp : x : Utype -> y : (etype x -> Uprop) -> Uprop.
+dotpist : x : Uset  -> y : (eset  x -> Utype) -> Utype.
+dotpits : x : Utype -> y : (etype x -> Uset)  -> Uset.
+dotpiss : x : Uset  -> y : (eset x  -> Uset)  -> Uset.
+dotpitt : x : Utype -> y : (etype x -> Utype) -> Utype.
+
+
+[x:Uprop, y : eprop x -> Uprop]
+              eprop (dotpipp x y) --> w : eprop x -> eprop (y w).
+
+[x:Uset, y : eset x -> Uprop]
+              eprop (dotpisp x y) --> w : eset x -> eprop (y w).
+
+[x:Utype, y : etype x -> Uprop]
+              eprop (dotpitp x y) --> w : etype x -> eprop (y w).
+
+; /!\
+[P : Uprop] eprop P --> etype P.
+
+[x:Uprop, y : eprop x -> Uset]
+              eset (dotpips x y) --> w : eprop x -> eset (y w).
+
+[x:Utype, y : etype x -> Uset]
+              eset (dotpits x y) --> w : etype x -> eset (y w).
+
+[x:Uset, y : eset x -> Uset]
+              eset (dotpiss x y) --> w : eset x -> eset (y w).
+
+; /!\
+[P : Uset] eset P --> etype P.
+
+[x:Uset, y : eset x -> Utype]
+              etype (dotpist x y) --> w : eset x -> etype (y w).
+
+[x:Utype, y : etype x -> Utype]
+              etype (dotpitt x y) --> w : etype x -> etype (y w).
+
+[x:Uprop, y : eprop x -> Utype]
+              etype (dotpipt x y) --> w : eprop x -> etype (y w).
+
+; /!\ 
+[x:Uset, y : eset x -> Utype]
+              etype (dotpipp x y) --> etype (dotpipt x y).
+
+[x:Utype, y : etype x -> Utype]
+              etype (dotpisp x y) --> etype (dotpist x y).
+
+[x:Uprop, y : eprop x -> Utype]
+              etype (dotpitp x y) --> etype (dotpitt x y).
+
+[x:Uset, y : eset x -> Utype]
+              etype (dotpips x y) --> etype (dotpipt x y).
+
+[x:Utype, y : etype x -> Utype]
+              etype (dotpits x y) --> etype (dotpitt x y).
+
+[x:Uprop, y : eprop x -> Utype]
+              etype (dotpiss x y) --> etype (dotpist x y).
+
+
+[] (etype dotset)  --> Uset.
+[] (etype dotprop) --> Uprop.
+; /!\
+[] (etype dottype) --> Utype.
+
+; end of Coq1univ
+
