@@ -69,22 +69,22 @@ let get_e e t = which_e (infer_type e t)
 
 (* from coq names to string *)
 let name_to_string n = match n with
-  | Anonymous -> fresh_var "dk_anon_"
+  | Anonymous -> fresh_var "_dk_anon"
   | Name s -> s
 
 let get_identifier n = match n with
-  | Anonymous -> fresh_var "dk_anon_"
+  | Anonymous -> fresh_var "_dk_anon"
   | Name s -> s
 
 (* get an identifier depending on the current environment e *)
 let rec get_identifier_env e n = 
   match n with
-    | Anonymous -> get_identifier_env e (Name "dk_anon_")
+    | Anonymous -> get_identifier_env e (Name "_dk_anon")
     | Name s -> 
 	let rec compute_alpha ch =
 	  let rec alpha_counts n = function
 	      (Name i,_,_)::q when i = ch -> alpha_counts (n+1) q
-	    | (Anonymous, _, _)::q when ch = "dk_anon_" -> alpha_counts (n+1) q
+	    | (Anonymous, _, _)::q when ch = "_dk_anon" -> alpha_counts (n+1) q
 	    | _::q -> alpha_counts n q
 	  | [] -> n
 	  in
@@ -153,7 +153,7 @@ let rec term_trans_aux e t =
 	add_vars ((Id v,type_trans_aux e t)::free_vars) e' (EApp(c, EVar (Id v))) (q,[])
     | t,[] -> free_vars, c, 
 	begin match collapse_appl t with App(_,a) -> a
-	  | _ -> Array.init 0 Obj.magic
+	  | _ -> Array.init 0 Obj.magic (* Obj.magic!? *)
 	end 
     | Prod(_,t, q),arg::args -> 
 	let n = List.length e.env_rel_context in
@@ -162,18 +162,18 @@ let rec term_trans_aux e t =
 	  add_vars free_vars e'
 	    (EApp(c, snd (app_rel_context e (EVar (Id arg))))) 
 	    (subst1 (App(Var arg, Array.init n (fun m -> Rel (n-m)))) q, args)
-    | _ -> failwith "add_vars: too much parameters"
+    | _ -> failwith "add_vars: too many parameters"
   in 
-    (* transform a list of dedukti variables into an array of Coq variable *)
-  let vars_to_args l = 
-    let rec vars_to_args array = function
-	0,[] -> array
-      | n,(Id v,_)::q -> array.(n-1) <- Var v; vars_to_args array (n-1,q)
-      | _ -> failwith "should not happen"
-    in
-    let n = List.length l in 
-      vars_to_args (Array.make n (Var "dummy")) (n,l)
-  in
+    (* transform a list of dedukti variables into an array of Coq variables *)
+(*   let vars_to_args l =  *)
+(*     let rec vars_to_args array = function *)
+(* 	0,[] -> array *)
+(*       | n,(Id v,_)::q -> array.(n-1) <- Var v; vars_to_args array (n-1,q) *)
+(*       | _ -> failwith "vars_to_args:discrepency" *)
+(*     in *)
+(*     let n = List.length l in  *)
+(*       vars_to_args (Array.make n (Var "dummy")) (n,l) *)
+(*   in *)
 
     (* the translation is by induction on the term *)
     match t with
@@ -200,7 +200,7 @@ let rec term_trans_aux e t =
                        (term_trans_aux e1 t2))))
 
       | Lambda (n,t1,t2)  ->  (EFun ((Id (get_identifier_env e n)),
-                                     (type_trans_aux e t1),
+                                     (EApp(EVar(Qid ("Coq1univ",get_e e t1)),term_trans_aux e t1)),
                                      (term_trans_aux (push_rel (n,None,t1) e) t2)))
 
       | LetIn (var, eq, ty, body)  ->
@@ -253,7 +253,7 @@ let rec term_trans_aux e t =
 	       | Anonymous -> fresh_var "fix_"
 	    )
 	    names in
-	    (* translation of one inductive fixpoints *)
+	    (* translation of one inductive fixpoint *)
 	  let one_trans struct_arg_num name body_type body_term =
 	    (* declare the type of the fixpoint function *)
 	    add_decl (Declaration(Id name, type_trans_aux 
@@ -262,14 +262,22 @@ let rec term_trans_aux e t =
 				       body_type
 				       e.env_rel_context
 				    )));
+	    (*recursively applies all the variables in the context at
+	      the point of the fixpoint definition down to the recursive 
+	      variable, and creates a rule
+	      outside of the current context*)
 	    let env_vars, fix = 
 	      app_rel_context e (EVar(Id name)) in
 	    let rec make_rule e vars fix rhs = function
 		0, Prod(n, a, _) ->
 		  let s = get_identifier_env e n in
+		    (* adds s:Typeofs to the list of things to apply to
+		       the fixpoint*)
 		  let vars = List.rev_append vars 
 		    [Id s, type_trans_aux e a]
 		  in 
+		    (* This is the final case, apply the recursive variable 
+		       to f and create a rule f x1...xn --> rhs x1...xn*)
 		    add_decl(
 		      Rule(List.rev_append env_vars vars,
 			   EApp(fix, EVar (Id s)),
@@ -278,19 +286,30 @@ let rec term_trans_aux e t =
 	      | n, Prod(nom, a, t) -> 
 		  let s = get_identifier_env e nom in
 		  let e' = push_rel (nom, None, a) e in
+		    (*this is the not final case, apply the current variable
+		    to f x1...xi and to rhs and call yourself recursively*)
 		    make_rule e' ((Id s, type_trans_aux e a)::vars)
 		      (EApp(fix, EVar (Id s)))
 		      (EApp(rhs, EVar (Id s)))
 		      (n-1, t)
 	      | _ -> failwith "fixpoint translation: ill-formed type"
 	    in
+	      (*Here we need to give the right parameters to 
+		make_rule*)
 	    let n = List.length e.env_rel_context in
+	      (*the variable arguments to pass to fix have de bruijn
+		indices from 0 to n*)
 	    let rel_args = Array.init n (fun i -> Rel (n - i)) in
+	      (*rhs_env  adds the names of the mutually defined recursive
+		functions in the context for the rhs*)
 	    let _,rhs_env = Array.fold_left 
 	      (fun (i,e) n ->
 		 i+1, push_named (n, None, body_types.(i)) e)
 	      (0,e) names
 	    in
+	      (*We use the afordefined context to replace the indexes in the
+		rhs that refer to recursive calls (the rhs is typed in the
+		context with the recursive functions and their types)*)
 	    let sigma = Array.fold_left 
 	      (fun l n -> App(Var n, rel_args)::l) [] names
 	    in
@@ -298,11 +317,13 @@ let rec term_trans_aux e t =
 	    in
 	      make_rule e [] fix rhs (struct_arg_num, body_type)
 	  in
+	    (* And we iterate this process over the body of every *)
 	    Array.iteri 
 	      (fun i struct_arg_num ->
 		 one_trans struct_arg_num names.(i) 
 		   body_types.(i) body_terms.(i)) 
 	      struct_arg_nums;
+	    (*what happen?*)
 	    snd (app_rel_context e (EVar(Id names.(num_def))))
 	      
       | CoFix   _  -> raise NotImplementedYet
@@ -381,14 +402,20 @@ let sb_decl_trans label (name, decl) = match decl with
   | SFBmind m ->
       if not m.mind_finite 
       then prerr_endline "mind_translation: coinductive types may not work properly";
+      (* Add the mutual inductive type declaration to the environment*)
       base_env := Environ.add_mind (Names.MPself label,[],name) m !base_env;
-      let mind_names, env = 
+      (* the names and typing context of the inductive type *)
+      let mind_names, env =
 	let l = ref []
 	and e = ref 
 	  (Environ.add_constraints m.mind_constraints !base_env) 
 	in
 	  for i = 0 to Array.length m.mind_packets - 1 do
 	    let p = m.mind_packets.(i) in
+	      (* for each packet=group of mutal inductive type definitions
+		 "p", add the name of the inductive type to l and the
+		 declaration of the inductive type with it's kind to the
+		 environment*)
 	      l := Ind((Names.MPself label, [], name), i)::!l;
 	      e := Environ.push_rel (Names.Name p.mind_typename, None, 
 				     match p.mind_arity with
@@ -398,10 +425,14 @@ let sb_decl_trans label (name, decl) = match decl with
 	  done;
 	  !l,!e
       in
+	(*add the inductive type declarations in dedukti *)
 	Array.iter
 	  (fun p -> output_line stdout
-	     (Declaration(Id p.mind_typename, 
-			  type_trans_aux env 
+	     (Declaration(Id p.mind_typename,
+			  type_trans_aux env
+			    (*it_mkProd_or_LetIn takes a term t and a context
+			    x1:T1...xn:Tn and builds
+			    Pi x1:T1...Pi xn:Tn. t*)
 			    (it_mkProd_or_LetIn
 			       (Sort (match p.mind_arity with
 					  Monomorphic ar ->  ar.mind_sort
@@ -411,10 +442,13 @@ let sb_decl_trans label (name, decl) = match decl with
 			    ))))
 	  m.mind_packets;
 	let packet_translation p i = 
+	  (*Ad the constructors to the environment *)
 	let _,env = Array.fold_left 
 	  (fun (j, env) consname ->
 	     j + 1,
 	     Environ.push_named (consname, None, substl mind_names p.mind_nf_lc.(j)) env) (0, env) p.mind_consnames in
+	  (* We need to remove the Parameter arguments from the type of
+	     the constructors ??*)
 	let rec make_constr_func_type cons_name num_treated num_args = 
 	  function 
 	      0, t -> make_constr_func_type cons_name num_treated num_args (-1,lift num_treated t)
