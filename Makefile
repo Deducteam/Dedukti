@@ -21,7 +21,7 @@ MCHECKERLOCAL :=\
   check_stat.cmo checker.cmo 
 
 MCHECKER:=\
-  $(COQSRC)/config/coq_config.cmo \
+  $(COQSRC)/config/coqine_config.cmo \
   $(COQSRC)/lib/pp_control.cmo $(COQSRC)/lib/pp.cmo $(COQSRC)/lib/compat.cmo \
   $(COQSRC)/lib/flags.cmo $(COQSRC)/lib/util.cmo \
   $(COQSRC)/lib/option.cmo $(COQSRC)/lib/hashcons.cmo \

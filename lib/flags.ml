@@ -100,17 +100,17 @@ let browser_cmd_fmt =
   let coq_netscape_remote_var = "COQREMOTEBROWSER" in
   Sys.getenv coq_netscape_remote_var
  with
-  Not_found -> Coq_config.browser
+  Not_found -> Coqine_config.browser
 
 (* Options for changing coqlib *)
 let coqlib_spec = ref false
-let coqlib = ref Coq_config.coqlib
+let coqlib = ref Coqine_config.coqlib
 
 (* Options for changing camlbin (used by coqmktop) *)
 let camlbin_spec = ref false
-let camlbin = ref Coq_config.camlbin
+let camlbin = ref Coqine_config.camlbin
 
 (* Options for changing camlp4bin (used by coqmktop) *)
 let camlp4bin_spec = ref false
-let camlp4bin = ref Coq_config.camlp4bin
+let camlp4bin = ref Coqine_config.camlp4bin
 

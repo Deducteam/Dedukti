@@ -48,7 +48,7 @@ let get_version_date () =
     let ver = input_line ch in
     let rev = input_line ch in
       (ver,rev)
-  with _ -> (Coq_config.version,Coq_config.date)
+  with _ -> (Coqine_config.version,Coqine_config.date)
 
 let print_header () =
   let (ver,rev) = (get_version_date ()) in
@@ -167,8 +167,8 @@ let compile_files () =
 
 let version () =
   Printf.printf "The Coq Proof Checker, version %s (%s)\n"
-    Coq_config.version Coq_config.date;
-  Printf.printf "compiled on %s\n" Coq_config.compile_date;
+    Coqine_config.version Coqine_config.date;
+  Printf.printf "compiled on %s\n" Coqine_config.compile_date;
   exit 0
 
 (* print the usage of coqtop (or coqc) on channel co *)
