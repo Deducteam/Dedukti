@@ -66,6 +66,6 @@ depend::
 	ocamldep $(MLDIRS) -pp camlp5o config/*.{ml,mli} lib/*.{ml,mli} src/*.{ml,mli} > .depend
 
 clean::
-	rm -f *.cm* *.o *.a *~ $(BINARIES) lib/*.cm* src/*.cm* config/*.cm*
+	rm -f $(BINARIES) lib/*.{cm*,o,a} src/*.{cm*,o,a} config/*.{cm*,o,a}
 
 -include .depend
