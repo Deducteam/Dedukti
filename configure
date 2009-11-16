@@ -658,8 +658,8 @@ fi
 ##############################################
 
 mlconfig_file="$COQINESRC/config/coqine_config.ml"
-config_file="$COQINESRC/config/Makefile"
-config_template="$COQINESRC/config/Makefile.template"
+config_file="$COQINESRC/config/local.mk"
+config_template="$COQINESRC/config/local.mk.in"
 
 
 ### Warning !!
