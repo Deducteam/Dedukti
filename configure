@@ -107,8 +107,6 @@ bindir_spec=no
 libdir_spec=no
 mandir_spec=no
 docdir_spec=no
-emacslib_spec=no
-emacs_spec=no
 camldir_spec=no
 lablgtkdir_spec=no
 fsets=all
@@ -571,16 +569,12 @@ case $ARCH in
 	 libdir_def='C:\coqine\lib'
 	 mandir_def='C:\coqine\man'
 	 docdir_def='C:\coqine\doc'
-	 emacslib_def='C:\coqine\emacs'
   *)
 	 bindir_def=/usr/local/bin
 	 libdir_def=/usr/local/lib/coqine
 	 mandir_def=/usr/local/man
 	 docdir_def=/usr/local/share/doc/coqine
-	 emacslib_def=/usr/local/share/emacs/site-lisp
 esac
-
-emacs_def=emacs
 
 case $bindir_spec/$prefix_spec/$local in
     yes/*/*) BINDIR=$bindir ;;
@@ -733,7 +727,6 @@ case $ARCH in
 	CAMLLIB=`echo $CAMLLIB |sed -e 's|\\\|\\\\\\\|g'`
 	MANDIR=`echo $MANDIR |sed -e 's|\\\|\\\\\\\|g'`
 	DOCDIR=`echo $DOCDIR |sed -e 's|\\\|\\\\\\\|g'`
-	EMACSLIB=`echo $EMACSLIB |sed -e 's|\\\|\\\\\\\|g'`
 	CAMLP4BIN=`echo $CAMLP4BIN |sed -e 's|\\\|\\\\\\\|g'`
 	CAMLP4LIB=`echo $CAMLP4LIB |sed -e 's|\\\|\\\\\\\|g'`
 	LABLGTKINCLUDES=`echo $LABLGTKINCLUDES |sed -e 's|\\\|\\\\\\\|g'`
@@ -816,8 +809,6 @@ sed -e "s|LOCALINSTALLATION|$local|" \
     -e "s|BUILDLDPATH=|$BUILDLDPATH|" \
     -e "s|MANDIRDIRECTORY|$MANDIR|" \
     -e "s|DOCDIRDIRECTORY|$DOCDIR|" \
-    -e "s|EMACSLIBDIRECTORY|$EMACSLIB|" \
-    -e "s|EMACSCOMMAND|$EMACS|" \
     -e "s|MKTEXLSRCOMMAND|$MKTEXLSR|" \
     -e "s|ARCHITECTURE|$ARCH|" \
     -e "s|OSDEPENDENTLIBS|$OSDEPLIBS|" \
