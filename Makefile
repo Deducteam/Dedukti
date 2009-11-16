@@ -1,60 +1,42 @@
-OCAMLC=ocamlc
-OCAMLOPT=ocamlopt
+-include config/local.mk
 
-COQSRC=.
+COQINESRC=.
 
-MLDIRS=-I $(COQSRC)/config -I $(COQSRC)/lib -I $(COQSRC)/kernel -I +camlp5
+MLDIRS=-I $(COQINESRC)/config -I $(COQINESRC)/lib -I $(COQINESRC)/src -I +camlp5
 BYTEFLAGS=$(MLDIRS) -pp camlp5o -g
 OPTFLAGS=$(MLDIRS) -pp camlp5o
 
-CHECKERNAME=coqchk
+BINARIES=./bin/coqine.byte$(EXE) ./bin/coqine$(EXE)
 
-BINARIES=./bin/$(CHECKERNAME)$(EXE) ./bin/$(CHECKERNAME).opt$(EXE)
-MCHECKERLOCAL :=\
-  declarations.cmo environ.cmo \
-  closure.cmo reduction.cmo \
-  type_errors.cmo \
-  modops.cmo \
-  inductive.cmo typeops.cmo \
-  indtypes.cmo subtyping.cmo mod_checking.cmo \
-  safe_typing.cmo check.cmo \
-  check_stat.cmo checker.cmo 
-
-MCHECKER:=\
-  $(COQSRC)/config/coqine_config.cmo \
-  $(COQSRC)/lib/pp_control.cmo $(COQSRC)/lib/pp.cmo $(COQSRC)/lib/compat.cmo \
-  $(COQSRC)/lib/flags.cmo $(COQSRC)/lib/util.cmo \
-  $(COQSRC)/lib/option.cmo $(COQSRC)/lib/hashcons.cmo \
-  $(COQSRC)/lib/system.cmo \
-  $(COQSRC)/lib/predicate.cmo $(COQSRC)/lib/rtree.cmo \
-  $(COQSRC)/kernel/names.cmo $(COQSRC)/kernel/univ.cmo \
-  $(COQSRC)/kernel/envars.cmo \
-  validate.cmo \
-  $(COQSRC)/kernel/esubst.cmo term.cmo \
-  $(MCHECKERLOCAL)
+COQINECMA:= \
+	config/coqine_config.cmo \
+	$(addprefix lib/, \
+		pp_control.cmo pp.cmo compat.cmo flags.cmo util.cmo \
+		option.cmo hashcons.cmo system.cmo predicate.cmo rtree.cmo \
+		envars.cmo ) \
+	$(addprefix src/, \
+		names.cmo univ.cmo validate.cmo esubst.cmo term.cmo \
+		declarations.cmo environ.cmo closure.cmo reduction.cmo \
+		type_errors.cmo modops.cmo inductive.cmo typeops.cmo indtypes.cmo \
+		subtyping.cmo mod_checking.cmo safe_typing.cmo check.cmo ) \
+	$(addprefix src/, euTerms.cmo coqine.cmo )
 
 all: $(BINARIES)
 
-byte : ./bin/$(CHECKERNAME)$(EXE)
-opt : ./bin/$(CHECKERNAME).opt$(EXE)
+byte : ./bin/coqine.byte$(EXE)
+opt : ./bin/coqine$(EXE)
 
-check.cma: $(MCHECKER)
-	ocamlc $(BYTEFLAGS) -a -o $@ $(MCHECKER)
+src/coqine.cma: $(COQINECMA)
+	ocamlc $(BYTEFLAGS) -a -o $@ $(COQINECMA)
 
-check.cmxa: $(MCHECKER:.cmo=.cmx)
-	ocamlopt $(OPTFLAGS) -a -o $@ $(MCHECKER:.cmo=.cmx)
+src/coqine.cmxa: $(COQINECMA:.cmo=.cmx)
+	ocamlopt $(OPTFLAGS) -a -o $@ $(COQINECMA:.cmo=.cmx)
 
-./bin/$(CHECKERNAME)$(EXE): check.cma
-	ocamlc $(BYTEFLAGS) -o $@ unix.cma gramlib.cma check.cma main.ml
+./bin/coqine.byte$(EXE): src/coqine.cma
+	ocamlc $(BYTEFLAGS) -o $@ unix.cma gramlib.cma src/coqine.cma src/main.ml
 
-./bin/$(CHECKERNAME).opt$(EXE): check.cmxa
-	ocamlopt $(OPTFLAGS) -o $@ unix.cmxa gramlib.cmxa check.cmxa main.ml
-
-essai: $(MCHECKER) essai.cmo
-	ocamlc $(BYTEFLAGS) -o $@ unix.cma gramlib.cma $(MCHECKER) essai.cmo
-
-parse: $(MCHECKER) parse.cmo
-	ocamlc $(BYTEFLAGS) -o $@ unix.cma gramlib.cma $(MCHECKER) parse.cmo
+./bin/coqine$(EXE): src/coqine.cmxa
+	ocamlopt $(OPTFLAGS) -o $@ unix.cmxa gramlib.cmxa src/coqine.cmxa src/main.ml
 
 stats:
 	@echo STRUCTURE
@@ -86,11 +68,10 @@ stats:
 .mli.cmi:
 	$(OCAMLC) -c $(BYTEFLAGS) $<
 
-
 depend::
-	ocamldep $(MLDIRS) -pp camlp5o config/*.{ml,mli} kernel/*.{ml,mli} lib/*.{ml,mli} *.{ml,mli} > .depend
+	ocamldep $(MLDIRS) -pp camlp5o config/*.{ml,mli} lib/*.{ml,mli} src/*.{ml,mli} > .depend
 
 clean::
-	rm -f *.cm* *.o *.a *~ $(BINARIES) lib/*.cm* kernel/*.cm* config/*.cm*
+	rm -f *.cm* *.o *.a *~ $(BINARIES) lib/*.cm* src/*.cm* config/*.cm*
 
 -include .depend
