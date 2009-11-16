@@ -43,8 +43,8 @@ let (/) = Filename.concat
 
 let get_version_date () =
   try
-    let coqlib = Envars.coqlib () in 
-    let ch = open_in (Filename.concat coqlib "revision") in
+    let coqinelib = Envars.coqinelib () in 
+    let ch = open_in (Filename.concat coqinelib "revision") in
     let ver = input_line ch in
     let rev = input_line ch in
       (ver,rev)
@@ -111,9 +111,9 @@ let set_rec_include d p =
 
 (* Initializes the LoadPath *)
 let init_load_path () =
-  let coqlib = Envars.coqlib () in
-  let user_contrib = coqlib/"user-contrib" in
-  let plugins = coqlib/"plugins" in
+  let coqinelib = Envars.coqinelib () in
+  let user_contrib = coqinelib/"user-contrib" in
+  let plugins = coqinelib/"plugins" in
   (* first user-contrib *)
   if Sys.file_exists user_contrib then 
     add_rec_path user_contrib Check.default_root_prefix;
@@ -122,9 +122,9 @@ let init_load_path () =
   (* then standard library *)
 (*  List.iter 
     (fun (s,alias) ->
-      add_rec_path (coqlib/s) ([alias; coq_root])) 
+      add_rec_path (coqinelib/s) ([alias; coq_root])) 
     theories_dirs_map;*)
-  add_rec_path (coqlib/"theories") (Names.make_dirpath[coq_root]);
+  add_rec_path (coqinelib/"theories") (Names.make_dirpath[coq_root]);
   (* then current directory *)
   add_path "." Check.default_root_prefix;
   (* additional loadpath, given with -I -include -R options *)
@@ -320,7 +320,7 @@ let parse_args() =
     | "-debug" :: rem -> set_debug (); parse rem
 
     | "-where" :: _ ->
-        print_endline (Envars.coqlib ()); exit 0
+        print_endline (Envars.coqinelib ()); exit 0
 
     | ("-?"|"-h"|"-H"|"-help"|"--help") :: _ -> usage ()
 

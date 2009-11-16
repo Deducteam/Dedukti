@@ -6,8 +6,8 @@
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-val coqlib : unit -> string
-val coqbin : unit -> string
+val coqinelib : unit -> string
+val coqinebin : unit -> string
 
 val camlbin : unit -> string
 val camlp4bin : unit -> string

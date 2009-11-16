@@ -7,29 +7,29 @@
 (************************************************************************)
 
 (* This file gathers environment variables needed by Coq to run (such
-   as coqlib) *)
+   as coqinelib) *)
 
-let coqbin () = 
+let coqinebin () = 
   if !Flags.boot || Coqine_config.local
-  then Filename.concat Coqine_config.coqsrc "bin"
+  then Filename.concat Coqine_config.coqinesrc "bin"
   else System.canonical_path_name (Filename.dirname Sys.executable_name)
 
-let guess_coqlib () = 
+let guess_coqinelib () = 
   let file = "states/initial.coq" in
-    if Sys.file_exists (Filename.concat Coqine_config.coqlib file) 
-    then Coqine_config.coqlib
+    if Sys.file_exists (Filename.concat Coqine_config.coqinelib file) 
+    then Coqine_config.coqinelib
     else 
       let coqbin = System.canonical_path_name (Filename.dirname Sys.executable_name) in
       let prefix = Filename.dirname coqbin in
       let rpath = if Coqine_config.local then [] else 
 	  (if Coqine_config.arch = "win32" then ["lib"] else ["lib";"coq"]) in
-      let coqlib = List.fold_left Filename.concat prefix rpath in
-	if Sys.file_exists (Filename.concat coqlib file) then coqlib else
-	  Util.error "cannot guess a path for Coq libraries; please use -coqlib option"
+      let coqinelib = List.fold_left Filename.concat prefix rpath in
+	if Sys.file_exists (Filename.concat coqinelib file) then coqinelib else
+	  Util.error "cannot guess a path for Coq libraries; please use -coqinelib option"
 	  
-let coqlib () = 
-  if !Flags.coqlib_spec then !Flags.coqlib else
-    (if !Flags.boot then Coqine_config.coqsrc else guess_coqlib ())
+let coqinelib () = 
+  if !Flags.coqinelib_spec then !Flags.coqinelib else
+    (if !Flags.boot then Coqine_config.coqinesrc else guess_coqinelib ())
 
 let path_to_list p =
   let sep = if Sys.os_type = "Win32" then ';' else ':' in
