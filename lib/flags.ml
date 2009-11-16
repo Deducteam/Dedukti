@@ -102,9 +102,9 @@ let browser_cmd_fmt =
  with
   Not_found -> Coqine_config.browser
 
-(* Options for changing coqlib *)
-let coqlib_spec = ref false
-let coqlib = ref Coqine_config.coqlib
+(* Options for changing coqinelib *)
+let coqinelib_spec = ref false
+let coqinelib = ref Coqine_config.coqinelib
 
 (* Options for changing camlbin (used by coqmktop) *)
 let camlbin_spec = ref false

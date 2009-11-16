@@ -74,9 +74,9 @@ val browser_cmd_fmt : string
 (* Substitute %s in the first chain by the second chain *)
 val subst_command_placeholder : string -> string -> string
 
-(* Options for specifying where coq librairies reside *)
-val coqlib_spec : bool ref
-val coqlib : string ref
+(* Options for specifying where coqine librairies reside *)
+val coqinelib_spec : bool ref
+val coqinelib : string ref
 
 (* Options for specifying where OCaml binaries reside *)
 val camlbin_spec : bool ref
