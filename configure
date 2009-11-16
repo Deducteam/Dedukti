@@ -111,7 +111,6 @@ fsets=all
 reals=all
 arch_spec=no
 browser_spec=no
-with_geoproof=false
 with_doc=all
 with_doc_spec=no
 
@@ -775,7 +774,6 @@ let compile_date = "$COMPILEDATE"
 let vo_magic_number = $VOMAGIC
 let state_magic_number = $STATEMAGIC
 let exec_extension = "$EXE"
-let with_geoproof = ref $with_geoproof
 let browser = "$BROWSER"
 
 END_OF_COQINE_CONFIG
