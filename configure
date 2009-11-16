@@ -563,6 +563,7 @@ case $ARCH in
 	 libdir_def='C:\coqine\lib'
 	 mandir_def='C:\coqine\man'
 	 docdir_def='C:\coqine\doc'
+	 ;;
   *)
 	 bindir_def=/usr/local/bin
 	 libdir_def=/usr/local/lib/coqine
