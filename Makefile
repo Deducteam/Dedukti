@@ -40,22 +40,16 @@ src/coqine.cmxa: $(COQINECMA:.cmo=.cmx)
 
 stats:
 	@echo STRUCTURE
-	@wc names.ml term.ml declarations.ml environ.ml type_errors.ml
+	@cd src; wc names.ml term.ml declarations.ml environ.ml type_errors.ml
 	@echo
-	@echo REDUCTION
-	@-wc esubst.ml closure.ml reduction.ml
-	@echo
-	@echo TYPAGE
-	@wc univ.ml inductive.ml indtypes.ml typeops.ml safe_typing.ml
-	@echo
-	@echo MODULES
-	@wc modops.ml subtyping.ml
+	@echo COQINE
+	@cd src; wc coqine.ml euTerms.ml
 	@echo
 	@echo INTERFACE
-	@wc check*.ml main.ml 
+	@cd src; wc main.ml 
 	@echo
 	@echo TOTAL
-	@wc *.ml | tail -1
+	@cd src; wc *.ml | tail -1
 
 .SUFFIXES:.ml .mli .cmi .cmo .cmx
 
