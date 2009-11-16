@@ -112,7 +112,6 @@ lablgtkdir_spec=no
 fsets=all
 reals=all
 arch_spec=no
-coqineide_spec=no
 browser_spec=no
 with_geoproof=false
 with_doc=all
@@ -771,11 +770,9 @@ let camlp4o = "$camlp4oexec"
 let camlp4bin = "$CAMLP4BIN"
 let camlp4lib = "$CAMLP4LIB"
 let camlp4compat = "$CAMLP4COMPAT"
-let coqineideincl = "$LABLGTKINCLUDES"
 let cflags = "$cflags"
 let best = "$best_compiler"
 let arch = "$ARCH"
-let has_coqineide = "$COQINEIDE"
 let has_natdynlink = $HASNATDYNLINK
 let natdynlinkflag = "$NATDYNLINKFLAG"
 let osdeplibs = "$OSDEPLIBS"
@@ -843,7 +840,6 @@ sed -e "s|LOCALINSTALLATION|$local|" \
     -e "s|STRIPCOMMAND|$STRIPCOMMAND|" \
     -e "s|FSETSOPT|$fsets|" \
     -e "s|REALSOPT|$reals|" \
-    -e "s|COQINEIDEOPT|$COQINEIDE|" \
     -e "s|CHECKEDOUTSOURCETREE|$checkedout|" \
     -e "s|WITHDOCOPT|$with_doc|" \
     -e "s|HASNATIVEDYNLINK|$NATDYNLINKFLAG|" \
