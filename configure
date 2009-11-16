@@ -16,15 +16,15 @@ test -d bin || mkdir bin
 
 # a local which command for sh
 which () {
-IFS=":" # set words separator in PATH to be ':' (it allows spaces in dirnames)
-for i in $PATH; do
-  if test -z "$i"; then i=.; fi 
-  if [ -f "$i/$1" ] ; then
-	IFS=" "
-        echo "$i/$1"
-	break
-  fi
-done
+    IFS=":" # set words separator in PATH to be ':' (it allows spaces in dirnames)
+    for i in $PATH; do
+	if test -z "$i"; then i=.; fi 
+	if [ -f "$i/$1" ] ; then
+            echo "$i/$1"
+	    break
+	fi
+    done
+    IFS=" "
 }
 
 usage () {
