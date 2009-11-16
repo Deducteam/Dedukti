@@ -2,7 +2,7 @@
 
 ##################################
 #
-#  Configuration script for Coq
+#  Configuration script for Coqine
 # 
 ##################################
 
@@ -35,10 +35,8 @@ usage () {
     printf "\tSet installation directory to <dir>\n"
     echo "-local"
     printf "\tSet installation directory to the current source tree\n"
-    echo "-coqrunbyteflags"
-    printf "\tSet link flags for VM-dependent bytecode (coqtop)\n"
-    echo "-coqtoolsbyteflags"
-    printf "\tSet link flags for VM-independant bytecode (coqdep, coqdoc, ...)\n"
+    echo "-coqinerunbyteflags"
+    printf "\tSet link flags for VM-dependent bytecode (coqine)\n"
     echo "-custom"
     printf "\tGenerate all bytecode executables with -custom (not recommended)\n"
     echo "-src"
@@ -65,13 +63,13 @@ usage () {
     echo "-with-ranlib <file>"
     printf "\tTells configure where to find gcc/ar/ranlib executables\n"
     echo "-byte-only"
-    printf "\tCompiles only bytecode version of Coq\n"
+    printf "\tCompiles only bytecode version of Coqine\n"
     echo "-debug"
-    printf "\tAdd debugging information in the Coq executables\n"
+    printf "\tAdd debugging information in the Coqine executables\n"
     echo "-profile"
-    printf "\tAdd profiling information in the Coq executables\n"
+    printf "\tAdd profiling information in the Coqine executables\n"
     echo "-annotate"
-    printf "\tCompiles Coq with -dtypes option\n"
+    printf "\tCompiles Coqine with -dtypes option\n"
 }
 
 
@@ -88,10 +86,10 @@ ocamlmktopexec=ocamlmktop
 camlp4oexec=camlp4o
 
 
-coq_debug_flag=
-coq_debug_flag_opt=
-coq_profile_flag=
-coq_annotate_flag=
+coqine_debug_flag=
+coqine_debug_flag_opt=
+coqine_profile_flag=
+coqine_annotate_flag=
 best_compiler=opt
 cflags="-fno-defer-pop -Wall -Wno-unused"
 natdynlink=yes
@@ -101,8 +99,8 @@ ar_exec=ar
 ranlib_exec=ranlib
 
 local=false
-coqrunbyteflags_spec=no
-coqtoolsbyteflags_spec=no
+coqinerunbyteflags_spec=no
+coqinetoolsbyteflags_spec=no
 custom_spec=no
 src_spec=no
 prefix_spec=no
@@ -114,17 +112,17 @@ emacslib_spec=no
 emacs_spec=no
 camldir_spec=no
 lablgtkdir_spec=no
-coqdocdir_spec=no
+coqinedocdir_spec=no
 fsets=all
 reals=all
 arch_spec=no
-coqide_spec=no
+coqineide_spec=no
 browser_spec=no
 with_geoproof=false
 with_doc=all
 with_doc_spec=no
 
-COQSRC=`pwd`
+COQINESRC=`pwd`
 
 # Parse command-line arguments
 
@@ -137,16 +135,16 @@ while : ; do
                       prefix="$2"
 		      shift;;
     -local|--local) local=true;;
-    -coqrunbyteflags|--coqrunbyteflags) coqrunbyteflags_spec=yes
-                                        coqrunbyteflags="$2"
+    -coqinerunbyteflags|--coqinerunbyteflags) coqinerunbyteflags_spec=yes
+                                        coqinerunbyteflags="$2"
                                         shift;;
-    -coqtoolsbyteflags|--coqtoolsbyteflags) coqtoolsbyteflags_spec=yes
-                                            coqtoolsbyteflags="$2"
+    -coqinetoolsbyteflags|--coqinetoolsbyteflags) coqinetoolsbyteflags_spec=yes
+                                            coqinetoolsbyteflags="$2"
                                             shift;;
     -custom|--custom) custom_spec=yes
                       shift;;
     -src|--src) src_spec=yes
-                COQSRC="$2"
+                COQINESRC="$2"
 	        shift;;
     -bindir|--bindir) bindir_spec=yes
                       bindir="$2"
@@ -160,8 +158,8 @@ while : ; do
     -docdir|--docdir) docdir_spec=yes
                       docdir="$2"
 		      shift;;
-    -coqdocdir|--coqdocdir) coqdocdir_spec=yes
-	              coqdocdir="$2"
+    -coqinedocdir|--coqinedocdir) coqinedocdir_spec=yes
+	              coqinedocdir="$2"
 		      shift;;
     -camldir|--camldir) camldir_spec=yes
 	                camldir="$2"
@@ -199,9 +197,9 @@ while : ; do
 	  ranlib_exec=$2
 	  shift;;
     -byte-only|-byteonly|--byteonly|--byte-only) best_compiler=byte;;
-    -debug|--debug) coq_debug_flag=-g;;
-    -profile|--profile) coq_profile_flag=-p;;
-    -annotate|--annotate) coq_annotate_flag=-dtypes;;
+    -debug|--debug) coqine_debug_flag=-g;;
+    -profile|--profile) coqine_profile_flag=-p;;
+    -annotate|--annotate) coqine_annotate_flag=-dtypes;;
     *) echo "Unknown option \"$1\"." 1>&2; usage; exit 2;;
   esac
   shift
@@ -381,7 +379,7 @@ esac
 
 CAMLTAG=OCAML`echo $CAMLVERSION | sed -e "s/\([1-9]\)\.\([0-9]*\).*/\1\2/g"`
 
-# For coqmktop & bytecode compiler
+# For coqinemktop & bytecode compiler
 
 case $ARCH in
     win32) # Awfull trick to get around a ^M problem at the end of CAMLLIB
@@ -396,11 +394,11 @@ case  $CAMLVERSION in
 	  cflags="$cflags -DOCAML_307";;
 esac
 
-if [ "$coq_debug_flag" = "-g" ]; then
+if [ "$coqine_debug_flag" = "-g" ]; then
     case $CAMLTAG in
         OCAML31*)
             # Compilation debug flag
-            coq_debug_flag_opt="-g"
+            coqine_debug_flag_opt="-g"
             ;;
     esac
 fi
@@ -488,12 +486,12 @@ if [ "$best_compiler" = "opt" ] ; then
 	      3.09.3|3.1?*) ;;
 	      *) echo "Native compilation on MacOS X Pentium requires Objective-Caml >= 3.09.3,"
 		 best_compiler=byte
-		 echo "only the bytecode version of Coq will be available."
+		 echo "only the bytecode version of Coqine will be available."
 	  esac
       elif [ ! -f $FULLCAMLP4LIB/gramlib.cmxa ]; then
 	  best_compiler=byte
 	  echo "Cannot find native-code $CAMLP4,"
-	  echo "only the bytecode version of Coq will be available."
+	  echo "only the bytecode version of Coqine will be available."
       else
         if [ "$CAMLOPTVERSION" != "$CAMLVERSION" ] ; then
 	  echo "Native and bytecode compilers do not have the same version!"
@@ -530,7 +528,7 @@ case $ARCH in
 	# true -> strip : it exists under cygwin !
 	STRIPCOMMAND="strip";; 
     *)
-    if [ "$coq_profile_flag" = "-p" ] || [ "$coq_debug_flag" = "-g" ] ||
+    if [ "$coqine_profile_flag" = "-p" ] || [ "$coqine_debug_flag" = "-g" ] ||
        [ "`uname -s`" = "Darwin" -a "$HASNATDYNLINK" = "true" ]
     then
 	STRIPCOMMAND="true"
@@ -567,29 +565,29 @@ fi
 # bindir, libdir, mandir, docdir, etc.
 
 case $src_spec in
-  no) COQTOP=${COQSRC}
+  no) COQINETOP=${COQINESRC}
 esac
 
 # OCaml only understand Windows filenames (C:\...)
 case $ARCH in
-    win32) COQTOP=`cygpath -m ${COQTOP}`
+    win32) COQINETOP=`cygpath -m ${COQINETOP}`
 esac
 
 case $ARCH in
   win32)
-	 bindir_def='C:\coq\bin'
-	 libdir_def='C:\coq\lib'
-	 mandir_def='C:\coq\man'
-	 docdir_def='C:\coq\doc'
-	 emacslib_def='C:\coq\emacs'
-         coqdocdir_def='C:\coq\latex';;
+	 bindir_def='C:\coqine\bin'
+	 libdir_def='C:\coqine\lib'
+	 mandir_def='C:\coqine\man'
+	 docdir_def='C:\coqine\doc'
+	 emacslib_def='C:\coqine\emacs'
+         coqinedocdir_def='C:\coqine\latex';;
   *)
 	 bindir_def=/usr/local/bin
-	 libdir_def=/usr/local/lib/coq
+	 libdir_def=/usr/local/lib/coqine
 	 mandir_def=/usr/local/man
-	 docdir_def=/usr/local/share/doc/coq
+	 docdir_def=/usr/local/share/doc/coqine
 	 emacslib_def=/usr/local/share/emacs/site-lisp
-         coqdocdir_def=/usr/local/share/texmf/tex/latex/misc;;
+         coqinedocdir_def=/usr/local/share/texmf/tex/latex/misc;;
 esac
 
 emacs_def=emacs
@@ -597,8 +595,8 @@ emacs_def=emacs
 case $bindir_spec/$prefix_spec/$local in
     yes/*/*) BINDIR=$bindir ;;
     */yes/*) BINDIR=$prefix/bin ;;
-    */*/true) BINDIR=$COQTOP/bin ;;
-    *) printf "Where should I install the Coq binaries [$bindir_def]? "
+    */*/true) BINDIR=$COQINETOP/bin ;;
+    *) printf "Where should I install the Coqine binaries [$bindir_def]? "
         read BINDIR
 	case $BINDIR in
 	    "") BINDIR=$bindir_def;;
@@ -611,10 +609,10 @@ case $libdir_spec/$prefix_spec/$local in
     */yes/*)
         case $ARCH in
           win32) LIBDIR=$prefix ;;
-          *)  LIBDIR=$prefix/lib/coq ;;
+          *)  LIBDIR=$prefix/lib/coqine ;;
         esac ;;
-    */*/true) LIBDIR=$COQTOP ;;
-    *)  printf "Where should I install the Coq library [$libdir_def]? "
+    */*/true) LIBDIR=$COQINETOP ;;
+    *)  printf "Where should I install the Coqine library [$libdir_def]? "
         read LIBDIR
 	case $LIBDIR in
 	    "") LIBDIR=$libdir_def;;
@@ -625,8 +623,8 @@ esac
 case $mandir_spec/$prefix_spec/$local in
     yes/*/*) MANDIR=$mandir;;
     */yes/*) MANDIR=$prefix/man ;;
-    */*/true) MANDIR=$COQTOP/man ;;
-    *)  printf "Where should I install the Coq man pages [$mandir_def]? "
+    */*/true) MANDIR=$COQINETOP/man ;;
+    *)  printf "Where should I install the Coqine man pages [$mandir_def]? "
         read MANDIR
 	case $MANDIR in
 	    "") MANDIR=$mandir_def;;
@@ -636,9 +634,9 @@ esac
 
 case $docdir_spec/$prefix_spec/$local in
     yes/*/*) DOCDIR=$docdir;;
-    */yes/*) DOCDIR=$prefix/share/doc/coq ;;
-    */*/true) DOCDIR=$COQTOP/man ;;
-    *)  printf "Where should I install the Coq documentation [$docdir_def]? "
+    */yes/*) DOCDIR=$prefix/share/doc/coqine ;;
+    */*/true) DOCDIR=$COQINETOP/man ;;
+    *)  printf "Where should I install the Coqine documentation [$docdir_def]? "
         read DOCDIR
 	case $DOCDIR in
 	    "") DOCDIR=$docdir_def;;
@@ -646,18 +644,18 @@ case $docdir_spec/$prefix_spec/$local in
 	esac;;
 esac
 
-case $coqdocdir_spec/$prefix_spec/$local in
-    yes/*/*) COQDOCDIR=$coqdocdir;;
+case $coqinedocdir_spec/$prefix_spec/$local in
+    yes/*/*) COQINEDOCDIR=$coqinedocdir;;
     */yes/*)
         case $ARCH in
-          win32) COQDOCDIR=$prefix/latex ;;
-          *)  COQDOCDIR=$prefix/share/emacs/site-lisp ;;
+          win32) COQINEDOCDIR=$prefix/latex ;;
+          *)  COQINEDOCDIR=$prefix/share/emacs/site-lisp ;;
         esac ;;
-    */*/true) COQDOCDIR=$COQTOP/tools/coqdoc ;;
-    *) printf "Where should I install Coqdoc TeX/LaTeX files [$coqdocdir_def]? "
-        read COQDOCDIR
-	case $COQDOCDIR in
-	    "") COQDOCDIR=$coqdocdir_def;;
+    */*/true) COQINEDOCDIR=$COQINETOP/tools/coqinedoc ;;
+    *) printf "Where should I install Coqinedoc TeX/LaTeX files [$coqinedocdir_def]? "
+        read COQINEDOCDIR
+	case $COQINEDOCDIR in
+	    "") COQINEDOCDIR=$coqinedocdir_def;;
 	    *) true;;
 	esac;;
 esac
@@ -669,31 +667,31 @@ if [ "$ARCH" = "win32" ] || [ "`uname -s`" = "Darwin" ]; then
 fi
 
 BUILDLDPATH="# you might want to set CAML_LD_LIBRARY_PATH by hand!"
-case $coqrunbyteflags_spec/$local/$custom_spec/$CUSTOM_OS in
-    yes/*/*/*) COQRUNBYTEFLAGS="$coqrunbyteflags";;
-    */*/yes/*|*/*/*/yes) COQRUNBYTEFLAGS="-custom";;
-    */true/*/*) COQRUNBYTEFLAGS="-dllib -lcoqrun -dllpath '$COQTOP'/kernel/byterun";;
+case $coqinerunbyteflags_spec/$local/$custom_spec/$CUSTOM_OS in
+    yes/*/*/*) COQINERUNBYTEFLAGS="$coqinerunbyteflags";;
+    */*/yes/*|*/*/*/yes) COQINERUNBYTEFLAGS="-custom";;
+    */true/*/*) COQINERUNBYTEFLAGS="-dllib -lcoqinerun -dllpath '$COQINETOP'/kernel/byterun";;
     *)
-        COQRUNBYTEFLAGS="-dllib -lcoqrun -dllpath '$LIBDIR'"
-        BUILDLDPATH="export CAML_LD_LIBRARY_PATH='$COQTOP'/kernel/byterun";;
+        COQINERUNBYTEFLAGS="-dllib -lcoqinerun -dllpath '$LIBDIR'"
+        BUILDLDPATH="export CAML_LD_LIBRARY_PATH='$COQINETOP'/kernel/byterun";;
 esac
-case $coqtoolsbyteflags_spec/$custom_spec/$CUSTOM_OS in
-    yes/*/*) COQTOOLSBYTEFLAGS="$coqtoolsbyteflags";;
-    */yes/*|*/*/yes) COQTOOLSBYTEFLAGS="-custom";;
-    *) COQTOOLSBYTEFLAGS="";;
+case $coqinetoolsbyteflags_spec/$custom_spec/$CUSTOM_OS in
+    yes/*/*) COQINETOOLSBYTEFLAGS="$coqinetoolsbyteflags";;
+    */yes/*|*/*/yes) COQINETOOLSBYTEFLAGS="-custom";;
+    *) COQINETOOLSBYTEFLAGS="";;
 esac
 
 ###########################################
 # Summary of the configuration
 
 echo ""
-echo "  Coq top directory                 : $COQTOP"
+echo "  Coqine top directory                 : $COQINETOP"
 echo "  Architecture                      : $ARCH"
 if test ! -z "$OS" ; then
   echo "  Operating system                  : $OS"
 fi
-echo "  Coq VM bytecode link flags        : $COQRUNBYTEFLAGS"
-echo "  Coq tools bytecode link flags     : $COQTOOLSBYTEFLAGS"
+echo "  Coqine VM bytecode link flags        : $COQINERUNBYTEFLAGS"
+echo "  Coqine tools bytecode link flags     : $COQINETOOLSBYTEFLAGS"
 echo "  OS dependent libraries            : $OSDEPLIBS"
 echo "  Objective-Caml/Camlp4 version     : $CAMLVERSION"
 echo "  Objective-Caml/Camlp4 binaries in : $CAMLBIN"
@@ -716,33 +714,33 @@ echo "    documentation will be copied in $DOCDIR"
 echo ""
 
 ##################################################
-# Building the $COQTOP/dev/ocamldebug-coq file
+# Building the $COQINETOP/dev/ocamldebug-coqine file
 ##################################################
 
-OCAMLDEBUGCOQ=$COQSRC/dev/ocamldebug-coq
+OCAMLDEBUGCOQINE=$COQINESRC/dev/ocamldebug-coqine
 
-if test "$coq_debug_flag" = "-g" ; then
-  rm -f $OCAMLDEBUGCOQ
-  sed -e "s|COQTOPDIRECTORY|$COQTOP|" \
-      -e "s|COQLIBDIRECTORY|$LIBDIR|" \
+if test "$coqine_debug_flag" = "-g" ; then
+  rm -f $OCAMLDEBUGCOQINE
+  sed -e "s|COQINETOPDIRECTORY|$COQINETOP|" \
+      -e "s|COQINELIBDIRECTORY|$LIBDIR|" \
       -e "s|CAMLBINDIRECTORY|$CAMLBIN|" \
       -e "s|CAMLP4LIBDIRECTORY|$FULLCAMLP4LIB|"\
-      $OCAMLDEBUGCOQ.template > $OCAMLDEBUGCOQ
-  chmod a-w,a+x $OCAMLDEBUGCOQ
+      $OCAMLDEBUGCOQINE.template > $OCAMLDEBUGCOQINE
+  chmod a-w,a+x $OCAMLDEBUGCOQINE
 fi
 
 ##############################################
 # Creation of configuration files
 ##############################################
 
-mlconfig_file="$COQSRC/config/coq_config.ml"
-config_file="$COQSRC/config/Makefile"
-config_template="$COQSRC/config/Makefile.template"
+mlconfig_file="$COQINESRC/config/coqine_config.ml"
+config_file="$COQINESRC/config/Makefile"
+config_template="$COQINESRC/config/Makefile.template"
 
 
 ### Warning !!
 ### After this line, be careful when using variables,
-### since some of them (e.g. $COQSRC) will be escaped
+### since some of them (e.g. $COQINESRC) will be escaped
 
 
 # An escaped version of a variable
@@ -759,21 +757,21 @@ BROWSER=`VAR=BROWSER escape_var`
 # damned backslashes under M$Windows
 case $ARCH in
     win32)
-	COQTOP=`echo $COQTOP |sed -e 's|\\\|\\\\\\\|g'`
+	COQINETOP=`echo $COQINETOP |sed -e 's|\\\|\\\\\\\|g'`
 	BINDIR=`echo $BINDIR |sed -e 's|\\\|\\\\\\\|g'`
-	COQSRC=`cygpath -m $COQSRC |sed -e 's|\\\|\\\\\\\|g'`
+	COQINESRC=`cygpath -m $COQINESRC |sed -e 's|\\\|\\\\\\\|g'`
 	LIBDIR=`echo $LIBDIR |sed -e 's|\\\|\\\\\\\|g'`
 	CAMLBIN=`echo $CAMLBIN |sed -e 's|\\\|\\\\\\\|g'`
 	CAMLLIB=`echo $CAMLLIB |sed -e 's|\\\|\\\\\\\|g'`
 	MANDIR=`echo $MANDIR |sed -e 's|\\\|\\\\\\\|g'`
 	DOCDIR=`echo $DOCDIR |sed -e 's|\\\|\\\\\\\|g'`
 	EMACSLIB=`echo $EMACSLIB |sed -e 's|\\\|\\\\\\\|g'`
-	COQDOCDIR=`echo $COQDOCDIR |sed -e 's|\\\|\\\\\\\|g'`
+	COQINEDOCDIR=`echo $COQINEDOCDIR |sed -e 's|\\\|\\\\\\\|g'`
 	CAMLP4BIN=`echo $CAMLP4BIN |sed -e 's|\\\|\\\\\\\|g'`
 	CAMLP4LIB=`echo $CAMLP4LIB |sed -e 's|\\\|\\\\\\\|g'`
 	LABLGTKINCLUDES=`echo $LABLGTKINCLUDES |sed -e 's|\\\|\\\\\\\|g'`
-	COQRUNBYTEFLAGS=`echo $COQRUNBYTEFLAGS |sed -e 's|\\\|\\\\\\\|g'`
-	COQTOOLSBYTEFLAGS=`echo $COQTOOLSBYTEFLAGS |sed -e 's|\\\|\\\\\\\|g'`
+	COQINERUNBYTEFLAGS=`echo $COQINERUNBYTEFLAGS |sed -e 's|\\\|\\\\\\\|g'`
+	COQINETOOLSBYTEFLAGS=`echo $COQINETOOLSBYTEFLAGS |sed -e 's|\\\|\\\\\\\|g'`
 	BUILDLDPATH=`echo $BUILDLDPATH |sed -e 's|\\\|\\\\\\\|g'`
 	ocamlexec=`echo $ocamlexec |sed -e 's|\\\|\\\\\\\|g'`
 	bytecamlc=`echo $bytecamlc |sed -e 's|\\\|\\\\\\\|g'`
@@ -788,17 +786,17 @@ case $ARCH in
 esac
 
 #####################################################
-# Building the $COQTOP/config/coq_config.ml file
+# Building the $COQINETOP/config/coqine_config.ml file
 #####################################################
 
 rm -f "$mlconfig_file"
-cat << END_OF_COQ_CONFIG > $mlconfig_file
+cat << END_OF_COQINE_CONFIG > $mlconfig_file
 (* DO NOT EDIT THIS FILE: automatically generated by ../configure *)
 
 let local = $local
-let coqrunbyteflags = "$COQRUNBYTEFLAGS"
-let coqlib = "$LIBDIR"
-let coqsrc = "$COQSRC"
+let coqinerunbyteflags = "$COQINERUNBYTEFLAGS"
+let coqinelib = "$LIBDIR"
+let coqinesrc = "$COQINESRC"
 let ocaml = "$ocamlexec"
 let ocamlc = "$bytecamlc"
 let ocamlopt = "$nativecamlc"
@@ -814,11 +812,11 @@ let camlp4o = "$camlp4oexec"
 let camlp4bin = "$CAMLP4BIN"
 let camlp4lib = "$CAMLP4LIB"
 let camlp4compat = "$CAMLP4COMPAT"
-let coqideincl = "$LABLGTKINCLUDES"
+let coqineideincl = "$LABLGTKINCLUDES"
 let cflags = "$cflags"
 let best = "$best_compiler"
 let arch = "$ARCH"
-let has_coqide = "$COQIDE"
+let has_coqineide = "$COQINEIDE"
 let has_natdynlink = $HASNATDYNLINK
 let natdynlinkflag = "$NATDYNLINKFLAG"
 let osdeplibs = "$OSDEPLIBS"
@@ -832,30 +830,30 @@ let exec_extension = "$EXE"
 let with_geoproof = ref $with_geoproof
 let browser = "$BROWSER"
 
-END_OF_COQ_CONFIG
+END_OF_COQINE_CONFIG
 
 chmod a-w "$mlconfig_file"
 
 
 ###############################################
-# Building the $COQTOP/config/Makefile file
+# Building the $COQINETOP/config/Makefile file
 ###############################################
 
 rm -f "$config_file"
 
 sed -e "s|LOCALINSTALLATION|$local|" \
-    -e "s|XCOQRUNBYTEFLAGS|$COQRUNBYTEFLAGS|" \
-    -e "s|XCOQTOOLSBYTEFLAGS|$COQTOOLSBYTEFLAGS|" \
-    -e "s|COQSRCDIRECTORY|$COQSRC|" \
-    -e "s|COQVERSION|$VERSION|" \
+    -e "s|XCOQINERUNBYTEFLAGS|$COQINERUNBYTEFLAGS|" \
+    -e "s|XCOQINETOOLSBYTEFLAGS|$COQINETOOLSBYTEFLAGS|" \
+    -e "s|COQINESRCDIRECTORY|$COQINESRC|" \
+    -e "s|COQINEVERSION|$VERSION|" \
     -e "s|BINDIRDIRECTORY|$BINDIR|" \
-    -e "s|COQLIBDIRECTORY|$LIBDIR|" \
+    -e "s|COQINELIBDIRECTORY|$LIBDIR|" \
     -e "s|BUILDLDPATH=|$BUILDLDPATH|" \
     -e "s|MANDIRDIRECTORY|$MANDIR|" \
     -e "s|DOCDIRDIRECTORY|$DOCDIR|" \
     -e "s|EMACSLIBDIRECTORY|$EMACSLIB|" \
     -e "s|EMACSCOMMAND|$EMACS|" \
-    -e "s|COQDOCDIRECTORY|$COQDOCDIR|" \
+    -e "s|COQINEDOCDIRECTORY|$COQINEDOCDIR|" \
     -e "s|MKTEXLSRCOMMAND|$MKTEXLSR|" \
     -e "s|ARCHITECTURE|$ARCH|" \
     -e "s|OSDEPENDENTLIBS|$OSDEPLIBS|" \
@@ -867,10 +865,10 @@ sed -e "s|LOCALINSTALLATION|$local|" \
     -e "s|CAMLP4TOOL|$camlp4oexec|" \
     -e "s|CAMLP4COMPATFLAGS|$CAMLP4COMPAT|" \
     -e "s|LABLGTKINCLUDES|$LABLGTKINCLUDES|" \
-    -e "s|COQDEBUGFLAGOPT|$coq_debug_flag_opt|" \
-    -e "s|COQDEBUGFLAG|$coq_debug_flag|" \
-    -e "s|COQPROFILEFLAG|$coq_profile_flag|" \
-    -e "s|CAMLANNOTATEFLAG|$coq_annotate_flag|" \
+    -e "s|COQINEDEBUGFLAGOPT|$coqine_debug_flag_opt|" \
+    -e "s|COQINEDEBUGFLAG|$coqine_debug_flag|" \
+    -e "s|COQINEPROFILEFLAG|$coqine_profile_flag|" \
+    -e "s|CAMLANNOTATEFLAG|$coqine_annotate_flag|" \
     -e "s|CCOMPILEFLAGS|$cflags|" \
     -e "s|BESTCOMPILER|$best_compiler|" \
     -e "s|DLLEXTENSION|$DLLEXT|" \
@@ -890,7 +888,7 @@ sed -e "s|LOCALINSTALLATION|$local|" \
     -e "s|STRIPCOMMAND|$STRIPCOMMAND|" \
     -e "s|FSETSOPT|$fsets|" \
     -e "s|REALSOPT|$reals|" \
-    -e "s|COQIDEOPT|$COQIDE|" \
+    -e "s|COQINEIDEOPT|$COQINEIDE|" \
     -e "s|CHECKEDOUTSOURCETREE|$checkedout|" \
     -e "s|WITHDOCOPT|$with_doc|" \
     -e "s|HASNATIVEDYNLINK|$NATDYNLINKFLAG|" \
