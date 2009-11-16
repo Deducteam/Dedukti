@@ -906,5 +906,3 @@ echo "If anything in the above is wrong, please restart './configure'"
 echo
 echo "*Warning* To compile the system for a new architecture"
 echo "          don't forget to do a 'make archclean' before './configure'."
-
-# $Id$
