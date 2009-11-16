@@ -65,7 +65,12 @@ stats:
 depend::
 	ocamldep $(MLDIRS) -pp camlp5o config/*.{ml,mli} lib/*.{ml,mli} src/*.{ml,mli} > .depend
 
+cleanconfig::
+	rm -f config/local.mk config/coqine_config.ml
+
 clean::
 	rm -f $(BINARIES) lib/*.{cm*,o,a} src/*.{cm*,o,a} config/*.{cm*,o,a}
+
+distclean: clean cleanconfig
 
 -include .depend
