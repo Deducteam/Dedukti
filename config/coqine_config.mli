@@ -34,10 +34,6 @@ val cflags : string     (* arguments passed to gcc *)
 val best : string       (* byte/opt *)
 val arch : string       (* architecture *)
 val osdeplibs : string  (* OS dependant link options for ocamlc *)
-val coqinerunbyteflags : string (* -custom/-dllib -lcoqinerun *)
-
-
-(* val defined : string list  (* options for lib/ocamlpp *) *)
 
 val version : string    (* version number of Coqine *)
 val caml_version : string    (* OCaml version used to compile Coqine *)
@@ -47,10 +43,6 @@ val vo_magic_number : int
 val state_magic_number : int
 
 val exec_extension : string (* "" under Unix, ".exe" under MS-windows *)
-
-val browser : string
-(** default web browser to use, may be overriden by environment
-    variable COQREMOTEBROWSER *)
 
 val has_natdynlink : bool
 val natdynlinkflag : string (* special cases of natdynlink (e.g. MacOS 10.5) *)

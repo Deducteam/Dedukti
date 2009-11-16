@@ -95,13 +95,6 @@ let subst_command_placeholder s t =
   done;
   Buffer.contents buff
 
-let browser_cmd_fmt =
- try
-  let coq_netscape_remote_var = "COQREMOTEBROWSER" in
-  Sys.getenv coq_netscape_remote_var
- with
-  Not_found -> Coqine_config.browser
-
 (* Options for changing coqinelib *)
 let coqinelib_spec = ref false
 let coqinelib = ref Coqine_config.coqinelib
