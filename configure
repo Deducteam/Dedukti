@@ -111,7 +111,6 @@ emacslib_spec=no
 emacs_spec=no
 camldir_spec=no
 lablgtkdir_spec=no
-coqinedocdir_spec=no
 fsets=all
 reals=all
 arch_spec=no
@@ -153,9 +152,6 @@ while : ; do
 		      shift;;
     -docdir|--docdir) docdir_spec=yes
                       docdir="$2"
-		      shift;;
-    -coqinedocdir|--coqinedocdir) coqinedocdir_spec=yes
-	              coqinedocdir="$2"
 		      shift;;
     -camldir|--camldir) camldir_spec=yes
 	                camldir="$2"
@@ -576,14 +572,12 @@ case $ARCH in
 	 mandir_def='C:\coqine\man'
 	 docdir_def='C:\coqine\doc'
 	 emacslib_def='C:\coqine\emacs'
-         coqinedocdir_def='C:\coqine\latex';;
   *)
 	 bindir_def=/usr/local/bin
 	 libdir_def=/usr/local/lib/coqine
 	 mandir_def=/usr/local/man
 	 docdir_def=/usr/local/share/doc/coqine
 	 emacslib_def=/usr/local/share/emacs/site-lisp
-         coqinedocdir_def=/usr/local/share/texmf/tex/latex/misc;;
 esac
 
 emacs_def=emacs
@@ -636,22 +630,6 @@ case $docdir_spec/$prefix_spec/$local in
         read DOCDIR
 	case $DOCDIR in
 	    "") DOCDIR=$docdir_def;;
-	    *) true;;
-	esac;;
-esac
-
-case $coqinedocdir_spec/$prefix_spec/$local in
-    yes/*/*) COQINEDOCDIR=$coqinedocdir;;
-    */yes/*)
-        case $ARCH in
-          win32) COQINEDOCDIR=$prefix/latex ;;
-          *)  COQINEDOCDIR=$prefix/share/emacs/site-lisp ;;
-        esac ;;
-    */*/true) COQINEDOCDIR=$COQINETOP/tools/coqinedoc ;;
-    *) printf "Where should I install Coqinedoc TeX/LaTeX files [$coqinedocdir_def]? "
-        read COQINEDOCDIR
-	case $COQINEDOCDIR in
-	    "") COQINEDOCDIR=$coqinedocdir_def;;
 	    *) true;;
 	esac;;
 esac
@@ -756,7 +734,6 @@ case $ARCH in
 	MANDIR=`echo $MANDIR |sed -e 's|\\\|\\\\\\\|g'`
 	DOCDIR=`echo $DOCDIR |sed -e 's|\\\|\\\\\\\|g'`
 	EMACSLIB=`echo $EMACSLIB |sed -e 's|\\\|\\\\\\\|g'`
-	COQINEDOCDIR=`echo $COQINEDOCDIR |sed -e 's|\\\|\\\\\\\|g'`
 	CAMLP4BIN=`echo $CAMLP4BIN |sed -e 's|\\\|\\\\\\\|g'`
 	CAMLP4LIB=`echo $CAMLP4LIB |sed -e 's|\\\|\\\\\\\|g'`
 	LABLGTKINCLUDES=`echo $LABLGTKINCLUDES |sed -e 's|\\\|\\\\\\\|g'`
@@ -841,7 +818,6 @@ sed -e "s|LOCALINSTALLATION|$local|" \
     -e "s|DOCDIRDIRECTORY|$DOCDIR|" \
     -e "s|EMACSLIBDIRECTORY|$EMACSLIB|" \
     -e "s|EMACSCOMMAND|$EMACS|" \
-    -e "s|COQINEDOCDIRECTORY|$COQINEDOCDIR|" \
     -e "s|MKTEXLSRCOMMAND|$MKTEXLSR|" \
     -e "s|ARCHITECTURE|$ARCH|" \
     -e "s|OSDEPENDENTLIBS|$OSDEPLIBS|" \
