@@ -81,8 +81,6 @@ ocamlexec=ocaml
 ocamldepexec=ocamldep
 ocamldocexec=ocamldoc
 ocamllexexec=ocamllex
-ocamlyaccexec=ocamlyacc
-ocamlmktopexec=ocamlmktop
 camlp4oexec=camlp4o
 
 
@@ -320,9 +318,6 @@ case $camldir_spec in
 	 ocamlexec=$CAMLBIN/ocaml
 	 ocamldepexec=$CAMLBIN/ocamldep
 	 ocamldocexec=$CAMLBIN/ocamldoc
-	 ocamllexexec=$CAMLBIN/ocamllex
-	 ocamlyaccexec=$CAMLBIN/ocamlyacc
-	 ocamlmktopexec=$CAMLBIN/ocamlmktop
 	 ocamlmklibexec=$CAMLBIN/ocamlmklib
 	 camlp4oexec=$CAMLBIN/camlp4o
 esac
@@ -647,12 +642,12 @@ esac
 # Summary of the configuration
 
 echo ""
-echo "  Coqine top directory                 : $COQINETOP"
+echo "  Coqine top directory              : $COQINETOP"
 echo "  Architecture                      : $ARCH"
 if test ! -z "$OS" ; then
-  echo "  Operating system                  : $OS"
+  echo "  Operating system                : $OS"
 fi
-echo "  Coqine VM bytecode link flags        : $COQINERUNBYTEFLAGS"
+echo "  Coqine VM bytecode link flags     : $COQINERUNBYTEFLAGS"
 echo "  OS dependent libraries            : $OSDEPLIBS"
 echo "  Objective-Caml/Camlp4 version     : $CAMLVERSION"
 echo "  Objective-Caml/Camlp4 binaries in : $CAMLBIN"
@@ -737,8 +732,6 @@ case $ARCH in
 	ocamlmklibexec=`echo $ocamlmklibexec |sed -e 's|\\\|\\\\\\\|g'`
 	ocamldepexec=`echo $ocamldepexec |sed -e 's|\\\|\\\\\\\|g'`
 	ocamldocexec=`echo $ocamldocexec |sed -e 's|\\\|\\\\\\\|g'`
-	ocamllexexec=`echo $ocamllexexec |sed -e 's|\\\|\\\\\\\|g'`
-	ocamlyaccexec=`echo $ocamlyaccexec |sed -e 's|\\\|\\\\\\\|g'`
 	camlp4oexec=`echo $camlp4oexec |sed -e 's|\\\|\\\\\\\|g'`
     ;;
 esac
@@ -761,8 +754,6 @@ let ocamlopt = "$nativecamlc"
 let ocamlmklib = "$ocamlmklibexec"
 let ocamldep = "$ocamldepexec"
 let ocamldoc = "$ocamldocexec"
-let ocamlyacc = "$ocamlyaccexec"
-let ocamllex = "$ocamllexexec"
 let camlbin = "$CAMLBIN"
 let camllib = "$CAMLLIB"
 let camlp4 = "$CAMLP4"
@@ -831,9 +822,6 @@ sed -e "s|LOCALINSTALLATION|$local|" \
     -e "s|OCAMLEXEC|$ocamlexec|" \
     -e "s|OCAMLDEPEXEC|$ocamldepexec|" \
     -e "s|OCAMLDOCEXEC|$ocamldocexec|" \
-    -e "s|OCAMLLEXEXEC|$ocamllexexec|" \
-    -e "s|OCAMLYACCEXEC|$ocamlyaccexec|" \
-    -e "s|CAMLMKTOPEXEC|$ocamlmktopexec|" \
     -e "s|CCEXEC|$gcc_exec|" \
     -e "s|AREXEC|$ar_exec|" \
     -e "s|RANLIBEXEC|$ranlib_exec|" \
