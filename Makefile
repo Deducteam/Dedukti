@@ -8,10 +8,9 @@ OPTFLAGS=$(MLDIRS) -pp camlp5o
 
 BINARIES=./bin/coqine.byte$(EXE) ./bin/coqine$(EXE)
 
-IMPLEXTS:=*.ml *.ml4
-IMPLS:= $(wildcard $(addprefix config/, $(IMPLEXTS)) \
-		   $(addprefix src/, $(IMPLEXTS))    \
-		   $(addprefix lib/, $(IMPLEXTS))    )
+MLFILES:= $(wildcard config/*.ml lib/*.ml src/*.ml)
+ML4FILES:= $(wildcard src/*.ml4)
+IMPLS:= $(MLFILES) $(ML4FILES)
 CMOFILES:= $(addsuffix .cmo, $(basename $(IMPLS)))
 CMXOFILES:= $(addsuffix .cmxo, $(basename $(IMPLS)))
 
