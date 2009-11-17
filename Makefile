@@ -1,5 +1,9 @@
 -include config/local.mk
 
+ifndef COQINE_CONFIGURED
+$(error Please run ./configure first)
+endif
+
 COQINESRC=.
 
 MLDIRS=-I $(COQINESRC)/config -I $(COQINESRC)/lib -I $(COQINESRC)/src -I +camlp5
