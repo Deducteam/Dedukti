@@ -14,12 +14,19 @@ BINARIES=./bin/coqine.byte$(EXE) ./bin/coqine$(EXE)
 
 MLFILES:= $(wildcard config/*.ml lib/*.ml src/*.ml)
 ML4FILES:= $(wildcard src/*.ml4)
-IMPLS:= $(MLFILES) $(ML4FILES)
-CMOFILES:= $(addsuffix .cmo, $(basename $(IMPLS)))
-CMXOFILES:= $(addsuffix .cmxo, $(basename $(IMPLS)))
+INTFFILES:= $(wildcard config/*.mli lib/*.mli src/*.mli)
+IMPLFILES:= $(MLFILES) $(ML4FILES)
+CMOFILES:= $(addsuffix .cmo, $(basename $(IMPLFILES)))
+CMXOFILES:= $(addsuffix .cmxo, $(basename $(IMPLFILES)))
+
+DEPFILES:=$(addsuffix .d, $(IMPLFILES) $(INTFFILES)) \
+          $(addsuffix .ml.d, $(ML4FILES))
+.SECONDARY: $(DEPFILES)
 
 CAMLP4DEPS=sed -n -e 's@^(\*.*camlp4deps: "\(.*\)".*\*)@\1@p'
 CAMLP4USE=sed -n -e 's@^(\*.*camlp4use: "\(.*\)".*\*)@\1@p'
+
+DEPFLAGS=$(MLDIRS) -pp $(CAMLP4O)
 
 all: $(BINARIES)
 
@@ -90,7 +97,12 @@ endif
 cleanconfig::
 	rm -f config/local.mk config/coqine_config.ml
 
+depclean::
+	rm -f lib/*.d src/*.d config/*.d
+
 clean::
 	rm -f $(BINARIES) lib/*.{cm*,o,a} src/*.{cm*,o,a} config/*.{cm*,o,a}
 
-distclean: clean cleanconfig
+distclean: clean depclean cleanconfig
+
+-include $(DEPFILES)
