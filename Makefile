@@ -94,13 +94,15 @@ endif
 	$(OCAMLDEP) $(DEPFLAGS) $*.ml | sed '' > "$@" || ( RV=$$?; rm -f "$@"; exit $${RV} )
 	echo "let keep_ocamldep_happy Do_not_compile_me = assert false" > $*.ml
 
-cleanconfig::
+.PHONY: cleanconfig depclean clean distclean
+
+cleanconfig:
 	rm -f config/local.mk config/coqine_config.ml
 
-depclean::
+depclean:
 	rm -f lib/*.d src/*.d config/*.d
 
-clean::
+clean:
 	rm -f $(BINARIES) lib/*.{cm*,o,a} src/*.{cm*,o,a} config/*.{cm*,o,a}
 
 distclean: clean depclean cleanconfig
