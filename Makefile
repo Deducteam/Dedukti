@@ -46,19 +46,6 @@ bin/coqine.byte$(EXE): src/coqine.cma src/main.ml
 bin/coqine$(EXE): src/coqine.cmxa src/main.ml
 	$(OCAMLOPT) $(OPTFLAGS) -o $@ unix.cmxa gramlib.cmxa $^
 
-stats:
-	@echo STRUCTURE
-	@cd src; wc names.ml term.ml declarations.ml environ.ml type_errors.ml
-	@echo
-	@echo COQINE
-	@cd src; wc coqine.ml euTerms.ml
-	@echo
-	@echo INTERFACE
-	@cd src; wc main.ml 
-	@echo
-	@echo TOTAL
-	@cd src; wc *.ml | tail -1
-
 %.cmo: %.ml | %.ml.d
 	$(OCAMLC) $(BYTEFLAGS) -c $<
 
@@ -125,5 +112,20 @@ clean:
 	rm -f $(BINARIES) lib/*.{cm*,o,a} src/*.{cm*,o,a} config/*.{cm*,o,a}
 
 distclean: clean depclean cleanconfig
+
+.PHONY: stats
+
+stats:
+	@echo STRUCTURE
+	@cd src; wc names.ml term.ml declarations.ml environ.ml type_errors.ml
+	@echo
+	@echo COQINE
+	@cd src; wc coqine.ml euTerms.ml
+	@echo
+	@echo INTERFACE
+	@cd src; wc main.ml 
+	@echo
+	@echo TOTAL
+	@cd src; wc *.ml | tail -1
 
 -include $(DEPFILES)
