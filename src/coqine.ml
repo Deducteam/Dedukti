@@ -1,7 +1,3 @@
-(*****************************************************************************************************)
-(*****************************************   CoqInE    ***********************************************)
-(*****************************************************************************************************)
-
 open Environ
 open Names
 open Term
@@ -133,7 +129,7 @@ let rec term_trans_aux e t =
 	let e = { e with env_rel_context = rel_context } in
 	let v = get_identifier_env e n in
 	let vs, c = app_rel_context e c in
-	  (Id v, type_trans_aux e t)::vs, EApp(c,EVar (Id v))
+	  (Id v, type_trans_aux e t)::vs, DApp(c,DVar (Id v))
   in
 
   (* add free variables to complete a constructor 
@@ -150,7 +146,7 @@ let rec term_trans_aux e t =
   let rec add_vars free_vars e c  = function
     | Prod(_,t, q), [] -> let v = fresh_var "var_" in
       let e' = push_rel (Name v, None, t) e in
-	add_vars ((Id v,type_trans_aux e t)::free_vars) e' (EApp(c, EVar (Id v))) (q,[])
+	add_vars ((Id v,type_trans_aux e t)::free_vars) e' (DApp(c, DVar (Id v))) (q,[])
     | t,[] -> free_vars, c, 
 	begin match collapse_appl t with App(_,a) -> a
 	  | _ -> Array.init 0 Obj.magic (* Obj.magic!? *)
@@ -160,7 +156,7 @@ let rec term_trans_aux e t =
 	let e' = push_named (arg, None, it_mkProd_or_LetIn t e.env_rel_context) 
 	  e in
 	  add_vars free_vars e'
-	    (EApp(c, snd (app_rel_context e (EVar (Id arg))))) 
+	    (DApp(c, snd (app_rel_context e (DVar (Id arg))))) 
 	    (subst1 (App(Var arg, Array.init n (fun m -> Rel (n-m)))) q, args)
     | _ -> failwith "add_vars: too many parameters"
   in 
@@ -177,48 +173,48 @@ let rec term_trans_aux e t =
 
     (* the translation is by induction on the term *)
     match t with
-      | Rel n -> EVar (Id (nth_rel_in_env n e))
+      | Rel n -> DVar (Id (nth_rel_in_env n e))
 
-      | Var v  -> EVar(Id v)
+      | Var v  -> DVar(Id v)
 
       | Meta _ -> raise ShouldNotAppear
 
       | Evar _ -> raise ShouldNotAppear
 
       | Sort s -> (match s with
-                     | Prop Null -> EVar (Qid ("Coq1univ","dotprop"))
-                     | Prop Pos ->  EVar (Qid ("Coq1univ","dotset"))
-                     | Type _ ->    EVar (Qid ("Coq1univ","dottype")))  (*** !!! Attention a Type 0 ***)
+                     | Prop Null -> DVar (Qid ("Coq1univ","dotprop"))
+                     | Prop Pos ->  DVar (Qid ("Coq1univ","dotset"))
+                     | Type _ ->    DVar (Qid ("Coq1univ","dottype")))  (*** !!! Attention a Type 0 ***)
 
       | Cast _ -> raise NotImplementedYet
 
 
       | Prod (n,t1,t2)  -> let t_tt1 = term_trans_aux e t1 and e1 = push_rel (n,None,t1) e in
-	  EApp ((EApp (EVar(Qid("Coq1univ",get_dotpi e n t1 t2)), t_tt1)),
-		(EFun (Id (get_identifier_env e n),
-                       (EApp(EVar(Qid ("Coq1univ",get_e e t1)),t_tt1)),
+	  DApp ((DApp (DVar(Qid("Coq1univ",get_dotpi e n t1 t2)), t_tt1)),
+		(DFun (Id (get_identifier_env e n),
+                       (DApp(DVar(Qid ("Coq1univ",get_e e t1)),t_tt1)),
                        (term_trans_aux e1 t2))))
 
-      | Lambda (n,t1,t2)  ->  (EFun ((Id (get_identifier_env e n)),
-                                     (EApp(EVar(Qid ("Coq1univ",get_e e t1)),term_trans_aux e t1)),
+      | Lambda (n,t1,t2)  ->  (DFun ((Id (get_identifier_env e n)),
+                                     (DApp(DVar(Qid ("Coq1univ",get_e e t1)),term_trans_aux e t1)),
                                      (term_trans_aux (push_rel (n,None,t1) e) t2)))
 
       | LetIn (var, eq, ty, body)  ->
 	  term_trans_aux e (App(Lambda(var, ty, body), [| eq |]))
 
-      | App (t1,a)  -> Array.fold_left (fun u1 u2 -> EApp(u1,term_trans_aux e u2))
+      | App (t1,a)  -> Array.fold_left (fun u1 u2 -> DApp(u1,term_trans_aux e u2))
 	  (term_trans_aux e t1) a
 
       | Const(mp,dp,l)  -> (* TODO: treat the module path and the dir path *)
-	  EVar(Id l)
+	  DVar(Id l)
 
       | Ind(ind, num)  -> begin
-	  try EVar (Id (lookup_mind ind e).mind_packets.(num).mind_typename)
+	  try DVar (Id (lookup_mind ind e).mind_packets.(num).mind_typename)
 	  with Not_found -> failwith "term translation: unknown inductive" end
 
       | Construct((ind,j), i) -> begin
 	  try 
-	    EVar (Id (lookup_mind ind e).mind_packets.(j).mind_consnames.(i-1))
+	    DVar (Id (lookup_mind ind e).mind_packets.(j).mind_consnames.(i-1))
 	  with Not_found -> failwith "term translation: unknown inductive" end
 
       | Case (ind, ret_ty, matched, branches)  -> 
@@ -233,16 +229,16 @@ let rec term_trans_aux e t =
 	      | Ind(i) when i = ind.ci_ind -> Array.init 0 Obj.magic
 	      | _ -> failwith "term_trans: matched term badly typed"
 	  in
-	  let r = ref (EVar (Id case_name)) in
+	  let r = ref (DVar (Id case_name)) in
 	    for i = 0 to ind.ci_npar - 1 do
-              r := EApp(!r, term_trans_aux e matched_args.(i))
+              r := DApp(!r, term_trans_aux e matched_args.(i))
 	    done;
-	    r := EApp(!r, term_trans_aux e ret_ty);
-	    Array.iter (fun b -> r := EApp(!r, term_trans_aux e b)) branches;
+	    r := DApp(!r, term_trans_aux e ret_ty);
+	    Array.iter (fun b -> r := DApp(!r, term_trans_aux e b)) branches;
 	    for i = ind.ci_npar to Array.length matched_args - 1 do
-	      r := EApp(!r, term_trans_aux e matched_args.(i))
+	      r := DApp(!r, term_trans_aux e matched_args.(i))
 	    done;
-	    EApp(!r, term_trans_aux e matched)
+	    DApp(!r, term_trans_aux e matched)
 	      
       | Fix((struct_arg_nums, num_def),(names, body_types, body_terms)) -> 
 	  (* may create an unterminating rule *)
@@ -267,7 +263,7 @@ let rec term_trans_aux e t =
 	      variable, and creates a rule
 	      outside of the current context*)
 	    let env_vars, fix = 
-	      app_rel_context e (EVar(Id name)) in
+	      app_rel_context e (DVar(Id name)) in
 	    let rec make_rule e vars fix rhs = function
 		0, Prod(n, a, _) ->
 		  let s = get_identifier_env e n in
@@ -280,8 +276,8 @@ let rec term_trans_aux e t =
 		       to f and create a rule f x1...xn --> rhs x1...xn*)
 		    add_decl(
 		      Rule(List.rev_append env_vars vars,
-			   EApp(fix, EVar (Id s)),
-			   EApp(rhs, EVar (Id s))
+			   DApp(fix, DVar (Id s)),
+			   DApp(rhs, DVar (Id s))
 			  ))
 	      | n, Prod(nom, a, t) -> 
 		  let s = get_identifier_env e nom in
@@ -289,8 +285,8 @@ let rec term_trans_aux e t =
 		    (*this is the not final case, apply the current variable
 		    to f x1...xi and to rhs and call yourself recursively*)
 		    make_rule e' ((Id s, type_trans_aux e a)::vars)
-		      (EApp(fix, EVar (Id s)))
-		      (EApp(rhs, EVar (Id s)))
+		      (DApp(fix, DVar (Id s)))
+		      (DApp(rhs, DVar (Id s)))
 		      (n-1, t)
 	      | _ -> failwith "fixpoint translation: ill-formed type"
 	    in
@@ -324,7 +320,7 @@ let rec term_trans_aux e t =
 		   body_types.(i) body_terms.(i)) 
 	      struct_arg_nums;
 	    (*what happen?*)
-	    snd (app_rel_context e (EVar(Id names.(num_def))))
+	    snd (app_rel_context e (DVar(Id names.(num_def))))
 	      
       | CoFix   _  -> raise NotImplementedYet
 
@@ -332,14 +328,14 @@ let rec term_trans_aux e t =
 
 and type_trans_aux e t = match t with
   | Sort s -> (match s with
-		 | Prop Pos  -> EVar(Qid("Coq1univ","Uset"))
-		 | Prop Null -> EVar(Qid("Coq1univ","Uprop"))
-		 | Type _    -> EVar(Qid("Coq1univ","Utype")))
+		 | Prop Pos  -> DVar(Qid("Coq1univ","Uset"))
+		 | Prop Null -> DVar(Qid("Coq1univ","Uprop"))
+		 | Type _    -> DVar(Qid("Coq1univ","Utype")))
 
   | Prod(n,t1,t2) ->  let t_tt1 = type_trans_aux e t1 and e1 = push_rel (n,None,t1) e in
-      EPi(Id (get_identifier_env e n),t_tt1,(type_trans_aux e1 t2))
+      DPi(Id (get_identifier_env e n),t_tt1,(type_trans_aux e1 t2))
 
-  | t -> EApp(EVar(Qid("Coq1univ",get_e e t)),(term_trans_aux e t))
+  | t -> DApp(DVar(Qid("Coq1univ",get_e e t)),(term_trans_aux e t))
 
 
 (* translation functions without environment *)
@@ -357,10 +353,10 @@ let rec add_ind_and_constr ?(i=0) m p e vars cons_name = function
       let v = fresh_var "c_arg_" in
       let e' = push_rel (Name v, None, t1) e in
         add_ind_and_constr m p e' ((Id v, type_trans_aux e t1)::vars)
-          (EApp(cons_name, EVar (Id v))) ([],t2)
+          (DApp(cons_name, DVar (Id v))) ([],t2)
   | [], App(_,args) ->
       let ind =
-        Array.make (Array.length args - m.mind_nparams) EKind in
+        Array.make (Array.length args - m.mind_nparams) DKind in
         for i = 0 to Array.length ind - 1 do
           ind.(i) <- term_trans_aux e args.(i+m.mind_nparams)
         done;
@@ -372,7 +368,7 @@ let rec add_ind_and_constr ?(i=0) m p e vars cons_name = function
   |  (id, _)::q, Prod(n,t1,t2) ->
        let t2 = subst1 (Rel (Array.length p.mind_consnames - i +
                                m.mind_nparams + 1)) t2 in
-         add_ind_and_constr ~i:(i+1) m p e vars (EApp(cons_name, EVar id)) (q,t2)
+         add_ind_and_constr ~i:(i+1) m p e vars (DApp(cons_name, DVar id)) (q,t2)
   | _ -> failwith "inductive translation: ill-typed constructor"
 
 	  
@@ -395,7 +391,7 @@ let sb_decl_trans label (name, decl) = match decl with
       in
 	flush_decl stdout;
 	output_line stdout (Declaration(Id name, ttype)); 
-	output_line stdout (Rule([],EVar(Id name), tterm));
+	output_line stdout (Rule([],DVar(Id name), tterm));
         base_env := Environ.add_constant (Names.MPself label, [], name) sbfc !base_env
 
   (* declaration of a (co-)inductive type *)
@@ -537,7 +533,7 @@ let sb_decl_trans label (name, decl) = match decl with
 	  Declaration (Id name, type_trans_aux env c) in
 	let nb_consts =  Array.length p.mind_consnames in
 	let lref = Array.make (2 * nb_consts + 1) case_decl in
-	  let case_name = EVar (Id (p.mind_typename ^ "__case")) in
+	  let case_name = DVar (Id (p.mind_typename ^ "__case")) in
 	  let _, env, param_vars, case_name = 
 	    List.fold_left 
 	      (fun (i, e, vars, c) (n,_,t) ->
@@ -545,7 +541,7 @@ let sb_decl_trans label (name, decl) = match decl with
 		 else 
 		   let v = fresh_var "param_" in
 		   let e' = push_rel (Name v, None, t) e in
-		     i-1,e',(Id v, type_trans_aux e t)::vars, EApp(c, EVar (Id v))
+		     i-1,e',(Id v, type_trans_aux e t)::vars, DApp(c, DVar (Id v))
 	      )
 	      (m.mind_nparams, env, [], case_name) (List.rev p.mind_arity_ctxt)
 	  in
@@ -560,7 +556,7 @@ let sb_decl_trans label (name, decl) = match decl with
 	      indices in
 	    let e = push_rel (Name v, None, t) env in
 	      (Id v, type_trans_aux env t), 
-	    EApp(case_name, EVar(Id v)),
+	    DApp(case_name, DVar(Id v)),
 	    e 
 	  in
 	  let _,env,func_vars, case_name = Array.fold_left 
@@ -569,7 +565,7 @@ let sb_decl_trans label (name, decl) = match decl with
 		 (m.mind_nparams, substl mind_names p.mind_nf_lc.(i)) in
 	       let v = fresh_var "f_" in
 	       let e' = push_rel (Name v, None, t) e in
-		 i+1,e',(Id v, type_trans_aux e t)::vars, EApp(c, EVar (Id v))
+		 i+1,e',(Id v, type_trans_aux e t)::vars, DApp(c, DVar (Id v))
 	    )
 	    (0,env,[],case_name) p.mind_consnames
 	  in 
@@ -577,19 +573,19 @@ let sb_decl_trans label (name, decl) = match decl with
 	      (fun i cons_name -> 
 		 let constr, indices, c_vars = add_ind_and_constr 
 		   m p env [] 
-		   (EVar (Id  cons_name)) 
+		   (DVar (Id  cons_name)) 
 		   (List.rev param_vars,
 		    substl mind_names p.mind_nf_lc.(i)) in
 		   lref.(nb_consts + i + 1) <- 
 		     Rule(List.rev_append param_vars 
 			    (p_var::List.rev_append func_vars (List.rev c_vars)),
-			  EApp(Array.fold_left (fun c a -> EApp(c,a))
+			  DApp(Array.fold_left (fun c a -> DApp(c,a))
 				 case_name indices,
 			       constr),
 			  match List.nth func_vars (List.length func_vars-i-1)
 			  with id,_ -> 
-			    List.fold_right (fun (v,_) c -> EApp(c, EVar v))
-			      c_vars (EVar id) 
+			    List.fold_right (fun (v,_) c -> DApp(c, DVar v))
+			      c_vars (DVar id) 
 			 )
 	      ) p.mind_consnames;
 	    for i = 0 to nb_consts - 1 do

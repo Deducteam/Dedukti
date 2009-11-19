@@ -1,38 +1,38 @@
-(********** EUROPA Syntax ***************)
+(***** Dedukti Syntax ****)
 
 type qid =
   | Id of string
   | Qid of string * string
 
-type euterm =
-| EType
-| EKind
-| EVar of qid
-| EPi of qid * euterm * euterm
-| EFun of qid * euterm * euterm
-| EApp of euterm * euterm
+type dkterm =
+| DType
+| DKind
+| DVar of qid
+| DPi of qid * dkterm * dkterm
+| DFun of qid * dkterm * dkterm
+| DApp of dkterm * dkterm
 
 type line =
-| Declaration of qid * euterm
-| Rule of (qid * euterm) list * euterm * euterm
+| Declaration of qid * dkterm
+| Rule of (qid * dkterm) list * dkterm * dkterm
 | End
 
 
-(******** PRETTYPRINT ********)
+(**** Prettyprinting ****)
 
 let get_euname n = match n with
   | Id s -> s
   | Qid (path,s) -> path ^ "." ^ s
 
 let rec ast_to_str t = match t with
-  | EType -> "Type"
-  | EKind -> "Kind"
-  | EVar n -> get_euname n
-  | EPi (n,t1,t2) -> "(" ^ (get_euname n) ^ " : " ^ (ast_app t1) ^ " -> " ^ (ast_app t2) ^ ")"
-  | EFun (n,t1,t2) -> "(" ^ (get_euname n) ^ " : " ^ (ast_app t1) ^ " => " ^ (ast_app t2) ^ ")"
-  | EApp (t1,t2) -> "(" ^ (ast_app t1) ^ " " ^ (ast_to_str t2) ^")"
+  | DType -> "Type"
+  | DKind -> "Kind"
+  | DVar n -> get_euname n
+  | DPi (n,t1,t2) -> "(" ^ (get_euname n) ^ " : " ^ (ast_app t1) ^ " -> " ^ (ast_app t2) ^ ")"
+  | DFun (n,t1,t2) -> "(" ^ (get_euname n) ^ " : " ^ (ast_app t1) ^ " => " ^ (ast_app t2) ^ ")"
+  | DApp (t1,t2) -> "(" ^ (ast_app t1) ^ " " ^ (ast_to_str t2) ^")"
 and ast_app t = match t with
-  | EApp(t1,t2) -> ast_app t1 ^ " " ^ ast_to_str t2
+  | DApp(t1,t2) -> ast_app t1 ^ " " ^ ast_to_str t2
   | t -> ast_to_str t 
 
 let pprint expres = Printf.printf "%s" (ast_to_str expres)
