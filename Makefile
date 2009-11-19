@@ -4,10 +4,14 @@ ifndef COQINE_CONFIGURED
 $(error Please run ./configure first)
 endif
 
+# We use a vpath so that source files may be found automatically
+# without having to explicitly tell make in what folders to find them.
+# This makes senses because it amounts to reflecting the search paths
+# of ocaml given via -I directives into make.
 VPATH = config lib src
 GPATH = $(VPATH)
 
-MLDIRS:= -I $(COQINESRC)/config -I $(COQINESRC)/lib -I $(COQINESRC)/src -I +camlp5
+MLDIRS:= -I config -I lib -I src -I +camlp5
 BYTEFLAGS:= $(MLDIRS) -pp camlp5o -g
 OPTFLAGS:= $(MLDIRS) -pp camlp5o
 
