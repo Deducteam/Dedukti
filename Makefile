@@ -46,6 +46,9 @@ bin/coqine.byte$(EXE): src/coqine.cma src/main.ml
 bin/coqine$(EXE): src/coqine.cmxa src/main.ml
 	$(OCAMLOPT) $(OPTFLAGS) -o $@ unix.cmxa gramlib.cmxa $^
 
+bin/parse$(EXE): src/coqine.cma src/parse.ml
+	$(OCAMLC) $(BYTEFLAGS) -o $@ unix.cma gramlib.cma $^
+
 %.cmo: %.ml | %.ml.d
 	$(OCAMLC) $(BYTEFLAGS) -c $<
 
