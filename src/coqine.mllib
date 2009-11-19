@@ -28,5 +28,5 @@ Subtyping
 Mod_checking
 Safe_typing
 Check
-Check_stat
-Checker
+EuTerms
+Coqine
