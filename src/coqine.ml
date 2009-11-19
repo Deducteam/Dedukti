@@ -6,7 +6,7 @@ open Environ
 open Names
 open Term
 open Typeops
-open EuTerms
+open Dkterm
 open Declarations
 
 exception RuleDoesNotExist

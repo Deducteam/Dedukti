@@ -1,4 +1,4 @@
-open EuTerms
+open Dkterm
 open Coqine
 open Declarations
 open Term
