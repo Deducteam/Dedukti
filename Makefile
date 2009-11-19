@@ -11,9 +11,9 @@ endif
 VPATH = config lib src
 GPATH = $(VPATH)
 
-MLDIRS:= -I config -I lib -I src -I +camlp5
-BYTEFLAGS:= $(MLDIRS) -pp camlp5o -g
-OPTFLAGS:= $(MLDIRS) -pp camlp5o
+MLINCLUDES:= -I config -I lib -I src -I +camlp5
+BYTEFLAGS:= $(MLINCLUDES) -pp camlp5o -g
+OPTFLAGS:= $(MLINCLUDES) -pp camlp5o
 
 BINARIES:= bin/coqine.byte$(EXE) bin/coqine$(EXE)
 
@@ -32,7 +32,7 @@ DEPFILES:= $(addsuffix .d, $(IMPLFILES) $(INTFFILES) $(MLLIBFILES)) \
 CAMLP4DEPS=sed -n -e 's@^(\*.*camlp4deps: "\(.*\)".*\*)@\1@p'
 CAMLP4USE=sed -n -e 's@^(\*.*camlp4use: "\(.*\)".*\*)@\1@p'
 
-DEPFLAGS:= $(MLDIRS) -pp $(CAMLP4O)
+DEPFLAGS:= $(MLINCLUDES) -pp $(CAMLP4O)
 
 all: $(BINARIES)
 
