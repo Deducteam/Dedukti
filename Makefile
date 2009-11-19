@@ -11,9 +11,10 @@ endif
 VPATH = config lib src
 GPATH = $(VPATH)
 
-MLINCLUDES:= -I config -I lib -I src -I +camlp5
-BYTEFLAGS:= $(MLINCLUDES) -pp camlp5o -g
-OPTFLAGS:= $(MLINCLUDES) -pp camlp5o
+LOCALINCLUDES:= $(foreach dir, $(VPATH), -I $(dir))
+MLINCLUDES:= $(LOCALINCLUDES) -I $(MYCAMLP4LIB)
+BYTEFLAGS:= $(MLINCLUDES) -pp $(CAMLP4O) -g
+OPTFLAGS:= $(MLINCLUDES) -pp $(CAMLP4O)
 
 BINARIES:= bin/coqine.byte$(EXE) bin/coqine$(EXE)
 
