@@ -76,11 +76,11 @@ endif
 	echo $*.cma: $(addsuffix .cmo, $(shell sed 's/./\l&/1' $<)) >> $@
 	echo $*.cmxa: $(addsuffix .cmx, $(shell sed 's/./\l&/1' $<)) >> $@
 
-%.cma: | %.mllib.d
-	$(OCAMLC) $(BYTEFLAGS) -a -o $@ $^
+%.cma: %.mllib | %.mllib.d
+	$(OCAMLC) $(BYTEFLAGS) -a -o $@ $(filter-out %.mllib, $^)
 
-%.cmxa: | %.mllib.d
-	$(OCAMLOPT) $(OPTFLAGS) -a -o $@ $^
+%.cmxa: %.mllib | %.mllib.d
+	$(OCAMLOPT) $(OPTFLAGS) -a -o $@ $(filter-out %.mllib, $^)
 
 ## Veerry nasty hack to keep ocamldep happy
 %.ml: | %.ml4
