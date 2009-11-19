@@ -40,11 +40,11 @@ all: $(BINARIES)
 byte : ./bin/coqine.byte$(EXE)
 opt : ./bin/coqine$(EXE)
 
-bin/coqine.byte$(EXE): src/coqine.cma
-	$(OCAMLC) $(BYTEFLAGS) -o $@ unix.cma gramlib.cma $<
+bin/coqine.byte$(EXE): src/coqine.cma src/main.ml
+	$(OCAMLC) $(BYTEFLAGS) -o $@ unix.cma gramlib.cma $^
 
-bin/coqine$(EXE): src/coqine.cmxa
-	$(OCAMLOPT) $(OPTFLAGS) -o $@ unix.cmxa gramlib.cmxa $<
+bin/coqine$(EXE): src/coqine.cmxa src/main.ml
+	$(OCAMLOPT) $(OPTFLAGS) -o $@ unix.cmxa gramlib.cmxa $^
 
 stats:
 	@echo STRUCTURE
