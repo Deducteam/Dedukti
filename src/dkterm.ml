@@ -1,4 +1,6 @@
-(***** Dedukti Syntax ****)
+open Pp
+open Pp_control
+open Util
 
 type qid =
   | Id of string
@@ -12,56 +14,52 @@ type dkterm =
 | DFun of qid * dkterm * dkterm
 | DApp of dkterm * dkterm
 
-type line =
+type statement =
 | Declaration of qid * dkterm
 | Rule of (qid * dkterm) list * dkterm * dkterm
 | End
 
+(* Some custom printer combinators for a few symbols. *)
+let fun_arr () = str " => "
+let pi_arr () = str " -> "
+let rule_arr () = str " --> "
 
-(**** Prettyprinting ****)
+let pr_qid = function
+  | Id s -> str s
+  | Qid (path,s) -> str path ++ str "." ++ str s
 
-let get_euname n = match n with
-  | Id s -> s
-  | Qid (path,s) -> path ^ "." ^ s
+let rec pr_dkterm = function
+  | DApp(t1,t2) -> pr_dkterm t1 ++ spc () ++ pr_dkterm' t2
+  | t -> pr_dkterm' t
+and pr_dkterm' = function
+  | DType -> str "Type"
+  | DKind -> str "Kind"
+  | DVar n -> pr_qid n
+  | DPi (n, (DPi _ as t1), t2) ->
+      surround (pr_qid n ++ pr_colon () ++ surround (pr_dkterm t1) ++ pi_arr () ++ pr_dkterm t2)
+  | DPi (n,t1,t2) ->
+      surround (pr_qid n ++ pr_colon () ++ pr_dkterm t1 ++ pi_arr () ++ pr_dkterm t2)
+  | DFun (n,t1,t2) ->
+      surround (pr_qid n ++ pr_colon () ++ pr_dkterm t1 ++ fun_arr () ++ pr_dkterm t2)
+  | DApp (t1,t2) -> surround (pr_dkterm t1 ++ spc () ++ pr_dkterm' t2)
 
-let rec ast_to_str t = match t with
-  | DType -> "Type"
-  | DKind -> "Kind"
-  | DVar n -> get_euname n
-  | DPi (n,t1,t2) -> "(" ^ (get_euname n) ^ " : " ^ (ast_app t1) ^ " -> " ^ (ast_app t2) ^ ")"
-  | DFun (n,t1,t2) -> "(" ^ (get_euname n) ^ " : " ^ (ast_app t1) ^ " => " ^ (ast_app t2) ^ ")"
-  | DApp (t1,t2) -> "(" ^ (ast_app t1) ^ " " ^ (ast_to_str t2) ^")"
-and ast_app t = match t with
-  | DApp(t1,t2) -> ast_app t1 ^ " " ^ ast_to_str t2
-  | t -> ast_to_str t 
+let pr_binding (n, t) = pr_qid n ++ pr_colon () ++ pr_dkterm t
 
-let pprint expres = Printf.printf "%s" (ast_to_str expres)
+let pr_statement = function
+  | Declaration (n, t) -> pr_binding (n, t) ++ str "."
+  | Rule (env, lhs, rhs) ->
+      let rec sep pp env = match env with
+	| [] -> str ""
+	| [n, t] -> pp ++ pr_binding (n, t)
+	| (n, t) :: env' -> sep (pp ++ pr_binding (n, t) ++ pr_coma ()) env'
+      in surround_brackets (sep (str "") env) ++ spc () ++
+	   pr_dkterm lhs ++ rule_arr () ++ pr_dkterm rhs ++ str "."
 
-let output_term out_chan t = output_string out_chan (ast_app t)
+let with_ft chan =
+  with_fp { fp_output = chan;
+	    fp_output_function = output chan;
+	    fp_flush_function = fun _ -> flush chan }
 
-let output_decl out_chan (i,t) =
-  output_string out_chan (get_euname i);
-  output_string out_chan " : ";
-  output_term out_chan t
+let output_term out_chan t = pp_with (with_ft out_chan) (pr_dkterm t)
 
-let rec output_decl_list out_chan = function
-    [] -> ()
-  | [d] -> output_decl out_chan d
-  | d::q -> 
-      output_decl out_chan d; 
-      output_string out_chan ", ";
-      output_decl_list out_chan q
-
-let output_line out_chan = function
-  | Declaration(i,t) -> output_decl out_chan (i,t);
-      output_string out_chan ".\n"
-  | Rule(var_decls, t1, t2) ->
-      output_string out_chan "[";
-      output_decl_list out_chan var_decls;
-      output_string out_chan "] ";
-      output_term out_chan t1;
-      output_string out_chan " --> ";
-      output_term out_chan t2;
-      output_string out_chan ".\n"
-  | End -> output_string out_chan "\n"
-
+let output_module out_chan prog = pp_with (with_ft out_chan) (pr_vertical_list pr_statement prog)
