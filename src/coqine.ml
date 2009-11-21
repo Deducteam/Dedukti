@@ -107,17 +107,15 @@ let name_to_qid n = Id (string_of_id (get_identifier n))
 let base_env = ref empty_env
 
 
-(* in a term, we may need extra declarations (for instance when dealing 
-   with a fixpoint. They are stocked in declaration_buffer thanks to 
-   add_decl, and they are written to a output channel using flush_decl 
-*)
+(* In a term, we may need extra declarations (for instance when
+   dealing with a fixpoint. They are stored in declaration_buffer with
+   add_decl, and they are written to a output channel using
+   flush_decl. *)
 let declaration_buffer = ref []
-let add_decl d = declaration_buffer := d::!declaration_buffer
-let flush_decl out_chan =
-  List.iter (output_line out_chan) (List.rev !declaration_buffer);
-  declaration_buffer := []
-
-
+let add_decl d = declaration_buffer := d :: !declaration_buffer
+let flush_decl () =
+  let decls = !declaration_buffer in
+    declaration_buffer := []; decls
 
 (*** translation of t as a term, given an environment e ***)
 let rec term_trans_aux e t = 
@@ -389,10 +387,8 @@ let sb_decl_trans label (name, decl) = match decl with
 	  NonPolymorphicType t -> type_trans t
 	| _ -> failwith "not implemented: polymorphic types"
       in
-	flush_decl stdout;
-	output_line stdout (Declaration(Id name, ttype)); 
-	output_line stdout (Rule([],DVar(Id name), tterm));
-        base_env := Environ.add_constant (Names.MPself label, [], name) sbfc !base_env
+        base_env := Environ.add_constant (Names.MPself label, [], name) sbfc !base_env;
+	Declaration(Id name, ttype) :: Rule([],DVar(Id name), tterm) :: flush_decl ()
 
   (* declaration of a (co-)inductive type *)
   | SFBmind m ->
@@ -421,22 +417,6 @@ let sb_decl_trans label (name, decl) = match decl with
 	  done;
 	  !l,!e
       in
-	(*add the inductive type declarations in dedukti *)
-	Array.iter
-	  (fun p -> output_line stdout
-	     (Declaration(Id p.mind_typename,
-			  type_trans_aux env
-			    (*it_mkProd_or_LetIn takes a term t and a context
-			    x1:T1...xn:Tn and builds
-			    Pi x1:T1...Pi xn:Tn. t*)
-			    (it_mkProd_or_LetIn
-			       (Sort (match p.mind_arity with
-					  Monomorphic ar ->  ar.mind_sort
-					| Polymorphic par -> 
-					    Type par.poly_level))
-			       p.mind_arity_ctxt
-			    ))))
-	  m.mind_packets;
 	let packet_translation p i = 
 	  (*Ad the constructors to the environment *)
 	let _,env = Array.fold_left 
@@ -592,11 +572,21 @@ let sb_decl_trans label (name, decl) = match decl with
 	      lref.(i) <- constr_decl p.mind_consnames.(i) p.mind_user_lc.(i);
 	    done; lref
       in
-	for i = 0 to Array.length m.mind_packets - 1 do
-	  let decls = packet_translation m.mind_packets.(i) i in
-	    flush_decl stdout;
-	    Array.iter (output_line stdout) decls
-	done
+	(* Add the inductive type declarations in dedukti *)
+        let ty_decls =
+	  Array.to_list
+	    (Array.map (fun p ->
+			  Declaration(Id p.mind_typename,
+				      type_trans_aux env
+					(it_mkProd_or_LetIn
+					   (Sort (match p.mind_arity with
+						      Monomorphic ar ->  ar.mind_sort
+						    | Polymorphic par -> 
+							Type par.poly_level))
+					   p.mind_arity_ctxt
+					)))
+	       m.mind_packets)
+	in 
+	let f i p = Array.to_list (packet_translation p i) @ flush_decl ()
+	in List.concat (Array.to_list (Array.mapi f m.mind_packets)) @ ty_decls
   | _ -> raise NotImplementedYet
-
-
