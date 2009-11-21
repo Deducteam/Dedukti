@@ -115,7 +115,7 @@ let declaration_buffer = ref []
 let add_decl d = declaration_buffer := d :: !declaration_buffer
 let flush_decl () =
   let decls = !declaration_buffer in
-    declaration_buffer := []; decls
+    declaration_buffer := []; List.rev decls
 
 (* Translation of t as a term, given an environment e. *)
 let rec term_trans_aux e t =
@@ -581,6 +581,6 @@ let sb_decl_trans label (name, decl) = match decl with
 					)))
 	       m.mind_packets)
 	in
-	let f i p = Array.to_list (packet_translation p i) @ flush_decl ()
-	in List.concat (Array.to_list (Array.mapi f m.mind_packets)) @ ty_decls
+	let f i p = flush_decl () @ Array.to_list (packet_translation p i)
+	in ty_decls @ List.concat (Array.to_list (Array.mapi f m.mind_packets))
   | _ -> raise NotImplementedYet
