@@ -123,7 +123,7 @@ stats:
 	@cd src; wc names.ml term.ml declarations.ml environ.ml type_errors.ml
 	@echo
 	@echo COQINE
-	@cd src; wc coqine.ml euTerms.ml
+	@cd src; wc coqine.ml dkterm.ml
 	@echo
 	@echo INTERFACE
 	@cd src; wc main.ml 
