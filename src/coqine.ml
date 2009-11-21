@@ -86,7 +86,7 @@ let rec get_identifier_env e n =
 	  in
 	  let n = alpha_counts 0 e.env_rel_context in
 	    if n = 0 then ch
-	    else compute_alpha (ch ^ "\230\172\167" ^ string_of_int (n-1))
+	    else compute_alpha (ch ^ "xxx" ^ string_of_int (n-1))
 	in
 	  compute_alpha s
 
