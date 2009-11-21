@@ -1293,6 +1293,7 @@ let pr_int = int
 let pr_str = str
 let pr_coma () = str "," ++ spc ()
 let pr_semicolon () = str ";" ++ spc ()
+let pr_colon () = spc () ++ str ":" ++ spc ()
 let pr_bar () = str "|" ++ spc ()
 let pr_arg pr x = spc () ++ pr x
 let pr_opt pr = function None -> mt () | Some x -> pr_arg pr x
@@ -1380,7 +1381,8 @@ let pr_located pr (loc,x) =
     comment b ++ pr x ++ comment e
   else pr x
 
-let surround p = hov 1 (str"(" ++ p ++ str")")
+let surround p = hov 1 (str "(" ++ p ++ str ")")
+let surround_brackets p = hov 1 (str "[" ++ p ++ str "]")
 
 (*s Memoization *)
 

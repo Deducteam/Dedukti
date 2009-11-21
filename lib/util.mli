@@ -281,6 +281,7 @@ val pr_fnl : unit -> std_ppcmds
 val pr_int : int -> std_ppcmds
 val pr_str : string -> std_ppcmds
 val pr_coma : unit -> std_ppcmds
+val pr_colon : unit -> std_ppcmds
 val pr_semicolon : unit -> std_ppcmds
 val pr_bar : unit -> std_ppcmds
 val pr_arg : ('a -> std_ppcmds) -> 'a -> std_ppcmds
@@ -303,6 +304,7 @@ val pr_enum : ('a -> std_ppcmds) -> 'a list -> std_ppcmds
 val pr_located : ('a -> std_ppcmds) -> 'a located -> std_ppcmds
 val pr_sequence : ('a -> std_ppcmds) -> 'a list -> std_ppcmds
 val surround : std_ppcmds -> std_ppcmds
+val surround_brackets : std_ppcmds -> std_ppcmds
 
 (*s Memoization. *)
 
