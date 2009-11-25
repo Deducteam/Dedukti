@@ -17,6 +17,6 @@ let translate filename =
 		print_endline (";Finished module " ^ match label with _,l,_ -> l)
 	  | _ -> ()
 	      
-let _ =  try Arg.parse [] translate
-  "CoqInE\nUsage: coqine filenames\n\tfilenames: coq binary files (.vo)" 
-with e -> output_module stderr (flush_decl ()); raise e
+let _ =  
+  Arg.parse [] translate
+    "CoqInE\nUsage: coqine filenames\n\tfilenames: coq binary files (.vo)" 
