@@ -457,8 +457,8 @@ let sb_decl_trans label (name, decl) = match decl with
 	  (fun (j, env) consname ->
 	     j + 1,
 	     Environ.push_named (consname, None, substl mind_names p.mind_nf_lc.(j)) env) (0, env) p.mind_consnames in
-	  (* xxx: We need to remove the Parameter arguments from the type of
-	     the constructors ?? *)
+	  (* Construct the type of the function of corresponding to a 
+	     constructor in a __case. *)
 	let rec make_constr_func_type cons_name num_treated num_args =
 	  function
 	      0, t -> make_constr_func_type cons_name num_treated num_args (-1,lift num_treated t)
@@ -500,7 +500,7 @@ let sb_decl_trans label (name, decl) = match decl with
 	    Declaration (Id name, c_tt)::decls' in
 	let nb_consts =  Array.length p.mind_consnames in
 	let case_name = DVar (Id (p.mind_typename ^ "__case")) in
-	let _, env, param_vars, case_name, decls =
+	let _, env, param_vars, case_name, this_decls =
 	  List.fold_left
 	    (fun (i, e, vars, c, decls) (n,_,t) ->
 	       if i = 0 then i, e, vars, c, decls
@@ -510,9 +510,9 @@ let sb_decl_trans label (name, decl) = match decl with
 		 let t_tt, decls' = type_trans_aux e t decls in
 		   i-1,e',(Id v, t_tt)::vars, DApp(c, DVar (Id v)), decls'
 	    )
-	    (m.mind_nparams, env, [], case_name, decls) (List.rev p.mind_arity_ctxt)
+	    (m.mind_nparams, env, [], case_name, []) (List.rev p.mind_arity_ctxt)
 	in
-	let p_var, case_name, env, decls =
+	let p_var, case_name, env, this_decls =
 	  let v = fresh_var "P_" in
 	  let t = it_mkProd_or_LetIn
 	    (Prod(Name "i",
@@ -522,13 +522,13 @@ let sb_decl_trans label (name, decl) = match decl with
 		  Term.Sort (Term.Type (Univ.Atom Univ.Set))))
 	    indices in
 	  let e = push_rel (Name v, None, t) env in
-	  let t_tt, decls' = type_trans_aux env t decls in
+	  let t_tt, decls' = type_trans_aux env t this_decls in
 	    (Id v, t_tt),
 	  DApp(case_name, DVar(Id v)),
 	  e,
 	  decls'
 	in
-	let _,env,func_vars, case_name, decls = Array.fold_left
+	let _,env,func_vars, case_name, this_decls = Array.fold_left
 	  (fun (i,e,vars,c,decls) cons_name  ->
 	     let t = make_constr_func_type cons_name i 0
 	       (m.mind_nparams, substl mind_names p.mind_nf_lc.(i)) in
@@ -537,13 +537,13 @@ let sb_decl_trans label (name, decl) = match decl with
 	     let t_tt, decls' = type_trans_aux e t decls in
 	       i+1,e',(Id v, t_tt)::vars, DApp(c, DVar (Id v)), decls'
 	  )
-	  (0,env,[],case_name, decls) p.mind_consnames
+	  (0,env,[],case_name, this_decls) p.mind_consnames
 	in
-	let _, decls = 
+	let _, this_decls = 
 	  Array.fold_left
 	    (fun (i, decls) cons_name -> 
 	       i+1, constr_decl cons_name p.mind_user_lc.(i) decls)
-	    (0,decls) p.mind_consnames
+	    (0,this_decls) p.mind_consnames
 	in
 	let i__case_coq_type = 
 	  it_mkProd_or_LetIn
@@ -589,13 +589,14 @@ let sb_decl_trans label (name, decl) = match decl with
 			   ))
 		 ))
 	    m.mind_params_ctxt in
-	let i__case_trans, decls = type_trans_aux env i__case_coq_type decls in
-	let decls =
+	let i__case_trans, this_decls = 
+	  type_trans_aux env i__case_coq_type this_decls in
+	let this_decls =
 	  Declaration(
 	    Id (p.mind_typename ^ "__case"),
-	    i__case_trans)::decls
+	    i__case_trans)::this_decls
 	in
-	let _,decls = 
+	let _,this_decls = 
 	  Array.fold_left
 	    (fun (i, d) cons_name ->  
 	       let constr, indices, c_vars, d' = add_ind_and_constr
@@ -614,17 +615,17 @@ let sb_decl_trans label (name, decl) = match decl with
 		      List.fold_right (fun (v,_) c -> DApp(c, DVar v))
 			c_vars (DVar id)
 		   )::d')
-	    (0,decls) p.mind_consnames in
-	 List.rev decls
+	    (0,this_decls) p.mind_consnames in
+	 List.rev_append this_decls decls
       in
 	(* Add the inductive type declarations in dedukti. *)
       let _, decls = 
-	(Array.fold_left 
-           (fun (i,d) p -> i+1, packet_translation p i d)
-	   (0,[]) m.mind_packets)
+	(Array.fold_right 
+           (fun p (i,d) -> i-1, packet_translation p i d)
+	   m.mind_packets (Array.length m.mind_packets -1,[]) )
       in
-	Array.fold_left 
-	  (fun d p ->
+	Array.fold_right
+	  (fun p d ->
 	     let t, d' = type_trans_aux env
 	       (it_mkProd_or_LetIn
 		  (Sort (match p.mind_arity with
@@ -636,5 +637,5 @@ let sb_decl_trans label (name, decl) = match decl with
 	       d in
 	       Declaration(Id p.mind_typename,
 			   t)::d')
-	  decls m.mind_packets
+	  m.mind_packets decls
   | _ -> raise NotImplementedYet
