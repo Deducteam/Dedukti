@@ -1,0 +1,2 @@
+#!/bin/sh
+ghc -c -x hs -XOverloadedStrings -fglasgow-exts $@
