@@ -187,6 +187,7 @@ let marshal_in ch =
 
 exception Bad_magic_number of string
 
+(* Desactivating magic number check *)
 let raw_extern_intern magic suffix =
   let extern_state name = 
     let filename = make_suffix name suffix in
@@ -195,8 +196,10 @@ let raw_extern_intern magic suffix =
     filename,channel
   and intern_state filename = 
     let channel = open_in_bin filename in
-    if input_binary_int channel <> magic then
-      raise (Bad_magic_number filename);
+    let mn = input_binary_int channel in
+      if mn <> magic then
+	(*      raise (Bad_magic_number filename); *)
+        Printf.fprintf Pervasives.stderr "Warning: file number %d does not match magic number %d.\n" mn magic;
     channel
   in 
   (extern_state,intern_state)

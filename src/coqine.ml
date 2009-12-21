@@ -122,33 +122,33 @@ let rec term_trans_aux e t decls =
 	  (Id v, t_tt)::vs, DApp(c,DVar (Id v)), decls
   in
 
-  (* Add free variables to complete a constructor
-     add_vars free_vars e c (t, params) :
-     free_vars : accumulator for the free variables (as a list of pairs
-     id * type
-     e : current environment
-     c : constr to be completed
-     t : type of constr
-     params : parameters of the inductive type
-     example : add_vars [] e c (a : A -> b : B -> d : D -> I x y z, [A])
-     returns [b0 : B; d0 : D], c b0 d0, [|x; y; z|] *)
-(*   let rec add_vars free_vars e c  = function *)
-(*     | Prod(_,t, q), [] -> let v = fresh_var "var_" in *)
-(*       let e' = push_rel (Name v, None, t) e in *)
-(* 	add_vars ((Id v,type_trans_aux e t)::free_vars) e' (DApp(c, DVar (Id v))) (q,[]) *)
-(*     | t,[] -> free_vars, c, *)
-(* 	begin match collapse_appl t with App(_,a) -> a *)
-(* 	  | _ -> Array.init 0 Obj.magic (\* Obj.magic!? *\) *)
-(* 	end *)
-(*     | Prod(_,t, q),arg::args -> *)
-(* 	let n = List.length e.env_rel_context in *)
-(* 	let e' = push_named (arg, None, it_mkProd_or_LetIn t e.env_rel_context) *)
-(* 	  e in *)
-(* 	  add_vars free_vars e' *)
-(* 	    (DApp(c, snd (app_rel_context e (DVar (Id arg))))) *)
-(* 	    (subst1 (App(Var arg, Array.init n (fun m -> Rel (n-m)))) q, args) *)
-(*     | _ -> failwith "add_vars: too many parameters" *)
-(*   in *)
+    (* Add free variables to complete a constructor
+       add_vars free_vars e c (t, params) :
+       free_vars : accumulator for the free variables (as a list of pairs
+       id * type
+       e : current environment
+       c : constr to be completed
+       t : type of constr
+       params : parameters of the inductive type
+       example : add_vars [] e c (a : A -> b : B -> d : D -> I x y z, [A])
+       returns [b0 : B; d0 : D], c b0 d0, [|x; y; z|] *)
+    (*   let rec add_vars free_vars e c  = function *)
+    (*     | Prod(_,t, q), [] -> let v = fresh_var "var_" in *)
+    (*       let e' = push_rel (Name v, None, t) e in *)
+    (* 	add_vars ((Id v,type_trans_aux e t)::free_vars) e' (DApp(c, DVar (Id v))) (q,[]) *)
+    (*     | t,[] -> free_vars, c, *)
+    (* 	begin match collapse_appl t with App(_,a) -> a *)
+    (* 	  | _ -> Array.init 0 Obj.magic (\* Obj.magic!? *\) *)
+    (* 	end *)
+    (*     | Prod(_,t, q),arg::args -> *)
+    (* 	let n = List.length e.env_rel_context in *)
+    (* 	let e' = push_named (arg, None, it_mkProd_or_LetIn t e.env_rel_context) *)
+    (* 	  e in *)
+    (* 	  add_vars free_vars e' *)
+    (* 	    (DApp(c, snd (app_rel_context e (DVar (Id arg))))) *)
+    (* 	    (subst1 (App(Var arg, Array.init n (fun m -> Rel (n-m)))) q, args) *)
+    (*     | _ -> failwith "add_vars: too many parameters" *)
+    (*   in *)
     (* Transform a list of dedukti variables into an array of Coq variables. *)
     (*   let vars_to_args l =  *)
     (*     let rec vars_to_args array = function *)
@@ -206,19 +206,45 @@ let rec term_trans_aux e t decls =
 		 DApp(u1, u_tt2), decls2)
 	    (term_trans_aux e t1 decls) a
 
-      | Const(mp,dp,l)  -> (* TODO: treat the module path and the dir path. *)
-	  DVar(Id l),decls
+      | Const(mod_path,dp,name)  -> (* TODO: treat the module path and the dir path. *)
+	  (* depending whether the const is defined here or in 
+	     another module *)
+	  (match mod_path with 
+	       MPself _ -> DVar (Id name)
+	     | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
+		 DVar (Qid (m,name))
+	     | _ -> failwith "Not implemented: modules bound and dot module path"
+	  ),
+	  decls
 
-      | Ind(ind, num)  -> begin
-	  try DVar (Id (lookup_mind ind e).mind_packets.(num).mind_typename),
+      | Ind((mod_path,_,l) as ind, num)  -> begin
+	  try 
+	    let name = (lookup_mind ind e).mind_packets.(num).mind_typename in
+	      (* depending whether the inductive is defined here or in 
+		 another module *)
+	      (match mod_path with 
+		   MPself _ -> DVar (Id name)
+		 | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
+		     DVar (Qid (m,name))
+		 | _ -> failwith "Not implemented: modules bound and dot module path"
+	      ),
 	    decls
-	  with Not_found -> failwith "term translation: unknown inductive" end
+	  with Not_found -> failwith ("term translation: unknown inductive "
+				      ^ l) end
 
-      | Construct((ind,j), i) -> begin
+      | Construct(((mod_path,_,l) as ind,j), i) -> begin
 	  try
-	    DVar (Id (lookup_mind ind e).mind_packets.(j).mind_consnames.(i-1)),
+	    let name = (lookup_mind ind e).mind_packets.(j).mind_consnames.(i-1) in
+	      (match mod_path with 
+		   MPself _ -> DVar (Id name)
+		 | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
+		     DVar (Qid (m,name))
+		 | _ -> failwith "Not implemented: modules bound and dot module path"
+	      ),
+
 	    decls
-	  with Not_found -> failwith "term translation: unknown inductive" end
+	  with Not_found -> failwith ("term translation: unknown inductive "
+				      ^l) end
 
       | Case (ind, ret_ty, matched, branches)  ->
 	  let mind_body = lookup_mind (fst ind.ci_ind) e in
@@ -232,7 +258,12 @@ let rec term_trans_aux e t decls =
 	      | Ind(i) when i = ind.ci_ind -> Array.init 0 Obj.magic
 	      | _ -> failwith "term_trans: matched term badly typed"
 	  in
-	  let r = ref (DVar (Id case_name)) 
+	  let r = ref (match fst ind.ci_ind with  
+		   MPself _, _, _ -> DVar (Id case_name)
+		 | MPfile (m :: _), _ , _  -> (* TODO : use the whole dirpath *)
+		     DVar (Qid (m,case_name))
+		 | _ -> failwith "Not implemented: modules bound and dot module path"
+			      )
 	  and d = ref decls in
 	    for i = 0 to ind.ci_npar - 1 do 
 	      (* We cannot use Array.fold_left since we only need 
@@ -274,11 +305,11 @@ let rec term_trans_aux e t decls =
 	    (* Declare the type of the fixpoint function. *)
 	    let decls' = 
 	      let t, decls' = type_trans_aux
-					{ e with env_rel_context = [] }
-					(it_mkProd_or_LetIn
-					   body_type
-					   e.env_rel_context
-					) decls in
+		{ e with env_rel_context = [] }
+		(it_mkProd_or_LetIn
+		   body_type
+		   e.env_rel_context
+		) decls in
 		Declaration(Id name, t)::decls' in
 	      (* Recursively applies all the variables in the context at the
 		 point of the fixpoint definition down to the recursive
@@ -296,7 +327,7 @@ let rec term_trans_aux e t decls =
 		  in
 		    (* This is the final case, apply the recursive variable to
 		       f and create a rule f x1...xn --> rhs x1...xn. *)
-                      Rule(List.rev_append env_vars vars,
+                    Rule(List.rev_append env_vars vars,
 			 DApp(fix, DVar (Id s)),
 			 DApp(rhs, DVar (Id s))
 			)
@@ -405,7 +436,9 @@ let rec add_ind_and_constr ?(i=0) m p e vars cons_name decls = function
 
 
 (* Translation of a declaration in a structure. *)
-let sb_decl_trans label (name, decl) = match decl with
+let sb_decl_trans label (name, decl) =
+  prerr_endline ("declaring "^name);
+  match decl with
     (* Declaration of a constant (theorem, definition, etc.). *)
     SFBconst sbfc ->
       base_env := Environ.add_constraints sbfc.const_constraints !base_env;
@@ -444,10 +477,13 @@ let sb_decl_trans label (name, decl) = match decl with
 		 environment. *)
 	      l := Ind((Names.MPself label, [], name), i)::!l;
 	      e := Environ.push_rel (Names.Name p.mind_typename, None,
-				     match p.mind_arity with
-					 Monomorphic ar -> ar.mind_user_arity
-				       | Polymorphic par ->
-					   Sort (Type par.poly_level)) !e
+				     (it_mkProd_or_LetIn
+					(Sort (match p.mind_arity with
+						   Monomorphic ar ->  ar.mind_sort
+						 | Polymorphic par ->
+						     Type par.poly_level))
+					p.mind_arity_ctxt))
+				      !e
 	  done;
 	  !l,!e
       in

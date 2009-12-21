@@ -299,7 +299,7 @@ let name_clash_message dir mdir f =
 let depgraph = ref LibraryMap.empty
 
 let intern_from_file (dir, f) =
-  Flags.if_verbose msg (str"[intern "++str f++str" ...");
+  prerr_string ("[intern " ^ f);
   let (md,digest) = 
     try
       let ch = with_magic_number_check raw_intern_library f in
@@ -309,7 +309,7 @@ let intern_from_file (dir, f) =
       if dir <> md.md_name then
         errorlabstrm "load_physical_library"
           (name_clash_message dir md.md_name f);
-      Flags.if_verbose msgnl(str" done]");
+      prerr_endline " done]";
       md,digest
     with e -> Flags.if_verbose msgnl(str" failed!]"); raise e in
   depgraph := LibraryMap.add md.md_name md.md_deps !depgraph; 
