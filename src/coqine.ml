@@ -451,7 +451,10 @@ let sb_decl_trans label (name, decl) =
 	| None -> failwith "no term given"
       and ttype, type_decls = match sbfc.const_type with
 	  NonPolymorphicType t -> type_trans t
-	| _ -> failwith "not implemented: polymorphic types"
+	| PolymorphicArity(context, arity) -> 
+	    (* Not sure this is really how it works. *)
+	    type_trans (it_mkProd_or_LetIn (Sort (Type arity.poly_level)) 
+			  context)
       in
         base_env := Environ.add_constant (Names.MPself label, [], name) sbfc !base_env;
 	List.rev_append term_decls 

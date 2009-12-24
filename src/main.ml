@@ -22,7 +22,7 @@ let add_path p =
 
 let speclist = Arg.align 
   [ "--prefix", Arg.Set_string prefix, "root set the dirpath root";
-    "-I", Arg.String add_path, "path add the path" ]
+    "-I", Arg.String add_path, "path add path using the current dirpath root" ]
 
 let translate filename =
   let channel = open_in_bin filename in
