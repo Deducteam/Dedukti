@@ -138,7 +138,7 @@ let rec term_trans_aux e t decls =
     (* 	add_vars ((Id v,type_trans_aux e t)::free_vars) e' (DApp(c, DVar (Id v))) (q,[]) *)
     (*     | t,[] -> free_vars, c, *)
     (* 	begin match collapse_appl t with App(_,a) -> a *)
-    (* 	  | _ -> Array.init 0 Obj.magic (\* Obj.magic!? *\) *)
+    (* 	  | _ -> [||] *)
     (* 	end *)
     (*     | Prod(_,t, q),arg::args -> *)
     (* 	let n = List.length e.env_rel_context in *)
@@ -255,7 +255,7 @@ let rec term_trans_aux e t decls =
 	  let matched_args =
 	    match collapse_appl (Reduction.whd_betadeltaiota e (infer e matched))
 	    with App(Ind(i),t) when i = ind.ci_ind -> t
-	      | Ind(i) when i = ind.ci_ind -> Array.init 0 Obj.magic
+	      | Ind(i) when i = ind.ci_ind -> [||]
 	      | _ -> failwith "term_trans: matched term badly typed"
 	  in
 	  let r = ref (match fst ind.ci_ind with  
@@ -405,157 +405,138 @@ let type_trans t = type_trans_aux !base_env t []
 
 (*** Translation of a declaration in a structure body. ***)
 
-let rec add_ind_and_constr ?(i=0) m p e vars cons_name decls = function
-    [], Prod(n,t1,t2) ->
+(* auxiliary function for add_ind_and_constr
+   add variables corresponding to the remaining args of the constructor
+*)
+let rec add_ind_and_constr' m e vars cons_name decls = function
+    Prod(n,t1,t2) ->
       let v = fresh_var "c_arg_" in
       let e' = push_rel (Name v, None, t1) e in
       let t_tt1, decls' = type_trans_aux e t1 decls in
-        add_ind_and_constr m p e' ((Id v, t_tt1)::vars)
-          (DApp(cons_name, DVar (Id v))) decls' ([],t2) 
-  | [], App(_,args) ->
+        add_ind_and_constr' m e' ((Id v, t_tt1)::vars)
+          (DApp(cons_name, DVar (Id v))) decls' t2
+  | App(_,args) ->
       let ind =
-        Array.make (Array.length args - m.mind_nparams) DKind in
+        Array.make (Array.length args - m) DKind in
       let d = ref decls in
         for i = 0 to Array.length ind - 1 do
-	  let a_i, d' = term_trans_aux e args.(i+m.mind_nparams) decls in
+	  let a_i, d' = term_trans_aux e args.(i+m) decls in
             ind.(i) <- a_i;
 	    d := d'
         done;
         cons_name, ind, vars, !d
-  | [], _ ->
-      let ind =
-        Array.init 0 Obj.magic in
-        cons_name, ind, vars, decls
-  |  (id, _)::q, Prod(n,t1,t2) ->
-       let t2 = subst1 (Rel (Array.length p.mind_consnames - i +
-                               m.mind_nparams + 1)) t2 in
-         add_ind_and_constr ~i:(i+1) m p e vars (DApp(cons_name, DVar id))
-	   decls (q,t2)
-  | _ -> failwith "inductive translation: ill-typed constructor"
+  | _ ->
+      cons_name, [||], vars, decls
+
+(* p : number of constructors
+   e : environment
+   vars : accumulator
+   cons_name : name of the constructor
+   decls : accumulator for the declarations
+   params : list of variables for the parameter
+   typ : type of the constructor
+
+   returns the constructor with variables for the parameters and the other args
+           the new variables
+           their declaration
+           the auxiliary declarations
+*)
+let add_ind_and_constr p e cons_name decls params typ = 
+  let m = List.length params in 
+  (* add the parameters to the constructor *)
+  let rec aux i c = function
+      [], typ -> add_ind_and_constr' m e [] c decls typ 
+    | (id, _)::q, Prod(n,t1,t2) ->
+	 let t2 = subst1 (Rel (i + m + 1)) t2 in
+           aux (i-1) (DApp(c, DVar id)) (q,t2)
+    | _ -> failwith "inductive translation: ill-typed constructor"
+  in
+    aux p cons_name (params, typ)
+      
+
+(* Auxiliary function for make_constr_func_type *)
+let rec make_constr_func_type' cons_name num_treated num_param num_args = function
+    Prod(n, t1, t2) ->
+      Prod(n, t1,
+	   make_constr_func_type' cons_name num_treated num_param
+	     (num_args+1) t2)
+  | App(_,args) ->
+      App(App(Rel (num_args + 1 + num_treated),
+	      Array.init (Array.length args - num_param)
+			(fun i -> args.(i+ num_param))),
+		  [| App(Var cons_name,
+			 Array.init (num_args+num_param)
+			   (fun i -> if i < num_param
+			    then Rel(num_args + 1 + num_treated + num_param - i)
+			    else Rel(num_args + num_param - i))) |] )
+  |  _ ->
+	      App(Rel (num_args + 1 + num_treated),
+		  [| App(Var cons_name,
+			 Array.init (num_args+num_param)
+			   (fun i -> if i < num_param
+			    then Rel(num_args + 1 + num_treated + num_param - i)
+			    else Rel(num_args + num_param - i))) |] )
 
 
+(* Makes the type of the function in the __case of an inductive type
+   corresponding to a constructor
+   make_constr_func_type cons_name num_treated type :
+     cons_name : name of the constructor
+     num_treated : number of the constructor in the inductive definition
+     num_param : number of parameters
+     type : type of the constructor
+ *)
+let make_constr_func_type cons_name num_treated num_param typ =
+  let rec aux = function 
+      0, t -> make_constr_func_type' cons_name num_treated num_param 
+	0 (lift num_treated t)
+    | n, Prod(_, t1, t2) ->
+	aux (n-1, subst1 (Rel(n+1)) t2)
+    | _ -> failwith "inductive translation: ill-formed constructor type"
+  in aux (num_param, typ)
+	
 
-(* Translation of a declaration in a structure. *)
-let sb_decl_trans label (name, decl) =
-  prerr_endline ("declaring "^name);
-  match decl with
-    (* Declaration of a constant (theorem, definition, etc.). *)
-    SFBconst sbfc ->
-      base_env := Environ.add_constraints sbfc.const_constraints !base_env;
-      let tterm, term_decls = match sbfc.const_body with
-	  Some cb -> begin
-	    match !cb with
-		LSval c -> term_trans c
-	      | LSlazy(s,c) -> failwith "not implemented: lazy subst"
-	  end
-	| None -> failwith "no term given"
-      and ttype, type_decls = match sbfc.const_type with
-	  NonPolymorphicType t -> type_trans t
-	| PolymorphicArity(context, arity) -> 
-	    (* Not sure this is really how it works. *)
-	    type_trans (it_mkProd_or_LetIn (Sort (Type arity.poly_level)) 
-			  context)
-      in
-        base_env := Environ.add_constant (Names.MPself label, [], name) sbfc !base_env;
-	List.rev_append term_decls 
-	  (List.rev_append type_decls [Declaration(Id name, ttype); Rule([],DVar(Id name), tterm)])
-
-  (* Declaration of a (co-)inductive type. *)
-  | SFBmind m ->
-      if not m.mind_finite
-      then prerr_endline "mind_translation: coinductive types may not work properly";
-      (* Add the mutual inductive type declaration to the environment. *)
-      base_env := Environ.add_mind (Names.MPself label,[],name) m !base_env;
-      (* The names and typing context of the inductive type. *)
-      let mind_names, env =
-	let l = ref []
-	and e = ref
-	  (Environ.add_constraints m.mind_constraints !base_env)
-	in
-	  for i = 0 to Array.length m.mind_packets - 1 do
-	    let p = m.mind_packets.(i) in
-	      (* For each packet=group of mutal inductive type definitions
-		 "p", add the name of the inductive type to l and the
-		 declaration of the inductive type with it's kind to the
-		 environment. *)
-	      l := Ind((Names.MPself label, [], name), i)::!l;
-	      e := Environ.push_rel (Names.Name p.mind_typename, None,
-				     (it_mkProd_or_LetIn
-					(Sort (match p.mind_arity with
-						   Monomorphic ar ->  ar.mind_sort
-						 | Polymorphic par ->
-						     Type par.poly_level))
-					p.mind_arity_ctxt))
-				      !e
-	  done;
-	  !l,!e
-      in
-      let packet_translation p i decls =
-	(* Add the constructors to the environment  *)
-	let _,env = Array.fold_left
-	  (fun (j, env) consname ->
-	     j + 1,
-	     Environ.push_named (consname, None, substl mind_names p.mind_nf_lc.(j)) env) (0, env) p.mind_consnames in
-	  (* Construct the type of the function of corresponding to a 
-	     constructor in a __case. *)
-	let rec make_constr_func_type cons_name num_treated num_args =
-	  function
-	      0, t -> make_constr_func_type cons_name num_treated num_args (-1,lift num_treated t)
-	    | -1, Prod(n, t1, t2) ->
-		Prod(n, t1,
-		     make_constr_func_type cons_name num_treated
-		       (num_args+1) (-1, t2))
-	    | -1, App(_,args) ->
-		App(App(Rel (num_args + 1 + num_treated),
-			Array.init (Array.length args - m.mind_nparams)
-			  (fun i -> args.(i+ m.mind_nparams))),
-		    [| App(Var cons_name,
-			   Array.init (num_args+m.mind_nparams)
-			     (fun i -> if i < m.mind_nparams
-			      then Rel(num_args + 1 + num_treated + m.mind_nparams - i)
-			      else Rel(num_args + m.mind_nparams - i))) |] )
-	    | -1, _ ->
-		App(Rel (num_args + 1 + num_treated),
-		    [| App(Var cons_name,
-			   Array.init (num_args+m.mind_nparams)
-			     (fun i -> if i < m.mind_nparams
-			      then Rel(num_args + 1 + num_treated + m.mind_nparams - i)
-			      else Rel(num_args + m.mind_nparams - i))) |] )
-	    | n, Prod(_, t1, t2) ->
-		make_constr_func_type cons_name num_treated num_args
-		  (n-1, subst1 (Rel(n+1)) t2)
-	    | _ -> failwith "inductive translation: ill-formed constructor type"
-	in
-	let indices =
-	  let rec aux accu = function
-	      0, _ -> List.rev accu
-	    | n, x :: q -> aux (x::accu) (n-1, q)
-	    | _ -> failwith "inductive translation: ill-formed arity"
-	  in aux [] (List.length p.mind_arity_ctxt - m.mind_nparams,
-		     p.mind_arity_ctxt)
-	in
-	let constr_decl name c decls =
-	  let c_tt, decls' = type_trans_aux env c decls in
-	    Declaration (Id name, c_tt)::decls' in
-	let nb_consts =  Array.length p.mind_consnames in
-	let case_name = DVar (Id (p.mind_typename ^ "__case")) in
-	let _, env, param_vars, case_name, this_decls =
-	  List.fold_left
-	    (fun (i, e, vars, c, decls) (n,_,t) ->
-	       if i = 0 then i, e, vars, c, decls
-	       else
-		 let v = fresh_var "param_" in
-		 let e' = push_rel (Name v, None, t) e in
-		 let t_tt, decls' = type_trans_aux e t decls in
-		   i-1,e',(Id v, t_tt)::vars, DApp(c, DVar (Id v)), decls'
-	    )
-	    (m.mind_nparams, env, [], case_name, []) (List.rev p.mind_arity_ctxt)
-	in
-	let p_var, case_name, env, this_decls =
-	  let v = fresh_var "P_" in
-	  let t = it_mkProd_or_LetIn
-	    (Prod(Name "i",
-		  App(Ind((Names.MPself label, [], name), i),
+(* translate a packet of a mutual inductive definition (i.e. a single inductive)
+   env : environment
+   ind : path of the current inductive 
+   params : parameter context of the mutual inductive definition
+   constr_types : type of the constructors in p
+   p : packet
+   decls : accumulator of declarations
+*)
+let packet_translation env ind params constr_types p decls =
+  let n_params = List.length params in
+  (* Add the constructors to the environment  *)
+  let indices = (* arguments that are not parameters *)
+    let rec aux accu = function
+	0, _ -> List.rev accu
+      | n, x :: q -> aux (x::accu) (n-1, q)
+      | _ -> failwith "inductive translation: ill-formed arity"
+    in aux [] (List.length p.mind_arity_ctxt - n_params,
+	       p.mind_arity_ctxt)
+  in
+  let constr_decl name c decls =
+    let c_tt, decls' = type_trans_aux env c decls in
+      Declaration (Id name, c_tt)::decls' in
+  let nb_consts =  Array.length p.mind_consnames in
+  let case_name = DVar (Id (p.mind_typename ^ "__case")) in
+  let _, env, param_vars, case_name, this_decls =
+    List.fold_left
+      (fun (i, e, vars, c, decls) (n,_,t) ->
+	 if i = 0 then i, e, vars, c, decls
+	 else
+	   let v = fresh_var "param_" in
+	   let e' = push_rel (Name v, None, t) e in
+	   let t_tt, decls' = type_trans_aux e t decls in
+	     i-1,e',(Id v, t_tt)::vars, DApp(c, DVar (Id v)), decls'
+      )
+      (n_params, env, [], case_name, []) (List.rev p.mind_arity_ctxt)
+  in
+  let p_var, case_name, env, this_decls =
+    let v = fresh_var "P_" in
+    let t = it_mkProd_or_LetIn
+      (Prod(Name "i",
+            App(Ind(ind),
 		      let n = List.length p.mind_arity_ctxt in
 			Array.init n (fun i -> Rel (n-i))),
 		  Term.Sort (Term.Type (Univ.Atom Univ.Set))))
@@ -569,8 +550,9 @@ let sb_decl_trans label (name, decl) =
 	in
 	let _,env,func_vars, case_name, this_decls = Array.fold_left
 	  (fun (i,e,vars,c,decls) cons_name  ->
-	     let t = make_constr_func_type cons_name i 0
-	       (m.mind_nparams, substl mind_names p.mind_nf_lc.(i)) in
+	     let t = make_constr_func_type 
+	       cons_name i n_params 
+	       constr_types.(i) in
 	     let v = fresh_var "f_" in
 	     let e' = push_rel (Name v, None, t) e in
 	     let t_tt, decls' = type_trans_aux e t decls in
@@ -584,50 +566,63 @@ let sb_decl_trans label (name, decl) =
 	       i+1, constr_decl cons_name p.mind_user_lc.(i) decls)
 	    (0,this_decls) p.mind_consnames
 	in
+	  (* This big piece of code is the type in the Coq world of 
+	     the __case. 
+	  *)
 	let i__case_coq_type = 
-	  it_mkProd_or_LetIn
-	    (Prod(Name "P",
-		  it_mkProd_or_LetIn
-		    (Prod(Name "i",
-			  App(Ind((Names.MPself label, [], name), i),
-				  let n = List.length p.mind_arity_ctxt in
-				    Array.init n (fun i -> Rel (n-i))),
-			      Term.Sort (Term.Type (Univ.Atom Univ.Set))))
+	  let return_type =
+	    it_mkProd_or_LetIn
+	      (Prod(Name "i",
+		    App(Ind(ind),
+			let n = List.length p.mind_arity_ctxt in
+			  Array.init n (fun i -> Rel (n-i))),
+		    Term.Sort (Term.Type (Univ.Atom Univ.Set))))
+	      indices 
+	  in
+	  let end_type = 
+	    Prod(Anonymous,
+		 App(Ind(ind),
+		     let n = List.length p.mind_arity_ctxt in
+		       Array.init n (fun i ->
+				       if i < n_params
+				       then Rel(n - i + Array.length p.mind_consnames + 1)
+				       else Rel(n-i))),
 
-			indices,
-		      snd
-			(Array.fold_right
-			   (fun cons_name (i,c) ->
-			      i-1, Prod(Name "f",
-					make_constr_func_type cons_name i 0
-					  (m.mind_nparams,
-					   substl
-					     mind_names
-					     p.mind_nf_lc.(i)),
-					c))
-			   p.mind_consnames
-			   (Array.length p.mind_consnames-1,
-			    it_mkProd_or_LetIn
-			      (Prod(Anonymous,
-				    App(Ind((Names.MPself label, [], name), i),
-					let n = List.length p.mind_arity_ctxt in
-					  Array.init n (fun i ->
-							  if i < m.mind_nparams
-							  then Rel(n - i + Array.length p.mind_consnames + 1)
-							  else Rel(n-i))),
+		 App(Rel(Array.length p.mind_consnames + 2 + List.length indices),
+		     let n = List.length indices + 1
+		     in Array.init n (fun i -> Rel(n-i)))
+		)	    
+	  in
+	  let end_type_with_indices = 
+	    it_mkProd_or_LetIn
+	      end_type
+	      (List.map
+		 (fun (a,r,t) ->
+		    a, r,
+		    lift (Array.length p.mind_consnames + 1)
+		      t) indices)
+	  in
+	  let rec add_functions_from_constrs c = function
+	      -1 -> c 
+	    | i -> add_functions_from_constrs 
+		(Prod(Name "f",
+		      make_constr_func_type p.mind_consnames.(i) i 
+			n_params
+			constr_types.(i),
+		      c))
+		  (i-1)
+	  in
+	    it_mkProd_or_LetIn
+	      (Prod(Name "P",
+		    return_type,
+		    add_functions_from_constrs 
+		      end_type_with_indices
+		      (Array.length p.mind_consnames-1)
+		   ))
+	      params in
+	  (* end of i__case_coq_type *)
 
-				    App(Rel(Array.length p.mind_consnames + 2 + List.length indices),
-					let n = List.length indices + 1
-					in Array.init n (fun i -> Rel(n-i)))
-				   ))
-			      (List.map
-				 (fun (a,r,t) ->
-				    a, r,
-				    lift (Array.length p.mind_consnames + 1)
-				      t) indices)
-			   ))
-		 ))
-	    m.mind_params_ctxt in
+	(* declaration of the __case type *)
 	let i__case_trans, this_decls = 
 	  type_trans_aux env i__case_coq_type this_decls in
 	let this_decls =
@@ -638,11 +633,12 @@ let sb_decl_trans label (name, decl) =
 	let _,this_decls = 
 	  Array.fold_left
 	    (fun (i, d) cons_name ->  
-	       let constr, indices, c_vars, d' = add_ind_and_constr
-		 m p env []
-		 (DVar (Id  cons_name)) d
-		 (List.rev param_vars,
-		  substl mind_names p.mind_nf_lc.(i)) in 
+	       let constr, indices, c_vars, d' = 
+		 add_ind_and_constr
+		   nb_consts env
+		   (DVar (Id  cons_name)) d
+		   (List.rev param_vars)
+		   constr_types.(i) in 
 		 i+1,
                Rule(List.rev_append param_vars
                       (p_var::List.rev_append func_vars (List.rev c_vars)),
@@ -655,26 +651,90 @@ let sb_decl_trans label (name, decl) =
 			c_vars (DVar id)
 		   )::d')
 	    (0,this_decls) p.mind_consnames in
-	 List.rev_append this_decls decls
-      in
-	(* Add the inductive type declarations in dedukti. *)
-      let _, decls = 
-	(Array.fold_right 
-           (fun p (i,d) -> i-1, packet_translation p i d)
-	   m.mind_packets (Array.length m.mind_packets -1,[]) )
-      in
-	Array.fold_right
-	  (fun p d ->
-	     let t, d' = type_trans_aux env
-	       (it_mkProd_or_LetIn
-		  (Sort (match p.mind_arity with
-			     Monomorphic ar ->  ar.mind_sort
-			   | Polymorphic par ->
-			       Type par.poly_level))
-		  p.mind_arity_ctxt
-	       )
-	       d in
-	       Declaration(Id p.mind_typename,
-			   t)::d')
-	  m.mind_packets decls
-  | _ -> raise NotImplementedYet
+	  List.rev_append this_decls decls
+
+(* Translation of a declaration in a structure. *)
+let sb_decl_trans label (name, decl) =
+  prerr_endline ("declaring "^name);
+  match decl with
+      (* Declaration of a constant (theorem, definition, etc.). *)
+      SFBconst sbfc ->
+	base_env := Environ.add_constraints sbfc.const_constraints !base_env;
+	let tterm, term_decls = match sbfc.const_body with
+	    Some cb -> begin
+	      match !cb with
+		  LSval c -> term_trans c
+		| LSlazy(s,c) -> failwith "not implemented: lazy subst"
+	    end
+	  | None -> failwith "no term given"
+	and ttype, type_decls = match sbfc.const_type with
+	    NonPolymorphicType t -> type_trans t
+	  | PolymorphicArity(context, arity) -> 
+	      (* TODO: Not sure this is really how it works. *)
+	      type_trans (it_mkProd_or_LetIn (Sort (Type arity.poly_level)) 
+			    context)
+	in
+          base_env := Environ.add_constant (Names.MPself label, [], name) sbfc !base_env;
+	  List.rev_append term_decls 
+	    (List.rev_append type_decls [Declaration(Id name, ttype); Rule([],DVar(Id name), tterm)])
+
+    (* Declaration of a (co-)inductive type. *)
+    | SFBmind m ->
+	if not m.mind_finite
+	then prerr_endline 
+	  "mind_translation: coinductive types may not work properly";
+	(* Add the mutual inductive type declaration to the environment. *)
+	base_env := Environ.add_mind (Names.MPself label,[],name) m !base_env;
+	(* The names and typing context of the inductive type. *)
+	let mind_names, env =
+	  let l = ref []
+	  and e = ref
+	    (Environ.add_constraints m.mind_constraints !base_env)
+	  in
+	    for i = 0 to Array.length m.mind_packets - 1 do
+	      let p = m.mind_packets.(i) in
+		(* For each packet=group of mutal inductive type definitions
+		   "p", add the name of the inductive type to l and the
+		   declaration of the inductive type with it's kind to the
+		   environment. *)
+		l := Ind((Names.MPself label, [], name), i)::!l;
+		e := Environ.push_rel (Names.Name p.mind_typename, None,
+				       (it_mkProd_or_LetIn
+					  (Sort (match p.mind_arity with
+						     Monomorphic ar ->  ar.mind_sort
+						   | Polymorphic par ->
+						       Type par.poly_level))
+					  p.mind_arity_ctxt))
+		  !e
+	    done;
+	    !l,!e
+	in
+	  (* Add the inductive type declarations in dedukti. *)
+	let decls,_ = 
+	  Array.fold_right 
+	    (fun p (d,i) -> 
+	       let constr_types = Array.map (substl mind_names) p.mind_nf_lc in
+	       let _,env = Array.fold_left
+		 (fun (j, env) consname ->
+		    j + 1,
+		    Environ.push_named (consname, None, constr_types.(j)) env)
+		 (0, env) p.mind_consnames in
+		 packet_translation env ((Names.MPself label, [], name), i)
+                   m.mind_params_ctxt constr_types p d, i+1)
+	    m.mind_packets ([],0) 
+	in
+	  Array.fold_right
+	    (fun p d ->
+	       let t, d' = type_trans_aux env
+		 (it_mkProd_or_LetIn
+		    (Sort (match p.mind_arity with
+			       Monomorphic ar ->  ar.mind_sort
+			     | Polymorphic par ->
+				 Type par.poly_level))
+		    p.mind_arity_ctxt
+		 )
+		 d in
+		 Declaration(Id p.mind_typename,
+			     t)::d')
+	    m.mind_packets decls
+    | _ -> raise NotImplementedYet
