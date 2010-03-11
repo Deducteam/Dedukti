@@ -1,0 +1,16 @@
+#!/bin/sh
+
+COQ_LIB=/usr/lib/coq/theories/
+THEORIES=$COQ_LIB/*/*.vo
+INCLUDE=/usr/lib/coq/contrib/
+
+rm Coq_lib/depend
+
+for i in $THEORIES
+do
+    if bin/coqine --prefix Coq -I $INCLUDE -I $COQ_LIB $i > Coq_lib/`basename $i .vo`.dk
+    then echo "Success : $i"
+    else echo "Failed : $i"
+    fi
+    bin/make_deps --prefix Coq -I $INCLUDE -I $COQ_LIB $i >> Coq_lib/depend
+done
