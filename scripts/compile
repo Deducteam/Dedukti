@@ -1,2 +1,2 @@
 #!/bin/sh
-ghc -c -x hs -XOverloadedStrings -fglasgow-exts $@
+time ghc -c -x hs -XOverloadedStrings -fglasgow-exts $@

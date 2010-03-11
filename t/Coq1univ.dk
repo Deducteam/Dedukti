@@ -27,29 +27,29 @@ dotpiss : x : Uset  -> y : (eset x  -> Uset)  -> Uset.
 dotpitt : x : Utype -> y : (etype x -> Utype) -> Utype.
 
 
-[x:Uprop, y : eprop x -> Uprop]
-              eprop (dotpipp x y) --> w : eprop x -> eprop (y w).
+;[x:Uprop, y : eprop x -> Uprop]
+;              eprop (dotpipp x y) --> w : eprop x -> eprop (y w).
 
-[x:Uset, y : eset x -> Uprop]
-              eprop (dotpisp x y) --> w : eset x -> eprop (y w).
+;[x:Uset, y : eset x -> Uprop]
+;              eprop (dotpisp x y) --> w : eset x -> eprop (y w).
 
-[x:Utype, y : etype x -> Uprop]
-              eprop (dotpitp x y) --> w : etype x -> eprop (y w).
-
-; /!\
-[P : Uprop] eprop P --> etype P.
-
-[x:Uprop, y : eprop x -> Uset]
-              eset (dotpips x y) --> w : eprop x -> eset (y w).
-
-[x:Utype, y : etype x -> Uset]
-              eset (dotpits x y) --> w : etype x -> eset (y w).
-
-[x:Uset, y : eset x -> Uset]
-              eset (dotpiss x y) --> w : eset x -> eset (y w).
+;[x:Utype, y : etype x -> Uprop]
+;              eprop (dotpitp x y) --> w : etype x -> eprop (y w).
 
 ; /!\
-[P : Uset] eset P --> etype P.
+[] eprop --> etype.
+
+;[x:Uprop, y : eprop x -> Uset]
+;              eset (dotpips x y) --> w : eprop x -> eset (y w).
+
+;[x:Utype, y : etype x -> Uset]
+;              eset (dotpits x y) --> w : etype x -> eset (y w).
+
+;[x:Uset, y : eset x -> Uset]
+;              eset (dotpiss x y) --> w : eset x -> eset (y w).
+
+; /!\
+[] eset --> etype.
 
 [x:Uset, y : eset x -> Utype]
               etype (dotpist x y) --> w : eset x -> etype (y w).
