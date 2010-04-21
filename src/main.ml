@@ -20,9 +20,23 @@ let prefix = ref ""
 let add_path p = 
   add_rec_path p (if !prefix = "" then [] else [!prefix])
 
+let pp_obj = ref new prefix_pp
+
+let pp_prefix () = pp_obj := new prefix_pp
+
+let pp_external () = pp_obj := new external_pp
+
+
 let speclist = Arg.align 
-  [ "--prefix", Arg.Set_string prefix, "root set the dirpath root";
-    "-I", Arg.String add_path, "path add path using the current dirpath root" ]
+  [ "-r", Arg.Set_string prefix, "Id";
+    "--root", Arg.Set_string prefix, "Id set the dirpath root as Id\n";
+    "-I", Arg.String add_path, "path";
+    "--include", Arg.String add_path, "path add path using the current dirpath root\n";
+    "-p", Arg.Unit pp_prefix, "";
+    "--prefix-notation", Arg.Unit pp_prefix, " use Dedukti prefix syntax (faster parsing, default)\n";
+    "-h", Arg.Unit pp_external, "";
+    "--external", Arg.Unit pp_external, " use Dedukti external syntax (more human readable)\n";
+]
 
 let translate filename =
   let channel = open_in_bin filename in
@@ -43,12 +57,12 @@ let translate filename =
 	match mb.mod_expr with 
 	    Some (SEBstruct (label, declarations)) ->
 	      let stmts = List.concat (List.map (sb_decl_trans label) declarations) in
-		output_module stdout stmts;
-		print_endline (";Finished module " ^ match label with _,l,_ -> l);
-		print_endline (";Local Variables:\n;  mode: tuareg\n;End:")
+		!pp_obj#output_module stdout stmts;
+		(*print_endline (";Finished module " ^ match label with _,l,_ -> l);
+		print_endline (";Local Variables:\n;  mode: tuareg\n;End:")*)
 	  | _ -> ()
 	      
 let _ =  
 (*  add_rec_path "/usr/lib/coq/theories" ["Coq"];*)
   Arg.parse speclist translate
-    "CoqInE\nUsage: coqine [options] filenames\n\nIf you want to use the coq library,\nuse --prefix Coq -I path_to_coq_dir_theories\n\nfilenames:\tcoq binary files (.vo)\n\nOptions:" 
+    "CoqInE\nUsage: coqine [options] filenames\n\nIf you want to use the coq library,\nuse --root Coq -I path_to_coq_dir_theories\n\nfilenames:\tcoq binary files (.vo)\n\noptions:" 
