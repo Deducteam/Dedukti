@@ -110,7 +110,7 @@ let base_env = ref empty_env
 
 exception Partial_const
 
-(* Translation of t as a term, given an environment e and a set of 
+(* Translation of t as a term, given an environment e and a set of
    intermediary declarations decls (in reverse order). *)
 let rec term_trans_aux e t decls =
 
@@ -173,7 +173,7 @@ let rec term_trans_aux e t decls =
       with Partial_const ->
 	let constr_type = subst1 (Ind(ind,j)) constr_type in
 	let rec eta e args = function
-	    Prod(_, t1, t2) -> 
+	    Prod(_, t1, t2) ->
 	      let v = fresh_var "g_" in
 	      let e' = push_rel (Name v, None, t1) e in
 	      let tt_1, decls' = type_trans_aux e t1 decls in
@@ -229,7 +229,7 @@ let rec term_trans_aux e t decls =
       | Cast _ -> raise NotImplementedYet
 
 
-      | Prod (n,t1,t2)  -> 
+      | Prod (n,t1,t2)  ->
 	  let t_tt1, decls1 = term_trans_aux e t1 decls
 	  and e1 = push_rel (n,None,t1) e in
 	  let t_tt2, decls2 = term_trans_aux e1 t2 decls1 in
@@ -238,7 +238,7 @@ let rec term_trans_aux e t decls =
 			DApp(DVar(Qid ("Coq1univ",get_e e t1)), t_tt1),
 			t_tt2)), decls2
 
-      | Lambda (n,t1,t2)  -> 
+      | Lambda (n,t1,t2)  ->
 	  let t_tt1, decls1 = type_trans_aux e t1 decls
 	  and e1 = push_rel (n,None,t1) e in
 	  let t_tt2, decls2 = term_trans_aux e1 t2 decls1 in
@@ -257,9 +257,9 @@ let rec term_trans_aux e t decls =
 	    (term_trans_aux e t1 decls) a
 
       | Const(mod_path,dp,name)  -> (* TODO: treat the module path and the dir path. *)
-	  (* depending whether the const is defined here or in 
+	  (* depending whether the const is defined here or in
 	     another module *)
-	  (match mod_path with 
+	  (match mod_path with
 	       MPself _ -> DVar (Id name)
 	     | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
 		 DVar (Qid (m,name))
@@ -268,11 +268,11 @@ let rec term_trans_aux e t decls =
 	  decls
 
       | Ind((mod_path,_,l) as ind, num)  -> begin
-	  try 
+	  try
 	    let name = (lookup_mind ind e).mind_packets.(num).mind_typename in
-	      (* depending whether the inductive is defined here or in 
+	      (* depending whether the inductive is defined here or in
 		 another module *)
-	      (match mod_path with 
+	      (match mod_path with
 		   MPself _ -> DVar (Id name)
 		 | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
 		     DVar (Qid (m,name))
@@ -286,7 +286,7 @@ let rec term_trans_aux e t decls =
 	      try
 	      let induc = (lookup_mind ind e).mind_packets.(j) in
 	      let name = indu.mind_consnames.(i-1) in
-	      let constr = match mod_path with 
+	      let constr = match mod_path with
 	      MPself _ -> DVar (Id name)
 	      | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
 	      DVar (Qid (m,name))
@@ -310,7 +310,7 @@ let rec term_trans_aux e t decls =
 	      | Ind(i) when i = ind.ci_ind -> [||]
 	      | _ -> failwith "term_trans: matched term badly typed"
 	  in
-	  let r = ref (match fst ind.ci_ind with  
+	  let r = ref (match fst ind.ci_ind with
 			   MPself _, _, _ -> DVar (Id case_name)
 			 | MPfile (m :: _), _ , _  -> (* TODO : use the whole dirpath *)
 			     DVar (Qid (m,case_name))
@@ -320,7 +320,7 @@ let rec term_trans_aux e t decls =
 	    for i = 0 to ind.ci_npar - 1 do 
 	      (* We cannot use Array.fold_left since we only need 
 		 the parameters. *)
-	      let arg_tt, decls' =  
+	      let arg_tt, decls' =
 		term_trans_aux e matched_args.(i) !d in
 		r := DApp(!r, arg_tt);
 		d := decls'
@@ -355,7 +355,7 @@ let rec term_trans_aux e t decls =
 	    (* Translation of one inductive fixpoint. *)
 	  let one_trans struct_arg_num name body_type body_term decls =
 	    (* Declare the type of the fixpoint function. *)
-	    let decls' = 
+	    let decls' =
 	      let t, decls' = type_trans_aux
 		{ e with env_rel_context = [] }
 		(it_mkProd_or_LetIn
@@ -439,10 +439,10 @@ let rec term_trans_aux e t decls =
 	    let sigma = Array.fold_left
 	      (fun l n -> App(Var n, rel_args)::l) [] names
 	    in
-	    let rhs, decls2 = 
+	    let rhs, decls2 =
 	      term_trans_aux rhs_env (substl sigma body_term) decls'
 	    in
-	      make_rule e [] fix rhs decls2 (struct_arg_num, body_type) 
+	      make_rule e [] fix rhs decls2 (struct_arg_num, body_type)
 	  in
 	    (* And we iterate this process over the body of every. *)
 	  let _, decls' = Array.fold_left
@@ -450,10 +450,10 @@ let rec term_trans_aux e t decls =
 	       one_trans struct_arg_num names.(i)
 		 body_types.(i) body_terms.(i) decls)
 	    (0,decls) struct_arg_nums in
-	    (* The term corresponding to the fix point is the identifier 
+	    (* The term corresponding to the fix point is the identifier
 	       to which the context is applied. *)
 	  let _, t, decls = app_rel_context e (DVar(Id names.(num_def))) decls'
-	  in 
+	  in
 	    t, decls
 
       | CoFix   _  -> raise NotImplementedYet
@@ -470,7 +470,7 @@ and type_trans_aux e t decls = match t with
     let t_tt2, decls2 = type_trans_aux e1 t2 decls1 in
       DPi(Id (get_identifier_env e n),t_tt1,t_tt2), decls2
 
-  | t -> let t', decls' = term_trans_aux e t decls in 
+  | t -> let t', decls' = term_trans_aux e t decls in
       DApp(DVar(Qid("Coq1univ",get_e e t)), t'), decls'
 
 
@@ -569,7 +569,7 @@ let make_constr_func_type cons_name num_treated num_param typ =
 
 (* translate a packet of a mutual inductive definition (i.e. a single inductive)
    env : environment
-   ind : path of the current inductive 
+   ind : path of the current inductive
    params : parameter context of the mutual inductive definition
    constr_types : type of the constructors in p
    p : packet
@@ -631,16 +631,16 @@ let packet_translation env ind params constr_types p decls =
 	  )
 	  (0,env,[],case_name, this_decls) p.mind_consnames
 	in
-	let _, this_decls = 
+	let _, this_decls =
 	  Array.fold_left
-	    (fun (i, decls) cons_name -> 
+	    (fun (i, decls) cons_name ->
 	       i+1, constr_decl cons_name p.mind_user_lc.(i) decls)
 	    (0,this_decls) p.mind_consnames
 	in
 	  (* This big piece of code is the type in the Coq world of 
 	     the __case. 
 	  *)
-	let i__case_coq_type = 
+	let i__case_coq_type =
 	  let return_type =
 	    it_mkProd_or_LetIn
 	      (Prod(Name "i",
@@ -648,9 +648,9 @@ let packet_translation env ind params constr_types p decls =
 			let n = List.length p.mind_arity_ctxt in
 			  Array.init n (fun i -> Rel (n-i))),
 		    Term.Sort (Term.Type (Univ.Atom Univ.Set))))
-	      indices 
+	      indices
 	  in
-	  let end_type = 
+	  let end_type =
 	    Prod(Anonymous,
 		 App(Ind(ind),
 		     let n = List.length p.mind_arity_ctxt in
@@ -664,7 +664,7 @@ let packet_translation env ind params constr_types p decls =
 		     in Array.init n (fun i -> Rel(n-i)))
 		)	    
 	  in
-	  let end_type_with_indices = 
+	  let end_type_with_indices =
 	    it_mkProd_or_LetIn
 	      end_type
 	      (List.map
@@ -677,7 +677,7 @@ let packet_translation env ind params constr_types p decls =
 	      -1 -> c 
 	    | i -> add_functions_from_constrs 
 		(Prod(Name "f",
-		      make_constr_func_type (ind,i+1) i 
+		      make_constr_func_type (ind,i+1) i
 			n_params
 			constr_types.(i),
 		      c))
@@ -686,7 +686,7 @@ let packet_translation env ind params constr_types p decls =
 	    it_mkProd_or_LetIn
 	      (Prod(Name "P",
 		    return_type,
-		    add_functions_from_constrs 
+		    add_functions_from_constrs
 		      end_type_with_indices
 		      (nb_constrs-1)
 		   ))
@@ -696,19 +696,19 @@ let packet_translation env ind params constr_types p decls =
 
 	let params_dec = nb_constrs + 1 in
 	(* declaration of the __case type *)
-	let i__case_trans, this_decls = 
+	let i__case_trans, this_decls =
 	  type_trans_aux env i__case_coq_type this_decls in
 	let this_decls =
 	  Declaration(
 	    Id (p.mind_typename ^ "__case"),
 	    i__case_trans)::this_decls
 	in
-	let _,this_decls = 
+	let _,this_decls =
 	  Array.fold_left
 	    (fun (i, d) cons_name ->  
 	       let constr, indices, c_vars, d' = 
 		 make_constr env d n_params params_dec 
-		   (Construct (ind,i+1)) constr_types.(i) in 
+		   (Construct (ind,i+1)) constr_types.(i) in
 		 i+1,
 		 Rule(List.rev_append param_vars
 			(p_var::List.rev_append func_vars (List.rev c_vars)),
@@ -739,19 +739,19 @@ let sb_decl_trans label (name, decl) =
 	  | None -> failwith "no term given"
 	and ttype, type_decls = match sbfc.const_type with
 	    NonPolymorphicType t -> type_trans t
-	  | PolymorphicArity(context, arity) -> 
+	  | PolymorphicArity(context, arity) ->
 	      (* TODO: Not sure this is really how it works. *)
 	      type_trans (it_mkProd_or_LetIn (Sort (Type arity.poly_level)) 
 			    context)
 	in
           base_env := Environ.add_constant (Names.MPself label, [], name) sbfc !base_env;
-	  List.rev_append term_decls 
+	  List.rev_append term_decls
 	    (List.rev_append type_decls [Declaration(Id name, ttype); Rule([],DVar(Id name), tterm)])
 
     (* Declaration of a (co-)inductive type. *)
     | SFBmind m ->
 	if not m.mind_finite
-	then prerr_endline 
+	then prerr_endline
 	  "mind_translation: coinductive types may not work properly";
 	(* Add the mutual inductive type declaration to the environment. *)
 	base_env := Environ.add_mind (Names.MPself label,[],name) m !base_env;
@@ -791,7 +791,7 @@ let sb_decl_trans label (name, decl) =
 		 (0, env) p.mind_consnames in
 		 packet_translation env ((Names.MPself label, [], name), i)
                    m.mind_params_ctxt constr_types p d, i+1)
-	    m.mind_packets ([],0) 
+	    m.mind_packets ([],0)
 	in
 	  Array.fold_right
 	    (fun p d ->
