@@ -41,7 +41,7 @@ class virtual base_pp  = object (self)
 
   method output_term out_chan t = pp_with (self#with_ft out_chan) (self#pr_dkterm t)
 
-  method output_module out_chan prog = pp_with (self#with_ft out_chan) (pr_vertical_list self#pr_statement prog)
+  method output_module out_chan prog = msgnl_with (self#with_ft out_chan) (prlist_with_sep fnl self#pr_statement prog)
 end
 
 
@@ -62,12 +62,15 @@ class prefix_pp = object (self)
       [] -> str "[] "
     | b::q -> pr_coma () ++ self#pr_binding b ++ spc () ++ self#pr_env q
 
-  method pr_statement = function
-    | Declaration (n, t) -> self#pr_binding (n, t) 
+  method private pr_statement' = function
+    | Declaration (n, t) -> 
+	str ":" ++ spc () ++ self#pr_qid n ++ spc () ++ self#pr_dkterm t
     | Rule (env, lhs, rhs) ->
 	self#rule_arr () ++ self#pr_env env ++ self#pr_dkterm lhs ++ spc () ++ self#pr_dkterm rhs
     | End -> mt ()
-	
+
+  method pr_statement t = hov 2 (self#pr_statement' t)
+
   method output_module out_chan prog = 
     let magic_string = "(; # FORMAT prefix # ;)" in
       msgnl_with (self#with_ft out_chan) (str magic_string);
