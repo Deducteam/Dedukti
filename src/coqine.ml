@@ -129,9 +129,10 @@ let rec term_trans_aux e t decls =
      if the constructor is only partially applied, use eta-expansion
   *)
   let trans_construct mod_path l ind j i args = 
-    let induc = try (lookup_mind ind e).mind_packets.(j) 
-    with Not_found -> failwith ("term translation: unknown inductive "
-				^l)
+    let m_induc = 
+      try lookup_mind ind e
+      with Not_found -> failwith ("term translation: unknown inductive "^l) in
+    let induc = m_induc.mind_packets.(j) 
     in
     let name = induc.mind_consnames.(i-1) in
     let constr, guard = 
@@ -171,7 +172,13 @@ let rec term_trans_aux e t decls =
       in
 	DApp(guard_params, applied_constr), decls
       with Partial_const ->
-	let constr_type = subst1 (Ind(ind,j)) constr_type in
+	let sigma = 
+	  let rec aux = function
+	      0 -> []
+	    | n -> Ind(ind, n-1)::aux (n-1)
+	  in aux m_induc.mind_ntypes
+	in
+	let constr_type = substl sigma constr_type in
 	let rec eta e args = function
 	    Prod(_, t1, t2) ->
 	      let v = fresh_var "g_" in
@@ -781,7 +788,7 @@ let sb_decl_trans label (name, decl) =
 	in
 	  (* Add the inductive type declarations in dedukti. *)
 	let decls,_ = 
-	  Array.fold_right 
+	  Array.fold_right
 	    (fun p (d,i) -> 
 	       let constr_types = Array.map (substl mind_names) p.mind_nf_lc in
 	       let _,env = Array.fold_left
@@ -790,37 +797,38 @@ let sb_decl_trans label (name, decl) =
 		    Environ.push_named (consname, None, constr_types.(j)) env)
 		 (0, env) p.mind_consnames in
 		 packet_translation env ((Names.MPself label, [], name), i)
-                   m.mind_params_ctxt constr_types p d, i+1)
-	    m.mind_packets ([],0)
+                   m.mind_params_ctxt constr_types p d, i-1)
+	    m.mind_packets ([],Array.length m.mind_packets - 1)
 	in
-	  Array.fold_right
-	    (fun p d ->
-	       let t, d' = type_trans_aux env
-		 (it_mkProd_or_LetIn
-		    (Sort (match p.mind_arity with
-			       Monomorphic ar ->  ar.mind_sort
-			     | Polymorphic par ->
-				 Type par.poly_level))
-		    p.mind_arity_ctxt
-		 )
-		 d in
-	       let end_type__constr = 
-		 let n = List.length p.mind_arity_ctxt in
-		   App(Rel(n+1), (* TODO: multiple inductive *)
-		       Array.init n (fun i -> Rel(n-i)))
-	       in
-	       let t__constr, d' = type_trans_aux env
-		 (it_mkProd_or_LetIn
-		    (Prod(Anonymous, 
-			    end_type__constr,
-			    lift 1 end_type__constr))
-		    p.mind_arity_ctxt
-		 )
-		 d' in
-		 Declaration(Id p.mind_typename,
-			     t)
-		 :: Declaration(Id (p.mind_typename ^ "__constr"),
-				    t__constr)
-		 :: d')
-	    m.mind_packets decls
-    | _ -> raise NotImplementedYet
+	  fst 
+	    (Array.fold_right
+	       (fun p (d,i) ->
+		  let t, d' = type_trans_aux env
+		    (it_mkProd_or_LetIn
+		       (Sort (match p.mind_arity with
+				  Monomorphic ar ->  ar.mind_sort
+				| Polymorphic par ->
+				    Type par.poly_level))
+		       p.mind_arity_ctxt
+		    )
+		    d in
+		  let end_type__constr = 
+		    let n = List.length p.mind_arity_ctxt in
+		      App(Rel(n+i), (* TODO: multiple inductive *)
+			  Array.init n (fun i -> Rel(n-i)))
+		  in
+		  let t__constr, d' = type_trans_aux env
+		    (it_mkProd_or_LetIn
+		       (Prod(Anonymous, 
+			     end_type__constr,
+			     lift 1 end_type__constr))
+		       p.mind_arity_ctxt
+		    )
+		    d' in
+		    Declaration(Id p.mind_typename,
+				t)
+		    :: Declaration(Id (p.mind_typename ^ "__constr"),
+				   t__constr)
+		    :: d', i+1)
+	       m.mind_packets (decls,1))
+	    | _ -> raise NotImplementedYet
