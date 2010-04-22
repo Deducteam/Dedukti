@@ -10,7 +10,7 @@ exception Typehasnotype
 exception NotASort
 exception NotACoqVar
 exception AnonymousCoqVar
-exception NotImplementedYet
+exception NotImplementedYet of string
 exception ShouldNotAppear
 exception EmptyArrayInApp
 
@@ -233,7 +233,7 @@ let rec term_trans_aux e t decls =
 		     | Type _ ->    DVar (Qid ("Coq1univ","dottype")))  (*** !!! Attention a Type 0 ***)
 	  , decls
 
-      | Cast _ -> raise NotImplementedYet
+      | Cast _ -> raise (NotImplementedYet "Cast")
 
 
       | Prod (n,t1,t2)  ->
@@ -463,7 +463,7 @@ let rec term_trans_aux e t decls =
 	  in
 	    t, decls
 
-      | CoFix   _  -> raise NotImplementedYet
+      | CoFix   _  -> raise (NotImplementedYet "CoFix")
 
 (*** Translation of t as a type, given an environment e. ***)
 
@@ -737,24 +737,27 @@ let sb_decl_trans label (name, decl) =
       (* Declaration of a constant (theorem, definition, etc.). *)
       SFBconst sbfc ->
 	base_env := Environ.add_constraints sbfc.const_constraints !base_env;
-	let tterm, term_decls = match sbfc.const_body with
-	    Some cb -> begin
-	      match !cb with
-		  LSval c -> term_trans c
-		| LSlazy(s,c) -> failwith "not implemented: lazy subst"
-	    end
-	  | None -> failwith "no term given"
-	and ttype, type_decls = match sbfc.const_type with
+	let ttype, type_decls = match sbfc.const_type with
 	    NonPolymorphicType t -> type_trans t
 	  | PolymorphicArity(context, arity) ->
 	      (* TODO: Not sure this is really how it works. *)
 	      type_trans (it_mkProd_or_LetIn (Sort (Type arity.poly_level)) 
 			    context)
+	in let decls = 
+	    match sbfc.const_body with
+		None -> (* This is a Coq axiom *)
+		  List.rev_append type_decls [Declaration(Id name, ttype)]
+	      | Some cb -> let tterm, term_decls = 
+		  match !cb with
+		      LSval c -> term_trans c
+		    | LSlazy(s,c) -> failwith "not implemented: lazy subst"
+		in 
+		  List.rev_append term_decls
+		    (List.rev_append type_decls [Declaration(Id name, ttype); Rule([],DVar(Id name), tterm)])
 	in
-          base_env := Environ.add_constant (Names.MPself label, [], name) sbfc !base_env;
-	  List.rev_append term_decls
-	    (List.rev_append type_decls [Declaration(Id name, ttype); Rule([],DVar(Id name), tterm)])
-
+	  base_env := Environ.add_constant (Names.MPself label, [], name) sbfc !base_env;
+	  decls
+	    
     (* Declaration of a (co-)inductive type. *)
     | SFBmind m ->
 	if not m.mind_finite
@@ -797,7 +800,7 @@ let sb_decl_trans label (name, decl) =
 		    Environ.push_named (consname, None, constr_types.(j)) env)
 		 (0, env) p.mind_consnames in
 		 packet_translation env ((Names.MPself label, [], name), i)
-                   m.mind_params_ctxt constr_types p d, i-1)
+		   m.mind_params_ctxt constr_types p d, i-1)
 	    m.mind_packets ([],Array.length m.mind_packets - 1)
 	in
 	  fst 
@@ -831,4 +834,4 @@ let sb_decl_trans label (name, decl) =
 				   t__constr)
 		    :: d', i+1)
 	       m.mind_packets (decls,1))
-	    | _ -> raise NotImplementedYet
+    | _ -> raise (NotImplementedYet "Module, Alias or Module Type")
