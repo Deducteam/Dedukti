@@ -385,10 +385,13 @@ let rec term_trans_aux e t decls =
 		  let vars = List.rev_append vars
 		    [Id s, a_tt]
 		  in
-		  let ind, args = match a with
+		  let ind, args = 
+		    (* we have to compute a because the inductive type can be 
+		       hidden behind a definition. *)
+		    match Reduction.whd_betadeltaiota e a with
 		      App(Ind(i), l) -> i, l
 		    | Ind(i) -> i, [||]
-		    | _ -> failwith "term translation: strucutural argument is not an inductive type" 
+		    | _ -> failwith "term translation: structural argument is not an inductive type" 
 		  in
 		  let i__constr = 
 		    try 
@@ -400,7 +403,7 @@ let rec term_trans_aux e t decls =
 			       DVar (Qid (m,name ^ "__constr"))
 			   | _ -> failwith "Not implemented: modules bound and dot module path"
 			)
-		    with Not_found -> failwith ("term translation: unknown inductive in strucural argument") 
+		    with Not_found -> failwith ("term translation: unknown inductive in structural argument") 
 		  in
 		  let guard = Array.fold_left
 		    (fun c a ->
