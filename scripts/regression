@@ -1,0 +1,15 @@
+#!/bin/sh
+
+COQINE="../bin/coqine --root Coq -I /usr/lib/coq/theories"
+
+for i in Logic Datatypes Peano Wf
+do
+    $COQINE /usr/lib/coq/theories/Init/$i.vo > $i.dk
+    dedukti $i.dk
+    ../scripts/compile $i.dko
+done
+
+dkrun Logic.dko Coq1univ.dko
+dkrun Datatypes.dko Coq1univ.dko Logic.dko
+dkrun Peano.dko Coq1univ.dko Logic.dko Datatypes.dko
+dkrun Wf.dko Coq1univ.dko Logic.dko Datatypes.dko
