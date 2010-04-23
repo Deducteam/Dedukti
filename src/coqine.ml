@@ -516,9 +516,9 @@ let make_constr e decls params_num params_dec cons_name typ =
   let rec aux e vars decls c = function
       0, Prod(n, t1, t2) -> 
 	let v = fresh_var "c_arg_" in
-	let e' = push_named (v, None, t1) e in
+	let e' = push_rel (Name v, None, t1) e in
 	let t_tt1, decls' = type_trans_aux e t1 decls in
-	  aux e' ((Id v, t_tt1)::vars) decls' (App(c,[|Var v|])) (0,subst1 (Var v) t2)
+	  aux e' ((Id v, t_tt1)::vars) decls' (App(c,[|Var v|])) (0, t2)
     | 0, App(_,args) ->
 	let ind_num = Array.length args - params_num in
 	let ind = Array.make ind_num DKind in
@@ -605,60 +605,58 @@ let packet_translation env ind params constr_types p decls =
       Declaration (Id name, c_tt)::decls' in
   let nb_constrs =  Array.length p.mind_consnames in
   let case_name = DVar (Id (p.mind_typename ^ "__case")) in
-  let _, env, param_vars, case_name, this_decls =
-    List.fold_left
-      (fun (i, e, vars, c, decls) (n,_,t) ->
-	 if i = 0 then i, e, vars, c, decls
-	 else
-	   let v = fresh_var "param_" in
-	   let e' = push_rel (Name v, None, t) e in
-	   let t_tt, decls' = type_trans_aux e t decls in
-	     i-1,e',(Id v, t_tt)::vars, DApp(c, DVar (Id v)), decls'
+  let env, param_vars, case_name, this_decls =
+    List.fold_right
+      (fun (n,_,t) (e, vars, c, decls) ->
+	 let v = fresh_var "param_" in
+	 let e' = push_rel (Name v, None, t) e in
+	 let t_tt, decls' = type_trans_aux e t decls in
+	   e',(Id v, t_tt)::vars, DApp(c, DVar (Id v)), decls'
       )
-      (n_params, env, [], case_name, []) (List.rev p.mind_arity_ctxt)
+      params (env, [], case_name, [])
   in
   let p_var, case_name, env, this_decls =
     let v = fresh_var "P_" in
     let t = it_mkProd_or_LetIn
       (Prod(Name "i",
             App(Ind(ind),
-		      let n = List.length p.mind_arity_ctxt in
-			Array.init n (fun i -> Rel (n-i))),
-		  Term.Sort (Term.Type (Univ.Atom Univ.Set))))
-	    indices in
-	  let e = push_rel (Name v, None, t) env in
-	  let t_tt, decls' = type_trans_aux env t this_decls in
-	    (Id v, t_tt),
-	  DApp(case_name, DVar(Id v)),
-	  e,
-	  decls'
-	in
-	let _,env,func_vars, case_name, this_decls = Array.fold_left
-	  (fun (i,e,vars,c,decls) cons_name  ->
-	     let t = make_constr_func_type 
-	       (ind, i+1) i n_params 
-	       constr_types.(i) in
-	     let v = fresh_var "f_" in
-	     let e' = push_rel (Name v, None, t) e in
-	     let t_tt, decls' = type_trans_aux e t decls in
-	       i+1,e',(Id v, t_tt)::vars, DApp(c, DVar (Id v)), decls'
-	  )
-	  (0,env,[],case_name, this_decls) p.mind_consnames
-	in
-	let _, this_decls =
-	  Array.fold_left
-	    (fun (i, decls) cons_name ->
-	       i+1, constr_decl cons_name p.mind_user_lc.(i) decls)
-	    (0,this_decls) p.mind_consnames
-	in
-	  (* This big piece of code is the type in the Coq world of 
-	     the __case. 
-	  *)
-	let i__case_coq_type =
-	  let return_type =
-	    it_mkProd_or_LetIn
-	      (Prod(Name "i",
-		    App(Ind(ind),
+		let n = List.length p.mind_arity_ctxt in
+		  Array.init n (fun i -> Rel (n-i))),
+	    Term.Sort (Term.Type (Univ.Atom Univ.Set))))
+      indices in
+    let e = push_rel (Name v, None, t) env in
+    let t_tt, decls' = type_trans_aux env t this_decls in
+      (Id v, t_tt),
+    DApp(case_name, DVar(Id v)),
+    e,
+    decls'
+  in
+  let _,env,func_vars, case_name, this_decls = Array.fold_left
+    (fun (i,e,vars,c,decls) cons_name  ->
+       let t = make_constr_func_type 
+	 (ind, i+1) i n_params 
+	 constr_types.(i) in
+       let v = fresh_var "f_" in
+       let e' = push_rel (Name v, None, t) e in
+       let t_tt, decls' = type_trans_aux e t decls in
+	 i+1,e',(Id v, t_tt)::vars, DApp(c, DVar (Id v)), decls'
+    )
+    (0,env,[],case_name, this_decls) p.mind_consnames
+  in
+  let _, this_decls =
+    Array.fold_left
+      (fun (i, decls) cons_name ->
+	 i+1, constr_decl cons_name p.mind_user_lc.(i) decls)
+      (0,this_decls) p.mind_consnames
+  in
+    (* This big piece of code is the type in the Coq world of 
+       the __case. 
+    *)
+  let i__case_coq_type =
+    let return_type =
+      it_mkProd_or_LetIn
+	(Prod(Name "i",
+	      App(Ind(ind),
 			let n = List.length p.mind_arity_ctxt in
 			  Array.init n (fun i -> Rel (n-i))),
 		    Term.Sort (Term.Type (Univ.Atom Univ.Set))))
@@ -705,37 +703,37 @@ let packet_translation env ind params constr_types p decls =
 		      (nb_constrs-1)
 		   ))
 	      params in
-	  (* end of i__case_coq_type *)
-	
+    (* end of i__case_coq_type *)
+    
 
-	let params_dec = nb_constrs + 1 in
-	(* declaration of the __case type *)
-	let i__case_trans, this_decls =
-	  type_trans_aux env i__case_coq_type this_decls in
-	let this_decls =
-	  Declaration(
-	    Id (p.mind_typename ^ "__case"),
-	    i__case_trans)::this_decls
-	in
-	let _,this_decls =
-	  Array.fold_left
-	    (fun (i, d) cons_name ->  
-	       let constr, indices, c_vars, d' = 
-		 make_constr env d n_params params_dec 
-		   (Construct (ind,i+1)) constr_types.(i) in
-		 i+1,
-		 Rule(List.rev_append param_vars
-			(p_var::List.rev_append func_vars (List.rev c_vars)),
-		    DApp(Array.fold_left (fun c a -> DApp(c,a))
-			   case_name indices,
-			 constr),
-		      match List.nth func_vars (List.length func_vars-i-1)
-		      with id,_ ->
-			List.fold_right (fun (v,_) c -> DApp(c, DVar v))
-			  c_vars (DVar id)
-		     )::d')
-	    (0,this_decls) p.mind_consnames in
-	  List.rev_append this_decls decls
+  let params_dec = nb_constrs + 1 in
+    (* declaration of the __case type *)
+  let i__case_trans, this_decls =
+    type_trans_aux env i__case_coq_type this_decls in
+  let this_decls =
+    Declaration(
+      Id (p.mind_typename ^ "__case"),
+      i__case_trans)::this_decls
+  in
+  let _,this_decls =
+    Array.fold_left
+      (fun (i, d) cons_name ->  
+	 let constr, indices, c_vars, d' = 
+	   make_constr env d n_params params_dec 
+	     (Construct (ind,i+1)) constr_types.(i) in
+	   i+1,
+	 Rule(List.rev_append param_vars
+		(p_var::List.rev_append func_vars (List.rev c_vars)),
+	      DApp(Array.fold_left (fun c a -> DApp(c,a))
+		     case_name indices,
+		   constr),
+	      match List.nth func_vars (List.length func_vars-i-1)
+	      with id,_ ->
+		List.fold_right (fun (v,_) c -> DApp(c, DVar v))
+		  c_vars (DVar id)
+	     )::d')
+      (0,this_decls) p.mind_consnames in
+    List.rev_append this_decls decls
 
 (* Translation of a declaration in a structure. *)
 let sb_decl_trans label (name, decl) =
