@@ -254,7 +254,8 @@ let rec term_trans_aux e t decls =
 		  t_tt2), decls2
 
       | LetIn (var, eq, ty, body)  ->
-	  term_trans_aux e (App(Lambda(var, ty, body), [| eq |])) decls
+	  term_trans_aux e (subst1 eq body) decls 
+
 
       | App (t1,a)  -> 
 	  Array.fold_left 
