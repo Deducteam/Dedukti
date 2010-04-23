@@ -361,13 +361,14 @@ let rec term_trans_aux e t decls =
 	    names in
 	    (* Translation of one inductive fixpoint. *)
 	  let one_trans struct_arg_num name body_type body_term decls =
+	    let fixpoint_context = e.env_rel_context in
 	    (* Declare the type of the fixpoint function. *)
 	    let decls' =
 	      let t, decls' = type_trans_aux
 		{ e with env_rel_context = [] }
 		(it_mkProd_or_LetIn
 		   body_type
-		   e.env_rel_context
+		   fixpoint_context
 		) decls in
 		Declaration(Id name, t)::decls' in
 	      (* Recursively applies all the variables in the context at the
@@ -438,7 +439,10 @@ let rec term_trans_aux e t decls =
 		functions in the context for the rhs*)
 	    let _,rhs_env = Array.fold_left
 	      (fun (i,e) n ->
-		 i+1, push_named (n, None, body_types.(i)) e)
+		 i+1, 
+		 push_named 
+		   (n, None, it_mkProd_or_LetIn body_types.(i) fixpoint_context)
+		   e)
 	      (0,e) names in
 	      (* We use the just defined context to replace the indexes in the
 		 rhs that refer to recursive calls (the rhs is typed in the
