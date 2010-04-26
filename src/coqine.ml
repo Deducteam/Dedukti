@@ -142,7 +142,7 @@ let rec term_trans_aux e t decls =
 	| MPfile (m :: _) -> (* TODO : use the whole dirpath *)
 	    DVar (Qid (m,name)),
 	    DVar (Qid (m,induc.mind_typename ^ "__constr"))
-	| _ -> failwith "Not implemented: modules bound and dot module path"
+	| _ -> raise (NotImplementedYet "modules bound and dot module path")
 	    
     in 
     let constr_type = induc.mind_nf_lc.(i-1) in
@@ -271,7 +271,7 @@ let rec term_trans_aux e t decls =
 	       MPself _ -> DVar (Id name)
 	     | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
 		 DVar (Qid (m,name))
-	     | _ -> failwith "Not implemented: modules bound and dot module path"
+	     | _ -> raise (NotImplementedYet "modules bound and dot module path")
 	  ),
 	  decls
 
@@ -284,7 +284,7 @@ let rec term_trans_aux e t decls =
 		   MPself _ -> DVar (Id name)
 		 | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
 		     DVar (Qid (m,name))
-		 | _ -> failwith "Not implemented: modules bound and dot module path"
+		 | _ -> raise (NotImplementedYet "modules bound and dot module path")
 	      ),
 	    decls
 	  with Not_found -> failwith ("term translation: unknown inductive "
@@ -298,7 +298,7 @@ let rec term_trans_aux e t decls =
 	      MPself _ -> DVar (Id name)
 	      | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
 	      DVar (Qid (m,name))
-	      | _ -> failwith "Not implemented: modules bound and dot module path"
+	      | _ -> raise (NotImplementedYet "modules bound and dot module path")
 	      
 	      in ,
 
@@ -322,7 +322,7 @@ let rec term_trans_aux e t decls =
 			   MPself _, _, _ -> DVar (Id case_name)
 			 | MPfile (m :: _), _ , _  -> (* TODO : use the whole dirpath *)
 			     DVar (Qid (m,case_name))
-			 | _ -> failwith "Not implemented: modules bound and dot module path"
+			 | _ -> raise (NotImplementedYet "modules bound and dot module path")
 		      )
 	  and d = ref decls in
 	    for i = 0 to ind.ci_npar - 1 do 
@@ -389,7 +389,7 @@ let rec term_trans_aux e t decls =
 		  let ind, args = 
 		    (* we have to compute a because the inductive type can be 
 		       hidden behind a definition. *)
-		    match Reduction.whd_betadeltaiota e a with
+		    match collapse_appl (Reduction.whd_betadeltaiota e a) with
 		      App(Ind(i), l) -> i, l
 		    | Ind(i) -> i, [||]
 		    | _ -> failwith "term translation: structural argument is not an inductive type" 
@@ -402,7 +402,7 @@ let rec term_trans_aux e t decls =
 			     MPself _,_,_ -> DVar (Id (name ^ "__constr"))
 			   | MPfile (m :: _),_,_ -> (* TODO : use the whole dirpath *)
 			       DVar (Qid (m,name ^ "__constr"))
-			   | _ -> failwith "Not implemented: modules bound and dot module path"
+			   | _ -> raise (NotImplementedYet "modules bound and dot module path")
 			)
 		    with Not_found -> failwith ("term translation: unknown inductive in structural argument") 
 		  in
@@ -677,14 +677,15 @@ let packet_translation env ind params constr_types p decls =
 		     in Array.init n (fun i -> Rel(n-i)))
 		)	    
 	  in
+	  let rec lift_indices i = function
+	      [] -> []
+	    | (a,r,x)::q -> (a, r, liftn (nb_constrs + 1) i x)
+		:: lift_indices (i-1) q
+	  in
 	  let end_type_with_indices =
 	    it_mkProd_or_LetIn
 	      end_type
-	      (List.map
-		 (fun (a,r,t) ->
-		    a, r,
-		    lift (nb_constrs + 1)
-		      t) indices)
+	      (lift_indices (List.length indices) indices)
 	  in
 	  let rec add_functions_from_constrs c = function
 	      -1 -> c 
