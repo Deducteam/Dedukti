@@ -36,6 +36,9 @@ let fresh_var prefix =
 
 
 
+	
+
+
 
 (*********** Translation constr (i.e. coq term) to dkterm  *************)
 
@@ -60,8 +63,79 @@ let which_e s = match s with
   | Prop Null -> "eprop"
   | Type _    -> "etype"
 
+exception Not_a_sort
+
+(*********** Sort inference **********)
+
+let rec get_sort env args t = 
+  match Reduction.whd_betadeltaiota env t with
+    Sort e -> which_e e
+    | Prod(_,ty,te) -> (let env = push_rel (Anonymous, None, ty) env in
+			  match args with
+			      [] -> raise Not_a_sort
+			    | a::q -> get_sort env q (subst1 a te))
+  | _ -> raise Not_a_sort
+
+let infer_sort env t = 
+  let rec aux env args t =
+    match collapse_appl (Reduction.whd_betadeltaiota env t) with
+	Rel i -> let _,_,ty = lookup_rel i env in
+	  get_sort env args ty
+      | Var v -> let _,_,ty = lookup_named v env in
+	  get_sort env args ty
+      | Const c -> (match constant_type env c with
+			NonPolymorphicType ty -> get_sort env args ty
+		      | _ -> "etype")
+      | Sort _ -> "etype"
+      | Prod(n,ty,te) ->
+	  let env = push_rel (n,None,ty) env in
+	    aux env args te
+      | Cast (_,_,ty) ->  get_sort env args ty
+      | LetIn (_,eq,_,te) ->  aux env args (subst1 eq te) 
+      | App (te, aa) -> 
+	  aux env
+	    (Array.fold_right (fun a l -> a :: l) aa args)
+	    te
+      | Ind(ind,num) -> (
+	  try
+	    let p = (lookup_mind ind env).mind_packets.(num) in
+	      match p.mind_arity with
+		  Monomorphic ar ->  which_e ar.mind_sort
+		| Polymorphic par -> "etype"
+	  with Not_found -> failwith ("infer sort: unknown inductive"))
+      | Case (ind, ret_ty, matched, branches)  ->
+	    (* Get the arguments of the type of the matched term. *)
+	  let matched_args =
+	    match collapse_appl (Reduction.whd_betadeltaiota env (infer env matched))
+	    with App(Ind(i),t) when i = ind.ci_ind -> t
+	      | Ind(i) when i = ind.ci_ind -> [||]
+	      | _ -> failwith "term_trans: matched term badly typed"
+	  in
+	  let indices = Array.sub matched_args ind.ci_npar 
+	    (Array.length matched_args - ind.ci_npar)
+	  in
+	  let app_type = match 
+	    Array.fold_left 
+	      (function Lambda(_,_,t) -> fun i -> subst1 i t
+	       | _ -> fun _ -> raise Not_a_sort) ret_ty indices
+	  with 
+	      Lambda(_,_,t) -> subst1 matched t
+	    | _ -> raise Not_a_sort
+	  in
+	    get_sort env args app_type
+      | Fix ((struct_arg_nums, num_def),(names, body_types, body_terms)) ->
+	  let sigma =  let rec aux = function
+	      0 -> []
+	    | n -> Fix((struct_arg_nums, n),(names, body_types, body_terms)) ::
+		aux (n-1) in aux (Array.length names) 
+	  in
+	    get_sort env args (substl sigma body_types.(num_def))
+      | t -> raise Not_a_sort
+  in
+    aux env [] t
+
 (* Given environment e, get the scene in which t plays. *)
-let get_e e t = which_e (infer_type e t)
+let get_e e t = (*which_e (infer_type e t)*) infer_sort e t
 
 (* From coq names to string. *)
 let name_to_string n = match n with
@@ -233,7 +307,8 @@ let rec term_trans_aux e t decls =
 		     | Type _ ->    DVar (Qid ("Coq1univ","dottype")))  (*** !!! Attention a Type 0 ***)
 	  , decls
 
-      | Cast _ -> raise (NotImplementedYet "Cast")
+      | Cast (t,_,_) -> (* Are casts really needed? *)
+	  term_trans_aux e t decls
 
 
       | Prod (n,t1,t2)  ->
@@ -772,11 +847,10 @@ let sb_decl_trans label (name, decl) =
 	  "mind_translation: coinductive types may not work properly";
 	(* Add the mutual inductive type declaration to the environment. *)
 	base_env := Environ.add_mind (Names.MPself label,[],name) m !base_env;
+	base_env := Environ.add_constraints m.mind_constraints !base_env;
 	(* The names and typing context of the inductive type. *)
 	let mind_names, env =
-	  let l = ref []
-	  and e = ref
-	    (Environ.add_constraints m.mind_constraints !base_env)
+	  let l = ref [] and e = ref !base_env 
 	  in
 	    for i = 0 to Array.length m.mind_packets - 1 do
 	      let p = m.mind_packets.(i) in
