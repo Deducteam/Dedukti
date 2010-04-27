@@ -57,7 +57,13 @@ let translate filename =
 	match mb.mod_expr with 
 	    Some (SEBstruct (label, declarations)) ->
 	      let stmts = List.concat (List.map (sb_decl_trans label) declarations) in
-		!pp_obj#output_module stdout stmts;
+		begin match stmts with 
+		   [] -> (* Dedukti does not like empty files, adding a dummy 
+			    declaration. *)
+		     !pp_obj#output_module stdout 
+		       [Declaration(Id("dummy"),DType)];
+		  | _ -> !pp_obj#output_module stdout stmts
+		end
 		(*print_endline (";Finished module " ^ match label with _,l,_ -> l);
 		print_endline (";Local Variables:\n;  mode: tuareg\n;End:")*)
 	  | _ -> ()
