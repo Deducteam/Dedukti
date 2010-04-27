@@ -182,6 +182,10 @@ let name_to_qid n = Id (string_of_id (get_identifier n))
 let base_env = ref empty_env
 
 
+(* Hash table containing already defined fixpoints *)
+let fix_tbl = Hashtbl.create 100
+
+
 exception Partial_const
 
 (* Translation of t as a term, given an environment e and a set of
@@ -426,126 +430,129 @@ let rec term_trans_aux e t decls =
 	      let m_tt, decls' = term_trans_aux e matched !d in
 		DApp(!r, m_tt), decls'
 
-      | Fix((struct_arg_nums, num_def),(names, body_types, body_terms)) ->
-	  (* May create an unterminating rule. *)
-	  (* Get fresh names for the fixpoints. *)
-	  let names = Array.map
-	    (function
-		 Name n -> fresh_var (n ^ "_")
-	       | Anonymous -> fresh_var "fix_"
-	    )
-	    names in
-	    (* Translation of one inductive fixpoint. *)
-	  let one_trans struct_arg_num name body_type body_term decls =
-	    let fixpoint_context = e.env_rel_context in
-	    (* Declare the type of the fixpoint function. *)
-	    let decls' =
-	      let t, decls' = type_trans_aux
-		{ e with env_rel_context = [] }
-		(it_mkProd_or_LetIn
-		   body_type
-		   fixpoint_context
-		) decls in
-		Declaration(Id name, t)::decls' in
-	      (* Recursively applies all the variables in the context at the
-		 point of the fixpoint definition down to the recursive
-		 variable, and creates a rule outside of the current context. *)
-	    let env_vars, fix, decls' =
-	      app_rel_context e (DVar(Id name)) decls' in
-	    let rec make_rule e vars fix rhs decls = function
-		0, Prod(n, a, _) ->
-		  let s = get_identifier_env e n in
-		    (* Adds s:Typeofs to the list of things to apply to the
-		       fixpoint. *)
-		  let a_tt, decls' = type_trans_aux e a decls in
-		  let vars = List.rev_append vars
-		    [Id s, a_tt]
+      | Fix(((struct_arg_nums, num_def),(names, body_types, body_terms))as fix)
+	-> begin
+	  try Hashtbl.find fix_tbl fix with 
+	      Not_found -> 
+		(* Get fresh names for the fixpoints. *)
+		let names = Array.map
+		  (function
+		       Name n -> fresh_var (n ^ "_")
+		     | Anonymous -> fresh_var "fix_"
+		  )
+		  names in
+		  (* Translation of one inductive fixpoint. *)
+		let one_trans struct_arg_num name body_type body_term decls =
+		  let fixpoint_context = e.env_rel_context in
+		    (* Declare the type of the fixpoint function. *)
+		  let decls' =
+		    let t, decls' = type_trans_aux
+		      { e with env_rel_context = [] }
+		      (it_mkProd_or_LetIn
+			 body_type
+			 fixpoint_context
+		      ) decls in
+		      Declaration(Id name, t)::decls' in
+		    (* Recursively applies all the variables in the context at the
+		       point of the fixpoint definition down to the recursive
+		       variable, and creates a rule outside of the current context. *)
+		  let env_vars, fix, decls' =
+		    app_rel_context e (DVar(Id name)) decls' in
+		  let rec make_rule e vars fix rhs decls = function
+		      0, Prod(n, a, _) ->
+			let s = get_identifier_env e n in
+			  (* Adds s:Typeofs to the list of things to apply to the
+			     fixpoint. *)
+			let a_tt, decls' = type_trans_aux e a decls in
+			let vars = List.rev_append vars
+			  [Id s, a_tt]
+			in
+			let ind, args = 
+			  (* we have to compute a because the inductive type can be 
+			     hidden behind a definition. *)
+			  match collapse_appl (Reduction.whd_betadeltaiota e a) with
+			      App(Ind(i), l) -> i, l
+			    | Ind(i) -> i, [||]
+			    | _ -> failwith "term translation: structural argument is not an inductive type" 
+			in
+			let i__constr = 
+			  try 
+			    let name = (lookup_mind (fst ind) e).mind_packets.(snd ind).mind_typename 
+			    in
+			      (match fst ind with 
+				   MPself _,_,_ -> DVar (Id (name ^ "__constr"))
+				 | MPfile (m :: _),_,_ -> (* TODO : use the whole dirpath *)
+				     DVar (Qid (m,name ^ "__constr"))
+				 | _ -> raise (NotImplementedYet "modules bound and dot module path")
+			      )
+			  with Not_found -> failwith ("term translation: unknown inductive in structural argument") 
+			in
+			let guard = Array.fold_left
+			  (fun c a ->
+			     let a_tt, _ = term_trans_aux e a decls in
+			       DApp(c, a_tt))
+			  i__constr args
+			in
+			let last_arg = DApp(guard, DVar (Id s)) in
+			  (* This is the final case, apply the recursive variable to
+			     f and create a rule f x1...xn --> rhs x1...xn. *)
+			  Rule(List.rev_append env_vars vars,
+			       DApp(fix, last_arg),
+			       DApp(rhs, last_arg)
+			      )
+			  ::decls'
+		    | n, Prod(nom, a, t) ->
+			let s = get_identifier_env e nom in
+			let e' = push_rel (nom, None, a) e in
+			let a_tt, decls' = type_trans_aux e a decls in
+			  (* This is the not final case, apply the current variable
+			     to f x1...xi and to rhs and call yourself
+			     recursively. *)
+			  make_rule e' ((Id s, a_tt)::vars)
+			    (DApp(fix, DVar (Id s)))
+			    (DApp(rhs, DVar (Id s)))
+			    decls'
+			    (n-1, t)
+		    | _ -> failwith "fixpoint translation: ill-formed type" in
+		    (* Here we need to give the right parameters to
+		       make_rule. *)
+		  let n = List.length e.env_rel_context in
+		    (* The variable arguments to pass to fix have de bruijn
+		       indices from 0 to n. *)
+		  let rel_args = Array.init n (fun i -> Rel (n - i)) in
+		    (*rhs_env  adds the names of the mutually defined recursive
+		      functions in the context for the rhs*)
+		  let _,rhs_env = Array.fold_left
+		    (fun (i,e) n ->
+		       i+1, 
+		       push_named 
+			 (n, None, it_mkProd_or_LetIn body_types.(i) fixpoint_context)
+			 e)
+		    (0,e) names in
+		    (* We use the just defined context to replace the indexes in the
+		       rhs that refer to recursive calls (the rhs is typed in the
+		       context with the recursive functions and their types). *)
+		  let sigma = Array.fold_left
+		    (fun l n -> App(Var n, rel_args)::l) [] names
 		  in
-		  let ind, args = 
-		    (* we have to compute a because the inductive type can be 
-		       hidden behind a definition. *)
-		    match collapse_appl (Reduction.whd_betadeltaiota e a) with
-		      App(Ind(i), l) -> i, l
-		    | Ind(i) -> i, [||]
-		    | _ -> failwith "term translation: structural argument is not an inductive type" 
+		  let rhs, decls2 =
+		    term_trans_aux rhs_env (substl sigma body_term) decls'
 		  in
-		  let i__constr = 
-		    try 
-		      let name = (lookup_mind (fst ind) e).mind_packets.(snd ind).mind_typename 
-		      in
-			(match fst ind with 
-			     MPself _,_,_ -> DVar (Id (name ^ "__constr"))
-			   | MPfile (m :: _),_,_ -> (* TODO : use the whole dirpath *)
-			       DVar (Qid (m,name ^ "__constr"))
-			   | _ -> raise (NotImplementedYet "modules bound and dot module path")
-			)
-		    with Not_found -> failwith ("term translation: unknown inductive in structural argument") 
-		  in
-		  let guard = Array.fold_left
-		    (fun c a ->
-		       let a_tt, _ = term_trans_aux e a decls in
-			 DApp(c, a_tt))
-		    i__constr args
-		  in
-		  let last_arg = DApp(guard, DVar (Id s)) in
-		    (* This is the final case, apply the recursive variable to
-		       f and create a rule f x1...xn --> rhs x1...xn. *)
-		    Rule(List.rev_append env_vars vars,
-			 DApp(fix, last_arg),
-			 DApp(rhs, last_arg)
-			)
-		    ::decls'
-	      | n, Prod(nom, a, t) ->
-		  let s = get_identifier_env e nom in
-		  let e' = push_rel (nom, None, a) e in
-		  let a_tt, decls' = type_trans_aux e a decls in
-		    (* This is the not final case, apply the current variable
-		       to f x1...xi and to rhs and call yourself
-		       recursively. *)
-		    make_rule e' ((Id s, a_tt)::vars)
-		      (DApp(fix, DVar (Id s)))
-		      (DApp(rhs, DVar (Id s)))
-		      decls'
-		      (n-1, t)
-	      | _ -> failwith "fixpoint translation: ill-formed type" in
-	      (* Here we need to give the right parameters to
-		 make_rule. *)
-	    let n = List.length e.env_rel_context in
-	      (* The variable arguments to pass to fix have de bruijn
-		 indices from 0 to n. *)
-	    let rel_args = Array.init n (fun i -> Rel (n - i)) in
-	      (*rhs_env  adds the names of the mutually defined recursive
-		functions in the context for the rhs*)
-	    let _,rhs_env = Array.fold_left
-	      (fun (i,e) n ->
-		 i+1, 
-		 push_named 
-		   (n, None, it_mkProd_or_LetIn body_types.(i) fixpoint_context)
-		   e)
-	      (0,e) names in
-	      (* We use the just defined context to replace the indexes in the
-		 rhs that refer to recursive calls (the rhs is typed in the
-		 context with the recursive functions and their types). *)
-	    let sigma = Array.fold_left
-	      (fun l n -> App(Var n, rel_args)::l) [] names
-	    in
-	    let rhs, decls2 =
-	      term_trans_aux rhs_env (substl sigma body_term) decls'
-	    in
-	      make_rule e [] fix rhs decls2 (struct_arg_num, body_type)
-	  in
-	    (* And we iterate this process over the body of every. *)
-	  let _, decls' = Array.fold_left
-	    (fun (i,decls) struct_arg_num -> i+1,
-	       one_trans struct_arg_num names.(i)
-		 body_types.(i) body_terms.(i) decls)
-	    (0,decls) struct_arg_nums in
-	    (* The term corresponding to the fix point is the identifier
-	       to which the context is applied. *)
-	  let _, t, decls = app_rel_context e (DVar(Id names.(num_def))) decls'
-	  in
-	    t, decls
-
+		    make_rule e [] fix rhs decls2 (struct_arg_num, body_type)
+		in
+		  (* And we iterate this process over the body of every. *)
+		let _, decls' = Array.fold_left
+		  (fun (i,decls) struct_arg_num -> i+1,
+		     one_trans struct_arg_num names.(i)
+		       body_types.(i) body_terms.(i) decls)
+		  (0,decls) struct_arg_nums in
+		  (* The term corresponding to the fix point is the identifier
+		     to which the context is applied. *)
+		let _, t, decls = app_rel_context e (DVar(Id names.(num_def))) decls'
+		in
+		  Hashtbl.add fix_tbl fix (t, decls);
+		  t, decls
+	end
       | CoFix   _  -> raise (NotImplementedYet "CoFix")
 
 (*** Translation of t as a type, given an environment e. ***)
