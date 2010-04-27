@@ -24,44 +24,47 @@ let add_path p =
   add_rec_path p (if !prefix = "" then [] else [!prefix])
 
 let speclist = Arg.align 
-  [ "--prefix", Arg.Set_string prefix, "root set the dirpath root";
-    "-I", Arg.String add_path, "path add path using the current dirpath root" ]
+  [ "-r", Arg.Set_string prefix, "Id";
+    "--root", Arg.Set_string prefix, "Id set the dirpath root as Id\n";
+    "-I", Arg.String add_path, "path";
+    "--include", Arg.String add_path, "path add path using the current dirpath root\n"; ]
 
 let rec path_to_string name suffixe = match name with
-    n::_ -> n ^ suffixe
-  | _ -> failwith "empty path"
+    [] -> failwith "empty path"
+  | [n] -> n ^ suffixe
+  | n::q -> path_to_string q ("_" ^ n ^ suffixe)
 
 let translate filename =
   let channel = open_in_bin filename in
     ignore (input_binary_int channel); (* magic number *)
     let (md:Check.library_disk) = Marshal.from_channel channel in
       close_in channel;
-      let ml = (md.md_name, filename) in
-	(* Putting dependancies in the environment *)
-        print_string  (path_to_string md.md_name ".dko" ^ ":");
-	let needed = md.md_deps in
-	  List.iter 
-	    (fun (dir,m) -> 
-	       if dir <> md.md_name then print_string (" " ^ path_to_string dir ".dko"))
-	    needed;
-	  print_newline();
-          print_string  (path_to_string md.md_name ".o" ^ ":");
-	  List.iter 
-	    (fun (dir,m) -> 
-	       if dir <> md.md_name then print_string (" " ^ path_to_string dir ".o"))
-	    needed;
-	  print_newline();
-	  print_endline
-	    (path_to_string md.md_name (": " ^ path_to_string md.md_name ".o"));
-	  print_string ("\tdkrun " ^ path_to_string md.md_name ".o");
-	  List.iter 
-	    (fun (dir,m) -> 
-	       if dir <> md.md_name then print_string (" " ^ path_to_string dir ".o"))
-	    needed;
-	  print_newline()
+      (* Putting dependancies in the environment *)
+      print_string  (path_to_string md.md_name ".dko" ^ ":");
+      let needed = md.md_deps in
+	List.iter 
+	  (fun (dir,m) -> 
+	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".dko"))
+	  needed;
+	print_endline " Coq1univ.dko";
+        print_string  (path_to_string md.md_name ".o" ^ ":");
+	List.iter 
+	  (fun (dir,m) -> 
+	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".o"))
+	  needed;
+	print_endline " Coq1univ.o";
+	print_endline
+	  (path_to_string md.md_name (": " ^ path_to_string md.md_name ".o"));
+	print_string ("\tdkrun " ^ path_to_string md.md_name ".dko");
+	print_string " Coq1univ.dko";
+	List.iter 
+	  (fun (dir,m) -> 
+	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".dko"))
+	  needed;
+	print_newline()
 	  
-	      
+	  
 let _ =  
-(*  add_rec_path "/usr/lib/coq/theories" ["Coq"];*)
+  (*  add_rec_path "/usr/lib/coq/theories" ["Coq"];*)
   Arg.parse speclist translate
     "Show dependancies of Coq libraries\nUsage: coqine [options] filenames\n\nIf you want to use the coq library,\nuse --prefix Coq -I path_to_coq_dir_theories\n\nfilenames:\tcoq binary files (.vo)\n\nOptions:" 

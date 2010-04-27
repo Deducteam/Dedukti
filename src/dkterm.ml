@@ -60,7 +60,7 @@ class prefix_pp = object (self)
 
   method private pr_env = function
       [] -> str "[] "
-    | b::q -> pr_coma () ++ self#pr_binding b ++ spc () ++ self#pr_env q
+    | b::q -> str "," ++ self#pr_binding b ++ spc () ++ self#pr_env q
 
   method private pr_statement' = function
     | Declaration (n, t) -> 

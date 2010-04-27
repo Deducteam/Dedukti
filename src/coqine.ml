@@ -15,6 +15,16 @@ exception ShouldNotAppear
 exception EmptyArrayInApp
 
 
+let array_forall p a = 
+  let r = ref true in
+  let i = ref 0 in
+  let n = Array.length a in
+    while !r && !i < n do
+      r := p a.(!i);
+      i := !i+1
+    done; !r
+     
+
 (**************** Fresh vars **********************)
 
 (* TODO: better fresh vars *)
@@ -138,6 +148,13 @@ let infer_sort env t =
 let get_e e t = (*which_e (infer_type e t)*) infer_sort e t
 
 (* From coq names to string. *)
+let path_to_string path =
+  let rec aux suffixe = function
+      [] -> failwith "empty path"
+    | [n] -> n ^ suffixe
+    | n::q -> aux ("_" ^ n ^ suffixe) q
+  in aux "" path
+
 let name_to_string n = match n with
   | Anonymous -> fresh_var "_dk_anon"
   | Name s -> s
@@ -217,8 +234,9 @@ let rec term_trans_aux e t decls =
       match mod_path with 
 	  MPself _ -> DVar (Id name), 
 	    DVar (Id (induc.mind_typename ^ "__constr"))
-	| MPfile (m :: _) -> (* TODO : use the whole dirpath *)
-	    DVar (Qid (m,name)),
+	| MPfile path -> 
+	    let m = path_to_string path in
+	      DVar (Qid (m,name)),
 	    DVar (Qid (m,induc.mind_typename ^ "__constr"))
 	| _ -> raise (NotImplementedYet "modules bound and dot module path")
 	    
@@ -348,8 +366,9 @@ let rec term_trans_aux e t decls =
 	     another module *)
 	  (match mod_path with
 	       MPself _ -> DVar (Id name)
-	     | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
-		 DVar (Qid (m,name))
+	     | MPfile path -> 
+		 let m = path_to_string path in
+		   DVar (Qid (m,name))
 	     | _ -> raise (NotImplementedYet "modules bound and dot module path")
 	  ),
 	  decls
@@ -361,8 +380,9 @@ let rec term_trans_aux e t decls =
 		 another module *)
 	      (match mod_path with
 		   MPself _ -> DVar (Id name)
-		 | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
-		     DVar (Qid (m,name))
+		 | MPfile path -> 
+		     let m = path_to_string path in
+		       DVar (Qid (m,name))
 		 | _ -> raise (NotImplementedYet "modules bound and dot module path")
 	      ),
 	    decls
@@ -399,8 +419,9 @@ let rec term_trans_aux e t decls =
 	  in
 	  let r = ref (match fst ind.ci_ind with
 			   MPself _, _, _ -> DVar (Id case_name)
-			 | MPfile (m :: _), _ , _  -> (* TODO : use the whole dirpath *)
-			     DVar (Qid (m,case_name))
+			 | MPfile path, _ , _  -> 
+			     let m = path_to_string path in
+			       DVar (Qid (m,case_name))
 			 | _ -> raise (NotImplementedYet "modules bound and dot module path")
 		      )
 	  and d = ref decls in
@@ -432,7 +453,7 @@ let rec term_trans_aux e t decls =
 
       | Fix(((struct_arg_nums, num_def),(names, body_types, body_terms))as fix)
 	-> begin
-	  try Hashtbl.find fix_tbl fix with 
+	  try Hashtbl.find fix_tbl fix, decls with 
 	      Not_found -> 
 		(* Get fresh names for the fixpoints. *)
 		let names = Array.map
@@ -481,8 +502,9 @@ let rec term_trans_aux e t decls =
 			    in
 			      (match fst ind with 
 				   MPself _,_,_ -> DVar (Id (name ^ "__constr"))
-				 | MPfile (m :: _),_,_ -> (* TODO : use the whole dirpath *)
-				     DVar (Qid (m,name ^ "__constr"))
+				 | MPfile path,_,_ -> 
+				     let m = path_to_string path in
+				       DVar (Qid (m,name ^ "__constr"))
 				 | _ -> raise (NotImplementedYet "modules bound and dot module path")
 			      )
 			  with Not_found -> failwith ("term translation: unknown inductive in structural argument") 
@@ -550,7 +572,10 @@ let rec term_trans_aux e t decls =
 		     to which the context is applied. *)
 		let _, t, decls = app_rel_context e (DVar(Id names.(num_def))) decls'
 		in
-		  Hashtbl.add fix_tbl fix (t, decls);
+		  if 
+		    array_forall (closedn (Array.length body_terms))
+		      body_terms
+		  then Hashtbl.add fix_tbl fix t;
 		  t, decls
 	end
       | CoFix   _  -> raise (NotImplementedYet "CoFix")
