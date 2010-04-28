@@ -455,7 +455,18 @@ let rec term_trans_aux e t decls =
 	-> begin
 	  try Hashtbl.find fix_tbl fix, decls with 
 	      Not_found -> 
-		(* Get fresh names for the fixpoints. *)
+		(* If the bodies of the fixpoints are closed, we do not need 
+		   to add the context, and we can use the hashtable. *)
+		let closed = 
+		  array_forall (closedn (Array.length body_terms))
+		    body_terms
+		in
+		let fixpoint_context, env_context =
+		  if closed 
+		  then [], e.env_rel_context 
+		  else e.env_rel_context, []
+		in
+		  (* Get fresh names for the fixpoints. *)
 		let names = Array.map
 		  (function
 		       Name n -> fresh_var (n ^ "_")
@@ -464,11 +475,10 @@ let rec term_trans_aux e t decls =
 		  names in
 		  (* Translation of one inductive fixpoint. *)
 		let one_trans struct_arg_num name body_type body_term decls =
-		  let fixpoint_context = e.env_rel_context in
-		    (* Declare the type of the fixpoint function. *)
+		  (* Declare the type of the fixpoint function. *)
 		  let decls' =
 		    let t, decls' = type_trans_aux
-		      { e with env_rel_context = [] }
+		      { e with env_rel_context = env_context }
 		      (it_mkProd_or_LetIn
 			 body_type
 			 fixpoint_context
@@ -478,19 +488,22 @@ let rec term_trans_aux e t decls =
 		       point of the fixpoint definition down to the recursive
 		       variable, and creates a rule outside of the current context. *)
 		  let env_vars, fix, decls' =
-		    app_rel_context e (DVar(Id name)) decls' in
+		    if closed 
+		    then [], DVar(Id name), decls'
+		    else app_rel_context e (DVar(Id name)) decls' in
 		  let rec make_rule e vars fix rhs decls = function
 		      0, Prod(n, a, _) ->
 			let s = get_identifier_env e n in
-			  (* Adds s:Typeofs to the list of things to apply to the
-			     fixpoint. *)
+			  (* Adds s:Typeofs to the list of things to
+			     apply to the fixpoint. *)
 			let a_tt, decls' = type_trans_aux e a decls in
 			let vars = List.rev_append vars
 			  [Id s, a_tt]
 			in
 			let ind, args = 
-			  (* we have to compute a because the inductive type can be 
-			     hidden behind a definition. *)
+			  (* we have to compute a because the
+			     inductive type can be hidden behind a
+			     definition. *)
 			  match collapse_appl (Reduction.whd_betadeltaiota e a) with
 			      App(Ind(i), l) -> i, l
 			    | Ind(i) -> i, [||]
@@ -538,9 +551,9 @@ let rec term_trans_aux e t decls =
 		    | _ -> failwith "fixpoint translation: ill-formed type" in
 		    (* Here we need to give the right parameters to
 		       make_rule. *)
-		  let n = List.length e.env_rel_context in
+		  let n = List.length fixpoint_context in
 		    (* The variable arguments to pass to fix have de bruijn
-		       indices from 0 to n. *)
+		       indices from 1 to n. *)
 		  let rel_args = Array.init n (fun i -> Rel (n - i)) in
 		    (*rhs_env  adds the names of the mutually defined recursive
 		      functions in the context for the rhs*)
@@ -570,12 +583,12 @@ let rec term_trans_aux e t decls =
 		  (0,decls) struct_arg_nums in
 		  (* The term corresponding to the fix point is the identifier
 		     to which the context is applied. *)
-		let _, t, decls = app_rel_context e (DVar(Id names.(num_def))) decls'
+		let _, t, decls = 
+		  if closed 
+		  then [], DVar(Id names.(num_def)), decls'
+		  else app_rel_context e (DVar(Id names.(num_def))) decls'
 		in
-		  if 
-		    array_forall (closedn (Array.length body_terms))
-		      body_terms
-		  then Hashtbl.add fix_tbl fix t;
+		  if closed then Hashtbl.add fix_tbl fix t;
 		  t, decls
 	end
       | CoFix   _  -> raise (NotImplementedYet "CoFix")
