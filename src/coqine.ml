@@ -617,7 +617,7 @@ let type_trans t = type_trans_aux !base_env t []
            the declaration of the new variables
            the auxiliary declarations
 *)
-let make_constr e decls params_num params_dec cons_name typ =
+let make_constr env decls params_num params_dec cons_name typ =
   let cons_name_with_params = App(cons_name, 
 				  Array.init params_num 
 				    (fun i -> Rel(params_dec + params_num - i))) in
@@ -642,9 +642,9 @@ let make_constr e decls params_num params_dec cons_name typ =
 	(n-1, subst1 (Rel (params_dec + n)) t2)
     | _ -> failwith "inductive translation: ill-typed constructor"
   in
-  let e, c, ind, vars, decls = aux e [] decls cons_name_with_params (params_num, typ)
+  let _, c, ind, vars, decls = aux env [] decls cons_name_with_params (params_num, typ)
   in
-  let res, decls = term_trans_aux e c decls in
+  let res, decls = term_trans_aux env c decls in
     res, ind, vars, decls
 
 (* Auxiliary function for make_constr_func_type *)
