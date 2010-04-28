@@ -155,6 +155,17 @@ let path_to_string path =
     | n::q -> aux ("_" ^ n ^ suffixe) q
   in aux "" path
 
+
+(* id_with_path i p return Dedukti variable corresponding to p.i *)
+let id_with_path path id = 
+  match path with 
+      MPself _ -> DVar (Id id)
+    | MPfile path -> 
+	let m = path_to_string path in
+	  DVar (Qid (m, id))
+    | _ -> raise (NotImplementedYet "modules bound and dot module path")
+
+
 let name_to_string n = match n with
   | Anonymous -> fresh_var "_dk_anon"
   | Name s -> s
@@ -199,7 +210,7 @@ let name_to_qid n = Id (string_of_id (get_identifier n))
 let base_env = ref empty_env
 
 
-(* Hash table containing already defined fixpoints *)
+(* Hash table containing already defined closed fixpoints *)
 let fix_tbl = Hashtbl.create 100
 
 
@@ -230,16 +241,8 @@ let rec term_trans_aux e t decls =
     let induc = m_induc.mind_packets.(j) 
     in
     let name = induc.mind_consnames.(i-1) in
-    let constr, guard = 
-      match mod_path with 
-	  MPself _ -> DVar (Id name), 
-	    DVar (Id (induc.mind_typename ^ "__constr"))
-	| MPfile path -> 
-	    let m = path_to_string path in
-	      DVar (Qid (m,name)),
-	    DVar (Qid (m,induc.mind_typename ^ "__constr"))
-	| _ -> raise (NotImplementedYet "modules bound and dot module path")
-	    
+    let constr = id_with_path mod_path name 
+    and guard = id_with_path mod_path (induc.mind_typename ^ "__constr")
     in 
     let constr_type = induc.mind_nf_lc.(i-1) in
       try let applied_constr,decls = 
@@ -364,47 +367,16 @@ let rec term_trans_aux e t decls =
       | Const(mod_path,dp,name)  -> (* TODO: treat the module path and the dir path. *)
 	  (* depending whether the const is defined here or in
 	     another module *)
-	  (match mod_path with
-	       MPself _ -> DVar (Id name)
-	     | MPfile path -> 
-		 let m = path_to_string path in
-		   DVar (Qid (m,name))
-	     | _ -> raise (NotImplementedYet "modules bound and dot module path")
-	  ),
-	  decls
+	  id_with_path mod_path name, decls
 
       | Ind((mod_path,_,l) as ind, num)  -> begin
 	  try
 	    let name = (lookup_mind ind e).mind_packets.(num).mind_typename in
 	      (* depending whether the inductive is defined here or in
 		 another module *)
-	      (match mod_path with
-		   MPself _ -> DVar (Id name)
-		 | MPfile path -> 
-		     let m = path_to_string path in
-		       DVar (Qid (m,name))
-		 | _ -> raise (NotImplementedYet "modules bound and dot module path")
-	      ),
-	    decls
+	      id_with_path mod_path name, decls
 	  with Not_found -> failwith ("term translation: unknown inductive "
 				      ^ l) end
-
-      (*      | Construct(((mod_path,_,l) as ind,j), i) -> begin
-	      try
-	      let induc = (lookup_mind ind e).mind_packets.(j) in
-	      let name = indu.mind_consnames.(i-1) in
-	      let constr = match mod_path with
-	      MPself _ -> DVar (Id name)
-	      | MPfile (m :: _) -> (* TODO : use the whole dirpath *)
-	      DVar (Qid (m,name))
-	      | _ -> raise (NotImplementedYet "modules bound and dot module path")
-	      
-	      in ,
-
-	      decls
-	      with Not_found -> failwith ("term translation: unknown inductive "
-	      ^l) end
-      *)
       | Case (ind, ret_ty, matched, branches)  ->
 	  let mind_body = lookup_mind (fst ind.ci_ind) e in
 	  let case_name =
@@ -417,13 +389,8 @@ let rec term_trans_aux e t decls =
 	      | Ind(i) when i = ind.ci_ind -> [||]
 	      | _ -> failwith "term_trans: matched term badly typed"
 	  in
-	  let r = ref (match fst ind.ci_ind with
-			   MPself _, _, _ -> DVar (Id case_name)
-			 | MPfile path, _ , _  -> 
-			     let m = path_to_string path in
-			       DVar (Qid (m,case_name))
-			 | _ -> raise (NotImplementedYet "modules bound and dot module path")
-		      )
+	  let mp, _, _ = fst ind.ci_ind in
+	  let r = ref (id_with_path mp case_name)
 	  and d = ref decls in
 	    for i = 0 to ind.ci_npar - 1 do 
 	      (* We cannot use Array.fold_left since we only need 
@@ -513,13 +480,8 @@ let rec term_trans_aux e t decls =
 			  try 
 			    let name = (lookup_mind (fst ind) e).mind_packets.(snd ind).mind_typename 
 			    in
-			      (match fst ind with 
-				   MPself _,_,_ -> DVar (Id (name ^ "__constr"))
-				 | MPfile path,_,_ -> 
-				     let m = path_to_string path in
-				       DVar (Qid (m,name ^ "__constr"))
-				 | _ -> raise (NotImplementedYet "modules bound and dot module path")
-			      )
+			    let mp,_,_ = fst ind in
+			      id_with_path mp (name ^ "__constr")
 			  with Not_found -> failwith ("term translation: unknown inductive in structural argument") 
 			in
 			let guard = Array.fold_left
