@@ -5,7 +5,7 @@ COQINE="../bin/coqine --root Coq -I /usr/lib/coq/theories"
 for i in Logic Datatypes Peano Wf
 do
     echo -n "CoqInE $i : "
-    if $COQINE /usr/lib/coq/theories/Init/$i.vo > Coq_Init_$i.dk 2> regression.log 
+    if $COQINE /usr/lib/coq/theories/Init/$i.vo 2> regression.log 
     then echo "ok."
     else echo "failed."
     fi

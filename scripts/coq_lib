@@ -1,19 +1,20 @@
 #!/bin/sh
 
+COQINE_ROOT=/home/burel/projets/coqine
 COQ_LIB=/usr/lib/coq/theories/
 LIBS=$COQ_LIB*
 INCLUDE=/usr/lib/coq/contrib/
 
-rm Coq_lib/depend
+rm depend
 
 for i in $LIBS
 do
     for t in $i/*.vo
     do
-	if bin/coqine --root Coq -I $INCLUDE -I $COQ_LIB $t > Coq_lib/Coq_`basename $i`_`basename $t .vo`.dk
+	if $COQINE_ROOT/bin/coqine --root Coq -I $INCLUDE -I $COQ_LIB $t 
 	then echo "Success : $t"
 	else echo "Failed : $t"
 	fi
-	bin/make_deps --root Coq -I $INCLUDE -I $COQ_LIB $t >> Coq_lib/depend
+	$COQINE_ROOT/bin/make_deps --root Coq -I $INCLUDE -I $COQ_LIB $t >> depend
     done
 done

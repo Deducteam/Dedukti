@@ -20,12 +20,6 @@ let prefix = ref ""
 let add_path p = 
   add_rec_path p (if !prefix = "" then [] else [!prefix])
 
-let pp_obj = ref new prefix_pp
-
-let pp_prefix () = pp_obj := new prefix_pp
-
-let pp_external () = pp_obj := new external_pp
-
 
 let speclist = Arg.align 
   [ "-r", Arg.Set_string prefix, "Id";
@@ -54,20 +48,8 @@ let translate filename =
 	  needed;
 	Coqine.base_env := Safe_typing.get_env ();
       let (_,mb,_,_) = md.md_compiled in
-	match mb.mod_expr with 
-	    Some (SEBstruct (label, declarations)) ->
-	      let stmts = List.concat (List.map (sb_decl_trans label) declarations) in
-		begin match stmts with 
-		   [] -> (* Dedukti does not like empty files, adding a dummy 
-			    declaration. *)
-		     !pp_obj#output_module stdout 
-		       [Declaration(Id("dummy"),DType)];
-		  | _ -> !pp_obj#output_module stdout stmts
-		end
-		(*print_endline (";Finished module " ^ match label with _,l,_ -> l);
-		print_endline (";Local Variables:\n;  mode: tuareg\n;End:")*)
-	  | _ -> ()
-	      
+	mb_trans mb
+
 let _ =  
 (*  add_rec_path "/usr/lib/coq/theories" ["Coq"];*)
   Arg.parse speclist translate

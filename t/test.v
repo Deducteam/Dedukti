@@ -1,3 +1,5 @@
-Inductive List (A : Set) : Set :=
-nil : List A
-| cons : A -> List A -> List A.
+Module truc.
+
+Definition bidule :=Prop.
+
+End truc.

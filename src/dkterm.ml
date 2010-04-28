@@ -114,3 +114,10 @@ class external_pp = object (self)
 	     self#pr_dkterm rhs ++ str "."
     | End -> mt ()
 end
+
+let pp_obj = ref new prefix_pp
+
+let pp_prefix () = pp_obj := new prefix_pp
+
+let pp_external () = pp_obj := new external_pp
+

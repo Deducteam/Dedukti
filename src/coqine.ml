@@ -150,7 +150,7 @@ let get_e e t = (*which_e (infer_type e t)*) infer_sort e t
 (* From coq names to string. *)
 let path_to_string path =
   let rec aux suffixe = function
-      [] -> failwith "empty path"
+      [] -> ""
     | [n] -> n ^ suffixe
     | n::q -> aux ("_" ^ n ^ suffixe) q
   in aux "" path
@@ -820,7 +820,7 @@ let packet_translation env ind params constr_types p decls =
     List.rev_append this_decls decls
 
 (* Translation of a declaration in a structure. *)
-let sb_decl_trans label (name, decl) =
+let rec sb_decl_trans label (name, decl) =
   prerr_endline ("declaring "^name);
   match decl with
       (* Declaration of a constant (theorem, definition, etc.). *)
@@ -922,4 +922,25 @@ let sb_decl_trans label (name, decl) =
 				   t__constr)
 		    :: d', i+1)
 	       m.mind_packets (decls,1))
-    | _ -> raise (NotImplementedYet "Module, Alias or Module Type")
+    | SFBmodule mb -> mb_trans mb; []
+    | _ -> raise (NotImplementedYet "Alias or Module Type")
+	
+	
+(* translation of a module body *)
+and mb_trans mb = 
+  match mb.mod_expr with 
+      Some (SEBstruct ((_,name,path) as label, declarations)) ->
+	prerr_endline ("entering module " ^ (path_to_string (name::path)));
+	let stmts = List.concat (List.map (sb_decl_trans label) declarations) in
+	let output_file = open_out (path_to_string ((name ^ ".dk")::path))
+	in
+	  !pp_obj#output_module output_file
+	    (match stmts with 
+		 [] -> (* Dedukti does not like empty files, adding a
+			  dummy declaration. *)
+		   [Declaration(Id("dummy"),DType)];
+	       | _ -> stmts);
+	  prerr_endline ("closing module " ^ (path_to_string (name::path)));
+	  close_out output_file
+    | Some _ -> raise (NotImplementedYet "functors, module applications, ...")
+    | None -> failwith "module with empty declarations"
