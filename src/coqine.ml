@@ -14,6 +14,7 @@ exception NotImplementedYet of string
 exception ShouldNotAppear
 exception EmptyArrayInApp
 
+(* Some useful stuff not present in the standard library *)
 
 let array_forall p a = 
   let r = ref true in
@@ -155,17 +156,22 @@ let path_to_string path =
     | n::q -> aux ("_" ^ n ^ suffixe) q
   in aux "" path
 
+let rec module_path_to_string = function
+    MPself (_,m,p) -> path_to_string (m::p)
+  | MPfile path -> path_to_string path 
+  | MPdot(mp, lab) -> 
+      module_path_to_string mp ^ "_" ^ lab
+  | MPbound(_,lab,path) -> path_to_string path ^ "_" ^ lab
+
 
 (* id_with_path i p return Dedukti variable corresponding to p.i *)
-let id_with_path path id = 
-  match path with 
-      MPself _ -> DVar (Id id)
-    | MPfile path -> 
-	let m = path_to_string path in
-	  DVar (Qid (m, id))
-    | _ -> raise (NotImplementedYet "modules bound and dot module path")
-
-
+let id_with_path self_path mpath id = 
+  if self_path = mpath then
+    DVar (Id id)
+  else
+    let m = module_path_to_string mpath in
+    DVar (Qid (m, id))
+      
 let name_to_string n = match n with
   | Anonymous -> fresh_var "_dk_anon"
   | Name s -> s
@@ -218,7 +224,7 @@ exception Partial_const
 
 (* Translation of t as a term, given an environment e and a set of
    intermediary declarations decls (in reverse order). *)
-let rec term_trans_aux e t decls =
+let rec term_trans_aux label e t decls =
 
   (* Applies every variable in the rel context of the environment e to c. *)
   let rec app_rel_context e c decls = match e.env_rel_context  with
@@ -227,7 +233,7 @@ let rec term_trans_aux e t decls =
 	let e = { e with env_rel_context = rel_context } in
 	let v = get_identifier_env e n in
 	let vs, c, decls1 = app_rel_context e c decls in
-	let t_tt, decls2 = type_trans_aux e t decls1 in
+	let t_tt, decls2 = type_trans_aux label e t decls1 in
 	  (Id v, t_tt)::vs, DApp(c,DVar (Id v)), decls
   in
 
@@ -241,14 +247,14 @@ let rec term_trans_aux e t decls =
     let induc = m_induc.mind_packets.(j) 
     in
     let name = induc.mind_consnames.(i-1) in
-    let constr = id_with_path mod_path name 
-    and guard = id_with_path mod_path (induc.mind_typename ^ "__constr")
+    let constr = id_with_path label mod_path name 
+    and guard = id_with_path label mod_path (induc.mind_typename ^ "__constr")
     in 
     let constr_type = induc.mind_nf_lc.(i-1) in
       try let applied_constr,decls = 
 	Array.fold_left 
 	  (fun (c,decls) a ->
-	     let a_tt, decls' = term_trans_aux e a decls 
+	     let a_tt, decls' = term_trans_aux label e a decls 
 	     in
 	       DApp(c, a_tt), decls')
 	  (constr,decls) args in
@@ -258,7 +264,7 @@ let rec term_trans_aux e t decls =
 	| App(Rel _, params), [] ->
 	    Array.fold_left
 	      (fun (c,decls) a ->
-		 let a_tt, decls' = term_trans_aux e a decls 
+		 let a_tt, decls' = term_trans_aux label e a decls 
 		 in
 		   DApp(c, a_tt), decls')
 	      (guard,decls) params 
@@ -282,14 +288,14 @@ let rec term_trans_aux e t decls =
 	    Prod(_, t1, t2) ->
 	      let v = fresh_var "g_" in
 	      let e' = push_rel (Name v, None, t1) e in
-	      let tt_1, decls' = type_trans_aux e t1 decls in
+	      let tt_1, decls' = type_trans_aux label e t1 decls in
 	      let res, dec = eta e' (v::args) t2 in
 		DFun(Id v, tt_1, res), dec
 	  | App(Ind _, params) ->
 	      let guard, decls	=
 		Array.fold_left
 		  (fun (c,decls) a ->
-		     let a_tt, decls' = term_trans_aux e a decls 
+		     let a_tt, decls' = term_trans_aux label e a decls 
 		     in
 		       DApp(c, a_tt), decls')
 		  (guard,decls) params in
@@ -305,7 +311,7 @@ let rec term_trans_aux e t decls =
 	let constr,decls = eta e [] constr_type in
 	  Array.fold_left 
 	    (fun (c,d) a ->
-	       let a_tt, d = term_trans_aux e a d in
+	       let a_tt, d = term_trans_aux label e a d in
 		 DApp(c, a_tt), d) (constr,decls) args
   in
 
@@ -333,48 +339,48 @@ let rec term_trans_aux e t decls =
 	  , decls
 
       | Cast (t,_,_) -> (* Are casts really needed? *)
-	  term_trans_aux e t decls
+	  term_trans_aux label e t decls
 
 
       | Prod (n,t1,t2)  ->
-	  let t_tt1, decls1 = term_trans_aux e t1 decls
+	  let t_tt1, decls1 = term_trans_aux label e t1 decls
 	  and e1 = push_rel (n,None,t1) e in
-	  let t_tt2, decls2 = term_trans_aux e1 t2 decls1 in
+	  let t_tt2, decls2 = term_trans_aux label e1 t2 decls1 in
 	    DApp (DApp (DVar(Qid("Coq1univ",get_dotpi e n t1 t2)), t_tt1),
 		  DFun (Id (get_identifier_env e n),
 			DApp(DVar(Qid ("Coq1univ",get_e e t1)), t_tt1),
 			t_tt2)), decls2
 
       | Lambda (n,t1,t2)  ->
-	  let t_tt1, decls1 = type_trans_aux e t1 decls
+	  let t_tt1, decls1 = type_trans_aux label e t1 decls
 	  and e1 = push_rel (n,None,t1) e in
-	  let t_tt2, decls2 = term_trans_aux e1 t2 decls1 in
+	  let t_tt2, decls2 = term_trans_aux label e1 t2 decls1 in
 	    DFun ((Id (get_identifier_env e n)),
 		  t_tt1,
 		  t_tt2), decls2
 
       | LetIn (var, eq, ty, body)  ->
-	  term_trans_aux e (subst1 eq body) decls 
+	  term_trans_aux label e (subst1 eq body) decls 
 
 
       | App (t1,a)  -> 
 	  Array.fold_left 
 	    (fun (u1,decls1) u2 -> 
-	       let u_tt2, decls2 = term_trans_aux e u2 decls1 in
+	       let u_tt2, decls2 = term_trans_aux label e u2 decls1 in
 		 DApp(u1, u_tt2), decls2)
-	    (term_trans_aux e t1 decls) a
+	    (term_trans_aux label e t1 decls) a
 
       | Const(mod_path,dp,name)  -> (* TODO: treat the module path and the dir path. *)
 	  (* depending whether the const is defined here or in
 	     another module *)
-	  id_with_path mod_path name, decls
+	  id_with_path label mod_path name, decls
 
       | Ind((mod_path,_,l) as ind, num)  -> begin
 	  try
 	    let name = (lookup_mind ind e).mind_packets.(num).mind_typename in
 	      (* depending whether the inductive is defined here or in
 		 another module *)
-	      id_with_path mod_path name, decls
+	      id_with_path label mod_path name, decls
 	  with Not_found -> failwith ("term translation: unknown inductive "
 				      ^ l) end
       | Case (ind, ret_ty, matched, branches)  ->
@@ -390,32 +396,32 @@ let rec term_trans_aux e t decls =
 	      | _ -> failwith "term_trans: matched term badly typed"
 	  in
 	  let mp, _, _ = fst ind.ci_ind in
-	  let r = ref (id_with_path mp case_name)
+	  let r = ref (id_with_path label mp case_name)
 	  and d = ref decls in
 	    for i = 0 to ind.ci_npar - 1 do 
 	      (* We cannot use Array.fold_left since we only need 
 		 the parameters. *)
 	      let arg_tt, decls' =
-		term_trans_aux e matched_args.(i) !d in
+		term_trans_aux label e matched_args.(i) !d in
 		r := DApp(!r, arg_tt);
 		d := decls'
 	    done;
-	    let ret_ty_tt, decls' = term_trans_aux e ret_ty !d in
+	    let ret_ty_tt, decls' = term_trans_aux label e ret_ty !d in
 	      r := DApp(!r, ret_ty_tt);
 	      d := decls';
 	      Array.iter 
 		(fun b -> 
-		   let b_tt, decls' = term_trans_aux e b !d in
+		   let b_tt, decls' = term_trans_aux label e b !d in
 		     r := DApp(!r, b_tt);
 		     d := decls')
 		branches;
 	      for i = ind.ci_npar to Array.length matched_args - 1 do
 		let arg_tt, decls' =  
-		  term_trans_aux e matched_args.(i) !d in
+		  term_trans_aux label e matched_args.(i) !d in
 		  r := DApp(!r, arg_tt);
 		  d := decls'
 	      done;
-	      let m_tt, decls' = term_trans_aux e matched !d in
+	      let m_tt, decls' = term_trans_aux label e matched !d in
 		DApp(!r, m_tt), decls'
 
       | Fix(((struct_arg_nums, num_def),(names, body_types, body_terms))as fix)
@@ -444,7 +450,7 @@ let rec term_trans_aux e t decls =
 		let one_trans struct_arg_num name body_type body_term decls =
 		  (* Declare the type of the fixpoint function. *)
 		  let decls' =
-		    let t, decls' = type_trans_aux
+		    let t, decls' = type_trans_aux label
 		      { e with env_rel_context = env_context }
 		      (it_mkProd_or_LetIn
 			 body_type
@@ -463,7 +469,7 @@ let rec term_trans_aux e t decls =
 			let s = get_identifier_env e n in
 			  (* Adds s:Typeofs to the list of things to
 			     apply to the fixpoint. *)
-			let a_tt, decls' = type_trans_aux e a decls in
+			let a_tt, decls' = type_trans_aux label e a decls in
 			let vars = List.rev_append vars
 			  [Id s, a_tt]
 			in
@@ -481,12 +487,12 @@ let rec term_trans_aux e t decls =
 			    let name = (lookup_mind (fst ind) e).mind_packets.(snd ind).mind_typename 
 			    in
 			    let mp,_,_ = fst ind in
-			      id_with_path mp (name ^ "__constr")
+			      id_with_path label mp (name ^ "__constr")
 			  with Not_found -> failwith ("term translation: unknown inductive in structural argument") 
 			in
 			let guard = Array.fold_left
 			  (fun c a ->
-			     let a_tt, _ = term_trans_aux e a decls in
+			     let a_tt, _ = term_trans_aux label e a decls in
 			       DApp(c, a_tt))
 			  i__constr args
 			in
@@ -501,7 +507,7 @@ let rec term_trans_aux e t decls =
 		    | n, Prod(nom, a, t) ->
 			let s = get_identifier_env e nom in
 			let e' = push_rel (nom, None, a) e in
-			let a_tt, decls' = type_trans_aux e a decls in
+			let a_tt, decls' = type_trans_aux label e a decls in
 			  (* This is the not final case, apply the current variable
 			     to f x1...xi and to rhs and call yourself
 			     recursively. *)
@@ -533,7 +539,7 @@ let rec term_trans_aux e t decls =
 		    (fun l n -> App(Var n, rel_args)::l) [] names
 		  in
 		  let rhs, decls2 =
-		    term_trans_aux rhs_env (substl sigma body_term) decls'
+		    term_trans_aux label rhs_env (substl sigma body_term) decls'
 		  in
 		    make_rule e [] fix rhs decls2 (struct_arg_num, body_type)
 		in
@@ -557,24 +563,24 @@ let rec term_trans_aux e t decls =
 
 (*** Translation of t as a type, given an environment e. ***)
 
-and type_trans_aux e t decls = match t with
+and type_trans_aux label e t decls = match t with
   | Sort s -> (match s with
 		 | Prop Pos  -> DVar(Qid("Coq1univ","Uset"))
 		 | Prop Null -> DVar(Qid("Coq1univ","Uprop"))
 		 | Type _    -> DVar(Qid("Coq1univ","Utype"))), decls
 
-  | Prod(n,t1,t2) ->  let t_tt1, decls1 = type_trans_aux e t1 decls and e1 = push_rel (n,None,t1) e in
-    let t_tt2, decls2 = type_trans_aux e1 t2 decls1 in
+  | Prod(n,t1,t2) ->  let t_tt1, decls1 = type_trans_aux label e t1 decls and e1 = push_rel (n,None,t1) e in
+    let t_tt2, decls2 = type_trans_aux label e1 t2 decls1 in
       DPi(Id (get_identifier_env e n),t_tt1,t_tt2), decls2
 
-  | t -> let t', decls' = term_trans_aux e t decls in
+  | t -> let t', decls' = term_trans_aux label e t decls in
       DApp(DVar(Qid("Coq1univ",get_e e t)), t'), decls'
 
 
 (* Translation functions without environment. *)
-let term_trans t = term_trans_aux !base_env t []
+let term_trans label t = term_trans_aux label !base_env t []
 
-let type_trans t = type_trans_aux !base_env t []
+let type_trans label t = type_trans_aux label !base_env t []
 
 (*** Translation of a declaration in a structure body. ***)
 
@@ -592,7 +598,7 @@ let type_trans t = type_trans_aux !base_env t []
            the declaration of the new variables
            the auxiliary declarations
 *)
-let make_constr env decls params_num params_dec cons_name typ =
+let make_constr label env decls params_num params_dec cons_name typ =
   let cons_name_with_params = App(cons_name, 
 				  Array.init params_num 
 				    (fun i -> Rel(params_dec + params_num - i))) in
@@ -600,14 +606,14 @@ let make_constr env decls params_num params_dec cons_name typ =
       0, Prod(n, t1, t2) -> 
 	let v = fresh_var "c_arg_" in
 	let e' = push_rel (Name v, None, t1) e in
-	let t_tt1, decls' = type_trans_aux e t1 decls in
+	let t_tt1, decls' = type_trans_aux label e t1 decls in
 	  aux e' ((Id v, t_tt1)::vars) decls' (App(c,[|Var v|])) (0, t2)
     | 0, App(_,args) ->
 	let ind_num = Array.length args - params_num in
 	let ind = Array.make ind_num DKind in
 	let d = ref decls in
           for i = 0 to Array.length ind - 1 do
-	    let a_i, d' = term_trans_aux e args.(i+params_num) decls in
+	    let a_i, d' = term_trans_aux label e args.(i+params_num) decls in
               ind.(i) <- a_i;
 	    d := d'
           done;
@@ -619,7 +625,7 @@ let make_constr env decls params_num params_dec cons_name typ =
   in
   let _, c, ind, vars, decls = aux env [] decls cons_name_with_params (params_num, typ)
   in
-  let res, decls = term_trans_aux env c decls in
+  let res, decls = term_trans_aux label env c decls in
     res, ind, vars, decls
 
 (* Auxiliary function for make_constr_func_type *)
@@ -672,7 +678,7 @@ let make_constr_func_type cons_name num_treated num_param typ =
    p : packet
    decls : accumulator of declarations
 *)
-let packet_translation env ind params constr_types p decls =
+let packet_translation label env ind params constr_types p decls =
   let n_params = List.length params in
   (* Add the constructors to the environment  *)
   let indices = (* arguments that are not parameters *)
@@ -684,7 +690,7 @@ let packet_translation env ind params constr_types p decls =
 	       p.mind_arity_ctxt)
   in
   let constr_decl name c decls =
-    let c_tt, decls' = type_trans_aux env c decls in
+    let c_tt, decls' = type_trans_aux label env c decls in
       Declaration (Id name, c_tt)::decls' in
   let nb_constrs =  Array.length p.mind_consnames in
   let case_name = DVar (Id (p.mind_typename ^ "__case")) in
@@ -693,7 +699,7 @@ let packet_translation env ind params constr_types p decls =
       (fun (n,_,t) (e, vars, c, decls) ->
 	 let v = fresh_var "param_" in
 	 let e' = push_rel (Name v, None, t) e in
-	 let t_tt, decls' = type_trans_aux e t decls in
+	 let t_tt, decls' = type_trans_aux label e t decls in
 	   e',(Id v, t_tt)::vars, DApp(c, DVar (Id v)), decls'
       )
       params (env, [], case_name, [])
@@ -708,7 +714,7 @@ let packet_translation env ind params constr_types p decls =
 	    Term.Sort (Term.Type (Univ.Atom Univ.Set))))
       indices in
     let e = push_rel (Name v, None, t) env in
-    let t_tt, decls' = type_trans_aux env t this_decls in
+    let t_tt, decls' = type_trans_aux label env t this_decls in
       (Id v, t_tt),
     DApp(case_name, DVar(Id v)),
     e,
@@ -721,7 +727,7 @@ let packet_translation env ind params constr_types p decls =
 	 constr_types.(i) in
        let v = fresh_var "f_" in
        let e' = push_rel (Name v, None, t) e in
-       let t_tt, decls' = type_trans_aux e t decls in
+       let t_tt, decls' = type_trans_aux label e t decls in
 	 i+1,e',(Id v, t_tt)::vars, DApp(c, DVar (Id v)), decls'
     )
     (0,env,[],case_name, this_decls) p.mind_consnames
@@ -793,7 +799,7 @@ let packet_translation env ind params constr_types p decls =
   let params_dec = nb_constrs + 1 in
     (* declaration of the __case type *)
   let i__case_trans, this_decls =
-    type_trans_aux env i__case_coq_type this_decls in
+    type_trans_aux label env i__case_coq_type this_decls in
   let this_decls =
     Declaration(
       Id (p.mind_typename ^ "__case"),
@@ -803,7 +809,7 @@ let packet_translation env ind params constr_types p decls =
     Array.fold_left
       (fun (i, d) cons_name ->  
 	 let constr, indices, c_vars, d' = 
-	   make_constr env d n_params params_dec 
+	   make_constr label env d n_params params_dec 
 	     (Construct (ind,i+1)) constr_types.(i) in
 	   i+1,
 	 Rule(List.rev_append param_vars
@@ -819,6 +825,23 @@ let packet_translation env ind params constr_types p decls =
       (0,this_decls) p.mind_consnames in
     List.rev_append this_decls decls
 
+
+
+(* Printing declarations *)
+let rec print_decls module_name stmts = 
+  let output_file = open_out (module_name ^ ".dk")
+  in
+    !pp_obj#output_module output_file
+      (match stmts with 
+	   [] -> (* Dedukti does not like empty files, adding a
+		    dummy declaration. *)
+	     [Declaration(Id("dummy"),DType)];
+	 | _ -> stmts);
+    prerr_endline ("closing module " ^ (module_name));
+    close_out output_file
+
+
+
 (* Translation of a declaration in a structure. *)
 let rec sb_decl_trans label (name, decl) =
   prerr_endline ("declaring "^name);
@@ -827,10 +850,10 @@ let rec sb_decl_trans label (name, decl) =
       SFBconst sbfc ->
 	base_env := Environ.add_constraints sbfc.const_constraints !base_env;
 	let ttype, type_decls = match sbfc.const_type with
-	    NonPolymorphicType t -> type_trans t
+	    NonPolymorphicType t -> type_trans label t
 	  | PolymorphicArity(context, arity) ->
 	      (* TODO: Not sure this is really how it works. *)
-	      type_trans (it_mkProd_or_LetIn (Sort (Type arity.poly_level)) 
+	      type_trans label (it_mkProd_or_LetIn (Sort (Type arity.poly_level)) 
 			    context)
 	in let decls = 
 	    match sbfc.const_body with
@@ -838,13 +861,16 @@ let rec sb_decl_trans label (name, decl) =
 		  List.rev_append type_decls [Declaration(Id name, ttype)]
 	      | Some cb -> let tterm, term_decls = 
 		  match !cb with
-		      LSval c -> term_trans c
-		    | LSlazy(s,c) -> failwith "not implemented: lazy subst"
+		      LSval c -> term_trans label c
+		    | LSlazy(s,c) -> 
+			(* hopefully this is correct. *)
+			let c' = subst_mps s c in
+			  term_trans label c'
 		in 
 		  List.rev_append term_decls
 		    (List.rev_append type_decls [Declaration(Id name, ttype); Rule([],DVar(Id name), tterm)])
 	in
-	  base_env := Environ.add_constant (Names.MPself label, [], name) sbfc !base_env;
+	  base_env := Environ.add_constant (label, [], name) sbfc !base_env;
 	  decls
 	    
     (* Declaration of a (co-)inductive type. *)
@@ -853,7 +879,7 @@ let rec sb_decl_trans label (name, decl) =
 	then prerr_endline
 	  "mind_translation: coinductive types may not work properly";
 	(* Add the mutual inductive type declaration to the environment. *)
-	base_env := Environ.add_mind (Names.MPself label,[],name) m !base_env;
+	base_env := Environ.add_mind (label,[],name) m !base_env;
 	base_env := Environ.add_constraints m.mind_constraints !base_env;
 	(* The names and typing context of the inductive type. *)
 	let mind_names, env =
@@ -865,7 +891,7 @@ let rec sb_decl_trans label (name, decl) =
 		   "p", add the name of the inductive type to l and the
 		   declaration of the inductive type with it's kind to the
 		   environment. *)
-		l := Ind((Names.MPself label, [], name), i)::!l;
+		l := Ind((label, [], name), i)::!l;
 		e := Environ.push_rel (Names.Name p.mind_typename, None,
 				       (it_mkProd_or_LetIn
 					  (Sort (match p.mind_arity with
@@ -887,14 +913,14 @@ let rec sb_decl_trans label (name, decl) =
 		    j + 1,
 		    Environ.push_named (consname, None, constr_types.(j)) env)
 		 (0, env) p.mind_consnames in
-		 packet_translation env ((Names.MPself label, [], name), i)
+		 packet_translation label env ((label, [], name), i)
 		   m.mind_params_ctxt constr_types p d, i-1)
 	    m.mind_packets ([],Array.length m.mind_packets - 1)
 	in
 	  fst 
 	    (Array.fold_right
 	       (fun p (d,i) ->
-		  let t, d' = type_trans_aux env
+		  let t, d' = type_trans_aux label env
 		    (it_mkProd_or_LetIn
 		       (Sort (match p.mind_arity with
 				  Monomorphic ar ->  ar.mind_sort
@@ -908,7 +934,7 @@ let rec sb_decl_trans label (name, decl) =
 		      App(Rel(n+i), (* TODO: multiple inductive *)
 			  Array.init n (fun i -> Rel(n-i)))
 		  in
-		  let t__constr, d' = type_trans_aux env
+		  let t__constr, d' = type_trans_aux label env
 		    (it_mkProd_or_LetIn
 		       (Prod(Anonymous, 
 			     end_type__constr,
@@ -922,25 +948,62 @@ let rec sb_decl_trans label (name, decl) =
 				   t__constr)
 		    :: d', i+1)
 	       m.mind_packets (decls,1))
-    | SFBmodule mb -> mb_trans mb; []
-    | _ -> raise (NotImplementedYet "Alias or Module Type")
+    | SFBmodule mb -> 
+	let kn = MPdot(label, name) in
+	  base_env := Modops.add_module kn mb !base_env;
+	  let decls = mb_trans mb in
+	  let mod_name = (match label with
+			      MPself (_,m,p) -> path_to_string (m::p) 
+			    | _-> module_path_to_string label) 
+	    ^ "_" ^ name 
+	  in
+	    print_decls mod_name decls;
+	    []
+
+    | SFBmodtype mty ->
+	(* we do not translate module types, but we put them in the
+	   environment *)
+	let mp = label in
+        let kn = MPdot(mp, name) in
+	  base_env := add_modtype kn mty !base_env;
+	  []
+
+    | SFBalias(mp, None, None) ->
+	(* we do not translate aliases, we just put them in the environment *)
+	let mp = label in
+        let kn = MPdot(mp, name) in
+	  base_env := register_alias kn mp !base_env;
+	  []
+
+    | _ -> raise (NotImplementedYet "Alias")
 	
 	
 (* translation of a module body *)
 and mb_trans mb = 
+  base_env := Environ.add_constraints mb.mod_constraints !base_env;
   match mb.mod_expr with 
       Some (SEBstruct ((_,name,path) as label, declarations)) ->
-	prerr_endline ("entering module " ^ (path_to_string (name::path)));
-	let stmts = List.concat (List.map (sb_decl_trans label) declarations) in
-	let output_file = open_out (path_to_string ((name ^ ".dk")::path))
+	let module_name, mp_label = 
+	  path_to_string (name::path), MPself label
 	in
-	  !pp_obj#output_module output_file
-	    (match stmts with 
-		 [] -> (* Dedukti does not like empty files, adding a
-			  dummy declaration. *)
-		   [Declaration(Id("dummy"),DType)];
-	       | _ -> stmts);
-	  prerr_endline ("closing module " ^ (path_to_string (name::path)));
-	  close_out output_file
-    | Some _ -> raise (NotImplementedYet "functors, module applications, ...")
+	  prerr_endline ("entering module " ^ module_name);
+	  List.concat (List.map (sb_decl_trans mp_label) 
+				     declarations) 
+	    
+    | Some (SEBfunctor (arg_id, mtb, body)) ->
+	(* we do not translate functors, but put them in the environment *)
+	(*	base_env := Modops.add_module 
+		(MPbound arg_id) (Modops.module_body_of_type mtb) !base_env
+	*)
+        let kn = MPbound arg_id in
+	  base_env := add_modtype kn mtb !base_env;
+	  []
+
+
+    | Some(SEBapply _ as app) -> 
+	let modu = Modops.eval_struct !base_env app in
+	  mb_trans { mb with mod_expr = Some(modu) }
+
+    | Some _ -> raise (NotImplementedYet "With and Ident")
+
     | None -> failwith "module with empty declarations"

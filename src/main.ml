@@ -47,8 +47,8 @@ let translate filename =
                  m.library_filename m.library_compiled m.library_digest)
 	  needed;
 	Coqine.base_env := Safe_typing.get_env ();
-      let (_,mb,_,_) = md.md_compiled in
-	mb_trans mb
+      let (path,mb,_,_) = md.md_compiled in
+	print_decls (path_to_string path) (mb_trans mb)
 
 let _ =  
 (*  add_rec_path "/usr/lib/coq/theories" ["Coq"];*)
