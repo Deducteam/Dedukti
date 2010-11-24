@@ -19,6 +19,20 @@ type statement =
 | Rule of (qid * dkterm) list * dkterm * dkterm
 | End
 
+let rec subst v t = function
+    DVar(Id w) when v = w -> t
+  | DPi(Id w, ty, te) when v = w ->
+      DPi(Id w, subst v t ty, te)
+  | DPi(i, ty, te) ->
+      DPi(i, subst v t ty, subst v t te)
+  | DFun(Id w, ty, te) when v = w ->
+      DFun(Id w, subst v t ty, te)
+  | DFun(i, ty, te) ->
+      DFun(i, subst v t ty, subst v t te)
+  | DApp(t1,t2) -> DApp(subst v t t1, subst v t t2)
+  | t -> t
+
+
 class virtual base_pp  = object (self)
 
   method with_ft chan =
@@ -63,7 +77,7 @@ class prefix_pp = object (self)
     | b::q -> str "," ++ self#pr_binding b ++ spc () ++ self#pr_env q
 
   method private pr_statement' = function
-    | Declaration (n, t) -> 
+    | Declaration (n, t) ->
 	str ":" ++ spc () ++ self#pr_qid n ++ spc () ++ self#pr_dkterm t
     | Rule (env, lhs, rhs) ->
 	self#rule_arr () ++ self#pr_env env ++ self#pr_dkterm lhs ++ spc () ++ self#pr_dkterm rhs
@@ -71,7 +85,7 @@ class prefix_pp = object (self)
 
   method pr_statement t = hov 2 (self#pr_statement' t)
 
-  method output_module out_chan prog = 
+  method output_module out_chan prog =
     let magic_string = "(; # FORMAT prefix # ;)" in
       msgnl_with (self#with_ft out_chan) (str magic_string);
       super#output_module out_chan prog
@@ -95,9 +109,9 @@ class external_pp = object (self)
 	surround (self#pr_qid n ++ pr_colon () ++ self#pr_dkterm t1
 		  ++ spc () ++ self#pi_arr () ++ spc () ++ self#pr_dkterm t2)
     | DFun (n,t1,t2) ->
-	surround (self#pr_qid n ++ pr_colon () ++ self#pr_dkterm t1 
+	surround (self#pr_qid n ++ pr_colon () ++ self#pr_dkterm t1
 		  ++ spc () ++ self#fun_arr () ++ spc () ++ self#pr_dkterm t2)
-    | DApp (t1,t2) -> surround (self#pr_dkterm t1 ++ spc () ++ 
+    | DApp (t1,t2) -> surround (self#pr_dkterm t1 ++ spc () ++
 				  self#pr_dkterm' t2)
 
   method pr_binding (n, t) = self#pr_qid n ++ pr_colon () ++ self#pr_dkterm t
@@ -108,7 +122,7 @@ class external_pp = object (self)
 	let rec sep pp env = match env with
 	  | [] -> str ""
 	  | [n, t] -> pp ++ self#pr_binding (n, t)
-	  | (n, t) :: env' -> sep (pp ++ self#pr_binding (n, t) ++ pr_coma ()) env'
+	  | (n, t) :: env' -> sep (pp ++ self#pr_binding (n, t) ++ pr_comma ()) env'
 	in surround_brackets (sep (str "") env) ++ spc () ++
              self#pr_dkterm lhs ++ spc () ++ self#rule_arr () ++ spc () ++
 	     self#pr_dkterm rhs ++ str "."

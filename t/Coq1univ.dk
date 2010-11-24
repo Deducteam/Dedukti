@@ -85,5 +85,17 @@ dotpitt : x : Utype -> y : (etype x -> Utype) -> Utype.
 ; /!\
 [] (etype dottype) --> Utype.
 
+
+; lazy constructions for co-inductive types
+
+lazy : Type.
+
+; we should need a lazify for all sorts
+lazify : x : Utype -> Utype.
+
+[s: Utype] etype (lazify s) --> lazy -> etype s.
+
+force : lazy.
+
 ; end of Coq1univ
 

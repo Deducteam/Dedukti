@@ -1,19 +1,19 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*i $Id: closure.mli 9902 2007-06-21 17:01:21Z herbelin $ i*)
+(*i $Id: closure.mli 13323 2010-07-24 15:57:30Z herbelin $ i*)
 
 (*i*)
 open Pp
 open Names
 open Term
-open Esubst
 open Environ
+open Esubst
 (*i*)
 
 (* Flags for profiling reductions. *)
@@ -24,10 +24,10 @@ val with_stats: 'a Lazy.t -> 'a
 
 (*s Delta implies all consts (both global (= by
   [kernel_name]) and local (= by [Rel] or [Var])), all evars, and letin's.
-  Rem: reduction of a Rel/Var bound to a term is Delta, but reduction of 
+  Rem: reduction of a Rel/Var bound to a term is Delta, but reduction of
   a LetIn expression is Letin reduction *)
 
-type transparent_state = Idpred.t * Cpred.t
+
 
 val all_opaque      : transparent_state
 val all_transparent : transparent_state
@@ -76,18 +76,18 @@ val betadeltaiota      : reds
 val betaiotazeta       : reds
 val betadeltaiotanolet : reds
 
+val unfold_side_red : reds
 val unfold_red : evaluable_global_reference -> reds
 
 (***********************************************************************)
-type table_key =
-  | ConstKey of constant
-  | VarKey of identifier
-  | RelKey of int
+type table_key = id_key
 
 type 'a infos
 val ref_value_cache: 'a infos -> table_key -> 'a option
 val info_flags: 'a infos -> reds
-val create: ('a infos -> constr -> 'a) -> reds -> env -> 'a infos
+val create: ('a infos -> constr -> 'a) -> reds -> env ->
+  (existential -> constr option) -> 'a infos
+val evar_value : 'a infos -> existential -> constr option
 
 (************************************************************************)
 (*s Lazy reduction. *)
@@ -102,7 +102,7 @@ type fconstr
 type fterm =
   | FRel of int
   | FAtom of constr (* Metas and Sorts *)
-  | FCast of fconstr * cast_kind * fconstr 
+  | FCast of fconstr * cast_kind * fconstr
   | FFlex of table_key
   | FInd of inductive
   | FConstruct of constructor
@@ -113,7 +113,7 @@ type fterm =
   | FLambda of int * (name * constr) list * constr * fconstr subs
   | FProd of name * fconstr * fconstr
   | FLetIn of name * fconstr * fconstr * constr * fconstr subs
-  | FEvar of existential_key * fconstr array
+  | FEvar of existential * fconstr subs
   | FLIFT of int * fconstr
   | FCLOS of constr * fconstr subs
   | FLOCKED
@@ -141,6 +141,7 @@ val stack_assign : stack -> int -> fconstr -> stack
 val stack_args_size : stack -> int
 val stack_tail : int -> stack -> stack
 val stack_nth : stack -> int -> fconstr
+val zip_term : (fconstr -> constr) -> constr -> stack -> constr
 
 (* To lazy reduce a constr, create a [clos_infos] with
    [create_clos_infos], inject the term to reduce with [inject]; then use
@@ -157,9 +158,13 @@ val destFLambda :
 
 (* Global and local constant cache *)
 type clos_infos
-val create_clos_infos : reds -> env -> clos_infos
+val create_clos_infos :
+  ?evars:(existential->constr option) -> reds -> env -> clos_infos
 
 (* Reduction function *)
+
+(* [norm_val] is for strong normalization *)
+val norm_val : clos_infos -> fconstr -> constr
 
 (* [whd_val] is for weak head normalization *)
 val whd_val : clos_infos -> fconstr -> constr
@@ -174,8 +179,7 @@ val whd_stack :
 (* [unfold_reference] unfolds references in a [fconstr] *)
 val unfold_reference : clos_infos -> table_key -> fconstr option
 
-(* [mind_equiv] checks whether two inductive types are intentionally equal *)
-val mind_equiv_infos : clos_infos -> inductive -> inductive -> bool
+val eq_table_key : table_key -> table_key -> bool
 
 (************************************************************************)
 (*i This is for lazy debug *)
@@ -191,6 +195,7 @@ val mk_clos_deep :
 
 val kni: clos_infos -> fconstr -> stack -> fconstr * stack
 val knr: clos_infos -> fconstr -> stack -> fconstr * stack
+val kl : clos_infos -> fconstr -> constr
 
 val to_constr : (lift -> fconstr -> constr) -> lift -> fconstr -> constr
 val optimise_closure : fconstr subs -> constr -> fconstr subs * constr

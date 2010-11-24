@@ -13,17 +13,17 @@ let add_rec_path ~unix_path:dir ~coq_root:coq_dirpath =
   let dirs = Util.map_succeed convert_dirs dirs in
     List.iter Check.add_load_path dirs;
     Check.add_load_path (dir,coq_dirpath)
-      
+
 
 let prefix = ref ""
 
 let root = ref ""
 
-let add_path p = 
+let add_path p =
   if !prefix = "Coq" then root := p;
   add_rec_path p (if !prefix = "" then [] else [!prefix])
 
-let speclist = Arg.align 
+let speclist = Arg.align
   [ "-r", Arg.Set_string prefix, "Id";
     "--root", Arg.Set_string prefix, "Id set the dirpath root as Id\n";
     "-I", Arg.String add_path, "path";
@@ -42,14 +42,14 @@ let translate filename =
       (* Putting dependancies in the environment *)
       print_string  (path_to_string md.md_name ".dko" ^ ":");
       let needed = md.md_deps in
-	List.iter 
-	  (fun (dir,m) -> 
+	List.iter
+	  (fun (dir,m) ->
 	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".dko"))
 	  needed;
 	print_endline " Coq1univ.dko";
         print_string  (path_to_string md.md_name ".o" ^ ":");
-	List.iter 
-	  (fun (dir,m) -> 
+	List.iter
+	  (fun (dir,m) ->
 	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".o"))
 	  needed;
 	print_endline " Coq1univ.o";
@@ -57,14 +57,14 @@ let translate filename =
 	  (path_to_string md.md_name (": " ^ path_to_string md.md_name ".o"));
 	print_string ("\tdkrun " ^ path_to_string md.md_name ".dko");
 	print_string " Coq1univ.dko";
-	List.iter 
-	  (fun (dir,m) -> 
+	List.iter
+	  (fun (dir,m) ->
 	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".dko"))
 	  needed;
 	print_newline()
-	  
-	  
-let _ =  
+
+
+let _ =
   (*  add_rec_path "/usr/lib/coq/theories" ["Coq"];*)
   Arg.parse speclist translate
-    "Show dependancies of Coq libraries\nUsage: coqine [options] filenames\n\nIf you want to use the coq library,\nuse --prefix Coq -I path_to_coq_dir_theories\n\nfilenames:\tcoq binary files (.vo)\n\nOptions:" 
+    "Show dependancies of Coq libraries\nUsage: coqine [options] filenames\n\nIf you want to use the coq library,\nuse --prefix Coq -I path_to_coq_dir_theories\n\nfilenames:\tcoq binary files (.vo)\n\nOptions:"

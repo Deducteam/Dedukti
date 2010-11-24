@@ -1,9 +1,9 @@
 #!/bin/sh
 
-COQINE_ROOT=/home/burel/projets/coqine
+COQINE_ROOT=/home/guillaume/projets/coqine
 COQ_LIB=/usr/lib/coq/theories/
 LIBS=$COQ_LIB*
-INCLUDE=/usr/lib/coq/contrib/
+INCLUDE=/usr/lib/coq/plugins/
 
 rm depend
 

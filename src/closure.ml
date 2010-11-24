@@ -1,19 +1,20 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: closure.ml 9983 2007-07-12 17:15:22Z barras $ *)
+(* $Id: closure.ml 13340 2010-07-28 12:22:04Z barras $ *)
 
 open Util
 open Pp
 open Term
 open Names
-open Esubst
+open Declarations
 open Environ
+open Esubst
 
 let stats = ref false
 let share = ref true
@@ -27,7 +28,8 @@ let iota = ref 0
 let prune = ref 0
 
 let reset () =
-  beta := 0; delta := 0; zeta := 0; evar := 0; iota := 0; prune := 0
+  beta := 0; delta := 0; zeta := 0; evar := 0; iota := 0; evar := 0;
+  prune := 0
 
 let stop() =
   msgnl (str "[Reds: beta=" ++ int !beta ++ str" delta=" ++ int !delta ++
@@ -38,7 +40,7 @@ let incr_cnt red cnt =
   if red then begin
     if !stats then incr cnt;
     true
-  end else 
+  end else
     false
 
 let with_stats c =
@@ -50,7 +52,6 @@ let with_stats c =
   end else
     Lazy.force c
 
-type transparent_state = Idpred.t * Cpred.t
 let all_opaque = (Idpred.empty, Cpred.empty)
 let all_transparent = (Idpred.full, Cpred.full)
 
@@ -83,7 +84,6 @@ module RedFlags = (struct
     r_delta : bool;
     r_const : transparent_state;
     r_zeta : bool;
-    r_evar : bool;
     r_iota : bool }
 
   type red_kind = BETA | DELTA | IOTA | ZETA
@@ -99,7 +99,6 @@ module RedFlags = (struct
     r_delta = false;
     r_const = all_opaque;
     r_zeta = false;
-    r_evar = false;
     r_iota = false }
 
   let red_add red = function
@@ -127,13 +126,13 @@ module RedFlags = (struct
 	{ red with r_const = Idpred.remove id l1, l2 }
 
   let red_add_transparent red tr =
-    { red with r_const = tr } 
+    { red with r_const = tr }
 
   let mkflags = List.fold_left red_add no_red
 
   let red_set red = function
     | BETA -> incr_cnt red.r_beta beta
-    | CONST kn -> 
+    | CONST kn ->
 	let (_,l) = red.r_const in
 	let c = Cpred.mem kn l in
 	incr_cnt c delta
@@ -165,143 +164,15 @@ let betadeltaiotanolet = mkflags [fBETA;fDELTA;fIOTA]
 let betaiota = mkflags [fBETA;fIOTA]
 let beta = mkflags [fBETA]
 let betaiotazeta = mkflags [fBETA;fIOTA;fZETA]
-let unfold_red kn = 
+
+(* Removing fZETA for finer behaviour would break many developments *)
+let unfold_side_flags = [fBETA;fIOTA;fZETA]
+let unfold_side_red = mkflags [fBETA;fIOTA;fZETA]
+let unfold_red kn =
   let flag = match kn with
     | EvalVarRef id -> fVAR id
-    | EvalConstRef kn -> fCONST kn
-  in (* Remove fZETA for finer behaviour ? *)
-  mkflags [fBETA;flag;fIOTA;fZETA]
-
-(************************* Obsolète
-(* [r_const=(true,cl)] means all constants but those in [cl] *)
-(* [r_const=(false,cl)] means only those in [cl] *)
-type reds = {
-  r_beta : bool;
-  r_const : bool * constant_path list * identifier list;
-  r_zeta : bool;
-  r_evar : bool;
-  r_iota : bool }
-
-let betadeltaiota_red = {
-  r_beta = true;
-  r_const = true,[],[];
-  r_zeta = true;
-  r_evar = true;
-  r_iota = true } 
-
-let betaiota_red = {
-  r_beta = true;
-  r_const = false,[],[];
-  r_zeta = false;
-  r_evar = false;
-  r_iota = true }
-		     
-let beta_red = {
-  r_beta = true;
-  r_const = false,[],[];
-  r_zeta = false;
-  r_evar = false;
-  r_iota = false }
-
-let no_red = {
-  r_beta = false;
-  r_const = false,[],[];
-  r_zeta = false;
-  r_evar = false;
-  r_iota = false }
-
-let betaiotazeta_red = {
-  r_beta = true;
-  r_const = false,[],[];
-  r_zeta = true;
-  r_evar = false;
-  r_iota = true }
-
-let unfold_red kn =
-  let c = match kn with
-    | EvalVarRef id -> false,[],[id]
-    | EvalConstRef kn -> false,[kn],[]
-  in {
-  r_beta = true;
-  r_const = c;
-  r_zeta = true;   (* false for finer behaviour ? *)
-  r_evar = false;
-  r_iota = true }
-
-(* Sets of reduction kinds.
-   Main rule: delta implies all consts (both global (= by
-   kernel_name) and local (= by Rel or Var)), all evars, and zeta (= letin's).
-   Rem: reduction of a Rel/Var bound to a term is Delta, but reduction of 
-   a LetIn expression is Letin reduction *)
-
-type red_kind =
-    BETA | DELTA | ZETA | IOTA
-  | CONST of constant_path list | CONSTBUT of constant_path list
-  | VAR of identifier | VARBUT of identifier
-
-let rec red_add red = function
-  | BETA -> { red with r_beta = true }
-  | DELTA ->
-      (match red.r_const with
-	| _,_::_,[] | _,[],_::_ -> error "Conflict in the reduction flags"
-	| _ -> { red with r_const = true,[],[]; r_zeta = true; r_evar = true })
-  | CONST cl ->
-      (match red.r_const with
-	| true,_,_ -> error "Conflict in the reduction flags"
-	| _,l1,l2 -> { red with r_const = false, list_union cl l1, l2 })
-  | CONSTBUT cl ->
-      (match red.r_const with
-	| false,_::_,_ | false,_,_::_ ->
-			   error "Conflict in the reduction flags"
-	| _,l1,l2 ->
-	    { red with r_const = true, list_union cl l1, l2;
-		r_zeta = true; r_evar = true })
-  | IOTA -> { red with r_iota = true }
-  | ZETA -> { red with r_zeta = true }
-  | VAR id ->
-      (match red.r_const with
-	| true,_,_ -> error "Conflict in the reduction flags"
-	| _,l1,l2 -> { red with r_const = false, l1, list_union [id] l2 })
-  | VARBUT cl ->
-      (match red.r_const with
-	| false,_::_,_ | false,_,_::_ ->
-			   error "Conflict in the reduction flags"
-	| _,l1,l2 ->
-	    { red with r_const = true, l1, list_union [cl] l2;
-		r_zeta = true; r_evar = true })
-
-let red_delta_set red =
-  let b,_,_ = red.r_const in b
-
-let red_local_const = red_delta_set
-
-(* to know if a redex is allowed, only a subset of red_kind is used ... *)
-let red_set red = function
-  | BETA -> incr_cnt red.r_beta beta
-  | CONST [kn] -> 
-      let (b,l,_) = red.r_const in
-      let c = List.mem kn l in
-      incr_cnt ((b & not c) or (c & not b)) delta
-  | VAR id -> (* En attendant d'avoir des kn pour les Var *)
-     let (b,_,l) = red.r_const in
-      let c = List.mem id l in
-      incr_cnt ((b & not c) or (c & not b)) delta
-  | ZETA -> incr_cnt red.r_zeta zeta
-  | EVAR -> incr_cnt red.r_zeta evar
-  | IOTA -> incr_cnt red.r_iota iota
-  | DELTA -> red_delta_set red (*Used for Rel/Var defined in context*)
-  (* Not for internal use *)
-  | CONST _ | CONSTBUT _ | VAR _ | VARBUT _ -> failwith "not implemented"
-
-(* Gives the constant list *)
-let red_get_const red =
-  let b,l1,l2 = red.r_const in
-  let l1' = List.map (fun x -> EvalConstRef x) l1 in
-  let l2' = List.map (fun x -> EvalVarRef x) l2 in
-  b, l1' @ l2'
-fin obsolète **************)
-(* specification of the reduction function *)
-
+    | EvalConstRef kn -> fCONST kn in
+  mkflags (flag::unfold_side_flags)
 
 (* Flags of reduction and cache of constants: 'a is a type that may be
  * mapped to constr. 'a infos implements a cache for constants and
@@ -323,15 +194,15 @@ fin obsolète **************)
  * instantiations (cbv or lazy) are.
  *)
 
-type table_key =
-  | ConstKey of constant
-  | VarKey of identifier
-  | RelKey of int
+type table_key = id_key
+
+let eq_table_key = Names.eq_id_key
 
 type 'a infos = {
   i_flags : reds;
   i_repr : 'a infos -> constr -> 'a;
   i_env : env;
+  i_sigma : existential -> constr option;
   i_rels : int * (int * constr) list;
   i_vars : (identifier * constr) list;
   i_tab : (table_key, 'a) Hashtbl.t }
@@ -339,7 +210,7 @@ type 'a infos = {
 let info_flags info = info.i_flags
 
 let ref_value_cache info ref =
-  try  
+  try
     Some (Hashtbl.find info.i_tab ref)
   with Not_found ->
   try
@@ -358,9 +229,12 @@ let ref_value_cache info ref =
     | NotEvaluableConst _ (* Const *)
       -> None
 
+let evar_value info ev =
+  info.i_sigma ev
+
 let defined_vars flags env =
 (*  if red_local_const (snd flags) then*)
-    fold_named_context 
+    Sign.fold_named_context
       (fun (id,b,_) e ->
 	 match b with
 	   | None -> e
@@ -370,7 +244,7 @@ let defined_vars flags env =
 
 let defined_rels flags env =
 (*  if red_local_const (snd flags) then*)
-  fold_rel_context 
+  Sign.fold_rel_context
       (fun (id,b,t) (i,subs) ->
 	 match b with
 	   | None -> (i+1, subs)
@@ -378,12 +252,11 @@ let defined_rels flags env =
       (rel_context env) ~init:(0,[])
 (*  else (0,[])*)
 
-let mind_equiv_infos info = mind_equiv info.i_env
-
-let create mk_cl flgs env =
+let create mk_cl flgs env evars =
   { i_flags = flgs;
     i_repr = mk_cl;
     i_env = env;
+    i_sigma = evars;
     i_rels = defined_rels flgs env;
     i_vars = defined_vars flgs env;
     i_tab = Hashtbl.create 17 }
@@ -417,8 +290,8 @@ let neutr = function
   | (Whnf|Norm) -> Whnf
   | (Red|Cstr) -> Red
 
-type fconstr = { 
-  mutable norm: red_state; 
+type fconstr = {
+  mutable norm: red_state;
   mutable term: fterm }
 
 and fterm =
@@ -435,7 +308,7 @@ and fterm =
   | FLambda of int * (name * constr) list * constr * fconstr subs
   | FProd of name * fconstr * fconstr
   | FLetIn of name * fconstr * fconstr * constr * fconstr subs
-  | FEvar of existential_key * fconstr array
+  | FEvar of existential * fconstr subs
   | FLIFT of int * fconstr
   | FCLOS of constr * fconstr subs
   | FLOCKED
@@ -456,7 +329,7 @@ let update v1 (no,t) =
   else {norm=no;term=t}
 
 (**********************************************************************)
-(* The type of (machine) stacks (= lambda-bar-calculus' contexts)     *) 
+(* The type of (machine) stacks (= lambda-bar-calculus' contexts)     *)
 
 type stack_member =
   | Zapp of fconstr array
@@ -504,7 +377,7 @@ let array_of_stack s =
   in Array.concat (stackrec s)
 let rec stack_assign s p c = match s with
   | Zapp args :: s ->
-      let q = Array.length args in 
+      let q = Array.length args in
       if p >= q then
 	Zapp args :: stack_assign s (p-q) c
       else
@@ -512,7 +385,7 @@ let rec stack_assign s p c = match s with
          nargs.(p) <- c;
          Zapp nargs :: s)
   | _ -> s
-let rec stack_tail p s = 
+let rec stack_tail p s =
   if p = 0 then s else
     match s with
       | Zapp args :: s ->
@@ -576,49 +449,49 @@ let zupdate m s =
 
 (* Closure optimization: *)
 let rec compact_constr (lg, subs as s) c k =
-  match c with
+  match kind_of_term c with
       Rel i ->
         if i < k then c,s else
-          (try Rel (k + lg - list_index (i-k+1) subs), (lg,subs)
-          with Not_found -> Rel (k+lg), (lg+1, (i-k+1)::subs))
+          (try mkRel (k + lg - list_index (i-k+1) subs), (lg,subs)
+          with Not_found -> mkRel (k+lg), (lg+1, (i-k+1)::subs))
     | (Sort _|Var _|Meta _|Ind _|Const _|Construct _) -> c,s
     | Evar(ev,v) ->
         let (v',s) = compact_vect s v k in
-        if v==v' then c,s else Evar(ev,v'),s
+        if v==v' then c,s else mkEvar(ev,v'),s
     | Cast(a,ck,b) ->
         let (a',s) = compact_constr s a k in
         let (b',s) = compact_constr s b k in
-        if a==a' && b==b' then c,s else Cast(a', ck, b'), s
+        if a==a' && b==b' then c,s else mkCast(a', ck, b'), s
     | App(f,v) ->
         let (f',s) = compact_constr s f k in
         let (v',s) = compact_vect s v k in
-        if f==f' && v==v' then c,s else App(f',v'), s
+        if f==f' && v==v' then c,s else mkApp(f',v'), s
     | Lambda(n,a,b) ->
         let (a',s) = compact_constr s a k in
         let (b',s) = compact_constr s b (k+1) in
-        if a==a' && b==b' then c,s else Lambda(n,a',b'), s
+        if a==a' && b==b' then c,s else mkLambda(n,a',b'), s
     | Prod(n,a,b) ->
         let (a',s) = compact_constr s a k in
         let (b',s) = compact_constr s b (k+1) in
-        if a==a' && b==b' then c,s else Prod(n,a',b'), s
+        if a==a' && b==b' then c,s else mkProd(n,a',b'), s
     | LetIn(n,a,ty,b) ->
         let (a',s) = compact_constr s a k in
         let (ty',s) = compact_constr s ty k in
         let (b',s) = compact_constr s b (k+1) in
-        if a==a' && ty==ty' && b==b' then c,s else LetIn(n,a',ty',b'), s
+        if a==a' && ty==ty' && b==b' then c,s else mkLetIn(n,a',ty',b'), s
     | Fix(fi,(na,ty,bd)) ->
         let (ty',s) = compact_vect s ty k in
         let (bd',s) = compact_vect s bd (k+Array.length ty) in
-        if ty==ty' && bd==bd' then c,s else Fix(fi,(na,ty',bd')), s
+        if ty==ty' && bd==bd' then c,s else mkFix(fi,(na,ty',bd')), s
     | CoFix(i,(na,ty,bd)) ->
         let (ty',s) = compact_vect s ty k in
         let (bd',s) = compact_vect s bd (k+Array.length ty) in
-        if ty==ty' && bd==bd' then c,s else CoFix(i,(na,ty',bd')), s
+        if ty==ty' && bd==bd' then c,s else mkCoFix(i,(na,ty',bd')), s
     | Case(ci,p,a,br) ->
         let (p',s) = compact_constr s p k in
         let (a',s) = compact_constr s a k in
         let (br',s) = compact_vect s br k in
-        if p==p' && a==a' && br==br' then c,s else Case(ci,p',a',br'),s
+        if p==p' && a==a' && br==br' then c,s else mkCase(ci,p',a',br'),s
 and compact_vect s v k = compact_v [] s v k (Array.length v - 1)
 and compact_v acc s v k i =
   if i < 0 then
@@ -651,11 +524,12 @@ let destFLambda clos_fun t =
     | FLambda(n,(na,ty)::tys,b,e) ->
         (na,clos_fun e ty,{norm=Cstr;term=FLambda(n-1,tys,b,subs_lift e)})
     | _ -> assert false
+	(* t must be a FLambda and binding list cannot be empty *)
 
 (* Optimization: do not enclose variables in a closure.
    Makes variable access much faster *)
 let mk_clos e t =
-  match t with
+  match kind_of_term t with
     | Rel i -> clos_rel e i
     | Var x -> { norm = Red; term = FFlex (VarKey x) }
     | Const c -> { norm = Red; term = FFlex (ConstKey c) }
@@ -672,7 +546,7 @@ let mk_clos_vect env v = Array.map (mk_clos env) v
    subterms.
    Could be used insted of mk_clos. *)
 let mk_clos_deep clos_fun env t =
-  match t with
+  match kind_of_term t with
     | (Rel _|Ind _|Const _|Construct _|Var _|Meta _ | Sort _) ->
         mk_clos env t
     | Cast (a,k,b) ->
@@ -697,8 +571,8 @@ let mk_clos_deep clos_fun env t =
     | LetIn (n,b,t,c) ->
         { norm = Red;
 	  term = FLetIn (n, clos_fun env b, clos_fun env t, c, env) }
-    | Evar(ev,args) ->
-	{ norm = Whnf; term = FEvar(ev,Array.map (clos_fun env) args) }
+    | Evar ev ->
+	{ norm = Red; term = FEvar(ev,env) }
 
 (* A better mk_clos? *)
 let mk_clos2 = mk_clos_deep mk_clos
@@ -706,49 +580,50 @@ let mk_clos2 = mk_clos_deep mk_clos
 (* The inverse of mk_clos_deep: move back to constr *)
 let rec to_constr constr_fun lfts v =
   match v.term with
-    | FRel i -> Rel (reloc_rel i lfts)
-    | FFlex (RelKey p) -> Rel (reloc_rel p lfts)
-    | FFlex (VarKey x) -> Var x
+    | FRel i -> mkRel (reloc_rel i lfts)
+    | FFlex (RelKey p) -> mkRel (reloc_rel p lfts)
+    | FFlex (VarKey x) -> mkVar x
     | FAtom c -> exliftn lfts c
     | FCast (a,k,b) ->
-        Cast (constr_fun lfts a, k, constr_fun lfts b)
-    | FFlex (ConstKey op) -> Const op
-    | FInd op -> Ind op
-    | FConstruct op -> Construct op
+        mkCast (constr_fun lfts a, k, constr_fun lfts b)
+    | FFlex (ConstKey op) -> mkConst op
+    | FInd op -> mkInd op
+    | FConstruct op -> mkConstruct op
     | FCases (ci,p,c,ve) ->
-	Case (ci, constr_fun lfts p,
-              constr_fun lfts c,
-	      Array.map (constr_fun lfts) ve)
+	mkCase (ci, constr_fun lfts p,
+                constr_fun lfts c,
+		Array.map (constr_fun lfts) ve)
     | FFix ((op,(lna,tys,bds)),e) ->
         let n = Array.length bds in
         let ftys = Array.map (mk_clos e) tys in
         let fbds = Array.map (mk_clos (subs_liftn n e)) bds in
 	let lfts' = el_liftn n lfts in
-	Fix (op, (lna, Array.map (constr_fun lfts) ftys,
-	               Array.map (constr_fun lfts') fbds))
+	mkFix (op, (lna, Array.map (constr_fun lfts) ftys,
+		         Array.map (constr_fun lfts') fbds))
     | FCoFix ((op,(lna,tys,bds)),e) ->
         let n = Array.length bds in
         let ftys = Array.map (mk_clos e) tys in
         let fbds = Array.map (mk_clos (subs_liftn n e)) bds in
 	let lfts' = el_liftn (Array.length bds) lfts in
-	CoFix (op, (lna, Array.map (constr_fun lfts) ftys,
-	                 Array.map (constr_fun lfts') fbds))
+	mkCoFix (op, (lna, Array.map (constr_fun lfts) ftys,
+		           Array.map (constr_fun lfts') fbds))
     | FApp (f,ve) ->
-	App (constr_fun lfts f,
+	mkApp (constr_fun lfts f,
 	       Array.map (constr_fun lfts) ve)
     | FLambda _ ->
         let (na,ty,bd) = destFLambda mk_clos2 v in
-	Lambda (na, constr_fun lfts ty,
-	            constr_fun (el_lift lfts) bd)
+	mkLambda (na, constr_fun lfts ty,
+	              constr_fun (el_lift lfts) bd)
     | FProd (n,t,c)   ->
-	Prod (n, constr_fun lfts t,
-	         constr_fun (el_lift lfts) c)
+	mkProd (n, constr_fun lfts t,
+	           constr_fun (el_lift lfts) c)
     | FLetIn (n,b,t,f,e) ->
         let fc = mk_clos2 (subs_lift e) f in
-	LetIn (n, constr_fun lfts b,
-	          constr_fun lfts t,
-	          constr_fun (el_lift lfts) fc)
-    | FEvar (ev,args) -> Evar(ev,Array.map (constr_fun lfts) args)
+	mkLetIn (n, constr_fun lfts b,
+	            constr_fun lfts t,
+	            constr_fun (el_lift lfts) fc)
+    | FEvar ((ev,args),env) ->
+        mkEvar(ev,Array.map (fun a -> constr_fun lfts (mk_clos2 env a)) args)
     | FLIFT (k,a) -> to_constr constr_fun (el_shft k lfts) a
     | FCLOS (t,env) ->
         let fr = mk_clos2 env t in
@@ -766,8 +641,8 @@ let term_of_fconstr =
       | FCLOS(t,env) when is_subs_id env & is_lift_id lfts -> t
       | FLambda(_,tys,f,e) when is_subs_id e & is_lift_id lfts ->
           compose_lam (List.rev tys) f
-      | FFix(fx,e) when is_subs_id e & is_lift_id lfts -> Fix fx
-      | FCoFix(cfx,e) when is_subs_id e & is_lift_id lfts -> CoFix cfx
+      | FFix(fx,e) when is_subs_id e & is_lift_id lfts -> mkFix fx
+      | FCoFix(cfx,e) when is_subs_id e & is_lift_id lfts -> mkCoFix cfx
       | _ -> to_constr term_of_fconstr_lift lfts v in
   term_of_fconstr_lift ELID
 
@@ -775,7 +650,7 @@ let term_of_fconstr =
 
 (* fstrong applies unfreeze_fun recursively on the (freeze) term and
  * yields a term.  Assumes that the unfreeze_fun never returns a
- * FCLOS term. 
+ * FCLOS term.
 let rec fstrong unfreeze_fun lfts v =
   to_constr (fstrong unfreeze_fun) lfts (unfreeze_fun v)
 *)
@@ -884,8 +759,8 @@ let rec reloc_rargs_rec depth stk =
 let reloc_rargs depth stk =
   if depth = 0 then stk else reloc_rargs_rec depth stk
 
-let rec drop_parameters depth n stk =
-  match stk with
+let rec drop_parameters depth n argstk =
+  match argstk with
       Zapp args::s ->
         let q = Array.length args in
         if n > q then drop_parameters depth (n-q) s
@@ -894,9 +769,12 @@ let rec drop_parameters depth n stk =
           let aft = Array.sub args n (q-n) in
           reloc_rargs depth (append_stack aft s)
     | Zshift(k)::s -> drop_parameters (depth-k) n s
-    | [] -> assert (n=0); []
-    | _ -> assert false (* we know that n < stack_args_size(stk) *)
-
+    | [] -> (* we know that n < stack_args_size(argstk) (if well-typed term) *)
+	if n=0 then []
+	else anomaly
+	  "ill-typed term: found a match on a partially applied constructor"
+    | _ -> assert false
+	(* strip_update_shift_app only produces Zapp and Zshift items *)
 
 (* Iota reduction: expansion of a fixpoint.
  * Given a fixpoint and a substitution, returns the corresponding
@@ -947,7 +825,7 @@ let rec knh m stk =
 
 (* The same for pure terms *)
 and knht e t stk =
-  match t with
+  match kind_of_term t with
     | App(a,b) ->
         knht e a (append_stack (mk_clos_vect e b) stk)
     | Case(ci,p,t,br) ->
@@ -968,7 +846,7 @@ let rec knr info m stk =
   | FLambda(n,tys,f,e) when red_set info.i_flags fBETA ->
       (match get_args n tys f e stk with
           Inl e', s -> knit info e' f s
-        | Inr lam, s -> (lam,s)) 
+        | Inr lam, s -> (lam,s))
   | FFlex(ConstKey kn) when red_set info.i_flags (fCONST kn) ->
       (match ref_value_cache info (ConstKey kn) with
           Some v -> kni info v stk
@@ -1001,6 +879,10 @@ let rec knr info m stk =
         | (_,args,s) -> (m,args@s))
   | FLetIn (_,v,_,bd,e) when red_set info.i_flags fZETA ->
       knit info (subs_cons([|v|],e)) bd stk
+  | FEvar(ev,env) ->
+      (match evar_value info ev with
+          Some c -> knit info env c stk
+        | None -> (m,stk))
   | _ -> (m,stk)
 
 (* Computes the weak head normal form of a term *)
@@ -1014,11 +896,74 @@ and knit info e t stk =
 let kh info v stk = fapp_stack(kni info v stk)
 
 (************************************************************************)
+
+let rec zip_term zfun m stk =
+  match stk with
+    | [] -> m
+    | Zapp args :: s ->
+        zip_term zfun (mkApp(m, Array.map zfun args)) s
+    | Zcase(ci,p,br)::s ->
+        let t = mkCase(ci, zfun p, m, Array.map zfun br) in
+        zip_term zfun t s
+    | Zfix(fx,par)::s ->
+        let h = mkApp(zip_term zfun (zfun fx) par,[|m|]) in
+        zip_term zfun h s
+    | Zshift(n)::s ->
+        zip_term zfun (lift n m) s
+    | Zupdate(rf)::s ->
+        zip_term zfun m s
+
+(* Computes the strong normal form of a term.
+   1- Calls kni
+   2- tries to rebuild the term. If a closure still has to be computed,
+      calls itself recursively. *)
+let rec kl info m =
+  if is_val m then (incr prune; term_of_fconstr m)
+  else
+    let (nm,s) = kni info m [] in
+    let _ = fapp_stack(nm,s) in (* to unlock Zupdates! *)
+    zip_term (kl info) (norm_head info nm) s
+
+(* no redex: go up for atoms and already normalized terms, go down
+   otherwise. *)
+and norm_head info m =
+  if is_val m then (incr prune; term_of_fconstr m) else
+    match m.term with
+      | FLambda(n,tys,f,e) ->
+          let (e',rvtys) =
+            List.fold_left (fun (e,ctxt) (na,ty) ->
+              (subs_lift e, (na,kl info (mk_clos e ty))::ctxt))
+              (e,[]) tys in
+          let bd = kl info (mk_clos e' f) in
+          List.fold_left (fun b (na,ty) -> mkLambda(na,ty,b)) bd rvtys
+      | FLetIn(na,a,b,f,e) ->
+          let c = mk_clos (subs_lift e) f in
+          mkLetIn(na, kl info a, kl info b, kl info c)
+      | FProd(na,dom,rng) ->
+          mkProd(na, kl info dom, kl info rng)
+      | FCoFix((n,(na,tys,bds)),e) ->
+          let ftys = Array.map (mk_clos e) tys in
+          let fbds =
+            Array.map (mk_clos (subs_liftn (Array.length na) e)) bds in
+          mkCoFix(n,(na, Array.map (kl info) ftys, Array.map (kl info) fbds))
+      | FFix((n,(na,tys,bds)),e) ->
+          let ftys = Array.map (mk_clos e) tys in
+          let fbds =
+            Array.map (mk_clos (subs_liftn (Array.length na) e)) bds in
+          mkFix(n,(na, Array.map (kl info) ftys, Array.map (kl info) fbds))
+      | FEvar((i,args),env) ->
+          mkEvar(i, Array.map (fun a -> kl info (mk_clos env a)) args)
+      | t -> term_of_fconstr m
+
 (* Initialization and then normalization *)
 
 (* weak reduction *)
 let whd_val info v =
   with_stats (lazy (term_of_fconstr (kh info v [])))
+
+(* strong reduction *)
+let norm_val info v =
+  with_stats (lazy (kl info v))
 
 let inject = mk_clos (ESID 0)
 
@@ -1030,7 +975,7 @@ let whd_stack infos m stk =
 (* cache of constants: the body is computed only when needed. *)
 type clos_infos = fconstr infos
 
-let create_clos_infos flgs env =
-  create (fun _ -> inject) flgs env
+let create_clos_infos ?(evars=fun _ -> None) flgs env =
+  create (fun _ -> inject) flgs env evars
 
 let unfold_reference = ref_value_cache

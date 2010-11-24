@@ -1,20 +1,18 @@
 (************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
-(* <O___,, * CNRS-Ecole Polytechnique-INRIA Futurs-Universite Paris Sud *)
+(* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2010     *)
 (*   \VV/  **************************************************************)
 (*    //   *      This file is distributed under the terms of the       *)
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(* $Id: type_errors.ml 8845 2006-05-23 07:41:58Z herbelin $ *)
+(* $Id: type_errors.ml 13323 2010-07-24 15:57:30Z herbelin $ *)
 
 open Names
 open Term
+open Sign
 open Environ
-
-type unsafe_judgment = constr * constr
-
-let nf_betaiota c = c
+open Reduction
 
 (* Type errors. *)
 
@@ -53,18 +51,19 @@ type type_error =
   | WrongCaseInfo of inductive * case_info
   | NumberBranches of unsafe_judgment * int
   | IllFormedBranch of constr * int * constr * constr
-  | Generalization of (name * constr) * unsafe_judgment
-  | ActualType of unsafe_judgment * constr
+  | Generalization of (name * types) * unsafe_judgment
+  | ActualType of unsafe_judgment * types
   | CantApplyBadType of
       (int * constr * constr) * unsafe_judgment * unsafe_judgment array
   | CantApplyNonFunctional of unsafe_judgment * unsafe_judgment array
-  | IllFormedRecBody of guard_error * name array * int
+  | IllFormedRecBody of guard_error * name array * int * env * unsafe_judgment array
   | IllTypedRecBody of
-      int * name array * unsafe_judgment array * constr array
+      int * name array * unsafe_judgment array * types array
 
 exception TypeError of env * type_error
 
-let nfj (c,ct) = (c, nf_betaiota ct)
+let nfj {uj_val=c;uj_type=ct} =
+  {uj_val=c;uj_type=nf_betaiota ct}
 
 let error_unbound_rel env n =
   raise (TypeError (env, UnboundRel n))
@@ -81,10 +80,10 @@ let error_assumption env j =
 let error_reference_variables env id =
   raise (TypeError (env, ReferenceVariables id))
 
-let error_elim_arity env ind aritylst c pj okinds = 
+let error_elim_arity env ind aritylst c pj okinds =
   raise (TypeError (env, ElimArity (ind,aritylst,c,pj,okinds)))
 
-let error_case_not_inductive env j = 
+let error_case_not_inductive env j =
   raise (TypeError (env, CaseNotInductive j))
 
 let error_number_branches env cj expn =
@@ -106,8 +105,8 @@ let error_cant_apply_not_functional env rator randl =
 let error_cant_apply_bad_type env t rator randl =
   raise (TypeError (env, CantApplyBadType (t,rator,randl)))
 
-let error_ill_formed_rec_body env why lna i =
-  raise (TypeError (env, IllFormedRecBody (why,lna,i)))
+let error_ill_formed_rec_body env why lna i fixenv vdefj =
+  raise (TypeError (env, IllFormedRecBody (why,lna,i,fixenv,vdefj)))
 
 let error_ill_typed_rec_body env i lna vdefj vargs =
   raise (TypeError (env, IllTypedRecBody (i,lna,vdefj,vargs)))
