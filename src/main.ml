@@ -4,6 +4,8 @@ open Names
 open Declarations
 open Term
 
+let version () = print_endline "CoqInE version 0.0.1"; exit 0
+
 let add_rec_path ~unix_path:dir ~coq_root:coq_dirpath =
   let dirs = System.all_subdirs dir in
   let prefix = repr_dirpath coq_dirpath in
@@ -29,6 +31,7 @@ let speclist = Arg.align
     "--prefix-notation", Arg.Unit pp_prefix, " use Dedukti prefix syntax (faster parsing, default)\n";
     "-h", Arg.Unit pp_external, "";
     "--external", Arg.Unit pp_external, " use Dedukti external syntax (more human readable)\n";
+    "--version", Arg.Unit version, " display version information"
 ]
 
 
@@ -41,16 +44,23 @@ let translate filename =
   let ml = (md.Check.md_name, filename) in
       (* Putting dependancies in the environment *)
   let needed = List.rev (Check.intern_library Check.LibrarySet.empty ml []) in
-  Coqine.base_env :=
+  let env =
     List.fold_left
     (fun env (dir,m) ->
       if dir <> md.Check.md_name then
         Safe_typing.unsafe_import
           m.Check.library_compiled m.Check.library_digest env
       else env )
-    (Coqine.get_base_env ()) needed;
+    (Environ.empty_env) needed in
   let path,mb = Safe_typing.path_mb_compiled_library md.Check.md_compiled in
-  print_decls (path_to_string path) (mb_trans (MPfile path) mb)
+  print_decls (path_to_string path) (List.rev (mb_trans
+				       {env = env;
+					decls = [];
+					functors = [];
+					functor_parameters = [];
+					mp = MPfile path;
+					applied_modules = [];
+				       } mb).decls)
 
 let _ =
 (*  add_rec_path "/usr/lib/coq/theories" ["Coq"];*)

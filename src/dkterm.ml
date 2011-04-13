@@ -135,3 +135,5 @@ let pp_prefix () = pp_obj := new prefix_pp
 
 let pp_external () = pp_obj := new external_pp
 
+let output_module out_chan prog = !pp_obj#output_module out_chan prog
+

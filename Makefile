@@ -13,7 +13,7 @@ GPATH = $(VPATH)
 
 LOCALINCLUDES:= $(foreach dir, $(VPATH), -I $(dir))
 MLINCLUDES:= $(LOCALINCLUDES) -I $(MYCAMLP4LIB)
-BYTEFLAGS:= $(MLINCLUDES) -pp $(CAMLP4O) -g -rectypes
+BYTEFLAGS:= $(MLINCLUDES) -pp $(CAMLP4O) -g -rectypes -annot
 OPTFLAGS:= $(MLINCLUDES) -pp $(CAMLP4O) -rectypes
 
 BINARIES:= bin/coqine.byte$(EXE) bin/coqine$(EXE)
