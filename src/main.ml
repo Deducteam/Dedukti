@@ -16,7 +16,7 @@ let add_rec_path ~unix_path:dir ~coq_root:coq_dirpath =
     Check.add_load_path (dir,coq_dirpath)
 
 
-let prefix = ref ""
+let prefix = ref "Coq"
 
 let add_path p =
   add_rec_path p (make_dirpath (if !prefix = "" then [] else [id_of_string !prefix]))
@@ -24,7 +24,7 @@ let add_path p =
 
 let speclist = Arg.align
  [ "-r", Arg.Set_string prefix, "Id";
-    "--root", Arg.Set_string prefix, "Id set the dirpath root as Id\n";
+    "--root", Arg.Set_string prefix, "Id set the dirpath root as Id (default : Coq)\n";
     "-I", Arg.String add_path, "path";
     "--include", Arg.String add_path, "path add path using the current dirpath root\n";
     "-p", Arg.Unit pp_prefix, "";
@@ -63,6 +63,10 @@ let translate filename =
 				       } mb).decls)
 
 let _ =
-(*  add_rec_path "/usr/lib/coq/theories" ["Coq"];*)
+  (try
+     let coqlib = Sys.getenv "COQLIB" in
+     add_rec_path coqlib (make_dirpath ["Coq"]);
+     Printf.fprintf stderr "Using %s as Coq standard library\n" coqlib
+   with Not_found -> ());
   Arg.parse speclist translate
     "CoqInE\nUsage: coqine [options] filenames\n\nIf you want to use the coq library,\nuse --root Coq -I path_to_coq_dir_theories\n\nfilenames:\tcoq binary files (.vo)\n\noptions:"
