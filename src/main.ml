@@ -48,8 +48,11 @@ let translate filename =
     List.fold_left
     (fun env (dir,m) ->
       if dir <> md.Check.md_name then
-        Safe_typing.unsafe_import
-          m.Check.library_compiled m.Check.library_digest env
+	try
+	  Safe_typing.unsafe_import
+	    m.Check.library_compiled m.Check.library_digest env
+	with e ->
+	  failwith ("unable to import module " ^ string_of_dirpath dir)
       else env )
     (Environ.empty_env) needed in
   let path,mb = Safe_typing.path_mb_compiled_library md.Check.md_compiled in

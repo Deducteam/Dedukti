@@ -103,8 +103,9 @@ class external_pp = object (self)
     | DKind -> str "Kind"
     | DVar n -> self#pr_qid n
     | DPi (n, (DPi _ as t1), t2) ->
-	surround (self#pr_qid n ++ pr_colon () ++ surround (self#pr_dkterm t1)
-		  ++ self#pi_arr () ++ self#pr_dkterm t2)
+	surround (self#pr_qid n ++ pr_colon () ++ self#pr_dkterm t1
+		    ++ spc ()
+		  ++ self#pi_arr () ++ spc () ++ self#pr_dkterm t2)
     | DPi (n,t1,t2) ->
 	surround (self#pr_qid n ++ pr_colon () ++ self#pr_dkterm t1
 		  ++ spc () ++ self#pi_arr () ++ spc () ++ self#pr_dkterm t2)
@@ -124,7 +125,7 @@ class external_pp = object (self)
 	  | [n, t] -> pp ++ self#pr_binding (n, t)
 	  | (n, t) :: env' -> sep (pp ++ self#pr_binding (n, t) ++ pr_comma ()) env'
 	in surround_brackets (sep (str "") env) ++ spc () ++
-             self#pr_dkterm lhs ++ spc () ++ self#rule_arr () ++ spc () ++
+	     self#pr_dkterm lhs ++ spc () ++ self#rule_arr () ++ spc () ++
 	     self#pr_dkterm rhs ++ str "."
     | End -> mt ()
 end
@@ -136,4 +137,3 @@ let pp_prefix () = pp_obj := new prefix_pp
 let pp_external () = pp_obj := new external_pp
 
 let output_module out_chan prog = !pp_obj#output_module out_chan prog
-

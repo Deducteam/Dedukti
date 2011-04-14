@@ -386,12 +386,12 @@ and term_trans_aux tenv t =
 		  else applied_constr, decls *)
 	| _ -> failwith "ill-formed type for a constructor"
       in
-      let constr,tenv = eta tenv [] constr_type in
+      let constr,tenv' = eta tenv [] constr_type in
       Array.fold_left
 	(fun (c,d) a ->
 	  let a_tt, d = term_trans_aux d a in
 	  DApp(c, a_tt), d)
-	(constr,tenv) args
+	(constr,{tenv' with env = tenv.env}) args
   in
 
   (* translation of an inductive type *)
@@ -1024,13 +1024,13 @@ let packet_translation finite tenv ind params constr_types p =
       (0,this_env) p.mind_consnames
   in
   let _,indices_vars, this_env =
-    List.fold_left
-      (fun (i,vars,te) (a,_,t) ->
+    List.fold_right
+      (fun (a,_,t) (i,vars,te) ->
 	 let v = fresh_var "in_" in
 	 let t_tt, te' = type_trans_aux te (liftn (nb_constrs + 1) i t) in
 	 let te' = {te' with env  = push_rel (Name (id_of_string v), None, t) te'.env } in
 	   i+1,(Id v, t_tt)::vars, te')
-      (0,[],this_env) indices
+       indices (1,[],this_env)
   in
   let (m,_) as m_var, this_env =
     let v = fresh_var "m_" in
