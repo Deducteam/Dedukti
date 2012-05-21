@@ -42,15 +42,16 @@ module VarMap = Map.Make
      let compare = compare
    end)
 
-let fresh_map = ref VarMap.empty
 
 (* Get a new name beginning with a prefix. *)
-let fresh_var prefix =
-  let i =
-    try VarMap.find prefix !fresh_map
-    with Not_found -> 0 in
+let fresh_var =
+  let fresh_map = ref VarMap.empty in
+  fun prefix ->
+    let i =
+      try VarMap.find prefix !fresh_map
+      with Not_found -> 0 in
     fresh_map := VarMap.add prefix (i+1) !fresh_map;
-  prefix ^ string_of_int i
+    prefix ^ string_of_int i
 
 
 
@@ -126,7 +127,7 @@ let infer_sort env t =
 	    match collapse_appl (Reduction.whd_betadeltaiota env (infer_unsafe env matched))
 	    with App(Ind(i),t) when i = ind.ci_ind -> t
 	      | Ind(i) when i = ind.ci_ind -> [||]
-	      | _ -> failwith "term_trans: matched term badly typed"
+	      | o -> failwith "term_trans: matched term badly typed"
 	  in
 	  let indices = Array.sub matched_args ind.ci_npar
 	    (Array.length matched_args - ind.ci_npar)
@@ -177,11 +178,11 @@ let rec module_path_to_string = function
 	path_to_string path ^ "_" ^ lab
 
 
-let name_to_string n = match n with
+let name_to_string n = "var_" ^ match n with
   | Anonymous -> fresh_var "_dk_anon"
   | Name s -> string_of_id s
 
-let get_identifier n = match n with
+let get_identifier n = "var_" ^ match n with
   | Anonymous -> fresh_var "_dk_anon"
   | Name s -> string_of_id s
 
@@ -200,9 +201,9 @@ let rec get_identifier_rel erel n =
 	  in
 	  let n = alpha_counts 0 erel in
 	    if n = 0 then ch
-	    else compute_alpha (ch ^ "xxx" ^ string_of_int (n-1))
+	    else compute_alpha (ch ^ "zqz" ^ string_of_int (n-1))
 	in
-	  compute_alpha (string_of_id s)
+	  "var_" ^ compute_alpha (string_of_id s)
 
 let nth_rel_in_env n e =
   let rec aux = function
@@ -212,7 +213,8 @@ let nth_rel_in_env n e =
   in
     aux (n, Environ.rel_context e)
 
-let get_identifier_env e = get_identifier_rel (Environ.rel_context e)
+let get_identifier_env e =
+get_identifier_rel (Environ.rel_context e)
 
 (* From coq names to dedukti ids. *)
 let name_to_qid n = Id (get_identifier n)
@@ -255,8 +257,11 @@ let rule (vars, l ,r) tenv =
 
 (* id_with_path m p i return Dedukti variable corresponding to p.i *)
 let id_with_path tenv mpath id =
-  if tenv.mp = mpath || List.exists ((=) mpath) tenv.functors then
+  if tenv.mp = mpath
+  then
     DVar (Id id)
+  else if List.exists ((=) mpath) tenv.functors then
+    DVar (Id ("fp_" ^ id))
   else
     let m = module_path_to_string mpath in
     DVar (Qid (m, id))
@@ -273,10 +278,27 @@ let bind_trans ft1 ft2 n t1 t2 tenv =
 
 let push_decl tenv d = { tenv with decls = d::tenv.decls }
 
+let get_inductive_args tenv ind matched =
+  let rec aux t =
+    match collapse_appl t with
+	App(Ind(i),t) when i = ind.ci_ind -> t
+      | Ind(i) when i = ind.ci_ind -> [||]
+      | t ->
+	let t' = Reduction.whd_betadeltaiota tenv.env t in
+	if t = t'
+	then failwith "term_trans: matched term badly typed"
+	else aux t'
+  in
+  aux (infer_unsafe tenv.env matched)
+
 exception Partial_const
 
 (* Applies every variable in the rel context of the environment tenv.env to
-   c. *)
+   c.
+   Returns the Dedukti environment of variables,
+           the translation environment,
+           the Dedukti term
+*)
 let rec app_rel_context tenv c =
   Environ.fold_rel_context
     (fun e (n,_,t) (vs, tenv, c) ->
@@ -308,8 +330,9 @@ and term_trans_aux tenv t =
     let constr_type = induc.mind_nf_lc.(i-1) in
     try let applied_constr,tenv =
 	  Array.fold_left
-	    (fun (c,tenv) a ->
-	      let a_tt, tenv = term_trans_aux tenv a
+	    (fun (c,tenv') a ->
+	      let a_tt, tenv = term_trans_aux { tenv' with env = tenv.env }
+						  a
 	      in
 	      DApp(c, a_tt), tenv)
 	    (constr,tenv) args in
@@ -354,8 +377,8 @@ and term_trans_aux tenv t =
 	    { tenv' with
 	      env = push_rel
 		(Name (id_of_string v), None, t1) tenv.env } in
-	  let res, tenv = eta tenv' (v::args) t2 in
-	  DFun(Id v, tt_1, res), tenv
+	  let res, tenv = eta tenv' (("var_" ^ v)::args) t2 in
+	  DFun(Id ("var_" ^ v), tt_1, res), tenv
 	| App(Ind _, params) ->
 	  let guard, tenv =
 	    Array.fold_left
@@ -451,9 +474,10 @@ and term_trans_aux tenv t =
       r, { te with env = tenv.env }
 
     (* special cases for the inductives (no real need for it) *)
-    | App(Ind(ind, num), args) ->
+    (*| App(Ind(ind, num), args) ->
       let r, te = trans_ind ind num args in
       r, { te with env = tenv.env }
+    *)
 
     | Ind(ind, num)  ->
       let r, te = trans_ind ind num [||] in
@@ -493,13 +517,36 @@ and term_trans_aux tenv t =
 	    t_tt2), tenv'
 
     | LetIn (var, eq, ty, body)  ->
-      term_trans_aux tenv (subst1 eq body)
+(* let x : T = A in B in [H1 : T1, ..., Hn : Tn] is translated as
+   fresh_x : H1 : ||T1|| -> ... Hn : ||Tn|| -> ||T||.
+   [H1 : ||T1||, ..., Hn : ||Tn||] fresh_x H1 Hn --> A.
+   |B| where x is replaced by fresh_x H1 Hn
+*)
+      let fresh_x = fresh_var ("let_" ^ name_to_string var ^ "_") in
+      let dk_env, tenv', lhs =
+	app_rel_context tenv (DVar (Id fresh_x)) in
+      let t_ty, tenv' = type_trans_aux { tenv' with env = tenv.env } ty in
 
+      let n = List.length (rel_context tenv.env) in
+      let arg =
+	App(Var fresh_x, Array.init n (fun i -> Rel (n - i)))
+      in
+      let new_body = subst1 arg body in
+      let teq, tenv' = term_trans_aux { tenv' with env = tenv.env } eq in
+      let new_env = push_decl
+	(push_decl { tenv' with
+          env = push_named (fresh_x, Some(it_mkLambda_or_LetIn eq (rel_context tenv.env)), it_mkProd_or_LetIn ty (rel_context tenv.env)) tenv.env}
+	   (Declaration(Id fresh_x, List.fold_left
+	     (fun c (x, t) -> DPi(x, t, c))
+	     t_ty dk_env)))
+	(Rule(List.rev dk_env, lhs, teq))
+      in
+      term_trans_aux new_env new_body
 
     | App (t1,a)  ->
       let tt, tenv' =  Array.fold_left
 	(fun (u1,te1) u2 ->
-	  let u_tt2, te2 = term_trans_aux te1 u2 in
+	  let u_tt2, te2 = term_trans_aux {te1 with env = tenv.env} u2 in
 	  DApp(u1, u_tt2), te2)
 	(term_trans_aux tenv t1) a
       in tt, { tenv' with env = tenv.env }
@@ -513,13 +560,7 @@ and term_trans_aux tenv t =
 	string_of_id mind_body.mind_packets.(snd ind.ci_ind).mind_typename ^ "__case"
       in
       (* Get the arguments of the type of the matched term. *)
-      let matched_args =
-	match collapse_appl
-	  (Reduction.whd_betadeltaiota tenv.env (infer_unsafe tenv.env matched))
-	with App(Ind(i),t) when i = ind.ci_ind -> t
-	  | Ind(i) when i = ind.ci_ind -> [||]
-	  | _ -> failwith "term_trans: matched term badly typed"
-      in
+      let matched_args = get_inductive_args tenv ind matched in
       let mp, _, _ = repr_mind (fst ind.ci_ind) in
       let r = ref (id_with_path tenv mp case_name)
       and d = ref tenv in
@@ -730,7 +771,7 @@ and term_trans_aux tenv t =
 		 to which the context is applied. *)
 	      let _, tenv, t =
 		if closed
-		then [], tenv', DVar(Id names.(num_def))
+		then [], {tenv' with env = tenv.env}, DVar(Id names.(num_def))
 		else app_rel_context {tenv' with env = tenv.env}
 		  (DVar(Id names.(num_def)))
 	      in
@@ -881,7 +922,7 @@ let make_constr tenv params_num params_dec cons_name typ =
 	let te' = { tenv' with
 	  env =  push_rel (Name (id_of_string v), None, t1) tenv.env }  in
 
-	  aux te' ((Id v, t_tt1)::vars) (App(c,[|Var (id_of_string v)|])) (0, t2)
+	  aux te' ((Id("var_"^v), t_tt1)::vars) (App(c,[|Var("var_" ^ v)|])) (0, t2)
     | 0, App(_,args) ->
 	let ind_num = Array.length args - params_num in
 	let ind = Array.make ind_num DKind in
@@ -946,12 +987,11 @@ let make_constr_func_type cons_name num_treated num_param typ =
 
 
 (* translate a packet of a mutual inductive definition (i.e. a single inductive)
-   env : environment
+   tenv : environment
    ind : path of the current inductive
    params : parameter context of the mutual inductive definition
    constr_types : type of the constructors in p
    p : packet
-   decls : accumulator of declarations
 *)
 let packet_translation finite tenv ind params constr_types p =
   let rec trans_constr tenv = function
@@ -983,7 +1023,7 @@ let packet_translation finite tenv ind params constr_types p =
 	 let v = fresh_var "param_" in
 	 let te' = {te with env = push_rel (Name (id_of_string v), None, t) te.env} in
 	 let t_tt, decls' = type_trans_aux te t in
-	   te',(Id v, t_tt)::vars, DApp(c, DVar (Id v))
+	   te',(Id("var_"^v), t_tt)::vars, DApp(c, DVar (Id("var_"^v)))
       )
       params ({ tenv with decls = [] }, [], case_name)
   in
@@ -1001,8 +1041,8 @@ let packet_translation finite tenv ind params constr_types p =
 *)
     let t_tt, te' = type_trans_aux this_env t in
     let te' = {te' with env = push_rel (Name (id_of_string v), None, t) te'.env} in
-      te', (Id v, t_tt),
-    DApp(case_name, DVar(Id v))
+      te', (Id("var_"^v), t_tt),
+    DApp(case_name, DVar(Id("var_"^v)))
 
   in
   let _,(this_env as tenv1),func_vars, case_name = Array.fold_left
@@ -1013,7 +1053,7 @@ let packet_translation finite tenv ind params constr_types p =
        let v = fresh_var "f_" in
        let t_tt, te' = type_trans_aux te t in
        let te' = {te' with env= push_rel (Name (id_of_string v), None, t) te'.env} in
-	 i+1,te',(Id v, t_tt)::vars, DApp(c, DVar (Id v))
+	 i+1,te',(Id("var_"^v), t_tt)::vars, DApp(c, DVar (Id("var_"^v)))
     )
     (0,this_env,[],case_name) p.mind_consnames
   in
@@ -1029,7 +1069,7 @@ let packet_translation finite tenv ind params constr_types p =
 	 let v = fresh_var "in_" in
 	 let t_tt, te' = type_trans_aux te (liftn (nb_constrs + 1) i t) in
 	 let te' = {te' with env  = push_rel (Name (id_of_string v), None, t) te'.env } in
-	   i+1,(Id v, t_tt)::vars, te')
+	   i+1,(Id("var_"^v), t_tt)::vars, te')
        indices (1,[],this_env)
   in
   let (m,_) as m_var, this_env =
@@ -1043,7 +1083,7 @@ let packet_translation finite tenv ind params constr_types p =
     in
     let t_tt, te' = type_trans_aux this_env t in
     let te = {te' with env = push_rel (Name (id_of_string v), None, t) te'.env} in
-      (Id v, t_tt), { te' with env = this_env.env }
+      (Id("var_"^v), t_tt), { te' with env = this_env.env }
   in
   let end_type, this_env =
     term_trans_aux this_env (
@@ -1134,7 +1174,12 @@ let add_param tenv mtb =
   match mtb.typ_expr with
       SEBstruct l ->
 	snd(List.fold_left (fun (te,l) (c,SFBconst cb) ->
+	  let c = "fp_" ^ c in
 	  let t_cb,te = type_trans_aux te (const_type_to_term cb.const_type) in
+	  let te = { te with env =
+	      Environ.add_constant
+		(make_con tenv.mp empty_dirpath c)
+		cb te.env} in
 	  te, (Id c,t_cb)::l) (tenv,[]) l)
 
 
@@ -1226,8 +1271,13 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 				   :: te'.decls else te'.decls)}, i+1)
 	      m.mind_packets (te,1))
        | SFBmodule mb ->
-	 let tenv' = { tenv with env = Modops.add_module mb tenv.env} in
-	 let tenv'' = mb_trans {tenv' with mp = MPdot(tenv.mp,label)} mb in
+	 let kn = MPdot(tenv.mp, label) in
+	 let modtype = Modops.module_type_of_module tenv.env (Some kn) mb in
+	 let tenv' = { tenv with env = Modops.add_module mb
+	     (add_modtype kn modtype tenv.env)} in
+	 let tenv'' = mb_trans {tenv' with mp = MPdot(tenv.mp,label);
+	   applied_modules = []
+			       } mb in
 	 let mod_name = module_path_to_string tenv.mp
 	   ^ "_" ^ string_of_label label
 	 in
@@ -1267,9 +1317,9 @@ and sb_decl_trans tenv (label, decl) =
   match decl with
       (* Declaration of a constant (theorem, definition, etc.). *)
       SFBconst sbfc ->
-	let tenv = {tenv with env =
+	let tenv0 = {tenv with env =
 	    Environ.add_constraints sbfc.const_constraints tenv.env } in
-	let ttype, tenv =
+	let ttype, tenv0 =
 	  let t = const_type_to_term sbfc.const_type in
 	  type_trans_aux tenv t
 	in
@@ -1288,83 +1338,92 @@ and sb_decl_trans tenv (label, decl) =
 	{ tenv with env =
 	    Environ.add_constant
 	      (make_con tenv.mp empty_dirpath label)
-	      sbfc tenv.env;
+	      sbfc tenv0.env;
 	}
 
     (* Declaration of a (co-)inductive type. *)
     | SFBmind m ->
       if not m.mind_finite
-      then prerr_endline
-	"mind_translation: coinductive types may not work properly";
+      then (prerr_endline
+	      "mind_translation: coinductive types translated as inductive types";
+	    sb_decl_trans tenv (label, SFBmind { m with mind_finite = true })
+      )
+      else
       (* Add the mutual inductive type declaration to the environment. *)
-      let mind = make_mind tenv.mp empty_dirpath label in
-      let tenv = { tenv with env =
-	  Environ.add_constraints m.mind_constraints
-	    (Environ.add_mind mind m tenv.env) }
-      in
+	let mind = make_mind tenv.mp empty_dirpath label in
+	let tenv = { tenv with env =
+	    Environ.add_constraints m.mind_constraints
+	      (Environ.add_mind mind m tenv.env) }
+	in
       (* The names and typing context of the inductive type. *)
-      let _,mind_names =
-	Array.fold_left
-	  (fun (i, l) _ -> i+1, Ind(mind, i)::l)
-	  (0, []) m.mind_packets
-      in
+	let _,mind_names =
+	  Array.fold_left
+	    (fun (i, l) _ -> i+1, Ind(mind, i)::l)
+	    (0, []) m.mind_packets
+	in
       (* Add the inductive type declarations in dedukti. *)
-      let tenv,_ =
-	(Array.fold_right
-	   (fun p (te,i) ->
-	     let t, te' = type_trans_aux te
-	       (it_mkProd_or_LetIn
-		  (Sort (match p.mind_arity with
-		      Monomorphic ar ->  ar.mind_sort
-		    | Polymorphic par ->
-		      Type par.poly_level))
-		  p.mind_arity_ctxt
-	       )
-	     in
-	     let end_type__constr =
-	       let n = List.length p.mind_arity_ctxt in
-	       App(Ind(mind,i-1),
-		   Array.init n (fun i -> Rel(n-i)))
-	     in
-	     let t__constr, te' = type_trans_aux te'
-	       (it_mkProd_or_LetIn
-		  (Prod(Anonymous,
-			end_type__constr,
-			lift 1 end_type__constr))
-		  p.mind_arity_ctxt
-	       )
-	     in
-	     let te' = push_decl te' (
-	       declaration(Id string_of_id p.mind_typename,
-			   t) te')
-	     in
-	     let te' =
-	       if m.mind_finite then
-		 push_decl te'
-		   (declaration(Id (string_of_id p.mind_typename ^ "__constr"),
-				t__constr) te')
-	       else te' in
-	     te', i+1)
-	   m.mind_packets (tenv,1))
-      in
-      let tenv,_ =
-	Array.fold_right
-	  (fun p (te,i) ->
-	    let constr_types = Array.map (substl mind_names) p.mind_nf_lc in
-	    let _,env = Array.fold_left
-	      (fun (j, env) consname ->
-		j + 1,
-		Environ.push_named (consname, None, constr_types.(j)) env)
-	      (0, tenv.env) p.mind_consnames in
-	    packet_translation m.mind_finite {te with env = env }
-	      (mind, i)
-	      m.mind_params_ctxt constr_types p, i-1)
-	  m.mind_packets (tenv,
-			  Array.length m.mind_packets - 1)
-      in
-      tenv
+	let tenv,n_decls,c_decls,_ =
+	  (Array.fold_right
+	     (fun p (te,n_decls,c_decls,i) ->
+	       let t, te' = type_trans_aux te
+		 (it_mkProd_or_LetIn
+		    (Sort (match p.mind_arity with
+			Monomorphic ar ->  ar.mind_sort
+		      | Polymorphic par ->
+			Type par.poly_level))
+		    p.mind_arity_ctxt
+		 )
+	       in
+	       let end_type__constr =
+		 let n = List.length p.mind_arity_ctxt in
+		 App(Ind(mind,i-1),
+		     Array.init n (fun i -> Rel(n-i)))
+	       in
+	       let t__constr, te' = type_trans_aux te'
+		 (it_mkProd_or_LetIn
+		    (Prod(Anonymous,
+			  end_type__constr,
+			  lift 1 end_type__constr))
+		    p.mind_arity_ctxt
+		 )
+	       in
+	       let n_decls =
+		 declaration(Id string_of_id p.mind_typename,
+			     t) te'::n_decls
+	       in
+	       let c_decls =
+		 if m.mind_finite then
+		     declaration(Id (string_of_id p.mind_typename ^ "__constr"),
+				  t__constr) te'::c_decls
+		 else c_decls in
+	       te', n_decls, c_decls, i+1)
+	     m.mind_packets (tenv,[],[],1))
+	in
+	let tenv = List.fold_left push_decl
+	  (List.fold_left push_decl tenv n_decls) c_decls
+	in
+	let tenv,_ =
+	  Array.fold_right
+	    (fun p (te,i) ->
+	      let constr_types = Array.map (substl mind_names) p.mind_nf_lc in
+	      let _,env = Array.fold_left
+		(fun (j, env) consname ->
+		  j + 1,
+		  Environ.push_named (consname, None, constr_types.(j)) env)
+		(0, tenv.env) p.mind_consnames in
+	      packet_translation m.mind_finite {te with env = env }
+		(mind, i)
+		m.mind_params_ctxt constr_types p, i-1)
+	    m.mind_packets (tenv,
+			    Array.length m.mind_packets - 1)
+	in
+	tenv
     | SFBmodule mb ->
-      let tenv' = { tenv with env = Modops.add_module mb tenv.env } in
+      let kn = MPdot(tenv.mp, label) in
+      let env = Modops.add_module mb tenv.env in
+      let modtype =  Modops.module_type_of_module env (Some kn) mb
+      in
+      let tenv' = { tenv with env = add_modtype kn modtype env } in
       let tenv'' = mb_trans { tenv' with mp = MPdot(tenv.mp, label)} mb in
       let mod_name = module_path_to_string tenv.mp
 	^ "_" ^ string_of_label label
@@ -1391,17 +1450,27 @@ and seb_trans tenv = function
     let env = add_constants env mtb in
     seb_trans { tenv with env = env;
       functors = MPbound arg_id::tenv.functors;
-      functor_parameters = add_param tenv mtb
+      functor_parameters =
+	add_param
+	  { tenv with mp = MPbound arg_id }
+	  mtb
 	      } body
 
   | SEBident mp ->
-    let mod_type = (lookup_module mp tenv.env).mod_type in
+    let mod_type =
+      (try
+	 (lookup_modtype mp tenv.env).typ_expr
+       with Not_found ->
+	 try
+	   (lookup_module mp tenv.env).mod_type
+	 with Not_found ->
+           prerr_endline ("seb_trans: " ^ string_of_mp mp); raise Not_found
+      ) in
     module_copy tenv mp mod_type
 
-
   | SEBapply(m1, SEBident m2path, _) ->
-     seb_trans { tenv with applied_modules = m2path::tenv.applied_modules }
-       m1
+    seb_trans { tenv with applied_modules = m2path::tenv.applied_modules }
+      m1
 
   |  _ -> raise (NotImplementedYet "With and Apply")
 
