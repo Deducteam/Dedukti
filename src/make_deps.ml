@@ -61,6 +61,10 @@ let translate filename =
 	  (fun (dir,m) ->
 	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".dko"))
 	  needed;
+	print_newline();
+	print_endline
+	  (path_to_string md.md_name (".camelide: " ^ path_to_string md.md_name ".dk"));
+	print_string ("\t${CAMELIDE} " ^ path_to_string md.md_name ".dk");
 	print_newline()
 
 

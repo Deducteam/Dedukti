@@ -1,7 +1,9 @@
+CAMELIDE=../../camelide/src/camelide -v 2
+
 .SUFFIXES: .dk .dko .o
 
 .dk.dko:
-	dedukti $< +RTS -K200000000
+	dedukti $<
 
 .dko.o:
 	../scripts/compile $<

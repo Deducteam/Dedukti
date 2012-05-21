@@ -11,7 +11,7 @@ for i in $LIBS
 do
     for t in $i/*.vo
     do
-	if $COQINE_ROOT/bin/coqine --root Coq -I $INCLUDE -I $COQ_LIB $t 
+	if $COQINE_ROOT/bin/coqine -h --root Coq -I $INCLUDE -I $COQ_LIB $t
 	then echo "Success : $t"
 	else echo "Failed : $t"
 	fi

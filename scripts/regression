@@ -2,7 +2,7 @@
 
 COQINE="../bin/coqine --root Coq -I /usr/lib/coq/theories"
 
-for i in Logic Datatypes Peano Wf
+for i in Logic Datatypes Peano Specif Wf
 do
     echo -n "CoqInE $i : "
     if $COQINE /usr/lib/coq/theories/Init/$i.vo 2> regression.log 
@@ -33,6 +33,11 @@ else echo "failed."
 fi
 echo -n "Checking Peano : "
 if dkrun Coq_Init_Peano.dko Coq1univ.dko Coq_Init_Logic.dko Coq_Init_Datatypes.dko &> regression.log
+then echo "ok."
+else echo "failed."
+fi
+echo -n "Checking Specif : "
+if dkrun Coq_Init_Specif.dko Coq1univ.dko Coq_Init_Logic.dko Coq_Init_Datatypes.dko &> regression.log
 then echo "ok."
 else echo "failed."
 fi
