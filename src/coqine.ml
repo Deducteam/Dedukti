@@ -257,11 +257,11 @@ let rule (vars, l ,r) tenv =
 
 (* id_with_path m p i return Dedukti variable corresponding to p.i *)
 let id_with_path tenv mpath id =
-  if tenv.mp = mpath
+  if List.exists ((=) mpath) tenv.functors then
+    DVar (Id ("fp_" ^ id))
+  else if tenv.mp = mpath
   then
     DVar (Id id)
-  else if List.exists ((=) mpath) tenv.functors then
-    DVar (Id ("fp_" ^ id))
   else
     let m = module_path_to_string mpath in
     DVar (Qid (m, id))
@@ -1174,13 +1174,15 @@ let add_param tenv mtb =
   match mtb.typ_expr with
       SEBstruct l ->
 	snd(List.fold_left (fun (te,l) (c,SFBconst cb) ->
-	  let c = "fp_" ^ c in
+	  let fp_c = "fp_" ^ c in
 	  let t_cb,te = type_trans_aux te (const_type_to_term cb.const_type) in
 	  let te = { te with env =
 	      Environ.add_constant
 		(make_con tenv.mp empty_dirpath c)
 		cb te.env} in
-	  te, (Id c,t_cb)::l) (tenv,[]) l)
+	  te, (Id fp_c,t_cb)::l) ({tenv with functors = tenv.mp::tenv.functors}
+				     ,[])
+	      l)
 
 
 let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
@@ -1197,9 +1199,8 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 	  let tterm = List.fold_right
 	    (fun a c -> DApp(c,a)) sup_args tterm
 	  in
-          { tenv with decls =
-	      List.rev_append type_tenv.decls [declaration(id, ttype) type_tenv;
-					       rule([],DVar id, tterm) type_tenv]}
+          push_decl (push_decl type_tenv (declaration(id, ttype) type_tenv))
+		 (rule([],DVar id, tterm) type_tenv)
 
        | SFBmind m ->
 	 let mind = make_mind tenv.mp empty_dirpath label in
@@ -1281,7 +1282,7 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 	 let mod_name = module_path_to_string tenv.mp
 	   ^ "_" ^ string_of_label label
 	 in
-	 print_decls mod_name tenv''.decls;
+	 print_decls mod_name (List.rev tenv''.decls);
 	 tenv'
 
        | SFBmodtype mty ->
@@ -1300,7 +1301,7 @@ and module_copy tenv mp_src mod_type =
   in
   let rec aux sup_args = function
     | [], SEBstruct l ->
-      List.fold_left (fun te -> struct_elem_copy te mp_src sup_args) tenv l
+      List.fold_right (fun e te -> struct_elem_copy te mp_src sup_args e) l tenv
     | m::q, SEBfunctor(id, mtb, body) ->
       let subst = Mod_subst.map_mp (MPbound id) m Mod_subst.empty_delta_resolver in
       let body = Modops.subst_struct_expr subst body in
@@ -1428,7 +1429,7 @@ and sb_decl_trans tenv (label, decl) =
       let mod_name = module_path_to_string tenv.mp
 	^ "_" ^ string_of_label label
       in
-      print_decls mod_name tenv''.decls;
+      print_decls mod_name (List.rev tenv''.decls);
       tenv'
     | SFBmodtype mty ->
       (* we do not translate module types, but we put them in the
