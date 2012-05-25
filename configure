@@ -3,7 +3,7 @@
 ##################################
 #
 #  Configuration script for Coqine
-# 
+#
 ##################################
 
 VERSION=trunk
@@ -18,7 +18,7 @@ test -d bin || mkdir bin
 which () {
     IFS=":" # set words separator in PATH to be ':' (it allows spaces in dirnames)
     for i in $PATH; do
-	if test -z "$i"; then i=.; fi 
+	if test -z "$i"; then i=.; fi
 	if [ -f "$i/$1" ] ; then
             echo "$i/$1"
 	    break
@@ -155,15 +155,15 @@ while : ; do
 			  *) with_doc=no
 		      esac
 		      shift;;
-    -with-cc|-with-gcc|--with-cc|--with-gcc) 
+    -with-cc|-with-gcc|--with-cc|--with-gcc)
 	  gcc_spec=yes
 	  gcc_exec=$2
 	  shift;;
-    -with-ar|--with-ar) 
+    -with-ar|--with-ar)
 	  ar_spec=yes
 	  ar_exec=$2
 	  shift;;
-    -with-ranlib|--with-ranlib) 
+    -with-ranlib|--with-ranlib)
 	  ranlib_spec=yes
 	  ranlib_exec=$2
 	  shift;;
@@ -194,7 +194,7 @@ esac
 # Architecture
 
 case $arch_spec in
-    no) 
+    no)
     # First we test if we are running a Cygwin system
     if [ `uname -s | cut -c -6` = "CYGWIN" ] ; then
 	ARCH="win32"
@@ -223,7 +223,7 @@ esac
 # executable extension
 
 case $ARCH in
-    win32) 
+    win32)
       EXE=".exe"
       DLLEXT=".dll";;
     *) EXE=""
@@ -232,7 +232,7 @@ esac
 
 # Is the source tree checked out from a recognised
 # version control system ?
-if test -e .svn/entries ; then 
+if test -e .svn/entries ; then
     checkedout=svn
 elif [ -d '{arch}' ]; then
 	checkedout=gnuarch
@@ -248,7 +248,7 @@ MAKE=`which make`
 if [ "$MAKE" != "" ]; then
   MAKEVERSION=`$MAKE -v | head -1`
   case $MAKEVERSION in
-    "GNU Make 3.81") 
+    "GNU Make 3.81")
       echo "You have GNU Make 3.81. Good!";;
     *)
       OK="no"
@@ -285,7 +285,7 @@ case $camldir_spec in
 	    "") echo "$bytecamlc is not present in your path!"
 		echo "Give me manually the path to the $bytecamlc executable [/usr/local/bin by default]: "
 		read CAMLC
-		
+
 		case "$CAMLC" in
 		    "") CAMLC=/usr/local/bin/$bytecamlc;;
 		    */ocamlc|*/ocamlc.opt) true;;
@@ -295,7 +295,7 @@ case $camldir_spec in
 	esac
 	CAMLBIN=`dirname "$CAMLC"`;;
     yes) CAMLC=$camldir/$bytecamlc
-        
+
          CAMLBIN=`dirname "$CAMLC"`
 	 bytecamlc="$CAMLC"
 	 nativecamlc=$CAMLBIN/$nativecamlc
@@ -336,7 +336,7 @@ case $CAMLVERSION in
     3.07*|3.08*)
 	echo "You have Objective-Caml $CAMLVERSION. Good!";;
     ?*)
-	CAMLP4COMPAT="-loc loc" 
+	CAMLP4COMPAT="-loc loc"
 	echo "You have Objective-Caml $CAMLVERSION. Good!";;
     *)
 	echo "I found the Objective-Caml compiler but cannot find its version number!"
@@ -357,7 +357,7 @@ case $ARCH in
 esac
 
 # We need to set va special flag for OCaml 3.07
-case  $CAMLVERSION in 
+case  $CAMLVERSION in
 	3.07*)
 	  cflags="$cflags -DOCAML_307";;
 esac
@@ -396,11 +396,11 @@ if [ "$camlp5dir" != "" ]; then
 	exit 1
     fi
     camlp4oexec=`echo $camlp4oexec | sed -e 's/4/5/'`
-    if [ `$camlp4oexec -pmode 2>&1` = "strict" ]; then 
-	echo "Error: Camlp5 found, but in strict mode!"
-	echo "Please compile Camlp5 in transitional mode."
-	exit 1
-    fi
+    # if [ `$camlp4oexec -pmode 2>&1` = "strict" ]; then
+    # 	echo "Error: Camlp5 found, but in strict mode!"
+    # 	echo "Please compile Camlp5 in transitional mode."
+    # 	exit 1
+    # fi
 else
     case $CAMLTAG in
         OCAML31*)
@@ -415,11 +415,11 @@ else
             fi
             CAMLP4=camlp5
             camlp4oexec=`echo $camlp4oexec | sed -e 's/4/5/'`
-            if [ `$camlp4oexec -pmode 2>&1` = "strict" ]; then
-	        echo "Error: Camlp5 found, but in strict mode!"
-	        echo "Please compile Camlp5 in transitional mode."
-	        exit 1
-            fi
+            # if [ `$camlp4oexec -pmode 2>&1` = "strict" ]; then
+	    #     echo "Error: Camlp5 found, but in strict mode!"
+	    #     echo "Please compile Camlp5 in transitional mode."
+	    #     exit 1
+            # fi
             ;;
         *)
             CAMLP4=camlp4
@@ -441,7 +441,7 @@ case $CAMLP4LIB in
 esac
 
 # Assume that camlp(4|5) binaries are at the same place as ocaml ones
-# (this should become configurable some day) 
+# (this should become configurable some day)
 CAMLP4BIN=${CAMLBIN}
 
 # do we have a native compiler: test of ocamlopt and its version
@@ -483,7 +483,7 @@ case $ARCH in
 	      OSDEPLIBS="-cclib -lunix"
         esac;;
   alpha) OSDEPLIBS="-cclib -lunix";;
-  win32) OS="Win32" 
+  win32) OS="Win32"
 	 OSDEPLIBS="-cclib -lunix"
 	 cflags="-mno-cygwin $cflags";;
   *) OSDEPLIBS="-cclib -lunix"
@@ -494,7 +494,7 @@ esac
 case $ARCH in
     win32)
 	# true -> strip : it exists under cygwin !
-	STRIPCOMMAND="strip";; 
+	STRIPCOMMAND="strip";;
     *)
     if [ "$coqine_profile_flag" = "-p" ] || [ "$coqine_debug_flag" = "-g" ] ||
        [ "`uname -s`" = "Darwin" -a "$HASNATDYNLINK" = "true" ]
@@ -508,10 +508,10 @@ esac
 # "
 ### Test if documentation can be compiled (latex, hevea)
 
-if test "$with_doc" = "all" 
+if test "$with_doc" = "all"
 then
     if test "`which latex`" = ""
-    then 
+    then
 	echo "latex was not found; documentation will not be available"
 	with_doc=no
     else
