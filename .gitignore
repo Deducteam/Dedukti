@@ -1,0 +1,14 @@
+*.annot
+*.cm[xioa]
+*.ml.d
+*.mli.d
+*.vo
+*.glob
+*.o
+coqine_config.ml
+local.mk
+*.a
+*.cmxa
+*.mllib.d
+*.out
+bin
