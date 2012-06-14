@@ -250,6 +250,8 @@ if [ "$MAKE" != "" ]; then
   case $MAKEVERSION in
     "GNU Make 3.81")
       echo "You have GNU Make 3.81. Good!";;
+    "GNU Make 3.82")
+      echo "You have GNU Make 3.82. Good!";;
     *)
       OK="no"
       if [ -x ./make ]; then
