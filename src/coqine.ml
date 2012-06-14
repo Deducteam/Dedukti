@@ -564,7 +564,7 @@ and term_trans_aux tenv t =
       let mp, _, _ = repr_mind (fst ind.ci_ind) in
       let r = ref (id_with_path tenv mp case_name)
       and d = ref tenv in
-      for i = 0 to ind.ci_npar - 1 do
+      for i = 0 to Array.length matched_args - 1 do
 	(* We cannot use Array.fold_left since we only need
 	   the parameters. *)
 	let arg_tt, tenv' =
@@ -618,12 +618,6 @@ and term_trans_aux tenv t =
 	  r := DApp(!r, b_tt);
 	  d := tenv')
 	branches;
-      for i = ind.ci_npar to Array.length matched_args - 1 do
-	let arg_tt, tenv' =
-	  term_trans_aux !d matched_args.(i)  in
-	r := DApp(!r, arg_tt);
-	d := tenv'
-      done;
       let m_tt, tenv' = term_trans_aux !d matched in
       let m_tt =
 			(*	if mind_body.mind_finite
@@ -1483,3 +1477,6 @@ and mb_trans tenv mb =
   match mb.mod_expr with
       Some s -> seb_trans tenv s
     | None -> failwith "empty module body"
+
+(* vi: nolist: sw=2
+*)
