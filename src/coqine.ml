@@ -565,8 +565,6 @@ and term_trans_aux tenv t =
       let r = ref (id_with_path tenv mp case_name)
       and d = ref tenv in
       for i = 0 to Array.length matched_args - 1 do
-	(* We cannot use Array.fold_left since we only need
-	   the parameters. *)
 	let arg_tt, tenv' =
 	  term_trans_aux !d matched_args.(i)  in
 	r := DApp(!r, arg_tt);
