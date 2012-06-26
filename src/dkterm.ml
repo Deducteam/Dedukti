@@ -17,7 +17,7 @@ type dkterm =
 
 type statement =
 | Declaration of qid * dkterm
-| Rule of (qid * dkterm) list * dkterm * dkterm
+| RuleSet of ((qid * dkterm) list * dkterm * dkterm) list
 | End
 
 let rec subst v t = function
@@ -79,11 +79,13 @@ class prefix_pp = object (self)
       [] -> str "[] "
     | b::q -> str "," ++ self#pr_binding b ++ spc () ++ self#pr_env q
 
+  method private pr_rule (env, lhs, rhs) =
+    self#rule_arr () ++ self#pr_env env ++ self#pr_dkterm lhs ++ spc () ++ self#pr_dkterm rhs
+
   method private pr_statement' = function
     | Declaration (n, t) ->
 	str ":" ++ spc () ++ self#pr_qid n ++ spc () ++ self#pr_dkterm t
-    | Rule (env, lhs, rhs) ->
-	self#rule_arr () ++ self#pr_env env ++ self#pr_dkterm lhs ++ spc () ++ self#pr_dkterm rhs
+    | RuleSet rs -> prlist_with_sep fnl self#pr_rule rs
     | End -> mt ()
 
   method pr_statement t = hov 2 (self#pr_statement' t)
@@ -121,16 +123,20 @@ class external_pp = object (self)
 
   method pr_binding (n, t) = self#pr_qid n ++ pr_colon () ++ self#pr_dkterm t
 
+  method private pr_rule (env, lhs, rhs) =
+    let rec sep pp env = match env with
+      | [] -> str ""
+      | [n, t] -> pp ++ self#pr_binding (n, t)
+      | (n, t) :: env' -> sep (pp ++ self#pr_binding (n, t) ++ pr_comma ()) env'
+    in surround_brackets (sep (str "") env) ++ spc () ++
+         self#pr_dkterm lhs ++ spc () ++ self#rule_arr () ++ spc () ++
+         self#pr_dkterm rhs
+
   method pr_statement = function
     | Declaration (n, t) -> self#pr_binding (n, t) ++ str "."
-    | Rule (env, lhs, rhs) ->
-	let rec sep pp env = match env with
-	  | [] -> str ""
-	  | [n, t] -> pp ++ self#pr_binding (n, t)
-	  | (n, t) :: env' -> sep (pp ++ self#pr_binding (n, t) ++ pr_comma ()) env'
-	in surround_brackets (sep (str "") env) ++ spc () ++
-	     self#pr_dkterm lhs ++ spc () ++ self#rule_arr () ++ spc () ++
-	     self#pr_dkterm rhs ++ str "."
+    | RuleSet rs ->
+        if rs = [] then mt () else
+        prlist_with_sep fnl self#pr_rule rs ++ str "."
     | End -> mt ()
 end
 

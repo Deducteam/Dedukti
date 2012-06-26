@@ -251,8 +251,7 @@ let rule (vars, l ,r) tenv =
     | c -> List.fold_right (fun (i,t) c -> DApp(c,DVar i))
       tenv.functor_parameters c
   in
-  Rule(List.rev_append tenv.functor_parameters vars,
-       aux l, r)
+  (List.rev_append tenv.functor_parameters vars, aux l, r)
 
 
 (* id_with_path m p i return Dedukti variable corresponding to p.i *)
@@ -537,7 +536,7 @@ and term_trans_aux tenv t =
 	   (Declaration(Id fresh_x, List.fold_left
 	     (fun c (x, t) -> DPi(x, t, c))
 	     t_ty dk_env)))
-	(Rule(List.rev dk_env, lhs, teq))
+	(RuleSet [List.rev dk_env, lhs, teq])
       in
       term_trans_aux new_env new_body
 
@@ -693,20 +692,20 @@ and term_trans_aux tenv t =
 			  (string_of_id name ^ "__constr")
 		      with Not_found -> failwith ("term translation: unknown inductive in structural argument")
 		    in
-		    let guard = Array.fold_left
+		    let guard f = Array.fold_left
 		      (fun c a ->
 			let a_tt, _ = term_trans_aux tenv a in
-			DApp(c, a_tt))
+			DApp(c, f a_tt))
 		      i__constr args
 		    in
-		    let last_arg = DApp(guard, DVar (Id s)) in
+		    let last_arg f = DApp(guard f, DVar (Id s)) in
 		    (* This is the final case, apply the recursive variable to
 		       f and create a rule f x1...xn --> rhs x1...xn. *)
 		    { tenv with decls =
-			rule(List.rev_append env_vars vars,
-			     DApp(fix, last_arg),
-			     DApp(rhs, last_arg)
-			) tenv'
+			RuleSet [rule(List.rev_append env_vars vars,
+			     DApp(fix, last_arg (fun x -> DDot x)),
+			     DApp(rhs, last_arg (fun x ->      x))
+			) tenv']
 			  ::tenv'.decls }
 		  | n, Prod(nom, a, t) ->
 		    let s = get_identifier_rel
@@ -1116,31 +1115,31 @@ let packet_translation finite tenv ind params constr_types p =
       i__case_trans) this_env)
   in
   let case_rem = List.rev case_rem in
-  let _,this_env =
+  let te = { this_env with env = tenv1.env } in
+  let _,rs =
     Array.fold_left
-      (fun (i, te) cons_name ->
+      (fun (i, rs) cons_name ->
 	 let constr, indices, c_vars, te' =
 	   make_constr te n_params params_dec
 	     (Construct (ind,i+1)) constr_types.(i) in
-	   i+1,
-	 { push_decl te' (rule( (* ENV *) List.rev_append param_vars
-		(p_var::List.rev_append func_vars (List.rev c_vars)),
-              (* LHS *)
-              begin
-                let app c a = DApp(c, a) in
-                let dapp c a = app c (DDot a) in
-                let case_name = Array.fold_left dapp case_name indices in
-                let case_name = List.fold_left app case_name case_rem in
-                DApp(case_name, constr)
-              end,
-              (* RHS *)
-	      match List.nth func_vars (List.length func_vars-i-1)
-	      with id,_ ->
-		List.fold_right (fun (v,_) c -> DApp(c, DVar v))
-		  c_vars (DVar id)
-	   ) te') with env = te.env })
-	   (0,{this_env with env = tenv1.env}) p.mind_consnames in
-    { tenv with decls =  List.append this_env.decls tenv.decls}
+	 i+1,
+	 (rule((* ENV *) List.rev_append param_vars
+	    (p_var::List.rev_append func_vars (List.rev c_vars)),
+            (* LHS *)
+            begin
+              let app c a = DApp(c, a) in
+              let dapp c a = app c (DDot a) in
+              let case_name = Array.fold_left dapp case_name indices in
+              let case_name = List.fold_left app case_name case_rem in
+              DApp(case_name, constr)
+            end,
+            (* RHS *)
+            match List.nth func_vars (List.length func_vars-i-1)
+            with id,_ ->
+              List.fold_right (fun (v,_) c -> DApp(c, DVar v))
+                c_vars (DVar id)) te') :: rs)
+	   (0,[]) p.mind_consnames in
+    { tenv with decls =  RuleSet rs :: te.decls @ tenv.decls}
 
 
 
@@ -1205,7 +1204,7 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 	    (fun a c -> DApp(c,a)) sup_args tterm
 	  in
           push_decl (push_decl type_tenv (declaration(id, ttype) type_tenv))
-		 (rule([],DVar id, tterm) type_tenv)
+		 (RuleSet [rule([],DVar id, tterm) type_tenv])
 
        | SFBmind m ->
 	 let mind = make_mind tenv.mp empty_dirpath label in
@@ -1228,8 +1227,8 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 		(fun (j, te) consname ->
 		  j + 1,
 		 let t,te = type_trans_aux te constr_types.(j)  in
-		 push_decl (push_decl te (rule([], DVar (Id consname),
-					       id_with_path te mp_src consname) te))
+		 push_decl (push_decl te (RuleSet [rule([], DVar (Id consname),
+					       id_with_path te mp_src consname) te]))
 		   (declaration(Id consname, t) te))
 		(0, te) p.mind_consnames in
 	      te
@@ -1266,14 +1265,14 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 		let type_name = string_of_id p.mind_typename in
 		{te' with decls = declaration(Id type_name,
 					      t) te'
-		     ::rule([], DVar (Id type_name),
-			    id_with_path te' mp_src type_name) te'
+		     ::RuleSet [rule([], DVar (Id type_name),
+			    id_with_path te' mp_src type_name) te']
 			 ::
 			   (if m.mind_finite then
 			       declaration(Id (type_name ^ "__constr"),
 					   t__constr) te'
-			       :: rule([], DVar (Id (type_name ^ "__constr")),
-				       id_with_path te' mp_src (type_name ^ "__constr")) te'
+			       :: RuleSet [rule([], DVar (Id (type_name ^ "__constr")),
+				       id_with_path te' mp_src (type_name ^ "__constr")) te']
 				   :: te'.decls else te'.decls)}, i+1)
 	      m.mind_packets (te,1))
        | SFBmodule mb ->
@@ -1339,7 +1338,7 @@ and sb_decl_trans tenv (label, decl) =
 			   term_trans_aux tenv c
                          in
 			 push_decl (push_decl tenv (declaration(id, ttype) tenv))
-			   (rule([],DVar id, tterm) tenv)
+			   (RuleSet [rule([],DVar id, tterm) tenv])
 	in
 	{ tenv with env =
 	    Environ.add_constant
