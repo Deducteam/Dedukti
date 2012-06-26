@@ -307,115 +307,113 @@ let rec app_rel_context tenv c =
        (Id v, t_tt)::vs, tenv, DApp(c,DVar (Id v))))
     tenv.env ~init:([], tenv, c)
 
+(* translation of a constructor, with guards
+   if the constructor is only partially applied, use eta-expansion
+*)
+and trans_construct_aux dotp tenv mod_path l ind j i args =
+  let ddot = if dotp then fun x -> DDot x else fun x -> x in
+  let m_induc =
+    try lookup_mind ind tenv.env
+    with Not_found -> failwith ("term translation: unknown inductive "^string_of_label l) in
+  let induc = m_induc.mind_packets.(j)
+  in
+  let name = string_of_id induc.mind_consnames.(i-1) in
+  let constr = id_with_path tenv mod_path name
+  and guard = id_with_path tenv mod_path (string_of_id induc.mind_typename ^ "__constr")
+  in
+  let constr_type = induc.mind_nf_lc.(i-1) in
+  try let applied_constr,tenv =
+        Array.fold_left
+          (fun (c,tenv') a ->
+            let a_tt, tenv = term_trans_aux { tenv' with env = tenv.env } a in
+            DApp(c, a_tt), tenv)
+          (constr,tenv) args in
+      let rec app_args = function
+        | Prod(_, _, t2), a::q ->
+          app_args (subst1 a t2, q)
+        | App(Rel _, params), [] ->
+          Array.fold_left
+            (fun (c,tenv) a ->
+              let a_tt, tenv = term_trans_aux tenv a
+              in
+              DApp(c, ddot a_tt), tenv)
+            (guard,tenv) params
+        | Rel _, [] ->
+          guard, tenv
+        | _ -> raise Partial_const
+      in
+      let guard_params, tenv =
+        app_args (constr_type, Array.to_list args)
+      in
+      (*	if m_induc.mind_finite
+              then*)
+      DApp(guard_params, applied_constr), tenv
+  (*	else
+      if laz
+      then DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
+      applied_constr), decls
+      else applied_constr, decls*)
+  with Partial_const ->
+    let sigma =
+      let rec aux = function
+        | 0 -> []
+        | n -> Ind(ind, n-1)::aux (n-1)
+      in aux m_induc.mind_ntypes
+    in
+    let constr_type = substl sigma constr_type in
+    let rec eta tenv args = function
+      | Prod(_, t1, t2) ->
+        let v = fresh_var "eta_" in
+        let tt_1, tenv' = type_trans_aux tenv t1 in
+        let tenv' =
+          { tenv' with
+            env = push_rel
+              (Name (id_of_string v), None, t1) tenv.env } in
+        let res, tenv = eta tenv' (("var_" ^ v)::args) t2 in
+        DFun(Id ("var_" ^ v), tt_1, res), tenv
+      | App(Ind _, params) ->
+        let guard, tenv =
+          Array.fold_left
+            (fun (c,tenv) a ->
+              let a_tt, tenv' = term_trans_aux tenv a
+              in
+              DApp(c, a_tt), tenv')
+            (guard,tenv) params in
+        let applied_constr =
+          List.fold_right (fun v c -> DApp(c, DVar(Id v))) args constr in
+        (*	  if m_induc.mind_finite
+                then*)
+        DApp(guard, applied_constr), tenv
+      (*	  else
+                if laz then
+                DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
+                applied_constr), decls
+                else applied_constr, decls*)
+      | Ind _ ->
+        let applied_constr =
+          List.fold_right (fun v c -> DApp(c, DVar(Id v))) args constr in
+        (*	  if m_induc.mind_finite
+                then*)
+        DApp(guard, applied_constr), tenv
+      (*	  else if laz then
+                DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
+                applied_constr), decls
+                else applied_constr, decls *)
+      | _ -> failwith "ill-formed type for a constructor"
+    in
+    let constr,tenv' = eta tenv [] constr_type in
+    Array.fold_left
+      (fun (c,d) a ->
+        let a_tt, d = term_trans_aux d a in
+        DApp(c, a_tt), d)
+      (constr,{tenv' with env = tenv.env}) args
+
 
 (* Translation of t as a term, given the current module path label, an
    environment e and a set of intermediary declarations decls (in
    reverse order). *)
 and term_trans_aux tenv t =
 
-
-  (* translation of a constructor, with guards
-     if the constructor is only partially applied, use eta-expansion
-  *)
-  let trans_construct mod_path l ind j i args =
-    let m_induc =
-      try lookup_mind ind tenv.env
-      with Not_found -> failwith ("term translation: unknown inductive "^string_of_label l) in
-    let induc = m_induc.mind_packets.(j)
-    in
-    let name = string_of_id induc.mind_consnames.(i-1) in
-    let constr = id_with_path tenv mod_path name
-    and guard = id_with_path tenv mod_path (string_of_id induc.mind_typename ^ "__constr")
-    in
-    let constr_type = induc.mind_nf_lc.(i-1) in
-    try let applied_constr,tenv =
-	  Array.fold_left
-	    (fun (c,tenv') a ->
-	      let a_tt, tenv = term_trans_aux { tenv' with env = tenv.env }
-						  a
-	      in
-	      DApp(c, a_tt), tenv)
-	    (constr,tenv) args in
-	let rec app_args = function
-	  | Prod(_, _, t2), a::q ->
-	    app_args (subst1 a t2, q)
-	  | App(Rel _, params), [] ->
-	    Array.fold_left
-	      (fun (c,tenv) a ->
-		let a_tt, tenv = term_trans_aux tenv a
-		in
-		DApp(c, a_tt), tenv)
-	      (guard,tenv) params
-	  | Rel _, [] ->
-	    guard, tenv
-	  | _ -> raise Partial_const
-	in
-	let guard_params, tenv =
-	  app_args (constr_type, Array.to_list args)
-	in
-	(*	if m_induc.mind_finite
-		then*)
-	DApp(guard_params, applied_constr), tenv
-    (*	else
-	if laz
-	then DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
-	applied_constr), decls
-	else applied_constr, decls*)
-    with Partial_const ->
-      let sigma =
-	let rec aux = function
-	  | 0 -> []
-	  | n -> Ind(ind, n-1)::aux (n-1)
-	in aux m_induc.mind_ntypes
-      in
-      let constr_type = substl sigma constr_type in
-      let rec eta tenv args = function
-	| Prod(_, t1, t2) ->
-	  let v = fresh_var "eta_" in
-	  let tt_1, tenv' = type_trans_aux tenv t1 in
-	  let tenv' =
-	    { tenv' with
-	      env = push_rel
-		(Name (id_of_string v), None, t1) tenv.env } in
-	  let res, tenv = eta tenv' (("var_" ^ v)::args) t2 in
-	  DFun(Id ("var_" ^ v), tt_1, res), tenv
-	| App(Ind _, params) ->
-	  let guard, tenv =
-	    Array.fold_left
-	      (fun (c,tenv) a ->
-		let a_tt, tenv' = term_trans_aux tenv a
-		in
-		DApp(c, a_tt), tenv')
-	      (guard,tenv) params in
-	  let applied_constr =
-            List.fold_right (fun v c -> DApp(c, DVar(Id v))) args constr in
-	  (*	  if m_induc.mind_finite
-		  then*)
-	  DApp(guard, applied_constr), tenv
-	(*	  else
-		  if laz then
-		  DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
-		  applied_constr), decls
-		  else applied_constr, decls*)
-	| Ind _ ->
-	  let applied_constr =
-	    List.fold_right (fun v c -> DApp(c, DVar(Id v))) args constr in
-	  (*	  if m_induc.mind_finite
-		  then*)
-	  DApp(guard, applied_constr), tenv
-	(*	  else if laz then
-		  DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
-		  applied_constr), decls
-		  else applied_constr, decls *)
-	| _ -> failwith "ill-formed type for a constructor"
-      in
-      let constr,tenv' = eta tenv [] constr_type in
-      Array.fold_left
-	(fun (c,d) a ->
-	  let a_tt, d = term_trans_aux d a in
-	  DApp(c, a_tt), d)
-	(constr,{tenv' with env = tenv.env}) args
-  in
 
   (* translation of an inductive type *)
   let trans_ind ind num args =
@@ -465,12 +463,12 @@ and term_trans_aux tenv t =
       (* first cases are a special case for the constructors *)
       App(Construct((ind,j), i), args) ->
 	let (mod_path,_,l) = repr_mind ind in
-        let r, te = trans_construct mod_path l ind j i args in
+        let r, te = trans_construct_aux false tenv mod_path l ind j i args in
 	r, { te with env = tenv.env }
 
     | Construct((ind,j), i) ->
       let (mod_path,_,l) = repr_mind ind in
-      let r, te = trans_construct mod_path l ind j i [||] in
+      let r, te = trans_construct_aux false tenv mod_path l ind j i [||] in
       r, { te with env = tenv.env }
 
     (* special cases for the inductives (no real need for it) *)
