@@ -911,7 +911,6 @@ let make_constr tenv params_num params_dec cons_name typ =
 	let v = fresh_var "c_arg_" in
 	let te' = { tenv' with
 	  env =  push_rel (Name (id_of_string v), None, t1) tenv.env }  in
-
 	  aux te' ((Id("var_"^v), t_tt1)::vars) (App(c,[|Var("var_" ^ v)|])) (0, t2)
     | 0, App(_,args) ->
 	let ind_num = Array.length args - params_num in
@@ -942,26 +941,26 @@ let make_constr tenv params_num params_dec cons_name typ =
   res, ind, vars, tenv
 
 (* Auxiliary function for make_constr_func_type *)
-let rec make_constr_func_type' cons_name num_treated num_param num_args = function
+let rec make_constr_func_type' cons_name num_treated num_param num_indices num_args = function
     Prod(n, t1, t2) ->
       Prod(n, t1,
-	   make_constr_func_type' cons_name num_treated num_param
+	   make_constr_func_type' cons_name num_treated num_param num_indices
 	     (num_args+1) t2)
   | App(_,args) ->
-      App(App(Rel (num_args + 1 + num_treated),
+      App(App(Rel (num_args + 1 + num_treated), (* P *)
 	      Array.init (Array.length args - num_param)
 			(fun i -> args.(i+ num_param))),
 		  [| App(Construct cons_name,
 			 Array.init (num_args+num_param)
 			   (fun i -> if i < num_param
-			    then Rel(num_args + 1 + num_treated + num_param - i)
+			    then Rel(num_args + 1 + num_treated + num_param + num_indices - i)
 			    else Rel(num_args + num_param - i))) |] )
   |  _ ->
 	      App(Rel (num_args + 1 + num_treated),
 		  [| App(Construct cons_name,
 			 Array.init (num_args+num_param)
 			   (fun i -> if i < num_param
-			    then Rel(num_args + 1 + num_treated + num_param - i)
+			    then Rel(num_args + 1 + num_treated + num_param + num_indices - i)
 			    else Rel(num_args + num_param - i))) |] )
 
 
@@ -971,14 +970,15 @@ let rec make_constr_func_type' cons_name num_treated num_param num_args = functi
      cons_name : name of the constructor
      num_treated : number of the constructor in the inductive definition
      num_param : number of parameters
-     type : type of the constructor
+     num_indices : number of indices
+     typ : type of the constructor
  *)
-let make_constr_func_type cons_name num_treated num_param typ =
+let make_constr_func_type cons_name num_treated num_param num_indices typ =
   let rec aux = function
       0, t -> make_constr_func_type' cons_name num_treated num_param
-	0 (lift num_treated t)
+        num_indices 0 (lift num_treated t)
     | n, Prod(_, t1, t2) ->
-	aux (n-1, subst1 (Rel(n+1)) t2)
+	aux (n-1, subst1 (Rel(n + num_indices + 1)) t2)
     | _ -> failwith "inductive translation: ill-formed constructor type"
   in aux (num_param, typ)
 
@@ -1000,14 +1000,14 @@ let packet_translation finite tenv ind params constr_types p =
     | te -> type_trans_aux tenv te
   in
   let n_params = List.length params in
+  let n_indices = List.length p.mind_arity_ctxt - n_params in
     (* Add the constructors to the environment  *)
   let indices = (* arguments that are not parameters *)
     let rec aux accu = function
 	0, _ -> List.rev accu
       | n, x :: q -> aux (x::accu) (n-1, q)
       | _ -> failwith "inductive translation: ill-formed arity"
-    in aux [] (List.length p.mind_arity_ctxt - n_params,
-	       p.mind_arity_ctxt)
+    in aux [] (n_indices, p.mind_arity_ctxt)
   in
   let constr_decl name c tenv =
     let c_tt, tenv' =
@@ -1015,69 +1015,70 @@ let packet_translation finite tenv ind params constr_types p =
       push_decl tenv' (declaration (Id name, c_tt) tenv') in
   let nb_constrs =  Array.length p.mind_consnames in
   let case_name = DVar (Id (string_of_id p.mind_typename ^ "__case")) in
-  let this_env as tenv1, param_vars, case_name =
+  let this_env, param_vars, case_name =
     List.fold_right
-      (fun (n,_,t) (te, vars, c) ->
+      (fun (_,_,t) (te, vars, c) ->
 	 let v = fresh_var "param_" in
-	 let te' = {te with env = push_rel (Name (id_of_string v), None, t) te.env} in
-	 let t_tt, decls' = type_trans_aux te t in
-	   te',(Id("var_"^v), t_tt)::vars, DApp(c, DVar (Id("var_"^v)))
+	 let t_tt, _ = type_trans_aux te t in
+	 let te = {te with env = push_rel (Name(id_of_string v), None, t) te.env} in
+         let param_id = Id("var_"^v) in
+	   te, (param_id, t_tt)::vars, DApp(c, DDot(DVar(param_id)))
       )
       params ({ tenv with decls = [] }, [], case_name)
   in
-  let this_env, p_var, case_name =
+  let this_env, indices_vars =
+    List.fold_right
+      (fun (_,_,t) (te, vars) ->
+	 let v = fresh_var "in_" in
+	 let t_tt, _ = type_trans_aux te t in
+	 let te = {te with env = push_rel (Name(id_of_string v), None, t) te.env} in
+         let indice_id = Id("var_"^v) in
+	   te, (indice_id, t_tt)::vars)
+       indices (this_env, [])
+  in
+  let this_env, p_var, case_rem = (* Build the return type. *)
     let v = fresh_var "P_" in
     let t = it_mkProd_or_LetIn
       (Prod(Name (id_of_string "i"),
             App(Ind(ind),
 		let n = List.length p.mind_arity_ctxt in
-		  Array.init n (fun i -> Rel (n-i))),
+                let idx i =
+                  if i < n_params
+                  then Rel(n + n_indices - i)
+                  else Rel(n - i)
+                in Array.init n idx),
 	    Term.Sort (Term.Type (Univ.Atom Univ.Set))))
-      indices in
-(*   let e = push_rel (Name (id_of_string v), None, t) env in
-    let t_tt, decls' = type_trans_aux true label env t this_decls in
-*)
-    let t_tt, te' = type_trans_aux this_env t in
-    let te' = {te' with env = push_rel (Name (id_of_string v), None, t) te'.env} in
-      te', (Id("var_"^v), t_tt),
-    DApp(case_name, DVar(Id("var_"^v)))
-
+      (snd (List.fold_right
+        (fun (n, c, t) (i, l) -> succ i, (n, c, liftn n_indices i t) :: l)
+        indices (1, []))) in
+    let t_tt, te = type_trans_aux this_env t in
+    let te = {te with env = push_rel (Name (id_of_string v), None, t) te.env} in
+      te, (Id("var_"^v), t_tt),
+    [ DVar(Id("var_"^v)) ]
   in
-  let _,(this_env as tenv1),func_vars, case_name = Array.fold_left
-    (fun (i,te,vars,c) cons_name  ->
+  let _,(this_env as tenv1),func_vars, case_rem = Array.fold_left
+    (fun (i,te,vars,cr) cons_name  ->
        let t = make_constr_func_type
-	 (ind, i+1) i n_params
+	 (ind, i+1) i n_params n_indices
 	 constr_types.(i) in
        let v = fresh_var "f_" in
        let t_tt, te' = type_trans_aux te t in
        let te' = {te' with env= push_rel (Name (id_of_string v), None, t) te'.env} in
-	 i+1,te',(Id("var_"^v), t_tt)::vars, DApp(c, DVar (Id("var_"^v)))
-    )
-    (0,this_env,[],case_name) p.mind_consnames
+	 i+1,te',(Id("var_"^v), t_tt)::vars, DVar(Id("var_"^v)) :: cr)
+    (0,this_env,[],case_rem) p.mind_consnames
   in
-  let _, this_env =
+  let _, this_env = (* Compile constructors' definitions. *)
     Array.fold_left
       (fun (i, te) cons_name ->
 	 i+1, constr_decl (string_of_id cons_name) constr_types.(i) te)
       (0,this_env) p.mind_consnames
   in
-  let _,indices_vars, this_env =
-    List.fold_right
-      (fun (a,_,t) (i,vars,te) ->
-	 let v = fresh_var "in_" in
-	 let t_tt, te' = type_trans_aux te (liftn (nb_constrs + 1) i t) in
-	 let te' = {te' with env  = push_rel (Name (id_of_string v), None, t) te'.env } in
-	   i+1,(Id("var_"^v), t_tt)::vars, te')
-       indices (1,[],this_env)
-  in
   let (m,_) as m_var, this_env =
     let v = fresh_var "m_" in
     let t = App(Ind(ind),
 		let n = List.length p.mind_arity_ctxt in
-		  Array.init n (fun i ->
-				  if i < n_params
-				  then Rel(n - i + nb_constrs + 1)
-				  else Rel(n-i)))
+                let idx i = Rel(n + nb_constrs + 1 - i) in
+                Array.init n idx)
     in
     let t_tt, te' = type_trans_aux this_env t in
     let te = {te' with env = push_rel (Name (id_of_string v), None, t) te'.env} in
@@ -1085,9 +1086,8 @@ let packet_translation finite tenv ind params constr_types p =
   in
   let end_type, this_env =
     term_trans_aux this_env (
-	App(Rel(nb_constrs + 1 + List.length indices),
-	    let n = List.length indices
-	    in Array.init n (fun i -> Rel(n-i)))
+	App(Rel(nb_constrs + 1),
+	    Array.init n_indices (fun i -> Rel(n_indices+1+nb_constrs-i)))
     ) in
   let end_type =
     DApp(DVar(Qid("Coq1univ","etype")),
@@ -1104,17 +1104,18 @@ let packet_translation finite tenv ind params constr_types p =
     | (v,t)::q -> add_binding_from_vars (DPi(v,t,c)) q
   in
   let i__case_dk_type = add_binding_from_vars
-    (let v,t = m_var in DPi(v,t,end_type)) indices_vars in
-  let i__case_dk_type = add_binding_from_vars i__case_dk_type func_vars in
-  let i__case_trans = add_binding_from_vars
-    (let v,t = p_var in DPi(v,t,i__case_dk_type)) param_vars in
-  let params_dec = nb_constrs + 1 in
+    (let v,t = m_var in DPi(v,t,end_type)) func_vars in
+  let i__case_dk_type = add_binding_from_vars
+    (let v,t = p_var in DPi(v,t,i__case_dk_type)) indices_vars in
+  let i__case_trans = add_binding_from_vars i__case_dk_type param_vars in
+  let params_dec = n_indices + nb_constrs + 1 in
     (* declaration of the __case type *)
   let this_env = push_decl this_env
     (declaration(
       Id (string_of_id p.mind_typename ^ "__case"),
       i__case_trans) this_env)
   in
+  let case_rem = List.rev case_rem in
   let _,this_env =
     Array.fold_left
       (fun (i, te) cons_name ->
@@ -1122,11 +1123,17 @@ let packet_translation finite tenv ind params constr_types p =
 	   make_constr te n_params params_dec
 	     (Construct (ind,i+1)) constr_types.(i) in
 	   i+1,
-	 { push_decl te' (rule(List.rev_append param_vars
+	 { push_decl te' (rule( (* ENV *) List.rev_append param_vars
 		(p_var::List.rev_append func_vars (List.rev c_vars)),
-	      DApp(Array.fold_left (fun c a -> DApp(c,a))
-		     case_name indices,
-		   constr),
+              (* LHS *)
+              begin
+                let app c a = DApp(c, a) in
+                let dapp c a = app c (DDot a) in
+                let case_name = Array.fold_left dapp case_name indices in
+                let case_name = List.fold_left app case_name case_rem in
+                DApp(case_name, constr)
+              end,
+              (* RHS *)
 	      match List.nth func_vars (List.length func_vars-i-1)
 	      with id,_ ->
 		List.fold_right (fun (v,_) c -> DApp(c, DVar v))
