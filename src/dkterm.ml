@@ -13,7 +13,7 @@ type dkterm =
 | DPi of qid * dkterm * dkterm
 | DFun of qid * dkterm * dkterm
 | DApp of dkterm * dkterm
-| Ddot of dkterm
+| DDot of dkterm
 
 type statement =
 | Declaration of qid * dkterm
@@ -31,7 +31,7 @@ let rec subst v t = function
   | DFun(i, ty, te) ->
       DFun(i, subst v t ty, subst v t te)
   | DApp(t1,t2) -> DApp(subst v t t1, subst v t t2)
-  | Ddot(te) -> Ddot(subst v t te)
+  | DDot(te) -> DDot(subst v t te)
   | t -> t
 
 
@@ -73,7 +73,7 @@ class prefix_pp = object (self)
     | DPi(n, t1, t2) -> self#pi_arr () ++ self#pr_binding (n,t1) ++ spc () ++ self#pr_dkterm t2
     | DFun(n, t1,t2) -> self#fun_arr () ++ self#pr_binding (n,t1) ++ spc () ++ self#pr_dkterm t2
     | DApp(t1,t2) -> str "@" ++ spc () ++ self#pr_dkterm t1 ++ spc () ++ self#pr_dkterm t2
-    | Ddot(t) -> str "{} " ++ self#pr_dkterm t
+    | DDot(t) -> str "{} " ++ self#pr_dkterm t
 
   method private pr_env = function
       [] -> str "[] "
@@ -117,7 +117,7 @@ class external_pp = object (self)
 		  ++ spc () ++ self#fun_arr () ++ spc () ++ self#pr_dkterm t2)
     | DApp (t1,t2) -> surround (self#pr_dkterm t1 ++ spc () ++
 				  self#pr_dkterm' t2)
-    | Ddot(t) -> hov 1 (str "{" ++ self#pr_dkterm' t ++ str "}")
+    | DDot(t) -> hov 1 (str "{" ++ self#pr_dkterm' t ++ str "}")
 
   method pr_binding (n, t) = self#pr_qid n ++ pr_colon () ++ self#pr_dkterm t
 
