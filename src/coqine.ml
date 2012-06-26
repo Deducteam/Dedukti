@@ -928,10 +928,18 @@ let make_constr tenv params_num params_dec cons_name typ =
 	(n-1, subst1 (Rel (params_dec + n)) t2)
     | _ -> failwith "inductive translation: ill-typed constructor"
   in
-  let tenv', c, ind, vars = aux tenv [] cons_name_with_params (params_num, typ)
-  in
-  let res, tenv = term_trans_aux { tenv' with env = tenv.env } c in
-    res, ind, vars, tenv
+  let tenv', c, ind, vars = aux tenv [] cons_name_with_params (params_num, typ) in
+  let trans_constr ind j i args =
+      let (mod_path,_,l) = repr_mind ind in
+      let te = { tenv' with env = tenv.env } in
+      let r, te' = trans_construct_aux true te mod_path l ind j i args in
+      r, { te' with env = te.env } in
+  let res, tenv =
+    match collapse_appl c with
+    | App(Construct((ind, j), i), args) -> trans_constr ind j i args
+    | Construct((ind, j), i) -> trans_constr ind j i [| |]
+    | _ -> failwith "Seems that I forgot one case." in
+  res, ind, vars, tenv
 
 (* Auxiliary function for make_constr_func_type *)
 let rec make_constr_func_type' cons_name num_treated num_param num_args = function
