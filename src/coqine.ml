@@ -251,8 +251,7 @@ let rule (vars, l ,r) tenv =
     | c -> List.fold_right (fun (i,t) c -> DApp(c,DVar i))
       tenv.functor_parameters c
   in
-  Rule(List.rev_append tenv.functor_parameters vars,
-       aux l, r)
+  (List.rev_append tenv.functor_parameters vars, aux l, r)
 
 
 (* id_with_path m p i return Dedukti variable corresponding to p.i *)
@@ -307,115 +306,113 @@ let rec app_rel_context tenv c =
        (Id v, t_tt)::vs, tenv, DApp(c,DVar (Id v))))
     tenv.env ~init:([], tenv, c)
 
+(* translation of a constructor, with guards
+   if the constructor is only partially applied, use eta-expansion
+*)
+and trans_construct_aux dotp tenv mod_path l ind j i args =
+  let ddot = if dotp then fun x -> DDot x else fun x -> x in
+  let m_induc =
+    try lookup_mind ind tenv.env
+    with Not_found -> failwith ("term translation: unknown inductive "^string_of_label l) in
+  let induc = m_induc.mind_packets.(j)
+  in
+  let name = string_of_id induc.mind_consnames.(i-1) in
+  let constr = id_with_path tenv mod_path name
+  and guard = id_with_path tenv mod_path (string_of_id induc.mind_typename ^ "__constr")
+  in
+  let constr_type = induc.mind_nf_lc.(i-1) in
+  try let applied_constr,tenv =
+        Array.fold_left
+          (fun (c,tenv') a ->
+            let a_tt, tenv = term_trans_aux { tenv' with env = tenv.env } a in
+            DApp(c, a_tt), tenv)
+          (constr,tenv) args in
+      let rec app_args = function
+        | Prod(_, _, t2), a::q ->
+          app_args (subst1 a t2, q)
+        | App(Rel _, params), [] ->
+          Array.fold_left
+            (fun (c,tenv) a ->
+              let a_tt, tenv = term_trans_aux tenv a
+              in
+              DApp(c, ddot a_tt), tenv)
+            (guard,tenv) params
+        | Rel _, [] ->
+          guard, tenv
+        | _ -> raise Partial_const
+      in
+      let guard_params, tenv =
+        app_args (constr_type, Array.to_list args)
+      in
+      (*	if m_induc.mind_finite
+              then*)
+      DApp(guard_params, applied_constr), tenv
+  (*	else
+      if laz
+      then DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
+      applied_constr), decls
+      else applied_constr, decls*)
+  with Partial_const ->
+    let sigma =
+      let rec aux = function
+        | 0 -> []
+        | n -> Ind(ind, n-1)::aux (n-1)
+      in aux m_induc.mind_ntypes
+    in
+    let constr_type = substl sigma constr_type in
+    let rec eta tenv args = function
+      | Prod(_, t1, t2) ->
+        let v = fresh_var "eta_" in
+        let tt_1, tenv' = type_trans_aux tenv t1 in
+        let tenv' =
+          { tenv' with
+            env = push_rel
+              (Name (id_of_string v), None, t1) tenv.env } in
+        let res, tenv = eta tenv' (("var_" ^ v)::args) t2 in
+        DFun(Id ("var_" ^ v), tt_1, res), tenv
+      | App(Ind _, params) ->
+        let guard, tenv =
+          Array.fold_left
+            (fun (c,tenv) a ->
+              let a_tt, tenv' = term_trans_aux tenv a
+              in
+              DApp(c, a_tt), tenv')
+            (guard,tenv) params in
+        let applied_constr =
+          List.fold_right (fun v c -> DApp(c, DVar(Id v))) args constr in
+        (*	  if m_induc.mind_finite
+                then*)
+        DApp(guard, applied_constr), tenv
+      (*	  else
+                if laz then
+                DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
+                applied_constr), decls
+                else applied_constr, decls*)
+      | Ind _ ->
+        let applied_constr =
+          List.fold_right (fun v c -> DApp(c, DVar(Id v))) args constr in
+        (*	  if m_induc.mind_finite
+                then*)
+        DApp(guard, applied_constr), tenv
+      (*	  else if laz then
+                DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
+                applied_constr), decls
+                else applied_constr, decls *)
+      | _ -> failwith "ill-formed type for a constructor"
+    in
+    let constr,tenv' = eta tenv [] constr_type in
+    Array.fold_left
+      (fun (c,d) a ->
+        let a_tt, d = term_trans_aux d a in
+        DApp(c, a_tt), d)
+      (constr,{tenv' with env = tenv.env}) args
+
 
 (* Translation of t as a term, given the current module path label, an
    environment e and a set of intermediary declarations decls (in
    reverse order). *)
 and term_trans_aux tenv t =
 
-
-  (* translation of a constructor, with guards
-     if the constructor is only partially applied, use eta-expansion
-  *)
-  let trans_construct mod_path l ind j i args =
-    let m_induc =
-      try lookup_mind ind tenv.env
-      with Not_found -> failwith ("term translation: unknown inductive "^string_of_label l) in
-    let induc = m_induc.mind_packets.(j)
-    in
-    let name = string_of_id induc.mind_consnames.(i-1) in
-    let constr = id_with_path tenv mod_path name
-    and guard = id_with_path tenv mod_path (string_of_id induc.mind_typename ^ "__constr")
-    in
-    let constr_type = induc.mind_nf_lc.(i-1) in
-    try let applied_constr,tenv =
-	  Array.fold_left
-	    (fun (c,tenv') a ->
-	      let a_tt, tenv = term_trans_aux { tenv' with env = tenv.env }
-		a
-	      in
-	      DApp(c, a_tt), tenv)
-	    (constr,tenv) args in
-	let rec app_args = function
-	  | Prod(_, _, t2), a::q ->
-	    app_args (subst1 a t2, q)
-	  | App(Rel _, params), [] ->
-	    Array.fold_left
-	      (fun (c,tenv) a ->
-		let a_tt, tenv = term_trans_aux tenv a
-		in
-		DApp(c, a_tt), tenv)
-	      (guard,tenv) params
-	  | Rel _, [] ->
-	    guard, tenv
-	  | _ -> raise Partial_const
-	in
-	let guard_params, tenv =
-	  app_args (constr_type, Array.to_list args)
-	in
-	(*	if m_induc.mind_finite
-		then*)
-	DApp(guard_params, applied_constr), tenv
-    (*	else
-	if laz
-	then DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
-	applied_constr), decls
-	else applied_constr, decls*)
-    with Partial_const ->
-      let sigma =
-	let rec aux = function
-	  | 0 -> []
-	  | n -> Ind(ind, n-1)::aux (n-1)
-	in aux m_induc.mind_ntypes
-      in
-      let constr_type = substl sigma constr_type in
-      let rec eta tenv args = function
-	| Prod(_, t1, t2) ->
-	  let v = fresh_var "eta_" in
-	  let tt_1, tenv' = type_trans_aux tenv t1 in
-	  let tenv' =
-	    { tenv' with
-	      env = push_rel
-		(Name (id_of_string v), None, t1) tenv.env } in
-	  let res, tenv = eta tenv' (("var_" ^ v)::args) t2 in
-	  DFun(Id ("var_" ^ v), tt_1, res), tenv
-	| App(Ind _, params) ->
-	  let guard, tenv =
-	    Array.fold_left
-	      (fun (c,tenv) a ->
-		let a_tt, tenv' = term_trans_aux tenv a
-		in
-		DApp(c, a_tt), tenv')
-	      (guard,tenv) params in
-	  let applied_constr =
-            List.fold_right (fun v c -> DApp(c, DVar(Id v))) args constr in
-	  (*	  if m_induc.mind_finite
-		  then*)
-	  DApp(guard, applied_constr), tenv
-	(*	  else
-		  if laz then
-		  DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
-		  applied_constr), decls
-		  else applied_constr, decls*)
-	| Ind _ ->
-	  let applied_constr =
-	    List.fold_right (fun v c -> DApp(c, DVar(Id v))) args constr in
-	  (*	  if m_induc.mind_finite
-		  then*)
-	  DApp(guard, applied_constr), tenv
-	(*	  else if laz then
-		  DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
-		  applied_constr), decls
-		  else applied_constr, decls *)
-	| _ -> failwith "ill-formed type for a constructor"
-      in
-      let constr,tenv' = eta tenv [] constr_type in
-      Array.fold_left
-	(fun (c,d) a ->
-	  let a_tt, d = term_trans_aux d a in
-	  DApp(c, a_tt), d)
-	(constr,{tenv' with env = tenv.env}) args
-  in
 
   (* translation of an inductive type *)
   let trans_ind ind num args =
@@ -465,12 +462,12 @@ and term_trans_aux tenv t =
       (* first cases are a special case for the constructors *)
       App(Construct((ind,j), i), args) ->
 	let (mod_path,_,l) = repr_mind ind in
-        let r, te = trans_construct mod_path l ind j i args in
+        let r, te = trans_construct_aux false tenv mod_path l ind j i args in
 	r, { te with env = tenv.env }
 
     | Construct((ind,j), i) ->
       let (mod_path,_,l) = repr_mind ind in
-      let r, te = trans_construct mod_path l ind j i [||] in
+      let r, te = trans_construct_aux false tenv mod_path l ind j i [||] in
       r, { te with env = tenv.env }
 
     (* special cases for the inductives (no real need for it) *)
@@ -539,7 +536,7 @@ and term_trans_aux tenv t =
 	   (Declaration(Id fresh_x, List.fold_left
 	     (fun c (x, t) -> DPi(x, t, c))
 	     t_ty dk_env)))
-	(Rule(List.rev dk_env, lhs, teq))
+	(RuleSet [List.rev dk_env, lhs, teq])
       in
       term_trans_aux new_env new_body
 
@@ -564,9 +561,7 @@ and term_trans_aux tenv t =
       let mp, _, _ = repr_mind (fst ind.ci_ind) in
       let r = ref (id_with_path tenv mp case_name)
       and d = ref tenv in
-      for i = 0 to ind.ci_npar - 1 do
-	(* We cannot use Array.fold_left since we only need
-	   the parameters. *)
+      for i = 0 to Array.length matched_args - 1 do
 	let arg_tt, tenv' =
 	  term_trans_aux !d matched_args.(i)  in
 	r := DApp(!r, arg_tt);
@@ -618,12 +613,6 @@ and term_trans_aux tenv t =
 	  r := DApp(!r, b_tt);
 	  d := tenv')
 	branches;
-      for i = ind.ci_npar to Array.length matched_args - 1 do
-	let arg_tt, tenv' =
-	  term_trans_aux !d matched_args.(i)  in
-	r := DApp(!r, arg_tt);
-	d := tenv'
-      done;
       let m_tt, tenv' = term_trans_aux !d matched in
       let m_tt =
 				(*	if mind_body.mind_finite
@@ -710,20 +699,20 @@ and term_trans_aux tenv t =
 			  (string_of_id name ^ "__constr")
 		      with Not_found -> failwith ("term translation: unknown inductive in structural argument")
 		    in
-		    let guard = Array.fold_left
+		    let guard f = Array.fold_left
 		      (fun c a ->
 			let a_tt, _ = term_trans_aux tenv a in
-			DApp(c, a_tt))
+			DApp(c, f a_tt))
 		      i__constr args
 		    in
-		    let last_arg = DApp(guard, DVar (Id s)) in
+		    let last_arg f = DApp(guard f, DVar (Id s)) in
 		    (* This is the final case, apply the recursive variable to
 		       f and create a rule f x1...xn --> rhs x1...xn. *)
 		    { tenv with decls =
-			rule(List.rev_append env_vars vars,
-			     DApp(fix, last_arg),
-			     DApp(rhs, last_arg)
-			) tenv'
+			RuleSet [rule(List.rev_append env_vars vars,
+			     DApp(fix, last_arg (fun x -> DDot x)),
+			     DApp(rhs, last_arg (fun x ->      x))
+			) tenv']
 			  ::tenv'.decls }
 		  | n, Prod(nom, a, t) ->
 		    let s = get_identifier_rel
@@ -931,7 +920,6 @@ let make_constr tenv params_num params_dec cons_name typ =
 	let v = fresh_var "c_arg_" in
 	let te' = { tenv' with
 	  env =  push_rel (Name (id_of_string v), None, t1) tenv.env }  in
-
 	  aux te' ((Id("var_"^v), t_tt1)::vars) (App(c,[|Var("var_" ^ v)|])) (0, t2)
     | 0, App(_,args) ->
 	let ind_num = Array.length args - params_num in
@@ -948,32 +936,40 @@ let make_constr tenv params_num params_dec cons_name typ =
 	(n-1, subst1 (Rel (params_dec + n)) t2)
     | _ -> failwith "inductive translation: ill-typed constructor"
   in
-  let tenv', c, ind, vars = aux tenv [] cons_name_with_params (params_num, typ)
-  in
-  let res, tenv = term_trans_aux { tenv' with env = tenv.env } c in
-    res, ind, vars, tenv
+  let tenv', c, ind, vars = aux tenv [] cons_name_with_params (params_num, typ) in
+  let trans_constr ind j i args =
+      let (mod_path,_,l) = repr_mind ind in
+      let te = { tenv' with env = tenv.env } in
+      let r, te' = trans_construct_aux true te mod_path l ind j i args in
+      r, { te' with env = te.env } in
+  let res, tenv =
+    match collapse_appl c with
+    | App(Construct((ind, j), i), args) -> trans_constr ind j i args
+    | Construct((ind, j), i) -> trans_constr ind j i [| |]
+    | _ -> failwith "Seems that I forgot one case." in
+  res, ind, vars, tenv
 
 (* Auxiliary function for make_constr_func_type *)
-let rec make_constr_func_type' cons_name num_treated num_param num_args = function
+let rec make_constr_func_type' cons_name num_treated num_param num_indices num_args = function
     Prod(n, t1, t2) ->
       Prod(n, t1,
-	   make_constr_func_type' cons_name num_treated num_param
+	   make_constr_func_type' cons_name num_treated num_param num_indices
 	     (num_args+1) t2)
   | App(_,args) ->
-      App(App(Rel (num_args + 1 + num_treated),
+      App(App(Rel (num_args + 1 + num_treated), (* P *)
 	      Array.init (Array.length args - num_param)
 			(fun i -> args.(i+ num_param))),
 		  [| App(Construct cons_name,
 			 Array.init (num_args+num_param)
 			   (fun i -> if i < num_param
-			    then Rel(num_args + 1 + num_treated + num_param - i)
+			    then Rel(num_args + 1 + num_treated + num_param + num_indices - i)
 			    else Rel(num_args + num_param - i))) |] )
   |  _ ->
 	      App(Rel (num_args + 1 + num_treated),
 		  [| App(Construct cons_name,
 			 Array.init (num_args+num_param)
 			   (fun i -> if i < num_param
-			    then Rel(num_args + 1 + num_treated + num_param - i)
+			    then Rel(num_args + 1 + num_treated + num_param + num_indices - i)
 			    else Rel(num_args + num_param - i))) |] )
 
 
@@ -983,14 +979,15 @@ let rec make_constr_func_type' cons_name num_treated num_param num_args = functi
      cons_name : name of the constructor
      num_treated : number of the constructor in the inductive definition
      num_param : number of parameters
-     type : type of the constructor
+     num_indices : number of indices
+     typ : type of the constructor
  *)
-let make_constr_func_type cons_name num_treated num_param typ =
+let make_constr_func_type cons_name num_treated num_param num_indices typ =
   let rec aux = function
       0, t -> make_constr_func_type' cons_name num_treated num_param
-	0 (lift num_treated t)
+        num_indices 0 (lift num_treated t)
     | n, Prod(_, t1, t2) ->
-	aux (n-1, subst1 (Rel(n+1)) t2)
+	aux (n-1, subst1 (Rel(n + num_indices + 1)) t2)
     | _ -> failwith "inductive translation: ill-formed constructor type"
   in aux (num_param, typ)
 
@@ -1012,14 +1009,14 @@ let packet_translation finite tenv ind params constr_types p =
     | te -> type_trans_aux tenv te
   in
   let n_params = List.length params in
+  let n_indices = List.length p.mind_arity_ctxt - n_params in
     (* Add the constructors to the environment  *)
   let indices = (* arguments that are not parameters *)
     let rec aux accu = function
 	0, _ -> List.rev accu
       | n, x :: q -> aux (x::accu) (n-1, q)
       | _ -> failwith "inductive translation: ill-formed arity"
-    in aux [] (List.length p.mind_arity_ctxt - n_params,
-	       p.mind_arity_ctxt)
+    in aux [] (n_indices, p.mind_arity_ctxt)
   in
   let constr_decl name c tenv =
     let c_tt, tenv' =
@@ -1027,69 +1024,70 @@ let packet_translation finite tenv ind params constr_types p =
       push_decl tenv' (declaration (Id name, c_tt) tenv') in
   let nb_constrs =  Array.length p.mind_consnames in
   let case_name = DVar (Id (string_of_id p.mind_typename ^ "__case")) in
-  let this_env as tenv1, param_vars, case_name =
+  let this_env, param_vars, case_name =
     List.fold_right
-      (fun (n,_,t) (te, vars, c) ->
+      (fun (_,_,t) (te, vars, c) ->
 	 let v = fresh_var "param_" in
-	 let te' = {te with env = push_rel (Name (id_of_string v), None, t) te.env} in
-	 let t_tt, decls' = type_trans_aux te t in
-	   te',(Id("var_"^v), t_tt)::vars, DApp(c, DVar (Id("var_"^v)))
+	 let t_tt, _ = type_trans_aux te t in
+	 let te = {te with env = push_rel (Name(id_of_string v), None, t) te.env} in
+         let param_id = Id("var_"^v) in
+	   te, (param_id, t_tt)::vars, DApp(c, DDot(DVar(param_id)))
       )
       params ({ tenv with decls = [] }, [], case_name)
   in
-  let this_env, p_var, case_name =
+  let this_env, indices_vars =
+    List.fold_right
+      (fun (_,_,t) (te, vars) ->
+	 let v = fresh_var "in_" in
+	 let t_tt, _ = type_trans_aux te t in
+	 let te = {te with env = push_rel (Name(id_of_string v), None, t) te.env} in
+         let indice_id = Id("var_"^v) in
+	   te, (indice_id, t_tt)::vars)
+       indices (this_env, [])
+  in
+  let this_env, p_var, case_rem = (* Build the return type. *)
     let v = fresh_var "P_" in
     let t = it_mkProd_or_LetIn
       (Prod(Name (id_of_string "i"),
             App(Ind(ind),
 		let n = List.length p.mind_arity_ctxt in
-		  Array.init n (fun i -> Rel (n-i))),
+                let idx i =
+                  if i < n_params
+                  then Rel(n + n_indices - i)
+                  else Rel(n - i)
+                in Array.init n idx),
 	    Term.Sort (Term.Type (Univ.Atom Univ.Set))))
-      indices in
-(*   let e = push_rel (Name (id_of_string v), None, t) env in
-    let t_tt, decls' = type_trans_aux true label env t this_decls in
-*)
-    let t_tt, te' = type_trans_aux this_env t in
-    let te' = {te' with env = push_rel (Name (id_of_string v), None, t) te'.env} in
-      te', (Id("var_"^v), t_tt),
-    DApp(case_name, DVar(Id("var_"^v)))
-
+      (snd (List.fold_right
+        (fun (n, c, t) (i, l) -> succ i, (n, c, liftn n_indices i t) :: l)
+        indices (1, []))) in
+    let t_tt, te = type_trans_aux this_env t in
+    let te = {te with env = push_rel (Name (id_of_string v), None, t) te.env} in
+      te, (Id("var_"^v), t_tt),
+    [ DVar(Id("var_"^v)) ]
   in
-  let _,(this_env as tenv1),func_vars, case_name = Array.fold_left
-    (fun (i,te,vars,c) cons_name  ->
+  let _,(this_env as tenv1),func_vars, case_rem = Array.fold_left
+    (fun (i,te,vars,cr) cons_name  ->
        let t = make_constr_func_type
-	 (ind, i+1) i n_params
+	 (ind, i+1) i n_params n_indices
 	 constr_types.(i) in
        let v = fresh_var "f_" in
        let t_tt, te' = type_trans_aux te t in
        let te' = {te' with env= push_rel (Name (id_of_string v), None, t) te'.env} in
-	 i+1,te',(Id("var_"^v), t_tt)::vars, DApp(c, DVar (Id("var_"^v)))
-    )
-    (0,this_env,[],case_name) p.mind_consnames
+	 i+1,te',(Id("var_"^v), t_tt)::vars, DVar(Id("var_"^v)) :: cr)
+    (0,this_env,[],case_rem) p.mind_consnames
   in
-  let _, this_env =
+  let _, this_env = (* Compile constructors' definitions. *)
     Array.fold_left
       (fun (i, te) cons_name ->
 	 i+1, constr_decl (string_of_id cons_name) constr_types.(i) te)
       (0,this_env) p.mind_consnames
   in
-  let _,indices_vars, this_env =
-    List.fold_right
-      (fun (a,_,t) (i,vars,te) ->
-	 let v = fresh_var "in_" in
-	 let t_tt, te' = type_trans_aux te (liftn (nb_constrs + 1) i t) in
-	 let te' = {te' with env  = push_rel (Name (id_of_string v), None, t) te'.env } in
-	   i+1,(Id("var_"^v), t_tt)::vars, te')
-       indices (1,[],this_env)
-  in
   let (m,_) as m_var, this_env =
     let v = fresh_var "m_" in
     let t = App(Ind(ind),
 		let n = List.length p.mind_arity_ctxt in
-		  Array.init n (fun i ->
-				  if i < n_params
-				  then Rel(n - i + nb_constrs + 1)
-				  else Rel(n-i)))
+                let idx i = Rel(n + nb_constrs + 1 - i) in
+                Array.init n idx)
     in
     let t_tt, te' = type_trans_aux this_env t in
     let te = {te' with env = push_rel (Name (id_of_string v), None, t) te'.env} in
@@ -1097,9 +1095,8 @@ let packet_translation finite tenv ind params constr_types p =
   in
   let end_type, this_env =
     term_trans_aux this_env (
-	App(Rel(nb_constrs + 1 + List.length indices),
-	    let n = List.length indices
-	    in Array.init n (fun i -> Rel(n-i)))
+	App(Rel(nb_constrs + 1),
+	    Array.init n_indices (fun i -> Rel(n_indices+1+nb_constrs-i)))
     ) in
   let end_type =
     DApp(DVar(Qid("Coq1univ","etype")),
@@ -1116,36 +1113,43 @@ let packet_translation finite tenv ind params constr_types p =
     | (v,t)::q -> add_binding_from_vars (DPi(v,t,c)) q
   in
   let i__case_dk_type = add_binding_from_vars
-    (let v,t = m_var in DPi(v,t,end_type)) indices_vars in
-  let i__case_dk_type = add_binding_from_vars i__case_dk_type func_vars in
-  let i__case_trans = add_binding_from_vars
-    (let v,t = p_var in DPi(v,t,i__case_dk_type)) param_vars in
-  let params_dec = nb_constrs + 1 in
+    (let v,t = m_var in DPi(v,t,end_type)) func_vars in
+  let i__case_dk_type = add_binding_from_vars
+    (let v,t = p_var in DPi(v,t,i__case_dk_type)) indices_vars in
+  let i__case_trans = add_binding_from_vars i__case_dk_type param_vars in
+  let params_dec = n_indices + nb_constrs + 1 in
     (* declaration of the __case type *)
   let this_env = push_decl this_env
     (declaration(
       Id (string_of_id p.mind_typename ^ "__case"),
       i__case_trans) this_env)
   in
-  let _,this_env =
+  let case_rem = List.rev case_rem in
+  let te = { this_env with env = tenv1.env } in
+  let _,rs =
     Array.fold_left
-      (fun (i, te) cons_name ->
+      (fun (i, rs) cons_name ->
 	 let constr, indices, c_vars, te' =
 	   make_constr te n_params params_dec
 	     (Construct (ind,i+1)) constr_types.(i) in
-	   i+1,
-	 { push_decl te' (rule(List.rev_append param_vars
-		(p_var::List.rev_append func_vars (List.rev c_vars)),
-	      DApp(Array.fold_left (fun c a -> DApp(c,a))
-		     case_name indices,
-		   constr),
-	      match List.nth func_vars (List.length func_vars-i-1)
-	      with id,_ ->
-		List.fold_right (fun (v,_) c -> DApp(c, DVar v))
-		  c_vars (DVar id)
-	   ) te') with env = te.env })
-	   (0,{this_env with env = tenv1.env}) p.mind_consnames in
-    { tenv with decls =  List.append this_env.decls tenv.decls}
+	 i+1,
+	 (rule((* ENV *) List.rev_append param_vars
+	    (p_var::List.rev_append func_vars (List.rev c_vars)),
+            (* LHS *)
+            begin
+              let app c a = DApp(c, a) in
+              let dapp c a = app c (DDot a) in
+              let case_name = Array.fold_left dapp case_name indices in
+              let case_name = List.fold_left app case_name case_rem in
+              DApp(case_name, constr)
+            end,
+            (* RHS *)
+            match List.nth func_vars (List.length func_vars-i-1)
+            with id,_ ->
+              List.fold_right (fun (v,_) c -> DApp(c, DVar v))
+                c_vars (DVar id)) te') :: rs)
+	   (0,[]) p.mind_consnames in
+    { tenv with decls =  RuleSet rs :: te.decls @ tenv.decls}
 
 
 
@@ -1210,7 +1214,7 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 	    (fun a c -> DApp(c,a)) sup_args tterm
 	  in
           push_decl (push_decl type_tenv (declaration(id, ttype) type_tenv))
-		 (rule([],DVar id, tterm) type_tenv)
+		 (RuleSet [rule([],DVar id, tterm) type_tenv])
 
        | SFBmind m ->
 	 let mind = make_mind tenv.mp empty_dirpath label in
@@ -1233,8 +1237,8 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 		(fun (j, te) consname ->
 		  j + 1,
 		 let t,te = type_trans_aux te constr_types.(j)  in
-		 push_decl (push_decl te (rule([], DVar (Id consname),
-					       id_with_path te mp_src consname) te))
+		 push_decl (push_decl te (RuleSet [rule([], DVar (Id consname),
+					       id_with_path te mp_src consname) te]))
 		   (declaration(Id consname, t) te))
 		(0, te) p.mind_consnames in
 	      te
@@ -1271,14 +1275,14 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 		let type_name = string_of_id p.mind_typename in
 		{te' with decls = declaration(Id type_name,
 					      t) te'
-		     ::rule([], DVar (Id type_name),
-			    id_with_path te' mp_src type_name) te'
+		     ::RuleSet [rule([], DVar (Id type_name),
+			    id_with_path te' mp_src type_name) te']
 			 ::
 			   (if m.mind_finite then
 			       declaration(Id (type_name ^ "__constr"),
 					   t__constr) te'
-			       :: rule([], DVar (Id (type_name ^ "__constr")),
-				       id_with_path te' mp_src (type_name ^ "__constr")) te'
+			       :: RuleSet [rule([], DVar (Id (type_name ^ "__constr")),
+				       id_with_path te' mp_src (type_name ^ "__constr")) te']
 				   :: te'.decls else te'.decls)}, i+1)
 	      m.mind_packets (te,1))
        | SFBmodule mb ->
@@ -1344,7 +1348,7 @@ and sb_decl_trans tenv (label, decl) =
 			   term_trans_aux tenv c
                          in
 			 push_decl (push_decl tenv (declaration(id, ttype) tenv))
-			   (rule([],DVar id, tterm) tenv)
+			   (RuleSet [rule([],DVar id, tterm) tenv])
 	in
 	{ tenv with env =
 	    Environ.add_constant
@@ -1493,3 +1497,6 @@ and mb_trans tenv mb =
   match mb.mod_expr with
       Some s -> seb_trans tenv s
     | None -> failwith "empty module body"
+
+(* vi: nolist: sw=2
+*)

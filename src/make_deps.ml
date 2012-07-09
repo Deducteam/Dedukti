@@ -40,31 +40,12 @@ let translate filename =
     let (md:Check.library_disk) = Marshal.from_channel channel in
       close_in channel;
       (* Putting dependancies in the environment *)
-      print_string  (path_to_string md.md_name ".dko" ^ ":");
+      print_string  (path_to_string md.md_name ".lua" ^ ":");
       let needed = md.md_deps in
 	List.iter
 	  (fun (dir,m) ->
-	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".dko"))
+	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".lua"))
 	  needed;
-	print_endline " Coq1univ.dko";
-        print_string  (path_to_string md.md_name ".o" ^ ":");
-	List.iter
-	  (fun (dir,m) ->
-	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".o"))
-	  needed;
-	print_endline " Coq1univ.o";
-	print_endline
-	  (path_to_string md.md_name (": " ^ path_to_string md.md_name ".o"));
-	print_string ("\tdkrun " ^ path_to_string md.md_name ".dko");
-	print_string " Coq1univ.dko";
-	List.iter
-	  (fun (dir,m) ->
-	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".dko"))
-	  needed;
-	print_newline();
-	print_endline
-	  (path_to_string md.md_name (".camelide: " ^ path_to_string md.md_name ".dk"));
-	print_string ("\t${CAMELIDE} " ^ path_to_string md.md_name ".dk");
 	print_newline()
 
 
