@@ -220,7 +220,7 @@ get_identifier_rel (Environ.rel_context e)
 let name_to_qid n = Id (get_identifier n)
 
 
-(* Hash table containing already defined closed fixpoints *)
+(* Hash table containing already defined fixpoints *)
 let fix_tbl = Hashtbl.create 100
 
 
@@ -332,7 +332,7 @@ and term_trans_aux tenv t =
 	  Array.fold_left
 	    (fun (c,tenv') a ->
 	      let a_tt, tenv = term_trans_aux { tenv' with env = tenv.env }
-						  a
+		a
 	      in
 	      DApp(c, a_tt), tenv)
 	    (constr,tenv) args in
@@ -517,11 +517,11 @@ and term_trans_aux tenv t =
 	    t_tt2), tenv'
 
     | LetIn (var, eq, ty, body)  ->
-(* let x : T = A in B in [H1 : T1, ..., Hn : Tn] is translated as
-   fresh_x : H1 : ||T1|| -> ... Hn : ||Tn|| -> ||T||.
-   [H1 : ||T1||, ..., Hn : ||Tn||] fresh_x H1 Hn --> A.
-   |B| where x is replaced by fresh_x H1 Hn
-*)
+      (* let x : T = A in B in [H1 : T1, ..., Hn : Tn] is translated as
+	 fresh_x : H1 : ||T1|| -> ... Hn : ||Tn|| -> ||T||.
+	 [H1 : ||T1||, ..., Hn : ||Tn||] fresh_x H1 Hn --> A.
+	 |B| where x is replaced by fresh_x H1 Hn
+      *)
       let fresh_x = fresh_var ("let_" ^ name_to_string var ^ "_") in
       let dk_env, tenv', lhs =
 	app_rel_context tenv (DVar (Id fresh_x)) in
@@ -626,15 +626,19 @@ and term_trans_aux tenv t =
       done;
       let m_tt, tenv' = term_trans_aux !d matched in
       let m_tt =
-			(*	if mind_body.mind_finite
-				then *) m_tt
+				(*	if mind_body.mind_finite
+					then *) m_tt
       (*else DApp(m_tt, DVar(Qid("Coq1univ", "force")))*)
       in
       DApp(!r, m_tt), { tenv' with env = tenv.env }
 
     | Fix(((struct_arg_nums, num_def),(names, body_types, body_terms))as fix)
       -> begin
-	try Hashtbl.find fix_tbl fix, tenv with
+	let nb_def = Array.length names in
+	let env_length = - (List.length (rel_context tenv.env)) in
+	let rel_types = Array.map (liftn env_length (1+nb_def)) body_types and
+	    rel_terms = Array.map (liftn env_length (1+nb_def)) body_terms in
+	try Hashtbl.find fix_tbl (rel_types,rel_terms,num_def), tenv with
 	    Not_found ->
 	      (* If the bodies of the fixpoints are closed, we do not need
 		 to add the context, and we can use the hashtable. *)
@@ -654,10 +658,9 @@ and term_trans_aux tenv t =
 		  | Anonymous -> fresh_var "fix_"
 		)
 		names in
-	      (* Translation of one inductive fixpoint. *)
-	      let one_trans struct_arg_num name body_type body_term tenv =
-		(* Declare the type of the fixpoint function. *)
-		let tenv' =
+	      (* first push declarations of the fixpoint functions *)
+	      let tenv',_ =
+		Array.fold_left (fun (tenv,i) body_type ->
 		  let t, tenv' = type_trans_aux
 		    { tenv with env =
 			change_rel_context tenv.env env_context }
@@ -665,15 +668,19 @@ and term_trans_aux tenv t =
 		       body_type
 		       fixpoint_context
 		    ) in
-		  push_decl tenv'(declaration(Id name, t) tenv')
-		in
+		  push_decl tenv' (declaration(Id names.(i), t) tenv'), i+1
+		) (tenv, 0) body_types in
+	      let tenv = {tenv' with env = tenv.env }
+	      in
+	      (* Translation of one inductive fixpoint. *)
+	      let one_trans struct_arg_num name body_type body_term tenv =
 		(* Recursively applies all the variables in the context at the
 		   point of the fixpoint definition down to the recursive
 		   variable, and creates a rule outside of the current context. *)
 		let env_vars, tenv', fix =
 		  if closed
-		  then [], tenv', DVar(Id name)
-		  else app_rel_context {tenv' with env = tenv.env}
+		  then [], {tenv with env = change_rel_context tenv.env env_context}, DVar(Id name)
+		  else app_rel_context tenv
 		    (DVar(Id name)) in
 		let rec make_rule tenv vars fix rhs = function
 		  | 0, Prod(n, a, _) ->
@@ -769,14 +776,17 @@ and term_trans_aux tenv t =
 		(0,tenv) struct_arg_nums in
 	      (* The term corresponding to the fix point is the identifier
 		 to which the context is applied. *)
-	      let _, tenv, t =
-		if closed
-		then [], {tenv' with env = tenv.env}, DVar(Id names.(num_def))
-		else app_rel_context {tenv' with env = tenv.env}
-		  (DVar(Id names.(num_def)))
-	      in
-	      if closed then Hashtbl.add fix_tbl fix t;
-	      t, tenv
+	      let _, tenv = Array.fold_left (fun (i,tenv') name ->
+		let _, tenv, t =
+		  if closed
+		  then [], {tenv' with env = tenv.env}, DVar(Id names.(num_def))
+		  else app_rel_context {tenv' with env = tenv.env}
+		    (DVar(Id name))
+		in
+		Hashtbl.add fix_tbl (rel_types,rel_terms,i) t;
+		i+1, tenv
+	      ) (0,tenv') names in
+	      Hashtbl.find fix_tbl (rel_types,rel_terms,num_def), tenv
       end
 
     | CoFix (num_def, (names, body_types, body_terms)) ->
@@ -1397,8 +1407,8 @@ and sb_decl_trans tenv (label, decl) =
 		     declaration(Id (string_of_id p.mind_typename ^ "__constr"),
 				  t__constr) te'::c_decls
 		 else c_decls in
-	       te', n_decls, c_decls, i+1)
-	     m.mind_packets (tenv,[],[],1))
+	       te', n_decls, c_decls, i-1)
+	     m.mind_packets (tenv,[],[],Array.length m.mind_packets))
 	in
 	let tenv = List.fold_left push_decl
 	  (List.fold_left push_decl tenv n_decls) c_decls
