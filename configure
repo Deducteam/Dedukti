@@ -7,7 +7,7 @@
 ##################################
 
 VERSION=trunk
-VOMAGIC=08211
+VOMAGIC=08300
 STATEMAGIC=58211
 DATE=`LANG=C date +"%B %Y"`
 
