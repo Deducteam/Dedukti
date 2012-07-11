@@ -1,11 +1,9 @@
-Module Type Int.
-Parameter int : Set.
-End Int.
+Axiom A : Set.
 
-Module MoreInt(I : Int).
-Import I.
+Definition id_A := fun x: A => x.
 
-Inductive E :  Set :=
-raw : int -> E.
-End MoreInt.
+Definition morph_A :=  A -> A.
 
+Theorem p : morph_A.
+exact id_A.
+Qed.
