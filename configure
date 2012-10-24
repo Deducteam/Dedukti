@@ -507,6 +507,27 @@ case $ARCH in
     fi
 esac
 
+
+# Search for coq library
+if [ -f `which locate` ]
+then
+    COQLIB=`locate -n 1 -r "coq/theories"`
+fi
+
+while test "$COQLIB" != "quit" -a ! -e "$COQLIB/Init/Logic.vo"
+do
+    echo "Coq library not found. Please enter its location (coq/theories directory, enter quit to abort):"
+    read COQLIB
+done
+
+if [ -e "$COQLIB/Init/Logic.vo" ]
+then
+    echo "Coq library found in $COQLIB"
+else
+    COQLIB=""
+    echo "Not setting Coq library path."
+fi
+
 # "
 ### Test if documentation can be compiled (latex, hevea)
 
@@ -626,6 +647,7 @@ echo "  Camlp4 library in                 : $CAMLP4LIB"
 if test "$best_compiler" = opt ; then
 echo "  Native dynamic link support       : $HASNATDYNLINK"
 fi
+echo "  Coq library path                  : $COQLIB"
 if test "$with_doc" = "all"; then
 echo "  Documentation                     : All"
 else
@@ -736,6 +758,7 @@ let compile_date = "$COMPILEDATE"
 let vo_magic_number = $VOMAGIC
 let state_magic_number = $STATEMAGIC
 let exec_extension = "$EXE"
+let coq_library_path = "$COQLIB"
 
 END_OF_COQINE_CONFIG
 

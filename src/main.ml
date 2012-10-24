@@ -69,7 +69,11 @@ let _ =
   (try
      let coqlib = Sys.getenv "COQLIB" in
      add_rec_path coqlib (make_dirpath ["Coq"]);
-     Printf.fprintf stderr "Using %s as Coq standard library\n" coqlib
-   with Not_found -> ());
+     Printf.fprintf stderr "Using %s as Coq standard library (set by $COQLIB)\n" coqlib
+   with Not_found ->
+     if Coqine_config.coq_library_path <> "" then
+       (add_rec_path Coqine_config.coq_library_path (make_dirpath ["Coq"]);
+	Printf.fprintf stderr "Using %s as Coq standard library (set at compile time)\n" Coqine_config.coq_library_path)
+  );
   Arg.parse speclist translate
     "CoqInE\nUsage: coqine [options] filenames\n\nIf you want to use the coq library,\nuse --root Coq -I path_to_coq_dir_theories\n\nfilenames:\tcoq binary files (.vo)\n\noptions:"

@@ -46,3 +46,5 @@ val exec_extension : string (* "" under Unix, ".exe" under MS-windows *)
 
 val has_natdynlink : bool
 val natdynlinkflag : string (* special cases of natdynlink (e.g. MacOS 10.5) *)
+
+val coq_library_path : string (* path to the Coq library *)
