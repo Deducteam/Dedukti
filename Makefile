@@ -35,7 +35,7 @@ CAMLP4USE=sed -n -e 's@^(\*.*camlp4use: "\(.*\)".*\*)@\1@p'
 
 DEPFLAGS:= $(MLINCLUDES) -pp $(CAMLP4O)
 
-all: $(BINARIES)
+all: $(BINARIES) t/Coq1univ.lua
 
 byte : ./bin/coqine.byte$(EXE)
 opt : ./bin/coqine$(EXE)
@@ -105,6 +105,15 @@ endif
 
 %.cmx: %.ml4 | %.ml4.ml.d %.ml4.d
 	$(OCAMLOPT) $(OPTFLAGS) -pp "$(CAMLP4O) `$(CAMLP4USE) $<` `$(CAMLP4DEPS) $<` $(CAMLP4COMPAT) -impl" -c -impl $<
+
+%.lua: %.dk
+	dedukti $< > $@
+
+%.dk: %.vo
+	./bin/coqine -h $<
+
+%.vo: %.v
+	coqc $<
 
 .PHONY: cleanconfig depclean clean distclean
 
