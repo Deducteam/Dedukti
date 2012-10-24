@@ -28,8 +28,9 @@ let array_forall p a =
 
 (* resetting the rel_context of an environment *)
 let change_rel_context e rel =
+  let pre_env = Environ.pre_env e in
   Environ.env_of_pre_env
-    { Environ.pre_env e with
+    { pre_env with
       Pre_env.env_rel_context = rel }
 
 
@@ -1403,7 +1404,7 @@ and sb_decl_trans tenv (label, decl) =
 		 )
 	       in
 	       let n_decls =
-		 declaration(Id string_of_id p.mind_typename,
+		 declaration(Id (string_of_id p.mind_typename),
 			     t) te'::n_decls
 	       in
 	       let c_decls =
