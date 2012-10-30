@@ -1,6 +1,10 @@
 open Types
 open LuaGenerationBase
 
+let iteri f lst = (* OCaml v4.0 List.iteri *)
+  let i = ref 0 in
+    List.iter (fun a -> f !i a ; incr i) lst
+
 let new_pMat rules : pMat = 
     let rows = Array.length rules   in
       assert (rows>0);
@@ -25,9 +29,9 @@ let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : pMat option =
         let a = Array.make l_size ([],Type) in
         let l = Array.make c_size [] in
 
-          (try List.iteri (fun i k -> a.(i) <- pm.a.(k) ) lines with _ -> assert false);
+          (try iteri (fun i k -> a.(i) <- pm.a.(k) ) lines with _ -> assert false);
 
-          List.iteri (
+          iteri (
             fun i k ->
               assert (k < Array.length pm.p && c < Array.length pm.p.(k));
               (match pm.p.(k).(c) with
@@ -81,23 +85,10 @@ let default (pm:pMat) (c:int) : pMat option =
 
 let print_path p = 
     assert(p!=[]);
-    List.iteri ( fun i e ->
+    iteri ( fun i e ->
                    if i=0 then ( emit "y" ; emit_int (e+1) )
                    else ( emit ".args[" ; emit_int (e+1) ; emit "]" )
     ) (List.rev p) (*FIXME*)
-
-     (* 
-let rec get_locs vars locs : (id*int list) list =
-  assert (Array.length vars = Array.length locs);
-  let ret = ref [] in 
-    for i=0 to pred (Array.length vars) do
-      match vars.(i) with
-        | Id v          -> ret := (v,locs.(i))::!ret
-        | Pat(_,_,pats) -> 
-            ret := ( (get_locs pats (Array.init (Array.length pats) (fun j -> j::locs.(i))))@(!ret) )
-    done;
-    !ret
-      *)
 
 let print_locals vars locs = 
   assert (Array.length vars = Array.length locs);
@@ -116,24 +107,6 @@ let print_locals vars locs =
         emit "\n"
       end
        
-(*
-let print_locals ctx locs = 
-  assert (List.length ctx = Array.length locs);
-  if Array.length locs = 0 then ()
-  else (
-    printf "local ";
-    List.iteri ( 
-      fun i (id,_) -> if i=0 then printf "%s_c" id else printf ",%s_c" id 
-    ) ctx;
-    printf " = ";
-    Array.iteri ( 
-      fun i l -> 
-        (if i=0 then () else printf ","  );
-        print_path l
-    ) locs;
-    printf "\n"
-  )
- *)
 let getColumn arr =
     let rec aux i =
       if i < Array.length arr then

@@ -42,7 +42,7 @@ let main str =
     let _ = set_name str        in
     let lexbuf = Lexing.from_channel file in
       LuaGenerationBase.emit ("--[[ Code for module "^(!Global.name)^". ]]\n");
-      LuaGenerationBase.emit ("local "^(!Global.name)^" = { }\n\n") ; 
+      LuaGenerationBase.emit ((!Global.name)^" = { }\n\n") ; 
       parse lexbuf
   with 
     | Error err         -> error (Debug.string_of_err err)
