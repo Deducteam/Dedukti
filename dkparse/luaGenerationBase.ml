@@ -11,8 +11,8 @@ let emit_int i = output_string !Global.out (string_of_int i)    (*print_int i*)
 (* Code Generation corresponding to a declaration *)
 
 let rec get_vars a s = function
-  | Lam (x,_,t)   -> get_vars (a+1) (s^",_"^x) t
-  | _             -> (a,s)
+  | Lam (x,_,t)   -> get_vars (a+1) (s^","^x^"_c") t
+  | te            -> (a,s,te)
 
 let rec gen_code = function
   | Type                -> emit "{ ck = ctype }"
@@ -22,13 +22,13 @@ let rec gen_code = function
   | App (f,a)           -> ( emit "ap(" ; gen_code f ; emit ", " ; gen_code a ; emit ")" )
   | Lam (v,_,te)        -> 
       begin
-        let (arity,vars) = get_vars 1 v te in (* uncurryfication *)
+        let (arity,vars,te2) = get_vars 1 (v^"_c") te in (* uncurryfication *)
           emit "{ ck = clam, arity = " ; 
           emit_int arity ; 
           emit ", args = { }, clam = function (" ; 
           emit vars ; 
           emit ") return ";
-          gen_code te ;
+          gen_code te2 ;
           emit " end }"
       end
   | Pi (v0,ty,te)       ->
@@ -58,9 +58,9 @@ let rec gen_term = function
       begin
         emit "{ tk = tlam, tlam = { " ;
         ( match oty with
-            | Some ty      -> gen_code ty
+            | Some ty      -> gen_code ty (* emit "nil" *)
             | None          -> emit "nil"   );
-        emit (", function ("^v^"_t,"^v^"_c) return ") ; 
+        emit (", function ("^v^"_t, "^v^"_c) return ") ; 
         gen_term te;
         emit " end } }";
       end
@@ -69,7 +69,7 @@ let rec gen_term = function
         emit "{ tk = tpi; tpi = { " ;
         gen_term ty ; emit ", " ; gen_code ty ;
         ( match ov with
-            | Some v    -> emit (", function ("^v^"_t,"^v^"_c) return ")
+            | Some v    -> emit (", function ("^v^"_t, "^v^"_c) return ")
             | None      -> emit ", function (dummy_t, dummy_c) return " );
         gen_term t;
         emit " end } }"

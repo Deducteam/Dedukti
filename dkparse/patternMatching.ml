@@ -1,7 +1,7 @@
 open Types
 open LuaGenerationBase
 
-let iteri f lst = (* OCaml v4.0 List.iteri *)
+let iteri f lst = (* (OCaml v4.0) List.iteri *)
   let i = ref 0 in
     List.iter (fun a -> f !i a ; incr i) lst
 
@@ -22,14 +22,12 @@ let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : pMat option =
     if c_size=0 then None
     else
       begin
-        (*Debug.print_pMat pm; (*FIXME*)
-        List.iter (fun x -> print_string (string_of_int x^"; ")) lines ; print_newline (); *)
         assert (l_size <= Array.length pm.p);
         let p = Array.make l_size (Array.make c_size (Id "")) in
         let a = Array.make l_size ([],Type) in
         let l = Array.make c_size [] in
 
-          (try iteri (fun i k -> a.(i) <- pm.a.(k) ) lines with _ -> assert false);
+          iteri (fun i k -> a.(i) <- pm.a.(k) ) lines;
 
           iteri (
             fun i k ->
@@ -37,7 +35,7 @@ let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : pMat option =
               (match pm.p.(k).(c) with
                  | Id _              -> 
                      for j=0 to pred arity do
-                       p.(i).(j) <- (Id "dummy") (*FIXME*)
+                       p.(i).(j) <- (Id "dummy") 
                      done
                  | Pat (_,_,pats)    ->
                      for j=0 to (arity-1) do
@@ -45,21 +43,20 @@ let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : pMat option =
                      done
               );
               for j=0 to pred c do
-                try p.(i).(arity+j) <- pm.p.(k).(j) with _ -> assert false
+                p.(i).(arity+j) <- pm.p.(k).(j) 
               done;
               for j=(c+1) to pred (Array.length pm.p.(k)) do
                 let tmp =pm.p.(k).(j) in
-                try p.(i).(arity+j-1) <-  tmp with _ -> assert false
+                p.(i).(arity+j-1) <-  tmp
               done
           ) lines; 
 
-          (try for i=0 to pred arity     do l.(i) <- i::pm.loc.(c) done with _ -> assert false);
-          (try for i=0 to pred c         do l.(i+arity) <- pm.loc.(i) done with _ -> assert false);
-          (try for i=(c+1) to pred (Array.length pm.loc) do l.(i+arity-1) <- pm.loc.(i) done with _ -> assert false);
+          for i=0 to pred arity     do l.(i) <- i::pm.loc.(c)           done;
+          for i=0 to pred c         do l.(i+arity) <- pm.loc.(i)        done;
+          for i=(c+1) to pred (Array.length pm.loc) do l.(i+arity-1) <- pm.loc.(i) done;
           
           Some { p=p ; a=a ; loc=l; }
       end
-
 
 let default (pm:pMat) (c:int) : pMat option = 
   try (
@@ -80,7 +77,7 @@ let default (pm:pMat) (c:int) : pMat option =
       else 
         Some { p = Array.of_list !l_p ; 
                a = Array.of_list !l_a ; 
-               loc = pm.loc (*Array.of_list !l_l*); } (*FIXME*)
+               loc = pm.loc (*Array.of_list !l_l*); } (*FIXME ??*)
   ) with _ -> assert false
 
 let print_path p = 
@@ -98,12 +95,12 @@ let print_locals vars locs =
       let first = ref true in
         emit "local ";
         Array.iter (function 
-                      | Id id   -> if !first then (emit id ; emit "_c" ; first:=false) else emit (","^id^"_c") 
+                      | Id id   -> if !first then (emit id ; emit "_c" ; first:=false) else emit (", "^id^"_c") 
                       | _       -> assert false
         ) vars;
         first := true;
         emit " = ";
-        Array.iter (fun l -> (if !first then first:=false else emit ","  ) ; print_path l ) locs ;
+        Array.iter (fun l -> (if !first then first:=false else emit ", "  ) ; print_path l ) locs ;
         emit "\n"
       end
        
@@ -162,10 +159,10 @@ let rec cc id (pm:pMat) : unit =
                 print_path pm.loc.(c) ;
                 emit ".ck == ccon and " ;
                 print_path pm.loc.(c) ;
-                emit ".ccon == \"" ; emit (!Global.name^"."^cst) ; emit "\" then\n" ;   (*FIXME*)
+                emit ".ccon == \"" ; emit (!Global.name^"."^cst) ; emit "\" then\n" ;   (*FIXME ??*)
                 match specialize pm c arity lst with
                   | None        -> ( emit "return " ; gen_code (snd pm.a.(0)) ) (*FIXME ?? *)
-                  | Some pm'    -> ( (*Debug.isValidpMat "spec" pm' ;*) cc n_id pm' ) (*FIXME*)
+                  | Some pm'    -> ( cc n_id pm' )
             ) (partition pm.p c) ;
 
             (*DEFAULT*)
@@ -175,11 +172,11 @@ let rec cc id (pm:pMat) : unit =
                    emit "return ";
                    emit "{ ck = ccon, ccon = \""; emit (!Global.name^"."^id) ; emit "\", args = { " ;
                    for i=1 to Array.length pm.p.(0) do
-                     if i=1 then emit "y1" else (emit ",y" ; emit_int i )(*FIXME*)
+                     if i=1 then emit "y1" else (emit ",y" ; emit_int i )
                    done;
                    emit " } }"
                  )
-               | Some pm'       -> ( (*Debug.isValidpMat "def" pm' ;*) cc n_id pm') (*FIXME*)
+               | Some pm'       -> ( cc n_id pm') 
             );
             emit "\nend" 
         end 

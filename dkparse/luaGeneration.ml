@@ -24,7 +24,7 @@ let rec gen_rules (id,rs) =
       begin
         emit ("--[[ Type checking the definition of "^gname^". ]]\n") ;
         emit ("chkbeg(\"definition of "^gname^"\")\n") ;
-        emit "chk(" ; gen_term ri ; emit (","^gname^"_t.tbox[1])\n") ;
+        emit "chk(" ; gen_term ri ; emit (", "^gname^"_t.tbox[1])\n") ;
         emit ("chkend(\"definition of "^gname^"\")\n") ;
         emit (gname^"_c = ") ; gen_code ri ; emit "\n\n"
       end 
@@ -47,7 +47,7 @@ let rec gen_rules (id,rs) =
 
         (*Compiling*)
         emit ("--[[ Compiling rules of "^gname^". ]]\n") ;
-        emit (gname ^ "_c = { ck = clam, arity = " ^ (string_of_int  arity) ^ ", args = { }, clam =\n function (y1") ;
+        emit (gname ^ "_c = { ck = clam, arity = " ^ (string_of_int  arity) ^ ", args = { }, clam =\nfunction (y1") ;
         (for i=2 to arity do emit (", y" ^ (string_of_int i )) done );
         emit ")\n" ;
         cc id (new_pMat rules) ;
