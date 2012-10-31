@@ -32,6 +32,6 @@ type rules = id * rule list                                             (* const
 
 type occ = int list
 
-type pMat = { p:pattern array array ; a:(env*term) array ; loc:occ array ; }
+type pMat = { p:pattern array array ; a:(env*term) array ; loc:occ array ; nb_dots:int ; }
 
 

@@ -8,10 +8,12 @@ let iteri f lst = (* (OCaml v4.0) List.iteri *)
 let new_pMat rules : pMat = 
     let rows = Array.length rules   in
       assert (rows>0);
-      let cols = match rules.(0) with (_,_,pats,_) -> Array.length pats in
+      let (cols,nd) = match rules.(0) with (_,dots,pats,_) -> ( Array.length pats , Array.length dots ) in
         { p = Array.init rows (fun i -> let (_,_,pats,_) = rules.(i) in pats ) ; 
           a = Array.init rows (fun i -> let (ctx,_,_,ri) = rules.(i)   in (ctx,ri) ) ;
-          loc = Array.init cols (fun i -> [i]); }
+          loc = Array.init cols (fun i -> [i+nd]); 
+          nb_dots = nd;
+        }
 
 let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : pMat option = 
   assert (0 < Array.length pm.p);
@@ -55,7 +57,7 @@ let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : pMat option =
           for i=0 to pred c         do l.(i+arity) <- pm.loc.(i)        done;
           for i=(c+1) to pred (Array.length pm.loc) do l.(i+arity-1) <- pm.loc.(i) done;
           
-          Some { p=p ; a=a ; loc=l; }
+          Some { p=p ; a=a ; loc=l; nb_dots=pm.nb_dots; }
       end
 
 let default (pm:pMat) (c:int) : pMat option = 
@@ -77,7 +79,9 @@ let default (pm:pMat) (c:int) : pMat option =
       else 
         Some { p = Array.of_list !l_p ; 
                a = Array.of_list !l_a ; 
-               loc = pm.loc (*Array.of_list !l_l*); } (*FIXME ??*)
+               loc = pm.loc (*Array.of_list !l_l*); (*FIXME ??*)
+               nb_dots = pm.nb_dots;
+        } 
   ) with _ -> assert false
 
 let print_path p = 
@@ -171,7 +175,7 @@ let rec cc id (pm:pMat) : unit =
                | None           -> (
                    emit "return ";
                    emit "{ ck = ccon, ccon = \""; emit (!Global.name^"."^id) ; emit "\", args = { " ;
-                   for i=1 to Array.length pm.p.(0) do
+                   for i=1 to (Array.length pm.p.(0)+pm.nb_dots) do
                      if i=1 then emit "y1" else (emit ",y" ; emit_int i )
                    done;
                    emit " } }"

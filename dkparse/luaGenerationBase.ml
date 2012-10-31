@@ -11,7 +11,7 @@ let emit_int i = output_string !Global.out (string_of_int i)    (*print_int i*)
 (* Code Generation corresponding to a declaration *)
 
 let rec get_vars a s = function
-  | Lam (x,_,t)   -> get_vars (a+1) (s^","^x^"_c") t
+  | Lam (x,_,t)   -> get_vars (a+1) (s^", "^x^"_c") t
   | te            -> (a,s,te)
 
 let rec gen_code = function
@@ -58,7 +58,7 @@ let rec gen_term = function
       begin
         emit "{ tk = tlam, tlam = { " ;
         ( match oty with
-            | Some ty      -> gen_code ty (* emit "nil" *)
+            | Some ty      -> gen_code ty  (*emit "nil" *)
             | None          -> emit "nil"   );
         emit (", function ("^v^"_t, "^v^"_c) return ") ; 
         gen_term te;

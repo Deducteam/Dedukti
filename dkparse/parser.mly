@@ -61,7 +61,7 @@ pat:            ID dotps spats                                  { (fst $1,snd $1
                 ;
 
 dotps:          /* empty */                                     { [] }
-                | dotps LEFTBRA term RIGHTBRA                   { $3::$1 }
+                | LEFTBRA term RIGHTBRA dotps                  { $2::$4 }
                 ;
 
 spats:          /* empty */                                     { [] }
