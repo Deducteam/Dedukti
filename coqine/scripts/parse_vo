@@ -1,0 +1,9 @@
+#!/bin/sh
+echo "============================================"
+echo "Type (ocd) break @ parse 4"
+echo "then (ocd) run"
+echo "     (ocd) print md.md_compiled"
+echo "at the prompt to see the coq data structures"
+echo "============================================"
+echo
+ledit ocamldebug -I src/ bin/parse $@

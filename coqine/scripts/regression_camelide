@@ -1,0 +1,19 @@
+#!/bin/sh
+
+COQINE="../bin/coqine -h"
+CAMELIDE="../../camelide/src/camelide"
+
+for i in Logic Datatypes Peano Specif Wf
+do
+    echo -n "CoqInE $i : "
+    if $COQINE /usr/lib/coq/theories/Init/$i.vo 2> regression.log
+    then echo "ok."
+    else echo "failed."
+    fi
+    echo -n "Camelide $i : "
+    if $CAMELIDE -v 2 Coq_Init_$i.dk &> regression.log
+    then echo "ok."
+    else echo "failed."
+    fi
+done
+

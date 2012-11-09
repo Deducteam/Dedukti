@@ -1,0 +1,77 @@
+Uset : Type.
+Uprop : Type.
+Utype : Type.
+
+(; /!\ subtyping in coq, should be unidirectional /!\ ;)
+[] Uprop --> Utype.
+[] Uset --> Utype.
+
+eprop : x : Uprop -> Type.
+eset : x : Uset -> Type.
+etype : x : Utype -> Type.
+
+dotset : Utype.
+dotprop : Utype.
+
+(; /!\ type : type /!\, should use universes ;)
+dottype : Utype.
+
+(; lazy constructions for co-inductive types ;)
+
+lazy : Type.
+
+(; we should need a lazify for all sorts ;)
+lazify : x : Utype -> Utype.
+
+(; /!\ ;)
+[x:Uprop] eprop x --> etype x.
+[x:Uset]  eset  x --> etype x.
+
+dotpipp : x : Uprop -> y : (eprop x -> Uprop) -> Uprop.
+dotpips : x : Uprop -> y : (eprop x -> Uset)  -> Uset.
+dotpipt : x : Uprop -> y : (eprop x -> Utype) -> Utype.
+dotpisp : x : Uset  -> y : (eset x  -> Uprop) -> Uprop.
+dotpitp : x : Utype -> y : (etype x -> Uprop) -> Uprop.
+dotpist : x : Uset  -> y : (eset  x -> Utype) -> Utype.
+dotpits : x : Utype -> y : (etype x -> Uset)  -> Uset.
+dotpiss : x : Uset  -> y : (eset x  -> Uset)  -> Uset.
+dotpitt : x : Utype -> y : (etype x -> Utype) -> Utype.
+
+[x:Uset, y : eset x -> Utype]
+              etype (dotpist x y) --> w : etype x -> etype (y w)
+
+[x:Utype, y : etype x -> Utype]
+              etype (dotpitt x y) --> w : etype x -> etype (y w)
+
+[x:Uprop, y : eprop x -> Utype]
+              etype (dotpipt x y) --> w : etype x -> etype (y w)
+
+(; /!\ ;)
+[x:Uset, y : eset x -> Utype]
+              etype (dotpipp x y) --> etype (dotpipt x y)
+
+[x:Utype, y : etype x -> Utype]
+              etype (dotpisp x y) --> etype (dotpist x y)
+
+[x:Uprop, y : eprop x -> Utype]
+              etype (dotpitp x y) --> etype (dotpitt x y)
+
+[x:Uset, y : eset x -> Utype]
+              etype (dotpips x y) --> etype (dotpipt x y)
+
+[x:Utype, y : etype x -> Utype]
+              etype (dotpits x y) --> etype (dotpitt x y)
+
+[x:Uprop, y : eprop x -> Utype]
+              etype (dotpiss x y) --> etype (dotpist x y)
+
+[] etype dotset  --> Uset
+[] etype dotprop --> Uprop
+(; /!\ ;)
+[] etype dottype --> Utype
+
+[s: Utype] etype (lazify s) --> lazy -> etype s.
+
+force : lazy.
+
+(; end of Coq1univ ;)
