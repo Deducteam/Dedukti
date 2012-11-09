@@ -4,13 +4,13 @@
 
   let ln = ref 1
 
-  let mk_loc lexbuf = (!ln,0) (*FIXME*) 
-  (*
+  (*let mk_loc lexbuf = (!ln,0) (*FIXME*) *)
+  
   let mk_loc lexbuf = 
           let curr = lexbuf.Lexing.lex_curr_p                   in
           let line = curr.Lexing.pos_lnum                       in
           let cnum = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
-                (line,cnum) *)
+                (line,cnum) 
 }
 
 let id = ['a'-'z' 'A'-'Z' '_']['a'-'z' 'A'-'Z' '_' '0'-'9']*
@@ -18,7 +18,7 @@ let qid = id '.' id
 
 rule token = parse
   | [' ' '\t']          { token lexbuf  }
-  | '\n'                { incr ln ; token lexbuf }
+  | '\n'                { Lexing.new_line lexbuf (*incr ln*) ; token lexbuf }
   | "(;"                { comment lexbuf}
   | '.'                 { DOT           }
   | ','                 { COMMA         }
@@ -40,7 +40,7 @@ rule token = parse
 
  and comment = parse 
   | ";)"                { token lexbuf          }
-  | '\n'                { incr ln; comment lexbuf }
+  | '\n'                { Lexing.new_line lexbuf (*incr ln*); comment lexbuf }
   | _                   { comment lexbuf        }
   | eof		        { raise End_of_file     }
   
