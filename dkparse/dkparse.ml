@@ -4,7 +4,8 @@ open Types
 (* Arguments *)
 
 let args = [
-        ("-o",Arg.String (fun s -> Global.out := (open_out s) ),"")
+        ("-o",Arg.String (fun s -> Global.out := (open_out s) ),"output file") ;
+        ("-c",Arg.Clear Global.check ,"do not check")
 ]
 
 let set_name str =
@@ -13,13 +14,13 @@ let set_name str =
     try Filename.chop_extension bname
     with Invalid_argument _ -> bname
   in 
-    Global.name := name
+    Global.name := name (*FIXME*)
 
 (* Error Msgs *)
 
 let error str = prerr_string str ; prerr_newline () ; exit 1 
 
-(* Paring *)
+(* Parsing *)
 
 let parse lb = 
   try
@@ -34,20 +35,19 @@ let parse lb =
             raise (Error (ParsingError (tok,(line,cnum))))
         end
 
-(* Main Entry *)
+(* Main *)
 
 let main str =
   try
     let file = open_in str      in
     let _ = set_name str        in
     let lexbuf = Lexing.from_channel file in
-      LuaGenerationBase.emit ("--[[ Code for module "^(!Global.name)^". ]]\n");
-      LuaGenerationBase.emit ((!Global.name)^" = { }\n\n") ; 
+      LuaCodeGeneration2.prelude () ;
       parse lexbuf
   with 
     | Error err         -> error (Debug.string_of_err err)
     | Sys_error msg     -> error ("System error: "^msg)
     | End_of_file       -> exit 0
 
-let _ = Arg.parse args main "usage: ..."
+let _ = Arg.parse args main "Usage: dkparse file" 
   

@@ -1,6 +1,5 @@
 %{
 open Types
-open Global
 %}
 
 %token DOT
@@ -29,9 +28,34 @@ open Global
 
 %%
 top:            /* empty */                                     { () }
-                | top decl DOT                                  { gscope_add (fst $2) ; LuaGeneration.gen_decl  $2 }
-                | top rules DOT                                 { chk_rules_id $2     ; LuaGeneration.gen_rules (snd $2) }
-                ;
+                | top decl DOT                                  
+                        { 
+                        let gname = !Global.name^"."^(fst (fst $2)) in    (*FIXME*)
+                          Global.gscope_add (fst $2) ; 
+                          if !Global.check then
+                            begin
+                              LuaCodeGeneration2.generate_decl_check gname (snd $2) ;
+                              LuaCodeGeneration2.generate_decl_code  gname ;
+                              LuaCodeGeneration2.generate_decl_term  gname (snd $2)
+                            end
+                          else
+                            begin
+                              LuaCodeGeneration2.generate_decl_code gname ;
+                              LuaCodeGeneration2.generate_decl_term  gname (snd $2)
+                            end
+                        }
+                | top rules DOT                                 
+                        { let (_,(id,rules)) = $2       in
+                          let rs = Array.of_list rules  in
+                          Global.chk_rules_id $2  ; 
+                          if !Global.check then
+                            begin
+                              Array.iteri (LuaCodeGeneration2.generate_rule_check id) rs ;
+                              LuaCodeGeneration2.generate_rules_code id rs ;
+                            end
+                          else
+                            LuaCodeGeneration2.generate_rules_code id rs
+                        } ;
 
 rules:          rule                                            { let (id,loc,ru) = $1 in (loc,(id,[ru])) }
                 | rule rules                             
@@ -44,12 +68,12 @@ decl:           ID COLON term                                   { ($1 ,$3) }
                 ;
 
 rule:            LEFTSQU bdgs RIGHTSQU pat LONGARROW term                     
-                        { lscope_remove_lst $2 ; 
+                        { Global.lscope_remove_lst $2 ; 
                           let (id,loc,dots,pats) = $4 in 
                           (id,loc,($2,dots,pats,$6))  }
                 ;
 
-bdg:            ID COLON term                                   { lscope_add (fst $1) ; (fst $1,$3) }
+bdg:            ID COLON term                                   { Global.lscope_add (fst $1) ; (fst $1,$3) }
                 ;
 
 bdgs:           /* empty */                                     { [] }
@@ -68,14 +92,14 @@ spats:          /* empty */                                     { [] }
                 | spat spats                                    { $1::$2 }
                 ;
 
-spat:           ID                                              { mk_pat_var $1 }
-                | QID                                           { Pat (filter_qid $1,[||],[||]) }
+spat:           ID                                              { Global.mk_pat_var $1 }
+                | QID                                           { Pat (Global.filter_qid $1,[||],[||]) }
                 | LEFTPAR ID  dotps spats RIGHTPAR              { Pat (fst $2,Array.of_list $3,Array.of_list $4) }           
-                | LEFTPAR QID dotps spats RIGHTPAR              { Pat (filter_qid $2,Array.of_list $3,Array.of_list $4) }           
+                | LEFTPAR QID dotps spats RIGHTPAR              { Pat (Global.filter_qid $2,Array.of_list $3,Array.of_list $4) }           
                 ;
 
-sterm           : QID                                           { mk_evar $1 }
-                | ID                                            { mk_var  $1 }
+sterm           : QID                                           { Global.mk_evar $1 }
+                | ID                                            { Global.mk_var  $1 }
                 | LEFTPAR term RIGHTPAR                         { $2 }
                 | TYPE                                          { Type }
                 ;
@@ -84,17 +108,17 @@ app:            sterm                                           { $1 }
                 | app sterm                                     { App ($1,$2) }
                 ;
 
-lam_decl:       ID                                              { lscope_add (fst $1) ; (fst $1,None) }
-                | ID COLON app                                  { lscope_add (fst $1) ; (fst $1,Some $3) }
+lam_decl:       ID                                              { Global.lscope_add (fst $1) ; (fst $1,None) }
+                | ID COLON app                                  { Global.lscope_add (fst $1) ; (fst $1,Some $3) }
                 ;
 
-pi_decl:        ID COLON app                                    { lscope_add (fst $1) ; (fst $1,$3) }
+pi_decl:        ID COLON app                                    { Global.lscope_add (fst $1) ; (fst $1,$3) }
                 ;
 
 term:           app                                             { $1 }
-                | pi_decl ARROW term                            { lscope_remove (fst $1) ; Pi  (Some (fst $1), snd $1, $3) }
+                | pi_decl ARROW term                            { Global.lscope_remove (fst $1) ; Pi  (Some (fst $1), snd $1, $3) }
                 | term ARROW term                               { Pi  (None   , $1, $3) }
-                | lam_decl FATARROW term                        { lscope_remove (fst $1) ; Lam (fst $1, snd $1   , $3) }
+                | lam_decl FATARROW term                        { Global.lscope_remove (fst $1) ; Lam (fst $1, snd $1   , $3) }
                 ;
 %%
 

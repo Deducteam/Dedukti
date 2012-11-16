@@ -1,7 +1,8 @@
 open Types
 
-let out  = ref stdout
-let name = ref "anon"
+let out         = ref stdout
+let name        = ref "anon"
+let check       = ref true
 
 (* true->local , false->global *)             
 let gs : (id,bool) Hashtbl.t = Hashtbl.create 47
