@@ -70,12 +70,12 @@ top:            /* empty */                                     { () }
                           begin
                             LuaCodeGeneration2.generate_def_check gname $8 $6;
                             LuaCodeGeneration2.generate_decl_code gname ;
-                            LuaCodeGeneration2.generate_decl_term gname $8
+                            LuaCodeGeneration2.generate_decl_term gname $6
                           end
                         else
                           begin
                             LuaCodeGeneration2.generate_decl_code gname ;
-                            LuaCodeGeneration2.generate_decl_term gname $8
+                            LuaCodeGeneration2.generate_decl_term gname $6
                           end
                         }
                 | top UNDERSCORE COLON term DEF term DOT { 
