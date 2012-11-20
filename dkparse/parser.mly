@@ -8,6 +8,8 @@ open Types
 %token ARROW
 %token FATARROW
 %token LONGARROW
+%token DEF
+%token UNDERSCORE
 %token LEFTPAR
 %token RIGHTPAR
 %token LEFTBRA
@@ -28,22 +30,60 @@ open Types
 
 %%
 top:            /* empty */                                     { () }
-                | top decl DOT                                  
+                /* declaration */
+                | top ID COLON term DOT                                 
                         { 
-                        let gname = !Global.name^"."^(fst (fst $2)) in    (*FIXME*)
-                          Global.gscope_add (fst $2) ; 
+                        let gname = !Global.name^"."^(fst $2) in    (*FIXME*)
+                          Global.gscope_add $2 ; 
                           if !Global.check then
                             begin
-                              LuaCodeGeneration2.generate_decl_check gname (snd $2) ;
+                              LuaCodeGeneration2.generate_decl_check gname $4 ;
                               LuaCodeGeneration2.generate_decl_code  gname ;
-                              LuaCodeGeneration2.generate_decl_term  gname (snd $2)
+                              LuaCodeGeneration2.generate_decl_term  gname $4
                             end
                           else
                             begin
                               LuaCodeGeneration2.generate_decl_code gname ;
-                              LuaCodeGeneration2.generate_decl_term  gname (snd $2)
+                              LuaCodeGeneration2.generate_decl_term  gname $4
                             end
                         }
+                /* Definitions */
+                | top ID COLON term DEF term DOT { 
+                        let gname = !Global.name^"."^(fst $2) in
+                        Global.gscope_add $2 ; 
+                        if !Global.check then
+                          begin
+                            LuaCodeGeneration2.generate_def_check gname $6 $4;
+                            LuaCodeGeneration2.generate_def_code  gname $6 ;
+                            LuaCodeGeneration2.generate_def_term  gname $6
+                          end
+                        else
+                          begin
+                            LuaCodeGeneration2.generate_def_code gname $6;
+                            LuaCodeGeneration2.generate_def_term gname $6
+                          end
+                        }
+                | top LEFTBRA ID RIGHTBRA COLON term DEF term DOT { 
+                        let gname = !Global.name^"."^(fst $3) in
+                        Global.gscope_add $3 ; 
+                        if !Global.check then
+                          begin
+                            LuaCodeGeneration2.generate_def_check gname $8 $6;
+                            LuaCodeGeneration2.generate_decl_code gname ;
+                            LuaCodeGeneration2.generate_decl_term gname $8
+                          end
+                        else
+                          begin
+                            LuaCodeGeneration2.generate_decl_code gname ;
+                            LuaCodeGeneration2.generate_decl_term gname $8
+                          end
+                        }
+                | top UNDERSCORE COLON term DEF term DOT { 
+                        if !Global.check then
+                            LuaCodeGeneration2.generate_def_check "_" $6 $4
+                        else ()
+                }
+                /* Rewriting Rules */
                 | top rules DOT                                 
                         { let (_,(id,rules)) = $2       in
                           let rs = Array.of_list rules  in
@@ -62,9 +102,6 @@ rules:          rule                                            { let (id,loc,ru
                         { let (id1,l1,ru) = $1 and (l2,(id2,lst)) = $2 in 
                           if id1<>id2 then raise (Error (ConstructorMismatch (id1,l1,id2,l2))) 
                           else (l1,(id1,ru::lst)) }
-                ;
-
-decl:           ID COLON term                                   { ($1 ,$3) } 
                 ;
 
 rule:            LEFTSQU bdgs RIGHTSQU pat LONGARROW term                     

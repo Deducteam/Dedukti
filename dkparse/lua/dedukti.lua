@@ -28,7 +28,7 @@ function mk_box ( ty )
   return { te = tbox ; ctype = ty };
 end
 
-function push (a,t) -- FIXME table.insert ?
+function push (a,t)
   local res = { }
   res[#t+1] = a
   for i=1,#t do
@@ -57,12 +57,12 @@ function app ( c , args )
   return res
 end
 
-function cons_norm ( args )
+function cons_norm ( n, args )
   local res = { }
   for i=1,#args do
-    local w = weak_norm ( args[i] )
+    local w = weak_norm ( n, args[i] )
     if w.co == ccon then
-      res[i] = { co = ccon ; id = w.id ; arity = w.arity ; f = w.f ; args = cons_norm(w.args) }
+      res[i] = { co = ccon ; id = w.id ; arity = w.arity ; f = w.f ; args = cons_norm(n,w.args) }
     else
       res[i] = w
     end
@@ -72,59 +72,48 @@ end
 
 -- Code -> Code 
 -- This may not terminate if c is not well-typed !
-function weak_norm ( c )
+function weak_norm ( n, c )
   --print ( "entering weak_norm..." )
-  --print ("Type: " .. strc(c))
+  local res = c
+
   -- Cons
   if     c.co == ccon then
     if     c.arity == #c.args then
-      local red = c.f(unpack(cons_norm(c.args)))
-      if red == nil then 
-        return c
-      else 
-        local hnf = weak_norm(red)
-        return hnf
+      local red = c.f(unpack(cons_norm(n,c.args)))
+      if red ~= nil then 
+        res = weak_norm(n,red)
       end
     elseif c.arity <  #c.args then
       local t1,t2 = split(c.args,c.arity)
-      local red = c.f(unpack(cons_norm(t1)))
-      if red == nil then
-        return c
-      else
-        local hnf = weak_norm(app(red,t2))
-        return hnf
+      local red = c.f(unpack(cons_norm(n,t1)))
+      if red ~= nil then
+        res = weak_norm(n,app(red,t2))
       end
-    else -- c.arity > #c.args
-      return c
     end
     -- App
   elseif c.co == capp  then
-    local f = weak_norm(c.f)
+    local f = weak_norm(n,c.f)
     if     f.co == clam then 
-      local hnf = weak_norm(f.f(c.arg))
-      return hnf
+      res = weak_norm(n,f.f(c.arg))
     elseif f.co == ccon then
-      local hnf = weak_norm( { co = ccon ; id = f.id ; arity = f.arity ; f = f.f ; args = push(c.arg,f.args) } )
-      return hnf
-    else
-      return c
-      -- Other
+      res = weak_norm(n, { co = ccon ; id = f.id ; arity = f.arity ; f = f.f ; args = push(c.arg,f.args) } )
     end
-  else
-    return c
   end
+  --print("leaving weak_norm...")
+  --print(" :: c   = " .. string_of_code(n,c))
+  --print(" :: res = " .. string_of_code(n,res))
+  --print()
+  return res
 end
    
 -- int*Code*Code --> bool
 -- This may not terminate if tty1 or tty2 is not well-typed !
 function is_conv ( n , tty1 , tty2 )
-  local res = false
   --print ( "entering is_conv ...")
-  --print ( "Type1 " .. strc(tty1) )
-  --print ( "Type2 " .. strc(tty2) )
+  local res = false
 
-  local ty1 = weak_norm(tty1)
-  local ty2 = weak_norm(tty2)
+  local ty1 = weak_norm(n,tty1)
+  local ty2 = weak_norm(n,tty2)
   
     -- Kind
   if     ty1.co == ckind and ty2.co == ckind then res = true
@@ -149,7 +138,12 @@ function is_conv ( n , tty1 , tty2 )
     res = ( is_conv( n , ty1.f , ty2.f ) and is_conv( n , ty1.arg , ty2.arg ) )
     -- Default
   end
+
   --print("leaving is_conv ...")
+  --print ( "Type1 " .. string_of_code(n,tty1) )
+  --print ( "Type2 " .. string_of_code(n,tty2) )
+  --print(res)
+  --print()
   return res
 end
 
@@ -157,11 +151,12 @@ end
 function type_check ( n , t , ty )
   --print("entering type_check ...")
   --print("Term: " .. strt(t)  )
-  --print("Type: " .. strc(ty) )
+  --print("Type: " .. string_of_code(n,ty) )
+  --print()
 
     -- LAMBDA
   if      t.te == tlam then
-    local wty = weak_norm(ty)  
+    local wty = weak_norm(n,ty)  
     if wty.co == cpi then
       if t.ctype ~= nil then
         if not is_conv ( n , t.ctype , wty.ctype ) then error ("Conv error") end
@@ -191,29 +186,30 @@ function type_check ( n , t , ty )
     local sy = type_synth ( n , t ) ;
     if not is_conv ( n , sy , ty ) then 
       print("Cannot Convert: ")
-      print(" -> " .. strc(sy))
-      print(" -> " .. strc(ty))
+      print(" -> " .. string_of_code(n,sy))
+      print(" -> " .. string_of_code(n,ty))
       error("Type Checking Failed.")
     end
   end
+  --print("leaving type_check ...")
 end
 
 -- int * Term --> Code
 function type_synth ( n , t )
+  local res = nil
   --print("entering type_synth ...")
-  --print ("Term: " .. strt(t))
+
   if     t.te == ttype then 
     -- Kind
-    --print("leaving type_synth (Kind)")
-    return { co = ckind }
+    res = { co = ckind }
   elseif t.te == tbox  then 
     -- Type
-    --print("leaving type_synth (Type)")
-    return t.ctype
+    res = t.ctype
   elseif t.te == tlam  then 
     -- Lam 
     if t.ctype ~= nil then
-      return { co = cpi ; ctype = t.ctype ; f = 
+      local zzz = type_synth( n+1 , t.f(mk_box(t.ctype),mk_var(n)) )
+      res = { co = cpi ; ctype = t.ctype ; f = 
         function(x)
           return type_synth( n , t.f(mk_box(t.ctype),x) ) -- FIXME
         end }
@@ -223,13 +219,10 @@ function type_synth ( n , t )
   elseif t.te == tapp  then
     -- App
     local sy = type_synth ( n , t.f );
-    local c  = weak_norm( sy );
+    local c  = weak_norm( n, sy );
     if c.co == cpi then
       type_check ( n , t.a , c.ctype ) ;
-      local res = c.f(t.ca)
-      --print("leaving type_synth: ")
-      --print(strc(res))
-      return res
+      res = c.f(t.ca)
     else
       error("Type synthesis failed (1).")
     end
@@ -237,6 +230,11 @@ function type_synth ( n , t )
     -- Default
     error("Type synthesis failed (2).");
   end
+  --print("leaving type_synth...")
+  --print ("Term: " .. strt(t))
+  --print ("Type: " .. string_of_code(n,res))
+  --print()
+  return res
 end
 
 -- Term -> unit
@@ -276,14 +274,8 @@ function chkend(x)
 end
 
 -- Debug
--- { co = ccon ; id = string ; arity:int ; f:Code^arity -> Code option ; args:Code* }
--- { co = clam ; f:Code -> Code }
--- { co = capp ; f:Code ; arg = Code }
--- { co = cpi  ; ctype:Code ; f:Code -> Code }
--- { co = ctype }
--- { co = ckind }
--- { co = cvar ; n:int }
 
+--[[
 function strc0 ( n , c , b )
   if b>10 then return "..."
   elseif c.co == ctype	then return "Type"
@@ -305,23 +297,16 @@ function strc0 ( n , c , b )
   else
     return "Error"
   end
-end
+end 
      
 function strc ( c )
 	return strc0 ( 0 , c , 0 )
-end
-
-
--- { te = tlam ; ctype:Code option; f:Term*Code -> Term }
--- { te = tpi  ; ttype:Term ; ctype:Code ; f:Term*Code -> Term}
--- { te = tapp ; f:Term ; a:Term ; ca:Code }
--- { te = ttype }
--- { te = tbox ; ctype:Code }
+end ]]
 
 function mk_vart(n)
   return { te = tbox ; ctype = mk_var(n) }
 end
-
+ --[[
 function strt0 ( n , t , b)
   if b>10 then return "..."
   elseif  t.te == tlam 	then
@@ -352,5 +337,61 @@ end
 
 function strt ( t )
   return strt0(0,t,0)
+end ]]
+
+function string_of_code ( n , c )
+  if     c.co == ctype	then return "Type"
+  elseif c.co == ckind 	then return "Kind"
+  elseif c.co == cvar 	then 
+    if c.n < n then return ("v" .. c.n)
+    else error("string_of_code error")
+    end
+  elseif c.co == cpi  	then 
+    return ("(v" .. n .. " : " .. string_of_code(n,c.ctype) .. " -> " .. string_of_code(n+1,c.f(mk_var(n))) .. ")")
+  elseif c.co == clam 	then 
+    return ("(v" .. n .. " => " .. string_of_code(n+1,c.f(mk_var(n))) .. ")" )
+  elseif c.co == capp 	then 
+    return ( "(" .. string_of_code(n,c.f) .. " " .. string_of_code(n,c.arg) .. ")" )
+  elseif c.co == ccon 	then 
+    local str = c.id
+    for i=1,#c.args do
+      str = str .. " " .. string_of_code(n,c.args[i])
+    end
+    if #c.args==0 then return str
+    else return "(" .. str .. " )"
+    end
+  else
+    return "Error"
+  end
 end
+ 
+function string_of_term ( n , t )
+  if  t.te == tlam 	then
+    -- Lam
+    if t.ctype == nil then 
+      return ("(v" .. n .. " => " .. string_of_term( n+1 , t.f(mk_vart(n),mk_var(n)) ) .. ")" )
+    else 
+      return ("(v" .. n .. " : " .. string_of_code(n,t.ctype).. " => " .. 
+                                string_of_term( n+1 , t.f(mk_vart(n),mk_var(n)) ) .. ")" )
+    end
+  elseif t.te == tpi  	then 
+    -- Pi
+    return ( "(v" .. n .. " : " .. string_of_term( n , t.ttype ) .. " -> " .. 
+                                string_of_term( n+1 , t.f(mk_vart(n),mk_var(n)) ) .. ")" )
+  elseif t.te == tapp 	then 
+    -- App
+    return "(" .. string_of_term( n , t.f ) .. " " .. string_of_term( n , t.a ) .. ")" 
+  elseif t.te == ttype	then 
+    -- Type
+    return "Type"
+  elseif t.te == tbox 	then 
+    -- Box
+    return "(Box " .. string_of_code(n,t.ctype) .. ")"
+  else 
+    -- Err
+    return "Error"
+  end
+end
+
+    
 -- vi: expandtab: sw=2

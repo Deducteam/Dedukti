@@ -1,5 +1,6 @@
-
 open Types
+
+exception IncorrectFileName
 
 (* Arguments *)
 
@@ -14,7 +15,10 @@ let set_name str =
     try Filename.chop_extension bname
     with Invalid_argument _ -> bname
   in 
-    Global.name := name (*FIXME*)
+    if Str.string_match (Str.regexp "[a-zA-Z_][a-zA-Z_0-9]*") name 0 then
+      Global.name := name
+    else
+      raise IncorrectFileName (*FIXME*)
 
 (* Error Msgs *)
 
@@ -47,6 +51,7 @@ let main str =
   with 
     | Error err         -> error (Debug.string_of_err err)
     | Sys_error msg     -> error ("System error: "^msg)
+    | IncorrectFileName -> error ("Incorrect File Name.") (*FIXME*)
     | End_of_file       -> exit 0
 
 let _ = Arg.parse args main "Usage: dkparse file" 

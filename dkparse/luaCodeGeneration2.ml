@@ -125,6 +125,27 @@ let generate_decl_term gname ty =
   gen_code ty ;
   fprintf !Global.out " }\n\n"
 
+(* ************** Definitions *************** *)
+
+let generate_def_check gname te ty = 
+  fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;
+  fprintf !Global.out "chkbeg(\"%s\")\n" gname ;
+  fprintf !Global.out "chk( " ;
+  gen_term te ;
+  fprintf !Global.out " , " ;
+  gen_code ty ;
+  fprintf !Global.out ")\nchkend(\"%s\")\n" gname
+
+let generate_def_term gname te = 
+  fprintf !Global.out "%s_t = " gname ;
+  gen_term te ;
+  fprintf !Global.out "\n\n"
+
+let generate_def_code gname te =
+  fprintf !Global.out "%s_c = " gname ;
+  gen_code te ;
+  fprintf !Global.out "\n\n"
+
 (* ***************** Pattern Matching Generation ************ *)
 
 let new_pMat rules : pMat = 

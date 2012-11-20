@@ -32,6 +32,8 @@ rule token = parse
   | "-->"	        { LONGARROW     }
   | "->"	        { ARROW         }
   | "=>"	        { FATARROW      }
+  | ":="	        { DEF           }
+  | "_"	                { UNDERSCORE    }
   | "Type"	        { TYPE          }
   | qid as s            { QID s         } 
   | id  as s            { ID (s,mk_loc lexbuf) } 
