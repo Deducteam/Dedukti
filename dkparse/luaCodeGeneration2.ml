@@ -323,7 +323,7 @@ let rec gpcode = function
       begin
         let first = ref true in
         let arity = Array.length dots + Array.length pats  in
-        fprintf !Global.out "{ co = ccon ; id = \"%s.%s\" ; arity = %i ; f = %s.%s_c ; args = { " !Global.name c arity !Global.name c ;
+        fprintf !Global.out "{ co = ccon ; id = \"%s.%s\" ; arity = %i ; f = function() return %s.%s_c end ; args = { " !Global.name c arity !Global.name c ;
         Array.iter ( 
           fun t -> 
             if !first then ( gen_code t ; first := false )
