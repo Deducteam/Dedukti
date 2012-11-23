@@ -1,0 +1,51 @@
+False : coc.Utype.
+
+True : coc.Utype.
+
+I : coc.etype True.
+
+eq : t : coc.Utype -> coc.etype t -> coc.etype t -> Type. 
+
+eq_ : t : coc.Utype -> coc.etype t -> coc.etype t -> coc.Utype. 
+
+[ t : coc.Utype
+, x : coc.etype t
+, y : coc.etype t ]
+eq t x y --> coc.etype (eq_ t x y).
+
+
+refl_equal : t : coc.Utype -> x : coc.etype t -> eq t x x.
+
+eq_rec : t : coc.Utype 
+     -> x : coc.etype t
+     -> p : (coc.etype t -> coc.Utype)
+     -> g : coc.etype (p x)
+     -> y : coc.etype t
+     -> h : eq t x y
+     -> coc.etype (p y).
+
+(;
+[ t : coc.Utype
+, x : coc.etype t
+, p : coc.etype t -> coc.Utype
+, f : coc.etype (p x) ]
+eq_rec t x p f x (refl_equal t x) --> f.
+;)
+
+f_equal 
+     : A : coc.Utype 
+    -> B : coc.Utype 
+    -> f : (coc.etype A -> coc.etype B)
+    -> x : coc.etype A 
+    -> y : coc.etype A 
+    -> H : eq A x y
+    -> eq B (f x) (f y).
+
+[] f_equal --> 
+    A : coc.Utype 
+ => B : coc.Utype 
+ => f : (coc.etype A -> coc.etype B)
+ => x : coc.etype A 
+ => y : coc.etype A 
+ => H : eq A x y
+ => eq_rec A x (z : coc.etype A => eq_ B (f x) (f z)) (refl_equal B (f x)) y H.

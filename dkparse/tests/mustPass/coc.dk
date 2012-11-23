@@ -1,0 +1,28 @@
+Utype : Type.
+
+Ukind : Type.
+
+etype : Utype -> Type.
+
+ekind : Ukind -> Type.
+
+dottype : Ukind.
+
+dotpi1 : x : Utype -> y : (etype x -> Utype) -> Utype.
+dotpi2 : x : Utype -> y : (etype x -> Ukind) -> Ukind.
+dotpi3 : x : Ukind -> y : (ekind x -> Utype) -> Utype.
+dotpi4 : x : Ukind -> y : (ekind x -> Ukind) -> Ukind.
+
+[x:Utype, y : etype x -> Utype]
+    etype (dotpi1 x y) --> w : etype x -> etype (y w)
+[x:Ukind, y : ekind x -> Utype]
+    etype (dotpi3 x y) --> w : ekind x -> etype (y w).
+
+[] ekind dottype --> Utype
+[x:Utype, y : etype x -> Ukind]
+    ekind (dotpi2 x y) --> w : etype x -> ekind (y w)
+[x:Ukind, y : ekind x -> Ukind]
+    ekind (dotpi4 x y) --> w : ekind x -> ekind (y w).
+
+a : x : Utype -> y : etype x -> etype x.
+[] a --> x : Utype => y : etype x => y.

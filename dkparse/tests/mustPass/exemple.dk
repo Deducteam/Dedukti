@@ -1,0 +1,9 @@
+T : Type.
+
+U : Type.
+
+[] U --> T -> T.
+
+app : f : (T -> T) -> T -> T.
+
+[] app --> f : U => x : T => f x.

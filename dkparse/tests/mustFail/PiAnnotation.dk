@@ -1,0 +1,3 @@
+T:Type. 
+x:T. 
+f:x->Type.

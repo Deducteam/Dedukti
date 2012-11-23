@@ -1,0 +1,27 @@
+N: Type.
+Z: N.
+S: N->N.
+
+plus: N->N->N.
+
+[y:N]
+plus Z     y --> y
+[x:N,y:N]
+plus (S x) y --> S (plus x y).
+
+
+V:   N->Type.
+Nil: V Z.
+Con: n:N -> V n -> N -> V (S n).
+
+hd: n:N -> V (S n) -> N.
+
+[n:N, m:N, v:V n]
+hd {n} (Con n v m) --> m.
+
+
+app: n:N -> m:N -> V n -> V m -> V (plus n m).
+[m:N,y:V m]
+app {Z}   m Nil         y --> y
+[n:N,m:N,x:V n,y:V m,k:N]
+app {S n} m (Con n x k) y --> Con (plus n m) (app n m x y) k.

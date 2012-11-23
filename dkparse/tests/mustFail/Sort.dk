@@ -1,0 +1,5 @@
+nat : Type.
+
+x : nat.
+
+y : x. 

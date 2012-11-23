@@ -1,0 +1,60 @@
+nat_ : coc.Utype.
+
+nat : Type.
+
+[] nat --> coc.etype nat_.
+
+Z : nat.
+
+S : nat -> nat.
+
+nat_rec : t : coc.Utype 
+    -> coc.etype t 
+    -> (nat -> coc.etype t -> coc.etype t)
+    -> nat
+    -> coc.etype t.
+
+[ t : coc.Utype
+, a : coc.etype t
+, f : nat -> coc.etype t -> coc.etype t
+] nat_rec t a f Z --> a
+
+[ t : coc.Utype
+, a : coc.etype t
+, f : nat -> coc.etype t -> coc.etype t
+, n : nat
+] nat_rec t a f (S n) --> f n (nat_rec t a f n).
+
+plus : nat -> nat -> nat.
+[] plus --> x : nat => y : nat => nat_rec nat_ Z (x : nat => y : nat => y) x.
+
+plus2 : nat -> nat -> nat.
+[x : nat] plus2 x Z --> x
+[x : nat] plus2 Z x --> x
+[x : nat, y : nat] plus2 x (S y) --> S (plus2 x y)
+[x : nat, y : nat] plus2 (S x) y --> S (plus2 x y).
+
+eq_S : x : nat 
+    -> y : nat 
+    -> logic.eq nat_ x y 
+    -> logic.eq nat_ (S x) (S y).
+
+[] eq_S --> logic.f_equal nat_ nat_ S.
+
+eq_S2 : coc.etype (coc.dotpi1 nat_ (x : nat
+    => coc.dotpi1 nat_ (y : nat
+    => coc.dotpi1 (logic.eq_ nat_ x y) (h : logic.eq nat_ x y 
+    => logic.eq_ nat_ (S x) (S y))))).
+
+[] eq_S2 --> eq_S.
+
+
+pred : nat -> nat.
+[] pred --> nat_rec nat_ Z (x:nat => _:nat => x).
+
+pred2 : nat -> nat.
+[] pred2 Z --> Z
+[x : nat] pred2 (S x) --> x.
+
+pred_Sn : n : nat -> logic.eq nat_ n (pred (S n)).
+[] pred_Sn --> n : nat => logic.refl_equal nat_ n.

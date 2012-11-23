@@ -1,0 +1,3 @@
+A : Type.
+B : A -> Type.
+C : B ( (x => x x)(x => x x) ).
