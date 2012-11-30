@@ -11,3 +11,6 @@
 	make
 	make install
 	
+TROUBLESHOUTING
+	Make sure the lua bindings are installed in the correct directory [/usr/lib/ocaml ?]
+	Make sure the file dedukti.lua is installed in the correct directory [/usr/share/luajit* ?]
