@@ -59,7 +59,7 @@ let main str =
     | TypeCheckingError err     -> ( Global.debug_ko () ; error (Debug.string_of_lerr err) )
     | Sys_error msg             -> error ("System error: "^msg)
     | IncorrectFileName         -> error ("Incorrect File Name.") (*FIXME*)
-    | End_of_file               -> Hashtbl.reset Global.gs 
+    | End_of_file               -> Hashtbl.clear Global.gs 
 
 let _ = Arg.parse args main "Usage: dkparse file" 
   
