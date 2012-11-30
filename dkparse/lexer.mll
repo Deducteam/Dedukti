@@ -2,10 +2,8 @@
   open Parser
   open Types
 
-  let ln = ref 1
+  (*let ln = ref 1*)
 
-  (*let mk_loc lexbuf = (!ln,0) (*FIXME*) *)
-  
   let mk_loc lexbuf = 
           let curr = lexbuf.Lexing.lex_curr_p                   in
           let line = curr.Lexing.pos_lnum                       in
@@ -34,10 +32,11 @@ rule token = parse
   | "=>"	        { FATARROW      }
   | ":="	        { DEF           }
   | "_"	                { UNDERSCORE    }
+  | "#"	                { HASH          }
   | "Type"	        { TYPE          }
   | qid as s            { QID s         } 
   | id  as s            { ID (s,mk_loc lexbuf) } 
-  | _   as s		{ raise ( Error (LexingError(String.make 1 s,mk_loc lexbuf)) ) }
+  | _   as s		{ raise ( ParsingError (LexerError(String.make 1 s,mk_loc lexbuf)) ) }
   | eof		        { raise End_of_file }
 
  and comment = parse 

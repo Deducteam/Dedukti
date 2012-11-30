@@ -63,18 +63,21 @@ function app ( f , arg )
   --print("entering app...")
   --print(" f : " .. string_of_code(50,f))
   --print(" a : " .. string_of_code(50,arg))
+  local res = nil
+
   -- CCON
   if     f.co == ccon then
     local args = push(arg,f.args)
     if     f.arity == #args then
       local red = f.f(unpack(args))
-      if red ~= nil then return red
+      if red ~= nil then 
+        res= red
       else
-        return  { co = ccon ; id=f.id ; arity=f.arity ; f=f.f ; args=args }
+        res = { co = ccon ; id=f.id ; arity=f.arity ; f=f.f ; args=args }
       end
     else
       if #args < f.arity then
-        return  { co = ccon ; id=f.id ; arity=f.arity ; f=f.f ; args=args }
+        res = { co = ccon ; id=f.id ; arity=f.arity ; f=f.f ; args=args }
       else
         local t1,t2 = split(args,f.arity)
         local red = f.f(unpack(t1))
@@ -82,21 +85,24 @@ function app ( f , arg )
           for i=1,#t2 do
             red = app ( red , t2[i] )
           end
-          return red
+          res = red
         else
-          return  { co = ccon ; id=f.id ; arity=f.arity ; f=f.f ; args=args }
+          res = { co = ccon ; id=f.id ; arity=f.arity ; f=f.f ; args=args }
         end 
       end
     end
   -- CLAM
   elseif f.co == clam then
-    return f.f(arg)
+    res = f.f(arg)
   -- ERROR
   else
     --print("app error... " )
     --print("Fct: " .. string_of_code ( 50 , f ) )
     assert(false)
   end
+  --print("leaving app...")
+  --print("App : " .. string_of_code(10,res))
+  return res
 end
 
 function is_conv ( n , ty1 , ty2 )
@@ -137,11 +143,15 @@ function type_check ( n , te , ty )
 
   -- LAMBDA
   if      te.te == tlam then
-    if ty.co   ~= cpi then error("ERROR: Product Expected.") end
+    if ty.co   ~= cpi then error("Product Expected:\n" .. string_of_code(n,ty)) end
     -- Type Annotations BEGIN
     if te.ttype ~= nil then
       type_check ( n , te.ttype , { co = ctype } )
-      if not is_conv ( n , te.ctype() , ty.ctype ) then error("ERROR: Conversion Error.") end
+      if not is_conv ( n , te.ctype() , ty.ctype ) then 
+        error("Lambda Annotation Error.\nCannot Convert:" 
+                .. string_of_code(n,te.ctype()) .. "\nwith\n" 
+                .. string_of_code(n,ty.ctype)) 
+      end
     end
     -- Type Annotations END
     local var = mk_var(n)
@@ -156,17 +166,17 @@ function type_check ( n , te , ty )
       type_check ( n+1 , te.f( mk_box(te.ctype()) , mk_var(n) ) , { co = ctype } )
     elseif is_conv ( n , ty , { co = ckind } ) then 
       type_check ( n+1 , te.f( mk_box(te.ctype()) , mk_var(n) ) , { co = ckind } ) 
-    else error("ERROR: Sort Error.")
+    else error("Sort Error:\n" .. string_of_code(n,ty))
     end
 
   -- OTHER
   else 
     local ty2 = type_synth ( n , te ) ;
     if not is_conv ( n , ty2 , ty ) then 
-      print("ERROR: Cannot Convert: ")
-      print("      " .. string_of_code( n , ty2 ))
-      print(" with " .. string_of_code( n , ty  ))
-      error("Type Checking Failed.")
+      --print("ERROR: Cannot Convert: ")
+      --print("      " .. string_of_code( n , ty2 ))
+      --print(" with " .. string_of_code( n , ty  ))
+      error("Cannot convert:\n" .. string_of_code(n,ty2) .. "\nwith\n" .. string_of_code(n,ty))
     end
   end
   --print("leaving type_check ...")
@@ -181,7 +191,7 @@ function type_synth ( n , te )
   if     te.te == ttype then res = { co = ckind }        -- Kind
   elseif te.te == tbox  then res = te.ctype              -- Type
   elseif te.te == tlam  then                             -- Lam 
-    if te.ctype == nil  then error("Type Synthesis Failed (1).") end
+    if te.ctype == nil  then error("Cannot find type of:\n" .. string_of_term(n,te)) end
     type_check( n , te.ttype , { co = ctype } )
     local tya = te.ctype()
     local box = mk_box(tya)
@@ -189,11 +199,11 @@ function type_synth ( n , te )
     res = { co = cpi ; ctype = tya ; f = function(x) return type_synth( n , te.f(box,x) ) end } -- FIXME
   elseif te.te == tapp  then                            -- App
     local tyf = type_synth ( n , te.f )
-    if tyf.co ~= cpi then error("Type Synthesis Failed (2).") end
+    if tyf.co ~= cpi then error("Cannot find type of:\n" .. string_of_term(n,te)) end 
     type_check ( n , te.a , tyf.ctype )
     res = tyf.f(te.ca())
   else                                                  -- Default
-    error("Type Synthesis Failed (3).")
+    error("Cannot find type of:\n" .. string_of_term(n,te))
   end
 
   --print("leaving type_synth...")
@@ -246,6 +256,12 @@ function dump ( t )
   for i,v in ipairs(t) do print(i,v) end
 end ]]
 
+-- { co = ccon ; id:string ; arity:int ; f:Code^arity -> Code option ; args:Code* }
+-- { co = clam ; f:Code -> Code }
+-- { co = cpi  ; ctype:Code ; f:Code -> Code }
+-- { co = ctype }
+-- { co = ckind }
+
 function string_of_code ( n , c )
   if     c.co == ctype	then return "Type"
   elseif c.co == ckind 	then return "Kind"
@@ -254,6 +270,8 @@ function string_of_code ( n , c )
   elseif c.co == clam 	then 
     return ("(v" .. n .. " => " .. string_of_code(n+1,c.f(mk_var(n))) .. ")" )
   elseif c.co == ccon 	then 
+    --assert(c.arity)
+    if type(c.f)~="function" then print(" ##### WARNING ") end
     local str = c.id
     for i=1,#c.args do
       str = str .. " " .. string_of_code(n,c.args[i])

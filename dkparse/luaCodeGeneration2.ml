@@ -17,6 +17,7 @@ let prelude _ =
 (* *********** Lua Code Generation *********** *)
 
 let rec gen_code0 = function
+  | Kind                -> assert false
   | Type                -> fprintf !Global.out "{ co = ctype }"
   | GVar v              -> fprintf !Global.out "app0(%s.%s_c)"  !Global.name v
   | EVar v              -> fprintf !Global.out "app0(%s_c)" v
@@ -53,6 +54,7 @@ let gen_code te =
 (* *********** Lua Term Generation *********** *)
 
 let rec gen_term = function
+  | Kind                -> assert false
   | Type                -> fprintf !Global.out "{ te = ttype }"
   | GVar v              -> fprintf !Global.out "%s.%s_t" !Global.name v
   | EVar v              -> fprintf !Global.out "%s_t" v
@@ -388,7 +390,6 @@ let generate_rules_code id rules =
     (if arity>0 then fprintf !Global.out "y1" else ());
     (for i=2 to arity do fprintf !Global.out ", y%i" i  done );
     fprintf !Global.out ")\n" ;
-    (* (for i=1 to arity do fprintf !Global.out "local y%i = weak_norm(yy%i)\n" i i done ); *)
     cc id (new_pMat rules) ;
     fprintf !Global.out "\nend }\n\n"
 

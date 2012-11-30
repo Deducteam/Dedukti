@@ -1,5 +1,5 @@
 all:
-	ocamlbuild -lib str dkparse.native
+	ocamlbuild -libs str,lua -cflags "-I +lua" -lflags "-I +lua" dkparse.native
 install:
 	cp dkparse.native /usr/bin/dkparse
 	cp lua/dedukti.lua /usr/share/lua/5.1/

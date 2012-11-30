@@ -1,24 +1,30 @@
 type loc = int*int
 type id  = string
 
-type error = 
-  | LexingError                 of string*loc
-  | ParsingError                of string*loc
+type term =
+  | Kind
+  | Type
+  | EVar of string
+  | GVar of string
+  | Var of string
+  | App of term * term
+  | Lam of id * term option * term
+  | Pi  of id option * term * term
+
+type parsing_error = 
+  | LexerError                  of string*loc
+  | ParserError                 of string*loc
   | ConstructorMismatch         of id*loc*id*loc
   | AlreadyDefinedId            of id*loc
   | ScopeError                  of id*loc
 
+type lua_error =
+  | LuaTypeCheckingFailed       of term*term*string
+  | LuaRuleCheckingFailed       of id*string
+  | LuaRequireFailed            of string
 
-exception Error of error
-
-type term =
-        | Type
-        | EVar of string
-        | GVar of string
-        | Var of string
-        | App of term * term
-        | Lam of id * term option * term
-        | Pi  of id option * term * term
+exception ParsingError          of parsing_error
+exception TypeCheckingError     of lua_error
 
 type pattern = 
         | Id of id

@@ -5,8 +5,12 @@ exception IncorrectFileName
 (* Arguments *)
 
 let args = [
-        ("-o",Arg.String (fun s -> Global.out := (open_out s) ),"output file") ;
-        ("-c",Arg.Clear Global.check ,"do not check")
+        ("-o", Arg.String (fun s -> Global.out   := (open_out s)  )     , "output file"         ) ;
+        ("-c", Arg.Set Global.do_not_check                              , "do not check"        ) ;
+        ("-q", Arg.Set Global.quiet                                     , "quiet"               ) ;
+        ("-l", Arg.String (fun s -> Global.libs := s::(!Global.libs))   , "load a library"      ) ;
+        ("-r", Arg.Set Global.ignore_redefinition                       , "ignore redefinition" ) ;
+        ("-g", Arg.Set Global.generate_lua_file                         , "generate a lua file" )
 ]
 
 let set_name str =
@@ -36,23 +40,26 @@ let parse lb =
           let line = curr.Lexing.pos_lnum in
           let cnum = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
           let tok = Lexing.lexeme lb in
-            raise (Error (ParsingError (tok,(line,cnum))))
+            raise (ParsingError (ParserError (tok,(line,cnum))))
         end
 
 (* Main *)
 
 let main str =
   try
+    if !Global.quiet then () else print_endline (" --- Processing " ^ str ^ " --- ");
     let file = open_in str      in
     let _ = set_name str        in
     let lexbuf = Lexing.from_channel file in
-      LuaCodeGeneration2.prelude () ;
+      (if !Global.generate_lua_file || !Global.do_not_check then LuaCodeGeneration2.prelude ()
+       else Global.state := Some (LuaTypeChecker.init !Global.name) ) ;
       parse lexbuf
   with 
-    | Error err         -> error (Debug.string_of_err err)
-    | Sys_error msg     -> error ("System error: "^msg)
-    | IncorrectFileName -> error ("Incorrect File Name.") (*FIXME*)
-    | End_of_file       -> exit 0
+    | ParsingError err          -> error (Debug.string_of_perr err)
+    | TypeCheckingError err     -> ( Global.debug_ko () ; error (Debug.string_of_lerr err) )
+    | Sys_error msg             -> error ("System error: "^msg)
+    | IncorrectFileName         -> error ("Incorrect File Name.") (*FIXME*)
+    | End_of_file               -> Hashtbl.reset Global.gs 
 
 let _ = Arg.parse args main "Usage: dkparse file" 
   

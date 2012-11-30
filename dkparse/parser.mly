@@ -1,5 +1,105 @@
 %{
+
 open Types
+
+let mk_declaration id ty =
+        let gname = !Global.name^"."^id in
+        Global.debug ("{Declaration} " ^ gname ^ "\t\t")  ;
+        match !Global.state with
+        | None          ->
+            begin
+              if !Global.do_not_check then () else LuaCodeGeneration2.generate_decl_check gname ty ;
+              LuaCodeGeneration2.generate_decl_code gname ;
+              LuaCodeGeneration2.generate_decl_term gname ty ;
+              Global.debug_ok ()
+            end
+        | Some ls       ->
+            begin
+              LuaTypeChecker.check_type_type ls ty ;
+              LuaTypeChecker.add_in_context ls gname ty ;
+              Global.debug_ok ()
+            end
+
+let mk_declaration0 id ty =
+        if !Global.ignore_redefinition then
+                if Global.gscope_add_decl id then mk_declaration (fst id) ty
+                else Global.debug ("{Declaration} " ^ (!Global.name) ^ "." ^ (fst id) ^ "\t\t[IGNORED]\n")
+        else (
+                Global.gscope_add id ;
+                mk_declaration (fst id) ty
+        )
+
+let mk_definition id te ty =
+        let gname = !Global.name^"."^id in
+        Global.debug ("{Definition} " ^ gname ^ "\t\t") ;
+        match !Global.state with
+        | None         ->
+            begin
+              if !Global.do_not_check then () else LuaCodeGeneration2.generate_def_check gname te ty ;
+              LuaCodeGeneration2.generate_def_code gname te ;
+              LuaCodeGeneration2.generate_def_term gname te ;
+              Global.debug_ok ()
+            end
+        | Some ls       ->
+            begin
+              LuaTypeChecker.check_type_type ls ty ;
+              LuaTypeChecker.check_type ls te ty ;
+              LuaTypeChecker.add_definition ls gname te ;
+              Global.debug_ok ()
+            end
+
+let mk_opaque id te ty = 
+        let gname = !Global.name^"."^id in
+        Global.debug ("{Opaque} " ^ gname ^ "\t\t")  ;
+        match !Global.state with
+        | None          ->
+            begin
+              if !Global.do_not_check then () else LuaCodeGeneration2.generate_def_check gname te ty ;
+              LuaCodeGeneration2.generate_decl_code gname ;
+              LuaCodeGeneration2.generate_decl_term gname ty ;
+              Global.debug_ok ()
+            end
+        | Some ls       -> 
+            begin
+              LuaTypeChecker.check_type_type ls ty ;
+              LuaTypeChecker.check_type ls te ty ;
+              LuaTypeChecker.add_in_context ls gname ty ;
+              Global.debug_ok ()
+            end
+
+let mk_typecheck te ty = 
+        Global.debug ("{TypeCheck} ... \t\t") ;
+        match !Global.state with
+        | None          -> ( 
+                if !Global.do_not_check then () else LuaCodeGeneration2.generate_def_check "_" te ty ; 
+                Global.debug_ok () )
+        | Some ls       -> ( LuaTypeChecker.check_type ls te ty ; Global.debug_ok () )
+
+let mk_rules a = 
+  Global.debug ("{RuleCheck} ... \t\t") ;
+  let (_,(id,rules)) = a         in
+  let rs = Array.of_list rules    in
+  Global.chk_rules_id a  ; 
+  match !Global.state with
+  | None        ->
+      begin
+        if !Global.do_not_check then () else Array.iteri (LuaCodeGeneration2.generate_rule_check id) rs ;
+        LuaCodeGeneration2.generate_rules_code id rs ;
+        Global.debug_ok ()
+      end
+  | Some ls     -> 
+      begin
+        Array.iter (LuaTypeChecker.check_rule ls id) rs ;
+        LuaTypeChecker.add_rules ls id rs ;
+        Global.debug_ok ()
+      end
+
+let mk_require dep =
+        Global.debug ("{Module} "^dep^" \t\t") ;
+        match !Global.state with
+        | None        -> assert false (*TODO*)
+        | Some ls     -> ( LuaTypeChecker.require ls dep ; Global.debug_ok () )
+
 %}
 
 %token DOT
@@ -10,6 +110,7 @@ open Types
 %token LONGARROW
 %token DEF
 %token UNDERSCORE
+%token HASH
 %token LEFTPAR
 %token RIGHTPAR
 %token LEFTBRA
@@ -29,78 +130,18 @@ open Types
 %right ARROW FATARROW
 
 %%
-top:            /* empty */                                     { () }
-                /* declaration */
-                | top ID COLON term DOT                                 
-                        { 
-                        let gname = !Global.name^"."^(fst $2) in    (*FIXME*)
-                          Global.gscope_add $2 ; 
-                          if !Global.check then
-                            begin
-                              LuaCodeGeneration2.generate_decl_check gname $4 ;
-                              LuaCodeGeneration2.generate_decl_code  gname ;
-                              LuaCodeGeneration2.generate_decl_term  gname $4
-                            end
-                          else
-                            begin
-                              LuaCodeGeneration2.generate_decl_code gname ;
-                              LuaCodeGeneration2.generate_decl_term  gname $4
-                            end
-                        }
-                /* Definitions */
-                | top ID COLON term DEF term DOT { 
-                        let gname = !Global.name^"."^(fst $2) in
-                        Global.gscope_add $2 ; 
-                        if !Global.check then
-                          begin
-                            LuaCodeGeneration2.generate_def_check gname $6 $4;
-                            LuaCodeGeneration2.generate_def_code  gname $6 ;
-                            LuaCodeGeneration2.generate_def_term  gname $6
-                          end
-                        else
-                          begin
-                            LuaCodeGeneration2.generate_def_code gname $6;
-                            LuaCodeGeneration2.generate_def_term gname $6
-                          end
-                        }
-                | top LEFTBRA ID RIGHTBRA COLON term DEF term DOT { 
-                        let gname = !Global.name^"."^(fst $3) in
-                        Global.gscope_add $3 ; 
-                        if !Global.check then
-                          begin
-                            LuaCodeGeneration2.generate_def_check gname $8 $6;
-                            LuaCodeGeneration2.generate_decl_code gname ;
-                            LuaCodeGeneration2.generate_decl_term gname $6
-                          end
-                        else
-                          begin
-                            LuaCodeGeneration2.generate_decl_code gname ;
-                            LuaCodeGeneration2.generate_decl_term gname $6
-                          end
-                        }
-                | top UNDERSCORE COLON term DEF term DOT { 
-                        if !Global.check then
-                            LuaCodeGeneration2.generate_def_check "_" $6 $4
-                        else ()
-                }
-                /* Rewriting Rules */
-                | top rules DOT                                 
-                        { let (_,(id,rules)) = $2       in
-                          let rs = Array.of_list rules  in
-                          Global.chk_rules_id $2  ; 
-                          if !Global.check then
-                            begin
-                              Array.iteri (LuaCodeGeneration2.generate_rule_check id) rs ;
-                              LuaCodeGeneration2.generate_rules_code id rs ;
-                            end
-                          else
-                            LuaCodeGeneration2.generate_rules_code id rs
-                        } ;
+top:            /* empty */                                             { () }
+                | top ID COLON term DOT                                 { mk_declaration0 $2 $4 }
+                | top ID COLON term DEF term DOT                        { Global.gscope_add $2 ; mk_definition (fst $2) $6 $4 }
+                | top LEFTBRA ID RIGHTBRA COLON term DEF term DOT       { Global.gscope_add $3 ; mk_opaque (fst $3) $8 $6 }
+                | top UNDERSCORE COLON term DEF term DOT                { mk_typecheck $6 $4 }
+                | top rules DOT                                         { mk_rules $2 } 
+                | top HASH ID                                           { mk_require (fst $3) };
 
-rules:          rule                                            { let (id,loc,ru) = $1 in (loc,(id,[ru])) }
+rules:          rule                                                    { let (id,loc,ru) = $1 in (loc,(id,[ru])) }
                 | rule rules                             
                         { let (id1,l1,ru) = $1 and (l2,(id2,lst)) = $2 in 
-                          if id1<>id2 then raise (Error (ConstructorMismatch (id1,l1,id2,l2))) 
+                          if id1<>id2 then raise (ParsingError (ConstructorMismatch (id1,l1,id2,l2))) 
                           else (l1,(id1,ru::lst)) }
                 ;
 
