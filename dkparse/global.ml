@@ -11,9 +11,9 @@ let libs  :  string list ref       = ref []
 let state : (Lua.state option ref) = ref None
 
 
-let debug str  = if !quiet then () else ( print_string str ; flush stdout )
-let debug_ok _ = if !quiet then () else print_endline "\027[32m[OK]\027[m"
-let debug_ko _ = if !quiet then () else print_endline "\027[31m[KO]\027[m"
+let debug str  = if !quiet then () else ( prerr_string str ; flush stderr )
+let debug_ok _ = if !quiet then () else prerr_endline "\027[32m[OK]\027[m"
+let debug_ko _ = if !quiet then () else prerr_endline "\027[31m[KO]\027[m"
 
 
 (* true->local , false->global *)             
