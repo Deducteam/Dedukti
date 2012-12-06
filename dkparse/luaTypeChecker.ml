@@ -42,7 +42,11 @@ let print_status = function
 
 let require ls dep =
   if LuaL.dostring ls ("require(\""^dep^"\")") then () (*FIXME*)
-  else raise (TypeCheckingError(LuaRequireFailed dep))
+  else
+   begin
+     (*prerr_string (force_some (Lua.tostring ls (-1))) ;*)
+     raise (TypeCheckingError(LuaRequireFailed dep))
+   end
 
 let init name = 
   Global.debug ("{Initialisation} "^name^"\t\t") ;
@@ -50,11 +54,16 @@ let init name =
     LuaL.openlibs ls ;
     force_true (LuaL.dostring ls "require(\"jit\")") ;
     force_true (LuaL.dostring ls "require(\"dedukti\")") ;
+(*    force_true (LuaL.dostring ls "require(\"profiler\")") ;*)
+(*    force_true (LuaL.dostring ls ("profiler.start()") ) ;*)
     force_true (LuaL.dostring ls (name^" = { }")) ;
-    List.iter (require ls) !Global.libs ;
+    List.iter (require ls) (List.rev !Global.libs) ; (*FIXME*)
     Global.debug_ok () ;
     ls
-
+(*
+let close ls =
+  force_true (LuaL.dostring ls "profiler.stop()")
+*)
 let rec lua_code bf = function
   | Kind                -> add_string bf  "{ co = ckind }"
   | Type                -> add_string bf  "{ co = ctype }"

@@ -1,3 +1,5 @@
+#coc
+#logic
 nat_ : coc.Utype.
 
 nat : Type.
@@ -50,7 +52,7 @@ eq_S2 : coc.etype (coc.dotpi1 nat_ (x : nat
 
 
 pred : nat -> nat.
-[] pred --> nat_rec nat_ Z (x:nat => _:nat => x).
+[] pred --> nat_rec nat_ Z (x:nat => dummy:nat => x).
 
 pred2 : nat -> nat.
 [] pred2 Z --> Z

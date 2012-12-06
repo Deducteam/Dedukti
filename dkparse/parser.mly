@@ -21,7 +21,7 @@ let mk_declaration id ty =
             end
 
 let mk_declaration0 id ty =
-        if !Global.ignore_redefinition then
+        if !Global.ignore_redeclarations then
                 if Global.gscope_add_decl id then mk_declaration (fst id) ty
                 else Global.debug ("{Declaration} " ^ (!Global.name) ^ "." ^ (fst id) ^ "\t\t[IGNORED]\n")
         else (
@@ -97,7 +97,7 @@ let mk_rules a =
 let mk_require dep =
         Global.debug ("{Module} "^dep^" \t\t") ;
         match !Global.state with
-        | None        -> assert false (*TODO*)
+        | None        -> ( LuaCodeGeneration2.generate_require dep ; Global.debug_ok () )
         | Some ls     -> ( LuaTypeChecker.require ls dep ; Global.debug_ok () )
 
 %}

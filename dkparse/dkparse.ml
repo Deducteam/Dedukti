@@ -9,7 +9,7 @@ let args = [
         ("-c", Arg.Set Global.do_not_check                              , "do not check"        ) ;
         ("-q", Arg.Set Global.quiet                                     , "quiet"               ) ;
         ("-l", Arg.String (fun s -> Global.libs := s::(!Global.libs))   , "load a library"      ) ;
-        ("-r", Arg.Set Global.ignore_redefinition                       , "ignore redefinition" ) ;
+        ("-r", Arg.Set Global.ignore_redeclarations                     , "ignore redeclarations" ) ;
         ("-g", Arg.Set Global.generate_lua_file                         , "generate a lua file" )
 ]
 
@@ -59,7 +59,7 @@ let main str =
     | TypeCheckingError err     -> ( Global.debug_ko () ; error (Debug.string_of_lerr err) )
     | Sys_error msg             -> error ("System error: "^msg)
     | IncorrectFileName         -> error ("Incorrect File Name.") (*FIXME*)
-    | End_of_file               -> Hashtbl.clear Global.gs 
+    | End_of_file               -> ( Hashtbl.clear Global.gs (*; match !Global.state with | Some ls -> LuaTypeChecker.close ls | None -> ()*) )
 
-let _ = Arg.parse args main "Usage: dkparse file" 
+let _ = Arg.parse args main "Usage: dkparse [options] files"  
   
