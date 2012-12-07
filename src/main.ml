@@ -28,9 +28,9 @@ let speclist = Arg.align
     "-I", Arg.String add_path, "path";
     "--include", Arg.String add_path, "path add path using the current dirpath root\n";
     "-p", Arg.Unit pp_prefix, "";
-    "--prefix-notation", Arg.Unit pp_prefix, " use Dedukti prefix syntax (faster parsing, default)\n";
+    "--prefix-notation", Arg.Unit pp_prefix, " use Dedukti prefix syntax (faster parsing)\n";
     "-h", Arg.Unit pp_external, "";
-    "--external", Arg.Unit pp_external, " use Dedukti external syntax (more human readable)\n";
+    "--external", Arg.Unit pp_external, " use Dedukti external syntax (more human readable, default)\n";
     "--version", Arg.Unit version, " display version information"
 ]
 

@@ -140,7 +140,7 @@ class external_pp = object (self)
     | End -> mt ()
 end
 
-let pp_obj = ref new prefix_pp
+let pp_obj = ref new external_pp
 
 let pp_prefix () = pp_obj := new prefix_pp
 
