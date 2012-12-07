@@ -44,19 +44,20 @@ let translate filename =
   let ml = (md.Check.md_name, filename) in
       (* Putting dependancies in the environment *)
   let needed = List.rev (Check.intern_library Check.LibrarySet.empty ml []) in
-  let env =
+  let imports,env =
     List.fold_left
-    (fun env (dir,m) ->
+    (fun (im,env) (dir,m) ->
       if dir <> md.Check.md_name then
 	try
+	  dir::im,
 	  Safe_typing.unsafe_import
 	    m.Check.library_compiled m.Check.library_digest env
 	with e ->
 	  failwith ("unable to import module " ^ string_of_dirpath dir)
-      else env )
-    (Environ.empty_env) needed in
+      else im,env )
+    ([], Environ.empty_env) needed in
   let path,mb = Safe_typing.path_mb_compiled_library md.Check.md_compiled in
-  print_decls (path_to_string path) (List.rev (mb_trans
+  print_decls (path_to_string path) imports (List.rev (mb_trans
 				       {env = env;
 					decls = [];
 					functors = [];

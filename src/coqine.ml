@@ -1155,17 +1155,19 @@ let packet_translation finite tenv ind params constr_types p =
 
 
 (* Printing declarations *)
-let rec print_decls module_name stmts =
+let rec print_decls module_name imports stmts =
   let output_file = open_out (module_name ^ ".dk")
   in
-    output_module output_file
-      (match stmts with
-	   [] -> (* Dedukti does not like empty files, adding a
-		    dummy declaration. *)
-	     [Declaration(Id("dummy"),DType)];
-	 | _ -> stmts);
-    prerr_endline ("closing module " ^ (module_name));
-    close_out output_file
+  List.iter (fun i ->
+  Printf.fprintf output_file "#%s\n" (path_to_string i)) imports;
+  output_module output_file
+    (match stmts with
+      [] -> (* Dedukti does not like empty files, adding a
+	       dummy declaration. *)
+	[Declaration(Id("dummy"),DType)];
+    | _ -> stmts);
+  prerr_endline ("closing module " ^ (module_name));
+  close_out output_file
 
 
 let add_constants env mtb =
@@ -1297,7 +1299,7 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 	 let mod_name = module_path_to_string tenv.mp
 	   ^ "_" ^ string_of_label label
 	 in
-	 print_decls mod_name (List.rev tenv''.decls);
+	 print_decls mod_name [] (List.rev tenv''.decls);
 	 tenv'
 
        | SFBmodtype mty ->
@@ -1444,7 +1446,7 @@ and sb_decl_trans tenv (label, decl) =
       let mod_name = module_path_to_string tenv.mp
 	^ "_" ^ string_of_label label
       in
-      print_decls mod_name (List.rev tenv''.decls);
+      print_decls mod_name [] (List.rev tenv''.decls);
       tenv'
     | SFBmodtype mty ->
       (* we do not translate module types, but we put them in the
