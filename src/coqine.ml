@@ -1158,6 +1158,7 @@ let packet_translation finite tenv ind params constr_types p =
 let rec print_decls module_name imports stmts =
   let output_file = open_out (module_name ^ ".dk")
   in
+  output_string output_file "#Coq1univ\n";
   List.iter (fun i ->
   Printf.fprintf output_file "#%s\n" (path_to_string i)) imports;
   output_module output_file
