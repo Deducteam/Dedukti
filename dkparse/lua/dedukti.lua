@@ -16,7 +16,7 @@ tlam, tpi, tapp, ttype, tbox = 'tlam', 'tpi', 'tapp', 'ttype', 'tbox';
 -- { te = tpi  ; ttype:Term       ; ctype:Code0       ; f:Term*Code -> Term}
 -- { te = tapp ; f:Term ; a:Term ; ca:Code0 }
 -- { te = ttype }
--- { te = tbox ; ctype:Code }
+-- { te = tbox ; ctype:Code0 }
 
 -- int -> Code
 function mk_var ( i )
@@ -25,7 +25,7 @@ end
 
 -- Code --> Term
 function mk_box ( ty )
-  return { te = tbox ; ctype = ty };
+  return { te = tbox ; ctype = function() return ty end };
 end
 
 function push (a,t)
@@ -189,7 +189,7 @@ function type_synth ( n , te )
   local res = nil
 
   if     te.te == ttype then res = { co = ckind }        -- Kind
-  elseif te.te == tbox  then res = te.ctype              -- Type
+  elseif te.te == tbox  then res = te.ctype()            -- Type
   elseif te.te == tlam  then                             -- Lam 
     if te.ctype == nil  then error("Cannot find type of:\n" .. string_of_term(n,te)) end
     type_check( n , te.ttype , { co = ctype } )
@@ -285,7 +285,7 @@ function string_of_code ( n , c )
 end
  
 function mk_vart(n)
-  return { te = tbox ; ctype = mk_var(n) }
+  return { te = tbox ; ctype = function() return mk_var(n) end }
 end
 
 function string_of_term ( n , t )
@@ -309,7 +309,7 @@ function string_of_term ( n , t )
     return "Type"
   elseif t.te == tbox 	then 
     -- Box
-    return "(Box " .. string_of_code(n,t.ctype) .. ")"
+    return "(Box " .. string_of_code(n,t.ctype()) .. ")"
   else 
     -- Err
     return "Error"

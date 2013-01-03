@@ -15,14 +15,26 @@ let debug str  = if !quiet then () else ( prerr_string str ; flush stderr )
 let debug_ok _ = if !quiet then () else prerr_endline "\027[32m[OK]\027[m"
 let debug_ko _ = if !quiet then () else prerr_endline "\027[31m[KO]\027[m"
 
+type var = | Local | Global | Alias
 
-(* true->local , false->global *)             
-let gs : (id,bool) Hashtbl.t = Hashtbl.create 47
+let gs : (id,var) Hashtbl.t = Hashtbl.create 47
+
+let is_alias id =
+  try 
+    match Hashtbl.find gs id with
+      | Alias   -> true
+      | Global  -> false
+      | Local   -> assert false
+  with
+    | Not_found -> assert false
 
 let mk_var (id,loc) =
-  try 
-    if Hashtbl.find gs id then Var id
-    else GVar id
+  try
+   begin
+     match Hashtbl.find gs id with 
+       | Local   -> Var id
+       | _       -> GVar id
+   end
   with
     | Not_found -> raise (ParsingError (ScopeError (id,loc))) 
 
@@ -32,24 +44,33 @@ let filter_qid qid = qid        (*FIXME idem *)
 
 let mk_pat_var (id,loc) =
   try
-    if Hashtbl.find gs id then Id id
-    else Pat (id,[||],[||])
+    match Hashtbl.find gs id with
+      | Local -> Id id
+      | _     -> Pat (id,[||],[||])
   with
     | Not_found -> raise (ParsingError (ScopeError (id,loc))) 
 
 let gscope_add (id,loc) = 
   if Hashtbl.mem gs id then raise (ParsingError (AlreadyDefinedId (id,loc))) 
-  else Hashtbl.add gs id false
+  else Hashtbl.add gs id Global
 
 let gscope_add_decl (id,loc) = 
   if Hashtbl.mem gs id then false
-  else ( Hashtbl.add gs id false ; true )
+  else ( Hashtbl.add gs id Global ; true )
+
+let chk_alias id rs =
+ if Array.length rs !=1 then ()
+ else
+   let (_,a,b,_) = rs.(0) in
+    if ( Array.length a = 0 && Array.length b = 0 ) then Hashtbl.replace gs id Alias
+    else () 
+
 
 let chk_rules_id (loc,(id,_)) = 
   if Hashtbl.mem gs id then () 
   else raise (ParsingError (ScopeError (id,loc)))
 
-let lscope_add id = Hashtbl.add gs id true
+let lscope_add id = Hashtbl.add gs id Local
 
 let lscope_remove id = Hashtbl.remove gs id
 

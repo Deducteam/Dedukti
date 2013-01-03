@@ -44,10 +44,12 @@ let rec string_of_pattern = function
   | Pat (c,ds,ps)       -> "("^c^" [|"^(concat ";" (Array.map string_of_term ds))^"|] [|"^(concat ";" (Array.map string_of_pattern ps))^"|])"
 
 let print_pMat pm =
-  Array.iter ( 
-    fun li -> 
-      print_string "( " ;
-      Array.iter (fun p -> Printf.printf "%s\t" (string_of_pattern p)) li ;
-      print_string ")\n"
-  ) pm.p
+  prerr_string "\n ###> \n";
+  Array.iteri ( 
+    fun i li -> 
+      prerr_string "( " ;
+      Array.iter (fun p -> Printf.eprintf "%s\t" (string_of_pattern p)) li ;
+      prerr_string (" [ "^string_of_term (snd pm.a.(i))^" ]\n")
+  ) pm.p ;
+  prerr_string "<###\n"
 

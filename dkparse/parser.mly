@@ -80,6 +80,7 @@ let mk_rules a =
   let (_,(id,rules)) = a         in
   let rs = Array.of_list rules    in
   Global.chk_rules_id a  ; 
+  Global.chk_alias id rs ;
   match !Global.state with
   | None        ->
       begin

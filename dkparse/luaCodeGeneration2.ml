@@ -10,6 +10,7 @@ let iteri f lst =
 (* *********** Prelude ********** *)
 
 let prelude _ =
+  fprintf !Global.out "require('dedukti')\n" ;
   fprintf !Global.out "--[[ Code for module %s ]]\n" !Global.name ;
   fprintf !Global.out "%s = { }\n\n" !Global.name
 
@@ -21,9 +22,11 @@ let generate_require dep =
 let rec gen_code0 = function
   | Kind                -> assert false
   | Type                -> fprintf !Global.out "{ co = ctype }"
-  | GVar v              -> fprintf !Global.out "app0(%s.%s_c)"  !Global.name v
+  | GVar v              -> 
+      if Global.is_alias v then fprintf !Global.out "app0(%s.%s_c)"  !Global.name v
+      else fprintf !Global.out "%s.%s_c"  !Global.name v
   | EVar v              -> fprintf !Global.out "app0(%s_c)" v
-  | Var v               -> fprintf !Global.out "app0(%s_c)" v
+  | Var v               -> (* fprintf !Global.out "app0(%s_c)" v *) fprintf !Global.out "%s_c" v 
   | App (f,a)           -> 
       begin
         fprintf !Global.out  "app( " ;
@@ -117,9 +120,9 @@ let generate_decl_code gname =
   fprintf !Global.out "%s_c = { co = ccon ; id = \"%s\" ; arity = 0 ; args = { } ; f = function() return nil end }\n" gname gname
 
 let generate_decl_term gname ty =
-  fprintf !Global.out "%s_t = { te = tbox ; ctype = " gname ;
+  fprintf !Global.out "%s_t = { te = tbox ; ctype = function() return " gname ;
   gen_code0 ty ;
-  fprintf !Global.out " }\n\n"
+  fprintf !Global.out " end }\n\n"
 
 (* ************** Definitions *************** *)
 
@@ -137,7 +140,7 @@ let generate_def_term gname te =
   gen_term te ;
   fprintf !Global.out "\n\n"
 
-let generate_def_code gname te =
+let generate_def_code gname te = (*FIXME normalize *)
   fprintf !Global.out "%s_c = " gname ;
   gen_code0 te ;
   fprintf !Global.out "\n\n"
@@ -151,10 +154,9 @@ let new_pMat rules : pMat =
         { p = Array.init rows (fun i -> let (_,_,pats,_) = rules.(i) in pats ) ; 
           a = Array.init rows (fun i -> let (ctx,_,_,ri) = rules.(i)   in (ctx,ri) ) ;
           loc = Array.init cols (fun i -> [i+nd]); 
-          nb_dots = nd;
         }
 
-let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : pMat option = 
+let specialize (pm:pMat) (c:int) (arity:int) (nb_dots:int) (lines:int list) : pMat option = 
   assert (0 < Array.length pm.p);
   assert (c < Array.length pm.p.(0));
     
@@ -164,20 +166,17 @@ let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : pMat option =
     else
       begin
         assert (l_size <= Array.length pm.p);
-        let p = Array.make l_size (Array.make c_size (Id "")) in
+        let p = Array.init l_size (fun _ -> Array.make c_size (Id "dummy")) in
         let a = Array.make l_size ([],Type) in
         let l = Array.make c_size [] in
-
+          
           iteri (fun i k -> a.(i) <- pm.a.(k) ) lines;
 
           iteri (
             fun i k ->
               assert (k < Array.length pm.p && c < Array.length pm.p.(k));
               (match pm.p.(k).(c) with
-                 | Id _              -> 
-                     for j=0 to pred arity do
-                       p.(i).(j) <- (Id "dummy") 
-                     done
+                 | Id _              -> ()
                  | Pat (_,_,pats)    ->
                      for j=0 to (arity-1) do
                        p.(i).(j) <- pats.(j)
@@ -188,29 +187,26 @@ let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : pMat option =
               done;
               for j=(c+1) to pred (Array.length pm.p.(k)) do
                 let tmp =pm.p.(k).(j) in
-                p.(i).(arity+j-1) <-  tmp
-              done
+                  p.(i).(arity+j-1) <-  tmp
+              done 
           ) lines; 
 
-          for i=0 to pred arity     do l.(i) <- i::pm.loc.(c)           done;
-          for i=0 to pred c         do l.(i+arity) <- pm.loc.(i)        done;
-          for i=(c+1) to pred (Array.length pm.loc) do l.(i+arity-1) <- pm.loc.(i) done;
+          for i=0 to pred arity     do l.(i) <- (i+nb_dots)::pm.loc.(c)                 done;
+          for i=0 to pred c         do l.(i+arity) <- pm.loc.(i)                        done;
+          for i=(c+1) to pred (Array.length pm.loc) do l.(i+arity-1) <- pm.loc.(i)      done;
           
-          Some { p=p ; a=a ; loc=l; nb_dots=pm.nb_dots; }
+          Some { p=p ; a=a ; loc=l; }
       end
 
 let default (pm:pMat) (c:int) : pMat option = 
-  try (
     let l_p = ref [] in
     let l_a = ref [] in
-   (* let l_l = ref [] in*)
       for i=0 to pred (Array.length pm.p) do
         assert (c < Array.length pm.p.(i));
         match pm.p.(i).(c) with 
           | Id v  -> (
               l_p := pm.p.(i) :: !l_p;
               l_a := pm.a.(i) :: !l_a;
-            (*  l_l := pm.loc.(i) :: !l_l;*)
             )
           | _     -> ()
       done ;
@@ -218,10 +214,8 @@ let default (pm:pMat) (c:int) : pMat option =
       else 
         Some { p = Array.of_list !l_p ; 
                a = Array.of_list !l_a ; 
-               loc = pm.loc (*Array.of_list !l_l*); (*FIXME ??*)
-               nb_dots = pm.nb_dots;
+               loc = pm.loc ; 
         } 
-  ) with _ -> assert false
 
 let print_path p = 
     assert(p!=[]);
@@ -258,17 +252,17 @@ let getColumn arr =
             else None
     in aux 0
 
-let partition (mx:pattern array array) (c:int) : (id*int*int list) list =
+let partition (mx:pattern array array) (c:int) : (id*int*int*int list) list =
     let lst = ref [] in
     let checked = Array.make (Array.length mx) false in
-      for i=0 to pred (Array.length mx) do
+      for i=pred (Array.length mx) downto 0 do
         if checked.(i) then ()
         else (
           assert (c < Array.length mx.(i));
           match mx.(i).(c) with
             | Id _              -> () 
-            | Pat (cst,_,pats)   ->
-                let l = ref [i] in
+            | Pat (cst,dots,pats)   ->
+                let l = ref [] in
                   begin
                     for j=0 to pred (Array.length mx) do
                       match mx.(j).(c) with
@@ -277,7 +271,7 @@ let partition (mx:pattern array array) (c:int) : (id*int*int list) list =
                             if (cst=cst2 && i!=j) then ( l := j::!l ; checked.(j) <- true )
                             else ()
                     done ;
-                    lst := (cst,Array.length pats,!l)::!lst ;
+                    lst := (cst,Array.length pats,Array.length dots,i::!l)::!lst ;
                     checked.(i) <- true
                   end
         )
@@ -296,19 +290,20 @@ let rec cc id (pm:pMat) : unit =
     | Some (c,n_id)     -> 
         begin
           assert (c < Array.length pm.loc);
-          let bo = ref true in
+          let bo  = ref true in
+          let par = partition pm.p c in
             List.iter ( 
-              fun (cst,arity,lst) ->
+              fun (cst,arity,dots,lst) ->
                 (if !bo then bo := false else fprintf !Global.out "\nelse") ;
                 fprintf !Global.out "if " ;
                 print_path pm.loc.(c) ;
                 fprintf !Global.out ".co == ccon and " ;
                 print_path pm.loc.(c) ;
-                fprintf !Global.out ".id == \"%s.%s\" then\n" !Global.name cst ; (*FIXME ??*)
-                match specialize pm c arity lst with
-                  | None        -> ( fprintf !Global.out "return " ; gen_code0 (snd pm.a.(0)) ) (*FIXME ?? *)
+                fprintf !Global.out ".id == \"%s.%s\" then\n" !Global.name cst ; 
+                match specialize pm c arity dots lst with
+                  | None        -> ( fprintf !Global.out "return " ; gen_code0 (snd pm.a.(match lst with z::_ -> z | _ -> assert false)) )
                   | Some pm'    -> ( cc n_id pm' )
-            ) (partition pm.p c) ;
+            ) par ;
 
             (*DEFAULT*)
             fprintf !Global.out "\nelse\n";
@@ -369,9 +364,9 @@ let gen_env (id,te) =
   (if iskind te then fprintf !Global.out "chkkind(" else fprintf !Global.out "chktype(");
   gen_term te ;
   fprintf !Global.out ")\nlocal %s_c = { co = ccon ; id = \"%s\" ; arity = 0 ; args = { } ; f = function() return nil end}\n" id id ; (*FIXME*)
-  fprintf !Global.out "local %s_t = { te = tbox, ctype = " id ;
+  fprintf !Global.out "local %s_t = { te = tbox, ctype = function() return " id ;
   gen_code0 te ;
-  fprintf !Global.out "}\nchkend(\"%s\")\n" id
+  fprintf !Global.out " end }\nchkend(\"%s\")\n" id
 
 let generate_rule_check id i (ctx,dots,pats,te) =
   fprintf !Global.out "chkbeg(\"rule %i\")\n" (i+1) ;

@@ -47,7 +47,7 @@ let parse lb =
 
 let main str =
   try
-    if !Global.quiet then () else print_endline (" --- Processing " ^ str ^ " --- ");
+    if !Global.quiet then () else prerr_endline (" --- Processing " ^ str ^ " --- ");
     let file = open_in str      in
     let _ = set_name str        in
     let lexbuf = Lexing.from_channel file in
@@ -55,7 +55,7 @@ let main str =
        else Global.state := Some (LuaTypeChecker.init !Global.name) ) ;
       parse lexbuf
   with 
-    | ParsingError err          -> error (Debug.string_of_perr err)
+    | ParsingError err          -> error ("\027[31m" ^ (Debug.string_of_perr err) ^ "\027[m")
     | TypeCheckingError err     -> ( Global.debug_ko () ; error (Debug.string_of_lerr err) )
     | Sys_error msg             -> error ("System error: "^msg)
     | IncorrectFileName         -> error ("Incorrect File Name.") (*FIXME*)
