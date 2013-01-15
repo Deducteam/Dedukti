@@ -9,13 +9,14 @@ let iteri f lst =
 
 (* *********** Prelude ********** *)
 
-let prelude _ =
-  fprintf !Global.out "require('dedukti')\n" ;
-  (*fprintf !Global.out "--[[ Code for module %s ]]\n" !Global.name ;*)
-  fprintf !Global.out "%s = { }\n\n" !Global.name
-
 let generate_require dep = 
   fprintf !Global.out "require(\"%s\")\n" dep
+
+let prelude _ =
+  fprintf !Global.out "require('dedukti')\n" ;
+  List.iter generate_require !Global.libs ;
+  (*fprintf !Global.out "--[[ Code for module %s ]]\n" !Global.name ;*)
+  fprintf !Global.out "%s = { }\n\n" !Global.name
 
 (* *********** Lua Code Generation *********** *)
 
