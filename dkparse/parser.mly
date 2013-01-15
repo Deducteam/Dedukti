@@ -5,9 +5,9 @@ open Types
 let mk_declaration id ty =
         let gname = !Global.name^"."^id in
         Global.debug ("{Declaration} " ^ gname ^ "\t\t")  ;
-        if !Global.do_not_check then () else LuaCodeGeneration2.generate_decl_check gname ty ;
-        LuaCodeGeneration2.generate_decl_code gname ;
-        LuaCodeGeneration2.generate_decl_term gname ty ;
+        if !Global.do_not_check then () else CodeGeneration.generate_decl_check gname ty ;
+        CodeGeneration.generate_decl_code gname ;
+        CodeGeneration.generate_decl_term gname ty ;
         Global.debug_ok ()
 
 let mk_declaration0 id ty =
@@ -22,22 +22,22 @@ let mk_declaration0 id ty =
 let mk_definition id te ty =
         let gname = !Global.name^"."^id in
         Global.debug ("{Definition} " ^ gname ^ "\t\t") ;
-        if !Global.do_not_check then () else LuaCodeGeneration2.generate_def_check gname te ty ;
-        LuaCodeGeneration2.generate_def_code gname te ;
-        LuaCodeGeneration2.generate_def_term gname te ;
+        if !Global.do_not_check then () else CodeGeneration.generate_def_check gname te ty ;
+        CodeGeneration.generate_def_code gname te ;
+        CodeGeneration.generate_def_term gname te ;
         Global.debug_ok ()
 
 let mk_opaque id te ty = 
         let gname = !Global.name^"."^id in
         Global.debug ("{Opaque} " ^ gname ^ "\t\t")  ;
-        if !Global.do_not_check then () else LuaCodeGeneration2.generate_def_check gname te ty ;
-        LuaCodeGeneration2.generate_decl_code gname ;
-        LuaCodeGeneration2.generate_decl_term gname ty ;
+        if !Global.do_not_check then () else CodeGeneration.generate_def_check gname te ty ;
+        CodeGeneration.generate_decl_code gname ;
+        CodeGeneration.generate_decl_term gname ty ;
         Global.debug_ok ()
 
 let mk_typecheck te ty = 
         Global.debug ("{TypeCheck} ... \t\t") ;
-        if !Global.do_not_check then () else LuaCodeGeneration2.generate_def_check "_" te ty ; 
+        if !Global.do_not_check then () else CodeGeneration.generate_def_check "_" te ty ; 
         Global.debug_ok () 
 
 let mk_rules a = 
@@ -46,13 +46,13 @@ let mk_rules a =
   let rs = Array.of_list rules    in
   Global.chk_rules_id a  ; 
   Global.chk_alias id rs ;
-  if !Global.do_not_check then () else Array.iteri (LuaCodeGeneration2.generate_rule_check id) rs ;
-  LuaCodeGeneration2.generate_rules_code id rs ;
+  if !Global.do_not_check then () else Array.iteri (CodeGeneration.generate_rule_check id) rs ;
+  CodeGeneration.generate_rules_code id rs ;
   Global.debug_ok ()
 
 let mk_require dep =
         Global.debug ("{Module} "^dep^" \t\t") ;
-        LuaCodeGeneration2.generate_require dep ; 
+        CodeGeneration.generate_require dep ; 
         Global.debug_ok () 
 
 %}

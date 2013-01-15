@@ -50,7 +50,7 @@ let main str =
     let file = open_in str      in
     let _ = set_name str        in
     let lexbuf = Lexing.from_channel file in
-      LuaCodeGeneration2.prelude () ;
+      CodeGeneration.prelude () ;
       parse lexbuf
   with 
     | ParsingError err          -> error ("\027[31m" ^ (Debug.string_of_perr err) ^ "\027[m")
