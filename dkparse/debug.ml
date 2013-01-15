@@ -31,11 +31,6 @@ let rec string_of_term = function
   | Pi(None,ty,te)      -> "([_:"^    string_of_term ty^"] "^string_of_term te^")"
   | Pi(Some v,ty,te)    -> "(["^v^":"^string_of_term ty^"] "^string_of_term te^")"
 
-let string_of_lerr = function
-  | LuaTypeCheckingFailed (te,ty,err)   -> "Type Checking Failed !\n[Term] " ^ (string_of_term te) ^ "\n[Type] " ^ (string_of_term ty) ^ "\n" ^ (extract_msg err)
-  | LuaRuleCheckingFailed (id,err)      -> "Type Checking Failed !\n[Rule] " ^ id ^ "\n" ^ (extract_msg err)
-  | LuaRequireFailed err                -> "Unable to load module '" ^ err ^ "'."
-
 let concat sep t = 
   Array.fold_left ( fun acc s -> if acc="" then s else ( acc^sep^s ) ) "" t
  

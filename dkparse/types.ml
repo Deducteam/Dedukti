@@ -18,13 +18,7 @@ type parsing_error =
   | AlreadyDefinedId            of id*loc
   | ScopeError                  of id*loc
 
-type lua_error =
-  | LuaTypeCheckingFailed       of term*term*string
-  | LuaRuleCheckingFailed       of id*string
-  | LuaRequireFailed            of string
-
 exception ParsingError          of parsing_error
-exception TypeCheckingError     of lua_error
 
 type pattern = 
         | Id of id
