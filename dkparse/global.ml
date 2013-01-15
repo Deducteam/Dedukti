@@ -3,12 +3,10 @@ open Lua_api
 
 let out                                 = ref stdout
 let name                                = ref "anon"
-let generate_lua_file                   = ref false
-let do_not_check                        = ref false
 let quiet                               = ref false
 let ignore_redeclarations               = ref false
 let libs  :  string list ref            = ref []
-let state : (Lua.state option ref)      = ref None
+let state : (Lua.state ref)      = ref (LuaL.newstate ())
 
 
 let debug str  = if !quiet then () else ( prerr_string str ; flush stderr )

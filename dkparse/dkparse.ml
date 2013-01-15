@@ -5,12 +5,9 @@ exception IncorrectFileName
 (* Arguments *)
 
 let args = [
-        ("-o", Arg.String (fun s -> Global.out   := (open_out s)  )     , "output file"         ) ;
-        ("-c", Arg.Set Global.do_not_check                              , "do not check"        ) ;
         ("-q", Arg.Set Global.quiet                                     , "quiet"               ) ;
         ("-l", Arg.String (fun s -> Global.libs := s::(!Global.libs))   , "load a library"      ) ;
-        ("-r", Arg.Set Global.ignore_redeclarations                     , "ignore redeclarations" ) ;
-        ("-g", Arg.Set Global.generate_lua_file                         , "generate a lua file" )
+        ("-r", Arg.Set Global.ignore_redeclarations                     , "ignore redeclarations" ) 
 ]
 
 let set_name str =
@@ -51,8 +48,7 @@ let main str =
     let file = open_in str      in
     let _ = set_name str        in
     let lexbuf = Lexing.from_channel file in
-      (if !Global.generate_lua_file || !Global.do_not_check then LuaCodeGeneration2.prelude ()
-       else Global.state := Some (LuaTypeChecker.init !Global.name) ) ;
+      Global.state := LuaTypeChecker.init !Global.name ;
       parse lexbuf
   with 
     | ParsingError err          -> error ("\027[31m" ^ (Debug.string_of_perr err) ^ "\027[m")
