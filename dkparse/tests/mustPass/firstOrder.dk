@@ -46,10 +46,3 @@ U:Type.
 forall       : (U->Prop) -> Prop.
 forall_intro : P:(U->Prop) -> (x:U -> prf (P x)) -> prf (forall P).
 forall_elim  : P:(U->Prop) -> prf (forall P) -> x:U -> prf (P x).
-
-(; FIXME
-exists       : (U->Prop) -> Prop.
-exists_intro : P:(U->Prop) -> x:U -> prf (P u) -> prf (exists P).
-exists_elim  : P:(U->Prop) -> prf (exists P) -> 
-;)
-

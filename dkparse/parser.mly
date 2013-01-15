@@ -4,7 +4,7 @@ open Types
 
 let mk_declaration id ty =
         let gname = !Global.name^"."^id in
-        Global.debug ("{Declaration} " ^ gname ^ "\t\t")  ;
+        Global.debug ("Generating declaration " ^ gname ^ "\t\t")  ;
         if !Global.do_not_check then () else CodeGeneration.generate_decl_check gname ty ;
         CodeGeneration.generate_decl_code gname ;
         CodeGeneration.generate_decl_term gname ty ;
@@ -13,7 +13,7 @@ let mk_declaration id ty =
 let mk_declaration0 id ty =
         if !Global.ignore_redeclarations then
                 if Global.gscope_add_decl id then mk_declaration (fst id) ty
-                else Global.debug ("{Declaration} " ^ (!Global.name) ^ "." ^ (fst id) ^ "\t\t[IGNORED]\n")
+                else Global.debug ("Generating declaration " ^ (!Global.name) ^ "." ^ (fst id) ^ "\t\t[IGNORED]\n")
         else (
                 Global.gscope_add id ;
                 mk_declaration (fst id) ty
@@ -21,7 +21,7 @@ let mk_declaration0 id ty =
 
 let mk_definition id te ty =
         let gname = !Global.name^"."^id in
-        Global.debug ("{Definition} " ^ gname ^ "\t\t") ;
+        Global.debug ("Generating definition " ^ gname ^ "\t\t") ;
         if !Global.do_not_check then () else CodeGeneration.generate_def_check gname te ty ;
         CodeGeneration.generate_def_code gname te ;
         CodeGeneration.generate_def_term gname te ;
@@ -29,20 +29,20 @@ let mk_definition id te ty =
 
 let mk_opaque id te ty = 
         let gname = !Global.name^"."^id in
-        Global.debug ("{Opaque} " ^ gname ^ "\t\t")  ;
+        Global.debug ("Generating opaque definition " ^ gname ^ "\t\t")  ;
         if !Global.do_not_check then () else CodeGeneration.generate_def_check gname te ty ;
         CodeGeneration.generate_decl_code gname ;
         CodeGeneration.generate_decl_term gname ty ;
         Global.debug_ok ()
 
 let mk_typecheck te ty = 
-        Global.debug ("{TypeCheck} ... \t\t") ;
+        Global.debug ("Generating typechecking ... \t\t") ;
         if !Global.do_not_check then () else CodeGeneration.generate_def_check "_" te ty ; 
         Global.debug_ok () 
 
 let mk_rules a = 
-  Global.debug ("{RuleCheck} ... \t\t") ;
   let (_,(id,rules)) = a         in
+  Global.debug ("Generating rule checks for "^id^" \t\t") ; 
   let rs = Array.of_list rules    in
   Global.chk_rules_id a  ; 
   Global.chk_alias id rs ;
@@ -51,7 +51,7 @@ let mk_rules a =
   Global.debug_ok ()
 
 let mk_require dep =
-        Global.debug ("{Module} "^dep^" \t\t") ;
+        Global.debug ("Generating dependency "^dep^" \t\t") ;
         CodeGeneration.generate_require dep ; 
         Global.debug_ok () 
 

@@ -11,7 +11,7 @@ let iteri f lst =
 
 let prelude _ =
   fprintf !Global.out "require('dedukti')\n" ;
-  fprintf !Global.out "--[[ Code for module %s ]]\n" !Global.name ;
+  (*fprintf !Global.out "--[[ Code for module %s ]]\n" !Global.name ;*)
   fprintf !Global.out "%s = { }\n\n" !Global.name
 
 let generate_require dep = 
@@ -110,11 +110,12 @@ let rec iskind = function
   | _             -> false
 
 let generate_decl_check gname ty =
-  fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;
-  fprintf !Global.out "chkbeg(\"%s\")\n" gname;
+  (*fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;*)
+  (*fprintf !Global.out "chkbeg(\"%s\")\n" gname;*)
+  fprintf !Global.out "io.write(\"Checking declaration %s\t\t\")" gname ;
   (if iskind ty then fprintf !Global.out "chkkind(" else fprintf !Global.out "chktype(") ;
   gen_term ty ;
-  fprintf !Global.out ")\nchkend(\"%s\")\n" gname
+  fprintf !Global.out ")\n"
 
 let generate_decl_code gname =
   fprintf !Global.out "%s_c = { co = ccon ; id = \"%s\" ; arity = 0 ; args = { } ; f = function() return nil end }\n" gname gname
@@ -127,13 +128,14 @@ let generate_decl_term gname ty =
 (* ************** Definitions *************** *)
 
 let generate_def_check gname te ty = 
-  fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;
-  fprintf !Global.out "chkbeg(\"%s\")\n" gname ;
+  (*fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;
+  fprintf !Global.out "chkbeg(\"%s\")\n" gname ;*)
+  fprintf !Global.out "io.write(\"Checking definition %s\t\t\")" gname ;
   fprintf !Global.out "chk( " ;
   gen_term te ;
   fprintf !Global.out " , " ;
   gen_code0 ty ;
-  fprintf !Global.out ")\nchkend(\"%s\")\n" gname
+  fprintf !Global.out ")\n"
 
 let generate_def_term gname te = 
   fprintf !Global.out "%s_t = " gname ;
@@ -359,30 +361,39 @@ let rec gpterm = function
             fprintf !Global.out " end } "
         ) pats
 
+
+          (* Env *)
+
 let gen_env (id,te) =
-  fprintf !Global.out "chkbeg(\"%s\")\n" id ;
+  (*fprintf !Global.out "chkbeg(\"%s\")\n" id ;*)
+  fprintf !Global.out "io.write(\"Checking variable %s\t\t\")" id ;
   (if iskind te then fprintf !Global.out "chkkind(" else fprintf !Global.out "chktype(");
   gen_term te ;
   fprintf !Global.out ")\nlocal %s_c = { co = ccon ; id = \"%s\" ; arity = 0 ; args = { } ; f = function() return nil end}\n" id id ; (*FIXME*)
   fprintf !Global.out "local %s_t = { te = tbox, ctype = function() return " id ;
   gen_code0 te ;
-  fprintf !Global.out " end }\nchkend(\"%s\")\n" id
+  fprintf !Global.out " end }\n"
+  (*fprintf !Global.out " end }\nchkend(\"%s\")\n" id*)
+
+(* Rules*)
 
 let generate_rule_check id i (ctx,dots,pats,te) =
-  fprintf !Global.out "chkbeg(\"rule %i\")\n" (i+1) ;
+  (*fprintf !Global.out "chkbeg(\"rule %i\")\n" (i+1) ;*)
   List.iter gen_env ctx ; 
+  fprintf !Global.out "io.write(\"Checking rule %i for %s\t\t\")" (i+1) id ;
   fprintf !Global.out "do\nlocal ty = type_synth(0, ";
   gpterm (Pat (id,dots,pats));
   fprintf !Global.out ")\nchk(";
   gen_term te ;
-  fprintf !Global.out ", ty)\nend\nchkend(\"rule %i\")\n" (i+1)
+  fprintf !Global.out ", ty)end\n"
+  (*fprintf !Global.out ", ty)\nend\nchkend(\"rule %i\")\n" (i+1)*)
 
 let generate_rules_code id rules = 
   assert ( Array.length rules > 0 );
   let gname = !Global.name^"."^id in     (*FIXME*)
   let (_,dots,pats,_) = rules.(0) in
   let arity = Array.length dots + Array.length pats in
-    fprintf !Global.out "\n -- [[ Compiling rules of %s. ]]\n" gname ;
+    (*fprintf !Global.out "\n -- [[ Compiling rules of %s. ]]\n" gname ;*)
     fprintf !Global.out "%s_c = { co = ccon ; id=\"%s\" ; arity = %i ; args = { } ; f =\nfunction (" gname gname arity ;
     (if arity>0 then fprintf !Global.out "y1" else ());
     (for i=2 to arity do fprintf !Global.out ", y%i" i  done );

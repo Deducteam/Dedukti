@@ -3,6 +3,5 @@
 luajit='luajit-2.0.0-beta9'
 
 for file in *.dk ; do
-	#dedukti -g $file | $luajit -
-	dedukti $file
+	dedukti $file | $luajit -
 done

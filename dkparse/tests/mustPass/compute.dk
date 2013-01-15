@@ -16,9 +16,10 @@ fact : Nat -> Nat.
 []      fact Z --> S Z
 [x:Nat] fact (S x) --> mult (S x) (fact x).
 
-eight : Nat.
-[] eight --> S (S (S (S (S (S (S (S Z))))))).
+seven : Nat := S (S (S (S (S (S (S Z)))))).
+eight : Nat := S (S (S (S (S (S (S (S Z))))))).
 
-I : Nat -> Type.
+eq : Nat -> Nat -> Type.
 
-test : I (fact eight).
+test1 : eq (fact seven) (fact seven).
+test2 : eq (fact eight) (fact eight).

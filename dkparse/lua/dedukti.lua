@@ -214,21 +214,24 @@ end
 
 -- Term -> unit
 function chktype ( t )
-  type_check ( 0 , t , { co = ctype } )
+  if pcall ( type_check , 0 , t , { co = ctype } ) then print("\027[32m[OK]\027[m") 
+  else print("\027[31m[KO]\027[m") end
 end
 
 -- Term -> unit
 function chkkind ( t )
-  type_check ( 0 , t , { co = ckind } )
+  if pcall ( type_check , 0 , t , { co = ckind } ) then print("\027[32m[OK]\027[m")
+  else print("\027[31m[KO]\027[m") end
 end
 
 -- Term*Code -> unit
 function chk ( t , c )
-  type_check ( 0 , t , c ) 
+  if pcall ( type_check , 0 , t , c ) then print("\027[32m[OK]\027[m")
+  else print("\027[31m[KO]\027[m") end
 end
 
 --[[ Utility functions. ]]
-
+--[[
 local indent = 0;
 local function shiftp(m)
   print(string.rep("  ", indent) .. m);
@@ -246,7 +249,7 @@ end
 function chkend(x)
   indent = indent - 1;
   shiftp("Done checking \027[32m" .. x .. "\027[m.");
-end
+end ]]
 
 -- Debug
 --
