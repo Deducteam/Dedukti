@@ -57,7 +57,7 @@ let gscope_add_decl (id,loc) =
 let chk_alias id rs =
  if Array.length rs !=1 then ()
  else
-   let (_,a,b,_) = rs.(0) in
+   let (_,_,a,b,_) = rs.(0) in
     if ( Array.length a = 0 && Array.length b = 0 ) then Hashtbl.replace gs id Alias
     else () 
 
@@ -70,4 +70,4 @@ let lscope_add id = Hashtbl.add gs id Local
 
 let lscope_remove id = Hashtbl.remove gs id
 
-let lscope_remove_lst lst = List.iter (fun x -> lscope_remove (fst x)) lst
+let lscope_remove_lst lst = List.iter (fun x -> lscope_remove (fst (fst x))) lst

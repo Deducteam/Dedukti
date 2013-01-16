@@ -2,47 +2,47 @@
 
 open Types
 
-let mk_declaration id ty =
+let mk_declaration (id,loc) ty =
         let gname = !Global.name^"."^id in
-        Global.debug ("Generating declaration " ^ gname ^ "\t\t")  ;
-        if !Global.do_not_check then () else CodeGeneration.generate_decl_check gname ty ;
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ gname ^ "\t\t")  ;
+        if !Global.do_not_check then () else CodeGeneration.generate_decl_check gname loc ty ;
         CodeGeneration.generate_decl_code gname ;
         CodeGeneration.generate_decl_term gname ty ;
         Global.debug_ok ()
 
-let mk_declaration0 id ty =
+let mk_declaration0 idl ty =
         if !Global.ignore_redeclarations then
-                if Global.gscope_add_decl id then mk_declaration (fst id) ty
-                else Global.debug ("Generating declaration " ^ (!Global.name) ^ "." ^ (fst id) ^ "\t\t[IGNORED]\n")
+                if Global.gscope_add_decl idl then mk_declaration idl ty
+                else Global.debug (Debug.string_of_loc (snd idl) ^ "\tGenerating declaration " ^ (!Global.name) ^ "." ^ (fst idl) ^ "\t\t[IGNORED]\n")
         else (
-                Global.gscope_add id ;
-                mk_declaration (fst id) ty
+                Global.gscope_add idl ;
+                mk_declaration idl ty
         )
 
-let mk_definition id te ty =
+let mk_definition (id,loc) te ty =
         let gname = !Global.name^"."^id in
-        Global.debug ("Generating definition " ^ gname ^ "\t\t") ;
-        if !Global.do_not_check then () else CodeGeneration.generate_def_check gname te ty ;
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating definition " ^ gname ^ "\t\t") ;
+        if !Global.do_not_check then () else CodeGeneration.generate_def_check gname loc te ty ;
         CodeGeneration.generate_def_code gname te ;
         CodeGeneration.generate_def_term gname te ;
         Global.debug_ok ()
 
-let mk_opaque id te ty = 
+let mk_opaque (id,loc) te ty = 
         let gname = !Global.name^"."^id in
-        Global.debug ("Generating opaque definition " ^ gname ^ "\t\t")  ;
-        if !Global.do_not_check then () else CodeGeneration.generate_def_check gname te ty ;
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating opaque definition " ^ gname ^ "\t\t")  ;
+        if !Global.do_not_check then () else CodeGeneration.generate_def_check gname loc te ty ;
         CodeGeneration.generate_decl_code gname ;
         CodeGeneration.generate_decl_term gname ty ;
         Global.debug_ok ()
 
-let mk_typecheck te ty = 
-        Global.debug ("Generating typechecking ... \t\t") ;
-        if !Global.do_not_check then () else CodeGeneration.generate_def_check "_" te ty ; 
+let mk_typecheck loc te ty = 
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating typechecking ... \t\t") ;
+        if !Global.do_not_check then () else CodeGeneration.generate_def_check "_" loc te ty ; 
         Global.debug_ok () 
 
-let mk_rules a = 
-  let (_,(id,rules)) = a         in
-  Global.debug ("Generating rule checks for "^id^" \t\t") ; 
+let mk_rules (a:loc*rules) = 
+  let (loc,(id,rules)) = a         in
+  Global.debug (Debug.string_of_loc loc ^ "\tGenerating rule checks for "^id^" \t\t") ; 
   let rs = Array.of_list rules    in
   Global.chk_rules_id a  ; 
   Global.chk_alias id rs ;
@@ -50,8 +50,8 @@ let mk_rules a =
   CodeGeneration.generate_rules_code id rs ;
   Global.debug_ok ()
 
-let mk_require dep =
-        Global.debug ("Generating dependency "^dep^" \t\t") ;
+let mk_require (dep,loc) =
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating dependency "^dep^" \t\t") ;
         CodeGeneration.generate_require dep ; 
         Global.debug_ok () 
 
@@ -87,11 +87,11 @@ let mk_require dep =
 %%
 top:            /* empty */                                             { () }
                 | top ID COLON term DOT                                 { mk_declaration0 $2 $4 }
-                | top ID COLON term DEF term DOT                        { Global.gscope_add $2 ; mk_definition (fst $2) $6 $4 }
-                | top LEFTBRA ID RIGHTBRA COLON term DEF term DOT       { Global.gscope_add $3 ; mk_opaque (fst $3) $8 $6 }
-                | top UNDERSCORE COLON term DEF term DOT                { mk_typecheck $6 $4 }
+                | top ID COLON term DEF term DOT                        { Global.gscope_add $2 ; mk_definition $2 $6 $4 }
+                | top LEFTBRA ID RIGHTBRA COLON term DEF term DOT       { Global.gscope_add $3 ; mk_opaque $3 $8 $6 }
+                | top UNDERSCORE COLON term DEF term DOT                { mk_typecheck (0,0) (*FIXME*) $6 $4 }
                 | top rules DOT                                         { mk_rules $2 } 
-                | top HASH ID                                           { mk_require (fst $3) };
+                | top HASH ID                                           { mk_require $3 };
 
 rules:          rule                                                    { let (id,loc,ru) = $1 in (loc,(id,[ru])) }
                 | rule rules                             
@@ -102,11 +102,10 @@ rules:          rule                                                    { let (i
 
 rule:            LEFTSQU bdgs RIGHTSQU pat LONGARROW term                     
                         { Global.lscope_remove_lst $2 ; 
-                          let (id,loc,dots,pats) = $4 in 
-                          (id,loc,($2,dots,pats,$6))  }
+                          let (id,loc,dots,pats) = $4 in (id,loc,(loc,$2,dots,pats,$6))  }
                 ;
 
-bdg:            ID COLON term                                   { Global.lscope_add (fst $1) ; (fst $1,$3) }
+bdg:            ID COLON term                                   { Global.lscope_add (fst $1) ; ($1,$3) }
                 ;
 
 bdgs:           /* empty */                                     { [] }

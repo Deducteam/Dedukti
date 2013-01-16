@@ -24,11 +24,11 @@ type pattern =
         | Id of id
         | Pat of id*term array*pattern array
 
-type env = (id*term) list
+type env = ((id*loc)*term) list
 
-type rule  = env * term array * pattern array * term                    (* context * dots patterns * patterns --> term *)
+type rule  = loc * env * term array * pattern array * term (* loc * context * dots patterns * patterns --> term *)
 
-type rules = id * rule list                                             (* constructeur * dot arity * arity * rules *)
+type rules = id * rule list                                 (* constructeur * dot arity * arity * rules *)
 
 type occ = int list
 

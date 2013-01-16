@@ -18,6 +18,24 @@ tlam, tpi, tapp, ttype, tbox = 'tlam', 'tpi', 'tapp', 'ttype', 'tbox';
 -- { te = ttype }
 -- { te = tbox ; ctype:Code0 }
 
+function passert ( cond , msg )
+	if cond then return end
+	error(msg,0)
+end
+
+function is_code( c )
+	if type(c) == 'table' then
+		if c.co ~= nil then return true end
+	end
+	return false
+end
+function is_term( t )
+	if type(t) == 'table' then
+		if t.te ~= nil then return true end
+	end
+	return false
+end
+
 -- int -> Code
 function mk_var ( i )
   return { co = ccon, id=("var"..i) ; arity = 0 ; f = function() return nil end ; args = { }  };
@@ -29,6 +47,7 @@ function mk_box ( ty )
 end
 
 function push (a,t)
+  passert( type(t) == 'table' , "Lua Error (1)." )
   local res = { }
   res[#t+1] = a
   for i=1,#t do
@@ -38,6 +57,7 @@ function push (a,t)
 end
 
 function split (t,n)
+  passert(type(t) == 'table' , "Lua Error (2)." )
   local t1 = { }
   local t2 = { }
   for i=1,n do
@@ -50,7 +70,8 @@ function split (t,n)
 end 
 
 -- Code -> Code
-function app0 ( f )
+function uapp0 ( f )
+  passert(is_code(f) , "Undefined external symbol." )
   if f.co ~= ccon then return f end
   if f.arity ~= 0 then return f end
   local f0 = f.f()
@@ -59,10 +80,12 @@ function app0 ( f )
 end
 
 -- Code*Code -> Code
-function app ( f , arg )
+function uapp ( f , arg )
   --print("entering app...")
+  passert(is_code(f) and is_code(arg) , "Undefined external symbol." )
   --print(" f : " .. string_of_code(50,f))
   --print(" a : " .. string_of_code(50,arg))
+
   local res = nil
 
   -- CCON
@@ -83,7 +106,7 @@ function app ( f , arg )
         local red = f.f(unpack(t1))
         if red ~= nil then
           for i=1,#t2 do
-            red = app ( red , t2[i] )
+            red = uapp ( red , t2[i] )
           end
           res = red
         else
@@ -96,9 +119,7 @@ function app ( f , arg )
     res = f.f(arg)
   -- ERROR
   else
-    --print("app error... " )
-    --print("Fct: " .. string_of_code ( 50 , f ) )
-    assert(false)
+    error("Lua Error (3).",0)
   end
   --print("leaving app...")
   --print("App : " .. string_of_code(10,res))
@@ -107,9 +128,10 @@ end
 
 function is_conv ( n , ty1 , ty2 )
   --print ( "entering is_conv ...")
+  passert( is_code(ty1) and is_code(ty2) , "Undefined external symbol." )
   --print("Type: " .. string_of_code(n,ty1))
   --print("Type: " .. string_of_code(n,ty2))
-  --print()
+
   if     ty1.co == ckind and ty2.co == ckind then return true                   -- Kind
   elseif ty1.co == ctype and ty2.co == ctype then return true                   -- Type
   elseif ty1.co == clam  and ty2.co == clam  then                               -- Lam
@@ -137,20 +159,20 @@ end
 -- int * Term * Code --> unit
 function type_check ( n , te , ty )
   --print("entering type_check ...")
+  passert( is_term(te) and is_code(ty) , "Undefined external symbol." )
   --print("Term: " .. string_of_term( n , te ) )
   --print("Type: " .. string_of_code( n , ty ) )
-  --print()
 
   -- LAMBDA
   if      te.te == tlam then
-    if ty.co   ~= cpi then error("Product Expected:\n" .. string_of_code(n,ty)) end
+    if ty.co   ~= cpi then error("Product Expected:\n" .. string_of_code(n,ty),0) end
     -- Type Annotations BEGIN
     if te.ttype ~= nil then
       type_check ( n , te.ttype , { co = ctype } )
       if not is_conv ( n , te.ctype() , ty.ctype ) then 
         error("Lambda Annotation Error.\nCannot Convert:" 
                 .. string_of_code(n,te.ctype()) .. "\nwith\n" 
-                .. string_of_code(n,ty.ctype)) 
+                .. string_of_code(n,ty.ctype),0) 
       end
     end
     -- Type Annotations END
@@ -166,17 +188,14 @@ function type_check ( n , te , ty )
       type_check ( n+1 , te.f( mk_box(te.ctype()) , mk_var(n) ) , { co = ctype } )
     elseif is_conv ( n , ty , { co = ckind } ) then 
       type_check ( n+1 , te.f( mk_box(te.ctype()) , mk_var(n) ) , { co = ckind } ) 
-    else error("Sort Error:\n" .. string_of_code(n,ty))
+    else error("Sort Error:\n" .. string_of_code(n,ty),0)
     end
 
   -- OTHER
   else 
     local ty2 = type_synth ( n , te ) ;
     if not is_conv ( n , ty2 , ty ) then 
-      --print("ERROR: Cannot Convert: ")
-      --print("      " .. string_of_code( n , ty2 ))
-      --print(" with " .. string_of_code( n , ty  ))
-      error("Cannot convert:\n" .. string_of_code(n,ty2) .. "\nwith\n" .. string_of_code(n,ty))
+      error("Cannot convert:\n" .. string_of_code(n,ty2) .. "\nwith\n" .. string_of_code(n,ty),0)
     end
   end
   --print("leaving type_check ...")
@@ -185,13 +204,14 @@ end
 -- int * Term --> Code
 function type_synth ( n , te )
   --print("entering type_synth ...")
+  passert( is_term(te) , "Undefined external symbol." )
   --print ("Term: " .. string_of_term(n,te ))
   local res = nil
 
   if     te.te == ttype then res = { co = ckind }        -- Kind
   elseif te.te == tbox  then res = te.ctype()            -- Type
   elseif te.te == tlam  then                             -- Lam 
-    if te.ctype == nil  then error("Cannot find type of:\n" .. string_of_term(n,te)) end
+    if te.ctype == nil  then error("Cannot find type of:\n" .. string_of_term(n,te),0) end
     type_check( n , te.ttype , { co = ctype } )
     local tya = te.ctype()
     local box = mk_box(tya)
@@ -199,71 +219,57 @@ function type_synth ( n , te )
     res = { co = cpi ; ctype = tya ; f = function(x) return type_synth( n , te.f(box,x) ) end } -- FIXME
   elseif te.te == tapp  then                            -- App
     local tyf = type_synth ( n , te.f )
-    if tyf.co ~= cpi then error("Cannot find type of:\n" .. string_of_term(n,te)) end 
+    if tyf.co ~= cpi then error("Cannot find type of:\n" .. string_of_term(n,te),0) end 
     type_check ( n , te.a , tyf.ctype )
     res = tyf.f(te.ca())
   else                                                  -- Default
-    error("Cannot find type of:\n" .. string_of_term(n,te))
+    error("Cannot find type of:\n" .. string_of_term(n,te),0)
   end
 
   --print("leaving type_synth...")
   --print ("Type: " .. string_of_code(n,res))
-  --print()
   return res
+end
+
+function print_ok_ko ( status , msg )
+	if status then print("\027[32m[OK]\027[m") 
+	else 
+		print("\027[31m[KO]\027[m") 
+		print(" ##############################")
+		print(msg)
+		os.exit()
+	end
+end
+
+function app0 ( f )
+	status,msg = pcall ( uapp0 , f )
+	print_ok_ko(status,msg)
+end
+
+function app ( f , a )
+	status,msg = pcall ( uapp , f , a )
+	print_ok_ko(status,msg)
 end
 
 -- Term -> unit
 function chktype ( t )
-  if pcall ( type_check , 0 , t , { co = ctype } ) then print("\027[32m[OK]\027[m") 
-  else print("\027[31m[KO]\027[m") end
+  status,msg = pcall ( type_check , 0 , t , { co = ctype } ) 
+  print_ok_ko(status,msg)
 end
 
 -- Term -> unit
 function chkkind ( t )
-  if pcall ( type_check , 0 , t , { co = ckind } ) then print("\027[32m[OK]\027[m")
-  else print("\027[31m[KO]\027[m") end
+  status,msg = pcall ( type_check , 0 , t , { co = ckind } ) 
+  print_ok_ko(status,msg)
 end
 
 -- Term*Code -> unit
 function chk ( t , c )
-  if pcall ( type_check , 0 , t , c ) then print("\027[32m[OK]\027[m")
-  else print("\027[31m[KO]\027[m") end
+  status,msg = pcall ( type_check , 0 , t , c ) 
+  print_ok_ko(status,msg)
 end
 
 --[[ Utility functions. ]]
---[[
-local indent = 0;
-local function shiftp(m)
-  print(string.rep("  ", indent) .. m);
-end
-
-function chkbeg(x)
-  shiftp("Checking " .. x .. ".");
-  indent = indent + 1;
-end
-
-function chkmsg(x)
-  shiftp(x);
-end
-
-function chkend(x)
-  indent = indent - 1;
-  shiftp("Done checking \027[32m" .. x .. "\027[m.");
-end ]]
-
--- Debug
---
---[[
-function dump ( t )
-  print(t)
-  for i,v in ipairs(t) do print(i,v) end
-end ]]
-
--- { co = ccon ; id:string ; arity:int ; f:Code^arity -> Code option ; args:Code* }
--- { co = clam ; f:Code -> Code }
--- { co = cpi  ; ctype:Code ; f:Code -> Code }
--- { co = ctype }
--- { co = ckind }
 
 function string_of_code ( n , c )
   if     c.co == ctype	then return "Type"
@@ -274,7 +280,7 @@ function string_of_code ( n , c )
     return ("(v" .. n .. " => " .. string_of_code(n+1,c.f(mk_var(n))) .. ")" )
   elseif c.co == ccon 	then 
     --assert(c.arity)
-    if type(c.f)~="function" then print(" ##### WARNING ") end
+    --if type(c.f)~="function" then print(" ##### WARNING ") end
     local str = c.id
     for i=1,#c.args do
       str = str .. " " .. string_of_code(n,c.args[i])

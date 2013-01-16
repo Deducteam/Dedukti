@@ -110,10 +110,10 @@ let rec iskind = function
   | Pi (_,_,t)    -> iskind t
   | _             -> false
 
-let generate_decl_check gname ty =
+let generate_decl_check gname loc ty =
   (*fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;*)
   (*fprintf !Global.out "chkbeg(\"%s\")\n" gname;*)
-  fprintf !Global.out "io.write(\"Checking declaration %s\t\t\")" gname ;
+  fprintf !Global.out "io.write(\"%s\tChecking declaration %s\t\t\")" (Debug.string_of_loc loc) gname ;
   (if iskind ty then fprintf !Global.out "chkkind(" else fprintf !Global.out "chktype(") ;
   gen_term ty ;
   fprintf !Global.out ")\n"
@@ -128,10 +128,10 @@ let generate_decl_term gname ty =
 
 (* ************** Definitions *************** *)
 
-let generate_def_check gname te ty = 
+let generate_def_check gname loc te ty = 
   (*fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;
   fprintf !Global.out "chkbeg(\"%s\")\n" gname ;*)
-  fprintf !Global.out "io.write(\"Checking definition %s\t\t\")" gname ;
+  fprintf !Global.out "io.write(\"%s\tChecking definition %s\t\t\")" (Debug.string_of_loc loc) gname ;
   fprintf !Global.out "chk( " ;
   gen_term te ;
   fprintf !Global.out " , " ;
@@ -153,9 +153,9 @@ let generate_def_code gname te = (*FIXME normalize *)
 let new_pMat rules : pMat = 
     let rows = Array.length rules   in
       assert (rows>0);
-      let (cols,nd) = match rules.(0) with (_,dots,pats,_) -> ( Array.length pats , Array.length dots ) in
-        { p = Array.init rows (fun i -> let (_,_,pats,_) = rules.(i) in pats ) ; 
-          a = Array.init rows (fun i -> let (ctx,_,_,ri) = rules.(i)   in (ctx,ri) ) ;
+      let (cols,nd) = match rules.(0) with (_,_,dots,pats,_) -> ( Array.length pats , Array.length dots ) in
+        { p = Array.init rows (fun i -> let (_,_,_,pats,_) = rules.(i) in pats ) ; 
+          a = Array.init rows (fun i -> let (_,ctx,_,_,ri) = rules.(i)   in (ctx,ri) ) ;
           loc = Array.init cols (fun i -> [i+nd]); 
         }
 
@@ -365,9 +365,9 @@ let rec gpterm = function
 
           (* Env *)
 
-let gen_env (id,te) =
+let gen_env ((id,loc),te) =
   (*fprintf !Global.out "chkbeg(\"%s\")\n" id ;*)
-  fprintf !Global.out "io.write(\"Checking variable %s\t\t\")" id ;
+  fprintf !Global.out "io.write(\"%s\tChecking variable %s\t\t\")" (Debug.string_of_loc loc) id ;
   (if iskind te then fprintf !Global.out "chkkind(" else fprintf !Global.out "chktype(");
   gen_term te ;
   fprintf !Global.out ")\nlocal %s_c = { co = ccon ; id = \"%s\" ; arity = 0 ; args = { } ; f = function() return nil end}\n" id id ; (*FIXME*)
@@ -378,10 +378,10 @@ let gen_env (id,te) =
 
 (* Rules*)
 
-let generate_rule_check id i (ctx,dots,pats,te) =
+let generate_rule_check id i (loc,ctx,dots,pats,te) =
   (*fprintf !Global.out "chkbeg(\"rule %i\")\n" (i+1) ;*)
   List.iter gen_env ctx ; 
-  fprintf !Global.out "io.write(\"Checking rule %i for %s\t\t\")" (i+1) id ;
+  fprintf !Global.out "io.write(\"%s\tChecking rule %i for %s\t\t\")" (Debug.string_of_loc loc) (i+1) id ;
   fprintf !Global.out "do\nlocal ty = type_synth(0, ";
   gpterm (Pat (id,dots,pats));
   fprintf !Global.out ")\nchk(";
@@ -392,7 +392,7 @@ let generate_rule_check id i (ctx,dots,pats,te) =
 let generate_rules_code id rules = 
   assert ( Array.length rules > 0 );
   let gname = !Global.name^"."^id in     (*FIXME*)
-  let (_,dots,pats,_) = rules.(0) in
+  let (_,_,dots,pats,_) = rules.(0) in
   let arity = Array.length dots + Array.length pats in
     (*fprintf !Global.out "\n -- [[ Compiling rules of %s. ]]\n" gname ;*)
     fprintf !Global.out "%s_c = { co = ccon ; id=\"%s\" ; arity = %i ; args = { } ; f =\nfunction (" gname gname arity ;
