@@ -18,9 +18,10 @@ tlam, tpi, tapp, ttype, tbox = 'tlam', 'tpi', 'tapp', 'ttype', 'tbox';
 -- { te = ttype }
 -- { te = tbox ; ctype:Code0 }
 
-function passert ( cond , msg )
+function passert ( cond , msg , lvl )
 	if cond then return end
-	error(msg,0)
+	if lvl then error(msg,lvl)
+	else error(msg,0) end
 end
 
 function is_code( c )
@@ -71,20 +72,27 @@ end
 
 -- Code -> Code
 function uapp0 ( f )
-  passert(is_code(f) , "Undefined external symbol." )
-  if f.co ~= ccon then return f end
-  if f.arity ~= 0 then return f end
-  local f0 = f.f()
-  if f0 == nil    then return f end
-  return f0
+  --print(" -- entering app0...")
+  --print(" @f : " .. string_of_code(50,f))
+  passert(is_code(f) , "Undefined external symbol (1)." )
+  local res = f
+  if f.co == ccon     then 
+	  if f.arity == 0 then
+		  local f0 = f.f()
+		  if f0 ~= nil then res = f0 end
+	  end
+  end
+  --print(" -- leaving app0...")
+  --print(" @App0 : " .. string_of_code(50,f))
+  return res
 end
 
 -- Code*Code -> Code
 function uapp ( f , arg )
-  --print("entering app...")
-  passert(is_code(f) and is_code(arg) , "Undefined external symbol." )
-  --print(" f : " .. string_of_code(50,f))
-  --print(" a : " .. string_of_code(50,arg))
+  --print(" -- entering app...")
+  --print(" @f : " .. string_of_code(50,f))
+  --print(" @a : " .. string_of_code(50,arg))
+  passert(is_code(f) and is_code(arg) , "Undefined external symbol (2)." )
 
   local res = nil
 
@@ -121,14 +129,14 @@ function uapp ( f , arg )
   else
     error("Lua Error (3).",0)
   end
-  --print("leaving app...")
-  --print("App : " .. string_of_code(10,res))
+  --print(" -- leaving app...")
+  --print("@App : " .. string_of_code(10,res))
   return res
 end
 
 function is_conv ( n , ty1 , ty2 )
   --print ( "entering is_conv ...")
-  passert( is_code(ty1) and is_code(ty2) , "Undefined external symbol." )
+  passert( is_code(ty1) and is_code(ty2) , "Undefined external symbol (3)." )
   --print("Type: " .. string_of_code(n,ty1))
   --print("Type: " .. string_of_code(n,ty2))
 
@@ -158,10 +166,10 @@ end
 
 -- int * Term * Code --> unit
 function type_check ( n , te , ty )
-  --print("entering type_check ...")
-  passert( is_term(te) and is_code(ty) , "Undefined external symbol." )
-  --print("Term: " .. string_of_term( n , te ) )
-  --print("Type: " .. string_of_code( n , ty ) )
+  --print(" -- entering type_check ...")
+  --print("@Term: " .. string_of_term( n , te ) )
+  --print("@Type: " .. string_of_code( n , ty ) )
+  passert( is_term(te) and is_code(ty) , "Undefined external symbol (4)." )
 
   -- LAMBDA
   if      te.te == tlam then
@@ -198,14 +206,14 @@ function type_check ( n , te , ty )
       error("Cannot convert:\n" .. string_of_code(n,ty2) .. "\nwith\n" .. string_of_code(n,ty),0)
     end
   end
-  --print("leaving type_check ...")
+  --print(" -- leaving type_check ...")
 end
 
 -- int * Term --> Code
 function type_synth ( n , te )
-  --print("entering type_synth ...")
-  passert( is_term(te) , "Undefined external symbol." )
-  --print ("Term: " .. string_of_term(n,te ))
+  --print(" -- entering type_synth ...")
+  --print ("@Term: " .. string_of_term(n,te ))
+  passert( is_term(te) , "Undefined external symbol (5)." )
   local res = nil
 
   if     te.te == ttype then res = { co = ckind }        -- Kind
@@ -226,8 +234,8 @@ function type_synth ( n , te )
     error("Cannot find type of:\n" .. string_of_term(n,te),0)
   end
 
-  --print("leaving type_synth...")
-  --print ("Type: " .. string_of_code(n,res))
+  --print(" -- leaving type_synth...")
+  --print ("@Type: " .. string_of_code(n,res))
   return res
 end
 
@@ -237,18 +245,29 @@ function print_ok_ko ( status , msg )
 		print("\027[31m[KO]\027[m") 
 		print(" ##############################")
 		print(msg)
-		os.exit()
+		os.exit(1)
+	end
+end
+
+function print_ok_ko2 ( status , msg )
+	if not status then 
+		print("\027[31m[KO]\027[m") 
+		print(" ##############################")
+		print(res)
+		os.exit(1)
 	end
 end
 
 function app0 ( f )
-	status,msg = pcall ( uapp0 , f )
-	print_ok_ko(status,msg)
+	status,res = pcall ( uapp0 , f )
+	print_ok_ko2(status,res)
+	return res
 end
 
 function app ( f , a )
-	status,msg = pcall ( uapp , f , a )
-	print_ok_ko(status,msg)
+	status,res = pcall ( uapp , f , a )
+	print_ok_ko2(status,res)
+	return res
 end
 
 -- Term -> unit
@@ -272,6 +291,7 @@ end
 --[[ Utility functions. ]]
 
 function string_of_code ( n , c )
+	-- if not c then return "(???)" end
   if     c.co == ctype	then return "Type"
   elseif c.co == ckind 	then return "Kind"
   elseif c.co == cpi  	then 
@@ -286,7 +306,7 @@ function string_of_code ( n , c )
       str = str .. " " .. string_of_code(n,c.args[i])
     end
     if #c.args==0 then return str
-    else return "(" .. str .. " )"
+    else return "( " .. str .. " )"
     end
   else
     return "Error"
@@ -312,7 +332,7 @@ function string_of_term ( n , t )
                                 string_of_term( n+1 , t.f(mk_vart(n),mk_var(n)) ) .. ")" )
   elseif t.te == tapp 	then 
     -- App
-    return "(" .. string_of_term( n , t.f ) .. " " .. string_of_term( n , t.a ) .. ")" 
+    return "(App " .. string_of_term( n , t.f ) .. " " .. string_of_term( n , t.a ) .. ")" 
   elseif t.te == ttype	then 
     -- Type
     return "Type"
