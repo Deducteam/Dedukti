@@ -51,6 +51,7 @@ let mk_rules (a:loc*rules) =
   Global.debug_ok ()
 
 let mk_require (dep,loc) =
+        Global.libs := dep::(!Global.libs) ;
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating dependency "^dep^" \t\t") ;
         CodeGeneration.generate_require dep ; 
         Global.debug_ok () 
@@ -64,7 +65,7 @@ let mk_require (dep,loc) =
 %token FATARROW
 %token LONGARROW
 %token DEF
-%token UNDERSCORE
+%token <Types.loc> UNDERSCORE
 %token HASH
 %token LEFTPAR
 %token RIGHTPAR
@@ -74,7 +75,7 @@ let mk_require (dep,loc) =
 %token RIGHTSQU
 %token TYPE
 %token <Types.id*Types.loc> ID
-%token <Types.id> QID
+%token <Types.id*Types.id*Types.loc> QID
 
 %start top
 %type <unit> top
@@ -89,7 +90,7 @@ top:            /* empty */                                             { () }
                 | top ID COLON term DOT                                 { mk_declaration0 $2 $4 }
                 | top ID COLON term DEF term DOT                        { Global.gscope_add $2 ; mk_definition $2 $6 $4 }
                 | top LEFTBRA ID RIGHTBRA COLON term DEF term DOT       { Global.gscope_add $3 ; mk_opaque $3 $8 $6 }
-                | top UNDERSCORE COLON term DEF term DOT                { mk_typecheck (0,0) (*FIXME*) $6 $4 }
+                | top UNDERSCORE COLON term DEF term DOT                { mk_typecheck $2 $6 $4 }
                 | top rules DOT                                         { mk_rules $2 } 
                 | top HASH ID                                           { mk_require $3 };
 

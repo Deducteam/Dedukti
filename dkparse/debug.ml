@@ -1,15 +1,6 @@
 
 open Types
 
-let extract_msg err = (*FIXME fragile*)
-  let reg = Str.regexp_string ":" in
-  try 
-    let p1 = Str.search_forward reg err 0               in 
-    let p2 = Str.search_forward reg err (p1+1) + 2      in 
-      String.sub err p2 (String.length err - p2)
-  with
-    | Not_found -> assert false
-
 let string_of_loc (l,c) = "[l:"^string_of_int l^";c:"^string_of_int c^"]"
 
 let string_of_perr = function
@@ -18,6 +9,7 @@ let string_of_perr = function
   | ConstructorMismatch (i1,l1,i2,l2)   -> string_of_loc l2  ^ " Constructor mismatch '" ^ i1 ^ "'!='" ^ i2 ^ "'."
   | AlreadyDefinedId    (id,loc)        -> string_of_loc loc ^ " Already defined constructor: '" ^ id ^ "'."
   | ScopeError          (id,loc)        -> string_of_loc loc ^ " Scope Error: '" ^ id ^ "'."
+  | UnknownModule       (id,loc)        -> string_of_loc loc ^ " Missing dependency: '" ^ id ^ "'."
 
 let rec string_of_term = function
   | Kind                -> "Kind"

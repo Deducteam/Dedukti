@@ -34,9 +34,37 @@ let mk_var (id,loc) =
   with
     | Not_found -> raise (ParsingError (ScopeError (id,loc))) 
 
-let mk_evar qid = EVar qid      (*FIXME (qid = mod.id) vérifier que mod <> !name*)
+let mk_evar (md,id,l) = 
+  if md = !name then 
+    begin
+      try
+        begin
+          match Hashtbl.find gs id with 
+            | Local   -> raise (ParsingError (ScopeError (md^"."^id,l)))
+            | _       -> GVar id
+        end
+      with
+        | Not_found -> raise (ParsingError (ScopeError (md^"."^id,l)))
+    end
+  else 
+      if List.mem md !libs then EVar (md^"."^id)
+      else raise (ParsingError (UnknownModule (md,l)))
 
-let filter_qid qid = qid        (*FIXME idem *)
+let filter_qid (md,id,l) = 
+  if md = !name then 
+    begin
+      try
+        begin
+          match Hashtbl.find gs id with 
+            | Local   -> raise (ParsingError (ScopeError (md^"."^id,l)))
+            | _       -> id
+        end
+      with
+        | Not_found -> raise (ParsingError (ScopeError (md^"."^id,l)))
+    end
+  else  
+      if List.mem md !libs then (md^"."^id)
+      else raise (ParsingError (UnknownModule (md,l)))
 
 let mk_pat_var (id,loc) =
   try

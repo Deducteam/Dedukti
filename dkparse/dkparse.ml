@@ -21,7 +21,7 @@ let set_name str =
     if Str.string_match (Str.regexp "[a-zA-Z_][a-zA-Z_0-9]*") name 0 then
       Global.name := name
     else
-      raise IncorrectFileName (*FIXME*)
+      raise IncorrectFileName 
 
 (* Error Msgs *)
 
@@ -55,8 +55,8 @@ let main str =
   with 
     | ParsingError err          -> error ("\027[31m" ^ (Debug.string_of_perr err) ^ "\027[m")
     | Sys_error msg             -> error ("System error: "^msg)
-    | IncorrectFileName         -> error ("Incorrect File Name.") (*FIXME*)
-    | End_of_file               -> ( Hashtbl.clear Global.gs (*; match !Global.state with | Some ls -> LuaTypeChecker.close ls | None -> ()*) )
+    | IncorrectFileName         -> error ("Incorrect File Name.") 
+    | End_of_file               -> ( Hashtbl.clear Global.gs )
 
 let _ = Arg.parse args main "Usage: dkparse [options] files"  
   

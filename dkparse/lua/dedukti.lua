@@ -239,10 +239,15 @@ function type_synth ( n , te )
   return res
 end
 
+function print_debug ( msg )
+	if debug_infos then io.write(msg) end
+end
+
 function print_ok_ko ( status , msg )
-	if status then print("\027[32m[OK]\027[m") 
+	if status then 
+		if debug_infos then print("\027[32m[OK]\027[m") end
 	else 
-		print("\027[31m[KO]\027[m") 
+		if debug_infos then print("\027[31m[KO]\027[m") end
 		print(" ##############################")
 		print(msg)
 		os.exit(1)
@@ -251,9 +256,9 @@ end
 
 function print_ok_ko2 ( status , msg )
 	if not status then 
-		print("\027[31m[KO]\027[m") 
+		if debug_infos then print("\027[31m[KO]\027[m") end
 		print(" ##############################")
-		print(res)
+		print(msg)
 		os.exit(1)
 	end
 end
@@ -299,8 +304,6 @@ function string_of_code ( n , c )
   elseif c.co == clam 	then 
     return ("(v" .. n .. " => " .. string_of_code(n+1,c.f(mk_var(n))) .. ")" )
   elseif c.co == ccon 	then 
-    --assert(c.arity)
-    --if type(c.f)~="function" then print(" ##### WARNING ") end
     local str = c.id
     for i=1,#c.args do
       str = str .. " " .. string_of_code(n,c.args[i])

@@ -13,10 +13,20 @@ let generate_require dep =
   fprintf !Global.out "require(\"%s\")\n" dep
 
 let prelude _ =
-  fprintf !Global.out "require('dedukti')\n" ;
-  List.iter generate_require !Global.libs ;
   (*fprintf !Global.out "--[[ Code for module %s ]]\n" !Global.name ;*)
-  fprintf !Global.out "%s = { }\n\n" !Global.name
+  if !Global.do_not_check then
+    begin
+      fprintf !Global.out "require('dedukti')\n" ;
+      List.iter generate_require !Global.libs ;
+      fprintf !Global.out "%s = { }\n\n" !Global.name
+    end
+  else
+    begin
+      fprintf !Global.out "require('dedukti')\n" ;
+      List.iter generate_require !Global.libs ;
+      fprintf !Global.out "debug_infos = %B\n" (not !Global.quiet);
+      fprintf !Global.out "local %s = { }\n\n" !Global.name
+    end
 
 (* *********** Lua Code Generation *********** *)
 
@@ -27,7 +37,7 @@ let rec gen_code0 = function
       if Global.is_alias v then fprintf !Global.out "app0(%s.%s_c)"  !Global.name v
       else fprintf !Global.out "%s.%s_c"  !Global.name v
   | EVar v              -> fprintf !Global.out "app0(%s_c)" v
-  | Var v               -> (* fprintf !Global.out "app0(%s_c)" v *) fprintf !Global.out "%s_c" v 
+  | Var v               -> fprintf !Global.out "%s_c" v 
   | App (f,a)           -> 
       begin
         fprintf !Global.out  "app( " ;
@@ -112,8 +122,7 @@ let rec iskind = function
 
 let generate_decl_check gname loc ty =
   (*fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;*)
-  (*fprintf !Global.out "chkbeg(\"%s\")\n" gname;*)
-  fprintf !Global.out "io.write(\"%s\tChecking declaration %s\t\t\")" (Debug.string_of_loc loc) gname ;
+  fprintf !Global.out "print_debug(\"%s\tChecking declaration %s\t\t\")" (Debug.string_of_loc loc) gname ;
   (if iskind ty then fprintf !Global.out "chkkind(" else fprintf !Global.out "chktype(") ;
   gen_term ty ;
   fprintf !Global.out ")\n"
@@ -129,9 +138,8 @@ let generate_decl_term gname ty =
 (* ************** Definitions *************** *)
 
 let generate_def_check gname loc te ty = 
-  (*fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;
-  fprintf !Global.out "chkbeg(\"%s\")\n" gname ;*)
-  fprintf !Global.out "io.write(\"%s\tChecking definition %s\t\t\")" (Debug.string_of_loc loc) gname ;
+  (*fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;*)
+  fprintf !Global.out "print_debug(\"%s\tChecking definition %s\t\t\")" (Debug.string_of_loc loc) gname ;
   fprintf !Global.out "chk( " ;
   gen_term te ;
   fprintf !Global.out " , " ;
@@ -143,7 +151,7 @@ let generate_def_term gname te =
   gen_term te ;
   fprintf !Global.out "\n\n"
 
-let generate_def_code gname te = (*FIXME normalize *)
+let generate_def_code gname te = 
   fprintf !Global.out "%s_c = " gname ;
   gen_code0 te ;
   fprintf !Global.out "\n\n"
@@ -226,7 +234,7 @@ let print_path p =
       fun i e ->
         if i=0 then fprintf !Global.out "y%i" (e+1) 
         else fprintf !Global.out ".args[%i]" (e+1) 
-    ) (List.rev p) (*FIXME*)
+    ) (List.rev p) (*get rid of rev?*)
 
 let print_locals vars locs = 
   assert (Array.length vars = Array.length locs);
@@ -366,32 +374,28 @@ let rec gpterm = function
           (* Env *)
 
 let gen_env ((id,loc),te) =
-  (*fprintf !Global.out "chkbeg(\"%s\")\n" id ;*)
-  fprintf !Global.out "io.write(\"%s\tChecking variable %s\t\t\")" (Debug.string_of_loc loc) id ;
+  fprintf !Global.out "print_debug(\"%s\tChecking variable %s\t\t\")" (Debug.string_of_loc loc) id ;
   (if iskind te then fprintf !Global.out "chkkind(" else fprintf !Global.out "chktype(");
   gen_term te ;
-  fprintf !Global.out ")\nlocal %s_c = { co = ccon ; id = \"%s\" ; arity = 0 ; args = { } ; f = function() return nil end}\n" id id ; (*FIXME*)
+  fprintf !Global.out ")\nlocal %s_c = { co = ccon ; id = \"%s\" ; arity = 0 ; args = { } ; f = function() return nil end}\n" id id ; 
   fprintf !Global.out "local %s_t = { te = tbox, ctype = function() return " id ;
   gen_code0 te ;
   fprintf !Global.out " end }\n"
-  (*fprintf !Global.out " end }\nchkend(\"%s\")\n" id*)
 
 (* Rules*)
 
 let generate_rule_check id i (loc,ctx,dots,pats,te) =
-  (*fprintf !Global.out "chkbeg(\"rule %i\")\n" (i+1) ;*)
   List.iter gen_env ctx ; 
-  fprintf !Global.out "io.write(\"%s\tChecking rule %i for %s\t\t\")" (Debug.string_of_loc loc) (i+1) id ;
+  fprintf !Global.out "print_debug(\"%s\tChecking rule %i for %s\t\t\")" (Debug.string_of_loc loc) (i+1) id ;
   fprintf !Global.out "do\nlocal ty = type_synth(0, ";
   gpterm (Pat (id,dots,pats));
   fprintf !Global.out ")\nchk(";
   gen_term te ;
   fprintf !Global.out ", ty)end\n"
-  (*fprintf !Global.out ", ty)\nend\nchkend(\"rule %i\")\n" (i+1)*)
 
 let generate_rules_code id rules = 
   assert ( Array.length rules > 0 );
-  let gname = !Global.name^"."^id in     (*FIXME*)
+  let gname = !Global.name^"."^id in
   let (_,_,dots,pats,_) = rules.(0) in
   let arity = Array.length dots + Array.length pats in
     (*fprintf !Global.out "\n -- [[ Compiling rules of %s. ]]\n" gname ;*)

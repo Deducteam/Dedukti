@@ -2,8 +2,6 @@
   open Parser
   open Types
 
-  (*let ln = ref 1*)
-
   let mk_loc lexbuf = 
           let curr = lexbuf.Lexing.lex_curr_p                   in
           let line = curr.Lexing.pos_lnum                       in
@@ -12,36 +10,35 @@
 }
 
 let id = ['a'-'z' 'A'-'Z' '_']['a'-'z' 'A'-'Z' '_' '0'-'9']*
-let qid = id '.' id
 
 rule token = parse
-  | [' ' '\t']          { token lexbuf  }
-  | '\n'                { Lexing.new_line lexbuf (*incr ln*) ; token lexbuf }
-  | "(;"                { comment lexbuf}
-  | '.'                 { DOT           }
-  | ','                 { COMMA         }
-  | ':'                 { COLON         }
-  | '['                 { LEFTSQU       }
-  | ']'                 { RIGHTSQU      }
-  | '{'                 { LEFTBRA       }
-  | '}'                 { RIGHTBRA      }
-  | '('                 { LEFTPAR       }
-  | ')'                 { RIGHTPAR      }
-  | "-->"	        { LONGARROW     }
-  | "->"	        { ARROW         }
-  | "=>"	        { FATARROW      }
-  | ":="	        { DEF           }
-  | "_"	                { UNDERSCORE    }
-  | "#"	                { HASH          }
-  | "Type"	        { TYPE          }
-  | qid as s            { QID s         } 
-  | id  as s            { ID (s,mk_loc lexbuf) } 
-  | _   as s		{ raise ( ParsingError (LexerError(String.make 1 s,mk_loc lexbuf)) ) }
-  | eof		        { raise End_of_file }
+  | [' ' '\t']                  { token lexbuf  }
+  | '\n'                        { Lexing.new_line lexbuf ; token lexbuf }
+  | "(;"                        { comment lexbuf}
+  | '.'                         { DOT           }
+  | ','                         { COMMA         }
+  | ':'                         { COLON         }
+  | '['                         { LEFTSQU       }
+  | ']'                         { RIGHTSQU      }
+  | '{'                         { LEFTBRA       }
+  | '}'                         { RIGHTBRA      }
+  | '('                         { LEFTPAR       }
+  | ')'                         { RIGHTPAR      }
+  | "-->"	                { LONGARROW     }
+  | "->"	                { ARROW         }
+  | "=>"	                { FATARROW      }
+  | ":="	                { DEF           }
+  | "_"	                        { UNDERSCORE (mk_loc lexbuf)    }
+  | "#"	                        { HASH          }
+  | "Type"	                { TYPE          }
+  | id as s1 '.' (id as s2)       { QID (s1,s2,mk_loc lexbuf)         } 
+  | id  as s                    { ID (s,mk_loc lexbuf) } 
+  | _   as s		        { raise ( ParsingError (LexerError(String.make 1 s,mk_loc lexbuf)) ) }
+  | eof		                { raise End_of_file }
 
  and comment = parse 
   | ";)"                { token lexbuf          }
-  | '\n'                { Lexing.new_line lexbuf (*incr ln*); comment lexbuf }
+  | '\n'                { Lexing.new_line lexbuf ; comment lexbuf }
   | _                   { comment lexbuf        }
   | eof		        { raise End_of_file     }
   

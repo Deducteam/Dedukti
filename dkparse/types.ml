@@ -17,6 +17,7 @@ type parsing_error =
   | ConstructorMismatch         of id*loc*id*loc
   | AlreadyDefinedId            of id*loc
   | ScopeError                  of id*loc
+  | UnknownModule               of id*loc
 
 exception ParsingError          of parsing_error
 
