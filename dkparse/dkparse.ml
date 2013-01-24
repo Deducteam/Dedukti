@@ -56,7 +56,7 @@ let main str =
     | ParsingError err          -> error ("\027[31m" ^ (Debug.string_of_perr err) ^ "\027[m")
     | Sys_error msg             -> error ("System error: "^msg)
     | IncorrectFileName         -> error ("Incorrect File Name.") 
-    | End_of_file               -> ( Hashtbl.clear Global.gs )
+    | End_of_file               -> ( Hashtbl.clear Global.gs (*; prerr_string ("@@@ "^string_of_int !Global.nb_gvars^"\n")*))
 
 let _ = Arg.parse args main "Usage: dkparse [options] files"  
   

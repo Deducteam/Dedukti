@@ -24,7 +24,7 @@ let prelude _ =
     begin
       fprintf !Global.out "require('dedukti')\n" ;
       List.iter generate_require !Global.libs ;
-      fprintf !Global.out "debug_infos = %B\n" (not !Global.quiet);
+      fprintf !Global.out "debug_infos = %B\n" (not !Global.quiet) ;
       fprintf !Global.out "local %s = { }\n\n" !Global.name
     end
 
@@ -34,8 +34,8 @@ let rec gen_code0 = function
   | Kind                -> assert false
   | Type                -> fprintf !Global.out "{ co = ctype }"
   | GVar v              -> 
-      if Global.is_alias v then fprintf !Global.out "app0(%s.%s_c)"  !Global.name v
-      else fprintf !Global.out "%s.%s_c"  !Global.name v
+      if Global.is_alias v then fprintf !Global.out "app0(%s_c)" (Global.get_gvar_name v)
+      else fprintf !Global.out "%s_c"  (Global.get_gvar_name v)
   | EVar v              -> fprintf !Global.out "app0(%s_c)" v
   | Var v               -> fprintf !Global.out "%s_c" v 
   | App (f,a)           -> 
@@ -72,7 +72,7 @@ let gen_code te =
 let rec gen_term = function
   | Kind                -> assert false
   | Type                -> fprintf !Global.out "{ te = ttype }"
-  | GVar v              -> fprintf !Global.out "%s.%s_t" !Global.name v
+  | GVar v              -> fprintf !Global.out "%s_t" (Global.get_gvar_name v)
   | EVar v              -> fprintf !Global.out "%s_t" v
   | Var v               -> fprintf !Global.out "%s_t" v
   | App (f,a)           -> 
@@ -267,7 +267,7 @@ let print_locals vars locs =
         Array.iter (
           function 
             | Id id   -> if !first then (fprintf !Global.out "%s_c" id ; first:=false) else fprintf !Global.out ", %s_c" id 
-            | Joker   -> () 
+            | Joker   ->  if !first then (fprintf !Global.out "dummy" ; first:=false) else fprintf !Global.out ", dummy" 
             | _       -> assert false
         ) vars;
         first := true;
@@ -335,7 +335,7 @@ let rec cc id (pm:pMat) : unit =
                 print_path pm.loc.(c) ;
                 fprintf !Global.out ".co == ccon and " ;
                 print_path pm.loc.(c) ;
-                fprintf !Global.out ".id == \"%s.%s\" then\n" !Global.name cst ; 
+                fprintf !Global.out ".id == \"%s\" then\n" (Global.get_gvar_name cst) ; 
                 match specialize pm c arity lst with
                   | None        -> ( fprintf !Global.out "return " ; gen_code0 (snd pm.a.(match lst with z::_ -> z | _ -> assert false)) )
                   | Some pm'    -> ( cc n_id pm' )
@@ -359,7 +359,7 @@ let rec gpcode = function
       begin
         let first = ref true in
         let arity = Array.length dots + Array.length pats  in
-        fprintf !Global.out "{ co = ccon ; id = \"%s.%s\" ; arity = %i ; f = function() return %s.%s_c end ; args = { " !Global.name c arity !Global.name c ;
+        fprintf !Global.out "{ co = ccon ; id = \"%s.%s\" ; arity = %i ; f = function() return %s_c end ; args = { " !Global.name c arity (Global.get_gvar_name c) ;
         Array.iter ( 
           fun t -> 
             if !first then ( gen_code0 t ; first := false )
@@ -379,7 +379,7 @@ let rec gpterm = function
   | Pat (c,dots,pats)   -> 
       let arity = Array.length dots + Array.length pats in
         for i=1 to arity do fprintf !Global.out " { te = tapp ; f = " done ;
-        fprintf !Global.out "%s.%s_t " !Global.name c ;
+        fprintf !Global.out "%s_t " (Global.get_gvar_name c) ;
         Array.iter (
           fun d -> 
             fprintf !Global.out " ; a = " ;
@@ -436,7 +436,7 @@ let generate_rule_check id i (loc,ctx,dots,pats,te) =
 
 let generate_rules_code id rules = 
   assert ( Array.length rules > 0 );
-  let gname = !Global.name^"."^id in
+  let gname = Global.get_gvar_name id in
   let (_,_,dots,pats,_) = rules.(0) in
   let arity = Array.length dots + Array.length pats in
     (*fprintf !Global.out "\n -- [[ Compiling rules of %s. ]]\n" gname ;*)

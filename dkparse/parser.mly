@@ -3,7 +3,7 @@
 open Types
 
 let mk_declaration (id,loc) ty =
-        let gname = !Global.name^"."^id in
+        let gname = Global.get_gvar_name id in
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ gname ^ "\t\t")  ;
         if !Global.do_not_check then () else CodeGeneration.generate_decl_check gname loc ty ;
         CodeGeneration.generate_decl_code gname ;
@@ -20,7 +20,7 @@ let mk_declaration0 idl ty =
         )
 
 let mk_definition (id,loc) te ty =
-        let gname = !Global.name^"."^id in
+        let gname = Global.get_gvar_name id in
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating definition " ^ gname ^ "\t\t") ;
         if !Global.do_not_check then () else CodeGeneration.generate_def_check gname loc te ty ;
         CodeGeneration.generate_def_code gname te ;
@@ -28,7 +28,7 @@ let mk_definition (id,loc) te ty =
         Global.debug_ok ()
 
 let mk_opaque (id,loc) te ty = 
-        let gname = !Global.name^"."^id in
+        let gname = Global.get_gvar_name id in
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating opaque definition " ^ gname ^ "\t\t")  ;
         if !Global.do_not_check then () else CodeGeneration.generate_def_check gname loc te ty ;
         CodeGeneration.generate_decl_code gname ;

@@ -6,6 +6,7 @@ let do_not_check                        = ref false
 let quiet                               = ref false
 let ignore_redeclarations               = ref false
 let libs  :  string list ref            = ref []
+(*let nb_gvars                            = ref 0*)
 
 let debug str  = if !quiet then () else ( prerr_string str ; flush stderr )
 let debug_ok _ = if !quiet then () else prerr_endline "\027[32m[OK]\027[m"
@@ -76,11 +77,22 @@ let mk_pat_var (id,loc) =
 
 let gscope_add (id,loc) = 
   if Hashtbl.mem gs id then raise (ParsingError (AlreadyDefinedId (id,loc))) 
-  else Hashtbl.add gs id Global
+  else (
+    (*incr nb_gvars ; 
+    incr nb_gvars ; 
+    assert (!nb_gvars < 32268);*)
+    Hashtbl.add gs id Global 
+  )
 
 let gscope_add_decl (id,loc) = 
   if Hashtbl.mem gs id then false
-  else ( Hashtbl.add gs id Global ; true )
+  else ( 
+    (*incr nb_gvars ; 
+    incr nb_gvars ; 
+    assert (!nb_gvars < 32268) ;*)
+    Hashtbl.add gs id Global ; 
+    true 
+  )
 
 let chk_alias id rs =
  if Array.length rs !=1 then ()
@@ -91,7 +103,7 @@ let chk_alias id rs =
 
 
 let chk_rules_id (loc,(id,_)) = 
-  if Hashtbl.mem gs id then () 
+  if Hashtbl.mem gs id then  (* incr nb_gvars ; assert (!nb_gvars < 32268) *) ()
   else raise (ParsingError (ScopeError (id,loc)))
 
 let lscope_add id = Hashtbl.add gs id Local
@@ -99,3 +111,10 @@ let lscope_add id = Hashtbl.add gs id Local
 let lscope_remove id = Hashtbl.remove gs id
 
 let lscope_remove_lst lst = List.iter (fun x -> lscope_remove (fst (fst x))) lst
+
+let get_gvar_name v =
+  (*if !do_not_check then *)
+    !name ^ "." ^ v
+  (*else "g_" ^ v*)
+
+
