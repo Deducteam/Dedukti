@@ -83,7 +83,7 @@ function uapp0 ( f )
 	  end
   end
   --print(" -- leaving app0...")
-  --print(" @App0 : " .. string_of_code(50,f))
+  --print(" @App0 : " .. string_of_code(50,res))
   return res
 end
 
@@ -102,7 +102,7 @@ function uapp ( f , arg )
     if     f.arity == #args then
       local red = f.f(unpack(args))
       if red ~= nil then 
-        res= red
+	      res= red
       else
         res = { co = ccon ; id=f.id ; arity=f.arity ; f=f.f ; args=args }
       end
@@ -136,9 +136,9 @@ end
 
 function is_conv ( n , ty1 , ty2 )
   --print ( "entering is_conv ...")
+  --print(" @ Type1: " .. string_of_code(n,ty1))
+  --print(" @ Type2: " .. string_of_code(n,ty2))
   passert( is_code(ty1) and is_code(ty2) , "Undefined external symbol (3)." )
-  --print("Type: " .. string_of_code(n,ty1))
-  --print("Type: " .. string_of_code(n,ty2))
 
   if     ty1.co == ckind and ty2.co == ckind then return true                   -- Kind
   elseif ty1.co == ctype and ty2.co == ctype then return true                   -- Type
@@ -216,9 +216,12 @@ function type_synth ( n , te )
   passert( is_term(te) , "Undefined external symbol (5)." )
   local res = nil
 
-  if     te.te == ttype then res = { co = ckind }        -- Kind
-  elseif te.te == tbox  then res = te.ctype()            -- Type
+  if     te.te == ttype then br=1 res = { co = ckind }        -- Kind
+  elseif te.te == tbox  then -- Type 
+	  br=2 
+	  res = te.ctype()
   elseif te.te == tlam  then                             -- Lam 
+	  br=3
     if te.ctype == nil  then error("Cannot find type of:\n" .. string_of_term(n,te),0) end
     type_check( n , te.ttype , { co = ctype } )
     local tya = te.ctype()
@@ -226,6 +229,7 @@ function type_synth ( n , te )
     local dummy = type_synth( n+1 , te.f ( box , mk_var(n) ) )
     res = { co = cpi ; ctype = tya ; f = function(x) return type_synth( n , te.f(box,x) ) end } -- FIXME
   elseif te.te == tapp  then                            -- App
+	  br=4
     local tyf = type_synth ( n , te.f )
     if tyf.co ~= cpi then error("Cannot find type of:\n" .. string_of_term(n,te),0) end 
     type_check ( n , te.a , tyf.ctype )
@@ -234,31 +238,31 @@ function type_synth ( n , te )
     error("Cannot find type of:\n" .. string_of_term(n,te),0)
   end
 
-  --print(" -- leaving type_synth...")
+  --print(" -- leaving type_synth... ("..br..")")
   --print ("@Type: " .. string_of_code(n,res))
   return res
 end
 
 function print_debug ( msg )
-	if debug_infos then io.write(msg) end
+	if debug_infos then io.stderr:write(msg) end
 end
 
 function print_ok_ko ( status , msg )
 	if status then 
-		if debug_infos then print("\027[32m[OK]\027[m") end
+		if debug_infos then io.stderr:write("\027[32m[OK]\027[m\n") end
 	else 
-		if debug_infos then print("\027[31m[KO]\027[m") end
-		print(" ##############################")
-		print(msg)
+		if debug_infos then io.stderr:write("\027[31m[KO]\027[m\n") end
+		io.stderr:write(" ##############################\n")
+		io.stderr:write(msg .. "\n")
 		os.exit(1)
 	end
 end
 
 function print_ok_ko2 ( status , msg )
 	if not status then 
-		if debug_infos then print("\027[31m[KO]\027[m") end
-		print(" ##############################")
-		print(msg)
+		if debug_infos then io.stderr:write("\027[31m[KO]\027[m\n") end
+		io.stderr:write(" ##############################\n")
+		io.stderr:write(msg .. "\n")
 		os.exit(1)
 	end
 end
@@ -296,7 +300,7 @@ end
 --[[ Utility functions. ]]
 
 function string_of_code ( n , c )
-	-- if not c then return "(???)" end
+--	 if type(c) ~= 'table' then return "@@@ ERROR ".. type(c) .." @@@" end 
   if     c.co == ctype	then return "Type"
   elseif c.co == ckind 	then return "Kind"
   elseif c.co == cpi  	then 
@@ -312,7 +316,8 @@ function string_of_code ( n , c )
     else return "( " .. str .. " )"
     end
   else
-    return "Error"
+    --return "Error"
+    error('string_of_code')
   end
 end
  
@@ -326,15 +331,18 @@ function string_of_term ( n , t )
     if t.ctype == nil then 
       return ("(v" .. n .. " => " .. string_of_term( n+1 , t.f(mk_vart(n),mk_var(n)) ) .. ")" )
     else 
+	  --  string_of_term(n,t.ttype) 
       return ("(v" .. n .. " : " .. string_of_code(n,t.ctype()).. " => " .. 
                                 string_of_term( n+1 , t.f(mk_vart(n),mk_var(n)) ) .. ")" )
     end
   elseif t.te == tpi  	then 
     -- Pi
+    --string_of_code(n,t.ctype()) 
     return ( "(v" .. n .. " : " .. string_of_term( n , t.ttype ) .. " -> " .. 
                                 string_of_term( n+1 , t.f(mk_vart(n),mk_var(n)) ) .. ")" )
   elseif t.te == tapp 	then 
     -- App
+    --string_of_code(n,t.ca()) 
     return "(App " .. string_of_term( n , t.f ) .. " " .. string_of_term( n , t.a ) .. ")" 
   elseif t.te == ttype	then 
     -- Type
@@ -344,7 +352,8 @@ function string_of_term ( n , t )
     return "(Box " .. string_of_code(n,t.ctype()) .. ")"
   else 
     -- Err
-    return "Error"
+    error('string_of_term')
+    --return "Error"
   end
 end
     
