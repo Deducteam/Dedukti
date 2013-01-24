@@ -27,6 +27,7 @@ let concat sep t =
   Array.fold_left ( fun acc s -> if acc="" then s else ( acc^sep^s ) ) "" t
  
 let rec string_of_pattern = function
+  | Joker               -> "_"
   | Id v                -> "(Id "^v^")"
   | Pat (c,ds,ps)       -> "("^c^" [|"^(concat ";" (Array.map string_of_term ds))^"|] [|"^(concat ";" (Array.map string_of_pattern ps))^"|])"
 

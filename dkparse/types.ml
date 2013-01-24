@@ -22,8 +22,9 @@ type parsing_error =
 exception ParsingError          of parsing_error
 
 type pattern = 
-        | Id of id
-        | Pat of id*term array*pattern array
+  | Joker
+  | Id of id
+  | Pat of id*term array*pattern array
 
 type env = ((id*loc)*term) list
 
