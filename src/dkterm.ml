@@ -35,6 +35,8 @@ let rec subst v t = function
   | t -> t
 
 
+open Id_encoding
+
 class virtual base_pp  = object (self)
 
   method with_ft chan =
@@ -48,18 +50,9 @@ class virtual base_pp  = object (self)
   method rule_arr () = str "--> "
 
   method pr_qid =
-    let to_dk_id s =
-      let r = Buffer.create (String.length s) in
-      String.iter (function
-      | '_' -> Buffer.add_string r "__"
-      | '\'' -> Buffer.add_string r "_q"
-      | c -> Buffer.add_char r c)
-	s;
-      Buffer.contents r
-    in
     function
-    | Id s -> str (to_dk_id s)
-    | Qid (path,s) -> str path ++ str "." ++ str (to_dk_id s)
+    | Id s -> str (encode_id s)
+    | Qid (path,s) -> str path ++ str "." ++ str (encode_id s)
 
   method virtual pr_dkterm : dkterm -> std_ppcmds
 
