@@ -1,48 +1,22 @@
 #!/bin/sh
 
-COQINE="../bin/coqine --root Coq -I /usr/lib/coq/theories"
+COQINE="../bin/coqine"
 
-for i in Logic Datatypes Peano Specif Wf
+for i in Notations Logic Datatypes Peano Specif Wf
 do
     echo -n "CoqInE $i : "
     if $COQINE /usr/lib/coq/theories/Init/$i.vo 2> regression.log 
     then echo "ok."
     else echo "failed."
     fi
-    echo -n "Dedukti $i : "
-    if dedukti Coq_Init_$i.dk 2> regression.log
+    echo -n "Checking $i : "
+    if (dkparse Coq_Init_$i.dk | lua) 2> regression.log
     then echo "ok."
     else echo "failed."
     fi
     echo -n "Compiling $i : "
-    if ../scripts/compile Coq_Init_$i.dko &> regression.log
+    if dkparse -c Coq_Init_$i.dk > Coq_Init_$i.lua 2> regression.log
     then echo "ok."
     else echo "failed."
     fi
 done
-
-echo -n "Checking Logic : "
-if dkrun Coq_Init_Logic.dko Coq1univ.dko &> regression.log
-then echo "ok."
-else echo "failed."
-fi
-echo -n "Checking Datatypes : "
-if dkrun Coq_Init_Datatypes.dko Coq1univ.dko Coq_Init_Logic.dko &> regression.log
-then echo "ok."
-else echo "failed."
-fi
-echo -n "Checking Peano : "
-if dkrun Coq_Init_Peano.dko Coq1univ.dko Coq_Init_Logic.dko Coq_Init_Datatypes.dko &> regression.log
-then echo "ok."
-else echo "failed."
-fi
-echo -n "Checking Specif : "
-if dkrun Coq_Init_Specif.dko Coq1univ.dko Coq_Init_Logic.dko Coq_Init_Datatypes.dko &> regression.log
-then echo "ok."
-else echo "failed."
-fi
-echo -n "Checking Wf : "
-if dkrun Coq_Init_Wf.dko Coq1univ.dko Coq_Init_Logic.dko Coq_Init_Datatypes.dko &> regression.log
-then echo "ok."
-else echo "failed."
-fi
