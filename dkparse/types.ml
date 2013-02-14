@@ -1,40 +1,62 @@
 type loc = int*int
-type id  = string
+type id  = string*string
+type var = string
 
 type term =
-  | Kind
   | Type
-  | EVar of string
-  | GVar of string
-  | Var of string
+  | GVar of id
+  | Var of var
   | App of term * term
-  | Lam of id * term option * term
-  | Pi  of id option * term * term
+  | Lam of var * term option * term
+  | Pi  of var option * term * term
 
 type parsing_error = 
   | LexerError                  of string*loc
   | ParserError                 of string*loc
-  | ConstructorMismatch         of id*loc*id*loc
-  | AlreadyDefinedId            of id*loc
-  | ScopeError                  of id*loc
+  | ConstructorMismatch         of string*loc*string*loc
+  | AlreadyDefinedId            of string*loc
+  | ScopeError                  of string*loc
+  | UnknownModule               of string*loc
 
-type lua_error =
-  | LuaTypeCheckingFailed       of term*term*string
-  | LuaRuleCheckingFailed       of id*string
-  | LuaRequireFailed            of string
+type classifier = 
+  | CTypeOf     of id
+  | CSub        of term
+  | CPi         of var*term*classifier
+  | CDepType    of int*term
+                        (* and cterm = (var*classifier) list*term*)
 
-exception ParsingError          of parsing_error
-exception TypeCheckingError     of lua_error
+type inference_error =
+  | NotAType1 of term
+  | NotAType2 of var*term*classifier
+  | ConvPi1
+  | ConvPi2
+  | TypeInf0
+  | TypeInf1
+  | TypeInf2
+  | TypeInf3
+  | TypeInf4
+  | TypeCheckDef
+  | TypeCheckRule
+
+type internal_error =
+  | ContextError of var*(var*classifier) list
+  | IsAlias1 of id
+  | IsAlias2 of id
+
+exception TypeSynthError of inference_error
+exception ParsingError of parsing_error
+exception InternalError of internal_error
 
 type pattern = 
-        | Id of id
-        | Pat of id*term array*pattern array
+  | Joker
+  | Id of var
+  | Pat of id*term array*pattern array
 
-type env = (id*term) list
+type env = ((var*loc)*term) list
 
-type rule  = env * term array * pattern array * term                    (* context * dots patterns * patterns --> term *)
+type rule  = loc * env * term array * pattern array * term (* loc * context * dots patterns * patterns --> term *)
 
-type rules = id * rule list                                             (* constructeur * dot arity * arity * rules *)
+type rules = id * rule list                                 (* constructeur * dot arity * arity * rules *)
 
 type occ = int list
 

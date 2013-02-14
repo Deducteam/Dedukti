@@ -5,9 +5,11 @@ exception IncorrectFileName
 (* Arguments *)
 
 let args = [
+        ("-o", Arg.String (fun s -> Global.out   := (open_out s)  )     , "output file"         ) ;
+        ("-c", Arg.Set Global.do_not_check                              , "do not check"        ) ;
         ("-q", Arg.Set Global.quiet                                     , "quiet"               ) ;
         ("-l", Arg.String (fun s -> Global.libs := s::(!Global.libs))   , "load a library"      ) ;
-        ("-r", Arg.Set Global.ignore_redeclarations                     , "ignore redeclarations" ) 
+        ("-r", Arg.Set Global.ignore_redeclarations                     , "ignore redeclarations" )
 ]
 
 let set_name str =
@@ -19,7 +21,7 @@ let set_name str =
     if Str.string_match (Str.regexp "[a-zA-Z_][a-zA-Z_0-9]*") name 0 then
       Global.name := name
     else
-      raise IncorrectFileName (*FIXME*)
+      raise IncorrectFileName 
 
 (* Error Msgs *)
 
@@ -48,14 +50,15 @@ let main str =
     let file = open_in str      in
     let _ = set_name str        in
     let lexbuf = Lexing.from_channel file in
-      Global.state := LuaTypeChecker.init !Global.name ;
+      CodeGeneration.prelude () ;
       parse lexbuf
   with 
-    | ParsingError err          -> error ("\027[31m" ^ (Debug.string_of_perr err) ^ "\027[m")
-    | TypeCheckingError err     -> ( Global.debug_ko () ; error (Debug.string_of_lerr err) )
+    | ParsingError err          -> error ("\027[31m" ^ (Debug.string_of_parsing_error err) ^ "\027[m")
+    | TypeSynthError err        -> error ("\027[31m" ^ (Debug.string_of_inference_error err) ^ "\027[m")
+    | InternalError err         -> error ("\027[31m" ^ (Debug.string_of_internal_error err) ^ "\027[m")
     | Sys_error msg             -> error ("System error: "^msg)
-    | IncorrectFileName         -> error ("Incorrect File Name.") (*FIXME*)
-    | End_of_file               -> ( Hashtbl.clear Global.gs (*; match !Global.state with | Some ls -> LuaTypeChecker.close ls | None -> ()*) )
+    | IncorrectFileName         -> error ("Incorrect File Name.") 
+    | End_of_file               -> Hashtbl.clear Global.gs 
 
 let _ = Arg.parse args main "Usage: dkparse [options] files"  
   

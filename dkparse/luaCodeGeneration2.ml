@@ -17,16 +17,41 @@ let prelude _ =
 let generate_require dep = 
   fprintf !Global.out "require(\"%s\")\n" dep
 
+<<<<<<< Updated upstream:dkparse/luaCodeGeneration2.ml
+=======
+let prelude _ =
+  (*fprintf !Global.out "--[[ Code for module %s ]]\n" !Global.name ;*)
+  if !Global.do_not_check then
+    begin
+      fprintf !Global.out "require('dedukti2')\n" ; (*FIXME*)
+      List.iter generate_require !Global.libs ;
+      fprintf !Global.out "%s = { }\n" !Global.name
+    end
+  else
+    begin
+      fprintf !Global.out "require('dedukti2')\n" ; (*FIXME*)
+      List.iter generate_require !Global.libs ;
+      fprintf !Global.out "debug_infos = %B\n" (not !Global.quiet) ;
+      fprintf !Global.out "local %s = { }\n\n" !Global.name
+    end
+
+>>>>>>> Stashed changes:dkparse/codeGeneration.ml
 (* *********** Lua Code Generation *********** *)
 
 let rec gen_code0 = function
-  | Kind                -> assert false
   | Type                -> fprintf !Global.out "{ co = ctype }"
+<<<<<<< Updated upstream:dkparse/luaCodeGeneration2.ml
   | GVar v              -> 
       if Global.is_alias v then fprintf !Global.out "app0(%s.%s_c)"  !Global.name v
       else fprintf !Global.out "%s.%s_c"  !Global.name v
   | EVar v              -> fprintf !Global.out "app0(%s_c)" v
   | Var v               -> (* fprintf !Global.out "app0(%s_c)" v *) fprintf !Global.out "%s_c" v 
+=======
+  | GVar (m,v)          -> 
+      if Global.is_alias m v then fprintf !Global.out "app0(%s.%s_c)" m v
+      else fprintf !Global.out "%s.%s_c" m v
+  | Var v               -> fprintf !Global.out "%s_c" v 
+>>>>>>> Stashed changes:dkparse/codeGeneration.ml
   | App (f,a)           -> 
       begin
         fprintf !Global.out  "app( " ;
@@ -59,14 +84,18 @@ let gen_code te =
 (* *********** Lua Term Generation *********** *)
 
 let rec gen_term = function
-  | Kind                -> assert false
+(*  | Kind                -> assert false *)
   | Type                -> fprintf !Global.out "{ te = ttype }"
+<<<<<<< Updated upstream:dkparse/luaCodeGeneration2.ml
   | GVar v              -> fprintf !Global.out "%s.%s_t" !Global.name v
   | EVar v              -> fprintf !Global.out "%s_t" v
+=======
+  | GVar (m,v)          -> fprintf !Global.out "%s.%s_t" m v 
+>>>>>>> Stashed changes:dkparse/codeGeneration.ml
   | Var v               -> fprintf !Global.out "%s_t" v
   | App (f,a)           -> 
       begin 
-        fprintf !Global.out "{ te = tapp ; f = " ; 
+        fprintf !Global.out "{ te = tapp ; f = " ;  
         gen_term f ; 
         fprintf !Global.out " ; a = " ; 
         gen_term a ; 
@@ -102,6 +131,7 @@ let rec gen_term = function
           fprintf !Global.out " end }"
       end
 
+<<<<<<< Updated upstream:dkparse/luaCodeGeneration2.ml
 (* ************** Declarations *************** *)
 
 let rec iskind = function
@@ -145,9 +175,12 @@ let generate_def_code gname te = (*FIXME normalize *)
   gen_code0 te ;
   fprintf !Global.out "\n\n"
 
+=======
+>>>>>>> Stashed changes:dkparse/codeGeneration.ml
 (* ***************** Pattern Matching Generation ************ *)
 
 let new_pMat rules : pMat = 
+<<<<<<< Updated upstream:dkparse/luaCodeGeneration2.ml
     let rows = Array.length rules   in
       assert (rows>0);
       let (cols,nd) = match rules.(0) with (_,dots,pats,_) -> ( Array.length pats , Array.length dots ) in
@@ -157,6 +190,22 @@ let new_pMat rules : pMat =
         }
 
 let specialize (pm:pMat) (c:int) (arity:int) (nb_dots:int) (lines:int list) : pMat option = 
+=======
+  let rows = Array.length rules   in
+    assert (rows>0);
+    let cols = match rules.(0) with (_,_,dots,pats,_) -> Array.length dots + Array.length pats in
+      { p = Array.init rows 
+              (fun i ->
+                 let (_,_,dots,pats,_) = rules.(i) in
+                 let nd = Array.length dots in
+                   Array.init cols (fun j -> if j<nd then Joker else dots_to_joker pats.(j-nd) )
+              ) ; 
+        a = Array.init rows (fun i -> let (_,ctx,_,_,ri) = rules.(i)   in (ctx,ri) ) ;
+        loc = Array.init cols (fun i -> [i]); 
+      }
+
+let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : pMat option = 
+>>>>>>> Stashed changes:dkparse/codeGeneration.ml
   assert (0 < Array.length pm.p);
   assert (c < Array.length pm.p.(0));
     
@@ -278,7 +327,7 @@ let partition (mx:pattern array array) (c:int) : (id*int*int*int list) list =
       done ;
       !lst 
 
-let rec cc id (pm:pMat) : unit =
+let rec cc (pm:pMat) : unit =
   match getColumn pm.p.(0) with
     | None              -> 
         begin 
@@ -293,23 +342,32 @@ let rec cc id (pm:pMat) : unit =
           let bo  = ref true in
           let par = partition pm.p c in
             List.iter ( 
+<<<<<<< Updated upstream:dkparse/luaCodeGeneration2.ml
               fun (cst,arity,dots,lst) ->
+=======
+              fun ((m,cst),arity,lst) ->
+>>>>>>> Stashed changes:dkparse/codeGeneration.ml
                 (if !bo then bo := false else fprintf !Global.out "\nelse") ;
                 fprintf !Global.out "if " ;
                 print_path pm.loc.(c) ;
                 fprintf !Global.out ".co == ccon and " ;
                 print_path pm.loc.(c) ;
+<<<<<<< Updated upstream:dkparse/luaCodeGeneration2.ml
                 fprintf !Global.out ".id == \"%s.%s\" then\n" !Global.name cst ; 
                 match specialize pm c arity dots lst with
+=======
+                fprintf !Global.out ".id == \"%s.%s\" then\n" m cst ; 
+                match specialize pm c arity lst with
+>>>>>>> Stashed changes:dkparse/codeGeneration.ml
                   | None        -> ( fprintf !Global.out "return " ; gen_code0 (snd pm.a.(match lst with z::_ -> z | _ -> assert false)) )
-                  | Some pm'    -> ( cc n_id pm' )
+                  | Some pm'    -> ( cc pm' )
             ) par ;
 
             (*DEFAULT*)
             fprintf !Global.out "\nelse\n";
             (match default pm c with
                | None           -> fprintf !Global.out "return nil"
-               | Some pm'       -> ( cc n_id pm') 
+               | Some pm'       -> ( cc pm') 
             );
             fprintf !Global.out "\nend" 
         end 
@@ -317,12 +375,20 @@ let rec cc id (pm:pMat) : unit =
 (* ************** Rules *************** *)
 
 let rec gpcode = function
+<<<<<<< Updated upstream:dkparse/luaCodeGeneration2.ml
+=======
+  | Joker               -> assert false 
+>>>>>>> Stashed changes:dkparse/codeGeneration.ml
   | Id v                -> fprintf !Global.out "%s_c" v
-  | Pat (c,dots,pats)   ->
+  | Pat ((m,c),dots,pats)   ->
       begin
         let first = ref true in
         let arity = Array.length dots + Array.length pats  in
+<<<<<<< Updated upstream:dkparse/luaCodeGeneration2.ml
         fprintf !Global.out "{ co = ccon ; id = \"%s.%s\" ; arity = %i ; f = function() return %s.%s_c end ; args = { " !Global.name c arity !Global.name c ;
+=======
+        fprintf !Global.out "{ co = ccon ; id = \"%s.%s\" ; arity = %i ; f = function() return %s.%s_c end ; args = { " m c arity m c;
+>>>>>>> Stashed changes:dkparse/codeGeneration.ml
         Array.iter ( 
           fun t -> 
             if !first then ( gen_code t ; first := false )
@@ -337,11 +403,20 @@ let rec gpcode = function
       end
 
 let rec gpterm = function 
+<<<<<<< Updated upstream:dkparse/luaCodeGeneration2.ml
   | Id v                -> fprintf !Global.out "%s_t" v
   | Pat (c,dots,pats)   -> 
       let arity = Array.length dots + Array.length pats in
         for i=1 to arity do fprintf !Global.out " { te = tapp ; f = " done ;
         fprintf !Global.out "%s.%s_t " !Global.name c ;
+=======
+  | Joker                       -> assert false 
+  | Id v                        -> fprintf !Global.out "%s_t" v
+  | Pat ((m,c),dots,pats)       -> 
+      let arity = Array.length dots + Array.length pats in
+        for i=1 to arity do fprintf !Global.out " { te = tapp ; f = " done ; 
+        fprintf !Global.out "%s.%s_t " m c  ;
+>>>>>>> Stashed changes:dkparse/codeGeneration.ml
         Array.iter (
           fun d -> 
             fprintf !Global.out " ; a = " ;
@@ -359,6 +434,7 @@ let rec gpterm = function
             fprintf !Global.out " end } "
         ) pats
 
+<<<<<<< Updated upstream:dkparse/luaCodeGeneration2.ml
 let gen_env (id,te) =
   fprintf !Global.out "chkbeg(\"%s\")\n" id ;
   (if iskind te then fprintf !Global.out "chkkind(" else fprintf !Global.out "chktype(");
@@ -389,4 +465,31 @@ let generate_rules_code id rules =
     fprintf !Global.out ")\n" ;
     cc id (new_pMat rules) ;
     fprintf !Global.out "\nend }\n\n"
+=======
+let generate_rules_code id rules = 
+  assert ( Array.length rules > 0 );
+  let (_,_,dots,pats,_) = rules.(0) in
+  let arity = Array.length dots + Array.length pats in
+    (*fprintf !Global.out "\n -- [[ Compiling rules of %s. ]]\n" gname ;*)
+    fprintf !Global.out "{ co = ccon ; id=\"%s.%s\" ; arity = %i ; args = { } ; f =\nfunction (" !Global.name id arity ;
+    (if arity>0 then fprintf !Global.out "y1" else ());
+    (for i=2 to arity do fprintf !Global.out ", y%i" i  done );
+    fprintf !Global.out ")\n" ;
+    cc (new_pMat rules) ;
+    fprintf !Global.out "\nend }\n" 
+      (*;fprintf !Global.out " print(\"%s_c = \" .. string_of_code(0,%s_c))\n" gname gname *)
+
+let generate_rules_code2 id rules = 
+  assert ( Array.length rules > 0 );
+  let (_,_,dots,pats,_) = rules.(0) in
+  let arity = Array.length dots + Array.length pats in
+    (*fprintf !Global.out "\n -- [[ Compiling rules of %s. ]]\n" gname ;*)
+    fprintf !Global.out "{ co = ccon ; id=\"%s.%s\" ; ctype = %s.%s_c.ctype ; arity = %i ; args = { } ; f =\nfunction (" !Global.name id !Global.name id arity ;
+    (if arity>0 then fprintf !Global.out "y1" else ());
+    (for i=2 to arity do fprintf !Global.out ", y%i" i  done );
+    fprintf !Global.out ")\n" ;
+    cc (new_pMat rules) ;
+    fprintf !Global.out "\nend }\n" 
+      (*;fprintf !Global.out " print(\"%s_c = \" .. string_of_code(0,%s_c))\n" gname gname *)
+>>>>>>> Stashed changes:dkparse/codeGeneration.ml
 

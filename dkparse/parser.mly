@@ -1,58 +1,57 @@
 %{
 
 open Types
+(*open LuaTypeChecker*)
+open CamlTypeChecker
 
-let mk_declaration id ty =
-        let gname = !Global.name^"."^id in
-        Global.debug ("{Declaration} " ^ gname ^ "\t\t")  ;
-        LuaTypeChecker.check_type_type !Global.state ty ;
-        LuaTypeChecker.add_in_context !Global.state gname ty ;
+let mk_declaration (id,loc) ty =
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ id ^ "\t\t")  ;
+        if !Global.do_not_check then () else typecheck_decl id loc ty ;
+        generate_decl id ty ; 
+        ignore ( Refine.mk_Type_or_Kind ty ) ; (*FIXME*)
         Global.debug_ok ()
 
-let mk_declaration0 id ty =
+let mk_declaration0 idl ty =
         if !Global.ignore_redeclarations then
-                if Global.gscope_add_decl id then mk_declaration (fst id) ty
-                else Global.debug ("{Declaration} " ^ (!Global.name) ^ "." ^ (fst id) ^ "\t\t[IGNORED]\n")
+                if Global.gscope_add_decl idl then mk_declaration idl ty
+                else Global.debug (Debug.string_of_loc (snd idl) ^ "\tGenerating declaration " ^ (fst idl) ^ "\t\t[IGNORED]\n")
         else (
-                Global.gscope_add id ;
-                mk_declaration (fst id) ty
+                Global.gscope_add idl ;
+                mk_declaration idl ty
         )
 
-let mk_definition id te ty =
-        let gname = !Global.name^"."^id in
-        Global.debug ("{Definition} " ^ gname ^ "\t\t") ;
-        LuaTypeChecker.check_type_type !Global.state ty ;
-        LuaTypeChecker.check_type !Global.state te ty ;
-        LuaTypeChecker.add_definition !Global.state gname te ;
+let mk_definition (id,loc) te ty =
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating definition " ^ id ^ "\t\t") ;
+        ( if !Global.do_not_check then () else typecheck_def id loc te ty ) ;
+        generate_def id te ;
         Global.debug_ok ()
 
-let mk_opaque id te ty = 
-        let gname = !Global.name^"."^id in
-        Global.debug ("{Opaque} " ^ gname ^ "\t\t")  ;
-        LuaTypeChecker.check_type_type !Global.state ty ;
-        LuaTypeChecker.check_type !Global.state te ty ;
-        LuaTypeChecker.add_in_context !Global.state gname ty ;
+let mk_opaque (id,loc) te ty = 
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating opaque definition " ^ id ^ "\t\t")  ;
+        ( if !Global.do_not_check then () else typecheck_def id loc te ty ) ;
+        generate_decl id ty ;
         Global.debug_ok ()
 
-let mk_typecheck te ty = 
-        Global.debug ("{TypeCheck} ... \t\t") ;
-        LuaTypeChecker.check_type !Global.state te ty ; 
+let mk_typecheck loc te ty = 
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating typechecking ... \t\t") ;
+        ( if !Global.do_not_check then () else typecheck_def "_" loc te ty ) ; 
+        Global.debug_ok () 
+
+let mk_rules (a:loc*rules) = 
+        let (loc,((_,id),rules)) = a         in
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating rule checks for " ^ id ^ " \t\t") ; 
+        let rs = Array.of_list rules    in
+        Global.chk_rules_id a  ; 
+        Global.chk_alias id rs ;
+        if !Global.do_not_check then () else Array.iteri (typecheck_rule id) rs ;
+        generate_rules_code id rs ;
         Global.debug_ok ()
 
-let mk_rules a = 
-  Global.debug ("{RuleCheck} ... \t\t") ;
-  let (_,(id,rules)) = a         in
-  let rs = Array.of_list rules    in
-  Global.chk_rules_id a  ; 
-  Global.chk_alias id rs ;
-  Array.iter (LuaTypeChecker.check_rule !Global.state id) rs ;
-  LuaTypeChecker.add_rules !Global.state id rs ;
-  Global.debug_ok ()
-
-let mk_require dep =
-        Global.debug ("{Module} "^dep^" \t\t") ;
-        LuaTypeChecker.require !Global.state dep ;
-        Global.debug_ok ()
+let mk_require (dep,loc) =
+        Global.libs := dep::(!Global.libs) ;
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating dependency "^dep^" \t\t") ;
+        CodeGeneration.generate_require dep ; 
+        Global.debug_ok () 
 
 %}
 
@@ -63,7 +62,7 @@ let mk_require dep =
 %token FATARROW
 %token LONGARROW
 %token DEF
-%token UNDERSCORE
+%token <Types.loc> UNDERSCORE
 %token HASH
 %token LEFTPAR
 %token RIGHTPAR
@@ -72,40 +71,40 @@ let mk_require dep =
 %token LEFTSQU
 %token RIGHTSQU
 %token TYPE
-%token <Types.id*Types.loc> ID
-%token <Types.id> QID
+%token <string*Types.loc> ID
+%token <string*string*Types.loc> QID
 
 %start top
 %type <unit> top
 %type <Types.loc*Types.rules> rules
 %type <Types.id*Types.loc*Types.rule> rule
-%type <Types.id*Types.loc*Types.term array*Types.pattern array> pat
+%type <string*Types.loc*Types.term array*Types.pattern array> pat
 
 %right ARROW FATARROW
 
 %%
 top:            /* empty */                                             { () }
                 | top ID COLON term DOT                                 { mk_declaration0 $2 $4 }
-                | top ID COLON term DEF term DOT                        { Global.gscope_add $2 ; mk_definition (fst $2) $6 $4 }
-                | top LEFTBRA ID RIGHTBRA COLON term DEF term DOT       { Global.gscope_add $3 ; mk_opaque (fst $3) $8 $6 }
-                | top UNDERSCORE COLON term DEF term DOT                { mk_typecheck $6 $4 }
+                | top ID COLON term DEF term DOT                        { Global.gscope_add $2 ; mk_definition $2 $6 $4 }
+                | top LEFTBRA ID RIGHTBRA COLON term DEF term DOT       { Global.gscope_add $3 ; mk_opaque $3 $8 $6 }
+                | top UNDERSCORE COLON term DEF term DOT                { mk_typecheck $2 $6 $4 }
                 | top rules DOT                                         { mk_rules $2 } 
-                | top HASH ID                                           { mk_require (fst $3) };
+                | top HASH ID                                           { mk_require $3 };
 
 rules:          rule                                                    { let (id,loc,ru) = $1 in (loc,(id,[ru])) }
                 | rule rules                             
                         { let (id1,l1,ru) = $1 and (l2,(id2,lst)) = $2 in 
-                          if id1<>id2 then raise (ParsingError (ConstructorMismatch (id1,l1,id2,l2))) 
+                          if id1<>id2 then raise (ParsingError
+                          (ConstructorMismatch ("",l1,"",l2))) (*FIXME*)
                           else (l1,(id1,ru::lst)) }
                 ;
 
 rule:            LEFTSQU bdgs RIGHTSQU pat LONGARROW term                     
                         { Global.lscope_remove_lst $2 ; 
-                          let (id,loc,dots,pats) = $4 in 
-                          (id,loc,($2,dots,pats,$6))  }
+                          let (id,loc,dots,pats) = $4 in ((!Global.name,id),loc,(loc,$2,dots,pats,$6))  }
                 ;
 
-bdg:            ID COLON term                                   { Global.lscope_add (fst $1) ; (fst $1,$3) }
+bdg:            ID COLON term                                   { Global.lscope_add (fst $1) ; ($1,$3) }
                 ;
 
 bdgs:           /* empty */                                     { [] }
@@ -126,7 +125,7 @@ spats:          /* empty */                                     { [] }
 
 spat:           ID                                              { Global.mk_pat_var $1 }
                 | QID                                           { Pat (Global.filter_qid $1,[||],[||]) }
-                | LEFTPAR ID  dotps spats RIGHTPAR              { Pat (fst $2,Array.of_list $3,Array.of_list $4) }           
+                | LEFTPAR ID  dotps spats RIGHTPAR              { Pat ((!Global.name,fst $2),Array.of_list $3,Array.of_list $4) }           
                 | LEFTPAR QID dotps spats RIGHTPAR              { Pat (Global.filter_qid $2,Array.of_list $3,Array.of_list $4) }           
                 ;
 

@@ -59,10 +59,19 @@ function app0 ( f )
 end
 
 -- Code*Code -> Code
+<<<<<<< Updated upstream
 function app ( f , arg )
   --print("entering app...")
   --print(" f : " .. string_of_code(50,f))
   --print(" a : " .. string_of_code(50,arg))
+=======
+function uapp ( f , arg )
+  --io.stderr:write(" -- entering uapp...\n")
+  --io.stderr:write(" @f : " .. string_of_code(50,f) .. "\n")
+  --io.stderr:write(" @a : " .. string_of_code(50,arg) .. "\n")
+  passert(is_code(f) and is_code(arg) , "Undefined external symbol (2)." )
+
+>>>>>>> Stashed changes
   local res = nil
 
   -- CCON
@@ -100,8 +109,13 @@ function app ( f , arg )
     --print("Fct: " .. string_of_code ( 50 , f ) )
     assert(false)
   end
+<<<<<<< Updated upstream
   --print("leaving app...")
   --print("App : " .. string_of_code(10,res))
+=======
+  --io.stderr:write ("@App : " .. string_of_code(10,res) .. "\n")
+  --io.stderr:write(" -- leaving uapp...\n")
+>>>>>>> Stashed changes
   return res
 end
 
@@ -188,10 +202,18 @@ function type_synth ( n , te )
   --print ("Term: " .. string_of_term(n,te ))
   local res = nil
 
+<<<<<<< Updated upstream
   if     te.te == ttype then res = { co = ckind }        -- Kind
   elseif te.te == tbox  then res = te.ctype()            -- Type
   elseif te.te == tlam  then                             -- Lam 
     if te.ctype == nil  then error("Cannot find type of:\n" .. string_of_term(n,te)) end
+=======
+  if     te.te == ttype then br=1 res = { co = ckind }        -- Kind
+  elseif te.te == tbox  then -- Type 
+	  res = te.ctype()
+  elseif te.te == tlam  then                             -- Lam 
+    if te.ctype == nil  then error("Cannot find type of:\n" .. string_of_term(n,te),0) end
+>>>>>>> Stashed changes
     type_check( n , te.ttype , { co = ctype } )
     local tya = te.ctype()
     local box = mk_box(tya)
