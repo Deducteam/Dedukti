@@ -3,11 +3,10 @@
 open Types
 
 let mk_declaration (id,loc) ty =
-        let gname = Global.get_gvar_name id in
-        Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ gname ^ "\t\t")  ;
-        if !Global.do_not_check then () else CodeGeneration.generate_decl_check gname loc ty ;
-        CodeGeneration.generate_decl_code gname ;
-        CodeGeneration.generate_decl_term gname ty ;
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ id ^ "\t\t")  ;
+        if !Global.do_not_check then () else CodeGeneration.generate_decl_check id loc ty ;
+        CodeGeneration.generate_decl_code id ;
+        CodeGeneration.generate_decl_term id ty ;
         Global.debug_ok ()
 
 let mk_declaration0 idl ty =
@@ -20,19 +19,17 @@ let mk_declaration0 idl ty =
         )
 
 let mk_definition (id,loc) te ty =
-        let gname = Global.get_gvar_name id in
-        Global.debug (Debug.string_of_loc loc ^ "\tGenerating definition " ^ gname ^ "\t\t") ;
-        if !Global.do_not_check then () else CodeGeneration.generate_def_check gname loc te ty ;
-        CodeGeneration.generate_def_code gname te ;
-        CodeGeneration.generate_def_term gname te ;
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating definition " ^ id ^ "\t\t") ;
+        if !Global.do_not_check then () else CodeGeneration.generate_def_check id loc te ty ;
+        CodeGeneration.generate_def_code id te ;
+        CodeGeneration.generate_def_term id te ;
         Global.debug_ok ()
 
 let mk_opaque (id,loc) te ty = 
-        let gname = Global.get_gvar_name id in
-        Global.debug (Debug.string_of_loc loc ^ "\tGenerating opaque definition " ^ gname ^ "\t\t")  ;
-        if !Global.do_not_check then () else CodeGeneration.generate_def_check gname loc te ty ;
-        CodeGeneration.generate_decl_code gname ;
-        CodeGeneration.generate_decl_term gname ty ;
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating opaque definition " ^ id ^ "\t\t")  ;
+        if !Global.do_not_check then () else CodeGeneration.generate_def_check id loc te ty ;
+        CodeGeneration.generate_decl_code id ;
+        CodeGeneration.generate_decl_term id ty ;
         Global.debug_ok ()
 
 let mk_typecheck loc te ty = 
@@ -42,7 +39,7 @@ let mk_typecheck loc te ty =
 
 let mk_rules (a:loc*rules) = 
   let (loc,(id,rules)) = a         in
-  Global.debug (Debug.string_of_loc loc ^ "\tGenerating rule checks for "^id^" \t\t") ; 
+  Global.debug (Debug.string_of_loc loc ^ "\tGenerating rule checks for "^ id^" \t\t") ; 
   let rs = Array.of_list rules    in
   Global.chk_rules_id a  ; 
   Global.chk_alias id rs ;
@@ -74,14 +71,14 @@ let mk_require (dep,loc) =
 %token LEFTSQU
 %token RIGHTSQU
 %token TYPE
-%token <Types.id*Types.loc> ID
-%token <Types.id*Types.id*Types.loc> QID
+%token <string*Types.loc> ID
+%token <string*string*Types.loc> QID
 
 %start top
 %type <unit> top
 %type <Types.loc*Types.rules> rules
-%type <Types.id*Types.loc*Types.rule> rule
-%type <Types.id*Types.loc*Types.term array*Types.pattern array> pat
+%type <string*Types.loc*Types.rule> rule
+%type <string*Types.loc*Types.term array*Types.pattern array> pat
 
 %right ARROW FATARROW
 
@@ -127,7 +124,7 @@ spats:          /* empty */                                     { [] }
 
 spat:           ID                                              { Global.mk_pat_var $1 }
                 | QID                                           { Pat (Global.filter_qid $1,[||],[||]) }
-                | LEFTPAR ID  dotps spats RIGHTPAR              { Pat (fst $2,Array.of_list $3,Array.of_list $4) }           
+                | LEFTPAR ID  dotps spats RIGHTPAR              { Pat ((!Global.name,fst $2),Array.of_list $3,Array.of_list $4) }           
                 | LEFTPAR QID dotps spats RIGHTPAR              { Pat (Global.filter_qid $2,Array.of_list $3,Array.of_list $4) }           
                 ;
 

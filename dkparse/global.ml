@@ -12,9 +12,9 @@ let debug str  = if !quiet then () else ( prerr_string str ; flush stderr )
 let debug_ok _ = if !quiet then () else prerr_endline "\027[32m[OK]\027[m"
 let debug_ko _ = if !quiet then () else prerr_endline "\027[31m[KO]\027[m"
 
-type var = | Local | Global | Alias
+type vart = | Local | Global | Alias
 
-let gs : (id,var) Hashtbl.t = Hashtbl.create 47
+let gs : (string,vart) Hashtbl.t = Hashtbl.create 47
 
 let is_alias id =
   try 
@@ -23,33 +23,33 @@ let is_alias id =
       | Global  -> false
       | Local   -> assert false
   with
-    | Not_found -> assert false
+    | Not_found -> prerr_string id ; assert false
 
 let mk_var (id,loc) =
   try
    begin
      match Hashtbl.find gs id with 
        | Local   -> Var id
-       | _       -> GVar id
+       | _       -> GVar (!name,id)
    end
   with
-    | Not_found -> raise (ParsingError (ScopeError (id,loc))) 
+    | Not_found -> raise (ParsingError (ScopeError ((!name,id),loc))) 
 
-let mk_evar (md,id,l) = 
-  if md = !name then 
+let mk_evar (m,v,l) = 
+  if m = !name then 
     begin
       try
         begin
-          match Hashtbl.find gs id with 
-            | Local   -> raise (ParsingError (ScopeError (md^"."^id,l)))
-            | _       -> GVar id
+          match Hashtbl.find gs v with 
+            | Local   -> raise (ParsingError (ScopeError ((m,v),l)))
+            | _       -> GVar (m,v)
         end
       with
-        | Not_found -> raise (ParsingError (ScopeError (md^"."^id,l)))
+        | Not_found -> raise (ParsingError (ScopeError ((m,v),l)))
     end
   else 
-      if List.mem md !libs then EVar (md^"."^id)
-      else raise (ParsingError (UnknownModule (md,l)))
+      if List.mem m !libs then GVar (m,v)
+      else raise (ParsingError (UnknownModule (m,l)))
 
 let filter_qid (md,id,l) = 
   if md = !name then 
@@ -57,39 +57,32 @@ let filter_qid (md,id,l) =
       try
         begin
           match Hashtbl.find gs id with 
-            | Local   -> raise (ParsingError (ScopeError (md^"."^id,l)))
-            | _       -> id
+            | Local   -> raise (ParsingError (ScopeError ((md,id),l)))
+            | _       -> (md,id)
         end
       with
-        | Not_found -> raise (ParsingError (ScopeError (md^"."^id,l)))
+        | Not_found -> raise (ParsingError (ScopeError ((md,id),l)))
     end
   else  
-      if List.mem md !libs then (md^"."^id)
+      if List.mem md !libs then (md,id)
       else raise (ParsingError (UnknownModule (md,l)))
 
 let mk_pat_var (id,loc) =
   try
     match Hashtbl.find gs id with
       | Local -> Id id
-      | _     -> Pat (id,[||],[||])
+      | _     -> Pat ((!name,id),[||],[||])
   with
-    | Not_found -> raise (ParsingError (ScopeError (id,loc))) 
+    | Not_found -> raise (ParsingError (ScopeError ((!name,id),loc))) 
 
 let gscope_add (id,loc) = 
-  if Hashtbl.mem gs id then raise (ParsingError (AlreadyDefinedId (id,loc))) 
-  else (
-    (*incr nb_gvars ; 
-    incr nb_gvars ; 
-    assert (!nb_gvars < 32268);*)
+  if Hashtbl.mem gs id then raise (ParsingError (AlreadyDefinedId ((!name,id),loc))) 
+  else 
     Hashtbl.add gs id Global 
-  )
 
 let gscope_add_decl (id,loc) = 
   if Hashtbl.mem gs id then false
   else ( 
-    (*incr nb_gvars ; 
-    incr nb_gvars ; 
-    assert (!nb_gvars < 32268) ;*)
     Hashtbl.add gs id Global ; 
     true 
   )
@@ -103,18 +96,11 @@ let chk_alias id rs =
 
 
 let chk_rules_id (loc,(id,_)) = 
-  if Hashtbl.mem gs id then  (* incr nb_gvars ; assert (!nb_gvars < 32268) *) ()
-  else raise (ParsingError (ScopeError (id,loc)))
+  if Hashtbl.mem gs id then ()
+  else raise (ParsingError (ScopeError ((!name,id),loc)))
 
 let lscope_add id = Hashtbl.add gs id Local
 
 let lscope_remove id = Hashtbl.remove gs id
 
 let lscope_remove_lst lst = List.iter (fun x -> lscope_remove (fst (fst x))) lst
-
-let get_gvar_name v =
-  (*if !do_not_check then *)
-    !name ^ "." ^ v
-  (*else "g_" ^ v*)
-
-

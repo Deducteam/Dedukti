@@ -33,10 +33,12 @@ let prelude _ =
 let rec gen_code0 = function
   | Kind                -> assert false
   | Type                -> fprintf !Global.out "{ co = ctype }"
-  | GVar v              -> 
-      if Global.is_alias v then fprintf !Global.out "app0(%s_c)" (Global.get_gvar_name v)
-      else fprintf !Global.out "%s_c"  (Global.get_gvar_name v)
-  | EVar v              -> fprintf !Global.out "app0(%s_c)" v
+  | GVar (m,v)          -> 
+      if m = !Global.name then 
+        if Global.is_alias v then fprintf !Global.out "app0(%s.%s_c)" m v
+        else fprintf !Global.out "%s.%s_c" m v
+      else
+        fprintf !Global.out "app0(%s.%s_c)" m v
   | Var v               -> fprintf !Global.out "%s_c" v 
   | App (f,a)           -> 
       begin
@@ -72,8 +74,7 @@ let gen_code te =
 let rec gen_term = function
   | Kind                -> assert false
   | Type                -> fprintf !Global.out "{ te = ttype }"
-  | GVar v              -> fprintf !Global.out "%s_t" (Global.get_gvar_name v)
-  | EVar v              -> fprintf !Global.out "%s_t" v
+  | GVar (m,v)          -> fprintf !Global.out "%s.%s_t" m v
   | Var v               -> fprintf !Global.out "%s_t" v
   | App (f,a)           -> 
       begin 
@@ -127,12 +128,12 @@ let generate_decl_check gname loc ty =
   gen_term ty ;
   fprintf !Global.out ")\n"
 
-let generate_decl_code gname =
-  fprintf !Global.out "%s_c = { co = ccon ; id = \"%s\" ; arity = 0 ; args = { } ; f = function() return nil end }\n" gname gname 
+let generate_decl_code id =
+  fprintf !Global.out "%s.%s_c = { co = ccon ; id = \"%s.%s\" ; arity = 0 ; args = { } ; f = function() return nil end }\n" !Global.name id !Global.name id
 (*; fprintf !Global.out " print(\"%s_c = \" .. string_of_code(0,%s_c))\n" gname gname *)
 
-let generate_decl_term gname ty =
-  fprintf !Global.out "%s_t = { te = tbox ; ctype = function() return " gname ;
+let generate_decl_term id ty =
+  fprintf !Global.out "%s.%s_t = { te = tbox ; ctype = function() return " !Global.name id ;
   gen_code0 ty ;
   fprintf !Global.out " end }\n" 
     (*; fprintf !Global.out " print(\"%s_t = \" .. string_of_term(0,%s_t))\n" gname gname *)
@@ -148,14 +149,14 @@ let generate_def_check gname loc te ty =
   gen_code0 ty ;
   fprintf !Global.out ")\n"
 
-let generate_def_term gname te = 
-  fprintf !Global.out "%s_t = " gname ;
+let generate_def_term id te = 
+  fprintf !Global.out "%s.%s_t = " !Global.name id ;
   gen_term te ;
   fprintf !Global.out "\n"
     (*;fprintf !Global.out " print(\"%s_t = \" .. string_of_term(0,%s_t))\n" gname gname *)
 
-let generate_def_code gname te = 
-  fprintf !Global.out "%s_c = " gname ;
+let generate_def_code id te = 
+  fprintf !Global.out "%s.%s_c = " !Global.name id ;
   gen_code0 te ;
   fprintf !Global.out "\n"
    (* ;fprintf !Global.out " print(\"%s_c = \" .. string_of_code(0,%s_c))\n" gname gname *)
@@ -314,7 +315,7 @@ let partition (mx:pattern array array) (c:int) : (id*int*int list) list =
       done ;
       !lst 
 
-let rec cc id (pm:pMat) : unit =
+let rec cc (pm:pMat) : unit =
   match getColumn pm.p.(0) with
     | None              -> 
         begin 
@@ -323,29 +324,29 @@ let rec cc id (pm:pMat) : unit =
             fprintf !Global.out "return ";
             gen_code0 te
         end
-    | Some (c,n_id)     -> 
+    | Some (c,_)     -> 
         begin
           assert (c < Array.length pm.loc);
           let bo  = ref true in
           let par = partition pm.p c in
             List.iter ( 
-              fun (cst,arity,lst) ->
+              fun ((m,cst),arity,lst) ->
                 (if !bo then bo := false else fprintf !Global.out "\nelse") ;
                 fprintf !Global.out "if " ;
                 print_path pm.loc.(c) ;
                 fprintf !Global.out ".co == ccon and " ;
                 print_path pm.loc.(c) ;
-                fprintf !Global.out ".id == \"%s\" then\n" (Global.get_gvar_name cst) ; 
+                fprintf !Global.out ".id == \"%s.%s\" then\n" m cst ; 
                 match specialize pm c arity lst with
                   | None        -> ( fprintf !Global.out "return " ; gen_code0 (snd pm.a.(match lst with z::_ -> z | _ -> assert false)) )
-                  | Some pm'    -> ( cc n_id pm' )
+                  | Some pm'    -> ( cc pm' )
             ) par ;
 
             (*DEFAULT*)
             fprintf !Global.out "\nelse\n";
             (match default pm c with
                | None           -> fprintf !Global.out "return nil"
-               | Some pm'       -> ( cc n_id pm') 
+               | Some pm'       -> ( cc pm') 
             );
             fprintf !Global.out "\nend" 
         end 
@@ -355,11 +356,11 @@ let rec cc id (pm:pMat) : unit =
 let rec gpcode = function
   | Joker               -> assert false (*TODO*)
   | Id v                -> fprintf !Global.out "%s_c" v
-  | Pat (c,dots,pats)   ->
+  | Pat ((m,c),dots,pats)   ->
       begin
         let first = ref true in
         let arity = Array.length dots + Array.length pats  in
-        fprintf !Global.out "{ co = ccon ; id = \"%s.%s\" ; arity = %i ; f = function() return %s_c end ; args = { " !Global.name c arity (Global.get_gvar_name c) ;
+        fprintf !Global.out "{ co = ccon ; id = \"%s.%s\" ; arity = %i ; f = function() return %s.%s_c end ; args = { " m c arity m c ;
         Array.iter ( 
           fun t -> 
             if !first then ( gen_code0 t ; first := false )
@@ -376,10 +377,10 @@ let rec gpcode = function
 let rec gpterm = function 
   | Joker               -> assert false (*TODO*)
   | Id v                -> fprintf !Global.out "%s_t" v
-  | Pat (c,dots,pats)   -> 
+  | Pat ((m,c),dots,pats)   -> 
       let arity = Array.length dots + Array.length pats in
         for i=1 to arity do fprintf !Global.out " { te = tapp ; f = " done ;
-        fprintf !Global.out "%s_t " (Global.get_gvar_name c) ;
+        fprintf !Global.out "%s.%s_t " m c ;
         Array.iter (
           fun d -> 
             fprintf !Global.out " ; a = " ;
@@ -427,7 +428,7 @@ let generate_rule_check id i (loc,ctx,dots,pats,te) =
   fprintf !Global.out "))";
    *)
   fprintf !Global.out "local ty = type_synth(0, ";
-  gpterm (Pat (id,dots,pats));
+  gpterm (Pat ((!Global.name,id),dots,pats));
   fprintf !Global.out ")\n";
   (*fprintf !Global.out " print(\"ty = \" .. string_of_code(0,ty))\n" ;*)
   fprintf !Global.out "chk(";
@@ -436,15 +437,14 @@ let generate_rule_check id i (loc,ctx,dots,pats,te) =
 
 let generate_rules_code id rules = 
   assert ( Array.length rules > 0 );
-  let gname = Global.get_gvar_name id in
   let (_,_,dots,pats,_) = rules.(0) in
   let arity = Array.length dots + Array.length pats in
     (*fprintf !Global.out "\n -- [[ Compiling rules of %s. ]]\n" gname ;*)
-    fprintf !Global.out "%s_c = { co = ccon ; id=\"%s\" ; arity = %i ; args = { } ; f =\nfunction (" gname gname arity ;
+    fprintf !Global.out "%s.%s_c = { co = ccon ; id=\"%s.%s\" ; arity = %i ; args = { } ; f =\nfunction (" !Global.name id !Global.name id arity ;
     (if arity>0 then fprintf !Global.out "y1" else ());
     (for i=2 to arity do fprintf !Global.out ", y%i" i  done );
     fprintf !Global.out ")\n" ;
-    cc id (new_pMat rules) ;
+    cc (new_pMat rules) ;
     fprintf !Global.out "\nend }\n" 
       (*;fprintf !Global.out " print(\"%s_c = \" .. string_of_code(0,%s_c))\n" gname gname *)
 
