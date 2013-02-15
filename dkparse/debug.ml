@@ -7,7 +7,7 @@ let rec string_of_term = function
   | Type                -> "Type"
   | GVar (m,v)          -> m^"."^v
   | Var  v              -> v
-  | App (t1,t2)         -> string_of_term t1 ^ " " ^ string_of_term t2
+  | App (t1,t2)         -> "(" ^ string_of_term t1 ^ " " ^ string_of_term t2 ^ ")"
   | Lam(v,None,te)      -> "(\\" ^ v ^ " -> " ^ string_of_term te ^ ")"
   | Lam(v,Some ty,te)   -> "(\\" ^ v ^ " : " ^ string_of_term ty ^ " -> " ^ string_of_term te ^ ")"
   | Pi(None,ty,te)      -> "([_:"^    string_of_term ty^"] "^string_of_term te^")"

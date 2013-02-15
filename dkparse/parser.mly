@@ -2,13 +2,13 @@
 
 open Types
 (*open LuaTypeChecker*)
-open CamlTypeChecker
+(*open CamlTypeChecker*)
+open Refine
 
 let mk_declaration (id,loc) ty =
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ id ^ "\t\t")  ;
         if !Global.do_not_check then () else typecheck_decl id loc ty ;
         generate_decl id ty ; 
-        ignore ( Refine.mk_Type_or_Kind ty ) ; (*FIXME*)
         Global.debug_ok ()
 
 let mk_declaration0 idl ty =
@@ -51,6 +51,7 @@ let mk_require (dep,loc) =
         Global.libs := dep::(!Global.libs) ;
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating dependency "^dep^" \t\t") ;
         CodeGeneration.generate_require dep ; 
+        import dep ;
         Global.debug_ok () 
 
 %}

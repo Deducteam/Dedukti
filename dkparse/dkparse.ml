@@ -51,6 +51,7 @@ let main str =
     let _ = set_name str        in
     let lexbuf = Lexing.from_channel file in
       CodeGeneration.prelude () ;
+      List.iter Refine.import !Global.libs ;
       parse lexbuf
   with 
     | ParsingError err          -> error ("\027[31m" ^ (Debug.string_of_parsing_error err) ^ "\027[m")
@@ -58,7 +59,7 @@ let main str =
     | InternalError err         -> error ("\027[31m" ^ (Debug.string_of_internal_error err) ^ "\027[m")
     | Sys_error msg             -> error ("System error: "^msg)
     | IncorrectFileName         -> error ("Incorrect File Name.") 
-    | End_of_file               -> Hashtbl.clear Global.gs 
+    | End_of_file               -> ( Refine.export () ; Hashtbl.clear Global.gs ; exit 0 )
 
 let _ = Arg.parse args main "Usage: dkparse [options] files"  
   
