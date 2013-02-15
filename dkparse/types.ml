@@ -1,36 +1,36 @@
 type loc = int*int
-type id  = string
+type id  = string*string
+type var  = string
 
 type term =
   | Kind
   | Type
-  | EVar of string
-  | GVar of string
+  | GVar of id
   | Var of string
   | App of term * term
-  | Lam of id * term option * term
-  | Pi  of id option * term * term
+  | Lam of var * term option * term
+  | Pi  of var option * term * term
 
 type parsing_error = 
   | LexerError                  of string*loc
   | ParserError                 of string*loc
-  | ConstructorMismatch         of id*loc*id*loc
+  | ConstructorMismatch         of var*loc*var*loc
   | AlreadyDefinedId            of id*loc
   | ScopeError                  of id*loc
-  | UnknownModule               of id*loc
+  | UnknownModule               of string*loc
 
 exception ParsingError          of parsing_error
 
 type pattern = 
   | Joker
-  | Id of id
+  | Id of var
   | Pat of id*term array*pattern array
 
-type env = ((id*loc)*term) list
+type env = ((var*loc)*term) list
 
 type rule  = loc * env * term array * pattern array * term (* loc * context * dots patterns * patterns --> term *)
 
-type rules = id * rule list                                 (* constructeur * dot arity * arity * rules *)
+type rules = string * rule list                                 (* constructeur * dot arity * arity * rules *)
 
 type occ = int list
 
