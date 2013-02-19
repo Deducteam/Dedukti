@@ -365,7 +365,7 @@ let generate_rules_code2 id rules =
   let (_,_,dots,pats,_) = rules.(0) in
   let arity = Array.length dots + Array.length pats in
     (*fprintf !Global.out "\n -- [[ Compiling rules of %s. ]]\n" gname ;*)
-    fprintf !Global.out "{ co = ccon ; id=\"%s.%s\" ; ctype = %s.%s_c.ctype ; arity = %i ; args = { } ; f =\nfunction (" !Global.name id !Global.name id arity ;
+    fprintf !Global.out "{ co = ccon ; id=\"%s.%s\" ; arity = %i ; args = { } ; f =\nfunction (" !Global.name id arity ;
     (if arity>0 then fprintf !Global.out "y1" else ());
     (for i=2 to arity do fprintf !Global.out ", y%i" i  done );
     fprintf !Global.out ")\n" ;

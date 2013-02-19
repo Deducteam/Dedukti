@@ -49,11 +49,7 @@ let gvar_type (m,v) =
       let ht = try Hashtbl.find exth m with Not_found -> raise (TypeSynthError (CannotFindExternalModule m)) in
       try Hashtbl.find ht v 
       with Not_found -> 
-        begin
-          prerr_string "HASH\n";
-          Hashtbl.iter (fun st _ -> prerr_string (" - "^st^"\n")) ht ;
-          raise (TypeSynthError (CannotFindExternalSymbol (m,v)))
-        end
+        raise (TypeSynthError (CannotFindExternalSymbol (m,v)))
     end
 
 let gvar_set id ty = Hashtbl.add ht id ty
@@ -215,12 +211,6 @@ let context_add_opt ctx ty = function
   | None        -> ctx
   | Some v      -> (v,GV_Type ty)::ctx
 
-let debug_app f a =(*FIXME*)
-  fprintf !Global.out " -- App \n" ;
-  fprintf !Global.out " -- %s \n" (Debug.string_of_term f) ;
-  fprintf !Global.out " -- %s \n" (Debug.string_of_term a)
-
-
 let rec mk_type (ctx:context) : term -> dk_type = function
   | Pi (v,a,b)          -> let a0 = mk_type ctx a in Ty_Pi ( v , a0 , mk_type (context_add_opt ctx a0 v) b )
   | GVar id             -> 
@@ -303,9 +293,7 @@ and mk_term (ctx:context) : term -> dk_term * dk_subst = function
   | App (f,a)           -> 
       let (f_te,f_ty) = mk_term ctx f in
       let (a_te,a_ty) = mk_term ctx a  in 
-        debug_app f a ; (*FIXME*)
         convPi_subst_subst f_ty a_ty ;
-        fprintf !Global.out " -- Done \n" ;
         ( Te_App ( f_te , a_te ) , S_Subst (f_ty,a_te) ) 
   | Lam (v,Some ty,te)  -> 
       let ty0     = mk_type ctx ty in
@@ -371,7 +359,7 @@ let rec type_inference (ctx:context) : term -> mkT = function
       end
   | Lam (v,None,f)      -> assert false 
 
-(* ENTRY POINT *)
+(* ENTRY POINTS *)
 
 let typecheck_decl id loc ty = 
   fprintf !Global.out "print_debug(\"%s\tChecking declaration %s\t\t\")\n" (Debug.string_of_loc loc) id ;
@@ -416,7 +404,6 @@ let gen_env (ctx:context) (((v,loc),ty):(var*loc)*term) =
 
 let typecheck_rule id i ((loc,env,dots,pats,ri):rule) = 
   fprintf !Global.out "print_debug(\"%s\tChecking Rule %i of %s\t\t\")\n" (Debug.string_of_loc loc) (i+1) id ;
-  fprintf !Global.out "do\n" ;
   let ctx = List.fold_left gen_env [] env                       in 
   let le = pat_to_term (Pat ((!Global.name,id),dots,pats))      in
     ( match ( type_inference ctx le , type_inference ctx ri ) with 
@@ -424,7 +411,6 @@ let typecheck_rule id i ((loc,env,dots,pats,ri):rule) =
         | ( MkT_FType (_,ar1) , MkT_FType (_,ar2) )     -> conv_arrow_arrow ar1 ar2
         | ( MkT_Term  (_,ty1) , MkT_Term (_,ty2) )      -> conv_subst_subst ty1 ty2 
         | ( _ , _ )                                     -> assert false ) ;
-    fprintf !Global.out "end\n" ; 
     fprintf !Global.out "print_ok()\n" 
 
 let generate_decl id ty =
