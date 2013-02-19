@@ -26,6 +26,10 @@ type classifier =
                         (* and cterm = (var*classifier) list*term*)
 
 type inference_error =
+  | CannotFindExternalModule of string
+  | CannotFindExternalSymbol of id
+
+type inference_error0 = (*FIXME*)
   | NotAType1 of term
   | NotAType2 of var*term*classifier
   | ConvPi1

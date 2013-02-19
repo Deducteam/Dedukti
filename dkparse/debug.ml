@@ -22,6 +22,10 @@ let string_of_parsing_error = function
   | UnknownModule       (id,loc)        -> string_of_loc loc ^ " Missing dependency: '" ^ id ^ "'."
 
 let string_of_inference_error = function
+  | CannotFindExternalModule m          -> "Cannot find module "^m^"."
+  | CannotFindExternalSymbol (m,v)      -> "Cannot find symbol "^m^"."^v^"." 
+
+let string_of_inference_error0 = function
   | NotAType1 t         -> string_of_term t ^ " is not a type."
   | NotAType2 (_,_,_)   -> "NotAType2"
   | ConvPi1             -> "Conv1"
