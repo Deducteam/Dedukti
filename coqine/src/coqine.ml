@@ -1340,7 +1340,7 @@ and sb_decl_trans tenv (label, decl) =
 	    Environ.add_constraints sbfc.const_constraints tenv.env } in
 	let ttype, tenv0 =
 	  let t = const_type_to_term sbfc.const_type in
-	  type_trans_aux tenv t
+	  type_trans_aux tenv0 t
 	in
 	let id = Id (string_of_label label) in
 	let tenv =
@@ -1349,7 +1349,7 @@ and sb_decl_trans tenv (label, decl) =
 		push_decl tenv (declaration(id, ttype) tenv)
 	    | Some cb -> let tterm, tenv =
 			   let c = force cb in
-			   term_trans_aux tenv c
+			   term_trans_aux tenv0 c
                          in
 			 push_decl (push_decl tenv (declaration(id, ttype) tenv))
 			   (RuleSet [rule([],DVar id, tterm) tenv])
