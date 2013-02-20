@@ -3,26 +3,23 @@ open Types
 open Printf
 
 type dk_type = 
-  | Ty_GVar of id
-  | Ty_Var  of var
-  | Ty_Pi   of var option*dk_type*dk_type
-  | Ty_App  of dk_ftype*dk_term
-and dk_ftype = 
-  | F_GVar  of id
-  | F_Var   of var
-  | F_App   of dk_ftype*dk_term
-  | F_LamT  of var*dk_type*dk_type
-  | F_LamF  of var*dk_type*dk_ftype
-and dk_term =  
-  | Te_GVar of id
-  | Te_Var of var
-  | Te_App of dk_term*dk_term
-  | Te_Lam of var*dk_type*dk_term
+  | Ty_GVar  of id
+  | Ty_Var   of var
+  | Ty_Pi    of var option*dk_type*dk_type
+  | Ty_App   of dk_ftype*dk_term 
 
-type dk_subst =
-  | S_Type of dk_type
-  | S_Subst of dk_subst*dk_term
-  | S_Pi of var*dk_type*dk_subst
+and dk_ftype = 
+  | F_GVar   of id
+  | F_Var    of var
+  | F_App    of dk_ftype*dk_term
+  | F_LamT   of var*dk_type*dk_type
+  | F_LamF   of var*dk_type*dk_ftype
+
+and dk_term =  
+  | Te_GVar   of id
+  | Te_Var    of var
+  | Te_App    of dk_term*dk_term 
+  | Te_Lam    of var*dk_type*dk_term
 
 type dk_arrow = 
   | K_Base of dk_type
@@ -53,7 +50,7 @@ let gvar_type (m,v) =
     end
 
 let gvar_set id ty = Hashtbl.add ht id ty
-
+(*
 let gen_var (ctx:var list) (v:var) =
   if List.mem v ctx then 
     fprintf !Global.out "%s_c" v
@@ -78,7 +75,7 @@ let rec gen_type (ctx:var list) = function
           gen_type ctx2 b ; 
           fprintf !Global.out " end } "
       end
-  | Ty_App (f,t)        -> 
+  | Ty_App (_,_,f,t)        -> (*FIXME*)
       begin
         fprintf !Global.out "app( " ;
         gen_ftype ctx f ;
@@ -86,11 +83,12 @@ let rec gen_type (ctx:var list) = function
         gen_term ctx t ;
         fprintf !Global.out " )"
       end
+  | _   -> assert false (*TODO*)
 
 and gen_ftype (ctx:var list) = function
   | F_GVar id           -> gen_gvar id 
   | F_Var v             -> gen_var ctx v  
-  | F_App (f,a)         ->
+  | F_App (_,_,f,a)         -> (*FIXME*)
       begin
         fprintf !Global.out "app( " ;
         gen_ftype ctx f ;
@@ -114,7 +112,7 @@ and gen_ftype (ctx:var list) = function
 and gen_term (ctx:var list) = function
   | Te_GVar id          -> gen_gvar id
   | Te_Var v            -> gen_var ctx v  
-  | Te_App (f,a)        ->
+  | Te_App (_,_,f,a)    -> (*FIXME*)
       begin
         fprintf !Global.out "app( " ;
         gen_term ctx f ;
@@ -127,8 +125,8 @@ and gen_term (ctx:var list) = function
         fprintf !Global.out "{ co=clam ; f = function(%s_c) return " v ;
         gen_term (v::ctx) b ;
         fprintf !Global.out " end } "
-      end
-
+      end *)
+(*
 let rec gen_subst (ctx:var list) = function
   | S_Type ty           -> gen_type ctx ty
   | S_Subst (s,t)       ->
@@ -146,8 +144,8 @@ let rec gen_subst (ctx:var list) = function
         fprintf !Global.out " ; f=function(%s_c) return " v;
         gen_subst (v::ctx) s ;
         fprintf !Global.out " end } "
-      end
-
+      end *)
+(*
 let conv_subst_subst s1 s2 = 
   match ( s1 , s2 ) with
     | ( S_Type ty1 , S_Type ty2 ) when ty1=ty2  -> ()
@@ -206,24 +204,38 @@ let convPi_arrow_subst (pi:dk_arrow) (a:dk_subst) =
   match pi with
     | K_Base b          -> conv_type_subst b a
     | K_Arrow (b,_)     -> conv_type_subst b a
+ *)
+
+let conv (ty1:dk_type) (ty2:dk_type) = () (*TODO*)
+let conv_arrow (a1:dk_arrow) (a2:dk_arrow) = () (*TODO*)
+let convPi (f:dk_type) (a:dk_type) = () (*TODO*)
+let subst (f:dk_type) (a:dk_term) = assert false (*TODO*)
 
 let context_add_opt ctx ty = function
   | None        -> ctx
   | Some v      -> (v,GV_Type ty)::ctx
 
 let rec mk_type (ctx:context) : term -> dk_type = function
-  | Pi (v,a,b)          -> let a0 = mk_type ctx a in Ty_Pi ( v , a0 , mk_type (context_add_opt ctx a0 v) b )
+  | Pi (v,a,b)          -> 
+      begin
+        let a0 = mk_type ctx a in 
+        let b0 = mk_type (context_add_opt ctx a0 v) b in
+          ( Ty_Pi ( v , a0 , b0 ) )
+      end
   | GVar id             -> 
       begin
         match gvar_type id with
-          | GV_TYPE     -> Ty_GVar id
+          | GV_TYPE     -> ( Ty_GVar id )
           | _           -> assert false
       end
   | App (f,a)           -> 
-      let (f_te,f_ty) = mk_ftype ctx f in
-      let (a_te,a_ty) = mk_term  ctx a in
-        convPi_arrow_subst f_ty a_ty ;
-        Ty_App ( f_te , a_te ) 
+      begin
+        let (f_te,f_ty) = mk_ftype ctx f in
+        let (a_te,a_ty) = mk_term  ctx a in
+          match f_ty with
+            | K_Base  ty0       -> ( conv ty0 a_ty ; Ty_App ( f_te , a_te ) )
+            | _                 -> assert false
+      end
   | Type                -> assert false
   | Var _               -> assert false (*TODO*) 
   | Lam (_,_,_)         -> assert false
@@ -241,7 +253,7 @@ and mk_ftype (ctx:context) : term -> dk_ftype * dk_arrow = function
         begin
           match f_ty with
             | K_Base _          -> assert false
-            | K_Arrow (ty,ar)   -> ( conv_type_subst ty a_ty ; ( F_App ( f_te , a_te ) , ar ) )
+            | K_Arrow (ty,ar)   -> ( conv ty a_ty ; ( F_App ( f_te , a_te ) , ar ) )
         end
   | Lam (v,Some ty,te)  -> 
       begin
@@ -250,8 +262,9 @@ and mk_ftype (ctx:context) : term -> dk_ftype * dk_arrow = function
             | Type              -> assert false
             | Pi (vv,a,b)       -> 
                 let ctx2 = (v,GV_Type ty0)::ctx in
-                let a0 = mk_type ctx2 a         in
-                  ( F_LamT ( v , ty0 , Ty_Pi ( vv , a0 , mk_type (context_add_opt ctx2 a0 vv) b ) ) , K_Base ty0 )
+                let a0 = mk_type ctx2 a    in
+                let b0 = mk_type (context_add_opt ctx2 a0 vv) b in
+                  ( F_LamT ( v , ty0 , Ty_Pi ( vv , a0 , b0 ) ) , K_Base ty0 )
             | GVar id           -> 
                 begin
                   match gvar_type id with
@@ -264,8 +277,8 @@ and mk_ftype (ctx:context) : term -> dk_ftype * dk_arrow = function
                 begin
                   let (a_te,a_ty) = mk_term ctx a in 
                     match mk_ftype ctx f with
-                      | ( f_te , K_Base b )       -> ( conv_type_subst b a_ty ; ( F_LamT (v,ty0,Ty_App(f_te,a_te)) , K_Base ty0 ) )
-                      | ( f_te , K_Arrow (b,ar) ) -> ( conv_type_subst b a_ty ; ( F_LamF (v,ty0,F_App (f_te,a_te)) , K_Arrow (ty0,ar) ) )
+                      | ( f_te , K_Base b )       -> ( conv b a_ty ; ( F_LamT (v,ty0,Ty_App( f_te , a_te )) , K_Base ty0 ) )
+                      | ( f_te , K_Arrow (b,ar) ) -> ( conv b a_ty ; ( F_LamF (v,ty0,F_App ( f_te,a_te)) , K_Arrow (ty0,ar) ) )
                 end
             | Lam (_,_,_)       -> 
                 let (te0,ar) = mk_ftype ctx te in
@@ -276,11 +289,11 @@ and mk_ftype (ctx:context) : term -> dk_ftype * dk_arrow = function
   | Var _               -> assert false (*TODO*)
   | Lam (_,None,_)      -> assert false
 
-and mk_term (ctx:context) : term -> dk_term * dk_subst = function
+and mk_term (ctx:context) : term -> dk_term * dk_type = function
   | GVar id             -> 
       begin
         match gvar_type id with
-          | GV_Type ty  -> ( Te_GVar id , S_Type ty )
+          | GV_Type ty  -> ( Te_GVar id , ty )
           | _           -> assert false
       end
   | Var v               -> 
@@ -288,17 +301,16 @@ and mk_term (ctx:context) : term -> dk_term * dk_subst = function
         match List.assoc v ctx with
           | GV_TYPE     -> assert false
           | GV_Arrow _  -> assert false
-          | GV_Type ty  -> ( Te_Var v , S_Type ty )
+          | GV_Type ty  -> ( Te_Var v , ty )
       end 
   | App (f,a)           -> 
       let (f_te,f_ty) = mk_term ctx f in
-      let (a_te,a_ty) = mk_term ctx a  in 
-        convPi_subst_subst f_ty a_ty ;
-        ( Te_App ( f_te , a_te ) , S_Subst (f_ty,a_te) ) 
+      let (a_te,a_ty) = mk_term ctx a in 
+        ( convPi f_ty a_ty ; ( Te_App ( f_te , a_te ) , subst f_ty a_te ) )
   | Lam (v,Some ty,te)  -> 
-      let ty0     = mk_type ctx ty in
+      let (ty0)   = mk_type ctx ty in
       let (te0,b) = mk_term ((v,GV_Type ty0)::ctx) te in
-      ( Te_Lam ( v , ty0 , te0 ) , S_Pi (v,ty0,b) )
+      ( Te_Lam ( v , ty0 , te0 ) , Ty_Pi (Some v,ty0,b) )
   | Type                -> assert false
   | Pi (_,_,_)          -> assert false
   | Lam (_,None,_)      -> assert false 
@@ -307,7 +319,7 @@ type mkT =
   | MkT_Kind  of dk_arrow option        (* None -> 'Type':Kind | Some ar -> 'ar':Kind *)
   | MkT_FType of dk_ftype*dk_arrow      (* 'dk_ftype':dk_arrow *)
   | MkT_Type  of dk_type                (* 'dk_type':Type *)
-  | MkT_Term  of dk_term*dk_subst       (* 'dk_term':dk_subst *)
+  | MkT_Term  of dk_term*dk_type        (* 'dk_term':dk_type *)
 
 let rec type_inference (ctx:context) : term -> mkT = function
   | Type                -> MkT_Kind None
@@ -326,7 +338,7 @@ let rec type_inference (ctx:context) : term -> mkT = function
         match gvar_type id with
           | GV_TYPE     -> MkT_Type (Ty_GVar id)
           | GV_Arrow ar -> MkT_FType (F_GVar id,ar)
-          | GV_Type ty  -> MkT_Term (Te_GVar id,S_Type ty)
+          | GV_Type ty  -> MkT_Term (Te_GVar id,ty)
       end
   | App (f,a)           -> 
       begin 
@@ -336,9 +348,9 @@ let rec type_inference (ctx:context) : term -> mkT = function
             | _                 -> assert false
         in
         match type_inference ctx f with
-          | MkT_FType (f_te,K_Base ty)          -> ( conv_type_subst ty a_ty ; MkT_Type  (Ty_App (f_te,a_te)) )
-          | MkT_FType (f_te,K_Arrow (ty,ar))    -> ( conv_type_subst ty a_ty ; MkT_FType (F_App (f_te,a_te),ar) )
-          | MkT_Term  (f_te,ty)                 -> ( conv_subst_subst ty a_ty ; MkT_Term  (Te_App (f_te,a_te),S_Subst (ty,a_te)) )
+          | MkT_FType (f_te,K_Base ty)          -> ( MkT_Type  (Ty_App (f_te,a_te)) )
+          | MkT_FType (f_te,K_Arrow (ty,ar))    -> ( MkT_FType (F_App (f_te,a_te),ar) )
+          | MkT_Term  (f_te,ty)                 -> ( MkT_Term  (Te_App (f_te,a_te), subst ty a_te ) )
           | _                                   -> assert false
       end
   | Var v               -> 
@@ -346,7 +358,7 @@ let rec type_inference (ctx:context) : term -> mkT = function
         match List.assoc v ctx with
           | GV_TYPE     -> MkT_Type  (Ty_Var v)
           | GV_Arrow ar -> MkT_FType (F_Var v,ar)
-          | GV_Type ty  -> MkT_Term  (Te_Var v, S_Type ty)
+          | GV_Type ty  -> MkT_Term  (Te_Var v, ty)
       end
   | Lam (v,Some a,f)    -> 
       begin
@@ -354,7 +366,7 @@ let rec type_inference (ctx:context) : term -> mkT = function
           match type_inference ((v,GV_Type a_ty)::ctx) f with
             | MkT_FType (f_te,ar) -> MkT_FType ( F_LamF (v,a_ty,f_te) , K_Arrow (a_ty,ar) )
             | MkT_Type f_te       -> MkT_FType ( F_LamT (v,a_ty,f_te) , K_Base a_ty )
-            | MkT_Term  (f_te,ty) -> MkT_Term  ( Te_Lam (v,a_ty,f_te) , S_Pi (v,a_ty,ty) ) 
+            | MkT_Term  (f_te,ty) -> MkT_Term  ( Te_Lam (v,a_ty,f_te) , Ty_Pi (Some v,a_ty,ty) ) 
             | _                   -> assert false
       end
   | Lam (v,None,f)      -> assert false 
@@ -372,15 +384,15 @@ let typecheck_decl id loc ty =
   ) ;
   fprintf !Global.out "print_ok()\n"
 
-let typecheck_def id loc te ty = 
+let typecheck_def id loc te ty = (*TODO Checks *) 
   fprintf !Global.out "print_debug(\"%s\tChecking definition %s\t\t\")\n" (Debug.string_of_loc loc) id ;
   ( match ( type_inference [] te , type_inference [] ty ) with
     | ( MkT_Kind _ , _ )                                -> assert false
     | ( MkT_Type _ , MkT_Kind None )                    -> gvar_set id GV_TYPE
     | ( MkT_Type _ , _ )                                -> assert false
-    | ( MkT_FType (_,ar1) , MkT_Kind (Some ar2) )       -> ( conv_arrow_arrow ar1 ar2 ; gvar_set id (GV_Arrow ar2) )
+    | ( MkT_FType (_,ar1) , MkT_Kind (Some ar2) )       -> ( conv_arrow ar1 ar2 ; gvar_set id (GV_Arrow ar2) )
     | ( MkT_FType _   , _ )                             -> assert false
-    | ( MkT_Term (_,ty1) , MkT_Type ty2 )               -> ( conv_type_subst ty2 ty1 ; gvar_set id (GV_Type ty2) )
+    | ( MkT_Term (_,ty1) , MkT_Type ty2 )               -> ( conv ty2 ty1 ; gvar_set id (GV_Type ty2) )
     | ( MkT_Term (_,ty1) , _ )                          -> assert false );
   fprintf !Global.out "print_ok()\n"
 
@@ -402,14 +414,14 @@ let gen_env (ctx:context) (((v,loc),ty):(var*loc)*term) =
   CodeGeneration.gen_code ty ;
   fprintf !Global.out " ; arity = 0 ; args = { } ; f = function() return nil end}\n" ;*) (v,ty0)::ctx
 
-let typecheck_rule id i ((loc,env,dots,pats,ri):rule) = 
+let typecheck_rule id i ((loc,env,dots,pats,ri):rule) = (*TODO checks*) 
   fprintf !Global.out "print_debug(\"%s\tChecking Rule %i of %s\t\t\")\n" (Debug.string_of_loc loc) (i+1) id ;
   let ctx = List.fold_left gen_env [] env                       in 
   let le = pat_to_term (Pat ((!Global.name,id),dots,pats))      in
     ( match ( type_inference ctx le , type_inference ctx ri ) with 
         | ( MkT_Type  _ , MkT_Type _ )                  -> ()
-        | ( MkT_FType (_,ar1) , MkT_FType (_,ar2) )     -> conv_arrow_arrow ar1 ar2
-        | ( MkT_Term  (_,ty1) , MkT_Term (_,ty2) )      -> conv_subst_subst ty1 ty2 
+        | ( MkT_FType (_,ar1) , MkT_FType (_,ar2) )     -> (*conv_arrow_arrow ar1 ar2*) ()
+        | ( MkT_Term  (_,ty1) , MkT_Term (_,ty2) )      -> (*conv_subst_subst ty1 ty2*) () 
         | ( _ , _ )                                     -> assert false ) ;
     fprintf !Global.out "print_ok()\n" 
 
