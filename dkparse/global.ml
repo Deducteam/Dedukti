@@ -6,25 +6,24 @@ let do_not_check                        = ref false
 let quiet                               = ref false
 let ignore_redeclarations               = ref false
 let libs  :  string list ref            = ref []
-(*let nb_gvars                            = ref 0*)
 
 let debug str  = if !quiet then () else ( prerr_string str ; flush stderr )
 let debug_ok _ = if !quiet then () else prerr_endline "\027[32m[OK]\027[m"
 let debug_ko _ = if !quiet then () else prerr_endline "\027[31m[KO]\027[m"
 
-type vart = | Local | Global | Alias
+type vart = Local | Global | Alias of term
 
 let gs : (string,vart) Hashtbl.t = Hashtbl.create 47
 
-let is_alias id =
+let alias_of id =
   try 
     match Hashtbl.find gs id with
-      | Alias   -> true
-      | Global  -> false
+      | Alias t -> Some t
+      | Global  -> None
       | Local   -> assert false
   with
     | Not_found -> prerr_string id ; assert false
-
+ 
 let mk_var (id,loc) =
   try
    begin
@@ -88,12 +87,11 @@ let gscope_add_decl (id,loc) =
   )
 
 let chk_alias id rs =
- if Array.length rs !=1 then ()
+ if Array.length rs !=1 then () (*FIXME*)
  else
-   let (_,_,a,b,_) = rs.(0) in
-    if ( Array.length a = 0 && Array.length b = 0 ) then Hashtbl.replace gs id Alias
+   let (_,_,a,b,t) = rs.(0) in
+    if ( Array.length a = 0 && Array.length b = 0 ) then Hashtbl.replace gs id (Alias t)
     else () 
-
 
 let chk_rules_id (loc,(id,_)) = 
   if Hashtbl.mem gs id then ()

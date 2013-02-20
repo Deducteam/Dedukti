@@ -35,8 +35,9 @@ let rec gen_code0 = function
   | Type                -> fprintf !Global.out "{ co = ctype }"
   | GVar (m,v)          -> 
       if m = !Global.name then 
-        if Global.is_alias v then fprintf !Global.out "app0(%s.%s_c)" m v
-        else fprintf !Global.out "%s.%s_c" m v
+        match Global.alias_of v with
+          | None        -> fprintf !Global.out "app0(%s.%s_c)" m v
+          | Some t      -> gen_code0 t
       else
         fprintf !Global.out "app0(%s.%s_c)" m v
   | Var v               -> fprintf !Global.out "%s_c" v 
