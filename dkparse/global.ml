@@ -11,10 +11,10 @@ let debug str  = if !quiet then () else ( prerr_string str ; flush stderr )
 let debug_ok _ = if !quiet then () else prerr_endline "\027[32m[OK]\027[m"
 let debug_ko _ = if !quiet then () else prerr_endline "\027[31m[KO]\027[m"
 
-type vart = Local | Global | Alias of term
+type vart = Local | Global
 
 let gs : (string,vart) Hashtbl.t = Hashtbl.create 47
-
+(*
 let alias_of id =
   try 
     match Hashtbl.find gs id with
@@ -23,7 +23,7 @@ let alias_of id =
       | Local   -> assert false
   with
     | Not_found -> prerr_string id ; assert false
- 
+ *)
 let mk_var (id,loc) =
   try
    begin
@@ -85,14 +85,14 @@ let gscope_add_decl (id,loc) =
     Hashtbl.add gs id Global ; 
     true 
   )
-
+(*
 let chk_alias id rs =
  if Array.length rs !=1 then () (*FIXME*)
  else
    let (_,_,a,b,t) = rs.(0) in
     if ( Array.length a = 0 && Array.length b = 0 ) then Hashtbl.replace gs id (Alias t)
     else () 
-
+ *)
 let chk_rules_id (loc,(id,_)) = 
   if Hashtbl.mem gs id then ()
   else raise (ParsingError (ScopeError ((!name,id),loc)))

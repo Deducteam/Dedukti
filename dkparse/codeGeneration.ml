@@ -34,12 +34,14 @@ let rec gen_code0 = function
   | Kind                -> assert false
   | Type                -> fprintf !Global.out "{ co = ctype }"
   | GVar (m,v)          -> 
+      (*
       if m = !Global.name then 
         match Global.alias_of v with
           | None        -> fprintf !Global.out "app0(%s.%s_c)" m v
           | Some t      -> gen_code0 t
       else
-        fprintf !Global.out "app0(%s.%s_c)" m v
+        fprintf !Global.out "app0(%s.%s_c)" m v *)
+        fprintf !Global.out "%s.%s_c" m v
   | Var v               -> fprintf !Global.out "%s_c" v 
   | App (f,a)           -> 
       begin
