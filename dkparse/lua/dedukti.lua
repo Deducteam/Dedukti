@@ -210,6 +210,43 @@ function type_check ( n , te , ty )
 end
 
 -- int * Term --> Code
+function type_gen ( n , te )
+  --print(" -- entering type_gen ...")
+  --print ("@Term: " .. string_of_term(n,te ))
+  --passert( is_term(te) , "Undefined external symbol (5)." )
+  local res = nil
+
+  if     te.te == ttype then	-- Kind
+	  res = { co = ckind } 
+  
+  elseif te.te == tbox  then 	-- Type 
+	  res = te.ctype()
+  
+  elseif te.te == tlam  then                             -- Lam 
+    --if te.ctype == nil  then error("Cannot find type of:\n" .. string_of_term(n,te),0) end
+    --type_check( n , te.ttype , { co = ctype } )
+    local tya = te.ctype()
+    local box = mk_box(tya)
+    --local dummy = type_synth( n+1 , te.f ( box , mk_var(n) ) )
+    res = { co = cpi ; ctype = tya ; f = function(x) return type_gen( n , te.f(box,x) ) end } -- FIXME
+  
+  elseif te.te == tapp  then                            -- App
+    local tyf = type_gen ( n , te.f )
+    --if tyf.co ~= cpi then error("Cannot find type of:\n" .. string_of_term(n,te),0) end 
+    --type_check ( n , te.a , tyf.ctype )
+    res = tyf.f(te.ca())
+  
+  else                                                  -- Default
+    error("Cannot find type of:\n" .. string_of_term(n,te),0)
+  end
+
+  --print(" -- leaving type_synth... ("..br..")")
+  --print ("@Type: " .. string_of_code(n,res))
+  return res
+end
+
+
+-- int * Term --> Code
 function type_synth ( n , te )
   --print(" -- entering type_synth ...")
   --print ("@Term: " .. string_of_term(n,te ))
@@ -227,7 +264,7 @@ function type_synth ( n , te )
     local tya = te.ctype()
     local box = mk_box(tya)
     local dummy = type_synth( n+1 , te.f ( box , mk_var(n) ) )
-    res = { co = cpi ; ctype = tya ; f = function(x) return type_synth( n , te.f(box,x) ) end } -- FIXME
+    res = { co = cpi ; ctype = tya ; f = function(x) return type_gen( n , te.f(box,x) ) end } -- FIXME
   elseif te.te == tapp  then                            -- App
 	  br=4
     local tyf = type_synth ( n , te.f )
