@@ -231,12 +231,14 @@ type trans_env = {
 			declared constructions *)
   decls : Dkterm.statement list; (* an accumulator containing the declarations
 				    to be generated (in reverse order) *)
-  mp : module_path; (* module path of the current module *)
+  mp : module_path; (* module path of the current *file* *)
   functors : module_path list; (* names of the module arguments in functors *)
   functor_parameters : (qid * dkterm) list; (* parameters to be added
 					      to each declarations, in
 					      reverse order *)
-  applied_modules : module_path list (* modules applied to the current module *)
+  applied_modules : module_path list; (* modules applied to the current module *)
+  nested_modules : string; (* prefix corresponding to the inner modules *)
+
 }
 
 (* smart constructors for Dedutki declarations in a functorial context *)
@@ -255,16 +257,22 @@ let rule (vars, l ,r) tenv =
   (List.rev_append tenv.functor_parameters vars, aux l, r)
 
 
+
 (* id_with_path m p i return Dedukti variable corresponding to p.i *)
-let id_with_path tenv mpath id =
+let rec id_with_path tenv mpath id =
   if List.exists ((=) mpath) tenv.functors then
     DVar (Id ("fp_" ^ id))
   else if tenv.mp = mpath
   then
     DVar (Id id)
-  else
-    let m = module_path_to_string mpath in
-    DVar (Qid (m, id))
+  else match mpath with
+  | MPfile path -> DVar (Qid (path_to_string path, id))
+  | MPdot(mp, lab) ->
+    id_with_path tenv mp (string_of_label lab ^ "_" ^ id)
+  | MPbound mbid -> match repr_mbid mbid with
+    _, lab, path ->
+      DVar(Qid (path_to_string path, lab  ^ "_" ^ id))
+
 
 
 (* translate a binding n : t1. t2, given translation functions ft1 and
@@ -1211,7 +1219,7 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 	    let t = const_type_to_term sbfc.const_type in
 	    type_trans_aux tenv t
 	  in
-	  let id = Id (string_of_label label) in
+	  let id = Id (tenv.nested_modules ^ string_of_label label) in
 	  let tterm = id_with_path tenv
 	    mp_src label in
 	  let tterm = List.fold_right
@@ -1241,9 +1249,9 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 		(fun (j, te) consname ->
 		  j + 1,
 		 let t,te = type_trans_aux te constr_types.(j)  in
-		 push_decl (push_decl te (RuleSet [rule([], DVar (Id consname),
+		 push_decl (push_decl te (RuleSet [rule([], DVar (Id (tenv.nested_modules ^ consname)),
 					       id_with_path te mp_src consname) te]))
-		   (declaration(Id consname, t) te))
+		   (declaration(Id (tenv.nested_modules ^ consname), t) te))
 		(0, te) p.mind_consnames in
 	      te
 		, i-1)
@@ -1277,31 +1285,30 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
 		  )
 		in
 		let type_name = string_of_id p.mind_typename in
-		{te' with decls = declaration(Id type_name,
+		{te' with decls = declaration(Id (tenv.nested_modules ^ type_name),
 					      t) te'
-		     ::RuleSet [rule([], DVar (Id type_name),
+		     ::RuleSet [rule([], DVar (Id (tenv.nested_modules ^ type_name)),
 			    id_with_path te' mp_src type_name) te']
 			 ::
 			   (if m.mind_finite then
-			       declaration(Id (type_name ^ "__constr"),
+			       declaration(Id (tenv.nested_modules ^ type_name ^ "__constr"),
 					   t__constr) te'
-			       :: RuleSet [rule([], DVar (Id (type_name ^ "__constr")),
+			       :: RuleSet [rule([], DVar (Id (tenv.nested_modules ^ type_name ^ "__constr")),
 				       id_with_path te' mp_src (type_name ^ "__constr")) te']
 				   :: te'.decls else te'.decls)}, i+1)
 	      m.mind_packets (te,1))
        | SFBmodule mb ->
-	 let kn = MPdot(tenv.mp, label) in
-	 let modtype = Modops.module_type_of_module tenv.env (Some kn) mb in
-	 let tenv' = { tenv with env = Modops.add_module mb
-	     (add_modtype kn modtype tenv.env)} in
-	 let tenv'' = mb_trans {tenv' with mp = MPdot(tenv.mp,label);
-	   applied_modules = []
-			       } mb in
-	 let mod_name = module_path_to_string tenv.mp
-	   ^ "_" ^ string_of_label label
-	 in
-	 print_decls mod_name [] (List.rev tenv''.decls);
-	 tenv'
+      let kn = MPdot(tenv.mp, label) in
+      let env = Modops.add_module mb tenv.env in
+      let modtype =  Modops.module_type_of_module env (Some kn) mb
+      in
+      let tenv' = { tenv with env = add_modtype kn modtype env;
+	nested_modules = tenv.nested_modules ^ label ^ "_" } in
+      let tenv'' = mb_copy tenv' mp_src mb in
+      { tenv'' with
+	env = tenv'.env;
+	mp = tenv.mp;
+	nested_modules= tenv.nested_modules }
 
        | SFBmodtype mty ->
 	 (* we do not translate module types, but we put them in the
@@ -1342,7 +1349,7 @@ and sb_decl_trans tenv (label, decl) =
 	  let t = const_type_to_term sbfc.const_type in
 	  type_trans_aux tenv0 t
 	in
-	let id = Id (string_of_label label) in
+	let id = Id (tenv.nested_modules ^ string_of_label label) in
 	let tenv =
 	  match sbfc.const_body with
 	      None -> (* This is a Coq axiom *)
@@ -1407,12 +1414,12 @@ and sb_decl_trans tenv (label, decl) =
 		 )
 	       in
 	       let n_decls =
-		 declaration(Id (string_of_id p.mind_typename),
+		 declaration(Id (tenv.nested_modules ^ string_of_id p.mind_typename),
 			     t) te'::n_decls
 	       in
 	       let c_decls =
 		 if m.mind_finite then
-		     declaration(Id (string_of_id p.mind_typename ^ "__constr"),
+		     declaration(Id (tenv.nested_modules ^ string_of_id p.mind_typename ^ "__constr"),
 				  t__constr) te'::c_decls
 		 else c_decls in
 	       te', n_decls, c_decls, i-1)
@@ -1442,13 +1449,17 @@ and sb_decl_trans tenv (label, decl) =
       let env = Modops.add_module mb tenv.env in
       let modtype =  Modops.module_type_of_module env (Some kn) mb
       in
-      let tenv' = { tenv with env = add_modtype kn modtype env } in
-      let tenv'' = mb_trans { tenv' with mp = MPdot(tenv.mp, label)} mb in
-      let mod_name = module_path_to_string tenv.mp
+      let tenv' = { tenv with env = add_modtype kn modtype env;
+	nested_modules = tenv.nested_modules ^ label ^ "_" } in
+      let tenv'' = mb_trans tenv' mb in
+(*      let mod_name = module_path_to_string tenv.mp
 	^ "_" ^ string_of_label label
       in
-      print_decls mod_name [] (List.rev tenv''.decls);
-      tenv'
+      print_decls mod_name [] (List.rev tenv''.decls);*)
+      { tenv'' with
+	env = tenv'.env;
+	mp = tenv.mp;
+	nested_modules= tenv.nested_modules }
     | SFBmodtype mty ->
       (* we do not translate module types, but we put them in the
 	 environment *)
@@ -1467,13 +1478,15 @@ and seb_trans tenv = function
     let kn = MPbound arg_id in
     let env = add_modtype kn mtb tenv.env in
     let env = add_constants env mtb in
-    seb_trans { tenv with env = env;
+    let tenv' = seb_trans { tenv with env = env;
       functors = MPbound arg_id::tenv.functors;
       functor_parameters =
 	add_param
 	  { tenv with mp = MPbound arg_id }
 	  mtb
 	      } body
+    in { tenv' with functors = tenv.functors;
+      functor_parameters = tenv.functor_parameters }
 
   | SEBident mp ->
     let mod_type =
@@ -1488,8 +1501,9 @@ and seb_trans tenv = function
     module_copy tenv mp mod_type
 
   | SEBapply(m1, SEBident m2path, _) ->
-    seb_trans { tenv with applied_modules = m2path::tenv.applied_modules }
+    let tenv' = seb_trans { tenv with applied_modules = m2path::tenv.applied_modules }
       m1
+    in { tenv' with applied_modules = tenv.applied_modules }
 
   |  _ -> raise (NotImplementedYet "With and Apply")
 
@@ -1501,6 +1515,16 @@ and mb_trans tenv mb =
   match mb.mod_expr with
       Some s -> seb_trans tenv s
     | None -> failwith "empty module body"
+
+(* TODO : factorize code trans/copy *)
+and mb_copy tenv mp_src mb =
+  let tenv = {tenv with env = Environ.add_constraints mb.mod_constraints tenv.env } in
+  match mb.mod_expr with
+      Some s -> module_copy tenv mp_src s
+    | None -> failwith "empty module body"
+
+
+(* TODO : separate trans_env from generated rules *)
 
 (* vi: nolist: sw=2
 *)

@@ -64,6 +64,7 @@ let translate filename =
 					functor_parameters = [];
 					mp = MPfile path;
 					applied_modules = [];
+					nested_modules = ""
 				       } mb).decls)
 
 let _ =
