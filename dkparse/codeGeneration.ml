@@ -30,89 +30,95 @@ let prelude _ =
 
 (* *********** Lua Code Generation *********** *)
 
-let rec gen_code0 = function
+let rec gen_code = function
   | Kind                -> assert false
-  | Type                -> fprintf !Global.out "{ co = ctype }"
-  | GVar (m,v)          -> 
-      (*
-      if m = !Global.name then 
-        match Global.alias_of v with
-          | None        -> fprintf !Global.out "app0(%s.%s_c)" m v
-          | Some t      -> gen_code0 t
-      else
-        fprintf !Global.out "app0(%s.%s_c)" m v *)
-        fprintf !Global.out "%s.%s_c" m v
+  | Type                -> fprintf !Global.out "{ ctype=true }"
+  | GVar (m,v)          -> fprintf !Global.out "%s.%s_c" m v
   | Var v               -> fprintf !Global.out "%s_c" v 
   | App (f,a)           -> 
       begin
         fprintf !Global.out  "app( " ;
-        gen_code0 f ;
+        gen_code f ;
         fprintf !Global.out  " , " ;
-        gen_code0 a ;
+        gen_code a ;
         fprintf !Global.out  " )"
       end
   | Lam (v,_,te)        -> 
       begin
-        fprintf !Global.out "{ co = clam ; f = function (%s_c) return " v; 
-        gen_code0 te ;
+        fprintf !Global.out "{ clam_f = function (%s_c) return " v ; 
+        gen_code te ;
         fprintf !Global.out " end }"
       end
   | Pi (v0,ty,te)       ->
       let arg = match v0 with Some v -> v^"_c" | None -> "dummy" in
         begin
-          fprintf !Global.out "{ co = cpi ; ctype = ";
-          gen_code0 ty ;
-          fprintf !Global.out " ; f = function (%s) return "  arg ;
-          gen_code0 te ;
+          fprintf !Global.out "{ cpi_cty = ";
+          gen_code ty ;
+          fprintf !Global.out " ; cpi_f = function (%s) return "  arg ;
+          gen_code te ;
           fprintf !Global.out " end }"
         end
 
-let gen_code te =
-  fprintf !Global.out "function() return " ;
-  gen_code0 te ;
-  fprintf !Global.out " end"
+let rec gen_lazy_code = function
+  | App (f,a) as c      -> 
+      begin
+        fprintf !Global.out  "{ clazy = function() return " ;
+        gen_code c ;
+        fprintf !Global.out  " end }"
+      end
+  | Pi (v0,ty,te)       ->
+      let arg = match v0 with Some v -> v^"_c" | None -> "dummy" in
+        begin
+          fprintf !Global.out "{ cpi_cty = ";
+          gen_lazy_code ty ;
+          fprintf !Global.out " ; cpi_f = function (%s) return "  arg ;
+          gen_code te ;
+          fprintf !Global.out " end }"
+        end
+  | c                   -> gen_code c
+
 
 (* *********** Lua Term Generation *********** *)
 
 let rec gen_term = function
   | Kind                -> assert false
-  | Type                -> fprintf !Global.out "{ te = ttype }"
+  | Type                -> fprintf !Global.out "{ ttype=true }"
   | GVar (m,v)          -> fprintf !Global.out "%s.%s_t" m v
   | Var v               -> fprintf !Global.out "%s_t" v
   | App (f,a)           -> 
       begin 
-        fprintf !Global.out "{ te = tapp ; f = " ; 
+        fprintf !Global.out "{ tapp_f = " ; 
         gen_term f ; 
-        fprintf !Global.out " ; a = " ; 
+        fprintf !Global.out " ; tapp_a = " ; 
         gen_term a ; 
-        fprintf !Global.out " ; ca = " ; 
-        gen_code a ; 
+        fprintf !Global.out " ; tapp_ca = " ; 
+        gen_lazy_code a ;
         fprintf !Global.out " }"
       end
   | Lam (v,None,te)     -> 
       begin
-        fprintf !Global.out "{ te = tlam ; ttype = nil ; ctype = nil ; f =  function (%s_t, %s_c) return " v v ; 
+        fprintf !Global.out "{ tlam_f =  function (%s_t, %s_c) return " v v ; 
         gen_term te;
         fprintf !Global.out " end }";
       end
   | Lam (v,Some ty,te)  -> 
       begin
-        fprintf !Global.out "{ te = tlam ; ttype = ";
+        fprintf !Global.out "{ tlam_tty = ";
         gen_term ty;
-        fprintf !Global.out " ; ctype = " ;
-        gen_code ty ;
-        fprintf !Global.out " ; f =  function (%s_t, %s_c) return " v v ; 
+        fprintf !Global.out " ; tlam_cty = " ;
+        gen_lazy_code ty ;
+        fprintf !Global.out " ; tlam_f =  function (%s_t, %s_c) return " v v ; 
         gen_term te;
         fprintf !Global.out " end }";
       end
   | Pi  (ov,ty,t)       -> 
       let args = match ov with None -> "dummy1,dummy2" | Some v -> ( v^"_t,"^v^"_c" ) in
         begin 
-          fprintf !Global.out "{ te = tpi ; ttype = " ;
+          fprintf !Global.out "{ tpi_tty = " ;
           gen_term ty ; 
-          fprintf !Global.out " ; ctype = " ; 
-          gen_code ty ;
-          fprintf !Global.out " ; f = function (%s) return " args ;
+          fprintf !Global.out " ; tpi_cty = " ; 
+          gen_lazy_code ty ;
+          fprintf !Global.out " ; tpi_f = function (%s) return " args ;
           gen_term t;
           fprintf !Global.out " end }"
       end
@@ -125,44 +131,42 @@ let rec iskind = function
   | _             -> false
 
 let generate_decl_check gname loc ty =
-  (*fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;*)
   fprintf !Global.out "\nprint_debug(\"%s\tChecking declaration %s\t\t\")\n" (Debug.string_of_loc loc) gname ;
   (if iskind ty then fprintf !Global.out "chkkind(" else fprintf !Global.out "chktype(") ;
   gen_term ty ;
   fprintf !Global.out ")\n"
 
 let generate_decl_code id =
-  fprintf !Global.out "%s.%s_c = { co = ccon ; id = \"%s.%s\" ; arity = 0 ; args = { } ; f = function() return nil end }\n" !Global.name id !Global.name id
-(*; fprintf !Global.out " print(\"%s_c = \" .. string_of_code(0,%s_c))\n" gname gname *)
+  fprintf !Global.out "%s.%s_c = { cid = \"%s.%s\" ; args = { } }\n" !Global.name id !Global.name id
+  (*; fprintf !Global.out "assert(is_code(%s.%s_c))\n" !Global.name id 
+  ; fprintf !Global.out "print(\"--> \" .. string_of_code(%s.%s_c) .. \"\\n\")\n" !Global.name id *)
 
 let generate_decl_term id ty =
-  fprintf !Global.out "%s.%s_t = { te = tbox ; ctype = function() return " !Global.name id ;
-  gen_code0 ty ;
-  fprintf !Global.out " end }\n" 
-    (*; fprintf !Global.out " print(\"%s_t = \" .. string_of_term(0,%s_t))\n" gname gname *)
+  fprintf !Global.out "%s.%s_t = { tbox_cty = " !Global.name id ;
+  gen_lazy_code ty ;
+  fprintf !Global.out " }\n" 
+  (*; fprintf !Global.out "assert(is_term(%s.%s_t))\n" !Global.name id 
+  ; fprintf !Global.out "print(\"--> \" .. string_of_term(%s.%s_t) .. \"\\n\")\n" !Global.name id *)
 
 (* ************** Definitions *************** *)
 
 let generate_def_check gname loc te ty = 
-  (*fprintf !Global.out " -- [[ Type checking %s. ]]\n" gname ;*)
   fprintf !Global.out "\nprint_debug(\"%s\tChecking definition %s\t\t\")\n" (Debug.string_of_loc loc) gname ;
   fprintf !Global.out "chk( " ;
   gen_term te ;
   fprintf !Global.out " , " ;
-  gen_code0 ty ;
+  gen_code ty ;
   fprintf !Global.out ")\n"
 
 let generate_def_term id te = 
   fprintf !Global.out "%s.%s_t = " !Global.name id ;
   gen_term te ;
   fprintf !Global.out "\n"
-    (*;fprintf !Global.out " print(\"%s_t = \" .. string_of_term(0,%s_t))\n" gname gname *)
 
 let generate_def_code id te = 
   fprintf !Global.out "%s.%s_c = " !Global.name id ;
-  gen_code0 te ;
+  gen_lazy_code te ;
   fprintf !Global.out "\n"
-   (* ;fprintf !Global.out " print(\"%s_c = \" .. string_of_code(0,%s_c))\n" gname gname *)
 
 (* ***************** Pattern Matching Generation ************ *)
 
@@ -191,7 +195,7 @@ let new_pMat rules : pMat =
         loc = Array.init cols (fun i -> [i]); 
       }
 
-let specialize (pm:pMat) (c:int) (arity:int) (*nb_dots:int*) (lines:int list) : pMat option = 
+let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : pMat option = 
   assert (0 < Array.length pm.p);
   assert (c < Array.length pm.p.(0));
     
@@ -325,7 +329,7 @@ let rec cc (pm:pMat) : unit =
           let (ctx,te) = pm.a.(0) in
             print_locals pm.p.(0) pm.loc ;
             fprintf !Global.out "return ";
-            gen_code0 te
+            gen_code te
         end
     | Some (c,_)     -> 
         begin
@@ -337,11 +341,9 @@ let rec cc (pm:pMat) : unit =
                 (if !bo then bo := false else fprintf !Global.out "\nelse") ;
                 fprintf !Global.out "if " ;
                 print_path pm.loc.(c) ;
-                fprintf !Global.out ".co == ccon and " ;
-                print_path pm.loc.(c) ;
-                fprintf !Global.out ".id == \"%s.%s\" then\n" m cst ; 
+                fprintf !Global.out ".cid == \"%s.%s\" then\n" m cst ; 
                 match specialize pm c arity lst with
-                  | None        -> ( fprintf !Global.out "return " ; gen_code0 (snd pm.a.(match lst with z::_ -> z | _ -> assert false)) )
+                  | None        -> ( fprintf !Global.out "return " ; gen_code (snd pm.a.(match lst with z::_ -> z | _ -> assert false)) )
                   | Some pm'    -> ( cc pm' )
             ) par ;
 
@@ -363,18 +365,23 @@ let rec gpcode = function
       begin
         let first = ref true in
         let arity = Array.length dots + Array.length pats  in
-        fprintf !Global.out "{ co = ccon ; id = \"%s.%s\" ; arity = %i ; f = function() return %s.%s_c end ; args = { " m c arity m c ;
-        Array.iter ( 
-          fun t -> 
-            if !first then ( gen_code0 t ; first := false )
-            else ( fprintf !Global.out " ; " ; gen_code0 t )
-        ) dots ;
-        Array.iter ( 
-          fun t -> 
-            if !first then ( gpcode t ; first := false )
-            else ( fprintf !Global.out " ; " ; gpcode t )
-        ) pats ;
-        fprintf !Global.out " } ; }"
+          if arity = 0 then
+            fprintf !Global.out "{ cid = \"%s.%s\" ; args = { } } " m c
+          else
+            begin
+              fprintf !Global.out "{ cid = \"%s.%s\" ; arity = %i ; f = function() return %s.%s_c end ; args = { " m c arity m c ; 
+              Array.iter ( 
+                fun t -> 
+                  if !first then ( gen_code t ; first := false )
+                  else ( fprintf !Global.out " ; " ; gen_code t )
+              ) dots ;
+              Array.iter ( 
+                fun t -> 
+                  if !first then ( gpcode t ; first := false )
+                  else ( fprintf !Global.out " ; " ; gpcode t )
+              ) pats ;
+              fprintf !Global.out " } ; }"
+            end
       end
 
 let rec gpterm = function 
@@ -382,38 +389,37 @@ let rec gpterm = function
   | Id v                -> fprintf !Global.out "%s_t" v
   | Pat ((m,c),dots,pats)   -> 
       let arity = Array.length dots + Array.length pats in
-        for i=1 to arity do fprintf !Global.out " { te = tapp ; f = " done ;
+        for i=1 to arity do fprintf !Global.out " { tapp_f = " done ;
         fprintf !Global.out "%s.%s_t " m c ;
         Array.iter (
           fun d -> 
-            fprintf !Global.out " ; a = " ;
+            fprintf !Global.out " ; tapp_a = " ;
             gen_term d ;
-            fprintf !Global.out " ; ca = " ;
-            gen_code d ;
+            fprintf !Global.out " ; tapp_ca = " ;
+            gen_lazy_code d ;
             fprintf !Global.out " } "
         ) dots ;
         Array.iter (
           fun p -> 
-            fprintf !Global.out " ; a = " ;
+            fprintf !Global.out " ; tapp_a = " ;
             gpterm p ;
-            fprintf !Global.out " ; ca = function() return " ;
+            fprintf !Global.out " ; tapp_ca = { clazy = function() return " ; (*gpcode_lazy*)
             gpcode p ;
-            fprintf !Global.out " end } "
+            fprintf !Global.out " end } } "
         ) pats
 
-
-          (* Env *)
+(* Env *)
 
 let gen_env ((id,loc),te) =
   fprintf !Global.out "\nprint_debug(\"%s\tChecking variable %s\t\t\")\n" (Debug.string_of_loc loc) id ;
   (if iskind te then fprintf !Global.out "chkkind(" else fprintf !Global.out "chktype(");
   gen_term te ;
-  fprintf !Global.out ")\nlocal %s_c = { co = ccon ; id = \"%s\" ; arity = 0 ; args = { } ; f = function() return nil end}\n" id id ; 
-  (*fprintf !Global.out " print(\"%s_c = \" .. string_of_code(0,%s_c))\n" id id ;*)
-  fprintf !Global.out "local %s_t = { te = tbox, ctype = function() return " id ;
-  gen_code0 te ;
-  fprintf !Global.out " end }\n" 
-    (*;fprintf !Global.out " print(\"%s_t = \" .. string_of_term(0,%s_t))\n" id id *)
+  fprintf !Global.out ")\nlocal %s_c = { cid = \"%s\" ; args = { } }\n" id id ; 
+  fprintf !Global.out "local %s_t = { tbox_cty = " id ;
+  gen_lazy_code te ;
+  fprintf !Global.out " }\n" 
+  (*; fprintf !Global.out "assert(is_code(%s_c))\n" id 
+  ; fprintf !Global.out "assert(is_term(%s_t))\n" id *)
 
 (* Rules*)
 
@@ -421,33 +427,24 @@ let generate_rule_check id i (loc,ctx,dots,pats,te) =
   fprintf !Global.out "\ndo";
   List.iter gen_env ctx ; 
   fprintf !Global.out "\nprint_debug(\"%s\tChecking rule %i for %s\t\t\")\n" (Debug.string_of_loc loc) (i+1) id ;
-  (*
-  fprintf !Global.out "print(\" ###TT \" .. string_of_term(0," ;
-  gpterm (Pat (id,dots,pats));
-  fprintf !Global.out "))";
-
-  fprintf !Global.out "print(\" ###CC \" .. string_of_code(0," ;
-  gpcode (Pat (id,dots,pats));
-  fprintf !Global.out "))";
-   *)
-  fprintf !Global.out "local ty = type_synth(0, ";
+  fprintf !Global.out "local ty = type_synth( ";
   gpterm (Pat ((!Global.name,id),dots,pats));
   fprintf !Global.out ")\n";
-  (*fprintf !Global.out " print(\"ty = \" .. string_of_code(0,ty))\n" ;*)
-  fprintf !Global.out "chk(";
+  (*fprintf !Global.out "assert(is_code(ty))\n";*) 
+  fprintf !Global.out "chk( ";
   gen_term te ;
-  fprintf !Global.out ", ty)\nend\n"
+  fprintf !Global.out ", ty )\nend\n"
 
 let generate_rules_code id rules = 
   assert ( Array.length rules > 0 );
   let (_,_,dots,pats,_) = rules.(0) in
   let arity = Array.length dots + Array.length pats in
-    (*fprintf !Global.out "\n -- [[ Compiling rules of %s. ]]\n" gname ;*)
-    fprintf !Global.out "%s.%s_c = { co = ccon ; id=\"%s.%s\" ; arity = %i ; args = { } ; f =\nfunction (" !Global.name id !Global.name id arity ;
-    (if arity>0 then fprintf !Global.out "y1" else ());
+    assert(arity>0);
+    fprintf !Global.out "%s.%s_c = { cid=\"%s.%s\" ; arity = %i ; args = { } ; f = function(" !Global.name id !Global.name id arity ;
+    fprintf !Global.out "y1" ;
     (for i=2 to arity do fprintf !Global.out ", y%i" i  done );
     fprintf !Global.out ")\n" ;
+    (for i=1 to arity do fprintf !Global.out "local y%i = force2(y%i)\n" i i done );
     cc (new_pMat rules) ;
     fprintf !Global.out "\nend }\n" 
-      (*;fprintf !Global.out " print(\"%s_c = \" .. string_of_code(0,%s_c))\n" gname gname *)
 
