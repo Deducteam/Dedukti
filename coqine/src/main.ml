@@ -64,6 +64,7 @@ let translate filename =
 					functor_parameters = [];
 					mp = MPfile path;
 					applied_modules = [];
+					nested_modules = ""
 				       } mb).decls)
 
 let _ =
@@ -76,5 +77,6 @@ let _ =
        (add_rec_path Coqine_config.coq_library_path (make_dirpath ["Coq"]);
 	Printf.fprintf stderr "Using %s as Coq standard library (set at compile time)\n" Coqine_config.coq_library_path)
   );
+  add_rec_path "./" (make_dirpath []);
   Arg.parse speclist translate
     "CoqInE\nUsage: coqine [options] filenames\n\nIf you want to use the coq library,\nuse --root Coq -I path_to_coq_dir_theories\n\nfilenames:\tcoq binary files (.vo)\n\noptions:"
