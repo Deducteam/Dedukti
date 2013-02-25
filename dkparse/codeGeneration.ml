@@ -363,24 +363,26 @@ let rec gpcode = function
   | Id v                -> fprintf !Global.out "%s_c" v
   | Pat ((m,c),dots,pats)   ->
       begin
-        let first = ref true in
+        (*let first = ref true in*)
         let arity = Array.length dots + Array.length pats  in
           if arity = 0 then
-            fprintf !Global.out "{ cid = \"%s.%s\" ; args = { } } " m c
+            fprintf !Global.out "%s.%s_c " m c
           else
-            begin
-              fprintf !Global.out "{ cid = \"%s.%s\" ; arity = %i ; f = function() return %s.%s_c end ; args = { " m c arity m c ; 
+            begin (*FIXME faire des uapp*)
+              for i=1 to arity do fprintf !Global.out "uapp( " done ;
+              fprintf !Global.out "%s.%s_c" m c ; 
               Array.iter ( 
                 fun t -> 
-                  if !first then ( gen_code t ; first := false )
-                  else ( fprintf !Global.out " ; " ; gen_code t )
+                  fprintf !Global.out " , " ; 
+                  gen_code t ; 
+                  fprintf !Global.out " ) " 
               ) dots ;
               Array.iter ( 
                 fun t -> 
-                  if !first then ( gpcode t ; first := false )
-                  else ( fprintf !Global.out " ; " ; gpcode t )
+                  fprintf !Global.out " , " ; 
+                  gpcode t ; 
+                  fprintf !Global.out " ) " 
               ) pats ;
-              fprintf !Global.out " } ; }"
             end
       end
 
