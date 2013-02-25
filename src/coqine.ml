@@ -1304,7 +1304,7 @@ let rec struct_elem_copy tenv mp_src sup_args (label, decl) = match decl with
       in
       let tenv' = { tenv with env = add_modtype kn modtype env;
 	nested_modules = tenv.nested_modules ^ label ^ "_" } in
-      let tenv'' = mb_copy tenv' mp_src mb in
+      let tenv'' = mb_copy tenv' (MPdot(mp_src,label)) mb in
       { tenv'' with
 	env = tenv'.env;
 	mp = tenv.mp;
@@ -1332,7 +1332,11 @@ and module_copy tenv mp_src mod_type =
       let body = Modops.subst_struct_expr subst body in
       let SEBstruct dl = mtb.typ_expr in
       aux (add_args dl m sup_args) (q, body)
-    | _ -> raise (NotImplementedYet "module_copy: not a struct")
+    | [], SEBfunctor _ -> raise (NotImplementedYet "module_copy: not a struct but a functor")
+    | [], SEBident _ -> raise (NotImplementedYet "module_copy: not a struct but an ident")
+    | [], SEBapply _ -> raise (NotImplementedYet "module_copy: not a struct but an apply")
+    | [], SEBwith _ -> raise (NotImplementedYet "module_copy: not a struct but a with")
+    | _, SEBstruct _ -> failwith "module_copy: functor applied too many times"
   in
   aux [] (tenv.applied_modules, mod_type)
 
@@ -1490,9 +1494,9 @@ and seb_trans tenv = function
 
   | SEBident mp ->
     let mod_type =
-      (try
+      ((*try
 	 (lookup_modtype mp tenv.env).typ_expr
-       with Not_found ->
+       with Not_found -> *)
 	 try
 	   (lookup_module mp tenv.env).mod_type
 	 with Not_found ->
