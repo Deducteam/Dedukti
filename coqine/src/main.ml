@@ -62,7 +62,8 @@ let translate filename =
 					decls = [];
 					functors = [];
 					functor_parameters = [];
-					mp = MPfile path;
+					mp_file = MPfile path;
+					mp_nested = MPfile path;
 					applied_modules = [];
 					nested_modules = ""
 				       } mb).decls)
