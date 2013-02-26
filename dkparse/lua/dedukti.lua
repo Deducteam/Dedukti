@@ -100,6 +100,14 @@ function split (t,n)
   return t1,t2
 end 
 
+function uapp0 ( c )
+  if c.arity == 0 then 
+    res = c.f()
+    if res then return res end
+  end
+  return c
+end
+
 -- Code*Code -> Code
 function uapp ( f , arg )
   --print(" -- entering app...")
@@ -175,7 +183,9 @@ function is_conv ( ty1 , ty2 )
     elseif #ty1.args ~= #ty2.args then return false
     else
       for i=1,#ty1.args do
-        if not is_conv( ty1.args[i] , ty2.args[i] ) then return false end
+        if not is_conv( ty1.args[i] , ty2.args[i] ) then 
+	  return false 
+	end
       end
       return true
     end
@@ -330,8 +340,16 @@ function print_ok_ko2 ( status , msg )
   end
 end
 
+-- Code*Code -> Code
 function app ( f , a )
   status,res = pcall ( uapp , f , a )
+  print_ok_ko2(status,res)
+  return res
+end
+
+-- Code -> Code
+function app0 ( a )
+  status,res = pcall ( uapp0 , a )
   print_ok_ko2(status,res)
   return res
 end

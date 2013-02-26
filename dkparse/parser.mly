@@ -36,22 +36,23 @@ let mk_typecheck loc te ty =
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating typechecking ... \t\t") ;
         if !Global.do_not_check then () else CodeGeneration.generate_def_check "_" loc te ty ; 
         Global.debug_ok () 
-
+(*
 let alias_of = function
         | []                    -> assert false
         | (_,_,a,b,t) ::_  when ( Array.length a = 0 && Array.length b = 0 ) -> Some t
         | _                     -> None
-
+*)
 let mk_rules (a:loc*rules) = 
   let (loc,(id,rules)) = a         in
   Global.debug (Debug.string_of_loc loc ^ "\tGenerating rule checks for "^ id^" \t\t") ; 
   let rs = Array.of_list rules    in
   Global.chk_rules_id a  ; 
  (* Global.chk_alias id rs ; *)
-  if !Global.do_not_check then () else Array.iteri (CodeGeneration.generate_rule_check id) rs ;
+  (*if !Global.do_not_check then () else Array.iteri (CodeGeneration.generate_rule_check id) rs ;
   ( match alias_of rules with
   | Some te     -> ( CodeGeneration.generate_def_code id te ; CodeGeneration.generate_def_term id te )
-  | None        -> CodeGeneration.generate_rules_code id rs ) ;
+  | None        -> *)
+                  CodeGeneration.generate_rules_code id rs  ;
   Global.debug_ok ()
 
 let mk_require (dep,loc) =

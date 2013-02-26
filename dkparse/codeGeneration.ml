@@ -33,7 +33,7 @@ let prelude _ =
 let rec gen_code = function
   | Kind                -> assert false
   | Type                -> fprintf !Global.out "{ ctype=true }"
-  | GVar (m,v)          -> fprintf !Global.out "%s.%s_c" m v
+  | GVar (m,v)          -> fprintf !Global.out "app0(%s.%s_c)" m v
   | Var v               -> fprintf !Global.out "%s_c" v 
   | App (f,a)           -> 
       begin
@@ -165,7 +165,7 @@ let generate_def_term id te =
 
 let generate_def_code id te = 
   fprintf !Global.out "%s.%s_c = " !Global.name id ;
-  gen_lazy_code te ;
+  (*gen_lazy_code te ;*) gen_code te ;
   fprintf !Global.out "\n"
 
 (* ***************** Pattern Matching Generation ************ *)
@@ -366,11 +366,11 @@ let rec gpcode = function
         (*let first = ref true in*)
         let arity = Array.length dots + Array.length pats  in
           if arity = 0 then
-            fprintf !Global.out "%s.%s_c " m c
+            fprintf !Global.out "app0(%s.%s_c) " m c
           else
-            begin (*FIXME faire des uapp*)
-              for i=1 to arity do fprintf !Global.out "uapp( " done ;
-              fprintf !Global.out "%s.%s_c" m c ; 
+            begin 
+              for i=1 to arity do fprintf !Global.out "app( " done ;
+              fprintf !Global.out "app0(%s.%s_c)" m c ; 
               Array.iter ( 
                 fun t -> 
                   fprintf !Global.out " , " ; 
@@ -439,14 +439,22 @@ let generate_rule_check id i (loc,ctx,dots,pats,te) =
 
 let generate_rules_code id rules = 
   assert ( Array.length rules > 0 );
-  let (_,_,dots,pats,_) = rules.(0) in
+  let (_,_,dots,pats,te) = rules.(0) in
   let arity = Array.length dots + Array.length pats in
-    assert(arity>0);
-    fprintf !Global.out "%s.%s_c = { cid=\"%s.%s\" ; arity = %i ; args = { } ; f = function(" !Global.name id !Global.name id arity ;
-    fprintf !Global.out "y1" ;
-    (for i=2 to arity do fprintf !Global.out ", y%i" i  done );
-    fprintf !Global.out ")\n" ;
-    (for i=1 to arity do fprintf !Global.out "local y%i = force2(y%i)\n" i i done );
-    cc (new_pMat rules) ;
-    fprintf !Global.out "\nend }\n" 
+    if arity=0 then
+      begin
+        fprintf !Global.out "%s.%s_c = { cid=\"%s.%s\" ; arity = 0 ; args = { } ; f = function() return " !Global.name id !Global.name id ;
+        gen_code te ;
+        fprintf !Global.out " end }\n"
+      end
+    else
+      begin
+        fprintf !Global.out "%s.%s_c = { cid=\"%s.%s\" ; arity = %i ; args = { } ; f = function(" !Global.name id !Global.name id arity ;
+        fprintf !Global.out "y1" ;
+        (for i=2 to arity do fprintf !Global.out ", y%i" i  done );
+        fprintf !Global.out ")\n" ;
+        (for i=1 to arity do fprintf !Global.out "local y%i = force2(y%i)\n" i i done );
+        cc (new_pMat rules) ;
+        fprintf !Global.out "\nend }\n" 
+      end
 
