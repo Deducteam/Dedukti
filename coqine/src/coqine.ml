@@ -191,20 +191,20 @@ let get_identifier n = "var_" ^ match n with
 (* Get an identifier depending on the current environment e. *)
 let rec get_identifier_rel erel n =
   match n with
-    | Anonymous -> get_identifier_rel erel (Name (id_of_string "_dk_anon"))
-    | Name s ->
-	let rec compute_alpha ch =
-	  let rec alpha_counts n = function
-	      (Name i,_,_)::q when string_of_id i = ch -> alpha_counts (n+1) q
-	    | (Anonymous, _, _)::q when ch = "_dk_anon" -> alpha_counts (n+1) q
-	    | _::q -> alpha_counts n q
-	  | [] -> n
-	  in
-	  let n = alpha_counts 0 erel in
-	    if n = 0 then ch
-	    else compute_alpha (ch ^ "zqz" ^ string_of_int (n-1))
-	in
-	  "var_" ^ compute_alpha (string_of_id s)
+  | Anonymous -> get_identifier_rel erel (Name (id_of_string "_dk_anon"))
+  | Name s ->
+    let rec compute_alpha ch =
+      let rec alpha_counts n = function
+      (Name i,_,_)::q when string_of_id i = ch -> alpha_counts (n+1) q
+        | (Anonymous, _, _)::q when ch = "_dk_anon" -> alpha_counts (n+1) q
+	| _::q -> alpha_counts n q
+	| [] -> n
+      in
+      let n = alpha_counts 0 erel in
+      if n = 0 then ch
+      else compute_alpha (ch ^ "%" ^ string_of_int (n-1))
+    in
+    "var_" ^ compute_alpha (string_of_id s)
 
 let nth_rel_in_env n e =
   let rec aux = function
@@ -308,13 +308,17 @@ exception Partial_const
            the translation environment,
            the Dedukti term
 *)
-let rec app_rel_context tenv c =
-  Environ.fold_rel_context
-    (fun e (n,_,t) (vs, tenv, c) ->
-      (let v = get_identifier_rel (Environ.rel_context e) n in
-       let t_tt, tenv = type_trans_aux { tenv with env = e } t in
-       (Id v, t_tt)::vs, tenv, DApp(c,DVar (Id v))))
-    tenv.env ~init:([], tenv, c)
+let rec app_rel_context tenv ?(nb=List.length (rel_context tenv.env)) c =
+  let vs, tenv, c, _ =
+    Environ.fold_rel_context
+      (fun e (n,_,t) (vs, tenv, c, nb) ->
+	if nb = 0 then vs, tenv, c, nb else
+	  (let v = get_identifier_rel (Environ.rel_context e) n in
+	   let t_tt, tenv = type_trans_aux { tenv with env = e } t in
+	 (Id v, t_tt)::vs, tenv, DApp(c,DVar (Id v)), nb - 1))
+      tenv.env ~init:([], tenv, c, nb)
+  in
+  vs, tenv, c
 
 (* translation of a constructor, with guards
    if the constructor is only partially applied, use eta-expansion
@@ -637,10 +641,19 @@ and term_trans_aux tenv t =
 	let env_length = - (List.length (rel_context tenv.env)) in
 	let rel_types = Array.map (liftn env_length (1+nb_def)) body_types and
 	    rel_terms = Array.map (liftn env_length (1+nb_def)) body_terms in
-	try Hashtbl.find fix_tbl (rel_types,rel_terms,num_def), tenv with
+	try
+	  let id_var, closed, n = Hashtbl.find fix_tbl (rel_types,rel_terms,num_def) in
+	  let _, tenv, t =
+		  if closed
+		  then [], tenv, id_var
+		  else app_rel_context ~nb:n tenv
+		    id_var
+	  in
+	  t ,tenv
+	with
 	    Not_found ->
 	      (* If the bodies of the fixpoints are closed, we do not need
-		 to add the context, and we can use the hashtable. *)
+		 to add the context. *)
 	      let closed =
 		array_forall (closedn (Array.length body_terms))
 		  body_terms
@@ -773,19 +786,9 @@ and term_trans_aux tenv t =
 		  one_trans struct_arg_num names.(i)
 		    body_types.(i) body_terms.(i) { te with env = tenv.env })
 		(0,tenv) struct_arg_nums in
-	      (* The term corresponding to the fix point is the identifier
-		 to which the context is applied. *)
-	      let _, tenv = Array.fold_left (fun (i,tenv') name ->
-		let _, tenv, t =
-		  if closed
-		  then [], {tenv' with env = tenv.env}, DVar(Id names.(num_def))
-		  else app_rel_context {tenv' with env = tenv.env}
-		    (DVar(Id name))
-		in
-		Hashtbl.add fix_tbl (rel_types,rel_terms,i) t;
-		i+1, tenv
-	      ) (0,tenv') names in
-	      Hashtbl.find fix_tbl (rel_types,rel_terms,num_def), tenv
+	      Array.iteri (fun i name ->
+                Hashtbl.add fix_tbl (rel_types,rel_terms,i) (DVar(Id name),closed, List.length (rel_context tenv.env))) names;
+	      term_trans_aux { tenv' with env = tenv.env } (Fix fix)
       end
 
     | CoFix (num_def, (names, body_types, body_terms)) ->
