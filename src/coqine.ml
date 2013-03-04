@@ -202,7 +202,7 @@ let rec get_identifier_rel erel n =
       in
       let n = alpha_counts 0 erel in
       if n = 0 then ch
-      else compute_alpha (ch ^ "zqz" ^ string_of_int (n-1))
+      else compute_alpha (ch ^ "%" ^ string_of_int (n-1))
     in
     "var_" ^ compute_alpha (string_of_id s)
 
