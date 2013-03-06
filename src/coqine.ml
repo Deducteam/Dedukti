@@ -353,6 +353,9 @@ and trans_construct_aux dotp tenv mod_path l ind j i args =
             (guard,tenv) params
         | Rel _, [] ->
           guard, tenv
+	| LetIn(var,eq,ty,body), l ->
+	  let new_body = subst1 eq body in
+	  app_args (new_body, l)
         | _ -> raise Partial_const
       in
       let guard_params, tenv =
@@ -412,6 +415,9 @@ and trans_construct_aux dotp tenv mod_path l ind j i args =
                 DFun(Id (fresh_var "_dk_anon"), DVar(Qid("Coq1univ","lazy")),
                 applied_constr), decls
                 else applied_constr, decls *)
+      | LetIn(var,eq,ty,body) ->
+	let new_body = subst1 eq body in
+	eta tenv args new_body
       | _ -> failwith "ill-formed type for a constructor"
     in
     let constr,tenv' = eta tenv [] constr_type in
@@ -944,6 +950,9 @@ let make_constr tenv params_num params_dec cons_name typ =
 	      d := d'
           done;
 	  !d, c, ind, vars
+    | n, LetIn(var, eq, typ, body) ->
+      let new_body = subst1 eq body in
+      aux tenv vars c (n, new_body)
     | 0, _ -> tenv, c, [||], vars
     | n, Prod(_, _, t2) -> aux tenv vars c
 	(n-1, subst1 (Rel (params_dec + n)) t2)
@@ -977,6 +986,9 @@ let rec make_constr_func_type' cons_name num_treated num_param num_indices num_a
 			   (fun i -> if i < num_param
 			    then Rel(num_args + 1 + num_treated + num_param + num_indices - i)
 			    else Rel(num_args + num_param - i))) |] )
+  | LetIn(var,eq,ty,body) ->
+	let new_body = subst1 eq body in
+	make_constr_func_type' cons_name num_treated num_param num_indices num_args new_body
   |  _ ->
 	      App(Rel (num_args + 1 + num_treated),
 		  [| App(Construct cons_name,
@@ -1019,6 +1031,9 @@ let packet_translation finite tenv ind params constr_types p =
 	let t_n, ty_tt, te_tt, tenv' = bind_trans type_trans_aux trans_constr
 	  n ty te tenv in
 	DPi(Id t_n, ty_tt, te_tt), tenv'
+    | LetIn(var,eq,ty,body) ->
+	let new_body = subst1 eq body in
+	trans_constr tenv new_body
     | te -> type_trans_aux tenv te
   in
   let n_params = List.length params in
