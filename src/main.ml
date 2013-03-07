@@ -42,31 +42,37 @@ let translate filename =
   let (md:Check.library_disk) = Marshal.from_channel channel in
   close_in channel;
   let ml = (md.Check.md_name, filename) in
-      (* Putting dependancies in the environment *)
+  (* Putting dependancies in the environment *)
   let needed = List.rev (Check.intern_library Check.LibrarySet.empty ml []) in
   let imports,env =
     List.fold_left
-    (fun (im,env) (dir,m) ->
-      if dir <> md.Check.md_name then
-	try
-	  dir::im,
-	  Safe_typing.unsafe_import
-	    m.Check.library_compiled m.Check.library_digest env
-	with e ->
-	  failwith ("unable to import module " ^ string_of_dirpath dir)
-      else im,env )
-    ([], Environ.empty_env) needed in
+      (fun (im,env) (dir,m) ->
+	if dir <> md.Check.md_name then
+	  try
+	    dir::im,
+	    Safe_typing.unsafe_import
+	      m.Check.library_compiled m.Check.library_digest env
+	  with e ->
+	    failwith ("unable to import module " ^ string_of_dirpath dir)
+	else im,env )
+      ([], Environ.empty_env) needed in
   let path,mb = Safe_typing.path_mb_compiled_library md.Check.md_compiled in
-  print_decls (path_to_string path) imports (List.rev (mb_trans
-				       {env = env;
-					decls = [];
-					functors = [];
-					functor_parameters = [];
-					mp_file = MPfile path;
-					mp_nested = MPfile path;
-					applied_modules = [];
-					nested_modules = ""
-				       } mb).decls)
+  let output_file = open_out (path_to_string path ^ ".dk") in
+  output_string output_file "#Coq1univ\n";
+  List.iter (fun i ->
+    Printf.fprintf output_file "#%s\n" (path_to_string i)) imports;
+  let init_tenv = {env = env;
+		   decls = [];
+		   functors = [];
+		   functor_parameters = [];
+		   mp_file = MPfile path;
+		   mp_nested = MPfile path;
+		   applied_modules = [];
+		   nested_modules = "";
+		   out_chan = output_file
+		  }
+  in
+    ignore (mb_trans init_tenv mb)
 
 let _ =
   (try
