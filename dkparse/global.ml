@@ -14,16 +14,7 @@ let debug_ko _ = if !quiet then () else prerr_endline "\027[31m[KO]\027[m"
 type vart = Local | Global
 
 let gs : (string,vart) Hashtbl.t = Hashtbl.create 47
-(*
-let alias_of id =
-  try 
-    match Hashtbl.find gs id with
-      | Alias t -> Some t
-      | Global  -> None
-      | Local   -> assert false
-  with
-    | Not_found -> prerr_string id ; assert false
- *)
+
 let mk_var (id,loc) =
   try
    begin

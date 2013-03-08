@@ -25,7 +25,11 @@ let set_name str =
 
 (* Error Msgs *)
 
-let error str = prerr_string str ; prerr_newline () ; exit 1 
+let error str = 
+  prerr_string str ; 
+  prerr_newline () ; 
+  CodeGeneration.exit () ;
+  exit 1 
 
 (* Parsing *)
 
@@ -53,10 +57,11 @@ let main str =
       CodeGeneration.prelude () ;
       parse lexbuf
   with 
-    | ParsingError err          -> error ("\027[31m" ^ (Debug.string_of_perr err) ^ "\027[m")
+    | ParsingError err          -> error ("\027[31m" ^ (Debug.string_of_perr err) ^ "\027[m") 
     | Sys_error msg             -> error ("System error: "^msg)
     | IncorrectFileName         -> error ("Incorrect File Name.") 
-    | End_of_file               -> ( Hashtbl.clear Global.gs (*; prerr_string ("@@@ "^string_of_int !Global.nb_gvars^"\n")*))
+    | End_of_file_in_comment    -> error ("Unexpected end of file.") 
+    | End_of_file               -> Hashtbl.clear Global.gs 
 
 let _ = Arg.parse args main "Usage: dkparse [options] files"  
   

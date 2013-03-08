@@ -20,6 +20,7 @@ type parsing_error =
   | UnknownModule               of string*loc
 
 exception ParsingError          of parsing_error
+exception End_of_file_in_comment
 
 type pattern = 
   | Joker

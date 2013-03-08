@@ -7,7 +7,7 @@ let mk_declaration (id,loc) ty =
         if !Global.do_not_check then () else CodeGeneration.generate_decl_check id loc ty ;
         CodeGeneration.generate_decl_code id ;
         CodeGeneration.generate_decl_term id ty ;
-        Global.debug_ok ()
+        Global.debug_ok () 
 
 let mk_declaration0 idl ty =
         if !Global.ignore_redeclarations then
@@ -16,44 +16,35 @@ let mk_declaration0 idl ty =
         else (
                 Global.gscope_add idl ;
                 mk_declaration idl ty
-        )
+        ) 
 
 let mk_definition (id,loc) te ty =
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating definition " ^ id ^ "\t\t") ;
         if !Global.do_not_check then () else CodeGeneration.generate_def_check id loc te ty ;
         CodeGeneration.generate_def_code id te ;
         CodeGeneration.generate_def_term id te ;
-        Global.debug_ok ()
+        Global.debug_ok () 
 
 let mk_opaque (id,loc) te ty = 
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating opaque definition " ^ id ^ "\t\t")  ;
         if !Global.do_not_check then () else CodeGeneration.generate_def_check id loc te ty ;
         CodeGeneration.generate_decl_code id ;
         CodeGeneration.generate_decl_term id ty ;
-        Global.debug_ok ()
+        Global.debug_ok () 
 
 let mk_typecheck loc te ty = 
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating typechecking ... \t\t") ;
         if !Global.do_not_check then () else CodeGeneration.generate_def_check "_" loc te ty ; 
         Global.debug_ok () 
-(*
-let alias_of = function
-        | []                    -> assert false
-        | (_,_,a,b,t) ::_  when ( Array.length a = 0 && Array.length b = 0 ) -> Some t
-        | _                     -> None
-*)
+
 let mk_rules (a:loc*rules) = 
-  let (loc,(id,rules)) = a         in
-  Global.debug (Debug.string_of_loc loc ^ "\tGenerating rule checks for "^ id^" \t\t") ; 
-  let rs = Array.of_list rules    in
-  Global.chk_rules_id a  ; 
- (* Global.chk_alias id rs ; *)
-  if !Global.do_not_check then () else Array.iteri (CodeGeneration.generate_rule_check id) rs ;
-  (* match alias_of rules with
-  | Some te     -> ( CodeGeneration.generate_def_code id te ; CodeGeneration.generate_def_term id te )
-  | None        -> *)
-                  CodeGeneration.generate_rules_code id rs  ;
-  Global.debug_ok ()
+        let (loc,(id,rules)) = a         in
+        Global.debug (Debug.string_of_loc loc ^ "\tGenerating rule checks for "^ id^" \t\t") ; 
+        let rs = Array.of_list rules    in
+        Global.chk_rules_id a  ; 
+        if !Global.do_not_check then () else Array.iteri (CodeGeneration.generate_rule_check id) rs ;
+        CodeGeneration.generate_rules_code id rs  ;
+        Global.debug_ok () 
 
 let mk_require (dep,loc) =
         Global.libs := dep::(!Global.libs) ;
@@ -63,6 +54,7 @@ let mk_require (dep,loc) =
 
 %}
 
+%token EOF
 %token DOT
 %token COMMA
 %token COLON
@@ -84,6 +76,7 @@ let mk_require (dep,loc) =
 
 %start top
 %type <unit> top
+%type <unit> line
 %type <Types.loc*Types.rules> rules
 %type <string*Types.loc*Types.rule> rule
 %type <string*Types.loc*Types.term array*Types.pattern array> pat
@@ -91,13 +84,15 @@ let mk_require (dep,loc) =
 %right ARROW FATARROW
 
 %%
-top:            /* empty */                                             { () }
-                | top ID COLON term DOT                                 { mk_declaration0 $2 $4 }
-                | top ID COLON term DEF term DOT                        { Global.gscope_add $2 ; mk_definition $2 $6 $4 }
-                | top LEFTBRA ID RIGHTBRA COLON term DEF term DOT       { Global.gscope_add $3 ; mk_opaque $3 $8 $6 }
-                | top UNDERSCORE COLON term DEF term DOT                { mk_typecheck $2 $6 $4 }
-                | top rules DOT                                         { mk_rules $2 } 
-                | top HASH ID                                           { mk_require $3 };
+top:              EOF                                                   { raise End_of_file }
+                | line top                                              { () }
+
+line:             ID COLON term DOT                                     { mk_declaration0 $1 $3 }
+                | ID COLON term DEF term DOT                            { Global.gscope_add $1 ; mk_definition $1 $5 $3 }
+                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT           { Global.gscope_add $2 ; mk_opaque $2 $7 $5 }
+                | UNDERSCORE COLON term DEF term DOT                    { mk_typecheck $1 $5 $3 }
+                | rules DOT                                             { mk_rules $1 } 
+                | HASH ID                                               { mk_require $2 } ;
 
 rules:          rule                                                    { let (id,loc,ru) = $1 in (loc,(id,[ru])) }
                 | rule rules                             

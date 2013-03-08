@@ -28,6 +28,9 @@ let prelude _ =
       fprintf !Global.out "local %s = { }\n\n" !Global.name
     end
 
+let exit _ =
+  fprintf !Global.out "\nos.exit(1)\n" 
+
 (* *********** Lua Code Generation *********** *)
 
 let rec gen_code = function
