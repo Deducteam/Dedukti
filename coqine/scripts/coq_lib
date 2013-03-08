@@ -1,6 +1,6 @@
 #!/bin/sh
 
-COQINE_ROOT=/home/guillaume/projets/coqine
+COQINE_ROOT=../
 COQ_LIB=/usr/lib/coq/theories/
 LIBS=$COQ_LIB*
 INCLUDE=/usr/lib/coq/plugins/

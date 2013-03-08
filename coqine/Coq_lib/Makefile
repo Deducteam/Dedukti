@@ -2,6 +2,8 @@
 #LUA=lua
 DK=dkparse
 
+all:
+
 -include depend
 
 %.lua:%.dk Coq1univ.lua
@@ -16,3 +18,5 @@ Coq1univ.lua:../t/Coq1univ.dk
 		        
 clean:
 	rm -f *.lua
+
+

@@ -46,7 +46,8 @@ let translate filename =
 	  (fun (dir,m) ->
 	     if dir <> md.md_name then print_string (" " ^ path_to_string dir ".lua"))
 	  needed;
-	print_newline()
+      print_newline ();
+      print_endline ("all: " ^ path_to_string md.md_name ".lua")
 
 
 let _ =
