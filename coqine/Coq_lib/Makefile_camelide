@@ -1,0 +1,7 @@
+-include depend_camelide
+
+%PHONY: *.dk
+ 
+%.dk:
+	~/dedukti/camelide/camelide ../t/Coq1univ.dk $^ $@
+
