@@ -48,8 +48,8 @@ let mk_rules (a:loc*rules) =
   let rs = Array.of_list rules    in
   Global.chk_rules_id a  ; 
  (* Global.chk_alias id rs ; *)
-  (*if !Global.do_not_check then () else Array.iteri (CodeGeneration.generate_rule_check id) rs ;
-  ( match alias_of rules with
+  if !Global.do_not_check then () else Array.iteri (CodeGeneration.generate_rule_check id) rs ;
+  (* match alias_of rules with
   | Some te     -> ( CodeGeneration.generate_def_code id te ; CodeGeneration.generate_def_term id te )
   | None        -> *)
                   CodeGeneration.generate_rules_code id rs  ;
