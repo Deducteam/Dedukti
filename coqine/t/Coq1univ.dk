@@ -15,13 +15,8 @@ dotprop : Utype.
 
 (; /!\ type : type /!\, should use universes ;)
 dottype : Utype.
-
-(; lazy constructions for co-inductive types ;)
-
-lazy : Type.
-
-(; we should need a lazify for all sorts ;)
-lazify : x : Utype -> Utype.
+[] dotset --> dottype.
+[] dotprop --> dottype.
 
 (; /!\ ;)
 [x:Uprop] eprop x --> etype x.
@@ -36,42 +31,19 @@ dotpist : x : Uset  -> y : (eset  x -> Utype) -> Utype.
 dotpits : x : Utype -> y : (etype x -> Uset)  -> Uset.
 dotpiss : x : Uset  -> y : (eset x  -> Uset)  -> Uset.
 dotpitt : x : Utype -> y : (etype x -> Utype) -> Utype.
-
-[x:Uset, y : eset x -> Utype]
-              etype (dotpist x y) --> w : etype x -> etype (y w)
+[] dotpipp --> dotpitt.
+[] dotpips --> dotpitt.
+[] dotpipt --> dotpitt.
+[] dotpisp --> dotpitt.
+[] dotpitp --> dotpitt.
+[] dotpist --> dotpitt.
+[] dotpits --> dotpitt.
+[] dotpiss --> dotpitt.
 
 [x:Utype, y : etype x -> Utype]
               etype (dotpitt x y) --> w : etype x -> etype (y w)
 
-[x:Uprop, y : eprop x -> Utype]
-              etype (dotpipt x y) --> w : etype x -> etype (y w)
-
 (; /!\ ;)
-[x:Uset, y : eset x -> Utype]
-              etype (dotpipp x y) --> etype (dotpipt x y)
-
-[x:Utype, y : etype x -> Utype]
-              etype (dotpisp x y) --> etype (dotpist x y)
-
-[x:Uprop, y : eprop x -> Utype]
-              etype (dotpitp x y) --> etype (dotpitt x y)
-
-[x:Uset, y : eset x -> Utype]
-              etype (dotpips x y) --> etype (dotpipt x y)
-
-[x:Utype, y : etype x -> Utype]
-              etype (dotpits x y) --> etype (dotpitt x y)
-
-[x:Uprop, y : eprop x -> Utype]
-              etype (dotpiss x y) --> etype (dotpist x y)
-
-[] etype dotset  --> Uset
-[] etype dotprop --> Uprop
-(; /!\ ;)
-[] etype dottype --> Utype
-
-[s: Utype] etype (lazify s) --> lazy -> etype s.
-
-force : lazy.
+[] etype dottype --> Utype.
 
 (; end of Coq1univ ;)
