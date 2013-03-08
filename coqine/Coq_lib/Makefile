@@ -8,7 +8,7 @@ DK=dkparse
 	${DK} $< | ${LUA} -
 	${DK} -c -o $@ $<
 
-Coq1univ.lua:Coq1univ.dk
+Coq1univ.lua:../t/Coq1univ.dk
 	${DK} -c -o $@ $<
 
 %.dk:
