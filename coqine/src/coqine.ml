@@ -265,15 +265,21 @@ let rec id_with_path tenv mpath id =
     DVar (Id ("fp_" ^ id))
   else if tenv.mp_file = mpath
   then
-    DVar (Id id)
-  else match mpath with
-  | MPfile path -> DVar (Qid (path_to_string path, id))
-  | MPdot(mp, lab) ->
-    id_with_path tenv mp (string_of_label lab ^ "_" ^ id)
-  | MPbound mbid -> match repr_mbid mbid with
-    _, lab, path ->
-      DVar(Qid (path_to_string path, lab  ^ "_" ^ id))
-
+    (DVar (Id id))
+  else
+    let res =
+      match mpath with
+      | MPfile path -> DVar (Qid (path_to_string path, id))
+      | MPdot(mp, lab) ->
+	id_with_path tenv mp (string_of_label lab ^ "_" ^ id)
+      | MPbound mbid -> match repr_mbid mbid with
+	_, lab, path ->
+	  DVar(Qid (path_to_string path, lab  ^ "_" ^ id))
+    in
+    if tenv.mp_nested = mpath then
+      List.fold_right (fun (i,t) c -> DApp(c,DVar i))
+	tenv.functor_parameters res
+    else res
 
 
 (* translate a binding n : t1. t2, given translation functions ft1 and
