@@ -63,6 +63,7 @@ let rec gen_code = function
         end
 
 let rec gen_lazy_code = function
+  | GVar (m,v)          -> fprintf !Global.out "{ clazy = function() return app0(%s.%s_c) end }" m v
   | App (f,a) as c      -> 
       begin
         fprintf !Global.out  "{ clazy = function() return " ;
