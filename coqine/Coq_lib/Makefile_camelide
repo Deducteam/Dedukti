@@ -1,7 +1,13 @@
+CAMELIDE_PATH=
+all:
+
 -include depend_camelide
+
+depend_camelide: depend
+	sed 's/.lua/.dk/g' $< > $@
 
 %PHONY: *.dk
  
 %.dk:
-	~/dedukti/camelide/camelide ../t/Coq1univ.dk $^ $@
+	$(CAMELIDE_PATH)camelide ../t/Coq1univ.dk $^ $@
 
