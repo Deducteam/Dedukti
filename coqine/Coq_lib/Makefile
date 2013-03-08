@@ -1,9 +1,18 @@
-CAMELIDE=../../camelide/src/camelide -v 2
+ LUA=luajit-2.0.0-beta9
+#LUA=lua
+DK=dkparse
 
-.SUFFIXES: .dk .dko .o .lua
+-include depend
 
-.dk.lua:
-	dedukti $< > $@
-	cat Coq1univ.lua `echo $^ | sed 's/^.*[.]dk//'` | lua -l dedukti -
+%.lua:%.dk Coq1univ.lua
+	${DK} $< | ${LUA} -
+	${DK} -c -o $@ $<
 
-include depend
+Coq1univ.lua:Coq1univ.dk
+	${DK} -c -o $@ $<
+
+%.dk:
+	exit 1
+		        
+clean:
+	rm -f *.lua
