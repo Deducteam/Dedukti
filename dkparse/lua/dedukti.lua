@@ -401,8 +401,8 @@ function string_of_term ( t )
   elseif t.ttype	then return "Type"
   elseif t.tbox_cty 	then return "(Box " .. string_of_code( t.tbox_cty ) .. ")"
   elseif  t.tlam_f 	then
+    local n,var = mk_var2 ( )
     if t.tlam_cty then
-      local n,var = mk_var2 ( )
       return ("(var" .. n .. " : " .. string_of_code(t.tlam_cty).. " => " .. string_of_term( t.tlam_f(mk_box(var),var) ) .. ")" )
     else 
       return ("(var" .. n .. " => " .. string_of_term( t.tlam_f(mk_box(var),var) ) .. ")" )
