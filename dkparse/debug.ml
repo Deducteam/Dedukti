@@ -7,11 +7,17 @@ let string_of_id (m,id) = m ^ "." ^ id
 
 let string_of_perr = function
   | LexerError         (tk,loc)         -> string_of_loc loc ^ " Lexing Error near '" ^ tk ^ "'."
-  | ParserError        (tk,loc)         -> string_of_loc loc ^ " Parsing Error near '" ^ tk ^ "'."
+  | ParsingError        (tk,loc)         -> string_of_loc loc ^ " Parsing Error near '" ^ tk ^ "'."
   | ConstructorMismatch (i1,l1,i2,l2)   -> string_of_loc l2  ^ " Constructor mismatch '" ^ i1 ^ "'!='" ^ i2 ^ "'."
   | AlreadyDefinedId    (id,loc)        -> string_of_loc loc ^ " Already defined constructor: '" ^ string_of_id id ^ "'."
   | ScopeError          (id,loc)        -> string_of_loc loc ^ " Scope Error: '" ^ string_of_id id ^ "'."
-  | UnknownModule       (id,loc)        -> string_of_loc loc ^ " Missing dependency: '" ^ id ^ "'."
+(*  | UnknownModule       (id,loc)        -> string_of_loc loc ^ " Missing
+ *  dependency: '" ^ id ^ "'." *)
+
+let string_of_oerr = function
+  | SetLuaPathError (path,err)  -> "Error: " ^ path ^ " is not a valid path (" ^ err ^ ")"
+  | SetNameError name           -> "Error: invalid name (" ^ name ^ ")"
+  | SetOutError (file,err)      -> "Error: could not write in " ^ file ^ "(" ^ err ^ ")"
 
 let rec string_of_term = function
   | Kind                -> "Kind"

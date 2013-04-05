@@ -11,15 +11,21 @@ type term =
   | Lam of var * term option * term
   | Pi  of var option * term * term
 
-type parsing_error = 
+type option_error =
+  | SetLuaPathError     of string*string        (* (path,err) *)
+  | SetNameError        of string               (* invalid name *)
+  | SetOutError         of string*string        (* (file*err) *)
+
+type parser_error = 
   | LexerError                  of string*loc
-  | ParserError                 of string*loc
+  | ParsingError                of string*loc
   | ConstructorMismatch         of var*loc*var*loc
   | AlreadyDefinedId            of id*loc
   | ScopeError                  of id*loc
-  | UnknownModule               of string*loc
+(*  | UnknownModule               of string*loc *)
 
-exception ParsingError          of parsing_error
+exception ParserError          of parser_error
+exception OptionError          of option_error
 exception End_of_file_in_comment
 
 type pattern = 

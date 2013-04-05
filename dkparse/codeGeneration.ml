@@ -7,30 +7,6 @@ let iteri f lst =
   let i = ref 0 in
     List.iter (fun a -> f !i a ; incr i) lst
 
-(* *********** Prelude ********** *)
-
-let generate_require dep = 
-  fprintf !Global.out "require(\"%s\")\n" dep
-
-let prelude _ =
-  (*fprintf !Global.out "--[[ Code for module %s ]]\n" !Global.name ;*)
-  if !Global.do_not_check then
-    begin
-      fprintf !Global.out "require('dedukti')\n" ;
-      List.iter generate_require !Global.libs ;
-      fprintf !Global.out "%s = { }\n" !Global.name
-    end
-  else
-    begin
-      fprintf !Global.out "require('dedukti')\n" ;
-      List.iter generate_require !Global.libs ;
-      fprintf !Global.out "debug_infos = %B\n" (not !Global.quiet) ;
-      fprintf !Global.out "local %s = { }\n\n" !Global.name
-    end
-
-let exit _ =
-  fprintf !Global.out "\nos.exit(1)\n" 
-
 (* *********** Lua Code Generation *********** *)
 
 let rec gen_code = function
@@ -80,7 +56,6 @@ let rec gen_lazy_code = function
           fprintf !Global.out " end }"
         end
   | c                   -> gen_code c
-
 
 (* *********** Lua Term Generation *********** *)
 
@@ -420,8 +395,10 @@ let gen_env ((id,loc),te) =
   fprintf !Global.out "\nprint_debug(\"%s\tChecking variable %s\t\t\")\n" (Debug.string_of_loc loc) id ;
   (if iskind te then fprintf !Global.out "chkkind(" else fprintf !Global.out "chktype(");
   gen_term te ;
-  fprintf !Global.out ")\nlocal %s_c = { cid = \"%s\" ; args = { } }\n" id id ; 
-  fprintf !Global.out "local %s_t = { tbox_cty = " id ;
+  (*fprintf !Global.out ")\nlocal %s_c = { cid = \"%s\" ; args = { } }\n" id id ; 
+  fprintf !Global.out "local %s_t = { tbox_cty = " id ; FIXME*)
+  fprintf !Global.out ")\n%s_c = { cid = \"%s\" ; args = { } }\n" id id ; 
+  fprintf !Global.out "%s_t = { tbox_cty = " id ;
   gen_lazy_code te ;
   fprintf !Global.out " }\n" 
   (*; fprintf !Global.out "assert(is_code(%s_c))\n" id 
@@ -461,4 +438,76 @@ let generate_rules_code id rules =
         cc (new_pMat rules) ;
         fprintf !Global.out "\nend }\n" 
       end
+
+(* External symbol checks *)
+
+let rec ext_check_term = function
+  | Kind | Type | Var _                         -> ()
+  | Lam (_,None,a)                              -> ext_check_term a
+  | App (a,b) | Lam (_,Some a,b) | Pi (_,a,b)   -> ( ext_check_term a ; ext_check_term b )
+  | GVar (m,_)                                  -> if Global.is_checked m then fprintf !Global.out "check_ext(%s,'[ Lua ]  %s is undefined.')\n" m m
+
+let rec ext_check_pat = function
+  | Joker | Id _        -> ()
+  | Pat (_,te,pats)     -> ( Array.iter ext_check_term te ; Array.iter ext_check_pat pats )
+
+let ext_check_rule (_,env,dots,pats,te) =
+  List.iter (fun e -> ext_check_term (snd e)) env ;
+  Array.iter ext_check_term dots ;
+  Array.iter ext_check_pat pats ;
+  ext_check_term te
+
+(* Entry Points *)
+ 
+let mk_require dep = 
+  fprintf !Global.out "require(\"%s\")\n" dep
+
+let prelude _ =
+  (*fprintf !Global.out "--[[ Code for module %s ]]\n" !Global.name ;*)
+  ( if !Global.lua_path <> "" then 
+      fprintf !Global.out "package.path = '%s/?.lua' .. package.path \n" !Global.lua_path ) ;
+  if !Global.do_not_check then
+    begin
+      fprintf !Global.out "require('dedukti')\n" ;
+      List.iter mk_require !Global.libs ;
+      fprintf !Global.out "%s = { }\n" !Global.name
+    end
+  else
+    begin
+      fprintf !Global.out "require('dedukti')\n" ;
+      List.iter mk_require !Global.libs ;
+      fprintf !Global.out "debug_infos = %B\n" (not !Global.quiet) ;
+      (*fprintf !Global.out "local %s = { }\n\n" !Global.name*)
+      fprintf !Global.out "%s = { }\n\n" !Global.name
+    end
+
+let exit _ =
+  fprintf !Global.out "\nos.exit(1)\n" 
+       
+let mk_declaration id loc ty =
+  ( if !Global.check_ext then ext_check_term ty ) ;
+  ( if !Global.do_not_check then () else generate_decl_check id loc ty ) ;
+  generate_decl_code id ;
+  generate_decl_term id ty
+
+let mk_definition id loc te ty =
+  ( if !Global.check_ext then ext_check_term te ) ;
+  ( if not !Global.do_not_check then ( ext_check_term ty ; generate_def_check id loc te ty ) ) ;
+  generate_def_code id te ;
+  generate_def_term id te 
+
+let mk_opaque id loc te ty = 
+  ( if !Global.check_ext then ext_check_term ty ) ;
+  ( if not !Global.do_not_check then ( ext_check_term te ; generate_def_check id loc te ty ) ) ;
+  generate_decl_code id ;
+  generate_decl_term id ty 
+
+let mk_typecheck loc te ty = 
+  ( if !Global.check_ext then ( ext_check_term ty ; ext_check_term te ) ) ;
+  ( if not !Global.do_not_check then generate_def_check "_" loc te ty )
+
+let mk_rules id rs = 
+  ( if !Global.check_ext then Array.iter ext_check_rule rs ) ;
+  if !Global.do_not_check then () else Array.iteri (generate_rule_check id) rs ;
+  generate_rules_code id rs
 

@@ -340,6 +340,14 @@ function print_ok_ko2 ( status , msg )
   end
 end
 
+function check_ext ( ext , msg )
+  if not ext then
+    io.stderr:write("\n ##############################\n")
+    io.stderr:write(msg .. "\n")
+    os.exit(1)
+  end
+end    
+
 -- Code*Code -> Code
 function app ( f , a )
   status,res = pcall ( uapp , f , a )

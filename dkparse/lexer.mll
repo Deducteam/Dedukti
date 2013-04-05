@@ -33,7 +33,7 @@ rule token = parse
   | "Type"	                { TYPE          }
   | id as s1 '.' (id as s2)     { QID (s1,s2,mk_loc lexbuf)         } 
   | id  as s                    { ID (s,mk_loc lexbuf) } 
-  | _   as s		        { raise ( ParsingError (LexerError(String.make 1 s,mk_loc lexbuf)) ) }
+  | _   as s		        { raise ( ParserError (LexerError(String.make 1 s,mk_loc lexbuf)) ) }
   | eof		                { EOF }
 
  and comment = parse 

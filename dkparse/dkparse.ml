@@ -1,34 +1,11 @@
+
 open Types
-
-exception IncorrectFileName
-
-(* Arguments *)
-
-let args = [
-        ("-o", Arg.String (fun s -> Global.out   := (open_out s)  )     , "output file"         ) ;
-        ("-c", Arg.Set Global.do_not_check                              , "do not check"        ) ;
-        ("-q", Arg.Set Global.quiet                                     , "quiet"               ) ;
-        ("-l", Arg.String (fun s -> Global.libs := s::(!Global.libs))   , "load a library"      ) ;
-        ("-r", Arg.Set Global.ignore_redeclarations                     , "ignore redeclarations" )
-]
-
-let set_name str =
-  let bname = Filename.basename str in
-  let name  =
-    try Filename.chop_extension bname
-    with Invalid_argument _ -> bname
-  in 
-    if Str.string_match (Str.regexp "[a-zA-Z_][a-zA-Z_0-9]*") name 0 then
-      Global.name := name
-    else
-      raise IncorrectFileName 
 
 (* Error Msgs *)
 
 let error str = 
-  prerr_string str ; 
-  prerr_newline () ; 
-  CodeGeneration.exit () ;
+  Global.debug ("\027[31m" ^ str ^ "\027[m\n");
+  CodeGeneration.exit () ;      
   exit 1 
 
 (* Parsing *)
@@ -43,25 +20,52 @@ let parse lb =
           let line = curr.Lexing.pos_lnum in
           let cnum = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
           let tok = Lexing.lexeme lb in
-            raise (ParsingError (ParserError (tok,(line,cnum))))
+            raise (ParserError (ParsingError (tok,(line,cnum))))
         end
 
-(* Main *)
+(* Run *)
 
-let main str =
+let run input =
   try
-    if !Global.quiet then () else prerr_endline (" --- Processing " ^ str ^ " --- ");
-    let file = open_in str      in
-    let _ = set_name str        in
-    let lexbuf = Lexing.from_channel file in
+    Global.debug (" --- Processing " ^ !Global.name ^ " --- \n");
+    let lexbuf = Lexing.from_channel input in
       CodeGeneration.prelude () ;
       parse lexbuf
   with 
-    | ParsingError err          -> error ("\027[31m" ^ (Debug.string_of_perr err) ^ "\027[m") 
-    | Sys_error msg             -> error ("System error: "^msg)
-    | IncorrectFileName         -> error ("Incorrect File Name.") 
+    | ParserError err           -> error ( Debug.string_of_perr err ) 
     | End_of_file_in_comment    -> error ("Unexpected end of file.") 
-    | End_of_file               -> Hashtbl.clear Global.gs 
+    | End_of_file               -> ( Hashtbl.clear Global.gs ; Global.name := "" )
 
-let _ = Arg.parse args main "Usage: dkparse [options] files"  
-  
+let run_on_file str =
+  let file = try open_in str with Sys_error msg -> error ("System error: "^msg) in
+    ( if !Global.name = "" then
+        let bname = Filename.basename str in
+        let name =
+          try Filename.chop_extension bname
+          with Invalid_argument _ -> bname
+        in 
+          Global.set_name name ) ;
+    run file
+
+let run_on_stdin _ = 
+  ( if !Global.name == "" then Global.set_name "out" ) ; 
+  run stdin ; 
+  exit(0)
+
+(* Main *)
+
+let args = [
+        ("-o"    , Arg.String Global.set_out            , "Output file"         ) ; 
+        ("-n"    , Arg.String Global.set_name           , "Set module name"     ) ; 
+        ("-lpath", Arg.String Global.set_path           , "Set Lua path"        ) ;
+        ("-c"    , Arg.Set Global.do_not_check          , "Do not check"        ) ;
+        ("-u"    , Arg.Clear Global.check_ext           , "Unsafe external symbols" ) ;
+        ("-q"    , Arg.Set Global.quiet                 , "Quiet"               ) ;
+        ("-l"    , Arg.String Global.add_lib            , "Load a library"      ) ;
+        ("-r"    , Arg.Set Global.ignore_redeclarations , "Ignore redeclarations" ) ;
+        ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"  ) 
+]
+
+let _ = 
+  try Arg.parse args run_on_file "Usage: dkparse [options] files"  
+  with OptionError err -> error (Debug.string_of_oerr err) 

@@ -2,39 +2,33 @@
 
 open Types
 
-let mk_declaration (id,loc) ty =
-        Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ id ^ "\t\t")  ;
-        if !Global.do_not_check then () else CodeGeneration.generate_decl_check id loc ty ;
-        CodeGeneration.generate_decl_code id ;
-        CodeGeneration.generate_decl_term id ty ;
-        Global.debug_ok () 
-
-let mk_declaration0 idl ty =
+let mk_declaration id loc ty =
         if !Global.ignore_redeclarations then
-                if Global.gscope_add_decl idl then mk_declaration idl ty
-                else Global.debug (Debug.string_of_loc (snd idl) ^ "\tGenerating declaration " ^ (!Global.name) ^ "." ^ (fst idl) ^ "\t\t[IGNORED]\n")
+                if Global.gscope_add_decl (id,loc) then (
+                        Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ id ^ "\t\t")  ;
+                        CodeGeneration.mk_declaration id loc ty ;
+                        Global.debug_ok () )
+                else 
+                        Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ (!Global.name) ^ "." ^ id ^ "\t\t[IGNORED]\n")
         else (
-                Global.gscope_add idl ;
-                mk_declaration idl ty
-        ) 
+                Global.gscope_add (id,loc) ;
+                Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ id ^ "\t\t")  ;
+                CodeGeneration.mk_declaration id loc ty ;
+                Global.debug_ok () ) 
 
 let mk_definition (id,loc) te ty =
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating definition " ^ id ^ "\t\t") ;
-        if !Global.do_not_check then () else CodeGeneration.generate_def_check id loc te ty ;
-        CodeGeneration.generate_def_code id te ;
-        CodeGeneration.generate_def_term id te ;
+        CodeGeneration.mk_definition id loc te ty ;
         Global.debug_ok () 
 
 let mk_opaque (id,loc) te ty = 
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating opaque definition " ^ id ^ "\t\t")  ;
-        if !Global.do_not_check then () else CodeGeneration.generate_def_check id loc te ty ;
-        CodeGeneration.generate_decl_code id ;
-        CodeGeneration.generate_decl_term id ty ;
+        CodeGeneration.mk_opaque id loc te ty ;
         Global.debug_ok () 
 
 let mk_typecheck loc te ty = 
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating typechecking ... \t\t") ;
-        if !Global.do_not_check then () else CodeGeneration.generate_def_check "_" loc te ty ; 
+        CodeGeneration.mk_typecheck loc te ty ;
         Global.debug_ok () 
 
 let mk_rules (a:loc*rules) = 
@@ -42,14 +36,13 @@ let mk_rules (a:loc*rules) =
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating rule checks for "^ id^" \t\t") ; 
         let rs = Array.of_list rules    in
         Global.chk_rules_id a  ; 
-        if !Global.do_not_check then () else Array.iteri (CodeGeneration.generate_rule_check id) rs ;
-        CodeGeneration.generate_rules_code id rs  ;
+        CodeGeneration.mk_rules id rs ;
         Global.debug_ok () 
 
 let mk_require (dep,loc) =
         Global.libs := dep::(!Global.libs) ;
         Global.debug (Debug.string_of_loc loc ^ "\tGenerating dependency "^dep^" \t\t") ;
-        CodeGeneration.generate_require dep ; 
+        CodeGeneration.mk_require dep ; 
         Global.debug_ok () 
 
 %}
@@ -87,7 +80,7 @@ let mk_require (dep,loc) =
 top:              EOF                                                   { raise End_of_file }
                 | line top                                              { () }
 
-line:             ID COLON term DOT                                     { mk_declaration0 $1 $3 }
+line:             ID COLON term DOT                                     { mk_declaration (fst $1) (snd $1) $3 }
                 | ID COLON term DEF term DOT                            { Global.gscope_add $1 ; mk_definition $1 $5 $3 }
                 | LEFTBRA ID RIGHTBRA COLON term DEF term DOT           { Global.gscope_add $2 ; mk_opaque $2 $7 $5 }
                 | UNDERSCORE COLON term DEF term DOT                    { mk_typecheck $1 $5 $3 }
@@ -97,7 +90,7 @@ line:             ID COLON term DOT                                     { mk_dec
 rules:          rule                                                    { let (id,loc,ru) = $1 in (loc,(id,[ru])) }
                 | rule rules                             
                         { let (id1,l1,ru) = $1 and (l2,(id2,lst)) = $2 in 
-                          if id1<>id2 then raise (ParsingError (ConstructorMismatch (id1,l1,id2,l2))) 
+                          if id1<>id2 then raise (ParserError (ConstructorMismatch (id1,l1,id2,l2))) 
                           else (l1,(id1,ru::lst)) }
                 ;
 
