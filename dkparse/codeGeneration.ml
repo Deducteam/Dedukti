@@ -465,7 +465,7 @@ let mk_require dep =
 let prelude _ =
   (*fprintf !Global.out "--[[ Code for module %s ]]\n" !Global.name ;*)
   ( if !Global.lua_path <> "" then 
-      fprintf !Global.out "package.path = '%s/?.lua' .. package.path \n" !Global.lua_path ) ;
+      fprintf !Global.out "package.path = '%s/?.lua;' .. package.path \n" !Global.lua_path ) ;
   if !Global.do_not_check then
     begin
       fprintf !Global.out "require('dedukti')\n" ;
