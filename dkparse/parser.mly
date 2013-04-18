@@ -2,52 +2,49 @@
 
 open Types
 
-let mk_declaration id loc ty =
-        if !Global.ignore_redeclarations then
-                if Global.gscope_add_decl (id,loc) then (
-                        Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ id ^ "\t\t")  ;
-                        CodeGeneration.mk_declaration id loc ty ;
-                        Global.debug_ok () )
-                else 
-                        Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ (!Global.name) ^ "." ^ id ^ "\t\t[IGNORED]\n")
-        else (
-                Global.gscope_add (id,loc) ;
-                Global.debug (Debug.string_of_loc loc ^ "\tGenerating declaration " ^ id ^ "\t\t")  ;
-                CodeGeneration.mk_declaration id loc ty ;
-                Global.debug_ok () ) 
+let mk_prelude (name:var) : unit = 
+        Global.set_name name ;
+        match !Global.action with
+          | PrintDedukti        -> assert false (*TODO*)
+          | PrintMMT            -> Mmt.mk_prelude name
+          | LuaGeneration       -> LuaGeneration.mk_prelude name 
 
-let mk_definition (id,loc) te ty =
-        Global.debug (Debug.string_of_loc loc ^ "\tGenerating definition " ^ id ^ "\t\t") ;
-        CodeGeneration.mk_definition id loc te ty ;
-        Global.debug_ok () 
+let mk_ending  _ : unit = 
+        match !Global.action with
+          | PrintDedukti        -> assert false (*TODO*)
+          | PrintMMT            -> Mmt.mk_ending ()
+          | LuaGeneration       -> ( LuaGeneration.mk_ending () ; Scope.clear () )
 
-let mk_opaque (id,loc) te ty = 
-        Global.debug (Debug.string_of_loc loc ^ "\tGenerating opaque definition " ^ id ^ "\t\t")  ;
-        CodeGeneration.mk_opaque id loc te ty ;
-        Global.debug_ok () 
 
-let mk_typecheck loc te ty = 
-        Global.debug (Debug.string_of_loc loc ^ "\tGenerating typechecking ... \t\t") ;
-        CodeGeneration.mk_typecheck loc te ty ;
-        Global.debug_ok () 
+let mk_declaration ( v,ty : var*pterm ) : unit = 
+   match !Global.action with
+          | PrintDedukti        -> assert false (*TODO*)
+          | PrintMMT            -> Mmt.mk_declaration (v,ty)
+          | LuaGeneration       -> LuaGeneration.mk_declaration (v,ty)
 
-let mk_rules (a:loc*rules) = 
-        let (loc,(id,rules)) = a         in
-        Global.debug (Debug.string_of_loc loc ^ "\tGenerating rule checks for "^ id^" \t\t") ; 
-        let rs = Array.of_list rules    in
-        Global.chk_rules_id a  ; 
-        CodeGeneration.mk_rules id rs ;
-        Global.debug_ok () 
 
-let mk_require (dep,loc) =
-        Global.libs := dep::(!Global.libs) ;
-        Global.debug (Debug.string_of_loc loc ^ "\tGenerating dependency "^dep^" \t\t") ;
-        CodeGeneration.mk_require dep ; 
-        Global.debug_ok () 
+let mk_definition (def:definition) : unit =
+   match !Global.action with
+          | PrintDedukti        -> assert false (*TODO*)
+          | PrintMMT            -> Mmt.mk_definition def
+          | LuaGeneration       -> LuaGeneration.mk_definition def 
+
+let mk_rules (rs:prule list) : unit = 
+   match !Global.action with
+          | PrintDedukti        -> assert false (*TODO*)
+          | PrintMMT            -> Mmt.mk_rules rs
+          | LuaGeneration       -> LuaGeneration.mk_rules rs 
+
+let mk_require ( l,dep : loc*string ) : unit = 
+   match !Global.action with
+          | PrintDedukti        -> assert false (*TODO*)
+          | PrintMMT            -> Mmt.mk_require dep
+          | LuaGeneration       -> LuaGeneration.mk_require l dep
 
 %}
 
 %token EOF
+%token AT
 %token DOT
 %token COMMA
 %token COLON
@@ -64,87 +61,81 @@ let mk_require (dep,loc) =
 %token LEFTSQU
 %token RIGHTSQU
 %token TYPE
-%token <string*Types.loc> ID
-%token <string*string*Types.loc> QID
+%token <Types.var> ID
+%token <Types.id> QID
 
 %start top
 %type <unit> top
+%type <unit> prelude
+%type <unit> line_lst
 %type <unit> line
-%type <Types.loc*Types.rules> rules
-%type <string*Types.loc*Types.rule> rule
-%type <string*Types.loc*Types.term array*Types.pattern array> pat
+%type <Types.prule list> rule_lst
+%type <Types.prule> rule
+%type <Types.var*Types.pterm> decl
+%type <(Types.var*Types.pterm) list> context
+%type <Types.top_ppat> top_pattern
+%type <Types.pterm list> dot_lst
+%type <Types.ppat list> pat_lst
+%type <Types.ppat> pattern
+%type <Types.pterm> sterm
+%type <Types.pterm> app
+%type <Types.pterm> term
 
 %right ARROW FATARROW
 
 %%
-top:              EOF                                                   { raise End_of_file }
-                | line top                                              { () }
+top:            prelude line_lst EOF                            { mk_ending () ; raise End_of_file }
 
-line:             ID COLON term DOT                                     { mk_declaration (fst $1) (snd $1) $3 }
-                | ID COLON term DEF term DOT                            { Global.gscope_add $1 ; mk_definition $1 $5 $3 }
-                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT           { Global.gscope_add $2 ; mk_opaque $2 $7 $5 }
-                | UNDERSCORE COLON term DEF term DOT                    { mk_typecheck $1 $5 $3 }
-                | rules DOT                                             { mk_rules $1 } 
-                | HASH ID                                               { mk_require $2 } ;
+prelude:        AT ID                                           { mk_prelude $2 }
 
-rules:          rule                                                    { let (id,loc,ru) = $1 in (loc,(id,[ru])) }
-                | rule rules                             
-                        { let (id1,l1,ru) = $1 and (l2,(id2,lst)) = $2 in 
-                          if id1<>id2 then raise (ParserError (ConstructorMismatch (id1,l1,id2,l2))) 
-                          else (l1,(id1,ru::lst)) }
-                ;
+line_lst:       /* empty */                                     { () }
+                | line line_lst                                 { () }
 
-rule:            LEFTSQU bdgs RIGHTSQU pat LONGARROW term                     
-                        { Global.lscope_remove_lst $2 ; 
-                          let (id,loc,dots,pats) = $4 in (id,loc,(loc,$2,dots,pats,$6))  }
-                ;
+line:             ID COLON term DOT                             { mk_declaration ($1,$3) }
+                | ID COLON term DEF term DOT                    { mk_definition (Def ($1,$3,$5)) }
+                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT   { mk_definition (Opaque ($2,$5,$7)) }
+                | UNDERSCORE COLON term DEF term DOT            { mk_definition (Anon ($1,$3,$5)) }
+                | rule_lst DOT                                  { mk_rules $1 } 
+                | HASH ID                                       { mk_require $2 }
 
-bdg:            ID COLON term                                   { Global.lscope_add (fst $1) ; ($1,$3) }
-                ;
+rule_lst:         rule                                          { [$1] }
+                | rule rule_lst                                 { $1::$2 }
 
-bdgs:           /* empty */                                     { [] }
-                | bdg COMMA bdgs                                { $1::$3 }
-                | bdg                                           { [$1] }
-                ;
+rule:            LEFTSQU context RIGHTSQU top_pattern LONGARROW term    { ($2,$4,$6) } 
 
-pat:            ID dotps spats                                  { (fst $1,snd $1,Array.of_list $2,Array.of_list $3) }
-                ;
+decl:           ID COLON term                                   { ($1,$3) }
 
-dotps:          /* empty */                                     { [] }
-                | LEFTBRA term RIGHTBRA dotps                  { $2::$4 }
-                ;
+context:        /* empty */                                     { [] }
+                | decl COMMA context                            { $1::$3 }
+                | decl                                          { [$1] }
 
-spats:          /* empty */                                     { [] }
-                | spat spats                                    { $1::$2 }
-                ;
+top_pattern:      ID dot_lst pat_lst                            { ( (fst $1,snd $1) , Array.of_list $2 , Array.of_list $3) }
+         /*       | QID dot_lst pat_lst                           { ( $1 , Array.of_list $2 , Array.of_list $3 ) } */
 
-spat:           ID                                              { Global.mk_pat_var $1 }
-                | QID                                           { Pat (Global.filter_qid $1,[||],[||]) }
-                | LEFTPAR ID  dotps spats RIGHTPAR              { Pat ((!Global.name,fst $2),Array.of_list $3,Array.of_list $4) }           
-                | LEFTPAR QID dotps spats RIGHTPAR              { Pat (Global.filter_qid $2,Array.of_list $3,Array.of_list $4) }           
-                ;
+dot_lst:         /* empty */                                    { [] }
+                | LEFTBRA term RIGHTBRA dot_lst                 { $2::$4 }
 
-sterm           : QID                                           { Global.mk_evar $1 }
-                | ID                                            { Global.mk_var  $1 }
+pat_lst:         /* empty */                                    { [] }
+                | pattern pat_lst                               { $1::$2 }
+
+pattern:          ID                                            { Pat_Id $1 }
+                | QID                                           { Pat_Pa ($1,[||],[||]) }
+                | LEFTPAR ID  dot_lst pat_lst RIGHTPAR          { Pat_Pa ((fst $2,!Global.name,snd $2),Array.of_list $3,Array.of_list $4) }           
+                | LEFTPAR QID dot_lst pat_lst RIGHTPAR          { Pat_Pa ($2,Array.of_list $3,Array.of_list $4) }           
+
+sterm           : QID                                           { P_Qid $1 }
+                | ID                                            { P_Id $1 }
                 | LEFTPAR term RIGHTPAR                         { $2 }
-                | TYPE                                          { Type }
-                ;
+                | TYPE                                          { P_Type }
 
 app:            sterm                                           { $1 }
-                | app sterm                                     { App ($1,$2) }
-                ;
-
-lam_decl:       ID                                              { Global.lscope_add (fst $1) ; (fst $1,None) }
-                | ID COLON app                                  { Global.lscope_add (fst $1) ; (fst $1,Some $3) }
-                ;
-
-pi_decl:        ID COLON app                                    { Global.lscope_add (fst $1) ; (fst $1,$3) }
-                ;
+                | app sterm                                     { P_App ($1,$2) }
 
 term:           app                                             { $1 }
-                | pi_decl ARROW term                            { Global.lscope_remove (fst $1) ; Pi  (Some (fst $1), snd $1, $3) }
-                | term ARROW term                               { Pi  (None   , $1, $3) }
-                | lam_decl FATARROW term                        { Global.lscope_remove (fst $1) ; Lam (fst $1, snd $1   , $3) }
-                ;
+                | ID COLON app ARROW term                       { P_Pi  (Some $1, $3, $5) }
+                | term ARROW term                               { P_Pi  (None   , $1, $3) }
+                | ID FATARROW term                              { P_Lam ($1, None , $3) }
+                | ID COLON app FATARROW term                    { P_Lam ($1, Some $3 , $5 ) }
+
 %%
 

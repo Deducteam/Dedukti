@@ -1,3 +1,4 @@
+@church
 type : Type.
 arr : type -> type -> type.
 e : type -> Type.

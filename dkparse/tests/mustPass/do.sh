@@ -1,7 +1,6 @@
 #!/bin/bash
 
-luajit='luajit-2.0.0-beta9'
-
 for file in *.dk ; do
-	dedukti $file | $luajit - || exit 47
+	echo "Test '$file':"
+	dkjit -q $file && echo -e " > \e[32mSUCCESS !\e[m" || echo -e " > \e[31mFAIL !\e[m"
 done

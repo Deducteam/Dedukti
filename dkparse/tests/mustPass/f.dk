@@ -1,3 +1,5 @@
+@f
+
 Utype : Type.
 Ukind : Type.
 etype : Utype -> Type.

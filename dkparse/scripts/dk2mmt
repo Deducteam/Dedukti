@@ -1,0 +1,7 @@
+#!/bin/bash
+if [ $# -ne 2 ]
+then
+	echo "Usage: dk2mmt input.dk output.mmt"
+	exit 1
+fi
+dkc --mmt -o $2 $1
