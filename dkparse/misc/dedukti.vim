@@ -20,8 +20,9 @@ syn match dkDummy 	'_'
 syn match dkParL 	'('
 syn match dkParR 	')'
 
-syn match dkId		'[A-Za-z][A-Za-z0-9_]*\(\.[A-Za-z][a-zA-Z0-9_]*\)\?'
-syn match dkDep		'#[A-Za-z][A-Za-z0-9_]*'
+syn match dkId		'[A-Za-z_][A-Za-z0-9_]*\(\.[A-Za-z_][a-zA-Z0-9_]*\)\?'
+syn match dkDep		'#[A-Za-z_][A-Za-z0-9_]*'
+syn match dkMod		'@[A-Za-z_][A-Za-z0-9_]*'
 
 syn region dkComment	start="(;" 	end=";)" fold
 syn region dkEnv 	start='\['	end='\]' contains=rien 
@@ -30,6 +31,7 @@ hi def link dkComment	Comment
 hi def link dkTodo    	Todo
 hi def link dkId	Identifier
 hi def link dkDep	PreProc
+hi def link dkMod	Special
 hi def link dkType	Type
 
 hi def link dkEnv	Statement
