@@ -1,3 +1,4 @@
 #!/bin/bash
+LUA=lua
 set -o pipefail
-dkc $* | lua
+dkc $* | $LUA

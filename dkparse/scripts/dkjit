@@ -1,3 +1,0 @@
-#!/bin/bash
-set -o pipefail
-dkc $* | luajit-2.0.0-beta9

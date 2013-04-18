@@ -1,0 +1,4 @@
+#!/bin/bash
+LUA=luajit-2.0.0-beta9
+set -o pipefail
+dkc $* | $LUA
