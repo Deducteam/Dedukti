@@ -1,12 +1,10 @@
 
 ### INSTALLATION
 
-#1 Modify the Makefile to reflect our system setings
-
+#1 Modify the Makefile to reflect your system settings
 #2 make
-
 #2 sudo make install
 
 ### TEST
 
-dkcheck tests/mustPass/append.dk
+# dkcheck tests/mustPass/append.dk
