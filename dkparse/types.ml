@@ -56,7 +56,7 @@ type gdt =
   | LeafNil 
   | Leaf1 of pat array*occ array*term
   | Leaf2 of term
-  | Node  of (occ*id*gdt) list*gdt
+  | Node  of (occ*(string*string)*gdt) list*gdt
 
 (* Errors *)
 

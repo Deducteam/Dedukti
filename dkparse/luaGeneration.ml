@@ -183,7 +183,7 @@ let rec print_gdt = function
   | Node (fst::lst,def) -> 
       begin
         (*CASES*)
-        let print_case (l,(_,m,cst),tr) =
+        let print_case (l,(m,cst),tr) =
           fprintf !Global.out "if " ;
           print_path l ;
           fprintf !Global.out ".cid == \"%s.%s\" then\n" m cst ; 

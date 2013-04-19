@@ -97,36 +97,8 @@ let default (pm:pMat) (c:int) : pMat option =
                a = Array.of_list !l_a ; 
                loc = pm.loc ; 
         } 
-(*
-let print_path p = 
-    assert(p!=[]);
-    iteri ( 
-      fun i e ->
-        if i=0 then fprintf !Global.out "y%i" (e+1) 
-        else fprintf !Global.out ".args[%i]" (e+1) 
-    ) (List.rev p) (*get rid of rev?*)
 
-let print_locals vars locs = 
-  assert (Array.length vars = Array.length locs);
-  if Array.length vars = 0 then ()
-  else 
-    begin
-      let first = ref true in
-        fprintf !Global.out "local ";
-        Array.iter (
-          function 
-            | Id id   -> if !first then (fprintf !Global.out "%s_c" id ; first:=false) else fprintf !Global.out ", %s_c" id 
-            | Joker   ->  if !first then (fprintf !Global.out "dummy" ; first:=false) else fprintf !Global.out ", dummy" 
-            | _       -> assert false
-        ) vars;
-        first := true;
-        fprintf !Global.out " = ";
-        Array.iter (fun l -> (if !first then first:=false else fprintf !Global.out ", "  ) ; print_path l ) locs ;
-        fprintf !Global.out "\n"
-      end
- *)
-
-let partition (mx:pat array array) (c:int) : (id*int*int list) list =
+let partition (mx:pat array array) (c:int) : ((string*string)*int*int list) list =
     let lst = ref [] in
     let checked = Array.make (Array.length mx) false in
       for i=pred (Array.length mx) downto 0 do
@@ -134,26 +106,25 @@ let partition (mx:pat array array) (c:int) : (id*int*int list) list =
         else (
           assert (c < Array.length mx.(i));
           match mx.(i).(c) with
-            | Joker             -> () 
-            | Var _             -> () 
-            | Pat (cst,_,pats)  ->
+            | Joker                     -> () 
+            | Var _                     -> () 
+            | Pat ((_,m,cst),_,pats)    ->
                 let l = ref [] in
                   begin
                     for j=0 to pred (Array.length mx) do
                       match mx.(j).(c) with
                         | Joker             -> l := j::!l
                         | Var _             -> l := j::!l
-                        | Pat (cst2,_,pats)    ->
-                            if (cst=cst2 && i!=j) then ( l := j::!l ; checked.(j) <- true )
+                        | Pat ((_,m',cst'),_,pats)    ->
+                            if (cst=cst' && m=m' && i!=j) then ( l := j::!l ; checked.(j) <- true )
                             else ()
                     done ;
-                    lst := (cst,Array.length pats,i::!l)::!lst ;
+                    lst := ((m,cst),Array.length pats,i::!l)::!lst ;
                     checked.(i) <- true
                   end
         )
       done ;
       !lst 
- 
 
 let getColumn arr =
     let rec aux i =
