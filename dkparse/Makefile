@@ -3,7 +3,7 @@
 
 INSTALL_DIR=/usr/bin
 LUA_CMD=lua
-LUAJIT_CMD=luajit-2.0.0-beta9
+LUAJIT_CMD=luajit-2.0.0
 LUA_LIB=/usr/share/lua/5.1/
 
 # DO NOT EDIT AFTER THIS LINE
@@ -14,10 +14,10 @@ dkc:
 	ocamlbuild -libs str main.native
 
 dkcheck:
-	sed -i "2iLUA=${LUAJIT_CMD}" scripts/dkcheck
+	sed -i "2s/.*/LUA=${LUAJIT_CMD}/" scripts/dkcheck
 
 dkchecknojit:
-	sed -i "2iLUA=${LUA_CMD}" scripts/dkchecknojit
+	sed -i "2s/.*/LUA=${LUA_CMD}/" scripts/dkchecknojit
 
 install:
 	install main.native ${INSTALL_DIR}/dkc
