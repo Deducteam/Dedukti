@@ -2,9 +2,9 @@
 open Printf
 open Types
 
-let ascii29 = Char.chr 29
-let ascii30 = Char.chr 30
-let ascii31 = Char.chr 31
+let ascii29 = Char.chr 29 (* 1d : end of block *)
+let ascii30 = Char.chr 30 (* 1e : end of line  *)
+let ascii31 = Char.chr 31 (* 1f : separator *)
 
 let rec print_term = function
   | P_Type              -> fprintf !Global.out "Type "
@@ -94,11 +94,19 @@ let mk_declaration ((_,id),ty) =
   print_term ty ;
   fprintf !Global.out "%c\n" ascii30 
 
-let mk_definition _ = 
-  assert false (*TODO*)
+let mk_definition = function 
+  | Def ((_,id),ty,te)  ->
+     begin
+       fprintf !Global.out "%s : " id ;
+       print_term ty ;
+       fprintf !Global.out "%c\n = " ascii31 ;
+       print_term te ;
+       fprintf !Global.out "%c\n" ascii30 
+     end 
+  | Opaque (v,ty,te)    -> failwith "Not implemented (Opaque definition)"
+  | Anon (l,ty,te)      -> failwith "Not implemented (Anon definition)"
 
 let mk_rules (rs:prule list) = 
   List.iter mk_rule rs
 
-let mk_require dep = 
-  assert false (*TODO*) 
+let mk_require dep = failwith "Not implemented (#IMPORT)" (*TODO*) 
