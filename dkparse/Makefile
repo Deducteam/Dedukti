@@ -3,7 +3,7 @@
 
 INSTALL_DIR=/usr/bin
 LUA_CMD=lua
-LUAJIT_CMD=luajit-2.0.0
+LUAJIT_CMD=luajit
 LUA_LIB=/usr/share/lua/5.1/
 
 # DO NOT EDIT AFTER THIS LINE

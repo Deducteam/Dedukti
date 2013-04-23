@@ -1,4 +1,4 @@
 #!/bin/bash
 LUA=lua
 set -o pipefail
-dkc $* | $LUA
+( dkc $* | $LUA ) && echo 1>&2 'SUCCESS' || ( echo 1>&2 'FAILURE' ; exit 1 )

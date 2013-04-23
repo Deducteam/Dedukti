@@ -4,4 +4,4 @@ then
 	echo "Usage: dk2mmt input.dk output.mmt"
 	exit 1
 fi
-dkc --mmt -o $2 $1
+dkc --mmt -o $2 $1 && echo 1>&2 'SUCCESS' || ( echo 1>&2 'FAILURE' ; exit 1 )

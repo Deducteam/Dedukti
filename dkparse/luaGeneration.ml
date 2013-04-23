@@ -396,8 +396,9 @@ let mk_rules ( rs0 : prule list ) =
     generate_rules_code (Array.of_list rs) ;
     Global.debug_ok () 
 
-let mk_ending _ = 
-  if not !Global.quiet then fprintf !Global.out "\nprint_debug(\"SUCCESS !\\n\")\n" ; 
+let mk_ending _ =  
+  (* if not !Global.quiet then fprintf !Global.out "\nprint_debug(\"SUCCESS
+   * !\\n\")\n" ;*) 
   Global.debug " --------- \n"
 
 (* let mk_error _ = fprintf !Global.out "\nos.exit(1)\n" *)

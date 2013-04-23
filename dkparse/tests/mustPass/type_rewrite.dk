@@ -1,4 +1,4 @@
-@tr
+#NAME tr
 A : Type.
 B : Type.
 x : A.

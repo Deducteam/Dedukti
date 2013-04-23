@@ -29,8 +29,8 @@ rule token = parse
   | "=>"	                { FATARROW      }
   | ":="	                { DEF           }
   | "_"	                        { UNDERSCORE (mk_loc lexbuf)    }
-  | "@"	                        { AT            }
-  | "#"	                        { HASH          }
+  | "#NAME"                     { NAME }
+  | "#IMPORT"                   { IMPORT }
   | "Type"	                { TYPE          }
   | id as s1 '.' (id as s2)     { QID (mk_loc lexbuf,s1,s2) } 
   | id  as s                    { ID (mk_loc lexbuf,s) } 

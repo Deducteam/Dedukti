@@ -1,0 +1,144 @@
+\input texinfo   @c -*-texinfo-*-
+@c %**start of header
+@setfilename manual.texinfo
+@settitle Dedukti 1.1
+@c %**end of header
+
+@copying
+This manual is for Dedukti version 1.1.
+@end copying
+
+@c Page de garde
+@titlepage
+@title User Manual (draft)
+@author Ronan Saillard
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@c Sommaire
+@contents
+
+@c Chapter One
+@chapter Quick Start
+
+@section Getting Dedukti
+You can retrieve this Dedukti at @url{https://www.rocq.inria.fr/deducteam/Dedukti/index.html}.
+
+@section Building and Installing Dedukti
+
+To be able to build Dedukti you need @command{OCaml} (version 3.12 or higher).
+To be able to run Dedukti you need @command{luajit} (version 2.0.0 or higher) or @command{lua} (version 5.1 or higher).
+To build Dedukti go to the dedukti directory and call @command{make}:
+@example
+  cd dedukti && make
+@end example
+To install Dedukti, first make sure that the path to the lua library is correct in the @command{Makefile} and change it if needed. Then:
+@example
+  make install
+@end example
+
+@section Using Dedukti
+@subsection Usage
+@command{dkcheck input.dk} @br
+@command{dkchecknojit input.dk} @br
+@command{dkcompile input.dk output.lua} @br
+@command{dk2mmt input.dk output.mmt}
+
+@subsection Options
+TODO
+
+@section Checking multiple files
+TODO
+
+@c Chapter Two
+@chapter Language Specification
+
+@section Language Description
+A Dedukti file begins with the declaration of the module name prefixed with @command{#NAME}.
+The rest of the file contains a list of declarations, definitions, rewrite rules and import annotations.
+Comments are delimited by @command{(;} and @command{;)}.
+
+@section Example
+@verbatim
+
+(; Module addition ;)
+#NAME addition
+
+(; Some declarations ;)
+Nat: Type.		
+Z  : Nat.
+S  : Nat -> Nat.
+plus: Nat -> Nat -> Nat.
+
+(; Two rewrite rules ;)
+[m:Nat]       plus  Z    m --> m
+[n:Nat,m:Nat] plus (S n) m --> S (plus n m).
+
+(; A definition ;)
+Two : Nat := S (S Z).
+
+@end verbatim
+
+@section Grammar
+@verbatim
+top:            prelude line_lst EOF            /* Top Level */
+
+prelude:        #NAME ID                        /* Module Name */
+
+line_lst        : /* empty */
+		| line line_lst
+
+line            : ID : term .               	/* Declaration */
+                | ID : term := term .       	/* Definition */
+                | { ID } : term := term .	/* Opaque Definition */
+                | _ : term := term .        	/* Explicit Type-Checking */
+                | rule_lst .                   	/* Rewrite Rules */
+                | #IMPORT ID                    /* Import Annotation */
+
+rule_lst	: rule
+		| rule rule_lst
+
+rule            : [ context ] top_pat --> term	/* Rewrite Rule */
+
+context		: /* empty */
+		| decl
+		| decl , context
+
+decl            : ID : term			/* Local Declaration */
+
+top_pat        	: ID dot_lst pat_lst  		/* Rewrite Pattern (top level) */
+
+dot_lst		: /* empty */
+		| dot dot_lst
+
+pat_lst		: /* empty */
+		| pat pat_list
+
+pat             : ID                 		/* Rewrite Pattern */
+                | QID               
+                | ( ID  dot_lst pat_lst )
+                | ( QID dot_lst pat_lst )
+
+dot             : { term }			/* Dot Pattern */
+
+sterm           : QID				/* Qualified Identifier */
+                | ID				/* Identifier */
+                | ( term ) 			/* Parenthesized Expression */
+                | Type 				/* Type */
+
+app             : sterm   			/* Application */
+                | app sterm
+
+term            : app
+                | ID : app -> term		/* Dependent Product */
+                | term -> term			/* Non Dependent Product */
+                | ID => term			/* Lambda Abstraction (no type annotation) */
+                | ID : app => term  		/* Lambda Abstraction */
+
+ID  := ['a'-'z' 'A'-'Z' '_']['a'-'z' 'A'-'Z' '_' '0'-'9']*
+QID := ID . ID
+
+@end verbatim
+@bye

@@ -1,4 +1,4 @@
-@FOL
+#NAME FOL
 Prop : Type.
 prf  : Prop -> Type.
 

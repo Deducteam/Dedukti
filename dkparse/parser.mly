@@ -53,7 +53,8 @@ let mk_require ( l,dep : loc*string ) : unit =
 %token LONGARROW
 %token DEF
 %token <Types.loc> UNDERSCORE
-%token HASH
+%token NAME
+%token IMPORT
 %token LEFTPAR
 %token RIGHTPAR
 %token LEFTBRA
@@ -86,7 +87,7 @@ let mk_require ( l,dep : loc*string ) : unit =
 %%
 top:            prelude line_lst EOF                            { mk_ending () ; raise End_of_file }
 
-prelude:        AT ID                                           { mk_prelude $2 }
+prelude:        NAME ID                                           { mk_prelude $2 }
 
 line_lst:       /* empty */                                     { () }
                 | line line_lst                                 { () }
@@ -96,7 +97,7 @@ line:             ID COLON term DOT                             { mk_declaration
                 | LEFTBRA ID RIGHTBRA COLON term DEF term DOT   { mk_definition (Opaque ($2,$5,$7)) }
                 | UNDERSCORE COLON term DEF term DOT            { mk_definition (Anon ($1,$3,$5)) }
                 | rule_lst DOT                                  { mk_rules $1 } 
-                | HASH ID                                       { mk_require $2 }
+                | IMPORT ID                                       { mk_require $2 }
 
 rule_lst:         rule                                          { [$1] }
                 | rule rule_lst                                 { $1::$2 }

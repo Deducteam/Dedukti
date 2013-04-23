@@ -1,2 +1,8 @@
 #!/bin/bash
-dkc -q -c $*
+if [ $# -ne 2 ]
+then
+	echo "Usage: dkcompile input.dk output.lua"
+	exit 1
+fi
+ 
+dkc -q -c -o $2 $1 && echo 1>&2 'SUCCESS' || ( echo 1>&2 'FAILURE' ; exit 1 )

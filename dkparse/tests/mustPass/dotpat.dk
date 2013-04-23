@@ -1,4 +1,4 @@
-@dot
+#NAME dot
 N: Type.
 Z: N.
 S: N->N.
