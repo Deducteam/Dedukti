@@ -1,4 +1,4 @@
 #!/bin/bash
 LUA=luajit
 set -o pipefail
-( dkc $* | $LUA ) && echo 1>&2 'SUCCESS' || ( echo 1>&2 'FAILURE' ; exit 1 ) 
+( dkc $* | $LUA - ) && echo 1>&2 'SUCCESS' || ( echo 1>&2 'FAILURE' ; exit 1 ) 
