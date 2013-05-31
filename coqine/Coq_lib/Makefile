@@ -7,11 +7,11 @@ all:
 -include depend
 
 %.lua:%.dk Coq1univ.lua
-	${DK} $< | ${LUA} -
-	${DK} -c -o $@ $<
+	${DK} -q $< | ${LUA} -
+#	${DK} -q -c -o $@ $<
 
 Coq1univ.lua:../t/Coq1univ.dk
-	${DK} -c -o $@ $<
+	${DK} -q -c -o $@ $<
 
 %.dk:
 	exit 1
