@@ -1,13 +1,12 @@
 
 open Types
-open Hashcons
 
 let string_of_loc (l,c) = "[l:"^string_of_int l^";c:"^string_of_int c^"]"
 
 let string_of_id (m,id) = m ^ "." ^ id
 
 let rec string_of_term (te:term) : string =
-  match te.node with
+  match te with
   | Type                -> "Type"
   | GVar (m,v)          -> m^"."^v
   | DB  n               -> string_of_int n
@@ -22,11 +21,14 @@ let string_of_terr = function
   | TypeExpected None           -> "Type expected (Kind)"
   | TypeExpected (Some te)      -> "Type expected (...)"
   | CannotConvert (None,ty)     -> "Cannot convert Kind with ..."
-  | CannotConvert (Some ty1,ty2)-> "Cannot convert "^string_of_term ty1^" with "^ string_of_term ty2
+  | CannotConvert (Some ty1,ty2)-> "Cannot convert ... with ..."
 
 let string_of_perr =  function
   | LexerError          (tk,loc)                -> string_of_loc loc ^ " Lexing Error near '" ^ tk ^ "'."
   | ParsingError        (tk,loc)                -> string_of_loc loc ^ " Parsing Error near '" ^ tk ^ "'."
+(*  | ConstructorMismatch ((_,i1),(l2,i2))        -> string_of_loc l2  ^ " Constructor mismatch '" ^ i1 ^ "'!='" ^ i2 ^ "'."
+  | AlreadyDefinedId    v                       -> string_of_loc (fst v) ^ " Already defined constructor: '" ^ (snd v) ^ "'."
+  | ScopeError          v                       -> string_of_loc (fst v) ^ " Scope Error: '" ^ (snd v) ^ "'." *)
   | SetNameError        (name,loc)              -> string_of_loc loc ^ " Invalid module name: '" ^ name ^ "'"
 
 let nn = ref (-1)
