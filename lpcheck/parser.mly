@@ -4,7 +4,6 @@ open Checker
 %}
 
 %token EOF
-%token AT
 %token DOT
 %token COMMA
 %token COLON

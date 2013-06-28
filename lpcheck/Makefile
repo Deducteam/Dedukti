@@ -6,11 +6,10 @@ INSTALL_DIR=/usr/bin
 # DO NOT EDIT AFTER THIS LINE
 
 all: 
-	#ocamlbuild -libs str main.native
-	ocamlbuild main.native
+	ocamlbuild -use-menhir main.native
 
 profile:
-	ocamlbuild -tag profile main.native
+	ocamlbuild -use-menhir -tag profile main.native
 
 install:
 	install main.native ${INSTALL_DIR}/lpcheck
