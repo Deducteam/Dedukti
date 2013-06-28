@@ -13,26 +13,48 @@ let ext : env SHashtbl.t = SHashtbl.create 19
 
 (* Get *)
 
-let get_env m = 
-  if m = !Global.name then env
+let get_symbol v =
+  try ( SHashtbl.find env v )
+  with Not_found -> 
+    raise (TypingError (UndefinedSymbol (!Global.name,v)))
+
+let get_ext_symbol m v =
+  let h =
+    try SHashtbl.find ext m 
+    with Not_found -> failwith "Could not find the module" 
+  in
+    try ( SHashtbl.find h v )
+    with Not_found -> 
+      raise (TypingError (UndefinedSymbol (m,v)))
+
+type get_type_type =
+  | HTerm of term
+  | NotHTerm of term
+
+let get_type (m,v) = 
+  if m == !Global.name then
+    ( match get_symbol v with
+      | Decl ty         -> HTerm ty
+      | Def (_,ty)      -> HTerm ty )
   else
-    ( try SHashtbl.find ext m 
-      with Not_found -> failwith "Could not find the module" )
+    ( match get_ext_symbol m v with
+        | Decl ty       -> NotHTerm ty
+        | Def (_,ty)    -> NotHTerm ty )
 
-let get_symbol (m,v) =
-  let ht = get_env m in
-  try ( SHashtbl.find ht v )
-  with Not_found -> raise (TypingError (UndefinedSymbol (m,v)))
+type get_def_type =
+  | NoNe
+  | SoMe of term
+  | Ext of term
 
-let get_type id = 
-  match get_symbol id with
-    | Decl ty           -> ty
-    | Def (_,ty)        -> ty 
-
-let get_def id = 
-  match get_symbol id with
-    | Decl _          -> None
-    | Def (te,_)      -> Some te 
+let get_def (m,v) = 
+  if m == !Global.name then
+    ( match get_symbol v with
+      | Decl _          -> NoNe
+      | Def (te,_)      -> SoMe te )
+  else
+    ( match get_ext_symbol m v with
+        | Decl _        -> NoNe
+        | Def (te,_)    -> Ext te )
 
 (* Add *)
 

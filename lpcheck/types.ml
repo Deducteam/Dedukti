@@ -35,7 +35,8 @@ exception End_of_file_in_comment
 
 type id  = string*string
 
-type term = 
+type term = term_node Hashcons.hash_consed
+and term_node =
   | Type                                (* Type *)
   | GVar of id                          (* Global variable *)
   | DB   of int                         (* deBruijn *)
