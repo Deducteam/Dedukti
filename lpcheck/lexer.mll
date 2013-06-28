@@ -31,8 +31,8 @@ rule token = parse
   | "#NAME"                     { NAME }
   | "#IMPORT"                   { IMPORT }
   | "Type"	                { TYPE          }
-  | id as s1 '.' (id as s2)     { QID (mk_loc lexbuf,s1,s2) } 
-  | id  as s                    { ID (mk_loc lexbuf,s) } 
+  | id as s1 '.' (id as s2)     { QID (mk_loc lexbuf,Global.hstring s1,Global.hstring s2) } 
+  | id  as s                    { ID (mk_loc lexbuf,Global.hstring s) } 
   | _   as s		        { raise ( Types.ParserError (Types.LexerError(String.make 1 s,mk_loc lexbuf)) ) }
   | eof		                { EOF }
 
