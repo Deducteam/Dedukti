@@ -26,14 +26,28 @@ type rule  = context * top_pattern * pterm (* [ env ] top_pattern --> term *)
 type parser_error = 
   | LexerError                  of string * loc
   | ParsingError                of string * loc
-  | SetNameError                of string * loc              
+(*  | SetNameError                of string * loc *)         
 
 exception ParserError          of parser_error
 exception End_of_file_in_comment
 
-(* Typing *)
+(* Env *)
+
+module SHashtbl = Hashtbl.Make(struct type t = string let equal a b = a = b let hash = Hashtbl.hash end)
 
 type id  = string*string
+
+type env_error =
+  | UndefinedSymbol of id
+  | AlreadyDefinedSymbol of string
+  | AlreadyOpenedModule of string
+  | FailToOpenModule of string
+  | CannotFindModule of string
+
+exception EnvError of env_error
+
+(* Typing *)
+
 
 type term = 
   | Type                                (* Type *)
@@ -42,7 +56,7 @@ type term =
   | App  of term*term                   (* Application *)
   | Lam  of term*term                   (* Lambda abstraction *)
   | Pi   of term*term                   (* Pi abstraction *)
-
+(*
 type code =
   | C_Type
   | C_App of id*code list
@@ -52,17 +66,19 @@ type code =
 
 type rw_env = (string*term) list
 type nfun = code array -> code option
+ *)
+
 
 type typing_error =
-  | UndefinedSymbol of id
   | SortExpected of term
   | TopSortError
   | TypeExpected of term option
   | CannotConvert of term option*term
+  | ProductExpected of term option
 exception TypingError of typing_error
                                        
 (* Pattern matching *)
-
+(*
 type pattern2 =
   | Joker 
   | Var of string
@@ -75,3 +91,4 @@ type pMat = (pattern2 array*term) array
 type gdt = 
   | Leaf     of (string*int) list * term 
   | Switch   of int * (id*gdt) list * gdt option
+ *)

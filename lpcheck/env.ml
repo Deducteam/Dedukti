@@ -5,7 +5,6 @@ type gst =
   | Decl  of term
   | Def   of term*term
 
-module SHashtbl = Hashtbl.Make(struct type t = string let equal a b = a = b let hash = Hashtbl.hash end)
 type env = gst SHashtbl.t
 
 let env : env = SHashtbl.create 251
@@ -17,12 +16,12 @@ let get_env m =
   if m = !Global.name then env
   else
     ( try SHashtbl.find ext m 
-      with Not_found -> failwith "Could not find the module" )
+      with Not_found -> raise (EnvError (CannotFindModule m)))
 
 let get_symbol (m,v) =
   let ht = get_env m in
   try ( SHashtbl.find ht v )
-  with Not_found -> raise (TypingError (UndefinedSymbol (m,v)))
+  with Not_found -> raise (EnvError (UndefinedSymbol (m,v)))
 
 let get_type id = 
   match get_symbol id with
@@ -37,27 +36,27 @@ let get_def id =
 (* Add *)
 
 let add_decl (v,ty) = 
-  if SHashtbl.mem env v then failwith "Already defined id" 
+  if SHashtbl.mem env v then raise (EnvError (AlreadyDefinedSymbol v)) 
   else SHashtbl.add env v (Decl ty)
 
 let add_def (v,te,ty) =
-  if SHashtbl.mem env v then failwith "Already defined id"
+  if SHashtbl.mem env v then raise (EnvError (AlreadyDefinedSymbol v))
   else SHashtbl.add env v (Def (te,ty))
 
 (* Modules *)
 
 let import m =
-  if SHashtbl.mem ext m then failwith "import (1)"
+  if SHashtbl.mem ext m then raise (EnvError (AlreadyOpenedModule m))
   else
     try 
       let chan = open_in (m^".dko") in
       let ctx:env = Marshal.from_channel chan in
         SHashtbl.add ext m ctx
-    with Not_found -> failwith "import (2)"
+    with _ -> raise (EnvError (FailToOpenModule m))
 
 let export_and_clear () = 
   ( if !Global.export then
-    let out = open_out (!Global.name^".dko") in (*FIXME*)
+    let out = open_out (!Global.name^".dko") in 
       Marshal.to_channel out env [Marshal.Closures] ) ;
   SHashtbl.clear env ;
   SHashtbl.clear ext

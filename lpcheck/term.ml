@@ -3,35 +3,54 @@ open Types
 
 (* ... *)
 
-let rec of_pterm0 (ctx:(string*int) list) (n:int) = function 
-    | PType                     -> Type
-    | PApp (f,u)                -> App ( of_pterm0 ctx n f , of_pterm0 ctx n u )
-    | PLam (v,None,t)           -> failwith "not implemented" 
-    | PLam ((_,v),Some a,t)     -> Lam ( of_pterm0 ctx n a , of_pterm0 ((v,n)::ctx) (n+1) t )
-    | PPi (None,a,b)            -> Pi  ( of_pterm0 ctx n a , of_pterm0 ctx (n+1) b )
-    | PPi (Some (l,v),a,b)      -> Pi  ( of_pterm0 ctx n a , of_pterm0 ((v,n)::ctx) (n+1) b )
-    | PId (_,m,v)               -> 
-        if m = !Global.name then
-          ( try DB (n-(List.assoc v ctx)-1)
-            with Not_found -> GVar (m,v) )
-        else
-          GVar (m,v)
 
-let of_pterm te = of_pterm0 [] 0 te
+let ls (*Local Scope*) : int SHashtbl.t = SHashtbl.create 47
+
+let rec of_pterm0 (n:int) = function 
+  | PType                     -> Type
+  | PApp (f,u)                -> App ( of_pterm0 n f , of_pterm0 n u )
+  | PLam (v,None,t)           -> failwith "Not implemented (untyped lambda)" 
+  | PPi (None,a,b)            -> Pi  ( of_pterm0 n a , of_pterm0 (n+1) b )
+  | PPi (Some (l,v),a,b)      -> 
+      begin
+        SHashtbl.add ls v n ;
+        let bb = of_pterm0 (n+1) b in
+          SHashtbl.remove ls v ;
+          Pi  ( of_pterm0 n a , bb )
+      end
+  | PLam ((_,v),Some a,t)     -> 
+      begin
+        SHashtbl.add ls v n ;
+        let tt = of_pterm0 (n+1) t in
+          SHashtbl.remove ls v ;
+          Lam ( of_pterm0 n a , tt )
+      end
+  | PId (_,m,v)               -> 
+      if m = !Global.name then
+        ( try DB (n-(SHashtbl.find ls v)-1) 
+          with Not_found -> GVar (m,v) )
+      else
+        GVar (m,v)
+
+let of_pterm te = of_pterm0 0 te
 
 (* Substitution *)
 
 let rec shift (k:int) = function
-    | Type              -> failwith "shift (Type)"
+    | Type              -> Type 
     | GVar (_,_) as t   -> t
     | DB n              -> if n<k then DB n else DB (n+1)
     | App (f,a)         -> App (shift k f,shift k a)
     | Lam (a,f)         -> Lam (shift k a,shift (k+1) f)
     | Pi  (a,b)         -> Pi  (shift k a,shift (k+1) b)
 
-let rec shift_lst = function
-  | []          -> []
-  | a::lst      -> (shift 0 a)::(shift_lst lst)
+let rec shift2 (r:int) (k:int) = function
+    | Type              -> Type 
+    | GVar (_,_) as t   -> t
+    | DB n              -> if n<k then DB n else DB (n+r)
+    | App (f,a)         -> App (shift2 r k f,shift2 r k a)
+    | Lam (a,f)         -> Lam (shift2 r k a,shift2 r (k+1) f)
+    | Pi  (a,b)         -> Pi  (shift2 r k a,shift2 r (k+1) b)
 
 let rec subst0 (k:int) (u:term) = function
     | Type              -> Type
@@ -43,13 +62,6 @@ let rec subst0 (k:int) (u:term) = function
     | Pi (a,b)          -> Pi  (subst0 k u a,subst0 (k+1) (shift 0 u) b)
 
 let subst t u = subst0 0 u t 
-
-let subst_lst (u,lst) =
-  let rec aux = function
-    | []        -> []
-    | a::l      -> (subst a u)::(aux l)
-  in
-    aux lst
 
 let rec wnf = function
     | App (f,u) as te   -> 
