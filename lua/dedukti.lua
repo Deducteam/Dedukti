@@ -272,6 +272,10 @@ function type_gen ( te )
     --assert (te.tapp_ca)
     local tyf = force ( type_gen ( te.tapp_f ) )
     return tyf.cpi_f( te.tapp_ca )
+  -- PI
+  elseif te.tpi_tty  then
+    local te2 = te.tpi_f ( mk_box(te.tpi_cty) , mk_var() )
+    return type_gen( te2 ) 
   -- Error
   else  
     assert(false)
@@ -310,6 +314,17 @@ function type_synth ( te )
     else
       error("Product expected:\n" .. string_of_code( tyf ) , 0 ) 
     end 
+  -- PI
+  elseif te.tpi_tty  then
+    type_check ( te.tpi_tty , { ctype=true } ) ;
+    local te2 = te.tpi_f ( mk_box(te.tpi_cty) , mk_var() )
+    local ty = force( type_synth( te2 ) )
+    if     ty.ctype then return { ctype=true }
+    elseif ty.ckind then return { ckind=true }
+    else 
+      error("Sort Error:\n" .. string_of_code(ty) , 0 )
+    end
+
     -- Default
   else                                                  
     error("Cannot find type of:\n" .. string_of_term(te) , 0 )
