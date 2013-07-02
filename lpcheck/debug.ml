@@ -7,28 +7,26 @@ let string_of_id (m,id) = m ^ "." ^ id
 
 let rec string_of_term (te:term) : string =
   match te with
-  | Type                -> "Type"
-  | GVar (m,v)          -> m^"."^v
-  | DB  n               -> string_of_int n
-  | App (f,u)           ->  "("^string_of_term f^" "^string_of_term u^")"
-  | Lam (a,f)           -> "(\ "^string_of_term a^" => "^string_of_term f^")"
-  | Pi  (a,b)           -> "(" ^ string_of_term a^" ->_t "^string_of_term b ^")" 
+    | Type                -> "Type"
+    | GVar (m,v)          -> m^"."^v
+    | DB  n               -> string_of_int n
+    | App (f,u)           ->  "("^string_of_term f^" "^string_of_term u^")"
+    | Lam (a,f)           -> "(\ "^string_of_term a^" => "^string_of_term f^")"
+    | Pi  (a,b)           -> "(" ^ string_of_term a^" ->_t "^string_of_term b ^")" 
+    | Subst (t,_)         -> "Subst("^string_of_term t^"[...])"
 
 let string_of_terr = function
   | UndefinedSymbol (m,v)       -> "Undefined symbol '" ^ m ^ "." ^ v^ "'"
-  | SortExpected te             -> "Sort expected (...)" 
+  | SortExpected te             -> "Sort expected ("^string_of_term te^")" 
   | TopSortError                -> "Top sort"
   | TypeExpected None           -> "Type expected (Kind)"
-  | TypeExpected (Some te)      -> "Type expected (...)"
+  | TypeExpected (Some te)      -> "Type expected ("^string_of_term te^")"
   | CannotConvert (None,ty)     -> "Cannot convert Kind with ..."
-  | CannotConvert (Some ty1,ty2)-> "Cannot convert ... with ..."
+  | CannotConvert (Some ty1,ty2)-> "Cannot convert "^string_of_term ty1^" with "^string_of_term ty2
 
 let string_of_perr =  function
   | LexerError          (tk,loc)                -> string_of_loc loc ^ " Lexing Error near '" ^ tk ^ "'."
   | ParsingError        (tk,loc)                -> string_of_loc loc ^ " Parsing Error near '" ^ tk ^ "'."
-(*  | ConstructorMismatch ((_,i1),(l2,i2))        -> string_of_loc l2  ^ " Constructor mismatch '" ^ i1 ^ "'!='" ^ i2 ^ "'."
-  | AlreadyDefinedId    v                       -> string_of_loc (fst v) ^ " Already defined constructor: '" ^ (snd v) ^ "'."
-  | ScopeError          v                       -> string_of_loc (fst v) ^ " Scope Error: '" ^ (snd v) ^ "'." *)
   | SetNameError        (name,loc)              -> string_of_loc loc ^ " Invalid module name: '" ^ name ^ "'"
 
 let nn = ref (-1)

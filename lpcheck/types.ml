@@ -42,6 +42,11 @@ type term =
   | App  of term*term                   (* Application *)
   | Lam  of term*term                   (* Lambda abstraction *)
   | Pi   of term*term                   (* Pi abstraction *)
+  | Subst of term*substitution
+and substitution =
+  | Shift of int
+  | Dot of term * substitution
+  | Compose of substitution*substitution
 
 type code =
   | C_Type
