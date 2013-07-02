@@ -10,39 +10,37 @@ let rec infer (ctx:term list) = function
   | GVar (m,v)  -> Some (Env.get_type (m,v))          (* Global Var *)
   | Pi (a,b)    ->                                    (* Product *)
       ( is_type ctx a ; 
-        match infer (Term.mk_shift_lst (a::ctx)) b with
-          | None (*Kind*)                                       -> None                 
-          | Some Type                                           -> Some Type
-          | Some (Subst (_,_) as t) when (Term.wnf t = Type)    -> Some Type
-          | Some ty                                             -> raise (TypingError (SortExpected ty))
+        match infer (Term.shift_lst (a::ctx)) b with
+          | None (*Kind*)       -> None                 
+          | Some Type           -> Some Type
+          | Some ty             -> raise (TypingError (SortExpected ty))
       )
   | Lam (a,t)   ->                                    (* Abstraction *)
       ( is_type ctx a ; 
-        match infer (Term.mk_shift_lst (a::ctx)) t with
+        match infer (Term.shift_lst (a::ctx)) t with
           | None (*Kind*)       -> raise (TypingError TopSortError)
           | Some b              -> Some (Pi (a,b)) 
       )
   | App  (f,u)  ->                                    (* Application *)
       let (a1,a2,b) = 
         match ( infer ctx f , infer ctx u ) with
-          | ( Some (Pi (a2,b)) , Some a1 )      -> (a1,a2,b)
-          | ( Some te , Some a1 )               ->
+          | ( Some (Pi (a2,b)) , Some a1 )              -> (a1,a2,b)
+          | ( Some (App  (_,_) as te) , Some a1 )     
+          | ( Some (GVar (_,_) as te) , Some a1 )       ->
               ( match Term.wnf te with
                   | Pi  (a2,b)  -> (a1,a2,b)
                   | _           -> failwith "infer (App) (1)" 
               )
           | ( _ , _ )                                   -> failwith "infer (App) (2)" 
       in
-        if Term.is_conv a1 a2 then Some (Term.mk_subst b u)
-        else raise (TypingError (CannotConvert (Some a1,a2)))
-  | Subst ( _,_ )       -> assert false
+        if Term.is_conv a1 a2 then Some (Term.subst b u)
+        else failwith "infer (conv) (1)" 
                 
 (* Checks that a term has type Type *) 
 and is_type ctx te =
   match infer ctx te with
-    | Some Type                                         -> ()
-    | Some (Subst (t,s)) when (Term.subst s t = Type)   -> () 
-    | ty                                                -> raise (TypingError (TypeExpected ty))
+    | Some Type       -> ()
+    | ty              -> raise (TypingError (TypeExpected ty))
 
 (* Checks that |- te:ty *)
 let check_term te ty =
@@ -53,9 +51,9 @@ let check_term te ty =
 (* Checks that |- ty : Type or |- ty : Kind *)
 let check_type env ty = 
   match infer env ty with
-    | None | Some Type                                  -> ()
-    | Some (Subst (_,_) as t) when (Term.wnf t = Type)  -> ()
-    | Some s                                            -> raise (TypingError (SortExpected s))
+    | None      -> ()
+    | Some Type -> ()
+    | Some s    -> raise (TypingError (SortExpected s))
 
 (* Entry *)
 
@@ -78,8 +76,6 @@ let mk_definition (((l,id),pty,pte):lvar*pterm*pterm) : unit =
   let te = Term.of_pterm pte in
     Global.msg ( Debug.string_of_loc l ^ "[Definition] " ^ id ^ ".\n") ;
     check_type [] ty ;
-    Global.msg ( Debug.string_of_loc l ^ "[Definition] te = " ^ Debug.string_of_term te ^ ".\n") ;
-    Global.msg ( Debug.string_of_loc l ^ "[Definition] ty = " ^ Debug.string_of_term ty ^ ".\n") ;
     check_term te ty ;
     Env.add_def (id,te,ty) 
 
