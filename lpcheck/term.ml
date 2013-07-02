@@ -53,14 +53,15 @@ let mk_shift_lst   lst = List.map (fun a -> mk_shift a) lst
   in
     aux lst
     *)
-(*TODO explicit composition*)
+
 let rec compose (s:substitution) (t:substitution) : substitution =
   match s, t with
     | s, Shift 0                -> s
     | Dot (e, s), Shift m       -> compose s (Shift (m - 1))
     | Shift m, Shift n          -> Shift (m + n)
     | s, Dot (e, t)             -> Dot (Subst (e,s), compose s t)
-    | Compose (a,b) , c         -> assert false (*TODO*)
+    | a , Compose (b,c)         -> compose (Compose (a,b)) c
+    | Compose (a,b) ,  c        -> compose a (compose b c) (*two calls ?*)
 
 let rec subst (s:substitution) (e:term) : term =
   match s, e with
