@@ -1,9 +1,9 @@
 
-(* Sharing string *)
+(* String sharing *)
 
-module S = Weak.Make(struct type t = string let equal a b = a = b let hash = Hashtbl.hash end)
-let shash = S.create 251
-let hstring s = S.merge shash s
+module WS = Weak.Make(struct type t = string let equal a b = a = b let hash = Hashtbl.hash end)
+let shash = WS.create 251
+let hstring s = WS.merge shash s
 
 (* Options *)
 
@@ -13,6 +13,7 @@ let export                      = ref false
 
 let set_name s = name := (hstring s)
 
-(* Debug *)
+(* Info messages *)
 
-let msg str  = if !quiet then () else ( prerr_string str ; flush stderr )
+let msg str  = 
+  if !quiet then () else ( prerr_string str ; flush stderr )

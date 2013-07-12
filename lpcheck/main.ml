@@ -16,10 +16,9 @@ let parse lb =
     | Parsing.Parse_error       -> 
         begin
           let curr = lb.Lexing.lex_curr_p in
-          let line = curr.Lexing.pos_lnum in
-          let cnum = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
+          let loc = ( curr.Lexing.pos_lnum , curr.Lexing.pos_cnum - curr.Lexing.pos_bol ) in
           let tok = Lexing.lexeme lb in
-            raise (ParserError (ParsingError (tok,(line,cnum))))
+            raise (ParserError (Debug.string_of_loc loc^" Parsing error near '"^tok^"'")) 
         end
 
 (* Run *)
@@ -45,11 +44,12 @@ let args = [
         ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"  ) 
 ]
 
-let _ = 
+let _ = (*FIXME*) 
   try 
     Arg.parse args run_on_file "Usage: dkcheck [options] files"  
   with 
-    | Sys_error err             -> error ("System error: "^err)
-    | ParserError err           -> error ( Debug.string_of_perr err ) 
-    | End_of_file_in_comment    -> error ("Unexpected end of file.") 
-    | TypingError err           -> error (Debug.string_of_terr err) 
+    | Sys_error err     -> error ("System error: "^err)
+    | LexerError err    -> error err
+    | ParserError err   -> error err 
+    | TypingError err   -> error (Lazy.force err)
+    | EnvError err      -> error err       

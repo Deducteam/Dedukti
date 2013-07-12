@@ -1,15 +1,22 @@
 
-(* Lexing *)
+module StringH = Hashtbl.Make(struct type t = string let equal a b = a = b let hash = Hashtbl.hash end)
+module IntH    = Hashtbl.Make(struct type t = int let equal a b = a = b let hash = Hashtbl.hash end)
 
-type loc  = int*int
-type lvar = loc*string
-type lid  = loc*string*string
+(* Errors *)
+
+exception ParserError of string
+exception LexerError  of string
+exception EnvError    of string
+exception TypingError of string Lazy.t
 
 (* Parsing *)
 
+type loc  = int*int
+
 type pterm =
   | PType
-  | PId  of loc*string*string
+  | PId  of loc*string
+  | PQid of loc*string*string
   | PApp of pterm * pterm
   | PLam of (loc*string) * pterm option * pterm
   | PPi  of (loc*string) option * pterm * pterm
@@ -23,72 +30,14 @@ type context = ( (loc*string) * pterm ) list
 
 type rule  = context * top_pattern * pterm (* [ env ] top_pattern --> term *)
 
-type parser_error = 
-  | LexerError                  of string * loc
-  | ParsingError                of string * loc
-(*  | SetNameError                of string * loc *)         
-
-exception ParserError          of parser_error
-exception End_of_file_in_comment
-
-(* Env *)
-
-module SHashtbl = Hashtbl.Make(struct type t = string let equal a b = a = b let hash = Hashtbl.hash end)
-
-type id  = string*string
-
-type env_error =
-  | UndefinedSymbol of id
-  | AlreadyDefinedSymbol of string
-  | AlreadyOpenedModule of string
-  | FailToOpenModule of string
-  | CannotFindModule of string
-
-exception EnvError of env_error
-
 (* Typing *)
 
-
 type term = 
-  | Type                                (* Type *)
-  | GVar of id                          (* Global variable *)
-  | DB   of int                         (* deBruijn *)
-  | App  of term*term                   (* Application *)
-  | Lam  of term*term                   (* Lambda abstraction *)
-  | Pi   of term*term                   (* Pi abstraction *)
-(*
-type code =
-  | C_Type
-  | C_App of id*code list
-  | C_Lam of code*(code->code)
-  | C_Pi  of code*(code->code)
-  | C_Var of int
-
-type rw_env = (string*term) list
-type nfun = code array -> code option
- *)
-
-
-type typing_error =
-  | SortExpected of term
-  | TopSortError
-  | TypeExpected of term option
-  | CannotConvert of term option*term
-  | ProductExpected of term option
-exception TypingError of typing_error
-                                       
-(* Pattern matching *)
-(*
-type pattern2 =
-  | Joker 
-  | Var of string
-  | Pattern of id * pattern2 array
-
-type loc_type = (string option) array
-
-type pMat = (pattern2 array*term) array 
-
-type gdt = 
-  | Leaf     of (string*int) list * term 
-  | Switch   of int * (id*gdt) list * gdt option
- *)
+  | Kind
+  | Type                        (* Type *)
+  | DB   of int                 (* deBruijn *)
+  | GVar of string*string       (* Global variable *)
+  | Var of int                  (* Local variable (only for conversion test)*)
+  | App  of term list           (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
+  | Lam  of term*term           (* Lambda abstraction *)
+  | Pi   of term*term           (* Pi abstraction *)
