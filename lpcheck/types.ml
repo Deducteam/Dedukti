@@ -7,7 +7,7 @@ module IntH    = Hashtbl.Make(struct type t = int let equal a b = a = b let hash
 exception ParserError of string
 exception LexerError  of string
 exception EnvError    of string
-exception TypingError of string Lazy.t
+exception TypingError of string
 
 (* Parsing *)
 

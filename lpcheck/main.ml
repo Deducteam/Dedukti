@@ -3,8 +3,8 @@ open Types
 
 (* Error Msgs *)
 
-let error str = 
-  Global.msg ("\027[31m" ^ str ^ "\027[m\n");
+let error e str = 
+  Global.print ("\n\027[31m["^e^"]\027[m " ^ str ^ "\n");
   exit 1 
 
 (* Parsing *)
@@ -13,43 +13,47 @@ let parse lb =
   try
       Parser.top Lexer.token lb
   with 
-    | Parsing.Parse_error       -> 
+    | Parser.Error       -> 
         begin
           let curr = lb.Lexing.lex_curr_p in
-          let loc = ( curr.Lexing.pos_lnum , curr.Lexing.pos_cnum - curr.Lexing.pos_bol ) in
+          let line = string_of_int (curr.Lexing.pos_lnum) in
+          let column = string_of_int (curr.Lexing.pos_cnum - curr.Lexing.pos_bol) in
           let tok = Lexing.lexeme lb in
-            raise (ParserError (Debug.string_of_loc loc^" Parsing error near '"^tok^"'")) 
+            raise (ParserError (" Parsing error near '" ^ tok ^ "' (line:"^line^"; column:"^column^")")) 
         end
 
-(* Run *)
+(* ... *)
 
 let run_on_stdin _ =
-  Global.msg (" [ Reading from stdin ]\n") ;
+  Global.print (" -- Processing standard input ...\t") ;
+  Global.print_v "\n";
   parse (Lexing.from_channel stdin) ;
-  Global.msg (" [ Checking done ]\n") ;
+  Global.print ("\027[32m[DONE]\027[m\n") ;
   Env.export_and_clear ()
             
 let run_on_file file =
   let input = open_in file in
-    Global.msg (" [ Reading from '" ^ file ^ "' ]\n") ;
+    Global.print (" -- Processing file '" ^ file ^ "' ...\t") ;
+    Global.print_v "\n";
     parse (Lexing.from_channel input) ;
-    Global.msg (" [ Checking done ]\n") ;
+    Global.print ("\027[32m[DONE]\027[m\n") ;
     Env.export_and_clear ()
 
-(* Main *)
+(* Args *)
 
 let args = [
         ("-q"    , Arg.Set Global.quiet                 , "Quiet"               ) ;
-        ("-e"    , Arg.Set Global.export                , "Create a .dko" ) ;
+        ("-v"    , Arg.Clear Global.quiet               , "Verbose"             ) ;
+        ("-e"    , Arg.Set Global.export                , "Create a .dko"       ) ;
         ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"  ) 
 ]
 
-let _ = (*FIXME*) 
+let _ =  
   try 
     Arg.parse args run_on_file "Usage: dkcheck [options] files"  
-  with 
-    | Sys_error err     -> error ("System error: "^err)
-    | LexerError err    -> error err
-    | ParserError err   -> error err 
-    | TypingError err   -> error (Lazy.force err)
-    | EnvError err      -> error err       
+  with (*FIXME ajouer localisation *)
+    | Sys_error err     -> error "System Error"  err
+    | LexerError err    -> error "Lexing Error"  err
+    | ParserError err   -> error "Pasing Error"  err
+    | TypingError err   -> error "Typing Error"  err
+    | EnvError err      -> error "Scoping Error" err

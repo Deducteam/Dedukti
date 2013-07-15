@@ -157,16 +157,16 @@ let rec cbn_reduce (delta:int) (config:cbn_state) : ( cbn_state * bool ) =
     | ( _ , _ , Pi _ , _ )              -> config, true
     | ( _ , _ , Lam _ , [] )            -> config, true
     | ( k , e , Lam (_,t) , p::s )      -> cbn_reduce delta ( k+1 , (lazy (cbn_term_of_state p))::e, (*shift2 (-1) (k+1) *) t , s )
-    | ( k , e , GVar (m,v) , s )        -> 
+    | ( _ , _ , GVar (m,v) , s )        -> 
         ( match Env.get_global_symbol m v with
             | Env.Decl (_,None)         -> config, true
             | Env.Decl (_,Some (i,g))   -> 
                 ( match get i s with
                     | None                -> config, true
                     | Some (s1,s2)        ->
-                        ( match rewrite delta k e (Array.of_list s) g with
-                            | None    -> config, true (*FIXME true*)
-                            | Some (k',e',t,s') -> cbn_reduce delta (k',e',t,s'@s2) )
+                        ( match rewrite delta (Array.of_list s1) g with
+                            | None      -> config, true (*FIXME true*)
+                            | Some t    -> cbn_reduce delta (0,[],t,s2) )
                 ) 
             | Env.Def (te,_)            ->
         (* FIXME if delta >= 0 then config, false
@@ -181,16 +181,16 @@ let rec cbn_reduce (delta:int) (config:cbn_state) : ( cbn_state * bool ) =
         let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
           cbn_reduce delta (k, e, he, tl' @ s)
 
-and rewrite delta k e args = function
-  | Leaf (vars,te)              -> Some ( k , e , rw_subst 0 vars args te , [] )
+and rewrite delta args = function
+  | Leaf (vars,te)              -> Some ( rw_subst 0 vars args te )
   | Switch (i,cases,def)        -> 
       begin
-        match cbn_reduce delta (k,e,cbn_term_of_state (args.(i)),[]) with
+        match cbn_reduce delta (args.(i)) with
           |  _ , false                          -> assert false (*FIXME*) 
-          | ( k' , e' , GVar (m,v) , s ) , true -> 
+          | ( _ , _ , GVar (m,v) , s ) , true -> 
               ( match get_gdt m v cases def with
                   | None        -> None
-                  | Some g      -> rewrite delta k' e' (mk_new_args i args s) g
+                  | Some g      -> rewrite delta (mk_new_args i args s) g
               )
           | ( _ , _ )                           -> None
       end
@@ -198,13 +198,13 @@ and rewrite delta k e args = function
 (* ... *)
 
 let dump_state (k,e,t,s) =
-  Global.msg ("k = "^string_of_int k^"\n");
-  Global.msg ("t = "^Debug.string_of_term t^"\n");
-  Global.msg "e = [";
-  List.iter (fun u -> Global.msg (" ("^Debug.string_of_term (Lazy.force u)^")")) e ;
-  Global.msg " ]\ns = [";
-  List.iter (fun (_,_,u,_) -> Global.msg (" {{ "^Debug.string_of_term u^" }}")) s ;
-  Global.msg " ]\n"
+  Global.print ("k = "^string_of_int k^"\n");
+  Global.print ("t = "^Debug.string_of_term t^"\n");
+  Global.print "e = [";
+  List.iter (fun u -> Global.print (" ("^Debug.string_of_term (Lazy.force u)^")")) e ;
+  Global.print " ]\ns = [";
+  List.iter (fun (_,_,u,_) -> Global.print (" {{ "^Debug.string_of_term u^" }}")) s ;
+  Global.print " ]\n"
 
 let hnf (t:term) : term = cbn_term_of_state (fst (cbn_reduce 0 (*FIXME*) (0,[],t,[])))
 
@@ -246,13 +246,13 @@ let rec state_conv (delta:int) : (cbn_state*cbn_state) list -> bool = function
           let ( (k,e,t,s)     , norm1 ) = cbn_reduce delta s1 in
           let ( (k',e',t',s') , norm2 ) = cbn_reduce delta s2 in
     
-      (*Global.msg " --- Dump s1\n";
+      (*Global.print " --- Dump s1\n";
       dump_state s1 ; 
-      Global.msg " --- Dump s2\n";
+      Global.print " --- Dump s2\n";
       dump_state s2 ;
-      Global.msg " --- Dump N(s1)\n";
+      Global.print " --- Dump N(s1)\n";
       dump_state (k,e,t,s) ;
-      Global.msg " --- Dump N(s2)\n";
+      Global.print " --- Dump N(s2)\n";
       dump_state (k',e',t',s') ;*)
 
             match norm1 , norm2 with
