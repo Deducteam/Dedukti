@@ -116,8 +116,8 @@ let rec cbn_term_of_state (k,e,t,s:cbn_state) : term =
     if s = [] then t 
     else App ( t::(List.map cbn_term_of_state s) )
 
-           (*
-let get i = function (*FIXME*)
+           
+let rec get i = function (*FIXME*)
   | l  when i=0 -> Some ([],l)
   | []          -> None
   | x::l        -> (
@@ -125,18 +125,18 @@ let get i = function (*FIXME*)
       | None            -> None
       | Some (s1,s2)    -> Some (x::s1,s2)
     )
-            *)
+            
 let get_gdt m v cases def =
   try Some (snd (List.find (fun ((m',v'),_) -> m=m' && v=v') cases))
   with Not_found -> None
 
-let rec rw_subst (vars:(string*int) list) (args:cbn_state array) : term -> term = (*FIXME*) function
-  | App lst     -> App ( List.map (rw_subst vars args) lst )
-  | Lam (a,f)   -> Lam (rw_subst vars args a,rw_subst vars args f)
-  | Pi (a,b)    -> Pi  (rw_subst vars args a,rw_subst vars args b)
+let rec rw_subst k (vars:(string*int) list) (args:cbn_state array) : term -> term = (*FIXME*) function
+  | App lst     -> App ( List.map (rw_subst k vars args) lst )
+  | Lam (a,f)   -> Lam (rw_subst k vars args a,rw_subst (k+1) vars args f)
+  | Pi (a,b)    -> Pi  (rw_subst k vars args a,rw_subst (k+1) vars args b)
   | RVar v      -> 
       let i = List.assoc v vars in
-        cbn_term_of_state (args.(i))
+       shift2 k 0 (cbn_term_of_state (args.(i)))
   | t           -> t
 
 let mk_new_args c args1 lst = (*FIXME*)
@@ -156,23 +156,23 @@ let rec cbn_reduce (delta:int) (config:cbn_state) : ( cbn_state * bool ) =
     | ( _ , _ , Kind , _ )              -> config, true
     | ( _ , _ , Pi _ , _ )              -> config, true
     | ( _ , _ , Lam _ , [] )            -> config, true
-    | ( k , e , Lam (_,t) , p::s )      -> cbn_reduce delta ( k+1 , (lazy (cbn_term_of_state p))::e, t , s )
+    | ( k , e , Lam (_,t) , p::s )      -> cbn_reduce delta ( k+1 , (lazy (cbn_term_of_state p))::e, (*shift2 (-1) (k+1) *) t , s )
     | ( k , e , GVar (m,v) , s )        -> 
         ( match Env.get_global_symbol m v with
             | Env.Decl (_,None)         -> config, true
             | Env.Decl (_,Some (i,g))   -> 
-                if List.length s (*FIXME*) >= i then ( 
-                  assert (List.length s = i ) ; (*FIXME*)
-                  ( match rewrite delta k e (Array.of_list s) g with
-                      | None    -> config, true (*FIXME true*)
-                      | Some st -> cbn_reduce delta st )
+                ( match get i s with
+                    | None                -> config, true
+                    | Some (s1,s2)        ->
+                        ( match rewrite delta k e (Array.of_list s) g with
+                            | None    -> config, true (*FIXME true*)
+                            | Some (k',e',t,s') -> cbn_reduce delta (k',e',t,s'@s2) )
                 ) 
-                else config, true
             | Env.Def (te,_)            ->
         (* FIXME if delta >= 0 then config, false
          else *) cbn_reduce delta (0,[],te,s)
         )
-    | ( _ , _ , LVar _ , _ )             -> config,true
+    | ( _ , _ , LVar _ , _ )            -> config,true
     | ( _ , _ , RVar _ , _ )            -> config,true
     | ( k , e , DB n , s ) when n<k     -> cbn_reduce delta (0,[],Lazy.force (pop n e),s)
     | ( k, _ , DB n , s ) (* n >= k *)  -> config, true
@@ -182,7 +182,7 @@ let rec cbn_reduce (delta:int) (config:cbn_state) : ( cbn_state * bool ) =
           cbn_reduce delta (k, e, he, tl' @ s)
 
 and rewrite delta k e args = function
-  | Leaf (vars,te)              -> Some ( k , e , rw_subst vars args te , [] )
+  | Leaf (vars,te)              -> Some ( k , e , rw_subst 0 vars args te , [] )
   | Switch (i,cases,def)        -> 
       begin
         match cbn_reduce delta (k,e,cbn_term_of_state (args.(i)),[]) with
@@ -231,7 +231,7 @@ let rec state_conv (delta:int) : (cbn_state*cbn_state) list -> bool = function
           | ( _ , _ , LVar n ) , ( _ , _ , LVar n' )                  -> ( n=n' , None )
           | ( _ , _ , RVar v ) , ( _ , _ , RVar v' )                  -> ( v=v' , None )
           | ( _ , _ , GVar (m,v) ) , ( _ , _ , GVar (m',v') )         -> ( m=m' && v=v' , None )
-          | ( k , _ , DB n ) , ( k' , _ , DB n' )                     -> ( n=n' , None )
+          | ( k , _ , DB n ) , ( k' , _ , DB n' )                     -> ( assert (k<=n && k'<=n') ; (n-k)=(n'-k') , None )
           | ( k , e , Lam (a,f) ) , ( k' , e' , Lam (a',f') )          
           | ( k , e , Pi  (a,f) ) , ( k' , e' , Pi  (a',f') )         -> 
               let x = mk_fvar () in
@@ -260,7 +260,7 @@ let rec state_conv (delta:int) : (cbn_state*cbn_state) list -> bool = function
                   ( match aux ( (k,e,t) , (k',e',t') ) with
                       | true , None             -> state_conv delta (add_to_list lst s s')
                       | true , Some (x,y)       -> state_conv delta (add_to_list (x::y::lst) s s')
-                      | false , _               -> false 
+                      | false , _               -> ( (*dump_state (k,e,t,s) ; dump_state (k',e',t',s') ;*) false) 
                   ) 
               | true , false  -> (* TODO Only the first term is delta head normal *) assert false
               | false , true  -> (* TODO Only the second term is delta head normal *) assert false
