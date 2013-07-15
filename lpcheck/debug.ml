@@ -8,7 +8,8 @@ let rec string_of_term : term -> string = function
   | Type        -> "Type"
   | DB  n       -> string_of_int n
   | GVar (m,v)  -> m^"."^v
-  | Var n       -> "var"^string_of_int n
+  | RVar v      -> "(RW "^v^")"
+  | LVar n      -> "var"^string_of_int n
   | App args    -> "(" ^ String.concat " " (List.map string_of_term args) ^ ")"
   | Lam (a,f)   -> "(\ "^string_of_term a^" => "^string_of_term f^")"
   | Pi  (a,b)   -> "(" ^ string_of_term a^" -> "^string_of_term b ^")" 

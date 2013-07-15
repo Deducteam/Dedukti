@@ -1,13 +1,24 @@
 
 open Types
 
+let rs (*Rewrite Scope*) : term StringH.t = StringH.create 47
+let rs_add v t = StringH.add rs v t
+let rs_remove v = StringH.remove rs v
+let rs_mem v = StringH.mem rs v
+let rs_find v = 
+  try StringH.find rs v
+  with Not_found -> assert false (*FIXME*)
+
 let ls (*Local Scope*) : int StringH.t = StringH.create 47
 
 let rec of_pterm0 (n:int) = function 
   | PType                       -> Type
   | PId (_,v)                   -> 
       ( try DB (n-(StringH.find ls v)-1) 
-        with Not_found -> GVar (!Global.name,v) )
+        with Not_found -> (
+          if StringH.mem rs v then RVar v
+          else GVar (!Global.name,v) 
+      ) )
   | PQid (_,m,v)                -> GVar (m,v)
   | PApp (f,u) as t             -> App ( get_app_lst n t [] )
   | PLam (v,None,t)             -> raise (ParserError "Not implemented (untyped lambda)")
@@ -32,6 +43,20 @@ and get_app_lst n t args =
     | _                 -> (of_pterm0 n t)::args
 
 let of_pterm te = of_pterm0 0 te 
+
+let rec term_of_pat : pattern -> term = function
+  | Pat ((_,m,v),ds,ps) ->
+      begin
+          if m = !Global.name && Array.length ps=0 && Array.length ds=0 then
+           if rs_mem v then RVar v
+           else GVar (m,v)
+          else 
+            let l1 = Array.fold_right (fun p lst -> (term_of_pat p)::lst) ps [] in
+            let l2 = Array.fold_right (fun t lst -> (of_pterm0 0 t)::lst) ds l1 in
+              App ( (GVar (m,v))::l2)
+      end
+
+let term_of_tpat ((l,v),ds,ps:top_pattern) : term = term_of_pat (Pat ((l,!Global.name,v),ds,ps))
 
 (* Substitution *)
 
@@ -63,7 +88,7 @@ let rec pop n = function (* n < size of the list *)
 
 let rec psubst_l (nargs,args) k t =  (*FIXME avoid beta redexes*)
   match t with
-    | Type | Kind | GVar _ | Var _     -> t
+    | Type | Kind | GVar _ | LVar _ | RVar _     -> t
     | DB n              ->
         ( match n with
             | n when n >= (k+nargs)     -> DB (n-nargs)
@@ -79,81 +104,6 @@ let rec psubst_l (nargs,args) k t =  (*FIXME avoid beta redexes*)
     | Lam (a,f)         -> Lam (psubst_l (nargs,args) k a,psubst_l (nargs,args) (k+1) f)
     | Pi  (a,b)         -> Pi  (psubst_l (nargs,args) k a,psubst_l (nargs,args) (k+1) b) 
 
-(*
-type config = int (*taille du contexte*) * cbv_cbn list (*contexte*) * term (*terme à réduire*) * cbv_cbn list (*stack*)
-and cbv_cbn = config Lazy.t * term Lazy.t     
-
-let rec unwind (k,e,t,s) =
-  let t = 
-    if k = 0 then t 
-    else psubst (k,e) 0 t
-  in
-    if s = [] then t 
-    else App ( t::(List.map (fun (_,c) -> Lazy.force c) s) )
-
-let rec reduce (delta:int) (config:config) : config*bool = 
-  match config with
-    | ( _ , _ , Type , _ )              -> config, true
-    | ( _ , _ , Kind , _ )              -> config, true
-    | ( _ , _ , Pi _ , _ )              -> config, true
-    | ( _ , _ , Lam _ , [] )            -> config, true
-    | ( k , e , Lam (_,t) , p::s )      -> reduce delta ( k+1 , p::e, t , s )
-    | ( _ , _ , GVar v , s )            -> 
-        ( match Env.get_global_def v with
-            | None      -> config, true
-            | Some te   ->
-                if delta >= 0 then (*FIXME*) config, false
-                else reduce delta (0,[],te,s)
-        )
-    | ( _ , _ , EVar (m,v) , _ )        -> assert false (*TODO*)
-    | ( k , e , DB n , s ) when k<n     ->
-        let k',e',t',s' = Lazy.force (fst (List.nth e n)) in
-          reduce delta (k',e',t',s'@s)
-    | ( k, _ , DB n , s ) (* n >= k *)  -> config, true
-    | ( _ , _ , App ([]|[_]) , _ )      -> assert false
-    | ( k , e , App (he::tl) , s )      ->
-        let tl' = List.map ( 
-          fun t -> 
-            ( lazy (fst (reduce delta (k,e,t,[]))) , lazy (unwind (k,e,t,[])) )                       
-        ) tl in
-          reduce delta (k, e, he, tl' @ s)
-*)
-
-(* Call-by-Value *)
-(*
-type cbv_state = int (*taille du contexte*) * term list (*contexte*) * term (*terme à réduire*) * cbv_state list (*stack*)
-
-let rec cbv_term_of_state (k,e,t,s:cbv_state) : term =
-  let t = 
-    if k = 0 then t 
-    else psubst (k,e) 0 t
-  in
-    if s = [] then t 
-    else App ( t::(List.map cbv_term_of_state s) )
-
-let rec cbv_reduce (delta:int) (config:cbv_state) : ( cbv_state * bool ) = 
-  match config with
-  | ( _ , _ , Type , _ )              -> config, true
-  | ( _ , _ , Kind , _ )              -> config, true
-  | ( _ , _ , Pi _ , _ )              -> config, true
-  | ( _ , _ , Lam _ , [] )            -> config, true
-  | ( k , e , Lam (_,t) , p::s )      -> cbv_reduce delta ( k+1 , (cbv_term_of_state p)::e, t , s )
-  | ( _ , _ , GVar v , s )            -> 
-      ( match Env.get_global_def v with
-          | None      -> config, true
-          | Some te   ->
-              if delta >= 0 then (*FIXME*) config, false
-              else cbv_reduce delta (0,[],te,s)
-      )
-  | ( _ , _ , EVar (m,v) , _ )        -> assert false (*TODO*)
-  | ( k , e , DB n , s ) when n<k     -> cbv_reduce delta (0,[],List.nth e n,s)
-  | ( k, _ , DB n , s ) (* n >= k *)  -> config, true
-  | ( _ , _ , App ([]|[_]) , _ )      -> assert false
-  | ( k , e , App (he::tl) , s )      ->
-      let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
-        cbv_reduce delta (k, e, he, tl' @ s)
- *)
-
 (* Call-by-Need *)
 
 type cbn_state = int (*taille du contexte*) * (term Lazy.t) list (*contexte*) * term (*terme à réduire*) * cbn_state list (*stack*)
@@ -166,6 +116,40 @@ let rec cbn_term_of_state (k,e,t,s:cbn_state) : term =
     if s = [] then t 
     else App ( t::(List.map cbn_term_of_state s) )
 
+           (*
+let get i = function (*FIXME*)
+  | l  when i=0 -> Some ([],l)
+  | []          -> None
+  | x::l        -> (
+    match get (i-1) l with
+      | None            -> None
+      | Some (s1,s2)    -> Some (x::s1,s2)
+    )
+            *)
+let get_gdt m v cases def =
+  try Some (snd (List.find (fun ((m',v'),_) -> m=m' && v=v') cases))
+  with Not_found -> None
+
+let rec rw_subst (vars:(string*int) list) (args:cbn_state array) : term -> term = (*FIXME*) function
+  | App lst     -> App ( List.map (rw_subst vars args) lst )
+  | Lam (a,f)   -> Lam (rw_subst vars args a,rw_subst vars args f)
+  | Pi (a,b)    -> Pi  (rw_subst vars args a,rw_subst vars args b)
+  | RVar v      -> 
+      let i = List.assoc v vars in
+        cbn_term_of_state (args.(i))
+  | t           -> t
+
+let mk_new_args c args1 lst = (*FIXME*)
+  let s1 = Array.length args1 in
+  let args2 = Array.of_list lst in
+  let s2 = Array.length args2 in
+  Array.init (s1+s2-1) (
+    fun i ->
+      if i<c then args1.(i)
+      else if i<(s1-1) then args1.(i+1)
+      else args2.(i-(s1-1))
+  )
+
 let rec cbn_reduce (delta:int) (config:cbn_state) : ( cbn_state * bool ) = 
   match config with
     | ( _ , _ , Type , _ )              -> config, true
@@ -173,20 +157,43 @@ let rec cbn_reduce (delta:int) (config:cbn_state) : ( cbn_state * bool ) =
     | ( _ , _ , Pi _ , _ )              -> config, true
     | ( _ , _ , Lam _ , [] )            -> config, true
     | ( k , e , Lam (_,t) , p::s )      -> cbn_reduce delta ( k+1 , (lazy (cbn_term_of_state p))::e, t , s )
-    | ( _ , _ , GVar (m,v) , s )        -> 
-        ( match Env.get_global_def m v with
-            | None      -> config, true
-            | Some te   ->
+    | ( k , e , GVar (m,v) , s )        -> 
+        ( match Env.get_global_symbol m v with
+            | Env.Decl (_,None)         -> config, true
+            | Env.Decl (_,Some (i,g))   -> 
+                if List.length s (*FIXME*) >= i then ( 
+                  assert (List.length s = i ) ; (*FIXME*)
+                  ( match rewrite delta k e (Array.of_list s) g with
+                      | None    -> config, true (*FIXME true*)
+                      | Some st -> cbn_reduce delta st )
+                ) 
+                else config, true
+            | Env.Def (te,_)            ->
         (* FIXME if delta >= 0 then config, false
          else *) cbn_reduce delta (0,[],te,s)
         )
-    | ( _ , _ , Var _ , _ )             -> config,true
+    | ( _ , _ , LVar _ , _ )             -> config,true
+    | ( _ , _ , RVar _ , _ )            -> config,true
     | ( k , e , DB n , s ) when n<k     -> cbn_reduce delta (0,[],Lazy.force (pop n e),s)
     | ( k, _ , DB n , s ) (* n >= k *)  -> config, true
     | ( _ , _ , App ([]|[_]) , _ )      -> assert false
     | ( k , e , App (he::tl) , s )      ->
         let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
           cbn_reduce delta (k, e, he, tl' @ s)
+
+and rewrite delta k e args = function
+  | Leaf (vars,te)              -> Some ( k , e , rw_subst vars args te , [] )
+  | Switch (i,cases,def)        -> 
+      begin
+        match cbn_reduce delta (k,e,cbn_term_of_state (args.(i)),[]) with
+          |  _ , false                          -> assert false (*FIXME*) 
+          | ( k' , e' , GVar (m,v) , s ) , true -> 
+              ( match get_gdt m v cases def with
+                  | None        -> None
+                  | Some g      -> rewrite delta k' e' (mk_new_args i args s) g
+              )
+          | ( _ , _ )                           -> None
+      end
 
 (* ... *)
 
@@ -206,7 +213,7 @@ let term_eq (t1:term) (t2:term) : bool = t1 == t2 || t1=t2
 let nnn = ref 0
 let mk_fvar () =
   let n = !nnn in
-  incr nnn ; lazy (Var n)
+  incr nnn ; lazy (LVar n)
 
 let rec add_to_list lst s s' =
   match s,s' with
@@ -221,7 +228,8 @@ let rec state_conv (delta:int) : (cbn_state*cbn_state) list -> bool = function
         let rec aux = function (*states are beta-delta head normal*)
           | ( _ , _ , Kind ) , ( _ , _ , Kind )                       -> ( true , None )
           | ( _ , _ , Type ) , ( _ , _ , Type )                       -> ( true , None )
-          | ( _ , _ , Var n ) , ( _ , _ , Var n' )                    -> ( n=n' , None )
+          | ( _ , _ , LVar n ) , ( _ , _ , LVar n' )                  -> ( n=n' , None )
+          | ( _ , _ , RVar v ) , ( _ , _ , RVar v' )                  -> ( v=v' , None )
           | ( _ , _ , GVar (m,v) ) , ( _ , _ , GVar (m',v') )         -> ( m=m' && v=v' , None )
           | ( k , _ , DB n ) , ( k' , _ , DB n' )                     -> ( n=n' , None )
           | ( k , e , Lam (a,f) ) , ( k' , e' , Lam (a',f') )          

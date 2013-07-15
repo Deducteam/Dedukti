@@ -37,7 +37,24 @@ type term =
   | Type                        (* Type *)
   | DB   of int                 (* deBruijn *)
   | GVar of string*string       (* Global variable *)
-  | Var of int                  (* Local variable (only for conversion test)*)
+  | LVar of int                 (* Local variable (only for conversion test)*)
+  | RVar of string              (* Rewrite variable (only for typechecking rewrite rules)*)
   | App  of term list           (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
   | Lam  of term*term           (* Lambda abstraction *)
   | Pi   of term*term           (* Pi abstraction *)
+
+(* Pattern matching *)
+
+type rule2 = string list*top_pattern*term
+
+type pattern2 =
+  | Joker
+  | Var of string
+  | Pattern of (string*string) * pattern2 array
+ 
+type pMat = (pattern2 array*term) array
+
+type gdt =
+  | Leaf     of (string*int) list * term
+  | Switch   of int * ((string*string)*gdt) list * gdt option
+

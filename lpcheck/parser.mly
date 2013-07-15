@@ -39,7 +39,16 @@ let mk_typecheck (l,pty,pte : loc*pterm*pterm) :unit =
     Checker.check_type ty ;
     Checker.check_term te ty
 
-let mk_rules (lst:rule list) : unit = assert false (*TODO*) 
+let mk_rules (lst:rule list) : unit = 
+        let aux = function
+                | (_,((l,v),_,_),_)::_  -> (l,v)
+                | _                     -> assert false
+        in
+        let (l,v) = aux lst in
+        Global.msg (Debug.string_of_loc l ^ "[Rewrite] " ^ v ^ ".\n") ; 
+        let rs = List.map (Checker.check_rule v) lst in
+        let gdt = PatternMatching.get_rw rs in
+        Env.add_rw v gdt
 
 let mk_ending _ : unit = () 
 

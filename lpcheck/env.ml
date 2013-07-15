@@ -2,7 +2,7 @@
 open Types
 
 type gst =
-  | Decl  of term
+  | Decl  of term*(int*gdt) option 
   | Def   of term*term
 
 let envs : (gst StringH.t) StringH.t = StringH.create 19 
@@ -22,25 +22,40 @@ let get_global_symbol m v =
 
 let get_global_type m v = 
   match get_global_symbol m v with
-    | Decl ty           -> ty
+    | Decl (ty,_)       -> ty
     | Def (_,ty)        -> ty 
-
+(*
 let get_global_def m v = 
   match get_global_symbol m v with
-    | Decl _          -> None
+    | Decl (_,_)      -> None
     | Def (te,_)      -> Some te 
+ *)
+let get_global_rw m v = 
+  match get_global_symbol m v with
+    | Decl (_,rw)       -> rw
+    | Def (_,_)         -> None
 
 (* Add *)
 
 let add_decl v ty = 
   let env = StringH.find envs !Global.name in
     if StringH.mem env v then raise (EnvError ("Already defined symbol "^v)) 
-    else StringH.add env v (Decl ty)
+    else StringH.add env v (Decl (ty,None))
 
 let add_def v te ty =
   let env = StringH.find envs !Global.name in
     if StringH.mem env v then raise (EnvError ("Already defined symbol "^v))
     else StringH.add env v (Def (te,ty))
+
+let add_rw (v:string) (g:int*gdt) = 
+  let env = StringH.find envs !Global.name in
+    try (
+      match StringH.find env v with
+        | Def (_,_)             -> assert false (*FIXME*)
+        | Decl(_,Some _)        -> assert false (*FIXME*)
+        | Decl (ty,None)        -> StringH.add env v (Decl (ty,Some g))
+    ) with
+      Not_found -> assert false (*FIXME*)
 
 (* Update*)
 (* 

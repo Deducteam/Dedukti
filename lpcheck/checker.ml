@@ -27,12 +27,13 @@ let mk_app f u =
 (* Computes a type for a given term *)
 let rec infer (k:int) (te:term) : term = 
   match te with
-    | Kind        -> assert false
-    | Var _       -> assert false
-    | Type        -> Kind
-    | DB n        -> Term.shift2 (n+1) 0 (lenv_get (k-1-n)) 
-    | GVar (m,v)  -> Env.get_global_type m v       
-    | Pi (a,b)    ->                                    
+    | Kind              -> assert false
+    | LVar _            -> assert false
+    | Type              -> Kind
+    | DB n              -> Term.shift2 (n+1) 0 (lenv_get (k-1-n)) 
+    | GVar (m,v)        -> Env.get_global_type m v       
+    | RVar v            -> Term.rs_find v
+    | Pi (a,b)          ->                                    
         ( is_type (infer k a) ; lenv_add k a ; 
           let s = match infer (k+1) b with 
             | Kind        -> Kind
@@ -40,7 +41,7 @@ let rec infer (k:int) (te:term) : term =
             | _           -> raise (TypingError (lazy "SortExpected")) 
           in
             lenv_remove k ; s ) 
-    | Lam (a,t)   -> 
+    | Lam (a,t)         -> 
         ( is_type (infer k a) ; lenv_add k a ; 
           let ty = match infer (k+1) t with 
             | Kind        -> raise (TypingError (lazy "TopSort")) 
@@ -56,7 +57,7 @@ let rec infer (k:int) (te:term) : term =
                   else raise (TypingError (lazy ("Cannot convert "^Debug.string_of_term a^" with "^Debug.string_of_term a')))
               | ( t , _ )         -> raise (TypingError (lazy "ProductExpected"))
         ) (f,infer k f) args)
-    | App _       -> assert false
+    | App _             -> assert false
 
 (* Checks that |- te:ty *)
 let check_term te ty = 
@@ -68,4 +69,22 @@ let check_type ty =
   match infer 0 ty with
     | Kind | Type       -> ()
     | _                 -> raise (TypingError (lazy "SortExpected"))
+
+let check_rule id (penv,ple,pri) : rule2 = 
+  (* FIXME check id *)
+  let env:string list = List.map (
+    fun ((_,v),pty) ->
+      let ty = Term.of_pterm pty in
+        check_type ty ; 
+        Term.rs_add v ty ; v
+  ) penv in
+  let le  = Term.term_of_tpat ple in
+  let ri  = Term.of_pterm pri in
+  let ty_le = infer 0 le in
+  let ty_ri = infer 0 ri in
+    if Term.are_convertible ty_le ty_ri then (
+      List.iter (fun v -> Term.rs_remove v) env ;
+      (env,ple,ri) 
+    ) else 
+      assert false (*FIXME*)
 
