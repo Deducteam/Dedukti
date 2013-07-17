@@ -24,6 +24,12 @@ let mk_definition ((l,id),pty,pte : (loc*string)*pterm*pterm) : unit =
         Checker.check_term te ty ;
         Env.add_def id te ty 
 
+let mk_infered_def ((l,id),pte : (loc*string)*pterm) : unit =
+        let te = Term.of_pterm 0 [] pte in
+        Global.print_v ( Debug.string_of_loc l ^ "[Infered Definition] " ^ id ^ ".\n") ;
+        let ty = Checker.infer 0 [] te in
+        Env.add_def id te ty 
+
 let mk_opaque ((l,id),pty,pte : (loc*string)*pterm*pterm) : unit = 
         let ty = Term.of_pterm 0 [] pty in
         let te = Term.of_pterm 0 [] pte in
@@ -38,6 +44,12 @@ let mk_typecheck (l,pty,pte : loc*pterm*pterm) :unit =
         Global.print_v ( Debug.string_of_loc l ^ "[TypeCheck] _ \n") ;
         Checker.check_type 0 [] ty ;
         Checker.check_term te ty
+
+let mk_normalize (pte : pterm) : unit = 
+        let te = Term.of_pterm 0 [] pte in
+        Global.print_v ( "[Normalize] ...\n" ) ;
+        let te' = Term.hnf te in
+        Global.print_v ( Debug.string_of_term te' ^ "\n" )
 
 let mk_rules (lst:rule list) : unit = 
         let aux = function
@@ -65,6 +77,7 @@ let mk_ending _ : unit = ()
 %token <Types.loc> UNDERSCORE
 %token NAME
 %token IMPORT
+%token NORM
 %token LEFTPAR
 %token RIGHTPAR
 %token LEFTBRA
@@ -104,10 +117,12 @@ line_lst:       /* empty */                                     { () }
 
 line:             ID COLON term DOT                             { mk_declaration ($1,$3) }
                 | ID COLON term DEF term DOT                    { mk_definition ($1,$3,$5) }
+                | ID DEF term DOT                               { mk_infered_def ($1,$3) }
                 | LEFTBRA ID RIGHTBRA COLON term DEF term DOT   { mk_opaque ($2,$5,$7) }
                 | UNDERSCORE COLON term DEF term DOT            { mk_typecheck ($1,$3,$5) }
                 | rule_lst DOT                                  { mk_rules $1 } 
                 | IMPORT ID                                     { mk_require $2 }
+                | NORM term DOT                                 { mk_normalize $2 }
 
 rule_lst:         rule                                          { [$1] }
                 | rule rule_lst                                 { $1::$2 }
