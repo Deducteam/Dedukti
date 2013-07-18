@@ -122,7 +122,7 @@ let rec split_stack i = function (*FIXME*)
             
 let get_gdt m v cases def =
   try Some (snd (List.find (fun ((m',v'),_) -> m=m' && v=v') cases))
-  with Not_found -> None
+  with Not_found -> def
 
 let mk_new_args c args1 lst = (*FIXME*)
   let s1 = Array.length args1 in
@@ -181,7 +181,7 @@ and rewrite (args:cbn_state array) (g:gdt)  =
                     | None        -> None
                     | Some g      -> rewrite (mk_new_args i args s) g
                 )
-            | _                           -> None
+            | s                           -> None
         end
 (*
 and cbn_reduce0 s =
@@ -193,9 +193,10 @@ and cbn_reduce0 s =
     Global.print_v ("------- END \n");
     s'
  *)
-
 (* ... *)
 
+
+(* Not head normal form ... FIXME*)          
 let hnf (t:term) : term = cbn_term_of_state (cbn_reduce (0,[],t,[]))
 
 let term_eq (t1:term) (t2:term) : bool = t1 == t2 || t1=t2 
