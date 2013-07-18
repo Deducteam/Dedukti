@@ -14,11 +14,11 @@ let init name = StringH.add envs name (StringH.create 251)
 let get_global_symbol m v = 
   let env = 
     try StringH.find envs m 
-    with Not_found -> raise (EnvError ("Cannot find module "^m))
+    with Not_found -> raise (EnvError ("Cannot find module '"^m^"'."))
   in
     try ( StringH.find env v )
     with Not_found -> 
-      raise (EnvError ("Cannot find symbol '"^m^"."^v^"'")) 
+      raise (EnvError ("Cannot find symbol '"^m^"."^v^"'.")) 
 
 let get_global_type m v = 
   match get_global_symbol m v with
@@ -39,23 +39,24 @@ let get_global_rw m v =
 
 let add_decl v ty = 
   let env = StringH.find envs !Global.name in
-    if StringH.mem env v then raise (EnvError ("Already defined symbol "^v)) 
+    if StringH.mem env v then raise (EnvError ("Already defined symbol '"^v^"'.")) 
     else StringH.add env v (Decl (ty,None))
 
 let add_def v te ty =
   let env = StringH.find envs !Global.name in
-    if StringH.mem env v then raise (EnvError ("Already defined symbol "^v))
+    if StringH.mem env v then raise (EnvError ("Already defined symbol '"^v^"'."))
     else StringH.add env v (Def (te,ty))
 
 let add_rw (v:string) (g:int*gdt) = 
   let env = StringH.find envs !Global.name in
     try (
       match StringH.find env v with
-        | Def (_,_)             -> assert false (*FIXME*)
-        | Decl(_,Some _)        -> assert false (*FIXME*)
+        | Def (_,_)             -> raise (EnvError "Cannot rewrite a defined symbol.")
+        | Decl(_,Some _)        -> raise (EnvError ("Cannot add rewrite rules for '"^v^"'."))
         | Decl (ty,None)        -> StringH.add env v (Decl (ty,Some g))
     ) with
-      Not_found -> assert false (*FIXME*)
+      Not_found -> 
+        raise (EnvError ("Cannot find symbol '"^(!Global.name)^"."^v^"'.")) 
 
 (* Update*)
 (* 
@@ -68,13 +69,13 @@ let update_def v te =
 (* Modules *)
 
 let import m =
-  if StringH.mem envs m then raise (EnvError ("AlreadyOpenedModule "^m))
+  if StringH.mem envs m then raise (EnvError ("Already opened module '"^m^"'."))
   else
     try 
       let chan = open_in (m^".dko") in
       let ctx:gst StringH.t = Marshal.from_channel chan in
         StringH.add envs m ctx
-    with _ -> raise (EnvError ("FailToOpenModule "^m))
+    with _ -> raise (EnvError ("Fail to open module '"^m^"'."))
 
 let export_and_clear () = 
   ( if !Global.export then
@@ -82,22 +83,3 @@ let export_and_clear () =
     let env = StringH.find envs !Global.name in
       Marshal.to_channel out env [Marshal.Closures] ) ;
   StringH.clear envs 
-
-(* Debug *)
-(*
-let dump_context h =
-  StringH.iter (
-  fun s d ->
-    match d with
-      | Def (_,_)       -> Global.msg (s^" is a def.\n")
-      | Decl _          -> Global.msg (s^" is declared.\n")
-  ) h
-
-let dump_symbols () = 
-  Global.msg ("### MODULE "^ !Global.name ^"\n");
-  dump_context env; 
-  StringH.iter (
-    fun m h ->
-      Global.msg ("### MODULE "^m^"\n");
-      dump_context h
-  ) ext *)

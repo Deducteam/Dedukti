@@ -43,5 +43,5 @@ rule token = parse
   | ";)"                { token lexbuf          }
   | '\n'                { Lexing.new_line lexbuf ; comment lexbuf }
   | _                   { comment lexbuf        }
-  | eof		        { raise (LexerError "End_of_file_in_comment") }
+  | eof		        { raise (LexerError "Unexpected end of file.") }
   

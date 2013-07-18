@@ -1,12 +1,25 @@
 
 open Types
 
+let err_conv te exp inf =  
+  "Error while typing "^Debug.string_of_term te ^".\nExpected type: "^Debug.string_of_term exp^".\nInferred type: "^Debug.string_of_term inf^".\n"
+
+let err_sort te ty =
+  "Error while typing "^Debug.string_of_term te ^".\n Expected type: Type or Kind.\nInferred type: "^Debug.string_of_term ty^".\n"
+
+let err_topsort te = 
+  "Error while typing "^Debug.string_of_term te ^".\n Expected type: anything but Kind.\nInferred type: Kind.\n"
+
+let err_prod te ty = 
+  "Error while typing "^Debug.string_of_term te ^".\n Product expected.\nInferred type: "^Debug.string_of_term ty^".\n"
+
+
 (* Type checking/inference*)
 
 (* ty?=Type *)
 let is_type te = function
     | Type      -> ()
-    | ty        -> raise (TypingError ("Error while typing "^Debug.string_of_term te ^".\n Expected type: Type.\nInfered type: "^Debug.string_of_term ty^".\n"))
+    | ty        -> raise (TypingError (err_conv te Type ty))
 
 let mk_app f u =
   match f with
@@ -18,7 +31,7 @@ let mk_app f u =
 let rec infer (k:int) (ctx:term list) (te:term) : term = 
   match te with
     | Type                              -> Kind
-    | DB n                              -> ( assert (n<k) ; Term.shift (n+1) 0 (List.nth ctx n) ) (*FIXME*)
+    | DB n                              -> ( (*assert (n<k) ;*) Term.shift (n+1) 0 (List.nth ctx n) )
     | GVar (m,v)                        -> Env.get_global_type m v
     | Pi (a,b)                          ->
         begin
@@ -26,25 +39,25 @@ let rec infer (k:int) (ctx:term list) (te:term) : term =
           match infer (k+1) (a::ctx) b with 
             | Kind      -> Kind
             | Type      -> Type
-            | ty        -> assert false (*raise (TypingError ("Error while typing "^Debug.string_of_term b ^".\n Expected type: Type or Kind.\nInfered type: "^Debug.string_of_term ty^".\n"))FIXME*)
+            | ty        -> raise (TypingError (err_sort b ty))
         end
     | Lam (a,t)                         -> 
         begin
           is_type a (infer k ctx a) ;
           match infer (k+1) (a::ctx) t with 
-            | Kind        -> raise (TypingError ("TopSort")) (*FIXME*) 
+            | Kind        -> raise (TypingError (err_topsort te))
             | b           -> Pi (a,b)
         end
     | App ( f::((_::_) as args) )       ->
         begin
-          List.fold_left (
-            fun ty_f u ->
+          snd ( List.fold_left (
+            fun (f,ty_f) u ->
               match Term.hnf ty_f , infer k ctx u with
                 | ( Pi (a,b) , a' ) ->  
-                    if Term.are_convertible a a' then Term.subst b u
-                    else raise (TypingError (("Cannot convert "^Debug.string_of_term a^" with "^Debug.string_of_term a')))
-                | ( t , _ )         -> raise (TypingError ("ProductExpected")) (*FIXME*)
-          ) (infer k ctx f) args
+                    if Term.are_convertible a a' then ( mk_app f u , Term.subst b u )
+                    else raise (TypingError (err_conv u a a'))
+                | ( t , _ )         -> raise (TypingError (err_prod f ty_f)) 
+          ) (f,infer k ctx f) args )
         end
     | App _             -> assert false
     | Kind              -> assert false
@@ -53,17 +66,17 @@ let rec infer (k:int) (ctx:term list) (te:term) : term =
 
 (* Checks that |- te:ty *)
 let check_term te ty = 
-  if not (Term.are_convertible (infer 0 [] te) ty ) then 
-    raise (TypingError ("CannotConvert")) (*FIXME*)
+  let ty' = infer 0 [] te in
+    if not (Term.are_convertible ty ty') then 
+      raise (TypingError (err_conv te ty ty'))
 
 (* Checks that |- ty : Type or |- ty : Kind *)
 let check_type k ctx ty = 
   match infer k ctx ty with
     | Kind | Type       -> ()
-    | _                 -> raise (TypingError ("SortExpected")) (*FIXME*)
+    | s                 -> raise (TypingError (err_sort ty s)) 
 
 let check_rule id (penv,ple,pri) : rule2 = 
-  (* FIXME check id *)
   let (k,names,ctx:int*string list*term list) = 
     List.fold_left (
       fun (k,names,ctx) ((_,v),pty) ->
@@ -77,5 +90,5 @@ let check_rule id (penv,ple,pri) : rule2 =
   let ty_ri = infer k ctx ri in
     if Term.are_convertible ty_le ty_ri then (names,ple,ri) 
     else
-      raise (TypingError (("Cannot convert "^Debug.string_of_term ty_le^" with "^Debug.string_of_term ty_ri)))
+      raise (TypingError (err_conv ri ty_le ty_ri))
 

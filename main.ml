@@ -19,7 +19,7 @@ let parse lb =
           let line = string_of_int (curr.Lexing.pos_lnum) in
           let column = string_of_int (curr.Lexing.pos_cnum - curr.Lexing.pos_bol) in
           let tok = Lexing.lexeme lb in
-            raise (ParserError (" Parsing error near '" ^ tok ^ "' (line:"^line^"; column:"^column^")")) 
+            raise (ParserError ("Parsing error near '" ^ tok ^ "' (line:"^line^"; column:"^column^")")) 
         end
 
 (* ... *)
@@ -51,7 +51,7 @@ let args = [
 let _ =  
   try 
     Arg.parse args run_on_file "Usage: dkcheck [options] files"  
-  with (*FIXME ajouer localisation *)
+  with 
     | Sys_error err     -> error "System Error"  err
     | LexerError err    -> error "Lexing Error"  err
     | ParserError err   -> error "Pasing Error"  err

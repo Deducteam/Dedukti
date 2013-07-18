@@ -1,14 +1,7 @@
 
 open Types
 
-let dump_state (k,e,t,s) =
-  Global.print ("k = "^string_of_int k^"\n");
-  Global.print ("t = "^Debug.string_of_term t^"\n");
-  Global.print "e = [";
-  List.iter (fun u -> Global.print (" ("^Debug.string_of_term (Lazy.force u)^")")) e ;
-  Global.print " ]\ns = [";
-  List.iter (fun (_,_,u,_) -> Global.print (" {{ "^Debug.string_of_term u^" }}")) s ;
-  Global.print " ]\n"
+(* --- Utils --- *) 
 
 let pos x lst = 
   let rec aux n = function
@@ -23,7 +16,7 @@ let rec pop n = function (* n < size of the list *)
   | a::_ when n=0       -> a
   | _::lst              -> pop (n-1) lst
 
-(* ... *)
+(* --- Parsing terms to Typing terms --- *)
 
 (* Invariant: k == List.length ctx *)      
 let rec of_pterm (k:int) (ctx:string list) : pterm -> term = function 
@@ -47,19 +40,22 @@ and get_app_lst k ctx t args =
 let rec term_of_pat (k:int) (ctx:string list) : pattern -> term = function
   | Pat ((_,m,v),ds,ps) ->
       begin
-          if m = !Global.name && Array.length ps=0 && Array.length ds=0 then
+        if Array.length ps=0 && Array.length ds=0 then
+          if m = !Global.name then
             ( match pos v ctx with
                 | None        -> GVar (!Global.name,v)
                 | Some n      -> DB n )
-          else 
-            let l1 = Array.fold_right (fun p lst -> (term_of_pat k ctx p)::lst) ps [] in
-            let l2 = Array.fold_right (fun t lst -> (of_pterm k ctx t)::lst) ds l1 in
-              App ( (GVar (m,v))::l2)
+          else
+            GVar (m,v)
+        else 
+          let l1 = Array.fold_right (fun p lst -> (term_of_pat k ctx p)::lst) ps [] in
+          let l2 = Array.fold_right (fun t lst -> (of_pterm k ctx t)::lst) ds l1 in
+            App ( (GVar (m,v))::l2)
       end
 
 let term_of_tpat k ctx ((l,v),ds,ps:top_pattern) : term = term_of_pat k ctx (Pat ((l,!Global.name,v),ds,ps))
 
-(* Substitution *)
+(* --- Substitution --- *)
 
 let rec shift (r:int) (k:int) = function
   | DB n        -> if n<k then DB n else DB (n+r)
@@ -102,7 +98,7 @@ let rec psubst (nargs,args) k t =
 
 let subst t u = psubst (1,[u]) 0 t
 
-(* Call-by-Need *)
+(* --- Reduction --- *)
 
 type cbn_state = int (*taille du contexte*) * (term Lazy.t) list (*contexte*) * term (*terme à réduire*) * cbn_state list (*stack*)
 
@@ -111,7 +107,7 @@ let rec cbn_term_of_state (k,e,t,s:cbn_state) : term =
     if s = [] then t 
     else App ( t::(List.map cbn_term_of_state s) )
            
-let rec split_stack i = function (*FIXME*)
+let rec split_stack i = function 
   | l  when i=0 -> Some ([],l)
   | []          -> None
   | x::l        -> (
@@ -124,7 +120,7 @@ let get_gdt m v cases def =
   try Some (snd (List.find (fun ((m',v'),_) -> m=m' && v=v') cases))
   with Not_found -> def
 
-let mk_new_args c args1 lst = (*FIXME*)
+let mk_new_args c args1 lst = 
   let s1 = Array.length args1 in
   let args2 = Array.of_list lst in
   let s2 = Array.length args2 in
@@ -134,8 +130,6 @@ let mk_new_args c args1 lst = (*FIXME*)
       else if i<(s1-1) then args1.(i+1)
       else args2.(i-(s1-1))
   )
-
-let mk_args a = Array.of_list a (*FIXME*)
 
 let rec cbn_reduce (config:cbn_state) : cbn_state = 
   match config with
@@ -148,7 +142,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | ( k , _ , DB n , _ ) when (n>=k)  -> config
     | ( _ , _ , App ([]|[_]) , _ )      -> assert false
 
-    | ( k , e , DB n , s ) (*when n<k*) -> cbn_reduce ( 0 , [] , Lazy.force (pop n e) , s )       (*FIXME shift?*)
+    | ( k , e , DB n , s ) (*when n<k*) -> cbn_reduce ( 0 , [] , Lazy.force (pop n e) , s )       
     | ( k , e , Lam (_,t) , p::s )      -> cbn_reduce ( k+1 , (lazy (cbn_term_of_state p))::e , t , s )
     | ( k , e , App (he::tl) , s )      ->
         let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
@@ -163,7 +157,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
                 ( match split_stack i s with
                     | None                -> config
                     | Some (s1,s2)        ->
-                        ( match rewrite (mk_args s1) g with
+                        ( match rewrite (Array.of_list s1) g with
                             | None              -> config
                             | Some (k,e,t)      -> cbn_reduce ( k , e , t , s2 ) 
                         )
@@ -193,18 +187,16 @@ and cbn_reduce0 s =
     Global.print_v ("------- END \n");
     s'
  *)
-(* ... *)
 
-
-(* Not head normal form ... FIXME*)          
+(* not really head normal form ? *)
 let hnf (t:term) : term = cbn_term_of_state (cbn_reduce (0,[],t,[]))
+
+(* --- Conversion --- *)
 
 let term_eq (t1:term) (t2:term) : bool = t1 == t2 || t1=t2 
  
 let nnn = ref 0
-let mk_fvar () =
-  let n = !nnn in
-  incr nnn ; lazy (LVar n)
+let mk_fvar () = let n = !nnn in incr nnn ; lazy (LVar n)
 
 let rec add_to_list lst s s' =
   match s,s' with
@@ -221,7 +213,7 @@ let rec state_conv : (cbn_state*cbn_state) list -> bool = function
           | ( _ , _ , Type ) , ( _ , _ , Type )                       -> ( true , None )
           | ( _ , _ , LVar n ) , ( _ , _ , LVar n' )                  -> ( n=n' , None )
           | ( _ , _ , GVar (m,v) ) , ( _ , _ , GVar (m',v') )         -> ( m=m' && v=v' , None )
-          | ( k , _ , DB n ) , ( k' , _ , DB n' )                     -> ( assert (k<=n && k'<=n') ; (n-k)=(n'-k') , None )
+          | ( k , _ , DB n ) , ( k' , _ , DB n' )                     -> ( (*assert (k<=n && k'<=n') ;*) (n-k)=(n'-k') , None )
           | ( k , e , Lam (a,f) ) , ( k' , e' , Lam (a',f') )          
           | ( k , e , Pi  (a,f) ) , ( k' , e' , Pi  (a',f') )         -> 
               let x = mk_fvar () in

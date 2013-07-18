@@ -46,4 +46,13 @@ let dump_pMat id pm =
     Array.iter aux pm ;
     Global.print_v " <-------- \n"
 
+let dump_state (k,e,t,s) =
+  Global.print ("k = "^string_of_int k^"\n");
+  Global.print ("t = "^string_of_term t^"\n");
+  Global.print "e = [";
+  List.iter (fun u -> Global.print (" ("^string_of_term (Lazy.force u)^")")) e ;
+  Global.print " ]\ns = [";
+  List.iter (fun (_,_,u,_) -> Global.print (" {{ "^string_of_term u^" }}")) s ;
+  Global.print " ]\n"
+
 

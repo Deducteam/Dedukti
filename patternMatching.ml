@@ -24,12 +24,14 @@ let pMat_init (lst:rule2 list) =
     | _                         -> assert false
   in
   let mk_line (names,((_,c),ds,ps),t) : line = 
-    assert ( ( c = head ) && ( Array.length ds+Array.length ps = size ) ); (*FIXME*)
-    let d = Array.length ds in
-    let arr = Array.init size ( fun i -> if i<d then Joker else to_pattern2 names ps.(i-d) ) in
-      { li=arr ; te=t; na=names; }
+    if ( c = head ) && ( Array.length ds+Array.length ps = size ) then
+      let d = Array.length ds in
+      let arr = Array.init size ( fun i -> if i<d then Joker else to_pattern2 names ps.(i-d) ) in
+        { li=arr ; te=t; na=names; }
+        else
+          failwith "Rewrite rule error." (*TODO*)
   in 
-    Array.of_list (List.map mk_line lst) (*FIXME*) 
+    Array.of_list (List.map mk_line lst)  
 
 (*
 * On elargie la matrice de (arity-1)
@@ -106,7 +108,7 @@ let rec reorder ord k = function
 
 let get_term (l:line) = 
   let rec get_db v i =
-        assert (i<Array.length l.li);
+        (* assert (i<Array.length l.li); *)
         match l.li.(i) with
           | Var v' when v=v'    -> i
           | Pattern (_,_)       -> assert false
