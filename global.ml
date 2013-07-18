@@ -10,6 +10,7 @@ let hstring s = WS.merge shash s
 let name                        = ref ""
 let quiet                       = ref true
 let export                      = ref false
+let raphael                     = ref false
 
 let set_name s = name := (hstring s)
 

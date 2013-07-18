@@ -45,7 +45,8 @@ let args = [
         ("-q"    , Arg.Set Global.quiet                 , "Quiet"               ) ;
         ("-v"    , Arg.Clear Global.quiet               , "Verbose"             ) ;
         ("-e"    , Arg.Set Global.export                , "Create a .dko"       ) ;
-        ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"  ) 
+        ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"  ) ; 
+        ("-r"    , Arg.Set Global.raphael               , "Undocumented"  ) 
 ]
 
 let _ =  

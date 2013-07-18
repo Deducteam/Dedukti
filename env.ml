@@ -39,13 +39,23 @@ let get_global_rw m v =
 
 let add_decl v ty = 
   let env = StringH.find envs !Global.name in
-    if StringH.mem env v then raise (EnvError ("Already defined symbol '"^v^"'.")) 
-    else StringH.add env v (Decl (ty,None))
+    if StringH.mem env v then 
+      if !Global.raphael then
+        Global.print_v "Redeclaration ignored.\n"
+      else 
+        raise (EnvError ("Already defined symbol '"^v^"'.")) 
+    else 
+      StringH.add env v (Decl (ty,None))
 
 let add_def v te ty =
   let env = StringH.find envs !Global.name in
-    if StringH.mem env v then raise (EnvError ("Already defined symbol '"^v^"'."))
-    else StringH.add env v (Def (te,ty))
+    if StringH.mem env v then 
+      if !Global.raphael then
+        Global.print_v "Redeclaration ignored.\n"
+      else
+        raise (EnvError ("Already defined symbol '"^v^"'."))
+    else 
+      StringH.add env v (Def (te,ty))
 
 let add_rw (v:string) (g:int*gdt) = 
   let env = StringH.find envs !Global.name in
