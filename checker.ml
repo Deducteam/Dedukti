@@ -1,6 +1,8 @@
 
 open Types
 
+(* --- Error messages --- *)
+
 let err_conv te exp inf =  
   "Error while typing "^Debug.string_of_term te ^".\nExpected type: "^Debug.string_of_term exp^".\nInferred type: "^Debug.string_of_term inf^".\n"
 
@@ -13,10 +15,9 @@ let err_topsort te =
 let err_prod te ty = 
   "Error while typing "^Debug.string_of_term te ^".\n Product expected.\nInferred type: "^Debug.string_of_term ty^".\n"
 
+(* --- Type checking/inference --- *)
 
-(* Type checking/inference*)
-
-(* ty?=Type *)
+(* ty ?~ Type *)
 let is_type te = function
     | Type      -> ()
     | ty        -> raise (TypingError (err_conv te Type ty))
@@ -76,14 +77,15 @@ let check_type k ctx ty =
     | Kind | Type       -> ()
     | s                 -> raise (TypingError (err_sort ty s)) 
 
-let check_rule id (penv,ple,pri) : rule2 = 
+(* Check a rule: the context is well formed and the left and right sides of the
+* rule have convertible types *)                             
+let check_rule (penv,ple,pri) : rule2 = 
   let (k,names,ctx:int*string list*term list) = 
     List.fold_left (
       fun (k,names,ctx) ((_,v),pty) ->
         let ty = Term.of_pterm k names pty in
           check_type k ctx ty ; (k+1,v::names,ty::ctx)
     ) (0,[],[]) penv in
-
   let le  = Term.term_of_tpat k names ple in
   let ri  = Term.of_pterm     k names pri in
   let ty_le = infer k ctx le in

@@ -8,6 +8,7 @@ exception ParserError of string
 exception LexerError  of string
 exception EnvError    of string
 exception TypingError of string
+exception PatternError of string
 
 (* Parsing *)
 

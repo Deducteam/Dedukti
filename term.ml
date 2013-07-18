@@ -169,6 +169,7 @@ and rewrite (args:cbn_state array) (g:gdt)  =
     | Leaf te                     -> Some ( Array.length args , List.map (fun a -> lazy (cbn_term_of_state a)) (Array.to_list args) , te ) 
     | Switch (i,cases,def)        -> 
         begin
+          assert (i<Array.length args);
           match cbn_reduce (args.(i)) with
             | ( _ , _ , GVar (m,v) , s )  -> 
                 ( match get_gdt m v cases def with

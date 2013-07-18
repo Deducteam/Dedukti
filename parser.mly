@@ -58,7 +58,7 @@ let mk_rules (lst:rule list) : unit =
         in
         let (l,v) = aux lst in
         Global.print_v (Debug.string_of_loc l ^ "[Rewrite] " ^ v ^ ".\n") ; 
-        let rs = List.map (Checker.check_rule v) lst in
+        let rs = List.map (Checker.check_rule ) lst in
         let gdt = PatternMatching.get_rw v rs in
         Env.add_rw v gdt
 

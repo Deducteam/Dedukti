@@ -24,12 +24,14 @@ let pMat_init (lst:rule2 list) =
     | _                         -> assert false
   in
   let mk_line (names,((_,c),ds,ps),t) : line = 
-    if ( c = head ) && ( Array.length ds+Array.length ps = size ) then
+    if c != head then 
+      raise (PatternError ("Constructor mismatch in rewrite rule:\nExpected: "^head^"\nFound: "^c^"."))
+    else if not ( Array.length ds+Array.length ps = size ) then 
+      raise (PatternError ("Arity mismatch in rewrite rule for constant '"^c^"'."))
+    else
       let d = Array.length ds in
       let arr = Array.init size ( fun i -> if i<d then Joker else to_pattern2 names ps.(i-d) ) in
         { li=arr ; te=t; na=names; }
-        else
-          failwith "Rewrite rule error." (*TODO*)
   in 
     Array.of_list (List.map mk_line lst)  
 
@@ -39,33 +41,41 @@ let pMat_init (lst:rule2 list) =
  * On ajoute à la fin les arity colonnes
 * *)
 let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : union = 
+  assert (Array.length pm > 0);
   let cols  = Array.length pm.(0).li in
   let cols2 = cols + arity - 1 in
-  if  cols2 = 0 then (match lines with [] -> assert false | x::_ ->Term (pm.(x).te) )
-  else
-    let p2 = List.map (
-      fun li -> 
-        { li = Array.init cols2 (
-          fun i -> 
-            let line = pm.(li).li in
-              if i<c then line.(i)
-              else if i<(cols-1) then line.(i+1)
-              else let j = i-cols+1 in
-                match line.(c) with
-                  | Pattern (_,pats)  -> pats.(j)
-                  | _                   -> assert false
-        ) ;
-          te = pm.(li).te ; na= pm.(li).na ; }
+    if  cols2 = 0 then (
+      match lines with 
+        | []      -> assert false 
+        | x::_    -> ( assert (x < Array.length pm) ; Term (pm.(x).te) ) 
+    ) else
+      let p2 = List.map (
+        fun li -> 
+          assert (li < Array.length pm) ;
+          let line = pm.(li).li in
+            assert ( c < Array.length line ) ;
+            assert ( Array.length line = cols ) ;
+            { li = Array.init cols2 (
+              fun i -> 
+                if i<c then line.(i)
+                else if i<(cols-1) then line.(i+1)
+                else 
+                  match line.(c) with
+                    | Pattern (_,pats)  -> ( assert ( i-cols+1 < Array.length pats) ; pats.(i-cols+1) )
+                    | _                 -> assert false
+            ) ;
+              te = pm.(li).te ; na= pm.(li).na ; }
       ) lines in 
-      PMat ( Array.of_list p2 ) 
+        PMat ( Array.of_list p2 ) 
 
 (* on ne garde que les lignes ou la colonne c est une Var/Joker *)                                                                          
 let default (pm:pMat) (c:int) : pMat option = 
   let lst =
     Array.fold_left  (
       fun lst t -> 
+        assert ( c < Array.length t.li ) ;
         match t.li.(c) with
-          | Pattern (_,_)     -> lst
+          | Pattern (_,_)       -> lst
           | _                   -> t::lst
     ) [] pm in
     match lst with
@@ -76,6 +86,7 @@ let partition (pm:pMat) (c:int) : ((string*string)*int*int list) list  =
   let hs  = Hashtbl.create 47 in
     Array.iteri (
       fun i t ->
+        assert ( c < Array.length t.li ) ;
         match t.li.(c) with
           | Pattern ((m,v),pats)      -> 
               begin 
@@ -89,6 +100,7 @@ let partition (pm:pMat) (c:int) : ((string*string)*int*int list) list  =
     Hashtbl.fold (fun id (ar,ll) lst -> (id,ar,List.rev ll)::lst ) hs []
 
 let getColumn (pm:pMat) =
+  assert ( Array.length pm > 0 ) ;
   let arr = pm.(0).li in
   let rec aux i = 
     if i < Array.length arr then
@@ -100,7 +112,7 @@ let getColumn (pm:pMat) =
 
 let rec reorder ord k = function
   | DB n when n<k       -> DB n
-  | DB n (* n>=k *)     -> DB (ord.(n-k) + k)
+  | DB n (* n>=k *)     -> ( assert (n-k < Array.length ord) ; DB (ord.(n-k) + k) )
   | App args            -> App (List.map (reorder ord k) args)
   | Lam (a,f)           -> Lam (reorder ord k a, reorder ord (k+1) f)
   | Pi  (a,b)           -> Pi  (reorder ord k a, reorder ord (k+1) b)
@@ -108,11 +120,13 @@ let rec reorder ord k = function
 
 let get_term (l:line) = 
   let rec get_db v i =
-        (* assert (i<Array.length l.li); *)
-        match l.li.(i) with
-          | Var v' when v=v'    -> i
-          | Pattern (_,_)       -> assert false
-          | _                   -> get_db v (i+1)
+    if (i<Array.length l.li) then
+      ( match l.li.(i) with
+        | Var v' when v=v'    -> i
+        | Pattern (_,_)       -> assert false
+        | _                   -> get_db v (i+1) )
+    else
+      raise (PatternError ("Variable '"^v^"' does not appear on the left side of the rewrite rule."))
   in
   let nam = Array.of_list l.na in
   let ord = Array.init (Array.length nam) (
@@ -140,6 +154,7 @@ let rec cc (pm:pMat) : gdt =
 
 let get_rw v (rs:rule2 list) : int*gdt =
   let pm = pMat_init rs in
+    assert ( Array.length pm > 0 ) ;
   let gdt = cc pm in
     (*Debug.dump_pMat v pm ;*)
     (*Debug.dump_gdt v gdt ;*)

@@ -57,3 +57,4 @@ let _ =
     | ParserError err   -> error "Pasing Error"  err
     | TypingError err   -> error "Typing Error"  err
     | EnvError err      -> error "Scoping Error" err
+    | PatternError err  -> error "Rewrite Error" err
