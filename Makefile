@@ -6,7 +6,7 @@ INSTALL_DIR=/usr/bin
 # DO NOT EDIT AFTER THIS LINE
 
 all: 
-	ocamlbuild -ocamlc 'ocamlc.opt -rectypes' -cflags -rectypes -use-menhir main.native
+	ocamlbuild -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir main.native
 
 # FIXME
 
