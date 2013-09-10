@@ -9,11 +9,13 @@ let error e str =
 
 (* Parsing *)
 
+module P = Parser.Make(Checker)
+
 let parse lb = 
   try
-      Parser.top Lexer.token lb
+      P.top Lexer.token lb
   with 
-    | Parser.Error       -> 
+    | P.Error       -> 
         begin
           let curr = lb.Lexing.lex_curr_p in
           let line = string_of_int (curr.Lexing.pos_lnum) in

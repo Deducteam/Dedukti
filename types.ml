@@ -14,6 +14,29 @@ exception PatternError of string
 
 type loc  = int*int
 
+type token = 
+  | UNDERSCORE of loc
+  | TYPE
+  | RIGHTSQU
+  | RIGHTPAR
+  | RIGHTBRA
+  | QID of (loc*string*string)
+  | NORM
+  | NAME
+  | LONGARROW
+  | LEFTSQU
+  | LEFTPAR
+  | LEFTBRA
+  | IMPORT
+  | ID of (loc*string)
+  | FATARROW
+  | EOF
+  | DOT
+  | DEF
+  | COMMA
+  | COLON
+  | ARROW
+
 type pterm =
   | PType
   | PId  of loc*string

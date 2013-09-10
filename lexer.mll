@@ -1,6 +1,5 @@
 {
   open Types
-  open Parser
 
   let mk_loc lexbuf = 
           let curr = lexbuf.Lexing.lex_curr_p                   in

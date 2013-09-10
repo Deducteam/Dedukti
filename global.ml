@@ -11,8 +11,13 @@ let name                        = ref ""
 let quiet                       = ref true
 let export                      = ref false
 let raphael                     = ref false
+let out                         = ref stdout (* for dk2mmt *)
 
-let set_name s = name := (hstring s)
+let set_name s = 
+  name := (hstring s)
+
+let set_out file = 
+  out := open_out file
 
 (* Info messages *)
 
