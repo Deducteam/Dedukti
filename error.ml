@@ -1,6 +1,8 @@
 
 open Types
 
+(* to_string functions *)
+
 let string_of_loc (l,c) = "[l:"^string_of_int l^";c:"^string_of_int c^"]"
 
 let rec string_of_term : term -> string = function
@@ -18,6 +20,21 @@ let rec string_of_pat2 = function
   | Var v               -> v
   | Pattern ((m,v),arr) -> "("^m^"."^v^" "^String.concat " " (List.map string_of_pat2 (Array.to_list arr))^")"
 
+(* --- Error messages --- *)
+
+let err_conv te exp inf =  
+  "Error while typing "^string_of_term te ^".\nExpected type: "^string_of_term exp^".\nInferred type: "^string_of_term inf^".\n"
+
+let err_sort te ty =
+  "Error while typing "^string_of_term te ^".\n Expected type: Type or Kind.\nInferred type: "^string_of_term ty^".\n"
+
+let err_topsort te = 
+  "Error while typing "^string_of_term te ^".\n Expected type: anything but Kind.\nInferred type: Kind.\n"
+
+let err_prod te ty = 
+  "Error while typing "^string_of_term te ^".\n Product expected.\nInferred type: "^string_of_term ty^".\n"
+
+(* Debug *)
 
 let dump_gdt id g = 
   let rec aux = function

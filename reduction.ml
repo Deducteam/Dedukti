@@ -1,109 +1,10 @@
 
 open Types
 
-(* --- Utils --- *) 
-
-let pos x lst = 
-  let rec aux n = function
-    | []                  -> None
-    | y::lst when x=y     -> Some n
-    | y::lst              -> aux (n+1) lst
-  in
-    aux 0 lst
-
-let rec pop n = function (* n < size of the list *)
-  | []                  -> assert false
-  | a::_ when n=0       -> a
-  | _::lst              -> pop (n-1) lst
-
-(* --- Parsing terms to Typing terms --- *)
-
-(* Invariant: k == List.length ctx *)      
-let rec of_pterm (k:int) (ctx:string list) : pterm -> term = function 
-  | PType                       -> Type
-  | PId (_,v)                   -> 
-      ( match pos v ctx with
-          | None        -> GVar (!Global.name,v)
-          | Some n      -> DB n )
-  | PQid (_,m,v)                -> GVar (m,v)
-  | PApp (f,u) as t             -> App ( get_app_lst k ctx t [] )
-  | PLam (v,None,t)             -> raise (ParserError "Not implemented (untyped lambda)")
-  | PPi (None,a,b)              -> Pi  ( of_pterm k ctx a , of_pterm (k+1) (""::ctx) b )
-  | PPi (Some (l,v),a,b)        -> Pi  ( of_pterm k ctx a , of_pterm (k+1) ( v::ctx) b )
-  | PLam ((_,v),Some a,t)       -> Lam ( of_pterm k ctx a , of_pterm (k+1) ( v::ctx) t )
-and get_app_lst k ctx t args =
-  match t with
-    | PApp (f,u)        -> get_app_lst k ctx f ((of_pterm k ctx u)::args)
-    | _                 -> (of_pterm k ctx t)::args
-
-(* Invariant: k == List.length ctx *)      
-let rec term_of_pat (k:int) (ctx:string list) : pattern -> term = function
-  | Pat ((_,m,v),ds,ps) ->
-      begin
-        if Array.length ps=0 && Array.length ds=0 then
-          if m = !Global.name then
-            ( match pos v ctx with
-                | None        -> GVar (!Global.name,v)
-                | Some n      -> DB n )
-          else
-            GVar (m,v)
-        else 
-          let l1 = Array.fold_right (fun p lst -> (term_of_pat k ctx p)::lst) ps [] in
-          let l2 = Array.fold_right (fun t lst -> (of_pterm k ctx t)::lst) ds l1 in
-            App ( (GVar (m,v))::l2)
-      end
-
-let term_of_tpat k ctx ((l,v),ds,ps:top_pattern) : term = term_of_pat k ctx (Pat ((l,!Global.name,v),ds,ps))
-
-(* --- Substitution --- *)
-
-let rec shift (r:int) (k:int) = function
-  | DB n        -> if n<k then DB n else DB (n+r)
-  | App args    -> App ( List.map (shift r k) args )
-  | Lam (a,f)   -> Lam (shift r k a,shift r (k+1) f)
-  | Pi  (a,b)   -> Pi  (shift r k a,shift r (k+1) b)
-  | t           -> t 
-
-(* nargs == List.length args *)
-let rec psubst_l (nargs,args) k t =  
-  match t with
-    | Type | Kind | GVar _ | LVar _     -> t
-    | DB n when (n >= (k+nargs))        -> DB (n-nargs)
-    | DB n when (n < k)                 -> DB n
-    | DB n (* when (k<=n<(k+nargs)) *)  -> shift k 0 (Lazy.force (pop (n-k) args))
-    | Lam (a,b)                         -> Lam ( psubst_l (nargs,args) k a , psubst_l (nargs,args) (k+1) b )
-    | Pi  (a,b)                         -> Pi  ( psubst_l (nargs,args) k a , psubst_l (nargs,args) (k+1) b ) 
-    | App []                            -> assert false
-    | App (he::tl)                      ->
-        let tl' = List.map (psubst_l (nargs,args) k) tl in
-          ( match psubst_l (nargs,args) k he with
-              | App tl0 -> App (tl0@tl')
-              | he'     -> App (he'::tl') )
-
-(* nargs == List.length args *)
-let rec psubst (nargs,args) k t =  
-  match t with
-    | Type | Kind | GVar _ | LVar _     -> t
-    | DB n when (n >= (k+nargs))        -> DB (n-nargs)
-    | DB n when (n < k)                 -> DB n
-    | DB n (* when (k<=n<(k+nargs)) *)  -> shift k 0 (pop (n-k) args)
-    | Lam (a,b)                         -> Lam ( psubst (nargs,args) k a , psubst (nargs,args) (k+1) b )
-    | Pi  (a,b)                         -> Pi  ( psubst (nargs,args) k a , psubst (nargs,args) (k+1) b ) 
-    | App []                            -> assert false
-    | App (he::tl)                      ->
-        let tl' = List.map (psubst (nargs,args) k) tl in
-          ( match psubst (nargs,args) k he with
-              | App tl0 -> App (tl0@tl')
-              | he'     -> App (he'::tl') )
-
-let subst t u = psubst (1,[u]) 0 t
-
-(* --- Reduction --- *)
-
 type cbn_state = int (*taille du contexte*) * (term Lazy.t) list (*contexte*) * term (*terme à réduire*) * cbn_state list (*stack*)
 
 let rec cbn_term_of_state (k,e,t,s:cbn_state) : term =
-  let t = ( if k = 0 then t else psubst_l (k,e) 0 t ) in
+  let t = ( if k = 0 then t else Subst.psubst_l (k,e) 0 t ) in
     if s = [] then t 
     else App ( t::(List.map cbn_term_of_state s) )
            
@@ -142,7 +43,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | ( k , _ , DB n , _ ) when (n>=k)  -> config
     | ( _ , _ , App ([]|[_]) , _ )      -> assert false
 
-    | ( k , e , DB n , s ) (*when n<k*) -> cbn_reduce ( 0 , [] , Lazy.force (pop n e) , s )       
+    | ( k , e , DB n , s ) (*when n<k*) -> cbn_reduce ( 0 , [] , Lazy.force (Subst.pop n e) , s )       
     | ( k , e , Lam (_,t) , p::s )      -> cbn_reduce ( k+1 , (lazy (cbn_term_of_state p))::e , t , s )
     | ( k , e , App (he::tl) , s )      ->
         let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
@@ -189,8 +90,7 @@ and cbn_reduce0 s =
     s'
  *)
 
-(* not really head normal form ? *)
-let hnf (t:term) : term = cbn_term_of_state (cbn_reduce (0,[],t,[]))
+let wnf (t:term) : term = cbn_term_of_state (cbn_reduce (0,[],t,[]))
 
 (* --- Conversion --- *)
 
