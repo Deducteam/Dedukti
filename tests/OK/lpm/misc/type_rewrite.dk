@@ -1,0 +1,7 @@
+#NAME tr
+A : Type.
+B : Type.
+x : A.
+y : B.
+[] A --> B.
+[] x --> y. 
