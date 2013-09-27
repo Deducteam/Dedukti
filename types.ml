@@ -61,7 +61,6 @@ type term =
   | Type                        (* Type *)
   | DB   of int                 (* deBruijn *)
   | GVar of string*string       (* Global variable *)
-  | LVar of int                 (* Local variable (only for conversion test)*)
   | App  of term list           (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
   | Lam  of term*term           (* Lambda abstraction *)
   | Pi   of term*term           (* Pi abstraction *)

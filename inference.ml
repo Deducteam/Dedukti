@@ -46,6 +46,5 @@ let rec infer (k:int) (ctx:term list) (te:term) : term =
         end
     | App _             -> assert false
     | Kind              -> assert false
-    | LVar _            -> assert false
 
 

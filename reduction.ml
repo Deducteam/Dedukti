@@ -38,7 +38,6 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | ( _ , _ , Type , _ )              -> config
     | ( _ , _ , Kind , _ )              -> config
     | ( _ , _ , Pi _ , _ )              -> config
-    | ( _ , _ , LVar _ , _ )            -> config
     | ( _ , _ , Lam _ , [] )            -> config
     | ( k , _ , DB n , _ ) when (n>=k)  -> config
     | ( _ , _ , App ([]|[_]) , _ )      -> assert false
@@ -96,9 +95,6 @@ let wnf (t:term) : term = cbn_term_of_state (cbn_reduce (0,[],t,[]))
 
 let term_eq (t1:term) (t2:term) : bool = t1 == t2 || t1=t2 
  
-let nnn = ref 0
-let mk_fvar () = let n = !nnn in incr nnn ; lazy (LVar n)
-
 let rec add_to_list lst s s' =
   match s,s' with
     | [] , []           -> lst
@@ -112,12 +108,11 @@ let rec state_conv : (cbn_state*cbn_state) list -> bool = function
         let rec aux = function (*states are beta-delta head normal*)
           | ( _ , _ , Kind ) , ( _ , _ , Kind )                       -> ( true , None )
           | ( _ , _ , Type ) , ( _ , _ , Type )                       -> ( true , None )
-          | ( _ , _ , LVar n ) , ( _ , _ , LVar n' )                  -> ( n=n' , None )
           | ( _ , _ , GVar (m,v) ) , ( _ , _ , GVar (m',v') )         -> ( m=m' && v=v' , None )
           | ( k , _ , DB n ) , ( k' , _ , DB n' )                     -> ( (*assert (k<=n && k'<=n') ;*) (n-k)=(n'-k') , None )
           | ( k , e , Lam (a,f) ) , ( k' , e' , Lam (a',f') )          
           | ( k , e , Pi  (a,f) ) , ( k' , e' , Pi  (a',f') )         -> 
-              let x = mk_fvar () in
+              let x = lazy (DB (k+2)) in
               ( true , Some ( 
                 ( (k,e,a,[]) , (k',e',a',[]) ) ,
                 ( (k+1,x::e,f,[]) , (k'+1,x::e',f',[]) )

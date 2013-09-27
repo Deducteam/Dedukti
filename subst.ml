@@ -18,7 +18,7 @@ let rec pop n = function (* n < size of the list *)
 (* nargs == List.length args *)
 let rec psubst_l (nargs,args) k t =  
   match t with
-    | Type | Kind | GVar _ | LVar _     -> t
+    | Type | Kind | GVar _              -> t
     | DB n when (n >= (k+nargs))        -> DB (n-nargs)
     | DB n when (n < k)                 -> DB n
     | DB n (* when (k<=n<(k+nargs)) *)  -> shift k 0 (Lazy.force (pop (n-k) args))
@@ -34,7 +34,7 @@ let rec psubst_l (nargs,args) k t =
 (* nargs == List.length args *)
 let rec psubst (nargs,args) k t =  
   match t with
-    | Type | Kind | GVar _ | LVar _     -> t
+    | Type | Kind | GVar _              -> t
     | DB n when (n >= (k+nargs))        -> DB (n-nargs)
     | DB n when (n < k)                 -> DB n
     | DB n (* when (k<=n<(k+nargs)) *)  -> shift k 0 (pop (n-k) args)
