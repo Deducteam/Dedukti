@@ -2,7 +2,7 @@
 module StringH = Hashtbl.Make(struct type t = string let equal a b = a = b let hash = Hashtbl.hash end)
 module IntH    = Hashtbl.Make(struct type t = int let equal a b = a = b let hash = Hashtbl.hash end)
 
-(* Errors *)
+(* *** Errors *** *)
 
 exception ParserError of string
 exception LexerError  of string
@@ -10,7 +10,7 @@ exception EnvError    of string
 exception TypingError of string
 exception PatternError of string
 
-(* Parsing *)
+(* *** Parsing *** *)
 
 type loc  = int*int
 
@@ -45,16 +45,16 @@ type pterm =
   | PLam of (loc*string) * pterm option * pterm
   | PPi  of (loc*string) option * pterm * pterm
 
-type pattern = 
-  | Pat of (loc*string*string) * pterm array * pattern array
+type ppattern = 
+  | PPat of (loc*string*string) * pterm array * ppattern array
 
-type top_pattern = (loc*string) * pterm array * pattern array 
+type ptop = (loc*string) * pterm array * ppattern array 
 
-type context = ( (loc*string) * pterm ) list
+type pcontext = ( (loc*string) * pterm ) list
 
-type rule  = context * top_pattern * pterm (* [ env ] top_pattern --> term *)
+type prule  = pcontext * ptop * pterm (* [ env ] top_pattern --> term *)
 
-(* Typing *)
+(* *** Typing *** *)
 
 type term = 
   | Kind
@@ -65,17 +65,17 @@ type term =
   | Lam  of term*term           (* Lambda abstraction *)
   | Pi   of term*term           (* Pi abstraction *)
 
-(* Pattern matching *)
+(* *** Pattern matching *** *)
 
-type rule2 = string list*top_pattern*term
+type pattern =
+  | Var         of int
+  | Pattern     of (string*string) * pattern array
 
-type pattern2 =
-  | Joker
-  | Var of string
-  | Pattern of (string*string) * pattern2 array
+type top = (string*string) * pattern array 
 
-type line = { li:pattern2 array ; te:term ; na:string list ; }
-type pMat = line array
+type rule = { li:pattern array ; te:term ; na:int array ; }
+
+type pMat = rule array
 
 type gdt =
   | Leaf     of term

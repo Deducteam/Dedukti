@@ -7,7 +7,7 @@
                 val mk_opaque:(Types.loc*string)*Types.pterm*Types.pterm->unit
                 val mk_normalize:Types.pterm->unit
                 val mk_typecheck:Types.loc*Types.pterm*Types.pterm->unit
-                val mk_rules:Types.rule list->unit
+                val mk_rules:Types.prule list->unit
                 val mk_infered_def: (Types.loc*string)*Types.pterm-> unit
                 val mk_ending:unit->unit
         end>  
@@ -43,14 +43,14 @@
 %type <unit> prelude
 %type <unit> line_lst
 %type <unit> line
-%type <Types.rule list> rule_lst
-%type <Types.rule> rule
+%type <Types.prule list> rule_lst
+%type <Types.prule> rule
 %type <(Types.loc*string)*Types.pterm> decl
 %type <((Types.loc*string)*Types.pterm) list> context
-%type <Types.top_pattern> top_pattern
+%type <Types.ptop> top_pattern
 %type <Types.pterm list> dot_lst
-%type <Types.pattern list> pat_lst
-%type <Types.pattern> pattern
+%type <Types.ppattern list> pat_lst
+%type <Types.ppattern> pattern
 %type <Types.pterm> sterm
 %type <Types.pterm> app
 %type <Types.pterm> term
@@ -94,10 +94,10 @@ dot_lst:         /* empty */                                    { [] }
 pat_lst:         /* empty */                                    { [] }
                 | pattern pat_lst                               { $1::$2 }
 
-                pattern:          ID                            { Pat ((fst $1,!Global.name,snd $1),[||],[||]) }
-                | QID                                           { Pat ($1,[||],[||]) }
-                | LEFTPAR ID  dot_lst pat_lst RIGHTPAR          { Pat ((fst $2,!Global.name,snd $2),Array.of_list $3,Array.of_list $4) }           
-                | LEFTPAR QID dot_lst pat_lst RIGHTPAR          { Pat ($2,Array.of_list $3,Array.of_list $4) }           
+                pattern:          ID                            { PPat ((fst $1,!Global.name,snd $1),[||],[||]) }
+                | QID                                           { PPat ($1,[||],[||]) }
+                | LEFTPAR ID  dot_lst pat_lst RIGHTPAR          { PPat ((fst $2,!Global.name,snd $2),Array.of_list $3,Array.of_list $4) }           
+                | LEFTPAR QID dot_lst pat_lst RIGHTPAR          { PPat ($2,Array.of_list $3,Array.of_list $4) }           
 
 sterm           : QID                                           { let (a,b,c)=$1 in Types.PQid (a,b,c) }
                 | ID                                            { PId (fst $1,snd $1) }

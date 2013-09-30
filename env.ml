@@ -1,6 +1,8 @@
 
 open Types
 
+(* *** Environment management *** *)
+
 type gst =
   | Decl  of term*(int*gdt) option 
   | Def   of term*term
@@ -9,7 +11,7 @@ let envs : (gst StringH.t) StringH.t = StringH.create 19
 
 let init name = StringH.add envs name (StringH.create 251)
 
-(* Get *)
+(* *** Get *** *)
 
 let get_global_symbol m v = 
   let env = 
@@ -24,18 +26,13 @@ let get_global_type m v =
   match get_global_symbol m v with
     | Decl (ty,_)       -> ty
     | Def (_,ty)        -> ty 
-(*
-let get_global_def m v = 
-  match get_global_symbol m v with
-    | Decl (_,_)      -> None
-    | Def (te,_)      -> Some te 
- *)
+
 let get_global_rw m v = 
   match get_global_symbol m v with
     | Decl (_,rw)       -> rw
     | Def (_,_)         -> None
 
-(* Add *)
+(* *** Add *** *)
 
 let add_decl v ty = 
   let env = StringH.find envs !Global.name in
@@ -68,15 +65,7 @@ let add_rw (v:string) (g:int*gdt) =
       Not_found -> 
         raise (EnvError ("Cannot find symbol '"^(!Global.name)^"."^v^"'.")) 
 
-(* Update*)
-(* 
-let update_def v te =
-    match get_global_symbol v with
-      | Decl _          -> assert false
-      | Def (_,ty)      -> StringH.replace env v (Def (te,ty))
- *)
-
-(* Modules *)
+(* *** Modules *** *)
 
 let import m =
   if StringH.mem envs m then raise (EnvError ("Already opened module '"^m^"'."))
