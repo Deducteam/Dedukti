@@ -83,7 +83,7 @@ let mk_typecheck (l,pty,pte : loc*pterm*pterm) :unit =
 let mk_normalize (pte : pterm) : unit = (*FIXME*) 
         let te = Pterm.of_pterm [] pte in
         Global.print_v ( "[Normalize] ...\n" ) ;
-        let te' = Reduction.wnf te in
+        let te' = Reduction.wnf2 te in
         Global.print_v ( Error.string_of_term te' ^ "\n" )
 
 let mk_rules (lst:prule list) : unit = 

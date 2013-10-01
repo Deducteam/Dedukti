@@ -52,6 +52,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
         let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
           cbn_reduce ( k , e , he , tl' @ s ) (*FIXME*)
     (* Global variable*)
+    | ( _ , _ , GVar (m,v) , s ) when m=""  -> config (*FIXME*)
     | ( _ , _ , GVar (m,v) , s )        -> 
         begin
           match Env.get_global_symbol m v with
@@ -95,7 +96,15 @@ and cbn_reduce0 s =
  *)
 
 (* Weak Normal Form *)          
-let wnf (t:term) : term = cbn_term_of_state (cbn_reduce (0,[],t,[]))
+
+let wnf (t:term) : term = cbn_term_of_state (cbn_reduce (0,[],t,[])) (*FIXME not weak normal form (but head ?)*)
+
+let rec cbn_term_of_state2 (k,e,t,s:cbn_state) : term =
+  let t = ( if k = 0 then t else Subst.psubst_l (k,e) 0 t ) in
+    if s = [] then t 
+    else App ( t::(List.map (fun st -> cbn_term_of_state2 (cbn_reduce st)) s ))
+
+let wnf2 (t:term) : term = cbn_term_of_state2 (cbn_reduce (0,[],t,[])) 
 
 (* *** Conversion Test *** *)
 
@@ -105,53 +114,59 @@ let term_eq (t1:term) (t2:term) : bool = t1 == t2 || t1=t2
 let rec add_to_list lst s s' =
   match s,s' with
     | [] , []           -> lst
-    | x::s , y::s'      -> add_to_list ((x,y)::lst) s s'
+    | x::s1 , y::s2      -> add_to_list ((x,y)::lst) s1 s2
     | _ ,_              -> assert false
+
+let nnn = ref 0
+let get_arg _ =
+  let n = !nnn in
+    incr nnn ;
+    lazy (GVar ("",string_of_int n))
+
+let print_debug s1 s2 =
+  Global.print "\n -------- CONV -------- \n";
+  Global.print " ---> S1\n";
+  Error.dump_state s1 ; 
+  (*Global.print " ---> HNF(S1)\n";
+  Error.dump_state (k,e,t,s) ;*)
+  Global.print " --- S2\n";
+  Error.dump_state s2 (*;
+  Global.print " --- HNF(S2)\n";
+  Error.dump_state (k',e',t',s')*)
 
 let rec state_conv : (cbn_state*cbn_state) list -> bool = function
   | []                  -> true
   | (s1,s2)::lst        ->
       begin
-        let rec aux = function (*states are beta-delta head normal*)
-          | ( _ , _ , Kind ) , ( _ , _ , Kind )                       -> ( true , None )
-          | ( _ , _ , Type ) , ( _ , _ , Type )                       -> ( true , None )
-          | ( _ , _ , GVar (m,v) ) , ( _ , _ , GVar (m',v') )         -> ( m=m' && v=v' , None )
-          | ( k , _ , DB n ) , ( k' , _ , DB n' )                     -> ( (*assert (k<=n && k'<=n') ;*) (n-k)=(n'-k') , None )
-          | ( k , e , Lam (a,f) ) , ( k' , e' , Lam (a',f') )          
-          | ( k , e , Pi  (a,f) ) , ( k' , e' , Pi  (a',f') )         -> 
-              let x = lazy (DB (k+2)) in
-              ( true , Some ( 
-                ( (k,e,a,[]) , (k',e',a',[]) ) ,
-                ( (k+1,x::e,f,[]) , (k'+1,x::e',f',[]) )
-              ) )
-          | ( _ , _ , _ ) , ( _ , _ , _ )                               -> ( false , None )
-        in
-
-          term_eq (cbn_term_of_state s1) (cbn_term_of_state s2) ||
-          let (k,e,t,s)         = cbn_reduce s1 in
-          let (k',e',t',s')     = cbn_reduce s2 in
-    
-(*      Global.print "\n -------- CONV -------- \n";
-      Global.print " ---> S1\n";
-      Error.dump_state s1 ; 
-      Global.print " ---> HNF(S1)\n";
-      Error.dump_state (k,e,t,s) ;
-      Global.print " --- S2\n";
-      Error.dump_state s2 ;
-      Global.print " --- HNF(S2)\n";
-      Error.dump_state (k',e',t',s') ; *)
-
-            match aux ( (k,e,t) , (k',e',t') ) with
-              | true , None             -> state_conv (add_to_list lst s s')
-              | true , Some (x,y)       -> state_conv (add_to_list (x::y::lst) s s')
-              | false , _               -> false 
+        (*print_debug s1 s2 ;*)
+        let t1 = cbn_term_of_state s1 in
+        let t2 = cbn_term_of_state s2 in
+          if term_eq t1 t2 then 
+            state_conv lst
+          else
+            let s1' = cbn_reduce s1 in
+            let s2' = cbn_reduce s2 in
+              (*print_debug s1' s2' ;*)
+              match s1',s2' with (*states are beta-delta head normal*)
+                | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )                    -> state_conv (add_to_list lst s s')
+                | ( _ , _ , Type , s ) , ( _ , _ , Type , s' )                    -> state_conv (add_to_list lst s s')
+                | ( k , _ , DB n , s ) , ( k' , _ , DB n' , s' )                  -> ( (*assert (k<=n && k'<=n') ;*) (n-k)=(n'-k') && state_conv (add_to_list lst s s') )
+                | ( _ , _ , GVar (m,v) , s ) , ( _ , _ , GVar (m',v') , s' )      -> ( m=m' && v=v' && state_conv (add_to_list lst s s') )
+                | ( k , e , Lam (a,f) , s ) , ( k' , e' , Lam (a',f') , s' )          
+                | ( k , e , Pi  (a,f) , s ) , ( k' , e' , Pi  (a',f') , s' )      -> 
+                    let arg = get_arg () in
+                    let x = ( (k,e,a,[]) , (k',e',a',[]) ) in
+                    let y = ( (k+1,arg::e,f,[]) , (k'+1,arg::e',f',[]) ) in
+                      state_conv (add_to_list (x::y::lst) s s')
+                | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                            -> false
       end
+
 
 let are_convertible t1 t2 =
   state_conv [ ((0,[],t1,[]),(0,[],t2,[])) ]
 
 (* ----------------- *)
-
+(*
 let rec decompose_state (rw:int) (lst:(int*term) list) : (cbn_state*cbn_state) list -> (int*term) list = function
   | []                  -> lst
   | (s1,s2)::states     ->
@@ -182,5 +197,43 @@ let rec decompose_state (rw:int) (lst:(int*term) list) : (cbn_state*cbn_state) l
             | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                     -> assert false (*FIXME*)
       end
 
-let decompose (rw:int) (lst:(int*term) list) (t1:term) (t2:term) : (int*term) list = 
+ let decompose (rw:int) (lst:(int*term) list) (t1:term) (t2:term) : (int*term) list = 
   decompose_state rw lst [((0,[],t1,[]),(0,[],t2,[]))]
+ *)
+
+let rec state_unif (sub:(int*term) list) : (cbn_state*cbn_state) list -> ((int*term) list) option = function
+  | []                  -> Some sub
+  | (s1,s2)::lst        ->
+      begin
+        let t1 = cbn_term_of_state s1 in
+        let t2 = cbn_term_of_state s2 in
+          if term_eq t1 t2 then 
+            state_unif sub lst
+          else
+            let s1' = cbn_reduce s1 in
+            let s2' = cbn_reduce s2 in
+              match s1',s2' with 
+                (* Base Cases*)
+                | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )                          -> state_unif sub (add_to_list lst s s')
+                | ( _ , _ , Type , s ) , ( _ , _ , Type , s' )                          -> state_unif sub (add_to_list lst s s')
+                | ( _ , _ , GVar (m,v) , s ) , ( _ , _ , GVar (m',v') , s' )            -> if m=m' && v=v' then state_unif sub (add_to_list lst s s') else None
+                | ( k , _ , DB n , s ) , ( k' , _ , DB n' , s' ) when (n<k && n'<k')    -> if (n-k)=(n'-k') then state_unif sub (add_to_list lst s s') else None
+                (*Composed Cases*)
+                | ( k , e , Lam (a,f) , s ) , ( k' , e' , Lam (a',f') , s' )          
+                | ( k , e , Pi  (a,f) , s ) , ( k' , e' , Pi  (a',f') , s' )            -> 
+                    let arg = get_arg () in
+                    let x = ( (k,e,a,[]) , (k',e',a',[]) ) in
+                    let y = ( (k+1,arg::e,f,[]) , (k'+1,arg::e',f',[]) ) in
+                      state_unif sub (add_to_list (x::y::lst) s s')
+                (* Unification *)
+                | ( ( k , _ , DB n , [] ) , st )
+                | ( st , ( k , _ , DB n , [] ) )  when ( n>=k )                         -> state_unif  ((n-k,cbn_term_of_state st)::sub) lst
+                (* Ignored Cases *)
+                | ( k , _ , DB n , _ ) , _ 
+                | _ , ( k , _ , DB n , _ )   when ( n>=k )                              -> state_unif sub lst
+                (*Not Unifiable*)
+                | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                                 -> None
+      end
+
+
+

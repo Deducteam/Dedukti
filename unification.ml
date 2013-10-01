@@ -18,7 +18,12 @@ let rec unify (rw:int) : ustate -> (int*term) list = function
          with Not_found ->
            unify rw ([],b,(v,t)::(List.map (fun (z,te) -> (z,Subst.subst2 [(v,t)] te)) s)) )
       end
-  | ( (t1,t2)::a , b , s )      -> unify rw (a,Reduction.decompose rw b t1 t2,s)
+  | ( (t1,t2)::a , b , s )      -> 
+      begin
+        match Reduction.state_unif b [ ( (0,[],t1,[]) , (0,[],t2,[]) ) ] with
+         | None         -> assert false (*FIXME*)
+         | Some lst     -> unify rw (a,lst,s)
+      end
 
 let get_unifier (k:int) (ctx:term list) (p:pattern) : term*(int*term) list =
   (* assert (List.length ctx == k ); *)

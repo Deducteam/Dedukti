@@ -20,6 +20,15 @@ let parse lb =
 
 (* *** Input *** *)
 
+let ascii_art _ =
+  Global.print_v 
+"==========================================================================
+ \\ \\    / /__| |__ ___ _ __  ___  | |_ ___  |   \\ ___ __| |_  _| |_| |_(_)
+  \\ \\/\\/ / -_) / _/ _ \\ '  \\/ -_) |  _/ _ \\ | |) / -_) _` | || | / /  _| |
+   \\_/\\_/\\___|_\\__\\___/_|_|_\\___|  \\__\\___/ |___/\\___\\__,_|\\_,_|_\\_\\\\__|_|
+==========================================================================
+"
+
 let run_on_stdin _ =
   Global.print (" -- Processing standard input ...\t") ;
   Global.print_v "\n";
@@ -29,6 +38,7 @@ let run_on_stdin _ =
             
 let run_on_file file =
   let input = open_in file in
+    ascii_art ();
     Global.print (" -- Processing file '" ^ file ^ "' ...\t") ;
     Global.print_v "\n";
     parse (Lexing.from_channel input) ;
