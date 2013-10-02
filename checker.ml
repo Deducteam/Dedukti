@@ -42,7 +42,7 @@ let mk_prelude (l,v : loc*string) : unit =
         Env.init v
 
 let mk_require (l,v : loc*string) : unit = 
-        Global.print_v ( Error.string_of_loc l ^ "[Import] " ^ v ^ ".\n") ;
+        Global.print_v ( Error.string_of_loc l ^ "[Import] " ^ v ^ " (This is obsolete !).\n") ;
         Env.import v
 
 let mk_declaration ((l,id),pty : (loc*string)*pterm) : unit = 
