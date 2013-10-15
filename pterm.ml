@@ -1,7 +1,7 @@
 
 open Types
 
-let pos x lst = 
+let pos (x:string) (lst:string list) : int option = 
   let rec aux n = function
     | []                  -> None
     | y::lst when x=y     -> Some n
@@ -9,41 +9,41 @@ let pos x lst =
   in
     aux 0 lst
 
-(* Invariant: k == List.length ctx *)      
-let rec of_pterm (k:int) (ctx:string list) : pterm -> term = function 
+let rec of_pterm (ctx:string list) : pterm -> term = function 
   | PType                       -> Type
   | PId (_,v)                   -> 
       ( match pos v ctx with
           | None        -> GVar (!Global.name,v)
           | Some n      -> DB n )
   | PQid (_,m,v)                -> GVar (m,v)
-  | PApp (f,u) as t             -> App ( get_app_lst k ctx t [] )
+  | PApp (f,u) as t             -> App ( get_app_lst ctx t [] )
   | PLam (v,None,t)             -> raise (ParserError "Not implemented (untyped lambda)")
-  | PPi (None,a,b)              -> Pi  ( of_pterm k ctx a , of_pterm (k+1) (""::ctx) b )
-  | PPi (Some (l,v),a,b)        -> Pi  ( of_pterm k ctx a , of_pterm (k+1) ( v::ctx) b )
-  | PLam ((_,v),Some a,t)       -> Lam ( of_pterm k ctx a , of_pterm (k+1) ( v::ctx) t )
-and get_app_lst k ctx t args =
+  | PPi (None,a,b)              -> Pi  ( of_pterm ctx a , of_pterm (""::ctx) b )
+  | PPi (Some (l,v),a,b)        -> Pi  ( of_pterm ctx a , of_pterm (v::ctx) b )
+  | PLam ((_,v),Some a,t)       -> Lam ( of_pterm ctx a , of_pterm (v::ctx) t )
+and get_app_lst ctx t args =
   match t with
-    | PApp (f,u)        -> get_app_lst k ctx f ((of_pterm k ctx u)::args)
-    | _                 -> (of_pterm k ctx t)::args
+    | PApp (f,u)        -> get_app_lst ctx f ((of_pterm ctx u)::args)
+    | _                 -> (of_pterm ctx t)::args
 
-(* Invariant: k == List.length ctx *)      
-let rec term_of_pat (k:int) (ctx:string list) : pattern -> term = function
-  | Pat ((_,m,v),ds,ps) ->
-      begin
-        if Array.length ps=0 && Array.length ds=0 then
-          if m = !Global.name then
-            ( match pos v ctx with
-                | None        -> GVar (!Global.name,v)
-                | Some n      -> DB n )
-          else
-            GVar (m,v)
-        else 
-          let l1 = Array.fold_right (fun p lst -> (term_of_pat k ctx p)::lst) ps [] in
-          let l2 = Array.fold_right (fun t lst -> (of_pterm k ctx t)::lst) ds l1 in
-            App ( (GVar (m,v))::l2)
-      end
+let pat_of_ppat (names:string list) (p:ppattern) : pattern = 
+  let rec aux = function
+    | PPat ((_,m,v),ds,ps) ->
+        begin
+          if ( Array.length ds != 0 ) then raise (ParserError "Not implemented (dot pattern)") ;
+          if ( Array.length ps = 0 ) then
+            if m = !Global.name then
+              ( match pos v  names with
+                  | None        -> Pattern ((m,v),[||]) 
+                  | Some n      -> Var n ) 
+            else
+              Pattern ((m,v),[||])
+          else 
+            Pattern ((m,v),Array.map aux ps)
+        end
+  in aux p
 
-let term_of_tpat k ctx ((l,v),ds,ps:top_pattern) : term = term_of_pat k ctx (Pat ((l,!Global.name,v),ds,ps))
-
-
+let top_of_ptop (names:string list) ((l,cst),dots,args:ptop) : top = 
+  match pat_of_ppat names (PPat ((l,!Global.name,cst),dots,args)) with
+    | Pattern (id,pats) -> (id,pats)
+    | _                 -> assert false

@@ -62,7 +62,7 @@ let print_dot d =
   fprintf !Global.out "} " 
 
 let rec print_pat = function
-  | Pat ((_,m,id),dots,pats) ->
+  | PPat ((_,m,id),dots,pats) ->
       if Array.length dots + Array.length pats = 0 then
         begin
           fprintf !Global.out " " ; 
@@ -130,7 +130,7 @@ let mk_typecheck (l,pty,pte : loc*pterm*pterm) : unit =
 let mk_normalize (pte : pterm) : unit = 
         failwith "Not implemented"
 
-let mk_rules (lst:rule list) : unit = 
+let mk_rules (lst:prule list) : unit = 
         List.iter mk_rule lst
 
 let mk_ending _ : unit = 

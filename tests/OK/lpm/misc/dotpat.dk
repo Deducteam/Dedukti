@@ -17,12 +17,12 @@ Con: n:N -> V n -> N -> V (S n).
 
 hd: n:N -> V (S n) -> N.
 
-[n:N, m:N, v:V n]
-hd {n} (Con n v m) --> m.
+[n:N, m:N, v:V n,z:N]
+hd z (Con n v m) --> m.
 
 
 app: n:N -> m:N -> V n -> V m -> V (plus n m).
-[m:N,y:V m]
-app {Z}   m Nil         y --> y
-[n:N,m:N,x:V n,y:V m,k:N]
-app {S n} m (Con n x k) y --> Con (plus n m) (app n m x y) k.
+[m:N,y:V m,z:N]
+app z   m Nil         y --> y
+[n:N,m:N,x:V n,y:V m,k:N,z:N]
+app z m (Con n x k) y --> Con (plus n m) (app n m x y) k.

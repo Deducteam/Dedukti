@@ -1,13 +1,7 @@
 
 open Types
 
-(* Error Msgs *)
-
-let error e str = 
-  Global.print ("\n\027[31m["^e^"]\027[m " ^ str ^ "\n");
-  exit 1 
-
-(* Parsing *)
+(* *** Parsing *** *)
 
 module P = Parser.Make(Checker)
 
@@ -24,7 +18,16 @@ let parse lb =
             raise (ParserError ("Parsing error near '" ^ tok ^ "' (line:"^line^"; column:"^column^")")) 
         end
 
-(* ... *)
+(* *** Input *** *)
+
+let ascii_art _ =
+  Global.print_v 
+"==========================================================================
+ \\ \\    / /__| |__ ___ _ __  ___  | |_ ___  |   \\ ___ __| |_  _| |_| |_(_)
+  \\ \\/\\/ / -_) / _/ _ \\ '  \\/ -_) |  _/ _ \\ | |) / -_) _` | || | / /  _| |
+   \\_/\\_/\\___|_\\__\\___/_|_|_\\___|  \\__\\___/ |___/\\___\\__,_|\\_,_|_\\_\\\\__|_|
+==========================================================================
+"
 
 let run_on_stdin _ =
   Global.print (" -- Processing standard input ...\t") ;
@@ -35,13 +38,14 @@ let run_on_stdin _ =
             
 let run_on_file file =
   let input = open_in file in
+    ascii_art ();
     Global.print (" -- Processing file '" ^ file ^ "' ...\t") ;
     Global.print_v "\n";
     parse (Lexing.from_channel input) ;
     Global.print ("\027[32m[DONE]\027[m\n") ;
     Env.export_and_clear ()
 
-(* Args *)
+(* *** Arguments *** *)
 
 let args = [
         ("-q"    , Arg.Set Global.quiet                 , "Quiet"               ) ;
@@ -51,13 +55,15 @@ let args = [
         ("-r"    , Arg.Set Global.raphael               , "Undocumented"  ) 
 ]
 
+(* *** Main *** *)
+
 let _ =  
   try 
     Arg.parse args run_on_file "Usage: dkcheck [options] files"  
   with 
-    | Sys_error err     -> error "System Error"  err
-    | LexerError err    -> error "Lexing Error"  err
-    | ParserError err   -> error "Pasing Error"  err
-    | TypingError err   -> error "Typing Error"  err
-    | EnvError err      -> error "Scoping Error" err
-    | PatternError err  -> error "Rewrite Error" err
+    | Sys_error err     -> Global.error "System Error"  err
+    | LexerError err    -> Global.error "Lexing Error"  err
+    | ParserError err   -> Global.error "Pasing Error"  err
+    | TypingError err   -> Global.error "Typing Error"  err
+    | EnvError err      -> Global.error "Scoping Error" err
+    | PatternError err  -> Global.error "Rewrite Error" err
