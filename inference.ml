@@ -36,7 +36,7 @@ let rec infer (ctx:term list) (te:term) : term =
         begin
           snd ( List.fold_left (
             fun (f,ty_f) u ->
-              match Reduction.wnf ty_f , infer ctx u with
+              match Reduction.hnf ty_f , infer ctx u with
                 | ( Pi (a,b) , a' ) ->  
                     if Reduction.are_convertible a a' then ( mk_app f u , Subst.subst b u )
                     else raise (TypingError (Error.err_conv u a a'))
@@ -61,7 +61,7 @@ let rec infer_pattern (ctx:term list) : pattern -> term*(term*term) list = funct
   | Pattern ((m,v),pats)        ->
       let aux (pi,lst:term*(term*term)list) (arg:pattern) : term*(term*term) list =
         let (a1,lst2) = infer_pattern ctx arg in
-          match Reduction.wnf pi with
+          match Reduction.hnf pi with
             | Pi (a2,b) -> ( Subst.subst b (term_of_pattern arg) , (a1,a2)::(concat lst lst2) )
             | _         -> raise (TypingError (Error.err_prod2 pi))
       in

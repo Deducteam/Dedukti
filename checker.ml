@@ -19,7 +19,11 @@ let check_env (k,names,types:int*string list*term list) ((_,na),pty) =
     (k+1,na::names,ty::types)
 
 (* Check a rule: 
-* FIXME comment
+ * Not a variable (checked by parsing)
+ * FV(r) C FV(l) (checked in matching)
+ * All the rules have the same arity FIXME not done ?
+ * All the rules have the head symbol FIXME not done ?
+ * Rules are well-typed
 * *)                             
 let check_rule (penv,ple,pri) : rule = 
   
@@ -80,10 +84,10 @@ let mk_typecheck (l,pty,pte : loc*pterm*pterm) :unit =
         check_type [] ty ;
         check_term te ty
 
-let mk_normalize (pte : pterm) : unit = (*FIXME*) 
+let mk_normalize (pte : pterm) : unit = 
         let te = Pterm.of_pterm [] pte in
         Global.print_v ( "[Normalize] ...\n" ) ;
-        let te' = Reduction.wnf2 te in
+        let te' = Reduction.hnf te in
         Global.print_v ( Error.string_of_term te' ^ "\n" )
 
 let mk_rules (lst:prule list) : unit = 
