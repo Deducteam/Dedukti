@@ -46,6 +46,7 @@ type pterm =
   | PPi  of (loc*string) option * pterm * pterm
 
 type ppattern = 
+  | PDash
   | PPat of (loc*string*string) * pterm array * ppattern array
 
 type ptop = (loc*string) * pterm array * ppattern array 
@@ -64,11 +65,13 @@ type term =
   | App  of term list           (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
   | Lam  of term*term           (* Lambda abstraction *)
   | Pi   of term*term           (* Pi abstraction *)
+  | Meta of int
 
 (* *** Pattern matching *** *)
 
 type pattern =
   | Var         of int
+  | Dash        of int
   | Pattern     of (string*string) * pattern array
 
 type top = (string*string) * pattern array 

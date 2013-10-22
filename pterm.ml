@@ -27,7 +27,9 @@ and get_app_lst ctx t args =
     | _                 -> (of_pterm ctx t)::args
 
 let pat_of_ppat (names:string list) (p:ppattern) : pattern = 
+  let cpt = ref (-1) in
   let rec aux = function
+    | PDash                -> ( incr cpt ; Dash (!cpt) )
     | PPat ((_,m,v),ds,ps) ->
         begin
           if ( Array.length ds != 0 ) then raise (ParserError "Not implemented (dot pattern)") ;

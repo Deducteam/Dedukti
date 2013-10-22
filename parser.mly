@@ -96,6 +96,7 @@ pat_lst:         /* empty */                                    { [] }
 
                 pattern:          ID                            { PPat ((fst $1,!Global.name,snd $1),[||],[||]) }
                 | QID                                           { PPat ($1,[||],[||]) }
+                | UNDERSCORE                                    { PDash }
                 | LEFTPAR ID  dot_lst pat_lst RIGHTPAR          { PPat ((fst $2,!Global.name,snd $2),Array.of_list $3,Array.of_list $4) }           
                 | LEFTPAR QID dot_lst pat_lst RIGHTPAR          { PPat ($2,Array.of_list $3,Array.of_list $4) }           
 

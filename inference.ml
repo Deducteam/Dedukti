@@ -45,6 +45,7 @@ let rec infer (ctx:term list) (te:term) : term =
         end
     | App _             -> assert false
     | Kind              -> assert false
+    | Meta _            -> assert false
 
 let rec concat (l:(term*term) list) : (term*term) list -> (term*term) list = function
   | []          -> l
@@ -52,31 +53,30 @@ let rec concat (l:(term*term) list) : (term*term) list -> (term*term) list = fun
 
 let rec term_of_pattern = function 
   | Var n                       -> DB n
+  | Dash n                      -> Meta n
   | Pattern ((m,v),[||])        -> GVar (m,v)
   | Pattern ((m,v),args)        -> App( GVar (m,v) :: (List.map term_of_pattern (Array.to_list args)) )
 
 (* Pattern Inference *)                                     
 
-                                     (*
 let rec infer_pattern (ctx:term list) : pattern -> term*(term*term) list = function
   | Var n                       -> (* assert (n<List.length ctx); *) ( Subst.shift (n+1) 0 (List.nth ctx n) , [] )
+  | Dash n                      -> assert false (*FIXME*)
   | Pattern ((m,v),pats)        ->
       let aux (pi,lst:term*(term*term)list) (arg:pattern) : term*(term*term) list =
-        let (a1,lst2) = infer_pattern ctx arg in
           match Reduction.hnf pi with
-            | Pi (a2,b) -> ( Subst.subst b (term_of_pattern arg) , (a1,a2)::(concat lst lst2) )
+            | Pi (a,b) -> 
+               begin
+                 let lst2 = check_pattern ctx a arg in
+                   ( Subst.subst b (term_of_pattern arg) , (concat lst lst2) ) (*FIXME concat*)
+               end
             | _         -> raise (TypingError (Error.err_prod2 pi))
       in
         Array.fold_left aux ( Env.get_global_type m v , [] ) pats
-                                      *)
-
-let rec infer_pattern_no_conv_check (ctx:term list) : pattern -> term = function
-  | Var n                       -> (* assert (n<List.length ctx); *) Subst.shift (n+1) 0 (List.nth ctx n)
-  | Pattern ((m,v),pats)        ->
-      let aux (pi:term) (arg:pattern) : term =
-        match Reduction.hnf pi with
-          | Pi (_,b) -> Subst.subst b (term_of_pattern arg) 
-          | _         -> raise (TypingError (Error.err_prod2 pi))
-      in
-        Array.fold_left aux ( Env.get_global_type m v ) pats
+                                      
+and check_pattern (ctx:term list) (ty:term): pattern -> (term*term) list = function
+  | Dash _      -> []
+  | p           ->
+      let (ty2,lst) = infer_pattern ctx p in
+        (ty,ty2)::lst
 

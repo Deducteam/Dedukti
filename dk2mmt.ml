@@ -62,6 +62,7 @@ let print_dot d =
   fprintf !Global.out "} " 
 
 let rec print_pat = function
+  | PDash                     -> failwith "Not implemented (Dash Patterns)."
   | PPat ((_,m,id),dots,pats) ->
       if Array.length dots + Array.length pats = 0 then
         begin

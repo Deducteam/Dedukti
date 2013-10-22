@@ -1,7 +1,7 @@
 
 open Types
 
-val infer                       : term list -> term -> term
+val infer               : term list -> term -> term
 
-val infer_pattern_no_conv_check : term list -> pattern -> term 
+val infer_pattern       : term list -> pattern -> term*(term*term) list 
 

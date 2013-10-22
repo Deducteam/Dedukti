@@ -5,9 +5,9 @@ open Types
  * Compiling Pattern Matching to Good Decision Trees (Maranget, 2008)
  * *)
 
-type union =
-  | PMat of pMat
-  | Term of term
+type union = PMat of pMat | Term of term
+
+
 
 let specialize (pm:pMat) (c:int) (arity:int) (lines:int list) : union = 
 (*  assert (Array.length pm > 0); *)
