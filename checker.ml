@@ -13,12 +13,13 @@ let check_type (ctx:term list) (ty:term) : unit =
     | Kind | Type       -> ()
     | s                 -> raise (TypingError (Error.err_sort ty s)) 
 
+(* Checks a declaration in typing context *)
 let check_env (k,names,types:int*string list*term list) ((_,na),pty) =
   let ty = Pterm.of_pterm names pty in
     check_type types ty ; 
     (k+1,na::names,ty::types)
 
-(* Check a rule: 
+(* Checks a rule: 
  * Not a variable (checked by parsing)
  * FV(r) C FV(l) (checked in matching)
  * All the rules have the same arity FIXME not done ?
@@ -38,7 +39,7 @@ let check_rule (penv,ple,pri) : rule =
     else
       raise (TypingError (Error.err_conv ri ty_le ty_ri)) 
 
-(* ***** Entry points ***** *)
+
 
 let mk_prelude (l,v : loc*string) : unit =
         Global.print_v ( Error.string_of_loc l ^ "[Name] " ^ v ^ ".\n") ;
@@ -102,4 +103,3 @@ let mk_rules (lst:prule list) : unit =
         Env.add_rw v gdt
 
 let mk_ending _ : unit = () 
-

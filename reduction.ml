@@ -1,7 +1,7 @@
 
 open Types
 
-(* *** Weak Reduction *** *)
+let estring = Global.hstring ""
 
 type cbn_state = int (*size of context *) * (term Lazy.t) list (*context*) * term (*term to reduce*) * cbn_state list (*stack*)
 
@@ -20,20 +20,19 @@ let rec split_stack (i:int) : cbn_state list -> (cbn_state list*cbn_state list) 
     )
 
 let safe_find (m:string) (v:string) (cases:((string*string)*gdt) list) : gdt option =
-  try Some (snd (List.find (fun ((m',v'),_) -> m==m' && v==v') cases))
+  try Some (snd (List.find (fun ((m',v'),_) -> m=m' && v=v') cases))
   with Not_found -> None
- 
-let mk_new_args c args1 lst = 
-  let s1 = Array.length args1 in
-  let args2 = Array.of_list lst in
-  let s2 = Array.length args2 in
-  Array.init (s1+s2-1) (
-    fun i ->
-      if i<c then args1.(i)
-      else if i<(s1-1) then args1.(i+1)
-      else args2.(i-(s1-1))
-  )
 
+let rec remove c lst =
+  match lst with
+    | []        -> assert false
+    | x::lst'   -> 
+        if c==0 then lst'
+        else x::(remove (c-1) lst')
+
+let mk_new_args c args1 lst = 
+  (remove c args1)@lst (*FIXME*)
+       
 let rec cbn_reduce (config:cbn_state) : cbn_state = 
   match config with
     (* Weak normal terms *)
@@ -52,7 +51,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
         let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
           cbn_reduce ( k , e , he , tl' @ s ) (*FIXME*)
     (* Global variable*)
-    | ( _ , _ , GVar (m,v) , s ) when (m==Global.hstring "")    -> config (*FIXME*)
+    | ( _ , _ , GVar (m,_) , _ ) when m==estring        -> config (*FIXME*)
     | ( _ , _ , GVar (m,v) , s )        -> 
         begin
           match Env.get_global_symbol m v with
@@ -62,20 +61,20 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
                 ( match split_stack i s with
                     | None                -> config
                     | Some (s1,s2)        ->
-                        ( match rewrite (Array.of_list s1) g with
+                        ( match rewrite s1 g with
                             | None              -> config
                             | Some (k,e,t)      -> cbn_reduce ( k , e , t , s2 ) 
                         )
                 ) 
         end
 
-and rewrite (args:cbn_state array) (g:gdt) : (int*(term Lazy.t) list*term) option = 
+and rewrite (args:cbn_state list) (g:gdt) : (int*(term Lazy.t) list*term) option = 
   match g with
-    | Leaf te                     -> Some ( Array.length args , List.map (fun a -> lazy (cbn_term_of_state a)) (Array.to_list args) , te ) 
+    | Leaf te                     -> Some ( List.length args (*FIXME*) , List.map (fun a -> lazy (cbn_term_of_state a)) args , te ) 
     | Switch (i,cases,def)        -> 
         begin
           (* assert (i<Array.length args); *)
-          match cbn_reduce (args.(i)) with
+          match cbn_reduce (List.nth args i) with
             | ( _ , _ , GVar (m,v) , s )  -> 
                 ( match safe_find m v cases , def with
                     | Some g , _        -> rewrite (mk_new_args i args s) g
@@ -86,7 +85,6 @@ and rewrite (args:cbn_state array) (g:gdt) : (int*(term Lazy.t) list*term) optio
                    | Some g     -> rewrite args g
                    | None       -> None )
         end
-
 
 (* Head Normal Form *)          
 let hnf (t:term) : term = cbn_term_of_state ( cbn_reduce ( 0 , [] , t , [] ) ) 
@@ -114,7 +112,7 @@ let nnn = ref 0
 let get_arg _ =
   let n = !nnn in
     incr nnn ;
-    lazy (GVar ("",string_of_int n))
+    lazy (GVar (estring,Global.hstring (string_of_int n)))
 
       (*
 let print_debug s1 s2 =
@@ -144,7 +142,7 @@ let rec state_conv : (cbn_state*cbn_state) list -> bool = function
                 | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )                    -> state_conv (add_to_list lst s s')
                 | ( _ , _ , Type , s ) , ( _ , _ , Type , s' )                    -> state_conv (add_to_list lst s s')
                 | ( k , _ , DB n , s ) , ( k' , _ , DB n' , s' )                  -> ( (*assert (k<=n && k'<=n') ;*) (n-k)=(n'-k') && state_conv (add_to_list lst s s') )
-                | ( _ , _ , GVar (m,v) , s ) , ( _ , _ , GVar (m',v') , s' )      -> ( m==m' && v==v' && state_conv (add_to_list lst s s') )
+                | ( _ , _ , GVar (m,v) , s ) , ( _ , _ , GVar (m',v') , s' )      -> ( m=m' && v=v' && state_conv (add_to_list lst s s') )
                 | ( k , e , Lam (a,f) , s ) , ( k' , e' , Lam (a',f') , s' )          
                 | ( k , e , Pi  (a,f) , s ) , ( k' , e' , Pi  (a',f') , s' )      -> 
                     let arg = get_arg () in
