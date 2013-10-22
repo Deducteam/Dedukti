@@ -156,7 +156,7 @@ let are_convertible t1 t2 =
   state_conv [ ( (0,[],t1,[]) , (0,[],t2,[]) ) ]
 
 (* ----------------- *)
-
+(*
 let rec state_unif (sub:(int*term) list) : (cbn_state*cbn_state) list -> ((int*term) list) option = function
   | []                  -> Some sub
   | (s1,s2)::lst        ->
@@ -190,3 +190,4 @@ let rec state_unif (sub:(int*term) list) : (cbn_state*cbn_state) list -> ((int*t
                 (*Not Unifiable*)
                 | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                                 -> None
       end
+ *)
