@@ -152,7 +152,6 @@ let rec state_conv : (cbn_state*cbn_state) list -> bool = function
                 | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                            -> false
       end
 
-
 let are_convertible t1 t2 =
   state_conv [ ( (0,[],t1,[]) , (0,[],t2,[]) ) ]
 

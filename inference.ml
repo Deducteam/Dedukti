@@ -56,6 +56,8 @@ let rec term_of_pattern = function
   | Pattern ((m,v),args)        -> App( GVar (m,v) :: (List.map term_of_pattern (Array.to_list args)) )
 
 (* Pattern Inference *)                                     
+
+                                     (*
 let rec infer_pattern (ctx:term list) : pattern -> term*(term*term) list = function
   | Var n                       -> (* assert (n<List.length ctx); *) ( Subst.shift (n+1) 0 (List.nth ctx n) , [] )
   | Pattern ((m,v),pats)        ->
@@ -66,3 +68,15 @@ let rec infer_pattern (ctx:term list) : pattern -> term*(term*term) list = funct
             | _         -> raise (TypingError (Error.err_prod2 pi))
       in
         Array.fold_left aux ( Env.get_global_type m v , [] ) pats
+                                      *)
+
+let rec infer_pattern_no_conv_check (ctx:term list) : pattern -> term = function
+  | Var n                       -> (* assert (n<List.length ctx); *) Subst.shift (n+1) 0 (List.nth ctx n)
+  | Pattern ((m,v),pats)        ->
+      let aux (pi:term) (arg:pattern) : term =
+        match Reduction.hnf pi with
+          | Pi (_,b) -> Subst.subst b (term_of_pattern arg) 
+          | _         -> raise (TypingError (Error.err_prod2 pi))
+      in
+        Array.fold_left aux ( Env.get_global_type m v ) pats
+

@@ -30,9 +30,9 @@ let check_rule (penv,ple,pri) : rule =
   
   let (k,names,ctx) = List.fold_left check_env (0,[],[]) penv   in
   let (cst,args)    = Pterm.top_of_ptop names ple               in
-  let (ty_le,subst) = Unification.get_unifier k ctx (Pattern (cst,args)) in 
+  let ty_le         = Inference.infer_pattern_no_conv_check ctx (Pattern (cst,args)) in 
   let ri            = Pterm.of_pterm names pri                  in
-  let ty_ri         = Subst.subst2 subst (Inference.infer ctx ri) in
+  let ty_ri         = Inference.infer ctx ri                    in
     
   if Reduction.are_convertible ty_le ty_ri then 
       { li=args; te=ri; na=Array.init k (fun i -> i)} 
