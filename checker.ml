@@ -27,19 +27,16 @@ let check_env (k,names,types:int*string list*term list) ((_,na),pty) =
  * Rules are well-typed
 * *)                             
 let check_rule (penv,ple,pri) : rule = 
-  
   let (k,names,ctx) = List.fold_left check_env (0,[],[]) penv   in
   let (cst,args)    = Pterm.top_of_ptop names ple               in
   let (ty_le0,lst)  = Inference.infer_pattern ctx (Pattern (cst,args)) in 
   let ty_le         = Unification.resolve_constraints ty_le0 lst in
   let ri            = Pterm.of_pterm names pri                  in
   let ty_ri         = Inference.infer ctx ri                    in
-    
-  if Reduction.are_convertible ty_le ty_ri then 
+    if Reduction.are_convertible ty_le ty_ri then 
       { li=args; te=ri; na=Array.init k (fun i -> i)} 
     else
       raise (TypingError (Error.err_conv ri ty_le ty_ri)) 
-
 
 
 let mk_prelude (l,v : loc*string) : unit =
@@ -49,13 +46,13 @@ let mk_prelude (l,v : loc*string) : unit =
 
 let mk_require (l,v : loc*string) : unit = 
         Global.print_v ( Error.string_of_loc l ^ "[Import] " ^ v ^ " (This is obsolete !).\n") ;
-        Env.import v
+        Env.import l v
 
 let mk_declaration ((l,id),pty : (loc*string)*pterm) : unit = 
         let ty = Pterm.of_pterm [] pty in
         Global.print_v ( Error.string_of_loc l ^ "[Declaration] " ^ id ^ ".\n" ) ;
         check_type [] ty ;
-        Env.add_decl id ty
+        Env.add_decl l id ty
 
 let mk_definition ((l,id),pty,pte : (loc*string)*pterm*pterm) : unit = 
         let ty = Pterm.of_pterm [] pty in
@@ -63,13 +60,13 @@ let mk_definition ((l,id),pty,pte : (loc*string)*pterm*pterm) : unit =
         Global.print_v ( Error.string_of_loc l ^ "[Definition] " ^ id ^ ".\n") ;
         check_type [] ty ;
         check_term te ty ;
-        Env.add_def id te ty 
+        Env.add_def l id te ty 
 
 let mk_infered_def ((l,id),pte : (loc*string)*pterm) : unit =
         let te = Pterm.of_pterm [] pte in
         Global.print_v ( Error.string_of_loc l ^ "[Infered Definition] " ^ id ^ ".\n") ;
         let ty = Inference.infer [] te in
-        Env.add_def id te ty 
+        Env.add_def l id te ty 
 
 let mk_opaque ((l,id),pty,pte : (loc*string)*pterm*pterm) : unit = 
         let ty = Pterm.of_pterm [] pty in
@@ -77,7 +74,7 @@ let mk_opaque ((l,id),pty,pte : (loc*string)*pterm*pterm) : unit =
         Global.print_v ( Error.string_of_loc l ^ "[Opaque] " ^ id ^ ".\n") ;
         check_type [] ty ;
         check_term te ty ;
-        Env.add_decl id ty 
+        Env.add_decl l id ty 
 
 let mk_typecheck (l,pty,pte : loc*pterm*pterm) :unit = 
         let ty = Pterm.of_pterm [] pty in
@@ -101,6 +98,6 @@ let mk_rules (lst:prule list) : unit =
         Global.print_v (Error.string_of_loc l ^ "[Rewrite] " ^ v ^ ".\n") ; 
         let rs = List.map check_rule lst in
         let gdt = Matching.get_rw (Array.of_list rs) in
-        Env.add_rw v gdt
+        Env.add_rw l v gdt
 
 let mk_ending _ : unit = () 

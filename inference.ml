@@ -16,7 +16,7 @@ let rec infer (ctx:term list) (te:term) : term =
   match te with
     | Type                              -> Kind
     | DB n                              -> ( (*assert (n<k) ;*) Subst.shift (n+1) 0 (List.nth ctx n) )
-    | GVar (m,v)                        -> Env.get_global_type m v
+    | GVar (m,v)                        -> Env.get_global_type dloc (*FIXME*) m v
     | Pi (a,b)                          ->
         begin
           is_type a (infer ctx a) ;
@@ -61,7 +61,7 @@ let rec term_of_pattern = function
 
 let rec infer_pattern (ctx:term list) : pattern -> term*(term*term) list = function
   | Var n                       -> (* assert (n<List.length ctx); *) ( Subst.shift (n+1) 0 (List.nth ctx n) , [] )
-  | Dash n                      -> assert false (*FIXME*)
+  | Dash _                      -> assert false 
   | Pattern ((m,v),pats)        ->
       let aux (pi,lst:term*(term*term)list) (arg:pattern) : term*(term*term) list =
           match Reduction.hnf pi with
@@ -72,7 +72,7 @@ let rec infer_pattern (ctx:term list) : pattern -> term*(term*term) list = funct
                end
             | _         -> raise (TypingError (Error.err_prod2 pi))
       in
-        Array.fold_left aux ( Env.get_global_type m v , [] ) pats
+        Array.fold_left aux ( Env.get_global_type dloc (*FIXME*) m v , [] ) pats
                                       
 and check_pattern (ctx:term list) (ty:term): pattern -> (term*term) list = function
   | Dash _      -> []

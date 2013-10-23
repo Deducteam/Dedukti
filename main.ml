@@ -67,5 +67,5 @@ let _ =
     | LexerError (lc,err)       -> Global.error lc "Lexing Error"  err
     | ParserError (lc,err)      -> Global.error lc "Parsing Error"  err
     | TypingError err           -> Global.error (0,0) "Typing Error"  err (*FIXME*)
-    | EnvError err              -> Global.error (0,0) "Scoping Error" err (*FIXME*)
+    | EnvError (lc,err)         -> Global.error lc "Scoping Error" err 
     | PatternError err          -> Global.error (0,0) "Rewrite Error" err (*FIXME*)

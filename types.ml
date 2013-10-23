@@ -5,6 +5,7 @@ module IntH    = Hashtbl.Make(struct type t = int let equal a b = a = b let hash
 (* *** Parsing *** *)
 
 type loc  = int*int
+let dloc = (0,0)
 
 type token = 
   | UNDERSCORE of loc
@@ -80,7 +81,7 @@ type gdt =
 
 exception ParserError of loc*string
 exception LexerError  of loc*string
-exception EnvError    of string
+exception EnvError    of loc*string
 exception TypingError of string
 exception PatternError of string
 

@@ -54,7 +54,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | ( _ , _ , GVar (m,_) , _ ) when m==estring        -> config (*FIXME*)
     | ( _ , _ , GVar (m,v) , s )        -> 
         begin
-          match Env.get_global_symbol m v with
+          match Env.get_global_symbol dloc m v with
             | Env.Def (te,_)            -> cbn_reduce ( 0 , [] , te , s )
             | Env.Decl (_,None)         -> config
             | Env.Decl (_,Some (i,g))   -> 
