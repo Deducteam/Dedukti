@@ -6,7 +6,7 @@ open Types
 let string_of_loc (l,c) = "[l:"^string_of_int l^";c:"^string_of_int c^"]"
 
 let rec string_of_pterm = function
-  | PType                       -> "Type"
+  | PType _                     -> "Type"
   | PId (_,v)                   -> v
   | PQid (_,m,v)                -> m^"."^v
   | PApp (f,u)                  -> "("^string_of_pterm f^" "^string_of_pterm u^")"

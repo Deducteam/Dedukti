@@ -4,14 +4,14 @@ open Types
 (* ty ?~ Type *)
 let is_type te = function
     | Type      -> ()
-    | ty        -> raise (TypingError (Error.err_conv te Type ty))
+    | ty        -> raise (TypingError (dloc,Error.err_conv te Type ty))
 
 let mk_app f u =
   match f with
     | App lst   -> App (lst@[u])
     | _         -> App([f;u])
 
-(* Type Inference *)
+(* Type Inference *) (*FIXME dloc*)
 let rec infer (ctx:term list) (te:term) : term = 
   match te with
     | Type                              -> Kind
@@ -23,13 +23,13 @@ let rec infer (ctx:term list) (te:term) : term =
           match infer (a::ctx) b with 
             | Kind      -> Kind
             | Type      -> Type
-            | ty        -> raise (TypingError (Error.err_sort b ty))
+            | ty        -> raise (TypingError (dloc,Error.err_sort b ty))
         end
     | Lam (a,t)                         -> 
         begin
           is_type a (infer ctx a) ;
           match infer (a::ctx) t with 
-            | Kind        -> raise (TypingError (Error.err_topsort te))
+            | Kind        -> raise (TypingError (dloc,Error.err_topsort te))
             | b           -> Pi (a,b)
         end
     | App ( f::((_::_) as args) )       ->
@@ -39,8 +39,8 @@ let rec infer (ctx:term list) (te:term) : term =
               match Reduction.hnf ty_f , infer ctx u with
                 | ( Pi (a,b) , a' ) ->  
                     if Reduction.are_convertible a a' then ( mk_app f u , Subst.subst b u )
-                    else raise (TypingError (Error.err_conv u a a'))
-                | ( t , _ )         -> raise (TypingError (Error.err_prod f ty_f)) 
+                    else raise (TypingError (dloc,Error.err_conv u a a'))
+                | ( t , _ )         -> raise (TypingError (dloc,Error.err_prod f ty_f)) 
           ) (f,infer ctx f) args )
         end
     | App _             -> assert false
@@ -70,7 +70,7 @@ let rec infer_pattern (ctx:term list) : pattern -> term*(term*term) list = funct
                  let lst2 = check_pattern ctx a arg in
                    ( Subst.subst b (term_of_pattern arg) , (concat lst lst2) ) (*FIXME concat*)
                end
-            | _         -> raise (TypingError (Error.err_prod2 pi))
+            | _         -> raise (TypingError (dloc,Error.err_prod2 pi))
       in
         Array.fold_left aux ( Env.get_global_type dloc (*FIXME*) m v , [] ) pats
                                       

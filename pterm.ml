@@ -10,7 +10,7 @@ let pos (x:string) (lst:string list) : int option =
     aux 0 lst
 
 let rec of_pterm (ctx:string list) : pterm -> term = function 
-  | PType                       -> Type
+  | PType _                     -> Type
   | PId (_,v)                   -> 
       ( match pos v ctx with
           | None        -> GVar (!Global.name,v)

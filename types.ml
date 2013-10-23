@@ -9,7 +9,7 @@ let dloc = (0,0)
 
 type token = 
   | UNDERSCORE of loc
-  | TYPE
+  | TYPE of loc
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
@@ -31,12 +31,12 @@ type token =
   | ARROW
 
 type pterm =
-  | PType
-  | PId  of loc*string
-  | PQid of loc*string*string
-  | PApp of pterm * pterm
-  | PLam of (loc*string) * pterm option * pterm
-  | PPi  of (loc*string) option * pterm * pterm
+  | PType of loc 
+  | PId   of loc*string
+  | PQid  of loc*string*string
+  | PApp  of pterm * pterm
+  | PLam  of (loc*string) * pterm option * pterm
+  | PPi   of (loc*string) option * pterm * pterm
 
 type ppattern = 
   | PDash
@@ -82,7 +82,7 @@ type gdt =
 exception ParserError of loc*string
 exception LexerError  of loc*string
 exception EnvError    of loc*string
-exception TypingError of string
-exception PatternError of string
+exception TypingError of loc*string
+exception PatternError of loc*string
 
 

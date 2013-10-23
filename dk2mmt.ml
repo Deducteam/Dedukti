@@ -14,7 +14,7 @@ let print_qid m id =
     fprintf !Global.out "%s.%s" m id
 
 let rec print_term : pterm -> unit = function
-  | PType              -> fprintf !Global.out "Type"
+  | PType _            -> fprintf !Global.out "Type"
   | PId (_,id)         -> fprintf !Global.out "%s" id
   | PQid (_,m,id)      -> print_qid m id
   | PApp (f,a)         -> 
@@ -50,7 +50,7 @@ let rec print_term : pterm -> unit = function
       end 
 
 and print_term_wp = function
-  | PType | PId (_,_) | PQid (_,_,_) as t       -> print_term t
+  | PType _ | PId (_,_) | PQid (_,_,_) as t       -> print_term t
   | t   ->
       fprintf !Global.out "("; 
       print_term t ;

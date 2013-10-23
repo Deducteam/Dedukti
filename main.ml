@@ -66,6 +66,6 @@ let _ =
     | Sys_error err             -> Global.error (0,0) "System Error"  err
     | LexerError (lc,err)       -> Global.error lc "Lexing Error"  err
     | ParserError (lc,err)      -> Global.error lc "Parsing Error"  err
-    | TypingError err           -> Global.error (0,0) "Typing Error"  err (*FIXME*)
+    | TypingError (lc,err)      -> Global.error lc "Typing Error"  err
     | EnvError (lc,err)         -> Global.error lc "Scoping Error" err 
-    | PatternError err          -> Global.error (0,0) "Rewrite Error" err (*FIXME*)
+    | PatternError (lc,err)     -> Global.error lc "Rule Error" err 

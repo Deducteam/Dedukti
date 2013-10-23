@@ -34,7 +34,7 @@
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
-%token TYPE
+%token <Types.loc> TYPE
 %token <Types.loc*string> ID
 %token <Types.loc*string*string> QID
 
@@ -98,7 +98,7 @@ pat_lst:         /* empty */                                    { [] }
 sterm           : QID                                           { let (a,b,c)=$1 in Types.PQid (a,b,c) }
                 | ID                                            { PId (fst $1,snd $1) }
                 | LEFTPAR term RIGHTPAR                         { $2 }
-                | TYPE                                          { PType }
+                | TYPE                                          { PType $1 }
 
 app:            sterm                                           { $1 }
                 | app sterm                                     { PApp ($1,$2) }

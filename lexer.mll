@@ -31,7 +31,7 @@ rule token = parse
   | "#NAME"                     { NAME }
   | "#IMPORT"                   { IMPORT }
   | "#NORMALIZE"                { NORM }
-  | "Type"	                { TYPE          }
+  | "Type"	                { TYPE (mk_loc lexbuf)  }
   | id as s1 '.' (id as s2)     { QID (mk_loc lexbuf,Global.hstring s1,Global.hstring s2) } 
   | id  as s                    { ID (mk_loc lexbuf,Global.hstring s) } 
   | _   as s		        { raise ( LexerError ( mk_loc lexbuf , "Unexpected characters '"^String.make 1 s^"'." ) ) }

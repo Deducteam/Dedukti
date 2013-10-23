@@ -94,7 +94,7 @@ let get_term (l:rule) : term =
         | Pattern (_,_)       -> assert false
         | _                   -> get_db v (i+1) )
     else
-      raise (PatternError ("Variable "^string_of_int i^" does not appear on the left side of the rewrite rule."))
+      raise (PatternError (dloc (*FIXME*),"Variable "^string_of_int i^" does not appear on the left side of the rewrite rule."))
   in
   let ord = Array.init (Array.length l.na) (
       fun i -> get_db (l.na.(i)) 0
