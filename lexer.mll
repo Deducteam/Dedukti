@@ -34,13 +34,12 @@ rule token = parse
   | "Type"	                { TYPE          }
   | id as s1 '.' (id as s2)     { QID (mk_loc lexbuf,Global.hstring s1,Global.hstring s2) } 
   | id  as s                    { ID (mk_loc lexbuf,Global.hstring s) } 
-  | _   as s		        { let (l,c) = mk_loc lexbuf in
-                                  raise (LexerError ("Lexing error near '"^String.make 1 s^"' (line:"^string_of_int l^";column:"^string_of_int c^")." )) }
+  | _   as s		        { raise ( LexerError ( mk_loc lexbuf , "Unexpected characters '"^String.make 1 s^"'." ) ) }
   | eof		                { EOF }
 
  and comment = parse 
   | ";)"                { token lexbuf          }
   | '\n'                { Lexing.new_line lexbuf ; comment lexbuf }
   | _                   { comment lexbuf        }
-  | eof		        { raise (LexerError "Unexpected end of file.") }
+  | eof		        { raise ( LexerError ( mk_loc lexbuf , "Unexpected end of file." ) ) }
   

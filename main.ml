@@ -12,10 +12,10 @@ let parse lb =
     | P.Error       -> 
         begin
           let curr = lb.Lexing.lex_curr_p in
-          let line = string_of_int (curr.Lexing.pos_lnum) in
-          let column = string_of_int (curr.Lexing.pos_cnum - curr.Lexing.pos_bol) in
+          let l = curr.Lexing.pos_lnum in
+          let c = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
           let tok = Lexing.lexeme lb in
-            raise (ParserError ("Parsing error near '" ^ tok ^ "' (line:"^line^"; column:"^column^")")) 
+            raise (ParserError ( (l,c) , "Unexpected token '" ^ tok ^ "'." ) ) 
         end
 
 (* *** Input *** *)
@@ -63,9 +63,9 @@ let _ =
   try 
     Arg.parse args run_on_file "Usage: dkcheck [options] files"  
   with 
-    | Sys_error err     -> Global.error "System Error"  err
-    | LexerError err    -> Global.error "Lexing Error"  err
-    | ParserError err   -> Global.error "Pasing Error"  err
-    | TypingError err   -> Global.error "Typing Error"  err
-    | EnvError err      -> Global.error "Scoping Error" err
-    | PatternError err  -> Global.error "Rewrite Error" err
+    | Sys_error err             -> Global.error (0,0) "System Error"  err
+    | LexerError (lc,err)       -> Global.error lc "Lexing Error"  err
+    | ParserError (lc,err)      -> Global.error lc "Parsing Error"  err
+    | TypingError err           -> Global.error (0,0) "Typing Error"  err (*FIXME*)
+    | EnvError err              -> Global.error (0,0) "Scoping Error" err (*FIXME*)
+    | PatternError err          -> Global.error (0,0) "Rewrite Error" err (*FIXME*)

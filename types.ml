@@ -2,14 +2,6 @@
 module StringH = Hashtbl.Make(struct type t = string let equal a b = a = b let hash = Hashtbl.hash end)
 module IntH    = Hashtbl.Make(struct type t = int let equal a b = a = b let hash = Hashtbl.hash end)
 
-(* *** Errors *** *)
-
-exception ParserError of string
-exception LexerError  of string
-exception EnvError    of string
-exception TypingError of string
-exception PatternError of string
-
 (* *** Parsing *** *)
 
 type loc  = int*int
@@ -83,4 +75,13 @@ type pMat = rule array
 type gdt =
   | Leaf     of term
   | Switch   of int * ((string*string)*gdt) list * gdt option
+
+(* *** Errors *** *)
+
+exception ParserError of loc*string
+exception LexerError  of loc*string
+exception EnvError    of string
+exception TypingError of string
+exception PatternError of string
+
 

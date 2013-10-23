@@ -17,7 +17,7 @@ let rec of_pterm (ctx:string list) : pterm -> term = function
           | Some n      -> DB n )
   | PQid (_,m,v)                -> GVar (m,v)
   | PApp (f,u) as t             -> App ( get_app_lst ctx t [] )
-  | PLam (v,None,t)             -> raise (ParserError "Not implemented (untyped lambda)")
+  | PLam (v,None,t)             -> failwith "Not implement (untyped lambda)." 
   | PPi (None,a,b)              -> Pi  ( of_pterm ctx a , of_pterm (""::ctx) b )
   | PPi (Some (l,v),a,b)        -> Pi  ( of_pterm ctx a , of_pterm (v::ctx) b )
   | PLam ((_,v),Some a,t)       -> Lam ( of_pterm ctx a , of_pterm (v::ctx) t )
@@ -32,7 +32,7 @@ let pat_of_ppat (names:string list) (p:ppattern) : pattern =
     | PDash                -> ( incr cpt ; Dash (!cpt) )
     | PPat ((_,m,v),ds,ps) ->
         begin
-          if ( Array.length ds != 0 ) then raise (ParserError "Not implemented (dot pattern)") ;
+          if ( Array.length ds != 0 ) then failwith "Not implemented (dot pattern)" ; (*FIXME*)
           if ( Array.length ps = 0 ) then
             if m = !Global.name then
               ( match pos v  names with

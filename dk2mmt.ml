@@ -156,10 +156,10 @@ let parse lb =
     | P.Error       -> 
         begin
           let curr = lb.Lexing.lex_curr_p in
-          let line = string_of_int (curr.Lexing.pos_lnum) in
-          let column = string_of_int (curr.Lexing.pos_cnum - curr.Lexing.pos_bol) in
+          let l = curr.Lexing.pos_lnum in
+          let c = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
           let tok = Lexing.lexeme lb in
-            raise (ParserError ("Parsing error near '" ^ tok ^ "' (line:"^line^"; column:"^column^")")) 
+            raise (ParserError ( (l,c) , "Unexpected token '" ^ tok ^ "'." ) ) 
         end
 
 (* Input *)
@@ -192,8 +192,8 @@ let _ =
   try 
     Arg.parse args run_on_file "Usage: dkcheck [options] files"  
   with 
-    | Sys_error err     -> error "System Error"  err
-    | LexerError err    -> error "Lexing Error"  err
-    | ParserError err   -> error "Pasing Error"  err
+    | Sys_error err             -> Global.error (0,0) "System Error"  err
+    | LexerError (lc,err)       -> Global.error lc "Lexing Error"  err
+    | ParserError (lc,err)      -> Global.error lc "Parsing Error"  err
 
 

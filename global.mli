@@ -20,6 +20,6 @@ val set_out     : string -> unit
 
 val print       : string -> unit                (* Print a string on standard error *)
 val print_v     : string -> unit                (* Print a string on standard error if in verbose mode *)
-val error       : string -> string -> unit      (* Print an error message and exit *)
+val error       : loc -> string -> string -> unit      (* Print an error message and exit *)
 
 

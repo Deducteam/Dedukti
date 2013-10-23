@@ -29,8 +29,8 @@ let print_v str  =
   if !quiet then () else ( prerr_string str ; flush stderr )
 
 (* Print an error message and exit *)                           
-let error e str = 
-  print ("\n\027[31m["^e^"]\027[m " ^ str ^ "\n");
+let error lc e str = 
+  print ("\n\027[31m["^e^"]\027[m" ^ Error.string_of_loc lc ^ " " ^ str ^ "\n");
   exit 1 
 
 

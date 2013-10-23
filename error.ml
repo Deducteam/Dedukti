@@ -23,10 +23,12 @@ let rec string_of_term : term -> string = function
   | App args    -> "(" ^ String.concat " " (List.map string_of_term args) ^ ")"
   | Lam (a,f)   -> "(\ "^string_of_term a^" => "^string_of_term f^")"
   | Pi  (a,b)   -> "(" ^ string_of_term a^" -> "^string_of_term b ^")" 
+  | Meta _      -> "_"
 
-let rec string_of_pat2 = function
+let rec string_of_pattern = function
   | Var v               -> string_of_int v
-  | Pattern ((m,v),arr) -> "("^m^"."^v^" "^String.concat " " (List.map string_of_pat2 (Array.to_list arr))^")"
+  | Dash _              -> "_"
+  | Pattern ((m,v),arr) -> "("^m^"."^v^" "^String.concat " " (List.map string_of_pattern (Array.to_list arr))^")"
 
 (* *** Error messages *** *)
 
@@ -47,7 +49,7 @@ let err_prod2 ty =
 
 
 (* *** Debug functions *** *)
-
+(*
 let dump_gdt id g = 
   let rec aux = function
     | Leaf te                     -> Global.print_v ("Leaf : "^string_of_term te^"\n")
@@ -68,7 +70,7 @@ let dump_gdt id g =
 let dump_pMat id pm =
   let aux l = 
     Global.print_v " [ ] " ;
-    Array.iter (fun p -> Global.print_v (string_of_pat2 p^"\t")) l.li;
+    Array.iter (fun p -> Global.print_v (string_of_pattern p^"\t")) l.li;
     Global.print_v (" --> "^string_of_term l.te^"\n")
   in
     Global.print_v (" --------> PMAT FOR "^id^"\n");
@@ -84,4 +86,4 @@ let dump_state (k,e,t,s) =
   List.iter (fun (_,_,u,_) -> Global.print (" {{ "^string_of_term u^" }}")) s ;
   Global.print " ]\n"
 
-
+ *)
