@@ -39,9 +39,9 @@ type pterm =
 
 type ppattern = 
   | PDash
-  | PPat of (loc*string*string) * pterm array * ppattern array
+  | PPat of (loc*string*string) * ppattern array (*FIXME array?*)
 
-type ptop = (loc*string) * pterm array * ppattern array 
+type ptop = (loc*string) * ppattern array 
 
 type pcontext = ( (loc*string) * pterm ) list
 

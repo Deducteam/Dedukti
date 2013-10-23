@@ -62,9 +62,9 @@ let print_dot d =
   fprintf !Global.out "} " 
 
 let rec print_pat = function
-  | PDash                     -> failwith "Not implemented (Dash Patterns)."
-  | PPat ((_,m,id),dots,pats) ->
-      if Array.length dots + Array.length pats = 0 then
+  | PDash                       -> failwith "Not implemented (Dash Patterns)."
+  | PPat ((_,m,id),pats)        ->
+      if Array.length pats = 0 then
         begin
           fprintf !Global.out " " ; 
           print_qid m id
@@ -73,7 +73,6 @@ let rec print_pat = function
         begin
           fprintf !Global.out " (" ; 
           print_qid m id ;
-          Array.iter print_dot dots;
           Array.iter print_pat pats;
           fprintf !Global.out ")" 
         end
@@ -82,14 +81,13 @@ let print_ldec ((_,id),ty) =
   fprintf !Global.out "%s:" id ;
   print_term ty 
 
-let mk_rule (env,((_,id),dots,pats),te) = 
+let mk_rule (env,((_,id),pats),te) = 
   fprintf !Global.out "_ : [" ;
   ( match env with 
       | []      -> ()
       | e::env' -> ( print_ldec e ; List.iter (fun e' -> fprintf !Global.out "," ; print_ldec e' ) env' )
   ) ;
   fprintf !Global.out "] %s" id ; 
-  Array.iter print_dot dots ;
   Array.iter print_pat pats ;
   fprintf !Global.out " --> " ;
   print_term te ;

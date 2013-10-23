@@ -30,9 +30,8 @@ let pat_of_ppat (names:string list) (p:ppattern) : pattern =
   let cpt = ref (-1) in
   let rec aux = function
     | PDash                -> ( incr cpt ; Dash (!cpt) )
-    | PPat ((_,m,v),ds,ps) ->
+    | PPat ((_,m,v),ps) ->
         begin
-          if ( Array.length ds != 0 ) then failwith "Not implemented (dot pattern)" ; (*FIXME*)
           if ( Array.length ps = 0 ) then
             if m = !Global.name then
               ( match pos v  names with
@@ -45,7 +44,7 @@ let pat_of_ppat (names:string list) (p:ppattern) : pattern =
         end
   in aux p
 
-let top_of_ptop (names:string list) ((l,cst),dots,args:ptop) : top = 
-  match pat_of_ppat names (PPat ((l,!Global.name,cst),dots,args)) with
+let top_of_ptop (names:string list) ((l,cst),args:ptop) : top = 
+  match pat_of_ppat names (PPat ((l,!Global.name,cst),args)) with
     | Pattern (id,pats) -> (id,pats)
     | _                 -> assert false

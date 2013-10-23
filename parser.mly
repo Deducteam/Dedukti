@@ -48,7 +48,6 @@
 %type <(Types.loc*string)*Types.pterm> decl
 %type <((Types.loc*string)*Types.pterm) list> context
 %type <Types.ptop> top_pattern
-%type <Types.pterm list> dot_lst
 %type <Types.ppattern list> pat_lst
 %type <Types.ppattern> pattern
 %type <Types.pterm> sterm
@@ -85,20 +84,16 @@ context:        /* empty */                                     { [] }
                 | decl COMMA context                            { $1::$3 }
                 | decl                                          { [$1] }
 
-top_pattern:      ID dot_lst pat_lst                            { ( (fst $1,snd $1) , Array.of_list $2 , Array.of_list $3) }
-         /*       | QID dot_lst pat_lst                         { ( $1 , Array.of_list $2 , Array.of_list $3 ) } */
-
-dot_lst:         /* empty */                                    { [] }
-                | LEFTBRA term RIGHTBRA dot_lst                 { $2::$4 }
+top_pattern:      ID pat_lst                                    { ( (fst $1,snd $1) , Array.of_list $2 ) }
 
 pat_lst:         /* empty */                                    { [] }
                 | pattern pat_lst                               { $1::$2 }
 
-                pattern:          ID                            { PPat ((fst $1,!Global.name,snd $1),[||],[||]) }
-                | QID                                           { PPat ($1,[||],[||]) }
+                pattern:          ID                            { PPat ((fst $1,!Global.name,snd $1),[||]) }
+                | QID                                           { PPat ($1,[||]) }
                 | UNDERSCORE                                    { PDash }
-                | LEFTPAR ID  dot_lst pat_lst RIGHTPAR          { PPat ((fst $2,!Global.name,snd $2),Array.of_list $3,Array.of_list $4) }           
-                | LEFTPAR QID dot_lst pat_lst RIGHTPAR          { PPat ($2,Array.of_list $3,Array.of_list $4) }           
+                | LEFTPAR ID  pat_lst RIGHTPAR                  { PPat ((fst $2,!Global.name,snd $2),Array.of_list $3) }           
+                | LEFTPAR QID pat_lst RIGHTPAR                  { PPat ($2,Array.of_list $3) }           
 
 sterm           : QID                                           { let (a,b,c)=$1 in Types.PQid (a,b,c) }
                 | ID                                            { PId (fst $1,snd $1) }

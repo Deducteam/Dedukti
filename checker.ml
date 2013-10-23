@@ -94,7 +94,7 @@ let mk_normalize (pte : pterm) : unit =
 
 let mk_rules (lst:prule list) : unit = 
         let aux = function
-                | (_,((l,v),_,_),_)::_  -> (l,v)
+                | (_,((l,v),_),_)::_  -> (l,v)
                 | _                     -> assert false
         in
         let (l,v) = aux lst in
