@@ -18,3 +18,5 @@ val err_topsort         : term -> string
 val err_prod            : term -> term -> string
 
 val err_prod2           : term -> string
+
+val err_rule            : top -> string

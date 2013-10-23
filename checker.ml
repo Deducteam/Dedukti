@@ -35,13 +35,15 @@ let check_rule (penv,ple,pri) : rule =
   let (k,names,ctx) = List.fold_left check_env (0,[],[]) penv   in
   let (cst,args)    = Pterm.top_of_ptop names ple               in
   let (ty_le0,lst)  = Inference.infer_pattern ctx (Pattern (cst,args)) in 
-  let ty_le         = Unification.resolve_constraints ty_le0 lst in
-  let ri            = Pterm.of_pterm names pri                  in
-  let ty_ri         = Inference.infer ctx ri                    in
-    if Reduction.are_convertible ty_le ty_ri then 
-      { li=args; te=ri; na=Array.init k (fun i -> i)} 
-    else
-      raise (TypingError (get_loc pri,Error.err_conv ri ty_le ty_ri)) 
+    match Unification.resolve_constraints ty_le0 lst with
+      | None            -> raise (PatternError ( fst (fst ple) , Error.err_rule (cst,args) ))
+      | Some ty_le      ->
+          let ri            = Pterm.of_pterm names pri                  in
+          let ty_ri         = Inference.infer ctx ri                    in
+            if Reduction.are_convertible ty_le ty_ri then 
+              { li=args; te=ri; na=Array.init k (fun i -> i)} 
+            else
+              raise (TypingError (get_loc pri,Error.err_conv ri ty_le ty_ri)) 
 
 
 let mk_prelude (l,v : loc*string) : unit =

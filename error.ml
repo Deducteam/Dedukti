@@ -47,6 +47,8 @@ let err_prod te ty =
 let err_prod2 ty = 
   "Product expected.\nInferred type: "^string_of_term ty^".\n"
 
+let err_rule (c,a) = 
+  "Error while typing "^string_of_pattern (Pattern (c,a)) ^".\nCannot find a type.\n"
 
 (* *** Debug functions *** *)
 (*

@@ -1,5 +1,7 @@
 open Types
 
+exception UExcn 
+
 type ustate = (term*term) list (* Terms to unify *)
             * (int*term)  list (* Variable to substitute *)
             * (int*term)  list (* Substitution *)
@@ -15,7 +17,7 @@ let rec subst (lst:(int*term) list) (te:term) : term =
       | Kind | Type | GVar _ | DB _     -> te
       | Meta n                          -> 
           ( try List.assoc n lst
-            with Not_found -> failwith "Cannot unify (1)." ) (*FIXME*)
+            with Not_found -> raise UExcn )
       | App args                    -> App ( List.map (subst lst) args )
       | Lam (a,b)                   -> Lam ( subst lst a , subst lst b )
       | Pi  (a,b)                   -> Pi  ( subst lst a , subst lst b )
@@ -31,16 +33,20 @@ let rec unify : ustate -> (int*term) list = function
             unify ( [] , b , (v,t)::(List.map (fun (z,te) -> (z,subst [(v,t)] te)) s) ) 
         end
       else
-        failwith "Cannot unify (2)." (*FIXME*)
+        raise UExcn
   | ( (t1,t2)::a , b , s )      -> 
       begin
         match Reduction.decompose_eq t1 t2 with
-         | None         -> failwith "Cannot unify (3)." (*FIXME*)
+         | None         -> raise UExcn
          | Some lst     -> unify (a,lst@b,s)
       end
 
-let resolve_constraints (ty:term) (lst:(term*term) list) : term =
-  let s = unify (lst,[],[]) in
-    subst s ty
+let resolve_constraints (ty:term) (lst:(term*term) list) : term option =
+  try 
+    let s = unify (lst,[],[]) in
+      Some (subst s ty)
+  with
+    | UExcn     -> None
+
 
 
