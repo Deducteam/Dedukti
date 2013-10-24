@@ -8,6 +8,15 @@ let gvar_eq (m,v) (m',v') = ( m==m' || m=m' ) && ( v==v' || v=v' )
 
 type cbn_state = int (*size of context *) * (term Lazy.t) list (*context*) * term (*term to reduce*) * cbn_state list (*stack*)
 
+let dump_state (k,e,t,s) =
+  Global.eprint ("k = "^string_of_int k^"\n");
+  Global.eprint ("t = "^Error.string_of_term t^"\n");
+  Global.eprint "e = [";
+  List.iter (fun u -> Global.eprint (" ("^Error.string_of_term (Lazy.force u)^")")) e ;
+  Global.eprint " ]\ns = [";
+  List.iter (fun (_,_,u,_) -> Global.eprint (" {{ "^Error.string_of_term u^" }}")) s ;
+  Global.eprint " ]\n"
+
 let rec cbn_term_of_state (k,e,t,s:cbn_state) : term =
   let t = ( if k = 0 then t else Subst.psubst_l (k,e) 0 t ) in
     if s = [] then t 
@@ -86,16 +95,16 @@ and rewrite (args:cbn_state list) (g:gdt) : (int*(term Lazy.t) list*term) option
                    | None       -> None )
         end
 
-(* Head Normal Form *)          
-let hnf (t:term) : term = cbn_term_of_state ( cbn_reduce ( 0 , [] , t , [] ) ) 
+(* Weak Normal Form *)          
+let wnf (t:term) : term = cbn_term_of_state ( cbn_reduce ( 0 , [] , t , [] ) ) 
 
 let rec cbn_term_of_state2 (k,e,t,s:cbn_state) : term =
   let t = ( if k = 0 then t else Subst.psubst_l (k,e) 0 t ) in
     if s = [] then t 
     else App ( t::(List.map (fun st -> cbn_term_of_state2 (cbn_reduce st)) s ))
 
-(* Weak Normal Form *)          
-let wnf (t:term) : term = cbn_term_of_state2 (cbn_reduce (0,[],t,[])) 
+(* Head Normal Form *)          
+let hnf (t:term) : term = cbn_term_of_state2 (cbn_reduce (0,[],t,[])) 
 
 (* *** CONVERSION *** *)
 

@@ -30,17 +30,17 @@ let pat_of_ppat (names:string list) (p:ppattern) : pattern =
   let cpt = ref (-1) in
   let rec aux = function
     | PDash                -> ( incr cpt ; Dash (!cpt) )
-    | PPat ((_,m,v),ps) ->
+    | PPat ((l,m,v),ps) ->
         begin
           if ( Array.length ps = 0 ) then
             if m = !Global.name then
               ( match pos v  names with
-                  | None        -> Pattern ((m,v),[||]) 
+                  | None        -> Pattern ((l,m,v),[||]) 
                   | Some n      -> Var n ) 
             else
-              Pattern ((m,v),[||])
+              Pattern ((l,m,v),[||])
           else 
-            Pattern ((m,v),Array.map aux ps)
+            Pattern ((l,m,v),Array.map aux ps)
         end
   in aux p
 

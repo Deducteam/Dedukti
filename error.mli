@@ -11,6 +11,8 @@ val string_of_pattern   : pattern -> string
 
 val err_conv            : term -> term -> term -> string
 
+val err_conv2           : term -> term -> term -> term -> term -> string
+
 val err_sort            : term -> term -> string
 
 val err_topsort         : term -> string

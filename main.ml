@@ -32,19 +32,19 @@ let ascii_art _ =
            *)
 
 let run_on_stdin _ =
-  Global.print (" -- Processing standard input ...\t") ;
-  Global.print_v "\n";
+  Global.eprint (" -- Processing standard input ...\t") ;
+  Global.vprint "\n";
   parse (Lexing.from_channel stdin) ;
-  Global.print ("\027[32m[DONE]\027[m\n") ;
+  Global.eprint ("\027[32m[DONE]\027[m\n") ;
   Env.export_and_clear ()
             
 let run_on_file file =
   let input = open_in file in
    (* ascii_art (); *)
-    Global.print (" -- Processing file '" ^ file ^ "' ...\t") ;
-    Global.print_v "\n";
+    Global.eprint (" -- Processing file '" ^ file ^ "' ...\t") ;
+    Global.vprint "\n";
     parse (Lexing.from_channel input) ;
-    Global.print ("\027[32m[DONE]\027[m\n") ;
+    Global.eprint ("\027[32m[DONE]\027[m\n") ;
     Env.export_and_clear ()
 
 (* *** Arguments *** *)

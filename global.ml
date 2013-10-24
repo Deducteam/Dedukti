@@ -21,16 +21,19 @@ let set_out file =
 
 (* *** Info messages *** *)
 
+(* Print a string on standard output *)           
+let sprint str  = print_string str ; flush stdout
+                                       
 (* Print a string on standard error *)           
-let print str  = prerr_string str ; flush stderr
+let eprint str  = prerr_string str ; flush stderr
 
 (* Print a string on standard error if in verbose mode *)           
-let print_v str  = 
-  if !quiet then () else ( prerr_string str ; flush stderr )
+let vprint str  = 
+  if not !quiet then ( prerr_string str ; flush stderr )
 
 (* Print an error message and exit *)                           
 let error lc e str = 
-  print ("\n\027[31m["^e^"]\027[m" ^ Error.string_of_loc lc ^ " " ^ str ^ "\n");
+  eprint ("\n\027[31m["^e^"]\027[m" ^ Error.string_of_loc lc ^ " " ^ str ^ "\n");
   exit 1 
 
 

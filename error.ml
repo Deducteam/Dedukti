@@ -28,12 +28,15 @@ let rec string_of_term : term -> string = function
 let rec string_of_pattern = function
   | Var v               -> string_of_int v
   | Dash _              -> "_"
-  | Pattern ((m,v),arr) -> "("^m^"."^v^" "^String.concat " " (List.map string_of_pattern (Array.to_list arr))^")"
+  | Pattern ((_,m,v),arr) -> "("^m^"."^v^" "^String.concat " " (List.map string_of_pattern (Array.to_list arr))^")"
 
-(* *** Error messages *** *)
+(* *** Typing Errors *** *)
 
 let err_conv te exp inf =  
   "Error while typing "^string_of_term te ^".\nExpected type: "^string_of_term exp^".\nInferred type: "^string_of_term inf^".\n"
+
+let err_conv2 te exp inf exp' inf' =  
+  "Error while typing "^string_of_term te ^".\nExpected type: "^string_of_term exp^" [ "^string_of_term exp'^" ].\nInferred type: "^string_of_term inf^" [ "^string_of_term inf'^" ].\n"
 
 let err_sort te ty =
   "Error while typing "^string_of_term te ^".\nExpected type: Type or Kind.\nInferred type: "^string_of_term ty^".\n"
@@ -50,42 +53,4 @@ let err_prod2 ty =
 let err_rule (c,a) = 
   "Error while typing "^string_of_pattern (Pattern (c,a)) ^".\nCannot find a type.\n"
 
-(* *** Debug functions *** *)
-(*
-let dump_gdt id g = 
-  let rec aux = function
-    | Leaf te                     -> Global.print_v ("Leaf : "^string_of_term te^"\n")
-    | Switch (c,cases,def)        ->
-        begin
-          Global.print_v ("Switch ( "^string_of_int c ^") [\n");
-          List.iter (fun ((m,v),g) -> Global.print_v ("Case "^m^"."^v^": ") ; aux g ) cases ;
-          (match def with
-             | None       -> ()
-             | Some g     -> (Global.print_v "Def: " ; aux g) ) ;
-          Global.print_v ("]\n")
-        end
-  in
-    Global.print_v (" --------> GDT FOR "^id^"\n");
-    aux g;
-    Global.print_v " <-------- \n"
-
-let dump_pMat id pm =
-  let aux l = 
-    Global.print_v " [ ] " ;
-    Array.iter (fun p -> Global.print_v (string_of_pattern p^"\t")) l.li;
-    Global.print_v (" --> "^string_of_term l.te^"\n")
-  in
-    Global.print_v (" --------> PMAT FOR "^id^"\n");
-    Array.iter aux pm ;
-    Global.print_v " <-------- \n"
-
-let dump_state (k,e,t,s) =
-  Global.print ("k = "^string_of_int k^"\n");
-  Global.print ("t = "^string_of_term t^"\n");
-  Global.print "e = [";
-  List.iter (fun u -> Global.print (" ("^string_of_term (Lazy.force u)^")")) e ;
-  Global.print " ]\ns = [";
-  List.iter (fun (_,_,u,_) -> Global.print (" {{ "^string_of_term u^" }}")) s ;
-  Global.print " ]\n"
-
- *)
+(* *** Rule Errors *** *)

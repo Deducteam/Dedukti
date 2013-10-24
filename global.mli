@@ -18,8 +18,9 @@ val set_out     : string -> unit
 
 (* *** Info messages *** *)
 
-val print       : string -> unit                (* Print a string on standard error *)
-val print_v     : string -> unit                (* Print a string on standard error if in verbose mode *)
-val error       : loc -> string -> string -> unit      (* Print an error message and exit *)
+val sprint      : string -> unit                        (* Print a string on standard output *)
+val eprint      : string -> unit                        (* Print a string on standard error *)
+val vprint      : string -> unit                        (* Print a string on standard output if in verbose mode *)
+val error       : loc -> string -> string -> unit       (* Print an error message and exit *)
 
 

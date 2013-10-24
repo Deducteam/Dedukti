@@ -56,7 +56,7 @@ let add_decl lc v ty =
   let env = StringH.find envs !Global.name in
     if StringH.mem env v then 
       if !Global.raphael then
-        Global.print_v "Warning: Redeclaration (ignored).\n"
+        Global.vprint "Warning: Redeclaration (ignored).\n"
       else 
         raise (EnvError (lc,"Already defined symbol '"^v^"'.")) 
     else 
@@ -66,7 +66,7 @@ let add_def lc v te ty =
   let env = StringH.find envs !Global.name in
     if StringH.mem env v then 
       if !Global.raphael then
-        Global.print_v "Redeclaration ignored.\n"
+        Global.vprint "Redeclaration ignored.\n"
       else
         raise (EnvError (lc,"Already defined symbol '"^v^"'."))
     else 

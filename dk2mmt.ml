@@ -140,7 +140,7 @@ end
 (* Error Msgs *)
 
 let error e str = 
-  Global.print ("\n\027[31m["^e^"]\027[m " ^ str ^ "\n");
+  Global.eprint ("\n\027[31m["^e^"]\027[m " ^ str ^ "\n");
   exit 1 
 
 (* Parsing *)
@@ -163,18 +163,18 @@ let parse lb =
 (* Input *)
 
 let run_on_stdin _ =
-  Global.print (" -- Processing standard input ...\t") ;
-  Global.print_v "\n";
+  Global.eprint (" -- Processing standard input ...\t") ;
+  Global.vprint "\n";
   parse (Lexing.from_channel stdin) ;
-  Global.print ("\027[32m[DONE]\027[m\n") ;
+  Global.eprint ("\027[32m[DONE]\027[m\n") ;
   Env.export_and_clear ()
             
 let run_on_file file =
   let input = open_in file in
-    Global.print (" -- Processing file '" ^ file ^ "' ...\t") ;
-    Global.print_v "\n";
+    Global.eprint (" -- Processing file '" ^ file ^ "' ...\t") ;
+    Global.vprint "\n";
     parse (Lexing.from_channel input) ;
-    Global.print ("\027[32m[DONE]\027[m\n") ;
+    Global.eprint ("\027[32m[DONE]\027[m\n") ;
     Env.export_and_clear ()
 
 (* Args *)

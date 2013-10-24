@@ -40,7 +40,7 @@ type pterm =
 
 type ppattern = 
   | PDash
-  | PPat of (loc*string*string) * ppattern array (*FIXME array?*)
+  | PPat of (loc*string*string) * ppattern array 
 
 type ptop = (loc*string) * ppattern array 
 
@@ -65,13 +65,11 @@ type term =
 type pattern =
   | Var         of int
   | Dash        of int
-  | Pattern     of (string*string) * pattern array
+  | Pattern     of (loc*string*string) * pattern array
 
-type top = (string*string) * pattern array 
+type top = (loc*string*string) * pattern array 
 
-type rule = { li:pattern array ; te:term ; na:int array ; }
-
-type pMat = rule array
+type rule = int * top * term 
 
 type gdt =
   | Leaf     of term
