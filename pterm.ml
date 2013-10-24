@@ -47,4 +47,5 @@ let pat_of_ppat (names:string list) (p:ppattern) : pattern =
 let top_of_ptop (names:string list) ((l,cst),args:ptop) : top = 
   match pat_of_ppat names (PPat ((l,!Global.name,cst),args)) with
     | Pattern (id,pats) -> (id,pats)
-    | _                 -> assert false
+    | _                 -> raise ( PatternError ( l , "The left-hand side of a rule cannot be a variable." ) )
+
