@@ -85,7 +85,9 @@ val mk_uapp     : term list -> term
 val mk_pi       : term -> term -> term
 val mk_meta     : int -> term
 val mk_unique   : unit -> term
-
+                            
+val term_eq : term -> term -> bool (* Syntactic equality *)
+ 
 (* *** Pattern matching *** *)
 
 type pattern =

@@ -93,6 +93,39 @@ let mk_app = function
 let cpt = ref (-1)
 let mk_unique _ = incr cpt ; GVar ( empty , hstring (string_of_int !cpt) )
 
+let rec add_list lst l l' =
+  match l, l' with
+    | [], []            -> Some lst
+    | x::l1, y::l2      -> add_list ((x,y)::lst) l1 l2
+    | _, _              -> None
+
+(*                             
+let rec term_eq_rec = function 
+  | []  -> true
+  | (t1,t2)::lst        ->
+      begin
+        match t1, t2 with
+          | Kind, Kind | Type, Type     -> term_eq_rec lst
+          | Meta n, Meta n' | DB n, DB n'-> n=n' && term_eq_rec lst
+          |  GVar (m,v), GVar (m',v')   -> ident_eq v v' && ident_eq m m' && term_eq_rec lst
+          | App l, App l'               -> ( match add_list lst l l' with None -> false | Some lst' -> term_eq_rec lst' )
+          | ( Lam (a,b), Lam (a',b') ) 
+          | ( Pi (a,b), Pi (a',b') )    -> term_eq_rec ( (a,a')::(b,b')::lst )
+          | _, _                        -> false
+      end
+let term_eq t1 t2 = term_eq_rec [ (t1,t2) ]
+ *)
+
+let rec term_eq t1 t2 = 
+  match t1, t2 with 
+    | Kind, Kind | Type, Type     -> true 
+    | Meta n, Meta n' | DB n, DB n'-> n=n' 
+    |  GVar (m,v), GVar (m',v')   -> ident_eq v v' && ident_eq m m' 
+    | App l, App l'               -> ( try List.for_all2 term_eq l l' with _ -> false ) 
+    | ( Lam (a,b), Lam (a',b') ) 
+    | ( Pi (a,b), Pi (a',b') )    -> term_eq a a' && term_eq b b'
+    | _, _                        -> false
+
 
 (* *** Pattern matching *** *)
 

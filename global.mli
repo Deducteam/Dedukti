@@ -16,7 +16,7 @@ val set_out     : string -> unit
 
 val sprint      : string -> unit                        (* Print a string on standard output *)
 val eprint      : string -> unit                        (* Print a string on standard error *)
-val vprint      : string -> unit                        (* Print a string on standard output if in verbose mode *)
+val vprint      : string Lazy.t -> unit                        (* Print a string on standard output if in verbose mode *)
 val error       : loc -> string -> string -> unit       (* Print an error message and exit *)
 
 
