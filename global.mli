@@ -1,13 +1,9 @@
 
 open Types
 
-(* *** String sharing *** *)
-
-val hstring     : string -> StringH.key 
-
 (* *** Global Options *** *)
 
-val name        : string ref
+val name        : ident ref
 val out         : out_channel ref
 val quiet       : bool ref
 val export      : bool ref

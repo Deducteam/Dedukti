@@ -5,16 +5,23 @@ open Types
  * Compiling Pattern Matching to Good Decision Trees (Maranget, 2008)
  * *)
 
+module H = Hashtbl.Make(
+struct 
+  type t        = ident*ident
+  let hash      = Hashtbl.hash 
+  let equal (m,v) (m',v') = 
+    ident_eq v v' && ident_eq m m'
+end ) 
 
 (* *** Types *** *)
 
 type line = { pats:pattern array ; right:term ; env_size:int ; }
 type pMat = line list 
 type union = PMat of pMat | Term of term
-type partition = { cases:( (string*string) * union ) list ; default: pMat option ; }
+type partition = { cases:( (ident*ident) * union ) list ; default: pMat option ; }
 
 (* *** Debug *** *)
-
+(*
 let dump_gdt (id:string) (g:gdt) = 
   let rec aux = function
     | Leaf te                     -> Global.eprint ("Leaf : "^Error.string_of_term te^"\n")
@@ -41,7 +48,7 @@ let dump_pMat (id:string) (pm:pMat) =
   Global.eprint (" --------> PMAT FOR "^id^"\n");
   List.iter (dump_line id) pm ;
   Global.eprint " <-------- \n"
-
+ *)
 (* *** Internal functions *** *)
 
 let pMat_from_rules (rs:rule list) : pMat = 
@@ -53,7 +60,7 @@ let pMat_from_rules (rs:rule list) : pMat =
             List.map (
               fun (k',((lc,m',v'),pats'),ri') ->
                 if Array.length pats' != arity then raise ( PatternError ( lc , "Arity mismatch: all the rules must have the same arity." ) ) 
-                else if m' != m || v != v'     then raise ( PatternError ( lc , "Head symbol mismatch: all the rules must have the same head symbol." ) ) 
+                else if m' != m || v != v'     then raise ( PatternError ( lc , "Head symbol mismatch: all the rules must have the same head symbol." ) ) (*TODO*) 
                 else { pats=pats' ; right=ri' ; env_size=k' }
             ) rs'
           )
@@ -83,10 +90,10 @@ let specialize (c:int) (l:line) (args:pattern array) : line =
     }
 
 let partition (pm:pMat) (c:int) : partition = 
-  let hs : (string*string,line list) Hashtbl.t  = Hashtbl.create 47 in
+  let hs  = H.create 47         in 
   let add id l = 
-    ( try Hashtbl.replace hs id (l::(Hashtbl.find hs id))
-      with Not_found -> Hashtbl.add hs id [l] ) in
+    ( try H.replace hs id (l::(H.find hs id))
+      with Not_found -> H.add hs id [l] ) in
   let def = ref [] in
     List.iter (
       fun z ->
@@ -94,7 +101,7 @@ let partition (pm:pMat) (c:int) : partition =
           | Pattern ((_,m,v),args)      -> add (m,v) (specialize c z args)
           | Dash _ | Var _              -> def := z::(!def)
     ) pm ;
-    let cases = Hashtbl.fold (
+    let cases = H.fold (
       fun id lines l ->
         (id,union_from_lines lines)::l
     ) hs [] in
@@ -112,16 +119,15 @@ let getColumn (l:pattern array) : int option =
   in aux 0
 
 let rec reorder (ord:int array) (k:int) : term -> term = function
-  | DB n when n<k       -> DB n
-  | App args            -> App (List.map (reorder ord k) args)
-  | Lam (a,f)           -> Lam (reorder ord k a, reorder ord (k+1) f)
-  | Pi  (a,b)           -> Pi  (reorder ord k a, reorder ord (k+1) b)
-  | DB n (* n>=k *)     -> 
+  | App args            -> mk_uapp (List.map (reorder ord k) args)
+  | Lam (a,f)           -> mk_lam (reorder ord k a) (reorder ord (k+1) f)
+  | Pi  (a,b)           -> mk_pi  (reorder ord k a) (reorder ord (k+1) b)
+  | DB n when (n>=k)    -> 
       begin 
-    (*assert (n-k < Array.length ord);*) 
+        (*assert (n-k < Array.length ord);*) 
         let n_db = ord.(n-k) in
           if n_db = (-1) then raise ( PatternError ( dloc , "Free variables on the right-hand side of a rule should also appear in the left-hand side." ) ) 
-          else DB (n_db + k) 
+          else mk_db (n_db + k) 
       end
   | t                   -> t 
 

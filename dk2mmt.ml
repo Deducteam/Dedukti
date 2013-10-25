@@ -9,13 +9,13 @@ let ascii31 = Char.chr 31 (* 1f : separator *)
 
 let print_qid m id = 
   if m = !Global.name then
-    fprintf !Global.out "%s" id 
+    fprintf !Global.out "%s" (string_of_ident id) 
   else
-    fprintf !Global.out "%s.%s" m id
+    fprintf !Global.out "%s.%s" (string_of_ident m) (string_of_ident id)
 
 let rec print_term : pterm -> unit = function
   | PType _            -> fprintf !Global.out "Type"
-  | PId (_,id)         -> fprintf !Global.out "%s" id
+  | PId (_,id)         -> fprintf !Global.out "%s" (string_of_ident id)
   | PQid (_,m,id)      -> print_qid m id
   | PApp (f,a)         -> 
       begin
@@ -25,12 +25,12 @@ let rec print_term : pterm -> unit = function
       end
   | PLam (v,None,te)   ->
       begin
-        fprintf !Global.out "%s => " (snd v);
+        fprintf !Global.out "%s => " (string_of_ident (snd v));
         print_term_wp te ;
       end
   | PLam (v,Some ty,te)->
       begin
-        fprintf !Global.out "%s:" (snd v);
+        fprintf !Global.out "%s:" (string_of_ident (snd v));
         print_term_wp ty ;
         fprintf !Global.out " => " ;
         print_term_wp te ;
@@ -43,7 +43,7 @@ let rec print_term : pterm -> unit = function
       end
   | PPi (Some v,a,b)   ->
       begin
-        fprintf !Global.out "%s:" (snd v) ;
+        fprintf !Global.out "%s:" (string_of_ident (snd v)) ;
         print_term_wp a ;
         fprintf !Global.out " -> " ;
         print_term_wp b ;
@@ -78,7 +78,7 @@ let rec print_pat = function
         end
 
 let print_ldec ((_,id),ty) = 
-  fprintf !Global.out "%s:" id ;
+  fprintf !Global.out "%s:" (string_of_ident id) ;
   print_term ty 
 
 let mk_rule (env,((_,id),pats),te) = 
@@ -87,7 +87,7 @@ let mk_rule (env,((_,id),pats),te) =
       | []      -> ()
       | e::env' -> ( print_ldec e ; List.iter (fun e' -> fprintf !Global.out "," ; print_ldec e' ) env' )
   ) ;
-  fprintf !Global.out "] %s" id ; 
+  fprintf !Global.out "] %s" (string_of_ident id) ; 
   Array.iter print_pat pats ;
   fprintf !Global.out " --> " ;
   print_term te ;
@@ -98,41 +98,41 @@ let mk_rule (env,((_,id),pats),te) =
 module Mmt =
 struct
 
-let mk_prelude (l,v : loc*string) : unit =
-        fprintf !Global.out "namespace %s %c\n\ntheory FILENAME =\n\n" v ascii29 ; 
-        Global.set_name v 
+let mk_prelude (l,v) =
+        fprintf !Global.out "namespace %s %c\n\ntheory FILENAME =\n\n" (string_of_ident v) ascii29 ; 
+        Global.name := v 
 
-let mk_require (l,v : loc*string) : unit = 
+let mk_require (l,v) = 
         failwith "Not implemented (#IMPORT)"
 
-let mk_declaration ((l,id),pty : (loc*string)*pterm) : unit = 
-        fprintf !Global.out "%s : " id ;
+let mk_declaration ((l,id),pty) = 
+        fprintf !Global.out "%s : " (string_of_ident id) ;
         print_term pty ;
         fprintf !Global.out " %c\n\n" ascii30 
 
-let mk_definition ((l,id),pty,pte : (loc*string)*pterm*pterm) : unit = 
-        fprintf !Global.out "%s : " id ;
+let mk_definition ((l,id),pty,pte) = 
+        fprintf !Global.out "%s : " (string_of_ident id) ;
         print_term pty ;
         fprintf !Global.out "%c\n = " ascii31 ;
         print_term pte ;
         fprintf !Global.out "%c\n" ascii30
 
-let mk_infered_def ((l,id),pte : (loc*string)*pterm) : unit = 
+let mk_infered_def ((l,id),pte) = 
         failwith "Not implemented"
 
-let mk_opaque ((l,id),pty,pte : (loc*string)*pterm*pterm) : unit = 
+let mk_opaque ((l,id),pty,pte)  = 
         failwith "Not implemented"
 
-let mk_typecheck (l,pty,pte : loc*pterm*pterm) : unit = 
+let mk_typecheck (l,pty,pte) = 
         failwith "Not implemented"
 
-let mk_normalize (pte : pterm) : unit = 
+let mk_normalize pte  = 
         failwith "Not implemented"
 
-let mk_rules (lst:prule list) : unit = 
+let mk_rules lst = 
         List.iter mk_rule lst
 
-let mk_ending _ : unit = 
+let mk_ending _  = 
         fprintf !Global.out "\n%c" ascii29 
  
 end
@@ -157,7 +157,7 @@ let parse lb =
           let l = curr.Lexing.pos_lnum in
           let c = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
           let tok = Lexing.lexeme lb in
-            raise (ParserError ( (l,c) , "Unexpected token '" ^ tok ^ "'." ) ) 
+            raise (ParserError ( mk_loc l c , "Unexpected token '" ^ tok ^ "'." ) ) 
         end
 
 (* Input *)
@@ -190,7 +190,7 @@ let _ =
   try 
     Arg.parse args run_on_file "Usage: dkcheck [options] files"  
   with 
-    | Sys_error err             -> Global.error (0,0) "System Error"  err
+    | Sys_error err             -> Global.error dloc "System Error"  err
     | LexerError (lc,err)       -> Global.error lc "Lexing Error"  err
     | ParserError (lc,err)      -> Global.error lc "Parsing Error"  err
 

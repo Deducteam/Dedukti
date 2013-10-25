@@ -2,18 +2,16 @@
 # PLEASE EDIT THE FOLLOWING LINES TO FIT YOUR SYSTEM CONFIGURATION
 
 INSTALL_DIR=/usr/bin
+OPTIONS = -cflags -inline,10
 
 # DO NOT EDIT AFTER THIS LINE
 
 all: 
-	ocamlbuild -build-dir _dkcheck -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" main.native
-	ocamlbuild -build-dir _dk2mmt  -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dk2mmt.native
+	ocamlbuild -build-dir _dkcheck $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" main.native
+	ocamlbuild -build-dir _dk2mmt  $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dk2mmt.native
 
-#profile:
-#	ocamlbuild -use-menhir -tag profile main.native
-
-#debug:
-#	ocamlbuild -use-menhir -tag debug main.byte
+profile:
+	ocamlbuild -tag profile -build-dir _dkcheck -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" main.native
 
 install:
 	install _dkcheck/main.native ${INSTALL_DIR}/dkcheck

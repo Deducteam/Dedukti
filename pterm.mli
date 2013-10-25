@@ -1,8 +1,8 @@
 
 open Types
 
-val of_pterm    : string list -> pterm -> term
+val of_pterm    : ident list -> pterm -> term
   
-val pat_of_ppat : string list -> ppattern -> pattern 
+val pat_of_ppat : ident list -> ppattern -> pattern 
   
-val top_of_ptop : string list -> ptop -> top 
+val top_of_ptop : ident list -> ptop -> top 

@@ -1,11 +1,11 @@
 {
   open Types
 
-  let mk_loc lexbuf = 
+  let get_loc lexbuf = 
           let curr = lexbuf.Lexing.lex_curr_p                   in
           let line = curr.Lexing.pos_lnum                       in
           let cnum = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
-                (line,cnum) 
+                mk_loc line cnum
 }
 
 let id = ['a'-'z' 'A'-'Z' '_']['a'-'z' 'A'-'Z' '_' '0'-'9']*
@@ -20,26 +20,26 @@ rule token = parse
   | '['                         { LEFTSQU       }
   | ']'                         { RIGHTSQU      }
   | '{'                         { LEFTBRA       }
-  | '}'                         { RIGHTBRA      }
+  | '}'                         { RIGHTBRA      } 
   | '('                         { LEFTPAR       }
   | ')'                         { RIGHTPAR      }
   | "-->"	                { LONGARROW     }
   | "->"	                { ARROW         }
   | "=>"	                { FATARROW      }
   | ":="	                { DEF           }
-  | "_"	                        { UNDERSCORE (mk_loc lexbuf)    }
+  | "_"	                        { UNDERSCORE ( get_loc lexbuf )    }
   | "#NAME"                     { NAME }
   | "#IMPORT"                   { IMPORT }
   | "#NORMALIZE"                { NORM }
-  | "Type"	                { TYPE (mk_loc lexbuf)  }
-  | id as s1 '.' (id as s2)     { QID (mk_loc lexbuf,Global.hstring s1,Global.hstring s2) } 
-  | id  as s                    { ID (mk_loc lexbuf,Global.hstring s) } 
-  | _   as s		        { raise ( LexerError ( mk_loc lexbuf , "Unexpected characters '"^String.make 1 s^"'." ) ) }
+  | "Type"	                { TYPE ( get_loc lexbuf )  }
+  | id as s1 '.' (id as s2)     { QID ( get_loc lexbuf , hstring s1 , hstring s2 ) } 
+  | id  as s                    { ID ( get_loc lexbuf , hstring s ) } 
+  | _   as s		        { raise ( LexerError ( get_loc lexbuf , "Unexpected characters '" ^ String.make 1 s ^ "'." ) ) }
   | eof		                { EOF }
 
  and comment = parse 
   | ";)"                { token lexbuf          }
   | '\n'                { Lexing.new_line lexbuf ; comment lexbuf }
   | _                   { comment lexbuf        }
-  | eof		        { raise ( LexerError ( mk_loc lexbuf , "Unexpected end of file." ) ) }
+  | eof		        { raise ( LexerError ( get_loc lexbuf , "Unexpected end of file." ) ) }
   

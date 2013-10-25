@@ -18,9 +18,9 @@ let rec subst (lst:(int*term) list) (te:term) : term =
       | Meta n                          -> 
           ( try List.assoc n lst
             with Not_found -> raise UExcn )
-      | App args                    -> App ( List.map (subst lst) args )
-      | Lam (a,b)                   -> Lam ( subst lst a , subst lst b )
-      | Pi  (a,b)                   -> Pi  ( subst lst a , subst lst b )
+      | App args                    -> mk_app ( List.map (subst lst) args )
+      | Lam (a,b)                   -> mk_lam ( subst lst a ) ( subst lst b )
+      | Pi  (a,b)                   -> mk_pi  ( subst lst a ) ( subst lst b )
 
 let rec unify : ustate -> (int*term) list = function
   | ( [] , [] , s)              -> s

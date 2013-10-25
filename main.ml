@@ -15,7 +15,7 @@ let parse lb =
           let l = curr.Lexing.pos_lnum in
           let c = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
           let tok = Lexing.lexeme lb in
-            raise (ParserError ( (l,c) , "Unexpected token '" ^ tok ^ "'." ) ) 
+            raise (ParserError ( mk_loc l c , "Unexpected token '" ^ tok ^ "'." ) ) 
         end
 
 (* *** Input *** *)
@@ -63,7 +63,7 @@ let _ =
   try 
     Arg.parse args run_on_file "Usage: dkcheck [options] files"  
   with 
-    | Sys_error err             -> Global.error (0,0) "System Error"  err
+    | Sys_error err             -> Global.error dloc "System Error"  err
     | LexerError (lc,err)       -> Global.error lc "Lexing Error"  err
     | ParserError (lc,err)      -> Global.error lc "Parsing Error"  err
     | TypingError (lc,err)      -> Global.error lc "Typing Error"  err

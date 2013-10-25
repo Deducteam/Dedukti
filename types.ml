@@ -1,27 +1,45 @@
 
-module StringH = Hashtbl.Make(struct type t = string let equal a b = a = b let hash = Hashtbl.hash end)
-module IntH    = Hashtbl.Make(struct type t = int let equal a b = a = b let hash = Hashtbl.hash end)
+(* *** Hashconsed strings *** *)
+
+type ident = string
+let string_of_ident s = s
+let ident_eq s1 s2 = s1==s2 || s1=s2 
+
+module WS = Weak.Make(
+struct 
+  type t        = ident 
+  let equal     = ident_eq 
+  let hash      = Hashtbl.hash 
+end )
+
+let shash       = WS.create 251
+let hstring     = WS.merge shash
+let empty     = hstring ""
+
+(* *** Localisation *** *)
+
+type loc = int*int
+let dloc = (0,0)
+let mk_loc l c = (c,l)
+let string_of_loc (l,c) = "[l:" ^ string_of_int l ^ ";c:" ^ string_of_int c ^ "]"
 
 (* *** Parsing *** *)
 
-type loc  = int*int
-let dloc = (0,0)
-
 type token = 
-  | UNDERSCORE of loc
-  | TYPE of loc
+  | UNDERSCORE  of loc
+  | TYPE        of loc
   | RIGHTSQU
   | RIGHTPAR
-  | RIGHTBRA
-  | QID of (loc*string*string)
+  | RIGHTBRA 
+  | QID         of ( loc * ident * ident )
   | NORM
   | NAME
   | LONGARROW
   | LEFTSQU
   | LEFTPAR
-  | LEFTBRA
+  | LEFTBRA 
   | IMPORT
-  | ID of (loc*string)
+  | ID          of ( loc * ident )
   | FATARROW
   | EOF
   | DOT
@@ -59,6 +77,22 @@ type term =
   | Lam  of term*term           (* Lambda abstraction *)
   | Pi   of term*term           (* Pi abstraction *)
   | Meta of int
+
+let mk_kind     = Kind
+let mk_type     = Type
+let mk_db n     = DB n
+let mk_gvar m v = GVar (m,v)
+let mk_lam a b  = Lam (a,b) 
+let mk_pi a b   = Pi (a,b)
+let mk_meta n   = Meta n
+let mk_uapp lst = App lst
+let mk_app = function
+  | [] | [_]            -> assert false
+  | (App l1)::l2        -> App (l1@l2)
+  | lst                 -> App lst
+let cpt = ref (-1)
+let mk_unique _ = incr cpt ; GVar ( empty , hstring (string_of_int !cpt) )
+
 
 (* *** Pattern matching *** *)
 

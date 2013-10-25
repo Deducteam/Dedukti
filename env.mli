@@ -1,24 +1,24 @@
 
 open Types
 
-type gst =
-  | Decl  of term*(int*gdt) option 
-  | Def   of term*term
+type gst = private
+  | Decl  of term * (int*gdt) option 
+  | Def   of term * term
 
-val init                : StringH.key -> unit
+val init                : ident -> unit
 
-val import              : loc -> StringH.key -> unit 
+val import              : loc -> ident -> unit 
 
 val export_and_clear    : unit -> unit
 
-val get_global_symbol   : loc -> StringH.key -> StringH.key -> gst
+val get_global_symbol   : loc -> ident -> ident -> gst
 
-val get_global_type     : loc -> StringH.key -> StringH.key -> term
+val get_global_type     : loc -> ident -> ident -> term
 
-val get_global_rw       : loc -> StringH.key -> StringH.key -> (int*gdt) option
+val get_global_rw       : loc -> ident -> ident -> (int*gdt) option
 
-val add_decl            : loc -> StringH.key -> term -> unit
+val add_decl            : loc -> ident -> term -> unit
 
-val add_def             : loc -> StringH.key -> term -> term -> unit
+val add_def             : loc -> ident -> term -> term -> unit
 
-val add_rw              : loc -> StringH.key -> (int*gdt) -> unit
+val add_rw              : loc -> ident -> (int*gdt) -> unit

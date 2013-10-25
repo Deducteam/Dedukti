@@ -1,14 +1,14 @@
 %parameter <M : 
         sig 
-                val mk_prelude:Types.loc*string->unit
-                val mk_require:Types.loc*string->unit
-                val mk_declaration:(Types.loc*string)*Types.pterm->unit
-                val mk_definition:(Types.loc*string)*Types.pterm*Types.pterm->unit
-                val mk_opaque:(Types.loc*string)*Types.pterm*Types.pterm->unit
+                val mk_prelude:Types.loc*Types.ident->unit
+                val mk_require:Types.loc*Types.ident->unit
+                val mk_declaration:(Types.loc*Types.ident)*Types.pterm->unit
+                val mk_definition:(Types.loc*Types.ident)*Types.pterm*Types.pterm->unit
+                val mk_opaque:(Types.loc*Types.ident)*Types.pterm*Types.pterm->unit
                 val mk_normalize:Types.pterm->unit
                 val mk_typecheck:Types.loc*Types.pterm*Types.pterm->unit
                 val mk_rules:Types.prule list->unit
-                val mk_infered_def: (Types.loc*string)*Types.pterm-> unit
+                val mk_infered_def: (Types.loc*Types.ident)*Types.pterm-> unit
                 val mk_ending:unit->unit
         end>  
 %{
@@ -35,8 +35,8 @@
 %token LEFTSQU
 %token RIGHTSQU
 %token <Types.loc> TYPE
-%token <Types.loc*string> ID
-%token <Types.loc*string*string> QID
+%token <Types.loc*Types.ident> ID
+%token <Types.loc*Types.ident*Types.ident> QID
 
 %start top
 %type <unit> top
@@ -45,8 +45,8 @@
 %type <unit> line
 %type <Types.prule list> rule_lst
 %type <Types.prule> rule
-%type <(Types.loc*string)*Types.pterm> decl
-%type <((Types.loc*string)*Types.pterm) list> context
+%type <(Types.loc*Types.ident)*Types.pterm> decl
+%type <((Types.loc*Types.ident)*Types.pterm) list> context
 %type <Types.ptop> top_pattern
 %type <Types.ppattern list> pat_lst
 %type <Types.ppattern> pattern
