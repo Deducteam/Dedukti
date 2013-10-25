@@ -86,7 +86,7 @@ let mk_typecheck (l,pty,pte : loc*pterm*pterm) :unit =
 
 let mk_normalize (pte : pterm) : unit = 
         let te = Pterm.of_pterm [] pte in
-        Global.vprint (lazy ("[Normalize] ...\n" )) ; (*TODO loc*)
+        Global.vprint (lazy (string_of_loc (get_loc pte) ^ "[Normalize] ...\n" )) ; 
         let te' = Reduction.hnf te in
         Global.sprint ( Error.string_of_term te' ^ "\n" )
 

@@ -53,6 +53,8 @@ type pterm =
   | PLam  of (loc*ident) * pterm option * pterm
   | PPi   of (loc*ident) option * pterm * pterm
 
+val get_loc : pterm -> loc
+
 type ppattern = 
   | PDash
   | PPat of (loc*ident*ident) * ppattern array 

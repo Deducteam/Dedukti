@@ -107,7 +107,7 @@ let hnf (t:term) : term = cbn_term_of_state2 (cbn_reduce (0,[],t,[]))
 (* *** CONVERSION *** *)
 
 let term_eq2 t1 t2 =  
-  t1 == t2 || (*t1=t2 *) term_eq t1 t2 (*FIXME*)
+  t1 == t2 || (*t1=t2 *) term_eq t1 t2 
 
 let rec add_to_list lst s s' =
   match s,s' with
@@ -133,7 +133,7 @@ let rec state_conv : (cbn_state*cbn_state) list -> bool = function
                 | ( _ , _ , GVar (m,v) , s ) , ( _ , _ , GVar (m',v') , s' )      -> ( ident_eq v v' && ident_eq m m' && state_conv (add_to_list lst s s') ) 
                 | ( k , e , Lam (a,f) , s ) , ( k' , e' , Lam (a',f') , s' )          
                 | ( k , e , Pi  (a,f) , s ) , ( k' , e' , Pi  (a',f') , s' )      -> 
-                    let arg = Lazy.lazy_from_val (mk_unique ()) in (*FIXME test compatibility*)
+                    let arg = Lazy.lazy_from_val (mk_unique ()) in 
                     let x = ( (k,e,a,[]) , (k',e',a',[]) ) in
                     let y = ( (k+1,arg::e,f,[]) , (k'+1,arg::e',f',[]) ) in
                       state_conv (add_to_list (x::y::lst) s s')

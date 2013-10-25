@@ -60,7 +60,7 @@ let pMat_from_rules (rs:rule list) : pMat =
             List.map (
               fun (k',((lc,m',v'),pats'),ri') ->
                 if Array.length pats' != arity then raise ( PatternError ( lc , "Arity mismatch: all the rules must have the same arity." ) ) 
-                else if m' != m || v != v'     then raise ( PatternError ( lc , "Head symbol mismatch: all the rules must have the same head symbol." ) ) (*TODO*) 
+                else if (not (ident_eq m' m)) || (not (ident_eq v v')) then raise ( PatternError ( lc , "Head symbol mismatch: all the rules must have the same head symbol." ) )  
                 else { pats=pats' ; right=ri' ; env_size=k' }
             ) rs'
           )

@@ -56,6 +56,11 @@ type pterm =
   | PLam  of (loc*string) * pterm option * pterm
   | PPi   of (loc*string) option * pterm * pterm
 
+let rec get_loc = function
+  | PType l | PId (l,_) | PQid (l,_,_)
+  | PLam  ((l,_),_,_) | PPi   (Some (l,_),_,_)  -> l
+  | PPi   (None,f,_) | PApp (f,_) -> get_loc f
+
 type ppattern = 
   | PDash
   | PPat of (loc*string*string) * ppattern array 

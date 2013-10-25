@@ -24,7 +24,6 @@ let sprint str  = print_string str ; flush stdout
 let eprint str  = prerr_string str ; flush stderr
 
 (* Print a string on standard error if in verbose mode *)           
-                                       (*TODO ajouter un lazy*)
 let vprint str  = 
   if not !quiet then ( prerr_string (Lazy.force str) ; flush stderr )
 

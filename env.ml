@@ -20,15 +20,18 @@ let init name = H.add envs name (H.create 251)
 
 (* *** Modules *** *)
 
-let import lc m =
+let import2 lc m =
   if H.mem envs m then raise (EnvError ( lc , "Already opened module '" ^ string_of_ident m ^ "'." ) )
   else
     try 
       let chan = open_in ( string_of_ident m ^ ".dko" ) in
       let ctx:gst H.t = Marshal.from_channel chan in
         close_in chan ;
-        H.add envs m ctx
+        H.add envs m ctx ;
+        ctx
     with _ -> raise (EnvError ( lc , "Fail to open module '" ^ string_of_ident m ^ "'." ) )
+
+let import lc m = ignore (import2 lc m)
 
 let export_and_clear () = 
   ( if !Global.export then
@@ -45,7 +48,7 @@ let export_and_clear () =
 let get_global_symbol lc m v = 
   let env = 
     try H.find envs m 
-    with Not_found -> ( import lc m ; H.find envs m ) (*TODO*)
+    with Not_found -> import2 lc m 
   in
     try ( H.find env v )
     with Not_found -> 
