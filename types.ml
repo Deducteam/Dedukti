@@ -122,6 +122,7 @@ let term_eq t1 t2 = term_eq_rec [ (t1,t2) ]
  *)
 
 let rec term_eq t1 t2 = 
+  t1 == t2 ||
   match t1, t2 with 
     | Kind, Kind | Type, Type     -> true 
     | Meta n, Meta n' | DB n, DB n'-> n=n' 

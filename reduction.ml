@@ -106,9 +106,6 @@ let hnf (t:term) : term = cbn_term_of_state2 (cbn_reduce (0,[],t,[]))
 
 (* *** CONVERSION *** *)
 
-let term_eq2 t1 t2 =  
-  t1 == t2 || (*t1=t2 *) term_eq t1 t2 
-
 let rec add_to_list lst s s' =
   match s,s' with
     | [] , []           -> lst
@@ -121,7 +118,7 @@ let rec state_conv : (cbn_state*cbn_state) list -> bool = function
       begin
         let t1 = cbn_term_of_state s1 in
         let t2 = cbn_term_of_state s2 in
-          if term_eq2 t1 t2 then 
+          if term_eq t1 t2 then 
             state_conv lst
           else
             let s1' = cbn_reduce s1 in
@@ -152,7 +149,7 @@ let rec decompose (sub:(int*term) list) : (cbn_state*cbn_state) list -> ((int*te
       begin
         let t1 = cbn_term_of_state s1 in
         let t2 = cbn_term_of_state s2 in
-          if term_eq2 t1 t2 then 
+          if term_eq t1 t2 then 
             decompose sub lst
           else
             let s1' = cbn_reduce s1 in
