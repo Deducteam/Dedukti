@@ -5,12 +5,7 @@ open Types
 let is_type lc te = function
     | Type      -> ()
     | ty        -> raise (TypingError ( lc , Error.err_conv_type te ty ))
-(*
-let mk_app f u =
-  match f with
-    | App lst   -> App (lst@[u])
-    | _         -> App([f;u])
- *)
+
 (* Type Inference *) 
 let rec infer lc (ctx:term list) (te:term) : term = 
   match te with
@@ -31,23 +26,16 @@ let rec infer lc (ctx:term list) (te:term) : term =
             | Kind        -> raise (TypingError (lc,Error.err_topsort te))
             | b           -> mk_pi a b
         end
-    | App ( f0::((_::_) as args) )      ->
-        begin
-          snd ( List.fold_left ( (*TODO extract*)
-            fun (f,ty_f) u ->
-              match Reduction.wnf ty_f , infer lc ctx u with 
-                | ( Pi (a,b) , a' ) ->  
-                    if Reduction.are_convertible a a' then ( mk_app [f;u] , Subst.subst b u )
-                    else raise (TypingError (lc,Error.err_conv2 u a a' (Reduction.hnf a) (Reduction.hnf a')))
-                | ( t , _ )         -> raise (TypingError (lc,Error.err_prod f ty_f)) 
-          ) (f0,infer lc ctx f0) args )
-        end
+    | App ( f0::((_::_) as args) )      -> List.fold_left (infer_app lc ctx) (infer lc ctx f0) args 
     | App _ | Kind | Meta _             -> assert false
-(*
-let rec concat (l:(term*term) list) : (term*term) list -> (term*term) list = function
-  | []          -> l
-  | a::l2       -> a::(concat l l2)
- *)
+                                             
+and infer_app lc ctx ty_f u = 
+  match Reduction.wnf ty_f , infer lc ctx u with 
+    | ( Pi (a,b) , a' ) ->  
+        if Reduction.are_convertible a a' then Subst.subst b u 
+        else raise (TypingError (lc,Error.err_conv2 u a a' (Reduction.hnf a) (Reduction.hnf a')))
+    | ( t , _ )         -> raise (TypingError (lc,Error.err_prod mk_type (*f FIXME*) ty_f)) 
+
 let rec term_of_pattern = function 
   | Var n                       -> mk_db n
   | Dash n                      -> mk_meta n
@@ -65,7 +53,7 @@ let rec infer_pattern (ctx:term list) : pattern -> term*(term*term) list = funct
             | Pi (a,b) -> 
                begin
                  let lst2 = check_pattern ctx a arg in
-                   ( Subst.subst b (term_of_pattern arg) , (*concat lst lst2*) lst@lst2 )
+                   ( Subst.subst b (term_of_pattern arg) , lst@lst2 )
                end
             | _         -> raise (TypingError (l,Error.err_prod2 pi))
       in

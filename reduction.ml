@@ -108,9 +108,9 @@ let hnf (t:term) : term = cbn_term_of_state2 (cbn_reduce (0,[],t,[]))
 
 let rec add_to_list lst s s' =
   match s,s' with
-    | [] , []           -> lst
-    | x::s1 , y::s2      -> add_to_list ((x,y)::lst) s1 s2
-    | _ ,_              -> assert false (*FIXME*)
+    | [] , []           -> Some lst
+    | x::s1 , y::s2     -> add_to_list ((x,y)::lst) s1 s2
+    | _ ,_              -> None
 
 let rec state_conv : (cbn_state*cbn_state) list -> bool = function
   | []                  -> true
@@ -124,16 +124,28 @@ let rec state_conv : (cbn_state*cbn_state) list -> bool = function
             let s1' = cbn_reduce s1 in
             let s2' = cbn_reduce s2 in
               match s1',s2' with (*states are beta-delta head normal*)
-                | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )                    -> state_conv lst (* s and s' are empty *)
-                | ( _ , _ , Type , s ) , ( _ , _ , Type , s' )                    -> state_conv lst (* idem *)
-                | ( k , _ , DB n , s ) , ( k' , _ , DB n' , s' )                  -> ( (*assert (k<=n && k'<=n') ;*) (n-k)=(n'-k') && state_conv (add_to_list lst s s') )
-                | ( _ , _ , GVar (m,v) , s ) , ( _ , _ , GVar (m',v') , s' )      -> ( ident_eq v v' && ident_eq m m' && state_conv (add_to_list lst s s') ) 
+                | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )                    -> (* assert ( List.length s == 0 && List.length s' == 0 ) *) state_conv lst 
+                | ( _ , _ , Type , s ) , ( _ , _ , Type , s' )                    -> (* assert ( List.length s == 0 && List.length s' == 0 ) *) state_conv lst 
+                | ( k , _ , DB n , s ) , ( k' , _ , DB n' , s' )                  -> 
+                    ( (*assert (k<=n && k'<=n') ;*) (n-k)=(n'-k') && 
+                      match (add_to_list lst s s') with
+                        | None          -> false
+                        | Some lst'     -> state_conv lst' 
+                    )
+                | ( _ , _ , GVar (m,v) , s ) , ( _ , _ , GVar (m',v') , s' )      -> 
+                    ( ident_eq v v' && ident_eq m m' && 
+                      match (add_to_list lst s s') with
+                        | None          -> false
+                        | Some lst'     -> state_conv lst' 
+                    ) 
                 | ( k , e , Lam (a,f) , s ) , ( k' , e' , Lam (a',f') , s' )          
                 | ( k , e , Pi  (a,f) , s ) , ( k' , e' , Pi  (a',f') , s' )      -> 
                     let arg = Lazy.lazy_from_val (mk_unique ()) in 
                     let x = ( (k,e,a,[]) , (k',e',a',[]) ) in
                     let y = ( (k+1,arg::e,f,[]) , (k'+1,arg::e',f',[]) ) in
-                      state_conv (add_to_list (x::y::lst) s s')
+                      ( match add_to_list (x::y::lst) s s' with
+                          | None        -> false
+                          | Some lst'   -> state_conv lst' )
                 | ( _ , _ , Meta _ , _ ) , _ | _ , ( _ , _ , Meta _ , _ )          -> assert false
                 | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                            -> false
       end
@@ -156,17 +168,30 @@ let rec decompose (sub:(int*term) list) : (cbn_state*cbn_state) list -> ((int*te
             let s2' = cbn_reduce s2 in
               match s1',s2' with 
                 (* Base Cases*)
-                | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )                          -> decompose sub (add_to_list lst s s')
-                | ( _ , _ , Type , s ) , ( _ , _ , Type , s' )                          -> decompose sub (add_to_list lst s s')
-                | ( _ , _ , GVar (m,v) , s ) , ( _ , _ , GVar (m',v') , s' )            -> if ident_eq v v' && ident_eq m m' then decompose sub (add_to_list lst s s') else None 
-                | ( k , _ , DB n , s ) , ( k' , _ , DB n' , s' ) (* (n<k && n'<k') *)   -> if (n-k)=(n'-k')  then decompose sub (add_to_list lst s s') else None
+                | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )                          -> (* assert ( List.length s == 0 && List.length s' == 0 ) *) decompose sub lst 
+                | ( _ , _ , Type , s ) , ( _ , _ , Type , s' )                          -> (* assert ( List.length s == 0 && List.length s' == 0 ) *) decompose sub lst
+                | ( _ , _ , GVar (m,v) , s ) , ( _ , _ , GVar (m',v') , s' )            -> 
+                    if ident_eq v v' && ident_eq m m' then 
+                      ( match (add_to_list lst s s') with
+                        | None          ->      None
+                        | Some lst'     -> decompose sub lst' )
+                    else None 
+                | ( k , _ , DB n , s ) , ( k' , _ , DB n' , s' ) (* (n<k && n'<k') *)   -> 
+                    if (n-k)=(n'-k') then 
+                      ( match (add_to_list lst s s') with
+                          | None        -> None
+                          | Some lst'   -> decompose sub lst' )
+                    else None
                 (*Composed Cases*)
                 | ( k , e , Lam (a,f) , s ) , ( k' , e' , Lam (a',f') , s' )          
                 | ( k , e , Pi  (a,f) , s ) , ( k' , e' , Pi  (a',f') , s' )            -> 
                     let arg = Lazy.lazy_from_val (mk_unique ()) in
                     let x = ( (k,e,a,[]) , (k',e',a',[]) ) in
                     let y = ( (k+1,arg::e,f,[]) , (k'+1,arg::e',f',[]) ) in
-                      decompose sub (add_to_list (x::y::lst) s s')
+                     ( match (add_to_list (x::y::lst) s s') with
+                         | None         -> None
+                         | Some lst'    -> decompose sub lst'
+                     )
                 (* Unification *)
                 | ( ( _ , _ , Meta n , [] ) , st )
                 | ( st , ( _ , _ , Meta n , [] ) )                                      -> decompose  ((n,cbn_term_of_state st)::sub) lst
