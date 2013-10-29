@@ -4,7 +4,8 @@ module P = Parser.Make(Mmt)
 
 let parse lb = 
   try
-      P.top Lexer.token lb
+      P.prelude Lexer.token lb ;
+      while true do P.line Lexer.token lb done
   with 
     | P.Error       -> 
         begin
@@ -14,6 +15,7 @@ let parse lb =
           let tok = Lexing.lexeme lb in
             raise (ParserError ( mk_loc l c , "Unexpected token '" ^ tok ^ "'." ) ) 
         end
+    | EndOfFile -> ()
 
 let run_on_file file =
   let input = open_in file in

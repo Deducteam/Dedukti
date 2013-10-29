@@ -20,7 +20,7 @@ let empty     = hstring ""
 
 type loc = int*int
 let dloc = (0,0)
-let mk_loc l c = (c,l)
+let mk_loc l c = (l,c)
 let string_of_loc (l,c) = "[l:" ^ string_of_int l ^ ";c:" ^ string_of_int c ^ "]"
 
 (* *** Parsing *** *)
@@ -155,5 +155,6 @@ exception LexerError  of loc*string
 exception EnvError    of loc*string
 exception TypingError of loc*string
 exception PatternError of loc*string
+exception EndOfFile 
 
 

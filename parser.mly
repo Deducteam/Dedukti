@@ -1,15 +1,13 @@
 %parameter <M : 
         sig 
-                val mk_prelude:Types.loc*Types.ident->unit
-                val mk_require:Types.loc*Types.ident->unit
-                val mk_declaration:(Types.loc*Types.ident)*Types.pterm->unit
-                val mk_definition:(Types.loc*Types.ident)*Types.pterm*Types.pterm->unit
-                val mk_opaque:(Types.loc*Types.ident)*Types.pterm*Types.pterm->unit
-                val mk_normalize:Types.pterm->unit
-                val mk_typecheck:Types.loc*Types.pterm*Types.pterm->unit
-                val mk_rules:Types.prule list->unit
-                val mk_infered_def: (Types.loc*Types.ident)*Types.pterm-> unit
-                val mk_ending:unit->unit
+                val mk_prelude          : Types.loc -> Types.ident -> unit
+                val mk_require          : Types.loc -> Types.ident -> unit
+                val mk_declaration      : Types.loc -> Types.ident -> Types.pterm -> unit
+                val mk_definition       : Types.loc -> Types.ident -> Types.pterm option -> Types.pterm -> unit
+                val mk_opaque           : Types.loc -> Types.ident -> Types.pterm option -> Types.pterm -> unit
+                val mk_term             : Types.pterm -> unit
+                val mk_rules            : Types.prule list -> unit
+                val mk_ending           : unit -> unit
         end>  
 %{
         open Types
@@ -27,7 +25,6 @@
 %token <Types.loc> UNDERSCORE
 %token NAME
 %token IMPORT
-%token NORM
 %token LEFTPAR
 %token RIGHTPAR
 %token LEFTBRA
@@ -38,11 +35,9 @@
 %token <Types.loc*Types.ident> ID
 %token <Types.loc*Types.ident*Types.ident> QID
 
-%start top
+%start prelude
 %start line
-%type <unit> top
 %type <unit> prelude
-%type <unit> line_lst
 %type <unit> line
 %type <Types.prule list> rule_lst
 %type <Types.prule> rule
@@ -58,21 +53,18 @@
 %right ARROW FATARROW
 
 %%
-top:            prelude line_lst EOF                            { mk_ending () }
 
-prelude:        NAME ID                                         { mk_prelude $2 }
+prelude:        NAME ID /* DOT TODO */                           { mk_prelude (fst $2) (snd $2) }
 
-line_lst:       /* empty */                                     { () }
-                | line line_lst                                 { () }
-
-line:             ID COLON term DOT                             { mk_declaration ($1,$3) }
-                | ID COLON term DEF term DOT                    { mk_definition ($1,$3,$5) }
-                | ID DEF term DOT                               { mk_infered_def ($1,$3) }
-                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT   { mk_opaque ($2,$5,$7) }
-                | UNDERSCORE COLON term DEF term DOT            { mk_typecheck ($1,$3,$5) }
+line            : IMPORT ID /* DOT TODO */                      { mk_require (fst $2) (snd $2) }
+                | ID COLON term DOT                             { mk_declaration (fst $1) (snd $1) $3           }
+                | ID COLON term DEF term DOT                    { mk_definition (fst $1) (snd $1) (Some $3) $5  }
+                | ID DEF term DOT                               { mk_definition (fst $1) (snd $1) None $3       }
+                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT   { mk_opaque (fst $2) (snd $2) (Some $5) $7      }
+                | LEFTBRA ID RIGHTBRA DEF term DOT              { mk_opaque (fst $2) (snd $2) None $5           }
                 | rule_lst DOT                                  { mk_rules $1 } 
-                | IMPORT ID                                     { mk_require $2 }
-                | NORM term DOT                                 { mk_normalize $2 }
+                | DEF term DOT                                  { mk_term $2 } 
+                | EOF                                           { mk_ending () ; raise EndOfFile }
 
 rule_lst:         rule                                          { [$1] }
                 | rule rule_lst                                 { $1::$2 }

@@ -21,4 +21,5 @@ install:
 
 clean:
 	ocamlbuild -build-dir _dkcheck -clean
+	ocamlbuild -build-dir _dktop -clean
 	ocamlbuild -build-dir _dk2mmt -clean

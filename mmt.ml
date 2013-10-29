@@ -53,12 +53,7 @@ and print_term_wp = function
       fprintf !Global.out "("; 
       print_term t ;
       fprintf !Global.out ")" 
-(*
-let print_dot d =
-  fprintf !Global.out " {" ;
-  print_term d ;
-  fprintf !Global.out "} " 
- *)
+
 let rec print_pat = function
   | PDash                       -> failwith "Not implemented (Dash Patterns)."
   | PPat ((_,m,id),pats)        ->
@@ -91,35 +86,36 @@ let mk_rule (env,((_,id),pats),te) =
   print_term te ;
   fprintf !Global.out "\n\t%c role RewriteRule\n\t%c\n\n" ascii31 ascii30
 
+let mk_prelude lc m =
+  fprintf !Global.out "namespace %s %c\n\ntheory FILENAME =\n\n" (string_of_ident m) ascii29 ; 
+  Global.name := m 
 
-let mk_prelude (l,v) =
-        fprintf !Global.out "namespace %s %c\n\ntheory FILENAME =\n\n" (string_of_ident v) ascii29 ; 
-        Global.name := v 
+let mk_require _ _ = () 
 
-let mk_require (l,v) = () 
+let mk_declaration _ id pty = 
+  fprintf !Global.out "%s : " (string_of_ident id) ;
+  print_term pty ;
+  fprintf !Global.out " %c\n\n" ascii30 
 
-let mk_declaration ((l,id),pty) = 
-        fprintf !Global.out "%s : " (string_of_ident id) ;
-        print_term pty ;
-        fprintf !Global.out " %c\n\n" ascii30 
+let mk_definition _ id pty_opt pte = 
+  match pty_opt with
+    | None      -> failwith "Not implemented (definition without type)."
+    | Some pty  ->
+        begin
+          fprintf !Global.out "%s : " (string_of_ident id) ;
+          print_term pty ;
+          fprintf !Global.out "%c\n = " ascii31 ;
+          print_term pte ;
+          fprintf !Global.out "%c\n" ascii30
+        end
 
-let mk_definition ((l,id),pty,pte) = 
-        fprintf !Global.out "%s : " (string_of_ident id) ;
-        print_term pty ;
-        fprintf !Global.out "%c\n = " ascii31 ;
-        print_term pte ;
-        fprintf !Global.out "%c\n" ascii30
+let mk_opaque lc id pty_opt pte = 
+ failwith "Not implemented (opaque definitions)." 
 
-let mk_infered_def ((l,id),pte) = () 
-
-let mk_opaque ((l,id),pty,pte)  = () 
-
-let mk_typecheck (l,pty,pte) = () 
-
-let mk_normalize pte  = () 
+let mk_term _ = () 
 
 let mk_rules lst = 
-        List.iter mk_rule lst
+  List.iter mk_rule lst
 
 let mk_ending _  = 
-        fprintf !Global.out "\n%c" ascii29 
+  fprintf !Global.out "\n%c" ascii29 

@@ -40,37 +40,38 @@ let check_rule (penv,ple,pri) : rule =
               raise (TypingError (get_loc pri,Error.err_conv2 ri ty_le ty_ri (Reduction.hnf ty_le) (Reduction.hnf ty_ri))) 
 
 
-let add_decl ((l,id),pty : (loc*ident)*pterm) : unit = 
+let add_decl lc id pty = 
   let ty = Pterm.of_pterm [] pty in
     check_type (get_loc pty) [] ty ;
-    Env.add_decl l id ty
+    Env.add_decl lc id ty
 
-let add_def ((l,id),pty,pte : (loc*ident)*pterm*pterm) : unit = 
-  let ty = Pterm.of_pterm [] pty in
+let add_def lc id pty_opt pte = 
   let te = Pterm.of_pterm [] pte in
-    check_type (get_loc pty) [] ty ;
-    check_term (get_loc pte) te ty ;
-    Env.add_def l id te ty 
+  let ty =
+    match pty_opt with
+      | None    -> Inference.infer (get_loc pte) [] te
+      | Some pty -> 
+          ( let ty = Pterm.of_pterm [] pty in
+              check_type (get_loc pty) [] ty ;
+              check_term (get_loc pte) te ty ;
+              ty )
+  in
+    Env.add_def lc id te ty 
 
-let add_idef ((l,id),pte : (loc*ident)*pterm) : unit =
+let add_opaque lc id pty_opt pte = 
   let te = Pterm.of_pterm [] pte in
-  let ty = Inference.infer (get_loc pte) [] te in
-    Env.add_def l id te ty 
+  let ty =
+    match pty_opt with
+      | None    -> Inference.infer (get_loc pte) [] te
+      | Some pty -> 
+          ( let ty = Pterm.of_pterm [] pty in
+              check_type (get_loc pty) [] ty ;
+              check_term (get_loc pte) te ty ;
+              ty )
+  in
+    Env.add_decl lc id ty 
 
-let add_odef ((l,id),pty,pte : (loc*ident)*pterm*pterm) : unit = 
-  let ty = Pterm.of_pterm [] pty in
-  let te = Pterm.of_pterm [] pte in
-    check_type (get_loc pty) [] ty ;
-    check_term (get_loc pte) te ty ;
-    Env.add_decl l id ty 
-
-let typecheck (l,pty,pte : loc*pterm*pterm) :unit = 
-  let ty = Pterm.of_pterm [] pty in
-  let te = Pterm.of_pterm [] pte in
-    check_type (get_loc pty) [] ty ;
-    check_term (get_loc pte) te ty
-
-let add_rules l v (lst:prule list) : unit = 
+let add_rules lc hd (lst:prule list) : unit = 
   let rs = List.map check_rule lst in
   let gdt = Matching.get_rw rs in
-    Env.add_rw l v gdt
+    Env.add_rw lc hd gdt
