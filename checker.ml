@@ -73,5 +73,4 @@ let add_opaque lc id pty_opt pte =
 
 let add_rules lc hd (lst:prule list) : unit = 
   let rs = List.map check_rule lst in
-  let gdt = Matching.get_rw rs in
-    Env.add_rw lc hd gdt
+    Env.add_rw lc hd rs

@@ -86,13 +86,13 @@ let add_def lc v te ty =
     else 
       H.add env v (Def (te,ty))
 
-let add_rw lc v g = 
+let add_rw lc v rs = 
   let env = H.find envs !Global.name in
     try (
       match H.find env v with
         | Def (_,_)             -> raise (EnvError (lc,"Cannot rewrite a defined symbol."))
-        | Decl(_,Some _)        -> failwith "Not implemented (re-add rewrite rules)." 
-        | Decl (ty,None)        -> H.add env v (Decl (ty,Some g))
+        | Decl(ty,Some g)       -> H.add env v (Decl (ty,Some (Matching.add_rw g rs)))  
+        | Decl (ty,None)        -> H.add env v (Decl (ty,Some (Matching.get_rw rs)))
     ) with
       Not_found -> 
         raise (EnvError ( lc , "Cannot find symbol '" ^ string_of_ident !Global.name ^ "." ^ string_of_ident v ^ "'." )) 

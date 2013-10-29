@@ -155,7 +155,7 @@ let rec cc (pm:pMat) : gdt =
           let cases = 
             List.rev_map ( 
               function 
-                | ( id , Term te  )     -> ( id , Leaf te )
+                | ( id , Term te  )     -> ( id , Leaf te ) (*FIXME reorder ???*)
                 | ( id , PMat pm' )     -> ( id , cc pm' )
             ) par.cases in
             ( match par.default with
@@ -163,7 +163,49 @@ let rec cc (pm:pMat) : gdt =
                 | Some pm'       -> Switch (c,cases,Some (cc pm'))
             ) 
 
+let safe_find m v cases =
+  try Some ( snd ( List.find (fun ((m',v'),_) -> ident_eq v v' && ident_eq m m') cases ) )
+  with Not_found -> None
+
+let rec replace m v g = function
+  | []                          -> assert false
+  | (((m',v'),g') as c)::lst    ->
+      if ident_eq v v' && ident_eq m m' then ((m,v),g)::lst
+      else c::(replace m v g lst)
+
+let rec add_lines pm = function (*TODO to be tested*)
+    | Leaf te as g              -> g 
+    | Switch (i,cases,def)      -> 
+        begin
+          let p = partition pm i in
+          let cases2 = List.fold_left (
+            fun ca ((m,v),u) -> 
+              match safe_find m v cases , u with
+                | None , Term te        -> cases@[((m,v),Leaf te)] (*FIXME reorder ???*)
+                | None , PMat pm'       -> cases@[((m,v),cc pm')]
+                | Some g , Term te      -> assert false (*FIXME*)
+                | Some g , PMat pm'     -> replace m v (add_lines pm' g) cases
+          ) cases p.cases in
+          let def2 = match ( def , p.default ) with
+            | _ , None          -> def
+            | None , Some pm'   -> Some (cc pm')
+            | Some d , Some pm' -> Some (add_lines pm' d)
+          in
+            Switch (i,cases2,def2)
+        end
+
+
+
 (* *** Interface *** *)
+
+let add_rw (n,g) rs = 
+  match pMat_from_rules rs with
+    | []                -> assert false
+    | l::_ as pm        ->
+        if Array.length l.pats != n then 
+          raise ( PatternError ( dloc , "Arity mismatch: all the rules must have the same arity." ) ) 
+        else
+          ( n , add_lines pm g )
 
 let get_rw (rs:rule list) : int*gdt =
   let pm  = pMat_from_rules rs in
