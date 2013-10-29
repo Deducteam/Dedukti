@@ -17,6 +17,7 @@ profile:
 install:
 	install _dkcheck/dkcheck.native ${INSTALL_DIR}/dkcheck
 	install _dk2mmt/dk2mmt.native ${INSTALL_DIR}/dk2mmt
+	install _dktop/dktop.native ${INSTALL_DIR}/dktop
 
 clean:
 	ocamlbuild -build-dir _dkcheck -clean
