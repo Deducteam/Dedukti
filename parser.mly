@@ -39,6 +39,7 @@
 %token <Types.loc*Types.ident*Types.ident> QID
 
 %start top
+%start line
 %type <unit> top
 %type <unit> prelude
 %type <unit> line_lst

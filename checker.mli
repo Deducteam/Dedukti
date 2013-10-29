@@ -1,22 +1,15 @@
 
 open Types
 
-val mk_prelude          : (loc*ident) -> unit
+val add_decl    : ((loc*ident)*pterm) -> unit
 
-val mk_require          : (loc*ident) -> unit 
+val add_def     : ((loc*ident)*pterm*pterm) -> unit
 
-val mk_declaration      : ((loc*ident)*pterm) -> unit
+val add_idef    : ((loc*ident)*pterm) -> unit
 
-val mk_definition       : ((loc*ident)*pterm*pterm) -> unit
+val add_odef    : ((loc*ident)*pterm*pterm) -> unit
 
-val mk_infered_def      : ((loc*ident)*pterm) -> unit
+val typecheck   : (loc*pterm*pterm) -> unit
 
-val mk_opaque           : ((loc*ident)*pterm*pterm) -> unit
+val add_rules   : loc -> ident -> prule list -> unit
 
-val mk_typecheck        : (loc*pterm*pterm) -> unit
-
-val mk_normalize        : pterm -> unit 
-
-val mk_rules            : prule list -> unit
-
-val mk_ending           : unit -> unit

@@ -32,4 +32,7 @@ let error lc e str =
   eprint ( "\n\027[31m[" ^ e ^ "]\027[m" ^ string_of_loc lc ^ " " ^ str ^ "\n" );
   exit 1 
 
+let error2 e str = 
+  sprint ( "\n\027[31m[" ^ e ^ "]\027[m " ^ str ^ "\n" )
+
 
