@@ -31,8 +31,8 @@ let _ =
   try 
     Arg.parse args run_on_file "Usage: dkcheck [options] files"  
   with 
-    | Sys_error err             -> Global.error dloc "System Error"  err
-    | LexerError (lc,err)       -> Global.error lc "Lexing Error"  err
-    | ParserError (lc,err)      -> Global.error lc "Parsing Error"  err
+    | Sys_error err             -> Global.error dloc  err
+    | LexerError (lc,err)       -> Global.error lc err
+    | ParserError (lc,err)      -> Global.error lc err
 
 

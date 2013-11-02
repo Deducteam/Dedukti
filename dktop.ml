@@ -6,37 +6,45 @@ struct
 
   let mk_prelude _ _ = assert false 
 
-  let mk_require lc m = 
-    Env.import lc m ;
-    Global.sprint ("Module '" ^ string_of_ident m ^ "' imported.\n")
+  let mk_require lc m =  
+    Global.sprint "Nothing was done (obsolete feature)."
 
-  let mk_declaration lc id pty = 
-    Checker.add_decl lc id pty ;
-    Global.sprint (string_of_ident id ^ " is declared.\n" ) 
+  let mk_declaration lc id ty = 
+    Inference.check_type [] ty ;
+    Env.add_decl lc id ty ;
+    Global.sprint (string_of_ident id ^ " is declared." ) 
 
-  let mk_definition lc id pty_opt pte = 
-    Checker.add_def lc id pty_opt pte ;
-    Global.sprint (string_of_ident id ^ " is defined.\n") 
-
-  let mk_opaque lc id pty_opt pte = 
-    Checker.add_opaque lc id pty_opt pte ;
-    Global.sprint (string_of_ident id ^ " is defined.\n") 
-
-  let mk_term pte = 
-    let te = Pterm.of_pterm [] pte in
-    let te' = Reduction.hnf te in
-      Global.sprint ( Error.string_of_term te' ^ "\n" )
-
-  let mk_rules rules = 
-    let aux = function
-    | (_,((l,v),_),_)::_  -> (l,v)
-    | _                     -> assert false
+  let mk_definition lc id ty_opt te = 
+    let ty = 
+      match ty_opt with
+        | None          -> Inference.infer [] te
+        | Some ty       -> ( Inference.check_type [] ty ; Inference.check_term [] te ty ; ty )
     in
-    let (lc,hd) = aux rules in
-      Checker.add_rules lc hd rules ; 
-      Global.sprint ("Rules added.\n") 
+      Env.add_def lc id te ty ; 
+      Global.sprint (string_of_ident id ^ " is defined.") 
 
-  let mk_ending _ : unit = exit 0
+  let mk_opaque lc id ty_opt te = 
+    let ty = 
+      match ty_opt with
+        | None          -> Inference.infer [] te
+        | Some ty       -> ( Inference.check_type [] ty ; Inference.check_term [] te ty ; ty )
+    in
+      Env.add_decl lc id ty ;
+      Global.sprint (string_of_ident id ^ " is defined.") 
+
+  let mk_term te = 
+    Global.sprint ( Error.string_of_term (Reduction.hnf te)  )
+
+  let mk_rules rs = 
+    let (lc,hd) = match rs with
+      | (_,((l,v),_),_)::_      -> (l,v)
+      | _                       -> assert false
+    in
+      List.iter Inference.check_rule rs ;
+      Env.add_rw lc hd rs ;
+      Global.sprint ("Rules added.") 
+
+  let mk_ending _ = ()
 
 end
 
@@ -49,29 +57,28 @@ let rec parse lb =
         P.line Lexer.token lb 
       done
   with 
-    | EndOfFile -> ()
-    | e         ->
-        begin
-          let (etype,msg) = match e with
-            | P.Error       -> ( "Parsing Error" , "Unexpected token '" ^ (Lexing.lexeme lb) ^ "'." ) 
-            | LexerError (_,err)        -> ( "Lexing Error" , err )
-            | ParserError (_,err)       -> ( "Parsing Error" , err )
-            | TypingError (_,err)       -> ( "Typing Error" , err )
-            | EnvError (_,err)          -> ( "Scoping Error" , err )
-            | PatternError (_,err)      -> ( "Rule Error" , err )
-            | u                         -> raise u
-          in
-            Global.error2 etype msg ;
-            parse lb
-        end
-
+    | EndOfFile                 -> exit 0
+    | P.Error                   -> error lb ("Unexpected token '" ^ (Lexing.lexeme lb) ^ "'." ) 
+    | LexerError (_,err)  | ParserError (_,err) | TypingError (_,err) | EnvError (_,err)       
+    | PatternError (_,err)      ->  error lb err
+  
+and error lb err = Global.sprint err ; parse lb
+        
+(*
 let ascii_art =
 "==========================================================================
  \\ \\    / /__| |__ ___ _ __  ___  | |_ ___  |   \\ ___ __| |_  _| |_| |_(_)
   \\ \\/\\/ / -_) / _/ _ \\ '  \\/ -_) |  _/ _ \\ | |) / -_) _` | || | / /  _| |
    \\_/\\_/\\___|_\\__\\___/_|_|_\\___|  \\__\\___/ |___/\\___\\__,_|\\_,_|_\\_\\\\__|_|
 ==========================================================================
-"
+"*)
+let ascii_art =
+"=============================================================================
+ \\ \\    / /__| |__ ___ _ __  ___  | |_ ___  |   \\ ___ __| |_  _  _  _ | |_ _
+  \\ \\/\\/ / -_) / _/ _ \\ '  \\/ -_) |  _/ _ \\ | |) / -_) _` | || || |/ /|  _(_)
+   \\_/\\_/\\___|_\\__\\___/_|_|_\\___|  \\__\\___/ |___/\\___\\__,_|\\_,_||_|\\_\\ \\__|_|
+=============================================================================
+"  
 
 let  _ =
   Global.sprint ascii_art ; 

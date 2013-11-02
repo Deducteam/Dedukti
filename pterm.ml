@@ -1,37 +1,40 @@
 
 open Types
 
-let pos (x:ident) (lst:ident list) : int option = 
+let pos x ctx = 
   let rec aux n = function
-    | []        -> None
-    | y::l      -> if ident_eq x y then Some n else aux (n+1) l
+    | []                -> None
+    | (_,y,_)::l        -> if ident_eq x y then Some n else aux (n+1) l
   in
-    aux 0 lst
+    aux 0 ctx
 
-let rec of_pterm (ctx:ident list) : pterm -> term = function 
-  | PType _                     -> mk_type
-  | PId (_,v)                   -> 
-      ( match pos v ctx with
-          | None        -> mk_gvar !Global.name v
-          | Some n      -> mk_db n )
-  | PQid (_,m,v)                -> mk_gvar m v
-  | PApp (f,u)                  -> mk_app [ of_pterm ctx f ; of_pterm ctx u ]
+let rec of_pterm ctx = function 
+  | PType l                     -> mk_type l
+  | PId (l,v)                   -> 
+      begin
+        match pos v ctx with
+          | None        -> mk_gvar l !Global.name v
+          | Some n      -> mk_db l v n 
+      end
+  | PQid (l,m,v)                -> mk_gvar l m v
+  | PApp args                   -> mk_uapp (List.map (of_pterm ctx) args) 
   | PLam (v,None,t)             -> failwith "Not implement (untyped lambda)." 
-  | PPi (None,a,b)              -> mk_pi  ( of_pterm ctx a ) ( of_pterm (empty::ctx) b )
-  | PPi (Some (l,v),a,b)        -> mk_pi  ( of_pterm ctx a ) ( of_pterm (v::ctx) b )
-  | PLam ((_,v),Some a,t)       -> mk_lam ( of_pterm ctx a ) ( of_pterm (v::ctx) t )
+  | PPi (None,a,b)              -> 
+      let aa = of_pterm ctx a in mk_pi (get_loc aa) empty aa ( of_pterm ((dloc,empty,mk_kind)::ctx) b )
+  | PPi (Some (l,v),a,b)        -> mk_pi  l v ( of_pterm ctx a ) ( of_pterm ((dloc,v,mk_kind)::ctx) b )
+  | PLam ((l,v),Some a,t)       -> mk_lam l v ( of_pterm ctx a ) ( of_pterm ((dloc,v,mk_kind)::ctx) t )
 
-let pat_of_ppat (names:ident list) (p:ppattern) : pattern = 
+let of_ppat ctx p = 
   let cpt = ref (-1) in
   let rec aux = function
-    | PDash                -> ( incr cpt ; Dash (!cpt) )
+    | PDash l           -> ( incr cpt ; Dash (l,!cpt) )
     | PPat ((l,m,v),ps) ->
         begin
           if ( Array.length ps = 0 ) then
             if m = !Global.name then
-              ( match pos v  names with
+              ( match pos v ctx with
                   | None        -> Pattern ((l,m,v),[||]) 
-                  | Some n      -> Var n ) 
+                  | Some n      -> Var (l,v,n) ) 
             else
               Pattern ((l,m,v),[||])
           else 
@@ -39,8 +42,8 @@ let pat_of_ppat (names:ident list) (p:ppattern) : pattern =
         end
   in aux p
 
-let top_of_ptop (names:ident list) ((l,cst),args:ptop) : top = 
-  match pat_of_ppat names (PPat ((l,!Global.name,cst),args)) with
-    | Pattern (id,pats) -> (id,pats)
+let of_ptop ctx ((l,cst),args)  = 
+  match of_ppat ctx (PPat ((l,!Global.name,cst),args)) with
+    | Pattern (_,pats) -> ((l,cst),pats)
     | _                 -> raise ( PatternError ( l , "The left-hand side of a rule cannot be a variable." ) )
 

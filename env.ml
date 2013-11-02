@@ -20,18 +20,16 @@ let init name = H.add envs name (H.create 251)
 
 (* *** Modules *** *)
 
-let import2 lc m =
-  if H.mem envs m then raise (EnvError ( lc , "Already opened module '" ^ string_of_ident m ^ "'." ) )
-  else
-    try 
-      let chan = open_in ( string_of_ident m ^ ".dko" ) in
-      let ctx:gst H.t = Marshal.from_channel chan in
-        close_in chan ;
-        H.add envs m ctx ;
-        ctx
-    with _ -> raise (EnvError ( lc , "Fail to open module '" ^ string_of_ident m ^ "'." ) )
-
-let import lc m = ignore (import2 lc m)
+let import lc m =
+  assert ( not (H.mem envs m) ); 
+  try 
+    let chan = open_in ( string_of_ident m ^ ".dko" ) in
+    let ctx:gst H.t = Marshal.from_channel chan in
+      close_in chan ;
+      H.add envs m ctx ;
+      ctx
+  with _ -> 
+    raise (EnvError ( lc , "Fail to open module '" ^ string_of_ident m ^ "'." ) )
 
 let export_and_clear () = 
   ( if !Global.export then
@@ -48,7 +46,7 @@ let export_and_clear () =
 let get_global_symbol lc m v = 
   let env = 
     try H.find envs m 
-    with Not_found -> import2 lc m 
+    with Not_found -> import lc m 
   in
     try ( H.find env v )
     with Not_found -> 
@@ -70,7 +68,7 @@ let add_decl lc v ty =
   let env = H.find envs !Global.name in
     if H.mem env v then 
       if !Global.raphael then
-        Global.vprint (lazy "Warning: Redeclaration (ignored).\n")
+        Global.eprint "Warning: Redeclaration (ignored)."
       else 
         raise (EnvError ( lc , "Already defined symbol '" ^string_of_ident v ^ "'." )) 
     else 
@@ -80,7 +78,7 @@ let add_def lc v te ty =
   let env = H.find envs !Global.name in
     if H.mem env v then 
       if !Global.raphael then
-        Global.vprint (lazy "Redeclaration ignored.\n")
+        Global.eprint "Warning: Redeclaration ignored.\n"
       else
         raise (EnvError ( lc , "Already defined symbol '" ^ string_of_ident v ^ "'." ))
     else 
@@ -90,7 +88,7 @@ let add_rw lc v rs =
   let env = H.find envs !Global.name in
     try (
       match H.find env v with
-        | Def (_,_)             -> raise (EnvError (lc,"Cannot rewrite a defined symbol."))
+        | Def (_,_)             -> raise ( EnvError ( lc , "Cannot add rewrite rules for the symbol '" ^ string_of_ident v ^ "' (Definition)." ) )
         | Decl(ty,Some g)       -> H.add env v (Decl (ty,Some (Matching.add_rw g rs)))  
         | Decl (ty,None)        -> H.add env v (Decl (ty,Some (Matching.get_rw rs)))
     ) with

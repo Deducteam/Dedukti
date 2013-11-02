@@ -7,32 +7,27 @@ let name                        = ref empty
 let quiet                       = ref true
 let export                      = ref false
 let raphael                     = ref false
+let color                       = ref true
 let out                         = ref stdout (* for dk2mmt *)
 
 let set_name s = 
   name := hstring s
 
-let set_out file = 
+let set_out file =
   out := open_out file
 
 (* *** Info messages *** *)
 
-(* Print a string on standard output *)           
-let sprint str  = print_string str ; flush stdout
-                                       
-(* Print a string on standard error *)           
-let eprint str  = prerr_string str ; flush stderr
+let sprint = print_endline
+let eprint = prerr_endline
+let vprint str  = if not !quiet then prerr_endline (Lazy.force str)
 
-(* Print a string on standard error if in verbose mode *)           
-let vprint str  = 
-  if not !quiet then ( prerr_string (Lazy.force str) ; flush stderr )
+let print_ok _ =                       
+  if !color then vprint (lazy "\027[32m[DONE]\027[m")
+  else vprint (lazy "[DONE]")
 
-(* Print an error message and exit *)                           
-let error lc e str = 
-  eprint ( "\n\027[31m[" ^ e ^ "]\027[m" ^ string_of_loc lc ^ " " ^ str ^ "\n" );
-  exit 1 
-
-let error2 e str = 
-  sprint ( "\n\027[31m[" ^ e ^ "]\027[m " ^ str ^ "\n" )
-
-
+let error lc str = 
+  let e' = if !color then "\n\027[31mERROR\027[m" else "ERROR" in
+    eprint ( e' ^ " line:" ^ string_of_int (get_line lc) ^ " column:" 
+             ^ string_of_int (get_column lc) ^ " " ^ str ) ; 
+    exit 1 

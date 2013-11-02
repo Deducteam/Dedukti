@@ -51,19 +51,21 @@ let dump_pMat (id:string) (pm:pMat) =
  *)
 (* *** Internal functions *** *)
 
-let pMat_from_rules (rs:rule list) : pMat = 
+let pMat_from_rules (rs:rule list) : pMat =  
   match rs with
     | []                        -> assert false
-    | (k,((_,m,v),pats),ri)::rs'  ->
+    | (ctx,((_,v),pats),ri)::rs'  ->
         let arity = Array.length pats in
-          { pats=pats ; right=ri ; env_size=k } :: (
+          { pats=pats ; right=ri ; env_size=List.length ctx } :: (
             List.map (
-              fun (k',((lc,m',v'),pats'),ri') ->
-                if Array.length pats' != arity then raise ( PatternError ( lc , "Arity mismatch: all the rules must have the same arity." ) ) 
-                else if (not (ident_eq m' m)) || (not (ident_eq v v')) then raise ( PatternError ( lc , "Head symbol mismatch: all the rules must have the same head symbol." ) )  
-                else { pats=pats' ; right=ri' ; env_size=k' }
+              fun (ctx',((lc,v'),pats'),ri') ->
+                if Array.length pats' != arity then 
+                  raise ( PatternError ( lc , "All the rules must have the same arity." ) ) 
+                else if (not (ident_eq v v')) then 
+                  raise ( PatternError ( lc , "All the rules must have the same head symbol." ) )  
+                else { pats=pats' ; right=ri' ; env_size=List.length ctx' }
             ) rs'
-          )
+          ) 
 
 let union_from_lines (lst:line list) : union = 
   match lst with
@@ -71,12 +73,14 @@ let union_from_lines (lst:line list) : union =
     | x::lst'   -> 
         let arity = Array.length x.pats in
           if arity = 0 then Term x.right
-          else (
-                List.iter (
-                  fun y -> if Array.length y.pats != arity then raise ( PatternError ( dloc , "Arity mismatch: all the rules must have the same arity." ) ) 
-                ) lst';
-                PMat lst
-          ) 
+          else 
+            begin
+              List.iter (
+                fun y -> if Array.length y.pats != arity then 
+                  raise ( PatternError ( dloc , "All the rules must have the same arity." ) ) 
+              ) lst';
+              PMat lst
+            end 
 
 let specialize (c:int) (l:line) (args:pattern array) : line = 
   let n = Array.length l.pats - 1 in
@@ -119,15 +123,15 @@ let getColumn (l:pattern array) : int option =
   in aux 0
 
 let rec reorder (ord:int array) (k:int) : term -> term = function
-  | App args            -> mk_uapp (List.map (reorder ord k) args)
-  | Lam (a,f)           -> mk_lam (reorder ord k a) (reorder ord (k+1) f)
-  | Pi  (a,b)           -> mk_pi  (reorder ord k a) (reorder ord (k+1) b)
-  | DB n when (n>=k)    -> 
+  | App args                    -> mk_uapp (List.map (reorder ord k) args)
+  | Lam (l,x,a,f)               -> mk_lam l x (reorder ord k a) (reorder ord (k+1) f)
+  | Pi  (l,x,a,b)               -> mk_pi  l x (reorder ord k a) (reorder ord (k+1) b)
+  | DB (l,x,n) when (n>=k)      -> 
       begin 
         (*assert (n-k < Array.length ord);*) 
         let n_db = ord.(n-k) in
           if n_db = (-1) then raise ( PatternError ( dloc , "Free variables on the right-hand side of a rule should also appear in the left-hand side." ) ) 
-          else mk_db (n_db + k) 
+          else mk_db l x (n_db + k) 
       end
   | t                   -> t 
 
@@ -137,7 +141,7 @@ let get_term (l:line) : term =
     Array.iteri (
       fun i p ->
         match p with
-          | Var n   -> 
+          | Var (_,_,n)   -> 
               if ord.(n) = (-1) then ord.(n) <- i
               else raise ( PatternError ( dloc , "Non linear rule detected." ) ) 
           | _       -> ()
@@ -173,7 +177,7 @@ let rec replace m v g = function
       if ident_eq v v' && ident_eq m m' then ((m,v),g)::lst
       else c::(replace m v g lst)
 
-let rec add_lines pm = function (*TODO to be tested*)
+let rec add_lines pm = function (*FIXME to be tested*)
     | Leaf te as g              -> g 
     | Switch (i,cases,def)      -> 
         begin
@@ -193,10 +197,6 @@ let rec add_lines pm = function (*TODO to be tested*)
           in
             Switch (i,cases2,def2)
         end
-
-
-
-(* *** Interface *** *)
 
 let add_rw (n,g) rs = 
   match pMat_from_rules rs with

@@ -7,20 +7,20 @@ type ustate = (term*term) list (* Terms to unify *)
             * (int*term)  list (* Substitution *)
 
 let rec not_in (k:int) (v:int) : term -> bool = function
-  | Kind | Type | GVar _ | DB _ -> true
-  | Meta i                      -> (i != v+k )
-  | App args                    -> List.for_all (not_in k v) args 
-  | Lam (ty,te) | Pi (ty,te)    -> not_in k v ty && not_in (k+1) v te
+  | Kind | Type _ | GVar _ | DB _       -> true
+  | Meta (_,i)                          -> (i != v+k )
+  | App args                            -> List.for_all (not_in k v) args 
+  | Lam (_,_,ty,te) | Pi (_,_,ty,te)    -> not_in k v ty && not_in (k+1) v te
 
 let rec subst (lst:(int*term) list) (te:term) : term =
     match te with
-      | Kind | Type | GVar _ | DB _     -> te
-      | Meta n                          -> 
+      | Kind | Type _ | GVar _ | DB _   -> te
+      | Meta (_,n)                      -> 
           ( try List.assoc n lst
             with Not_found -> raise UExcn )
-      | App args                    -> mk_app ( List.map (subst lst) args )
-      | Lam (a,b)                   -> mk_lam ( subst lst a ) ( subst lst b )
-      | Pi  (a,b)                   -> mk_pi  ( subst lst a ) ( subst lst b )
+      | App args                        -> mk_app ( List.map (subst lst) args )
+      | Lam (l,x,a,b)                   -> mk_lam l x ( subst lst a ) ( subst lst b )
+      | Pi  (l,x,a,b)                   -> mk_pi  l x ( subst lst a ) ( subst lst b )
 
 let rec unify : ustate -> (int*term) list = function
   | ( [] , [] , s)              -> s

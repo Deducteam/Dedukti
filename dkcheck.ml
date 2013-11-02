@@ -4,41 +4,53 @@ open Types
 module M =
 struct
 
+  let string_of_loc lc =
+    "[line:" ^ string_of_int (get_line lc) ^ ";column:" ^ string_of_int (get_column lc) ^ "]"
+
   let mk_prelude lc name =
-    Global.vprint (lazy (string_of_loc lc ^ "[Name] " ^ string_of_ident name ^ ".\n")) ;
+    Global.vprint (lazy (string_of_loc lc ^ "[Name] " ^ string_of_ident name ^ ".")) ;
     Global.name := name ;
     Env.init name
 
   let mk_require lc m = 
-    Global.vprint (lazy (string_of_loc lc ^ "[Import] " ^ string_of_ident m ^ " (Obsolete).\n")) ;
-    Env.import lc m
+    Global.vprint (lazy (string_of_loc lc ^ "[Import] " ^ string_of_ident m ^ " (Obsolete)."))
 
-  let mk_declaration lc id pty = 
-    Global.vprint (lazy (string_of_loc lc ^ "[Declaration] " ^ string_of_ident id ^ ".\n" )) ;
-    Checker.add_decl lc id pty
+  let mk_declaration lc id ty = 
+    Global.vprint (lazy (string_of_loc lc ^ "[Declaration] " ^ string_of_ident id ^ "." )) ;
+    Inference.check_type [] ty ;
+    Env.add_decl lc id ty
 
-  let mk_definition lc id pty pte = 
-    Global.vprint (lazy (string_of_loc lc ^ "[Definition] " ^ string_of_ident id ^ ".\n")) ;
-    Checker.add_def lc id pty pte
-
-  let mk_opaque lc id pty pte = 
-    Global.vprint (lazy (string_of_loc lc ^ "[Opaque] " ^ string_of_ident id ^ ".\n")) ;
-    Checker.add_opaque lc id pty pte
-
-  let mk_term pte = 
-    Global.vprint (lazy (string_of_loc (get_loc pte) ^ "[Term] ...\n" )) ; 
-    let te = Pterm.of_pterm [] pte in
-    let te' = Reduction.hnf te in
-      Global.sprint ( Error.string_of_term te' ^ "\n" )
-
-  let mk_rules (lst:prule list) = 
-    let aux = function
-    | (_,((l,v),_),_)::_  -> (l,v)
-    | _                     -> assert false
+  let mk_definition lc id ty_opt te = 
+    Global.vprint (lazy (string_of_loc lc ^ "[Definition] " ^ string_of_ident id ^ ".")) ;
+    let ty = 
+      match ty_opt with
+        | None          -> Inference.infer [] te
+        | Some ty       -> ( Inference.check_type [] ty ; Inference.check_term [] te ty ; ty )
     in
-    let (lc,hd) = aux lst in
-      Global.vprint (lazy (string_of_loc lc ^ "[Rule] " ^ string_of_ident hd ^ ".\n")) ;
-      Checker.add_rules lc hd lst 
+      Env.add_def lc id te ty 
+
+  let mk_opaque lc id ty_opt te = 
+    Global.vprint (lazy (string_of_loc lc ^ "[Opaque] " ^ string_of_ident id ^ ".")) ;
+    let ty = 
+      match ty_opt with
+        | None          -> Inference.infer [] te
+        | Some ty       -> ( Inference.check_type [] ty ; Inference.check_term [] te ty ; ty )
+    in
+      Env.add_decl lc id ty 
+
+  let mk_term te = 
+    Global.vprint (lazy (string_of_loc (get_loc te) ^ "[Term] ..." )) ; 
+    let te' = Reduction.hnf te in
+      Global.sprint ( Error.string_of_term te' )
+
+  let mk_rules (rs:rule list) = 
+    let (lc,hd) = match rs with
+      | (_,((l,v),_),_)::_      -> (l,v)
+      | _                       -> assert false
+    in
+      Global.vprint (lazy (string_of_loc lc ^ "[Rule] " ^ string_of_ident hd ^ ".")) ;
+      List.iter Inference.check_rule rs ;
+      Env.add_rw lc hd rs
 
   let mk_ending _ = 
     Env.export_and_clear ()
@@ -67,19 +79,15 @@ let parse lb =
 (* *** Input *** *)
 
 let run_on_stdin _ =
-  Global.eprint (" -- Processing standard input ...\t") ;
-  Global.vprint (lazy "\n");
+  Global.vprint (lazy " -- Processing standard input ...") ;
   parse (Lexing.from_channel stdin) ;
-  Global.eprint ("\027[32m[DONE]\027[m\n") ;
-  Env.export_and_clear ()
+  Global.print_ok ()
             
 let run_on_file file =
   let input = open_in file in
-    Global.eprint (" -- Processing file '" ^ file ^ "' ...\t") ;
-    Global.vprint (lazy "\n");
+    Global.vprint (lazy (" -- Processing file '" ^ file ^ "' ...")) ;
     parse (Lexing.from_channel input) ;
-    Global.eprint ("\027[32m[DONE]\027[m\n") ;
-    Env.export_and_clear ()
+    Global.print_ok ()
 
 (* *** Arguments *** *)
 
@@ -87,6 +95,7 @@ let args = [
         ("-q"    , Arg.Set Global.quiet                 , "Quiet"               ) ;
         ("-v"    , Arg.Clear Global.quiet               , "Verbose"             ) ;
         ("-e"    , Arg.Set Global.export                , "Create a .dko"       ) ;
+        ("-nc"   , Arg.Clear Global.color               , "Disable colored output"       ) ;
         ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"  ) ; 
         ("-r"    , Arg.Set Global.raphael               , "Undocumented"  ) 
 ]
@@ -97,9 +106,9 @@ let _ =
   try 
     Arg.parse args run_on_file "Usage: dkcheck [options] files"  
   with 
-    | Sys_error err             -> Global.error dloc "System Error"  err
-    | LexerError (lc,err)       -> Global.error lc "Lexing Error"  err
-    | ParserError (lc,err)      -> Global.error lc "Parsing Error"  err
-    | TypingError (lc,err)      -> Global.error lc "Typing Error"  err
-    | EnvError (lc,err)         -> Global.error lc "Scoping Error" err 
-    | PatternError (lc,err)     -> Global.error lc "Rule Error" err 
+    | Sys_error err             -> Global.error dloc err
+    | LexerError (lc,err)       -> Global.error lc err
+    | ParserError (lc,err)      -> Global.error lc err
+    | TypingError (lc,err)      -> Global.error lc err
+    | EnvError (lc,err)         -> Global.error lc err 
+    | PatternError (lc,err)     -> Global.error lc err 
