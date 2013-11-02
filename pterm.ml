@@ -24,6 +24,9 @@ let rec of_pterm ctx = function
   | PPi (Some (l,v),a,b)        -> mk_pi  l v ( of_pterm ctx a ) ( of_pterm ((dloc,v,mk_kind)::ctx) b )
   | PLam ((l,v),Some a,t)       -> mk_lam l v ( of_pterm ctx a ) ( of_pterm ((dloc,v,mk_kind)::ctx) t )
 
+let of_pcontext (env:pcontext) : context=
+  List.fold_left (fun ctx (l,x,ty) -> (l,x,of_pterm ctx ty)::ctx) [] env
+
 let of_ppat ctx p = 
   let cpt = ref (-1) in
   let rec aux = function

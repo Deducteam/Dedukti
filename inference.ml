@@ -115,7 +115,7 @@ let check_env ctx (l,x,ty) =
   check_type ctx ty ; (l,x,ty)::ctx 
 
 let check_rule (ctx,((l,c),args),ri) = 
-  let _            = List.fold_left check_env [] ctx in
+  let _            = List.fold_left check_env [] (List.rev ctx) in 
   let (ty_le0,lst) = infer_pattern ctx (Pattern ((l,!Global.name,c),args)) in 
     match Unification.resolve_constraints ty_le0 lst with
       | Some ty -> check_term ctx ri ty 

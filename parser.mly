@@ -44,7 +44,7 @@
 %type <Types.rule list> rule_lst
 %type <Types.rule> rule
 %type <Types.loc*Types.ident*Types.pterm> decl
-%type <Types.context> context
+%type <Types.pcontext> context
 %type <Types.ptop> top_pattern
 %type <Types.ppattern list> pat_lst
 %type <Types.ppattern> pattern
@@ -71,13 +71,15 @@ line            : IMPORT ID /* DOT TODO */                      { mk_require (fs
 rule_lst        : rule                                          { [$1] }
                 | rule rule_lst                                 { $1::$2 }
 
-rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term   { ($2,Pterm.of_ptop $2 $4,Pterm.of_pterm $2 $6) } 
+rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term 
+                        { let ctx = Pterm.of_pcontext $2 in
+                        ( ctx , Pterm.of_ptop ctx $4 , Pterm.of_pterm ctx $6) } 
 
 decl            : ID COLON term                                 { (fst $1,snd $1,$3) }
 
 context         : /* empty */                                   { [] }
-                | decl COMMA context                            { let (l,id,pt)=$1 in (l,id,Pterm.of_pterm $3 pt)::$3 }
-                | decl                                          { let (l,id,pt)=$1 in [(l,id,of_pterm pt)] }
+                | decl COMMA context                            { $1::$3 }
+                | decl                                          {[$1] }
 
 top_pattern     : ID pat_lst                                    { ( (fst $1,snd $1) , Array.of_list $2 ) }
 

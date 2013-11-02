@@ -67,6 +67,7 @@ type ppattern =
   | PPat of (loc*ident*ident) * ppattern array 
 
 type ptop = (loc*ident) * ppattern array 
+type pcontext = ( loc * ident * pterm ) list
 
 (* *** Typing *** *)
 
