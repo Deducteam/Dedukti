@@ -13,6 +13,7 @@ struct
     Env.init name
 
   let mk_require lc m = 
+    Global.eprint "Warning: import (ignored)." ;
     Global.vprint (lazy (string_of_loc lc ^ "[Import] " ^ string_of_ident m ^ " (Obsolete)."))
 
   let mk_declaration lc id ty = 

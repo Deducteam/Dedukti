@@ -135,6 +135,9 @@ let rec reorder (ord:int array) (k:int) : term -> term = function
       end
   | t                   -> t 
 
+let get_loc = function (*FIXME*)
+  | Var   (l,_,_) | Dash   (l,_) | Pattern ((l,_,_),_) -> l
+
 let get_term (l:line) : term = 
   (*dump_line "???" l ; *)
   let ord = Array.make l.env_size (-1) in 
@@ -143,7 +146,7 @@ let get_term (l:line) : term =
         match p with
           | Var (_,_,n)   -> 
               if ord.(n) = (-1) then ord.(n) <- i
-              else raise ( PatternError ( dloc , "Non linear rule detected." ) ) 
+              else raise ( PatternError ( get_loc l.pats.(0) (*FIXME*), "Non linear rule detected." ) ) 
           | _       -> ()
     ) l.pats ;
     reorder ord 0 l.right

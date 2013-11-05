@@ -1,10 +1,11 @@
 {
   open Types
+  open Lexing
 
   let get_loc lexbuf = 
-          let curr = lexbuf.Lexing.lex_curr_p                   in
-          let line = curr.Lexing.pos_lnum                       in
-          let cnum = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
+          let start = lexbuf.lex_start_p                in
+          let line = start.pos_lnum                     in
+          let cnum = start.pos_cnum - start.pos_bol     in
                 mk_loc line cnum
 }
 
@@ -39,7 +40,7 @@ rule token = parse
 
  and comment = parse 
   | ";)"                { token lexbuf          }
-  | '\n'                { Lexing.new_line lexbuf ; comment lexbuf }
+  | '\n'                { new_line lexbuf ; comment lexbuf }
   | _                   { comment lexbuf        }
   | eof		        { raise ( LexerError ( get_loc lexbuf , "Unexpected end of file." ) ) }
   
