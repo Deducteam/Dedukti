@@ -146,7 +146,7 @@ let get_term (l:line) : term =
         match p with
           | Var (_,_,n)   -> 
               if ord.(n) = (-1) then ord.(n) <- i
-              else raise ( PatternError ( get_loc l.pats.(0) (*FIXME*), "Non linear rule detected." ) ) 
+              else raise ( PatternError ( get_loc l.pats.(i) , "Non linear rule detected." ) ) 
           | _       -> ()
     ) l.pats ;
     reorder ord 0 l.right
