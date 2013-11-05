@@ -13,7 +13,10 @@
         open Types
         open M
         let of_pterm = Pterm.of_pterm [] 
-        (*TODO remettre dot ?*)
+        let mk_dot t =
+                let lc = get_loc (Pterm.of_pterm [] t) in
+                Global.eprint "Warning: Redeclaration (ignored)." ;
+                PDash lc
 %}
 
 %token EOF
@@ -91,6 +94,7 @@ pattern         : ID                                            { PPat ((fst $1,
                 | UNDERSCORE                                    { PDash $1 }
                 | LEFTPAR ID  pat_lst RIGHTPAR                  { PPat ((fst $2,!Global.name,snd $2),Array.of_list $3) }           
                 | LEFTPAR QID pat_lst RIGHTPAR                  { PPat ($2,Array.of_list $3) }           
+                | LEFTBRA term RIGHTBRA                         { mk_dot $2 }
 
 sterm           : QID                                           { let (a,b,c)=$1 in Types.PQid (a,b,c) }
                 | ID                                            { PId (fst $1,snd $1) }
