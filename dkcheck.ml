@@ -13,7 +13,7 @@ struct
     Env.init name
 
   let mk_require lc m = 
-    Global.eprint "Warning: import (ignored)." ;
+    Global.warning lc "Import command is ignored." ;
     Global.vprint (lazy (string_of_loc lc ^ "[Import] " ^ string_of_ident m ^ " (Obsolete)."))
 
   let mk_declaration lc id ty = 
@@ -42,7 +42,14 @@ struct
   let mk_term te = 
     Global.vprint (lazy (string_of_loc (get_loc te) ^ "[Term] ..." )) ; 
     let te' = Reduction.hnf te in
-      Global.sprint ( Pp.string_of_term te' )
+      Global.sprint ( Pp.string_of_term te' ) ;
+      match te with
+        | GVar (l,m,v)    ->
+            ( match Env.get_global_rw l m v with
+                | None          -> ()
+                | Some (i,g)    -> Global.vprint (lazy (Pp.string_of_gdt m v i g))
+            )
+        | _             -> ()
 
   let mk_rules (rs:rule list) = 
     let (lc,hd) = match rs with

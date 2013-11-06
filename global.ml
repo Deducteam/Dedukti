@@ -26,8 +26,13 @@ let print_ok _ =
   if !color then vprint (lazy "\027[32m[DONE]\027[m")
   else vprint (lazy "[DONE]")
 
+let warning lc str = 
+  let w' = if !color then "\027[33mWARNING\027[m" else "WARNING" in
+    eprint ( w' ^ " line:" ^ string_of_int (get_line lc) ^ " column:" 
+             ^ string_of_int (get_column lc) ^ " " ^ str )
+
 let error lc str = 
-  let e' = if !color then "\n\027[31mERROR\027[m" else "ERROR" in
+  let e' = if !color then "\027[31mERROR\027[m" else "ERROR" in
     eprint ( e' ^ " line:" ^ string_of_int (get_line lc) ^ " column:" 
              ^ string_of_int (get_column lc) ^ " " ^ str ) ; 
     exit 1 

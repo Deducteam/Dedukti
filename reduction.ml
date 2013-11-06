@@ -42,6 +42,12 @@ let rec remove c lst =
         if c==0 then lst'
         else x::(remove (c-1) lst')
 
+let rec add_to_list lst s s' =
+  match s,s' with
+    | [] , []           -> Some lst
+    | x::s1 , y::s2     -> add_to_list ((x,y)::lst) s1 s2
+    | _ ,_              -> None
+
 let rec cbn_reduce (config:cbn_state) : cbn_state = 
   match config with
     (* Weak normal terms *)
@@ -80,7 +86,6 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
 
 and rewrite (args:cbn_state list) (g:gdt) : (int*(term Lazy.t) list*term) option = 
   match g with
-    | Leaf te                     -> Some ( List.length args (*TODO*) , List.map (fun a -> lazy (cbn_term_of_state a)) args , te ) 
     | Switch (i,cases,def)        -> 
         begin
           (* assert (i<Array.length args); *)
@@ -95,30 +100,17 @@ and rewrite (args:cbn_state list) (g:gdt) : (int*(term Lazy.t) list*term) option
                    | Some g     -> rewrite args g
                    | None       -> None )
         end
-
-(* Weak Normal Form *)          
-let wnf (t:term) : term = cbn_term_of_state ( cbn_reduce ( 0 , [] , t , [] ) ) 
-
-let rec cbn_term_of_state2 (k,e,t,s:cbn_state) : term =
-  let t = ( if k = 0 then t else Subst.psubst_l (k,e) 0 t ) in
-    if s = [] then t 
-    else mk_uapp ( t::(List.map (fun st -> cbn_term_of_state2 (cbn_reduce st)) s ))
-
-(* Head Normal Form *)          
-let hnf (t:term) : term = cbn_term_of_state2 (cbn_reduce (0,[],t,[])) 
-
-(* Strong Normal Form *)
-let snf te = assert false (*TODO*) 
-
-(* *** CONVERSION *** *)
-
-let rec add_to_list lst s s' =
-  match s,s' with
-    | [] , []           -> Some lst
-    | x::s1 , y::s2     -> add_to_list ((x,y)::lst) s1 s2
-    | _ ,_              -> None
-
-let rec state_conv : (cbn_state*cbn_state) list -> bool = function
+    | Test (lst,te,def)   -> 
+        begin
+          if state_conv (List.map (fun (i,j) -> (List.nth args i,List.nth args j) ) lst) then 
+            Some ( List.length args (*TODO*) , List.map (fun a -> lazy (cbn_term_of_state a)) args , te )
+          else
+            match def with
+              | None    -> None
+              | Some g  -> rewrite args g
+        end
+  
+and state_conv : (cbn_state*cbn_state) list -> bool = function
   | []                  -> true
   | (s1,s2)::lst        ->
       begin
@@ -156,6 +148,22 @@ let rec state_conv : (cbn_state*cbn_state) list -> bool = function
                 | ( _ , _ , Meta _ , _ ) , _ | _ , ( _ , _ , Meta _ , _ )               -> assert false
                 | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                                 -> false
       end
+
+
+(* Weak Normal Form *)          
+let wnf (t:term) : term = cbn_term_of_state ( cbn_reduce ( 0 , [] , t , [] ) ) 
+
+let rec cbn_term_of_state2 (k,e,t,s:cbn_state) : term =
+  let t = ( if k = 0 then t else Subst.psubst_l (k,e) 0 t ) in
+    if s = [] then t 
+    else mk_uapp ( t::(List.map (fun st -> cbn_term_of_state2 (cbn_reduce st)) s ))
+
+(* Head Normal Form *)          
+let hnf (t:term) : term = cbn_term_of_state2 (cbn_reduce (0,[],t,[])) 
+
+(* Strong Normal Form *)
+let snf te = assert false (*TODO*) 
+
 
 let are_convertible t1 t2 =
   state_conv [ ( (0,[],t1,[]) , (0,[],t2,[]) ) ]

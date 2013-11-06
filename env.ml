@@ -68,7 +68,7 @@ let add_decl lc v ty =
   let env = H.find envs !Global.name in
     if H.mem env v then 
       if !Global.raphael then
-        Global.eprint "Warning: Redeclaration (ignored)."
+        Global.warning lc "Redeclaration ignored."
       else 
         raise (EnvError ( lc , "Already defined symbol '" ^string_of_ident v ^ "'." )) 
     else 
@@ -78,7 +78,7 @@ let add_def lc v te ty =
   let env = H.find envs !Global.name in
     if H.mem env v then 
       if !Global.raphael then
-        Global.eprint "Warning: Redeclaration ignored.\n"
+        Global.warning lc "Redeclaration ignored."
       else
         raise (EnvError ( lc , "Already defined symbol '" ^ string_of_ident v ^ "'." ))
     else 

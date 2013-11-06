@@ -15,7 +15,7 @@
         let of_pterm = Pterm.of_pterm [] 
         let mk_dot t =
                 let lc = get_loc (Pterm.of_pterm [] t) in
-                Global.eprint "Warning: Dot pattern (ignored)." ;
+                Global.warning lc "Dot pattern ignored." ;
                 PDash lc
 %}
 

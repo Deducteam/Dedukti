@@ -106,8 +106,8 @@ type context = ( loc * ident * term ) list
 type rule = context * top * term 
 
 type gdt =
-  | Leaf     of term
-  | Switch   of int * ((ident*ident)*gdt) list * gdt option
+  | Switch      of int * ((ident*ident)*gdt) list * gdt option
+  | Test        of (int*int) list*term*gdt option
 
 (* *** Errors *** *)
 
