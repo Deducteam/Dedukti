@@ -11,11 +11,11 @@ type cbn_state =
 
 let dump_state (k,e,t,s) =
   Global.eprint ("k = "^string_of_int k^"\n");
-  Global.eprint ("t = "^Error.string_of_term t^"\n");
+  Global.eprint ("t = "^ Pp.string_of_term t^"\n");
   Global.eprint "e = [";
-  List.iter (fun u -> Global.eprint (" ("^Error.string_of_term (Lazy.force u)^")")) e ;
+  List.iter (fun u -> Global.eprint (" ("^ Pp.string_of_term (Lazy.force u)^")")) e ;
   Global.eprint " ]\ns = [";
-  List.iter (fun (_,_,u,_) -> Global.eprint (" {{ "^Error.string_of_term u^" }}")) s ;
+  List.iter (fun (_,_,u,_) -> Global.eprint (" {{ "^ Pp.string_of_term u^" }}")) s ;
   Global.eprint " ]\n"
 
 let rec cbn_term_of_state (k,e,t,s:cbn_state) : term =

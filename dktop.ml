@@ -33,7 +33,7 @@ struct
       Global.sprint (string_of_ident id ^ " is defined.") 
 
   let mk_term te = 
-    Global.sprint ( Error.string_of_term (Reduction.hnf te)  )
+    Global.sprint ( Pp.string_of_term (Reduction.hnf te)  )
 
   let mk_rules rs = 
     let (lc,hd) = match rs with

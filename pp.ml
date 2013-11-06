@@ -1,8 +1,6 @@
 
 open Types
 
-(* TODO rename in pp *)  
-
   (*
 let rec string_of_pterm = function
   | PType _                     -> "Type"

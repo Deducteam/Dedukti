@@ -42,7 +42,7 @@ struct
   let mk_term te = 
     Global.vprint (lazy (string_of_loc (get_loc te) ^ "[Term] ..." )) ; 
     let te' = Reduction.hnf te in
-      Global.sprint ( Error.string_of_term te' )
+      Global.sprint ( Pp.string_of_term te' )
 
   let mk_rules (rs:rule list) = 
     let (lc,hd) = match rs with

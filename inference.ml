@@ -4,8 +4,8 @@ open Types
 (* *** Error messages *** *)
 
 let string_of_decl (_,x,ty) =
-  if ident_eq empty x then "?: " ^ Error.string_of_term2 ty
-  else string_of_ident x ^ ": " ^ Error.string_of_term2 ty
+  if ident_eq empty x then "?: " ^ Pp.string_of_term2 ty
+  else string_of_ident x ^ ": " ^ Pp.string_of_term2 ty
 
 let mk_err_msg (ctx:context) (te:term) (exp:string) (inf:term) = 
   let context = 
@@ -13,10 +13,10 @@ let mk_err_msg (ctx:context) (te:term) (exp:string) (inf:term) =
       | []      -> ".\n"
       | _       -> " in context:\n" ^ String.concat "\n" (List.map string_of_decl ctx) ^ "\n" 
   in
-  let msg = "Error while typing " ^ Error.string_of_term2 te 
+  let msg = "Error while typing " ^ Pp.string_of_term2 te 
                 ^ context 
                 ^ "Expected type: " ^ exp ^ "\n" 
-                ^ "Inferred type: " ^ Error.string_of_term2 inf in
+                ^ "Inferred type: " ^ Pp.string_of_term2 inf in
     raise (TypingError ( get_loc te , msg ) )
 (*
 let mk_err_msg2 (ctx:context) (te:term) (exp:term) (inf:term) = 
@@ -35,7 +35,7 @@ let mk_err_msg2 (ctx:context) (te:term) (exp:term) (inf:term) =
  *)
 
 let err_conv ctx te exp inf = 
-  mk_err_msg ctx te (Error.string_of_term2 exp) inf
+  mk_err_msg ctx te (Pp.string_of_term2 exp) inf
 
 let err_sort ctx te inf = 
   mk_err_msg ctx te "Kind or Type" inf
@@ -135,6 +135,6 @@ let check_rule (ctx,((l,c),args),ri) =
     match Unification.resolve_constraints ty_le0 lst with
       | Some ty -> check_term ctx ri ty 
       | None    -> raise ( PatternError ( l , 
-          "Error while typing " ^ Error.string_of_pattern (Pattern ((l,!Global.name,c),args)) 
+          "Error while typing " ^ Pp.string_of_pattern (Pattern ((l,!Global.name,c),args)) 
           ^ ".\nCannot find a type.\n" (*TODO*)
         ))
