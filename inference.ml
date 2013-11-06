@@ -4,8 +4,8 @@ open Types
 (* *** Error messages *** *)
 
 let string_of_decl (_,x,ty) =
-  if ident_eq empty x then "?: " ^ Error.string_of_term ty
-  else string_of_ident x ^ ": " ^ Error.string_of_term ty
+  if ident_eq empty x then "?: " ^ Error.string_of_term2 ty
+  else string_of_ident x ^ ": " ^ Error.string_of_term2 ty
 
 let mk_err_msg (ctx:context) (te:term) (exp:string) (inf:term) = 
   let context = 
@@ -13,14 +13,29 @@ let mk_err_msg (ctx:context) (te:term) (exp:string) (inf:term) =
       | []      -> ".\n"
       | _       -> " in context:\n" ^ String.concat "\n" (List.map string_of_decl ctx) ^ "\n" 
   in
-  let msg = "Error while typing " ^ Error.string_of_term te 
+  let msg = "Error while typing " ^ Error.string_of_term2 te 
                 ^ context 
                 ^ "Expected type: " ^ exp ^ "\n" 
-                ^ "Inferred type: " ^ Error.string_of_term inf in
+                ^ "Inferred type: " ^ Error.string_of_term2 inf in
     raise (TypingError ( get_loc te , msg ) )
+(*
+let mk_err_msg2 (ctx:context) (te:term) (exp:term) (inf:term) = 
+  let context = 
+    match ctx with
+      | []      -> ".\n"
+      | _       -> " in context:\n" ^ String.concat "\n" (List.map string_of_decl ctx) ^ "\n" 
+  in
+  let msg = "Error while typing " ^ Error.string_of_term te 
+                ^ context 
+                ^ "Expected type: " ^ Error.string_of_term exp ^ "\n" 
+                ^ "Expected type (hnf): " ^ Error.string_of_term (Reduction.hnf exp) ^ "\n" 
+                ^ "Inferred type: " ^ Error.string_of_term inf ^ "\n"
+                ^ "Inferred type (hnf): " ^ Error.string_of_term (Reduction.hnf inf) in
+    raise (TypingError ( get_loc te , msg ) )
+ *)
 
 let err_conv ctx te exp inf = 
-  mk_err_msg ctx te (Error.string_of_term exp) inf
+  mk_err_msg ctx te (Error.string_of_term2 exp) inf
 
 let err_sort ctx te inf = 
   mk_err_msg ctx te "Kind or Type" inf
@@ -101,10 +116,10 @@ and check_pattern ctx ty = function
 
 (* *** Type Checking *** *)
 
-let check_term ctx te ty = 
+let check_term ctx te exp = 
   let inf = infer ctx te in
-    if not (Reduction.are_convertible ty inf) then 
-      err_conv ctx te ty inf
+    if not (Reduction.are_convertible exp inf) then 
+      err_conv ctx te exp inf
 
 let check_type ctx ty = 
   match infer ctx ty with
