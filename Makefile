@@ -20,4 +20,5 @@ install:
 	install _dk2mmt/dk2mmt.native ${INSTALL_DIR}/dk2mmt
 
 clean:
-	ocamlbuild -clean
+	ocamlbuild -build-dir _dkcheck -clean
+	ocamlbuild -build-dir _dk2mmt -clean
