@@ -68,24 +68,11 @@ let union_from_lines (lst:line list) : union =
           if arity = 0 then Term x.right
           else 
             begin
-              List.iter (
-                fun y -> if Array.length y.pats != arity then 
-                  raise ( PatternError ( y.loc , "All the rules must have the same arity." ) ) 
-              ) lst';
+              assert ( List.for_all (fun y -> Array.length y.pats = arity ) lst' ) ; 
               PMat lst
             end 
 
-let specialize (c:int) (l:line) (args:pattern array) : line = 
-  let n = Array.length l.pats - 1 in
-    { l with pats = 
-        Array.init (n + Array.length args) (
-          fun i ->
-            if i < c      then l.pats.(i)       (* [ 0 - c [ *)
-            else if i < n then l.pats.(i+1)     (* [ c - n [ *)
-            else               args.(i-n)       (* [ n - n+nargs [ *)
-        )
-    }
-
+      (*
 type ht = (line list) H.t
 let ht_add hs id l =
   let lst = 
@@ -111,6 +98,92 @@ let partition (pm:pMat) (c:int) : partition =
       match def with
         | []    -> { cases=cases ; default=None ; }
         | _     -> { cases=cases ; default=Some def ; }
+       *)
+
+let qm = hstring "?"
+let mk_var_lst inf sup =
+  let rec aux i =
+    if i<sup then 
+      (mk_db dloc qm i) :: (aux (i+1)) 
+    else []
+  in aux inf
+
+let specialize (c:int) (pm:pMat) (nargs,m,v:int*ident*ident) : (ident*ident)*union = 
+  let lines = List.fold_right (
+    fun l lst -> 
+      let n = Array.length l.pats - 1 in
+      match l.pats.(c) with
+        | Var (_,_,q)                   -> 
+            let te = 
+              if nargs=0 then mk_gvar dloc m v
+              else mk_uapp ( (mk_gvar dloc m v)::(mk_var_lst l.env_size (l.env_size+nargs) ) ) in
+            { loc       = l.loc ; 
+              env_size  = l.env_size + nargs ;
+              right     = Subst.subst_q (q,te) 0 l.right ; 
+              pats      = 
+                Array.init (n + nargs) (
+                  fun i ->
+                    if i < c      then l.pats.(i)       (* [ 0 - c [ *)
+                    else if i < n then l.pats.(i+1)     (* [ c - n [ *)
+                    else               Var (dloc,qm,l.env_size+i-n)    (* [ n - n+nargs [ *)
+                )
+            }::lst
+        | Dash _                        -> 
+              { l with pats = 
+                  Array.init (n + nargs) (
+                    fun i ->
+                      if i < c      then l.pats.(i)       (* [ 0 - c [ *)
+                      else if i < n then l.pats.(i+1)     (* [ c - n [ *)
+                      else               Dash (dloc,0)    (* [ n - n+nargs [ *)
+                  )
+              }::lst
+        | Pattern ((_,m',v'),args)      ->
+            if not (ident_eq v v' && ident_eq m m') then lst
+            else
+                { l with pats = 
+                    Array.init (n + Array.length args) (
+                      fun i ->
+                        if i < c      then l.pats.(i)       (* [ 0 - c [ *)
+                        else if i < n then l.pats.(i+1)     (* [ c - n [ *)
+                        else               args.(i-n)       (* [ n - n+nargs [ *)
+                    )
+                }::lst
+  ) pm [] in
+    ( (m,v) , union_from_lines lines )
+
+let partition (pm:pMat) (c:int) : partition = 
+  let hs = H.create 17 in 
+  let (def,consts) = List.fold_right (
+    fun l (def,csts) -> match l.pats.(c) with
+      | Pattern ((_,m,v),args)       -> if H.mem hs (m,v) then (def,csts) else (def,(Array.length args,m,v)::csts)
+      | _                            -> (l::def,csts)
+  ) pm ([],[]) in
+  let cases = List.map (specialize c pm) consts in
+    match def with
+      | []    -> { cases=cases ; default=None ; }
+      | _     -> { cases=cases ; default=Some def ; }
+ 
+(*
+let partition (pm:pMat) (c:int) : partition = 
+  
+  let hs = H.create 17 in 
+  let add_new id n lst = H.add id (n,lst) in
+  let add_line id l = assert false (*TODO*)
+  let def = ref [] in
+  let add_def x = def := x::!def in
+
+    List.iter () 
+ 
+let (def,consts) = List.fold_left (
+    fun (def,csts) l -> match l.pats.(c) with
+      | Pattern ((_,m,v),args)       -> if H.mem hs (m,v) then (def,csts) else (def,(Array.length args,m,v)::csts)
+      | _                            -> (l::def,csts)
+  ) ([],[]) pm in
+  let cases = List.map (specialize c pm) consts in
+    match def with
+      | []    -> { cases=cases ; default=None ; }
+      | _     -> { cases=cases ; default=Some def ; }
+ *)
 
 let getColumn (l:pattern array) : int option =
   let rec aux i = 
@@ -158,8 +231,8 @@ let rec cc (pm:pMat) : gdt =
           begin 
             match get_term first , pm2 with
               | ( lst, te ) , []        -> Test (lst,te,None)
-              | ( [] , te ) , x::_      -> ( Global.warning x.loc "Useless rule." ; Test ([],te,None) )
-              | ( lst  , te ) , _       -> Test (lst,te,Some (cc pm2))
+              | ( [] , te ) , _         -> Test ([],te,None) 
+              | ( lst, te ) , _         -> Test (lst,te,Some (cc pm2))
           end
       (* Colonne c contient un pattern *)
       | Some c    ->

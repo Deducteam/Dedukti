@@ -32,3 +32,14 @@ let rec psubst (nargs,args:int*term list) (k:int) (t:term) =
     | App lst                           -> mk_app ( List.map (psubst (nargs,args) k) lst )
 
 let subst (t:term) (u:term) : term = psubst (1,[u]) 0 t
+
+let rec subst_q (q,u:int*term) (k:int) (t:term) =  
+  match t with
+    | DB (_,_,n) when (n = q+k) -> shift k 0 u
+    | Type _ | Kind | GVar _ 
+    | Meta _ | DB _             -> t
+    | Lam (l,x,a,b)             -> mk_lam l x ( subst_q (q,u) k a ) ( subst_q (q,u) (k+1) b )
+    | Pi  (l,x,a,b)             -> mk_pi  l x ( subst_q (q,u) k a ) ( subst_q (q,u) (k+1) b ) 
+    | App lst                   -> mk_app ( List.map (subst_q (q,u) k) lst )
+
+
