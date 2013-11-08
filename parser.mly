@@ -44,6 +44,7 @@
 %start line
 %type <unit> prelude
 %type <unit> line
+%type <(Types.loc*Types.ident*Types.pterm) list> param_lst
 %type <Types.rule list> rule_lst
 %type <Types.rule> rule
 %type <Types.loc*Types.ident*Types.pterm> decl
@@ -63,13 +64,23 @@ prelude         : NAME ID /* DOT TODO */                        { mk_prelude (fs
 
 line            : IMPORT ID /* DOT TODO */                      { mk_require (fst $2) (snd $2) }
                 | ID COLON term DOT                             { mk_declaration (fst $1) (snd $1) (of_pterm $3) }
+                
                 | ID COLON term DEF term DOT                    { mk_definition (fst $1) (snd $1) (Some (of_pterm $3)) (of_pterm $5) }
+                | ID param_lst COLON term DEF term DOT          { mk_definition (fst $1) (snd $1) (Some (of_pterm $4)) (of_pterm $6) }
+                | ID param_lst DEF term DOT                     { mk_definition (fst $1) (snd $1) None (of_pterm $4) }
                 | ID DEF term DOT                               { mk_definition (fst $1) (snd $1) None (of_pterm $3) }
-                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT   { mk_opaque (fst $2) (snd $2) (Some (of_pterm $5)) (of_pterm $7) }
-                | LEFTBRA ID RIGHTBRA DEF term DOT              { mk_opaque (fst $2) (snd $2) None (of_pterm $5) }
+                
+                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT           { mk_opaque (fst $2) (snd $2) (Some (of_pterm $5)) (of_pterm $7) }
+                | LEFTBRA ID RIGHTBRA param_lst COLON term DEF term DOT { mk_opaque (fst $2) (snd $2) (Some (of_pterm $6)) (of_pterm $8) (*FIXME*) }
+                | LEFTBRA ID RIGHTBRA DEF term DOT                      { mk_opaque (fst $2) (snd $2) None (of_pterm $5) }
+                | LEFTBRA ID RIGHTBRA param_lst DEF term DOT            { mk_opaque (fst $2) (snd $2) None (of_pterm $6) (*FIXME*) }
+                
                 | rule_lst DOT                                  { mk_rules $1 } 
                 | DEF term DOT                                  { mk_term (of_pterm $2) } 
                 | EOF                                           { mk_ending () ; raise EndOfFile }
+
+param_lst       : LEFTPAR decl RIGHTPAR                         { [$2] }
+                | LEFTPAR decl RIGHTPAR param_lst               { $2::$4 }
 
 rule_lst        : rule                                          { [$1] }
                 | rule rule_lst                                 { $1::$2 }

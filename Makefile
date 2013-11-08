@@ -7,7 +7,7 @@ OPTIONS = -cflags -inline,10
 # DO NOT EDIT AFTER THIS LINE
 
 all: 
-	ocamlbuild -build-dir _dkcheck $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dkcheck.native
+	ocamlbuild -build-dir _dkcheck $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --explain --external-tokens Types" dkcheck.native
 	ocamlbuild -build-dir _dktop   $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dktop.native
 	ocamlbuild -build-dir _dk2mmt  $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dk2mmt.native
 
