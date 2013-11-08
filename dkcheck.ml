@@ -89,13 +89,13 @@ let parse lb =
 let run_on_stdin _ =
   Global.vprint (lazy " -- Processing standard input ...") ;
   parse (Lexing.from_channel stdin) ;
-  Global.print_ok ()
+  Global.print_ok "none"
             
 let run_on_file file =
   let input = open_in file in
     Global.vprint (lazy (" -- Processing file '" ^ file ^ "' ...")) ;
     parse (Lexing.from_channel input) ;
-    Global.print_ok ()
+    Global.print_ok file
 
 (* *** Arguments *** *)
 
