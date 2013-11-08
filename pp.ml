@@ -28,7 +28,7 @@ let rec string_of_term2 = function
   | Pi  (_,x,a,b) 
       when ident_eq x empty     -> string_of_term2_wp a ^ " -> " ^ string_of_term2 b
   | Pi  (_,x,a,b)               -> string_of_ident x ^ ":" ^   string_of_term2_wp a ^ " -> " ^ string_of_term2 b
-  | Meta (_,_)                  -> "_"
+  | Meta (_,n)                  -> "_["^string_of_int n^"]"
 and string_of_term2_wp = function 
   | Kind | Type _  | DB _ | GVar _ | Meta _ as t -> string_of_term2 t
   | t   -> "(" ^ string_of_term2 t ^ ")"
@@ -49,7 +49,7 @@ and string_of_term_wp = function
   | t   -> "(" ^ string_of_term t ^ ")"
 
 let rec string_of_pattern = function 
-  | Var (_,_,v)                 -> string_of_int v
+  | Var (_,id,v)                 -> string_of_ident id ^ "[" ^ string_of_int v ^ "]"
   | Dash _                      -> "_"
   | Pattern ((_,m,v),arr)       -> string_of_gvar m v ^ " " ^ String.concat " " (List.map string_of_pattern_wp (Array.to_list arr))
 and string_of_pattern_wp = function

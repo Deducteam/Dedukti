@@ -132,9 +132,12 @@ let check_env ctx (l,x,ty) =
 let check_rule (ctx,((l,c),args),ri) = 
   let _            = List.fold_left check_env [] (List.rev ctx) in 
   let (ty_le0,lst) = infer_pattern ctx (Pattern ((l,!Global.name,c),args)) in 
-    match Unification.resolve_constraints ty_le0 lst with
-      | Some ty -> check_term ctx ri ty 
-      | None    -> raise ( PatternError ( l , 
-          "Error while typing " ^ Pp.string_of_pattern (Pattern ((l,!Global.name,c),args)) 
-          ^ ".\nCannot find a type.\n" (*TODO*)
-        ))
+   try 
+     let ty = Unification.resolve_constraints ty_le0 lst in
+       (*Global.eprint (Pp.string_of_term2 ty); *)
+       check_term ctx ri ty 
+   with
+     | Unification.CannotType           ->
+         raise ( PatternError ( l , "Error while typing " ^ Pp.string_of_pattern (Pattern ((l,!Global.name,c),args)) ^ "." ))
+     | Unification.CannotFindAType      ->
+         raise ( PatternError ( l , "Error while typing " ^ Pp.string_of_pattern (Pattern ((l,!Global.name,c),args)) ^ ".\nCannot find a type." ))

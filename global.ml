@@ -23,8 +23,8 @@ let eprint = prerr_endline
 let vprint str  = if not !quiet then prerr_endline (Lazy.force str)
 
 let print_ok filename =                       
-  if !color then eprint ("\027[32m[DONE]\027[m file "^filename)
-  else eprint ("[DONE] file "^filename)
+  if !color then eprint ("\027[32mDONE\027[m file "^filename)
+  else eprint ("DONE file "^filename)
 
 let warning lc str = 
   let w' = if !color then "\027[33mWARNING\027[m" else "WARNING" in
