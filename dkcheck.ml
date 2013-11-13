@@ -94,6 +94,7 @@ let run_on_stdin _ =
 let run_on_file file =
   let input = open_in file in
     Global.vprint (lazy (" -- Processing file '" ^ file ^ "' ...")) ;
+    Global.set_file_name file ;
     parse (Lexing.from_channel input) ;
     Global.print_ok ()
 

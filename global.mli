@@ -12,6 +12,7 @@ val color       : bool ref
 
 val set_name    : string -> unit 
 val set_out     : string -> unit 
+val set_file_name : string -> unit
 
 (* *** Info messages *** *)
 

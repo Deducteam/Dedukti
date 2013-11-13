@@ -20,6 +20,7 @@ let parse lb =
 let run_on_file file =
   let input = open_in file in
     Global.eprint (" -- Processing file '" ^ file ^ "' ...\t") ;
+    Global.set_file_name file ;
     parse (Lexing.from_channel input) ;
     Global.eprint ("\027[32m[DONE]\027[m\n")
 
