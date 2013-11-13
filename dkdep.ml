@@ -13,7 +13,7 @@ let parse lb =
           let l = curr.Lexing.pos_lnum in
           let c = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
           let tok = Lexing.lexeme lb in
-            raise (ParserError ( mk_loc l c , "Unexpected token '" ^ tok ^ "'." ) ) 
+            Global.warning (mk_loc l c) ("Unexpected token '" ^ tok ^ "'." )
         end
     | EndOfFile -> ()
 
@@ -29,8 +29,8 @@ let _ =
   try 
     Arg.parse args run_on_file "Usage: dkdep [options] files"  
   with 
-    | Sys_error err             -> Global.error dloc  err
-    | LexerError (lc,err)       -> Global.error lc err
-    | ParserError (lc,err)      -> Global.error lc err
+    | Sys_error err             -> Global.warning dloc  err
+    | LexerError (lc,err)       -> Global.warning lc err
+    | ParserError (lc,err)      -> Global.warning lc err
 
 
