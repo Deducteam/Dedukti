@@ -9,7 +9,8 @@
                 mk_loc line cnum
 }
 
-let id = ['a'-'z' 'A'-'Z' '_']['a'-'z' 'A'-'Z' '_' '0'-'9']*
+let id = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
+let qualifier = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
 
 rule token = parse
   | [' ' '\t']                  { token lexbuf  }
@@ -32,7 +33,7 @@ rule token = parse
   | "#NAME"                     { NAME }
   | "#IMPORT"                   { IMPORT }
   | "Type"	                { TYPE ( get_loc lexbuf )  }
-  | id as s1 '.' (id as s2)     { QID ( get_loc lexbuf , hstring s1 , hstring s2 ) }
+  | qualifier as s1 '.' (id as s2) { QID ( get_loc lexbuf , hstring s1 , hstring s2 ) }
   | id  as s                    { ID ( get_loc lexbuf , hstring s ) }
   | _   as s		        { raise ( LexerError ( get_loc lexbuf , "Unexpected characters '" ^ String.make 1 s ^ "'." ) ) }
   | eof		                { EOF }
