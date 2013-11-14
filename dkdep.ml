@@ -19,7 +19,7 @@ let parse lb =
 
 let run_on_file file =
   let input = open_in file in
-    Global.set_file_name file ;
+    Global.set_filename file ;
     parse (Lexing.from_channel input)
 
 let args = [ ("-o", Arg.String Global.set_out                , "Output file"  ) ]
