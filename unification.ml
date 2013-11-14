@@ -1,7 +1,15 @@
+(* TODO delete
+
 open Types
 
 exception CannotFindAType
 exception CannotType 
+
+type unif_result =
+  | Success of term
+  | Failure
+  | DontKnow
+
 
 type ustate = (term*term) list (* Terms to unify *)
             * (int*term)  list (* Variable to substitute *)
@@ -54,12 +62,13 @@ let rec print_subst = function
       Global.eprint ( string_of_int i ^ " => " ^ Pp.string_of_term2 t ) ;
       print_subst lst
 
-let resolve_constraints (ty:term) (lst:(term*term) list) : term =
+let resolve_constraints ty lst = assert false 
   let s = unify (lst,[],[]) in
     (* print_subst s ; *)
   let sty = subst 0 s ty in
     if check_term sty then sty
-    else raise CannotFindAType
+    else raise CannotFindAType 
+    *)
 
 
 

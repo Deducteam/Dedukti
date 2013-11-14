@@ -1,4 +1,4 @@
-
+(* TODO delete
 open Types
 
 let pos x ctx = 
@@ -49,4 +49,5 @@ let of_ptop ctx ((l,cst),args)  =
   match of_ppat ctx (PPat ((l,!Global.name,cst),args)) with
     | Pattern (_,pats) -> ((l,cst),pats)
     | _                 -> raise ( PatternError ( l , "The left-hand side of a rule cannot be a variable." ) )
+ *)
 

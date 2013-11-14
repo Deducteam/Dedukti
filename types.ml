@@ -3,13 +3,13 @@
 
 type ident = string
 let string_of_ident s = s
-let ident_eq s1 s2 = s1==s2 || s1=s2 
+let ident_eq s1 s2 = s1==s2 || s1=s2
 
 module WS = Weak.Make(
-struct 
-  type t        = ident 
-  let equal     = ident_eq 
-  let hash      = Hashtbl.hash 
+struct
+  type t        = ident
+  let equal     = ident_eq
+  let hash      = Hashtbl.hash
 end )
 
 let shash       = WS.create 251
@@ -23,22 +23,23 @@ let dloc = (0,0)
 let mk_loc l c = (l,c)
 let get_line (l,_) = l
 let get_column (_,c) = c
+let string_of_loc (l,c) =
+  "line:" ^ string_of_int l ^ " column:" ^ string_of_int c
 
 (* *** Parsing *** *)
 
-type token = 
+type token =
   | UNDERSCORE  of loc
   | TYPE        of loc
   | RIGHTSQU
   | RIGHTPAR
-  | RIGHTBRA 
+  | RIGHTBRA
   | QID         of ( loc * ident * ident )
-  | NORM
   | NAME
   | LONGARROW
   | LEFTSQU
   | LEFTPAR
-  | LEFTBRA 
+  | LEFTBRA
   | IMPORT
   | ID          of ( loc * ident )
   | FATARROW
@@ -49,84 +50,92 @@ type token =
   | COLON
   | ARROW
 
+(* *** Pseudo Terms *** *)
+
 type pterm =
-  | PType of loc 
-  | PId   of loc*ident
-  | PQid  of loc*ident*ident
-  | PApp  of pterm list
-  | PLam  of (loc*ident) * pterm option * pterm
-  | PPi   of (loc*ident) option * pterm * pterm
+  | P_Type of loc
+  | P_Id   of loc * ident
+  | P_QId  of loc * ident * ident
+  | P_App  of pterm list
+  | P_Lam  of loc * ident * pterm * pterm
+  | P_Pi   of (loc*ident) option * pterm * pterm
+  | P_Unknown of loc * int
 
-let mk_papp = function
-  | []          -> assert false
-  | [t]         -> t
-  | args        -> PApp args
-
-type ppattern = 
-  | PDash of loc
-  | PPat of (loc*ident*ident) * ppattern array 
-
-type ptop = (loc*ident) * ppattern array 
-type pcontext = ( loc * ident * pterm ) list
-
-(* *** Typing *** *)
-
-type term = 
-  | Kind
-  | Type of loc                 
-  | DB   of loc*ident*int       
-  | GVar of loc*ident*ident     
-  | App  of term list           
-  | Lam  of loc*ident*term*term 
-  | Pi   of loc*ident*term*term 
-  | Meta of loc*int
+let mk_type lc          = P_Type lc
+let mk_id lc id         = P_Id (lc,id)
+let mk_qid lc md id     = P_QId (lc,md,id)
+let mk_lam lc x ty te   = P_Lam (lc,x,ty,te)
+let mk_arrow a b        = P_Pi (None,a,b)
+let mk_pi lc x a b      = P_Pi (Some(lc,x),a,b)
+let mk_app              = function
+  | []                  -> assert false
+  | [t]                 -> t
+  | (P_App l1)::l2      -> P_App (l1@l2)
+  | lst -> P_App lst
+let meta = ref (-1)
+let mk_unknown lc =
+  incr meta ; P_Unknown (lc,!meta)
 
 let rec get_loc = function
-  | Type l | DB (l,_,_) | GVar (l,_,_)| Lam  (l,_,_,_) 
-  | Pi   (l,_,_,_) | Meta (l,_) -> l
-  | App (f::_)                  -> get_loc f
-  | App _                       -> assert false
-  | Kind                        -> assert false
+  | P_Type l | P_Id (l,_) | P_QId (l,_,_)
+  | P_Lam  (l,_,_,_) | P_Pi   (Some(l,_),_,_)
+  | P_Unknown (l,_)                     -> l
+  | P_Pi   (None,f,_) | P_App (f::_)    -> get_loc f
+  | P_App _                             -> assert false
 
-let mk_kind             = Kind
-let mk_type l           = Type l
-let mk_db l x n         = DB (l,x,n)
-let mk_gvar l m v       = GVar (l,m,v)
-let mk_lam l x a b      = Lam (l,x,a,b) 
-let mk_pi l x a b       = Pi (l,x,a,b)
-let mk_meta l n         = Meta (l,n)
-let mk_uapp lst         = App lst
-let mk_app              = function 
-  | [] | [_] -> assert false 
-  | (App l1)::l2 -> App (l1@l2) | lst -> App lst
+type ptop       = (loc*ident) * pterm list
+type pdecl      = loc * ident * pterm
+type pcontext   = pdecl list
+type prule      = pcontext * pterm * pterm
 
+(* *** Terms *** *)
+
+type term =
+  | Kind                                (* Kind *)
+  | Type                                (* Type *)
+  | DB    of ident*int                  (* deBruijn *)
+  | Const of ident*ident                (* Global variable *)
+  | App   of term list                  (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
+  | Lam   of ident*term*term            (* Lambda abstraction *)
+  | Pi    of ident option*term*term     (* Pi abstraction *)
+  | Meta  of int
+
+let mk_Kind             = Kind
+let mk_Type             = Type
+let mk_DB x n           = DB (x,n)
+let mk_Const m v        = Const (m,v)
+let mk_Lam x a b        = Lam (x,a,b)
+let mk_Pi x a b         = Pi (x,a,b)
+let mk_Meta n           = Meta n
+let mk_App              = function
+  | [] | [_] -> assert false
+  | (App l1)::l2 -> App (l1@l2)
+  | lst -> App lst
 let cpt = ref (-1)
-let mk_unique _         = incr cpt ; GVar ( dloc , empty , hstring (string_of_int !cpt) )
+let mk_Unique _ =
+  incr cpt ;
+  Const ( empty , hstring (string_of_int !cpt) )
 
-let rec term_eq t1 t2 = 
-  t1 == t2 || 
-  match t1, t2 with 
-    | Kind, Kind | Type _, Type _       -> true 
-    | Meta (_,n), Meta (_,n') 
-    | DB (_,_,n), DB (_,_,n')           -> n=n' 
-    | GVar (_,m,v), GVar (_,m',v')      -> ident_eq v v' && ident_eq m m' 
-    | App l, App l'                     -> ( try List.for_all2 term_eq l l' with _ -> false ) 
-    | ( Lam (_,_,a,b), Lam (_,_,a',b') ) 
-    | ( Pi (_,_,a,b), Pi (_,_,a',b') )  -> term_eq a a' && term_eq b b'
+let rec term_eq t1 t2 =
+  (* t1 == t2 || *)
+  match t1, t2 with
+    | Kind, Kind | Type , Type          -> true
+    | DB (_,n), DB (_,n')               -> n=n'
+    | Const (m,v), Const (m',v')        -> ident_eq v v' && ident_eq m m'
+    | App l, App l'                     -> ( try List.for_all2 term_eq l l' with _ -> false )
+    | Lam (_,a,b), Lam (_,a',b')
+    | Pi (_,a,b), Pi (_,a',b')          -> term_eq a a' && term_eq b b'
     | _, _                              -> false
 
 (* *** Rewrite Rules *** *)
 
 type pattern =
-  | Var         of loc*ident*int
-  | Dash        of loc*int
-  | Pattern     of (loc*ident*ident) * pattern array
+  | Var         of ident*int
+  | Joker       of int
+  | Pattern     of ident*ident*pattern array
 
-type top = ( loc * ident ) * pattern array 
-
-type context = ( loc * ident * term ) list
-                  
-type rule = context * top * term 
+type context = ( ident * term ) list
+type rule = loc * context * ident * pattern array * term
 
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option
@@ -139,4 +148,4 @@ exception LexerError  of loc*string
 exception EnvError    of loc*string
 exception TypingError of loc*string
 exception PatternError of loc*string
-exception EndOfFile 
+exception EndOfFile

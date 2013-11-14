@@ -1,0 +1,42 @@
+#NAME hott
+
+Nat: Type.
+Fin : Nat -> Type.
+
+type:Type.
+e: type -> Type.
+
+
+Finm: Nat -> Nat -> Type
+:= i:Nat => j:Nat => (Fin i -> Fin j).
+
+comp := i:Nat => j:Nat => k:Nat => f:Finm i j => g:Finm j k => x:Fin i => g (f x).
+
+Sn1: Type.
+Bn: Sn1 -> Nat -> Type.
+mapBn: Ln1:Sn1 -> i:Nat -> ip:Nat -> Finm i ip -> Bn Ln1 ip -> Bn Ln1 i.
+
+[Ln1:Sn1,i:Nat,j:Nat,k:Nat,f:Finm i j,g:Finm j k,p:Bn Ln1 k] 
+mapBn _ i _ f (mapBn Ln1 j k g p) --> mapBn Ln1 i k (comp i j k f g) p.
+
+n:Nat.
+
+Sn: Type.
+Ln1: Sn -> Sn1.
+Xn : Ln:Sn -> Bn (Ln1 Ln) n -> Type.
+
+Bsn: Sn -> Nat -> Type.
+bn : Ln:Sn -> i:Nat -> Bsn Ln i -> Bn (Ln1 Ln) i.
+bsn: Ln:Sn -> i:Nat -> p:Bsn Ln i -> f:Finm n i -> Xn Ln (mapBn (Ln1 Ln) n i f (bn Ln i p)).
+mkBsn: Ln:Sn -> i:Nat -> bn:Bn (Ln1 Ln) i 
+	-> bsn:(f:Finm n i -> Xn Ln (mapBn (Ln1 Ln) n i f bn)) -> Bsn Ln i.
+
+[Ln:Sn, i:Nat, bn2:Bn (Ln1 Ln) i, bsn2:(f:Finm n i -> Xn Ln (mapBn (Ln1 Ln) n i f bn2))] 
+	bn _ _ (mkBsn Ln i bn2 bsn2) --> bn2.
+
+[Ln:Sn, i:Nat, bn2:Bn (Ln1 Ln) i, bsn2:(f:Finm n i -> Xn Ln (mapBn (Ln1 Ln) n i f bn2))] 
+   bsn _ _ (mkBsn Ln i bn2 bsn2) --> bsn2.
+(;
+[Ln:Sn, i:Nat, bn2:Bn (Ln1 Ln) i, bsn2:(f:Finm n i -> Xn Ln (mapBn (Ln1 Ln) n i f bn2))] 
+   bsn Ln i (mkBsn _ _ bn2 bsn2) --> bsn2.
+;)

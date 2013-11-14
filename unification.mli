@@ -1,8 +1,11 @@
 open Types
+(*
+ * TODO delete
+type unif_result =
+  | Success of term
+  | Failure
+  | DontKnow
 
-exception CannotFindAType
-exception CannotType 
+val resolve_constraints : term -> (term*term) list -> unif_result
 
-val resolve_constraints : term -> (term*term) list -> term 
-
-
+ *)
