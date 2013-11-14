@@ -9,34 +9,35 @@
                 mk_loc line cnum
 }
 
-let id = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
-let qualifier = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
+let space   = [' ' '\t']
+let modname = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
+let ident   = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
 
 rule token = parse
-  | [' ' '\t']                  { token lexbuf  }
-  | '\n'                        { Lexing.new_line lexbuf ; token lexbuf }
-  | "(;"                        { comment lexbuf}
-  | '.'                         { DOT           }
-  | ','                         { COMMA         }
-  | ':'                         { COLON         }
-  | '['                         { LEFTSQU       }
-  | ']'                         { RIGHTSQU      }
-  | '{'                         { LEFTBRA       }
-  | '}'                         { RIGHTBRA      }
-  | '('                         { LEFTPAR       }
-  | ')'                         { RIGHTPAR      }
-  | "-->"	                { LONGARROW     }
-  | "->"	                { ARROW         }
-  | "=>"	                { FATARROW      }
-  | ":="	                { DEF           }
-  | "_"	                        { UNDERSCORE ( get_loc lexbuf )    }
-  | "#NAME"                     { NAME }
-  | "#IMPORT"                   { IMPORT }
-  | "Type"	                { TYPE ( get_loc lexbuf )  }
-  | qualifier as s1 '.' (id as s2) { QID ( get_loc lexbuf , hstring s1 , hstring s2 ) }
-  | id  as s                    { ID ( get_loc lexbuf , hstring s ) }
-  | _   as s		        { raise ( LexerError ( get_loc lexbuf , "Unexpected characters '" ^ String.make 1 s ^ "'." ) ) }
-  | eof		                { EOF }
+  | space       { token lexbuf  }
+  | '\n'        { Lexing.new_line lexbuf ; token lexbuf }
+  | "(;"        { comment lexbuf}
+  | '.'         { DOT           }
+  | ','         { COMMA         }
+  | ':'         { COLON         }
+  | '['         { LEFTSQU       }
+  | ']'         { RIGHTSQU      }
+  | '{'         { LEFTBRA       }
+  | '}'         { RIGHTBRA      }
+  | '('         { LEFTPAR       }
+  | ')'         { RIGHTPAR      }
+  | "-->"	{ LONGARROW     }
+  | "->"	{ ARROW         }
+  | "=>"	{ FATARROW      }
+  | ":="	{ DEF           }
+  | "_"         { UNDERSCORE ( get_loc lexbuf ) }
+  | "Type"      { TYPE ( get_loc lexbuf )       }
+  | "#NAME" space+ (modname as md)      { NAME (get_loc lexbuf , hstring md)     }
+  | "#IMPORT" space+ (modname as md)    { IMPORT (get_loc lexbuf , hstring md)   }
+  | modname as md '.' (ident as id)     { QID ( get_loc lexbuf , hstring md , hstring id ) }
+  | ident  as id                        { ID  ( get_loc lexbuf , hstring id ) }
+  | _   as s		                { raise ( LexerError ( get_loc lexbuf , "Unexpected characters '" ^ String.make 1 s ^ "'." ) ) }
+  | eof		                        { EOF }
 
  and comment = parse
   | ";)"                { token lexbuf          }

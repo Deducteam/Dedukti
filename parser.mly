@@ -26,15 +26,15 @@
 %token FATARROW
 %token LONGARROW
 %token DEF
-%token <Types.loc> UNDERSCORE
-%token NAME
-%token IMPORT
 %token LEFTPAR
 %token RIGHTPAR
 %token LEFTBRA
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
+%token <Types.loc> UNDERSCORE
+%token <Types.loc*Types.ident>NAME
+%token <Types.loc*Types.ident>IMPORT
 %token <Types.loc> TYPE
 %token <Types.loc*Types.ident> ID
 %token <Types.loc*Types.ident*Types.ident> QID
@@ -59,9 +59,9 @@
 
 %%
 
-prelude         : NAME ID /* DOT TODO */                        { let (lc,name)=$2 in Global.set_name name ; Env.init name ; mk_prelude lc name }
+prelude         : NAME /* DOT TODO */                           { let (lc,name)=$1 in Global.set_name name ; Env.init name ; mk_prelude lc name }
 
-line            : IMPORT ID /* DOT TODO */                      { mk_require (fst $2) (snd $2) }
+line            : IMPORT /* DOT TODO */                         { mk_require (fst $1) (snd $1) }
                 | ID COLON term DOT                             { mk_declaration (fst $1) (snd $1) $3 }
                 | ID COLON term DEF term DOT                    { mk_definition (fst $1) (snd $1) (Some $3) $5 }
                 | ID DEF term DOT                               { mk_definition (fst $1) (snd $1)  None     $3 }

@@ -33,12 +33,12 @@ type token =
   | RIGHTPAR
   | RIGHTBRA
   | QID         of ( loc * ident * ident )
-  | NAME
+  | NAME        of ( loc * ident )
   | LONGARROW
   | LEFTSQU
   | LEFTPAR
   | LEFTBRA
-  | IMPORT
+  | IMPORT      of ( loc * ident )
   | ID          of ( loc * ident )
   | FATARROW
   | EOF
