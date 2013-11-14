@@ -2,7 +2,7 @@
 open Types
 
 type gst = private
-  | Decl  of term * (int*gdt) option 
+  | Decl  of term * (int*gdt) option
   | Def   of term * term
 
 val init                : ident -> unit

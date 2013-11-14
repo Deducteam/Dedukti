@@ -2,6 +2,7 @@ PREREQUISITES
 
 OCaml (> 3.12) (http://caml.inria.fr)
 Menhir (http://gallium.inria.fr/~fpottier/menhir/)
+Ocamlbuild
 
 INSTALL
 
@@ -11,5 +12,3 @@ make install
 RUN
 
 dkcheck file.dk
-dk2mmt -o file.mmt file.dk
-
