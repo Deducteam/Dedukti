@@ -37,4 +37,11 @@ five : numeral.
 I : e N -> Type.
 
 test : n : e N -> I n.
-[] test (power two (times two two) N s z) --> test (power two (times two two) N s z).
+
+a := (power two (times two two) N s z). 
+b := (power two (times two two) N s z).
+
+f :  I a -> Type.
+
+x : f (test b).
+

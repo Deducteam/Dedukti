@@ -141,8 +141,23 @@ let check_rule (ctx,te,ri) =
   let (te',ty,cstr) = infer_pattern ctx' te in
   let ty' = Rules.resolve_type l ty cstr in
   let ri' = check_term ctx' ri ty' in
-    match Rules.pattern_of_term te' with
-      | Pattern (md,id,args)    -> ( assert (ident_eq md !Global.name) ; ( l , ctx' , id , args , ri' ) )
+
+  let te2 = (*FIXME*)
+     if !Global.raphael then ( 
+       let hnf = Reduction.hnf te' in
+         if not (term_eq te' hnf) then (
+           Global.warning l "This pattern is not normal: replacing by it normal form." ;
+           Global.eprint ("Pattern: " ^ Pp.string_of_term te') ;
+           Global.eprint ("Normal form: " ^ Pp.string_of_term hnf) ;
+           hnf
+         )
+         else te'
+     )
+     else te' in 
+
+    match Rules.pattern_of_term te2 with
+      | Pattern (md,id,args)    -> 
+          ( assert (ident_eq md !Global.name) ; ( l , ctx' , id , args , ri' ) )
       | Var _                   ->
           raise (PatternError ( l , "The left-hand side of a rule cannot be a variable." ))
       | Joker _                 -> assert false

@@ -119,7 +119,8 @@ let rec term_eq t1 t2 =
   (* t1 == t2 || *)
   match t1, t2 with
     | Kind, Kind | Type , Type          -> true
-    | DB (_,n), DB (_,n')               -> n=n'
+    | DB (_,n), DB (_,n') 
+    | Meta n, Meta n'                   -> n=n'
     | Const (m,v), Const (m',v')        -> ident_eq v v' && ident_eq m m'
     | App l, App l'                     -> ( try List.for_all2 term_eq l l' with _ -> false )
     | Lam (_,a,b), Lam (_,a',b')
