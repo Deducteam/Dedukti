@@ -1,6 +1,10 @@
 
 open Types
 
+val incr_NbConvTest : unit -> unit
+val incr_NbTrivialTest : unit -> unit
+val print_stats : unit -> unit
+
 (* *** Global Options *** *)
 
 val name        : ident ref

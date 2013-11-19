@@ -107,7 +107,8 @@ let run_on_file file =
     Global.vprint dloc (lazy (" -- Processing file '" ^ file ^ "' ...")) ;
     Global.set_filename file ;
     parse (Lexing.from_channel input) ;
-    Global.print_ok file
+    Global.print_ok file ;
+    Global.print_stats () 
 
 (* *** Main *** *)
 

@@ -52,3 +52,20 @@ let warning lc str =
 let error lc str =
   eprint ( red "ERROR " ^ string_of_loc lc ^ " " ^ str ) ;
   exit 1
+
+(* Profiling *)
+
+let nbConvTest = ref 0
+let incr_NbConvTest _ = incr nbConvTest
+
+let nbTrivialTest = ref 0
+let incr_NbTrivialTest _ = incr nbTrivialTest
+
+let print_stats _ =
+  let nb_conv = float !nbConvTest in
+  let nb_eq   = float !nbTrivialTest in
+  let rate0 = ( nb_eq /. nb_conv ) *. 100.0 in
+  let rate  = ( floor ( rate0 *. 10.0 ) ) /. 10.0 in
+    eprint ("Conversion tests: " ^ string_of_int !nbConvTest);
+    eprint ("Trivial conversion tests: " ^ string_of_int !nbTrivialTest ^ " ("^string_of_float rate ^"%)")
+

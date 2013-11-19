@@ -166,7 +166,14 @@ let snf te = failwith "Not implemented (strong normalization)." (*TODO*)
 
 
 let are_convertible t1 t2 =
-  state_conv [ ( (0,[],t1,[]) , (0,[],t2,[]) ) ]
+  Global.incr_NbConvTest () ;
+  if term_eq t1 t2 then
+   begin 
+    Global.incr_NbTrivialTest () ;
+    true
+   end
+  else
+    state_conv [ ( (0,[],t1,[]) , (0,[],t2,[]) ) ]
 
 (* *** UNIFICATION *** *)
 
