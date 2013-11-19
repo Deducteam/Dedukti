@@ -14,5 +14,7 @@ val mk_term             : pterm -> unit
 
 val mk_rules            : prule list -> unit 
 
+val mk_assert           : loc -> pterm -> pterm -> unit
+
 val mk_ending           : unit -> unit
 

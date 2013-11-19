@@ -64,6 +64,13 @@ struct
       let rs = List.map Inference.check_rule prs in
         Env.add_rw lc hd rs
 
+  let mk_assert lc pt1 pt2 = 
+    Global.vprint lc (lazy ("Checking assertion.")) ;
+    let (t1,_) = Inference.infer [] pt1 in
+    let (t2,_) = Inference.infer [] pt2 in
+      if not (Reduction.are_convertible t1 t2) then
+        failwith "Assertion failed: terms are not convertible." (*FIXME*)
+
   let mk_ending _ =
     Env.export_and_clear ()
 

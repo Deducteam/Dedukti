@@ -30,10 +30,12 @@ rule token = parse
   | "->"	{ ARROW         }
   | "=>"	{ FATARROW      }
   | ":="	{ DEF           }
+  | "~="	{ EQUIV          }
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE ( get_loc lexbuf )       }
   | "#NAME" space+ (modname as md)      { NAME (get_loc lexbuf , hstring md)     }
   | "#IMPORT" space+ (modname as md)    { IMPORT (get_loc lexbuf , hstring md)   }
+  | "#ASSERT"                           { ASSERT (get_loc lexbuf) }
   | modname as md '.' (ident as id)     { QID ( get_loc lexbuf , hstring md , hstring id ) }
   | ident  as id                        { ID  ( get_loc lexbuf , hstring id ) }
   | _   as s		                { raise ( LexerError ( get_loc lexbuf , "Unexpected characters '" ^ String.make 1 s ^ "'." ) ) }

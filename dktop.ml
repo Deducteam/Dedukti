@@ -51,6 +51,8 @@ struct
       Env.add_rw lc hd rs ;
       Global.sprint ("Rules added.")
 
+  let mk_assert _ _ _ = assert false (*FIXME*)
+
   let mk_ending _ = ()
 
 end

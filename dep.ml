@@ -39,4 +39,6 @@ let mk_prule (ctx, top, t) =
 
 let mk_rules = List.iter mk_prule
 
+let mk_assert _ _ _ = assert false (*FIXME*)
+
 let mk_ending () = Global.sprint (!name ^ ".dko : " ^ String.concat " " (List.map (fun s -> s ^ ".dko") !deps))

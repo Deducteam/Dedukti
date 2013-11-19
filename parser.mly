@@ -7,6 +7,7 @@
                 val mk_opaque           : Types.loc -> Types.ident -> Types.pterm option -> Types.pterm -> unit
                 val mk_term             : Types.pterm -> unit
                 val mk_rules            : Types.prule list -> unit
+                val mk_assert           : Types.loc -> Types.pterm -> Types.pterm -> unit
                 val mk_ending           : unit -> unit
         end>
 %{
@@ -32,6 +33,8 @@
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
+%token EQUIV
+%token <Types.loc> ASSERT
 %token <Types.loc> UNDERSCORE
 %token <Types.loc*Types.ident>NAME
 %token <Types.loc*Types.ident>IMPORT
@@ -73,6 +76,7 @@ line            : IMPORT /* DOT TODO */                         { mk_require (fs
                 | LEFTBRA ID RIGHTBRA param_lst DEF term DOT            { assert false (*TODO*) }
                 | rule_lst DOT                                  { mk_rules $1 }
                 | DEF term DOT                                  { mk_term $2 }
+                | ASSERT term EQUIV term DOT                    { mk_assert $1 $2 $4 }
                 | EOF                                           { mk_ending () ; raise EndOfFile }
 
 param_lst       : LEFTPAR decl RIGHTPAR                         { [$2] }

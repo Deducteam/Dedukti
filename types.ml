@@ -48,6 +48,8 @@ type token =
   | COMMA
   | COLON
   | ARROW
+  | ASSERT      of loc
+  | EQUIV
 
 (* *** Pseudo Terms *** *)
 
