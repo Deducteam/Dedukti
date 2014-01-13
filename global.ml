@@ -10,6 +10,8 @@ let raphael                     = ref false
 let color                       = ref true
 let out                         = ref stdout (* for dk2mmt *)
 let filename                    = ref None
+let tpdb                        = ref false
+let tpdb_file                        = ref stderr (*dummy instantiation*)
 
 let set_name s =
   name := s
@@ -19,6 +21,12 @@ let set_out file =
 
 let set_filename s =
   filename := Some s
+
+let set_tpdb file =
+  let out = open_out file in
+    tpdb := true ;
+    tpdb_file := out ;
+    Printf.fprintf out "(VAR _ #DB0 #DB1 #DB2 #DB3 #DB4 #DB5 #DB6 #DB7 #DB8 #DB9)\n" 
 
 (* *** Info messages *** *)
 

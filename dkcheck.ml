@@ -62,6 +62,7 @@ struct
     in
       Global.vprint lc (lazy ("Rewrite rules for symbol '" ^ string_of_ident hd ^ "'.")) ;
       let rs = List.map Inference.check_rule prs in
+        (if !Global.tpdb then Tpdb2.print_rules rs) ;
         Env.add_rw lc hd rs
 
   let mk_assert lc pt1 pt2 = 
@@ -118,7 +119,8 @@ let args = [
         ("-e"    , Arg.Set Global.export                , "Create a .dko"               ) ;
         ("-nc"   , Arg.Clear Global.color               , "Disable colored output"      ) ;
         ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"          ) ;
-        ("-r"    , Arg.Set Global.raphael               , "Undocumented"                )
+        ("-r"    , Arg.Set Global.raphael               , "Undocumented"                ) ;
+        ("-tpdb" , Arg.String Global.set_tpdb           , "TPDB export"                 )
 ]
 
 let _ =

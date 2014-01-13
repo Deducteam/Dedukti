@@ -13,10 +13,13 @@ val quiet       : bool ref
 val export      : bool ref
 val raphael     : bool ref
 val color       : bool ref
+val tpdb        : bool ref
+val tpdb_file   : out_channel ref
 
 val set_name     : ident -> unit
 val set_filename : string -> unit
 val set_out      : string -> unit
+val set_tpdb     : string -> unit
 
 (* *** Info messages *** *)
 
