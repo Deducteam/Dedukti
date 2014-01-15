@@ -1,14 +1,18 @@
 
 open Types
 
-(* *** Type inference *** *)
+(* *** Type Inference & Type Checking *** *)
 
-val infer               : (*ctx:*)context -> (*te:*)pterm -> (*(te,ty):*)term*term (* ctx |- te:ty *)
+(* ctx |- te:ty *)
+val infer       : (*ctx:*)context -> (*te:*)pterm -> (*(te,ty):*)term*term 
 
-(* *** Type checking *** *)
+(* ctx |- ty : Type or ctx |- ty : Kind *)
+val check_type  : (*ctx*)context -> (*ty*)pterm -> (*ty*)term 
 
-val check_type          : (*ctx*)context -> (*ty*)pterm -> term(*ty*) (* ctx |- ty : Type or ctx |- ty : Kind *)
+(* ctx |- te:ty *)
+val check_term  : (*ctx*)context -> (*te*)pterm -> (*ty*)term -> (*te*)term  
 
-val check_term          : (*ctx*)context -> (*te*)pterm -> (*ty*)term -> term(*te*)  (* ctx |- te:ty *)
-
-val check_rule          : prule -> rule  (* Checks that a rule is well-typed *)
+(* Checks that a rule is well-typed *)
+(* [ctx] id args --> r *)
+(* args' is the version of args where placeholders have been filled *)
+val check_rule  : prule -> loc * (*ctx*)context* (*id*)ident *(*(args,args')*)(pattern array*pattern array) * (*r*)term 

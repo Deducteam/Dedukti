@@ -64,10 +64,18 @@ let print_rule (_,ctx,id,args,te:rule) =
             fprintf !Global.tpdb_file ")\n";
           end ) ;
     (* RULES *)
+(*FIXME*)
+    Global.eprint ( 
+      (Pp.string_of_pattern (Pattern (!Global.name,id,args)))
+      ^ " --> " ^
+        (Pp.string_of_term te)
+    ) ;
+    
     fprintf !Global.tpdb_file "(RULES ";
     print_arg num (Pattern (!Global.name,id,args)) ;
     fprintf !Global.tpdb_file " -> ";
     print_term num 0 te ;
     fprintf !Global.tpdb_file ")\n\n"
-
+(*
 let print_rules (rs:rule list) = List.iter print_rule rs
+ *)

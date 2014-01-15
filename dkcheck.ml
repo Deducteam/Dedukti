@@ -53,6 +53,11 @@ struct
         | ( _, _ , None )               -> ()
         | ( md, id , Some (i,g) )       -> Global.vprint (get_loc pte) (lazy (Pp.string_of_gdt md id i g))
 
+  let mk_rule (pr: prule) =
+    let (l,ctx,id,(args,args2),ri) = Inference.check_rule pr in
+      (if !Global.tpdb then Tpdb2.print_rule (l,ctx,id,args2,ri)) ; 
+      (l,ctx,id,args,ri)
+
   let mk_rules (prs:prule list) =
     let (lc,hd) =
       match prs with
@@ -61,8 +66,7 @@ struct
       | _                                       -> assert false
     in
       Global.vprint lc (lazy ("Rewrite rules for symbol '" ^ string_of_ident hd ^ "'.")) ;
-      let rs = List.map Inference.check_rule prs in
-        (if !Global.tpdb then Tpdb2.print_rules rs) ;
+      let rs = List.map mk_rule prs in
         Env.add_rw lc hd rs
 
   let mk_assert lc pt1 pt2 = 

@@ -139,9 +139,10 @@ let check_rule (ctx,te,ri) =
           (x,ty')::ctx
     ) [] ctx in
   let (te',ty,cstr) = infer_pattern ctx' te in
-  let ty' = Rules.resolve_type l ty cstr in
+  let (te2,ty') = Rules.resolve_type l te' ty cstr in
   let ri' = check_term ctx' ri ty' in
 
+    (*
   let te2 = (*FIXME*)
      if !Global.raphael then ( 
        let hnf = Reduction.hnf te' in
@@ -154,10 +155,16 @@ let check_rule (ctx,te,ri) =
          else te'
      )
      else te' in 
+     *)
 
-    match Rules.pattern_of_term te2 with
-      | Pattern (md,id,args)    -> 
-          ( assert (ident_eq md !Global.name) ; ( l , ctx' , id , args , ri' ) )
-      | Var _                   ->
+    match Rules.pattern_of_term te' , Rules.pattern_of_term te2 with
+      | Pattern (md,id,args), Pattern (md2,id2,args2)   -> 
+          begin
+          assert (ident_eq md !Global.name) ; 
+          assert (ident_eq md2 !Global.name) ; 
+          assert (ident_eq id id2) ; 
+          ( l , ctx' , id , (args,args2) , ri' ) 
+          end
+      | Var _ , _               ->
           raise (PatternError ( l , "The left-hand side of a rule cannot be a variable." ))
-      | Joker _                 -> assert false
+      | _ , _                   -> assert false

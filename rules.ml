@@ -51,9 +51,10 @@ let rec print_subst = function
       print_subst lst
 *)
 
-let resolve_type lc ty lst =
+let resolve_type lc te ty lst =
   let s = unify lc (lst,[],[]) in
     (* print_subst s ; *)
   let sty = Subst.meta_subst 0 s ty in
-    if check_term sty then sty
+  let ste = Subst.meta_subst 0 s te in
+    if check_term sty then ( ste , sty )
     else raise ( PatternError ( lc , "Cannot find a type." ) )
