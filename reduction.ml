@@ -180,8 +180,8 @@ let rec decompose (sub:(int*term) list) : (cbn_state*cbn_state) list -> ((int*te
           if term_eq t1 t2 then
             decompose sub lst
           else
-            let s1' = cbn_reduce s1 in
-            let s2' = cbn_reduce s2 in
+            let s1' = (*cbn_reduce*) s1 in
+            let s2' = (*cbn_reduce*) s2 in
               match s1',s2' with
                 (* Base Cases*)
                 | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )
