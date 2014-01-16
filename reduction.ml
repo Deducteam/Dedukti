@@ -209,9 +209,17 @@ let rec decompose (sub:(int*term) list) : (cbn_state*cbn_state) list -> ((int*te
                          | None         -> None
                          | Some lst'    -> decompose sub lst'
                      )
+                | ( k , e , App l , s ) , ( k' , e' , App l' , s' )             ->
+                    let ll1 = ( List.map (fun t -> (k,e,t,[]) ) l ) @ s in
+                    let ll2 = ( List.map (fun t -> (k',e',t,[]) ) l' ) @ s' in
+                      ( match (add_to_list lst ll1 ll2) with
+                          | None         -> None
+                          | Some lst'    -> decompose sub lst'
+                      )
+
                 (* Unification *)
                 | ( ( _ , _ , Meta n , [] ) , st )
-                | ( st , ( _ , _ , Meta n , [] ) )                                  ->
+                | ( st , ( _ , _ , Meta n , [] ) )                              ->
                     decompose  ((n,cbn_term_of_state st)::sub) lst
                 (* Ignored Cases *)
                 | ( _ , _ , Meta n , _ ) , _
