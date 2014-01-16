@@ -42,7 +42,8 @@ and string_of_pattern_wp = function
 
 let tab t = String.make (t*4) ' '
 
-let rec str_of_gdt (t,b) = function
+ (*
+let rec str_of_gdt (t,b) = function 
   | Test ([],te,_)              -> tab t ^ (if b then "else " else "") ^ string_of_term te
   | Test (lst,te,def)           ->
       begin
@@ -62,8 +63,37 @@ let rec str_of_gdt (t,b) = function
             match def with
               | None    -> str
               | Some g  -> str ^ "\n" ^str_of_gdt (t,true) g
+        end 
+*)
+
+let rec str_of_gdt t = function 
+  | Test ([],te,_)              -> string_of_term te
+  | Test (lst,te,def)           ->
+      begin
+        let str = "\n" ^ tab t ^ "if "
+        ^ String.concat " and " 
+            (List.map (fun (i,j) -> "$"^string_of_int i^"=$"^string_of_int j^"" ) lst)
+        ^ " then " ^ string_of_term te
+        in
+          match def with
+            | None      -> str ^ "\n" ^ tab t ^ "else FAIL"
+            | Some g    -> str ^ "\n" ^ tab t ^ "else " ^ str_of_gdt (t+1) g
+      end
+    | Switch (i,cases,def)      ->
+        begin
+          let str_lst = 
+            List.map 
+              (fun ((m,v),g) -> 
+                 "\n" ^ tab t ^ "if $" ^ string_of_int i ^ "=" ^ string_of_const m v ^ " then " 
+                 ^ str_of_gdt (t+1) g 
+              ) cases in
+          let str = String.concat "" str_lst in
+            match def with
+              | None    -> str ^ "\n" ^ tab t ^ "default: FAIL" 
+              | Some g  -> str ^ "\n" ^ tab t ^ "default: " ^ str_of_gdt (t+1) g
         end
+
 
 let string_of_gdt m v i g =
   "GDT for " ^ string_of_const m v ^ " with " ^ string_of_int i ^ " argument(s):\n"
-  ^ str_of_gdt (0,false) g
+  ^ str_of_gdt (0) g

@@ -33,8 +33,8 @@ type partition = { cases:( (ident*ident) * union ) list ; default: pMat option ;
 (*
 let dump_line (id:string) (l:line) =
     Global.eprint ( " [ " ^ string_of_int l.env_size ^ " ] " ^ id ^ " " ) ;
-    Array.iter (fun p -> Global.eprint (Error.string_of_pattern p^"\t")) l.pats ;
-    Global.eprint ( " --> " ^ Error.string_of_term l.right ^ "\n" )
+    Array.iter (fun p -> Global.eprint (Pp.string_of_pattern p^"\t")) l.pats ;
+    Global.eprint ( " --> " ^ Pp.string_of_term l.right ^ "\n" )
 
 let dump_pMat (id:string) (pm:pMat) =
   Global.eprint (" --------> PMAT FOR "^id^"\n");
@@ -127,8 +127,13 @@ let partition (pm:pMat) (c:int) : partition =
   let hs = H.create 17 in
   let (def,consts) = List.fold_right (
     fun l (def,csts) -> match l.pats.(c) with
-      | Pattern (m,v,args)       -> if H.mem hs (m,v) then (def,csts) else (def,(Array.length args,m,v)::csts)
-      | _                            -> (l::def,csts)
+      | Pattern (m,v,args)      -> 
+          if H.mem hs (m,v) then (def,csts) 
+          else ( 
+            H.add hs (m,v) () ;
+            (def,(Array.length args,m,v)::csts)
+          )
+      | _                       -> (l::def,csts)
   ) pm ([],[]) in
   let cases = List.map (specialize c pm) consts in
     match def with
@@ -147,7 +152,7 @@ let getColumn (l:pattern array) : int option =
 let rec reorder l (ord:int array) (k:int) : term -> term = function
   | App args                    -> mk_App (List.map (reorder l ord k) args)
   | Lam (x,a,f)                 -> mk_Lam x (reorder l ord k a) (reorder l ord (k+1) f)
-  | Pi  (x,a,b)                 -> mk_Pi   x (reorder l ord k a) (reorder l ord (k+1) b)
+  | Pi  (x,a,b)                 -> mk_Pi  x (reorder l ord k a) (reorder l ord (k+1) b)
   | DB (x,n) when (n>=k)        ->
       begin
         (*assert (n-k < Array.length ord);*)
@@ -171,7 +176,8 @@ let get_term (l:line) : (int*int)list*term =
                 Global.warning l.loc "Non linear rules are experimental." ;
                 (ord.(n),i)::lst
               )
-          | _       -> lst
+          | Joker _     -> lst
+          | Pattern _   -> assert false
     ) [] l.pats in
     ( lst , reorder l.loc ord 0 l.right )
 
@@ -182,8 +188,8 @@ let rec cc (pm:pMat) : gdt =
       | None      ->
           begin
             match get_term first , pm2 with
+              | ( [] , te ) , _         -> Test ([] ,te,None)
               | ( lst, te ) , []        -> Test (lst,te,None)
-              | ( [] , te ) , _         -> Test ([],te,None)
               | ( lst, te ) , _         -> Test (lst,te,Some (cc pm2))
           end
       (* Colonne c contient un pattern *)
@@ -192,7 +198,7 @@ let rec cc (pm:pMat) : gdt =
           let cases =
             List.rev_map ( (*rev ?*)
               function
-                | ( id , Term te  )     -> ( id , Test ([],te,None) )
+                | ( id , Term te  )     -> ( id , Test ([],te,None) )   
                 | ( id , PMat pm' )     -> ( id , cc pm' )
             ) par.cases in
             ( match par.default with
@@ -251,7 +257,7 @@ let add_rw (n,g) rs =
 
 let get_rw (rs:rule list) : int*gdt =
   let pm  = pMat_from_rules rs in
-    (* dump_pMat "???" pm ; *)
+     (* dump_pMat "???" pm *)  
   let gdt = cc pm in
      (*dump_gdt "???" gdt ; *)
   let le = match pm with | x::_ -> Array.length x.pats | _ -> assert false in
