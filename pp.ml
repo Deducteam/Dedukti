@@ -72,7 +72,7 @@ let rec str_of_gdt t = function
       begin
         let str = "\n" ^ tab t ^ "if "
         ^ String.concat " and " 
-            (List.map (fun (i,j) -> "$"^string_of_int i^"=$"^string_of_int j^"" ) lst)
+            (List.map (fun (i,j) -> string_of_term i ^ "=" ^ string_of_term j ) lst)
         ^ " then " ^ string_of_term te
         in
           match def with

@@ -108,11 +108,11 @@ type pattern =
   | Pattern     of ident*ident*pattern array
 
 type context = ( ident * term ) list
-type rule = loc * context * ident * pattern array * term
+type rule = loc * int * ident * pattern array * term * (term*term) list
 
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option
-  | Test        of (int*int) list*term*gdt option
+  | Test        of (term*term) list*term*gdt option
 
 (* *** Errors *** *)
 

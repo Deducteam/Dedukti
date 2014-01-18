@@ -123,7 +123,11 @@ and check_pattern (ctx:context) (ty:term) : pterm -> term * (term*term) list = f
 let check_term ctx te exp =
   let (te',inf) = infer ctx te in
     if (Reduction.are_convertible exp inf) then te'
-    else err_conv ctx te exp inf
+    else ( (*FIXME*)
+      Global.eprint ( "Exp (hnf): " ^ Pp.string_of_term (Reduction.hnf exp) ) ;
+      Global.eprint ( "Inf (hnf): " ^ Pp.string_of_term (Reduction.hnf inf) ) ;
+      err_conv ctx te exp inf 
+    )
 
 let check_type ctx pty =
   match infer ctx pty with
@@ -146,7 +150,7 @@ let check_rule (ctx,te,ri) =
      if !Global.raphael then ( 
        let hnf = Reduction.hnf te' in
          if not (term_eq te' hnf) then (
-           Global.warning l "This pattern is not normal: replacing by it normal form." ;
+           Global.warning l "This pattern is not normal: replacing it by its normal form." ;
            Global.eprint ("Pattern: " ^ Pp.string_of_term te') ;
            Global.eprint ("Normal form: " ^ Pp.string_of_term hnf) ;
            hnf
@@ -155,9 +159,6 @@ let check_rule (ctx,te,ri) =
      )
      else te' in 
 
-    match Rules.pattern_of_term te2 with
-      | Pattern (md,id,args)    -> 
-          ( assert (ident_eq md !Global.name) ; ( l , ctx' , id , args , ri' ) )
-      | Var _                   ->
-          raise (PatternError ( l , "The left-hand side of a rule cannot be a variable." ))
-      | Joker _                 -> assert false
+  let env_size = List.length ctx' in
+  let (k,id,args,lst) = Rules.get_top_pattern_with_constraints l env_size te2 in
+    ( l , k , id , args , ri' , lst )

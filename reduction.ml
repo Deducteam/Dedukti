@@ -55,14 +55,14 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | ( _ , _ , Kind , _ )
     | ( _ , _ , Pi _ , _ )
     | ( _ , _ , Meta _ , _ )
-    | ( _ , _ , Lam _ , [] )                    -> config
+    | ( _ , _ , Lam _ , [] )                  -> config
     | ( k , _ , DB (_,n) , _ ) when (n>=k)    -> config
     (* Bound variable (to be substitute) *)
     | ( k , e , DB (_,n) , s ) (*when n<k*)   -> cbn_reduce ( 0 , [] , Lazy.force (List.nth e n) , s )
     (* Beta redex *)
     | ( k , e , Lam (_,_,t) , p::s )          -> cbn_reduce ( k+1 , (lazy (cbn_term_of_state p))::e , t , s )
     (* Application *)
-    | ( _ , _ , App ([]|[_]) , _ )              -> assert false
+    | ( _ , _ , App ([]|[_]) , _ )            -> assert false
     | ( k , e , App (he::tl) , s )      ->
         let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
           cbn_reduce ( k , e , he , tl' @ s )
@@ -86,7 +86,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
 
 and rewrite (args:cbn_state list) (g:gdt) : (int*(term Lazy.t) list*term) option =
   match g with
-    | Switch (i,cases,def)        ->
+    | Switch (i,cases,def)      ->
         begin
           (* assert (i<Array.length args); *)
           match cbn_reduce (List.nth args i) with
@@ -100,10 +100,16 @@ and rewrite (args:cbn_state list) (g:gdt) : (int*(term Lazy.t) list*term) option
                    | Some g     -> rewrite args g
                    | None       -> None )
         end
-    | Test (lst,te,def)   ->
+    | Test ([],te,def)          ->
+        Some ( List.length args (*FIXME*) , 
+               List.map (fun a -> lazy (cbn_term_of_state a)) args , te )
+    | Test (lst,te,def)         ->
         begin
-          if state_conv (List.map (fun (i,j) -> (List.nth args i,List.nth args j) ) lst) then
-            Some ( List.length args (*FIXME*) , List.map (fun a -> lazy (cbn_term_of_state a)) args , te )
+          let ctx = List.map (fun st -> lazy (cbn_term_of_state st)) args in 
+          let k = List.length ctx in (*FIXME*)
+          let conv_tests = List.map ( fun (t1,t2) -> ( (k,ctx,t1,[]) , (k,ctx,t2,[]) ) ) lst in
+          if state_conv conv_tests then
+            Some ( k , List.map (fun a -> lazy (cbn_term_of_state a)) args , te )
           else
             match def with
               | None    -> None
@@ -180,8 +186,8 @@ let rec decompose (sub:(int*term) list) : (cbn_state*cbn_state) list -> ((int*te
           if term_eq t1 t2 then
             decompose sub lst
           else
-            let s1' = (*cbn_reduce*) s1 in
-            let s2' = (*cbn_reduce*) s2 in
+            let s1' = cbn_reduce s1 in
+            let s2' = cbn_reduce s2 in
               match s1',s2' with
                 (* Base Cases*)
                 | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )

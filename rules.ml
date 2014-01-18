@@ -8,6 +8,39 @@ let rec pattern_of_term = function
   | App ((DB _)::args)          -> assert false
   | _                           -> assert false
 
+let get_constraints size_env p =
+  let vars = Array.make size_env false in
+  let rec aux (k,lst,pat) =
+      match pat with
+        | Pattern (md,id,args)        -> 
+            let args2 = Array.make (Array.length args) (Joker 0) in
+            let aux_pat (i,kk,ll) pp = 
+              let (kk',ll',p) = aux (kk,ll,pp) in
+                args2.(i) <- p ;
+                (i+1,kk',ll')
+            in
+            let (_,k',lst') = Array.fold_left aux_pat (0,k,lst) args in
+              ( k', lst', Pattern (md,id,args2) )
+        | Var (id,n)                  -> 
+            begin
+              if vars.(n) then 
+                ( k+1, (mk_DB id n,mk_DB id k)::lst, Var (id,k) )
+              else (
+                vars.(n) <- true ;
+                ( k, lst, Var (id,n) ) )
+            end
+        | Joker n                     -> ( k, lst, Joker n ) 
+  in
+    aux (size_env,[],p)
+
+let get_top_pattern_with_constraints l size_env t =
+  let p = pattern_of_term t in
+    match get_constraints size_env p with
+      | ( _ , _ , Joker _ )                     -> assert false (*FIXME cannot happen ?*) 
+      | ( _ , _ , Var _ )                       -> raise (PatternError ( l , "The left-hand side of a rule cannot be a variable." ))
+      | ( k , lst , Pattern (_,id,args) )       ->  (k,id,args,lst)
+
+
 type ustate = (term*term) list (* Terms to unify *)
             * (int*term)  list (* Variable to substitute *)
             * (int*term)  list (* Substitution *)
