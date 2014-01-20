@@ -2,7 +2,7 @@ open Types
 
 let rec pattern_of_term = function
   | DB (id,n)                   -> Var (id,n)
-  | Meta n                      -> Joker n
+(*  | Meta n                      -> Joker n *)
   | Const (md,id)               -> Pattern (md,id,[||])
   | App ((Const (md,id))::args) -> Pattern (md,id,Array.of_list (List.map pattern_of_term args))
   | App ((DB _)::args)          -> assert false
@@ -46,12 +46,12 @@ type ustate = (term*term) list (* Terms to unify *)
             * (int*term)  list (* Substitution *)
 
 let rec not_in n : term -> bool = function
-  | Meta i                              -> i <> n
+  (*| Meta i                              -> i <> n*)
   | Kind | Type _ | Const _ | DB _      -> true
   | App args                            -> List.for_all (not_in n) args
   | Lam (_,ty,te) | Pi (_,ty,te)        -> not_in n ty && not_in n te
 
-let rec unify (lc:loc) : ustate -> (int*term) list = function
+let rec unify (lc:loc) : ustate -> (int*term) list = assert false (*function
   | ( [] , [] , s)              -> s
   | ( [] , (v,t0)::b , s)       ->
       let t = Subst.meta_subst 0 s t0 in
@@ -68,11 +68,11 @@ let rec unify (lc:loc) : ustate -> (int*term) list = function
         match Reduction.decompose_eq t1 t2 with
          | None         -> raise (PatternError ( lc , "Cannot find a type." ))
          | Some lst     -> unify lc (a,lst@b,s)
-      end
+      end *)
 
 let rec check_term = function
   | Kind | Type _ | Const _ | DB _      -> true
-  | Meta _                              -> false
+    (*  | Meta _                              -> false*)
   | App args                            -> List.for_all check_term args
   | Lam (_,ty,te) | Pi (_,ty,te)        -> check_term ty && check_term te
 
@@ -84,9 +84,9 @@ let rec print_subst = function
       print_subst lst
 *)
 
-let resolve_type lc ty lst =
+let resolve_type lc ty lst = assert false (*
   let s = unify lc (lst,[],[]) in
     (* print_subst s ; *)
   let sty = Subst.meta_subst 0 s ty in
     if check_term sty then sty
-    else raise ( PatternError ( lc , "Cannot find a type." ) )
+    else raise ( PatternError ( lc , "Cannot find a type." ) ) *)

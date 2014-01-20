@@ -53,41 +53,55 @@ type token =
 
 (* *** Pseudo Terms *** *)
 
-type pterm =
-  | P_Type of loc
-  | P_Id   of loc * ident
-  | P_QId  of loc * ident * ident
-  | P_App  of pterm list
-  | P_Lam  of loc * ident * pterm * pterm
-  | P_Pi   of (loc*ident) option * pterm * pterm
-  | P_Unknown of loc * int
+type preterm =
+  | PreType of loc
+  | PreId   of loc * ident
+  | PreQId  of loc * ident * ident
+  | PreApp  of preterm list
+  | PreLam  of loc * ident * preterm * preterm
+  | PrePi   of (loc*ident) option * preterm * preterm
 
-let mk_type lc          = P_Type lc
-let mk_id lc id         = P_Id (lc,id)
-let mk_qid lc md id     = P_QId (lc,md,id)
-let mk_lam lc x ty te   = P_Lam (lc,x,ty,te)
-let mk_arrow a b        = P_Pi (None,a,b)
-let mk_pi lc x a b      = P_Pi (Some(lc,x),a,b)
-let mk_app              = function
+type prepattern = 
+  | Unknown     of loc*int
+  | PPattern    of loc*ident option*ident*prepattern list
+
+type ptop = loc * ident * prepattern list
+
+let mk_pre_type lc          = PreType lc
+let mk_pre_id lc id         = PreId (lc,id)
+let mk_pre_qid lc md id     = PreQId (lc,md,id)
+let mk_pre_lam lc x ty te   = PreLam (lc,x,ty,te)
+let mk_pre_arrow a b        = PrePi (None,a,b)
+let mk_pre_pi lc x a b      = PrePi (Some(lc,x),a,b)
+let mk_pre_app              = function
   | []                  -> assert false
   | [t]                 -> t
-  | (P_App l1)::l2      -> P_App (l1@l2)
-  | lst -> P_App lst
-let meta = ref (-1)
+  | (PreApp l1)::l2      -> PreApp (l1@l2)
+  | lst -> PreApp lst
+
+let cpt = ref (-1)
+let mk_unknown l = incr cpt ; Unknown (l,!cpt)
+
+(* let meta = ref (-1)
 let mk_unknown lc =
   incr meta ; P_Unknown (lc,!meta)
-
-let rec get_loc = function
-  | P_Type l | P_Id (l,_) | P_QId (l,_,_)
-  | P_Lam  (l,_,_,_) | P_Pi   (Some(l,_),_,_)
-  | P_Unknown (l,_)                     -> l
-  | P_Pi   (None,f,_) | P_App (f::_)    -> get_loc f
-  | P_App _                             -> assert false
-
-type ptop       = (loc*ident) * pterm list
-type pdecl      = loc * ident * pterm
+ *)
+(*type ptop       = (loc*ident) * pterm list*)
+(*
+let mk_ppattern _ _ _ _ = assert false 
+let mk_unknown _ = assert false
+let mk_dot _ = assert false
+let mk_top _ _ = assert false
+ *)
+type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
-type prule      = pcontext * pterm * pterm
+type prule      = pcontext * ptop * preterm
+ 
+let rec get_loc = function
+  | PreType l | PreId (l,_) | PreQId (l,_,_)
+  | PreLam  (l,_,_,_) | PrePi   (Some(l,_),_,_) -> l
+  | PrePi   (None,f,_) | PreApp (f::_)          -> get_loc f
+  | PreApp _                                    -> assert false
 
 (* *** Terms *** *)
 
@@ -99,7 +113,6 @@ type term =
   | App   of term list                  (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
   | Lam   of ident*term*term            (* Lambda abstraction *)
   | Pi    of ident option*term*term     (* Pi abstraction *)
-  | Meta  of int
 
 let mk_Kind             = Kind
 let mk_Type             = Type
@@ -107,11 +120,12 @@ let mk_DB x n           = DB (x,n)
 let mk_Const m v        = Const (m,v)
 let mk_Lam x a b        = Lam (x,a,b)
 let mk_Pi x a b         = Pi (x,a,b)
-let mk_Meta n           = Meta n
+
 let mk_App              = function
   | [] | [_] -> assert false
   | (App l1)::l2 -> App (l1@l2)
   | lst -> App lst
+
 let cpt = ref (-1)
 let mk_Unique _ =
   incr cpt ;
@@ -121,13 +135,47 @@ let rec term_eq t1 t2 =
   (* t1 == t2 || *)
   match t1, t2 with
     | Kind, Kind | Type , Type          -> true
-    | DB (_,n), DB (_,n') 
-    | Meta n, Meta n'                   -> n=n'
+    | DB (_,n), DB (_,n')               -> n=n' 
     | Const (m,v), Const (m',v')        -> ident_eq v v' && ident_eq m m'
     | App l, App l'                     -> ( try List.for_all2 term_eq l l' with _ -> false )
     | Lam (_,a,b), Lam (_,a',b')
     | Pi (_,a,b), Pi (_,a',b')          -> term_eq a a' && term_eq b b'
     | _, _                              -> false
+
+(* *** Partial Terms *** *)
+
+type partial_term = 
+  | PartialApp  of partial_term list                  
+  | PartialLam  of ident * partial_term * partial_term            
+  | PartialPi   of ident option * partial_term * partial_term     
+  | Meta        of int 
+  | Term        of term
+
+let mk_partial te = Term te
+let mk_meta n = Meta n
+
+let mk_partial_lam x ty te = 
+ match ty,te with
+   | Term ty', Term te' -> Term (Lam (x,ty',te'))
+   | _, _               -> PartialLam (x,ty,te)
+
+let mk_partial_pi x a b = 
+  match a, b with
+    | Term a', Term b'  -> Term (Pi (x,a',b'))
+    | _, _              -> PartialPi (x,a,b)
+
+let rec extract = function
+  | []                  -> Some []
+  | (Term t)::tl        -> 
+      ( match extract tl with 
+          | None -> None 
+          | Some tl' -> Some (t::tl') )
+  | _::_                -> None
+
+let mk_partial_app lst = 
+  match extract lst with
+    | None      -> PartialApp lst
+    | Some lst' -> Term (mk_App lst')
 
 (* *** Rewrite Rules *** *)
 
@@ -135,9 +183,11 @@ type pattern =
   | Var         of ident*int
   | Joker       of int
   | Pattern     of ident*ident*pattern array
+  | Dot         of partial_term
 
+type top = ident*pattern array
 type context = ( ident * term ) list
-type rule = loc * int * ident * pattern array * term * (term*term) list
+type rule = loc * context * ident * pattern array * term 
 
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option

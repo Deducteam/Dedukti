@@ -50,31 +50,42 @@ type token =
   | ASSERT      of loc
   | EQUIV
 
-(* Pseudo Terms *)
+(* Pre Terms *)
 
-type pterm = private
-  | P_Type of loc
-  | P_Id   of loc * ident
-  | P_QId  of loc * ident * ident
-  | P_App  of pterm list
-  | P_Lam  of loc * ident * pterm * pterm
-  | P_Pi   of (loc*ident) option * pterm * pterm
-  | P_Unknown of loc * int
+type preterm = private
+  | PreType of loc
+  | PreId   of loc * ident
+  | PreQId  of loc * ident * ident
+  | PreApp  of preterm list
+  | PreLam  of loc * ident * preterm * preterm
+  | PrePi   of (loc*ident) option * preterm * preterm
 
-val mk_type   : loc -> pterm
-val mk_id     : loc -> ident -> pterm
-val mk_qid    : loc -> ident -> ident -> pterm
-val mk_lam    : loc -> ident -> pterm -> pterm -> pterm
-val mk_app    : pterm list -> pterm
-val mk_arrow  : pterm -> pterm -> pterm
-val mk_pi     : loc -> ident -> pterm -> pterm -> pterm
-val mk_unknown: loc -> pterm
+type prepattern = 
+  | Unknown     of loc*int
+  | PPattern    of loc*ident option*ident*prepattern list
 
-val get_loc : pterm -> loc
+type ptop = loc * ident * prepattern list
 
-type pdecl      = loc * ident * pterm
+val mk_pre_type         : loc -> preterm
+val mk_pre_id           : loc -> ident -> preterm
+val mk_pre_qid          : loc -> ident -> ident -> preterm
+val mk_pre_lam          : loc -> ident -> preterm -> preterm -> preterm
+val mk_pre_app          : preterm list -> preterm
+val mk_pre_arrow        : preterm -> preterm -> preterm
+val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
+
+val mk_unknown          : loc -> prepattern
+(*
+val mk_unknown          : loc -> prepattern (*TODO pas de raison d'etre private*)
+val mk_ppattern         : loc -> ident -> ident -> prepattern list -> prepattern
+val mk_dot              : preterm -> prepattern
+val mk_top              : loc -> ident -> prepattern list -> ptop
+ *)
+type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
-type prule      = pcontext * pterm * pterm
+type prule      = pcontext * ptop * preterm
+
+val get_loc : preterm -> loc
 
 (* *** Terms *** *)
 
@@ -86,9 +97,6 @@ type term = private
   | App   of term list                  (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
   | Lam   of ident*term*term            (* Lambda abstraction *)
   | Pi    of ident option*term*term     (* Pi abstraction *)
-  | Meta  of int
-
-val term_eq : term -> term -> bool      (* Syntactic equality / Alpha-equivalence *)
 
 val mk_Kind     : term
 val mk_Type     : term
@@ -98,17 +106,35 @@ val mk_Lam      : ident -> term -> term -> term
 val mk_App      : term list -> term
 val mk_Pi       : ident option -> term -> term -> term
 val mk_Unique   : unit -> term
-val mk_Meta     : int -> term
+
+val term_eq : term -> term -> bool      (* Syntactic equality / Alpha-equivalence *)
+
+(* *** Partial Terms *** *)
+
+type partial_term = private
+  | PartialApp  of partial_term list                  
+  | PartialLam  of ident * partial_term * partial_term            
+  | PartialPi   of ident option * partial_term * partial_term     
+  | Meta        of int 
+  | Term        of term
+
+val mk_partial          : term -> partial_term
+val mk_meta             : int -> partial_term 
+val mk_partial_lam      : ident -> partial_term -> partial_term -> partial_term
+val mk_partial_app      : partial_term list -> partial_term
+val mk_partial_pi       : ident option -> partial_term -> partial_term -> partial_term
 
 (* *** Rewrite Rules *** *)
 
-type pattern =
+type pattern = 
   | Var         of ident*int
   | Joker       of int
   | Pattern     of ident*ident*pattern array
+  | Dot         of partial_term
 
+type top = ident*pattern array
 type context = ( ident * term ) list
-type rule = loc * int * ident * pattern array * term * (term*term) list
+type rule = loc * context * ident * pattern array * term
 
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option

@@ -54,7 +54,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | ( _ , _ , Type , _ )
     | ( _ , _ , Kind , _ )
     | ( _ , _ , Pi _ , _ )
-    | ( _ , _ , Meta _ , _ )
+(*    | ( _ , _ , Meta _ , _ ) *)
     | ( _ , _ , Lam _ , [] )                  -> config
     | ( k , _ , DB (_,n) , _ ) when (n>=k)    -> config
     (* Bound variable (to be substitute) *)
@@ -151,7 +151,7 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
                       ( match add_to_list (x::y::lst) s s' with
                           | None        -> false
                           | Some lst'   -> state_conv lst' )
-                | ( _ , _ , Meta _ , _ ) , _ | _ , ( _ , _ , Meta _ , _ )               -> assert false
+              (*  | ( _ , _ , Meta _ , _ ) , _ | _ , ( _ , _ , Meta _ , _ )               -> assert false*)
                 | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                                 -> false
       end
 
@@ -176,7 +176,7 @@ let are_convertible t1 t2 =
 
 (* *** UNIFICATION *** *)
 
-let rec decompose (sub:(int*term) list) : (cbn_state*cbn_state) list -> ((int*term) list) option =
+let rec decompose (sub:(int*term) list) : (cbn_state*cbn_state) list -> ((int*term) list) option = assert false (*
   function
   | []                  -> Some sub
   | (s1,s2)::lst        ->
@@ -232,6 +232,6 @@ let rec decompose (sub:(int*term) list) : (cbn_state*cbn_state) list -> ((int*te
                 | _ , ( _ , _ , Meta n , _ )                                        -> decompose sub lst
                 (*Not Unifiable*)
                 | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                                 -> None
-      end
+      end*)
 
 let decompose_eq t1 t2 = decompose [] [ (0,[],t1,[]),(0,[],t2,[]) ]

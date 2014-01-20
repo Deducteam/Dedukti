@@ -32,39 +32,79 @@ type partition = { cases:( (ident*ident) * pMat ) list ; default: line list ; }
 
 (* *** Debug *** *)
 
-(*
-let dump_line (id:string) (l:line) =
-    Global.eprint ( " [ " ^ string_of_int l.env_size ^ " ] " ^ id ^ " " ) ;
+let string_of_line id l = (*FIXME*)
+  let s =
+    " " ^ string_of_ident id ^ " " 
+    ^ (String.concat " " (Array.to_list (Array.map Pp.string_of_pattern l.pats)) )
+    ^ " --> " ^ Pp.string_of_term l.right
+  in
+  match l.constr with
+    | []        -> s
+    | _::_      -> s ^ " when " ^ ( String.concat " and " (List.map (fun (t1,t2) -> Pp.string_of_term t1 ^ " ~= " ^ Pp.string_of_term t2) l.constr) )
+    
+                                    (*Global.eprint ( " [ " ^ string_of_int l.env_size ^ " ] " ^ id ^ " " ) ;
     Array.iter (fun p -> Global.eprint (Pp.string_of_pattern p^"\t")) l.pats ;
-    Global.eprint ( " --> " ^ Pp.string_of_term l.right ^ "\n" )
-
-let dump_pMat (id:string) (pm:pMat) =
+    Global.eprint ( " --> " ^ Pp.string_of_term l.right ^ "\n" ) *)
+(*
+let dump_pMat (id:string) (l1,tl:pMat) =
   Global.eprint (" --------> PMAT FOR "^id^"\n");
-  List.iter (dump_line id) pm ;
+  List.iter (dump_line id) (l1::tl) ;
   Global.eprint " <-------- \n"
  *)
 
 (* *** Internal functions *** *)
 
-let line_from_rule (l,env_size,id,pats,ri,lst:rule) : line =
-  { loc = l; 
-    pats = pats;
-    right = ri;
-    env_size = env_size;
-    constr = lst
-  }
+let get_constraints size_env p =
+  let vars = Array.make size_env false in
+  let rec aux (k,lst,pat) =
+    match pat with
+      | Pattern (md,id,args)    -> 
+          let args2 = Array.make (Array.length args) (Joker 0) in
+          let aux_pat (i,kk,ll) pp = 
+            let (kk',ll',p) = aux (kk,ll,pp) in
+              args2.(i) <- p ;
+              (i+1,kk',ll')
+          in
+          let (_,k',lst') = Array.fold_left aux_pat (0,k,lst) args in
+            ( k', lst', Pattern (md,id,args2) )
+      | Var (id,n)              -> 
+          begin
+            if vars.(n) then 
+              ( k+1, (mk_DB id n,mk_DB id k)::lst, Var (id,k) )
+            else (
+              vars.(n) <- true ;
+              ( k, lst, Var (id,n) ) )
+          end
+      | Joker n                 -> ( k, lst, Joker n ) 
+      | Dot _ as d              -> ( k, lst, d )    
+  in
+    aux (size_env,[],p)
+
+let linearize k args = 
+  match get_constraints k (Pattern (empty,empty,args)) with
+    | k' , lst , Pattern (_,_,args')    -> ( k' , args' , lst )
+    | _, _, _                           -> assert false
+
+let line_from_rule (l,ctx,id,pats0,ri:rule) : line =
+  let k0 = List.length ctx in (*FIXME*)
+  let (k,pats,lst) = linearize k0 pats0 in
+    { loc = l; 
+      pats = pats;
+      right = ri;
+      env_size = k;
+      constr = lst }
 
 let pMat_from_rules (rs:rule list) : int*pMat =
   match rs with
     | []        -> assert false
     | l1::tl    -> 
-        let (_,_,id,pats,_,_) = l1 in
+        let (_,_,id,pats,_) = l1 in
         let arity = Array.length pats in
           ( arity , 
             ( line_from_rule l1 ,
               List.map 
                 (fun li ->
-                   let (l,_,id',pats',_,_) = li in
+                   let (l,_,id',pats',_) = li in
                      if Array.length pats' != arity then
                        raise ( PatternError ( l , "All the rules must have the same arity." ) )
                      else if (not (ident_eq id id')) then
@@ -113,7 +153,7 @@ let specialize (c:int) (l1,tl:pMat) (nargs,m,v:int*ident*ident) : (ident*ident)*
   let spec_aux li lst =
         assert ( Array.length li.pats = n );    (*FIXME*)
     match li.pats.(c) with
-      | Joker _                 ->
+      | Joker _ | Dot _         ->
           { li with pats = mk_pats li.pats }::lst
       | Pattern (m',v',args)    ->
           if not (ident_eq v v' && ident_eq m m') then lst
@@ -191,9 +231,9 @@ let get_order (l:line) : int array =
     Array.iteri 
       (fun i p ->
          match p with
-           | Var (_,n)   -> ( assert (n<l.env_size) ; assert (ord.(n) = (-1)) ; ord.(n) <- i ) (*FIXME*)
-           | Joker _     -> ()
-           | Pattern _   -> assert false
+           | Var (_,n)          -> ( assert (n<l.env_size) ; assert (ord.(n) = (-1)) ; ord.(n) <- i ) (*FIXME*)
+           | Joker _ | Dot _    -> ()
+           | Pattern _          -> assert false
       ) l.pats ;
     ord
 
@@ -262,7 +302,11 @@ let add_rw (n,g) rs =
     else
       ( n , add_lines pm g )
 
-let get_rw (rs:rule list) : int*gdt =
+let get_rw id (rs:rule list) : int*gdt =
   let ( nb_args , pm )  = pMat_from_rules rs in
+    Global.eprint ("Rewrite rules for '" ^ string_of_ident id ^ "':");
+    Global.eprint (string_of_line id (fst pm));
+    List.iter (fun l -> Global.eprint (string_of_line id l)) (snd pm); 
   let gdt = cc pm in
+    Global.eprint (Pp.string_of_gdt !Global.name id nb_args gdt) ;
     ( nb_args , gdt )

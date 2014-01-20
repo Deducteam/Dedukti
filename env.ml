@@ -90,7 +90,7 @@ let add_rw lc v rs =
       match H.find env v with
         | Def (_,_)             -> raise ( EnvError ( lc , "Cannot add rewrite rules for the symbol '" ^ string_of_ident v ^ "' (Definition)." ) )
         | Decl(ty,Some g)       -> H.add env v (Decl (ty,Some (Matching.add_rw g rs)))
-        | Decl (ty,None)        -> H.add env v (Decl (ty,Some (Matching.get_rw rs)))
+        | Decl (ty,None)        -> H.add env v (Decl (ty,Some (Matching.get_rw v rs)))
     ) with
       Not_found ->
         raise (EnvError ( lc , "Cannot find symbol '" ^ string_of_ident !Global.name ^ "." ^ string_of_ident v ^ "'." ))

@@ -46,25 +46,24 @@ struct
       Global.sprint ( Pp.string_of_term te' ) ;
       match (
         match pte with
-          | P_Id (l,id)         -> ( !Global.name , id , Env.get_global_rw l !Global.name id )
-          | P_QId (l,md,id)     -> ( md ,id , Env.get_global_rw l md id )
+          | PreId (l,id)         -> ( !Global.name , id , Env.get_global_rw l !Global.name id )
+          | PreQId (l,md,id)     -> ( md ,id , Env.get_global_rw l md id )
           | _                   -> ( empty , empty , None )
       ) with
         | ( _, _ , None )               -> ()
         | ( md, id , Some (i,g) )       -> Global.vprint (get_loc pte) (lazy (Pp.string_of_gdt md id i g))
 
-  let mk_rules (prs:prule list) =
+  let mk_rules (prs:prule list) = 
     let (lc,hd) =
       match prs with
-      | (_,P_Id(l,id),_)::_
-      | (_,P_App((P_Id (l,id))::_),_)::_        -> (l,id)
-      | _                                       -> assert false
+      | []                      -> assert false
+      | (_,(l,id,_),_)::_       -> (l,id)
     in
       Global.vprint lc (lazy ("Rewrite rules for symbol '" ^ string_of_ident hd ^ "'.")) ;
       let rs = List.map Inference.check_rule prs in
-        Env.add_rw lc hd rs
+        Env.add_rw lc hd rs 
 
-  let mk_assert lc pt1 pt2 = 
+  let mk_assert lc pt1 pt2 = (*FIXME*) 
     Global.vprint lc (lazy ("Checking assertion.")) ;
     let (t1,_) = Inference.infer [] pt1 in
     let (t2,_) = Inference.infer [] pt2 in
