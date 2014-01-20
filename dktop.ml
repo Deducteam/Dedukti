@@ -43,15 +43,14 @@ struct
   let mk_rules (prs:prule list) =
     let (lc,hd) =
       match prs with
-      | (_,P_Id(l,id),_)::_
-      | (_,P_App((P_Id (l,id))::_),_)::_        -> (l,id)
-      | _                                       -> assert false
+      | (_,(l,id,_),_)::_       -> (l,id)
+      | _                       -> assert false
     in
     let rs = List.map Inference.check_rule prs in
       Env.add_rw lc hd rs ;
       Global.sprint ("Rules added.")
 
-  let mk_assert _ _ _ = assert false (*FIXME*)
+  let mk_assert _ _ _ = failwith "Not implemented (#ASSERT command)." 
 
   let mk_ending _ = ()
 
@@ -66,10 +65,12 @@ let rec parse lb =
         P.line Lexer.token lb
       done
   with
+    | LexerError (_,err)  | ParserError (_,err) 
+    | TypingError (_,err) | EnvError (_,err) 
+    | PatternError (_,err)                      ->  error lb err
+    | P.Error                                   -> 
+        error lb ("Unexpected token '" ^ (Lexing.lexeme lb) ^ "'." )
     | EndOfFile                                 -> exit 0
-    | LexerError (_,err)  | ParserError (_,err) | TypingError (_,err)
-    | EnvError (_,err) | PatternError (_,err)   ->  error lb err
-    | P.Error                                   -> error lb ("Unexpected token '" ^ (Lexing.lexeme lb) ^ "'." )
 
 and error lb err = Global.sprint err ; parse lb
 

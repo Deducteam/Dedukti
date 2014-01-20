@@ -46,12 +46,13 @@ struct
       Global.sprint ( Pp.string_of_term te' ) ;
       match (
         match pte with
-          | PreId (l,id)         -> ( !Global.name , id , Env.get_global_rw l !Global.name id )
-          | PreQId (l,md,id)     -> ( md ,id , Env.get_global_rw l md id )
+          | PreId (l,id)        -> ( !Global.name , id , Env.get_global_rw l !Global.name id )
+          | PreQId (l,md,id)    -> ( md ,id , Env.get_global_rw l md id )
           | _                   -> ( empty , empty , None )
       ) with
-        | ( _, _ , None )               -> ()
-        | ( md, id , Some (i,g) )       -> Global.vprint (get_loc pte) (lazy (Pp.string_of_gdt md id i g))
+        | ( _, _ , None )               -> () 
+        | ( md, id , Some (i,g) )       -> 
+            Global.vprint (get_loc pte) (lazy (Pp.string_of_gdt md id i g))
 
   let mk_rules (prs:prule list) = 
     let (lc,hd) =
@@ -63,12 +64,12 @@ struct
       let rs = List.map Inference.check_rule prs in
         Env.add_rw lc hd rs 
 
-  let mk_assert lc pt1 pt2 = (*FIXME*) 
+  let mk_assert lc pt1 pt2 = 
     Global.vprint lc (lazy ("Checking assertion.")) ;
     let (t1,_) = Inference.infer [] pt1 in
     let (t2,_) = Inference.infer [] pt2 in
       if not (Reduction.are_convertible t1 t2) then
-        failwith "Assertion failed: terms are not convertible." (*FIXME*)
+        failwith "Assertion failed: terms are not convertible." (*TODO*)
 
   let mk_ending _ =
     Env.export_and_clear ()

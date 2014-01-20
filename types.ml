@@ -82,17 +82,6 @@ let mk_pre_app              = function
 let cpt = ref (-1)
 let mk_unknown l = incr cpt ; Unknown (l,!cpt)
 
-(* let meta = ref (-1)
-let mk_unknown lc =
-  incr meta ; P_Unknown (lc,!meta)
- *)
-(*type ptop       = (loc*ident) * pterm list*)
-(*
-let mk_ppattern _ _ _ _ = assert false 
-let mk_unknown _ = assert false
-let mk_dot _ = assert false
-let mk_top _ _ = assert false
- *)
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
 type prule      = pcontext * ptop * preterm

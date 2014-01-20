@@ -13,44 +13,29 @@ struct
     ident_eq v v' && ident_eq m m'
 end )
 
-(*let foldi (type a) (type b) (f:int -> 'a -> 'b -> 'a)  (z:'a) (arr:'b array) : 'a =*)
-(*
-let foldi f z arr =
-  let rec aux i =
-    if i < Array.length arr then f i (aux (i+1)) arr.(i)
-    else z
-  in
-    aux 0
- *)
-
 (* *** Types *** *)
 
-type line = { loc:loc ; pats:pattern array ; right:term ; env_size:int ; constr:(term*term) list }
+type line = { loc:loc ; 
+              pats:pattern array ; 
+              right:term ; 
+              env_size:int ; 
+              constr:(term*term) list }
 type pMat = line * line list
-(*type union = PMat of pMat | Term of term*)
-type partition = { cases:( (ident*ident) * pMat ) list ; default: line list ; }
+type partition = { cases:( (ident*ident) * pMat ) list ; 
+                   default: line list ; }
 
 (* *** Debug *** *)
 
-let string_of_line id l = (*FIXME*)
+let string_of_line id l = 
   let s =
-    " " ^ string_of_ident id ^ " " 
+    " [" ^ string_of_int l.env_size ^ "] " ^ string_of_ident id ^ " " 
     ^ (String.concat " " (Array.to_list (Array.map Pp.string_of_pattern l.pats)) )
     ^ " --> " ^ Pp.string_of_term l.right
   in
-  match l.constr with
-    | []        -> s
-    | _::_      -> s ^ " when " ^ ( String.concat " and " (List.map (fun (t1,t2) -> Pp.string_of_term t1 ^ " ~= " ^ Pp.string_of_term t2) l.constr) )
-    
-                                    (*Global.eprint ( " [ " ^ string_of_int l.env_size ^ " ] " ^ id ^ " " ) ;
-    Array.iter (fun p -> Global.eprint (Pp.string_of_pattern p^"\t")) l.pats ;
-    Global.eprint ( " --> " ^ Pp.string_of_term l.right ^ "\n" ) *)
-(*
-let dump_pMat (id:string) (l1,tl:pMat) =
-  Global.eprint (" --------> PMAT FOR "^id^"\n");
-  List.iter (dump_line id) (l1::tl) ;
-  Global.eprint " <-------- \n"
- *)
+  let aux (t1,t2) = Pp.string_of_term t1 ^ " ~= " ^ Pp.string_of_term t2 in
+    match l.constr with
+      | []        -> s
+      | _::_      -> s ^ " when " ^ (String.concat " and " (List.map aux l.constr))
 
 (* *** Internal functions *** *)
 
@@ -59,7 +44,8 @@ let get_constraints size_env p =
   let rec aux (k,lst,pat) =
     match pat with
       | Pattern (md,id,args)    -> 
-          let args2 = Array.make (Array.length args) (Joker 0) in
+          let n = Array.length args in
+          let args2 = Array.make n (Joker 0) in
           let aux_pat (i,kk,ll) pp = 
             let (kk',ll',p) = aux (kk,ll,pp) in
               args2.(i) <- p ;
@@ -86,13 +72,9 @@ let linearize k args =
     | _, _, _                           -> assert false
 
 let line_from_rule (l,ctx,id,pats0,ri:rule) : line =
-  let k0 = List.length ctx in (*FIXME*)
+  let k0 = List.length ctx in (*TODO get rid of length*)
   let (k,pats,lst) = linearize k0 pats0 in
-    { loc = l; 
-      pats = pats;
-      right = ri;
-      env_size = k;
-      constr = lst }
+    { loc = l; pats = pats; right = ri; env_size = k; constr = lst }
 
 let pMat_from_rules (rs:rule list) : int*pMat =
   match rs with
@@ -100,36 +82,18 @@ let pMat_from_rules (rs:rule list) : int*pMat =
     | l1::tl    -> 
         let (_,_,id,pats,_) = l1 in
         let arity = Array.length pats in
-          ( arity , 
-            ( line_from_rule l1 ,
-              List.map 
-                (fun li ->
-                   let (l,_,id',pats',_) = li in
-                     if Array.length pats' != arity then
-                       raise ( PatternError ( l , "All the rules must have the same arity." ) )
-                     else if (not (ident_eq id id')) then
-                       raise ( PatternError ( l , "All the rules must have the same head symbol." ) )
-                     else
-                       line_from_rule li) tl
-            )
-          ) 
-
-(*
-let union_from_lines (lst:line list) : union =
-  match lst with
-    | []        -> assert false
-    | x::lst'   ->
-        let arity = Array.length x.pats in
-          if arity = 0 then Term x.right
-          else
-            begin
-              assert ( List.for_all (fun y -> Array.length y.pats = arity ) lst' ) ;
-              PMat lst
-            end
- *)
+        let aux li =
+          let (l,_,id',pats',_) = li in
+            if Array.length pats' != arity then
+              raise ( PatternError ( l , "All the rules must have the same arity." ) )
+            else if (not (ident_eq id id')) then
+              raise ( PatternError ( l , "All the rules must have the same head symbol." ) )
+            else
+              line_from_rule li
+        in
+          ( arity , ( line_from_rule l1 , List.map aux tl ) ) 
 
 let qm = hstring "?"
-
 let mk_var_lst inf sup =
   let rec aux i =
     if i<sup then
@@ -140,18 +104,17 @@ let mk_var_lst inf sup =
 let specialize (c:int) (l1,tl:pMat) (nargs,m,v:int*ident*ident) : (ident*ident)*pMat =
   let n = Array.length l1.pats  in
   let new_n = n + nargs -1      in
-    assert ( c < n );   (*FIXME*)
-    assert ( 0 <= new_n );
+    (* assert ( c < n );   *)
+    assert ( 0 <= new_n ); (*TODO can this happen ?*)
   let mk_pats p = 
     Array.init new_n (
       fun i ->
         if i < c          then  p.(i)   (* [ 0 - (c-1) ] *)
         else if i < (n-1) then  p.(i+1) (* [ c - (n-2) ] *)
-        else (* i < new_n *)    Joker 0 (* [ (n-1) - (n+nargs-2) ] *)
-    ) 
+        else (* i < new_n *)    Joker 0 (* [ (n-1) - (n+nargs-2) ] *) ) 
   in
   let spec_aux li lst =
-        assert ( Array.length li.pats = n );    (*FIXME*)
+    (*  assert ( Array.length li.pats = n ); *)
     match li.pats.(c) with
       | Joker _ | Dot _         ->
           { li with pats = mk_pats li.pats }::lst
@@ -159,7 +122,7 @@ let specialize (c:int) (l1,tl:pMat) (nargs,m,v:int*ident*ident) : (ident*ident)*
           if not (ident_eq v v' && ident_eq m m') then lst
           else (
             let pats = mk_pats li.pats in
-              assert (Array.length args = nargs); (*FIXME*)
+              (* assert (Array.length args = nargs); *)
               Array.iteri (fun i a -> pats.(n-1+i) <- a) args ;
               { li with pats = pats }::lst )
       | Var (_,q)               ->
@@ -174,7 +137,9 @@ let specialize (c:int) (l1,tl:pMat) (nargs,m,v:int*ident*ident) : (ident*ident)*
                 env_size  = li.env_size + nargs;
                 pats = pats; 
                 right = Subst.subst_q (q,te) 0 li.right;
-                constr = List.map (fun (t1,t2) -> ( Subst.subst_q (q,te) 0 t1 , Subst.subst_q (q,te) 0 t2 ) ) li.constr;
+                constr = List.map (
+                  fun (t1,t2) -> ( Subst.subst_q (q,te) 0 t1 , Subst.subst_q (q,te) 0 t2 ) 
+                ) li.constr;
           }::lst
   in
     match List.fold_right spec_aux (l1::tl) [] with
@@ -186,54 +151,47 @@ let partition (l1,pm:pMat) (c:int) : partition =
   let (def,consts) = 
     List.fold_right (
       fun l (def,csts) -> 
-        assert ( c < Array.length l.pats ); (*FIXME*)
+       (* assert ( c < Array.length l.pats ); *)
         match l.pats.(c) with
         | Pattern (m,v,args)      -> 
             if H.mem hs (m,v) then (def,csts) 
             else ( H.add hs (m,v) () ; (def,(Array.length args,m,v)::csts) )
         | _                       -> (l::def,csts)
-    ) (l1::pm) ([],[]) in
-    { 
-      cases   = List.map (specialize c (l1,pm)) consts ; 
-      default = def ; 
-    }
+    ) (l1::pm) ([],[]) 
+  in
+    { cases   = List.map (specialize c (l1,pm)) consts ; 
+      default = def }
 
 let getColumn (l:pattern array) : int option =
   let rec aux i =
     if i < Array.length l then
-      ( match l.(i) with
+      match l.(i) with
         | Pattern _     -> Some i
-        | _             -> aux (i+1) )
-    else None
+        | _             -> aux (i+1) 
+          else None
   in aux 0
 
 let reorder l (ord:int array) (t:term) : term = 
   let rec aux k = function
-    | App args                    -> mk_App (List.map (aux k) args)
-    | Lam (x,a,f)                 -> mk_Lam x (aux k a) (aux (k+1) f)
-    | Pi  (x,a,b)                 -> mk_Pi  x (aux k a) (aux (k+1) b)
-    | DB (x,n) when (n>=k)        ->
-        begin
-          assert (n-k < Array.length ord);(*FIXME*)
+    | App args                  -> mk_App (List.map (aux k) args)
+    | Lam (x,a,f)               -> mk_Lam x (aux k a) (aux (k+1) f)
+    | Pi  (x,a,b)               -> mk_Pi  x (aux k a) (aux (k+1) b)
+    | DB (x,n) when (n>=k)      ->
+          (* assert (n-k < Array.length ord); *)
           let n_db = ord.(n-k) in
             if n_db = (-1) then
               raise ( PatternError ( l , "Free variables on the right-hand side of a rule should also appear in the left-hand side." ) )
             else mk_DB x (n_db + k)
-        end
-    | t                   -> t
+    | t                         -> t
   in aux 0 t
-
-let reorder_constr l ord lst = (*TODO inline*)
-   List.map ( fun (t1,t2) -> ( reorder l ord t1 , reorder l ord t2 ) ) lst 
 
 let get_order (l:line) : int array =
   let ord = Array.make l.env_size (-1) in
     Array.iteri 
-      (fun i p ->
-         match p with
-           | Var (_,n)          -> ( assert (n<l.env_size) ; assert (ord.(n) = (-1)) ; ord.(n) <- i ) (*FIXME*)
-           | Joker _ | Dot _    -> ()
-           | Pattern _          -> assert false
+      (fun i p -> match p with
+         | Var (_,n)          -> ( (*assert ( n<l.env_size && ord.(n)=(-1)) ;*) ord.(n) <- i ) 
+         | Joker _ | Dot _    -> ()
+         | Pattern _          -> assert false
       ) l.pats ;
     ord
 
@@ -242,20 +200,20 @@ let rec cc (pm:pMat) : gdt =
     match getColumn l1.pats with
       (* La 1ere ligne ne contient que des Var *)
       | None      ->
-          begin
-            let ord = get_order l1 in
-            let right = reorder l1.loc ord l1.right in
-            let constr = reorder_constr l1.loc ord l1.constr in
+          let ord = get_order l1 in
+          let right = reorder l1.loc ord l1.right in
+          let constr = List.map (
+            fun (t1,t2) -> ( reorder l1.loc ord t1 , reorder l1.loc ord t2 ) 
+          ) l1.constr in ( 
             match constr , tl with 
               | [] , _ 
               | _ , []          -> Test (constr,right,None)
               | _ , l2::tl2     -> Test (constr,right,Some (cc (l2,tl2)))
-          end
+          )
       (* Colonne c contient un pattern *)
       | Some c    ->
           let par = partition pm c in
-            Switch ( c , 
-                     List.rev_map ( fun (id,pm') -> ( id , cc pm' ) ) par.cases , (* map_rev ? *)
+            Switch ( c , List.rev_map ( fun (id,pm') -> ( id , cc pm' ) ) par.cases , 
                      match par.default with [] -> None | l'::pm' -> Some (cc (l',pm') ) 
             )
 
@@ -297,16 +255,17 @@ let rec add_lines pm = function
 
 let add_rw (n,g) rs =
   let ( nb_args , pm ) = pMat_from_rules rs in
-    if nb_args != n then
-      raise ( PatternError ( (fst pm).loc , "Arity mismatch: all the rules must have the same arity." ) )
+    if nb_args = n then ( n , add_lines pm g )
     else
-      ( n , add_lines pm g )
+      raise ( PatternError ( (fst pm).loc , 
+                             "Arity mismatch: all the rules must have the same arity." ) )
 
 let get_rw id (rs:rule list) : int*gdt =
   let ( nb_args , pm )  = pMat_from_rules rs in
+   (* 
     Global.eprint ("Rewrite rules for '" ^ string_of_ident id ^ "':");
     Global.eprint (string_of_line id (fst pm));
     List.iter (fun l -> Global.eprint (string_of_line id l)) (snd pm); 
+    *)
   let gdt = cc pm in
-    Global.eprint (Pp.string_of_gdt !Global.name id nb_args gdt) ;
     ( nb_args , gdt )
