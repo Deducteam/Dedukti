@@ -32,6 +32,19 @@ and string_of_term_wp = function
   | Kind | Type _  | DB _ | Const _ (*| Meta _*) as t -> string_of_term t
   | t   -> "(" ^ string_of_term t ^ ")"
 
+let rec string_of_prepattern = function
+  | Unknown (_,n)               -> "_[" ^ string_of_int n ^ "]"
+  | PPattern (_,md_opt,id,lst)  -> 
+      begin
+        let x = match md_opt with
+          | None          -> string_of_ident id
+          | Some md       -> string_of_ident md ^ "." ^ string_of_ident id
+        in
+          match lst with
+            | []        -> x
+            | _         -> "(" ^ x ^ " " ^ ( String.concat " " (List.map string_of_prepattern lst)) ^ ")"
+      end
+
 let string_of_partial_term _ = assert false
 
 let rec string_of_pattern = function

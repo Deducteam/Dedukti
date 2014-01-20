@@ -1,6 +1,15 @@
 
 open Types
 
+
+(*  FIXME *)
+
+let err_conv exp inf =
+  Global.eprint ( "Conv error:\n" ^ (Pp.string_of_term exp) ^ "\n" ^ (Pp.string_of_term inf) );
+  assert false
+
+(* *** *)
+
 type substitution = (int*partial_term)  list
 type ustate = (partial_term*partial_term) list (* Terms to unify *)
             * (int*partial_term)  list (* Variable to substitute *)
@@ -17,7 +26,8 @@ let rec decompose b = function
           | PartialApp _ , _ | _ , PartialApp _                 -> decompose b a (* ici on perd de l'information *)
           | Term t1', Term t2'                                  -> 
               if Reduction.are_convertible t1' t2' then decompose b a
-              else assert false (*TODO error*)
+              else err_conv t1' t2'
+                (* assert false (*TODO error*) *)
           | Term tt, pt | pt, Term tt                           -> 
               begin (* pt = PartialPi | PartialLam *)
                   match pt , Reduction.wnf tt with
@@ -57,7 +67,7 @@ let rec unify (lc:loc) : ustate -> substitution = function
 
 let resolve (ty,args,eqs:partial_term*pattern list*(partial_term*partial_term) list) : term*pattern list =
   let s = unify dloc (*FIXME*) (eqs,[],[]) in
-  let args' = List.map (Subst.meta_subst_pattern s) args in
+  let args' = List.rev_map (Subst.meta_subst_pattern s) args in (*FIXME rev_map*)
     match Subst.meta_subst 0 s ty with
       | Term ty'        -> ( ty' , args' )
       | _               -> assert false (*TODO*)
