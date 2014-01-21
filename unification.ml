@@ -1,6 +1,15 @@
 
 open Types
 
+
+(*  FIXME *)
+
+let err_conv exp inf =
+  Global.eprint ( "Conv error:\n" ^ (Pp.string_of_term exp) ^ "\n" ^ (Pp.string_of_term inf) );
+  assert false
+
+(* *** *)
+
 type substitution = (int*partial_term)  list
 type ustate = (partial_term*partial_term) list (* Terms to unify *)
             * (int*partial_term)  list (* Variable to substitute *)
