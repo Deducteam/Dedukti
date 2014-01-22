@@ -22,6 +22,7 @@ and string_of_pterm_wp = function
 let rec string_of_term = function
   | Kind                        -> "Kind"
   | Type                        -> "Type"
+  | Meta n                      -> "?[" ^ string_of_int n ^ "]"
   | DB  (x,n)                   -> string_of_ident x^"["^string_of_int n^"]"
   | Const (m,v)                 -> string_of_const m v
   | App args                    -> String.concat " " (List.map string_of_term_wp args)
@@ -47,25 +48,10 @@ let rec string_of_prepattern = function
                 "(" ^ x ^ " " ^ ( String.concat " " (List.map string_of_prepattern lst)) ^ ")"
         )
 
-let rec string_of_partial_term = function
-  | Term t                      -> string_of_term_wp t
-  | Meta n                      -> "?" ^ string_of_int n
-  | PartialApp args             -> String.concat " " (List.map string_of_partial_term_wp args)
-  | PartialPi  (None,a,b)       -> 
-      string_of_partial_term_wp a ^ " -> " ^ string_of_partial_term b
-  | PartialPi  (Some x,a,b)     -> 
-      string_of_ident x ^ ":" ^ string_of_partial_term_wp a ^ " -> " ^ string_of_partial_term b
-  | PartialLam (x,a,f)          -> 
-      string_of_ident x ^ ":" ^ string_of_partial_term_wp a ^ " => " ^ string_of_partial_term f
-and string_of_partial_term_wp = function
-  | Term t      -> string_of_term_wp t
-  | Meta n as t -> string_of_partial_term t
-  | t           -> "(" ^ string_of_partial_term t ^ ")"
-
 let rec string_of_pattern = function
   | Var (id,v)          -> string_of_ident id ^ "[" ^ string_of_int v ^ "]"
   | Joker _             -> "_"
-  | Dot t               -> "{" ^ string_of_partial_term t ^ "}"
+  | Dot t               -> "{" ^ string_of_term t ^ "}"
   | Pattern (m,v,arr)   -> string_of_const m v ^ " " ^ String.concat " " 
                                  (List.map string_of_pattern_wp (Array.to_list arr))
 and string_of_pattern_wp = function

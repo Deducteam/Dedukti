@@ -11,4 +11,3 @@ val string_of_prepattern : prepattern -> string
 
 val string_of_gdt       : ident -> ident -> int -> gdt -> string
 
-val string_of_partial_term : partial_term -> string

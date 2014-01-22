@@ -83,24 +83,22 @@ and is_type ctx a =
 
 (* Type Inference for patterns *)
 
-let rec pattern_to_partial_term = function
-  | Var (id,n)                  -> mk_partial (mk_DB id n)
-  | Joker n                     -> mk_meta n
+let rec pattern_to_term = function
+  | Var (id,n)                  -> mk_DB id n
+  | Joker n                     -> mk_Meta n
   | Pattern (md,id,args)        -> 
-      let c = mk_partial (mk_Const md id) in
+      let c = mk_Const md id in
       if Array.length args = 0 then c
-      else mk_partial_app ( c :: (Array.to_list (Array.map pattern_to_partial_term args)) )
+      else mk_App ( c :: (Array.to_list (Array.map pattern_to_term args)) )
   | Dot _                       -> assert false
 
 let is_empty = function []  -> true | _   -> false
 
 let add_equation t1 t2 eqs = 
-  match t1, t2 with
-    | Term t1', Term t2'        ->
-        if Reduction.are_convertible t1' t2' then eqs
-        else assert false (*TODO error*)
-    | _, _                      -> (t1,t2)::eqs
-
+  match Reduction.are_convertible_with_meta t1 t2 with
+    | Yes _     -> eqs
+    | _        -> (t1,t2)::eqs
+ 
 let rec check_pattern ctx ty eqs = function
   | Unknown (_,n)               -> (  Joker n , eqs )
   | PPattern (l,md_opt,id,args) -> 
@@ -116,35 +114,35 @@ let rec check_pattern ctx ty eqs = function
       in
         match is_var with
           | Some (n,ty_id)      -> 
-              ( Var (id,n) , add_equation ty (mk_partial (Subst.shift (n+1) 0 ty_id)) eqs )
+              ( Var (id,n) , add_equation ty (Subst.shift (n+1) 0 ty_id ) eqs )  
           | None                ->
-              let ty_id = mk_partial (Env.get_global_type l !Global.name id) in
+              let ty_id = Env.get_global_type l md id in
               let (ty_pat,lst,eqs') = 
                 List.fold_left (check_pattern_args ctx) (ty_id,[],eqs) args in
               let args' = Array.of_list (List.rev lst) in
                 ( Pattern (md,id,args') , add_equation ty ty_pat eqs' )
                                              
-and check_pattern_args ctx (ty,args,eqs) parg =
-  let (a,b) = match ty with 
-    | Term ty'           -> 
-        ( match Reduction.hnf ty' with
-            | Pi (_,a,b)        -> (mk_partial a,mk_partial b)
-            | _                 -> assert false (*TODO error*)
-        )
-    | PartialPi (_,a,b) -> (a,b)
-    | _                 -> assert false (*TODO error*)
-  in
-  let ( arg , eqs' ) = check_pattern ctx a eqs parg in
-    ( Subst.subst_pt b (pattern_to_partial_term arg) , arg::args , eqs' )
+and check_pattern_args ctx (ty,args,eqs) parg  : term*pattern list*(term*term) list=
+  match Reduction.wnf_with_meta ty with 
+    | Some (Pi (_,a,b)) -> 
+        let ( arg , eqs' ) = check_pattern ctx a eqs parg in
+          ( Subst.subst b (pattern_to_term arg) , arg::args , eqs' )
+    | _                 -> 
+        assert false (*TODO error*)
 
 let infer_ptop (ctx:context) (l,id,args:ptop) : top*term = 
   match get_type ctx id with
     | Some (n,ty) -> 
-        if is_empty args then assert false (*TODO error*) 
-        else assert false (*TODO error*)
+        if is_empty args then 
+          raise (PatternError (l , 
+             "The left-hand side of the rewrite rule cannot be a variable."))
+        else 
+          raise (PatternError (l , 
+             "The left-hand side of the rewrite rule cannot be a variable application."))
     | None        -> 
-        let ty_id = mk_partial (Env.get_global_type l !Global.name id) in
-        let (ty0,args0,eqs) = List.fold_left (check_pattern_args ctx) (ty_id,[],[]) args in
+        let ty_id = Env.get_global_type l !Global.name id in
+        let (ty0,args0,eqs) = 
+          List.fold_left (check_pattern_args ctx) (ty_id,[],[]) args in
         let (ty,args) = Unification.resolve ty0 (List.rev args0) eqs in
           ( ( id , Array.of_list args ) , ty ) 
 
@@ -160,11 +158,28 @@ let check_type ctx pty =
     | ( ty , Kind ) | ( ty , Type _ )   -> ty
     | ( _ , s )                         -> err_sort ctx pty s
 
+let print_rule l ctx id args ri = 
+  Global.vprint l (lazy (
+    " " ^
+    Pp.string_of_pattern (Pattern (!Global.name,id,args)) ^
+    " --> " ^
+    Pp.string_of_term ri ))
+ 
+(*
+let print_prule (l,id,args:ptop) (ri:preterm) =
+  Global.vprint l (lazy(
+    "[...] " ^
+    Pp.string_of_prepattern (PPattern (l,None,id,args)) ^
+    " --> " ^
+    Pp.string_of_pterm ri ))
+ *)
+
 let check_rule (pctx,ple,pri:prule) : rule = 
   let (l,_,_) = ple in
   let ctx = List.fold_left (fun ctx (_,x,ty) -> (x,check_type ctx ty)::ctx ) [] pctx in
   let ((id,args),ty) = infer_ptop ctx ple in
   let ri = check_term ctx pri ty in
+    (*print_rule l ctx id args ri ; FIXME*)
     ( l , ctx , id , args , ri ) 
 
  (* TODO

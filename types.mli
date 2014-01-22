@@ -1,4 +1,7 @@
 
+type yes_no_maybe = Yes | No | Maybe
+type 'a option2 = None2 | Maybe2 | Some2 of 'a
+
 (* *** Identifiers (hashconsed strings) *** *)
 
 type ident
@@ -75,12 +78,7 @@ val mk_pre_arrow        : preterm -> preterm -> preterm
 val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
 
 val mk_unknown          : loc -> prepattern
-(*
-val mk_unknown          : loc -> prepattern (*TODO pas de raison d'etre private*)
-val mk_ppattern         : loc -> ident -> ident -> prepattern list -> prepattern
-val mk_dot              : preterm -> prepattern
-val mk_top              : loc -> ident -> prepattern list -> ptop
- *)
+
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
 type prule      = pcontext * ptop * preterm
@@ -90,13 +88,14 @@ val get_loc : preterm -> loc
 (* *** Terms *** *)
 
 type term = private
-  | Kind                                (* Kind *)
-  | Type                                (* Type *)
-  | DB    of ident*int                  (* deBruijn *)
-  | Const of ident*ident                (* Global variable *)
-  | App   of term list                  (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
+  | Kind                 (* Kind *)
+  | Type                 (* Type *)
+  | DB    of ident*int   (* deBruijn *)
+  | Const of ident*ident (* Global variable *)
+  | App   of term list   (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
   | Lam   of ident*term*term            (* Lambda abstraction *)
   | Pi    of ident option*term*term     (* Pi abstraction *)
+  | Meta  of int
 
 val mk_Kind     : term
 val mk_Type     : term
@@ -106,23 +105,10 @@ val mk_Lam      : ident -> term -> term -> term
 val mk_App      : term list -> term
 val mk_Pi       : ident option -> term -> term -> term
 val mk_Unique   : unit -> term
+val mk_Meta     : int -> term
 
-val term_eq : term -> term -> bool      (* Syntactic equality / Alpha-equivalence *)
-
-(* *** Partial Terms *** *)
-
-type partial_term = private
-  | PartialApp  of partial_term list                  
-  | PartialLam  of ident * partial_term * partial_term            
-  | PartialPi   of ident option * partial_term * partial_term     
-  | Meta        of int 
-  | Term        of term
-
-val mk_partial          : term -> partial_term
-val mk_meta             : int -> partial_term 
-val mk_partial_lam      : ident -> partial_term -> partial_term -> partial_term
-val mk_partial_app      : partial_term list -> partial_term
-val mk_partial_pi       : ident option -> partial_term -> partial_term -> partial_term
+(* Syntactic equality / Alpha-equivalence *)
+val term_eq : term -> term -> bool      
 
 (* *** Rewrite Rules *** *)
 
@@ -130,7 +116,7 @@ type pattern =
   | Var         of ident*int
   | Joker       of int
   | Pattern     of ident*ident*pattern array
-  | Dot         of partial_term
+  | Dot         of term
 
 type top = ident*pattern array
 type context = ( ident * term ) list

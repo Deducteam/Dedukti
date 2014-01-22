@@ -1,4 +1,7 @@
 
+type yes_no_maybe = Yes | No | Maybe
+type 'a option2 = None2 | Maybe2 | Some2 of 'a
+
 (* *** Identifiers (hashconsed strings) *** *)
 
 type ident = string
@@ -102,6 +105,7 @@ type term =
   | App   of term list                  (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
   | Lam   of ident*term*term            (* Lambda abstraction *)
   | Pi    of ident option*term*term     (* Pi abstraction *)
+  | Meta  of int
 
 let mk_Kind             = Kind
 let mk_Type             = Type
@@ -109,6 +113,7 @@ let mk_DB x n           = DB (x,n)
 let mk_Const m v        = Const (m,v)
 let mk_Lam x a b        = Lam (x,a,b)
 let mk_Pi x a b         = Pi (x,a,b)
+let mk_Meta n           = Meta n
 
 let mk_App              = function
   | [] | [_] -> assert false
@@ -124,47 +129,13 @@ let rec term_eq t1 t2 =
   (* t1 == t2 || *)
   match t1, t2 with
     | Kind, Kind | Type , Type          -> true
-    | DB (_,n), DB (_,n')               -> n=n' 
+    | DB (_,n), DB (_,n') 
+    | Meta n, Meta n'                   -> n=n' 
     | Const (m,v), Const (m',v')        -> ident_eq v v' && ident_eq m m'
     | App l, App l'                     -> ( try List.for_all2 term_eq l l' with _ -> false )
     | Lam (_,a,b), Lam (_,a',b')
     | Pi (_,a,b), Pi (_,a',b')          -> term_eq a a' && term_eq b b'
     | _, _                              -> false
-
-(* *** Partial Terms *** *)
-
-type partial_term = 
-  | PartialApp  of partial_term list                  
-  | PartialLam  of ident * partial_term * partial_term            
-  | PartialPi   of ident option * partial_term * partial_term     
-  | Meta        of int 
-  | Term        of term
-
-let mk_partial te = Term te
-let mk_meta n = Meta n
-
-let mk_partial_lam x ty te = 
- match ty,te with
-   | Term ty', Term te' -> Term (Lam (x,ty',te'))
-   | _, _               -> PartialLam (x,ty,te)
-
-let mk_partial_pi x a b = 
-  match a, b with
-    | Term a', Term b'  -> Term (Pi (x,a',b'))
-    | _, _              -> PartialPi (x,a,b)
-
-let rec extract = function
-  | []                  -> Some []
-  | (Term t)::tl        -> 
-      ( match extract tl with 
-          | None -> None 
-          | Some tl' -> Some (t::tl') )
-  | _::_                -> None
-
-let mk_partial_app lst = 
-  match extract lst with
-    | None      -> PartialApp lst
-    | Some lst' -> Term (mk_App lst')
 
 (* *** Rewrite Rules *** *)
 
@@ -172,7 +143,7 @@ type pattern =
   | Var         of ident*int
   | Joker       of int
   | Pattern     of ident*ident*pattern array
-  | Dot         of partial_term
+  | Dot         of term
 
 type top = ident*pattern array
 type context = ( ident * term ) list
