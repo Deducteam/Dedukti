@@ -58,6 +58,12 @@ and string_of_pattern_wp = function
   | Var _ | Joker _ as p        -> string_of_pattern p
   | p                           -> "(" ^ string_of_pattern p ^ ")"
 
+
+let string_of_rule (l,ctx,id,args,ri) = 
+    string_of_pattern (Pattern (!Global.name,id,args)) ^
+    " --> " ^
+    string_of_term ri
+
 let tab t = String.make (t*4) ' '
 
 let rec str_of_gdt t = function 

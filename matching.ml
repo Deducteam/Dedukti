@@ -72,8 +72,9 @@ let linearize k args =
     | _, _, _                           -> assert false
 
 let line_from_rule (l,ctx,id,pats0,ri:rule) : line =
-  let k0 = List.length ctx in (*TODO get rid of length*)
+  let k0 = List.length ctx in 
   let (k,pats,lst) = linearize k0 pats0 in
+    ( match lst with | [] -> () | _ -> Global.unset_linearity l );
     { loc = l; pats = pats; right = ri; env_size = k; constr = lst }
 
 let pMat_from_rules (rs:rule list) : int*pMat =
@@ -105,7 +106,7 @@ let specialize (c:int) (l1,tl:pMat) (nargs,m,v:int*ident*ident) : (ident*ident)*
   let n = Array.length l1.pats  in
   let new_n = n + nargs -1      in
     (* assert ( c < n );   *)
-    assert ( 0 <= new_n ); (*TODO can this happen ?*)
+    (* assert ( 0 <= new_n );*) 
   let mk_pats p = 
     Array.init new_n (
       fun i ->

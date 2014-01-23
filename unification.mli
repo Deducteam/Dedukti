@@ -1,3 +1,3 @@
 open Types
 
-val resolve : term -> pattern list -> (term*term) list -> term*pattern list 
+val resolve : loc -> ident -> term -> pattern list -> (term*term) list -> term*pattern list 

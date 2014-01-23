@@ -10,6 +10,7 @@ let raphael                     = ref false
 let color                       = ref true
 let out                         = ref stdout (* for dk2mmt *)
 let filename                    = ref None
+let unsafe_mode                 = ref false
 
 let set_name s =
   name := s
@@ -19,6 +20,22 @@ let set_out file =
 
 let set_filename s =
   filename := Some s
+
+(* *** Infos about the Rewrite System *** *)
+
+let linearity = ref true
+let constant_applicative = ref true
+
+let unset_linearity lc =
+  if !constant_applicative || !unsafe_mode then linearity := false
+  else
+    raise (MiscError ( lc , "The rewrite system should be either linear or constant-applicative at type level." ))
+
+let unset_constant_applicative lc = 
+  if !linearity || !unsafe_mode then linearity := false
+  else
+    raise (MiscError ( lc , "The rewrite system should be either linear or constant-applicative at type level." ))
+
 
 (* *** Info messages *** *)
 
@@ -40,6 +57,10 @@ let red = colored 1
 
 let vprint lc str  =
   if not !quiet then prerr_endline ( "[" ^ string_of_loc lc ^ "] " ^ Lazy.force str )
+
+let vprint2 str  =
+  if not !quiet then prerr_endline ( Lazy.force str )
+
 
 let print_ok _ =
   match !filename with

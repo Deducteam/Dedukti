@@ -51,8 +51,7 @@ type token =
   | COMMA
   | COLON
   | ARROW
-  | ASSERT      of loc
-  | EQUIV
+  | COMMAND   of ( loc * string )
 
 (* *** Pseudo Terms *** *)
 
@@ -160,4 +159,5 @@ exception LexerError  of loc*string
 exception EnvError    of loc*string
 exception TypingError of loc*string
 exception PatternError of loc*string
+exception MiscError of loc*string
 exception EndOfFile

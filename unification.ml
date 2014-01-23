@@ -17,8 +17,8 @@ let rec not_in n = function
   | App lst                     -> List.for_all (not_in n) lst
   | _                           -> true
 
-let rec unify (lc:loc) : ustate -> substitution = function
-  | ( [] , [] , s )             -> s
+let rec unify (lc:loc) : ustate -> substitution option = function
+  | ( [] , [] , s )             -> Some s
   | ( [] , (v,t0)::b , s)       ->
       let t = Subst.subst_meta 0 s t0 in
         if not_in v t then ( 
@@ -27,9 +27,11 @@ let rec unify (lc:loc) : ustate -> substitution = function
             | None      -> 
                 let s' = List.map ( fun (z,te) -> ( z , Subst.subst_meta 0 [(v,t)] te ) ) s in
                   unify lc ( [] , b , (v,t)::s' ) ) 
-        else
-          raise (PatternError ( lc , "Cannot find a type." )) (*TODO error*)
-  | ( a , b , s )      -> unify lc ( [] , Reduction.decompose_eq b a , s )
+        else None
+  | ( a , b , s )      -> 
+      ( match Reduction.decompose_eq b a with
+          | None        -> None
+          | Some b'     -> unify lc ( [] , b' , s ) )
 
 let rec check_meta = function
   | Meta _                      -> false
@@ -37,10 +39,16 @@ let rec check_meta = function
   | App lst                     -> List.for_all check_meta lst
   | _                           -> true
 
-let resolve ty args eqs : term*pattern list =
-  let s = unify dloc (eqs,[],[]) in
-  let ty' = Subst.subst_meta 0 s ty in
-    if check_meta ty' then
-      ( ty' , List.map (Subst.subst_meta_p s) args )
-    else
-      raise (PatternError ( dloc , "Cannot find a type." ) ) (*TODO*)
+let resolve l id ty args eqs : term*pattern list =
+  match unify dloc (eqs,[],[]) with
+    | None      -> 
+        let pat = Pp.string_of_pattern (Pattern(!Global.name,id,Array.of_list args)) in
+          raise (PatternError (l,"The pattern '"^pat^"' is not well-typed."))
+    | Some s    ->
+        let ty'       = Subst.subst_meta 0 s ty in
+        let args'     = List.map (Subst.subst_meta_p s) args in
+          if check_meta ty' then
+            ( ty' , args' )
+          else
+            let pat = Pp.string_of_pattern (Pattern(!Global.name,id,Array.of_list args')) in
+              raise (PatternError (l,"Could not infer placeholders in the pattern '"^pat^"'.")) 
