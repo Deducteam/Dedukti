@@ -50,7 +50,8 @@ struct
       Env.add_rw lc hd rs ;
       Global.sprint ("Rules added.")
 
-  let mk_assert _ _ _ = failwith "Not implemented (#ASSERT command)." 
+  let mk_command _ _ _ = 
+      Global.sprint ("Command ignored.")
 
   let mk_ending _ = ()
 
