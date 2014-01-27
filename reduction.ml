@@ -172,6 +172,16 @@ let hnf (t:term) : term = cbn_term_of_state2 (cbn_reduce (0,[],t,[]))
 let are_convertible t1 t2 =
   state_conv [ ( (0,[],t1,[]) , (0,[],t2,[]) ) ]
 
+(* Strong Normal Form *)
+let rec snf (t:term) : term =
+  match hnf t with
+    | Kind | Const _
+    | DB _ | Type as t' -> t'
+    | App lst           -> mk_App (List.map snf lst)
+    | Pi (x,a,b)        -> mk_Pi x (snf a) (snf b)
+    | Lam (x,a,b)       -> mk_Lam x (snf a) (snf b)
+    | Meta _            -> assert false
+
 (* ************** Bounded reduction for (untyped) terms with meta *************** *)
 
 let rec cbn_reduce2 cpt (config:cbn_state) : cbn_state option =

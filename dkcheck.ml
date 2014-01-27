@@ -78,6 +78,16 @@ struct
          | _                    ->
              raise (MiscError ( lc , "Bad arguments." ) )
      end
+   else if cmd = "SNF" then
+     begin
+       Global.vprint lc (lazy ("Computing Strong Normal Form.")) ;
+       match lst with
+         | [pte]        -> 
+             let (te,_) = Inference.infer [] pte in
+               Global.sprint (Pp.string_of_term (Reduction.snf te))
+         | _            ->
+             raise (MiscError ( lc , "Bad arguments." ) )
+     end
    else 
      raise (MiscError ( lc , "Unknown command '" ^ cmd ^ "'." ) )
                                           
