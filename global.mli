@@ -10,6 +10,7 @@ val export      : bool ref
 val raphael     : bool ref
 val color       : bool ref
 val unsafe_mode : bool ref
+val autodep     : bool ref
 
 val set_name     : ident -> unit
 val set_filename : string -> unit
