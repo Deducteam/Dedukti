@@ -22,6 +22,7 @@ val unset_constant_applicative : loc -> unit
 (* *** Info messages *** *)
 
 val sprint      : string -> unit        (* Print a string on standard output *)
+val print_out   : string -> unit        (* Print a string on out (set by -o) *)
 val eprint      : string -> unit        (* Print a string on standard error *)
 val vprint      : loc -> string Lazy.t -> unit  (* Print a string on standard error if in verbose mode *)
 val vprint2     : string Lazy.t -> unit  

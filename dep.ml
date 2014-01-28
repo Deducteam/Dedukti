@@ -50,4 +50,4 @@ let mk_rules = List.iter mk_prule
 let mk_command _ _ = List.iter mk_term
 
 let mk_ending () = 
-  Global.sprint (!name ^ ".dko : " ^ String.concat " " (List.map (fun s -> s ^ ".dko") !deps))
+  Global.print_out (!name ^ ".dko : " ^ String.concat " " (List.map (fun s -> s ^ ".dko") !deps))

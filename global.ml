@@ -47,6 +47,10 @@ let string_of_loc lc =
 let sprint = print_endline
 let eprint = prerr_endline
 
+let print_out s = 
+  output_string !out s ; 
+  output_string !out "\n" 
+
 let colored n s =
   if !color then "\027[3" ^ string_of_int n ^ "m" ^ s ^ "\027[m"
   else s
