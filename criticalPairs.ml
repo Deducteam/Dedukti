@@ -10,8 +10,15 @@ open Types
                 o(l1) --> o(l1)[o(r2)]|p
  *)
 
+
+(*
+ * Rules : int -> rule ??? demander Simon
+* Table de Hash 1 (head symbol -> ensemble de (term,position,rule_id))
+* Table de Hash 2 (head symbol -> ensemble de (term,rule_id)
+*
+* *)
+
 type position = int list 
-type substitution = unit (*TODO*)
 
 let index1_get_candidates (p:pattern) : (rule*position) list = [] (*TODO*)
 let index2_get_candidates (p:pattern) : (rule*position) list = [] (*TODO*)
@@ -20,10 +27,51 @@ let rec index1_get_candidates_rec (lst:(rule*position) list) : pattern -> (rule*
   | Pattern (_,_,args) as p     -> Array.fold_left index1_get_candidates_rec ((index1_get_candidates p)@lst) args
   | _                           -> lst
 
-let unify (p1:pattern) (p2:pattern) : substitution option = assert false (*TODO*)
+(* fold_left2 : ('a -> 'b -> 'c -> 'a) -> 'a -> 'b array -> 'c array -> 'a *)
+let fold_left2 f a arr1 arr2 =
+  assert (Array.length arr1 = Array.length arr2) ;
+  let rec aux i aa =
+    if i < Array.length arr1 then
+      aux (i+1) (f aa arr1.(i) arr2.(i))
+    else
+      aa
+  in
+    aux 0 a
+
+type ip = int * pattern
+type substitution = ip list
+exception CannotUnify
+
 let subst (p:pattern) (s:substitution) : pattern = assert false (*TODO*)
 let subst_t (p:term) (s:substitution) : term = assert false (*TODO*)
 let replace_at_pos (p:position) (ctx:pattern) (r:term) : term = assert false (*TODO*)
+
+let rec decompose lst (p1:pattern) (p2:pattern) : ip list = 
+  match p1, p2 with
+    | Joker _, _ | _, Joker _                   -> assert false (*FIXME*)
+    | Dot _, _ | _, Dot _                       -> assert false (*FIXME*)
+    | Var (_,i) , p | p, Var (_,i)              -> (i,p)::lst 
+    | Pattern (m,v,args), Pattern (m',v',args') ->
+        if ident_eq v v' && ident_eq m m' then
+          fold_left2 decompose lst args args'
+        else
+          raise CannotUnify
+
+let rec not_in i p = assert false
+
+let rec resolve (c:ip list) (s:substitution) : substitution = assert false (* 
+  match c with
+    | []        -> s
+    | (i,p)::c0 -> 
+        let p' = subst p s in
+          if not_in i p' then 
+            let s' = List.map ( fun (j,q) -> (j,subst q [(i,p')] ) ) s in
+              resolve c0 ((i,p')::(List.map s)
+          else raise CannotUnify *)
+
+
+let unify (p1:pattern) (p2:pattern) : substitution option = 
+  assert false (* resolve ( decompose [] p1 p2 , [] ) *)
 
 let rec get_subpattern (p:position) (pat:pattern) : pattern = 
   match p, pat with
@@ -37,7 +85,7 @@ let rec get_subpattern (p:position) (pat:pattern) : pattern =
 
 let get_top (r:rule) : pattern = Pattern (!Global.name,r.id,r.args)
 
-let check_pair (l:loc) (r1:rule) (r2:rule) (p:position) = 
+let check_pair (l:loc) (r1:rule) (r2:rule) (p:position) : unit = 
   let t1 = get_top r1 in
   let t2 = get_subpattern p (get_top r2) in
   match unify t1 t2 with

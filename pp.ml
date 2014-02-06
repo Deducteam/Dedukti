@@ -59,10 +59,10 @@ and string_of_pattern_wp = function
   | p                           -> "(" ^ string_of_pattern p ^ ")"
 
 
-let string_of_rule (l,ctx,id,args,ri) = 
-    string_of_pattern (Pattern (!Global.name,id,args)) ^
+let string_of_rule r = 
+    string_of_pattern (Pattern (!Global.name,r.id,r.args)) ^
     " --> " ^
-    string_of_term ri
+    string_of_term r.ri
 
 let tab t = String.make (t*4) ' '
 

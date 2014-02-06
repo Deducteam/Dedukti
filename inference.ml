@@ -189,13 +189,13 @@ let check_rule (pctx,ple,pri:prule) : rule =
   let ctx = List.fold_left (fun ctx (_,x,ty) -> (x,check_type ctx ty)::ctx ) [] pctx in
   let ((id,args),ty) = infer_ptop ctx ple in
   let ri = check_term ctx pri ty in
-
+  let r:rule = { l=l; ctx=ctx; id=id; args=args; ri=ri } in 
     (if is_type_level ty then
        match ri with
          | Const _ | App ( (Const _) :: _ ) -> ()
          | _ -> Global.unset_constant_applicative l
     ) ;
-
-    Global.vprint2 (lazy (Pp.string_of_rule (l,ctx,id,args,ri))) ;
-    ( l , ctx , id , args , ri ) 
+    CriticalPairs.check r ;
+    Global.vprint2 (lazy (Pp.string_of_rule r)) ;
+    r
 

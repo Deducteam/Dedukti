@@ -71,26 +71,24 @@ let linearize k args =
     | k' , lst , Pattern (_,_,args')    -> ( k' , args' , lst )
     | _, _, _                           -> assert false
 
-let line_from_rule (l,ctx,id,pats0,ri:rule) : line =
-  let k0 = List.length ctx in 
-  let (k,pats,lst) = linearize k0 pats0 in
-    ( match lst with | [] -> () | _ -> Global.unset_linearity l );
-    { loc = l; pats = pats; right = ri; env_size = k; constr = lst }
+let line_from_rule (r:rule) : line =
+  let k0 = List.length r.ctx in 
+  let (k,pats,lst) = linearize k0 r.args in
+    ( match lst with | [] -> () | _ -> Global.unset_linearity r.l );
+    { loc = r.l; pats = pats; right = r.ri; env_size = k; constr = lst }
 
 let pMat_from_rules (rs:rule list) : int*pMat =
   match rs with
     | []        -> assert false
     | l1::tl    -> 
-        let (_,_,id,pats,_) = l1 in
-        let arity = Array.length pats in
+        let arity = Array.length l1.args in
         let aux li =
-          let (l,_,id',pats',_) = li in
-            if Array.length pats' != arity then
-              raise ( PatternError ( l , "All the rules must have the same arity." ) )
-            else if (not (ident_eq id id')) then
-              raise ( PatternError ( l , "All the rules must have the same head symbol." ) )
-            else
-              line_from_rule li
+          if Array.length li.args != arity then
+            raise ( PatternError ( li.l , "All the rules must have the same arity." ) )
+          else if (not (ident_eq l1.id li.id)) then
+            raise ( PatternError ( li.l , "All the rules must have the same head symbol." ) )
+          else
+            line_from_rule li
         in
           ( arity , ( line_from_rule l1 , List.map aux tl ) ) 
 
