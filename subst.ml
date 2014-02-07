@@ -50,17 +50,21 @@ let rec subst_q (q,u:int*term) (k:int) = function
   | App lst                   -> 
       mk_App ( List.map (subst_q (q,u) k) lst )
 
-let rec subst_meta k s  = function
+let rec subst_meta_rec k s  = function
   | Type _ | Kind 
   | Const _ | DB _ as t -> t
-  | Lam (x,a,b)         -> mk_Lam x (subst_meta k s a) (subst_meta (k+1) s b)
-  | Pi  (x,a,b)         -> mk_Pi  x (subst_meta k s a) (subst_meta (k+1) s b)
-  | App lst             -> mk_App ( List.map (subst_meta k s) lst)
+  | Lam (x,a,b)         -> mk_Lam x (subst_meta_rec k s a) (subst_meta_rec (k+1) s b)
+  | Pi  (x,a,b)         -> mk_Pi  x (subst_meta_rec k s a) (subst_meta_rec (k+1) s b)
+  | App lst             -> mk_App ( List.map (subst_meta_rec k s) lst)
   | Meta n as t         -> ( try shift k 0 (List.assoc n s) with Not_found -> t )
                                          
-let rec subst_meta_p s = function
+let subst_meta = subst_meta_rec 0
+
+let rec subst_pattern s _ = assert false (*TODO*) 
+
+    let rec subst_pattern2 s = function
   | Var _ as p                  -> p
   | Joker n as p                -> ( try Dot (List.assoc n s) with Not_found -> p )
-  | Pattern (md,id,args)        -> Pattern (md,id,Array.map (subst_meta_p s) args)
+  | Pattern (md,id,args)        -> Pattern (md,id,Array.map (subst_pattern2 s) args)
   | Dot _                       -> assert false
 

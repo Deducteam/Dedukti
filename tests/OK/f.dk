@@ -18,7 +18,9 @@ dotpi3 : x : Ukind -> (ekind x -> Utype) -> Utype.
 a : x : Utype -> etype (dotpi1 x (unused_:etype x => x)).
 
 x:Utype.
-#ASSERT ( etype (dotpi1 x (unused_:(etype x) => x)) ) (;--> w:etype x -> etype (... w) --> w:etype x -> etype x ;)
-     ~= ( y:(etype x) -> etype x ).
+
+#TEST 
+( etype (dotpi1 x (unused_:(etype x) => x)) ), (;--> w:etype x -> etype (... w) --> w:etype x -> etype x ;)
+( y:(etype x) -> etype x ).
 
 [] a --> x : Utype => y : etype x => y.

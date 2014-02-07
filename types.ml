@@ -1,4 +1,5 @@
 
+(*FIXME is it used ?*)
 type yes_no_maybe = Yes | No | Maybe
 type 'a option2 = None2 | Maybe2 | Some2 of 'a
 
@@ -26,7 +27,8 @@ let dloc = (0,0)
 let mk_loc l c = (l,c)
 let get_line (l,_) = l
 let get_column (_,c) = c
-let string_of_loc (l,c) = "line:" ^ string_of_int l ^ " column:" ^ string_of_int c
+let string_of_loc (l,c) = 
+  "line:" ^ string_of_int l ^ " column:" ^ string_of_int c
 
 (* *** Parsing *** *)
 
@@ -131,7 +133,8 @@ let rec term_eq t1 t2 =
     | DB (_,n), DB (_,n') 
     | Meta n, Meta n'                   -> n=n' 
     | Const (m,v), Const (m',v')        -> ident_eq v v' && ident_eq m m'
-    | App l, App l'                     -> ( try List.for_all2 term_eq l l' with _ -> false )
+    | App l, App l'                     -> ( try List.for_all2 term_eq l l' 
+                                             with _ -> false )
     | Lam (_,a,b), Lam (_,a',b')
     | Pi (_,a,b), Pi (_,a',b')          -> term_eq a a' && term_eq b b'
     | _, _                              -> false

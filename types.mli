@@ -119,7 +119,7 @@ type pattern =
 
 type top = ident*pattern array
 type context = ( ident * term ) list
-type rule = loc * context * ident * pattern array * term
+type rule = { l:loc; ctx:context;  id:ident; args:pattern array; ri:term; } 
 
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option

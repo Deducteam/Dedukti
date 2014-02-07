@@ -42,22 +42,27 @@ let rec string_of_prepattern = function
         | None          -> string_of_ident id
         | Some md       -> string_of_ident md ^ "." ^ string_of_ident id
       in
-        ( match lst with
-            | []        -> x
-            | _         -> 
-                "(" ^ x ^ " " ^ ( String.concat " " (List.map string_of_prepattern lst)) ^ ")"
+        ( match lst with | []  -> x 
+            | _ -> "(" ^ x ^ " " ^ 
+                   (String.concat " " (List.map string_of_prepattern lst)) ^ ")"
         )
 
 let rec string_of_pattern = function
   | Var (id,v)          -> string_of_ident id ^ "[" ^ string_of_int v ^ "]"
   | Joker _             -> "_"
   | Dot t               -> "{" ^ string_of_term t ^ "}"
-  | Pattern (m,v,arr)   -> string_of_const m v ^ " " ^ String.concat " " 
-                                 (List.map string_of_pattern_wp (Array.to_list arr))
-and string_of_pattern_wp = function
-  | Var _ | Joker _ as p        -> string_of_pattern p
-  | p                           -> "(" ^ string_of_pattern p ^ ")"
+  | Pattern (m,v,arr)   -> 
+      if Array.length arr = 0 then string_of_const m v
+      else
+        string_of_const m v ^ " " ^ 
+        String.concat " " (List.map string_of_pattern_wp (Array.to_list arr))
 
+and string_of_pattern_wp p = 
+  match p with
+    | Pattern (_,_,args) when (Array.length args != 0) -> 
+        "(" ^ string_of_pattern p ^ ")"
+    |  _                                                -> 
+        string_of_pattern p
 
 let string_of_rule r = 
     string_of_pattern (Pattern (!Global.name,r.id,r.args)) ^

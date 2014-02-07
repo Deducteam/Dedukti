@@ -1,52 +1,14 @@
 
 open Types
-(*
-type substitution = (int*term)  list
-type ustate = (term*term) list (* Terms to unify *)
-            * (int*term)  list (* Variable to substitute *)
-            * substitution 
-
-let rec safe_assoc v = function
-  | []                  -> None
-  | (x,t)::_ when x=v   -> Some t
-  | _::tl               -> safe_assoc v tl
-
-let rec not_in n = function 
-  | Meta k                      -> n<>k
-  | Pi (_,a,b) | Lam (_,a,b)    -> not_in n a && not_in n b
-  | App lst                     -> List.for_all (not_in n) lst
-  | _                           -> true
-
-let rec unify (lc:loc) : ustate -> substitution option = function
-  | ( [] , [] , s )             -> Some s
-  | ( [] , (v,t0)::b , s)       ->
-      let t = Subst.subst_meta 0 s t0 in
-        if not_in v t then ( 
-          match safe_assoc v s with
-            | Some t'   -> unify lc ( [(t,t')] , b , s )
-            | None      -> 
-                let s' = List.map ( fun (z,te) -> ( z , Subst.subst_meta 0 [(v,t)] te ) ) s in
-                  unify lc ( [] , b , (v,t)::s' ) ) 
-        else None
-  | ( a , b , s )      -> 
-      ( match Reduction.decompose_eq b a with
-          | None        -> None
-          | Some b'     -> unify lc ( [] , b' , s ) )
- *)
 
 type 'a substitution = (int*'a) list
-(*
-type 'a option_ext =
-  | None_ext
-  | Some_ext of 'a
-  | Maybe_ext
- *)
+
 module type UTerm =
 sig
   type term
-  val subst : term substitution -> term -> term
-  val occurs_check : int -> term -> bool
-  val decompose :  (int*term) list -> (term*term) list -> ( (int*term) list ) option
+  val subst: term substitution -> term -> term
+  val occurs_check: int -> term -> bool
+  val decompose: (int*term) list -> (term*term) list -> ((int*term) list) option
 end
 
 module Make = functor (T: UTerm) ->
@@ -58,7 +20,6 @@ struct
   | (x,t)::_ when x=v   -> Some t
   | _::tl               -> safe_assoc v tl
 
-
   let rec unify0 : state -> (T.term substitution) option = function
     | ( [], [] , s )            -> Some s
     | ( [], (v,te0)::lst , s )  ->
@@ -69,7 +30,9 @@ struct
               match safe_assoc v s with
                 | Some te'      -> unify0 ( [(te,te')] , lst , s )
                 | None      -> 
-                    let s' = List.map ( fun (z,t) -> ( z , T.subst [(v,te)] t ) ) s in
+                    let s' = 
+                      List.map ( fun (z,t) -> ( z , T.subst [(v,te)] t ) ) s 
+                    in
                       unify0 ( [] , lst , (v,te)::s' ) 
         end
     | ( a , b , s )      -> 
@@ -79,66 +42,94 @@ struct
             | Some b'     -> unify0 ( [] , b' , s )
         end
 
-  let unify (lst: (T.term*T.term) list) : (T.term substitution) option = 
-    unify0 ( lst, [], [] )
+  let unify lst = unify0 ( lst , [] , [] )
 end
 
 (* Partial Higher Order Unification *)
 
 module TU : UTerm with type term = Types.term = 
 struct
-
   type term = Types.term
-
-  let subst = Subst.subst_meta 0
-
+  let subst = Subst.subst_meta 
   let decompose = Reduction.decompose_eq
-
   let rec occurs_check n = function 
     | Meta k                      -> n=k
     | Pi (_,a,b) | Lam (_,a,b)    -> occurs_check n a || occurs_check n b
     | App lst                     -> List.exists (occurs_check n) lst
     | _                           -> false
-
 end
 
 module TUnification = Make(TU)
 
+let unify_t = TUnification.unify
+
 (* Pattern Typing *)
   
-let rec check_meta = function
-  | Meta _                      -> false
-  | Pi (_,a,b) | Lam (_,a,b)    -> check_meta a && check_meta b
-  | App lst                     -> List.for_all check_meta lst
-  | _                           -> true
-
+(* FIXME
 let resolve l id ty args eqs : term*pattern list = 
   match TUnification.unify eqs with
     | None      -> 
-        let pat = Pp.string_of_pattern (Pattern(!Global.name,id,Array.of_list args)) in
-          raise (PatternError (l, "The pattern '" ^ pat ^ "' is not well-typed." ))
+        let pat = 
+          Pp.string_of_pattern (Pattern(!Global.name,id,Array.of_list args)) 
+        in
+          raise (PatternError (l,"The pattern '" ^ pat ^ "' is not well-typed."))
     | Some s    -> 
-        let ty'       = Subst.subst_meta 0 s ty in
-        let args'     = List.map (Subst.subst_meta_p s) args in
+        let ty'       = Subst.subst_meta s ty in
+        let args'     = List.map (Subst.subst_pattern2 s) args in
           if check_meta ty' then
             ( ty' , args' )
           else
-            let pat = Pp.string_of_pattern (Pattern(!Global.name,id,Array.of_list args')) in
+            let pat =
+              Pp.string_of_pattern (Pattern(!Global.name,id,Array.of_list args')) 
+            in
               raise (PatternError (l,"Could not infer placeholders in the pattern '"^pat^"'."))
+ *)
 
 (* Pattern Unification *)
 
 module PU : UTerm with type term = Types.pattern =
 struct
   type term = Types.pattern
-  let subst s p = assert false  (*TODO*)
-  let occurs_check i p = assert false (*TODO*)
-  let decompose b a = assert false (*TODO*)
+  let subst = Subst.subst_pattern
+  
+  let rec occurs_check n = function
+    | Joker k           -> n=k
+    | Pattern(_,_,args) -> aux n args 0
+    | _                 -> false
+  and aux n args i =
+    if i < Array.length args then
+      if occurs_check n args.(i) then true
+      else aux n args (i+1)
+    else false
+
+  let add_to_list lst0 arr1 arr2 =
+    (*assert (Array.length arr1 = Array.length arr2) *)
+    let n = Array.length arr1 in
+    let rec aux lst i =
+      if i<n then
+        aux ((arr1.(i),arr2.(i))::lst) (i+1)
+      else lst
+    in
+      aux lst0 0
+
+  let rec decompose b = function
+    | []                                -> Some b
+    | (Joker k,p)::a | (p,Joker k)::a   -> decompose ((k,p)::b) a
+    | (Var (_,i),Var (_,j))::a          -> if i=j then decompose b a else None
+    | (Dot _,_)::a | (_,Dot _)::a       -> assert false (*FIXME*)
+    | (Pattern (md,id,args),
+       Pattern(md',id',args'))::a       ->
+        if ident_eq id id' && ident_eq md md' 
+                && Array.length args = Array.length args' then
+          decompose b (add_to_list a args args')
+        else None
+    | _                                 -> None
+
 end
 
 module PUnification = Make(PU)
 
-let pattern_unification (p1:pattern) (p2:pattern) : (pattern substitution) option =
+let unify_p lst =
   (*TODO variable renaming*)
-  PUnification.unify [(p1,p2)]
+  PUnification.unify lst
 
