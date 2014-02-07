@@ -110,15 +110,6 @@ let err_var_app =
 
 let is_empty = function []  -> true | _   -> false
 
-let rec pattern_to_term = function (*FIXME -> in types.ml*)
-  | Var (id,n)                  -> mk_DB id n
-  | Joker n                     -> mk_Meta n
-  | Pattern (md,id,args)        -> 
-      let c = mk_Const md id in
-      if Array.length args = 0 then c
-      else mk_App ( c :: (Array.to_list (Array.map pattern_to_term args)) )
-  | Dot _                       -> assert false
-
 let add_equation t1 t2 eqs = 
   match Reduction.are_convertible_with_meta t1 t2 with
     | Yes _     -> eqs
@@ -155,7 +146,7 @@ and check_pattern_args l md_opt id ctx (ty,args,eqs) parg =
   match Reduction.wnf_with_meta ty with 
     | Some (Pi (_,a,b)) -> 
         let ( arg , eqs' ) = check_pattern ctx a eqs parg in
-          ( Subst.subst b (pattern_to_term arg) , arg::args , eqs' )
+          ( Subst.subst b (term_of_pattern arg) , arg::args , eqs' )
     | nf_opt            -> 
         let md = match md_opt with None -> !Global.name | Some md -> md in
         let args' = Array.of_list (List.rev args) in
@@ -252,7 +243,7 @@ let check_rule (pctx,ple,pri:prule) : rule = (*FIXME unfold pattern*)
          | Const _ | App ( (Const _) :: _ ) -> ()
          | _ -> Global.unset_constant_applicative l
     ) ;
-    (*CriticalPairs.check r ;FIXME*)
+    CriticalPairs.check r ;
     Global.vprint2 (lazy (Pp.string_of_rule r)) ;
     r
 

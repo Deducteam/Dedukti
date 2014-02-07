@@ -92,7 +92,8 @@ struct
      raise (MiscError ( lc , "Unknown command '" ^ cmd ^ "'." ) )
                                           
   let mk_ending _ =
-    Env.export_and_clear ()
+    Env.export_and_clear ();
+    CriticalPairs.clear ();
 
 end
 

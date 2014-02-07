@@ -147,6 +147,15 @@ type pattern =
   | Pattern     of ident*ident*pattern array
   | Dot         of term
 
+let rec term_of_pattern = function 
+  | Var (id,n)                  -> DB (id,n)
+  | Joker n                     -> Meta n
+  | Pattern (md,id,args)        -> 
+      let c = Const (md,id) in
+      if Array.length args = 0 then c
+      else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
+  | Dot t                       -> t
+
 type top = ident*pattern array
 type context = ( ident * term ) list
 type rule = { l:loc; ctx:context;  id:ident; args:pattern array; ri:term; } 

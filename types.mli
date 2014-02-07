@@ -117,6 +117,8 @@ type pattern =
   | Pattern     of ident*ident*pattern array
   | Dot         of term
 
+val term_of_pattern : pattern -> term
+
 type top = ident*pattern array
 type context = ( ident * term ) list
 type rule = { l:loc; ctx:context;  id:ident; args:pattern array; ri:term; } 

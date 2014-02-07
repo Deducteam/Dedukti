@@ -60,11 +60,15 @@ let rec subst_meta_rec k s  = function
                                          
 let subst_meta = subst_meta_rec 0
 
-let rec subst_pattern s _ = assert false (*TODO*) 
+let rec subst_pattern s = function
+  | Var _ as p                  -> p
+  | Joker n as p                -> ( try List.assoc n s with Not_found -> p )
+  | Pattern (md,id,args)        -> Pattern (md,id,Array.map (subst_pattern s) args)
+  | Dot _                       -> assert false (*FIXME*)
 
-    let rec subst_pattern2 s = function
+let rec subst_pattern2 s = function
   | Var _ as p                  -> p
   | Joker n as p                -> ( try Dot (List.assoc n s) with Not_found -> p )
   | Pattern (md,id,args)        -> Pattern (md,id,Array.map (subst_pattern2 s) args)
-  | Dot _                       -> assert false
+  | Dot _                       -> assert false (*FIXME*)
 
