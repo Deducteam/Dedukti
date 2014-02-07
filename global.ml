@@ -11,6 +11,7 @@ let color                       = ref true
 let out                         = ref stdout (* for dk2mmt *)
 let filename                    = ref None
 let unsafe_mode                 = ref false
+let autodep                     = ref false
 
 let set_name s =
   name := s

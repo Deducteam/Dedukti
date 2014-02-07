@@ -138,7 +138,8 @@ let args = [
         ("-nc"   , Arg.Clear Global.color               , "Disable colored output"      ) ;
         ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"          ) ;
         ("-unsafe", Arg.Set Global.unsafe_mode          , "Unsafe mode"                 ) ;
-        ("-r"    , Arg.Set Global.raphael               , "Undocumented"                ) ]
+        ("-r"    , Arg.Set Global.raphael               , "Undocumented"                ) ;
+        ("-autodep", Arg.Set Global.autodep             , "Automatically handle dependencies (experimental)") ]
 
 let _ =
   try
