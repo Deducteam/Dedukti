@@ -20,7 +20,6 @@ open Unification
 
 type position = int list 
 
-
 let find_all hs m v = 
   assert (ident_eq m !Global.name); (*FIXME*)
   Hashtbl.find_all hs v
@@ -59,15 +58,16 @@ let rec index1_get_candidates pos lst : pattern -> (rule*position) list = functi
           (cnds@lst) args
   | _                   -> lst
 
-let rec replace_at_pos (p:position) (pat:pattern) (r:term) : pattern = 
+let rec replace_at_pos (p:position) (pat:pattern) (r:term) : term =  
   match p, pat with
-    | [], _                     -> Dot r
-    | i::p', Pattern(m,v,args)  ->
-        begin
-          let args2 = Array.copy args in
-            args2.(i) <- replace_at_pos p' args.(i) r ;
-            Pattern (m,v,args2)
-        end
+    | [], _                     -> r
+    | k::p', Pattern(m,v,args)  ->
+          let args2 = 
+            Array.init (Array.length args) 
+              (fun i -> if i=k then replace_at_pos p' args.(i) r 
+               else term_of_pattern args.(i) )
+          in
+            mk_App ( (mk_Const m v)::(Array.to_list args2))
     | _,_                       -> assert false 
 
 let tsubst_of_psubst (s:pattern substitution) : term substitution = 
@@ -77,45 +77,82 @@ let rec get_subpattern (p:position) (pat:pattern) : pattern =
   match p, pat with
     | [] , _                            -> pat
     | i::pos , Pattern (_,_,args)       ->
-        begin
-          assert (i<Array.length args) ; 
-          get_subpattern pos args.(i) 
-        end
+        ( assert (i<Array.length args) ; get_subpattern pos args.(i) )
     | _, _                              -> assert false
  
 let get_top (r:rule) : pattern = Pattern (!Global.name,r.id,r.args)
- 
+
+let rec max_index = function (*FIXME*)
+  | Var (_,k)           -> k
+  | Pattern (_,_,args)  -> 
+      Array.fold_left 
+        (fun (k0:int) (arg:pattern) -> max k0 (max_index arg)) (-1) args
+
+let rec shift_pattern q = function (*FIXME*)
+  | Var (n,k)            -> Var (n,k+q)
+  | Pattern (md,id,args) -> Pattern (md,id,Array.map (shift_pattern q) args)
+
+let shift_rule k r = (*FIXME*) 
+  { r with args = Array.map (shift_pattern k) r.args ;
+           ri = Subst.shift k 0 r.ri; }
+
+let is_trivial a b = function
+  | []  -> a=b
+  | _   -> false
+
 (* Checks the potential critical pair r1 r2|p *)
-let check_pair (l:loc) (r1:rule) (r2:rule) (p:position) : unit = 
-  let le1 = get_top r1 in
-  let le2 = get_top r2 in
+let check_pair (l:loc) (r1:rule) (rr2:rule) (p:position) (lst:cpair list) : cpair list = 
+  if is_trivial r1.nb rr2.nb p then lst (*FIXME*)
+  else (
+
+  (* renaming FIXME*)
+  let le1 = get_top r1 in 
+  let k = (max_index le1) + 1 in (*FIXME*)
+  let r2 = shift_rule k rr2 in (*FIXME*)
+
+  let le2 = get_top r2 in 
     match unify_p [ (le1,get_subpattern p le2) ] with
-      | None      -> () (*False alert*)
+      | None      -> lst (*False alert*)
       | Some s    -> 
+
           (* Critical Pair from (s le2): < s (r2.ri) ; (s le2)[s (r1.ri)]|p > *)
           let s' = tsubst_of_psubst s in
-          let pc_1 = Subst.subst_meta s' r2.ri in
-          let pc_2_p = replace_at_pos p (Subst.subst_pattern s le2) 
-                         (Subst.subst_meta s' r1.ri) in
-          let pc_2 = term_of_pattern pc_2_p in
-          let join = Reduction.are_convertible pc_1 pc_2 in
-            Global.warning l ( "Rule Overlap between:\n" ^ Pp.string_of_rule r1 
-                               ^ "\n" ^ Pp.string_of_rule r2 
-                               ^ "\nCritical Pair:\n" 
-                               ^ Pp.string_of_term pc_1 ^ "\n" 
-                               ^ Pp.string_of_term pc_2
-                               ^ (if join then "\nJoinable" 
-                                  else "\nUNABLE TO JOIN!" )
-            )
+          let pat_0 = Subst.subst_pattern s le2 in (*FIXME is this well-typed ?*)
+          let pc_1 = Subst.subst_var s' r2.ri in
+          let pc_2 = (replace_at_pos p (Subst.subst_pattern s le2) (Subst.subst_var s' r1.ri)) in
+          
+          let pc = 
+            { rule1=r1.nb;
+              rule2=r2.nb;
+              pos=p;
+              root=pat_0; 
+              red1=pc_1; 
+              red2=pc_2; 
+              joinable = Reduction.are_convertible pc_1 pc_2; (*FIXME*)
+            } in
 
-let check (r1:rule) : unit =
+            pc :: lst )
+
+let check_rule (r1:rule) : unit =
   let top1 = get_top r1 in
   (* Trying to unify a subterm of top with an existing pattern*)
   let candidates1 = index1_get_candidates [] [] top1 in
-    List.iter ( fun (r2,p) -> check_pair r1.l r2 r1 p ) candidates1 ;
+  let l1 = List.fold_left 
+             ( fun lst (r2,p) -> check_pair r1.l r2 r1 p lst ) [] candidates1 in
   (* Trying to unify top with a subterm of an existing pattern*)
   let candidates2 = index2_get_candidates top1 in
-    List.iter ( fun (r2,p) -> check_pair r1.l r1 r2 p ) candidates2 ;
-    Hashtbl.add index1 r1.id r1 ;
-    update_index2 r1 [] top1
+  let l2 = List.fold_left 
+             ( fun lst (r2,p) -> check_pair r1.l r1 r2 p lst ) l1 candidates2 in 
+    List.iter 
+      (fun cp -> 
+         if not cp.joinable then Global.warning r1.l (Pp.string_of_cpair cp)) l2 (*FIXME*)
+ 
+let index r = (*FIXME*)
+  let top1 = get_top r in
+  Hashtbl.add index1 r.id r ;
+  update_index2 r [] top1
+
+let check_for_cpair (lst:rule list) : unit = 
+  List.iter index lst ;
+  List.iter check_rule lst
   

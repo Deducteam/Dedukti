@@ -63,7 +63,7 @@ type preterm = private
   | PrePi   of (loc*ident) option * preterm * preterm
 
 type prepattern = 
-  | Unknown     of loc*int
+  | Unknown     of loc
   | PPattern    of loc*ident option*ident*prepattern list
 
 type ptop = loc * ident * prepattern list
@@ -75,8 +75,6 @@ val mk_pre_lam          : loc -> ident -> preterm -> preterm -> preterm
 val mk_pre_app          : preterm list -> preterm
 val mk_pre_arrow        : preterm -> preterm -> preterm
 val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
-
-val mk_unknown          : loc -> prepattern
 
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
@@ -112,16 +110,34 @@ val term_eq : term -> term -> bool
 (* *** Rewrite Rules *** *)
 
 type pattern = 
-  | Var         of ident*int
-  | Joker       of int
+  | Var         of ident option*int
   | Pattern     of ident*ident*pattern array
-  | Dot         of term
 
+val term_with_meta_of_pattern : pattern -> term
 val term_of_pattern : pattern -> term
 
 type top = ident*pattern array
 type context = ( ident * term ) list
-type rule = { l:loc; ctx:context;  id:ident; args:pattern array; ri:term; } 
+
+type rule = { 
+  nb:int; 
+  l:loc; 
+  ctx:context;  
+  id:ident; 
+  args:pattern array; 
+  ri:term; 
+  sub:(int*term) list;
+} 
+
+type cpair = { 
+  rule1:int; 
+  rule2:int; 
+  pos:int list;
+  root:pattern;
+  red1:term;
+  red2:term;
+  joinable:bool
+}
 
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option

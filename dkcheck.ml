@@ -46,10 +46,15 @@ struct
       Global.sprint ( Pp.string_of_term te' ) 
       
   let mk_rules (prs:prule list) = 
-    let (lc,hd) = match prs with | [] -> assert false | (_,(l,id,_),_)::_ -> (l,id) in
-      Global.vprint lc (lazy ("Rewrite rules for symbol '" ^ string_of_ident hd ^ "'.")) ;
+    let (lc,hd) = match prs with | [] -> assert false 
+      | (_,(l,id,_),_)::_ -> (l,id) 
+    in
+      Global.vprint lc 
+        (lazy ("Rewrite rules for symbol '" ^ string_of_ident hd ^ "'.")) ;
       let rs = List.map Inference.check_rule prs in
-        Env.add_rw lc hd rs 
+        Env.add_rw lc hd rs ;
+        CriticalPairs.check_for_cpair rs
+
 
   let print_gdt lc md id =
     match Env.get_global_rw lc md id with
@@ -93,7 +98,7 @@ struct
                                           
   let mk_ending _ =
     Env.export_and_clear ();
-    CriticalPairs.clear ();
+    CriticalPairs.clear ()
 
 end
 

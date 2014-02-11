@@ -93,9 +93,8 @@ struct
   let subst = Subst.subst_pattern
   
   let rec occurs_check n = function
-    | Joker k           -> n=k
+    | Var (_,k)           -> n=k
     | Pattern(_,_,args) -> aux n args 0
-    | _                 -> false
   and aux n args i =
     if i < Array.length args then
       if occurs_check n args.(i) then true
@@ -113,23 +112,19 @@ struct
       aux lst0 0
 
   let rec decompose b = function
-    | []                                -> Some b
-    | (Joker k,p)::a | (p,Joker k)::a   -> decompose ((k,p)::b) a
-    | (Var (_,i),Var (_,j))::a          -> if i=j then decompose b a else None
-    | (Dot _,_)::a | (_,Dot _)::a       -> assert false (*FIXME*)
+    | []                                        -> Some b
+    | (Var(_,k),p)::a | (p,Var (_,k))::a        -> decompose ((k,p)::b) a
     | (Pattern (md,id,args),
        Pattern(md',id',args'))::a       ->
         if ident_eq id id' && ident_eq md md' 
                 && Array.length args = Array.length args' then
           decompose b (add_to_list a args args')
         else None
-    | _                                 -> None
 
 end
 
 module PUnification = Make(PU)
 
 let unify_p lst =
-  (*TODO variable renaming*)
   PUnification.unify lst
 

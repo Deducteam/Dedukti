@@ -29,7 +29,7 @@ let import lc m =
       H.add envs m ctx ;
       ctx
   with _ ->
-    raise (EnvError ( lc , "Fail to open module '" ^ string_of_ident m ^ "'." ) )
+    raise (EnvError (lc,"Fail to open module '" ^ string_of_ident m ^ "'."))
 
 let export_and_clear () =
   ( if !Global.export then
@@ -50,7 +50,8 @@ let get_global_symbol lc m v =
   in
     try ( H.find env v )
     with Not_found ->
-      raise (EnvError ( lc , "Cannot find symbol '" ^ string_of_ident m ^ "." ^ string_of_ident v ^ "'." ) )
+      raise (EnvError (lc,"Cannot find symbol '" ^ string_of_ident m 
+                       ^ "." ^ string_of_ident v ^ "'."))
 
 let get_global_type lc m v =
   match get_global_symbol lc m v with
@@ -70,7 +71,8 @@ let add_decl lc v ty =
       if !Global.raphael then
         Global.warning lc "Redeclaration ignored."
       else
-        raise (EnvError ( lc , "Already defined symbol '" ^string_of_ident v ^ "'." ))
+        raise (EnvError (lc,"Already defined symbol '" 
+                         ^string_of_ident v ^ "'." ))
     else
       H.add env v (Decl (ty,None))
 
@@ -80,7 +82,8 @@ let add_def lc v te ty =
       if !Global.raphael then
         Global.warning lc "Redeclaration ignored."
       else
-        raise (EnvError ( lc , "Already defined symbol '" ^ string_of_ident v ^ "'." ))
+        raise (EnvError (lc,"Already defined symbol '" 
+                         ^ string_of_ident v ^ "'." ))
     else
       H.add env v (Def (te,ty))
 
@@ -88,11 +91,15 @@ let add_rw lc v rs =
   let env = H.find envs !Global.name in
     try (
       match H.find env v with
-        | Def (_,_)             -> raise ( EnvError ( lc , "Cannot add rewrite rules for the symbol '" ^ string_of_ident v ^ "' (Definition)." ) )
-        | Decl(ty,Some g)       -> H.add env v (Decl (ty,Some (Matching.add_rw g rs)))
-        | Decl (ty,None)        -> H.add env v (Decl (ty,Some (Matching.get_rw v rs)))
+        | Def (_,_)             -> 
+            raise ( EnvError ( lc , "Cannot add rewrite rules for the symbol '" 
+                               ^ string_of_ident v ^ "' (Definition)." ) )
+        | Decl(ty,Some g)       -> 
+            H.add env v (Decl (ty,Some (Matching.add_rw g rs)))
+        | Decl (ty,None)        -> 
+            H.add env v (Decl (ty,Some (Matching.get_rw v rs)))
     ) with
       Not_found ->
-        raise (EnvError ( lc , "Cannot find symbol '" ^ string_of_ident !Global.name ^ "." ^ string_of_ident v ^ "'." ))
-
-
+        raise (EnvError ( lc , "Cannot find symbol '" 
+                          ^ string_of_ident !Global.name ^ "." 
+                          ^ string_of_ident v ^ "'." ))

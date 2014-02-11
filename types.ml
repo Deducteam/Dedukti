@@ -66,7 +66,7 @@ type preterm =
   | PrePi   of (loc*ident) option * preterm * preterm
 
 type prepattern = 
-  | Unknown     of loc*int
+  | Unknown     of loc
   | PPattern    of loc*ident option*ident*prepattern list
 
 type ptop = loc * ident * prepattern list
@@ -82,9 +82,6 @@ let mk_pre_app              = function
   | [t]                 -> t
   | (PreApp l1)::l2      -> PreApp (l1@l2)
   | lst -> PreApp lst
-
-let cpt = ref (-1)
-let mk_unknown l = incr cpt ; Unknown (l,!cpt)
 
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
@@ -142,23 +139,48 @@ let rec term_eq t1 t2 =
 (* *** Rewrite Rules *** *)
 
 type pattern =
-  | Var         of ident*int
-  | Joker       of int
+  | Var         of ident option*int
   | Pattern     of ident*ident*pattern array
-  | Dot         of term
+
+let rec term_with_meta_of_pattern = function 
+  | Var (Some id,n)             -> DB (id,n)
+  | Var (None,n)                -> Meta n
+  | Pattern (md,id,args)        -> 
+      let c = Const (md,id) in
+      if Array.length args = 0 then c
+      else mk_App ( c :: (Array.to_list (Array.map term_with_meta_of_pattern args)) )
 
 let rec term_of_pattern = function 
-  | Var (id,n)                  -> DB (id,n)
-  | Joker n                     -> Meta n
+  | Var (Some id,n)             -> DB (id,n)
+  | Var (None,n)                -> DB (empty,n) (*FIXME*)
   | Pattern (md,id,args)        -> 
       let c = Const (md,id) in
       if Array.length args = 0 then c
       else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
-  | Dot t                       -> t
+
 
 type top = ident*pattern array
 type context = ( ident * term ) list
-type rule = { l:loc; ctx:context;  id:ident; args:pattern array; ri:term; } 
+
+type rule = { 
+  nb:int; 
+  l:loc; 
+  ctx:context;  
+  id:ident; 
+  args:pattern array; 
+  ri:term; 
+  sub:(int*term) list;
+} 
+
+type cpair = { 
+  rule1:int; 
+  rule2:int; 
+  pos:int list;
+  root:pattern;
+  red1:term;
+  red2:term;
+  joinable:bool
+}
 
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option

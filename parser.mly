@@ -16,7 +16,7 @@
         let mk_dot t = 
           let lc = get_loc t in
             Global.warning lc "Obsolete { _ } construct, ignoring..." ; 
-            mk_unknown lc 
+            Unknown lc 
 
         let rec mk_lam te = function
                 | []            -> te
@@ -109,7 +109,7 @@ pat_lst         : /* empty */                                   { [] }
 
                 pattern         : ID                            { PPattern (fst $1,None,snd $1,[]) }
                 | QID                                           { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
-                | UNDERSCORE                                    { mk_unknown $1 }
+                | UNDERSCORE                                    { Unknown $1 }
                 | LEFTPAR ID  pat_lst RIGHTPAR                  { PPattern (fst $2,None,snd $2,$3) }
                 | LEFTPAR QID pat_lst RIGHTPAR                  { let (l,md,id)=$2 in PPattern (l,Some md,id,$3) }
                 | LEFTBRA term RIGHTBRA                         { mk_dot $2 }
