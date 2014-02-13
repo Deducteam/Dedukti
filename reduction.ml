@@ -25,7 +25,7 @@ let rec cbn_term_of_state (k,e,t,s:cbn_state) : term =
     if s = [] then t
     else mk_App ( t::(List.map cbn_term_of_state s) )
 
-let rec split_stack i: cbn_state list -> (cbn_state list*cbn_state list) option = function
+let rec split_stack i = function
   | l  when i=0 -> Some ([],l)
   | []          -> None
   | x::l        -> ( match split_stack (i-1) l with
@@ -33,7 +33,9 @@ let rec split_stack i: cbn_state list -> (cbn_state list*cbn_state list) option 
                        | Some (s1,s2)    -> Some (x::s1,s2) )
 
 let safe_find m v cases =
-  try Some ( snd ( List.find (fun ((m',v'),_) -> ident_eq v v' && ident_eq m m') cases ) )
+  try Some ( snd (
+    List.find (fun ((m',v'),_) -> ident_eq v v' && ident_eq m m') cases
+  ) )
   with Not_found -> None
 
 let rec remove c lst =
@@ -57,10 +59,10 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | ( _ , _ , Lam _ , [] )                  -> config
     | ( k , _ , DB (_,n) , _ ) when (n>=k)    -> config
     (* Bound variable (to be substitute) *)
-    | ( k , e , DB (_,n) , s ) (*when n<k*)   -> 
+    | ( k , e , DB (_,n) , s ) (*when n<k*)   ->
         cbn_reduce ( 0 , [] , Lazy.force (List.nth e n) , s )
     (* Beta redex *)
-    | ( k , e , Lam (_,_,t) , p::s )          -> 
+    | ( k , e , Lam (_,_,t) , p::s )          ->
         cbn_reduce ( k+1 , (lazy (cbn_term_of_state p))::e , t , s )
     (* Application *)
     | ( _ , _ , App ([]|[_]) , _ )            -> assert false
@@ -74,7 +76,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
           match Env.get_global_symbol dloc m v with
             | Env.Def (te,_)            -> cbn_reduce ( 0 , [] , te , s )
             | Env.Decl (_,None)         -> config
-            | Env.Decl (_,Some (i,g))   ->
+            | Env.Decl (_,Some (i,g,_)) ->
                 ( match split_stack i s with
                     | None                -> config
                     | Some (s1,s2)        ->
@@ -86,7 +88,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
         end
     | ( _ , _ , Meta _ , _ )                    -> assert false
 
-and rewrite (nargs:int) (args:cbn_state list) (g:gdt) : (int*(term Lazy.t) list*term) option =
+and rewrite (nargs:int) (args:cbn_state list) (g:gdt) =
   (* assert ( nargs = List.lenght args ); *)
   match g with
     | Switch (i,cases,def)      ->
@@ -95,7 +97,8 @@ and rewrite (nargs:int) (args:cbn_state list) (g:gdt) : (int*(term Lazy.t) list*
           match cbn_reduce (List.nth args i) with
             | ( _ , _ , Const (m,v) , s )  ->
                 ( match safe_find m v cases , def with
-                    | Some g , _        -> rewrite (nargs-1+(List.length s)) ((remove i args)@s) g
+                    | Some g , _        ->
+                        rewrite (nargs-1+(List.length s)) ((remove i args)@s) g
                     | None , Some g     -> rewrite nargs args g
                     | _ , _             -> None )
             | ( _ , _ , _ , s ) ->
@@ -104,14 +107,15 @@ and rewrite (nargs:int) (args:cbn_state list) (g:gdt) : (int*(term Lazy.t) list*
                    | None       -> None )
         end
     | Test ([],te,def)          ->
-        Some ( nargs  , 
-               List.map (fun a -> lazy (cbn_term_of_state a)) args , te ) 
+        Some ( nargs  ,
+               List.map (fun a -> lazy (cbn_term_of_state a)) args , te )
     | Test (lst,te,def)         ->
         begin
-          let ctx = List.map (fun st -> lazy (cbn_term_of_state st)) args in 
-          let conv_tests = List.map ( fun (t1,t2) -> ( (nargs,ctx,t1,[]) , (nargs,ctx,t2,[]) ) ) lst in
+          let ctx = List.map (fun st -> lazy (cbn_term_of_state st)) args in
+          let conv_tests =
+            List.map (fun (t1,t2) -> ( (nargs,ctx,t1,[]) , (nargs,ctx,t2,[]) )) lst in
           if state_conv conv_tests then
-            Some ( nargs , List.map (fun a -> lazy (cbn_term_of_state a)) args , te )
+            Some (nargs, List.map (fun a -> lazy (cbn_term_of_state a)) args, te)
           else
             match def with
               | None    -> None
@@ -124,30 +128,30 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
       begin
         let t1 = cbn_term_of_state s1 in
         let t2 = cbn_term_of_state s2 in
-          if term_eq t1 t2 then 
+          if term_eq t1 t2 then
             state_conv lst
           else
             let s1' = cbn_reduce s1 in
             let s2' = cbn_reduce s2 in
               match s1',s2' with (*states are beta-delta head normal*)
                 | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )
-                | ( _ , _ , Type _ , s ) , ( _ , _ , Type _ , s' )                      ->
-                (* assert ( List.length s == 0 && List.length s' == 0 ) *) 
+                | ( _ , _ , Type _ , s ) , ( _ , _ , Type _ , s' )               ->
+                (* assert ( List.length s == 0 && List.length s' == 0 ) *)
                     state_conv lst
-                | ( k , _ , DB (_,n) , s ) , ( k' , _ , DB (_,n') , s' )                ->
+                | ( k , _ , DB (_,n) , s ) , ( k' , _ , DB (_,n') , s' )         ->
                     ( (*assert (k<=n && k'<=n') ;*) (n-k)=(n'-k') &&
                       match (add_to_list lst s s') with
                         | None          -> false
                         | Some lst'     -> state_conv lst'
                     )
-                | ( _ , _ , Const (m,v) , s ) , ( _ , _ , Const (m',v') ,s' )           ->
+                | ( _ , _ , Const (m,v) , s ) , ( _ , _ , Const (m',v') ,s' )    ->
                     ( ident_eq v v' && ident_eq m m' &&
                       match (add_to_list lst s s') with
                         | None          -> false
                         | Some lst'     -> state_conv lst'
                     )
                 | ( k , e , Lam (_,a,f) , s ) , ( k' , e' , Lam (_,a',f') , s' )
-                | ( k , e , Pi  (_,a,f) , s ) , ( k' , e' , Pi  (_,a',f') , s' )        ->
+                | ( k , e , Pi  (_,a,f) , s ) , ( k' , e' , Pi  (_,a',f') , s' ) ->
                     let arg = Lazy.lazy_from_val (mk_Unique ()) in
                     let x = ( (k,e,a,[]) , (k',e',a',[]) ) in
                     let y = ( (k+1,arg::e,f,[]) , (k'+1,arg::e',f',[]) ) in
@@ -159,22 +163,22 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
       end
 
 (* Weak Normal Form *)
-let wnf (t:term) : term = cbn_term_of_state ( cbn_reduce ( 0 , [] , t , [] ) )
-
-let rec cbn_term_of_state2 (k,e,t,s:cbn_state) : term =
-  let t = ( if k = 0 then t else Subst.psubst_l (k,e) 0 t ) in
-    if s = [] then t
-    else mk_App ( t::(List.map (fun st -> cbn_term_of_state2 (cbn_reduce st)) s ))
+let whnf t = cbn_term_of_state ( cbn_reduce ( 0 , [] , t , [] ) )
 
 (* Head Normal Form *)
-let hnf (t:term) : term = cbn_term_of_state2 (cbn_reduce (0,[],t,[]))
+let rec hnf t =
+  match whnf t with
+    | Kind | Const _ | DB _ | Type | Pi (_,_,_) | Lam (_,_,_) as t' -> t'
+    | App lst -> mk_App (List.map hnf lst)
+    | Meta _  -> assert false
 
+(* Convertibility Test *)
 let are_convertible t1 t2 =
   state_conv [ ( (0,[],t1,[]) , (0,[],t2,[]) ) ]
 
 (* Strong Normal Form *)
 let rec snf (t:term) : term =
-  match hnf t with
+  match whnf t with
     | Kind | Const _
     | DB _ | Type as t' -> t'
     | App lst           -> mk_App (List.map snf lst)
@@ -184,7 +188,7 @@ let rec snf (t:term) : term =
 
 (* ************** Bounded reduction for (untyped) terms with meta *************** *)
 
-let rec cbn_reduce2 cpt (config:cbn_state) : cbn_state option =
+let rec bounded_cbn_reduce cpt (config:cbn_state) : cbn_state option =
   if cpt < 1 then None else
   match config with
     (* Weak normal terms *)
@@ -195,179 +199,132 @@ let rec cbn_reduce2 cpt (config:cbn_state) : cbn_state option =
     | ( _ , _ , Lam _ , [] )                  -> Some config
     | ( k , _ , DB (_,n) , _ ) when (n>=k)    -> Some config
     (* Bound variable (to be substitute) *)
-    | ( k , e , DB (_,n) , s ) (*when n<k*)   -> 
-        cbn_reduce2 (cpt-1) ( 0 , [] , Lazy.force (List.nth e n) , s )
+    | ( k , e , DB (_,n) , s ) (*when n<k*)   ->
+        bounded_cbn_reduce (cpt-1) ( 0 , [] , Lazy.force (List.nth e n) , s )
     (* Beta redex *)
-    | ( k , e , Lam (_,_,t) , p::s )          -> 
-        cbn_reduce2 (cpt-1) ( k+1 , (lazy (cbn_term_of_state p))::e , t , s )
+    | ( k , e , Lam (_,_,t) , p::s )          ->
+        bounded_cbn_reduce (cpt-1) (k+1, (lazy (cbn_term_of_state p))::e, t, s )
     (* Application *)
     | ( _ , _ , App ([]|[_]) , _ )            -> assert false
     | ( k , e , App (he::tl) , s )      ->
         let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
-          cbn_reduce2 (cpt-1) ( k , e , he , tl' @ s )
+          bounded_cbn_reduce (cpt-1) ( k , e , he , tl' @ s )
     (* Global variable*)
     | ( _ , _ , Const (m,_), _ ) when m==empty -> Some config
     | ( _ , _ , Const (m,v) , s )              ->
         begin
           match Env.get_global_symbol dloc m v with
-            | Env.Def (te,_)            -> cbn_reduce2 (cpt-1) ( 0 , [] , te , s )
+            | Env.Def (te,_)            ->
+                bounded_cbn_reduce (cpt-1) ( 0 , [] , te , s )
             | Env.Decl (_,None)         -> Some config
-            | Env.Decl (_,Some (i,g))   ->
+            | Env.Decl (_,Some (i,g,_)) ->
                 ( match split_stack i s with
                     | None                -> Some config
                     | Some (s1,s2)        ->
-                        ( match rewrite2 (cpt-1) i s1 g with
+                        ( match bounded_rewrite (cpt-1) i s1 g with
                             | None2             -> Some config
-                            | Some2 (k,e,t)     -> cbn_reduce2 (cpt-1) ( k , e , t , s2 )
-                            | Maybe2            -> None
+                            | DontKnow          -> None
+                            | Some2 (k,e,t)     ->
+                                bounded_cbn_reduce (cpt-1) ( k , e , t , s2 )
                         )
                 )
         end
 
-and rewrite2 cpt (nargs:int) (args:cbn_state list) (g:gdt) : (int*(term Lazy.t) list*term) option2 =
+and bounded_rewrite cpt (nargs:int) (args:cbn_state list) (g:gdt) =
   (* assert ( nargs = List.lenght args ); *)
-  if cpt < 1 then Maybe2 else
+  if cpt < 1 then DontKnow else
   match g with
     | Switch (i,cases,def)      ->
         begin
           (* assert (i<Array.length args); *)
-          match cbn_reduce2 (cpt-1) (List.nth args i) with
+          match bounded_cbn_reduce (cpt-1) (List.nth args i) with
             | Some ( _ , _ , Const (m,v) , s )  ->
                 ( match safe_find m v cases , def with
-                    | Some g , _        -> rewrite2 (cpt-1) (nargs-1+(List.length s)) ((remove i args)@s) g
-                    | None , Some g     -> rewrite2 (cpt-1) nargs args g
+                    | Some g , _        ->
+                        bounded_rewrite (cpt-1) (nargs-1+(List.length s))
+                          ((remove i args)@s) g
+                    | None , Some g     ->
+                        bounded_rewrite (cpt-1) nargs args g
                     | _ , _             -> None2 )
             | Some ( _ , _ , _ , s ) ->
                 (match def with
-                   | Some g     -> rewrite2 (cpt-1) nargs args g
+                   | Some g     -> bounded_rewrite (cpt-1) nargs args g
                    | None       -> None2 )
-            | None -> Maybe2
+            | None -> DontKnow
         end
     | Test ([],te,def)          ->
-        Some2 ( List.length args  , 
-               List.map (fun a -> lazy (cbn_term_of_state a)) args , te ) 
+        Some2 ( List.length args  ,
+               List.map (fun a -> lazy (cbn_term_of_state a)) args , te )
     | Test (lst,te,def)         ->
         begin
-          let ctx = List.map (fun st -> lazy (cbn_term_of_state st)) args in 
-          let k = List.length ctx in 
-          let conv_tests = List.map ( fun (t1,t2) -> ( (k,ctx,t1,[]) , (k,ctx,t2,[]) ) ) lst in
-            match state_conv2 (cpt-1) conv_tests with
-              | Yes -> Some2 ( k , List.map (fun a -> lazy (cbn_term_of_state a)) args , te )
+          let ctx = List.map (fun st -> lazy (cbn_term_of_state st)) args in
+          let k = List.length ctx in
+          let conv_tests =
+            List.map ( fun (t1,t2) -> ( (k,ctx,t1,[]) , (k,ctx,t2,[]) ) ) lst in
+            match bounded_state_conv (cpt-1) conv_tests with
+              | Yes ->
+                  Some2 (k ,List.map (fun a -> lazy (cbn_term_of_state a)) args, te )
               | No  ->
                   ( match def with
                       | None    -> None2
-                      | Some g  -> rewrite2 (cpt-1) nargs args g )
-              | Maybe -> Maybe2 
+                      | Some g  -> bounded_rewrite (cpt-1) nargs args g )
+              | Maybe -> DontKnow
         end
 
-and state_conv2 cpt : (cbn_state*cbn_state) list -> yes_no_maybe = function
+and bounded_state_conv cpt : (cbn_state*cbn_state) list -> yes_no_maybe = function
   | []                  -> Yes
   | (s1,s2)::lst        ->
       begin
         if cpt < 1 then Maybe else
         let t1 = cbn_term_of_state s1 in
         let t2 = cbn_term_of_state s2 in
-          if term_eq t1 t2 then 
-            state_conv2 (cpt-1) lst
+          if term_eq t1 t2 then
+            bounded_state_conv (cpt-1) lst
           else
-            let s1' = cbn_reduce2 (cpt-1) s1 in
-            let s2' = cbn_reduce2 (cpt-1) s2 in
+            let s1' = bounded_cbn_reduce (cpt-1) s1 in
+            let s2' = bounded_cbn_reduce (cpt-1) s2 in
               match s1', s2' with
                 | None, _ | _, None     -> Maybe
                 | Some s1', Some s2'    ->
                     begin
                       match s1',s2' with (*states are beta-delta head normal*)
                         | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )
-                        | ( _ , _ , Type _ , s ) , ( _ , _ , Type _ , s' )                      ->
-                            (* assert ( List.length s == 0 && List.length s' == 0 ) *) 
-                            state_conv2 (cpt-1) lst
+                        | ( _ , _ , Type _ , s ) , ( _ , _ , Type _ , s' )      ->
+                            (* assert ( List.length s == 0 && List.length s' == 0 ) *)
+                            bounded_state_conv (cpt-1) lst
                         | ( k , _ , DB (_,n) , s ) , ( k' , _ , DB (_,n') , s' )
-                             (*assert (k<=n && k'<=n') ;*) when (n-k)=(n'-k')          -> 
+                             (*assert (k<=n && k'<=n') ;*) when (n-k)=(n'-k')   ->
                             ( match (add_to_list lst s s') with
                                 | None          -> No
-                                | Some lst'     -> state_conv2 (cpt-1) lst'
-                            )
+                                | Some lst'     ->
+                                    bounded_state_conv (cpt-1) lst' )
                         | ( _ , _ , Const (m,v) , s ) , ( _ , _ , Const (m',v') ,s' )
-                                                when ( ident_eq v v' && ident_eq m m' ) -> 
+                                                when ( ident_eq v v' && ident_eq m m' ) ->
                             ( match (add_to_list lst s s') with
                                 | None          -> No
-                                | Some lst'     -> state_conv2 (cpt-1) lst'
-                            ) 
+                                | Some lst'     -> bounded_state_conv (cpt-1) lst' )
                         | ( k , e , Lam (_,a,f) , s ) , ( k' , e' , Lam (_,a',f') , s' )
-                        | ( k , e , Pi  (_,a,f) , s ) , ( k' , e' , Pi  (_,a',f') , s' )        ->
+                        | ( k , e , Pi  (_,a,f) , s ) , ( k' , e' , Pi  (_,a',f') , s' ) ->
                             let arg = Lazy.lazy_from_val (mk_Unique ()) in
                             let x = ( (k,e,a,[]) , (k',e',a',[]) ) in
                             let y = ( (k+1,arg::e,f,[]) , (k'+1,arg::e',f',[]) ) in
                               ( match add_to_list (x::y::lst) s s' with
                                   | None        -> No
-                                  | Some lst'   -> state_conv2 (cpt-1) lst' )
-                        | ( _ , _ , Meta n , s ) , ( _ , _ , Meta n' , s' ) when n=n'           -> 
+                                  | Some lst'   -> bounded_state_conv (cpt-1) lst' )
+                        | ( _ , _ , Meta n , s ) , ( _ , _ , Meta n' , s' ) when n=n'   ->
                             (  match (add_to_list lst s s') with
                                  | None          -> No
-                                 | Some lst'     -> state_conv2 (cpt-1) lst'
+                                 | Some lst'     -> bounded_state_conv (cpt-1) lst'
                             )
-                        | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                                 ->
+                        | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                         ->
                             No
                     end
       end
 
-let are_convertible_with_meta t1 t2 : yes_no_maybe = 
-  state_conv2 100 [ ( (0,[],t1,[]) , (0,[],t2,[]) ) ]
+let bounded_are_convertible k t1 t2 : yes_no_maybe =
+  bounded_state_conv k [ ( (0,[],t1,[]) , (0,[],t2,[]) ) ]
 
-let wnf_with_meta (t:term) : term option = 
-  match cbn_reduce2 100 ( 0 , [] , t , [] ) with
+let bounded_whnf k t =
+  match bounded_cbn_reduce k ( 0 , [] , t , [] ) with
     | None      -> None
     | Some s    -> Some ( cbn_term_of_state s )
-
-(* *** *)
-
-let rec decompose b = function
-  | []          -> Some b
-  | (s1,s2)::a  ->
-      begin
-        let t1 = cbn_term_of_state s1 in
-        let t2 = cbn_term_of_state s2 in
-          if term_eq t1 t2 then 
-            decompose b a 
-          else
-            let s1' = cbn_reduce2 100 s1 in
-            let s2' = cbn_reduce2 100 s2 in
-              match s1', s2' with
-                | None, _ | _, None     -> decompose b a (*here we loose information*)
-                | Some s1', Some s2'    ->
-                    begin
-                      match s1',s2' with (*states are beta-delta head normal*)
-                        | ( _ , _ , Kind , _ ) , ( _ , _ , Kind , _ )
-                        | ( _ , _ , Type _ , _ ) , ( _ , _ , Type _ , _ )                               -> 
-                            assert false
-                        | ( k , _ , DB (_,n) , s ) , ( k' , _ , DB (_,n') , s' ) when (n-k)=(n'-k')     -> 
-                            ( match (add_to_list a s s') with
-                                | None          -> None
-                                | Some a'       -> decompose b a' 
-                            )
-                        | ( _ , _ , Const (m,v) , s ) , ( _ , _ , Const (m',v') ,s' )
-                                                        when ( ident_eq v v' && ident_eq m m' )         -> 
-                            ( match (add_to_list a s s') with
-                                | None          -> None
-                                | Some a'       -> decompose b a'
-                            ) 
-                        | ( k , e , Lam (_,ty,f) , s ) , ( k' , e' , Lam (_,ty',f') , s' )
-                        | ( k , e , Pi  (_,ty,f) , s ) , ( k' , e' , Pi  (_,ty',f') , s' )              ->
-                            let arg = Lazy.lazy_from_val (mk_Unique ()) in
-                            let x = ( (k,e,ty,[]) , (k',e',ty',[]) ) in
-                            let y = ( (k+1,arg::e,f,[]) , (k'+1,arg::e',f',[]) ) in
-                              ( match add_to_list (x::y::a) s s' with
-                                  | None        -> None
-                                  | Some a'     -> decompose b a'
-                              )
-                        | ( _ , _ , Meta n , [] ) , s | s , ( _ , _ , Meta n , [] )                     -> 
-                            decompose ((n,cbn_term_of_state s)::b) a
-                        | ( _ , _ , Meta n , _  ) , s | s , ( _ , _ , Meta n , _  )                     -> 
-                            decompose b a (* here we loose some information*)
-                        | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )                                         ->
-                            None
-                    end
-      end
-
-let decompose_eq b a = 
-  decompose b (List.map (fun (t1,t2) -> ( (0,[],t1,[]) , (0,[],t2,[]) )) a)

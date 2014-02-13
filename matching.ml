@@ -29,7 +29,7 @@ type partition = { cases:( (ident*ident) * pMat ) list ;
 let string_of_line id l = 
   let s =
     " [" ^ string_of_int l.env_size ^ "] " ^ string_of_ident id ^ " " 
-    ^ (String.concat " " (Array.to_list (Array.map (Pp.string_of_pattern []) l.pats)) )
+    ^ (String.concat " " (Array.to_list (Array.map Pp.string_of_pattern l.pats)) )
     ^ " --> " ^ Pp.string_of_term l.right
   in
   let aux (t1,t2) = Pp.string_of_term t1 ^ " ~= " ^ Pp.string_of_term t2 in
@@ -254,7 +254,7 @@ let rec add_lines pm = function
 
 let add_rw (n,g) rs =
   let ( nb_args , pm ) = pMat_from_rules rs in
-    if nb_args = n then ( n , add_lines pm g )
+    if nb_args = n then add_lines pm g 
     else
       raise ( PatternError ( (fst pm).loc , 
                              "Arity mismatch: all the rules must have the same arity." ) )

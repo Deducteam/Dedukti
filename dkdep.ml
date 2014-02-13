@@ -1,13 +1,13 @@
 open Types
 
-module P = Parser.Make(Dep) 
+module P = Parser.Make(Dep)
 
-let parse lb = 
+let parse lb =
   try
       P.prelude Lexer.token lb ;
       while true do P.line Lexer.token lb done
-  with 
-    | P.Error       -> 
+  with
+    | P.Error       ->
         begin
           let curr = lb.Lexing.lex_curr_p in
           let l = curr.Lexing.pos_lnum in
@@ -26,10 +26,10 @@ let args = [ ("-o", Arg.String Global.set_out                , "Output file"  ) 
 
 (* Main *)
 
-let _ =  
-  try 
-    Arg.parse args run_on_file "Usage: dkdep [options] files"  
-  with 
+let _ =
+  try
+    Arg.parse args run_on_file "Usage: dkdep [options] files"
+  with
     | Sys_error err             -> Global.warning dloc  err
     | LexerError (lc,err)       -> Global.warning lc err
     | ParserError (lc,err)      -> Global.warning lc err

@@ -13,7 +13,7 @@ let parse lb =
           let l = curr.Lexing.pos_lnum in
           let c = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
           let tok = Lexing.lexeme lb in
-            raise (ParserError ( mk_loc l c , "Unexpected token '" ^ tok ^ "'." ) )
+            raise (ParserError (mk_loc l c,"Unexpected token '" ^ tok ^ "'." ))
         end
     | EndOfFile -> ()
 
@@ -22,7 +22,7 @@ let run_on_file file =
     Global.set_filename file ;
     parse (Lexing.from_channel input)
 
-let args = [ ("-o", Arg.String Global.set_out                , "Output file"  ) ]
+let args = [ ("-o", Arg.String Global.set_out , "Output file"  ) ]
 
 (* Main *)
 
