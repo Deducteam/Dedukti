@@ -80,4 +80,5 @@ let mk_command lc cmd lst =
     | Other             -> failwith ("Unknown command '" ^ cmd ^ "'.")
 
 let mk_ending _ =
+  Confluence.check_cpairs () ;
   Env.export_and_clear ()
