@@ -43,8 +43,41 @@ struct
       Env.add_rw lc hd rs ;
       Global.sprint ("Rules added.")
 
-  let mk_command _ _ _ =
-      failwith "Command not implemented." (*TODO*)
+  let mk_command lc cmd lst =
+    match Global.parse_cmd lc cmd lst with
+      | Whnf pte          ->
+          let (te,_) = Inference.infer [] pte in
+            Global.sprint (Pp.string_of_term (Reduction.whnf te))
+      | Hnf pte           ->
+          let (te,_) = Inference.infer [] pte in
+            Global.sprint (Pp.string_of_term (Reduction.hnf te))
+      | Snf pte           ->
+          let (te,_) = Inference.infer [] pte in
+            Global.sprint (Pp.string_of_term (Reduction.snf te))
+      | OneStep pte       ->
+          let (te,_) = Inference.infer [] pte in
+            ( match Reduction.one_step te with
+                | None    -> Global.sprint "Already in weak head normal form."
+                | Some t' -> Global.sprint (Pp.string_of_term t') )
+      | Conv (pte1,pte2)  ->
+          let (t1,_) = Inference.infer [] pte1 in
+          let (t2,_) = Inference.infer [] pte2 in
+            if Reduction.are_convertible t1 t2 then Global.sprint "OK"
+            else Global.sprint "KO"
+      | Check (pte1,pte2) ->
+          let (t1,ty1) = Inference.infer [] pte1 in
+          let ty2 = Inference.check_type [] pte2 in
+            if Reduction.are_convertible ty1 ty2 then Global.sprint "OK"
+            else Global.sprint "KO"
+      | Infer pte         ->
+          let (te,ty) = Inference.infer [] pte in
+            Global.sprint (Pp.string_of_term ty)
+      | Gdt (m,v)         ->
+          ( match Env.get_global_rw lc m v with
+              | Some (i,g,_)    -> Global.sprint (Pp.string_of_gdt m v i g)
+              | _               -> Global.sprint "No GDT." )
+      | Print str         -> Global.sprint str
+      | Other             -> Global.warning lc ("Unknown command '" ^ cmd ^ "'.")
 
   let mk_ending _ = ()
 

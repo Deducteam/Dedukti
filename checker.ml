@@ -77,7 +77,7 @@ let mk_command lc cmd lst =
             | Some (i,g,_)    -> Global.sprint (Pp.string_of_gdt m v i g)
             | _               -> Global.sprint "No GDT." )
     | Print str         -> Global.sprint str
-    | Other             -> failwith ("Unknown command '" ^ cmd ^ "'.")
+    | Other             -> Global.warning lc ("Unknown command '" ^ cmd ^ "'.")
 
 let mk_ending _ =
   Env.export_and_clear ()
