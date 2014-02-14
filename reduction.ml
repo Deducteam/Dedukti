@@ -328,3 +328,47 @@ let bounded_whnf k t =
   match bounded_cbn_reduce k ( 0 , [] , t , [] ) with
     | None      -> None
     | Some s    -> Some ( cbn_term_of_state s )
+
+(* One-Step Reduction *)
+
+let rec state_one_step = function
+    (* Weak normal terms *)
+    | ( _ , _ , Type , s )
+    | ( _ , _ , Kind , s )
+    | ( _ , _ , Pi _ , s )                      -> None 
+    | ( _ , _ , Lam _ , [] )                    -> None
+    | ( k , _ , DB (_,n) , _ ) when (n>=k)      -> None 
+    (* Bound variable (to be substitute) *)
+    | ( k , e , DB (_,n) , s ) (*when n<k*)     -> 
+        Some ( 0 , [] , Lazy.force (List.nth e n) , s )
+    (* Beta redex *)
+    | ( k , e , Lam (_,_,t) , p::s )            -> 
+        Some ( k+1 , (lazy (cbn_term_of_state p))::e , t , s ) 
+    (* Application *)
+    | ( _ , _ , App ([]|[_]) , _ )              -> assert false
+    | ( k , e , App (he::tl) , s )              ->
+        let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
+          state_one_step ( k , e , he , tl' @ s )
+    (* Global variable*)
+    | ( _ , _ , Const (m,_), _ ) when m==empty  -> None
+    | ( _ , _ , Const (m,v) , s )               ->
+        begin
+          match Env.get_global_symbol dloc m v with
+            | Env.Def (te,_)            -> Some ( 0 , [] , te , s )
+            | Env.Decl (_,None)         -> None 
+            | Env.Decl (_,Some (i,g,_)) ->
+                ( match split_stack i s with
+                    | None                -> None 
+                    | Some (s1,s2)        ->
+                        ( match rewrite i s1 g with
+                            | None              -> None 
+                            | Some (k,e,t)      -> Some ( k , e , t , s2 )
+                        )
+                )
+        end
+    | ( _ , _ , Meta _ , _ )                    -> assert false
+      
+let one_step t =
+  match state_one_step (0,[],t,[]) with
+    | None      -> None
+    | Some st   -> Some ( cbn_term_of_state st )

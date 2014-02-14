@@ -55,7 +55,10 @@ let mk_command lc cmd lst =
         let (te,_) = Inference.infer [] pte in
           Global.sprint (Pp.string_of_term (Reduction.snf te))
     | OneStep pte       ->
-        assert false (*TODO merge with NormalisationPasAPas*)
+        let (te,_) = Inference.infer [] pte in
+          ( match Reduction.one_step te with
+              | None    -> Global.sprint "Already in weak head normal form."
+              | Some t' -> Global.sprint (Pp.string_of_term t') )
     | Conv (pte1,pte2)  ->
         let (t1,_) = Inference.infer [] pte1 in
         let (t2,_) = Inference.infer [] pte2 in
