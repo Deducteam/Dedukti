@@ -1,6 +1,8 @@
 
 open Types
 
+
+
 (* *** Global Options *** *)
 
 let name                        = ref empty
@@ -10,8 +12,8 @@ let raphael                     = ref false
 let color                       = ref true
 let out                         = ref stdout
 let filename                    = ref None
-let unsafe_mode                 = ref false
-let diplay_db                   = ref false (*TODO*)
+(*let unsafe_mode                 = ref false*)
+let display_db                   = ref false 
 
 let set_name s = name := s
 let set_out file = out := open_out file
@@ -19,6 +21,7 @@ let set_filename s = filename := Some s
 
 (* *** Infos about the Rewrite System *** *)
 
+(*
 let linearity = ref true
 let constant_applicative = ref true
 
@@ -33,7 +36,7 @@ let unset_constant_applicative lc =
   else
     raise (MiscError ( lc , "The rewrite system should be either linear or\
                               constant-applicative at type level." ))
-
+ *)
 
 (* *** Info messages *** *)
 
@@ -77,6 +80,9 @@ let error lc str =
   eprint ( red "ERROR " ^ string_of_loc lc ^ " " ^ str ) ;
   exit 1
 
+let print_version _  = 
+  sprint "Dedukti v2.2.1" (*FIXME do not forget to update*)
+
 (* Commands *)
 
 let get_one l str = function
@@ -112,3 +118,4 @@ let parse_cmd l str lst =
   else if str="PRINT" then Print (get_string l str lst)
   else if str="GDT"   then let (m,v) = get_idents l str lst in Gdt (m,v)
   else Other
+

@@ -1,14 +1,12 @@
-#NAME dot
+#NAME dot.
+
 N: Type.
 Z: N.
 S: N->N.
 
 plus: N->N->N.
-
-[y:N]
-plus Z     y --> y
-[x:N,y:N]
-plus (S x) y --> S (plus x y).
+[y:N] 		plus Z     y --> y
+[x:N,y:N]	plus (S x) y --> S (plus x y).
 
 
 V:   N->Type.

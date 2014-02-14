@@ -8,14 +8,14 @@ let string_of_decl (x,ty) =
   else string_of_ident x ^ ": " ^ Pp.string_of_term ty
 
 let mk_err_msg (lc:loc) (ctx:context) (te:string) (exp:string) (inf:string) =
-  let ctx_str = String.concat "\n" (List.rev_map string_of_decl ctx) in
+  let ctx_str = String.concat ".\n" (List.rev_map string_of_decl ctx) in
   let msg =
     "Error while typing " ^ te ^
     (match ctx with
        | []      -> ".\n"
        | _       -> " in context:\n" ^ ctx_str ^ "\n"
     ) ^
-    "Expected type: " ^ exp ^ "\n" ^ "Inferred type: " ^ inf
+    "Expected: " ^ exp ^ "\n" ^ "Inferred: " ^ inf
   in
     raise (TypingError ( lc , msg ) )
 

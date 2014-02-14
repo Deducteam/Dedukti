@@ -8,12 +8,12 @@ sig
   type term
   val subst: term substitution -> term -> term
   val occurs_check: int -> term -> bool
-  val decompose: (int*term) list -> (term*term) list -> ((int*term) list) option2
+  val decompose: (int*term) list -> (int*term*term) list -> ((int*term) list) option2
 end
 
 module Make = functor (T: UTerm) ->
 struct
-  type state = (T.term*T.term) list * (int*T.term) list * T.term substitution
+  type state = (int*T.term*T.term) list * (int*T.term) list * T.term substitution
 
   let rec safe_assoc v = function
   | []                  -> None
@@ -27,7 +27,7 @@ struct
             if T.occurs_check v te then None2
             else
               match safe_assoc v s with
-                | Some te'      -> unify0 ( [(te,te')] , lst , s )
+                | Some te'      -> unify0 ( [(0,te,te')] , lst , s )
                 | None      ->
                     let s' = List.map (fun (z,t) -> (z,T.subst [(v,te)] t)) s in
                       unify0 ( [] , lst , (v,te)::s' )
@@ -38,7 +38,9 @@ struct
             | opt2      -> opt2
         )
 
-  let unify lst = unify0 ( lst , [] , [] )
+  let unify lst = 
+    let lst' = List.map (fun (t,t') -> (0,t,t')) lst in
+      unify0 ( lst' , [] , [] )
 end
 
 (* Partial Higher Order Unification *)
@@ -46,12 +48,13 @@ end
 module TU : UTerm with type term = Types.term =
 struct
   type term = Types.term
-  let subst = Subst.subst_meta
 
-  let rec add_lst a l1 l2 =
+  let subst = Subst.subst_meta 
+
+  let rec add_lst k a l1 l2 =
     match l1, l2 with
       | [], []                  -> Some a
-      | a1::l1', a2::l2'        -> add_lst ((a1,a2)::a) l1' l2'
+      | a1::l1', a2::l2'        -> add_lst k ((k,a1,a2)::a) l1' l2'
       | _,_                     -> None
 
   let is_neutral = function
@@ -64,29 +67,41 @@ struct
             | Env.Decl(_,None)  -> true
             | _                 -> false )
 
+  exception ShiftExn
+  let rec shift (r:int) : term -> term = function
+    | DB (x,n) when (n>=r)      -> mk_DB x (n-r) 
+    | DB (_,_)                  -> raise ShiftExn
+    | App args                  -> mk_App (List.map (shift r) args )
+    | Lam (x,a,f)               -> mk_Lam x (shift r a) (shift r f)
+    | Pi  (x,a,b)               -> mk_Pi  x (shift r a) (shift r b)
+    | t                         -> t
+
+
   let rec decompose b = function
     | []                -> Some2 b
-    | (t1,t2)::a        ->
+    | (k,t1,t2)::a      ->
         begin
           match Reduction.bounded_whnf 500 t1,
                 Reduction.bounded_whnf 500 t2 with
             | Some t1', Some t2'        ->
                 begin
                   match t1', t2' with
-                    | Meta n, t  | t, Meta n            -> decompose ((n,t)::b) a
-                    | Kind, Kind | Type, Type           -> decompose b a
-                    | DB(_,n1), DB(_,n2) when n1=n2     -> decompose b a
+                    | Meta n, t | t, Meta n  -> 
+                        (try decompose ((n,shift k t)::b) a 
+                         with ShiftExn -> None2 )
+                    | Kind, Kind | Type, Type                   -> decompose b a
+                    | DB(_,n1), DB(_,n2) when n1=n2             -> decompose b a
                     | Const(m1,v1), Const(m2,v2) when
-                        (ident_eq v1 v2 && ident_eq m1 m2) -> decompose b a
+                        (ident_eq v1 v2 && ident_eq m1 m2)      -> decompose b a
                     | Pi(_,a1,b1), Pi(_,a2,b2)
                     | Lam(_,a1,b1), Lam(_,a2,b2)        ->
-                        decompose b ((a1,a2)::(b1,b2)::a)
+                        decompose b ((k,a1,a2)::(k+1,b1,b2)::a)
                     | App lst1 , t | t , App lst1       ->
                         if is_neutral lst1 then
                           ( match t with
                               | App lst2 ->
                                   if is_neutral lst2 then
-                                    ( match add_lst a lst1 lst2 with
+                                    ( match add_lst k a lst1 lst2 with
                                         | Some a'       -> decompose b a'
                                         | None          -> None2 )
                                   else DontKnow
@@ -129,16 +144,16 @@ struct
     let n = Array.length arr1 in
     let rec aux lst i =
       if i<n then
-        aux ((arr1.(i),arr2.(i))::lst) (i+1)
+        aux ((0,arr1.(i),arr2.(i))::lst) (i+1)
       else lst
     in
       aux lst0 0
 
   let rec decompose b = function
     | []                                        -> Some2 b
-    | (Var(_,k),p)::a | (p,Var (_,k))::a        -> decompose ((k,p)::b) a
-    | (Pattern (md,id,args),
-       Pattern(md',id',args'))::a       ->
+    | (_,Var(_,k),p)::a | (_,p,Var (_,k))::a    -> decompose ((k,p)::b) a
+    | (_,Pattern (md,id,args),
+       Pattern(md',id',args'))::a               ->
         if ident_eq id id' && ident_eq md md'
                 && Array.length args = Array.length args' then
           decompose b (add_to_list a args args')

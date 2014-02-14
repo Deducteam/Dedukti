@@ -57,16 +57,6 @@ let rec subst_meta_rec k s  = function
   | Meta n as t -> ( try shift k (List.assoc n s) with Not_found -> t )
 
 let subst_meta = subst_meta_rec 0
-(* FIXME
-let rec subst_var_rec k s  = function 
-  | Type _ | Kind | Const _ as t -> t
-  | Lam (x,a,b) -> mk_Lam x (subst_var_rec k s a) (subst_var_rec (k+1) s b)
-  | Pi  (x,a,b) -> mk_Pi  x (subst_var_rec k s a) (subst_var_rec (k+1) s b)
-  | App lst     -> mk_App ( List.map (subst_var_rec k s) lst)
-  | Meta _      -> assert false
-  | DB (_,n) as t -> ( try shift k (List.assoc n s) with Not_found -> t )
-
-let subst_var = subst_var_rec 0 *)
 
 let rec subst_pattern s = function
   | Var (_,n)  as p      -> ( try List.assoc n s with Not_found -> p )

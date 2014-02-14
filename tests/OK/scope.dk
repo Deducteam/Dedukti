@@ -1,4 +1,5 @@
-#NAME scope
+#NAME scope.
+
 T : Type.
 a : T.
 b : T.

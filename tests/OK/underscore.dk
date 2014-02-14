@@ -1,4 +1,4 @@
-#NAME hott
+#NAME hott.
 
 Nat: Type.
 Fin : Nat -> Type.

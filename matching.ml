@@ -73,7 +73,7 @@ let linearize k args =
 let line_from_rule (r:rule) : line =
   let k0 = List.length r.ctx in 
   let (k,pats,lst) = linearize k0 r.args in
-    ( match lst with | [] -> () | _ -> Global.unset_linearity r.l );
+    ( match lst with | [] -> () | _ ->(*FIXME Global.unset_linearity r.l*) () );
     { loc = r.l; pats = pats; right = r.ri; env_size = k; constr = lst }
 
 let pMat_from_rules (rs:rule list) : int*pMat =

@@ -32,6 +32,9 @@ let rec has_definitions = function
           | Env.Def (_,_)   -> true
           | _           -> exists has_definitions args )
 
+let dump =
+  List.iter (fun (t,t') -> Global.eprint ( Pp.string_of_term t ^ " == " ^ Pp.string_of_term t' ))
+
 let check_rule (pctx,ple,pri:prule) : rule =
   let (l,id,_) = ple in
   let (ctx,k0) =
@@ -40,43 +43,44 @@ let check_rule (pctx,ple,pri:prule) : rule =
       ([],0) pctx in
   let (k,le,ty0,eqs) = Inference.infer_ptop ctx ple in
   let args = match le with
-      | Var _                   -> assert false (*
-          let err_str = "The left-hand side of the rewrite\
+      | Var _                   -> 
+          let err_str = "The left-hand side of the rewrite \
                                                  rule cannot be a variable." in
-            raise (PatternError (l,err_str) ) *)
+            raise (PatternError (l,err_str) )
       | Pattern (_,_,args)      -> args
   in
     match Unification.unify_t eqs with
-      | None2           -> assert false (*
+      | None2           ->  
+          dump eqs;
           let str = "The pattern '"
           ^ Pp.string_of_pattern (Pattern (!Global.name,id,args))
           ^ "' is not well-typed." in
-            raise (PatternError (l,str)) *)
-      | DontKnow        -> assert false (*
+            raise (PatternError (l,str)) 
+      | DontKnow        -> 
           let str = "Could not infer placeholders in '"
           ^ Pp.string_of_pattern (Pattern (!Global.name,id,args)) ^ "'." in
-            raise (PatternError (l,str)) *)
+            raise (PatternError (l,str))
       | Some2 s         ->
           let ty = Subst.subst_meta s ty0 in
             if not (check_meta ty) then
-              begin assert false (*
+              begin 
                 let str = "Could not infer placeholders in '"
                 ^ Pp.string_of_pattern (Pattern (!Global.name,id,args)) ^ "'." in
-                  raise (PatternError (l,str)) *)
+                  raise (PatternError (l,str))
               end
             else if has_definitions le then
-              begin assert false (*
+              begin 
                 raise (PatternError (l,"Defined symbols are not\
-                                         allowed in patterns.")) *)
+                                         allowed in patterns."))
               end
             else
               begin
                 let ri = Inference.check_term ctx pri ty  in
-                  (if is_type_level ty then
+                  (*if is_type_level ty then FIXME
                      match ri with
                        | Const _ | App ( (Const _) :: _ ) -> ()
                        | _ -> Global.unset_constant_applicative l
-                  ) ;
+                   *) 
                   { nb=get_rule_nb (); l=l; ctx=ctx; id=id; args=args;
                     ri=ri; sub=s; k=k; md= !Global.name; }
               end

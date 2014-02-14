@@ -43,8 +43,11 @@ let args = [
         ("-e"    , Arg.Set Global.export       , "Create a .dko"          ) ;
         ("-nc"   , Arg.Clear Global.color      , "Disable colored output" ) ;
         ("-stdin", Arg.Unit run_on_stdin       , "Use standart input"     ) ;
-        ("-unsafe", Arg.Set Global.unsafe_mode , "Unsafe mode"            ) ;
-        ("-r"    , Arg.Set Global.raphael      , "Undocumented"           ) ]
+   (*     ("-unsafe", Arg.Set Global.unsafe_mode , "Unsafe mode"            ) ; *)
+        ("-r"    , Arg.Set Global.raphael      , "Ignore redeclaration"   ) ;
+        ("-display_db" , Arg.Set Global.display_db  , 
+         "Display DeBruijn indices when printing terms"   ) ;
+        ("-version" , Arg.Unit Global.print_version   , "Version"           ) ]
 
 let _ =
   try

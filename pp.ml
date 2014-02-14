@@ -28,8 +28,11 @@ and string_of_pterm_wp = function
 let rec string_of_term = function
   | Kind                -> "Kind"
   | Type                -> "Type"
-  | Meta n              -> "?[" ^ string_of_int n ^ "]"
-  | DB  (x,n)           -> string_of_ident x^"["^string_of_int n^"]"
+  | Meta n              -> 
+      if !Global.display_db then "?[" ^ string_of_int n ^ "]" else "_"
+  | DB  (x,n)           -> 
+      if !Global.display_db then string_of_ident x^"["^string_of_int n^"]" 
+      else string_of_ident x
   | Const (m,v)         -> string_of_const m v
   | App args            -> String.concat " " (List.map string_of_term_wp args)
   | Lam (x,a,f)         ->
