@@ -13,7 +13,8 @@ let color                       = ref true
 let out                         = ref stdout
 let filename                    = ref None
 (*let unsafe_mode                 = ref false*)
-let display_db                   = ref false 
+let display_db                  = ref false 
+let autodep                     = ref false
 
 let set_name s = name := s
 let set_out file = out := open_out file

@@ -47,7 +47,9 @@ let args = [
         ("-r"    , Arg.Set Global.raphael      , "Ignore redeclaration"   ) ;
         ("-display_db" , Arg.Set Global.display_db  , 
          "Display DeBruijn indices when printing terms"   ) ;
-        ("-version" , Arg.Unit Global.print_version   , "Version"           ) ]
+        ("-version" , Arg.Unit Global.print_version   , "Version"     ) ; 
+        ("-autodep", Arg.Set Global.autodep  ,
+                        "Automatically handle dependencies (experimental)") ]
 
 let _ =
   try

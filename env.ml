@@ -22,6 +22,12 @@ let init name = H.add envs name (H.create 251)
 
 let import lc m =
   assert ( not (H.mem envs m) );
+  (* If the [.dko] file is not found, try to compile it first.
+   This hack is terrible. It uses system calls and can loop with circular dependencies. *)
+  begin
+    if not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) && !Global.autodep then
+      ignore ( Sys.command ( "dkcheck -e " ^ string_of_ident m ^ ".dk" ) )
+  end ;
   try
     let chan = open_in ( string_of_ident m ^ ".dko" ) in
     let ctx:gst H.t = Marshal.from_channel chan in
