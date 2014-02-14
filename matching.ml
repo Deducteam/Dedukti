@@ -45,7 +45,7 @@ let get_constraints size_env p =
     match pat with
       | Pattern (md,id,args)    -> 
           let n = Array.length args in
-          let args2 = Array.make n (Joker 0) in
+          let args2 = Array.make n (Var(None,0)) in
           let aux_pat (i,kk,ll) pp = 
             let (kk',ll',p) = aux (kk,ll,pp) in
               args2.(i) <- p ;
@@ -53,16 +53,15 @@ let get_constraints size_env p =
           in
           let (_,k',lst') = Array.fold_left aux_pat (0,k,lst) args in
             ( k', lst', Pattern (md,id,args2) )
-      | Var (id,n)              -> 
+      | Var (Some id,n)              -> 
           begin
             if vars.(n) then 
-              ( k+1, (mk_DB id n,mk_DB id k)::lst, Var (id,k) )
+              ( k+1, (mk_DB id n,mk_DB id k)::lst, Var (Some id,k) )
             else (
               vars.(n) <- true ;
-              ( k, lst, Var (id,n) ) )
+              ( k, lst, Var (Some id,n) ) )
           end
-      | Joker n                 -> ( k, lst, Joker n ) 
-      | Dot _ as d              -> ( k, lst, d )    
+      |  j            -> ( k, lst, j ) 
   in
     aux (size_env,[],p)
 
@@ -71,26 +70,24 @@ let linearize k args =
     | k' , lst , Pattern (_,_,args')    -> ( k' , args' , lst )
     | _, _, _                           -> assert false
 
-let line_from_rule (l,ctx,id,pats0,ri:rule) : line =
-  let k0 = List.length ctx in 
-  let (k,pats,lst) = linearize k0 pats0 in
-    ( match lst with | [] -> () | _ -> Global.unset_linearity l );
-    { loc = l; pats = pats; right = ri; env_size = k; constr = lst }
+let line_from_rule (r:rule) : line =
+  let k0 = List.length r.ctx in 
+  let (k,pats,lst) = linearize k0 r.args in
+    ( match lst with | [] -> () | _ ->(*FIXME Global.unset_linearity r.l*) () );
+    { loc = r.l; pats = pats; right = r.ri; env_size = k; constr = lst }
 
 let pMat_from_rules (rs:rule list) : int*pMat =
   match rs with
     | []        -> assert false
     | l1::tl    -> 
-        let (_,_,id,pats,_) = l1 in
-        let arity = Array.length pats in
+        let arity = Array.length l1.args in
         let aux li =
-          let (l,_,id',pats',_) = li in
-            if Array.length pats' != arity then
-              raise ( PatternError ( l , "All the rules must have the same arity." ) )
-            else if (not (ident_eq id id')) then
-              raise ( PatternError ( l , "All the rules must have the same head symbol." ) )
-            else
-              line_from_rule li
+          if Array.length li.args != arity then
+            raise ( PatternError ( li.l , "All the rules must have the same arity." ) )
+          else if (not (ident_eq l1.id li.id)) then
+            raise ( PatternError ( li.l , "All the rules must have the same head symbol." ) )
+          else
+            line_from_rule li
         in
           ( arity , ( line_from_rule l1 , List.map aux tl ) ) 
 
@@ -112,12 +109,12 @@ let specialize (c:int) (l1,tl:pMat) (nargs,m,v:int*ident*ident) : (ident*ident)*
       fun i ->
         if i < c          then  p.(i)   (* [ 0 - (c-1) ] *)
         else if i < (n-1) then  p.(i+1) (* [ c - (n-2) ] *)
-        else (* i < new_n *)    Joker 0 (* [ (n-1) - (n+nargs-2) ] *) ) 
+        else (* i < new_n *)    Var (None,0) (* [ (n-1) - (n+nargs-2) ] *) ) 
   in
   let spec_aux li lst =
     (*  assert ( Array.length li.pats = n ); *)
     match li.pats.(c) with
-      | Joker _ | Dot _         ->
+      | Var (None,_)                 ->
           { li with pats = mk_pats li.pats }::lst
       | Pattern (m',v',args)    ->
           if not (ident_eq v v' && ident_eq m m') then lst
@@ -129,7 +126,7 @@ let specialize (c:int) (l1,tl:pMat) (nargs,m,v:int*ident*ident) : (ident*ident)*
       | Var (_,q)               ->
           let pats = mk_pats li.pats in
             for i=0 to (nargs-1) do
-              pats.(n-1+i) <- Var (qm,li.env_size+i)
+              pats.(n-1+i) <- Var (Some qm,li.env_size+i)
             done ;
           let te =
               if nargs=0 then mk_Const m v
@@ -190,9 +187,10 @@ let get_order (l:line) : int array =
   let ord = Array.make l.env_size (-1) in
     Array.iteri 
       (fun i p -> match p with
-         | Var (_,n)          -> ( (*assert ( n<l.env_size && ord.(n)=(-1)) ;*) ord.(n) <- i ) 
-         | Joker _ | Dot _    -> ()
-         | Pattern _          -> assert false
+         | Var (Some _,n) -> 
+             ( (*assert ( n<l.env_size && ord.(n)=(-1)) ;*) ord.(n) <- i ) 
+         | Var (None,_)   -> ()
+         | Pattern _ -> assert false
       ) l.pats ;
     ord
 
@@ -256,7 +254,7 @@ let rec add_lines pm = function
 
 let add_rw (n,g) rs =
   let ( nb_args , pm ) = pMat_from_rules rs in
-    if nb_args = n then ( n , add_lines pm g )
+    if nb_args = n then add_lines pm g 
     else
       raise ( PatternError ( (fst pm).loc , 
                              "Arity mismatch: all the rules must have the same arity." ) )

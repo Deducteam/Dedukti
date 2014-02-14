@@ -1,4 +1,4 @@
-#NAME Church
+#NAME Church.
 
 type : Type.
 arr : type -> type -> type.

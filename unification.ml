@@ -1,54 +1,170 @@
 
 open Types
 
-type substitution = (int*term)  list
-type ustate = (term*term) list (* Terms to unify *)
-            * (int*term)  list (* Variable to substitute *)
-            * substitution 
+type 'a substitution = (int*'a) list
 
-let rec safe_assoc v = function
+module type UTerm =
+sig
+  type term
+  val subst: term substitution -> term -> term
+  val occurs_check: int -> term -> bool
+  val decompose: (int*term) list -> (int*term*term) list -> ((int*term) list) option2
+end
+
+module Make = functor (T: UTerm) ->
+struct
+  type state = (int*T.term*T.term) list * (int*T.term) list * T.term substitution
+
+  let rec safe_assoc v = function
   | []                  -> None
   | (x,t)::_ when x=v   -> Some t
   | _::tl               -> safe_assoc v tl
 
-let rec not_in n = function 
-  | Meta k                      -> n<>k
-  | Pi (_,a,b) | Lam (_,a,b)    -> not_in n a && not_in n b
-  | App lst                     -> List.for_all (not_in n) lst
-  | _                           -> true
+  let rec unify0 : state -> (T.term substitution) option2 = function
+    | ( [], [] , s )            -> Some2 s
+    | ( [], (v,te0)::lst , s )  ->
+        ( let te = T.subst s te0 in
+            if T.occurs_check v te then None2
+            else
+              match safe_assoc v s with
+                | Some te'      -> unify0 ( [(0,te,te')] , lst , s )
+                | None      ->
+                    let s' = List.map (fun (z,t) -> (z,T.subst [(v,te)] t)) s in
+                      unify0 ( [] , lst , (v,te)::s' )
+        )
+    | ( a , b , s )      ->
+        ( match T.decompose b a with
+            | Some2 b'  -> unify0 ( [] , b' , s )
+            | opt2      -> opt2
+        )
 
-let rec unify (lc:loc) : ustate -> substitution option = function
-  | ( [] , [] , s )             -> Some s
-  | ( [] , (v,t0)::b , s)       ->
-      let t = Subst.subst_meta 0 s t0 in
-        if not_in v t then ( 
-          match safe_assoc v s with
-            | Some t'   -> unify lc ( [(t,t')] , b , s )
-            | None      -> 
-                let s' = List.map ( fun (z,te) -> ( z , Subst.subst_meta 0 [(v,t)] te ) ) s in
-                  unify lc ( [] , b , (v,t)::s' ) ) 
-        else None
-  | ( a , b , s )      -> 
-      ( match Reduction.decompose_eq b a with
-          | None        -> None
-          | Some b'     -> unify lc ( [] , b' , s ) )
+  let unify lst = 
+    let lst' = List.map (fun (t,t') -> (0,t,t')) lst in
+      unify0 ( lst' , [] , [] )
+end
 
-let rec check_meta = function
-  | Meta _                      -> false
-  | Pi (_,a,b) | Lam (_,a,b)    -> check_meta a && check_meta b
-  | App lst                     -> List.for_all check_meta lst
-  | _                           -> true
+(* Partial Higher Order Unification *)
 
-let resolve l id ty args eqs : term*pattern list =
-  match unify dloc (eqs,[],[]) with
-    | None      -> 
-        let pat = Pp.string_of_pattern (Pattern(!Global.name,id,Array.of_list args)) in
-          raise (PatternError (l,"The pattern '"^pat^"' is not well-typed."))
-    | Some s    ->
-        let ty'       = Subst.subst_meta 0 s ty in
-        let args'     = List.map (Subst.subst_meta_p s) args in
-          if check_meta ty' then
-            ( ty' , args' )
-          else
-            let pat = Pp.string_of_pattern (Pattern(!Global.name,id,Array.of_list args')) in
-              raise (PatternError (l,"Could not infer placeholders in the pattern '"^pat^"'.")) 
+module TU : UTerm with type term = Types.term =
+struct
+  type term = Types.term
+
+  let subst = Subst.subst_meta 
+
+  let rec add_lst k a l1 l2 =
+    match l1, l2 with
+      | [], []                  -> Some a
+      | a1::l1', a2::l2'        -> add_lst k ((k,a1,a2)::a) l1' l2'
+      | _,_                     -> None
+
+  let is_neutral = function
+    | []                                        -> assert false
+    | Type::_ | Kind::_ | (Pi(_,_,_))::_        -> true
+    | (DB(_,_))::_ | (Lam(_,_,_))::_            -> false
+    | (Meta _)::_ | (App _)::_                  -> assert false
+    | (Const (m,v))::_                          ->
+        ( match Env.get_global_symbol dloc m v with
+            | Env.Decl(_,None)  -> true
+            | _                 -> false )
+
+  exception ShiftExn
+  let rec shift (r:int) : term -> term = function
+    | DB (x,n) when (n>=r)      -> mk_DB x (n-r) 
+    | DB (_,_)                  -> raise ShiftExn
+    | App args                  -> mk_App (List.map (shift r) args )
+    | Lam (x,a,f)               -> mk_Lam x (shift r a) (shift r f)
+    | Pi  (x,a,b)               -> mk_Pi  x (shift r a) (shift r b)
+    | t                         -> t
+
+
+  let rec decompose b = function
+    | []                -> Some2 b
+    | (k,t1,t2)::a      ->
+        begin
+          match Reduction.bounded_whnf 500 t1,
+                Reduction.bounded_whnf 500 t2 with
+            | Some t1', Some t2'        ->
+                begin
+                  match t1', t2' with
+                    | Meta n, t | t, Meta n  -> 
+                        (try decompose ((n,shift k t)::b) a 
+                         with ShiftExn -> None2 )
+                    | Kind, Kind | Type, Type                   -> decompose b a
+                    | DB(_,n1), DB(_,n2) when n1=n2             -> decompose b a
+                    | Const(m1,v1), Const(m2,v2) when
+                        (ident_eq v1 v2 && ident_eq m1 m2)      -> decompose b a
+                    | Pi(_,a1,b1), Pi(_,a2,b2)
+                    | Lam(_,a1,b1), Lam(_,a2,b2)        ->
+                        decompose b ((k,a1,a2)::(k+1,b1,b2)::a)
+                    | App lst1 , t | t , App lst1       ->
+                        if is_neutral lst1 then
+                          ( match t with
+                              | App lst2 ->
+                                  if is_neutral lst2 then
+                                    ( match add_lst k a lst1 lst2 with
+                                        | Some a'       -> decompose b a'
+                                        | None          -> None2 )
+                                  else DontKnow
+                              | _        -> None2 )
+                        else DontKnow
+                    | _ , _                             -> None2
+                end
+            | _,_                       -> DontKnow
+        end
+
+  let rec occurs_check n = function
+    | Meta k                      -> n=k
+    | Pi (_,a,b) | Lam (_,a,b)    -> occurs_check n a || occurs_check n b
+    | App lst                     -> List.exists (occurs_check n) lst
+    | _                           -> false
+end
+
+module TUnification = Make(TU)
+
+let unify_t = TUnification.unify
+
+(* Pattern Unification *)
+
+module PU : UTerm with type term = Types.pattern =
+struct
+  type term = Types.pattern
+  let subst = Subst.subst_pattern
+
+  let rec occurs_check n = function
+    | Var (_,k)           -> n=k
+    | Pattern(_,_,args) -> aux n args 0
+  and aux n args i =
+    if i < Array.length args then
+      if occurs_check n args.(i) then true
+      else aux n args (i+1)
+    else false
+
+  let add_to_list lst0 arr1 arr2 =
+    (*assert (Array.length arr1 = Array.length arr2) *)
+    let n = Array.length arr1 in
+    let rec aux lst i =
+      if i<n then
+        aux ((0,arr1.(i),arr2.(i))::lst) (i+1)
+      else lst
+    in
+      aux lst0 0
+
+  let rec decompose b = function
+    | []                                        -> Some2 b
+    | (_,Var(_,k),p)::a | (_,p,Var (_,k))::a    -> decompose ((k,p)::b) a
+    | (_,Pattern (md,id,args),
+       Pattern(md',id',args'))::a               ->
+        if ident_eq id id' && ident_eq md md'
+                && Array.length args = Array.length args' then
+          decompose b (add_to_list a args args')
+        else None2
+
+end
+
+module PUnification = Make(PU)
+
+let unify_p lst =
+  match PUnification.unify lst with
+    | Some2 s   -> Some s
+    | None2     -> None
+    | _         -> assert false

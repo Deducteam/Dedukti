@@ -1,10 +1,9 @@
-#NAME coc
-Utype : Type.
+#NAME coc.
 
+Utype : Type.
 Ukind : Type.
 
 etype : Utype -> Type.
-
 ekind : Ukind -> Type.
 
 dottype : Ukind.

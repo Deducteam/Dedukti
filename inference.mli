@@ -1,14 +1,13 @@
 
 open Types
 
-(* *** Type inference *** *)
+(* ctx |- te:ty *)
+val infer      : (*ctx:*)context -> (*te:*)preterm -> (*(te,ty):*)term*term
 
-val infer               : (*ctx:*)context -> (*te:*)preterm -> (*(te,ty):*)term*term    (* ctx |- te:ty *)
+(* ctx |- ty : Type or ctx |- ty : Kind *)
+val check_type : (*ctx*)context -> (*ty*)preterm -> term(*ty*)
 
-(* *** Type checking *** *)
+(* ctx |- te:ty *)
+val check_term : (*ctx*)context -> (*te*)preterm -> (*ty*)term -> term(*te*)
 
-val check_type          : (*ctx*)context -> (*ty*)preterm -> term(*ty*)                 (* ctx |- ty : Type or ctx |- ty : Kind *)
-
-val check_term          : (*ctx*)context -> (*te*)preterm -> (*ty*)term -> term(*te*)   (* ctx |- te:ty *)
-
-val check_rule          : prule -> rule                                                 
+val infer_ptop : context -> ptop -> ( int * pattern * term * (term*term) list )

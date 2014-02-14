@@ -1,4 +1,5 @@
-#NAME append
+#NAME append.
+
 A  : Type.
 Nat: Type.
 Z  : Nat.
@@ -16,4 +17,3 @@ append: n:Nat -> Listn n -> m:Nat -> Listn m -> Listn (plus n m).
 [n:Nat,l2:Listn n]      append Z nil n l2 --> l2
 [n:Nat,l1:Listn n,m:Nat,l2:Listn m,a:A] 
      append _ (cons n a l1) m l2 --> cons (plus n m) a (append n l1 m l2).
-

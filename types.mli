@@ -1,6 +1,6 @@
 
 type yes_no_maybe = Yes | No | Maybe
-type 'a option2 = None2 | Maybe2 | Some2 of 'a
+type 'a option2 = None2 | DontKnow | Some2 of 'a
 
 (* *** Identifiers (hashconsed strings) *** *)
 
@@ -41,7 +41,6 @@ type token =
   | LEFTSQU
   | LEFTPAR
   | LEFTBRA
-  | IMPORT      of ( loc * ident )
   | ID          of ( loc * ident )
   | FATARROW
   | EOF
@@ -62,8 +61,8 @@ type preterm = private
   | PreLam  of loc * ident * preterm * preterm
   | PrePi   of (loc*ident) option * preterm * preterm
 
-type prepattern = 
-  | Unknown     of loc*int
+type prepattern =
+  | Unknown     of loc
   | PPattern    of loc*ident option*ident*prepattern list
 
 type ptop = loc * ident * prepattern list
@@ -75,8 +74,6 @@ val mk_pre_lam          : loc -> ident -> preterm -> preterm -> preterm
 val mk_pre_app          : preterm list -> preterm
 val mk_pre_arrow        : preterm -> preterm -> preterm
 val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
-
-val mk_unknown          : loc -> prepattern
 
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
@@ -107,19 +104,41 @@ val mk_Unique   : unit -> term
 val mk_Meta     : int -> term
 
 (* Syntactic equality / Alpha-equivalence *)
-val term_eq : term -> term -> bool      
+val term_eq : term -> term -> bool
 
 (* *** Rewrite Rules *** *)
 
-type pattern = 
-  | Var         of ident*int
-  | Joker       of int
+type pattern =
+  | Var         of ident option*int
   | Pattern     of ident*ident*pattern array
-  | Dot         of term
+
+val term_of_pattern : pattern -> term
+val term_of_pattern_all_meta : pattern -> term
 
 type top = ident*pattern array
 type context = ( ident * term ) list
-type rule = loc * context * ident * pattern array * term
+
+type rule = {
+  nb:int;
+  md:ident;
+  l:loc;
+  ctx:context;
+  id:ident;
+  args:pattern array;
+  ri:term;
+  sub:(int*term) list;
+  k:int;
+}
+
+type cpair = {
+  rule1:int;
+  rule2:int;
+  pos:int list;
+  root:pattern;
+  red1:term;
+  red2:term;
+  joinable:bool
+}
 
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option
@@ -134,3 +153,20 @@ exception TypingError  of loc*string
 exception PatternError of loc*string
 exception MiscError of loc*string
 exception EndOfFile
+
+(* Commands *)
+
+type cmd =
+  (* Reduction *)
+  | Whnf of preterm
+  | Hnf of preterm
+  | Snf of preterm
+  | OneStep of preterm
+  | Conv of preterm*preterm
+  (*Typing*)
+  | Check of preterm*preterm
+  | Infer of preterm
+  (* Misc *)
+  | Gdt of ident*ident
+  | Print of string
+  | Other
