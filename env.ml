@@ -12,7 +12,8 @@ end )
 
 type gst =
   | Decl  of term*(int*gdt*rule list) option
-  | Def   of term*term
+  | Def   of term*term (*FIXME definition should be rewrite rules*)
+  | Static of term
 
 let envs : (gst H.t) H.t = H.create 19
 
@@ -69,11 +70,18 @@ let get_global_type lc m v =
   match get_global_symbol lc m v with
     | Decl (ty,_)       -> ty
     | Def (_,ty)        -> ty
+    | Static ty         -> ty
 
 let get_global_rw lc m v =
   match get_global_symbol lc m v with
     | Decl (_,rw)       -> rw
-    | Def (_,_)         -> None
+    | _                 -> None
+
+let is_neutral lc m v = 
+  match get_global_symbol lc m v with
+    | Static _          -> true
+    | Decl(_,None)      -> not (ident_eq m !Global.name)
+    | _                 -> false
 
 (* *** Add *** *)
 
@@ -87,6 +95,17 @@ let add_decl lc v ty =
                          ^string_of_ident v ^ "'." ))
     else
       H.add env v (Decl (ty,None))
+
+let add_static lc v ty =
+  let env = H.find envs !Global.name in
+    if H.mem env v then
+      if !Global.raphael then
+        Global.warning lc "Redeclaration ignored."
+      else
+        raise (EnvError (lc,"Already defined symbol '"
+                         ^string_of_ident v ^ "'." ))
+    else
+      H.add env v (Static ty)
 
 let add_def lc v te ty =
   let env = H.find envs !Global.name in
@@ -112,6 +131,9 @@ let add_rw lc v rs =
         | Decl (ty,None)        ->
             let (i,g) = Matching.get_rw v rs in
               H.add env v (Decl (ty,Some (i,g,rs)))
+        | Static _              -> 
+            raise ( EnvError ( lc , "Cannot add rewrite rules for the symbol '" 
+                               ^ string_of_ident v ^ "' (Static)." ) )
     ) with
       Not_found ->
         raise (EnvError ( lc , "Cannot find symbol '"

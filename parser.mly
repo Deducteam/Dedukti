@@ -6,6 +6,7 @@
                                                         -> Types.preterm -> unit
     val mk_opaque      : Types.loc -> Types.ident -> Types.preterm option
                                                         -> Types.preterm -> unit
+    val mk_static      : Types.loc -> Types.ident -> Types.preterm -> unit
     val mk_rules       : Types.prule list -> unit
     val mk_command     : Types.loc -> string -> Types.preterm list -> unit
     val mk_ending      : unit -> unit
@@ -86,6 +87,8 @@ line            : ID COLON term DOT
                 { mk_opaque (fst $2) (snd $2) (Some $6) (mk_lam $8 $4) }
                 | LEFTBRA ID RIGHTBRA param_lst DEF term DOT
                 { mk_opaque (fst $2) (snd $2)  None (mk_lam $6 $4) }
+                | LEFTBRA ID RIGHTBRA COLON term DOT
+                { mk_static (fst $2) (snd $2) $5 }
                 | rule_lst DOT
                 { mk_rules $1 }
                 | COMMAND term_lst DOT

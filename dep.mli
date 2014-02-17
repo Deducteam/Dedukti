@@ -8,6 +8,8 @@ val mk_definition       : loc -> ident -> preterm option -> preterm -> unit
 
 val mk_opaque           : loc -> ident -> preterm option -> preterm -> unit
 
+val mk_static           : loc -> ident -> preterm -> unit
+
 val mk_rules            : prule list -> unit
 
 val mk_command           : loc -> string -> preterm list -> unit

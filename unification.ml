@@ -111,14 +111,21 @@ struct
                     | Pi(_,a1,b1), Pi(_,a2,b2)
                     | Lam(_,a1,b1), Lam(_,a2,b2)        ->
                         decompose b ((k,a1,a2)::(k+1,b1,b2)::a)
-                    | App lst1 , t | t , App lst1       ->
+                    | App ((Const (m1,v1))::args1) , 
+                      App ((Const (m2,v2))::args2) when (Env.is_neutral dloc m1 v1) ->
+                        if ident_eq v1 v2 && ident_eq m1 m2 then
+                          ( match add_lst k a args1 args2 with
+                              | Some a'  -> decompose b a'
+                              | None     -> Failure NoUnifier )
+                        else Failure NoUnifier
+                    | App (f1::lst1) , t | t , App (f1::lst1)   ->
                         ( match Reduction.bounded_are_convertible 500 t1' t2' with
                             | Yes       -> decompose b a
                             | No        -> 
-                                ( (*Global.sprint ("[Unification] Ignoring " 
-                                                 ^ Pp.string_of_term t1 
-                                                 ^ " == "
-                                                 ^ Pp.string_of_term t2 ) ;*) 
+                                ( Global.warning dloc ("[Unification] Ignoring " 
+                                   ^ Pp.string_of_term t1' 
+                                   ^ " == "
+                                   ^ Pp.string_of_term t2' ) ; 
                                   decompose b a (*here we loose info*) )
                             | Maybe     -> Failure NoWHNF )
                     | _ , _                             -> Failure NoUnifier

@@ -9,7 +9,7 @@ plus: N->N->N.
 [x:N,y:N]	plus (S x) y --> S (plus x y).
 
 
-V:   N->Type.
+{V}:   N->Type.
 Nil: V Z.
 Con: n:N -> V n -> N -> V (S n).
 

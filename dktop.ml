@@ -30,7 +30,12 @@ struct
             let ty = Inference.check_type [] pty in
              ( Inference.check_term [] pte ty , ty )
     in
-      Env.add_decl lc id ty ;
+      Env.add_static lc id ty ;
+      Global.sprint (string_of_ident id ^ " is defined.")
+
+let mk_static lc id pty =
+  let ty = Inference.check_type [] pty in
+    Env.add_static lc id ty ;
       Global.sprint (string_of_ident id ^ " is defined.")
 
   let mk_rules (prs:prule list) =

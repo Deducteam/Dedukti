@@ -95,7 +95,7 @@ let get_one l str = function
 let get_two l str = function
   | [t1;t2]     -> (t1,t2)
   | _           ->
-      raise (MiscError (l,"Wrong number of\
+      raise (MiscError (l,"Wrong number of \
                             arguments for command '#"^str^"' (Expected:2)"))
 
 let get_string l str = function

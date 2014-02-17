@@ -75,6 +75,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
         begin
           match Env.get_global_symbol dloc m v with
             | Env.Def (te,_)            -> cbn_reduce ( 0 , [] , te , s )
+            | Env.Static _              -> config
             | Env.Decl (_,None)         -> config
             | Env.Decl (_,Some (i,g,_)) ->
                 ( match split_stack i s with
@@ -216,6 +217,7 @@ let rec bounded_cbn_reduce cpt (config:cbn_state) : cbn_state option =
           match Env.get_global_symbol dloc m v with
             | Env.Def (te,_)            ->
                 bounded_cbn_reduce (cpt-1) ( 0 , [] , te , s )
+            | Env.Static _              -> Some config
             | Env.Decl (_,None)         -> Some config
             | Env.Decl (_,Some (i,g,_)) ->
                 ( match split_stack i s with
@@ -355,6 +357,7 @@ let rec state_one_step = function
         begin
           match Env.get_global_symbol dloc m v with
             | Env.Def (te,_)            -> Some ( 0 , [] , te , s )
+            | Env.Static _              -> None 
             | Env.Decl (_,None)         -> None 
             | Env.Decl (_,Some (i,g,_)) ->
                 ( match split_stack i s with

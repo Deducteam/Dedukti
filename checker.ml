@@ -31,7 +31,13 @@ let mk_opaque lc id ty_opt pte =
           let _  = Inference.check_term [] pte ty in
             ty
   in
-    Env.add_decl lc id ty
+    Env.add_static lc id ty
+
+let mk_static lc id pty =
+  Global.vprint lc (lazy ("Static declaration of symbol '"
+                          ^ string_of_ident id ^ "'."));
+  let ty = Inference.check_type [] pty in
+    Env.add_static lc id ty
 
 let mk_rules (prs:prule list) =
   let (lc,hd) = match prs with | [] -> assert false
