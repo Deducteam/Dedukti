@@ -50,22 +50,29 @@ let check_rule (pctx,ple,pri:prule) : rule =
       | Pattern (_,_,args)      -> args
   in
     match Unification.unify_t eqs with
-      | None2           ->  
-          dump eqs;
+      | Failure (Unification.NoUnifier)         ->  
           let str = "The pattern '"
           ^ Pp.string_of_pattern (Pattern (!Global.name,id,args))
           ^ "' is not well-typed." in
             raise (PatternError (l,str)) 
-      | DontKnow        -> 
-          let str = "Could not infer placeholders in '"
-          ^ Pp.string_of_pattern (Pattern (!Global.name,id,args)) ^ "'." in
+      | Failure (Unification.NoWHNF)            ->  
+          let str = "Could not type '"
+          ^ Pp.string_of_pattern (Pattern (!Global.name,id,args)) 
+          ^ "' (Non normalizing term ?)." in
             raise (PatternError (l,str))
-      | Some2 s         ->
+   (*   | Failure (Unification.TooComplex)        ->  
+          let str = "Could not type '"
+          ^ Pp.string_of_pattern (Pattern (!Global.name,id,args)) 
+          ^ "' (Unification problem too complex)." in
+            raise (PatternError (l,str)) *)
+      | Success s                               ->
           let ty = Subst.subst_meta s ty0 in
-            if not (check_meta ty) then
-              begin 
-                let str = "Could not infer placeholders in '"
-                ^ Pp.string_of_pattern (Pattern (!Global.name,id,args)) ^ "'." in
+            if not (Inference.is_well_typed ctx ty) then
+              begin  
+                let str = "Could not find a closed type for '"
+                ^ Pp.string_of_pattern (Pattern (!Global.name,id,args)) ^ "'." 
+                ^ "\nInferred type: " ^ Pp.string_of_term ty
+                in
                   raise (PatternError (l,str))
               end
             else if has_definitions le then

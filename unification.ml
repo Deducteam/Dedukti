@@ -6,9 +6,12 @@ type 'a substitution = (int*'a) list
 module type UTerm =
 sig
   type term
+  type error
+  val no_unifier: error
   val subst: term substitution -> term -> term
   val occurs_check: int -> term -> bool
-  val decompose: (int*term) list -> (int*term*term) list -> ((int*term) list) option2
+  val decompose: (int*term) list -> (int*term*term) list 
+                                        -> ((int*term) list,error) sum
 end
 
 module Make = functor (T: UTerm) ->
@@ -20,11 +23,11 @@ struct
   | (x,t)::_ when x=v   -> Some t
   | _::tl               -> safe_assoc v tl
 
-  let rec unify0 : state -> (T.term substitution) option2 = function
-    | ( [], [] , s )            -> Some2 s
+  let rec unify0 : state -> (T.term substitution,T.error) sum = function
+    | ( [], [] , s )            -> Success s
     | ( [], (v,te0)::lst , s )  ->
         ( let te = T.subst s te0 in
-            if T.occurs_check v te then None2
+            if T.occurs_check v te then Failure T.no_unifier
             else
               match safe_assoc v s with
                 | Some te'      -> unify0 ( [(0,te,te')] , lst , s )
@@ -34,8 +37,8 @@ struct
         )
     | ( a , b , s )      ->
         ( match T.decompose b a with
-            | Some2 b'  -> unify0 ( [] , b' , s )
-            | opt2      -> opt2
+            | Success b'        -> unify0 ( [] , b' , s )
+            | fail              -> fail
         )
 
   let unify lst = 
@@ -45,9 +48,17 @@ end
 
 (* Partial Higher Order Unification *)
 
-module TU : UTerm with type term = Types.term =
+type unif_error = 
+  | NoUnifier
+  | NoWHNF
+(*  | TooComplex *)
+
+module TU : UTerm with type term = Types.term with type error = unif_error =
 struct
   type term = Types.term
+
+  type error = unif_error
+  let no_unifier = NoUnifier
 
   let subst = Subst.subst_meta 
 
@@ -76,19 +87,23 @@ struct
     | Pi  (x,a,b)               -> mk_Pi  x (shift r a) (shift r b)
     | t                         -> t
 
+  let print_eq (_,t1,t2) =
+    Global.sprint ("Decompose: "^Pp.string_of_term t1^" == "
+                   ^ Pp.string_of_term t2) 
 
-  let rec decompose b = function
-    | []                -> Some2 b
+   let rec decompose b = function
+    | []                -> Success b
     | (k,t1,t2)::a      ->
         begin
           match Reduction.bounded_whnf 500 t1,
                 Reduction.bounded_whnf 500 t2 with
             | Some t1', Some t2'        ->
                 begin
+                  (*print_eq (0,t1',t2') ; *)
                   match t1', t2' with
                     | Meta n, t | t, Meta n  -> 
                         (try decompose ((n,shift k t)::b) a 
-                         with ShiftExn -> None2 )
+                         with ShiftExn -> Failure NoUnifier )
                     | Kind, Kind | Type, Type                   -> decompose b a
                     | DB(_,n1), DB(_,n2) when n1=n2             -> decompose b a
                     | Const(m1,v1), Const(m2,v2) when
@@ -97,19 +112,18 @@ struct
                     | Lam(_,a1,b1), Lam(_,a2,b2)        ->
                         decompose b ((k,a1,a2)::(k+1,b1,b2)::a)
                     | App lst1 , t | t , App lst1       ->
-                        if is_neutral lst1 then
-                          ( match t with
-                              | App lst2 ->
-                                  if is_neutral lst2 then
-                                    ( match add_lst k a lst1 lst2 with
-                                        | Some a'       -> decompose b a'
-                                        | None          -> None2 )
-                                  else DontKnow
-                              | _        -> None2 )
-                        else DontKnow
-                    | _ , _                             -> None2
+                        ( match Reduction.bounded_are_convertible 500 t1' t2' with
+                            | Yes       -> decompose b a
+                            | No        -> 
+                                ( (*Global.sprint ("[Unification] Ignoring " 
+                                                 ^ Pp.string_of_term t1 
+                                                 ^ " == "
+                                                 ^ Pp.string_of_term t2 ) ;*) 
+                                  decompose b a (*here we loose info*) )
+                            | Maybe     -> Failure NoWHNF )
+                    | _ , _                             -> Failure NoUnifier
                 end
-            | _,_                       -> DontKnow
+            | _,_                       -> Failure NoWHNF
         end
 
   let rec occurs_check n = function
@@ -128,6 +142,8 @@ let unify_t = TUnification.unify
 module PU : UTerm with type term = Types.pattern =
 struct
   type term = Types.pattern
+  type error = unit
+  let no_unifier = ()
   let subst = Subst.subst_pattern
 
   let rec occurs_check n = function
@@ -150,14 +166,14 @@ struct
       aux lst0 0
 
   let rec decompose b = function
-    | []                                        -> Some2 b
+    | []                                        -> Success b
     | (_,Var(_,k),p)::a | (_,p,Var (_,k))::a    -> decompose ((k,p)::b) a
     | (_,Pattern (md,id,args),
        Pattern(md',id',args'))::a               ->
         if ident_eq id id' && ident_eq md md'
                 && Array.length args = Array.length args' then
           decompose b (add_to_list a args args')
-        else None2
+        else Failure ()
 
 end
 
@@ -165,6 +181,5 @@ module PUnification = Make(PU)
 
 let unify_p lst =
   match PUnification.unify lst with
-    | Some2 s   -> Some s
-    | None2     -> None
-    | _         -> assert false
+    | Success s  -> Some s
+    | Failure _  -> None

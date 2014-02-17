@@ -185,14 +185,13 @@ and infer_pattern_args2 ty arg =
 
 (* *** Monodirectional Type Inference for terms *** *)
 
-(*
 exception Infer2Error
 
 let rec infer2 (ctx:context) = function
   | Type                -> mk_Kind
   | DB (_,n)            ->
       begin
-        try Subst.shift (n+1) 0 (snd (List.nth ctx n))
+        try Subst.shift (n+1) (snd (List.nth ctx n))
         with Not_found -> raise Infer2Error
       end
   | Const (m,v)         -> Env.get_global_type dloc m v
@@ -222,16 +221,16 @@ and is_type2 ctx a = match infer2 ctx a with
   | Type      -> ()
   | _         -> raise Infer2Error
 
-and infer2_app ctx ty_f u = match Reduction.wnf ty_f , infer2 ctx u with
+and infer2_app ctx ty_f u = match Reduction.whnf ty_f , infer2 ctx u with
   | ( Pi (_,a,b)  , a' )      ->
       if Reduction.are_convertible a a' then Subst.subst b u
       else raise Infer2Error
   | ( t , _ )                 -> raise Infer2Error
 
 let is_well_typed ctx ty =
-  try ( ignore (infer2 ctx ty) ; true )
+  try ( ignore ( infer2 ctx ty ) ; true )
   with Infer2Error -> false
- *)
+ 
 
 let check_term ctx te exp =
   let (te',inf) = infer ctx te in
