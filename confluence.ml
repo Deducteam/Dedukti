@@ -52,6 +52,13 @@ let shift_rule k r =
   { r with args = Array.map (shift_pattern k) r.args ;
            ri = Subst.shift k r.ri; }
 
+let type_cpair red0 red1 red2 = 
+  let eqs = Inference.infer_pattern2 red0 in
+    match Unification.unify_t eqs with (*TODO not the right kind of unif*)
+      | Failure _       -> assert false (*TODO*)
+      | Success s       -> ( red1 , red2 ) (*TODO*)
+
+
 (* Checks the potential critical pair r1 r2|p *)
 let check_pair (l:loc) (r1:rule) (r2':rule) (pos:position) : unit =
   if ident_eq r1.md r2'.md && r1.nb<=r2'.nb && pos=[] then ()
@@ -65,14 +72,14 @@ let check_pair (l:loc) (r1:rule) (r2':rule) (pos:position) : unit =
             (* Critical Pair from (s le2): < s (r2.ri) ; (s le2)[s (r1.ri)]|p > *)
             let s' = List.map (fun (i,p) -> (i,term_of_pattern_all_meta p)) s in
             let red0 = Subst.subst_pattern s le2 in
-            (*let _ = Inference.infer_pattern2 red0 in*) (*TODO*)
             let red1 = Subst.subst_meta s' r2.ri in
             let red2 = replace_at_pos pos (Subst.subst_pattern s le2)
                          (Subst.subst_meta s' r1.ri) in
+            let (red1',red2') = type_cpair red0 red1 red2 in
             let cp =
               { rule1=r1.nb; rule2=r2.nb; pos=pos;
-                root=red0; red1=red1; red2=red2;
-                joinable = true (*Reduction.are_convertible red1 red2*); (*TODO*) }
+                root=red0; red1=red1'; red2=red2';
+                joinable = Reduction.are_convertible red1' red2'; }
             in
               Global.warning r1.l (Pp.string_of_cpair cp)
 

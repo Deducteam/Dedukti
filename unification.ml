@@ -115,10 +115,10 @@ struct
                         ( match Reduction.bounded_are_convertible 500 t1' t2' with
                             | Yes       -> decompose b a
                             | No        -> 
-                                ( (*Global.sprint ("[Unification] Ignoring " 
+                                (  Global.sprint ("[Unification] Ignoring " 
                                                  ^ Pp.string_of_term t1 
                                                  ^ " == "
-                                                 ^ Pp.string_of_term t2 ) ;*) 
+                                                 ^ Pp.string_of_term t2 ) ; (*FIXME*)
                                   decompose b a (*here we loose info*) )
                             | Maybe     -> Failure NoWHNF )
                     | _ , _                             -> Failure NoUnifier

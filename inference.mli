@@ -13,3 +13,5 @@ val check_term : (*ctx*)context -> (*te*)preterm -> (*ty*)term -> term(*te*)
 val infer_ptop : context -> ptop -> ( int * pattern * term * (term*term) list )
 
 val is_well_typed : context -> term -> bool
+
+val infer_pattern2 : pattern -> (term*term) list

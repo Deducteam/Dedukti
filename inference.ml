@@ -160,28 +160,26 @@ let infer_ptop ctx (l,id,args) =
 
 (* *** Bidirectional Type Inference for patterns *** *)
 
-(*
-let rec check_pattern2 ty = function
-  | Var (_,_)            -> true
+let rec check_pattern2 (eqs:(term*term)list) (ty:term) : pattern -> (term*term) list = function
+  | Var (_,n)            -> ( mk_Meta n , ty )::eqs
   | Pattern (md,id,args) ->
       let ty_id = Env.get_global_type dloc md id in
-      let ty2 = Array.fold_left infer_pattern_args2 ty_id args in
-        Reduction.are_convertible ty ty2
+      let (ty2,eqs') = Array.fold_left infer_pattern_args2 (ty_id,eqs) args in
+        (*Reduction.are_convertible ty ty2 *)
+        (ty,ty2)::eqs'
 
-and infer_pattern2 = function
-  | Var (None,_)         -> assert false
-  | Var (Some _,n)       -> assert false
-  | Pattern (md,id,args) ->
-      let ty_id = Env.get_global_type dloc md id in
-      Array.fold_left infer_pattern_args2 ty_id args
-
-and infer_pattern_args2 ty arg =
-  match Reduction.whnf ty with
+and infer_pattern_args2 (ty,eqs:term*(term*term)list) (arg:pattern) : term*(term*term)list =
+  match Reduction.whnf ty with (*FIXME bounded*)
     | Pi (_,a,b)        ->
-        if check_pattern2 a arg then Subst.subst b (term_of_pattern arg)
-        else assert false
+        ( Subst.subst b (term_of_pattern arg) , check_pattern2 eqs a arg )
     | _                 -> assert false
- *)
+
+let infer_pattern2 : pattern -> (term*term) list = function
+  | Var (_,n)                   -> assert false (*FIXME*) 
+  | Pattern (md,id,args)        ->
+      let ty_id = Env.get_global_type dloc md id in
+      let (_,eqs) = Array.fold_left infer_pattern_args2 (ty_id,[]) args in
+        eqs
 
 (* *** Monodirectional Type Inference for terms *** *)
 
