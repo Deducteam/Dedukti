@@ -1,5 +1,5 @@
+#NAME test.
 
-#NAME test
 Term : Type.
 Prop: Type.
 prf: Prop -> Type.

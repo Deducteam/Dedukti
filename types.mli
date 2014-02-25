@@ -1,4 +1,8 @@
 
+type yes_no_maybe = Yes | No | Maybe
+type 'a option2 = None2 | DontKnow | Some2 of 'a
+type ('a,'b) sum = Success of 'a | Failure of 'b
+
 (* *** Identifiers (hashconsed strings) *** *)
 
 type ident
@@ -38,7 +42,6 @@ type token =
   | LEFTSQU
   | LEFTPAR
   | LEFTBRA
-  | IMPORT      of ( loc * ident )
   | ID          of ( loc * ident )
   | FATARROW
   | EOF
@@ -47,48 +50,49 @@ type token =
   | COMMA
   | COLON
   | ARROW
-  | ASSERT      of loc
-  | EQUIV
+  | COMMAND      of ( loc * string )
 
-(* Pseudo Terms *)
+(* Pre Terms *)
 
-type pterm = private
-  | P_Type of loc
-  | P_Id   of loc * ident
-  | P_QId  of loc * ident * ident
-  | P_App  of pterm list
-  | P_Lam  of loc * ident * pterm * pterm
-  | P_Pi   of (loc*ident) option * pterm * pterm
-  | P_Unknown of loc * int
+type preterm = private
+  | PreType of loc
+  | PreId   of loc * ident
+  | PreQId  of loc * ident * ident
+  | PreApp  of preterm list
+  | PreLam  of loc * ident * preterm * preterm
+  | PrePi   of (loc*ident) option * preterm * preterm
 
-val mk_type   : loc -> pterm
-val mk_id     : loc -> ident -> pterm
-val mk_qid    : loc -> ident -> ident -> pterm
-val mk_lam    : loc -> ident -> pterm -> pterm -> pterm
-val mk_app    : pterm list -> pterm
-val mk_arrow  : pterm -> pterm -> pterm
-val mk_pi     : loc -> ident -> pterm -> pterm -> pterm
-val mk_unknown: loc -> pterm
+type prepattern =
+  | Unknown     of loc
+  | PPattern    of loc*ident option*ident*prepattern list
 
-val get_loc : pterm -> loc
+type ptop = loc * ident * prepattern list
 
-type pdecl      = loc * ident * pterm
+val mk_pre_type         : loc -> preterm
+val mk_pre_id           : loc -> ident -> preterm
+val mk_pre_qid          : loc -> ident -> ident -> preterm
+val mk_pre_lam          : loc -> ident -> preterm -> preterm -> preterm
+val mk_pre_app          : preterm list -> preterm
+val mk_pre_arrow        : preterm -> preterm -> preterm
+val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
+
+type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
-type prule      = pcontext * pterm * pterm
+type prule      = pcontext * ptop * preterm
+
+val get_loc : preterm -> loc
 
 (* *** Terms *** *)
 
 type term = private
-  | Kind                                (* Kind *)
-  | Type                                (* Type *)
-  | DB    of ident*int                  (* deBruijn *)
-  | Const of ident*ident                (* Global variable *)
-  | App   of term list                  (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
+  | Kind                 (* Kind *)
+  | Type                 (* Type *)
+  | DB    of ident*int   (* deBruijn *)
+  | Const of ident*ident (* Global variable *)
+  | App   of term list   (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
   | Lam   of ident*term*term            (* Lambda abstraction *)
   | Pi    of ident option*term*term     (* Pi abstraction *)
   | Meta  of int
-
-val term_eq : term -> term -> bool      (* Syntactic equality / Alpha-equivalence *)
 
 val mk_Kind     : term
 val mk_Type     : term
@@ -100,19 +104,46 @@ val mk_Pi       : ident option -> term -> term -> term
 val mk_Unique   : unit -> term
 val mk_Meta     : int -> term
 
+(* Syntactic equality / Alpha-equivalence *)
+val term_eq : term -> term -> bool
+
 (* *** Rewrite Rules *** *)
 
 type pattern =
-  | Var         of ident*int
-  | Joker       of int
+  | Var         of ident option*int
   | Pattern     of ident*ident*pattern array
 
+val term_of_pattern : pattern -> term
+val term_of_pattern_all_meta : pattern -> term
+
+type top = ident*pattern array
 type context = ( ident * term ) list
-type rule = loc * context * ident * pattern array * term
+
+type rule = {
+  nb:int;
+  md:ident;
+  l:loc;
+  ctx:context;
+  id:ident;
+  args:pattern array;
+  ri:term;
+  sub:(int*term) list;
+  k:int;
+}
+
+type cpair = {
+  rule1:int;
+  rule2:int;
+  pos:int list;
+  root:pattern;
+  red1:term;
+  red2:term;
+  joinable:bool
+}
 
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option
-  | Test        of (int*int) list*term*gdt option
+  | Test        of (term*term) list*term*gdt option
 
 (* *** Errors *** *)
 
@@ -121,4 +152,22 @@ exception LexerError   of loc*string
 exception EnvError     of loc*string
 exception TypingError  of loc*string
 exception PatternError of loc*string
+exception MiscError of loc*string
 exception EndOfFile
+
+(* Commands *)
+
+type cmd =
+  (* Reduction *)
+  | Whnf of preterm
+  | Hnf of preterm
+  | Snf of preterm
+  | OneStep of preterm
+  | Conv of preterm*preterm
+  (*Typing*)
+  | Check of preterm*preterm
+  | Infer of preterm
+  (* Misc *)
+  | Gdt of ident*ident
+  | Print of string
+  | Other

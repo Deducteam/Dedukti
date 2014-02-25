@@ -1,4 +1,4 @@
-#NAME Prop
+#NAME Prop.
 
 Prop: Type.
 prf : Prop -> Type.

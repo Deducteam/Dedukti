@@ -112,7 +112,7 @@ let mk_definition _ id pty_opt pte =
 let mk_opaque lc id pty_opt pte =
  failwith "Not implemented (opaque definitions)."
 
-let mk_term _ = ()
+let mk_command _ _ _ = assert false
 
 let mk_rules lst =
   List.iter mk_rule lst

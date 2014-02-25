@@ -1,89 +1,9 @@
 
 open Types
 
-module M =
-struct
-
-  let mk_prelude lc name =
-    Global.vprint lc (lazy ("Module name is '" ^ string_of_ident name ^ "'."))
-
-  let mk_require lc m =
-    Global.warning lc "Import command is ignored."
-
-  let mk_declaration lc id pty =
-    Global.vprint lc (lazy ("Declaration of symbol '" ^ string_of_ident id ^ "'." )) ;
-    let ty = Inference.check_type [] pty in
-      Env.add_decl lc id ty
-
-  let mk_definition lc id ty_opt pte =
-    Global.vprint lc (lazy ("Definition of symbol '" ^ string_of_ident id ^ "'.")) ;
-    let (te,ty) =
-      match ty_opt with
-        | None          -> Inference.infer [] pte
-        | Some pty      ->
-            let ty = Inference.check_type [] pty in
-            let te = Inference.check_term [] pte ty in
-              ( te , ty )
-    in
-      Env.add_def lc id te ty
-
-  let mk_opaque lc id ty_opt pte =
-    Global.vprint lc (lazy ("Opaque definition of symbol '" ^ string_of_ident id ^ "'.")) ;
-    let ty =
-      match ty_opt with
-        | None          -> snd ( Inference.infer [] pte )
-        | Some pty      ->
-            let ty = Inference.check_type [] pty in
-            let _  = Inference.check_term [] pte ty in
-              ty
-    in
-      Env.add_decl lc id ty
-
-  let mk_term pte =
-    Global.vprint (get_loc pte) (lazy ("Term normalization:" )) ;
-    let (te,_) = Inference.infer [] pte in
-    let te' = Reduction.hnf te in
-      Global.sprint ( Pp.string_of_term te' ) ;
-      match (
-        match pte with
-          | P_Id (l,id)         -> ( !Global.name , id , Env.get_global_rw l !Global.name id )
-          | P_QId (l,md,id)     -> ( md ,id , Env.get_global_rw l md id )
-          | _                   -> ( empty , empty , None )
-      ) with
-        | ( _, _ , None )               -> ()
-        | ( md, id , Some (i,g) )       -> Global.vprint (get_loc pte) (lazy (Pp.string_of_gdt md id i g))
-
-  let mk_rule (pr: prule) =
-    let (l,ctx,id,(args,args2),ri) = Inference.check_rule pr in
-      (if !Global.tpdb then Tpdb2.print_rule (l,ctx,id,args2,ri)) ; 
-      (l,ctx,id,args,ri)
-
-  let mk_rules (prs:prule list) =
-    let (lc,hd) =
-      match prs with
-      | (_,P_Id(l,id),_)::_
-      | (_,P_App((P_Id (l,id))::_),_)::_        -> (l,id)
-      | _                                       -> assert false
-    in
-      Global.vprint lc (lazy ("Rewrite rules for symbol '" ^ string_of_ident hd ^ "'.")) ;
-      let rs = List.map mk_rule prs in
-        Env.add_rw lc hd rs
-
-  let mk_assert lc pt1 pt2 = 
-    Global.vprint lc (lazy ("Checking assertion.")) ;
-    let (t1,_) = Inference.infer [] pt1 in
-    let (t2,_) = Inference.infer [] pt2 in
-      if not (Reduction.are_convertible t1 t2) then
-        failwith "Assertion failed: terms are not convertible." (*FIXME*)
-
-  let mk_ending _ =
-    Env.export_and_clear ()
-
-end
-
 (* *** Parsing *** *)
 
-module P = Parser.Make(M)
+module P = Parser.Make(Checker)
 
 let parse lb =
   try
@@ -96,7 +16,8 @@ let parse lb =
           let line = start.Lexing.pos_lnum  in
           let cnum = start.Lexing.pos_cnum - start.Lexing.pos_bol in
           let tok = Lexing.lexeme lb in
-            raise (ParserError ( mk_loc line cnum , "Unexpected token '" ^ tok ^ "'." ) )
+            raise (ParserError (mk_loc line cnum ,
+                                "Unexpected token '" ^ tok ^ "'." ) )
         end
     | EndOfFile -> ()
 
@@ -112,20 +33,25 @@ let run_on_file file =
     Global.vprint dloc (lazy (" -- Processing file '" ^ file ^ "' ...")) ;
     Global.set_filename file ;
     parse (Lexing.from_channel input) ;
-    Global.print_ok file ;
-    Global.print_stats () 
+    Global.print_ok file 
+   (* ; Global.print_stats () *)
 
 (* *** Main *** *)
 
 let args = [
-        ("-q"    , Arg.Set Global.quiet                 , "Quiet"                       ) ;
-        ("-v"    , Arg.Clear Global.quiet               , "Verbose"                     ) ;
-        ("-e"    , Arg.Set Global.export                , "Create a .dko"               ) ;
-        ("-nc"   , Arg.Clear Global.color               , "Disable colored output"      ) ;
-        ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"          ) ;
-        ("-r"    , Arg.Set Global.raphael               , "Undocumented"                ) ;
-        ("-tpdb" , Arg.String Global.set_tpdb           , "TPDB export"                 )
-]
+        ("-q"    , Arg.Set Global.quiet        , "Quiet"                  ) ;
+        ("-v"    , Arg.Clear Global.quiet      , "Verbose"                ) ;
+        ("-e"    , Arg.Set Global.export       , "Create a .dko"          ) ;
+        ("-nc"   , Arg.Clear Global.color      , "Disable colored output" ) ;
+        ("-stdin", Arg.Unit run_on_stdin       , "Use standart input"     ) ;
+   (*     ("-unsafe", Arg.Set Global.unsafe_mode , "Unsafe mode"            ) ; *)
+        ("-r"    , Arg.Set Global.raphael      , "Ignore redeclaration"   ) ;
+        ("-display_db" , Arg.Set Global.display_db  , 
+         "Display DeBruijn indices when printing terms"   ) ;
+        ("-version" , Arg.Unit Global.print_version   , "Version"     ) ; 
+        ("-confluence-export" , Arg.String Global.set_tpdb           , "TPDB export"  ) ;
+        ("-autodep", Arg.Set Global.autodep  ,
+                        "Automatically handle dependencies (experimental)") ]
 
 let _ =
   try
@@ -137,3 +63,4 @@ let _ =
     | TypingError (lc,err)      -> Global.error lc err
     | EnvError (lc,err)         -> Global.error lc err
     | PatternError (lc,err)     -> Global.error lc err
+    | MiscError (lc,err)        -> Global.error lc err

@@ -1,5 +1,7 @@
 (; Computational test. ;)
-#NAME compute
+
+#NAME compute.
+
 Nat : Type.
 Z : Nat.
 S : Nat -> Nat.
@@ -16,10 +18,9 @@ fact : Nat -> Nat.
 []      fact Z --> S Z
 [x:Nat] fact (S x) --> mult (S x) (fact x).
 
-seven : Nat := S (S (S (S (S (S (S Z)))))).
-eight : Nat := S (S (S (S (S (S (S (S Z))))))).
+six   : Nat :=  (S (S (S (S (S (S Z)))))).
+seven : Nat :=  (S (S (S (S (S (S (S Z))))))).
 
-eq : Nat -> Nat -> Type.
 
-test1 : eq (fact seven) (fact seven).
-test2 : eq (fact eight) (fact eight).
+#CONV	(plus (fact seven) (fact six)), 
+	(plus (fact six) (fact seven)).
