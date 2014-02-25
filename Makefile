@@ -10,7 +10,7 @@ all:
 	ocamlbuild -build-dir _dkcheck $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dkcheck.native
 #	ocamlbuild -build-dir _dktop   $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dktop.native
 #	ocamlbuild -build-dir _dk2mmt  $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dk2mmt.native
-#	ocamlbuild -build-dir _dkdep   $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dkdep.native
+	ocamlbuild -build-dir _dkdep   $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dkdep.native
 
 profile:
 	ocamlbuild -tag profile -build-dir _dkcheck -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" main.native
