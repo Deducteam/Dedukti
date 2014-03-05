@@ -8,7 +8,7 @@
                                                         -> Types.preterm -> unit
     val mk_static      : Types.loc -> Types.ident -> Types.preterm -> unit
     val mk_rules       : Types.prule list -> unit
-    val mk_command     : Types.loc -> string -> Types.preterm list -> unit
+    val mk_command     : Types.loc -> Types.command -> unit
     val mk_ending      : unit -> unit
   end>
 %{
@@ -16,12 +16,13 @@
         open M
         let mk_dot t =
           let lc = get_loc t in
-            Global.warning lc "Obsolete { _ } construct, ignoring..." ;
+            Global.debug 1 lc "Obsolete { _ } construct, ignoring..." ;
             Unknown lc
 
         let rec mk_lam te = function
                 | []            -> te
                 | (l,x,ty)::tl  -> mk_lam (mk_pre_lam l x ty te) tl
+
 %}
 
 %token EOF
@@ -38,7 +39,16 @@
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
-%token <Types.loc*string> COMMAND
+%token <Types.loc> WHNF  
+%token <Types.loc> HNF   
+%token <Types.loc> SNF   
+%token <Types.loc> STEP  
+%token <Types.loc> INFER 
+%token <Types.loc> CONV  
+%token <Types.loc> CHECK 
+%token <Types.loc> PRINT 
+%token <Types.loc> GDT   
+%token <Types.loc*string> OTHER
 %token <Types.loc> UNDERSCORE
 %token <Types.loc*Types.ident>NAME
 %token <Types.loc> TYPE
@@ -91,10 +101,23 @@ line            : ID COLON term DOT
                 { mk_static (fst $2) (snd $2) $5 }
                 | rule_lst DOT
                 { mk_rules $1 }
-                | COMMAND term_lst DOT
-                { mk_command (fst $1) (snd $1) $2 }
+                | command DOT { $1 }
                 | EOF
                 { mk_ending () ; raise EndOfFile }
+
+
+command         : WHNF  term    { mk_command $1 (Whnf $2) }
+                | HNF   term    { mk_command $1 (Hnf $2) }
+                | SNF   term    { mk_command $1 (Snf $2) }
+                | STEP  term    { mk_command $1 (OneStep $2) }
+                | INFER term    { mk_command $1 (Infer $2) }
+                | CONV  term  COMMA term { mk_command $1 (Conv ($2,$4)) }
+                | CHECK term  COMMA term { mk_command $1 (Check ($2,$4)) }
+                | PRINT ID      { mk_command $1 (Print (snd $2)) }
+                | GDT   ID      { mk_command $1 (Gdt (!Global.name,snd $2)) }
+                | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (m,v)) }
+                | OTHER term_lst        { mk_command (fst $1) (Other (snd $1,$2)) }
+
 
 term_lst        : term                                  { [$1] }
                 | term COMMA term_lst                   { $1::$3 }

@@ -47,7 +47,8 @@ let mk_prule (ctx, (l,id,args), t:prule) =
 
 let mk_rules = List.iter mk_prule
 
-let mk_command _ _ = List.iter mk_term
+let mk_command _ _ = () (*FIXME*)
 
 let mk_ending () =
-  Global.print_out (!name ^ ".dko : " ^ String.concat " " (List.map (fun s -> s ^ ".dko") !deps))
+  Global.print_out "%s.dko : %s" !name 
+    (String.concat " " (List.map (fun s -> s ^ ".dko") !deps) )

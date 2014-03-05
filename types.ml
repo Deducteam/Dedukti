@@ -45,7 +45,16 @@ type token =
   | COMMA
   | COLON
   | ARROW
-  | COMMAND   of ( loc * string )
+  | WHNF        of loc
+  | HNF         of loc
+  | SNF         of loc
+  | STEP        of loc
+  | INFER       of loc
+  | CONV        of loc
+  | CHECK       of loc 
+  | PRINT       of loc
+  | GDT         of loc
+  | OTHER       of ( loc * string )
 
 exception EndOfFile
 
@@ -166,17 +175,7 @@ type rule = {
   sub:(int*term) list;
   k:int;
 }
-(*
- type cpair = {
- rule1:int;
- rule2:int;
- pos:int list;
- root:pattern;
- red1:term;
- red2:term;
- joinable:bool
- }
- *)
+
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option
       | Test        of (term*term) list*term*gdt option
@@ -187,10 +186,9 @@ type yes_no_maybe = Yes | No | Maybe
 type 'a option2 = None2 | DontKnow | Some2 of 'a
 type ('a,'b) sum = Success of 'a | Failure of 'b
 
-
 (* Commands *)
 
-type cmd =
+type command =
   (* Reduction *)
   | Whnf of preterm
   | Hnf of preterm
@@ -202,5 +200,5 @@ type cmd =
   | Infer of preterm
   (* Misc *)
   | Gdt of ident*ident
-  | Print of string
-  | Other
+  | Print of ident
+  | Other of string*preterm list

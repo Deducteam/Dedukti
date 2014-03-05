@@ -88,7 +88,7 @@ let add lc v gst =
   let env = H.find envs !Global.name in
     if H.mem env v then
       if !Global.ignore_redecl then
-        Global.warning lc "Redeclaration ignored." 
+        Global.debug 1 lc "Redeclaration ignored." 
       else
         Global.fail lc "Already defined symbol '%s'." (string_of_ident v)
     else

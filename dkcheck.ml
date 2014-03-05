@@ -22,7 +22,7 @@ let parse lb =
 (* *** Main *** *)
 
 let print_version _ =
-  Global.print_std "Dedukti v%s" Global.version
+  Printf.printf "Dedukti v%s" Global.version
 
 let args = [
   ("-d"    , Arg.Set_int Global.debug_level, "Level of verbosity" ) ;

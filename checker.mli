@@ -12,6 +12,6 @@ val mk_static      : loc -> ident -> preterm -> unit
 
 val mk_rules       : prule list -> unit
 
-val mk_command     : loc -> string -> preterm list -> unit
+val mk_command     : loc -> command -> unit
 
 val mk_ending      : unit -> unit

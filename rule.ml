@@ -1,7 +1,5 @@
 open Types
 
-(*FIXME revoir les messages d'erreur*)
-
 let cpt_rule = ref 0
 let get_rule_nb _ = incr cpt_rule ; !cpt_rule
 let clear_rule_counter _ = cpt_rule := 0
@@ -48,19 +46,12 @@ let check_rule (pctx,ple,pri:prule) : rule =
         Global.fail l "The left-hand side of the rewrite rule cannot be a variable."
     | Pattern (_,_,args)      -> args
   in
-    match Unification.unify_t eqs with
-      | Failure (Unification.NoUnifier)         ->  
+    match Unification.unify eqs with
+      | Unification.NoUnifier           ->  
           Global.fail l "The pattern '%s' is not well-typed." 
             (Pp.string_of_pattern (Pattern (!Global.name,id,args)))
-      | Failure (Unification.NoWHNF)            ->  
-          Global.fail l "Could not type '%s' (Non normalizing term ?)." 
-            (Pp.string_of_pattern (Pattern (!Global.name,id,args)))
-      (*   | Failure (Unification.TooComplex)        ->  
-       let str = "Could not type '"
-       ^ Pp.string_of_pattern (Pattern (!Global.name,id,args)) 
-       ^ "' (Unification problem too complex)." in
-       raise (PatternError (l,str)) *)
-      | Success s                               ->
+      | Unification.UPrefix s            (*FIXME warning*)
+      | Unification.MGU s               ->
           let ty = Subst.subst_meta s ty0 in
             if not (Inference.is_well_typed ctx ty) then
               Global.fail l "Could not find a closed type for '%s'\nInferred type: %s." 
@@ -71,11 +62,6 @@ let check_rule (pctx,ple,pri:prule) : rule =
             else
               begin
                 let ri = Inference.check_term ctx pri ty  in
-                  (*if is_type_level ty then FIXME
-                   match ri with
-                   | Const _ | App ( (Const _) :: _ ) -> ()
-                   | _ -> Global.unset_constant_applicative l
-                   *) 
                   { nb=get_rule_nb (); l=l; ctx=ctx; id=id; args=args;
                     ri=ri; sub=s; k=k; md= !Global.name; }
               end

@@ -68,7 +68,7 @@ let linearize k args =
 let line_from_rule (r:rule) : line =
   let k0 = List.length r.ctx in 
   let (k,pats,lst) = linearize k0 r.args in
-    ( match lst with | [] -> () | _ ->(*FIXME Global.unset_linearity r.l*) () );
+    (* ( match lst with | [] -> () | _ ->(* non-linearity *) () ); *)
     { loc = r.l; pats = pats; right = r.ri; env_size = k; constr = lst }
 
 let pMat_from_rules (rs:rule list) : int*pMat =
@@ -221,7 +221,8 @@ let rec find (m0,v0) = function
       else find (m0,v0) l
 
 let rec add_lines pm = function
-  | Test ([],_,_) as g          -> ( Global.warning (fst pm).loc "Useless rule." ; g )
+  | Test ([],_,_) as g          -> 
+      ( Global.debug 1 (fst pm).loc "Useless rule." ; g )
   | Test (lst,te,None)          -> Test (lst,te,Some (cc pm))
   | Test (lst,te,Some g)        -> Test (lst,te,Some (add_lines pm g))
   | Switch (i,cases,def)        ->
@@ -237,7 +238,8 @@ let rec add_lines pm = function
         (*On ajoute les nouveaux cas *)
         let cases2 = List.fold_left (
           fun lst ((m,v),pm') -> 
-            if not (List.exists (fun ((m',v'),_) -> ident_eq v v' && ident_eq m m') cases) then
+            if not (List.exists (fun ((m',v'),_) -> 
+                                   ident_eq v v' && ident_eq m m') cases) then
               ((m,v),cc pm')::lst
             else lst
         ) updated_cases p.cases in
@@ -254,7 +256,8 @@ let add_rw (n,g) rs =
   let ( nb_args , pm ) = pMat_from_rules rs in
     if nb_args = n then add_lines pm g 
     else
-      Global.fail (fst pm).loc "Arity mismatch: all the rules must have the same arity." 
+      Global.fail (fst pm).loc 
+        "Arity mismatch: all the rules must have the same arity." 
 
 let get_rw id (rs:rule list) : int*gdt =
   let ( nb_args , pm )  = pMat_from_rules rs in
