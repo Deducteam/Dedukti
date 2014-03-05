@@ -1,12 +1,14 @@
 {
   open Types
   open Lexing
+  open Printf
 
   let get_loc lexbuf =
           let start = lexbuf.lex_start_p                in
           let line = start.pos_lnum                     in
           let cnum = start.pos_cnum - start.pos_bol     in
                 mk_loc line cnum
+
 }
 
 let space   = [' ' '\t']
@@ -16,7 +18,7 @@ let capital = ['A'-'Z']+
 
 rule token = parse
   | space       { token lexbuf  }
-  | '\n'        { Lexing.new_line lexbuf ; token lexbuf }
+  | '\n'        { new_line lexbuf ; token lexbuf }
   | "(;"        { comment lexbuf}
   | '.'         { DOT           }
   | ','         { COMMA         }
@@ -42,12 +44,11 @@ rule token = parse
   | ident  as id
   { ID  ( get_loc lexbuf , hstring id ) }
   | _   as s
-  { raise ( LexerError ( get_loc lexbuf , "Unexpected characters '"
-                                                ^ String.make 1 s ^ "'." ) ) }
+  { Global.fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }
   | eof { EOF }
 
  and comment = parse
   | ";)" { token lexbuf          }
   | '\n' { new_line lexbuf ; comment lexbuf }
   | _    { comment lexbuf        }
-  | eof	 { raise ( LexerError ( get_loc lexbuf, "Unexpected end of file." ) ) }
+  | eof	 { Global.fail (get_loc lexbuf) "Unexpected end of file."  }

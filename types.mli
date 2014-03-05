@@ -1,34 +1,23 @@
 
-type yes_no_maybe = Yes | No | Maybe
-type 'a option2 = None2 | DontKnow | Some2 of 'a
-type ('a,'b) sum = Success of 'a | Failure of 'b
+(** This modules provides the basic types used in Dedukti *)
 
-(* *** Identifiers (hashconsed strings) *** *)
+(** {2 Identifiers (hashconsed strings)} *)
+(** Internal representation of identifiers as hashconsed strings. *)
 
 type ident
+val empty : ident
 val string_of_ident : ident -> string
+val hstring : string -> ident
 val ident_eq : ident -> ident -> bool
 
-module WS :
-sig
-  type t
-  val create : int -> t
-  val merge  : t -> string -> ident
-end
-
-val hstring : string -> ident
-val empty : ident
-
-(* *** Localization *** *)
+(** {2 Localization} *)
 
 type loc
 val dloc                : loc
 val mk_loc              : int -> int -> loc
-val get_line            : loc -> int
-val get_column          : loc -> int
-val string_of_loc       : loc -> string
+val of_loc              : loc -> (int*int)
 
-(* *** Parsing *** *)
+(** {2 Parsing} *)
 
 type token =
   | UNDERSCORE  of loc
@@ -52,7 +41,9 @@ type token =
   | ARROW
   | COMMAND      of ( loc * string )
 
-(* Pre Terms *)
+exception EndOfFile
+
+(** {2 PreTerms/PrePatterns} *)
 
 type preterm = private
   | PreType of loc
@@ -62,12 +53,6 @@ type preterm = private
   | PreLam  of loc * ident * preterm * preterm
   | PrePi   of (loc*ident) option * preterm * preterm
 
-type prepattern =
-  | Unknown     of loc
-  | PPattern    of loc*ident option*ident*prepattern list
-
-type ptop = loc * ident * prepattern list
-
 val mk_pre_type         : loc -> preterm
 val mk_pre_id           : loc -> ident -> preterm
 val mk_pre_qid          : loc -> ident -> ident -> preterm
@@ -76,13 +61,18 @@ val mk_pre_app          : preterm list -> preterm
 val mk_pre_arrow        : preterm -> preterm -> preterm
 val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
 
+val get_loc : preterm -> loc
+
+type prepattern =
+  | Unknown     of loc
+  | PPattern    of loc*ident option*ident*prepattern list
+
+type ptop = loc * ident * prepattern list
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
 type prule      = pcontext * ptop * preterm
 
-val get_loc : preterm -> loc
-
-(* *** Terms *** *)
+(** {2 Terms/Patterns} *)
 
 type term = private
   | Kind                 (* Kind *)
@@ -107,8 +97,6 @@ val mk_Meta     : int -> term
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
 
-(* *** Rewrite Rules *** *)
-
 type pattern =
   | Var         of ident option*int
   | Pattern     of ident*ident*pattern array
@@ -118,6 +106,8 @@ val term_of_pattern_all_meta : pattern -> term
 
 type top = ident*pattern array
 type context = ( ident * term ) list
+
+(**{2 Rewrite Rules} *)
 
 type rule = {
   nb:int;
@@ -130,7 +120,7 @@ type rule = {
   sub:(int*term) list;
   k:int;
 }
-
+(* FIXME
 type cpair = {
   rule1:int;
   rule2:int;
@@ -140,23 +130,14 @@ type cpair = {
   red2:term;
   joinable:bool
 }
-
+ *)
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option
   | Test        of (term*term) list*term*gdt option
 
-(* *** Errors *** *)
+(** {2 Commands} *)
 
-exception ParserError  of loc*string
-exception LexerError   of loc*string
-exception EnvError     of loc*string
-exception TypingError  of loc*string
-exception PatternError of loc*string
-exception MiscError of loc*string
-exception EndOfFile
-
-(* Commands *)
-
+(* FIXME mettre dans le parser ? *)
 type cmd =
   (* Reduction *)
   | Whnf of preterm
@@ -171,3 +152,9 @@ type cmd =
   | Gdt of ident*ident
   | Print of string
   | Other
+
+(** {2 Misc} *)
+
+type yes_no_maybe = Yes | No | Maybe
+type 'a option2 = None2 | DontKnow | Some2 of 'a
+type ('a,'b) sum = Success of 'a | Failure of 'b

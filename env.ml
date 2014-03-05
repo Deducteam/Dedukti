@@ -1,5 +1,5 @@
-
 open Types
+open Printf
 
 module H = Hashtbl.Make(
 struct
@@ -12,11 +12,10 @@ end )
 
 type gst =
   | Decl  of term*(int*gdt*rule list) option
-  | Def   of term*term (*FIXME definition should be rewrite rules*)
+  | Def   of term*term 
   | Static of term
 
 let envs : (gst H.t) H.t = H.create 19
-
 let init name = H.add envs name (H.create 251)
 
 (* *** Modules *** *)
@@ -31,18 +30,18 @@ let import lc m =
   end ;
   try
     (* If the [.dko] file is not found, try to compile it first.
-       This hack is terrible. It uses system calls and can loop with circular dependencies. *)
+     This hack is terrible. It uses system calls and can loop with circular dependencies. *)
     begin
       if not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) && !Global.autodep then
-      ignore ( Sys.command ( "dkcheck -e " ^ string_of_ident m ^ ".dk" ) )
-    end ;
-    let chan = open_in ( string_of_ident m ^ ".dko" ) in
-    let ctx:gst H.t = Marshal.from_channel chan in
-      close_in chan ;
-      H.add envs m ctx ;
-      ctx
+        ignore ( Sys.command ( "dkcheck -e " ^ string_of_ident m ^ ".dk" ) )
+          end ;
+      let chan = open_in ( string_of_ident m ^ ".dko" ) in
+      let ctx:gst H.t = Marshal.from_channel chan in
+        close_in chan ;
+        H.add envs m ctx ;
+        ctx
   with _ ->
-    raise (EnvError (lc,"Fail to open module '" ^ string_of_ident m ^ "'."))
+    Global.fail lc "Fail to open module '%s'." (string_of_ident m)
 
 let export_and_clear () =
   ( if !Global.export then
@@ -63,8 +62,8 @@ let get_global_symbol lc m v =
   in
     try ( H.find env v )
     with Not_found ->
-      raise (EnvError (lc,"Cannot find symbol '" ^ string_of_ident m
-                       ^ "." ^ string_of_ident v ^ "'."))
+      Global.fail lc "Cannot find symbol '%s.%s'." 
+        (string_of_ident m) (string_of_ident v)
 
 let get_global_type lc m v =
   match get_global_symbol lc m v with
@@ -85,46 +84,27 @@ let is_neutral lc m v =
 
 (* *** Add *** *)
 
-let add_decl lc v ty =
+let add lc v gst =
   let env = H.find envs !Global.name in
     if H.mem env v then
-      if !Global.raphael then
-        Global.warning lc "Redeclaration ignored."
+      if !Global.ignore_redecl then
+        Global.warning lc "Redeclaration ignored." 
       else
-        raise (EnvError (lc,"Already defined symbol '"
-                         ^string_of_ident v ^ "'." ))
+        Global.fail lc "Already defined symbol '%s'." (string_of_ident v)
     else
-      H.add env v (Decl (ty,None))
+      H.add env v gst
 
-let add_static lc v ty =
-  let env = H.find envs !Global.name in
-    if H.mem env v then
-      if !Global.raphael then
-        Global.warning lc "Redeclaration ignored."
-      else
-        raise (EnvError (lc,"Already defined symbol '"
-                         ^string_of_ident v ^ "'." ))
-    else
-      H.add env v (Static ty)
-
-let add_def lc v te ty =
-  let env = H.find envs !Global.name in
-    if H.mem env v then
-      if !Global.raphael then
-        Global.warning lc "Redeclaration ignored."
-      else
-        raise (EnvError (lc,"Already defined symbol '"
-                         ^ string_of_ident v ^ "'." ))
-    else
-      H.add env v (Def (te,ty))
+let add_decl lc v ty    = add lc v (Decl (ty,None))
+let add_static lc v ty  = add lc v (Static ty)
+let add_def lc v te ty  = add lc v (Def (te,ty))
 
 let add_rw lc v rs =
   let env = H.find envs !Global.name in
     try (
       match H.find env v with
         | Def (_,_)             ->
-            raise ( EnvError ( lc , "Cannot add rewrite rules for the symbol '" 
-                               ^ string_of_ident v ^ "' (Definition)." ) )
+            Global.fail lc "Cannot add rewrite\
+              rules for the symbol '%s' (Definition)." (string_of_ident v)
         | Decl(ty,Some (i,g,lst))       ->
             let g2 =  Matching.add_rw (i,g) rs in
               H.add env v (Decl (ty,Some (i,g2,rs@lst)))
@@ -132,13 +112,12 @@ let add_rw lc v rs =
             let (i,g) = Matching.get_rw v rs in
               H.add env v (Decl (ty,Some (i,g,rs)))
         | Static _              -> 
-            raise ( EnvError ( lc , "Cannot add rewrite rules for the symbol '" 
-                               ^ string_of_ident v ^ "' (Static)." ) )
+            Global.fail lc "Cannot add rewrite\
+              rules for the symbol '%s' (Static)." (string_of_ident v)
     ) with
-      Not_found ->
-        raise (EnvError ( lc , "Cannot find symbol '"
-                          ^ string_of_ident !Global.name ^ "."
-                          ^ string_of_ident v ^ "'." ))
+        Not_found ->
+          Global.fail lc "Cannot find symbol '%s.%s'." 
+            (string_of_ident !Global.name) (string_of_ident v)
 
 (* Iteration on rules *)
 

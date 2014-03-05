@@ -1,4 +1,3 @@
-
 open Types
 
 (* *** Error messages *** *)
@@ -8,16 +7,11 @@ let string_of_decl (x,ty) =
   else string_of_ident x ^ ": " ^ Pp.string_of_term ty
 
 let mk_err_msg (lc:loc) (ctx:context) (te:string) (exp:string) (inf:string) =
-  let ctx_str = String.concat ".\n" (List.rev_map string_of_decl ctx) in
-  let msg =
-    "Error while typing " ^ te ^
-    (match ctx with
-       | []      -> ".\n"
-       | _       -> " in context:\n" ^ ctx_str ^ "\n"
-    ) ^
-    "Expected: " ^ exp ^ "\n" ^ "Inferred: " ^ inf
-  in
-    raise (TypingError ( lc , msg ) )
+  match ctx with
+    | [] -> Global.fail lc "Error while typing %s\nExpected: %s\nInferred: %s." te exp inf
+    | _  -> 
+        let sctx = String.concat ".\n" (List.rev_map string_of_decl ctx) in
+          Global.fail lc "Error while typing %s in context:\n%s\nExpected: %s.\nInferred: %s." te sctx exp inf
 
 let err_conv ctx te exp inf =
   mk_err_msg (get_loc te) ctx (Pp.string_of_pterm te)
@@ -38,17 +32,14 @@ let err_prod lc ctx te inf =
 let err_pattern lc ctx p inf =
   mk_err_msg lc ctx (Pp.string_of_pattern p) "a product type" inf
 
-let err_rule l ctx p =
-  let ctx_str = String.concat "\n" (List.rev_map string_of_decl ctx) in
-  let msg =
-    "Error while typing the pattern " ^ (Pp.string_of_pattern p) ^
-    (match ctx with
-       | []      -> ".\n"
-       | _       -> " in context:\n" ^ ctx_str ^ "\n"
-    ) in
-    raise (TypingError ( l , msg ) )
+let mk_err_rule lc ctx p =
+  match ctx with
+    | [] -> Global.fail lc "Error while typing %s." (Pp.string_of_pattern p)
+    | _  -> 
+        let sctx = String.concat ".\n" (List.rev_map string_of_decl ctx) in
+          Global.fail lc "Error while typing %s in context:\n%s\n." (Pp.string_of_pattern p) sctx
 
-  (* *** Monodirectional Type Inference for preterm *** *)
+(* *** Monodirectional Type Inference for preterm *** *)
 
 let get_type ctx id =
   let rec aux n = function
@@ -105,7 +96,7 @@ and is_type ctx a =
 
 let add_equation t1 t2 eqs =
   match Reduction.bounded_are_convertible 500 t1 t2 with
-    | Yes _     -> eqs
+    | Yes      -> eqs
     | _        -> (t1,t2)::eqs
 
 let of_list_rev = function
@@ -116,17 +107,16 @@ let of_list_rev = function
       let rec fill i = function
           [] -> a
         | hd::tl -> Array.unsafe_set a (n-i) hd; fill (i+1) tl in
-      fill 2 tl
+        fill 2 tl
 
 let rec infer_pattern l k ctx md_opt id (args:prepattern list) eqs =
   let is_var = match md_opt with | Some _ -> None | None -> get_type ctx id in
     match is_var with
       | Some (n,ty)       ->
           if args = [] then ( k , Var(Some id,n) , ty , eqs )
-          else
-            let str = "The left-hand side of the rewrite rule cannot\
-                                               be a variable application." in
-              raise (PatternError (l,str))
+          else Global.fail l 
+                 "The left-hand side of \
+                             the rewrite rule cannot be a variable application."
       | None      ->
           let md = match md_opt with None -> !Global.name | Some md -> md in
           let ty_id = Env.get_global_type l md id in
@@ -149,7 +139,7 @@ and infer_pattern_aux l ctx md_opt id (k,ty,args,eqs) parg =
         let args' = of_list_rev args in
           err_pattern l ctx (Pattern (md,id,args')) "???"
 
-and check_pattern k ctx ty eqs : prepattern -> (int*pattern*(term*term)list) = function
+and check_pattern k ctx ty eqs = function
   | Unknown _                   -> ( k+1 , Var(None,k) , eqs )
   | PPattern (l,md_opt,id,args) ->
       let (k2 ,pat ,ty2 ,eqs2 ) = infer_pattern l k ctx md_opt id args eqs in
@@ -161,26 +151,26 @@ let infer_ptop ctx (l,id,args) =
 (* *** Bidirectional Type Inference for patterns *** *)
 
 (*
-let rec check_pattern2 ty = function
-  | Var (_,_)            -> true
-  | Pattern (md,id,args) ->
-      let ty_id = Env.get_global_type dloc md id in
-      let ty2 = Array.fold_left infer_pattern_args2 ty_id args in
-        Reduction.are_convertible ty ty2
+ let rec check_pattern2 ty = function
+ | Var (_,_)            -> true
+ | Pattern (md,id,args) ->
+ let ty_id = Env.get_global_type dloc md id in
+ let ty2 = Array.fold_left infer_pattern_args2 ty_id args in
+ Reduction.are_convertible ty ty2
 
-and infer_pattern2 = function
-  | Var (None,_)         -> assert false
-  | Var (Some _,n)       -> assert false
-  | Pattern (md,id,args) ->
-      let ty_id = Env.get_global_type dloc md id in
-      Array.fold_left infer_pattern_args2 ty_id args
+ and infer_pattern2 = function
+ | Var (None,_)         -> assert false
+ | Var (Some _,n)       -> assert false
+ | Pattern (md,id,args) ->
+ let ty_id = Env.get_global_type dloc md id in
+ Array.fold_left infer_pattern_args2 ty_id args
 
-and infer_pattern_args2 ty arg =
-  match Reduction.whnf ty with
-    | Pi (_,a,b)        ->
-        if check_pattern2 a arg then Subst.subst b (term_of_pattern arg)
-        else assert false
-    | _                 -> assert false
+ and infer_pattern_args2 ty arg =
+ match Reduction.whnf ty with
+ | Pi (_,a,b)        ->
+ if check_pattern2 a arg then Subst.subst b (term_of_pattern arg)
+ else assert false
+ | _                 -> assert false
  *)
 
 (* *** Monodirectional Type Inference for terms *** *)
@@ -230,7 +220,7 @@ and infer2_app ctx ty_f u = match Reduction.whnf ty_f , infer2 ctx u with
 let is_well_typed ctx ty =
   try ( ignore ( infer2 ctx ty ) ; true )
   with Infer2Error -> false
- 
+
 
 let check_term ctx te exp =
   let (te',inf) = infer ctx te in
@@ -239,5 +229,5 @@ let check_term ctx te exp =
 
 let check_type ctx pty =
   match infer ctx pty with
-    | ( ty , Kind ) | ( ty , Type _ )   -> ty
+    | ( ty , Kind ) | ( ty , Type )   -> ty
     | ( _ , s )                         -> err_sort ctx pty s

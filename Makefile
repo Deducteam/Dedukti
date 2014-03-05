@@ -6,7 +6,7 @@ INSTALL_DIR=/usr/bin
 # DO NOT EDIT AFTER THIS LINE
 
 OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt -rectypes' -cflags -rectypes \
-	 -use-menhir -menhir "menhir --external-tokens Types"
+	 -use-menhir -menhir "menhir --external-tokens Types" -tag bin_annot 
 
 all: dkcheck dktop dkdep
 

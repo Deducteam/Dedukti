@@ -1,4 +1,3 @@
-
 open Types
 
 (* Compilation of rewrite rules to decision tree as in:
@@ -15,17 +14,13 @@ end )
 
 (* *** Types *** *)
 
-type line = { loc:loc ; 
-              pats:pattern array ; 
-              right:term ; 
-              env_size:int ; 
+type line = { loc:loc ; pats:pattern array ; right:term ; env_size:int ; 
               constr:(term*term) list }
 type pMat = line * line list
-type partition = { cases:( (ident*ident) * pMat ) list ; 
-                   default: line list ; }
+type partition = { cases:( (ident*ident) * pMat ) list ; default: line list ; }
 
 (* *** Debug *** *)
-
+(*
 let string_of_line id l = 
   let s =
     " [" ^ string_of_int l.env_size ^ "] " ^ string_of_ident id ^ " " 
@@ -36,7 +31,7 @@ let string_of_line id l =
     match l.constr with
       | []        -> s
       | _::_      -> s ^ " when " ^ (String.concat " and " (List.map aux l.constr))
-
+ *)
 (* *** Internal functions *** *)
 
 let get_constraints size_env p =
@@ -83,9 +78,9 @@ let pMat_from_rules (rs:rule list) : int*pMat =
         let arity = Array.length l1.args in
         let aux li =
           if Array.length li.args != arity then
-            raise ( PatternError ( li.l , "All the rules must have the same arity." ) )
+            Global.fail li.l "All the rules must have the same arity."
           else if (not (ident_eq l1.id li.id)) then
-            raise ( PatternError ( li.l , "All the rules must have the same head symbol." ) )
+            Global.fail li.l "All the rules must have the same head symbol."
           else
             line_from_rule li
         in
@@ -98,12 +93,12 @@ let mk_var_lst inf sup =
       (mk_DB qm i) :: (aux (i+1))
     else []
   in aux inf
-                    
-let specialize (c:int) (l1,tl:pMat) (nargs,m,v:int*ident*ident) : (ident*ident)*pMat =
+
+let specialize (c:int) (l1,tl:pMat) (nargs,m,v:int*ident*ident) =
   let n = Array.length l1.pats  in
   let new_n = n + nargs -1      in
-    (* assert ( c < n );   *)
-    (* assert ( 0 <= new_n );*) 
+  (* assert ( c < n );   *)
+  (* assert ( 0 <= new_n );*) 
   let mk_pats p = 
     Array.init new_n (
       fun i ->
@@ -128,33 +123,35 @@ let specialize (c:int) (l1,tl:pMat) (nargs,m,v:int*ident*ident) : (ident*ident)*
             for i=0 to (nargs-1) do
               pats.(n-1+i) <- Var (Some qm,li.env_size+i)
             done ;
-          let te =
+            let te =
               if nargs=0 then mk_Const m v
-              else mk_App ( (mk_Const m v)::(mk_var_lst li.env_size (li.env_size+nargs) ) ) in
-          { li with 
-                env_size  = li.env_size + nargs;
-                pats = pats; 
-                right = Subst.subst_q (q,te) 0 li.right;
-                constr = List.map (
-                  fun (t1,t2) -> ( Subst.subst_q (q,te) 0 t1 , Subst.subst_q (q,te) 0 t2 ) 
-                ) li.constr;
-          }::lst
+              else mk_App ( (mk_Const m v)::
+                            (mk_var_lst li.env_size (li.env_size+nargs) ) ) in
+              { li with 
+                    env_size  = li.env_size + nargs;
+                    pats = pats; 
+                    right = Subst.subst_q (q,te) 0 li.right;
+                    constr = List.map (
+                      fun (t1,t2) -> 
+                        (Subst.subst_q (q,te) 0 t1, Subst.subst_q (q,te) 0 t2 ) 
+                    ) li.constr;
+              }::lst
   in
     match List.fold_right spec_aux (l1::tl) [] with
       | []              -> assert false
       | l1'::tl'        -> ( (m,v) , (l1',tl') )
-        
+
 let partition (l1,pm:pMat) (c:int) : partition =
   let hs = H.create 17 in
   let (def,consts) = 
     List.fold_right (
       fun l (def,csts) -> 
-       (* assert ( c < Array.length l.pats ); *)
+        (* assert ( c < Array.length l.pats ); *)
         match l.pats.(c) with
-        | Pattern (m,v,args)      -> 
-            if H.mem hs (m,v) then (def,csts) 
-            else ( H.add hs (m,v) () ; (def,(Array.length args,m,v)::csts) )
-        | _                       -> (l::def,csts)
+          | Pattern (m,v,args)      -> 
+              if H.mem hs (m,v) then (def,csts) 
+              else ( H.add hs (m,v) () ; (def,(Array.length args,m,v)::csts) )
+          | _                       -> (l::def,csts)
     ) (l1::pm) ([],[]) 
   in
     { cases   = List.map (specialize c (l1,pm)) consts ; 
@@ -175,11 +172,12 @@ let reorder l (ord:int array) (t:term) : term =
     | Lam (x,a,f)               -> mk_Lam x (aux k a) (aux (k+1) f)
     | Pi  (x,a,b)               -> mk_Pi  x (aux k a) (aux (k+1) b)
     | DB (x,n) when (n>=k)      ->
-          (* assert (n-k < Array.length ord); *)
-          let n_db = ord.(n-k) in
-            if n_db = (-1) then
-              raise ( PatternError ( l , "Free variables on the right-hand side of a rule should also appear in the left-hand side." ) )
-            else mk_DB x (n_db + k)
+        (* assert (n-k < Array.length ord); *)
+        let n_db = ord.(n-k) in
+          if n_db = (-1) then
+            Global.fail l "Free variables on \
+              the right-hand side of a rule should also appear in the left-hand side." 
+          else mk_DB x (n_db + k)
     | t                         -> t
   in aux 0 t
 
@@ -212,7 +210,7 @@ let rec cc (pm:pMat) : gdt =
       (* Colonne c contient un pattern *)
       | Some c    ->
           let par = partition pm c in
-            Switch ( c , List.rev_map ( fun (id,pm') -> ( id , cc pm' ) ) par.cases , 
+            Switch ( c , List.rev_map (fun (id,pm') -> (id,cc pm') ) par.cases, 
                      match par.default with [] -> None | l'::pm' -> Some (cc (l',pm') ) 
             )
 
@@ -229,14 +227,14 @@ let rec add_lines pm = function
   | Switch (i,cases,def)        ->
       begin
         let p = partition pm i in
-          (*On met a jour les cas existant*)
+        (*On met a jour les cas existant*)
         let updated_cases = List.map (
           fun (mv,g) -> 
             match find mv p.cases with
               | None            -> (mv,g)
               | Some pm'        -> (mv,add_lines pm' g)
         ) cases in
-          (*On ajoute les nouveaux cas *)
+        (*On ajoute les nouveaux cas *)
         let cases2 = List.fold_left (
           fun lst ((m,v),pm') -> 
             if not (List.exists (fun ((m',v'),_) -> ident_eq v v' && ident_eq m m') cases) then
@@ -256,15 +254,14 @@ let add_rw (n,g) rs =
   let ( nb_args , pm ) = pMat_from_rules rs in
     if nb_args = n then add_lines pm g 
     else
-      raise ( PatternError ( (fst pm).loc , 
-                             "Arity mismatch: all the rules must have the same arity." ) )
+      Global.fail (fst pm).loc "Arity mismatch: all the rules must have the same arity." 
 
 let get_rw id (rs:rule list) : int*gdt =
   let ( nb_args , pm )  = pMat_from_rules rs in
-   (* 
-    Global.eprint ("Rewrite rules for '" ^ string_of_ident id ^ "':");
-    Global.eprint (string_of_line id (fst pm));
-    List.iter (fun l -> Global.eprint (string_of_line id l)) (snd pm); 
-    *)
+  (* 
+   Global.eprint ("Rewrite rules for '" ^ string_of_ident id ^ "':");
+   Global.eprint (string_of_line id (fst pm));
+   List.iter (fun l -> Global.eprint (string_of_line id l)) (snd pm); 
+   *)
   let gdt = cc pm in
     ( nb_args , gdt )

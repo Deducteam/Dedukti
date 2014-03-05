@@ -11,7 +11,7 @@ sig
   val subst: term substitution -> term -> term
   val occurs_check: int -> term -> bool
   val decompose: (int*term) list -> (int*term*term) list 
-                                        -> ((int*term) list,error) sum
+  -> ((int*term) list,error) sum
 end
 
 module Make = functor (T: UTerm) ->
@@ -19,9 +19,9 @@ struct
   type state = (int*T.term*T.term) list * (int*T.term) list * T.term substitution
 
   let rec safe_assoc v = function
-  | []                  -> None
-  | (x,t)::_ when x=v   -> Some t
-  | _::tl               -> safe_assoc v tl
+    | []                  -> None
+    | (x,t)::_ when x=v   -> Some t
+    | _::tl               -> safe_assoc v tl
 
   let rec unify0 : state -> (T.term substitution,T.error) sum = function
     | ( [], [] , s )            -> Success s
@@ -88,10 +88,11 @@ struct
     | t                         -> t
 
   let print_eq (_,t1,t2) =
-    Global.sprint ("Decompose: "^Pp.string_of_term t1^" == "
-                   ^ Pp.string_of_term t2) 
+    (Global.debug 2) dloc "Decompose: %s == %s\n"
+      (Pp.string_of_term t1) 
+      (Pp.string_of_term t2) 
 
-   let rec decompose b = function
+  let rec decompose b = function
     | []                -> Success b
     | (k,t1,t2)::a      ->
         begin
@@ -121,12 +122,10 @@ struct
                     | App (f1::lst1) , t | t , App (f1::lst1)   ->
                         ( match Reduction.bounded_are_convertible 500 t1' t2' with
                             | Yes       -> decompose b a
-                            | No        -> 
-                                ( Global.warning dloc ("[Unification] Ignoring " 
-                                   ^ Pp.string_of_term t1' 
-                                   ^ " == "
-                                   ^ Pp.string_of_term t2' ) ; 
-                                  decompose b a (*here we loose info*) )
+                            | No        -> (
+                                Global.debug_no_loc 2 "[Unification] Ignoring %s == %s." 
+                                  (Pp.string_of_term t1') (Pp.string_of_term t2') ; 
+                                decompose b a (*here we loose info*) )
                             | Maybe     -> Failure NoWHNF )
                     | _ , _                             -> Failure NoUnifier
                 end
@@ -178,7 +177,7 @@ struct
     | (_,Pattern (md,id,args),
        Pattern(md',id',args'))::a               ->
         if ident_eq id id' && ident_eq md md'
-                && Array.length args = Array.length args' then
+        && Array.length args = Array.length args' then
           decompose b (add_to_list a args args')
         else Failure ()
 

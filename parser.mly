@@ -66,7 +66,7 @@
 %%
 
 prelude         : NAME DOT
-                { let (lc,name)=$1 in Global.set_name name ;
+                { let (lc,name)=$1 in Global.name := name ;
                         Env.init name; mk_prelude lc name }
 
 line            : ID COLON term DOT

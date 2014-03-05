@@ -1,8 +1,4 @@
 
-type yes_no_maybe = Yes | No | Maybe
-type 'a option2 = None2 | DontKnow | Some2 of 'a
-type ('a,'b) sum = Success of 'a | Failure of 'b
-
 (* *** Identifiers (hashconsed strings) *** *)
 
 type ident = string
@@ -18,18 +14,14 @@ end )
 
 let shash       = WS.create 251
 let hstring     = WS.merge shash
-let empty      = hstring ""
-let underscore = hstring "_"
+let empty       = hstring ""
 
 (* *** Localization *** *)
 
 type loc = int*int
 let dloc = (0,0)
 let mk_loc l c = (l,c)
-let get_line (l,_) = l
-let get_column (_,c) = c
-let string_of_loc (l,c) =
-  "line:" ^ string_of_int l ^ " column:" ^ string_of_int c
+let of_loc l = l
 
 (* *** Parsing *** *)
 
@@ -54,6 +46,8 @@ type token =
   | COLON
   | ARROW
   | COMMAND   of ( loc * string )
+
+exception EndOfFile
 
 (* *** Pseudo Terms *** *)
 
@@ -147,16 +141,16 @@ let rec term_of_pattern = function
   | Var (None,n)                -> Meta n
   | Pattern (md,id,args)        ->
       let c = Const (md,id) in
-      if Array.length args = 0 then c
-      else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
+        if Array.length args = 0 then c
+        else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
 
 let rec term_of_pattern_all_meta = function
   | Var (Some id,n)             -> Meta n
   | Var (None,n)                -> Meta n
   | Pattern (md,id,args)        ->
       let c = Const (md,id) in
-      if Array.length args = 0 then c
-      else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
+        if Array.length args = 0 then c
+        else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
 
 type top = ident*pattern array
 type context = ( ident * term ) list
@@ -172,30 +166,27 @@ type rule = {
   sub:(int*term) list;
   k:int;
 }
-
-type cpair = {
-  rule1:int;
-  rule2:int;
-  pos:int list;
-  root:pattern;
-  red1:term;
-  red2:term;
-  joinable:bool
-}
-
+(*
+ type cpair = {
+ rule1:int;
+ rule2:int;
+ pos:int list;
+ root:pattern;
+ red1:term;
+ red2:term;
+ joinable:bool
+ }
+ *)
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option
-  | Test        of (term*term) list*term*gdt option
+      | Test        of (term*term) list*term*gdt option
 
-(* *** Errors *** *)
+(* Misc *)
 
-exception ParserError of loc*string
-exception LexerError  of loc*string
-exception EnvError    of loc*string
-exception TypingError of loc*string
-exception PatternError of loc*string
-exception MiscError of loc*string
-exception EndOfFile
+type yes_no_maybe = Yes | No | Maybe
+type 'a option2 = None2 | DontKnow | Some2 of 'a
+type ('a,'b) sum = Success of 'a | Failure of 'b
+
 
 (* Commands *)
 
