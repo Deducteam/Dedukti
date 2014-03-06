@@ -1,43 +1,43 @@
 open Types
 
-(* *** Error messages *** *)
+(* *** Type error messages *** *)
 
-let string_of_decl (x,ty) =
-  if ident_eq empty x then "?: " ^ Pp.string_of_term ty
-  else string_of_ident x ^ ": " ^ Pp.string_of_term ty
-
-let mk_err_msg (lc:loc) (ctx:context) (te:string) (exp:string) (inf:string) =
-  match ctx with
-    | [] -> Global.fail lc "Error while typing %s\nExpected: %s\nInferred: %s." te exp inf
-    | _  -> 
-        let sctx = String.concat ".\n" (List.rev_map string_of_decl ctx) in
-          Global.fail lc "Error while typing %s in context:\n%s\nExpected: %s.\nInferred: %s." te sctx exp inf
-
-let err_conv ctx te exp inf =
-  mk_err_msg (get_loc te) ctx (Pp.string_of_pterm te)
-    (Pp.string_of_term exp) (Pp.string_of_term inf)
-
-let err_sort ctx te inf =
-  mk_err_msg (get_loc te) ctx (Pp.string_of_pterm te)
-    "Kind or Type" (Pp.string_of_term inf)
-
-let err_topsort ctx te =
-  mk_err_msg (get_loc te) ctx (Pp.string_of_pterm te)
-    "anything but Kind" "Kind"
-
-let err_prod lc ctx te inf =
-  mk_err_msg lc ctx (Pp.string_of_term te)
-    "a product type" (Pp.string_of_term inf)
-
-let err_pattern lc ctx p inf =
-  mk_err_msg lc ctx (Pp.string_of_pattern p) "a product type" inf
+let mk_err_msg lc ctx pp_te te pp_exp exp pp_inf inf =
+  if ctx = [] then
+    Global.fail lc "Error while typing %a\nExpected: %a\nInferred: %a." 
+      pp_te te pp_exp exp pp_inf inf
+  else
+    Global.fail lc "Error while \
+      typing %a in context:\n%a\nExpected: %a.\nInferred: %a." 
+      pp_te te Pp.pp_context ctx pp_exp exp pp_inf inf
 
 let mk_err_rule lc ctx p =
-  match ctx with
-    | [] -> Global.fail lc "Error while typing %s." (Pp.string_of_pattern p)
-    | _  -> 
-        let sctx = String.concat ".\n" (List.rev_map string_of_decl ctx) in
-          Global.fail lc "Error while typing %s in context:\n%s\n." (Pp.string_of_pattern p) sctx
+  if ctx = [] then Global.fail lc "Error while typing %a." Pp.pp_pattern p
+  else 
+    Global.fail lc "Error while typing %a in context:\n%a\n." 
+      Pp.pp_pattern p Pp.pp_context ctx
+
+let err_conv ctx te exp inf =
+  mk_err_msg (get_loc te) ctx Pp.pp_pterm te Pp.pp_term exp Pp.pp_term inf
+
+let err_sort ctx te inf =
+  mk_err_msg (get_loc te) ctx Pp.pp_pterm te output_string "Kind or Type" 
+    Pp.pp_term inf
+
+let err_topsort ctx te =
+  mk_err_msg (get_loc te) ctx Pp.pp_pterm te output_string "anything but Kind" 
+    output_string "Kind"
+
+let err_prod lc ctx te inf =
+  mk_err_msg lc ctx Pp.pp_term te output_string "a product type" Pp.pp_term inf
+
+let err_pattern lc ctx p = function
+  | None        ->
+      mk_err_msg lc ctx Pp.pp_pattern p output_string 
+        "a product type" output_string "???" 
+  | Some inf    ->
+      mk_err_msg lc ctx Pp.pp_pattern p output_string 
+        "a product type" Pp.pp_term inf
 
 (* *** Monodirectional Type Inference for preterm *** *)
 
@@ -133,11 +133,11 @@ and infer_pattern_aux l ctx md_opt id (k,ty,args,eqs) parg =
     | Some ty           ->
         let md = match md_opt with None -> !Global.name | Some md -> md in
         let args' = of_list_rev args in
-          err_pattern l ctx (Pattern (md,id,args')) (Pp.string_of_term ty)
+          err_pattern l ctx (Pattern (md,id,args')) (Some ty)
     | None              ->
         let md = match md_opt with None -> !Global.name | Some md -> md in
         let args' = of_list_rev args in
-          err_pattern l ctx (Pattern (md,id,args')) "???"
+          err_pattern l ctx (Pattern (md,id,args')) None
 
 and check_pattern k ctx ty eqs = function
   | Unknown _                   -> ( k+1 , Var(None,k) , eqs )

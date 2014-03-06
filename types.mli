@@ -7,6 +7,7 @@
 type ident
 val empty : ident
 val string_of_ident : ident -> string
+val pp_ident : out_channel -> ident -> unit
 val hstring : string -> ident
 val ident_eq : ident -> ident -> bool
 

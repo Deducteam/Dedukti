@@ -40,12 +40,7 @@ let debug_no_loc lvl fmt =
   if lvl <= !debug_level then
     Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt
   else Printf.ifprintf stderr fmt
-(*
-let warning lc fmt = 
-  prerr_string (orange "WARNING ") ; 
-  prerr_loc lc ;
-  Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt
- *)
+
 let fail lc fmt = 
   prerr_string (red "ERROR ") ;
   prerr_loc lc;

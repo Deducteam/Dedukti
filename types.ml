@@ -4,6 +4,7 @@
 type ident = string
 let string_of_ident s = s
 let ident_eq s1 s2 = s1==s2 || s1=s2
+let pp_ident = output_string
 
 module WS = Weak.Make(
 struct

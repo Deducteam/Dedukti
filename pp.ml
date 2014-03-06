@@ -1,81 +1,84 @@
 open Types
-(*
- let string_of_loc loc =
- let (l,c) = of_loc loc in
- "line:" ^ string_of_int l ^ " column:" ^ string_of_int c  
- *)
-let string_of_const m v =
-  if ident_eq m !Global.name then string_of_ident v
-  else string_of_ident m ^ "." ^ string_of_ident v
+open Printf
 
-let string_of_const2 md_opt id =
-  match md_opt with
-    | None          -> string_of_ident id
-    | Some md       -> string_of_ident md ^ "." ^ string_of_ident id
+let rec pp_list sep pp out = function
+    | []        -> ()
+    | [a]       -> pp out a
+    | a::lst    -> fprintf out "%a%s" (pp_list sep pp) lst sep
 
-let rec string_of_pterm = function
-  | PreType _              -> "Type"
-  | PreId (_,v)            -> string_of_ident v
-  | PreQId (_,m,v)         -> string_of_ident m ^ "." ^ string_of_ident v
-  | PreApp args            ->
-      String.concat " " (List.map string_of_pterm_wp args)
-  | PreLam (_,v,a,b)       ->
-      string_of_ident v^ ":" ^ string_of_pterm_wp a ^ " => " ^ string_of_pterm b
-  | PrePi (None,a,b)       -> string_of_pterm_wp a ^ " -> " ^ string_of_pterm b
-  | PrePi (Some (_,v),a,b) ->
-      string_of_ident v^ ":" ^ string_of_pterm_wp a ^ " -> " ^ string_of_pterm b
-and string_of_pterm_wp = function
-  | PreType _ | PreId _ | PreQId _ as t  -> string_of_pterm t
-  | t                                    -> "(" ^ string_of_pterm t ^ ")"
+let rec pp_pterm out = function
+  | PreType _        -> output_string out "Type"
+  | PreId (_,v)      -> pp_ident out v
+  | PreQId (_,m,v)   -> fprintf out "%a.%a" pp_ident m pp_ident v
+  | PreApp (lst)     -> pp_list " " pp_pterm_wp  out lst
+  | PreLam (_,v,a,b) -> fprintf out "%a:%a => %a" pp_ident v pp_pterm_wp a pp_pterm b
+  | PrePi (o,a,b)    ->
+      ( match o with 
+          | None       -> fprintf out "%a -> %a" pp_pterm_wp a pp_pterm b
+          | Some (_,v) -> fprintf out "%a:%a -> %a" pp_ident v pp_pterm_wp a pp_pterm b )
 
-let rec string_of_term = function
-  | Kind                -> "Kind"
-  | Type                -> "Type"
-  | Meta n              -> 
-      if !Global.debug_level > 0 then "?[" ^ string_of_int n ^ "]" else "_"
-  | DB  (x,n)           -> 
-      if !Global.debug_level > 0 then string_of_ident x^"["^string_of_int n^"]" 
-      else string_of_ident x
-  | Const (m,v)         -> string_of_const m v
-  | App args            -> String.concat " " (List.map string_of_term_wp args)
-  | Lam (x,a,f)         ->
-      string_of_ident x ^ ":" ^ string_of_term_wp a ^ " => " ^ string_of_term f
-  | Pi  (None,a,b)      -> string_of_term_wp a ^ " -> " ^ string_of_term b
-  | Pi  (Some x,a,b)    ->
-      string_of_ident x ^ ":" ^ string_of_term_wp a ^ " -> " ^ string_of_term b
-and string_of_term_wp = function
-  | Kind | Type  | DB _ | Const _ as t        -> string_of_term t
-  | t                                           -> "(" ^ string_of_term t ^ ")"
+and pp_pterm_wp out = function
+  | PreType _ | PreId _ | PreQId _ as t  -> pp_pterm out t
+  | t                                    -> fprintf out "(%a)" pp_pterm t
 
-let rec string_of_prepattern = function
-  | Unknown _                   -> "_"
-  | PPattern (_,md_opt,id,[])   -> string_of_const2 md_opt id
-  | PPattern (_,md_opt,id,lst)  ->
-      "(" ^ string_of_const2 md_opt id ^ " " ^
-      (String.concat " " (List.map string_of_prepattern lst)) ^ ")"
+let pp_pconst out = function
+    | ( None , id )     -> pp_ident out id
+    | ( Some md , id )  -> fprintf out "%a.%a" pp_ident md pp_ident id
 
-let rec string_of_pattern_sub s = function
-  | Var (Some id,v)          -> string_of_ident id ^ "[" ^ string_of_int v ^ "]"
+let rec pp_ppattern out = function
+  | Unknown _                   -> output_string out "_"
+  | PPattern (_,md,id,[])       -> pp_pconst out (md,id)
+  | PPattern (_,md,id,lst)      ->
+      fprintf out "(%a %a)" pp_pconst (md,id) (pp_list " " pp_ppattern) lst
+
+let pp_const out (m,v) =
+  if ident_eq m !Global.name then pp_ident out v
+  else fprintf out "%a.%a" pp_ident m pp_ident v
+
+let rec pp_term out = function
+  | Kind                -> output_string out "Kind"
+  | Type                -> output_string out "Type"
+  | Meta n when !Global.debug_level > 0 -> fprintf out "?[%i]" n 
+  | Meta n              -> output_string out "_"
+  | DB  (x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n 
+  | DB  (x,n)           -> pp_ident out x
+  | Const (m,v)         -> pp_const out (m,v)
+  | App args            -> pp_list " " pp_term_wp out args
+  | Lam (x,a,f)         -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
+  | Pi  (None,a,b)      -> fprintf out "%a -> %a" pp_term_wp a pp_term b
+  | Pi  (Some x,a,b)    -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
+
+and pp_term_wp out = function
+  | Kind | Type  | DB _ | Const _ as t -> pp_term out t
+  | t                                  -> fprintf out "(%a)" pp_term t 
+
+let rec pp_pattern_sub s out = function
+  | Var (Some id,v)          -> fprintf out "%a[%i]" pp_ident id v
   | Var (None, n)             ->
-      ( try "{" ^ string_of_term (List.assoc n s) ^ "}"
-        with Not_found -> "_[" ^ string_of_int n ^ "]" )
+      ( try let t = (List.assoc n s) in fprintf out "{%a}" pp_term t
+        with Not_found -> fprintf out "_[%i]" n )
   | Pattern (m,v,arr)   ->
-      if Array.length arr = 0 then string_of_const m v
-      else
-        string_of_const m v ^ " " ^
-        String.concat " " (List.map (string_of_pattern_wp s) (Array.to_list arr))
+      if Array.length arr = 0 then pp_const out (m,v)
+      else fprintf out "%a %a" pp_const (m,v) (pp_list " " (pp_pattern_wp s)) (Array.to_list arr)
 
-and string_of_pattern_wp s = function
-  | Pattern (_,_,args) as p when (Array.length args != 0) ->
-      "(" ^ string_of_pattern_sub s p ^ ")"
-  |  p -> string_of_pattern_sub s p
+and pp_pattern_wp s out = function
+  | Pattern (_,_,args) as p when (Array.length args != 0) -> fprintf out "(%a)" (pp_pattern_sub s) p 
+  |  p -> pp_pattern_sub s out p
 
-let string_of_pattern = string_of_pattern_sub []
+let pp_pattern = pp_pattern_sub []
 
-let string_of_rule r =
-  "["^string_of_int r.nb ^"] "
-  ^ string_of_pattern_sub r.sub (Pattern (!Global.name,r.id,r.args))
-  ^ " --> " ^ string_of_term r.ri
+let pp_context out ctx =
+  pp_list ".\n" (
+    fun out (x,ty) ->
+      if ident_eq empty x then fprintf out "?: %a" pp_term ty
+      else fprintf out "%a: %a" pp_ident x pp_term ty )
+    out (List.rev ctx)
+
+
+let pp_rule out r =
+  fprintf out "[%i] %a --> %a" r.nb 
+    (pp_pattern_sub r.sub) (Pattern (!Global.name,r.id,r.args))
+    pp_term r.ri
 (*
  let string_of_cpair cp =
  let pos = String.concat "." (List.map string_of_int cp.pos) in
@@ -84,36 +87,29 @@ let string_of_rule r =
  ^ string_of_pattern cp.root ^ " --> " ^ string_of_term cp.red1 ^ "\n"
  ^ string_of_pattern cp.root ^ " --> " ^ string_of_term cp.red2 ^ "\n"
  ^ "Joinability: " ^ (if cp.joinable then "OK" else "KO")
- *)
+ *) 
+
 let tab t = String.make (t*4) ' '
 
-let rec str_of_gdt t = function
-  | Test ([],te,_)              -> string_of_term te
+let rec pp_gdt0 t out = function
+  | Test ([],te,_)              -> pp_term out te
   | Test (lst,te,def)           ->
-      begin
-        let str = "\n" ^ tab t ^ "if "
-        ^ String.concat " and "
-            (List.map (fun (i,j) -> string_of_term i ^ "=" ^ string_of_term j ) lst)
-        ^ " then " ^ string_of_term te
-        in
-          match def with
-            | None      -> str ^ "\n" ^ tab t ^ "else FAIL"
-            | Some g    -> str ^ "\n" ^ tab t ^ "else " ^ str_of_gdt (t+1) g
-      end
+      let tab = tab t in
+      let aux out (i,j) = fprintf out "%a=%a" pp_term i pp_term j in
+        fprintf out "\n%sif %a then %a\n%selse %a" tab (pp_list " and " aux) lst
+          pp_term te tab (pp_def (t+1)) def
   | Switch (i,cases,def)      ->
-      begin
-        let str_lst =
-          List.map
-            (fun ((m,v),g) ->
-               "\n" ^ tab t ^ "if $" ^ string_of_int i ^ "="
-               ^ string_of_const m v ^ " then " ^ str_of_gdt (t+1) g
-            ) cases in
-        let str = String.concat "" str_lst in
-          match def with
-            | None    -> str ^ "\n" ^ tab t ^ "default: FAIL"
-            | Some g  -> str ^ "\n" ^ tab t ^ "default: " ^ str_of_gdt (t+1) g
-      end
+      let tab = tab t in
+      let pp_case out (mv,g) = 
+        fprintf out "\n%sif $%i=%a then %a" tab i pp_const mv (pp_gdt0 (t+1)) g
+      in
+        fprintf out "%a\n%sdefault: %a" (pp_list "" pp_case) 
+          cases tab (pp_def (t+1)) def
+      
+and pp_def t out = function
+  | None        -> output_string out "FAIL"
+  | Some g      -> pp_gdt0 t out g
 
-let string_of_gdt m v i g =
-  "GDT for '" ^ string_of_const m v ^ "' with " ^ string_of_int i
-  ^ " argument(s): " ^ str_of_gdt 0 g
+let pp_gdt out (m,v,i,g) =
+  fprintf out "GDT for '%a' with %i argument(s): %a" 
+    pp_const (m,v) i (pp_gdt0 0) g 

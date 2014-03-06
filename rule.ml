@@ -29,11 +29,11 @@ let rec has_definitions = function
       ( match Env.get_global_symbol dloc m v with
           | Env.Def (_,_)   -> true
           | _           -> exists has_definitions args )
-
+(*
 let dump =
   List.iter (fun (t,t') -> (Global.debug 2) dloc " %s == %s\n" 
                              (Pp.string_of_term t) (Pp.string_of_term t') )
-
+ *)
 let check_rule (pctx,ple,pri:prule) : rule =
   let (l,id,_) = ple in
   let (ctx,k0) =
@@ -48,15 +48,14 @@ let check_rule (pctx,ple,pri:prule) : rule =
   in
     match Unification.unify eqs with
       | Unification.NoUnifier           ->  
-          Global.fail l "The pattern '%s' is not well-typed." 
-            (Pp.string_of_pattern (Pattern (!Global.name,id,args)))
+          Global.fail l "The pattern '%a' is not well-typed." 
+            Pp.pp_pattern (Pattern (!Global.name,id,args))
       | Unification.UPrefix s            (*FIXME warning*)
       | Unification.MGU s               ->
           let ty = Subst.subst_meta s ty0 in
             if not (Inference.is_well_typed ctx ty) then
-              Global.fail l "Could not find a closed type for '%s'\nInferred type: %s." 
-                (Pp.string_of_pattern (Pattern (!Global.name,id,args))) 
-                (Pp.string_of_term ty)
+              Global.fail l "Could not find a closed type for '%a'\nInferred type: %a." 
+                Pp.pp_pattern (Pattern (!Global.name,id,args)) Pp.pp_term ty
             else if has_definitions le then
                 Global.fail l "Defined symbols are not allowed in patterns."
             else

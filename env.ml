@@ -41,7 +41,7 @@ let import lc m =
         H.add envs m ctx ;
         ctx
   with _ ->
-    Global.fail lc "Fail to open module '%s'." (string_of_ident m)
+    Global.fail lc "Fail to open module '%a'." pp_ident m
 
 let export_and_clear () =
   ( if !Global.export then
@@ -62,8 +62,7 @@ let get_global_symbol lc m v =
   in
     try ( H.find env v )
     with Not_found ->
-      Global.fail lc "Cannot find symbol '%s.%s'." 
-        (string_of_ident m) (string_of_ident v)
+      Global.fail lc "Cannot find symbol '%a.%a'." pp_ident m pp_ident v
 
 let get_global_type lc m v =
   match get_global_symbol lc m v with
@@ -90,7 +89,7 @@ let add lc v gst =
       if !Global.ignore_redecl then
         Global.debug 1 lc "Redeclaration ignored." 
       else
-        Global.fail lc "Already defined symbol '%s'." (string_of_ident v)
+        Global.fail lc "Already defined symbol '%a'." pp_ident v
     else
       H.add env v gst
 
@@ -104,7 +103,7 @@ let add_rw lc v rs =
       match H.find env v with
         | Def (_,_)             ->
             Global.fail lc "Cannot add rewrite\
-              rules for the symbol '%s' (Definition)." (string_of_ident v)
+              rules for the symbol '%a' (Definition)." pp_ident v
         | Decl(ty,Some (i,g,lst))       ->
             let g2 =  Matching.add_rw (i,g) rs in
               H.add env v (Decl (ty,Some (i,g2,rs@lst)))
@@ -113,11 +112,11 @@ let add_rw lc v rs =
               H.add env v (Decl (ty,Some (i,g,rs)))
         | Static _              -> 
             Global.fail lc "Cannot add rewrite\
-              rules for the symbol '%s' (Static)." (string_of_ident v)
+              rules for the symbol '%a' (Static)." pp_ident v
     ) with
         Not_found ->
-          Global.fail lc "Cannot find symbol '%s.%s'." 
-            (string_of_ident !Global.name) (string_of_ident v)
+          Global.fail lc "Cannot find symbol '%a.%a'." 
+            pp_ident !Global.name pp_ident v
 
 (* Iteration on rules *)
 
