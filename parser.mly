@@ -23,6 +23,11 @@
                 | []            -> te
                 | (l,x,ty)::tl  -> mk_lam (mk_pre_lam l x ty te) tl
 
+        let rec mk_pi te = function
+                | []            -> te
+                | (l,x,ty)::tl  -> mk_pi (mk_pre_pi l x ty te) tl
+
+
 %}
 
 %token EOF
@@ -86,17 +91,17 @@ line            : ID COLON term DOT
                 | ID DEF term DOT
                 { mk_definition (fst $1) (snd $1)  None     $3 }
                 | ID param_lst COLON term DEF term DOT
-                { mk_definition (fst $1) (snd $1) (Some $4) (mk_lam $6 $2) }
+                { mk_definition (fst $1) (snd $1) (Some (mk_pi $4 $2)) (mk_lam $6 $2) }
                 | ID param_lst DEF term DOT
                 { mk_definition (fst $1) (snd $1) None (mk_lam $4 $2) }
                 | LEFTBRA ID RIGHTBRA COLON term DEF term DOT
                 { mk_opaque (fst $2) (snd $2) (Some $5) $7 }
                 | LEFTBRA ID RIGHTBRA DEF term DOT
                 { mk_opaque (fst $2) (snd $2)  None     $5 }
-                | LEFTBRA ID RIGHTBRA param_lst COLON term DEF term DOT
-                { mk_opaque (fst $2) (snd $2) (Some $6) (mk_lam $8 $4) }
-                | LEFTBRA ID RIGHTBRA param_lst DEF term DOT
-                { mk_opaque (fst $2) (snd $2)  None (mk_lam $6 $4) }
+                | LEFTBRA ID param_lst RIGHTBRA COLON term DEF term DOT
+                { mk_opaque (fst $2) (snd $2) (Some (mk_pi $6 $3)) (mk_lam $8 $3) }
+                | LEFTBRA ID param_lst RIGHTBRA DEF term DOT
+                { mk_opaque (fst $2) (snd $2)  None (mk_lam $6 $3) }
                 | LEFTBRA ID RIGHTBRA COLON term DOT
                 { mk_static (fst $2) (snd $2) $5 }
                 | rule_lst DOT
