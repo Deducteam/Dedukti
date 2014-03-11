@@ -14,11 +14,12 @@
 %{
         open Types
         open M
+        (*
         let mk_dot t =
           let lc = get_loc t in
             Global.debug 1 lc "Obsolete { _ } construct, ignoring..." ;
             Unknown lc
-
+        *)
         let rec mk_lam te = function
                 | []            -> te
                 | (l,x,ty)::tl  -> mk_lam (mk_pre_lam l x ty te) tl
@@ -152,13 +153,13 @@ pattern         : ID
                 | QID
                 { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
                 | UNDERSCORE
-                { Unknown $1 }
+                { failwith "Not implemented (UNDERSCORE)" }
                 | LEFTPAR ID  pat_lst RIGHTPAR
                 { PPattern (fst $2,None,snd $2,$3) }
                 | LEFTPAR QID pat_lst RIGHTPAR
                 { let (l,md,id)=$2 in PPattern (l,Some md,id,$3) }
                 | LEFTBRA term RIGHTBRA
-                { mk_dot $2 }
+                { PCondition $2 }
 
 sterm           : QID
                 { let (l,md,id)=$1 in mk_pre_qid l md id }

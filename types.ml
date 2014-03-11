@@ -70,7 +70,7 @@ type preterm =
   | PrePi   of (loc*ident) option * preterm * preterm
 
 type prepattern =
-  | Unknown     of loc
+  | PCondition  of preterm
   | PPattern    of loc*ident option*ident*prepattern list
 
 type ptop = loc * ident * prepattern list
@@ -143,17 +143,21 @@ let rec term_eq t1 t2 =
 (* *** Rewrite Rules *** *)
 
 type pattern =
-  | Var         of ident option*int
+  | Var         of ident*int
+  | Condition   of int*term
   | Pattern     of ident*ident*pattern array
+  | EVar
 
 let rec term_of_pattern = function
-  | Var (Some id,n)             -> DB (id,n)
-  | Var (None,n)                -> Meta n
+  | Var (id,n)                  -> DB (id,n)
+  | Condition (_,t)             -> t
   | Pattern (md,id,args)        ->
       let c = Const (md,id) in
         if Array.length args = 0 then c
         else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
+  | EVar                        -> assert false
 
+ (*
 let rec term_of_pattern_all_meta = function
   | Var (Some id,n)             -> Meta n
   | Var (None,n)                -> Meta n
@@ -161,26 +165,32 @@ let rec term_of_pattern_all_meta = function
       let c = Const (md,id) in
         if Array.length args = 0 then c
         else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
-
+ *)
 type top = ident*pattern array
 type context = ( ident * term ) list
 
 type rule = {
-  nb:int;
-  md:ident;
-  l:loc;
-  ctx:context;
-  id:ident;
-  args:pattern array;
-  ri:term;
-  sub:(int*term) list;
-  k:int;
+        l:loc;
+        ctx:context;
+        id:ident;
+        args:pattern array;
+        rhs:term;
 }
-
+(*
 type gdt =
   | Switch      of int * ((ident*ident)*gdt) list * gdt option
       | Test        of (term*term) list*term*gdt option
+ *)
+        
+type dtree =
+  | Switch      of int * (ident*ident*dtree) list * dtree option
+  | Test        of (term*term) list * term * dtree option
 
+type rw_infos =
+  | Decl    of term
+  | Def     of term*term
+  | Decl_rw of term*int*dtree
+      
 (* Misc *)
 
 type yes_no_maybe = Yes | No | Maybe

@@ -31,11 +31,11 @@ let rec split_stack i = function
                        | None            -> None
                        | Some (s1,s2)    -> Some (x::s1,s2) )
 
-let safe_find m v cases =
-  try Some ( snd (
-    List.find (fun ((m',v'),_) -> ident_eq v v' && ident_eq m m') cases
-  ) )
-  with Not_found -> None
+let rec safe_find m v = function
+  | []                  -> None
+  | (m',v',tr)::tl       ->
+      if ident_eq v v' && ident_eq m m' then Some tr
+      else safe_find m v tl
 
 let rec remove c lst =
   match lst with
@@ -72,11 +72,10 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | ( _ , _ , Const (m,_), _ ) when m==empty -> config
     | ( _ , _ , Const (m,v) , s )              ->
         begin
-          match Env.get_global_symbol dloc m v with
-            | Env.Def (te,_)            -> cbn_reduce ( 0 , [] , te , s )
-            | Env.Static _              -> config
-            | Env.Decl (_,None)         -> config
-            | Env.Decl (_,Some (i,g,_)) ->
+          match Env.get_infos dloc m v with
+            | Def (te,_)        -> cbn_reduce ( 0 , [] , te , s )
+            | Decl _            -> config
+            | Decl_rw (_,i,g)   ->
                 ( match split_stack i s with
                     | None                -> config
                     | Some (s1,s2)        ->
@@ -88,7 +87,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
         end
     | ( _ , _ , Meta _ , _ )                    -> assert false
 
-and rewrite (nargs:int) (args:cbn_state list) (g:gdt) =
+and rewrite (nargs:int) (args:cbn_state list) (g:dtree) =
   (* assert ( nargs = List.lenght args ); *)
   match g with
     | Switch (i,cases,def)      ->
@@ -213,12 +212,10 @@ let rec bounded_cbn_reduce cpt (config:cbn_state) : cbn_state option =
       | ( _ , _ , Const (m,_), _ ) when m==empty -> Some config
       | ( _ , _ , Const (m,v) , s )              ->
           begin
-            match Env.get_global_symbol dloc m v with
-              | Env.Def (te,_)            ->
-                  bounded_cbn_reduce (cpt-1) ( 0 , [] , te , s )
-              | Env.Static _              -> Some config
-              | Env.Decl (_,None)         -> Some config
-              | Env.Decl (_,Some (i,g,_)) ->
+            match Env.get_infos dloc m v with
+              | Def (te,_)     -> bounded_cbn_reduce (cpt-1) ( 0 , [] , te , s )
+              | Decl _          -> Some config
+              | Decl_rw (_,i,g) ->
                   ( match split_stack i s with
                       | None                -> Some config
                       | Some (s1,s2)        ->
@@ -231,7 +228,7 @@ let rec bounded_cbn_reduce cpt (config:cbn_state) : cbn_state option =
                   )
           end
 
-and bounded_rewrite cpt (nargs:int) (args:cbn_state list) (g:gdt) =
+and bounded_rewrite cpt (nargs:int) (args:cbn_state list) (g:dtree) =
   (* assert ( nargs = List.lenght args ); *)
   if cpt < 1 then DontKnow else
     match g with
@@ -351,11 +348,10 @@ let rec state_one_step = function
   | ( _ , _ , Const (m,_), _ ) when m==empty  -> None
   | ( _ , _ , Const (m,v) , s )               ->
       begin
-        match Env.get_global_symbol dloc m v with
-          | Env.Def (te,_)            -> Some ( 0 , [] , te , s )
-          | Env.Static _              -> None 
-          | Env.Decl (_,None)         -> None 
-          | Env.Decl (_,Some (i,g,_)) ->
+        match Env.get_infos dloc m v with
+          | Def (te,_)          -> Some ( 0 , [] , te , s )
+          | Decl _              -> None 
+          | Decl_rw (_,i,g)     ->
               ( match split_stack i s with
                   | None                -> None 
                   | Some (s1,s2)        ->

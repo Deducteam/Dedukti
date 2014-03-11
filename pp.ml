@@ -25,12 +25,12 @@ let pp_pconst out = function
     | ( None , id )     -> pp_ident out id
     | ( Some md , id )  -> fprintf out "%a.%a" pp_ident md pp_ident id
 
-let rec pp_ppattern out = function
+let rec pp_ppattern out _ = assert false (*TODO function
   | Unknown _                   -> output_string out "_"
   | PPattern (_,md,id,[])       -> pp_pconst out (md,id)
   | PPattern (_,md,id,lst)      ->
       fprintf out "(%a %a)" pp_pconst (md,id) (pp_list " " pp_ppattern) lst
-
+                                          *)
 let pp_const out (m,v) =
   if ident_eq m !Global.name then pp_ident out v
   else fprintf out "%a.%a" pp_ident m pp_ident v
@@ -52,7 +52,7 @@ and pp_term_wp out = function
   | Kind | Type  | DB _ | Const _ as t -> pp_term out t
   | t                                  -> fprintf out "(%a)" pp_term t 
 
-let rec pp_pattern_sub s out = function
+let rec pp_pattern_sub s out  _ = assert false (*TODO function
   | Var (Some id,v)          -> fprintf out "%a[%i]" pp_ident id v
   | Var (None, n)             ->
       ( try let t = (List.assoc n s) in fprintf out "{%a}" pp_term t
@@ -63,7 +63,7 @@ let rec pp_pattern_sub s out = function
 
 and pp_pattern_wp s out = function
   | Pattern (_,_,args) as p when (Array.length args != 0) -> fprintf out "(%a)" (pp_pattern_sub s) p 
-  |  p -> pp_pattern_sub s out p
+  |  p -> pp_pattern_sub s out p *)
 
 let pp_pattern = pp_pattern_sub []
 
@@ -75,10 +75,10 @@ let pp_context out ctx =
     out (List.rev ctx)
 
 
-let pp_rule out r =
+let pp_rule out r = assert false (*TODO
   fprintf out "[%i] %a --> %a" r.nb 
     (pp_pattern_sub r.sub) (Pattern (!Global.name,r.id,r.args))
-    pp_term r.ri
+    pp_term r.ri *)
 (*
  let string_of_cpair cp =
  let pos = String.concat "." (List.map string_of_int cp.pos) in
@@ -91,7 +91,7 @@ let pp_rule out r =
 
 let tab t = String.make (t*4) ' '
 
-let rec pp_gdt0 t out = function
+let rec pp_dtree t out = assert false (* function
   | Test ([],te,_)              -> pp_term out te
   | Test (lst,te,def)           ->
       let tab = tab t in
@@ -104,7 +104,7 @@ let rec pp_gdt0 t out = function
         fprintf out "\n%sif $%i=%a then %a" tab i pp_const mv (pp_gdt0 (t+1)) g
       in
         fprintf out "%a\n%sdefault: %a" (pp_list "" pp_case) 
-          cases tab (pp_def (t+1)) def
+          cases tab (pp_def (t+1)) def 
       
 and pp_def t out = function
   | None        -> output_string out "FAIL"
@@ -112,4 +112,4 @@ and pp_def t out = function
 
 let pp_gdt out (m,v,i,g) =
   fprintf out "GDT for '%a' with %i argument(s): %a" 
-    pp_const (m,v) i (pp_gdt0 0) g 
+    pp_const (m,v) i (pp_gdt0 0) g *)

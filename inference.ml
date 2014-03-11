@@ -31,13 +31,8 @@ let err_topsort ctx te =
 let err_prod lc ctx te inf =
   mk_err_msg lc ctx Pp.pp_term te output_string "a product type" Pp.pp_term inf
 
-let err_pattern lc ctx p = function
-  | None        ->
-      mk_err_msg lc ctx Pp.pp_pattern p output_string 
-        "a product type" output_string "???" 
-  | Some inf    ->
-      mk_err_msg lc ctx Pp.pp_pattern p output_string 
-        "a product type" Pp.pp_term inf
+let err_pattern lc ctx p inf = 
+  mk_err_msg lc ctx Pp.pp_pattern p output_string "a product type" Pp.pp_term inf
 
 (* *** Monodirectional Type Inference for preterm *** *)
 
@@ -56,10 +51,10 @@ let rec infer (ctx:context) (te:preterm) : term*term =
         ( match get_type ctx id with
             | None              ->
                 ( mk_Const !Global.name id ,
-                  Env.get_global_type l !Global.name id )
+                  Env.get_type l !Global.name id )
             | Some (n,ty)       -> ( mk_DB id n , ty ) )
     | PreQId (l,md,id)                   ->
-        ( mk_Const md id , Env.get_global_type l md id )
+        ( mk_Const md id , Env.get_type l md id )
     | PreApp ( f::((_::_) as args))      ->
         List.fold_left (infer_app (get_loc f) ctx) (infer ctx f) args
     | PreApp _                           -> assert false
@@ -93,21 +88,11 @@ and is_type ctx a =
     | ( a' , ty )       -> err_conv ctx a mk_Type ty
 
 (* *** Bidirectional Type Inference for prepatterns *** *)
-
+(*
 let add_equation t1 t2 eqs =
   match Reduction.bounded_are_convertible 500 t1 t2 with
     | Yes      -> eqs
     | _        -> (t1,t2)::eqs
-
-let of_list_rev = function
-    [] -> [||]
-  | hd::tl as l ->
-      let n = List.length l in
-      let a = Array.create n hd in
-      let rec fill i = function
-          [] -> a
-        | hd::tl -> Array.unsafe_set a (n-i) hd; fill (i+1) tl in
-        fill 2 tl
 
 let rec infer_pattern l k ctx md_opt id (args:prepattern list) eqs =
   let is_var = match md_opt with | Some _ -> None | None -> get_type ctx id in
@@ -144,9 +129,59 @@ and check_pattern k ctx ty eqs = function
   | PPattern (l,md_opt,id,args) ->
       let (k2 ,pat ,ty2 ,eqs2 ) = infer_pattern l k ctx md_opt id args eqs in
         ( k2 , pat , add_equation ty ty2 eqs2 )
+ *)
+
+let of_list_rev = function
+    [] -> [||]
+  | hd::tl as l ->
+      let n = List.length l in
+      let a = Array.create n hd in
+      let rec fill i = function
+          [] -> a
+        | hd::tl -> Array.unsafe_set a (n-i) hd; fill (i+1) tl in
+        fill 2 tl
+
+let cpt = ref 0
+let new_c () = incr cpt ; !cpt
+
+let rec infer_pattern ctx = function
+  | PPattern   (l,opt,id,pargs) -> 
+      begin
+        let ( is_var , md ) = match opt with 
+          | Some md       -> ( None , md ) 
+          | None          -> ( get_type ctx id , !Global.name ) 
+        in
+          match is_var with
+            | Some (n,ty)       ->
+                if pargs = [] then ( Var(id,n) , ty )
+                else Global.fail l "The left-hand side of the rewrite rule cannot be a variable application."
+            | None              ->
+                let ty_id = Env.get_type l md id in
+                let (ty,args) =
+                  List.fold_left (infer_pattern_aux l ctx md id) (ty_id,[]) pargs in
+                  ( Pattern (md,id,of_list_rev args) , ty )
+      end
+  | PCondition pte              ->
+      let (te,ty) = infer ctx pte in
+        ( Condition ( new_c () , te ) , ty )
+
+and infer_pattern_aux l ctx md id (ty,args) parg =
+  match Reduction.whnf ty with
+    | Pi (_,a,b)        ->
+        let (arg,a') = infer_pattern ctx parg in
+          if Reduction.are_convertible a a' then
+            ( Subst.subst b (term_of_pattern arg), arg::args )
+          else assert false (*TODO*)
+    | _                 -> 
+        err_pattern l ctx (Pattern (md,id,of_list_rev args)) ty
 
 let infer_ptop ctx (l,id,args) =
-  infer_pattern l 0 ctx None id args []
+  match infer_pattern ctx (PPattern(l,None,id,args)) with
+    | Pattern (_,_,args), ty    -> (id,args,ty)
+    | Var _, _                  -> 
+        Global.fail l "The Left-hand side of a rewrite rule cannot be a variable."
+    | Condition (_,_), _        -> assert false
+    | EVar, _                   -> assert false
 
 (* *** Bidirectional Type Inference for patterns *** *)
 
@@ -174,7 +209,7 @@ let infer_ptop ctx (l,id,args) =
  *)
 
 (* *** Monodirectional Type Inference for terms *** *)
-
+(*
 exception Infer2Error
 
 let rec infer2 (ctx:context) = function
@@ -220,7 +255,7 @@ and infer2_app ctx ty_f u = match Reduction.whnf ty_f , infer2 ctx u with
 let is_well_typed ctx ty =
   try ( ignore ( infer2 ctx ty ) ; true )
   with Infer2Error -> false
-
+ *)
 
 let check_term ctx te exp =
   let (te',inf) = infer ctx te in
@@ -231,3 +266,14 @@ let check_type ctx pty =
   match infer ctx pty with
     | ( ty , Kind ) | ( ty , Type )   -> ty
     | ( _ , s )                         -> err_sort ctx pty s
+
+let check_context =
+  List.fold_left ( fun ctx (_,x,ty) -> (x,check_type ctx ty)::ctx ) []
+
+let check_rule (pctx,ple,pri:prule) : rule =
+  let (l,_,_) = ple in
+  let ctx = check_context pctx in
+  let (id,args,ty) = infer_ptop ctx ple in
+  let rhs = check_term ctx pri ty in
+    { l=l ; ctx=ctx ; id=id ; args=args ; rhs=rhs ; }
+

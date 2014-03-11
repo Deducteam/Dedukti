@@ -9,13 +9,13 @@ struct
 end )
 
 (* *** Environment management *** *)
-
+(*
 type gst =
   | Decl  of term*(int*gdt*rule list) option
   | Def   of term*term 
   | Static of term
-
-let envs : (gst H.t) H.t = H.create 19
+ *)
+let envs : (rw_infos H.t) H.t = H.create 19
 let init name = H.add envs name (H.create 251)
 
 (* *** Modules *** *)
@@ -36,7 +36,7 @@ let import lc m =
         ignore ( Sys.command ( "dkcheck -e " ^ string_of_ident m ^ ".dk" ) )
           end ;
       let chan = open_in ( string_of_ident m ^ ".dko" ) in
-      let ctx:gst H.t = Marshal.from_channel chan in
+      let ctx:rw_infos H.t = Marshal.from_channel chan in
         close_in chan ;
         H.add envs m ctx ;
         ctx
@@ -55,7 +55,7 @@ let export_and_clear () =
 
 (* *** Get *** *)
 
-let get_global_symbol lc m v =
+let get_infos lc m v =
   let env =
     try H.find envs m
     with Not_found -> import lc m
@@ -64,22 +64,11 @@ let get_global_symbol lc m v =
     with Not_found ->
       Global.fail lc "Cannot find symbol '%a.%a'." pp_ident m pp_ident v
 
-let get_global_type lc m v =
-  match get_global_symbol lc m v with
-    | Decl (ty,_)       -> ty
-    | Def (_,ty)        -> ty
-    | Static ty         -> ty
-
-let get_global_rw lc m v =
-  match get_global_symbol lc m v with
-    | Decl (_,rw)       -> rw
-    | _                 -> None
-
-let is_neutral lc m v = 
-  match get_global_symbol lc m v with
-    | Static _          -> true
-    | Decl(_,None)      -> not (ident_eq m !Global.name)
-    | _                 -> false
+let get_type lc m v =
+  match get_infos lc m v with
+    | Decl ty 
+    | Def (_,ty) 
+    | Decl_rw (ty,_,_) -> ty
 
 (* *** Add *** *)
 
@@ -93,12 +82,15 @@ let add lc v gst =
     else
       H.add env v gst
 
-let add_decl lc v ty    = add lc v (Decl (ty,None))
-let add_static lc v ty  = add lc v (Static ty)
+let add_decl lc v ty    = add lc v (Decl ty)
 let add_def lc v te ty  = add lc v (Def (te,ty))
 
-let add_rw lc v rs =
+let add_rw lc v r =
   let env = H.find envs !Global.name in
+  let rwi =  ( try H.find env v with Not_found -> assert false (*TODO*) ) in
+    H.add env v (Matching.add_rule rwi r)
+
+    (*
     try (
       match H.find env v with
         | Def (_,_)             ->
@@ -116,10 +108,10 @@ let add_rw lc v rs =
     ) with
         Not_found ->
           Global.fail lc "Cannot find symbol '%a.%a'." 
-            pp_ident !Global.name pp_ident v
+            pp_ident !Global.name pp_ident v *)
 
 (* Iteration on rules *)
-
+(*
 let foreach_rule_aux f _ : gst H.t -> unit  =
   H.iter (
     fun _ gst -> match gst with
@@ -129,3 +121,4 @@ let foreach_rule_aux f _ : gst H.t -> unit  =
 
 let foreach_rule f = H.iter (foreach_rule_aux f) envs
 let foreach_module_rule f = foreach_rule_aux f empty (H.find envs !Global.name)
+ *)

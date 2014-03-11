@@ -13,4 +13,4 @@ val pp_rule     : out_channel -> rule -> unit
 
 val pp_context  : out_channel -> context -> unit
 
-val pp_gdt      : out_channel -> (ident*ident*int*gdt) -> unit
+val pp_dtree    : out_channel -> dtree -> unit

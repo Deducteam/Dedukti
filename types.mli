@@ -74,7 +74,7 @@ val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
 val get_loc : preterm -> loc
 
 type prepattern =
-  | Unknown     of loc
+  | PCondition  of preterm
   | PPattern    of loc*ident option*ident*prepattern list
 
 type ptop = loc * ident * prepattern list
@@ -108,17 +108,20 @@ val mk_Meta     : int -> term
 val term_eq : term -> term -> bool
 
 type pattern =
-  | Var         of ident option*int
+  | Var         of ident*int
+  | Condition   of int*term
   | Pattern     of ident*ident*pattern array
+  | EVar
 
 val term_of_pattern : pattern -> term
+(*
 val term_of_pattern_all_meta : pattern -> term
-
+ *)
 type top = ident*pattern array
 type context = ( ident * term ) list
 
 (**{2 Rewrite Rules} *)
-
+(*
 type rule = {
   nb:int;
   md:ident;
@@ -129,11 +132,24 @@ type rule = {
   ri:term;
   sub:(int*term) list;
   k:int;
+} *)
+
+type rule = {
+        l:loc;
+        ctx:context;
+        id:ident;
+        args:pattern array;
+        rhs:term;
 }
 
-type gdt =
-  | Switch      of int * ((ident*ident)*gdt) list * gdt option
-  | Test        of (term*term) list*term*gdt option
+type dtree =
+  | Switch      of int * (ident*ident*dtree) list * dtree option
+  | Test        of (term*term) list * term * dtree option
+
+type rw_infos =
+  | Decl    of term
+  | Def     of term*term
+  | Decl_rw of term*int*dtree
 
 (** {2 Commands} *)
 

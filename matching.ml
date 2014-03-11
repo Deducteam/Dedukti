@@ -3,7 +3,7 @@ open Types
 (* Compilation of rewrite rules to decision tree as in:
  * Compiling Pattern Matching to Good Decision Trees (Maranget, 2008)
  * *)
-
+(*
 module H = Hashtbl.Make(
 struct
   type t        = ident*ident
@@ -11,14 +11,12 @@ struct
   let equal (m,v) (m',v') =
     ident_eq v v' && ident_eq m m'
 end )
-
+ *)
 (* *** Types *** *)
-
-type line = { loc:loc ; pats:pattern array ; right:term ; env_size:int ; 
-              constr:(term*term) list }
+(*
 type pMat = line * line list
 type partition = { cases:( (ident*ident) * pMat ) list ; default: line list ; }
-
+ *)
 (* *** Debug *** *)
 (*
 let string_of_line id l = 
@@ -33,7 +31,7 @@ let string_of_line id l =
       | _::_      -> s ^ " when " ^ (String.concat " and " (List.map aux l.constr))
  *)
 (* *** Internal functions *** *)
-
+(*
 let get_constraints size_env p =
   let vars = Array.make size_env false in
   let rec aux (k,lst,pat) =
@@ -261,10 +259,81 @@ let add_rw (n,g) rs =
 
 let get_rw id (rs:rule list) : int*gdt =
   let ( nb_args , pm )  = pMat_from_rules rs in
-  (* 
-   Global.eprint ("Rewrite rules for '" ^ string_of_ident id ^ "':");
-   Global.eprint (string_of_line id (fst pm));
-   List.iter (fun l -> Global.eprint (string_of_line id l)) (snd pm); 
-   *)
+  
   let gdt = cc pm in
     ( nb_args , gdt )
+    *)
+
+type line = 
+    { loc:loc ; pats:pattern array ; right:term ; constraints:(term*term) list ; }
+
+let line_of_rule _ = assert false
+
+let specialize _ _ = assert false
+
+let rec cc line = 
+  assert false
+
+
+let rec add_line line = function
+  | Test ([],_,_) as g          -> ( Global.debug 1 line.loc "Useless rule." ; g )
+  | Test (lst,te,None)          -> Test (lst,te,Some (cc line))
+  | Test (lst,te,Some g)        -> Test (lst,te,Some (add_line line g))
+  | Switch (i,cases,def)        ->
+      begin
+        let line2 = specialize i line in
+          match line.pats.(i) with
+            | Pattern (m,v,args) -> 
+                Switch ( i , update_cases [] m v line2 cases , def )
+            | _                 -> 
+                Switch ( i , update_cases_def line2 cases , update_def line2 def )
+      end
+
+and update_cases accu m v line = function
+  | []                          -> List.rev ( (cc line)::accu )
+  | ((m',v',tr) as hd)::tl      ->
+      if ident_eq v v' && ident_eq m m' then
+        List.rev_append accu ((m,v,add_line line tr)::tl)
+      else update_cases (hd::accu) m v line tl
+
+and update_cases_def lines cases = assert false (*TODO*)
+and update_def line def = assert false (*TODO*)
+(*
+      begin
+        let p = partition pm i in
+        (*On met a jour les cas existant*)
+        let updated_cases = List.map (
+          fun (mv,g) -> 
+            match find mv p.cases with
+              | None            -> (mv,g)
+              | Some pm'        -> (mv,add_lines pm' g)
+        ) cases in
+        (*On ajoute les nouveaux cas *)
+        let cases2 = List.fold_left (
+          fun lst ((m,v),pm') -> 
+            if not (List.exists (fun ((m',v'),_) -> 
+                                   ident_eq v v' && ident_eq m m') cases) then
+              ((m,v),cc pm')::lst
+            else lst
+        ) updated_cases p.cases in
+        (*On met a jour le cas par defaut*)
+        let def2 = match ( def , p.default ) with
+          | _      , []         -> def
+          | None   , l::tl      -> Some (cc (l,tl))
+          | Some g , l::tl      -> Some (add_lines (l,tl) g)
+        in
+          Switch (i,cases2,def2)
+      end 
+ *)
+
+let add_rule (rwi:rw_infos) (r:rule) : rw_infos = 
+  let ( size , line )  = line_of_rule r in
+    match rwi with
+      | Decl ty                         -> Decl_rw ( ty, size , cc line )
+      | Decl_rw (ty,n,tr) when n=size   -> Decl_rw ( ty , n , add_line line tr )
+      | Decl_rw (_,_,_)                 ->
+          Global.fail r.l "All the rewrite rules for \
+            the symbol '%a' should have the same arity." pp_ident r.id
+      | Def (_,_)         -> 
+          Global.fail r.l "Cannot add rewrite rules for \
+            the symbol '%a' since it is a defined symbol." pp_ident r.id 
