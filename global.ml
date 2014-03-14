@@ -62,21 +62,4 @@ let error lc str =
   eprint ( red "ERROR " ^ string_of_loc lc ^ " " ^ str ) ;
   exit 1
 
-(* *** Infos about the Rewrite System *** *)
-
-let linearity = ref true
-let constant_applicative = ref true
-
-let unset_linearity lc =
-  (*warning lc "Non-linearity detected" ;*)
-  if !constant_applicative || !unsafe_mode then linearity := false
-  else
-    raise (MiscError ( lc , "The rewrite system should be either linear or constant-applicative at type level." ))
-
-let unset_constant_applicative lc = 
-  (*warning lc "Type-level Constant-application detected" ;*)
-  if !linearity || !unsafe_mode then constant_applicative := false
-  else
-    raise (MiscError ( lc , "The rewrite system should be either linear or constant-applicative at type level." ))
-
 

@@ -32,7 +32,7 @@ let rec string_of_term = function
   | Pi  (Some x,a,b)            -> 
       string_of_ident x ^ ":" ^   string_of_term_wp a ^ " -> " ^ string_of_term b
 and string_of_term_wp = function
-  | Kind | Type _  | DB _ | Const _ as t        -> string_of_term t
+  | Kind | Type  | DB _ | Const _ as t        -> string_of_term t
   | t                                           -> "(" ^ string_of_term t ^ ")"
 
 let rec string_of_prepattern = function
