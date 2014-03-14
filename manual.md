@@ -1,4 +1,4 @@
-DEDUKTI v2.3
+DEDUKTI v2.2c
 ============
 USER MANUAL
 -----------
@@ -7,7 +7,7 @@ USER MANUAL
 
 In order to compile Dedukti you need OCaml (>= 3.12) and Menhir.
 
-#### OPAM
+#### FROM OPAM
 
     opam install dedukti
 
@@ -22,47 +22,40 @@ In order to compile Dedukti you need OCaml (>= 3.12) and Menhir.
 
 #### DKCHECK
 
-`dkcheck` is the typechecker for Dedukti.
+`dkcheck` is the type-checker for Dedukti.
 
 ##### QUICK START
 
     $ dkcheck examples/append.dk
     > File examples/append.dk was successfully Checked.
 
-##### USAGE
-    Usage: dkcheck [options] files
-      -q Quiet
-      -v Verbose
-      -e Create a .dko
-      -nc Disable colored output
-      -stdin Use standart input
-      -r Ignore redeclaration
-      -display_db Display DeBruijn indices when printing terms
-      -version Version
-      -autodep Automatically handle dependencies (experimental)
-      -help  Display this list of options
-      --help  Display this list of options
+##### A SMALL EXAMPLE
 
+A Dedukti file must begin with the name of the module.
+
+    #NAME my_module.
+
+Then we can declare some constants:
+
+    Nat: Type.
+    Zero: Nat.
+    Succ: Nat.
+    Plus: Nat -> Nat -> Nat.
+
+We can now add rewrite rules:
+
+[n:Nat] Plus Zero n --> n.
+[n:Nat:m:Nat] Plus (Succ n) m --> Succ (Plus n m).
+
+It is also possible write definitions:
+
+    Three := Succ ( Succ ( Succ ( Zero ) ) ).
+    
 ##### SEPARATED COMPILATION
 
-TODO
-
-##### WILDCARDS AND STATIC DECLARATIONS
-
-TODO
-
-##### COMMAND
-
-The following commands can be used in your files:
-
- * `#Whnf` term: Compute the weak head normal form of a term.
- * `#Hnf` term: Compute the head normal form of a term.
- * `#Snf` term: Compute the strong normal form of a term.
- * `#OneStep` term: Rewrite a term. 
- * `#Conv`  term, term: Check that two term are convertible.
- * `#Check` term, term: Check that a term has a specific type.
- * `#Infer` term: Infer the type of a term.
- * `#Print` string : Print a string.
+A development in Dedukti is usually composed of several files corresponding to different modules. 
+In order You can export the symbols declared in a module by checking the file with the option `-e`.
+Then you can use these symbols using the prefix notation `module_name.identifier`.
 
 #### DKTOP & DKDEP
 Dedukti comes with two additional tools:
@@ -125,3 +118,4 @@ Dedukti comes with two additional tools:
 
 ### LICENCE
 
+Dedukti is distributed under the CeCILL-B Licence.
