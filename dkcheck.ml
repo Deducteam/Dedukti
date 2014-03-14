@@ -94,8 +94,8 @@ let args = [
         ("-nc"   , Arg.Clear Global.color               , "Disable colored output"      ) ;
         ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"          ) ;
         ("-r"    , Arg.Set Global.raphael               , "Undocumented"                ) ;
-        ("-autodep", Arg.Set Global.autodep             , "Automatically handle dependencies (experimental)") ]
-        ("-version" , Arg.Unit (fun () -> print_string "Dedukti v2.2c\n") , "Version" ) ;
+        ("-autodep", Arg.Set Global.autodep             , "Automatically handle dependencies (experimental)") ;
+        ("-version" , Arg.Unit (fun () -> print_string "Dedukti v2.2c\n") , "Version" )  ]
 
 let _ =
   try
