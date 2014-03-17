@@ -5,6 +5,7 @@ USER MANUAL
 
 ### INSTALLATION
 
+
 In order to compile Dedukti you need OCaml (>= 3.12) and Menhir.
 
 #### FROM OPAM
@@ -13,10 +14,12 @@ In order to compile Dedukti you need OCaml (>= 3.12) and Menhir.
 
 #### FROM SOURCES
 
-    git clone blabla dir
-    cd dir
-    make 
-    make install
+Download Dedukti at https://gforge.inria.fr/frs/download.php/33466/dedukti-v2.2c.tar.gz.
+
+    tar xfzv dedukti-v2.2c.tar.gz
+    cd dedukti-v2.2c
+    make
+    sudo make install
 
 ### PROGRAMS
 
@@ -50,10 +53,10 @@ We can now add rewrite rules:
 It is also possible write definitions:
 
     Three := Succ ( Succ ( Succ ( Zero ) ) ).
-    
+
 ##### SEPARATED COMPILATION
 
-A development in Dedukti is usually composed of several files corresponding to different modules. 
+A development in Dedukti is usually composed of several files corresponding to different modules.
 In order You can export the symbols declared in a module by checking the file with the option `-e`.
 Then you can use these symbols using the prefix notation `module_name.identifier`.
 
@@ -66,56 +69,56 @@ Dedukti comes with two additional tools:
 ### GRAMMAR
 
     program     : prelude line*
-    
+
     prelude     : '#NAME' ident '.'
-    
+
     line        : ident ':' term '.'                            /* Declaration                                */
-                | '{' ident '}' ':' term '.'                    /* Opaque declaration                         */
                 | ident ':=' term '.'                           /* Definition                                 */
                 | ident ':' term ':=' term '.'                  /* Definition with type                       */
-                | ident param+ ':=' term '.'                    /* Definition with parametes                  */
+                | ident param+ ':=' term '.'                    /* Definition with parameters                 */
                 | ident param+ ':' term ':=' term '.'           /* Definition with parameters and type        */
-                | '{' ident '}' ':' term ':=' term '.'          /* Opaque definition wih type                 */
-                | '{' ident '}' ':=' term '.'                   /* Opaque definition                          */	
-                | '{' ident '}' param+ ':=' term '.'            /* Opaque definition with parameters          */
-                | '{' ident '}' param+ ':' term ':=' term '.'   /* Opaque definition with parameters and type */
+                | '{' ident '}' ':' term ':=' term '.'          /* Opaque definition with type                */
+                | '{' ident '}' ':=' term '.'                   /* Opaque definition                          */
+                | '{' ident param+ '}' ':=' term '.'            /* Opaque definition with parameters          */
+                | '{' ident param+ '}' ':' term ':=' term '.'   /* Opaque definition with parameters and type */
                 | rule+ '.'                                     /* Rewrite rules                              */
                 | '#' ident term_lst '.'                        /* Command                                    */
-    
+
     param       : '(' decl ')'
 
-    term_lst    : term 
-                | term ',' term_lst 
-    
+    term_lst    : term
+                | term ',' term_lst
+
     rule        : '[' context ']' top_pattern '-->' term
-    
+
     decl        : ident ':' term
-    
-    context     : /* empty */ 
+
+    context     : /* empty */
                 | decl ',' context
-                | decl 
-    
+                | decl
+
     top_pattern : ident pattern*
-    
+
     pattern     : ident
                 | ident '.' ident
                 | '_'
                 | '(' ident  pattern* ')'
                 | '(' ident '.' ident pattern* ')'
-    
+
     sterm       : ident '.' ident           /* Qualified identifier */
                 | ident                     /* Identifier */
                 | '(' term ')'
                 | 'Type'                    /* Type */
-    
-    app         : sterm 
+
+    app         : sterm
                 | sterm app
-    
+
     term        : app                       /* Application */
-                | ident ':' app '->' term   /* Dependant type */
-                | term '->' term            /* Non-dependant type */
+                | ident ':' app '->' term   /* Dependent-type */
+                | term '->' term            /* Non-dependent type */
                 | ident ':' app '=>' term   /* Lambda abstraction */
 
 ### LICENCE
 
-Dedukti is distributed under the CeCILL-B Licence.
+Dedukti is distributed under the CeCILL-B License.
+
