@@ -111,7 +111,6 @@ type pattern =
   | Var         of ident*int
   | Condition   of int*term
   | Pattern     of ident*ident*pattern array
-  | EVar
 
 val term_of_pattern : pattern -> term
 (*
@@ -143,7 +142,7 @@ type rule = {
 }
 
 type dtree =
-  | Switch      of int * (ident*ident*dtree) list * dtree option
+  | Switch      of int * (int*ident*ident*dtree) list * dtree option
   | Test        of (term*term) list * term * dtree option
 
 type rw_infos =

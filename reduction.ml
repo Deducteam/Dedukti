@@ -33,7 +33,7 @@ let rec split_stack i = function
 
 let rec safe_find m v = function
   | []                  -> None
-  | (m',v',tr)::tl       ->
+  | (_,m',v',tr)::tl       ->
       if ident_eq v v' && ident_eq m m' then Some tr
       else safe_find m v tl
 

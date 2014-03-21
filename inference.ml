@@ -181,7 +181,6 @@ let infer_ptop ctx (l,id,args) =
     | Var _, _                  -> 
         Global.fail l "The Left-hand side of a rewrite rule cannot be a variable."
     | Condition (_,_), _        -> assert false
-    | EVar, _                   -> assert false
 
 (* *** Bidirectional Type Inference for patterns *** *)
 

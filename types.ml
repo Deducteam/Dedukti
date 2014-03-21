@@ -146,7 +146,6 @@ type pattern =
   | Var         of ident*int
   | Condition   of int*term
   | Pattern     of ident*ident*pattern array
-  | EVar
 
 let rec term_of_pattern = function
   | Var (id,n)                  -> DB (id,n)
@@ -155,7 +154,6 @@ let rec term_of_pattern = function
       let c = Const (md,id) in
         if Array.length args = 0 then c
         else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
-  | EVar                        -> assert false
 
  (*
 let rec term_of_pattern_all_meta = function
@@ -183,7 +181,7 @@ type gdt =
  *)
         
 type dtree =
-  | Switch      of int * (ident*ident*dtree) list * dtree option
+  | Switch      of int * (int*ident*ident*dtree) list * dtree option
   | Test        of (term*term) list * term * dtree option
 
 type rw_infos =
