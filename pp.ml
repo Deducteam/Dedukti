@@ -51,8 +51,8 @@ let rec pp_term out = function
 and pp_term_wp out = function
   | Kind | Type  | DB _ | Const _ as t -> pp_term out t
   | t                                  -> fprintf out "(%a)" pp_term t 
-
-let rec pp_pattern_sub s out  _ = assert false (*TODO function
+(*
+let rec pp_pattern_sub s out  _ = function
   | Var (Some id,v)          -> fprintf out "%a[%i]" pp_ident id v
   | Var (None, n)             ->
       ( try let t = (List.assoc n s) in fprintf out "{%a}" pp_term t
@@ -65,7 +65,7 @@ and pp_pattern_wp s out = function
   | Pattern (_,_,args) as p when (Array.length args != 0) -> fprintf out "(%a)" (pp_pattern_sub s) p 
   |  p -> pp_pattern_sub s out p *)
 
-let pp_pattern = pp_pattern_sub []
+let pp_pattern _ _ = assert false (*TODO*)
 
 let pp_context out ctx =
   pp_list ".\n" (
