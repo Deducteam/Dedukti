@@ -22,15 +22,12 @@ let run_on_file file =
     Global.file := file ;
     parse (Lexing.from_channel input)
 
-(* Main *)
-
-let args = [ ("-o", Arg.String (fun fi -> Global.out := open_out fi), "Output file"  ) ]
+let args =
+  [ ("-o", Arg.String (fun fi -> Global.out := open_out fi), "Output file"  ) ]
 
 let _ =
   try
     Arg.parse args run_on_file "Usage: dkdep [options] files"
   with
     | Sys_error err             -> Printf.eprintf "ERROR %s.\n" err; exit 1
-    | Exit                      -> exit 3 
-
-
+    | Exit                      -> exit 3

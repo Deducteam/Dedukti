@@ -6,7 +6,7 @@ INSTALL_DIR=/usr/bin
 # DO NOT EDIT AFTER THIS LINE
 
 OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt -rectypes' -cflags -rectypes \
-	 -use-menhir -menhir "menhir --external-tokens Types" -tag bin_annot 
+	 -use-menhir -menhir "menhir --external-tokens Types" -tag bin_annot
 
 all: dkcheck dktop dkdep
 
@@ -18,9 +18,6 @@ dktop:
 
 dkdep:
 	ocamlbuild -build-dir _dkdep $(OPTIONS) dkdep.native
-
-dk2mmt:
-	ocamlbuild -build-dir _dk2mmt  $(OPTIONS) dk2mmt.native
 
 profile:
 	ocamlbuild -tag profile -build-dir  $(OPTIONS) _dkcheck dkchech.native

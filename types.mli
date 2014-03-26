@@ -46,7 +46,7 @@ type token =
   | STEP        of loc
   | INFER       of loc
   | CONV        of loc
-  | CHECK       of loc 
+  | CHECK       of loc
   | PRINT       of loc
   | GDT         of loc
   | OTHER       of ( loc * string )
@@ -85,10 +85,10 @@ type prule      = pcontext * ptop * preterm
 (** {2 Terms/Patterns} *)
 
 type term = private
-  | Kind                 (* Kind *)
-  | Type                 (* Type *)
-  | DB    of ident*int   (* deBruijn *)
-  | Const of ident*ident (* Global variable *)
+  | Kind                                (* Kind *)
+  | Type                                (* Type *)
+  | DB    of ident*int                  (* deBruijn *)
+  | Const of ident*ident                (* Global variable *)
   | App   of term list   (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
   | Lam   of ident*term*term            (* Lambda abstraction *)
   | Pi    of ident option*term*term     (* Pi abstraction *)
@@ -113,33 +113,18 @@ type pattern =
   | Pattern     of ident*ident*pattern array
 
 val term_of_pattern : pattern -> term
-(*
-val term_of_pattern_all_meta : pattern -> term
- *)
+
 type top = ident*pattern array
 type context = ( ident * term ) list
 
 (**{2 Rewrite Rules} *)
-(*
-type rule = {
-  nb:int;
-  md:ident;
-  l:loc;
-  ctx:context;
-  id:ident;
-  args:pattern array;
-  ri:term;
-  sub:(int*term) list;
-  k:int;
-} *)
 
 type rule = {
         l:loc;
         ctx:context;
         id:ident;
         args:pattern array;
-        rhs:term;
-}
+        rhs:term; }
 
 type dtree =
   | Switch      of int * (int*ident*ident*dtree) list * dtree option

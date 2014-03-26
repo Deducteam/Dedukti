@@ -14,12 +14,7 @@
 %{
         open Types
         open M
-        (*
-        let mk_dot t =
-          let lc = get_loc t in
-            Global.debug 1 lc "Obsolete { _ } construct, ignoring..." ;
-            Unknown lc
-        *)
+
         let rec mk_lam te = function
                 | []            -> te
                 | (l,x,ty)::tl  -> mk_lam (mk_pre_lam l x ty te) tl
@@ -45,15 +40,15 @@
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
-%token <Types.loc> WHNF  
-%token <Types.loc> HNF   
-%token <Types.loc> SNF   
-%token <Types.loc> STEP  
-%token <Types.loc> INFER 
-%token <Types.loc> CONV  
-%token <Types.loc> CHECK 
-%token <Types.loc> PRINT 
-%token <Types.loc> GDT   
+%token <Types.loc> WHNF
+%token <Types.loc> HNF
+%token <Types.loc> SNF
+%token <Types.loc> STEP
+%token <Types.loc> INFER
+%token <Types.loc> CONV
+%token <Types.loc> CHECK
+%token <Types.loc> PRINT
+%token <Types.loc> GDT
 %token <Types.loc*string> OTHER
 %token <Types.loc> UNDERSCORE
 %token <Types.loc*Types.ident>NAME
@@ -185,4 +180,3 @@ term            : app
                 { mk_pre_lam (fst $1) (snd $1) (mk_pre_app $3) $5}
 
 %%
-

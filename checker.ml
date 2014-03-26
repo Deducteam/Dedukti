@@ -32,34 +32,33 @@ let mk_opaque lc id ty_opt pte =
   in
     Env.add_decl lc id ty
 
-let mk_static lc id pty = (*FIXME*)
-  Global.debug 1 lc "Static declaration of symbol '%a'." pp_ident id ;
-  let ty = Inference.check_type [] pty in
-    Env.add_decl lc id ty
+let mk_static lc id pty = failwith "Not implemented (Static declaration)."
 
-let mk_rules prs = 
+let mk_rules prs =
   let (lc,hd) = match prs with | [] -> assert false
     | (_,(l,id,_),_)::_ -> (l,id)
   in
     Global.debug 1 lc "Rewrite rules for symbol '%a'." pp_ident hd ;
-    (*FIXME check linearity*)
     let rs = List.map Inference.check_rule prs in
       List.iter (
         fun r -> Env.add_rw lc hd r ; Global.debug_no_loc 1 "%a" Pp.pp_rule r
       ) rs
 
 let mk_command lc = function
-  | Whnf pte          -> 
-      let (te,_) = Inference.infer [] pte in Pp.pp_term stdout (Reduction.whnf te)
-  | Hnf pte           -> 
-      let (te,_) = Inference.infer [] pte in Pp.pp_term stdout (Reduction.hnf te)
-  | Snf pte           -> 
-      let (te,_) = Inference.infer [] pte in Pp.pp_term stdout (Reduction.snf te)
+  | Whnf pte          ->
+      let (te,_) = Inference.infer [] pte in
+        Pp.pp_term stdout (Reduction.whnf te)
+  | Hnf pte           ->
+      let (te,_) = Inference.infer [] pte in
+        Pp.pp_term stdout (Reduction.hnf te)
+  | Snf pte           ->
+      let (te,_) = Inference.infer [] pte in
+        Pp.pp_term stdout (Reduction.snf te)
   | OneStep pte       ->
       let (te,_) = Inference.infer [] pte in
         ( match Reduction.one_step te with
             | None    -> Global.print "Already in weak head normal form."
-            | Some t' -> Pp.pp_term stdout t') 
+            | Some t' -> Pp.pp_term stdout t')
   | Conv (pte1,pte2)  ->
       let (t1,_) = Inference.infer [] pte1 in
       let (t2,_) = Inference.infer [] pte2 in
@@ -74,7 +73,7 @@ let mk_command lc = function
       let (te,ty) = Inference.infer [] pte in Pp.pp_term stdout ty
   | Gdt (m,v)         ->
       ( match Env.get_infos lc m v with
-          | Decl_rw (_,i,g)     -> assert false (*TODO Pp.pp_dtree stdout (m,v,i,g)*)
+          | Decl_rw (_,i,g)     -> Pp.pp_rw stdout (m,v,i,g)
           | _                   -> Global.print "No GDT." )
   | Print str         -> pp_ident stdout str
   | Other (cmd,_)     -> Global.debug 1 lc "Unknown command '%s'." cmd

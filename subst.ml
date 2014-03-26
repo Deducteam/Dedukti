@@ -56,8 +56,3 @@ let rec subst_meta_rec k s  = function
   | Meta n as t -> ( try shift k (List.assoc n s) with Not_found -> t )
 
 let subst_meta = subst_meta_rec 0
-
-let rec subst_pattern s = function
-  | Var (_,n)  as p      -> ( try List.assoc n s with Not_found -> p )
-  | Pattern (md,id,args) -> Pattern (md,id,Array.map (subst_pattern s) args)
-  | _          -> assert false (*TODO*)

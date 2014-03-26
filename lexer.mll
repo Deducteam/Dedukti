@@ -36,7 +36,7 @@ rule token = parse
   | "Type"      { TYPE ( get_loc lexbuf )       }
   | "#NAME" space+ (modname as md)
   { NAME (get_loc lexbuf , hstring md) }
-  | "#WHNF"     { WHNF ( get_loc lexbuf ) }  
+  | "#WHNF"     { WHNF ( get_loc lexbuf ) }
   | "#HNF"      { HNF ( get_loc lexbuf ) }
   | "#SNF"      { SNF ( get_loc lexbuf ) }
   | "#STEP"     { STEP ( get_loc lexbuf ) }

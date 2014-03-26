@@ -9,12 +9,7 @@ struct
 end )
 
 (* *** Environment management *** *)
-(*
-type gst =
-  | Decl  of term*(int*gdt*rule list) option
-  | Def   of term*term 
-  | Static of term
- *)
+
 let envs : (rw_infos H.t) H.t = H.create 19
 let init name = H.add envs name (H.create 251)
 
@@ -66,8 +61,8 @@ let get_infos lc m v =
 
 let get_type lc m v =
   match get_infos lc m v with
-    | Decl ty 
-    | Def (_,ty) 
+    | Decl ty
+    | Def (_,ty)
     | Decl_rw (ty,_,_) -> ty
 
 (* *** Add *** *)
@@ -76,7 +71,7 @@ let add lc v gst =
   let env = H.find envs !Global.name in
     if H.mem env v then
       if !Global.ignore_redecl then
-        Global.debug 1 lc "Redeclaration ignored." 
+        Global.debug 1 lc "Redeclaration ignored."
       else
         Global.fail lc "Already defined symbol '%a'." pp_ident v
     else
@@ -87,38 +82,8 @@ let add_def lc v te ty  = add lc v (Def (te,ty))
 
 let add_rw lc v r =
   let env = H.find envs !Global.name in
-  let rwi =  ( try H.find env v with Not_found -> assert false (*TODO*) ) in
+  let rwi = ( try H.find env v
+              with Not_found ->
+                Global.fail lc "Cannot find symbol '%a'." pp_ident v
+  ) in
     H.add env v (Matching.add_rule rwi r)
-
-    (*
-    try (
-      match H.find env v with
-        | Def (_,_)             ->
-            Global.fail lc "Cannot add rewrite\
-              rules for the symbol '%a' (Definition)." pp_ident v
-        | Decl(ty,Some (i,g,lst))       ->
-            let g2 =  Matching.add_rw (i,g) rs in
-              H.add env v (Decl (ty,Some (i,g2,rs@lst)))
-        | Decl (ty,None)        ->
-            let (i,g) = Matching.get_rw v rs in
-              H.add env v (Decl (ty,Some (i,g,rs)))
-        | Static _              -> 
-            Global.fail lc "Cannot add rewrite\
-              rules for the symbol '%a' (Static)." pp_ident v
-    ) with
-        Not_found ->
-          Global.fail lc "Cannot find symbol '%a.%a'." 
-            pp_ident !Global.name pp_ident v *)
-
-(* Iteration on rules *)
-(*
-let foreach_rule_aux f _ : gst H.t -> unit  =
-  H.iter (
-    fun _ gst -> match gst with
-      | Decl (_,Some(_,_,lst))  -> List.iter f lst
-      | _                       -> ()
-  )
-
-let foreach_rule f = H.iter (foreach_rule_aux f) envs
-let foreach_module_rule f = foreach_rule_aux f empty (H.find envs !Global.name)
- *)

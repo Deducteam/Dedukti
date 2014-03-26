@@ -15,4 +15,3 @@ val mk_rules            : prule list -> unit
 val mk_command           : loc -> command -> unit
 
 val mk_ending           : unit -> unit
-

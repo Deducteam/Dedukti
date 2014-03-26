@@ -21,7 +21,6 @@ val autodep             : bool ref
 
 (** {2 Printing Facilities} *)
 
-
 (** Print in standart output *)
 val print               : ('a, out_channel, unit) format -> 'a
 (** Print in output set by option -o *)

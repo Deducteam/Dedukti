@@ -36,7 +36,7 @@ let mk_definition _ _ = function
 
 let mk_opaque = mk_definition
 
-let mk_static = mk_declaration
+let mk_static = failwith "Not implemented (Static declaration)."
 
 let mk_binding (_, _, t) = mk_term t
 
@@ -47,8 +47,13 @@ let mk_prule (ctx, (l,id,args), t:prule) =
 
 let mk_rules = List.iter mk_prule
 
-let mk_command _ _ = () (*FIXME*)
+let mk_command _ = function
+  | Whnf t | Hnf t | Snf t
+  | OneStep t | Infer t                 -> mk_term t
+  | Conv (t1,t2) | Check (t1,t2)        -> ( mk_term t1 ; mk_term t2 )
+  | Gdt (_,_) | Print _                 -> ()
+  | Other (_,lst)                       -> List.iter mk_term lst
 
 let mk_ending () =
-  Global.print_out "%s.dko : %s" !name 
+  Global.print_out "%s.dko : %s" !name
     (String.concat " " (List.map (fun s -> s ^ ".dko") !deps) )

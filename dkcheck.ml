@@ -1,7 +1,5 @@
 open Types
 
-(* *** Parsing *** *)
-
 module P = Parser.Make(Checker)
 
 let parse lb =
@@ -19,8 +17,6 @@ let parse lb =
         end
     | EndOfFile -> ()
 
-(* *** Main *** *)
-
 let print_version _ =
   Printf.printf "Dedukti v%s" Global.version
 
@@ -30,7 +26,7 @@ let args = [
   ("-nc"   , Arg.Clear Global.color,         "Disable colored output" ) ;
   ("-stdin", Arg.Set Global.run_on_stdin,    "Use standart input" ) ;
   ("-r"    , Arg.Set Global.ignore_redecl,   "Ignore redeclaration" ) ;
-  ("-version", Arg.Unit print_version,       "Version" ) ; 
+  ("-version", Arg.Unit print_version,       "Version" ) ;
   ("-autodep", Arg.Set Global.autodep  ,
    "Automatically handle dependencies (experimental)") ]
 
@@ -45,7 +41,7 @@ let _ =
   try
     begin
       Arg.parse args run_on_file ("Usage: "^ Sys.argv.(0) ^" [options] files");
-      if !Global.run_on_stdin then ( 
+      if !Global.run_on_stdin then (
         Global.debug 1 (mk_loc 1 1) "Processing standard input ...\n" ;
         parse (Lexing.from_channel stdin) ;
         Global.success "Standard input was successfully checked.\n" )

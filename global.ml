@@ -22,26 +22,26 @@ let green = colored 2
 (*let orange = colored 3*)
 let red = colored 1
 
-let success fmt = 
+let success fmt =
   prerr_string (green "SUCCESS ") ;
   Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt
 
-let prerr_loc lc = 
+let prerr_loc lc =
   let (l,c) = of_loc lc in
     Printf.eprintf "line:%i column:%i " l c
 
-let debug lvl lc fmt = 
-  if lvl <= !debug_level then ( 
-    prerr_loc lc ;  
+let debug lvl lc fmt =
+  if lvl <= !debug_level then (
+    prerr_loc lc ;
     Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt )
   else Printf.ifprintf stderr fmt
 
-let debug_no_loc lvl fmt = 
+let debug_no_loc lvl fmt =
   if lvl <= !debug_level then
     Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt
   else Printf.ifprintf stderr fmt
 
-let fail lc fmt = 
+let fail lc fmt =
   prerr_string (red "ERROR ") ;
   prerr_loc lc;
   Printf.kfprintf (fun _ -> prerr_newline () ; raise Exit) stderr fmt

@@ -49,7 +49,6 @@ let rec add_to_list lst s s' =
     | _ ,_              -> None
 
 let rec cbn_reduce (config:cbn_state) : cbn_state =
-  (*Global.eprint ( "DEBUG: " ^ Pp.string_of_term (cbn_term_of_state config) ) ;*)
   match config with
     (* Weak normal terms *)
     | ( _ , _ , Type , _ )
@@ -157,7 +156,7 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
                       ( match add_to_list (x::y::lst) s s' with
                           | None        -> false
                           | Some lst'   -> state_conv lst' )
-                | ( _ , _ , Meta _ , _ ) , _ 
+                | ( _ , _ , Meta _ , _ ) , _
                 | _ , ( _ , _ , Meta _ , _ )                    -> assert false
                 | ( _ , _ , _ , _ ) , ( _ , _ , _ , _ )         -> false
       end
@@ -330,15 +329,15 @@ let rec state_one_step = function
   (* Weak normal terms *)
   | ( _ , _ , Type , s )
   | ( _ , _ , Kind , s )
-  | ( _ , _ , Pi _ , s )                      -> None 
+  | ( _ , _ , Pi _ , s )                      -> None
   | ( _ , _ , Lam _ , [] )                    -> None
-  | ( k , _ , DB (_,n) , _ ) when (n>=k)      -> None 
+  | ( k , _ , DB (_,n) , _ ) when (n>=k)      -> None
   (* Bound variable (to be substitute) *)
-  | ( k , e , DB (_,n) , s ) (*when n<k*)     -> 
+  | ( k , e , DB (_,n) , s ) (*when n<k*)     ->
       Some ( 0 , [] , Lazy.force (List.nth e n) , s )
   (* Beta redex *)
-  | ( k , e , Lam (_,_,t) , p::s )            -> 
-      Some ( k+1 , (lazy (cbn_term_of_state p))::e , t , s ) 
+  | ( k , e , Lam (_,_,t) , p::s )            ->
+      Some ( k+1 , (lazy (cbn_term_of_state p))::e , t , s )
   (* Application *)
   | ( _ , _ , App ([]|[_]) , _ )              -> assert false
   | ( k , e , App (he::tl) , s )              ->
@@ -350,13 +349,13 @@ let rec state_one_step = function
       begin
         match Env.get_infos dloc m v with
           | Def (te,_)          -> Some ( 0 , [] , te , s )
-          | Decl _              -> None 
+          | Decl _              -> None
           | Decl_rw (_,i,g)     ->
               ( match split_stack i s with
-                  | None                -> None 
+                  | None                -> None
                   | Some (s1,s2)        ->
                       ( match rewrite i s1 g with
-                          | None              -> None 
+                          | None              -> None
                           | Some (k,e,t)      -> Some ( k , e , t , s2 )
                       )
               )

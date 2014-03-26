@@ -52,7 +52,7 @@ type token =
   | STEP        of loc
   | INFER       of loc
   | CONV        of loc
-  | CHECK       of loc 
+  | CHECK       of loc
   | PRINT       of loc
   | GDT         of loc
   | OTHER       of ( loc * string )
@@ -155,15 +155,6 @@ let rec term_of_pattern = function
         if Array.length args = 0 then c
         else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
 
- (*
-let rec term_of_pattern_all_meta = function
-  | Var (Some id,n)             -> Meta n
-  | Var (None,n)                -> Meta n
-  | Pattern (md,id,args)        ->
-      let c = Const (md,id) in
-        if Array.length args = 0 then c
-        else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
- *)
 type top = ident*pattern array
 type context = ( ident * term ) list
 
@@ -172,14 +163,8 @@ type rule = {
         ctx:context;
         id:ident;
         args:pattern array;
-        rhs:term;
-}
-(*
-type gdt =
-  | Switch      of int * ((ident*ident)*gdt) list * gdt option
-      | Test        of (term*term) list*term*gdt option
- *)
-        
+        rhs:term; }
+
 type dtree =
   | Switch      of int * (int*ident*ident*dtree) list * dtree option
   | Test        of (term*term) list * term * dtree option
@@ -188,7 +173,7 @@ type rw_infos =
   | Decl    of term
   | Def     of term*term
   | Decl_rw of term*int*dtree
-      
+
 (* Misc *)
 
 type yes_no_maybe = Yes | No | Maybe
