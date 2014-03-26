@@ -12,8 +12,8 @@ let ignore_redecl       = ref false
 let color               = ref true
 let autodep             = ref false
 
-let print fmt = Printf.kfprintf (fun _ -> prerr_newline () ) stdout fmt
-let print_out fmt = Printf.kfprintf (fun _ -> prerr_newline () ) !out fmt
+let print fmt = Printf.kfprintf (fun _ -> print_newline () ) stdout fmt
+let print_out fmt = Printf.kfprintf (fun _ -> output_string !out "\n" ) !out fmt
 
 let colored n s =
   if !color then "\027[3" ^ string_of_int n ^ "m" ^ s ^ "\027[m"

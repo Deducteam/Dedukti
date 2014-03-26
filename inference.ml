@@ -4,21 +4,24 @@ open Types
 
 let mk_err_msg lc ctx pp_te te pp_exp exp pp_inf inf =
   if ctx = [] then
-    Global.fail lc "Error while typing %a\nExpected: %a\nInferred: %a." 
+    Global.fail lc "Error while typing '%a'\nExpected: %a\nInferred: %a." 
       pp_te te pp_exp exp pp_inf inf
   else
     Global.fail lc "Error while \
-      typing %a in context:\n%a\nExpected: %a.\nInferred: %a." 
+      typing '%a' in context:\n%a\nExpected: %a.\nInferred: %a." 
       pp_te te Pp.pp_context ctx pp_exp exp pp_inf inf
 
 let mk_err_rule lc ctx p =
-  if ctx = [] then Global.fail lc "Error while typing %a." Pp.pp_pattern p
+  if ctx = [] then Global.fail lc "Error while typing '%a'." Pp.pp_pattern p
   else 
-    Global.fail lc "Error while typing %a in context:\n%a\n." 
+    Global.fail lc "Error while typing '%a' in context:\n%a\n." 
       Pp.pp_pattern p Pp.pp_context ctx
 
 let err_conv ctx te exp inf =
   mk_err_msg (get_loc te) ctx Pp.pp_pterm te Pp.pp_term exp Pp.pp_term inf
+
+let err_conv_pat l ctx pat exp inf =
+  mk_err_msg l ctx Pp.pp_pattern pat Pp.pp_term exp Pp.pp_term inf
 
 let err_sort ctx te inf =
   mk_err_msg (get_loc te) ctx Pp.pp_pterm te output_string "Kind or Type" 
@@ -171,7 +174,8 @@ and infer_pattern_aux l ctx md id (ty,args) parg =
         let (arg,a') = infer_pattern ctx parg in
           if Reduction.are_convertible a a' then
             ( Subst.subst b (term_of_pattern arg), arg::args )
-          else assert false (*TODO*)
+          else 
+            err_conv_pat l ctx arg a a' 
     | _                 -> 
         err_pattern l ctx (Pattern (md,id,of_list_rev args)) ty
 

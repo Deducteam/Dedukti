@@ -4,7 +4,7 @@ open Printf
 let rec pp_list sep pp out = function
     | []        -> ()
     | [a]       -> pp out a
-    | a::lst    -> fprintf out "%a%s" (pp_list sep pp) lst sep
+    | a::lst    -> fprintf out "%a%s%a" pp a sep (pp_list sep pp) lst
 
 let rec pp_pterm out = function
   | PreType _        -> output_string out "Type"
@@ -65,7 +65,20 @@ and pp_pattern_wp s out = function
   | Pattern (_,_,args) as p when (Array.length args != 0) -> fprintf out "(%a)" (pp_pattern_sub s) p 
   |  p -> pp_pattern_sub s out p *)
 
-let pp_pattern _ _ = assert false (*TODO*)
+let rec pp_pattern out = function (*FIXME indices*)
+  | Var (id,i)          -> fprintf out "%a[%i]" pp_ident id i
+  | Condition (i,t)     -> fprintf out "{ %a }" pp_term t
+  | Pattern (m,v,pats)  -> 
+      begin
+        if Array.length pats = 0 then
+          fprintf out "%a.%a" pp_ident m pp_ident v  
+        else
+          fprintf out "%a.%a %a" pp_ident m pp_ident v
+            (pp_list " " pp_pattern_wp) (Array.to_list pats) 
+      end
+and pp_pattern_wp out = function
+  | Pattern (_,_,_) as p -> fprintf out "(%a)" pp_pattern p
+  | p -> pp_pattern out p
 
 let pp_context out ctx =
   pp_list ".\n" (
@@ -74,11 +87,12 @@ let pp_context out ctx =
       else fprintf out "%a: %a" pp_ident x pp_term ty )
     out (List.rev ctx)
 
-
-let pp_rule out r = assert false (*TODO
-  fprintf out "[%i] %a --> %a" r.nb 
-    (pp_pattern_sub r.sub) (Pattern (!Global.name,r.id,r.args))
-    pp_term r.ri *)
+let pp_rule out r = 
+  let pp_decl out (id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
+    fprintf out "[%a] %a --> %a" 
+      (pp_list "," pp_decl) r.ctx 
+      pp_pattern (Pattern (!Global.name,r.id,r.args))
+      pp_term r.rhs 
 (*
  let string_of_cpair cp =
  let pos = String.concat "." (List.map string_of_int cp.pos) in
