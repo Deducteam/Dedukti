@@ -35,7 +35,8 @@ let run_on_file file =
     Global.file := file ;
     (Global.debug 1) (mk_loc 1 1) "Processing file '%s' ... " file ;
     parse (Lexing.from_channel input) ;
-    Global.success "File '%s' was successfully checked." file
+    Global.success "File '%s' was successfully checked." file;
+    close_in input
 
 let _ =
   try

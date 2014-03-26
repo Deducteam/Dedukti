@@ -74,7 +74,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
           match Env.get_infos dloc m v with
             | Def (te,_)        -> cbn_reduce ( 0 , [] , te , s )
             | Decl _            -> config
-            | Decl_rw (_,i,g)   ->
+            | Decl_rw (_,_,i,g) ->
                 ( match split_stack i s with
                     | None                -> config
                     | Some (s1,s2)        ->
@@ -214,7 +214,7 @@ let rec bounded_cbn_reduce cpt (config:cbn_state) : cbn_state option =
             match Env.get_infos dloc m v with
               | Def (te,_)     -> bounded_cbn_reduce (cpt-1) ( 0 , [] , te , s )
               | Decl _          -> Some config
-              | Decl_rw (_,i,g) ->
+              | Decl_rw (_,_,i,g) ->
                   ( match split_stack i s with
                       | None                -> Some config
                       | Some (s1,s2)        ->
@@ -350,7 +350,7 @@ let rec state_one_step = function
         match Env.get_infos dloc m v with
           | Def (te,_)          -> Some ( 0 , [] , te , s )
           | Decl _              -> None
-          | Decl_rw (_,i,g)     ->
+          | Decl_rw (_,_,i,g)   ->
               ( match split_stack i s with
                   | None                -> None
                   | Some (s1,s2)        ->

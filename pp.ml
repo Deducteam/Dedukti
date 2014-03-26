@@ -29,8 +29,10 @@ let rec pp_ppattern out = function
   | PPattern (_,md,id,[])       -> pp_pconst out (md,id)
   | PPattern (_,md,id,lst)      ->
       fprintf out "%a %a" pp_pconst (md,id) (pp_list " " pp_ppattern) lst
-  | PCondition _                -> assert false
-and pp_ppattern_wp out _ = assert false
+  | PCondition pte              -> fprintf out "{ %a }" pp_pterm pte
+and pp_ppattern_wp out = function
+  | PPattern (_,_,_,_::_) as p  -> fprintf out "(%a)" pp_ppattern p
+  | p                           -> pp_ppattern out p
 
 let pp_const out (m,v) =
   if ident_eq m !Global.name then pp_ident out v
@@ -57,16 +59,12 @@ let rec pp_pattern out = function
   | Var (id,i)          ->
       if !Global.debug_level > 0 then fprintf out "%a[%i]" pp_ident id i
       else pp_ident out id
-  | Condition (i,t)     ->
-      if !Global.debug_level > 0 then fprintf out "{ %a }[%i]" pp_term t i
-      else fprintf out "{ %a }" pp_term t
+  | Brackets t          -> fprintf out "{ %a }" pp_term t
   | Pattern (m,v,pats)  ->
       begin
-        if Array.length pats = 0 then
-          fprintf out "%a.%a" pp_ident m pp_ident v
-        else
-          fprintf out "%a.%a %a" pp_ident m pp_ident v
-            (pp_list " " pp_pattern_wp) (Array.to_list pats)
+        if Array.length pats = 0 then fprintf out "%a" pp_const (m,v)
+        else fprintf out "%a %a" pp_const (m,v)
+               (pp_list " " pp_pattern_wp) (Array.to_list pats)
       end
 and pp_pattern_wp out = function
   | Pattern (_,_,_) as p -> fprintf out "(%a)" pp_pattern p

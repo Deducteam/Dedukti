@@ -40,9 +40,8 @@ let mk_rules prs =
   in
     Global.debug 1 lc "Rewrite rules for symbol '%a'." pp_ident hd ;
     let rs = List.map Inference.check_rule prs in
-      List.iter (
-        fun r -> Env.add_rw lc hd r ; Global.debug_no_loc 1 "%a" Pp.pp_rule r
-      ) rs
+      Env.add_rw lc hd rs ;
+      List.iter (Global.debug_no_loc 1 "%a" Pp.pp_rule) rs
 
 let mk_command lc = function
   | Whnf pte          ->
@@ -73,7 +72,7 @@ let mk_command lc = function
       let (te,ty) = Inference.infer [] pte in Pp.pp_term stdout ty
   | Gdt (m,v)         ->
       ( match Env.get_infos lc m v with
-          | Decl_rw (_,i,g)     -> Pp.pp_rw stdout (m,v,i,g)
+          | Decl_rw (_,_,i,g)   -> ( Pp.pp_rw stdout (m,v,i,g) ; print_newline () )
           | _                   -> Global.print "No GDT." )
   | Print str         -> pp_ident stdout str
   | Other (cmd,_)     -> Global.debug 1 lc "Unknown command '%s'." cmd

@@ -10,15 +10,16 @@ let mk_err_msg lc ctx pp_te te pp_exp exp pp_inf inf =
     Global.fail lc "Error while \
       typing '%a' in context:\n%a\nExpected: %a.\nInferred: %a."
       pp_te te Pp.pp_context ctx pp_exp exp pp_inf inf
-
+(*
 let mk_err_rule lc ctx p =
   if ctx = [] then Global.fail lc "Error while typing '%a'." Pp.pp_pattern p
   else
     Global.fail lc "Error while typing '%a' in context:\n%a\n."
       Pp.pp_pattern p Pp.pp_context ctx
-
+ *)
 let err_conv ctx te exp inf =
-  mk_err_msg (get_loc te) ctx Pp.pp_pterm te Pp.pp_term exp Pp.pp_term inf
+  mk_err_msg (get_loc te) ctx Pp.pp_pterm te Pp.pp_term (Reduction.hnf exp)
+    Pp.pp_term (Reduction.hnf inf)
 
 let err_conv_pat l ctx pat exp inf =
   mk_err_msg l ctx Pp.pp_pattern pat Pp.pp_term exp Pp.pp_term inf
@@ -100,9 +101,6 @@ let of_list_rev = function
         | hd::tl -> Array.unsafe_set a (n-i) hd; fill (i+1) tl in
         fill 2 tl
 
-let cpt = ref 0
-let new_c () = incr cpt ; !cpt
-
 let rec infer_pattern ctx = function
   | PPattern   (l,opt,id,pargs) ->
       begin
@@ -122,7 +120,7 @@ let rec infer_pattern ctx = function
       end
   | PCondition pte              ->
       let (te,ty) = infer ctx pte in
-        ( Condition ( new_c () , te ) , ty )
+        ( Brackets te , ty )
 
 and infer_pattern_aux l ctx md id (ty,args) parg =
   match Reduction.whnf ty with
@@ -140,7 +138,7 @@ let infer_ptop ctx (l,id,args) =
     | Pattern (_,_,args), ty    -> (id,args,ty)
     | Var _, _                  ->
         Global.fail l "The Left-hand side of a rewrite rule cannot be a variable."
-    | Condition (_,_), _        -> assert false
+    | Brackets _ , _            -> assert false
 
 let check_term ctx te exp =
   let (te',inf) = infer ctx te in

@@ -109,7 +109,7 @@ val term_eq : term -> term -> bool
 
 type pattern =
   | Var         of ident*int
-  | Condition   of int*term
+  | Brackets    of term
   | Pattern     of ident*ident*pattern array
 
 val term_of_pattern : pattern -> term
@@ -126,6 +126,10 @@ type rule = {
         args:pattern array;
         rhs:term; }
 
+type rule2 =
+    { loc:loc ; pats:pattern array ; right:term ;
+      constraints:(term*term) list ; env_size:int ; }
+
 type dtree =
   | Switch      of int * (int*ident*ident*dtree) list * dtree option
   | Test        of (term*term) list * term * dtree option
@@ -133,7 +137,7 @@ type dtree =
 type rw_infos =
   | Decl    of term
   | Def     of term*term
-  | Decl_rw of term*int*dtree
+  | Decl_rw of term*rule2 list*int*dtree
 
 (** {2 Commands} *)
 

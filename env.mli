@@ -13,4 +13,4 @@ val add_decl            : loc -> ident -> term -> unit
 
 val add_def             : loc -> ident -> term -> term -> unit
 
-val add_rw              : loc -> ident -> rule -> unit
+val add_rw              : loc -> ident -> rule list -> unit

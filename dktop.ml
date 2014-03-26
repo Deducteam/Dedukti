@@ -44,7 +44,7 @@ struct
         | _                       -> assert false
     in
     let rs = List.map Inference.check_rule prs in
-      List.iter (Env.add_rw lc hd) rs ;
+      Env.add_rw lc hd rs ;
       Global.print "Rules added."
 
   let mk_command lc = function
@@ -76,7 +76,7 @@ struct
         let (te,ty) = Inference.infer [] pte in Pp.pp_term stdout ty
     | Gdt (m,v)         ->
         ( match Env.get_infos lc m v with
-            | Decl_rw (_,i,g)   -> Pp.pp_rw stdout (m,v,i,g)
+            | Decl_rw (_,_,i,g) -> Pp.pp_rw stdout (m,v,i,g)
             | _                 -> Global.print "No GDT." )
     | Print str         -> pp_ident stdout str
     | Other (cmd,_)     -> Global.debug 1 lc "Unknown command '%s'." cmd

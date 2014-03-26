@@ -36,7 +36,7 @@ let mk_definition _ _ = function
 
 let mk_opaque = mk_definition
 
-let mk_static = failwith "Not implemented (Static declaration)."
+let mk_static = mk_declaration
 
 let mk_binding (_, _, t) = mk_term t
 

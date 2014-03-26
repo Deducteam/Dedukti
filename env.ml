@@ -63,7 +63,7 @@ let get_type lc m v =
   match get_infos lc m v with
     | Decl ty
     | Def (_,ty)
-    | Decl_rw (ty,_,_) -> ty
+    | Decl_rw (ty,_,_,_) -> ty
 
 (* *** Add *** *)
 
@@ -80,10 +80,10 @@ let add lc v gst =
 let add_decl lc v ty    = add lc v (Decl ty)
 let add_def lc v te ty  = add lc v (Def (te,ty))
 
-let add_rw lc v r =
+let add_rw lc v rs =
   let env = H.find envs !Global.name in
   let rwi = ( try H.find env v
               with Not_found ->
                 Global.fail lc "Cannot find symbol '%a'." pp_ident v
   ) in
-    H.add env v (Matching.add_rule rwi r)
+    H.add env v (Matching.add_rule rwi rs)
