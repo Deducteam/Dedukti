@@ -200,3 +200,5 @@ type command =
   | Gdt of ident*ident
   | Print of ident
   | Other of string*preterm list
+
+type wcr = WCR_R | WCR_BR | WCR_No (*| WCR_Maybe*)

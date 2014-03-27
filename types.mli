@@ -161,3 +161,7 @@ type command =
 type yes_no_maybe = Yes | No | Maybe
 type 'a option2 = None2 | DontKnow | Some2 of 'a
 type ('a,'b) sum = Success of 'a | Failure of 'b
+
+(** {2 Confluence} *)
+
+type wcr = WCR_R | WCR_BR | WCR_No (*| WCR_Maybe*)
