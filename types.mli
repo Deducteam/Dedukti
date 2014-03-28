@@ -1,5 +1,5 @@
 
-(** This modules provides the basic types used in Dedukti *)
+(** This module provides the basic types used in Dedukti *)
 
 (** {2 Identifiers (hashconsed strings)} *)
 (** Internal representation of identifiers as hashconsed strings. *)
@@ -161,6 +161,8 @@ type command =
 type yes_no_maybe = Yes | No | Maybe
 type 'a option2 = None2 | DontKnow | Some2 of 'a
 type ('a,'b) sum = Success of 'a | Failure of 'b
+
+module H : Hashtbl.S with type key = ident
 
 (** {2 Confluence} *)
 

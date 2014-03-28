@@ -1,13 +1,6 @@
 open Types
 open Printf
 
-module H = Hashtbl.Make(
-struct
-  type t        = ident
-  let equal     = ident_eq
-  let hash      = Hashtbl.hash
-end )
-
 (* *** Environment management *** *)
 
 let envs : (rw_infos H.t) H.t = H.create 19
@@ -15,7 +8,7 @@ let init name = H.add envs name (H.create 251)
 
 (* *** Modules *** *)
 
-let import lc m =
+let import (lc:loc) (m:ident) =
   assert ( not (H.mem envs m) );
   (* If the [.dko] file is not found, try to compile it first.
    This hack is terrible. It uses system calls and can loop with circular dependencies. *)
@@ -29,23 +22,26 @@ let import lc m =
     begin
       if not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) && !Global.autodep then
         ignore ( Sys.command ( "dkcheck -e " ^ string_of_ident m ^ ".dk" ) )
-          end ;
-      let chan = open_in ( string_of_ident m ^ ".dko" ) in
-      let ctx:rw_infos H.t = Marshal.from_channel chan in
-        close_in chan ;
-        H.add envs m ctx ;
-        ctx
+    end ;
+    let obj = Dko.unmarshal lc ( string_of_ident m ^ ".dko" ) in
+    let ctx = obj.Dko.table in
+      H.add envs m ctx ;
+      ctx
   with _ ->
     Global.fail lc "Fail to open module '%a'." pp_ident m
 
+let get_deps () =
+  let aux m _ lst =
+    if ident_eq !Global.name m then lst else (string_of_ident m)::lst
+  in
+    H.fold aux envs []
+
 let export_and_clear () =
   ( if !Global.export then
-      begin
-        let out = open_out (string_of_ident !Global.name ^ ".dko" ) in
-        let env = H.find envs !Global.name in
-          Marshal.to_channel out env [Marshal.Closures] ;
-          close_out out
-      end ) ;
+      let env  = H.find envs !Global.name in
+      let deps = get_deps () in
+        Dko.marshal dloc (string_of_ident !Global.name ^ ".dko" ) env deps
+  ) ;
   H.clear envs
 
 (* *** Get *** *)

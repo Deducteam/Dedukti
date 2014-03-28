@@ -184,6 +184,13 @@ type yes_no_maybe = Yes | No | Maybe
 type 'a option2 = None2 | DontKnow | Some2 of 'a
 type ('a,'b) sum = Success of 'a | Failure of 'b
 
+module H = Hashtbl.Make(
+struct
+  type t        = ident
+  let equal     = ident_eq
+  let hash      = Hashtbl.hash
+end )
+
 (* Commands *)
 
 type command =
