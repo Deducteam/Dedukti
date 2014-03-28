@@ -1,4 +1,6 @@
 
+(** Pretty-printing *)
+
 open Types
 
 val pp_pterm    : out_channel -> preterm -> unit
