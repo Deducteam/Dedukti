@@ -3,6 +3,7 @@ open Types
 (* *** Marshalisation *)
 
 type dko = {
+  name:string;
   version:string;
   dependencies:string list;
   table: rw_infos H.t;
@@ -10,6 +11,7 @@ type dko = {
 
 let marshal lc file env deps =
   let obj = {
+    name = string_of_ident !Global.name;
     version = Global.version ;
     dependencies = deps ;
     table = env ;
