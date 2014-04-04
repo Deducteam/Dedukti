@@ -22,8 +22,6 @@
         let rec mk_pi te = function
                 | []            -> te
                 | (l,x,ty)::tl  -> mk_pi (mk_pre_pi l x ty te) tl
-
-
 %}
 
 %token EOF
@@ -178,5 +176,4 @@ term            : app
                 { failwith "Not implemented (untyped lambda)." }
                 | ID COLON app FATARROW term
                 { mk_pre_lam (fst $1) (snd $1) (mk_pre_app $3) $5}
-
 %%

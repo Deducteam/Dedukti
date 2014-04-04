@@ -9,7 +9,7 @@ plus: Nat -> Nat -> Nat.
 [m:Nat]       plus  Z    m --> m
 [n:Nat,m:Nat] plus (S n) m --> S (plus n m).
 
-{Listn} : Nat -> Type.
+Listn : Nat -> Type.
 nil   : Listn Z.
 cons  : n:Nat -> A -> Listn n -> Listn (S n).
 

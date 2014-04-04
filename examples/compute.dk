@@ -1,5 +1,4 @@
 (; Computational test. ;)
-
 #NAME compute.
 
 Nat : Type.
