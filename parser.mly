@@ -5,7 +5,6 @@
                 val mk_declaration      : Types.loc -> Types.ident -> Types.preterm -> unit
                 val mk_definition       : Types.loc -> Types.ident -> Types.preterm option -> Types.preterm -> unit
                 val mk_opaque           : Types.loc -> Types.ident -> Types.preterm option -> Types.preterm -> unit
-                val mk_term             : Types.preterm -> unit
                 val mk_rules            : Types.prule list -> unit
                 val mk_command          : Types.loc -> string -> Types.preterm list -> unit
                 val mk_ending           : unit -> unit
@@ -21,6 +20,10 @@
         let rec mk_lam te = function
                 | []            -> te
                 | (l,x,ty)::tl  -> mk_lam (mk_pre_lam l x ty te) tl
+
+        let rec mk_pi te = function
+                | []            -> te
+                | (l,x,ty)::tl  -> mk_pi (mk_pre_pi l x ty te) tl
 %}
 
 %token EOF
@@ -65,25 +68,36 @@
 
 %%
 
-prelude         : NAME /* DOT FIXME */                         { let (lc,name)=$1 in 
-                                                                        Global.set_name name;
-                                                                        Env.init name;
-                                                                        mk_prelude lc name }
+prelude         : NAME DOT
+                        { let (lc,name)=$1 in  Global.set_name name; 
+                                Env.init name; mk_prelude lc name }
 
-line            : IMPORT /* DOT FIXME */                        { mk_require (fst $1) (snd $1) }
-                | ID COLON term DOT                             { mk_declaration (fst $1) (snd $1) $3 }
-                | ID COLON term DEF term DOT                    { mk_definition (fst $1) (snd $1) (Some $3) $5 }
-                | ID DEF term DOT                               { mk_definition (fst $1) (snd $1)  None     $3 }
-                | ID param_lst COLON term DEF term DOT          { mk_definition (fst $1) (snd $1) (Some $4) (mk_lam $6 $2) }
-                | ID param_lst DEF term DOT                     { mk_definition (fst $1) (snd $1) None (mk_lam $4 $2) }
-                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT   { mk_opaque (fst $2) (snd $2) (Some $5) $7 }
-                | LEFTBRA ID RIGHTBRA DEF term DOT              { mk_opaque (fst $2) (snd $2)  None     $5 }
-                | LEFTBRA ID RIGHTBRA param_lst COLON term DEF term DOT { mk_opaque (fst $2) (snd $2) (Some $6) (mk_lam $8 $4) }
-                | LEFTBRA ID RIGHTBRA param_lst DEF term DOT            { mk_opaque (fst $2) (snd $2)  None (mk_lam $6 $4) }
-                | rule_lst DOT                                  { mk_rules $1 }
-                | DEF term DOT                                  { mk_term $2 }
-                | COMMAND term_lst DOT                          { mk_command (fst $1) (snd $1) $2 } 
-                | EOF                                           { mk_ending () ; raise EndOfFile }
+line            : IMPORT DOT                                    
+                        { mk_require (fst $1) (snd $1) }
+                | ID COLON term DOT
+                        { mk_declaration (fst $1) (snd $1) $3 }
+                | ID COLON term DEF term DOT
+                        { mk_definition (fst $1) (snd $1) (Some $3) $5 }
+                | ID DEF term DOT
+                        { mk_definition (fst $1) (snd $1)  None     $3 }
+                | ID param_lst COLON term DEF term DOT          
+                        { mk_definition (fst $1) (snd $1) (Some (mk_pi $4 $2)) (mk_lam $6 $2) }
+                | ID param_lst DEF term DOT
+                        { mk_definition (fst $1) (snd $1) None (mk_lam $4 $2) }
+                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT 
+                        { mk_opaque (fst $2) (snd $2) (Some $5) $7 }
+                | LEFTBRA ID RIGHTBRA DEF term DOT 
+                        { mk_opaque (fst $2) (snd $2)  None     $5 }
+                | LEFTBRA ID RIGHTBRA param_lst COLON term DEF term DOT 
+                        { mk_opaque (fst $2) (snd $2) (Some (mk_pi $6 $4)) (mk_lam $8 $4) }
+                | LEFTBRA ID RIGHTBRA param_lst DEF term DOT 
+                        { mk_opaque (fst $2) (snd $2)  None (mk_lam $6 $4) }
+                | rule_lst DOT          
+                        { mk_rules $1 }
+                | COMMAND term_lst DOT
+                        { mk_command (fst $1) (snd $1) $2 } 
+                | EOF
+                        { mk_ending () ; raise EndOfFile }
 
 term_lst        : term                                          { [$1] }
                 | term COMMA term_lst                           { $1::$3 }
@@ -107,7 +121,7 @@ top_pattern     : ID pat_lst                                    { ( fst $1 , snd
 pat_lst         : /* empty */                                   { [] }
                 | pattern pat_lst                               { $1::$2 }
 
-                pattern         : ID                            { PPattern (fst $1,None,snd $1,[]) }
+pattern         : ID                                            { PPattern (fst $1,None,snd $1,[]) }
                 | QID                                           { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
                 | UNDERSCORE                                    { mk_unknown $1 }
                 | LEFTPAR ID  pat_lst RIGHTPAR                  { PPattern (fst $2,None,snd $2,$3) }

@@ -39,57 +39,13 @@ struct
     in
       Env.add_decl lc id ty
 
-  let mk_term pte = 
-    Global.vprint (get_loc pte) (lazy ("Term normalization:" )) ;
-    let (te,_) = Inference.infer [] pte in
-    let te' = Reduction.hnf te in
-      Global.sprint ( Pp.string_of_term te' ) 
-      
   let mk_rules (prs:prule list) = 
     let (lc,hd) = match prs with | [] -> assert false | (_,(l,id,_),_)::_ -> (l,id) in
       Global.vprint lc (lazy ("Rewrite rules for symbol '" ^ string_of_ident hd ^ "'.")) ;
       let rs = List.map Inference.check_rule prs in
         Env.add_rw lc hd rs 
 
-  let print_gdt lc md id =
-    match Env.get_global_rw lc md id with
-      | Some (i,g)      -> Global.sprint (Pp.string_of_gdt md id i g)
-      | _               -> Global.sprint "No GDT."
-
-  let mk_command lc cmd lst = 
-   if cmd = "TEST" then
-     begin
-       Global.vprint lc (lazy ("Conversion test.")) ;
-       match lst with
-         | [pt1;pt2]    -> 
-             let (t1,_) = Inference.infer [] pt1 in
-             let (t2,_) = Inference.infer [] pt2 in
-               if Reduction.are_convertible t1 t2 then Global.sprint "OK" 
-               else Global.sprint "KO" 
-         | _            -> 
-             raise (MiscError ( lc , "The command #TEST expects two arguments." ) )
-     end
-   else if cmd = "GDT" then
-     begin
-       Global.vprint lc (lazy ("General Decision Tree.")) ;
-       match lst with
-         | [PreId (_,id)]       -> print_gdt lc !Global.name id
-         | [PreQId (_,md,id)]   -> print_gdt lc md id
-         | _                    ->
-             raise (MiscError ( lc , "Bad arguments." ) )
-     end
-   else if cmd = "SNF" then
-     begin
-       Global.vprint lc (lazy ("Computing Strong Normal Form.")) ;
-       match lst with
-         | [pte]        -> 
-             let (te,_) = Inference.infer [] pte in
-               Global.sprint (Pp.string_of_term (Reduction.snf te))
-         | _            ->
-             raise (MiscError ( lc , "Bad arguments." ) )
-     end
-   else 
-     raise (MiscError ( lc , "Unknown command '" ^ cmd ^ "'." ) )
+  let mk_command = Cmds.exec_cmd 
                                           
   let mk_ending _ =
     Env.export_and_clear ()
@@ -137,9 +93,9 @@ let args = [
         ("-e"    , Arg.Set Global.export                , "Create a .dko"               ) ;
         ("-nc"   , Arg.Clear Global.color               , "Disable colored output"      ) ;
         ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"          ) ;
-        ("-unsafe", Arg.Set Global.unsafe_mode          , "Unsafe mode"                 ) ;
         ("-r"    , Arg.Set Global.raphael               , "Undocumented"                ) ;
         ("-autodep", Arg.Set Global.autodep             , "Automatically handle dependencies (experimental)") ]
+        ("-version" , Arg.Unit (fun () -> print_string "Dedukti v2.2c\n") , "Version" ) ;
 
 let _ =
   try

@@ -81,7 +81,7 @@ and infer_app lc ctx (f,ty_f) u =
 
 and is_type ctx a =
   match infer ctx a with
-    | ( a' ,Type _ )    -> a'
+    | ( a' ,Type )    -> a'
     | ( a' , ty )       -> err_conv ctx a mk_Type ty
 
 (* Type Inference for patterns *)
@@ -99,7 +99,7 @@ let is_empty = function []  -> true | _   -> false
 
 let add_equation t1 t2 eqs = 
   match Reduction.are_convertible_with_meta t1 t2 with
-    | Yes _     -> eqs
+    | Yes     -> eqs
     | _        -> (t1,t2)::eqs
 
 let rec check_pattern ctx ty eqs = function
@@ -176,7 +176,7 @@ let check_term ctx te exp =
 
 let check_type ctx pty =
   match infer ctx pty with
-    | ( ty , Kind ) | ( ty , Type _ )   -> ty
+    | ( ty , Kind ) | ( ty , Type )   -> ty
     | ( _ , s )                         -> err_sort ctx pty s
 
 let rec is_type_level = function
@@ -190,11 +190,11 @@ let check_rule (pctx,ple,pri:prule) : rule =
   let ((id,args),ty) = infer_ptop ctx ple in
   let ri = check_term ctx pri ty in
 
-    (if is_type_level ty then
+    (*if is_type_level ty then
        match ri with
          | Const _ | App ( (Const _) :: _ ) -> ()
          | _ -> Global.unset_constant_applicative l
-    ) ;
+     *)
 
     Global.vprint2 (lazy (Pp.string_of_rule (l,ctx,id,args,ri))) ;
     ( l , ctx , id , args , ri ) 

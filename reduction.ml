@@ -131,7 +131,7 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
             let s2' = cbn_reduce s2 in
               match s1',s2' with (*states are beta-delta head normal*)
                 | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )
-                | ( _ , _ , Type _ , s ) , ( _ , _ , Type _ , s' )                      ->
+                | ( _ , _ , Type , s ) , ( _ , _ , Type , s' )                      ->
                 (* assert ( List.length s == 0 && List.length s' == 0 ) *) 
                     state_conv lst
                 | ( k , _ , DB (_,n) , s ) , ( k' , _ , DB (_,n') , s' )                ->
@@ -278,7 +278,7 @@ and state_conv2 cpt : (cbn_state*cbn_state) list -> yes_no_maybe = function
                     begin
                       match s1',s2' with (*states are beta-delta head normal*)
                         | ( _ , _ , Kind , s ) , ( _ , _ , Kind , s' )
-                        | ( _ , _ , Type _ , s ) , ( _ , _ , Type _ , s' )                      ->
+                        | ( _ , _ , Type , s ) , ( _ , _ , Type , s' )                      ->
                             (* assert ( List.length s == 0 && List.length s' == 0 ) *) 
                             state_conv2 (cpt-1) lst
                         | ( k , _ , DB (_,n) , s ) , ( k' , _ , DB (_,n') , s' )
@@ -338,7 +338,7 @@ let rec decompose b = function
                     begin
                       match s1',s2' with (*states are beta-delta head normal*)
                         | ( _ , _ , Kind , _ ) , ( _ , _ , Kind , _ )
-                        | ( _ , _ , Type _ , _ ) , ( _ , _ , Type _ , _ )                               -> 
+                        | ( _ , _ , Type , _ ) , ( _ , _ , Type , _ )                               -> 
                             assert false
                         | ( k , _ , DB (_,n) , s ) , ( k' , _ , DB (_,n') , s' ) when (n-k)=(n'-k')     -> 
                             ( match (add_to_list a s s') with

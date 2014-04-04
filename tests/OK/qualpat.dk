@@ -1,6 +1,0 @@
-#NAME qualpat
-T : Type.
-a : T.
-
-f : T -> qualpat.T.
-[] f qualpat.a --> a.

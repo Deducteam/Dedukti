@@ -50,8 +50,7 @@ struct
       Env.add_rw lc hd rs ;
       Global.sprint ("Rules added.")
 
-  let mk_command _ _ _ = 
-      Global.sprint ("Command ignored.")
+  let mk_command = Cmds.exec_cmd 
 
   let mk_ending _ = ()
 

@@ -9,16 +9,16 @@ val quiet       : bool ref
 val export      : bool ref
 val raphael     : bool ref
 val color       : bool ref
-val unsafe_mode : bool ref
 val autodep     : bool ref
 
 val set_name     : ident -> unit
 val set_filename : string -> unit
 val set_out      : string -> unit
 
-(* *)
+(*
 val unset_linearity : loc -> unit
 val unset_constant_applicative : loc -> unit
+ *)
 
 (* *** Info messages *** *)
 
