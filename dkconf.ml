@@ -24,6 +24,7 @@ let pp_wcr out = function
 let main dko =
   init dko ;
   (*FIXME print stats*)
+  (*
   Global.print "Linearity: %a." pp_bool !linearity;
   Global.print "Local Confluence: %a." pp_wcr !weak_confluence;
   ( if !linearity && !toyama_criterion then
@@ -52,6 +53,10 @@ let main dko =
           Global.print "Subject Reduction: %a." pp_bool_yes_maybe
             !subject_reduction_criterion;
         end
+   *)
+  match !export with
+    | None -> ()
+    | Some out -> Confluence.export out
 
   let _ =
   try (
