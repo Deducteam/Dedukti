@@ -2,21 +2,22 @@
 # PLEASE EDIT THE FOLLOWING LINES TO FIT YOUR SYSTEM CONFIGURATION
 
 INSTALL_DIR=/usr/bin
-OPTIONS = -cflags -inline,10
 
 # DO NOT EDIT AFTER THIS LINE
 
-all:
-	ocamlbuild -build-dir _dkcheck $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dkcheck.native
-	ocamlbuild -build-dir _dktop   $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dktop.native
-	ocamlbuild -build-dir _dkdep   $(OPTIONS) -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -use-menhir -menhir "menhir --external-tokens Types" dkdep.native
+OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt -rectypes' -cflags -rectypes \
+	 -use-menhir -menhir "menhir --external-tokens Types" -tag bin_annot
 
-install:
-	install _dkcheck/dkcheck.native ${INSTALL_DIR}/dkcheck
-	install _dktop/dktop.native ${INSTALL_DIR}/dktop
-	install _dkdep/dkdep.native ${INSTALL_DIR}/dkdep
+all: dkcheck dktop dkdep
 
-clean:
-	ocamlbuild -build-dir _dkcheck -clean
-	ocamlbuild -build-dir _dktop -clean
-	ocamlbuild -build-dir _dkdep -clean
+dkcheck:
+	ocamlbuild -build-dir _dkcheck $(OPTIONS) dkcheck.native
+
+dktop:
+	ocamlbuild -build-dir _dktop $(OPTIONS) dktop.native
+
+dkdep:
+	ocamlbuild -build-dir _dkdep $(OPTIONS) dkdep.native
+
+profile:
+	ocamlbuild -tag profile -build-dir  $(OPTIONS) _dkcheck dkchech.native

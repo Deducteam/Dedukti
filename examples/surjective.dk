@@ -6,6 +6,6 @@ p1:Pairs->T.
 p2:Pairs->T.
 mk:T->T->Pairs.
 
-[a:T] p1 (mk a _) --> a.
-[a:T] p2 (mk _ a) --> a.
+[a:T,b:T] p1 (mk a b) --> a.
+[a:T,b:T] p2 (mk a b) --> b.
 [p:Pairs] mk (p1 p) (p2 p) --> p.

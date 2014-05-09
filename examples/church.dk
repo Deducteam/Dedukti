@@ -1,4 +1,5 @@
 #NAME church.
+
 type : Type.
 arr : type -> type -> type.
 e : type -> Type.
@@ -8,40 +9,24 @@ N : type.
 z : e N.
 s : e N -> e N.
  
-numeral : Type.
-[] numeral --> A : type -> (e A -> e A) -> (e A -> e A).
+numeral : Type := A : type -> (e A -> e A) -> (e A -> e A).
  
-zero : numeral.
-[] zero --> A : type => f : (e A -> e A) => x : e A => x.
-one : numeral.
-[] one --> A : type => f : (e A -> e A) => f.
-two : numeral.
-[] two --> A : type => f : (e A -> e A) => x : e A => f (f x).
-three : numeral.
-[] three --> A : type => f : (e A -> e A) => x : e A => f (f (f x)).
+zero  : numeral := A : type => f : (e A -> e A) => x : e A => x.
+one   : numeral := A : type => f : (e A -> e A) => f.
+two   : numeral := A : type => f : (e A -> e A) => x : e A => f (f x).
+three : numeral := A : type => f : (e A -> e A) => x : e A => f (f (f x)).
  
-plus : numeral -> numeral -> numeral.
-[] plus --> m : numeral => n : numeral => A : type => f : (e A -> e A) => x : e A => m A f (n A f x).
+plus : numeral -> numeral -> numeral
+:= m : numeral => n : numeral => A : type => f : (e A -> e A) => x : e A => m A f (n A f x).
 
-times : numeral -> numeral -> numeral.
-[] times --> m : numeral => n : numeral => A : type => f : (e A -> e A) => x : e A => m A (n A f) x.
+times : numeral -> numeral -> numeral
+:= m : numeral => n : numeral => A : type => f : (e A -> e A) => x : e A => m A (n A f) x.
 
-power : numeral -> numeral -> numeral.
-[] power --> m : numeral => n : numeral => A : type => n (arr A A) (m A).
+power : numeral -> numeral -> numeral
+:= m : numeral => n : numeral => A : type => n (arr A A) (m A).
 
-four : numeral.
-[] four --> plus two two.
-five : numeral.
-[] five --> plus two three.
+four : numeral := plus two two.
+five : numeral := plus two three.
 
-I : e N -> Type.
-
-test : n : e N -> I n.
-
-a := (power two (times two two) N s z). 
-b := (power two (times two two) N s z).
-
-f :  I a -> Type.
-
-x : f (test b).
-
+#CONV 	( power two (times four five) ),  
+	( power two (times five four) ).

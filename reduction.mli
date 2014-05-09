@@ -1,16 +1,23 @@
 
 open Types
 
-val hnf                 : term -> term          (* Head Normal Form *)
+(* Head Normal Form *)
+val hnf         : term -> term
 
-val wnf                 : term -> term          (* Weak Normal Form *)
+(* Weak Head Normal Form *)
+val whnf        : term -> term
 
-val snf                 : term -> term          (* Strong Normal Form *)
+(* Strong Normal Form *)
+val snf         : term -> term
 
-val are_convertible     : term -> term -> bool  (* Conversion Test *)
+(* Conversion Test *)
+val are_convertible             : term -> term -> bool
 
-val are_convertible_with_meta : term -> term -> yes_no_maybe  (* Conversion Test *)
+(* Bounded Conversion Test *)
+val bounded_are_convertible     : int -> term -> term -> yes_no_maybe
 
-val wnf_with_meta       : term -> term option   (* Weak Normal Form *)
+(* Weak Normal Form *)
+val bounded_whnf                : int -> term -> term option
 
-val decompose_eq        : (int*term) list -> (term*term) list -> (int*term) list option
+(*One Step Reduction*)
+val one_step                    : term -> term option

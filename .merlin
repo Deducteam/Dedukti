@@ -1,0 +1,4 @@
+B _dkcheck
+B _dkdep
+B _dktop
+FLG -rectypes

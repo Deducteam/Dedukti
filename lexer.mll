@@ -1,6 +1,7 @@
 {
   open Types
   open Lexing
+  open Printf
 
   let get_loc lexbuf =
           let start = lexbuf.lex_start_p                in
@@ -16,7 +17,7 @@ let capital = ['A'-'Z']+
 
 rule token = parse
   | space       { token lexbuf  }
-  | '\n'        { Lexing.new_line lexbuf ; token lexbuf }
+  | '\n'        { new_line lexbuf ; token lexbuf }
   | "(;"        { comment lexbuf}
   | '.'         { DOT           }
   | ','         { COMMA         }
@@ -33,16 +34,29 @@ rule token = parse
   | ":="	{ DEF           }
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE ( get_loc lexbuf )       }
-  | "#NAME" space+ (modname as md)      { NAME (get_loc lexbuf , hstring md)     }
-  | "#IMPORT" space+ (modname as md)    { IMPORT (get_loc lexbuf , hstring md)   }
-  | '#' (capital as cmd)                { COMMAND (get_loc lexbuf, cmd) }
-  | modname as md '.' (ident as id)     { QID ( get_loc lexbuf , hstring md , hstring id ) }
-  | ident  as id                        { ID  ( get_loc lexbuf , hstring id ) }
-  | _   as s		                { raise ( LexerError ( get_loc lexbuf , "Unexpected characters '" ^ String.make 1 s ^ "'." ) ) }
-  | eof		                        { EOF }
+  | "#NAME" space+ (modname as md)
+  { NAME (get_loc lexbuf , hstring md) }
+  | "#WHNF"     { WHNF ( get_loc lexbuf ) }
+  | "#HNF"      { HNF ( get_loc lexbuf ) }
+  | "#SNF"      { SNF ( get_loc lexbuf ) }
+  | "#STEP"     { STEP ( get_loc lexbuf ) }
+  | "#INFER"    { INFER ( get_loc lexbuf ) }
+  | "#CONV"     { CONV ( get_loc lexbuf ) }
+  | "#CHECK"    { CHECK ( get_loc lexbuf ) }
+  | "#PRINT"    { PRINT ( get_loc lexbuf ) }
+  | "#GDT"      { GDT ( get_loc lexbuf ) }
+  | '#' (capital as cmd)
+  { OTHER (get_loc lexbuf, cmd) }
+  | modname as md '.' (ident as id)
+  { QID ( get_loc lexbuf , hstring md , hstring id ) }
+  | ident  as id
+  { ID  ( get_loc lexbuf , hstring id ) }
+  | _   as s
+  { Global.fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }
+  | eof { EOF }
 
  and comment = parse
-  | ";)"                { token lexbuf          }
-  | '\n'                { new_line lexbuf ; comment lexbuf }
-  | _                   { comment lexbuf        }
-  | eof		        { raise ( LexerError ( get_loc lexbuf , "Unexpected end of file." ) ) }
+  | ";)" { token lexbuf          }
+  | '\n' { new_line lexbuf ; comment lexbuf }
+  | _    { comment lexbuf        }
+  | eof	 { Global.fail (get_loc lexbuf) "Unexpected end of file."  }

@@ -1,15 +1,20 @@
 
 open Types
 
-val string_of_term      : term -> string
+val pp_pterm    : out_channel -> preterm -> unit
 
-val string_of_pterm     : preterm -> string
+val pp_ppattern : out_channel -> prepattern -> unit
 
-val string_of_pattern   : pattern -> string
+val pp_term     : out_channel -> term -> unit
 
-val string_of_prepattern : prepattern -> string
+val pp_pattern  : out_channel -> pattern -> unit
 
-val string_of_rule      : rule -> string
+val pp_rule     : out_channel -> rule -> unit
 
-val string_of_gdt       : ident -> ident -> int -> gdt -> string
+val pp_context  : out_channel -> context -> unit
 
+val pp_dtree    : int -> out_channel -> dtree -> unit
+
+val pp_rw      : out_channel -> (ident*ident*int*dtree) -> unit
+
+val pp_list     : string -> (out_channel -> 'a -> unit) -> out_channel -> 'a list -> unit

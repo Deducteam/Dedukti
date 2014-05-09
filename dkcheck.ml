@@ -1,65 +1,11 @@
-
 open Types
 
-module M =
-struct
-
-  let mk_prelude lc name =
-    Global.vprint lc (lazy ("Module name is '" ^ string_of_ident name ^ "'."))
-
-  let mk_require lc m =
-    Global.warning lc "Import command is ignored."
-
-  let mk_declaration lc id pty =
-    Global.vprint lc (lazy ("Declaration of symbol '" ^ string_of_ident id ^ "'." )) ;
-    let ty = Inference.check_type [] pty in
-      Env.add_decl lc id ty
-
-  let mk_definition lc id ty_opt pte =
-    Global.vprint lc (lazy ("Definition of symbol '" ^ string_of_ident id ^ "'.")) ;
-    let (te,ty) =
-      match ty_opt with
-        | None          -> Inference.infer [] pte
-        | Some pty      ->
-            let ty = Inference.check_type [] pty in
-            let te = Inference.check_term [] pte ty in
-              ( te , ty )
-    in
-      Env.add_def lc id te ty
-
-  let mk_opaque lc id ty_opt pte =
-    Global.vprint lc (lazy ("Opaque definition of symbol '" ^ string_of_ident id ^ "'.")) ;
-    let ty =
-      match ty_opt with
-        | None          -> snd ( Inference.infer [] pte )
-        | Some pty      ->
-            let ty = Inference.check_type [] pty in
-            let _  = Inference.check_term [] pte ty in
-              ty
-    in
-      Env.add_decl lc id ty
-
-  let mk_rules (prs:prule list) =
-    let (lc,hd) = match prs with | [] -> assert false | (_,(l,id,_),_)::_ -> (l,id) in
-      Global.vprint lc (lazy ("Rewrite rules for symbol '" ^ string_of_ident hd ^ "'.")) ;
-      let rs = List.map Inference.check_rule prs in
-        Env.add_rw lc hd rs
-
-  let mk_command = Cmds.exec_cmd
-
-  let mk_ending _ =
-    Env.export_and_clear ()
-
-end
-
-(* *** Parsing *** *)
-
-module P = Parser.Make(M)
+module P = Parser.Make(Checker)
 
 let parse lb =
   try
-      P.prelude Lexer.token lb ;
-      while true do P.line Lexer.token lb done
+    P.prelude Lexer.token lb ;
+    while true do P.line Lexer.token lb done
   with
     | P.Error   ->
         begin
@@ -67,45 +13,40 @@ let parse lb =
           let line = start.Lexing.pos_lnum  in
           let cnum = start.Lexing.pos_cnum - start.Lexing.pos_bol in
           let tok = Lexing.lexeme lb in
-            raise (ParserError ( mk_loc line cnum , "Unexpected token '" ^ tok ^ "'." ) )
+            Global.fail (mk_loc line cnum) "Unexpected token '%s'." tok
         end
     | EndOfFile -> ()
 
-(* *** Input *** *)
+let print_version _ =
+  Printf.printf "Dedukti v%s" Global.version
 
-let run_on_stdin _ =
-  Global.vprint dloc (lazy " -- Processing standard input ...") ;
-  parse (Lexing.from_channel stdin) ;
-  Global.print_ok "none"
+let args = [
+  ("-d"    , Arg.Set_int Global.debug_level, "Level of verbosity" ) ;
+  ("-e"    , Arg.Set Global.export,          "Create a .dko" ) ;
+  ("-nc"   , Arg.Clear Global.color,         "Disable colored output" ) ;
+  ("-stdin", Arg.Set Global.run_on_stdin,    "Use standart input" ) ;
+  ("-r"    , Arg.Set Global.ignore_redecl,   "Ignore redeclaration" ) ;
+  ("-version", Arg.Unit print_version,       "Version" ) ;
+  ("-autodep", Arg.Set Global.autodep  ,
+   "Automatically handle dependencies (experimental)") ]
 
 let run_on_file file =
   let input = open_in file in
-    Global.vprint dloc (lazy (" -- Processing file '" ^ file ^ "' ...")) ;
-    Global.set_filename file ;
+    Global.file := file ;
+    (Global.debug 1) (mk_loc 1 1) "Processing file '%s' ... " file ;
     parse (Lexing.from_channel input) ;
-    Global.print_ok file ;
+    Global.success "File '%s' was successfully checked." file;
     close_in input
-
-(* *** Main *** *)
-
-let args = [
-        ("-q"    , Arg.Set Global.quiet                 , "Quiet"                       ) ;
-        ("-v"    , Arg.Clear Global.quiet               , "Verbose"                     ) ;
-        ("-e"    , Arg.Set Global.export                , "Create a .dko"               ) ;
-        ("-nc"   , Arg.Clear Global.color               , "Disable colored output"      ) ;
-        ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"          ) ;
-        ("-r"    , Arg.Set Global.raphael               , "Undocumented"                ) ;
-        ("-autodep", Arg.Set Global.autodep             , "Automatically handle dependencies (experimental)") ;
-        ("-version" , Arg.Unit (fun () -> print_string "Dedukti v2.2-dev\n") , "Version" )  ]
 
 let _ =
   try
-    Arg.parse args run_on_file ("Usage: "^Sys.argv.(0)^" [options] files")
+    begin
+      Arg.parse args run_on_file ("Usage: "^ Sys.argv.(0) ^" [options] files");
+      if !Global.run_on_stdin then (
+        Global.debug 1 (mk_loc 1 1) "Processing standard input ...\n" ;
+        parse (Lexing.from_channel stdin) ;
+        Global.success "Standard input was successfully checked.\n" )
+    end
   with
-    | Sys_error err             -> Global.error dloc err
-    | LexerError (lc,err)       -> Global.error lc err
-    | ParserError (lc,err)      -> Global.error lc err
-    | TypingError (lc,err)      -> Global.error lc err
-    | EnvError (lc,err)         -> Global.error lc err
-    | PatternError (lc,err)     -> Global.error lc err
-    | MiscError (lc,err)        -> Global.error lc err
+    | Sys_error err             -> ( Printf.eprintf "ERROR %s.\n" err; exit 1 )
+    | Exit                      -> exit 3

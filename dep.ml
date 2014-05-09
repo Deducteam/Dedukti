@@ -13,8 +13,6 @@ let mk_prelude _ prelude_name =
   deps := [];
   name := string_of_ident prelude_name
 
-let mk_require = add_dep
-
 let rec mk_term = function
   | PreQId (lc, module_name, _) -> add_dep lc module_name
   | PreApp l -> List.iter mk_term l
@@ -38,16 +36,24 @@ let mk_definition _ _ = function
 
 let mk_opaque = mk_definition
 
-let mk_binding (_, _, t) = mk_term t 
+let mk_static = mk_declaration
+
+let mk_binding (_, _, t) = mk_term t
 
 let mk_ctx = List.iter mk_binding
 
 let mk_prule (ctx, (l,id,args), t:prule) =
-  mk_ctx ctx; mk_pattern (PPattern (l,None,id,args)); mk_term t 
+  mk_ctx ctx; mk_pattern (PPattern (l,None,id,args)); mk_term t
 
 let mk_rules = List.iter mk_prule
 
-let mk_command _ _ = List.iter mk_term
+let mk_command _ = function
+  | Whnf t | Hnf t | Snf t
+  | OneStep t | Infer t                 -> mk_term t
+  | Conv (t1,t2) | Check (t1,t2)        -> ( mk_term t1 ; mk_term t2 )
+  | Gdt (_,_) | Print _                 -> ()
+  | Other (_,lst)                       -> List.iter mk_term lst
 
-let mk_ending () = 
-  Global.print_out (!name ^ ".dko : " ^ String.concat " " (List.map (fun s -> s ^ ".dko") !deps))
+let mk_ending () =
+  Global.print_out "%s.dko : %s" !name
+    (String.concat " " (List.map (fun s -> s ^ ".dko") !deps) )

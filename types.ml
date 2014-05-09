@@ -1,12 +1,10 @@
 
-type yes_no_maybe = Yes | No | Maybe
-type 'a option2 = None2 | Maybe2 | Some2 of 'a
-
 (* *** Identifiers (hashconsed strings) *** *)
 
 type ident = string
 let string_of_ident s = s
 let ident_eq s1 s2 = s1==s2 || s1=s2
+let pp_ident = output_string
 
 module WS = Weak.Make(
 struct
@@ -17,16 +15,14 @@ end )
 
 let shash       = WS.create 251
 let hstring     = WS.merge shash
-let empty     = hstring ""
+let empty       = hstring ""
 
 (* *** Localization *** *)
 
 type loc = int*int
 let dloc = (0,0)
 let mk_loc l c = (l,c)
-let get_line (l,_) = l
-let get_column (_,c) = c
-let string_of_loc (l,c) = "line:" ^ string_of_int l ^ " column:" ^ string_of_int c
+let of_loc l = l
 
 (* *** Parsing *** *)
 
@@ -42,7 +38,6 @@ type token =
   | LEFTSQU
   | LEFTPAR
   | LEFTBRA
-  | IMPORT      of ( loc * ident )
   | ID          of ( loc * ident )
   | FATARROW
   | EOF
@@ -51,7 +46,18 @@ type token =
   | COMMA
   | COLON
   | ARROW
-  | COMMAND   of ( loc * string )
+  | WHNF        of loc
+  | HNF         of loc
+  | SNF         of loc
+  | STEP        of loc
+  | INFER       of loc
+  | CONV        of loc
+  | CHECK       of loc
+  | PRINT       of loc
+  | GDT         of loc
+  | OTHER       of ( loc * string )
+
+exception EndOfFile
 
 (* *** Pseudo Terms *** *)
 
@@ -63,8 +69,8 @@ type preterm =
   | PreLam  of loc * ident * preterm * preterm
   | PrePi   of (loc*ident) option * preterm * preterm
 
-type prepattern = 
-  | Unknown     of loc*int
+type prepattern =
+  | PCondition  of preterm
   | PPattern    of loc*ident option*ident*prepattern list
 
 type ptop = loc * ident * prepattern list
@@ -81,13 +87,10 @@ let mk_pre_app              = function
   | (PreApp l1)::l2      -> PreApp (l1@l2)
   | lst -> PreApp lst
 
-let cpt = ref (-1)
-let mk_unknown l = incr cpt ; Unknown (l,!cpt)
-
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
 type prule      = pcontext * ptop * preterm
- 
+
 let rec get_loc = function
   | PreType l | PreId (l,_) | PreQId (l,_,_)
   | PreLam  (l,_,_,_) | PrePi   (Some(l,_),_,_) -> l
@@ -97,11 +100,11 @@ let rec get_loc = function
 (* *** Terms *** *)
 
 type term =
-  | Kind                                (* Kind *)
-  | Type                                (* Type *)
-  | DB    of ident*int                  (* deBruijn *)
-  | Const of ident*ident                (* Global variable *)
-  | App   of term list                  (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
+  | Kind                  (* Kind *)
+  | Type                  (* Type *)
+  | DB    of ident*int    (* deBruijn *)
+  | Const of ident*ident  (* Global variable *)
+  | App   of term list    (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
   | Lam   of ident*term*term            (* Lambda abstraction *)
   | Pi    of ident option*term*term     (* Pi abstraction *)
   | Meta  of int
@@ -128,10 +131,11 @@ let rec term_eq t1 t2 =
   (* t1 == t2 || *)
   match t1, t2 with
     | Kind, Kind | Type , Type          -> true
-    | DB (_,n), DB (_,n') 
-    | Meta n, Meta n'                   -> n=n' 
+    | DB (_,n), DB (_,n')
+    | Meta n, Meta n'                   -> n=n'
     | Const (m,v), Const (m',v')        -> ident_eq v v' && ident_eq m m'
-    | App l, App l'                     -> ( try List.for_all2 term_eq l l' with _ -> false )
+    | App l, App l'                     -> ( try List.for_all2 term_eq l l'
+                                             with _ -> false )
     | Lam (_,a,b), Lam (_,a',b')
     | Pi (_,a,b), Pi (_,a',b')          -> term_eq a a' && term_eq b b'
     | _, _                              -> false
@@ -140,24 +144,59 @@ let rec term_eq t1 t2 =
 
 type pattern =
   | Var         of ident*int
-  | Joker       of int
+  | Brackets    of term
   | Pattern     of ident*ident*pattern array
-  | Dot         of term
+
+let rec term_of_pattern = function
+  | Var (id,n)                  -> DB (id,n)
+  | Brackets t                  -> t
+  | Pattern (md,id,args)        ->
+      let c = Const (md,id) in
+        if Array.length args = 0 then c
+        else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
 
 type top = ident*pattern array
 type context = ( ident * term ) list
-type rule = loc * context * ident * pattern array * term 
 
-type gdt =
-  | Switch      of int * ((ident*ident)*gdt) list * gdt option
-  | Test        of (term*term) list*term*gdt option
+type rule = {
+        l:loc;
+        ctx:context;
+        id:ident;
+        args:pattern array;
+        rhs:term; }
 
-(* *** Errors *** *)
+type rule2 =
+    { loc:loc ; pats:pattern array ; right:term ;
+      constraints:(term*term) list ; env_size:int ; }
 
-exception ParserError of loc*string
-exception LexerError  of loc*string
-exception EnvError    of loc*string
-exception TypingError of loc*string
-exception PatternError of loc*string
-exception MiscError of loc*string
-exception EndOfFile
+type dtree =
+  | Switch      of int * (int*ident*ident*dtree) list * dtree option
+  | Test        of (term*term) list * term * dtree option
+
+type rw_infos =
+  | Decl    of term
+  | Def     of term*term
+  | Decl_rw of term*rule2 list*int*dtree
+
+(* Misc *)
+
+type yes_no_maybe = Yes | No | Maybe
+type 'a option2 = None2 | DontKnow | Some2 of 'a
+type ('a,'b) sum = Success of 'a | Failure of 'b
+
+(* Commands *)
+
+type command =
+  (* Reduction *)
+  | Whnf of preterm
+  | Hnf of preterm
+  | Snf of preterm
+  | OneStep of preterm
+  | Conv of preterm*preterm
+  (*Tying*)
+  | Check of preterm*preterm
+  | Infer of preterm
+  (* Misc *)
+  | Gdt of ident*ident
+  | Print of ident
+  | Other of string*preterm list
