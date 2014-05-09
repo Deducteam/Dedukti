@@ -39,14 +39,14 @@ struct
     in
       Env.add_decl lc id ty
 
-  let mk_rules (prs:prule list) = 
+  let mk_rules (prs:prule list) =
     let (lc,hd) = match prs with | [] -> assert false | (_,(l,id,_),_)::_ -> (l,id) in
       Global.vprint lc (lazy ("Rewrite rules for symbol '" ^ string_of_ident hd ^ "'.")) ;
       let rs = List.map Inference.check_rule prs in
-        Env.add_rw lc hd rs 
+        Env.add_rw lc hd rs
 
-  let mk_command = Cmds.exec_cmd 
-                                          
+  let mk_command = Cmds.exec_cmd
+
   let mk_ending _ =
     Env.export_and_clear ()
 
@@ -96,7 +96,7 @@ let args = [
         ("-stdin", Arg.Unit run_on_stdin                , "Use standart input"          ) ;
         ("-r"    , Arg.Set Global.raphael               , "Undocumented"                ) ;
         ("-autodep", Arg.Set Global.autodep             , "Automatically handle dependencies (experimental)") ;
-        ("-version" , Arg.Unit (fun () -> print_string "Dedukti v2.2c\n") , "Version" )  ]
+        ("-version" , Arg.Unit (fun () -> print_string "Dedukti v2.2-dev\n") , "Version" )  ]
 
 let _ =
   try
