@@ -1,6 +1,5 @@
 
 (** This files contains global options and functionalities *)
-
 open Types
 
 (** {2 Global Values} *)
