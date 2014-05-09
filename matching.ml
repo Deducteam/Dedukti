@@ -5,7 +5,13 @@ open Types
 type matrix = rule2 list (* never empty *)
 
 let br = hstring "{_}"
-
+(*
+let line_from_rule (l,ctx,id,pats0,ri:rule) : line =
+  let k0 = List.length ctx in
+  let (k,pats,lst) = linearize k0 pats0 in
+    (* match lst with | [] -> () | _ -> Global.unset_linearity l *)
+    { loc = l; pats = pats; right = ri; env_size = k; constr = lst }
+ *)
 let rec gc_pat linearity_check env_size cstr : pattern -> int*(term*term)list*pattern =
   function
   | Var (s,n) as pat    ->

@@ -13,7 +13,7 @@ let shift r t = shift_rec r 0 t
 
 let rec psubst_l (nargs,args:int*(term Lazy.t) list) (k:int) (t:term) : term =
   match t with
-    | Type  | Kind | Const _ | Meta _  -> t
+    | Type | Kind | Const _ | Meta _  -> t
     | DB (x,n) when (n >= (k+nargs))    -> mk_DB x (n-nargs)
     | DB (_,n) when (n < k)             -> t
     | DB (_,n) (* (k<=n<(k+nargs)) *)   ->
@@ -28,7 +28,7 @@ let rec psubst_l (nargs,args:int*(term Lazy.t) list) (k:int) (t:term) : term =
 let rec psubst (nargs,args:int*term list) (k:int) (t:term) =
   (* assert ( nargs = List.length args ); *)
   match t with
-    | Type  | Kind | Const _ | Meta _  -> t
+    | Type | Kind | Const _ | Meta _    -> t
     | DB (x,n) when (n >= (k+nargs))    -> mk_DB x (n-nargs)
     | DB (_,n) when (n < k)             -> t
     | DB (_,n) (* (k<=n<(k+nargs)) *)   -> shift k ( List.nth args (n-k) )

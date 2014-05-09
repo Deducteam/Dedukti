@@ -3,7 +3,7 @@ open Types
 let name                = ref empty
 let run_on_stdin        = ref false
 let file                = ref "no_file"
-let version             = "2.2.1"
+let version             = "2.2-dev"
 
 let debug_level         = ref 0
 let out                 = ref stdout

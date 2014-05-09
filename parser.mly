@@ -22,8 +22,6 @@
         let rec mk_pi te = function
                 | []            -> te
                 | (l,x,ty)::tl  -> mk_pi (mk_pre_pi l x ty te) tl
-
-
 %}
 
 %token EOF
