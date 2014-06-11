@@ -15,7 +15,7 @@ let print_id out (m,id) =
           fprintf out "%s.%s" (string_of_ident md) (string_of_ident id)
 
 let rec print_preterm out = function
-  | PreType _           -> fprintf out "Type" (*FIXME*)
+  | PreType _           -> fprintf out "type" (*FIXME*)
   | PreId (_,v)         -> print_id out (None,v)
   | PreQId (_,m,v)      -> print_id out (Some m,v)
   | PreApp (f::args)    ->
@@ -59,8 +59,11 @@ let rec print_pat out = function
 let print_ldec out (_,id,ty) =
   fprintf out "%s:%a" (string_of_ident id) print_preterm ty
 
+let nb_rule = ref 0
+let get_nb () = incr nb_rule ; !nb_rule
+
 let mk_rule out (env,(_,id,pats),ri:prule) =
-  fprintf out "_ : [" ; (*FIXME*)
+  fprintf out "rule_%i : [" (get_nb ());
   ( match env with
       | []      -> ()
       | e::env' ->
@@ -77,7 +80,7 @@ let mk_rule out (env,(_,id,pats),ri:prule) =
 (* *** *)
 
 let mk_prelude lc m =
-  fprintf !Global.out "namespace %s %c\n\ntheory FILENAME =\n\n"
+  fprintf !Global.out "namespace %s %c\n\ntheory FILENAME : http://cds.omdoc.org/urtheories?LF =\n\n"
     (string_of_ident m) ascii29
 
 let mk_require _ _ = ()
