@@ -56,6 +56,7 @@ type token =
   | PRINT       of loc
   | GDT         of loc
   | OTHER       of ( loc * string )
+  | STRING      of string
 
 exception EndOfFile
 
@@ -198,5 +199,5 @@ type command =
   | Infer of preterm
   (* Misc *)
   | Gdt of ident*ident
-  | Print of ident
+  | Print of string
   | Other of string*preterm list
