@@ -2,26 +2,23 @@
   sig
     val mk_prelude     : Types.loc -> Types.ident -> unit
     val mk_declaration : Types.loc -> Types.ident -> Types.preterm -> unit
-    val mk_definition  : Types.loc -> Types.ident -> Types.preterm option
-                                                        -> Types.preterm -> unit
-    val mk_opaque      : Types.loc -> Types.ident -> Types.preterm option
-                                                        -> Types.preterm -> unit
-    val mk_static      : Types.loc -> Types.ident -> Types.preterm -> unit
+    val mk_definition  : Types.loc -> Types.ident -> Types.preterm option -> Types.preterm -> unit
+    val mk_opaque      : Types.loc -> Types.ident -> Types.preterm option -> Types.preterm -> unit
     val mk_rules       : Types.prule list -> unit
     val mk_command     : Types.loc -> Types.command -> unit
     val mk_ending      : unit -> unit
   end>
 %{
-        open Types
-        open M
+    open Types
+    open M
+        (*FIXME use non_empty_separeted list and co*)
+    let rec mk_lam te = function
+        | [] -> te
+        | (l,x,ty)::tl -> mk_lam (mk_pre_lam l x ty te) tl
 
-        let rec mk_lam te = function
-                | []            -> te
-                | (l,x,ty)::tl  -> mk_lam (mk_pre_lam l x ty te) tl
-
-        let rec mk_pi te = function
-                | []            -> te
-                | (l,x,ty)::tl  -> mk_pi (mk_pre_pi l x ty te) tl
+    let rec mk_pi te = function
+        | [] -> te
+        | (l,x,ty)::tl -> mk_pi (mk_pre_pi l x ty te) tl
 %}
 
 %token EOF
@@ -62,9 +59,9 @@
 %type <Types.prule list> rule_lst
 %type <Types.prule> rule
 %type <Types.pdecl> decl
-%type <Types.pcontext> context
+%type <Types.pdecl list> context
 %type <Types.prepattern list> pat_lst
-%type <Types.ptop> top_pattern
+%type <Types.loc*Types.ident*Types.prepattern list> top_pattern
 %type <Types.prepattern> pattern
 %type <Types.preterm> sterm
 %type <Types.preterm list> app
@@ -96,8 +93,6 @@ line            : ID COLON term DOT
                 { mk_opaque (fst $2) (snd $2) (Some (mk_pi $6 $3)) (mk_lam $8 $3) }
                 | LEFTBRA ID param_lst RIGHTBRA DEF term DOT
                 { mk_opaque (fst $2) (snd $2)  None (mk_lam $6 $3) }
-                | LEFTBRA ID RIGHTBRA COLON term DOT
-                { mk_static (fst $2) (snd $2) $5 }
                 | rule_lst DOT
                 { mk_rules $1 }
                 | command DOT { $1 }
@@ -128,7 +123,7 @@ rule_lst        : rule                                  { [$1] }
                 | rule rule_lst                         { $1::$2 }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { ( $2 , $4 , $6) }
+                { let (l,id,args) = $4 in ( l , $2 , id , args , $6) }
 
 decl           : ID COLON term         { (fst $1,snd $1,$3) }
 
@@ -136,7 +131,7 @@ context         : /* empty */           { [] }
                 | decl COMMA context    { $1::$3 }
                 | decl                  { [$1] }
 
-top_pattern     : ID pat_lst            { ( fst $1 , snd $1 , $2 ) }
+top_pattern     : ID pat_lst            { (fst $1,snd $1,$2) }
 
 pat_lst         : /* empty */           { [] }
                 | pattern pat_lst       { $1::$2 }
@@ -167,13 +162,13 @@ app             : sterm         { [$1] }
                 | sterm app     { $1::$2 }
 
 term            : app
-                { mk_pre_app $1 }
+                { mk_pre_from_list $1 }
                 | ID COLON app ARROW term
-                { mk_pre_pi (fst $1) (snd $1) (mk_pre_app $3) $5 }
+                { mk_pre_pi (fst $1) (snd $1) (mk_pre_from_list $3) $5 }
                 | term ARROW term
                 { mk_pre_arrow $1 $3 }
                 | ID FATARROW term
                 { failwith "Not implemented (untyped lambda)." }
                 | ID COLON app FATARROW term
-                { mk_pre_lam (fst $1) (snd $1) (mk_pre_app $3) $5}
+                { mk_pre_lam (fst $1) (snd $1) (mk_pre_from_list $3) $5}
 %%

@@ -1,17 +1,10 @@
 
 open Types
 
-(* ctx |- te:ty *)
-val infer      : (*ctx:*)context -> (*te:*)preterm -> (*(te,ty):*)term*term
+val infer : (*te*)preterm -> term*term (* (te,ty) *)
 
-(* ctx |- ty : Type or ctx |- ty : Kind *)
-val check_type : (*ctx*)context -> (*ty*)preterm -> term(*ty*)
+val check : (*te*)preterm -> (*ty*)preterm -> term*term(* (te,ty) *)
 
-(* ctx |- te:ty *)
-val check_term : (*ctx*)context -> (*te*)preterm -> (*ty*)term -> term(*te*)
-
-val infer_ptop : context -> ptop -> ident * pattern array * term
-
-val check_context : pcontext -> context
+val is_a_type : (*te*)preterm -> term (*te*)
 
 val check_rule : prule -> rule

@@ -59,17 +59,19 @@ type preterm = private
   | PreType of loc
   | PreId   of loc * ident
   | PreQId  of loc * ident * ident
-  | PreApp  of preterm list
+  | PreApp  of preterm * preterm * preterm list
   | PreLam  of loc * ident * preterm * preterm
-  | PrePi   of (loc*ident) option * preterm * preterm
+  | PrePi   of loc * ident option * preterm * preterm
 
 val mk_pre_type         : loc -> preterm
 val mk_pre_id           : loc -> ident -> preterm
 val mk_pre_qid          : loc -> ident -> ident -> preterm
 val mk_pre_lam          : loc -> ident -> preterm -> preterm -> preterm
-val mk_pre_app          : preterm list -> preterm
+val mk_pre_app          : preterm -> preterm -> preterm list -> preterm
 val mk_pre_arrow        : preterm -> preterm -> preterm
 val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
+
+val mk_pre_from_list    : preterm list -> preterm
 
 val get_loc : preterm -> loc
 
@@ -77,40 +79,39 @@ type prepattern =
   | PCondition  of preterm
   | PPattern    of loc*ident option*ident*prepattern list
 
-type ptop = loc * ident * prepattern list
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
-type prule      = pcontext * ptop * preterm
+type prule      = loc * pdecl list * ident * prepattern list * preterm
 
 (** {2 Terms/Patterns} *)
 
 type term = private
   | Kind                                (* Kind *)
-  | Type                                (* Type *)
-  | DB    of ident*int                  (* deBruijn *)
-  | Const of ident*ident                (* Global variable *)
-  | App   of term list   (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
-  | Lam   of ident*term*term            (* Lambda abstraction *)
-  | Pi    of ident option*term*term     (* Pi abstraction *)
-  | Meta  of int
+  | Type  of loc                        (* Type *)
+  | DB    of loc*ident*int              (* deBruijn *)
+  | Const of loc*ident*ident            (* Global variable *)
+  | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
+  | Lam   of loc*ident*term*term        (* Lambda abstraction *)
+  | Pi    of loc*ident option*term*term (* Pi abstraction *)
+  | Meta  of loc*int
 
 val mk_Kind     : term
-val mk_Type     : term
-val mk_DB       : ident -> int -> term
-val mk_Const    : ident -> ident -> term
-val mk_Lam      : ident -> term -> term -> term
-val mk_App      : term list -> term
-val mk_Pi       : ident option -> term -> term -> term
+val mk_Type     : loc -> term
+val mk_DB       : loc -> ident -> int -> term
+val mk_Const    : loc -> ident -> ident -> term
+val mk_Lam      : loc -> ident -> term -> term -> term
+val mk_App      : term -> term -> term list -> term
+val mk_Pi       : loc -> ident option -> term -> term -> term
 val mk_Unique   : unit -> term
-val mk_Meta     : int -> term
+val mk_Meta     : loc -> int -> term
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
 
 type pattern =
-  | Var         of ident*int
+  | Var         of loc*ident*int
+  | Pattern     of loc*ident*ident*pattern list
   | Brackets    of term
-  | Pattern     of ident*ident*pattern array
 
 val term_of_pattern : pattern -> term
 
@@ -123,11 +124,15 @@ type rule = {
         l:loc;
         ctx:context;
         id:ident;
-        args:pattern array;
+        args:pattern list;
         rhs:term; }
 
+type pattern2 =
+  | Var2         of ident*int
+  | Pattern2     of ident*ident*pattern2 array
+
 type rule2 =
-    { loc:loc ; pats:pattern array ; right:term ;
+    { loc:loc ; pats:pattern2 array ; right:term ;
       constraints:(term*term) list ; env_size:int ; }
 
 type dtree =
@@ -160,4 +165,4 @@ type command =
 
 type yes_no_maybe = Yes | No | Maybe
 type 'a option2 = None2 | DontKnow | Some2 of 'a
-type ('a,'b) sum = Success of 'a | Failure of 'b
+(*type ('a,'b) sum = Success of 'a | Failure of 'b*)

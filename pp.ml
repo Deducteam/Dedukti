@@ -10,12 +10,12 @@ let rec pp_pterm out = function
   | PreType _        -> output_string out "Type"
   | PreId (_,v)      -> pp_ident out v
   | PreQId (_,m,v)   -> fprintf out "%a.%a" pp_ident m pp_ident v
-  | PreApp (lst)     -> pp_list " " pp_pterm_wp  out lst
+  | PreApp (f,a,lst) -> pp_list " " pp_pterm_wp  out (f::a::lst)
   | PreLam (_,v,a,b) -> fprintf out "%a:%a => %a" pp_ident v pp_pterm_wp a pp_pterm b
-  | PrePi (o,a,b)    ->
+  | PrePi (_,o,a,b)    ->
       ( match o with
-          | None       -> fprintf out "%a -> %a" pp_pterm_wp a pp_pterm b
-          | Some (_,v) -> fprintf out "%a:%a -> %a" pp_ident v pp_pterm_wp a pp_pterm b )
+          | None   -> fprintf out "%a -> %a" pp_pterm_wp a pp_pterm b
+          | Some v -> fprintf out "%a:%a -> %a" pp_ident v pp_pterm_wp a pp_pterm b )
 
 and pp_pterm_wp out = function
   | PreType _ | PreId _ | PreQId _ as t  -> pp_pterm out t
@@ -40,34 +40,31 @@ let pp_const out (m,v) =
 
 let rec pp_term out = function
   | Kind                -> output_string out "Kind"
-  | Type                -> output_string out "Type"
-  | Meta n when !Global.debug_level > 0 -> fprintf out "?[%i]" n
-  | Meta n              -> output_string out "_"
-  | DB  (x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n 
-  | DB  (x,n)           -> pp_ident out x
-  | Const (m,v)         -> pp_const out (m,v)
-  | App args            -> pp_list " " pp_term_wp out args
-  | Lam (x,a,f)         -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
-  | Pi  (None,a,b)      -> fprintf out "%a -> %a" pp_term_wp a pp_term b
-  | Pi  (Some x,a,b)    -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
+  | Type _               -> output_string out "Type"
+  | Meta (_,n) when !Global.debug_level > 0 -> fprintf out "?[%i]" n
+  | Meta (_,n)              -> output_string out "_"
+  | DB  (_,x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n 
+  | DB  (_,x,n)           -> pp_ident out x
+  | Const (_,m,v)         -> pp_const out (m,v)
+  | App (f,a,args)      -> pp_list " " pp_term_wp out (f::a::args)
+  | Lam (_,x,a,f)         -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
+  | Pi  (_,None,a,b)      -> fprintf out "%a -> %a" pp_term_wp a pp_term b
+  | Pi  (_,Some x,a,b)    -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
 
 and pp_term_wp out = function
-  | Kind | Type  | DB _ | Const _ as t -> pp_term out t
+  | Kind | Type _ | DB _ | Const _ as t -> pp_term out t
   | t                                  -> fprintf out "(%a)" pp_term t
 
 let rec pp_pattern out = function
-  | Var (id,i)          ->
+  | Var (_,id,i)        ->
       if !Global.debug_level > 0 then fprintf out "%a[%i]" pp_ident id i
       else pp_ident out id
-  | Brackets t          -> fprintf out "{ %a }" pp_term t
-  | Pattern (m,v,pats)  ->
-      begin
-        if Array.length pats = 0 then fprintf out "%a" pp_const (m,v)
-        else fprintf out "%a %a" pp_const (m,v)
-               (pp_list " " pp_pattern_wp) (Array.to_list pats)
-      end
+  | Brackets t        -> fprintf out "{ %a }" pp_term t
+  | Pattern (_,m,v,[])  -> fprintf out "%a" pp_const (m,v)
+  | Pattern (_,m,v,pats) ->
+      fprintf out "%a %a" pp_const (m,v) (pp_list " " pp_pattern_wp) pats
 and pp_pattern_wp out = function
-  | Pattern (_,_,_) as p -> fprintf out "(%a)" pp_pattern p
+  | Pattern (_,_,_,_) as p -> fprintf out "(%a)" pp_pattern p
   | p -> pp_pattern out p
 
 let pp_context out ctx =
@@ -81,7 +78,7 @@ let pp_rule out r =
   let pp_decl out (id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
     fprintf out "[%a] %a --> %a"
       (pp_list "," pp_decl) r.ctx
-      pp_pattern (Pattern (!Global.name,r.id,r.args))
+      pp_pattern (Pattern (dloc,!Global.name,r.id,r.args))
       pp_term r.rhs
 
 let tab t = String.make (t*4) ' '

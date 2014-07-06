@@ -1,161 +1,108 @@
 open Types
 
-(* *** Type error messages *** *)
+           (* ********************************************* *)
 
-let mk_err_msg lc ctx pp_te te pp_exp exp pp_inf inf =
-  if ctx = [] then
-    Global.fail lc "Error while typing '%a'\nExpected: %a\nInferred: %a."
-      pp_te te pp_exp exp pp_inf inf
-  else
-    Global.fail lc "Error while \
-      typing '%a' in context:\n%a\nExpected: %a.\nInferred: %a."
-      pp_te te Pp.pp_context ctx pp_exp exp pp_inf inf
-(*
-let mk_err_rule lc ctx p =
-  if ctx = [] then Global.fail lc "Error while typing '%a'." Pp.pp_pattern p
-  else
-    Global.fail lc "Error while typing '%a' in context:\n%a\n."
-      Pp.pp_pattern p Pp.pp_context ctx
- *)
-let err_conv ctx te exp inf =
-  mk_err_msg (get_loc te) ctx Pp.pp_pterm te Pp.pp_term (Reduction.hnf exp)
-    Pp.pp_term (Reduction.hnf inf)
+let error_convertibility te ctx exp inf =
+  let lc = dloc (*FIXME*) in
+  Global.fail lc "Error while typing '%a' in context:\n%a.\nExpected: %a\nInferred: %a."
+      Pp.pp_term te Pp.pp_context ctx Pp.pp_term exp Pp.pp_term inf
 
-let err_conv_pat l ctx pat exp inf =
-  mk_err_msg l ctx Pp.pp_pattern pat Pp.pp_term exp Pp.pp_term inf
+let error_product te ctx inf =
+  let lc = dloc (*FIXME*) in
+  Global.fail lc "Error while typing '%a' in context:\n%a.\nExpected: a product type.\nInferred: %a."
+      Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
 
-let err_sort ctx te inf =
-  mk_err_msg (get_loc te) ctx Pp.pp_pterm te output_string "Kind or Type"
-    Pp.pp_term inf
+let error_not_a_sort te ctx inf =
+  let lc = dloc (*FIXME*) in
+  Global.fail lc "Error while typing '%a' in context:\n%a.\nExpected: Type or Kind.\nInferred: %a."
+      Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
 
-let err_topsort ctx te =
-  mk_err_msg (get_loc te) ctx Pp.pp_pterm te output_string "anything but Kind"
-    output_string "Kind"
+let error_kind te ctx =
+  let lc = dloc (*FIXME*) in
+  Global.fail lc "Error while typing '%a' in context:\n%a.\nExpected: anything but Kind.\nInferred: Kind."
+      Pp.pp_term te Pp.pp_context ctx
 
-let err_prod lc ctx te inf =
-  mk_err_msg lc ctx Pp.pp_term te output_string "a product type" Pp.pp_term inf
+let error_not_type te ctx inf =
+  let lc = dloc (*FIXME*) in
+  Global.fail lc "Error while typing '%a' in context:\n%a.\nExpected: Type.\nInferred: %a."
+      Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
 
-let err_pattern lc ctx p inf =
-  mk_err_msg lc ctx Pp.pp_pattern p output_string "a product type" Pp.pp_term inf
+           (* ********************************************* *)
 
-(* *** Monodirectional Type Inference for preterm *** *)
+let db_get_type ctx n =
+  try Subst.shift (n+1) (snd (List.nth ctx n))
+  with Failure _ -> assert false (*FIXME*)
 
-let get_type ctx id =
-  let rec aux n = function
-    | []                -> None
-    | (x,ty)::lst       ->
-        if ident_eq id x then Some ( n , Subst.shift (n+1) ty )
-        else aux (n+1) lst
-  in aux 0 ctx
-
-let rec infer (ctx:context) (te:preterm) : term*term =
+let rec infer_rec (ctx:context) (te:term)  : term =
   match te with
-    | PreType _                          -> ( mk_Type , mk_Kind )
-    | PreId (l,id)                       ->
-        ( match get_type ctx id with
-            | None              ->
-                ( mk_Const !Global.name id ,
-                  Env.get_type l !Global.name id )
-            | Some (n,ty)       -> ( mk_DB id n , ty ) )
-    | PreQId (l,md,id)                   ->
-        ( mk_Const md id , Env.get_type l md id )
-    | PreApp ( f::((_::_) as args))      ->
-        List.fold_left (infer_app (get_loc f) ctx) (infer ctx f) args
-    | PreApp _                           -> assert false
-    | PrePi (opt,a,b)                    ->
-        let a' = is_type ctx a in
-        let (ctx',x) = match opt with
-          | None              -> ( (empty,a')::ctx , None )
-          | Some (_,id)       -> ( (id,a')::ctx , Some id )
-        in
-          ( match infer ctx' b with
-              | ( b' , (Type|Kind as tb) )      -> ( mk_Pi x a' b' , tb )
-              | ( _ , tb )                      -> err_sort ctx' b tb )
-    | PreLam  (l,x,a,b)                         ->
-        let a' = is_type ctx a in
-        let ctx' = (x,a')::ctx in
-          ( match infer ctx' b with
-              | ( _ , Kind )    -> err_topsort ctx' b
-              | ( b' , ty  )    -> ( mk_Lam x a' b' , mk_Pi (Some x) a' ty ) )
+    | Kind -> Global.fail dloc "Kind is not typable."
+    | Type _ -> mk_Kind
+    | DB (_,_,n) -> db_get_type ctx n
+    | Const (l,md,id) -> Env.get_type l md id
+    | App (f,a,args) ->
+        List.fold_left (infer_rec_aux ctx) (infer_rec ctx f) (a::args)
+    | Pi (_,opt,a,b) ->
+        let x = match opt with None -> empty | Some x -> x in
+        let _ = is_type ctx a in
+        let ctx2 = (x,a)::ctx in
+          ( match infer_rec ctx2 b with
+              | (Type _|Kind as tb) -> tb
+              | ty_b -> error_not_a_sort b ctx2 ty_b )
+    | Lam  (_,x,a,b) ->
+        let _ = is_type ctx a in
+        let ctx2 = (x,a)::ctx in
+          ( match infer_rec ctx2 b with
+              | Kind -> error_kind b ctx2
+              | ty   -> mk_Pi dloc (Some x) a ty )
+    | Meta _ -> assert false
 
-and infer_app lc ctx (f,ty_f) u =
-  match Reduction.whnf ty_f , infer ctx u with
-    | ( Pi (_,a,b)  , (u',a') )  ->
-        if Reduction.are_convertible a a' then
-          ( mk_App [f;u'] , Subst.subst b u' )
-        else err_conv ctx u a a'
-    | ( t , _ )                 -> err_prod lc ctx f ty_f
+and infer_rec_aux ctx ty_f u =
+  match Reduction.whnf ty_f , infer_rec ctx u with
+    | ( Pi (_,_,a1,b) , a2 ) ->
+        if Reduction.are_convertible a1 a2 then Subst.subst b u
+        else error_convertibility u ctx a1 a2
+    | ( _ , _ ) -> error_product (mk_Type dloc) ctx ty_f (*FIXME*)
 
 and is_type ctx a =
-  match infer ctx a with
-    | ( a' ,Type )      -> a'
-    | ( a' , ty )       -> err_conv ctx a mk_Type ty
+  match infer_rec ctx a with
+    | Type _ -> ()
+    | ty_a -> error_not_type a ctx ty_a
 
-let of_list_rev = function
-    [] -> [||]
-  | hd::tl as l ->
-      let n = List.length l in
-      let a = Array.create n hd in
-      let rec fill i = function
-          [] -> a
-        | hd::tl -> Array.unsafe_set a (n-i) hd; fill (i+1) tl in
-        fill 2 tl
 
-let rec infer_pattern ctx = function
-  | PPattern   (l,opt,id,pargs) ->
-      begin
-        let ( is_var , md ) = match opt with
-          | Some md       -> ( None , md )
-          | None          -> ( get_type ctx id , !Global.name )
-        in
-          match is_var with
-            | Some (n,ty)       ->
-                if pargs = [] then ( Var(id,n) , ty )
-                else Global.fail l "The left-hand side of the rewrite rule cannot be a variable application."
-            | None              ->
-                let ty_id = Env.get_type l md id in
-                let (ty,args) =
-                  List.fold_left (infer_pattern_aux l ctx md id) (ty_id,[]) pargs in
-                  ( Pattern (md,id,of_list_rev args) , ty )
-      end
-  | PCondition pte              ->
-      let (te,ty) = infer ctx pte in
-        ( Brackets te , ty )
+(* ********************************************* *)
 
-and infer_pattern_aux l ctx md id (ty,args) parg =
-  match Reduction.whnf ty with
-    | Pi (_,a,b)        ->
-        let (arg,a') = infer_pattern ctx parg in
-          if Reduction.are_convertible a a' then
-            ( Subst.subst b (term_of_pattern arg), arg::args )
-          else
-            err_conv_pat l ctx arg a a'
-    | _                 ->
-        err_pattern l ctx (Pattern (md,id,of_list_rev args)) ty
+let infer pte =
+  let te = Scoping.scope_term [] pte in
+    ( te , infer_rec [] te )
 
-let infer_ptop ctx (l,id,args) =
-  match infer_pattern ctx (PPattern(l,None,id,args)) with
-    | Pattern (_,_,args), ty    -> (id,args,ty)
-    | Var _, _                  ->
-        Global.fail l "The Left-hand side of a rewrite rule cannot be a variable."
-    | Brackets _ , _            -> assert false
+let check pte pty =
+  let te = Scoping.scope_term [] pte in
+  let ty = Scoping.scope_term [] pty in
+  let _  =  infer_rec [] ty in
+  let ty2 = infer_rec [] te in
+    if (Reduction.are_convertible ty ty2) then (te,ty)
+    else error_convertibility te [] ty ty2
 
-let check_term ctx te exp =
-  let (te',inf) = infer ctx te in
-    if (Reduction.are_convertible exp inf) then te'
-    else err_conv ctx te exp inf
+let is_a_type2 ctx pty =
+  let ty = Scoping.scope_term ctx pty in
+    match infer_rec ctx ty with
+      | Type _ | Kind -> ty
+      | s -> error_not_a_sort ty ctx s
 
-let check_type ctx pty =
-  match infer ctx pty with
-    | ( ty , Kind ) | ( ty , Type )   -> ty
-    | ( _ , s )                         -> err_sort ctx pty s
+let is_a_type = is_a_type2 []
 
 let check_context =
-  List.fold_left ( fun ctx (_,x,ty) -> (x,check_type ctx ty)::ctx ) []
+  List.fold_left ( fun ctx (_,x,ty) -> (x,is_a_type2 ctx ty)::ctx ) []
 
-let check_rule (pctx,ple,pri:prule) : rule =
-  let (l,_,_) = ple in
+let check_rule (l,pctx,id,pargs,pri) =
   let ctx = check_context pctx in
-  let (id,args,ty) = infer_ptop ctx ple in
-  let rhs = check_term ctx pri ty in
-    { l=l ; ctx=ctx ; id=id ; args=args ; rhs=rhs ; }
+  let pat = Scoping.scope_pattern ctx (PPattern(l,None,id,pargs)) in
+  let args = match pat with
+    | Pattern (_,_,_,args) -> args
+    | _ -> assert false (*FIXME*) in
+  let ty1 = infer_rec ctx (term_of_pattern pat) in
+  let rhs = Scoping.scope_term ctx pri in
+  let ty2 = infer_rec ctx rhs in
+    if (Reduction.are_convertible ty1 ty2) then
+      { l=l ; ctx=ctx ; id=id ; args=args ; rhs=rhs }
+    else error_convertibility rhs ctx ty1 ty2
