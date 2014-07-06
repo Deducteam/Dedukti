@@ -55,25 +55,13 @@ exception EndOfFile
 
 (** {2 PreTerms/PrePatterns} *)
 
-type preterm = private
+type preterm =
   | PreType of loc
   | PreId   of loc * ident
   | PreQId  of loc * ident * ident
   | PreApp  of preterm * preterm * preterm list
   | PreLam  of loc * ident * preterm * preterm
   | PrePi   of loc * ident option * preterm * preterm
-
-val mk_pre_type         : loc -> preterm
-val mk_pre_id           : loc -> ident -> preterm
-val mk_pre_qid          : loc -> ident -> ident -> preterm
-val mk_pre_lam          : loc -> ident -> preterm -> preterm -> preterm
-val mk_pre_app          : preterm -> preterm -> preterm list -> preterm
-val mk_pre_arrow        : preterm -> preterm -> preterm
-val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
-
-val mk_pre_from_list    : preterm list -> preterm
-
-val get_loc : preterm -> loc
 
 type prepattern =
   | PCondition  of preterm
@@ -94,6 +82,8 @@ type term = private
   | Lam   of loc*ident*term*term        (* Lambda abstraction *)
   | Pi    of loc*ident option*term*term (* Pi abstraction *)
   | Meta  of loc*int
+
+val get_loc : term -> loc
 
 val mk_Kind     : term
 val mk_Type     : loc -> term
@@ -162,7 +152,7 @@ type command =
   | Other of string*preterm list
 
 (** {2 Misc} *)
-
+(* FIXME
 type yes_no_maybe = Yes | No | Maybe
 type 'a option2 = None2 | DontKnow | Some2 of 'a
-(*type ('a,'b) sum = Success of 'a | Failure of 'b*)
+type ('a,'b) sum = Success of 'a | Failure of 'b*)

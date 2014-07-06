@@ -38,39 +38,39 @@ let mk_rules (prs:prule list) : unit =
     List.iter (fun r -> Global.debug_no_loc 1 "%a" Pp.pp_rule r ) rs ;
     Env.add_rw rs
 
-let mk_command lc _ = assert false (*function FIXME
+let mk_command lc = function
   | Whnf pte          ->
-      let (te,_) = scope_and_infer pte in
+      let (te,_) = Inference.infer pte in
         Pp.pp_term stdout (Reduction.whnf te)
   | Hnf pte           ->
-      let (te,_) = scope_and_infer pte in
+      let (te,_) = Inference.infer pte in
         Pp.pp_term stdout (Reduction.hnf te)
   | Snf pte           ->
-      let (te,_) = scope_and_infer pte in
+      let (te,_) = Inference.infer pte in
         Pp.pp_term stdout (Reduction.snf te)
   | OneStep pte       ->
-      let (te,_) = scope_and_infer pte in
+      let (te,_) = Inference.infer pte in
         ( match Reduction.one_step te with
             | None    -> Global.print "Already in weak head normal form."
             | Some t' -> Pp.pp_term stdout t')
   | Conv (pte1,pte2)  ->
-      let (t1,_) = scope_and_infer pte1 in
-      let (t2,_) = scope_and_infer pte2 in
+      let (t1,_) = Inference.infer pte1 in
+      let (t2,_) = Inference.infer pte2 in
         if Reduction.are_convertible t1 t2 then Global.print "OK"
         else Global.print "KO"
-  | Check (pte1,pte2) ->
-      let (t1,ty1) = scope_and_infer pte1 in
-      let ty2 = check_type [] pte2 in
-        if Reduction.are_convertible ty1 ty2 then Global.print "OK"
+  | Check (pte,pty) ->
+      let (ty,_)   = Inference.infer pty in
+      let (te,ty2) = Inference.infer pte in
+        if Reduction.are_convertible ty ty2 then Global.print "OK"
         else Global.print "KO"
   | Infer pte         ->
-      let (ty,te) = scope_and_infer pte in Pp.pp_term stdout ty
+      let (ty,te) = Inference.infer pte in Pp.pp_term stdout ty
   | Gdt (m,v)         ->
       ( match Env.get_infos lc m v with
           | Decl_rw (_,_,i,g)   -> ( Pp.pp_rw stdout (m,v,i,g) ; print_newline () )
           | _                   -> Global.print "No GDT." )
   | Print str         -> pp_ident stdout str
-  | Other (cmd,_)     -> Global.debug 1 lc "Unknown command '%s'." cmd *)
+  | Other (cmd,_)     -> Global.debug 1 lc "Unknown command '%s'." cmd
 
 let mk_ending _ =
   Env.export_and_clear ()

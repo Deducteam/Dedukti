@@ -44,7 +44,6 @@ let rec psubst (nargs,args:int*term list) (k:int) (t:term) =
 
 let subst t u = psubst (1,[u]) 0 t
 
-                  (*FIXME*)
 let rec subst_q (q,u:int*term) (k:int) = function
   | DB (_,_,n) when (n = q+k)                      -> shift k u
   | Type _ | Kind | Const _ | DB _ | Meta _ as t -> t

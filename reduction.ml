@@ -323,29 +323,29 @@ let bounded_whnf k t =
     | None      -> None
     | Some s    -> Some ( cbn_term_of_state s )
 
+ *)
 (* One-Step Reduction *)
 
 let rec state_one_step = function
   (* Weak normal terms *)
-  | ( _ , _ , Type , s )
+  | ( _ , _ , Type _ , s )
   | ( _ , _ , Kind , s )
   | ( _ , _ , Pi _ , s )                      -> None
   | ( _ , _ , Lam _ , [] )                    -> None
-  | ( k , _ , DB (_,n) , _ ) when (n>=k)      -> None
+  | ( k , _ , DB (_,_,n) , _ ) when (n>=k)      -> None
   (* Bound variable (to be substitute) *)
-  | ( k , e , DB (_,n) , s ) (*when n<k*)     ->
+  | ( k , e , DB (_,_,n) , s ) (*when n<k*)     ->
       Some ( 0 , [] , Lazy.force (List.nth e n) , s )
   (* Beta redex *)
-  | ( k , e , Lam (_,_,t) , p::s )            ->
+  | ( k , e , Lam (_,_,_,t) , p::s )            ->
       Some ( k+1 , (lazy (cbn_term_of_state p))::e , t , s )
   (* Application *)
-  | ( _ , _ , App ([]|[_]) , _ )              -> assert false
-  | ( k , e , App (he::tl) , s )              ->
-      let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
-        state_one_step ( k , e , he , tl' @ s )
+  | ( k , e , App (f,a,args) , s )              ->
+      let tl' = List.map ( fun t -> (k,e,t,[]) ) (a::args) in
+        state_one_step ( k , e , f , tl' @ s )
   (* Global variable*)
-  | ( _ , _ , Const (m,_), _ ) when m==empty  -> None
-  | ( _ , _ , Const (m,v) , s )               ->
+  | ( _ , _ , Const (_,m,_), _ ) when m==empty  -> None
+  | ( _ , _ , Const (_,m,v) , s )               ->
       begin
         match Env.get_infos dloc m v with
           | Def (te,_)          -> Some ( 0 , [] , te , s )
@@ -361,9 +361,8 @@ let rec state_one_step = function
               )
       end
   | ( _ , _ , Meta _ , _ )                    -> assert false
- *)
-let one_step t = assert false (*FIXME
+
+let one_step t =
   match state_one_step (0,[],t,[]) with
     | None      -> None
     | Some st   -> Some ( cbn_term_of_state st )
-                               *)

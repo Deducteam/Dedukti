@@ -12,13 +12,24 @@
     open Types
     open M
         (*FIXME use non_empty_separeted list and co*)
-    let rec mk_lam te = function
-        | [] -> te
-        | (l,x,ty)::tl -> mk_lam (mk_pre_lam l x ty te) tl
 
-    let rec mk_pi te = function
+    let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
         | [] -> te
-        | (l,x,ty)::tl -> mk_pi (mk_pre_pi l x ty te) tl
+        | (l,x,ty)::tl -> mk_lam (PreLam(l,x,ty,te)) tl
+
+    let rec mk_pi (te:preterm) : (loc*ident*preterm) list -> preterm = function
+        | [] -> te
+        | (l,x,ty)::tl -> mk_pi (PrePi(l,Some x,ty,te)) tl
+
+    let rec preterm_loc = function
+        | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
+        | PrePi   (l,_,_,_) -> l
+        | PreApp (f,_,_) -> preterm_loc f
+
+    let mk_pre_from_list = function
+        | [] -> assert false
+        | [t] -> t
+        | f::a1::args -> PreApp (f,a1,args)
 %}
 
 %token EOF
@@ -150,13 +161,13 @@ pattern         : ID
                 { PCondition $2 }
 
 sterm           : QID
-                { let (l,md,id)=$1 in mk_pre_qid l md id }
+                { let (l,md,id)=$1 in PreQId(l,md,id) }
                 | ID
-                { mk_pre_id (fst $1) (snd $1) }
+                { PreId (fst $1,snd $1) }
                 | LEFTPAR term RIGHTPAR
                 { $2 }
                 | TYPE
-                { mk_pre_type $1 }
+                { PreType $1 }
 
 app             : sterm         { [$1] }
                 | sterm app     { $1::$2 }
@@ -164,11 +175,11 @@ app             : sterm         { [$1] }
 term            : app
                 { mk_pre_from_list $1 }
                 | ID COLON app ARROW term
-                { mk_pre_pi (fst $1) (snd $1) (mk_pre_from_list $3) $5 }
+                { PrePi (fst $1,Some (snd $1),mk_pre_from_list $3,$5) }
                 | term ARROW term
-                { mk_pre_arrow $1 $3 }
+                { PrePi (preterm_loc $1,None,$1,$3) }
                 | ID FATARROW term
                 { failwith "Not implemented (untyped lambda)." }
                 | ID COLON app FATARROW term
-                { mk_pre_lam (fst $1) (snd $1) (mk_pre_from_list $3) $5}
+                { PreLam (fst $1,snd $1,mk_pre_from_list $3,$5) }
 %%

@@ -61,7 +61,7 @@ exception EndOfFile
 
 (* *** Pseudo Terms *** *)
 
-type preterm = (*FIXME need not to be private*)
+type preterm =
   | PreType of loc
   | PreId   of loc * ident
   | PreQId  of loc * ident * ident
@@ -72,24 +72,6 @@ type preterm = (*FIXME need not to be private*)
 type prepattern =
   | PCondition  of preterm
   | PPattern    of loc*ident option*ident*prepattern list
-
-let rec get_loc = function
-  | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
-  | PrePi   (l,_,_,_) -> l
-  | PreApp (f,_,_) -> get_loc f
-
-let mk_pre_type lc          = PreType lc
-let mk_pre_id lc id         = PreId (lc,id)
-let mk_pre_qid lc md id     = PreQId (lc,md,id)
-let mk_pre_lam lc x ty te   = PreLam (lc,x,ty,te)
-let mk_pre_arrow a b        = PrePi (get_loc a,None,a,b)
-let mk_pre_pi lc x a b      = PrePi (lc,Some x,a,b)
-let mk_pre_app f a1 args    = PreApp (f,a1,args)
-
-let mk_pre_from_list = function
-  | [] -> assert false
-  | [t] -> t
-  | f::a1::args -> PreApp (f,a1,args)
 
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
@@ -106,6 +88,12 @@ type term =
   | Lam   of loc*ident*term*term        (* Lambda abstraction *)
   | Pi    of loc*ident option*term*term (* Pi abstraction *)
   | Meta  of loc*int
+
+let rec get_loc = function
+  | Kind -> dloc
+  | Type l | DB (l,_,_) | Const (l,_,_)
+  | Lam (l,_,_,_) | Pi (l,_,_,_) | Meta (l,_) -> l
+  | App (f,_,_) -> get_loc f
 
 let mk_Kind             = Kind
 let mk_Type l           = Type l
@@ -181,11 +169,11 @@ type rw_infos =
   | Decl_rw of term*rule2 list*int*dtree
 
 (* Misc *)
-
+(*
 type yes_no_maybe = Yes | No | Maybe
 type 'a option2 = None2 | DontKnow | Some2 of 'a
 type ('a,'b) sum = Success of 'a | Failure of 'b
-
+ *)
 (* Commands *)
 
 type command =
