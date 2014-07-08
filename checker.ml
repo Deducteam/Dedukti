@@ -69,7 +69,7 @@ let mk_command lc = function
   | ListNonLinearRules-> Rules.list_non_linear_rules ()
   | ListTypeLevelRules-> Rules.list_type_level_rules ()
   | ListPiRules-> Rules.list_pi_rules ()
-  | ExportToTPDB -> failwith "Not Implemented (TPDB export)." (*TODO*)
+  | ExportToTPDB -> Tpdb.export stdout (*FIXME*)
   | Gdt (m,v)         ->
       ( match Env.get_infos lc m v with
           | Decl_rw (_,_,i,g)   -> ( Pp.pp_rw stdout (m,v,i,g) ; print_newline () )
