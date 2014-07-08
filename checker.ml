@@ -65,6 +65,11 @@ let mk_command lc = function
         else Global.print "KO"
   | Infer pte         ->
       let (ty,te) = Inference.infer pte in Pp.pp_term stdout ty
+  | ListRules -> Rules.list_rules ()
+  | ListNonLinearRules-> Rules.list_non_linear_rules ()
+  | ListTypeLevelRules-> Rules.list_type_level_rules ()
+  | ListPiRules-> Rules.list_pi_rules ()
+  | ExportToTPDB -> failwith "Not Implemented (TPDB export)." (*TODO*)
   | Gdt (m,v)         ->
       ( match Env.get_infos lc m v with
           | Decl_rw (_,_,i,g)   -> ( Pp.pp_rw stdout (m,v,i,g) ; print_newline () )

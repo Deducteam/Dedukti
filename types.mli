@@ -49,6 +49,11 @@ type token =
   | CHECK       of loc
   | PRINT       of loc
   | GDT         of loc
+  | LISTRULES   of loc
+  | LISTNONLINEAR       of loc
+  | LISTTYPELEVEL       of loc
+  | LISTPIRULES of loc
+  | TPDB        of loc
   | OTHER       of ( loc * string )
 
 exception EndOfFile
@@ -113,18 +118,11 @@ type context = ( ident * term ) list
 type rule = {
         l:loc;
         ctx:context;
+        md:ident;
         id:ident;
         args:pattern list;
         rhs:term; }
-(*
-type pattern2 =
-  | Var2         of ident*int
-  | Pattern2     of ident*ident*pattern2 array
 
-type rule2 =
-    { loc:loc ; pats:pattern2 array ; right:term ;
-      constraints:(term*term) list ; env_size:int ; }
- *)
 type dtree =
   | Switch      of int * (int*ident*ident*dtree) list * dtree option
   | Test        of (term*term) list * term * dtree option
@@ -146,6 +144,12 @@ type command =
   (*Typing*)
   | Check of preterm*preterm
   | Infer of preterm
+  (*Rewriting*)
+  | ListRules
+  | ListNonLinearRules
+  | ListTypeLevelRules
+  | ListPiRules
+  | ExportToTPDB
   (* Misc *)
   | Gdt of ident*ident
   | Print of ident

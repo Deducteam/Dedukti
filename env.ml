@@ -86,3 +86,14 @@ let add_rw = function
       let env = H.find envs !Global.name in
       let rwi = H.find env r.id in
         H.add env r.id (Matching.add_rules rwi rs)
+
+(* ***** *)
+
+let rules_iter f =
+  H.iter (
+    fun _ ht -> H.iter (
+      fun _ infos ->
+        match infos with
+          | Decl_rw (_,rs,_,_) -> List.iter f rs
+          | _ -> ()
+    ) ht ) envs

@@ -78,7 +78,7 @@ let pp_rule out r =
   let pp_decl out (id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
     fprintf out "[%a] %a --> %a"
       (pp_list "," pp_decl) r.ctx
-      pp_pattern (Pattern (dloc,!Global.name,r.id,r.args))
+      pp_pattern (Pattern (dloc,r.md,r.id,r.args))
       pp_term r.rhs
 
 let tab t = String.make (t*4) ' '

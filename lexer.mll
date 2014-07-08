@@ -45,6 +45,11 @@ rule token = parse
   | "#CHECK"    { CHECK ( get_loc lexbuf ) }
   | "#PRINT"    { PRINT ( get_loc lexbuf ) }
   | "#GDT"      { GDT ( get_loc lexbuf ) }
+  | "#LISTRULES"     { LISTRULES ( get_loc lexbuf ) }
+  | "#LISTNONLINEAR" { LISTNONLINEAR ( get_loc lexbuf ) }
+  | "#LISTTYPELEVEL" { LISTTYPELEVEL ( get_loc lexbuf ) }
+  | "#LISTPIRULES"   { LISTPIRULES ( get_loc lexbuf ) }
+  | "#TPDB"      { TPDB ( get_loc lexbuf ) }
   | '#' (capital as cmd)
   { OTHER (get_loc lexbuf, cmd) }
   | modname as md '.' (ident as id)

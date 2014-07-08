@@ -106,5 +106,5 @@ let check_rule (l,pctx,id,pargs,pri) =
   let rhs = Scoping.scope_term ctx pri in
   let ty2 = infer_rec ctx rhs in
     if (Reduction.are_convertible ty1 ty2) then
-      { l=l ; ctx=ctx ; id=id ; args=args ; rhs=rhs }
+      { l=l ; ctx=ctx ; md= !Global.name; id=id ; args=args ; rhs=rhs }
     else error_convertibility rhs ctx ty1 ty2
