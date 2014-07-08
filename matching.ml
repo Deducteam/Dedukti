@@ -1,66 +1,90 @@
 open Types
 
-  (* TODO a revoir *)
 
-(* rules to matrix *)
+(* ******************* Types Definition ********************** *)
 
+type pattern2 =
+  | Var2         of ident*int
+  | Pattern2     of ident*ident*pattern2 array
+
+type rule2 =
+    { loc:loc ; pats:pattern2 array ; right:term ;
+      constraints:(term*term) list ; env_size:int ; }
+
+(* a matrix is a non empty list of rule2
+ * The length of the array args is the same for every rule
+ *)
 type matrix = rule2 list (* never empty *)
 
+let check_matrix (mx:matrix) : unit =
+  match mx with
+    | [] -> failwith "ill-formed matrix (empty list)."
+    | r::lst ->
+        List.iter (
+          fun r' ->
+            if Array.length r.pats != Array.length r'.pats then
+              failwith "ill_formed matrix (different numbers of arguments)."
+        ) lst
+
+
+(* ******************* From rules to matrix ********************** *)
+
+(* The goal of this transformation make the patterns linear
+* and to record the non-linearity and conditionnal rewriting
+* constraints*)
 let br = hstring "{_}"
 
-let rec gc_pat linearity_check env_size cstr : pattern -> int*(term*term)list*pattern2 =
-  function
-  | Var (_,s,n) ->
-      begin
-(*         assert ( n < Array.length linearity_check ) ; *)
-        if linearity_check.(n) then
-          ( env_size+1 , (mk_DB dloc s n,mk_DB dloc s env_size)::cstr , Var2(s,env_size) )
-        else ( linearity_check.(n) <- true ; ( env_size , cstr , Var2(s,n) ) )
-      end
-  | Pattern (_,m,v,args)  ->
-      begin
-        let dummy = Var2 (empty,0) in
-        let args2 = Array.create (List.length args) dummy in
-        let ( _ , env_size2 , cstr2 ) =
-          List.fold_left (gc_arr linearity_check args2) (0,env_size,cstr) args in
-          ( env_size2 , cstr2 , Pattern2(m,v,args2) )
-      end
-  | Brackets t          ->
-      ( env_size+1 , (mk_DB dloc br env_size,t)::cstr , Var2(br,env_size) )
+let to_rule2 (r:rule) : rule2 =
+  let esize = ref (List.length r.ctx) in
+  let constraints = ref [] in
+  let seen = Array.create !esize false in
+  let rec linearize = function
+    | Var (l,x,n) ->
+        if seen.(n) then
+          begin
+            let fresh = !esize in
+              incr esize ;
+              constraints := (mk_DB l x fresh,mk_DB l x n)::(!constraints) ;
+              Var2(x,fresh)
+          end
+        else ( seen.(n) <- true ; Var2(x,n) )
+    | Brackets t ->
+        begin
+          let fresh = !esize in
+            incr esize ;
+            constraints := (mk_DB dloc br fresh,t)::(!constraints) ;
+            Var2(br,fresh)
+        end
+    | Pattern (_,m,v,args) ->
+        Pattern2(m,v,Array.of_list (List.map linearize args))
+  in
+  let args = List.map linearize r.args in
+    { loc=r.l ; pats=Array.of_list args ; right=r.rhs ;
+      constraints= !constraints ; env_size= !esize ; }
 
-and gc_arr linearity_check args2 (i,env_size,cstr) pat =
-(*   assert ( i < Array.length args2 ) ; *)
-  let (env_size2,cstr2,pat2) = gc_pat linearity_check env_size cstr pat in
-    args2.(i) <- pat2 ; ( i+1 , env_size2 , cstr2 )
+(* On contruit une matrice à partir d'une liste non vide de regles de réécriture
+ * On vérifie que toutes les régles correspondent à un même symbole de tête et
+ * à une même arité *)
+let mk_matrix : rule list -> int * matrix = function
+  | [] -> assert false
+  | r1::rs ->
+      let r1' = to_rule2 r1 in
+      let n = Array.length r1'.pats in
+      let rs' =
+        List.map (
+          fun r2 ->
+              if not (ident_eq r1.id r2.id) then assert false (*FIXME*)
+              else
+                let r2' = to_rule2 r2 in
+                  if n != Array.length r2'.pats then assert false (*FIXME*)
+(*Global.fail r.l "All the rewrite rules for \
+        the symbol '%a' should have the same arity." pp_ident r.id*)
+                  else r2'
+        ) rs in
+        ( n , r1'::rs' )
 
-let get_constraints env_size (pats:pattern list) : int * pattern2 array * (term*term) list =
-  let dummy = Var2 (empty,0) in
-  let args2 = Array.create (List.length pats) dummy in
-  let linearity_check = Array.create env_size false in
-  let ( _ , env_size2 , cstr ) =
-    List.fold_left (gc_arr linearity_check args2) (0,env_size,[]) pats in
-    ( env_size2 , args2 , cstr )
-
-let to_rule2 n (r:rule) : rule2 =
-  let env_size = List.length r.ctx in
-  let (env_size2,args2,cstr) = get_constraints env_size r.args in
-    if Array.length args2 = n then
-        { loc=r.l ; pats=args2 ; right=r.rhs ;
-          constraints=cstr ; env_size=env_size2 ; }
-    else
-      Global.fail r.l "All the rewrite rules for \
-        the symbol '%a' should have the same arity." pp_ident r.id
-
-let mk_matrix (mx:matrix) (rs:rule list) =
-  let n = match mx, rs with
-    | r::_, _   -> Array.length r.pats
-    | _, r::_   -> List.length r.args
-    | _, _      -> assert false in
-  let rs2 = List.map (to_rule2 n) rs in
-    ( n , mx@rs2 )
-
-(* Specialization/Partition *)
-
+(* ******************* Matrix manipulation ********************** *)
+(* FIXME revoir cette partie*)
 let _v = hstring "_"
 let mk_var_lst inf sup =
   let rec aux i =
@@ -143,7 +167,7 @@ let partition (c:int) (mx:matrix) : (int*ident*ident*matrix) list * matrix =
   let def    = default c mx in
     ( cases , def )
 
-(* Reordering *)
+(* ******************* From matrix to dtree ********************** *)
 
 let reorder l (ord:int array) (t:term) : term =
   let rec aux k = function
@@ -169,17 +193,17 @@ let get_order (l:rule2) : int array =
       ) l.pats ;
     ord
 
-(* rules to dtree *)
-
-let choose_col (tab:pattern2 array) : int option =
+(* Give the index of the first non variable column *)
+let choose_col (line:pattern2 array) : int option =
   let rec aux i =
-    if i < Array.length tab then
-      ( match tab.(i) with
-        | Pattern2 (m,v,args)    -> Some i
-        | _                     -> aux (i+1) )
+    if i < Array.length line then
+      ( match line.(i) with
+        | Pattern2 (_,_,_) -> Some i
+        | Var2 (_,_) -> aux (i+1) )
     else None
   in aux 0
 
+(* Construct a decision tree out of a matrix *)
 let rec to_dtree (mx:matrix) : dtree =
   let ( f_col , tail ) = match mx with f::tl -> (f,tl) | _ -> assert false in
     match choose_col f_col.pats with
@@ -211,16 +235,16 @@ let rec to_dtree (mx:matrix) : dtree =
               Switch ( c , List.rev_map aux mx_cases , def )
           end
 
-(* Entry *)
+(* ******************* Entry ********************** *)
 
-let add_rules (rwi:rw_infos) (rs:rule list) : rw_infos =
-  let ( ty , mx0 ) = match rwi with
-    | Decl ty                   -> ( ty , [] )
-    | Decl_rw (ty,mx,_,_)       -> ( ty , mx )
+let add_rules (rwi:rw_infos) (rs:rule list (*non empty*) ) : rw_infos =
+  let ( ty , rules ) = match rwi with
+    | Decl ty                   -> ( ty , rs )
+    | Decl_rw (ty,mx,_,_)       -> ( ty , mx@rs )
     | Def (_,_)                 ->
         let r = match rs with r::_ -> r | _ -> assert false in
           Global.fail r.l "Cannot add rewrite rules for \
             the symbol '%a' since it is a defined symbol." pp_ident r.id
   in
-  let ( n , mx ) = mk_matrix mx0 rs in
-    Decl_rw ( ty, mx , n , to_dtree mx )
+  let ( n , mx ) = mk_matrix rules in
+    Decl_rw ( ty, rules , n , to_dtree mx )

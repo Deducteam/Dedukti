@@ -116,7 +116,7 @@ type rule = {
         id:ident;
         args:pattern list;
         rhs:term; }
-
+(*
 type pattern2 =
   | Var2         of ident*int
   | Pattern2     of ident*ident*pattern2 array
@@ -124,7 +124,7 @@ type pattern2 =
 type rule2 =
     { loc:loc ; pats:pattern2 array ; right:term ;
       constraints:(term*term) list ; env_size:int ; }
-
+ *)
 type dtree =
   | Switch      of int * (int*ident*ident*dtree) list * dtree option
   | Test        of (term*term) list * term * dtree option
@@ -132,7 +132,7 @@ type dtree =
 type rw_infos =
   | Decl    of term
   | Def     of term*term
-  | Decl_rw of term*rule2 list*int*dtree
+  | Decl_rw of term*rule list*int*dtree
 
 (** {2 Commands} *)
 
@@ -150,9 +150,3 @@ type command =
   | Gdt of ident*ident
   | Print of ident
   | Other of string*preterm list
-
-(** {2 Misc} *)
-(* FIXME
-type yes_no_maybe = Yes | No | Maybe
-type 'a option2 = None2 | DontKnow | Some2 of 'a
-type ('a,'b) sum = Success of 'a | Failure of 'b*)
