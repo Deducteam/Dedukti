@@ -77,6 +77,7 @@ type preterm =
 type prepattern =
   | PCondition  of preterm
   | PPattern    of loc*ident option*ident*prepattern list
+  | PJoker       of loc
 
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
@@ -134,18 +135,19 @@ let rec term_eq t1 t2 =
 
 (* *** Rewrite Rules *** *)
 
-type pattern = (*FIXME ajouter Joker*)
+type pattern =
   | Var         of loc*ident*int
   | Pattern     of loc*ident*ident*pattern list
   | Brackets    of term
-
+  | Joker       of loc*int
+(*
 let rec term_of_pattern = function
   | Var (l,id,n) -> DB (l,id,n)
   | Brackets t -> t
   | Pattern (l,md,id,[]) -> Const (l,md,id)
   | Pattern (l,md,id,a::args) ->
       mk_App (Const (l,md,id)) (term_of_pattern a) (List.map term_of_pattern args)
-
+ *)
 type top = ident*pattern array
 type context = ( ident * term ) list
 

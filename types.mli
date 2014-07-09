@@ -71,6 +71,7 @@ type preterm =
 type prepattern =
   | PCondition  of preterm
   | PPattern    of loc*ident option*ident*prepattern list
+  | PJoker      of loc
 
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
@@ -107,9 +108,10 @@ type pattern =
   | Var         of loc*ident*int
   | Pattern     of loc*ident*ident*pattern list
   | Brackets    of term
-
+  | Joker       of loc*int
+(*
 val term_of_pattern : pattern -> term
-
+ *)
 type top = ident*pattern array
 type context = ( ident * term ) list
 

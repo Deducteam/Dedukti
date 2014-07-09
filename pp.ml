@@ -30,6 +30,7 @@ let rec pp_ppattern out = function
   | PPattern (_,md,id,lst)      ->
       fprintf out "%a %a" pp_pconst (md,id) (pp_list " " pp_ppattern) lst
   | PCondition pte              -> fprintf out "{ %a }" pp_pterm pte
+  | PJoker _                    -> fprintf out "_"
 and pp_ppattern_wp out = function
   | PPattern (_,_,_,_::_) as p  -> fprintf out "(%a)" pp_ppattern p
   | p                           -> pp_ppattern out p
@@ -43,7 +44,7 @@ let rec pp_term out = function
   | Type _               -> output_string out "Type"
   | Meta (_,n) when !Global.debug_level > 0 -> fprintf out "?[%i]" n
   | Meta (_,n)              -> output_string out "_"
-  | DB  (_,x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n 
+  | DB  (_,x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n
   | DB  (_,x,n)           -> pp_ident out x
   | Const (_,m,v)         -> pp_const out (m,v)
   | App (f,a,args)      -> pp_list " " pp_term_wp out (f::a::args)
@@ -63,6 +64,7 @@ let rec pp_pattern out = function
   | Pattern (_,m,v,[])  -> fprintf out "%a" pp_const (m,v)
   | Pattern (_,m,v,pats) ->
       fprintf out "%a %a" pp_const (m,v) (pp_list " " pp_pattern_wp) pats
+  | Joker _                    -> fprintf out "_"
 and pp_pattern_wp out = function
   | Pattern (_,_,_,_) as p -> fprintf out "(%a)" pp_pattern p
   | p -> pp_pattern out p

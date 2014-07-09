@@ -33,6 +33,7 @@ let check_matrix (mx:matrix) : unit =
 * and to record the non-linearity and conditionnal rewriting
 * constraints*)
 let br = hstring "{_}"
+let un = hstring "_"
 
 let to_rule2 (r:rule) : rule2 =
   let esize = ref (List.length r.ctx) in
@@ -57,6 +58,12 @@ let to_rule2 (r:rule) : rule2 =
         end
     | Pattern (_,m,v,args) ->
         Pattern2(m,v,Array.of_list (List.map linearize args))
+    | Joker (l,_) ->
+        begin
+          let fresh = !esize in
+            incr esize ;
+            Var2(un,fresh)
+        end
   in
   let args = List.map linearize r.args in
     { loc=r.l ; pats=Array.of_list args ; right=r.rhs ;
@@ -73,12 +80,14 @@ let mk_matrix : rule list -> int * matrix = function
       let rs' =
         List.map (
           fun r2 ->
-              if not (ident_eq r1.id r2.id) then assert false (*FIXME*)
+              if not (ident_eq r1.id r2.id) then
+                Global.fail r2.l "Unexpected head symbol '%a' \
+                  (expected '%a')." pp_ident r2.id pp_ident r1.id
               else
                 let r2' = to_rule2 r2 in
-                  if n != Array.length r2'.pats then assert false (*FIXME*)
-(*Global.fail r.l "All the rewrite rules for \
-        the symbol '%a' should have the same arity." pp_ident r.id*)
+                  if n != Array.length r2'.pats then
+                    Global.fail r2.l "All the rewrite rules for \
+                      the symbol '%a' should have the same arity." pp_ident r1.id
                   else r2'
         ) rs in
         ( n , r1'::rs' )

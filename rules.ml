@@ -6,6 +6,7 @@ let is_linear r =
     | Var (_,_,n) -> if seen.(n) then false else ( seen.(n) <- true ; true )
     | Pattern (_,_,_,args) -> List.for_all aux args
     | Brackets _ -> false
+    | Joker _ -> true
   in
     List.for_all aux r.args
 

@@ -148,6 +148,7 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
                         | None          -> false
                         | Some lst'     -> state_conv lst'
                     )
+                (*FIXME should we look for conv a a' ?*)
                 | ( k , e , Lam (_,_,a,f) , s ) , ( k' , e' , Lam (_,_,a',f') , s' )
                 | ( k , e , Pi  (_,_,a,f) , s ) , ( k' , e' , Pi  (_,_,a',f') , s' ) ->
                     let arg = Lazy.lazy_from_val (mk_Unique ()) in

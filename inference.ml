@@ -72,6 +72,38 @@ and is_type ctx a =
 
 (* ********************************************* *)
 
+let underscore = hstring "_"
+
+let rec t_of_p = function
+  | Var (l,id,n) -> mk_DB l id n
+  | Joker (l,n) -> mk_DB l underscore n
+  | Brackets t -> t
+  | Pattern (l,md,id,[]) -> mk_Const l md id
+  | Pattern (l,md,id,a::args) ->
+      mk_App (mk_Const l md id) (t_of_p a) (List.map t_of_p args)
+
+let infer_pat ctx pat =
+  let rec synth = function
+    | Var (l,x,n) -> db_get_type l ctx n
+    | Brackets t -> infer_rec ctx t
+    | Pattern (l,md,id,args) ->
+        snd (List.fold_left check (mk_Const l md id,Env.get_type l md id) args)
+    | Joker _ -> assert false
+  and check (f,ty_f) pat =
+    match Reduction.whnf ty_f, pat with
+      | Pi (_,_,a1,b), Joker _ ->
+          let u = t_of_p pat in ( mk_App f u [] , Subst.subst b u )
+      | Pi (_,_,a1,b), _ ->
+          let a2 = synth pat in
+          let u = t_of_p pat in
+            if Reduction.are_convertible a1 a2 then
+              ( mk_App f u [] , Subst.subst b u )
+            else error_convertibility u ctx a1 a2
+      | _, _ -> error_product f ctx ty_f
+  in synth pat
+
+(* ********************************************* *)
+
 let infer pte =
   let te = Scoping.scope_term [] pte in
     ( te , infer_rec [] te )
@@ -101,8 +133,8 @@ let check_rule (l,pctx,id,pargs,pri) =
   let args = match pat with
     | Pattern (_,_,_,args) -> args
     | Var (l,_,_) -> Global.fail l "A pattern cannot be a variable."
-    | Brackets _ -> assert false in
-  let ty1 = infer_rec ctx (term_of_pattern pat) in
+    | _ -> assert false in
+  let ty1 = infer_pat ctx pat in
   let rhs = Scoping.scope_term ctx pri in
   let ty2 = infer_rec ctx rhs in
     if (Reduction.are_convertible ty1 ty2) then

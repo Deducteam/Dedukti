@@ -10,6 +10,7 @@ let rec pp_pattern out = function
         List.iter (fun pat -> fprintf out ",%a)" pp_pattern pat) args
       end
   | Brackets _ -> failwith "Not Implemented: conditionnal rewriting in TPDB export."
+  | Joker (_,n) -> fprintf out "#UNDERSCORE_%i" n
 
 let rec pp_term k out = function
   | Const (_,m,v) -> fprintf out "%a.%a" pp_ident m pp_ident v
@@ -24,11 +25,17 @@ let rec pp_term k out = function
         List.iter ( fprintf out ",%a)" (pp_term k) ) (a::args) )
   | Kind | Type _ | Meta _ -> assert false
 
+let rec pp_underscore out = function
+  | Var _ -> () | Brackets _ -> ()
+  | Joker (_,n) -> fprintf out " #UNDERSCORE_%i" n
+  | Pattern (_,m,v,args) -> List.iter (pp_underscore out) args
+
 let pp_rule out r =
+  let pat = (Pattern (r.l,r.md,r.id,r.args)) in
   fprintf out "(VAR";
   List.iter ( fun (v,_) -> fprintf out " #VAR_%a" pp_ident v ) r.ctx ;
+  pp_underscore out pat ;
   fprintf out ")\n";
-  fprintf out "(RULES %a -> %a )\n\n"
-    pp_pattern (Pattern (r.l,r.md,r.id,r.args)) (pp_term 0) r.rhs
+  fprintf out "(RULES %a -> %a )\n\n" pp_pattern pat (pp_term 0) r.rhs
 
 let export out = Env.rules_iter (pp_rule out)
