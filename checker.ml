@@ -59,9 +59,9 @@ let mk_command lc = function
         if Reduction.are_convertible t1 t2 then Global.print "OK"
         else Global.print "KO"
   | Check (pte,pty) ->
-      let (ty,_)   = Inference.infer pty in
-      let (te,ty2) = Inference.infer pte in
-        if Reduction.are_convertible ty ty2 then Global.print "OK"
+      let (ty1,_)   = Inference.infer pty in
+      let (_,ty2) = Inference.infer pte in
+        if Reduction.are_convertible ty1 ty2 then Global.print "OK"
         else Global.print "KO"
   | Infer pte         ->
       let (ty,te) = Inference.infer pte in Pp.pp_term stdout ty
