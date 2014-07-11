@@ -1,5 +1,4 @@
-
-(* *** Identifiers (hashconsed strings) *** *)
+(** {2 Identifiers (hashconsed strings)} *)
 
 type ident = string
 let string_of_ident s = s
@@ -17,14 +16,14 @@ let shash       = WS.create 251
 let hstring     = WS.merge shash
 let empty       = hstring ""
 
-(* *** Localization *** *)
+(** {2 Localization} *)
 
 type loc = int*int
 let dloc = (0,0)
 let mk_loc l c = (l,c)
 let of_loc l = l
 
-(* *** Parsing *** *)
+(** {2 Parsing} *)
 
 type token =
   | UNDERSCORE  of loc
@@ -64,7 +63,7 @@ type token =
 
 exception EndOfFile
 
-(* *** Pseudo Terms *** *)
+(** {2 PreTerms/PrePatterns} *)
 
 type preterm =
   | PreType of loc
@@ -83,7 +82,7 @@ type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
 type prule      = loc * pdecl list * ident * prepattern list * preterm
 
-(* *** Terms *** *)
+(** {2 Terms/Patterns} *)
 
 type term =
   | Kind                                (* Kind *)
@@ -133,23 +132,16 @@ let rec term_eq t1 t2 =
     | Pi (_,_,a,b), Pi (_,_,a',b')      -> term_eq a a' && term_eq b b'
     | _, _                              -> false
 
-(* *** Rewrite Rules *** *)
-
 type pattern =
   | Var         of loc*ident*int
   | Pattern     of loc*ident*ident*pattern list
   | Brackets    of term
   | Joker       of loc*int
-(*
-let rec term_of_pattern = function
-  | Var (l,id,n) -> DB (l,id,n)
-  | Brackets t -> t
-  | Pattern (l,md,id,[]) -> Const (l,md,id)
-  | Pattern (l,md,id,a::args) ->
-      mk_App (Const (l,md,id)) (term_of_pattern a) (List.map term_of_pattern args)
- *)
+
 type top = ident*pattern array
 type context = ( ident * term ) list
+
+(**{2 Rewrite Rules} *)
 
 type rule = {
         l:loc;
@@ -168,7 +160,7 @@ type rw_infos =
   | Def     of term*term
   | Decl_rw of term*rule list*int*dtree
 
-(* Commands *)
+(** {2 Commands} *)
 
 type command =
   (* Reduction *)

@@ -1,7 +1,7 @@
 open Types
 
 
-(* ******************* Types Definition ********************** *)
+(* ******************* Matrix Definition ********************** *)
 
 type pattern2 =
   | Var2         of ident*int
@@ -12,10 +12,11 @@ type rule2 =
       constraints:(term*term) list ; env_size:int ; }
 
 (* a matrix is a non empty list of rule2
- * The length of the array args is the same for every rule
- *)
-type matrix = rule2 list (* never empty *)
+ * The length of the array args is the same for every rule *)
 
+type matrix = rule2 list
+
+(*
 let check_matrix (mx:matrix) : unit =
   match mx with
     | [] -> failwith "ill-formed matrix (empty list)."
@@ -25,13 +26,13 @@ let check_matrix (mx:matrix) : unit =
             if Array.length r.pats != Array.length r'.pats then
               failwith "ill_formed matrix (different numbers of arguments)."
         ) lst
-
+ *)
 
 (* ******************* From rules to matrix ********************** *)
 
-(* The goal of this transformation make the patterns linear
-* and to record the non-linearity and conditionnal rewriting
-* constraints*)
+(* The goal of this transformation make the patterns linear and to record the
+ * non-linearity and conditionnal rewriting constraints. *)
+
 let br = hstring "{_}"
 let un = hstring "_"
 
@@ -69,9 +70,10 @@ let to_rule2 (r:rule) : rule2 =
     { loc=r.l ; pats=Array.of_list args ; right=r.rhs ;
       constraints= !constraints ; env_size= !esize ; }
 
-(* On contruit une matrice à partir d'une liste non vide de regles de réécriture
- * On vérifie que toutes les régles correspondent à un même symbole de tête et
- * à une même arité *)
+(* Construction of a matrix from a non empty list of rules.
+ * It is checked that all the head symbol are the same and that all arities are
+ * the same. *)
+
 let mk_matrix : rule list -> int * matrix = function
   | [] -> assert false
   | r1::rs ->
@@ -93,14 +95,26 @@ let mk_matrix : rule list -> int * matrix = function
         ( n , r1'::rs' )
 
 (* ******************* Matrix manipulation ********************** *)
-(* FIXME revoir cette partie*)
+
 let _v = hstring "_"
+
 let mk_var_lst inf sup =
-  let rec aux i =
-    if i<sup then (mk_DB dloc _v i) :: (aux (i+1)) else []
+  let rec aux i = if i<sup then (mk_DB dloc _v i) :: (aux (i+1)) else []
   in aux inf
 
-let specialize_var (c:int) (m:ident) (v:ident) (n:int) (line:rule2) (var:int) =
+let rec subst_q (q:int) (te:term) (u:term) =
+  let rec aux k = function
+    | DB (_,_,n) as t -> if n = q+k then Subst.shift k u else t
+    | Type _ | Kind | Const _ | Meta _ as t -> t
+    | Lam (_,x,a,b) -> mk_Lam dloc x ( aux k a ) ( aux (k+1) b )
+    | Pi  (_,x,a,b) -> mk_Pi dloc  x ( aux k a ) ( aux (k+1) b )
+    | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
+  in aux 0 te
+
+(* Remove column [c] in [line] and append [n] fresh variables.
+* the right-hand side and the constraints are updated to depends
+* on these new variables instead of the removed variable in column c*)
+let specialize_var (c:int) (m:ident) (v:ident) (n:int) (line:rule2) (q:int) =
   let old_n = Array.length line.pats in
   let new_n = old_n + n - 1 in
 (*    assert ( c < old_n ); *)
@@ -113,21 +127,20 @@ let specialize_var (c:int) (m:ident) (v:ident) (n:int) (line:rule2) (var:int) =
         else (* i < new_n *) Var2( _v , line.env_size + (i-old_n+1) )
                                         (* [ (n-1) - (n+nargs-2) ] *)
     ) in
-  let te =
-    if n = 0 then mk_Const dloc m v
-    else
-      ( match mk_var_lst line.env_size (line.env_size + n) with
-          | a::args -> mk_App (mk_Const dloc m v) a args
-          | _ -> assert false )
+  let u =
+    match mk_var_lst line.env_size (line.env_size + n) with
+      | a::args -> mk_App (mk_Const dloc m v) a args
+      | [] -> mk_Const dloc m v
   in
     { line with
           pats  = new_pats ;
           constraints = List.rev_map (
-            fun (t1,t2) -> (Subst.subst_q (var,te) 0 t1, Subst.subst_q (var,te) 0 t2 )
+            fun (t1,t2) -> ( subst_q q t1 u , subst_q q t2 u )
           ) line.constraints ;
-          right = Subst.subst_q (var,te) 0 line.right ;
+          right = subst_q q line.right u;
           env_size = line.env_size + n ; }
 
+(* Remove column [c] in [line] and append [args] *)
 let specialize_pat (c:int) (line:rule2) (args:pattern2 array) : rule2 =
   let  n = Array.length args in
   let old_n = Array.length line.pats in
@@ -143,16 +156,23 @@ let specialize_pat (c:int) (line:rule2) (args:pattern2 array) : rule2 =
     ) in
     { line with pats = new_pats }
 
+(* Specialize the matrix [mx] to match a pattern headed by [m].[v] in column [c] ie:
+*  - we forget the line with other patterns on line c;
+*  - we get rid of the column c;
+*  - we add the [nb_args] columns corresponding to the arguments of the pattern. *)
 let specialize c mx (m,v,nb_args) =
   let aux lst li =
     ( match li.pats.(c) with
-        | Pattern2 (m',v',args) when (ident_eq v v' && ident_eq m m') ->
-            (specialize_pat c li args)::lst
+        | Pattern2 (m',v',args) ->
+            if ident_eq v v' && ident_eq m m' then (specialize_pat c li args)::lst
+            else lst
         | Var2 (_,var)             -> (specialize_var c m v nb_args li var)::lst
-        | _                       -> lst ) in
+    ) in
   let lst = List.fold_left aux [] mx in
     ( nb_args , m , v , List.rev lst )
 
+
+(* Selects all the lines matching anything on column [c] *)
 let default c mx =
   let aux lst li = match li.pats.(c) with
     | Var2 (_,_) -> li::lst
@@ -163,29 +183,33 @@ let default c mx =
 
 let eq m v (m',v',_) = ident_eq v v' && ident_eq m m'
 
+(* Partition the matrix [mx] into:
+ * - a new matrix specialized for each head symbol of pattern in column [c];
+ * - a default matrix *)
 let partition (c:int) (mx:matrix) : (int*ident*ident*matrix) list * matrix =
   let aux cstr li =
     match li.pats.(c) with
       | Pattern2 (m,v,args)      ->
           if List.exists (eq m v) cstr then cstr
           else (m,v,Array.length args)::cstr
-      | _                       -> cstr
+      | Var2 _ -> cstr
   in
-  let constr = List.fold_left aux [] mx in
-  let cases  = List.map (specialize c mx) constr in
+  let hsymbs = List.fold_left aux [] mx in
+  let cases  = List.map (specialize c mx) hsymbs in
   let def    = default c mx in
     ( cases , def )
 
 (* ******************* From matrix to dtree ********************** *)
 
-let reorder l (ord:int array) (t:term) : term =
+(* Permute free variable of [t] with respect with the permutation [perm] *)
+let permute l (perm:int array) (t:term) : term =
   let rec aux k = function
     | App (f,a,args)             -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
     | Lam (l,x,a,f)              -> mk_Lam l x (aux k a) (aux (k+1) f)
     | Pi  (l,x,a,b)              -> mk_Pi  l x (aux k a) (aux (k+1) b)
     | DB (l,x,n) when (n>=k)     ->
 (*         assert (n-k < Array.length ord); *)
-        let n_db = ord.(n-k) in
+        let n_db = perm.(n-k) in
           if n_db = (-1) then
             Global.fail l "Free variables on \
               the right-hand side of a rule should also appear in the left-hand side."
@@ -193,14 +217,15 @@ let reorder l (ord:int array) (t:term) : term =
     | t                         -> t
   in aux 0 t
 
-let get_order (l:rule2) : int array =
-  let ord = Array.make l.env_size (-1) in
+(* Extract the permutation from a line of variables. *)
+let get_permutation (l:rule2) : int array =
+  let perm = Array.make l.env_size (-1) in
     Array.iteri
       (fun i p -> match p with
-         | Var2 (_,n)    -> ord.(n) <- i
+         | Var2 (_,n)    -> perm.(n) <- i
          | _            -> assert false
       ) l.pats ;
-    ord
+    perm
 
 (* Give the index of the first non variable column *)
 let choose_col (line:pattern2 array) : int option =
@@ -226,10 +251,12 @@ let rec to_dtree (mx:matrix) : dtree =
                       ( Global.debug 1 li.loc "Useless rule." ; None )
                     else Some ( to_dtree tail )
                 | []    -> None ) in
-            let ord = get_order f_col in
-            let te = reorder f_col.loc ord f_col.right in
+            let perm = get_permutation f_col in
+              (*The free variables in [te] corresponds to positions in the context
+              * we make them point to position on [f_col] *)
+            let te = permute f_col.loc perm f_col.right in
             let aux (t1,t2) =
-              ( reorder f_col.loc ord t1 , reorder f_col.loc ord t2 ) in
+              ( permute f_col.loc perm t1 , permute f_col.loc perm t2 ) in
               Test ( List.rev_map aux f_col.constraints , te , def )
           end
       | Some c    ->
@@ -252,8 +279,8 @@ let add_rules (rwi:rw_infos) (rs:rule list (*non empty*) ) : rw_infos =
     | Decl_rw (ty,mx,_,_)       -> ( ty , mx@rs )
     | Def (_,_)                 ->
         let r = match rs with r::_ -> r | _ -> assert false in
-          Global.fail r.l "Cannot add rewrite rules for \
-            the symbol '%a' since it is a defined symbol." pp_ident r.id
+          Global.fail r.l "Cannot add rewrite\
+            rules for the defined symbol '%a'." pp_ident r.id
   in
   let ( n , mx ) = mk_matrix rules in
     Decl_rw ( ty, rules , n , to_dtree mx )

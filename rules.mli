@@ -1,3 +1,4 @@
+(** Listing certain sets of the rewrite rules in the context. *)
 open Types
 
 val list_rules : unit -> unit

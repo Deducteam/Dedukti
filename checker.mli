@@ -1,3 +1,4 @@
+(** Dedukti's main functionnalities. *)
 open Types
 
 val mk_prelude     : loc -> ident -> unit

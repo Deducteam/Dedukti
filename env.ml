@@ -8,12 +8,10 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-(* *** Environment management *** *)
-
 let envs : (rw_infos H.t) H.t = H.create 19
 let init name = H.add envs name (H.create 251)
 
-(* *** Modules *** *)
+(******************************************************************************)
 
 let import lc m =
   assert ( not (H.mem envs m) );
@@ -48,7 +46,7 @@ let export_and_clear () =
       end ) ;
   H.clear envs
 
-(* *** Get *** *)
+(******************************************************************************)
 
 let get_infos lc m v =
   let env =
@@ -65,7 +63,7 @@ let get_type lc m v =
     | Def (_,ty)
     | Decl_rw (ty,_,_,_) -> ty
 
-(* *** Add *** *)
+(******************************************************************************)
 
 let add lc v gst =
   let env = H.find envs !Global.name in
@@ -87,9 +85,9 @@ let add_rw = function
       let rwi = H.find env r.id in
         H.add env r.id (Matching.add_rules rwi rs)
 
-(* ***** *)
+(******************************************************************************)
 
-let rules_iter f =
+let rules_iter f = (*FIXME*)
   H.iter (
     fun _ ht -> H.iter (
       fun _ infos ->

@@ -44,5 +44,3 @@ let scope_term (ctx:context) (pte:preterm) : term =
 
 let scope_pattern (ctx:context) (ppat:prepattern) : pattern =
   p_of_pp (List.map fst ctx) ppat
-
-

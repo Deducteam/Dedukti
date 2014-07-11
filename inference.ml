@@ -1,7 +1,5 @@
 open Types
 
-           (* ********************************************* *)
-
 let error_convertibility te ctx exp inf =
   Global.fail (get_loc te)
     "Error while typing '%a' in context:\n%a.\nExpected: %a\nInferred: %a."
@@ -27,7 +25,7 @@ let error_not_type te ctx inf =
     "Error while typing '%a' in context:\n%a.\nExpected: Type.\nInferred: %a."
       Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
 
-           (* ********************************************* *)
+(******************************************************************************)
 
 let db_get_type l ctx n =
   try Subst.shift (n+1) (snd (List.nth ctx n))
@@ -69,8 +67,7 @@ and is_type ctx a =
     | Type _ -> ()
     | ty_a -> error_not_type a ctx ty_a
 
-
-(* ********************************************* *)
+(******************************************************************************)
 
 let underscore = hstring "_"
 
@@ -102,7 +99,7 @@ let infer_pat ctx pat =
       | _, _ -> error_product f ctx ty_f
   in synth pat
 
-(* ********************************************* *)
+(******************************************************************************)
 
 let infer pte =
   let te = Scoping.scope_term [] pte in

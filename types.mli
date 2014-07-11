@@ -1,5 +1,4 @@
-
-(** This modules provides the basic types used in Dedukti *)
+(** basic datatypes *)
 
 (** {2 Identifiers (hashconsed strings)} *)
 (** Internal representation of identifiers as hashconsed strings. *)
@@ -16,6 +15,7 @@ val ident_eq : ident -> ident -> bool
 type loc
 val dloc                : loc
 val mk_loc              : int -> int -> loc
+(** mk_loc [line] [column] *)
 val of_loc              : loc -> (int*int)
 
 (** {2 Parsing} *)
@@ -109,9 +109,7 @@ type pattern =
   | Pattern     of loc*ident*ident*pattern list
   | Brackets    of term
   | Joker       of loc*int
-(*
-val term_of_pattern : pattern -> term
- *)
+
 type top = ident*pattern array
 type context = ( ident * term ) list
 

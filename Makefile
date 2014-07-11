@@ -22,6 +22,9 @@ dkdep:
 profile:
 	ocamlbuild -tag profile -build-dir  $(OPTIONS) _dkcheck dkchech.native
 
+doc:
+	ocamlbuild -build-dir _dkcheck dkcheck.docdir/index.html
+
 install:
 	install _dkcheck/dkcheck.native ${INSTALL_DIR}/dkcheck
 	install _dktop/dktop.native ${INSTALL_DIR}/dktop
