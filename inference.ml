@@ -1,5 +1,10 @@
 open Types
 
+(* Constants *)
+let mk_string_type : term = mk_Const (hstring "dk_string") (hstring "string")
+let mk_num_type : term = mk_Const (hstring "dk_int") (hstring "int")
+
+
 (* *** Type error messages *** *)
 
 let mk_err_msg lc ctx pp_te te pp_exp exp pp_inf inf =
@@ -77,6 +82,8 @@ let rec infer (ctx:context) (te:preterm) : term*term =
           ( match infer ctx' b with
               | ( _ , Kind )    -> err_topsort ctx' b
               | ( b' , ty  )    -> ( mk_Lam x a' b' , mk_Pi (Some x) a' ty ) )
+    | PreStr (l, s) -> (mk_Str s, mk_string_type)
+    | PreNum (l, s) -> (mk_Num s, mk_num_type)
 
 and infer_app lc ctx (f,ty_f) u =
   match Reduction.whnf ty_f , infer ctx u with

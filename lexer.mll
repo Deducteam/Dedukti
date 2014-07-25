@@ -15,10 +15,12 @@
   let flush () = chars_read := ""
 }
 
-let space   = [' ' '\t']
-let modname = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
-let ident   = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
-let capital = ['A'-'Z']+
+let space       = [' ' '\t']
+let modname     = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
+let ident       = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
+let capital     = ['A'-'Z']+
+let non_neg_num = ['1'-'9']['0'-'9']*
+let num         = '0' | non_neg_num | '-' non_neg_num
 
 rule token = parse
   | space       { token lexbuf  }
@@ -54,6 +56,7 @@ rule token = parse
   { OTHER (get_loc lexbuf, cmd) }
   | modname as md '.' (ident as id)
   { QID ( get_loc lexbuf , hstring md , hstring id ) }
+  | num as s    { NUM (get_loc lexbuf, s) }
   | ident  as id
   { ID  ( get_loc lexbuf , hstring id ) }
   | '"' { flush (); string lexbuf }
@@ -70,7 +73,7 @@ rule token = parse
 and string = parse
   | '\\' (_ as c) { add_char '\\'; add_char c; string lexbuf }
   | '\n' { Lexing.new_line lexbuf ; add_char '\n'; string lexbuf }
-  | '"'  { STRING (!chars_read) }
+  | '"'  { STRING (get_loc lexbuf, !chars_read) }
   | _ as c { add_char c; string lexbuf }
   | eof	 { Global.fail (get_loc lexbuf) "Unexpected end of file."  }
 

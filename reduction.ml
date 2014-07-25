@@ -54,7 +54,9 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | ( _ , _ , Type , _ )
     | ( _ , _ , Kind , _ )
     | ( _ , _ , Pi _ , _ )
-    | ( _ , _ , Lam _ , [] )                  -> config
+    | ( _ , _ , Lam _ , [] )
+    | ( _ , _ , Str _ , _ )
+    | ( _ , _ , Num _ , _ ) -> config
     | ( k , _ , DB (_,n) , _ ) when (n>=k)    -> config
     (* Bound variable (to be substitute) *)
     | ( k , e , DB (_,n) , s ) (*when n<k*)   ->
@@ -167,7 +169,7 @@ let whnf t = cbn_term_of_state ( cbn_reduce ( 0 , [] , t , [] ) )
 (* Head Normal Form *)
 let rec hnf t =
   match whnf t with
-    | Kind | Const _ | DB _ | Type | Pi (_,_,_) | Lam (_,_,_) as t' -> t'
+    | Kind | Const _ | DB _ | Type | Pi (_,_,_) | Lam (_,_,_) | Str _ | Num _ as t' -> t'
     | App lst -> mk_App (List.map hnf lst)
     | Meta _  -> assert false
 
@@ -178,7 +180,8 @@ let are_convertible t1 t2 = state_conv [ ( (0,[],t1,[]) , (0,[],t2,[]) ) ]
 let rec snf (t:term) : term =
   match whnf t with
     | Kind | Const _
-    | DB _ | Type as t' -> t'
+    | DB _ | Type
+    | Str _ | Num _ as t' -> t'
     | App lst           -> mk_App (List.map snf lst)
     | Pi (x,a,b)        -> mk_Pi x (snf a) (snf b)
     | Lam (x,a,b)       -> mk_Lam x (snf a) (snf b)
@@ -194,7 +197,9 @@ let rec bounded_cbn_reduce cpt (config:cbn_state) : cbn_state option =
       | ( _ , _ , Type , _ )
       | ( _ , _ , Kind , _ )
       | ( _ , _ , Pi _ , _ )
-      | ( _ , _ , Lam _ , [] )                  -> Some config
+      | ( _ , _ , Lam _ , [] )
+      | ( _ , _ , Str _ , _ )
+      | ( _ , _ , Num _ , _ )                  -> Some config
       | ( k , _ , DB (_,n) , _ ) when (n>=k)    -> Some config
       (* Bound variable (to be substitute) *)
       | ( k , e , DB (_,n) , s ) (*when n<k*)   ->
@@ -329,7 +334,9 @@ let rec state_one_step = function
   (* Weak normal terms *)
   | ( _ , _ , Type , s )
   | ( _ , _ , Kind , s )
-  | ( _ , _ , Pi _ , s )                      -> None
+  | ( _ , _ , Pi _ , s )
+  | ( _ , _ , Str _ , s )
+  | ( _ , _ , Num _ , s )                     -> None
   | ( _ , _ , Lam _ , [] )                    -> None
   | ( k , _ , DB (_,n) , _ ) when (n>=k)      -> None
   (* Bound variable (to be substitute) *)

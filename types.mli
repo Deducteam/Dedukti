@@ -50,19 +50,22 @@ type token =
   | PRINT       of loc
   | GDT         of loc
   | OTHER       of ( loc * string )
-  | STRING      of string
+  | STRING      of ( loc * string )
+  | NUM         of ( loc * string )
 
 exception EndOfFile
 
 (** {2 PreTerms/PrePatterns} *)
 
 type preterm = private
-  | PreType of loc
-  | PreId   of loc * ident
-  | PreQId  of loc * ident * ident
-  | PreApp  of preterm list
-  | PreLam  of loc * ident * preterm * preterm
-  | PrePi   of (loc*ident) option * preterm * preterm
+               | PreType of loc
+               | PreId   of loc * ident
+               | PreQId  of loc * ident * ident
+               | PreApp  of preterm list
+               | PreLam  of loc * ident * preterm * preterm
+               | PrePi   of (loc*ident) option * preterm * preterm
+               | PreStr  of loc * string
+               | PreNum  of loc * string
 
 val mk_pre_type         : loc -> preterm
 val mk_pre_id           : loc -> ident -> preterm
@@ -71,6 +74,8 @@ val mk_pre_lam          : loc -> ident -> preterm -> preterm -> preterm
 val mk_pre_app          : preterm list -> preterm
 val mk_pre_arrow        : preterm -> preterm -> preterm
 val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
+val mk_pre_string       : loc -> string -> preterm
+val mk_pre_num          : loc -> string -> preterm
 
 val get_loc : preterm -> loc
 
@@ -94,6 +99,8 @@ type term = private
   | Lam   of ident*term*term            (* Lambda abstraction *)
   | Pi    of ident option*term*term     (* Pi abstraction *)
   | Meta  of int
+  | Str   of string
+  | Num   of string
 
 val mk_Kind     : term
 val mk_Type     : term
@@ -104,6 +111,8 @@ val mk_App      : term list -> term
 val mk_Pi       : ident option -> term -> term -> term
 val mk_Unique   : unit -> term
 val mk_Meta     : int -> term
+val mk_Str      : string -> term
+val mk_Num      : string -> term
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool

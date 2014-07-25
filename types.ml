@@ -56,7 +56,8 @@ type token =
   | PRINT       of loc
   | GDT         of loc
   | OTHER       of ( loc * string )
-  | STRING      of string
+  | STRING      of ( loc * string )
+  | NUM         of ( loc * string )
 
 exception EndOfFile
 
@@ -69,6 +70,8 @@ type preterm =
   | PreApp  of preterm list
   | PreLam  of loc * ident * preterm * preterm
   | PrePi   of (loc*ident) option * preterm * preterm
+  | PreStr  of loc * string
+  | PreNum  of loc * string
 
 type prepattern =
   | PCondition  of preterm
@@ -82,6 +85,8 @@ let mk_pre_qid lc md id     = PreQId (lc,md,id)
 let mk_pre_lam lc x ty te   = PreLam (lc,x,ty,te)
 let mk_pre_arrow a b        = PrePi (None,a,b)
 let mk_pre_pi lc x a b      = PrePi (Some(lc,x),a,b)
+let mk_pre_string lc s      = PreStr (lc, s)
+let mk_pre_num lc s         = PreNum (lc, s)
 let mk_pre_app              = function
   | []                  -> assert false
   | [t]                 -> t
@@ -94,7 +99,8 @@ type prule      = pcontext * ptop * preterm
 
 let rec get_loc = function
   | PreType l | PreId (l,_) | PreQId (l,_,_)
-  | PreLam  (l,_,_,_) | PrePi   (Some(l,_),_,_) -> l
+  | PreLam  (l,_,_,_) | PrePi   (Some(l,_),_,_)
+  | PreStr (l,_) | PreNum (l,_)                 -> l
   | PrePi   (None,f,_) | PreApp (f::_)          -> get_loc f
   | PreApp _                                    -> assert false
 
@@ -109,6 +115,8 @@ type term =
   | Lam   of ident*term*term            (* Lambda abstraction *)
   | Pi    of ident option*term*term     (* Pi abstraction *)
   | Meta  of int
+  | Str   of string
+  | Num   of string
 
 let mk_Kind             = Kind
 let mk_Type             = Type
@@ -117,6 +125,8 @@ let mk_Const m v        = Const (m,v)
 let mk_Lam x a b        = Lam (x,a,b)
 let mk_Pi x a b         = Pi (x,a,b)
 let mk_Meta n           = Meta n
+let mk_Str s            = Str s
+let mk_Num s            = Num s
 
 let mk_App              = function
   | [] | [_] -> assert false
@@ -139,6 +149,8 @@ let rec term_eq t1 t2 =
                                              with _ -> false )
     | Lam (_,a,b), Lam (_,a',b')
     | Pi (_,a,b), Pi (_,a',b')          -> term_eq a a' && term_eq b b'
+    | Str s, Str s'                     -> s = s'
+    | Num s, Num s'                     -> int_of_string s = int_of_string s'
     | _, _                              -> false
 
 (* *** Rewrite Rules *** *)

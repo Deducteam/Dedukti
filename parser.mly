@@ -53,7 +53,8 @@
 %token <Types.loc> TYPE
 %token <Types.loc*Types.ident> ID
 %token <Types.loc*Types.ident*Types.ident> QID
-%token <string> STRING
+%token <Types.loc*string> STRING
+%token <Types.loc*string> NUM
 
 %start prelude
 %start line
@@ -113,7 +114,7 @@ command         : WHNF  term    { mk_command $1 (Whnf $2) }
                 | INFER term    { mk_command $1 (Infer $2) }
                 | CONV  term  COMMA term { mk_command $1 (Conv ($2,$4)) }
                 | CHECK term  COMMA term { mk_command $1 (Check ($2,$4)) }
-                | PRINT STRING  { mk_command $1 (Print $2) }
+                | PRINT STRING  { mk_command $1 (Print (snd $2)) }
                 | GDT   ID      { mk_command $1 (Gdt (!Global.name,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (m,v)) }
                 | OTHER term_lst        { mk_command (fst $1) (Other (snd $1,$2)) }
@@ -159,6 +160,10 @@ sterm           : QID
                 { let (l,md,id)=$1 in mk_pre_qid l md id }
                 | ID
                 { mk_pre_id (fst $1) (snd $1) }
+                | NUM
+                { mk_pre_num (fst $1) (snd $1) }
+                | STRING
+                { mk_pre_string (fst $1) (snd $1) }
                 | LEFTPAR term RIGHTPAR
                 { $2 }
                 | TYPE

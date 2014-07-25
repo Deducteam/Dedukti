@@ -16,6 +16,8 @@ let rec pp_pterm out = function
       ( match o with
           | None       -> fprintf out "%a -> %a" pp_pterm_wp a pp_pterm b
           | Some (_,v) -> fprintf out "%a:%a -> %a" pp_ident v pp_pterm_wp a pp_pterm b )
+  | PreStr (_,s) -> fprintf out "\"%s\"" s
+  | PreNum (_,s) -> fprintf out "%s" s
 
 and pp_pterm_wp out = function
   | PreType _ | PreId _ | PreQId _ as t  -> pp_pterm out t
@@ -41,6 +43,8 @@ let pp_const out (m,v) =
 let rec pp_term out = function
   | Kind                -> output_string out "Kind"
   | Type                -> output_string out "Type"
+  | Str s               -> fprintf out "\"%s\"" s
+  | Num s               -> output_string out s
   | Meta n when !Global.debug_level > 0 -> fprintf out "?[%i]" n
   | Meta n              -> output_string out "_"
   | DB  (x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n 
