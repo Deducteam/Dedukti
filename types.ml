@@ -245,7 +245,7 @@ let rec sugar = function
     | Num n -> Num (n + 1)
     | t -> App [s; t])
   (* Strings *)
-  | App [cons; c; s] when term_eq cons mk_cons ->
+  | App [cons; c; s] when term_eq cons mk_str_cons ->
     (match sugar c, sugar s with
     | Char c, Str s -> Str (String.make 1 c ^ s)
     | tc, ts -> App [cons; tc; ts])
