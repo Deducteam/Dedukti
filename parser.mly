@@ -36,6 +36,8 @@
 %token RIGHTPAR
 %token LEFTBRA
 %token RIGHTBRA
+%token <Types.loc> LEFTLST
+%token <Types.loc> RIGHTLST
 %token LEFTSQU
 %token RIGHTSQU
 %token <Types.loc> WHNF
@@ -169,6 +171,8 @@ sterm           : QID
                 { mk_pre_string (fst $1) (snd $1) }
                 | LEFTPAR term RIGHTPAR
                 { $2 }
+                | LEFTLST term_lst RIGHTLST
+                { mk_pre_list $1 $2 }
                 | TYPE
                 { mk_pre_type $1 }
 
@@ -185,4 +189,5 @@ term            : app
                 { failwith "Not implemented (untyped lambda)." }
                 | ID COLON app FATARROW term
                 { mk_pre_lam (fst $1) (snd $1) (mk_pre_app $3) $5}
+
 %%

@@ -23,12 +23,14 @@ val of_loc              : loc -> (int*int)
 type token =
   | UNDERSCORE  of loc
   | TYPE        of loc
+  | RIGHTLST    of loc
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
   | QID         of ( loc * ident * ident )
   | NAME        of ( loc * ident )
   | LONGARROW
+  | LEFTLST     of loc
   | LEFTSQU
   | LEFTPAR
   | LEFTBRA
@@ -68,6 +70,7 @@ type preterm = private
                | PreChar   of loc * char
                | PreStr    of loc * string
                | PreNum    of loc * string
+               | PreList   of loc * preterm list
 
 val mk_pre_type         : loc -> preterm
 val mk_pre_id           : loc -> ident -> preterm
@@ -79,6 +82,7 @@ val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
 val mk_pre_char         : loc -> char -> preterm
 val mk_pre_string       : loc -> string -> preterm
 val mk_pre_num          : loc -> string -> preterm
+val mk_pre_list         : loc -> preterm list -> preterm
 
 val get_loc : preterm -> loc
 
@@ -105,6 +109,7 @@ type term = private
   | Char   of char
   | Str    of string
   | Num    of int
+  | List   of term * term list
 
 val mk_Kind     : term
 val mk_Type     : term
@@ -118,11 +123,12 @@ val mk_Meta     : int -> term
 val mk_Char     : char -> term
 val mk_Str      : string -> term
 val mk_Num      : int -> term
-
+val mk_List     : term -> term list -> term
 
 val mk_char_type : term
 val mk_string_type : term
 val mk_num_type : term
+val mk_list : term
 
 val const_env : (ident * term) list
 val is_const : ident -> bool

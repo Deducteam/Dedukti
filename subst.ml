@@ -14,8 +14,8 @@ let shift r t = shift_rec r 0 t
 let rec psubst_l (nargs,args:int*(term Lazy.t) list) (k:int) (t:term) : term =
   match t with
     | Type  | Kind | Const _ | Meta _
-    | Char _ | Str _ | Num _ -> t
-    | DB (x,n) when (n >= (k+nargs))    -> mk_DB x (n-nargs)
+    | Char _ | Str _ | Num _            -> t
+    | DB (x,n) when (n >= (k+nargs))     -> mk_DB x (n-nargs)
     | DB (_,n) when (n < k)             -> t
     | DB (_,n) (* (k<=n<(k+nargs)) *)   ->
         shift k ( Lazy.force (List.nth args (n-k)) )
@@ -25,13 +25,16 @@ let rec psubst_l (nargs,args:int*(term Lazy.t) list) (k:int) (t:term) : term =
         mk_Pi  x (psubst_l (nargs,args) k a) (psubst_l (nargs,args) (k+1) b)
     | App lst                           ->
         mk_App (List.map (psubst_l (nargs,args) k) lst)
+    | List (ty, l)                      ->
+        mk_List (psubst_l (nargs,args) k ty)
+          (List.map (psubst_l (nargs,args) k) l)
 
 let rec psubst (nargs,args:int*term list) (k:int) (t:term) =
   (* assert ( nargs = List.length args ); *)
   match t with
     | Type  | Kind | Const _ | Meta _
     | Char _ | Str _ | Num _ -> t
-    | DB (x,n) when (n >= (k+nargs))    -> mk_DB x (n-nargs)
+    | DB (x,n) when (n >= (k+nargs))     -> mk_DB x (n-nargs)
     | DB (_,n) when (n < k)             -> t
     | DB (_,n) (* (k<=n<(k+nargs)) *)   -> shift k ( List.nth args (n-k) )
     | Lam (x,a,b)                       ->
@@ -40,6 +43,9 @@ let rec psubst (nargs,args:int*term list) (k:int) (t:term) =
         mk_Pi  x ( psubst (nargs,args) k a ) ( psubst (nargs,args) (k+1) b )
     | App lst                           ->
         mk_App ( List.map (psubst (nargs,args) k) lst )
+    | List (ty, l)                      ->
+        mk_List ( psubst (nargs,args) k ty)
+          ( List.map (psubst (nargs,args) k) l )
 
 let subst t u = psubst (1,[u]) 0 t
 
@@ -50,6 +56,7 @@ let rec subst_q (q,u:int*term) (k:int) = function
   | Lam (x,a,b) -> mk_Lam x ( subst_q (q,u) k a ) ( subst_q (q,u) (k+1) b )
   | Pi  (x,a,b) -> mk_Pi   x ( subst_q (q,u) k a ) ( subst_q (q,u) (k+1) b )
   | App lst     -> mk_App ( List.map (subst_q (q,u) k) lst )
+  | List (ty, l)-> mk_List (subst_q (q,u) k ty) ( List.map (subst_q (q,u) k) l )
 
 let rec subst_meta_rec k s  = function
   | Type | Kind | Const _ | DB _
@@ -57,6 +64,7 @@ let rec subst_meta_rec k s  = function
   | Lam (x,a,b) -> mk_Lam x (subst_meta_rec k s a) (subst_meta_rec (k+1) s b)
   | Pi  (x,a,b) -> mk_Pi  x (subst_meta_rec k s a) (subst_meta_rec (k+1) s b)
   | App lst     -> mk_App ( List.map (subst_meta_rec k s) lst)
+  | List (ty,l) -> mk_List (subst_meta_rec k s ty) ( List.map (subst_meta_rec k s) l)
   | Meta n as t -> ( try shift k (List.assoc n s) with Not_found -> t )
 
 let subst_meta = subst_meta_rec 0

@@ -29,12 +29,14 @@ let of_loc l = l
 type token =
   | UNDERSCORE  of loc
   | TYPE        of loc
+  | RIGHTLST    of loc
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
   | QID         of ( loc * ident * ident )
   | NAME        of ( loc * ident )
   | LONGARROW
+  | LEFTLST     of loc
   | LEFTSQU
   | LEFTPAR
   | LEFTBRA
@@ -74,6 +76,7 @@ type preterm =
   | PreChar   of loc * char
   | PreStr    of loc * string
   | PreNum    of loc * string
+  | PreList   of loc * preterm list
 
 type prepattern =
   | PCondition  of preterm
@@ -90,6 +93,7 @@ let mk_pre_pi lc x a b      = PrePi (Some(lc,x),a,b)
 let mk_pre_char lc c        = PreChar (lc, c)
 let mk_pre_string lc s      = PreStr (lc, s)
 let mk_pre_num lc s         = PreNum (lc, s)
+let mk_pre_list lc l        = PreList (lc, l)
 let mk_pre_app              = function
   | []                  -> assert false
   | [t]                 -> t
@@ -103,7 +107,8 @@ type prule      = pcontext * ptop * preterm
 let rec get_loc = function
   | PreType l | PreId (l,_)  | PreQId (l,_,_)
   | PreLam  (l,_,_,_) | PrePi   (Some(l,_),_,_)
-  | PreStr (l,_) | PreChar (l,_) | PreNum (l,_) -> l
+  | PreStr (l,_) | PreChar (l,_) | PreNum (l,_)
+  | PreList (l,_)                               -> l
   | PrePi   (None,f,_) | PreApp (f::_)          -> get_loc f
   | PreApp _                                    -> assert false
 
@@ -121,6 +126,7 @@ type term =
   | Char   of char
   | Str    of string
   | Num    of int
+  | List   of term * term list
 
 let mk_Kind             = Kind
 let mk_Type             = Type
@@ -128,11 +134,13 @@ let mk_DB x n           = DB (x,n)
 let mk_Const m v        = Const (m,v)
 let mk_Lam x a b        = Lam (x,a,b)
 let mk_Pi x a b         = Pi (x,a,b)
+let mk_Arr a b          = mk_Pi None a b
 let mk_Meta n           = Meta n
 let mk_Char c           = Char c
 let mk_Str s            = Str s
 let mk_Num s            = Num s
 let mk_GConst v         = Const (empty, v)
+let mk_List t l         = List (t, l)
 
 (* Constants *)
 let mk_num_type : term = mk_GConst (hstring "nat")
@@ -143,15 +151,26 @@ let mk_char_type : term = mk_GConst (hstring "char")
 let mk_string_type : term = mk_GConst (hstring "string")
 let mk_str_nil  = mk_GConst (hstring "\"\"")
 let mk_str_cons = mk_GConst (hstring "string_cons")
+let mk_list = mk_GConst (hstring "list")
+let mk_nil = mk_GConst (hstring "nil")
+let mk_cons = mk_GConst (hstring "cons")
 
 let const_env = [
   hstring "nat", mk_Type;
   hstring "0", mk_num_type;
-  hstring "S", mk_Pi None mk_num_type mk_num_type;
+  hstring "S", mk_Arr mk_num_type mk_num_type;
   hstring "char", mk_Type;
   hstring "string", mk_Type;
   hstring "\"\"", mk_string_type;
-  hstring "string_cons", mk_Pi None mk_char_type (mk_Pi None mk_string_type mk_string_type);
+  hstring "string_cons", mk_Arr mk_char_type (mk_Arr mk_string_type mk_string_type);
+  hstring "list", mk_Arr mk_Type mk_Type;
+  hstring "nil", mk_Pi (Some (hstring "A")) mk_Type (App [mk_list; mk_DB (hstring "A") 0]);
+  hstring "cons", mk_Pi (Some (hstring "A")) mk_Type
+    (mk_Arr
+       (mk_DB (hstring "A") 0)
+       (mk_Arr
+          (App [mk_list; mk_DB (hstring "A") 1])
+          (App [mk_list; mk_DB (hstring "A") 2])));
 ]
 
 let is_const id = List.exists (fun i -> ident_eq i id) (List.map fst const_env)
@@ -181,9 +200,14 @@ let rec unsugar_str = function
   | "" -> mk_str_nil
   | s -> App [mk_str_cons; mk_Char s.[0]; unsugar_str (String.sub s 1 ((String.length s) -1))]
 
+let rec unsugar_list ty = function
+  | [] -> App [mk_nil; ty]
+  | t :: l -> App [mk_cons; ty; unsugar_list ty l]
+
 let unsugar = function
   | Num s -> unsugar_nat s
   | Str s -> unsugar_str s
+  | List (ty, l) -> unsugar_list ty l
   | t -> t
 
 let rec term_eq t1 t2 =
@@ -208,15 +232,25 @@ let rec sugar = function
   | z when term_eq z mk_0 -> Num 0
   | nil when term_eq nil mk_str_nil -> Str ""
   | Const _ as t -> t
+  (* Lists *)
+  | App [nil; ty] when term_eq nil mk_nil -> List (ty, [])
+  | App [cons; ty; a; l] when term_eq cons mk_cons ->
+    (match sugar l with
+    | List (ty', l) when term_eq ty ty' ->
+        List (ty, a :: l)
+    | t -> App [cons; ty; sugar a; t])
+  (* Natural numbers *)
   | App [s; n] when term_eq s mk_S ->
     (match sugar n with
     | Num n -> Num (n + 1)
     | t -> App [s; t])
-  | App [cons; c; s] when term_eq cons mk_str_cons ->
+  (* Strings *)
+  | App [cons; c; s] when term_eq cons mk_cons ->
     (match sugar c, sugar s with
     | Char c, Str s -> Str (String.make 1 c ^ s)
     | tc, ts -> App [cons; tc; ts])
   | App l -> App (List.map sugar l)
+  | List (ty, l) -> List (ty, List.map sugar l)
   | Lam (x, a, b) -> Lam (x, sugar a, sugar b)
   | Pi (x, a, b) -> Pi (x, sugar a, sugar b)
 

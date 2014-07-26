@@ -20,6 +20,9 @@ let rec pp_pterm out = function
   | PreChar (_,c) -> fprintf out "\'%c\'" c
   | PreStr (_,s) -> fprintf out "\"%s\"" s
   | PreNum (_,s) -> fprintf out "%s" s
+  | PreList (_,l) ->
+    fprintf out "[[%a]]"
+      (pp_list ", " pp_pterm) l
 
 and pp_pterm_wp out = function
   | PreType _ | PreId _ | PreQId _ as t  -> pp_pterm out t
@@ -55,6 +58,8 @@ let rec pp_term out t =
   | DB  (x,n)           -> pp_ident out x
   | Const (m,v)         -> pp_const out (m,v)
   | App args            -> pp_list " " pp_term_wp out args
+  | List (ty, [])       -> fprintf out "nil %a" pp_term_wp ty
+  | List (ty, l)        -> fprintf out "[[%a]]" (pp_list ", " pp_term) l
   | Lam (x,a,f)         -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
   | Pi  (None,a,b)      -> fprintf out "%a -> %a" pp_term_wp a pp_term b
   | Pi  (Some x,a,b)    -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b

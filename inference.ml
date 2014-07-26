@@ -83,6 +83,17 @@ let rec infer (ctx:context) (te:preterm) : term*term =
     | PreChar (l, c) -> (mk_Char c, mk_char_type)
     | PreStr (l, s) -> (mk_Str s, mk_string_type)
     | PreNum (l, s) -> (mk_Num (int_of_string s), mk_num_type)
+    | PreList (_, []) -> assert false
+    | PreList (_, [ a ]) -> let (a', ty) = infer ctx a in (mk_List ty [ a' ], mk_App [mk_list; ty])
+    | PreList (loc, a :: l) -> let (a', ty) = infer ctx a in
+                              match infer ctx (mk_pre_list loc l) with
+                              | List (ty', l'), (App [lst; ty''] as lty) ->
+                                assert (Reduction.are_convertible ty' ty'');
+                                assert (term_eq lst mk_list);
+                                if Reduction.are_convertible ty ty' then
+                                  (mk_List ty' ( a' :: l' ), lty)
+                                else err_conv ctx a (mk_App [mk_list; ty]) ty'
+                              | _ -> assert false
 
 and infer_app lc ctx (f,ty_f) u =
   match Reduction.whnf ty_f , infer ctx u with

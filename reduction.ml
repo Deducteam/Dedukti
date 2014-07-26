@@ -71,6 +71,9 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | ( k , e , App (he::tl) , s )      ->
         let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
           cbn_reduce ( k , e , he , tl' @ s )
+    (* List *)
+    | ( k , e , List (ty, l) , s )     ->
+        cbn_reduce ( k , e , unsugar (mk_List ty l) , s )
     (* Global variable*)
     | ( _ , _ , Const (m,_), _ ) when m==empty -> config
     | ( _ , _ , Const (m,v) , s )              ->
@@ -173,6 +176,7 @@ let rec hnf t =
   match whnf t with
     | Kind | Const _ | DB _ | Type | Pi (_,_,_) | Lam (_,_,_)
     | Char _ | Str _ | Num _ as t' -> t'
+    | List (ty, l) -> hnf (unsugar (mk_List ty l))
     | App lst -> mk_App (List.map hnf lst)
     | Meta _  -> assert false
 
@@ -185,6 +189,7 @@ let rec snf (t:term) : term =
     | Kind | Const _
     | DB _ | Type
     | Char _ | Str _ | Num _ as t' -> t'
+    | List (ty, l)      -> snf (unsugar (mk_List ty l))
     | App lst           -> mk_App (List.map snf lst)
     | Pi (x,a,b)        -> mk_Pi x (snf a) (snf b)
     | Lam (x,a,b)       -> mk_Lam x (snf a) (snf b)
@@ -216,6 +221,9 @@ let rec bounded_cbn_reduce cpt (config:cbn_state) : cbn_state option =
       | ( k , e , App (he::tl) , s )      ->
           let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
             bounded_cbn_reduce (cpt-1) ( k , e , he , tl' @ s )
+      (* List *)
+      | ( k , e , List (ty, l) , s )      ->
+        bounded_cbn_reduce cpt ( k , e , unsugar (mk_List ty l) , s )
       (* Global variable*)
       | ( _ , _ , Const (m,_), _ ) when m==empty -> Some config
       | ( _ , _ , Const (m,v) , s )              ->
@@ -355,6 +363,9 @@ let rec state_one_step = function
   | ( k , e , App (he::tl) , s )              ->
       let tl' = List.map ( fun t -> (k,e,t,[]) ) tl in
         state_one_step ( k , e , he , tl' @ s )
+  (* List *)
+  | ( k , e , List (ty, l) , s )              ->
+      state_one_step ( k , e , unsugar (mk_List ty l) , s )
   (* Global variable*)
   | ( _ , _ , Const (m,_), _ ) when m==empty  -> None
   | ( _ , _ , Const (m,v) , s )               ->
