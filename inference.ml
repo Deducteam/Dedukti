@@ -1,10 +1,5 @@
 open Types
 
-(* Constants *)
-let mk_string_type : term = mk_Const (hstring "dk_string") (hstring "string")
-let mk_num_type : term = mk_Const (hstring "dk_int") (hstring "int")
-
-
 (* *** Type error messages *** *)
 
 let mk_err_msg lc ctx pp_te te pp_exp exp pp_inf inf =
@@ -59,8 +54,11 @@ let rec infer (ctx:context) (te:preterm) : term*term =
     | PreId (l,id)                       ->
         ( match get_type ctx id with
             | None              ->
+              (match get_type const_env id with
+              | None ->
                 ( mk_Const !Global.name id ,
                   Env.get_type l !Global.name id )
+              | Some (n, ty)    -> ( mk_GConst id, ty ))
             | Some (n,ty)       -> ( mk_DB id n , ty ) )
     | PreQId (l,md,id)                   ->
         ( mk_Const md id , Env.get_type l md id )
@@ -82,6 +80,7 @@ let rec infer (ctx:context) (te:preterm) : term*term =
           ( match infer ctx' b with
               | ( _ , Kind )    -> err_topsort ctx' b
               | ( b' , ty  )    -> ( mk_Lam x a' b' , mk_Pi (Some x) a' ty ) )
+    | PreChar (l, c) -> (mk_Char c, mk_char_type)
     | PreStr (l, s) -> (mk_Str s, mk_string_type)
     | PreNum (l, s) -> (mk_Num s, mk_num_type)
 

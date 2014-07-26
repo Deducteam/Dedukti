@@ -56,6 +56,7 @@ type token =
   | PRINT       of loc
   | GDT         of loc
   | OTHER       of ( loc * string )
+  | CHAR        of ( loc * char )
   | STRING      of ( loc * string )
   | NUM         of ( loc * string )
 
@@ -70,6 +71,7 @@ type preterm =
   | PreApp  of preterm list
   | PreLam  of loc * ident * preterm * preterm
   | PrePi   of (loc*ident) option * preterm * preterm
+  | PreChar of loc * char
   | PreStr  of loc * string
   | PreNum  of loc * string
 
@@ -85,6 +87,7 @@ let mk_pre_qid lc md id     = PreQId (lc,md,id)
 let mk_pre_lam lc x ty te   = PreLam (lc,x,ty,te)
 let mk_pre_arrow a b        = PrePi (None,a,b)
 let mk_pre_pi lc x a b      = PrePi (Some(lc,x),a,b)
+let mk_pre_char lc c        = PreChar (lc, c)
 let mk_pre_string lc s      = PreStr (lc, s)
 let mk_pre_num lc s         = PreNum (lc, s)
 let mk_pre_app              = function
@@ -100,23 +103,25 @@ type prule      = pcontext * ptop * preterm
 let rec get_loc = function
   | PreType l | PreId (l,_) | PreQId (l,_,_)
   | PreLam  (l,_,_,_) | PrePi   (Some(l,_),_,_)
-  | PreStr (l,_) | PreNum (l,_)                 -> l
+  | PreStr (l,_) | PreChar (l,_) | PreNum (l,_) -> l
   | PrePi   (None,f,_) | PreApp (f::_)          -> get_loc f
   | PreApp _                                    -> assert false
 
 (* *** Terms *** *)
 
 type term =
-  | Kind                  (* Kind *)
-  | Type                  (* Type *)
-  | DB    of ident*int    (* deBruijn *)
-  | Const of ident*ident  (* Global variable *)
-  | App   of term list    (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
-  | Lam   of ident*term*term            (* Lambda abstraction *)
-  | Pi    of ident option*term*term     (* Pi abstraction *)
-  | Meta  of int
-  | Str   of string
-  | Num   of string
+  | Kind                   (* Kind *)
+  | Type                   (* Type *)
+  | DB     of ident*int    (* deBruijn *)
+  | Const  of ident*ident  (* Global variable *)
+  | App    of term list    (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
+  | Lam    of ident*term*term            (* Lambda abstraction *)
+  | Pi     of ident option*term*term     (* Pi abstraction *)
+  | Meta   of int
+  | Char   of char
+  | Str    of string
+  | Num    of string
+  | GConst of ident                      (* Global constant *)
 
 let mk_Kind             = Kind
 let mk_Type             = Type
@@ -125,8 +130,30 @@ let mk_Const m v        = Const (m,v)
 let mk_Lam x a b        = Lam (x,a,b)
 let mk_Pi x a b         = Pi (x,a,b)
 let mk_Meta n           = Meta n
+let mk_Char c           = Char c
 let mk_Str s            = Str s
 let mk_Num s            = Num s
+let mk_GConst v         = GConst v
+
+(* Constants *)
+let mk_num_type : term = mk_GConst (hstring "nat")
+let mk_0 = mk_GConst (hstring "0")
+let mk_S = mk_GConst (hstring "S")
+
+let mk_char_type : term = mk_GConst (hstring "char")
+let mk_string_type : term = mk_GConst (hstring "string")
+let mk_str_nil  = mk_GConst (hstring "\"\"")
+let mk_str_cons = mk_GConst (hstring "string_cons")
+
+let const_env = [
+  hstring "nat", mk_Type;
+  hstring "0", mk_num_type;
+  hstring "S", mk_Pi None mk_num_type mk_num_type;
+  hstring "char", mk_Type;
+  hstring "string", mk_Type;
+  hstring "\"\"", mk_string_type;
+  hstring "string_cons", mk_Pi None mk_char_type (mk_Pi None mk_string_type mk_string_type);
+]
 
 let mk_App              = function
   | [] | [_] -> assert false
@@ -138,9 +165,22 @@ let mk_Unique _ =
   incr cpt ;
   Const ( empty , hstring (string_of_int !cpt) )
 
+let rec unsugar_nat = function
+  | 0 -> mk_0
+  | n -> App [mk_S; unsugar_nat (n-1)]
+
+let rec unsugar_str = function
+  | "" -> mk_str_nil
+  | s -> App [mk_str_cons; mk_Char s.[0]; unsugar_str (String.sub s 1 ((String.length s) -1))]
+
+let unsugar = function
+  | Num s -> unsugar_nat (int_of_string s)
+  | Str s -> unsugar_str s
+  | t -> t
+
 let rec term_eq t1 t2 =
   (* t1 == t2 || *)
-  match t1, t2 with
+  match unsugar t1, unsugar t2 with
     | Kind, Kind | Type , Type          -> true
     | DB (_,n), DB (_,n')
     | Meta n, Meta n'                   -> n=n'

@@ -16,6 +16,7 @@ let rec pp_pterm out = function
       ( match o with
           | None       -> fprintf out "%a -> %a" pp_pterm_wp a pp_pterm b
           | Some (_,v) -> fprintf out "%a:%a -> %a" pp_ident v pp_pterm_wp a pp_pterm b )
+  | PreChar (_,c) -> fprintf out "\'%c\'" c
   | PreStr (_,s) -> fprintf out "\"%s\"" s
   | PreNum (_,s) -> fprintf out "%s" s
 
@@ -43,6 +44,7 @@ let pp_const out (m,v) =
 let rec pp_term out = function
   | Kind                -> output_string out "Kind"
   | Type                -> output_string out "Type"
+  | Char c              -> fprintf out "\'%c\'" c
   | Str s               -> fprintf out "\"%s\"" s
   | Num s               -> output_string out s
   | Meta n when !Global.debug_level > 0 -> fprintf out "?[%i]" n
@@ -50,13 +52,15 @@ let rec pp_term out = function
   | DB  (x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n 
   | DB  (x,n)           -> pp_ident out x
   | Const (m,v)         -> pp_const out (m,v)
+  | GConst v            -> pp_ident out v
   | App args            -> pp_list " " pp_term_wp out args
   | Lam (x,a,f)         -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
   | Pi  (None,a,b)      -> fprintf out "%a -> %a" pp_term_wp a pp_term b
   | Pi  (Some x,a,b)    -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
 
 and pp_term_wp out = function
-  | Kind | Type  | DB _ | Const _ as t -> pp_term out t
+  | Kind | Type  | DB _ | Const _
+  | Str _ | Num _ as t                 -> pp_term out t
   | t                                  -> fprintf out "(%a)" pp_term t
 
 let rec pp_pattern out = function

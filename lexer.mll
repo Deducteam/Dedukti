@@ -20,7 +20,7 @@ let modname     = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
 let ident       = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
 let capital     = ['A'-'Z']+
 let non_neg_num = ['1'-'9']['0'-'9']*
-let num         = '0' | non_neg_num | '-' non_neg_num
+let nat         = '0' | non_neg_num
 
 rule token = parse
   | space       { token lexbuf  }
@@ -56,9 +56,10 @@ rule token = parse
   { OTHER (get_loc lexbuf, cmd) }
   | modname as md '.' (ident as id)
   { QID ( get_loc lexbuf , hstring md , hstring id ) }
-  | num as s    { NUM (get_loc lexbuf, s) }
+  | nat as s    { NUM (get_loc lexbuf, s) }
   | ident  as id
   { ID  ( get_loc lexbuf , hstring id ) }
+  | '\'' (_ as c) '\'' { CHAR ( get_loc lexbuf, c) }
   | '"' { flush (); string lexbuf }
   | _   as s
   { Global.fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }

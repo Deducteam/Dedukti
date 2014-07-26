@@ -54,6 +54,7 @@
 %token <Types.loc*Types.ident> ID
 %token <Types.loc*Types.ident*Types.ident> QID
 %token <Types.loc*string> STRING
+%token <Types.loc*char> CHAR
 %token <Types.loc*string> NUM
 
 %start prelude
@@ -162,6 +163,8 @@ sterm           : QID
                 { mk_pre_id (fst $1) (snd $1) }
                 | NUM
                 { mk_pre_num (fst $1) (snd $1) }
+                | CHAR
+                { mk_pre_char (fst $1) (snd $1) }
                 | STRING
                 { mk_pre_string (fst $1) (snd $1) }
                 | LEFTPAR term RIGHTPAR

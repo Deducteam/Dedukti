@@ -50,6 +50,7 @@ type token =
   | PRINT       of loc
   | GDT         of loc
   | OTHER       of ( loc * string )
+  | CHAR        of ( loc * char )
   | STRING      of ( loc * string )
   | NUM         of ( loc * string )
 
@@ -64,6 +65,7 @@ type preterm = private
                | PreApp  of preterm list
                | PreLam  of loc * ident * preterm * preterm
                | PrePi   of (loc*ident) option * preterm * preterm
+               | PreChar of loc * char
                | PreStr  of loc * string
                | PreNum  of loc * string
 
@@ -74,6 +76,7 @@ val mk_pre_lam          : loc -> ident -> preterm -> preterm -> preterm
 val mk_pre_app          : preterm list -> preterm
 val mk_pre_arrow        : preterm -> preterm -> preterm
 val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
+val mk_pre_char         : loc -> char -> preterm
 val mk_pre_string       : loc -> string -> preterm
 val mk_pre_num          : loc -> string -> preterm
 
@@ -91,16 +94,18 @@ type prule      = pcontext * ptop * preterm
 (** {2 Terms/Patterns} *)
 
 type term = private
-  | Kind                                (* Kind *)
-  | Type                                (* Type *)
-  | DB    of ident*int                  (* deBruijn *)
-  | Const of ident*ident                (* Global variable *)
-  | App   of term list   (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
-  | Lam   of ident*term*term            (* Lambda abstraction *)
-  | Pi    of ident option*term*term     (* Pi abstraction *)
-  | Meta  of int
-  | Str   of string
-  | Num   of string
+  | Kind                                 (* Kind *)
+  | Type                                 (* Type *)
+  | DB     of ident*int                  (* deBruijn *)
+  | Const  of ident*ident                (* Global variable *)
+  | App    of term list   (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
+  | Lam    of ident*term*term            (* Lambda abstraction *)
+  | Pi     of ident option*term*term     (* Pi abstraction *)
+  | Meta   of int
+  | Char   of char
+  | Str    of string
+  | Num    of string
+  | GConst of ident                      (* Global constant *)
 
 val mk_Kind     : term
 val mk_Type     : term
@@ -111,8 +116,17 @@ val mk_App      : term list -> term
 val mk_Pi       : ident option -> term -> term -> term
 val mk_Unique   : unit -> term
 val mk_Meta     : int -> term
+val mk_Char     : char -> term
 val mk_Str      : string -> term
 val mk_Num      : string -> term
+val mk_GConst   : ident -> term
+
+
+val mk_char_type : term
+val mk_string_type : term
+val mk_num_type : term
+
+val const_env : (ident * term) list
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
