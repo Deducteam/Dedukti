@@ -21,7 +21,7 @@ let ident       = ['a'-'z' 'A'-'Z' '0'-'9' '_' '+' '-' '*' '/' '=' '!' '?' '\'' 
 let capital     = ['A'-'Z']+
 let non_neg_num = ['1'-'9']['0'-'9']*
 
-let const = "nat" | "0" | "S" | "char" | "string" | "cons_string"
+let const = "nat" | "0" | "S" | "char" | "string" | "string_cons"
 
 rule token = parse
   | space       { token lexbuf  }
