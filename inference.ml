@@ -66,7 +66,7 @@ let rec infer (ctx:context) (te:preterm) : term*term =
         List.fold_left (infer_app (get_loc f) ctx) (infer ctx f) args
     | PreApp _                           -> assert false
     | PrePi (opt,a,b)                    ->
-        let a' = is_type ctx a in
+        let a' = is_sort ctx a in
         let (ctx',x) = match opt with
           | None              -> ( (empty,a')::ctx , None )
           | Some (_,id)       -> ( (id,a')::ctx , Some id )
@@ -75,7 +75,7 @@ let rec infer (ctx:context) (te:preterm) : term*term =
               | ( b' , (Type|Kind as tb) )      -> ( mk_Pi x a' b' , tb )
               | ( _ , tb )                      -> err_sort ctx' b tb )
     | PreLam  (l,x,a,b)                         ->
-        let a' = is_type ctx a in
+        let a' = is_sort ctx a in
         let ctx' = (x,a')::ctx in
           ( match infer ctx' b with
               | ( _ , Kind )    -> err_topsort ctx' b
@@ -92,9 +92,10 @@ and infer_app lc ctx (f,ty_f) u =
         else err_conv ctx u a a'
     | ( t , _ )                 -> err_prod lc ctx f ty_f
 
-and is_type ctx a =
+and is_sort ctx a =
   match infer ctx a with
     | ( a' ,Type )      -> a'
+    | ( a' ,Kind )      -> a'
     | ( a' , ty )       -> err_conv ctx a mk_Type ty
 
 let of_list_rev = function
