@@ -202,7 +202,7 @@ let rec unsugar_str = function
 
 let rec unsugar_list ty = function
   | [] -> App [mk_nil; ty]
-  | t :: l -> App [mk_cons; ty; unsugar_list ty l]
+  | t :: l -> App [mk_cons; ty; t; unsugar_list ty l]
 
 let unsugar = function
   | Num s -> unsugar_nat s
