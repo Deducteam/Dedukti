@@ -51,10 +51,13 @@ let export_and_clear () =
 (* *** Get *** *)
 
 let get_infos lc m v =
-  let env =
-    try H.find envs m
-    with Not_found -> import lc m
-  in
+  if ident_eq m empty && is_const v
+  then Decl (get_const_ty v)
+  else
+    let env =
+      try H.find envs m
+      with Not_found -> import lc m
+    in
     try ( H.find env v )
     with Not_found ->
       Global.fail lc "Cannot find symbol '%a.%a'." pp_ident m pp_ident v

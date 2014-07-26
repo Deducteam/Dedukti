@@ -65,15 +65,15 @@ exception EndOfFile
 (* *** Pseudo Terms *** *)
 
 type preterm =
-  | PreType of loc
-  | PreId   of loc * ident
-  | PreQId  of loc * ident * ident
-  | PreApp  of preterm list
-  | PreLam  of loc * ident * preterm * preterm
-  | PrePi   of (loc*ident) option * preterm * preterm
-  | PreChar of loc * char
-  | PreStr  of loc * string
-  | PreNum  of loc * string
+  | PreType   of loc
+  | PreId     of loc * ident
+  | PreQId    of loc * ident * ident
+  | PreApp    of preterm list
+  | PreLam    of loc * ident * preterm * preterm
+  | PrePi     of (loc*ident) option * preterm * preterm
+  | PreChar   of loc * char
+  | PreStr    of loc * string
+  | PreNum    of loc * string
 
 type prepattern =
   | PCondition  of preterm
@@ -101,7 +101,7 @@ type pcontext   = pdecl list
 type prule      = pcontext * ptop * preterm
 
 let rec get_loc = function
-  | PreType l | PreId (l,_) | PreQId (l,_,_)
+  | PreType l | PreId (l,_)  | PreQId (l,_,_)
   | PreLam  (l,_,_,_) | PrePi   (Some(l,_),_,_)
   | PreStr (l,_) | PreChar (l,_) | PreNum (l,_) -> l
   | PrePi   (None,f,_) | PreApp (f::_)          -> get_loc f
@@ -121,7 +121,6 @@ type term =
   | Char   of char
   | Str    of string
   | Num    of string
-  | GConst of ident                      (* Global constant *)
 
 let mk_Kind             = Kind
 let mk_Type             = Type
@@ -133,7 +132,7 @@ let mk_Meta n           = Meta n
 let mk_Char c           = Char c
 let mk_Str s            = Str s
 let mk_Num s            = Num s
-let mk_GConst v         = GConst v
+let mk_GConst v         = Const (empty, v)
 
 (* Constants *)
 let mk_num_type : term = mk_GConst (hstring "nat")
@@ -154,6 +153,15 @@ let const_env = [
   hstring "\"\"", mk_string_type;
   hstring "string_cons", mk_Pi None mk_char_type (mk_Pi None mk_string_type mk_string_type);
 ]
+
+let is_const id = List.exists (fun i -> ident_eq i id) (List.map fst const_env)
+let get_const_ty id =
+  let rec aux = function
+    | [] -> assert false
+    | (i, ty) :: _ when ident_eq i id -> ty
+    | _ :: l -> aux l
+  in
+  aux const_env
 
 let mk_App              = function
   | [] | [_] -> assert false
@@ -204,9 +212,9 @@ let rec term_of_pattern = function
   | Var (id,n)                  -> DB (id,n)
   | Brackets t                  -> t
   | Pattern (md,id,args)        ->
-      let c = Const (md,id) in
-        if Array.length args = 0 then c
-        else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
+    let c = Const (md,id) in
+    if Array.length args = 0 then c
+    else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
 
 type top = ident*pattern array
 type context = ( ident * term ) list

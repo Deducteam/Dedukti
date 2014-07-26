@@ -52,15 +52,15 @@ let rec infer (ctx:context) (te:preterm) : term*term =
   match te with
     | PreType _                          -> ( mk_Type , mk_Kind )
     | PreId (l,id)                       ->
-        ( match get_type ctx id with
-            | None              ->
-              (match get_type const_env id with
-              | None ->
-                ( mk_Const !Global.name id ,
-                  Env.get_type l !Global.name id )
-              | Some (n, ty)    -> ( mk_GConst id, ty ))
-            | Some (n,ty)       -> ( mk_DB id n , ty ) )
+      ( match get_type ctx id with
+      | None ->
+        ( mk_Const !Global.name id ,
+          Env.get_type l !Global.name id )
+      | Some (n,ty)       -> ( mk_DB id n , ty ) )
     | PreQId (l,md,id)                   ->
+      if ident_eq md empty && is_const id then
+        ( mk_Const empty id, get_const_ty id )
+      else
         ( mk_Const md id , Env.get_type l md id )
     | PreApp ( f::((_::_) as args))      ->
         List.fold_left (infer_app (get_loc f) ctx) (infer ctx f) args
@@ -109,21 +109,22 @@ let of_list_rev = function
 
 let rec infer_pattern ctx = function
   | PPattern   (l,opt,id,pargs) ->
-      begin
-        let ( is_var , md ) = match opt with
-          | Some md       -> ( None , md )
-          | None          -> ( get_type ctx id , !Global.name )
-        in
-          match is_var with
-            | Some (n,ty)       ->
-                if pargs = [] then ( Var(id,n) , ty )
-                else Global.fail l "The left-hand side of the rewrite rule cannot be a variable application."
-            | None              ->
-                let ty_id = Env.get_type l md id in
-                let (ty,args) =
-                  List.fold_left (infer_pattern_aux l ctx md id) (ty_id,[]) pargs in
-                  ( Pattern (md,id,of_list_rev args) , ty )
-      end
+    begin
+      let ( is_var , md ) = match opt with
+        | Some md       -> ( None , md )
+        | None          -> if is_const id then (None , empty) else ( get_type ctx id , !Global.name )
+      in
+      match is_var with
+      | Some (n,ty)       ->
+        if pargs = [] then ( Var(id,n) , ty )
+        else Global.fail l "The left-hand side of the rewrite rule cannot be a variable application."
+      | None              ->
+        let ty_id = if is_const id then get_const_ty id else
+            Env.get_type l md id in
+        let (ty,args) =
+          List.fold_left (infer_pattern_aux l ctx md id) (ty_id,[]) pargs in
+        ( Pattern (md,id,of_list_rev args) , ty )
+    end
   | PCondition pte              ->
       let (te,ty) = infer ctx pte in
         ( Brackets te , ty )

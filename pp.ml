@@ -9,6 +9,7 @@ let rec pp_list sep pp out = function
 let rec pp_pterm out = function
   | PreType _        -> output_string out "Type"
   | PreId (_,v)      -> pp_ident out v
+  | PreQId (_,m,v) when ident_eq m empty -> pp_ident out v
   | PreQId (_,m,v)   -> fprintf out "%a.%a" pp_ident m pp_ident v
   | PreApp (lst)     -> pp_list " " pp_pterm_wp  out lst
   | PreLam (_,v,a,b) -> fprintf out "%a:%a => %a" pp_ident v pp_pterm_wp a pp_pterm b
@@ -38,7 +39,7 @@ and pp_ppattern_wp out = function
   | p                           -> pp_ppattern out p
 
 let pp_const out (m,v) =
-  if ident_eq m !Global.name then pp_ident out v
+  if ident_eq m !Global.name || ident_eq m empty then pp_ident out v
   else fprintf out "%a.%a" pp_ident m pp_ident v
 
 let rec pp_term out = function
@@ -52,7 +53,6 @@ let rec pp_term out = function
   | DB  (x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n 
   | DB  (x,n)           -> pp_ident out x
   | Const (m,v)         -> pp_const out (m,v)
-  | GConst v            -> pp_ident out v
   | App args            -> pp_list " " pp_term_wp out args
   | Lam (x,a,f)         -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
   | Pi  (None,a,b)      -> fprintf out "%a -> %a" pp_term_wp a pp_term b

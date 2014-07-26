@@ -59,15 +59,15 @@ exception EndOfFile
 (** {2 PreTerms/PrePatterns} *)
 
 type preterm = private
-               | PreType of loc
-               | PreId   of loc * ident
-               | PreQId  of loc * ident * ident
-               | PreApp  of preterm list
-               | PreLam  of loc * ident * preterm * preterm
-               | PrePi   of (loc*ident) option * preterm * preterm
-               | PreChar of loc * char
-               | PreStr  of loc * string
-               | PreNum  of loc * string
+               | PreType   of loc
+               | PreId     of loc * ident
+               | PreQId    of loc * ident * ident
+               | PreApp    of preterm list
+               | PreLam    of loc * ident * preterm * preterm
+               | PrePi     of (loc*ident) option * preterm * preterm
+               | PreChar   of loc * char
+               | PreStr    of loc * string
+               | PreNum    of loc * string
 
 val mk_pre_type         : loc -> preterm
 val mk_pre_id           : loc -> ident -> preterm
@@ -105,7 +105,6 @@ type term = private
   | Char   of char
   | Str    of string
   | Num    of string
-  | GConst of ident                      (* Global constant *)
 
 val mk_Kind     : term
 val mk_Type     : term
@@ -119,7 +118,6 @@ val mk_Meta     : int -> term
 val mk_Char     : char -> term
 val mk_Str      : string -> term
 val mk_Num      : string -> term
-val mk_GConst   : ident -> term
 
 
 val mk_char_type : term
@@ -127,9 +125,13 @@ val mk_string_type : term
 val mk_num_type : term
 
 val const_env : (ident * term) list
+val is_const : ident -> bool
+val get_const_ty : ident -> term
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
+
+val unsugar : term -> term
 
 type pattern =
   | Var         of ident*int
