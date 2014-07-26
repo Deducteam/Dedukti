@@ -120,7 +120,7 @@ type term =
   | Meta   of int
   | Char   of char
   | Str    of string
-  | Num    of string
+  | Num    of int
 
 let mk_Kind             = Kind
 let mk_Type             = Type
@@ -182,7 +182,7 @@ let rec unsugar_str = function
   | s -> App [mk_str_cons; mk_Char s.[0]; unsugar_str (String.sub s 1 ((String.length s) -1))]
 
 let unsugar = function
-  | Num s -> unsugar_nat (int_of_string s)
+  | Num s -> unsugar_nat s
   | Str s -> unsugar_str s
   | t -> t
 
@@ -197,9 +197,28 @@ let rec term_eq t1 t2 =
                                              with _ -> false )
     | Lam (_,a,b), Lam (_,a',b')
     | Pi (_,a,b), Pi (_,a',b')          -> term_eq a a' && term_eq b b'
+    | Char c, Char c'                   -> c = c'
     | Str s, Str s'                     -> s = s'
-    | Num s, Num s'                     -> int_of_string s = int_of_string s'
+    | Num s, Num s'                     -> s = s'
     | _, _                              -> false
+
+let rec sugar = function
+  | Kind | Type | DB _ | Meta _ | Char _ | Str _ | Num _ as t -> t
+  | Const (m, _) as t when not (ident_eq m empty) -> t
+  | z when term_eq z mk_0 -> Num 0
+  | nil when term_eq nil mk_str_nil -> Str ""
+  | Const _ as t -> t
+  | App [s; n] when term_eq s mk_S ->
+    (match sugar n with
+    | Num n -> Num (n + 1)
+    | t -> App [s; t])
+  | App [cons; c; s] when term_eq cons mk_str_cons ->
+    (match sugar c, sugar s with
+    | Char c, Str s -> Str (String.make 1 c ^ s)
+    | tc, ts -> App [cons; tc; ts])
+  | App l -> App (List.map sugar l)
+  | Lam (x, a, b) -> Lam (x, sugar a, sugar b)
+  | Pi (x, a, b) -> Pi (x, sugar a, sugar b)
 
 (* *** Rewrite Rules *** *)
 

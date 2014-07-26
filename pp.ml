@@ -42,12 +42,13 @@ let pp_const out (m,v) =
   if ident_eq m !Global.name || ident_eq m empty then pp_ident out v
   else fprintf out "%a.%a" pp_ident m pp_ident v
 
-let rec pp_term out = function
+let rec pp_term out t =
+  match sugar t with
   | Kind                -> output_string out "Kind"
   | Type                -> output_string out "Type"
   | Char c              -> fprintf out "\'%c\'" c
   | Str s               -> fprintf out "\"%s\"" s
-  | Num s               -> output_string out s
+  | Num s               -> output_string out (string_of_int s)
   | Meta n when !Global.debug_level > 0 -> fprintf out "?[%i]" n
   | Meta n              -> output_string out "_"
   | DB  (x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n 

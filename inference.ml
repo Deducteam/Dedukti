@@ -82,7 +82,7 @@ let rec infer (ctx:context) (te:preterm) : term*term =
               | ( b' , ty  )    -> ( mk_Lam x a' b' , mk_Pi (Some x) a' ty ) )
     | PreChar (l, c) -> (mk_Char c, mk_char_type)
     | PreStr (l, s) -> (mk_Str s, mk_string_type)
-    | PreNum (l, s) -> (mk_Num s, mk_num_type)
+    | PreNum (l, s) -> (mk_Num (int_of_string s), mk_num_type)
 
 and infer_app lc ctx (f,ty_f) u =
   match Reduction.whnf ty_f , infer ctx u with

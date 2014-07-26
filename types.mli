@@ -104,7 +104,7 @@ type term = private
   | Meta   of int
   | Char   of char
   | Str    of string
-  | Num    of string
+  | Num    of int
 
 val mk_Kind     : term
 val mk_Type     : term
@@ -117,7 +117,7 @@ val mk_Unique   : unit -> term
 val mk_Meta     : int -> term
 val mk_Char     : char -> term
 val mk_Str      : string -> term
-val mk_Num      : string -> term
+val mk_Num      : int -> term
 
 
 val mk_char_type : term
@@ -131,6 +131,7 @@ val get_const_ty : ident -> term
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
 
+val sugar : term -> term
 val unsugar : term -> term
 
 type pattern =
