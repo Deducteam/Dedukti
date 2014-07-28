@@ -26,5 +26,3 @@ val add_def             : loc -> ident -> term -> term -> unit
 (** Add a list of rewrite rules in the context.
 All these rules must have the same head symbol and the same arity. *)
 val add_rw              : rule list -> unit
-
-val rules_iter          : (rule -> unit) -> unit

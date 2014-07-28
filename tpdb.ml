@@ -38,4 +38,9 @@ let pp_rule out r =
   fprintf out ")\n";
   fprintf out "(RULES %a -> %a )\n\n" pp_pattern pat (pp_term 0) r.rhs
 
-let export out = Env.rules_iter (pp_rule out)
+let export out =
+  List.iter (
+    fun (md,lst) ->
+      fprintf out "(COMMENT Rewrite rules for module '%s')\n" md;
+      List.iter (pp_rule out) lst
+  )
