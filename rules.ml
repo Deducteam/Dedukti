@@ -26,13 +26,13 @@ let is_pi_rule r =
   in
     has_pi r.rhs
 
-let list_rules_if condition =
-  Env.rules_iter ( fun r -> if condition r then Global.print "%a" Pp.pp_rule r )
+let print_rules_if condition =
+  List.iter (fun r -> if condition r then Global.print "%a" Pp.pp_rule r)
 
-let list_rules () = list_rules_if (fun _ -> true)
+let print_all = List.iter (Global.print "%a" Pp.pp_rule)
 
-let list_pi_rules () = list_rules_if is_pi_rule
+let print_pi_rules = print_rules_if is_pi_rule
 
-let list_non_linear_rules () = list_rules_if (fun r -> not (is_linear r))
+let print_non_linear_rules = print_rules_if (fun r -> not (is_linear r))
 
-let list_type_level_rules () = list_rules_if is_type_level
+let print_type_level_rules = print_rules_if is_type_level

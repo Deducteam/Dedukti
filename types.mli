@@ -127,6 +127,10 @@ type dtree =
   | Switch      of int * (int*ident*ident*dtree) list * dtree option
   | Test        of (term*term) list * term * dtree option
 
+(** {2 Environment} *)
+
+module H : Hashtbl.S with type key := ident
+
 type rw_infos =
   | Decl    of term
   | Def     of term*term
