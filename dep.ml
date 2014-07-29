@@ -15,9 +15,9 @@ let mk_prelude _ prelude_name =
 
 let rec mk_term = function
   | PreQId (lc, module_name, _) -> add_dep lc module_name
-  | PreApp l -> List.iter mk_term l
+  | PreApp (f,a,args) -> (mk_term f ; mk_term a ; List.iter mk_term args )
   | PreLam (_, _, t1, t2)
-  | PrePi (_, t1, t2) -> mk_term t1 ; mk_term t2
+  | PrePi (_,_, t1, t2) -> mk_term t1 ; mk_term t2
   | _ -> ()
 
 let rec mk_pattern = function
@@ -36,14 +36,12 @@ let mk_definition _ _ = function
 
 let mk_opaque = mk_definition
 
-let mk_static = mk_declaration
-
 let mk_binding (_, _, t) = mk_term t
 
-let mk_ctx = List.iter mk_binding
+let mk_ctx : pdecl list -> unit = List.iter mk_binding
 
-let mk_prule (ctx, (l,id,args), t:prule) =
-  mk_ctx ctx; mk_pattern (PPattern (l,None,id,args)); mk_term t
+let mk_prule (l,ctx,id,pats,ri:prule) =
+  mk_ctx ctx; mk_pattern (PPattern (l,None,id,pats)); mk_term ri
 
 let mk_rules = List.iter mk_prule
 

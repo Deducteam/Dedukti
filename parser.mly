@@ -2,26 +2,33 @@
   sig
     val mk_prelude     : Types.loc -> Types.ident -> unit
     val mk_declaration : Types.loc -> Types.ident -> Types.preterm -> unit
-    val mk_definition  : Types.loc -> Types.ident -> Types.preterm option
-                                                        -> Types.preterm -> unit
-    val mk_opaque      : Types.loc -> Types.ident -> Types.preterm option
-                                                        -> Types.preterm -> unit
-    val mk_static      : Types.loc -> Types.ident -> Types.preterm -> unit
+    val mk_definition  : Types.loc -> Types.ident -> Types.preterm option -> Types.preterm -> unit
+    val mk_opaque      : Types.loc -> Types.ident -> Types.preterm option -> Types.preterm -> unit
     val mk_rules       : Types.prule list -> unit
     val mk_command     : Types.loc -> Types.command -> unit
     val mk_ending      : unit -> unit
   end>
 %{
-        open Types
-        open M
+    open Types
+    open M
 
-        let rec mk_lam te = function
-                | []            -> te
-                | (l,x,ty)::tl  -> mk_lam (mk_pre_lam l x ty te) tl
+    let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
+        | [] -> te
+        | (l,x,ty)::tl -> mk_lam (PreLam(l,x,ty,te)) tl
 
-        let rec mk_pi te = function
-                | []            -> te
-                | (l,x,ty)::tl  -> mk_pi (mk_pre_pi l x ty te) tl
+    let rec mk_pi (te:preterm) : (loc*ident*preterm) list -> preterm = function
+        | [] -> te
+        | (l,x,ty)::tl -> mk_pi (PrePi(l,Some x,ty,te)) tl
+
+    let rec preterm_loc = function
+        | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
+        | PrePi   (l,_,_,_) -> l
+        | PreApp (f,_,_) -> preterm_loc f
+
+    let mk_pre_from_list = function
+        | [] -> assert false
+        | [t] -> t
+        | f::a1::args -> PreApp (f,a1,args)
 %}
 
 %token EOF
@@ -58,16 +65,13 @@
 %start line
 %type <unit> prelude
 %type <unit> line
-%type <Types.pdecl list> param_lst
-%type <Types.prule list> rule_lst
 %type <Types.prule> rule
 %type <Types.pdecl> decl
-%type <Types.pcontext> context
-%type <Types.prepattern list> pat_lst
-%type <Types.ptop> top_pattern
+%type <Types.pdecl> param
+%type <Types.pdecl list> context
+%type <Types.loc*Types.ident*Types.prepattern list> top_pattern
 %type <Types.prepattern> pattern
 %type <Types.preterm> sterm
-%type <Types.preterm list> app
 %type <Types.preterm> term
 
 %right ARROW FATARROW
@@ -84,21 +88,19 @@ line            : ID COLON term DOT
                 { mk_definition (fst $1) (snd $1) (Some $3) $5 }
                 | ID DEF term DOT
                 { mk_definition (fst $1) (snd $1)  None     $3 }
-                | ID param_lst COLON term DEF term DOT
+                | ID param+ COLON term DEF term DOT
                 { mk_definition (fst $1) (snd $1) (Some (mk_pi $4 $2)) (mk_lam $6 $2) }
-                | ID param_lst DEF term DOT
+                | ID param+ DEF term DOT
                 { mk_definition (fst $1) (snd $1) None (mk_lam $4 $2) }
                 | LEFTBRA ID RIGHTBRA COLON term DEF term DOT
                 { mk_opaque (fst $2) (snd $2) (Some $5) $7 }
                 | LEFTBRA ID RIGHTBRA DEF term DOT
                 { mk_opaque (fst $2) (snd $2)  None     $5 }
-                | LEFTBRA ID param_lst RIGHTBRA COLON term DEF term DOT
+                | LEFTBRA ID param+ RIGHTBRA COLON term DEF term DOT
                 { mk_opaque (fst $2) (snd $2) (Some (mk_pi $6 $3)) (mk_lam $8 $3) }
-                | LEFTBRA ID param_lst RIGHTBRA DEF term DOT
+                | LEFTBRA ID param+ RIGHTBRA DEF term DOT
                 { mk_opaque (fst $2) (snd $2)  None (mk_lam $6 $3) }
-                | LEFTBRA ID RIGHTBRA COLON term DOT
-                { mk_static (fst $2) (snd $2) $5 }
-                | rule_lst DOT
+                | rule+ DOT
                 { mk_rules $1 }
                 | command DOT { $1 }
                 | EOF
@@ -115,65 +117,54 @@ command         : WHNF  term    { mk_command $1 (Whnf $2) }
                 | PRINT ID      { mk_command $1 (Print (snd $2)) }
                 | GDT   ID      { mk_command $1 (Gdt (!Global.name,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (m,v)) }
-                | OTHER term_lst        { mk_command (fst $1) (Other (snd $1,$2)) }
+                | OTHER term_lst { mk_command (fst $1) (Other (snd $1,$2)) }
 
 
 term_lst        : term                                  { [$1] }
                 | term COMMA term_lst                   { $1::$3 }
 
-param_lst       : LEFTPAR decl RIGHTPAR                 { [$2] }
-                | param_lst LEFTPAR decl RIGHTPAR       { $3::$1 }
-
-rule_lst        : rule                                  { [$1] }
-                | rule rule_lst                         { $1::$2 }
+param           : LEFTPAR decl RIGHTPAR                 { $2 }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { ( $2 , $4 , $6) }
+                { let (l,id,args) = $4 in ( l , $2 , id , args , $6) }
 
 decl           : ID COLON term         { (fst $1,snd $1,$3) }
 
 context         : /* empty */           { [] }
-                | decl COMMA context    { $1::$3 }
-                | decl                  { [$1] }
+                | separated_nonempty_list(COMMA, decl) { $1 }
 
-top_pattern     : ID pat_lst            { ( fst $1 , snd $1 , $2 ) }
-
-pat_lst         : /* empty */           { [] }
-                | pattern pat_lst       { $1::$2 }
+top_pattern     : ID pattern*            { (fst $1,snd $1,$2) }
 
 pattern         : ID
                 { PPattern (fst $1,None,snd $1,[]) }
                 | QID
                 { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
                 | UNDERSCORE
-                { failwith "Not implemented (UNDERSCORE)" }
-                | LEFTPAR ID  pat_lst RIGHTPAR
+                { PJoker $1 }
+                | LEFTPAR ID  pattern* RIGHTPAR
                 { PPattern (fst $2,None,snd $2,$3) }
-                | LEFTPAR QID pat_lst RIGHTPAR
+                | LEFTPAR QID pattern* RIGHTPAR
                 { let (l,md,id)=$2 in PPattern (l,Some md,id,$3) }
                 | LEFTBRA term RIGHTBRA
                 { PCondition $2 }
 
 sterm           : QID
-                { let (l,md,id)=$1 in mk_pre_qid l md id }
+                { let (l,md,id)=$1 in PreQId(l,md,id) }
                 | ID
-                { mk_pre_id (fst $1) (snd $1) }
+                { PreId (fst $1,snd $1) }
                 | LEFTPAR term RIGHTPAR
                 { $2 }
                 | TYPE
-                { mk_pre_type $1 }
+                { PreType $1 }
 
-app             : sterm         { [$1] }
-                | sterm app     { $1::$2 }
-
-term            : app
-                { mk_pre_app $1 }
-                | ID COLON app ARROW term
-                { mk_pre_pi (fst $1) (snd $1) (mk_pre_app $3) $5 }
+term            : sterm+
+                { mk_pre_from_list $1 }
+                | ID COLON sterm+ ARROW term
+                { PrePi (fst $1,Some (snd $1),mk_pre_from_list $3,$5) }
                 | term ARROW term
-                { mk_pre_arrow $1 $3 }
+                { PrePi (preterm_loc $1,None,$1,$3) }
                 | ID FATARROW term
                 { failwith "Not implemented (untyped lambda)." }
-                | ID COLON app FATARROW term
-                { mk_pre_lam (fst $1) (snd $1) (mk_pre_app $3) $5}
+                | ID COLON sterm+ FATARROW term
+                { PreLam (fst $1,snd $1,mk_pre_from_list $3,$5) }
 %%

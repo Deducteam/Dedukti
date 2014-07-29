@@ -1,17 +1,17 @@
-
+(** Type inference/type checking. *)
 open Types
 
-(* ctx |- te:ty *)
-val infer      : (*ctx:*)context -> (*te:*)preterm -> (*(te,ty):*)term*term
+(** [Inference.infer pte] returns the term corresponding to the preterm [pte]
+  * together with its type. *)
+val infer : preterm -> term*term
 
-(* ctx |- ty : Type or ctx |- ty : Kind *)
-val check_type : (*ctx*)context -> (*ty*)preterm -> term(*ty*)
+(** [Inference.check pte pty] checks that [pte] has type [pty] and returns them
+  as terms. *)
+val check : preterm -> preterm -> term*term
 
-(* ctx |- te:ty *)
-val check_term : (*ctx*)context -> (*te*)preterm -> (*ty*)term -> term(*te*)
+(** [Inference.is_type pte] checks that [pte] is typed by a sort and returns it
+ as a terms. *)
+val is_a_type : preterm -> term
 
-val infer_ptop : context -> ptop -> ident * pattern array * term
-
-val check_context : pcontext -> context
-
+(** Checks that a rule is well-typed. *)
 val check_rule : prule -> rule

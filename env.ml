@@ -1,54 +1,35 @@
 open Types
 open Printf
 
-module H = Hashtbl.Make(
-struct
-  type t        = ident
-  let equal     = ident_eq
-  let hash      = Hashtbl.hash
-end )
-
-(* *** Environment management *** *)
-
 let envs : (rw_infos H.t) H.t = H.create 19
 let init name = H.add envs name (H.create 251)
 
-(* *** Modules *** *)
+(******************************************************************************)
 
 let import lc m =
   assert ( not (H.mem envs m) );
   (* If the [.dko] file is not found, try to compile it first.
    This hack is terrible. It uses system calls and can loop with circular dependencies. *)
-  begin
-    if not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) && !Global.autodep then
-      ignore ( Sys.command ( "dkcheck -e " ^ string_of_ident m ^ ".dk" ) )
-  end ;
-  try
-    (* If the [.dko] file is not found, try to compile it first.
-     This hack is terrible. It uses system calls and can loop with circular dependencies. *)
-    begin
-      if not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) && !Global.autodep then
-        ignore ( Sys.command ( "dkcheck -e " ^ string_of_ident m ^ ".dk" ) )
-          end ;
-      let chan = open_in ( string_of_ident m ^ ".dko" ) in
-      let ctx:rw_infos H.t = Marshal.from_channel chan in
-        close_in chan ;
-        H.add envs m ctx ;
-        ctx
-  with _ ->
-    Global.fail lc "Fail to open module '%a'." pp_ident m
+  ( if !Global.autodep && not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) then
+      if Sys.command ( "dkcheck -autodep -e " ^ string_of_ident m ^ ".dk" ) <> 0 then
+        Global.fail lc "Fail to compile dependency '%a'." pp_ident m
+  ) ;
+    let (_,ctx) = Dko.unmarshal lc (string_of_ident m) in
+      ( H.add envs m ctx ; ctx )
+
+let get_deps () : string list =
+  H.fold (
+    fun md _ lst ->
+      if ident_eq md !Global.name then lst
+      else (string_of_ident md)::lst
+  ) envs []
 
 let export_and_clear () =
   ( if !Global.export then
-      begin
-        let out = open_out (string_of_ident !Global.name ^ ".dko" ) in
-        let env = H.find envs !Global.name in
-          Marshal.to_channel out env [Marshal.Closures] ;
-          close_out out
-      end ) ;
+      Dko.marshal (get_deps ()) (H.find envs !Global.name) ) ;
   H.clear envs
 
-(* *** Get *** *)
+(******************************************************************************)
 
 let get_infos lc m v =
   let env =
@@ -65,7 +46,7 @@ let get_type lc m v =
     | Def (_,ty)
     | Decl_rw (ty,_,_,_) -> ty
 
-(* *** Add *** *)
+(******************************************************************************)
 
 let add lc v gst =
   let env = H.find envs !Global.name in
@@ -80,10 +61,9 @@ let add lc v gst =
 let add_decl lc v ty    = add lc v (Decl ty)
 let add_def lc v te ty  = add lc v (Def (te,ty))
 
-let add_rw lc v rs =
-  let env = H.find envs !Global.name in
-  let rwi = ( try H.find env v
-              with Not_found ->
-                Global.fail lc "Cannot find symbol '%a'." pp_ident v
-  ) in
-    H.add env v (Matching.add_rule rwi rs)
+let add_rw = function
+  | [] -> ()
+  | r::_ as rs ->
+      let env = H.find envs !Global.name in
+      let rwi = H.find env r.id in
+        H.add env r.id (Matching.add_rules rwi rs)

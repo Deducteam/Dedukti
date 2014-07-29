@@ -1,5 +1,4 @@
-
-(** This modules provides the basic types used in Dedukti *)
+(** basic datatypes *)
 
 (** {2 Identifiers (hashconsed strings)} *)
 (** Internal representation of identifiers as hashconsed strings. *)
@@ -16,6 +15,7 @@ val ident_eq : ident -> ident -> bool
 type loc
 val dloc                : loc
 val mk_loc              : int -> int -> loc
+(** mk_loc [line] [column] *)
 val of_loc              : loc -> (int*int)
 
 (** {2 Parsing} *)
@@ -55,64 +55,55 @@ exception EndOfFile
 
 (** {2 PreTerms/PrePatterns} *)
 
-type preterm = private
+type preterm =
   | PreType of loc
   | PreId   of loc * ident
   | PreQId  of loc * ident * ident
-  | PreApp  of preterm list
+  | PreApp  of preterm * preterm * preterm list
   | PreLam  of loc * ident * preterm * preterm
-  | PrePi   of (loc*ident) option * preterm * preterm
-
-val mk_pre_type         : loc -> preterm
-val mk_pre_id           : loc -> ident -> preterm
-val mk_pre_qid          : loc -> ident -> ident -> preterm
-val mk_pre_lam          : loc -> ident -> preterm -> preterm -> preterm
-val mk_pre_app          : preterm list -> preterm
-val mk_pre_arrow        : preterm -> preterm -> preterm
-val mk_pre_pi           : loc -> ident -> preterm -> preterm -> preterm
-
-val get_loc : preterm -> loc
+  | PrePi   of loc * ident option * preterm * preterm
 
 type prepattern =
   | PCondition  of preterm
   | PPattern    of loc*ident option*ident*prepattern list
+  | PJoker      of loc
 
-type ptop = loc * ident * prepattern list
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
-type prule      = pcontext * ptop * preterm
+type prule      = loc * pdecl list * ident * prepattern list * preterm
 
 (** {2 Terms/Patterns} *)
 
 type term = private
   | Kind                                (* Kind *)
-  | Type                                (* Type *)
-  | DB    of ident*int                  (* deBruijn *)
-  | Const of ident*ident                (* Global variable *)
-  | App   of term list   (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
-  | Lam   of ident*term*term            (* Lambda abstraction *)
-  | Pi    of ident option*term*term     (* Pi abstraction *)
-  | Meta  of int
+  | Type  of loc                        (* Type *)
+  | DB    of loc*ident*int              (* deBruijn *)
+  | Const of loc*ident*ident            (* Global variable *)
+  | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
+  | Lam   of loc*ident*term*term        (* Lambda abstraction *)
+  | Pi    of loc*ident option*term*term (* Pi abstraction *)
+  | Meta  of loc*int
+
+val get_loc : term -> loc
 
 val mk_Kind     : term
-val mk_Type     : term
-val mk_DB       : ident -> int -> term
-val mk_Const    : ident -> ident -> term
-val mk_Lam      : ident -> term -> term -> term
-val mk_App      : term list -> term
-val mk_Pi       : ident option -> term -> term -> term
+val mk_Type     : loc -> term
+val mk_DB       : loc -> ident -> int -> term
+val mk_Const    : loc -> ident -> ident -> term
+val mk_Lam      : loc -> ident -> term -> term -> term
+val mk_App      : term -> term -> term list -> term
+val mk_Pi       : loc -> ident option -> term -> term -> term
 val mk_Unique   : unit -> term
-val mk_Meta     : int -> term
+val mk_Meta     : loc -> int -> term
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
 
 type pattern =
-  | Var         of ident*int
+  | Var         of loc*ident*int
+  | Pattern     of loc*ident*ident*pattern list
   | Brackets    of term
-  | Pattern     of ident*ident*pattern array
-
-val term_of_pattern : pattern -> term
+  | Joker       of loc*int
 
 type top = ident*pattern array
 type context = ( ident * term ) list
@@ -122,22 +113,23 @@ type context = ( ident * term ) list
 type rule = {
         l:loc;
         ctx:context;
+        md:ident;
         id:ident;
-        args:pattern array;
+        args:pattern list;
         rhs:term; }
-
-type rule2 =
-    { loc:loc ; pats:pattern array ; right:term ;
-      constraints:(term*term) list ; env_size:int ; }
 
 type dtree =
   | Switch      of int * (int*ident*ident*dtree) list * dtree option
   | Test        of (term*term) list * term * dtree option
 
+(** {2 Environment} *)
+
+module H : Hashtbl.S with type key := ident
+
 type rw_infos =
   | Decl    of term
   | Def     of term*term
-  | Decl_rw of term*rule2 list*int*dtree
+  | Decl_rw of term*rule list*int*dtree
 
 (** {2 Commands} *)
 
@@ -155,9 +147,3 @@ type command =
   | Gdt of ident*ident
   | Print of ident
   | Other of string*preterm list
-
-(** {2 Misc} *)
-
-type yes_no_maybe = Yes | No | Maybe
-type 'a option2 = None2 | DontKnow | Some2 of 'a
-type ('a,'b) sum = Success of 'a | Failure of 'b

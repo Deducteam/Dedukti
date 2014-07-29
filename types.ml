@@ -1,5 +1,4 @@
-
-(* *** Identifiers (hashconsed strings) *** *)
+(** {2 Identifiers (hashconsed strings)} *)
 
 type ident = string
 let string_of_ident s = s
@@ -17,14 +16,14 @@ let shash       = WS.create 251
 let hstring     = WS.merge shash
 let empty       = hstring ""
 
-(* *** Localization *** *)
+(** {2 Localization} *)
 
 type loc = int*int
 let dloc = (0,0)
 let mk_loc l c = (l,c)
 let of_loc l = l
 
-(* *** Parsing *** *)
+(** {2 Parsing} *)
 
 type token =
   | UNDERSCORE  of loc
@@ -59,132 +58,113 @@ type token =
 
 exception EndOfFile
 
-(* *** Pseudo Terms *** *)
+(** {2 PreTerms/PrePatterns} *)
 
 type preterm =
   | PreType of loc
   | PreId   of loc * ident
   | PreQId  of loc * ident * ident
-  | PreApp  of preterm list
+  | PreApp  of preterm * preterm * preterm list
   | PreLam  of loc * ident * preterm * preterm
-  | PrePi   of (loc*ident) option * preterm * preterm
+  | PrePi   of loc * ident option * preterm * preterm
 
 type prepattern =
   | PCondition  of preterm
   | PPattern    of loc*ident option*ident*prepattern list
-
-type ptop = loc * ident * prepattern list
-
-let mk_pre_type lc          = PreType lc
-let mk_pre_id lc id         = PreId (lc,id)
-let mk_pre_qid lc md id     = PreQId (lc,md,id)
-let mk_pre_lam lc x ty te   = PreLam (lc,x,ty,te)
-let mk_pre_arrow a b        = PrePi (None,a,b)
-let mk_pre_pi lc x a b      = PrePi (Some(lc,x),a,b)
-let mk_pre_app              = function
-  | []                  -> assert false
-  | [t]                 -> t
-  | (PreApp l1)::l2      -> PreApp (l1@l2)
-  | lst -> PreApp lst
+  | PJoker       of loc
 
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
-type prule      = pcontext * ptop * preterm
+type prule      = loc * pdecl list * ident * prepattern list * preterm
 
-let rec get_loc = function
-  | PreType l | PreId (l,_) | PreQId (l,_,_)
-  | PreLam  (l,_,_,_) | PrePi   (Some(l,_),_,_) -> l
-  | PrePi   (None,f,_) | PreApp (f::_)          -> get_loc f
-  | PreApp _                                    -> assert false
-
-(* *** Terms *** *)
+(** {2 Terms/Patterns} *)
 
 type term =
-  | Kind                  (* Kind *)
-  | Type                  (* Type *)
-  | DB    of ident*int    (* deBruijn *)
-  | Const of ident*ident  (* Global variable *)
-  | App   of term list    (* [ f ; a1 ; ... an ] , length >=2 , f not an App *)
-  | Lam   of ident*term*term            (* Lambda abstraction *)
-  | Pi    of ident option*term*term     (* Pi abstraction *)
-  | Meta  of int
+  | Kind                                (* Kind *)
+  | Type  of loc                        (* Type *)
+  | DB    of loc*ident*int              (* deBruijn *)
+  | Const of loc*ident*ident            (* Global variable *)
+  | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
+  | Lam   of loc*ident*term*term        (* Lambda abstraction *)
+  | Pi    of loc*ident option*term*term (* Pi abstraction *)
+  | Meta  of loc*int
+
+let rec get_loc = function
+  | Kind -> dloc
+  | Type l | DB (l,_,_) | Const (l,_,_)
+  | Lam (l,_,_,_) | Pi (l,_,_,_) | Meta (l,_) -> l
+  | App (f,_,_) -> get_loc f
 
 let mk_Kind             = Kind
-let mk_Type             = Type
-let mk_DB x n           = DB (x,n)
-let mk_Const m v        = Const (m,v)
-let mk_Lam x a b        = Lam (x,a,b)
-let mk_Pi x a b         = Pi (x,a,b)
-let mk_Meta n           = Meta n
+let mk_Type l           = Type l
+let mk_DB l x n         = DB (l,x,n)
+let mk_Const l m v      = Const (l,m,v)
+let mk_Lam l x a b      = Lam (l,x,a,b)
+let mk_Pi l x a b       = Pi (l,x,a,b)
+let mk_Meta l n         = Meta (l,n)
 
-let mk_App              = function
-  | [] | [_] -> assert false
-  | (App l1)::l2 -> App (l1@l2)
-  | lst -> App lst
+let mk_App f a1 args =
+  match f with
+    | App (f',a1',args') -> App (f',a1',args'@(a1::args))
+    | _ -> App(f,a1,args)
 
 let cpt = ref (-1)
 let mk_Unique _ =
   incr cpt ;
-  Const ( empty , hstring (string_of_int !cpt) )
+  Const ( dloc , empty , hstring (string_of_int !cpt) )
 
 let rec term_eq t1 t2 =
   (* t1 == t2 || *)
   match t1, t2 with
-    | Kind, Kind | Type , Type          -> true
-    | DB (_,n), DB (_,n')
-    | Meta n, Meta n'                   -> n=n'
-    | Const (m,v), Const (m',v')        -> ident_eq v v' && ident_eq m m'
-    | App l, App l'                     -> ( try List.for_all2 term_eq l l'
-                                             with _ -> false )
-    | Lam (_,a,b), Lam (_,a',b')
-    | Pi (_,a,b), Pi (_,a',b')          -> term_eq a a' && term_eq b b'
+    | Kind, Kind | Type _, Type _       -> true
+    | DB (_,_,n), DB (_,_,n')
+    | Meta (_,n), Meta (_,n')           -> n=n'
+    | Const (_,m,v), Const (_,m',v')    -> ident_eq v v' && ident_eq m m'
+    | App (f,a,l), App (f',a',l')       ->
+        ( try List.for_all2 term_eq (f::a::l) (f'::a'::l')
+          with _ -> false )
+    | Lam (_,_,a,b), Lam (_,_,a',b')
+    | Pi (_,_,a,b), Pi (_,_,a',b')      -> term_eq a a' && term_eq b b'
     | _, _                              -> false
 
-(* *** Rewrite Rules *** *)
-
 type pattern =
-  | Var         of ident*int
+  | Var         of loc*ident*int
+  | Pattern     of loc*ident*ident*pattern list
   | Brackets    of term
-  | Pattern     of ident*ident*pattern array
-
-let rec term_of_pattern = function
-  | Var (id,n)                  -> DB (id,n)
-  | Brackets t                  -> t
-  | Pattern (md,id,args)        ->
-      let c = Const (md,id) in
-        if Array.length args = 0 then c
-        else mk_App ( c :: (Array.to_list (Array.map term_of_pattern args)) )
+  | Joker       of loc*int
 
 type top = ident*pattern array
 type context = ( ident * term ) list
 
+(**{2 Rewrite Rules} *)
+
 type rule = {
         l:loc;
         ctx:context;
+        md:ident;
         id:ident;
-        args:pattern array;
+        args:pattern list;
         rhs:term; }
-
-type rule2 =
-    { loc:loc ; pats:pattern array ; right:term ;
-      constraints:(term*term) list ; env_size:int ; }
 
 type dtree =
   | Switch      of int * (int*ident*ident*dtree) list * dtree option
   | Test        of (term*term) list * term * dtree option
 
+(** {2 Environment} *)
+
+module H = Hashtbl.Make(
+struct
+  type t        = ident
+  let equal     = ident_eq
+  let hash      = Hashtbl.hash
+end )
+
 type rw_infos =
   | Decl    of term
   | Def     of term*term
-  | Decl_rw of term*rule2 list*int*dtree
+  | Decl_rw of term*rule list*int*dtree
 
-(* Misc *)
-
-type yes_no_maybe = Yes | No | Maybe
-type 'a option2 = None2 | DontKnow | Some2 of 'a
-type ('a,'b) sum = Success of 'a | Failure of 'b
-
-(* Commands *)
+(** {2 Commands} *)
 
 type command =
   (* Reduction *)

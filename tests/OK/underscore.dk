@@ -13,7 +13,7 @@ Finm: Nat -> Nat -> Type
 comp := i:Nat => j:Nat => k:Nat => f:Finm i j => g:Finm j k => x:Fin i => g (f x).
 
 Sn1: Type.
-{Bn}: Sn1 -> Nat -> Type.
+Bn: Sn1 -> Nat -> Type.
 mapBn: Ln1:Sn1 -> i:Nat -> ip:Nat -> Finm i ip -> Bn Ln1 ip -> Bn Ln1 i.
 
 [Ln1:Sn1,i:Nat,j:Nat,k:Nat,f:Finm i j,g:Finm j k,p:Bn Ln1 k] 
