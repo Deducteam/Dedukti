@@ -187,7 +187,8 @@ let mk_App              = function
   | (App l1)::l2 -> App (l1@l2)
   | lst -> App lst
 
-let cpt = ref (-1)
+(* First generated number is 1 so that it does not conflict with the constant 0. *)
+let cpt = ref 0
 let mk_Unique _ =
   incr cpt ;
   Const ( empty , hstring (string_of_int !cpt) )
