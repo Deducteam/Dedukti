@@ -66,7 +66,6 @@ struct
             | _                 -> Global.print "No GDT." )
     | Print str         -> pp_ident stdout str
     | Other (cmd,_)     -> Global.debug 1 lc "Unknown command '%s'." cmd
-    | _ -> failwith "Not implemented."
 
   let mk_ending _ = ()
 

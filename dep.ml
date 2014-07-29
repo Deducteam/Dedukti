@@ -51,8 +51,6 @@ let mk_command _ = function
   | Conv (t1,t2) | Check (t1,t2)        -> ( mk_term t1 ; mk_term t2 )
   | Gdt (_,_) | Print _                 -> ()
   | Other (_,lst)                       -> List.iter mk_term lst
-  | ListRules | ListNonLinearRules | ListTypeLevelRules
-  | ListPiRules| ExportToTPDB -> ()
 
 let mk_ending () =
   Global.print_out "%s.dko : %s" !name

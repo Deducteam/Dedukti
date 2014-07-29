@@ -49,11 +49,6 @@ type token =
   | CHECK       of loc
   | PRINT       of loc
   | GDT         of loc
-  | LISTRULES   of loc
-  | LISTNONLINEAR       of loc
-  | LISTTYPELEVEL       of loc
-  | LISTPIRULES of loc
-  | TPDB        of loc
   | OTHER       of ( loc * string )
 
 exception EndOfFile
@@ -148,12 +143,6 @@ type command =
   (*Typing*)
   | Check of preterm*preterm
   | Infer of preterm
-  (*Rewriting*)
-  | ListRules
-  | ListNonLinearRules
-  | ListTypeLevelRules
-  | ListPiRules
-  | ExportToTPDB
   (* Misc *)
   | Gdt of ident*ident
   | Print of ident

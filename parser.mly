@@ -54,11 +54,6 @@
 %token <Types.loc> CHECK
 %token <Types.loc> PRINT
 %token <Types.loc> GDT
-%token <Types.loc> LISTRULES
-%token <Types.loc> LISTNONLINEAR
-%token <Types.loc> LISTTYPELEVEL
-%token <Types.loc> LISTPIRULES
-%token <Types.loc> TPDB
 %token <Types.loc*string> OTHER
 %token <Types.loc> UNDERSCORE
 %token <Types.loc*Types.ident>NAME
@@ -122,11 +117,6 @@ command         : WHNF  term    { mk_command $1 (Whnf $2) }
                 | PRINT ID      { mk_command $1 (Print (snd $2)) }
                 | GDT   ID      { mk_command $1 (Gdt (!Global.name,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (m,v)) }
-                | LISTRULES     { mk_command $1 ListRules }
-                | LISTNONLINEAR { mk_command $1 ListNonLinearRules }
-                | LISTTYPELEVEL { mk_command $1 ListTypeLevelRules }
-                | LISTPIRULES   { mk_command $1 ListPiRules }
-                | TPDB          { mk_command $1 ExportToTPDB }
                 | OTHER term_lst { mk_command (fst $1) (Other (snd $1,$2)) }
 
 
