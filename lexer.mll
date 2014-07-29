@@ -8,6 +8,11 @@
           let line = start.pos_lnum                     in
           let cnum = start.pos_cnum - start.pos_bol     in
                 mk_loc line cnum
+
+  let chars_read = ref ""
+  let add_char c = chars_read := Printf.sprintf "%s%c" !chars_read c
+
+  let flush () = chars_read := ""
 }
 
 let space   = [' ' '\t']
@@ -51,6 +56,7 @@ rule token = parse
   { QID ( get_loc lexbuf , hstring md , hstring id ) }
   | ident  as id
   { ID  ( get_loc lexbuf , hstring id ) }
+  | '"' { flush (); string lexbuf }
   | _   as s
   { Global.fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }
   | eof { EOF }
@@ -60,3 +66,12 @@ rule token = parse
   | '\n' { new_line lexbuf ; comment lexbuf }
   | _    { comment lexbuf        }
   | eof	 { Global.fail (get_loc lexbuf) "Unexpected end of file."  }
+
+and string = parse
+  | '\\' (_ as c) { add_char '\\'; add_char c; string lexbuf }
+  | '\n' { Lexing.new_line lexbuf ; add_char '\n'; string lexbuf }
+  | '"'  { STRING (!chars_read) }
+  | _ as c { add_char c; string lexbuf }
+  | eof	 { Global.fail (get_loc lexbuf) "Unexpected end of file."  }
+
+

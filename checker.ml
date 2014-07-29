@@ -67,7 +67,7 @@ let mk_command lc = function
       ( match Env.get_infos lc m v with
           | Decl_rw (_,_,i,g)   -> ( Pp.pp_rw stdout (m,v,i,g) ; print_newline () )
           | _                   -> Global.print "No GDT." )
-  | Print str         -> pp_ident stdout str
+  | Print str         -> output_string stdout str
   | Other (cmd,_)     -> Global.debug 1 lc "Unknown command '%s'." cmd
 
 let mk_ending _ =
