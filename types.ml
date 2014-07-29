@@ -72,7 +72,8 @@ type preterm =
 type prepattern =
   | PCondition  of preterm
   | PPattern    of loc*ident option*ident*prepattern list
-  | PJoker       of loc
+  | PLambda     of loc*ident*prepattern
+  | PJoker      of loc
 
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list

@@ -38,6 +38,7 @@ let rec p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
     | PPattern (l,Some md,id,args) ->
         Pattern (l,md,id,List.map (p_of_pp ctx) args)
     | PJoker l -> let n = !fresh in ( incr fresh ; Joker (l,n) )
+    | PLambda (_,_,_) -> failwith "Not Implemented" (*TODO*)
 
 let scope_term (ctx:context) (pte:preterm) : term =
   t_of_pt (List.map fst ctx) pte

@@ -31,7 +31,9 @@ let rec pp_ppattern out = function
       fprintf out "%a %a" pp_pconst (md,id) (pp_list " " pp_ppattern) lst
   | PCondition pte              -> fprintf out "{ %a }" pp_pterm pte
   | PJoker _                    -> fprintf out "_"
+  | PLambda (_,id,p)            -> fprintf out "%a => %a" pp_ident id pp_ppattern p
 and pp_ppattern_wp out = function
+  | PLambda (_,_,_)
   | PPattern (_,_,_,_::_) as p  -> fprintf out "(%a)" pp_ppattern p
   | p                           -> pp_ppattern out p
 

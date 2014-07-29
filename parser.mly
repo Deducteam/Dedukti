@@ -148,6 +148,8 @@ pattern         : ID
                 { let (l,md,id)=$2 in PPattern (l,Some md,id,$3) }
                 | LEFTBRA term RIGHTBRA
                 { PCondition $2 }
+                | LEFTPAR ID FATARROW pattern RIGHTPAR
+                { PLambda (fst $2,snd $2,$4) }
 
 sterm           : QID
                 { let (l,md,id)=$1 in PreQId(l,md,id) }
