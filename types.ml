@@ -89,12 +89,10 @@ type term =
   | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
   | Lam   of loc*ident*term*term        (* Lambda abstraction *)
   | Pi    of loc*ident option*term*term (* Pi abstraction *)
-  | Meta  of loc*int
 
 let rec get_loc = function
+  | Type l | DB (l,_,_) | Const (l,_,_) | Lam (l,_,_,_) | Pi (l,_,_,_)  -> l
   | Kind -> dloc
-  | Type l | DB (l,_,_) | Const (l,_,_)
-  | Lam (l,_,_,_) | Pi (l,_,_,_) | Meta (l,_) -> l
   | App (f,_,_) -> get_loc f
 
 let mk_Kind             = Kind
@@ -103,7 +101,6 @@ let mk_DB l x n         = DB (l,x,n)
 let mk_Const l m v      = Const (l,m,v)
 let mk_Lam l x a b      = Lam (l,x,a,b)
 let mk_Pi l x a b       = Pi (l,x,a,b)
-let mk_Meta l n         = Meta (l,n)
 
 let mk_App f a1 args =
   match f with
@@ -118,22 +115,23 @@ let mk_Unique _ =
 let rec term_eq t1 t2 =
   (* t1 == t2 || *)
   match t1, t2 with
-    | Kind, Kind | Type _, Type _       -> true
-    | DB (_,_,n), DB (_,_,n')
-    | Meta (_,n), Meta (_,n')           -> n=n'
-    | Const (_,m,v), Const (_,m',v')    -> ident_eq v v' && ident_eq m m'
-    | App (f,a,l), App (f',a',l')       ->
+    | Kind, Kind | Type _, Type _ -> true
+    | DB (_,_,n), DB (_,_,n') -> n==n'
+    | Const (_,m,v), Const (_,m',v') ->
+        ident_eq v v' && ident_eq m m'
+    | App (f,a,l), App (f',a',l') ->
         ( try List.for_all2 term_eq (f::a::l) (f'::a'::l')
           with _ -> false )
-    | Lam (_,_,a,b), Lam (_,_,a',b')
-    | Pi (_,_,a,b), Pi (_,_,a',b')      -> term_eq a a' && term_eq b b'
-    | _, _                              -> false
+    | Lam (_,_,a,b), Lam (_,_,a',b') | Pi (_,_,a,b), Pi (_,_,a',b') ->
+        term_eq a a' && term_eq b b'
+    | _, _  -> false
 
 type pattern =
-  | Var         of loc*ident*int
+  | Var         of loc*ident*int*pattern list
   | Pattern     of loc*ident*ident*pattern list
+  | Lambda      of loc*ident*pattern
   | Brackets    of term
-  | Joker       of loc*int
+  | Joker       of loc
 
 type top = ident*pattern array
 type context = ( ident * term ) list
@@ -141,16 +139,22 @@ type context = ( ident * term ) list
 (**{2 Rewrite Rules} *)
 
 type rule = {
-        l:loc;
-        ctx:context;
-        md:ident;
-        id:ident;
-        args:pattern list;
-        rhs:term; }
+  l:loc; ctx:context; md:ident; id:ident; args:pattern list; rhs:term; }
+
+type case =
+  | CConst of int*ident*ident
+  | CDB    of int*int
+  | CLam
+
+type mtch_pb = int * int list
+
+type ctx_loc =
+  | Syntactic of int list
+  | MillerPattern of mtch_pb list
 
 type dtree =
-  | Switch      of int * (int*ident*ident*dtree) list * dtree option
-  | Test        of (term*term) list * term * dtree option
+  | Switch  of int * (case*dtree) list * dtree option
+  | Test    of ctx_loc * (term*term) list * term * dtree option
 
 (** {2 Environment} *)
 
@@ -182,3 +186,13 @@ type command =
   | Gdt of ident*ident
   | Print of string
   | Other of string*preterm list
+
+(** {2 Util} *)
+
+let bind_opt f = function
+  | None -> None
+  | Some x -> f x
+
+let map_opt f = function
+  | None -> None
+  | Some x -> Some (f x)

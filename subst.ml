@@ -12,7 +12,7 @@ let shift r t = shift_rec r 0 t
 
 let rec psubst_l (nargs,args:int*(term Lazy.t) list) (k:int) (t:term) : term =
   match t with
-    | Type _ | Kind | Const _ | Meta _  -> t
+    | Type _ | Kind | Const _ -> t
     | DB (_,x,n) when (n >= (k+nargs))  -> mk_DB dloc x (n-nargs)
     | DB (_,_,n) when (n < k)           -> t
     | DB (_,_,n) (* (k<=n<(k+nargs)) *) ->
@@ -31,7 +31,7 @@ let subst (te:term) (u:term) =
         if n = k then shift k u
         else if n>k then mk_DB l x (n-1)
         else (*n<k*) t
-    | Type _ | Kind | Const _ | Meta _ as t -> t
+    | Type _ | Kind | Const _ as t -> t
     | Lam (_,x,a,b) -> mk_Lam dloc x (aux k a) (aux (k+1) b)
     | Pi  (_,x,a,b) -> mk_Pi dloc  x (aux k a) (aux(k+1) b)
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)

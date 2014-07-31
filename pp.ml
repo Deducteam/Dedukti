@@ -44,8 +44,6 @@ let pp_const out (m,v) =
 let rec pp_term out = function
   | Kind                -> output_string out "Kind"
   | Type _               -> output_string out "Type"
-  | Meta (_,n) when !Global.debug_level > 0 -> fprintf out "?[%i]" n
-  | Meta (_,n)              -> output_string out "_"
   | DB  (_,x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n
   | DB  (_,x,n)           -> pp_ident out x
   | Const (_,m,v)         -> pp_const out (m,v)
@@ -59,9 +57,11 @@ and pp_term_wp out = function
   | t                                  -> fprintf out "(%a)" pp_term t
 
 let rec pp_pattern out = function
-  | Var (_,id,i)        ->
+  | Lambda (_,_,_) -> assert false (*TODO*)
+  | Var (_,id,i,[]) ->
       if !Global.debug_level > 0 then fprintf out "%a[%i]" pp_ident id i
       else pp_ident out id
+  | Var (_,id,i,_)        -> assert false (*TODO*)
   | Brackets t        -> fprintf out "{ %a }" pp_term t
   | Pattern (_,m,v,[])  -> fprintf out "%a" pp_const (m,v)
   | Pattern (_,m,v,pats) ->
@@ -87,19 +87,21 @@ let pp_rule out r =
 
 let tab t = String.make (t*4) ' '
 
-let rec pp_dtree t out = function
-  | Test ([],te,None)   -> pp_term out te
-  | Test ([],te,_)      -> assert false
-  | Test (lst,te,def)   ->
+let rec pp_dtree t out = function (*FIXME*)
+  | Test (_,[],te,None)   -> pp_term out te
+  | Test (_,[],te,_)      -> assert false
+  | Test (_,lst,te,def)   ->
       let tab = tab t in
       let aux out (i,j) = fprintf out "%a=%a" pp_term i pp_term j in
         fprintf out "\n%sif %a then %a\n%selse %a" tab (pp_list " and " aux) lst
           pp_term te tab (pp_def (t+1)) def
   | Switch (i,cases,def)->
       let tab = tab t in
-      let pp_case out (_,m,v,g) =
-        fprintf out "\n%sif $%i=%a then %a" tab i
-          pp_const (m,v) (pp_dtree (t+1)) g
+      let pp_case out = function
+        | CConst (_,m,v), g -> fprintf out "\n%sif $%i=%a then %a" tab i
+                               pp_const (m,v) (pp_dtree (t+1)) g
+        | CLam, g -> failwith "Not Implemented" (*TODO*)
+        | CDB _, g -> failwith "Not Implemented" (*TODO*)
       in
         fprintf out "%a\n%sdefault: %a" (pp_list "" pp_case)
           cases tab (pp_def (t+1)) def

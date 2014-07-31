@@ -26,19 +26,19 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
         mk_Lam l id (t_of_pt ctx a) (t_of_pt (id::ctx) b)
 
 let rec p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
-  let fresh = ref (List.length ctx) in
   match ppat with
-    | PCondition te -> Brackets (t_of_pt ctx te)
-    | PPattern (l,None,id,[]) ->
-         ( match get_db_index ctx id with
-            | None -> Pattern (l,!Global.name,id,[])
-            | Some n -> Var (l,id,n) )
     | PPattern (l,None,id,args) ->
-        Pattern (l,!Global.name,id,List.map (p_of_pp ctx) args)
+        begin
+          let args2 = List.map (p_of_pp ctx) args in
+            match get_db_index ctx id with
+              | None -> Pattern (l,!Global.name,id,args2)
+              | Some n -> Var (l,id,n,args2)
+        end
     | PPattern (l,Some md,id,args) ->
         Pattern (l,md,id,List.map (p_of_pp ctx) args)
-    | PJoker l -> let n = !fresh in ( incr fresh ; Joker (l,n) )
-    | PLambda (_,_,_) -> failwith "Not Implemented" (*TODO*)
+    | PLambda (l,x,p) -> Lambda (l,x,p_of_pp (x::ctx) p)
+    | PCondition te -> Brackets (t_of_pt ctx te) (*FIXME check for bound var*)
+    | PJoker l -> Joker l
 
 let scope_term (ctx:context) (pte:preterm) : term =
   t_of_pt (List.map fst ctx) pte

@@ -2,6 +2,7 @@ open Printf
 open Types
 
 let rec pp_pattern out = function
+    | Lambda (_,_,_) -> assert false (*TODO*)
   | Var (_,x,n) -> fprintf out "#VAR_%a" pp_ident x
   | Pattern (_,m,v,args) ->
       begin
@@ -26,6 +27,7 @@ let rec pp_term k out = function
   | Kind | Type _ | Meta _ -> assert false
 
 let rec pp_underscore out = function
+    | Lambda (_,_,_) -> assert false (*TODO*)
   | Var _ -> () | Brackets _ -> ()
   | Joker (_,n) -> fprintf out " #UNDERSCORE_%i" n
   | Pattern (_,m,v,args) -> List.iter (pp_underscore out) args

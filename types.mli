@@ -84,7 +84,6 @@ type term = private
   | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
   | Lam   of loc*ident*term*term        (* Lambda abstraction *)
   | Pi    of loc*ident option*term*term (* Pi abstraction *)
-  | Meta  of loc*int
 
 val get_loc : term -> loc
 
@@ -96,16 +95,16 @@ val mk_Lam      : loc -> ident -> term -> term -> term
 val mk_App      : term -> term -> term list -> term
 val mk_Pi       : loc -> ident option -> term -> term -> term
 val mk_Unique   : unit -> term
-val mk_Meta     : loc -> int -> term
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
 
 type pattern =
-  | Var         of loc*ident*int
+  | Var         of loc*ident*int*pattern list
   | Pattern     of loc*ident*ident*pattern list
+  | Lambda      of loc*ident*pattern
   | Brackets    of term
-  | Joker       of loc*int
+  | Joker       of loc
 
 type top = ident*pattern array
 type context = ( ident * term ) list
@@ -113,16 +112,24 @@ type context = ( ident * term ) list
 (**{2 Rewrite Rules} *)
 
 type rule = {
-        l:loc;
-        ctx:context;
-        md:ident;
-        id:ident;
-        args:pattern list;
-        rhs:term; }
+  l:loc; ctx:context; md:ident; id:ident; args:pattern list; rhs:term; }
+
+type case =
+  | CConst of int*ident*ident
+  | CDB    of int*int
+  | CLam
+
+type mtch_pb = int (*c*) * int list (*(k_i)_{i<=n}*)
+(* Correspond to the matching problem (F is the variable):
+ * stck.(c) ~? F( (DB k_0) ... (DB k_n) ) *)
+
+type ctx_loc =
+  | Syntactic of int list
+  | MillerPattern of mtch_pb list
 
 type dtree =
-  | Switch      of int * (int*ident*ident*dtree) list * dtree option
-  | Test        of (term*term) list * term * dtree option
+  | Switch  of int * (case*dtree) list * dtree option
+  | Test    of ctx_loc * (term*term) list * term * dtree option
 
 (** {2 Environment} *)
 
@@ -149,3 +156,8 @@ type command =
   | Gdt of ident*ident
   | Print of string
   | Other of string*preterm list
+
+(** {2 Util} *)
+
+val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
+val map_opt : ('a -> 'b) -> 'a option -> 'b option

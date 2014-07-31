@@ -7,8 +7,9 @@ let error_convertibility te ctx exp inf =
 
 let error_product te ctx inf =
   Global.fail (get_loc te)
-    "Error while typing '%a' in context:\n%a.\nExpected: a product type.\nInferred: %a."
+    "Error while typing '%a' in context:\n%a.\nExpected: a product type.\nInferred: %a (%a)."
       Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
+    Pp.pp_term (Reduction.whnf inf) (*FIXME*)
 
 let error_not_a_sort te ctx inf =
   Global.fail (get_loc te)
@@ -52,7 +53,6 @@ let rec infer_rec (ctx:context) (te:term)  : term =
           ( match infer_rec ctx2 b with
               | Kind -> error_kind b ctx2
               | ty   -> mk_Pi dloc (Some x) a ty )
-    | Meta _ -> assert false
 
 and infer_rec_aux ctx (f,ty_f) u =
   match Reduction.whnf ty_f , infer_rec ctx u with
@@ -71,33 +71,42 @@ and is_type ctx a =
 
 let underscore = hstring "_"
 
-let rec t_of_p = function
-  | Var (l,id,n) -> mk_DB l id n
-  | Joker (l,n) -> mk_DB l underscore n
-  | Brackets t -> t
-  | Pattern (l,md,id,[]) -> mk_Const l md id
-  | Pattern (l,md,id,a::args) ->
-      mk_App (mk_Const l md id) (t_of_p a) (List.map t_of_p args)
+let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
 
-let infer_pat ctx pat =
-  let rec synth = function
-    | Var (l,x,n) -> db_get_type l ctx n
-    | Brackets t -> infer_rec ctx t
+  let rec synth (ctx:context) : pattern -> term*term = function
+    | Var (l,x,n,args) ->
+        List.fold_left (check_app ctx) ( mk_DB l x n , db_get_type l ctx n ) args
     | Pattern (l,md,id,args) ->
-        snd (List.fold_left check (mk_Const l md id,Env.get_type l md id) args)
+        List.fold_left (check_app ctx) (mk_Const l md id,Env.get_type l md id) args
+    | Brackets t -> ( t , infer_rec ctx t )
+    | Lambda (_,_,_) -> assert false
     | Joker _ -> assert false
-  and check (f,ty_f) pat =
+
+  and check (ctx:context) (ty:term) : pattern -> term = function
+      | Joker _ -> assert false (*FIXME*)
+      | Lambda (l,x,pat2) ->
+          ( match Reduction.whnf ty with
+              | Pi (_,x_opt,a1,b) ->
+                  let x = match x_opt with None -> empty | Some x -> x in
+                  let u = check ((x,a1)::ctx) b pat2 in
+                    mk_Lam l x a1 u
+              | _ -> assert false )
+      | pat ->
+          let (u,ty2) = synth ctx pat in
+            if Reduction.are_convertible ty ty2 then u
+            else assert false (*TODO*)
+
+  and check_app (ctx:context) (f,ty_f:term*term) (pat:pattern) : term*term =
     match Reduction.whnf ty_f, pat with
-      | Pi (_,_,a1,b), Joker _ ->
-          let u = t_of_p pat in ( mk_App f u [] , Subst.subst b u )
+      | Pi (_,_,a1,b), Joker _ -> assert false (*FIXME*)
+      | Pi (_,_,a1,b), Lambda (l,x,pat2) ->
+          let u = check ((x,a1)::ctx) a1 pat2 in
+            ( mk_App f u [] , Subst.subst b u )
       | Pi (_,_,a1,b), _ ->
-          let a2 = synth pat in
-          let u = t_of_p pat in
-            if Reduction.are_convertible a1 a2 then
-              ( mk_App f u [] , Subst.subst b u )
-            else error_convertibility u ctx a1 a2
+          let u = check ctx a1 pat in ( mk_App f u [] , Subst.subst b u )
       | _, _ -> error_product f ctx ty_f
-  in synth pat
+
+    in snd (synth ctx pat)
 
 (******************************************************************************)
 
@@ -129,7 +138,7 @@ let check_rule (l,pctx,id,pargs,pri) =
   let pat = Scoping.scope_pattern ctx (PPattern(l,None,id,pargs)) in
   let args = match pat with
     | Pattern (_,_,_,args) -> args
-    | Var (l,_,_) -> Global.fail l "A pattern cannot be a variable."
+    | Var (l,_,_,_) -> Global.fail l "A pattern cannot be a variable."
     | _ -> assert false in
   let ty1 = infer_pat ctx pat in
   let rhs = Scoping.scope_term ctx pri in
