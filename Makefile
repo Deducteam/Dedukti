@@ -37,3 +37,18 @@ clean:
 	ocamlbuild -build-dir _dkcheck -clean
 	ocamlbuild -build-dir _dktop -clean
 	ocamlbuild -build-dir _dkdep -clean
+
+tests: dkcheck
+	@echo "run tests..."
+	@for i in tests/OK/*.dk ; do \
+	    echo "on $$i...  " ; \
+	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep SUCCESS ; \
+	done
+	@for i in tests/KO/*.dk ; do \
+	    echo "on $$i...  " ; \
+	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep ERROR ; \
+	done
+	@echo "-----------------------"
+	@echo "tests OK"
+
+.PHONY: tests clean
