@@ -3,6 +3,7 @@
 type ident = string
 let string_of_ident s = s
 let ident_eq s1 s2 = s1==s2 || s1=s2
+let ident_cmp s1 s2 = String.compare s1 s2
 let pp_ident = output_string
 
 module WS = Weak.Make(
@@ -15,6 +16,13 @@ end )
 let shash       = WS.create 251
 let hstring     = WS.merge shash
 let empty       = hstring ""
+
+let gensym =
+  let n = ref 0 in
+  fun () ->
+    let s = hstring (Printf.sprintf "$x%d" !n) in
+    incr n;
+    s
 
 (** {2 Lists with Length} *)
 
@@ -163,6 +171,47 @@ let rec term_eq t1 t2 =
     | Lam (_,_,a,b), Lam (_,_,a',b')
     | Pi (_,_,a,b), Pi (_,_,a',b')      -> term_eq a a' && term_eq b b'
     | _, _                              -> false
+
+(* c <?> (f,x,y) is c if c<>0, else it is f x y. This is used
+    for lexicographic combination *)
+let (<?>) c (f,x,y) = if c=0 then f x y else c
+
+let term_compare_depth (t1,i1) (t2,i2) =
+  let to_int = function
+    | Kind -> 0
+    | Type _ -> 1
+    | DB _ -> 2
+    | Const _ -> 3
+    | App _ -> 4
+    | Lam _ -> 5
+    | Pi _ -> 6
+    | Meta _ -> 7
+    | Let _ -> 8
+  in
+  let rec aux k t1 t2 = match t1, t2 with
+    | Kind, Kind | Type _, Type _       -> 0
+    | DB (_,_,n), DB (_,_,n')           ->
+        (* unshift only if it's above k *)
+        let n = if n<k then n else n-i1
+        and n' = if n'<k then n' else n'-i2 in
+        Pervasives.compare n n'
+    | Meta (_,n), Meta (_,n')           -> Pervasives.compare n n'
+    | Const (_,m,v), Const (_,m',v')    -> ident_cmp v v' <?> (ident_cmp, m, m')
+    | App (f,a,l), App (f',a',l')       ->
+        aux k f f' <?> (aux k, a, a') <?> (aux_list k, l, l')
+    | Lam (_,_,a,b), Lam (_,_,a',b')
+    | Let (_,_,a,b), Let (_,_,a',b')
+    | Pi (_,_,a,b), Pi (_,_,a',b')      -> aux k a a' <?> (aux (k+1), b, b')
+    | _, _                              -> Pervasives.compare (to_int t1) (to_int t2)
+  and aux_list k l1 l2 = match l1, l2 with
+    | [], [] -> 0
+    | [], _ -> -1
+    | _, [] -> 1
+    | t1::tl1, t2::tl2 -> aux k t1 t2 <?> (aux_list k, tl1, tl2)
+  in
+  aux 0 t1 t2
+
+let term_equal_depth a b = term_compare_depth a b=0
 
 type pattern =
   | Var         of loc*ident*int

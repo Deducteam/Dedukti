@@ -11,6 +11,41 @@ let rec shift_rec (r:int) (k:int) : term -> term = function
 
 let shift r t = shift_rec r 0 t
 
+let rec contains k t = match t with
+  | Kind | Type _ | Const _ | Meta _  -> false
+  | DB (_, _, n)      -> n=k
+  | App (f,a,l)       -> contains k f || contains k a || List.exists (contains k) l
+  | Pi (_,_,a,b)
+  | Lam (_,_,a,b)
+  | Let (_,_,a,b)     -> contains k a || contains (k+1) b
+
+let rec unshift_rec r k t = match t with
+  | DB (_,x,n) ->
+      if n<k then t
+      else if n-k>r then mk_DB dloc x (n-r)
+      else failwith "unshift"
+  | App (f,a,args) ->
+      mk_App (unshift_rec r k f) (unshift_rec r k a) (List.map (unshift_rec r k) args )
+  | Lam (_,x,a,f) -> mk_Lam dloc x (unshift_rec r k a) (unshift_rec r (k+1) f)
+  | Pi  (_,x,a,b) -> mk_Pi dloc x (unshift_rec r k a) (unshift_rec r (k+1) b)
+  | Let (_,x,a,b) -> mk_Let dloc x (unshift_rec r k a) (unshift_rec r (k+1) b)
+  | t -> t
+
+let unshift r t = unshift_rec r 0 t
+
+let rec can_unshift_rec r k t = match t with
+  | DB (_,x,n) -> n<k || n-k>r
+  | App (f,a,args) ->
+      can_unshift_rec r k f
+      && can_unshift_rec r k a
+      && List.for_all (can_unshift_rec r k) args
+  | Lam (_,_,a,b)
+  | Pi  (_,_,a,b)
+  | Let (_,_,a,b) -> can_unshift_rec r k a && can_unshift_rec r (k+1) b
+  | t -> true
+
+let can_unshift r t = can_unshift_rec r 0 t
+
 let rec psubst_l (args:(term Lazy.t) LList.t) (k:int) (t:term) : term =
   let nargs = args.LList.len in
   match t with

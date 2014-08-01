@@ -9,6 +9,10 @@ val string_of_ident : ident -> string
 val pp_ident : out_channel -> ident -> unit
 val hstring : string -> ident
 val ident_eq : ident -> ident -> bool
+val ident_cmp : ident -> ident -> int
+
+val gensym : unit -> ident
+(** Fresh identifiers *)
 
 (** {2 Lists with Length} *)
 
@@ -124,6 +128,13 @@ val mk_Let      : loc -> ident -> term -> term -> term
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
+
+(* Syntactic total order of terms in different contexts (i.e. with variables
+  shifted by the given depth). This returns [0] iff the terms are the
+  same (modulo shifting). *)
+val term_compare_depth : term * int -> term * int -> int
+
+val term_equal_depth : term * int -> term * int -> bool
 
 type pattern =
   | Var         of loc*ident*int
