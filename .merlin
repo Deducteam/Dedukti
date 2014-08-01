@@ -1,4 +1,5 @@
 B _dkcheck
 B _dkdep
 B _dktop
+S .
 FLG -rectypes
