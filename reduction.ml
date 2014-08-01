@@ -63,8 +63,7 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
           (* the variable is open, but might be defined by a "let" *)
           begin match LList.nth let_ctx (n-k) with
             | None -> config
-            | Some t ->
-                cbn_reduce {ctx=LList.nil; let_ctx; term=t; stack=[];}
+            | Some t -> cbn_reduce (make ~let_ctx t)
           end
     (* Bound variable (to be substitute) *)
     | {ctx; term=DB (_,_,n); } (*when n<k*) ->

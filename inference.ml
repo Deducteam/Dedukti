@@ -37,7 +37,9 @@ let rec infer_rec ~let_ctx (ctx:context) (te:term)  : term =
   match te with
     | Kind -> Global.fail dloc "Kind is not typable."
     | Type _ -> mk_Kind
-    | DB (l,_,n) -> db_get_type l ctx n
+    | DB (l,_,n) ->
+        (* evaluate let-bindings *)
+        Subst.psubst_opt let_ctx 0 (db_get_type l ctx n)
     | Const (l,md,id) -> Env.get_type l md id
     | App (f,a,args) ->
         snd (List.fold_left (infer_rec_aux ~let_ctx ctx) (f,infer_rec ~let_ctx ctx f) (a::args))
@@ -69,7 +71,7 @@ and infer_rec_aux ~let_ctx ctx (f,ty_f) u =
     | ( Pi (_,_,a1,b) , a2 ) ->
         if Reduction.are_convertible ~let_ctx a1 a2 then
           ( mk_App f u [] , Subst.subst b u )
-        else error_convertibility u ctx a1 a2
+        else error_convertibility ~let_ctx u ctx a1 a2
     | ( _ , _ ) -> error_product f ctx ty_f
 
 and is_type ~let_ctx ctx a =

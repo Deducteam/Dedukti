@@ -65,6 +65,28 @@ let rec psubst_l (args:(term Lazy.t) LList.t) (k:int) (t:term) : term =
         mk_Let dloc x (psubst_l args k a) (psubst_l args (k+1) b)
         (* psubst_l (LList.cons (Lazy.from_val a) args) (k+1) b *)
 
+let rec psubst_opt (args:term option LList.t) (k:int) (t:term) : term =
+  let nargs = args.LList.len in
+  match t with
+    | Type _ | Kind | Const _ | Meta _  -> t
+    | DB (_,x,n) when (n >= (k+nargs))  -> mk_DB dloc x (n-nargs)
+    | DB (_,_,n) when (n < k)           -> t
+    | DB (_,_,n) (* (k<=n<(k+nargs)) *) ->
+        begin match LList.nth args (n-k) with
+        | None -> t
+        | Some t' -> psubst_opt args 0 (shift k t')  (* FIXME *)
+        end
+    | Lam (_,x,a,b)                     ->
+        mk_Lam dloc x (psubst_opt args k a) (psubst_opt args (k+1) b)
+    | Pi  (_,x,a,b)                     ->
+        mk_Pi dloc x (psubst_opt args k a) (psubst_opt args (k+1) b)
+    | App (f,a,lst)                     ->
+        mk_App (psubst_opt args k f) (psubst_opt args k a)
+          (List.map (psubst_opt args k) lst)
+    | Let (_,x,a,b)                     ->
+        mk_Let dloc x (psubst_opt args k a) (psubst_opt args (k+1) b)
+        (* psubst_opt (LList.cons (Lazy.from_val a) args) (k+1) b *)
+
 let subst (te:term) (u:term) =
   let rec  aux k = function
     | DB (l,x,n) as t ->
