@@ -39,13 +39,13 @@ let mk_rules (prs:prule list) : unit =
 let mk_command lc = function
   | Whnf pte          ->
       let (te,_) = Inference.infer pte in
-        Pp.pp_term stdout (Reduction.whnf te)
+        Global.print "%a" Pp.pp_term (Reduction.whnf te)
   | Hnf pte           ->
       let (te,_) = Inference.infer pte in
-        Pp.pp_term stdout (Reduction.hnf te)
+        Global.print "%a" Pp.pp_term (Reduction.hnf te)
   | Snf pte           ->
       let (te,_) = Inference.infer pte in
-        Pp.pp_term stdout (Reduction.snf te)
+        Global.print "%a" Pp.pp_term (Reduction.snf te)
   | OneStep pte       ->
       let (te,_) = Inference.infer pte in
         ( match Reduction.one_step te with

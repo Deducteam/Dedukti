@@ -20,7 +20,7 @@ let empty       = hstring ""
 let gensym =
   let n = ref 0 in
   fun () ->
-    let s = hstring (Printf.sprintf "$x%d" !n) in
+    let s = hstring (Printf.sprintf "_v%d" !n) in
     incr n;
     s
 

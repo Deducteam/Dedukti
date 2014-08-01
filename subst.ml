@@ -63,6 +63,7 @@ let rec psubst_l (args:(term Lazy.t) LList.t) (k:int) (t:term) : term =
           (List.map (psubst_l args k) lst)
     | Let (_,x,a,b)                     ->
         mk_Let dloc x (psubst_l args k a) (psubst_l args (k+1) b)
+        (* psubst_l (LList.cons (Lazy.from_val a) args) (k+1) b *)
 
 let subst (te:term) (u:term) =
   let rec  aux k = function
