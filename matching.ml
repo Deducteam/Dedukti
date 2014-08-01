@@ -102,6 +102,7 @@ let mk_var_lst inf sup =
   let rec aux i = if i<sup then (mk_DB dloc _v i) :: (aux (i+1)) else []
   in aux inf
 
+(* replace the q-th variable by u in te. *)
 let rec subst_q (q:int) (te:term) (u:term) =
   let rec aux k = function
     | DB (_,_,n) as t -> if n = q+k then Subst.shift k u else t
@@ -109,6 +110,7 @@ let rec subst_q (q:int) (te:term) (u:term) =
     | Lam (_,x,a,b) -> mk_Lam dloc x ( aux k a ) ( aux (k+1) b )
     | Pi  (_,x,a,b) -> mk_Pi dloc  x ( aux k a ) ( aux (k+1) b )
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
+    | Let (_,x,a,b) -> mk_Let dloc x ( aux k a ) ( aux (k+1) b )
   in aux 0 te
 
 (* Remove column [c] in [line] and append [n] fresh variables.

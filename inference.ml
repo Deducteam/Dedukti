@@ -52,6 +52,11 @@ let rec infer_rec (ctx:context) (te:term)  : term =
           ( match infer_rec ctx2 b with
               | Kind -> error_kind b ctx2
               | ty   -> mk_Pi dloc (Some x) a ty )
+    | Let (_,x,a,b) ->
+        (* ctx |- let x=a in b   has type  tau
+            iff ctx, x:ty_a |- tau  and ctx |- a : ty_a *)
+        let ty_a = infer_rec ctx a in
+        infer_rec ((x,ty_a)::ctx) b
     | Meta _ -> assert false
 
 and infer_rec_aux ctx (f,ty_f) u =

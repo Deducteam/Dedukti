@@ -122,11 +122,12 @@ type term =
   | Lam   of loc*ident*term*term        (* Lambda abstraction *)
   | Pi    of loc*ident option*term*term (* Pi abstraction *)
   | Meta  of loc*int
+  | Let   of loc*ident*term*term        (* let x=a in b *)
 
 let rec get_loc = function
   | Kind -> dloc
   | Type l | DB (l,_,_) | Const (l,_,_)
-  | Lam (l,_,_,_) | Pi (l,_,_,_) | Meta (l,_) -> l
+  | Lam (l,_,_,_) | Pi (l,_,_,_) | Let (l, _, _, _) | Meta (l,_) -> l
   | App (f,_,_) -> get_loc f
 
 let mk_Kind             = Kind
@@ -136,6 +137,7 @@ let mk_Const l m v      = Const (l,m,v)
 let mk_Lam l x a b      = Lam (l,x,a,b)
 let mk_Pi l x a b       = Pi (l,x,a,b)
 let mk_Meta l n         = Meta (l,n)
+let mk_Let l x a b      = Let (l,x,a,b)
 
 let mk_App f a1 args =
   match f with
@@ -157,6 +159,7 @@ let rec term_eq t1 t2 =
     | App (f,a,l), App (f',a',l')       ->
         ( try List.for_all2 term_eq (f::a::l) (f'::a'::l')
           with _ -> false )
+    | Let (_,_,a,b), Let (_,_,a',b')
     | Lam (_,_,a,b), Lam (_,_,a',b')
     | Pi (_,_,a,b), Pi (_,_,a',b')      -> term_eq a a' && term_eq b b'
     | _, _                              -> false
@@ -207,7 +210,7 @@ type command =
   | Snf of preterm
   | OneStep of preterm
   | Conv of preterm*preterm
-  (*Tying*)
+  (*Typing*)
   | Check of preterm*preterm
   | Infer of preterm
   (* Misc *)

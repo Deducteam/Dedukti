@@ -6,6 +6,7 @@ let rec shift_rec (r:int) (k:int) : term -> term = function
       mk_App (shift_rec r k f) (shift_rec r k a) (List.map (shift_rec r k) args )
   | Lam (_,x,a,f) -> mk_Lam dloc x (shift_rec r k a) (shift_rec r (k+1) f)
   | Pi  (_,x,a,b) -> mk_Pi dloc x (shift_rec r k a) (shift_rec r (k+1) b)
+  | Let (_,x,a,b) -> mk_Let dloc x (shift_rec r k a) (shift_rec r (k+1) b)
   | t -> t
 
 let shift r t = shift_rec r 0 t
@@ -25,6 +26,8 @@ let rec psubst_l (args:(term Lazy.t) LList.t) (k:int) (t:term) : term =
     | App (f,a,lst)                     ->
         mk_App (psubst_l args k f) (psubst_l args k a)
           (List.map (psubst_l args k) lst)
+    | Let (_,x,a,b)                     ->
+        mk_Let dloc x (psubst_l args k a) (psubst_l args (k+1) b)
 
 let subst (te:term) (u:term) =
   let rec  aux k = function
@@ -34,6 +37,7 @@ let subst (te:term) (u:term) =
         else (*n<k*) t
     | Type _ | Kind | Const _ | Meta _ as t -> t
     | Lam (_,x,a,b) -> mk_Lam dloc x (aux k a) (aux (k+1) b)
-    | Pi  (_,x,a,b) -> mk_Pi dloc  x (aux k a) (aux(k+1) b)
+    | Pi  (_,x,a,b) -> mk_Pi dloc  x (aux k a) (aux (k+1) b)
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
+    | Let (_,x,a,b) -> mk_Let dloc x (aux k a) (aux (k+1) b)
   in aux 0 te

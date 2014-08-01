@@ -107,6 +107,7 @@ type term = private
   | Lam   of loc*ident*term*term        (* Lambda abstraction *)
   | Pi    of loc*ident option*term*term (* Pi abstraction *)
   | Meta  of loc*int
+  | Let   of loc*ident*term*term        (* let x=a in b *)
 
 val get_loc : term -> loc
 
@@ -119,6 +120,7 @@ val mk_App      : term -> term -> term list -> term
 val mk_Pi       : loc -> ident option -> term -> term -> term
 val mk_Unique   : unit -> term
 val mk_Meta     : loc -> int -> term
+val mk_Let      : loc -> ident -> term -> term -> term
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool

@@ -51,6 +51,7 @@ let rec pp_term out = function
   | Lam (_,x,a,f)         -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
   | Pi  (_,None,a,b)      -> fprintf out "%a -> %a" pp_term_wp a pp_term b
   | Pi  (_,Some x,a,b)    -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
+  | Let (_,x,a,b)         -> fprintf out "let %a=%a in %a" pp_ident x pp_term a pp_term b
 
 and pp_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> pp_term out t
