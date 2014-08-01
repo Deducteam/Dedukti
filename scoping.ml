@@ -41,8 +41,13 @@ let rec p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
         Pattern (l,md,id,List.map (p_of_pp ctx) args)
     | PJoker l -> let n = !fresh in ( incr fresh ; Joker (l,n) )
 
+let optimize t =
+  let rules = if !Global.cse then [Optim.common_subexpr_elim] else [] in
+  Optim.optimize ~rules t
+
 let scope_term (ctx:context) (pte:preterm) : term =
-  t_of_pt (List.map fst ctx) pte
+  let t = t_of_pt (List.map fst ctx) pte in
+  optimize t
 
 let scope_pattern (ctx:context) (ppat:prepattern) : pattern =
   p_of_pp (List.map fst ctx) ppat

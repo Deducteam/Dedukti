@@ -17,6 +17,7 @@ val export              : bool ref (** Produce a .dko file. *)
 val ignore_redecl       : bool ref (** Do not produce an error when a symbol is redeclared. *)
 val color               : bool ref (** Colored output. *)
 val autodep             : bool ref
+val cse                 : bool ref (** common subexpression elimination *)
 
 (** {2 Printing Facilities} *)
 
