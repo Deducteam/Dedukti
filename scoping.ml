@@ -28,6 +28,10 @@ let rec t_of_pt ctx (pte:preterm) : term =
         let v = Var.fresh_of_ident id in
         let ctx2 = ctx_bind_ident ctx id v in
         mk_Lam l v (t_of_pt ctx a) (t_of_pt ctx2 b)
+    | PreLet (l,id,a,b) ->
+        let v = Var.fresh_of_ident id in
+        let ctx2 = ctx_bind_ident ctx id v in
+        mk_Let l v (t_of_pt ctx a) (t_of_pt ctx2 b)
 
 let rec p_of_pp ctx (ppat:prepattern) : pattern =
   match ppat with

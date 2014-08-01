@@ -126,6 +126,8 @@ type token =
   | EOF
   | DOT
   | DEF
+  | LET
+  | IN
   | COMMA
   | COLON
   | ARROW
@@ -152,6 +154,7 @@ type preterm =
   | PreApp  of preterm * preterm * preterm list
   | PreLam  of loc * ident * preterm * preterm
   | PrePi   of loc * ident option * preterm * preterm
+  | PreLet  of loc * ident * preterm * preterm
 
 type prepattern =
   | PCondition  of preterm

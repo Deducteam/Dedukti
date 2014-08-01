@@ -22,7 +22,7 @@
 
     let rec preterm_loc = function
         | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
-        | PrePi   (l,_,_,_) -> l
+        | PrePi   (l,_,_,_) | PreLet (l,_,_,_) -> l
         | PreApp (f,_,_) -> preterm_loc f
 
     let mk_pre_from_list = function
@@ -45,6 +45,8 @@
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
+%token LET
+%token IN
 %token <Types.loc> WHNF
 %token <Types.loc> HNF
 %token <Types.loc> SNF
@@ -168,4 +170,6 @@ term            : sterm+
                 { failwith "Not implemented (untyped lambda)." }
                 | ID COLON sterm+ FATARROW term
                 { PreLam (fst $1,snd $1,mk_pre_from_list $3,$5) }
+                | LET ID DEF sterm IN term
+                { PreLet (fst $2,snd $2,$4,$6) }
 %%
