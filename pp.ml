@@ -16,6 +16,7 @@ let rec pp_pterm out = function
       ( match o with
           | None   -> fprintf out "%a -> %a" pp_pterm_wp a pp_pterm b
           | Some v -> fprintf out "%a:%a -> %a" pp_ident v pp_pterm_wp a pp_pterm b )
+  | PreLet (_,x,a,b) -> fprintf out "let %a := %a in %a" pp_ident x pp_pterm a pp_pterm b
 
 and pp_pterm_wp out = function
   | PreType _ | PreId _ | PreQId _ as t  -> pp_pterm out t
@@ -51,7 +52,7 @@ let rec pp_term out = function
   | Lam (_,x,a,f)         -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
   | Pi  (_,None,a,b)      -> fprintf out "%a -> %a" pp_term_wp a pp_term b
   | Pi  (_,Some x,a,b)    -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
-  | Let (_,x,a,b)         -> fprintf out "let %a=%a in %a" pp_ident x pp_term a pp_term b
+  | Let (_,x,a,b)         -> fprintf out "let %a := %a in %a" pp_ident x pp_term a pp_term b
 
 and pp_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> pp_term out t

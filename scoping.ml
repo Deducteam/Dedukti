@@ -24,6 +24,8 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
           mk_Pi l opt (t_of_pt ctx a) (t_of_pt ctx2 b)
     | PreLam  (l,id,a,b) ->
         mk_Lam l id (t_of_pt ctx a) (t_of_pt (id::ctx) b)
+    | PreLet (l,id,a,b) ->
+        mk_Let l id (t_of_pt ctx a) (t_of_pt (id::ctx) b)
 
 let rec p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
   let fresh = ref (List.length ctx) in
