@@ -1,9 +1,10 @@
 open Types
 
-type cbn_state =
-    term Lazy.t LList.t         (*context*)
-    * term                      (*term to reduce*)
-    * cbn_state list            (*stack*)
+type cbn_state = {
+  ctx : term Lazy.t LList.t;    (*context*)
+  term : term;                  (*term to reduce*)
+  stack : cbn_state list;       (*stack*)
+}
 
 (*
  let dump_state (k,e,t,s) =
@@ -16,10 +17,11 @@ type cbn_state =
  Global.eprint " ]\n"
  *)
 
-let rec cbn_term_of_state (ctx,t,s:cbn_state) : term =
-  let t = ( if LList.is_empty ctx then t else Subst.psubst_l ctx 0 t ) in
-    match s with
-      | [] -> t | a::lst ->
+let rec cbn_term_of_state {ctx;term;stack} : term =
+  let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx 0 term ) in
+    match stack with
+      | [] -> t
+      | a::lst ->
           mk_App t (cbn_term_of_state a) (List.map cbn_term_of_state lst)
 
 let rec split_stack i = function
@@ -44,28 +46,28 @@ let rec add_to_list lst s s' =
 let rec cbn_reduce (config:cbn_state) : cbn_state =
   match config with
     (* Weak normal terms *)
-    | ( _ ,  Type _ , _ )
-    | ( _ ,  Kind , _ )
-    | ( _ ,  Pi _ , _ )
-    | ( _ ,  Lam _ , [] ) -> config
-    | ({LList.len=k} , DB (_,_,n) , _ ) when (n>=k) -> config
+    | {term=Type _}
+    | {term=Kind}
+    | {term=Pi _}
+    | {term=Lam _; stack=[] } -> config
+    | {ctx={LList.len=k}; term=DB (_,_,n)} when (n>=k) -> config
     (* Bound variable (to be substitute) *)
-    | ( ctx , DB (_,_,n) , s ) (*when n<k*) ->
-        cbn_reduce ( LList.nil, Lazy.force (LList.nth ctx n) , s )
+    | {ctx; term=DB (_,_,n); stack } (*when n<k*) ->
+        cbn_reduce {ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
     (* Beta redex *)
-    | ( ctx , Lam (_,_,_,t) , p::s ) ->
-        cbn_reduce ( LList.cons (lazy (cbn_term_of_state p)) ctx , t , s )
+    | {ctx; term=Lam (_,_,_,t); stack= p::s } ->
+        cbn_reduce { ctx=LList.cons (lazy (cbn_term_of_state p)) ctx; term=t; stack=s }
     (* Application *)
-    | ( ctx , App (f,a,lst) , s ) ->
+    | {ctx; term=App (f,a,lst); stack=s } ->
         (* rev_map + rev_append to avoid map + append*)
-        let tl' = List.rev_map ( fun t -> (ctx,t,[]) ) (a::lst) in
-          cbn_reduce ( ctx , f , List.rev_append tl' s )
+        let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
+        cbn_reduce { ctx; term=f; stack=List.rev_append tl' s; }
     (* Global variable*)
-    | ( _ , Const (_,m,_), _ ) when m==empty -> config
-    | ( _ , Const (_,m,v) , s )              ->
+    | {term=Const (_,m,_)} when m==empty  -> config
+    | {term=Const (_,m,v); stack=s }      ->
         begin
           match Env.get_infos dloc m v with
-            | Def (te,_)        -> cbn_reduce ( LList.nil, te , s )
+          | Def (te,_)        -> cbn_reduce { ctx=LList.nil; term=te; stack=s }
             | Decl _            -> config
             | Decl_rw (_,_,i,g) ->
                 ( match split_stack i s with
@@ -73,11 +75,11 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
                     | Some (s1,s2)        ->
                         ( match rewrite (LList.make ~len:i s1) g with
                             | None              -> config
-                            | Some (ctx,t)      -> cbn_reduce ( ctx , t , s2 )
+                            | Some (ctx,t)      -> cbn_reduce { ctx; term=t; stack= s2}
                         )
                 )
         end
-    | ( _ , Meta _ , _ )                    -> assert false
+    | {term=Meta _}                       -> assert false
 
 and rewrite (args:cbn_state LList.t) (g:dtree) =
   (* assert ( nargs = List.lenght args ); *)
@@ -86,13 +88,13 @@ and rewrite (args:cbn_state LList.t) (g:dtree) =
         begin
           (* assert (i<Array.length args); *)
           match cbn_reduce (LList.nth args i) with
-            | ( _  , Const (_,m,v) , s )  ->
+            | {term=Const (_,m,v); stack=s}  ->
                 ( match safe_find m v cases , def with
                     | Some g , _        ->
                         rewrite (LList.append_l (LList.remove i args) s) g
                     | None , Some g     -> rewrite args g
                     | _ , _             -> None )
-            | ( _ , _ , s ) ->
+            | {stack=s} ->
                 (match def with
                    | Some g     -> rewrite args g
                    | None       -> None )
@@ -104,7 +106,7 @@ and rewrite (args:cbn_state LList.t) (g:dtree) =
         begin
           let ctx = LList.map (fun st -> lazy (cbn_term_of_state st)) args in
           let conv_tests =
-            List.map (fun (t1,t2) -> ( (ctx,t1,[]) , (ctx,t2,[]) )) lst in
+            List.map (fun (t1,t2) -> ( {ctx;term=t1;stack=[]} , {ctx;term=t2;stack=[]}) ) lst in
             if state_conv conv_tests then
               let ctx = LList.map (fun a -> lazy (cbn_term_of_state a)) args in
               Some (ctx, te)
@@ -126,37 +128,39 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
             let s1' = cbn_reduce s1 in
             let s2' = cbn_reduce s2 in
               match s1',s2' with (*states are beta-delta head normal*)
-                | ( _ , Kind , s ) , ( _ , Kind , s' )
-                | ( _ , Type _ , s ) , ( _ , Type _ , s' ) ->
+                | {term=Kind; stack=s} , {term=Kind; stack=s'}
+                | {term=Type _; stack=s} , {term=Type _; stack=s'} ->
                     (* assert ( List.length s == 0 && List.length s' == 0 ) *)
                     state_conv lst
-                | ( {LList.len=k} , DB (_,_,n) , s ) , ({LList.len=k'} , DB (_,_,n') , s' ) ->
+                | {ctx={LList.len=k}; term=DB (_,_,n); stack=s},
+                  {ctx={LList.len=k'}; term=DB (_,_,n'); stack=s'} ->
                     ( (*assert (k<=n && k'<=n') ;*) (n-k)=(n'-k') &&
                       match (add_to_list lst s s') with
                         | None          -> false
                         | Some lst'     -> state_conv lst'
                     )
-                | ( _ , Const (_,m,v) , s ) , ( _ , Const (_,m',v') ,s' ) ->
+                | {term=Const (_,m,v); stack=s}, {term=Const (_,m',v'); stack=s'} ->
                     ( ident_eq v v' && ident_eq m m' &&
                       match (add_to_list lst s s') with
                         | None          -> false
                         | Some lst'     -> state_conv lst'
                     )
-                | ( ctx , Lam (_,_,a,f) , s ) , ( ctx' , Lam (_,_,a',f') , s' )
-                | ( ctx , Pi  (_,_,a,f) , s ) , ( ctx' , Pi  (_,_,a',f') , s' ) ->
+                | {ctx; term=Lam (_,_,a,f); stack=s}, {ctx=ctx'; term=Lam (_,_,a',f'); stack=s'}
+                | {ctx; term=Pi (_,_,a,f); stack=s}, {ctx=ctx'; term=Pi (_,_,a',f');stack=s'} ->
                     let arg = Lazy.lazy_from_val (mk_Unique ()) in
-                    let x = ( (ctx,a,[]) , (ctx',a',[]) ) in
-                    let y = ( (LList.cons arg ctx,f,[]) , (LList.cons arg ctx',f',[]) ) in
+                    let x = {ctx;term=a;stack=[]} , {ctx=ctx';term=a';stack=[]} in
+                    let y = {ctx=LList.cons arg ctx; term=f; stack=[]},
+                            {ctx=LList.cons arg ctx'; term=f'; stack=[]} in
                       ( match add_to_list (x::y::lst) s s' with
                           | None        -> false
                           | Some lst'   -> state_conv lst' )
-                | ( _ , Meta _ , _ ) , _
-                | _ , ( _ , Meta _ , _ )                    -> assert false
-                | ( _ , _ , _ ) , ( _ , _ , _ )         -> false
+                | {term=Meta _} , _
+                | _ , {term=Meta _}     -> assert false
+                | _, _                  -> false
       end
 
 (* Weak Normal Form *)
-let whnf t = cbn_term_of_state ( cbn_reduce ( LList.nil , t , [] ) )
+let whnf t = cbn_term_of_state ( cbn_reduce {ctx=LList.nil; term=t; stack=[]} )
 
 (* Head Normal Form *)
 let rec hnf t =
@@ -166,7 +170,8 @@ let rec hnf t =
     | Meta _  -> assert false
 
 (* Convertibility Test *)
-let are_convertible t1 t2 = state_conv [ ( (LList.nil,t1,[]) , (LList.nil,t2,[]) ) ]
+let are_convertible t1 t2 =
+  state_conv [ ( {ctx=LList.nil;term=t1;stack=[]} , {ctx=LList.nil;term=t2;stack=[]} ) ]
 
 (* Strong Normal Form *)
 let rec snf (t:term) : term =
@@ -181,27 +186,27 @@ let rec snf (t:term) : term =
 (* One-Step Reduction *)
 let rec state_one_step = function
   (* Weak normal terms *)
-  | ( _ , Type _ , s )
-  | ( _ , Kind , s )
-  | ( _ , Pi _ , s )                      -> None
-  | ( _ , Lam _ , [] )                    -> None
-  | ( {LList.len=k} , DB (_,_,n) , _ ) when (n>=k)      -> None
+  | {term=Type _}
+  | {term=Kind}
+  | {term=Pi _}                       -> None
+  | {term=Lam _; stack=[]}            -> None
+  | {ctx={LList.len=k}; term=DB (_,_,n)} when (n>=k)      -> None
   (* Bound variable (to be substitute) *)
-  | ( ctx, DB (_,_,n) , s ) (*when n<k*)     ->
-      Some ( LList.nil , Lazy.force (LList.nth ctx n) , s )
+  | {ctx; term=DB (_,_,n); stack} (*when n<k*)     ->
+      Some {ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack}
   (* Beta redex *)
-  | ( ctx , Lam (_,_,_,t) , p::s )            ->
-      Some ( LList.cons (lazy (cbn_term_of_state p)) ctx , t , s )
+  | {ctx; term= Lam (_,_,_,t); stack=p::s}            ->
+      Some {ctx=LList.cons (lazy (cbn_term_of_state p)) ctx; term=t; stack=s}
   (* Application *)
-  | ( ctx , App (f,a,args) , s )              ->
-      let tl' = List.map ( fun t -> (ctx,t,[]) ) (a::args) in
-        state_one_step ( ctx, f , tl' @ s )
+  | {ctx; term=App (f,a,args); stack=s }              ->
+      let tl' = List.map ( fun t -> {ctx;term=t;stack=[]} ) (a::args) in
+      state_one_step {ctx; term=f; stack=tl' @ s; }
   (* Global variable*)
-  | ( _ , Const (_,m,_), _ ) when m==empty  -> None
-  | ( _ , Const (_,m,v) , s )               ->
+  | {term=Const (_,m,_)} when m==empty  -> None
+  | {term=Const (_,m,v); stack=s }      ->
       begin
         match Env.get_infos dloc m v with
-          | Def (te,_)          -> Some ( LList.nil , te , s )
+          | Def (te,_)          -> Some {ctx=LList.nil; term=te; stack=s}
           | Decl _              -> None
           | Decl_rw (_,_,i,g)   ->
               ( match split_stack i s with
@@ -209,13 +214,13 @@ let rec state_one_step = function
                   | Some (s1,s2)        ->
                       ( match rewrite (LList.make ~len:i s1) g with
                           | None              -> None
-                          | Some (ctx,t)      -> Some ( ctx , t , s2 )
+                          | Some (ctx,t)      -> Some {ctx; term=t; stack=s2}
                       )
               )
       end
-  | ( _ , Meta _ , _ )                    -> assert false
+  | {term=Meta _}                       -> assert false
 
 let one_step t =
-  match state_one_step (LList.nil,t,[]) with
+  match state_one_step {ctx=LList.nil; term=t; stack=[]} with
     | None      -> None
     | Some st   -> Some ( cbn_term_of_state st )
