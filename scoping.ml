@@ -1,46 +1,54 @@
 open Types
 
-let get_db_index ctx id =
-  let rec aux n = function
-    | [] -> None
-    | x::_ when (ident_eq id x) -> Some n
-    | _::lst -> aux (n+1) lst
-  in aux 0 ctx
+let underscore = hstring "_"
 
-let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
+let rec t_of_pt ctx (pte:preterm) : term =
   match pte with
     | PreType l    -> mk_Type l
     | PreId (l,id) ->
         begin
-          match get_db_index ctx id with
-            | None   -> mk_Const l !Global.name id
-            | Some n -> mk_DB l id n
+          try
+            let v = IdentMap.find id ctx.ident2var in
+            mk_Var l v
+          with Not_found ->
+            mk_Const l !Global.name id
         end
     | PreQId (l,md,id) -> mk_Const l md id
     | PreApp (f,a,args) ->
         mk_App (t_of_pt ctx f) (t_of_pt ctx a) (List.map (t_of_pt ctx) args)
     | PrePi (l,opt,a,b) ->
-        let ctx2 = match opt with None -> empty::ctx | Some id -> id::ctx in
-          mk_Pi l opt (t_of_pt ctx a) (t_of_pt ctx2 b)
+        let v_opt, ctx2 = match opt with
+          | None -> None, ctx
+          | Some id ->
+              let v = Var.fresh_of_ident id in
+              Some v, ctx_bind_ident ctx id v
+        in
+        mk_Pi l v_opt (t_of_pt ctx a) (t_of_pt ctx2 b)
     | PreLam  (l,id,a,b) ->
-        mk_Lam l id (t_of_pt ctx a) (t_of_pt (id::ctx) b)
+        let v = Var.fresh_of_ident id in
+        let ctx2 = ctx_bind_ident ctx id v in
+        mk_Lam l v (t_of_pt ctx a) (t_of_pt ctx2 b)
 
-let rec p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
-  let fresh = ref (List.length ctx) in
+let rec p_of_pp ctx (ppat:prepattern) : pattern =
   match ppat with
     | PCondition te -> Brackets (t_of_pt ctx te)
     | PPattern (l,None,id,[]) ->
-         ( match get_db_index ctx id with
-            | None -> Pattern (l,!Global.name,id,[])
-            | Some n -> Var (l,id,n) )
+        begin try
+          let v = IdentMap.find id ctx.ident2var in
+          Var (l, v)
+        with Not_found ->
+          Pattern (l,!Global.name,id,[])
+        end
     | PPattern (l,None,id,args) ->
         Pattern (l,!Global.name,id,List.map (p_of_pp ctx) args)
     | PPattern (l,Some md,id,args) ->
         Pattern (l,md,id,List.map (p_of_pp ctx) args)
-    | PJoker l -> let n = !fresh in ( incr fresh ; Joker (l,n) )
+    | PJoker l ->
+        let v = Var.fresh_of_ident underscore in
+        Joker (l, v)
 
-let scope_term (ctx:context) (pte:preterm) : term =
-  t_of_pt (List.map fst ctx) pte
+let empty_ctx = IdentMap.empty
 
-let scope_pattern (ctx:context) (ppat:prepattern) : pattern =
-  p_of_pp (List.map fst ctx) ppat
+let scope_term ~ctx t = t_of_pt ctx t
+
+let scope_pattern ~ctx p = p_of_pp ctx p

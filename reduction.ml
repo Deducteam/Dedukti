@@ -1,10 +1,12 @@
 open Types
 
 type cbn_state = {
-  ctx : term Lazy.t LList.t;    (*context*)
+  ctx : term Lazy.t subst;      (*context*)
   term : term;                  (*term to reduce*)
   stack : cbn_state list;       (*stack*)
 }
+
+let make_cbn ?(ctx=subst_empty) ?(stack=[]) term = {ctx;term;stack;}
 
 (*
  let dump_state (k,e,t,s) =
@@ -18,7 +20,7 @@ type cbn_state = {
  *)
 
 let rec cbn_term_of_state {ctx;term;stack} : term =
-  let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx 0 term ) in
+  let t = ( if subst_is_empty ctx then term else Subst.psubst_l ctx term ) in
     match stack with
       | [] -> t
       | a::lst ->
@@ -50,38 +52,47 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | {term=Kind}
     | {term=Pi _}
     | {term=Lam _; stack=[] } -> config
-    | {ctx={LList.len=k}; term=DB (_,_,n)} when (n>=k) -> config
     (* Bound variable (to be substitute) *)
-    | {ctx; term=DB (_,_,n); stack } (*when n<k*) ->
-        cbn_reduce {ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
+    | {ctx; term=Var (_,v); stack } ->
+        begin match subst_find ctx v with
+        | None -> config
+        | Some (lazy t) -> cbn_reduce (make_cbn ~stack t)
+        end
     (* Beta redex *)
-    | {ctx; term=Lam (_,_,_,t); stack= p::s } ->
-        cbn_reduce { ctx=LList.cons (lazy (cbn_term_of_state p)) ctx; term=t; stack=s }
+    | {ctx; term=Lam (_,v,_,t); stack= p::s } ->
+        cbn_reduce { ctx=subst_bind ctx v (lazy (cbn_term_of_state p)); term=t; stack=s }
     (* Application *)
     | {ctx; term=App (f,a,lst); stack=s } ->
         (* rev_map + rev_append to avoid map + append*)
-        let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
+        let tl' = List.rev_map (fun t -> make_cbn ~ctx t) (a::lst) in
         cbn_reduce { ctx; term=f; stack=List.rev_append tl' s; }
     (* Global variable*)
     | {term=Const (_,m,_)} when m==empty  -> config
     | {term=Const (_,m,v); stack=s }      ->
         begin
           match Env.get_infos dloc m v with
-          | Def (te,_)        -> cbn_reduce { ctx=LList.nil; term=te; stack=s }
+            | Def (te,_)        -> cbn_reduce { ctx=subst_empty; term=te; stack=s }
             | Decl _            -> config
             | Decl_rw (_,_,i,g) ->
                 ( match split_stack i s with
                     | None                -> config
                     | Some (s1,s2)        ->
-                        ( match rewrite (LList.make ~len:i s1) g with
-                            | None              -> config
-                            | Some (ctx,t)      -> cbn_reduce { ctx; term=t; stack= s2}
-                        )
+                        match rewrite (LList.make ~len:i s1) g with
+                        | None              -> config
+                        | Some (ctx,t)      -> cbn_reduce { ctx; term=t; stack= s2}
                 )
         end
     | {term=Meta _}                       -> assert false
 
 and rewrite (args:cbn_state LList.t) (g:dtree) =
+  (* convert stack of states, into a substitution *)
+  let _build_ctx sbuild args =
+    List.fold_left
+      (fun sigma (i,v) ->
+        let t = lazy (cbn_term_of_state (LList.nth args i)) in
+        subst_bind sigma v t
+      ) subst_empty sbuild
+  in
   (* assert ( nargs = List.lenght args ); *)
   match g with
     | Switch (i,cases,def)      ->
@@ -99,28 +110,30 @@ and rewrite (args:cbn_state LList.t) (g:dtree) =
                    | Some g     -> rewrite args g
                    | None       -> None )
         end
-    | Test ([],te,def)          ->
-        let ctx = LList.map (fun a -> lazy (cbn_term_of_state a)) args in
-        Some ( ctx, te )
-    | Test (lst,te,def)         ->
-        begin
-          let ctx = LList.map (fun st -> lazy (cbn_term_of_state st)) args in
-          let conv_tests =
-            List.map (fun (t1,t2) -> ( {ctx;term=t1;stack=[]} , {ctx;term=t2;stack=[]}) ) lst in
-            if state_conv conv_tests then
-              let ctx = LList.map (fun a -> lazy (cbn_term_of_state a)) args in
-              Some (ctx, te)
-            else
-              match def with
-                | None    -> None
-                | Some g  -> rewrite args g
-        end
+    | Test (sbuild,[],te,def)          ->
+        let ctx = _build_ctx sbuild args in
+        Global.debug_no_loc 3 "rewrite into %a (%a)"
+          Pp.pp_term te (Pp.pp_subst_l ~sep:", ") ctx;
+        Some (ctx, te)
+    | Test (sbuild,lst,te,def)         ->
+        let ctx = _build_ctx sbuild args in
+        let conv_tests = List.map
+          (fun (EqTerm (t1,t2)) ->
+            {ctx;term=t1;stack=[]} , {ctx;term=t2;stack=[]}
+          ) lst
+        in
+        if state_conv conv_tests then
+          Some (ctx, te)
+        else
+          match def with
+            | None    -> None
+            | Some g  -> rewrite args g
 
 and state_conv : (cbn_state*cbn_state) list -> bool = function
   | []                  -> true
   | (s1,s2)::lst        ->
       begin
-        let t1 = cbn_term_of_state s1 in
+        let t1 = cbn_term_of_state s1 in  (* TODO: not very efficient *)
         let t2 = cbn_term_of_state s2 in
           if term_eq t1 t2 then
             state_conv lst
@@ -132,55 +145,72 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
                 | {term=Type _; stack=s} , {term=Type _; stack=s'} ->
                     (* assert ( List.length s == 0 && List.length s' == 0 ) *)
                     state_conv lst
-                | {ctx={LList.len=k}; term=DB (_,_,n); stack=s},
-                  {ctx={LList.len=k'}; term=DB (_,_,n'); stack=s'} ->
-                    ( (*assert (k<=n && k'<=n') ;*) (n-k)=(n'-k') &&
-                      match (add_to_list lst s s') with
-                        | None          -> false
-                        | Some lst'     -> state_conv lst'
-                    )
+                | {term=Var (_,v); stack=s},
+                  {term=Var (_,v'); stack=s'} ->
+                    Var.equal v v' &&
+                    begin match (add_to_list lst s s') with
+                      | None          -> false
+                      | Some lst'     -> state_conv lst'
+                    end
                 | {term=Const (_,m,v); stack=s}, {term=Const (_,m',v'); stack=s'} ->
-                    ( ident_eq v v' && ident_eq m m' &&
-                      match (add_to_list lst s s') with
-                        | None          -> false
-                        | Some lst'     -> state_conv lst'
-                    )
-                | {ctx; term=Lam (_,_,a,f); stack=s}, {ctx=ctx'; term=Lam (_,_,a',f'); stack=s'}
-                | {ctx; term=Pi (_,_,a,f); stack=s}, {ctx=ctx'; term=Pi (_,_,a',f');stack=s'} ->
+                    ident_eq v v' && ident_eq m m' &&
+                    begin match (add_to_list lst s s') with
+                      | None          -> false
+                      | Some lst'     -> state_conv lst'
+                    end
+                | {ctx; term=Lam (_,v,a,f); stack=s},
+                  {ctx=ctx'; term=Lam (_,v',a',f'); stack=s'} ->
                     let arg = Lazy.lazy_from_val (mk_Unique ()) in
-                    let x = {ctx;term=a;stack=[]} , {ctx=ctx';term=a';stack=[]} in
-                    let y = {ctx=LList.cons arg ctx; term=f; stack=[]},
-                            {ctx=LList.cons arg ctx'; term=f'; stack=[]} in
-                      ( match add_to_list (x::y::lst) s s' with
-                          | None        -> false
-                          | Some lst'   -> state_conv lst' )
+                    let x = make_cbn ~ctx a, make_cbn ~ctx:ctx' a' in
+                    let y = make_cbn ~ctx:(subst_bind ctx v arg) f,
+                            make_cbn ~ctx:(subst_bind ctx' v' arg) f' in
+                    begin match add_to_list (x::y::lst) s s' with
+                      | None        -> false
+                      | Some lst'   -> state_conv lst'
+                    end
+                | {ctx; term=Pi (_,v_opt,a,f); stack=s},
+                  {ctx=ctx'; term=Pi (_,v'_opt,a',f'); stack=s'} ->
+                    let arg = Lazy.lazy_from_val (mk_Unique ()) in
+                    let x = make_cbn ~ctx a, make_cbn ~ctx:ctx' a' in
+                    let ctx = match v_opt with
+                      | None -> ctx
+                      | Some v -> subst_bind ctx v arg
+                    and ctx' = match v'_opt with
+                      | None -> ctx
+                      | Some v' -> subst_bind ctx' v' arg
+                    in
+                    let y = make_cbn ~ctx f, make_cbn ~ctx:ctx' f' in
+                    begin match add_to_list (x::y::lst) s s' with
+                      | None        -> false
+                      | Some lst'   -> state_conv lst'
+                    end
                 | {term=Meta _} , _
                 | _ , {term=Meta _}     -> assert false
                 | _, _                  -> false
       end
 
 (* Weak Normal Form *)
-let whnf t = cbn_term_of_state ( cbn_reduce {ctx=LList.nil; term=t; stack=[]} )
+let whnf t = cbn_term_of_state (cbn_reduce (make_cbn t))
 
 (* Head Normal Form *)
 let rec hnf t =
   match whnf t with
-    | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
+    | Kind | Const _ | Var _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
     | App (f,a,lst) -> mk_App (hnf f) (hnf a) (List.map hnf lst)
     | Meta _  -> assert false
 
 (* Convertibility Test *)
 let are_convertible t1 t2 =
-  state_conv [ ( {ctx=LList.nil;term=t1;stack=[]} , {ctx=LList.nil;term=t2;stack=[]} ) ]
+  state_conv [ (make_cbn t1, make_cbn t2) ]
 
 (* Strong Normal Form *)
 let rec snf (t:term) : term =
   match whnf t with
     | Kind | Const _
-    | DB _ | Type _ as t' -> t'
+    | Var _ | Type _ as t' -> t'
     | App (f,a,lst)     -> mk_App (snf f) (snf a) (List.map snf lst)
-    | Pi (_,x,a,b)        -> mk_Pi dloc x (snf a) (snf b)
-    | Lam (_,x,a,b)       -> mk_Lam dloc x (snf a) (snf b)
+    | Pi (_,x,a,b)      -> mk_Pi dloc x (snf a) (snf b)
+    | Lam (_,x,a,b)     -> mk_Lam dloc x (snf a) (snf b)
     | Meta _            -> assert false
 
 (* One-Step Reduction *)
@@ -190,37 +220,38 @@ let rec state_one_step = function
   | {term=Kind}
   | {term=Pi _}                       -> None
   | {term=Lam _; stack=[]}            -> None
-  | {ctx={LList.len=k}; term=DB (_,_,n)} when (n>=k)      -> None
   (* Bound variable (to be substitute) *)
-  | {ctx; term=DB (_,_,n); stack} (*when n<k*)     ->
-      Some {ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack}
+  | {ctx; term=Var (_,v); stack} (*when n<k*)   ->
+      begin match subst_find ctx v with
+      | None -> None
+      | Some (lazy t') -> Some (make_cbn ~stack t')
+      end
   (* Beta redex *)
-  | {ctx; term= Lam (_,_,_,t); stack=p::s}            ->
-      Some {ctx=LList.cons (lazy (cbn_term_of_state p)) ctx; term=t; stack=s}
+  | {ctx; term= Lam (_,v,_,t); stack=p::s}      ->
+      Some {ctx=subst_bind ctx v (lazy (cbn_term_of_state p)); term=t; stack=s}
   (* Application *)
   | {ctx; term=App (f,a,args); stack=s }              ->
-      let tl' = List.map ( fun t -> {ctx;term=t;stack=[]} ) (a::args) in
+      let tl' = List.map (fun t -> make_cbn t) (a::args) in
       state_one_step {ctx; term=f; stack=tl' @ s; }
   (* Global variable*)
   | {term=Const (_,m,_)} when m==empty  -> None
   | {term=Const (_,m,v); stack=s }      ->
       begin
         match Env.get_infos dloc m v with
-          | Def (te,_)          -> Some {ctx=LList.nil; term=te; stack=s}
+          | Def (te,_)          -> Some (make_cbn ~stack:s te)
           | Decl _              -> None
           | Decl_rw (_,_,i,g)   ->
-              ( match split_stack i s with
+              begin match split_stack i s with
                   | None                -> None
                   | Some (s1,s2)        ->
-                      ( match rewrite (LList.make ~len:i s1) g with
-                          | None              -> None
-                          | Some (ctx,t)      -> Some {ctx; term=t; stack=s2}
-                      )
-              )
+                      match rewrite (LList.make ~len:i s1) g with
+                        | None              -> None
+                        | Some (ctx,t)      -> Some {ctx; term=t; stack=s2}
+              end
       end
   | {term=Meta _}                       -> assert false
 
 let one_step t =
-  match state_one_step {ctx=LList.nil; term=t; stack=[]} with
+  match state_one_step (make_cbn t) with
     | None      -> None
     | Some st   -> Some ( cbn_term_of_state st )

@@ -1,39 +1,49 @@
 open Types
 
-let rec shift_rec (r:int) (k:int) : term -> term = function
-  | DB (_,x,n) as t -> if n<k then t else mk_DB dloc x (n+r)
-  | App (f,a,args) ->
-      mk_App (shift_rec r k f) (shift_rec r k a) (List.map (shift_rec r k) args )
-  | Lam (_,x,a,f) -> mk_Lam dloc x (shift_rec r k a) (shift_rec r (k+1) f)
-  | Pi  (_,x,a,b) -> mk_Pi dloc x (shift_rec r k a) (shift_rec r (k+1) b)
-  | t -> t
-
-let shift r t = shift_rec r 0 t
-
-let rec psubst_l (args:(term Lazy.t) LList.t) (k:int) (t:term) : term =
-  let nargs = args.LList.len in
+let rec psubst sigma t =
   match t with
     | Type _ | Kind | Const _ | Meta _  -> t
-    | DB (_,x,n) when (n >= (k+nargs))  -> mk_DB dloc x (n-nargs)
-    | DB (_,_,n) when (n < k)           -> t
-    | DB (_,_,n) (* (k<=n<(k+nargs)) *) ->
-        shift k ( Lazy.force (LList.nth args (n-k)) )
-    | Lam (_,x,a,b)                     ->
-        mk_Lam dloc x (psubst_l args k a) (psubst_l args (k+1) b)
-    | Pi  (_,x,a,b)                     ->
-        mk_Pi dloc x (psubst_l args k a) (psubst_l args (k+1) b)
-    | App (f,a,lst)                     ->
-        mk_App (psubst_l args k f) (psubst_l args k a)
-          (List.map (psubst_l args k) lst)
+    | Var (_,v) ->
+        begin match subst_find sigma v with
+        | None -> t
+        | Some t' -> psubst sigma t'
+        end
+    | Lam (_,v,a,b) ->
+        let v' = Var.fresh v in
+        let sigma' = subst_bind sigma v (mk_Var dloc v') in
+        mk_Lam dloc v' (psubst sigma a) (psubst sigma' b)
+    | Pi (_,None,a,b) ->
+        mk_Pi dloc None (psubst sigma a) (psubst sigma b)
+    | Pi (_,Some v,a,b) ->
+        let v' = Var.fresh v in
+        let sigma' = subst_bind sigma v (mk_Var dloc v') in
+        mk_Pi dloc (Some v') (psubst sigma a) (psubst sigma' b)
+    | App (f, a, l) ->
+        mk_App (psubst sigma f) (psubst sigma a) (psubst_list sigma l)
+and psubst_list sigma l = List.map (psubst sigma) l
 
-let subst (te:term) (u:term) =
-  let rec  aux k = function
-    | DB (l,x,n) as t ->
-        if n = k then shift k u
-        else if n>k then mk_DB l x (n-1)
-        else (*n<k*) t
-    | Type _ | Kind | Const _ | Meta _ as t -> t
-    | Lam (_,x,a,b) -> mk_Lam dloc x (aux k a) (aux (k+1) b)
-    | Pi  (_,x,a,b) -> mk_Pi dloc  x (aux k a) (aux(k+1) b)
-    | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
-  in aux 0 te
+let rec psubst_l sigma t =
+  match t with
+    | Type _ | Kind | Const _ | Meta _  -> t
+    | Var (_,v) ->
+        begin match subst_find sigma v with
+        | None -> t
+        | Some (lazy t') -> psubst_l sigma t'
+        end
+    | Lam (_,v,a,b) ->
+        let v' = Var.fresh v in
+        let sigma' = subst_bind sigma v (Lazy.from_val (mk_Var dloc v')) in
+        mk_Lam dloc v' (psubst_l sigma a) (psubst_l sigma' b)
+    | Pi (_,None,a,b) ->
+        mk_Pi dloc None (psubst_l sigma a) (psubst_l sigma b)
+    | Pi (_,Some v,a,b) ->
+        let v' = Var.fresh v in
+        let sigma' = subst_bind sigma v (Lazy.from_val (mk_Var dloc v')) in
+        mk_Pi dloc (Some v') (psubst_l sigma a) (psubst_l sigma' b)
+    | App (f, a, l) ->
+        mk_App (psubst_l sigma f) (psubst_l sigma a) (psubst_l_list sigma l)
+and psubst_l_list sigma l = List.map (psubst_l sigma) l
+
+let subst t ~var ~by =
+  let sigma = subst_bind subst_empty var by in
+  psubst sigma t

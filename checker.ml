@@ -6,7 +6,7 @@ let mk_prelude lc name =
 let mk_declaration lc id pty =
   Global.debug 1 lc "Declaration of symbol '%a'." pp_ident id;
   let ty = Inference.is_a_type pty in
-    Env.add_decl lc id ty
+  Env.add_decl lc id ty
 
 let mk_definition lc id ty_opt pte =
   Global.debug 1 lc "Definition of symbol '%a'." pp_ident id ;

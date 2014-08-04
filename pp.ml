@@ -44,22 +44,22 @@ let rec pp_term out = function
   | Type _               -> output_string out "Type"
   | Meta (_,n) when !Global.debug_level > 0 -> fprintf out "?[%i]" n
   | Meta (_,n)              -> output_string out "_"
-  | DB  (_,x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n
-  | DB  (_,x,n)           -> pp_ident out x
+  | Var  (_,v) when !Global.debug_level > 0 -> Var.pp out v
+  | Var  (_,v)                              -> pp_ident out (Var.ident v)
   | Const (_,m,v)         -> pp_const out (m,v)
   | App (f,a,args)      -> pp_list " " pp_term_wp out (f::a::args)
-  | Lam (_,x,a,f)         -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
+  | Lam (_,v,a,f)         -> fprintf out "%a:%a => %a" Var.pp v pp_term_wp a pp_term f
   | Pi  (_,None,a,b)      -> fprintf out "%a -> %a" pp_term_wp a pp_term b
-  | Pi  (_,Some x,a,b)    -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
+  | Pi  (_,Some v,a,b)    -> fprintf out "%a:%a -> %a" Var.pp v pp_term_wp a pp_term b
 
 and pp_term_wp out = function
-  | Kind | Type _ | DB _ | Const _ as t -> pp_term out t
-  | t                                  -> fprintf out "(%a)" pp_term t
+  | Kind | Type _ | Var _ | Const _ as t  -> pp_term out t
+  | t                                     -> fprintf out "(%a)" pp_term t
 
 let rec pp_pattern out = function
-  | Var (_,id,i)        ->
-      if !Global.debug_level > 0 then fprintf out "%a[%i]" pp_ident id i
-      else pp_ident out id
+  | Var (_,v)        ->
+      if !Global.debug_level > 0 then Var.pp out v
+      else pp_ident out (Var.ident v)
   | Brackets t        -> fprintf out "{ %a }" pp_term t
   | Pattern (_,m,v,[])  -> fprintf out "%a" pp_const (m,v)
   | Pattern (_,m,v,pats) ->
@@ -69,30 +69,42 @@ and pp_pattern_wp out = function
   | Pattern (_,_,_,_) as p -> fprintf out "(%a)" pp_pattern p
   | p -> pp_pattern out p
 
+let pp_subst ~sep out sigma =
+  pp_list sep
+    (fun out (v,t) -> fprintf out "%a: %a" Var.pp v pp_term t)
+    out (VarMap.bindings sigma)
+
+let pp_subst_l ~sep out sigma =
+  pp_list sep
+    (fun out (v, lazy t) -> fprintf out "%a: %a" Var.pp v pp_term t)
+    out (VarMap.bindings sigma)
+
 let pp_context out ctx =
   pp_list ".\n" (
     fun out (x,ty) ->
       if ident_eq empty x then fprintf out "?: %a" pp_term ty
       else fprintf out "%a: %a" pp_ident x pp_term ty )
-    out (List.rev ctx)
+    out (IdentMap.bindings ctx.const2ty);
+  output_char out '\n';
+  pp_subst ~sep:".\n" out ctx.var2ty
 
 let pp_rule out r =
-  let pp_decl out (id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
+  let pp_decl out (x,ty) = fprintf out "%a:%a" pp_ident x pp_term ty in
     fprintf out "[%a] %a --> %a"
-      (pp_list "," pp_decl) r.ctx
+      (pp_list "," pp_decl) (IdentMap.bindings r.ctx.const2ty)
       pp_pattern (Pattern (dloc,r.md,r.id,r.args))
       pp_term r.rhs
 
 let tab t = String.make (t*4) ' '
 
 let rec pp_dtree t out = function
-  | Test ([],te,None)   -> pp_term out te
-  | Test ([],te,_)      -> assert false
-  | Test (lst,te,def)   ->
+  | Test (_,[],te,None)   -> pp_term out te
+  | Test (_,[],te,_)      -> assert false
+  | Test (_,lst,te,def)   ->
       let tab = tab t in
-      let aux out (i,j) = fprintf out "%a=%a" pp_term i pp_term j in
-        fprintf out "\n%sif %a then %a\n%selse %a" tab (pp_list " and " aux) lst
-          pp_term te tab (pp_def (t+1)) def
+      let aux out (EqTerm(i,j)) = fprintf out "%a=%a" pp_term i pp_term j in
+      fprintf out "\n%sif %a then %a\n%selse %a" tab (pp_list " and " aux) lst
+        pp_term te tab (pp_def (t+1)) def
   | Switch (i,cases,def)->
       let tab = tab t in
       let pp_case out (_,m,v,g) =

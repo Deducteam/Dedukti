@@ -1,9 +1,15 @@
 open Types
 
 let is_linear r =
-  let seen = Array.create (List.length r.ctx) false in
+  let seen = VarTbl.create 16 in
   let rec aux = function
-    | Var (_,_,n) -> if seen.(n) then false else ( seen.(n) <- true ; true )
+    | Var (_,v) ->
+        if VarTbl.get_default seen v ~x0:false
+        then false
+        else (
+          VarTbl.replace seen v true;
+          true
+        )
     | Pattern (_,_,_,args) -> List.for_all aux args
     | Brackets _ -> false
     | Joker _ -> true

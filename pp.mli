@@ -11,6 +11,9 @@ val pp_pattern  : out_channel -> pattern -> unit
 
 val pp_rule     : out_channel -> rule -> unit
 
+val pp_subst    : sep:string -> out_channel -> term subst -> unit
+val pp_subst_l  : sep:string -> out_channel -> term Lazy.t subst -> unit
+
 val pp_context  : out_channel -> context -> unit
 
 val pp_dtree    : int -> out_channel -> dtree -> unit
