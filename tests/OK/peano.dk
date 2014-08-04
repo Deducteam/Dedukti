@@ -1,0 +1,30 @@
+
+#NAME peano.
+
+Nat : Type.
+S : Nat -> Nat.
+Z : Nat.
+
+plus : Nat -> Nat -> Nat.
+[n:Nat] plus Z n --> n
+[n:Nat, m:Nat] plus (S n) m --> S (plus n m).
+
+mult : Nat -> Nat -> Nat.
+[n:Nat] mult Z n --> Z.
+[n:Nat, m:Nat] mult (S n) m --> plus m (mult n m).
+
+power : Nat -> Nat -> Nat.
+[n:Nat] power n Z --> S Z.
+[n:Nat, p:Nat] power n (S p) --> mult n (power n p).
+
+zero : Nat := Z.
+one : Nat := S zero.
+two : Nat := S one.
+three : Nat := S two.
+four : Nat := S three.
+five : Nat := S four.
+
+#SNF power two two.
+#SNF power two (mult two five).
+
+#CONV power two (mult two five), power four five.

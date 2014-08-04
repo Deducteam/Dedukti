@@ -27,6 +27,9 @@ false_elim : A:Prop -> prf false -> prf A.
 
 lem: A:Prop -> B:Prop -> prf (imp A B) -> prf (imp (not A) B) -> prf B.
 
+#SNF A:Prop -> B:Prop -> prf (imp A B).
+#CONV A:Prop -> B:Prop -> prf (imp A B), A:Prop -> B:Prop -> prf A -> prf B.
+
 (; *** Theorems ;)
 
 (; implication ;)
