@@ -31,6 +31,8 @@ let var_get_type l ctx v =
   try VarMap.find v ctx
   with Not_found -> Global.fail l "Trying to type a open term (var %a)." Var.pp v
 
+let tau = hstring "τ"
+
 (* ctx: maps variables to their type *)
 let rec infer_rec ctx (te:term) : term =
   match te with
@@ -42,7 +44,7 @@ let rec infer_rec ctx (te:term) : term =
         snd (List.fold_left (infer_rec_aux ctx) (f,infer_rec ctx f) (a::args))
     | Pi (_,opt,a,b) ->
         let x = match opt with
-          | None -> Var.fresh_of_ident empty
+          | None -> Var.fresh_of_ident tau
           | Some x -> x
         in
         let _ = is_type ctx a in
@@ -132,8 +134,9 @@ let check pte pty =
   let ty = Scoping.scope_term ~ctx:ctx_empty pty in
   let _  =  infer_rec ctx_empty ty in
   let ty2 = infer_rec ctx_empty te in
-    if (Reduction.are_convertible ty ty2) then (te,ty)
-    else error_convertibility te ctx_empty ty ty2
+  if (Reduction.are_convertible ty ty2)
+  then (te,ty)
+  else error_convertibility te ctx_empty ty ty2
 
 let is_a_type2 ctx pty =
   let ty = Scoping.scope_term ~ctx pty in

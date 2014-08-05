@@ -112,8 +112,6 @@ and rewrite (args:cbn_state LList.t) (g:dtree) =
         end
     | Test (sbuild,[],te,def)          ->
         let ctx = _build_ctx sbuild args in
-        Global.debug_no_loc 3 "rewrite into %a (%a)"
-          Pp.pp_term te (Pp.pp_subst_l ~sep:", ") ctx;
         Some (ctx, te)
     | Test (sbuild,lst,te,def)         ->
         let ctx = _build_ctx sbuild args in
@@ -176,7 +174,7 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
                       | None -> ctx
                       | Some v -> subst_bind ctx v arg
                     and ctx' = match v'_opt with
-                      | None -> ctx
+                      | None -> ctx'
                       | Some v' -> subst_bind ctx' v' arg
                     in
                     let y = make_cbn ~ctx f, make_cbn ~ctx:ctx' f' in
