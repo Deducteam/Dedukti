@@ -139,6 +139,24 @@ val term_compare_depth : term * int -> term * int -> int
 
 val term_equal_depth : term * int -> term * int -> bool
 
+(** Let-definitions: partial mapping from bound vars to terms+env *)
+module LetCtx : sig
+  type t = {
+    env : (term * t) option LList.t;
+  }
+
+  val empty : t
+  val is_empty : t -> bool
+  val cons : (term * t) -> t -> t
+  val cons_none : t -> t
+  val nth : t -> int -> (term * t) option
+  val lst : t -> (term*t) option list
+  val len : t -> int
+
+  val has_bindings : t -> bool
+  (** Is there at least one bound variable? *)
+end
+
 type pattern =
   | Var         of loc*ident*int
   | Pattern     of loc*ident*ident*pattern list

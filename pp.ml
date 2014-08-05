@@ -71,12 +71,32 @@ and pp_pattern_wp out = function
   | Pattern (_,_,_,_) as p -> fprintf out "(%a)" pp_pattern p
   | p -> pp_pattern out p
 
-let pp_context out ctx =
-  pp_list ".\n" (
+let pp_context' ~sep out ctx =
+  let n = ref (List.length ctx - 1) in
+  pp_list sep (
     fun out (x,ty) ->
       if ident_eq empty x then fprintf out "?: %a" pp_term ty
-      else fprintf out "%a: %a" pp_ident x pp_term ty )
+      else fprintf out "[%d] %a: %a" !n pp_ident x pp_term ty;
+      decr n)
     out (List.rev ctx)
+
+let pp_context out ctx = pp_context' ~sep:".\n" out ctx
+
+let rec pp_let_ctx' ~sep out ctx =
+  if not (LetCtx.has_bindings ctx) then ()
+  else
+    let first = ref true in
+    List.iteri
+      (fun i opt -> match opt with
+        | None -> ()
+        | Some (t,env) ->
+            (if !first then first := false else output_string out sep);
+            if LetCtx.has_bindings env
+            then fprintf out "[%d]: %a (in %a)" i pp_term t (pp_let_ctx' ~sep:", ") env
+            else fprintf out "[%d]: %a" i pp_term t
+      ) (LetCtx.lst ctx)
+
+let pp_let_ctx out ctx = pp_let_ctx' ~sep:"\n" out ctx
 
 let pp_rule out r =
   let pp_decl out (id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in

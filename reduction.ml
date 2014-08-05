@@ -1,15 +1,13 @@
 open Types
 
-type let_ctx    = term option LList.t
-
 type cbn_state = {
   ctx : term Lazy.t LList.t;    (*context*)
-  let_ctx : term option LList.t; (* let-bound variables *)
+  let_ctx : LetCtx.t;           (* let-bound variables *)
   term : term;                  (*term to reduce*)
   stack : cbn_state list;       (*stack*)
 }
 
-let make ?(ctx=LList.nil) ?(stack=[]) ?(let_ctx=LList.nil) term =
+let make ?(ctx=LList.nil) ?(stack=[]) ?(let_ctx=LetCtx.empty) term =
   {ctx;let_ctx; term;stack;}
 
 (*
@@ -56,14 +54,14 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
     | {term=Kind}
     | {term=Pi _}
     | {term=Lam _; stack=[] } -> config
-    | {ctx={LList.len=k}; let_ctx; term=DB (_,_,n)} when (n>=k) ->
-        if n-k >= LList.len let_ctx
+    | {ctx={LList.len=k}as ctx; let_ctx; term=DB (_,_,n)} when (n>=k) ->
+        if n-k >= LetCtx.len let_ctx
         then config
         else
           (* the variable is open, but might be defined by a "let" *)
-          begin match LList.nth let_ctx (n-k) with
+          begin match LetCtx.nth let_ctx (n-k) with
             | None -> config
-            | Some t -> cbn_reduce (make ~let_ctx t)
+            | Some (t,let_ctx') -> cbn_reduce (make ~ctx ~let_ctx:let_ctx' t)
           end
     (* Bound variable (to be substitute) *)
     | {ctx; term=DB (_,_,n); } (*when n<k*) ->
@@ -103,6 +101,8 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
         end
     | {term=Meta _}                       -> assert false
 
+  (* TODO: need to carry the environment of let-binders here, because
+      the LHS could have captured let-variables. *)
 and rewrite (args:cbn_state LList.t) (g:dtree) =
   (* assert ( nargs = List.lenght args ); *)
   match g with
@@ -167,8 +167,10 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
                         | None          -> false
                         | Some lst'     -> state_conv lst'
                     )
-                | {ctx; term=Lam (_,_,a,f); stack=s}, {ctx=ctx'; term=Lam (_,_,a',f'); stack=s'}
-                | {ctx; term=Pi (_,_,a,f); stack=s}, {ctx=ctx'; term=Pi (_,_,a',f');stack=s'} ->
+                | {ctx; term=Lam (_,_,a,f); stack=s},
+                  {ctx=ctx'; term=Lam (_,_,a',f'); stack=s'}
+                | {ctx; term=Pi (_,_,a,f); stack=s},
+                  {ctx=ctx'; term=Pi (_,_,a',f');stack=s'} ->
                     let arg = Lazy.lazy_from_val (mk_Unique ()) in
                     let x = {s1' with term=a;stack=[]} , {s2' with term=a';stack=[]} in
                     let y = {s1' with ctx=LList.cons arg ctx; term=f; stack=[]},
@@ -184,13 +186,15 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
       end
 
 (* Weak Normal Form *)
-let whnf ?(let_ctx=LList.nil) t =
+let whnf ?(let_ctx=LetCtx.empty) t =
   let t' = cbn_term_of_state ( cbn_reduce (make ~let_ctx t) ) in
-  Global.debug_no_loc 2 "whnf of %a is %a" Pp.pp_term t Pp.pp_term t';
+  Global.debug_no_loc 2 "whnf of %a" Pp.pp_term t;
+  Global.debug_no_loc 2 "     in %a" (Pp.pp_let_ctx' ~sep:", ") let_ctx;
+  Global.debug_no_loc 2 "     is %a" Pp.pp_term t';
   t'
 
 (* Head Normal Form *)
-let rec hnf ?(let_ctx=LList.nil) t =
+let rec hnf ?(let_ctx=LetCtx.empty) t =
   match whnf ~let_ctx t with
     | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
     | App (f,a,lst) ->
@@ -198,10 +202,11 @@ let rec hnf ?(let_ctx=LList.nil) t =
     | Let _ | Meta _  -> assert false
 
 (* Convertibility Test *)
-let are_convertible ?(let_ctx=LList.nil) t1 t2 = state_conv [ (make ~let_ctx t1, make ~let_ctx t2) ]
+let are_convertible ?(let_ctx=LetCtx.empty) t1 t2 =
+  state_conv [ (make ~let_ctx t1, make ~let_ctx t2) ]
 
 (* Strong Normal Form *)
-let rec snf ?(let_ctx=LList.nil) (t:term) : term =
+let rec snf ?(let_ctx=LetCtx.empty) (t:term) : term =
   match whnf ~let_ctx t with
     | Kind | Const _
     | DB _ | Type _ as t' -> t'
@@ -253,7 +258,7 @@ let rec state_one_step config = match config with
       end
   | {term=Meta _}                       -> assert false
 
-let one_step ?(let_ctx=LList.nil) t =
+let one_step ?(let_ctx=LetCtx.empty) t =
   match state_one_step (make ~let_ctx t) with
     | None      -> None
     | Some st   -> Some ( cbn_term_of_state st )

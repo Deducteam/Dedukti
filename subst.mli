@@ -18,7 +18,7 @@ val can_unshift         : int -> term -> bool
 val psubst_l            : (term Lazy.t) LList.t -> int -> term -> term
 (** Parallel substitution of lazy terms. *)
 
-val psubst_opt          : term option LList.t -> int -> term -> term
+val psubst_opt          : LetCtx.t -> int -> term -> term
 (** Evaluation where some variables are bound, and other aren't *)
 
 val subst               : term -> term -> term

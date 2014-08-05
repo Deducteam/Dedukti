@@ -216,6 +216,23 @@ let term_compare_depth (t1,i1) (t2,i2) =
 
 let term_equal_depth a b = term_compare_depth a b=0
 
+module LetCtx = struct
+  type t = {
+    env : (term * t) option LList.t;
+  }
+
+  let empty = {env=LList.nil}
+  let is_empty {env} = LList.is_empty env
+  let cons (t,e) {env} = {env=LList.cons (Some (t,e)) env}
+  let cons_none {env} = {env=LList.cons None env}
+  let nth {env} n = LList.nth env n
+  let lst {env} = LList.lst env
+  let len {env} = LList.len env
+
+  let has_bindings {env} =
+    List.exists (function None -> false | Some _ -> true) (LList.lst env)
+end
+
 type pattern =
   | Var         of loc*ident*int
   | Pattern     of loc*ident*ident*pattern list

@@ -1,11 +1,11 @@
 open Types
 
-let error_convertibility ?let_ctx te ctx exp inf =
-  let exp = Reduction.whnf ?let_ctx exp in
-  let inf = Reduction.whnf ?let_ctx inf in
+let error_convertibility ?(let_ctx=LetCtx.empty) te ctx exp inf =
+  let exp = Reduction.whnf ~let_ctx exp in
+  let inf = Reduction.whnf ~let_ctx inf in
   Global.fail (get_loc te)
-    "Error while typing '%a' in context:\n%a.\nExpected: %a\nInferred: %a."
-      Pp.pp_term te Pp.pp_context ctx Pp.pp_term exp Pp.pp_term inf
+    "Error while typing '%a' in context:\n%a.\nLet context:\n%a\nExpected: %a\nInferred: %a."
+      Pp.pp_term te Pp.pp_context ctx Pp.pp_let_ctx let_ctx Pp.pp_term exp Pp.pp_term inf
 
 let error_product te ctx inf =
   Global.fail (get_loc te)
@@ -34,7 +34,10 @@ let db_get_type l ctx n =
   with Failure _ -> Global.fail l "Trying to type a open term."
 
 let rec infer_rec ~let_ctx (ctx:context) (te:term)  : term =
-  match te with
+  Global.debug_no_loc 3 "infer_rec %a" Pp.pp_term te;
+  Global.debug_no_loc 3 "       in %a" (Pp.pp_context' ~sep:", ") ctx;
+  Global.debug_no_loc 3 "      ctx %a" (Pp.pp_let_ctx' ~sep:", ") let_ctx;
+  let ty = match te with
     | Kind -> Global.fail dloc "Kind is not typable."
     | Type _ -> mk_Kind
     | DB (l,_,n) ->
@@ -42,18 +45,20 @@ let rec infer_rec ~let_ctx (ctx:context) (te:term)  : term =
         Subst.psubst_opt let_ctx 0 (db_get_type l ctx n)
     | Const (l,md,id) -> Env.get_type l md id
     | App (f,a,args) ->
-        snd (List.fold_left (infer_rec_aux ~let_ctx ctx) (f,infer_rec ~let_ctx ctx f) (a::args))
+        snd
+          (List.fold_left (infer_rec_aux ~let_ctx ctx)
+            (f,infer_rec ~let_ctx ctx f) (a::args))
     | Pi (_,opt,a,b) ->
         let x = match opt with None -> empty | Some x -> x in
         let _ = is_type ctx a in
-        let let_ctx = LList.cons None let_ctx in
+        let let_ctx = LetCtx.cons_none let_ctx in
         let ctx2 = (x,a)::ctx in
           ( match infer_rec ~let_ctx ctx2 b with
               | (Type _|Kind as tb) -> tb
               | ty_b -> error_not_a_sort b ctx2 ty_b )
     | Lam  (_,x,a,b) ->
         let _ = is_type ~let_ctx ctx a in
-        let let_ctx = LList.cons None let_ctx in
+        let let_ctx = LetCtx.cons_none let_ctx in
         let ctx2 = (x,a)::ctx in
           ( match infer_rec ~let_ctx ctx2 b with
               | Kind -> error_kind b ctx2
@@ -62,9 +67,12 @@ let rec infer_rec ~let_ctx (ctx:context) (te:term)  : term =
         (* ctx |- let x=a in b   has type  tau
             iff ctx, x:ty_a |- tau  and ctx |- a : ty_a. *)
         let ty_a = infer_rec ~let_ctx ctx a in
-        let let_ctx = LList.cons (Some a) let_ctx in
+        let let_ctx = LetCtx.cons (a, let_ctx) let_ctx in
         infer_rec ~let_ctx ((x,ty_a)::ctx) b
     | Meta _ -> assert false
+  in
+  Global.debug_no_loc 3 "      --> %a" Pp.pp_term ty;
+  ty
 
 and infer_rec_aux ~let_ctx ctx (f,ty_f) u =
   match Reduction.whnf ~let_ctx ty_f , infer_rec ~let_ctx ctx u with
@@ -110,18 +118,18 @@ let infer_pat ctx pat =
               ( mk_App f u [] , Subst.subst b u )
             else error_convertibility ~let_ctx u ctx a1 a2
       | _, _ -> error_product f ctx ty_f
-  in synth ~let_ctx:LList.nil pat
+  in synth ~let_ctx:LetCtx.empty pat
 
 (******************************************************************************)
 
 let infer pte =
   let te = Scoping.scope_term [] pte in
-    ( te , infer_rec ~let_ctx:LList.nil [] te )
+    ( te , infer_rec ~let_ctx:LetCtx.empty [] te )
 
 let check pte pty =
   let te = Scoping.scope_term [] pte in
   let ty = Scoping.scope_term [] pty in
-  let let_ctx=LList.nil in
+  let let_ctx=LetCtx.empty in
   let _  =  infer_rec ~let_ctx [] ty in
   let ty2 = infer_rec ~let_ctx [] te in
     if (Reduction.are_convertible ~let_ctx ty ty2) then (te,ty)
@@ -129,7 +137,7 @@ let check pte pty =
 
 let is_a_type2 ctx pty =
   let ty = Scoping.scope_term ctx pty in
-    match infer_rec ~let_ctx:LList.nil ctx ty with
+    match infer_rec ~let_ctx:LetCtx.empty ctx ty with
       | Type _ | Kind -> ty
       | s -> error_not_a_sort ty ctx s
 
@@ -147,7 +155,7 @@ let check_rule (l,pctx,id,pargs,pri) =
     | _ -> assert false in
   let ty1 = infer_pat ctx pat in
   let rhs = Scoping.scope_term ctx pri in
-  let ty2 = infer_rec ~let_ctx:LList.nil ctx rhs in
-    if (Reduction.are_convertible ~let_ctx:LList.nil ty1 ty2) then
+  let ty2 = infer_rec ~let_ctx:LetCtx.empty ctx rhs in
+    if (Reduction.are_convertible ~let_ctx:LetCtx.empty ty1 ty2) then
       { l=l ; ctx=ctx ; md= !Global.name; id=id ; args=args ; rhs=rhs }
     else error_convertibility rhs ctx ty1 ty2
