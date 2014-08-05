@@ -11,6 +11,7 @@ let export              = ref false
 let ignore_redecl       = ref false
 let color               = ref true
 let autodep             = ref false
+let cse                 = ref true
 
 let print fmt = Printf.kfprintf (fun _ -> print_newline () ) stdout fmt
 let print_out fmt = Printf.kfprintf (fun _ -> output_string !out "\n" ) !out fmt

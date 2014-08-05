@@ -53,6 +53,12 @@ let rec p_of_pp ctx (ppat:prepattern) : pattern =
 
 let empty_ctx = IdentMap.empty
 
-let scope_term ~ctx t = t_of_pt ctx t
+let optimize t =
+  let rules = if !Global.cse then [Optim.common_subexpr_elim] else [] in
+  Optim.optimize ~rules t
+
+let scope_term ~ctx t =
+  let t' = t_of_pt ctx t in
+  optimize t'
 
 let scope_pattern ~ctx p = p_of_pp ctx p

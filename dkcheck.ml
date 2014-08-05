@@ -27,6 +27,7 @@ let args = [
   ("-stdin", Arg.Set Global.run_on_stdin,    "Use standart input" ) ;
   ("-r"    , Arg.Set Global.ignore_redecl,   "Ignore redeclaration" ) ;
   ("-version", Arg.Unit print_version,       "Version" ) ;
+  ("-no-cse", Arg.Clear Global.cse,          "Disable Common Subexpression Elimination" );
   ("-autodep", Arg.Set Global.autodep  ,
    "Automatically handle dependencies (experimental)") ]
 
