@@ -170,6 +170,6 @@ term            : sterm+
                 { failwith "Not implemented (untyped lambda)." }
                 | ID COLON sterm+ FATARROW term
                 { PreLam (fst $1,snd $1,mk_pre_from_list $3,$5) }
-                | LET ID DEF sterm IN term
+                | LET ID DEF sterm IN sterm
                 { PreLet (fst $2,snd $2,$4,$6) }
 %%
