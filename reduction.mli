@@ -2,16 +2,16 @@
 open Types
 
 (** Head Normal Form *)
-val hnf         : term -> term
+val hnf         : ?let_ctx:term subst -> term -> term
 
 (** Weak Head Normal Form *)
-val whnf        : term -> term
+val whnf        : ?let_ctx:term subst -> term -> term
 
 (** Strong Normal Form *)
-val snf         : term -> term
+val snf         : ?let_ctx:term subst -> term -> term
 
 (** Conversion Test *)
-val are_convertible             : term -> term -> bool
+val are_convertible             : ?let_ctx:term subst -> term -> term -> bool
 
 (**One Step Reduction*)
-val one_step                    : term -> term option
+val one_step                    : ?let_ctx:term subst -> term -> term option

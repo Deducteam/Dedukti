@@ -64,15 +64,15 @@ let rec infer_rec ctx (te:term) : term =
         (* ctx |- let x=a in b   has type  tau
             iff ctx, x:ty_a |- tau  and ctx |- a : ty_a *)
         let ty_a = infer_rec ctx a in
-        let ctx' = ctx_bind ctx x ty_a in
+        let ctx' = ctx_bind_let (ctx_bind ctx x ty_a) x a in
         infer_rec ctx' b
     | Meta _ -> assert false
 
 (* infer the type of [f u], where [ty_f] is the current type of [f] *)
 and infer_rec_aux ctx (f,ty_f) u =
-  match Reduction.whnf ty_f, infer_rec ctx u with
+  match Reduction.whnf ~let_ctx:ctx.let_subst ty_f, infer_rec ctx u with
     | Pi (_,v_opt,a,b), ty_u ->
-        if Reduction.are_convertible a ty_u
+        if Reduction.are_convertible ~let_ctx:ctx.let_subst a ty_u
         then
           let ty = match v_opt with
             | None -> b
@@ -107,7 +107,7 @@ let infer_pat ctx pat =
         snd (List.fold_left check (mk_Const l md id,Env.get_type l md id) args)
     | Joker _ -> assert false
   and check (f,ty_f) pat =
-    match Reduction.whnf ty_f, pat with
+    match Reduction.whnf ~let_ctx:ctx.let_subst ty_f, pat with
       | Pi (_,v_opt,a1,b), Joker _ ->
           let u = t_of_p pat in
           let ty = match v_opt with
@@ -118,7 +118,7 @@ let infer_pat ctx pat =
       | Pi (_,v_opt,a1,b), _ ->
           let u = t_of_p pat in
           let a2 = synth pat in
-          if Reduction.are_convertible a1 a2
+          if Reduction.are_convertible ~let_ctx:ctx.let_subst a1 a2
           then
             let ty = match v_opt with
               | None -> b

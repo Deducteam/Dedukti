@@ -170,8 +170,16 @@ val subst_is_empty : _ subst -> bool
 (* If the term is a variable, return its image in the substitution *)
 val subst_deref : term subst -> term -> term
 
+val subst_map : ('a -> 'b) -> 'a subst -> 'b subst
+
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
+
+(* Syntactic total ordering (up to alpha equivalence) *)
+val term_compare : term -> term -> int
+
+(* variables occurring free in the term *)
+val term_vars : term -> VarSet.t
 
 type pattern =
   | Var         of loc*Var.t
@@ -183,15 +191,19 @@ type top = ident*pattern array
 
 (* Context for type inference *)
 type context = {
-  var2ty : term subst;
-  const2ty : term IdentMap.t;
+  var2ty : term subst; (* term -> type *)
+  const2ty : term IdentMap.t;  (* const -> type *)
   ident2var : Var.t IdentMap.t; (* scoping *)
+  let_subst : term subst;  (* let-bindings *)
 }
 
 val ctx_empty : context
 
 val ctx_bind : context -> Var.t -> term -> context
 (** Bind a variable to its type *)
+
+val ctx_bind_let : context -> Var.t -> term -> context
+(** Add a let-binding *)
 
 val ctx_declare : context -> ident -> term -> context
 (** Declare the type of a constant *)

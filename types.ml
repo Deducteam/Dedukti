@@ -221,6 +221,8 @@ let subst_deref subst t = match t with
   | Var (_,v) -> subst_deref_rec subst t v
   | _ -> t
 
+let subst_map f s = VarMap.map f s
+
 let term_eq t1 t2 =
   (* map is a mapping from bound vars of t1 to bound vars of t2, for alpha-equivalence *)
   let rec aux map t1 t2 = match subst_deref map t1, t2 with
@@ -250,6 +252,73 @@ let term_eq t1 t2 =
   in
   aux VarMap.empty t1 t2
 
+(* combinator for lexicographic comparison *)
+let (<?>) c (f,a,b) =
+  if c=0 then f a b else c
+
+let term_compare t1 t2 =
+  let _to_int = function
+      | Kind -> 0
+      | Type _ -> 1
+      | Var _ -> 2
+      | Const _ -> 3
+      | App _ -> 4
+      | Lam _ -> 5
+      | Pi _ -> 6
+      | Meta _ -> 7
+      | Let _ -> 8
+  in
+  (* map is a mapping from bound vars of t1 to bound vars of t2, for alpha-equivalence *)
+  let rec aux map t1 t2 = match subst_deref map t1, t2 with
+    | Kind, Kind | Type _, Type _       -> 0
+    | Var (_,v1), Var (_,v2)            -> Var.compare v1 v2
+    | Meta (_,n), Meta (_,n')           -> Pervasives.compare n n'
+    | Const (_,m,v), Const (_,m',v')    -> ident_cmp v v' <?> (ident_cmp, m, m')
+    | App (f,a,l), App (f',a',l')       ->
+        aux map f f'
+        <?> (aux map, a, a')
+        <?> (aux_l map, l, l')
+    | Let (_,v,a,b), Let (_,v',a',b')
+    | Lam (_,v,a,b), Lam (_,v',a',b')   ->
+        let map' = if Var.equal v v'
+          then map else VarMap.add v (mk_Var dloc v') map in
+        aux map a a' <?> (aux map', b, b')
+    | Pi (_,v_opt,a,b), Pi (_,v'_opt,a',b')   ->
+        let map' = match v_opt, v'_opt with
+          | Some v, Some v'  when not (Var.equal v v') ->
+              VarMap.add v (mk_Var dloc v') map
+          | _ -> map
+        in
+        aux map a a' <?> (aux map', b, b')
+    | t1', t2'  -> Pervasives.compare (_to_int t1') (_to_int t2')
+  and aux_l map l1 l2 = match l1, l2 with
+    | [], [] -> 0
+    | [], _ -> -1
+    | _, [] -> 1
+    | t1::tail1, t2::tail2 -> aux map t1 t2 <?> (aux_l map, tail1, tail2)
+  in
+  aux VarMap.empty t1 t2
+
+let term_vars t =
+  let rec aux bound acc t = match t with
+    | Const _ | Kind | Type _ | Meta _ -> acc
+    | Var (_,v) ->
+        if VarSet.mem v bound then acc else VarSet.add v acc
+    | App (f, a, l) ->
+        let acc = aux bound acc f in
+        let acc = aux bound acc a in
+        List.fold_left (aux bound) acc l
+    | Pi (_,Some v,a,b)
+    | Let (_,v,a,b)
+    | Lam (_,v,a,b) ->
+        let acc = aux bound acc a in
+        aux (VarSet.add v bound) acc b
+    | Pi (_,None,a,b) ->
+        let acc = aux bound acc a in
+        aux bound acc b
+  in
+  aux VarSet.empty VarSet.empty t
+
 type pattern =
   | Var         of loc*Var.t
   | Pattern     of loc*ident*ident*pattern list
@@ -263,15 +332,21 @@ type context = {
   var2ty : term subst;
   const2ty : term IdentMap.t;
   ident2var : Var.t IdentMap.t; (* scoping *)
+  let_subst : term subst;  (* let-bindings *)
 }
 
 let ctx_empty = {
   var2ty=subst_empty;
   const2ty=IdentMap.empty;
   ident2var=IdentMap.empty;
+  let_subst=subst_empty;
 }
 
-let ctx_bind ctx v ty = { ctx with var2ty=subst_bind ctx.var2ty v ty ; }
+let ctx_bind ctx v ty =
+  { ctx with var2ty=subst_bind ctx.var2ty v ty ; }
+
+let ctx_bind_let ctx v ty =
+  { ctx with let_subst=subst_bind ctx.let_subst v ty ; }
 
 let ctx_declare ctx m ty =
   { ctx with const2ty = IdentMap.add m ty ctx.const2ty }

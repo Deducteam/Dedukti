@@ -196,27 +196,32 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
       end
 
 (* Weak Normal Form *)
-let whnf t = cbn_term_of_state (cbn_reduce (make_cbn t))
+let whnf ?(let_ctx=subst_empty) t =
+  let ctx = subst_map Lazy.from_val let_ctx in
+  cbn_term_of_state (cbn_reduce (make_cbn ~ctx t))
 
 (* Head Normal Form *)
-let rec hnf t =
-  match whnf t with
+let rec hnf ?(let_ctx=subst_empty) t =
+  match whnf ~let_ctx t with
     | Kind | Const _ | Var _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
-    | App (f,a,lst) -> mk_App (hnf f) (hnf a) (List.map hnf lst)
+    | App (f,a,lst) ->
+        mk_App (hnf ~let_ctx f) (hnf ~let_ctx a) (List.map (hnf ~let_ctx) lst)
     | Let _ | Meta _  -> assert false
 
 (* Convertibility Test *)
-let are_convertible t1 t2 =
-  state_conv [ (make_cbn t1, make_cbn t2) ]
+let are_convertible ?(let_ctx=subst_empty) t1 t2 =
+  let ctx = subst_map Lazy.from_val let_ctx in
+  state_conv [ (make_cbn ~ctx t1, make_cbn ~ctx t2) ]
 
 (* Strong Normal Form *)
-let rec snf (t:term) : term =
-  match whnf t with
+let rec snf ?(let_ctx=subst_empty) (t:term) : term =
+  match whnf ~let_ctx t with
     | Kind | Const _
     | Var _ | Type _ as t' -> t'
-    | App (f,a,lst)     -> mk_App (snf f) (snf a) (List.map snf lst)
-    | Pi (_,x,a,b)      -> mk_Pi dloc x (snf a) (snf b)
-    | Lam (_,x,a,b)     -> mk_Lam dloc x (snf a) (snf b)
+    | App (f,a,lst)     ->
+        mk_App (snf ~let_ctx f) (snf ~let_ctx a) (List.map (snf ~let_ctx) lst)
+    | Pi (_,x,a,b)      -> mk_Pi dloc x (snf ~let_ctx a) (snf ~let_ctx b)
+    | Lam (_,x,a,b)     -> mk_Lam dloc x (snf ~let_ctx a) (snf ~let_ctx b)
     | Let _ | Meta _            -> assert false
 
 (* One-Step Reduction *)
@@ -263,7 +268,8 @@ let rec state_one_step = function
       end
   | {term=Meta _}                       -> assert false
 
-let one_step t =
-  match state_one_step (make_cbn t) with
+let one_step ?(let_ctx=subst_empty) t =
+  let ctx = subst_map Lazy.from_val let_ctx in
+  match state_one_step (make_cbn ~ctx t) with
     | None      -> None
     | Some st   -> Some ( cbn_term_of_state st )
