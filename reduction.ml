@@ -66,6 +66,12 @@ let rec cbn_reduce (config:cbn_state) : cbn_state =
         (* rev_map + rev_append to avoid map + append*)
         let tl' = List.rev_map (fun t -> make_cbn ~ctx t) (a::lst) in
         cbn_reduce { ctx; term=f; stack=List.rev_append tl' s; }
+    (* Let binding *)
+    | {ctx; term=Let (_,v,a,b); stack=s} ->
+        (* push a (normalized, but lazily) in context and evaluate b *)
+        let a' = lazy (cbn_term_of_state(cbn_reduce (make_cbn ~ctx a))) in
+        let ctx = subst_bind ctx v a' in
+        cbn_reduce { ctx; term=b; stack=s}
     (* Global variable*)
     | {term=Const (_,m,_)} when m==empty  -> config
     | {term=Const (_,m,v); stack=s }      ->
@@ -182,6 +188,8 @@ and state_conv : (cbn_state*cbn_state) list -> bool = function
                       | None        -> false
                       | Some lst'   -> state_conv lst'
                     end
+                | {term=Let _}, _
+                | _, {term=Let _}
                 | {term=Meta _} , _
                 | _ , {term=Meta _}     -> assert false
                 | _, _                  -> false
@@ -195,7 +203,7 @@ let rec hnf t =
   match whnf t with
     | Kind | Const _ | Var _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
     | App (f,a,lst) -> mk_App (hnf f) (hnf a) (List.map hnf lst)
-    | Meta _  -> assert false
+    | Let _ | Meta _  -> assert false
 
 (* Convertibility Test *)
 let are_convertible t1 t2 =
@@ -209,7 +217,7 @@ let rec snf (t:term) : term =
     | App (f,a,lst)     -> mk_App (snf f) (snf a) (List.map snf lst)
     | Pi (_,x,a,b)      -> mk_Pi dloc x (snf a) (snf b)
     | Lam (_,x,a,b)     -> mk_Lam dloc x (snf a) (snf b)
-    | Meta _            -> assert false
+    | Let _ | Meta _            -> assert false
 
 (* One-Step Reduction *)
 let rec state_one_step = function
@@ -231,6 +239,12 @@ let rec state_one_step = function
   | {ctx; term=App (f,a,args); stack=s }              ->
       let tl' = List.map (fun t -> make_cbn t) (a::args) in
       state_one_step {ctx; term=f; stack=tl' @ s; }
+  (* Let binding *)
+  | {ctx; term=Let (_,v,a,b); stack} ->
+      (* push a in context (without evaluating it) and evaluate b *)
+      let a' = lazy (cbn_term_of_state (make_cbn ~ctx a)) in
+      let ctx= subst_bind ctx v a' in
+      Some { ctx; term=b; stack}
   (* Global variable*)
   | {term=Const (_,m,_)} when m==empty  -> None
   | {term=Const (_,m,v); stack=s }      ->

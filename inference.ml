@@ -60,6 +60,12 @@ let rec infer_rec ctx (te:term) : term =
           | Kind -> error_kind b ctx2
           | ty   -> mk_Pi dloc (Some x) a ty
         end
+    | Let (_,x,a,b) ->
+        (* ctx |- let x=a in b   has type  tau
+            iff ctx, x:ty_a |- tau  and ctx |- a : ty_a *)
+        let ty_a = infer_rec ctx a in
+        let ctx' = ctx_bind ctx x ty_a in
+        infer_rec ctx' b
     | Meta _ -> assert false
 
 (* infer the type of [f u], where [ty_f] is the current type of [f] *)

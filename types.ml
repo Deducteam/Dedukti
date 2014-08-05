@@ -173,11 +173,12 @@ type term =
   | Lam   of loc*Var.t*term*term        (* Lambda abstraction *)
   | Pi    of loc*Var.t option*term*term (* Pi abstraction *)
   | Meta  of loc*int
+  | Let   of loc*Var.t*term*term        (* let x=a in b *)
 
 let rec get_loc = function
   | Kind -> dloc
   | Type l | Var (l,_) | Const (l,_,_)
-  | Lam (l,_,_,_) | Pi (l,_,_,_) | Meta (l,_) -> l
+  | Lam (l,_,_,_) | Pi (l,_,_,_) | Let (l,_,_,_) | Meta (l,_) -> l
   | App (f,_,_) -> get_loc f
 
 let mk_Kind             = Kind
@@ -187,6 +188,7 @@ let mk_Const l m v      = Const (l,m,v)
 let mk_Lam l x a b      = Lam (l,x,a,b)
 let mk_Pi l x a b       = Pi (l,x,a,b)
 let mk_Meta l n         = Meta (l,n)
+let mk_Let l x a b      = Let (l,x,a,b)
 
 let mk_App f a1 args =
   match f with
@@ -227,6 +229,7 @@ let term_eq t1 t2 =
         aux map f f'
         && aux map a a'
         && aux_l map l l'
+    | Let (_,v,a,b), Let (_,v',a',b')
     | Lam (_,v,a,b), Lam (_,v',a',b')   ->
         let map' = VarMap.add v (mk_Var dloc v') map in
         aux map a a' && aux map' b b'
@@ -317,7 +320,7 @@ type command =
   | Snf of preterm
   | OneStep of preterm
   | Conv of preterm*preterm
-  (*Tying*)
+  (*Typing*)
   | Check of preterm*preterm
   | Infer of preterm
   (* Misc *)

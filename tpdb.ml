@@ -17,6 +17,7 @@ let rec pp_term out = function
   | Lam (_,v,ty,te) -> fprintf out "#LAMBDA(%a,%a,%a)" Var.pp v pp_term ty pp_term te
   | Pi (_,None,a,b) -> fprintf out "#PI(%a,%a)" pp_term a pp_term b
   | Pi (_,Some v,a,b) -> fprintf out "#PI(%a,%a,%a)" Var.pp v pp_term a pp_term b
+  | Let (_,v,a,b) -> fprintf out "#LET(%a,%a,%a)" Var.pp v pp_term a pp_term b
   | Var (_,v) -> fprintf out "#VAR_%a" Var.pp v
   | App (f,a,args) ->
       ( List.iter (fun _ -> fprintf out "#APP(" ) (a::args);

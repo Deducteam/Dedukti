@@ -51,6 +51,7 @@ let rec pp_term out = function
   | Lam (_,v,a,f)         -> fprintf out "%a:%a => %a" Var.pp v pp_term_wp a pp_term f
   | Pi  (_,None,a,b)      -> fprintf out "%a -> %a" pp_term_wp a pp_term b
   | Pi  (_,Some v,a,b)    -> fprintf out "%a:%a -> %a" Var.pp v pp_term_wp a pp_term b
+  | Let (_,x,a,b)         -> fprintf out "let %a=%a in %a" Var.pp x pp_term a pp_term b
 
 and pp_term_wp out = function
   | Kind | Type _ | Var _ | Const _ as t  -> pp_term out t

@@ -144,6 +144,7 @@ type term = private
   | Lam   of loc*Var.t*term*term        (* Lambda abstraction *)
   | Pi    of loc*Var.t option*term*term (* Pi abstraction *)
   | Meta  of loc*int
+  | Let   of loc*Var.t*term*term        (* let x=a in b *)
 
 val get_loc : term -> loc
 
@@ -157,6 +158,7 @@ val mk_App_l    : term -> term list -> term
 val mk_Pi       : loc -> Var.t option -> term -> term -> term
 val mk_Unique   : unit -> term
 val mk_Meta     : loc -> int -> term
+val mk_Let      : loc -> Var.t -> term -> term -> term
 
 val subst_empty : 'a subst
 
