@@ -12,7 +12,7 @@ val version             : string (** Version number. *)
 
 val run_on_stdin        : bool ref (** Run Dedukti on the standart input.*)
 val debug_level         : int ref (** Debug level (0=no messages). *)
-val out                 : out_channel ref (** Output channel for the TPDB export.*)
+val out                 : Format.formatter ref (** Output channel for the TPDB export.*)
 val export              : bool ref (** Produce a .dko file. *)
 val ignore_redecl       : bool ref (** Do not produce an error when a symbol is redeclared. *)
 val color               : bool ref (** Colored output. *)
@@ -21,17 +21,17 @@ val autodep             : bool ref
 (** {2 Printing Facilities} *)
 
 (** Print in standart output. *)
-val print               : ('a, out_channel, unit) format -> 'a
+val print               : ('a, Format.formatter, unit) format -> 'a
 
 (** Print in output set by option -o. *)
-val print_out           : ('a, out_channel, unit) format -> 'a
+val print_out           : ('a, Format.formatter, unit) format -> 'a
 
 (** Print in stderr depending on debug_level. *)
-val debug               : int -> loc ->  ('a, out_channel, unit) format -> 'a
-val debug_no_loc        : int -> ('a, out_channel, unit) format -> 'a
+val debug               : int -> loc ->  ('a, Format.formatter, unit) format -> 'a
+val debug_no_loc        : int -> ('a, Format.formatter, unit) format -> 'a
 
 (** Print an error message and exit. *)
-val fail                : loc -> ('a, out_channel, unit, 'b) format4 -> 'a
+val fail                : loc -> ('a, Format.formatter, unit, 'b) format4 -> 'a
 
 (** Print a success message. *)
-val success             : ('a, out_channel, unit) format -> 'a
+val success             : ('a, Format.formatter, unit) format -> 'a

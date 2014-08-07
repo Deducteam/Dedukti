@@ -39,18 +39,18 @@ let mk_rules (prs:prule list) : unit =
 let mk_command lc = function
   | Whnf pte          ->
       let (te,_) = Inference.infer pte in
-        Pp.pp_term stdout (Reduction.whnf te)
+        Pp.pp_term Format.std_formatter (Reduction.whnf te)
   | Hnf pte           ->
       let (te,_) = Inference.infer pte in
-        Pp.pp_term stdout (Reduction.hnf te)
+        Pp.pp_term Format.std_formatter (Reduction.hnf te)
   | Snf pte           ->
       let (te,_) = Inference.infer pte in
-        Pp.pp_term stdout (Reduction.snf te)
+        Pp.pp_term Format.std_formatter (Reduction.snf te)
   | OneStep pte       ->
       let (te,_) = Inference.infer pte in
         ( match Reduction.one_step te with
             | None    -> Global.print "Already in weak head normal form."
-            | Some t' -> Pp.pp_term stdout t')
+            | Some t' -> Pp.pp_term Format.std_formatter t')
   | Conv (pte1,pte2)  ->
       let (t1,_) = Inference.infer pte1 in
       let (t2,_) = Inference.infer pte2 in
@@ -62,10 +62,10 @@ let mk_command lc = function
         if Reduction.are_convertible ty1 ty2 then Global.print "OK"
         else Global.print "KO"
   | Infer pte         ->
-      let (ty,te) = Inference.infer pte in Pp.pp_term stdout ty
+      let (ty,te) = Inference.infer pte in Pp.pp_term Format.std_formatter ty
   | Gdt (m,v)         ->
       ( match Env.get_infos lc m v with
-          | Decl_rw (_,_,i,g)   -> ( Pp.pp_rw stdout (m,v,i,g) ; print_newline () )
+          | Decl_rw (_,_,i,g)   -> ( Pp.pp_rw Format.std_formatter (m,v,i,g) ; print_newline () )
           | _                   -> Global.print "No GDT." )
   | Print str         -> output_string stdout str
   | Other (cmd,_)     -> Global.debug 1 lc "Unknown command '%s'." cmd

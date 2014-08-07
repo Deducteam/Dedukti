@@ -23,7 +23,8 @@ let run_on_file file =
     parse (Lexing.from_channel input)
 
 let args =
-  [ ("-o", Arg.String (fun fi -> Global.out := open_out fi), "Output file"  ) ]
+  let _set_out fi = Global.out := Format.formatter_of_out_channel (open_out fi) in
+  [ ("-o", Arg.String _set_out, "Output file"  ) ]
 
 let _ =
   try

@@ -6,7 +6,7 @@
 type ident
 val empty : ident
 val string_of_ident : ident -> string
-val pp_ident : out_channel -> ident -> unit
+val pp_ident : Format.formatter -> ident -> unit
 val hstring : string -> ident
 val ident_eq : ident -> ident -> bool
 val ident_cmp : ident -> ident -> int
@@ -24,7 +24,7 @@ module Var : sig
   val equal : t -> t -> bool
   val compare : t -> t -> int
   val hash : t -> int
-  val pp : out_channel -> t -> unit
+  val pp : Format.formatter -> t -> unit
 
   val ident : t -> ident
 end

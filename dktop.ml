@@ -36,18 +36,18 @@ struct
   let mk_command lc = function
     | Whnf pte          ->
         let (te,_) = Inference.infer pte in
-          Pp.pp_term stdout (Reduction.whnf te)
+          Pp.pp_term Format.std_formatter (Reduction.whnf te)
     | Hnf pte           ->
         let (te,_) = Inference.infer pte in
-          Pp.pp_term stdout (Reduction.hnf te)
+          Pp.pp_term Format.std_formatter (Reduction.hnf te)
     | Snf pte           ->
         let (te,_) = Inference.infer pte in
-          Pp.pp_term stdout (Reduction.snf te)
+          Pp.pp_term Format.std_formatter (Reduction.snf te)
     | OneStep pte       ->
         let (te,_) = Inference.infer pte in
           ( match Reduction.one_step te with
               | None    -> Global.print "Already in weak head normal form."
-              | Some t' -> Pp.pp_term stdout t')
+              | Some t' -> Pp.pp_term Format.std_formatter t')
     | Conv (pte1,pte2)  ->
         let (t1,_) = Inference.infer pte1 in
         let (t2,_) = Inference.infer pte2 in
@@ -59,12 +59,12 @@ struct
           if Reduction.are_convertible ty1 ty2 then Global.print "OK"
           else Global.print "KO"
     | Infer pte         ->
-        let (te,ty) = Inference.infer pte in Pp.pp_term stdout ty
+        let (te,ty) = Inference.infer pte in Pp.pp_term Format.std_formatter ty
     | Gdt (m,v)         ->
         ( match Env.get_infos lc m v with
-            | Decl_rw (_,_,i,g) -> Pp.pp_rw stdout (m,v,i,g)
+            | Decl_rw (_,_,i,g) -> Pp.pp_rw Format.std_formatter (m,v,i,g)
             | _                 -> Global.print "No GDT." )
-    | Print str         -> output_string stdout str
+    | Print str         -> Format.pp_print_string Format.std_formatter str
     | Other (cmd,_)     -> Global.debug 1 lc "Unknown command '%s'." cmd
 
   let mk_ending _ = ()
@@ -77,7 +77,7 @@ let rec parse lb =
   try
     while true do
       print_string ">> ";
-      flush stdout;
+      Format.pp_print_flush Format.std_formatter ();
       P.line Lexer.token lb
     done
   with

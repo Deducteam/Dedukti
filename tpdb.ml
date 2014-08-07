@@ -1,4 +1,4 @@
-open Printf
+open Format
 open Types
 
 let rec pp_pattern out = function

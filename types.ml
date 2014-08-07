@@ -3,7 +3,7 @@
 type ident = string
 let string_of_ident s = s
 let ident_eq s1 s2 = s1==s2 || s1=s2
-let pp_ident = output_string
+let pp_ident = Format.pp_print_string
 
 let ident_cmp s1 s2 =
   if s1==s2 then 0 else String.compare s1 s2
@@ -40,7 +40,7 @@ module Var = struct
   let hash v = Hashtbl.hash v
 
   let ident (i,_) = i
-  let pp out (name,i) = Printf.fprintf out "%s[%d]" name i
+  let pp out (name,i) = Format.fprintf out "%s[%d]" name i
 end
 
 module VarMap = Map.Make(Var)
