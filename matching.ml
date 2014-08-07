@@ -13,7 +13,6 @@ type rule2 =
       var2idx: int VarMap.t; (* variable -> stack index *)
       right:term ;
       constraints:rule_constraint list ;
-      env_size : int; (* size of stack *)
     }
 
 (* a matrix is a non empty list of rule2
@@ -45,37 +44,37 @@ let br = hstring "{_}"
 let un = hstring "_"
 
 let to_rule2 (r:rule) : rule2 =
-  let esize = ref 0 in
   let constraints = ref [] in
   (* store set of variables seen so far *)
-  let seen = ref VarMap.empty in
-  let rec linearize = function
+  let seen = ref VarSet.empty in
+  let var2idx = ref VarMap.empty in
+  (* top: true iff the pattern isn't a sub-pattern *)
+  let rec linearize ~top i = function
     | Var (l,v) ->
-        if VarMap.mem v !seen
+        if VarSet.mem v !seen
         then (
           let v' = Var.fresh v in
           constraints := (EqTerm (mk_Var dloc v, mk_Var dloc v')) :: !constraints ;
-          incr esize;
           Var2 v'
         ) else (
-          seen := VarMap.add v !esize !seen;
+          (* remember where the variable is bound *)
+          seen := VarSet.add v !seen;
+          if top then var2idx := VarMap.add v i !var2idx;
           Var2 v
         )
     | Brackets t ->
-        incr esize;
         let v = Var.fresh_of_ident br in
         constraints := (EqTerm (mk_Var dloc v, t)) :: !constraints;
         Var2 v
     | Pattern (_,m,v,args) ->
-        Pattern2(m,v,Array.of_list (List.map linearize args))
+        Pattern2(m,v, Array.of_list (List.mapi (linearize ~top:false) args))
     | Joker (l,_) ->
-        incr esize;
         let v = Var.fresh_of_ident un in
         Var2 v
   in
-  let args = List.map linearize r.args in
+  let args = List.mapi (linearize ~top:true) r.args in
   { loc=r.l ; pats=Array.of_list args ; right=r.rhs ;
-    constraints= !constraints ; env_size= !esize; var2idx= !seen}
+    constraints= !constraints ; var2idx= !var2idx}
 
 (* build a matrix from rule2 list *)
 let mk_matrix rules2 =
@@ -136,7 +135,7 @@ let specialize_var (c:int) (m:ident) (v:ident) (n:int) (line:rule2) (var:Var.t) 
         else (
           let fresh_v = Var.fresh_of_ident _v in
           new_vars := (mk_Var dloc fresh_v) :: !new_vars;
-          var2idx := VarMap.add fresh_v (line.env_size + (i-old_n+1)) !var2idx;
+          var2idx := VarMap.add fresh_v (i+old_n-1) !var2idx;
           Var2 fresh_v
         )
     ) in
@@ -149,12 +148,11 @@ let specialize_var (c:int) (m:ident) (v:ident) (n:int) (line:rule2) (var:Var.t) 
       ) line.constraints ;
     right = Subst.subst line.right ~var ~by:u;
     var2idx = !var2idx;
-    env_size = line.env_size + n;
   }
 
 (* Remove column [c] in [line] and append [args] *)
 let specialize_pat (c:int) (line:rule2) (args:pattern2 array) : rule2 =
-  let  n = Array.length args in
+  let n = Array.length args in
   let old_n = Array.length line.pats in
   let new_n = old_n + n - 1 in
   (*    assert ( c < old_n ); *)
@@ -251,7 +249,9 @@ let rec to_dtree (mx:matrix) : dtree =
           | []    -> None
         in
         (* how to build the substitution for testing? *)
-        let subst_builder = VarMap.fold (fun v i acc -> (i,v)::acc) f_col.var2idx [] in
+        let subst_builder =
+          VarMap.fold (fun v i acc -> (i,v)::acc)
+          f_col.var2idx [] in
         Test (subst_builder, f_col.constraints, f_col.right, def )
     | Some c    ->
         (* Pattern on the first line at column c *)

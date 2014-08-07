@@ -95,6 +95,9 @@ and rewrite (args:cbn_state LList.t) (g:dtree) =
   let _build_ctx sbuild args =
     List.fold_left
       (fun sigma (i,v) ->
+        (* note: some variable [v] of the context might already be bound
+          in [args]. However, since we use cbn_term_of_state, no collision
+          can occur because the variable is replaced before it is redefined. *)
         let t = lazy (cbn_term_of_state (LList.nth args i)) in
         subst_bind sigma v t
       ) subst_empty sbuild

@@ -76,7 +76,7 @@ and infer_rec_aux ctx (f,ty_f) u =
         then
           let ty = match v_opt with
             | None -> b
-            | Some var -> Subst.subst b ~var ~by:u
+            | Some var -> Subst.subst b ~var ~by:u   (* TODO: use a context! *)
           in
           mk_App f u [], ty
         else error_convertibility u ctx a ty_u
