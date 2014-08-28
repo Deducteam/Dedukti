@@ -44,8 +44,7 @@ let rec infer_rec (ctx:context) (te:term)  : term =
     | Const (l,md,id) -> Env.get_type l md id
     | App (f,a,args) ->
         snd (List.fold_left (infer_rec_aux ctx) (f,infer_rec ctx f) (a::args))
-    | Pi (_,opt,a,b) ->
-        let x = match opt with None -> empty | Some x -> x in
+    | Pi (_,x,a,b) ->
         let _ = is_type ctx a in
         let ctx2 = (x,a)::ctx in
           ( match infer_rec ctx2 b with
@@ -56,7 +55,7 @@ let rec infer_rec (ctx:context) (te:term)  : term =
         let ctx2 = (x,a)::ctx in
           ( match infer_rec ctx2 b with
               | Kind -> error_kind b ctx2
-              | ty   -> mk_Pi dloc (Some x) a ty )
+              | ty   -> mk_Pi dloc x a ty )
 
 and infer_rec_aux ctx (f,ty_f) u =
   match Reduction.whnf ty_f , infer_rec ctx u with
@@ -90,8 +89,7 @@ let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
       | Joker _ -> assert false (*TODO utiliser mk_Unique*)
       | Lambda (l,x,pat2) as f ->
           ( match Reduction.whnf ty with
-              | Pi (_,x_opt,a1,b) ->
-                  let x = match x_opt with None -> empty | Some x -> x in
+              | Pi (_,x,a1,b) ->
                   let u = check ((x,a1)::ctx) b pat2 in
                     mk_Lam l x a1 u
               | _ -> error_product_pat f ctx ty )

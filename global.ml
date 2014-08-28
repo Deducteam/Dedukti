@@ -1,6 +1,6 @@
 open Types
 
-let name                = ref empty
+let name                = ref (hstring "noname")
 let run_on_stdin        = ref false
 let file                = ref "no_file"
 let version             = "2.2.1"

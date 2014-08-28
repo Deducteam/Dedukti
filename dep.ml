@@ -4,7 +4,6 @@ let deps = ref []
 let name = ref ""
 
 let add_dep lc m =
-  assert (not (ident_eq m empty));
   let s = string_of_ident m in
   if List.mem s (!name :: !deps) then ()
   else deps := List.sort compare (s :: !deps)

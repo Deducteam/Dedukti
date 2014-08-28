@@ -8,7 +8,7 @@ val string_of_ident : ident -> string
 val pp_ident : out_channel -> ident -> unit
 val hstring : string -> ident
 val ident_eq : ident -> ident -> bool
-val empty : ident (*get rid of*)
+val qmark : ident
 
 (** {2 Localization} *)
 
@@ -83,18 +83,19 @@ type term = private
   | Const of loc*ident*ident            (* Global variable *)
   | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
   | Lam   of loc*ident*term*term        (* Lambda abstraction *)
-  | Pi    of loc*ident option*term*term (* Pi abstraction *)
+  | Pi    of loc*ident*term*term (* Pi abstraction *)
 
 val get_loc : term -> loc
 
 val mk_Kind     : term
 val mk_Type     : loc -> term
 val mk_DB       : loc -> ident -> int -> term
+val mk_anonymous_DB : int -> term
 val mk_Const    : loc -> ident -> ident -> term
 val mk_Lam      : loc -> ident -> term -> term -> term
 val mk_App      : term -> term -> term list -> term
-val mk_Pi       : loc -> ident option -> term -> term -> term
-val mk_Unique   : unit -> term
+val mk_Pi       : loc -> ident -> term -> term -> term
+val mk_Arrow    : loc -> term -> term -> term
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool

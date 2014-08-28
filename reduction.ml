@@ -100,7 +100,7 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
     | _, [] -> FC_None
     | ( k , e , Lam (_,_,ty,te) , _ ) , ( CLam , tr )::tl ->
         let ty2 = term_of_state (k,e,ty,[]) in
-        let st2 = (k+1 ,(Lazy.lazy_from_val (mk_DB dloc empty 0))::e ,te ,[] ) in
+        let st2 = (k+1 ,(Lazy.lazy_from_val (mk_anonymous_DB 0))::e ,te ,[] ) in
         FC_Lam ( tr , ty2 , st2 )
     | ( _ , _ , Const (_,m,v) , s) , (CConst (nargs,m',v'),tr)::tl ->
         if ident_eq v v' && ident_eq m m' then
@@ -245,7 +245,6 @@ let rec state_one_step = function
       let tl' = List.map ( fun t -> (k,e,t,[]) ) (a::args) in
         state_one_step ( k , e , f , tl' @ s )
   (* Global variable*)
-  | ( _ , _ , Const (_,m,_), _ ) when m==empty  -> None
   | ( _ , _ , Const (_,m,v) , s )               ->
       begin
         match Env.get_infos dloc m v with

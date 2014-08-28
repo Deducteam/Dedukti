@@ -14,7 +14,7 @@ end )
 
 let shash       = WS.create 251
 let hstring     = WS.merge shash
-let empty       = hstring ""
+let qmark       = hstring "?"
 
 (** {2 Localization} *)
 
@@ -88,7 +88,7 @@ type term =
   | Const of loc*ident*ident            (* Global variable *)
   | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
   | Lam   of loc*ident*term*term        (* Lambda abstraction *)
-  | Pi    of loc*ident option*term*term (* Pi abstraction *)
+  | Pi    of loc*ident*term*term (* Pi abstraction *)
 
 let rec get_loc = function
   | Type l | DB (l,_,_) | Const (l,_,_) | Lam (l,_,_,_) | Pi (l,_,_,_)  -> l
@@ -98,19 +98,16 @@ let rec get_loc = function
 let mk_Kind             = Kind
 let mk_Type l           = Type l
 let mk_DB l x n         = DB (l,x,n)
+let mk_anonymous_DB n   = DB (dloc,qmark,n)
 let mk_Const l m v      = Const (l,m,v)
 let mk_Lam l x a b      = Lam (l,x,a,b)
 let mk_Pi l x a b       = Pi (l,x,a,b)
+let mk_Arrow l a b      = Pi (l,qmark,a,b)
 
 let mk_App f a1 args =
   match f with
     | App (f',a1',args') -> App (f',a1',args'@(a1::args))
     | _ -> App(f,a1,args)
-
-let cpt = ref (-1)
-let mk_Unique _ =
-  incr cpt ;
-  Const ( dloc , empty , hstring (string_of_int !cpt) )
 
 let rec term_eq t1 t2 =
   (* t1 == t2 || *)

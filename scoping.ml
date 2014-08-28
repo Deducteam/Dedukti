@@ -7,6 +7,8 @@ let get_db_index ctx id =
     | _::lst -> aux (n+1) lst
   in aux 0 ctx
 
+let empty = hstring ""
+
 let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
   match pte with
     | PreType l    -> mk_Type l
@@ -19,9 +21,8 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
     | PreQId (l,md,id) -> mk_Const l md id
     | PreApp (f,a,args) ->
         mk_App (t_of_pt ctx f) (t_of_pt ctx a) (List.map (t_of_pt ctx) args)
-    | PrePi (l,opt,a,b) ->
-        let ctx2 = match opt with None -> empty::ctx | Some id -> id::ctx in
-          mk_Pi l opt (t_of_pt ctx a) (t_of_pt ctx2 b)
+    | PrePi (l,None,a,b) -> mk_Arrow l (t_of_pt ctx a) (t_of_pt (empty::ctx) b)
+    | PrePi (l,Some x,a,b) -> mk_Pi l x (t_of_pt ctx a) (t_of_pt (x::ctx) b)
     | PreLam  (l,id,a,b) ->
         mk_Lam l id (t_of_pt ctx a) (t_of_pt (id::ctx) b)
 

@@ -42,12 +42,8 @@ let pp_const out (m,v) =
   else fprintf out "%a.%a" pp_ident m pp_ident v
 
 let pp_db out (x,n) =
-  if ident_eq x empty then
-    if !Global.debug_level > 0 then fprintf out "?[%i]" n
-    else fprintf out "?"
-  else
-    if !Global.debug_level > 0 then fprintf out "%a[%i]" pp_ident x n
-    else pp_ident out x
+  if !Global.debug_level > 0 then fprintf out "%a[%i]" pp_ident x n
+  else pp_ident out x
 
 let rec pp_term out = function
   | Kind               -> output_string out "Kind"
@@ -56,8 +52,7 @@ let rec pp_term out = function
   | Const (_,m,v)      -> pp_const out (m,v)
   | App (f,a,args)     -> pp_list " " pp_term_wp out (f::a::args)
   | Lam (_,x,a,f)      -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
-  | Pi  (_,None,a,b)   -> fprintf out "%a -> %a" pp_term_wp a pp_term b
-  | Pi  (_,Some x,a,b) -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
+  | Pi  (_,x,a,b)      -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
 
 and pp_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> pp_term out t
@@ -76,10 +71,7 @@ and pp_pattern_wp out = function
   | p -> pp_pattern out p
 
 let pp_context out ctx =
-  pp_list ".\n" (
-    fun out (x,ty) ->
-      if ident_eq empty x then fprintf out "?: %a" pp_term ty
-      else fprintf out "%a: %a" pp_ident x pp_term ty )
+  pp_list ".\n" (fun out (x,ty) -> fprintf out "%a: %a" pp_ident x pp_term ty )
     out (List.rev ctx)
 
 let pp_rule out r =
