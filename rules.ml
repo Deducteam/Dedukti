@@ -3,10 +3,11 @@ open Types
 let is_linear r =
   let seen = Array.create (List.length r.ctx) false in
   let rec aux = function
-    | Var (_,_,n) -> if seen.(n) then false else ( seen.(n) <- true ; true )
+    | Var (_,_,n,[]) -> if seen.(n) then false else ( seen.(n) <- true ; true )
     | Pattern (_,_,_,args) -> List.for_all aux args
     | Brackets _ -> false
     | Joker _ -> true
+    | _  -> failwith "Not Implemented" (*TODO*)
   in
     List.for_all aux r.args
 

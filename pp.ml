@@ -41,34 +41,38 @@ let pp_const out (m,v) =
   if ident_eq m !Global.name then pp_ident out v
   else fprintf out "%a.%a" pp_ident m pp_ident v
 
+let pp_db out (x,n) =
+  if ident_eq x empty then
+    if !Global.debug_level > 0 then fprintf out "?[%i]" n
+    else fprintf out "?"
+  else
+    if !Global.debug_level > 0 then fprintf out "%a[%i]" pp_ident x n
+    else pp_ident out x
+
 let rec pp_term out = function
-  | Kind                -> output_string out "Kind"
-  | Type _               -> output_string out "Type"
-  | DB  (_,x,n) when !Global.debug_level > 0 -> fprintf out "%a[%i]" pp_ident x n
-  | DB  (_,x,n)           -> pp_ident out x
-  | Const (_,m,v)         -> pp_const out (m,v)
-  | App (f,a,args)      -> pp_list " " pp_term_wp out (f::a::args)
-  | Lam (_,x,a,f)         -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
-  | Pi  (_,None,a,b)      -> fprintf out "%a -> %a" pp_term_wp a pp_term b
-  | Pi  (_,Some x,a,b)    -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
+  | Kind               -> output_string out "Kind"
+  | Type _             -> output_string out "Type"
+  | DB  (_,x,n)        -> pp_db out (x,n)
+  | Const (_,m,v)      -> pp_const out (m,v)
+  | App (f,a,args)     -> pp_list " " pp_term_wp out (f::a::args)
+  | Lam (_,x,a,f)      -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
+  | Pi  (_,None,a,b)   -> fprintf out "%a -> %a" pp_term_wp a pp_term b
+  | Pi  (_,Some x,a,b) -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
 
 and pp_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> pp_term out t
   | t                                  -> fprintf out "(%a)" pp_term t
 
 let rec pp_pattern out = function
-  | Lambda (_,_,_) -> assert false (*TODO*)
-  | Var (_,id,i,[]) ->
-      if !Global.debug_level > 0 then fprintf out "%a[%i]" pp_ident id i
-      else pp_ident out id
-  | Var (_,id,i,_)        -> assert false (*TODO*)
-  | Brackets t        -> fprintf out "{ %a }" pp_term t
-  | Pattern (_,m,v,[])  -> fprintf out "%a" pp_const (m,v)
-  | Pattern (_,m,v,pats) ->
-      fprintf out "%a %a" pp_const (m,v) (pp_list " " pp_pattern_wp) pats
-  | Joker _                    -> fprintf out "_"
+  | Lambda (_,x,p)       -> fprintf out "%a => %a" pp_ident x pp_pattern p
+  | Var (_,id,i,[])      -> pp_db out (id,i)
+  | Var (_,id,i,lst)     -> fprintf out "%a %a" pp_db (id,i) (pp_list " " pp_pattern_wp) lst
+  | Brackets t           -> fprintf out "{ %a }" pp_term t
+  | Pattern (_,m,v,[])   -> fprintf out "%a" pp_const (m,v)
+  | Pattern (_,m,v,pats) -> fprintf out "%a %a" pp_const (m,v) (pp_list " " pp_pattern_wp) pats
+  | Joker _              -> fprintf out "_"
 and pp_pattern_wp out = function
-  | Pattern (_,_,_,_) as p -> fprintf out "(%a)" pp_pattern p
+  | Pattern _ | Lambda _ as p -> fprintf out "(%a)" pp_pattern p
   | p -> pp_pattern out p
 
 let pp_context out ctx =
@@ -87,10 +91,10 @@ let pp_rule out r =
 
 let tab t = String.make (t*4) ' '
 
-let rec pp_dtree t out = function (*FIXME*)
-  | Test (_,[],te,None)   -> pp_term out te
-  | Test (_,[],te,_)      -> assert false
-  | Test (_,lst,te,def)   ->
+let rec pp_dtree t out = function
+  | Test (_,_,[],te,None)   -> pp_term out te
+  | Test (_,_,[],te,_)      -> assert false
+  | Test (_,_,lst,te,def)   ->
       let tab = tab t in
       let aux out (i,j) = fprintf out "%a=%a" pp_term i pp_term j in
         fprintf out "\n%sif %a then %a\n%selse %a" tab (pp_list " and " aux) lst

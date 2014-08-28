@@ -1,7 +1,5 @@
 open Types
 
-(* FIXME about tail recursion *)
-
 type env = (term Lazy.t) list
 type state = int (*size of env*) * env * term * stack and stack = state list
 
@@ -34,21 +32,37 @@ let itg = hstring "?"
 
 (* ********************* *)
 
+let get_context1 (lst:int list) (stck:stack) : env =
+  List.map (fun i -> lazy (term_of_state (List.nth stck i) )) lst
+
 exception NotUnifiable
 
-let occur (k:int) (te:term) (x:int) : bool = true (*TODO*)
+let occur (te:term) (x:int) : bool =
+  let rec aux k = function
+  | Kind | Type _ | Const _ -> false
+  | DB (_,_,n) -> (n-k) = x
+  | App (f,a,args) -> List.exists (aux k) (f::a::args)
+  | Lam (_,_,a,b) | Pi (_,_,a,b) -> ( aux k a || aux (k+1) b )
+  in
+    aux 0 te
+
 let rec lam (te:term) : term list -> term = function
   | [] -> te
   | ty::lst -> lam (mk_Lam dloc itg ty te) lst
 
-let flexrigid (k:int) (ltyp:term list) (dbs:int list) (te:term) : term Lazy.t =
-  if List.for_all (occur k te) dbs then Lazy.from_val (lam te ltyp)
+let flexrigid (ltyp:term list) (dbs:int list) (te:term) : term Lazy.t =
+  if List.for_all (occur te) dbs then Lazy.from_val (lam te ltyp)
   else raise NotUnifiable
 
-let get_new_context (ltyp:term list) (lst:mtch_pb list) (stck:state list) : term Lazy.t list option =
-  let k = List.length ltyp in
-  try Some ( List.map ( fun (i,dbs) -> flexrigid k ltyp dbs (term_of_state (List.nth stck i)) ) lst )
-  with NotUnifiable -> None
+let get_context2 (ltyp:term list) (pre_ctx:ctx_loc) (stck:stack) : env option =
+  match pre_ctx with
+    | Syntactic var_lst -> Some (get_context1 var_lst stck)
+    | MillerPattern lst ->
+        let aux (i,dbs) =
+          flexrigid ltyp dbs (term_of_state (List.nth stck i))
+        in
+          try Some (List.map aux lst)
+          with NotUnifiable -> None
 
 (* ********************* *)
 
@@ -97,12 +111,7 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
         else find_case st tl
     | _, _::tl -> find_case st tl
 
-(* Resolve the matching v(args) = te:
-* [v] is the variable to be matched
-* [args] are 'bound' variable
-* te is a term without free variable *)
-
-let rec reduce (config0:state) : state = (*FIXME*)
+let rec reduce (config0:state) : state =
   match beta_reduce config0 with
     | ( _ , _ , Const (_,m,v) , s ) as config ->
         begin
@@ -124,31 +133,37 @@ let rec reduce (config0:state) : state = (*FIXME*)
         end
     | config -> config
 
+(*TODO remplacer la stack par un array ? (on peut connaitre la taille max à l'avance).*)
 and rewrite (ltyp:term list) (stck:stack) (g:dtree) : (int*env*term) option =
-  (*dump_stack stck ;*)
-  match g with
-    | Switch (i,cases,def) ->
-        begin
-          assert (i<List.length stck);
-          let arg_i = reduce (List.nth stck i) in
-            match find_case arg_i cases with
-              | FC_DB (g,s) | FC_Const (g,s) -> rewrite ltyp (stck@s) g
-              | FC_Lam (g,ty,te) -> rewrite (ty::ltyp) (stck@[te]) g
-              | FC_None -> bind_opt (rewrite ltyp stck) def
-        end
-    | Test (Syntactic _,tests,right,def) -> failwith "Not implemented" (*TODO*)
-    | Test (MillerPattern mtch_pbs,tests,right,def) ->
-        begin
-          match get_new_context ltyp mtch_pbs stck with
-            | None -> bind_opt (rewrite ltyp stck) def
-            | Some ctx ->
-                let n = List.length ctx in (*FIXME this is known in advance*)
-                let conv_tests = List.rev_map (
-                  fun (t1,t2) -> ( (n,ctx,t1,[]) , (n,ctx,t2,[]) )) tests
-                in
-                  if state_conv conv_tests then Some (n, ctx, right)
+  let test n ctx eqs =
+    state_conv (List.rev_map (
+      fun (t1,t2) -> ( (n,ctx,t1,[]) , (n,ctx,t2,[]) )) eqs)
+  in
+    (*dump_stack stck ;*)
+    match g with
+      | Switch (i,cases,def) ->
+          begin
+            assert (i<List.length stck);
+            let arg_i = reduce (List.nth stck i) in
+              match find_case arg_i cases with
+                | FC_DB (g,s) | FC_Const (g,s) -> rewrite ltyp (stck@s) g
+                | FC_Lam (g,ty,te) -> rewrite (ty::ltyp) (stck@[te]) g
+                | FC_None -> bind_opt (rewrite ltyp stck) def
+          end
+      | Test (n, Syntactic var_lst,[],right,def) ->
+          Some (n, get_context1 var_lst stck, right)
+      | Test (n, Syntactic var_lst, eqs, right, def) ->
+          let ctx = get_context1 var_lst stck in
+            if test n ctx eqs then Some (n, ctx, right)
+            else bind_opt (rewrite ltyp stck) def
+      | Test (n, pre_ctx, eqs, right, def) ->
+          begin
+            match get_context2 ltyp pre_ctx stck with
+              | None -> bind_opt (rewrite ltyp stck) def
+              | Some ctx ->
+                  if test n ctx eqs then Some (n, ctx, right)
                   else bind_opt (rewrite ltyp stck) def
-        end
+          end
 
 and state_conv : (state*state) list -> bool = function
   | [] -> true

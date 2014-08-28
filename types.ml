@@ -133,6 +133,10 @@ type pattern =
   | Brackets    of term
   | Joker       of loc
 
+let get_loc_pat = function
+  | Var (l,_,_,_) | Pattern (l,_,_,_) | Lambda (l,_,_) | Joker l -> l
+  | Brackets t -> get_loc t
+
 type top = ident*pattern array
 type context = ( ident * term ) list
 
@@ -154,7 +158,7 @@ type ctx_loc =
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of ctx_loc * (term*term) list * term * dtree option
+  | Test    of int * ctx_loc * (term*term) list * term * dtree option
 
 (** {2 Environment} *)
 

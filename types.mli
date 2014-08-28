@@ -4,11 +4,11 @@
 (** Internal representation of identifiers as hashconsed strings. *)
 
 type ident
-val empty : ident
 val string_of_ident : ident -> string
 val pp_ident : out_channel -> ident -> unit
 val hstring : string -> ident
 val ident_eq : ident -> ident -> bool
+val empty : ident (*get rid of*)
 
 (** {2 Localization} *)
 
@@ -106,6 +106,8 @@ type pattern =
   | Brackets    of term
   | Joker       of loc
 
+val get_loc_pat : pattern -> loc
+
 type top = ident*pattern array
 type context = ( ident * term ) list
 
@@ -129,7 +131,7 @@ type ctx_loc =
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of ctx_loc * (term*term) list * term * dtree option
+  | Test    of int * ctx_loc * (term*term) list * term * dtree option
 
 (** {2 Environment} *)
 

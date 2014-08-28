@@ -32,12 +32,12 @@ let rec p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
           let args2 = List.map (p_of_pp ctx) args in
             match get_db_index ctx id with
               | None -> Pattern (l,!Global.name,id,args2)
-              | Some n -> Var (l,id,n,args2)
+              | Some n -> Var (l,id,n,args2) (*TODO on devrait faire la diff entre matching var et db ici*)
         end
     | PPattern (l,Some md,id,args) ->
         Pattern (l,md,id,List.map (p_of_pp ctx) args)
     | PLambda (l,x,p) -> Lambda (l,x,p_of_pp (x::ctx) p)
-    | PCondition te -> Brackets (t_of_pt ctx te) (*FIXME check for bound var*)
+    | PCondition te -> Brackets (t_of_pt ctx te) (*TODO verifier que les brackets sont clos*)
     | PJoker l -> Joker l
 
 let scope_term (ctx:context) (pte:preterm) : term =

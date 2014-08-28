@@ -7,9 +7,13 @@ let error_convertibility te ctx exp inf =
 
 let error_product te ctx inf =
   Global.fail (get_loc te)
-    "Error while typing '%a' in context:\n%a.\nExpected: a product type.\nInferred: %a (%a)."
+    "Error while typing '%a' in context:\n%a.\nExpected: a product type.\nInferred: %a."
       Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
-    Pp.pp_term (Reduction.whnf inf) (*FIXME*)
+
+let error_product_pat pat ctx inf =
+  Global.fail (get_loc_pat pat)
+    "Error while typing '%a' in context:\n%a.\nExpected: a product type.\nInferred: %a."
+      Pp.pp_pattern pat Pp.pp_context ctx Pp.pp_term inf
 
 let error_not_a_sort te ctx inf =
   Global.fail (get_loc te)
@@ -83,30 +87,27 @@ let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
     | Joker _ -> assert false
 
   and check (ctx:context) (ty:term) : pattern -> term = function
-      | Joker _ -> assert false (*FIXME*)
-      | Lambda (l,x,pat2) ->
+      | Joker _ -> assert false (*TODO utiliser mk_Unique*)
+      | Lambda (l,x,pat2) as f ->
           ( match Reduction.whnf ty with
               | Pi (_,x_opt,a1,b) ->
                   let x = match x_opt with None -> empty | Some x -> x in
                   let u = check ((x,a1)::ctx) b pat2 in
                     mk_Lam l x a1 u
-              | _ -> assert false )
+              | _ -> error_product_pat f ctx ty )
       | pat ->
           let (u,ty2) = synth ctx pat in
             if Reduction.are_convertible ty ty2 then u
-            else assert false (*TODO*)
+            else error_convertibility u ctx ty ty2
 
   and check_app (ctx:context) (f,ty_f:term*term) (pat:pattern) : term*term =
     match Reduction.whnf ty_f, pat with
-      | Pi (_,_,a1,b), Joker _ -> assert false (*FIXME*)
-      | Pi (_,_,a1,b), Lambda (l,x,pat2) ->
-          let u = check ((x,a1)::ctx) a1 pat2 in
+      | Pi (_,_,a,b), _ ->
+          let u = check ctx a pat in
             ( mk_App f u [] , Subst.subst b u )
-      | Pi (_,_,a1,b), _ ->
-          let u = check ctx a1 pat in ( mk_App f u [] , Subst.subst b u )
       | _, _ -> error_product f ctx ty_f
 
-    in snd (synth ctx pat)
+  in snd (synth ctx pat)
 
 (******************************************************************************)
 

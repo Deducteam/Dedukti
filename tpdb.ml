@@ -2,8 +2,7 @@ open Printf
 open Types
 
 let rec pp_pattern out = function
-    | Lambda (_,_,_) -> assert false (*TODO*)
-  | Var (_,x,n) -> fprintf out "#VAR_%a" pp_ident x
+  | Var (_,x,n,[]) -> fprintf out "#VAR_%a" pp_ident x
   | Pattern (_,m,v,args) ->
       begin
         List.iter (fun _ -> fprintf out "#APP(") args ;
@@ -11,7 +10,7 @@ let rec pp_pattern out = function
         List.iter (fun pat -> fprintf out ",%a)" pp_pattern pat) args
       end
   | Brackets _ -> failwith "Not Implemented: conditionnal rewriting in TPDB export."
-  | Joker (_,n) -> fprintf out "#UNDERSCORE_%i" n
+  | _ -> failwith "Not Implemented" (*TODO*)
 
 let rec pp_term k out = function
   | Const (_,m,v) -> fprintf out "%a.%a" pp_ident m pp_ident v
@@ -24,13 +23,12 @@ let rec pp_term k out = function
       ( List.iter (fun _ -> fprintf out "#APP(" ) (a::args);
         pp_term k out f ;
         List.iter ( fprintf out ",%a)" (pp_term k) ) (a::args) )
-  | Kind | Type _ | Meta _ -> assert false
+  | Kind | Type _  -> assert false
 
 let rec pp_underscore out = function
-    | Lambda (_,_,_) -> assert false (*TODO*)
   | Var _ -> () | Brackets _ -> ()
-  | Joker (_,n) -> fprintf out " #UNDERSCORE_%i" n
   | Pattern (_,m,v,args) -> List.iter (pp_underscore out) args
+  | _ -> failwith "Not Implemented" (*TODO*)
 
 let pp_rule out r =
   let pat = (Pattern (r.l,r.md,r.id,r.args)) in
