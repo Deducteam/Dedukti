@@ -16,6 +16,39 @@ let shash       = WS.create 251
 let hstring     = WS.merge shash
 let qmark       = hstring "?"
 
+(** {2 Lists with Length} *)
+
+module LList = struct
+  type 'a t= {
+    len : int;
+    lst : 'a list;
+  }
+
+  let cons x {len;lst} = {len=len+1; lst=x::lst}
+  let nil = {len=0;lst=[];}
+  let len x = x.len
+  let lst x = x.lst
+  let is_empty x = x.len = 0
+
+  let make ~len lst =
+    assert (List.length lst = len);
+    {lst;len}
+
+  let make_unsafe ~len lst = {len;lst}
+
+  let map f {len;lst} = {len; lst=List.map f lst}
+  let append_l {len;lst} l = {len=len+List.length l; lst=lst@l}
+
+  let nth l i = assert (i<l.len); List.nth l.lst i
+
+  let remove i {len;lst} =
+    let rec aux c lst = match lst with
+      | []        -> assert false
+      | x::lst'   -> if c==0 then lst' else x::(aux (c-1) lst')
+    in
+    {len=len-1; lst=aux i lst}
+end
+
 (** {2 Localization} *)
 
 type loc = int*int
@@ -98,7 +131,6 @@ let rec get_loc = function
 let mk_Kind             = Kind
 let mk_Type l           = Type l
 let mk_DB l x n         = DB (l,x,n)
-let mk_anonymous_DB n   = DB (dloc,qmark,n)
 let mk_Const l m v      = Const (l,m,v)
 let mk_Lam l x a b      = Lam (l,x,a,b)
 let mk_Pi l x a b       = Pi (l,x,a,b)
@@ -150,12 +182,12 @@ type case =
 type mtch_pb = int * int list
 
 type ctx_loc =
-  | Syntactic of int list
-  | MillerPattern of mtch_pb list
+  | Syntactic of int LList.t
+  | MillerPattern of mtch_pb LList.t
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of int * ctx_loc * (term*term) list * term * dtree option
+  | Test    of ctx_loc * (term*term) list * term * dtree option
 
 (** {2 Environment} *)
 

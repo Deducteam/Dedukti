@@ -247,6 +247,9 @@ let partition mx c =
 
 (* ***************************** line *)
 
+let array_to_llist arr =
+  LList.make_unsafe (Array.length arr) (Array.to_list arr)
+
 let get_mtch_pbs (esize:int) (line:pattern2 array) (col_nums:(int*int) array) : ctx_loc =
   let arr1 = Array.create esize (-1) in
   let arr2 = Array.create esize (-1,[]) in
@@ -269,8 +272,8 @@ let get_mtch_pbs (esize:int) (line:pattern2 array) (col_nums:(int*int) array) : 
            | (_,_::_) -> check := false
            | (_,_) -> ()
         ) arr2 ;
-      if !check then Syntactic (Array.to_list arr1)
-      else MillerPattern (Array.to_list arr2)
+      if !check then Syntactic (array_to_llist arr1)
+      else MillerPattern (array_to_llist arr2)
 
 type line =
     { l_rhs:term ; l_eqs:(term*term) list ; l_esize:int ; l_ctx:ctx_loc; }

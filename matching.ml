@@ -7,7 +7,7 @@ let rec to_dtree (mx:matrix) : dtree =
     (* Only variables on the first line of the matrix *)
     | None   ->
         let line = first mx in
-          Test ( line.l_esize, line.l_ctx, line.l_eqs, line.l_rhs,
+          Test ( (*line.l_esize,*) line.l_ctx, line.l_eqs, line.l_rhs,
                  map_opt to_dtree (pop mx) )
     (* Pattern on the first line at column c *)
     | Some c ->

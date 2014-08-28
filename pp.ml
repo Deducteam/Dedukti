@@ -84,9 +84,9 @@ let pp_rule out r =
 let tab t = String.make (t*4) ' '
 
 let rec pp_dtree t out = function
-  | Test (_,_,[],te,None)   -> pp_term out te
-  | Test (_,_,[],te,_)      -> assert false
-  | Test (_,_,lst,te,def)   ->
+  | Test (_,[],te,None)   -> pp_term out te
+  | Test (_,[],te,_)      -> assert false
+  | Test (_,lst,te,def)   ->
       let tab = tab t in
       let aux out (i,j) = fprintf out "%a=%a" pp_term i pp_term j in
         fprintf out "\n%sif %a then %a\n%selse %a" tab (pp_list " and " aux) lst
