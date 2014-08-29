@@ -4,7 +4,7 @@ open Matrix
 (* Construct a decision tree out of a matrix *)
 let rec to_dtree (mx:matrix) : dtree =
   match choose_column mx with
-    (* Only variables on the first line of the matrix *)
+    (* There are only variables on the first line of the matrix *)
     | None   ->
         let line = first mx in
           Test ( (*line.l_esize,*) line.l_ctx, line.l_eqs, line.l_rhs,

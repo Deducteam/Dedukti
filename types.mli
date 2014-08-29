@@ -123,7 +123,8 @@ val mk_Arrow    : loc -> term -> term -> term
 val term_eq : term -> term -> bool
 
 type pattern =
-  | Var         of loc*ident*int*pattern list
+  | MatchingVar of loc*ident*int*(loc*ident*int) list
+  | BoundVar    of loc*ident*int*pattern list
   | Pattern     of loc*ident*ident*pattern list
   | Lambda      of loc*ident*pattern
   | Brackets    of term

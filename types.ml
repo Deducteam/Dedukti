@@ -156,14 +156,16 @@ let rec term_eq t1 t2 =
     | _, _  -> false
 
 type pattern =
-  | Var         of loc*ident*int*pattern list
+  | MatchingVar of loc*ident*int*(loc*ident*int) list
+  | BoundVar    of loc*ident*int*pattern list
   | Pattern     of loc*ident*ident*pattern list
   | Lambda      of loc*ident*pattern
   | Brackets    of term
   | Joker       of loc
 
 let get_loc_pat = function
-  | Var (l,_,_,_) | Pattern (l,_,_,_) | Lambda (l,_,_) | Joker l -> l
+  | MatchingVar (l,_,_,_) | BoundVar (l,_,_,_) | Pattern (l,_,_,_)
+  | Lambda (l,_,_) | Joker l -> l
   | Brackets t -> get_loc t
 
 type top = ident*pattern array

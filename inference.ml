@@ -82,8 +82,11 @@ let mk_Joker l =
 let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
 
   let rec synth (ctx:context) : pattern -> term*term = function
-    | Var (l,x,n,args) ->
-        List.fold_left (check_app ctx) ( mk_DB l x n , db_get_type l ctx n ) args
+    | MatchingVar (l,x,n,args) ->
+        let args2 = List.map (fun (l,id,n) -> BoundVar (l,id,n,[])) args in
+          List.fold_left (check_app ctx) (mk_DB l x n,db_get_type l ctx n) args2
+    | BoundVar (l,x,n,args) ->
+        List.fold_left (check_app ctx) (mk_DB l x n,db_get_type l ctx n) args
     | Pattern (l,md,id,args) ->
         List.fold_left (check_app ctx) (mk_Const l md id,Env.get_type l md id) args
     | Brackets t -> ( t , infer_rec ctx t )
@@ -142,7 +145,7 @@ let check_rule (l,pctx,id,pargs,pri) =
   let pat = Scoping.scope_pattern ctx (PPattern(l,None,id,pargs)) in
   let args = match pat with
     | Pattern (_,_,_,args) -> args
-    | Var (l,_,_,_) -> Global.fail l "A pattern cannot be a variable."
+    | MatchingVar (l,_,_,_) -> Global.fail l "A pattern cannot be a variable."
     | _ -> assert false in
   let ty1 = infer_pat ctx pat in
   let rhs = Scoping.scope_term ctx pri in

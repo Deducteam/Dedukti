@@ -58,13 +58,17 @@ and pp_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> pp_term out t
   | t                                  -> fprintf out "(%a)" pp_term t
 
+let pp_bv out (_,id,i) = pp_db out (id,i)
+
 let rec pp_pattern out = function
-  | Lambda (_,x,p)       -> fprintf out "%a => %a" pp_ident x pp_pattern p
-  | Var (_,id,i,[])      -> pp_db out (id,i)
-  | Var (_,id,i,lst)     -> fprintf out "%a %a" pp_db (id,i) (pp_list " " pp_pattern_wp) lst
+  | BoundVar (_,id,i,[])
+  | MatchingVar (_,id,i,[]) -> pp_db out (id,i)
+  | BoundVar (_,id,i,lst)    -> fprintf out "%a %a" pp_db (id,i) (pp_list " " pp_pattern_wp) lst
+  | MatchingVar (_,id,i,lst) -> fprintf out "%a %a" pp_db (id,i) (pp_list " " pp_bv) lst
   | Brackets t           -> fprintf out "{ %a }" pp_term t
   | Pattern (_,m,v,[])   -> fprintf out "%a" pp_const (m,v)
   | Pattern (_,m,v,pats) -> fprintf out "%a %a" pp_const (m,v) (pp_list " " pp_pattern_wp) pats
+  | Lambda (_,x,p)       -> fprintf out "%a => %a" pp_ident x pp_pattern p
   | Joker _              -> fprintf out "_"
 and pp_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> fprintf out "(%a)" pp_pattern p

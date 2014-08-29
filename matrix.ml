@@ -23,45 +23,28 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
 
 let br = hstring "{_}"
 
-let extract_bv k = function (*TODO move in scoping ?*)
-  | Var (_,_,n,[]) when n<k -> n
-  | _ -> assert false (*TODO error msg*)
-
-let is_closed k t =
-  let rec aux q = function
-  | Kind | Type _ | Const _ -> true
-  | DB (_,_,n) -> ( n<q || n>= (k+q) )
-  | Lam (_,_,a,b) | Pi (_,_,a,b) -> (aux q a) && (aux (q+1) b)
-  | App (f,a,args) -> List.for_all (aux q) (f::a::args)
-  in
-    aux 0 t
-
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
 type lin_ty = { cstr:(term*term) list; fvar:int ; seen:IntSet.t }
 
 let rec linearize (esize:int) (lst:pattern list) : pattern2 list * (term*term) list =
-  let rec aux k s = function
+  let rec aux k (s:lin_ty) = function
   | Lambda (l,x,p) ->
       let (p2,s2) = (aux (k+1) s p) in
         ( Lambda2 (x,p2) , s2 )
-  | Var (l,x,n,args) when n<k ->
+  | BoundVar (l,x,n,args) ->
       let (args2,s2) = fold_map (aux k) s args in
         ( BoundVar2 (x,n,Array.of_list args2) , s2 )
-  | Var (l,x,n,args) (* n>=k *) ->
-      let args2 = List.map (extract_bv k) args in
-          if IntSet.mem n (s.seen) then
-            ( Var2(x,s.fvar,args2) ,
-              { s with fvar=(s.fvar+1);
-                       cstr= (mk_DB l x s.fvar,mk_DB l x n)::(s.cstr) ; } )
-          else
-            ( Var2(x,n,args2) , { s with seen=IntSet.add n s.seen; } )
+  | MatchingVar (l,x,n,args) (* n>=k *) ->
+      let args2 = List.map (fun (_,_,z) -> z) args in
+        if IntSet.mem n (s.seen) then
+          ( Var2(x,s.fvar,args2) ,
+            { s with fvar=(s.fvar+1);
+                     cstr= (mk_DB l x s.fvar,mk_DB l x n)::(s.cstr) ; } )
+        else
+          ( Var2(x,n,args2) , { s with seen=IntSet.add n s.seen; } )
     | Brackets t ->
-          if is_closed k t then (*TODO move in scoping ?*)
-            ( Var2(br,s.fvar,[]) ,
-              { s with fvar=(s.fvar+1);
-                       cstr=(mk_DB dloc br s.fvar,t)::(s.cstr) ; } )
-          else
-              Global.fail (get_loc t) "terms between brackets should be closed."
+        ( Var2(br,s.fvar,[]), {s with fvar=(s.fvar+1);
+                                      cstr=(mk_DB dloc br s.fvar,t)::(s.cstr) ;} )
     | Pattern (_,m,v,args) ->
         let (args2,s2) = (fold_map (aux k) s args) in
           ( Pattern2(m,v,Array.of_list args2) , s2 )
