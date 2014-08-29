@@ -12,6 +12,8 @@ all: dkcheck dktop dkdep dkrule
 
 dkcheck:
 	ocamlbuild -build-dir _dkcheck $(OPTIONS) dkcheck.native
+noassert:
+	ocamlbuild -build-dir _dkcheck $(OPTIONS) -cflags -noassert dkcheck.native
 
 dktop:
 	ocamlbuild -build-dir _dktop $(OPTIONS) dktop.native

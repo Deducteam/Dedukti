@@ -112,12 +112,12 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
     | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
         if ident_eq v v' && ident_eq m m' then
           ( assert (List.length stack == nargs);
-            FC_Const (tr,stack) ) (*TODO delete assert *)
+            FC_Const (tr,stack) )
         else find_case st tl
     | { term=DB (_,_,n); stack } , (CDB (nargs,n'),tr)::tl ->
         if n==n' then (
           assert (List.length stack == nargs) ;
-          FC_DB (tr,stack) ) (*TODO delete assert *)
+          FC_DB (tr,stack) )
         else find_case st tl
     | _, _::tl -> find_case st tl
 
