@@ -109,8 +109,8 @@ let pop mx =
 
 let width mx = Array.length mx.first.pats
 
-let get_first_rhs mx = mx.first.right
-let get_first_cstr mx = mx.first.constraints
+let get_first_term mx = mx.first.right
+let get_first_constraints mx = mx.first.constraints
 
 (* ***************************** *)
 
@@ -246,8 +246,8 @@ let partition mx c =
 let array_to_llist arr =
   LList.make_unsafe (Array.length arr) (Array.to_list arr)
 
-(* Extracts the matching problem from the first line. *)
-let get_first_mtch mx =
+(* Extracts the pre_context from the first line. *)
+let get_first_pre_context mx =
   let esize = mx.first.esize in
   let arr1 = Array.create esize (-1) in
   let arr2 = Array.create esize (-1,[]) in

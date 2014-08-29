@@ -181,15 +181,15 @@ type case =
   | CDB    of int*int
   | CLam
 
-type mtch_pb = int * int list
+type abstract_pb = int (*c*) * int list (*(k_i)_{i<=n}*)
 
-type mtch =
+type pre_context =
   | Syntactic of int LList.t
-  | MillerPattern of mtch_pb LList.t
+  | MillerPattern of abstract_pb LList.t
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of mtch * (term*term) list * term * dtree option
+  | Test    of pre_context * (term*term) list * term * dtree option
 
 (** {2 Environment} *)
 

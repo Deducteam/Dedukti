@@ -145,17 +145,23 @@ type case =
   | CDB    of int*int
   | CLam
 
-type mtch_pb = int (*c*) * int list (*(k_i)_{i<=n}*)
-(* Correspond to the matching problem (F is the variable):
- * stck.(c) ~? F( (DB k_0) ... (DB k_n) ) *)
+(* Abstract (from a stack (or a term list)) matching problem *)
+type abstract_pb = int (*c*) * int list (*(k_i)_{i<=n}*)
+(* It corresponds to the following matching problem (modulo beta):
+ * stck.(c) ~? F( (DB k_0) ... (DB k_n) )
+ * where F is the variable
+ * *)
 
-type mtch = (*TODO comment*)
+(* Infos to build the context from the stack *)
+type pre_context =
   | Syntactic of int LList.t
-  | MillerPattern of mtch_pb LList.t
+  (* the list of positions in the stack corresponding to the context. *)
+  | MillerPattern of abstract_pb LList.t
+  (* the list of abstract problem which list of solutions gives the context. *)
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of mtch * (term*term) list * term * dtree option
+  | Test    of pre_context * (term*term) list * term * dtree option
 
 (** {2 Environment} *)
 

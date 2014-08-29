@@ -42,38 +42,6 @@ let dump_stack stk =
 
 (* ********************* *)
 
-let get_context1 (lst:int LList.t) (stck:stack) : env =
-  LList.map (fun i -> lazy (term_of_state (List.nth stck i) )) lst
-
-exception NotUnifiable
-
-let occur (te:term) (x:int) : bool =
-  let rec aux k = function
-  | Kind | Type _ | Const _ -> false
-  | DB (_,_,n) -> (n-k) = x
-  | App (f,a,args) -> List.exists (aux k) (f::a::args)
-  | Lam (_,_,a,b) | Pi (_,_,a,b) -> ( aux k a || aux (k+1) b )
-  in
-    aux 0 te
-
-let rec lam (te:term) : term list -> term = function
-  | [] -> te
-  | ty::lst -> lam (mk_Lam dloc qmark ty te) lst
-
-let flexrigid (ltyp:term list) (dbs:int list) (te:term) : term Lazy.t =
-  if List.for_all (occur te) dbs then Lazy.from_val (lam te ltyp)
-  else raise NotUnifiable
-
-let get_context2 (ltyp:term list) (pre_ctx:mtch) (stck:stack) : env option =
-  match pre_ctx with
-    | Syntactic var_lst -> Some (get_context1 var_lst stck)
-    | MillerPattern lst ->
-        let aux (i,dbs) = flexrigid ltyp dbs (term_of_state (List.nth stck i)) in
-          try Some (LList.map aux lst)
-          with NotUnifiable -> None
-
-(* ********************* *)
-
 let rec beta_reduce : state -> state = function
     (* Weak heah beta normal terms *)
     | { term=Type _ }
@@ -121,6 +89,9 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
         else find_case st tl
     | _, _::tl -> find_case st tl
 
+let context_from_stack (stack:stack) (ord:int LList.t) : env =
+  LList.map (fun i -> lazy (term_of_state (List.nth stack i) )) ord
+
 let rec reduce (st:state) : state =
   match beta_reduce st with
     | { ctx; term=Const (_,m,v); stack } as config ->
@@ -158,19 +129,22 @@ and rewrite (ltyp:term list) (stack:stack) (g:dtree) : (env*term) option =
                 | FC_Lam (g,ty,te) -> rewrite (ty::ltyp) (stack@[te]) g
                 | FC_None -> bind_opt (rewrite ltyp stack) def
           end
-      | Test (Syntactic var_lst,[],right,def) ->
-          Some (get_context1 var_lst stack, right)
-      | Test (Syntactic var_lst, eqs, right, def) ->
-          let ctx = get_context1 var_lst stack in
+      | Test (Syntactic ord,[],right,def) ->
+          let ctx = context_from_stack stack ord in Some (ctx, right)
+      | Test (Syntactic ord, eqs, right, def) ->
+          let ctx = context_from_stack stack ord in
             if test ctx eqs then Some (ctx, right)
             else bind_opt (rewrite ltyp stack) def
-      | Test (pre_ctx, eqs, right, def) ->
+      | Test (MillerPattern lst, eqs, right, def) ->
           begin
-            match get_context2 ltyp pre_ctx stack with
-              | None -> bind_opt (rewrite ltyp stack) def
-              | Some ctx ->
-                  if test ctx eqs then Some (ctx, right)
-                  else bind_opt (rewrite ltyp stack) def
+            let pb_lst = LList.map (
+              fun (i,dbs) -> (term_of_state (List.nth stack i),dbs)) lst in
+              match Matching.resolve_lst ltyp pb_lst with
+                | None -> bind_opt (rewrite ltyp stack) def
+                | Some ctx0 ->
+                    let ctx = LList.map (fun v -> Lazy.from_val v) ctx0 in
+                      if test ctx eqs then Some (ctx, right)
+                      else bind_opt (rewrite ltyp stack) def
           end
 
 and state_conv : (state*state) list -> bool = function
