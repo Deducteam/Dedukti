@@ -94,10 +94,10 @@ let rec pp_dtree t out = function
   | Switch (i,cases,def)->
       let tab = tab t in
       let pp_case out = function
-        | CConst (_,m,v), g -> fprintf out "\n%sif $%i=%a then %a" tab i
-                               pp_const (m,v) (pp_dtree (t+1)) g
-        | CLam, g -> failwith "Not Implemented" (*TODO*)
-        | CDB _, g -> failwith "Not Implemented" (*TODO*)
+        | CConst (_,m,v), g ->
+            fprintf out "\n%sif $%i=%a then %a" tab i pp_const (m,v) (pp_dtree (t+1)) g
+        | CLam, g -> fprintf out "\n%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
+        | CDB (_,n), g -> fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (pp_dtree (t+1)) g
       in
         fprintf out "%a\n%sdefault: %a" (pp_list "" pp_case)
           cases tab (pp_def (t+1)) def
