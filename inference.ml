@@ -73,6 +73,11 @@ and is_type ctx a =
 (******************************************************************************)
 
 let underscore = hstring "_"
+let cpt = ref 0
+let fresh () = incr cpt; !cpt
+let mk_Joker l =
+  let id = hstring ( "?" ^ string_of_int (fresh ())) in
+    mk_Const l !Global.name id
 
 let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
 
@@ -86,7 +91,7 @@ let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
     | Joker _ -> assert false
 
   and check (ctx:context) (ty:term) : pattern -> term = function
-      | Joker _ -> assert false (*TODO utiliser mk_Unique*)
+      | Joker l -> mk_Joker l
       | Lambda (l,x,pat2) as f ->
           ( match Reduction.whnf ty with
               | Pi (_,x,a1,b) ->
