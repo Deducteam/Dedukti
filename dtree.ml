@@ -5,10 +5,8 @@ open Matrix
 let rec to_dtree (mx:matrix) : dtree =
   match choose_column mx with
     (* There are only variables on the first line of the matrix *)
-    | None   ->
-        let line = first mx in
-          Test ( (*line.l_esize,*) line.l_ctx, line.l_eqs, line.l_rhs,
-                 map_opt to_dtree (pop mx) )
+    | None   -> Test ( get_first_mtch mx , get_first_cstr mx, get_first_rhs mx,
+                       map_opt to_dtree (pop mx) )
     (* Pattern on the first line at column c *)
     | Some c ->
         let cases = partition mx c in

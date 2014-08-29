@@ -21,11 +21,12 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
 
 (* ***************************** *)
 
-let br = hstring "{_}"
-
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
 type lin_ty = { cstr:(term*term) list; fvar:int ; seen:IntSet.t }
+let br = hstring "{_}"
 
+(* This function extracts non-linearity and bracket constraints from a list
+ * of patterns. *)
 let rec linearize (esize:int) (lst:pattern list) : pattern2 list * (term*term) list =
   let rec aux k (s:lin_ty) = function
   | Lambda (l,x,p) ->
@@ -54,12 +55,18 @@ let rec linearize (esize:int) (lst:pattern list) : pattern2 list * (term*term) l
     ( fst fm , (snd fm).cstr )
 
 let to_rule2 (r:rule) : rule2 =
-  let esize = List.length r.ctx in (*TODO get rid of length ?*)
+  let esize = List.length r.ctx in
   let (pats2,cstr) = linearize esize r.args in
     { loc=r.l ; pats=Array.of_list pats2 ; right=r.rhs ;
       constraints=cstr ; esize=esize ; }
 
 (* ***************************** *)
+
+type matrix =
+    { col_infos: (int*int) array;
+      stack_size:int;
+      first:rule2 ;
+      others:rule2 list ; }
 
 (*
  * col_nums:    [ (n_0,p_0)     (n_1,p_1)       ...     (n_k,p_k) ]
@@ -72,12 +79,9 @@ let to_rule2 (r:rule) : rule2 =
  *              k_i records the depth of the column (number of binders under which it stands)
  *)
 
-type matrix =
-    { col_nums: (int*int) array;
-      stack_size:int;
-      first:rule2 ;
-      others:rule2 list ; }
-
+(* mk_matrix lst builds a matrix out of the non-empty list of rules [lst]
+*  It is checked that all rules have the same head symbol and arity.
+* *)
 let mk_matrix = function
   | [] -> assert false
   | r1::rs ->
@@ -96,7 +100,7 @@ let mk_matrix = function
               else r2'
       ) rs in
         { first=f; others=o; stack_size=Array.length f.pats;
-          col_nums=Array.init (Array.length f.pats) (fun i -> (i,0)) ;}
+          col_infos=Array.init (Array.length f.pats) (fun i -> (i,0)) ;}
 
 let pop mx =
   match mx.others with
@@ -105,23 +109,31 @@ let pop mx =
 
 let width mx = Array.length mx.first.pats
 
-(* ***************************** *)
+let get_first_rhs mx = mx.first.right
+let get_first_cstr mx = mx.first.constraints
 
-(* Give the index of the first non variable column *)
-let choose_column mx =
-  let rec aux i =
-    if i < Array.length mx.first.pats then
-      ( match mx.first.pats.(i) with
-        | Pattern2 _ | Lambda2 _ | BoundVar2 _ -> Some i
-        | Var2 _ | Joker2 -> aux (i+1) )
-    else None
-  in aux 0
+(* ***************************** *)
 
 let filter (f:rule2 -> bool) (mx:matrix) : matrix option =
   match List.filter f (mx.first::mx.others) with
     | [] -> None
     | f::o -> Some { mx with first=f; others=o; }
 
+(* Keeps only the rules with a lambda on column [c] *)
+let filter_l c r =
+  match r.pats.(c) with Lambda2 _ -> true | _ -> false
+
+(* Keeps only the rules with a bound variable of index [n] on column [c] *)
+let filter_bv c n r =
+  match r.pats.(c) with BoundVar2 (_,m,_) when n==m -> true | _ -> false
+
+(* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
+let filter_p c m v r =
+  match r.pats.(c) with
+    | Pattern2 (m',v',_) when ident_eq v v' && ident_eq m m' -> true
+    | _ -> false
+
+(* Keeps only the rules with a joker or a variable on column [c] *)
 let default (mx:matrix) (c:int) : matrix option =
   filter (
     fun r -> match r.pats.(c) with
@@ -131,17 +143,13 @@ let default (mx:matrix) (c:int) : matrix option =
 
 (* ***************************** *)
 
-let filter_l c r =
-  match r.pats.(c) with Lambda2 _ -> true | _ -> false
-
-let filter_bv c n r =
-  match r.pats.(c) with BoundVar2 (_,m,_) when n==m -> true | _ -> false
-
-let filter_p c m v r =
-  match r.pats.(c) with
-    | Pattern2 (m',v',_) when ident_eq v v' && ident_eq m m' -> true
-    | _ -> false
-
+(* Specialize the rule [r] on column [c]
+ * i.e. remove colum [c] and append [nargs] new column at the end.
+ * These new columns contain
+ * - the arguments if column [c] is a the pattern
+ * - or the body if column [c] is a lambda
+ * - or Jokers otherwise
+* *)
 let specialize_rule (c:int) (nargs:int) (r:rule2) : rule2 =
   let old_size = Array.length r.pats in
   let new_size = old_size - 1 + nargs in
@@ -154,41 +162,36 @@ let specialize_rule (c:int) (nargs:int) (r:rule2) : rule2 =
         | Pattern2 (_,_,pats2) | BoundVar2 (_,_,pats2) ->
             ( assert ( Array.length pats2 == nargs );
               pats2.( i - old_size + 1 ) )
-        | Lambda2 (_,p) ->
-            ( assert ( i - old_size + 1 == 0); (* ie nargs=1 *) p )
+        | Lambda2 (_,p) -> ( assert ( nargs == 1); p )
   in
     { r with pats = Array.init new_size aux }
 
-let specialize_col_num (c:int) (nargs:int) (stack_size:int)
-      (col_nums: (int*int) array) : (int*int) array =
-  let old_size = Array.length col_nums in
+(* Specialize the col_infos field of a matrix.
+ * Invalid for specialization by lambda. *)
+let spec_col_infos (c:int) (nargs:int) (stack_size:int)
+      (col_infos: (int*int) array) : (int*int) array =
+  let old_size = Array.length col_infos in
   let new_size = old_size - 1 + nargs in
   let aux i =
-    if i < c then col_nums.(i)
-    else if i < (old_size-1) then col_nums.(i+1)
+    if i < c then col_infos.(i)
+    else if i < (old_size-1) then col_infos.(i+1)
     else (* old_size -1 <= i < new_size *)
-      ( stack_size + ( i - (old_size - 1) ) , snd col_nums.(c) )
+      ( stack_size + ( i - (old_size - 1) ) , snd col_infos.(c) )
   in
     Array.init new_size aux
 
-let specialize_col_num_lambda (c:int) (stack_size:int)
-      (col_nums: (int*int) array) : (int*int) array =
-  let size = Array.length col_nums in
+(* Specialize the col_infos field of a matrix: the lambda case. *)
+let spec_col_infos_l (c:int) (stack_size:int)
+      (col_infos: (int*int) array) : (int*int) array =
+  let size = Array.length col_infos in
   let aux i =
-    if i < c then col_nums.(i)
-    else if i < (size-1) then col_nums.(i+1)
-    else (* i == size -1 *) ( stack_size , (snd col_nums.(c)) + 1 )
+    if i < c then col_infos.(i)
+    else if i < (size-1) then col_infos.(i+1)
+    else (* i == size -1 *) ( stack_size , (snd col_infos.(c)) + 1 )
   in
     Array.init size aux
 
-
-(* Specialize the matrix [mx] on column [c] ie remove colum [c]
- * and append [nargs] new column at the end.
- * These new columns contain
- * if we remove a pattern in column [c], the arguments;
- * if we remove a lambda in column [c], its body;
- * otherwise Jokers
-* *)
+(* Specialize the matrix [mx] on column [c] *)
 let specialize mx c case =
   let (mx_opt,nargs) = match case with
     | CLam -> ( filter (filter_l c) mx , 1 )
@@ -196,19 +199,29 @@ let specialize mx c case =
     | CConst (nargs,m,v) -> ( filter (filter_p c m v) mx , nargs )
   in
   let new_cn = match case with
-    | CLam -> specialize_col_num_lambda c mx.stack_size mx.col_nums
-    | _ ->    specialize_col_num c nargs mx.stack_size mx.col_nums
+    | CLam -> spec_col_infos_l c mx.stack_size mx.col_infos
+    | _ ->    spec_col_infos c nargs mx.stack_size mx.col_infos
   in
     match mx_opt with
       | None -> assert false
       | Some mx2 ->
           { first = specialize_rule c nargs mx2.first;
             others = List.map (specialize_rule c nargs) mx2.others;
-            col_nums = new_cn;
+            col_infos = new_cn;
             stack_size = mx2.stack_size + nargs;
           }
 
 (* ***************************** *)
+
+(* Give the index of the first non variable column *)
+let choose_column mx =
+  let rec aux i =
+    if i < Array.length mx.first.pats then
+      ( match mx.first.pats.(i) with
+        | Pattern2 _ | Lambda2 _ | BoundVar2 _ -> Some i
+        | Var2 _ | Joker2 -> aux (i+1) )
+    else None
+  in aux 0
 
 let eq a b =
   match a, b with
@@ -228,12 +241,14 @@ let partition mx c =
   in
     List.fold_left aux [] (mx.first::mx.others)
 
-(* ***************************** line *)
+(* ***************************** *)
 
 let array_to_llist arr =
   LList.make_unsafe (Array.length arr) (Array.to_list arr)
 
-let get_mtch_pbs (esize:int) (line:pattern2 array) (col_nums:(int*int) array) : ctx_loc =
+(* Extracts the matching problem from the first line. *)
+let get_first_mtch mx =
+  let esize = mx.first.esize in
   let arr1 = Array.create esize (-1) in
   let arr2 = Array.create esize (-1,[]) in
     Array.iteri
@@ -241,14 +256,14 @@ let get_mtch_pbs (esize:int) (line:pattern2 array) (col_nums:(int*int) array) : 
          | Joker2 -> ()
          | Var2 (_,n,lst) ->
                begin
-                 let (c,k) = col_nums.(i) in
+                 let (c,k) = mx.col_infos.(i) in
                  assert( 0 <= n-k && n-k < esize ) ;
-                 assert( i < Array.length line ) ;
+                 assert( i < Array.length mx.first.pats ) ;
                  arr1.(n-k) <- c;
                  arr2.(n-k) <- (c,lst)
                end
          | _ -> assert false
-      ) line ;
+      ) mx.first.pats ;
     let check = ref true in
       Array.iteri
         (fun i -> function
@@ -257,10 +272,3 @@ let get_mtch_pbs (esize:int) (line:pattern2 array) (col_nums:(int*int) array) : 
         ) arr2 ;
       if !check then Syntactic (array_to_llist arr1)
       else MillerPattern (array_to_llist arr2)
-
-type line =
-    { l_rhs:term ; l_eqs:(term*term) list ; l_esize:int ; l_ctx:ctx_loc; }
-
-let first mx =
-  { l_rhs=mx.first.right; l_eqs=mx.first.constraints; l_esize=mx.first.esize;
-    l_ctx= get_mtch_pbs mx.first.esize mx.first.pats mx.col_nums; }

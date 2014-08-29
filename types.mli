@@ -149,13 +149,13 @@ type mtch_pb = int (*c*) * int list (*(k_i)_{i<=n}*)
 (* Correspond to the matching problem (F is the variable):
  * stck.(c) ~? F( (DB k_0) ... (DB k_n) ) *)
 
-type ctx_loc =
+type mtch = (*TODO comment*)
   | Syntactic of int LList.t
   | MillerPattern of mtch_pb LList.t
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of ctx_loc * (term*term) list * term * dtree option
+  | Test    of mtch * (term*term) list * term * dtree option
 
 (** {2 Environment} *)
 

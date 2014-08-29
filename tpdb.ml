@@ -2,7 +2,7 @@ open Printf
 open Types
 
 let rec pp_pattern out = function
-  | Var (_,x,n,[]) -> fprintf out "#VAR_%a" pp_ident x
+  | MatchingVar (_,x,n,[]) -> fprintf out "#VAR_%a" pp_ident x
   | Pattern (_,m,v,args) ->
       begin
         List.iter (fun _ -> fprintf out "#APP(") args ;
@@ -25,10 +25,10 @@ let rec pp_term k out = function
         List.iter ( fprintf out ",%a)" (pp_term k) ) (a::args) )
   | Kind | Type _  -> assert false
 
-let rec pp_underscore out = function
+let rec pp_underscore out _ = () (* function
   | Var _ -> () | Brackets _ -> ()
   | Pattern (_,m,v,args) -> List.iter (pp_underscore out) args
-  | _ -> failwith "Not Implemented" (*TODO*)
+  | _ -> failwith "Not Implemented" TODO*)
 
 let pp_rule out r =
   let pat = (Pattern (r.l,r.md,r.id,r.args)) in

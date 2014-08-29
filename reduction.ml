@@ -64,7 +64,7 @@ let flexrigid (ltyp:term list) (dbs:int list) (te:term) : term Lazy.t =
   if List.for_all (occur te) dbs then Lazy.from_val (lam te ltyp)
   else raise NotUnifiable
 
-let get_context2 (ltyp:term list) (pre_ctx:ctx_loc) (stck:stack) : env option =
+let get_context2 (ltyp:term list) (pre_ctx:mtch) (stck:stack) : env option =
   match pre_ctx with
     | Syntactic var_lst -> Some (get_context1 var_lst stck)
     | MillerPattern lst ->
@@ -141,7 +141,7 @@ let rec reduce (st:state) : state =
         end
     | config -> config
 
-(*TODO remplacer la stack par un array ? (on peut connaitre la taille max à l'avance).*)
+(*TODO implement the stack as an array ? (the size is known in advance).*)
 and rewrite (ltyp:term list) (stack:stack) (g:dtree) : (env*term) option =
   let test ctx eqs =
     state_conv (List.rev_map (

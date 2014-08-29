@@ -66,4 +66,4 @@ let add_rw = function
   | r::_ as rs ->
       let env = H.find envs !Global.name in
       let rwi = H.find env r.id in
-        H.add env r.id (Matching.add_rules rwi rs)
+        H.add env r.id (Dtree.add_rules rwi rs)
