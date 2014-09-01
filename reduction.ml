@@ -138,7 +138,8 @@ and rewrite (ltyp:term list) (stack:stack) (g:dtree) : (env*term) option =
       | Test (MillerPattern lst, eqs, right, def) ->
           begin
             let pb_lst = LList.map (
-              fun (i,dbs) -> (term_of_state (List.nth stack i),dbs)) lst in
+              fun (i,dbs) -> ( term_of_state ( List.nth stack i) , dbs )
+            ) lst in
               match Matching.resolve_lst ltyp pb_lst with
                 | None -> bind_opt (rewrite ltyp stack) def
                 | Some ctx0 ->
