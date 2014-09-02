@@ -76,7 +76,7 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
     | { ctx; term=Lam (_,_,ty,te) } , ( CLam , tr )::tl ->
         let ty2 = term_of_state { ctx; term=ty; stack=[] } in
         let ctx2 = LList.cons (Lazy.lazy_from_val (mk_DB dloc qmark 0)) ctx in
-          FC_Lam ( tr , ty2 , { ctx=ctx2; term=ty2; stack=[] } )
+          FC_Lam ( tr , ty2 , { ctx=ctx2; term=te; stack=[] } )
     | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
         if ident_eq v v' && ident_eq m m' then
           ( assert (List.length stack == nargs);
