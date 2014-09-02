@@ -87,14 +87,18 @@ let pp_rule out r =
 
 let tab t = String.make (t*4) ' '
 
+let pp_pc out = function
+  | Syntactic _ -> fprintf out "Sy"
+  | MillerPattern _ -> fprintf out "Mi"
+
 let rec pp_dtree t out = function
-  | Test (_,[],te,None)   -> pp_term out te
-  | Test (_,[],te,_)      -> assert false
-  | Test (_,lst,te,def)   ->
+  | Test (pc,[],te,None)   -> fprintf out "(%a) %a" pp_pc pc pp_term te
+  | Test (_,[],_,_)      -> assert false
+  | Test (pc,lst,te,def)  ->
       let tab = tab t in
       let aux out (i,j) = fprintf out "%a=%a" pp_term i pp_term j in
-        fprintf out "\n%sif %a then %a\n%selse %a" tab (pp_list " and " aux) lst
-          pp_term te tab (pp_def (t+1)) def
+        fprintf out "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
+          pp_pc pc pp_term te tab pp_pc pc (pp_def (t+1)) def
   | Switch (i,cases,def)->
       let tab = tab t in
       let pp_case out = function
