@@ -15,7 +15,7 @@ let parse lb =
           let tok = Lexing.lexeme lb in
             Global.fail (mk_loc l c) "Unexpected token '%s'." tok
         end
-    | EndOfFile -> ()
+    | Tokens.EndOfFile -> ()
 
 let run_on_file file =
   let input = open_in file in

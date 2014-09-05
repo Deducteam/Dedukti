@@ -15,7 +15,7 @@ let parse lb =
           let tok = Lexing.lexeme lb in
             Global.fail (mk_loc line cnum) "Unexpected token '%s'." tok
         end
-    | EndOfFile -> ()
+    | Tokens.EndOfFile -> ()
 
 let print_version _ =
   Printf.printf "Dedukti v%s" Global.version
