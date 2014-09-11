@@ -29,6 +29,7 @@
         | [] -> assert false
         | [t] -> t
         | f::a1::args -> PreApp (f,a1,args)
+
 %}
 
 %token EOF
@@ -105,7 +106,7 @@ line            : ID COLON term DOT
                 { mk_rules $1 }
                 | command DOT { $1 }
                 | EOF
-                { mk_ending () ; raise EndOfFile }
+                { mk_ending () ; raise Tokens.EndOfFile }
 
 
 command         : WHNF  term    { mk_command $1 (Whnf $2) }

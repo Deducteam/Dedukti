@@ -1,5 +1,16 @@
-B _dkcheck
-B _dkdep
-B _dktop
-S .
-FLG -rectypes
+S kernel
+S utils
+S parser
+S dkcheck
+S dktop
+S dkdep
+S dkrule
+
+B _build/kernel
+B _build/parser
+B _build/utils
+
+B _build/dkcheck
+B _build/dkdep
+B _build/dktop
+B _build/dkrule

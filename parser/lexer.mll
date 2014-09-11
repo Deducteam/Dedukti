@@ -1,6 +1,7 @@
 {
   open Types
   open Lexing
+  open Tokens
   open Printf
 
   let get_loc lexbuf =

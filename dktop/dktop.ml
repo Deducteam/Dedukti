@@ -84,7 +84,7 @@ let rec parse lb =
     | Exit      -> parse lb
     | P.Error   ->
         Printf.eprintf "Unexpected token '%s'.\n" (Lexing.lexeme lb) ; parse lb
-    | EndOfFile -> exit 0
+    | Tokens.EndOfFile -> exit 0
 
 and error lb err = Global.print err ; parse lb
 
