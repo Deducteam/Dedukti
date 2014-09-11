@@ -1,5 +1,7 @@
 open Types
 
+(*TODO check comments*)
+
 type pattern2 =
   | Joker2
   | Var2         of ident*int*int list
@@ -63,8 +65,7 @@ let to_rule2 (r:rule) : rule2 =
 (* ***************************** *)
 
 type matrix =
-    { col_infos: (int*int) array;
-      stack_size:int;
+    { col_depth: int array;
       first:rule2 ;
       others:rule2 list ; }
 
@@ -99,8 +100,7 @@ let mk_matrix = function
                   the symbol '%a' should have the same arity." pp_ident r1.id
               else r2'
       ) rs in
-        { first=f; others=o; stack_size=Array.length f.pats;
-          col_infos=Array.init (Array.length f.pats) (fun i -> (i,0)) ;}
+        { first=f; others=o; col_depth=Array.make (Array.length f.pats) 0 ;}
 
 let pop mx =
   match mx.others with
@@ -121,16 +121,22 @@ let filter (f:rule2 -> bool) (mx:matrix) : matrix option =
 
 (* Keeps only the rules with a lambda on column [c] *)
 let filter_l c r =
-  match r.pats.(c) with Lambda2 _ -> true | _ -> false
+  match r.pats.(c) with
+    | Lambda2 _ | Joker2 | Var2 _ -> true
+    | _ -> false
 
 (* Keeps only the rules with a bound variable of index [n] on column [c] *)
 let filter_bv c n r =
-  match r.pats.(c) with BoundVar2 (_,m,_) when n==m -> true | _ -> false
+  match r.pats.(c) with
+    | BoundVar2 (_,m,_) when n==m -> true
+    | Var2 _ | Joker2 -> true
+    | _ -> false
 
 (* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
 let filter_p c m v r =
   match r.pats.(c) with
     | Pattern2 (m',v',_) when ident_eq v v' && ident_eq m m' -> true
+    | Var2 _ | Joker2 -> true
     | _ -> false
 
 (* Keeps only the rules with a joker or a variable on column [c] *)
@@ -151,43 +157,40 @@ let default (mx:matrix) (c:int) : matrix option =
  * - or Jokers otherwise
 * *)
 let specialize_rule (c:int) (nargs:int) (r:rule2) : rule2 =
-  let old_size = Array.length r.pats in
-  let new_size = old_size - 1 + nargs in
+  let size = Array.length r.pats in
   let aux i =
-    if i < c then r.pats.(i)
-    else if i < (old_size-1) then r.pats.(i+1)
-    else (* old_size -1 <= i < new_size *)
+    if i < size then
+      if i==c then
+        match r.pats.(c) with
+          | Var2 _ as v -> v
+          | _ -> Joker2
+      else r.pats.(i)
+    else (* size <= i < size+nargs *)
       match r.pats.(c) with
         | Joker2 | Var2 _ -> Joker2
         | Pattern2 (_,_,pats2) | BoundVar2 (_,_,pats2) ->
             ( assert ( Array.length pats2 == nargs );
-              pats2.( i - old_size + 1 ) )
+              pats2.( i - size ) )
         | Lambda2 (_,p) -> ( assert ( nargs == 1); p )
   in
-    { r with pats = Array.init new_size aux }
+    { r with pats = Array.init (size+nargs) aux }
 
 (* Specialize the col_infos field of a matrix.
  * Invalid for specialization by lambda. *)
-let spec_col_infos (c:int) (nargs:int) (stack_size:int)
-      (col_infos: (int*int) array) : (int*int) array =
-  let old_size = Array.length col_infos in
-  let new_size = old_size - 1 + nargs in
+let spec_col_depth (c:int) (nargs:int) (col_depth: int array) : int array =
+  let size = Array.length col_depth in
   let aux i =
-    if i < c then col_infos.(i)
-    else if i < (old_size-1) then col_infos.(i+1)
-    else (* old_size -1 <= i < new_size *)
-      ( stack_size + ( i - (old_size - 1) ) , snd col_infos.(c) )
+    if i < size then col_depth.(i)
+    else (* < size+nargs *) col_depth.(c)
   in
-    Array.init new_size aux
+    Array.init (size+nargs) aux
 
 (* Specialize the col_infos field of a matrix: the lambda case. *)
-let spec_col_infos_l (c:int) (stack_size:int)
-      (col_infos: (int*int) array) : (int*int) array =
-  let size = Array.length col_infos in
+let spec_col_depth_l (c:int) (col_depth: int array) : int array =
+  let size = Array.length col_depth in
   let aux i =
-    if i < c then col_infos.(i)
-    else if i < (size-1) then col_infos.(i+1)
-    else (* i == size -1 *) ( stack_size , (snd col_infos.(c)) + 1 )
+    if i < size then col_depth.(i)
+    else (*i == size *) col_depth.(c) + 1
   in
     Array.init size aux
 
@@ -199,16 +202,15 @@ let specialize mx c case =
     | CConst (nargs,m,v) -> ( filter (filter_p c m v) mx , nargs )
   in
   let new_cn = match case with
-    | CLam -> spec_col_infos_l c mx.stack_size mx.col_infos
-    | _ ->    spec_col_infos c nargs mx.stack_size mx.col_infos
+    | CLam -> spec_col_depth_l c mx.col_depth
+    | _ ->    spec_col_depth c nargs mx.col_depth
   in
     match mx_opt with
       | None -> assert false
       | Some mx2 ->
           { first = specialize_rule c nargs mx2.first;
             others = List.map (specialize_rule c nargs) mx2.others;
-            col_infos = new_cn;
-            stack_size = mx2.stack_size + nargs;
+            col_depth = new_cn;
           }
 
 (* ***************************** *)
@@ -245,6 +247,16 @@ let partition mx c =
 
 let array_to_llist arr =
   LList.make_unsafe (Array.length arr) (Array.to_list arr)
+(*
+let pp_pattern2 out = function
+  | Joker2 -> Printf.fprintf out "Joker"
+  | Var2 (x,i,[]) -> Printf.fprintf out "%a[%i]" pp_ident x i
+  | _ -> assert false
+let dump_pat_arr arr =
+  Global.debug_no_loc 1 " ================ PATS >";
+  Array.iter (fun p -> Global.debug_no_loc 1 "%a" pp_pattern2 p) arr ;
+  Global.debug_no_loc 1 " < ================"
+ *)
 
 (* Extracts the pre_context from the first line. *)
 let get_first_pre_context mx =
@@ -256,11 +268,10 @@ let get_first_pre_context mx =
          | Joker2 -> ()
          | Var2 (_,n,lst) ->
                begin
-                 let (c,k) = mx.col_infos.(i) in
+                 let k = mx.col_depth.(i) in
                  assert( 0 <= n-k && n-k < esize ) ;
-                 assert( i < Array.length mx.first.pats ) ;
-                 arr1.(n-k) <- c;
-                 arr2.(n-k) <- (c,lst)
+                 arr1.(n-k) <- i;
+                 arr2.(n-k) <- (i,lst)
                end
          | _ -> assert false
       ) mx.first.pats ;
