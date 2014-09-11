@@ -192,10 +192,10 @@ let spec_col_depth_l (c:int) (col_depth: int array) : int array =
     if i < size then col_depth.(i)
     else (*i == size *) col_depth.(c) + 1
   in
-    Array.init size aux
+    Array.init (size+1) aux
 
 (* Specialize the matrix [mx] on column [c] *)
-let specialize mx c case =
+let specialize mx c case : matrix =
   let (mx_opt,nargs) = match case with
     | CLam -> ( filter (filter_l c) mx , 1 )
     | CDB (nargs,n) -> ( filter (filter_bv c n) mx , nargs )
@@ -262,7 +262,8 @@ let dump_pat_arr arr =
 let get_first_pre_context mx =
   let esize = mx.first.esize in
   let arr1 = Array.create esize (-1) in
-  let arr2 = Array.create esize (-1,[]) in
+  let arr2 = Array.create esize (-1,LList.nil) in
+    let mp = ref false in
     Array.iteri
       (fun i p -> match p with
          | Joker2 -> ()
@@ -271,15 +272,10 @@ let get_first_pre_context mx =
                  let k = mx.col_depth.(i) in
                  assert( 0 <= n-k && n-k < esize ) ;
                  arr1.(n-k) <- i;
-                 arr2.(n-k) <- (i,lst)
+                 if lst=[] then arr2.(n-k) <- (i,LList.nil)
+                 else ( mp := true ; arr2.(n-k) <- (i,LList.of_list lst) )
                end
          | _ -> assert false
       ) mx.first.pats ;
-    let check = ref true in
-      Array.iteri
-        (fun i -> function
-           | (_,_::_) -> check := false
-           | (_,_) -> ()
-        ) arr2 ;
-      if !check then Syntactic (array_to_llist arr1)
-      else MillerPattern (array_to_llist arr2)
+      if !mp then MillerPattern (array_to_llist arr2)
+      else Syntactic (array_to_llist arr1)

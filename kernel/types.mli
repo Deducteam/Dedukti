@@ -23,6 +23,7 @@ module LList : sig
   val is_empty : _ t -> bool
   val len : _ t -> int
   val lst : 'a t -> 'a list
+  val of_list : 'a list -> 'a t
 
   val make : len:int -> 'a list -> 'a t
   val make_unsafe : len:int -> 'a list -> 'a t
@@ -110,7 +111,7 @@ type case =
   | CLam
 
 (* Abstract (from a stack (or a term list)) matching problem *)
-type abstract_pb = int (*c*) * int list (*(k_i)_{i<=n}*)
+type abstract_pb = int (*c*) * int LList.t (*(k_i)_{i<=n}*)
 (* It corresponds to the following matching problem (modulo beta):
  * stck.(c) ~? F( (DB k_0) ... (DB k_n) )
  * where F is the variable

@@ -30,6 +30,8 @@ module LList = struct
   let lst x = x.lst
   let is_empty x = x.len = 0
 
+  let of_list lst = {len=List.length lst;lst}
+
   let make ~len lst =
     assert (List.length lst = len);
     {lst;len}
@@ -145,7 +147,7 @@ type case =
   | CDB    of int*int
   | CLam
 
-type abstract_pb = int (*c*) * int list (*(k_i)_{i<=n}*)
+type abstract_pb = int (*c*) * int LList.t (*(k_i)_{i<=n}*)
 
 type pre_context =
   | Syntactic of int LList.t

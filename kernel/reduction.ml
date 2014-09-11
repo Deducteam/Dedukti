@@ -89,8 +89,15 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
         else find_case st tl
     | _, _::tl -> find_case st tl
 
-let context_from_stack (stack:stack) (ord:int LList.t) : env =
+let get_context_syn (stack:stack) (ord:int LList.t) : env =
   LList.map (fun i -> lazy (term_of_state (List.nth stack i) )) ord
+
+let get_context_mp (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
+  let aux (v,db_lst) =
+    Lazy.from_val (Matching.resolve db_lst (term_of_state (List.nth stack v)))
+  in
+  try Some (LList.map aux pb_lst)
+  with Matching.NotUnifiable -> None
 
 let rec reduce (st:state) : state =
   match beta_reduce st with
@@ -130,20 +137,16 @@ and rewrite (ltyp:term list) (stack:stack) (g:dtree) : (env*term) option =
                 | FC_None -> bind_opt (rewrite ltyp stack) def
           end
       | Test (Syntactic ord,[],right,def) ->
-          let ctx = context_from_stack stack ord in Some (ctx, right)
+          let ctx = get_context_syn stack ord in Some (ctx, right)
       | Test (Syntactic ord, eqs, right, def) ->
-          let ctx = context_from_stack stack ord in
+          let ctx = get_context_syn stack ord in
             if test ctx eqs then Some (ctx, right)
             else bind_opt (rewrite ltyp stack) def
       | Test (MillerPattern lst, eqs, right, def) ->
           begin
-            let pb_lst = LList.map (
-              fun (i,dbs) -> ( term_of_state ( List.nth stack i) , dbs )
-            ) lst in
-              match Matching.resolve_lst ltyp pb_lst with
+              match get_context_mp stack lst with
                 | None -> bind_opt (rewrite ltyp stack) def
-                | Some ctx0 ->
-                    let ctx = LList.map (fun v -> Lazy.from_val v) ctx0 in
+                | Some ctx ->
                       if test ctx eqs then Some (ctx, right)
                       else bind_opt (rewrite ltyp stack) def
           end
