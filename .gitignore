@@ -3,3 +3,6 @@
 /_dktop/
 /_dkdep/
 /_dkconf/
+/_dkrule/
+.*.swp
+.*.swo

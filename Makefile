@@ -5,7 +5,7 @@ INSTALL_DIR=/usr/bin
 
 # DO NOT EDIT AFTER THIS LINE
 
-OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt -rectypes' -cflags -rectypes -tag bin_annot -use-menhir # -tag profile
+OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt' -tag bin_annot -use-menhir # -tag profile
 MENHIR = -menhir "menhir --external-tokens Tokens"
 
 all: dkcheck dktop dkdep dkrule doc
@@ -34,4 +34,17 @@ install:
 clean:
 	ocamlbuild -clean
 
-.PHONY: dkcheck dktop dkdep dkrule
+tests: dkcheck
+	@echo "run tests..."
+	@for i in tests/OK/*.dk ; do \
+	    echo "on $$i...  " ; \
+	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep SUCCESS ; \
+	done
+	@for i in tests/KO/*.dk ; do \
+	    echo "on $$i...  " ; \
+	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep ERROR ; \
+	done
+	@echo "-----------------------"
+	@echo "tests OK"
+
+.PHONY: dkcheck dktop dkdep dkrule tests clean
