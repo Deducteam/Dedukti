@@ -28,15 +28,15 @@ let mk_prelude lc name =
 
 let mk_declaration lc id pty =
   eprint lc "Declaration of symbol '%a'." pp_ident id;
-  let ty = Inference.is_a_type pty in
+  let ty = Inference.is_a_type2 pty in
     Env.add_decl lc id ty
 
 let mk_definition lc id ty_opt pte =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
   let (te,ty) =
     match ty_opt with
-      | None          -> Inference.infer pte
-      | Some pty      -> Inference.check pte pty
+      | None          -> Inference.infer2 pte
+      | Some pty      -> Inference.check2 pte pty
   in
     Env.add_def lc id te ty
 
@@ -44,15 +44,15 @@ let mk_opaque lc id ty_opt pte =
   eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
   let (_,ty) =
     match ty_opt with
-      | None          -> Inference.infer pte
-      | Some pty      -> Inference.check pte pty
+      | None          -> Inference.infer2 pte
+      | Some pty      -> Inference.check2 pte pty
   in
     Env.add_decl lc id ty
 
 let mk_rule (pr:prule) : rule =
   let (lc,_,id,_,_) = pr in
     eprint lc "Rewrite rule for symbol '%a'." pp_ident id ;
-    Inference.check_rule pr
+    Inference.check_prule pr
 
 let mk_rules (prs:prule list) : unit =
   let rs = List.map mk_rule prs in
@@ -61,31 +61,31 @@ let mk_rules (prs:prule list) : unit =
 
 let mk_command lc = function
   | Whnf pte          ->
-      let (te,_) = Inference.infer pte in
+      let (te,_) = Inference.infer2 pte in
         print "%a" Pp.pp_term (Reduction.whnf te)
   | Hnf pte           ->
-      let (te,_) = Inference.infer pte in
+      let (te,_) = Inference.infer2 pte in
         print "%a" Pp.pp_term (Reduction.hnf te)
   | Snf pte           ->
-      let (te,_) = Inference.infer pte in
+      let (te,_) = Inference.infer2 pte in
         print "%a" Pp.pp_term (Reduction.snf te)
   | OneStep pte       ->
-      let (te,_) = Inference.infer pte in
+      let (te,_) = Inference.infer2 pte in
         ( match Reduction.one_step te with
             | None    -> print "Already in weak head normal form."
             | Some t' -> Pp.pp_term stdout t')
   | Conv (pte1,pte2)  ->
-      let (t1,_) = Inference.infer pte1 in
-      let (t2,_) = Inference.infer pte2 in
+      let (t1,_) = Inference.infer2 pte1 in
+      let (t2,_) = Inference.infer2 pte2 in
         if Reduction.are_convertible t1 t2 then print "OK"
         else print "KO"
   | Check (pte,pty) ->
-      let (ty1,_)   = Inference.infer pty in
-      let (_,ty2) = Inference.infer pte in
+      let (ty1,_)   = Inference.infer2 pty in
+      let (_,ty2) = Inference.infer2 pte in
         if Reduction.are_convertible ty1 ty2 then print "OK"
         else print "KO"
   | Infer pte         ->
-      let (ty,te) = Inference.infer pte in Pp.pp_term stdout ty
+      let (ty,te) = Inference.infer2 pte in Pp.pp_term stdout ty
   | Gdt (m0,v)        ->
       let m = match m0 with None -> !Env.name | Some m -> m in
       ( match Env.get_infos lc m v with

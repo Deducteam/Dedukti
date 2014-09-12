@@ -27,6 +27,11 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
     | PreLam  (l,id,a,b) ->
         mk_Lam l id (t_of_pt ctx a) (t_of_pt (id::ctx) b)
 
+let scope_term (ctx:context) (pte:preterm) : term =
+  t_of_pt (List.map fst ctx) pte
+
+(******************************************************************************)
+
 let get_bound_var = function
   | BoundVar (l,id,n,[]) -> (l,id,n)
   | p -> Print.fail (get_loc_pat p) "the pattern '%a' is not a bound variable."
@@ -78,8 +83,56 @@ let p_of_pp (ctx:ident list) : prepattern -> pattern =
     | PJoker l -> Joker l
   in aux 0 ctx
 
-let scope_term (ctx:context) (pte:preterm) : term =
-  t_of_pt (List.map fst ctx) pte
+let scope_pattern (ctx:context) (pp:prepattern) : pattern =
+  p_of_pp (List.map fst ctx) pp
 
-let scope_pattern (ctx:context) (ppat:prepattern) : pattern =
-  p_of_pp (List.map fst ctx) ppat
+(******************************************************************************)
+
+let get_nb_args (esize:int) (p:pattern) : int array =
+  let arr = Array.make esize (-1) in (* -1 means +inf *)
+  let min a b =
+    if a = -1 then b
+    else if a<b then a else b
+  in
+  let rec aux k = function
+    | BoundVar (_,_,_,args) | Pattern (_,_,_,args) -> List.iter (aux k) args
+    | Lambda (_,_,pp) -> aux (k+1) pp
+    | MatchingVar (_,id,n,args) ->
+        arr.(n-k) <- min (arr.(n-k)) (List.length args)
+    | Brackets _ | Joker _ -> ()
+  in
+    ( aux 0 p ; arr )
+
+let check_nb_args (nb_args:int array) (te:term) : unit =
+  let rec aux k = function
+    | Kind | Type _ | Const _ -> ()
+    | DB (l,id,n) ->
+        if n>=k && nb_args.(n-k)>0 then
+          Print.fail l "The variable '%a' must be applied to at least %i argument(s)."
+            pp_ident id nb_args.(n-k)
+    | App(DB(l,id,n),a1,args) when n>=k ->
+        if ( nb_args.(n-k) > 1 + (List.length args) ) then
+          Print.fail l "The variable '%a' must be applied to at least %i argument(s)."
+            pp_ident id nb_args.(n-k)
+        else List.iter (aux k) (a1::args)
+    | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
+    | Lam (_,_,a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
+  in
+    aux 0 te
+
+let scope_context pctx =
+  let aux ctx0 (_,x,ty) = (x,scope_term ctx0 ty)::ctx0 in
+    List.fold_left aux [] pctx
+
+let scope_rule (l,pctx,id,pargs,pri) =
+  let ctx = scope_context pctx in
+  let pat = scope_pattern ctx (PPattern(l,None,id,pargs)) in
+  let ri = scope_term ctx pri in
+  let args = match pat with
+    | Pattern (_,_,_,args) -> args
+    | MatchingVar (l,_,_,_) -> Print.fail l "A pattern cannot be a variable."
+    | _ -> assert false in
+  let esize = List.length ctx in (*TODO*)
+  let nb_args = get_nb_args esize pat in
+  let _ = check_nb_args nb_args ri in
+    { l=l ; ctx=ctx ; md= !Env.name; id=id ; args=args ; rhs=ri }

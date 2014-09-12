@@ -4,4 +4,4 @@ open Rule
 
 val scope_term : context -> preterm -> term
 
-val scope_pattern : context -> prepattern -> pattern
+val scope_rule : prule -> rule
