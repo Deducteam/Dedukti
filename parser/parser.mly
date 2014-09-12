@@ -73,6 +73,7 @@
 %type <Types.pdecl list> context
 %type <Types.loc*Types.ident*Types.prepattern list> top_pattern
 %type <Types.prepattern> pattern
+%type <Types.prepattern> pattern_wp
 %type <Types.preterm> sterm
 %type <Types.preterm> term
 
@@ -132,25 +133,30 @@ rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
 
 decl           : ID COLON term         { (fst $1,snd $1,$3) }
 
-context         : /* empty */           { [] }
+context         : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, decl) { $1 }
 
-top_pattern     : ID pattern*            { (fst $1,snd $1,$2) }
+top_pattern     : ID pattern_wp*        { (fst $1,snd $1,$2) }
 
-pattern         : ID
-                { PPattern (fst $1,None,snd $1,[]) }
+pattern_wp      : ID
+                        { PPattern (fst $1,None,snd $1,[]) }
                 | QID
-                { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
+                        { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
                 | UNDERSCORE
-                { PJoker $1 }
-                | LEFTPAR ID  pattern* RIGHTPAR
-                { PPattern (fst $2,None,snd $2,$3) }
-                | LEFTPAR QID pattern* RIGHTPAR
-                { let (l,md,id)=$2 in PPattern (l,Some md,id,$3) }
+                        { PJoker $1 }
                 | LEFTBRA term RIGHTBRA
-                { PCondition $2 }
-                | LEFTPAR ID FATARROW pattern RIGHTPAR
-                { PLambda (fst $2,snd $2,$4) }
+                        { PCondition $2 }
+                | LEFTPAR pattern RIGHTPAR
+                        { $2 }
+
+pattern         : ID  pattern_wp+
+                        { PPattern (fst $1,None,snd $1,$2) }
+                | QID pattern_wp+
+                        { let (l,md,id)=$1 in PPattern (l,Some md,id,$2) }
+                | ID FATARROW pattern
+                        { PLambda (fst $1,snd $1,$3) }
+                | pattern_wp
+                        { $1 }
 
 sterm           : QID
                 { let (l,md,id)=$1 in PreQId(l,md,id) }

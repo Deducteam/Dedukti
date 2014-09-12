@@ -31,6 +31,22 @@ let get_bound_var = function
   | p -> Global.fail (get_loc_pat p) "the pattern '%a' is not a bound variable."
            Pp.pp_pattern p
 
+(* The arguments should be disctinct bound variables *)
+let get_args l id k args =
+  let err () =
+    Global.fail l "Ill-formed pattern: the arguments \
+                         of the variable '%a' should be disctint bound variables."
+      pp_ident id in
+  let arr = Array.make k false in
+  let aux = function
+    | BoundVar (l,id,n,[]) -> (
+        assert (n < k);
+        if arr.(n) then err () else ( arr.(n) <- true; (l,id,n) )
+      )
+    | _ -> err ()
+  in
+    List.map aux args
+
 let is_closed k t =
   let rec aux q = function
   | Kind | Type _ | Const _ -> true
@@ -47,7 +63,7 @@ let p_of_pp (ctx:ident list) : prepattern -> pattern =
         ( match get_db_index ctx id with
             | Some n ->
                 if n<k then BoundVar (l,id,n,args)
-                else MatchingVar (l,id,n,List.map get_bound_var args)
+                else MatchingVar (l,id,n,get_args l id k args)
             | None -> Pattern (l,!Global.name,id,args)
         )
     | PPattern (l,Some md,id,args) -> Pattern (l,md,id,List.map (aux k ctx) args)

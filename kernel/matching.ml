@@ -6,7 +6,7 @@ let permute (dbs:int LList.t) (te:term) : term =
   let size = LList.len dbs in
   let rec find n cpt = function
     | [] -> raise NotUnifiable
-    | q::lst -> if q=n then size-cpt else find n (cpt+1) lst
+    | q::lst -> if q=n then size-1-cpt else find n (cpt+1) lst
   in
   let rec aux k = function
     | Type _ | Kind | Const _ as t -> t

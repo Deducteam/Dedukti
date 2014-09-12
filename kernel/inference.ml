@@ -139,6 +139,38 @@ let is_a_type = is_a_type2 []
 let check_context =
   List.fold_left ( fun ctx (_,x,ty) -> (x,is_a_type2 ctx ty)::ctx ) []
 
+let get_nb_args (esize:int) (p:pattern) : int array =
+  let arr = Array.make esize (-1) in (* -1 means +inf *)
+  let min a b =
+    if a = -1 then b
+    else if a<b then a else b
+  in
+  let rec aux k = function
+    | BoundVar (_,_,_,args) | Pattern (_,_,_,args) -> List.iter (aux k) args
+    | Lambda (_,_,pp) -> aux (k+1) pp
+    | MatchingVar (_,id,n,args) ->
+        arr.(n-k) <- min (arr.(n-k)) (List.length args)
+    | Brackets _ | Joker _ -> ()
+  in
+    ( aux 0 p ; arr )
+
+let check_nb_args (nb_args:int array) (te:term) : unit =
+  let rec aux k = function
+    | Kind | Type _ | Const _ -> ()
+    | DB (l,id,n) ->
+        if n>=k && nb_args.(n-k)>0 then
+          Global.fail l "The variable '%a' must be applied to at least %i argument(s)."
+            pp_ident id nb_args.(n-k)
+    | App(DB(l,id,n),a1,args) when n>=k ->
+        if ( nb_args.(n-k) > 1 + (List.length args) ) then
+          Global.fail l "The variable '%a' must be applied to at least %i argument(s)."
+            pp_ident id nb_args.(n-k)
+        else List.iter (aux k) (a1::args)
+    | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
+    | Lam (_,_,a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
+  in
+    aux 0 te
+
 let check_rule (l,pctx,id,pargs,pri) =
   let ctx = check_context pctx in
   let pat = Scoping.scope_pattern ctx (PPattern(l,None,id,pargs)) in
@@ -150,5 +182,8 @@ let check_rule (l,pctx,id,pargs,pri) =
   let rhs = Scoping.scope_term ctx pri in
   let ty2 = infer_rec ctx rhs in
     if (Reduction.are_convertible ty1 ty2) then
-      { l=l ; ctx=ctx ; md= !Global.name; id=id ; args=args ; rhs=rhs }
+      let esize = List.length ctx in (*TODO*)
+      let nb_args = get_nb_args esize pat in
+      let _ = check_nb_args nb_args rhs in
+        { l=l ; ctx=ctx ; md= !Global.name; id=id ; args=args ; rhs=rhs }
     else error_convertibility rhs ctx ty1 ty2
