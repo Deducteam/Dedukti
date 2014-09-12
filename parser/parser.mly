@@ -1,15 +1,16 @@
 %parameter <M :
   sig
-    val mk_prelude     : Types.loc -> Types.ident -> unit
-    val mk_declaration : Types.loc -> Types.ident -> Types.preterm -> unit
-    val mk_definition  : Types.loc -> Types.ident -> Types.preterm option -> Types.preterm -> unit
-    val mk_opaque      : Types.loc -> Types.ident -> Types.preterm option -> Types.preterm -> unit
-    val mk_rules       : Types.prule list -> unit
-    val mk_command     : Types.loc -> Types.command -> unit
+    val mk_prelude     : Term.loc -> Term.ident -> unit
+    val mk_declaration : Term.loc -> Term.ident -> Term.preterm -> unit
+    val mk_definition  : Term.loc -> Term.ident -> Term.preterm option -> Term.preterm -> unit
+    val mk_opaque      : Term.loc -> Term.ident -> Term.preterm option -> Term.preterm -> unit
+    val mk_rules       : Rule.prule list -> unit
+    val mk_command     : Term.loc -> Term.command -> unit
     val mk_ending      : unit -> unit
   end>
 %{
-    open Types
+    open Term
+    open Rule
     open M
 
     let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
@@ -46,36 +47,36 @@
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
-%token <Types.loc> WHNF
-%token <Types.loc> HNF
-%token <Types.loc> SNF
-%token <Types.loc> STEP
-%token <Types.loc> INFER
-%token <Types.loc> CONV
-%token <Types.loc> CHECK
-%token <Types.loc> PRINT
-%token <Types.loc> GDT
-%token <Types.loc*string> OTHER
-%token <Types.loc> UNDERSCORE
-%token <Types.loc*Types.ident>NAME
-%token <Types.loc> TYPE
-%token <Types.loc*Types.ident> ID
-%token <Types.loc*Types.ident*Types.ident> QID
+%token <Term.loc> WHNF
+%token <Term.loc> HNF
+%token <Term.loc> SNF
+%token <Term.loc> STEP
+%token <Term.loc> INFER
+%token <Term.loc> CONV
+%token <Term.loc> CHECK
+%token <Term.loc> PRINT
+%token <Term.loc> GDT
+%token <Term.loc*string> OTHER
+%token <Term.loc> UNDERSCORE
+%token <Term.loc*Term.ident>NAME
+%token <Term.loc> TYPE
+%token <Term.loc*Term.ident> ID
+%token <Term.loc*Term.ident*Term.ident> QID
 %token <string> STRING
 
 %start prelude
 %start line
 %type <unit> prelude
 %type <unit> line
-%type <Types.prule> rule
-%type <Types.pdecl> decl
-%type <Types.pdecl> param
-%type <Types.pdecl list> context
-%type <Types.loc*Types.ident*Types.prepattern list> top_pattern
-%type <Types.prepattern> pattern
-%type <Types.prepattern> pattern_wp
-%type <Types.preterm> sterm
-%type <Types.preterm> term
+%type <Rule.prule> rule
+%type <Rule.pdecl> decl
+%type <Rule.pdecl> param
+%type <Rule.pdecl list> context
+%type <Term.loc*Term.ident*Rule.prepattern list> top_pattern
+%type <Rule.prepattern> pattern
+%type <Rule.prepattern> pattern_wp
+%type <Term.preterm> sterm
+%type <Term.preterm> term
 
 %right ARROW FATARROW
 

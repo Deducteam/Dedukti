@@ -1,5 +1,5 @@
 (** Substitutions usind DeBruijn indices. *)
-open Types
+open Term
 
 val shift               : int -> term -> term
 

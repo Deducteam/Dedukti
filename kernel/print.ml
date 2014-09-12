@@ -1,4 +1,4 @@
-open Types
+open Term
 
 let color = ref true
 

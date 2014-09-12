@@ -1,9 +1,17 @@
+open Term
+
 (** Global context management. *)
-open Types
 
 val name                : ident ref
 val ignore_redecl       : bool ref
 val autodep             : bool ref
+
+module H : Hashtbl.S with type key := ident
+
+type rw_infos = private
+  | Decl    of term
+  | Def     of term*term
+  | Decl_rw of term*Rule.rule list*int*Rule.dtree
 
 (** Initialize the global context. *)
 val init                : ident -> unit
@@ -30,4 +38,10 @@ val add_def             : loc -> ident -> term -> term -> unit
 
 (** Add a list of rewrite rules in the context.
 All these rules must have the same head symbol and the same arity. *)
-val add_rw              : rule list -> unit
+val add_rw              : Rule.rule list -> unit
+
+val marshal : ident -> string list -> rw_infos H.t -> unit
+
+val unmarshal : loc -> string -> (string list*rw_infos H.t)
+
+val get_all_rules : string -> (string*Rule.rule list) list

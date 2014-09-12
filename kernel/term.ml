@@ -68,16 +68,6 @@ type preterm =
   | PreLam  of loc * ident * preterm * preterm
   | PrePi   of loc * ident option * preterm * preterm
 
-type prepattern =
-  | PCondition  of preterm
-  | PPattern    of loc*ident option*ident*prepattern list
-  | PLambda     of loc*ident*prepattern
-  | PJoker      of loc
-
-type pdecl      = loc * ident * preterm
-type pcontext   = pdecl list
-type prule      = loc * pdecl list * ident * prepattern list * preterm
-
 (** {2 Terms/Patterns} *)
 
 type term =
@@ -88,6 +78,8 @@ type term =
   | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
   | Lam   of loc*ident*term*term        (* Lambda abstraction *)
   | Pi    of loc*ident*term*term (* Pi abstraction *)
+
+type context = ( ident * term ) list
 
 let rec get_loc = function
   | Type l | DB (l,_,_) | Const (l,_,_) | Lam (l,_,_,_) | Pi (l,_,_,_)  -> l
@@ -120,56 +112,6 @@ let rec term_eq t1 t2 =
     | Lam (_,_,a,b), Lam (_,_,a',b') | Pi (_,_,a,b), Pi (_,_,a',b') ->
         term_eq a a' && term_eq b b'
     | _, _  -> false
-
-type pattern =
-  | MatchingVar of loc*ident*int*(loc*ident*int) list
-  | BoundVar    of loc*ident*int*pattern list
-  | Pattern     of loc*ident*ident*pattern list
-  | Lambda      of loc*ident*pattern
-  | Brackets    of term
-  | Joker       of loc
-
-let get_loc_pat = function
-  | MatchingVar (l,_,_,_) | BoundVar (l,_,_,_) | Pattern (l,_,_,_)
-  | Lambda (l,_,_) | Joker l -> l
-  | Brackets t -> get_loc t
-
-type top = ident*pattern array
-type context = ( ident * term ) list
-
-(**{2 Rewrite Rules} *)
-
-type rule = {
-  l:loc; ctx:context; md:ident; id:ident; args:pattern list; rhs:term; }
-
-type case =
-  | CConst of int*ident*ident
-  | CDB    of int*int
-  | CLam
-
-type abstract_pb = int (*c*) * int LList.t (*(k_i)_{i<=n}*)
-
-type pre_context =
-  | Syntactic of int LList.t
-  | MillerPattern of abstract_pb LList.t
-
-type dtree =
-  | Switch  of int * (case*dtree) list * dtree option
-  | Test    of pre_context * (term*term) list * term * dtree option
-
-(** {2 Environment} *)
-
-module H = Hashtbl.Make(
-struct
-  type t        = ident
-  let equal     = ident_eq
-  let hash      = Hashtbl.hash
-end )
-
-type rw_infos =
-  | Decl    of term
-  | Def     of term*term
-  | Decl_rw of term*rule list*int*dtree
 
 (** {2 Commands} *)
 

@@ -42,7 +42,7 @@ val mk_loc              : int -> int -> loc
 (** mk_loc [line] [column] *)
 val of_loc              : loc -> (int*int)
 
-(** {2 PreTerms/PrePatterns} *)
+(** {2 PreTerms} *)
 
 type preterm =
   | PreType of loc
@@ -52,17 +52,7 @@ type preterm =
   | PreLam  of loc * ident * preterm * preterm
   | PrePi   of loc * ident option * preterm * preterm
 
-type prepattern =
-  | PCondition  of preterm
-  | PPattern    of loc*ident option*ident*prepattern list
-  | PLambda     of loc*ident*prepattern
-  | PJoker      of loc
-
-type pdecl      = loc * ident * preterm
-type pcontext   = pdecl list
-type prule      = loc * pdecl list * ident * prepattern list * preterm
-
-(** {2 Terms/Patterns} *)
+(** {2 Terms} *)
 
 type term = private
   | Kind                                (* Kind *)
@@ -72,6 +62,8 @@ type term = private
   | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
   | Lam   of loc*ident*term*term        (* Lambda abstraction *)
   | Pi    of loc*ident*term*term (* Pi abstraction *)
+
+type context = ( ident * term ) list
 
 val get_loc : term -> loc
 
@@ -87,58 +79,8 @@ val mk_Arrow    : loc -> term -> term -> term
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
 
-type pattern =
-  | MatchingVar of loc*ident*int*(loc*ident*int) list
-  | BoundVar    of loc*ident*int*pattern list
-  | Pattern     of loc*ident*ident*pattern list
-  | Lambda      of loc*ident*pattern
-  | Brackets    of term
-  | Joker       of loc
-
-val get_loc_pat : pattern -> loc
-
-type top = ident*pattern array
-type context = ( ident * term ) list
-
-(**{2 Rewrite Rules} *)
-
-type rule = {
-  l:loc; ctx:context; md:ident; id:ident; args:pattern list; rhs:term; }
-
-type case =
-  | CConst of int*ident*ident
-  | CDB    of int*int
-  | CLam
-
-(* Abstract (from a stack (or a term list)) matching problem *)
-type abstract_pb = int (*c*) * int LList.t (*(k_i)_{i<=n}*)
-(* It corresponds to the following matching problem (modulo beta):
- * stck.(c) ~? F( (DB k_0) ... (DB k_n) )
- * where F is the variable
- * *)
-
-(* Infos to build the context from the stack *)
-type pre_context =
-  | Syntactic of int LList.t
-  (* the list of positions in the stack corresponding to the context. *)
-  | MillerPattern of abstract_pb LList.t
-  (* the list of abstract problem which list of solutions gives the context. *)
-
-type dtree =
-  | Switch  of int * (case*dtree) list * dtree option
-  | Test    of pre_context * (term*term) list * term * dtree option
-
-(** {2 Environment} *)
-
-module H : Hashtbl.S with type key := ident
-
-type rw_infos =
-  | Decl    of term
-  | Def     of term*term
-  | Decl_rw of term*rule list*int*dtree
-
 (** {2 Commands} *)
-
+(*FIXME move*)
 type command =
   (* Reduction *)
   | Whnf of preterm
@@ -155,6 +97,6 @@ type command =
   | Other of string*preterm list
 
 (** {2 Util} *)
-
+(*FIXME move*)
 val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 val map_opt : ('a -> 'b) -> 'a option -> 'b option

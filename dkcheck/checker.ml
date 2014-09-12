@@ -1,5 +1,6 @@
-open Types
-
+open Term
+open Rule
+open Env
 
 (* ********************************* *)
 

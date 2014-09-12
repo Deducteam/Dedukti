@@ -1,4 +1,4 @@
-open Types
+open Term
 
 let run_on_stdin        = ref false
 

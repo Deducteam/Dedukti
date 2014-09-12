@@ -1,4 +1,5 @@
-open Types
+open Term
+open Rule
 
 let error_convertibility te ctx exp inf =
   Print.fail (get_loc te)

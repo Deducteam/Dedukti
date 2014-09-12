@@ -1,5 +1,6 @@
 (** Scope managmement: from preterms to terms. *)
-open Types
+open Term
+open Rule
 
 val scope_term : context -> preterm -> term
 

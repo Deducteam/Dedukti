@@ -1,4 +1,4 @@
-open Types
+open Term
 
 val out                 : out_channel ref
 
@@ -10,7 +10,7 @@ val mk_definition       : loc -> ident -> preterm option -> preterm -> unit
 
 val mk_opaque           : loc -> ident -> preterm option -> preterm -> unit
 
-val mk_rules            : prule list -> unit
+val mk_rules            : Rule.prule list -> unit
 
 val mk_command           : loc -> command -> unit
 

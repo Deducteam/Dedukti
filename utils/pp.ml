@@ -1,4 +1,5 @@
-open Types
+open Term
+open Rule
 open Printf
 
 let print_db = ref false

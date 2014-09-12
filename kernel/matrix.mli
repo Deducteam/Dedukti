@@ -1,4 +1,5 @@
-open Types
+open Term
+open Rule
 
 type matrix
 

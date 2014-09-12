@@ -1,4 +1,4 @@
-open Types
+open Term
 
 let rec shift_rec (r:int) (k:int) : term -> term = function
   | DB (_,x,n) as t -> if n<k then t else mk_DB dloc x (n+r)

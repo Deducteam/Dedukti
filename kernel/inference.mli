@@ -1,5 +1,5 @@
 (** Type inference/type checking. *)
-open Types
+open Term
 
 (** [Inference.infer pte] returns the term corresponding to the preterm [pte]
   * together with its type. *)
@@ -14,4 +14,4 @@ val check : preterm -> preterm -> term*term
 val is_a_type : preterm -> term
 
 (** Checks that a rule is well-typed. *)
-val check_rule : prule -> rule
+val check_rule : Rule.prule -> Rule.rule

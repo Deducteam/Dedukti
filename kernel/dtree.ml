@@ -1,4 +1,4 @@
-open Types
+open Rule
 open Matrix
 
 (* Construct a decision tree out of a matrix *)
@@ -11,15 +11,17 @@ let rec to_dtree (mx:matrix) : dtree =
             | [] -> Test ( get_first_pre_context mx ,[] ,
                            get_first_term mx, None )
             | lst -> Test ( get_first_pre_context mx ,lst ,
-                            get_first_term mx, map_opt to_dtree (pop mx) )
+                            get_first_term mx, Term.map_opt to_dtree (pop mx) )
         end
     (* Pattern on the first line at column c *)
     | Some c ->
         let cases = partition mx c in
         let aux ca = ( ca , to_dtree (specialize mx c ca) ) in
-          Switch (c, List.map aux cases, map_opt to_dtree (default mx c) )
+          Switch (c, List.map aux cases, Term.map_opt to_dtree (default mx c) )
 
-let add_rules (rwi:rw_infos) (rs:rule list) : rw_infos =
+let add_rules (rs:rule list) : dtree = assert false
+(* FIXME
+  let add_rules (rwi:rw_infos) (rs:rule list) : rw_infos =
   assert (rs != [] ) ;
   let ( ty , rules ) = match rwi with
     | Decl ty                   -> ( ty , rs )
@@ -31,3 +33,4 @@ let add_rules (rwi:rw_infos) (rs:rule list) : rw_infos =
   in
   let mx = mk_matrix rules in
     Decl_rw ( ty, rules , width mx , to_dtree mx )
+ *)

@@ -1,5 +1,6 @@
 (** Pretty printing. *)
-open Types
+open Term
+open Rule
 
 val print_db    : bool ref
 

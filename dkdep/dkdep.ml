@@ -1,4 +1,4 @@
-open Types
+open Term
 
 module P = Parser.Make(Dep)
 

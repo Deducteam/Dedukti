@@ -1,5 +1,3 @@
-open Types
-
 type action = All | NonLinear | TypeLevel | PiRule | Export
 let action = ref All
 
@@ -13,7 +11,7 @@ let args = [
 let flatten lst = List.flatten (List.map snd lst)
 
 let run md =
-  let rs = Dko.get_all_rules md in
+  let rs = Env.get_all_rules md in
     match !action with
       | All -> Rules.print_all (flatten rs)
       | NonLinear -> Rules.print_non_linear_rules (flatten rs)

@@ -1,5 +1,6 @@
 open Printf
-open Types
+open Term
+open Rule
 
 let rec pp_pattern out = function
   | MatchingVar (_,x,n,[]) -> fprintf out "#VAR_%a" pp_ident x

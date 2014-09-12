@@ -1,4 +1,5 @@
-open Types
+open Term
+open Rule
 
 (*TODO check comments*)
 

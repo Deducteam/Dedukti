@@ -1,5 +1,5 @@
+open Term
 (** Term reduction and conversion test. *)
-open Types
 
 (** Head Normal Form *)
 val hnf         : term -> term

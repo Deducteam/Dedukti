@@ -1,4 +1,5 @@
-open Types
+open Term
+open Rule
 
 let print fmt =
   Printf.kfprintf (fun _ -> print_newline () ) stdout fmt
@@ -66,7 +67,7 @@ struct
     | Gdt (m0,v)         ->
       let m = match m0 with None -> !Env.name | Some m -> m in
         ( match Env.get_infos lc m v with
-            | Decl_rw (_,_,i,g) -> Pp.pp_rw stdout (m,v,i,g)
+            | Env.Decl_rw (_,_,i,g) -> Pp.pp_rw stdout (m,v,i,g)
             | _                 -> print "No GDT." )
     | Print str         -> output_string stdout str
     | Other (cmd,_)     -> print "Unknown command '%s'." cmd

@@ -1,4 +1,5 @@
-open Types
+open Term
+open Rule
 
 let get_db_index ctx id =
   let rec aux n = function

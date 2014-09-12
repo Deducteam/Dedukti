@@ -1,5 +1,5 @@
 {
-  open Types
+  open Term
   open Lexing
   open Tokens
   open Printf

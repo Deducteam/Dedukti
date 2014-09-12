@@ -1,4 +1,5 @@
-open Types
+open Term
+open Rule
 
 let out = ref stdout
 let deps = ref []

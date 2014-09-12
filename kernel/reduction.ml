@@ -1,4 +1,6 @@
-open Types
+open Term
+open Rule
+open Env
 
 type env = term Lazy.t LList.t
 
