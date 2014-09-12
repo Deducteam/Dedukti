@@ -1,5 +1,8 @@
 open Types
 
+let print fmt =
+  Printf.kfprintf (fun _ -> print_newline () ) stdout fmt
+
 let is_linear r =
   let seen = Array.create (List.length r.ctx) false in
   let rec aux = function
@@ -29,9 +32,9 @@ let is_pi_rule r =
     has_pi r.rhs
 
 let print_rules_if condition =
-  List.iter (fun r -> if condition r then Global.print "%a" Pp.pp_rule r)
+  List.iter (fun r -> if condition r then print "%a" Pp.pp_rule r)
 
-let print_all = List.iter (Global.print "%a" Pp.pp_rule)
+let print_all = List.iter (print "%a" Pp.pp_rule)
 
 let print_pi_rules = print_rules_if is_pi_rule
 

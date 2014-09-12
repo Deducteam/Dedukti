@@ -1,6 +1,8 @@
 (** Pretty printing. *)
 open Types
 
+val print_db    : bool ref
+
 val pp_pterm    : out_channel -> preterm -> unit
 
 val pp_ppattern : out_channel -> prepattern -> unit

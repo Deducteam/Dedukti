@@ -1,7 +1,10 @@
 open Types
 
+let out = ref stdout
 let deps = ref []
 let name = ref ""
+
+let print_out fmt = Printf.kfprintf (fun _ -> output_string !out "\n" ) !out fmt
 
 let add_dep lc m =
   let s = string_of_ident m in
@@ -52,5 +55,5 @@ let mk_command _ = function
   | Other (_,lst)                       -> List.iter mk_term lst
 
 let mk_ending () =
-  Global.print_out "%s.dko : %s" !name
+  print_out "%s.dko : %s" !name
     (String.concat " " (List.map (fun s -> s ^ ".dko") !deps) )

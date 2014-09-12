@@ -1,6 +1,8 @@
 open Types
 open Printf
 
+let print_db = ref false
+
 let rec pp_list sep pp out = function
     | []        -> ()
     | [a]       -> pp out a
@@ -38,11 +40,11 @@ and pp_ppattern_wp out = function
   | p                           -> pp_ppattern out p
 
 let pp_const out (m,v) =
-  if ident_eq m !Global.name then pp_ident out v
+  if ident_eq m !Env.name then pp_ident out v
   else fprintf out "%a.%a" pp_ident m pp_ident v
 
 let pp_db out (x,n) =
-  if !Global.debug_level > 0 then fprintf out "%a[%i]" pp_ident x n
+  if !print_db then fprintf out "%a[%i]" pp_ident x n
   else pp_ident out x
 
 let rec pp_term out = function

@@ -1,11 +1,16 @@
 (** Global context management. *)
 open Types
 
+val name                : ident ref
+val ignore_redecl       : bool ref
+val autodep             : bool ref
+
 (** Initialize the global context. *)
 val init                : ident -> unit
 
 (** Create the dko file and clear the global context. *)
-val export_and_clear    : unit -> unit
+val export    : unit -> unit
+val clear    : unit -> unit
 
 (** [Env.get_infos l md id] returns the context infos corresponding to the
  constant symbol [id] in the module [md]. *)

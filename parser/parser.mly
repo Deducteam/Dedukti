@@ -81,9 +81,7 @@
 
 %%
 
-prelude         : NAME DOT
-                { let (lc,name)=$1 in Global.name := name ;
-                        Env.init name; mk_prelude lc name }
+prelude         : NAME DOT      { mk_prelude (fst $1) (snd $1) }
 
 line            : ID COLON term DOT
                 { mk_declaration (fst $1) (snd $1) $3 }
@@ -118,8 +116,8 @@ command         : WHNF  term    { mk_command $1 (Whnf $2) }
                 | CONV  term  COMMA term { mk_command $1 (Conv ($2,$4)) }
                 | CHECK term  COMMA term { mk_command $1 (Check ($2,$4)) }
                 | PRINT STRING  { mk_command $1 (Print $2) }
-                | GDT   ID      { mk_command $1 (Gdt (!Global.name,snd $2)) }
-                | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (m,v)) }
+                | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
+                | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }
                 | OTHER term_lst { mk_command (fst $1) (Other (snd $1,$2)) }
 
 

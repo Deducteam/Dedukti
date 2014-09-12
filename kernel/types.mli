@@ -150,7 +150,7 @@ type command =
   | Check of preterm*preterm
   | Infer of preterm
   (* Misc *)
-  | Gdt of ident*ident
+  | Gdt of ident option*ident
   | Print of string
   | Other of string*preterm list
 

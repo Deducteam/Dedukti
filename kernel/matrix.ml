@@ -91,12 +91,12 @@ let mk_matrix = function
       let o = List.map (
         fun r2 ->
           if not (ident_eq r1.id r2.id) then
-            Global.fail r2.l "Unexpected head symbol '%a' \
+            Print.fail r2.l "Unexpected head symbol '%a' \
               (expected '%a')." pp_ident r2.id pp_ident r1.id
           else
             let r2' = to_rule2 r2 in
               if n != Array.length r2'.pats then
-                Global.fail r2.l "All the rewrite rules for \
+                Print.fail r2.l "All the rewrite rules for \
                   the symbol '%a' should have the same arity." pp_ident r1.id
               else r2'
       ) rs in
@@ -253,9 +253,9 @@ let pp_pattern2 out = function
   | Var2 (x,i,[]) -> Printf.fprintf out "%a[%i]" pp_ident x i
   | _ -> assert false
 let dump_pat_arr arr =
-  Global.debug_no_loc 1 " ================ PATS >";
-  Array.iter (fun p -> Global.debug_no_loc 1 "%a" pp_pattern2 p) arr ;
-  Global.debug_no_loc 1 " < ================"
+  .debug_no_loc 1 " ================ PATS >";
+  Array.iter (fun p -> .debug_no_loc 1 "%a" pp_pattern2 p) arr ;
+  .debug_no_loc 1 " < ================"
  *)
 
 (* Extracts the pre_context from the first line. *)

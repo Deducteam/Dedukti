@@ -19,7 +19,7 @@ let run md =
       | NonLinear -> Rules.print_non_linear_rules (flatten rs)
       | TypeLevel -> Rules.print_type_level_rules (flatten rs)
       | PiRule -> Rules.print_pi_rules (flatten rs)
-      | Export -> Tpdb.export !Global.out rs
+      | Export -> Tpdb.export stdout rs (*FIXME*)
 
 let _ =
   try Arg.parse args run ("Usage: "^ Sys.argv.(0) ^" [options] files");

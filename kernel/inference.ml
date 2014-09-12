@@ -1,32 +1,32 @@
 open Types
 
 let error_convertibility te ctx exp inf =
-  Global.fail (get_loc te)
+  Print.fail (get_loc te)
     "Error while typing '%a' in context:\n%a.\nExpected: %a\nInferred: %a."
       Pp.pp_term te Pp.pp_context ctx Pp.pp_term exp Pp.pp_term inf
 
 let error_product te ctx inf =
-  Global.fail (get_loc te)
+  Print.fail (get_loc te)
     "Error while typing '%a' in context:\n%a.\nExpected: a product type.\nInferred: %a."
       Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
 
 let error_product_pat pat ctx inf =
-  Global.fail (get_loc_pat pat)
+  Print.fail (get_loc_pat pat)
     "Error while typing '%a' in context:\n%a.\nExpected: a product type.\nInferred: %a."
       Pp.pp_pattern pat Pp.pp_context ctx Pp.pp_term inf
 
 let error_not_a_sort te ctx inf =
-  Global.fail (get_loc te)
+  Print.fail (get_loc te)
     "Error while typing '%a' in context:\n%a.\nExpected: Type or Kind.\nInferred: %a."
       Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
 
 let error_kind te ctx =
-  Global.fail (get_loc te)
+  Print.fail (get_loc te)
     "Error while typing '%a' in context:\n%a.\nExpected: anything but Kind.\nInferred: Kind."
       Pp.pp_term te Pp.pp_context ctx
 
 let error_not_type te ctx inf =
-  Global.fail (get_loc te)
+  Print.fail (get_loc te)
     "Error while typing '%a' in context:\n%a.\nExpected: Type.\nInferred: %a."
       Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
 
@@ -34,11 +34,11 @@ let error_not_type te ctx inf =
 
 let db_get_type l ctx n =
   try Subst.shift (n+1) (snd (List.nth ctx n))
-  with Failure _ -> Global.fail l "Trying to type a open term."
+  with Failure _ -> Print.fail l "Trying to type a open term."
 
 let rec infer_rec (ctx:context) (te:term)  : term =
   match te with
-    | Kind -> Global.fail dloc "Kind is not typable."
+    | Kind -> Print.fail dloc "Kind is not typable."
     | Type _ -> mk_Kind
     | DB (l,_,n) -> db_get_type l ctx n
     | Const (l,md,id) -> Env.get_type l md id
@@ -76,7 +76,7 @@ let cpt = ref 0
 let fresh () = incr cpt; !cpt
 let mk_Joker l =
   let id = hstring ( "?" ^ string_of_int (fresh ())) in
-    mk_Const l !Global.name id
+    mk_Const l !Env.name id
  *)
 let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
 
@@ -159,11 +159,11 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
     | Kind | Type _ | Const _ -> ()
     | DB (l,id,n) ->
         if n>=k && nb_args.(n-k)>0 then
-          Global.fail l "The variable '%a' must be applied to at least %i argument(s)."
+          Print.fail l "The variable '%a' must be applied to at least %i argument(s)."
             pp_ident id nb_args.(n-k)
     | App(DB(l,id,n),a1,args) when n>=k ->
         if ( nb_args.(n-k) > 1 + (List.length args) ) then
-          Global.fail l "The variable '%a' must be applied to at least %i argument(s)."
+          Print.fail l "The variable '%a' must be applied to at least %i argument(s)."
             pp_ident id nb_args.(n-k)
         else List.iter (aux k) (a1::args)
     | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
@@ -176,7 +176,7 @@ let check_rule (l,pctx,id,pargs,pri) =
   let pat = Scoping.scope_pattern ctx (PPattern(l,None,id,pargs)) in
   let args = match pat with
     | Pattern (_,_,_,args) -> args
-    | MatchingVar (l,_,_,_) -> Global.fail l "A pattern cannot be a variable."
+    | MatchingVar (l,_,_,_) -> Print.fail l "A pattern cannot be a variable."
     | _ -> assert false in
   let ty1 = infer_pat ctx pat in
   let rhs = Scoping.scope_term ctx pri in
@@ -185,5 +185,5 @@ let check_rule (l,pctx,id,pargs,pri) =
       let esize = List.length ctx in (*TODO*)
       let nb_args = get_nb_args esize pat in
       let _ = check_nb_args nb_args rhs in
-        { l=l ; ctx=ctx ; md= !Global.name; id=id ; args=args ; rhs=rhs }
+        { l=l ; ctx=ctx ; md= !Env.name; id=id ; args=args ; rhs=rhs }
     else error_convertibility rhs ctx ty1 ty2

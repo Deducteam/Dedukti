@@ -1,6 +1,9 @@
 (** Dedukti's main functionnalities. *)
 open Types
 
+val export         : bool ref
+val set_debug_level : int -> unit
+
 val mk_prelude     : loc -> ident -> unit
 
 val mk_declaration : loc -> ident -> preterm -> unit

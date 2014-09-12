@@ -1,5 +1,7 @@
 open Types
 
+val out                 : out_channel ref
+
 val mk_prelude          : loc -> ident -> unit
 
 val mk_declaration      : loc -> ident -> preterm -> unit

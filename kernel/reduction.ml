@@ -33,12 +33,12 @@ let rec add_to_list lst (s:stack) (s':stack) =
     | _ ,_              -> None
 
  let dump_state { ctx; term; stack } =
-   Global.debug_no_loc 1 "[ e=[...] | %a | [...] ]" Pp.pp_term term
+   Print.debug "[ e=[...] | %a | [...] ]" Pp.pp_term term
 
 let dump_stack stk =
-  Global.debug_no_loc 1 " ================ >";
+  Print.debug " ================ >";
   List.iter dump_state stk ;
-  Global.debug_no_loc 1 " < ================"
+  Print.debug " < ================"
 
 (* ********************* *)
 

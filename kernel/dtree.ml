@@ -26,7 +26,7 @@ let add_rules (rwi:rw_infos) (rs:rule list) : rw_infos =
     | Decl_rw (ty,rs0,_,_)       -> ( ty , rs0@rs )
     | Def (_,_)                 ->
         let r = match rs with r::_ -> r | _ -> assert false in
-          Global.fail r.l "Cannot add rewrite\
+          Print.fail r.l "Cannot add rewrite\
             rules for the defined symbol '%a'." pp_ident r.id
   in
   let mx = mk_matrix rules in

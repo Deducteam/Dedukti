@@ -15,7 +15,7 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
     | PreId (l,id) ->
         begin
           match get_db_index ctx id with
-            | None   -> mk_Const l !Global.name id
+            | None   -> mk_Const l !Env.name id
             | Some n -> mk_DB l id n
         end
     | PreQId (l,md,id) -> mk_Const l md id
@@ -28,13 +28,13 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
 
 let get_bound_var = function
   | BoundVar (l,id,n,[]) -> (l,id,n)
-  | p -> Global.fail (get_loc_pat p) "the pattern '%a' is not a bound variable."
+  | p -> Print.fail (get_loc_pat p) "the pattern '%a' is not a bound variable."
            Pp.pp_pattern p
 
 (* The arguments should be disctinct bound variables *)
 let get_args l id k args =
   let err () =
-    Global.fail l "Ill-formed pattern: the arguments \
+    Print.fail l "Ill-formed pattern: the arguments \
                          of the variable '%a' should be disctint bound variables."
       pp_ident id in
   let arr = Array.make k false in
@@ -64,14 +64,14 @@ let p_of_pp (ctx:ident list) : prepattern -> pattern =
             | Some n ->
                 if n<k then BoundVar (l,id,n,args)
                 else MatchingVar (l,id,n,get_args l id k args)
-            | None -> Pattern (l,!Global.name,id,args)
+            | None -> Pattern (l,!Env.name,id,args)
         )
     | PPattern (l,Some md,id,args) -> Pattern (l,md,id,List.map (aux k ctx) args)
     | PLambda (l,x,p) -> Lambda (l,x,aux (k+1) (x::ctx) p)
     | PCondition pte ->
         let te = t_of_pt ctx pte in
           if is_closed k te then Brackets te
-          else Global.fail (get_loc te)
+          else Print.fail (get_loc te)
                  "The term '%a' contains a variable bound outside the brackets."
                  Pp.pp_term te
     | PJoker l -> Joker l
