@@ -20,7 +20,7 @@ let rec term_of_state {ctx;term;stack} : term =
 let rec split_stack (i:int) : stack -> (stack*stack) option = function
   | l  when i=0 -> Some ([],l)
   | []          -> None
-  | x::l        -> map_opt (fun (s1,s2) -> (x::s1,s2) ) (split_stack (i-1) l)
+  | x::l        -> Utils.map_opt (fun (s1,s2) -> (x::s1,s2) ) (split_stack (i-1) l)
 
 let rec safe_find m v = function
   | []                  -> None
@@ -136,21 +136,21 @@ and rewrite (ltyp:term list) (stack:stack) (g:dtree) : (env*term) option =
               match find_case arg_i cases with
                 | FC_DB (g,s) | FC_Const (g,s) -> rewrite ltyp (stack@s) g
                 | FC_Lam (g,ty,te) -> rewrite (ty::ltyp) (stack@[te]) g
-                | FC_None -> bind_opt (rewrite ltyp stack) def
+                | FC_None -> Utils.bind_opt (rewrite ltyp stack) def
           end
       | Test (Syntactic ord,[],right,def) ->
           let ctx = get_context_syn stack ord in Some (ctx, right)
       | Test (Syntactic ord, eqs, right, def) ->
           let ctx = get_context_syn stack ord in
             if test ctx eqs then Some (ctx, right)
-            else bind_opt (rewrite ltyp stack) def
+            else Utils.bind_opt (rewrite ltyp stack) def
       | Test (MillerPattern lst, eqs, right, def) ->
           begin
               match get_context_mp stack lst with
-                | None -> bind_opt (rewrite ltyp stack) def
+                | None -> Utils.bind_opt (rewrite ltyp stack) def
                 | Some ctx ->
                       if test ctx eqs then Some (ctx, right)
-                      else bind_opt (rewrite ltyp stack) def
+                      else Utils.bind_opt (rewrite ltyp stack) def
           end
 
 and state_conv : (state*state) list -> bool = function
@@ -258,5 +258,5 @@ let rec state_one_step : state -> state option = function
         end
 
 let one_step t =
-  map_opt term_of_state
+  Utils.map_opt term_of_state
     (state_one_step { ctx=LList.nil; term=t; stack=[] })
