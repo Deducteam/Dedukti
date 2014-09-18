@@ -1,20 +1,21 @@
 open Term
 open Rule
 
-let print fmt =
+let print out fmt =
   Printf.kfprintf (fun _ -> print_newline () ) stdout fmt
 
-let is_linear r =
+let is_non_linear r =
   let seen = Array.create (List.length r.ctx) false in
   let rec aux = function
-    | MatchingVar (_,_,n,[]) ->
-        if seen.(n) then false else ( seen.(n) <- true ; true )
-    | Pattern (_,_,_,args) -> List.for_all aux args
-    | Brackets _ -> false
-    | Joker _ -> true
-    | _  -> failwith "Not Implemented" (*TODO*)
+    | Lambda (_,_,p) -> aux p
+    | BoundVar (_,_,_,args) | Pattern (_,_,_,args) -> List.exists aux args
+    | MatchingVar (_,_,n,_) ->
+        if seen.(n) then true
+        else ( seen.(n) <- true; false )
+    | Brackets _ -> true
+    | Joker _ -> false
   in
-    List.for_all aux r.args
+    List.exists aux r.args
 
 let is_type_level r =
   let rec is_kind = function
@@ -24,21 +25,15 @@ let is_type_level r =
   in
     is_kind (Env.get_type dloc r.md r.id)
 
-let is_pi_rule r =
-  let rec has_pi = function
-    | App (b,_,_) | Lam (_,_,_,b) -> has_pi b
-    | Pi (_,_,_,_) -> true
-    | _ -> false
-  in
-    has_pi r.rhs
+let print_rule_list out = List.iter (print out "%a" Pp.pp_rule)
 
-let print_rules_if condition =
-  List.iter (fun r -> if condition r then print "%a" Pp.pp_rule r)
+let print_rule_list_filter out condition =
+    List.iter (fun r -> if condition r then print out "%a" Pp.pp_rule r)
 
-let print_all = List.iter (print "%a" Pp.pp_rule)
+let print_all out = List.iter (fun (_,lst) -> print_rule_list out lst)
 
-let print_pi_rules = print_rules_if is_pi_rule
+let print_non_linear_rules out =
+  List.iter (fun (_,lst) -> print_rule_list_filter out is_non_linear lst)
 
-let print_non_linear_rules = print_rules_if (fun r -> not (is_linear r))
-
-let print_type_level_rules = print_rules_if is_type_level
+let print_type_level_rules out =
+  List.iter (fun (_,lst) -> print_rule_list_filter out is_type_level lst)

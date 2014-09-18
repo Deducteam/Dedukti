@@ -1,23 +1,24 @@
-type action = All | NonLinear | TypeLevel | PiRule | Export
+type action = All | NonLinear | TypeLevel | Export
 let action = ref All
+let out = ref stdout
 
 let args = [
-  ("--all",        Arg.Unit (fun _ -> action := All),       "Print all rules" ) ;
-  ("-non-linear",  Arg.Unit (fun _ -> action := NonLinear), "Print non-linear rules" ) ;
-  ("--type-level", Arg.Unit (fun _ -> action := TypeLevel), "Print type-level rules" ) ;
-  ("--pi-rule",    Arg.Unit (fun _ -> action := PiRule),    "Print Pi rules" ) ;
-  ("--export",     Arg.Unit (fun _ -> action := Export),    "Export to TPDB format" ) ]
+  ("--list-all",        Arg.Unit (fun _ -> action := All),       "Print all rules" ) ;
+  ("--list-non-linear", Arg.Unit (fun _ -> action := NonLinear), "Print non-linear rules" ) ;
+  ("--list-type-level", Arg.Unit (fun _ -> action := TypeLevel), "Print type-level rules" ) ;
+  ("--export",          Arg.Unit (fun _ -> action := Export),    "Export to TPDB format" ) ;
+  ("-o", Arg.String (fun fi -> out := open_out fi), "Output file"  )
+]
 
 let flatten lst = List.flatten (List.map snd lst)
 
-let run md =
-  let rs = Env.get_all_rules md in
+let run name =
+  let rules = Env.get_all_rules name in
     match !action with
-      | All -> Rules.print_all (flatten rs)
-      | NonLinear -> Rules.print_non_linear_rules (flatten rs)
-      | TypeLevel -> Rules.print_type_level_rules (flatten rs)
-      | PiRule -> Rules.print_pi_rules (flatten rs)
-      | Export -> Tpdb.export stdout rs (*FIXME*)
+      | All -> Rules.print_all !out rules
+      | NonLinear -> Rules.print_non_linear_rules !out rules
+      | TypeLevel -> Rules.print_type_level_rules !out rules
+      | Export -> Tpdb.export !out rules
 
 let _ =
   try Arg.parse args run ("Usage: "^ Sys.argv.(0) ^" [options] files");
