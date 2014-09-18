@@ -122,7 +122,7 @@ let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
 
 let check_context (ctx:context) : unit =
   let aux ctx0 a = is_a_type ctx0 (snd a); a::ctx0
-  in ignore (List.fold_left aux [] ctx)
+  in ignore (List.fold_left aux [] (List.rev ctx))
 
 let check_rule r =
   let _ = check_context r.ctx in
@@ -130,7 +130,7 @@ let check_rule r =
     check r.ctx r.rhs ty
 
 (******************************************************************************)
-
+(*
 let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
 
   let rec synth (ctx:context) : pattern -> term*term = function
@@ -166,7 +166,7 @@ let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
       | _, _ -> error_product f ctx ty_f
 
   in snd (synth ctx pat)
-
+ *)
 (******************************************************************************)
 
 let infer2 pte =
