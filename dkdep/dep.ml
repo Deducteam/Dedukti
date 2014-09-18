@@ -1,5 +1,6 @@
 open Term
 open Rule
+open Cmd
 
 let out = ref stdout
 let deps = ref []

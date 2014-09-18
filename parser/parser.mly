@@ -5,12 +5,13 @@
     val mk_definition  : Term.loc -> Term.ident -> Term.preterm option -> Term.preterm -> unit
     val mk_opaque      : Term.loc -> Term.ident -> Term.preterm option -> Term.preterm -> unit
     val mk_rules       : Rule.prule list -> unit
-    val mk_command     : Term.loc -> Term.command -> unit
+    val mk_command     : Term.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
   end>
 %{
     open Term
     open Rule
+    open Cmd
     open M
 
     let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function

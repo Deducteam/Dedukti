@@ -78,21 +78,3 @@ val mk_Arrow    : loc -> term -> term -> term
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
-
-(** {2 Commands} *)
-(*FIXME move*)
-type command =
-  (* Reduction *)
-  | Whnf of preterm
-  | Hnf of preterm
-  | Snf of preterm
-  | OneStep of preterm
-  | Conv of preterm*preterm
-  (*Typing*)
-  | Check of preterm*preterm
-  | Infer of preterm
-  (* Misc *)
-  | Gdt of ident option*ident
-  | Print of string
-  | Other of string*preterm list
-
