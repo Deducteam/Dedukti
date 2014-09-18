@@ -93,79 +93,15 @@ let is_a_type ctx ty =
 
 (******************************************************************************)
 
-let joker l = mk_Const l (Env.get_name ()) qmark
-
-type term_with_joker = bool*term
-(*the boolean should be true when the term contains a joker (underscore) *)
-
-exception SubstCheck
-(* Performs the subsitution but check that u is never actually substitute *)
-let subst_check (te:term) (u:term) =
-  let rec  aux k = function
-    | DB (l,x,n) as t ->
-        if n = k then raise SubstCheck
-        else if n>k then mk_DB l x (n-1)
-        else (*n<k*) t
-    | Type _ | Kind | Const _ as t -> t
-    | Lam (_,x,_,b) -> mk_Lam dloc x None (aux (k+1) b)
-    | Pi  (_,x,a,b) -> mk_Pi dloc  x (aux k a) (aux(k+1) b)
-    | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
-  in aux 0 te
-
-let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
-  (* Return the pattern as a term and its type *)
-  let rec synth (ctx:context) : pattern -> term_with_joker*term = function
-    | MatchingVar (l,x,n,args) ->
-        let args2 = List.map (fun (l,id,n) -> BoundVar (l,id,n,[])) args in
-          List.fold_left (check_app ctx)
-            ( (false,mk_DB l x n) , db_get_type l ctx n ) args2
-    | BoundVar (l,x,n,args) ->
-        List.fold_left (check_app ctx)
-          ( (false,mk_DB l x n) , db_get_type l ctx n ) args
-    | Pattern (l,md,id,args) ->
-        List.fold_left (check_app ctx)
-          ( (false,mk_Const l md id) , Env.get_type l md id ) args
-    | Brackets t -> ( (false,t) , infer ctx t )
-    | Lambda (_,_,_) -> assert false
-    | Joker _ -> assert false
-  (* Return the pattern as a term *)
-  and check (ctx:context) (ty:term) : pattern -> term_with_joker  = function
-      | Joker l -> ( true, joker l )
-      | Lambda (l,x,pat2) as f ->
-          begin
-            match Reduction.whnf ty with
-              | Pi (_,x,a1,b) ->
-                  let (bo,u) = check ((x,a1)::ctx) b pat2 in
-                    ( bo , mk_Lam l x None u )
-              | _ -> error_product_pat f ctx ty
-          end
-      | pat ->
-          let (u,ty2) = synth ctx pat in
-            if Reduction.are_convertible ty ty2 then u
-            else error_convertibility (snd u) ctx ty ty2
-  (* Return the application of (App [f] [pat]) as a term and its type *)
-  and check_app (ctx:context) ((bo1,f),ty_f:term_with_joker*term) (pat:pattern) : term_with_joker*term =
-    match Reduction.whnf ty_f, pat with
-      | Pi (_,_,a,b), _ ->
-          let (bo2,u) = check ctx a pat in
-          let te = mk_App f u [] in
-          let ty =
-            if bo2 then ( try subst_check b u with SubstCheck -> error_joker te)
-            else Subst.subst b u
-          in ( (bo1||bo2,te) , ty )
-      | _, _ -> error_product f ctx ty_f
-
-  in snd (synth ctx pat)
-
-(******************************************************************************)
-
 let check_context (ctx:context) : unit =
   let aux ctx0 a = is_a_type ctx0 (snd a); a::ctx0
   in ignore (List.fold_left aux [] (List.rev ctx))
 
 let check_rule r =
-  let _ = check_context r.ctx in
-  let ty = infer_pat r.ctx (Pattern(r.l,Env.get_name (),r.id,r.args)) in
+  let (ctx,lhs) =
+    Underscore.to_term r.ctx (Pattern(r.l,Env.get_name (),r.id,r.args)) in
+  let _ = check_context ctx in
+  let ty = infer ctx lhs in
     check r.ctx r.rhs ty
 
 (******************************************************************************)
