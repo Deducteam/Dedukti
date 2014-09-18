@@ -16,7 +16,7 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
     | PreId (l,id) ->
         begin
           match get_db_index ctx id with
-            | None   -> mk_Const l !Env.name id
+            | None   -> mk_Const l (Env.get_name ()) id
             | Some n -> mk_DB l id n
         end
     | PreQId (l,md,id) -> mk_Const l md id
@@ -70,7 +70,7 @@ let p_of_pp (ctx:ident list) : prepattern -> pattern =
             | Some n ->
                 if n<k then BoundVar (l,id,n,args)
                 else MatchingVar (l,id,n,get_args l id k args)
-            | None -> Pattern (l,!Env.name,id,args)
+            | None -> Pattern (l,(Env.get_name ()),id,args)
         )
     | PPattern (l,Some md,id,args) -> Pattern (l,md,id,List.map (aux k ctx) args)
     | PLambda (l,x,p) -> Lambda (l,x,aux (k+1) (x::ctx) p)
@@ -135,4 +135,4 @@ let scope_rule (l,pctx,id,pargs,pri) =
   let esize = List.length ctx in (*TODO*)
   let nb_args = get_nb_args esize pat in
   let _ = check_nb_args nb_args ri in
-    { l=l ; ctx=ctx ; md= !Env.name; id=id ; args=args ; rhs=ri }
+    { l=l ; ctx=ctx ; md= (Env.get_name ()); id=id ; args=args ; rhs=ri }

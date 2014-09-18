@@ -47,4 +47,4 @@ tests: dkcheck
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: dkcheck dktop dkdep dkrule tests clean
+.PHONY: dkcheck dktop dkdep dkrule tests clean doc

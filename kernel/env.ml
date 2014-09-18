@@ -2,9 +2,11 @@ open Term
 open Rule
 open Printf
 
-let name = ref (hstring "noname")
 let ignore_redecl = ref false
 let autodep = ref false
+
+let name = ref (hstring "noname")
+let get_name _ = !name
 
 module H = Hashtbl.Make(
 struct
@@ -21,9 +23,9 @@ type rw_infos =
   | Decl_rw of term*rule list*int*dtree
 
 let envs : (rw_infos H.t) H.t = H.create 19
+
 let init nm =
-  name := nm;
-  H.add envs nm (H.create 251)
+  name := nm ; H.add envs nm (H.create 251)
 
 let marshal name deps env =
   try

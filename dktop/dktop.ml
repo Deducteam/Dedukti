@@ -65,7 +65,7 @@ struct
     | Infer pte         ->
         let (te,ty) = Inference.infer2 pte in Pp.pp_term stdout ty
     | Gdt (m0,v)         ->
-      let m = match m0 with None -> !Env.name | Some m -> m in
+      let m = match m0 with None -> Env.get_name () | Some m -> m in
         ( match Env.get_infos lc m v with
             | Env.Decl_rw (_,_,i,g) -> Pp.pp_rw stdout (m,v,i,g)
             | _                 -> print "No GDT." )
@@ -96,6 +96,5 @@ and error lb err = print err ; parse lb
 let  _ =
   print "Welcome in Dedukti";
   let v = hstring "toplevel" in
-    Env.name := v ;
     Env.init v ;
     parse (Lexing.from_channel stdin)

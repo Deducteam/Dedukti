@@ -126,7 +126,7 @@ let check_context (ctx:context) : unit =
 
 let check_rule r =
   let _ = check_context r.ctx in
-  let ty = infer_pat r.ctx (Pattern(r.l,!Env.name,r.id,r.args)) in
+  let ty = infer_pat r.ctx (Pattern(r.l,Env.get_name (),r.id,r.args)) in
     check r.ctx r.rhs ty
 
 (******************************************************************************)

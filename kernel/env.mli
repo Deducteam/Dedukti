@@ -2,9 +2,10 @@ open Term
 
 (** Global context management. *)
 
-val name                : ident ref
 val ignore_redecl       : bool ref
 val autodep             : bool ref
+
+val get_name            : unit -> ident
 
 module H : Hashtbl.S with type key := ident
 
