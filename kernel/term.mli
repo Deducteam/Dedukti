@@ -49,7 +49,7 @@ type preterm =
   | PreId   of loc * ident
   | PreQId  of loc * ident * ident
   | PreApp  of preterm * preterm * preterm list
-  | PreLam  of loc * ident * preterm * preterm
+  | PreLam  of loc * ident * preterm option * preterm
   | PrePi   of loc * ident option * preterm * preterm
 
 (** {2 Terms} *)
@@ -60,8 +60,8 @@ type term = private
   | DB    of loc*ident*int              (* deBruijn *)
   | Const of loc*ident*ident            (* Global variable *)
   | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
-  | Lam   of loc*ident*term*term        (* Lambda abstraction *)
-  | Pi    of loc*ident*term*term (* Pi abstraction *)
+  | Lam   of loc*ident*term option*term        (* Lambda abstraction *)
+  | Pi    of loc*ident*term*term                (* Pi abstraction *)
 
 type context = ( ident * term ) list
 
@@ -71,7 +71,7 @@ val mk_Kind     : term
 val mk_Type     : loc -> term
 val mk_DB       : loc -> ident -> int -> term
 val mk_Const    : loc -> ident -> ident -> term
-val mk_Lam      : loc -> ident -> term -> term -> term
+val mk_Lam      : loc -> ident -> term option -> term -> term
 val mk_App      : term -> term -> term list -> term
 val mk_Pi       : loc -> ident -> term -> term -> term
 val mk_Arrow    : loc -> term -> term -> term

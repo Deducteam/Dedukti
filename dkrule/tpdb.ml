@@ -15,7 +15,7 @@ let rec pp_pattern out = function
 
 let rec pp_term k out = function
   | Const (_,m,v) -> fprintf out "%a.%a" pp_ident m pp_ident v
-  | Lam (_,_,ty,te) -> fprintf out "#LAMBDA(%a,%a)" (pp_term k) ty (pp_term (k+1)) te
+  | Lam (_,_,_,te) -> fprintf out "#LAMBDA(%a)" (pp_term (k+1)) te
   | Pi (_,_,a,b) -> fprintf out "#PI(%a,%a)" (pp_term k) a (pp_term (k+1)) b
   | DB (_,x,n) ->
       if n>=k then fprintf out "#VAR_%a" pp_ident x

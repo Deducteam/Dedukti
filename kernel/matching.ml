@@ -15,7 +15,7 @@ let permute (dbs:int LList.t) (te:term) : term =
         else
           let n' = find (n-k) 0 (LList.lst dbs) in
             mk_DB dloc x (n'+k)
-    | Lam (l,x,a,b) -> mk_Lam dloc x (aux k a) (aux (k+1) b)
+    | Lam (l,x,a,b) -> mk_Lam dloc x None (aux (k+1) b)
     | Pi  (_,x,a,b) -> mk_Pi  dloc x (aux k a) (aux (k+1) b)
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
   in aux 0 te
@@ -24,9 +24,8 @@ let permute (dbs:int LList.t) (te:term) : term =
 (* Find F such that F (DB [k_0]) ... (DB [k_n]) =~ [te]
  * when the k_i are distinct *)
 let resolve (k_lst:int LList.t) (te:term) : term =
-  let ty = mk_Type dloc in (*FIXME*)
   let rec add_lam te = function
     | [] -> te
-    | _::lst -> add_lam (mk_Lam dloc qmark ty te) lst
+    | _::lst -> add_lam (mk_Lam dloc qmark None te) lst
   in
     add_lam (permute k_lst te) (LList.lst k_lst)

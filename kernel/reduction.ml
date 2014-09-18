@@ -67,7 +67,7 @@ let rec beta_reduce : state -> state = function
 (* ********************* *)
 
 type find_case_ty =
-  | FC_Lam of dtree*term*state
+  | FC_Lam of dtree*state
   | FC_Const of dtree*state list
   | FC_DB of dtree*state list
   | FC_None
@@ -75,10 +75,9 @@ type find_case_ty =
 let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
   match st, cases with
     | _, [] -> FC_None
-    | { ctx; term=Lam (_,_,ty,te) } , ( CLam , tr )::tl ->
-        let ty2 = term_of_state { ctx; term=ty; stack=[] } in
+    | { ctx; term=Lam (_,_,_,te) } , ( CLam , tr )::tl ->
         let ctx2 = LList.cons (Lazy.lazy_from_val (mk_DB dloc qmark 0)) ctx in
-          FC_Lam ( tr , ty2 , { ctx=ctx2; term=te; stack=[] } )
+          FC_Lam ( tr , { ctx=ctx2; term=te; stack=[] } )
     | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
         if ident_eq v v' && ident_eq m m' then
           ( assert (List.length stack == nargs);
@@ -113,7 +112,7 @@ let rec reduce (st:state) : state =
                   match split_stack i stack with
                     | None -> config
                     | Some (s1,s2) ->
-                        ( match rewrite [] s1 g with
+                        ( match rewrite s1 g with
                             | None -> config
                             | Some (ctx,term) -> reduce { ctx; term; stack=s2 }
                         )
@@ -122,7 +121,7 @@ let rec reduce (st:state) : state =
     | config -> config
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
-and rewrite (ltyp:term list) (stack:stack) (g:dtree) : (env*term) option =
+and rewrite (stack:stack) (g:dtree) : (env*term) option =
   let test ctx eqs =
     state_conv (List.rev_map (
       fun (t1,t2) -> ( { ctx; term=t1; stack=[] } , { ctx; term=t2; stack=[] } )
@@ -134,23 +133,23 @@ and rewrite (ltyp:term list) (stack:stack) (g:dtree) : (env*term) option =
           begin
             let arg_i = reduce (List.nth stack i) in
               match find_case arg_i cases with
-                | FC_DB (g,s) | FC_Const (g,s) -> rewrite ltyp (stack@s) g
-                | FC_Lam (g,ty,te) -> rewrite (ty::ltyp) (stack@[te]) g
-                | FC_None -> Utils.bind_opt (rewrite ltyp stack) def
+                | FC_DB (g,s) | FC_Const (g,s) -> rewrite (stack@s) g
+                | FC_Lam (g,te) -> rewrite (stack@[te]) g
+                | FC_None -> Utils.bind_opt (rewrite stack) def
           end
       | Test (Syntactic ord,[],right,def) ->
           let ctx = get_context_syn stack ord in Some (ctx, right)
       | Test (Syntactic ord, eqs, right, def) ->
           let ctx = get_context_syn stack ord in
             if test ctx eqs then Some (ctx, right)
-            else Utils.bind_opt (rewrite ltyp stack) def
+            else Utils.bind_opt (rewrite stack) def
       | Test (MillerPattern lst, eqs, right, def) ->
           begin
               match get_context_mp stack lst with
-                | None -> Utils.bind_opt (rewrite ltyp stack) def
+                | None -> Utils.bind_opt (rewrite stack) def
                 | Some ctx ->
                       if test ctx eqs then Some (ctx, right)
-                      else Utils.bind_opt (rewrite ltyp stack) def
+                      else Utils.bind_opt (rewrite stack) def
           end
 
 and state_conv : (state*state) list -> bool = function
@@ -181,8 +180,16 @@ and state_conv : (state*state) list -> bool = function
                   | None          -> false
                   | Some lst'     -> state_conv lst'
               end
-          | { ctx=e;  term=Lam (_,_,a,b);   stack=s },
-            { ctx=e'; term=Lam (_,_,a',b'); stack=s'}
+          | { ctx=e;  term=Lam (_,_,_,b);   stack=s },
+            { ctx=e'; term=Lam (_,_,_',b'); stack=s'} ->
+              begin
+                assert ( s = [] && s' = [] ) ;
+                let arg = Lazy.lazy_from_val (mk_DB dloc qmark 0) in
+                let lst' =
+                  ( {ctx=LList.cons arg e;term=b;stack=[]},
+                    {ctx=LList.cons arg e';term=b';stack=[]} ) :: lst in
+                  state_conv lst'
+              end
           | { ctx=e;  term=Pi  (_,_,a,b);   stack=s },
             { ctx=e'; term=Pi  (_,_,a',b'); stack=s'} ->
               begin
@@ -218,7 +225,7 @@ let rec snf (t:term) : term =
     | DB _ | Type _ as t' -> t'
     | App (f,a,lst)     -> mk_App (snf f) (snf a) (List.map snf lst)
     | Pi (_,x,a,b)        -> mk_Pi dloc x (snf a) (snf b)
-    | Lam (_,x,a,b)       -> mk_Lam dloc x (snf a) (snf b)
+    | Lam (_,x,a,b)       -> mk_Lam dloc x None (snf b)
 
 (* One-Step Reduction *)
 let rec state_one_step : state -> state option = function
@@ -250,7 +257,7 @@ let rec state_one_step : state -> state option = function
                   match split_stack i stack with
                     | None -> None
                     | Some (s1,s2) ->
-                        ( match rewrite [] s1 g with
+                        ( match rewrite s1 g with
                             | None -> None
                             | Some (ctx,term) -> Some { ctx; term; stack=s2 }
                         )

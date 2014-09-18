@@ -19,7 +19,8 @@ let mk_prelude _ prelude_name =
 let rec mk_term = function
   | PreQId (lc, module_name, _) -> add_dep lc module_name
   | PreApp (f,a,args) -> (mk_term f ; mk_term a ; List.iter mk_term args )
-  | PreLam (_, _, t1, t2)
+  | PreLam (_, _, None, t2) -> mk_term t2
+  | PreLam (_, _, Some t1, t2)
   | PrePi (_,_, t1, t2) -> mk_term t1 ; mk_term t2
   | _ -> ()
 

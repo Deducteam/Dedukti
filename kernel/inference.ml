@@ -50,7 +50,8 @@ let rec infer (ctx:context) = function
           ( match infer ctx2 b with
               | (Type _|Kind as tb) -> tb
               | ty_b -> error_not_a_sort b ctx2 ty_b )
-    | Lam  (_,x,a,b) ->
+    | Lam  (_,x,None,b) -> failwith "Cannot infer the type of domain-free lambda."
+    | Lam  (_,x,Some a,b) ->
         let _ = is_type ctx a in
         let ctx2 = (x,a)::ctx in
           ( match infer ctx2 b with
@@ -102,7 +103,7 @@ let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
           ( match Reduction.whnf ty with
               | Pi (_,x,a1,b) ->
                   let u = check ((x,a1)::ctx) b pat2 in
-                    mk_Lam l x a1 u
+                    mk_Lam l x None u
               | _ -> error_product_pat f ctx ty )
       | pat ->
           let (u,ty2) = synth ctx pat in
@@ -130,7 +131,7 @@ let check_rule r =
     check r.ctx r.rhs ty
 
 (******************************************************************************)
-
+(*
 let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
 
   let rec synth (ctx:context) : pattern -> term*term = function
@@ -166,7 +167,7 @@ let infer_pat (ctx:context) (pat:pattern) : term (*the type*) =
       | _, _ -> error_product f ctx ty_f
 
   in snd (synth ctx pat)
-
+ *)
 (******************************************************************************)
 
 let infer2 pte =

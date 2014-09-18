@@ -24,8 +24,9 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
         mk_App (t_of_pt ctx f) (t_of_pt ctx a) (List.map (t_of_pt ctx) args)
     | PrePi (l,None,a,b) -> mk_Arrow l (t_of_pt ctx a) (t_of_pt (empty::ctx) b)
     | PrePi (l,Some x,a,b) -> mk_Pi l x (t_of_pt ctx a) (t_of_pt (x::ctx) b)
-    | PreLam  (l,id,a,b) ->
-        mk_Lam l id (t_of_pt ctx a) (t_of_pt (id::ctx) b)
+    | PreLam  (l,id,None,b) -> mk_Lam l id None (t_of_pt (id::ctx) b)
+    | PreLam  (l,id,Some a,b) ->
+        mk_Lam l id (Some (t_of_pt ctx a)) (t_of_pt (id::ctx) b)
 
 let scope_term (ctx:context) (pte:preterm) : term =
   t_of_pt (List.map fst ctx) pte
@@ -57,7 +58,8 @@ let is_closed k t =
   let rec aux q = function
   | Kind | Type _ | Const _ -> true
   | DB (_,_,n) -> ( n<q || n>= (k+q) )
-  | Lam (_,_,a,b) | Pi (_,_,a,b) -> (aux q a) && (aux (q+1) b)
+  | Lam (_,_,None,b) -> aux (q+1) b
+  | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux q a) && (aux (q+1) b)
   | App (f,a,args) -> List.for_all (aux q) (f::a::args)
   in
     aux 0 t
@@ -116,7 +118,8 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
             pp_ident id nb_args.(n-k)
         else List.iter (aux k) (a1::args)
     | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
-    | Lam (_,_,a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
+    | Lam (_,_,None,b) -> aux (k+1) b
+    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
   in
     aux 0 te
 

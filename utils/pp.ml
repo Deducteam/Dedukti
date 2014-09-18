@@ -14,7 +14,8 @@ let rec pp_pterm out = function
   | PreId (_,v)      -> pp_ident out v
   | PreQId (_,m,v)   -> fprintf out "%a.%a" pp_ident m pp_ident v
   | PreApp (f,a,lst) -> pp_list " " pp_pterm_wp  out (f::a::lst)
-  | PreLam (_,v,a,b) -> fprintf out "%a:%a => %a" pp_ident v pp_pterm_wp a pp_pterm b
+  | PreLam (_,v,None,b) -> fprintf out "%a => %a" pp_ident v pp_pterm b
+  | PreLam (_,v,Some a,b) -> fprintf out "%a:%a => %a" pp_ident v pp_pterm_wp a pp_pterm b
   | PrePi (_,o,a,b)    ->
       ( match o with
           | None   -> fprintf out "%a -> %a" pp_pterm_wp a pp_pterm b
@@ -54,7 +55,8 @@ let rec pp_term out = function
   | DB  (_,x,n)        -> pp_db out (x,n)
   | Const (_,m,v)      -> pp_const out (m,v)
   | App (f,a,args)     -> pp_list " " pp_term_wp out (f::a::args)
-  | Lam (_,x,a,f)      -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
+  | Lam (_,x,None,f)   -> fprintf out "%a => %a" pp_ident x pp_term f
+  | Lam (_,x,Some a,f) -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
   | Pi  (_,x,a,b)      -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
 
 and pp_term_wp out = function

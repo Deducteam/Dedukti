@@ -15,7 +15,7 @@
 
     let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
         | [] -> te
-        | (l,x,ty)::tl -> mk_lam (PreLam(l,x,ty,te)) tl
+        | (l,x,ty)::tl -> mk_lam (PreLam(l,x,Some ty,te)) tl
 
     let rec mk_pi (te:preterm) : (loc*ident*preterm) list -> preterm = function
         | [] -> te
@@ -173,7 +173,7 @@ term            : sterm+
                 | term ARROW term
                 { PrePi (preterm_loc $1,None,$1,$3) }
                 | ID FATARROW term
-                { failwith "Not implemented (untyped lambda)." }
+                { PreLam (fst $1,snd $1,None,$3) }
                 | ID COLON sterm+ FATARROW term
-                { PreLam (fst $1,snd $1,mk_pre_from_list $3,$5) }
+                { PreLam (fst $1,snd $1,Some(mk_pre_from_list $3),$5) }
 %%

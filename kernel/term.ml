@@ -65,7 +65,7 @@ type preterm =
   | PreId   of loc * ident
   | PreQId  of loc * ident * ident
   | PreApp  of preterm * preterm * preterm list
-  | PreLam  of loc * ident * preterm * preterm
+  | PreLam  of loc * ident * preterm option * preterm
   | PrePi   of loc * ident option * preterm * preterm
 
 (** {2 Terms/Patterns} *)
@@ -76,7 +76,7 @@ type term =
   | DB    of loc*ident*int              (* deBruijn *)
   | Const of loc*ident*ident            (* Global variable *)
   | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
-  | Lam   of loc*ident*term*term        (* Lambda abstraction *)
+  | Lam   of loc*ident*term option*term        (* Lambda abstraction *)
   | Pi    of loc*ident*term*term (* Pi abstraction *)
 
 type context = ( ident * term ) list
@@ -104,13 +104,12 @@ let rec term_eq t1 t2 =
   match t1, t2 with
     | Kind, Kind | Type _, Type _ -> true
     | DB (_,_,n), DB (_,_,n') -> n==n'
-    | Const (_,m,v), Const (_,m',v') ->
-        ident_eq v v' && ident_eq m m'
+    | Const (_,m,v), Const (_,m',v') -> ident_eq v v' && ident_eq m m'
     | App (f,a,l), App (f',a',l') ->
         ( try List.for_all2 term_eq (f::a::l) (f'::a'::l')
           with _ -> false )
-    | Lam (_,_,a,b), Lam (_,_,a',b') | Pi (_,_,a,b), Pi (_,_,a',b') ->
-        term_eq a a' && term_eq b b'
+    | Lam (_,_,a,b), Lam (_,_,a',b') -> term_eq b b'
+    | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false
 
 (** {2 Commands} *)
