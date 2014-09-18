@@ -14,12 +14,13 @@ let parse lb =
                          "Unexpected token '%s'." (Lexing.lexeme lb)
 
 let args = [
-  ("-d"    , Arg.Int Checker.set_debug_level, "Level of verbosity" ) ;
-  ("-e"    , Arg.Set Checker.export,          "Create a .dko" ) ;
-  ("-nc"   , Arg.Clear Print.color,         "Disable colored output" ) ;
-  ("-stdin", Arg.Set run_on_stdin,    "Use standart input" ) ;
-  ("-r"    , Arg.Set Env.ignore_redecl,   "Ignore redeclaration" ) ;
-  ("-version", Arg.Unit Version.print_version,       "Version" ) ;
+  ("-d"    , Arg.Int Checker.set_debug_level,   "Level of verbosity" ) ;
+  ("-e"    , Arg.Set Checker.export,            "Create a .dko" ) ;
+  ("-nc"   , Arg.Clear Print.color,             "Disable colored output" ) ;
+  ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;
+  ("-r"    , Arg.Set Env.ignore_redecl,         "Ignore redeclaration" ) ;
+  ("-version", Arg.Unit Version.print_version,  "Version" ) ;
+  ("-coc", Arg.Set Inference.coc,               "Typecheck the Calculus of Construction" ) ;
   ("-autodep", Arg.Set Env.autodep  ,
    "Automatically handle dependencies (experimental)") ]
 

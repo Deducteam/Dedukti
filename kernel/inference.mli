@@ -1,6 +1,8 @@
 (** Type inference/type checking. *)
 open Term
 
+val coc : bool ref
+
 val infer : context -> term -> term
 val check : context -> term -> term -> unit
 val is_a_type : context -> term -> unit

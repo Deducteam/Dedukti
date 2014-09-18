@@ -1,6 +1,7 @@
 open Term
 open Rule
 (* FIXME to be tested *)
+  (* FIXME compatibility with coc *)
 let err l = Print.fail l "Error while infering the type of jokers." (*FIXME*)
 
 let rec number_of_jokers = function

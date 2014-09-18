@@ -1,6 +1,8 @@
 open Term
 open Rule
 
+let coc = ref false
+
 let error_convertibility te ctx exp inf =
   Print.fail (get_loc te)
     "Error while typing '%a' in context:\n%a.\nExpected: %a\nInferred: %a."
@@ -55,19 +57,30 @@ let rec infer (ctx:context) : term -> term = function
         let ty_f = infer ctx f in
           snd (List.fold_left (check_app ctx) (f,ty_f) (a::args))
     | Pi (_,x,a,b) ->
-        let _ = check ctx a (mk_Type dloc) in
-        let ctx2 = (x,a)::ctx in
-          ( match infer ctx2 b with
-              | (Type _|Kind as tb) -> tb
-              | ty_b -> error_not_a_sort b ctx2 ty_b )
+        begin
+          let _ = check_annot ctx a in
+          let ctx2 = (x,a)::ctx in
+            ( match infer ctx2 b with
+                | (Type _|Kind as tb) -> tb
+                | ty_b -> error_not_a_sort b ctx2 ty_b )
+        end
     | Lam  (_,x,Some a,b) ->
-        let _ = check ctx a (mk_Type dloc) in
-        let ctx2 = (x,a)::ctx in
-          ( match infer ctx2 b with
-              | Kind -> error_kind b ctx2
-              | ty   -> mk_Pi dloc x a ty )
+        begin
+          let _ = check_annot ctx a in
+          let ctx2 = (x,a)::ctx in
+            ( match infer ctx2 b with
+                | Kind -> error_kind b ctx2
+                | ty   -> mk_Pi dloc x a ty )
+        end
     | Lam  (l,x,None,b) ->
         Print.fail l "Cannot infer the type of domain-free lambda."
+
+and check_annot ctx a =
+  match infer ctx a with
+    | Type _ -> ()
+    | Kind -> if not !coc then
+        error_convertibility a ctx (mk_Type dloc) mk_Kind
+    | ty_a ->  error_not_a_sort a ctx ty_a
 
 and check (ctx:context) (te:term) (ty_exp:term) : unit =
     match te with
