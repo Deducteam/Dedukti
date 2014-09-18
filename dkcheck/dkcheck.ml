@@ -9,18 +9,9 @@ let parse lb =
     P.prelude Lexer.token lb ;
     while true do P.line Lexer.token lb done
   with
-    | P.Error   ->
-        begin
-          let start = lb.Lexing.lex_start_p in
-          let line = start.Lexing.pos_lnum  in
-          let cnum = start.Lexing.pos_cnum - start.Lexing.pos_bol in
-          let tok = Lexing.lexeme lb in
-            Print.fail (mk_loc line cnum) "Unexpected token '%s'." tok
-        end
     | Tokens.EndOfFile -> ()
-
-let print_version _ =
-  Printf.printf "Dedukti v%s" Version.version
+    | P.Error       -> Print.fail (Lexer.get_loc lb)
+                         "Unexpected token '%s'." (Lexing.lexeme lb)
 
 let args = [
   ("-d"    , Arg.Int Checker.set_debug_level, "Level of verbosity" ) ;
@@ -28,7 +19,7 @@ let args = [
   ("-nc"   , Arg.Clear Print.color,         "Disable colored output" ) ;
   ("-stdin", Arg.Set run_on_stdin,    "Use standart input" ) ;
   ("-r"    , Arg.Set Env.ignore_redecl,   "Ignore redeclaration" ) ;
-  ("-version", Arg.Unit print_version,       "Version" ) ;
+  ("-version", Arg.Unit Version.print_version,       "Version" ) ;
   ("-autodep", Arg.Set Env.autodep  ,
    "Automatically handle dependencies (experimental)") ]
 

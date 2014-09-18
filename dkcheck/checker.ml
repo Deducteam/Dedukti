@@ -23,41 +23,30 @@ let print fmt =
 (* ********************************* *)
 
 let mk_prelude lc name =
-  Env.init name;
-  eprint lc "Module name is '%a'." pp_ident name
+  eprint lc "Module name is '%a'." pp_ident name;
+  Env.init name
 
 let mk_declaration lc id pty =
   eprint lc "Declaration of symbol '%a'." pp_ident id;
-  let ty = Inference.is_a_type2 pty in
-    Env.add_decl lc id ty
+  SafeEnv.add_decl lc id pty
 
-let mk_definition lc id ty_opt pte =
+let mk_definition lc id pty_opt pte =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
-  let (te,ty) =
-    match ty_opt with
-      | None          -> Inference.infer2 pte
-      | Some pty      -> Inference.check2 pte pty
-  in
-    Env.add_def lc id te ty
+  SafeEnv.add_def lc id pte pty_opt
 
-let mk_opaque lc id ty_opt pte =
+let mk_opaque lc id pty_opt pte =
   eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
-  let (_,ty) =
-    match ty_opt with
-      | None          -> Inference.infer2 pte
-      | Some pty      -> Inference.check2 pte pty
-  in
-    Env.add_decl lc id ty
+  SafeEnv.add_opaque lc id pte pty_opt
 
 let mk_rule (pr:prule) : rule =
   let (lc,_,id,_,_) = pr in
     eprint lc "Rewrite rule for symbol '%a'." pp_ident id ;
     Inference.check_prule pr
 
-let mk_rules (prs:prule list) : unit =
-  let rs = List.map mk_rule prs in
-    List.iter (fun r -> eprint r.l "%a" Pp.pp_rule r ) rs ;
-    Env.add_rw rs
+let mk_rules : prule list -> unit = function [] -> ()
+  | (lc,_,id,_,_)::_ as plst ->
+      ( eprint lc "Rewrite rule for symbol '%a'." pp_ident id ;
+        SafeEnv.add_rules plst )
 
 let mk_command lc = function
   | Whnf pte          ->
