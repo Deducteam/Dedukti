@@ -42,3 +42,20 @@ type pre_context =
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
   | Test    of pre_context * (term*term) list * term * dtree option
+
+let pattern_to_term p =
+  let rec aux k = function
+    | Joker _ -> assert false
+    | Brackets t -> t
+    | Pattern (l,m,v,[]) -> mk_Const l m v
+    | BoundVar (l,x,n,[]) | MatchingVar (l,x,n,[]) -> mk_DB l x n
+    | Pattern (l,m,v,a::args) ->
+        mk_App (mk_Const l m v) (aux k a) (List.map (aux k) args)
+    | BoundVar (l,x,n,a::args) ->
+        mk_App (mk_DB l x n) (aux k a) (List.map (aux k) args)
+    | MatchingVar (l,x,n,(l2,x2,n2)::args) ->
+        mk_App (mk_DB l x n) (aux k (BoundVar(l2,x2,n2,[])))
+          (List.map (fun (l,x,n) -> aux k (BoundVar(l,x,n,[]))) args)
+    | Lambda (l,x,pat) -> mk_Lam l x None (aux (k+1) pat)
+  in
+    aux 0 p

@@ -20,6 +20,8 @@ type pattern =
 
 val get_loc_pat : pattern -> loc
 
+val pattern_to_term : pattern -> term
+
 type top = ident*pattern array
 
 type rule = {

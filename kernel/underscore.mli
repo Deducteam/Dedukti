@@ -1,3 +1,3 @@
-open Term
+open Rule
 
-val to_term : context -> Rule.pattern -> context*term
+val refine_rule : rule -> rule

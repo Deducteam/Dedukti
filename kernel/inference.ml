@@ -17,12 +17,12 @@ let error_product2 te ctx exp =
   Print.fail (get_loc te)
     "Error while typing '%a' in context:\n%a. The expected type is not a product.\nExpected: %a."
       Pp.pp_term te Pp.pp_context ctx Pp.pp_term exp
-
+(*
 let error_product_pat pat ctx inf =
   Print.fail (get_loc_pat pat)
     "Error while typing '%a' in context:\n%a.\nExpected: a product type.\nInferred: %a."
       Pp.pp_pattern pat Pp.pp_context ctx Pp.pp_term inf
-
+ *)
 let error_not_a_sort te ctx inf =
   Print.fail (get_loc te)
     "Error while typing '%a' in context:\n%a.\nExpected: Type or Kind.\nInferred: %a."
@@ -37,11 +37,11 @@ let error_not_type te ctx inf =
   Print.fail (get_loc te)
     "Error while typing '%a' in context:\n%a.\nExpected: Type.\nInferred: %a."
       Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
-
+(*
 let error_joker te =
   Print.fail (get_loc te)
     "Error while typing '%a'. The type should not contain jokers." Pp.pp_term te
-
+ *)
 (******************************************************************************)
 
 let db_get_type l ctx n =
@@ -110,11 +110,11 @@ let check_context (ctx:context) : unit =
   let aux ctx0 a = is_a_type ctx0 (snd a); a::ctx0
   in ignore (List.fold_left aux [] (List.rev ctx))
 
-let check_rule r =
-  let (ctx,lhs) =
-    Underscore.to_term r.ctx (Pattern(r.l,Env.get_name (),r.id,r.args)) in
-  let _ = check_context ctx in
-  let ty = infer ctx lhs in
+let check_rule (r0:rule) : unit =
+  let r = Underscore.refine_rule r0 in
+  let lhs = pattern_to_term (Pattern(r.l,r.md,r.id,r.args)) in
+  let _ = check_context r.ctx in
+  let ty = infer r.ctx lhs in
     check r.ctx r.rhs ty
 
 (******************************************************************************)
