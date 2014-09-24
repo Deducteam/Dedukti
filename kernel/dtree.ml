@@ -11,12 +11,22 @@ type pattern2 =
 type rule2 =
     { loc:loc ; pats:pattern2 array ; right:term ;
       constraints:(term*term) list ; esize:int ; }
-
+(*
+let check { loc; pats; right; constraints; esize; } : bool =
+  let rec aux k = function
+    | Joker2 -> true
+    | Var2 (_,n,_) ->( Print.debug "N=%i K=%i" n k; ( (n-k) < esize ) )
+    | Lambda2 (_,p) -> aux (k+1) p
+    | Pattern2(_,_,args) | BoundVar2(_,_,args) ->
+        List.for_all (aux k) (Array.to_list args)
+  in
+    List.for_all (aux 0) (Array.to_list pats)
+ *)
 (* ***************************** *)
 
 let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
   let (clst,b2) =
-    List.fold_left (fun (accu,b1) a -> let (c,b2) = f b0 a in (c::accu,b2))
+    List.fold_left (fun (accu,b1) a -> let (c,b2) = f b1 a in (c::accu,b2))
       ([],b0) alst in
     ( List.rev clst , b2 )
 
@@ -26,9 +36,21 @@ module IntSet = Set.Make(struct type t=int let compare=(-) end)
 type lin_ty = { cstr:(term*term) list; fvar:int ; seen:IntSet.t }
 let br = hstring "{_}"
 
+let unshift q te =
+  let rec aux k = function
+  | DB (_,_,n) as t when n<k -> t
+  | DB (l,x,n) -> ( assert (n-q > 0) ; mk_DB l x (n-q) )
+  | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
+  | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
+  | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
+  | Pi  (l,x,a,b) -> mk_Pi l x (aux k a) (aux (k+1) b)
+  | Type _ | Kind | Const _ as t -> t
+  in
+    aux 0 te
+
 (* This function extracts non-linearity and bracket constraints from a list
  * of patterns. *)
-let rec linearize (esize:int) (lst:pattern list) : pattern2 list * (term*term) list =
+let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term) list =
   let rec aux k (s:lin_ty) = function
   | Lambda (l,x,p) ->
       let (p2,s2) = (aux (k+1) s p) in
@@ -39,27 +61,28 @@ let rec linearize (esize:int) (lst:pattern list) : pattern2 list * (term*term) l
   | MatchingVar (l,x,n,args) (* n>=k *) ->
       let args2 = List.map (fun (_,_,z) -> z) args in
         if IntSet.mem n (s.seen) then
-          ( Var2(x,s.fvar,args2) ,
+          ( Var2(x,s.fvar+k,args2) ,
             { s with fvar=(s.fvar+1);
-                     cstr= (mk_DB l x s.fvar,mk_DB l x n)::(s.cstr) ; } )
+                     cstr= (mk_DB l x s.fvar,mk_DB l x (n-k))::(s.cstr) ; } )
         else
           ( Var2(x,n,args2) , { s with seen=IntSet.add n s.seen; } )
     | Brackets t ->
-        ( Var2(br,s.fvar,[]), {s with fvar=(s.fvar+1);
-                                      cstr=(mk_DB dloc br s.fvar,t)::(s.cstr) ;} )
+        ( Var2(br,s.fvar+k,[]),
+          {s with fvar=(s.fvar+1);
+                  cstr=(mk_DB dloc br s.fvar,unshift k t)::(s.cstr) ;} )
     | Pattern (_,m,v,args) ->
         let (args2,s2) = (fold_map (aux k) s args) in
           ( Pattern2(m,v,Array.of_list args2) , s2 )
     | Joker _ -> ( Joker2 , s )
   in
-  let fm = fold_map (aux 0) { fvar=esize; cstr=[]; seen=IntSet.empty; } lst in
-    ( fst fm , (snd fm).cstr )
+  let (lst,r) = fold_map (aux 0) { fvar=esize; cstr=[]; seen=IntSet.empty; } lst in
+    ( r.fvar , lst , r.cstr )
 
 let to_rule2 (r:rule) : rule2 =
   let esize = List.length r.ctx in
-  let (pats2,cstr) = linearize esize r.args in
+  let (esize2,pats2,cstr) = linearize esize r.args in
     { loc=r.l ; pats=Array.of_list pats2 ; right=r.rhs ;
-      constraints=cstr ; esize=esize ; }
+      constraints=cstr ; esize=esize2 ; }
 
 (* ***************************** *)
 
@@ -269,7 +292,9 @@ let get_first_pre_context mx =
          | Var2 (_,n,lst) ->
                begin
                  let k = mx.col_depth.(i) in
-                 assert( 0 <= n-k && n-k < esize ) ;
+                 assert( 0 <= n-k ) ;
+(*                  Print.debug "N=%i K=%i ESIZE=%i" n k esize; *)
+                 assert(n-k < esize ) ;
                  arr1.(n-k) <- i;
                  if lst=[] then arr2.(n-k) <- (i,LList.nil)
                  else ( mp := true ; arr2.(n-k) <- (i,LList.of_list lst) )
@@ -278,6 +303,7 @@ let get_first_pre_context mx =
       ) mx.first.pats ;
       if !mp then MillerPattern (array_to_llist arr2)
       else Syntactic (array_to_llist arr1)
+
 (******************************************************************************)
 
 (* Construct a decision tree out of a matrix *)
