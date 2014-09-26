@@ -35,13 +35,13 @@ let mk_command lc = function
   | Conv (pte1,pte2)  ->
       let (t1,_) = Inference.infer2 pte1 in
       let (t2,_) = Inference.infer2 pte2 in
-        if Reduction.are_convertible t1 t2 then print "OK"
-        else print "KO"
+        if Reduction.are_convertible t1 t2 then print "YES"
+        else print "NO"
   | Check (pte,pty) ->
       let (ty1,_) = Inference.infer2 pty in
       let (_,ty2) = Inference.infer2 pte in
-        if Reduction.are_convertible ty1 ty2 then print "OK"
-        else print "KO"
+        if Reduction.are_convertible ty1 ty2 then print "YES"
+        else print "NO"
   | Infer pte         ->
       let (te,ty) = Inference.infer2 pte in
         Printf.fprintf stdout "%a\n" Pp.pp_term ty
