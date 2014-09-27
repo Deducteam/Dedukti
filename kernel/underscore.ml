@@ -1,6 +1,5 @@
 open Term
 open Rule
-(* FIXME not compatible with the CoC flag *)
 
 let error_convertibility te ctx exp inf =
   Print.fail (get_loc te)
