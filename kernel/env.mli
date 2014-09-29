@@ -1,3 +1,4 @@
+open Basics
 open Term
 
 (** Global context management. *)

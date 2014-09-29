@@ -1,3 +1,4 @@
+open Basics
 open Term
 
 val add_decl            : loc -> ident -> preterm -> unit

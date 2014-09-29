@@ -1,14 +1,15 @@
 %parameter <M :
   sig
-    val mk_prelude     : Term.loc -> Term.ident -> unit
-    val mk_declaration : Term.loc -> Term.ident -> Term.preterm -> unit
-    val mk_definition  : Term.loc -> Term.ident -> Term.preterm option -> Term.preterm -> unit
-    val mk_opaque      : Term.loc -> Term.ident -> Term.preterm option -> Term.preterm -> unit
+    val mk_prelude     : Basics.loc -> Basics.ident -> unit
+    val mk_declaration : Basics.loc -> Basics.ident -> Term.preterm -> unit
+    val mk_definition  : Basics.loc -> Basics.ident -> Term.preterm option -> Term.preterm -> unit
+    val mk_opaque      : Basics.loc -> Basics.ident -> Term.preterm option -> Term.preterm -> unit
     val mk_rules       : Rule.prule list -> unit
-    val mk_command     : Term.loc -> Cmd.command -> unit
+    val mk_command     : Basics.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
   end>
 %{
+    open Basics
     open Term
     open Rule
     open Cmd
@@ -48,21 +49,21 @@
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
-%token <Term.loc> WHNF
-%token <Term.loc> HNF
-%token <Term.loc> SNF
-%token <Term.loc> STEP
-%token <Term.loc> INFER
-%token <Term.loc> CONV
-%token <Term.loc> CHECK
-%token <Term.loc> PRINT
-%token <Term.loc> GDT
-%token <Term.loc*string> OTHER
-%token <Term.loc> UNDERSCORE
-%token <Term.loc*Term.ident>NAME
-%token <Term.loc> TYPE
-%token <Term.loc*Term.ident> ID
-%token <Term.loc*Term.ident*Term.ident> QID
+%token <Basics.loc> WHNF
+%token <Basics.loc> HNF
+%token <Basics.loc> SNF
+%token <Basics.loc> STEP
+%token <Basics.loc> INFER
+%token <Basics.loc> CONV
+%token <Basics.loc> CHECK
+%token <Basics.loc> PRINT
+%token <Basics.loc> GDT
+%token <Basics.loc*string> OTHER
+%token <Basics.loc> UNDERSCORE
+%token <Basics.loc*Basics.ident>NAME
+%token <Basics.loc> TYPE
+%token <Basics.loc*Basics.ident> ID
+%token <Basics.loc*Basics.ident*Basics.ident> QID
 %token <string> STRING
 
 %start prelude
@@ -73,7 +74,7 @@
 %type <Rule.pdecl> decl
 %type <Rule.pdecl> param
 %type <Rule.pdecl list> context
-%type <Term.loc*Term.ident*Rule.prepattern list> top_pattern
+%type <Basics.loc*Basics.ident*Rule.prepattern list> top_pattern
 %type <Rule.prepattern> pattern
 %type <Rule.prepattern> pattern_wp
 %type <Term.preterm> sterm

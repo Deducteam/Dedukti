@@ -1,4 +1,4 @@
-open Term
+open Basics
 
 let color = ref true
 
