@@ -1,5 +1,4 @@
 open Basics
-open Preterm
 open Rule
 open Env
 
@@ -39,15 +38,10 @@ let mk_opaque lc id pty_opt pte =
   eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
   SafeEnv.add_opaque lc id pte pty_opt
 
-let mk_rule (pr:prule) : rule =
-  let (lc,_,id,_,_) = pr in
-    eprint lc "Rewrite rule for symbol '%a'." pp_ident id ;
-    Inference.check_prule pr
-
-let mk_rules : prule list -> unit = function [] -> ()
-  | (lc,_,id,_,_)::_ as plst ->
-      ( eprint lc "Rewrite rule for symbol '%a'." pp_ident id ;
-        SafeEnv.add_rules plst )
+let mk_rules : rule list -> unit = function
+  | [] -> ()
+  | (r::_) as lst -> ( eprint r.l "Rewrite rule for symbol '%a'." pp_ident r.id ;
+                       SafeEnv.add_rules lst )
 
 let mk_command = Cmd.mk_command
 

@@ -1,13 +1,4 @@
 open Basics
-(** {2 PreTerms/PrePatterns} *)
-
-type preterm =
-  | PreType of loc
-  | PreId   of loc * ident
-  | PreQId  of loc * ident * ident
-  | PreApp  of preterm * preterm * preterm list
-  | PreLam  of loc * ident * preterm option * preterm
-  | PrePi   of loc * ident option * preterm * preterm
 
 (** {2 Terms/Patterns} *)
 
@@ -54,7 +45,7 @@ let rec term_eq t1 t2 =
     | _, _  -> false
 
 (** {2 Commands} *)
-
+(*
 type command =
   (* Reduction *)
   | Whnf of preterm
@@ -68,4 +59,4 @@ type command =
   (* Misc *)
   | Gdt of ident option*ident
   | Print of string
-  | Other of string*preterm list
+  | Other of string*preterm list *)

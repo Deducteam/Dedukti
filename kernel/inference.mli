@@ -8,7 +8,7 @@ val infer : context -> term -> term
 val check : context -> term -> term -> unit
 val is_a_type : context -> term -> unit
 val check_rule : Rule.rule -> unit
-
+(*
 (** [Inference.infer pte] returns the term corresponding to the preterm [pte]
   * together with its type. *)
 val infer2 : preterm -> term*term
@@ -23,3 +23,4 @@ val is_a_type2 : preterm -> term
 
 (** Checks that a rule is well-typed. *)
 val check_prule : prule -> Rule.rule
+ *)

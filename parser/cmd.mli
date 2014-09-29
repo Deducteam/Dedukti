@@ -1,19 +1,19 @@
 open Basics
-open Preterm
+open Term
 
 type command =
   (* Reduction *)
-  | Whnf of preterm
-  | Hnf of preterm
-  | Snf of preterm
-  | OneStep of preterm
-  | Conv of preterm*preterm
+  | Whnf of term
+  | Hnf of term
+  | Snf of term
+  | OneStep of term
+  | Conv of term*term
   (*Typing*)
-  | Check of preterm*preterm
-  | Infer of preterm
+  | Check of term*term
+  | Infer of term
   (* Misc *)
   | Gdt of ident option*ident
   | Print of string
-  | Other of string*preterm list
+  | Other of string*term list
 
 val mk_command : loc -> command -> unit

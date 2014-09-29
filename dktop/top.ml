@@ -1,3 +1,4 @@
+open Basics
 open Term
 open Rule
 
@@ -18,10 +19,9 @@ let mk_opaque lc id pty_opt pte =
   SafeEnv.add_opaque lc id pte pty_opt;
   print "%s is declared." (string_of_ident id)
 
-let mk_rules (prs:prule list) =
-  let rs = List.map Inference.check_prule prs in
-    Env.add_rw rs ;
-    List.iter(fun r -> print "%a" Pp.pp_rule r) rs
+let mk_rules rs =
+  SafeEnv.add_rules rs;
+  List.iter (fun r -> print "%a" Pp.pp_rule r) rs
 
 let mk_command = Cmd.mk_command
 

@@ -119,7 +119,7 @@ let check_rule (r0:rule) : unit =
     check r.ctx r.rhs ty
 
 (******************************************************************************)
-
+(*
 let infer2 pte =
   let te = Scoping.scope_term [] pte in
     ( te , infer [] te )
@@ -138,3 +138,4 @@ let is_a_type2 pty =
 let check_prule pr =
   let r = Scoping.scope_rule pr in
   check_rule r; r
+ *)

@@ -1,16 +1,17 @@
 %parameter <M :
   sig
     val mk_prelude     : Basics.loc -> Basics.ident -> unit
-    val mk_declaration : Basics.loc -> Basics.ident -> Preterm.preterm -> unit
-    val mk_definition  : Basics.loc -> Basics.ident -> Preterm.preterm option -> Preterm.preterm -> unit
-    val mk_opaque      : Basics.loc -> Basics.ident -> Preterm.preterm option -> Preterm.preterm -> unit
-    val mk_rules       : Preterm.prule list -> unit
+    val mk_declaration : Basics.loc -> Basics.ident -> Term.term -> unit
+    val mk_definition  : Basics.loc -> Basics.ident -> Term.term option -> Term.term -> unit
+    val mk_opaque      : Basics.loc -> Basics.ident -> Term.term option -> Term.term -> unit
+    val mk_rules       : Rule.rule list -> unit
     val mk_command     : Basics.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
   end>
 %{
     open Basics
     open Preterm
+    open Scoping
     open Rule
     open Cmd
     open M
@@ -87,41 +88,43 @@
 prelude         : NAME DOT      { mk_prelude (fst $1) (snd $1) }
 
 line            : ID COLON term DOT
-                { mk_declaration (fst $1) (snd $1) $3 }
+                { mk_declaration (fst $1) (snd $1) (scope_term [] $3) }
                 | ID COLON term DEF term DOT
-                { mk_definition (fst $1) (snd $1) (Some $3) $5 }
+                { mk_definition (fst $1) (snd $1) (Some (scope_term [] $3)) (scope_term [] $5) }
                 | ID DEF term DOT
-                { mk_definition (fst $1) (snd $1)  None     $3 }
+                { mk_definition (fst $1) (snd $1)  None (scope_term [] $3) }
                 | ID param+ COLON term DEF term DOT
-                { mk_definition (fst $1) (snd $1) (Some (mk_pi $4 $2)) (mk_lam $6 $2) }
+                { mk_definition (fst $1) (snd $1) (Some (scope_term [] (mk_pi $4 $2)))
+                        (scope_term [] (mk_lam $6 $2)) }
                 | ID param+ DEF term DOT
-                { mk_definition (fst $1) (snd $1) None (mk_lam $4 $2) }
+                { mk_definition (fst $1) (snd $1) None (scope_term [] (mk_lam $4 $2)) }
                 | LEFTBRA ID RIGHTBRA COLON term DEF term DOT
-                { mk_opaque (fst $2) (snd $2) (Some $5) $7 }
+                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] $5)) (scope_term [] $7) }
                 | LEFTBRA ID RIGHTBRA DEF term DOT
-                { mk_opaque (fst $2) (snd $2)  None     $5 }
+                { mk_opaque (fst $2) (snd $2)  None (scope_term [] $5) }
                 | LEFTBRA ID param+ RIGHTBRA COLON term DEF term DOT
-                { mk_opaque (fst $2) (snd $2) (Some (mk_pi $6 $3)) (mk_lam $8 $3) }
+                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] (mk_pi $6 $3)))
+                        (scope_term [] (mk_lam $8 $3)) }
                 | LEFTBRA ID param+ RIGHTBRA DEF term DOT
-                { mk_opaque (fst $2) (snd $2)  None (mk_lam $6 $3) }
+                { mk_opaque (fst $2) (snd $2)  None (scope_term [] (mk_lam $6 $3)) }
                 | rule+ DOT
-                { mk_rules $1 }
+                { mk_rules (List.map scope_rule $1) }
                 | command DOT { $1 }
                 | EOF
                 { mk_ending () ; raise Tokens.EndOfFile }
 
 
-command         : WHNF  term    { mk_command $1 (Whnf $2) }
-                | HNF   term    { mk_command $1 (Hnf $2) }
-                | SNF   term    { mk_command $1 (Snf $2) }
-                | STEP  term    { mk_command $1 (OneStep $2) }
-                | INFER term    { mk_command $1 (Infer $2) }
-                | CONV  term  COMMA term { mk_command $1 (Conv ($2,$4)) }
-                | CHECK term  COMMA term { mk_command $1 (Check ($2,$4)) }
+                command         : WHNF  term    { mk_command $1 (Whnf (scope_term [] $2)) }
+                | HNF   term    { mk_command $1 (Hnf (scope_term [] $2)) }
+                | SNF   term    { mk_command $1 (Snf (scope_term [] $2)) }
+                | STEP  term    { mk_command $1 (OneStep (scope_term [] $2)) }
+                | INFER term    { mk_command $1 (Infer (scope_term [] $2)) }
+                | CONV  term  COMMA term { mk_command $1 (Conv (scope_term [] $2,scope_term [] $4)) }
+                | CHECK term  COMMA term { mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
                 | PRINT STRING  { mk_command $1 (Print $2) }
                 | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }
-                | OTHER term_lst { mk_command (fst $1) (Other (snd $1,$2)) }
+                | OTHER term_lst { mk_command (fst $1) (Other (snd $1,List.map (scope_term []) $2)) }
 
 
 term_lst        : term                                  { [$1] }

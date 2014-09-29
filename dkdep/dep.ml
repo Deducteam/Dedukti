@@ -1,3 +1,4 @@
+open Basics
 open Term
 open Rule
 open Cmd
@@ -8,7 +9,7 @@ let name = ref ""
 
 let print_out fmt = Printf.kfprintf (fun _ -> output_string !out "\n" ) !out fmt
 
-let add_dep lc m =
+let add_dep m =
   let s = string_of_ident m in
   if List.mem s (!name :: !deps) then ()
   else deps := List.sort compare (s :: !deps)
@@ -18,20 +19,21 @@ let mk_prelude _ prelude_name =
   name := string_of_ident prelude_name
 
 let rec mk_term = function
-  | PreQId (lc, module_name, _) -> add_dep lc module_name
-  | PreApp (f,a,args) -> (mk_term f ; mk_term a ; List.iter mk_term args )
-  | PreLam (_, _, None, t2) -> mk_term t2
-  | PreLam (_, _, Some t1, t2)
-  | PrePi (_,_, t1, t2) -> mk_term t1 ; mk_term t2
-  | _ -> ()
+  | Kind | Type _ | DB _ -> ()
+  | Const (_,md,_) -> add_dep md
+  | App (f,a,args) -> List.iter mk_term (f::a::args)
+  | Lam (_,_,None,te) -> mk_term te
+  | Lam (_,_,Some a,b)
+  | Pi (_,_,a,b) -> ( mk_term a; mk_term b )
+
 
 let rec mk_pattern = function
-  | PPattern (l,m_opt,_,args)   ->
-      let _ = match m_opt with
-        | None          -> ()
-        | Some m        -> add_dep l m
-      in List.iter mk_pattern args
-  | _                           -> ()
+  | MatchingVar _ -> ()
+  | BoundVar  (_,_,_,args) -> List.iter mk_pattern args
+  | Pattern (_,md,_,args) -> ( add_dep md ; List.iter mk_pattern args )
+  | Lambda (_,_,te) -> mk_pattern te
+  | Brackets t -> mk_term t
+  | Joker _ -> ()
 
 let mk_declaration _ _ t = mk_term t
 
@@ -41,12 +43,12 @@ let mk_definition _ _ = function
 
 let mk_opaque = mk_definition
 
-let mk_binding (_, _, t) = mk_term t
+let mk_binding ( _, t) = mk_term t
 
-let mk_ctx : pdecl list -> unit = List.iter mk_binding
+let mk_ctx = List.iter mk_binding
 
-let mk_prule (l,ctx,id,pats,ri:prule) =
-  mk_ctx ctx; mk_pattern (PPattern (l,None,id,pats)); mk_term ri
+let mk_prule r =
+  mk_ctx r.ctx; mk_pattern (Pattern (r.l,r.md,r.id,r.args)); mk_term r.rhs
 
 let mk_rules = List.iter mk_prule
 

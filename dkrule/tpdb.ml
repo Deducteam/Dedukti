@@ -1,3 +1,4 @@
+open Basics
 open Printf
 open Term
 open Rule

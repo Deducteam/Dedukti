@@ -1,7 +1,7 @@
 open Basics
-open Preterm
+open Term
 
-val add_decl            : loc -> ident -> preterm -> unit
-val add_opaque          : loc -> ident -> preterm -> preterm option -> unit
-val add_def             : loc -> ident -> preterm -> preterm option -> unit
-val add_rules           : prule list -> unit
+val add_decl            : loc -> ident -> term -> unit
+val add_opaque          : loc -> ident -> term -> term option -> unit
+val add_def             : loc -> ident -> term -> term option -> unit
+val add_rules           : Rule.rule list -> unit

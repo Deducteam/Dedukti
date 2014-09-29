@@ -13,6 +13,6 @@ let rec parse lb =
 
 let  _ =
   print_string "Welcome in Dedukti\n";
-  let v = Term.hstring "toplevel" in
+  let v = Basics.hstring "toplevel" in
     Env.init v ;
     parse (Lexing.from_channel stdin)
