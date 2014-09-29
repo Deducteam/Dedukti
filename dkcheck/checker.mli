@@ -1,6 +1,6 @@
 (** Dedukti's main functionnalities. *)
 open Basics
-open Term
+open Preterm
 
 val export         : bool ref
 val set_debug_level : int -> unit
@@ -13,7 +13,7 @@ val mk_definition  : loc -> ident -> preterm option -> preterm -> unit
 
 val mk_opaque      : loc -> ident -> preterm option -> preterm -> unit
 
-val mk_rules       : Rule.prule list -> unit
+val mk_rules       : prule list -> unit
 
 val mk_command     : loc -> Cmd.command -> unit
 

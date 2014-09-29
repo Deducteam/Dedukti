@@ -1,4 +1,5 @@
 (** Type inference/type checking. *)
+open Preterm
 open Term
 
 val coc : bool ref
@@ -21,4 +22,4 @@ val check2 : preterm -> preterm -> term*term
 val is_a_type2 : preterm -> term
 
 (** Checks that a rule is well-typed. *)
-val check_prule : Rule.prule -> Rule.rule
+val check_prule : prule -> Rule.rule

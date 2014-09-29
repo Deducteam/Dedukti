@@ -1,5 +1,5 @@
 open Basics
-open Term
+open Preterm
 
 type command =
   (* Reduction *)

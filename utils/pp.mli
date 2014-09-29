@@ -1,5 +1,6 @@
 (** Pretty printing. *)
 open Basics
+open Preterm
 open Term
 open Rule
 

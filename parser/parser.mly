@@ -1,16 +1,16 @@
 %parameter <M :
   sig
     val mk_prelude     : Basics.loc -> Basics.ident -> unit
-    val mk_declaration : Basics.loc -> Basics.ident -> Term.preterm -> unit
-    val mk_definition  : Basics.loc -> Basics.ident -> Term.preterm option -> Term.preterm -> unit
-    val mk_opaque      : Basics.loc -> Basics.ident -> Term.preterm option -> Term.preterm -> unit
-    val mk_rules       : Rule.prule list -> unit
+    val mk_declaration : Basics.loc -> Basics.ident -> Preterm.preterm -> unit
+    val mk_definition  : Basics.loc -> Basics.ident -> Preterm.preterm option -> Preterm.preterm -> unit
+    val mk_opaque      : Basics.loc -> Basics.ident -> Preterm.preterm option -> Preterm.preterm -> unit
+    val mk_rules       : Preterm.prule list -> unit
     val mk_command     : Basics.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
   end>
 %{
     open Basics
-    open Term
+    open Preterm
     open Rule
     open Cmd
     open M
@@ -70,15 +70,15 @@
 %start line
 %type <unit> prelude
 %type <unit> line
-%type <Rule.prule> rule
-%type <Rule.pdecl> decl
-%type <Rule.pdecl> param
-%type <Rule.pdecl list> context
-%type <Basics.loc*Basics.ident*Rule.prepattern list> top_pattern
-%type <Rule.prepattern> pattern
-%type <Rule.prepattern> pattern_wp
-%type <Term.preterm> sterm
-%type <Term.preterm> term
+%type <Preterm.prule> rule
+%type <Preterm.pdecl> decl
+%type <Preterm.pdecl> param
+%type <Preterm.pdecl list> context
+%type <Basics.loc*Basics.ident*Preterm.prepattern list> top_pattern
+%type <Preterm.prepattern> pattern
+%type <Preterm.prepattern> pattern_wp
+%type <Preterm.preterm> sterm
+%type <Preterm.preterm> term
 
 %right ARROW FATARROW
 

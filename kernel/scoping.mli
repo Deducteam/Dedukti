@@ -1,7 +1,3 @@
 (** Scope managmement: from preterms to terms. *)
-open Term
-open Rule
-
-val scope_term : context -> preterm -> term
-
-val scope_rule : prule -> rule
+val scope_term : Term.context -> Preterm.preterm -> Term.term
+val scope_rule : Preterm.prule -> Rule.rule

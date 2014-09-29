@@ -1,16 +1,6 @@
 open Basics
 open Term
 
-type prepattern =
-  | PCondition  of preterm
-  | PPattern    of loc*ident option*ident*prepattern list
-  | PLambda     of loc*ident*prepattern
-  | PJoker      of loc
-
-type pdecl      = loc * ident * preterm
-type pcontext   = pdecl list
-type prule      = loc * pdecl list * ident * prepattern list * preterm
-
 type pattern =
   | MatchingVar of loc*ident*int*(loc*ident*int) list
   | BoundVar    of loc*ident*int*pattern list
