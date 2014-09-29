@@ -95,7 +95,7 @@ let get_context_syn (stack:stack) (ord:int LList.t) : env =
 
 let get_context_mp (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
   let aux (v,db_lst) =
-    Lazy.from_val (Matching.resolve db_lst (term_of_state (List.nth stack v)))
+    Lazy.lazy_from_val (Matching.resolve db_lst (term_of_state (List.nth stack v)))
   in
   try Some (LList.map aux pb_lst)
   with Matching.NotUnifiable -> None
