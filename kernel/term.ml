@@ -121,7 +121,7 @@ type command =
   | Snf of preterm
   | OneStep of preterm
   | Conv of preterm*preterm
-  (*Tying*)
+  (* Typing *)
   | Check of preterm*preterm
   | Infer of preterm
   (* Misc *)
