@@ -34,6 +34,9 @@
         | [t] -> t
         | f::a1::args -> PreApp (f,a1,args)
 
+    let scope_and_refine pr =
+            let r = scope_rule pr in
+            Underscore.refine_rule r
 %}
 
 %token EOF
@@ -108,7 +111,7 @@ line            : ID COLON term DOT
                 | LEFTBRA ID param+ RIGHTBRA DEF term DOT
                 { mk_opaque (fst $2) (snd $2)  None (scope_term [] (mk_lam $6 $3)) }
                 | rule+ DOT
-                { mk_rules (List.map scope_rule $1) }
+                { mk_rules (List.map scope_and_refine $1) }
                 | command DOT { $1 }
                 | EOF
                 { mk_ending () ; raise Tokens.EndOfFile }

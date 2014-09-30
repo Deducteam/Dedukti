@@ -11,19 +11,19 @@ MENHIR = -menhir "menhir --external-tokens Tokens"
 all: dkcheck dktop dkdep dkrule doc
 
 dkcheck:
-	ocamlbuild -Is kernel,utils,parser,dkcheck $(OPTIONS) $(MENHIR) dkcheck.native
+	ocamlbuild -Is kernel,utils,parser,refiner,dkcheck $(OPTIONS) $(MENHIR) dkcheck.native
 
 dktop:
-	ocamlbuild -Is kernel,utils,parser,dktop $(OPTIONS) $(MENHIR) dktop.native
+	ocamlbuild -Is kernel,utils,parser,refiner,dktop $(OPTIONS) $(MENHIR) dktop.native
 
 dkdep:
-	ocamlbuild -Is kernel,utils,parser,dkdep $(OPTIONS) $(MENHIR) dkdep.native
+	ocamlbuild -Is kernel,utils,parser,refiner,dkdep $(OPTIONS) $(MENHIR) dkdep.native
 
 dkrule:
-	ocamlbuild -Is kernel,utils,parser,dkrule $(OPTIONS) $(MENHIR) dkrule.native
+	ocamlbuild -Is kernel,utils,parser,refiner,dkrule $(OPTIONS) $(MENHIR) dkrule.native
 
 doc:
-	ocamlbuild -Is kernel,utils,parser,dkcheck,dkrule dkcheck/dkcheck.docdir/index.html
+	ocamlbuild -Is kernel,utils,parser,dkcheck,dkrule,refiner dkcheck/dkcheck.docdir/index.html
 
 install:
 	install _build/dkcheck/dkcheck.native ${INSTALL_DIR}/dkcheck

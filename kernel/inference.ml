@@ -111,8 +111,7 @@ let check_context (ctx:context) : unit =
   let aux ctx0 a = is_a_type ctx0 (snd a); a::ctx0
   in ignore (List.fold_left aux [] (List.rev ctx))
 
-let check_rule (r0:rule) : unit =
-  let r = Underscore.refine_rule r0 in
+let check_rule (r:rule) : unit =
   let lhs = pattern_to_term (Pattern(r.l,r.md,r.id,r.args)) in
   let _ = check_context r.ctx in
   let ty = infer r.ctx lhs in
