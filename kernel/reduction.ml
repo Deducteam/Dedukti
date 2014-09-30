@@ -1,7 +1,6 @@
 open Basics
 open Term
 open Rule
-open Env
 
 type env = term Lazy.t LList.t
 
@@ -103,12 +102,12 @@ let get_context_mp (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
 
 let rec reduce (st:state) : state =
   match beta_reduce st with
-    | { ctx; term=Const (_,m,v); stack } as config ->
+    | { ctx; term=Const (l,m,v); stack } as config ->
         begin
-          match Env.get_infos dloc m v with
-            | Decl _            -> config
-            | Def (term,_)        -> reduce { ctx=LList.nil; term; stack }
-            | Decl_rw (_,_,i,g) ->
+          match Env.get_dtree l m v with
+            | Signature.DoD_None -> config
+            | Signature.DoD_Def term -> reduce { ctx=LList.nil; term; stack }
+            | Signature.DoD_Dtree (i,g) ->
                 begin
                   match split_stack i stack with
                     | None -> config
@@ -248,12 +247,12 @@ let rec state_one_step : state -> state option = function
         let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
           state_one_step { ctx; term=f; stack=List.rev_append tl' s }
     (* Constant Application *)
-    | { ctx; term=Const (_,m,v); stack } ->
+    | { ctx; term=Const (l,m,v); stack } ->
         begin
-          match Env.get_infos dloc m v with
-            | Decl _ -> None
-            | Def (term,_) -> Some { ctx=LList.nil; term; stack }
-            | Decl_rw (_,_,i,g) ->
+          match Env.get_dtree l m v with
+            | Signature.DoD_None -> None
+            | Signature.DoD_Def term -> Some { ctx=LList.nil; term; stack }
+            | Signature.DoD_Dtree (i,g) ->
                 begin
                   match split_stack i stack with
                     | None -> None

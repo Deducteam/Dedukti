@@ -13,7 +13,7 @@ let args = [
 let flatten lst = List.flatten (List.map snd lst)
 
 let run name =
-  let rules = Env.get_all_rules name in
+  let rules = Signature.get_all_rules name in
     match !action with
       | All -> Rules.print_all !out rules
       | NonLinear -> Rules.print_non_linear_rules !out rules

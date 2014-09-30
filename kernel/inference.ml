@@ -4,6 +4,8 @@ open Rule
 
 let coc = ref false
 
+(******************************************************************************)
+
 let error_convertibility te ctx exp inf =
   Print.fail (get_loc te)
     "Error while typing '%a' in context:\n%a.\nExpected: %a\nInferred: %a."

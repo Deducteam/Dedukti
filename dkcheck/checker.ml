@@ -47,5 +47,4 @@ let mk_command = Cmd.mk_command
 
 let export = ref false
 
-let mk_ending _ =
-  ( if !export then Env.export () ); Env.clear ()
+let mk_ending _ = if !export then Env.export ()

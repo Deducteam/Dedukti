@@ -1,5 +1,5 @@
 (** Type inference/type checking. *)
-open Preterm
+open Basics
 open Term
 
 val coc : bool ref
