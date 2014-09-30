@@ -4,6 +4,7 @@ open Preterm
 open Term
 open Rule
 
+val name        : ident ref
 val print_db    : bool ref
 
 val pp_pterm    : out_channel -> preterm -> unit

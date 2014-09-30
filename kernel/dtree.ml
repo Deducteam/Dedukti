@@ -42,9 +42,9 @@ let unshift q te =
   | DB (_,_,n) as t when n<k -> t
   | DB (l,x,n) ->
       if n-q >= 0 then mk_DB l x (n-q)
-      else assert false (*FIXME Print.fail (get_loc te)
+      else Print.fail (get_loc te)
              "The term '%a' contains a variable bound outside the brackets."
-             Pp.pp_term te *)
+             Pp.pp_term te
   | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
   | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
   | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
@@ -55,8 +55,8 @@ let unshift q te =
 
 let extract_db k = function
   | Var (_,_,n,[]) when n<k -> n
-  | p -> assert false (*FIXME Print.fail (get_loc_pat p) "The pattern '%a' is not a bound variable."
-           Pp.pp_pattern p*)
+  | p -> Print.fail (get_loc_pat p) "The pattern '%a' is not a bound variable."
+           Pp.pp_pattern p
 
 (* This function extracts non-linearity and bracket constraints from a list
  * of patterns. *)

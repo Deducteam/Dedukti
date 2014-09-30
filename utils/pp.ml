@@ -5,6 +5,7 @@ open Rule
 open Printf
 
 let print_db = ref false
+let name = ref qmark
 
 let rec pp_list sep pp out = function
     | []        -> ()
@@ -44,7 +45,7 @@ and pp_ppattern_wp out = function
   | p                           -> pp_ppattern out p
 
 let pp_const out (m,v) =
-  if ident_eq m (Env.get_name ()) then pp_ident out v
+  if ident_eq m !name then pp_ident out v
   else fprintf out "%a.%a" pp_ident m pp_ident v
 
 let pp_db out (x,n) =
