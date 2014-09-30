@@ -28,8 +28,7 @@ let rec mk_term = function
 
 
 let rec mk_pattern = function
-  | MatchingVar _ -> ()
-  | BoundVar  (_,_,_,args) -> List.iter mk_pattern args
+  | Var  (_,_,_,args) -> List.iter mk_pattern args
   | Pattern (_,md,_,args) -> ( add_dep md ; List.iter mk_pattern args )
   | Lambda (_,_,te) -> mk_pattern te
   | Brackets t -> mk_term t

@@ -34,7 +34,7 @@ let scope_term (ctx:context) (pte:preterm) : term =
   t_of_pt (List.map fst ctx) pte
 
 (******************************************************************************)
-
+(*
 let get_bound_var = function
   | BoundVar (l,id,n,[]) -> (l,id,n)
   | p -> Print.fail (get_loc_pat p) "the pattern '%a' is not a bound variable."
@@ -56,7 +56,7 @@ let get_args l id k args =
   in
     List.map aux args
 
-let is_closed k t =
+let is_closed k t = FIXME check that in matching
   let rec aux q = function
   | Kind | Type _ | Const _ -> true
   | DB (_,_,n) -> ( n<q || n>= (k+q) )
@@ -65,25 +65,23 @@ let is_closed k t =
   | App (f,a,args) -> List.for_all (aux q) (f::a::args)
   in
     aux 0 t
-
+ *)
 let p_of_pp (ctx:ident list) : prepattern -> pattern =
   let rec aux k ctx = function
     | PPattern (l,None,id,pargs) ->
         let args = List.map (aux k ctx) pargs in
         ( match get_db_index ctx id with
-            | Some n ->
-                if n<k then BoundVar (l,id,n,args)
-                else MatchingVar (l,id,n,get_args l id k args)
+            | Some n -> Var (l,id,n,args)
             | None -> Pattern (l,(Env.get_name ()),id,args)
         )
     | PPattern (l,Some md,id,args) -> Pattern (l,md,id,List.map (aux k ctx) args)
     | PLambda (l,x,p) -> Lambda (l,x,aux (k+1) (x::ctx) p)
     | PCondition pte ->
         let te = t_of_pt ctx pte in
-          if is_closed k te then Brackets te
-          else Print.fail (get_loc te)
+          (*if is_closed k te then*) Brackets te
+          (*else Print.fail (get_loc te)
                  "The term '%a' contains a variable bound outside the brackets."
-                 Pp.pp_term te
+                 Pp.pp_term te *)
     | PJoker l -> Joker l
   in aux 0 ctx
 
@@ -91,7 +89,7 @@ let scope_pattern (ctx:context) (pp:prepattern) : pattern =
   p_of_pp (List.map fst ctx) pp
 
 (******************************************************************************)
-
+(*
 let get_nb_args (esize:int) (p:pattern) : int array =
   let arr = Array.make esize (-1) in (* -1 means +inf *)
   let min a b =
@@ -124,7 +122,7 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
     | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
   in
     aux 0 te
-
+ *)
 let scope_context pctx =
   let aux ctx0 (_,x,ty) = (x,scope_term ctx0 ty)::ctx0 in
     List.fold_left aux [] pctx
@@ -135,9 +133,9 @@ let scope_rule (l,pctx,id,pargs,pri) =
   let ri = scope_term ctx pri in
   let args = match pat with
     | Pattern (_,_,_,args) -> args
-    | MatchingVar (l,_,_,_) -> Print.fail l "A pattern cannot be a variable."
+    | Var (l,_,_,_) -> Print.fail l "A pattern cannot be a variable."
     | _ -> assert false in
-  let esize = List.length ctx in (*TODO*)
+  (*let esize = List.length ctx in FIXME check that in matching
   let nb_args = get_nb_args esize pat in
-  let _ = check_nb_args nb_args ri in
+  let _ = check_nb_args nb_args ri in *)
     { l=l ; ctx=ctx ; md= (Env.get_name ()); id=id ; args=args ; rhs=ri }

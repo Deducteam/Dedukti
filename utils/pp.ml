@@ -68,10 +68,8 @@ and pp_term_wp out = function
 let pp_bv out (_,id,i) = pp_db out (id,i)
 
 let rec pp_pattern out = function
-  | BoundVar (_,id,i,[])
-  | MatchingVar (_,id,i,[]) -> pp_db out (id,i)
-  | BoundVar (_,id,i,lst)    -> fprintf out "%a %a" pp_db (id,i) (pp_list " " pp_pattern_wp) lst
-  | MatchingVar (_,id,i,lst) -> fprintf out "%a %a" pp_db (id,i) (pp_list " " pp_bv) lst
+  | Var (_,id,i,[]) -> pp_db out (id,i)
+  | Var (_,id,i,lst)    -> fprintf out "%a %a" pp_db (id,i) (pp_list " " pp_pattern_wp) lst
   | Brackets t           -> fprintf out "{ %a }" pp_term t
   | Pattern (_,m,v,[])   -> fprintf out "%a" pp_const (m,v)
   | Pattern (_,m,v,pats) -> fprintf out "%a %a" pp_const (m,v) (pp_list " " pp_pattern_wp) pats

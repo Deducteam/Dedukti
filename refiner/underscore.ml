@@ -14,10 +14,9 @@ let error_product te ctx exp =
 
 let rec number_of_jokers = function
   | Joker _ -> 1
-  | Brackets _
-  | MatchingVar _ -> 0
+  | Brackets _ -> 0
   | Pattern (_,_,_,args)
-  | BoundVar (_,_,_,args) ->
+  | Var (_,_,_,args) ->
       List.fold_left (fun n p -> n+(number_of_jokers p)) 0 args
   | Lambda (_,_,p) -> number_of_jokers p
 
@@ -81,12 +80,12 @@ let shift_pattern (nb:int) (p:pattern) : pattern =
   let cpt = ref (-1) in
   let get_cpt _ = incr cpt ; !cpt in
   let rec aux k = function
-    | Joker l -> MatchingVar (l,qmark,k+(get_cpt ()),[])
+    | Joker l -> Var (l,qmark,k+(get_cpt ()),[])
     | Brackets t -> Brackets (Subst.shift nb t)
-    | BoundVar (l,x,n,args) -> BoundVar(l,x,n,List.map (aux k) args)
     | Pattern (l,m,v,args) -> Pattern(l,m,v,List.map (aux k) args)
     | Lambda (l,x,pat) -> Lambda(l,x,aux (k+1) pat)
-    | MatchingVar (l,x,n,args) -> MatchingVar(l,x,n+nb,args)
+    | Var (l,x,n,args) when n<k -> Var(l,x,n,List.map (aux k) args)
+    | Var (l,x,n,args) -> Var(l,x,n+nb,args)
   in
     aux 0 p
 

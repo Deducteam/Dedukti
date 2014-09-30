@@ -7,16 +7,17 @@ let print out fmt =
 
 let is_non_linear r =
   let seen = Array.create (List.length r.ctx) false in
-  let rec aux = function
-    | Lambda (_,_,p) -> aux p
-    | BoundVar (_,_,_,args) | Pattern (_,_,_,args) -> List.exists aux args
-    | MatchingVar (_,_,n,_) ->
-        if seen.(n) then true
-        else ( seen.(n) <- true; false )
+  let rec aux k = function
+    | Lambda (_,_,p) -> aux (k+1) p
+    | Pattern (_,_,_,args) -> List.exists (aux k) args
+    | Var (_,_,n,args) when n<k -> List.exists (aux k) args
+    | Var (_,_,n,args) ->
+        if seen.(n-k) then true
+        else ( seen.(n-k) <- true; List.exists (aux k) args )
     | Brackets _ -> true
     | Joker _ -> false
   in
-    List.exists aux r.args
+    List.exists (aux 0) r.args
 
 let is_type_level r =
   let rec is_kind = function

@@ -40,7 +40,11 @@ let br = hstring "{_}"
 let unshift q te =
   let rec aux k = function
   | DB (_,_,n) as t when n<k -> t
-  | DB (l,x,n) -> ( assert (n-q >= 0) ; mk_DB l x (n-q) )
+  | DB (l,x,n) ->
+      if n-q >= 0 then mk_DB l x (n-q)
+      else assert false (*FIXME Print.fail (get_loc te)
+             "The term '%a' contains a variable bound outside the brackets."
+             Pp.pp_term te *)
   | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
   | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
   | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
@@ -49,6 +53,11 @@ let unshift q te =
   in
     aux 0 te
 
+let extract_db k = function
+  | Var (_,_,n,[]) when n<k -> n
+  | p -> assert false (*FIXME Print.fail (get_loc_pat p) "The pattern '%a' is not a bound variable."
+           Pp.pp_pattern p*)
+
 (* This function extracts non-linearity and bracket constraints from a list
  * of patterns. *)
 let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term) list =
@@ -56,11 +65,11 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term)
   | Lambda (l,x,p) ->
       let (p2,s2) = (aux (k+1) s p) in
         ( Lambda2 (x,p2) , s2 )
-  | BoundVar (l,x,n,args) ->
+  | Var (l,x,n,args) when n<k ->
       let (args2,s2) = fold_map (aux k) s args in
         ( BoundVar2 (x,n,Array.of_list args2) , s2 )
-  | MatchingVar (l,x,n,args) (* n>=k *) ->
-      let args2 = List.map (fun (_,_,z) -> z) args in
+  | Var (l,x,n,args) (* n>=k *) ->
+      let args2 = List.map (extract_db k) args in
         if IntSet.mem n (s.seen) then
           ( Var2(x,s.fvar+k,args2) ,
             { s with fvar=(s.fvar+1);
@@ -79,8 +88,45 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term)
   let (lst,r) = fold_map (aux 0) { fvar=esize; cstr=[]; seen=IntSet.empty; } lst in
     ( r.fvar , lst , r.cstr )
 
+let get_nb_args (esize:int) (p:pattern) : int array =
+  let arr = Array.make esize (-1) in (* -1 means +inf *)
+  let min a b =
+    if a = -1 then b
+    else if a<b then a else b
+  in
+  let rec aux k = function
+    | Brackets _ -> ()
+    | Var (_,_,n,args) when n<k -> List.iter (aux k) args
+    | Var (_,id,n,args) ->
+        arr.(n-k) <- min (arr.(n-k)) (List.length args)
+    | Lambda (_,_,pp) -> aux (k+1) pp
+    | Pattern (_,_,_,args) -> List.iter (aux k) args
+    | Joker _ -> assert false
+  in
+    ( aux 0 p ; arr )
+
+let check_nb_args (nb_args:int array) (te:term) : unit =
+  let rec aux k = function
+    | Kind | Type _ | Const _ -> ()
+    | DB (l,id,n) ->
+        if n>=k && nb_args.(n-k)>0 then
+          Print.fail l "The variable '%a' must be applied to at least %i argument(s)."
+            pp_ident id nb_args.(n-k)
+    | App(DB(l,id,n),a1,args) when n>=k ->
+        if ( nb_args.(n-k) > 1 + (List.length args) ) then
+          Print.fail l "The variable '%a' must be applied to at least %i argument(s)."
+            pp_ident id nb_args.(n-k)
+        else List.iter (aux k) (a1::args)
+    | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
+    | Lam (_,_,None,b) -> aux (k+1) b
+    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
+  in
+    aux 0 te
+
 let to_rule2 (r:rule) : rule2 =
   let esize = List.length r.ctx in
+  let nb_args = get_nb_args esize (Pattern(r.l,r.md,r.id,r.args) ) in
+  let _ = check_nb_args nb_args r.rhs in
   let (esize2,pats2,cstr) = linearize esize r.args in
     { loc=r.l ; pats=Array.of_list pats2 ; right=r.rhs ;
       constraints=cstr ; esize=esize2 ; }

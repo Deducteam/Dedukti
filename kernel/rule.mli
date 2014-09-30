@@ -2,8 +2,7 @@ open Basics
 open Term
 
 type pattern =
-  | MatchingVar of loc*ident*int*(loc*ident*int) list
-  | BoundVar    of loc*ident*int*pattern list
+  | Var         of loc*ident*int*pattern list
   | Pattern     of loc*ident*ident*pattern list
   | Lambda      of loc*ident*pattern
   | Brackets    of term
