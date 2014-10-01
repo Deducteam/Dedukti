@@ -81,11 +81,11 @@ and pp_pattern_wp out = function
   | p -> pp_pattern out p
 
 let pp_context out ctx =
-  pp_list ".\n" (fun out (x,ty) -> fprintf out "%a: %a" pp_ident x pp_term ty )
+  pp_list ".\n" (fun out (_,x,ty) -> fprintf out "%a: %a" pp_ident x pp_term ty )
     out (List.rev ctx)
 
 let pp_rule out (ctx,pat,te) =
-  let pp_decl out (id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
+  let pp_decl out (_,id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
     fprintf out "[%a] %a --> %a"
       (pp_list "," pp_decl) ctx
       pp_pattern pat

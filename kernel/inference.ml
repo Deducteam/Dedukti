@@ -48,7 +48,9 @@ let error_joker te =
 (******************************************************************************)
 
 let db_get_type l ctx n =
-  try Subst.shift (n+1) (snd (List.nth ctx n))
+  try
+    let (_,_,ty) = List.nth ctx n in
+      Subst.shift (n+1) ty
   with Failure _ -> Print.fail l "Trying to type a open term."
 
 let rec infer (ctx:context) : term -> term = function
@@ -59,18 +61,18 @@ let rec infer (ctx:context) : term -> term = function
     | App (f,a,args) ->
         let ty_f = infer ctx f in
           snd (List.fold_left (check_app ctx) (f,ty_f) (a::args))
-    | Pi (_,x,a,b) ->
+    | Pi (l,x,a,b) ->
         begin
           let _ = check_annot ctx a in
-          let ctx2 = (x,a)::ctx in
+          let ctx2 = (l,x,a)::ctx in
             ( match infer ctx2 b with
                 | (Type _|Kind as tb) -> tb
                 | ty_b -> error_not_a_sort b ctx2 ty_b )
         end
-    | Lam  (_,x,Some a,b) ->
+    | Lam  (l,x,Some a,b) ->
         begin
           let _ = check_annot ctx a in
-          let ctx2 = (x,a)::ctx in
+          let ctx2 = (l,x,a)::ctx in
             ( match infer ctx2 b with
                 | Kind -> error_kind b ctx2
                 | ty   -> mk_Pi dloc x a ty )
@@ -90,7 +92,7 @@ and check (ctx:context) (te:term) (ty_exp:term) : unit =
       | Lam (_,x,None,u) ->
           begin
             match Reduction.whnf ty_exp with
-              | Pi (_,x,a1,b) -> check ((x,a1)::ctx) u b
+              | Pi (l,x,a1,b) -> check ((l,x,a1)::ctx) u b
               | _ -> error_product2 te ctx ty_exp
           end
       | _ -> let ty_inf = infer ctx te in
@@ -110,7 +112,7 @@ let is_a_type ctx ty =
 (******************************************************************************)
 
 let check_context (ctx:context) : unit =
-  let aux ctx0 a = is_a_type ctx0 (snd a); a::ctx0
+  let aux ctx0 (l,x,ty) = is_a_type ctx0 ty; (l,x,ty)::ctx0
   in ignore (List.fold_left aux [] (List.rev ctx))
 
 let check_rule (ctx,pat,rhs:rule) : unit =

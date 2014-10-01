@@ -11,7 +11,7 @@ type term = private
   | Lam   of loc*ident*term option*term        (* Lambda abstraction *)
   | Pi    of loc*ident*term*term                (* Pi abstraction *)
 
-type context = ( ident * term ) list
+type context = ( loc * ident * term ) list
 
 val get_loc : term -> loc
 

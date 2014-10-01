@@ -33,7 +33,7 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
         mk_Lam l id (Some (t_of_pt ctx a)) (t_of_pt (id::ctx) b)
 
 let scope_term (ctx:context) (pte:preterm) : term =
-  t_of_pt (List.map fst ctx) pte
+  t_of_pt (List.map (fun (_,x,_) -> x) ctx) pte
 
 (******************************************************************************)
 
@@ -52,12 +52,12 @@ let p_of_pp (ctx:ident list) : prepattern -> pattern =
   in aux 0 ctx
 
 let scope_pattern (ctx:context) (pp:prepattern) : pattern =
-  p_of_pp (List.map fst ctx) pp
+  p_of_pp (List.map (fun (_,x,_) -> x) ctx) pp
 
 (******************************************************************************)
 
 let scope_context pctx =
-  let aux ctx0 (_,x,ty) = (x,scope_term ctx0 ty)::ctx0 in
+  let aux ctx0 (l,x,ty) = (l,x,scope_term ctx0 ty)::ctx0 in
     List.fold_left aux [] pctx
 
 let scope_rule (l,pctx,id,pargs,pri) =

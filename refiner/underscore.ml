@@ -33,10 +33,12 @@ let unshift te n ty =
   in
     aux 0 ty
 
-let db_get_type l ctx n nb = Subst.shift (n+1+nb) (snd (List.nth ctx n))
+let db_get_type l ctx n nb =
+  let (_,_,ty) = List.nth ctx n in
+    Subst.shift (n+1+nb) ty
 
 let refine (nb_jokers:int) (ctx0:context) (te:term) : context =
-  let arr = Array.make nb_jokers (qmark,mk_Kind) in
+  let arr = Array.make nb_jokers (dloc,qmark,mk_Kind) in
   let size = List.length ctx0 in
 
   let rec infer k (ctx:context) : term -> term = function
@@ -63,11 +65,11 @@ let refine (nb_jokers:int) (ctx0:context) (te:term) : context =
     match te with
       | Lam (l,x,_,u) ->
           ( match Reduction.whnf ty_exp with
-              | Pi (_,x,a1,b) -> check (k+1) ((x,a1)::ctx) u b
+              | Pi (l,x,a1,b) -> check (k+1) ((l,x,a1)::ctx) u b
               | _ -> error_product te ctx ty_exp
           )
-      | DB (_,_,n) when ( (n-k) < nb_jokers ) ->
-          arr.(n-k) <- (qmark,unshift te n ty_exp)
+      | DB (l,x,n) when ( (n-k) < nb_jokers ) ->
+          arr.(n-k) <- (l,x,unshift te n ty_exp)
       | _ ->
           let ty_inf = infer k ctx te in
             if Reduction.are_convertible ty_exp ty_inf then ()

@@ -28,7 +28,7 @@ let mk_prelude lc name =
 
 let mk_declaration lc id pty =
   eprint lc "Declaration of symbol '%a'." pp_ident id;
-  SafeEnv.add_decl lc id pty
+  Typing.declare lc id pty
 
 let mk_definition lc id pty_opt pte =
   eprint lc "Definition of symbol '%a'." pp_ident id ;

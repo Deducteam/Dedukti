@@ -11,7 +11,7 @@ type term =
   | Lam   of loc*ident*term option*term        (* Lambda abstraction *)
   | Pi    of loc*ident*term*term (* Pi abstraction *)
 
-type context = ( ident * term ) list
+type context = ( loc * ident * term ) list
 
 let rec get_loc = function
   | Type l | DB (l,_,_) | Const (l,_,_) | Lam (l,_,_,_) | Pi (l,_,_,_)  -> l
