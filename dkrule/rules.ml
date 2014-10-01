@@ -27,10 +27,10 @@ let is_type_level r =
   in
     is_kind (Env.get_type dloc r.md r.id)
 
-let print_rule_list out = List.iter (print out "%a" Pp.pp_rule)
+let print_rule_list out = List.iter (print out "%a" Pp.pp_frule)
 
 let print_rule_list_filter out condition =
-    List.iter (fun r -> if condition r then print out "%a" Pp.pp_rule r)
+    List.iter (fun r -> if condition r then print out "%a" Pp.pp_frule r)
 
 let print_all out = List.iter (fun (_,lst) -> print_rule_list out lst)
 

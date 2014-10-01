@@ -14,7 +14,8 @@ val pattern_to_term : pattern -> term
 
 type top = ident*pattern array
 
-type rule = {
+type rule = context * pattern * term
+type frule = {
   l:loc; ctx:context; md:ident; id:ident; args:pattern list; rhs:term; }
 
 type case =

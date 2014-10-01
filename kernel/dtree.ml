@@ -123,7 +123,7 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
   in
     aux 0 te
 
-let to_rule2 (r:rule) : rule2 =
+let to_rule2 (r:frule) : rule2 =
   let esize = List.length r.ctx in
   let nb_args = get_nb_args esize (Pattern(r.l,r.md,r.id,r.args) ) in
   let _ = check_nb_args nb_args r.rhs in
@@ -373,5 +373,5 @@ let rec to_dtree (mx:matrix) : dtree =
 
 (******************************************************************************)
 
-let of_rules (rs:rule list) : int*dtree =
+let of_rules (rs:frule list) : int*dtree =
   let mx = mk_matrix rs in ( Array.length mx.first.pats , to_dtree mx )

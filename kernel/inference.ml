@@ -113,11 +113,11 @@ let check_context (ctx:context) : unit =
   let aux ctx0 a = is_a_type ctx0 (snd a); a::ctx0
   in ignore (List.fold_left aux [] (List.rev ctx))
 
-let check_rule (r:rule) : unit =
-  let lhs = pattern_to_term (Pattern(r.l,r.md,r.id,r.args)) in
-  let _ = check_context r.ctx in
-  let ty = infer r.ctx lhs in
-    check r.ctx r.rhs ty
+let check_rule (ctx,pat,rhs:rule) : unit =
+  let lhs = pattern_to_term pat in
+  let _ = check_context ctx in
+  let ty = infer ctx lhs in
+    check ctx rhs ty
 
 (******************************************************************************)
 (*

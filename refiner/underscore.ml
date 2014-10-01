@@ -89,17 +89,13 @@ let shift_pattern (nb:int) (p:pattern) : pattern =
   in
     aux 0 p
 
-let refine_rule (r:rule) : rule =
-  let pat = Pattern(r.l,r.md,r.id,r.args) in
+let refine_rule (ctx,pat,rhs:rule) : rule =
   let nb = number_of_jokers pat in
-    if nb=0 then r
+    if nb=0 then (ctx,pat,rhs)
     else
       let pat2 = shift_pattern nb pat in
-      let ctx2 = refine nb r.ctx (pattern_to_term pat2) in
-      let rhs = Subst.shift nb r.rhs in
+      let ctx2 = refine nb ctx (pattern_to_term pat2) in
+      let rhs2 = Subst.shift nb rhs in
        (* Print.debug "NEW PATTERN: %a." Pp.pp_pattern pat2 ;
         Print.debug "NEW CONTEXT:\n %a." Pp.pp_context ctx2 ; *)
-        match pat2 with
-          | Pattern(_,_,_,args2) ->
-              { l=r.l; ctx=ctx2; md=r.md; id=r.id; args=args2; rhs=rhs; }
-          | _ -> assert false
+        (ctx2,pat2,rhs2)

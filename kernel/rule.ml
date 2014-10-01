@@ -15,7 +15,8 @@ let get_loc_pat = function
 
 type top = ident*pattern array
 
-type rule = {
+type rule = context * pattern * term
+type frule = {
   l:loc; ctx:context; md:ident; id:ident; args:pattern list; rhs:term; }
 
 type case =

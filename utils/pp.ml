@@ -84,12 +84,14 @@ let pp_context out ctx =
   pp_list ".\n" (fun out (x,ty) -> fprintf out "%a: %a" pp_ident x pp_term ty )
     out (List.rev ctx)
 
-let pp_rule out r =
+let pp_rule out (ctx,pat,te) =
   let pp_decl out (id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
     fprintf out "[%a] %a --> %a"
-      (pp_list "," pp_decl) r.ctx
-      pp_pattern (Pattern (dloc,r.md,r.id,r.args))
-      pp_term r.rhs
+      (pp_list "," pp_decl) ctx
+      pp_pattern pat
+      pp_term te
+
+let pp_frule out r = pp_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
 
 let tab t = String.make (t*4) ' '
 

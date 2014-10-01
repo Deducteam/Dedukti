@@ -46,8 +46,8 @@ let mk_binding ( _, t) = mk_term t
 
 let mk_ctx = List.iter mk_binding
 
-let mk_prule r =
-  mk_ctx r.ctx; mk_pattern (Pattern (r.l,r.md,r.id,r.args)); mk_term r.rhs
+let mk_prule (ctx,pat,rhs) =
+  mk_ctx ctx; mk_pattern pat; mk_term rhs
 
 let mk_rules = List.iter mk_prule
 

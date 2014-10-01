@@ -37,4 +37,4 @@ val define              : t -> loc -> ident -> term -> term -> unit
 All these rules must have the same head symbol and the same arity. *)
 val add_rules           : t -> Rule.rule list -> unit
 
-val get_all_rules       : string -> (string*rule list) list
+val get_all_rules       : string -> (string*frule list) list

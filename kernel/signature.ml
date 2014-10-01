@@ -15,7 +15,7 @@ end )
 type rw_infos =
   | Decl    of term
   | Def     of term*term
-  | Decl_rw of term*rule list*int*dtree
+  | Decl_rw of term*frule list*int*dtree
 
 type dtree_or_def =
   | DoD_None
@@ -128,20 +128,29 @@ let add sg lc v gst =
 let declare sg lc v ty    = add sg lc v (Decl ty)
 let define sg lc v te ty  = add sg lc v (Def (te,ty))
 
-let add_rules sg : rule list -> unit = function
-  | [] -> ()
-  | r::_ as rs ->
-      let env = H.find sg.tables sg.name in
-      let (ty,rules) =
-        match H.find env r.id with
-          | Decl ty                   -> ( ty , rs )
-          | Decl_rw (ty,mx,_,_)       -> ( ty , mx@rs )
-          | Def (_,_)                 ->
-              Print.fail r.l "Cannot add rewrite\
-                rules for the defined symbol '%a'." pp_ident r.id
-      in
-      let (n,tree) = Dtree.of_rules rules in
-        H.add env r.id (Decl_rw (ty,rules,n,tree))
+let rule_to_frule (ctx,pat,rhs) =
+  match pat with
+    | Pattern(l,md,id,args) -> { l ; ctx ; md; id ; args ; rhs }
+    | Var (l,_,_,_) -> Print.fail l "A variable is not a valid pattern."
+    | Brackets _ -> assert false
+    | Lambda _ -> assert false
+    | Joker _ -> assert false
+
+let add_rules sg lst =
+  match List.map rule_to_frule lst with
+    | [] -> ()
+    | r::_ as rs ->
+        let env = H.find sg.tables sg.name in
+        let (ty,rules) =
+          match H.find env r.id with
+            | Decl ty                   -> ( ty , rs )
+            | Decl_rw (ty,mx,_,_)       -> ( ty , mx@rs )
+            | Def (_,_)                 ->
+                Print.fail r.l "Cannot add rewrite\
+                  rules for the defined symbol '%a'." pp_ident r.id
+        in
+        let (n,tree) = Dtree.of_rules rules in
+          H.add env r.id (Decl_rw (ty,rules,n,tree))
 
 (******************************************************************************)
 
@@ -151,7 +160,7 @@ struct
   let compare = String.compare
 end )
 
-let get_rules ctx : rule list =
+let get_rules ctx : frule list =
   let lst_lst =
     H.fold (fun _ infos lst ->
               match infos with
@@ -160,7 +169,7 @@ let get_rules ctx : rule list =
     ) ctx []
   in List.flatten lst_lst
 
-let get_all_rules (md:string) : (string*rule list) list =
+let get_all_rules (md:string) : (string*frule list) list =
   let set = S.empty in
   let rec load = function
     | [] -> []
