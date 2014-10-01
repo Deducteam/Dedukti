@@ -38,10 +38,12 @@ let mk_opaque lc id pty_opt pte =
   eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
   SafeEnv.add_opaque lc id pte pty_opt
 
-let mk_rules : rule list -> unit = function
-  | [] -> ()
-  | (r::_) as lst -> ( eprint r.l "Rewrite rule for symbol '%a'." pp_ident r.id ;
-                       SafeEnv.add_rules lst )
+let mk_rules = function [] -> ()
+  | (r::_) as lst ->
+      begin
+        eprint r.l "Rewrite rule for symbol '%a'." pp_ident r.id ;
+        SafeEnv.add_rules (List.map Underscore.refine_rule lst)
+      end
 
 let mk_command = Cmd.mk_command
 

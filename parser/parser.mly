@@ -34,9 +34,6 @@
         | [t] -> t
         | f::a1::args -> PreApp (f,a1,args)
 
-    let scope_and_refine pr =
-            let r = scope_rule pr in
-            Underscore.refine_rule r
 %}
 
 %token EOF
@@ -88,7 +85,10 @@
 
 %%
 
-prelude         : NAME DOT      { mk_prelude (fst $1) (snd $1) }
+prelude         : NAME DOT      { let (lc,name) = $1 in
+                                        Pp.name := name;
+                                        Scoping.name := name;
+                                        mk_prelude lc name }
 
 line            : ID COLON term DOT
                 { mk_declaration (fst $1) (snd $1) (scope_term [] $3) }
@@ -111,7 +111,7 @@ line            : ID COLON term DOT
                 | LEFTBRA ID param+ RIGHTBRA DEF term DOT
                 { mk_opaque (fst $2) (snd $2)  None (scope_term [] (mk_lam $6 $3)) }
                 | rule+ DOT
-                { mk_rules (List.map scope_and_refine $1) }
+                { mk_rules (List.map scope_rule $1) }
                 | command DOT { $1 }
                 | EOF
                 { mk_ending () ; raise Tokens.EndOfFile }
