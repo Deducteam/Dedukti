@@ -18,10 +18,10 @@ let args = [
   ("-e"    , Arg.Set Checker.export,            "Create a .dko" ) ;
   ("-nc"   , Arg.Clear Print.color,             "Disable colored output" ) ;
   ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;
-  ("-r"    , Arg.Set Signature.ignore_redecl,         "Ignore redeclaration" ) ;
+  ("-r"    , Arg.Set Env.ignore_redecl,         "Ignore redeclaration" ) ;
   ("-version", Arg.Unit Version.print_version,  "Version" ) ;
   ("-coc", Arg.Set Inference.coc,               "Typecheck the Calculus of Construction" ) ;
-  ("-autodep", Arg.Set Signature.autodep  ,
+  ("-autodep", Arg.Set Env.autodep  ,
    "Automatically handle dependencies (experimental)") ]
 
 let run_on_file file =
