@@ -43,20 +43,3 @@ let rec term_eq t1 t2 =
     | Lam (_,_,a,b), Lam (_,_,a',b') -> term_eq b b'
     | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false
-
-(** {2 Commands} *)
-(*
-type command =
-  (* Reduction *)
-  | Whnf of preterm
-  | Hnf of preterm
-  | Snf of preterm
-  | OneStep of preterm
-  | Conv of preterm*preterm
-  (* Typing *)
-  | Check of preterm*preterm
-  | Infer of preterm
-  (* Misc *)
-  | Gdt of ident option*ident
-  | Print of string
-  | Other of string*preterm list *)

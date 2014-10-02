@@ -1,3 +1,5 @@
+(** Basic Datatypes *)
+
 (** {2 Identifiers (hashconsed strings)} *)
 
 type ident = string
@@ -57,5 +59,3 @@ type loc = int*int
 let dloc = (0,0)
 let mk_loc l c = (l,c)
 let of_loc l = l
-
-

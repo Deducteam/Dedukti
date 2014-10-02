@@ -65,8 +65,3 @@ let scope_rule (l,pctx,id,pargs,pri) =
   let pat = scope_pattern ctx (PPattern(l,None,id,pargs)) in
   let ri = scope_term ctx pri in
     (ctx,pat,ri)
-  (*let args = match pat with
-    | Pattern (_,_,_,args) -> args
-    | Var (l,_,_,_) -> Print.fail l "A pattern cannot be a variable."
-    | _ -> assert false in
-    { l=l ; ctx=ctx ; md= !name; id=id ; args=args ; rhs=ri } *)

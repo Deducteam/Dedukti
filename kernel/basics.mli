@@ -1,4 +1,4 @@
-(** basic datatypes *)
+(** Basic Datatypes *)
 
 (** {2 Identifiers (hashconsed strings)} *)
 (** Internal representation of identifiers as hashconsed strings. *)
