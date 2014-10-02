@@ -42,7 +42,7 @@ let mk_definition _ _ = function
 
 let mk_opaque = mk_definition
 
-let mk_binding ( _, t) = mk_term t
+let mk_binding ( _,_, t) = mk_term t
 
 let mk_ctx = List.iter mk_binding
 

@@ -20,7 +20,7 @@ let args = [
   ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;
   ("-r"    , Arg.Set Env.ignore_redecl,         "Ignore redeclaration" ) ;
   ("-version", Arg.Unit Version.print_version,  "Version" ) ;
-  ("-coc", Arg.Set Inference.coc,               "Typecheck the Calculus of Construction" ) ;
+(*  ("-coc", Arg.Set Inference.coc,               "Typecheck the Calculus of Construction" ) ; *)
   ("-autodep", Arg.Set Env.autodep  ,
    "Automatically handle dependencies (experimental)") ]
 

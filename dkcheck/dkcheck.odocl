@@ -1,6 +1,7 @@
 Checker
 Env
-Inference
+Judgment
+Typing
 Matching
 Pp
 Reduction

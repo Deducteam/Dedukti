@@ -18,3 +18,5 @@ val define              : loc -> ident -> term -> term -> unit
 val add_rules           : rule list -> unit
 val get_dtree           : loc -> ident -> ident -> dtree_or_def
 val export              : unit -> unit
+
+val get_all_rules       : string -> (string*frule list) list

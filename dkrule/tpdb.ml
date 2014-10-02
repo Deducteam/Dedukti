@@ -57,7 +57,7 @@ let rec pp_underscore out = function
 let pp_rule out r =
   let pat = (Pattern (r.l,r.md,r.id,r.args)) in
   fprintf out "(VAR";
-  List.iter ( fun (v,_) -> fprintf out " #VAR_%a" pp_ident v ) r.ctx ;
+  List.iter ( fun (_,v,_) -> fprintf out " #VAR_%a" pp_ident v ) r.ctx ;
   (*pp_underscore out pat ;*)
   fprintf out ")\n";
   fprintf out "(RULES %a -> %a )\n\n" (pp_pattern 0) pat (pp_term 0) r.rhs

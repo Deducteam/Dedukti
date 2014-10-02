@@ -3,6 +3,7 @@ open Term
 open Rule
 
 type context = (loc*ident*term) list
+let c_of_c ctx = ctx
 type judgment = { ctx:context; te:term; ty: term; }
 type pattern_judgment = { pctx:context; pat:pattern; pty:term; }
 type rule_judgment = context * pattern * term
@@ -41,13 +42,14 @@ let mk_Type ctx l = { ctx=ctx; te=mk_Type l; ty= mk_Kind; }
 let mk_Const ctx l md id =
   { ctx=ctx; te=mk_Const l md id; ty= Env.get_type l md id; }
 
-let ctx_get_type l ctx n =
+let ctx_get_type l x ctx n =
   try
     let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
-  with Failure _ -> Print.fail l "Trying to type a open term."
+  with Failure _ -> Print.fail l "The variable '%a' was not found in context:\n"
+                      Pp.pp_term (mk_DB l x n) Pp.pp_context ctx
 
 let mk_Var ctx l x n =
-  { ctx=ctx; te=mk_DB l x n; ty= ctx_get_type l ctx n }
+  { ctx=ctx; te=mk_DB l x n; ty= ctx_get_type l x ctx n }
 
 let mk_App f arg =
   assert ( f.ctx = arg.ctx ); (*FIXME*)
@@ -112,7 +114,7 @@ let mk_Pattern_aux (ctx:context) (ty_f:term) (arg:pattern_judgment) : term =
     | _ -> assert false (*FIXME*)
 
 let mk_Pattern_Var ctx l x n =
-  { pctx=ctx; pat=Var(l,x,n,[]); pty=ctx_get_type l ctx n; }
+  { pctx=ctx; pat=Var(l,x,n,[]); pty=ctx_get_type l x ctx n; }
 
 let mk_Pattern_Const ctx l md id =
     { pctx=ctx; pat=Pattern(l,md,id,[]); pty=Env.get_type l md id }
@@ -158,3 +160,15 @@ let mk_Rule (lhs:pattern_judgment) (rhs:judgment) : rule_judgment =
     ( lhs.pctx , lhs.pat , rhs.te )
   else
     assert false (*FIXME*)
+
+(* **********************  REDUCTION *)
+
+let whnf j = { j with te= Reduction.whnf j.te }
+let hnf j = { j with te= Reduction.hnf j.te }
+let snf j = { j with te= Reduction.snf j.te }
+let one j = match Reduction.one_step j.te with
+  | Some te2 -> { j with te=te2 }
+  | None -> j
+
+let conv j1 j2 = Reduction.are_convertible j1.te j2.te
+let check j1 j2 = Reduction.are_convertible j1.ty j2.te

@@ -215,3 +215,5 @@ let get_dtree l md id = Signature.get_dtree !sg l md id
 let declare l id ty = Signature.declare !sg l id ty
 let define l id te ty = Signature.define !sg l id te ty
 let add_rules rs = Signature.add_rules !sg rs
+
+let get_all_rules = Signature.get_all_rules

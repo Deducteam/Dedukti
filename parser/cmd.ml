@@ -20,32 +20,30 @@ let print s= print_string s; print_newline ()
 
 let mk_command lc = function
   | Whnf te          ->
-      let _ = Inference.infer [] te in
-        Printf.fprintf stdout "%a\n" Pp.pp_term (Reduction.whnf te)
+      let jdg = Judgment.whnf (Typing.inference te) in
+        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.Judgment.te
   | Hnf te           ->
-      let _ = Inference.infer [] te in
-        Printf.fprintf stdout "%a\n" Pp.pp_term (Reduction.hnf te)
+      let jdg = Judgment.hnf (Typing.inference te) in
+        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.Judgment.te
   | Snf te           ->
-      let _ = Inference.infer [] te in
-        Printf.fprintf stdout "%a\n" Pp.pp_term (Reduction.snf te)
+      let jdg = Judgment.snf (Typing.inference te) in
+        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.Judgment.te
   | OneStep te       ->
-      let _ = Inference.infer [] te in
-        ( match Reduction.one_step te with
-            | None    -> print "Already in weak head normal form."
-            | Some t' -> Printf.fprintf stdout "%a\n" Pp.pp_term t' )
+      let jdg = Judgment.one (Typing.inference te) in
+        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.Judgment.te
   | Conv (te1,te2)  ->
-      let _ = Inference.infer [] te1 in
-      let _ = Inference.infer [] te2 in
-        if Reduction.are_convertible te1 te2 then print "YES"
+      let j1 = Typing.inference te1 in
+      let j2 = Typing.inference te2 in
+        if Judgment.conv j1 j2 then print "YES"
         else print "NO"
-  | Check (te,ty1) ->
-      let _ = Inference.infer [] ty1 in
-      let ty2 = Inference.infer [] te in
-        if Reduction.are_convertible ty1 ty2 then print "YES"
+  | Check (te,ty) ->
+      let jty = Typing.inference ty in
+      let jte = Typing.inference te in
+        if Judgment.check jte jty then print "YES"
         else print "NO"
   | Infer te         ->
-      let ty = Inference.infer [] te in
-        Printf.fprintf stdout "%a\n" Pp.pp_term ty
+      let jdg = Typing.inference te in
+        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.Judgment.ty
   | Gdt (m0,v)         ->
       let m = match m0 with None -> Env.get_name () | Some m -> m in
         ( match Env.get_dtree lc m v with
