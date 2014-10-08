@@ -26,6 +26,7 @@ let args = [
 
 let run_on_file file =
   let input = open_in file in
+    Print.debug "Processing file '%s'..." file;
     parse (Lexing.from_channel input) ;
     Print.success "File '%s' was successfully checked." file;
     close_in input
