@@ -1,3 +1,5 @@
+(** Global Environment *)
+
 open Basics
 open Term
 open Rule
@@ -128,7 +130,6 @@ struct
       | Decl _ -> DoD_None
       | Def (te,_) -> DoD_Def te
       | Decl_rw (_,_,i,tr) -> DoD_Dtree (i,tr)
-
 
   (******************************************************************************)
 

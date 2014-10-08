@@ -1,6 +1,5 @@
 open Basics
-open Rule
-open Env
+open Judgment
 
 (* ********************************* *)
 
@@ -28,21 +27,21 @@ let mk_prelude lc name =
 
 let mk_declaration lc id pty =
   eprint lc "Declaration of symbol '%a'." pp_ident id;
-  Typing.declare lc id pty
+  declare2 lc id pty
 
 let mk_definition lc id pty_opt pte =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
-  Typing.define lc id pte pty_opt
+  define2 lc id pte pty_opt
 
 let mk_opaque lc id pty_opt pte =
   eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
-  Typing.define_opaque lc id pte pty_opt
+  define_op2 lc id pte pty_opt
 
 let mk_rules lst =
   let rs = List.map Underscore.refine_rule lst in
     List.iter (fun (ctx,pat,rhs) ->
-                 eprint (get_loc_pat pat) "%a" Pp.pp_rule (ctx,pat,rhs) ) rs ;
-    Typing.add_rules rs
+                 eprint (Rule.get_loc_pat pat) "%a" Pp.pp_rule (ctx,pat,rhs) ) rs ;
+    add_rules2 rs
 
 let mk_command = Cmd.mk_command
 

@@ -1,3 +1,5 @@
+(** Global Environment *)
+
 open Basics
 open Term
 open Rule

@@ -1,5 +1,6 @@
 open Basics
 open Term
+open Judgment
 
 type command =
   (* Reduction *)
@@ -20,30 +21,30 @@ let print s= print_string s; print_newline ()
 
 let mk_command lc = function
   | Whnf te          ->
-      let jdg = Judgment.whnf (Typing.inference te) in
-        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.Judgment.te
+      let jdg = whnf (inference te) in
+        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.te
   | Hnf te           ->
-      let jdg = Judgment.hnf (Typing.inference te) in
-        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.Judgment.te
+      let jdg = hnf (inference te) in
+        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.te
   | Snf te           ->
-      let jdg = Judgment.snf (Typing.inference te) in
-        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.Judgment.te
+      let jdg = snf (inference te) in
+        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.te
   | OneStep te       ->
-      let jdg = Judgment.one (Typing.inference te) in
-        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.Judgment.te
+      let jdg = one (inference te) in
+        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.te
   | Conv (te1,te2)  ->
-      let j1 = Typing.inference te1 in
-      let j2 = Typing.inference te2 in
-        if Judgment.conv j1 j2 then print "YES"
+      let j1 = inference te1 in
+      let j2 = inference te2 in
+        if conv_test j1 j2 then print "YES"
         else print "NO"
   | Check (te,ty) ->
-      let jty = Typing.inference ty in
-      let jte = Typing.inference te in
-        if Judgment.check jte jty then print "YES"
+      let jty = inference ty in
+      let jte = inference te in
+        if check_test jte jty then print "YES"
         else print "NO"
   | Infer te         ->
-      let jdg = Typing.inference te in
-        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.Judgment.ty
+      let jdg = inference te in
+        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.ty
   | Gdt (m0,v)         ->
       let m = match m0 with None -> Env.get_name () | Some m -> m in
         ( match Env.get_dtree lc m v with
