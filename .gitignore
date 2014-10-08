@@ -1,8 +1,8 @@
-/_dk2mmt/
-/_dkcheck/
-/_dktop/
-/_dkdep/
-/_dkconf/
-/_dkrule/
+/_build/
+dkcheck.docdir
+dkcheck.native
+dkdep.native
+dkrule.native
+dktop.native
 .*.swp
 .*.swo
