@@ -11,6 +11,67 @@ type state = {
 }
 and stack = state list
 
+type cloture = { cenv:env; cterm:term; }
+
+let rec cloture_eq : (cloture*cloture) list -> bool = function
+  | [] -> true
+  | (c1,c2)::lst ->
+       ( match c1.cterm, c2.cterm with
+           | Kind, Kind | Type _, Type _ -> cloture_eq lst
+           | Const (_,m1,v1), Const (_,m2,v2) ->
+               ident_eq v1 v2 && ident_eq m1 m2 && cloture_eq lst
+           | Lam (_,_,_,t1), Lam (_,_,_,t2) ->
+               let arg = Lazy.lazy_from_val (mk_DB dloc qmark 0) in
+               let c3 = { cenv=LList.cons arg c1.cenv; cterm=t1; } in
+               let c4 = { cenv=LList.cons arg c2.cenv; cterm=t2; } in
+                 cloture_eq ((c3,c4)::lst)
+           | Pi (_,_,a1,b1), Pi (_,_,a2,b2) ->
+               let arg = Lazy.lazy_from_val (mk_DB dloc qmark 0) in
+               let c3 = { cenv=c1.cenv; cterm=a1; } in
+               let c4 = { cenv=c2.cenv; cterm=a2; } in
+               let c5 = { cenv=LList.cons arg c1.cenv; cterm=b1; } in
+               let c6 = { cenv=LList.cons arg c2.cenv; cterm=b2; } in
+                 cloture_eq ((c3,c4)::(c5,c6)::lst)
+           | App (f1,a1,l1), App (f2,a2,l2) ->
+               ( try
+                   let aux lst0 t1 t2 =
+                     ( { cenv=c1.cenv; cterm=t1; },
+                       { cenv=c2.cenv; cterm=t2; } )::lst0
+                   in
+                     cloture_eq (List.fold_left2 aux lst (f1::a1::l1) (f2::a2::l2))
+                 with Invalid_argument _ -> false
+               )
+           | DB (_,_,n), _ when n<c1.cenv.LList.len ->
+               let c3 =
+                 { cenv=LList.nil; cterm=Lazy.force (LList.nth c1.cenv n); } in
+               cloture_eq ((c3,c2)::lst)
+           | _, DB (_,_,n) when n<c2.cenv.LList.len ->
+               let c3 =
+                 { cenv=LList.nil; cterm=Lazy.force (LList.nth c2.cenv n); } in
+                 cloture_eq ((c1,c3)::lst)
+           | DB (_,_,n1), DB (_,_,n2) (* ni >= ci.cenv.len *) ->
+               ( n1-c1.cenv.LList.len ) = ( n2-c2.cenv.LList.len )
+               && cloture_eq lst
+           | _, _ -> false
+       )
+
+let rec add2 l1 l2 lst =
+  match l1, l2 with
+    | [], [] -> Some lst
+    | s1::l1, s2::l2 -> add2 l1 l2 ((s1,s2)::lst)
+    | _,_ -> None
+
+let rec state_eq : (state*state) list -> bool = function
+  | [] -> true
+  | (s1,s2)::lst ->
+      ( match add2 s1.stack s2.stack lst with
+          | None -> cloture_eq [ {cenv=s1.ctx; cterm=s1.term},
+                                 {cenv=s2.ctx;cterm=s2.term} ]
+          | Some lst2 -> cloture_eq [ {cenv=s1.ctx; cterm=s1.term},
+                                      {cenv=s2.ctx;cterm=s2.term} ]
+            && state_eq lst2
+      )
+
 let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx 0 term ) in
     match stack with
@@ -155,7 +216,7 @@ and rewrite (stack:stack) (g:dtree) : (env*term) option =
 and state_conv : (state*state) list -> bool = function
   | [] -> true
   | (s1,s2)::lst ->
-      if term_eq (term_of_state s1) (term_of_state s2) then
+      if state_eq [s1,s2] then
         state_conv lst
       else
         match reduce s1, reduce s2 with
