@@ -2,9 +2,55 @@ open Basics
 open Term
 open Rule
 
-(* ********************** CONTEXT *)
+let coc = ref false
 
 type 'a judgment0 = { ctx:'a; te:term; ty: term; }
+type rule_judgment = context * pattern * term
+
+(* ********************** ERROR MESSAGES *)
+
+let error_convertibility te ctx exp inf =
+  if ctx = [] then
+    Print.fail (get_loc te)
+      "Error while typing '%a'.\nExpected: %a\nInferred: %a."
+      Pp.pp_term te Pp.pp_term exp Pp.pp_term inf
+  else
+    Print.fail (get_loc te)
+      "Error while typing '%a' in context:\n%a.\nExpected: %a\nInferred: %a."
+      Pp.pp_term te Pp.pp_context ctx Pp.pp_term exp
+      Pp.pp_term inf
+
+let error_sort_expected te ctx inf =
+  if ctx = [] then
+    Print.fail (get_loc te)
+      "Error while typing '%a' in context:\n%a.\nExpected: a sort.\nInferred: %a."
+      Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
+  else
+    Print.fail (get_loc te)
+      "Error while typing '%a'.\nExpected: a sort.\nInferred: %a."
+      Pp.pp_term te Pp.pp_term inf
+
+let error_product_expected te ctx inf =
+  if ctx = [] then
+    Print.fail (get_loc te)
+      "Error while typing '%a' in context:\n%a.\nExpected: a product type.\nInferred: %a."
+      Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
+  else
+    Print.fail (get_loc te)
+      "Error while typing '%a'.\nExpected: a product type.\nInferred: %a."
+      Pp.pp_term te Pp.pp_term inf
+
+let error_inexpected_kind te ctx =
+  if ctx = [] then
+    Print.fail (get_loc te)
+      "Error while typing '%a' in context:\n%a.\nExpected: anything but Kind.\nInferred: Kind."
+      Pp.pp_term te Pp.pp_context ctx
+  else
+    Print.fail (get_loc te)
+      "Error while typing '%a'.\nExpected: anything but Kind.\nInferred: Kind."
+      Pp.pp_term te
+
+(* ********************** CONTEXT *)
 
 module Context :
 sig
@@ -14,17 +60,22 @@ sig
   val unsafe_add : t -> loc -> ident -> term -> t
   val get_type : t -> loc -> ident -> int -> term
   val is_empty : t -> bool
+  val to_context : t -> (loc*ident*term) list
 end =
 struct
   type t = (loc*ident*term) list
 
   let empty = []
   let is_empty ctx = ( ctx=[] )
+  let to_context ctx = ctx
 
   let add l x jdg : context =
     match jdg.ty with
       | Type _ -> (l,x,jdg.te) :: jdg.ctx
-      | _ -> assert false (*FIXME*)
+      | Kind when !coc -> (l,x,jdg.te) :: jdg.ctx
+      (*Note that this is the only place where the coc flag has an effect *)
+      | _ -> error_convertibility jdg.te
+               (to_context jdg.ctx) (mk_Type dloc) jdg.ty
 
   let unsafe_add ctx l x ty = (l,x,ty)::ctx
 
@@ -34,12 +85,10 @@ struct
     with Failure _ ->
       Print.fail l "The variable '%a' was not found in context:\n"
         Pp.pp_term (mk_DB l x n) Pp.pp_context ctx
+
 end
 
-(* ********************** JUDGMENT *)
-
 type judgment = Context.t judgment0
-type rule_judgment = context * pattern * term
 
 (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
@@ -56,20 +105,20 @@ let rec infer (ctx:Context.t) : term -> judgment = function
   | Pi (l,x,a,b) ->
       let jdg_a = infer ctx a in
       let jdg_b = infer (Context.add l x jdg_a) b in
-        begin
-          match jdg_b.ty with
+        ( match jdg_b.ty with
             | Kind | Type _ as ty -> { ctx=ctx; te=mk_Pi l x a jdg_b.te; ty=ty }
-            | _ -> assert false (*FIXME*)
-        end
+            | _ -> error_sort_expected jdg_b.te
+                     (Context.to_context jdg_b.ctx) jdg_b.ty
+        )
   | Lam  (l,x,Some a,b) ->
       let jdg_a = infer ctx a in
       let jdg_b = infer (Context.add l x jdg_a) b in
-        begin
-          match jdg_b.ty with
-            | Kind -> assert false (*FIXME*)
+        ( match jdg_b.ty with
+            | Kind ->
+                error_inexpected_kind jdg_b.te (Context.to_context jdg_b.ctx)
             | _ -> { ctx=ctx; te=mk_Lam l x (Some a) jdg_b.te;
                      ty=mk_Pi l x a jdg_b.ty }
-        end
+        )
   | Lam  (l,x,None,b) ->
       Print.fail l "Cannot infer the type of domain-free lambda."
 
@@ -78,29 +127,30 @@ and check (te:term) (jty:judgment) : judgment =
   let ctx = jty.ctx in
     match te with
       | Lam (l,x,None,u) ->
-          begin
-            match Reduction.whnf jty.te with
+          ( match Reduction.whnf jty.te with
               | Pi (_,_,a,b) as pi ->
                   let ctx2 = Context.unsafe_add ctx l x a in
                   (* (x) might as well be Kind but here we do not care*)
                   let _ = check u { ctx=ctx2; te=b; ty=mk_Type dloc (* (x) *); } in
                     { ctx=ctx; te=mk_Lam l x None u; ty=pi; }
-              | _ -> assert false (*FIXME*)
-          end
+              | _ ->
+                  error_product_expected te (Context.to_context jty.ctx) jty.te
+          )
       | _ ->
         let jte = infer ctx te in
           if Reduction.are_convertible jte.ty ty_exp then
             { ctx=ctx; te=te; ty=ty_exp; }
           else
-            assert false (*FIXME*)
+            error_convertibility te (Context.to_context ctx) ty_exp jte.ty
 
 and check_app jdg_f arg =
   match Reduction.whnf jdg_f.ty with
     | Pi (_,_,a,b) ->
-        let _ = check arg { ctx=jdg_f.ctx; te=a; ty=mk_Type dloc; } in
+        (* (x) might be Kind if CoC flag is on but it does not matter here *)
+        let _ = check arg { ctx=jdg_f.ctx; te=a; ty=mk_Type dloc (* (x) *); } in
           { ctx=jdg_f.ctx; te=mk_App jdg_f.te arg []; ty=Subst.subst b arg; }
     | _ ->
-        assert false (*FIXME*)
+        error_product_expected jdg_f.te (Context.to_context jdg_f.ctx) jdg_f.ty
 
 let inference (te:term) : judgment = infer Context.empty te
 
@@ -119,7 +169,7 @@ let check_rule (ctx0,pat,rhs:rule) : rule_judgment =
     if Reduction.are_convertible jl.ty jr.ty then
       ( ctx0, pat, rhs )
     else
-      assert false (*FIXME*)
+      error_convertibility rhs ctx0 jl.ty jr.ty
 
 (* ********************** SAFE REDUCTION *)
 
@@ -136,28 +186,24 @@ let check_test j1 j2 = Reduction.are_convertible j1.ty j2.te
 (* ********************** SIGNATURE *)
 
 let declare (l:loc) (id:ident) (jdg:judgment) =
-  if Context.is_empty jdg.ctx then
-    ( match jdg.ty with
-      | Kind | Type _ -> Env.declare l id jdg.te
-      | _ -> assert false (*FIXME*) )
-  else
-    assert false (*FIXME*)
+  assert ( Context.is_empty jdg.ctx );
+  match jdg.ty with
+    | Kind | Type _ -> Env.declare l id jdg.te
+    | _ -> error_sort_expected jdg.te [] jdg.ty
 
 let define (l:loc) (id:ident) (jdg:judgment) =
-  if Context.is_empty jdg.ctx then
-    Env.define l id jdg.te jdg.ty
-  else
-    assert false (*FIXME*)
+  assert ( Context.is_empty jdg.ctx );
+  Env.define l id jdg.te jdg.ty
 
 let define_op (l:loc) (id:ident) (jdg:judgment) =
-  if Context.is_empty jdg.ctx then
-    Env.declare l id jdg.ty
-  else
-    assert false (*FIXME*)
+  assert( Context.is_empty jdg.ctx );
+  Env.declare l id jdg.ty
 
-let add_rules (jdgs:rule_judgment list) = Env.add_rules jdgs
+let add_rules jdgs =
+  Env.add_rules jdgs
 
-let declare2 l id ty = declare l id (inference ty)
+let declare2 l id ty =
+  declare l id (inference ty)
 
 let define2 l id te ty_opt =
   match ty_opt with

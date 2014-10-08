@@ -2,6 +2,8 @@ open Term
 open Rule
 open Basics
 
+val coc : bool ref
+
 type 'a judgment0 = private { ctx:'a; te:term; ty: term; }
 
 module Context :
