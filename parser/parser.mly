@@ -16,11 +16,11 @@
 
     let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
         | [] -> te
-        | (l,x,ty)::tl -> mk_lam (PreLam(l,x,Some ty,te)) tl
+        | (l,x,ty)::tl -> PreLam (l,x,Some ty,mk_lam te tl)
 
     let rec mk_pi (te:preterm) : (loc*ident*preterm) list -> preterm = function
         | [] -> te
-        | (l,x,ty)::tl -> mk_pi (PrePi(l,Some x,ty,te)) tl
+        | (l,x,ty)::tl -> PrePi(l,Some x,ty,mk_pi te tl)
 
     let rec preterm_loc = function
         | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
