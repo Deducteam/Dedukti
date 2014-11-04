@@ -25,11 +25,17 @@ dkrule:
 doc:
 	ocamlbuild -Is kernel,utils,parser,dkcheck,dkrule,refiner dkcheck/dkcheck.docdir/index.html
 
-install:
-	install _build/dkcheck/dkcheck.native ${INSTALL_DIR}/dkcheck
-	install _build/dktop/dktop.native ${INSTALL_DIR}/dktop
-	install _build/dkdep/dkdep.native ${INSTALL_DIR}/dkdep
-	install _build/dkrule/dkrule.native ${INSTALL_DIR}/dkrule
+BINARIES=dkcheck dktop dkdep dkrule
+
+install: all
+	for i in $(BINARIES) ; do \
+	    install "_build/$$i/$$i.native" "${INSTALL_DIR}/$$i" ; \
+	done
+
+uninstall:
+	for i in $(BINARIES) ; do \
+	    rm "${INSTALL_DIR}/$$i" ; \
+	done
 
 clean:
 	ocamlbuild -clean
@@ -47,4 +53,4 @@ tests: dkcheck
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: dkcheck dktop dkdep dkrule tests clean doc
+.PHONY: dkcheck dktop dkdep dkrule tests clean doc uninstall
