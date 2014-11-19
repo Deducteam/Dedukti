@@ -70,7 +70,7 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term)
         ( BoundVar2 (x,n,Array.of_list args2) , s2 )
   | Var (l,x,n,args) (* n>=k *) ->
       let args2 = List.map (extract_db k) args in
-        if IntSet.mem n (s.seen) then
+        if IntSet.mem (n-k) (s.seen) then
           ( Var2(x,s.fvar+k,args2) ,
             { s with fvar=(s.fvar+1);
                      cstr= (mk_DB l x s.fvar,mk_DB l x (n-k))::(s.cstr) ; } )
