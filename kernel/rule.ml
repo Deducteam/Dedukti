@@ -24,10 +24,11 @@ type case =
   | CDB    of int*int
   | CLam
 
-type abstract_pb = int (*c*) * int LList.t (*(k_i)_{i<=n}*)
+type abstract_pb = { position2:int (*c*) ; dbs:int LList.t (*(k_i)_{i<=n}*) ; depth2:int }
+type pos = { position:int; depth:int }
 
 type pre_context =
-  | Syntactic of int LList.t
+  | Syntactic of pos LList.t
   | MillerPattern of abstract_pb LList.t
 
 type dtree =

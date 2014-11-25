@@ -330,8 +330,10 @@ let dump_pat_arr arr =
 (* Extracts the pre_context from the first line. *)
 let get_first_pre_context mx =
   let esize = mx.first.esize in
-  let arr1 = Array.create esize (-1) in
-  let arr2 = Array.create esize (-1,LList.nil) in
+  let dummy = { position=(-1); depth=0; } in
+  let dummy2 = { position2=(-1); depth2=0; dbs=LList.nil; } in
+  let arr1 = Array.create esize dummy in
+  let arr2 = Array.create esize dummy2 in
     let mp = ref false in
     Array.iteri
       (fun i p -> match p with
@@ -342,9 +344,12 @@ let get_first_pre_context mx =
                  assert( 0 <= n-k ) ;
 (*                  Print.debug "N=%i K=%i ESIZE=%i" n k esize; *)
                  assert(n-k < esize ) ;
-                 arr1.(n-k) <- i;
-                 if lst=[] then arr2.(n-k) <- (i,LList.nil)
-                 else ( mp := true ; arr2.(n-k) <- (i,LList.of_list lst) )
+                 arr1.(n-k) <- { position=i; depth=mx.col_depth.(i); };
+                 if lst=[] then
+                   arr2.(n-k) <- { position2=i; dbs=LList.nil; depth2=mx.col_depth.(i); }
+                 else (
+                   mp := true ;
+                   arr2.(n-k) <- { position2=i; dbs=LList.of_list lst; depth2=mx.col_depth.(i); } )
                end
          | _ -> assert false
       ) mx.first.pats ;
@@ -357,14 +362,10 @@ let get_first_pre_context mx =
 let rec to_dtree (mx:matrix) : dtree =
   match choose_column mx with
     (* There are only variables on the first line of the matrix *)
-    | None   ->
-        begin
-          match get_first_constraints mx with
-            | [] -> Test ( get_first_pre_context mx ,[] ,
-                           get_first_term mx, None )
-            | lst -> Test ( get_first_pre_context mx ,lst ,
-                            get_first_term mx, Utils.map_opt to_dtree (pop mx) )
-        end
+    | None   -> Test ( get_first_pre_context mx,
+                       get_first_constraints mx,
+                       get_first_term mx,
+                       Utils.map_opt to_dtree (pop mx) )
     (* Pattern on the first line at column c *)
     | Some c ->
         let cases = partition mx c in

@@ -151,12 +151,36 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
         else find_case st tl
     | _, _::tl -> find_case st tl
 
-let get_context_syn (stack:stack) (ord:int LList.t) : env =
-  LList.map (fun i -> lazy (term_of_state (List.nth stack i) )) ord
+exception CannotUnshift
+let unshift q te = (*TODO duplicated code (dtree.ml) *)
+  let rec aux k = function
+  | DB (_,_,n) as t when n<k -> t
+  | DB (l,x,n) ->
+      if n-q-k >= 0 then mk_DB l x (n-q-k)
+      else ( (*Print.debug "Cannot unshift" ;*) raise CannotUnshift )
+  | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
+  | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
+  | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
+  | Pi  (l,x,a,b) -> mk_Pi l x (aux k a) (aux (k+1) b)
+  | Type _ | Kind | Const _ as t -> t
+  in
+    aux 0 te
+
+let get_context_syn (stack:stack) (ord:pos LList.t) : env option =
+  try Some (LList.map (
+    fun p ->
+      if ( p.depth = 0 ) then
+        lazy (term_of_state (List.nth stack p.position) )
+      else
+        Lazy.from_val
+          (unshift p.depth (term_of_state (List.nth stack p.position) ))
+  ) ord )
+  with CannotUnshift -> None
 
 let get_context_mp (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
-  let aux (v,db_lst) =
-    Lazy.lazy_from_val (Matching.resolve db_lst (term_of_state (List.nth stack v)))
+  let aux pb =
+    Lazy.from_val ( unshift pb.depth2 (
+      (Matching.resolve pb.dbs (term_of_state (List.nth stack pb.position2))) ))
   in
   try Some (LList.map aux pb_lst)
   with Matching.NotUnifiable -> None
@@ -199,11 +223,19 @@ and rewrite (stack:stack) (g:dtree) : (env*term) option =
                 | FC_None -> Utils.bind_opt (rewrite stack) def
           end
       | Test (Syntactic ord,[],right,def) ->
-          let ctx = get_context_syn stack ord in Some (ctx, right)
+          begin
+            match get_context_syn stack ord with
+              | None -> Utils.bind_opt (rewrite stack) def
+              | Some ctx -> Some (ctx, right)
+          end
       | Test (Syntactic ord, eqs, right, def) ->
-          let ctx = get_context_syn stack ord in
-            if test ctx eqs then Some (ctx, right)
-            else Utils.bind_opt (rewrite stack) def
+          begin
+            match get_context_syn stack ord with
+              | None -> Utils.bind_opt (rewrite stack) def
+              | Some ctx ->
+                  if test ctx eqs then Some (ctx, right)
+                  else Utils.bind_opt (rewrite stack) def
+          end
       | Test (MillerPattern lst, eqs, right, def) ->
           begin
               match get_context_mp stack lst with

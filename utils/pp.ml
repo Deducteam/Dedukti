@@ -101,7 +101,7 @@ let pp_pc out = function
 
 let rec pp_dtree t out = function
   | Test (pc,[],te,None)   -> fprintf out "(%a) %a" pp_pc pc pp_term te
-  | Test (_,[],_,_)      -> assert false
+  | Test (_,[],_,def)      -> assert false
   | Test (pc,lst,te,def)  ->
       let tab = tab t in
       let aux out (i,j) = fprintf out "%a=%a" pp_term i pp_term j in

@@ -24,15 +24,17 @@ type case =
   | CLam
 
 (* Abstract (from a stack (or a term list)) matching problem *)
-type abstract_pb = int (*c*) * int LList.t (*(k_i)_{i<=n}*)
+type abstract_pb = { position2:int (*c*) ; dbs:int LList.t (*(k_i)_{i<=n}*) ; depth2:int }
 (* It corresponds to the following matching problem (modulo beta):
  * stck.(c) ~? F( (DB k_0) ... (DB k_n) )
  * where F is the variable
  * *)
 
+type pos = { position:int; depth:int }
+
 (* Infos to build the context from the stack *)
 type pre_context =
-  | Syntactic of int LList.t
+  | Syntactic of pos LList.t
   (* the list of positions in the stack corresponding to the context. *)
   | MillerPattern of abstract_pb LList.t
   (* the list of abstract problem which list of solutions gives the context. *)
