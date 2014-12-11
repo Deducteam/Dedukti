@@ -26,7 +26,7 @@
 
     let rec preterm_loc = function
         | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
-        | PrePi   (l,_,_,_) -> l
+        | PreLet (l,_,_,_) | PrePi   (l,_,_,_) -> l
         | PreApp (f,_,_) -> preterm_loc f
 
     let mk_pre_from_list = function
@@ -44,6 +44,8 @@
 %token FATARROW
 %token LONGARROW
 %token DEF
+%token LET
+%token IN
 %token LEFTPAR
 %token RIGHTPAR
 %token LEFTBRA
@@ -184,4 +186,6 @@ term            : sterm+
                 { PreLam (fst $1,snd $1,None,$3) }
                 | ID COLON sterm+ FATARROW term
                 { PreLam (fst $1,snd $1,Some(mk_pre_from_list $3),$5) }
+                | LET ID DEF sterm IN term
+                { PreLet (fst $2,snd $2,$4,$6) }
 %%

@@ -4,7 +4,7 @@ open Basics
 
 val coc : bool ref
 
-type 'a judgment0 = private { ctx:'a; te:term; ty: term; }
+type 'a judgment0 = private { ctx:'a; let_ctx : LetCtx.t; te:term; ty: term; }
 
 module Context :
 sig
@@ -18,8 +18,8 @@ end
 type judgment = Context.t judgment0
 type rule_judgment
 
-val infer       : Context.t -> term -> judgment
-val check       : term -> judgment -> judgment
+val infer       : LetCtx.t -> Context.t -> term -> judgment
+val check       : LetCtx.t -> term -> judgment -> judgment
 
 val inference   : term -> judgment
 val checking    : term -> term -> judgment

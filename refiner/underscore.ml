@@ -29,6 +29,7 @@ let unshift te n ty =
   | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args )
   | Lam (_,x,_,f) -> mk_Lam dloc x None (aux (k+1) f)
   | Pi  (_,x,a,b) -> mk_Pi dloc x (aux k a) (aux (k+1) b)
+  | Let (_,x,a,b) -> mk_Let dloc x (aux k a) (aux (k+1) b)
   | Type _ | Kind | Const _ as t -> t
   in
     aux 0 ty
@@ -37,14 +38,14 @@ let db_get_type l ctx n nb =
   let (_,_,ty) = List.nth ctx n in
     Subst.shift (n+1+nb) ty
 
-let refine (nb_jokers:int) (ctx0:context) (te:term) : context =
+let refine (nb_jokers:int) let_ctx (ctx0:context) (te:term) : context =
   let arr = Array.make nb_jokers (dloc,qmark,mk_Kind) in
   let size = List.length ctx0 in
 
-  let rec infer k (ctx:context) : term -> term = function
+  let rec infer k let_ctx (ctx:context) : term -> term = function
     | Const (l,md,id) -> Env.get_type l md id
     | DB (l,_,n) when n<k -> db_get_type l ctx n 0
-    | DB (l,_,n) ->
+    | DB (l,_,n) -> (* TODO use let_ctx *)
         begin
           let n' = n-nb_jokers-k in
             assert ( n' >= 0 );
@@ -52,30 +53,31 @@ let refine (nb_jokers:int) (ctx0:context) (te:term) : context =
             db_get_type l ctx0 n' nb_jokers
         end
     | App (f,a,args) ->
-        snd (List.fold_left (check_app k ctx) (f,infer k ctx f) (a::args))
+        snd (List.fold_left (check_app k ctx) (f,infer k let_ctx ctx f) (a::args))
+    | Let _ -> assert false (* TODO *)
     | Lam _ -> assert false
     | Kind | Type _ | Pi _-> assert false
 
   and check_app k (ctx:context) (f,ty_f:term*term) (arg:term) : term*term =
-    match Reduction.whnf ty_f with
-      | Pi (_,_,a,b) -> ( check k ctx arg a; ( mk_App f arg [] , Subst.subst b arg ) )
+    match Reduction.whnf let_ctx ty_f with
+      | Pi (_,_,a,b) -> ( check k let_ctx ctx arg a; ( mk_App f arg [] , Subst.subst b arg ) )
       | _ -> error_product f ctx ty_f
 
-  and check k ctx (te:term) (ty_exp:term) : unit =
+  and check k let_ctx ctx (te:term) (ty_exp:term) : unit =
     match te with
       | Lam (l,x,_,u) ->
-          ( match Reduction.whnf ty_exp with
-              | Pi (l,x,a1,b) -> check (k+1) ((l,x,a1)::ctx) u b
+          ( match Reduction.whnf let_ctx ty_exp with
+              | Pi (l,x,a1,b) -> check (k+1) let_ctx ((l,x,a1)::ctx) u b
               | _ -> error_product te ctx ty_exp
           )
       | DB (l,x,n) when ( (n-k) < nb_jokers ) ->
           arr.(n-k) <- (l,x,unshift te n ty_exp)
       | _ ->
-          let ty_inf = infer k ctx te in
-            if Reduction.are_convertible ty_exp ty_inf then ()
+          let ty_inf = infer k let_ctx ctx te in
+            if Reduction.are_convertible let_ctx ty_exp ty_inf then ()
             else error_convertibility te ctx ty_exp ty_inf
   in
-  let _ = infer 0 [] te in
+  let _ = infer 0 LetCtx.empty [] te in
     (Array.to_list arr)@ctx0
 
 let shift_pattern (nb:int) (p:pattern) : pattern =
@@ -96,7 +98,7 @@ let refine_rule (ctx,pat,rhs:rule) : rule =
     if nb=0 then (ctx,pat,rhs)
     else
       let pat2 = shift_pattern nb pat in
-      let ctx2 = refine nb ctx (pattern_to_term pat2) in
+      let ctx2 = refine nb LetCtx.empty ctx (pattern_to_term pat2) in
       let rhs2 = Subst.shift nb rhs in
        (* Print.debug "NEW PATTERN: %a." Pp.pp_pattern pat2 ;
         Print.debug "NEW CONTEXT:\n %a." Pp.pp_context ctx2 ; *)

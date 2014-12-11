@@ -6,48 +6,78 @@ type env = term Lazy.t LList.t
 
 type state = {
   ctx:env;              (*context*)
+  let_ctx : LetCtx.t;   (*local definitions*)
   term : term;          (*term to reduce*)
   stack : stack;        (*stack*)
 }
 and stack = state list
 
-type cloture = { cenv:env; cterm:term; }
+type cloture = { cenv:env; cterm:term; clet_ctx:LetCtx.t; }
+
+let rec cloture_lookup (c : cloture) = match c.cterm with
+  | DB (_, _, n) ->
+      begin match LetCtx.get c.clet_ctx n with
+      | None -> c
+      | Some (t, t_let_ctx) ->
+          cloture_lookup {cterm=t; clet_ctx=t_let_ctx; cenv=LList.nil; }
+      end
+  | _ -> c
 
 let rec cloture_eq : (cloture*cloture) list -> bool = function
   | [] -> true
   | (c1,c2)::lst ->
+      let c1 = cloture_lookup c1 in
+      let c2 = cloture_lookup c2 in
        ( match c1.cterm, c2.cterm with
            | Kind, Kind | Type _, Type _ -> cloture_eq lst
            | Const (_,m1,v1), Const (_,m2,v2) ->
                ident_eq v1 v2 && ident_eq m1 m2 && cloture_eq lst
            | Lam (_,_,_,t1), Lam (_,_,_,t2) ->
                let arg = Lazy.lazy_from_val (mk_DB dloc qmark 0) in
-               let c3 = { cenv=LList.cons arg c1.cenv; cterm=t1; } in
-               let c4 = { cenv=LList.cons arg c2.cenv; cterm=t2; } in
-                 cloture_eq ((c3,c4)::lst)
+               let c3 = { cenv=LList.cons arg c1.cenv; cterm=t1;
+                          clet_ctx=LetCtx.cons_none c1.clet_ctx } in
+               let c4 = { cenv=LList.cons arg c2.cenv; cterm=t2;
+                          clet_ctx=LetCtx.cons_none c2.clet_ctx } in
+               cloture_eq ((c3,c4)::lst)
+           | Let (_,x,a,b), _ ->
+               (* define x=a *)
+               let arg = Lazy.lazy_from_val a in
+               let c1' = {cterm=b; cenv=LList.cons arg c1.cenv;
+                          clet_ctx=LetCtx.cons (a,c1.clet_ctx) c1.clet_ctx} in
+               cloture_eq ((c1', c2)::lst)
+           | _, Let (_,x,a,b) ->
+               (* define x=a *)
+               let arg = Lazy.lazy_from_val a in
+               let c2' = {cterm=b; cenv=LList.cons arg c2.cenv;
+                          clet_ctx=LetCtx.cons (a, c2.clet_ctx) c2.clet_ctx} in
+                cloture_eq ((c1, c2')::lst)
            | Pi (_,_,a1,b1), Pi (_,_,a2,b2) ->
                let arg = Lazy.lazy_from_val (mk_DB dloc qmark 0) in
-               let c3 = { cenv=c1.cenv; cterm=a1; } in
-               let c4 = { cenv=c2.cenv; cterm=a2; } in
-               let c5 = { cenv=LList.cons arg c1.cenv; cterm=b1; } in
-               let c6 = { cenv=LList.cons arg c2.cenv; cterm=b2; } in
+               let c3 = { cenv=c1.cenv; cterm=a1; clet_ctx=c1.clet_ctx; } in
+               let c4 = { cenv=c2.cenv; cterm=a2; clet_ctx=c2.clet_ctx; } in
+               let c5 = { cenv=LList.cons arg c1.cenv; cterm=b1;
+                          clet_ctx=LetCtx.cons_none c1.clet_ctx; } in
+               let c6 = { cenv=LList.cons arg c2.cenv; cterm=b2;
+                          clet_ctx=LetCtx.cons_none c2.clet_ctx; } in
                  cloture_eq ((c3,c4)::(c5,c6)::lst)
            | App (f1,a1,l1), App (f2,a2,l2) ->
                ( try
                    let aux lst0 t1 t2 =
-                     ( { cenv=c1.cenv; cterm=t1; },
-                       { cenv=c2.cenv; cterm=t2; } )::lst0
+                     ( { c1 with cterm=t1; },
+                       { c2 with cterm=t2; } )::lst0
                    in
                      cloture_eq (List.fold_left2 aux lst (f1::a1::l1) (f2::a2::l2))
                  with Invalid_argument _ -> false
                )
            | DB (_,_,n), _ when n<c1.cenv.LList.len ->
                let c3 =
-                 { cenv=LList.nil; cterm=Lazy.force (LList.nth c1.cenv n); } in
+                 { cenv=LList.nil; cterm=Lazy.force (LList.nth c1.cenv n);
+                   clet_ctx=LetCtx.empty } in
                cloture_eq ((c3,c2)::lst)
            | _, DB (_,_,n) when n<c2.cenv.LList.len ->
                let c3 =
-                 { cenv=LList.nil; cterm=Lazy.force (LList.nth c2.cenv n); } in
+                 { cenv=LList.nil; cterm=Lazy.force (LList.nth c2.cenv n);
+                   clet_ctx=LetCtx.empty; } in
                  cloture_eq ((c1,c3)::lst)
            | DB (_,_,n1), DB (_,_,n2) (* ni >= ci.cenv.len *) ->
                ( n1-c1.cenv.LList.len ) = ( n2-c2.cenv.LList.len )
@@ -58,17 +88,17 @@ let rec cloture_eq : (cloture*cloture) list -> bool = function
 let rec add2 l1 l2 lst =
   match l1, l2 with
     | [], [] -> Some lst
-    | s1::l1, s2::l2 -> add2 l1 l2 ((s1,s2)::lst)
+    | s1::tl1, s2::tl2 -> add2 tl1 tl2 ((s1,s2)::lst)
     | _,_ -> None
 
 let rec state_eq : (state*state) list -> bool = function
   | [] -> true
   | (s1,s2)::lst ->
       ( match add2 s1.stack s2.stack lst with
-          | None -> cloture_eq [ {cenv=s1.ctx; cterm=s1.term},
-                                 {cenv=s2.ctx;cterm=s2.term} ]
-          | Some lst2 -> cloture_eq [ {cenv=s1.ctx; cterm=s1.term},
-                                      {cenv=s2.ctx;cterm=s2.term} ]
+          | None -> cloture_eq [ {cenv=s1.ctx; cterm=s1.term; clet_ctx=s1.let_ctx; },
+                                 {cenv=s2.ctx;cterm=s2.term; clet_ctx=s2.let_ctx } ]
+          | Some lst2 -> cloture_eq [ {cenv=s1.ctx; cterm=s1.term; clet_ctx=s1.let_ctx; },
+                                      {cenv=s2.ctx;cterm=s2.term; clet_ctx=s2.let_ctx; } ]
             && state_eq lst2
       )
 
@@ -106,24 +136,41 @@ let dump_stack stk =
 (* ********************* *)
 
 let rec beta_reduce : state -> state = function
-    (* Weak heah beta normal terms *)
+    (* Weak head beta normal terms *)
     | { term=Type _ }
     | { term=Kind }
     | { term=Const _ }
     | { term=Pi _ }
-    | { term=Lam _; stack=[] } as config -> config
-    | { ctx={ LList.len=k }; term=DB (_,_,n) } as config when (n>=k) -> config
-    (* DeBruijn index: environment lookup *)
-    | { ctx; term=DB (_,_,n); stack } (*when n<k*) ->
-        beta_reduce { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
+    | { term=Lam _; stack=[]; _ } as config -> config
+    | { term=Let (_,_,a,b); let_ctx; ctx; _ } as config ->
+        (* evaluate b with x := a *)
+        let ctx_a = {ctx; let_ctx; term=a; stack=[]} in
+        let config' = {
+          config with ctx=LList.cons (lazy (term_of_state ctx_a)) ctx;
+          let_ctx=LetCtx.cons (a,let_ctx) config.let_ctx;
+          term=b;
+        } in
+        beta_reduce config'
+    (* DeBruijn index: environment lookup (if not a let-definition) *)
+    | { ctx; term=DB (_,_,n); _ } as config (*when n<k*) ->
+        begin match LetCtx.get config.let_ctx n with
+        | None ->
+            if n >= LList.len ctx
+            then config
+            else beta_reduce { config with ctx=LList.nil; term=Lazy.force (LList.nth ctx n) }
+        | Some (t, t_let_ctx) ->
+            (* let-definition *)
+            let config' = { config with term=t; let_ctx=t_let_ctx; } in
+            beta_reduce config'
+        end
     (* Beta redex *)
-    | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
-        beta_reduce { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    | { ctx; term=Lam (_,_,_,t); stack=p::s; let_ctx; } ->
+        beta_reduce { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s; let_ctx; }
     (* Application: arguments go on the stack *)
-    | { ctx; term=App (f,a,lst); stack=s } ->
+    | { term=App (f,a,lst); _ } as config ->
         (* rev_map + rev_append to avoid map + append*)
-        let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
-          beta_reduce { ctx; term=f; stack=List.rev_append tl' s }
+        let tl' = List.rev_map ( fun t -> {config with term=t;stack=[]} ) (a::lst) in
+          beta_reduce { config with term=f; stack=List.rev_append tl' config.stack }
 
 (* ********************* *)
 
@@ -133,12 +180,14 @@ type find_case_ty =
   | FC_DB of dtree*state list
   | FC_None
 
+(* TODO: deal with lets here? *)
+
 let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
   match st, cases with
     | _, [] -> FC_None
-    | { ctx; term=Lam (_,_,_,te) } , ( CLam , tr )::tl ->
+    | { ctx; term=Lam (_,_,_,te); let_ctx } , ( CLam , tr )::tl ->
         let ctx2 = LList.cons (Lazy.lazy_from_val (mk_DB dloc qmark 0)) ctx in
-          FC_Lam ( tr , { ctx=ctx2; term=te; stack=[] } )
+        FC_Lam ( tr , { ctx=ctx2; term=te; stack=[]; let_ctx=LetCtx.cons_none let_ctx; } )
     | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
         if ident_eq v v' && ident_eq m m' then
           ( assert (List.length stack == nargs);
@@ -161,6 +210,7 @@ let unshift q te = (*TODO duplicated code (dtree.ml) *)
   | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
   | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
   | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
+  | Let (l,x,a,b) -> mk_Let l x (aux k a) (aux (k+1) b)
   | Pi  (l,x,a,b) -> mk_Pi l x (aux k a) (aux (k+1) b)
   | Type _ | Kind | Const _ as t -> t
   in
@@ -187,29 +237,29 @@ let get_context_mp (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
 
 let rec reduce (st:state) : state =
   match beta_reduce st with
-    | { ctx; term=Const (l,m,v); stack } as config ->
+    | { ctx; term=Const (l,m,v); stack; let_ctx } as config ->
         begin
           match Env.get_dtree l m v with
             | Env.DoD_None -> config
-            | Env.DoD_Def term -> reduce { ctx=LList.nil; term; stack }
+            | Env.DoD_Def term -> reduce { ctx=LList.nil; term; stack; let_ctx; }
             | Env.DoD_Dtree (i,g) ->
                 begin
                   match split_stack i stack with
                     | None -> config
                     | Some (s1,s2) ->
-                        ( match rewrite s1 g with
+                        ( match rewrite let_ctx s1 g with
                             | None -> config
-                            | Some (ctx,term) -> reduce { ctx; term; stack=s2 }
+                            | Some (ctx,term) -> reduce { ctx; term; stack=s2; let_ctx }
                         )
                 end
         end
     | config -> config
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
-and rewrite (stack:stack) (g:dtree) : (env*term) option =
+and rewrite let_ctx (stack:stack) (g:dtree) : (env*term) option =
   let test ctx eqs =
     state_conv (List.rev_map (
-      fun (t1,t2) -> ( { ctx; term=t1; stack=[] } , { ctx; term=t2; stack=[] } )
+      fun (t1,t2) -> ( { let_ctx; ctx; term=t1; stack=[] } , { let_ctx; ctx; term=t2; stack=[] } )
     ) eqs)
   in
     (*dump_stack stck ;*)
@@ -218,31 +268,31 @@ and rewrite (stack:stack) (g:dtree) : (env*term) option =
           begin
             let arg_i = reduce (List.nth stack i) in
               match find_case arg_i cases with
-                | FC_DB (g,s) | FC_Const (g,s) -> rewrite (stack@s) g
-                | FC_Lam (g,te) -> rewrite (stack@[te]) g
-                | FC_None -> Utils.bind_opt (rewrite stack) def
+                | FC_DB (g,s) | FC_Const (g,s) -> rewrite let_ctx (stack@s) g
+                | FC_Lam (g,te) -> rewrite let_ctx (stack@[te]) g
+                | FC_None -> Utils.bind_opt (rewrite let_ctx stack) def
           end
       | Test (Syntactic ord,[],right,def) ->
           begin
             match get_context_syn stack ord with
-              | None -> Utils.bind_opt (rewrite stack) def
+              | None -> Utils.bind_opt (rewrite let_ctx stack) def
               | Some ctx -> Some (ctx, right)
           end
       | Test (Syntactic ord, eqs, right, def) ->
           begin
             match get_context_syn stack ord with
-              | None -> Utils.bind_opt (rewrite stack) def
+              | None -> Utils.bind_opt (rewrite let_ctx stack) def
               | Some ctx ->
                   if test ctx eqs then Some (ctx, right)
-                  else Utils.bind_opt (rewrite stack) def
+                  else Utils.bind_opt (rewrite let_ctx stack) def
           end
       | Test (MillerPattern lst, eqs, right, def) ->
           begin
               match get_context_mp stack lst with
-                | None -> Utils.bind_opt (rewrite stack) def
+                | None -> Utils.bind_opt (rewrite let_ctx stack) def
                 | Some ctx ->
                       if test ctx eqs then Some (ctx, right)
-                      else Utils.bind_opt (rewrite stack) def
+                      else Utils.bind_opt (rewrite let_ctx stack) def
           end
 
 and state_conv : (state*state) list -> bool = function
@@ -273,52 +323,57 @@ and state_conv : (state*state) list -> bool = function
                   | None          -> false
                   | Some lst'     -> state_conv lst'
               end
-          | { ctx=e;  term=Lam (_,_,_,b);   stack=s },
-            { ctx=e'; term=Lam (_,_,_',b'); stack=s'} ->
+          | { ctx=e;  term=Lam (_,_,_,b);   stack=s;  let_ctx=l; },
+            { ctx=e'; term=Lam (_,_,_',b'); stack=s'; let_ctx=l'; } ->
               begin
                 assert ( s = [] && s' = [] ) ;
                 let arg = Lazy.lazy_from_val (mk_DB dloc qmark 0) in
                 let lst' =
-                  ( {ctx=LList.cons arg e;term=b;stack=[]},
-                    {ctx=LList.cons arg e';term=b';stack=[]} ) :: lst in
-                  state_conv lst'
+                  ( {ctx=LList.cons arg e;term=b;stack=[]; let_ctx=l},
+                    {ctx=LList.cons arg e';term=b';stack=[]; let_ctx=l'} )
+                  :: lst in
+                state_conv lst'
               end
-          | { ctx=e;  term=Pi  (_,_,a,b);   stack=s },
-            { ctx=e'; term=Pi  (_,_,a',b'); stack=s'} ->
+          | { ctx=e;  term=Pi  (_,_,a,b);   stack=s;  let_ctx=l; },
+            { ctx=e'; term=Pi  (_,_,a',b'); stack=s'; let_ctx=l'; } ->
               begin
                 assert ( s = [] && s' = [] ) ;
                 let arg = Lazy.lazy_from_val (mk_DB dloc qmark 0) in
                 let lst' =
-                  ( {ctx=e;term=a;stack=[]}, {ctx=e';term=a';stack=[]} ) ::
-                  ( {ctx=LList.cons arg e;term=b;stack=[]},
-                    {ctx=LList.cons arg e';term=b';stack=[]} ) :: lst in
-                  state_conv lst'
+                  ( {ctx=e;term=a;stack=[];let_ctx=l;}, {ctx=e';term=a';stack=[];let_ctx=l'} ) ::
+                  ( {ctx=LList.cons arg e;term=b;stack=[]; let_ctx=l},
+                    {ctx=LList.cons arg e';term=b';stack=[]; let_ctx=l'}
+                  ) :: lst in
+                state_conv lst'
               end
           | _, _ -> false
 
 (* ********************* *)
 
 (* Weak Normal Form *)
-let whnf term = term_of_state ( reduce { ctx=LList.nil; term; stack=[] } )
+let whnf let_ctx term = term_of_state ( reduce { ctx=LList.nil; term; stack=[]; let_ctx } )
 
 (* Head Normal Form *)
-let rec hnf t =
-  match whnf t with
+let rec hnf let_ctx t =
+  match whnf let_ctx t with
     | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
-    | App (f,a,lst) -> mk_App (hnf f) (hnf a) (List.map hnf lst)
+    | App (f,a,lst) -> mk_App (hnf let_ctx f) (hnf let_ctx a) (List.map (hnf let_ctx) lst)
+    | Let _ -> assert false
 
 (* Convertibility Test *)
-let are_convertible t1 t2 =
-  state_conv [ ( {ctx=LList.nil;term=t1;stack=[]} , {ctx=LList.nil;term=t2;stack=[]} ) ]
+let are_convertible let_ctx t1 t2 =
+  state_conv [ ( {ctx=LList.nil;term=t1;stack=[];let_ctx} ,
+                 {ctx=LList.nil;term=t2;stack=[];let_ctx;} ) ]
 
 (* Strong Normal Form *)
-let rec snf (t:term) : term =
-  match whnf t with
+let rec snf let_ctx (t:term) : term =
+  match whnf let_ctx t with
     | Kind | Const _
     | DB _ | Type _ as t' -> t'
-    | App (f,a,lst)     -> mk_App (snf f) (snf a) (List.map snf lst)
-    | Pi (_,x,a,b)        -> mk_Pi dloc x (snf a) (snf b)
-    | Lam (_,x,a,b)       -> mk_Lam dloc x None (snf b)
+    | App (f,a,lst)     -> mk_App (snf let_ctx f) (snf let_ctx a) (List.map (snf let_ctx) lst)
+    | Pi (_,x,a,b)        -> mk_Pi dloc x (snf let_ctx a) (snf (LetCtx.cons_none let_ctx) b)
+    | Lam (_,x,a,b)       -> mk_Lam dloc x None (snf (LetCtx.cons_none let_ctx) b)
+    | Let (_,_,a,b)       -> snf (LetCtx.cons (a,let_ctx) let_ctx) b
 
 (* One-Step Reduction *)
 let rec state_one_step : state -> state option = function
@@ -327,36 +382,53 @@ let rec state_one_step : state -> state option = function
     | { term=Kind }
     | { term=Pi _ }
     | { term=Lam _; stack=[] } -> None
+    | { term=Let (_,_,a,b); let_ctx; ctx; _ } as config ->
+        (* evaluate b with x := a *)
+        let ctx_a = {ctx; let_ctx; term=a; stack=[]} in
+        Some {
+          config with ctx=LList.cons (lazy (term_of_state ctx_a)) ctx;
+          let_ctx=LetCtx.cons (a,let_ctx) config.let_ctx;
+          term=b;
+        }
     | { ctx={ LList.len=k }; term=DB (_,_,n) } when (n>=k) -> None
     (* DeBruijn index: environment lookup *)
-    | { ctx; term=DB (_,_,n); stack } (*when n<k*) ->
-        state_one_step { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
+    | { ctx; term=DB (_,_,n); stack; let_ctx } (*when n<k*) ->
+        begin match LetCtx.get let_ctx n with
+        | None ->
+            if n >= LList.len ctx
+            then None
+            else Some 
+              { ctx=LList.nil; term=Lazy.force (LList.nth ctx n);
+                stack; let_ctx }
+        | Some (t, t_let_ctx) ->
+            Some {ctx; stack; let_ctx=t_let_ctx; term=t}
+        end
     (* Beta redex *)
-    | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
-        Some { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    | { ctx; term=Lam (_,_,_,t); stack=p::s; let_ctx } ->
+        Some { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s; let_ctx }
     (* Application: arguments go on the stack *)
-    | { ctx; term=App (f,a,lst); stack=s } ->
+    | { ctx; term=App (f,a,lst); stack=s; let_ctx } ->
         (* rev_map + rev_append to avoid map + append*)
-        let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
-          state_one_step { ctx; term=f; stack=List.rev_append tl' s }
+        let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[];let_ctx} ) (a::lst) in
+        state_one_step { ctx; term=f; stack=List.rev_append tl' s; let_ctx }
     (* Constant Application *)
-    | { ctx; term=Const (l,m,v); stack } ->
+    | { ctx; term=Const (l,m,v); stack; let_ctx } ->
         begin
           match Env.get_dtree l m v with
             | Env.DoD_None -> None
-            | Env.DoD_Def term -> Some { ctx=LList.nil; term; stack }
+            | Env.DoD_Def term -> Some { ctx=LList.nil; term; stack; let_ctx }
             | Env.DoD_Dtree (i,g) ->
                 begin
                   match split_stack i stack with
                     | None -> None
                     | Some (s1,s2) ->
-                        ( match rewrite s1 g with
+                        ( match rewrite let_ctx s1 g with
                             | None -> None
-                            | Some (ctx,term) -> Some { ctx; term; stack=s2 }
+                            | Some (ctx,term) -> Some { ctx; let_ctx; term; stack=s2 }
                         )
                 end
         end
 
-let one_step t =
+let one_step let_ctx t =
   Utils.map_opt term_of_state
-    (state_one_step { ctx=LList.nil; term=t; stack=[] })
+    (state_one_step { ctx=LList.nil; let_ctx;term=t; stack=[] })

@@ -4,7 +4,7 @@ open Rule
 
 let coc = ref false
 
-type 'a judgment0 = { ctx:'a; te:term; ty: term; }
+type 'a judgment0 = { ctx:'a; let_ctx : LetCtx.t; te:term; ty: term; }
 type rule_judgment = context * pattern * term
 
 (* ********************** ERROR MESSAGES *)
@@ -92,96 +92,101 @@ type judgment = Context.t judgment0
 
 (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
-let rec infer (ctx:Context.t) : term -> judgment = function
+let rec infer let_ctx (ctx:Context.t) : term -> judgment = function
   | Kind -> Print.fail dloc "Kind is not typable."
   | Type l ->
-      { ctx=ctx; te=mk_Type l; ty= mk_Kind; }
+      { ctx=ctx; te=mk_Type l; ty= mk_Kind; let_ctx }
   | DB (l,x,n) ->
-      { ctx=ctx; te=mk_DB l x n; ty= Context.get_type ctx l x n }
+      { ctx=ctx; te=mk_DB l x n; ty= Context.get_type ctx l x n; let_ctx; }
   | Const (l,md,id) ->
-      { ctx=ctx; te=mk_Const l md id; ty= Env.get_type l md id; }
+      { ctx=ctx; te=mk_Const l md id; ty= Env.get_type l md id; let_ctx; }
   | App (f,a,args) ->
-      List.fold_left check_app (infer ctx f) (a::args)
+      List.fold_left (check_app let_ctx) (infer let_ctx ctx f) (a::args)
+  | Let (l, x, a, b) ->
+      infer (LetCtx.cons (a,let_ctx) let_ctx) ctx b
   | Pi (l,x,a,b) ->
-      let jdg_a = infer ctx a in
-      let jdg_b = infer (Context.add l x jdg_a) b in
+      let jdg_a = infer let_ctx ctx a in
+      let jdg_b = infer (LetCtx.cons_none let_ctx) (Context.add l x jdg_a) b in
         ( match jdg_b.ty with
-            | Kind | Type _ as ty -> { ctx=ctx; te=mk_Pi l x a jdg_b.te; ty=ty }
+            | Kind | Type _ as ty ->
+                { ctx=ctx; te=mk_Pi l x a jdg_b.te; ty; let_ctx; }
             | _ -> error_sort_expected jdg_b.te
                      (Context.to_context jdg_b.ctx) jdg_b.ty
         )
   | Lam  (l,x,Some a,b) ->
-      let jdg_a = infer ctx a in
-      let jdg_b = infer (Context.add l x jdg_a) b in
+      let jdg_a = infer let_ctx ctx a in
+      let jdg_b = infer (LetCtx.cons_none let_ctx) (Context.add l x jdg_a) b in
         ( match jdg_b.ty with
             | Kind ->
                 error_inexpected_kind jdg_b.te (Context.to_context jdg_b.ctx)
-            | _ -> { ctx=ctx; te=mk_Lam l x (Some a) jdg_b.te;
-                     ty=mk_Pi l x a jdg_b.ty }
+            | _ ->
+                { ctx=ctx; te=mk_Lam l x (Some a) jdg_b.te;
+                  ty=mk_Pi l x a jdg_b.ty; let_ctx }
         )
   | Lam  (l,x,None,b) ->
       Print.fail l "Cannot infer the type of domain-free lambda."
 
-and check (te:term) (jty:judgment) : judgment =
+and check let_ctx (te:term) (jty:judgment) : judgment =
   let ty_exp = jty.te in
   let ctx = jty.ctx in
     match te with
       | Lam (l,x,None,u) ->
-          ( match Reduction.whnf jty.te with
+          ( match Reduction.whnf let_ctx jty.te with
               | Pi (_,_,a,b) as pi ->
                   let ctx2 = Context.unsafe_add ctx l x a in
                   (* (x) might as well be Kind but here we do not care*)
-                  let _ = check u { ctx=ctx2; te=b; ty=mk_Type dloc (* (x) *); } in
-                    { ctx=ctx; te=mk_Lam l x None u; ty=pi; }
+                  let _ = check let_ctx u { ctx=ctx2; te=b; ty=mk_Type dloc (* (x) *); let_ctx } in
+                    { ctx=ctx; te=mk_Lam l x None u; ty=pi; let_ctx }
               | _ ->
                   error_product_expected te (Context.to_context jty.ctx) jty.te
           )
       | _ ->
-        let jte = infer ctx te in
-          if Reduction.are_convertible jte.ty ty_exp then
-            { ctx=ctx; te=te; ty=ty_exp; }
+        let jte = infer let_ctx ctx te in
+          if Reduction.are_convertible let_ctx jte.ty ty_exp then
+            { ctx=ctx; te=te; ty=ty_exp; let_ctx }
           else
             error_convertibility te (Context.to_context ctx) ty_exp jte.ty
 
-and check_app jdg_f arg =
-  match Reduction.whnf jdg_f.ty with
+and check_app let_ctx jdg_f arg =
+  match Reduction.whnf let_ctx jdg_f.ty with
     | Pi (_,_,a,b) ->
         (* (x) might be Kind if CoC flag is on but it does not matter here *)
-        let _ = check arg { ctx=jdg_f.ctx; te=a; ty=mk_Type dloc (* (x) *); } in
-          { ctx=jdg_f.ctx; te=mk_App jdg_f.te arg []; ty=Subst.subst b arg; }
+        let _ = check let_ctx arg
+          { ctx=jdg_f.ctx; te=a; ty=mk_Type dloc (* (x) *); let_ctx } in
+        { ctx=jdg_f.ctx; te=mk_App jdg_f.te arg []; ty=Subst.subst b arg; let_ctx }
     | _ ->
         error_product_expected jdg_f.te (Context.to_context jdg_f.ctx) jdg_f.ty
 
-let inference (te:term) : judgment = infer Context.empty te
+let inference (te:term) : judgment = infer LetCtx.empty Context.empty te
 
 let checking (te:term) (ty_exp:term) : judgment =
-  let jty = infer Context.empty ty_exp in
-    check te jty
+  let jty = infer LetCtx.empty Context.empty ty_exp in
+    check jty.let_ctx te jty
 
 (* ********************** RULE TYPECHECKING  *)
 
 let check_rule (ctx0,pat,rhs:rule) : rule_judgment =
   let ctx =
-    List.fold_left (fun ctx (l,id,ty) -> Context.add l id (infer ctx ty) )
+    List.fold_left (fun ctx (l,id,ty) -> Context.add l id (infer LetCtx.empty ctx ty) )
       Context.empty (List.rev ctx0) (*FIXME*) in
-  let jl = infer ctx (pattern_to_term pat) in
-  let jr = infer ctx rhs in
-    if Reduction.are_convertible jl.ty jr.ty then
+  let jl = infer LetCtx.empty ctx (pattern_to_term pat) in
+  let jr = infer LetCtx.empty ctx rhs in
+    if Reduction.are_convertible LetCtx.empty jl.ty jr.ty then
       ( ctx0, pat, rhs )
     else
       error_convertibility rhs ctx0 jl.ty jr.ty
 
 (* ********************** SAFE REDUCTION *)
 
-let whnf j = { j with te= Reduction.whnf j.te }
-let hnf j = { j with te= Reduction.hnf j.te }
-let snf j = { j with te= Reduction.snf j.te }
-let one j = match Reduction.one_step j.te with
+let whnf j = { j with te= Reduction.whnf LetCtx.empty j.te }
+let hnf j = { j with te= Reduction.hnf LetCtx.empty j.te }
+let snf j = { j with te= Reduction.snf LetCtx.empty j.te }
+let one j = match Reduction.one_step LetCtx.empty j.te with
   | Some te2 -> { j with te=te2 }
   | None -> j
 
-let conv_test j1 j2 = Reduction.are_convertible j1.te j2.te
-let check_test j1 j2 = Reduction.are_convertible j1.ty j2.te
+let conv_test j1 j2 = Reduction.are_convertible LetCtx.empty j1.te j2.te
+let check_test j1 j2 = Reduction.are_convertible LetCtx.empty j1.ty j2.te
 
 (* ********************** SIGNATURE *)
 

@@ -40,6 +40,8 @@ rule token = parse
   | ":="	{ DEF           }
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE ( get_loc lexbuf )       }
+  | "let"      { LET }
+  | "in"       { IN }
   | "#NAME" space+ (modname as md)
   { NAME (get_loc lexbuf , hstring md) }
   | "#WHNF"     { WHNF ( get_loc lexbuf ) }

@@ -19,6 +19,8 @@ type token =
   | EOF
   | DOT
   | DEF
+  | LET
+  | IN
   | COMMA
   | COLON
   | ARROW

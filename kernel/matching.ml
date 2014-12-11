@@ -18,6 +18,7 @@ let permute (dbs:int LList.t) (te:term) : term =
             mk_DB dloc x (n'+k)
     | Lam (l,x,a,b) -> mk_Lam dloc x None (aux (k+1) b)
     | Pi  (_,x,a,b) -> mk_Pi  dloc x (aux k a) (aux (k+1) b)
+    | Let (_,x,a,b) -> mk_Let dloc x (aux k a) (aux (k+1) b)
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
   in aux 0 te
 

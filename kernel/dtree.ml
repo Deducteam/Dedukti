@@ -49,6 +49,7 @@ let unshift q te =
   | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
   | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
   | Pi  (l,x,a,b) -> mk_Pi l x (aux k a) (aux (k+1) b)
+  | Let (l,x,a,b) -> mk_Let l x (aux k a) (aux (k+1) b)
   | Type _ | Kind | Const _ as t -> t
   in
     aux 0 te
@@ -118,6 +119,7 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
             pp_ident id nb_args.(n-k)
         else List.iter (aux k) (a1::args)
     | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
+    | Let (_,_,a,b) -> aux k a; aux (k+1) b
     | Lam (_,_,None,b) -> aux (k+1) b
     | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
   in
