@@ -95,8 +95,15 @@ let rec add_to_list lst (s:stack) (s':stack) =
     | x::s1 , y::s2     -> add_to_list ((x,y)::lst) s1 s2
     | _ ,_              -> None
 
+let pp_env out (ctx:env) =
+  let pp_lazy_term out lt = Pp.pp_term out (Lazy.force lt) in
+    Pp.pp_list ", " pp_lazy_term out (LList.lst ctx)
+
  let dump_state { ctx; term; stack } =
-   Print.debug "[ e=[...] | %a | [...] ]" Pp.pp_term term
+   Print.debug "[ e=[...](%i) | %a | [...] ] { %a } "
+     (LList.len ctx)
+     Pp.pp_term term
+     Pp.pp_term (term_of_state { ctx; term; stack })
 
 let dump_stack stk =
   Print.debug " ================ >";
@@ -136,9 +143,6 @@ type find_case_ty =
 let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
   match st, cases with
     | _, [] -> FC_None
-    | { ctx; term=Lam (_,_,_,te) } , ( CLam , tr )::tl ->
-        let ctx2 = LList.cons (Lazy.lazy_from_val (mk_DB dloc qmark 0)) ctx in
-          FC_Lam ( tr , { ctx=ctx2; term=te; stack=[] } )
     | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
         if ident_eq v v' && ident_eq m m' then
           ( assert (List.length stack == nargs);
@@ -149,6 +153,13 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
           assert (List.length stack == nargs) ;
           FC_DB (tr,stack) )
         else find_case st tl
+    | { ctx; term=Lam (_,_,_,_) } , ( CLam , tr )::tl ->
+        begin
+          match term_of_state st with
+            | Lam (_,_,_,te) ->
+                FC_Lam ( tr , { ctx=LList.nil; term=te; stack=[] } )
+            | _ -> assert false
+        end
     | _, _::tl -> find_case st tl
 
 exception CannotUnshift
@@ -212,7 +223,7 @@ and rewrite (stack:stack) (g:dtree) : (env*term) option =
       fun (t1,t2) -> ( { ctx; term=t1; stack=[] } , { ctx; term=t2; stack=[] } )
     ) eqs)
   in
-    (*dump_stack stck ;*)
+    (*dump_stack stack ; *)
     match g with
       | Switch (i,cases,def) ->
           begin
