@@ -18,10 +18,9 @@ let mk_opaque lc id pty_opt pte =
   define_op2 lc id pte pty_opt;
   print "%a is declared." pp_ident id
 
-let mk_rules rs0 =
-  let rs = List.map Underscore.refine_rule rs0 in
-    add_rules2 rs;
-    List.iter (fun r -> print "%a" Pp.pp_rule r) rs
+let mk_rules lst =
+  add_rules2 lst;
+  List.iter (fun r -> print "%a" Pp.pp_rule r) lst
 
 let mk_command = Cmd.mk_command
 

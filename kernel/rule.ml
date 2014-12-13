@@ -6,11 +6,10 @@ type pattern =
   | Pattern     of loc*ident*ident*pattern list
   | Lambda      of loc*ident*pattern
   | Brackets    of term
-  | Joker       of loc
 
 let get_loc_pat = function
   | Var (l,_,_,_) | Pattern (l,_,_,_)
-  | Lambda (l,_,_) | Joker l -> l
+  | Lambda (l,_,_) -> l
   | Brackets t -> get_loc t
 
 type top = ident*pattern array
@@ -37,7 +36,6 @@ type dtree =
 
 let pattern_to_term p =
   let rec aux k = function
-    | Joker _ -> assert false
     | Brackets t -> t
     | Pattern (l,m,v,[]) -> mk_Const l m v
     | Var (l,x,n,[]) -> mk_DB l x n

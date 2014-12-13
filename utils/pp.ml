@@ -75,7 +75,6 @@ let rec pp_pattern out = function
   | Pattern (_,m,v,[])   -> fprintf out "%a" pp_const (m,v)
   | Pattern (_,m,v,pats) -> fprintf out "%a %a" pp_const (m,v) (pp_list " " pp_pattern_wp) pats
   | Lambda (_,x,p)       -> fprintf out "%a => %a" pp_ident x pp_pattern p
-  | Joker _              -> fprintf out "_"
 and pp_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> fprintf out "(%a)" pp_pattern p
   | p -> pp_pattern out p

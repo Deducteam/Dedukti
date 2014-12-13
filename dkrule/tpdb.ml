@@ -25,7 +25,6 @@ let rec pp_pattern k out = function
         List.iter (fun pat -> fprintf out ",%a)" (pp_pattern k) pat) args
       end
   | Lambda (_,_,pat) -> fprintf out "#LAMBDA(%a)" (pp_pattern (k+1)) pat
-  | Joker lc -> assert false
       (*let (l,c) = of_loc lc in
         fprintf out "#UNDERSCORE_%i_%i" l c*)
   | Brackets _ -> failwith "Not Implemented (conditionnal rule)."

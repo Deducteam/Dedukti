@@ -48,7 +48,7 @@ let p_of_pp (ctx:ident list) : prepattern -> pattern =
     | PPattern (l,Some md,id,args) -> Pattern (l,md,id,List.map (aux k ctx) args)
     | PLambda (l,x,p) -> Lambda (l,x,aux (k+1) (x::ctx) p)
     | PCondition pte -> Brackets (t_of_pt ctx pte)
-    | PJoker l -> Joker l
+    | PJoker l -> Print.fail l "Unimplemeted feature '_'."
   in aux 0 ctx
 
 let scope_pattern (ctx:context) (pp:prepattern) : pattern =

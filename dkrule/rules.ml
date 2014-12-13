@@ -15,7 +15,6 @@ let is_non_linear r =
         if seen.(n-k) then true
         else ( seen.(n-k) <- true; List.exists (aux k) args )
     | Brackets _ -> true
-    | Joker _ -> false
   in
     List.exists (aux 0) r.args
 

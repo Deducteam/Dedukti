@@ -75,7 +75,6 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term)
     | Pattern (_,m,v,args) ->
         let (args2,s2) = (fold_map (aux k) s args) in
           ( Pattern2(m,v,Array.of_list args2) , s2 )
-    | Joker _ -> ( Joker2 , s )
   in
   let (lst,r) = fold_map (aux 0) { fvar=esize; cstr=[]; seen=IntSet.empty; } lst in
     ( r.fvar , lst , r.cstr )
@@ -93,7 +92,6 @@ let get_nb_args (esize:int) (p:pattern) : int array =
         arr.(n-k) <- min (arr.(n-k)) (List.length args)
     | Lambda (_,_,pp) -> aux (k+1) pp
     | Pattern (_,_,_,args) -> List.iter (aux k) args
-    | Joker _ -> assert false
   in
     ( aux 0 p ; arr )
 

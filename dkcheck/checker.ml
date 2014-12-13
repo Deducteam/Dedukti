@@ -38,10 +38,11 @@ let mk_opaque lc id pty_opt pte =
   define_op2 lc id pte pty_opt
 
 let mk_rules lst =
-  let rs = List.map Underscore.refine_rule lst in
-    List.iter (fun (ctx,pat,rhs) ->
-                 eprint (Rule.get_loc_pat pat) "%a" Pp.pp_rule (ctx,pat,rhs) ) rs ;
-    add_rules2 rs
+  List.iter (
+    fun (ctx,pat,rhs) ->
+      eprint (Rule.get_loc_pat pat) "%a" Pp.pp_rule (ctx,pat,rhs)
+  ) lst ;
+  add_rules2 lst
 
 let mk_command = Cmd.mk_command
 

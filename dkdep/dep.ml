@@ -32,7 +32,6 @@ let rec mk_pattern = function
   | Pattern (_,md,_,args) -> ( add_dep md ; List.iter mk_pattern args )
   | Lambda (_,_,te) -> mk_pattern te
   | Brackets t -> mk_term t
-  | Joker _ -> ()
 
 let mk_declaration _ _ t = mk_term t
 
