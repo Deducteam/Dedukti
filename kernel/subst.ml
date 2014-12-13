@@ -11,6 +11,21 @@ let rec shift_rec (r:int) (k:int) : term -> term = function
 
 let shift r t = shift_rec r 0 t
 
+exception UnshiftExn
+let unshift q te =
+  let rec aux k = function
+  | DB (_,_,n) as t when n<k -> t
+  | DB (l,x,n) ->
+      if n-q-k >= 0 then mk_DB l x (n-q-k)
+      else raise UnshiftExn
+  | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
+  | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
+  | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
+  | Pi  (l,x,a,b) -> mk_Pi l x (aux k a) (aux (k+1) b)
+  | Type _ | Kind | Const _ as t -> t
+  in
+    aux 0 te
+
 let rec psubst_l (args:(term Lazy.t) LList.t) (k:int) (t:term) : term =
   let nargs = args.LList.len in
   match t with

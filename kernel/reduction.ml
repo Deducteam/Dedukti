@@ -162,21 +162,6 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
         end
     | _, _::tl -> find_case st tl
 
-exception CannotUnshift
-let unshift q te = (*TODO duplicated code (dtree.ml) *)
-  let rec aux k = function
-  | DB (_,_,n) as t when n<k -> t
-  | DB (l,x,n) ->
-      if n-q-k >= 0 then mk_DB l x (n-q-k)
-      else ( (*Print.debug "Cannot unshift" ;*) raise CannotUnshift )
-  | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
-  | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
-  | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
-  | Pi  (l,x,a,b) -> mk_Pi l x (aux k a) (aux (k+1) b)
-  | Type _ | Kind | Const _ as t -> t
-  in
-    aux 0 te
-
 let get_context_syn (stack:stack) (ord:pos LList.t) : env option =
   try Some (LList.map (
     fun p ->
@@ -184,17 +169,19 @@ let get_context_syn (stack:stack) (ord:pos LList.t) : env option =
         lazy (term_of_state (List.nth stack p.position) )
       else
         Lazy.from_val
-          (unshift p.depth (term_of_state (List.nth stack p.position) ))
+          (Subst.unshift p.depth (term_of_state (List.nth stack p.position) ))
   ) ord )
-  with CannotUnshift -> None
+  with Subst.UnshiftExn -> None
 
 let get_context_mp (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
   let aux pb =
-    Lazy.from_val ( unshift pb.depth2 (
+    Lazy.from_val ( Subst.unshift pb.depth2 (
       (Matching.resolve pb.dbs (term_of_state (List.nth stack pb.position2))) ))
   in
   try Some (LList.map aux pb_lst)
-  with Matching.NotUnifiable -> None
+  with
+    | Subst.UnshiftExn
+    | Matching.NotUnifiable -> None
 
 let rec reduce (st:state) : state =
   match beta_reduce st with

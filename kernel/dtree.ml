@@ -37,22 +37,6 @@ module IntSet = Set.Make(struct type t=int let compare=(-) end)
 type lin_ty = { cstr:(term*term) list; fvar:int ; seen:IntSet.t }
 let br = hstring "{_}"
 
-let unshift q te =
-  let rec aux k = function
-  | DB (_,_,n) as t when n<k -> t
-  | DB (l,x,n) ->
-      if n-q >= 0 then mk_DB l x (n-q)
-      else Print.fail (get_loc te)
-             "The term '%a' contains a variable bound outside the brackets."
-             Pp.pp_term te
-  | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
-  | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
-  | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
-  | Pi  (l,x,a,b) -> mk_Pi l x (aux k a) (aux (k+1) b)
-  | Type _ | Kind | Const _ as t -> t
-  in
-    aux 0 te
-
 let extract_db k = function
   | Var (_,_,n,[]) when n<k -> n
   | p -> Print.fail (get_loc_pat p) "The pattern '%a' is not a bound variable."
@@ -77,9 +61,17 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term)
         else
           ( Var2(x,n,args2) , { s with seen=IntSet.add n s.seen; } )
     | Brackets t ->
-        ( Var2(br,s.fvar+k,[]),
-          {s with fvar=(s.fvar+1);
-                  cstr=(mk_DB dloc br s.fvar,unshift k t)::(s.cstr) ;} )
+        begin
+          try
+            ( Var2(br,s.fvar+k,[]), { s with
+              fvar=(s.fvar+1);
+              cstr=(mk_DB dloc br s.fvar,Subst.unshift k t)::(s.cstr) ;} )
+          with
+            | Subst.UnshiftExn ->
+                Print.fail (get_loc t)
+                  "The term '%a' contains a variable bound outside the brackets."
+                  Pp.pp_term t
+        end
     | Pattern (_,m,v,args) ->
         let (args2,s2) = (fold_map (aux k) s args) in
           ( Pattern2(m,v,Array.of_list args2) , s2 )
