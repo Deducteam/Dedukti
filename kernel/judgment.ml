@@ -218,33 +218,51 @@ let define_op2 l id te ty_opt =
 let add_rules2 rules =
   add_rules (List.map check_rule rules)
 
-(*
+(* ********************** JUDGMENTS *)
+
+type judgmentExn =
+  | DistinctContexts
+  | LambdaKind
+  | LambdaEmptyContext
+  | PiSort
+  | PiEmptyContext
+  | AppNotAPi
+  | AppNotConvertible
+  | ConvSort
+  | ConvError
+
+exception JudgmentExn of judgmentExn
+
+let check_contexts ctx1 ctx2 =
+  if ctx1 != ctx2 then raise (JudgmentExn DistinctContexts)
+
 let mk_Type ctx l = { ctx=ctx; te=mk_Type l; ty= mk_Kind; }
 
 let mk_Const ctx l md id =
   { ctx=ctx; te=mk_Const l md id; ty= Env.get_type l md id; }
 
  let mk_Var ctx l x n =
-  { ctx=ctx; te=mk_DB l x n; ty= ctx_get_type l x ctx n }
+  { ctx=ctx; te=mk_DB l x n; ty= Context.get_type ctx l x n }
 
 let mk_App f arg =
-  assert ( f.ctx = arg.ctx ); (*FIXME*)
+  check_contexts f.ctx arg.ctx ;
   match Reduction.whnf f.ty with
     | Pi (_,_,a,b) ->
         if Reduction.are_convertible a arg.ty then
           { ctx=f.ctx; te=mk_App f.te arg.te []; ty=Subst.subst b arg.te; }
-        else assert false (*FIXME*)
-    | _ -> assert false (*FIXME*)
+        else raise (JudgmentExn AppNotConvertible)
+    | _ -> raise (JudgmentExn AppNotAPi)
+
 
 let mk_Lam b =
   match b.ty with
-    | Kind -> assert false (*FIXME*)
+    | Kind -> raise (JudgmentExn LambdaKind)
     | _ ->
         begin
           match b.ctx with
             | (l,x,a)::lst ->
                 { ctx=lst; te=mk_Lam l x (Some a) b.te; ty=mk_Pi l x a b.ty }
-            | _ -> assert false (*FIXME*)
+            | _ -> raise (JudgmentExn LambdaEmptyContext)
         end
 
 let mk_Pi b =
@@ -253,16 +271,15 @@ let mk_Pi b =
         begin
           match b.ctx with
             | (l,x,a)::lst -> { ctx=lst; te=mk_Pi l x a b.te; ty=ty }
-            | _ -> assert false (*FIXME*)
+            | _ -> raise (JudgmentExn PiEmptyContext)
         end
-    | _ -> assert false (*FIXME*)
+    | _ -> raise (JudgmentExn PiSort)
 
 let mk_Conv a b =
-  assert (a.ctx = b.ctx); (*FIXME*)
+  check_contexts a.ctx b.ctx;
   match b.ty with
     | Kind | Type _ ->
         if Reduction.are_convertible a.ty b.te then
           { ctx=a.ctx; te=a.te; ty=b.te }
-        else assert false (*FIXME*)
-    | _ -> assert false (*FIXME*)
- *)
+        else raise (JudgmentExn ConvError)
+    | _ -> raise (JudgmentExn ConvSort)
