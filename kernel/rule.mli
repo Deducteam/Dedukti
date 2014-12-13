@@ -6,7 +6,6 @@ type pattern =
   | Pattern     of loc*ident*ident*pattern list
   | Lambda      of loc*ident*pattern
   | Brackets    of term
-  | Joker       of loc
 
 val get_loc_pat : pattern -> loc
 

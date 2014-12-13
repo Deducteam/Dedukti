@@ -163,7 +163,7 @@ let checking (te:term) (ty_exp:term) : judgment =
 let check_rule (ctx0,pat,rhs:rule) : rule_judgment =
   let ctx =
     List.fold_left (fun ctx (l,id,ty) -> Context.add l id (infer ctx ty) )
-      Context.empty (List.rev ctx0) (*FIXME*) in
+      Context.empty (List.rev ctx0) in
   let jl = infer ctx (pattern_to_term pat) in
   let jr = infer ctx rhs in
     if Reduction.are_convertible jl.ty jr.ty then

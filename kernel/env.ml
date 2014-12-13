@@ -152,7 +152,6 @@ struct
       | Var (l,_,_,_) -> Print.fail l "A variable is not a valid pattern."
       | Brackets _ -> assert false
       | Lambda _ -> assert false
-      | Joker _ -> assert false
 
   let add_rules sg lst =
     match List.map rule_to_frule lst with
