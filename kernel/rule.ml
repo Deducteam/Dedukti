@@ -15,8 +15,26 @@ let get_loc_pat = function
 type top = ident*pattern array
 
 type rule = context * pattern * term
-type frule = {
-  l:loc; ctx:context; md:ident; id:ident; args:pattern list; rhs:term; }
+
+type pattern2 =
+  | Joker2
+  | Var2         of ident*int*int list
+  | Lambda2      of ident*pattern2
+  | Pattern2     of ident*ident*pattern2 array
+  | BoundVar2    of ident*int*pattern2 array
+
+type rule_infos = {
+  l:loc;
+  ctx:context;
+  md:ident;
+  id:ident;
+  args:pattern list;
+  rhs:term;
+  (* *)
+  esize:int;
+  l_args:pattern2 array;
+  constraints:(term*term) list;
+}
 
 type case =
   | CConst of int*ident*ident

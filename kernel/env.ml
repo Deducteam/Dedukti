@@ -25,7 +25,7 @@ module Signature : sig
   val declare             : t -> loc -> ident -> term -> unit
   val define              : t -> loc -> ident -> term -> term -> unit
   val add_rules           : t -> Rule.rule list -> unit
-  val get_all_rules       : string -> (string*frule list) list
+(*   val get_all_rules       : string -> (string*frule list) list *)
 end =
 
 struct
@@ -39,7 +39,7 @@ struct
   type rw_infos =
     | Decl    of term
     | Def     of term*term
-    | Decl_rw of term*frule list*int*dtree
+    | Decl_rw of term*rule_infos list*int*dtree
 
   type t = { name:ident; tables:(rw_infos H.t) H.t }
 
@@ -145,16 +145,17 @@ struct
 
   let declare sg lc v ty    = add sg lc v (Decl ty)
   let define sg lc v te ty  = add sg lc v (Def (te,ty))
-
+(*
   let rule_to_frule (ctx,pat,rhs) =
     match pat with
       | Pattern(l,md,id,args) -> { l ; ctx ; md; id ; args ; rhs }
       | Var (l,_,_,_) -> Print.fail l "A variable is not a valid pattern."
       | Brackets _ -> assert false
       | Lambda _ -> assert false
-
+ *)
   let add_rules sg lst =
-    match List.map rule_to_frule lst with
+    let rs = List.map Dtree.to_rule_infos lst in
+    match rs with
       | [] -> ()
       | r::_ as rs ->
           let env = H.find sg.tables sg.name in
@@ -170,7 +171,7 @@ struct
             H.add env r.id (Decl_rw (ty,rules,n,tree))
 
   (******************************************************************************)
-
+(*
   module S = Set.Make (
   struct
     type t = string
@@ -199,6 +200,7 @@ struct
             end
     in
       List.rev_map (fun (m,ctx) -> (m,get_rules ctx)) (load [md])
+ *)
 end
   (******************************************************************************)
 
@@ -216,4 +218,4 @@ let declare l id ty = Signature.declare !sg l id ty
 let define l id te ty = Signature.define !sg l id te ty
 let add_rules rs = Signature.add_rules !sg rs
 
-let get_all_rules = Signature.get_all_rules
+(* let get_all_rules = Signature.get_all_rules *)

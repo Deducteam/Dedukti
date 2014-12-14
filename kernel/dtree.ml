@@ -1,14 +1,14 @@
 open Basics
 open Term
 open Rule
-
+(*
 type pattern2 =
   | Joker2
   | Var2         of ident*int*int list
   | Lambda2      of ident*pattern2
   | Pattern2     of ident*ident*pattern2 array
   | BoundVar2    of ident*int*pattern2 array
-
+ *)
 type rule2 =
     { loc:loc ; pats:pattern2 array ; right:term ;
       constraints:(term*term) list ; esize:int ; }
@@ -79,6 +79,7 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term)
   let (lst,r) = fold_map (aux 0) { fvar=esize; cstr=[]; seen=IntSet.empty; } lst in
     ( r.fvar , lst , r.cstr )
 
+(* For each matching variable count the number of arguments *)
 let get_nb_args (esize:int) (p:pattern) : int array =
   let arr = Array.make esize (-1) in (* -1 means +inf *)
   let min a b =
@@ -95,6 +96,7 @@ let get_nb_args (esize:int) (p:pattern) : int array =
   in
     ( aux 0 p ; arr )
 
+(* Checks that the variables are applied to enough arguments *)
 let check_nb_args (nb_args:int array) (te:term) : unit =
   let rec aux k = function
     | Kind | Type _ | Const _ -> ()
@@ -112,14 +114,6 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
     | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
   in
     aux 0 te
-
-let to_rule2 (r:frule) : rule2 =
-  let esize = List.length r.ctx in
-  let nb_args = get_nb_args esize (Pattern(r.l,r.md,r.id,r.args) ) in
-  let _ = check_nb_args nb_args r.rhs in
-  let (esize2,pats2,cstr) = linearize esize r.args in
-    { loc=r.l ; pats=Array.of_list pats2 ; right=r.rhs ;
-      constraints=cstr ; esize=esize2 ; }
 
 (* ***************************** *)
 
@@ -139,10 +133,17 @@ type matrix =
  *              k_i records the depth of the column (number of binders under which it stands)
  *)
 
+let to_rule2 (r:rule_infos) : rule2 =
+  { loc = r.l ;
+    pats = r.l_args ;
+    right = r.rhs ;
+    constraints = r.constraints ;
+    esize = r.esize ; }
+
 (* mk_matrix lst builds a matrix out of the non-empty list of rules [lst]
 *  It is checked that all rules have the same head symbol and arity.
 * *)
-let mk_matrix = function
+let mk_matrix : rule_infos list -> matrix = function
   | [] -> assert false
   | r1::rs ->
       let f = to_rule2 r1 in
@@ -364,5 +365,21 @@ let rec to_dtree (mx:matrix) : dtree =
 
 (******************************************************************************)
 
-let of_rules (rs:frule list) : int*dtree =
+let to_rule_infos (r:rule) : rule_infos =
+  let (ctx,lhs,rhs) = r in
+  let (l,md,id,args) = match lhs with
+    | Pattern (l,md,id,args) -> (l,md,id,args)
+    | Var (l,_,_,_) -> Print.fail l "A variable is not a valid pattern."
+    | Lambda _ | Brackets _ -> assert false
+  in
+  let esize = List.length ctx in
+  let nb_args = get_nb_args esize lhs in
+  let _ = check_nb_args nb_args rhs in
+  let (esize2,pats2,cstr) = linearize esize args in
+    { l ; ctx ; md ; id ; args ; rhs ;
+      esize = esize2 ;
+      l_args = Array.of_list pats2 ;
+      constraints = cstr ; }
+
+let of_rules (rs:rule_infos list) : int*dtree =
   let mx = mk_matrix rs in ( Array.length mx.first.pats , to_dtree mx )

@@ -12,14 +12,15 @@ let args = [
 
 let flatten lst = List.flatten (List.map snd lst)
 
-let run name =
+let run name = assert false (*FIXME*)
+                 (*
   let rules = Env.get_all_rules name in
     match !action with
       | All -> Rules.print_all !out rules
       | NonLinear -> Rules.print_non_linear_rules !out rules
       | TypeLevel -> Rules.print_type_level_rules !out rules
       | Export -> Tpdb.export !out rules
-
+                  *)
 let _ =
   try Arg.parse args run ("Usage: "^ Sys.argv.(0) ^" [options] files");
   with Sys_error err -> ( Printf.eprintf "ERROR %s.\n" err; exit 1 )

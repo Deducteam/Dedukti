@@ -17,7 +17,7 @@ val pp_pattern  : out_channel -> pattern -> unit
 
 val pp_rule     : out_channel -> rule -> unit
 
-val pp_frule     : out_channel -> frule -> unit
+val pp_frule     : out_channel -> rule_infos -> unit
 
 val pp_context  : out_channel -> context -> unit
 
