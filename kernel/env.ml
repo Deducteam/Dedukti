@@ -88,16 +88,24 @@ struct
 
   (******************************************************************************)
 
-  let import sg lc m =
-    assert ( not (H.mem sg.tables m) );
+  (* Recursively load a module and its dependencies*)
+  let rec import sg lc m =
+    assert ( not (H.mem sg.tables m) ) ;
+       
     (* If the [.dko] file is not found, try to compile it first.
      This hack is terrible. It uses system calls and can loop with circular dependencies. *)
     ( if !autodep && not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) then
         if Sys.command ( "dkcheck -autodep -e " ^ string_of_ident m ^ ".dk" ) <> 0 then
           Print.fail lc "Fail to compile dependency '%a'." pp_ident m
     ) ;
-    let (_,ctx) = unmarshal lc (string_of_ident m) in
-      ( H.add sg.tables m ctx ; ctx )
+
+    let (deps,ctx) = unmarshal lc (string_of_ident m) in
+      H.add sg.tables m ctx;
+      List.iter (
+        fun dep -> if not (H.mem sg.tables m) then
+          ignore (import sg lc (hstring dep))
+      ) deps ;
+      ctx
 
   let get_deps sg : string list = (*only direct dependencies*)
     H.fold (
