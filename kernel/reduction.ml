@@ -162,26 +162,6 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
         end
     | _, _::tl -> find_case st tl
 
-let get_context_syn (stack:stack) (ord:pos LList.t) : env option =
-  try Some (LList.map (
-    fun p ->
-      if ( p.depth = 0 ) then
-        lazy (term_of_state (List.nth stack p.position) )
-      else
-        Lazy.from_val
-          (Subst.unshift p.depth (term_of_state (List.nth stack p.position) ))
-  ) ord )
-  with Subst.UnshiftExn -> None
-
-let get_context_mp (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
-  let aux pb =
-    Lazy.from_val ( Subst.unshift pb.depth2 (
-      (Matching.resolve pb.dbs (term_of_state (List.nth stack pb.position2))) ))
-  in
-  try Some (LList.map aux pb_lst)
-  with
-    | Subst.UnshiftExn
-    | Matching.NotUnifiable -> None
 
 let rec reduce (st:state) : state =
   match beta_reduce st with
@@ -294,10 +274,45 @@ and state_conv : (state*state) list -> bool = function
               end
           | _, _ -> false
 
+and unshift q te =
+  try Subst.unshift q te
+  with Subst.UnshiftExn ->
+    Subst.unshift q (snf te)
+
+and get_context_syn (stack:stack) (ord:pos LList.t) : env option =
+  try Some (LList.map (
+    fun p ->
+      if ( p.depth = 0 ) then
+        lazy (term_of_state (List.nth stack p.position) )
+      else
+        Lazy.from_val
+          (unshift p.depth (term_of_state (List.nth stack p.position) ))
+  ) ord )
+  with Subst.UnshiftExn -> ( (*Print.debug "Cannot unshift";*) None )
+
+and get_context_mp (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
+  let aux pb =
+    Lazy.from_val ( unshift pb.depth2 (
+      (Matching.resolve pb.dbs (term_of_state (List.nth stack pb.position2))) ))
+  in
+  try Some (LList.map aux pb_lst)
+  with
+    | Subst.UnshiftExn
+    | Matching.NotUnifiable -> None
 (* ********************* *)
 
 (* Weak Normal Form *)
-let whnf term = term_of_state ( reduce { ctx=LList.nil; term; stack=[] } )
+and whnf term = term_of_state ( reduce { ctx=LList.nil; term; stack=[] } )
+
+(* Strong Normal Form *)
+and snf (t:term) : term =
+  match whnf t with
+    | Kind | Const _
+    | DB _ | Type _ as t' -> t'
+    | App (f,a,lst)     -> mk_App (snf f) (snf a) (List.map snf lst)
+    | Pi (_,x,a,b)        -> mk_Pi dloc x (snf a) (snf b)
+    | Lam (_,x,a,b)       -> mk_Lam dloc x None (snf b)
+
 
 (* Head Normal Form *)
 let rec hnf t =
@@ -308,15 +323,6 @@ let rec hnf t =
 (* Convertibility Test *)
 let are_convertible t1 t2 =
   state_conv [ ( {ctx=LList.nil;term=t1;stack=[]} , {ctx=LList.nil;term=t2;stack=[]} ) ]
-
-(* Strong Normal Form *)
-let rec snf (t:term) : term =
-  match whnf t with
-    | Kind | Const _
-    | DB _ | Type _ as t' -> t'
-    | App (f,a,lst)     -> mk_App (snf f) (snf a) (List.map snf lst)
-    | Pi (_,x,a,b)        -> mk_Pi dloc x (snf a) (snf b)
-    | Lam (_,x,a,b)       -> mk_Lam dloc x None (snf b)
 
 (* One-Step Reduction *)
 let rec state_one_step : state -> state option = function
