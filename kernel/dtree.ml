@@ -59,7 +59,7 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term)
             { s with fvar=(s.fvar+1);
                      cstr= (mk_DB l x s.fvar,mk_DB l x (n-k))::(s.cstr) ; } )
         else
-          ( Var2(x,n,args2) , { s with seen=IntSet.add n s.seen; } )
+          ( Var2(x,n,args2) , { s with seen=IntSet.add (n-k) s.seen; } )
     | Brackets t ->
         begin
           try
