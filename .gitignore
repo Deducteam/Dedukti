@@ -6,3 +6,4 @@ dkrule.native
 dktop.native
 .*.swp
 .*.swo
+_*/
