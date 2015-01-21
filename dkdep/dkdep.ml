@@ -13,6 +13,7 @@ let parse lb =
 
 let run_on_file file =
   let input = open_in file in
+  Dep.filename := file;
     parse (Lexing.from_channel input)
 
 let args =
