@@ -41,3 +41,6 @@ val dloc                : loc
 val mk_loc              : int -> int -> loc
 (** mk_loc [line] [column] *)
 val of_loc              : loc -> (int*int)
+
+val add_path       : string -> unit
+val get_path       : unit -> string list
