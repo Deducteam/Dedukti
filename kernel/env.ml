@@ -67,10 +67,30 @@ struct
 
   exception BadVersionNumber
 
+  let file_exists = Sys.file_exists
+
+  let rec find_dko_in_path name = function
+    | [] -> failwith "find_dko"  (* Captured by the unmarshal function *)
+    | dir :: path ->
+       let filename = dir ^ "/" ^ name ^ ".dko" in
+       if file_exists filename then
+         open_in filename
+       else
+         find_dko_in_path name path
+
+  let find_dko name =
+    (* First check in the current directory *)
+    let filename = name ^ ".dko" in
+    if file_exists filename then
+      open_in filename
+    else
+      (* If not found in the current directory, search in load-path *)
+      find_dko_in_path name (get_path())
+
   let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t =
     try
       begin
-        let chan = open_in ( m ^ ".dko" ) in
+        let chan = find_dko m in
         let ver:string = Marshal.from_channel chan in
           if String.compare ver Version.version = 0 then
             begin

@@ -6,6 +6,7 @@ open Cmd
 let out = ref stdout
 let deps = ref []
 let name = ref ""
+let filename = ref ""
 
 let print_out fmt = Printf.kfprintf (fun _ -> output_string !out "\n" ) !out fmt
 
@@ -58,5 +59,5 @@ let mk_command _ = function
   | Other (_,lst)                       -> List.iter mk_term lst
 
 let mk_ending () =
-  print_out "%s.dko : %s" !name
+  print_out "%s.dko : %s %s" !name !filename
     (String.concat " " (List.map (fun s -> s ^ ".dko") !deps) )

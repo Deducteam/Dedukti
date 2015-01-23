@@ -59,3 +59,7 @@ type loc = int*int
 let dloc = (0,0)
 let mk_loc l c = (l,c)
 let of_loc l = l
+
+let path = ref []
+let get_path () = !path
+let add_path s = path := s :: !path
