@@ -325,15 +325,15 @@ let get_first_pre_context mx =
   let dummy2 = { position2=(-1); depth2=0; dbs=LList.nil; } in
   let arr1 = Array.create esize dummy in
   let arr2 = Array.create esize dummy2 in
-    let mp = ref false in
+  let mp = ref false in
     Array.iteri
       (fun i p -> match p with
          | Joker2 -> ()
          | Var2 (_,n,lst) ->
-               begin
-                 let k = mx.col_depth.(i) in
+             begin
+               let k = mx.col_depth.(i) in
                  assert( 0 <= n-k ) ;
-(*                  Print.debug "N=%i K=%i ESIZE=%i" n k esize; *)
+                 (*                  Print.debug "N=%i K=%i ESIZE=%i" n k esize; *)
                  assert(n-k < esize ) ;
                  arr1.(n-k) <- { position=i; depth=mx.col_depth.(i); };
                  if lst=[] then
@@ -341,11 +341,12 @@ let get_first_pre_context mx =
                  else (
                    mp := true ;
                    arr2.(n-k) <- { position2=i; dbs=LList.of_list lst; depth2=mx.col_depth.(i); } )
-               end
+             end
          | _ -> assert false
       ) mx.first.pats ;
-      if !mp then MillerPattern (array_to_llist arr2)
-      else Syntactic (array_to_llist arr1)
+    ( Array.iter ( fun r -> assert (r.position >= 0 ) ) arr1 );
+    if !mp then MillerPattern (array_to_llist arr2)
+    else Syntactic (array_to_llist arr1)
 
 (******************************************************************************)
 
@@ -365,14 +366,39 @@ let rec to_dtree (mx:matrix) : dtree =
 
 (******************************************************************************)
 
+let check_vars esize ctx p =
+  let seen = Array.make esize false in
+  let rec aux q = function
+    | Pattern (_,_,_,args) -> List.iter (aux q) args
+    | Var (_,_,n,args) ->
+        begin
+          seen.(n-q) <- true;
+          List.iter (aux q) args
+        end
+    | Lambda (_,_,t) -> aux (q+1) t
+    | Brackets _ -> ()
+  in
+    aux 0 p;
+    Array.iteri (
+      fun i b ->
+        if (not b) then
+          let (l,x,_) = List.nth ctx i in
+            Print.fail l "The variables '%a' is not bounded in '%a'."
+              pp_ident x Pp.pp_pattern p
+    ) seen
+
 let to_rule_infos (r:rule) : rule_infos =
   let (ctx,lhs,rhs) = r in
+  let esize = List.length ctx in
   let (l,md,id,args) = match lhs with
-    | Pattern (l,md,id,args) -> (l,md,id,args)
+    | Pattern (l,md,id,args) ->
+        begin
+          check_vars esize ctx lhs;
+          (l,md,id,args)
+        end
     | Var (l,_,_,_) -> Print.fail l "A variable is not a valid pattern."
     | Lambda _ | Brackets _ -> assert false
   in
-  let esize = List.length ctx in
   let nb_args = get_nb_args esize lhs in
   let _ = check_nb_args nb_args rhs in
   let (esize2,pats2,cstr) = linearize esize args in
