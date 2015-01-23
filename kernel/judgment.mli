@@ -3,6 +3,7 @@ open Rule
 open Basics
 
 val coc : bool ref
+val errors_in_snf : bool ref
 
 type 'a judgment0 = private { ctx:'a; te:term; ty: term; }
 

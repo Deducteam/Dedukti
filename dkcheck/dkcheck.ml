@@ -23,7 +23,9 @@ let args = [
   ("-coc", Arg.Set Judgment.coc,               "Typecheck the Calculus of Construction" ) ;
   ("-autodep", Arg.Set Env.autodep  ,
    "Automatically handle dependencies (experimental)") ;
-  ("-I"    , Arg.String Basics.add_path,        "Add a directory to load path")]
+  ("-I"    , Arg.String Basics.add_path,        "Add a directory to load path");
+  ("-errors-in-snf", Arg.Set Judgment.errors_in_snf, "Normalize the types in error messages")
+]
 
 let run_on_file file =
   let input = open_in file in

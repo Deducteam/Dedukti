@@ -3,52 +3,40 @@ open Term
 open Rule
 
 let coc = ref false
+let errors_in_snf = ref false
 
 type 'a judgment0 = { ctx:'a; te:term; ty: term; }
 type rule_judgment = context * pattern * term
 
 (* ********************** ERROR MESSAGES *)
 
+let pp_context out = function
+  | [] -> ()
+  | ctx -> Printf.fprintf out " in context:\n%a" Pp.pp_context ctx
+
 let error_convertibility te ctx exp inf =
-  if ctx = [] then
+  let exp = if !errors_in_snf then Reduction.snf exp else exp in
+  let inf = if !errors_in_snf then Reduction.snf inf else inf in
     Print.fail (get_loc te)
-      "Error while typing '%a'.\nExpected: %a\nInferred: %a."
-      Pp.pp_term te Pp.pp_term exp Pp.pp_term inf
-  else
-    Print.fail (get_loc te)
-      "Error while typing '%a' in context:\n%a.\nExpected: %a\nInferred: %a."
-      Pp.pp_term te Pp.pp_context ctx Pp.pp_term exp
-      Pp.pp_term inf
+      "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
+      Pp.pp_term te pp_context ctx Pp.pp_term exp Pp.pp_term inf
 
 let error_sort_expected te ctx inf =
-  if ctx = [] then
+  let inf = if !errors_in_snf then Reduction.snf inf else inf in
     Print.fail (get_loc te)
-      "Error while typing '%a' in context:\n%a.\nExpected: a sort.\nInferred: %a."
-      Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
-  else
-    Print.fail (get_loc te)
-      "Error while typing '%a'.\nExpected: a sort.\nInferred: %a."
-      Pp.pp_term te Pp.pp_term inf
+      "Error while typing '%a'%a.\nExpected: a sort.\nInferred: %a."
+      Pp.pp_term te pp_context ctx Pp.pp_term inf
 
 let error_product_expected te ctx inf =
-  if ctx = [] then
+  let inf = if !errors_in_snf then Reduction.snf inf else inf in
     Print.fail (get_loc te)
-      "Error while typing '%a' in context:\n%a.\nExpected: a product type.\nInferred: %a."
-      Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
-  else
-    Print.fail (get_loc te)
-      "Error while typing '%a'.\nExpected: a product type.\nInferred: %a."
-      Pp.pp_term te Pp.pp_term inf
+      "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
+      Pp.pp_term te pp_context ctx Pp.pp_term inf
 
 let error_inexpected_kind te ctx =
-  if ctx = [] then
-    Print.fail (get_loc te)
-      "Error while typing '%a' in context:\n%a.\nExpected: anything but Kind.\nInferred: Kind."
-      Pp.pp_term te Pp.pp_context ctx
-  else
-    Print.fail (get_loc te)
-      "Error while typing '%a'.\nExpected: anything but Kind.\nInferred: Kind."
-      Pp.pp_term te
+  Print.fail (get_loc te)
+    "Error while typing '%a'%a.\nExpected: anything but Kind.\nInferred: Kind."
+    Pp.pp_term te pp_context ctx
 
 (* ********************** CONTEXT *)
 
