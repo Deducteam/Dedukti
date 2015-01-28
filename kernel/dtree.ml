@@ -372,7 +372,7 @@ let check_vars esize ctx p =
     | Pattern (_,_,_,args) -> List.iter (aux q) args
     | Var (_,_,n,args) ->
         begin
-          seen.(n-q) <- true;
+          ( if n-q >= 0 then seen.(n-q) <- true );
           List.iter (aux q) args
         end
     | Lambda (_,_,t) -> aux (q+1) t
