@@ -99,16 +99,17 @@ let pp_env out (ctx:env) =
   let pp_lazy_term out lt = Pp.pp_term out (Lazy.force lt) in
     Pp.pp_list ", " pp_lazy_term out (LList.lst ctx)
 
- let dump_state { ctx; term; stack } =
-   Print.debug "[ e=[...](%i) | %a | [...] ] { %a } "
+let pp_state out { ctx; term; stack } =
+   Printf.fprintf out "[ e=[...](%i) | %a | [...] ] { %a } "
      (LList.len ctx)
      Pp.pp_term term
      Pp.pp_term (term_of_state { ctx; term; stack })
 
-let dump_stack stk =
-  Print.debug " ================ >";
-  List.iter dump_state stk ;
-  Print.debug " < ================"
+let pp_stack out (st:stack) =
+  let aux out state =
+    Pp.pp_term out (term_of_state state)
+  in
+    Printf.fprintf out "[ %a ]\n" (Pp.pp_list "\n | " aux) st
 
 (* ********************* *)
 
@@ -148,10 +149,9 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
           ( assert (List.length stack == nargs);
             FC_Const (tr,stack) )
         else find_case st tl
-    | { term=DB (_,_,n); stack } , (CDB (nargs,n'),tr)::tl ->
-        if n==n' then (
-          assert (List.length stack == nargs) ;
-          FC_DB (tr,stack) )
+    | { term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
+        if n==n' && (List.length stack == nargs) then (*FIXME explain*)
+             FC_DB (tr,stack)
         else find_case st tl
     | { ctx; term=Lam (_,_,_,_) } , ( CLam , tr )::tl ->
         begin
