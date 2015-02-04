@@ -119,10 +119,16 @@ let rec print_term out = function
   | Type _             -> Format.pp_print_string out "Type"
   | DB  (_,x,n)        -> print_db out (x,n)
   | Const (_,m,v)      -> print_const out (m,v)
-  | App (f,a,args)     -> print_list " " print_term_wp out (f::a::args)
-  | Lam (_,x,None,f)   -> Format.fprintf out "@[%a =>@ %a@]" print_ident x print_term f
-  | Lam (_,x,Some a,f) -> Format.fprintf out "@[%a:@,%a =>@ %a@]" print_ident x print_term_wp a print_term f
-  | Pi  (_,x,a,b)      -> Format.fprintf out "@[%a:%a ->@ %a@]" print_ident x print_term_wp a print_term b
+  | App (f,a,args)     ->
+      Format.fprintf out "@[<hov2>%a@]" (print_list " " print_term_wp) (f::a::args)
+  | Lam (_,x,None,f)   -> Format.fprintf out "@[%a =>@ @[%a@]@]" print_ident x print_term f
+  | Lam (_,x,Some a,f) ->
+      Format.fprintf out "@[%a:@,%a =>@ @[%a@]@]" print_ident x print_term_wp a print_term f
+  | Pi  (_,x,a,b) when ident_eq x qmark  ->
+      (* arrow, no pi *)
+      Format.fprintf out "@[%a ->@ @[%a@]@]" print_term_wp a print_term b
+  | Pi  (_,x,a,b)      ->
+      Format.fprintf out "@[%a:%a ->@ @[%a@]@]" print_ident x print_term_wp a print_term b
 
 and print_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> print_term out t
@@ -138,7 +144,7 @@ let rec pp_pattern out = function
   | Pattern (_,m,v,pats) -> fprintf out "%a %a" pp_const (m,v) (pp_list " " pp_pattern_wp) pats
   | Lambda (_,x,p)       -> fprintf out "@[%a =>@ %a@]" pp_ident x pp_pattern p
 and pp_pattern_wp out = function
-  | Pattern _ | Lambda _ as p -> fprintf out "(%a)" pp_pattern p
+  | Pattern _ | Lambda _ as p -> fprintf out "@[(%a)@]" pp_pattern p
   | p -> pp_pattern out p
 
 let print_bv out (_,id,i) = print_db out (id,i)
@@ -149,7 +155,7 @@ let rec print_pattern out = function
   | Brackets t           -> Format.fprintf out "{ %a }" print_term t
   | Pattern (_,m,v,[])   -> Format.fprintf out "%a" print_const (m,v)
   | Pattern (_,m,v,pats) -> Format.fprintf out "%a %a" print_const (m,v) (print_list " " print_pattern_wp) pats
-  | Lambda (_,x,p)       -> Format.fprintf out "%a => %a" print_ident x print_pattern p
+  | Lambda (_,x,p)       -> Format.fprintf out "@[%a => %a@]" print_ident x print_pattern p
 and print_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> Format.fprintf out "(%a)" print_pattern p
   | p -> print_pattern out p
@@ -175,7 +181,8 @@ let print_rule out (ctx,pat,te) =
   let print_decl out (_,id,ty) =
     Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
   in
-  Format.fprintf out "@[<hov2>@[<h>[%a]@]@ @[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]"
+  Format.fprintf out
+    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
     (print_list ", " print_decl) ctx
     print_pattern pat
     print_term te
