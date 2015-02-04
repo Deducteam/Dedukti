@@ -12,11 +12,16 @@ let rec pp_list sep pp out = function
     | [a]       -> pp out a
     | a::lst    -> fprintf out "%a%s%a" pp a sep (pp_list sep pp) lst
 
-let rec print_list sep pp out = function
+let print_list ?(space=false) sep pp out l =
+  let rec print_list out = function
     | []        -> ()
     | [a]       -> pp out a
     | a::lst    ->
-        Format.fprintf out "%a%s@,%a" pp a sep (print_list sep pp) lst
+        if space
+          then Format.fprintf out "%a%s@ %a" pp a sep print_list lst
+          else Format.fprintf out "%a%s@,%a" pp a sep print_list lst
+  in
+  print_list out l
 
 let rec pp_pterm out = function
   | PreType _        -> output_string out "Type"
@@ -120,7 +125,7 @@ let rec print_term out = function
   | DB  (_,x,n)        -> print_db out (x,n)
   | Const (_,m,v)      -> print_const out (m,v)
   | App (f,a,args)     ->
-      Format.fprintf out "@[<hov2>%a@]" (print_list " " print_term_wp) (f::a::args)
+      Format.fprintf out "@[<hov2>%a@]" (print_list ~space:true "" print_term_wp) (f::a::args)
   | Lam (_,x,None,f)   -> Format.fprintf out "@[%a =>@ @[%a@]@]" print_ident x print_term f
   | Lam (_,x,Some a,f) ->
       Format.fprintf out "@[%a:@,%a =>@ @[%a@]@]" print_ident x print_term_wp a print_term f

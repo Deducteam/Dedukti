@@ -7,8 +7,9 @@ open Rule
 val name                : ident ref
 val print_db_enabled    : bool ref
 
-val print_list  : string -> (Format.formatter -> 'a -> unit)
-                  -> Format.formatter -> 'a list -> unit
+val print_list  : ?space:bool ->
+                  string -> (Format.formatter -> 'a -> unit) ->
+                  Format.formatter -> 'a list -> unit
 
 val pp_pterm    : out_channel -> preterm -> unit
 
