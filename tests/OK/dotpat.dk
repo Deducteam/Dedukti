@@ -1,15 +1,13 @@
 #NAME dot.
 
-Z: nat.
-
 plus: nat -> nat -> nat.
-[y:nat] 		plus Z     y --> y
+[y:nat] 		plus 0     y --> y
 [x:nat,y:nat]	plus (S x) y --> S (plus x y).
 
 #SNF (plus 2 2).
 
 V:   nat -> Type.
-Nil: V Z.
+Nil: V 0.
 Con: n:nat -> V n -> nat -> V (S n).
 
 hd: n:nat -> V (S n) -> nat.
@@ -20,6 +18,6 @@ hd n (Con n v m) --> m.
 
 app: n:nat -> m:nat -> V n -> V m -> V (plus n m).
 [m:nat,y:V m]
-app Z  m Nil         y --> y
+app 0  m Nil         y --> y
 [n:nat,m:nat,x:V n,y:V m,k:nat]
     app (S n) m (Con n x k) y --> Con (plus n m) (app n m x y) k.

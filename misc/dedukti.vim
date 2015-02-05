@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language: Dedukti
 " Maintainer: Ronan Saillard
-" Latest Revision: 17/01/2013
+" Latest Revision: 04/11/2014
 "
 if exists("b:current_syntax")
 	finish
@@ -10,22 +10,21 @@ endif
 syn keyword dkType Type
 syn keyword dkTodo TODO FIXME
 
-syn match dkLongArrow 	'-->' 
+syn match dkLongArrow 	'-->'
 syn match dkArrow 	'->'
 syn match dkFatArrow 	'=>'
 syn match dkColon 	'\:'
-syn match dkDef 	'\:=' 
-syn match dkDummy 	'_' 
+syn match dkDef 	'\:='
+syn match dkDummy 	'_'
 
 syn match dkParL 	'('
 syn match dkParR 	')'
 
-syn match dkId		'[A-Za-z_][A-Za-z0-9_]*\(\.[A-Za-z_][a-zA-Z0-9_]*\)\?'
-syn match dkDep		'#[A-Za-z_][A-Za-z0-9_]*'
-syn match dkMod		'@[A-Za-z_][A-Za-z0-9_]*'
+syn match dkId		'\([a-zA-Z0-9_]\+\.\)\?[a-zA-Z0-9_][a-zA-Z0-9_!?\']*'
+syn match dkDep		'#[A-Z]\+'
 
 syn region dkComment	start="(;" 	end=";)" fold
-syn region dkEnv 	start='\['	end='\]' contains=rien 
+syn region dkEnv 	start='\['	end='\]' contains=rien
 
 hi def link dkComment	Comment
 hi def link dkTodo    	Todo

@@ -5,29 +5,52 @@ INSTALL_DIR=/usr/bin
 
 # DO NOT EDIT AFTER THIS LINE
 
-OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt -rectypes' -cflags -rectypes \
-	 -use-menhir -menhir "menhir --external-tokens Types" -tag bin_annot
+OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt' -tag bin_annot -use-menhir # -tag debug -tag profile
+MENHIR = -menhir "menhir --external-tokens Tokens"
 
-all: dkcheck dktop dkdep
+all: dkcheck dktop dkdep dkrule doc
 
 dkcheck:
-	ocamlbuild -build-dir _dkcheck $(OPTIONS) dkcheck.native
+	ocamlbuild -Is kernel,utils,parser,refiner,dkcheck $(OPTIONS) $(MENHIR) dkcheck.native
 
 dktop:
-	ocamlbuild -build-dir _dktop $(OPTIONS) dktop.native
+	ocamlbuild -Is kernel,utils,parser,refiner,dktop $(OPTIONS) $(MENHIR) dktop.native
 
 dkdep:
-	ocamlbuild -build-dir _dkdep $(OPTIONS) dkdep.native
+	ocamlbuild -Is kernel,utils,parser,refiner,dkdep $(OPTIONS) $(MENHIR) dkdep.native
 
-profile:
-	ocamlbuild -tag profile -build-dir  $(OPTIONS) _dkcheck dkchech.native
+dkrule:
+	ocamlbuild -Is kernel,utils,parser,refiner,dkrule $(OPTIONS) $(MENHIR) dkrule.native
 
-install:
-	install _dkcheck/dkcheck.native ${INSTALL_DIR}/dkcheck
-	install _dktop/dktop.native ${INSTALL_DIR}/dktop
-	install _dkdep/dkdep.native ${INSTALL_DIR}/dkdep
+doc:
+	ocamlbuild -Is kernel,utils,parser,dkcheck,dkrule,refiner dkcheck/dkcheck.docdir/index.html
+
+BINARIES=dkcheck dktop dkdep dkrule
+
+install: all
+	for i in $(BINARIES) ; do \
+	    install "_build/$$i/$$i.native" "${INSTALL_DIR}/$$i" ; \
+	done
+
+uninstall:
+	for i in $(BINARIES) ; do \
+	    rm "${INSTALL_DIR}/$$i" ; \
+	done
 
 clean:
-	ocamlbuild -build-dir _dkcheck -clean
-	ocamlbuild -build-dir _dktop -clean
-	ocamlbuild -build-dir _dkdep -clean
+	ocamlbuild -clean
+
+tests: dkcheck
+	@echo "run tests..."
+	@for i in tests/OK/*.dk ; do \
+	    echo "on $$i...  " ; \
+	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep SUCCESS ; \
+	done
+	@for i in tests/KO/*.dk ; do \
+	    echo "on $$i...  " ; \
+	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep ERROR ; \
+	done
+	@echo "-----------------------"
+	@echo "tests OK"
+
+.PHONY: dkcheck dktop dkdep dkrule tests clean doc uninstall
