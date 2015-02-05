@@ -1,0 +1,12 @@
+#NAME let.
+
++ : nat -> nat -> nat.
+y : nat.
+
+#SNF let x = y in + x x.
+#CONV let x = y in x, let x = y in y.
+#SNF (let x = y in
+      let y = x in
+      + x y).
+
+#SNF let x = y in (x : nat => y).

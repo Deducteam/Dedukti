@@ -34,6 +34,90 @@
         | [t] -> t
         | f::a1::args -> PreApp (f,a1,args)
 
+    let fresh_var var_list var =
+      if List.mem var var_list then
+        (* Split the variable name in a string part and a number part *)
+        let s = string_of_ident var in
+        let number_part = ref "" in
+        let i = ref (String.length s - 1) in
+        while s.[!i] >= '0' && s.[!i] <= '9' do
+          number_part := Printf.sprintf "%c%s" s.[!i] !number_part;
+          i := !i - 1
+        done;
+        let name_part = String.sub s 0 (!i+1) in
+        assert (s = name_part ^ !number_part);
+        let int_part =
+          ref (try
+                  int_of_string !number_part
+                with Failure "int_of_string" -> 0)
+        in
+        while List.mem (hstring (Printf.sprintf "%s%d" name_part !int_part)) var_list do
+          int_part := !int_part + 1
+        done;
+        hstring (Printf.sprintf "%s%d" name_part !int_part)
+      else
+        var
+
+    let rec pre_subst map = function
+      | PreId (_, x) as t -> (try List.assoc x map with Not_found -> t)
+      | PreQId _
+      | PreType _ as t -> t
+      | PreApp (f, a, l) -> PreApp (pre_subst map f,
+                                   pre_subst map a,
+                                   List.map (pre_subst map) l)
+      | PrePi (l, None, ty, body) ->
+         PrePi (l, None, pre_subst map ty, pre_subst map body)
+      | PreLam (l, x, ty, body) ->
+         let x' = fresh_var (List.map fst map) x in
+         let map' = (x, PreId (l, x')) :: map in
+         let ty' =
+           match ty with
+           | None -> None
+           | Some ty -> Some (pre_subst map' ty)
+         in
+         PreLam (l, x', ty', pre_subst map' body)
+      | PrePi (l, Some x, ty, body) ->
+         let x' = fresh_var (List.map fst map) x in
+         let map' = (x, PreId (l, x')) :: map in
+         PrePi (l, Some x', pre_subst map' ty, pre_subst map' body)
+
+    let mk_let var term body = pre_subst [(var, term)] body
+
+    let mk_record_type (lt, ty_name) params (lc, constr) fields =
+      let params_and_fields = params @ fields in
+      let pattern_of_decl i (l, x, t) = PPattern (l,None,x,[]) in
+      let app_params = List.map (fun (l,x,t) -> PreId (l,x)) params in
+      let param_patterns = List.mapi pattern_of_decl params in
+      let rec_type = mk_pre_from_list (PreId (lt, ty_name) :: app_params) in
+      let rec_name = hstring "record" in
+      let field_proj_id n = let s = string_of_ident n in hstring ("proj_" ^ s) in
+      let field_proj_preterm (l, n, t) =
+        mk_pre_from_list (PreId(l, field_proj_id n) :: app_params @ [PreId(lt, rec_name)])
+      in
+      let field_proj_subst (l, n, t) = (n, field_proj_preterm (l, n, t)) in
+      let param_and_field_patterns = List.mapi pattern_of_decl (params_and_fields) in
+      mk_declaration lt ty_name (scope_term [] (mk_pi (PreType lt) params));
+      mk_declaration lc constr (scope_term [] (mk_pi rec_type (params_and_fields)));
+      List.iter (fun (lf, field_name, field_type) ->
+                     let proj_id = field_proj_id field_name in
+                     mk_declaration lf proj_id
+                        (scope_term []
+                                    (mk_pi
+                                       (pre_subst (List.map field_proj_subst fields) field_type)
+                                       (params @ [(lf, rec_name, rec_type)])));
+                     mk_rules [
+                         scope_rule (
+                             lf,
+                             params_and_fields,
+                             proj_id,
+                             param_patterns @
+                               [PPattern (lf,
+                                          None,
+                                          constr,
+                                          param_and_field_patterns)],
+                             PreId (lf, field_name))]
+                )
+                fields
 
 %}
 
@@ -51,6 +135,10 @@
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
+%token RECORD
+%token LET
+%token EQ
+%token IN
 %token <Basics.loc> WHNF
 %token <Basics.loc> HNF
 %token <Basics.loc> SNF
@@ -115,6 +203,10 @@ line            : ID COLON term DOT
                 { mk_opaque (fst $2) (snd $2)  None (scope_term [] (mk_lam $6 $3)) }
                 | rule+ DOT
                 { mk_rules (List.map scope_rule $1) }
+                | RECORD ID DEF ID LEFTBRA context RIGHTBRA DOT
+                { mk_record_type $2 [] $4 $6 }
+                | RECORD ID param+ DEF ID LEFTBRA context RIGHTBRA DOT
+                { mk_record_type $2 $3 $5 $7 }
                 | command DOT { $1 }
                 | EOF
                 { mk_ending () ; raise Tokens.EndOfFile }
@@ -183,8 +275,13 @@ sterm           : QID
                 | STRING
                 { Builtins.mk_string $1 }
 
-term            : sterm+
+letbody         : LET ID EQ term IN letbody
+                { mk_let (snd $2) $4 $6 }
+                | sterm+
                 { mk_pre_from_list $1 }
+
+term            : letbody
+                { $1 }
                 | ID COLON sterm+ ARROW term
                 { PrePi (fst $1,Some (snd $1),mk_pre_from_list $3,$5) }
                 | term ARROW term

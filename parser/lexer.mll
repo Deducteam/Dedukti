@@ -44,7 +44,11 @@ rule token = parse
   | "-->"	{ LONGARROW     }
   | "->"	{ ARROW         }
   | "=>"	{ FATARROW      }
+  | "="	        { EQ            }
   | ":="	{ DEF           }
+  | "Record"    { RECORD        }
+  | "let"       { LET           }
+  | "in"        { IN            }
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE ( get_loc lexbuf )       }
   | "#NAME" space+ (modname as md)
