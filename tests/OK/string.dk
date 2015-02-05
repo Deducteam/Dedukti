@@ -1,0 +1,21 @@
+#NAME string.
+
+length : string -> nat.
+[] length "" --> 0
+[ c : char, s : string ] length (string_cons c s) --> S (length s).
+
+make : nat -> char -> string.
+[ c : char ] make 0 c --> ""
+[ c : char, n : nat ] make (S n) c --> string_cons c (make n c).
+
+= : nat -> nat -> Type.
+refl : n : nat -> = n n.
+S_equal : n : nat -> m : nat -> = n m -> = (S n) (S m).
+[ n : nat ] S_equal n n (refl n) --> refl (S n).
+
+make_length : n : nat -> c : char -> = (length (make n c)) n.
+[ c : char ] make_length 0 c --> refl 0
+[ c : char, n : nat ]
+    make_length (S n) c
+      -->
+    S_equal (length (make n c)) n (make_length n c).

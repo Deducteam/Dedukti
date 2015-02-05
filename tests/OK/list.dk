@@ -1,0 +1,8 @@
+#NAME list.
+
+head : A : Type -> list A -> A.
+[ A : Type, a : A, l : list A ] head A (cons A a l) --> a.
+
+tail : A : Type -> list A -> list A.
+[ A : Type, a : A, l : list A ] tail A (cons A a l) --> l.
+

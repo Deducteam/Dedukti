@@ -1,0 +1,31 @@
+#NAME bool.
+
+bool : Type.
+true : bool.
+false : bool.
+
+if : A : Type -> bool -> A -> A -> A.
+[ A : Type, a : A, b : A ] if A true a b --> a
+[ A : Type, a : A, b : A ] if A false a b --> b.
+
+not : bool -> bool.
+[] not true --> false
+[] not false --> true
+[ b : bool ] not (not b) --> b.
+
+and : bool -> bool -> bool.
+[ b : bool ] and true b --> b
+[ b : bool ] and false b --> false
+[ b : bool ] and b true --> b
+[ b : bool ] and b false --> false
+[ a : bool, b : bool, c : bool ] and a (and b c) --> and (and a b) c.
+
+or : bool -> bool -> bool.
+[ b : bool ] or true b --> true
+[ b : bool ] or false b --> b
+[ b : bool ] or b true --> true
+[ b : bool ] or b false --> b
+[ a : bool, b : bool, c : bool ] or a (or b c) --> or (or a b) c.
+
+[ a : bool, b : bool ] not (or a b) --> and (not a) (not b).
+[ a : bool, b : bool ] not (and a b) --> or (not a) (not b).
