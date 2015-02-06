@@ -8,12 +8,13 @@ INSTALL_DIR=/usr/bin
 OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt' -tag bin_annot -use-menhir # -tag debug -tag profile
 MENHIR = -menhir "menhir --external-tokens Tokens"
 
-all: dkcheck.native dktop.native dkdep.native dkrule.native _build/dkcheck/dkcheck.docdir/index.html
+all: dkcheck.native dktop.native dkdep.native dkrule.native dkindent.native _build/dkcheck/dkcheck.docdir/index.html
 
 dkcheck:dkcheck.native
 dktop:dktop.native
 dkdep:dkdep.native
 dkrule:dkrule.native
+dkindent:dkindent.native
 doc:_build/dkcheck/dkcheck.docdir/index.html
 
 dkcheck.native:
@@ -27,6 +28,9 @@ dkdep.native:
 
 dkrule.native:
 	ocamlbuild -Is kernel,utils,parser,refiner,dkrule $(OPTIONS) $(MENHIR) dkrule.native
+
+dkindent.native:
+	ocamlbuild -Is kernel,utils,parser,dkindent $(OPTIONS) $(MENHIR) dkindent.native
 
 _build/dkcheck/dkcheck.docdir/index.html:
 	ocamlbuild -Is kernel,utils,parser,dkcheck,dkrule,refiner dkcheck/dkcheck.docdir/index.html
@@ -59,4 +63,4 @@ tests: dkcheck
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: dkcheck dktop dkdep dkrule tests clean doc uninstall
+.PHONY: dkcheck dktop dkdep dkrule dkindent tests clean doc uninstall
