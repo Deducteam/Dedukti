@@ -1,0 +1,8 @@
+version = "0.1"
+description = "Dedukti, a typechecker for Lambda-Pi Modulo"
+requires = ""
+archive(byte) = "dk.cma"
+archive(byte, plugin) = "dk.cma"
+archive(native) = "dk.cmxa"
+exists_if = "dk.cma"
+

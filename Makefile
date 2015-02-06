@@ -35,11 +35,13 @@ install: all
 	for i in $(BINARIES) ; do \
 	    install "_build/$$i/$$i.native" "${INSTALL_DIR}/$$i" ; \
 	done
+	ocamlfind install dklib META _build/dklib/dk.{cma,cmxa,cmi}
 
 uninstall:
 	for i in $(BINARIES) ; do \
 	    rm "${INSTALL_DIR}/$$i" ; \
 	done
+	ocamlfind remove dklib
 
 clean:
 	ocamlbuild -clean

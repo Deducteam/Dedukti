@@ -1,0 +1,18 @@
+opam-version: "1.2"
+maintainer: "ronan.saillard@inria.fr"
+author: "ronan.saillard@inria.fr"
+build: [
+  [make "all"]
+]
+install: [
+  [make "INSTALL_DIR=%{bin}%" "install"]
+]
+remove: [
+  ["rm" "%{bin}%/dkcheck"]
+  ["rm" "%{bin}%/dktop"]
+  ["rm" "%{bin}%/dkdep"]
+  ["rm" "%{bin}%/dkrule"]
+  ["ocamlfind" "remove" "dklib"]
+]
+depends: ["ocamlfind" "menhir"]
+
