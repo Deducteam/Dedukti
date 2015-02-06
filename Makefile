@@ -50,12 +50,9 @@ uninstall:
 clean:
 	ocamlbuild -clean
 
-tests: dkcheck
+tests: dkdep dkcheck
 	@echo "run tests..."
-	@for i in tests/OK/*.dk ; do \
-	    echo "on $$i...  " ; \
-	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep SUCCESS ; \
-	done
+	make -C tests/OK/ clean all
 	@for i in tests/KO/*.dk ; do \
 	    echo "on $$i...  " ; \
 	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep ERROR ; \
