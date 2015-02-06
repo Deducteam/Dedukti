@@ -8,26 +8,32 @@ INSTALL_DIR=/usr/bin
 OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt' -tag bin_annot -use-menhir # -tag debug -tag profile
 MENHIR = -menhir "menhir --external-tokens Tokens"
 
-all: dkcheck dktop dkdep dkrule doc
+all: dkcheck.native dktop.native dkdep.native dkrule.native _build/dkcheck/dkcheck.docdir/index.html
 
-dkcheck:
+dkcheck:dkcheck.native
+dktop:dktop.native
+dkdep:dkdep.native
+dkrule:dkrule.native
+doc:_build/dkcheck/dkcheck.docdir/index.html
+
+dkcheck.native:
 	ocamlbuild -Is kernel,utils,parser,refiner,dkcheck $(OPTIONS) $(MENHIR) dkcheck.native
 
-dktop:
+dktop.native:
 	ocamlbuild -Is kernel,utils,parser,refiner,dktop $(OPTIONS) $(MENHIR) dktop.native
 
-dkdep:
+dkdep.native:
 	ocamlbuild -Is kernel,utils,parser,refiner,dkdep $(OPTIONS) $(MENHIR) dkdep.native
 
-dkrule:
+dkrule.native:
 	ocamlbuild -Is kernel,utils,parser,refiner,dkrule $(OPTIONS) $(MENHIR) dkrule.native
 
-doc:
+_build/dkcheck/dkcheck.docdir/index.html:
 	ocamlbuild -Is kernel,utils,parser,dkcheck,dkrule,refiner dkcheck/dkcheck.docdir/index.html
 
 BINARIES=dkcheck dktop dkdep dkrule
 
-install: all
+install:
 	for i in $(BINARIES) ; do \
 	    install "_build/$$i/$$i.native" "${INSTALL_DIR}/$$i" ; \
 	done
