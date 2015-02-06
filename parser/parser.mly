@@ -16,24 +16,6 @@
     open Cmd
     open M
 
-    let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
-        | [] -> te
-        | (l,x,ty)::tl -> PreLam (l,x,Some ty,mk_lam te tl)
-
-    let rec mk_pi (te:preterm) : (loc*ident*preterm) list -> preterm = function
-        | [] -> te
-        | (l,x,ty)::tl -> PrePi(l,Some x,ty,mk_pi te tl)
-
-    let rec preterm_loc = function
-        | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
-        | PrePi   (l,_,_,_) -> l
-        | PreApp (f,_,_) -> preterm_loc f
-
-    let mk_pre_from_list = function
-        | [] -> assert false
-        | [t] -> t
-        | f::a1::args -> PreApp (f,a1,args)
-
     let fresh_var var_list var =
       if List.mem var var_list then
         (* Split the variable name in a string part and a number part *)
@@ -83,41 +65,85 @@
 
     let mk_let var term body = pre_subst [(var, term)] body
 
+    let rec mk_lam (te:preterm) : pdecl list -> preterm = function
+        | [] -> te
+        | PDecl(l,x,ty)::tl -> PreLam (l,x,Some ty,mk_lam te tl)
+        | PDef(l,x,t)::tl -> mk_let x t (mk_lam te tl)
+
+    let rec mk_pi (te:preterm) : pdecl list -> preterm = function
+        | [] -> te
+        | PDecl(l,x,ty)::tl -> PrePi(l,Some x,ty,mk_pi te tl)
+        | PDef(l,x,t)::tl -> mk_let x t (mk_pi te tl)
+
+    let rec preterm_loc = function
+        | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
+        | PrePi   (l,_,_,_) -> l
+        | PreApp (f,_,_) -> preterm_loc f
+
+    let mk_pre_from_list = function
+        | [] -> assert false
+        | [t] -> t
+        | f::a1::args -> PreApp (f,a1,args)
+
+    let rec filter_map f = function
+      | [] -> []
+      | a :: l ->
+         (match f a with
+          | None -> filter_map f l
+          | Some b -> b :: filter_map f l)
+
     let mk_record_type (lt, ty_name) params (lc, constr) fields =
+      let pdecl (l,x,ty) = PDecl(l,x,ty) in
       let params_and_fields = params @ fields in
-      let pattern_of_decl i (l, x, t) = PPattern (l,None,x,[]) in
-      let app_params = List.map (fun (l,x,t) -> PreId (l,x)) params in
-      let param_patterns = List.mapi pattern_of_decl params in
+      let pattern_of_decl = function
+        | PDecl (l, x, t) -> Some (PPattern (l,None,x,[]))
+        | PDef _ -> None
+      in
+      let app_params =
+        filter_map
+          (function
+            | PDecl (l,x,t) -> Some (PreId (l,x))
+            | PDef _ -> None)
+          params
+      in
+      let param_patterns = filter_map pattern_of_decl params in
       let rec_type = mk_pre_from_list (PreId (lt, ty_name) :: app_params) in
       let rec_name = hstring "record" in
       let field_proj_id n = let s = string_of_ident n in hstring ("proj_" ^ s) in
       let field_proj_preterm (l, n, t) =
         mk_pre_from_list (PreId(l, field_proj_id n) :: app_params @ [PreId(lt, rec_name)])
       in
-      let field_proj_subst (l, n, t) = (n, field_proj_preterm (l, n, t)) in
-      let param_and_field_patterns = List.mapi pattern_of_decl (params_and_fields) in
+      let field_proj_subst = function
+        | PDecl (l, n, t) -> (n, field_proj_preterm (l, n, t))
+        | PDef (l, n, t) -> (n, t)
+      in
+      let param_and_field_patterns = filter_map pattern_of_decl (params_and_fields) in
       mk_declaration lt ty_name (scope_term [] (mk_pi (PreType lt) params));
       mk_declaration lc constr (scope_term [] (mk_pi rec_type (params_and_fields)));
-      List.iter (fun (lf, field_name, field_type) ->
-                     let proj_id = field_proj_id field_name in
-                     mk_declaration lf proj_id
-                        (scope_term []
-                                    (mk_pi
-                                       (pre_subst (List.map field_proj_subst fields) field_type)
-                                       (params @ [(lf, rec_name, rec_type)])));
-                     mk_rules [
-                         scope_rule (
-                             lf,
-                             params_and_fields,
-                             proj_id,
-                             param_patterns @
-                               [PPattern (lf,
-                                          None,
-                                          constr,
-                                          param_and_field_patterns)],
-                             PreId (lf, field_name))]
-                )
-                fields
+      List.iter
+        (function
+          | PDecl (lf, field_name, field_type) ->
+             let proj_id = field_proj_id field_name in
+             mk_declaration lf proj_id
+                            (scope_term []
+                                        (mk_pi
+                                           (pre_subst (List.map field_proj_subst fields) field_type)
+                                           (params @ [PDecl(lf, rec_name, rec_type)])));
+             mk_rules [
+                 scope_rule (
+                     lf,
+                     params_and_fields,
+                     proj_id,
+                     param_patterns @
+                       [PPattern (lf,
+                                  None,
+                                  constr,
+                                  param_and_field_patterns)],
+                     PreId (lf, field_name))]
+          | PDef (lf, field_name, field_val) ->
+             failwith "Unimplemented: Defined field in record type"
+        )
+        fields
 
 %}
 
@@ -233,7 +259,8 @@ param           : LEFTPAR decl RIGHTPAR                 { $2 }
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
                 { let (l,id,args) = $4 in ( l , $2 , id , args , $6) }
 
-decl           : ID COLON term         { (fst $1,snd $1,$3) }
+decl            : ID COLON term         { PDecl (fst $1,snd $1,$3) }
+                | ID DEF term           { PDef (fst $1,snd $1,$3) }
 
 context         : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, decl) { $1 }

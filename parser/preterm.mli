@@ -16,6 +16,9 @@ type prepattern =
   | PLambda     of loc*ident*prepattern
   | PJoker      of loc
 
-type pdecl      = loc * ident * preterm
+type pdecl =
+  | PDecl of loc * ident * preterm
+  | PDef of loc * ident * preterm
+
 type pcontext   = pdecl list
 type prule      = loc * pdecl list * ident * prepattern list * preterm

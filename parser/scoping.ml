@@ -57,8 +57,11 @@ let scope_pattern (ctx:context) (pp:prepattern) : pattern =
 (******************************************************************************)
 
 let scope_context pctx =
-  let aux ctx0 (l,x,ty) = (l,x,scope_term ctx0 ty)::ctx0 in
-    List.fold_left aux [] pctx
+  let aux ctx0 = function
+    | PDecl (l,x,ty) -> (l,x,scope_term ctx0 ty)::ctx0
+    | PDef _ -> failwith "Unimplemented: Definition in rule context"
+  in
+  List.fold_left aux [] pctx
 
 let scope_rule (l,pctx,id,pargs,pri) =
   let ctx = scope_context pctx in
