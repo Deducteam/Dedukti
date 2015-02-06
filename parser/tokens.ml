@@ -10,9 +10,6 @@ type token =
   | RIGHTPAR
   | RIGHTBRA
   | RECORD
-  | LET
-  | EQ
-  | IN
   | QID         of ( loc * ident * ident )
   | NAME        of ( loc * ident )
   | LONGARROW

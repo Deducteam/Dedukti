@@ -3,10 +3,10 @@
 + : nat -> nat -> nat.
 y : nat.
 
-#SNF let x = y in + x x.
-#CONV let x = y in x, let x = y in y.
-#SNF (let x = y in
-      let y = x in
+#SNF x := y => + x x.
+#CONV x := y => x, x := y => y.
+#SNF (x := y =>
+      y := x =>
       + x y).
 
-#SNF let x = y in (x : nat => y).
+#SNF x := y => (x : nat => y).

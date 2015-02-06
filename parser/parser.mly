@@ -162,9 +162,6 @@
 %token LEFTSQU
 %token RIGHTSQU
 %token RECORD
-%token LET
-%token EQ
-%token IN
 %token <Basics.loc> WHNF
 %token <Basics.loc> HNF
 %token <Basics.loc> SNF
@@ -302,13 +299,8 @@ sterm           : QID
                 | STRING
                 { Builtins.mk_string $1 }
 
-letbody         : LET ID EQ term IN letbody
-                { mk_let (snd $2) $4 $6 }
-                | sterm+
+term            : sterm+
                 { mk_pre_from_list $1 }
-
-term            : letbody
-                { $1 }
                 | ID COLON sterm+ ARROW term
                 { PrePi (fst $1,Some (snd $1),mk_pre_from_list $3,$5) }
                 | term ARROW term
@@ -317,4 +309,6 @@ term            : letbody
                 { PreLam (fst $1,snd $1,None,$3) }
                 | ID COLON sterm+ FATARROW term
                 { PreLam (fst $1,snd $1,Some(mk_pre_from_list $3),$5) }
+                | ID DEF sterm+ FATARROW term
+                { mk_let (snd $1) (mk_pre_from_list $3) $5 }
 %%
