@@ -8,7 +8,11 @@ INSTALL_DIR=/usr/bin
 OPTIONS = -tag bin_annot -use-menhir # -tag debug -tag profile
 MENHIR = -menhir "menhir --external-tokens Tokens"
 
-all: dkcheck dktop dkdep dkrule doc
+all: dkcheck dktop dkdep dkrule dklib doc
+
+dklib:
+	ocamlbuild -Is kernel,utils,parser,refiner,dklib $(OPTIONS) $(MENHIR) \
+	    dk.cmxa dk.cma dk.cmi
 
 dkcheck:
 	ocamlbuild -Is kernel,utils,parser,refiner,dkcheck $(OPTIONS) $(MENHIR) dkcheck.native
@@ -23,7 +27,7 @@ dkrule:
 	ocamlbuild -Is kernel,utils,parser,refiner,dkrule $(OPTIONS) $(MENHIR) dkrule.native
 
 doc:
-	ocamlbuild -Is kernel,utils,parser,dkcheck,dkrule,refiner dkcheck/dkcheck.docdir/index.html
+	ocamlbuild -Is kernel,utils,parser,dkcheck,dkrule,dklib,refiner dkcheck/dkcheck.docdir/index.html
 
 BINARIES=dkcheck dktop dkdep dkrule
 
@@ -53,4 +57,4 @@ tests: dkcheck
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: dkcheck dktop dkdep dkrule tests clean doc uninstall
+.PHONY: dkcheck dktop dkdep dkrule dklib tests clean doc uninstall

@@ -1,2 +1,3 @@
 <**/*.cmx*>: inline(10)
+<kernel/*> or <utils/*> or <parser/*> or <refiner/*>: for-pack(Dk)
 
