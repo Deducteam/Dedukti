@@ -7,3 +7,6 @@ dktop.native
 .*.swp
 .*.swo
 _*/
+*.dko
+*.depend
+.bkp/
