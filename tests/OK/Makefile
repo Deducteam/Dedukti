@@ -1,24 +1,21 @@
-DKCHECK = ../../dkcheck.native
-DKDEP = ../../dkdep.native
-DKOPTIONS = -coc
+SKCHECK = ../../skcheck.native
+SKDEP = ../../skdep.native
+SKOPTIONS = -coc
 
 builtins.dko: builtins.dk
 	dkcheck -e -coc $<
 
-builtins.depend: builtins.dk
-	dkdep $< > $@
-
 %.dko:
-	$(DKCHECK) $(DKOPTIONS) -e $<
+	$(SKCHECK) $(SKOPTIONS) -e $<
 
-%.depend: %.dk
-	$(DKDEP) $< > $@
+%.depend: %.sk
+	$(SKDEP) $< > $@
 
 clean:
 	rm -f *.dko *.depend
 
-DKS = $(wildcard *.dk)
-DEPENDS = $(DKS:.dk=.depend)
+SKS = $(wildcard *.sk)
+DEPENDS = $(SKS:.sk=.depend)
 DKOS = $(shell cat *.depend | cut -d ':' -f 1)
 all: $(DKOS)
 

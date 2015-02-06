@@ -8,34 +8,34 @@ INSTALL_DIR=/usr/bin
 OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt' -tag bin_annot -use-menhir # -tag debug -tag profile
 MENHIR = -menhir "menhir --external-tokens Tokens"
 
-all: dkcheck.native dktop.native dkdep.native dkrule.native dkindent.native _build/dkcheck/dkcheck.docdir/index.html
+all: skcheck.native sktop.native skdep.native skrule.native skindent.native _build/skcheck/skcheck.docdir/index.html
 
-dkcheck:dkcheck.native
-dktop:dktop.native
-dkdep:dkdep.native
-dkrule:dkrule.native
-dkindent:dkindent.native
-doc:_build/dkcheck/dkcheck.docdir/index.html
+skcheck:skcheck.native
+sktop:sktop.native
+skdep:skdep.native
+skrule:skrule.native
+skindent:skindent.native
+doc:_build/skcheck/skcheck.docdir/index.html
 
-dkcheck.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,dkcheck $(OPTIONS) $(MENHIR) dkcheck.native
+skcheck.native:
+	ocamlbuild -Is kernel,utils,parser,refiner,skcheck $(OPTIONS) $(MENHIR) skcheck.native
 
-dktop.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,dktop $(OPTIONS) $(MENHIR) dktop.native
+sktop.native:
+	ocamlbuild -Is kernel,utils,parser,refiner,sktop $(OPTIONS) $(MENHIR) sktop.native
 
-dkdep.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,dkdep $(OPTIONS) $(MENHIR) dkdep.native
+skdep.native:
+	ocamlbuild -Is kernel,utils,parser,refiner,skdep $(OPTIONS) $(MENHIR) skdep.native
 
-dkrule.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,dkrule $(OPTIONS) $(MENHIR) dkrule.native
+skrule.native:
+	ocamlbuild -Is kernel,utils,parser,refiner,skrule $(OPTIONS) $(MENHIR) skrule.native
 
-dkindent.native:
-	ocamlbuild -Is kernel,utils,parser,dkindent $(OPTIONS) $(MENHIR) dkindent.native
+skindent.native:
+	ocamlbuild -Is kernel,utils,parser,skindent $(OPTIONS) $(MENHIR) skindent.native
 
-_build/dkcheck/dkcheck.docdir/index.html:
-	ocamlbuild -Is kernel,utils,parser,dkcheck,dkrule,refiner dkcheck/dkcheck.docdir/index.html
+_build/skcheck/skcheck.docdir/index.html:
+	ocamlbuild -Is kernel,utils,parser,skcheck,skrule,refiner skcheck/skcheck.docdir/index.html
 
-BINARIES=dkcheck dktop dkdep dkrule
+BINARIES=skcheck sktop skdep skrule
 
 install:
 	for i in $(BINARIES) ; do \
@@ -50,14 +50,14 @@ uninstall:
 clean:
 	ocamlbuild -clean
 
-tests: dkdep dkcheck
+tests: skdep skcheck
 	@echo "run tests..."
 	make -C tests/OK/ clean all
-	@for i in tests/KO/*.dk ; do \
+	@for i in tests/KO/*.sk ; do \
 	    echo "on $$i...  " ; \
-	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep ERROR ; \
+	    ./_skcheck/skcheck.native "$$i" 2>&1 | grep ERROR ; \
 	done
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: dkcheck dktop dkdep dkrule dkindent tests clean doc uninstall
+.PHONY: skcheck sktop skdep skrule skindent tests clean doc uninstall
