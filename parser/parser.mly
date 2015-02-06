@@ -235,21 +235,21 @@ line            : ID COLON term DOT
                 { mk_ending () ; raise Tokens.EndOfFile }
 
 
-                command         : WHNF  term    { mk_command $1 (Whnf (scope_term [] $2)) }
-                | HNF   term    { mk_command $1 (Hnf (scope_term [] $2)) }
-                | SNF   term    { mk_command $1 (Snf (scope_term [] $2)) }
-                | STEP  term    { mk_command $1 (OneStep (scope_term [] $2)) }
-                | INFER term    { mk_command $1 (Infer (scope_term [] $2)) }
-                | CONV  term  COMMA term { mk_command $1 (Conv (scope_term [] $2,scope_term [] $4)) }
-                | CHECK term  COMMA term { mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
+command         : WHNF  letterm    { mk_command $1 (Whnf (scope_term [] $2)) }
+                | HNF   letterm    { mk_command $1 (Hnf (scope_term [] $2)) }
+                | SNF   letterm    { mk_command $1 (Snf (scope_term [] $2)) }
+                | STEP  letterm    { mk_command $1 (OneStep (scope_term [] $2)) }
+                | INFER letterm    { mk_command $1 (Infer (scope_term [] $2)) }
+                | CONV  letterm  COMMA letterm { mk_command $1 (Conv (scope_term [] $2,scope_term [] $4)) }
+                | CHECK letterm  COMMA letterm { mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
                 | PRINT STRING  { mk_command $1 (Print (snd $2)) }
                 | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }
                 | OTHER term_lst { mk_command (fst $1) (Other (snd $1,List.map (scope_term []) $2)) }
 
 
-term_lst        : term                                  { [$1] }
-                | term COMMA term_lst                   { $1::$3 }
+term_lst        : letterm                                  { [$1] }
+                | letterm COMMA term_lst                   { $1::$3 }
 
 param           : LEFTPAR decl RIGHTPAR                 { $2 }
 
@@ -288,7 +288,7 @@ sterm           : QID
                 { let (l,md,id)=$1 in PreQId(l,md,id) }
                 | ID
                 { PreId (fst $1,snd $1) }
-                | LEFTPAR term RIGHTPAR
+                | LEFTPAR letterm RIGHTPAR
                 { $2 }
                 | TYPE
                 { PreType $1 }
@@ -305,10 +305,12 @@ term            : sterm+
                 { PrePi (fst $1,Some (snd $1),mk_pre_from_list $3,$5) }
                 | term ARROW term
                 { PrePi (preterm_loc $1,None,$1,$3) }
-                | ID FATARROW term
-                { PreLam (fst $1,snd $1,None,$3) }
                 | ID COLON sterm+ FATARROW term
                 { PreLam (fst $1,snd $1,Some(mk_pre_from_list $3),$5) }
-                | ID DEF sterm+ FATARROW term
-                { mk_let (snd $1) (mk_pre_from_list $3) $5 }
+
+letterm         : term
+                { $1 }
+                | ID DEF term FATARROW letterm
+                { mk_let (snd $1) $3 $5 }
+
 %%
