@@ -168,9 +168,9 @@ let rec reduce (st:state) : state =
     | { ctx; term=Const (l,m,v); stack } as config ->
         begin
           match Env.get_dtree l m v with
-            | Env.DoD_None -> config
-            | Env.DoD_Def term -> reduce { ctx=LList.nil; term; stack }
-            | Env.DoD_Dtree (i,g) ->
+            | Signature.DoD_None -> config
+            | Signature.DoD_Def term -> reduce { ctx=LList.nil; term; stack }
+            | Signature.DoD_Dtree (i,g) ->
                 begin
                   match split_stack i stack with
                     | None -> config
@@ -347,9 +347,9 @@ let rec state_one_step : state -> state option = function
     | { ctx; term=Const (l,m,v); stack } ->
         begin
           match Env.get_dtree l m v with
-            | Env.DoD_None -> None
-            | Env.DoD_Def term -> Some { ctx=LList.nil; term; stack }
-            | Env.DoD_Dtree (i,g) ->
+            | Signature.DoD_None -> None
+            | Signature.DoD_Def term -> Some { ctx=LList.nil; term; stack }
+            | Signature.DoD_Dtree (i,g) ->
                 begin
                   match split_stack i stack with
                     | None -> None
