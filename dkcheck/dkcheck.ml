@@ -20,11 +20,11 @@ let args = [
   ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;
   ("-r"    , Arg.Set Env.ignore_redecl,         "Ignore redeclaration" ) ;
   ("-version", Arg.Unit Version.print_version,  "Version" ) ;
-  ("-coc", Arg.Set Judgment.coc,               "Typecheck the Calculus of Construction" ) ;
+  ("-coc", Arg.Set Typing.coc,               "Typecheck the Calculus of Construction" ) ;
   ("-autodep", Arg.Set Env.autodep  ,
    "Automatically handle dependencies (experimental)") ;
   ("-I"    , Arg.String Basics.add_path,        "Add a directory to load path");
-  ("-errors-in-snf", Arg.Set Judgment.errors_in_snf, "Normalize the types in error messages")
+  ("-errors-in-snf", Arg.Set Typing.errors_in_snf, "Normalize the types in error messages")
 ]
 
 let run_on_file file =

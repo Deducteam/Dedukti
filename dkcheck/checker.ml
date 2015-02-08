@@ -1,5 +1,5 @@
 open Basics
-open Judgment
+open Typing
 
 (* ********************************* *)
 

@@ -1,5 +1,5 @@
 open Basics
-open Judgment
+open Typing
 
 let print fmt =
   Printf.kfprintf (fun _ -> print_newline () ) stdout fmt

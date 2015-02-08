@@ -1,6 +1,6 @@
 open Basics
 open Term
-open Judgment
+open Typing
 
 type command =
   (* Reduction *)
