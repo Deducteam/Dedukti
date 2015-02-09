@@ -1,29 +1,30 @@
 open Basics
 open Term
 open Rule
-(*
-type pattern2 =
-  | Joker2
-  | Var2         of ident*int*int list
-  | Lambda2      of ident*pattern2
-  | Pattern2     of ident*ident*pattern2 array
-  | BoundVar2    of ident*int*pattern2 array
- *)
+
+type dtree_error =
+(* Print.fail (get_loc_pat p) "The pattern '%a' is not a bound variable." Pp.pp_pattern p *)
+  | BoundVariableExpected of pattern
+(* Print.fail (get_loc t) "The term '%a' contains a variable bound outside the brackets." Pp.pp_term t *)
+  | VariableBoundOutsideTheGuard of term
+(*   Print.fail l "The variable '%a' must be applied to at least %i argument(s)." pp_ident id nb_args.(n-k) *)
+  | NotEnoughArguments of loc*ident*int
+(*   Print.fail r2.l "Unexpected head symbol '%a' \ (expected '%a')." pp_ident r2.id pp_ident r1.id *)
+  | HeadSymbolMismatch of loc*ident*ident
+(*   Print.fail r2.l "All the rewrite rules for \ the symbol '%a' should have the same arity." pp_ident r1.id *)
+  | ArityMismatch of loc*ident
+(*  Print.fail l "The variables '%a' is not bounded in '%a'." pp_ident x Pp.pp_pattern p *)
+  | UnboundVariable of loc*ident*pattern
+(*  Print.fail l "A variable is not a valid pattern." *)
+  | AVariableIsNotAPattern of loc*ident
+
+exception DtreeExn of dtree_error
+
 type rule2 =
     { loc:loc ; pats:pattern2 array ; right:term ;
       constraints:(term*term) list ; esize:int ; }
-(*
-let check { loc; pats; right; constraints; esize; } : bool =
-  let rec aux k = function
-    | Joker2 -> true
-    | Var2 (_,n,_) ->( Print.debug "N=%i K=%i" n k; ( (n-k) < esize ) )
-    | Lambda2 (_,p) -> aux (k+1) p
-    | Pattern2(_,_,args) | BoundVar2(_,_,args) ->
-        List.for_all (aux k) (Array.to_list args)
-  in
-    List.for_all (aux 0) (Array.to_list pats)
- *)
-(* ***************************** *)
+
+(* ************************************************************************** *)
 
 let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
   let (clst,b2) =
@@ -31,7 +32,7 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
-(* ***************************** *)
+(* ************************************************************************** *)
 
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
 type lin_ty = { cstr:(term*term) list; fvar:int ; seen:IntSet.t }
@@ -39,8 +40,7 @@ let br = hstring "{_}"
 
 let extract_db k = function
   | Var (_,_,n,[]) when n<k -> n
-  | p -> Print.fail (get_loc_pat p) "The pattern '%a' is not a bound variable."
-           Pp.pp_pattern p
+  | p -> raise (DtreeExn (BoundVariableExpected p))
 
 (* This function extracts non-linearity and bracket constraints from a list
  * of patterns. *)
@@ -68,9 +68,7 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term)
               cstr=(mk_DB dloc br s.fvar,Subst.unshift k t)::(s.cstr) ;} )
           with
             | Subst.UnshiftExn ->
-                Print.fail (get_loc t)
-                  "The term '%a' contains a variable bound outside the brackets."
-                  Pp.pp_term t
+                raise (DtreeExn (VariableBoundOutsideTheGuard t))
         end
     | Pattern (_,m,v,args) ->
         let (args2,s2) = (fold_map (aux k) s args) in
@@ -89,8 +87,7 @@ let get_nb_args (esize:int) (p:pattern) : int array =
   let rec aux k = function
     | Brackets _ -> ()
     | Var (_,_,n,args) when n<k -> List.iter (aux k) args
-    | Var (_,id,n,args) ->
-        arr.(n-k) <- min (arr.(n-k)) (List.length args)
+    | Var (_,id,n,args) -> arr.(n-k) <- min (arr.(n-k)) (List.length args)
     | Lambda (_,_,pp) -> aux (k+1) pp
     | Pattern (_,_,_,args) -> List.iter (aux k) args
   in
@@ -102,12 +99,10 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
     | Kind | Type _ | Const _ -> ()
     | DB (l,id,n) ->
         if n>=k && nb_args.(n-k)>0 then
-          Print.fail l "The variable '%a' must be applied to at least %i argument(s)."
-            pp_ident id nb_args.(n-k)
+          raise (DtreeExn (NotEnoughArguments (l,id,n)))
     | App(DB(l,id,n),a1,args) when n>=k ->
         if ( nb_args.(n-k) > 1 + (List.length args) ) then
-          Print.fail l "The variable '%a' must be applied to at least %i argument(s)."
-            pp_ident id nb_args.(n-k)
+          raise (DtreeExn (NotEnoughArguments (l,id,n)))
         else List.iter (aux k) (a1::args)
     | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
     | Lam (_,_,None,b) -> aux (k+1) b
@@ -115,7 +110,52 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
   in
     aux 0 te
 
-(* ***************************** *)
+let check_vars esize ctx p =
+  let seen = Array.make esize false in
+  let rec aux q = function
+    | Pattern (_,_,_,args) -> List.iter (aux q) args
+    | Var (_,_,n,args) ->
+        begin
+          ( if n-q >= 0 then seen.(n-q) <- true );
+          List.iter (aux q) args
+        end
+    | Lambda (_,_,t) -> aux (q+1) t
+    | Brackets _ -> ()
+  in
+    aux 0 p;
+    Array.iteri (
+      fun i b ->
+        if (not b) then
+          let (l,x,_) = List.nth ctx i in
+            raise (DtreeExn (UnboundVariable (l,x,p)))
+    ) seen
+
+let to_rule_infos (r:rule) : (rule_infos,dtree_error) error =
+  try
+    begin
+      let (ctx,lhs,rhs) = r in
+      let esize = List.length ctx in
+      let (l,md,id,args) = match lhs with
+        | Pattern (l,md,id,args) ->
+            begin
+              check_vars esize ctx lhs;
+              (l,md,id,args)
+            end
+        | Var (l,x,_,_) -> raise (DtreeExn (AVariableIsNotAPattern (l,x)))
+        | Lambda _ | Brackets _ -> assert false
+      in
+      let nb_args = get_nb_args esize lhs in
+      let _ = check_nb_args nb_args rhs in
+      let (esize2,pats2,cstr) = linearize esize args in
+        OK { l ; ctx ; md ; id ; args ; rhs ;
+             esize = esize2 ;
+             l_args = Array.of_list pats2 ;
+             constraints = cstr ; }
+    end
+  with
+      DtreeExn e -> Err e
+
+(* ************************************************************************** *)
 
 type matrix =
     { col_depth: int array;
@@ -151,13 +191,11 @@ let mk_matrix : rule_infos list -> matrix = function
       let o = List.map (
         fun r2 ->
           if not (ident_eq r1.id r2.id) then
-            Print.fail r2.l "Unexpected head symbol '%a' \
-              (expected '%a')." pp_ident r2.id pp_ident r1.id
+            raise (DtreeExn (HeadSymbolMismatch (r2.l,r1.id,r2.id)))
           else
             let r2' = to_rule2 r2 in
               if n != Array.length r2'.pats then
-                Print.fail r2.l "All the rewrite rules for \
-                  the symbol '%a' should have the same arity." pp_ident r1.id
+                raise (DtreeExn (ArityMismatch (r2.l,r1.id)))
               else r2'
       ) rs in
         { first=f; others=o; col_depth=Array.make (Array.length f.pats) 0 ;}
@@ -366,46 +404,9 @@ let rec to_dtree (mx:matrix) : dtree =
 
 (******************************************************************************)
 
-let check_vars esize ctx p =
-  let seen = Array.make esize false in
-  let rec aux q = function
-    | Pattern (_,_,_,args) -> List.iter (aux q) args
-    | Var (_,_,n,args) ->
-        begin
-          ( if n-q >= 0 then seen.(n-q) <- true );
-          List.iter (aux q) args
-        end
-    | Lambda (_,_,t) -> aux (q+1) t
-    | Brackets _ -> ()
-  in
-    aux 0 p;
-    Array.iteri (
-      fun i b ->
-        if (not b) then
-          let (l,x,_) = List.nth ctx i in
-            Print.fail l "The variables '%a' is not bounded in '%a'."
-              pp_ident x Pp.pp_pattern p
-    ) seen
 
-let to_rule_infos (r:rule) : rule_infos =
-  let (ctx,lhs,rhs) = r in
-  let esize = List.length ctx in
-  let (l,md,id,args) = match lhs with
-    | Pattern (l,md,id,args) ->
-        begin
-          check_vars esize ctx lhs;
-          (l,md,id,args)
-        end
-    | Var (l,_,_,_) -> Print.fail l "A variable is not a valid pattern."
-    | Lambda _ | Brackets _ -> assert false
-  in
-  let nb_args = get_nb_args esize lhs in
-  let _ = check_nb_args nb_args rhs in
-  let (esize2,pats2,cstr) = linearize esize args in
-    { l ; ctx ; md ; id ; args ; rhs ;
-      esize = esize2 ;
-      l_args = Array.of_list pats2 ;
-      constraints = cstr ; }
+let of_rules (rs:rule_infos list) : (int*dtree,dtree_error) error =
+  try
+    let mx = mk_matrix rs in OK ( Array.length mx.first.pats , to_dtree mx )
+  with DtreeExn e -> Err e
 
-let of_rules (rs:rule_infos list) : int*dtree =
-  let mx = mk_matrix rs in ( Array.length mx.first.pats , to_dtree mx )

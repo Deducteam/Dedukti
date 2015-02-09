@@ -156,19 +156,13 @@ let add sg lc v gst =
 
 let declare sg lc v ty    = add sg lc v (Decl ty)
 let define sg lc v te ty  = add sg lc v (Def (te,ty))
-(*
- let rule_to_frule (ctx,pat,rhs) =
- match pat with
- | Pattern(l,md,id,args) -> { l ; ctx ; md; id ; args ; rhs }
- | Var (l,_,_,_) -> Print.fail l "A variable is not a valid pattern."
- | Brackets _ -> assert false
- | Lambda _ -> assert false
- *)
+
 let add_rules sg lst =
-  let rs = List.map Dtree.to_rule_infos lst in
+  let rs = map_error_list Dtree.to_rule_infos lst in
     match rs with
-      | [] -> ()
-      | r::_ as rs ->
+      | Err _ -> assert false (*TODO*)
+      | OK [] -> ()
+      | OK (r::_ as rs) ->
           let env = H.find sg.tables sg.name in
           let (ty,rules) =
             match H.find env r.id with
@@ -178,6 +172,7 @@ let add_rules sg lst =
                   Print.fail r.l "Cannot add rewrite\
                     rules for the defined symbol '%a'." pp_ident r.id
           in
-          let (n,tree) = Dtree.of_rules rules in
-            H.add env r.id (Decl_rw (ty,rules,n,tree))
+            match Dtree.of_rules rules with
+              | OK (n,tree) -> H.add env r.id (Decl_rw (ty,rules,n,tree))
+              | Err _ -> assert false (*TODO*)
 
