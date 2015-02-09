@@ -17,15 +17,15 @@ sig
 end
 
 type judgment = Context.t judgment0
-type rule_judgment
+type rule_judgment = (context * pattern * term)
 
-val infer       : Context.t -> term -> judgment
-val check       : term -> judgment -> judgment
+val infer       : Signature.t -> Context.t -> term -> judgment
+val check       : Signature.t -> term -> judgment -> judgment
 
-val inference   : term -> judgment
-val checking    : term -> term -> judgment
-val check_rule  : rule -> rule_judgment
-
+val inference   : Signature.t -> term -> judgment
+val checking    : Signature.t -> term -> term -> judgment
+val check_rule  : Signature.t -> rule -> rule_judgment
+(*
 val declare     : loc -> ident -> judgment -> unit
 val define      : loc -> ident -> judgment -> unit
 val define_op   : loc -> ident -> judgment -> unit
@@ -42,7 +42,7 @@ val snf         : judgment -> judgment
 val one         : judgment -> judgment
 val conv_test   : judgment -> judgment -> bool
 val check_test  : judgment -> judgment -> bool
-
+ *)
 (*
 val mk_Type     : context -> loc -> judgment
 val mk_Const    : context -> loc -> ident -> ident -> judgment

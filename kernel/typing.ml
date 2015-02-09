@@ -3,7 +3,7 @@ open Term
 open Rule
 
 let coc = ref false
-let errors_in_snf = ref false
+let errors_in_snf = ref false (*FIXME desactivated*)
 
 type 'a judgment0 = { ctx:'a; te:term; ty: term; }
 type rule_judgment = context * pattern * term
@@ -15,20 +15,20 @@ let pp_context out = function
   | ctx -> Printf.fprintf out " in context:\n%a" Pp.pp_context ctx
 
 let error_convertibility te ctx exp inf =
-  let exp = if !errors_in_snf then Reduction.snf exp else exp in
-  let inf = if !errors_in_snf then Reduction.snf inf else inf in
+(*   let exp = if !errors_in_snf then Reduction.snf exp else exp in *)
+(*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
     Print.fail (get_loc te)
       "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
       Pp.pp_term te pp_context ctx Pp.pp_term exp Pp.pp_term inf
 
 let error_sort_expected te ctx inf =
-  let inf = if !errors_in_snf then Reduction.snf inf else inf in
+(*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
     Print.fail (get_loc te)
       "Error while typing '%a'%a.\nExpected: a sort.\nInferred: %a."
       Pp.pp_term te pp_context ctx Pp.pp_term inf
 
 let error_product_expected te ctx inf =
-  let inf = if !errors_in_snf then Reduction.snf inf else inf in
+(*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
     Print.fail (get_loc te)
       "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
       Pp.pp_term te pp_context ctx Pp.pp_term inf
@@ -80,27 +80,27 @@ type judgment = Context.t judgment0
 
 (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
-let rec infer (ctx:Context.t) : term -> judgment = function
+let rec infer sg (ctx:Context.t) : term -> judgment = function
   | Kind -> Print.fail dloc "Kind is not typable."
   | Type l ->
       { ctx=ctx; te=mk_Type l; ty= mk_Kind; }
   | DB (l,x,n) ->
       { ctx=ctx; te=mk_DB l x n; ty= Context.get_type ctx l x n }
   | Const (l,md,id) ->
-      { ctx=ctx; te=mk_Const l md id; ty= Env.get_type l md id; }
+      { ctx=ctx; te=mk_Const l md id; ty= Signature.get_type sg l md id; }
   | App (f,a,args) ->
-      List.fold_left check_app (infer ctx f) (a::args)
+      List.fold_left (check_app sg) (infer sg ctx f) (a::args)
   | Pi (l,x,a,b) ->
-      let jdg_a = infer ctx a in
-      let jdg_b = infer (Context.add l x jdg_a) b in
+      let jdg_a = infer sg ctx a in
+      let jdg_b = infer sg (Context.add l x jdg_a) b in
         ( match jdg_b.ty with
             | Kind | Type _ as ty -> { ctx=ctx; te=mk_Pi l x a jdg_b.te; ty=ty }
             | _ -> error_sort_expected jdg_b.te
                      (Context.to_context jdg_b.ctx) jdg_b.ty
         )
   | Lam  (l,x,Some a,b) ->
-      let jdg_a = infer ctx a in
-      let jdg_b = infer (Context.add l x jdg_a) b in
+      let jdg_a = infer sg ctx a in
+      let jdg_b = infer sg (Context.add l x jdg_a) b in
         ( match jdg_b.ty with
             | Kind ->
                 error_inexpected_kind jdg_b.te (Context.to_context jdg_b.ctx)
@@ -110,57 +110,57 @@ let rec infer (ctx:Context.t) : term -> judgment = function
   | Lam  (l,x,None,b) ->
       Print.fail l "Cannot infer the type of domain-free lambda."
 
-and check (te:term) (jty:judgment) : judgment =
+and check sg (te:term) (jty:judgment) : judgment =
   let ty_exp = jty.te in
   let ctx = jty.ctx in
     match te with
       | Lam (l,x,None,u) ->
-          ( match Reduction.whnf jty.te with
+          ( match Reduction.whnf sg jty.te with
               | Pi (_,_,a,b) as pi ->
                   let ctx2 = Context.unsafe_add ctx l x a in
                   (* (x) might as well be Kind but here we do not care*)
-                  let _ = check u { ctx=ctx2; te=b; ty=mk_Type dloc (* (x) *); } in
+                  let _ = check sg u { ctx=ctx2; te=b; ty=mk_Type dloc (* (x) *); } in
                     { ctx=ctx; te=mk_Lam l x None u; ty=pi; }
               | _ ->
                   error_product_expected te (Context.to_context jty.ctx) jty.te
           )
       | _ ->
-        let jte = infer ctx te in
-          if Reduction.are_convertible jte.ty ty_exp then
+        let jte = infer sg ctx te in
+          if Reduction.are_convertible sg jte.ty ty_exp then
             { ctx=ctx; te=te; ty=ty_exp; }
           else
             error_convertibility te (Context.to_context ctx) ty_exp jte.ty
 
-and check_app jdg_f arg =
-  match Reduction.whnf jdg_f.ty with
+and check_app sg jdg_f arg =
+  match Reduction.whnf sg jdg_f.ty with
     | Pi (_,_,a,b) ->
         (* (x) might be Kind if CoC flag is on but it does not matter here *)
-        let _ = check arg { ctx=jdg_f.ctx; te=a; ty=mk_Type dloc (* (x) *); } in
+        let _ = check sg arg { ctx=jdg_f.ctx; te=a; ty=mk_Type dloc (* (x) *); } in
           { ctx=jdg_f.ctx; te=mk_App jdg_f.te arg []; ty=Subst.subst b arg; }
     | _ ->
         error_product_expected jdg_f.te (Context.to_context jdg_f.ctx) jdg_f.ty
 
-let inference (te:term) : judgment = infer Context.empty te
+let inference sg (te:term) : judgment = infer sg Context.empty te
 
-let checking (te:term) (ty_exp:term) : judgment =
-  let jty = infer Context.empty ty_exp in
-    check te jty
+let checking sg (te:term) (ty_exp:term) : judgment =
+  let jty = infer sg Context.empty ty_exp in
+    check sg te jty
 
 (* ********************** RULE TYPECHECKING  *)
 
-let check_rule (ctx0,pat,rhs:rule) : rule_judgment =
+let check_rule sg (ctx0,pat,rhs:rule) : rule_judgment =
   let ctx =
-    List.fold_left (fun ctx (l,id,ty) -> Context.add l id (infer ctx ty) )
+    List.fold_left (fun ctx (l,id,ty) -> Context.add l id (infer sg ctx ty) )
       Context.empty (List.rev ctx0) in
-  let jl = infer ctx (pattern_to_term pat) in
-  let jr = infer ctx rhs in
-    if Reduction.are_convertible jl.ty jr.ty then
+  let jl = infer sg ctx (pattern_to_term pat) in
+  let jr = infer sg ctx rhs in
+    if Reduction.are_convertible sg jl.ty jr.ty then
       ( ctx0, pat, rhs )
     else
       error_convertibility rhs ctx0 jl.ty jr.ty
 
 (* ********************** SAFE REDUCTION *)
-
+(*
 let whnf j = { j with te= Reduction.whnf j.te }
 let hnf j = { j with te= Reduction.hnf j.te }
 let snf j = { j with te= Reduction.snf j.te }
@@ -271,3 +271,4 @@ let mk_Conv a b =
           { ctx=a.ctx; te=a.te; ty=b.te }
         else raise (JudgmentExn ConvError)
     | _ -> raise (JudgmentExn ConvSort)
+ *)

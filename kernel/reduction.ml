@@ -163,30 +163,30 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
     | _, _::tl -> find_case st tl
 
 
-let rec reduce (st:state) : state =
+let rec reduce (sg:Signature.t) (st:state) : state =
   match beta_reduce st with
     | { ctx; term=Const (l,m,v); stack } as config ->
         begin
-          match Env.get_dtree l m v with
+          match Signature.get_dtree sg l m v with
             | Signature.DoD_None -> config
-            | Signature.DoD_Def term -> reduce { ctx=LList.nil; term; stack }
+            | Signature.DoD_Def term -> reduce sg { ctx=LList.nil; term; stack }
             | Signature.DoD_Dtree (i,g) ->
                 begin
                   match split_stack i stack with
                     | None -> config
                     | Some (s1,s2) ->
-                        ( match rewrite s1 g with
+                        ( match rewrite sg s1 g with
                             | None -> config
-                            | Some (ctx,term) -> reduce { ctx; term; stack=s2 }
+                            | Some (ctx,term) -> reduce sg { ctx; term; stack=s2 }
                         )
                 end
         end
     | config -> config
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
-and rewrite (stack:stack) (g:dtree) : (env*term) option =
+and rewrite (sg:Signature.t) (stack:stack) (g:dtree) : (env*term) option =
   let test ctx eqs =
-    state_conv (List.rev_map (
+    state_conv sg (List.rev_map (
       fun (t1,t2) -> ( { ctx; term=t1; stack=[] } , { ctx; term=t2; stack=[] } )
     ) eqs)
   in
@@ -194,47 +194,47 @@ and rewrite (stack:stack) (g:dtree) : (env*term) option =
     match g with
       | Switch (i,cases,def) ->
           begin
-            let arg_i = reduce (List.nth stack i) in
+            let arg_i = reduce sg (List.nth stack i) in
               match find_case arg_i cases with
-                | FC_DB (g,s) | FC_Const (g,s) -> rewrite (stack@s) g
-                | FC_Lam (g,te) -> rewrite (stack@[te]) g
-                | FC_None -> Utils.bind_opt (rewrite stack) def
+                | FC_DB (g,s) | FC_Const (g,s) -> rewrite sg (stack@s) g
+                | FC_Lam (g,te) -> rewrite sg (stack@[te]) g
+                | FC_None -> Utils.bind_opt (rewrite sg stack) def
           end
       | Test (Syntactic ord,[],right,def) ->
           begin
-            match get_context_syn stack ord with
-              | None -> Utils.bind_opt (rewrite stack) def
+            match get_context_syn sg stack ord with
+              | None -> Utils.bind_opt (rewrite sg stack) def
               | Some ctx -> Some (ctx, right)
           end
       | Test (Syntactic ord, eqs, right, def) ->
           begin
-            match get_context_syn stack ord with
-              | None -> Utils.bind_opt (rewrite stack) def
+            match get_context_syn sg stack ord with
+              | None -> Utils.bind_opt (rewrite sg stack) def
               | Some ctx ->
                   if test ctx eqs then Some (ctx, right)
-                  else Utils.bind_opt (rewrite stack) def
+                  else Utils.bind_opt (rewrite sg stack) def
           end
       | Test (MillerPattern lst, eqs, right, def) ->
           begin
-              match get_context_mp stack lst with
-                | None -> Utils.bind_opt (rewrite stack) def
+              match get_context_mp sg stack lst with
+                | None -> Utils.bind_opt (rewrite sg stack) def
                 | Some ctx ->
                       if test ctx eqs then Some (ctx, right)
-                      else Utils.bind_opt (rewrite stack) def
+                      else Utils.bind_opt (rewrite sg stack) def
           end
 
-and state_conv : (state*state) list -> bool = function
+and state_conv (sg:Signature.t) : (state*state) list -> bool = function
   | [] -> true
   | (s1,s2)::lst ->
       if state_eq [s1,s2] then
-        state_conv lst
+        state_conv sg lst
       else
-        match reduce s1, reduce s2 with
+        match reduce sg s1, reduce sg s2 with
           | { term=Kind; stack=s } , { term=Kind; stack=s' }
           | { term=Type _; stack=s } , { term=Type _; stack=s' } ->
               begin
                 assert ( s = [] && s' = [] ) ;
-                state_conv lst
+                state_conv sg lst
               end
           | { ctx=e;  term=DB (_,_,n);  stack=s },
             { ctx=e'; term=DB (_,_,n'); stack=s' }
@@ -242,14 +242,14 @@ and state_conv : (state*state) list -> bool = function
               begin
                 match add_to_list lst s s' with
                   | None          -> false
-                  | Some lst'     -> state_conv lst'
+                  | Some lst'     -> state_conv sg lst'
               end
           | { term=Const (_,m,v);   stack=s },
             { term=Const (_,m',v'); stack=s' } when ident_eq v v' && ident_eq m m' ->
               begin
                 match (add_to_list lst s s') with
                   | None          -> false
-                  | Some lst'     -> state_conv lst'
+                  | Some lst'     -> state_conv sg lst'
               end
           | { ctx=e;  term=Lam (_,_,_,b);   stack=s },
             { ctx=e'; term=Lam (_,_,_',b'); stack=s'} ->
@@ -259,7 +259,7 @@ and state_conv : (state*state) list -> bool = function
                 let lst' =
                   ( {ctx=LList.cons arg e;term=b;stack=[]},
                     {ctx=LList.cons arg e';term=b';stack=[]} ) :: lst in
-                  state_conv lst'
+                  state_conv sg lst'
               end
           | { ctx=e;  term=Pi  (_,_,a,b);   stack=s },
             { ctx=e'; term=Pi  (_,_,a',b'); stack=s'} ->
@@ -270,62 +270,62 @@ and state_conv : (state*state) list -> bool = function
                   ( {ctx=e;term=a;stack=[]}, {ctx=e';term=a';stack=[]} ) ::
                   ( {ctx=LList.cons arg e;term=b;stack=[]},
                     {ctx=LList.cons arg e';term=b';stack=[]} ) :: lst in
-                  state_conv lst'
+                  state_conv sg lst'
               end
           | _, _ -> false
 
-and unshift q te =
+and unshift sg q te =
   try Subst.unshift q te
   with Subst.UnshiftExn ->
-    Subst.unshift q (snf te)
+    Subst.unshift q (snf sg te)
 
-and get_context_syn (stack:stack) (ord:pos LList.t) : env option =
+and get_context_syn (sg:Signature.t) (stack:stack) (ord:pos LList.t) : env option =
   try Some (LList.map (
     fun p ->
       if ( p.depth = 0 ) then
         lazy (term_of_state (List.nth stack p.position) )
       else
         Lazy.from_val
-          (unshift p.depth (term_of_state (List.nth stack p.position) ))
+          (unshift sg p.depth (term_of_state (List.nth stack p.position) ))
   ) ord )
   with Subst.UnshiftExn -> ( (*Print.debug "Cannot unshift";*) None )
 
-and get_context_mp (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
-  let aux pb =
-    Lazy.from_val ( unshift pb.depth2 (
+and get_context_mp (sg:Signature.t) (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
+  let aux (pb:abstract_pb)  =
+    Lazy.from_val ( unshift sg pb.depth2 (
       (Matching.resolve pb.dbs (term_of_state (List.nth stack pb.position2))) ))
   in
   try Some (LList.map aux pb_lst)
   with
     | Subst.UnshiftExn
     | Matching.NotUnifiable -> None
+
 (* ********************* *)
 
 (* Weak Normal Form *)
-and whnf term = term_of_state ( reduce { ctx=LList.nil; term; stack=[] } )
+and whnf sg term = term_of_state ( reduce sg { ctx=LList.nil; term; stack=[] } )
 
 (* Strong Normal Form *)
-and snf (t:term) : term =
-  match whnf t with
+and snf sg (t:term) : term =
+  match whnf sg t with
     | Kind | Const _
     | DB _ | Type _ as t' -> t'
-    | App (f,a,lst)     -> mk_App (snf f) (snf a) (List.map snf lst)
-    | Pi (_,x,a,b)        -> mk_Pi dloc x (snf a) (snf b)
-    | Lam (_,x,a,b)       -> mk_Lam dloc x None (snf b)
-
+    | App (f,a,lst)     -> mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst)
+    | Pi (_,x,a,b)        -> mk_Pi dloc x (snf sg a) (snf sg b)
+    | Lam (_,x,a,b)       -> mk_Lam dloc x None (snf sg b)
 
 (* Head Normal Form *)
-let rec hnf t =
-  match whnf t with
+let rec hnf sg t =
+  match whnf sg t with
     | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
-    | App (f,a,lst) -> mk_App (hnf f) (hnf a) (List.map hnf lst)
+    | App (f,a,lst) -> mk_App (hnf sg f) (hnf sg a) (List.map (hnf sg) lst)
 
 (* Convertibility Test *)
-let are_convertible t1 t2 =
-  state_conv [ ( {ctx=LList.nil;term=t1;stack=[]} , {ctx=LList.nil;term=t2;stack=[]} ) ]
+let are_convertible sg t1 t2 =
+  state_conv sg [ ( {ctx=LList.nil;term=t1;stack=[]} , {ctx=LList.nil;term=t2;stack=[]} ) ]
 
 (* One-Step Reduction *)
-let rec state_one_step : state -> state option = function
+let rec state_one_step (sg:Signature.t) : state -> state option = function
     (* Weak heah beta normal terms *)
     | { term=Type _ }
     | { term=Kind }
@@ -334,7 +334,7 @@ let rec state_one_step : state -> state option = function
     | { ctx={ LList.len=k }; term=DB (_,_,n) } when (n>=k) -> None
     (* DeBruijn index: environment lookup *)
     | { ctx; term=DB (_,_,n); stack } (*when n<k*) ->
-        state_one_step { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
+        state_one_step sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
     (* Beta redex *)
     | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
         Some { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
@@ -342,11 +342,11 @@ let rec state_one_step : state -> state option = function
     | { ctx; term=App (f,a,lst); stack=s } ->
         (* rev_map + rev_append to avoid map + append*)
         let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
-          state_one_step { ctx; term=f; stack=List.rev_append tl' s }
+          state_one_step sg { ctx; term=f; stack=List.rev_append tl' s }
     (* Constant Application *)
     | { ctx; term=Const (l,m,v); stack } ->
         begin
-          match Env.get_dtree l m v with
+          match Signature.get_dtree sg l m v with
             | Signature.DoD_None -> None
             | Signature.DoD_Def term -> Some { ctx=LList.nil; term; stack }
             | Signature.DoD_Dtree (i,g) ->
@@ -354,13 +354,13 @@ let rec state_one_step : state -> state option = function
                   match split_stack i stack with
                     | None -> None
                     | Some (s1,s2) ->
-                        ( match rewrite s1 g with
+                        ( match rewrite sg s1 g with
                             | None -> None
                             | Some (ctx,term) -> Some { ctx; term; stack=s2 }
                         )
                 end
         end
 
-let one_step t =
+let one_step sg t =
   Utils.map_opt term_of_state
-    (state_one_step { ctx=LList.nil; term=t; stack=[] })
+    (state_one_step sg { ctx=LList.nil; term=t; stack=[] })

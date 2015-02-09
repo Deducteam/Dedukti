@@ -27,22 +27,22 @@ let mk_prelude lc name =
 
 let mk_declaration lc id pty =
   eprint lc "Declaration of symbol '%a'." pp_ident id;
-  declare2 lc id pty
+  Env.declare lc id pty
 
 let mk_definition lc id pty_opt pte =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
-  define2 lc id pte pty_opt
+  Env.define lc id pte pty_opt
 
 let mk_opaque lc id pty_opt pte =
   eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
-  define_op2 lc id pte pty_opt
+  Env.define_op lc id pte pty_opt
 
 let mk_rules lst =
   List.iter (
     fun (ctx,pat,rhs) ->
       eprint (Rule.get_loc_pat pat) "%a" Pp.pp_rule (ctx,pat,rhs)
   ) lst ;
-  add_rules2 lst
+  Env.add_rules lst
 
 let mk_command = Cmd.mk_command
 
