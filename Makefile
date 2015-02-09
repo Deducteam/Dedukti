@@ -35,7 +35,7 @@ skindent.native:
 _build/skcheck/skcheck.docdir/index.html:
 	ocamlbuild -Is kernel,utils,parser,skcheck,skrule,refiner skcheck/skcheck.docdir/index.html
 
-BINARIES=skcheck sktop skdep skrule
+BINARIES=skcheck sktop skdep skrule skindent
 
 install:
 	for i in $(BINARIES) ; do \
