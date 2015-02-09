@@ -5,32 +5,43 @@ INSTALL_DIR=/usr/bin
 
 # DO NOT EDIT AFTER THIS LINE
 
-OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt' -tag bin_annot -use-menhir # -tag debug -tag profile
+OPTIONS = -cflags -inline,10,-for-pack,Dedukti -ocamlc 'ocamlopt' -tag bin_annot -use-menhir # -tag debug -tag profile
 MENHIR = -menhir "menhir --external-tokens Tokens"
 
-all: dkcheck dktop dkdep dkrule dkindent doc
+all: dkcheck.native dktop.native dkdep.native dkrule.native dkindent.native _build/dkcheck/dkcheck.docdir/index.html
 
-dkcheck:
+dkcheck:dkcheck.native
+dktop:dktop.native
+dkdep:dkdep.native
+dkrule:dkrule.native
+dkindent:dkindent.native
+lib:_build/dedukti.cmxa
+doc:_build/dkcheck/dkcheck.docdir/index.html
+
+dkcheck.native:
 	ocamlbuild -Is kernel,utils,parser,refiner,dkcheck $(OPTIONS) $(MENHIR) dkcheck.native
 
-dktop:
+dktop.native:
 	ocamlbuild -Is kernel,utils,parser,refiner,dktop $(OPTIONS) $(MENHIR) dktop.native
 
-dkdep:
+dkdep.native:
 	ocamlbuild -Is kernel,utils,parser,refiner,dkdep $(OPTIONS) $(MENHIR) dkdep.native
 
-dkrule:
+dkrule.native:
 	ocamlbuild -Is kernel,utils,parser,refiner,dkrule $(OPTIONS) $(MENHIR) dkrule.native
 
-dkindent:
+dkindent.native:
 	ocamlbuild -Is kernel,utils,parser,dkindent $(OPTIONS) $(MENHIR) dkindent.native
 
-doc:
+_build/dkcheck/dkcheck.docdir/index.html:
 	ocamlbuild -Is kernel,utils,parser,dkcheck,dkrule,refiner dkcheck/dkcheck.docdir/index.html
 
-BINARIES=dkcheck dktop dkdep dkrule
+_build/dedukti.cmxa:
+	ocamlbuild -Is kernel,utils,parser $(OPTIONS) dedukti.cmxa
 
-install: all
+BINARIES=dkcheck dktop dkdep dkrule dkindent
+
+install:
 	for i in $(BINARIES) ; do \
 	    install "_build/$$i/$$i.native" "${INSTALL_DIR}/$$i" ; \
 	done
