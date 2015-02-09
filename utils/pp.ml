@@ -188,7 +188,7 @@ let print_rule out (ctx,pat,te) =
   in
   Format.fprintf out
     "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_list ", " print_decl) ctx
+    (print_list ", " print_decl) (List.rev ctx)
     print_pattern pat
     print_term te
 
