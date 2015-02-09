@@ -15,6 +15,7 @@ sktop:sktop.native
 skdep:skdep.native
 skrule:skrule.native
 skindent:skindent.native
+
 lib:_build/dedukti.cmxa
 doc:_build/skcheck/skcheck.docdir/index.html
 
