@@ -10,33 +10,47 @@ type rule_judgment = context * pattern * term
 
 (* ********************** ERROR MESSAGES *)
 
-let pp_context out = function
-  | [] -> ()
-  | ctx -> Printf.fprintf out " in context:\n%a" Pp.pp_context ctx
-
+type typing_error =
+(*     Print.fail dloc "Kind is not typable." *)
+  | KindIsNotTypable
+(*
 let error_convertibility te ctx exp inf =
 (*   let exp = if !errors_in_snf then Reduction.snf exp else exp in *)
 (*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
     Print.fail (get_loc te)
       "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
       Pp.pp_term te pp_context ctx Pp.pp_term exp Pp.pp_term inf
-
+ *)
+  | ConvertibilityError of term*context*term*term
+(*       Print.fail l "The variable '%a' was not found in context:\n" Pp.pp_term (mk_DB l x n) Pp.pp_context ctx *)
+  | VariableNotFound of loc*ident*int*context
+(*
 let error_sort_expected te ctx inf =
 (*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
     Print.fail (get_loc te)
       "Error while typing '%a'%a.\nExpected: a sort.\nInferred: %a."
       Pp.pp_term te pp_context ctx Pp.pp_term inf
-
+                            *)
+  | SortExpected of term*context*term
+(*
 let error_product_expected te ctx inf =
 (*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
     Print.fail (get_loc te)
       "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
       Pp.pp_term te pp_context ctx Pp.pp_term inf
-
+ *)
+  | ProductExpected of term*context*term
+(*
 let error_inexpected_kind te ctx =
   Print.fail (get_loc te)
     "Error while typing '%a'%a.\nExpected: anything but Kind.\nInferred: Kind."
     Pp.pp_term te pp_context ctx
+ *)
+  | InexpectedKind of term*context
+(*       Print.fail l "Cannot infer the type of domain-free lambda." *)
+  | DomainFreeLambda of loc
+
+exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
@@ -62,8 +76,8 @@ struct
       | Type _ -> (l,x,jdg.te) :: jdg.ctx
       | Kind when !coc -> (l,x,jdg.te) :: jdg.ctx
       (*Note that this is the only place where the coc flag has an effect *)
-      | _ -> error_convertibility jdg.te
-               (to_context jdg.ctx) (mk_Type dloc) jdg.ty
+      | _ -> raise (TypingError (ConvertibilityError
+                                   (jdg.te, to_context jdg.ctx, mk_Type dloc, jdg.ty)))
 
   let unsafe_add ctx l x ty = (l,x,ty)::ctx
 
@@ -71,8 +85,7 @@ struct
     try
       let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
     with Failure _ ->
-      Print.fail l "The variable '%a' was not found in context:\n"
-        Pp.pp_term (mk_DB l x n) Pp.pp_context ctx
+      raise (TypingError (VariableNotFound (l,x,n,ctx)))
 
 end
 
@@ -81,13 +94,13 @@ type judgment = Context.t judgment0
 (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
 let rec infer sg (ctx:Context.t) : term -> judgment = function
-  | Kind -> Print.fail dloc "Kind is not typable."
+  | Kind -> raise (TypingError KindIsNotTypable)
   | Type l ->
       { ctx=ctx; te=mk_Type l; ty= mk_Kind; }
   | DB (l,x,n) ->
       { ctx=ctx; te=mk_DB l x n; ty= Context.get_type ctx l x n }
   | Const (l,md,id) ->
-      { ctx=ctx; te=mk_Const l md id; ty= Signature.get_type sg l md id; }
+      { ctx=ctx; te=mk_Const l md id; ty=Signature.get_type sg l md id; }
   | App (f,a,args) ->
       List.fold_left (check_app sg) (infer sg ctx f) (a::args)
   | Pi (l,x,a,b) ->
@@ -95,20 +108,19 @@ let rec infer sg (ctx:Context.t) : term -> judgment = function
       let jdg_b = infer sg (Context.add l x jdg_a) b in
         ( match jdg_b.ty with
             | Kind | Type _ as ty -> { ctx=ctx; te=mk_Pi l x a jdg_b.te; ty=ty }
-            | _ -> error_sort_expected jdg_b.te
-                     (Context.to_context jdg_b.ctx) jdg_b.ty
+            | _ -> raise (TypingError
+                            (SortExpected (jdg_b.te, Context.to_context jdg_b.ctx, jdg_b.ty)))
         )
   | Lam  (l,x,Some a,b) ->
       let jdg_a = infer sg ctx a in
       let jdg_b = infer sg (Context.add l x jdg_a) b in
         ( match jdg_b.ty with
-            | Kind ->
-                error_inexpected_kind jdg_b.te (Context.to_context jdg_b.ctx)
+            | Kind -> raise (TypingError
+                               (InexpectedKind (jdg_b.te, Context.to_context jdg_b.ctx)))
             | _ -> { ctx=ctx; te=mk_Lam l x (Some a) jdg_b.te;
                      ty=mk_Pi l x a jdg_b.ty }
         )
-  | Lam  (l,x,None,b) ->
-      Print.fail l "Cannot infer the type of domain-free lambda."
+  | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
 and check sg (te:term) (jty:judgment) : judgment =
   let ty_exp = jty.te in
@@ -121,15 +133,16 @@ and check sg (te:term) (jty:judgment) : judgment =
                   (* (x) might as well be Kind but here we do not care*)
                   let _ = check sg u { ctx=ctx2; te=b; ty=mk_Type dloc (* (x) *); } in
                     { ctx=ctx; te=mk_Lam l x None u; ty=pi; }
-              | _ ->
-                  error_product_expected te (Context.to_context jty.ctx) jty.te
+              | _ -> raise (TypingError
+                              (ProductExpected (te,Context.to_context jty.ctx,jty.te)))
           )
       | _ ->
         let jte = infer sg ctx te in
           if Reduction.are_convertible sg jte.ty ty_exp then
             { ctx=ctx; te=te; ty=ty_exp; }
           else
-            error_convertibility te (Context.to_context ctx) ty_exp jte.ty
+            raise (TypingError (
+              ConvertibilityError (te,Context.to_context ctx,ty_exp,jte.ty)))
 
 and check_app sg jdg_f arg =
   match Reduction.whnf sg jdg_f.ty with
@@ -138,9 +151,11 @@ and check_app sg jdg_f arg =
         let _ = check sg arg { ctx=jdg_f.ctx; te=a; ty=mk_Type dloc (* (x) *); } in
           { ctx=jdg_f.ctx; te=mk_App jdg_f.te arg []; ty=Subst.subst b arg; }
     | _ ->
-        error_product_expected jdg_f.te (Context.to_context jdg_f.ctx) jdg_f.ty
+        raise (TypingError (
+          ProductExpected (jdg_f.te,Context.to_context jdg_f.ctx,jdg_f.ty)))
 
-let inference sg (te:term) : judgment = infer sg Context.empty te
+let inference sg (te:term) : judgment =
+  infer sg Context.empty te
 
 let checking sg (te:term) (ty_exp:term) : judgment =
   let jty = infer sg Context.empty ty_exp in
@@ -157,7 +172,7 @@ let check_rule sg (ctx0,pat,rhs:rule) : rule_judgment =
     if Reduction.are_convertible sg jl.ty jr.ty then
       ( ctx0, pat, rhs )
     else
-      error_convertibility rhs ctx0 jl.ty jr.ty
+      raise (TypingError (ConvertibilityError (rhs,ctx0,jl.ty,jr.ty)))
 
 (* ********************** SAFE REDUCTION *)
 (*

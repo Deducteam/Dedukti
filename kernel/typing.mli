@@ -5,6 +5,17 @@ open Basics
 val coc : bool ref
 val errors_in_snf : bool ref
 
+type typing_error =
+  | KindIsNotTypable
+  | ConvertibilityError of term*context*term*term
+  | VariableNotFound of loc*ident*int*context
+  | SortExpected of term*context*term
+  | ProductExpected of term*context*term
+  | InexpectedKind of term*context
+  | DomainFreeLambda of loc
+
+exception TypingError of typing_error
+
 type 'a judgment0 = private { ctx:'a; te:term; ty: term; }
 
 module Context :
@@ -17,7 +28,7 @@ sig
 end
 
 type judgment = Context.t judgment0
-type rule_judgment = (context * pattern * term)
+type rule_judgment = (context * pattern * term) (*FIXME*)
 
 val infer       : Signature.t -> Context.t -> term -> judgment
 val check       : Signature.t -> term -> judgment -> judgment
