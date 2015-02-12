@@ -171,12 +171,14 @@ let add_rules sg lst : unit =
       | OK [] -> ()
       | OK (r::_ as rs) ->
           let env = H.find sg.tables sg.name in
-          let (ty,rules) =
-            match H.find env r.id with (*FIXME may raise an exception*)
-              | Decl ty                   -> ( ty , rs )
-              | Decl_rw (ty,mx,_,_)       -> ( ty , mx@rs )
-              | Def (_,_)                 ->
-                  raise (SignatureError (CannotAddRewriteRules (r.l,r.id)))
+          let infos = try H.find env r.id with Not_found ->
+            raise (SignatureError (SymbolNotFound(r.l,sg.name,r.id)))
+          in
+          let (ty,rules) = match infos with
+            | Decl ty                   -> ( ty , rs )
+            | Decl_rw (ty,mx,_,_)       -> ( ty , mx@rs )
+            | Def (_,_)                 ->
+                raise (SignatureError (CannotAddRewriteRules (r.l,r.id)))
           in
             match Dtree.of_rules rules with
               | OK (n,tree) -> H.add env r.id (Decl_rw (ty,rules,n,tree))
