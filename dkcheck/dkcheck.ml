@@ -24,7 +24,7 @@ let args = [
   ("-autodep", Arg.Set Signature.autodep  ,
    "Automatically handle dependencies (experimental)") ;
   ("-I"    , Arg.String Basics.add_path,        "Add a directory to load path");
-  ("-errors-in-snf", Arg.Set Typing.errors_in_snf, "Normalize the types in error messages")
+  ("-errors-in-snf", Arg.Set Errors.errors_in_snf, "Normalize the types in error messages")
 ]
 
 let run_on_file file =

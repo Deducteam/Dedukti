@@ -2,35 +2,41 @@ open Basics
 open Term
 open Rule
 
+let errors_in_snf = ref false
+
+let ok = function
+  | OK v -> v
+  | Err _ -> assert false (*FIXME*)
+
 let fail_typing_error err =
   let open Typing in
     match err with
       | KindIsNotTypable -> Print.fail dloc "Kind is not typable."
       | ConvertibilityError (te,ctx,exp,inf) ->
-(*   let exp = if !errors_in_snf then Reduction.snf exp else exp in *)
-(*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
+          let exp = if !errors_in_snf then ok (Env.snf exp) else exp in
+          let inf = if !errors_in_snf then ok (Env.snf inf) else inf in
+            Print.fail (get_loc te)
+              "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
+              pp_term te pp_context ctx pp_term exp pp_term inf
+      | VariableNotFound (lc,x,n,ctx) ->
+          Print.fail lc "The variable '%a' was not found in context:\n"
+            pp_term (mk_DB lc x n) pp_context ctx
+      | SortExpected (te,ctx,inf) ->
+          let inf = if !errors_in_snf then ok (Env.snf inf) else inf in
+            Print.fail (Term.get_loc te)
+              "Error while typing '%a'%a.\nExpected: a sort.\nInferred: %a."
+              pp_term te pp_context ctx pp_term inf
+      | ProductExpected (te,ctx,inf) ->
+          let inf = if !errors_in_snf then ok (Env.snf inf) else inf in
+            Print.fail (get_loc te)
+              "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
+              pp_term te pp_context ctx pp_term inf
+      | InexpectedKind (te,ctx) ->
           Print.fail (get_loc te)
-  "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
-  pp_term te pp_context ctx pp_term exp pp_term inf
-  | VariableNotFound (lc,x,n,ctx) ->
-      Print.fail lc "The variable '%a' was not found in context:\n"
-        pp_term (mk_DB lc x n) pp_context ctx
-  | SortExpected (te,ctx,inf) ->
-(*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
-      Print.fail (Term.get_loc te)
-  "Error while typing '%a'%a.\nExpected: a sort.\nInferred: %a."
-  pp_term te pp_context ctx pp_term inf
-  | ProductExpected (te,ctx,inf) ->
-      (*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
-      Print.fail (get_loc te)
-        "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
-        pp_term te pp_context ctx pp_term inf
-  | InexpectedKind (te,ctx) ->
-      Print.fail (get_loc te)
-        "Error while typing '%a'%a.\nExpected: anything but Kind.\nInferred: Kind."
-        pp_term te pp_context ctx
-  | DomainFreeLambda lc ->
-      Print.fail lc "Cannot infer the type of domain-free lambda."
+            "Error while typing '%a'%a.\nExpected: anything but Kind.\nInferred: Kind."
+            pp_term te pp_context ctx
+      | DomainFreeLambda lc ->
+          Print.fail lc "Cannot infer the type of domain-free lambda."
 
 let fail_dtree_error err =
   let open Dtree in
@@ -38,25 +44,25 @@ let fail_dtree_error err =
       | BoundVariableExpected pat ->
           Print.fail (get_loc_pat pat)
             "The pattern '%a' is not a bound variable." pp_pattern pat
-  | VariableBoundOutsideTheGuard te ->
-      Print.fail (get_loc te)
-        "The term '%a' contains a variable bound outside the brackets."
-        pp_term te
-  | NotEnoughArguments (lc,id,n) ->
-   Print.fail lc "The variable '%a' must be applied to at least %i argument(s)."
-     pp_ident id n
-  | HeadSymbolMismatch (lc,hd1,hd2) ->
-      Print.fail lc "Unexpected head symbol '%a' \ (expected '%a')."
-        pp_ident hd1 pp_ident hd2
-  | ArityMismatch (lc,id) ->
-      Print.fail lc
-        "All the rewrite rules for \ the symbol '%a' should have the same arity."
-        pp_ident id
-  | UnboundVariable (lc,x,pat) ->
-      Print.fail lc "The variables '%a' is not bounded in '%a'."
-        pp_ident x pp_pattern pat
-  | AVariableIsNotAPattern (lc,id) ->
-      Print.fail lc "A variable is not a valid pattern."
+      | VariableBoundOutsideTheGuard te ->
+          Print.fail (get_loc te)
+            "The term '%a' contains a variable bound outside the brackets."
+            pp_term te
+      | NotEnoughArguments (lc,id,n) ->
+          Print.fail lc "The variable '%a' must be applied to at least %i argument(s)."
+            pp_ident id n
+      | HeadSymbolMismatch (lc,hd1,hd2) ->
+          Print.fail lc "Unexpected head symbol '%a' \ (expected '%a')."
+            pp_ident hd1 pp_ident hd2
+      | ArityMismatch (lc,id) ->
+          Print.fail lc
+            "All the rewrite rules for \ the symbol '%a' should have the same arity."
+            pp_ident id
+      | UnboundVariable (lc,x,pat) ->
+          Print.fail lc "The variables '%a' is not bounded in '%a'."
+            pp_ident x pp_pattern pat
+      | AVariableIsNotAPattern (lc,id) ->
+          Print.fail lc "A variable is not a valid pattern."
 
 let fail_signature_error err =
   let open Signature in

@@ -3,7 +3,6 @@ open Term
 open Rule
 
 let coc = ref false
-let errors_in_snf = ref false (*FIXME desactivated*)
 
 type 'a judgment0 = { ctx:'a; te:term; ty: term; }
 type rule_judgment = context * pattern * term
