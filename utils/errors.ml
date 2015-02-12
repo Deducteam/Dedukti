@@ -29,7 +29,7 @@ let errors_in_snf = ref false
 
 let ok = function
   | OK v -> v
-  | Err _ -> assert false (*FIXME*)
+  | Err _ -> failwith "-error-in-snf error."
 
 let fail_typing_error err =
   let open Typing in

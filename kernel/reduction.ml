@@ -150,7 +150,7 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
             FC_Const (tr,stack) )
         else find_case st tl
     | { term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
-        if n==n' && (List.length stack == nargs) then (*FIXME explain*)
+        if n==n' && (List.length stack == nargs) then (*TODO explain*)
              FC_DB (tr,stack)
         else find_case st tl
     | { ctx; term=Lam (_,_,_,_) } , ( CLam , tr )::tl ->
