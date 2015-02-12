@@ -98,6 +98,14 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t =
     | Sys_error s -> raise (SignatureError (UnmarshalSysError (lc,m,s)))
     | _ -> raise (SignatureError (UnmarshalUnknown (lc,m)))
 
+let get_all_rules md =
+  let (_,ht) = unmarshal dloc md in
+  let aux _ rw rs = match rw with
+    | Decl _ -> rs
+    | Def _ -> assert false (*FIXME*)
+    | Decl_rw (_,lst,_,_) -> lst@rs
+  in
+    H.fold aux ht []
 (******************************************************************************)
 
 (* Recursively load a module and its dependencies*)
