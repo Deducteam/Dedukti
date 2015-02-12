@@ -5,7 +5,7 @@ open Basics
 let verbose = ref false
 
 let set_debug_level lvl =
-  if lvl > 0 then ( verbose := true; Pp.print_db := true )
+  if lvl > 0 then ( verbose := true; Pp.print_db_enabled := true )
 
 let eprint lc fmt =
   if !verbose then (
