@@ -96,20 +96,20 @@ let rec add_to_list lst (s:stack) (s':stack) =
     | _ ,_              -> None
 
 let pp_env out (ctx:env) =
-  let pp_lazy_term out lt = Pp.pp_term out (Lazy.force lt) in
-    Pp.pp_list ", " pp_lazy_term out (LList.lst ctx)
+  let pp_lazy_term out lt = pp_term out (Lazy.force lt) in
+    pp_list ", " pp_lazy_term out (LList.lst ctx)
 
 let pp_state out { ctx; term; stack } =
    Printf.fprintf out "[ e=[...](%i) | %a | [...] ] { %a } "
      (LList.len ctx)
-     Pp.pp_term term
-     Pp.pp_term (term_of_state { ctx; term; stack })
+     pp_term term
+     pp_term (term_of_state { ctx; term; stack })
 
 let pp_stack out (st:stack) =
   let aux out state =
-    Pp.pp_term out (term_of_state state)
+    pp_term out (term_of_state state)
   in
-    Printf.fprintf out "[ %a ]\n" (Pp.pp_list "\n | " aux) st
+    Printf.fprintf out "[ %a ]\n" (pp_list "\n | " aux) st
 
 (* ********************* *)
 

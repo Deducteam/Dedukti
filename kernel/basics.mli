@@ -1,5 +1,6 @@
 (** Basic Datatypes *)
 
+val pp_list     : string -> (out_channel -> 'a -> unit) -> out_channel -> 'a list -> unit
 (** {2 Identifiers (hashconsed strings)} *)
 (** Internal representation of identifiers as hashconsed strings. *)
 

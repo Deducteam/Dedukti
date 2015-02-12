@@ -1,4 +1,6 @@
 open Basics
+open Term
+open Rule
 
 let fail_typing_error err =
   let open Typing in
@@ -7,26 +9,26 @@ let fail_typing_error err =
       | ConvertibilityError (te,ctx,exp,inf) ->
 (*   let exp = if !errors_in_snf then Reduction.snf exp else exp in *)
 (*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
-          Print.fail (Term.get_loc te)
+          Print.fail (get_loc te)
   "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
-  Pp.pp_term te Pp.pp_context ctx Pp.pp_term exp Pp.pp_term inf
+  pp_term te pp_context ctx pp_term exp pp_term inf
   | VariableNotFound (lc,x,n,ctx) ->
       Print.fail lc "The variable '%a' was not found in context:\n"
-        Pp.pp_term (Term.mk_DB lc x n) Pp.pp_context ctx
+        pp_term (mk_DB lc x n) pp_context ctx
   | SortExpected (te,ctx,inf) ->
 (*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
       Print.fail (Term.get_loc te)
   "Error while typing '%a'%a.\nExpected: a sort.\nInferred: %a."
-  Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
+  pp_term te pp_context ctx pp_term inf
   | ProductExpected (te,ctx,inf) ->
       (*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
-      Print.fail (Term.get_loc te)
+      Print.fail (get_loc te)
         "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
-        Pp.pp_term te Pp.pp_context ctx Pp.pp_term inf
+        pp_term te pp_context ctx pp_term inf
   | InexpectedKind (te,ctx) ->
-      Print.fail (Term.get_loc te)
+      Print.fail (get_loc te)
         "Error while typing '%a'%a.\nExpected: anything but Kind.\nInferred: Kind."
-        Pp.pp_term te Pp.pp_context ctx
+        pp_term te pp_context ctx
   | DomainFreeLambda lc ->
       Print.fail lc "Cannot infer the type of domain-free lambda."
 
@@ -34,12 +36,12 @@ let fail_dtree_error err =
   let open Dtree in
     match err with
       | BoundVariableExpected pat ->
-          Print.fail (Rule.get_loc_pat pat)
-            "The pattern '%a' is not a bound variable." Pp.pp_pattern pat
+          Print.fail (get_loc_pat pat)
+            "The pattern '%a' is not a bound variable." pp_pattern pat
   | VariableBoundOutsideTheGuard te ->
-      Print.fail (Term.get_loc te)
+      Print.fail (get_loc te)
         "The term '%a' contains a variable bound outside the brackets."
-        Pp.pp_term te
+        pp_term te
   | NotEnoughArguments (lc,id,n) ->
    Print.fail lc "The variable '%a' must be applied to at least %i argument(s)."
      pp_ident id n
@@ -52,7 +54,7 @@ let fail_dtree_error err =
         pp_ident id
   | UnboundVariable (lc,x,pat) ->
       Print.fail lc "The variables '%a' is not bounded in '%a'."
-        pp_ident x Pp.pp_pattern pat
+        pp_ident x pp_pattern pat
   | AVariableIsNotAPattern (lc,id) ->
       Print.fail lc "A variable is not a valid pattern."
 

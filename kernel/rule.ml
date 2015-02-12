@@ -64,3 +64,58 @@ let pattern_to_term p =
     | Lambda (l,x,pat) -> mk_Lam l x None (aux (k+1) pat)
   in
     aux 0 p
+
+open Printf
+
+let rec pp_pattern out = function
+  | Var (_,x,n,[]) -> fprintf out "%a[%i]" pp_ident x n
+  | Var (_,x,n,lst) -> fprintf out "%a[%i] %a" pp_ident x n (pp_list " " pp_pattern_wp) lst
+  | Brackets t -> fprintf out "{ %a }" pp_term t
+  | Pattern (_,m,v,[]) -> fprintf out "%a.%a" pp_ident m pp_ident v
+  | Pattern (_,m,v,pats) -> fprintf out "%a.%a %a" pp_ident m pp_ident v (pp_list " " pp_pattern_wp) pats
+  | Lambda (_,x,p) -> fprintf out "%a => %a" pp_ident x pp_pattern p
+and pp_pattern_wp out = function
+  | Pattern _ | Lambda _ as p -> fprintf out "(%a)" pp_pattern p
+  | p -> pp_pattern out p
+
+let pp_rule out (ctx,pat,te) =
+  let pp_decl out (_,id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
+    fprintf out "[%a] %a --> %a"
+      (pp_list "," pp_decl) ctx
+      pp_pattern pat
+      pp_term te
+
+let pp_frule out r = pp_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
+
+let tab t = String.make (t*4) ' '
+
+let pp_pc out = function
+  | Syntactic _ -> fprintf out "Sy"
+  | MillerPattern _ -> fprintf out "Mi"
+
+let rec pp_dtree t out = function
+  | Test (pc,[],te,None)   -> fprintf out "(%a) %a" pp_pc pc pp_term te
+  | Test (_,[],_,def)      -> assert false
+  | Test (pc,lst,te,def)  ->
+      let tab = tab t in
+      let aux out (i,j) = fprintf out "%a=%a" pp_term i pp_term j in
+        fprintf out "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
+          pp_pc pc pp_term te tab pp_pc pc (pp_def (t+1)) def
+  | Switch (i,cases,def)->
+      let tab = tab t in
+      let pp_case out = function
+        | CConst (_,m,v), g ->
+            fprintf out "\n%sif $%i=%a.%a then %a" tab i pp_ident m pp_ident v (pp_dtree (t+1)) g
+        | CLam, g -> fprintf out "\n%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
+        | CDB (_,n), g -> fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (pp_dtree (t+1)) g
+      in
+        fprintf out "%a\n%sdefault: %a" (pp_list "" pp_case)
+          cases tab (pp_def (t+1)) def
+
+and pp_def t out = function
+  | None        -> output_string out "FAIL"
+  | Some g      -> pp_dtree t out g
+
+let pp_rw out (m,v,i,g) =
+  fprintf out "GDT for '%a.%a' with %i argument(s): %a"
+    pp_ident m pp_ident v i (pp_dtree 0) g

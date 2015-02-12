@@ -15,16 +15,6 @@ let eprint lc fmt =
   ) else
     Printf.ifprintf stderr fmt
 
-let print fmt =
-  Printf.kfprintf (fun _ -> print_newline () ) stdout fmt
-
-(* ********************************* *)
-(*TODO move*)
-    (*
-let pp_context out = function
-  | [] -> ()
-  | ctx -> Printf.fprintf out " in context:\n%a" Pp.pp_context ctx
-     *)
 (* ********************************* *)
 
 let mk_prelude lc name =
@@ -52,7 +42,7 @@ let mk_opaque lc id pty_opt pte =
 let mk_rules lst =
   List.iter (
     fun (ctx,pat,rhs) ->
-      eprint (Rule.get_loc_pat pat) "%a" Pp.pp_rule (ctx,pat,rhs)
+      eprint (Rule.get_loc_pat pat) "%a" Rule.pp_rule (ctx,pat,rhs)
   ) lst ;
   match Env.add_rules lst with
     | OK () -> ()

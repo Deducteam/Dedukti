@@ -19,3 +19,6 @@ type prepattern =
 type pdecl      = loc * ident * preterm
 type pcontext   = pdecl list
 type prule      = loc * pdecl list * ident * prepattern list * preterm
+
+val pp_pterm    : out_channel -> preterm -> unit
+val pp_ppattern : out_channel -> prepattern -> unit

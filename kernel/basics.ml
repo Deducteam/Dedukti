@@ -1,5 +1,10 @@
 (** Basic Datatypes *)
 
+let rec pp_list sep pp out = function
+    | []        -> ()
+    | [a]       -> pp out a
+    | a::lst    -> Printf.fprintf out "%a%s%a" pp a sep (pp_list sep pp) lst
+
 (** {2 Identifiers (hashconsed strings)} *)
 
 type ident = string

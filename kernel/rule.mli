@@ -11,6 +11,8 @@ val get_loc_pat : pattern -> loc
 
 val pattern_to_term : pattern -> term
 
+val pp_pattern  : out_channel -> pattern -> unit
+
 type top = ident*pattern array
 
 type rule = context * pattern * term
@@ -59,3 +61,9 @@ type pre_context =
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
   | Test    of pre_context * (term*term) list * term * dtree option
+
+val pp_rule     : out_channel -> rule -> unit
+val pp_frule    : out_channel -> rule_infos -> unit
+val pp_dtree    : int -> out_channel -> dtree -> unit
+val pp_rw       : out_channel -> (ident*ident*int*dtree) -> unit
+

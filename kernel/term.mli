@@ -12,6 +12,7 @@ type term = private
   | Pi    of loc*ident*term*term                (* Pi abstraction *)
 
 type context = ( loc * ident * term ) list
+val pp_context  : out_channel -> context -> unit
 
 val get_loc : term -> loc
 
@@ -26,3 +27,5 @@ val mk_Arrow    : loc -> term -> term -> term
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
+
+val pp_term     : out_channel -> term -> unit
