@@ -5,7 +5,6 @@ open Rule
 let coc = ref false
 
 type 'a judgment0 = { ctx:'a; te:term; ty: term; }
-type rule_judgment = context * pattern * term
 
 (* ********************** ERROR MESSAGES *)
 
@@ -31,6 +30,7 @@ sig
   val get_type : t -> loc -> ident -> int -> term
   val is_empty : t -> bool
   val to_context : t -> (loc*ident*term) list
+  val destruct : t -> ((loc*ident*term)*t) option
 end =
 struct
   type t = (loc*ident*term) list
@@ -55,6 +55,9 @@ struct
     with Failure _ ->
       raise (TypingError (VariableNotFound (l,x,n,ctx)))
 
+  let destruct = function
+    | [] -> None
+    | a::b -> Some (a,b)
 end
 
 type judgment = Context.t judgment0
@@ -131,63 +134,14 @@ let checking sg (te:term) (ty_exp:term) : judgment =
 
 (* ********************** RULE TYPECHECKING  *)
 
-let check_rule sg (ctx0,pat,rhs:rule) : rule_judgment =
+let check_rule sg (ctx0,pat,rhs:rule) : unit =
   let ctx =
     List.fold_left (fun ctx (l,id,ty) -> Context.add l id (infer sg ctx ty) )
       Context.empty (List.rev ctx0) in
   let jl = infer sg ctx (pattern_to_term pat) in
   let jr = infer sg ctx rhs in
-    if Reduction.are_convertible sg jl.ty jr.ty then
-      ( ctx0, pat, rhs )
-    else
+    if not (Reduction.are_convertible sg jl.ty jr.ty) then
       raise (TypingError (ConvertibilityError (rhs,ctx0,jl.ty,jr.ty)))
-
-(* ********************** SAFE REDUCTION *)
-(*
-let whnf j = { j with te= Reduction.whnf j.te }
-let hnf j = { j with te= Reduction.hnf j.te }
-let snf j = { j with te= Reduction.snf j.te }
-let one j = match Reduction.one_step j.te with
-  | Some te2 -> { j with te=te2 }
-  | None -> j
-
-let conv_test j1 j2 = Reduction.are_convertible j1.te j2.te
-let check_test j1 j2 = Reduction.are_convertible j1.ty j2.te
-
-(* ********************** SIGNATURE *)
-
-let declare (l:loc) (id:ident) (jdg:judgment) =
-  assert ( Context.is_empty jdg.ctx );
-  match jdg.ty with
-    | Kind | Type _ -> Env.declare l id jdg.te
-    | _ -> error_sort_expected jdg.te [] jdg.ty
-
-let define (l:loc) (id:ident) (jdg:judgment) =
-  assert ( Context.is_empty jdg.ctx );
-  Env.define l id jdg.te jdg.ty
-
-let define_op (l:loc) (id:ident) (jdg:judgment) =
-  assert( Context.is_empty jdg.ctx );
-  Env.declare l id jdg.ty
-
-let add_rules jdgs =
-  Env.add_rules jdgs
-
-let declare2 l id ty =
-  declare l id (inference ty)
-
-let define2 l id te ty_opt =
-  match ty_opt with
-    | None -> define l id (inference te)
-    | Some ty -> define l id (checking te ty)
-
-let define_op2 l id te ty_opt =
-  match ty_opt with
-    | None -> define_op l id (inference te)
-    | Some ty -> define_op l id (checking te ty)
-
-let add_rules2 rules =
-  add_rules (List.map check_rule rules)
 
 (* ********************** JUDGMENTS *)
 
@@ -203,55 +157,54 @@ type judgmentExn =
   | ConvError
 
 exception JudgmentExn of judgmentExn
+(* TODO check also the signature *)
 
 let check_contexts ctx1 ctx2 =
   if ctx1 != ctx2 then raise (JudgmentExn DistinctContexts)
 
 let mk_Type ctx l = { ctx=ctx; te=mk_Type l; ty= mk_Kind; }
 
-let mk_Const ctx l md id =
-  { ctx=ctx; te=mk_Const l md id; ty= Env.get_type l md id; }
+let mk_Const sg ctx l md id =
+  { ctx=ctx; te=mk_Const l md id; ty= Signature.get_type sg l md id; }
 
  let mk_Var ctx l x n =
   { ctx=ctx; te=mk_DB l x n; ty= Context.get_type ctx l x n }
 
-let mk_App f arg =
+let mk_App sg f arg =
   check_contexts f.ctx arg.ctx ;
-  match Reduction.whnf f.ty with
+  match Reduction.whnf sg f.ty with
     | Pi (_,_,a,b) ->
-        if Reduction.are_convertible a arg.ty then
+        if Reduction.are_convertible sg a arg.ty then
           { ctx=f.ctx; te=mk_App f.te arg.te []; ty=Subst.subst b arg.te; }
         else raise (JudgmentExn AppNotConvertible)
     | _ -> raise (JudgmentExn AppNotAPi)
-
 
 let mk_Lam b =
   match b.ty with
     | Kind -> raise (JudgmentExn LambdaKind)
     | _ ->
         begin
-          match b.ctx with
-            | (l,x,a)::lst ->
-                { ctx=lst; te=mk_Lam l x (Some a) b.te; ty=mk_Pi l x a b.ty }
-            | _ -> raise (JudgmentExn LambdaEmptyContext)
+          match Context.destruct b.ctx with
+            | Some ((l,x,a),ctx') ->
+                { ctx=ctx'; te=mk_Lam l x (Some a) b.te; ty=mk_Pi l x a b.ty }
+            | None -> raise (JudgmentExn LambdaEmptyContext)
         end
 
 let mk_Pi b =
   match b.ty with
     | Kind | Type _ as ty ->
         begin
-          match b.ctx with
-            | (l,x,a)::lst -> { ctx=lst; te=mk_Pi l x a b.te; ty=ty }
-            | _ -> raise (JudgmentExn PiEmptyContext)
+          match Context.destruct b.ctx with
+            | Some ((l,x,a),ctx') -> { ctx=ctx'; te=mk_Pi l x a b.te; ty=ty }
+            | None -> raise (JudgmentExn PiEmptyContext)
         end
     | _ -> raise (JudgmentExn PiSort)
 
-let mk_Conv a b =
+let mk_Conv sg a b =
   check_contexts a.ctx b.ctx;
   match b.ty with
     | Kind | Type _ ->
-        if Reduction.are_convertible a.ty b.te then
+        if Reduction.are_convertible sg a.ty b.te then
           { ctx=a.ctx; te=a.te; ty=b.te }
         else raise (JudgmentExn ConvError)
     | _ -> raise (JudgmentExn ConvSort)
- *)

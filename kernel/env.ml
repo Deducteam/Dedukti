@@ -66,8 +66,8 @@ let define_op l id te ty_opt =
 
 let add_rules (rules: rule list) : (unit,env_error) error =
   try
-    let rs = List.map (check_rule !sg) rules in
-      OK (Signature.add_rules !sg rs)
+    let _ = List.iter (check_rule !sg) rules in
+      OK (Signature.add_rules !sg rules)
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
