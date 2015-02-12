@@ -3,7 +3,6 @@ open Rule
 open Basics
 
 val coc : bool ref
-val errors_in_snf : bool ref
 
 type typing_error =
   | KindIsNotTypable

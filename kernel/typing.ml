@@ -10,43 +10,12 @@ type rule_judgment = context * pattern * term
 (* ********************** ERROR MESSAGES *)
 
 type typing_error =
-(*     Print.fail dloc "Kind is not typable." *)
   | KindIsNotTypable
-(*
-let error_convertibility te ctx exp inf =
-(*   let exp = if !errors_in_snf then Reduction.snf exp else exp in *)
-(*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
-    Print.fail (get_loc te)
-      "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
-      Pp.pp_term te pp_context ctx Pp.pp_term exp Pp.pp_term inf
- *)
   | ConvertibilityError of term*context*term*term
-(*       Print.fail l "The variable '%a' was not found in context:\n" Pp.pp_term (mk_DB l x n) Pp.pp_context ctx *)
   | VariableNotFound of loc*ident*int*context
-(*
-let error_sort_expected te ctx inf =
-(*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
-    Print.fail (get_loc te)
-      "Error while typing '%a'%a.\nExpected: a sort.\nInferred: %a."
-      Pp.pp_term te pp_context ctx Pp.pp_term inf
-                            *)
   | SortExpected of term*context*term
-(*
-let error_product_expected te ctx inf =
-(*   let inf = if !errors_in_snf then Reduction.snf inf else inf in *)
-    Print.fail (get_loc te)
-      "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
-      Pp.pp_term te pp_context ctx Pp.pp_term inf
- *)
   | ProductExpected of term*context*term
-(*
-let error_inexpected_kind te ctx =
-  Print.fail (get_loc te)
-    "Error while typing '%a'%a.\nExpected: anything but Kind.\nInferred: Kind."
-    Pp.pp_term te pp_context ctx
- *)
   | InexpectedKind of term*context
-(*       Print.fail l "Cannot infer the type of domain-free lambda." *)
   | DomainFreeLambda of loc
 
 exception TypingError of typing_error
