@@ -55,4 +55,4 @@ let export = ref false
 let mk_ending () =
   if !export then
     if not (Env.export ()) then
-      Print.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ())
+      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ())

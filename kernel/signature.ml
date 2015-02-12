@@ -156,10 +156,8 @@ let get_dtree sg l m v =
 let add sg lc v gst =
   let env = H.find sg.tables sg.name in
   if H.mem env v then
-    ( if !ignore_redecl then
-        Print.debug "Redeclaration ignored."
-      else
-        raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
+    ( if !ignore_redecl then debug "Redeclaration ignored."
+      else raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
   else
     H.add env v gst
 

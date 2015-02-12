@@ -96,3 +96,6 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
         )
   in
     aux lst
+
+let debug fmt =
+  Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt

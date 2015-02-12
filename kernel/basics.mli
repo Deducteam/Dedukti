@@ -54,3 +54,5 @@ type ('a,'b) error =
 val map_error : ('a -> 'b) -> ('a,'c) error -> ('b,'c) error
 val bind_error : ('a -> ('b,'c) error) -> ('a,'c) error -> ('b,'c) error
 val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
+(** Print in stderr *)
+val debug : ('a, out_channel, unit) format -> 'a
