@@ -10,9 +10,9 @@ type env_error =
 
 (* Wrapper around Signature *)
 
-let sg = ref Signature.dummy
+let sg = ref (Signature.make (hstring "noname"))
 
-let init name = sg := Signature.make name (*FIXME*)
+let init name = sg := Signature.make name
 
 let get_name () = Signature.get_name !sg
 

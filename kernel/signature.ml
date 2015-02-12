@@ -38,8 +38,6 @@ type rw_infos =
 
 type t = { name:ident; tables:(rw_infos H.t) H.t }
 
-let dummy = { name=qmark; tables=H.create 1; }
-
 let make name =
   let ht = H.create 19 in
     H.add ht name (H.create 251); { name=name; tables=ht; }

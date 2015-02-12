@@ -26,7 +26,6 @@ type dtree_or_def =
 
 type t
 
-val dummy               : t (*FIXME*)
 val make                : ident -> t
 val get_name            : t -> ident
 
