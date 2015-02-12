@@ -45,7 +45,12 @@ let term_to_char = function
   | App (Const (_, m, v), a, [])
        when ident_eq m modname &&
               ident_eq v _char_of_nat ->
-     char_of_int (term_to_int a)
+     begin
+       try
+         char_of_int (term_to_int a)
+       with Invalid_argument "char_of_int" ->
+         raise Not_atomic_builtin
+     end
   | _ -> raise Not_atomic_builtin
 
 let rec term_to_string = function
