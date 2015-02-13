@@ -388,12 +388,12 @@ let rec to_dtree (mx:matrix) : dtree =
     | None   -> Test ( get_first_pre_context mx,
                        get_first_constraints mx,
                        get_first_term mx,
-                       Utils.map_opt to_dtree (pop mx) )
+                       map_opt to_dtree (pop mx) )
     (* Pattern on the first line at column c *)
     | Some c ->
         let cases = partition mx c in
         let aux ca = ( ca , to_dtree (specialize mx c ca) ) in
-          Switch (c, List.map aux cases, Utils.map_opt to_dtree (default mx c) )
+          Switch (c, List.map aux cases, map_opt to_dtree (default mx c) )
 
 (******************************************************************************)
 

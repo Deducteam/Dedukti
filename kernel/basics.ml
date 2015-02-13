@@ -99,3 +99,11 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
 
 let debug fmt =
   Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt
+
+let bind_opt f = function
+  | None -> None
+  | Some x -> f x
+
+let map_opt f = function
+  | None -> None
+  | Some x -> Some (f x)

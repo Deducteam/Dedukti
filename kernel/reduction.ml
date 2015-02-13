@@ -81,7 +81,7 @@ let rec term_of_state {ctx;term;stack} : term =
 let rec split_stack (i:int) : stack -> (stack*stack) option = function
   | l  when i=0 -> Some ([],l)
   | []          -> None
-  | x::l        -> Utils.map_opt (fun (s1,s2) -> (x::s1,s2) ) (split_stack (i-1) l)
+  | x::l        -> map_opt (fun (s1,s2) -> (x::s1,s2) ) (split_stack (i-1) l)
 
 let rec safe_find m v = function
   | []                  -> None
@@ -198,29 +198,29 @@ and rewrite (sg:Signature.t) (stack:stack) (g:dtree) : (env*term) option =
               match find_case arg_i cases with
                 | FC_DB (g,s) | FC_Const (g,s) -> rewrite sg (stack@s) g
                 | FC_Lam (g,te) -> rewrite sg (stack@[te]) g
-                | FC_None -> Utils.bind_opt (rewrite sg stack) def
+                | FC_None -> bind_opt (rewrite sg stack) def
           end
       | Test (Syntactic ord,[],right,def) ->
           begin
             match get_context_syn sg stack ord with
-              | None -> Utils.bind_opt (rewrite sg stack) def
+              | None -> bind_opt (rewrite sg stack) def
               | Some ctx -> Some (ctx, right)
           end
       | Test (Syntactic ord, eqs, right, def) ->
           begin
             match get_context_syn sg stack ord with
-              | None -> Utils.bind_opt (rewrite sg stack) def
+              | None -> bind_opt (rewrite sg stack) def
               | Some ctx ->
                   if test ctx eqs then Some (ctx, right)
-                  else Utils.bind_opt (rewrite sg stack) def
+                  else bind_opt (rewrite sg stack) def
           end
       | Test (MillerPattern lst, eqs, right, def) ->
           begin
               match get_context_mp sg stack lst with
-                | None -> Utils.bind_opt (rewrite sg stack) def
+                | None -> bind_opt (rewrite sg stack) def
                 | Some ctx ->
                       if test ctx eqs then Some (ctx, right)
-                      else Utils.bind_opt (rewrite sg stack) def
+                      else bind_opt (rewrite sg stack) def
           end
 
 and state_conv (sg:Signature.t) : (state*state) list -> bool = function
@@ -362,5 +362,4 @@ let rec state_one_step (sg:Signature.t) : state -> state option = function
         end
 
 let one_step sg t =
-  Utils.map_opt term_of_state
-    (state_one_step sg { ctx=LList.nil; term=t; stack=[] })
+  map_opt term_of_state (state_one_step sg { ctx=LList.nil; term=t; stack=[] })

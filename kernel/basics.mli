@@ -56,3 +56,5 @@ val bind_error : ('a -> ('b,'c) error) -> ('a,'c) error -> ('b,'c) error
 val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 (** Print in stderr *)
 val debug : ('a, out_channel, unit) format -> 'a
+val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
+val map_opt : ('a -> 'b) -> 'a option -> 'b option
