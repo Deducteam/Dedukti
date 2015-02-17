@@ -1,6 +1,5 @@
 (** Basic Datatypes *)
 
-val pp_list     : string -> (out_channel -> 'a -> unit) -> out_channel -> 'a list -> unit
 (** {2 Identifiers (hashconsed strings)} *)
 (** Internal representation of identifiers as hashconsed strings. *)
 
@@ -47,6 +46,8 @@ val of_loc              : loc -> (int*int)
 val add_path       : string -> unit
 val get_path       : unit -> string list
 
+(** {2 Error Datatype} *)
+
 type ('a,'b) error =
   | OK of 'a
   | Err of 'b
@@ -54,7 +55,13 @@ type ('a,'b) error =
 val map_error : ('a -> 'b) -> ('a,'c) error -> ('b,'c) error
 val bind_error : ('a -> ('b,'c) error) -> ('a,'c) error -> ('b,'c) error
 val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
-(** Print in stderr *)
+
+(** {2 Printing} *)
+
 val debug : ('a, out_channel, unit) format -> 'a
+val pp_list : string -> (out_channel -> 'a -> unit) -> out_channel -> 'a list -> unit
+
+(** {2 Misc} *)
+
 val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 val map_opt : ('a -> 'b) -> 'a option -> 'b option
