@@ -32,9 +32,8 @@ struct
 end )
 
 type rw_infos =
-  | Decl    of term
-  | Def     of term*term
-  | Decl_rw of term*rule_infos list*int*dtree
+  | Constant of term
+  | Definable of term * (rule_infos list*int*dtree) option
 
 type t = { name:ident; tables:(rw_infos H.t) H.t }
 
@@ -101,9 +100,9 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t =
 let get_all_rules md =
   let (_,ht) = unmarshal dloc md in
   let aux _ rw rs = match rw with
-    | Decl _ -> rs
-    | Def _ -> assert false (*FIXME*)
-    | Decl_rw (_,lst,_,_) -> lst@rs
+    | Constant _
+    | Definable (_,None) -> rs
+    | Definable (_,Some(lst,_,_)) -> lst@rs
   in
     H.fold aux ht []
 (******************************************************************************)
@@ -149,15 +148,14 @@ let get_infos sg lc m v =
 
 let get_type sg lc m v =
   match get_infos sg lc m v with
-    | Decl ty
-    | Def (_,ty)
-    | Decl_rw (ty,_,_,_) -> ty
+    | Constant ty
+    | Definable (ty,_) -> ty
 
 let get_dtree sg l m v =
   match get_infos sg l m v with
-    | Decl _ -> DoD_None
-    | Def (te,_) -> DoD_Def te
-    | Decl_rw (_,_,i,tr) -> DoD_Dtree (i,tr)
+    | Constant _
+    | Definable (_,None) -> None
+    | Definable (_,Some(_,i,tr)) -> Some (i,tr)
 
 (******************************************************************************)
 
@@ -169,8 +167,8 @@ let add sg lc v gst =
   else
     H.add env v gst
 
-let declare sg lc v ty = add sg lc v (Decl ty)
-let define sg lc v te ty = add sg lc v (Def (te,ty))
+let add_declaration sg lc v ty = add sg lc v (Constant ty)
+let add_definable sg lc v ty = add sg lc v (Definable (ty,None))
 
 let add_rules sg lst : unit =
   let rs = map_error_list Dtree.to_rule_infos lst in
@@ -183,12 +181,11 @@ let add_rules sg lst : unit =
             raise (SignatureError (SymbolNotFound(r.l,sg.name,r.id)))
           in
           let (ty,rules) = match infos with
-            | Decl ty                   -> ( ty , rs )
-            | Decl_rw (ty,mx,_,_)       -> ( ty , mx@rs )
-            | Def (_,_)                 ->
+            | Definable (ty,None) -> ( ty , rs )
+            | Definable (ty,Some(mx,_,_)) -> ( ty , mx@rs )
+            | Constant _ ->
                 raise (SignatureError (CannotAddRewriteRules (r.l,r.id)))
           in
             match Dtree.of_rules rules with
-              | OK (n,tree) -> H.add env r.id (Decl_rw (ty,rules,n,tree))
+              | OK (n,tree) -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
               | Err e -> raise (SignatureError (CannotBuildDtree e))
-

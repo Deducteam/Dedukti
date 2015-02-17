@@ -26,22 +26,35 @@ let get_dtree l md id =
 
 let export () : bool = Signature.export !sg
 
-let _declare (l:loc) (id:ident) (jdg:judgment) : unit =
+let _declare_constant (l:loc) (id:ident) (jdg:judgment) : unit =
   assert ( Context.is_empty jdg.ctx );
   match jdg.ty with
-    | Kind | Type _ -> Signature.declare !sg l id jdg.te
+    | Kind | Type _ -> Signature.add_declaration !sg l id jdg.te
+    | _ -> raise (TypingError (SortExpected (jdg.te,[],jdg.ty)))
+
+let _declare_definable (l:loc) (id:ident) (jdg:judgment) : unit =
+  assert ( Context.is_empty jdg.ctx );
+  match jdg.ty with
+    | Kind | Type _ -> Signature.add_definable !sg l id jdg.te
     | _ -> raise (TypingError (SortExpected (jdg.te,[],jdg.ty)))
 
 let _define (l:loc) (id:ident) (jdg:judgment) =
   assert ( Context.is_empty jdg.ctx );
-  Signature.define !sg l id jdg.te jdg.ty
+  Signature.add_definable !sg l id jdg.ty;
+  Signature.add_rules !sg [([],Pattern (l,get_name (),id,[]),jdg.te)]
 
 let _define_op (l:loc) (id:ident) (jdg:judgment) =
   assert( Context.is_empty jdg.ctx );
-  Signature.declare !sg l id jdg.ty
+  Signature.add_declaration !sg l id jdg.ty
 
-let declare l id ty : (unit,env_error) error =
-  try OK ( _declare l id (inference !sg ty) )
+let declare_constant l id ty : (unit,env_error) error =
+  try OK ( _declare_constant l id (inference !sg ty) )
+  with
+    | SignatureError e -> Err (EnvErrorSignature e)
+    | TypingError e -> Err (EnvErrorType e)
+
+let declare_definable l id ty : (unit,env_error) error =
+  try OK ( _declare_definable l id (inference !sg ty) )
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)

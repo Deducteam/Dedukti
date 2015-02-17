@@ -23,7 +23,7 @@ let mk_prelude lc name =
 
 let mk_declaration lc id pty : unit =
   eprint lc "Declaration of symbol '%a'." pp_ident id;
-  match Env.declare lc id pty with
+  match Env.declare_definable lc id pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 
