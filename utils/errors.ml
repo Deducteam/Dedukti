@@ -82,7 +82,7 @@ let fail_dtree_error err =
             "All the rewrite rules for \ the symbol '%a' should have the same arity."
             pp_ident id
       | UnboundVariable (lc,x,pat) ->
-          fail lc "The variables '%a' is not bounded in '%a'."
+          fail lc "The variables '%a' is not bound in '%a'."
             pp_ident x pp_pattern pat
       | AVariableIsNotAPattern (lc,id) ->
           fail lc "A variable is not a valid pattern."
