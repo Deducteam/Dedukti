@@ -5,31 +5,43 @@ INSTALL_DIR=/usr/bin
 
 # DO NOT EDIT AFTER THIS LINE
 
-OPTIONS = -cflags -inline,10 -ocamlc 'ocamlopt' -tag bin_annot -use-menhir # -tag debug -tag profile
 MENHIR = -menhir "menhir --external-tokens Tokens"
+SRC_DIRS = kernel,utils,parser
 
-all: dkcheck dktop dkdep dkrule doc
+all: lib dkcheck dktop dkdep dkrule dkindent doc
 
 dkcheck:
-	ocamlbuild -Is kernel,utils,parser,dkcheck $(OPTIONS) $(MENHIR) dkcheck.native
+	ocamlbuild -Is $(SRC_DIRS),dkcheck $(MENHIR) dkcheck.native
 
 dktop:
-	ocamlbuild -Is kernel,utils,parser,dktop $(OPTIONS) $(MENHIR) dktop.native
+	ocamlbuild -Is $(SRC_DIRS),dktop $(MENHIR) dktop.native
 
 dkdep:
-	ocamlbuild -Is kernel,utils,parser,dkdep $(OPTIONS) $(MENHIR) dkdep.native
+	ocamlbuild -Is $(SRC_DIRS),dkdep $(MENHIR) dkdep.native
 
 dkrule:
-	ocamlbuild -Is kernel,utils,parser,dkrule $(OPTIONS) $(MENHIR) dkrule.native
+	ocamlbuild -Is $(SRC_DIRS),dkrule $(MENHIR) dkrule.native
+
+dkindent:
+	ocamlbuild -Is $(SRC_DIRS),dkindent $(MENHIR) dkindent.native
 
 doc:
-	ocamlbuild -Is kernel,utils,parser,dkcheck,dkrule dkcheck/dkcheck.docdir/index.html
+	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
+
+lib:
+	ocamlbuild -Is kernel $(OPTIONS) dedukti.cmxa
+
+BINARIES=dkcheck dktop dkdep dkrule
 
 install:
-	install _build/dkcheck/dkcheck.native ${INSTALL_DIR}/dkcheck
-	install _build/dktop/dktop.native ${INSTALL_DIR}/dktop
-	install _build/dkdep/dkdep.native ${INSTALL_DIR}/dkdep
-	install _build/dkrule/dkrule.native ${INSTALL_DIR}/dkrule
+	for i in $(BINARIES) ; do \
+	    install "_build/$$i/$$i.native" "${INSTALL_DIR}/$$i" ; \
+	done
+
+uninstall:
+	for i in $(BINARIES) ; do \
+	    rm "${INSTALL_DIR}/$$i" ; \
+	done
 
 clean:
 	ocamlbuild -clean
@@ -47,4 +59,4 @@ tests: dkcheck
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: dkcheck dktop dkdep dkrule tests clean doc
+.PHONY: dkcheck dktop dkdep dkrule dkindent tests clean doc uninstall

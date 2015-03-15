@@ -1,27 +1,29 @@
-open Term
-open Rule
+open Basics
 
 let print fmt =
   Printf.kfprintf (fun _ -> print_newline () ) stdout fmt
 
-let mk_prelude _ _ = failwith "Top.prelude should not be used."
+let mk_prelude _ _ = failwith "Top.mk_prelude"
 
 let mk_declaration lc id pty =
-  SafeEnv.add_decl lc id pty;
-  print "%s is declared." (string_of_ident id)
+  match Env.declare lc id pty with
+    | OK () -> print "%a is declared." pp_ident id
+    | Err e -> Errors.fail_env_error e
 
 let mk_definition lc id pty_opt pte =
-  SafeEnv.add_def lc id pte pty_opt;
-  print "%s is defined." (string_of_ident id)
+  match Env.define lc id pte pty_opt with
+    | OK () -> print "%a is defined." pp_ident id
+    | Err e -> Errors.fail_env_error e
 
 let mk_opaque lc id pty_opt pte =
-  SafeEnv.add_opaque lc id pte pty_opt;
-  print "%s is declared." (string_of_ident id)
+  match Env.define_op lc id pte pty_opt with
+    | OK () -> print "%a is declared." pp_ident id
+    | Err e -> Errors.fail_env_error e
 
-let mk_rules (prs:prule list) =
-  let rs = List.map Inference.check_prule prs in
-    Env.add_rw rs ;
-    List.iter(fun r -> print "%a" Pp.pp_rule r) rs
+let mk_rules lst =
+  match Env.add_rules lst with
+    | OK () -> List.iter (fun r -> print "%a" Rule.pp_rule r) lst
+    | Err e -> Errors.fail_env_error e
 
 let mk_command = Cmd.mk_command
 

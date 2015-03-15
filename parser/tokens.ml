@@ -1,4 +1,4 @@
-open Term
+open Basics
 
 exception EndOfFile
 

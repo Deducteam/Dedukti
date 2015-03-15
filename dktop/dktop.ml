@@ -12,7 +12,9 @@ let rec parse lb =
     | Tokens.EndOfFile -> exit 0
 
 let  _ =
-  print_string "Welcome in Dedukti\n";
-  let v = Term.hstring "toplevel" in
+  print_string "Welcome to Dedukti\n";
+  let v = Basics.hstring "?top" in
+    Pp.name := v;
+    Scoping.name := v;
     Env.init v ;
     parse (Lexing.from_channel stdin)

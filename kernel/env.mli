@@ -1,48 +1,57 @@
+(** The main functionalities of Dedukti:
+ this is essentialy a wrapper around Signature, Typing and Reduction *)
+open Basics
 open Term
+open Signature
 
-(** Global context management. *)
+type env_error =
+  | EnvErrorType of Typing.typing_error
+  | EnvErrorSignature of signature_error
 
-val ignore_redecl       : bool ref
-val autodep             : bool ref
+(** {2 The Global Environment} *)
 
-val get_name            : unit -> ident
+val init        : ident -> unit
+(** [init name] initializes a new global environement giving it the name [name] *)
 
-module H : Hashtbl.S with type key := ident
+val get_name    : unit -> ident
+(** [get_name ()] returns the name of environment/module *)
 
-type rw_infos = private
-  | Decl    of term
-  | Def     of term*term
-  | Decl_rw of term*Rule.rule list*int*Rule.dtree
+val get_type    : loc -> ident -> ident -> (term,signature_error) error
+(** [get_type l md id] returns the type of the constant [md.id]. *)
 
-(** Initialize the global context. *)
-val init                : ident -> unit
+val get_dtree   : loc -> ident -> ident -> (dtree_or_def,signature_error) error
+(** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
 
-(** Create the dko file and clear the global context. *)
-val export    : unit -> unit
-val clear    : unit -> unit
+val export      : unit -> bool
+(** [export ()] saves the current environment in a [*.dko] file*)
 
-(** [Env.get_infos l md id] returns the context infos corresponding to the
- constant symbol [id] in the module [md]. *)
-val get_infos           : loc -> ident -> ident -> rw_infos
+val declare     : loc -> ident -> term -> (unit,env_error) error
+(** [declare l id ty] declares the symbol [id] of type [ty]. *)
 
-(** [Env.get_type l md id] returns the type of the constant symbol [id] in
- the module [md]. *)
-val get_type            : loc -> ident -> ident -> term
+val define      : loc -> ident -> term -> term option -> (unit,env_error) error
+(** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
 
-(** [Env.add_decl l id ty] declares a constant symbol [id] of type [ty] in the
- the current module. *)
-val add_decl            : loc -> ident -> term -> unit
+val define_op   : loc -> ident -> term -> term option -> (unit,env_error) error
+(** [define_op l id body ty] declares the symbol [id] of type [ty] and checks
+* that [body] has this type (but forget it after). *)
 
-(** [Env.add_def l id te ty] defines the alias [id] for the term [te] of type
-  [ty] in the the current module. *)
-val add_def             : loc -> ident -> term -> term -> unit
+val add_rules   : Rule.rule list -> (unit,env_error) error
+(** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the
+  * same symbol. *)
 
-(** Add a list of rewrite rules in the context.
-All these rules must have the same head symbol and the same arity. *)
-val add_rw              : Rule.rule list -> unit
+(** {2 Type checking/inference} *)
 
-val marshal : ident -> string list -> rw_infos H.t -> unit
+val infer       : term -> (term,env_error) error
 
-val unmarshal : loc -> string -> (string list*rw_infos H.t)
+val check       : term -> term -> (unit,env_error) error
 
-val get_all_rules : string -> (string*Rule.rule list) list
+(** {2 Safe Reduction/Conversion} *)
+(** terms are typechecked before the reduction/conversion *)
+
+val hnf         : term -> (term,env_error) error
+val whnf        : term -> (term,env_error) error
+val snf         : term -> (term,env_error) error
+val one         : term -> (term option,env_error) error
+
+val are_convertible : term -> term -> (bool,env_error) error
+

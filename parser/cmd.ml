@@ -1,55 +1,78 @@
+open Basics
 open Term
+open Typing
 
 type command =
   (* Reduction *)
-  | Whnf of preterm
-  | Hnf of preterm
-  | Snf of preterm
-  | OneStep of preterm
-  | Conv of preterm*preterm
+  | Whnf of term
+  | Hnf of term
+  | Snf of term
+  | OneStep of term
+  | Conv of term*term
   (*Typing*)
-  | Check of preterm*preterm
-  | Infer of preterm
+  | Check of term*term
+  | Infer of term
   (* Misc *)
   | Gdt of ident option*ident
   | Print of string
-  | Other of string*preterm list
+  | Other of string*term list
 
 let print s= print_string s; print_newline ()
 
 let mk_command lc = function
-  | Whnf pte          ->
-      let (te,_) = Inference.infer2 pte in
-        Printf.fprintf stdout "%a\n" Pp.pp_term (Reduction.whnf te)
-  | Hnf pte           ->
-      let (te,_) = Inference.infer2 pte in
-        Printf.fprintf stdout "%a\n" Pp.pp_term (Reduction.hnf te)
-  | Snf pte           ->
-      let (te,_) = Inference.infer2 pte in
-        Printf.fprintf stdout "%a\n" Pp.pp_term (Reduction.snf te)
-  | OneStep pte       ->
-      let (te,_) = Inference.infer2 pte in
-        ( match Reduction.one_step te with
-            | None    -> print "Already in weak head normal form."
-            | Some t' -> Printf.fprintf stdout "%a\n" Pp.pp_term t' )
-  | Conv (pte1,pte2)  ->
-      let (t1,_) = Inference.infer2 pte1 in
-      let (t2,_) = Inference.infer2 pte2 in
-        if Reduction.are_convertible t1 t2 then print "YES"
-        else print "NO"
-  | Check (pte,pty) ->
-      let (ty1,_) = Inference.infer2 pty in
-      let (_,ty2) = Inference.infer2 pte in
-        if Reduction.are_convertible ty1 ty2 then print "YES"
-        else print "NO"
-  | Infer pte         ->
-      let (te,ty) = Inference.infer2 pte in
-        Printf.fprintf stdout "%a\n" Pp.pp_term ty
+  | Whnf te          ->
+      ( match Env.whnf te with
+          | OK te -> Printf.fprintf stdout "%a\n" pp_term te
+          | Err e -> Errors.fail_env_error e )
+  | Hnf te           ->
+      ( match Env.hnf te with
+          | OK te -> Printf.fprintf stdout "%a\n" pp_term te
+          | Err e -> Errors.fail_env_error e )
+  | Snf te           ->
+      ( match Env.snf te with
+          | OK te -> Printf.fprintf stdout "%a\n" pp_term te
+          | Err e -> Errors.fail_env_error e )
+  | OneStep te       ->
+      ( match Env.one te with
+          | OK (Some te) -> Printf.fprintf stdout "%a\n" pp_term te
+          | OK None -> Printf.fprintf stdout "%a\n" pp_term te
+          | Err e -> Errors.fail_env_error e )
+  | Conv (te1,te2)  ->
+        ( match Env.are_convertible te1 te2 with
+            | OK true -> print "YES"
+            | OK false -> print "NO"
+            | Err e -> Errors.fail_env_error e )
+  | Check (te,ty) ->
+        ( match Env.check te ty with
+            | OK () -> print "YES"
+            | Err e -> Errors.fail_env_error e )
+  | Infer te         ->
+      ( match Env.infer te with
+          | OK ty -> Printf.fprintf stdout "%a\n" pp_term ty
+          | Err e -> Errors.fail_env_error e )
   | Gdt (m0,v)         ->
       let m = match m0 with None -> Env.get_name () | Some m -> m in
-        ( match Env.get_infos lc m v with
-            | Env.Decl_rw (_,_,i,g) ->
-                Printf.fprintf stdout "%a\n" Pp.pp_rw (m,v,i,g)
-            | _                 -> print "No GDT." )
+        ( match Env.get_dtree lc m v with
+            | OK (Signature.DoD_Dtree (i,g)) ->
+                Printf.fprintf stdout "%a\n" Rule.pp_rw (m,v,i,g)
+            | _ -> print "No GDT." )
   | Print str         -> output_string stdout str
   | Other (cmd,_)     -> prerr_string ("Unknown command '"^cmd^"'.\n")
+
+let print_command out c =
+  let open Pp in
+  match c with
+  | Whnf te          -> Format.fprintf out "#WHNF@ %a." print_term te
+  | Hnf te           -> Format.fprintf out "#HNF@ %a." print_term te
+  | Snf te           -> Format.fprintf out "#SNF@ %a." print_term te
+  | OneStep te       -> Format.fprintf out "#STEP@ %a." print_term te
+  | Conv (te1,te2)   -> Format.fprintf out "#CONV@ %a@ %a." print_term te1 print_term te2
+  | Check (te,ty)    -> Format.fprintf out "#CHECK@ %a@ %a." print_term te print_term ty
+  | Infer te         -> Format.fprintf out "#INFER@ %a." print_term te
+  | Gdt (m0,v)       ->
+      begin match m0 with
+      | None -> Format.fprintf out "#GDT@ %a." print_ident v
+      | Some m -> Format.fprintf out "#GDT@ %a.%a." print_ident m print_ident v
+      end
+  | Print str         -> Format.fprintf out "#PRINT \"%s\"." str
+  | Other (cmd,_)     -> failwith ("Unknown command '"^cmd^"'.\n")

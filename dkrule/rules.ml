@@ -1,3 +1,4 @@
+open Basics
 open Term
 open Rule
 
@@ -6,16 +7,16 @@ let print out fmt =
 
 let is_non_linear r =
   let seen = Array.create (List.length r.ctx) false in
-  let rec aux = function
-    | Lambda (_,_,p) -> aux p
-    | BoundVar (_,_,_,args) | Pattern (_,_,_,args) -> List.exists aux args
-    | MatchingVar (_,_,n,_) ->
-        if seen.(n) then true
-        else ( seen.(n) <- true; false )
+  let rec aux k = function
+    | Lambda (_,_,p) -> aux (k+1) p
+    | Pattern (_,_,_,args) -> List.exists (aux k) args
+    | Var (_,_,n,args) when n<k -> List.exists (aux k) args
+    | Var (_,_,n,args) ->
+        if seen.(n-k) then true
+        else ( seen.(n-k) <- true; List.exists (aux k) args )
     | Brackets _ -> true
-    | Joker _ -> false
   in
-    List.exists aux r.args
+    List.exists (aux 0) r.args
 
 let is_type_level r =
   let rec is_kind = function
@@ -25,10 +26,10 @@ let is_type_level r =
   in
     is_kind (Env.get_type dloc r.md r.id)
 
-let print_rule_list out = List.iter (print out "%a" Pp.pp_rule)
+let print_rule_list out = List.iter (print out "%a" Pp.pp_frule)
 
 let print_rule_list_filter out condition =
-    List.iter (fun r -> if condition r then print out "%a" Pp.pp_rule r)
+    List.iter (fun r -> if condition r then print out "%a" Pp.pp_frule r)
 
 let print_all out = List.iter (fun (_,lst) -> print_rule_list out lst)
 

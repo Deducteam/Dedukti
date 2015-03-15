@@ -1,13 +1,11 @@
-open Term
-open Rule
-open Env
+open Basics
 
 (* ********************************* *)
 
 let verbose = ref false
 
 let set_debug_level lvl =
-  if lvl > 0 then ( verbose := true; Pp.print_db := true )
+  if lvl > 0 then ( verbose := true; Pp.print_db_enabled := true )
 
 let eprint lc fmt =
   if !verbose then (
@@ -17,40 +15,44 @@ let eprint lc fmt =
   ) else
     Printf.ifprintf stderr fmt
 
-let print fmt =
-  Printf.kfprintf (fun _ -> print_newline () ) stdout fmt
-
 (* ********************************* *)
 
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_ident name;
   Env.init name
 
-let mk_declaration lc id pty =
+let mk_declaration lc id pty : unit =
   eprint lc "Declaration of symbol '%a'." pp_ident id;
-  SafeEnv.add_decl lc id pty
+  match Env.declare lc id pty with
+    | OK () -> ()
+    | Err e -> Errors.fail_env_error e
 
-let mk_definition lc id pty_opt pte =
+let mk_definition lc id pty_opt pte : unit =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
-  SafeEnv.add_def lc id pte pty_opt
+  match Env.define lc id pte pty_opt with
+    | OK () -> ()
+    | Err e -> Errors.fail_env_error e
 
 let mk_opaque lc id pty_opt pte =
   eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
-  SafeEnv.add_opaque lc id pte pty_opt
+  match Env.define_op lc id pte pty_opt with
+    | OK () -> ()
+    | Err e -> Errors.fail_env_error e
 
-let mk_rule (pr:prule) : rule =
-  let (lc,_,id,_,_) = pr in
-    eprint lc "Rewrite rule for symbol '%a'." pp_ident id ;
-    Inference.check_prule pr
-
-let mk_rules : prule list -> unit = function [] -> ()
-  | (lc,_,id,_,_)::_ as plst ->
-      ( eprint lc "Rewrite rule for symbol '%a'." pp_ident id ;
-        SafeEnv.add_rules plst )
+let mk_rules lst =
+  List.iter (
+    fun (ctx,pat,rhs) ->
+      eprint (Rule.get_loc_pat pat) "%a" Rule.pp_rule (ctx,pat,rhs)
+  ) lst ;
+  match Env.add_rules lst with
+    | OK () -> ()
+    | Err e -> Errors.fail_env_error e
 
 let mk_command = Cmd.mk_command
 
 let export = ref false
 
-let mk_ending _ =
-  ( if !export then Env.export () ); Env.clear ()
+let mk_ending () =
+  if !export then
+    if not (Env.export ()) then
+      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ())

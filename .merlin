@@ -1,6 +1,7 @@
 S kernel
 S utils
 S parser
+S refiner
 S dkcheck
 S dktop
 S dkdep
@@ -9,6 +10,7 @@ S dkrule
 B _build/kernel
 B _build/parser
 B _build/utils
+B _build/refiner
 
 B _build/dkcheck
 B _build/dkdep
