@@ -15,6 +15,7 @@ type token =
   | LEFTPAR
   | LEFTBRA
   | ID          of ( loc * ident )
+  | FID          of ( loc * ident ) 
   | FATARROW
   | EOF
   | DOT
