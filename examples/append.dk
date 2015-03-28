@@ -15,5 +15,5 @@ cons  : n:Nat -> A -> Listn n -> Listn (S n).
 
 `append: n:Nat -> Listn n -> m:Nat -> Listn m -> Listn (plus n m).
 [n:Nat,l2:Listn n]      append Z nil n l2 --> l2
-[n:Nat,l1:Listn n,m:Nat,l2:Listn m,a:A] 
-     append (S n) (cons n a l1) m l2 --> cons (plus n m) a (append n l1 m l2).
+[n:Nat,l1:Listn n,m:Nat,l2:Listn m,a:A,_sn:Nat] 
+     append _sn (cons n a l1) m l2 --> cons (plus n m) a (append n l1 m l2).

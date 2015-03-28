@@ -151,6 +151,11 @@ let get_type sg lc m v =
     | Constant ty
     | Definable (ty,_) -> ty
 
+let is_constant sg lc m v =
+  match get_infos sg lc m v with
+    | Constant _ -> true
+    | Definable _ -> false
+
 let get_dtree sg l m v =
   match get_infos sg l m v with
     | Constant _
