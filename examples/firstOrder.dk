@@ -2,7 +2,7 @@
 
 Term : Type.
 Prop : Type.
-prf  : Prop -> Type.
+`prf  : Prop -> Type.
 
 true : Prop.
 false: Prop.

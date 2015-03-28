@@ -1,7 +1,7 @@
 #NAME Prop.
 
 Prop: Type.
-prf : Prop -> Type.
+`prf : Prop -> Type.
 Term: Type.
 
 (; *** Declarations ;)

@@ -5,15 +5,15 @@ Nat : Type.
 Z : Nat.
 S : Nat -> Nat.
 
-plus : Nat -> Nat -> Nat.
+`plus : Nat -> Nat -> Nat.
 [x:Nat]        plus Z x --> x
 [x:Nat, y:Nat] plus (S x) y --> plus x (S y).
 
-mult : Nat -> Nat -> Nat.
+`mult : Nat -> Nat -> Nat.
 [x:Nat]        mult Z x --> Z
 [x:Nat, y:Nat] mult (S x) y --> plus y (mult x y).
 
-fact : Nat -> Nat.
+`fact : Nat -> Nat.
 []      fact Z --> S Z
 [x:Nat] fact (S x) --> mult (S x) (fact x).
 

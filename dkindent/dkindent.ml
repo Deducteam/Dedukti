@@ -7,6 +7,9 @@ module T = struct
   let mk_declaration _ i t =
     Format.printf "@[<2>%a :@ %a.@]@.@." print_ident i print_term t
 
+  let mk_definable _ i t =
+    Format.printf "@[<2>`%a :@ %a.@]@.@." print_ident i print_term t
+
   let mk_definition _ i ty t = match ty with
     | None -> Format.printf "@[<hv2>%a@ :=@ %a.@]@.@." print_ident i print_term t
     | Some ty ->

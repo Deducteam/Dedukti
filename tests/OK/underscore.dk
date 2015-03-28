@@ -14,7 +14,7 @@ comp := i:Nat => j:Nat => k:Nat => f:Finm i j => g:Finm j k => x:Fin i => g (f x
 
 Sn1: Type.
 Bn: Sn1 -> Nat -> Type.
-mapBn: Ln1:Sn1 -> i:Nat -> ip:Nat -> Finm i ip -> Bn Ln1 ip -> Bn Ln1 i.
+`mapBn: Ln1:Sn1 -> i:Nat -> ip:Nat -> Finm i ip -> Bn Ln1 ip -> Bn Ln1 i.
 
 [Ln1:Sn1,i:Nat,j:Nat,k:Nat,f:Finm i j,g:Finm j k,p:Bn Ln1 k] 
 mapBn Ln1 i j f (mapBn Ln1 j k g p) --> mapBn Ln1 i k (comp i j k f g) p.
@@ -26,8 +26,8 @@ Ln1: Sn -> Sn1.
 Xn : Ln:Sn -> Bn (Ln1 Ln) n -> Type.
 
 Bsn: Sn -> Nat -> Type.
-bn : Ln:Sn -> i:Nat -> Bsn Ln i -> Bn (Ln1 Ln) i.
-bsn: Ln:Sn -> i:Nat -> p:Bsn Ln i -> f:Finm n i -> Xn Ln (mapBn (Ln1 Ln) n i f (bn Ln i p)).
+`bn : Ln:Sn -> i:Nat -> Bsn Ln i -> Bn (Ln1 Ln) i.
+`bsn: Ln:Sn -> i:Nat -> p:Bsn Ln i -> f:Finm n i -> Xn Ln (mapBn (Ln1 Ln) n i f (bn Ln i p)).
 mkBsn: Ln:Sn -> i:Nat -> bn:Bn (Ln1 Ln) i 
 	-> bsn:(f:Finm n i -> Xn Ln (mapBn (Ln1 Ln) n i f bn)) -> Bsn Ln i.
 

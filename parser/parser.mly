@@ -3,6 +3,7 @@
     val mk_prelude     : Basics.loc -> Basics.ident -> unit
     val mk_declaration : Basics.loc -> Basics.ident -> Term.term -> unit
     val mk_definition  : Basics.loc -> Basics.ident -> Term.term option -> Term.term -> unit
+    val mk_definable   : Basics.loc -> Basics.ident -> Term.term -> unit
     val mk_opaque      : Basics.loc -> Basics.ident -> Term.term option -> Term.term -> unit
     val mk_rules       : Rule.rule list -> unit
     val mk_command     : Basics.loc -> Cmd.command -> unit
@@ -64,6 +65,7 @@
 %token <Basics.loc*Basics.ident>NAME
 %token <Basics.loc> TYPE
 %token <Basics.loc*Basics.ident> ID
+%token <Basics.loc*Basics.ident> FID
 %token <Basics.loc*Basics.ident*Basics.ident> QID
 %token <string> STRING
 
@@ -92,6 +94,8 @@ prelude         : NAME DOT      { let (lc,name) = $1 in
 
 line            : ID COLON term DOT
                 { mk_declaration (fst $1) (snd $1) (scope_term [] $3) }
+                | FID COLON term DOT
+                { mk_definable (fst $1) (snd $1) (scope_term [] $3) }
                 | ID COLON term DEF term DOT
                 { mk_definition (fst $1) (snd $1) (Some (scope_term [] $3)) (scope_term [] $5) }
                 | ID DEF term DOT
