@@ -35,6 +35,7 @@ let rec mk_pattern = function
   | Brackets t -> mk_term t
 
 let mk_declaration _ _ t = mk_term t
+let mk_definable _ _ t = mk_term t
 
 let mk_definition _ _ = function
   | None -> mk_term

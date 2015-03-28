@@ -53,3 +53,55 @@ let subst (te:term) (u:term) =
     | Pi  (_,x,a,b) -> mk_Pi dloc  x (aux k a) (aux(k+1) b)
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
   in aux 0 te
+
+  
+module IntMap = Map.Make(
+struct
+  type t = int
+  let compare = compare
+end)
+
+module S =
+struct
+  type t = term IntMap.t
+  let identity = IntMap.empty
+
+  let apply (sigma:t) (te:term) : term =
+    let rec aux q = function
+      | Kind | Type _ | Const _ as t -> t
+      | DB (_,_,k) as t when k<q -> t
+      | DB (_,_,k) as t (*when k>=q*) ->
+          begin
+            try shift q (IntMap.find k sigma)
+            with Not_found -> t
+          end
+      | App (f,a,args) -> mk_App (aux q f) (aux q a) (List.map (aux q) args)
+      | Lam (l,x,Some ty,te) -> mk_Lam l x (Some (aux q ty)) (aux (q+1) te)
+      | Lam (l,x,None,te) -> mk_Lam l x None (aux (q+1) te)
+      | Pi (l,x,a,b) -> mk_Pi l x (aux q a) (aux (q+1) b)
+    in
+      aux 0 te
+
+  let occurs (n:int) (te:term) : bool =
+    let rec aux q = function
+      | Kind | Type _ | Const _ -> false
+      | DB (_,_,k) when k<q -> false
+      | DB (_,_,k) (*when k>=q*) -> ( k-q == n )
+      | App (f,a,args) -> List.exists (aux q) (f::a::args)
+      | Lam (_,_,None,te) -> aux (q+1) te
+      | Lam (_,_,Some ty,te) -> aux q ty || aux (q+1) te
+      | Pi (_,_,a,b) -> aux q a || aux (q+1) b
+    in aux 0 te
+
+  let add (sigma:t) (n:int) (t:term) : t option =
+    assert ( not ( IntMap.mem n sigma ) );
+    if occurs 0 t then None
+    else Some ( IntMap.add n t sigma )
+
+  let merge s1 s2 =
+    let aux _ b1 b2 = match b1, b2 with
+      | None, b | b, None -> b
+      | Some b1, Some b2 -> assert false (*FIXME*)
+    in
+      IntMap.merge aux s1 s2
+end

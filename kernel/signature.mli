@@ -18,12 +18,12 @@ type signature_error =
   | CannotAddRewriteRules of loc*ident
 
 exception SignatureError of signature_error
-
+(*
 type dtree_or_def =
     | DoD_None
     | DoD_Def of term
     | DoD_Dtree of int*dtree
-
+ *)
 type t
 
 val make                : ident -> t
@@ -31,9 +31,11 @@ val get_name            : t -> ident
 
 val export              : t -> bool
 val get_type            : t -> loc -> ident -> ident -> term
-val get_dtree           : t -> loc -> ident -> ident -> dtree_or_def
-val declare             : t -> loc -> ident -> term -> unit
-val define              : t -> loc -> ident -> term -> term -> unit
+val is_constant         : t -> loc -> ident -> ident -> bool
+val get_dtree           : t -> loc -> ident -> ident -> (int*dtree) option
+val add_declaration     : t -> loc -> ident -> term -> unit
+val add_definable       : t -> loc -> ident -> term -> unit
+(* val define              : t -> loc -> ident -> term -> term -> unit *)
 val add_rules           : t -> Rule.rule list -> unit
 
 val get_all_rules       : string -> rule_infos list

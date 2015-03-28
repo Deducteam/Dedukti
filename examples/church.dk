@@ -2,7 +2,7 @@
 
 type : Type.
 arr : type -> type -> type.
-e : type -> Type.
+`e : type -> Type.
 [a : type, b : type] e (arr a b) --> e a -> e b.
 
 N : type.

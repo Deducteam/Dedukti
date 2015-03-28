@@ -168,9 +168,8 @@ let rec reduce (sg:Signature.t) (st:state) : state =
     | { ctx; term=Const (l,m,v); stack } as config ->
         begin
           match Signature.get_dtree sg l m v with
-            | Signature.DoD_None -> config
-            | Signature.DoD_Def term -> reduce sg { ctx=LList.nil; term; stack }
-            | Signature.DoD_Dtree (i,g) ->
+            | None -> config
+            | Some (i,g) ->
                 begin
                   match split_stack i stack with
                     | None -> config
@@ -347,9 +346,8 @@ let rec state_one_step (sg:Signature.t) : state -> state option = function
     | { ctx; term=Const (l,m,v); stack } ->
         begin
           match Signature.get_dtree sg l m v with
-            | Signature.DoD_None -> None
-            | Signature.DoD_Def term -> Some { ctx=LList.nil; term; stack }
-            | Signature.DoD_Dtree (i,g) ->
+            | None -> None
+            | Some (i,g) ->
                 begin
                   match split_stack i stack with
                     | None -> None

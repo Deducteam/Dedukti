@@ -22,8 +22,14 @@ let mk_prelude lc name =
   Env.init name
 
 let mk_declaration lc id pty : unit =
-  eprint lc "Declaration of symbol '%a'." pp_ident id;
-  match Env.declare lc id pty with
+  eprint lc "Declaration of constant '%a'." pp_ident id;
+  match Env.declare_constant lc id pty with
+    | OK () -> ()
+    | Err e -> Errors.fail_env_error e
+
+let mk_definable lc id pty : unit =
+  eprint lc "Declaration of definable '%a'." pp_ident id;
+  match Env.declare_definable lc id pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 

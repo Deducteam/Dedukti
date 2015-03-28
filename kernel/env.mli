@@ -19,14 +19,17 @@ val get_name    : unit -> ident
 val get_type    : loc -> ident -> ident -> (term,signature_error) error
 (** [get_type l md id] returns the type of the constant [md.id]. *)
 
-val get_dtree   : loc -> ident -> ident -> (dtree_or_def,signature_error) error
+val get_dtree   : loc -> ident -> ident -> ((int*Rule.dtree) option,signature_error) error
 (** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
 
 val export      : unit -> bool
 (** [export ()] saves the current environment in a [*.dko] file*)
 
-val declare     : loc -> ident -> term -> (unit,env_error) error
-(** [declare l id ty] declares the symbol [id] of type [ty]. *)
+val declare_constant : loc -> ident -> term -> (unit,env_error) error
+(** [declare_constant l id ty] declares the constant symbol [id] of type [ty]. *)
+
+val declare_definable : loc -> ident -> term -> (unit,env_error) error
+(** [declare_definable l id ty] declares the definable symbol [id] of type [ty]. *)
 
 val define      : loc -> ident -> term -> term option -> (unit,env_error) error
 (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)

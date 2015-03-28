@@ -2,7 +2,7 @@
 
 Term : Type.
 Prop: Type.
-prf: Prop -> Type.
+`prf: Prop -> Type.
 anyterm: Term.
 
 not: Prop -> Prop.
@@ -47,14 +47,14 @@ equiv: Prop -> Prop -> Prop :=
 P:Prop -> (x:Term -> prf (A x) -> prf P) -> prf P
 [x: Term, y: Term] prf (equal x y) --> P:(Term -> Prop) -> prf (imply (P x) (P y)).
 
-leq : Term -> Term -> Prop.
+`leq : Term -> Term -> Prop.
 one : Term.
 c : Term -> Term.
-test : Term -> Prop.
-complement : Term -> Term -> Prop.
-addition : Term -> Term -> Term.
+`test : Term -> Prop.
+`complement : Term -> Term -> Prop.
+`addition : Term -> Term -> Term.
 zero : Term.
-multiplication : Term -> Term -> Term.
+`multiplication : Term -> Term -> Term.
 [B : Term, A : Term] leq A B --> (equal (addition A B) B).
 [X0 : Term] test X0 --> (exists (X1:Term => (complement X1 X0))).
 [X0 : Term, X1 : Term] complement X1 X0 --> (and (equal (multiplication X0 X1) zero) (and (equal (multiplication X1 X0) zero) (equal (addition X0 X1) one))).
