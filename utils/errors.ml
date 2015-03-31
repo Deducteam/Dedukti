@@ -106,6 +106,8 @@ let fail_signature_error err =
       | CannotAddRewriteRules (lc,id) ->
           fail lc
             "Cannot add rewrite\ rules for the defined symbol '%a'." pp_ident id
+      | KindLevelDefinition (lc,_) ->
+        fail lc "Definition of kinds are not allowed."
 
 let fail_env_error = function
   | Env.EnvErrorSignature e -> fail_signature_error e

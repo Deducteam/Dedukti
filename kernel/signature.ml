@@ -16,6 +16,7 @@ type signature_error =
   | AlreadyDefinedSymbol of loc*ident
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
+  | KindLevelDefinition of loc*term
 
 exception SignatureError of signature_error
 
@@ -170,7 +171,9 @@ let add sg lc v gst =
     H.add env v gst
 
 let declare sg lc v ty = add sg lc v (Decl ty)
-let define sg lc v te ty = add sg lc v (Def (te,ty))
+let define sg lc v te = function
+  | Kind -> raise (SignatureError (KindLevelDefinition (lc,te)))
+  | ty -> add sg lc v (Def (te,ty))
 
 let add_rules sg lst : unit =
   let rs = map_error_list Dtree.to_rule_infos lst in

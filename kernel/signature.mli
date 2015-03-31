@@ -16,6 +16,7 @@ type signature_error =
   | AlreadyDefinedSymbol of loc*ident
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
+  | KindLevelDefinition of loc*term
 
 exception SignatureError of signature_error
 
