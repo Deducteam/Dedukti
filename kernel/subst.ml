@@ -104,4 +104,10 @@ struct
       | Some b1, Some b2 -> assert false (*FIXME*)
     in
       IntMap.merge aux s1 s2
+
+
+  let pp out sigma =
+    IntMap.iter
+      (fun i t -> Printf.fprintf out "( %i -> %a )" i pp_term t)
+      sigma
 end

@@ -18,4 +18,5 @@ sig
   val add : t -> int -> term -> t option
   val apply : t -> term -> term
   val merge : t -> t -> t
+  val pp : out_channel -> t -> unit
 end
