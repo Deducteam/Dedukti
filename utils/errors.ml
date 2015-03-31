@@ -31,6 +31,11 @@ let ok = function
   | OK v -> v
   | Err _ -> failwith "-error-in-snf error."
 
+let pp_context2 out = function
+  | [] -> ()
+  | (_::_) as ctx ->
+    Printf.fprintf out " in context:\n%a" pp_context ctx
+
 let fail_typing_error err =
   let open Typing in
     match err with
@@ -40,7 +45,7 @@ let fail_typing_error err =
           let inf = if !errors_in_snf then ok (Env.snf inf) else inf in
             fail (get_loc te)
               "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
-              pp_term te pp_context ctx pp_term exp pp_term inf
+              pp_term te pp_context2 ctx pp_term exp pp_term inf
       | VariableNotFound (lc,x,n,ctx) ->
           fail lc "The variable '%a' was not found in context:\n"
             pp_term (mk_DB lc x n) pp_context ctx
@@ -48,16 +53,16 @@ let fail_typing_error err =
           let inf = if !errors_in_snf then ok (Env.snf inf) else inf in
             fail (Term.get_loc te)
               "Error while typing '%a'%a.\nExpected: a sort.\nInferred: %a."
-              pp_term te pp_context ctx pp_term inf
+              pp_term te pp_context2 ctx pp_term inf
       | ProductExpected (te,ctx,inf) ->
           let inf = if !errors_in_snf then ok (Env.snf inf) else inf in
             fail (get_loc te)
               "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
-              pp_term te pp_context ctx pp_term inf
+              pp_term te pp_context2 ctx pp_term inf
       | InexpectedKind (te,ctx) ->
           fail (get_loc te)
             "Error while typing '%a'%a.\nExpected: anything but Kind.\nInferred: Kind."
-            pp_term te pp_context ctx
+            pp_term te pp_context2 ctx
       | DomainFreeLambda lc ->
           fail lc "Cannot infer the type of domain-free lambda."
 
