@@ -4,7 +4,7 @@ open Rule
 type dtree_error =
   | BoundVariableExpected of pattern
   | VariableBoundOutsideTheGuard of Term.term
-  | NotEnoughArguments of loc*ident*int
+  | NotEnoughArguments of loc*ident*int*int*int
   | HeadSymbolMismatch of loc*ident*ident
   | ArityMismatch of loc*ident
   | UnboundVariable of loc*ident*pattern
