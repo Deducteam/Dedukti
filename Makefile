@@ -8,7 +8,9 @@ INSTALL_DIR=/usr/bin
 MENHIR = -menhir "menhir --external-tokens Tokens"
 SRC_DIRS = kernel,utils,parser
 
-all: lib skcheck sktop skdep skrule skindent doc
+BINARIES=skcheck sktop skdep skrule skindent
+
+all: lib $(BINARIES) doc
 
 skcheck:
 	ocamlbuild -Is $(SRC_DIRS),skcheck $(MENHIR) skcheck.native
@@ -30,8 +32,6 @@ doc:
 
 lib:
 	ocamlbuild -Is kernel $(OPTIONS) dedukti.cmxa
-
-BINARIES=skcheck sktop skdep skrule
 
 install:
 	for i in $(BINARIES) ; do \
@@ -56,4 +56,4 @@ tests: skdep skcheck
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: skcheck sktop skdep skrule skindent tests clean doc uninstall
+.PHONY: $(BINARIES) tests clean doc uninstall
