@@ -74,8 +74,6 @@ exists_intro: P:(Term->Prop) -> t:Term -> prf (P t) -> prf (exists P)
 := P:(Term -> Prop) => t:Term => p:prf (P t) => 
 	A:Prop => f:(x:Term -> prf (P x) -> prf A) => f t p.
 
-(; exists_elim ? ;)
-
 (; Equality ;)
 
 eq_refl: prf (forall (x:Term => equals x x)) 
