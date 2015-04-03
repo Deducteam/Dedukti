@@ -1,0 +1,2 @@
+<*/*.cmx>: inline(11), bin_annot, for-pack(Dedukti)
+true: -use-menhir

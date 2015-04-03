@@ -1,5 +1,4 @@
 open Basics
-open Judgment
 
 (* ********************************* *)
 
@@ -16,36 +15,44 @@ let eprint lc fmt =
   ) else
     Printf.ifprintf stderr fmt
 
-let print fmt =
-  Printf.kfprintf (fun _ -> print_newline () ) stdout fmt
-
 (* ********************************* *)
 
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_ident name;
   Env.init name
 
-let mk_declaration lc id pty =
+let mk_declaration lc id pty : unit =
   eprint lc "Declaration of symbol '%a'." pp_ident id;
-  declare2 lc id pty
+  match Env.declare lc id pty with
+    | OK () -> ()
+    | Err e -> Errors.fail_env_error e
 
-let mk_definition lc id pty_opt pte =
+let mk_definition lc id pty_opt pte : unit =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
-  define2 lc id pte pty_opt
+  match Env.define lc id pte pty_opt with
+    | OK () -> ()
+    | Err e -> Errors.fail_env_error e
 
 let mk_opaque lc id pty_opt pte =
   eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
-  define_op2 lc id pte pty_opt
+  match Env.define_op lc id pte pty_opt with
+    | OK () -> ()
+    | Err e -> Errors.fail_env_error e
 
 let mk_rules lst =
   List.iter (
     fun (ctx,pat,rhs) ->
-      eprint (Rule.get_loc_pat pat) "%a" Pp.pp_rule (ctx,pat,rhs)
+      eprint (Rule.get_loc_pat pat) "%a" Rule.pp_rule (ctx,pat,rhs)
   ) lst ;
-  add_rules2 lst
+  match Env.add_rules lst with
+    | OK () -> ()
+    | Err e -> Errors.fail_env_error e
 
 let mk_command = Cmd.mk_command
 
 let export = ref false
 
-let mk_ending _ = if !export then Env.export ()
+let mk_ending () =
+  if !export then
+    if not (Env.export ()) then
+      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ())

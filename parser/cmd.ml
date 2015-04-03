@@ -1,6 +1,6 @@
 open Basics
 open Term
-open Judgment
+open Typing
 
 type command =
   (* Reduction *)
@@ -21,36 +21,41 @@ let print s= print_string s; print_newline ()
 
 let mk_command lc = function
   | Whnf te          ->
-      let jdg = whnf (inference te) in
-        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.te
+      ( match Env.whnf te with
+          | OK te -> Printf.fprintf stdout "%a\n" pp_term te
+          | Err e -> Errors.fail_env_error e )
   | Hnf te           ->
-      let jdg = hnf (inference te) in
-        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.te
+      ( match Env.hnf te with
+          | OK te -> Printf.fprintf stdout "%a\n" pp_term te
+          | Err e -> Errors.fail_env_error e )
   | Snf te           ->
-      let jdg = snf (inference te) in
-        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.te
+      ( match Env.snf te with
+          | OK te -> Printf.fprintf stdout "%a\n" pp_term te
+          | Err e -> Errors.fail_env_error e )
   | OneStep te       ->
-      let jdg = one (inference te) in
-        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.te
+      ( match Env.one te with
+          | OK (Some te) -> Printf.fprintf stdout "%a\n" pp_term te
+          | OK None -> Printf.fprintf stdout "%a\n" pp_term te
+          | Err e -> Errors.fail_env_error e )
   | Conv (te1,te2)  ->
-      let j1 = inference te1 in
-      let j2 = inference te2 in
-        if conv_test j1 j2 then print "YES"
-        else print "NO"
+        ( match Env.are_convertible te1 te2 with
+            | OK true -> print "YES"
+            | OK false -> print "NO"
+            | Err e -> Errors.fail_env_error e )
   | Check (te,ty) ->
-      let jty = inference ty in
-      let jte = inference te in
-        if check_test jte jty then print "YES"
-        else print "NO"
+        ( match Env.check te ty with
+            | OK () -> print "YES"
+            | Err e -> Errors.fail_env_error e )
   | Infer te         ->
-      let jdg = inference te in
-        Printf.fprintf stdout "%a\n" Pp.pp_term jdg.ty
+      ( match Env.infer te with
+          | OK ty -> Printf.fprintf stdout "%a\n" pp_term ty
+          | Err e -> Errors.fail_env_error e )
   | Gdt (m0,v)         ->
       let m = match m0 with None -> Env.get_name () | Some m -> m in
         ( match Env.get_dtree lc m v with
-            | Env.DoD_Dtree (i,g) ->
-                Printf.fprintf stdout "%a\n" Pp.pp_rw (m,v,i,g)
-            | _                 -> print "No GDT." )
+            | OK (Signature.DoD_Dtree (i,g)) ->
+                Printf.fprintf stdout "%a\n" Rule.pp_rw (m,v,i,g)
+            | _ -> print "No GDT." )
   | Print str         -> output_string stdout str
   | Other (cmd,_)     -> prerr_string ("Unknown command '"^cmd^"'.\n")
 

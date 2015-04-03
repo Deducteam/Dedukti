@@ -5,42 +5,33 @@ INSTALL_DIR=/usr/bin
 
 # DO NOT EDIT AFTER THIS LINE
 
-OPTIONS = -cflags -inline,10,-for-pack,Dedukti -ocamlc 'ocamlopt' -tag bin_annot -use-menhir # -tag debug -tag profile
 MENHIR = -menhir "menhir --external-tokens Tokens"
+SRC_DIRS = kernel,utils,parser
 
-all: skcheck.native sktop.native skdep.native skrule.native skindent.native _build/skcheck/skcheck.docdir/index.html
+all: lib skcheck sktop skdep skrule skindent doc
 
-skcheck:skcheck.native
-sktop:sktop.native
-skdep:skdep.native
-skrule:skrule.native
-skindent:skindent.native
+skcheck:
+	ocamlbuild -Is $(SRC_DIRS),skcheck $(MENHIR) skcheck.native
 
-lib:_build/dedukti.cmxa
-doc:_build/skcheck/skcheck.docdir/index.html
+sktop:
+	ocamlbuild -Is $(SRC_DIRS),sktop $(MENHIR) sktop.native
 
-skcheck.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,skcheck $(OPTIONS) $(MENHIR) skcheck.native
+skdep:
+	ocamlbuild -Is $(SRC_DIRS),skdep $(MENHIR) skdep.native
 
-sktop.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,sktop $(OPTIONS) $(MENHIR) sktop.native
+skrule:
+	ocamlbuild -Is $(SRC_DIRS),skrule $(MENHIR) skrule.native
 
-skdep.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,skdep $(OPTIONS) $(MENHIR) skdep.native
+skindent:
+	ocamlbuild -Is $(SRC_DIRS),skindent $(MENHIR) skindent.native
 
-skrule.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,skrule $(OPTIONS) $(MENHIR) skrule.native
+doc:
+	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
 
-skindent.native:
-	ocamlbuild -Is kernel,utils,parser,skindent $(OPTIONS) $(MENHIR) skindent.native
+lib:
+	ocamlbuild -Is kernel $(OPTIONS) dedukti.cmxa
 
-_build/skcheck/skcheck.docdir/index.html:
-	ocamlbuild -Is kernel,utils,parser,skcheck,skrule,refiner skcheck/skcheck.docdir/index.html
-
-BINARIES=skcheck sktop skdep skrule skindent
-
-_build/dedukti.cmxa:
-	ocamlbuild -Is kernel,utils,parser $(OPTIONS) dedukti.cmxa
+BINARIES=skcheck sktop skdep skrule
 
 install:
 	for i in $(BINARIES) ; do \

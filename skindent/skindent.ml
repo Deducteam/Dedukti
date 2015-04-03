@@ -36,7 +36,7 @@ let parse lb =
     while true do P.line Lexer.token lb done
   with
     | Tokens.EndOfFile -> ()
-    | P.Error       -> Print.fail (Lexer.get_loc lb)
+    | P.Error       -> Errors.fail (Lexer.get_loc lb)
                          "Unexpected token '%s'." (Lexing.lexeme lb)
 
 let process_chan ic = parse (Lexing.from_channel ic)
