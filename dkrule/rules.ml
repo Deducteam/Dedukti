@@ -6,7 +6,7 @@ let print out fmt =
   Printf.kfprintf (fun _ -> print_newline () ) stdout fmt
 
 let is_non_linear r =
-  let seen = Array.create (List.length r.ctx) false in
+  let seen = Array.make (List.length r.ctx) false in
   let rec aux k = function
     | Lambda (_,_,p) -> aux (k+1) p
     | Pattern (_,_,_,args) -> List.exists (aux k) args
