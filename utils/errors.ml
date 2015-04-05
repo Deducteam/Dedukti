@@ -71,9 +71,9 @@ let fail_dtree_error err =
           fail (get_loc te)
             "The term '%a' contains a variable bound outside the brackets."
             pp_term te
-      | NotEnoughArguments (lc,id,n) ->
-          fail lc "The variable '%a' must be applied to at least %i argument(s)."
-            pp_ident id n
+      | NotEnoughArguments (lc,id,n,nb_args,exp_nb_args) ->
+          fail lc "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
+            pp_ident id nb_args exp_nb_args
       | HeadSymbolMismatch (lc,hd1,hd2) ->
           fail lc "Unexpected head symbol '%a' \ (expected '%a')."
             pp_ident hd1 pp_ident hd2
