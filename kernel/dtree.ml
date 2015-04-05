@@ -10,6 +10,7 @@ type dtree_error =
   | ArityMismatch of loc*ident
   | UnboundVariable of loc*ident*pattern
   | AVariableIsNotAPattern of loc*ident
+  | DistinctBoundVariablesExpected of loc*ident
 
 exception DtreeExn of dtree_error
 
@@ -35,6 +36,10 @@ let extract_db k = function
   | Var (_,_,n,[]) when n<k -> n
   | p -> raise (DtreeExn (BoundVariableExpected p))
 
+let rec all_distinct = function
+  | [] -> true
+  | hd::tl -> if List.mem hd tl then false else all_distinct tl
+
 (* This function extracts non-linearity and bracket constraints from a list
  * of patterns. *)
 let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term) list =
@@ -44,7 +49,10 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term)
         ( Lambda2 (x,p2) , s2 )
   | Var (l,x,n,args) when n<k ->
       let (args2,s2) = fold_map (aux k) s args in
+      if all_distinct args2 then
         ( BoundVar2 (x,n,Array.of_list args2) , s2 )
+      else 
+        raise (DtreeExn (DistinctBoundVariablesExpected (l,x)))
   | Var (l,x,n,args) (* n>=k *) ->
       let args2 = List.map (extract_db k) args in
         if IntSet.mem (n-k) (s.seen) then

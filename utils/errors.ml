@@ -86,6 +86,9 @@ let fail_dtree_error err =
             pp_ident x pp_pattern pat
       | AVariableIsNotAPattern (lc,id) ->
           fail lc "A variable is not a valid pattern."
+      | DistinctBoundVariablesExpected (lc,x) ->
+          fail lc "The variable '%a' should be applied to distinct variables."
+          pp_ident x
 
 let fail_signature_error err =
   let open Signature in

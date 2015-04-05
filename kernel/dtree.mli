@@ -9,6 +9,7 @@ type dtree_error =
   | ArityMismatch of loc*ident
   | UnboundVariable of loc*ident*pattern
   | AVariableIsNotAPattern of loc*ident
+  | DistinctBoundVariablesExpected of loc*ident
 
 val to_rule_infos : rule -> (rule_infos,dtree_error) error
 
