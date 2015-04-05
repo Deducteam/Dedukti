@@ -7,6 +7,7 @@ open Signature
 type env_error =
   | EnvErrorType of typing_error
   | EnvErrorSignature of signature_error
+  | KindLevelDefinition of loc*ident
 
 (* Wrapper around Signature *)
 
@@ -40,6 +41,7 @@ let _declare_definable (l:loc) (id:ident) (jdg:judgment) : unit =
 
 let _define (l:loc) (id:ident) (jdg:judgment) =
   assert ( Context.is_empty jdg.ctx );
+  assert ( match jdg.ty with Kind -> false | _ -> true );
   Signature.add_definable !sg l id jdg.ty;
   Signature.add_rules !sg [([],Pattern (l,get_name (),id,[]),jdg.te)]
 
@@ -61,12 +63,18 @@ let declare_definable l id ty : (unit,env_error) error =
 
 let define l id te ty_opt =
   try
-    match ty_opt with
-      | None -> OK ( _define l id (inference !sg te) )
-      | Some ty -> OK ( _define l id (checking !sg te ty) )
+    begin
+      let jdg = match ty_opt with
+        | None -> inference !sg te
+        | Some ty -> checking !sg te ty
+      in
+      match jdg.ty with
+      | Kind -> Err (KindLevelDefinition (l,id))
+      | _ -> OK ( _define l id jdg )
+    end
   with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
+  | SignatureError e -> Err (EnvErrorSignature e)
+  | TypingError e -> Err (EnvErrorType e)
 
 let define_op l id te ty_opt =
   try

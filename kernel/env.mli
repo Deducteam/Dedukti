@@ -7,6 +7,7 @@ open Signature
 type env_error =
   | EnvErrorType of Typing.typing_error
   | EnvErrorSignature of signature_error
+  | KindLevelDefinition of loc*ident
 
 (** {2 The Global Environment} *)
 

@@ -115,3 +115,7 @@ let fail_signature_error err =
 let fail_env_error = function
   | Env.EnvErrorSignature e -> fail_signature_error e
   | Env.EnvErrorType e -> fail_typing_error e
+  | Env.KindLevelDefinition (lc,id) ->
+    fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
+
+
