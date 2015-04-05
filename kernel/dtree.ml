@@ -134,6 +134,11 @@ let check_vars esize ctx p =
             raise (DtreeExn (UnboundVariable (l,x,p)))
     ) seen
 
+let rec is_linear = function
+  | [] -> true
+  | (Bracket _)::tl -> is_linear tl
+  | (Linearity _)::tl -> false
+
 let to_rule_infos (r:rule) : (rule_infos,dtree_error) error =
   try
     begin
@@ -151,6 +156,7 @@ let to_rule_infos (r:rule) : (rule_infos,dtree_error) error =
       let nb_args = get_nb_args esize lhs in
       let _ = check_nb_args nb_args rhs in
       let (esize2,pats2,cstr) = linearize esize args in
+      let _ = if not (is_linear cstr) then debug "Non-linear Rewrite Rule" in
         OK { l ; ctx ; md ; id ; args ; rhs ;
              esize = esize2 ;
              l_args = Array.of_list pats2 ;
