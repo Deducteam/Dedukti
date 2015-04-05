@@ -59,3 +59,4 @@ val one         : term -> (term option,env_error) error
 
 val are_convertible : term -> term -> (bool,env_error) error
 
+val unsafe_snf : term -> term
