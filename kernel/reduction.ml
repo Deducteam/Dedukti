@@ -184,10 +184,17 @@ let rec reduce (sg:Signature.t) (st:state) : state =
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
 and rewrite (sg:Signature.t) (stack:stack) (g:dtree) : (env*term) option =
-  let test ctx eqs =
-    state_conv sg (List.rev_map (
-      fun (t1,t2) -> ( { ctx; term=t1; stack=[] } , { ctx; term=t2; stack=[] } )
-    ) eqs)
+  let rec test ctx = function
+    | [] -> true
+    | (Linearity (t1,t2))::tl ->
+      if state_conv sg [ { ctx; term=t1; stack=[] } , { ctx; term=t2; stack=[] } ] then
+        test ctx tl
+      else false
+    | (Bracket (t1,t2))::tl ->
+      if state_conv sg [ { ctx; term=t1; stack=[] } , { ctx; term=t2; stack=[] } ] then
+        test ctx tl
+      else
+        failwith "Error while reducing a term: a guard was not satisfied." (*FIXME*)
   in
     (*dump_stack stack ; *)
     match g with

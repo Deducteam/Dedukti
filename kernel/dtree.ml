@@ -16,7 +16,7 @@ exception DtreeExn of dtree_error
 
 type rule2 =
     { loc:loc ; pats:pattern2 array ; right:term ;
-      constraints:(term*term) list ; esize:int ; }
+      constraints:constr list ; esize:int ; }
 
 (* ************************************************************************** *)
 
@@ -29,7 +29,7 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
 (* ************************************************************************** *)
 
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
-type lin_ty = { cstr:(term*term) list; fvar:int ; seen:IntSet.t }
+type lin_ty = { cstr:constr list; fvar:int ; seen:IntSet.t }
 let br = hstring "{_}"
 
 let extract_db k = function
@@ -42,35 +42,36 @@ let rec all_distinct = function
 
 (* This function extracts non-linearity and bracket constraints from a list
  * of patterns. *)
-let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term) list =
+let linearize (esize:int) (lst:pattern list) : int * pattern2 list * constr list =
   let rec aux k (s:lin_ty) = function
   | Lambda (l,x,p) ->
       let (p2,s2) = (aux (k+1) s p) in
         ( Lambda2 (x,p2) , s2 )
   | Var (l,x,n,args) when n<k ->
       let (args2,s2) = fold_map (aux k) s args in
-      if all_distinct args2 then
         ( BoundVar2 (x,n,Array.of_list args2) , s2 )
-      else 
-        raise (DtreeExn (DistinctBoundVariablesExpected (l,x)))
   | Var (l,x,n,args) (* n>=k *) ->
-      let args2 = List.map (extract_db k) args in
+    let args2 = List.map (extract_db k) args in
+    if all_distinct args2 then
+      begin
         if IntSet.mem (n-k) (s.seen) then
           ( Var2(x,s.fvar+k,args2) ,
             { s with fvar=(s.fvar+1);
-                     cstr= (mk_DB l x s.fvar,mk_DB l x (n-k))::(s.cstr) ; } )
+                     cstr= (Linearity (mk_DB l x s.fvar,mk_DB l x (n-k)))::(s.cstr) ; } )
         else
           ( Var2(x,n,args2) , { s with seen=IntSet.add (n-k) s.seen; } )
+      end
+    else 
+      raise (DtreeExn (DistinctBoundVariablesExpected (l,x)))
     | Brackets t ->
-        begin
-          try
-            ( Var2(br,s.fvar+k,[]), { s with
-              fvar=(s.fvar+1);
-              cstr=(mk_DB dloc br s.fvar,Subst.unshift k t)::(s.cstr) ;} )
-          with
-            | Subst.UnshiftExn ->
-                raise (DtreeExn (VariableBoundOutsideTheGuard t))
-        end
+      begin
+        try
+          ( Var2(br,s.fvar+k,[]),
+            { s with fvar=(s.fvar+1);
+                     cstr=(Bracket (mk_DB dloc br s.fvar,Subst.unshift k t))::(s.cstr) ;} )
+        with
+        | Subst.UnshiftExn -> raise (DtreeExn (VariableBoundOutsideTheGuard t))
+      end
     | Pattern (_,m,v,args) ->
         let (args2,s2) = (fold_map (aux k) s args) in
           ( Pattern2(m,v,Array.of_list args2) , s2 )
