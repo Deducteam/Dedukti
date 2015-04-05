@@ -63,16 +63,16 @@ end)
 
 module S =
 struct
-  type t = term IntMap.t
+  type t = (ident*term) IntMap.t
   let identity = IntMap.empty
 
-  let apply (sigma:t) (te:term) : term =
+  let apply (sigma:t) (te:term) (q:int) : term =
     let rec aux q = function
       | Kind | Type _ | Const _ as t -> t
       | DB (_,_,k) as t when k<q -> t
       | DB (_,_,k) as t (*when k>=q*) ->
           begin
-            try shift q (IntMap.find k sigma)
+            try shift q (snd (IntMap.find (k-q) sigma))
             with Not_found -> t
           end
       | App (f,a,args) -> mk_App (aux q f) (aux q a) (List.map (aux q) args)
@@ -80,7 +80,7 @@ struct
       | Lam (l,x,None,te) -> mk_Lam l x None (aux (q+1) te)
       | Pi (l,x,a,b) -> mk_Pi l x (aux q a) (aux (q+1) b)
     in
-      aux 0 te
+      aux q te
 
   let occurs (n:int) (te:term) : bool =
     let rec aux q = function
@@ -93,10 +93,10 @@ struct
       | Pi (_,_,a,b) -> aux q a || aux (q+1) b
     in aux 0 te
 
-  let add (sigma:t) (n:int) (t:term) : t option =
+  let add (sigma:t) (x:ident) (n:int) (t:term) : t option =
     assert ( not ( IntMap.mem n sigma ) );
     if occurs 0 t then None
-    else Some ( IntMap.add n t sigma )
+    else Some ( IntMap.add n (x,t) sigma )
 
   let merge s1 s2 =
     let aux _ b1 b2 = match b1, b2 with
@@ -105,9 +105,10 @@ struct
     in
       IntMap.merge aux s1 s2
 
+  let is_identity = IntMap.is_empty
 
-  let pp out sigma =
-    IntMap.iter
-      (fun i t -> Printf.fprintf out "( %i -> %a )" i pp_term t)
-      sigma
+  let pp (out:out_channel) (sigma:t) : unit =
+    IntMap.iter (fun i (x,t) ->
+        Printf.fprintf out "( %a[%i] = %a )" pp_ident x i pp_term t
+      ) sigma
 end

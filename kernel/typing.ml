@@ -148,13 +148,13 @@ let unshift_reduce sg q t =
     ( try Some (Subst.unshift q (Reduction.snf sg t))
       with Subst.UnshiftExn -> None )
 
-let pseudo_unification sg (a:term) (b:term) : SS.t option =
+let pseudo_unification sg (q:int) (a:term) (b:term) : SS.t option =
   let rec aux (sigma:SS.t) : (int*term*term) list -> SS.t option = function
     | [] -> Some sigma
     | (q,t1,t2)::lst ->
         begin
-          let t1' = Reduction.whnf sg (SS.apply sigma t1) in
-          let t2' = Reduction.whnf sg (SS.apply sigma t2) in
+          let t1' = Reduction.whnf sg (SS.apply sigma t1 q) in
+          let t2' = Reduction.whnf sg (SS.apply sigma t2 q) in
             if term_eq t1' t2' then aux sigma lst
             else
               match t1', t2' with
@@ -164,16 +164,16 @@ let pseudo_unification sg (a:term) (b:term) : SS.t option =
                     ( Basics.ident_eq id id' && Basics.ident_eq md md' ) ->
                     aux sigma lst
 
-                | DB (_,_,n), t
-                | t, DB (_,_,n) when n>=q ->
-                    begin
-                      match unshift_reduce sg q t with
-                        | None -> None
-                        | Some t' ->
-                            ( match SS.add sigma (n-q) t' with
-                                | None -> SS.add sigma (n-q) (Reduction.snf sg t')
-                                | some_sigma -> some_sigma )
-                    end
+                | DB (_,x,n), t
+                | t, DB (_,x,n) when n>=q ->
+                  begin
+                    match unshift_reduce sg q t with
+                    | None -> None
+                    | Some t' ->
+                      ( match SS.add sigma x (n-q) t' with
+                        | None -> assert false
+                        | Some sigma2 -> aux sigma2 lst )
+                  end
 
                 | Pi (_,_,a,b), Pi (_,_,a',b') ->
                     aux sigma ((q,a,a')::(q+1,b,b')::lst)
@@ -198,38 +198,42 @@ let pseudo_unification sg (a:term) (b:term) : SS.t option =
                 | _, _ -> None
         end
   in
-    aux SS.identity [(0,a,b)]
+  if term_eq a b then Some SS.identity
+  else aux SS.identity [(q,a,b)]
 
 (* **** TYPE CHECKING/INFERENCE FOR PATTERNS ******************************** *)
 
-let rec infer_pattern sg (ctx:Context.t) (sigma:SS.t) : pattern -> term*SS.t = function
+let rec infer_pattern sg (ctx:Context.t) (q:int) (sigma:SS.t) (pat:pattern) : term*SS.t =
+  match pat with
   | Pattern (l,md,id,args) ->
-    let (_,ty,si) = List.fold_left (infer_pattern_aux sg ctx)
-        (mk_Const l md id,Signature.get_type sg l md id,sigma) args in
+    let (_,ty,si) = List.fold_left (infer_pattern_aux sg ctx q)
+        (mk_Const l md id,SS.apply sigma (Signature.get_type sg l md id) q,sigma) args in
     (ty,si)
   | Var (l,x,n,args) ->
-    let (_,ty,si) = List.fold_left (infer_pattern_aux sg ctx)
-        (mk_DB l x n,Context.get_type ctx l x n,sigma) args in
+    let (_,ty,si) = List.fold_left (infer_pattern_aux sg ctx q)
+        (mk_DB l x n,SS.apply sigma (Context.get_type ctx l x n) q,sigma) args in
     (ty,si)
   | Brackets t -> ( (infer sg ctx t).ty, SS.identity )
   | Lambda (l,x,p) -> raise (TypingError (DomainFreeLambda l))
 
-and infer_pattern_aux sg (ctx:Context.t) (f,ty_f,sigma0:term*term*SS.t) (arg:pattern) : term*term*SS.t =
+and infer_pattern_aux sg (ctx:Context.t) (q:int) (f,ty_f,sigma0:term*term*SS.t) (arg:pattern) : term*term*SS.t =
   match Reduction.whnf sg ty_f with
     | Pi (_,_,a,b) ->
-        let sigma = check_pattern sg ctx a sigma0 arg in
+        let sigma = check_pattern sg ctx q a sigma0 arg in
         let arg' = pattern_to_term arg in
-        ( Term.mk_App f arg' [], SS.apply sigma (Subst.subst b arg'), sigma )
+        let b2 = SS.apply sigma b (q+1) in
+        let arg2 = SS.apply sigma arg' q in
+        ( Term.mk_App f arg' [], Subst.subst b2 arg2, sigma )
     | ty_f -> raise (TypingError ( ProductExpected (f,Context.to_context ctx,ty_f)))
 
-and check_pattern sg (ctx:Context.t) (exp_ty:term) (sigma0:SS.t) (pat:pattern) : SS.t =
+and check_pattern sg (ctx:Context.t) (q:int) (exp_ty:term) (sigma0:SS.t) (pat:pattern) : SS.t =
   match pat with
   | Lambda (l,x,p) ->
       begin
         match Reduction.whnf sg exp_ty with
           | Pi (l,x,a,b) ->
               let ctx2 = Context.unsafe_add ctx l x a in
-                check_pattern sg ctx2 b sigma0 p
+                check_pattern sg ctx2 (q+1) b sigma0 p
           | exp_ty -> raise (TypingError ( ProductExpected (pattern_to_term pat,Context.to_context ctx,exp_ty)))
       end
    | Brackets t ->
@@ -237,8 +241,8 @@ and check_pattern sg (ctx:Context.t) (exp_ty:term) (sigma0:SS.t) (pat:pattern) :
        SS.identity )
   | _ ->
       begin
-        let (inf_ty,sigma1) = infer_pattern sg ctx sigma0 pat in
-          match pseudo_unification sg exp_ty inf_ty with
+        let (inf_ty,sigma1) = infer_pattern sg ctx q sigma0 pat in
+          match pseudo_unification sg q exp_ty inf_ty with
             | None ->
               raise (TypingError (ConvertibilityError (pattern_to_term pat,Context.to_context ctx,exp_ty,inf_ty)))
             | Some sigma2 -> SS.merge sigma1 sigma2
@@ -250,10 +254,13 @@ let check_rule sg (ctx,le,ri:rule) : unit =
   let ctx =
     List.fold_left (fun ctx (l,id,ty) -> Context.add l id (infer sg ctx ty) )
       Context.empty (List.rev ctx) in
-  let (ty_inf,sigma) = infer_pattern sg ctx SS.identity le in
-  let j_ri = infer sg ctx (SS.apply sigma ri) in
-    if not (Reduction.are_convertible sg ty_inf j_ri.ty) then
-      raise (TypingError (ConvertibilityError (ri,Context.to_context ctx,ty_inf,j_ri.ty)))
+  let (ty_inf,sigma) = infer_pattern sg ctx 0 SS.identity le in
+  let ri2 =
+    if SS.is_identity sigma then ri
+    else ( debug "%a" SS.pp sigma ; (SS.apply sigma ri 0) ) in
+  let j_ri = infer sg ctx ri2 in
+  if not (Reduction.are_convertible sg ty_inf j_ri.ty) then
+    raise (TypingError (ConvertibilityError (ri,Context.to_context ctx,ty_inf,j_ri.ty)))
 
 (* ********************** JUDGMENTS *)
 

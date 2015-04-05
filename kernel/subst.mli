@@ -15,8 +15,9 @@ module S :
 sig
   type t
   val identity : t
-  val add : t -> int -> term -> t option
-  val apply : t -> term -> term
+  val add : t -> Basics.ident -> int -> term -> t option
+  val apply : t -> term -> int -> term
   val merge : t -> t -> t
+  val is_identity : t -> bool
   val pp : out_channel -> t -> unit
 end
