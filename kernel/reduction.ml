@@ -11,72 +11,17 @@ type state = {
 }
 and stack = state list
 
-type cloture = { cenv:env; cterm:term; }
-
-let rec cloture_eq : (cloture*cloture) list -> bool = function
-  | [] -> true
-  | (c1,c2)::lst ->
-       ( match c1.cterm, c2.cterm with
-           | Kind, Kind | Type _, Type _ -> cloture_eq lst
-           | Const (_,m1,v1), Const (_,m2,v2) ->
-               ident_eq v1 v2 && ident_eq m1 m2 && cloture_eq lst
-           | Lam (_,_,_,t1), Lam (_,_,_,t2) ->
-               let arg = Lazy.lazy_from_val (mk_DB dloc qmark 0) in
-               let c3 = { cenv=LList.cons arg c1.cenv; cterm=t1; } in
-               let c4 = { cenv=LList.cons arg c2.cenv; cterm=t2; } in
-                 cloture_eq ((c3,c4)::lst)
-           | Pi (_,_,a1,b1), Pi (_,_,a2,b2) ->
-               let arg = Lazy.lazy_from_val (mk_DB dloc qmark 0) in
-               let c3 = { cenv=c1.cenv; cterm=a1; } in
-               let c4 = { cenv=c2.cenv; cterm=a2; } in
-               let c5 = { cenv=LList.cons arg c1.cenv; cterm=b1; } in
-               let c6 = { cenv=LList.cons arg c2.cenv; cterm=b2; } in
-                 cloture_eq ((c3,c4)::(c5,c6)::lst)
-           | App (f1,a1,l1), App (f2,a2,l2) ->
-               ( try
-                   let aux lst0 t1 t2 =
-                     ( { cenv=c1.cenv; cterm=t1; },
-                       { cenv=c2.cenv; cterm=t2; } )::lst0
-                   in
-                     cloture_eq (List.fold_left2 aux lst (f1::a1::l1) (f2::a2::l2))
-                 with Invalid_argument _ -> false
-               )
-           | DB (_,_,n), _ when n<c1.cenv.LList.len ->
-               let c3 =
-                 { cenv=LList.nil; cterm=Lazy.force (LList.nth c1.cenv n); } in
-               cloture_eq ((c3,c2)::lst)
-           | _, DB (_,_,n) when n<c2.cenv.LList.len ->
-               let c3 =
-                 { cenv=LList.nil; cterm=Lazy.force (LList.nth c2.cenv n); } in
-                 cloture_eq ((c1,c3)::lst)
-           | DB (_,_,n1), DB (_,_,n2) (* ni >= ci.cenv.len *) ->
-               ( n1-c1.cenv.LList.len ) = ( n2-c2.cenv.LList.len )
-               && cloture_eq lst
-           | _, _ -> false
-       )
-
-let rec add2 l1 l2 lst =
-  match l1, l2 with
-    | [], [] -> Some lst
-    | s1::l1, s2::l2 -> add2 l1 l2 ((s1,s2)::lst)
-    | _,_ -> None
-
-let rec state_eq : (state*state) list -> bool = function
-  | [] -> true
-  | (s1,s2)::lst ->
-      ( match add2 s1.stack s2.stack lst with
-          | None -> cloture_eq [ {cenv=s1.ctx; cterm=s1.term},
-                                 {cenv=s2.ctx;cterm=s2.term} ]
-          | Some lst2 -> cloture_eq [ {cenv=s1.ctx; cterm=s1.term},
-                                      {cenv=s2.ctx;cterm=s2.term} ]
-            && state_eq lst2
-      )
-
 let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx 0 term ) in
     match stack with
       | [] -> t
       | a::lst -> mk_App t (term_of_state a) (List.map term_of_state lst)
+
+let rec add_to_list2 l1 l2 lst =
+  match l1, l2 with
+    | [], [] -> Some lst
+    | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
+    | _,_ -> None
 
 let rec split_stack (i:int) : stack -> (stack*stack) option = function
   | l  when i=0 -> Some ([],l)
@@ -187,12 +132,14 @@ and rewrite (sg:Signature.t) (stack:stack) (g:dtree) : (env*term) option =
   let rec test ctx = function
     | [] -> true
     | (Linearity (t1,t2))::tl ->
-      if state_conv sg [ { ctx; term=t1; stack=[] } , { ctx; term=t2; stack=[] } ] then
-        test ctx tl
+      if are_convertible_lst sg [ term_of_state { ctx; term=t1; stack=[] },
+                                  term_of_state { ctx; term=t2; stack=[] } ]
+      then test ctx tl
       else false
     | (Bracket (t1,t2))::tl ->
-      if state_conv sg [ { ctx; term=t1; stack=[] } , { ctx; term=t2; stack=[] } ] then
-        test ctx tl
+      if are_convertible_lst sg [ term_of_state { ctx; term=t1; stack=[] },
+                                  term_of_state { ctx; term=t2; stack=[] } ]
+      then test ctx tl
       else
         failwith "Error while reducing a term: a guard was not satisfied." (*FIXME*)
   in
@@ -228,57 +175,6 @@ and rewrite (sg:Signature.t) (stack:stack) (g:dtree) : (env*term) option =
                       if test ctx eqs then Some (ctx, right)
                       else bind_opt (rewrite sg stack) def
           end
-
-and state_conv (sg:Signature.t) : (state*state) list -> bool = function
-  | [] -> true
-  | (s1,s2)::lst ->
-      if state_eq [s1,s2] then
-        state_conv sg lst
-      else
-        match reduce sg s1, reduce sg s2 with
-          | { term=Kind; stack=s } , { term=Kind; stack=s' }
-          | { term=Type _; stack=s } , { term=Type _; stack=s' } ->
-              begin
-                assert ( s = [] && s' = [] ) ;
-                state_conv sg lst
-              end
-          | { ctx=e;  term=DB (_,_,n);  stack=s },
-            { ctx=e'; term=DB (_,_,n'); stack=s' }
-              when (n-e.LList.len)==(n'-e'.LList.len) ->
-              begin
-                match add_to_list lst s s' with
-                  | None          -> false
-                  | Some lst'     -> state_conv sg lst'
-              end
-          | { term=Const (_,m,v);   stack=s },
-            { term=Const (_,m',v'); stack=s' } when ident_eq v v' && ident_eq m m' ->
-              begin
-                match (add_to_list lst s s') with
-                  | None          -> false
-                  | Some lst'     -> state_conv sg lst'
-              end
-          | { ctx=e;  term=Lam (_,_,_,b);   stack=s },
-            { ctx=e'; term=Lam (_,_,_',b'); stack=s'} ->
-              begin
-                assert ( s = [] && s' = [] ) ;
-                let arg = Lazy.lazy_from_val (mk_DB dloc qmark 0) in
-                let lst' =
-                  ( {ctx=LList.cons arg e;term=b;stack=[]},
-                    {ctx=LList.cons arg e';term=b';stack=[]} ) :: lst in
-                  state_conv sg lst'
-              end
-          | { ctx=e;  term=Pi  (_,_,a,b);   stack=s },
-            { ctx=e'; term=Pi  (_,_,a',b'); stack=s'} ->
-              begin
-                assert ( s = [] && s' = [] ) ;
-                let arg = Lazy.lazy_from_val (mk_DB dloc qmark 0) in
-                let lst' =
-                  ( {ctx=e;term=a;stack=[]}, {ctx=e';term=a';stack=[]} ) ::
-                  ( {ctx=LList.cons arg e;term=b;stack=[]},
-                    {ctx=LList.cons arg e';term=b';stack=[]} ) :: lst in
-                  state_conv sg lst'
-              end
-          | _, _ -> false
 
 and unshift sg q te =
   try Subst.unshift q te
@@ -320,6 +216,27 @@ and snf sg (t:term) : term =
     | Pi (_,x,a,b)        -> mk_Pi dloc x (snf sg a) (snf sg b)
     | Lam (_,x,a,b)       -> mk_Lam dloc x None (snf sg b)
 
+and are_convertible_lst sg : (term*term) list -> bool = function
+  | [] -> true
+  | (t1,t2)::lst ->
+    begin
+      match (
+        if term_eq t1 t2 then Some lst
+        else
+          match whnf sg t1, whnf sg t2 with
+          | Kind, Kind | Type _, Type _ -> Some lst
+          | Const (_,m,v), Const (_,m',v') when ( ident_eq v v' && ident_eq m m' ) -> Some lst
+          | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
+          | App (f,a,args), App (f',a',args') ->
+            add_to_list2 args args' ((f,f')::(a,a')::lst)
+          | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
+          | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
+          | t1, t2 -> None
+      ) with
+      | None -> false
+      | Some lst2 -> are_convertible_lst sg lst2
+    end
+
 (* Head Normal Form *)
 let rec hnf sg t =
   match whnf sg t with
@@ -327,8 +244,7 @@ let rec hnf sg t =
     | App (f,a,lst) -> mk_App (hnf sg f) (hnf sg a) (List.map (hnf sg) lst)
 
 (* Convertibility Test *)
-let are_convertible sg t1 t2 =
-  state_conv sg [ ( {ctx=LList.nil;term=t1;stack=[]} , {ctx=LList.nil;term=t2;stack=[]} ) ]
+let are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
 
 (* One-Step Reduction *)
 let rec state_one_step (sg:Signature.t) : state -> state option = function
