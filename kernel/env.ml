@@ -105,6 +105,8 @@ let snf te =
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
+let unsafe_snf te = Reduction.snf !sg te
+
 let one te =
   try
     let _ = inference !sg te in OK (Reduction.one_step !sg te)
