@@ -1,17 +1,17 @@
 open Basics
 
+(** Lambda terms *)
+
 (** {2 Terms} *)
 
 type term = private
-  | Kind                                (* Kind *)
-  | Type  of loc                        (* Type *)
-  | DB    of loc*ident*int              (* deBruijn *)
-  | Const of loc*ident*ident            (* Global variable *)
-  | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
-  | Lam   of loc*ident*term option*term        (* Lambda abstraction *)
-  | Pi    of loc*ident*term*term                (* Pi abstraction *)
-
-type context = ( loc * ident * term ) list
+  | Kind                                (** Kind *)
+  | Type  of loc                        (** Type *)
+  | DB    of loc*ident*int              (** deBruijn indices *)
+  | Const of loc*ident*ident            (** Global variable *)
+  | App   of term * term * term list    (** f a1 [ a2 ; ... an ] , f not an App *)
+  | Lam   of loc*ident*term option*term (** Lambda abstraction *)
+  | Pi    of loc*ident*term*term        (** Pi abstraction *)
 
 val get_loc : term -> loc
 
@@ -26,3 +26,10 @@ val mk_Arrow    : loc -> term -> term -> term
 
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
+
+val pp_term     : out_channel -> term -> unit
+
+(** {2 Contexts} *)
+
+type context = ( loc * ident * term ) list
+val pp_context  : out_channel -> context -> unit

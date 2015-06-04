@@ -75,20 +75,20 @@ rule token = parse
   { QID (get_loc lexbuf , builtins, hstring "string_nil") }
   | '"' { flush (); string lexbuf }
   | _   as s
-  { Print.fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }
+  { Errors.fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }
   | eof { EOF }
 
  and comment = parse
   | ";)" { token lexbuf          }
   | '\n' { new_line lexbuf ; comment lexbuf }
   | _    { comment lexbuf        }
-  | eof	 { Print.fail (get_loc lexbuf) "Unexpected end of file."  }
+  | eof	 { Errors.fail (get_loc lexbuf) "Unexpected end of file."  }
 
 and string = parse
   | '\\' (_ as c) { add_char '\\'; add_char c; string lexbuf }
   | '\n' { Lexing.new_line lexbuf ; add_char '\n'; string lexbuf }
   | '"'  { STRING (get_loc lexbuf, !chars_read) }
   | _ as c { add_char c; string lexbuf }
-  | eof	 { Print.fail (get_loc lexbuf) "Unexpected end of file."  }
+  | eof	 { Errors.fail (get_loc lexbuf) "Unexpected end of file."  }
 
 

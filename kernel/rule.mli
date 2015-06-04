@@ -1,6 +1,10 @@
 open Basics
 open Term
 
+(** Rewrite rules *)
+
+(** {2 Patterns} *)
+
 type pattern =
   | Var         of loc*ident*int*pattern list
   | Pattern     of loc*ident*ident*pattern list
@@ -11,9 +15,9 @@ val get_loc_pat : pattern -> loc
 
 val pattern_to_term : pattern -> term
 
-type top = ident*pattern array
+val pp_pattern  : out_channel -> pattern -> unit
 
-type rule = context * pattern * term
+type top = ident*pattern array
 
 type pattern2 =
   | Joker2
@@ -21,6 +25,10 @@ type pattern2 =
   | Lambda2      of ident*pattern2
   | Pattern2     of ident*ident*pattern2 array
   | BoundVar2    of ident*int*pattern2 array
+
+(** {2 Rewrite Rules} *)
+
+type rule = context * pattern * term
 
 type rule_infos = {
   l:loc;
@@ -34,6 +42,11 @@ type rule_infos = {
   l_args:pattern2 array;
   constraints:(term*term) list;
 }
+
+val pp_rule     : out_channel -> rule -> unit
+val pp_frule    : out_channel -> rule_infos -> unit
+
+(** {2 Decision Trees} *)
 
 type case =
   | CConst of int*ident*ident
@@ -59,3 +72,6 @@ type pre_context =
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
   | Test    of pre_context * (term*term) list * term * dtree option
+
+val pp_dtree    : int -> out_channel -> dtree -> unit
+val pp_rw       : out_channel -> (ident*ident*int*dtree) -> unit

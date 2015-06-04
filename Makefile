@@ -5,42 +5,33 @@ INSTALL_DIR=/usr/bin
 
 # DO NOT EDIT AFTER THIS LINE
 
-OPTIONS = -cflags -inline,10,-for-pack,Dedukti -ocamlc 'ocamlopt' -tag bin_annot -use-menhir # -tag debug -tag profile
 MENHIR = -menhir "menhir --external-tokens Tokens"
-
-all: skcheck.native sktop.native skdep.native skrule.native skindent.native _build/skcheck/skcheck.docdir/index.html
-
-skcheck:skcheck.native
-sktop:sktop.native
-skdep:skdep.native
-skrule:skrule.native
-skindent:skindent.native
-
-lib:_build/dedukti.cmxa
-doc:_build/skcheck/skcheck.docdir/index.html
-
-skcheck.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,skcheck $(OPTIONS) $(MENHIR) skcheck.native
-
-sktop.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,sktop $(OPTIONS) $(MENHIR) sktop.native
-
-skdep.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,skdep $(OPTIONS) $(MENHIR) skdep.native
-
-skrule.native:
-	ocamlbuild -Is kernel,utils,parser,refiner,skrule $(OPTIONS) $(MENHIR) skrule.native
-
-skindent.native:
-	ocamlbuild -Is kernel,utils,parser,skindent $(OPTIONS) $(MENHIR) skindent.native
-
-_build/skcheck/skcheck.docdir/index.html:
-	ocamlbuild -Is kernel,utils,parser,skcheck,skrule,refiner skcheck/skcheck.docdir/index.html
+SRC_DIRS = kernel,utils,parser
 
 BINARIES=skcheck sktop skdep skrule skindent
 
-_build/dedukti.cmxa:
-	ocamlbuild -Is kernel,utils,parser $(OPTIONS) dedukti.cmxa
+all: lib $(BINARIES) doc
+
+skcheck:
+	ocamlbuild -Is $(SRC_DIRS),skcheck $(MENHIR) skcheck.native
+
+sktop:
+	ocamlbuild -Is $(SRC_DIRS),sktop $(MENHIR) sktop.native
+
+skdep:
+	ocamlbuild -Is $(SRC_DIRS),skdep $(MENHIR) skdep.native
+
+skrule:
+	ocamlbuild -Is $(SRC_DIRS),skrule $(MENHIR) skrule.native
+
+skindent:
+	ocamlbuild -Is $(SRC_DIRS),skindent $(MENHIR) skindent.native
+
+doc:
+	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
+
+lib:
+	ocamlbuild -Is kernel $(OPTIONS) dedukti.cmxa
 
 install:
 	for i in $(BINARIES) ; do \
@@ -65,4 +56,4 @@ tests: skdep skcheck
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: skcheck sktop skdep skrule skindent tests clean doc uninstall
+.PHONY: $(BINARIES) tests clean doc uninstall

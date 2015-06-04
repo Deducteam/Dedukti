@@ -1,5 +1,10 @@
 (** Basic Datatypes *)
 
+let rec pp_list sep pp out = function
+    | []        -> ()
+    | [a]       -> pp out a
+    | a::lst    -> Printf.fprintf out "%a%s%a" pp a sep (pp_list sep pp) lst
+
 (** {2 Identifiers (hashconsed strings)} *)
 
 type ident = string
@@ -64,3 +69,41 @@ let of_loc l = l
 let path = ref []
 let get_path () = !path
 let add_path s = path := s :: !path
+
+(** {2 Errors} *)
+
+type ('a,'b) error =
+  | OK of 'a
+  | Err of 'b
+
+let map_error f = function
+  | Err c -> Err c
+  | OK a -> OK (f a)
+
+let bind_error f = function
+  | Err c -> Err c
+  | OK a -> f a
+
+let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
+  let rec aux = function
+    | [] -> OK []
+    | hd::lst ->
+        ( match f hd with
+            | Err c -> Err c
+            | OK hd -> ( match aux lst with
+                           | Err c -> Err c
+                           | OK lst -> OK (hd::lst) )
+        )
+  in
+    aux lst
+
+let debug fmt =
+  Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt
+
+let bind_opt f = function
+  | None -> None
+  | Some x -> f x
+
+let map_opt f = function
+  | None -> None
+  | Some x -> Some (f x)
