@@ -356,8 +356,8 @@ let get_first_pre_context mx =
   let esize = mx.first.esize in
   let dummy = { position=(-1); depth=0; } in
   let dummy2 = { position2=(-1); depth2=0; dbs=LList.nil; } in
-  let arr1 = Array.create esize dummy in
-  let arr2 = Array.create esize dummy2 in
+  let arr1 = Array.make esize dummy in
+  let arr2 = Array.make esize dummy2 in
   let mp = ref false in
     Array.iteri
       (fun i p -> match p with
