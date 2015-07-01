@@ -14,23 +14,6 @@ let rec print_list sep pp out = function
     | a::lst    ->
         Format.fprintf out "%a%s@,%a" pp a sep (print_list sep pp) lst
 
-let rec pp_pterm out = function
-  | PreType _        -> output_string out "Type"
-  | PreId (_,v)      -> pp_ident out v
-  | PreQId (_,m,v) when ident_eq m Builtins.modname -> pp_ident out v
-  | PreQId (_,m,v)   -> fprintf out "%a.%a" pp_ident m pp_ident v
-  | PreApp (f,a,lst) -> pp_list " " pp_pterm_wp  out (f::a::lst)
-  | PreLam (_,v,None,b) -> fprintf out "%a => %a" pp_ident v pp_pterm b
-  | PreLam (_,v,Some a,b) -> fprintf out "%a:%a => %a" pp_ident v pp_pterm_wp a pp_pterm b
-  | PrePi (_,o,a,b)    ->
-      ( match o with
-          | None   -> fprintf out "%a -> %a" pp_pterm_wp a pp_pterm b
-          | Some v -> fprintf out "%a:%a -> %a" pp_ident v pp_pterm_wp a pp_pterm b )
-
-and pp_pterm_wp out = function
-  | PreType _ | PreId _ | PreQId _ as t  -> pp_pterm out t
-  | t                                    -> fprintf out "(%a)" pp_pterm t
-
 let rec print_pterm out = function
   | PreType _        -> Format.pp_print_string out "Type"
   | PreId (_,v)      -> print_ident out v
@@ -48,23 +31,6 @@ let rec print_pterm out = function
 and print_pterm_wp out = function
   | PreType _ | PreId _ | PreQId _ as t  -> print_pterm out t
   | t                                    -> Format.fprintf out "(%a)" print_pterm t
-
-let pp_pconst out = function
-    | ( None , id )     -> pp_ident out id
-    | ( Some md , id ) when ident_eq md Builtins.modname -> pp_ident out id
-    | ( Some md , id )  -> fprintf out "%a.%a" pp_ident md pp_ident id
-
-let rec pp_ppattern out = function
-  | PPattern (_,md,id,[])       -> pp_pconst out (md,id)
-  | PPattern (_,md,id,lst)      ->
-      fprintf out "%a %a" pp_pconst (md,id) (pp_list " " pp_ppattern) lst
-  | PCondition pte              -> fprintf out "{ %a }" pp_pterm pte
-  | PJoker _                    -> fprintf out "_"
-  | PLambda (_,id,p)            -> fprintf out "%a => %a" pp_ident id pp_ppattern p
-and pp_ppattern_wp out = function
-  | PLambda (_,_,_)
-  | PPattern (_,_,_,_::_) as p  -> fprintf out "(%a)" pp_ppattern p
-  | p                           -> pp_ppattern out p
 
 let print_pconst out = function
     | ( None , id )     -> print_ident out id
@@ -89,38 +55,6 @@ and print_ppattern_wp out = function
   | PLambda (_,_,_)
   | PPattern (_,_,_,_::_) as p  -> Format.fprintf out "(%a)" print_ppattern p
   | p                           -> print_ppattern out p
-
-let pp_const out (m,v) =
-  if ident_eq m !name || ident_eq m Builtins.modname then pp_ident out v
-  else fprintf out "%a.%a" pp_ident m pp_ident v
-
-let pp_db out (x,n) =
-  if !print_db_enabled then fprintf out "%a[%i]" pp_ident x n
-  else pp_ident out x
-
-let rec pp_raw_term out = function
-  | Kind               -> output_string out "Kind"
-  | Type _             -> output_string out "Type"
-  | DB  (_,x,n)        -> pp_db out (x,n)
-  | Const (_,m,v)      -> pp_const out (m,v)
-  | App (f,a,args)     -> pp_list " " pp_term_wp out (f::a::args)
-  | Lam (_,x,None,f)   -> fprintf out "%a => %a" pp_ident x pp_term f
-  | Lam (_,x,Some a,f) -> fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
-  | Pi  (_,x,a,b)      -> fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
-
-and pp_term out t =
-  try Builtins.pp_term out t
-  with Builtins.Not_atomic_builtin ->
-    pp_raw_term out t
-
-and pp_raw_term_wp out = function
-  | Kind | Type _ | DB _ | Const _ as t -> pp_raw_term out t
-  | t                                  -> fprintf out "(%a)" pp_raw_term t
-
-and pp_term_wp out t =
-  try Builtins.pp_term out t
-  with Builtins.Not_atomic_builtin ->
-    pp_raw_term_wp out t
 
 let print_const out (m,v) =
   if ident_eq m !name then print_ident out v

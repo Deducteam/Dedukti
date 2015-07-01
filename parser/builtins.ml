@@ -63,18 +63,6 @@ let rec term_to_string = function
      Printf.sprintf "%c%s" (term_to_char a) (term_to_string b)
   | _ -> raise Not_atomic_builtin
 
-let pp_term out t =
-  (* try to print the term as a numeral *)
-  try
-    fprintf out "%d" (term_to_int t)
-  with Not_atomic_builtin ->
-       (* try to print as a character *)
-       try
-         fprintf out "\'%c\'" (term_to_char t)
-       with Not_atomic_builtin ->
-         (* try to print as a string *)
-         fprintf out "\"%s\"" (term_to_string t)
-
 let print_term out t =
   (* try to print the term as a numeral *)
   try
