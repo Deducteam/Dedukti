@@ -74,3 +74,15 @@ let pp_term out t =
        with Not_atomic_builtin ->
          (* try to print as a string *)
          fprintf out "\"%s\"" (term_to_string t)
+
+let print_term out t =
+  (* try to print the term as a numeral *)
+  try
+    Format.fprintf out "%d" (term_to_int t)
+  with Not_atomic_builtin ->
+       (* try to print as a character *)
+       try
+         Format.fprintf out "\'%c\'" (term_to_char t)
+       with Not_atomic_builtin ->
+         (* try to print as a string *)
+         Format.fprintf out "\"%s\"" (term_to_string t)

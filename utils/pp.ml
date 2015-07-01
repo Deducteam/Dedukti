@@ -6,6 +6,7 @@ open Printf
 
 let print_db_enabled = ref false
 let name = ref qmark
+let resugar = ref true
 
 let rec print_list sep pp out = function
     | []        -> ()
@@ -129,7 +130,7 @@ let print_db out (x,n) =
   if !print_db_enabled then Format.fprintf out "%a[%i]" print_ident x n
   else print_ident out x
 
-let rec print_term out = function
+let rec print_raw_term out = function
   | Kind               -> Format.pp_print_string out "Kind"
   | Type _             -> Format.pp_print_string out "Type"
   | DB  (_,x,n)        -> print_db out (x,n)
@@ -145,9 +146,16 @@ let rec print_term out = function
   | Pi  (_,x,a,b)      ->
       Format.fprintf out "@[%a:%a ->@ @[%a@]@]" print_ident x print_term_wp a print_term b
 
+and print_term out t =
+  if not !resugar then print_raw_term out t
+  else
+    try Builtins.print_term out t
+    with Builtins.Not_atomic_builtin ->
+      print_raw_term out t
+
 and print_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> print_term out t
-  | t                                  -> Format.fprintf out "(%a)" print_term t
+  | t                                   -> Format.fprintf out "(%a)" print_term t
 
 let print_bv out (_,id,i) = print_db out (id,i)
 

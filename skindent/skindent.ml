@@ -50,12 +50,15 @@ let from_stdin = ref false
 let files = ref []
 let add_file f = files := f :: !files
 
+let () = resugar := false
+
 let options =
-  [ "-stdin", Arg.Set from_stdin, " read from stdin"
+  [ "-stdin", Arg.Set from_stdin, " read from stdin";
+    "-resugar", Arg.Set resugar, " use syntactic sugar in output"
   ]
 
 let  _ =
-  Arg.parse options add_file "usage: dkindent file [file...]";
+  Arg.parse options add_file "usage: skindent file [file...]";
   if !from_stdin
     then process_chan stdin
     else List.iter process_file (List.rev !files)
