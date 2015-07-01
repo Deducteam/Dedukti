@@ -17,25 +17,27 @@ type command =
   | Print of string
   | Other of string*term list
 
-let print s= print_string s; print_newline ()
+let print s = print_string s; print_newline ()
 
-let mk_command lc = function
+let mk_command lc =
+  let open Pp in
+  function
   | Whnf te          ->
       ( match Env.whnf te with
-          | OK te -> Printf.fprintf stdout "%a\n" pp_term te
+          | OK te -> Format.printf "%a\n" print_term te
           | Err e -> Errors.fail_env_error e )
   | Hnf te           ->
       ( match Env.hnf te with
-          | OK te -> Printf.fprintf stdout "%a\n" pp_term te
+          | OK te -> Format.printf "%a\n" print_term te
           | Err e -> Errors.fail_env_error e )
   | Snf te           ->
       ( match Env.snf te with
-          | OK te -> Printf.fprintf stdout "%a\n" pp_term te
+          | OK te -> Format.printf "%a\n" print_term te
           | Err e -> Errors.fail_env_error e )
   | OneStep te       ->
       ( match Env.one te with
-          | OK (Some te) -> Printf.fprintf stdout "%a\n" pp_term te
-          | OK None -> Printf.fprintf stdout "%a\n" pp_term te
+          | OK (Some te) -> Format.printf "%a\n" print_term te
+          | OK None -> Format.printf "%a\n" print_term te
           | Err e -> Errors.fail_env_error e )
   | Conv (te1,te2)  ->
         ( match Env.are_convertible te1 te2 with
@@ -48,13 +50,13 @@ let mk_command lc = function
             | Err e -> Errors.fail_env_error e )
   | Infer te         ->
       ( match Env.infer te with
-          | OK ty -> Printf.fprintf stdout "%a\n" pp_term ty
+          | OK ty -> Format.printf "%a\n" print_term ty
           | Err e -> Errors.fail_env_error e )
   | Gdt (m0,v)         ->
       let m = match m0 with None -> Env.get_name () | Some m -> m in
         ( match Env.get_dtree lc m v with
             | OK (Signature.DoD_Dtree (i,g)) ->
-                Printf.fprintf stdout "%a\n" Rule.pp_rw (m,v,i,g)
+                Format.printf "%a\n" print_rw (m,v,i,g)
             | _ -> print "No GDT." )
   | Print str         -> output_string stdout str
   | Other (cmd,_)     -> prerr_string ("Unknown command '"^cmd^"'.\n")

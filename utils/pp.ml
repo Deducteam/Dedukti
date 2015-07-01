@@ -179,3 +179,36 @@ let print_rule out (ctx,pat,te) =
     print_term te
 
 let print_frule out r = print_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
+
+let tab t = String.make (t*4) ' '
+
+let print_pc out = function
+  | Syntactic _ -> Format.fprintf out "Sy"
+  | MillerPattern _ -> Format.fprintf out "Mi"
+
+let rec print_dtree t out = function
+  | Test (pc,[],te,None)   -> Format.fprintf out "(%a) %a" print_pc pc print_term te
+  | Test (_,[],_,def)      -> assert false
+  | Test (pc,lst,te,def)  ->
+      let tab = tab t in
+      let aux out (i,j) = Format.fprintf out "%a=%a" print_term i print_term j in
+        Format.fprintf out "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (print_list " and " aux) lst
+          print_pc pc print_term te tab print_pc pc (print_def (t+1)) def
+  | Switch (i,cases,def)->
+      let tab = tab t in
+      let print_case out = function
+        | CConst (_,m,v), g ->
+            Format.fprintf out "\n%sif $%i=%a.%a then %a" tab i print_ident m print_ident v (print_dtree (t+1)) g
+        | CLam, g -> Format.fprintf out "\n%sif $%i=Lambda then %a" tab i (print_dtree (t+1)) g
+        | CDB (_,n), g -> Format.fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (print_dtree (t+1)) g
+      in
+        Format.fprintf out "%a\n%sdefault: %a" (print_list "" print_case)
+          cases tab (print_def (t+1)) def
+
+and print_def t out = function
+  | None        -> Format.fprintf out "FAIL"
+  | Some g      -> print_dtree t out g
+
+let print_rw out (m,v,i,g) =
+  Format.fprintf out "GDT for '%a.%a' with %i argument(s): %a"
+    print_ident m print_ident v i (print_dtree 0) g
