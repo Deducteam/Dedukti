@@ -168,13 +168,15 @@ and rewrite (sg:Signature.t) (stack:stack) (g:dtree) : (env*term) option =
                   else bind_opt (rewrite sg stack) def
           end
       | Test (MillerPattern lst, eqs, right, def) ->
-          begin
-              match get_context_mp sg stack lst with
-                | None -> bind_opt (rewrite sg stack) def
-                | Some ctx ->
-                      if test ctx eqs then Some (ctx, right)
-                      else bind_opt (rewrite sg stack) def
-          end
+        begin
+          match get_context_mp sg stack lst with
+          | None -> bind_opt (rewrite sg stack) def
+          | Some ctx ->
+            let ctx2 = LList.map (fun (_,tt) -> Lazy.from_val tt) ctx in
+            if test ctx2 eqs then
+              Some (LList.nil, Matching.ho_psubst ctx right)
+            else bind_opt (rewrite sg stack) def
+        end
 
 and unshift sg q te =
   try Subst.unshift q te
@@ -192,15 +194,17 @@ and get_context_syn (sg:Signature.t) (stack:stack) (ord:pos LList.t) : env optio
   ) ord )
   with Subst.UnshiftExn -> ( (*Print.debug "Cannot unshift";*) None )
 
-and resolve sg pbs te =
+and resolve sg pbs te : term =
   try Matching.resolve pbs te
   with Matching.NotUnifiable ->
     Matching.resolve pbs (snf sg te)
 
-and get_context_mp (sg:Signature.t) (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
-  let aux (pb:abstract_pb)  =
-    Lazy.from_val ( unshift sg pb.depth2 (
-      (resolve sg pb.dbs (term_of_state (List.nth stack pb.position2))) ))
+and get_context_mp (sg:Signature.t) (stack:stack) (pb_lst:abstract_pb LList.t) : Matching.ho_env option =
+  let aux (pb:abstract_pb) : int*term =
+    ( LList.len pb.dbs,
+      unshift sg pb.depth2 (
+        (resolve sg pb.dbs (term_of_state (List.nth stack pb.position2))) )
+    )
   in
   try Some (LList.map aux pb_lst)
   with

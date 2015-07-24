@@ -1,4 +1,9 @@
+open Basics
 open Term
 
 exception NotUnifiable
-val resolve : int Basics.LList.t -> term -> term
+type ho_env = (int*term) LList.t
+
+val resolve : int LList.t -> term -> term
+
+val ho_psubst : ho_env -> term -> term
