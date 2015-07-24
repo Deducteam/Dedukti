@@ -192,10 +192,15 @@ and get_context_syn (sg:Signature.t) (stack:stack) (ord:pos LList.t) : env optio
   ) ord )
   with Subst.UnshiftExn -> ( (*Print.debug "Cannot unshift";*) None )
 
+and resolve sg pbs te =
+  try Matching.resolve pbs te
+  with Matching.NotUnifiable ->
+    Matching.resolve pbs (snf sg te)
+
 and get_context_mp (sg:Signature.t) (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
   let aux (pb:abstract_pb)  =
     Lazy.from_val ( unshift sg pb.depth2 (
-      (Matching.resolve pb.dbs (term_of_state (List.nth stack pb.position2))) ))
+      (resolve sg pb.dbs (term_of_state (List.nth stack pb.position2))) ))
   in
   try Some (LList.map aux pb_lst)
   with
