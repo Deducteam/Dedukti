@@ -6,7 +6,7 @@ b : T.
 
 `f : T -> T.
 [] f a --> b
-[a:T] f a --> a.
+[a] f a --> a.
 
 eq : T -> T -> Type.
 refl : x : T -> eq x x.
