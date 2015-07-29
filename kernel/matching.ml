@@ -18,7 +18,7 @@ let permute (dbs:int LList.t) (te:term) : term =
         else
           let n' = find (n-k) 0 (LList.lst dbs) in
             mk_DB dloc x (n'+k)
-    | Lam (l,x,a,b) -> mk_Lam dloc x None (aux (k+1) b)
+    | Lam (l,x,a,b) -> mk_Lam dloc x (map_opt (aux k) a) (aux (k+1) b)
     | Pi  (_,x,a,b) -> mk_Pi  dloc x (aux k a) (aux (k+1) b)
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
   in aux 0 te
@@ -52,7 +52,7 @@ let ho_psubst (ctx:ho_env) (t:term) : term =
     | DB (_,_,n) (* (k<=n<(k+nargs)) *) ->
       let (i,u) = LList.nth ctx (n-k) in
       ( assert (i == 0); Subst.shift k u )
-    | Lam (_,x,_,b) -> mk_Lam dloc x None (aux (k+1) b)
+    | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (aux k) a) (aux (k+1) b)
     | Pi  (_,x,a,b) -> mk_Pi dloc x (aux k a) (aux (k+1) b)
     | App (DB(_,_,n),a,lst) when ( (k<=n) && (n<(k+lth)) ) ->
       let (i,u) = LList.nth ctx (n-k) in
