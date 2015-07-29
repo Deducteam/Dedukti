@@ -126,7 +126,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             | None -> None
             | Some t' ->
               ( match SS.add sigma x (n-q) t' with
-                | None -> assert false
+                | None -> assert false (*FIXME error message*)
                 | Some sigma2 -> pseudo_u sg sigma2 lst )
           end
 
@@ -182,6 +182,7 @@ let pc_add (delta:partial_context) (n:int) (l:loc) (id:ident) (ty0:typ) : partia
     pctx = LList.cons (l,id,ty) delta.pctx }
 
 let pc_to_context (delta:partial_context) : context = LList.lst delta.pctx
+
 let pc_to_context_wp (delta:partial_context) : context =
   let dummy = mk_DB dloc qmark 0 in
   let rec aux lst n =
@@ -242,6 +243,7 @@ and infer_pattern_aux sg (sigma:context2) (f,ty_f,delta,lst:term*typ*partial_con
       raise (TypingError (ProductExpected (f,ctx,ty_f)))
 
 and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:constraints) (pat:pattern) : partial_context * constraints =
+(*   debug "check_pattern %a:%a" pp_pattern pat pp_term exp_ty; *)
   match pat with
   | Lambda (l,x,p) ->
     begin
@@ -269,6 +271,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
   | Var (l,x,n,[]) when ( n >= LList.len sigma ) ->
     begin
       let k = LList.len sigma in
+
       match pc_get delta (n-k) with
       | None ->
         ( try ( pc_add delta (n-k) l x (unshift_n sg k exp_ty), lst )
@@ -302,10 +305,12 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
 
 (* FIXME no need to traverse three times the terms... *)
 let subst_context (sub:SS.t) (ctx:context) : context =
-  List.mapi ( fun i (l,x,ty) ->
+  try List.mapi ( fun i (l,x,ty) ->
       (l,x,
        Subst.unshift (i+1) (SS.apply sub (Subst.shift (i+1) ty) 0) )
     ) ctx
+  with
+  | Subst.UnshiftExn -> assert false (*FIXME*) (* may happen with non-linear patterns*)
 
 let check_rule sg (ctx0,le,ri:rule) : rule2 =
   let delta = pc_make ctx0 in
