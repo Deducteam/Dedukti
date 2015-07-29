@@ -106,7 +106,7 @@ struct
 
   let add (sigma:t) (x:ident) (n:int) (t:term) : t option =
     assert ( not ( IntMap.mem n sigma ) );
-    if occurs 0 t then None
+    if occurs n t then None
     else Some ( IntMap.add n (x,t) sigma )
 
   let merge s1 s2 =
