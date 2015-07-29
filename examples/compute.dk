@@ -6,20 +6,20 @@ Z : Nat.
 S : Nat -> Nat.
 
 `plus : Nat -> Nat -> Nat.
-[x:Nat]        plus Z x --> x
-[x:Nat, y:Nat] plus (S x) y --> plus x (S y).
+[x]        plus Z x --> x
+[x,y] plus (S x) y --> plus x (S y).
 
 `mult : Nat -> Nat -> Nat.
-[x:Nat]        mult Z x --> Z
-[x:Nat, y:Nat] mult (S x) y --> plus y (mult x y).
+[]    mult Z _ --> Z
+[x,y] mult (S x) y --> plus y (mult x y).
 
 `fact : Nat -> Nat.
 []      fact Z --> S Z
-[x:Nat] fact (S x) --> mult (S x) (fact x).
+[x] fact (S x) --> mult (S x) (fact x).
 
 six   : Nat :=  (S (S (S (S (S (S Z)))))).
 seven : Nat :=  (S (S (S (S (S (S (S Z))))))).
 
 
-#CONV	(plus (fact seven) (fact six)), 
+#CONV	(plus (fact seven) (fact six)),
 	(plus (fact six) (fact seven)).

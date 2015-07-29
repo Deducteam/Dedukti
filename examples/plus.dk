@@ -5,9 +5,9 @@ Z : nat.
 S : nat -> nat.
 
 `plus : nat -> nat -> nat.
-[m:nat]       plus Z     (S m) --> S m
-[n:nat]       plus n     Z     --> n
-[n:nat,m:nat] plus (S n) (S m) --> S (S m).
+[m]   plus Z (S m) --> S m
+[n]   plus n Z --> n
+[n,m] plus (S n) (S m) --> S (S m).
 
 e: nat -> Type.
 `x: e Z.
