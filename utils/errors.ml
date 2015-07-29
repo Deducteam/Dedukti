@@ -62,7 +62,7 @@ let fail_typing_error err =
           fail lc "Cannot infer the type of domain-free lambda."
       | CannotInferTypeOfPattern (p,ctx) ->
           fail (get_loc_pat p)
-            "Error while typing the type of '%a'%a.\n Cannot infer the type."
+            "Error while typing '%a'%a.\nThe type could not be infered."
             pp_pattern p pp_context2 ctx
       | CannotSolveConstraints ((_,le,_) as r,cstr) ->
         fail (get_loc_pat le)
