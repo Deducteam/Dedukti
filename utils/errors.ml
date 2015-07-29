@@ -60,6 +60,28 @@ let fail_typing_error err =
             pp_term te pp_context2 ctx
       | DomainFreeLambda lc ->
           fail lc "Cannot infer the type of domain-free lambda."
+      | CannotInferTypeOfPattern (p,ctx) ->
+          fail (get_loc_pat p)
+            "Error while typing the type of '%a'%a.\n Cannot infer the type."
+            pp_pattern p pp_context2 ctx
+      | CannotSolveConstraints ((_,le,_) as r,cstr) ->
+        fail (get_loc_pat le)
+          "Error while typing the rewrite rule\n%a\nCannot solve typing constraints."
+          pp_rule r
+      | BracketError1 (te,ctx) ->
+        fail (get_loc te) "Error while typing the term { %a }%a.\n\
+                           Brackets can only contain variables occuring\
+                           on their left and cannot contains bound variables."
+          pp_term te pp_context2 ctx
+      | BracketError2 (te,ctx,ty) ->
+        fail (get_loc te) "Error while typing the term { %a }%a.\n\
+                           The type of brackets can only contain variables occuring\
+                           on their left and cannot contains bound variables."
+          pp_term te pp_context2 ctx
+      | FreeVariableDependsOnBoundVariable (l,x,n,ctx,ty) ->
+        fail l "Error while typing '%a[%i]'%a.\n\
+                The type is not allowed to refer to bound variables.\n\
+                Infered type:%a." pp_ident x n pp_context2 ctx pp_term ty
 
 let fail_dtree_error err =
   let open Dtree in

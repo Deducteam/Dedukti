@@ -75,7 +75,7 @@
 %type <unit> line
 %type <Preterm.prule> rule
 %type <Preterm.pdecl> decl
-%type <Preterm.pdecl> param
+%type <Basics.loc*Basics.ident*Preterm.preterm> param
 %type <Preterm.pdecl list> context
 %type <Basics.loc*Basics.ident*Preterm.prepattern list> top_pattern
 %type <Preterm.prepattern> pattern
@@ -137,12 +137,13 @@ line            : ID COLON term DOT
 term_lst        : term                                  { [$1] }
                 | term COMMA term_lst                   { $1::$3 }
 
-param           : LEFTPAR decl RIGHTPAR                 { $2 }
+param           : LEFTPAR ID COLON term RIGHTPAR        { (fst $2,snd $2,$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
                 { let (l,id,args) = $4 in ( l , $2 , id , args , $6) }
 
-decl           : ID COLON term         { (fst $1,snd $1,$3) }
+decl            : ID COLON term         { debug "Ignoring type declaration in rule context."; $1 }
+                | ID                    { $1 }
 
 context         : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, decl) { $1 }

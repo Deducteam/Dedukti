@@ -139,7 +139,7 @@ let rec is_linear = function
   | (Bracket _)::tl -> is_linear tl
   | (Linearity _)::tl -> false
 
-let to_rule_infos (r:rule) : (rule_infos,dtree_error) error =
+let to_rule_infos (r:Rule.rule2) : (rule_infos,dtree_error) error =
   try
     begin
       let (ctx,lhs,rhs) = r in

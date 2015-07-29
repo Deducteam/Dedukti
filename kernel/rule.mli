@@ -28,7 +28,8 @@ type pattern2 =
 
 (** {2 Rewrite Rules} *)
 
-type rule = context * pattern * term
+type rule = (loc*ident) list * pattern * term
+type rule2 = context * pattern * term
 
 type constr =
   | Linearity of term*term (* change to int*int ? *)
@@ -48,6 +49,7 @@ type rule_infos = {
 }
 
 val pp_rule     : out_channel -> rule -> unit
+val pp_rule2    : out_channel -> rule2 -> unit
 val pp_frule    : out_channel -> rule_infos -> unit
 
 (** {2 Decision Trees} *)

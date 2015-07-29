@@ -95,6 +95,16 @@ let print_context out ctx =
     ) out (List.rev ctx)
 
 let print_rule out (ctx,pat,te) =
+  let print_decl out (_,id) =
+    Format.fprintf out "@[<hv>%a@]" print_ident id
+  in
+  Format.fprintf out
+    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
+    (print_list ", " print_decl) ctx
+    print_pattern pat
+    print_term te
+
+let print_rule2 out (ctx,pat,te) =
   let print_decl out (_,id,ty) =
     Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
   in
@@ -104,4 +114,4 @@ let print_rule out (ctx,pat,te) =
     print_pattern pat
     print_term te
 
-let print_frule out r = print_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
+let print_frule out r = print_rule2 out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)

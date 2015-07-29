@@ -14,7 +14,8 @@ let get_loc_pat = function
 
 type top = ident*pattern array
 
-type rule = context * pattern * term
+type rule = (loc*ident) list * pattern * term
+type rule2 = context * pattern * term
 
 type pattern2 =
   | Joker2
@@ -83,13 +84,21 @@ and pp_pattern_wp out = function
   | p -> pp_pattern out p
 
 let pp_rule out (ctx,pat,te) =
-  let pp_decl out (_,id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
+   let pp_decl out (_,id) = pp_ident out id in
     fprintf out "[%a] %a --> %a"
       (pp_list "," pp_decl) ctx
       pp_pattern pat
       pp_term te
 
-let pp_frule out r = pp_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
+let pp_rule2 out (ctx,pat,te) =
+   let pp_decl out (_,id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
+    fprintf out "[%a] %a --> %a"
+      (pp_list "," pp_decl) (List.rev ctx)
+      pp_pattern pat
+      pp_term te
+
+let pp_frule out r =
+  pp_rule2 out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
 
 let tab t = String.make (t*4) ' '
 

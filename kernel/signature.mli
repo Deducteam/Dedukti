@@ -36,6 +36,6 @@ val get_dtree           : t -> loc -> ident -> ident -> (int*dtree) option
 val add_declaration     : t -> loc -> ident -> term -> unit
 val add_definable       : t -> loc -> ident -> term -> unit
 (* val define              : t -> loc -> ident -> term -> term -> unit *)
-val add_rules           : t -> Rule.rule list -> unit
+val add_rules           : t -> Rule.rule2 list -> unit
 
 val get_all_rules       : string -> rule_infos list

@@ -32,36 +32,78 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
     | PreLam  (l,id,Some a,b) ->
         mk_Lam l id (Some (t_of_pt ctx a)) (t_of_pt (id::ctx) b)
 
-let scope_term (ctx:context) (pte:preterm) : term =
+let scope_term ctx (pte:preterm) : term =
   t_of_pt (List.map (fun (_,x,_) -> x) ctx) pte
 
 (******************************************************************************)
 
-let p_of_pp (ctx:ident list) : prepattern -> pattern =
-  let rec aux k ctx = function
-    | PPattern (l,None,id,pargs) ->
-        let args = List.map (aux k ctx) pargs in
-        ( match get_db_index ctx id with
-            | Some n -> Var (l,id,n,args)
-            | None -> Pattern (l,!name,id,args)
-        )
-    | PPattern (l,Some md,id,args) -> Pattern (l,md,id,List.map (aux k ctx) args)
-    | PLambda (l,x,p) -> Lambda (l,x,aux (k+1) (x::ctx) p)
-    | PCondition pte -> Brackets (t_of_pt ctx pte)
-    | PJoker l -> Errors.fail l "Unimplemeted feature '_'."
-  in aux 0 ctx
+(* [get_vars_order vars p] traverses the pattern [p] from left to right and
+ * builds the list of variables, taking jokers as variables. *)
+let get_vars_order (vars:pcontext) (ppat:prepattern) : (loc*ident) list =
+  let nb_jokers = ref 0 in
+  let get_fresh_name () =
+    incr nb_jokers;
+    hstring ("?_" ^ string_of_int !nb_jokers)
+  in
+  let is_a_var id1 =
+    let rec aux = function
+      | [] -> None
+      | (l,id2)::lst when ident_eq id1 id2 -> Some l
+      | _::lst -> aux lst
+    in aux vars
+  in
+  let rec aux (bvar:ident list) (ctx:(loc*ident) list) : prepattern -> (loc*ident) list = function
+    | PPattern (_,None,id,pargs) ->
+      begin
+        if List.exists (ident_eq id) bvar then
+          List.fold_left (aux bvar) ctx pargs
+        else
+          match is_a_var id with
+          | Some l ->
+            if List.exists (fun (_,a) -> ident_eq id a) ctx then
+              List.fold_left (aux bvar) ctx pargs
+            else
+              let ctx2 = (l,id)::ctx in
+              List.fold_left (aux bvar) ctx2 pargs
+          | None -> List.fold_left (aux bvar) ctx pargs
+      end
+    | PPattern (l,Some md,id,pargs) -> List.fold_left (aux bvar) ctx pargs
+    | PLambda (l,x,pp) -> aux (x::bvar) ctx pp
+    | PCondition _ -> ctx
+    | PJoker _ -> (dloc,get_fresh_name ())::ctx
+  in
+  aux [] [] ppat
 
-let scope_pattern (ctx:context) (pp:prepattern) : pattern =
-  p_of_pp (List.map (fun (_,x,_) -> x) ctx) pp
+let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
+  let nb_jokers = ref 0 in
+  let get_fresh_name () =
+    incr nb_jokers;
+    hstring ("?_" ^ string_of_int !nb_jokers)
+  in
+  let rec aux (ctx:ident list): prepattern -> pattern = function
+    | PPattern (l,None,id,pargs) ->
+      begin
+        match get_db_index ctx id with
+        | Some n -> Var (l,id,n,List.map (aux ctx) pargs)
+        | None -> Pattern (l,!name,id,List.map (aux ctx) pargs)
+      end
+    | PPattern (l,Some md,id,pargs) -> Pattern (l,md,id,List.map (aux ctx) pargs)
+    | PLambda (l,x,pp) -> Lambda (l,x, aux (x::ctx) pp)
+    | PCondition pte -> Brackets (t_of_pt ctx pte)
+    | PJoker l ->
+      begin
+        let id = get_fresh_name () in
+        match get_db_index ctx id with
+        | Some n -> Var (l,id,n,[])
+        | None -> assert false
+      end
+  in
+  aux ctx ppat
 
 (******************************************************************************)
 
-let scope_context pctx =
-  let aux ctx0 (l,x,ty) = (l,x,scope_term ctx0 ty)::ctx0 in
-    List.fold_left aux [] pctx
-
-let scope_rule (l,pctx,id,pargs,pri) =
-  let ctx = scope_context pctx in
-  let pat = scope_pattern ctx (PPattern(l,None,id,pargs)) in
-  let ri = scope_term ctx pri in
-    (ctx,pat,ri)
+let scope_rule (l,pctx,id,pargs,pri:prule) : rule =
+  let top = PPattern(l,None,id,pargs) in
+  let ctx = get_vars_order pctx top in
+  let idents = List.map snd ctx in
+  ( ctx, p_of_pp idents top, t_of_pt idents pri )

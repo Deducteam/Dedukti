@@ -14,6 +14,11 @@ type typing_error =
   | ProductExpected of term*context*term
   | InexpectedKind of term*context
   | DomainFreeLambda of loc
+  | CannotInferTypeOfPattern of pattern*context
+  | CannotSolveConstraints of rule * (int*term*term) list
+  | BracketError1 of term*context
+  | BracketError2 of term*context*term
+  | FreeVariableDependsOnBoundVariable of loc*ident*int*context*term
 
 exception TypingError of typing_error
 
@@ -39,5 +44,5 @@ val checking    : Signature.t -> term -> term -> unit
 val inference   : Signature.t -> term -> typ
 (** [inference sg ctx te] infers a type for the term [te] in empty context. *)
 
-val check_rule  : Signature.t -> rule -> unit
+val check_rule  : Signature.t -> rule -> rule2
 (** [check_rule sg ru] checks that a rule is well-typed. *)

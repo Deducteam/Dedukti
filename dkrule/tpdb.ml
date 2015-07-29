@@ -31,7 +31,7 @@ let rec pp_term k out = function
 let pp_rule out r =
   let pat = (Pattern (r.l,r.md,r.id,r.args)) in
   fprintf out "(VAR";
-  List.iter ( fun (_,v,_) -> fprintf out " #VAR_%a" pp_ident v ) r.ctx ;
+  List.iter ( fun (_,v) -> fprintf out " #VAR_%a" pp_ident v ) r.ctx ;
   fprintf out ")\n";
   fprintf out "(RULES %a -> %a )\n\n" pp_pattern pat (pp_term 0) r.rhs
 

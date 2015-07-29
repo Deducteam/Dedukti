@@ -16,8 +16,8 @@ let unshift q te =
   let rec aux k = function
   | DB (_,_,n) as t when n<k -> t
   | DB (l,x,n) ->
-      if n-q-k >= 0 then mk_DB l x (n-q-k)
-      else raise UnshiftExn
+    if n < q then raise UnshiftExn
+    else mk_DB l x (n-q)
   | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
   | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
   | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
@@ -54,7 +54,18 @@ let subst (te:term) (u:term) =
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
   in aux 0 te
 
-  
+(* replace x[n] by y[0] and shift by one*)
+let subst_n n y t =
+  let rec aux k t =  match t with
+    | Type _ | Kind | Const _ -> t
+    | DB (_,_,m) when (m < k) -> t
+    | DB (l,x,m) when (m == (n+k)) -> mk_DB l y k
+    | DB (l,x,m) (* ( k <= m ) && m != n+k) *) -> mk_DB l x (m+1)
+    | Lam (_,x,_,b) -> mk_Lam dloc x None (aux (k+1) b)
+    | Pi  (_,x,a,b) -> mk_Pi dloc x (aux k a) (aux (k+1) b)
+    | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
+  in aux 0 t
+
 module IntMap = Map.Make(
 struct
   type t = int

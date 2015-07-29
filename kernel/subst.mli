@@ -11,6 +11,9 @@ val psubst_l            : (term Lazy.t) Basics.LList.t -> int -> term -> term
 val subst               : term -> term -> term
 (** [subst te u] substitutes the deBruijn indice [0] with [u] in [te]. *)
 
+val subst_n : int -> Basics.ident -> term -> term
+(** [subst_n n y t] replaces x[n] by y[0] and shift by one*)
+
 module S :
 sig
   type t
