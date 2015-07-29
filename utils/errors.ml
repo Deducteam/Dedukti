@@ -70,8 +70,8 @@ let fail_typing_error err =
           pp_rule r
       | BracketError1 (te,ctx) ->
         fail (get_loc te) "Error while typing the term { %a }%a.\n\
-                           Brackets can only contain variables occuring\
-                           on their left and cannot contains bound variables."
+                           Brackets can only contain variables occuring \
+                           on their left and cannot contain bound variables."
           pp_term te pp_context2 ctx
       | BracketError2 (te,ctx,ty) ->
         fail (get_loc te) "Error while typing the term { %a }%a.\n\
