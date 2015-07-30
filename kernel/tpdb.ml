@@ -3,6 +3,8 @@ open Printf
 open Term
 open Rule
 
+let init out = debug "Not implemented (Tpdb.init)."
+
 let rec pp_pattern out = function
   | Var (_,x,n,[]) -> fprintf out "#VAR_%a" pp_ident x ;
   | Pattern (_,m,v,args) ->
@@ -34,10 +36,11 @@ let pp_rule out r =
   List.iter ( fun (_,v,_) -> fprintf out " #VAR_%a" pp_ident v ) r.ctx ;
   fprintf out ")\n";
   fprintf out "(RULES %a -> %a )\n\n" pp_pattern pat (pp_term 0) r.rhs
-
+(*
 let export out =
   List.iter (
     fun (md,lst) ->
       fprintf out "(COMMENT Rewrite rules for module '%s')\n" md;
       List.iter (pp_rule out) lst
   )
+*)

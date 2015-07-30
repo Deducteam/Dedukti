@@ -6,6 +6,7 @@ open Rule
 
 let ignore_redecl = ref false
 let autodep = ref false
+let check_confluence = ref None
 
 type signature_error =
   | FailToCompileModule of loc*ident
@@ -110,6 +111,9 @@ let get_all_rules md =
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   assert ( not (H.mem sg.tables m) ) ;
+  ( match !check_confluence with
+    | Some out -> debug "TODO: Confluence Check (import)" (*FIXME*)
+    | None -> () );
 
   (* If the [.dko] file is not found, try to compile it first.
    This hack is terrible. It uses system calls and can loop with circular dependencies. *)
@@ -124,7 +128,7 @@ let rec import sg lc m =
     fun dep -> if not (H.mem sg.tables m) then
       ignore (import sg lc (hstring dep))
       ) deps ;
-                                       ctx
+  ctx
 
 let get_deps sg : string list = (*only direct dependencies*)
   H.fold (
@@ -177,6 +181,9 @@ let add_definable sg lc v ty = add sg lc v (Definable (ty,None))
 
 let add_rules sg lst : unit =
   let rs = map_error_list Dtree.to_rule_infos lst in
+  ( match !check_confluence with
+    | Some out -> debug "TODO: Confluence Check (add_rules)" (*FIXME*)
+    | None -> () );
     match rs with
       | Err e -> raise (SignatureError (CannotBuildDtree e))
       | OK [] -> ()

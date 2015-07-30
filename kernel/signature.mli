@@ -6,6 +6,7 @@ open Rule
 
 val ignore_redecl       : bool ref
 val autodep             : bool ref
+val check_confluence    : (out_channel option) ref
 
 type signature_error =
   | FailToCompileModule of loc*ident
