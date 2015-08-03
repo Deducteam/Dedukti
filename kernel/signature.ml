@@ -17,6 +17,7 @@ type signature_error =
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
   | NonConfluentSystem of loc*rule2 list*string
+  | NonConfluentSystemImport of loc*ident*string
 
 exception SignatureError of signature_error
 
@@ -108,10 +109,23 @@ let get_all_rules md =
     H.fold aux ht []
 (******************************************************************************)
 
+let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
+  let aux id = function
+  | Constant ty -> Confluence.add_constant md id
+  | Definable (ty,opt) ->
+    ( Confluence.add_constant md id;
+      match opt with
+      | None -> ()
+      | Some (rs,_,_) -> Confluence.add_rules rs )
+  in
+  H.iter aux ctx;
+  match Confluence.check () with
+  | OK () -> ()
+  | Err cmd -> raise (SignatureError (NonConfluentSystemImport (lc,md,cmd)))
+
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   assert ( not (H.mem sg.tables m) ) ;
-  debug "TODO: Confluence Check (import)"; (*FIXME*)
   (* If the [.dko] file is not found, try to compile it first.
    This hack is terrible. It uses system calls and can loop with circular dependencies. *)
   ( if !autodep && not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) then
@@ -121,6 +135,7 @@ let rec import sg lc m =
 
     let (deps,ctx) = unmarshal lc (string_of_ident m) in
   H.add sg.tables m ctx;
+  check_confluence_on_import lc m ctx;
   List.iter (
     fun dep -> if not (H.mem sg.tables m) then
       ignore (import sg lc (hstring dep))

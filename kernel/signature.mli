@@ -17,6 +17,7 @@ type signature_error =
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
   | NonConfluentSystem of loc*rule2 list*string
+  | NonConfluentSystemImport of loc*ident*string
 
 exception SignatureError of signature_error
 (*

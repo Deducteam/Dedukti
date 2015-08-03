@@ -135,6 +135,10 @@ let fail_signature_error err =
           fail lc "The rewrite system became non-confluent after adding \
                    the following rewrite rule(s):\n%a.\nYou can run the following command for more information:\n%s"
             (pp_list "\n" pp_rule2) rs cmd
+      | NonConfluentSystemImport (lc,md,cmd) ->
+        fail lc "The rewrite system became non-confluent when importing \
+                 the module '%a'.\nYou can run the following command for more information:\n%s"
+          pp_ident md cmd
 
 
 let fail_env_error = function
