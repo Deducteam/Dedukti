@@ -15,6 +15,8 @@ let file_out = ref None
 let do_not_erase_confluence_file = ref false
 
 let initialize cmd =
+  ( if not (Sys.file_exists cmd) then
+      raise (Sys_error ("'" ^ cmd ^ "' does not exist")));
   confluence_command := cmd;
   let (file,out) = Filename.open_temp_file "dkcheck" ".trs" in
 (*   Basics.debug "Confluence temporary file:%s" file; *)
