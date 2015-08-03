@@ -13,11 +13,6 @@ let parse lb =
     | P.Error       -> Errors.fail (Lexer.get_loc lb)
                          "Unexpected token '%s'." (Lexing.lexeme lb)
 
-let create_confluence_temp_file () =
-  let (file,out) = Filename.open_temp_file "dkcheck" ".tpdb" in (*TODO supprimer le fichier apres usage...*)
-  Tpdb.init out;
-  Signature.check_confluence := (Some out)
-
 let args = [
   ("-d"    , Arg.Int Checker.set_debug_level,   "Level of verbosity" ) ;
   ("-e"    , Arg.Set Checker.export,            "Create a .dko" ) ;
@@ -30,8 +25,8 @@ let args = [
    "Automatically handle dependencies (experimental)") ;
   ("-I"    , Arg.String Basics.add_path,        "Add a directory to load path");
   ("-errors-in-snf", Arg.Set Errors.errors_in_snf, "Normalize the types in error messages");
-  ("-check-confluence", Arg.Unit create_confluence_temp_file,
-        "Check confluence as rewrite rules are added to the system")
+  ("-confluence-checker", Arg.String Tpdb.initialize,
+        "Set the external confluence checker")
 ]
 
 let run_on_file file =

@@ -6,7 +6,6 @@ open Rule
 
 val ignore_redecl       : bool ref
 val autodep             : bool ref
-val check_confluence    : (out_channel option) ref
 
 type signature_error =
   | FailToCompileModule of loc*ident
@@ -17,6 +16,7 @@ type signature_error =
   | AlreadyDefinedSymbol of loc*ident
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
+  | NonConfluentSystem of loc*rule2 list*string
 
 exception SignatureError of signature_error
 (*
@@ -39,4 +39,4 @@ val add_definable       : t -> loc -> ident -> term -> unit
 (* val define              : t -> loc -> ident -> term -> term -> unit *)
 val add_rules           : t -> Rule.rule2 list -> unit
 
-val get_all_rules       : string -> rule_infos list
+(* val get_all_rules       : string -> rule_infos list *)

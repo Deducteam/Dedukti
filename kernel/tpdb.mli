@@ -1,5 +1,12 @@
+open Basics
 open Rule
 
-val init : out_channel -> unit
-val pp_pattern : out_channel -> pattern -> unit
-val pp_rule : out_channel -> rule_infos -> unit
+(* val check_confluence    : ((string*out_channel) option) ref *)
+val initialize : string -> unit
+
+val check : unit -> bool
+val add_constant : ident -> ident -> unit
+val add_rules : rule_infos list -> unit
+val check : unit -> (unit,string) error
+
+val finalize : unit -> unit

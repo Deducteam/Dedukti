@@ -131,6 +131,11 @@ let fail_signature_error err =
       | CannotAddRewriteRules (lc,id) ->
           fail lc
             "Cannot add rewrite\ rules for the defined symbol '%a'." pp_ident id
+      | NonConfluentSystem (lc,rs,cmd) ->
+          fail lc "The rewrite system became non-confluent after adding \
+                   the following rewrite rule(s):\n%a.\nYou can run the following command for more information:\n%s"
+            (pp_list "\n" pp_rule2) rs cmd
+
 
 let fail_env_error = function
   | Env.EnvErrorSignature e -> fail_signature_error e

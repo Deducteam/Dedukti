@@ -8,19 +8,19 @@ INSTALL_DIR=/usr/bin
 MENHIR = -menhir "menhir --external-tokens Tokens"
 SRC_DIRS = kernel,utils,parser
 
-all: lib dkcheck dktop dkdep dkindent doc
+all: dkcheck dktop dkdep dkindent doc
 
 dkcheck:
-	ocamlbuild -Is $(SRC_DIRS),dkcheck $(MENHIR) dkcheck.native
+	ocamlbuild -Is $(SRC_DIRS),dkcheck $(MENHIR) -lib unix dkcheck.native
 
 dktop:
-	ocamlbuild -Is $(SRC_DIRS),dktop $(MENHIR) dktop.native
+	ocamlbuild -Is $(SRC_DIRS),dktop $(MENHIR) -lib unix dktop.native
 
 dkdep:
-	ocamlbuild -Is $(SRC_DIRS),dkdep $(MENHIR) dkdep.native
+	ocamlbuild -Is $(SRC_DIRS),dkdep $(MENHIR) -lib unix dkdep.native
 
 dkindent:
-	ocamlbuild -Is $(SRC_DIRS),dkindent $(MENHIR) dkindent.native
+	ocamlbuild -Is $(SRC_DIRS),dkindent $(MENHIR) -lib unix dkindent.native
 
 doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html

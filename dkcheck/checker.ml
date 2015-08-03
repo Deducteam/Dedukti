@@ -67,6 +67,7 @@ let mk_command = Cmd.mk_command
 let export = ref false
 
 let mk_ending () =
-  if !export then
+  ( if !export then
     if not (Env.export ()) then
-      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ())
+      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
+(*   Tpdb.finalize () *)

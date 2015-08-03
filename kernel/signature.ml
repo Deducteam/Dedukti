@@ -6,7 +6,6 @@ open Rule
 
 let ignore_redecl = ref false
 let autodep = ref false
-let check_confluence = ref None
 
 type signature_error =
   | FailToCompileModule of loc*ident
@@ -17,6 +16,7 @@ type signature_error =
   | AlreadyDefinedSymbol of loc*ident
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
+  | NonConfluentSystem of loc*rule2 list*string
 
 exception SignatureError of signature_error
 
@@ -111,10 +111,7 @@ let get_all_rules md =
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   assert ( not (H.mem sg.tables m) ) ;
-  ( match !check_confluence with
-    | Some out -> debug "TODO: Confluence Check (import)" (*FIXME*)
-    | None -> () );
-
+  debug "TODO: Confluence Check (import)"; (*FIXME*)
   (* If the [.dko] file is not found, try to compile it first.
    This hack is terrible. It uses system calls and can loop with circular dependencies. *)
   ( if !autodep && not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) then
@@ -169,6 +166,7 @@ let get_dtree sg l m v =
 (******************************************************************************)
 
 let add sg lc v gst =
+  Tpdb.add_constant sg.name v;
   let env = H.find sg.tables sg.name in
   if H.mem env v then
     ( if !ignore_redecl then debug "Redeclaration ignored."
@@ -181,23 +179,26 @@ let add_definable sg lc v ty = add sg lc v (Definable (ty,None))
 
 let add_rules sg lst : unit =
   let rs = map_error_list Dtree.to_rule_infos lst in
-  ( match !check_confluence with
-    | Some out -> debug "TODO: Confluence Check (add_rules)" (*FIXME*)
-    | None -> () );
-    match rs with
-      | Err e -> raise (SignatureError (CannotBuildDtree e))
-      | OK [] -> ()
-      | OK (r::_ as rs) ->
-          let env = H.find sg.tables sg.name in
-          let infos = try H.find env r.id with Not_found ->
-            raise (SignatureError (SymbolNotFound(r.l,sg.name,r.id)))
-          in
-          let (ty,rules) = match infos with
-            | Definable (ty,None) -> ( ty , rs )
-            | Definable (ty,Some(mx,_,_)) -> ( ty , mx@rs )
-            | Constant _ ->
-                raise (SignatureError (CannotAddRewriteRules (r.l,r.id)))
-          in
-            match Dtree.of_rules rules with
-              | OK (n,tree) -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
-              | Err e -> raise (SignatureError (CannotBuildDtree e))
+  match rs with
+  | Err e -> raise (SignatureError (CannotBuildDtree e))
+  | OK [] -> ()
+  | OK (r::_ as rs) ->
+    let env = H.find sg.tables sg.name in
+    let infos = try H.find env r.id with Not_found ->
+      raise (SignatureError (SymbolNotFound(r.l,sg.name,r.id)))
+    in
+    let (ty,rules) = match infos with
+      | Definable (ty,None) -> ( ty , rs )
+      | Definable (ty,Some(mx,_,_)) -> ( ty , mx@rs )
+      | Constant _ ->
+        raise (SignatureError (CannotAddRewriteRules (r.l,r.id)))
+    in
+    match Dtree.of_rules rules with
+    | OK (n,tree) ->
+      begin
+        Tpdb.add_rules rs;
+        match Tpdb.check () with
+        | OK () -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
+        | Err file -> raise (SignatureError (NonConfluentSystem (r.l,lst,file)))
+      end
+    | Err e -> raise (SignatureError (CannotBuildDtree e))
