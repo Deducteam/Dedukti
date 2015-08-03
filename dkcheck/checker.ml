@@ -19,7 +19,8 @@ let eprint lc fmt =
 
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_ident name;
-  Env.init name
+  Env.init name;
+  Confluence.initialize ()
 
 let mk_declaration lc id pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
@@ -70,4 +71,4 @@ let mk_ending () =
   ( if !export then
     if not (Env.export ()) then
       Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
-(*   Tpdb.finalize () *)
+  Confluence.finalize ()

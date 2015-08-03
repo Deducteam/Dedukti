@@ -10,18 +10,24 @@ module IdMap = Map.Make(
     end
   )
 
-let confluence_command = ref "?"
+let confluence_command = ref ""
 let file_out = ref None
 let do_not_erase_confluence_file = ref false
 
-let initialize cmd =
+let set_cmd cmd =
   ( if not (Sys.file_exists cmd) then
       raise (Sys_error ("'" ^ cmd ^ "' does not exist")));
-  confluence_command := cmd;
-  let (file,out) = Filename.open_temp_file "dkcheck" ".trs" in
-(*   Basics.debug "Confluence temporary file:%s" file; *)
-  file_out := (Some (file,out));
-  fprintf out "\
+  confluence_command := cmd
+
+let initialize () =
+  do_not_erase_confluence_file := false;
+  if (String.compare !confluence_command "") == 0 then file_out := None
+  else
+    begin
+      let (file,out) = Filename.open_temp_file "dkcheck" ".trs" in
+      (*   Basics.debug "Confluence temporary file:%s" file; *)
+      file_out := (Some (file,out));
+      fprintf out "\
 (FUN
   lam : term -> (term -> term) -> term
   app : term -> term -> term
@@ -38,6 +44,7 @@ let initialize cmd =
 (RULES
   app( lam(m_typ,\\v_x. m_F v_x), m_B) -> m_F(m_B)
 )\n"
+    end
 
 let rec split n lst =
   if n <= 0 then ( [], lst )
@@ -172,7 +179,10 @@ let check () : (unit,string) error =
 (*       debug "%s" cmd; *)
       flush out;
       let input = Unix.open_process_in cmd in
-      let answer = input_line input in
+      let answer =
+        try input_line input
+        with End_of_file -> failwith ( "Call to the external confluence checker failed while checking the module '?'")
+      in
       let _ = Unix.close_process_in input in
 (*       debug "Confluence checker says %s" answer; *)
       if ( String.compare answer "YES" == 0 ) then OK ()
@@ -196,6 +206,7 @@ let finalize () =
   | Some (file,out) ->
     begin
       close_out out;
-      if !do_not_erase_confluence_file then ()
-      else Sys.remove file
+      ( if !do_not_erase_confluence_file then ()
+        else Sys.remove file );
+
     end

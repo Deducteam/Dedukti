@@ -2,7 +2,8 @@ open Basics
 open Rule
 
 (* val check_confluence    : ((string*out_channel) option) ref *)
-val initialize : string -> unit
+val set_cmd : string -> unit
+val initialize : unit -> unit
 
 val check : unit -> bool
 val add_constant : ident -> ident -> unit
