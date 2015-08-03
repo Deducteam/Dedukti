@@ -48,18 +48,20 @@ let rec split n lst =
       let (x,y) = split (n-1) tl in
       ( hd::x, tl )
 
-let rec pp_pattern ar k out = function
+let pp_pattern ar out pat =
+  let nb = ref 0 in
+  let rec aux k out = function
   | Var (_,x,n,args) when (n<k) ->
     begin
       List.iter (fun _ -> fprintf out "app(") args ;
       fprintf out "v_%a" pp_ident x ;
-      List.iter (fun pat -> fprintf out ",%a)" (pp_pattern ar k) pat) args
+      List.iter (fun pat -> fprintf out ",%a)" (aux 0) pat) args
     end
   | Pattern (_,m,v,args) ->
     begin
       List.iter (fun _ -> fprintf out "app(") args ;
       fprintf out "c_%a_%a" pp_ident m pp_ident v ;
-      List.iter (fun pat -> fprintf out ",%a)" (pp_pattern ar k) pat) args
+      List.iter (fun pat -> fprintf out ",%a)" (aux k) pat) args
     end
   | Var (_,x,n,[]) (* n>=k *) -> fprintf out "m_%a" pp_ident x ;
   | Var (_,x,n,a::args) (* n>=k *) ->
@@ -67,18 +69,20 @@ let rec pp_pattern ar k out = function
       if arity == 0 then (
         List.iter (fun _ -> fprintf out "app(" ) (a::args);
         fprintf out "m_%a" pp_ident x;
-        List.iter ( fprintf out ",%a)" (pp_pattern ar k) ) (a::args)
+        List.iter ( fprintf out ",%a)" (aux k) ) (a::args)
       ) else (
         let (args1,args2) = split (arity-1) args in
         List.iter (fun _ -> fprintf out "app(" ) args2;
-        fprintf out "m_%a(%a" pp_ident x (pp_pattern ar k) a;
-        List.iter ( fprintf out ",%a" (pp_pattern ar k) ) args1;
+        fprintf out "m_%a(%a" pp_ident x (aux k) a;
+        List.iter ( fprintf out ",%a" (aux k) ) args1;
         fprintf out ")";
-        List.iter ( fprintf out ",%a)" (pp_pattern ar k) ) args2
+        List.iter ( fprintf out ",%a)" (aux k) ) args2
       )
   | Lambda (_,x,p) ->
-    fprintf out "lam(m_typ,\\v_%a.%a)" pp_ident x (pp_pattern ar (k+1)) p
-  | Brackets _ -> assert false (*FIXME*) (* incr nb; fprintf out "b_%i" !nb *)
+    fprintf out "lam(m_typ,\\v_%a.%a)" pp_ident x (aux (k+1)) p
+  | Brackets _ -> ( incr nb; fprintf out "b_%i" !nb )
+  in
+  aux 0 out pat
 
 let rec pp_term (ar:int IdMap.t) k out = function
   | Const (_,m,v) -> fprintf out "c_%a_%a" pp_ident m pp_ident v
@@ -153,10 +157,11 @@ let pp_rule out (r:rule_infos) =
   (* Variables*)
   fprintf out "(VAR\n";
   IdMap.iter (fun x n -> fprintf out "  m_%a : %a\n" pp_ident x pp_type n) arities;
-  List.iter (fun x -> fprintf out "  v_%a : term\n" pp_ident x) (get_bvars r) ;
+  List.iter  (fun x -> fprintf out "  v_%a : term\n" pp_ident x) (get_bvars r) ;
+  List.iteri (fun i _ -> fprintf out "  b_%i : term\n" (i+1)) (r.constraints) ;
   fprintf out ")\n";
   (* Rule *)
-  fprintf out "(RULES %a -> %a )\n\n" (pp_pattern arities 0) pat (pp_term arities 0) r.rhs
+  fprintf out "(RULES %a -> %a )\n\n" (pp_pattern arities) pat (pp_term arities 0) r.rhs
 
 let check () : (unit,string) error =
   match !file_out with
