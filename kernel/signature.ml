@@ -16,8 +16,8 @@ type signature_error =
   | AlreadyDefinedSymbol of loc*ident
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
-  | NonConfluentSystem of loc*rule2 list*string
-  | NonConfluentSystemImport of loc*ident*string
+  | ConfluenceErrorImport of loc*ident*Confluence.confluence_error
+  | ConfluenceErrorRules of loc*rule2 list*Confluence.confluence_error
 
 exception SignatureError of signature_error
 
@@ -121,7 +121,7 @@ let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
   H.iter aux ctx;
   match Confluence.check () with
   | OK () -> ()
-  | Err cmd -> raise (SignatureError (NonConfluentSystemImport (lc,md,cmd)))
+  | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
@@ -214,6 +214,6 @@ let add_rules sg lst : unit =
         Confluence.add_rules rs;
         match Confluence.check () with
         | OK () -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
-        | Err file -> raise (SignatureError (NonConfluentSystem (r.l,lst,file)))
+        | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,lst,err)))
       end
     | Err e -> raise (SignatureError (CannotBuildDtree e))

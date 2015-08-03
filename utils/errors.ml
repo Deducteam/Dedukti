@@ -112,6 +112,16 @@ let fail_dtree_error err =
           fail lc "The variable '%a' should be applied to distinct variables."
           pp_ident x
 
+let pp_cerr out err =
+  let open Confluence in
+  match  err with
+  | NotConfluent cmd ->
+    Printf.fprintf out "Checker's answer: NO.\nCommand: %s" cmd
+  | MaybeConfluent cmd ->
+    Printf.fprintf out "Checker's answer: MAYBE.\nCommand: %s" cmd
+  | CCFailure cmd ->
+    Printf.fprintf out "Checker's answer: ERROR.\nCommand: %s" cmd
+
 let fail_signature_error err =
   let open Signature in
     match err with
@@ -131,15 +141,12 @@ let fail_signature_error err =
       | CannotAddRewriteRules (lc,id) ->
           fail lc
             "Cannot add rewrite\ rules for the defined symbol '%a'." pp_ident id
-      | NonConfluentSystem (lc,rs,cmd) ->
-          fail lc "The rewrite system became non-confluent after adding \
-                   the following rewrite rule(s):\n%a.\nYou can run the following command for more information:\n%s"
-            (pp_list "\n" pp_rule2) rs cmd
-      | NonConfluentSystemImport (lc,md,cmd) ->
-        fail lc "The rewrite system became non-confluent when importing \
-                 the module '%a'.\nYou can run the following command for more information:\n%s"
-          pp_ident md cmd
-
+      | ConfluenceErrorRules (lc,rs,cerr) ->
+        fail lc "Confluence checking failed when adding the rewrite rules below.\n%a\n%a"
+          pp_cerr cerr (pp_list "\n" pp_rule2) rs
+      | ConfluenceErrorImport (lc,md,cerr) ->
+        fail lc "Confluence checking failed when importing the module '%a'.\n%a"
+          pp_ident md pp_cerr cerr
 
 let fail_env_error = function
   | Env.EnvErrorSignature e -> fail_signature_error e

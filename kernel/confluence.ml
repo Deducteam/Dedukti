@@ -3,6 +3,11 @@ open Printf
 open Term
 open Rule
 
+type confluence_error =
+  | NotConfluent of string
+  | MaybeConfluent of string
+  | CCFailure of string
+
 module IdMap = Map.Make(
     struct
       type t = ident
@@ -170,24 +175,28 @@ let pp_rule out (r:rule_infos) =
   (* Rule *)
   fprintf out "(RULES %a -> %a )\n\n" (pp_pattern arities) pat (pp_term arities 0) r.rhs
 
-let check () : (unit,string) error =
+let check () : (unit,confluence_error) error =
   match !file_out with
   | None -> OK ()
   | Some (file,out) ->
-    begin
-      let cmd = !confluence_command ^ " -p " ^ file in
-(*       debug "%s" cmd; *)
-      flush out;
-      let input = Unix.open_process_in cmd in
-      let answer =
-        try input_line input
-        with End_of_file -> failwith ( "Call to the external confluence checker failed while checking the module '?'")
-      in
-      let _ = Unix.close_process_in input in
-(*       debug "Confluence checker says %s" answer; *)
-      if ( String.compare answer "YES" == 0 ) then OK ()
-      else ( do_not_erase_confluence_file := true; Err (!confluence_command ^ " " ^ file) )
-    end
+      begin
+        let cmd = !confluence_command ^ " -p " ^ file in
+        flush out;
+        let input = Unix.open_process_in cmd in
+        try (
+          let answer = input_line input in
+          let _ = Unix.close_process_in input in
+          if ( String.compare answer "YES" == 0 ) then OK ()
+          else (
+            do_not_erase_confluence_file := true;
+            if ( String.compare answer "NO" == 0 ) then
+              Err (NotConfluent cmd)
+            else if ( String.compare answer "MAYBE" == 0 ) then
+              Err (MaybeConfluent cmd)
+            else Err (CCFailure cmd)
+          ) )
+        with End_of_file -> Err (CCFailure cmd)
+      end
 
 let add_constant md id =
   match !file_out with
