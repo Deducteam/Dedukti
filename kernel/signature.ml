@@ -166,7 +166,7 @@ let get_dtree sg l m v =
 (******************************************************************************)
 
 let add sg lc v gst =
-  Tpdb.add_constant sg.name v;
+  Confluence.add_constant sg.name v;
   let env = H.find sg.tables sg.name in
   if H.mem env v then
     ( if !ignore_redecl then debug "Redeclaration ignored."
@@ -196,8 +196,8 @@ let add_rules sg lst : unit =
     match Dtree.of_rules rules with
     | OK (n,tree) ->
       begin
-        Tpdb.add_rules rs;
-        match Tpdb.check () with
+        Confluence.add_rules rs;
+        match Confluence.check () with
         | OK () -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
         | Err file -> raise (SignatureError (NonConfluentSystem (r.l,lst,file)))
       end
