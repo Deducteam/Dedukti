@@ -94,6 +94,8 @@ prelude         : NAME DOT      { let (lc,name) = $1 in
 
 line            : ID COLON term DOT
                 { mk_declaration (fst $1) (snd $1) (scope_term [] $3) }
+                | ID param+ COLON term DOT
+                { mk_declaration (fst $1) (snd $1) (scope_term [] (mk_pi $4 $2)) }
                 | KW_DEF ID COLON term DOT
                 { mk_definable (fst $2) (snd $2) (scope_term [] $4) }
                 | KW_DEF ID COLON term DEF term DOT
