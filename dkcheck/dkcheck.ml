@@ -25,7 +25,7 @@ let args = [
    "Automatically handle dependencies (experimental)") ;
   ("-I"    , Arg.String Basics.add_path,        "Add a directory to load path");
   ("-errors-in-snf", Arg.Set Errors.errors_in_snf, "Normalize the types in error messages");
-  ("-confluence-checker", Arg.String Confluence.set_cmd,
+  ("-cc", Arg.String Confluence.set_cmd,
         "Set the external confluence checker")
 ]
 
