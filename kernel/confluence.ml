@@ -152,8 +152,13 @@ let get_arities (ctx:context) (p:pattern) : int IdMap.t =
     | Pattern (_,m,v,args) -> List.fold_left (aux k) map args
     | Var (_,x,n,args) (* n>=k *) ->
       let map2 = List.fold_left (aux k) map args in
-      assert ( not (IdMap.mem x map2 ) );
-      IdMap.add x (List.length args) map2
+      let ar1 = List.length args in
+      let ar = ( try
+                   let ar2 = IdMap.find x map2 in
+                   if ar2 < ar1 then ar2 else ar1
+                 with Not_found -> ar1
+               ) in
+      IdMap.add x ar map2
     | Lambda (_,x,p) -> aux (k+1) map p
     | Brackets _ -> map
   in
