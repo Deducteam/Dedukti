@@ -1,13 +1,13 @@
 " Vim syntax file
 " Language: Dedukti
 " Maintainer: Ronan Saillard
-" Latest Revision: 04/11/2014
+" Latest Revision: 05/08/2015
 "
 if exists("b:current_syntax")
 	finish
 endif
 
-syn keyword dkType Type
+syn keyword dkType Type def
 syn keyword dkTodo TODO FIXME
 
 syn match dkLongArrow 	'-->'
@@ -43,5 +43,5 @@ hi def link dkColon	Constant
 hi def link dkDef	Constant
 hi def link dkDummy	Constant
 
-hi def link dkParR	PreProc
-hi def link dkParL	PreProc
+"hi def link dkParR	PreProc
+"hi def link dkParL	PreProc

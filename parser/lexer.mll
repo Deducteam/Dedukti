@@ -40,6 +40,7 @@ rule token = parse
   | ":="	{ DEF           }
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE ( get_loc lexbuf )       }
+  | "def"      { KW_DEF ( get_loc lexbuf )       }
   | "#NAME" space+ (modname as md)
   { NAME (get_loc lexbuf , hstring md) }
   | "#WHNF"     { WHNF ( get_loc lexbuf ) }
@@ -57,8 +58,6 @@ rule token = parse
   { QID ( get_loc lexbuf , hstring md , hstring id ) }
   | ident  as id
   { ID  ( get_loc lexbuf , hstring id ) }
-  | '`' (ident  as id)
-  { FID  ( get_loc lexbuf , hstring id ) }
   | '"' { flush (); string lexbuf }
   | _   as s
   { Errors.fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }

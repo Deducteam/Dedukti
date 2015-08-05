@@ -5,6 +5,7 @@ exception EndOfFile
 type token =
   | UNDERSCORE  of loc
   | TYPE        of loc
+  | KW_DEF      of loc
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
@@ -15,7 +16,6 @@ type token =
   | LEFTPAR
   | LEFTBRA
   | ID          of ( loc * ident )
-  | FID          of ( loc * ident ) 
   | FATARROW
   | EOF
   | DOT

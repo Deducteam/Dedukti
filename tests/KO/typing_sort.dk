@@ -3,4 +3,4 @@ nat : Type.
 
 x : nat.
 
-y : x. 
+y : x.

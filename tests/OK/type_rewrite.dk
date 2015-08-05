@@ -1,8 +1,8 @@
 #NAME tr.
 
-`A : Type.
+def A : Type.
 B : Type.
-`x : A.
+def x : A.
 y : B.
 [] A --> B.
 [] x --> y.
