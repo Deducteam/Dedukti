@@ -2,6 +2,8 @@ open Basics
 open Term
 open Rule
 
+let allow_non_linear = ref false
+
 type dtree_error =
   | BoundVariableExpected of pattern
   | VariableBoundOutsideTheGuard of term
@@ -11,6 +13,7 @@ type dtree_error =
   | UnboundVariable of loc*ident*pattern
   | AVariableIsNotAPattern of loc*ident
   | DistinctBoundVariablesExpected of loc*ident
+  | NonLinearRule of rule2
 
 exception DtreeExn of dtree_error
 
@@ -61,7 +64,7 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * constr list
         else
           ( Var2(x,n,args2) , { s with seen=IntSet.add (n-k) s.seen; } )
       end
-    else 
+    else
       raise (DtreeExn (DistinctBoundVariablesExpected (l,x)))
     | Brackets t ->
       begin
@@ -156,7 +159,11 @@ let to_rule_infos (r:Rule.rule2) : (rule_infos,dtree_error) error =
       let nb_args = get_nb_args esize lhs in
       let _ = check_nb_args nb_args rhs in
       let (esize2,pats2,cstr) = linearize esize args in
-      let _ = if not (is_linear cstr) then debug "Non-linear Rewrite Rule" in
+      let is_nl = not (is_linear cstr) in
+      if is_nl && (not !allow_non_linear) then
+        Err (NonLinearRule r)
+      else
+        let () = if is_nl then debug "Non-linear Rewrite Rule" in
         OK { l ; ctx ; md ; id ; args ; rhs ;
              esize = esize2 ;
              l_args = Array.of_list pats2 ;

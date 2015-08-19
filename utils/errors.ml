@@ -111,6 +111,10 @@ let fail_dtree_error err =
       | DistinctBoundVariablesExpected (lc,x) ->
           fail lc "The variable '%a' should be applied to distinct variables."
           pp_ident x
+      | NonLinearRule r ->
+        let (_,p,_) = r in
+          fail (Rule.get_loc_pat p) "Non left-linear rewrite rule:\n%a"
+            Rule.pp_rule2 r
 
 let pp_cerr out err =
   let open Confluence in
