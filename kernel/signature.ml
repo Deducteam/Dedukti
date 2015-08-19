@@ -198,11 +198,7 @@ let add_rules sg lst : unit =
   | Err e -> raise (SignatureError (CannotBuildDtree e))
   | OK [] -> ()
   | OK (r::_ as rs) ->
-    let env = H.find sg.tables sg.name in
-    let infos = try H.find env r.id with Not_found ->
-      raise (SignatureError (SymbolNotFound(r.l,sg.name,r.id)))
-    in
-    let (ty,rules) = match infos with
+    let (ty,rules) = match (get_infos sg r.l r.md r.id) with
       | Definable (ty,None) -> ( ty , rs )
       | Definable (ty,Some(mx,_,_)) -> ( ty , mx@rs )
       | Constant _ ->
@@ -213,7 +209,9 @@ let add_rules sg lst : unit =
       begin
         Confluence.add_rules rs;
         match Confluence.check () with
-        | OK () -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
+        | OK () ->
+          let env =  H.find sg.tables r.md in
+          H.add env r.id (Definable (ty,Some(rules,n,tree)))
         | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,lst,err)))
       end
     | Err e -> raise (SignatureError (CannotBuildDtree e))

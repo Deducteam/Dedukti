@@ -43,15 +43,16 @@ let mk_opaque lc id pty_opt pte =
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 
-let get_id = function
-  | Rule.Pattern (_,_,id,_) -> id
-  | _ -> qmark
+let get_infos = function
+  | Rule.Pattern (l,md,id,_) -> (l,md,id)
+  | _ -> (dloc,qmark,qmark)
 
 let mk_rules = function
   | [] -> ()
   | ((_,pat,_)::_) as lst ->
     begin
-      eprint (Rule.get_loc_pat pat) "Adding rewrite rules for '%a'" pp_ident (get_id pat);
+      let (l,md,id) = get_infos pat in
+      eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
       match Env.add_rules lst with
       | OK lst2 ->
         List.iter ( fun (ctx,pat,rhs) ->

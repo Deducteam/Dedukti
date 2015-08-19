@@ -77,7 +77,7 @@
 %type <Preterm.pdecl> decl
 %type <Basics.loc*Basics.ident*Preterm.preterm> param
 %type <Preterm.pdecl list> context
-%type <Basics.loc*Basics.ident*Preterm.prepattern list> top_pattern
+%type <Basics.loc*Basics.ident option*Basics.ident*Preterm.prepattern list> top_pattern
 %type <Preterm.prepattern> pattern
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm
@@ -142,7 +142,7 @@ term_lst        : term                                  { [$1] }
 param           : LEFTPAR ID COLON term RIGHTPAR        { (fst $2,snd $2,$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,id,args) = $4 in ( l , $2 , id , args , $6) }
+                { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6) }
 
 decl            : ID COLON term         { debug "Ignoring type declaration in rule context."; $1 }
                 | ID                    { $1 }
@@ -150,7 +150,9 @@ decl            : ID COLON term         { debug "Ignoring type declaration in ru
 context         : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, decl) { $1 }
 
-top_pattern     : ID pattern_wp*        { (fst $1,snd $1,$2) }
+top_pattern     : ID pattern_wp*        { (fst $1,None,snd $1,$2) }
+                | QID pattern_wp*       { let (l,md,id)=$1 in (l,Some md,id,$2) }
+
 
 pattern_wp      : ID
                         { PPattern (fst $1,None,snd $1,[]) }
