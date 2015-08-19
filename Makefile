@@ -47,11 +47,11 @@ tests: dkcheck
 	@echo "run tests..."
 	@for i in tests/OK/*.dk ; do \
 	    echo "on $$i...  " ; \
-	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep SUCCESS ; \
+	    ./dkcheck.native "$$i" 2>&1 | grep SUCCESS ; \
 	done
 	@for i in tests/KO/*.dk ; do \
 	    echo "on $$i...  " ; \
-	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep ERROR ; \
+	    ./dkcheck.native "$$i" 2>&1 | grep ERROR ; \
 	done
 	@echo "-----------------------"
 	@echo "tests OK"
