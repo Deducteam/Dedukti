@@ -136,11 +136,13 @@ let fail_signature_error err =
       | SymbolNotFound (lc,md,id) ->
           fail lc "Cannot find symbol '%a.%a'." pp_ident md pp_ident id
       | AlreadyDefinedSymbol (lc,id) ->
-          fail lc "Already defined symbol '%a'." pp_ident id
+          fail lc "Already declared symbol '%a'." pp_ident id
       | CannotBuildDtree err -> fail_dtree_error err
       | CannotAddRewriteRules (lc,id) ->
           fail lc
-            "Cannot add rewrite\ rules for the defined symbol '%a'." pp_ident id
+            "Cannot add rewrite\ rules for the static symbol '%a'.\
+            Add the keyword 'def' to its declaration to make the symbol '%a' definable."
+            pp_ident id pp_ident id
       | ConfluenceErrorRules (lc,rs,cerr) ->
         fail lc "Confluence checking failed when adding the rewrite rules below.\n%a\n%a"
           pp_cerr cerr (pp_list "\n" pp_rule2) rs
