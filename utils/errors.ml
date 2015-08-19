@@ -140,8 +140,8 @@ let fail_signature_error err =
       | CannotBuildDtree err -> fail_dtree_error err
       | CannotAddRewriteRules (lc,id) ->
           fail lc
-            "Cannot add rewrite\ rules for the static symbol '%a'.\
-            Add the keyword 'def' to its declaration to make the symbol '%a' definable."
+            "Cannot add rewrite\ rules for the static symbol '%a'.
+Add the keyword 'def' to its declaration to make the symbol '%a' definable."
             pp_ident id pp_ident id
       | ConfluenceErrorRules (lc,rs,cerr) ->
         fail lc "Confluence checking failed when adding the rewrite rules below.\n%a\n%a"
