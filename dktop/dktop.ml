@@ -6,9 +6,10 @@ let rec parse lb =
       print_string ">> "; flush stdout; P.line Lexer.token lb
     done
   with
-    | Exit      -> parse lb
+    | Exit      ->  flush stderr; parse lb
     | P.Error   ->
-        Printf.eprintf "Unexpected token '%s'.\n" (Lexing.lexeme lb) ; parse lb
+        Printf.eprintf "Unexpected token '%s'.\n" (Lexing.lexeme lb);
+        flush stderr; parse lb
     | Tokens.EndOfFile -> exit 0
 
 let  _ =

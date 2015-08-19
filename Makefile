@@ -8,7 +8,7 @@ INSTALL_DIR=/usr/bin
 MENHIR = -menhir "menhir --external-tokens Tokens"
 SRC_DIRS = kernel,utils,parser
 
-all: dkcheck dkdep dkindent lib doc
+all: dkcheck dktop dkdep dkindent lib doc
 
 dkcheck:
 	ocamlbuild -Is $(SRC_DIRS),dkcheck $(MENHIR) -lib unix dkcheck.native
@@ -28,7 +28,7 @@ doc:
 lib:
 	ocamlbuild -Is kernel $(OPTIONS) dedukti.cmxa
 
-BINARIES=dkcheck dktop dkdep dkrule
+BINARIES=dkcheck dktop dkdep dkindent
 
 install:
 	for i in $(BINARIES) ; do \
