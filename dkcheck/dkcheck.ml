@@ -14,7 +14,8 @@ let parse lb =
                          "Unexpected token '%s'." (Lexing.lexeme lb)
 
 let args = [
-  ("-d"    , Arg.Int Checker.set_debug_level,   "Level of verbosity" ) ;
+  ("-v"    , Arg.Set Checker.verbose, "Verbose mode" ) ;
+  ("-d"    , Arg.Set Basics.debug_mode,   "Debug mode" ) ;
   ("-e"    , Arg.Set Checker.export,            "Create a .dko" ) ;
   ("-nc"   , Arg.Clear Errors.color,             "Disable colored output" ) ;
   ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;

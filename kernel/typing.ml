@@ -138,12 +138,12 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
         | App (DB (_,_,n),_,_), _
         | _, App (DB (_,_,n),_,_) when ( n >= q ) ->
           if Reduction.are_convertible sg t1' t2' then
-            ( (*debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2';*) pseudo_u sg sigma lst )
+            ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
           else None
 
         | App (Const (l,md,id),_,_), _
         | _, App (Const (l,md,id),_,_) when (not (Signature.is_constant sg l md id)) ->
-          ( (*debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2';*) pseudo_u sg sigma lst )
+          ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
 
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
@@ -304,6 +304,11 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
 
 (* ************************************************************************** *)
 
+let pp_context_inline out ctx =
+  pp_list ", "
+    (fun out (_,x,ty) -> Printf.fprintf out "%a: %a" pp_ident x pp_term ty )
+    out (List.rev ctx)
+
 (* FIXME no need to traverse three times the terms... *)
 let subst_context (sub:SS.t) (ctx:context) : context =
   try List.mapi ( fun i (l,x,ty) ->
@@ -328,5 +333,5 @@ let check_rule sg (ctx0,le,ri:rule) : rule2 =
           subst_context sub (LList.lst delta.pctx))
   in
   check sg ctx2 ri2 ty_le2;
+  debug "[ %a ] %a --> %a" pp_context_inline ctx2 pp_pattern le pp_term ri2;
   (ctx2,le,ri2)
-(*   debug "Checked rule:\n [ %a ] %a --> %a" pp_context ctx2 pp_pattern le pp_term ri2 *)

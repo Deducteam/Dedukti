@@ -355,16 +355,6 @@ let partition mx c =
 
 let array_to_llist arr =
   LList.make_unsafe (Array.length arr) (Array.to_list arr)
-(*
-let pp_pattern2 out = function
-  | Joker2 -> Printf.fprintf out "Joker"
-  | Var2 (x,i,[]) -> Printf.fprintf out "%a[%i]" pp_ident x i
-  | _ -> assert false
-let dump_pat_arr arr =
-  .debug_no_loc 1 " ================ PATS >";
-  Array.iter (fun p -> .debug_no_loc 1 "%a" pp_pattern2 p) arr ;
-  .debug_no_loc 1 " < ================"
- *)
 
 (* Extracts the pre_context from the first line. *)
 let get_first_pre_context mx =
@@ -381,7 +371,6 @@ let get_first_pre_context mx =
              begin
                let k = mx.col_depth.(i) in
                  assert( 0 <= n-k ) ;
-                 (*                  Print.debug "N=%i K=%i ESIZE=%i" n k esize; *)
                  assert(n-k < esize ) ;
                  arr1.(n-k) <- { position=i; depth=mx.col_depth.(i); };
                  if lst=[] then
