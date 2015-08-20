@@ -37,6 +37,7 @@ let initialize () =
   lam : term -> (term -> term) -> term
   app : term -> term -> term
   pi  : term -> (term -> term) -> term
+  type : term
 )
 
 (COMMENT beta-reduction)
@@ -48,8 +49,10 @@ let initialize () =
 )
 (RULES
   app( lam(m_typ,\\v_x. m_F v_x), m_B) -> m_F(m_B)
-)\n"
+)\n";
     end
+
+
 
 let rec split n lst =
   if n <= 0 then ( [], lst )
@@ -125,7 +128,8 @@ let rec pp_term (ar:int IdMap.t) k out = function
       pp_term ar k out f ;
       List.iter ( fprintf out ",%a)" (pp_term ar k) ) (a::args)
     end
-  | Kind | Type _  -> assert false
+  | Type _  -> fprintf out "type"
+  | Kind  -> assert false
 
 let get_bvars r =
   let pat = (Pattern (r.l,r.md,r.id,r.args)) in
