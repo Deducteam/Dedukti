@@ -64,13 +64,7 @@ let add_rule_infos sg (lst:rule_infos list) : unit =
         raise (SignatureError (CannotAddRewriteRules (r.l,r.id)))
     in
     match Dtree.of_rules rules with
-    | OK (n,tree) ->
-      begin
-        Confluence.add_rules rs;
-        match Confluence.check () with
-        | OK () -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
-        | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,lst,err)))
-      end
+    | OK (n,tree) -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
     | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 (******************************************************************************)
@@ -139,34 +133,31 @@ let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
       | Some (rs,_,_) -> Confluence.add_rules rs )
   in
   H.iter aux ctx;
+  debug "Checking confluence after loading module '%a'..." pp_ident md;
   match Confluence.check () with
   | OK () -> ()
   | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
 
 (* Recursively load a module and its dependencies*)
-let import sg lc m0 =
-  let rec import_rec m =
-    assert ( not (H.mem sg.tables m) ) ;
+let rec import sg lc m =
+  assert ( not (H.mem sg.tables m) ) ;
 
-    (* If the [.dko] file is not found, try to compile it first.
+  (* If the [.dko] file is not found, try to compile it first.
        This hack is terrible. It uses system calls and can loop with circular dependencies. *)
-    ( if !autodep && not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) then
-        if Sys.command ( "dkcheck -autodep -e " ^ string_of_ident m ^ ".dk" ) <> 0 then
-          raise (SignatureError (FailToCompileModule (lc,m)))
-    ) ;
+  ( if !autodep && not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) then
+      if Sys.command ( "dkcheck -autodep -e " ^ string_of_ident m ^ ".dk" ) <> 0 then
+        raise (SignatureError (FailToCompileModule (lc,m)))
+  ) ;
 
-    let (deps,ctx,ext) = unmarshal lc (string_of_ident m) in
-    H.add sg.tables m ctx;
-    List.iter ( fun dep0 ->
-        let dep = hstring dep0 in
-        if not (H.mem sg.tables dep) then ignore (import_rec dep)
-      ) deps ;
-    debug "Loading module %a..." pp_ident m;
-    List.iter (fun rs -> add_rule_infos sg rs) ext;
-    ctx
-  in
-  let ctx = import_rec m0 in
-  check_confluence_on_import lc m0 ctx;
+  let (deps,ctx,ext) = unmarshal lc (string_of_ident m) in
+  H.add sg.tables m ctx;
+  List.iter ( fun dep0 ->
+      let dep = hstring dep0 in
+      if not (H.mem sg.tables dep) then ignore (import sg lc dep)
+    ) deps ;
+  debug "Loading module '%a'..." pp_ident m;
+  List.iter (fun rs -> add_rule_infos sg rs) ext;
+  check_confluence_on_import lc m ctx;
   ctx
 
 let get_deps sg : string list = (*only direct dependencies*)
@@ -226,6 +217,14 @@ let add_rules sg lst : unit =
   | Err e -> raise (SignatureError (CannotBuildDtree e))
   | OK [] -> ()
   | OK (r::_ as rs) ->
-    add_rule_infos sg rs;
-    if not (ident_eq sg.name r.md) then
-      sg.external_rules <- rs::sg.external_rules
+    begin
+      add_rule_infos sg rs;
+      if not (ident_eq sg.name r.md) then
+        sg.external_rules <- rs::sg.external_rules;
+      Confluence.add_rules rs;
+      debug "Checking confluence after adding rewrite rules on symbol '%a.%a'"
+      pp_ident r.md pp_ident r.id;
+      match Confluence.check () with
+      | OK () -> ()
+      | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))
+    end
