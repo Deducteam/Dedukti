@@ -17,7 +17,7 @@ type signature_error =
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
   | ConfluenceErrorImport of loc*ident*Confluence.confluence_error
-  | ConfluenceErrorRules of loc*rule2 list*Confluence.confluence_error
+  | ConfluenceErrorRules of loc*rule_infos list*Confluence.confluence_error
 
 exception SignatureError of signature_error
 
@@ -37,30 +37,57 @@ type rw_infos =
   | Constant of term
   | Definable of term * (rule_infos list*int*dtree) option
 
-type t = { name:ident; tables:(rw_infos H.t) H.t }
+type t = { name:ident; tables:(rw_infos H.t) H.t;
+           mutable external_rules:rule_infos list list; }
 
 let make name =
   let ht = H.create 19 in
-    H.add ht name (H.create 251); { name=name; tables=ht; }
+  H.add ht name (H.create 251); { name=name; tables=ht; external_rules=[]; }
 
 let get_name sg = sg.name
 
 (******************************************************************************)
 
-let marshal name deps env =
+let add_rule_infos sg (lst:rule_infos list) : unit =
+  match lst with
+  | [] -> ()
+  | (r::_ as rs) ->
+    let env =
+      try H.find sg.tables r.md
+      with Not_found -> assert false in (*should not happen if the dependencies are loaded before*)
+    let infos = try ( H.find env r.id )
+      with Not_found -> assert false in
+    let (ty,rules) = match infos with
+      | Definable (ty,None) -> ( ty , rs )
+      | Definable (ty,Some(mx,_,_)) -> ( ty , mx@rs )
+      | Constant _ ->
+        raise (SignatureError (CannotAddRewriteRules (r.l,r.id)))
+    in
+    match Dtree.of_rules rules with
+    | OK (n,tree) ->
+      begin
+        Confluence.add_rules rs;
+        match Confluence.check () with
+        | OK () -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
+        | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,lst,err)))
+      end
+    | Err e -> raise (SignatureError (CannotBuildDtree e))
+
+(******************************************************************************)
+
+let marshal (name:ident) (deps:string list) (env:rw_infos H.t) (ext:rule_infos list list) : bool =
   try
     begin
       let out = open_out (string_of_ident name ^ ".dko" ) in
         Marshal.to_channel out Version.version [] ;
         Marshal.to_channel out deps [] ;
-        Marshal.to_channel out env [Marshal.Closures] ;
+        Marshal.to_channel out env [] ;
+        Marshal.to_channel out ext [] ;
         close_out out ;
         true
     end
   with
     | _ -> false
-
-(* exception BadVersionNumber *)
 
 let file_exists = Sys.file_exists
 
@@ -82,7 +109,7 @@ let find_dko name =
       (* If not found in the current directory, search in load-path *)
       find_dko_in_path name (get_path())
 
-let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t =
+let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t * rule_infos list list =
   try
     begin
       let chan = find_dko m in
@@ -91,7 +118,8 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t =
           begin
             let deps:string list = Marshal.from_channel chan in
             let ctx:rw_infos H.t = Marshal.from_channel chan in
-              close_in chan ; (deps,ctx)
+            let ext:rule_infos list list= Marshal.from_channel chan in
+              close_in chan ; (deps,ctx,ext)
           end
         else raise (SignatureError (UnmarshalBadVersionNumber (lc,m)))
     end
@@ -99,14 +127,6 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t =
     | Sys_error s -> raise (SignatureError (UnmarshalSysError (lc,m,s)))
     | _ -> raise (SignatureError (UnmarshalUnknown (lc,m)))
 
-let get_all_rules md =
-  let (_,ht) = unmarshal dloc md in
-  let aux _ rw rs = match rw with
-    | Constant _
-    | Definable (_,None) -> rs
-    | Definable (_,Some(lst,_,_)) -> lst@rs
-  in
-    H.fold aux ht []
 (******************************************************************************)
 
 let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
@@ -124,22 +144,29 @@ let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
   | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
 
 (* Recursively load a module and its dependencies*)
-let rec import sg lc m =
-  assert ( not (H.mem sg.tables m) ) ;
-  (* If the [.dko] file is not found, try to compile it first.
-   This hack is terrible. It uses system calls and can loop with circular dependencies. *)
-  ( if !autodep && not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) then
-    if Sys.command ( "dkcheck -autodep -e " ^ string_of_ident m ^ ".dk" ) <> 0 then
-        raise (SignatureError (FailToCompileModule (lc,m)))
+let import sg lc m0 =
+  let rec import_rec m =
+    assert ( not (H.mem sg.tables m) ) ;
+
+    (* If the [.dko] file is not found, try to compile it first.
+       This hack is terrible. It uses system calls and can loop with circular dependencies. *)
+    ( if !autodep && not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) then
+        if Sys.command ( "dkcheck -autodep -e " ^ string_of_ident m ^ ".dk" ) <> 0 then
+          raise (SignatureError (FailToCompileModule (lc,m)))
     ) ;
 
-    let (deps,ctx) = unmarshal lc (string_of_ident m) in
-  H.add sg.tables m ctx;
-  check_confluence_on_import lc m ctx;
-  List.iter (
-    fun dep -> if not (H.mem sg.tables m) then
-      ignore (import sg lc (hstring dep))
+    let (deps,ctx,ext) = unmarshal lc (string_of_ident m) in
+    H.add sg.tables m ctx;
+    List.iter ( fun dep0 ->
+        let dep = hstring dep0 in
+        if not (H.mem sg.tables dep) then ignore (import_rec dep)
       ) deps ;
+    debug "Loading module %a..." pp_ident m;
+    List.iter (fun rs -> add_rule_infos sg rs) ext;
+    ctx
+  in
+  let ctx = import_rec m0 in
+  check_confluence_on_import lc m0 ctx;
   ctx
 
 let get_deps sg : string list = (*only direct dependencies*)
@@ -150,7 +177,7 @@ let get_deps sg : string list = (*only direct dependencies*)
     ) sg.tables []
 
 let export sg =
-  marshal sg.name (get_deps sg) (H.find sg.tables sg.name)
+  marshal sg.name (get_deps sg) (H.find sg.tables sg.name) sg.external_rules
 
 (******************************************************************************)
 
@@ -192,26 +219,13 @@ let add sg lc v gst =
 let add_declaration sg lc v ty = add sg lc v (Constant ty)
 let add_definable sg lc v ty = add sg lc v (Definable (ty,None))
 
+
 let add_rules sg lst : unit =
   let rs = map_error_list Dtree.to_rule_infos lst in
   match rs with
   | Err e -> raise (SignatureError (CannotBuildDtree e))
   | OK [] -> ()
   | OK (r::_ as rs) ->
-    let (ty,rules) = match (get_infos sg r.l r.md r.id) with
-      | Definable (ty,None) -> ( ty , rs )
-      | Definable (ty,Some(mx,_,_)) -> ( ty , mx@rs )
-      | Constant _ ->
-        raise (SignatureError (CannotAddRewriteRules (r.l,r.id)))
-    in
-    match Dtree.of_rules rules with
-    | OK (n,tree) ->
-      begin
-        Confluence.add_rules rs;
-        match Confluence.check () with
-        | OK () ->
-          let env =  H.find sg.tables r.md in
-          H.add env r.id (Definable (ty,Some(rules,n,tree)))
-        | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,lst,err)))
-      end
-    | Err e -> raise (SignatureError (CannotBuildDtree e))
+    add_rule_infos sg rs;
+    if not (ident_eq sg.name r.md) then
+      sg.external_rules <- rs::sg.external_rules

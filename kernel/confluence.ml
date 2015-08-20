@@ -185,6 +185,7 @@ let check () : (unit,confluence_error) error =
   | None -> OK ()
   | Some (file,out) ->
       begin
+        debug "Checking confluence...";
         let cmd = !confluence_command ^ " -p " ^ file in
         flush out;
         let input = Unix.open_process_in cmd in

@@ -17,7 +17,7 @@ type signature_error =
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
   | ConfluenceErrorImport of loc*ident*Confluence.confluence_error
-  | ConfluenceErrorRules of loc*rule2 list*Confluence.confluence_error
+  | ConfluenceErrorRules of loc*rule_infos list*Confluence.confluence_error
 
 exception SignatureError of signature_error
 

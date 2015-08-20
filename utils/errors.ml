@@ -149,7 +149,7 @@ Add the keyword 'def' to its declaration to make the symbol '%a' definable."
             pp_ident id pp_ident id
       | ConfluenceErrorRules (lc,rs,cerr) ->
         fail lc "Confluence checking failed when adding the rewrite rules below.\n%a\n%a"
-          pp_cerr cerr (pp_list "\n" pp_rule2) rs
+          pp_cerr cerr (pp_list "\n" pp_frule) rs
       | ConfluenceErrorImport (lc,md,cerr) ->
         fail lc "Confluence checking failed when importing the module '%a'.\n%a"
           pp_ident md pp_cerr cerr
