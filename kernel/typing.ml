@@ -96,6 +96,10 @@ let rec add_to_list q lst args1 args2 =
     | a1::args1, a2::args2 -> add_to_list q ((q,a1,a2)::lst) args1 args2
     | _, _ -> raise (Invalid_argument "add_to_list")
 
+let safe_add_to_list q lst args1 args2 =
+  try Some (add_to_list q lst args1 args2)
+  with Invalid_argument _ -> None
+
 module SS = Subst.S
 
 let unshift_reduce sg q t =
@@ -148,7 +152,11 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
            * | Const md.id when (is_constant md id) *)
-          pseudo_u sg sigma ((q,f,f')::(q,a,a')::(add_to_list q lst args args'))
+          begin
+            match safe_add_to_list q lst args args' with
+            | None -> None
+            | Some lst2 -> pseudo_u sg sigma ((q,f,f')::(q,a,a')::lst2)
+          end
 
         | _, _ -> None
     end
