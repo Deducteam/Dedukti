@@ -123,6 +123,13 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             ( Basics.ident_eq id id' && Basics.ident_eq md md' ) ->
           pseudo_u sg sigma lst
 
+        | DB (l1,x1,n1), DB (l2,x2,n2) when ( n1>=q && n2>=q) ->
+          begin
+            let (x,n,t) = if n1<n2 then (x1,n1,mk_DB l2 x2 (n2-q)) else (x2,n2,mk_DB l1 x1 (n1-q)) in
+            match SS.add sigma x (n-q) t with
+            | None -> assert false (*FIXME error message*)
+            | Some sigma2 -> pseudo_u sg sigma2 lst
+          end
         | DB (_,x,n), t
         | t, DB (_,x,n) when n>=q ->
           begin
@@ -320,6 +327,7 @@ let pp_context_inline out ctx =
 (* FIXME no need to traverse three times the terms... *)
 let subst_context (sub:SS.t) (ctx:context) : context =
   try List.mapi ( fun i (l,x,ty) ->
+      debug " %i = %a" i pp_ident x;
       (l,x,
        Subst.unshift (i+1) (SS.apply sub (Subst.shift (i+1) ty) 0) )
     ) ctx
@@ -334,6 +342,9 @@ let check_rule sg (ctx0,le,ri:rule) : rule2 =
     | None -> raise (TypingError (CannotSolveConstraints ((ctx0,le,ri),lst)))
     | Some s -> ( (*debug "%a" SS.pp s;*) s )
   in
+  let sub = SS.mk_idempotent sub in
+  debug "Context: %a" pp_context (LList.lst delta.pctx); (*FIXME*)
+  debug "Substitution: %a" SS.pp sub;
   let (ri2,ty_le2,ctx2) =
     if SS.is_identity sub then (ri,ty_le,LList.lst delta.pctx)
     else (SS.apply sub ri 0,
