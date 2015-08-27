@@ -7,6 +7,7 @@ let out = ref stdout
 let deps = ref []
 let name = ref ""
 let filename = ref ""
+let verbose = ref false
 
 let print_out fmt = Printf.kfprintf (fun _ -> output_string !out "\n" ) !out fmt
 

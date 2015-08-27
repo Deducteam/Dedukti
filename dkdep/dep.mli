@@ -20,3 +20,5 @@ val mk_command          : loc -> Cmd.command -> unit
 val mk_ending           : unit -> unit
 
 val filename            : string ref
+
+val verbose             : bool ref
