@@ -1,53 +1,49 @@
 #NAME nat.
 
-bool := bool.bool.
-true := bool.true.
-false := bool.false.
+def bool := bool.bool.
+def true := bool.true.
+def false := bool.false.
 
-is0 : nat -> bool.
+def is0 : nat -> bool.
 [] is0 0 --> true
-[ n : nat ] is0 (S n) --> false.
+[] is0 (S _) --> false.
 
-+ : nat -> nat -> nat.
-[ n : nat ] + 0 n --> n
-[ m : nat ] + m 0 --> m
-[ m : nat, n : nat ] + (S m) n --> S (+ m n)
-[ m : nat, n : nat ] + m (S n) --> S (+ m n)
-[ m : nat, n : nat, p : nat ] + m (+ n p) --> + (+ m n) p.
+def + : nat -> nat -> nat.
+[ n ]       + 0 n       --> n
+[ m ]       + m 0       --> m
+[ m, n ]    + (S m) n   --> S (+ m n)
+[ m, n ]    + m (S n)   --> S (+ m n)
+[ m, n, p ] + m (+ n p) --> + (+ m n) p.
 
-= : nat -> nat -> bool.
-[ n : nat ] = n n --> true
-[ m : nat, n : nat ] = (S m) (S n) --> = m n
-[ n : nat ] = 0 (S n) --> false
-[ m : nat ] = (S m) 0 --> false.
+def = : nat -> nat -> bool.
+[]       = 0 0         --> true
+[]       = 0 (S _)     --> false
+[]       = (S _) 0     --> false
+[ m, n ] = (S m) (S n) --> = m n.
 
-<= : nat -> nat -> bool.
-[ n : nat ] <= n n --> true
-[ m : nat, n : nat ] <= (S m) (S n) --> <= m n
-[ n : nat ] <= 0 n --> true
-[ m : nat ] <= (S m) 0 --> false.
+def <= : nat -> nat -> bool.
+[]       <= 0 _         --> true
+[]       <= (S _) 0     --> false
+[ m, n ] <= (S m) (S n) --> <= m n.
 
->= : nat -> nat -> bool.
-[ n : nat ] >= n n --> true
-[ m : nat, n : nat ] >= (S m) (S n) --> >= m n
-[ n : nat ] >= 0 (S n) --> false
-[ m : nat ] >= m 0 --> true.
+def >= : nat -> nat -> bool.
+[]       >= _ 0         --> true
+[]       >= 0 (S _)     --> false
+[ m, n ] >= (S m) (S n) --> >= m n.
 
-< : nat -> nat -> bool.
-[ n : nat ] < n n --> false
-[ m : nat, n : nat ] < (S m) (S n) --> < m n
-[ n : nat ] < 0 (S n) --> true
-[ m : nat ] < m 0 --> false.
+def < : nat -> nat -> bool.
+[]       < _ 0         --> false
+[]       < 0 (S _)     --> true
+[ m, n ] < (S m) (S n) --> < m n.
 
-> : nat -> nat -> bool.
-[ n : nat ] > n n --> false
-[ m : nat, n : nat ] > (S m) (S n) --> > m n
-[ n : nat ] > 0 n --> false
-[ m : nat ] > (S m) 0 --> true.
+def > : nat -> nat -> bool.
+[]       > 0 _         --> false
+[]       > (S _) 0     --> true
+[ m, n ] > (S m) (S n) --> > m n.
 
-* : nat -> nat -> nat.
-[ n : nat ] * 0 n --> 0
-[ m : nat ] * m 0 --> 0
-[ m : nat, n : nat ] * (S m) n --> + (* m n) n
-[ m : nat, n : nat ] * m (S n) --> + m (* m n)
-[ m : nat, n : nat, p : nat ] * m (* n p) --> * (* m n) p.
+def * : nat -> nat -> nat.
+[]          * 0 _       --> 0
+[]          * _ 0       --> 0
+[ m, n ]    * (S m) n   --> + (* m n) n
+[ m, n ]    * m (S n)   --> + m (* m n)
+[ m, n, p ] * m (* n p) --> * (* m n) p.

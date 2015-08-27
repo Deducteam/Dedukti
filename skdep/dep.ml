@@ -7,6 +7,7 @@ let out = ref stdout
 let deps = ref []
 let name = ref ""
 let filename = ref ""
+let verbose = ref false
 
 let print_out fmt = Printf.kfprintf (fun _ -> output_string !out "\n" ) !out fmt
 
@@ -35,6 +36,7 @@ let rec mk_pattern = function
   | Brackets t -> mk_term t
 
 let mk_declaration _ _ t = mk_term t
+let mk_definable _ _ t = mk_term t
 
 let mk_definition _ _ = function
   | None -> mk_term
@@ -46,8 +48,8 @@ let mk_binding ( _,_, t) = mk_term t
 
 let mk_ctx = List.iter mk_binding
 
-let mk_prule (ctx,pat,rhs) =
-  mk_ctx ctx; mk_pattern pat; mk_term rhs
+let mk_prule (ctx,pat,rhs:rule) =
+  (*mk_ctx ctx;*) mk_pattern pat; mk_term rhs
 
 let mk_rules = List.iter mk_prule
 

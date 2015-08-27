@@ -28,7 +28,12 @@ type pattern2 =
 
 (** {2 Rewrite Rules} *)
 
-type rule = context * pattern * term
+type rule = (loc*ident) list * pattern * term
+type rule2 = context * pattern * term
+
+type constr =
+  | Linearity of term*term (* change to int*int ? *)
+  | Bracket of term*term (* change to int*term ? *)
 
 type rule_infos = {
   l:loc;
@@ -40,10 +45,11 @@ type rule_infos = {
   (* *)
   esize:int;
   l_args:pattern2 array;
-  constraints:(term*term) list;
+  constraints:constr list;
 }
 
 val pp_rule     : out_channel -> rule -> unit
+val pp_rule2    : out_channel -> rule2 -> unit
 val pp_frule    : out_channel -> rule_infos -> unit
 
 (** {2 Decision Trees} *)
@@ -71,7 +77,7 @@ type pre_context =
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of pre_context * (term*term) list * term * dtree option
+  | Test    of pre_context * constr list * term * dtree option
 
 val pp_dtree    : int -> out_channel -> dtree -> unit
 val pp_rw       : out_channel -> (ident*ident*int*dtree) -> unit

@@ -113,9 +113,8 @@ let rec reduce (sg:Signature.t) (st:state) : state =
     | { ctx; term=Const (l,m,v); stack } as config ->
         begin
           match Signature.get_dtree sg l m v with
-            | Signature.DoD_None -> config
-            | Signature.DoD_Def term -> reduce sg { ctx=LList.nil; term; stack }
-            | Signature.DoD_Dtree (i,g) ->
+            | None -> config
+            | Some (i,g) ->
                 begin
                   match split_stack i stack with
                     | None -> config
@@ -130,11 +129,19 @@ let rec reduce (sg:Signature.t) (st:state) : state =
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
 and rewrite (sg:Signature.t) (stack:stack) (g:dtree) : (env*term) option =
-  let test ctx eqs =
-    are_convertible_lst sg (List.rev_map (
-        fun (t1,t2) -> ( term_of_state { ctx; term=t1; stack=[] } ,
-                         term_of_state { ctx; term=t2; stack=[] } )
-      ) eqs)
+  let rec test ctx = function
+    | [] -> true
+    | (Linearity (t1,t2))::tl ->
+      if are_convertible_lst sg [ term_of_state { ctx; term=t1; stack=[] },
+                                  term_of_state { ctx; term=t2; stack=[] } ]
+      then test ctx tl
+      else false
+    | (Bracket (t1,t2))::tl ->
+      if are_convertible_lst sg [ term_of_state { ctx; term=t1; stack=[] },
+                                  term_of_state { ctx; term=t2; stack=[] } ]
+      then test ctx tl
+      else
+        failwith "Error while reducing a term: a guard was not satisfied." (*FIXME*)
   in
     (*dump_stack stack ; *)
     match g with
@@ -161,13 +168,15 @@ and rewrite (sg:Signature.t) (stack:stack) (g:dtree) : (env*term) option =
                   else bind_opt (rewrite sg stack) def
           end
       | Test (MillerPattern lst, eqs, right, def) ->
-          begin
-              match get_context_mp sg stack lst with
-                | None -> bind_opt (rewrite sg stack) def
-                | Some ctx ->
-                      if test ctx eqs then Some (ctx, right)
-                      else bind_opt (rewrite sg stack) def
-          end
+        begin
+          match get_context_mp sg stack lst with
+          | None -> bind_opt (rewrite sg stack) def
+          | Some ctx ->
+            let ctx2 = LList.map (fun (_,tt) -> Lazy.from_val tt) ctx in
+            if test ctx2 eqs then
+              Some (LList.nil, Matching.ho_psubst ctx right)
+            else bind_opt (rewrite sg stack) def
+        end
 
 and unshift sg q te =
   try Subst.unshift q te
@@ -185,10 +194,17 @@ and get_context_syn (sg:Signature.t) (stack:stack) (ord:pos LList.t) : env optio
   ) ord )
   with Subst.UnshiftExn -> ( (*Print.debug "Cannot unshift";*) None )
 
-and get_context_mp (sg:Signature.t) (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
-  let aux (pb:abstract_pb)  =
-    Lazy.from_val ( unshift sg pb.depth2 (
-      (Matching.resolve pb.dbs (term_of_state (List.nth stack pb.position2))) ))
+and resolve sg pbs te : term =
+  try Matching.resolve pbs te
+  with Matching.NotUnifiable ->
+    Matching.resolve pbs (snf sg te)
+
+and get_context_mp (sg:Signature.t) (stack:stack) (pb_lst:abstract_pb LList.t) : Matching.ho_env option =
+  let aux (pb:abstract_pb) : int*term =
+    ( LList.len pb.dbs,
+      unshift sg pb.depth2 (
+        (resolve sg pb.dbs (term_of_state (List.nth stack pb.position2))) )
+    )
   in
   try Some (LList.map aux pb_lst)
   with
@@ -207,7 +223,7 @@ and snf sg (t:term) : term =
     | DB _ | Type _ as t' -> t'
     | App (f,a,lst)     -> mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst)
     | Pi (_,x,a,b)        -> mk_Pi dloc x (snf sg a) (snf sg b)
-    | Lam (_,x,a,b)       -> mk_Lam dloc x None (snf sg b)
+    | Lam (_,x,a,b)       -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
 and are_convertible_lst sg : (term*term) list -> bool = function
   | [] -> true
@@ -262,9 +278,8 @@ let rec state_one_step (sg:Signature.t) : state -> state option = function
     | { ctx; term=Const (l,m,v); stack } ->
         begin
           match Signature.get_dtree sg l m v with
-            | Signature.DoD_None -> None
-            | Signature.DoD_Def term -> Some { ctx=LList.nil; term; stack }
-            | Signature.DoD_Dtree (i,g) ->
+            | None -> None
+            | Some (i,g) ->
                 begin
                   match split_stack i stack with
                     | None -> None

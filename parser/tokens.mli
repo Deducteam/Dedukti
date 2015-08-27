@@ -6,6 +6,7 @@ type token =
   | UNDERSCORE  of loc
   | TYPE        of loc
   | RIGHTLST    of loc
+  | KW_DEF      of loc
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA

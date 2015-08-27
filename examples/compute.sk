@@ -1,0 +1,17 @@
+(; Computational test. ;)
+#NAME compute.
+
+def plus : nat -> nat -> nat.
+[x]        plus 0 x --> x
+[x,y] plus (S x) y --> plus x (S y).
+
+def mult : nat -> nat -> nat.
+[]    mult 0 _ --> 0
+[x,y] mult (S x) y --> plus y (mult x y).
+
+def fact : nat -> nat.
+[]      fact 0 --> S 0
+[x] fact (S x) --> mult (S x) (fact x).
+
+#CONV	(plus (fact 7) (fact 6)),
+	(plus (fact 6) (fact 7)).

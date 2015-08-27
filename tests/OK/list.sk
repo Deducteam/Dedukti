@@ -1,8 +1,8 @@
 #NAME list.
 
-head : A : Type -> list A -> A.
-[ A : Type, a : A, l : list A ] head A (cons A a l) --> a.
+def head : A : Type -> list A -> A.
+[ a ] head _ (cons _ a _) --> a.
 
-tail : A : Type -> list A -> list A.
-[ A : Type, a : A, l : list A ] tail A (cons A a l) --> l.
+def tail : A : Type -> list A -> list A.
+[ l ] tail _ (cons _ _ l) --> l.
 

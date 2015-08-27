@@ -14,11 +14,13 @@ type prepattern =
   | PLambda     of loc*ident*prepattern
   | PJoker      of loc
 
-type pdecl =
+type param =
   | PDecl of loc * ident * preterm
   | PDef of loc * ident * preterm
+type pdecl      = loc * ident
+type pfield = loc * ident * preterm
 type pcontext   = pdecl list
-type prule      = loc * pdecl list * ident * prepattern list * preterm
+type prule      = loc * pdecl list * ident option * ident * prepattern list * preterm
 
 open Printf
 

@@ -1,9 +1,15 @@
 SKCHECK = ../../skcheck.native
 SKDEP = ../../skdep.native
+DKCHECK = dkcheck
 SKOPTIONS = -coc
 
+SKS = $(wildcard *.sk)
+DEPENDS = $(SKS:.sk=.depend)
+DKOS = $(shell cut -d ':' -f 1 *.depend 2> /dev/null)
+all: $(DKOS)
+
 builtins.dko: builtins.dk
-	dkcheck -e -coc $<
+	$(DKCHECK) -e -coc $<
 
 %.dko:
 	$(SKCHECK) $(SKOPTIONS) -e $<
@@ -14,11 +20,8 @@ builtins.dko: builtins.dk
 clean:
 	rm -f *.dko *.depend
 
-SKS = $(wildcard *.sk)
-DEPENDS = $(SKS:.sk=.depend)
-DKOS = $(shell cat *.depend | cut -d ':' -f 1)
-all: $(DKOS)
+depend: $(DEPENDS)
 
 -include $(DEPENDS)
 
-.PHONY:	clean all
+.PHONY:	clean depend all

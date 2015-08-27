@@ -1,0 +1,16 @@
+#NAME append.
+
+A  : Type.
+
+def plus: nat -> nat -> nat.
+[m]       plus  0    m --> m
+[n,m] plus (S n) m --> S (plus n m).
+
+Listn : nat -> Type.
+nil   : Listn 0.
+cons  : n:nat -> A -> Listn n -> Listn (S n).
+
+def append: n:nat -> Listn n -> m:nat -> Listn m -> Listn (plus n m).
+[l2] append _ nil _ l2 --> l2
+[n,l1,m,l2,a]
+  append _ (cons n a l1) m l2 --> cons (plus n m) a (append n l1 m l2).

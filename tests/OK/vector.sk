@@ -4,33 +4,32 @@ V : Type -> nat -> Type.
 Vnil : A : Type -> V A 0.
 Vcons : A : Type -> n : nat -> a : A -> v : V A n -> V A (S n).
 
-head : A : Type -> n : nat -> V A (S n) -> A.
-[ A : Type, n : nat, a : A, v : V A n ] head A n (Vcons A n a v) --> a.
+def head : A : Type -> n : nat -> V A (S n) -> A.
+[ a ] head _ _ (Vcons _ _ a _) --> a.
 
-tail : A : Type -> n : nat -> V A (S n) -> V A n.
-[ A : Type, n : nat, a : A, v : V A n ] tail A n (Vcons A n a v) --> v.
+def tail : A : Type -> n : nat -> V A (S n) -> V A n.
+[ v ] tail _ _ (Vcons _ _ _ v) --> v.
 
-append : A : Type -> n : nat -> V A n -> m : nat -> V A m -> V A (nat.+ n m).
-[ A : Type, m : nat, w : V A m ] append A 0 (Vnil A) m w --> w
-[ A : Type, n : nat, v : V A n ] append A n v 0 (Vnil A) --> v
-[ A : Type, n : nat, a : A, v : V A n, m : nat, w : V A m ]
-    append A (S n) (Vcons A n a v) m w
+def append : A : Type -> n : nat -> V A n -> m : nat -> V A m -> V A (nat.+ n m).
+[ w ] append _ _ (Vnil _) _ w --> w
+[ v ] append _ _ v _ (Vnil _) --> v
+[ A, n, a, v, m, w ]
+    append A (S n) (Vcons _ _ a v) m w
       -->
     Vcons A (nat.+ n m) a (append A n v m w)
-[ A : Type, n : nat, v : V A n,
-  m : nat, w : V A m,
-  p : nat, x : V A p ]
-    append A n v {nat.+ m p} (append A m w p x)
-      -->
-    append A (nat.+ n m) (append A n v m w) p x.
+(; [ A, n, v, m, w, p, x ]
+     append A n v {nat.+ m p} (append _ m w p x)
+       -->
+     append A (nat.+ n m) (append A n v m w) p x ;)
+    .
 
-length : A : Type -> list A -> nat.
-[ A : Type ] length A (nil A) --> 0
-[ A : Type, a : A, l : list A ] length A (cons A a l) --> S (length A l).
+def length : A : Type -> list A -> nat.
+[ ] length _ (nil _) --> 0
+[ A, l ] length A (cons _ _ l) --> S (length A l).
 
-list_to_vect : A : Type -> l : list A -> V A (length A l).
-[ A : Type ] list_to_vect A (nil A) --> Vnil A
-[ A : Type, a : A, l : list A ]
-    list_to_vect A (cons A a l)
+def list_to_vect : A : Type -> l : list A -> V A (length A l).
+[ A ] list_to_vect A (nil _) --> Vnil A
+[ A, a, l ]
+    list_to_vect A (cons _ a l)
       -->
     Vcons A (length A l) a (list_to_vect A l).

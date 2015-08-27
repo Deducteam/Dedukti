@@ -19,16 +19,16 @@ empty_ax : prf( forall ( x:Set => not (in x empty) ) ).
 leq : Set -> Set -> Prop.
 min: Set -> Set -> Prop.
 min_ax1 : prf (
-	forall (S:Set =>
+	forall (s:Set =>
 	forall (x:Set =>
 	forall (y:Set =>
-	imp (min x S) (	imp (in y S) (leq x y) )
+	imp (min x s) (	imp (in y s) (leq x y) )
 	))) ).
 
 min_ax2 : prf (
-	forall (S:Set =>
+	forall (s:Set =>
 	forall (x:Set =>
-	imp (min x S) (in x S)
+	imp (min x s) (in x s)
 	)) ).
 
 stmt := forall (x => not (min x empty)).

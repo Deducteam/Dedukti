@@ -1,4 +1,0 @@
-#NAME def.
-A:Type.
-P:A->Type.
-magic (a1:A) (a2:A) (H:P a1) : P a2 := H.

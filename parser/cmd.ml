@@ -55,8 +55,8 @@ let mk_command lc =
   | Gdt (m0,v)         ->
       let m = match m0 with None -> Env.get_name () | Some m -> m in
         ( match Env.get_dtree lc m v with
-            | OK (Signature.DoD_Dtree (i,g)) ->
-                Format.printf "%a\n" print_rw (m,v,i,g)
+            | OK (Some (i,g)) ->
+                Printf.fprintf stdout "%a\n" Rule.pp_rw (m,v,i,g)
             | _ -> print "No GDT." )
   | Print str         -> output_string stdout str
   | Other (cmd,_)     -> prerr_string ("Unknown command '"^cmd^"'.\n")

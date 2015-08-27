@@ -31,8 +31,6 @@ def bsn: Ln:Sn -> i:Nat -> p:Bsn Ln i -> f:Finm n i -> Xn Ln (mapBn (Ln1 Ln) n i
 mkBsn: Ln:Sn -> i:Nat -> bn:Bn (Ln1 Ln) i
 	-> bsn:(f:Finm n i -> Xn Ln (mapBn (Ln1 Ln) n i f bn)) -> Bsn Ln i.
 
-[bn2]
-	bn _ _ (mkBsn _ _ bn2 _) --> bn2.
+[bn2] bn _ _ (mkBsn _ _ bn2 _) --> bn2.
 
-[bsn2]
-   bsn _ _ (mkBsn _ _ _ bsn2) --> bsn2.
+[bsn2] bsn _ _ (mkBsn _ _ _ bsn2) --> bsn2.

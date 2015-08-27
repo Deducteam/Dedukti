@@ -1,11 +1,11 @@
 #NAME int.
 
 int : Type.
-make : nat -> nat -> int.
-[ n : nat, m : nat ] make (S n) (S m) --> make n m.
+def make : nat -> nat -> int.
+[ n, m ] make (S n) (S m) --> make n m.
 
-+ : nat -> int.
-[ n : nat ] + n --> make n 0.
+def + : nat -> int.
+[ n ] + n --> make n 0.
 
-- : nat -> int.
-[ n : nat ] - n --> make 0 n.
+def - : nat -> int.
+[ n ] - n --> make 0 n.
