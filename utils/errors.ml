@@ -66,8 +66,8 @@ let fail_typing_error err =
             pp_pattern p pp_context2 ctx
       | CannotSolveConstraints ((_,le,_) as r,cstr) ->
         fail (get_loc_pat le)
-          "Error while typing the rewrite rule\n%a\nCannot solve typing constraints."
-          pp_rule r
+          "Error while typing the rewrite rule\n%a\nCannot solve typing constraints:\n%a"
+          pp_rule r (pp_list "\n" (fun out (_,t1,t2) -> Printf.fprintf out "%a ~~ %a" pp_term t1 pp_term t2)) cstr
       | BracketError1 (te,ctx) ->
         fail (get_loc te) "Error while typing the term { %a }%a.\n\
                            Brackets can only contain variables occuring \
