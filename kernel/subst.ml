@@ -104,12 +104,7 @@ struct
       | Pi (_,_,a,b) -> aux q a || aux (q+1) b
     in aux 0 te
 
-  let add (sigma:t) (x:ident) (n:int) (t:term) : t option =
-    assert ( not ( IntMap.mem n sigma ) );
-    if occurs n t then None
-    else Some ( IntMap.add n (x,t) sigma )
-
-  let merge s1 s2 =
+    let merge s1 s2 =
     let aux _ b1 b2 = match b1, b2 with
       | None, b | b, None -> b
       | Some b1, Some b2 -> assert false (*FIXME*)
@@ -122,4 +117,16 @@ struct
     IntMap.iter (fun i (x,t) ->
         Printf.fprintf out "( %a[%i] = %a )" pp_ident x i pp_term t
       ) sigma
+
+  let add (sigma:t) (x:ident) (n:int) (t:term) : t option =
+    assert ( not ( IntMap.mem n sigma ) );
+    if occurs n t then None
+    else Some ( IntMap.add n (x,t) sigma )
+
+  let rec mk_idempotent (sigma:t) : t =
+    let sigma2:t = IntMap.map (fun (x,te) -> (x,apply sigma te 0)) sigma in
+    if IntMap.equal (fun a b -> term_eq (snd a) (snd b)) sigma sigma2 then sigma
+    else mk_idempotent sigma2
+
+
 end
