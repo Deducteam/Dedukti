@@ -4,7 +4,7 @@ val errors_in_snf : bool ref
 val color               : bool ref
 
 (** Print an error message and exit. *)
-val fail : Basics.loc -> ('a, out_channel, unit, 'b) format4 -> 'a
+val fail : Basics.loc -> ('a, Format.formatter, unit, 'b) format4 -> 'a
 
 (** Print a success message. *)
 val success : ('a, out_channel, unit) format -> 'a
