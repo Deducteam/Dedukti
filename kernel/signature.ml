@@ -119,6 +119,7 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t * rule_infos list
     end
   with
     | Sys_error s -> raise (SignatureError (UnmarshalSysError (lc,m,s)))
+    | SignatureError s -> raise (SignatureError s)
     | _ -> raise (SignatureError (UnmarshalUnknown (lc,m)))
 
 (******************************************************************************)
