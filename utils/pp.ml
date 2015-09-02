@@ -39,8 +39,17 @@ let print_const out (m,v) =
   if ident_eq m !name then print_ident out v
   else Format.fprintf out "%a.%a" print_ident m print_ident v
 
+(* Idents generated from underscores by the parser start with a question mark.
+   We have sometimes to avoid to print them because they are not valid tokens. *)
+let is_dummy_ident i = (string_of_ident i).[0] = '?'
+let is_regular_ident i = (string_of_ident i).[0] <> '?'
+
 let print_db out (x,n) =
   if !print_db_enabled then Format.fprintf out "%a[%i]" print_ident x n
+  else print_ident out x
+
+let print_db_or_underscore out (x,n) =
+  if is_dummy_ident x then Format.fprintf out "_"
   else print_ident out x
 
 let rec print_ppattern out = function
@@ -78,8 +87,8 @@ and print_term_wp out = function
 let print_bv out (_,id,i) = print_db out (id,i)
 
 let rec print_pattern out = function
-  | Var (_,id,i,[]) -> print_db out (id,i)
-  | Var (_,id,i,lst)     -> Format.fprintf out "%a %a" print_db (id,i) (print_list " " print_pattern_wp) lst
+  | Var (_,id,i,[]) -> print_db_or_underscore out (id,i)
+  | Var (_,id,i,lst)     -> Format.fprintf out "%a %a" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | Brackets t           -> Format.fprintf out "{ %a }" print_term t
   | Pattern (_,m,v,[])   -> Format.fprintf out "%a" print_const (m,v)
   | Pattern (_,m,v,pats) -> Format.fprintf out "%a %a" print_const (m,v) (print_list " " print_pattern_wp) pats
@@ -100,7 +109,7 @@ let print_rule out (ctx,pat,te) =
   in
   Format.fprintf out
     "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_list ", " print_decl) ctx
+    (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) ctx)
     print_pattern pat
     print_term te
 
