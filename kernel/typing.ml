@@ -127,7 +127,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
           begin
             let (x,n,t) = if n1<n2 then (x1,n1,mk_DB l2 x2 (n2-q)) else (x2,n2,mk_DB l1 x1 (n1-q)) in
             match SS.add sigma x (n-q) t with
-            | None -> assert false (*FIXME error message*)
+            | None -> assert false
             | Some sigma2 -> pseudo_u sg sigma2 lst
           end
         | DB (_,x,n), t
@@ -137,7 +137,10 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             | None -> None
             | Some t' ->
               ( match SS.add sigma x (n-q) t' with
-                | None -> assert false (*FIXME error message*)
+                | None ->
+                  ( match SS.add sigma x (n-q) (Reduction.snf sg t') with
+                    | None -> None
+                    | Some sigma2 -> pseudo_u sg sigma2 lst )
                 | Some sigma2 -> pseudo_u sg sigma2 lst )
           end
 
