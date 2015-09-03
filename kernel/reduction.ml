@@ -1,6 +1,7 @@
 open Basics
 open Term
 open Rule
+open Multi_set
 
 type env = term Lazy.t LList.t
 
@@ -22,6 +23,15 @@ let rec add_to_list2 l1 l2 lst =
     | [], [] -> Some lst
     | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
     | _,_ -> None
+
+let add_to_ms2 m1 m2 lst =
+  let rec add_to_ms2' l1 l2 lst =
+    match l1, l2 with
+    | [], [] -> Some lst
+    | Elem(mu1,s1)::l1, Elem(mu2,s2)::l2 when mu1 = mu2 -> add_to_ms2' l1 l2 ((s1,s2)::lst)
+    | _,_ -> None
+  in match m1, m2 with Multiset l, Multiset l' ->
+    add_to_ms2' l l' lst
 
 let rec split_stack (i:int) : stack -> (stack*stack) option = function
   | l  when i=0 -> Some ([],l)
@@ -221,7 +231,15 @@ and are_convertible_lst sg : (term*term) list -> bool = function
           | Const (_,m,v), Const (_,m',v') when ( ident_eq v v' && ident_eq m m' ) -> Some lst
           | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
           | App (f,a,args), App (f',a',args') ->
-            add_to_list2 args args' ((f,f')::(a,a')::lst)
+	     begin
+              match f, f' with
+              | Const(_,m,v), Const(_,m',v') when ident_eq v v' && ident_eq v (hstring "add") ->
+                let m1 = mk_Multiset term_cmpr (flatten_add t1) in
+                let m2 = mk_Multiset term_cmpr (flatten_add t2) in
+                add_to_ms2 m1 m2 ((f,f')::lst)
+              | _ ->
+                add_to_list2 args args' ((f,f')::(a,a')::lst)
+            end
           | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
           | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
           | t1, t2 -> None
