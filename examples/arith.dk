@@ -60,8 +60,10 @@ goal_2 :
    so that the 'new_hyp' definition type-checks. ;)
 hyp : leq 0 (add (add x (add (add 1 x) 2)) (add y x)).
 (; new_hyp : leq 0 (add (add x x) (add y 3)) := hyp. ;)
-
-zz : Int.
-[] zz --> 0.
-#CONV add x zz, x.
+id:Int -> Int.
+c: (Int->Int)->Int.
+[x:Int] id x --> x.
+#CONV
+	add (c (x=> x)) (c (x => id x)),
+	add (c (x=> x)) (c (x=> x)).
 

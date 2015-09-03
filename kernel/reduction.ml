@@ -234,8 +234,8 @@ and are_convertible_lst sg : (term*term) list -> bool = function
 	     begin
               match f, f' with
               | Const(_,m,v), Const(_,m',v') when ident_eq v v' && ident_eq v (hstring "add") ->
-                let m1 = mk_Multiset term_cmpr (flatten_add t1) in
-                let m2 = mk_Multiset term_cmpr (flatten_add t2) in
+                let m1 = mk_Multiset term_cmpr (flatten_add (snf sg t1)) in
+                let m2 = mk_Multiset term_cmpr (flatten_add (snf sg t2)) in
                 add_to_ms2 m1 m2 ((f,f')::lst)
               | _ ->
                 add_to_list2 args args' ((f,f')::(a,a')::lst)
