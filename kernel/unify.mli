@@ -56,4 +56,5 @@ val unify :
   Acterm.Si.key Acterm.Si.t -> Acterm.Si.key Acterm.Si.t list
 exception CantUnify
 val get_unificateur :
-  Acterm.Si.key -> Acterm.Si.key -> Acterm.Si.key Acterm.Si.t option
+  Acterm.Si.key ->
+  Acterm.Si.key -> (Acterm.Si.key * Acterm.Si.key) list option

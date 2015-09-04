@@ -1,3 +1,4 @@
+
 open Basics;;
 open Multi_set;;
 open Diophantienne;;
@@ -221,4 +222,4 @@ let get_unificateur s t =
   let u = unify s t (Si.empty) in
   match u with
   | [] -> None
-  | h :: _ -> Some (sub_si h h);;
+  | h :: _ -> Some (Si.bindings (sub_si h h));;

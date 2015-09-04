@@ -172,7 +172,7 @@ let is_acu t = match t with
 
 (* transforme un term en acterm *)
 let rec acterm_of_term t = match t with
-  | DB (l,id,i) -> mk_AC_var l id i
+  | DB (l,id,i) -> mk_AC_const l (hstring ("_" ^ (string_of_int i))) id
   | Const (l,i,i') -> mk_AC_const l i i'
   | App (s,a,ls) when is_acu s ->
     mk_AC_app2 (acterm_of_term s) (List.map acterm_of_term (a::ls))
@@ -201,7 +201,12 @@ let rec acterm_of_pattern p = match p with
 (* transforme un acterm en term *)
 let rec term_of_acterm act = match act with
   | AC_var (l,id,i,i') -> mk_DB l id i
-  | AC_const (l,i,i') -> mk_Const l i i'
+  | AC_const (l,i,i') -> 
+    if ident_eq i (hstring "") then
+      mk_Const l i i'
+    else if (string_of_ident i).[0] = '_' then
+      mk_DB l i' (int_of_string (String.sub (string_of_ident i) 1 ( (String.length (string_of_ident i))-1 )))
+    else mk_Const l i i'
   | AC_app (t, lt) -> 
     mk_App (term_of_acterm t) (term_of_acterm (List.hd lt)) (List.map term_of_acterm (List.tl lt))
   | AC_app2 (t, mt) -> 

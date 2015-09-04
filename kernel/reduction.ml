@@ -123,28 +123,35 @@ let matcher patt term =
   let ac_patt = acterm_of_pattern patt in
   let ac_term = acterm_of_pattern term in
   match get_unificateur ac_patt ac_term with
-  | Some s -> Some (List.map (fun (x,y) -> (term_of_acterm x, term_of_acterm y)) (Si.bindings s))
+  | Some s ->  
+    let c = fun x y  -> 
+      match x, y with 
+	(AC_var (_,_,i,_),_),(AC_var (_,_,i',_),_) -> compare i i' 
+      | _ -> assert false
+    in
+    let res = List.sort c s in 
+    Some (List.map (fun (x,y) -> term_of_acterm y) res)
   | _ -> None
 
 let rec reduce (sg:Signature.t) (st:state) : state =
   match beta_reduce st with
-    | { ctx; term=Const (l,m,v); stack } as config ->
+  | { ctx; term=Const (l,m,v); stack } as config ->
+    begin
+      match Signature.get_dtree sg l m v with
+      | Signature.DoD_None -> config
+      | Signature.DoD_Def term -> reduce sg { ctx=LList.nil; term; stack }
+      | Signature.DoD_Dtree (i,g) ->
         begin
-          match Signature.get_dtree sg l m v with
-            | Signature.DoD_None -> config
-            | Signature.DoD_Def term -> reduce sg { ctx=LList.nil; term; stack }
-            | Signature.DoD_Dtree (i,g) ->
-                begin
-                  match split_stack i stack with
-                    | None -> config
-                    | Some (s1,s2) ->
-                        ( match rewrite sg s1 g with
-                            | None -> config
-                            | Some (ctx,term) -> reduce sg { ctx; term; stack=s2 }
-                        )
-                end
+          match split_stack i stack with
+          | None -> config
+          | Some (s1,s2) ->
+            ( match rewrite sg s1 g with
+            | None -> config
+            | Some (ctx,term) -> reduce sg { ctx; term; stack=s2 }
+            )
         end
-    | config -> config
+    end
+  | config -> config
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
 and rewrite (sg:Signature.t) (stack:stack) (g:dtree) : (env*term) option =
