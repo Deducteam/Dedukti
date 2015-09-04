@@ -2,6 +2,8 @@ open Basics
 open Term
 open Rule
 open Multi_set
+open Acterm
+open Unify
 
 type env = term Lazy.t LList.t
 
@@ -117,6 +119,12 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
         end
     | _, _::tl -> find_case st tl
 
+let matcher patt term = 
+  let ac_patt = acterm_of_pattern patt in
+  let ac_term = acterm_of_pattern term in
+  match get_unificateur ac_patt ac_term with
+  | Some s -> Some (List.map (fun (x,y) -> (term_of_acterm x, term_of_acterm y)) (Si.bindings s))
+  | _ -> None
 
 let rec reduce (sg:Signature.t) (st:state) : state =
   match beta_reduce st with
