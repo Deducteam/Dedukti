@@ -1,23 +1,9 @@
-(* #load "multi_set.cmo";; *)
-(* #load "basics.cmo";; *)
-(* #load "term.cmo";; *)
-(* #load "rule.cmo";; *)
-(* #load "acterm.cmo";; *)
-(* #load "diophantienne.cmo";; *)
-
 open Basics;;
 open Multi_set;;
 open Diophantienne;;
 open Acterm;;
 
   
-  
-(**** Travail preliminaire 1 :                                               ****
- **** On veut, a partir des deux listes purifies, recuperer une substitution ****
- **** qui substitue a chaque variable purife des deux listes                 ****
- **** la somme ponderer des nouvelles variable creer par les solutions de la ****
- **** base de l'equation diophantienne creer a partir des deux listes        ****) 
-
 
 module A = struct
   type t = acterm
