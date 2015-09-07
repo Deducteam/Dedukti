@@ -197,6 +197,12 @@ let get_dtree sg l m v =
     | Definable (_,None) -> None
     | Definable (_,Some(_,i,tr)) -> Some (i,tr)
 
+let get_rules sg l m v =
+  match get_infos sg l m v with
+    | Constant _
+    | Definable (_,None) -> []
+    | Definable (_,Some(rs,_,_)) -> List.map rule_infos_to_rule2 rs
+
 (******************************************************************************)
 
 let add sg lc v gst =

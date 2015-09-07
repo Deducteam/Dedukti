@@ -48,6 +48,8 @@ type rule_infos = {
   constraints:constr list;
 }
 
+val rule_infos_to_rule2 : rule_infos -> rule2
+
 val pp_rule     : out_channel -> rule -> unit
 val pp_rule2    : out_channel -> rule2 -> unit
 val pp_frule    : out_channel -> rule_infos -> unit

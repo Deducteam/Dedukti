@@ -118,7 +118,7 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
             | _ -> assert false
         end
     | _, _::tl -> find_case st tl
-
+(*
 let matcher patt term = 
   let ac_patt = acterm_of_pattern patt in
   let ac_term = acterm_of_pattern term in
@@ -132,23 +132,25 @@ let matcher patt term =
     let res = List.sort c s in 
     Some (List.map (fun (x,y) -> term_of_acterm y) res)
   | _ -> None
+*)
+
+let matching_AC (p:pattern) (t:term) : ((term Lazy.t) LList.t) option = assert false (*TODO*)
 
 let rec reduce (sg:Signature.t) (st:state) : state =
   match beta_reduce st with
   | { ctx; term=Const (l,m,v); stack } as config ->
     begin
-          match Signature.get_dtree sg l m v with
-            | None -> config
-            | Some (i,g) ->
-                begin
-                  match split_stack i stack with
-                    | None -> config
-                    | Some (s1,s2) ->
-                        ( match rewrite sg s1 g with
-                            | None -> config
-                            | Some (ctx,term) -> reduce sg { ctx; term; stack=s2 }
-                        )
-                end
+      let t = term_of_state config in
+      let rules = Signature.get_rules sg l m v in
+      let rec aux = function
+        | [] -> config
+        | (_,lhs,rhs)::rs ->
+          begin
+            match matching_AC lhs t with
+            | None -> aux rs
+            | Some sub -> { ctx=LList.nil; term=Subst.psubst_l sub 0 t; stack=[]; }
+          end
+      in aux rules
     end
   | config -> config
 

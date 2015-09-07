@@ -45,6 +45,9 @@ type rule_infos = {
   constraints:constr list;
 }
 
+let rule_infos_to_rule2 r = (r.ctx,Pattern (r.l,r.md,r.id,r.args),r.rhs)
+  
+
 type case =
   | CConst of int*ident*ident
   | CDB    of int*int
