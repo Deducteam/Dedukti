@@ -1,4 +1,5 @@
 open Basics
+open Multi_set
 
 (** {2 Terms/Patterns} *)
 
@@ -31,6 +32,53 @@ let mk_App f a1 args =
     | App (f',a1',args') -> App (f',a1',args'@(a1::args))
     | _ -> App(f,a1,args)
 
+let rec term_cmpr t1 t2 =
+  match t1, t2 with
+  | Kind, Kind | Type _, Type _ -> 0
+  | DB (_,_,n), DB (_,_,n') -> compare n n'
+  | Const (_,m,v), Const (_,m',v') ->
+    let cmp = compare (string_of_ident m) (string_of_ident m') in
+    if cmp = 0 then compare (string_of_ident v) (string_of_ident v')
+    else cmp
+  | App (f,a,l), App(f',a',l') ->
+    let rec aux l1 l2 = match l1, l2 with
+      | [], [] -> 0
+      | [], _ -> -1
+      | _, [] -> 1
+      | h1::tl1, h2::tl2 -> 
+        let cmp = term_cmpr h1 h2 in
+        if cmp = 0 then aux tl1 tl2
+        else cmp
+    in aux (f::a::l) (f'::a'::l')
+  | Lam (_,_,a,b), Lam (_,_,a',b') -> term_cmpr b b'
+  | Pi (_,_,a,b), Pi (_,_,a',b') ->
+    let cmp = term_cmpr a a' in
+    if cmp = 0 then term_cmpr b b'
+    else cmp
+  | Kind, _ -> -1
+  | Type _, Kind -> 1
+  | Type _, _ -> -1
+  | DB _, Kind | DB _, Type _ -> 1
+  | DB _, _ -> -1
+  | Const _, Kind | Const _, Type _ | Const _, DB _ -> 1
+  | Const _, _ -> -1
+  | App _, Kind | App _, Type _ | App _, DB _ | App _, Const _ -> 1
+  | App _, _ -> -1
+  | Lam _, Kind | Lam _, Type _ | Lam _, DB _ | Lam _, Const _ | Lam _, App _ -> 1
+  | Lam _, _ -> -1
+  | Pi _, _ -> 1
+
+let rec flatten_add t = match t with
+  | Const(_,m,v) when ident_eq v (hstring "0") -> []
+  | App(f,a, [ b ]) ->
+    begin
+      match f with
+      | Const(_, m, v) when ident_eq v (hstring "add") ->
+        (flatten_add a) @ (flatten_add b)
+      | _ -> []
+    end
+  | _ -> [ t ]
+
 let rec term_eq t1 t2 =
   (* t1 == t2 || *)
   match t1, t2 with
@@ -38,8 +86,19 @@ let rec term_eq t1 t2 =
     | DB (_,_,n), DB (_,_,n') -> n==n'
     | Const (_,m,v), Const (_,m',v') -> ident_eq v v' && ident_eq m m'
     | App (f,a,l), App (f',a',l') ->
-        ( try List.for_all2 term_eq (f::a::l) (f'::a'::l')
-          with _ -> false )
+     begin
+       match f, f' with
+       | Const(_,m,v), Const(_,m',v') when ((term_eq f f') && (ident_eq v (hstring "add"))) ->
+         if (List.length (a::l)) = 2 && (List.length (a'::l')) = 2 then
+           begin
+             let m1 = mk_Multiset term_cmpr (flatten_add t1) in
+             let m2 = mk_Multiset term_cmpr (flatten_add t2) in
+             (cmpr_Multiset term_cmpr m1 m2) = 0
+           end
+         else assert false
+       | _ ->
+         ( try List.for_all2 term_eq (f::a::l) (f'::a'::l') with _ -> false )
+     end
     | Lam (_,_,a,b), Lam (_,_,a',b') -> term_eq b b'
     | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false

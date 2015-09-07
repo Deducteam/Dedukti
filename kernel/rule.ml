@@ -2,8 +2,12 @@ open Basics
 open Term
 
 type pattern =
-  | Var         of loc*ident*int*pattern list
-  | Pattern     of loc*ident*ident*pattern list
+
+  (* On utilise que les deux premiers *)
+  | Var         of loc*ident*int*pattern list (* pour les de bruijn *)
+  | Pattern     of loc*ident*ident*pattern list (* pour les constantes *)
+  (* *)
+
   | Lambda      of loc*ident*pattern
   | Brackets    of term
 

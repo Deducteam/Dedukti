@@ -24,6 +24,9 @@ val mk_App      : term -> term -> term list -> term
 val mk_Pi       : loc -> ident -> term -> term -> term
 val mk_Arrow    : loc -> term -> term -> term
 
+val term_cmpr : term -> term -> int
+val flatten_add : term -> term list
+
 (* Syntactic equality / Alpha-equivalence *)
 val term_eq : term -> term -> bool
 

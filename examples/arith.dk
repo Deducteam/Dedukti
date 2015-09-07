@@ -1,0 +1,69 @@
+#NAME test.
+
+(; Integers ;)
+Int : Type.
+
+S : Int -> Int.
+
+0 : Int.
+1 : Int := S 0.
+2 : Int := S 1.
+3 : Int := S 2.
+
+(; add should be somehow declared as ACU at one point ;)
+add : Int -> Int -> Int.
+
+leq : Int -> Int -> Type.
+geq : Int -> Int -> Type.
+[a : Int, b : Int] geq a b --> leq b a.
+
+(; Compatibility of addition with ordering ;)
+compat :
+  a : Int -> b : Int -> c : Int -> d : Int ->
+  leq a b -> leq c d -> leq (add a c) (add b d).
+
+(; Transitivity of ordering ;)
+trans :
+  a : Int -> b : Int -> c : Int ->
+  leq a b -> leq b c -> leq a c.
+
+(; Variables ;)
+x : Int.
+y : Int.
+z : Int.
+
+(; A set of unsatisfiable hypotheses ;)
+H1 : geq x 1.
+H2 : geq (add y z) 1.
+H3 : leq (add z (add x y)) 1.
+
+(; Uncomment this rewrite rule to save the day ;)
+(; [] add z (add x y) --> add x (add y z). ;)
+
+(; First step would be to be able to deduce this ;)
+goal_1 :
+  geq 1 (add 1 1) :=
+  trans (add 1 1) (add z (add x y)) 1 (compat 1 x 1 (add y z) H1 H2) H3.
+
+(; Let's add some concrete rules for addition ;)
+[n : Int] add n 0 --> n.
+[n : Int] add 0 n --> n.
+[n : Int, m : Int] add (S n) m --> S (add n m).
+[n : Int, m : Int] add n (S m) --> S (add n m).
+
+(; We can now prove this (without any modification) ;)
+goal_2 :
+  geq 1 2 :=
+  trans 2 (add z (add x y)) 1 (compat 1 x 1 (add y z) H1 H2) H3.
+
+(; Rewriting using symbols modulo AC is the goal,
+   so that the 'new_hyp' definition type-checks. ;)
+hyp : leq 0 (add (add x (add (add 1 x) 2)) (add y x)).
+(; new_hyp : leq 0 (add (add x x) (add y 3)) := hyp. ;)
+id:Int -> Int.
+c: (Int->Int)->Int.
+[x:Int] id x --> x.
+#CONV
+	add (c (x=> x)) (c (x => id x)),
+	add (c (x=> x)) (c (x=> x)).
+
