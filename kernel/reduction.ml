@@ -120,9 +120,7 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
     | _, _::tl -> find_case st tl
 
 let matcher patt term = 
-  let ac_patt = acterm_of_pattern patt in
-  let ac_term = acterm_of_pattern term in
-  match get_unificateur ac_patt ac_term with
+  match get_unificateur (acterm_of_pattern patt) (acterm_of_term term) with
   | Some s ->  
     let c = fun x y  -> 
       match x, y with 
