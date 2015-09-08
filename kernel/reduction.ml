@@ -126,6 +126,9 @@ let rec find_case (st:state) (cases:(case*dtree) list) : find_case_ty =
 let matching_AC patt term = 
   let ac_patt = acterm_of_pattern patt in
   let ac_term = acterm_of_term term in
+
+  print_endline ("Unify: "^(string_of_acterm ac_patt)^" = "^(string_of_acterm ac_term));
+
   match get_unificateur ac_patt ac_term with
   | Some s ->  
     let c = fun x y  -> 
@@ -134,19 +137,20 @@ let matching_AC patt term =
       | _ -> assert false
     in
     let res = List.sort c s in 
-    let li = List.map (fun (x,y) -> lazy (term_of_acterm y)) res in
+    let li = List.map (fun (x,y) -> (term_of_acterm y)) res in
+    let li = List.map (fun x -> lazy x) li in
     Some ( LList.make (List.length li) li )
-  | _ -> None
-
-(*
-let matching_AC (p:pattern) (t:term) : ((term Lazy.t) LList.t) option = assert false (*TODO*)
-*)
+  | _ -> 
+    None
 
 let rec reduce (sg:Signature.t) (st:state) : state =
   match beta_reduce st with
   | { ctx; term=Const (l,m,v); stack } as config ->
     begin
-      let t = term_of_state config in
+      let t = match term_of_state config with
+	| App (t,a,lt) -> mk_App t (snf sg a) (List.map (fun x -> snf sg x) lt)
+	| _ as t -> t
+      in 
       let rules = Signature.get_rules sg l m v in
       let rec aux = function
         | [] -> config
@@ -154,7 +158,8 @@ let rec reduce (sg:Signature.t) (st:state) : state =
           begin
             match matching_AC lhs t with
             | None -> aux rs
-            | Some sub -> { ctx=LList.nil; term=Subst.psubst_l sub 0 t; stack=[]; }
+            | Some sub -> 
+	      reduce sg { ctx=LList.nil; term=Subst.psubst_l sub 0 rhs; stack=[]; }
           end
       in aux rules
     end
@@ -251,6 +256,7 @@ and whnf sg term = term_of_state ( reduce sg { ctx=LList.nil; term; stack=[] } )
 
 (* Strong Normal Form *)
 and snf sg (t:term) : term =
+
   match whnf sg t with
     | Kind | Const _
     | DB _ | Type _ as t' -> t'
@@ -270,9 +276,13 @@ and are_convertible_lst sg : (term*term) list -> bool = function
           | Const (_,m,v), Const (_,m',v') when ( ident_eq v v' && ident_eq m m' ) -> Some lst
           | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
           | App (f,a,args), App (f',a',args') ->
+	        print_endline "rentre";
+
 	     begin
               match f, f' with
               | Const(_,m,v), Const(_,m',v') when ident_eq v v' && ident_eq v (hstring "add") ->
+		pp_term stdout t2; print_string " * ";
+		pp_term stdout (snf sg t2); print_endline "";
                 let m1 = mk_Multiset term_cmpr (flatten_add (snf sg t1)) in
                 let m2 = mk_Multiset term_cmpr (flatten_add (snf sg t2)) in
                 add_to_ms2 m1 m2 ((f,f')::lst)

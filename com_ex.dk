@@ -1,0 +1,36 @@
+#NAME myexemple.
+
+Nat: Type.
+0 : Nat.
+S : Nat -> Nat.
+
+def 1 := S 0.
+def 2 := S 1.
+def 3 := S 2.
+def 4 := S 3.
+
+x : Nat.
+y : Nat.
+
+Bool: Type.
+True: Bool.
+False: Bool.
+
+Istrue : Bool -> Type.
+tt : Istrue True.
+
+
+(; ACU ;)
+def add : Nat -> Nat -> Bool.
+[ n ] add 0 n --> True
+[ n ] add n 0 --> False.
+
+
+(; Pas ACU ;)
+def plus : Nat -> Nat -> Bool.
+[ n ] plus 0 n --> True
+[ n ] plus n 0 --> False.
+
+(; matching commutatif fonctionne ;)
+def test1 : Istrue (add 3 0) := tt.
+def test2 : Istrue (plus 0 3) := tt.

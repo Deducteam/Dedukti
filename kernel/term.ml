@@ -84,7 +84,7 @@ let rec term_eq t1 t2 =
   match t1, t2 with
     | Kind, Kind | Type _, Type _ -> true
     | DB (_,_,n), DB (_,_,n') -> n==n'
-    | Const (_,m,v), Const (_,m',v') -> ident_eq v v' && ident_eq m m'
+    | Const (_,m,v), Const (_,m',v') -> ident_eq v v'
     | App (f,a,l), App (f',a',l') ->
      begin
        match f, f' with

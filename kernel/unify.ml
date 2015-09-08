@@ -1,7 +1,14 @@
+(* #load "basics.cmo";; *)
+(* #load "multi_set.cmo";; *)
+(* #load "diophantienne.cmo";; *)
+(* #load "term.cmo";; *)
+(* #load "acterm.cmo";; *)
+
 
 open Basics;;
 open Multi_set;;
 open Diophantienne;;
+open Term;;
 open Acterm;;
 
   
@@ -90,7 +97,6 @@ let getVar si =
 
 exception SymbolClash;;
 exception OccursCheck;;
-let si = Si.empty;;
 
 (* Renvoi un  unificateur (le premier) de s et t *)
 
@@ -152,6 +158,7 @@ let rec unify s t si =
             let sum = sub_term sigma (snd h) in
             let sum = sub_term real_sigma sum in
             let sym = sub_term real_sigma sym in
+
 	    
 
             if acterm_eq s t then unifyAC tl sigma real_sigma
@@ -166,6 +173,11 @@ let rec unify s t si =
               | _, AC_var _ when is_special_var sum ->
 		let sigma' = Si.add sum sym sigma in
 		unifyAC tl sigma' real_sigma
+
+	      | AC_var _, AC_app2 (_, Multiset []) ->
+		print_string ((string_of_acterm sym) ^ " <-- " ^ (string_of_acterm sum) ^ "\n");
+		unifyAC tl sigma (Si.add sym sum real_sigma)
+		
 
               | _ , AC_app2 _ when (notonlyVi_in sum) ->
 		let new_sigma  = put_voidAC sum (sigma) in
@@ -182,7 +194,8 @@ let rec unify s t si =
               | (AC_var _, _ | _, AC_var _ | AC_app _, _ | _, AC_app _) ->
 		List.fold_left (fun x a -> x @ (unifyAC tl sigma a) ) [] (unify sym sum real_sigma)
 
-	      | _ -> []
+	      | _ -> 
+		[]
 
 	in
 
@@ -223,3 +236,23 @@ let get_unificateur s t =
   match u with
   | [] -> None
   | h :: _ -> Some (Si.bindings (sub_si h h));;
+
+
+(* let add = mk_AC_const dloc (hstring "") (hstring "add");; *)
+(* let x = mk_AC_var dloc (hstring "x") 0;; *)
+(* let y = mk_AC_var dloc (hstring "y") 1;; *)
+(* let z = mk_AC_var dloc (hstring "z") 2;; *)
+
+(* let c1 = mk_AC_const dloc (hstring "") (hstring "1");; *)
+(* let c2 = mk_AC_const dloc (hstring "") (hstring "2");; *)
+
+(* let ac1 = mk_AC_app2 add [ x ; y ; c2 ];; *)
+(* let ac2 = mk_AC_app2 add [ c1 ; c1 ; z ];; *)
+
+(* match get_unificateur ac1 ac2 with *)
+(* | None -> () *)
+(* | Some l ->  *)
+(*   let l = List.map (fun (x,y) -> (term_of_acterm x, term_of_acterm y)) l in *)
+(*   print_endline ""; *)
+(*   List.iter (fun (x,y) -> pp_term stdout x; print_string " <-- "; pp_term stdout y; print_string " ";) l; *)
+(*   print_endline "";; *)

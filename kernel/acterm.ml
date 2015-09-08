@@ -209,6 +209,8 @@ let rec term_of_acterm act = match act with
     else mk_Const l i i'
   | AC_app (t, lt) -> 
     mk_App (term_of_acterm t) (term_of_acterm (List.hd lt)) (List.map term_of_acterm (List.tl lt))
+  | AC_app2 (t, Multiset []) ->
+    mk_Const dloc (hstring "") (hstring "0")
   | AC_app2 (t, mt) -> 
     let l = list_of_multiset mt in
     let lg, ld = cut l [] ((List.length l) / 2) in 

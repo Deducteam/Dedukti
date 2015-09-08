@@ -49,7 +49,6 @@ val getSymb :
 val getVar : 'a Acterm.Si.t -> ((Acterm.Si.key * Acterm.Si.key) * 'a) list
 exception SymbolClash
 exception OccursCheck
-val si : 'a Acterm.Si.t
 val unify :
   Acterm.Si.key ->
   Acterm.Si.key ->
