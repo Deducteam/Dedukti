@@ -310,6 +310,26 @@ let eq2 si t1 t2 = acterm_eq (sub_term si t1) (sub_term si t2);;
 let is_special_var v = match v with
   | AC_var(_,_,_,i) when (string_of_ident i).[0] = '_' -> true
   | _ -> false;;
+
+let only_special_var ac = match ac with
+  | AC_app2(_,Multiset l) -> 
+    List.for_all (fun (Elem(m,e)) -> is_special_var e) l
+  | _ -> failwith "Error : not acu term";;
+
+let only_var ac = match ac with
+  | AC_app2(_,Multiset l) ->
+    List.for_all (fun (Elem(m,e)) -> not (is_special_var e)) l
+  | _ -> failwith "Error : not acu term";;
+
+let exist_special_var ac = match ac with
+  | AC_app2(_,Multiset l) ->
+    List.exists (fun (Elem(m,e)) -> is_special_var e) l
+  | _ -> failwith "Error : not acu term";;
+
+let exist_var ac = match ac with
+  | AC_app2(_,Multiset l) ->
+    List.exists (fun (Elem(m,e)) -> not (is_special_var e)) l
+  | _ -> failwith "Error : not acu term";;
     
 
 (* Renvoie une substitution avec toutes les variable special associe a +[] *)

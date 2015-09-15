@@ -65,6 +65,10 @@ val fusion_si : 'a Si.t -> 'a Si.t -> 'a Si.t
 val diff_si : 'a Si.t -> 'b Si.t -> 'a Si.t
 val eq2 : Si.key Si.t -> Si.key -> Si.key -> bool
 val is_special_var : acterm -> bool
+val only_special_var : acterm -> bool
+val only_var : acterm -> bool
+val exist_special_var : acterm -> bool
+val exist_var : acterm -> bool
 val put_voidAC : acterm -> acterm Si.t -> acterm Si.t
 val permut_list :
   ('a * acterm) * acterm -> acterm Si.t -> (('a * acterm) * acterm Si.t) list

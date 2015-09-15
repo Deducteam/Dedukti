@@ -1,18 +1,10 @@
-(* #load "basics.cmo";; *)
-(* #load "multi_set.cmo";; *)
-(* #load "diophantienne.cmo";; *)
-(* #load "term.cmo";; *)
-(* #load "acterm.cmo";; *)
-
-
 open Basics;;
 open Multi_set;;
 open Diophantienne;;
 open Term;;
 open Acterm;;
 
-  
-
+(** UNIF ACU --> travail preliminaire **)
 module A = struct
   type t = acterm
   let compare = acterm_cmpr
@@ -54,7 +46,7 @@ let solve_dioph ac1 ac2 =
 
 (* - pour chaque solution de la base on creer une nouvelle variable 
      ET on lui associe sa variable purifie corespondante *)
-let assocvar ac1 ac2 r = match ac1, ac2 with
+let assocvar ac1 ac2 r n = match ac1, ac2 with
   | AC_app2 (s1, Multiset l1), AC_app2 (s2, Multiset l2) ->
     let rec aux l1 l2 r map i = match r with
       | [] -> map
@@ -66,7 +58,7 @@ let assocvar ac1 ac2 r = match ac1, ac2 with
               if m2 = 0 then
                 aux2 tl1 tl2 map i
               else
-                let map' = L.update var (Elem(m2, mk_AC_varspe (hstring "v") i)) map in
+                let map' = L.update var (Elem(m2, mk_AC_varspe (hstring ((string_of_int n)^"v")) i)) map in
                 aux2 tl1 tl2 map' i
             | _ -> failwith "impossible"
           in
@@ -79,9 +71,9 @@ let assocvar ac1 ac2 r = match ac1, ac2 with
         
 
 (* - on construit maintenant la substitution *)
-let purifyac_to_assocvar ac1 ac2 =
+let purifyac_to_assocvar ac1 ac2 n =
   let r = solve_dioph ac1 ac2 in
-  assocvar ac1 ac2 r
+  assocvar ac1 ac2 r n
 
 let getSymb si1 si2 =
   let aux si e = let (k, v) = e in
@@ -90,169 +82,146 @@ let getSymb si1 si2 =
   List.map (aux si2) (Si.bindings si1);;
 let getVar si =
   List.map (fun (k,v) -> ((k,k),v)) (Si.bindings si);;
-
-  
-  
-(**** Procedure d'unification ****)
-
-exception SymbolClash;;
-exception OccursCheck;;
-
-(* Renvoi un  unificateur (le premier) de s et t *)
-
-let rec unify s t si =
+(** **)
 
 
-  let (s, t) = (sub_term si s, sub_term si t) in
 
-  if acterm_eq s t then [ si ]
-  else begin
+
+
+type state_ac = {
+  list: (acterm*acterm) list;
+  subst: Si.key Si.t option;
+  sigma: Si.key Si.t;
+  next: state_ac list;
+};;
+
+let global_a = ref 0;;
+
+let init_state l = 
+  {list=l;subst=Some(Si.empty);sigma=Si.empty;next=[]};;
+
+let get_subst st = match st with
+  |{list;subst=Some s;sigma;next} -> Some s
+  | _ -> None;;
+
+let rec state_of_list l s n l' = match l' with
+  | [] -> failwith "error"
+  | e::[] -> {list=l;subst=s;sigma=e;next=n}
+  | e::re -> {list=l;subst=s;sigma=e;next=(state_of_list l s n re)::[]};;
+
+
+let rec unif_list s t = match s, t with
+  | AC_app(s', ls),AC_app(t', lt) ->
+    unif_list s' t' @ aux ls lt
+  | AC_app2(s',_), AC_app2(t',_) when acterm_eq s' t' ->
+    let pure = purify s t in
+    let ac1 = fst (snd pure) in
+    let ac2 = snd (snd pure) in
+    begin match ac1,ac2  with
+    | AC_app2 (s', Multiset []),AC_app2 (t', Multiset []) -> [ (s',t') ]
+    | (AC_app2 (_, Multiset []), _ | _, AC_app2 (_, Multiset []) ) -> 
+      failwith "err"
+    | AC_app2 (s',_), AC_app2 (t',_) ->
+      let si1 = fst pure in
+      global_a := !global_a + 1;
+      let si2 = purifyac_to_assocvar ac1 ac2 (!global_a) in
+      let list = getSymb si1 si2 in
+      let dif = diff_si si2 si1 in
+      (List.map (fun ((s,y),z) -> (y,z)) (list @ (getVar dif)))
+    |  _ ->
+      let si1 = fst pure in
+      let ac1 = sub_term si1 ac1 in
+      let ac2 = sub_term si1 ac2 in
+      [ (ac1,ac2) ]
+    end
+  | _,_ as r -> [ r ]
+
+and aux l l' = match l, l' with
+  | [],[] -> []
+  | (_,[]|[],_) -> failwith "Err"
+  | s'::rs,t'::rt ->
+    unif_list s' t' @ aux rs rt;;
+
+
+(* Convention :
+     1. Le terme de gauche est soit une constante soit une variable soit un term acu
+     2. Le terme de droite ne peut pas etre une variable a part si c'est une variable special 
+*)
+
+let rec unify st = match st with
+  | {list;subst=None;sigma;next=[]} -> st
+  | {list;subst=None;sigma;next=n::_} -> 
+    unify n
+  | {list=[];subst;sigma;next} -> st
+  | {list=(s0,t0)::tl;subst=Some u;sigma=si;next=n} ->
+
+    let s = sub_term u s0 in
+    let t1 = sub_term si t0 in
+    let t = sub_term u t1 in
+
+    (*
+      print_endline ((string_of_acterm s)^" = "^(string_of_acterm t)^" -->"^(string_of_si u));
+    *)
+
     match s, t with
+      
+    (** CAS I : ACU **)
 
-    (* unification de deux const diff *)
-    | AC_const (_,_,i) , AC_const (_,_,i') -> 
-      if ident_eq i i' then [ si ]
-      else begin [] end
-
-    (* Unification de deux app *)
-    | AC_app (s', ls), AC_app (t', lt) ->
-      if acterm_eq s' t' then
-        let rec aux l1 l2 si' = match l1, l2 with
-          | [], [] -> [ si' ]
-          | ([], _ | _, []) -> failwith "Error: unify"
-          | h1 :: tl1 , h2 :: tl2 ->
-            let rec aux' tsi = match tsi with
-              | [] -> []
-              | h' :: tl' ->
-                (aux tl1 tl2 h') @ aux' tl'
-            in 
-            aux' (unify h1 h2 si')
-        in
-        match (aux ls lt si) with
-        | [] ->  []
-        | res -> res 
-
-      else [] (* SymbolClash *)
-
-    (* Unification d'une variable avec un term *)
-    | AC_var _, _ ->
-      if is_occurs s t then []
-      else [ Si.add s t si ]
-
-    (* Unification d'un term avec une variable *)
-    | _ , AC_var _ -> unify t s si
-
-    (* Unification de deux symbol AC --> algo unification modulo AC *)
-    | AC_app2 (a,_), AC_app2 (b,_) ->
-
+    | _, AC_var _ when is_special_var t ->
+      unify {list=tl;subst=Some u;sigma=(Si.add t s si);next=n}
+    | _,AC_app2 (_, Multiset []) ->
+      unify {list=(s,t)::tl;subst=None;sigma=si;next=n}
+    | _,AC_app2 (_, Multiset (a::_)) when only_special_var t ->
+      let permut = permut_list ((mk_AC_var dloc (hstring "") 0,s),t) si in
+      let permut' = List.map (fun ((x,y),z) -> z) permut in
+      let permut'' = List.filter (fun x -> acterm_eq s (sub_term x t)) permut' in
+      if permut'' = [] then 
+	unify {list=tl;subst=None;sigma=si;next=n}
+      else
+	let new_st = state_of_list ((s,t)::tl) (Some u) n permut' in
+	unify new_st
+    | _,AC_app2 _ when exist_special_var t ->
+      let new_si  = put_voidAC t si in
+      unify {list=(s,t)::tl;subst=Some u;sigma=new_si;next=n}
+    | AC_app2(s',_),AC_app2(t',_) when acterm_eq s' t' ->
       begin
-	(* procedure pour l'unification modulo ac *)
-	let rec unifyAC l sigma real_sigma = match l with
-          | [] -> 
-            [ sub_si sigma real_sigma ]
-          | h :: tl ->
-	    
-            let var = fst (fst h) in
-            let sym = snd (fst h) in
-
-            let sum = sub_term sigma (snd h) in
-            let sum = sub_term real_sigma sum in
-            let sym = sub_term real_sigma sym in
-
-	    
-
-            if acterm_eq s t then unifyAC tl sigma real_sigma
-            else
-
-              match sym, sum with
-
-              | AC_var _, _ when is_special_var sym ->
-		let sigma' = Si.add sym sum sigma in
-		unifyAC tl sigma' real_sigma
-
-              | _, AC_var _ when is_special_var sum ->
-		let sigma' = Si.add sum sym sigma in
-		unifyAC tl sigma' real_sigma
-
-	      | AC_var _, AC_app2 (_, Multiset []) ->
-		print_string ((string_of_acterm sym) ^ " <-- " ^ (string_of_acterm sum) ^ "\n");
-		unifyAC tl sigma (Si.add sym sum real_sigma)
-		
-
-              | _ , AC_app2 _ when (notonlyVi_in sum) ->
-		let new_sigma  = put_voidAC sum (sigma) in
-		let new_sum = sub_term new_sigma sum in
-		List.fold_left
-                  (fun x a -> x @ (unifyAC tl new_sigma a) ) [] (unify sym new_sum real_sigma)
-
-              | _ , AC_app2 _ ->
-		let permut = permut_list ((var,sym), sum) sigma in
-		let permut = List.filter (fun ((k,v),si') -> acterm_eq sym (sub_term si' sum)) permut in
-		List.fold_left
-                  (fun some x -> (unifyAC tl (let (_,si) = x in si) real_sigma) @ some)  [] permut
-
-              | (AC_var _, _ | _, AC_var _ | AC_app _, _ | _, AC_app _) ->
-		List.fold_left (fun x a -> x @ (unifyAC tl sigma a) ) [] (unify sym sum real_sigma)
-
-	      | _ -> 
-		[]
-
-	in
-
-
-	let t = purify s t in
-	let ac1 = fst (snd t) in
-	let ac2 = snd (snd t) in
-	match ac1, ac2 with
-	| (AC_app2 (_, Multiset []), _ | _, AC_app2 (_, Multiset []) ) -> []
-
-	| AC_app2 _, AC_app2 _ ->
-          begin
-            let si1 = fst t in
-            let si2 = purifyac_to_assocvar ac1 ac2 in
-            let list = getSymb si1 si2 in
-            let dif = diff_si si2 si1 in
-            let list = list @ (getVar dif) in
-            List.map (fun x -> sub_si x x) (unifyAC list (Si.empty) si)
-          end
-	| _ ->
-          let si1 = fst t in
-          let ac1 = sub_term si1 ac1 in
-          let ac2 = sub_term si1 ac2 in
-          unify ac1 ac2 si
+	try
+	  let l = unif_list s t in
+	  unify {list=l@tl;subst=Some u;sigma=si;next=n}
+	with _ -> 
+	  unify {list=tl;subst=None;sigma=si;next=n}
       end
-	
-    | _ -> []
 
-  end
-	
+    (** **)
+
+
+    (** CAS II : NON-ACU **)
+
+    | AC_const(_,_,i),AC_const(_,_,i') when ident_eq i i' ->
+      unify {list=tl;subst=Some u;sigma=si;next=n}
+    | AC_const(_,_,_i),AC_const(_,_,i') ->
+      unify {list=tl;subst=None;sigma=si;next=n}
+    | AC_var(_,_,_,i),AC_var(_,_,_,i') when ident_eq i i' ->
+      unify {list=tl;subst=Some u;sigma=si;next=n}
+    | AC_app(s',ls),AC_app(t',lt) ->
+      begin
+	try
+	  let l = unif_list s t in
+	  unify {list=l@tl;subst=Some u;sigma=si;next=n}
+	with _ -> 
+	  unify {list=tl;subst=None;sigma=si;next=n}
+      end
+    | AC_var _,_ when is_occurs s t ->
+      unify {list=tl;subst=None;sigma=si;next=n}
+    | AC_var _,_ ->
+      let new_u = Si.add s t u in
+      unify {list=tl;subst=Some (sub_si new_u new_u);sigma=si;next=n}
+    | _, AC_var _ -> 
+      unify {list=(t,s)::tl;subst=Some u;sigma=si;next=n}
+
+    (** **)
+
+    (* Err 2 *)
+    | _,_ ->       
+      unify {list=(s,t)::tl;subst=None;sigma=si;next=n}
 ;;
-
-
-(* renvoie un unificateur si s t sont unifiable, une exception sinon *)
-exception CantUnify;;
-let get_unificateur s t =
-  let u = unify s t (Si.empty) in
-  match u with
-  | [] -> None
-  | h :: _ -> Some (Si.bindings (sub_si h h));;
-
-
-(* let add = mk_AC_const dloc (hstring "") (hstring "add");; *)
-(* let x = mk_AC_var dloc (hstring "x") 0;; *)
-(* let y = mk_AC_var dloc (hstring "y") 1;; *)
-(* let z = mk_AC_var dloc (hstring "z") 2;; *)
-
-(* let c1 = mk_AC_const dloc (hstring "") (hstring "1");; *)
-(* let c2 = mk_AC_const dloc (hstring "") (hstring "2");; *)
-
-(* let ac1 = mk_AC_app2 add [ x ; y ; c2 ];; *)
-(* let ac2 = mk_AC_app2 add [ c1 ; c1 ; z ];; *)
-
-(* match get_unificateur ac1 ac2 with *)
-(* | None -> () *)
-(* | Some l ->  *)
-(*   let l = List.map (fun (x,y) -> (term_of_acterm x, term_of_acterm y)) l in *)
-(*   print_endline ""; *)
-(*   List.iter (fun (x,y) -> pp_term stdout x; print_string " <-- "; pp_term stdout y; print_string " ";) l; *)
-(*   print_endline "";; *)

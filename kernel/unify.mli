@@ -41,19 +41,29 @@ val solve_dioph :
   Acterm.acterm -> Acterm.acterm -> Diophantienne.VectSet.elt list
 val assocvar :
   Acterm.acterm ->
-  Acterm.acterm -> Diophantienne.VectMod.t list -> Acterm.acterm Acterm.Si.t
+  Acterm.acterm ->
+  Diophantienne.VectMod.t list -> int -> Acterm.acterm Acterm.Si.t
 val purifyac_to_assocvar :
-  Acterm.acterm -> Acterm.acterm -> Acterm.acterm Acterm.Si.t
+  Acterm.acterm -> Acterm.acterm -> int -> Acterm.acterm Acterm.Si.t
 val getSymb :
   'a Acterm.Si.t -> 'b Acterm.Si.t -> ((Acterm.Si.key * 'a) * 'b) list
 val getVar : 'a Acterm.Si.t -> ((Acterm.Si.key * Acterm.Si.key) * 'a) list
-exception SymbolClash
-exception OccursCheck
-val unify :
-  Acterm.Si.key ->
-  Acterm.Si.key ->
-  Acterm.Si.key Acterm.Si.t -> Acterm.Si.key Acterm.Si.t list
-exception CantUnify
-val get_unificateur :
-  Acterm.Si.key ->
-  Acterm.Si.key -> (Acterm.Si.key * Acterm.Si.key) list option
+type state_ac = {
+  list : (Acterm.acterm * Acterm.acterm) list;
+  subst : Acterm.Si.key Acterm.Si.t option;
+  sigma : Acterm.Si.key Acterm.Si.t;
+  next : state_ac list;
+}
+val global_a : int ref
+val init_state : (Acterm.acterm * Acterm.acterm) list -> state_ac
+val get_subst : state_ac -> Acterm.Si.key Acterm.Si.t option
+val state_of_list :
+  (Acterm.acterm * Acterm.acterm) list ->
+  Acterm.Si.key Acterm.Si.t option ->
+  state_ac list -> Acterm.Si.key Acterm.Si.t list -> state_ac
+val unif_list :
+  Acterm.Si.key -> Acterm.Si.key -> (Acterm.Si.key * Acterm.Si.key) list
+val aux :
+  Acterm.Si.key list ->
+  Acterm.Si.key list -> (Acterm.Si.key * Acterm.Si.key) list
+val unify : state_ac -> state_ac

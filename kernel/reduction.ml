@@ -127,21 +127,22 @@ let matching_AC patt term =
   let ac_patt = acterm_of_pattern patt in
   let ac_term = acterm_of_term term in
 
-  print_endline ("Unify: "^(string_of_acterm ac_patt)^" = "^(string_of_acterm ac_term));
+  (* print_string ("Unify: "^(string_of_acterm ac_patt)^" = "^(string_of_acterm ac_term)); *)
+  let l = unif_list ac_patt ac_term in
+  let st_ac = init_state l in
 
-  match get_unificateur ac_patt ac_term with
+  match get_subst (unify st_ac) with
   | Some s ->  
     let c = fun x y  -> 
       match x, y with 
 	(AC_var (_,_,i,_),_),(AC_var (_,_,i',_),_) -> compare i i' 
       | _ -> assert false
     in
-    let res = List.sort c s in 
+    let res = List.sort c (Si.bindings s) in 
     let li = List.map (fun (x,y) -> (term_of_acterm y)) res in
     let li = List.map (fun x -> lazy x) li in
     Some ( LList.make (List.length li) li )
-  | _ -> 
-    None
+  | _ -> None
 
 let rec reduce (sg:Signature.t) (st:state) : state =
   match beta_reduce st with
@@ -276,9 +277,8 @@ and are_convertible_lst sg : (term*term) list -> bool = function
           | Const (_,m,v), Const (_,m',v') when ( ident_eq v v' && ident_eq m m' ) -> Some lst
           | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
           | App (f,a,args), App (f',a',args') ->
-	        print_endline "rentre";
-
-	     begin
+	    
+	    begin
               match f, f' with
               | Const(_,m,v), Const(_,m',v') when ident_eq v v' && ident_eq v (hstring "add") ->
 		pp_term stdout t2; print_string " * ";
