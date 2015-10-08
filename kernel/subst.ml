@@ -128,5 +128,7 @@ struct
     if IntMap.equal (fun a b -> term_eq (snd a) (snd b)) sigma sigma2 then sigma
     else mk_idempotent sigma2
 
+  let fold = IntMap.fold
+  let iter = IntMap.iter
 
 end
