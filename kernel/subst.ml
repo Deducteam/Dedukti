@@ -103,14 +103,14 @@ struct
       | Lam (_,_,Some ty,te) -> aux q ty || aux (q+1) te
       | Pi (_,_,a,b) -> aux q a || aux (q+1) b
     in aux 0 te
-
+(*
     let merge s1 s2 =
     let aux _ b1 b2 = match b1, b2 with
       | None, b | b, None -> b
-      | Some b1, Some b2 -> assert false (*FIXME*)
+      | Some b1, Some b2 -> failwith "Cannot merge overlapping substitutions."
     in
       IntMap.merge aux s1 s2
-
+*)
   let is_identity = IntMap.is_empty
 
   let pp (out:out_channel) (sigma:t) : unit =
