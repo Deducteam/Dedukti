@@ -194,8 +194,6 @@
 %type <Preterm.preterm> sterm
 %type <Preterm.preterm> term
 
-%right ARROW FATARROW
-
 %%
 
 prelude         : NAME DOT      { let (lc,name) = $1 in
@@ -312,18 +310,18 @@ sterm           : QID
 
 term            : sterm+
                 { mk_pre_from_list $1 }
-                | ID COLON sterm+ ARROW term
-                { PrePi (fst $1,Some (snd $1),mk_pre_from_list $3,$5) }
-                | term ARROW term
-                { PrePi (preterm_loc $1,None,$1,$3) }
-                | ID COLON UNDERSCORE FATARROW term
-                { PreLam (fst $1,snd $1,None,$5) }
-                | ID COLON sterm+ FATARROW term
-                { PreLam (fst $1,snd $1,Some(mk_pre_from_list $3),$5) }
 
 letterm         : term
                 { $1 }
                 | ID DEF term FATARROW letterm
                 { mk_let (snd $1) $3 $5 }
+                | ID COLON term ARROW letterm
+                { PrePi (fst $1,Some (snd $1),$3,$5) }
+                | term ARROW letterm
+                { PrePi (preterm_loc $1,None,$1,$3) }
+                | ID COLON UNDERSCORE FATARROW letterm
+                { PreLam (fst $1,snd $1,None,$5) }
+                | ID COLON term FATARROW letterm
+                { PreLam (fst $1,snd $1,Some($3),$5) }
 
 %%
