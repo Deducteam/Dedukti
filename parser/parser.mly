@@ -201,29 +201,29 @@ prelude         : NAME DOT      { let (lc,name) = $1 in
                                         Scoping.name := name;
                                         mk_prelude lc name }
 
-line            : ID COLON term DOT
+line            : ID COLON letterm DOT
                 { mk_declaration (fst $1) (snd $1) (scope_term [] $3) }
-                | ID param+ COLON term DOT
+                | ID param+ COLON letterm DOT
                 { mk_declaration (fst $1) (snd $1) (scope_term [] (mk_pi $4 $2)) }
-                | KW_DEF ID COLON term DOT
+                | KW_DEF ID COLON arrterm DOT
                 { mk_definable (fst $2) (snd $2) (scope_term [] $4) }
-                | KW_DEF ID COLON term DEF term DOT
+                | KW_DEF ID COLON arrterm DEF letterm DOT
                 { mk_definition (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }
-                | KW_DEF ID DEF term DOT
+                | KW_DEF ID DEF letterm DOT
                 { mk_definition (fst $2) (snd $2)  None (scope_term [] $4) }
-                | KW_DEF ID param+ COLON term DEF term DOT
+                | KW_DEF ID param+ COLON arrterm DEF letterm DOT
                 { mk_definition (fst $2) (snd $2) (Some (scope_term [] (mk_pi $5 $3)))
                         (scope_term [] (mk_lam $7 $3)) }
-                | KW_DEF ID param+ DEF term DOT
+                | KW_DEF ID param+ DEF letterm DOT
                 { mk_definition (fst $2) (snd $2) None (scope_term [] (mk_lam $5 $3)) }
-                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT
+                | LEFTBRA ID RIGHTBRA COLON arrterm DEF letterm DOT
                 { mk_opaque (fst $2) (snd $2) (Some (scope_term [] $5)) (scope_term [] $7) }
-                | LEFTBRA ID RIGHTBRA DEF term DOT
+                | LEFTBRA ID RIGHTBRA DEF letterm DOT
                 { mk_opaque (fst $2) (snd $2)  None (scope_term [] $5) }
-                | LEFTBRA ID param+ RIGHTBRA COLON term DEF term DOT
+                | LEFTBRA ID param+ RIGHTBRA COLON arrterm DEF letterm DOT
                 { mk_opaque (fst $2) (snd $2) (Some (scope_term [] (mk_pi $6 $3)))
                         (scope_term [] (mk_lam $8 $3)) }
-                | LEFTBRA ID param+ RIGHTBRA DEF term DOT
+                | LEFTBRA ID param+ RIGHTBRA DEF letterm DOT
                 { mk_opaque (fst $2) (snd $2)  None (scope_term [] (mk_lam $6 $3)) }
                 | rule+ DOT
                 { mk_rules (List.map scope_rule $1) }
@@ -252,8 +252,8 @@ command         : WHNF  letterm    { mk_command $1 (Whnf (scope_term [] $2)) }
 term_lst        : letterm                                  { [$1] }
                 | letterm COMMA term_lst                   { $1::$3 }
 
-param           : LEFTPAR ID COLON term RIGHTPAR        { PDecl (fst $2,snd $2,$4) }
-                | LEFTPAR ID DEF term RIGHTPAR          { PDef  (fst $2,snd $2,$4) }
+param           : LEFTPAR ID COLON arrterm RIGHTPAR        { PDecl (fst $2,snd $2,$4) }
+                | LEFTPAR ID DEF arrterm RIGHTPAR          { PDef  (fst $2,snd $2,$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
                 { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6) }
@@ -261,7 +261,7 @@ rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
 decl            : ID COLON term         { debug "Ignoring type declaration in rule context."; $1 }
                 | ID                    { $1 }
 
-def_decl        : ID COLON term         { (fst $1,snd $1,$3) }
+def_decl        : ID COLON arrterm         { (fst $1,snd $1,$3) }
 
 context         : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, decl) { $1 }
@@ -323,5 +323,12 @@ letterm         : term
                 { PreLam (fst $1,snd $1,None,$5) }
                 | ID COLON term FATARROW letterm
                 { PreLam (fst $1,snd $1,Some($3),$5) }
+
+arrterm         : term
+                { $1 }
+                | ID COLON term ARROW arrterm
+                { PrePi (fst $1,Some (snd $1),$3,$5) }
+                | term ARROW arrterm
+                { PrePi (preterm_loc $1,None,$1,$3) }
 
 %%
