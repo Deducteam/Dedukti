@@ -1,0 +1,1040 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- saved from url=(0064)tutorial.html -->
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Dedukti Tutorial</title>
+
+<meta name="title" content="Dedukti Tutorial">
+<meta name="generator" content="Org-mode">
+<meta name="generated" content="">
+<meta name="author" content="">
+<meta name="description" content="">
+<meta name="keywords" content="">
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  html { font-family: Times, serif; font-size: 12pt; }
+  .title  { text-align: center; }
+  .todo   { color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #add8e6; font-weight:normal }
+  .target { }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  {margin-left:auto; margin-right:0px;  text-align:right;}
+  .left   {margin-left:0px;  margin-right:auto; text-align:left;}
+  .center {margin-left:auto; margin-right:auto; text-align:center;}
+  p.verse { margin-left: 3% }
+  pre {
+	border: 1pt solid #AEBDCC;
+	background-color: #F3F5F7;
+	padding: 5pt;
+	font-family: courier, monospace;
+        font-size: 90%;
+        overflow:auto;
+  }
+  table { border-collapse: collapse; }
+  td, th { vertical-align: top;  }
+  th.right  { text-align:center;  }
+  th.left   { text-align:center;   }
+  th.center { text-align:center; }
+  td.right  { text-align:right;  }
+  td.left   { text-align:left;   }
+  td.center { text-align:center; }
+  dt { font-weight: bold; }
+  div.figure { padding: 0.5em; }
+  div.figure p { text-align: center; }
+  div.inlinetask {
+    padding:10px;
+    border:2px solid gray;
+    margin:10px;
+    background: #ffffcc;
+  }
+  textarea { overflow-x: auto; }
+  .linenr { font-size:smaller }
+  .code-highlighted {background-color:#ffff00;}
+  .org-info-js_info-navigation { border-style:none; }
+  #org-info-js_console-label { font-size:10px; font-weight:bold;
+                               white-space:nowrap; }
+  .org-info-js_search-highlight {background-color:#ffff00; color:#000000;
+                                 font-weight:bold; }
+  /*]]>*/-->
+</style>
+<link rel="shortcut icon" href="img/dedukti_favicon.png" type="image/x-icon">
+<link rel="stylesheet" type="text/css" href="tutorial.css">
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2013 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+
+</head>
+<body>
+
+<div id="preamble">
+<div id="container"><div id="header"><a href="index.html" title="Index"><img src="img/dedukti_logo.png" alt="Dedukti Logo" class="logo"></a></div><div id="main"><div id="empty">
+</div>
+
+<div id="content">
+<h1 class="title">Dedukti Tutorial</h1>
+
+
+
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="tutorial.html#sec-1">1 Introduction</a></li>
+<li><a href="tutorial.html#sec-2">2 Installation</a>
+<ul>
+<li><a href="tutorial.html#sec-2-1">2.1 Dedukti Installation</a></li>
+<li><a href="tutorial.html#sec-2-2">2.2 Emacs Mode</a>
+<ul>
+<li><a href="tutorial.html#sec-2-2-1">2.2.1 Adding the MELPA Repository</a></li>
+<li><a href="tutorial.html#sec-2-2-2">2.2.2 Installing Dedukti-mode</a></li>
+</ul></li>
+</ul>
+</li>
+<li><a href="tutorial.html#sec-3">3 Getting started</a>
+<ul>
+<li><a href="tutorial.html#sec-3-1">3.1 The <code>#NAME</code> Line</a></li>
+<li><a href="tutorial.html#sec-3-2">3.2 Comments</a></li>
+</ul>
+</li>
+<li><a href="tutorial.html#sec-4">4 Natural Numbers</a>
+<ul>
+<li><a href="tutorial.html#sec-4-1">4.1 First Declarations</a></li>
+<li><a href="tutorial.html#sec-4-2">4.2 First Rewrite Rules</a></li>
+</ul>
+</li>
+<li><a href="tutorial.html#sec-5">5 Simple Booleans</a>
+<ul>
+<li><a href="tutorial.html#sec-5-1">5.1 Booleans</a></li>
+<li><a href="tutorial.html#sec-5-2">5.2 Equality</a></li>
+<li><a href="tutorial.html#sec-5-3">5.3 Testing</a></li>
+<li><a href="tutorial.html#sec-5-4">5.4 Testing by type-checking with a dependent type</a></li>
+</ul>
+</li>
+<li><a href="tutorial.html#sec-6">6 Lists</a></li>
+<li><a href="tutorial.html#sec-7">7 Partial Functions</a></li>
+<li><a href="tutorial.html#sec-8">8 Integers and Smart Constructors</a></li>
+<li><a href="tutorial.html#sec-9">9 Vectors and Dependent Types</a></li>
+<li><a href="tutorial.html#sec-10">10 Non-linear Rewriting</a>
+<ul>
+<li><a href="tutorial.html#sec-10-1">10.1 Partial Equality</a></li>
+<li><a href="tutorial.html#sec-10-2">10.2 Extending a decidable Equality modulo Conversion</a></li>
+</ul>
+</li>
+<li><a href="tutorial.html#sec-11">11 Symmetric Definitions</a>
+<ul>
+<li><a href="tutorial.html#sec-11-1">11.1 A Theorem about Vectors</a></li>
+<li><a href="tutorial.html#sec-11-2">11.2 Confluence</a></li>
+</ul>
+</li>
+<li><a href="tutorial.html#sec-12">12 Correct by Confluence</a></li>
+<li><a href="tutorial.html#sec-13">13 Conclusion</a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> Introduction</h2>
+<div class="outline-text-2" id="text-1">
+
+<p>  This is a tutorial for the Dedukti type-checker.
+  It is not a manual for Dedukti
+  nor an exhaustive list of Dedukti features.
+</p></div>
+
+</div>
+
+<div id="outline-container-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> Installation</h2>
+<div class="outline-text-2" id="text-2">
+
+
+</div>
+
+<div id="outline-container-2-1" class="outline-3">
+<h3 id="sec-2-1"><span class="section-number-3">2.1</span> Dedukti Installation</h3>
+<div class="outline-text-3" id="text-2-1">
+
+<p>   Dedukti installation is described in the <a href="manual.html">manual</a>.
+   This tutorial has been written for Dedukti version 2.2c.
+</p></div>
+
+</div>
+
+<div id="outline-container-2-2" class="outline-3">
+<h3 id="sec-2-2"><span class="section-number-3">2.2</span> Emacs Mode</h3>
+<div class="outline-text-3" id="text-2-2">
+
+<p>   Dedukti code can conveniently be edited
+   using the text editor GNU Emacs.
+   For Emacs version 24 and more,
+   the Emacs mode for Dedukti can be installed
+   through Emacs package manager.
+</p>
+</div>
+
+<div id="outline-container-2-2-1" class="outline-4">
+<h4 id="sec-2-2-1"><span class="section-number-4">2.2.1</span> Adding the MELPA Repository</h4>
+<div class="outline-text-4" id="text-2-2-1">
+
+<p>    Dedukti-mode is hosted on the <a href="http://melpa.milkbox.net/">MELPA</a> repository.
+    Instructions to add this repository are described on the <a href="http://melpa.milkbox.net/#/getting-started">MELPA website</a>.
+</p></div>
+
+</div>
+
+<div id="outline-container-2-2-2" class="outline-4">
+<h4 id="sec-2-2-2"><span class="section-number-4">2.2.2</span> Installing Dedukti-mode</h4>
+<div class="outline-text-4" id="text-2-2-2">
+
+<p>    To install Dedukti-mode, type the following command:
+</p>
+
+
+<pre class="src src-emacs-lisp">M-x package-install &lt;RET&gt; dedukti-mode
+</pre>
+
+<p>
+    The <code>flycheck</code> tool is aware of Dedukti;
+    it can be installed by the following command:
+</p>
+
+
+<pre class="src src-emacs-lisp">M-x package-install &lt;RET&gt; flycheck
+</pre>
+
+</div>
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-3" class="outline-2">
+<h2 id="sec-3"><span class="section-number-2">3</span> Getting started</h2>
+<div class="outline-text-2" id="text-3">
+
+
+</div>
+
+<div id="outline-container-3-1" class="outline-3">
+<h3 id="sec-3-1"><span class="section-number-3">3.1</span> The <code>#NAME</code> Line</h3>
+<div class="outline-text-3" id="text-3-1">
+
+<p>   To get started, visit (open) a new file with the <code>.dk</code> extension,
+   say <code>foo.dk</code>.
+   Emacs should select <code>dedukti-mode</code> for the buffer major mode
+   and indicate this by the string "Dedukti" in the mode line.
+   If flycheck is enabled,
+   it indicates that the buffer is not accepted by Dedukti
+   with the following error message: <code>Unexpected token ''.</code>.
+</p>
+<p>
+   A Dedukti file should always start with a line
+   of the form <code>#NAME &lt;module_name&gt;.</code>
+   where <code>&lt;module_name&gt;</code> is the name of the module beeing defined by the file.
+   This name will be used to refer to constants and functions
+   defined in the file from other Dedukti developments.
+   If the file is named <code>foo.dk</code>
+   then <code>foo</code> is a good candidate for the module name.
+</p>
+
+<div class="exercise">
+<p>   Add the following line:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-preprocessor">#NAME foo</span><span class="org-keyword">.</span>
+</pre>
+
+
+</div>
+
+</div>
+
+</div>
+
+<div id="outline-container-3-2" class="outline-3">
+<h3 id="sec-3-2"><span class="section-number-3">3.2</span> Comments</h3>
+<div class="outline-text-3" id="text-3-2">
+
+<p>   In Dedukti, comments are enclosed by "(;" and ";)".
+   In Emacs, these can be inserted by typing <code>M-;</code>.
+</p>
+
+<div class="exercise">
+<p>   Add a comment at the beggining of your file.
+</p>
+</div>
+
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-4" class="outline-2">
+<h2 id="sec-4"><span class="section-number-2">4</span> Natural Numbers</h2>
+<div class="outline-text-2" id="text-4">
+
+
+</div>
+
+<div id="outline-container-4-1" class="outline-3">
+<h3 id="sec-4-1"><span class="section-number-3">4.1</span> First Declarations</h3>
+<div class="outline-text-3" id="text-4-1">
+
+<p>   To define Peano natural numbers, we need to declare 3 constants:
+</p><ul>
+<li>A type <code>Nat</code>, the type of natural numbers;
+</li>
+<li>A constant <code>0</code> of type <code>Nat</code>,
+</li>
+<li>A constant <code>S</code> of type <code>Nat</code> → <code>Nat</code>, the successor function.
+</li>
+</ul>
+
+
+<p>
+   Note that digits are considered regular letters in Dedukti
+   so <code>0</code> is a valid identifier.
+</p>
+
+
+
+<pre class="src src-dedukti"><span class="org-function-name">Nat :</span> <span class="org-keyword">Type.</span>
+<span class="org-function-name">0 :</span> <span class="org-variable-name">Nat</span><span class="org-keyword">.</span>
+<span class="org-function-name">S :</span> <span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Nat</span><span class="org-keyword">.</span>
+</pre>
+
+
+<p>
+   Then we can ask Emacs to generate one hundred definitions of
+   natural numbers:
+</p>
+
+
+<pre class="src src-emacs-lisp">M-: (<span class="org-keyword">dotimes</span> (i 99) (insert (format <span class="org-string">"%d := S %d.\n"</span> (+ 1 i) i)))
+</pre>
+
+</div>
+
+</div>
+
+<div id="outline-container-4-2" class="outline-3">
+<h3 id="sec-4-2"><span class="section-number-3">4.2</span> First Rewrite Rules</h3>
+<div class="outline-text-3" id="text-4-2">
+
+<p>   Peano addition can be defined as follow:
+</p><table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<colgroup><col class="left">
+</colgroup>
+<tbody>
+<tr><td class="left">0 + n = n</td></tr>
+<tr><td class="left">(m+1) + n = (m + n) + 1</td></tr>
+</tbody>
+</table>
+
+   In Dedukti, this recursive definition can be written like this:
+
+
+
+<pre class="src src-dedukti"><span class="org-function-name">plus :</span> <span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Nat</span><span class="org-keyword">.</span>
+[ <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">plus</span> <span class="org-variable-name">0</span> <span class="org-variable-name">n</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">n</span>
+[ <span class="org-function-name">m : </span><span class="org-variable-name">Nat</span><span class="org-keyword">,</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">plus</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">m</span><span class="org-keyword">)</span> <span class="org-variable-name">n</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">S</span> <span class="org-keyword">(</span><span class="org-variable-name">plus</span> <span class="org-variable-name">m</span> <span class="org-variable-name">n</span><span class="org-keyword">).</span>
+</pre>
+
+<p>
+   The first line is the declaration of the symbol <code>plus</code>,
+   the following lines are rewrite rules defining the function <code>plus</code>
+   by pattern-matching on its first argument.
+</p>
+
+<div class="exercise">
+<p>     Define the multiplication <code>mult</code> using the following definition:
+</p><table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<colgroup><col class="left">
+</colgroup>
+<tbody>
+<tr><td class="left">0 × n = 0</td></tr>
+<tr><td class="left">(m + 1) × n = (m × n) + n</td></tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-5" class="outline-2">
+<h2 id="sec-5"><span class="section-number-2">5</span> Simple Booleans</h2>
+<div class="outline-text-2" id="text-5">
+
+
+</div>
+
+<div id="outline-container-5-1" class="outline-3">
+<h3 id="sec-5-1"><span class="section-number-3">5.1</span> Booleans</h3>
+<div class="outline-text-3" id="text-5-1">
+
+<p>   As we defined addition, we can define equality of natural numbers
+   but we first need to define booleans:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">Bool :</span> <span class="org-keyword">Type.</span>
+<span class="org-function-name">True :</span> <span class="org-variable-name">Bool</span><span class="org-keyword">.</span>
+<span class="org-function-name">False :</span> <span class="org-variable-name">Bool</span><span class="org-keyword">.</span>
+</pre>
+
+</div>
+
+</div>
+
+<div id="outline-container-5-2" class="outline-3">
+<h3 id="sec-5-2"><span class="section-number-3">5.2</span> Equality</h3>
+<div class="outline-text-3" id="text-5-2">
+
+<p>   Equality of natural numbers is defined by pattern-matching on both
+   arguments:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">equal :</span> <span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Bool</span><span class="org-keyword">.</span>
+[] <span class="org-variable-name">equal</span> <span class="org-variable-name">0</span> <span class="org-variable-name">0</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">True</span>
+[ <span class="org-function-name">m : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">equal</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">m</span><span class="org-keyword">)</span> <span class="org-variable-name">0</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">False</span>
+[ <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">equal</span> <span class="org-variable-name">0</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">n</span><span class="org-keyword">)</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">False</span>
+[ <span class="org-function-name">m : </span><span class="org-variable-name">Nat</span><span class="org-keyword">,</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">equal</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">m</span><span class="org-keyword">)</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">n</span><span class="org-keyword">)</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">equal</span> <span class="org-variable-name">m</span> <span class="org-variable-name">n</span><span class="org-keyword">.</span>
+</pre>
+
+
+
+<div class="exercise">
+<p>     Define a function <code>leq : Nat -&gt; Nat -&gt; Bool</code>
+     such that <code>leq n m</code> is <code>True</code> if <code>n</code> ≤ <code>m</code> and <code>False</code> if <code>n</code> &gt; <code>m</code>.
+</p>
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-5-3" class="outline-3">
+<h3 id="sec-5-3"><span class="section-number-3">5.3</span> Testing</h3>
+<div class="outline-text-3" id="text-5-3">
+
+<p>   In order to test our function,
+   we want to check that <code>mult</code> 10 10 is equal to 100.
+</p>
+<p>
+   This means that the term <code>equal (mult 10 10) 100</code>
+   reduces to the normal form <code>True</code>.
+</p>
+<p>
+   For a quick test, we can ask Emacs and Dedukti to evaluate a term;
+   if you select the term <code>equal (mult 10 10) 100</code>
+   anywhere after the definitions of <code>mult</code> and <code>equal</code>,
+   even in a comment,
+   you can run the Emacs command <code>M-x dedukti-snf</code>
+   which prints the normal form of the selected term in the echo area.
+</p>
+<p>
+   The commands dedukti-wnf and dedukti-hnf are similar
+   but print respectively the weak normal form and the head-normal-form.
+</p>
+
+<div class="exercise">
+<p>     Check that the strong normal form of <code>equal (mult 10 10) 100</code> is True.
+</p>
+</div>
+
+
+<div class="exercise">
+<p>     Test your <code>leq</code> function on the following examples:
+</p><ul>
+<li><code>leq 50 100</code> ↪* <code>True</code>
+</li>
+<li><code>leq 100 50</code> ↪* <code>False</code>
+</li>
+<li><code>leq 100 100</code> ↪* <code>True</code>
+</li>
+</ul>
+
+
+
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-5-4" class="outline-3">
+<h3 id="sec-5-4"><span class="section-number-3">5.4</span> Testing by type-checking with a dependent type</h3>
+<div class="outline-text-3" id="text-5-4">
+
+<p>   If you don't want to use Emacs,
+   it is also possible to use Dedukti type-checking to check
+   if a boolean is <code>True</code>:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">Istrue :</span> <span class="org-variable-name">Bool</span> <span class="org-keyword">-&gt;</span> <span class="org-keyword">Type.</span>
+<span class="org-function-name">tt :</span> <span class="org-variable-name">Istrue</span> <span class="org-variable-name">True</span><span class="org-keyword">.</span>
+<span class="org-function-name">test1 :</span> <span class="org-variable-name">Istrue</span> <span class="org-keyword">(</span><span class="org-variable-name">equal</span> <span class="org-keyword">(</span><span class="org-variable-name">mult</span> <span class="org-variable-name">10</span> <span class="org-variable-name">10</span><span class="org-keyword">)</span> <span class="org-variable-name">100</span><span class="org-keyword">)</span> <span class="org-keyword">:=</span> <span class="org-variable-name">tt</span><span class="org-keyword">.</span>
+</pre>
+
+
+<p>
+   Istrue is neither a type like <code>Nat</code> and <code>Bool</code> nor a function,
+   it is a family of types indexed by a boolean;
+   this is called a <b>dependent type</b>.
+</p>
+<p>
+   There is no term of type <code>Istrue False</code>
+   and there is exactly one term <code>tt</code> of type <code>Istrue True</code>.
+</p>
+<p>
+   The line <code>test1 : Istrue (equal (mult 10 10) 100) :</code> <code>tt.</code>
+   defines the symbol <code>test1</code> of type <code>Istrue (equal (mult 10 10) 100)</code>
+   by the term <code>tt</code>.
+   Dedukti will accept this definition
+   only if <code>test1</code> and <code>tt</code> have the same type,
+   so this definition will be accepted only if <code>equal (mult 10 10) 100</code>
+   and <code>True</code> are convertible terms.
+</p>
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-6" class="outline-2">
+<h2 id="sec-6"><span class="section-number-2">6</span> Lists</h2>
+<div class="outline-text-2" id="text-6">
+
+<p>  Lists over a fixed type <code>A</code> can be defined very similarly to natural numbers:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">A :</span> <span class="org-keyword">Type.</span>
+<span class="org-function-name">List :</span> <span class="org-keyword">Type.</span>
+<span class="org-function-name">Nil :</span> <span class="org-variable-name">List</span><span class="org-keyword">.</span>
+<span class="org-function-name">Cons :</span> <span class="org-variable-name">A</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">List</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">List</span><span class="org-keyword">.</span>
+</pre>
+
+
+<p>
+  Here is an example of a function working on lists:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">append :</span> <span class="org-variable-name">List</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">List</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">List</span><span class="org-keyword">.</span>
+[ <span class="org-function-name">l2 : </span><span class="org-variable-name">List</span> ] <span class="org-variable-name">append</span> <span class="org-variable-name">Nil</span> <span class="org-variable-name">l2</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">l2</span>
+[ <span class="org-function-name">a : </span><span class="org-variable-name">A</span><span class="org-keyword">,</span> <span class="org-function-name">l1 : </span><span class="org-variable-name">List</span><span class="org-keyword">,</span> <span class="org-function-name">l2 : </span><span class="org-variable-name">List</span> ] <span class="org-variable-name">append</span> <span class="org-keyword">(</span><span class="org-variable-name">Cons</span> <span class="org-variable-name">a</span> <span class="org-variable-name">l1</span><span class="org-keyword">)</span> <span class="org-variable-name">l2</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">Cons</span> <span class="org-variable-name">a</span> <span class="org-keyword">(</span><span class="org-variable-name">append</span> <span class="org-variable-name">l1</span> <span class="org-variable-name">l2</span><span class="org-keyword">).</span>
+</pre>
+
+
+
+<div class="exercise">
+<p>    Define a function <code>length</code> with the following signature:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">length :</span> <span class="org-variable-name">List</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Nat</span><span class="org-keyword">.</span>
+</pre>
+
+<p>
+    such that <code>length l</code> reduces to the number of elements of the list <code>l</code>.
+</p>
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-7" class="outline-2">
+<h2 id="sec-7"><span class="section-number-2">7</span> Partial Functions</h2>
+<div class="outline-text-2" id="text-7">
+
+<p>  Dedukti doesn't check for exhaustivity of pattern-matching;
+  this allows us to write destructors
+  like the predecessor function on natural numbers:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">pred :</span> <span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Nat</span><span class="org-keyword">.</span>
+[ <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">pred</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">n</span><span class="org-keyword">)</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">n</span><span class="org-keyword">.</span>
+</pre>
+
+
+<p>
+  The term <code>pred 0</code> is a well-typed term of type <code>Nat</code>
+  which is neither <code>0</code> nor of the form <code>S n</code>.
+  Hence it won't be useful in computations.
+</p>
+
+<div class="exercise">
+<p>    Define two functions <code>head</code> and <code>tail</code> with the following signatures:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">head :</span> <span class="org-variable-name">List</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">A</span><span class="org-keyword">.</span>
+<span class="org-function-name">tail :</span> <span class="org-variable-name">List</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">List</span><span class="org-keyword">.</span>
+</pre>
+
+<p>
+    <code>head l</code> should reduce to the first element of the list <code>l</code>
+    and <code>tail l</code> to the list composed of the other elements.
+</p>
+</div>
+
+<p>
+  As we will see in <a href="tutorial.html#sec-9">*Vectors and Dependent Types</a>,
+  it is also possible to define lists
+  in a way that forbids the terms <code>tail Nil</code> and <code>head Nil</code>.
+</p></div>
+
+</div>
+
+<div id="outline-container-8" class="outline-2">
+<h2 id="sec-8"><span class="section-number-2">8</span> Integers and Smart Constructors</h2>
+<div class="outline-text-2" id="text-8">
+
+<p>  Integers may be defined by differences of natural numbers,
+  using a single constructor <code>Diff</code> of type <code>Nat</code> → <code>Nat</code> → <code>Int</code>.
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">Int :</span> <span class="org-keyword">Type.</span>
+<span class="org-function-name">Diff :</span> <span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Int</span><span class="org-keyword">.</span>
+</pre>
+
+<p>
+  But we also want to identify equal integers
+  so we add the following rule:
+</p>
+
+
+<pre class="src src-dedukti">[ <span class="org-function-name">m : </span><span class="org-variable-name">Nat</span><span class="org-keyword">,</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">Diff</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">m</span><span class="org-keyword">)</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">n</span><span class="org-keyword">)</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">Diff</span> <span class="org-variable-name">m</span> <span class="org-variable-name">n</span><span class="org-keyword">.</span>
+</pre>
+
+<p>
+  So the only possible normal forms of type <code>Int</code> are
+</p><ul>
+<li><code>Diff 0 0</code>, representing the integer 0,
+</li>
+<li><code>Diff (S n) 0</code> for some <code>n : Nat</code>, representing the integer n+1,
+</li>
+<li><code>Diff 0 (S n)</code> for some <code>n : Nat</code>, representing the integer -(n+1).
+</li>
+</ul>
+
+
+
+<div class="exercise">
+<p>    Define a function <code>abs</code> with the following signature:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">abs :</span> <span class="org-variable-name">Int</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Nat</span><span class="org-keyword">.</span>
+</pre>
+
+<p>
+    Such that <code>abs n</code> reduces to the absolute value of <code>n</code>.
+</p>
+</div>
+
+<p>
+  The constructor <code>Diff</code> is in fact a partial function
+  because it reduces on some inputs (when both arguments are successors)
+  but not all inputs.
+</p>
+<p>
+  However, irreducible terms of the form <code>Diff m n</code> are not considered
+  bad terms but constructed values.
+</p>
+<p>
+  A constructor like <code>Diff</code> on which rewrite rules are added
+  is called a <b>smart constructor</b>.
+</p>
+<p>
+  Please note that the notions of constructor,
+  value and smart constructor have no meaning for Dedukti,
+  they are just interpretations of the roles
+  that are played by some symbols and normal forms.
+</p></div>
+
+</div>
+
+<div id="outline-container-9" class="outline-2">
+<h2 id="sec-9"><span class="section-number-2">9</span> Vectors and Dependent Types</h2>
+<div class="outline-text-2" id="text-9">
+
+<p>  Some functions on lists can be partially specified
+  by their action on the length of the list;
+  this can be reflected at the type level
+  by making the type of lists dependent on the length of the list.
+  Lists depending on their length are usually called vectors.
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">Vector :</span> <span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-keyword">Type.</span>
+
+<span class="org-function-name">vector_nil :</span> <span class="org-variable-name">Vector</span> <span class="org-variable-name">0</span><span class="org-keyword">.</span>
+<span class="org-function-name">vector_cons :</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">A</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Vector</span> <span class="org-variable-name">n</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Vector</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">n</span><span class="org-keyword">).</span>
+</pre>
+
+
+<p>
+  The type <code>Vector n</code> is the type of vectors of length <code>n</code>.
+  A vector can be built like a list
+  except that an extra argument has to be passed to <code>vector_cons</code>
+  specifying the length of the tail of the vector.
+</p>
+<p>
+  Vectors allow us to write safe versions of the destructors <code>head</code> and <code>tail</code>:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">vector_head :</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Vector</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">n</span><span class="org-keyword">)</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">A</span><span class="org-keyword">.</span>
+<span class="org-function-name">vector_tail :</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Vector</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">n</span><span class="org-keyword">)</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Vector</span> <span class="org-variable-name">n</span><span class="org-keyword">.</span>
+[ <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span><span class="org-keyword">,</span> <span class="org-function-name">a : </span><span class="org-variable-name">A</span><span class="org-keyword">,</span> <span class="org-function-name">l : </span><span class="org-variable-name">Vector</span> <span class="org-variable-name">n</span> ]
+    <span class="org-variable-name">vector_head</span> <span class="org-variable-name">n</span> <span class="org-keyword">(</span><span class="org-variable-name">vector_cons</span> <span class="org-variable-name">n</span> <span class="org-variable-name">a</span> <span class="org-variable-name">l</span><span class="org-keyword">)</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">a</span><span class="org-keyword">.</span>
+[ <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span><span class="org-keyword">,</span> <span class="org-function-name">a : </span><span class="org-variable-name">A</span><span class="org-keyword">,</span> <span class="org-function-name">l : </span><span class="org-variable-name">Vector</span> <span class="org-variable-name">n</span> ]
+    <span class="org-variable-name">vector_tail</span> <span class="org-variable-name">n</span> <span class="org-keyword">(</span><span class="org-variable-name">vector_cons</span> <span class="org-variable-name">n</span> <span class="org-variable-name">a</span> <span class="org-variable-name">l</span><span class="org-keyword">)</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">l</span><span class="org-keyword">.</span>
+</pre>
+
+
+
+<div class="exercise">
+<p>    Define a function <code>vector_append</code> with the following signature:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">vector_append :</span> <span class="org-function-name">m : </span><span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Vector</span> <span class="org-variable-name">m</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Vector</span> <span class="org-variable-name">n</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Vector</span> <span class="org-keyword">(</span><span class="org-variable-name">plus</span> <span class="org-variable-name">m</span> <span class="org-variable-name">n</span><span class="org-keyword">).</span>
+</pre>
+
+<p>
+    computing vector concatenation.
+</p>
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-10" class="outline-2">
+<h2 id="sec-10"><span class="section-number-2">10</span> Non-linear Rewriting</h2>
+<div class="outline-text-2" id="text-10">
+
+
+</div>
+
+<div id="outline-container-10-1" class="outline-3">
+<h3 id="sec-10-1"><span class="section-number-3">10.1</span> Partial Equality</h3>
+<div class="outline-text-3" id="text-10-1">
+
+<p>   If we want to define equality on lists or vectors, we need a way to compare elements
+   but we don't have any constructor of type <code>A</code> yet.
+</p>
+<p>
+   However, we can partially define equality over <code>A</code> in the positive case:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">A_eq :</span> <span class="org-variable-name">A</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">A</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Bool</span><span class="org-keyword">.</span>
+[ <span class="org-function-name">a : </span><span class="org-variable-name">A</span> ] <span class="org-variable-name">A_eq</span> <span class="org-variable-name">a</span> <span class="org-variable-name">a</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">True</span><span class="org-keyword">.</span>
+</pre>
+
+
+<p>
+   This rule is said to be <b>non-linear</b>
+   because the free variable <code>a</code> appears twice in the left-hand side pattern.
+</p>
+
+<div class="exercise">
+<p>     Define the equalities over lists and vectors using <code>A_eq</code> and test them.
+</p>
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-10-2" class="outline-3">
+<h3 id="sec-10-2"><span class="section-number-3">10.2</span> Extending a decidable Equality modulo Conversion</h3>
+<div class="outline-text-3" id="text-10-2">
+
+<p>   We can also extend the equality over natural numbers by a similar non-linear rule:
+</p>
+
+
+<pre class="src src-dedukti">[ <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">equal</span> <span class="org-variable-name">n</span> <span class="org-variable-name">n</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">True</span><span class="org-keyword">.</span>
+</pre>
+
+
+<p>
+   With this extra rule,
+   we will be able to consider
+   that convertible terms of type <code>Nat</code> are equal
+   even if they are not of the form <code>0</code> or <code>S n</code>;
+   for example, <code>equal (pred 0) (pred 0)</code>
+   and <code>equal (plus n n) (plus n n)</code> for an abstract <code>n</code>
+   will both reduce to <code>True</code>.
+</p>
+
+<div class="exercise">
+<p>     Extend equalities over lists and vectors by a non-linear rule.
+</p>
+</div>
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-11" class="outline-2">
+<h2 id="sec-11"><span class="section-number-2">11</span> Symmetric Definitions</h2>
+<div class="outline-text-2" id="text-11">
+
+
+</div>
+
+<div id="outline-container-11-1" class="outline-3">
+<h3 id="sec-11-1"><span class="section-number-3">11.1</span> A Theorem about Vectors</h3>
+<div class="outline-text-3" id="text-11-1">
+
+<p>   Using Curry-De Brujn-Howard isomorphism,
+   we can see types Dedukti as propositions
+   (in the First-Order Minimal Logic)
+   and terms as proofs.
+</p>
+<p>
+   For example, the theorem stating that <code>0</code> is
+   right-neutral for addition can be stated and proved in Dedukti like this:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">0_right_neutral :</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span>
+                  <span class="org-variable-name">Istrue</span> <span class="org-keyword">(</span><span class="org-variable-name">equal</span> <span class="org-variable-name">n</span> <span class="org-keyword">(</span><span class="org-variable-name">plus</span> <span class="org-variable-name">n</span> <span class="org-variable-name">0</span><span class="org-keyword">)).</span>
+[] <span class="org-variable-name">0_right_neutral</span> <span class="org-variable-name">0</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">tt</span>
+[ <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">0_right_neutral</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">n</span><span class="org-keyword">)</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">0_right_neutral</span> <span class="org-variable-name">n</span><span class="org-keyword">.</span>
+</pre>
+
+
+<p>
+   However, we can not even state a theorem for right-neutrality of <code>vector_nil</code>
+   for <code>vector_append</code>;
+   if we try like this:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">vector_nil_right_neutral :</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span>
+<span class="org-function-name">                           l :</span> <span class="org-variable-name">Vector</span> <span class="org-variable-name">n</span> <span class="org-keyword">-&gt;</span>
+                           <span class="org-variable-name">Istrue</span> <span class="org-keyword">(</span><span class="org-variable-name">vector_equal</span> <span class="org-variable-name">n</span>
+                                     <span class="org-variable-name">l</span>
+                                     <span class="org-keyword">(</span><span class="org-variable-name">vector_append</span> <span class="org-variable-name">n</span> <span class="org-variable-name">0</span> <span class="org-variable-name">l</span> <span class="org-variable-name">vector_nil</span><span class="org-keyword">)).</span>
+</pre>
+
+<p>
+   dkcheck complains because <code>l</code> and <code>vector_append n 0 l vector_nil</code> don't have convertible types:
+   <code>l</code> has type <code>Vector n</code> while <code>vector_append n 0 l vector_nil</code> has type <code>Vector (plus n 0)</code>.
+</p>
+<p>
+   We know that <code>n</code> and <code>plus n 0</code> are provably equal but for an abstract <code>n</code>,
+   they are not convertible.
+</p>
+<p>
+   However, even for an abstract <code>n</code>, <code>n</code> and <code>plus 0 n</code> are convertible
+   and so are <code>l</code> and <code>vector_append n 0 vector_nil l</code>.
+</p>
+<p>
+   This dissimetry comes from a dissimetry in the definition of <code>plus</code> (which repercutes on <code>vector_append</code>).
+</p>
+<p>
+   Most of the time, we have to choose between a left and a right definition of Peano addition
+   and then prove that the other possibilty is equivalent.
+   However, in Dedukti, we don't have to make this choice;
+   we can give a symmetric definition of <code>plus</code>.
+   The definition we gave in <a href="tutorial.html#sec-4-2">*First Rewrite Rules</a> did pattern-matching on the first argument:
+</p>
+
+
+<pre class="src src-dedukti"><span class="org-function-name">plus :</span> <span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Nat</span> <span class="org-keyword">-&gt;</span> <span class="org-variable-name">Nat</span><span class="org-keyword">.</span>
+[ <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">plus</span> <span class="org-variable-name">0</span> <span class="org-variable-name">n</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">n</span>
+[ <span class="org-function-name">m : </span><span class="org-variable-name">Nat</span><span class="org-keyword">,</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">plus</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">m</span><span class="org-keyword">)</span> <span class="org-variable-name">n</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">S</span> <span class="org-keyword">(</span><span class="org-variable-name">plus</span> <span class="org-variable-name">m</span> <span class="org-variable-name">n</span><span class="org-keyword">).</span>
+</pre>
+
+<p>
+   we can add rewrite-rules doing pattern-matching on the other argument:
+</p>
+
+
+<pre class="src src-dedukti">[ <span class="org-function-name">m : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">plus</span> <span class="org-variable-name">m</span> <span class="org-variable-name">0</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">m</span>
+[ <span class="org-function-name">m : </span><span class="org-variable-name">Nat</span><span class="org-keyword">,</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">plus</span> <span class="org-variable-name">m</span> <span class="org-keyword">(</span><span class="org-variable-name">S</span> <span class="org-variable-name">n</span><span class="org-keyword">)</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">S</span> <span class="org-keyword">(</span><span class="org-variable-name">plus</span> <span class="org-variable-name">m</span> <span class="org-variable-name">n</span><span class="org-keyword">).</span>
+</pre>
+
+
+
+<div class="exercise">
+<p>     State and prove the <code>vector_nil_right_neutral</code> theorem.
+</p>
+</div>
+
+<p>
+   In fact, we can even drop this theorem by also making the definition of <code>vector_append</code> a bit more symmetrical:
+</p>
+
+
+<pre class="src src-dedukti">[<span class="org-function-name">n: </span><span class="org-variable-name">Nat</span><span class="org-keyword">,</span> <span class="org-function-name">v: </span><span class="org-variable-name">Vector</span> <span class="org-variable-name">n</span>] <span class="org-variable-name">vector_append</span> <span class="org-variable-name">n</span> <span class="org-variable-name">0</span> <span class="org-variable-name">v</span> <span class="org-variable-name">vector_nil</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">v</span><span class="org-keyword">.</span>
+</pre>
+
+</div>
+
+</div>
+
+<div id="outline-container-11-2" class="outline-3">
+<h3 id="sec-11-2"><span class="section-number-3">11.2</span> Confluence</h3>
+<div class="outline-text-3" id="text-11-2">
+
+<p>   We have seen that both non-exhaustive (partial functions)
+   and redundant pattern-matching are allowed and useful in Dedukti.
+</p>
+<p>
+   However, there are two requirements on the rewrite-system
+   that are not checked by Dedukti but needed for a decidable type-checking:
+</p><ul>
+<li>strong normalization: there should be no infinite sequence of rewriting and β-reduction
+</li>
+<li>confluence: each term should have only one normal form.
+</li>
+</ul>
+
+
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-12" class="outline-2">
+<h2 id="sec-12"><span class="section-number-2">12</span> Correct by Confluence</h2>
+<div class="outline-text-2" id="text-12">
+
+<p>  In the previous parts, we have seen extensions of rewrite-systems defining <code>equal</code> and <code>plus</code>
+  in order to enforce at the conversion level some properties of these functions:
+  reflexivity and right-neutrality of <code>0</code>.
+</p>
+<p>
+  We can also add the associativity of addition:
+</p>
+
+
+<pre class="src src-dedukti">[ <span class="org-function-name">m : </span><span class="org-variable-name">Nat</span><span class="org-keyword">,</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span><span class="org-keyword">,</span> <span class="org-function-name">p : </span><span class="org-variable-name">Nat</span> ]
+    <span class="org-variable-name">plus</span> <span class="org-keyword">(</span><span class="org-variable-name">plus</span> <span class="org-variable-name">m</span> <span class="org-variable-name">n</span><span class="org-keyword">)</span> <span class="org-variable-name">p</span>
+      <span class="org-keyword">--&gt;</span>
+    <span class="org-variable-name">plus</span> <span class="org-variable-name">m</span> <span class="org-keyword">(</span><span class="org-variable-name">plus</span> <span class="org-variable-name">n</span> <span class="org-variable-name">p</span><span class="org-keyword">).</span>
+</pre>
+
+
+<p>
+  Associativity of <code>plus</code> at the conversion level is useful for stating
+  (or adding a rewrite-rule for) associativity of <code>vector_append</code>.
+</p>
+<p>
+  But even when we don't need a conversion test,
+  it may be interesting to add a rewrite-rule.
+  For example, monads can easily be defined in Dedukti
+  and the monadic laws can be defined as rewrite-rules.
+</p>
+<p>
+  When we choose to use a rewrite-rule instead of proving a theorem,
+  we ask all following terms, types, proofs and proposition
+  to be considered modulo this rule
+  so we don't have to say explicitly when we are using basic theorems
+  like associativity of addition
+  so our proofs are shorter and can be automatically found more easily.
+</p>
+<p>
+  An other advantage is that if we have an automatic way of checking
+  that our systems are confluent and strongly normalizing,
+  then we don't need to prove that <code>plus</code> is associative,
+  has <code>0</code> as right-neutral element etc…,
+  we have discharged this obligation to the confluence checker.
+  This is what we mean by the expression <b>correct by confluence</b>.
+</p>
+
+<div class="exercise">
+<p>    All provably equal terms can not be made convertible
+    since equality is in general not decidable.
+    Explain why it is not possible to add the following rule
+    stating that addition is commutative:
+</p>
+
+
+<pre class="src src-dedukti">[ <span class="org-function-name">m : </span><span class="org-variable-name">Nat</span><span class="org-keyword">,</span> <span class="org-function-name">n : </span><span class="org-variable-name">Nat</span> ] <span class="org-variable-name">plus</span> <span class="org-variable-name">n</span> <span class="org-variable-name">m</span> <span class="org-keyword">--&gt;</span> <span class="org-variable-name">plus</span> <span class="org-variable-name">m</span> <span class="org-variable-name">n</span><span class="org-keyword">.</span>
+</pre>
+
+
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-13" class="outline-2">
+<h2 id="sec-13"><span class="section-number-2">13</span> Conclusion</h2>
+<div class="outline-text-2" id="text-13">
+
+<p>  This tutorial was just an introduction to the Dedukti system and language
+  illustrating some interesting features.
+  Dedukti has successfully been used to encode computational calculi
+  and a large variety of logical systems.
+  Human-written Dedukti code can be found in dklib;
+  translators from several logical systems,
+  automated theore provers backends for the Dedukti language
+  and Dedukti code source can be found on the website.
+</p></div>
+</div>
+</div>
+
+<div id="postamble">
+</div><div id="footer"><img src="img/deducteam.svg" alt="Deducteam" width="250px"><img src="img/logoinria.png" alt="INRIA" width="200px"></div>
+</div>
+
+
+</div></div></body></html>

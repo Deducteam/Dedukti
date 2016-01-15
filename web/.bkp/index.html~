@@ -1,0 +1,58 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
+
+	<head>
+		<title>A universal proof checker | Dedukti</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<link rel="shortcut icon" href="img/dedukti_favicon.png" type="image/x-icon" />
+		<link type="text/css" rel="stylesheet" media="all" href="style.css" />
+	</head>
+
+	<body>
+		<div id="container">
+			<div id="header">
+				<a href="" title="Index"><img src="img/dedukti_logo.png" alt="Dedukti Logo" class="logo" /></a>
+			</div>
+			<div id="main">
+				<h1 class="title">A universal proof checker</h1>
+				<h2> What is Dedukti? </h2>
+				<p>
+				Dedukti is a universal proof checker, based on the λΠ-calculus modulo.<br />
+				The project is named after the word for "to deduce" in <a href="http://en.wikipedia.org/wiki/Esperanto">Esperanto</a>.<br />
+				</p>
+
+				<h2>How to get/install/use Dedukti?</h2>
+                                <p>
+				  <a href="manual.html">See the manual.</a>
+                                </p>
+                                <p>
+				  There is also a <a href="tutorial.html">tutorial</a>.
+                                </p>
+
+				<h2>Publications</h2>
+				<ul>
+					<li>Ronan Saillard, Towards explicit rewrite rules in the lambda-Pi calculus modulo. <a href="http://hal.inria.fr/docs/00/92/99/12/PDF/article.pdf">PDF</a></li>
+					<li>Ali Assaf, Raphaël Cauderlier and Ronan Saillard, Dedukti un vérificateur de preuves universel. <a href="poster.pdf">POSTER</a></li>
+					<li>Mathieu Boespflug, Quentin Carbonneaux and Olivier Hermant, The lambda-Pi-calculus Modulo as a Universal Proof Language. In PxTP 2012.  <a href="http://ceur-ws.org/Vol-878/paper2.pdf">PDF</a></li>
+					<li>Mathieu Boespflug and Guillaume Burel, CoqInE: Translating the Calculus of Inductive Constructions into the lambda-Pi-calculus Modulo. In PxTP 2012.<a href="http://ceur-ws.org/Vol-878/paper3.pdf">PDF</a></li>
+				</ul>
+
+                                <h2>Translators to Dedukti</h2>
+                                <ul>
+					<li><a href = "http://www.ensiie.fr/~guillaume.burel/blackandwhite_coqInE.html.en">CoqInE</a> (Coq In dEdukti) produces Dedukti proofs from Coq proofs.</li>
+					<li><a href = "https://www.rocq.inria.fr/deducteam/Holide/index.html">Holide</a> (HOL In DEdukti) produces Dedukti proofs from HOL proofs, using the <a href = "http://www.gilith.com/research/opentheory/">Open Theory</a> standard. </li>
+					<li><a href = "https://www.rocq.inria.fr/deducteam/Focalide/index.html">Focalide</a> (FoCaLize In DEdukti) produces Dedukti files from FoCaLize developments.</li>
+                                </ul>
+				<h2>Dedukti developments</h2>
+				<ul>
+					<li><a href = "https://www.rocq.inria.fr/deducteam/Sigmaid/index.html">Sigmaid</a> (SIGMA-calculus In Dedukti) is an encoding of the simply-typed &sigmaf;-calculus in Dedukti.</li>
+					<li><a href = "https://github.com/rafoo/dklib">Dklib</a> is a library defining basic data structures.</li>
+				</ul>
+			</div>
+			<div id="footer">
+				<img src ="img/deducteam.svg"  alt="Deducteam" width="250px" />
+				<img src ="img/logoinria.png" alt="INRIA" width="200px" />
+			</div>
+		</div>
+	</body>
+</html>
