@@ -5,16 +5,16 @@ type ho_env = (int*term) LList.t
 
 exception NotUnifiable
 
-let permute (dbs:int LList.t) (te:term) : term =
+let permute (p:int) (dbs:int LList.t) (te:term) : term =
   let size = LList.len dbs in
   let rec find n cpt = function
-    | [] -> raise NotUnifiable
+    | [] -> ( Printf.fprintf stdout "No solution.\n"; raise NotUnifiable )
     | q::lst -> if q=n then size-1-cpt else find n (cpt+1) lst
   in
   let rec aux k = function
     | Type _ | Kind | Const _ as t -> t
     | DB (_,x,n) as t ->
-        if n < k then t
+        if (n < k || n>=k+p) then t
         else
           let n' = find (n-k) 0 (LList.lst dbs) in
             mk_DB dloc x (n'+k)
@@ -23,14 +23,36 @@ let permute (dbs:int LList.t) (te:term) : term =
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
   in aux 0 te
 
+(* let pp_klist out lst = *)
+(*   List.iter (fun i -> Printf.fprintf out "?[%i]" i) (LList.lst lst) *)
+
+let mk_rhs (k:int) (te:term) : term =
+  let rec aux k te =
+    if k < 1 then te
+    else aux (k-1) (mk_Lam dloc qmark None te)
+  in aux k te
+
+let mk_lhs (k:int) (lst:int list) : term =
+  let x = mk_DB dloc (hstring "X") (-1) in
+  let aux n = mk_DB dloc qmark n in
+  match lst with
+  | [] -> x
+  | n::tl -> mk_rhs k (mk_App x (aux n) (List.map aux tl))
+
 (* Find F such that F (DB [k_0]) ... (DB [k_n]) =~ [te]
  * when the k_i are distinct *)
-let resolve (k_lst:int LList.t) (te:term) : term =
+let resolve (depth:int) (k_lst:int LList.t) (te:term) : term =
+  let lhs = mk_lhs depth (LList.lst k_lst) in
+  let rhs = mk_rhs depth te in
+  Printf.fprintf stdout "Calling resolve\n";
+  Printf.fprintf stdout "The problem is (%a) ~= (%a) (with unknown X[-1])\n" pp_term lhs pp_term rhs;
   let rec add_lam te = function
     | [] -> te
     | _::lst -> add_lam (mk_Lam dloc qmark None te) lst
   in
-   add_lam (permute k_lst te) (LList.lst k_lst)
+  let res = add_lam (permute depth k_lst te) (LList.lst k_lst) in
+  Printf.fprintf stdout "The solution is (%a)\n" pp_term res;
+  res
 
 let rec ho_beta (i:int) (f:term) (args:term list) : term =
   if i <= 0 then
