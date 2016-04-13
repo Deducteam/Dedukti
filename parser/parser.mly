@@ -5,7 +5,7 @@
     val mk_definition  : Basics.loc -> Basics.ident -> Term.term option -> Term.term -> unit
     val mk_definable   : Basics.loc -> Basics.ident -> Term.term -> unit
     val mk_opaque      : Basics.loc -> Basics.ident -> Term.term option -> Term.term -> unit
-    val mk_rules       : Rule.rule list -> unit
+    val mk_rules       : (Rule.rule * Preterm.ruletype) list -> unit
     val mk_command     : Basics.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
   end>
@@ -43,6 +43,7 @@
 %token COLON
 %token ARROW
 %token FATARROW
+%token VERYLONGARROW
 %token LONGARROW
 %token DEF
 %token LEFTPAR
@@ -142,7 +143,10 @@ term_lst        : term                                  { [$1] }
 param           : LEFTPAR ID COLON term RIGHTPAR        { (fst $2,snd $2,$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6) }
+                { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6 , RegularRule ) }
+                | LEFTSQU context RIGHTSQU top_pattern VERYLONGARROW term
+                { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6 , MetaRule) }
+
 
 decl            : ID COLON term         { debug "Ignoring type declaration in rule context."; $1 }
                 | ID                    { $1 }

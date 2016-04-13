@@ -34,6 +34,7 @@ rule token = parse
   | '}'         { RIGHTBRA      }
   | '('         { LEFTPAR       }
   | ')'         { RIGHTPAR      }
+  | "--->"      { VERYLONGARROW }
   | "-->"	{ LONGARROW     }
   | "->"	{ ARROW         }
   | "=>"	{ FATARROW      }

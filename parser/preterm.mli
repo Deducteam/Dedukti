@@ -16,9 +16,11 @@ type prepattern =
   | PLambda     of loc*ident*prepattern
   | PJoker      of loc
 
+type ruletype = RegularRule | MetaRule
+
 type pdecl      = loc * ident
 type pcontext   = pdecl list
-type prule      = loc * pdecl list * ident option * ident * prepattern list * preterm
+type prule      = loc * pdecl list * ident option * ident * prepattern list * preterm * ruletype
 
 val pp_pterm    : out_channel -> preterm -> unit
 val pp_ppattern : out_channel -> prepattern -> unit

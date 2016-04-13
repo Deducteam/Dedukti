@@ -138,14 +138,15 @@ let print_context out ctx =
       Format.fprintf out "@[<hv>%a:@ %a@]" print_ident x print_term ty
     ) out (List.rev ctx)
 
-let print_rule out (ctx,pat,te) =
+let print_rule out ((ctx,pat,te), rt) =
   let print_decl out (_,id) =
     Format.fprintf out "@[<hv>%a@]" print_ident id
   in
   Format.fprintf out
-    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
+    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ %s-->@ @[<hov2>%a@]@]@]@]"
     (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) ctx)
     print_pattern pat
+    (match rt with Preterm.RegularRule -> "" | Preterm.MetaRule -> "-")
     print_term te
 
 let print_rule2 out (ctx,pat,te) =

@@ -11,6 +11,7 @@ type token =
   | RIGHTBRA
   | QID         of ( loc * ident * ident )
   | NAME        of ( loc * ident )
+  | VERYLONGARROW
   | LONGARROW
   | LEFTSQU
   | LEFTPAR

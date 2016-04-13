@@ -18,7 +18,7 @@ val print_term  : Format.formatter -> term -> unit
 
 val print_pattern : Format.formatter -> pattern -> unit
 
-val print_rule  : Format.formatter -> rule -> unit
+val print_rule  : Format.formatter -> (rule * Preterm.ruletype) -> unit
 
 val print_rule2  : Format.formatter -> rule2 -> unit
 
