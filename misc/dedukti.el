@@ -10,6 +10,7 @@
 (setq dedukti-symbolic-keywords
       '(":="        ; Definition
         ":"         ; Declaration, annotated lambdas and pis
+	"--->"
         "-->"       ; Rewrite-rule
         "->"        ; Pi (dependant type constructor)
         "=>"        ; Lambda (function constructor)

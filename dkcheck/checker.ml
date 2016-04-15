@@ -53,10 +53,9 @@ let mk_rules = function
     begin
       let (l,md,id) = get_infos pat in
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
-      let lst' =
-        List.map (fun (r, _) -> r)
-                 (List.filter (fun (_, rt) -> rt = Preterm.RegularRule)
-                              lst)
+      let lst' = 
+	List.map fst (List.filter 
+			(fun (_, rt) -> rt = Preterm.RegularRule) lst)
       in
       match Env.add_rules lst' with
       | OK lst2 ->
