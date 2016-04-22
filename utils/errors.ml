@@ -83,6 +83,7 @@ let fail_typing_error err =
         fail l "Error while typing '%a[%i]'%a.\n\
                 The type is not allowed to refer to bound variables.\n\
                 Infered type:%a." print_ident x n print_context2 ctx print_term ty
+      | NotImplementedFeature l -> fail l "Feature not implemented."
 
 let fail_dtree_error err =
   let open Dtree in
@@ -114,7 +115,8 @@ let fail_dtree_error err =
           print_ident x
       | NonLinearRule r ->
         let (_,p,_) = r in
-          fail (Rule.get_loc_pat p) "Non left-linear rewrite rule:\n%a"
+          fail (Rule.get_loc_pat p) "Non left-linear rewrite rule:\n%a.\n\
+                                     Maybe you forgot to pass the -nl option."
             print_rule2 r
 
 let print_cerr fmt err =

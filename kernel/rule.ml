@@ -86,7 +86,7 @@ and pp_pattern_wp out = function
 let pp_rule out (ctx,pat,te) =
    let pp_decl out (_,id) = pp_ident out id in
     fprintf out "[%a] %a --> %a"
-      (pp_list "," pp_decl) ctx
+      (pp_list "," pp_decl) (List.rev ctx)
       pp_pattern pat
       pp_term te
 

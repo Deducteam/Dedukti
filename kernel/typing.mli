@@ -19,6 +19,7 @@ type typing_error =
   | BracketError1 of term*context
   | BracketError2 of term*context*term
   | FreeVariableDependsOnBoundVariable of loc*ident*int*context*term
+  | NotImplementedFeature of loc
 
 exception TypingError of typing_error
 

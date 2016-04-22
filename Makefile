@@ -37,7 +37,7 @@ install:
 
 uninstall:
 	for i in $(BINARIES) ; do \
-	    rm "${INSTALL_DIR}/$$i" ; \
+	    rm -f "${INSTALL_DIR}/$$i" ; \
 	done
 
 clean:

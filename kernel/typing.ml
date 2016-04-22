@@ -22,6 +22,7 @@ type typing_error =
   | BracketError1 of term*context
   | BracketError2 of term*context*term
   | FreeVariableDependsOnBoundVariable of loc*ident*int*context*typ
+  | NotImplementedFeature of loc
 
 exception TypingError of typing_error
 
@@ -127,7 +128,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
           begin
             let (x,n,t) = if n1<n2 then (x1,n1,mk_DB l2 x2 (n2-q)) else (x2,n2,mk_DB l1 x1 (n1-q)) in
             match SS.add sigma x (n-q) t with
-            | None -> assert false (*FIXME error message*)
+            | None -> assert false
             | Some sigma2 -> pseudo_u sg sigma2 lst
           end
         | DB (_,x,n), t
@@ -137,7 +138,10 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             | None -> None
             | Some t' ->
               ( match SS.add sigma x (n-q) t' with
-                | None -> assert false (*FIXME error message*)
+                | None ->
+                  ( match SS.add sigma x (n-q) (Reduction.snf sg t') with
+                    | None -> None
+                    | Some sigma2 -> pseudo_u sg sigma2 lst )
                 | Some sigma2 -> pseudo_u sg sigma2 lst )
           end
 
@@ -300,7 +304,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
     end
   | Var (l,x,n,args) when (n>=LList.len sigma) ->
     begin
-      let (args2,last) = get_last args in (*TODO use fold?*)
+      let (args2,last) = get_last args in
       match last with
       | Var (l2,x2,n2,[]) ->
         check_pattern sg delta sigma
@@ -324,14 +328,28 @@ let pp_context_inline out ctx =
     (fun out (_,x,ty) -> Printf.fprintf out "%a: %a" pp_ident x pp_term ty )
     out (List.rev ctx)
 
-(* FIXME no need to traverse three times the terms... *)
-let subst_context (sub:SS.t) (ctx:context) : context =
-  try List.mapi ( fun i (l,x,ty) ->
-      (l,x,
-       Subst.unshift (i+1) (SS.apply sub (Subst.shift (i+1) ty) 0) )
-    ) ctx
+let rec pp_term_j k out = function
+  | Kind               -> output_string out "Kind"
+  | Type _             -> output_string out "Type"
+  | DB  (_,x,n) when n<k -> Printf.fprintf out "%a[%i]" pp_ident x n
+  | DB  (_,x,n)        -> Printf.fprintf out "_"
+  | Const (_,m,v)      -> Printf.fprintf out "%a.%a" pp_ident m pp_ident v
+  | App (f,a,args)     -> pp_list " " (pp_term_wp_j k) out (f::a::args)
+  | Lam (_,x,None,f)   -> Printf.fprintf out "%a => %a" pp_ident x pp_term f
+  | Lam (_,x,Some a,f) -> Printf.fprintf out "%a:%a => %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term f
+  | Pi  (_,x,a,b)      -> Printf.fprintf out "%a:%a -> %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term b
+
+and pp_term_wp_j k out = function
+  | Kind | Type _ | DB _ | Const _ as t -> pp_term_j k out t
+  | t       -> Printf.fprintf out "(%a)" (pp_term_j k) t
+
+(* TODO the term is traversed three times, this could be optimized. *)
+let subst_context (sub:SS.t) (ctx:context) : context option =
+  try Some ( List.mapi ( fun i (l,x,ty) ->
+      (l,x, Subst.unshift (i+1) (SS.apply sub (Subst.shift (i+1) ty) 0) )
+    ) ctx )
   with
-  | Subst.UnshiftExn -> assert false (*FIXME*) (* may happen with non-linear patterns*)
+  | Subst.UnshiftExn -> None
 
 let check_rule sg (ctx0,le,ri:rule) : rule2 =
   let delta = pc_make ctx0 in
@@ -344,9 +362,21 @@ let check_rule sg (ctx0,le,ri:rule) : rule2 =
   let sub = SS.mk_idempotent sub in
   let (ri2,ty_le2,ctx2) =
     if SS.is_identity sub then (ri,ty_le,LList.lst delta.pctx)
-    else (SS.apply sub ri 0,
-          SS.apply sub ty_le 0,
-          subst_context sub (LList.lst delta.pctx))
+    else
+      begin
+        match subst_context sub (LList.lst delta.pctx) with
+        | Some ctx2 -> ( SS.apply sub ri 0, SS.apply sub ty_le 0, ctx2 )
+        | None ->
+          begin
+            (*TODO make Dedukti handle this case*)
+            debug "Failed to infer a typing context for the rule:\n%a." Rule.pp_rule (ctx0,le,ri);
+            SS.iter (
+              fun i (id,te) -> debug "Try replacing '%a[%i]' by '%a'"
+                  pp_ident id i (pp_term_j 0) te
+            ) sub;
+            raise (TypingError (NotImplementedFeature (get_loc_pat le) ) )
+          end
+      end
   in
   check sg ctx2 ri2 ty_le2;
   debug "[ %a ] %a --> %a" pp_context_inline ctx2 pp_pattern le pp_term ri2;

@@ -20,8 +20,10 @@ sig
   val identity : t
   val add : t -> Basics.ident -> int -> term -> t option
   val apply : t -> term -> int -> term
-  val merge : t -> t -> t
+  (* val merge : t -> t -> t *)
   val is_identity : t -> bool
   val mk_idempotent : t -> t
   val pp : out_channel -> t -> unit
+  val fold : (int -> (Basics.ident*term) -> 'b -> 'b) -> t -> 'b -> 'b
+  val iter : (int -> (Basics.ident*term) -> unit) -> t -> unit 
 end
