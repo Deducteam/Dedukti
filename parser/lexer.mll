@@ -16,7 +16,7 @@
   let flush () = chars_read := ""
 }
 
-let space   = [' ' '\t']
+let space   = [' ' '\t' '\r']
 let modname = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
 let ident   = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
 let capital = ['A'-'Z']+
