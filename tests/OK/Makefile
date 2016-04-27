@@ -8,6 +8,8 @@ DEPENDS = $(SKS:.sk=.depend)
 DKOS = $(shell cut -d ':' -f 1 *.depend 2> /dev/null)
 all: $(DKOS)
 
+tests: all
+
 builtins.dko: builtins.dk
 	$(DKCHECK) -e -coc $<
 
