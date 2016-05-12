@@ -75,6 +75,7 @@ let fresh_name names base =
   else base
 
 let rec subst map = function
+  | DB (_,x,_) as t when is_dummy_ident x -> t
   | DB (l,x,n) as t ->
      begin
        try
@@ -92,7 +93,9 @@ let rec subst map = function
                          mk_Lam l x' None (subst (x' :: map) f)
   | Lam (l,x,Some a,f) -> let x' = fresh_name map x in
                          mk_Lam l x' (Some (subst map a)) (subst (x' :: map) f)
-  | Pi  (l,x,a,b)      -> let x' = fresh_name map x in
+  | Pi  (l,x,a,b)      -> let x' =
+                           if is_dummy_ident x then x else fresh_name map x
+                         in
                          mk_Pi l x' (subst map a) (subst (x' :: map) b)
 
 
