@@ -109,3 +109,5 @@ let bind_opt f = function
 let map_opt f = function
   | None -> None
   | Some x -> Some (f x)
+
+let do_beta = ref true
