@@ -66,7 +66,8 @@ let pp_stack out (st:stack) =
 
 (* ********************* *)
 
-let rec beta_reduce : state -> state = function
+let rec beta_reduce st : state  = 
+    match st with
     (* Weak heah beta normal terms *)
     | { term=Type _ }
     | { term=Kind }
@@ -78,8 +79,10 @@ let rec beta_reduce : state -> state = function
     | { ctx; term=DB (_,_,n); stack } (*when n<k*) ->
         beta_reduce { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
     (* Beta redex *)
-    | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
+    | { ctx; term=Lam (_,_,_,t); stack=p::s } when !Basics.do_beta = true ->
         beta_reduce { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
+      st
     (* Application: arguments go on the stack *)
     | { ctx; term=App (f,a,lst); stack=s } ->
         (* rev_map + rev_append to avoid map + append*)

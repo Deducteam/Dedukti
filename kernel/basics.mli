@@ -11,6 +11,8 @@ val hstring : string -> ident
 val ident_eq : ident -> ident -> bool
 val qmark : ident
 
+
+
 (** {2 Lists with Length} *)
 
 module LList : sig
@@ -66,3 +68,4 @@ val pp_list : string -> (out_channel -> 'a -> unit) -> out_channel -> 'a list ->
 
 val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 val map_opt : ('a -> 'b) -> 'a option -> 'b option
+val do_beta : bool ref
