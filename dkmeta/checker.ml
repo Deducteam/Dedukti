@@ -46,7 +46,7 @@ let mk_declaration lc id pty : unit =
 let mk_definable lc id pty : unit = 
   eprint lc "Declaration of definable '%a'." pp_ident id;
   let pty' = normalize pty in
-  Format.printf "@[<2>def %a :@ %a.@]@.@." print_ident id print_term pty;
+  Format.printf "@[<2>def %a :@ %a.@]@.@." print_ident id print_term pty';
   Signature.add_definable !sg_meta lc id pty'  (*
   match Env.declare_definable lc id pty with
     | OK () -> ()
@@ -91,9 +91,19 @@ let mk_rules  = function
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
       let lst_meta = List.map fst
 	(List.filter ( fun (_,t) -> t = Preterm.MetaRule) lst ) in
-      let lst' = if !only_meta then lst_meta else (List.map fst lst) in
-      let lst'' = List.map (Typing.check_rule !sg_meta) lst' in
-      Signature.add_rules !sg_meta lst'';
+      let lst' = if !only_meta then lst_meta else (List.map fst lst) in     
+      begin
+      match Env.(Signature.(Typing.(
+      try
+	let lst'' = List.map (Typing.check_rule !sg_meta) lst' in
+	Signature.add_rules !sg_meta lst'';
+	OK lst''
+      with
+      | SignatureError e ->  Err (EnvErrorSignature e)
+      | TypingError e -> Err (EnvErrorType e) ))) with
+      | OK _ -> ()
+      | Err e -> Errors.fail_env_error e
+      end;
       Format.printf "@[<v0>%a@].@.@." (print_list "" print_rule) lst
     (*  match Env.add_rules lst' with
       | OK lst2 ->

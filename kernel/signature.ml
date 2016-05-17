@@ -60,8 +60,8 @@ let add_rule_infos sg (lst:rule_infos list) : unit =
     let (ty,rules) = match infos with
       | Definable (ty,None) -> ( ty , rs )
       | Definable (ty,Some(mx,_,_)) -> ( ty , mx@rs )
-      | Constant _ ->
-        raise (SignatureError (CannotAddRewriteRules (r.l,r.id)))
+      | Constant _ -> 
+        raise  (SignatureError (CannotAddRewriteRules (r.l,r.id)))
     in
     match Dtree.of_rules rules with
     | OK (n,tree) -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
