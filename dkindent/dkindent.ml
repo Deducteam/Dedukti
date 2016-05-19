@@ -1,17 +1,7 @@
 open Basics
 open Pp
-open Term
 
 module T = struct
-
-  type 'a m = 'a
-
-  type entry = unit
-
-  let return a = a
-
-  let bind t f = f t 
-
   let mk_prelude _ i = Format.printf "#NAME %a.@.@." print_ident i
 
   let mk_declaration _ i t =
@@ -37,18 +27,6 @@ module T = struct
 
   let mk_command _ cmd =
     Format.printf "@[<2>%a@]@.@." Cmd.print_command cmd
-
-  let mk_Type loc = return (mk_Type loc)
-
-  let mk_DB loc id n = return (mk_DB loc id n)
-
-  let mk_Const loc md id = return (mk_Const loc md id)
-
-  let mk_Lam loc id ty t = return (mk_Lam loc id ty t)
-
-  let mk_App f t ts = return (mk_App f t ts)
-  let mk_Pi loc x ta tb = return (mk_Pi loc x ta tb)
-  let mk_Arrow loc ta tb = return (mk_Arrow loc ta tb)
 
   let mk_ending _ = ()
 end
