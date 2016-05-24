@@ -36,8 +36,6 @@ let mk_Pi loc x ta tb = return (Term.mk_Pi loc x ta tb)
 
 let mk_Arrow loc ta tb = return (Term.mk_Arrow loc ta tb)
   
-let mk_ending _ = ()
-
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_ident name;
   Env.init name;

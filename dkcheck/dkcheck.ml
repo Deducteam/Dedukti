@@ -21,16 +21,7 @@ let parse' lb =
   | Tokens.EndOfFile -> ()
   | P.Error       -> Errors.fail (Lexer.get_loc lb)
     "Unexpected token '%s'." (Lexing.lexeme lb)
-(*
-let parse lb =
-  try
-    P.prelude Lexer.token lb ;
-    while true do P.line Lexer.token lb done
-  with
-    | Tokens.EndOfFile -> ()
-    | P.Error       -> Errors.fail (Lexer.get_loc lb)
-                         "Unexpected token '%s'." (Lexing.lexeme lb)
-*)
+
 
 let args = [
   ("-v"    , Arg.Set Checker.verbose, "Verbose mode" ) ;

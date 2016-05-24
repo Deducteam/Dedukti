@@ -1,16 +1,22 @@
 module P = Parser.Make(Top)
 
-let rec parse lb =
+
+let parse' lb =
+  let rec aux m =    
+    try
+      aux (Top.bind m (fun _ -> (P.line Lexer.token lb)))
+    with
+    | Tokens.EndOfFile -> m
+    | P.Error -> Errors.fail (Lexer.get_loc lb) "Unexpected token '%s'." (Lexing.lexeme lb)
+  in
   try
-    while true do
-      print_string ">> "; flush stdout; P.line Lexer.token lb
-    done
+    let m = P.prelude Lexer.token lb in
+    let m' = aux m in
+    Top.mk_ending m'
   with
-    | Exit      ->  flush stderr; parse lb
-    | P.Error   ->
-        Printf.eprintf "Unexpected token '%s'.\n" (Lexing.lexeme lb);
-        flush stderr; parse lb
-    | Tokens.EndOfFile -> exit 0
+  | Tokens.EndOfFile -> ()
+  | P.Error       -> Errors.fail (Lexer.get_loc lb)
+    "Unexpected token '%s'." (Lexing.lexeme lb)
 
 let  _ =
   print_string "Welcome to Dedukti\n";
@@ -18,4 +24,4 @@ let  _ =
     Pp.name := v;
     Scoping.name := v;
     Env.init v ;
-    parse (Lexing.from_channel stdin)
+    parse' (Lexing.from_channel stdin)
