@@ -30,7 +30,6 @@ module type C = sig
   type 'a m
   type entry
   val mk_command : loc -> command -> entry m
-  val print_command : Format.formatter -> command -> unit
 end
 
 
@@ -81,6 +80,9 @@ let mk_command lc = function
   | Print str         -> M.return [(Default.String str)] (* Format.printf "%s" str *)
   | Other (cmd,_)     -> M.return [(Default.String ("Unknow command '"^cmd^"'.\n"))] (* prerr_string ("Unknown command '"^cmd^"'.\n") *)
 
+end
+
+
 let print_command out c =
   match c with
   | Whnf te          -> Format.fprintf out "#WHNF@ %a." print_term te
@@ -97,5 +99,3 @@ let print_command out c =
       end
   | Print str         -> Format.fprintf out "#PRINT \"%s\"." str
   | Other (cmd,_)     -> failwith ("Unknown command '"^cmd^"'.\n")
-
-end

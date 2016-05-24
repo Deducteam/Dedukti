@@ -28,7 +28,8 @@ module type C = sig
   type 'a m
   type entry
   val mk_command : loc -> command -> entry m
-  val print_command : Format.formatter -> command -> unit
 end
 
 module Make : functor (M:Visitor) -> C with type 'a m = 'a M.m and type entry = Default.signature
+
+val print_command : Format.formatter -> command -> unit

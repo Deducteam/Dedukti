@@ -35,8 +35,8 @@ module T = struct
   let mk_rules l =
     Format.printf "@[<v0>%a@].@.@." (print_list "" print_rule) l
 
-  let mk_command _ cmd = failwith "TODO" (*
-    Format.printf "@[<2>%a@]@.@." Cmd.print_command cmd *)
+  let mk_command _ cmd = 
+    Format.printf "@[<2>%a@]@.@." Cmd.print_command cmd
 
   let mk_Type loc = return (mk_Type loc)
 
