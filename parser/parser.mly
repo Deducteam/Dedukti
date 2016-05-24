@@ -91,6 +91,8 @@
 
 %start prelude
 %start line
+(* %start lines 
+%type <unit> lines *)
 %type <M.entry M.m> prelude
 %type <M.entry M.m> line
 %type <Preterm.prule> rule
@@ -112,6 +114,12 @@ prelude         : NAME DOT      { let (lc,name) = $1 in
                                         Scoping.name := name;
                                         mk_prelude lc name }
 
+(*
+lines           :  line+ EOF
+		  { mk_ending (mmap (fun x -> x) $1) }
+                | EOF
+		  {raise Tokens.EndOfFile }
+*)
 line            : ID COLON term DOT
                 {bind (S.scope_term [] $3) (fun ty -> mk_declaration (fst $1) (snd $1) ty) }
                 | ID param+ COLON term DOT
@@ -147,7 +155,7 @@ line            : ID COLON term DOT
                 { bind (mmap S.scope_rule $1) mk_rules }
                 | command DOT { $1 }
                 | EOF
-                { mk_ending () ; raise Tokens.EndOfFile }
+                { (* mk_ending () ; *) raise Tokens.EndOfFile }
 
 
 command         : WHNF  term    { bind (S.scope_term [] $2) (fun te -> mk_command $1 (Whnf te)) }

@@ -24,10 +24,10 @@ end
 
 module type S = sig
   type 'a m 
-  val name        : Basics.ident ref
   val scope_term : Term.context -> Preterm.preterm -> Term.term m
   val scope_rule : Preterm.prule -> Rule.rule m
 end
 
 module Make : functor (M:Visitor) -> S with type 'a m = 'a M.m
 
+val name        : Basics.ident ref

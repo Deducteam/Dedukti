@@ -26,16 +26,16 @@ end
 
 module type S = sig
   type 'a m
-  val name        : Basics.ident ref
   val scope_term : Term.context -> Preterm.preterm -> Term.term m
   val scope_rule : Preterm.prule -> Rule.rule m
 end
+
+  let name = ref qmark
 
 module Make(V:Visitor) = struct
 
   type 'a m = 'a V.m
     
-  let name = ref qmark
 
   let get_db_index ctx id =
     let rec aux n = function

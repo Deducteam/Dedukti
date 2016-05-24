@@ -55,6 +55,24 @@ end
 
 module P = Parser.Make(T)
 
+let parse' lb =
+  let rec aux m =    
+    try
+      aux (T.bind m (fun _ -> (P.line Lexer.token lb)))
+    with
+    | Tokens.EndOfFile -> m
+    | P.Error -> Errors.fail (Lexer.get_loc lb) "Unexpected token '%s'." (Lexing.lexeme lb)
+  in
+  try
+    let m = P.prelude Lexer.token lb in
+    let m' = aux m in
+    T.mk_ending m'
+  with
+  | Tokens.EndOfFile -> ()
+  | P.Error       -> Errors.fail (Lexer.get_loc lb)
+    "Unexpected token '%s'." (Lexing.lexeme lb)
+
+
 let parse lb =
   try
     P.prelude Lexer.token lb ;
@@ -64,7 +82,7 @@ let parse lb =
     | P.Error       -> Errors.fail (Lexer.get_loc lb)
                          "Unexpected token '%s'." (Lexing.lexeme lb)
 
-let process_chan ic = parse (Lexing.from_channel ic)
+let process_chan ic = parse' (Lexing.from_channel ic)
 let process_file name =
   (* Print.debug "Processing file %s\n" name; *)
   let ic = open_in name in
