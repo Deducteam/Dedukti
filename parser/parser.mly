@@ -158,6 +158,7 @@ line            : ID COLON term DOT
                 { (* mk_ending () ; *) raise Tokens.EndOfFile }
 
 
+
 command         : WHNF  term    { bind (S.scope_term [] $2) (fun te -> mk_command $1 (Whnf te)) }
                 | HNF   term    { bind (S.scope_term [] $2) (fun te -> mk_command $1 (Hnf te)) }
                 | SNF   term    { bind (S.scope_term [] $2) (fun te -> mk_command $1 (Snf te)) }
