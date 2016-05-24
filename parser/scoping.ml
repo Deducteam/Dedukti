@@ -159,25 +159,6 @@ let p_of_pp (ctx:ident list) (ppat:prepattern) : (pattern m) =
   in
   aux ctx ppat
 
-(******************************************************************************)
-
-
-let p_of_pp (ctx:ident list) : prepattern -> (pattern m) =
-  let rec aux k ctx = function
-    | PPattern (l,None,id,pargs) ->
-        let args = mmap (aux k ctx) pargs in
-        ( match get_db_index ctx id with
-            | Some n -> V.bind args (fun args' -> V.return (Var (l,id,n,args')))
-            | None -> V.bind args (fun args' -> V.return (Pattern (l,!name,id,args')))
-        )
-    | PPattern (l,Some md,id,args) -> 
-      let args = mmap (aux k ctx) args in
-      V.bind args (fun args' -> V.return (Pattern (l,md,id, args')))
-    | PLambda (l,x,p) -> V.bind (aux (k+1) (x::ctx) p) (fun p' ->      
-      V.return (Lambda (l,x,p')))
-    | PCondition pte -> V.bind (t_of_pt ctx pte) (fun ty -> V.return (Brackets ty))
-    | PJoker l -> Errors.fail l "Unimplemeted feature '_'."
-  in aux 0 ctx
 
 let scope_pattern (ctx:context) (pp:prepattern) : pattern m =
   p_of_pp (List.map (fun (_,x,_) -> x) ctx) pp

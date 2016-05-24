@@ -72,7 +72,7 @@ let parse' lb =
   | P.Error       -> Errors.fail (Lexer.get_loc lb)
     "Unexpected token '%s'." (Lexing.lexeme lb)
 
-
+(*
 let parse lb =
   try
     P.prelude Lexer.token lb ;
@@ -81,6 +81,7 @@ let parse lb =
     | Tokens.EndOfFile -> ()
     | P.Error       -> Errors.fail (Lexer.get_loc lb)
                          "Unexpected token '%s'." (Lexing.lexeme lb)
+*)
 
 let process_chan ic = parse' (Lexing.from_channel ic)
 let process_file name =

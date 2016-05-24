@@ -4,6 +4,24 @@ let run_on_stdin        = ref false
 
 module P = Parser.Make(Checker)
 
+
+let parse' lb =
+  let rec aux m =    
+    try
+      aux (Checker.bind m (fun _ -> (P.line Lexer.token lb)))
+    with
+    | Tokens.EndOfFile -> m
+    | P.Error -> Errors.fail (Lexer.get_loc lb) "Unexpected token '%s'." (Lexing.lexeme lb)
+  in
+  try
+    let m = P.prelude Lexer.token lb in
+    let m' = aux m in
+    Checker.mk_ending m'
+  with
+  | Tokens.EndOfFile -> ()
+  | P.Error       -> Errors.fail (Lexer.get_loc lb)
+    "Unexpected token '%s'." (Lexing.lexeme lb)
+(*
 let parse lb =
   try
     P.prelude Lexer.token lb ;
@@ -12,6 +30,7 @@ let parse lb =
     | Tokens.EndOfFile -> ()
     | P.Error       -> Errors.fail (Lexer.get_loc lb)
                          "Unexpected token '%s'." (Lexing.lexeme lb)
+*)
 
 let args = [
   ("-v"    , Arg.Set Checker.verbose, "Verbose mode" ) ;
@@ -33,7 +52,7 @@ let args = [
 let run_on_file file =
   let input = open_in file in
     Basics.debug "Processing file '%s'..." file;
-    parse (Lexing.from_channel input) ;
+    parse' (Lexing.from_channel input) ;
     Errors.success "File '%s' was successfully checked." file;
     close_in input
 
@@ -42,7 +61,7 @@ let _ =
     begin
       Arg.parse args run_on_file ("Usage: "^ Sys.argv.(0) ^" [options] files");
       if !run_on_stdin then (
-        parse (Lexing.from_channel stdin) ;
+        parse' (Lexing.from_channel stdin) ;
         Errors.success "Standard input was successfully checked.\n" )
     end
   with
