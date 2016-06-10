@@ -5,6 +5,7 @@ open Pp
 
 let verbose = ref false
 let only_meta = ref false
+let apply_on_rules = ref false
 
 let sg_meta = ref (Signature.make (hstring "noname"))
 
@@ -83,6 +84,16 @@ let get_infos = function
   | Rule.Pattern (l,md,id,_) -> (l,md,id)
   | _ -> (dloc,qmark,qmark)
 
+let rec normalize_pattern p = Rule.(
+  match p with
+  | Var(loc,id,i,pl) -> Var(loc,id,i, List.map normalize_pattern pl)
+  | Pattern(loc,id,i,pl) -> Pattern(loc,id,i, List.map normalize_pattern pl)
+  | Lambda(loc,id,p) -> Lambda(loc,id, normalize_pattern p)
+  | Brackets(t) -> Brackets(normalize t))
+
+let normalize_rule ((c,p,t),m) = ((c, normalize_pattern p, normalize t),m)
+
+
 let mk_rules  = function
   | [] -> ()
   | (((_,pat,_), _)::_) as lst ->
@@ -97,14 +108,19 @@ let mk_rules  = function
       try
 	let lst'' = List.map (Typing.check_rule !sg_meta) lst' in
 	Signature.add_rules !sg_meta lst'';
-	OK lst''
+	OK lst'' with
+	| SignatureError e ->  Err (EnvErrorSignature e)
+	| TypingError e -> Err (EnvErrorType e) 
+      ))) 
       with
-      | SignatureError e ->  Err (EnvErrorSignature e)
-      | TypingError e -> Err (EnvErrorType e) ))) with
       | OK _ -> ()
       | Err e -> Errors.fail_env_error e
       end;
-      Format.printf "@[<v0>%a@].@.@." (print_list "" print_rule) lst
+
+      if !apply_on_rules then
+	Format.printf "@[<v0>%a@].@.@." (print_list "" print_rule) (List.map normalize_rule lst)
+      else
+	Format.printf "@[<v0>%a@].@.@." (print_list "" print_rule) lst
     (*  match Env.add_rules lst' with
       | OK lst2 ->
         List.iter ( fun (ctx,pat,rhs) ->

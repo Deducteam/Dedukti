@@ -26,7 +26,8 @@ let args = [
   ("-errors-in-snf", Arg.Set Errors.errors_in_snf, "Normalize the types in error messages");
   ("-cc", Arg.String Confluence.set_cmd, "Set the external confluence checker");
   ("-nl", Arg.Set Dtree.allow_non_linear, "Allow non left-linear rewrite rules");
-  ("-snf-only-meta", Arg.Set Checker.only_meta, "Normalize only using meta-rules")
+  ("-snf-only-meta", Arg.Set Checker.only_meta, "Normalize only using meta-rules");
+  ("-apply-on-rules", Arg.Set Checker.apply_on_rules, "Normalize inside regular rules")
 ]
 
 let run_on_file file =
