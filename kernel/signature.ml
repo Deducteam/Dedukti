@@ -144,7 +144,8 @@ let rec import sg lc m =
   assert ( not (H.mem sg.tables m) ) ;
 
   (* If the [.dko] file is not found, try to compile it first.
-       This hack is terrible. It uses system calls and can loop with circular dependencies. *)
+     This hack is terrible. It uses system calls and can loop with circular dependencies.
+     Also, this hack supposes that the module name and the file name are the same.*)
   ( if !autodep && not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) then
       if Sys.command ( "dkcheck -autodep -e " ^ string_of_ident m ^ ".dk" ) <> 0 then
         raise (SignatureError (FailToCompileModule (lc,m)))

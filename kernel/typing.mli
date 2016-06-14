@@ -30,17 +30,17 @@ type context = (loc*ident*term) list
 
 val infer       : Signature.t -> context -> term -> typ
 (** [infer sg ctx te] infers a type for the term [te] in the signature [sg] and context [ctx]
- * The context is assumed to be well-formed *)
+    The context is assumed to be well-formed *)
 
 val check       : Signature.t -> context -> term -> typ -> unit
 (** [check sg ctx te ty] checks that the term [te] has type [ty]
-* in the signature [sg] and context [ty.ctx].
- * [ty] is assumed to be well-typed in [ctx]
- * and [ctx] is assumed to be well-formed *)
+    in the signature [sg] and context [ty.ctx].
+    [ty] is assumed to be well-typed in [ctx]
+    and [ctx] is assumed to be well-formed *)
 
 val checking    : Signature.t -> term -> term -> unit
 (** [checking sg te ty] checks that [te] has type [te] in the empty context.
- * [ty] is typechecked first. *)
+    [ty] is typechecked first. *)
 
 val inference   : Signature.t -> term -> typ
 (** [inference sg ctx te] infers a type for the term [te] in empty context. *)
