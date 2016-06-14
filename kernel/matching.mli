@@ -1,3 +1,5 @@
+(** Matching on terms *)
+
 open Basics
 open Term
 
