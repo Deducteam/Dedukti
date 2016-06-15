@@ -14,7 +14,7 @@ type pattern =
   | Lambda      of loc*ident*pattern
       (** lambda abstraction *)
   | Brackets    of term
-      (** {te} : check at runtime that the pattern matched is convertible to [te] *)
+      (** te where [te] is convertible to the pattern matched *)
 
 val get_loc_pat : pattern -> loc
 
