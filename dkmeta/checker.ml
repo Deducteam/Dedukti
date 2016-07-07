@@ -24,7 +24,7 @@ let normalize ty =
     Basics.do_beta := false;
   let ty' = Reduction.snf !sg_meta ty in
   if !only_meta then
-    Basics.do_beta := true; 
+    Basics.do_beta := true;
   ty'
 
 (* ********************************* *)
@@ -35,7 +35,7 @@ let mk_prelude lc name =
   sg_meta := Signature.make (hstring  (string_of_ident name));
   Confluence.initialize ()
 
-let mk_declaration lc id pty : unit = 
+let mk_declaration lc id pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
   let pty' = normalize pty in
   Format.printf "@[<2>%a :@ %a.@]@.@." print_ident id print_term pty';
@@ -44,7 +44,7 @@ let mk_declaration lc id pty : unit =
     | OK () -> ()
     | Err e -> Errors.fail_env_error e  *)
 
-let mk_definable lc id pty : unit = 
+let mk_definable lc id pty : unit =
   eprint lc "Declaration of definable '%a'." pp_ident id;
   let pty' = normalize pty in
   Format.printf "@[<2>def %a :@ %a.@]@.@." print_ident id print_term pty';
@@ -53,12 +53,12 @@ let mk_definable lc id pty : unit =
     | OK () -> ()
     | Err e -> Errors.fail_env_error e *)
 
-let mk_definition lc id pty_opt pte : unit = 
+let mk_definition lc id pty_opt pte : unit =
   let pty = match pty_opt with | None -> Typing.inference !sg_meta pte | Some(ty) -> ty in
   let pty' = normalize pty in
   let pte' = normalize pte in
   Signature.add_definable !sg_meta lc id pty;
-  if not !only_meta then 
+  if not !only_meta then
     Signature.add_rules !sg_meta [([], Rule.Pattern (lc,Signature.get_name !sg_meta, id, []), pte')];
   begin
   match pty_opt with
@@ -66,8 +66,8 @@ let mk_definition lc id pty_opt pte : unit =
     Format.printf "@[<hv2>def %a :=@ %a.@]@.@." print_ident id print_term pte'
   | Some _ ->
     Format.printf "@[<hv2>def %a :@ %a@ :=@ %a.@]@.@." print_ident id print_term pty' print_term pte'
-  end 
-					
+  end
+
    (*
   eprint lc "Definition of symbol '%a'." pp_ident id ;
   match Env.define lc id pte pty_opt with
@@ -102,7 +102,7 @@ let mk_rules  = function
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
       let lst_meta = List.map fst
 	(List.filter ( fun (_,t) -> t = Preterm.MetaRule) lst ) in
-      let lst' = if !only_meta then lst_meta else (List.map fst lst) in     
+      let lst' = if !only_meta then lst_meta else (List.map fst lst) in
       begin
       match Env.(Signature.(Typing.(
       try
@@ -110,8 +110,8 @@ let mk_rules  = function
 	Signature.add_rules !sg_meta lst'';
 	OK lst'' with
 	| SignatureError e ->  Err (EnvErrorSignature e)
-	| TypingError e -> Err (EnvErrorType e) 
-      ))) 
+	| TypingError e -> Err (EnvErrorType e)
+      )))
       with
       | OK _ -> ()
       | Err e -> Errors.fail_env_error e
@@ -128,7 +128,7 @@ let mk_rules  = function
           ) lst2 ;
       | Err e -> Errors.fail_env_error e *)
     end
-		  
+
 let mk_command = Cmd.mk_command
 
 let export = ref false
