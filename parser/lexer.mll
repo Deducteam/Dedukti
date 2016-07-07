@@ -70,7 +70,7 @@ and string buf = parse
   { Buffer.add_char buf '\\'; Buffer.add_char buf c; string buf lexbuf }
   | '\n'
   { Lexing.new_line lexbuf ; Buffer.add_char buf '\n'; string buf lexbuf }
-  | '"' 
+  | '"'
   { STRING (Buffer.contents buf) }
   | _ as c
   { Buffer.add_char buf c; string buf lexbuf }
