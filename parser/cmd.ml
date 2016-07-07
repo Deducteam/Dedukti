@@ -66,8 +66,8 @@ let print_command out c =
   | Hnf te           -> Format.fprintf out "#HNF@ %a." print_term te
   | Snf te           -> Format.fprintf out "#SNF@ %a." print_term te
   | OneStep te       -> Format.fprintf out "#STEP@ %a." print_term te
-  | Conv (te1,te2)   -> Format.fprintf out "#CONV@ %a@ %a." print_term te1 print_term te2
-  | Check (te,ty)    -> Format.fprintf out "#CHECK@ %a@ %a." print_term te print_term ty
+  | Conv (te1,te2)   -> Format.fprintf out "#CONV@ %a,@ %a." print_term te1 print_term te2
+  | Check (te,ty)    -> Format.fprintf out "#CHECK@ %a,@ %a." print_term te print_term ty
   | Infer te         -> Format.fprintf out "#INFER@ %a." print_term te
   | Gdt (m0,v)       ->
       begin match m0 with
