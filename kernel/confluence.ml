@@ -103,7 +103,7 @@ let rec pp_term (ar:int IdMap.t) k out = function
   | Const (_,m,v) -> fprintf out "c_%a_%a" pp_ident m pp_ident v
   | Lam (_,x,Some a,b) ->
     fprintf out "lam(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
-  | Lam (_,x,None,b) -> assert false (*FIXME*)
+  | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
   | Pi (_,x,a,b) ->
     fprintf out "pi(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
   | DB (_,x,n) when n<k -> fprintf out "v_%a" pp_ident x
@@ -135,7 +135,7 @@ let get_bvars r =
   let pat = (Pattern (r.l,r.md,r.id,r.args)) in
   let rec aux_t k bvars = function
     | Const _ | Kind | Type _ | DB _ -> bvars
-    | Lam (_,x,None,b) -> assert false (*FIXME*)
+    | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
     | Lam (_,x,Some a,b) | Pi (_,x,a,b) ->
       let bvars2 = aux_t k bvars a in aux_t (k+1) (x::bvars2) b
     | App (f,a,args) ->
