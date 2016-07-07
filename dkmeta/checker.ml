@@ -129,7 +129,34 @@ let mk_rules  = function
       | Err e -> Errors.fail_env_error e *)
     end
 
-let mk_command = Cmd.mk_command
+let mk_command lc = function
+  | Cmd.Whnf te ->
+     Format.printf "#WHNF@ %a." print_term (normalize te)
+  | Cmd.Hnf te ->
+     Format.printf "#HNF@ %a." print_term (normalize te)
+  | Cmd.Snf te ->
+     Format.printf "#SNF@ %a." print_term (normalize te)
+  | Cmd.OneStep te ->
+     Format.printf "#STEP@ %a." print_term (normalize te)
+  | Cmd.Conv (te1,te2) ->
+     Format.printf "#CONV@ %a,@ %a."
+        print_term (normalize te1)
+        print_term (normalize te2)
+  | Cmd.Check (te,ty) ->
+     Format.printf "#CHECK@ %a,@ %a."
+        print_term (normalize te)
+        print_term (normalize ty)
+  | Cmd.Infer te ->
+     Format.printf "#INFER@ %a." print_term (normalize te)
+  | Cmd.Gdt (m0,v) ->
+      begin match m0 with
+      | None -> Format.printf "#GDT@ %a." print_ident v
+      | Some m -> Format.printf "#GDT@ %a.%a." print_ident m print_ident v
+      end
+  | Cmd.Print str ->
+     Format.printf "#PRINT \"%s\"." str
+  | Cmd.Other (cmd,_) ->
+     failwith ("Unknown command '"^cmd^"'.\n")
 
 let export = ref false
 
