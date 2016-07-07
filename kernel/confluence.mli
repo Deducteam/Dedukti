@@ -1,3 +1,5 @@
+(** Confluence checker *)
+
 open Basics
 open Rule
 

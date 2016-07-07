@@ -16,7 +16,7 @@ let unshift q te =
   let rec aux k = function
   | DB (_,_,n) as t when n<k -> t
   | DB (l,x,n) ->
-    if n < q then raise UnshiftExn
+    if (n-k) < q then raise UnshiftExn
     else mk_DB l x (n-q)
   | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
   | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)

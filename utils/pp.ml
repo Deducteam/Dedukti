@@ -65,13 +65,40 @@ and print_ppattern_wp out = function
   | PPattern (_,_,_,_::_) as p  -> Format.fprintf out "(%a)" print_ppattern p
   | p                           -> print_ppattern out p
 
-let print_const out (m,v) =
-  if ident_eq m !name then print_ident out v
-  else Format.fprintf out "%a.%a" print_ident m print_ident v
+let fresh_name names base =
+  if List.mem base names then
+    let i = ref 0 in
+    let name i = hstring (string_of_ident base ^ string_of_int i) in
+    while List.mem (name !i) names do
+      incr i
+    done;
+    name !i
+  else base
 
-let print_db out (x,n) =
-  if !print_db_enabled then Format.fprintf out "%a[%i]" print_ident x n
-  else print_ident out x
+let rec subst map = function
+  | DB (_,x,_) as t when is_dummy_ident x -> t
+  | DB (l,x,n) as t ->
+     begin
+       try
+         let newname = List.nth map n in
+         mk_DB l newname n
+       with Failure "nth" -> t
+     end
+  | Kind
+  | Type _
+  | Const _ as t       -> t
+  | App (f,a,args)     -> mk_App (subst map f)
+                                (subst map a)
+                                (List.map (subst map) args)
+  | Lam (l,x,None,f)   -> let x' = fresh_name map x in
+                         mk_Lam l x' None (subst (x' :: map) f)
+  | Lam (l,x,Some a,f) -> let x' = fresh_name map x in
+                         mk_Lam l x' (Some (subst map a)) (subst (x' :: map) f)
+  | Pi  (l,x,a,b)      -> let x' =
+                           if is_dummy_ident x then x else fresh_name map x
+                         in
+                         mk_Pi l x' (subst map a) (subst (x' :: map) b)
+
 
 let rec print_raw_term out = function
   | Kind               -> Format.pp_print_string out "Kind"
@@ -99,6 +126,9 @@ and print_term out t =
 and print_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> print_term out t
   | t                                   -> Format.fprintf out "(%a)" print_term t
+
+(* Overwrite print_term by a name-clash avoiding version *)
+let print_term out t = print_term out (subst [] t)
 
 let print_bv out (_,id,i) = print_db out (id,i)
 

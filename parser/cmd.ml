@@ -1,5 +1,6 @@
 open Basics
 open Term
+open Pp
 open Typing
 
 type command =
@@ -17,7 +18,7 @@ type command =
   | Print of string
   | Other of string*term list
 
-let print s = print_string s; print_newline ()
+let print s = Format.printf "%s\n" s
 
 let mk_command lc =
   let open Pp in
@@ -58,18 +59,17 @@ let mk_command lc =
             | OK (Some (i,g)) ->
                 Printf.fprintf stdout "%a\n" Rule.pp_rw (m,v,i,g)
             | _ -> print "No GDT." )
-  | Print str         -> output_string stdout str
+  | Print str         -> Format.printf "%s" str
   | Other (cmd,_)     -> prerr_string ("Unknown command '"^cmd^"'.\n")
 
 let print_command out c =
-  let open Pp in
   match c with
   | Whnf te          -> Format.fprintf out "#WHNF@ %a." print_term te
   | Hnf te           -> Format.fprintf out "#HNF@ %a." print_term te
   | Snf te           -> Format.fprintf out "#SNF@ %a." print_term te
   | OneStep te       -> Format.fprintf out "#STEP@ %a." print_term te
-  | Conv (te1,te2)   -> Format.fprintf out "#CONV@ %a@ %a." print_term te1 print_term te2
-  | Check (te,ty)    -> Format.fprintf out "#CHECK@ %a@ %a." print_term te print_term ty
+  | Conv (te1,te2)   -> Format.fprintf out "#CONV@ %a,@ %a." print_term te1 print_term te2
+  | Check (te,ty)    -> Format.fprintf out "#CHECK@ %a,@ %a." print_term te print_term ty
   | Infer te         -> Format.fprintf out "#INFER@ %a." print_term te
   | Gdt (m0,v)       ->
       begin match m0 with

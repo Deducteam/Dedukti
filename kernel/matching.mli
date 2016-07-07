@@ -1,9 +1,11 @@
+(** Matching on terms *)
+
 open Basics
 open Term
 
 exception NotUnifiable
 type ho_env = (int*term) LList.t
 
-val resolve : int LList.t -> term -> term
+val resolve : int -> int LList.t -> term -> term
 
 val ho_psubst : ho_env -> term -> term
