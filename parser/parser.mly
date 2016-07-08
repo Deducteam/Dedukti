@@ -65,6 +65,7 @@
 %token <Basics.loc*Basics.ident>NAME
 %token <Basics.loc> TYPE
 %token <Basics.loc> KW_DEF
+%token <Basics.loc> KW_THM
 %token <Basics.loc*Basics.ident> ID
 %token <Basics.loc*Basics.ident*Basics.ident> QID
 %token <string> STRING
@@ -107,13 +108,11 @@ line            : ID COLON term DOT
                         (scope_term [] (mk_lam $7 $3)) }
                 | KW_DEF ID param+ DEF term DOT
                 { mk_definition (fst $2) (snd $2) None (scope_term [] (mk_lam $5 $3)) }
-                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT
-                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] $5)) (scope_term [] $7) }
-                | LEFTBRA ID RIGHTBRA DEF term DOT
-                { mk_opaque (fst $2) (snd $2)  None (scope_term [] $5) }
-                | LEFTBRA ID param+ RIGHTBRA COLON term DEF term DOT
-                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] (mk_pi $6 $3)))
-                        (scope_term [] (mk_lam $8 $3)) }
+                | KW_THM ID COLON term DEF term DOT
+                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }
+                | KW_THM ID param+ COLON term DEF term DOT
+                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] (mk_pi $5 $3)))
+                        (scope_term [] (mk_lam $7 $3)) }
                 | LEFTBRA ID param+ RIGHTBRA DEF term DOT
                 { mk_opaque (fst $2) (snd $2)  None (scope_term [] (mk_lam $6 $3)) }
                 | rule+ DOT

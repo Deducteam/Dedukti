@@ -304,7 +304,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
     end
   | Var (l,x,n,args) when (n>=LList.len sigma) ->
     begin
-      let (args2,last) = get_last args in (*TODO use fold?*)
+      let (args2,last) = get_last args in
       match last with
       | Var (l2,x2,n2,[]) ->
         check_pattern sg delta sigma
@@ -343,14 +343,13 @@ and pp_term_wp_j k out = function
   | Kind | Type _ | DB _ | Const _ as t -> pp_term_j k out t
   | t       -> Printf.fprintf out "(%a)" (pp_term_j k) t
 
-(* FIXME no need to traverse three times the terms... *)
+(* TODO the term is traversed three times, this could be optimized. *)
 let subst_context (sub:SS.t) (ctx:context) : context option =
   try Some ( List.mapi ( fun i (l,x,ty) ->
       (l,x, Subst.unshift (i+1) (SS.apply sub (Subst.shift (i+1) ty) 0) )
     ) ctx )
   with
   | Subst.UnshiftExn -> None
-
 
 let check_rule sg (ctx0,le,ri:rule) : rule2 =
   let delta = pc_make ctx0 in
@@ -369,7 +368,7 @@ let check_rule sg (ctx0,le,ri:rule) : rule2 =
         | Some ctx2 -> ( SS.apply sub ri 0, SS.apply sub ty_le 0, ctx2 )
         | None ->
           begin
-            (*FIXME*)
+            (*TODO make Dedukti handle this case*)
             debug "Failed to infer a typing context for the rule:\n%a." Rule.pp_rule (ctx0,le,ri);
             SS.iter (
               fun i (id,te) -> debug "Try replacing '%a[%i]' by '%a'"
