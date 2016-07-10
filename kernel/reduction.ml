@@ -89,7 +89,7 @@ let rec find_case (st:state) (cases:(case*dtree) list) (default:dtree option) : 
     end
   | { ctx; term=Lam (_,_,_,_) } , ( CLam , tr )::tl ->
     begin
-      match term_of_state st with (*FIXME*)
+      match term_of_state st with (*TODO could be optimized*)
       | Lam (_,_,_,te) ->
         Some ( tr , [{ ctx=LList.nil; term=te; stack=[] }] )
       | _ -> assert false
@@ -193,17 +193,19 @@ and get_context_syn (sg:Signature.t) (stack:stack) (ord:pos LList.t) : env optio
   with Subst.UnshiftExn -> ( None )
 
 and solve (sg:Signature.t) (depth:int) (pbs:int LList.t) (te:term) : term =
-  let res =
+(*   let res = *)
     try Matching.solve depth pbs te
     with Matching.NotUnifiable ->
       Matching.solve depth pbs (snf sg te)
+(*
   in
   let te2 =
     match LList.lst pbs with
     | [] -> res
     | hd::tl -> mk_App res (mk_DB dloc qmark hd) (List.map (mk_DB dloc qmark) tl)
   in
-  ( assert (are_convertible_lst sg [(te,te2)]); res (*FIXME*) )
+  ( assert (are_convertible_lst sg [(te,te2)]); res )
+*)
 
 and get_context_mp (sg:Signature.t) (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
   let aux (pb:abstract_pb) : term Lazy.t =
