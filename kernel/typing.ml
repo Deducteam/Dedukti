@@ -131,7 +131,18 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             | None -> assert false
             | Some sigma2 -> pseudo_u sg sigma2 lst
           end
-        | DB (_,x,n), t
+        | DB (_,x,n), t when n>=q ->
+          begin
+            match unshift_reduce sg q t with
+            | None -> None
+            | Some t' ->
+              ( match SS.add sigma x (n-q) t' with
+                | None ->
+                  ( match SS.add sigma x (n-q) (Reduction.snf sg t') with
+                    | None -> None
+                    | Some sigma2 -> pseudo_u sg sigma2 lst )
+                | Some sigma2 -> pseudo_u sg sigma2 lst )
+          end
         | t, DB (_,x,n) when n>=q ->
           begin
             match unshift_reduce sg q t with
@@ -150,13 +161,17 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
         | Lam (_,_,_,b), Lam (_,_,_,b') ->
           pseudo_u sg sigma ((q+1,b,b')::lst)
 
-        | App (DB (_,_,n),_,_), _
+        | App (DB (_,_,n),_,_), _  when ( n >= q ) ->
+          if Reduction.are_convertible sg t1' t2' then
+            ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+          else None
         | _, App (DB (_,_,n),_,_) when ( n >= q ) ->
           if Reduction.are_convertible sg t1' t2' then
             ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
           else None
 
-        | App (Const (l,md,id),_,_), _
+        | App (Const (l,md,id),_,_), _ when (not (Signature.is_constant sg l md id)) ->
+          ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
         | _, App (Const (l,md,id),_,_) when (not (Signature.is_constant sg l md id)) ->
           ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
 

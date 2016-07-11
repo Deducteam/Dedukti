@@ -81,7 +81,7 @@ let rec subst map = function
        try
          let newname = List.nth map n in
          mk_DB l newname n
-       with Failure "nth" -> t
+       with Failure _ -> t
      end
   | Kind
   | Type _
