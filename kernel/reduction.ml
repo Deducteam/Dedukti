@@ -98,6 +98,35 @@ let rec find_case (st:state) (cases:(case*dtree) list) (default:dtree option) : 
 
 (* ********************* *)
 
+(* Definition: a term is in weak-head-normal form if all its reducts (including itself)
+ * have same 'shape' at the root.
+ * The shape of a term could be computed like this:
+ *  
+ * let rec shape = function
+ *  | Type -> Type
+ *  | Kind -> Kind
+ *  | Pi _ -> Pi
+ *  | Lam _ -> Lam
+ *  | DB (_,_,n) -> DB n
+ *  | Const (_,m,v) -> Const m v
+ *  | App(f,a0,args) -> App (shape f,List.lenght (a0::args))
+
+ * Property:
+ * A (strongly normalizing) non weak-head-normal term can only have the form:
+ * - (x:A => b) a c_1..c_n, this is a beta-redex potentially with extra arguments.
+ * - or c a_1 .. a_n b_1 ..b_n with c a constant and c a'_1 .. a'_n is a gamma-redex 
+ *   where the (a'_i)s are reducts of (a_i)s.
+ *)
+
+(* This function reduces a state to a weak-head-normal form.
+ * This means that the term [term_of_state (state_whnf sg state)] is a
+ * weak-head-normal reduct of [term_of_state state].
+ *
+ * Moreover the returned state verifies the following properties:
+ * - state.term is not an application
+ * - state.term can only be a variable if term.ctx is empty
+ *    (and therefore this variable is free in the corresponding term)
+ * *)
 let rec state_whnf (sg:Signature.t) : state -> state = function
   (* Weak heah beta normal terms *)
   | { term=Type _ }
