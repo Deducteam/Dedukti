@@ -7,8 +7,9 @@ INSTALL_DIR=/usr/bin
 
 MENHIR = -menhir "menhir --external-tokens Tokens"
 SRC_DIRS = kernel,utils,parser
+PACKAGE = ocamlgraph
 
-all: dkcheck dktop dkdep dkindent lib doc
+all: dkcheck dktop dkdep dkindent lib doc universo
 
 dkcheck:
 	ocamlbuild -Is $(SRC_DIRS),dkcheck $(MENHIR) -lib unix dkcheck.native
@@ -21,6 +22,9 @@ dkdep:
 
 dkindent:
 	ocamlbuild -Is $(SRC_DIRS),dkindent $(MENHIR) -lib unix dkindent.native
+
+universo:
+	ocamlbuild -Is $(SRC_DIRS),universo,universo/unionfind $(MENHIR) -lib unix -package $(PACKAGE) universo.native
 
 doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
@@ -56,4 +60,4 @@ tests: dkcheck
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: dkcheck dktop dkdep dkindent tests clean doc uninstall
+.PHONY: dkcheck dktop dkdep dkindent universo tests clean doc uninstall

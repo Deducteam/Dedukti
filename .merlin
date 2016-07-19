@@ -6,6 +6,8 @@ S dkcheck
 S dktop
 S dkdep
 S dkrule
+S universo
+S universo/unionfind
 
 B _build/kernel
 B _build/parser
@@ -16,5 +18,8 @@ B _build/dkcheck
 B _build/dkdep
 B _build/dktop
 B _build/dkrule
+B _build/universo
+B _build/universo/unionfind
 
+PKG ocamlgraph
 FLG -w -3
