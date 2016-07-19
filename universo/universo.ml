@@ -42,11 +42,6 @@ let eprint lc fmt =
 
 let sg = ref (Signature.make (hstring "noname"))
 
-let rec add_variables nv = Term.(
-  let sort = mk_Const dloc (hstring "cic") (hstring "Sort") in
-  List.iter (fun v -> ignore(Env.declare_constant dloc v sort)(* ;
-    Format.printf "@[<2>%a :@ %a.@]@.@." print_ident v print_term sort *)) nv)
-
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_ident name;
   Format.printf "#NAME %a.@.@." print_ident name;

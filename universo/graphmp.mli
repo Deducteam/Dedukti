@@ -10,5 +10,5 @@ val add_edge : t -> int -> int -> t
 (* return nodes that do not have edge that comes in *)
 val roots : t -> int list
 
-val shortest_path : t -> int -> (int, int) Hashtbl.t                     
+val shortest_path : t -> int -> (int -> int)
                      

@@ -24,7 +24,7 @@ dkindent:
 	ocamlbuild -Is $(SRC_DIRS),dkindent $(MENHIR) -lib unix dkindent.native
 
 universo:
-	ocamlbuild -Is $(SRC_DIRS),universo,universo/unionfind $(MENHIR) -lib unix -package $(PACKAGE) universo.native
+	ocamlbuild -Is $(SRC_DIRS),universo,universo/unionfind,universo/shortestpath $(MENHIR) -lib unix -package $(PACKAGE) universo.native
 
 doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html

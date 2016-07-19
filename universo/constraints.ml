@@ -142,9 +142,9 @@ type result = (Basics.ident,Term.term) Hashtbl.t
 (* return a Map that associate for each univ variable its universe *)
 let solve() = 
   let (uf,g) = graph_of_constraints !constraints in
-  let r = Graph.shortest_path g 0 in
+  let f = Graph.shortest_path g 0 in
   (* -1 because of the artifical node 0 *)
-  let sort_of_var v = sort_of_nat (Hashtbl.find r (uff uf v) -1) in
+  let sort_of_var v = sort_of_nat  ((f (uff uf v)) -1) in
   Hashtbl.iter (fun k v -> Hashtbl.add k (sort_of_var v) env) var_of_name;
   env
 

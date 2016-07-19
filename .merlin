@@ -8,6 +8,7 @@ S dkdep
 S dkrule
 S universo
 S universo/unionfind
+S universo/shortestpath
 
 B _build/kernel
 B _build/parser
@@ -20,6 +21,7 @@ B _build/dktop
 B _build/dkrule
 B _build/universo
 B _build/universo/unionfind
+B _build/universo/shortestpath
 
 PKG ocamlgraph
 FLG -w -3
