@@ -274,6 +274,62 @@ and are_convertible_lst sg : (term*term) list -> bool = function
             add_to_list2 args args' ((f,f')::(a,a')::lst)
           | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
           | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
+          (* univ stuff : by pass the typing system *)
+	  | Const (_,m,v), Const (_,m',v') when (is_univ_variable v) && 
+						   (is_univ_variable v') -> 
+	    add_constraint_eq v v'; Some lst
+	  | Const(_,m,v), App(Const(_,m',s),a,args) when 
+	      (is_univ_variable v) && (string_of_ident s = "type")  -> 
+	    let v' = 
+	      match a with
+	      | Const(_,_,v) when string_of_ident v= "z" -> hstring ("univ_variable1")
+	      | _ -> assert false
+	    in
+	    add_constraint_eq v' v; Some lst
+	  | App(Const(_,m',s),a,args), Const(_,m,v) when
+	      (is_univ_variable v)  && (string_of_ident s = "type") -> 
+	    let v' = 
+	      match a with
+	      | Const(_,_,v) when string_of_ident v ="z" -> hstring ("univ_variable1")
+	      | _ -> assert false
+	    in
+	    add_constraint_eq v' v; Some lst
+	  | Const(_,m,v), App(Const(_,m',s),a,args) when 
+	      (is_univ_variable v) && (string_of_ident s = "succ") -> 
+	   
+	    let v' = 
+	    match a with
+	    | Const (_,_,v) when (is_univ_variable v) -> v
+	    | _ -> assert false
+	    in
+	    add_constraint_lt v' v; Some lst
+	  | App(Const(_,m',s),a,args), Const(_,m,v) when
+	      (is_univ_variable v) && (string_of_ident s = "succ") -> 
+	   
+	    let v' = 
+	    match a with
+	    | Const (_,_,v) when (is_univ_variable v) -> v
+	    | Const (_,_,v) when string_of_ident v = "prop" ->  hstring ("univ_variable0")
+	    | _ -> assert false
+	    in
+	    add_constraint_lt v' v; Some lst
+	  | Const(_,m,v), App(Const(_,m',s),a,args) when 
+	      (is_univ_variable v) && (string_of_ident s = "rule") -> 
+	    let v' =
+	    match args with
+	    | Const (_,_,v)::_ when (is_univ_variable v) -> v
+	    | _ -> assert false
+	    in
+	    add_constraint_eq v v'; Some lst
+	  | App(Const(_,m',s),a,args), Const(_,m,v) when
+	      (is_univ_variable v) && (string_of_ident s = "rule") -> 
+	    let v' =
+	    match args with
+	    | Const (_,_,v)::_ when (is_univ_variable v) -> v
+	    | _ -> assert false
+	    in
+	    add_constraint_eq v v'; Some lst
+	    
           | t1, t2 -> None
       ) with
       | None -> false

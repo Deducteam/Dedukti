@@ -12,14 +12,6 @@ let basename = "univ_variable"
 
 let c = ref 0
 
-let fresh_uname () =
-  let str = basename ^ (string_of_int !c) in
-  incr c;
-  let v = hstring str in
-  ignore(Env.declare_constant dloc v sort);
-  v
-
-
 let is_univ_variable v =
   let s = string_of_ident v in
   let n = String.length basename in
@@ -29,7 +21,7 @@ let is_univ_variable v =
 let counter = ref 1
 
 (* each univ variable is attached to a unique natural number *)
-let var_of_name = Hashtbl.create 83
+let var_of_name:(Basics.ident, int) Hashtbl.t = Hashtbl.create 83
 
 (* get the number attached to the univ variable *)  
 let uvar name =
@@ -39,7 +31,15 @@ let uvar name =
     let n = !counter in
     Hashtbl.add var_of_name name n;
     incr counter; n
+                   
+let fresh_uname () =
+  let str = basename ^ (string_of_int !c) in
+  incr c;
+  let v = hstring str in
+  ignore(Env.declare_constant dloc v sort);
+  v
 
+       
 (* Replace all terms of types Sort by a variable *)          
 let rec elaboration term = Term.(
   let m_name = Env.get_name() in
