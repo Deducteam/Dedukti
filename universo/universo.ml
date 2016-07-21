@@ -1,6 +1,6 @@
 open Basics
 open Pp
-open Constraints
+open Solver
               
 type entry = 
 | Declaration of ident * Term.term 
@@ -51,7 +51,7 @@ let mk_prelude lc name =
 
 let mk_declaration lc id pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
-  let pty' = Constraints.elaboration pty in
+  let pty' = elaboration pty in
   entries := Declaration(id, pty')::!entries;
   match Env.declare_constant lc id pty' with
     | OK () -> () ;
@@ -61,7 +61,7 @@ let mk_declaration lc id pty : unit =
 
 let mk_definable lc id pty : unit =
   eprint lc "Declaration of definable '%a'." pp_ident id;
-  let pty' = Constraints.elaboration pty in
+  let pty' = elaboration pty in
   entries := Definable(id, pty')::!entries;
   match Env.declare_definable lc id pty' with
     | OK () -> ()
@@ -72,9 +72,9 @@ let mk_definition lc id pty_opt pte : unit =
   let pty_opt' = 
     match pty_opt with 
     | None -> None 
-    | Some pty -> Some (Constraints.elaboration pty)
+    | Some pty -> Some (elaboration pty)
   in
-  let pte' = Constraints.elaboration pte in
+  let pte' = elaboration pte in
   entries := Definition(id, pty_opt', pte')::!entries;  
   match Env.define lc id pte' pty_opt' with
     | OK () -> () 
@@ -85,9 +85,9 @@ let mk_opaque lc id pty_opt pte =
   let pty_opt' = 
     match pty_opt with 
     | None -> None
-    | Some pty -> Some (Constraints.elaboration pty)
+    | Some pty -> Some (elaboration pty)
   in
-  let pte' = Constraints.elaboration pte in
+  let pte' = elaboration pte in
   entries := Definition(id, pty_opt', pte')::!entries;    
   match Env.define_op lc id pte pty_opt with
     | OK () -> ()
@@ -101,7 +101,7 @@ let mk_rules = function
   | [] -> ()
   | ((_,pat,pty)::_) as lst ->
      let lst' = List.map (fun (loc,pat, pty) ->
-                    let pty' = Constraints.elaboration pty in (loc,pat,pty')) lst in
+                    let pty' = elaboration pty in (loc,pat,pty')) lst in
     begin
       let (l,md,id) = get_infos pat in
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
@@ -134,14 +134,8 @@ let print_entry entry = Pp.(
 )
 let print_entries entries = ignore(List.map (print_entry) entries)
 
-let mk_ending () = (*
-  if !debug_mode then print_constraints();
-  if !debug_mode then print_var_of_name();
-  if !debug_mode then print_entries !entries; *)
-  let env = Constraints.solve() in   (*
-  if !debug_mode then
-    NameMap.iter _debug_print_entry univ_of_uname; *)
-  
+let mk_ending () = 
+  let env = solve() in   
   let entries' = List.rev_map (reconstruction_of_entry env) !entries in
   print_entries entries';
   ( if !export then
@@ -150,9 +144,6 @@ let mk_ending () = (*
   Confluence.finalize ()
                    
 end
-
-
-
 
 open Term
 
