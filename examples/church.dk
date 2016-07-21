@@ -2,31 +2,31 @@
 
 type : Type.
 arr : type -> type -> type.
-e : type -> Type.
-[a : type, b : type] e (arr a b) --> e a -> e b.
+def e : type -> Type.
+[a,b] e (arr a b) --> e a -> e b.
 
 N : type.
 z : e N.
 s : e N -> e N.
- 
-numeral : Type := A : type -> (e A -> e A) -> (e A -> e A).
- 
-zero  : numeral := A : type => f : (e A -> e A) => x : e A => x.
-one   : numeral := A : type => f : (e A -> e A) => f.
-two   : numeral := A : type => f : (e A -> e A) => x : e A => f (f x).
-three : numeral := A : type => f : (e A -> e A) => x : e A => f (f (f x)).
- 
-plus : numeral -> numeral -> numeral
+
+def numeral : Type := A : type -> (e A -> e A) -> (e A -> e A).
+
+def zero  : numeral := A : type => f : (e A -> e A) => x : e A => x.
+def one   : numeral := A : type => f : (e A -> e A) => f.
+def two   : numeral := A : type => f : (e A -> e A) => x : e A => f (f x).
+def three : numeral := A : type => f : (e A -> e A) => x : e A => f (f (f x)).
+
+def plus : numeral -> numeral -> numeral
 := m : numeral => n : numeral => A : type => f : (e A -> e A) => x : e A => m A f (n A f x).
 
-times : numeral -> numeral -> numeral
+def times : numeral -> numeral -> numeral
 := m : numeral => n : numeral => A : type => f : (e A -> e A) => x : e A => m A (n A f) x.
 
-power : numeral -> numeral -> numeral
+def power : numeral -> numeral -> numeral
 := m : numeral => n : numeral => A : type => n (arr A A) (m A).
 
-four : numeral := plus two two.
-five : numeral := plus two three.
+def four : numeral := plus two two.
+def five : numeral := plus two three.
 
-#CONV 	( power two (times four five) ),  
+#CONV 	( power two (times four five) ),
 	( power two (times five four) ).

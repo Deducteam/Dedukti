@@ -16,3 +16,5 @@ B _build/dkcheck
 B _build/dkdep
 B _build/dktop
 B _build/dkrule
+
+FLG -w -3

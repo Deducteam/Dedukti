@@ -2,6 +2,8 @@ open Basics
 open Term
 open Rule
 
+let allow_non_linear = ref false
+
 type dtree_error =
   | BoundVariableExpected of pattern
   | VariableBoundOutsideTheGuard of term
@@ -10,12 +12,14 @@ type dtree_error =
   | ArityMismatch of loc*ident
   | UnboundVariable of loc*ident*pattern
   | AVariableIsNotAPattern of loc*ident
+  | DistinctBoundVariablesExpected of loc*ident
+  | NonLinearRule of rule2
 
 exception DtreeExn of dtree_error
 
 type rule2 =
     { loc:loc ; pats:pattern2 array ; right:term ;
-      constraints:(term*term) list ; esize:int ; }
+      constraints:constr list ; esize:int ; }
 
 (* ************************************************************************** *)
 
@@ -28,16 +32,20 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
 (* ************************************************************************** *)
 
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
-type lin_ty = { cstr:(term*term) list; fvar:int ; seen:IntSet.t }
+type lin_ty = { cstr:constr list; fvar:int ; seen:IntSet.t }
 let br = hstring "{_}"
 
 let extract_db k = function
   | Var (_,_,n,[]) when n<k -> n
   | p -> raise (DtreeExn (BoundVariableExpected p))
 
+let rec all_distinct = function
+  | [] -> true
+  | hd::tl -> if List.mem hd tl then false else all_distinct tl
+
 (* This function extracts non-linearity and bracket constraints from a list
  * of patterns. *)
-let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term) list =
+let linearize (esize:int) (lst:pattern list) : int * pattern2 list * constr list =
   let rec aux k (s:lin_ty) = function
   | Lambda (l,x,p) ->
       let (p2,s2) = (aux (k+1) s p) in
@@ -46,23 +54,27 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * (term*term)
       let (args2,s2) = fold_map (aux k) s args in
         ( BoundVar2 (x,n,Array.of_list args2) , s2 )
   | Var (l,x,n,args) (* n>=k *) ->
-      let args2 = List.map (extract_db k) args in
+    let args2 = List.map (extract_db k) args in
+    if all_distinct args2 then
+      begin
         if IntSet.mem (n-k) (s.seen) then
           ( Var2(x,s.fvar+k,args2) ,
             { s with fvar=(s.fvar+1);
-                     cstr= (mk_DB l x s.fvar,mk_DB l x (n-k))::(s.cstr) ; } )
+                     cstr= (Linearity (mk_DB l x s.fvar,mk_DB l x (n-k)))::(s.cstr) ; } )
         else
           ( Var2(x,n,args2) , { s with seen=IntSet.add (n-k) s.seen; } )
+      end
+    else
+      raise (DtreeExn (DistinctBoundVariablesExpected (l,x)))
     | Brackets t ->
-        begin
-          try
-            ( Var2(br,s.fvar+k,[]), { s with
-              fvar=(s.fvar+1);
-              cstr=(mk_DB dloc br s.fvar,Subst.unshift k t)::(s.cstr) ;} )
-          with
-            | Subst.UnshiftExn ->
-                raise (DtreeExn (VariableBoundOutsideTheGuard t))
-        end
+      begin
+        try
+          ( Var2(br,s.fvar+k,[]),
+            { s with fvar=(s.fvar+1);
+                     cstr=(Bracket (mk_DB dloc br s.fvar,Subst.unshift k t))::(s.cstr) ;} )
+        with
+        | Subst.UnshiftExn -> raise (DtreeExn (VariableBoundOutsideTheGuard t))
+      end
     | Pattern (_,m,v,args) ->
         let (args2,s2) = (fold_map (aux k) s args) in
           ( Pattern2(m,v,Array.of_list args2) , s2 )
@@ -125,7 +137,12 @@ let check_vars esize ctx p =
             raise (DtreeExn (UnboundVariable (l,x,p)))
     ) seen
 
-let to_rule_infos (r:rule) : (rule_infos,dtree_error) error =
+let rec is_linear = function
+  | [] -> true
+  | (Bracket _)::tl -> is_linear tl
+  | (Linearity _)::tl -> false
+
+let to_rule_infos (r:Rule.rule2) : (rule_infos,dtree_error) error =
   try
     begin
       let (ctx,lhs,rhs) = r in
@@ -142,6 +159,11 @@ let to_rule_infos (r:rule) : (rule_infos,dtree_error) error =
       let nb_args = get_nb_args esize lhs in
       let _ = check_nb_args nb_args rhs in
       let (esize2,pats2,cstr) = linearize esize args in
+      let is_nl = not (is_linear cstr) in
+      if is_nl && (not !allow_non_linear) then
+        Err (NonLinearRule r)
+      else
+        let () = if is_nl then debug "Non-linear Rewrite Rule" in
         OK { l ; ctx ; md ; id ; args ; rhs ;
              esize = esize2 ;
              l_args = Array.of_list pats2 ;
@@ -340,16 +362,6 @@ let partition mx c =
 
 let array_to_llist arr =
   LList.make_unsafe (Array.length arr) (Array.to_list arr)
-(*
-let pp_pattern2 out = function
-  | Joker2 -> Printf.fprintf out "Joker"
-  | Var2 (x,i,[]) -> Printf.fprintf out "%a[%i]" pp_ident x i
-  | _ -> assert false
-let dump_pat_arr arr =
-  .debug_no_loc 1 " ================ PATS >";
-  Array.iter (fun p -> .debug_no_loc 1 "%a" pp_pattern2 p) arr ;
-  .debug_no_loc 1 " < ================"
- *)
 
 (* Extracts the pre_context from the first line. *)
 let get_first_pre_context mx =
@@ -366,7 +378,6 @@ let get_first_pre_context mx =
              begin
                let k = mx.col_depth.(i) in
                  assert( 0 <= n-k ) ;
-                 (*                  Print.debug "N=%i K=%i ESIZE=%i" n k esize; *)
                  assert(n-k < esize ) ;
                  arr1.(n-k) <- { position=i; depth=mx.col_depth.(i); };
                  if lst=[] then

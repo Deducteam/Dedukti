@@ -4,9 +4,6 @@ open Basics
 
 let verbose = ref false
 
-let set_debug_level lvl =
-  if lvl > 0 then ( verbose := true; Pp.print_db_enabled := true )
-
 let eprint lc fmt =
   if !verbose then (
   let (l,c) = of_loc lc in
@@ -19,11 +16,18 @@ let eprint lc fmt =
 
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_ident name;
-  Env.init name
+  Env.init name;
+  Confluence.initialize ()
 
 let mk_declaration lc id pty : unit =
-  eprint lc "Declaration of symbol '%a'." pp_ident id;
-  match Env.declare lc id pty with
+  eprint lc "Declaration of constant '%a'." pp_ident id;
+  match Env.declare_constant lc id pty with
+    | OK () -> ()
+    | Err e -> Errors.fail_env_error e
+
+let mk_definable lc id pty : unit =
+  eprint lc "Declaration of definable '%a'." pp_ident id;
+  match Env.declare_definable lc id pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 
@@ -39,20 +43,30 @@ let mk_opaque lc id pty_opt pte =
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 
-let mk_rules lst =
-  List.iter (
-    fun (ctx,pat,rhs) ->
-      eprint (Rule.get_loc_pat pat) "%a" Rule.pp_rule (ctx,pat,rhs)
-  ) lst ;
-  match Env.add_rules lst with
-    | OK () -> ()
-    | Err e -> Errors.fail_env_error e
+let get_infos = function
+  | Rule.Pattern (l,md,id,_) -> (l,md,id)
+  | _ -> (dloc,qmark,qmark)
+
+let mk_rules = function
+  | [] -> ()
+  | ((_,pat,_)::_) as lst ->
+    begin
+      let (l,md,id) = get_infos pat in
+      eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
+      match Env.add_rules lst with
+      | OK lst2 ->
+        List.iter ( fun (ctx,pat,rhs) ->
+            eprint (Rule.get_loc_pat pat) "%a" Rule.pp_rule2 (ctx,pat,rhs)
+          ) lst2 ;
+      | Err e -> Errors.fail_env_error e
+    end
 
 let mk_command = Cmd.mk_command
 
 let export = ref false
 
 let mk_ending () =
-  if !export then
+  ( if !export then
     if not (Env.export ()) then
-      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ())
+      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
+  Confluence.finalize ()

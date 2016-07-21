@@ -16,9 +16,9 @@ type prepattern =
   | PLambda     of loc*ident*prepattern
   | PJoker      of loc
 
-type pdecl      = loc * ident * preterm
+type pdecl      = loc * ident
 type pcontext   = pdecl list
-type prule      = loc * pdecl list * ident * prepattern list * preterm
+type prule      = loc * pdecl list * ident option * ident * prepattern list * preterm
 
 val pp_pterm    : out_channel -> preterm -> unit
 val pp_ppattern : out_channel -> prepattern -> unit

@@ -7,3 +7,5 @@ dkdep.native
 dkrule.native
 dktop.native
 _*/
+*.dko
+*.depend

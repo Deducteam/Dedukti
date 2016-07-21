@@ -3,11 +3,13 @@ open Basics
 open Term
 
 val export         : bool ref
-val set_debug_level : int -> unit
+val verbose        : bool ref
 
 val mk_prelude     : loc -> ident -> unit
 
 val mk_declaration : loc -> ident -> term -> unit
+
+val mk_definable   : loc -> ident -> term -> unit
 
 val mk_definition  : loc -> ident -> term option -> term -> unit
 

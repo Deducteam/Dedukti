@@ -13,19 +13,16 @@ BINARIES=dkcheck dktop dkdep dkrule dkindent
 all: lib $(BINARIES) doc
 
 dkcheck:
-	ocamlbuild -Is $(SRC_DIRS),dkcheck $(MENHIR) dkcheck.native
+	ocamlbuild -Is $(SRC_DIRS),dkcheck $(MENHIR) -lib unix dkcheck.native
 
 dktop:
-	ocamlbuild -Is $(SRC_DIRS),dktop $(MENHIR) dktop.native
+	ocamlbuild -Is $(SRC_DIRS),dktop $(MENHIR) -lib unix dktop.native
 
 dkdep:
-	ocamlbuild -Is $(SRC_DIRS),dkdep $(MENHIR) dkdep.native
-
-dkrule:
-	ocamlbuild -Is $(SRC_DIRS),dkrule $(MENHIR) dkrule.native
+	ocamlbuild -Is $(SRC_DIRS),dkdep $(MENHIR) -lib unix dkdep.native
 
 dkindent:
-	ocamlbuild -Is $(SRC_DIRS),dkindent $(MENHIR) dkindent.native
+	ocamlbuild -Is $(SRC_DIRS),dkindent $(MENHIR) -lib unix dkindent.native
 
 doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
@@ -40,7 +37,7 @@ install:
 
 uninstall:
 	for i in $(BINARIES) ; do \
-	    rm "${INSTALL_DIR}/$$i" ; \
+	    rm -f "${INSTALL_DIR}/$$i" ; \
 	done
 
 clean:
@@ -50,13 +47,15 @@ tests: dkcheck
 	@echo "run tests..."
 	@for i in tests/OK/*.dk ; do \
 	    echo "on $$i...  " ; \
-	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep SUCCESS ; \
+	    ./dkcheck.native "$$i" 2>&1 | grep SUCCESS ; \
 	done
 	@for i in tests/KO/*.dk ; do \
 	    echo "on $$i...  " ; \
-	    ./_dkcheck/dkcheck.native "$$i" 2>&1 | grep ERROR ; \
+	    ./dkcheck.native "$$i" 2>&1 | grep ERROR ; \
 	done
 	@echo "-----------------------"
 	@echo "tests OK"
 
+
 .PHONY: $(BINARIES) tests clean doc uninstall
+

@@ -39,8 +39,17 @@ let print_const out (m,v) =
   if ident_eq m !name then print_ident out v
   else Format.fprintf out "%a.%a" print_ident m print_ident v
 
+(* Idents generated from underscores by the parser start with a question mark.
+   We have sometimes to avoid to print them because they are not valid tokens. *)
+let is_dummy_ident i = (string_of_ident i).[0] = '?'
+let is_regular_ident i = (string_of_ident i).[0] <> '?'
+
 let print_db out (x,n) =
   if !print_db_enabled then Format.fprintf out "%a[%i]" print_ident x n
+  else print_ident out x
+
+let print_db_or_underscore out (x,n) =
+  if is_dummy_ident x then Format.fprintf out "_"
   else print_ident out x
 
 let rec print_ppattern out = function
@@ -54,6 +63,41 @@ and print_ppattern_wp out = function
   | PLambda (_,_,_)
   | PPattern (_,_,_,_::_) as p  -> Format.fprintf out "(%a)" print_ppattern p
   | p                           -> print_ppattern out p
+
+let fresh_name names base =
+  if List.mem base names then
+    let i = ref 0 in
+    let name i = hstring (string_of_ident base ^ string_of_int i) in
+    while List.mem (name !i) names do
+      incr i
+    done;
+    name !i
+  else base
+
+let rec subst map = function
+  | DB (_,x,_) as t when is_dummy_ident x -> t
+  | DB (l,x,n) as t ->
+     begin
+       try
+         let newname = List.nth map n in
+         mk_DB l newname n
+       with Failure _ -> t
+     end
+  | Kind
+  | Type _
+  | Const _ as t       -> t
+  | App (f,a,args)     -> mk_App (subst map f)
+                                (subst map a)
+                                (List.map (subst map) args)
+  | Lam (l,x,None,f)   -> let x' = fresh_name map x in
+                         mk_Lam l x' None (subst (x' :: map) f)
+  | Lam (l,x,Some a,f) -> let x' = fresh_name map x in
+                         mk_Lam l x' (Some (subst map a)) (subst (x' :: map) f)
+  | Pi  (l,x,a,b)      -> let x' =
+                           if is_dummy_ident x then x else fresh_name map x
+                         in
+                         mk_Pi l x' (subst map a) (subst (x' :: map) b)
+
 
 let rec print_term out = function
   | Kind               -> Format.pp_print_string out "Kind"
@@ -75,11 +119,14 @@ and print_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> print_term out t
   | t                                  -> Format.fprintf out "(%a)" print_term t
 
+(* Overwrite print_term by a name-clash avoiding version *)
+let print_term out t = print_term out (subst [] t)
+
 let print_bv out (_,id,i) = print_db out (id,i)
 
 let rec print_pattern out = function
-  | Var (_,id,i,[]) -> print_db out (id,i)
-  | Var (_,id,i,lst)     -> Format.fprintf out "%a %a" print_db (id,i) (print_list " " print_pattern_wp) lst
+  | Var (_,id,i,[]) -> print_db_or_underscore out (id,i)
+  | Var (_,id,i,lst)     -> Format.fprintf out "%a %a" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | Brackets t           -> Format.fprintf out "{ %a }" print_term t
   | Pattern (_,m,v,[])   -> Format.fprintf out "%a" print_const (m,v)
   | Pattern (_,m,v,pats) -> Format.fprintf out "%a %a" print_const (m,v) (print_list " " print_pattern_wp) pats
@@ -95,6 +142,16 @@ let print_context out ctx =
     ) out (List.rev ctx)
 
 let print_rule out (ctx,pat,te) =
+  let print_decl out (_,id) =
+    Format.fprintf out "@[<hv>%a@]" print_ident id
+  in
+  Format.fprintf out
+    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
+    (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) ctx)
+    print_pattern pat
+    print_term te
+
+let print_rule2 out (ctx,pat,te) =
   let print_decl out (_,id,ty) =
     Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
   in
@@ -104,37 +161,5 @@ let print_rule out (ctx,pat,te) =
     print_pattern pat
     print_term te
 
-let print_frule out r = print_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
+let print_frule out r = print_rule2 out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
 
-let tab t = String.make (t*4) ' '
-
-let print_pc out = function
-  | Syntactic _ -> Format.fprintf out "Sy"
-  | MillerPattern _ -> Format.fprintf out "Mi"
-
-let rec print_dtree t out = function
-  | Test (pc,[],te,None)   -> Format.fprintf out "(%a) %a" print_pc pc print_term te
-  | Test (_,[],_,def)      -> assert false
-  | Test (pc,lst,te,def)  ->
-      let tab = tab t in
-      let aux out (i,j) = Format.fprintf out "%a=%a" print_term i print_term j in
-        Format.fprintf out "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (print_list " and " aux) lst
-          print_pc pc print_term te tab print_pc pc (print_def (t+1)) def
-  | Switch (i,cases,def)->
-      let tab = tab t in
-      let print_case out = function
-        | CConst (_,m,v), g ->
-            Format.fprintf out "\n%sif $%i=%a.%a then %a" tab i print_ident m print_ident v (print_dtree (t+1)) g
-        | CLam, g -> Format.fprintf out "\n%sif $%i=Lambda then %a" tab i (print_dtree (t+1)) g
-        | CDB (_,n), g -> Format.fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (print_dtree (t+1)) g
-      in
-        Format.fprintf out "%a\n%sdefault: %a" (print_list "" print_case)
-          cases tab (print_def (t+1)) def
-
-and print_def t out = function
-  | None        -> Format.fprintf out "FAIL"
-  | Some g      -> print_dtree t out g
-
-let print_rw out (m,v,i,g) =
-  Format.fprintf out "GDT for '%a.%a' with %i argument(s): %a"
-    print_ident m print_ident v i (print_dtree 0) g

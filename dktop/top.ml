@@ -6,7 +6,12 @@ let print fmt =
 let mk_prelude _ _ = failwith "Top.mk_prelude"
 
 let mk_declaration lc id pty =
-  match Env.declare lc id pty with
+  match Env.declare_constant lc id pty with
+    | OK () -> print "%a is declared." pp_ident id
+    | Err e -> Errors.fail_env_error e
+
+let mk_definable lc id pty =
+  match Env.declare_definable lc id pty with
     | OK () -> print "%a is declared." pp_ident id
     | Err e -> Errors.fail_env_error e
 
@@ -22,7 +27,7 @@ let mk_opaque lc id pty_opt pte =
 
 let mk_rules lst =
   match Env.add_rules lst with
-    | OK () -> List.iter (fun r -> print "%a" Rule.pp_rule r) lst
+    | OK _ -> List.iter (fun r -> print "%a" Rule.pp_rule r) lst
     | Err e -> Errors.fail_env_error e
 
 let mk_command = Cmd.mk_command

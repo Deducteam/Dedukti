@@ -1,4 +1,8 @@
+(** Matching on terms *)
+
+open Basics
 open Term
 
 exception NotUnifiable
-val resolve : int Basics.LList.t -> term -> term
+
+val solve : int -> int LList.t -> term -> term

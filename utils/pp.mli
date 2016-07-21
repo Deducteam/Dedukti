@@ -18,11 +18,11 @@ val print_term  : Format.formatter -> term -> unit
 
 val print_pattern : Format.formatter -> pattern -> unit
 
-
 val print_rule  : Format.formatter -> rule -> unit
+
+val print_rule2  : Format.formatter -> rule2 -> unit
 
 val print_frule : Format.formatter -> rule_infos -> unit
 
 val print_context: Format.formatter -> context -> unit
 
-val print_rw       : Format.formatter -> (ident*ident*int*dtree) -> unit

@@ -40,7 +40,7 @@ end
 type loc
 val dloc                : loc
 val mk_loc              : int -> int -> loc
-(** mk_loc [line] [column] *)
+(** mk_loc [line] [column]. *)
 val of_loc              : loc -> (int*int)
 
 val add_path       : string -> unit
@@ -58,6 +58,7 @@ val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 
 (** {2 Printing} *)
 
+val debug_mode : bool ref
 val debug : ('a, out_channel, unit) format -> 'a
 val pp_list : string -> (out_channel -> 'a -> unit) -> out_channel -> 'a list -> unit
 

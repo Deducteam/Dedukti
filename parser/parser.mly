@@ -3,6 +3,7 @@
     val mk_prelude     : Basics.loc -> Basics.ident -> unit
     val mk_declaration : Basics.loc -> Basics.ident -> Term.term -> unit
     val mk_definition  : Basics.loc -> Basics.ident -> Term.term option -> Term.term -> unit
+    val mk_definable   : Basics.loc -> Basics.ident -> Term.term -> unit
     val mk_opaque      : Basics.loc -> Basics.ident -> Term.term option -> Term.term -> unit
     val mk_rules       : Rule.rule list -> unit
     val mk_command     : Basics.loc -> Cmd.command -> unit
@@ -63,6 +64,8 @@
 %token <Basics.loc> UNDERSCORE
 %token <Basics.loc*Basics.ident>NAME
 %token <Basics.loc> TYPE
+%token <Basics.loc> KW_DEF
+%token <Basics.loc> KW_THM
 %token <Basics.loc*Basics.ident> ID
 %token <Basics.loc*Basics.ident*Basics.ident> QID
 %token <string> STRING
@@ -73,9 +76,9 @@
 %type <unit> line
 %type <Preterm.prule> rule
 %type <Preterm.pdecl> decl
-%type <Preterm.pdecl> param
+%type <Basics.loc*Basics.ident*Preterm.preterm> param
 %type <Preterm.pdecl list> context
-%type <Basics.loc*Basics.ident*Preterm.prepattern list> top_pattern
+%type <Basics.loc*Basics.ident option*Basics.ident*Preterm.prepattern list> top_pattern
 %type <Preterm.prepattern> pattern
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm
@@ -92,22 +95,24 @@ prelude         : NAME DOT      { let (lc,name) = $1 in
 
 line            : ID COLON term DOT
                 { mk_declaration (fst $1) (snd $1) (scope_term [] $3) }
-                | ID COLON term DEF term DOT
-                { mk_definition (fst $1) (snd $1) (Some (scope_term [] $3)) (scope_term [] $5) }
-                | ID DEF term DOT
-                { mk_definition (fst $1) (snd $1)  None (scope_term [] $3) }
-                | ID param+ COLON term DEF term DOT
-                { mk_definition (fst $1) (snd $1) (Some (scope_term [] (mk_pi $4 $2)))
-                        (scope_term [] (mk_lam $6 $2)) }
-                | ID param+ DEF term DOT
-                { mk_definition (fst $1) (snd $1) None (scope_term [] (mk_lam $4 $2)) }
-                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT
-                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] $5)) (scope_term [] $7) }
-                | LEFTBRA ID RIGHTBRA DEF term DOT
-                { mk_opaque (fst $2) (snd $2)  None (scope_term [] $5) }
-                | LEFTBRA ID param+ RIGHTBRA COLON term DEF term DOT
-                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] (mk_pi $6 $3)))
-                        (scope_term [] (mk_lam $8 $3)) }
+                | ID param+ COLON term DOT
+                { mk_declaration (fst $1) (snd $1) (scope_term [] (mk_pi $4 $2)) }
+                | KW_DEF ID COLON term DOT
+                { mk_definable (fst $2) (snd $2) (scope_term [] $4) }
+                | KW_DEF ID COLON term DEF term DOT
+                { mk_definition (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }
+                | KW_DEF ID DEF term DOT
+                { mk_definition (fst $2) (snd $2)  None (scope_term [] $4) }
+                | KW_DEF ID param+ COLON term DEF term DOT
+                { mk_definition (fst $2) (snd $2) (Some (scope_term [] (mk_pi $5 $3)))
+                        (scope_term [] (mk_lam $7 $3)) }
+                | KW_DEF ID param+ DEF term DOT
+                { mk_definition (fst $2) (snd $2) None (scope_term [] (mk_lam $5 $3)) }
+                | KW_THM ID COLON term DEF term DOT
+                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }
+                | KW_THM ID param+ COLON term DEF term DOT
+                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] (mk_pi $5 $3)))
+                        (scope_term [] (mk_lam $7 $3)) }
                 | LEFTBRA ID param+ RIGHTBRA DEF term DOT
                 { mk_opaque (fst $2) (snd $2)  None (scope_term [] (mk_lam $6 $3)) }
                 | rule+ DOT
@@ -133,17 +138,20 @@ line            : ID COLON term DOT
 term_lst        : term                                  { [$1] }
                 | term COMMA term_lst                   { $1::$3 }
 
-param           : LEFTPAR decl RIGHTPAR                 { $2 }
+param           : LEFTPAR ID COLON term RIGHTPAR        { (fst $2,snd $2,$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,id,args) = $4 in ( l , $2 , id , args , $6) }
+                { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6) }
 
-decl           : ID COLON term         { (fst $1,snd $1,$3) }
+decl            : ID COLON term         { debug "Ignoring type declaration in rule context."; $1 }
+                | ID                    { $1 }
 
 context         : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, decl) { $1 }
 
-top_pattern     : ID pattern_wp*        { (fst $1,snd $1,$2) }
+top_pattern     : ID pattern_wp*        { (fst $1,None,snd $1,$2) }
+                | QID pattern_wp*       { let (l,md,id)=$1 in (l,Some md,id,$2) }
+
 
 pattern_wp      : ID
                         { PPattern (fst $1,None,snd $1,[]) }

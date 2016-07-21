@@ -7,6 +7,7 @@ open Signature
 type env_error =
   | EnvErrorType of typing_error
   | EnvErrorSignature of signature_error
+  | KindLevelDefinition of loc*ident
 
 (* Wrapper around Signature *)
 
@@ -26,54 +27,75 @@ let get_dtree l md id =
 
 let export () : bool = Signature.export !sg
 
-let _declare (l:loc) (id:ident) (jdg:judgment) : unit =
-  assert ( Context.is_empty jdg.ctx );
-  match jdg.ty with
-    | Kind | Type _ -> Signature.declare !sg l id jdg.te
-    | _ -> raise (TypingError (SortExpected (jdg.te,[],jdg.ty)))
+let _declare_constant (l:loc) (id:ident) (ty:typ) : unit =
+  match inference !sg ty with
+    | Kind | Type _ -> Signature.add_declaration !sg l id ty
+    | s -> raise (TypingError (SortExpected (ty,[],s)))
 
-let _define (l:loc) (id:ident) (jdg:judgment) =
-  assert ( Context.is_empty jdg.ctx );
-  Signature.define !sg l id jdg.te jdg.ty
+let _declare_definable (l:loc) (id:ident) (ty:typ) : unit =
+  match inference !sg ty with
+    | Kind | Type _ -> Signature.add_definable !sg l id ty
+    | s -> raise (TypingError (SortExpected (ty,[],s)))
 
-let _define_op (l:loc) (id:ident) (jdg:judgment) =
-  assert( Context.is_empty jdg.ctx );
-  Signature.declare !sg l id jdg.ty
+exception DefineExn of loc*ident
 
-let declare l id ty : (unit,env_error) error =
-  try OK ( _declare l id (inference !sg ty) )
+let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
+  let ty = match ty_opt with
+    | None -> inference !sg te
+    | Some ty -> ( checking !sg te ty; ty )
+  in
+  match ty with
+  | Kind -> raise (DefineExn (l,id))
+  | _ ->
+    Signature.add_definable !sg l id ty;
+    Signature.add_rules !sg [([],Pattern (l,get_name (),id,[]),te)]
+
+let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
+  let ty = match ty_opt with
+    | None -> inference !sg te
+    | Some ty -> ( checking !sg te ty; ty )
+  in
+  match ty with
+  | Kind -> raise (DefineExn (l,id))
+  | _ -> Signature.add_declaration !sg l id ty
+
+let declare_constant l id ty : (unit,env_error) error =
+  try OK ( _declare_constant l id ty )
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let define l id te ty_opt =
-  try
-    match ty_opt with
-      | None -> OK ( _define l id (inference !sg te) )
-      | Some ty -> OK ( _define l id (checking !sg te ty) )
+let declare_definable l id ty : (unit,env_error) error =
+  try OK ( _declare_definable l id ty )
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
+
+let define l id te ty_opt : (unit,env_error) error =
+  try OK ( _define l id te ty_opt )
+  with
+  | SignatureError e -> Err (EnvErrorSignature e)
+  | TypingError e -> Err (EnvErrorType e)
+  | DefineExn (l,id) -> Err (KindLevelDefinition (l,id))
 
 let define_op l id te ty_opt =
-  try
-    match ty_opt with
-      | None -> OK ( _define_op l id (inference !sg te) )
-      | Some ty -> OK ( _define_op l id (checking !sg te ty) )
+  try OK ( _define_op l id te ty_opt )
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
+    | DefineExn (l,id) -> Err (KindLevelDefinition (l,id))
 
-let add_rules (rules: rule list) : (unit,env_error) error =
+let add_rules (rules: rule list) : (rule2 list,env_error) error =
   try
-    let _ = List.iter (check_rule !sg) rules in
-      OK (Signature.add_rules !sg rules)
+    let rs2 = List.map (check_rule !sg) rules in
+    Signature.add_rules !sg rs2;
+    OK rs2
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
 let infer te =
-  try  OK (inference !sg te).ty
+  try  OK (inference !sg te)
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)

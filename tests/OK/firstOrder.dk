@@ -23,19 +23,19 @@ or_elim   : A:Prop -> B:Prop -> C:Prop -> prf (or A B) -> prf (imp A C) -> prf (
 or_intro1 : A:Prop -> B:Prop -> prf A -> prf (or A B).
 or_intro2 : A:Prop -> B:Prop -> prf B -> prf (or A B).
 
-not       : Prop -> Prop := p:Prop => imp p False.
+def not       : Prop -> Prop := p:Prop => imp p False.
 
-equiv : Prop -> Prop -> Prop := A:Prop => B:Prop => and (imp A B) (imp B A).
+def equiv : Prop -> Prop -> Prop := A:Prop => B:Prop => and (imp A B) (imp B A).
 
 (; De Morgan Laws ;)
 
-DeMorgan1 : A:Prop -> B:Prop -> prf (imp (and A B) (not (or (not A) (not B)))) :=
+def DeMorgan1 : A:Prop -> B:Prop -> prf (imp (and A B) (not (or (not A) (not B)))) :=
 	A:Prop => B:Prop =>
-	imp_intro (and A B) (not (or (not A) (not B))) 
+	imp_intro (and A B) (not (or (not A) (not B)))
 		  ( A_and_B :(prf (and A B)) => imp_intro (or (not A) (not B)) False (
 		  ( not_A_or_not_B:(prf (or (not A) (not B))) =>
-			or_elim (not A) (not B) False not_A_or_not_B 
-				(imp_intro (not A) False (not_A:(prf (not A)) => imp_elim A False not_A (and_elim1 A B A_and_B) ) ) 
+			or_elim (not A) (not B) False not_A_or_not_B
+				(imp_intro (not A) False (not_A:(prf (not A)) => imp_elim A False not_A (and_elim1 A B A_and_B) ) )
 				(imp_intro (not B) False (not_B:(prf (not B)) => imp_elim B False not_B (and_elim2 A B A_and_B) ) )
 	) ) ).
 

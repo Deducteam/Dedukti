@@ -14,7 +14,8 @@ let get_loc_pat = function
 
 type top = ident*pattern array
 
-type rule = context * pattern * term
+type rule = (loc*ident) list * pattern * term
+type rule2 = context * pattern * term
 
 type pattern2 =
   | Joker2
@@ -22,6 +23,10 @@ type pattern2 =
   | Lambda2      of ident*pattern2
   | Pattern2     of ident*ident*pattern2 array
   | BoundVar2    of ident*int*pattern2 array
+
+type constr =
+  | Linearity of term*term (* change to int*int ? *)
+  | Bracket of term*term (* change to int*term ? *)
 
 type rule_infos = {
   l:loc;
@@ -33,7 +38,7 @@ type rule_infos = {
   (* *)
   esize:int;
   l_args:pattern2 array;
-  constraints:(term*term) list;
+  constraints:constr list;
 }
 
 type case =
@@ -50,7 +55,7 @@ type pre_context =
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of pre_context * (term*term) list * term * dtree option
+  | Test    of pre_context * constr list * term * dtree option
 
 let pattern_to_term p =
   let rec aux k = function
@@ -79,13 +84,21 @@ and pp_pattern_wp out = function
   | p -> pp_pattern out p
 
 let pp_rule out (ctx,pat,te) =
-  let pp_decl out (_,id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
+   let pp_decl out (_,id) = pp_ident out id in
     fprintf out "[%a] %a --> %a"
-      (pp_list "," pp_decl) ctx
+      (pp_list "," pp_decl) (List.rev ctx)
       pp_pattern pat
       pp_term te
 
-let pp_frule out r = pp_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
+let pp_rule2 out (ctx,pat,te) =
+   let pp_decl out (_,id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
+    fprintf out "[%a] %a --> %a"
+      (pp_list "," pp_decl) (List.rev ctx)
+      pp_pattern pat
+      pp_term te
+
+let pp_frule out r =
+  pp_rule2 out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
 
 let tab t = String.make (t*4) ' '
 
@@ -98,9 +111,12 @@ let rec pp_dtree t out = function
   | Test (_,[],_,def)      -> assert false
   | Test (pc,lst,te,def)  ->
       let tab = tab t in
-      let aux out (i,j) = fprintf out "%a=%a" pp_term i pp_term j in
-        fprintf out "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
-          pp_pc pc pp_term te tab pp_pc pc (pp_def (t+1)) def
+      let aux out = function
+        | Linearity (i,j) -> fprintf out "%a =l %a" pp_term i pp_term j
+        | Bracket (i,j) -> fprintf out "%a =b %a" pp_term i pp_term j
+      in
+      fprintf out "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
+        pp_pc pc pp_term te tab pp_pc pc (pp_def (t+1)) def
   | Switch (i,cases,def)->
       let tab = tab t in
       let pp_case out = function
