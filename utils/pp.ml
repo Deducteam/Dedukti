@@ -84,8 +84,15 @@ let rec subst map = function
        with Failure _ -> t
      end
   | Kind
-  | Type _
-  | Const _ as t       -> t
+  | Type _ as t -> t
+  (* if there is a local variable that have the same name as a top level constant,
+        then the module has to be printed *)
+  (* a hack proposed by Raphael Cauderlier *)
+  | Const (l,m,v) as t       ->
+     if List.mem v map && ident_eq !name m then
+       mk_Const l m (hstring ((string_of_ident m) ^ "." ^ (string_of_ident v)))
+     else
+       t
   | App (f,a,args)     -> mk_App (subst map f)
                                 (subst map a)
                                 (List.map (subst map) args)
