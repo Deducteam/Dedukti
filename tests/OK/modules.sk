@@ -1,0 +1,30 @@
+#NAME A.
+
+B : Type.
+
+#NEWMODULE C.
+
+const : Type.
+
+#ENDMODULE.
+
+#INFER A.C.const.
+#INFER C.const.
+
+#NEWMODULE D.
+
+#NEWMODULE E.
+
+const : Type.
+
+#INFER E.const.
+#INFER const.
+
+#ENDMODULE.
+
+#INFER E.const.
+
+#ENDMODULE.
+
+#INFER D.E.const.
+
