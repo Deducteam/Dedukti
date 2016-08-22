@@ -314,7 +314,7 @@ term_lst        : letterm                                  { [$1] }
 param           : LEFTPAR ID COLON arrterm RIGHTPAR        { PDecl (fst $2,of_id (snd $2),$4) }
                 | LEFTPAR ID DEF arrterm RIGHTPAR          { PDef  (fst $2,of_id (snd $2),$4) }
 
-rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
                 { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6) }
 
 decl            : ID COLON term         { debug "Ignoring type declaration in rule context.";of_lid $1 }
@@ -382,6 +382,8 @@ letterm         : term
                 { PreLam (fst $1,of_id (snd $1),None,$5) }
                 | ID COLON term FATARROW letterm
                 { PreLam (fst $1,of_id (snd $1),Some($3),$5) }
+                | ID FATARROW letterm
+                { PreLam (fst $1,of_id (snd $1),None,$3) }
 
 arrterm         : term
                 { $1 }
