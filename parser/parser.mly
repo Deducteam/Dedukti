@@ -375,7 +375,7 @@ letterm         : term
                 | ID DEF term FATARROW letterm
                 { mk_let (of_id (snd $1)) $3 $5 }
                 | ID COLON term ARROW letterm
-                { PrePi (fst $1,Some (snd $1),$3,$5) }
+                { PrePi (fst $1,Some (of_id (snd $1)),$3,$5) }
                 | term ARROW letterm
                 { PrePi (preterm_loc $1,None,$1,$3) }
                 | ID COLON UNDERSCORE FATARROW letterm
@@ -388,7 +388,7 @@ letterm         : term
 arrterm         : term
                 { $1 }
                 | ID COLON term ARROW arrterm
-                { PrePi (fst $1,Some (snd $1),$3,$5) }
+                { PrePi (fst $1,Some (of_id (snd $1)),$3,$5) }
                 | term ARROW arrterm
                 { PrePi (preterm_loc $1,None,$1,$3) }
 
