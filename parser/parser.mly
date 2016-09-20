@@ -143,6 +143,7 @@
               PreId (lf, field_name))])
         fields
 
+      let sep = '_!_'
       (* contains every modules that are declared in the current environement*)	
       let modules = ref []
       (* contains only the modules that are not closed *)
@@ -170,7 +171,7 @@
      	  match mds with   
 	  | [] -> id
 	  | x::t ->
-	    hstring ((string_of_ident x) ^ "__" ^ string_of_ident (prefix_by_mds t id))
+	    hstring ((string_of_ident x) ^ sep ^ string_of_ident (prefix_by_mds t id))
 
       (* for a module md, find in which modules it is defined. For example
       	 with #NEWMODULE D. #NEWMODULE E. prefix_of_md E is D *)
