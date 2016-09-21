@@ -83,6 +83,7 @@
 %token <Basics.loc*Basics.ident>NAME
 %token <Basics.loc> TYPE
 %token <Basics.loc> KW_DEF
+%token <Basics.loc> KW_THM
 %token <Basics.loc*Basics.ident> ID
 %token <Basics.loc*Basics.ident*Basics.ident> QID
 %token <string> STRING
@@ -135,17 +136,16 @@ line            : ID COLON term DOT
 		  bind (S.scope_term [] (mk_pi $7 $3)) (fun te ->
 		    mk_definition (fst $2) (snd $2) (Some ty) te)) }
                 | KW_DEF ID param+ DEF term DOT
-                { bind (S.scope_term [] (mk_lam $5 $3)) (fun te ->
-		  mk_definition (fst $2) (snd $2) None te) }
-                | LEFTBRA ID RIGHTBRA COLON term DEF term DOT
-                { bind (S.scope_term [] $5) (fun ty -> bind (S.scope_term [] $7) (fun te ->
-		  mk_opaque (fst $2) (snd $2) (Some ty) te)) }
-                | LEFTBRA ID RIGHTBRA DEF term DOT
-                { bind (S.scope_term [] $5) (fun te -> mk_opaque (fst $2) (snd $2)  None te) }
-                | LEFTBRA ID param+ RIGHTBRA COLON term DEF term DOT
-                { bind (S.scope_term [] (mk_pi $6 $3)) (fun ty ->
-		  bind (S.scope_term [] (mk_lam $8 $3)) (fun te ->
-		  mk_opaque (fst $2) (snd $2) (Some ty) te)) }
+                { bind (S.scope_term [] (mk_lam $5 $3))
+		  (fun te -> mk_definition (fst $2) (snd $2) None te) }
+                | KW_THM ID COLON term DEF term DOT
+                { bind (S.scope_term [] $4) (fun ty ->
+		  bind (S.scope_term [] $6) (fun te ->
+		  mk_opaque (fst $2) (snd $2) (Some ty) te))}
+                | KW_THM ID param+ COLON term DEF term DOT
+                { bind (S.scope_term [] (mk_pi $5 $3)) (fun ty ->
+		  bind (S.scope_term [] (mk_lam $7 $3)) (fun te ->
+		  mk_opaque (fst $2) (snd $2) (Some ty) te))}
                 | LEFTBRA ID param+ RIGHTBRA DEF term DOT
                 { bind (S.scope_term [] (mk_lam $6 $3)) (fun te ->
 		  mk_opaque (fst $2) (snd $2)  None te) }

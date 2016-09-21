@@ -27,3 +27,7 @@ val mk_ending      : entry m -> unit
 val filename            : string ref
 
 val verbose             : bool ref
+
+val sorted                : bool ref                               
+
+val sort                : unit -> string list                               
