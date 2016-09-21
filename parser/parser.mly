@@ -28,8 +28,6 @@
     open M
 
     module S = Scoping.Make(M)
-    module Cmd = Cmd.Make(M)
-
 
     let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
         | [] -> te
@@ -49,7 +47,7 @@
         | [t] -> t
         | f::a1::args -> PreApp (f,a1,args)
 
-    let rec mmap (f:'a -> 'b m) l = 
+    let rec mmap (f:'a -> 'b m) l =
       match l with
       | [] -> return []
       | a::at -> bind (f a) (fun b -> bind (mmap f at) (fun bt -> return (b::bt)))
@@ -91,7 +89,7 @@
 
 %start prelude
 %start line
-(* %start lines 
+(* %start lines
 %type <unit> lines *)
 %type <M.entry M.m> prelude
 %type <M.entry M.m> line
@@ -128,7 +126,7 @@ line            : ID COLON term DOT
                 { bind (S.scope_term [] $4) (fun ty -> mk_definable (fst $2) (snd $2) ty) }
                 | KW_DEF ID COLON term DEF term DOT
                 { bind (S.scope_term [] $4) (fun ty ->
-		  bind (S.scope_term [] $6) (fun te -> 
+		  bind (S.scope_term [] $6) (fun te ->
 		    mk_definition (fst $2) (snd $2) (Some ty) te)) }
                 | KW_DEF ID DEF term DOT
                 { bind (S.scope_term [] $4) (fun te -> mk_definition (fst $2) (snd $2)  None te) }
@@ -137,7 +135,7 @@ line            : ID COLON term DOT
 		  bind (S.scope_term [] (mk_pi $7 $3)) (fun te ->
 		    mk_definition (fst $2) (snd $2) (Some ty) te)) }
                 | KW_DEF ID param+ DEF term DOT
-                { bind (S.scope_term [] (mk_lam $5 $3)) (fun te -> 
+                { bind (S.scope_term [] (mk_lam $5 $3)) (fun te ->
 		  mk_definition (fst $2) (snd $2) None te) }
                 | LEFTBRA ID RIGHTBRA COLON term DEF term DOT
                 { bind (S.scope_term [] $5) (fun ty -> bind (S.scope_term [] $7) (fun te ->
@@ -145,11 +143,11 @@ line            : ID COLON term DOT
                 | LEFTBRA ID RIGHTBRA DEF term DOT
                 { bind (S.scope_term [] $5) (fun te -> mk_opaque (fst $2) (snd $2)  None te) }
                 | LEFTBRA ID param+ RIGHTBRA COLON term DEF term DOT
-                { bind (S.scope_term [] (mk_pi $6 $3)) (fun ty -> 
+                { bind (S.scope_term [] (mk_pi $6 $3)) (fun ty ->
 		  bind (S.scope_term [] (mk_lam $8 $3)) (fun te ->
 		  mk_opaque (fst $2) (snd $2) (Some ty) te)) }
                 | LEFTBRA ID param+ RIGHTBRA DEF term DOT
-                { bind (S.scope_term [] (mk_lam $6 $3)) (fun te -> 
+                { bind (S.scope_term [] (mk_lam $6 $3)) (fun te ->
 		  mk_opaque (fst $2) (snd $2)  None te) }
                 | rule+ DOT
                 { bind (mmap S.scope_rule $1) mk_rules }
@@ -164,16 +162,16 @@ command         : WHNF  term    { bind (S.scope_term [] $2) (fun te -> mk_comman
                 | SNF   term    { bind (S.scope_term [] $2) (fun te -> mk_command $1 (Snf te)) }
                 | STEP  term    { bind (S.scope_term [] $2) (fun te -> mk_command $1 (OneStep te)) }
                 | INFER term    { bind (S.scope_term [] $2) (fun te -> mk_command $1 (Infer te)) }
-                | CONV  term  COMMA term { 
-		  bind (S.scope_term [] $2) (fun ta -> 
+                | CONV  term  COMMA term {
+		  bind (S.scope_term [] $2) (fun ta ->
 		    bind (S.scope_term [] $4) (fun tb -> mk_command $1 (Conv (ta,tb)))) }
-                | CHECK term  COMMA term { 
+                | CHECK term  COMMA term {
 		  bind (S.scope_term [] $2) (fun ta ->
 		    bind (S.scope_term [] $4) (fun tb -> mk_command $1 (Check (ta,tb)))) }
                 | PRINT STRING  { mk_command $1 (Print $2) }
                 | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }
-                | OTHER term_lst { 
+                | OTHER term_lst {
 		  bind (mmap (S.scope_term []) $2) (fun terms ->
 		  mk_command (fst $1) (Other (snd $1,terms)))}
 

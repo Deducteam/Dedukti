@@ -15,27 +15,27 @@ let eprint lc fmt =
 (* ********************************* *)
 
 type 'a m = 'a
-  
+
 type entry = unit
-  
+
 let return a = a
-  
-let bind t f = f t 
-  
+
+let bind t f = f t
+
 let mk_Type loc = return (Term.mk_Type loc)
-  
+
 let mk_DB loc id n = return (Term.mk_DB loc id n)
-  
+
 let mk_Const loc md id = return (Term.mk_Const loc md id)
-  
+
 let mk_Lam loc id ty t = return (Term.mk_Lam loc id ty t)
-  
+
 let mk_App f t ts = return (Term.mk_App f t ts)
 
 let mk_Pi loc x ta tb = return (Term.mk_Pi loc x ta tb)
 
 let mk_Arrow loc ta tb = return (Term.mk_Arrow loc ta tb)
-  
+
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_ident name;
   Env.init name;
@@ -83,7 +83,7 @@ let mk_rules = function
       | Err e -> Errors.fail_env_error e
     end
 
-let mk_command l c = failwith "TODO"
+let mk_command l c = Cmd.mk_command l c
 
 let export = ref false
 
