@@ -60,6 +60,10 @@ let mk_command _ = function
   | Gdt (_,_) | Print _                 -> ()
   | Other (_,lst)                       -> List.iter mk_term lst
 
+let mk_module _ = ()
+
+let mk_endmodule () = ()
+
 let mk_ending () =
   print_out "%s.dko : %s %s" !name !filename
     (String.concat " " (List.map (fun s -> s ^ ".dko") !deps) )

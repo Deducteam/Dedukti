@@ -32,4 +32,8 @@ let mk_rules lst =
 
 let mk_command = Cmd.mk_command
 
+let mk_module _ = ()
+
+let mk_endmodule () = ()
+
 let mk_ending _ = ()

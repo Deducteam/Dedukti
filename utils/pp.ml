@@ -8,6 +8,13 @@ let print_db_enabled = ref false
 let name = ref qmark
 let resugar = ref true
 
+let print_ident out v =
+  let v' = hstring (Str.global_replace (Str.regexp ".*_MODULE_") "" (string_of_ident v)) in
+  if !resugar then
+    Basics.print_ident out v'
+  else
+    Basics.print_ident out v
+
 let rec print_list sep pp out = function
     | []        -> ()
     | [a]       -> pp out a
@@ -56,7 +63,7 @@ let print_db_or_underscore out (x,n) =
 let rec print_ppattern out = function
   | PPattern (_,md,id,[])       -> print_pconst out (md,id)
   | PPattern (_,md,id,lst)      ->
-      Format.fprintf out "%a %a" print_pconst (md,id) (print_list " " print_ppattern) lst
+      Format.fprintf out "%a %a" print_pconst (md,id) (print_list " " print_ppattern_wp) lst
   | PCondition pte              -> Format.fprintf out "{ %a }" print_pterm pte
   | PJoker _                    -> Format.fprintf out "_"
   | PLambda (_,id,p)            -> Format.fprintf out "%a => %a" print_ident id print_ppattern p
@@ -105,9 +112,9 @@ let rec print_raw_term out = function
   | Type _             -> Format.pp_print_string out "Type"
   | DB  (_,x,n)        -> print_db out (x,n)
   | Const (_,m,v)      ->
-    let module_sep = Str.regexp "*///*" in
+    let v' = hstring (Str.global_replace (Str.regexp_string "_MODULE_") "." (string_of_ident v)) in
     if !resugar then
-      print_const out (m,hstring (Str.global_replace module_sep "." (string_of_ident v)))
+      print_const out (m,v')
     else
       print_const out (m,v)
   | App (f,a,args)     ->
@@ -138,11 +145,31 @@ let print_term out t = print_term out (subst [] t)
 let print_bv out (_,id,i) = print_db out (id,i)
 
 let rec print_pattern out = function
-  | Var (_,id,i,[]) -> print_db_or_underscore out (id,i)
-  | Var (_,id,i,lst)     -> Format.fprintf out "%a %a" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
+  | Var (_,id,i,[]) ->
+    let id' = hstring (Str.global_replace (Str.regexp_string "_MODULE_") "." (string_of_ident id)) in
+    if !resugar then
+      print_db_or_underscore out (id',i)
+    else
+    print_db_or_underscore out (id,i)
+  | Var (_,id,i,lst)     ->
+    let id' = hstring (Str.global_replace (Str.regexp_string "_MODULE_") "." (string_of_ident id)) in
+    if !resugar then
+      Format.fprintf out "%a %a" print_db_or_underscore (id',i) (print_list " " print_pattern_wp) lst
+    else
+      Format.fprintf out "%a %a" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | Brackets t           -> Format.fprintf out "{ %a }" print_term t
-  | Pattern (_,m,v,[])   -> Format.fprintf out "%a" print_const (m,v)
-  | Pattern (_,m,v,pats) -> Format.fprintf out "%a %a" print_const (m,v) (print_list " " print_pattern_wp) pats
+  | Pattern (_,m,v,[])   ->
+    let v' = hstring (Str.global_replace (Str.regexp_string "_MODULE_") "." (string_of_ident v)) in
+    if !resugar then
+      Format.fprintf out "%a" print_const (m,v')
+    else
+      Format.fprintf out "%a" print_const (m,v)
+  | Pattern (_,m,v,pats) ->
+    let v' = hstring (Str.global_replace (Str.regexp_string "_MODULE_") "." (string_of_ident v)) in
+    if !resugar then
+      Format.fprintf out "%a %a" print_const (m,v') (print_list " " print_pattern_wp) pats
+    else
+      Format.fprintf out "%a %a" print_const (m,v) (print_list " " print_pattern_wp) pats
   | Lambda (_,x,p)       -> Format.fprintf out "@[%a => %a@]" print_ident x print_pattern p
 and print_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> Format.fprintf out "(%a)" print_pattern p

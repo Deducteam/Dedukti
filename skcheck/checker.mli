@@ -19,4 +19,8 @@ val mk_rules       : Rule.rule list -> unit
 
 val mk_command     : loc -> Cmd.command -> unit
 
+val mk_module      : ident -> unit
+
+val mk_endmodule   : unit -> unit
+
 val mk_ending      : unit -> unit

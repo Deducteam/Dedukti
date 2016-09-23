@@ -8,6 +8,8 @@ val name                : ident ref
 val print_db_enabled    : bool ref
 val resugar             : bool ref
 
+val print_ident : Format.formatter -> ident -> unit
+
 val print_list  : string -> (Format.formatter -> 'a -> unit)
                   -> Format.formatter -> 'a list -> unit
 

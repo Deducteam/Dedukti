@@ -7,6 +7,8 @@
     val mk_opaque      : Basics.loc -> Basics.ident -> Term.term option -> Term.term -> unit
     val mk_rules       : Rule.rule list -> unit
     val mk_command     : Basics.loc -> Cmd.command -> unit
+    val mk_module      : Basics.ident -> unit
+    val mk_endmodule   : unit -> unit
     val mk_ending      : unit -> unit
   end>
 %{
@@ -143,7 +145,7 @@
               PreId (lf, field_name))])
         fields
 
-      let sep = "///"
+      let sep = "_MODULE_"
       (* contains every modules that are declared in the current environement*)
       let modules = ref []
       (* contains only the modules that are not closed *)
@@ -152,9 +154,10 @@
       let level = ref 0
 
       (* called on the NEWMODULE declaration *)
-      let mk_module _ m =
+      let make_module _ m =
           modules :=  (m,!level)::!modules;
 	  current_modules := m::!current_modules;
+	  mk_module m;
 	  incr level
 
       (* called on the ENDMODULE declaration *)
@@ -164,6 +167,7 @@
 	  current_modules := List.tl (!current_modules);
 	  let mds = List.filter (fun (md,l) -> l < !level ) !modules in
 	  modules := mds;
+	  mk_endmodule ();
 	  decr level
 
       (* prefix the ident id by the list of modules mds *)
@@ -289,7 +293,7 @@ line            : ID COLON letterm DOT
                 { mk_record_type (of_lid $2) [] $4 $6 }
                 | RECORD ID param+ DEF ID LEFTBRA def_context RIGHTBRA DOT
                 { mk_record_type (of_lid $2) $3 $5 $7 }
-		| NEWMODULE DOT { mk_module (fst $1) (snd $1) }
+		| NEWMODULE DOT { make_module (fst $1) (snd $1) }
 		| ENDMODULE DOT { umk_module $1 }
                 | command DOT { $1 }
                 | EOF
@@ -318,10 +322,10 @@ param           : LEFTPAR ID COLON arrterm RIGHTPAR        { PDecl (fst $2,of_id
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
                 { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6) }
 
-decl            : ID COLON term         { debug "Ignoring type declaration in rule context.";of_lid $1 }
-                | ID                    { of_lid $1 }
+decl            : ID COLON term         { debug "Ignoring type declaration in rule context."; $1 }
+                | ID                    { $1 }
 
-def_decl        : ID COLON arrterm         { (fst $1,of_id (snd $1),$3) }
+def_decl        : ID COLON arrterm         { (fst $1,snd $1,$3) }
 
 context         : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, decl) { $1 }
@@ -334,7 +338,7 @@ top_pattern     : ID pattern_wp*        { (fst $1,None,of_id (snd $1),$2) }
 
 
 pattern_wp      : ID
-                        { PPattern (fst $1,None,of_id (snd $1),[]) }
+                        { PPattern (fst $1,None, snd $1,[]) }
                 | QID
                         { let (l,md,id)= of_qid $1 in PPattern (l,Some md,id,[]) }
                 | UNDERSCORE
@@ -349,14 +353,14 @@ pattern         : ID  pattern_wp+
                 | QID pattern_wp+
                         { let (l,md,id)= of_qid $1 in PPattern (l,Some md,id,$2) }
                 | ID FATARROW pattern
-                        { PLambda (fst $1,of_id (snd $1),$3) }
+                        { PLambda (fst $1,snd $1,$3) }
                 | pattern_wp
                         { $1 }
 
 sterm           : QID
                 { let (l,md,id)=  of_qid $1 in PreQId(l,md,id) }
                 | ID
-                { PreId (fst $1, (of_id (snd $1))) }
+                { PreId (fst $1, snd $1) }
                 | LEFTPAR letterm RIGHTPAR
                 { $2 }
                 | TYPE
@@ -374,22 +378,22 @@ term            : sterm+
 letterm         : term
                 { $1 }
                 | ID DEF term FATARROW letterm
-                { mk_let (of_id (snd $1)) $3 $5 }
+                { mk_let (snd $1) $3 $5 }
                 | ID COLON term ARROW letterm
-                { PrePi (fst $1,Some (of_id (snd $1)),$3,$5) }
+                { PrePi (fst $1,Some (snd $1),$3,$5) }
                 | term ARROW letterm
                 { PrePi (preterm_loc $1,None,$1,$3) }
                 | ID COLON UNDERSCORE FATARROW letterm
-                { PreLam (fst $1,of_id (snd $1),None,$5) }
+                { PreLam (fst $1,snd $1,None,$5) }
                 | ID COLON term FATARROW letterm
-                { PreLam (fst $1,of_id (snd $1),Some($3),$5) }
+                { PreLam (fst $1,snd $1,Some($3),$5) }
                 | ID FATARROW letterm
-                { PreLam (fst $1,of_id (snd $1),None,$3) }
+                { PreLam (fst $1,snd $1,None,$3) }
 
 arrterm         : term
                 { $1 }
                 | ID COLON term ARROW arrterm
-                { PrePi (fst $1,Some (of_id (snd $1)),$3,$5) }
+                { PrePi (fst $1,Some (snd $1),$3,$5) }
                 | term ARROW arrterm
                 { PrePi (preterm_loc $1,None,$1,$3) }
 

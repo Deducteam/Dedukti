@@ -64,6 +64,10 @@ let mk_rules = function
 
 let mk_command = Cmd.mk_command
 
+let mk_module _ = ()
+
+let mk_endmodule () = ()
+
 let export = ref false
 
 let mk_ending () =

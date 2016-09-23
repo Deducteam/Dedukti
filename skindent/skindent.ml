@@ -1,6 +1,8 @@
 open Basics
 open Pp
 
+let print_ident = Pp.print_ident
+
 module T = struct
   let mk_prelude _ i = Format.printf "#NAME %a.@.@." print_ident i
 
@@ -28,7 +30,19 @@ module T = struct
   let mk_command _ cmd =
     Format.printf "@[<2>%a@]@.@." Cmd.print_command cmd
 
-  let mk_ending _ = ()
+  let mk_module id =
+    if !Pp.resugar then
+      Format.printf "@[#NEWMODULE %a.@]@." print_ident id
+    else
+      ()
+
+  let mk_endmodule () =
+    if !Pp.resugar then
+      Format.printf "@[#ENDMODULE.@]@."
+    else
+      ()
+
+  let mk_ending () = ()
 end
 
 module P = Parser.Make(T)
