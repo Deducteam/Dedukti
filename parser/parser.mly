@@ -143,8 +143,8 @@
               PreId (lf, field_name))])
         fields
 
-      let sep = '_!_'
-      (* contains every modules that are declared in the current environement*)	
+      let sep = "///"
+      (* contains every modules that are declared in the current environement*)
       let modules = ref []
       (* contains only the modules that are not closed *)
       let current_modules = ref []
@@ -166,9 +166,9 @@
 	  modules := mds;
 	  decr level
 
-      (* prefix the ident id by the list of modules mds *)	  	  
+      (* prefix the ident id by the list of modules mds *)
       let rec prefix_by_mds mds id =
-     	  match mds with   
+     	  match mds with
 	  | [] -> id
 	  | x::t ->
 	    hstring ((string_of_ident x) ^ sep ^ string_of_ident (prefix_by_mds t id))
@@ -181,11 +181,11 @@
 	      	  | [] -> []
 		  | (x,l)::t -> let p' = List.filter (fun (md,l') -> l' < l) p in
 		    	     	if ident_eq x md then p'
-				else aux ((x,l)::p') t 		    	     
+				else aux ((x,l)::p') t
 	  in
 	  List.map fst (aux [] (List.rev !modules))
 
-      (* transform a qid in a old qid of dedukti *)	  	  
+      (* transform a qid in a old qid of dedukti *)
       let of_qid (loc, mds, id) =
       	  match mds with
 	  | [] -> assert false
@@ -194,7 +194,7 @@
 		    else (
 			(loc, x, prefix_by_mds t id))
 
-      (* update prefixes to match new modules declarations *)		
+      (* update prefixes to match new modules declarations *)
       let of_id id = prefix_by_mds (List.rev !current_modules) id
 
       let of_lid lid = (fst lid, of_id (snd lid))

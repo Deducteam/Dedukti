@@ -22,7 +22,7 @@
 	  with Not_found -> l
       in
       List.rev (aux s [])
-  
+
 }
 
 let space       = [' ' '\t' '\r']
@@ -30,8 +30,6 @@ let modname     = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
 let ident       = ['a'-'z' 'A'-'Z' '0'-'9' '_' '+' '-' '*' '/' '=' '<' '>' '!' '?' '\'' ]+
 let capital     = ['A'-'Z']+
 let non_neg_num = ['1'-'9']['0'-'9']*
-
-let const = "nat" | "0" | "S" | "char" | "char_of_nat" | "string" | "string_cons" | "list" | "nil" | "cons"
 
 rule token = parse
   | space       { token lexbuf  }
@@ -77,8 +75,6 @@ rule token = parse
   { QID (get_loc lexbuf , list_of_modules '.' mds, hstring id) }
   | non_neg_num as s
   { NUM (get_loc lexbuf, s) }
-  | const  as id
-  { QID (get_loc lexbuf , [builtins], hstring id) }
   | '\'' (_ as c) '\''
   { CHAR ( get_loc lexbuf, c) }
   | ident  as id
@@ -107,5 +103,3 @@ and string buf = parse
   { Buffer.add_char buf c; string buf lexbuf }
   | eof
   { Errors.fail (get_loc lexbuf) "Unexpected end of file." }
-
-
