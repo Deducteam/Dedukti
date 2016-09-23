@@ -13,16 +13,16 @@ BINARIES=skcheck sktop skdep skindent
 all: lib $(BINARIES) doc
 
 skcheck:
-	ocamlbuild -Is $(SRC_DIRS),skcheck $(MENHIR) -lib unix skcheck.native
+	ocamlbuild -Is $(SRC_DIRS),skcheck $(MENHIR) -lib unix -package str skcheck.native
 
 sktop:
-	ocamlbuild -Is $(SRC_DIRS),sktop $(MENHIR) -lib unix sktop.native
+	ocamlbuild -Is $(SRC_DIRS),sktop $(MENHIR) -lib unix -package str sktop.native
 
 skdep:
-	ocamlbuild -Is $(SRC_DIRS),skdep $(MENHIR) -lib unix skdep.native
+	ocamlbuild -Is $(SRC_DIRS),skdep $(MENHIR) -lib unix -package str skdep.native
 
 skindent:
-	ocamlbuild -Is $(SRC_DIRS),skindent $(MENHIR) -lib unix skindent.native
+	ocamlbuild -Is $(SRC_DIRS),skindent $(MENHIR) -lib unix -package str skindent.native
 
 doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html

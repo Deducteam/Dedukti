@@ -104,7 +104,12 @@ let rec print_raw_term out = function
   | Kind               -> Format.pp_print_string out "Kind"
   | Type _             -> Format.pp_print_string out "Type"
   | DB  (_,x,n)        -> print_db out (x,n)
-  | Const (_,m,v)      -> print_const out (m,v)
+  | Const (_,m,v)      ->
+    let module_sep = Str.regexp "*///*" in
+    if !resugar then
+      print_const out (m,hstring (Str.global_replace module_sep "." (string_of_ident v)))
+    else
+      print_const out (m,v)
   | App (f,a,args)     ->
       Format.fprintf out "@[<hov2>%a@]" (print_list " " print_term_wp) (f::a::args)
   | Lam (_,x,None,f)   -> Format.fprintf out "@[%a =>@ @[%a@]@]" print_ident x print_term f
