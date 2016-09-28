@@ -5,10 +5,10 @@ let base_m = hstring "cic"
 let univ_constructors =
   [hstring "succ"; hstring "max"; hstring "type"]
 let sort = Term.mk_Const dloc (hstring "cic") (hstring "Sort")
-                          
+
 
 let c = ref 0
-                   
+
 let fresh_uname () =
   let str = Constraints.basename ^ (string_of_int !c) in
   incr c;
@@ -16,17 +16,17 @@ let fresh_uname () =
   ignore(Env.declare_constant dloc v sort);
   v
 
-       
-(* Replace all terms of types Sort by a variable *)          
+
+(* Replace all terms of types Sort by a variable *)
 let rec elaboration term = Term.(
-  let m_name = Env.get_name() in
+  let m_name = Env.get_name () in
   match term with
   (* the constant is an explicit universe *)
-  | Const(loc,m,s) when Basics.ident_eq m univ_m -> 
+  | Const(loc,m,s) when Basics.ident_eq m univ_m ->
      mk_Const loc m_name (fresh_uname())
   (* capture universe like "cic.type (cic.s cic.z)" *)
   | App(Const(loc,m,s), _, _) when Basics.ident_eq m base_m &&
-   List.exists (fun x -> Basics.ident_eq s x) univ_constructors ->     
+   List.exists (fun x -> Basics.ident_eq s x) univ_constructors ->
      mk_Const loc m_name (fresh_uname())
   | App(f, a, al) ->
     let f' = elaboration f in
@@ -43,7 +43,7 @@ let rec elaboration term = Term.(
      end
   | Pi(loc, id, ta, tb) ->
      let ta' = elaboration ta in
-     let tb' = elaboration tb in     
+     let tb' = elaboration tb in
      mk_Pi loc id ta' tb'
   | _ ->     term
                            )
@@ -51,19 +51,19 @@ let rec elaboration term = Term.(
 (********** graph generation ***************)
 
 module Graph = Graphmp
-                                   
-let uff uf i = Unionfind.find uf i                                   
-                                   
+
+let uff uf i = Unionfind.find uf i
+
 (* from the constraints, create a graph *)
 let graph_of_constraints cs =
   (* indices start with 1 *)
   let uf = Unionfind.create (Hashtbl.length Constraints.var_of_name + 1) in
   let rec aux c (uf,g) =
     match c with
-    | Constraints.Eq(i,j) -> (Unionfind.union uf i j,g) 
+    | Constraints.Eq(i,j) -> (Unionfind.union uf i j,g)
     | Constraints.Lt(i,j) -> (uf,Graph.add_edge g (uff uf i) (uff uf j))
   in
-  let init_graph = Hashtbl.fold (fun k v g -> Graph.add_vertex g (uff uf v)) 
+  let init_graph = Hashtbl.fold (fun k v g -> Graph.add_vertex g (uff uf v))
     Constraints.var_of_name Graph.empty in
   let (uf,g) = Constraints.ConstraintSet.fold aux cs (uf,init_graph) in
   let roots = Graph.roots g in
@@ -79,7 +79,7 @@ let sort_of_nat n = Term.(
   let cz = mk_Const dloc (hstring "cic") (hstring "z") in
   let cs = mk_Const dloc (hstring "cic") (hstring "s") in
   let rec aux n =
-    match n with 
+    match n with
     | 0 -> assert false
     | 1 -> assert false
     | 2 -> mk_App cs cz []
@@ -90,14 +90,14 @@ let sort_of_nat n = Term.(
   | 1 -> mk_App ctype cz []
   | _ -> mk_App ctype (aux n) []
                     )
-                        
+
 (* associate to each univ variable the universe found *)
-let env = Hashtbl.create 83 
+let env = Hashtbl.create 83
 
 type result = (Basics.ident,Term.term) Hashtbl.t
-                         
+
 (* return a Map that associate for each univ variable its universe *)
-let solve() = 
+let solve() =
   let (uf,g) = graph_of_constraints !Constraints.constraints in
   let f = Graph.shortest_path g 0 in
   (* -1 because of the artifical node 0 *)
@@ -107,13 +107,13 @@ let solve() =
 
 
 (************** replace each univ variable by it's solution ***************)
-    
+
 (* replace it's univ variable by it's universe *)
 let rec reconstruction env term = Term.(
   match term with
   | Const(loc,m,v) when Constraints.is_univ_variable v ->
     Hashtbl.find env v
-  | App(f, a, al) -> 
+  | App(f, a, al) ->
     let f' = reconstruction env f in
     let a' = reconstruction env a in
     let al' = List.map (reconstruction env) al in
@@ -131,19 +131,19 @@ let rec reconstruction env term = Term.(
     mk_Pi loc id ta' tb'
   | _ -> term
 )
-    
-(*    
-  (uf, Hashtbl.fold (fun k v n -> UnivMap.add k ((get_sol_of_node r (uff uf v)) -1) n) 
-    Constraints.var_of_name NameMap.empty) 
+
+(*
+  (uf, Hashtbl.fold (fun k v n -> UnivMap.add k ((get_sol_of_node r (uff uf v)) -1) n)
+    Constraints.var_of_name NameMap.empty)
  *)
-                                   
-                                   
+
+
 (*
 let _debug_print_entry s i = Printf.printf "Variable : %s and var : %d\n" (string_of_ident s) i
 let _debug_print_entry2 k v = Printf.printf "Var : %d and value : %d\n" k v
 
 let print_constraint c =
-  let find_key v = 
+  let find_key v =
     Hashtbl.fold (fun k v' c -> if v=v' then string_of_ident k else if c = "" then "" else c) var_of_name "" in
   match c with
   | Eq(i,j) -> Printf.printf "%s = %s\n" (find_key i)  (find_key j)
@@ -153,4 +153,3 @@ let print_constraints() = ConstraintSet.iter print_constraint !constraints
 let print_var_of_name() = Hashtbl.iter (fun k v -> _debug_print_entry k v) var_of_name
 let uff uf i = Unionfind.find uf i
  *)
-               

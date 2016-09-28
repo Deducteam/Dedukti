@@ -120,6 +120,10 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
         match t1', t2' with
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
         | DB (_,_,n), DB (_,_,n') when ( n=n' ) -> pseudo_u sg sigma lst
+        (* univ_stuff *)
+        | Const (_,md,id), Const (_,md',id') when
+            ( Constraints.is_univ_variable id) && (Constraints.is_univ_variable id') ->
+          Constraints.add_constraint_eq id id' ; pseudo_u sg sigma lst
         | Const (_,md,id), Const (_,md',id') when
             ( Basics.ident_eq id id' && Basics.ident_eq md md' ) ->
           pseudo_u sg sigma lst

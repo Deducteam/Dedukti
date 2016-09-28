@@ -1,18 +1,18 @@
 open Basics
 open Pp
 open Solver
-              
-type entry = 
-| Declaration of ident * Term.term 
+
+type entry =
+| Declaration of ident * Term.term
 | Definable of ident * Term.term
-| Definition of ident * Term.term option * Term.term 
-| Opaque of ident * Term.term option * Term.term 
+| Definition of ident * Term.term option * Term.term
+| Opaque of ident * Term.term option * Term.term
 | RewriteRule of (loc * ident) list * Rule.pattern * Term.term
 
 type ast = entry list
 
 let entries : (entry list) ref  = ref []
-       
+
 let reconstruction_of_entry env entry =
   match entry with
   | Declaration(id, t) -> Declaration(id, reconstruction env t)
@@ -22,9 +22,9 @@ let reconstruction_of_entry env entry =
   | Opaque(id, None, te) -> Opaque(id, None, reconstruction env te)
   | Opaque(id, Some(ty), te) -> Opaque(id, Some(reconstruction env ty), reconstruction env te)
   | RewriteRule(ctx, pat, te) -> RewriteRule(ctx, pat, reconstruction env te)
-                                        
+
 module Checker = struct
- 
+
 
 (* ********************************* *)
 
@@ -55,7 +55,7 @@ let mk_declaration lc id pty : unit =
   entries := Declaration(id, pty')::!entries;
   match Env.declare_constant lc id pty' with
     | OK () -> () ;
-(*      Format.printf "@[<2>%a :@ %a.@]@.@." 
+(*      Format.printf "@[<2>%a :@ %a.@]@.@."
 	print_ident id print_term pty'; *)
     | Err e -> Errors.fail_env_error e
 
@@ -69,26 +69,26 @@ let mk_definable lc id pty : unit =
 
 let mk_definition lc id pty_opt pte : unit =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
-  let pty_opt' = 
-    match pty_opt with 
-    | None -> None 
-    | Some pty -> Some (elaboration pty)
-  in
-  let pte' = elaboration pte in
-  entries := Definition(id, pty_opt', pte')::!entries;  
-  match Env.define lc id pte' pty_opt' with
-    | OK () -> () 
-    | Err e -> Errors.fail_env_error e
-
-let mk_opaque lc id pty_opt pte =
-  eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
-  let pty_opt' = 
-    match pty_opt with 
+  let pty_opt' =
+    match pty_opt with
     | None -> None
     | Some pty -> Some (elaboration pty)
   in
   let pte' = elaboration pte in
-  entries := Definition(id, pty_opt', pte')::!entries;    
+  entries := Definition(id, pty_opt', pte')::!entries;
+  match Env.define lc id pte' pty_opt' with
+    | OK () -> ()
+    | Err e -> Errors.fail_env_error e
+
+let mk_opaque lc id pty_opt pte =
+  eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
+  let pty_opt' =
+    match pty_opt with
+    | None -> None
+    | Some pty -> Some (elaboration pty)
+  in
+  let pte' = elaboration pte in
+  entries := Definition(id, pty_opt', pte')::!entries;
   match Env.define_op lc id pte pty_opt with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
@@ -121,11 +121,11 @@ let export = ref false
 
 let print_entry entry = Pp.(
   match entry with
-  | Declaration (id, ty) -> 
+  | Declaration (id, ty) ->
     Format.printf "@[%a :@;<1 2>%a.@]@." print_ident id print_term ty
   | Definable (id, ty) ->
     Format.printf "@[def %a :@;<1 2>%a.@]@." print_ident id print_term ty
-  | Definition (id, None, te) -> 
+  | Definition (id, None, te) ->
     Format.printf "def @[%a :=@;<1 2>%a.@]@." print_ident id print_term te
   | Definition (id, Some(ty), te) ->
     Format.printf "def @[%a:@;<1 2>%a@;<1 2>:=@;<1 2>%a.@]@." print_ident id print_term ty print_term te
@@ -134,15 +134,15 @@ let print_entry entry = Pp.(
 )
 let print_entries entries = ignore(List.map (print_entry) entries)
 
-let mk_ending () = 
-  let env = solve() in   
+let mk_ending () =
+  let env = solve() in
   let entries' = List.rev_map (reconstruction_of_entry env) !entries in
   print_entries entries';
   ( if !export then
       if not (Env.export ()) then
 	  Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
   Confluence.finalize ()
-                   
+
 end
 
 open Term
@@ -151,13 +151,13 @@ let run_on_stdin = ref false
 
 module P = Parser.Make(Checker)
 
-let parse lb = 
+let parse lb =
   try
     P.prelude Lexer.token lb ;
     while true do P.line Lexer.token lb done
   with
   | Tokens.EndOfFile -> ()
-  | P.Error -> Errors.fail (Lexer.get_loc lb) 
+  | P.Error -> Errors.fail (Lexer.get_loc lb)
     "Unexpected token '%s'." (Lexing.lexeme lb)
 
 let args = [

@@ -6,7 +6,7 @@ module Vertex = struct
 end
 
 type 'a cloture = Val of 'a | Inf
-                  
+
 module MaxPlus =
   struct
     type t = int cloture
@@ -38,8 +38,8 @@ module Edge = struct
   let compare = compare
   let default = MaxPlus.neutral_plus
 end
-                      
-                  
+
+
 module G = Graph.Persistent.Digraph.ConcreteLabeled(Vertex)(Edge)
 type t = G.t
 
@@ -72,8 +72,8 @@ module RandomQueue =
     let iter = List.iter
   end
 
-module ShortestPath = Shortestpath.MakeSR(MaxPlus)(G)(RandomQueue)    
-                
+module ShortestPath = Shortestpath.MakeSR(MaxPlus)(G)(RandomQueue)
+
 let shortest_path g start =
   let sol = ShortestPath.stepper_algorithm ShortestPath.mohri_stepper g start in
   (fun x -> match ShortestPath.result sol x with Inf -> assert false | Val n -> n)
