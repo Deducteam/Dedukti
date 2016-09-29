@@ -1,7 +1,29 @@
 open Basics
 open Pp
 
+let pmodule = ref false
 let print_ident = Pp.print_ident
+let cpt_module = ref 0
+
+let is_module id =
+  let s = string_of_ident id in
+  String.length s > 9 && String.sub s 0 9 = "NEWMODULE"
+let is_end_module id =
+  let s = string_of_ident id in
+  String.length s > 9 && String.sub s 0 9 = "ENDMODULE"
+
+let module_of_ident id =
+  let s = string_of_ident id in
+  if !Pp.resugar then
+    let s' = String.sub s 10 (String.length s - 10) in
+    Format.printf "@[#NEWMODULE %s.@]@." s'
+  else
+    ()
+let end_module_of_ident id =
+  if !Pp.resugar then
+    Format.printf "@[#ENDMODULE.@]@."
+  else
+    ()
 
 module T = struct
   let mk_prelude _ i = Format.printf "#NAME %a.@.@." print_ident i
@@ -10,19 +32,25 @@ module T = struct
     Format.printf "@[<2>%a :@ %a.@]@.@." print_ident i print_term t
 
   let mk_definable _ i t =
-    Format.printf "@[<2>def %a :@ %a.@]@.@." print_ident i print_term t
+    if is_module i then
+      module_of_ident i
+    else if is_end_module i then
+      end_module_of_ident i
+    else
+      Format.printf "@[<2>def %a :@ %a.@]@.@." print_ident i print_term t
 
-  let mk_definition _ i ty t = match ty with
+  let mk_definition _ i ty t =
+    match ty with
     | None -> Format.printf "@[<hv2>def %a@ :=@ %a.@]@.@." print_ident i print_term t
     | Some ty ->
-        Format.printf "@[<hv2>def %a :@ %a@ :=@ %a.@]@.@."
-          print_ident i print_term ty print_term t
+      Format.printf "@[<hv2>def %a :@ %a@ :=@ %a.@]@.@."
+        print_ident i print_term ty print_term t
 
   let mk_opaque _ i ty t = match ty with
     | None -> Format.printf "@[<hv2>{%a}@ :=@ %a.@]@.@." print_ident i print_term t
     | Some ty ->
-        Format.printf "@[<hv2>{%a}@ :@ %a :=@ %a.@]@.@."
-          print_ident i print_term ty print_term t
+      Format.printf "@[<hv2>{%a}@ :@ %a :=@ %a.@]@.@."
+        print_ident i print_term ty print_term t
 
   let mk_rules l =
     Format.printf "@[<v0>%a@].@.@." (print_list "" print_rule) l
@@ -33,12 +61,19 @@ module T = struct
   let mk_module id =
     if !Pp.resugar then
       Format.printf "@[#NEWMODULE %a.@]@." print_ident id
+    else if !pmodule then
+      Format.printf "@[def NEWMODULE_%a : Type.@]@." print_ident id
     else
       ()
 
   let mk_endmodule () =
     if !Pp.resugar then
-      Format.printf "@[#ENDMODULE.@]@."
+          Format.printf "@[#ENDMODULE.@]@."
+    else if !pmodule then
+      begin
+        incr cpt_module;
+        Format.printf "@[def ENDMODULE_%d : Type.@]@." !cpt_module
+      end
     else
       ()
 
@@ -71,7 +106,8 @@ let () = resugar := false
 
 let options =
   [ "-stdin", Arg.Set from_stdin, " read from stdin";
-    "-resugar", Arg.Set resugar, " use syntactic sugar in output"
+    "-resugar", Arg.Set resugar, " use syntactic sugar in output";
+    "-module", Arg.Set pmodule, " add module declaration as definition in dedukti"
   ]
 
 let  _ =
