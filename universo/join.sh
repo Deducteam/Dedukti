@@ -3,5 +3,4 @@
 #The third sed command remove the first #ENDMOULE introduced before
 #The fourth sed command add a #ENDMODULE at the end of the file
 
-cat $@ | sed 's/#NAME \(.*\)\./\n#ENDMODULE\.\n#NEWMODULE \1\./' | sed '1s/.*/#NAME everything\./' | sed '3d' | sed "\$a#ENDMODULE\." > everything.sk
-
+cat $@ | sed 's/#NAME \(.*\)\./\n#ENDMODULE\.\n#NEWMODULE \1\./' | sed '1s/.*/#NAME universo\./' | sed '4d' | sed "\$a#ENDMODULE\."
