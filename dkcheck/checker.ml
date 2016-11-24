@@ -22,25 +22,25 @@ let mk_prelude lc name =
 let mk_declaration lc id pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
   match Env.declare_constant lc id pty with
-    | OK () -> ()
+    | OK _ -> ()
     | Err e -> Errors.fail_env_error e
 
 let mk_definable lc id pty : unit =
   eprint lc "Declaration of definable '%a'." pp_ident id;
   match Env.declare_definable lc id pty with
-    | OK () -> ()
+    | OK _ -> ()
     | Err e -> Errors.fail_env_error e
 
 let mk_definition lc id pty_opt pte : unit =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
   match Env.define lc id pte pty_opt with
-    | OK () -> ()
+    | OK _ -> ()
     | Err e -> Errors.fail_env_error e
 
 let mk_opaque lc id pty_opt pte =
   eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
   match Env.define_op lc id pte pty_opt with
-    | OK () -> ()
+    | OK _ -> ()
     | Err e -> Errors.fail_env_error e
 
 let get_infos = function

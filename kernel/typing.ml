@@ -43,51 +43,53 @@ let extend_ctx a ctx = function
 
 (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
-let rec infer sg (ctx:context) : term -> typ = function
+let rec infer sg (ctx:context) (te:term) : term * typ =
+  match te with
   | Kind -> raise (TypingError KindIsNotTypable)
-  | Type l -> mk_Kind
-  | DB (l,x,n) -> get_type ctx l x n
-  | Const (l,md,id) -> Signature.get_type sg l md id
+  | Type l -> (te,mk_Kind)
+  | DB (l,x,n) -> (te,get_type ctx l x n)
+  | Const (l,md,id) -> (te,Signature.get_type sg l md id)
   | App (f,a,args) ->
-    snd (List.fold_left (check_app sg ctx) (f,infer sg ctx f) (a::args))
+    List.fold_left (check_app sg ctx) (infer sg ctx f) (a::args)
   | Pi (l,x,a,b) ->
-      let ty_a = infer sg ctx a in
+      let a',ty_a = infer sg ctx a in
       let ctx2 = extend_ctx (l,x,a) ctx ty_a in
-      let ty_b = infer sg ctx2 b in
+      let b',ty_b = infer sg ctx2 b in
       ( match ty_b with
-        | Kind | Type _ -> ty_b
+        | Kind | Type _ -> mk_Pi l x a' b', ty_b
         | _ -> raise (TypingError (SortExpected (b, ctx2, ty_b))) )
   | Lam  (l,x,Some a,b) ->
-      let ty_a = infer sg ctx a in
+      let a',ty_a = infer sg ctx a in
       let ctx2 = extend_ctx (l,x,a) ctx ty_a in
-      let ty_b = infer sg ctx2 b in
+      let b',ty_b = infer sg ctx2 b in
         ( match ty_b with
             | Kind -> raise (TypingError (InexpectedKind (b, ctx2)))
-            | _ -> mk_Pi l x a ty_b )
+            | _ -> mk_Lam l x (Some a') b', (mk_Pi l x a' ty_b) )
   | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
-and check sg (ctx:context) (te:term) (ty_exp:typ) : unit =
+and check sg (ctx:context) (te:term) (ty_exp:typ) : term * typ =
   match te with
   | Lam (l,x,None,u) ->
     ( match Reduction.whnf sg ty_exp with
-      | Pi (_,_,a,b) -> check sg ((l,x,a)::ctx) u b
+      | Pi (_,_,a,b) -> let u',_ = check sg ((l,x,a)::ctx) u b in
+        mk_Lam l x (Some a) u', ty_exp
       | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp))) )
   | _ ->
-    let ty_inf = infer sg ctx te in
-    if Reduction.are_convertible sg ty_inf ty_exp then ()
+    let te, ty_inf = infer sg ctx te in
+    if Reduction.are_convertible sg ty_inf ty_exp then (te,ty_exp)
     else raise (TypingError (ConvertibilityError (te,ctx,ty_exp,ty_inf)))
 
 and check_app sg (ctx:context) (f,ty_f:term*typ) (arg:term) : term*typ =
   match Reduction.whnf sg ty_f with
     | Pi (_,_,a,b) ->
-      let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
+      let arg',_ = check sg ctx arg a in (mk_App f arg' [], Subst.subst b arg')
     | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
 
-let inference sg (te:term) : typ = infer sg [] te
+let inference sg (te:term) : term * typ = infer sg [] te
 
-let checking sg (te:term) (ty:term) : unit =
-  let _ = infer sg [] ty in
-  check sg [] te ty
+let checking sg (te:term) (ty:term) : term * typ =
+  let ty',_ = infer sg [] ty in
+  check sg [] te ty'
 
 (* **** PSEUDO UNIFICATION ********************** *)
 
@@ -301,7 +303,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
             let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
             raise (TypingError (BracketError2 (te,ctx,exp_ty)))
         in
-        check sg (pc_to_context delta) te2 ty2;
+        ignore(check sg (pc_to_context delta) te2 ty2);
         ( delta, lst )
   | Var (l,x,n,[]) when ( n >= LList.len sigma ) ->
     begin
@@ -393,6 +395,6 @@ let check_rule sg (ctx0,le,ri:rule) : rule2 =
           end
       end
   in
-  check sg ctx2 ri2 ty_le2;
+  ignore(check sg ctx2 ri2 ty_le2);
   debug "[ %a ] %a --> %a" pp_context_inline ctx2 pp_pattern le pp_term ri2;
   (ctx2,le,ri2)

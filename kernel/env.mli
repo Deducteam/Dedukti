@@ -27,16 +27,16 @@ val get_dtree   : loc -> ident -> ident -> ((int*Rule.dtree) option,signature_er
 val export      : unit -> bool
 (** [export ()] saves the current environment in a [*.dko] file. *)
 
-val declare_constant : loc -> ident -> term -> (unit,env_error) error
+val declare_constant : loc -> ident -> term -> (Typing.typ,env_error) error
 (** [declare_constant l id ty] declares the constant symbol [id] of type [ty]. *)
 
-val declare_definable : loc -> ident -> term -> (unit,env_error) error
+val declare_definable : loc -> ident -> term -> (Typing.typ,env_error) error
 (** [declare_definable l id ty] declares the definable symbol [id] of type [ty]. *)
 
-val define      : loc -> ident -> term -> term option -> (unit,env_error) error
+val define      : loc -> ident -> term -> term option -> (term * Typing.typ,env_error) error
 (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
 
-val define_op   : loc -> ident -> term -> term option -> (unit,env_error) error
+val define_op   : loc -> ident -> term -> term option -> (term * Typing.typ,env_error) error
 (** [define_op l id body ty] declares the symbol [id] of type [ty] and checks
     that [body] has this type (but forget it after). *)
 
@@ -46,7 +46,7 @@ val add_rules   : Rule.rule list -> (Rule.rule2 list,env_error) error
 
 (** {2 Type checking/inference} *)
 
-val infer       : term -> (term,env_error) error
+val infer       : term -> (term * Typing.typ,env_error) error
 
 val check       : term -> term -> (unit,env_error) error
 

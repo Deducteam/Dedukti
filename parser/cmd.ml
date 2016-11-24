@@ -45,11 +45,11 @@ let mk_command lc = function
             | Err e -> Errors.fail_env_error e )
   | Check (te,ty) ->
         ( match Env.check te ty with
-            | OK () -> print "YES"
+            | OK _ -> print "YES"
             | Err e -> Errors.fail_env_error e )
   | Infer te         ->
       ( match Env.infer te with
-          | OK ty -> Format.printf "%a\n" print_term ty
+          | OK (te,ty) -> Format.printf "%a\n" print_term ty
           | Err e -> Errors.fail_env_error e )
   | Gdt (m0,v)         ->
       let m = match m0 with None -> Env.get_name () | Some m -> m in
