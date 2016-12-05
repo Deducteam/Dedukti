@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 
 exception NotUnifiable
@@ -10,7 +10,7 @@ let update_dbs (depth:int) (dbs:int LList.t) (te:term) : term =
   let rec aux k = function
     | Type _ | Kind | Const _ as t -> t
     | DB (l,x,n) as t ->
-        if n < k (* var bound in te *) then t 
+        if n < k (* var bound in te *) then t
         else if n >= k+depth (* var free in te*) then
           mk_DB l x (n+size)
         else
@@ -37,7 +37,7 @@ let update_dbs (depth:int) (dbs:int LList.t) (te:term) : term =
  * x_1 => .. => x_n => X (DB [k_0]) ... (DB [k_n]) =~ x_1 => .. => x_n => [te]
  *  and where [k_lst] = [k_0::k_1::..::k_m].
  *)
- 
+
 let solve (n:int) (k_lst:int LList.t) (te:term) : term =
   let rec add_lam te = function
     | [] -> te

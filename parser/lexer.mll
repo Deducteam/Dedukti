@@ -1,5 +1,5 @@
 {
-  open Basics
+  open Basic
   open Lexing
   open Tokens
   open Printf
@@ -77,5 +77,3 @@ and string buf = parse
   { Buffer.add_char buf c; string buf lexbuf }
   | eof
   { Errors.fail (get_loc lexbuf) "Unexpected end of file." }
-
-

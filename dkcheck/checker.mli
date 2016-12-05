@@ -1,5 +1,5 @@
 (** Dedukti's main functionnalities. *)
-open Basics
+open Basic
 open Term
 
 val export         : bool ref

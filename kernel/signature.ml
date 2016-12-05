@@ -1,6 +1,6 @@
 (** Global Environment *)
 
-open Basics
+open Basic
 open Term
 open Rule
 

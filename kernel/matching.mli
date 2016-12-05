@@ -1,6 +1,6 @@
 (** Matching on terms *)
 
-open Basics
+open Basic
 open Term
 
 exception NotUnifiable

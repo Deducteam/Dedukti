@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 open Rule
 
@@ -101,7 +101,7 @@ let rec find_case (st:state) (cases:(case*dtree) list) (default:dtree option) : 
 (* Definition: a term is in weak-head-normal form if all its reducts (including itself)
  * have same 'shape' at the root.
  * The shape of a term could be computed like this:
- *  
+ *
  * let rec shape = function
  *  | Type -> Type
  *  | Kind -> Kind
@@ -114,7 +114,7 @@ let rec find_case (st:state) (cases:(case*dtree) list) (default:dtree option) : 
  * Property:
  * A (strongly normalizing) non weak-head-normal term can only have the form:
  * - (x:A => b) a c_1..c_n, this is a beta-redex potentially with extra arguments.
- * - or c a_1 .. a_n b_1 ..b_n with c a constant and c a'_1 .. a'_n is a gamma-redex 
+ * - or c a_1 .. a_n b_1 ..b_n with c a constant and c a'_1 .. a'_n is a gamma-redex
  *   where the (a'_i)s are reducts of (a_i)s.
  *)
 
@@ -132,7 +132,7 @@ let rec state_whnf (sg:Signature.t) : state -> state = function
   | { term=Type _ }
   | { term=Kind }
   | { term=Pi _ }
-  | { term=Lam _; stack=[] } as state -> state 
+  | { term=Lam _; stack=[] } as state -> state
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
     if n < LList.len ctx then
@@ -151,14 +151,14 @@ let rec state_whnf (sg:Signature.t) : state -> state = function
   | { ctx; term=Const (l,m,v); stack } as state ->
     begin
       match Signature.get_dtree sg l m v with
-      | None -> state 
+      | None -> state
       | Some (i,g) ->
         begin
           match split_stack i stack with
-          | None -> state 
+          | None -> state
           | Some (s1,s2) ->
             ( match gamma_rw sg s1 g with
-              | None -> state 
+              | None -> state
               | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
             )
         end
@@ -316,13 +316,13 @@ let rec state_one_step (sg:Signature.t) : state -> state option = function
   | { term=Type _ }
   | { term=Kind }
   | { term=Pi _ }
-  | { term=Lam _; stack=[] } -> None 
+  | { term=Lam _; stack=[] } -> None
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (_,_,n); stack } ->
     if n < LList.len ctx then
       state_one_step sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
     else
-      None 
+      None
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
     Some { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
@@ -335,14 +335,14 @@ let rec state_one_step (sg:Signature.t) : state -> state option = function
   | { ctx; term=Const (l,m,v); stack } ->
     begin
       match Signature.get_dtree sg l m v with
-      | None -> None 
+      | None -> None
       | Some (i,g) ->
         begin
           match split_stack i stack with
-          | None -> None 
+          | None -> None
           | Some (s1,s2) ->
             ( match gamma_rw sg s1 g with
-              | None -> None 
+              | None -> None
               | Some (ctx,term) -> Some { ctx; term; stack=s2 }
             )
         end

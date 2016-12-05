@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 open Pp
 open Typing

@@ -1,6 +1,6 @@
 (** The main functionalities of Dedukti:
  this is essentialy a wrapper around Signature, Typing and Reduction *)
-open Basics
+open Basic
 open Term
 open Signature
 
