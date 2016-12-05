@@ -14,7 +14,7 @@ let rec parse lb =
 
 let  _ =
   print_string "Welcome to Dedukti\n";
-  let v = Basics.hstring "?top" in
+  let v = Basic.hstring "?top" in
     Pp.name := v;
     Scoping.name := v;
     Env.init v ;

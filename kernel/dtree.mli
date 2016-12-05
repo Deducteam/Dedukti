@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Rule
 
 val allow_non_linear : bool ref

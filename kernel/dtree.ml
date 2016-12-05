@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 open Rule
 
@@ -415,4 +415,3 @@ let of_rules (rs:rule_infos list) : (int*dtree,dtree_error) error =
   try
     let mx = mk_matrix rs in OK ( Array.length mx.first.pats , to_dtree mx )
   with DtreeExn e -> Err e
-

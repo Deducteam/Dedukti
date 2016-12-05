@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 open Rule
 open Cmd
@@ -8,7 +8,7 @@ let deps = ref []
 let filename = ref ""
 let verbose = ref false
 let sorted = ref false
-                  
+
 let print_out fmt = Printf.kfprintf (fun _ -> output_string !out "\n" ) !out fmt
 
 let add_dep m =
@@ -63,23 +63,23 @@ let mk_command _ = function
   | Other (_,lst)                       -> List.iter mk_term lst
 
 
-let dfs graph visited start_node = 
-  let rec explore path visited node = 
+let dfs graph visited start_node =
+  let rec explore path visited node =
     if List.mem node path    then failwith "Circular dependencies"
     else
       if List.mem node visited then visited
-      else     
-        let new_path = node :: path in 
+      else
+        let new_path = node :: path in
         let edges    = List.assoc node graph in
         let visited  = List.fold_left (explore new_path) visited edges in
         node :: visited
   in explore [] visited start_node
-               
-let topological_sort graph = 
+
+let topological_sort graph =
   List.fold_left (fun visited (node,_) -> dfs graph visited node) [] graph
-                                                     
+
 let mk_ending () =
-  if not !sorted then 
+  if not !sorted then
     let name, deps = List.hd !deps in
     print_out "%s.dko : %s %s" name !filename
               (String.concat " " (List.map (fun s -> s ^ ".dko") deps))
@@ -87,4 +87,3 @@ let mk_ending () =
     ()
 
 let sort () = List.rev (topological_sort !deps)
-    
