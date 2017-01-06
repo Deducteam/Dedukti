@@ -1,0 +1,94 @@
+#NAME tocheck.
+def p : zen.term (zen.iota) -> zen.prop.
+
+def zenon_X0__28Prop_29 : zen.term (zen.iota).
+
+
+
+
+def zenon_G :
+ zen.proof (zen.not
+ (zen.exists (zen.iota)
+ (v_Vm : (zen.term (zen.iota))
+ => zen.imp
+ (p (v_Vm)) (zen.forall (zen.iota)
+ (v_Vn : (zen.term (zen.iota))
+ => p (v_Vn))))))
+ -> zen.seq.
+
+[] zenon_G -->
+ v_Vo : (zen.proof (zen.not
+ (zen.exists (zen.iota)
+ (v_Vm : (zen.term (zen.iota))
+ => zen.imp
+ (p (v_Vm)) (zen.forall (zen.iota)
+ (v_Vn : (zen.term (zen.iota))
+ => p (v_Vn)))))))
+ => zen.Rnotex
+ (zen.iota)
+ (v_Vm : (zen.term (zen.iota))
+ => zen.imp
+ (p (v_Vm)) (zen.forall (zen.iota)
+ (v_Vn : (zen.term (zen.iota))
+ => p (v_Vn))))
+ (zenon_X0__28Prop_29)
+ (v_Vp : (zen.proof (zen.not
+ (zen.imp
+ (p (zenon_X0__28Prop_29)) (zen.forall (zen.iota)
+ (v_Vn : (zen.term (zen.iota))
+ => p (v_Vn))))))
+ => zen.Rnotimply
+ (p (zenon_X0__28Prop_29))
+ (zen.forall (zen.iota)
+ (v_Vn : (zen.term (zen.iota))
+ => p (v_Vn)))
+ (v_Vq : (zen.proof (p (zenon_X0__28Prop_29)))
+ => v_Vr : (zen.proof (zen.not
+ (zen.forall (zen.iota)
+ (v_Vn : (zen.term (zen.iota))
+ => p (v_Vn)))))
+ => zen.Rnotall
+ (zen.iota)
+ (v_Vn : (zen.term (zen.iota))
+ => p (v_Vn))
+ (v_Vs : (zen.term (zen.iota))
+ => v_Vt : (zen.proof (zen.not
+ (p (v_Vs))))
+ => zen.Rnotex
+ (zen.iota)
+ (v_Vm : (zen.term (zen.iota))
+ => zen.imp
+ (p (v_Vm)) (zen.forall (zen.iota)
+ (v_Vn : (zen.term (zen.iota))
+ => p (v_Vn))))
+ (v_Vs)
+ (v_Vu : (zen.proof (zen.not
+ (zen.imp
+ (p (v_Vs)) (zen.forall (zen.iota)
+ (v_Vn : (zen.term (zen.iota))
+ => p (v_Vn))))))
+ => zen.Rnotimply
+ (p (v_Vs))
+ (zen.forall (zen.iota)
+ (v_Vn : (zen.term (zen.iota))
+ => p (v_Vn)))
+ (v_Vv : (zen.proof (p (v_Vs)))
+ => v_Vr : (zen.proof (zen.not
+ (zen.forall (zen.iota)
+ (v_Vn : (zen.term (zen.iota))
+ => p (v_Vn)))))
+ => zen.Raxiom
+ (p (v_Vs))
+ (v_Vv)
+ (v_Vt)
+)
+ (v_Vu)
+)
+ (v_Vo)
+)
+ (v_Vr)
+)
+ (v_Vp)
+)
+ (v_Vo)
+.
