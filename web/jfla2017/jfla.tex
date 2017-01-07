@@ -318,8 +318,6 @@ Intérêt des plongements superficiels
 
 \section{Le $\lambda\Pi$-calcul modulo théorie}
 
-%% Montrer un exemple de Dedukti
-
 
 
 \begin{frame}
@@ -354,9 +352,6 @@ Intérêt des plongements superficiels
  \lstinline!A : Type -> Type! \textcolor{red}{X}
 \end{frame}
 
-%% donner exemple de ce qui est possible
-%% de ce qui ne l'est pas
-%% puis seulement donner règles
 
 \begin{frame}
   \frametitle{$\lambda\Pi$-calcul modulo théorie}
@@ -570,11 +565,22 @@ capable de sortir des preuves Dedukti pour la partie résolution [Burel 2013]
   $$app~(lam~f)~t \rr^{f,t} f~t$$
 \end{frame}
 
-\begin{frame}
+\begin{frame}[fragile]
   \frametitle{$\lambda$-calcul simplement typé}
   Plongement profond des types simples
+\begin{lstlisting}
+type : Type.
+o : type.
+b : type.
+arrow : type -> type -> type.
+\end{lstlisting}
+  
+Remontée superficielle avec \lst{term}
 
-  Remontée superficielle avec \lst{term}
+\begin{lstlisting}
+def term : type -> Type.
+[a,b] term (arrow a b) --> term a -> term b.
+\end{lstlisting}
 \end{frame}
 
 \begin{frame}[fragile]
@@ -596,10 +602,180 @@ $$\begin{array}{c@{~}c@{~}c@{~}c@{~}ccll}
   
 \end{frame}
 
+\begin{frame}
+  \frametitle{$\varsigma$-calcul et FoCaLiZe}
+
+  $\varsigma$-calcul : langage pour la programmation orientée objet
+  \bigskip
+  
+  FoCaLiZe : environnement pour le développement de programmes
+  certifiés
+  \begin{itemize}
+  \item ML comme langage d'implémentation
+  \item logique des prédicats classique comme langage de spécification
+  \item aspects orientés objet pour la modularité
+  \end{itemize}
+\end{frame}
+
 \section{Logique d'ordre supérieur}
 
+\begin{frame}[fragile]
+\frametitle{Théorie simple des types}
+Langage : 
+\begin{itemize}
+\item $\lambda$-calcul simplement typé
+\item
+  types de base
+  \lst{bool} et \lst{ind}
+\item constantes \lst{imp : bool -> bool -> bool} et
+  \texttt{forall$_A$ : ($A$ -> bool) -> bool}
+\end{itemize}
+\bigskip
+
+Plongement profond des types, des termes de type bool
+
+\medskip
+Deux fonctions pour remonter
+\pause\bigskip
+
+En fait, tout est défini à l'aide de $=$
+
+\end{frame}
 
 \section{Calcul des constructions inductives}
+
+\begin{frame}
+  \frametitle{Calcul des constructions}
+  Deux traductions des termes :
+  \begin{itemize}
+  \item profonde, vus comme des termes $|t|$
+  \item superficielle, vus comme des types $||t||$
+  \end{itemize}
+
+  plusieurs fonctions de remontée en fonction de la sorte
+
+  $\epsilon_{Type}$ et $\epsilon_{Kind}$
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Exemple}
+\begin{alltt}
+\color{blue}\textbf{Definition} id_Type := \textbf{fun} x : Type => x.
+\end{alltt}
+
+est traduit par
+\begin{overprint}
+\onslide<1>
+\begin{alltt}
+id_Type : \tytrans{\ccprop \rightarrow \ccprop}.  
+[] id_Type --> \tetrans{\lambda x : \ccprop. x}.
+\end{alltt}
+\onslide<2>
+\begin{alltt}
+id_Type : \tytrans{\ccprop \rightarrow \ccprop}.
+[] id_Type --> \alert{x : \tytrans{\ccprop} => x}.
+\end{alltt}
+\onslide<3>
+\begin{alltt}
+id_Type : \tytrans{\ccprop \rightarrow \ccprop}.
+[] id_Type --> x : \alert{U_Type} => x.
+\end{alltt}
+\onslide<4>
+\begin{alltt}
+id_Type : \alert{e_Kind \tetrans{\ccprop \rightarrow \ccprop}}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<5>
+\begin{alltt}
+id_Type : e_Kind \alert{\tetrans{\Pi _ : \ccprop. \ccprop}}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<6>
+\begin{alltt}
+id_Type : e_Kind \alert{(pi_KK \tetrans{\ccprop} (fun _ : \tytrans{\ccprop} => \tetrans{\ccprop}))}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<7>
+\begin{alltt}
+id_Type : \alert{w : e_Kind \tetrans{\ccprop}-> e_Kind((fun _ : \tytrans{\ccprop} => \tetrans{\ccprop}) w)}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<8>
+\begin{alltt}
+id_Type : w : e_Kind \tetrans{\ccprop} -> \alert{e_Kind \tetrans{\ccprop}}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<9>
+\begin{alltt}
+id_Type : \alert{w : e_Kind u_Type -> e_Kind u_Type}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<10>
+\begin{alltt}
+id_Type : \alert{w : U_Type -> U_Type}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\end{overprint}\bigskip
+
+\begin{itemize}
+\item<2-> $\lambda$s traduits comme des $\lambda$s 
+\item<3-> à chaque sorte \sort{s} correspond un univers \verb;U_;\sort s
+ \parbox{2cm}{\onslide<9->\parbox{5cm}{et une constante \texttt{u\_}\sort s}}\onslide<3->
+\item<4-> \verb;e_;\sort s: fonction de remontée pour \sort s
+\item<6-> \verb;pi_KK;: plongement profond des produits dépendants
+\item<7-> règles de réécriture pour remonter
+
+\verb;e_Kind (pi_KK x y) --> w : e_Kind x -> e_Kind (y w).;
+
+\onslide<10->\verb;e_Kind u_Type --> U_Type.;
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Inductifs}
+
+  Cf. ML
+  \bigskip
+
+  Utilisation d'éliminateur au lieu de destructeurs + récursion
+
+\begin{lstlisting}
+elim_list : A : Type
+  -> P : (List A -> Type)
+  -> P (nil A)
+  -> (x : A -> l : list A -> P l -> P (cons A x l))
+  -> l : list A
+  -> P l.
+\end{lstlisting}
+  
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Hiérarchie d'univers}
+  Univers indexés par un niveau
+
+  \begin{itemize}
+  \item $Type_i : Type_{i+1}$
+
+  \item $Type_i\subset Type_{i+1}$
+  \end{itemize}
+  \bigskip
+  
+  Conversion explicite avec $\uparrow_i : Type_i \to Type_{i+1}$
+  \medskip
+  
+  Plus d'unicité du typage
+  \begin{itemize}
+  \item $\uparrow_i \Pi_i x:A.~B$\qquad vs.\qquad $\Pi_{i+1}
+    x : \uparrow_i A.~\uparrow_i B$
+  \end{itemize}
+\begin{lstlisting}
+[i, a, b] pi _ (lift i a) (x => lift {i} (b x)) -->
+          lift i (pi i a (x => b x)).
+\end{lstlisting}
+  
+\end{frame}
+
 \end{document}
 
 %%% Local Variables:
