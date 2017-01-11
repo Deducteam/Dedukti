@@ -1,0 +1,30 @@
+#NAME hol.
+
+type : Type.
+
+prop : type.
+
+def eta : type -> Type.
+
+arrow : type -> type -> type.
+
+[b, a] eta (arrow a b) --> x:(eta a) -> eta b.
+
+def eps : (eta prop) -> Type.
+
+impl : (eta prop) -> (eta prop) -> eta prop.
+
+forall : a:type -> ((eta a) -> eta prop) -> eta prop.
+
+[b, a] eps (impl a b) --> x:(eps a) -> eps b.
+
+[a, v] eps (forall v a) --> x:(eta v) -> eps (a x).
+
+forall_kind_type : (type -> type) -> type.
+
+forall_kind_prop : (type -> eta prop) -> eta prop.
+
+[a] eta (forall_kind_type a) --> x:type -> eta (a x).
+
+[a] eps (forall_kind_prop a) --> x:type -> eps (a x).
+

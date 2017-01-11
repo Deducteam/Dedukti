@@ -1,0 +1,10 @@
+#NAME leibniz.
+
+def eq :
+  hol.eta
+    (hol.forall_kind_type (A:hol.type => hol.arrow A (hol.arrow A hol.prop)))
+  :=
+  A:hol.type =>
+  x:(hol.eta A) =>
+  y:(hol.eta A) =>
+  hol.forall (hol.arrow A hol.prop) (P:(hol.eta (hol.arrow A hol.prop)) => hol.impl (P x) (P y)).

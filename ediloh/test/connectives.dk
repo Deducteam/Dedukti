@@ -1,0 +1,58 @@
+#NAME connectives.
+
+def True : hol.eta hol.prop.
+
+[]
+  hol.eps (True)
+  -->
+  hol.eps (hol.forall hol.prop (z:(hol.eta hol.prop) => hol.impl z z)).
+
+def False : hol.eta hol.prop.
+
+[]
+  hol.eps (False)
+  -->
+  hol.eps (hol.forall hol.prop (z:(hol.eta hol.prop) => z)).
+
+def Imp : hol.eta (hol.arrow hol.prop (hol.arrow hol.prop hol.prop)).
+
+[y, x] hol.eps (Imp x y) --> hol.eps (hol.impl x y).
+
+def Not : hol.eta (hol.arrow hol.prop hol.prop).
+
+[x] hol.eps (Not x) --> hol.eps (hol.impl x False).
+
+def And : hol.eta (hol.arrow hol.prop (hol.arrow hol.prop hol.prop)).
+
+[y, x]
+  hol.eps (And x y)
+  -->
+  hol.eps 
+    (hol.forall hol.prop 
+       (z:(hol.eta hol.prop) => hol.impl (hol.impl x (hol.impl y z)) z)).
+
+def Or : hol.eta (hol.arrow hol.prop (hol.arrow hol.prop hol.prop)).
+
+[y, x]
+  hol.eps (Or x y)
+  -->
+  hol.eps 
+    (hol.forall hol.prop 
+       (z:(hol.eta hol.prop) =>
+        hol.impl (hol.impl x z) (hol.impl (hol.impl y z) z))).
+
+def Ex :
+  hol.eta 
+    (hol.forall_kind_type 
+       (A:hol.type => hol.arrow (hol.arrow A hol.prop) hol.prop)).
+
+[f, A]
+  hol.eps (Ex A f)
+  -->
+  hol.eps 
+    (hol.forall hol.prop 
+       (z:(hol.eta hol.prop) =>
+        hol.impl (hol.forall A (x:(hol.eta A) => hol.impl (f x) z)) z)).
+
+def I : hol.eps True := z:(hol.eta hol.prop) => p:(hol.eps z) => p.
+
