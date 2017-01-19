@@ -8,7 +8,7 @@ INSTALL_DIR=/usr/bin
 MENHIR = -menhir "menhir --external-tokens Tokens"
 SRC_DIRS = kernel,utils,parser
 
-BINARIES=dkcheck dktop dkdep dkrule dkindent
+BINARIES=dkcheck dktop dkdep dkindent
 
 all: lib $(BINARIES) doc
 
@@ -58,4 +58,3 @@ tests: dkcheck
 
 
 .PHONY: $(BINARIES) tests clean doc uninstall
-
