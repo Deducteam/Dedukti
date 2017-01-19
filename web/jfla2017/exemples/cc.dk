@@ -1,0 +1,70 @@
+#NAME cc.
+
+U_Type : Type.
+U_Kind : Type.
+
+def e_Type : U_Type -> Type.
+def e_Kind : U_Kind -> Type.
+
+u_Type : U_Kind.
+
+pi_TT : a : U_Type -> (e_Type a -> U_Type) -> U_Type.
+pi_TK : a : U_Type -> (e_Type a -> U_Kind) -> U_Kind.
+pi_KT : a : U_Kind -> (e_Kind a -> U_Type) -> U_Type.
+pi_KK : a : U_Kind -> (e_Kind a -> U_Kind) -> U_Kind.
+
+[] e_Kind u_Type --> U_Type.
+[a, b] e_Type (pi_TT a b) --> x: e_Type a -> e_Type (b x).
+[a, b] e_Type (pi_KT a b) --> x: e_Kind a -> e_Type (b x).
+[a, b] e_Kind (pi_TK a b) --> x: e_Type a -> e_Kind (b x).
+[a, b] e_Kind (pi_KK a b) --> x: e_Kind a -> e_Kind (b x).
+
+def id_Type : U_Type -> U_Type :=
+	      x : U_Type => x.
+
+#CHECK id_Type (pi_KT u_Type (a => a)), U_Type.
+
+(; inductive types ;)
+
+list : U_Type -> U_Type.
+nil : A : U_Type -> e_Type (list A).
+cons : A : U_Type -> e_Type A -> e_Type (list A) -> e_Type (list A).
+
+def elim_list : A : U_Type -> P : (e_Type (list A) -> U_Type) ->
+  e_Type (P (nil A)) ->
+  (x : e_Type A -> l2 : e_Type (list A) -> e_Type (P l2) -> e_Type (P (cons A x l2))) ->
+  l : e_Type (list A) -> e_Type (P l).
+
+[A, P, case_nil, case_cons]
+  elim_list A P case_nil case_cons (nil {A}) -->
+  case_nil.
+[A, P, case_nil, case_cons, x, l]
+  elim_list A P case_nil case_cons (cons {A} x l) -->
+  case_cons x l (elim_list A P case_nil case_cons l).
+
+def append : A : U_Type -> e_Type (list A) -> e_Type (list A) -> e_Type (list A) :=
+  A => l1 => l2 => 
+  elim_list A (__ => list A) l2 (x => l1' => l1'l2 => cons A x l1'l2) l1.
+
+(; universes ;)
+
+level : Type.
+0 : level.
+S : level -> level.
+
+U : level -> Type.
+def eps : i : level -> U i -> Type.
+
+u : i : level -> U (S i).
+[i] eps _ (u i) --> U i.
+
+def pi : i : level -> a : U i -> b : (eps i a -> U i) -> U i.
+[i, a, b] eps _ (pi i a b) --> x : eps i a -> eps i (b x).
+
+lift : i : level -> U i -> U (S i).
+[i, a] eps _ (lift i a) --> eps i a.
+
+[i, a, b] pi _ (lift i a) (x => lift {i} (b x)) -->
+          lift i (pi i a (x => b x)).
+
+

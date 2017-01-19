@@ -1,0 +1,25 @@
+#NAME FOL.
+o : Type.
+def eps : o -> Type.
+i : Type.
+top : o.
+[ ] eps top --> z:o -> (eps z) -> (eps z).
+
+bot : o.
+[ ] eps bot --> z:o -> (eps z).
+
+imp : o -> o -> o.
+[a, b] eps (imp a b) --> eps a -> eps b.
+
+def not : o -> o := x:o => imp x bot.
+
+or : o -> o -> o.
+[x, y] eps (or x y) 
+        --> z:o -> (eps x -> eps z) -> (eps y -> eps z) -> eps z.
+
+fa_i : (i -> o) -> o.
+[y] eps (fa_i y) --> x:i -> eps (y x).
+
+ex_i : (i -> o) -> o.
+[y] eps (ex_i y) --> z:o -> (x:i -> eps (y x) -> (eps z)) -> eps z.
+const : i.

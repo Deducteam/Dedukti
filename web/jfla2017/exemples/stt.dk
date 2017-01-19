@@ -1,0 +1,28 @@
+#NAME stt.
+
+(; Deep embedding of types ;)
+
+type : Type.
+bool : type.
+ind : type.
+arrow : type -> type -> type.
+
+(; Shallowing types ;)
+
+def term : type -> Type.
+[a, b] term (arrow a b) --> term a -> term b.
+
+
+(; Proposition = terms of type term bool ;)
+imp : term bool -> term bool -> term bool.
+forall :  a : type -> (term a -> term bool) -> term bool.
+
+def proof : term bool -> Type.
+[a, b] proof (imp a b) --> proof a -> proof b.
+[a, f] proof (forall a f) --> x : term a -> proof (f x).
+
+(; Proof ;)
+def thm1 : proof (forall bool (p => imp p p)) :=
+	  p => t => t.
+
+

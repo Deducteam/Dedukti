@@ -1,0 +1,785 @@
+\documentclass[12pt,aspectratio=169]{beamer}
+\usepackage[francais]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{../themes/logictheme}
+\usepackage{wasysym}
+\usefonttheme[onlymath]{serif}
+\usepackage{relsize}
+\usepackage{alltt}
+\usepackage{fancybox}
+\usepackage{listings}
+
+\lstset{ %
+  basicstyle=\ttfamily,
+  keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+  deletekeywords={char*},
+  showtabs=true,                  % show tabs within strings adding
+                                % particular underscores
+  escapechar=œ
+}
+\newcommand\lst[1]{{\lstinline{#1}}}
+
+\DefineNamedColor{named}{mygray}{RGB}{58,58,58}
+\usecolortheme[named=mygray]{structure}
+\DefineNamedColor{named}{lblue}{RGB}{17,152,29}
+\setbeamercolor{palette secondary}{fg=lblue}
+
+
+\usepackage{etex}
+\usepackage{latexsym}
+\usepackage{bussproofs}
+\usepackage[all,pdf]{xy}
+\usepackage{alltt}
+\input{macros}
+\input{../Ringberg/calseq}
+%\input{../Ringberg/natded}
+%\input{../Ringberg/resolution}
+\newcommand{\circlize}[1]{%
+%  \usebeamerfont*{subitem}%
+  \footnotesize
+  \usebeamercolor[bg]{subitem projected}%
+  \begin{pgfpicture}{-1ex}{0ex}{1ex}{2ex}
+    \pgfpathcircle{\pgfpoint{0pt}{.6ex}}{1.2ex}
+    \pgfusepath{fill}
+    \pgftext[base]{\color{fg}\textbf{#1}}
+  \end{pgfpicture}%
+}
+
+\title{Exprimer ses théories en Dedukti,\\ le vérificateur de preuves universel}
+\subtitle{JFLA 2017}
+\author[Guillaume Burel]{Guillaume Burel}
+\date[2017-01-06/07]{vendredi 6 et samedi 7 janvier 2017}
+\institute{ENSIIE/Samovar}
+\logo{\includegraphics[height=.07\textheight]{../logos/ensiie.png}\includegraphics[height=.07\textheight]{../logos/samovar.png}
+}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}
+  \frametitle{Dedukti}
+  \begin{center}
+    \colorbox{mygray}{\includegraphics{dedukti_logo.png}}
+  \end{center}
+  Vérificateur de preuve pour le $\lambda\Pi$-calcul modulo théorie
+  \bigskip
+  
+  \url{http://dedukti.gforge.inria.fr/}
+  \bigskip
+  
+  \url{http://dedukti.gforge.inria.fr/jfla2017/}
+
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Dedukti: a Logical Framework based on the $\lambda\Pi$-Calculus Modulo Theory}
+
+
+ Ali Assaf, Guillaume Burel,
+Rapha\"el Cauderlier, David Delahaye, Gilles Dowek, Catherine Dubois,
+Fr\'ed\'eric Gilbert, Pierre Halmagrand, Olivier Hermant et Ronan
+Saillard.
+\medskip
+
+\url{http://www.lsv.ens-cachan.fr/~dowek/Publi/expressing.pdf}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Sommaire}
+\tableofcontents   
+\end{frame}
+
+\section{Introduction}
+
+\begin{frame}
+    \begin{tabular}[b]{@{}c@{}}
+\includegraphics[width=.25\textwidth]{../Auditions/geom}\\[1em]~
+\end{tabular}\hfill
+\includegraphics[width=.33\textwidth]{../from_picard/PhD/a380}  
+\hfill  \begin{tabular}[b]{@{}c@{}}
+\includegraphics[width=.2\textwidth]{../Auditions/securite}\\[1.5em]~
+\end{tabular}  \bigskip
+
+Les démonstrations sont recherchées dans des \textbf{théories}:
+\begin{itemize}
+\item géométrie, arithmétique
+\item structures de données (listes chaînées, tableaux, \dots)
+\item propriétés du chiffrement
+\item \dots
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Un cadre unique}
+  Un seul cadre logique pour toutes les théories
+  \begin{itemize}
+  \item partage des connecteurs ($\wedge$, $\forall$, \dots)
+  \item partage des notions de preuve, de modèle
+    \begin{itemize}
+    \item théorème généraux comme complétude prouvés une fois pour
+      toute
+    \end{itemize}
+    \medskip
+
+  \item Notions d'inclusion entre théories (exemple ZF $\subset$ ZFC)
+    \medskip
+
+  \item interopérabilité
+    $\theo$ dans $\cal L$\qquad$\theo'$ dans $\cal L'$\qquad
+    $A\in \cal L\cap \cal L'$
+    \medskip
+    
+    $\theo \vdash A\imp B$\qquad $\theo'\vdash A$
+
+    \qquad $\theo\cup\theo'\vdash B$
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Quel cadre utiliser ?}
+
+  Logique du premier ordre ?
+  \begin{itemize}
+  \item Pour définir une théorie :
+    \begin{itemize}
+    \item symboles de fonction et de prédicat
+    \item axiomes
+    \end{itemize}
+  \end{itemize}
+  \medskip
+  
+  Mais pas unique en pratique :
+  \begin{itemize}
+  \item théorie simple des types (HOL)
+  \item calcul des constructions inductives
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Inconvénient}
+  Pas de possibilité de passer d'un prouveur à un autre
+  \begin{itemize}
+  \item CompCert en Isabelle/HOL ?
+  \item seL4 en Coq ?
+  \end{itemize}
+  \bigskip
+  
+  Combinaison avec des outils de preuve automatique ?
+  \begin{itemize}
+  \item éviter la reconstruction de preuve
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Pourquoi ?}
+  Manque en logique du premier ordre :
+  \begin{enumerate}
+  \item Possibilité de définir des lieurs
+    \begin{itemize}
+    \item exemple $x\mapsto t$
+    \end{itemize}
+  \item Pas de correspondance preuve/programme --- formule/type
+  \item Pas de prise en compte du calcul
+    \begin{itemize}
+    \item simulé par des étapes de déduction
+    \end{itemize}
+  \item Pas de notion universelle de coupure
+    \begin{itemize}
+    \item doit être définie pour chaque théorie
+    \end{itemize}
+  \item Cadres différents pour logiques classique et intuitionniste
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Résoudre problèmes 1 et 2}
+  Logical Framework LF a.k.a. $\lambda P$ a.k.a. $\lambda\Pi$ [Harper~Honsell~Plotkin~1993]
+  \medskip
+  
+  Extension
+  \begin{itemize}
+  \item du $\lambda$-calcul simplement typé avec des types
+    dépendants
+  \item de la logique des prédicats (minimale) avec des termes de preuve
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Résoudre problèmes 3 et 4}
+  Déduction modulo théorie [Dowek~Hardin~Kirchner~2003]
+
+Règles d'inférence appliquées modulo une congruence $\equiv$
+\bigskip
+
+Système de réécriture sur les termes \alert{et les propositions}
+\medskip
+
+Exemple: $X\in \mathcal P(Y) \rightarrow \forall Z.~Z\in X\imp Z\in Y$
+\begin{prooftree}
+  \AxiomSC$Z\in a\fCenter Z\in a$
+  \ImpR$\fCenter Z\in a\imp Z\in a$
+  \AllR[\scriptsize$a\in\mathcal P(a)\equiv \forall Z.~Z\in a\imp Z\in a$]$\fCenter a \in \mathcal P(a)$
+\end{prooftree}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Résoudre 1, 2, 3 et 4}
+  Combiner LF avec la déduction modulo théorie :
+  \begin{itemize}
+  \item $\lambda\Pi$-calcul modulo théorie
+  \end{itemize}
+  \bigskip
+  
+  Extension de la règle de conversion 
+  \begin{itemize}
+  \item sans modulo : uniquement $\beta$
+  \item avec : $\beta$ + système de réécriture 
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Problème 5}
+  Un connecteur $\triangleright$ pour passer d'atome à formule
+  \medskip
+  
+  Deux versions des connecteurs : une constructive, une classique
+\end{frame}
+
+\begin{frame}
+  \frametitle{Dedukti}
+  $\lambda\Pi$-calcul modulo théorie pas seulement expressif en théorie
+  \medskip
+
+  Implémentation efficace:
+  \begin{itemize}
+  \item Dedukti
+  \end{itemize}
+  vérificateur de preuve du $\lambda\Pi$-calcul modulo théorie
+  \bigskip
+
+  M. Boespflug 2008 $\leadsto$ \dots{} $\leadsto$ Ronan Saillard 2015
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Démo}
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Outils autour de Dedukti}
+
+  Traducteurs de preuves vers Dedukti
+  \begin{itemize}
+  \item HOL
+  \item CIC
+  \end{itemize}
+  \bigskip
+  
+  Backend vers Dedukti
+  \begin{itemize}
+  \item prouveurs automatiques iProverModulo, Zenon modulo
+  \item focalize
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Panorama actuel}
+  \includegraphics[scale=1]{to_dedukti.pdf}
+  
+  En cours : Coq, PVS, VeriT, \dots
+\end{frame}
+
+\begin{frame}
+  \frametitle{Plongement profond vs. plongement superficiel}
+  Superficiel : réutilisation des fonctionnalités du langage cible :
+\begin{itemize}
+\item contextes
+\item connecteurs et lieur
+\item calcul
+\item \dots
+\end{itemize}
+\bigskip
+
+Intérêt des plongements superficiels
+\begin{itemize}
+\item traductions plus légères
+\item plus efficace
+\item rend l'interopérabilité plus simple
+\end{itemize}
+
+\end{frame}
+
+\section{Le $\lambda\Pi$-calcul modulo théorie}
+
+
+
+\begin{frame}
+  \frametitle{Le $\lambda\Pi$-calcul}
+  $t,u ::= Type~|~Kind~|~x~|~\lambda x:t.~u~|~t~u~|~\Pi x:t.~u$
+  \bigskip
+  
+  niveaux:
+  \begin{tabular}[t]{ll}
+    $Kind$\\
+    $Type$\qquad $\Pi x:nat.~Type$&types des (familles de) types\\
+    $nat\qquad \Pi x:nat.~vect~x$&(familles) de types\\
+    0\qquad $S$ \qquad$nil$\qquad$cons$ & objets
+  \end{tabular}
+  
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Types dépendants}
+ \lstinline!x : nat -> nat! \textcolor{green}{\checkmark}
+ \medskip
+ 
+ \lstinline!x : nat -> vect x! \textcolor{green}{\checkmark}
+\medskip
+ 
+ \lstinline!x : nat -> Type! \textcolor{green}{\checkmark}
+\medskip
+ 
+ \lstinline!A : Type -> list A! \textcolor{red}{X}
+\medskip
+ 
+ \lstinline!A : Type -> Type! \textcolor{red}{X}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{$\lambda\Pi$-calcul modulo théorie}
+  En plus des déclarations de variables
+
+  On va rajouter des règles de réécriture dans les contextes
+
+  $$l\rr^\Delta r$$
+  
+  $\Delta$ : contexte local à la règle, ne contient que des
+  déclarations de variables objets
+  \bigskip
+
+  $$\irule{\Gamma \vdash A:Type~~\Gamma \vdash B:Type~~\Gamma \vdash t:A}
+        {\Gamma \vdash t:B}
+        {A \eqbg B}$$
+On peut réécrire avec les règles dans $\Gamma$
+\end{frame}
+
+\begin{frame}
+  \frametitle{Bonnes hypothèses}
+  Quelles hypothèses pour:
+  \begin{itemize}
+  \item réduction du sujet
+  \item décidabilité de la vérification de type ?
+  \end{itemize}
+  \bigskip
+
+  \begin{definition}[Bon typage d'une règle]
+    $l\rr^\Delta r$ est bien typé si :
+    
+    Pour toute substitution
+    $\sigma$ des variables de $\Delta$,
+
+    si $\Gamma\vdash \sigma l:T$ alors $\Gamma\vdash \sigma r:T$.
+  \end{definition}
+
+  \begin{definition}[Compatibilité avec le produit]
+    si $\Pi x:A_1~B_1 \eqbg \Pi x:A_2~B_2 \mbox{ then } A_1 \eqbg
+A_2~\text{and}~B_1 \eqbg B_2$
+  \end{definition}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Implications}
+  \includegraphics{props.pdf}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Bon typage des règles}
+$l\rr^\Delta r$ bien typé si $\Gamma,\Delta\vdash l : T$ et
+  $\Gamma,\Delta \vdash r : T$
+\medskip
+  
+  mais ne marche pas pour
+  $tail~n~(cons~m~a~v)\rr^{n,m,a,v}v$ alors que bien typée
+  \medskip
+  
+  Il est suffisant :
+  \begin{itemize}
+  \item Pour la substitution la plus générale $\tau$ permettant de typer
+    $\tau l$ dans $\Gamma$,
+
+    Si $\Gamma,\Delta\vdash \tau l:T$ alors $\Gamma,\Delta\vdash \tau
+    r : T$
+  \end{itemize}
+  Pour calculer $\tau$, besoin de savoir quels symboles sont injectifs
+  \begin{itemize}
+  \item \lstinline!def!
+  \end{itemize}
+\end{frame}
+
+\section{Logiques des prédicats}
+
+\begin{frame}[fragile]
+  \frametitle{Logique des prédicats minimale}
+
+ $$
+  \begin{array}{r@{~~~::=~~~}l}
+    t & x~|~f(t,\ldots,t)\\
+  A&P(t_1, \ldots, t_n)~|~A \Rightarrow
+  A~|~\fa_{s_1} x~A~|~\cdots~|~\fa_{s_n} x~A
+  \end{array}
+  $$
+  \pause
+
+\begin{lstlisting}
+s1 : Type.
+s2 : Type.
+f : s1 -> s2.
+P : s2 -> s1 -> Type.
+\end{lstlisting}
+  
+\begin{align*}
+\|P(t_1,\ldots,t_n)\| &= (\texttt{P}~|t_1|~\ldots~|t_n|)\\
+\|A \Rightarrow B\| &= \|A\| \texttt{->} \|B\|\\
+\|\fa_s x~A\| &= \texttt{x : s ->} \|A\|
+\end{align*}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Logique des prédicats constructive}
+ $$
+  \begin{array}{r@{~~~::=~~~}l}
+    t & x~|~f(t,\ldots,t)\\
+  A&P(t_1, \ldots, t_n)~|~A \Rightarrow
+  A~|~\fa_s x~A\alert<1>{~|~\top~|~\bot~|~\neg A~|~A \wedge A~|~A \vee A~|~\ex_s x~A}
+  \end{array}
+  $$
+  \pause
+  Étendre le $\lambda\Pi$-calcul modulo théorie
+  \begin{itemize}
+  \item avec de nouveaux connecteurs
+    \item avec des inductifs ?\pause
+  \end{itemize}
+  Non, on peut rester avec le même base
+  \bigskip
+  
+  Idée :
+  \begin{itemize}
+  \item Plongement profond dans un type \lst{o}
+  \item Remontée superficielle avec opérateur \lst{eps}
+
+    en utilisant encodage imprédicatif des connecteurs
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Encodage imprédicatif}
+\begin{lstlisting}
+o : Type.
+bot : o.
+imp : o -> o -> o.
+or : o -> o -> o.
+
+def eps : o -> Type.
+
+[a,b] eps (imp a b) --> eps a -> eps b.œ\pauseœ
+[] eps bot --> z : o -> eps z.œ\pauseœ
+[a,b] eps (or a b) -->
+  z : o -> (eps a -> eps z) -> (eps b -> eps z) -> eps z.
+\end{lstlisting}
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{iProverModulo}
+iProver~[Korovin~2008] 
+\begin{itemize}
+\item prouveur automatique pour la logique des prédicats classique
+\item basé (entre autres) sur la résolution
+\item écrit en OCaml
+\end{itemize}
+\medskip
+
+patché pour intégrer la déduction modulo théorie [Burel 2011]
+\medskip
+
+capable de sortir des preuves Dedukti pour la partie résolution [Burel 2013]
+
+(qui est constructive !)
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Logique des prédicats classique}
+  Idée : introduire des connecteurs différents
+  
+ $$
+  \begin{array}{r@{~~~::=~~~}l}
+    t & x~|~f(t,\ldots,t)\\
+    a & P(t,\ldots,t)\\
+  A&\only<2->{\ato}a~|~A \Rightarrow
+  A~|~\fa x~A~|~\top~|~\bot~|~\neg A~|~A \wedge A~|~A \vee A~|~\ex
+  x~A~|~\\
+  \multicolumn{1}{c}{}&\only<2->{\ato_c}a~|~A \Rightarrow_c
+  A~|~\fa_c x~A~|~\top_c~|~\bot_c~|~\neg_c A~|~A \wedge_c A~|~A \vee_c A~|~\ex_c x~A
+  \end{array}
+  $$
+  
+  \onslide<3->
+  Définir les connecteurs classiques en fonction des intuitionnistes
+  en utilisant une $\neg\neg$-traduction.
+
+  \begin{align*}
+    \ato_c a&:= \neg(\neg\ato a)\\
+    a\vee_c b&:= \neg(\neg(a\vee b))\\
+    \dots
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Zenon Modulo}
+  Extension de Zenon pour traiter la déduction modulo théorie
+  [Halmagrand~2013]
+  \bigskip
+  
+  Capable de produire des preuves Dedukti
+  \medskip
+  
+  600MB de preuves gzippées (à partir d'obligation de preuves B)
+\end{frame}
+
+\section{Langages de programmation}
+\begin{frame}
+  \frametitle{$\lambda$-calcul non typé}
+
+  $$app~(lam~f)~t \rr^{f,t} f~t$$
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{$\lambda$-calcul simplement typé}
+  Plongement profond des types simples
+\begin{lstlisting}
+type : Type.
+o : type.
+b : type.
+arrow : type -> type -> type.
+\end{lstlisting}
+  
+Remontée superficielle avec \lst{term}
+
+\begin{lstlisting}
+def term : type -> Type.
+[a,b] term (arrow a b) --> term a -> term b.
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ML}
+  Utilisation de destructeurs à la place du filtrage de motifs
+
+$$\begin{array}{c@{~}c@{~}c@{~}c@{~}ccll}
+  \texttt{{destr}}_{\texttt{{C}}} & \texttt{{R}} & \texttt{{(C t)}}  & \texttt{{f}} & \texttt{{d}} & \texttt{{-{}->}} & \texttt{{f t}} & \\
+  \texttt{{destr}}_{\texttt{{C}}} & \texttt{{R}} & \texttt{{(C' t')}}& \texttt{{f}} & \texttt{{d}} & \texttt{{-{}->}} & \texttt{{d}} &
+  \text{(for all other constructors \texttt{C'} for type $\tau'$)} % L'argument de C' n'est pas nécessairement de type \tau
+  \end{array}$$
+
+  Blocage de la récursion:
+
+    \lst{@ : A : type -> B: type -> ((eps A -> eps B)} \lst{-> eps A -> eps B)}
+
+    \lst{[R, f, t] @} $\tau'$ \lst{R f (C t) --> f (C t)}
+
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{$\varsigma$-calcul et FoCaLiZe}
+
+  $\varsigma$-calcul : langage pour la programmation orientée objet
+  \bigskip
+  
+  FoCaLiZe : environnement pour le développement de programmes
+  certifiés
+  \begin{itemize}
+  \item ML comme langage d'implémentation
+  \item logique des prédicats classique comme langage de spécification
+  \item aspects orientés objet pour la modularité
+  \end{itemize}
+\end{frame}
+
+\section{Logique d'ordre supérieur}
+
+\begin{frame}[fragile]
+\frametitle{Théorie simple des types}
+Langage : 
+\begin{itemize}
+\item $\lambda$-calcul simplement typé
+\item
+  types de base
+  \lst{bool} et \lst{ind}
+\item constantes \lst{imp : bool -> bool -> bool} et
+  \texttt{forall$_A$ : ($A$ -> bool) -> bool}
+\end{itemize}
+\bigskip
+
+Plongement profond des types, des termes de type bool
+
+\medskip
+Deux fonctions pour remonter
+\pause\bigskip
+
+En fait, tout est défini à l'aide de $=$
+
+\end{frame}
+
+\section{Calcul des constructions inductives}
+
+\begin{frame}
+  \frametitle{Calcul des constructions}
+  Deux traductions des termes :
+  \begin{itemize}
+  \item profonde, vus comme des termes $|t|$
+  \item superficielle, vus comme des types $||t||$
+  \end{itemize}
+
+  plusieurs fonctions de remontée en fonction de la sorte
+
+  $\epsilon_{Type}$ et $\epsilon_{Kind}$
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Exemple}
+\begin{alltt}
+\color{blue}\textbf{Definition} id_Type := \textbf{fun} x : Type => x.
+\end{alltt}
+
+est traduit par
+\begin{overprint}
+\onslide<1>
+\begin{alltt}
+id_Type : \tytrans{\ccprop \rightarrow \ccprop}.  
+[] id_Type --> \tetrans{\lambda x : \ccprop. x}.
+\end{alltt}
+\onslide<2>
+\begin{alltt}
+id_Type : \tytrans{\ccprop \rightarrow \ccprop}.
+[] id_Type --> \alert{x : \tytrans{\ccprop} => x}.
+\end{alltt}
+\onslide<3>
+\begin{alltt}
+id_Type : \tytrans{\ccprop \rightarrow \ccprop}.
+[] id_Type --> x : \alert{U_Type} => x.
+\end{alltt}
+\onslide<4>
+\begin{alltt}
+id_Type : \alert{e_Kind \tetrans{\ccprop \rightarrow \ccprop}}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<5>
+\begin{alltt}
+id_Type : e_Kind \alert{\tetrans{\Pi _ : \ccprop. \ccprop}}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<6>
+\begin{alltt}
+id_Type : e_Kind \alert{(pi_KK \tetrans{\ccprop} (fun _ : \tytrans{\ccprop} => \tetrans{\ccprop}))}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<7>
+\begin{alltt}
+id_Type : \alert{w : e_Kind \tetrans{\ccprop}-> e_Kind((fun _ : \tytrans{\ccprop} => \tetrans{\ccprop}) w)}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<8>
+\begin{alltt}
+id_Type : w : e_Kind \tetrans{\ccprop} -> \alert{e_Kind \tetrans{\ccprop}}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<9>
+\begin{alltt}
+id_Type : \alert{w : e_Kind u_Type -> e_Kind u_Type}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\onslide<10>
+\begin{alltt}
+id_Type : \alert{w : U_Type -> U_Type}.
+[] id_Type --> x : U_Type => x.
+\end{alltt}
+\end{overprint}\bigskip
+
+\begin{itemize}
+\item<2-> $\lambda$s traduits comme des $\lambda$s 
+\item<3-> à chaque sorte \sort{s} correspond un univers \verb;U_;\sort s
+ \parbox{2cm}{\onslide<9->\parbox{5cm}{et une constante \texttt{u\_}\sort s}}\onslide<3->
+\item<4-> \verb;e_;\sort s: fonction de remontée pour \sort s
+\item<6-> \verb;pi_KK;: plongement profond des produits dépendants
+\item<7-> règles de réécriture pour remonter
+
+\verb;e_Kind (pi_KK x y) --> w : e_Kind x -> e_Kind (y w).;
+
+\onslide<10->\verb;e_Kind u_Type --> U_Type.;
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Inductifs}
+
+  Cf. ML
+  \bigskip
+
+  Utilisation d'éliminateur au lieu de destructeurs + récursion
+
+\begin{lstlisting}
+elim_list : A : Type
+  -> P : (List A -> Type)
+  -> P (nil A)
+  -> (x : A -> l : list A -> P l -> P (cons A x l))
+  -> l : list A
+  -> P l.
+\end{lstlisting}
+  
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Hiérarchie d'univers}
+  Univers indexés par un niveau
+
+  \begin{itemize}
+  \item $Type_i : Type_{i+1}$
+
+  \item $Type_i\subset Type_{i+1}$
+  \end{itemize}
+  \bigskip
+  
+  Conversion explicite avec $\uparrow_i : Type_i \to Type_{i+1}$
+  \medskip
+  
+  Plus d'unicité du typage
+  \begin{itemize}
+  \item $\uparrow_i \Pi_i x:A.~B$\qquad vs.\qquad $\Pi_{i+1}
+    x : \uparrow_i A.~\uparrow_i B$
+  \end{itemize}
+\begin{lstlisting}
+[i, a, b] pi _ (lift i a) (x => lift {i} (b x)) -->
+          lift i (pi i a (x => b x)).
+\end{lstlisting}
+  
+\end{frame}
+
+\end{document}
+
+%%% Local Variables:
+%%%   mode: latex 
+%%%   mode: flyspell
+%%%   ispell-local-dictionary: "francais"
+%%% End: 
