@@ -6,6 +6,8 @@ dkcheck.native
 dkdep.native
 dkrule.native
 dktop.native
+dkindent.native
+dedukti.docdir
 _*/
 *.dko
 *.depend
