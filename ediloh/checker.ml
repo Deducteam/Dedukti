@@ -1,20 +1,18 @@
 open Basic
 
-(* ********************************* *)
-(* Open theory stuff                 *)
+(*
 
-type typeop
-type hol_type
-type cst
-type var
-type term
-type thm
+  (load_typeop arrow_str)@
+  tyl@tyr@
+  [Nil;Cons;Cons;OpType]
+*)
 
 type instr =
   | String of string
   | Int of int
   | AbsTerm
   | AppTerm
+  | Axiom
   | Cons
   | Const
   | ConstTerm
@@ -39,6 +37,7 @@ let string_of_instr x =
   | Int(i) -> (string_of_int i)^"\n"
   | AbsTerm -> "absTerm\n"
   | AppTerm -> "appTerm\n"
+  | Axiom -> "axiom\n"
   | Cons -> "cons\n"
   | Const -> "const\n"
   | ConstTerm -> "constTerm\n"
@@ -130,42 +129,131 @@ let bool_str = "bool"
 
 let impl_str = "==>"
 
+let and_str = "/\\\\"
+
+let or_str = "\\\\/"
+
 let debug =
   [String "debug"; Pragma]
 
-
-let bool_type =
-  (load_typeop bool_str)@
-  [Nil;OpType]
-
-
-let arrow_type tyl tyr =
+let type_arrow tyl tyr =
   (load_typeop arrow_str)@
   tyl@tyr@
   [Nil;Cons;Cons;OpType]
 
-let forall_type ty =
-  let p = arrow_type ty bool_type in
-  arrow_type p bool_type
+let type_bool =
+  (load_typeop bool_str)@
+  [Nil;OpType]
 
-let impl_type = arrow_type bool_type (arrow_type bool_type bool_type)
+let termconst_of_str const_str ty=
+  [String const_str; Const]@ty@[ConstTerm]
+
+let type_equal ty =
+  type_arrow ty (type_arrow ty type_bool)
+
+let term_equal l r ty =
+  let equal = termconst_of_str equal_str (type_equal ty) in
+  equal@l@[AppTerm]@r@[AppTerm]
+
+let type_true = type_bool
+
+let term_true = termconst_of_str true_str type_true
+
+let axiom_true =
+  [Nil]@term_true@[Axiom]
+
+let type_and =
+  type_arrow type_bool (type_arrow type_bool type_bool)
+
+let term_and l r =
+  let andt = termconst_of_str and_str type_and in
+  let l' = andt@l@[AppTerm]@r@[AppTerm] in
+  let r' =
+    let fv = [String "f"]@(type_arrow type_bool (type_arrow type_bool type_bool))@[Var] in
+    let ft = fv@[VarTerm] in
+    let rl = fv@ft@l@[AppTerm]@r@[AppTerm;AbsTerm] in
+    let rr = fv@ft@term_true@[AppTerm]@term_true@[AppTerm;AbsTerm] in
+    term_equal rl rr (type_arrow (type_arrow type_bool (type_arrow type_bool type_bool))  type_bool)
+  in
+  term_equal l' r' type_bool
+
+let axiom_and =
+  let l = [String "x"]@type_bool@[Var;VarTerm] in
+  let r = [String "y"]@type_bool@[Var;VarTerm] in
+  [Nil]@(term_and l r)@[Axiom]
+
+let type_impl = type_arrow type_bool (type_arrow type_bool type_bool)
+
+let term_impl l r =
+  let implt = termconst_of_str impl_str type_impl in
+  let l' = implt@l@[AppTerm]@r@[AppTerm] in
+  let r' =
+    let rl = (termconst_of_str and_str type_and)@l@[AppTerm]@r@[AppTerm] in
+    let rr = l in
+    term_equal rl rr type_bool
+  in
+  term_equal l' r' type_bool
+
+let axiom_impl =
+  let l = [String "x"]@type_bool@[Var;VarTerm] in
+  let r = [String "y"]@type_bool@[Var;VarTerm] in
+  [Nil]@(term_impl l r)@[Axiom]
+
+let type_forall ty =
+  let p = type_arrow ty type_bool in
+  type_arrow p type_bool
+
+let term_forall p =
+  let ty = [String "A";VarType] in
+  let forallt = termconst_of_str forall_str (type_arrow (type_arrow ty type_bool) type_bool) in
+  let l' = forallt@p@[AppTerm] in
+  let r' =
+    let rl = p in
+    let rr = [String "v";String"A";VarType;Var]@term_true@[AbsTerm] in
+    term_equal rl rr (type_arrow ty type_bool)
+  in
+  term_equal l' r' type_bool
+
+let axiom_forall =
+  let l = [String "x"]@(type_arrow ([String "A";VarType]) type_bool)@[Var;VarTerm] in
+  [Nil]@(term_forall l)@[Axiom]
+
+let instr_of_proof ctx t = failwith "todo instr_of_proof"
+
+
+let extract_proof t =
+  match t with
+  | Term.App(c, ty, _) when is_hol_eps c -> ty
+  | _ -> assert false
+
+let intro_rule ctx t =
+  match t with
+  | Term.Lam(_,x,Some ty, t') when is_hol_proof ty ->
+    let ty' = extract_proof ty in
+    (* ASSUMPTION : no conflict with variables names *)
+    let q = instr_of_proof ((x,ty')::ctx) t' in
+    failwith "intro rule"
+  | _ -> failwith "intr_rule is not call on a lambda"
+
+
 
 let extract_type t =
   match t with
   | Term.App(c, ty, _) when is_hol_eta c -> ty
   | _ -> assert false
 
+
 let rec instr_of_type t =
   match t with
   | Term.Const(_,m,id) when is_hol_prop t ->
-    bool_type
+    type_bool
   | Term.Const(_,m, id) ->
     [String (string_of_ident id); VarType]
   (* ASSUMPTION : no clash in names and id should start with a majuscule *)
   | Term.DB(_,id,i) ->
     [String (string_of_ident id); VarType]
   | Term.App(c, tyl, [tyr]) when is_hol_arrow c ->
-    arrow_type (instr_of_type tyl) (instr_of_type tyr)
+    type_arrow (instr_of_type tyl) (instr_of_type tyr)
   | Term.App(c, Term.Lam(_,x, Some tx, ty), []) when is_hol_forall_kind_type c ->
     instr_of_type ty
   | _ -> Pp.print_term Format.std_formatter t; failwith "todo type"
@@ -178,13 +266,13 @@ let rec instr_of_term env t =
   match t with
   | Term.App(c, ty, [te])  when is_hol_forall c ->
     (load_const forall_str)@
-    (forall_type (instr_of_type ty))@
+    (type_forall (instr_of_type ty))@
     [ConstTerm]@
     (instr_of_term env te)@
     [AppTerm]
   | Term.App(c, tel, [ter]) when is_hol_impl c ->
     (load_const impl_str)@
-    (impl_type)@
+    (type_impl)@
     [ConstTerm]@
     (instr_of_term env tel)@
     [AppTerm]@
@@ -210,27 +298,16 @@ let rec instr_of_term env t =
   | _ -> Pp.print_term Format.std_formatter t; failwith "todo term"
 
 
-(* \x\P. \x.P = \x.true *)
-
 let version =
   [Int 6;Version]
 
 let prelude : ast =
-  let version = version in (*
-  let forall = load_const forall_str in
-  let equal = load_const equal_str in
-  let equalt = equal@[String "->"; TypeOp; String "bool"; TypeOp;Nil;OpType; String "->";TypeOp;String "bool"; TypeOp;Nil;OpType;String "bool"; TypeOp;Nil;OpType;Nil;Cons;Cons;OpType;Nil;Cons;Cons;OpType;ConstTerm] in
-  let true' = load_const true_str in
-  let truet = true'@[String "bool"; TypeOp; Nil; OpType;ConstTerm] in
-  let refl = truet@[Refl] in
-  let reflt = equalt@truet@[AppTerm]@truet@[AppTerm] in
-  let thm = refl@[Nil]@reflt@[Thm] in
-  thm *)
-  version
+  let version = version in
+  version@axiom_forall@debug
 
 let equal ty tl tr =
   (load_const equal_str)@
-  (arrow_type ty (arrow_type ty bool_type))@[ConstTerm]@
+  (type_arrow ty (type_arrow ty type_bool))@[ConstTerm]@
   tl@[AppTerm]@
   tr@[AppTerm]
 

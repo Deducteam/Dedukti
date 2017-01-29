@@ -31,7 +31,6 @@ let run_on_file file =
     close_in input
 
 let _ =
-  Type.test;
   try
     begin
       Arg.parse args run_on_file ("Usage: "^ Sys.argv.(0) ^" [options] files");
