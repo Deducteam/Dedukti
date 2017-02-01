@@ -324,6 +324,19 @@ let mk_trans thml thmr =
     term = []
   }
 
+let mk_assume term =
+  {
+    proof = term@[Assume];
+    hyp= S.singleton term;
+    term= term
+  }
+
+let mk_proveHyp thml thmr =
+  {
+    proof = thmr.proof@thml.proof@[ProveHyp];
+    hyp = S.union (S.remove thmr.proof thml.hyp) thmr.hyp;
+    term = thml.proof
+  }
 
 let mk_thm thm =
   thm.proof@(mk_hyp thm.hyp)@thm.term@[Thm]
@@ -345,7 +358,39 @@ let axiom_and =
   let term = term_equal andt rhs type_binlop in
   mk_axiom term S.empty
 
-let instantiate_and_axiom l r = failwith "todo"
+let beta_equal thm t1 t2 u1 u2 var =
+  let beta1 = mk_sym (mk_betaConv var t1 u1) in
+  let beta2 = mk_betaConv var t2 u2 in
+  let trans = mk_trans beta1 thm in
+  mk_trans trans beta2
+
+let instantiate_and_axiom l r =
+  let vx = mk_var "x" type_bool in
+  let vy = mk_var "y" type_bool in
+  let x = mk_term_of_var vx in
+  let y = mk_term_of_var vy in
+  let var = vx in
+  let t1 = (mk_absTerm vy (term_and x y)) in
+  let fv = mk_var "f" (type_binlop) in
+  let ft = mk_term_of_var fv in
+  let rl = mk_absTerm fv (mk_appTerm (mk_appTerm ft x) y) in
+  let rr = mk_absTerm fv (mk_appTerm (mk_appTerm ft term_true) term_true) in
+  let t2 = mk_absTerm vy (term_equal rl rr (type_arrow type_binlop type_bool)) in
+  let u1 = l in
+  let u2 = l in
+  let refl = mk_refl l type_bool in
+  let beta1 = beta_equal (mk_appThm axiom_and refl) t1 t2 u1 u2 var in
+  let var = vy in
+  let t1 = term_and l y in
+  let fv = mk_var "f" (type_binlop) in
+  let ft = mk_term_of_var fv in
+  let rl = mk_absTerm fv (mk_appTerm (mk_appTerm ft l) y) in
+  let rr = mk_absTerm fv (mk_appTerm (mk_appTerm ft term_true) term_true) in
+  let t2 = term_equal rl rr (type_arrow type_binlop type_bool) in
+  let u1 = r in
+  let u2 = r in
+  let refl = mk_refl r type_bool in
+  beta_equal (mk_appThm beta1 refl) t1 t2 u1 u2 var
 
 let axiom_impl =
   let vx = mk_var "x" type_bool in
@@ -357,7 +402,25 @@ let axiom_impl =
   let term = term_equal implt (mk_absTerm vx (mk_absTerm vy r)) type_binlop in
   mk_axiom term S.empty
 
-let instantiate_impl_axiom l r = failwith "todo"
+let instantiate_impl_axiom l r =
+  let vx = mk_var "x" type_bool in
+  let vy = mk_var "y" type_bool in
+  let x = mk_term_of_var vx in
+  let y = mk_term_of_var vy in
+  let var = vx in
+  let t1 = (mk_absTerm vy (term_impl x y)) in
+  let t2 = mk_absTerm vy (term_equal (term_and x y) x type_bool) in
+  let u1 = l in
+  let u2 = l in
+  let refl = mk_refl l type_bool in
+  let bet1 = beta_equal (mk_appThm axiom_impl refl) t1 t2 u1 u2 var in
+  let var = vy in
+  let t1 = term_impl l y in
+  let t2 = (term_equal (term_and l y) l type_bool) in
+  let u1 = r in
+  let u2 = r in
+  let refl = mk_refl r type_bool in
+  beta_equal (mk_appThm bet1 refl) t1 t2 u1 u2 var
 
 (* str_type should only be instantiated with the Subst command. This is to ensure that there is only one axiom forall *)
 let axiom_forall =
@@ -372,12 +435,6 @@ let axiom_forall =
   let r = mk_absTerm var term_true in
   let term = term_equal forallt (mk_absTerm vx (term_equal tx r (type_arrow varTy type_bool))) (type_arrow (type_arrow varTy type_bool) type_bool) in
   mk_axiom term S.empty
-
-let beta_equal thm t1 t2 u1 u2 var =
-  let beta1 = mk_sym (mk_betaConv var t1 u2) in
-  let beta2 = mk_betaConv var t2 u2 in
-  let trans = mk_trans beta1 thm in
-  mk_trans trans beta2
 
 (* from \x:(A->bool) . !x = (x = \v . true) produce the theorem
          !lambda:(ty -> bool) = (lambda = \v. true) *)
@@ -420,14 +477,92 @@ let forall_elim thm lambda ty t =
     term = term
   }
 
-let left = mk_absTerm (mk_var "x" type_bool) (mk_absTerm (mk_var "y" type_bool) (mk_varTerm "x" type_bool))
-let right = mk_absTerm (mk_var "x" type_bool) (mk_absTerm (mk_var "y" type_bool) (mk_varTerm "y" type_bool))
-let proj thm side left right = failwith "todo" (*
-  let x = mk_varTerm "x" type_bool in
-  let y = mk_varTerm "y" type_bool in
-  let ax_and = axiom_and *)
+let pleft = mk_absTerm (mk_var "x" type_bool) (mk_absTerm (mk_var "y" type_bool) (mk_varTerm "x" type_bool))
+let pright = mk_absTerm (mk_var "x" type_bool) (mk_absTerm (mk_var "y" type_bool) (mk_varTerm "y" type_bool))
 
+let proj thm bool left right =
+  let side = if bool then pright else pleft in
+  let xory = if bool then mk_varTerm "y" type_bool else mk_varTerm "x" type_bool in
+  let andt = instantiate_and_axiom left right in
+  let eqMp = mk_eqMp thm andt in
+  let refl = mk_refl side type_binlop in
+  let appThm = mk_appThm eqMp refl in
+  let fv = mk_var "f" (type_binlop) in
+  let ft = mk_term_of_var fv in
+  let var = fv in
+  let t1 = mk_appTerm (mk_appTerm ft left) right in
+  let t2 = mk_appTerm (mk_appTerm ft term_true) term_true in
+  let u1 = side in
+  let u2 = side in
+  let beta1 = beta_equal appThm t1 t2 u1 u2 var in
+  let vx = mk_var "x" type_bool in
+  let vy = mk_var "y" type_bool in
+  let betaConv = mk_betaConv vx (mk_absTerm vy xory) left in
+  let refl = mk_refl right type_bool in
+  let appThm = mk_appThm betaConv refl in
+  let sym = mk_sym appThm in
+  let trans = mk_trans sym beta1 in
+  let betaConv = mk_betaConv vx (mk_absTerm vy xory) term_true in
+  let refl = mk_refl term_true type_bool in
+  let appThm = mk_appThm betaConv refl in
+  let trans = mk_trans trans appThm in
+  let var = vy in
+  let t1 = if bool then xory else left in
+  let t2 = if bool then xory else term_true in
+  let u1 = right in
+  let u2 = term_true in
+  let beta3 = beta_equal trans t1 t2 u1 u2 var in
+  let sym = mk_sym beta3 in
+  mk_eqMp axiom_true sym
 
+let proj_left thm left right =
+  let proof = proj thm false left right in
+  {proof with term = left}
+
+let proj_right thm left right =
+  let proof = proj thm true left right in
+  {proof with term = right}
+
+let impl_intro thm p q =
+  let assume = mk_assume p in
+  let deductAntisym = mk_deductAntisym assume axiom_true in
+  let fv = mk_var "f" (type_binlop) in
+  let ft = mk_term_of_var fv in
+  let refl = mk_refl ft type_binlop in
+  let appThm = mk_appThm refl deductAntisym in
+  let deductAntisym = mk_deductAntisym thm axiom_true in
+  let appThm = mk_appThm appThm deductAntisym in
+  let absThm = mk_absThm fv appThm in
+  let andt = instantiate_and_axiom p q in
+  let sym = mk_sym andt in
+  let eqMp = mk_eqMp absThm sym in
+  let assume = mk_assume (term_and p q) in
+  let proj_left = proj_left assume p q in
+  let deductAntisym = mk_deductAntisym eqMp proj_left in
+  let implt = instantiate_impl_axiom p q in
+  let sym = mk_sym implt in
+  let eqMp = mk_eqMp deductAntisym sym in
+  let term = term_impl p q in
+  { proof = eqMp.proof;
+    hyp = S.remove p thm.hyp;
+    term = term
+  }
+
+let impl_elim thmp thmimpl p q =
+  let implt = instantiate_impl_axiom p q in
+  let assume = mk_assume (term_impl p q) in
+  let eqMp = mk_eqMp assume implt in
+  let sym = mk_sym eqMp in
+  let assume = mk_assume p in
+  let eqMp =mk_eqMp assume sym in
+  let proj_right = proj_right eqMp p q in
+  let proveHyp = mk_proveHyp proj_right thmp in
+  let proveHyp = mk_proveHyp proveHyp thmimpl in
+  {
+    proof = proveHyp.proof;
+    hyp = S.union thmp.hyp thmimpl.hyp;
+    term = q
+  }
 
 let instr_of_proof ctx t = failwith "todo instr_of_proof"
 
@@ -538,8 +673,25 @@ let sample_7 =
 let sample_7_bis =
   forall_elim sample_5_bis (mk_absTerm (mk_var "y" (mk_varType "B")) sample_1_bis.term) (mk_varType "B") (mk_varTerm "z" (mk_varType "B"))
 
+let sample_8 =
+  instantiate_and_axiom (mk_varTerm "a" type_bool) (mk_varTerm "b" type_bool)
 
-let test = mk_thm (sample_7)
+let sample_9 =
+  instantiate_impl_axiom (mk_varTerm "a" type_bool) (mk_varTerm "b" type_bool)
+
+let sample_10 =
+  let t = term_and term_true (term_equal term_true term_true type_bool) in
+  let ax = mk_axiom t S.empty in
+  proj_left ax term_true (term_equal term_true term_true type_bool)
+
+let sample_11 =
+  let ax = mk_axiom (term_equal term_true term_true type_bool) (S.singleton term_true) in
+  impl_intro ax term_true (term_equal term_true term_true type_bool)
+
+let sample_12 =
+  impl_elim axiom_true sample_11 term_true (term_equal term_true term_true type_bool)
+
+let test = mk_thm (sample_12)
 
 let version =
   [Int 6;Version]
