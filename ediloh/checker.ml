@@ -260,8 +260,7 @@ let term_and l r =
 let term_impl l r =
   mk_const impl_str type_impl [l;r]
 
-let term_forall str p =
-  let ty = mk_varType str in
+let term_forall ty p =
   mk_const forall_str (type_forall ty) [p]
 
 let mk_refl term ty =
@@ -332,21 +331,33 @@ let mk_thm thm =
 let axiom_true =
   mk_axiom term_true S.empty
 
-let axiom_and x y =
-  let andt = term_and x y in
+let axiom_and =
+  let vx = mk_var "x" type_bool in
+  let vy = mk_var "y" type_bool in
+  let x = mk_term_of_var vx in
+  let y = mk_term_of_var vy in
+  let andt = mk_absTerm vx (mk_absTerm vy (term_and x y)) in
   let fv = mk_var "f" (type_binlop) in
   let ft = mk_term_of_var fv in
   let rl = mk_absTerm fv (mk_appTerm (mk_appTerm ft x) y) in
   let rr = mk_absTerm fv (mk_appTerm (mk_appTerm ft term_true) term_true) in
-  let rhs = term_equal rl rr (type_arrow type_binlop type_bool) in
-  let term = term_equal andt rhs type_bool in
+  let rhs = mk_absTerm vx (mk_absTerm vy (term_equal rl rr (type_arrow type_binlop type_bool))) in
+  let term = term_equal andt rhs type_binlop in
   mk_axiom term S.empty
 
-let axiom_impl x y =
-  let implt = term_impl x y in
+let instantiate_and_axiom l r = failwith "todo"
+
+let axiom_impl =
+  let vx = mk_var "x" type_bool in
+  let vy = mk_var "y" type_bool in
+  let x = mk_term_of_var vx in
+  let y = mk_term_of_var vy in
+  let implt = mk_absTerm vx (mk_absTerm vy (term_impl x y)) in
   let r = term_equal (term_and x y) x type_bool in
-  let term = term_equal implt r type_bool in
+  let term = term_equal implt (mk_absTerm vx (mk_absTerm vy r)) type_binlop in
   mk_axiom term S.empty
+
+let instantiate_impl_axiom l r = failwith "todo"
 
 (* str_type should only be instantiated with the Subst command. This is to ensure that there is only one axiom forall *)
 let axiom_forall =
@@ -356,44 +367,48 @@ let axiom_forall =
   let varTy = mk_varType str_type in
   let vx = mk_var str_term (type_arrow varTy type_bool) in
   let tx = mk_term_of_var vx in
-  let forallt = (mk_absTerm vx (term_forall str_type tx)) in
+  let forallt = (mk_absTerm vx (term_forall varTy tx)) in
   let var = mk_var str_var varTy in
   let r = mk_absTerm var term_true in
   let term = term_equal forallt (mk_absTerm vx (term_equal tx r (type_arrow varTy type_bool))) (type_arrow (type_arrow varTy type_bool) type_bool) in
   mk_axiom term S.empty
 
+let beta_equal thm t1 t2 u1 u2 var =
+  let beta1 = mk_sym (mk_betaConv var t1 u2) in
+  let beta2 = mk_betaConv var t2 u2 in
+  let trans = mk_trans beta1 thm in
+  mk_trans trans beta2
+
+(* from \x:(A->bool) . !x = (x = \v . true) produce the theorem
+         !lambda:(ty -> bool) = (lambda = \v. true) *)
+(* TODO : some code duplication with axiom_forall... *)
+let instantiate_forall_axiom ty lambda =
+  let var_ty = mk_name "A" in
+  let env_type = [var_ty, ty] in
+  let var = mk_var "x" (type_arrow ty type_bool) in
+  let t1 = (term_forall ty (mk_term_of_var var)) in
+  let t2 = term_equal (mk_term_of_var var) (mk_absTerm (mk_var "v" ty) term_true) (type_arrow ty type_bool) in
+  let u1 = lambda in
+  let u2 = lambda in
+  let refl = mk_refl lambda (type_arrow ty type_bool) in
+  beta_equal (mk_appThm (mk_subst axiom_forall env_type []) refl) t1 t2 u1 u2 var
 
 let forall_intro var_str ty thm =
   let v = mk_var var_str ty in
   let thml = mk_absThm v (mk_deductAntisym thm axiom_true) in
-  let ax_str_var = "v" in
-  let ax_str_term = "x" in
-  let ax_str_type = "A" in
-  let var_ty = mk_name ax_str_type in
-  let env_type = [var_ty,ty] in
-  let x = mk_var ax_str_term (type_arrow (mk_varType ax_str_type) type_bool) in
-  let x' = mk_absTerm v thm.term in
-  let env_var = [x,x'] in
-  let ax_forall = axiom_forall in
-  let thmr = mk_sym (mk_subst ax_forall env_type env_var) in
-  (* cannot send back thm since the term inside is not valid because of the use of mk_subst and mk_eqMp *)
+  let lambda = mk_absTerm v thm.term in
+  let thmr = mk_sym (instantiate_forall_axiom ty lambda) in
   let thm = mk_eqMp thml thmr in
-  let term = mk_const forall_str (type_arrow (type_arrow ty type_bool) type_bool) [x'] in
+  let term = mk_const forall_str (type_arrow (type_arrow ty type_bool) type_bool) [lambda] in
   {proof = thm.proof;
    hyp = thm.hyp;
    term = term
   }
-(*
+
 let forall_elim thm lambda ty t =
-  let str_term = "x" in
   let str_var = "v" in
-  let str_type = "A" in
-  let env_type = [(mk_name str_type, ty)] in
-  let x = mk_var str_term (type_arrow (mk_varType str_type) type_bool) in
-  let x' = lambda in
-  let env_var = [(x,x')] in
-  let axiom_subst = mk_subst (axiom_forall str_term str_var str_type) env_type env_var in
-  let eqMp = mk_eqMp thm axiom_subst in
+  let instance_forall = instantiate_forall_axiom ty lambda in
+  let eqMp = mk_eqMp thm instance_forall in
   let refl = mk_refl t ty in
   let appThm = mk_appThm eqMp refl in
   let beta = mk_betaConv (mk_var str_var ty) term_true t in
@@ -404,12 +419,6 @@ let forall_elim thm lambda ty t =
     hyp = thm.hyp;
     term = term
   }
-*)
-let beta_equal thm t1 t2 u1 u2 var =
-  let beta1 = mk_sym (mk_betaConv var t1 u2) in
-  let beta2 = mk_betaConv var t2 u2 in
-  let trans = mk_trans beta1 thm in
-  mk_trans trans beta2
 
 let left = mk_absTerm (mk_var "x" type_bool) (mk_absTerm (mk_var "y" type_bool) (mk_varTerm "x" type_bool))
 let right = mk_absTerm (mk_var "x" type_bool) (mk_absTerm (mk_var "y" type_bool) (mk_varTerm "y" type_bool))
@@ -503,7 +512,7 @@ let sample_1 =
   (mk_refl (mk_varTerm "x" (mk_varType "A")) (mk_varType "A"))
 
 let sample_1_bis =
-  (mk_refl (mk_varTerm "y" (mk_varType "B")) (mk_varType "B"))
+  (mk_refl (mk_varTerm "y" (mk_varType "A")) (mk_varType "A"))
 
 let sample_2 =
   axiom_true
@@ -514,12 +523,11 @@ let sample_3 =
 let sample_4 =
   axiom_forall
 
-(*
 let sample_5 =
   forall_intro "x" (mk_varType "A") sample_1
 
 let sample_5_bis =
-  forall_intro "y" (mk_varType "B") sample_1_bis
+  forall_intro "y" (mk_varType "A") sample_1_bis
 
 let sample_6 =
   axiom_impl
@@ -529,9 +537,9 @@ let sample_7 =
 
 let sample_7_bis =
   forall_elim sample_5_bis (mk_absTerm (mk_var "y" (mk_varType "B")) sample_1_bis.term) (mk_varType "B") (mk_varTerm "z" (mk_varType "B"))
-*)
 
-let test = mk_thm (sample_4)@debug
+
+let test = mk_thm (sample_7)
 
 let version =
   [Int 6;Version]
