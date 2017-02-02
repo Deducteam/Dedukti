@@ -1,8 +1,8 @@
-val modname : Basics.ident
+val modname : Basic.ident
 
-val mk_num : Basics.loc * string -> Preterm.preterm
-val mk_char : Basics.loc * char -> Preterm.preterm
-val mk_string : Basics.loc * string -> Preterm.preterm
+val mk_num : Basic.loc * string -> Preterm.preterm
+val mk_char : Basic.loc * char -> Preterm.preterm
+val mk_string : Basic.loc * string -> Preterm.preterm
 
 exception Not_atomic_builtin
 

@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 open Rule
 
@@ -121,7 +121,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
         | DB (_,_,n), DB (_,_,n') when ( n=n' ) -> pseudo_u sg sigma lst
         | Const (_,md,id), Const (_,md',id') when
-            ( Basics.ident_eq id id' && Basics.ident_eq md md' ) ->
+            ( Basic.ident_eq id id' && Basic.ident_eq md md' ) ->
           pseudo_u sg sigma lst
 
         | DB (l1,x1,n1), DB (l2,x2,n2) when ( n1>=q && n2>=q) ->

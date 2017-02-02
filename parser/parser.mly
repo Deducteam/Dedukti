@@ -1,16 +1,16 @@
 %parameter <M :
   sig
-    val mk_prelude     : Basics.loc -> Basics.ident -> unit
-    val mk_declaration : Basics.loc -> Basics.ident -> Term.term -> unit
-    val mk_definition  : Basics.loc -> Basics.ident -> Term.term option -> Term.term -> unit
-    val mk_definable   : Basics.loc -> Basics.ident -> Term.term -> unit
-    val mk_opaque      : Basics.loc -> Basics.ident -> Term.term option -> Term.term -> unit
+    val mk_prelude     : Basic.loc -> Basic.ident -> unit
+    val mk_declaration : Basic.loc -> Basic.ident -> Term.term -> unit
+    val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
+    val mk_definable   : Basic.loc -> Basic.ident -> Term.term -> unit
+    val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_rules       : Rule.rule list -> unit
-    val mk_command     : Basics.loc -> Cmd.command -> unit
+    val mk_command     : Basic.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
   end>
 %{
-    open Basics
+    open Basic
     open Preterm
     open Scoping
     open Rule
@@ -188,7 +188,7 @@
       let of_qid (loc, mds, id) =
       	  match mds with
 	  | [] -> assert false
-	  | x::t -> if List.exists (fun (md,_) -> Basics.ident_eq x md) !modules then
+	  | x::t -> if List.exists (fun (md,_) -> Basic.ident_eq x md) !modules then
 	    	        (loc, !Scoping.name, prefix_by_mds ((prefix_of_md x)@mds) id)
 		    else (
 			(loc, x, prefix_by_mds t id))
@@ -214,28 +214,28 @@
 %token LEFTSQU
 %token RIGHTSQU
 %token RECORD
-%token <Basics.loc> WHNF
-%token <Basics.loc> HNF
-%token <Basics.loc> SNF
-%token <Basics.loc> STEP
-%token <Basics.loc> INFER
-%token <Basics.loc> CONV
-%token <Basics.loc> CHECK
-%token <Basics.loc> PRINT
-%token <Basics.loc> GDT
-%token <Basics.loc*string> OTHER
-%token <Basics.loc> UNDERSCORE
-%token <Basics.loc*Basics.ident>NAME
-%token <Basics.loc*Basics.ident>NEWMODULE
-%token <Basics.loc>ENDMODULE
-%token <Basics.loc> TYPE
-%token <Basics.loc> KW_DEF
-%token <Basics.loc> KW_THM
-%token <Basics.loc*Basics.ident> ID
-%token <Basics.loc*Basics.ident list*Basics.ident> QID
-%token <Basics.loc*string> STRING
-%token <Basics.loc*string> NUM
-%token <Basics.loc*char> CHAR
+%token <Basic.loc> WHNF
+%token <Basic.loc> HNF
+%token <Basic.loc> SNF
+%token <Basic.loc> STEP
+%token <Basic.loc> INFER
+%token <Basic.loc> CONV
+%token <Basic.loc> CHECK
+%token <Basic.loc> PRINT
+%token <Basic.loc> GDT
+%token <Basic.loc*string> OTHER
+%token <Basic.loc> UNDERSCORE
+%token <Basic.loc*Basic.ident>NAME
+%token <Basic.loc*Basic.ident>NEWMODULE
+%token <Basic.loc>ENDMODULE
+%token <Basic.loc> TYPE
+%token <Basic.loc> KW_DEF
+%token <Basic.loc> KW_THM
+%token <Basic.loc*Basic.ident> ID
+%token <Basic.loc*Basic.ident list*Basic.ident> QID
+%token <Basic.loc*string> STRING
+%token <Basic.loc*string> NUM
+%token <Basic.loc*char> CHAR
 
 %start prelude
 %start line
@@ -245,7 +245,7 @@
 %type <Preterm.pdecl> decl
 %type <Preterm.param> param
 %type <Preterm.pdecl list> context
-%type <Basics.loc*Basics.ident option*Basics.ident*Preterm.prepattern list> top_pattern
+%type <Basic.loc*Basic.ident option*Basic.ident*Preterm.prepattern list> top_pattern
 %type <Preterm.prepattern> pattern
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm

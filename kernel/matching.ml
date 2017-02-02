@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 
 type ho_env = (int*term) LList.t

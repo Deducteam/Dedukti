@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 
 let rec shift_rec (r:int) (k:int) : term -> term = function

@@ -1,4 +1,4 @@
-open Basics
+open Basic
 
 (** {2 PreTerms} *)
 

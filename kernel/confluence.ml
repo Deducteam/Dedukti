@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Printf
 open Term
 open Rule
@@ -30,7 +30,7 @@ let initialize () =
   else
     begin
       let (file,out) = Filename.open_temp_file "dkcheck" ".trs" in
-      Basics.debug "Confluence temporary file:%s" file;
+      Basic.debug "Confluence temporary file:%s" file;
       file_out := (Some (file,out));
       fprintf out "\
 (FUN

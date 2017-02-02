@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Preterm
 open Term
 open Printf

@@ -1,5 +1,5 @@
 {
-  open Basics
+  open Basic
   open Lexing
   open Tokens
   open Printf
