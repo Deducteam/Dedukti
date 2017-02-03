@@ -1,0 +1,3 @@
+- Il faudrait que dkcheck inclut de lui-même <opam_root>/<switch>/lib/dedukti
+
+par exemple en utilisant un ./configure
