@@ -36,33 +36,6 @@ type instr =
   | VarTerm
   | VarType
   | Version
-(*
-module type Memoize =
-sig
-  type 'a t
-  type name
-  type var
-  type term
-  type ty
-  type thm
-  type cmd
-
-  val update_name : 'a -> instr list -> 'a t -> name
-end
-
-module Basic : Memoize =
-struct
-  type 'a t = 'a
-  type name = instr list
-  type var = instr list
-  type term = instr list
-  type ty = instr list
-  type thm = { proof : instr list; hyp : instr list; term : instr list}
-  type cmd = instr list
-
-  let update_name _ instr _ = instr
-end
-*)
 
 module S = Set.Make (struct type t = int let compare = compare end)
 
@@ -135,6 +108,11 @@ let mk_name =
     let name = (mk_namespace namespace)^str in
     update name [String name] seen
 
+let arrow_name = mk_name [] "->"
+
+let bool_name = mk_name [] "bool"
+
+let equal_name = mk_name [] "="
 
 let mk_var =
   let seen = Hashtbl.create 87 in
@@ -143,10 +121,45 @@ let mk_var =
     update (name,ty) instr seen
 
 
+let mk_list =
+  let seen = Hashtbl.create 87 in
+  fun l ->
+    let instr =  List.fold_left (fun l x -> x::(l@[Cons])) [Nil] l in
+    update l instr seen
+
+
+let mk_tyop =
+  let seen = Hashtbl.create 87 in
+  fun name ->
+    let instr = [Load name; TypeOp] in
+    update name instr seen
+
+
 let mk_varType =
   let seen = Hashtbl.create 87 in
   fun name ->
     update name [Load name;VarType] seen
+
+let ty_of_tyop =
+  let seen = Hashtbl.create 87 in
+  fun tyop l ->
+    let instr = [Load tyop;Load (mk_list l);OpType] in
+    update (tyop,(mk_list l)) instr seen
+
+let mk_arrow_type =
+  let seen = Hashtbl.create 87 in
+  fun tyl tyr ->
+    let instr = [Load(ty_of_tyop (mk_tyop arrow_name) [Load tyl;Load tyr])] in
+    update (tyl,tyr) instr seen
+
+let mk_bool_type =
+  ty_of_tyop (mk_tyop bool_name) []
+
+let mk_equal_type =
+  let seen = Hashtbl.create 87 in
+  fun ty ->
+    let instr = [Load(mk_arrow_type ty (mk_arrow_type ty (mk_bool_type)))] in
+    update ty instr seen
 
 
 let mk_appTerm =
@@ -173,23 +186,26 @@ let term_of_const =
     let instr = [Load (fst const);Load ty;ConstTerm] in
     update (const,ty) instr seen
 
-
 let const_of_name name =
   if Hashtbl.mem const_seen name then
     Hashtbl.find const_seen name
   else
     failwith "const not declared"
 
+let mk_equal_term =
+  let seen = Hashtbl.create 87 in
+  fun l r ty ->
+    let cst = term_of_const (const_of_name equal_name) ty in
+    let instr = [Load(mk_appTerm (mk_appTerm cst l) r)] in
+    update (l,r,ty) instr seen
+
+
+
+
 let rec mk_hyp l = List.fold_left (fun set x -> S.add x set) S.empty l
 
 let list_of_hyp hyp =
   S.fold (fun x l -> (Load x)::l) hyp []
-
-let mk_list =
-  let seen = Hashtbl.create 87 in
-  fun l ->
-    let instr =  List.fold_left (fun l x -> x::(l@[Cons])) [Nil] l in
-    update l instr seen
 
 let mk_axiom =
   let seen = Hashtbl.create 87 in
@@ -202,28 +218,15 @@ let mk_axiom =
 let thm_of_const const =
   snd const
 
+let mk_refl =
+  let seen = Hashtbl.create 87 in
+  fun term ->
+    update term [Load term;Refl] seen
+
 
 let mk_const name term =
   let instrs = [Load name; Load term;DefineConst] in
   update_cons name instrs
-
-(*
-let mk_termconst =
-  let seen = Hashtbl.create 87 in
-  fun str ty ->
-    let name = mk_name [] str in
-    let instr = [name;Const;ty;ConstTerm] in
-    update (name,ty) instr seen
-
-let mk_const str ty l =
-    let const = mk_termconst str ty in
-    let rec apply term l =
-      match l with
-      | [] -> term
-      | x::t -> apply (mk_appTerm term x) t
-    in
-    apply const l
-    *)
 
 let mk_thm term hyp thm =
   save [Load thm;Load (mk_list (list_of_hyp hyp));Load term;Thm]

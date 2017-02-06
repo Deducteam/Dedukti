@@ -1,12 +1,12 @@
 open Basic
-
+open Opentheory
 (*
 
   (load_typeop arrow_str)@
   tyl@tyr@
   [Nil;Cons;Cons;OpType]
 *)
-
+(*
 type instr =
   | String of string
   | Int of int
@@ -142,14 +142,9 @@ let mk_axiom term hyp =
   {proof = proof ; hyp = hyp ; term = term}
 
 let string_of_ast ast = List.fold_left (fun s x -> (string_of_instr x)^s) "" ast
+*)
 
-let namespace = ref ""
-
-let (cmds:ast ref) = ref []
-
-let add_instr cmd =
-  cmds := cmd::!cmds
-
+(*
 (* ********************************* *)
 
 let counter = ref 0
@@ -163,6 +158,7 @@ let hol_impl = hstring "impl"
 let hol_prop = hstring "prop"
 let hol_eps = hstring "eps"
 let hol_forall_kind_type = hstring "forall_kind_type"
+let hol_forall_kind_prop = hstring "forall_kind_prop"
 
 let (===) = Basic.ident_eq
 
@@ -186,6 +182,8 @@ let is_hol_prop t = is_hol_const hol_prop t
 let is_hol_eps t = is_hol_const hol_eps t
 
 let is_hol_forall_kind_type t = is_hol_const hol_forall_kind_type t
+
+let is_hol_forall_kind_prop t = is_hol_const hol_forall_kind_prop t
 
 let is_hol_type t =
   match t with
@@ -567,7 +565,7 @@ let impl_elim thmp thmimpl p q =
 let instr_of_proof ctx t = failwith "todo instr_of_proof"
 
 
-let extract_proof t =
+let extract_term t =
   match t with
   | Term.App(c, ty, _) when is_hol_eps c -> ty
   | _ -> assert false
@@ -624,6 +622,8 @@ let rec instr_of_term env t =
     [AppTerm]@
     (instr_of_term env ter)@
     [AppTerm]
+  | Term.App(c, Term.Lam(_,x, Some tx, ty), []) when is_hol_forall_kind_prop c ->
+    instr_of_term env ty
   | Term.App(f, a, args) ->
     List.fold_left
       (fun instr a -> instr@(instr_of_term env a)@[AppTerm]) (instr_of_term env f) (a::args)
@@ -691,25 +691,32 @@ let sample_11 =
 let sample_12 =
   impl_elim axiom_true sample_11 term_true (term_equal term_true term_true type_bool)
 
+let sample_13 =
+  [String("foo")]@(mk_absTerm (mk_var "x" (mk_varType "A")) (mk_varTerm "x" (mk_varType "A")))@[DefineConst]@[String("foo")]@[Const]@(type_arrow type_bool type_bool)@[ConstTerm]@term_true@[AppTerm]@debug
+
 let test = mk_thm (sample_12)
 
 let version =
   [Int 6;Version]
+*)
 
-let prelude : ast =
+  (*
   let version = version in
-  version@test
+  version@sample_13
+*)
 
+(*
 let equal ty tl tr =
   (load_const equal_str)@
   (type_arrow ty (type_arrow ty type_bool))@[ConstTerm]@
   tl@[AppTerm]@
   tr@[AppTerm]
+*)
 
 let mk_prelude lc name =
-  namespace := string_of_ident name;
-  List.iter add_instr prelude
+  ()
 
+(*
 let define_hol_type id =
   begin
     add_instr (String (string_of_ident id));
@@ -721,19 +728,31 @@ let define_hol_const id te =
   let term = instr_of_term [] te in
   List.iter add_instr (const@term@[DefineConst])
 
-let mk_declaration lc id pty : unit =
+let define_axiom term =
+  let instr = mk_thm (mk_axiom (instr_of_term [] term) S.empty) in
+  List.iter add_instr instr
+
+let define_thm thm =
+  let instr = mk_thm thm in
+  List.iter add_instr instr
+*)
+let mk_declaration lc id pty : unit = () (*
   if is_hol_sort pty then
     define_hol_type id
   else
-    failwith "todo declaration"
+    if is_hol_type pty then
+      failwith "should not happen : reference to an external constant"
+    else
+      if is_hol_proof pty then
+        let term = extract_term pty in
+        define_axiom term
+      else
+        failwith "case not handle"
+*)
 
+let mk_definable lc id pty : unit = failwith "definable symbol without definition... should not happend"
 
-let mk_definable lc id pty : unit =
-  match Env.declare_definable lc id pty with
-    | OK () -> ()
-    | Err e -> Errors.fail_env_error e
-
-let mk_definition lc id pty_opt pte : unit =
+let mk_definition lc id pty_opt pte : unit = () (*
   let ty =
     match pty_opt with
     | Some ty -> ty
@@ -742,9 +761,16 @@ let mk_definition lc id pty_opt pte : unit =
   if is_hol_type ty then
     define_hol_const id pte
   else
-    failwith "todo definition"
-
-
+  if is_hol_proof ty then
+    define_thm
+      {
+        proof = instr_of_proof [] pte;
+        hyp = S.empty;
+        term = instr_of_term [] (extract_term ty)
+      }
+  else
+    failwith "case not handle"
+*)
 
 let mk_opaque lc id pty_opt pte =
   match Env.define_op lc id pte pty_opt with
@@ -769,4 +795,4 @@ let mk_command = Cmd.mk_command
 let export = ref false
 
 let mk_ending () =
-  Printf.printf "%s\n" (string_of_ast !cmds)
+  Printf.printf "%s\n" (Opentheory.to_string ())
