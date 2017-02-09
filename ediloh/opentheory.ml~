@@ -1,0 +1,188 @@
+
+type stack_object =
+  | Name
+  | Int
+  | List
+  | TypeOp
+  | Type
+  | Const
+  | Var
+  | Term
+  | Thm
+
+type instr =
+  | String of string
+  | Int of int
+  | AbsTerm
+  | AbsThm
+  | AppTerm
+  | AppThm
+  | Assume
+  | Axiom
+  | BetaConv
+  | Cons
+  | Const
+  | ConstTerm
+  | DeductAntisym
+  | Def
+  | DefineConst
+  | DefineConstList
+  | DefineTypeOp
+  | EqMp
+  | HdTl
+  | Load of int
+  | Nil
+  | OpType
+  | Pop
+  | Pragma
+  | ProveHyp
+  | Ref
+  | Refl
+  | Remove
+  | Subst
+  | Sym
+  | Thm
+  | Trans
+  | TypeOp
+  | Var
+  | VarTerm
+  | VarType
+  | Version
+
+type var = instr
+
+type term = instr
+
+type ty = instr
+
+module S = Set.Make (struct type t = int let compare = compare end)
+
+type dict = (int, instr list) Hashtbl.t
+
+type generated_entry = S.t
+
+let dict : dict = Hashtbl.create 87
+
+let generated_entry : generated_entry ref =  ref S.empty
+
+let counter : int ref = ref 0
+
+let cmds : instr list ref = ref []
+
+let add_instrs instrs =
+  cmds := !cmds@instrs
+
+let mk_ref n = [Int(n);Ref]
+
+let update entry instrs seen =
+  if Hashtbl.mem seen entry then
+    Load(Hashtbl.find seen entry)
+  else
+    let x = !counter in
+    incr counter;
+    Hashtbl.add seen entry x;
+    let def = [Int(x);Def] in
+    Hashtbl.add dict x (instrs@def);
+    Load(x)
+
+let mk_name =
+  let seen = Hashtbl.create 87 in
+  fun str -> update str [String str] seen
+
+let mk_appTerm =
+  let seen = Hashtbl.create 87 in
+  fun f t ->
+    let instr = [f;t;AppTerm] in
+    update (f,t) instr seen
+
+let mk_var =
+  let seen = Hashtbl.create 87 in
+  fun str ty ->
+    let name = mk_name str in
+    let instr = [name;ty;Var] in
+    update (name,ty) instr seen
+
+let mk_absTerm =
+  let seen = Hashtbl.create 87 in
+  fun v t ->
+    let instr = [v;t;AbsTerm] in
+    update (v,t) instr seen
+
+let mk_varTerm =
+  let seen = Hashtbl.create 87 in
+  fun var (ty:instr) ->
+    let instr = [var;VarTerm] in
+    update (var,ty) instr seen
+
+let mk_termconst =
+  let seen = Hashtbl.create 87 in
+  fun str ty ->
+    let name = mk_name str in
+    let instr = [name;Const;ty;ConstTerm] in
+    update (name,ty) instr seen
+
+let mk_const str ty l =
+    let const = mk_termconst str ty in
+    let rec apply term l =
+      match l with
+      | [] -> term
+      | x::t -> apply (mk_appTerm term x) t
+    in
+    apply const l
+
+let mk_varType =
+  let seen = Hashtbl.create 87 in
+  fun str ->
+    let name = mk_name str in
+    update name [name;VarType] seen
+
+
+let rec load_instr n =
+  if S.mem n !generated_entry then
+    string_of_instrs (mk_ref n)
+  else
+    let instr = string_of_instrs (Hashtbl.find dict n) in
+    generated_entry := S.add n !generated_entry;
+    instr
+
+and string_of_instr x =
+  match x with
+  | String(s) -> Printf.sprintf "\"%s\"\n" s
+  | Int(i) -> (string_of_int i)^"\n"
+  | AbsTerm -> "absTerm\n"
+  | AbsThm -> "absThm\n"
+  | AppTerm -> "appTerm\n"
+  | AppThm -> "appThm\n"
+  | Assume -> "assume\n"
+  | Axiom -> "axiom\n"
+  | BetaConv -> "betaConv\n"
+  | Cons -> "cons\n"
+  | Const -> "const\n"
+  | ConstTerm -> "constTerm\n"
+  | DeductAntisym -> "deductAntisym\n"
+  | Def -> "def\n"
+  | DefineConst -> "defineConst\n"
+  | DefineConstList -> "defineConstList\n"
+  | DefineTypeOp -> "defineTypeOp\n"
+  | EqMp -> "eqMp\n"
+  | HdTl -> "hdTl\n"
+  | Load(n) -> load_instr n
+  | Nil -> "nil\n";
+  | OpType -> "opType\n";
+  | Pop -> "pop\n";
+  | Pragma -> "pragma\n";
+  | ProveHyp -> "proveHyp\n";
+  | Ref -> "ref\n";
+  | Refl -> "refl\n";
+  | Remove -> "remove\n";
+  | Subst -> "subst\n";
+  | Sym -> "sym\n";
+  | Thm -> "thm\n";
+  | Trans -> "trans\n";
+  | TypeOp -> "typeOp\n"
+  | Var -> "var\n"
+  | VarTerm -> "varTerm\n"
+  | VarType -> "varType\n"
+  | Version -> "version\n"
+
+and string_of_instrs instrs = List.fold_left (fun s x -> s^(string_of_instr x)) "" instrs

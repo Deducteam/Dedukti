@@ -27,6 +27,12 @@ val mk_bool_type : ty
 
 val mk_equal_type : ty -> ty
 
+val mk_true_type : ty
+
+val mk_and_type : ty
+
+val mk_impl_type : ty
+
 
 val mk_appTerm : term -> term -> term
 
@@ -36,7 +42,13 @@ val mk_varTerm : var -> term
 
 val term_of_const : const -> ty -> term
 
-val mk_equal_term : term -> term -> term
+val mk_equal_term : term -> term -> ty -> term
+
+val mk_true_term : term
+
+val mk_and_term : term -> term -> term
+
+val mk_impl_term : term -> term -> term
 
 
 val const_of_name : name -> const
@@ -46,6 +58,14 @@ val mk_hyp : term list -> hyp
 
 
 val mk_axiom : hyp -> term -> thm
+
+val mk_axiom_true : term * hyp * thm
+
+val mk_axiom_and : term -> term -> term * hyp * thm
+
+val mk_axiom_impl : term -> term -> term * hyp * thm
+
+val mk_axiom_forall : term -> ty -> term * hyp * thm
 
 val thm_of_const : const -> thm
 

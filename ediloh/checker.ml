@@ -714,7 +714,7 @@ let equal ty tl tr =
 *)
 
 let mk_prelude lc name =
-  ()
+  Examples.test ()
 
 (*
 let define_hol_type id =
