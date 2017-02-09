@@ -67,6 +67,14 @@ val mk_axiom_impl : term -> term -> term * hyp * thm
 
 val mk_axiom_forall : term -> ty -> term * hyp * thm
 
+val mk_rule_intro_forall : name -> ty -> term -> thm -> term * hyp * thm
+
+val mk_rule_elim_forall : thm -> term -> ty -> term -> term * hyp * thm
+
+val mk_rule_intro_impl : thm -> term -> term -> term * hyp * thm
+
+val mk_rule_elim_impl : thm -> thm -> term -> term -> term * hyp * thm
+
 val thm_of_const : const -> thm
 
 val mk_refl : term -> thm

@@ -320,6 +320,37 @@ let mk_subst =
     let instr = [Load subst; Load thm; Subst] in
     update (thm,env_type,env_var) instr seen
 
+let mk_deductAntisym =
+  let seen = Hashtbl.create 87 in
+  fun thml thmr ->
+    let instr = [Load thml;Load thmr;DeductAntisym] in
+    update (thml,thmr) instr seen
+
+let mk_absThm =
+  let seen = Hashtbl.create 87 in
+  fun v thm ->
+    let instr = [Load v; Load thm;AbsThm] in
+    update (v,thm) instr seen
+
+let mk_eqMp =
+  let seen = Hashtbl.create 87 in
+  fun thml thmr ->
+    let instr = [Load thmr; Load thml;EqMp] in
+    update (thml,thmr) instr seen
+
+let mk_assume =
+  let seen = Hashtbl.create 87 in
+  fun term ->
+    let instr = [Load term;Assume] in
+    update term instr seen
+
+let mk_proveHyp =
+  let seen = Hashtbl.create 87 in
+  fun thml thmr ->
+    let instr = [Load thmr; Load thml; ProveHyp] in
+    update (thml,thmr) instr seen
+
+
 let mk_const name term =
   let instrs = [Load name; Load term;DefineConst] in
   update_cons name instrs
@@ -400,7 +431,9 @@ let mk_axiom_forall_ =
   let instr = mk_equal_term tforall (mk_absTerm vx (mk_equal_term x r (mk_arrow_type ty mk_bool_type))) (mk_arrow_type (mk_arrow_type ty mk_bool_type) mk_bool_type) in
   mk_axiom S.empty instr
 
-let mk_axiom_forall p ty =
+let mk_axiom_forall =
+  let seen = Hashtbl.create 87 in
+  fun p ty ->
   let env_type = [mk_list [ty; mk_name [] "A"]] in
   let env_var = [] in
   let var = mk_var (mk_name [] "x") (mk_arrow_type ty mk_bool_type) in
@@ -408,7 +441,123 @@ let mk_axiom_forall p ty =
   let tr = mk_appTerm (mk_absTerm var (mk_equal_term (mk_varTerm var) (mk_absTerm (mk_var (mk_name [] "x") ty) mk_true_term) (mk_arrow_type ty mk_bool_type))) p in
   let refl = mk_refl p in
   let term = mk_equal_term (mk_forall_term p ty) (mk_equal_term p (mk_absTerm (mk_var (mk_name [] "v") mk_bool_type) mk_true_term) (mk_arrow_type ty mk_bool_type)) mk_bool_type in
-  term, S.empty, beta_equal (mk_appThm (mk_subst mk_axiom_forall_ env_type env_var) refl) tl tr
+  let instr = beta_equal (mk_appThm (mk_subst mk_axiom_forall_ env_type env_var) refl) tl tr in
+  term, S.empty, update (p,ty) [Load instr] seen
+
+let mk_rule_intro_forall =
+  let seen = Hashtbl.create 87 in
+  fun name ty te thm ->
+    let var = mk_var name ty in
+    let _,_,true_thm = mk_axiom_true in
+    let absThm = mk_absThm var (mk_deductAntisym thm true_thm) in
+    let lambda = mk_absTerm var te in
+    let _,_,forall_thm = mk_axiom_forall lambda ty in
+    let sym = mk_sym forall_thm in
+    let eqMp = mk_eqMp absThm sym in
+    let term = mk_forall_term lambda ty in
+    term, S.empty, (update (name,ty,te,thm) [Load eqMp] seen)
+
+let mk_rule_elim_forall =
+  let seen = Hashtbl.create 87 in
+  fun thm lambda ty t ->
+    let _,_,tforall = mk_axiom_forall lambda ty in
+    let eqMp = mk_eqMp thm tforall in
+    let refl = mk_refl t in
+    let appThm = mk_appThm eqMp refl in
+    let te = mk_appTerm (mk_absTerm (mk_var (mk_name [] "v") ty) mk_true_term) t in
+    let beta = mk_betaConv te in
+    let _,_, true_thm = mk_axiom_true in
+    let thm = mk_eqMp true_thm (mk_sym (mk_trans appThm beta)) in
+    let term = mk_appTerm lambda t in
+    term, S.empty, (update (thm,lambda,ty,t) [Load thm] seen)
+
+
+
+let proj =
+  let seen = Hashtbl.create 87 in
+  fun thm bool left right ->
+  let x = mk_var (mk_name [] "x") mk_bool_type in
+  let y = mk_var (mk_name [] "y") mk_bool_type in
+  let pleft = mk_absTerm x (mk_absTerm y (mk_varTerm x)) in
+  let pright = mk_absTerm x (mk_absTerm y (mk_varTerm y)) in
+  let side = if bool then pright else pleft in
+  let xory = if bool then mk_varTerm y else mk_varTerm x in
+  let _,_,tand = mk_axiom_and left right in
+  let eqMp = mk_eqMp thm tand in
+  let refl = mk_refl side in
+  let appThm = mk_appThm eqMp refl in
+  let vf = mk_var (mk_name [] "f") mk_binlop_type in
+  let f = mk_varTerm vf in
+  let tl = mk_appTerm (mk_absTerm vf (mk_appTerm (mk_appTerm f left) right)) side in
+  let tr = mk_appTerm (mk_absTerm vf (mk_appTerm (mk_appTerm f mk_true_term) mk_true_term)) side in
+  let beta1 = beta_equal appThm tl tr in
+  let betaConv = mk_betaConv (mk_appTerm (mk_absTerm x (mk_absTerm y xory)) left) in
+  let refl = mk_refl right in
+  let appThm = mk_appThm betaConv refl in
+  let sym = mk_sym appThm in
+  let trans = mk_trans sym beta1 in
+  let betaConv = mk_betaConv (mk_appTerm (mk_absTerm x (mk_absTerm y xory)) mk_true_term) in
+  let refl = mk_refl mk_true_term in
+  let appThm = mk_appThm betaConv refl in
+  let trans = mk_trans trans appThm in
+  let tl = mk_appTerm (mk_absTerm y (if bool then xory else left)) right in
+  let tr = mk_appTerm (mk_absTerm y (if bool then xory else mk_true_term)) mk_true_term in
+  let beta = beta_equal trans tl tr in
+  let sym = mk_sym beta in
+  let _,_,true_thm = mk_axiom_true in
+  let instr = mk_eqMp true_thm sym in
+  update (thm, bool, left, right) [Load instr] seen
+
+let proj_left =
+  let seen = Hashtbl.create 87 in
+  fun thm left right ->
+    let instr = proj thm false left right in
+    update (thm,left,right) [Load instr] seen
+
+let proj_right =
+  let seen = Hashtbl.create 87 in
+  fun thm left right ->
+    let instr = proj thm true left right in
+    update (thm,left,right) [Load instr] seen
+
+let mk_rule_intro_impl =
+  let seen = Hashtbl.create 87 in
+  fun thm p q ->
+    let assume = mk_assume p in
+    let _,_,thm_true = mk_axiom_true in
+    let deduct = mk_deductAntisym assume thm_true in
+    let vf = mk_var (mk_name [] "f") mk_binlop_type in
+    let f = mk_varTerm vf in
+    let refl = mk_refl f in
+    let appThm = mk_appThm refl deduct in
+    let deduct = mk_deductAntisym thm thm_true in
+    let appThm = mk_appThm appThm deduct in
+    let absThm = mk_absThm vf appThm in
+    let _,_,tand = mk_axiom_and p q in
+    let sym = mk_sym tand in
+    let eqMp = mk_eqMp absThm sym in
+    let assume = mk_assume (mk_and_term p q) in
+    let proj_left = proj_left assume p q in
+    let deduct = mk_deductAntisym eqMp proj_left in
+    let _,_,timpl = mk_axiom_impl p q in
+    let sym = mk_sym timpl in
+    let eqMp = mk_eqMp deduct sym in
+    let term = mk_impl_term p q in
+    term, S.empty, update (thm,p,q) [Load eqMp] seen
+
+let mk_rule_elim_impl =
+  let seen = Hashtbl.create 87 in
+  fun thmp thmimpl p q ->
+    let _,_,timpl = mk_axiom_impl p q in
+    let assume = mk_assume (mk_impl_term p q) in
+    let eqMp = mk_eqMp assume timpl in
+    let sym = mk_sym eqMp in
+    let assume = mk_assume p in
+    let eqMp = mk_eqMp assume sym in
+    let proj_right = proj_right eqMp p q in
+    let proveHyp = mk_proveHyp proj_right thmp in
+    let proveHyp = mk_proveHyp proveHyp thmimpl in
+    q, S.empty, update (thmp, thmimpl,p,q) [Load proveHyp] seen
 
 
 let rec load_instr n =
