@@ -50,6 +50,7 @@ val mk_and_term : term -> term -> term
 
 val mk_impl_term : term -> term -> term
 
+val mk_forall_term : term -> ty -> term
 
 val const_of_name : name -> const
 
@@ -78,6 +79,8 @@ val mk_rule_elim_impl : thm -> thm -> term -> term -> term * hyp * thm
 val thm_of_const : const -> thm
 
 val mk_refl : term -> thm
+
+val mk_assume : term -> thm
 
 val mk_const : name -> term -> unit
 

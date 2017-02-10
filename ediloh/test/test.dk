@@ -1,5 +1,0 @@
-#NAME test.
-
-nat : hol.type.
-
-def id : hol.eta (hol.arrow nat nat) := x : (hol.eta nat) => x.

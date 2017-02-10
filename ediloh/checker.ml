@@ -1,150 +1,8 @@
 open Basic
 open Opentheory
-(*
 
-  (load_typeop arrow_str)@
-  tyl@tyr@
-  [Nil;Cons;Cons;OpType]
-*)
-(*
-type instr =
-  | String of string
-  | Int of int
-  | AbsTerm
-  | AbsThm
-  | AppTerm
-  | AppThm
-  | Assume
-  | Axiom
-  | BetaConv
-  | Cons
-  | Const
-  | ConstTerm
-  | DeductAntisym
-  | Def
-  | DefineConst
-  | DefineConstList
-  | DefineTypeOp
-  | EqMp
-  | HdTl
-  | Nil
-  | OpType
-  | Pop
-  | Pragma
-  | ProveHyp
-  | Ref
-  | Refl
-  | Remove
-  | Subst
-  | Sym
-  | Thm
-  | Trans
-  | TypeOp
-  | Var
-  | VarTerm
-  | VarType
-  | Version
+let print_term t = Pp.print_term Format.std_formatter t;Format.printf "@."
 
-type ast = instr list
-
-let string_of_instr x =
-  match x with
-  | String(s) -> Printf.sprintf "\"%s\"\n" s
-  | Int(i) -> (string_of_int i)^"\n"
-  | AbsTerm -> "absTerm\n"
-  | AbsThm -> "absThm\n"
-  | AppTerm -> "appTerm\n"
-  | AppThm -> "appThm\n"
-  | Assume -> "assume\n"
-  | Axiom -> "axiom\n"
-  | BetaConv -> "betaConv\n"
-  | Cons -> "cons\n"
-  | Const -> "const\n"
-  | ConstTerm -> "constTerm\n"
-  | DeductAntisym -> "deductAntisym\n"
-  | Def -> "def\n"
-  | DefineConst -> "defineConst\n"
-  | DefineConstList -> "defineConstList\n"
-  | DefineTypeOp -> "defineTypeOp\n"
-  | EqMp -> "eqMp\n"
-  | HdTl -> "hdTl\n"
-  | Nil -> "nil\n";
-  | OpType -> "opType\n";
-  | Pop -> "pop\n";
-  | Pragma -> "pragma\n";
-  | ProveHyp -> "proveHyp\n";
-  | Ref -> "ref\n";
-  | Refl -> "refl\n";
-  | Remove -> "remove\n";
-  | Subst -> "subst\n";
-  | Sym -> "sym\n";
-  | Thm -> "thm\n";
-  | Trans -> "trans\n";
-  | TypeOp -> "typeOp\n"
-  | Var -> "var\n"
-  | VarTerm -> "varTerm\n"
-  | VarType -> "varType\n"
-  | Version -> "version\n"
-
-let mk_name str = [String str]
-
-let mk_appTerm f t =
-  f@t@[AppTerm]
-
-let mk_var str ty =
-  (mk_name str)@ty@[Var]
-
-let mk_absTerm v t =
-  v@t@[AbsTerm]
-
-let mk_varTerm str ty =
-  [String(str)]@ty@[Var;VarTerm]
-
-let mk_term_of_var var = var@[VarTerm]
-
-let mk_termconst str ty=
-  [String str; Const]@ty@[ConstTerm]
-
-let mk_const str ty l =
-  let const = mk_termconst str ty in
-  let rec apply term l =
-    match l with
-    | [] -> term
-    | x::t -> apply (mk_appTerm term x) t
-  in
-  apply const l
-
-let mk_varType str =
-  [String(str);VarType]
-
-
-let rec to_list l =
-  match l with
-  | [] -> [Nil]
-  | x::t -> x@(to_list t)@[Cons]
-
-let list_of_pair (x,y) =
-  x@y@[Nil;Cons;Cons]
-
-module S = Set.Make(struct type t = ast let compare = compare end)
-
-(* TODO : as it is, hypothesis are not properly handled. Indeed we cannot guarantee that two terms are always constructed by the exactly the same instructions. One way to solve this issue is to use the dictionnary proposed by Open Theory. Though for the moment, I don't know how to properly handle this dictionnary. Furthermore, we shouldn't care about hyp. *)
-type thm =
-  { proof : ast;
-    hyp : S.t;
-    term : ast
-  }
-
-let mk_hyp hyp = to_list (S.fold (fun x l -> x::l) hyp [])
-
-let mk_axiom term hyp =
-  let proof = (mk_hyp hyp)@term@[Axiom] in
-  {proof = proof ; hyp = hyp ; term = term}
-
-let string_of_ast ast = List.fold_left (fun s x -> (string_of_instr x)^s) "" ast
-*)
-
-(*
 (* ********************************* *)
 
 let counter = ref 0
@@ -166,6 +24,8 @@ let is_hol_const c t =
   match t with
   | Term.Const(_, m, id) -> (m === hol_module) &&  (c === id)
   | _ -> false
+
+let const_env:(Basic.ident * ty) list ref = ref []
 
 let is_hol_sort t = is_hol_const hol_sort t
 
@@ -195,548 +55,113 @@ let is_hol_proof t =
   | Term.App (c, _, _) -> is_hol_eps c
   | _ -> false
 
-(* ************************************************* *)
+let extract_type t =
+  match t with
+  | Term.App(c, ty, _) when is_hol_eta c -> ty
+  | _ -> assert false
 
-
-let load_typeop str =
-  [String str; TypeOp]
-
-let load_const str=
-  [String str; Const]
-
-let forall_str = "!"
-
-let equal_str = "="
-
-let true_str = "T"
-
-let arrow_str = "->"
-
-let bool_str = "bool"
-
-let impl_str = "==>"
-
-let and_str = "/\\\\"
-
-let or_str = "\\\\/"
-
-let debug =
-  [String "debug"; Pragma]
-
-let type_arrow tyl tyr =
-  (load_typeop arrow_str)@
-  tyl@tyr@
-  [Nil;Cons;Cons;OpType]
-
-let type_bool =
-  (load_typeop bool_str)@
-  [Nil;OpType]
-
-let type_binlop =
-  type_arrow type_bool (type_arrow type_bool type_bool)
-
-let type_equal ty =
-  type_arrow ty (type_arrow ty type_bool)
-
-let type_true = type_bool
-
-let type_and = type_binlop
-
-let type_impl = type_binlop
-
-let type_forall ty = type_arrow (type_arrow ty type_bool) type_bool
-
-let term_equal l r ty =
-  mk_const equal_str (type_equal ty) [l;r]
-
-let term_true =
-  mk_const true_str type_true []
-
-let term_and l r =
-  mk_const and_str type_and [l;r]
-
-let term_impl l r =
-  mk_const impl_str type_impl [l;r]
-
-let term_forall ty p =
-  mk_const forall_str (type_forall ty) [p]
-
-let mk_refl term ty =
-  let proof = term@[Refl] in
-  let term = term_equal term term ty in
-  {proof = proof ; hyp = S.empty ; term = term}
-
-let mk_deductAntisym thml thmr =
-  {
-    proof = thml.proof@thmr.proof@[DeductAntisym];
-    hyp = S.union (S.remove thmr.term thml.hyp) (S.remove thml.term thmr.hyp);
-    term = term_equal thml.term thmr.term type_bool
-  }
-
-let mk_absThm v thm =
-  {
-    proof = v@thm.proof@[AbsThm];
-    hyp = thm.hyp;
-    term = mk_absTerm v thm.term
-  }
-
-(* FIXME : return a fake term cause for now i'm unable to handle substituion. The term of the proof should never be used *)
-let mk_subst thm env_type env_var =
-  let env_type' = to_list (List.map list_of_pair env_type) in
-  let env_var' = to_list (List.map list_of_pair env_var) in
-  let subst = list_of_pair (env_type',env_var') in
-  {proof = subst@thm.proof@[Subst];
-   hyp = thm.hyp;
-   term = []
-  }
-
-let mk_sym thm = {thm with proof = thm.proof@[Sym]}
-
-(* FIXME : return a fake term cause for now i'm unable to handle this. The term of the proof should never be used *)
-let mk_eqMp thml thmr =
-  {
-    proof = thmr.proof@thml.proof@[EqMp];
-    hyp = S.union thml.hyp thmr.hyp;
-    term = []
-  }
-
-let mk_appThm thml thmr =
-  {
-    proof = thml.proof@thmr.proof@[AppThm];
-    hyp = S.union thml.hyp thmr.hyp;
-    term = []
-  }
-
-let mk_betaConv var t u =
-  let term = mk_appTerm (mk_absTerm var t) u in
-  {
-    proof = term@[BetaConv];
-    hyp = S.empty;
-    term = []
-  }
-
-let mk_trans thml thmr =
-  {
-    proof = thml.proof@thmr.proof@[Trans];
-    hyp = S.union thml.hyp thmr.hyp;
-    term = []
-  }
-
-let mk_assume term =
-  {
-    proof = term@[Assume];
-    hyp= S.singleton term;
-    term= term
-  }
-
-let mk_proveHyp thml thmr =
-  {
-    proof = thmr.proof@thml.proof@[ProveHyp];
-    hyp = S.union (S.remove thmr.proof thml.hyp) thmr.hyp;
-    term = thml.proof
-  }
-
-let mk_thm thm =
-  thm.proof@(mk_hyp thm.hyp)@thm.term@[Thm]
-
-let axiom_true =
-  mk_axiom term_true S.empty
-
-let axiom_and =
-  let vx = mk_var "x" type_bool in
-  let vy = mk_var "y" type_bool in
-  let x = mk_term_of_var vx in
-  let y = mk_term_of_var vy in
-  let andt = mk_absTerm vx (mk_absTerm vy (term_and x y)) in
-  let fv = mk_var "f" (type_binlop) in
-  let ft = mk_term_of_var fv in
-  let rl = mk_absTerm fv (mk_appTerm (mk_appTerm ft x) y) in
-  let rr = mk_absTerm fv (mk_appTerm (mk_appTerm ft term_true) term_true) in
-  let rhs = mk_absTerm vx (mk_absTerm vy (term_equal rl rr (type_arrow type_binlop type_bool))) in
-  let term = term_equal andt rhs type_binlop in
-  mk_axiom term S.empty
-
-let beta_equal thm t1 t2 u1 u2 var =
-  let beta1 = mk_sym (mk_betaConv var t1 u1) in
-  let beta2 = mk_betaConv var t2 u2 in
-  let trans = mk_trans beta1 thm in
-  mk_trans trans beta2
-
-let instantiate_and_axiom l r =
-  let vx = mk_var "x" type_bool in
-  let vy = mk_var "y" type_bool in
-  let x = mk_term_of_var vx in
-  let y = mk_term_of_var vy in
-  let var = vx in
-  let t1 = (mk_absTerm vy (term_and x y)) in
-  let fv = mk_var "f" (type_binlop) in
-  let ft = mk_term_of_var fv in
-  let rl = mk_absTerm fv (mk_appTerm (mk_appTerm ft x) y) in
-  let rr = mk_absTerm fv (mk_appTerm (mk_appTerm ft term_true) term_true) in
-  let t2 = mk_absTerm vy (term_equal rl rr (type_arrow type_binlop type_bool)) in
-  let u1 = l in
-  let u2 = l in
-  let refl = mk_refl l type_bool in
-  let beta1 = beta_equal (mk_appThm axiom_and refl) t1 t2 u1 u2 var in
-  let var = vy in
-  let t1 = term_and l y in
-  let fv = mk_var "f" (type_binlop) in
-  let ft = mk_term_of_var fv in
-  let rl = mk_absTerm fv (mk_appTerm (mk_appTerm ft l) y) in
-  let rr = mk_absTerm fv (mk_appTerm (mk_appTerm ft term_true) term_true) in
-  let t2 = term_equal rl rr (type_arrow type_binlop type_bool) in
-  let u1 = r in
-  let u2 = r in
-  let refl = mk_refl r type_bool in
-  beta_equal (mk_appThm beta1 refl) t1 t2 u1 u2 var
-
-let axiom_impl =
-  let vx = mk_var "x" type_bool in
-  let vy = mk_var "y" type_bool in
-  let x = mk_term_of_var vx in
-  let y = mk_term_of_var vy in
-  let implt = mk_absTerm vx (mk_absTerm vy (term_impl x y)) in
-  let r = term_equal (term_and x y) x type_bool in
-  let term = term_equal implt (mk_absTerm vx (mk_absTerm vy r)) type_binlop in
-  mk_axiom term S.empty
-
-let instantiate_impl_axiom l r =
-  let vx = mk_var "x" type_bool in
-  let vy = mk_var "y" type_bool in
-  let x = mk_term_of_var vx in
-  let y = mk_term_of_var vy in
-  let var = vx in
-  let t1 = (mk_absTerm vy (term_impl x y)) in
-  let t2 = mk_absTerm vy (term_equal (term_and x y) x type_bool) in
-  let u1 = l in
-  let u2 = l in
-  let refl = mk_refl l type_bool in
-  let bet1 = beta_equal (mk_appThm axiom_impl refl) t1 t2 u1 u2 var in
-  let var = vy in
-  let t1 = term_impl l y in
-  let t2 = (term_equal (term_and l y) l type_bool) in
-  let u1 = r in
-  let u2 = r in
-  let refl = mk_refl r type_bool in
-  beta_equal (mk_appThm bet1 refl) t1 t2 u1 u2 var
-
-(* str_type should only be instantiated with the Subst command. This is to ensure that there is only one axiom forall *)
-let axiom_forall =
-  let str_term = "x" in
-  let str_var = "v" in
-  let str_type = "A" in
-  let varTy = mk_varType str_type in
-  let vx = mk_var str_term (type_arrow varTy type_bool) in
-  let tx = mk_term_of_var vx in
-  let forallt = (mk_absTerm vx (term_forall varTy tx)) in
-  let var = mk_var str_var varTy in
-  let r = mk_absTerm var term_true in
-  let term = term_equal forallt (mk_absTerm vx (term_equal tx r (type_arrow varTy type_bool))) (type_arrow (type_arrow varTy type_bool) type_bool) in
-  mk_axiom term S.empty
-
-(* from \x:(A->bool) . !x = (x = \v . true) produce the theorem
-         !lambda:(ty -> bool) = (lambda = \v. true) *)
-(* TODO : some code duplication with axiom_forall... *)
-let instantiate_forall_axiom ty lambda =
-  let var_ty = mk_name "A" in
-  let env_type = [var_ty, ty] in
-  let var = mk_var "x" (type_arrow ty type_bool) in
-  let t1 = (term_forall ty (mk_term_of_var var)) in
-  let t2 = term_equal (mk_term_of_var var) (mk_absTerm (mk_var "v" ty) term_true) (type_arrow ty type_bool) in
-  let u1 = lambda in
-  let u2 = lambda in
-  let refl = mk_refl lambda (type_arrow ty type_bool) in
-  beta_equal (mk_appThm (mk_subst axiom_forall env_type []) refl) t1 t2 u1 u2 var
-
-let forall_intro var_str ty thm =
-  let v = mk_var var_str ty in
-  let thml = mk_absThm v (mk_deductAntisym thm axiom_true) in
-  let lambda = mk_absTerm v thm.term in
-  let thmr = mk_sym (instantiate_forall_axiom ty lambda) in
-  let thm = mk_eqMp thml thmr in
-  let term = mk_const forall_str (type_arrow (type_arrow ty type_bool) type_bool) [lambda] in
-  {proof = thm.proof;
-   hyp = thm.hyp;
-   term = term
-  }
-
-let forall_elim thm lambda ty t =
-  let str_var = "v" in
-  let instance_forall = instantiate_forall_axiom ty lambda in
-  let eqMp = mk_eqMp thm instance_forall in
-  let refl = mk_refl t ty in
-  let appThm = mk_appThm eqMp refl in
-  let beta = mk_betaConv (mk_var str_var ty) term_true t in
-  let thm = mk_eqMp axiom_true (mk_sym (mk_trans appThm beta)) in
-  let term = mk_appTerm lambda t in
-  {
-    proof = thm.proof;
-    hyp = thm.hyp;
-    term = term
-  }
-
-let pleft = mk_absTerm (mk_var "x" type_bool) (mk_absTerm (mk_var "y" type_bool) (mk_varTerm "x" type_bool))
-let pright = mk_absTerm (mk_var "x" type_bool) (mk_absTerm (mk_var "y" type_bool) (mk_varTerm "y" type_bool))
-
-let proj thm bool left right =
-  let side = if bool then pright else pleft in
-  let xory = if bool then mk_varTerm "y" type_bool else mk_varTerm "x" type_bool in
-  let andt = instantiate_and_axiom left right in
-  let eqMp = mk_eqMp thm andt in
-  let refl = mk_refl side type_binlop in
-  let appThm = mk_appThm eqMp refl in
-  let fv = mk_var "f" (type_binlop) in
-  let ft = mk_term_of_var fv in
-  let var = fv in
-  let t1 = mk_appTerm (mk_appTerm ft left) right in
-  let t2 = mk_appTerm (mk_appTerm ft term_true) term_true in
-  let u1 = side in
-  let u2 = side in
-  let beta1 = beta_equal appThm t1 t2 u1 u2 var in
-  let vx = mk_var "x" type_bool in
-  let vy = mk_var "y" type_bool in
-  let betaConv = mk_betaConv vx (mk_absTerm vy xory) left in
-  let refl = mk_refl right type_bool in
-  let appThm = mk_appThm betaConv refl in
-  let sym = mk_sym appThm in
-  let trans = mk_trans sym beta1 in
-  let betaConv = mk_betaConv vx (mk_absTerm vy xory) term_true in
-  let refl = mk_refl term_true type_bool in
-  let appThm = mk_appThm betaConv refl in
-  let trans = mk_trans trans appThm in
-  let var = vy in
-  let t1 = if bool then xory else left in
-  let t2 = if bool then xory else term_true in
-  let u1 = right in
-  let u2 = term_true in
-  let beta3 = beta_equal trans t1 t2 u1 u2 var in
-  let sym = mk_sym beta3 in
-  mk_eqMp axiom_true sym
-
-let proj_left thm left right =
-  let proof = proj thm false left right in
-  {proof with term = left}
-
-let proj_right thm left right =
-  let proof = proj thm true left right in
-  {proof with term = right}
-
-let impl_intro thm p q =
-  let assume = mk_assume p in
-  let deductAntisym = mk_deductAntisym assume axiom_true in
-  let fv = mk_var "f" (type_binlop) in
-  let ft = mk_term_of_var fv in
-  let refl = mk_refl ft type_binlop in
-  let appThm = mk_appThm refl deductAntisym in
-  let deductAntisym = mk_deductAntisym thm axiom_true in
-  let appThm = mk_appThm appThm deductAntisym in
-  let absThm = mk_absThm fv appThm in
-  let andt = instantiate_and_axiom p q in
-  let sym = mk_sym andt in
-  let eqMp = mk_eqMp absThm sym in
-  let assume = mk_assume (term_and p q) in
-  let proj_left = proj_left assume p q in
-  let deductAntisym = mk_deductAntisym eqMp proj_left in
-  let implt = instantiate_impl_axiom p q in
-  let sym = mk_sym implt in
-  let eqMp = mk_eqMp deductAntisym sym in
-  let term = term_impl p q in
-  { proof = eqMp.proof;
-    hyp = S.remove p thm.hyp;
-    term = term
-  }
-
-let impl_elim thmp thmimpl p q =
-  let implt = instantiate_impl_axiom p q in
-  let assume = mk_assume (term_impl p q) in
-  let eqMp = mk_eqMp assume implt in
-  let sym = mk_sym eqMp in
-  let assume = mk_assume p in
-  let eqMp =mk_eqMp assume sym in
-  let proj_right = proj_right eqMp p q in
-  let proveHyp = mk_proveHyp proj_right thmp in
-  let proveHyp = mk_proveHyp proveHyp thmimpl in
-  {
-    proof = proveHyp.proof;
-    hyp = S.union thmp.hyp thmimpl.hyp;
-    term = q
-  }
-
-let instr_of_proof ctx t = failwith "todo instr_of_proof"
+let extract_proof t =
+  match t with
+  | Term.App(c, ty, _) when is_hol_eps c -> ty
+  | _ -> assert false
 
 
 let extract_term t =
   match t with
   | Term.App(c, ty, _) when is_hol_eps c -> ty
   | _ -> assert false
-(*
-let intro_rule ctx t =
-  match t with
-  | Term.Lam(_,x,Some ty, t') when is_hol_proof ty ->
-    let ty' = extract_proof ty in
-    (* ASSUMPTION : no conflict with variables names *)
-    let q = instr_of_proof ((x,ty')::ctx) t' in
-    failwith "intro rule"
-  | _ -> failwith "intro_rule is not call on a lambda"
-*)
-
-
-let extract_type t =
-  match t with
-  | Term.App(c, ty, _) when is_hol_eta c -> ty
-  | _ -> assert false
-
 
 let rec instr_of_type t =
   match t with
   | Term.Const(_,m,id) when is_hol_prop t ->
-    type_bool
+    mk_bool_type
   | Term.Const(_,m, id) ->
-    [String (string_of_ident id); VarType]
+    (* ASSUMPTION : every type operator is of arity 0 *)
+    ty_of_tyop (mk_tyop (mk_name [] (string_of_ident id))) []
   (* ASSUMPTION : no clash in names and id should start with a majuscule *)
   | Term.DB(_,id,i) ->
-    [String (string_of_ident id); VarType]
+    mk_varType (mk_name [] (string_of_ident id))
   | Term.App(c, tyl, [tyr]) when is_hol_arrow c ->
-    type_arrow (instr_of_type tyl) (instr_of_type tyr)
+    mk_arrow_type (instr_of_type tyl) (instr_of_type tyr)
   | Term.App(c, Term.Lam(_,x, Some tx, ty), []) when is_hol_forall_kind_type c ->
     instr_of_type ty
   | _ -> Pp.print_term Format.std_formatter t; failwith "todo type"
 
-
 type env = (Basic.ident * Term.term) list
+
+let is_type_variable env a =
+  match a with
+  | Term.DB(_,var,_) -> List.mem_assoc var env && is_hol_sort (List.assoc var env)
+  | _ -> false
 
 (* TODO add a dictionnary *)
 let rec instr_of_term env t =
   match t with
   | Term.App(c, ty, [te])  when is_hol_forall c ->
-    (load_const forall_str)@
-    (type_forall (instr_of_type ty))@
-    [ConstTerm]@
-    (instr_of_term env te)@
-    [AppTerm]
+    mk_forall_term (instr_of_term env te) (instr_of_type ty)
   | Term.App(c, tel, [ter]) when is_hol_impl c ->
-    (load_const impl_str)@
-    (type_impl)@
-    [ConstTerm]@
-    (instr_of_term env tel)@
-    [AppTerm]@
-    (instr_of_term env ter)@
-    [AppTerm]
+    mk_impl_term (instr_of_term env tel) (instr_of_term env ter)
   | Term.App(c, Term.Lam(_,x, Some tx, ty), []) when is_hol_forall_kind_prop c ->
-    instr_of_term env ty
+    instr_of_term ((x,tx)::env) ty
   | Term.App(f, a, args) ->
     List.fold_left
-      (fun instr a -> instr@(instr_of_term env a)@[AppTerm]) (instr_of_term env f) (a::args)
+      (fun instr a ->
+         if is_type_variable env a then
+             instr
+           else
+             mk_appTerm instr (instr_of_term env a)
+      ) (instr_of_term env f) (a::args)
   | Term.Lam(_,x,Some tx, t') when is_hol_sort tx ->
-    instr_of_term env t'
+    instr_of_term ((x,tx)::env) t'
   | Term.Lam(_,x,Some tx, t') ->
     let tx' = extract_type tx in
     let it = (instr_of_term ((x,tx')::env) t') in
-    let itx = instr_of_type tx' in
-    let ix  = (String (string_of_ident x)) in
-    [ix]@itx@[Var]@it@[AbsTerm]
+    let ty = instr_of_type tx' in
+    mk_absTerm (mk_var (mk_name [] (string_of_ident x)) ty) it
   | Term.Lam(_, _, None, _) -> failwith "every lambda should be typed"
   | Term.DB(_,id,i) ->
     (* ASSUMPTION : no clash in names variable as in \x\x.x*)
     let itx = instr_of_type (List.assoc id env) in
-    let ix = (String (string_of_ident id)) in
-    [ix]@itx@[Var;VarTerm]
+    mk_varTerm (mk_var (mk_name [] (string_of_ident id)) itx)
+  | Term.Const(_,_,id) ->
+    let ty = List.assoc id !const_env in
+    term_of_const (const_of_name (mk_name [] (string_of_ident id))) ty
   | _ -> Pp.print_term Format.std_formatter t; failwith "todo term"
 
-let sample_1 =
-  (mk_refl (mk_varTerm "x" (mk_varType "A")) (mk_varType "A"))
 
-let sample_1_bis =
-  (mk_refl (mk_varTerm "y" (mk_varType "A")) (mk_varType "A"))
+let rec instr_of_proof ctx t =
+  match t with
+  | Term.Lam(_,x, Some ty, t') when is_hol_sort ty ->
+    instr_of_proof ctx t'
+  | Term.Lam(_,x, Some ty, t') when is_hol_type ty ->
+    let ty' = (instr_of_type (extract_type ty)) in
+    let t,_,thm = instr_of_proof ((x,(extract_type ty))::ctx) t' in
+    mk_rule_intro_forall (mk_name [] (string_of_ident x)) ty' t thm
+  | Term.Lam(_,x, Some ty, t') when is_hol_proof ty ->
+    let p = (instr_of_term ctx (extract_proof ty)) in
+    let q,_,thm = instr_of_proof ((x,(extract_proof ty))::ctx) t' in
+    mk_rule_intro_impl thm p q
+  | Term.DB(_,id,_) ->
+    let ty' = (instr_of_term ctx (List.assoc id ctx)) in
+    ty', (mk_hyp [ty']), mk_assume ty'
+  | _ -> (Pp.print_term Format.std_formatter t; failwith "instr_of_proof")
 
-let sample_2 =
-  axiom_true
+let mk_prelude lc name = ()
 
-let sample_3 =
-  axiom_and
+(* Assume that one defines an external type operator id *)
+let define_hol_type id = ()
 
-let sample_4 =
-  axiom_forall
 
-let sample_5 =
-  forall_intro "x" (mk_varType "A") sample_1
-
-let sample_5_bis =
-  forall_intro "y" (mk_varType "A") sample_1_bis
-
-let sample_6 =
-  axiom_impl
-
-let sample_7 =
-  forall_elim sample_5 (mk_absTerm (mk_var "x" (mk_varType "A")) sample_1.term) (mk_varType "A") (mk_varTerm "y" (mk_varType "A"))
-
-let sample_7_bis =
-  forall_elim sample_5_bis (mk_absTerm (mk_var "y" (mk_varType "B")) sample_1_bis.term) (mk_varType "B") (mk_varTerm "z" (mk_varType "B"))
-
-let sample_8 =
-  instantiate_and_axiom (mk_varTerm "a" type_bool) (mk_varTerm "b" type_bool)
-
-let sample_9 =
-  instantiate_impl_axiom (mk_varTerm "a" type_bool) (mk_varTerm "b" type_bool)
-
-let sample_10 =
-  let t = term_and term_true (term_equal term_true term_true type_bool) in
-  let ax = mk_axiom t S.empty in
-  proj_left ax term_true (term_equal term_true term_true type_bool)
-
-let sample_11 =
-  let ax = mk_axiom (term_equal term_true term_true type_bool) (S.singleton term_true) in
-  impl_intro ax term_true (term_equal term_true term_true type_bool)
-
-let sample_12 =
-  impl_elim axiom_true sample_11 term_true (term_equal term_true term_true type_bool)
-
-let sample_13 =
-  [String("foo")]@(mk_absTerm (mk_var "x" (mk_varType "A")) (mk_varTerm "x" (mk_varType "A")))@[DefineConst]@[String("foo")]@[Const]@(type_arrow type_bool type_bool)@[ConstTerm]@term_true@[AppTerm]@debug
-
-let test = mk_thm (sample_12)
-
-let version =
-  [Int 6;Version]
-*)
-
-  (*
-  let version = version in
-  version@sample_13
-*)
-
-(*
-let equal ty tl tr =
-  (load_const equal_str)@
-  (type_arrow ty (type_arrow ty type_bool))@[ConstTerm]@
-  tl@[AppTerm]@
-  tr@[AppTerm]
-*)
-
-let mk_prelude lc name =
-  Examples.test ()
-
-(*
-let define_hol_type id =
-  begin
-    add_instr (String (string_of_ident id));
-    add_instr VarType
-  end
-
-let define_hol_const id te =
-  let const = [(String (string_of_ident id))] in
-  let term = instr_of_term [] te in
-  List.iter add_instr (const@term@[DefineConst])
+let define_hol_const id te = mk_const (mk_name [] (string_of_ident id)) (instr_of_term [] te)
 
 let define_axiom term =
-  let instr = mk_thm (mk_axiom (instr_of_term [] term) S.empty) in
-  List.iter add_instr instr
+  let term' = instr_of_term [] term in
+  mk_thm term' (mk_hyp []) (mk_axiom (mk_hyp []) term')
 
-let define_thm thm =
-  let instr = mk_thm thm in
-  List.iter add_instr instr
-*)
-let mk_declaration lc id pty : unit = () (*
+let define_thm term hyp thm =
+  mk_thm term hyp thm
+
+let mk_declaration lc id pty : unit =
   if is_hol_sort pty then
     define_hol_type id
   else
@@ -748,29 +173,27 @@ let mk_declaration lc id pty : unit = () (*
         define_axiom term
       else
         failwith "case not handle"
-*)
 
 let mk_definable lc id pty : unit = failwith "definable symbol without definition... should not happend"
 
-let mk_definition lc id pty_opt pte : unit = () (*
+let mk_definition lc id pty_opt pte : unit =
   let ty =
     match pty_opt with
     | Some ty -> ty
     | None -> failwith "missing type in the definition"
   in
   if is_hol_type ty then
-    define_hol_const id pte
+    begin
+      const_env := (id, instr_of_type (extract_type ty))::!const_env;
+      define_hol_const id pte
+    end
   else
   if is_hol_proof ty then
-    define_thm
-      {
-        proof = instr_of_proof [] pte;
-        hyp = S.empty;
-        term = instr_of_term [] (extract_term ty)
-      }
+    let _,_,thm = instr_of_proof [] pte in
+    mk_thm (instr_of_term [] (extract_term ty)) (mk_hyp []) thm
   else
     failwith "case not handle"
-*)
+
 
 let mk_opaque lc id pty_opt pte =
   match Env.define_op lc id pte pty_opt with

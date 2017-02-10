@@ -96,7 +96,7 @@ let update_cons name instrs =
   incr counter;
   let xconst = !counter in
   incr counter;
-  let def = [Int(xthm);Def;Int(xconst);Def;Pop;Pop] in
+  let def = [Int(xthm);Def;Pop;Int(xconst);Def;Pop] in
   save (instrs@def);
   generated_entry := S.add xthm (S.add xconst !generated_entry);
   Hashtbl.add const_seen name (xconst, xthm)
@@ -215,7 +215,7 @@ let const_of_name =
   let seen = Hashtbl.create 87 in
   fun name ->
     if Hashtbl.mem const_seen name then
-      Hashtbl.find const_seen name
+        Hashtbl.find const_seen name
     else
       let instr = [Load name;Const] in
       (update name instr seen, -1)
