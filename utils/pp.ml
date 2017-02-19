@@ -132,6 +132,7 @@ let rec print_pattern out = function
   | Pattern (_,m,v,pats) -> Format.fprintf out "%a %a" print_const (m,v) (print_list " " print_pattern_wp) pats
   | Lambda (_,x,p)       -> Format.fprintf out "@[%a => %a@]" print_ident x print_pattern p
 and print_pattern_wp out = function
+  | Var (_,_,_, _ :: _ )
   | Pattern _ | Lambda _ as p -> Format.fprintf out "(%a)" print_pattern p
   | p -> print_pattern out p
 
