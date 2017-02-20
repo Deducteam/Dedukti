@@ -1,4 +1,6 @@
-open Basics
+(** Confluence checker *)
+
+open Basic
 open Rule
 
 type confluence_error =

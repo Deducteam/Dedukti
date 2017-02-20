@@ -20,11 +20,18 @@ let run_on_file file =
 
 let args =
   [ ("-o", Arg.String (fun fi -> Dep.out := open_out fi), "Output file"  );
-    ("-v", Arg.Set Dep.verbose, "Verbose mode" ) ]
+    ("-v", Arg.Set Dep.verbose, "Verbose mode" );
+    ("-s", Arg.Set Dep.sorted, "Sort file with respect to their dependence")
+  ]
 
+let print_out fmt = Printf.kfprintf (fun _ -> output_string stdout "\n" ) stdout fmt
+    
 let _ =
   try
-    Arg.parse args run_on_file "Usage: dkdep [options] files"
+    Arg.parse args run_on_file "Usage: dkdep [options] files";
+    if !Dep.sorted then
+      let l = Dep.sort() in
+      print_out "%s" (String.concat " " (List.map (fun s -> s ^ ".dk") l))
   with
     | Sys_error err             -> Printf.eprintf "ERROR %s.\n" err; exit 1
     | Exit                      -> exit 3

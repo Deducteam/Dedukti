@@ -1,17 +1,18 @@
-open Term
 (** Term reduction and conversion test. *)
 
-(** Head Normal Form *)
+open Term
+
 val hnf         : Signature.t -> term -> term
+(** [hnf sg te] computes the head normal form of [te] using the signature [sg]. *)
 
-(** Weak Head Normal Form *)
 val whnf        : Signature.t -> term -> term
+(** Same as {!hnf} for the weak head normal form. *)
 
-(** Strong Normal Form *)
 val snf         : Signature.t -> term -> term
+(** Same as {!hnf} for the strong normal form. *)
 
-(** Conversion Test *)
 val are_convertible             : Signature.t -> term -> term -> bool
+(** [are_convertible sg t1 t2] check if [t1] and [t2] are convertible using the signature [sg]. *)
 
-(**One Step Reduction*)
 val one_step                    : Signature.t -> term -> term option
+(** [one_step sg te] computes one reduction step on [te] using the signature [sg]. *)

@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 
 val out                 : out_channel ref
@@ -22,3 +22,7 @@ val mk_ending           : unit -> unit
 val filename            : string ref
 
 val verbose             : bool ref
+
+val sorted                : bool ref
+
+val sort                : unit -> string list

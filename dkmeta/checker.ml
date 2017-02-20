@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Pp
 
 (* ********************************* *)
@@ -21,10 +21,10 @@ let eprint lc fmt =
 
 let normalize ty =
   if !only_meta then
-    Basics.do_beta := false;
+    Basic.do_beta := false;
   let ty' = Reduction.snf !sg_meta ty in
   if !only_meta then
-    Basics.do_beta := true;
+    Basic.do_beta := true;
   ty'
 
 (* ********************************* *)

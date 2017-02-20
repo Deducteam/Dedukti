@@ -1,4 +1,4 @@
-open Basics
+open Basic
 
 (** Lambda terms *)
 
@@ -9,7 +9,7 @@ type term = private
   | Type  of loc                        (** Type *)
   | DB    of loc*ident*int              (** deBruijn indices *)
   | Const of loc*ident*ident            (** Global variable *)
-  | App   of term * term * term list    (** f a1 [ a2 ; ... an ] , f not an App *)
+  | App   of term * term * term list    (** f a1 [ a2 ; ... ; an ] , f not an App *)
   | Lam   of loc*ident*term option*term (** Lambda abstraction *)
   | Pi    of loc*ident*term*term        (** Pi abstraction *)
 

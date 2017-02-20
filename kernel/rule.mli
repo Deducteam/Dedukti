@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 
 (** Rewrite rules *)
@@ -7,9 +7,14 @@ open Term
 
 type pattern =
   | Var         of loc*ident*int*pattern list
+      (** l x i [x1 ; x2 ; ... ; xn ] where [i] is the position of x inside the context
+          of the rule *)
   | Pattern     of loc*ident*ident*pattern list
+      (** l md id [p1 ; p2 ; ... ; pn ] where [md.id] is a constant *)
   | Lambda      of loc*ident*pattern
+      (** lambda abstraction *)
   | Brackets    of term
+      (** te where [te] is convertible to the pattern matched *)
 
 val get_loc_pat : pattern -> loc
 
@@ -29,7 +34,10 @@ type pattern2 =
 (** {2 Rewrite Rules} *)
 
 type rule = (loc*ident) list * pattern * term
+(** type of untyped rules *)
+
 type rule2 = context * pattern * term
+(** type of typed rules : the variables in the context are typed *)
 
 type constr =
   | Linearity of term*term (* change to int*int ? *)
@@ -42,7 +50,6 @@ type rule_infos = {
   id:ident;
   args:pattern list;
   rhs:term;
-  (* *)
   esize:int;
   l_args:pattern2 array;
   constraints:constr list;

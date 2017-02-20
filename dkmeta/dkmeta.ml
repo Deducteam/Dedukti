@@ -15,14 +15,14 @@ let parse lb =
 
 let args = [
   ("-v"    , Arg.Set Checker.verbose, "Verbose mode" ) ;
-  ("-d"    , Arg.Set Basics.debug_mode,   "Debug mode" ) ;  
+  ("-d"    , Arg.Set Basic.debug_mode,   "Debug mode" ) ;  
   ("-e"    , Arg.Set Checker.export,            "Create a .dko" ) ;
   ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;
   ("-r"    , Arg.Set Signature.ignore_redecl,         "Ignore redeclaration" ) ;
   ("-version", Arg.Unit Version.print_version,  "Version" ) ;
   ("-autodep", Arg.Set Signature.autodep  ,
    "Automatically handle dependencies (experimental)") ;
-  ("-I"    , Arg.String Basics.add_path,        "Add a directory to load path");
+  ("-I"    , Arg.String Basic.add_path,        "Add a directory to load path");
   ("-errors-in-snf", Arg.Set Errors.errors_in_snf, "Normalize the types in error messages");
   ("-cc", Arg.String Confluence.set_cmd, "Set the external confluence checker");
   ("-nl", Arg.Set Dtree.allow_non_linear, "Allow non left-linear rewrite rules");
@@ -32,7 +32,7 @@ let args = [
 
 let run_on_file file =
   let input = open_in file in
-    Basics.debug "Processing file '%s'..." file;
+    Basic.debug "Processing file '%s'..." file;
     parse (Lexing.from_channel input) ;
     Errors.success "File '%s' was successfully checked." file;
     close_in input

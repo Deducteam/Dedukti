@@ -1,5 +1,7 @@
 /_build/
-dkcheck.docdir
+dedukti.docdir
+dkindent.native
+dkmeta.native
 dkcheck.native
 dkdep.native
 dkrule.native
@@ -7,3 +9,5 @@ dktop.native
 .*.swp
 .*.swo
 _*/
+*.dko
+*.depend
