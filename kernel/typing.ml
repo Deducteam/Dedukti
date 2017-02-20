@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 open Rule
 
@@ -121,7 +121,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
         | DB (_,_,n), DB (_,_,n') when ( n=n' ) -> pseudo_u sg sigma lst
         | Const (_,md,id), Const (_,md',id') when
-            ( Basics.ident_eq id id' && Basics.ident_eq md md' ) ->
+            ( ident_eq id id' && ident_eq md md' ) ->
           pseudo_u sg sigma lst
 
         | DB (l1,x1,n1), DB (l2,x2,n2) when ( n1>=q && n2>=q) ->
@@ -131,7 +131,18 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             | None -> assert false
             | Some sigma2 -> pseudo_u sg sigma2 lst
           end
-        | DB (_,x,n), t
+        | DB (_,x,n), t when n>=q ->
+          begin
+            match unshift_reduce sg q t with
+            | None -> None
+            | Some t' ->
+              ( match SS.add sigma x (n-q) t' with
+                | None ->
+                  ( match SS.add sigma x (n-q) (Reduction.snf sg t') with
+                    | None -> None
+                    | Some sigma2 -> pseudo_u sg sigma2 lst )
+                | Some sigma2 -> pseudo_u sg sigma2 lst )
+          end
         | t, DB (_,x,n) when n>=q ->
           begin
             match unshift_reduce sg q t with
@@ -150,13 +161,17 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
         | Lam (_,_,_,b), Lam (_,_,_,b') ->
           pseudo_u sg sigma ((q+1,b,b')::lst)
 
-        | App (DB (_,_,n),_,_), _
+        | App (DB (_,_,n),_,_), _  when ( n >= q ) ->
+          if Reduction.are_convertible sg t1' t2' then
+            ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+          else None
         | _, App (DB (_,_,n),_,_) when ( n >= q ) ->
           if Reduction.are_convertible sg t1' t2' then
             ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
           else None
 
-        | App (Const (l,md,id),_,_), _
+        | App (Const (l,md,id),_,_), _ when (not (Signature.is_constant sg l md id)) ->
+          ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
         | _, App (Const (l,md,id),_,_) when (not (Signature.is_constant sg l md id)) ->
           ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
 
@@ -304,7 +319,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
     end
   | Var (l,x,n,args) when (n>=LList.len sigma) ->
     begin
-      let (args2,last) = get_last args in (*TODO use fold?*)
+      let (args2,last) = get_last args in
       match last with
       | Var (l2,x2,n2,[]) ->
         check_pattern sg delta sigma
@@ -343,14 +358,13 @@ and pp_term_wp_j k out = function
   | Kind | Type _ | DB _ | Const _ as t -> pp_term_j k out t
   | t       -> Printf.fprintf out "(%a)" (pp_term_j k) t
 
-(* FIXME no need to traverse three times the terms... *)
+(* TODO the term is traversed three times, this could be optimized. *)
 let subst_context (sub:SS.t) (ctx:context) : context option =
   try Some ( List.mapi ( fun i (l,x,ty) ->
       (l,x, Subst.unshift (i+1) (SS.apply sub (Subst.shift (i+1) ty) 0) )
     ) ctx )
   with
   | Subst.UnshiftExn -> None
-
 
 let check_rule sg (ctx0,le,ri:rule) : rule2 =
   let delta = pc_make ctx0 in
@@ -369,7 +383,7 @@ let check_rule sg (ctx0,le,ri:rule) : rule2 =
         | Some ctx2 -> ( SS.apply sub ri 0, SS.apply sub ty_le 0, ctx2 )
         | None ->
           begin
-            (*FIXME*)
+            (*TODO make Dedukti handle this case*)
             debug "Failed to infer a typing context for the rule:\n%a." Rule.pp_rule (ctx0,le,ri);
             SS.iter (
               fun i (id,te) -> debug "Try replacing '%a[%i]' by '%a'"

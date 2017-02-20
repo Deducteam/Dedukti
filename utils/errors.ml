@@ -1,4 +1,4 @@
-open Basics
+open Basic
 open Term
 open Rule
 
@@ -114,7 +114,8 @@ let fail_dtree_error err =
           pp_ident x
       | NonLinearRule r ->
         let (_,p,_) = r in
-          fail (Rule.get_loc_pat p) "Non left-linear rewrite rule:\n%a"
+          fail (Rule.get_loc_pat p) "Non left-linear rewrite rule:\n%a.\n\
+                                     Maybe you forgot to pass the -nl option."
             Rule.pp_rule2 r
 
 let pp_cerr out err =
@@ -160,5 +161,3 @@ let fail_env_error = function
   | Env.EnvErrorType e -> fail_typing_error e
   | Env.KindLevelDefinition (lc,id) ->
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
-
-

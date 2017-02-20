@@ -1,6 +1,6 @@
 open Term
 open Rule
-open Basics
+open Basic
 
 (** Type checking/inference *)
 

@@ -1,4 +1,4 @@
-open Basics
+open Basic
 
 let print fmt =
   Printf.kfprintf (fun _ -> print_newline () ) stdout fmt
