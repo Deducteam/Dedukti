@@ -11,8 +11,6 @@ type term =
   | Lam   of loc*ident*term option*term        (* Lambda abstraction *)
   | Pi    of loc*ident*term*term (* Pi abstraction *)
 
-type context = ( loc * ident * term ) list
-
 let rec get_loc = function
   | Type l | DB (l,_,_) | Const (l,_,_) | Lam (l,_,_,_) | Pi (l,_,_,_)  -> l
   | Kind -> dloc
@@ -57,8 +55,3 @@ let rec pp_term out = function
 and pp_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> pp_term out t
   | t                                  -> Printf.fprintf out "(%a)" pp_term t
-
-let pp_context out ctx =
-  pp_list ".\n" (fun out (_,x,ty) ->
-                   Printf.fprintf out "%a: %a" pp_ident x pp_term ty )
-    out (List.rev ctx)

@@ -7,6 +7,8 @@ type pattern =
   | Lambda      of loc*ident*pattern
   | Brackets    of term
 
+type context = ( loc * ident * term ) list
+
 let get_loc_pat = function
   | Var (l,_,_,_) | Pattern (l,_,_,_)
   | Lambda (l,_,_) -> l
@@ -71,6 +73,11 @@ let pattern_to_term p =
     aux 0 p
 
 open Printf
+
+let pp_context out ctx =
+  pp_list ".\n" (fun out (_,x,ty) ->
+                   Printf.fprintf out "%a: %a" pp_ident x pp_term ty )
+    out (List.rev ctx)
 
 let rec pp_pattern out = function
   | Var (_,x,n,[]) -> fprintf out "%a[%i]" pp_ident x n

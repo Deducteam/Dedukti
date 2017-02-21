@@ -31,6 +31,12 @@ type pattern2 =
   | Pattern2     of ident*ident*pattern2 array
   | BoundVar2    of ident*int*pattern2 array
 
+(** {2 Contexts} *)
+
+type context = ( loc * ident * term ) list
+
+val pp_context  : out_channel -> context -> unit
+
 (** {2 Rewrite Rules} *)
 
 type rule = (loc*ident) list * pattern * term
