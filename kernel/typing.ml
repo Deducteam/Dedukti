@@ -5,23 +5,22 @@ open Rule
 let coc = ref false
 
 type typ = term
-type context = (loc*ident*term) list
 
 (* ********************** ERROR MESSAGES *)
 
 type typing_error =
   | KindIsNotTypable
-  | ConvertibilityError of term*context*term*term
-  | VariableNotFound of loc*ident*int*context
-  | SortExpected of term*context*term
-  | ProductExpected of term*context*term
-  | InexpectedKind of term*context
+  | ConvertibilityError of term * typed_context * term * term
+  | VariableNotFound of loc * ident * int * typed_context
+  | SortExpected of term * typed_context * term
+  | ProductExpected of term * typed_context * term
+  | InexpectedKind of term * typed_context
   | DomainFreeLambda of loc
-  | CannotInferTypeOfPattern of pattern*context
-  | CannotSolveConstraints of rule * (int*term*term) list
-  | BracketError1 of term*context
-  | BracketError2 of term*context*term
-  | FreeVariableDependsOnBoundVariable of loc*ident*int*context*typ
+  | CannotInferTypeOfPattern of pattern * typed_context
+  | CannotSolveConstraints of untyped_rule * (int * term * term) list
+  | BracketError1 of term * typed_context
+  | BracketError2 of term * typed_context*term
+  | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
 
 exception TypingError of typing_error
@@ -43,7 +42,7 @@ let extend_ctx a ctx = function
 
 (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
-let rec infer sg (ctx:context) : term -> typ = function
+let rec infer sg (ctx:typed_context) : term -> typ = function
   | Kind -> raise (TypingError KindIsNotTypable)
   | Type l -> mk_Kind
   | DB (l,x,n) -> get_type ctx l x n
@@ -66,7 +65,7 @@ let rec infer sg (ctx:context) : term -> typ = function
             | _ -> mk_Pi l x a ty_b )
   | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
-and check sg (ctx:context) (te:term) (ty_exp:typ) : unit =
+and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
   match te with
   | Lam (l,x,None,u) ->
     ( match Reduction.whnf sg ty_exp with
@@ -77,7 +76,7 @@ and check sg (ctx:context) (te:term) (ty_exp:typ) : unit =
     if Reduction.are_convertible sg ty_inf ty_exp then ()
     else raise (TypingError (ConvertibilityError (te,ctx,ty_exp,ty_inf)))
 
-and check_app sg (ctx:context) (f,ty_f:term*typ) (arg:term) : term*typ =
+and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
   match Reduction.whnf sg ty_f with
     | Pi (_,_,a,b) ->
       let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
@@ -101,7 +100,7 @@ let safe_add_to_list q lst args1 args2 =
   try Some (add_to_list q lst args1 args2)
   with Invalid_argument _ -> None
 
-module SS = Subst.S
+module SS = Subst.Subst
 
 let unshift_reduce sg q t =
   try Some (Subst.unshift q t)
@@ -216,9 +215,9 @@ let pc_add (delta:partial_context) (n:int) (l:loc) (id:ident) (ty0:typ) : partia
   { padding = delta.padding - 1;
     pctx = LList.cons (l,id,ty) delta.pctx }
 
-let pc_to_context (delta:partial_context) : context = LList.lst delta.pctx
+let pc_to_context (delta:partial_context) : typed_context = LList.lst delta.pctx
 
-let pc_to_context_wp (delta:partial_context) : context =
+let pc_to_context_wp (delta:partial_context) : typed_context =
   let dummy = mk_DB dloc qmark 0 in
   let rec aux lst n =
     if n <= 0 then lst
@@ -359,14 +358,14 @@ and pp_term_wp_j k out = function
   | t       -> Printf.fprintf out "(%a)" (pp_term_j k) t
 
 (* TODO the term is traversed three times, this could be optimized. *)
-let subst_context (sub:SS.t) (ctx:context) : context option =
+let subst_context (sub:SS.t) (ctx:typed_context) : typed_context option =
   try Some ( List.mapi ( fun i (l,x,ty) ->
       (l,x, Subst.unshift (i+1) (SS.apply sub (Subst.shift (i+1) ty) 0) )
     ) ctx )
   with
   | Subst.UnshiftExn -> None
 
-let check_rule sg (ctx0,le,ri:rule) : rule2 =
+let check_rule sg (ctx0,le,ri:untyped_rule) : typed_rule =
   let delta = pc_make ctx0 in
   let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] le in
   assert ( delta.padding == 0 );
@@ -384,7 +383,8 @@ let check_rule sg (ctx0,le,ri:rule) : rule2 =
         | None ->
           begin
             (*TODO make Dedukti handle this case*)
-            debug "Failed to infer a typing context for the rule:\n%a." Rule.pp_rule (ctx0,le,ri);
+            debug "Failed to infer a typing context for the rule:\n%a."
+              Rule.pp_untyped_rule (ctx0,le,ri);
             SS.iter (
               fun i (id,te) -> debug "Try replacing '%a[%i]' by '%a'"
                   pp_ident id i (pp_term_j 0) te

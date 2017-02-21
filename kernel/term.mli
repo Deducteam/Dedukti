@@ -4,14 +4,15 @@ open Basic
 
 (** {2 Terms} *)
 
+(* TODO: abstract de Bruijn indices in DB constructor *)
 type term = private
-  | Kind                                (** Kind *)
-  | Type  of loc                        (** Type *)
-  | DB    of loc*ident*int              (** deBruijn indices *)
-  | Const of loc*ident*ident            (** Global variable *)
-  | App   of term * term * term list    (** f a1 [ a2 ; ... ; an ] , f not an App *)
-  | Lam   of loc*ident*term option*term (** Lambda abstraction *)
-  | Pi    of loc*ident*term*term        (** Pi abstraction *)
+  | Kind                                      (** Kind *)
+  | Type  of loc                              (** Type *)
+  | DB    of loc * ident * int                (** deBruijn indices *)
+  | Const of loc * ident * ident              (** Global variable *)
+  | App   of term * term * term list          (** f a1 [ a2 ; ... ; an ] , f not an App *)
+  | Lam   of loc * ident * term option * term (** Lambda abstraction *)
+  | Pi    of loc * ident * term * term        (** Pi abstraction *)
 
 val get_loc : term -> loc
 

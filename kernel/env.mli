@@ -40,7 +40,7 @@ val define_op   : loc -> ident -> term -> term option -> (unit,env_error) error
 (** [define_op l id body ty] declares the symbol [id] of type [ty] and checks
     that [body] has this type (but forget it after). *)
 
-val add_rules   : Rule.rule list -> (Rule.rule2 list,env_error) error
+val add_rules   : Rule.untyped_rule list -> (Rule.typed_rule list,env_error) error
 (** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the
     same symbol. *)
 

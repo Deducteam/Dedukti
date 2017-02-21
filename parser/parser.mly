@@ -5,7 +5,7 @@
     val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_definable   : Basic.loc -> Basic.ident -> Term.term -> unit
     val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
-    val mk_rules       : Rule.rule list -> unit
+    val mk_rules       : Rule.untyped_rule list -> unit
     val mk_command     : Basic.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
   end>

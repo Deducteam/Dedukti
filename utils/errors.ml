@@ -67,7 +67,7 @@ let fail_typing_error err =
       | CannotSolveConstraints ((_,le,_) as r,cstr) ->
         fail (get_loc_pat le)
           "Error while typing the rewrite rule\n%a\nCannot solve typing constraints:\n%a"
-          pp_rule r (pp_list "\n" (fun out (_,t1,t2) -> Printf.fprintf out "%a ~~ %a" pp_term t1 pp_term t2)) cstr
+          pp_untyped_rule r (pp_list "\n" (fun out (_,t1,t2) -> Printf.fprintf out "%a ~~ %a" pp_term t1 pp_term t2)) cstr
       | BracketError1 (te,ctx) ->
         fail (get_loc te) "Error while typing the term { %a }%a.\n\
                            Brackets can only contain variables occuring \
@@ -116,7 +116,7 @@ let fail_dtree_error err =
         let (_,p,_) = r in
           fail (Rule.get_loc_pat p) "Non left-linear rewrite rule:\n%a.\n\
                                      Maybe you forgot to pass the -nl option."
-            Rule.pp_rule2 r
+            Rule.pp_typed_rule r
 
 let pp_cerr out err =
   let open Confluence in
@@ -151,7 +151,7 @@ Add the keyword 'def' to its declaration to make the symbol '%a' definable."
             pp_ident id pp_ident id
       | ConfluenceErrorRules (lc,rs,cerr) ->
         fail lc "Confluence checking failed when adding the rewrite rules below.\n%a\n%a"
-          pp_cerr cerr (pp_list "\n" pp_frule) rs
+          pp_cerr cerr (pp_list "\n" pp_rule_infos) rs
       | ConfluenceErrorImport (lc,md,cerr) ->
         fail lc "Confluence checking failed when importing the module '%a'.\n%a"
           pp_ident md pp_cerr cerr

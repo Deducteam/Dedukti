@@ -22,8 +22,6 @@ val pattern_to_term : pattern -> term
 
 val pp_pattern  : out_channel -> pattern -> unit
 
-type top = ident*pattern array
-
 type pattern2 =
   | Joker2
   | Var2         of ident*int*int list
@@ -33,17 +31,19 @@ type pattern2 =
 
 (** {2 Contexts} *)
 
-type context = ( loc * ident * term ) list
+type untyped_context = (loc * ident) list
 
-val pp_context  : out_channel -> context -> unit
+type typed_context = ( loc * ident * term ) list
+
+val pp_context  : out_channel -> typed_context -> unit
 
 (** {2 Rewrite Rules} *)
 
-type rule = (loc*ident) list * pattern * term
-(** type of untyped rules *)
+type 'a rule = 'a * pattern * term
 
-type rule2 = context * pattern * term
-(** type of typed rules : the variables in the context are typed *)
+type untyped_rule = untyped_context rule
+
+type typed_rule = typed_context rule
 
 type constr =
   | Linearity of term*term (* change to int*int ? *)
@@ -51,7 +51,7 @@ type constr =
 
 type rule_infos = {
   l:loc;
-  ctx:context;
+  ctx:typed_context;
   md:ident;
   id:ident;
   args:pattern list;
@@ -61,9 +61,9 @@ type rule_infos = {
   constraints:constr list;
 }
 
-val pp_rule     : out_channel -> rule -> unit
-val pp_rule2    : out_channel -> rule2 -> unit
-val pp_frule    : out_channel -> rule_infos -> unit
+val pp_untyped_rule  : out_channel -> untyped_rule -> unit
+val pp_typed_rule    : out_channel -> typed_rule -> unit
+val pp_rule_infos    : out_channel -> rule_infos -> unit
 
 (** {2 Decision Trees} *)
 

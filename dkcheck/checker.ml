@@ -56,7 +56,7 @@ let mk_rules = function
       match Env.add_rules lst with
       | OK lst2 ->
         List.iter ( fun (ctx,pat,rhs) ->
-            eprint (Rule.get_loc_pat pat) "%a" Rule.pp_rule2 (ctx,pat,rhs)
+            eprint (Rule.get_loc_pat pat) "%a" Rule.pp_typed_rule (ctx,pat,rhs)
           ) lst2 ;
       | Err e -> Errors.fail_env_error e
     end

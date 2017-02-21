@@ -102,7 +102,7 @@ let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
 
 (******************************************************************************)
 
-let scope_rule (l,pctx,md_opt,id,pargs,pri:prule) : rule =
+let scope_rule (l,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   let top = PPattern(l,md_opt,id,pargs) in
   let ctx = get_vars_order pctx top in
   let idents = List.map snd ctx in

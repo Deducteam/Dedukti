@@ -13,7 +13,7 @@ type dtree_error =
   | UnboundVariable of loc*ident*pattern
   | AVariableIsNotAPattern of loc*ident
   | DistinctBoundVariablesExpected of loc*ident
-  | NonLinearRule of rule2
+  | NonLinearRule of typed_rule
 
 exception DtreeExn of dtree_error
 
@@ -142,7 +142,7 @@ let rec is_linear = function
   | (Bracket _)::tl -> is_linear tl
   | (Linearity _)::tl -> false
 
-let to_rule_infos (r:Rule.rule2) : (rule_infos,dtree_error) error =
+let to_rule_infos (r:Rule.typed_rule) : (rule_infos,dtree_error) error =
   try
     begin
       let (ctx,lhs,rhs) = r in

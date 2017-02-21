@@ -27,7 +27,7 @@ let mk_opaque lc id pty_opt pte =
 
 let mk_rules lst =
   match Env.add_rules lst with
-    | OK _ -> List.iter (fun r -> print "%a" Rule.pp_rule r) lst
+    | OK _ -> List.iter (fun r -> print "%a" Rule.pp_untyped_rule r) lst
     | Err e -> Errors.fail_env_error e
 
 let mk_command = Cmd.mk_command

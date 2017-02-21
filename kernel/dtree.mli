@@ -12,9 +12,9 @@ type dtree_error =
   | UnboundVariable of loc*ident*pattern
   | AVariableIsNotAPattern of loc*ident
   | DistinctBoundVariablesExpected of loc*ident
-  | NonLinearRule of rule2
+  | NonLinearRule of typed_rule
 
-val to_rule_infos : rule2 -> (rule_infos,dtree_error) error
+val to_rule_infos : typed_rule -> (rule_infos,dtree_error) error
 
 val of_rules : rule_infos list -> (int*dtree,dtree_error) error
 (** Compilation of rewrite rules into decision trees. *)

@@ -8,9 +8,13 @@ let rec pp_list sep pp out = function
 (** {2 Identifiers (hashconsed strings)} *)
 
 type ident = string
+
 let string_of_ident s = s
+
 let ident_eq s1 s2 = s1==s2 || s1=s2
+
 let pp_ident = output_string
+
 let print_ident = Format.pp_print_string
 
 module WS = Weak.Make(

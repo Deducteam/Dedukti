@@ -57,6 +57,6 @@ val add_definable       : t -> loc -> ident -> term -> unit
 (** [add_definable sg l id ty] declares the definable symbol [id] of type [ty]
     in the environment [sg]. *)
 
-val add_rules           : t -> Rule.rule2 list -> unit
+val add_rules           : t -> Rule.typed_rule list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)

@@ -9,3 +9,7 @@ dktop.native
 _*/
 *.dko
 *.depend
+
+# emacs tmp files
+*~
+\#*\#

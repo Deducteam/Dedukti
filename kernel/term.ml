@@ -3,13 +3,13 @@ open Basic
 (** {2 Terms/Patterns} *)
 
 type term =
-  | Kind                                (* Kind *)
-  | Type  of loc                        (* Type *)
-  | DB    of loc*ident*int              (* deBruijn *)
-  | Const of loc*ident*ident            (* Global variable *)
-  | App   of term * term * term list    (* f a1 [ a2 ; ... an ] , f not an App *)
-  | Lam   of loc*ident*term option*term        (* Lambda abstraction *)
-  | Pi    of loc*ident*term*term (* Pi abstraction *)
+  | Kind                                             (* Kind *)
+  | Type  of loc                                     (* Type *)
+  | DB    of loc * ident * int                       (* deBruijn *)
+  | Const of loc * ident * ident                     (* Global variable *)
+  | App   of term * term * term list                 (* f a1 [ a2 ; ... an ] , f not an App *)
+  | Lam   of loc * ident * term option * term        (* Lambda abstraction *)
+  | Pi    of loc * ident * term * term               (* Pi abstraction *)
 
 let rec get_loc = function
   | Type l | DB (l,_,_) | Const (l,_,_) | Lam (l,_,_,_) | Pi (l,_,_,_)  -> l

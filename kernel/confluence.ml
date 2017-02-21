@@ -150,7 +150,7 @@ let get_bvars r =
   let bvars0 = aux_p 0 [] pat in
   aux_t 0 bvars0 r.rhs
 
-let get_arities (ctx:context) (p:pattern) : int IdMap.t =
+let get_arities (ctx:typed_context) (p:pattern) : int IdMap.t =
   let rec aux k map = function
     | Var (_,x,n,args) when (n<k) -> List.fold_left (aux k) map args
     | Pattern (_,m,v,args) -> List.fold_left (aux k) map args

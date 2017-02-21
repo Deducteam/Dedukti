@@ -7,17 +7,19 @@ type pattern =
   | Lambda      of loc*ident*pattern
   | Brackets    of term
 
-type context = ( loc * ident * term ) list
+type untyped_context = ( loc * ident ) list
+
+type typed_context = ( loc * ident * term ) list
 
 let get_loc_pat = function
   | Var (l,_,_,_) | Pattern (l,_,_,_)
   | Lambda (l,_,_) -> l
   | Brackets t -> get_loc t
 
-type top = ident*pattern array
+type 'a rule = 'a * pattern * term
 
-type rule = (loc*ident) list * pattern * term
-type rule2 = context * pattern * term
+type typed_rule = typed_context rule
+type untyped_rule = untyped_context * pattern * term
 
 type pattern2 =
   | Joker2
@@ -32,12 +34,11 @@ type constr =
 
 type rule_infos = {
   l:loc;
-  ctx:context;
+  ctx:typed_context;
   md:ident;
   id:ident;
   args:pattern list;
   rhs:term;
-  (* *)
   esize:int;
   l_args:pattern2 array;
   constraints:constr list;
@@ -90,22 +91,22 @@ and pp_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> fprintf out "(%a)" pp_pattern p
   | p -> pp_pattern out p
 
-let pp_rule out (ctx,pat,te) =
+let pp_untyped_rule out (ctx,pat,te) =
    let pp_decl out (_,id) = pp_ident out id in
     fprintf out "[%a] %a --> %a"
       (pp_list "," pp_decl) (List.rev ctx)
       pp_pattern pat
       pp_term te
 
-let pp_rule2 out (ctx,pat,te) =
+let pp_typed_rule out (ctx,pat,te) =
    let pp_decl out (_,id,ty) = fprintf out "%a:%a" pp_ident id pp_term ty in
     fprintf out "[%a] %a --> %a"
       (pp_list "," pp_decl) (List.rev ctx)
       pp_pattern pat
       pp_term te
 
-let pp_frule out r =
-  pp_rule2 out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
+let pp_rule_infos out r =
+  pp_typed_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
 
 let tab t = String.make (t*4) ' '
 
