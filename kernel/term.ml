@@ -1,4 +1,5 @@
 open Basic
+open Format
 
 (** {2 Terms/Patterns} *)
 
@@ -10,6 +11,22 @@ type term =
   | App   of term * term * term list                 (* f a1 [ a2 ; ... an ] , f not an App *)
   | Lam   of loc * ident * term option * term        (* Lambda abstraction *)
   | Pi    of loc * ident * term * term               (* Pi abstraction *)
+
+let rec pp_term fmt te =
+  match te with
+  | Kind               -> fprintf fmt "Kind"
+  | Type _             -> fprintf fmt "Type"
+  | DB  (_,x,n)        -> fprintf fmt "%a[%i]" pp_ident x n
+  | Const (_,m,v)      -> fprintf fmt "%a.%a" pp_ident m pp_ident v
+  | App (f,a,args)     -> pp_list " " pp_term_wp fmt (f::a::args)
+  | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
+  | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
+  | Pi  (_,x,a,b)      -> fprintf fmt "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
+
+and pp_term_wp fmt te =
+  match te with
+  | Kind | Type _ | DB _ | Const _ as t -> pp_term fmt t
+  | t                                  -> fprintf fmt "(%a)" pp_term t
 
 let rec get_loc (te:term) : loc =
   match te with

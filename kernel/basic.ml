@@ -5,6 +5,8 @@
 
 type ident = string
 
+let pp_ident fmt id = Format.fprintf fmt "%s" id
+
 let string_of_ident s = s
 
 let ident_eq s1 s2 = s1==s2 || s1=s2
@@ -94,11 +96,15 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
   in
     aux lst
 
-let debug_mode = ref false
+let debug_mode = ref 0
 
-let debug fmt =
-  if !debug_mode then Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt
-  else Printf.ifprintf stderr fmt
+let set_debug_mode i = debug_mode := i
+
+let debug i fmt = Format.(
+    if !debug_mode >= i then
+      kfprintf (fun _ -> prerr_newline () ) err_formatter fmt
+  else ifprintf err_formatter fmt
+  )
 
 let bind_opt f = function
   | None -> None
@@ -107,3 +113,10 @@ let bind_opt f = function
 let map_opt f = function
   | None -> None
   | Some x -> Some (f x)
+
+let string_of fp = Format.asprintf "%a" fp
+
+let format_of_sep str fmt () : unit =
+  Format.fprintf fmt "%s" str
+
+let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l

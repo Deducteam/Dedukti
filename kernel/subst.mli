@@ -10,7 +10,7 @@ val shift               : int -> term -> term
     it is applied to an indices [k] such that k < i. *)
 val unshift             : int -> term -> term
 
-(** psubst_l [l] [k] [t] substitutes indices i in [t] by [l_i] with k<=i<n with [n] = length [l] *)
+(** psubst_l [l] [k] [t] substitutes the i first free variables in [t] by [l_i] when i<n with [n] = length [l] *)
 val psubst_l            : (term Lazy.t) Basic.LList.t -> int -> term -> term
 
 (** [subst te u] substitutes the deBruijn indice [0] with [u] in [te]. *)
@@ -29,7 +29,7 @@ sig
   (* val merge : t -> t -> t *)
   val is_identity : t -> bool
   val mk_idempotent : t -> t
-  val pp : out_channel -> t -> unit
+  val pp : Format.formatter -> t -> unit
   val fold : (int -> (Basic.ident*term) -> 'b -> 'b) -> t -> 'b -> 'b
   val iter : (int -> (Basic.ident*term) -> unit) -> t -> unit
 end

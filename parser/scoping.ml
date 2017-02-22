@@ -39,7 +39,7 @@ let scope_term ctx (pte:preterm) : term =
 
 (* [get_vars_order vars p] traverses the pattern [p] from left to right and
  * builds the list of variables, taking jokers as variables. *)
-let get_vars_order (vars:pcontext) (ppat:prepattern) : (loc*ident) list =
+let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context =
   let nb_jokers = ref 0 in
   let get_fresh_name () =
     incr nb_jokers;
@@ -52,7 +52,7 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : (loc*ident) list =
       | _::lst -> aux lst
     in aux vars
   in
-  let rec aux (bvar:ident list) (ctx:(loc*ident) list) : prepattern -> (loc*ident) list = function
+  let rec aux (bvar:ident list) (ctx:(loc*ident) list) : prepattern -> untyped_context = function
     | PPattern (_,None,id,pargs) ->
       begin
         if List.exists (ident_eq id) bvar then

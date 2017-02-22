@@ -134,7 +134,7 @@ let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
       | Some (rs,_,_) -> Confluence.add_rules rs )
   in
   H.iter aux ctx;
-  debug "Checking confluence after loading module '%a'..." Pp.pp_ident md;
+  debug 1 "Checking confluence after loading module '%a'..." pp_ident md;
   match Confluence.check () with
   | OK () -> ()
   | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
@@ -157,7 +157,7 @@ let rec import sg lc m =
       let dep = hstring dep0 in
       if not (H.mem sg.tables dep) then ignore (import sg lc dep)
     ) deps ;
-  debug "Loading module '%a'..." Pp.pp_ident m;
+  debug 1 "Loading module '%a'..." pp_ident m;
   List.iter (fun rs -> add_rule_infos sg rs) ext;
   check_confluence_on_import lc m ctx;
   ctx
@@ -204,7 +204,7 @@ let add sg lc v gst =
   Confluence.add_constant sg.name v;
   let env = H.find sg.tables sg.name in
   if H.mem env v then
-    ( if !ignore_redecl then debug "Redeclaration ignored."
+    ( if !ignore_redecl then debug 1 "Redeclaration ignored."
       else raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
   else
     H.add env v gst
@@ -224,8 +224,8 @@ let add_rules sg lst : unit =
       if not (ident_eq sg.name r.md) then
         sg.external_rules <- rs::sg.external_rules;
       Confluence.add_rules rs;
-      debug "Checking confluence after adding rewrite rules on symbol '%a.%a'"
-      Pp.pp_ident r.md Pp.pp_ident r.id;
+      debug 1 "Checking confluence after adding rewrite rules on symbol '%a.%a'"
+      pp_ident r.md pp_ident r.id;
       match Confluence.check () with
       | OK () -> ()
       | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))

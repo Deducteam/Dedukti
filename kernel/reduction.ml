@@ -1,6 +1,8 @@
 open Basic
-open Term
+open Format
 open Rule
+open Term
+
 
 (* State *)
 
@@ -21,32 +23,32 @@ let rec term_of_state {ctx;term;stack} : term =
 
 (* Pretty Printing *)
 
-let pp_state out st =
-    Printf.fprintf out "{ctx} {%a} {stack[%i]}\n" Pp.pp_term st.term (List.length st.stack)
+let pp_state fmt st =
+    fprintf fmt "{ctx} {%a} {stack[%i]}\n" pp_term st.term (List.length st.stack)
 
-let pp_stack out stck =
-  Printf.fprintf out "[\n";
-  List.iter (pp_state out) stck;
-  Printf.fprintf out "]\n"
+let pp_stack fmt stck =
+  fprintf fmt "[\n";
+  List.iter (pp_state fmt) stck;
+  fprintf fmt "]\n"
 
-let pp_env out (ctx:env) =
-  let pp_lazy_term out lt = Pp.pp_term out (Lazy.force lt) in
-    Pp.pp_list ", " pp_lazy_term out (LList.lst ctx)
+let pp_env fmt (ctx:env) =
+  let pp_lazy_term out lt = pp_term fmt (Lazy.force lt) in
+    pp_list ", " pp_lazy_term fmt (LList.lst ctx)
 
-let pp_state out { ctx; term; stack } =
-   Printf.fprintf out "[ e=[...](%i) | %a | [...] ] { %a } "
+let pp_state fmt { ctx; term; stack } =
+   fprintf fmt "[ e=[...](%i) | %a | [...] ] { %a } "
      (LList.len ctx)
-     Pp.pp_term term
-     Pp.pp_term (term_of_state { ctx; term; stack })
+     pp_term term
+     pp_term (term_of_state { ctx; term; stack })
 
-let pp_stack out (st:stack) =
-  let aux out state =
-    Pp.pp_term out (term_of_state state)
+let pp_stack fmt (st:stack) =
+  let aux fmt state =
+    pp_term fmt (term_of_state state)
   in
-    Printf.fprintf out "[ %a ]\n" (Pp.pp_list "\n | " aux) st
+    fprintf fmt "[ %a ]\n" (pp_list "\n | " aux) st
 
 (* Misc *)
-
+(* FIXME: only used once in are_convertible_list, should it be declared at top level? *)
 let rec add_to_list2 l1 l2 lst =
   match l1, l2 with
     | [], [] -> Some lst
@@ -76,8 +78,12 @@ let rec find_case (st:state) (cases:(case*dtree) list) (default:dtree option) : 
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
   | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
+    pp_state std_formatter st;
     if ident_eq v v' && ident_eq m m' then
-      ( assert (List.length stack == nargs); Some (tr,stack) )
+      begin
+        assert (List.length stack >= nargs);
+        Some (tr,stack)
+      end
     else find_case st tl default
   | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
     begin
