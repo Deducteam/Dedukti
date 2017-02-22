@@ -7,18 +7,19 @@ let allow_non_linear = ref false
 type dtree_error =
   | BoundVariableExpected of pattern
   | VariableBoundOutsideTheGuard of term
-  | NotEnoughArguments of loc*ident*int*int*int
-  | HeadSymbolMismatch of loc*ident*ident
-  | ArityMismatch of loc*ident
-  | UnboundVariable of loc*ident*pattern
-  | AVariableIsNotAPattern of loc*ident
-  | DistinctBoundVariablesExpected of loc*ident
+  | NotEnoughArguments of loc * ident * int * int * int
+  | HeadSymbolMismatch of loc * ident * ident
+  | ArityMismatch of loc * ident
+  | UnboundVariable of loc * ident * pattern
+  | AVariableIsNotAPattern of loc * ident
+  | DistinctBoundVariablesExpected of loc * ident
   | NonLinearRule of typed_rule
 
 exception DtreeExn of dtree_error
 
+(* TODO : rename this type *)
 type rule2 =
-    { loc:loc ; pats:pattern2 array ; right:term ;
+    { loc:loc ; pats:linear_pattern array ; right:term ;
       constraints:constr list ; esize:int ; }
 
 (* ************************************************************************** *)
@@ -47,7 +48,8 @@ let rec all_distinct = function
 
 (* This function extracts non-linearity and bracket constraints from a list
  * of patterns. *)
-let linearize (esize:int) (lst:pattern list) : int * pattern2 list * constr list =
+(* TODO : this should be inside Rule module *)
+let linearize (esize:int) (lst:pattern list) : int * linear_pattern list * constr list =
   let rec aux k (s:lin_ty) = function
   | Lambda (l,x,p) ->
       let (p2,s2) = (aux (k+1) s p) in
@@ -57,6 +59,8 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * constr list
         ( BoundVar2 (x,n,Array.of_list args2) , s2 )
   | Var (l,x,n,args) (* n>=k *) ->
     let args2 = List.map (extract_db k) args in
+    (* to keep a most general unifier, all arguments applied to higher-order should be distincts.
+       eg : (x => F x x) =?= (x => x) implies that F is either (x => y => x) or (x => y => y) *)
     if all_distinct args2 then
       begin
         if IntSet.mem (n-k) (s.seen) then
@@ -269,7 +273,7 @@ let default (mx:matrix) (c:int) : matrix option =
 (* Specialize the rule [r] on column [c]
  * i.e. remove colum [c] and append [nargs] new column at the end.
  * These new columns contain
- * - the arguments if column [c] is a the pattern
+ * - the arguments if column [c] is a pattern
  * - or the body if column [c] is a lambda
  * - or Jokers otherwise
 * *)

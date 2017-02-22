@@ -134,7 +134,7 @@ let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
       | Some (rs,_,_) -> Confluence.add_rules rs )
   in
   H.iter aux ctx;
-  debug "Checking confluence after loading module '%a'..." pp_ident md;
+  debug "Checking confluence after loading module '%a'..." Pp.pp_ident md;
   match Confluence.check () with
   | OK () -> ()
   | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
@@ -157,7 +157,7 @@ let rec import sg lc m =
       let dep = hstring dep0 in
       if not (H.mem sg.tables dep) then ignore (import sg lc dep)
     ) deps ;
-  debug "Loading module '%a'..." pp_ident m;
+  debug "Loading module '%a'..." Pp.pp_ident m;
   List.iter (fun rs -> add_rule_infos sg rs) ext;
   check_confluence_on_import lc m ctx;
   ctx
@@ -225,7 +225,7 @@ let add_rules sg lst : unit =
         sg.external_rules <- rs::sg.external_rules;
       Confluence.add_rules rs;
       debug "Checking confluence after adding rewrite rules on symbol '%a.%a'"
-      pp_ident r.md pp_ident r.id;
+      Pp.pp_ident r.md Pp.pp_ident r.id;
       match Confluence.check () with
       | OK () -> ()
       | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))

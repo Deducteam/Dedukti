@@ -11,7 +11,8 @@ type term =
   | Lam   of loc * ident * term option * term        (* Lambda abstraction *)
   | Pi    of loc * ident * term * term               (* Pi abstraction *)
 
-let rec get_loc = function
+let rec get_loc (te:term) : loc =
+  match te with
   | Type l | DB (l,_,_) | Const (l,_,_) | Lam (l,_,_,_) | Pi (l,_,_,_)  -> l
   | Kind -> dloc
   | App (f,_,_) -> get_loc f
@@ -41,17 +42,3 @@ let rec term_eq t1 t2 =
     | Lam (_,_,a,b), Lam (_,_,a',b') -> term_eq b b'
     | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false
-
-let rec pp_term out = function
-  | Kind               -> output_string out "Kind"
-  | Type _             -> output_string out "Type"
-  | DB  (_,x,n)        -> Printf.fprintf out "%a[%i]" pp_ident x n
-  | Const (_,m,v)      -> Printf.fprintf out "%a.%a" pp_ident m pp_ident v
-  | App (f,a,args)     -> pp_list " " pp_term_wp out (f::a::args)
-  | Lam (_,x,None,f)   -> Printf.fprintf out "%a => %a" pp_ident x pp_term f
-  | Lam (_,x,Some a,f) -> Printf.fprintf out "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
-  | Pi  (_,x,a,b)      -> Printf.fprintf out "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
-
-and pp_term_wp out = function
-  | Kind | Type _ | DB _ | Const _ as t -> pp_term out t
-  | t                                  -> Printf.fprintf out "(%a)" pp_term t

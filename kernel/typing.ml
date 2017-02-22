@@ -162,17 +162,17 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
 
         | App (DB (_,_,n),_,_), _  when ( n >= q ) ->
           if Reduction.are_convertible sg t1' t2' then
-            ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+            ( debug "Ignoring constraint: %a ~ %a" Pp.pp_term t1' Pp.pp_term t2'; pseudo_u sg sigma lst )
           else None
         | _, App (DB (_,_,n),_,_) when ( n >= q ) ->
           if Reduction.are_convertible sg t1' t2' then
-            ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+            ( debug "Ignoring constraint: %a ~ %a" Pp.pp_term t1' Pp.pp_term t2'; pseudo_u sg sigma lst )
           else None
 
         | App (Const (l,md,id),_,_), _ when (not (Signature.is_constant sg l md id)) ->
-          ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+          ( debug "Ignoring constraint: %a ~ %a" Pp.pp_term t1' Pp.pp_term t2'; pseudo_u sg sigma lst )
         | _, App (Const (l,md,id),_,_) when (not (Signature.is_constant sg l md id)) ->
-          ( debug "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+          ( debug "Ignoring constraint: %a ~ %a" Pp.pp_term t1' Pp.pp_term t2'; pseudo_u sg sigma lst )
 
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
@@ -227,7 +227,7 @@ let pc_to_context_wp (delta:partial_context) : typed_context =
 
 let pp_pcontext out delta =
   let lst = List.rev (LList.lst delta.pctx) in
-  List.iteri (fun i (_,x,ty) -> Printf.fprintf out "%a[%i]:%a\n" pp_ident x i pp_term ty) lst;
+  List.iteri (fun i (_,x,ty) -> Printf.fprintf out "%a[%i]:%a\n" Pp.pp_ident x i Pp.pp_term ty) lst;
   for i = 0 to delta.padding -1 do
     Printf.fprintf out "?[%i]:?\n" (i+LList.len delta.pctx)
   done
@@ -338,20 +338,20 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
 (* ************************************************************************** *)
 
 let pp_context_inline out ctx =
-  pp_list ", "
-    (fun out (_,x,ty) -> Printf.fprintf out "%a: %a" pp_ident x pp_term ty )
+  Pp.pp_list ", "
+    (fun out (_,x,ty) -> Printf.fprintf out "%a: %a" Pp.pp_ident x Pp.pp_term ty )
     out (List.rev ctx)
 
 let rec pp_term_j k out = function
   | Kind               -> output_string out "Kind"
   | Type _             -> output_string out "Type"
-  | DB  (_,x,n) when n<k -> Printf.fprintf out "%a[%i]" pp_ident x n
+  | DB  (_,x,n) when n<k -> Printf.fprintf out "%a[%i]" Pp.pp_ident x n
   | DB  (_,x,n)        -> Printf.fprintf out "_"
-  | Const (_,m,v)      -> Printf.fprintf out "%a.%a" pp_ident m pp_ident v
-  | App (f,a,args)     -> pp_list " " (pp_term_wp_j k) out (f::a::args)
-  | Lam (_,x,None,f)   -> Printf.fprintf out "%a => %a" pp_ident x pp_term f
-  | Lam (_,x,Some a,f) -> Printf.fprintf out "%a:%a => %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term f
-  | Pi  (_,x,a,b)      -> Printf.fprintf out "%a:%a -> %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term b
+  | Const (_,m,v)      -> Printf.fprintf out "%a.%a" Pp.pp_ident m Pp.pp_ident v
+  | App (f,a,args)     -> Pp.pp_list " " (pp_term_wp_j k) out (f::a::args)
+  | Lam (_,x,None,f)   -> Printf.fprintf out "%a => %a" Pp.pp_ident x Pp.pp_term f
+  | Lam (_,x,Some a,f) -> Printf.fprintf out "%a:%a => %a" Pp.pp_ident x (pp_term_wp_j (k+1)) a Pp.pp_term f
+  | Pi  (_,x,a,b)      -> Printf.fprintf out "%a:%a -> %a" Pp.pp_ident x (pp_term_wp_j (k+1)) a Pp.pp_term b
 
 and pp_term_wp_j k out = function
   | Kind | Type _ | DB _ | Const _ as t -> pp_term_j k out t
@@ -384,15 +384,15 @@ let check_rule sg (ctx0,le,ri:untyped_rule) : typed_rule =
           begin
             (*TODO make Dedukti handle this case*)
             debug "Failed to infer a typing context for the rule:\n%a."
-              Rule.pp_untyped_rule (ctx0,le,ri);
+              Pp.pp_untyped_rule (ctx0,le,ri);
             SS.iter (
               fun i (id,te) -> debug "Try replacing '%a[%i]' by '%a'"
-                  pp_ident id i (pp_term_j 0) te
+                  Pp.pp_ident id i (pp_term_j 0) te
             ) sub;
             raise (TypingError (NotImplementedFeature (get_loc_pat le) ) )
           end
       end
   in
   check sg ctx2 ri2 ty_le2;
-  debug "[ %a ] %a --> %a" pp_context_inline ctx2 pp_pattern le pp_term ri2;
+  debug "[ %a ] %a --> %a" pp_context_inline ctx2 Pp.pp_pattern le Pp.pp_term ri2;
   (ctx2,le,ri2)

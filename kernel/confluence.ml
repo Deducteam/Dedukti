@@ -69,55 +69,55 @@ let pp_pattern ar out pat =
   | Var (_,x,n,args) when (n<k) ->
     begin
       List.iter (fun _ -> fprintf out "app(") args ;
-      fprintf out "v_%a" pp_ident x ;
+      fprintf out "v_%a" Pp.pp_ident x ;
       List.iter (fun pat -> fprintf out ",%a)" (aux 0) pat) args
     end
   | Pattern (_,m,v,args) ->
     begin
       List.iter (fun _ -> fprintf out "app(") args ;
-      fprintf out "c_%a_%a" pp_ident m pp_ident v ;
+      fprintf out "c_%a_%a" Pp.pp_ident m Pp.pp_ident v ;
       List.iter (fun pat -> fprintf out ",%a)" (aux k) pat) args
     end
-  | Var (_,x,n,[]) (* n>=k *) -> fprintf out "m_%a" pp_ident x ;
+  | Var (_,x,n,[]) (* n>=k *) -> fprintf out "m_%a" Pp.pp_ident x ;
   | Var (_,x,n,a::args) (* n>=k *) ->
     let arity = IdMap.find x ar in
       if arity == 0 then (
         List.iter (fun _ -> fprintf out "app(" ) (a::args);
-        fprintf out "m_%a" pp_ident x;
+        fprintf out "m_%a" Pp.pp_ident x;
         List.iter ( fprintf out ",%a)" (aux k) ) (a::args)
       ) else (
         let (args1,args2) = split (arity-1) args in
         List.iter (fun _ -> fprintf out "app(" ) args2;
-        fprintf out "m_%a(%a" pp_ident x (aux k) a;
+        fprintf out "m_%a(%a" Pp.pp_ident x (aux k) a;
         List.iter ( fprintf out ",%a" (aux k) ) args1;
         fprintf out ")";
         List.iter ( fprintf out ",%a)" (aux k) ) args2
       )
   | Lambda (_,x,p) ->
-    fprintf out "lam(m_typ,\\v_%a.%a)" pp_ident x (aux (k+1)) p
+    fprintf out "lam(m_typ,\\v_%a.%a)" Pp.pp_ident x (aux (k+1)) p
   | Brackets _ -> ( incr nb; fprintf out "b_%i" !nb )
   in
   aux 0 out pat
 
 let rec pp_term (ar:int IdMap.t) k out = function
-  | Const (_,m,v) -> fprintf out "c_%a_%a" pp_ident m pp_ident v
+  | Const (_,m,v) -> fprintf out "c_%a_%a" Pp.pp_ident m Pp.pp_ident v
   | Lam (_,x,Some a,b) ->
-    fprintf out "lam(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
+    fprintf out "lam(%a,\\v_%a.%a)" (pp_term ar k) a Pp.pp_ident x (pp_term ar (k+1)) b
   | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
   | Pi (_,x,a,b) ->
-    fprintf out "pi(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
-  | DB (_,x,n) when n<k -> fprintf out "v_%a" pp_ident x
-  | DB (_,x,_) -> fprintf out "m_%a" pp_ident x
+    fprintf out "pi(%a,\\v_%a.%a)" (pp_term ar k) a Pp.pp_ident x (pp_term ar (k+1)) b
+  | DB (_,x,n) when n<k -> fprintf out "v_%a" Pp.pp_ident x
+  | DB (_,x,_) -> fprintf out "m_%a" Pp.pp_ident x
   | App (DB (_,x,n),a,args) when (n>=k) ->
     let arity = IdMap.find x ar in
     if arity == 0 then (
       List.iter (fun _ -> fprintf out "app(" ) (a::args);
-      fprintf out "m_%a" pp_ident x;
+      fprintf out "m_%a" Pp.pp_ident x;
       List.iter ( fprintf out ",%a)" (pp_term ar k) ) (a::args)
     ) else (
       let (args1,args2) = split (arity-1) args in
       List.iter (fun _ -> fprintf out "app(" ) args2;
-      fprintf out "m_%a(%a" pp_ident x (pp_term ar k) a;
+      fprintf out "m_%a(%a" Pp.pp_ident x (pp_term ar k) a;
       List.iter ( fprintf out ",%a" (pp_term ar k) ) args1;
       fprintf out ")";
       List.iter ( fprintf out ",%a)" (pp_term ar k) ) args2
@@ -177,8 +177,8 @@ let pp_rule out (r:rule_infos) =
   let arities = get_arities r.ctx pat in
   (* Variables*)
   fprintf out "(VAR\n";
-  IdMap.iter (fun x n -> fprintf out "  m_%a : %a\n" pp_ident x pp_type n) arities;
-  List.iter  (fun x -> fprintf out "  v_%a : term\n" pp_ident x) (get_bvars r) ;
+  IdMap.iter (fun x n -> fprintf out "  m_%a : %a\n" Pp.pp_ident x pp_type n) arities;
+  List.iter  (fun x -> fprintf out "  v_%a : term\n" Pp.pp_ident x) (get_bvars r) ;
   List.iteri (fun i _ -> fprintf out "  b_%i : term\n" (i+1)) (r.constraints) ;
   fprintf out ")\n";
   (* Rule *)
@@ -212,7 +212,7 @@ let add_constant md id =
   match !file_out with
   | None -> ()
   | Some (file,out) ->
-    fprintf out "(FUN c_%a_%a : term)\n" pp_ident md pp_ident id
+    fprintf out "(FUN c_%a_%a : term)\n" Pp.pp_ident md Pp.pp_ident id
 
 let add_rules lst =
   match !file_out with

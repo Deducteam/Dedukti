@@ -22,7 +22,7 @@ let rec term_of_state {ctx;term;stack} : term =
 (* Pretty Printing *)
 
 let pp_state out st =
-    Printf.fprintf out "{ctx} {%a} {stack[%i]}\n" pp_term st.term (List.length st.stack)
+    Printf.fprintf out "{ctx} {%a} {stack[%i]}\n" Pp.pp_term st.term (List.length st.stack)
 
 let pp_stack out stck =
   Printf.fprintf out "[\n";
@@ -30,20 +30,20 @@ let pp_stack out stck =
   Printf.fprintf out "]\n"
 
 let pp_env out (ctx:env) =
-  let pp_lazy_term out lt = pp_term out (Lazy.force lt) in
-    pp_list ", " pp_lazy_term out (LList.lst ctx)
+  let pp_lazy_term out lt = Pp.pp_term out (Lazy.force lt) in
+    Pp.pp_list ", " pp_lazy_term out (LList.lst ctx)
 
 let pp_state out { ctx; term; stack } =
    Printf.fprintf out "[ e=[...](%i) | %a | [...] ] { %a } "
      (LList.len ctx)
-     pp_term term
-     pp_term (term_of_state { ctx; term; stack })
+     Pp.pp_term term
+     Pp.pp_term (term_of_state { ctx; term; stack })
 
 let pp_stack out (st:stack) =
   let aux out state =
-    pp_term out (term_of_state state)
+    Pp.pp_term out (term_of_state state)
   in
-    Printf.fprintf out "[ %a ]\n" (pp_list "\n | " aux) st
+    Printf.fprintf out "[ %a ]\n" (Pp.pp_list "\n | " aux) st
 
 (* Misc *)
 

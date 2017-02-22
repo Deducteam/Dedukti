@@ -9,12 +9,6 @@ type ident
 (** string_of_ident [id] cast an identifier [id] into a string *)
 val string_of_ident : ident -> string
 
-(** pp_ident [chan] [id] prints the identifier [id] on the channel [chan] *)
-val pp_ident : out_channel -> ident -> unit
-
-(** print_ident [fmt] [id] prints the identifier [id] with the formatter [fmt] *)
-val print_ident : Format.formatter -> ident -> unit
-
 (** hstring [str] cast a string [str] to an identifier *)
 val hstring : string -> ident
 
@@ -86,9 +80,6 @@ val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 val debug_mode : bool ref
 
 val debug : ('a, out_channel, unit) format -> 'a
-
-(** pp_list [sep] [pp] [l] print a list [\[l1 ; ... ln\]] by applying [pp] on each element and use se separator [sep] between elements *)
-val pp_list : string -> (out_channel -> 'a -> unit) -> out_channel -> 'a list -> unit
 
 (** {2 Misc} *)
 

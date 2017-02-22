@@ -26,7 +26,7 @@ doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
 
 lib:
-	ocamlbuild -Is kernel $(OPTIONS) dedukti.cmxa
+	ocamlbuild -Is kernel,utils,parser $(OPTIONS) dedukti.cmxa
 
 BINARIES=dkcheck dktop dkdep dkindent
 

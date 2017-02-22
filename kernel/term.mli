@@ -27,5 +27,3 @@ val mk_Arrow    : loc -> term -> term -> term
 
 (** term_eq [t] [t'] is true if [t]=[t'] (up to alpha equivalence) *)
 val term_eq : term -> term -> bool
-
-val pp_term     : out_channel -> term -> unit
