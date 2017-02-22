@@ -143,7 +143,7 @@ param           : LEFTPAR ID COLON term RIGHTPAR        { (fst $2,snd $2,$4) }
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
                 { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6) }
 
-decl            : ID COLON term         { debug "Ignoring type declaration in rule context."; $1 }
+decl            : ID COLON term         { debug 1 "Ignoring type declaration in rule context."; $1 }
                 | ID                    { $1 }
 
 context         : /* empty */          { [] }

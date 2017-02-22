@@ -4,11 +4,11 @@ val color               : bool ref
 (** Colored output. *)
 
 
-val fail : Basic.loc -> ('a, out_channel, unit, 'b) format4 -> 'a
+val fail : Basic.loc -> ('a, Format.formatter, unit, 'b) format4 -> 'a
 
 (** Print an error message and exit. *)
 
-val success : ('a, out_channel, unit) format -> 'a
+val success : ('a, Format.formatter, unit) format -> 'a
 (** Print a success message. *)
 
 val fail_typing_error : Typing.typing_error -> 'a

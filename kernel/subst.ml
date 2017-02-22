@@ -1,4 +1,5 @@
 open Basic
+open Format
 open Term
 
 exception UnshiftExn
@@ -111,9 +112,9 @@ struct
 
   let is_identity = IntMap.is_empty
   (* TODO: put this inside pp *)
-  let pp (out:out_channel) (sigma:t) : unit =
+  let pp (fmt:formatter) (sigma:t) : unit =
     IntMap.iter (fun i (x,t) ->
-        Printf.fprintf out "( %a[%i] = %a )" Pp.pp_ident x i Pp.pp_term t
+        fprintf fmt "( %a[%i] = %a )" pp_ident x i pp_term t
       ) sigma
 
   let add (sigma:t) (x:ident) (n:int) (t:term) : t option =

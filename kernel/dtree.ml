@@ -53,10 +53,10 @@ let linearize (esize:int) (lst:pattern list) : int * linear_pattern list * const
   let rec aux k (s:lin_ty) = function
   | Lambda (l,x,p) ->
       let (p2,s2) = (aux (k+1) s p) in
-        ( Lambda2 (x,p2) , s2 )
+        ( LLambda (x,p2) , s2 )
   | Var (l,x,n,args) when n<k ->
       let (args2,s2) = fold_map (aux k) s args in
-        ( BoundVar2 (x,n,Array.of_list args2) , s2 )
+        ( LBoundVar (x,n,Array.of_list args2) , s2 )
   | Var (l,x,n,args) (* n>=k *) ->
     let args2 = List.map (extract_db k) args in
     (* to keep a most general unifier, all arguments applied to higher-order should be distincts.
@@ -64,18 +64,18 @@ let linearize (esize:int) (lst:pattern list) : int * linear_pattern list * const
     if all_distinct args2 then
       begin
         if IntSet.mem (n-k) (s.seen) then
-          ( Var2(x,s.fvar+k,args2),
+          ( LVar(x,s.fvar+k,args2),
             { s with fvar=(s.fvar+1);
                      cstr= (Linearity (s.fvar,n-k))::(s.cstr) ; } )
         else
-          ( Var2(x,n,args2) , { s with seen=IntSet.add (n-k) s.seen; } )
+          ( LVar(x,n,args2) , { s with seen=IntSet.add (n-k) s.seen; } )
       end
     else
       raise (DtreeExn (DistinctBoundVariablesExpected (l,x)))
     | Brackets t ->
       begin
         try
-          ( Var2(br,s.fvar+k,[]),
+          ( LVar(br,s.fvar+k,[]),
             { s with fvar=(s.fvar+1);
                      cstr=(Bracket (s.fvar,Subst.unshift k t))::(s.cstr) ;} )
         with
@@ -83,7 +83,7 @@ let linearize (esize:int) (lst:pattern list) : int * linear_pattern list * const
       end
     | Pattern (_,m,v,args) ->
         let (args2,s2) = (fold_map (aux k) s args) in
-          ( Pattern2(m,v,Array.of_list args2) , s2 )
+          ( LPattern(m,v,Array.of_list args2) , s2 )
   in
   let (lst,r) = fold_map (aux 0) { fvar=esize; cstr=[]; seen=IntSet.empty; } lst in
     ( r.fvar , lst , r.cstr )
@@ -169,7 +169,7 @@ let to_rule_infos (r:Rule.typed_rule) : (rule_infos,dtree_error) error =
       if is_nl && (not !allow_non_linear) then
         Err (NonLinearRule r)
       else
-        let () = if is_nl then debug "Non-linear Rewrite Rule" in
+        let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in
         OK { l ; ctx ; md ; id ; args ; rhs ;
              esize = esize2 ;
              l_args = Array.of_list pats2 ;
@@ -243,29 +243,29 @@ let filter (f:rule2 -> bool) (mx:matrix) : matrix option =
 (* Keeps only the rules with a lambda on column [c] *)
 let filter_l c r =
   match r.pats.(c) with
-    | Lambda2 _ | Joker2 | Var2 _ -> true
+    | LLambda _ | LJoker | LVar _ -> true
     | _ -> false
 
 (* Keeps only the rules with a bound variable of index [n] on column [c] *)
 let filter_bv c n r =
   match r.pats.(c) with
-    | BoundVar2 (_,m,_) when n==m -> true
-    | Var2 _ | Joker2 -> true
+    | LBoundVar (_,m,_) when n==m -> true
+    | LVar _ | LJoker -> true
     | _ -> false
 
 (* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
 let filter_p c m v r =
   match r.pats.(c) with
-    | Pattern2 (m',v',_) when ident_eq v v' && ident_eq m m' -> true
-    | Var2 _ | Joker2 -> true
+    | LPattern (m',v',_) when ident_eq v v' && ident_eq m m' -> true
+    | LVar _ | LJoker -> true
     | _ -> false
 
 (* Keeps only the rules with a joker or a variable on column [c] *)
 let default (mx:matrix) (c:int) : matrix option =
   filter (
     fun r -> match r.pats.(c) with
-      | Var2 _ | Joker2 -> true
-      | Lambda2 _ | Pattern2 _ | BoundVar2 _ -> false
+      | LVar _ | LJoker -> true
+      | LLambda _ | LPattern _ | LBoundVar _ -> false
   ) mx
 
 (* ***************************** *)
@@ -283,16 +283,16 @@ let specialize_rule (c:int) (nargs:int) (r:rule2) : rule2 =
     if i < size then
       if i==c then
         match r.pats.(c) with
-          | Var2 _ as v -> v
-          | _ -> Joker2
+          | LVar _ as v -> v
+          | _ -> LJoker
       else r.pats.(i)
     else (* size <= i < size+nargs *)
       match r.pats.(c) with
-        | Joker2 | Var2 _ -> Joker2
-        | Pattern2 (_,_,pats2) | BoundVar2 (_,_,pats2) ->
+        | LJoker | LVar _ -> LJoker
+        | LPattern (_,_,pats2) | LBoundVar (_,_,pats2) ->
             ( assert ( Array.length pats2 == nargs );
               pats2.( i - size ) )
-        | Lambda2 (_,p) -> ( assert ( nargs == 1); p )
+        | LLambda (_,p) -> ( assert ( nargs == 1); p )
   in
     { r with pats = Array.init (size+nargs) aux }
 
@@ -341,8 +341,8 @@ let choose_column mx =
   let rec aux i =
     if i < Array.length mx.first.pats then
       ( match mx.first.pats.(i) with
-        | Pattern2 _ | Lambda2 _ | BoundVar2 _ -> Some i
-        | Var2 _ | Joker2 -> aux (i+1) )
+        | LPattern _ | LLambda _ | LBoundVar _ -> Some i
+        | LVar _ | LJoker -> aux (i+1) )
     else None
   in aux 0
 
@@ -357,10 +357,10 @@ let partition mx c =
   let aux lst li =
     let add h = if List.exists (eq h) lst then lst else h::lst in
       match li.pats.(c) with
-        | Pattern2 (m,v,pats)  -> add (CConst (Array.length pats,m,v))
-        | BoundVar2 (_,n,pats) -> add (CDB (Array.length pats,n))
-        | Lambda2 _ -> add CLam
-        | Var2 _ | Joker2 -> lst
+        | LPattern (m,v,pats)  -> add (CConst (Array.length pats,m,v))
+        | LBoundVar (_,n,pats) -> add (CDB (Array.length pats,n))
+        | LLambda _ -> add CLam
+        | LVar _ | LJoker -> lst
   in
     List.fold_left aux [] (mx.first::mx.others)
 
@@ -379,8 +379,8 @@ let get_first_pre_context mx =
   let mp = ref false in
     Array.iteri
       (fun i p -> match p with
-         | Joker2 -> ()
-         | Var2 (_,n,lst) ->
+         | LJoker -> ()
+         | LVar (_,n,lst) ->
              begin
                let k = mx.col_depth.(i) in
                  assert( 0 <= n-k ) ;
