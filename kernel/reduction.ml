@@ -166,17 +166,21 @@ let rec state_whnf (sg:Signature.t) : state -> state = function
 
 and test sg ctx = function
   | [] -> true
-  | (Linearity (t1,t2))::tl ->
+  | (Linearity (i,j))::tl ->
+    let t1 = mk_DB dloc dmark i in
+    let t2 = mk_DB dloc dmark j in
     if are_convertible_lst sg [ term_of_state { ctx; term=t1; stack=[] },
                                 term_of_state { ctx; term=t2; stack=[] } ]
     then test sg ctx tl
     else false
-  | (Bracket (t1,t2))::tl ->
+  | (Bracket (i,t2))::tl ->
+    let t1 = mk_DB dloc dmark i in
     if are_convertible_lst sg [ term_of_state { ctx; term=t1; stack=[] },
                                 term_of_state { ctx; term=t2; stack=[] } ]
     then test sg ctx tl
     else
-      failwith "Error while reducing a term: a guard was not satisfied." (*FIXME*)
+      (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
+      failwith "Error while reducing a term: a guard was not satisfied."
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
 and gamma_rw (sg:Signature.t) (stack:stack) : dtree -> (env*term) option = function

@@ -32,7 +32,9 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
 (* ************************************************************************** *)
 
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
+
 type lin_ty = { cstr:constr list; fvar:int ; seen:IntSet.t }
+
 let br = hstring "{_}"
 
 let extract_db k = function
@@ -58,9 +60,9 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * constr list
     if all_distinct args2 then
       begin
         if IntSet.mem (n-k) (s.seen) then
-          ( Var2(x,s.fvar+k,args2) ,
+          ( Var2(x,s.fvar+k,args2),
             { s with fvar=(s.fvar+1);
-                     cstr= (Linearity (mk_DB l x s.fvar,mk_DB l x (n-k)))::(s.cstr) ; } )
+                     cstr= (Linearity (s.fvar,n-k))::(s.cstr) ; } )
         else
           ( Var2(x,n,args2) , { s with seen=IntSet.add (n-k) s.seen; } )
       end
@@ -71,7 +73,7 @@ let linearize (esize:int) (lst:pattern list) : int * pattern2 list * constr list
         try
           ( Var2(br,s.fvar+k,[]),
             { s with fvar=(s.fvar+1);
-                     cstr=(Bracket (mk_DB dloc br s.fvar,Subst.unshift k t))::(s.cstr) ;} )
+                     cstr=(Bracket (s.fvar,Subst.unshift k t))::(s.cstr) ;} )
         with
         | Subst.UnshiftExn -> raise (DtreeExn (VariableBoundOutsideTheGuard t))
       end

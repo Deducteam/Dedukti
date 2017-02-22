@@ -24,6 +24,10 @@ val ident_eq : ident -> ident -> bool
 (** qmark is a special identifier for unification variables *)
 val qmark : ident
 
+(** dmark is a meaningless identifier *)
+val dmark : ident
+(** The kernel may introduce such identifiers when creating new de Bruijn indices *)
+
 (** {2 Lists with Length} *)
 
 module LList : sig

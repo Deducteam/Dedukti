@@ -29,8 +29,8 @@ type pattern2 =
   | BoundVar2    of ident*int*pattern2 array
 
 type constr =
-  | Linearity of term*term (* change to int*int ? *)
-  | Bracket of term*term (* change to int*term ? *)
+  | Linearity of int * int
+  | Bracket of int * term (* change to int*term ? *)
 
 type rule_infos = {
   l:loc;
@@ -120,8 +120,8 @@ let rec pp_dtree t out = function
   | Test (pc,lst,te,def)  ->
       let tab = tab t in
       let aux out = function
-        | Linearity (i,j) -> fprintf out "%a =l %a" pp_term i pp_term j
-        | Bracket (i,j) -> fprintf out "%a =b %a" pp_term i pp_term j
+        | Linearity (i,j) -> fprintf out "%d =l %d" i j
+        | Bracket (i,j) -> fprintf out "%a =b %a" pp_term (mk_DB dloc dmark i) pp_term j
       in
       fprintf out "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
         pp_pc pc pp_term te tab pp_pc pc (pp_def (t+1)) def

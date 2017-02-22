@@ -6,12 +6,12 @@ open Term
 (** {2 Patterns} *)
 
 type pattern =
-  | Var         of loc*ident*int*pattern list
+  | Var         of loc * ident * int * pattern list
       (** l x i [x1 ; x2 ; ... ; xn ] where [i] is the position of x inside the context
           of the rule *)
-  | Pattern     of loc*ident*ident*pattern list
+  | Pattern     of loc * ident * ident * pattern list
       (** l md id [p1 ; p2 ; ... ; pn ] where [md.id] is a constant *)
-  | Lambda      of loc*ident*pattern
+  | Lambda      of loc * ident * pattern
       (** lambda abstraction *)
   | Brackets    of term
       (** te where [te] is convertible to the pattern matched *)
@@ -24,10 +24,10 @@ val pp_pattern  : out_channel -> pattern -> unit
 
 type pattern2 =
   | Joker2
-  | Var2         of ident*int*int list
-  | Lambda2      of ident*pattern2
-  | Pattern2     of ident*ident*pattern2 array
-  | BoundVar2    of ident*int*pattern2 array
+  | Var2         of ident * int * int list
+  | Lambda2      of ident * pattern2
+  | Pattern2     of ident * ident * pattern2 array
+  | BoundVar2    of ident * int * pattern2 array
 
 (** {2 Contexts} *)
 
@@ -46,8 +46,8 @@ type untyped_rule = untyped_context rule
 type typed_rule = typed_context rule
 
 type constr =
-  | Linearity of term*term (* change to int*int ? *)
-  | Bracket of term*term (* change to int*term ? *)
+  | Linearity of int * int (* change to int*int ? *)
+  | Bracket of int * term (* change to int*term ? *)
 
 type rule_infos = {
   l:loc;
