@@ -74,7 +74,7 @@ let rec add_to_list lst (s:stack) (s':stack) =
 
 (* ********************* *)
 
-let rec find_case (st:state) (cases:(case*dtree) list) (default:dtree option) : (dtree*state list) option =
+let rec find_case (st:state) (cases:(case * dtree) list) (default:dtree option) : (dtree*state list) option =
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
   | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
