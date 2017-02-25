@@ -77,7 +77,7 @@ let rec find_case (st:state) (cases:(case*dtree) list) (default:dtree option) : 
   | _, [] -> map_opt (fun g -> (g,[])) default
   | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
     if ident_eq v v' && ident_eq m m' then
-      ( assert (List.length stack == nargs); Some (tr,stack) )
+      ( assert (List.length stack >= nargs); Some (tr,stack) )
     else find_case st tl default
   | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
     begin
