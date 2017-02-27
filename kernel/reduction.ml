@@ -8,6 +8,8 @@ open Term
 
 type env = term Lazy.t LList.t
 
+(* reprensent the term t where its first n free variables are in the ctx [t1,...,tn] and the stack represents the terms where t is applied to. The idea is that (x => t) u is represented as the state :
++   {ctx = nil ; term = x => t ; stack = u} and then to get the whnf, this state will be transformed as {ctx = u ; term = t ; stack = nil} *)
 type state = {
   ctx:env;              (*context*)
   term : term;          (*term to reduce*)
@@ -78,7 +80,6 @@ let rec find_case (st:state) (cases:(case * dtree) list) (default:dtree option) 
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
   | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
-    pp_state std_formatter st;
     if ident_eq v v' && ident_eq m m' then
       begin
         assert (List.length stack >= nargs);
