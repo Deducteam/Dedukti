@@ -30,7 +30,7 @@ let initialize () =
   else
     begin
       let (file,out) = Filename.open_temp_file "dkcheck" ".trs" in
-      Basic.debug "Confluence temporary file:%s" file;
+      debug "Confluence temporary file:%s" file;
       file_out := (Some (file,out));
       fprintf out "\
 (FUN

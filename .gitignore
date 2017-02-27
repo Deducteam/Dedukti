@@ -1,14 +1,9 @@
 /_build/
-skcheck.docdir
-skcheck.native
-skdep.native
-skrule.native
-sktop.native
-skindent.native
+*.docdir
+*.native
 .*.swp
 .*.swo
 _*/
 *.dko
 *.depend
 .bkp/
-dedukti.docdir

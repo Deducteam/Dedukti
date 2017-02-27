@@ -7,7 +7,7 @@ val shift               : int -> term -> term
 (** [shift i t] shifts every deBruijn indices in [t] by [i]. *)
 
 val unshift             : int -> term -> term
-(** [unshift i t] shifts every deBruijn indices in [t] by [-i]. Raise [UnshiftExn] when 
+(** [unshift i t] shifts every deBruijn indices in [t] by [-i]. Raise [UnshiftExn] when
     it is applied to an indices [k] such that k < i. *)
 
 val psubst_l            : (term Lazy.t) Basic.LList.t -> int -> term -> term
@@ -30,5 +30,5 @@ sig
   val mk_idempotent : t -> t
   val pp : out_channel -> t -> unit
   val fold : (int -> (Basic.ident*term) -> 'b -> 'b) -> t -> 'b -> 'b
-  val iter : (int -> (Basic.ident*term) -> unit) -> t -> unit 
+  val iter : (int -> (Basic.ident*term) -> unit) -> t -> unit
 end

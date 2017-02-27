@@ -162,5 +162,3 @@ let fail_env_error = function
   | Env.EnvErrorType e -> fail_typing_error e
   | Env.KindLevelDefinition (lc,id) ->
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." print_ident id
-
-

@@ -22,7 +22,6 @@
 	  with Not_found -> l
       in
       List.rev (aux s [])
-  
 }
 
 let space       = [' ' '\t' '\r']
@@ -107,5 +106,3 @@ and string buf = parse
   { Buffer.add_char buf c; string buf lexbuf }
   | eof
   { Errors.fail (get_loc lexbuf) "Unexpected end of file." }
-
-

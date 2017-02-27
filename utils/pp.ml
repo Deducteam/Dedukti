@@ -85,8 +85,15 @@ let rec subst map = function
        with Failure "nth" -> t
      end
   | Kind
-  | Type _
-  | Const _ as t       -> t
+  | Type _ as t -> t
+  (* if there is a local variable that have the same name as a top level constant,
+        then the module has to be printed *)
+  (* a hack proposed by Raphael Cauderlier *)
+  | Const (l,m,v) as t       ->
+     if List.mem v map && ident_eq !name m then
+       mk_Const l m (hstring ((string_of_ident m) ^ "." ^ (string_of_ident v)))
+     else
+       t
   | App (f,a,args)     -> mk_App (subst map f)
                                 (subst map a)
                                 (List.map (subst map) args)
@@ -126,6 +133,9 @@ and print_term out t =
 and print_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> print_term out t
   | t                                   -> Format.fprintf out "(%a)" print_term t
+
+(* Overwrite print_term by a name-clash avoiding version *)
+let print_term out t = print_term out (subst [] t)
 
 (* Overwrite print_term by a name-clash avoiding version *)
 let print_term out t = print_term out (subst [] t)
