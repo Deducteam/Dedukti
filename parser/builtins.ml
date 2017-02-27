@@ -20,6 +20,12 @@ let rec mk_num_from_int l = function
 
 let mk_num (l, s) = mk_num_from_int l (int_of_string s)
 
+let rec mk_num_patt_from_int l = function
+  | 0 -> PPattern (l, Some modname, _0, [])
+  | n -> PPattern (l, Some modname, _S, [mk_num_patt_from_int l (n-1)])
+
+let mk_num_patt (l, s) = mk_num_patt_from_int l (int_of_string s)
+
 let mk_char (l, c) =
   PreApp(PreQId(l, modname, _char_of_nat), mk_num_from_int l (int_of_char c), [])
 
