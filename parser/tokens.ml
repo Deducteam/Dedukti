@@ -5,15 +5,20 @@ exception EndOfFile
 type token =
   | UNDERSCORE  of loc
   | TYPE        of loc
+  | RIGHTLST    of loc
   | KW_DEF      of loc
   | KW_THM      of loc
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
-  | QID         of ( loc * ident * ident )
+  | RECORD
+  | NEWMODULE      of ( loc * ident )
+  | ENDMODULE   of ( loc )
+  | QID         of ( loc * ident list * ident )
   | NAME        of ( loc * ident )
   | VERYLONGARROW
   | LONGARROW
+  | LEFTLST     of loc
   | LEFTSQU
   | LEFTPAR
   | LEFTBRA
@@ -35,4 +40,6 @@ type token =
   | PRINT       of loc
   | GDT         of loc
   | OTHER       of ( loc * string )
-  | STRING      of string
+  | CHAR        of ( loc * char )
+  | STRING      of ( loc * string )
+  | NUM         of ( loc * string )

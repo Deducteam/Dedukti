@@ -13,7 +13,7 @@ let rec parse lb =
     | Tokens.EndOfFile -> exit 0
 
 let  _ =
-  print_string "Welcome to Dedukti\n";
+  print_string "Welcome to Sukerujo\n";
   let v = Basic.hstring "?top" in
     Pp.name := v;
     Scoping.name := v;

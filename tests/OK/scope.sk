@@ -1,0 +1,18 @@
+#NAME scope.
+
+T : Type.
+a : T.
+b : T.
+
+def f : T -> T.
+[] f a --> b
+[a] f a --> a.
+
+eq : T -> T -> Type.
+refl : x : T -> eq x x.
+
+def fa_is_b : eq (f a) b.
+[] fa_is_b --> refl b.
+
+def fb_is_b : eq (f b) b.
+[] fb_is_b --> refl b.

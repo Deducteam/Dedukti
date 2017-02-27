@@ -13,6 +13,14 @@ type state = {
 }
 and stack = state list
 
+let pp_state out st =
+    Printf.fprintf out "{ctx} {%a} {stack[%i]}\n" pp_term st.term (List.length st.stack)
+
+let pp_stack out stck =
+  Printf.fprintf out "[\n";
+  List.iter (pp_state out) stck;
+  Printf.fprintf out "]\n"
+
 let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx 0 term ) in
     match stack with
@@ -252,6 +260,8 @@ and whnf sg term = term_of_state ( state_whnf sg { ctx=LList.nil; term; stack=[]
 
 (* Strong Normal Form *)
 and snf sg (t:term) : term =
+(*   let nf = whnf sg t in *)
+(*   Printf.fprintf stdout "The whnf of\n%a\nis\n%a\n" pp_term t pp_term nf; *)
   match whnf sg t with
   | Kind | Const _
   | DB _ | Type _ as t' -> t'
@@ -274,7 +284,13 @@ and are_convertible_lst sg : (term*term) list -> bool = function
             add_to_list2 args args' ((f,f')::(a,a')::lst)
           | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
           | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
-          | t1, t2 -> None
+          | t1, t2 ->
+           begin 
+(*             Printf.fprintf stdout
+                 "are_convertible_lst call, the following terms are not convertibles:\n%a\n%a\n" 
+              pp_term t1 pp_term t2;*)
+            None
+           end
       ) with
       | None -> false
       | Some lst2 -> are_convertible_lst sg lst2

@@ -1,0 +1,31 @@
+#NAME bool.
+
+bool : Type.
+true : bool.
+false : bool.
+
+def if : A : Type -> bool -> A -> A -> A.
+[ a ] if _ true  a _ --> a
+[ b ] if _ false _ b --> b.
+
+def not : bool -> bool.
+[]    not true    --> false
+[]    not false   --> true
+[ b ] not (not b) --> b.
+
+def and : bool -> bool -> bool.
+[]          and _ false     --> false
+[]          and false _     --> false
+[ b ]       and true b      --> b
+[ b ]       and b true      --> b
+[ a, b, c ] and a (and b c) --> and (and a b) c.
+
+def or : bool -> bool -> bool.
+[]          or true _     --> true
+[]          or _ true     --> true
+[ b ]       or false b    --> b
+[ b ]       or b false    --> b
+[ a, b, c ] or a (or b c) --> or (or a b) c.
+
+[ a, b ] not (or a b) --> and (not a) (not b).
+[ a, b ] not (and a b) --> or (not a) (not b).

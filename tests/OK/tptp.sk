@@ -36,16 +36,16 @@ def equiv: Prop -> Prop -> Prop :=
   A:Prop => B:Prop => and (imply A B) (imply B A).
 
 
-[] prf True --> P:Prop -> (prf P -> prf P)
-[] prf False --> P:Prop -> prf P
-[A, B] prf (and A B) --> P:Prop -> (prf A -> prf B -> prf P) -> prf P
-[A, B] prf (or A B) --> P:Prop -> (prf A -> prf P) -> (prf B -> prf P) -> prf P
-[A, B] prf (imply A B) --> prf A -> prf B
-[A] prf (not A) --> prf A -> prf False
-[A] prf (forall A) --> x:Term -> prf (A x)
+[] prf True --> (P:Prop -> (prf P -> prf P))
+[] prf False --> (P:Prop -> prf P)
+[A, B] prf (and A B) --> (P:Prop -> (prf A -> prf B -> prf P) -> prf P)
+[A, B] prf (or A B) --> (P:Prop -> (prf A -> prf P) -> (prf B -> prf P) -> prf P)
+[A, B] prf (imply A B) --> (prf A -> prf B)
+[A] prf (not A) --> (prf A -> prf False)
+[A] prf (forall A) --> (x:Term -> prf (A x))
 [A] prf (exists A) -->
-P:Prop -> (x:Term -> prf (A x) -> prf P) -> prf P
-[x,y] prf (equal x y) --> P:(Term -> Prop) -> prf (imply (P x) (P y)).
+(P:Prop -> (x:Term -> prf (A x) -> prf P) -> prf P)
+[x,y] prf (equal x y) --> (P:(Term -> Prop) -> prf (imply (P x) (P y))).
 
 def leq : Term -> Term -> Prop.
 one : Term.

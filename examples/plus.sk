@@ -1,0 +1,11 @@
+#NAME plus.
+
+def plus : nat -> nat -> nat.
+[m]   plus 0 (S m) --> S m
+[n]   plus n 0 --> n
+[n,m] plus (S n) (S m) --> S (S m).
+
+e: nat -> Type.
+def x: e 0.
+y: e (plus 0 0).
+[] x --> y.

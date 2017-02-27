@@ -1,0 +1,8 @@
+#NAME list.
+
+def head : A : Type -> list A -> A.
+[ a ] head _ (cons _ a _) --> a.
+
+def tail : A : Type -> list A -> list A.
+[ l ] tail _ (cons _ _ l) --> l.
+

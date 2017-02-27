@@ -1,0 +1,12 @@
+#NAME let.
+
++ : nat -> nat -> nat.
+y : nat.
+
+#SNF x := y => + x x.
+#CONV x := y => x, x := y => y.
+#SNF (x := y =>
+      y := x =>
+      + x y).
+
+#SNF x := y => (x : nat => y).

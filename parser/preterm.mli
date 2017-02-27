@@ -17,6 +17,10 @@ type prepattern =
   | PJoker      of loc
 
 type ruletype = RegularRule | MetaRule
+type param =
+  | PDecl of loc * ident * preterm
+  | PDef of loc * ident * preterm
+type pfield = loc * ident * preterm
 
 type pdecl      = loc * ident
 type pcontext   = pdecl list

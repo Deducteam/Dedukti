@@ -20,7 +20,9 @@ type command =
 
 let print s = Format.printf "%s\n" s
 
-let mk_command lc = function
+let mk_command lc =
+  let open Pp in
+  function
   | Whnf te          ->
       ( match Env.whnf te with
           | OK te -> Format.printf "%a\n" print_term te

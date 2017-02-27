@@ -8,30 +8,30 @@ INSTALL_DIR=/usr/bin
 MENHIR = -menhir "menhir --external-tokens Tokens"
 SRC_DIRS = kernel,utils,parser
 
-all: dkcheck dkmeta dktop dkdep dkindent lib doc
+BINARIES=skcheck skmeta sktop skdep skindent
 
-dkcheck:
-	ocamlbuild -Is $(SRC_DIRS),dkcheck $(MENHIR) -lib unix dkcheck.native
+all: lib $(BINARIES) doc
 
-dkmeta:
-	ocamlbuild -Is $(SRC_DIRS),dkmeta $(MENHIR) -lib unix dkmeta.native
+skmeta:
+	ocamlbuild -Is $(SRC_DIRS),skmeta $(MENHIR) -lib unix skmeta.native
 
-dktop:
-	ocamlbuild -Is $(SRC_DIRS),dktop $(MENHIR) -lib unix dktop.native
+skcheck:
+	ocamlbuild -Is $(SRC_DIRS),skcheck $(MENHIR) -lib unix skcheck.native
 
-dkdep:
-	ocamlbuild -Is $(SRC_DIRS),dkdep $(MENHIR) -lib unix dkdep.native
+sktop:
+	ocamlbuild -Is $(SRC_DIRS),sktop $(MENHIR) -lib unix sktop.native
 
-dkindent:
-	ocamlbuild -Is $(SRC_DIRS),dkindent $(MENHIR) -lib unix dkindent.native
+skdep:
+	ocamlbuild -Is $(SRC_DIRS),skdep $(MENHIR) -lib unix skdep.native
+
+skindent:
+	ocamlbuild -Is $(SRC_DIRS),skindent $(MENHIR) -lib unix skindent.native
 
 doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
 
 lib:
 	ocamlbuild -Is kernel $(OPTIONS) dedukti.cmxa
-
-BINARIES=dkcheck dkmeta dktop dkdep dkindent
 
 install:
 	for i in $(BINARIES) ; do \
@@ -46,17 +46,14 @@ uninstall:
 clean:
 	ocamlbuild -clean
 
-tests: dkcheck
+tests: skdep skcheck
 	@echo "run tests..."
-	@for i in tests/OK/*.dk ; do \
+	$(MAKE) -C tests/OK/ all
+	@for i in tests/KO/*.sk ; do \
 	    echo "on $$i...  " ; \
-	    ./dkcheck.native "$$i" 2>&1 | grep SUCCESS ; \
-	done
-	@for i in tests/KO/*.dk ; do \
-	    echo "on $$i...  " ; \
-	    ./dkcheck.native "$$i" 2>&1 | grep ERROR ; \
+	    ./skcheck.native "$$i" 2>&1 | grep ERROR ; \
 	done
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: dkcheck dkmeta dktop dkdep dkindent tests clean doc uninstall
+.PHONY: $(BINARIES) tests clean doc uninstall

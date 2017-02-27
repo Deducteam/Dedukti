@@ -16,7 +16,11 @@ type prepattern =
 
 type ruletype = RegularRule | MetaRule
 
+type param =
+  | PDecl of loc * ident * preterm
+  | PDef of loc * ident * preterm
 type pdecl      = loc * ident
+type pfield = loc * ident * preterm
 type pcontext   = pdecl list
 type prule      = loc * pdecl list * ident option * ident * prepattern list * preterm * ruletype
 

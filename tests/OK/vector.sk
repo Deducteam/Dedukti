@@ -1,0 +1,35 @@
+#NAME vector.
+
+V : Type -> nat -> Type.
+Vnil : A : Type -> V A 0.
+Vcons : A : Type -> n : nat -> a : A -> v : V A n -> V A (S n).
+
+def head : A : Type -> n : nat -> V A (S n) -> A.
+[ a ] head _ _ (Vcons _ _ a _) --> a.
+
+def tail : A : Type -> n : nat -> V A (S n) -> V A n.
+[ v ] tail _ _ (Vcons _ _ _ v) --> v.
+
+def append : A : Type -> n : nat -> V A n -> m : nat -> V A m -> V A (nat.+ n m).
+[ w ] append _ _ (Vnil _) _ w --> w
+[ v ] append _ _ v _ (Vnil _) --> v
+[ A, n, a, v, m, w ]
+    append A (S n) (Vcons _ _ a v) m w
+      -->
+    Vcons A (nat.+ n m) a (append A n v m w)
+(; [ A, n, v, m, w, p, x ]
+     append A n v {nat.+ m p} (append _ m w p x)
+       -->
+     append A (nat.+ n m) (append A n v m w) p x ;)
+    .
+
+def length : A : Type -> list A -> nat.
+[ ] length _ (nil _) --> 0
+[ A, l ] length A (cons _ _ l) --> S (length A l).
+
+def list_to_vect : A : Type -> l : list A -> V A (length A l).
+[ A ] list_to_vect A (nil _) --> Vnil A
+[ A, a, l ]
+    list_to_vect A (cons _ a l)
+      -->
+    Vcons A (length A l) a (list_to_vect A l).

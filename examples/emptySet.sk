@@ -1,0 +1,37 @@
+#NAME emptySet.
+
+Set:Type.
+Prop:Type.
+prf:Prop->Type.
+
+forall:(Set->Prop)->Prop.
+imp:Prop->Prop->Prop.
+[f:Set->Prop] prf (forall f) --> x:Set -> prf (f x)
+[A:Prop,B:Prop] prf (imp A B) --> prf A -> prf B.
+
+False:Prop.
+not (A:Prop) := imp A False.
+
+in : Set -> Set -> Prop.
+empty : Set.
+empty_ax : prf( forall ( x:Set => not (in x empty) ) ).
+
+leq : Set -> Set -> Prop.
+min: Set -> Set -> Prop.
+min_ax1 : prf (
+	forall (s:Set =>
+	forall (x:Set =>
+	forall (y:Set =>
+	imp (min x s) (	imp (in y s) (leq x y) )
+	))) ).
+
+min_ax2 : prf (
+	forall (s:Set =>
+	forall (x:Set =>
+	imp (min x s) (in x s)
+	)) ).
+
+stmt := forall (x => not (min x empty)).
+
+thm: prf stmt := x => p => (empty_ax x) (min_ax2 empty x p).
+

@@ -6,6 +6,7 @@ open Printf
 
 let print_db_enabled = ref false
 let name = ref qmark
+let resugar = ref true
 
 let rec print_list sep pp out = function
     | []        -> ()
@@ -81,7 +82,7 @@ let rec subst map = function
        try
          let newname = List.nth map n in
          mk_DB l newname n
-       with Failure _ -> t
+       with Failure "nth" -> t
      end
   | Kind
   | Type _ as t -> t
@@ -106,7 +107,7 @@ let rec subst map = function
                          mk_Pi l x' (subst map a) (subst (x' :: map) b)
 
 
-let rec print_term out = function
+let rec print_raw_term out = function
   | Kind               -> Format.pp_print_string out "Kind"
   | Type _             -> Format.pp_print_string out "Type"
   | DB  (_,x,n)        -> print_db out (x,n)
@@ -122,9 +123,19 @@ let rec print_term out = function
   | Pi  (_,x,a,b)      ->
       Format.fprintf out "@[%a:%a ->@ @[%a@]@]" print_ident x print_term_wp a print_term b
 
+and print_term out t =
+  if not !resugar then print_raw_term out t
+  else
+    try Builtins.print_term out t
+    with Builtins.Not_atomic_builtin ->
+      print_raw_term out t
+
 and print_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> print_term out t
-  | t                                  -> Format.fprintf out "(%a)" print_term t
+  | t                                   -> Format.fprintf out "(%a)" print_term t
+
+(* Overwrite print_term by a name-clash avoiding version *)
+let print_term out t = print_term out (subst [] t)
 
 (* Overwrite print_term by a name-clash avoiding version *)
 let print_term out t = print_term out (subst [] t)
@@ -166,7 +177,7 @@ let print_rule2 out (ctx,pat,te) =
   in
   Format.fprintf out
     "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_list ", " print_decl) ctx
+    (print_list ", " print_decl) (List.rev ctx)
     print_pattern pat
     print_term te
 

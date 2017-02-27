@@ -163,5 +163,5 @@ let export = ref false
 let mk_ending () =
   ( if !export then
     if not (Signature.export !sg_meta) then
-      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
+      Errors.fail dloc "Fail to export module '%a'." print_ident (Env.get_name ()) );
   Confluence.finalize ()
