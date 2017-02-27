@@ -334,6 +334,8 @@ top_pattern     : ID pattern_wp*        { (fst $1,None,of_id (snd $1),$2) }
 
 pattern_wp      : ID
                         { PPattern (fst $1,None,of_id (snd $1),[]) }
+                | NUM
+                        { Builtins.mk_num_patt $1 }
                 | QID
                         { let (l,md,id)= of_qid $1 in PPattern (l,Some md,id,[]) }
                 | UNDERSCORE
