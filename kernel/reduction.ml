@@ -36,7 +36,6 @@ let pp_env fmt (ctx:env) =
   let pp_lazy_term out lt = pp_term fmt (Lazy.force lt) in
     pp_list ", " pp_lazy_term fmt (LList.lst ctx)
 
-
 let pp_stack fmt (st:stack) =
   let aux fmt state =
     pp_term fmt (term_of_state state)

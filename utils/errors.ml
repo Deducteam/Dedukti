@@ -19,6 +19,7 @@ let success fmt =
   eprintf "%s" (green "SUCCESS ");
   kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter fmt
 
+
 let prerr_loc lc =
   let (l,c) = of_loc lc in
     eprintf "line:%i column:%i " l c
@@ -43,6 +44,7 @@ let fail_typing_error err =
             fail (get_loc te)
               "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
               pp_term te pp_typed_context ctx pp_term exp pp_term inf
+
       | VariableNotFound (lc,x,n,ctx) ->
           fail lc "The variable '%a' was not found in context:\n"
             pp_term (mk_DB lc x n) pp_typed_context ctx
