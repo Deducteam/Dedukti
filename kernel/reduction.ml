@@ -8,8 +8,7 @@ open Term
 
 type env = term Lazy.t LList.t
 
-(* reprensent the term t where its first n free variables are in the ctx [t1,...,tn] and the stack represents the terms where t is applied to. The idea is that (x => t) u is represented as the state :
-+   {ctx = nil ; term = x => t ; stack = u} and then to get the whnf, this state will be transformed as {ctx = u ; term = t ; stack = nil} *)
+(* A state {ctx; term; stack} is the state of an abstract machine that represents a term where [ctx] is a ctx that contains the free variable of [term] and [stack] represents the terms that [term] is applied to. *)
 type state = {
   ctx:env;              (*context*)
   term : term;          (*term to reduce*)
@@ -37,17 +36,28 @@ let pp_env fmt (ctx:env) =
   let pp_lazy_term out lt = pp_term fmt (Lazy.force lt) in
     pp_list ", " pp_lazy_term fmt (LList.lst ctx)
 
-let pp_state fmt { ctx; term; stack } =
-   fprintf fmt "[ e=[...](%i) | %a | [...] ] { %a } "
-     (LList.len ctx)
-     pp_term term
-     pp_term (term_of_state { ctx; term; stack })
 
 let pp_stack fmt (st:stack) =
   let aux fmt state =
     pp_term fmt (term_of_state state)
   in
     fprintf fmt "[ %a ]\n" (pp_list "\n | " aux) st
+
+let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
+  begin
+    if if_ctx then
+      fprintf fmt "{ctx=[%a];@." pp_env ctx
+    else
+      fprintf fmt "{ctx=[...](%i);@." (LList.len ctx)
+  end;
+  fprintf fmt "term=%a;@." pp_term term;
+  begin
+    if if_stack then
+      fprintf fmt "stack=%a}@." pp_stack stack
+    else
+      fprintf fmt "stack=[...]}@."
+  end;
+  fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
 
 (* Misc *)
 (* FIXME: only used once in are_convertible_list, should it be declared at top level? *)
@@ -134,7 +144,8 @@ let rec find_case (st:state) (cases:(case * dtree) list) (default:dtree option) 
  * - state.term can only be a variable if term.ctx is empty
  *    (and therefore this variable is free in the corresponding term)
  * *)
-let rec state_whnf (sg:Signature.t) : state -> state = function
+let rec state_whnf (sg:Signature.t) (st:state) : state =
+  match st with
   (* Weak heah beta normal terms *)
   | { term=Type _ }
   | { term=Kind }
