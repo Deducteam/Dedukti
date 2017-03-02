@@ -2,7 +2,7 @@ open Basic
 open Format
 open Rule
 open Term
-
+open Dtree
 
 (* State *)
 

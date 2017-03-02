@@ -62,51 +62,15 @@ type typed_rule = typed_context rule
 val pp_typed_rule : Format.formatter -> typed_rule -> unit
 
 type rule_infos = {
-  l : loc;
-  ctx : typed_context;
-  md : ident;
-  id : ident;
-  args : pattern list;
-  rhs : term;
-  esize : int;
-  l_args : linear_pattern array;
-  constraints : constr list;
+  l : loc; (** location of the rule *)
+  ctx : typed_context; (** typed context of the rule *)
+  md : ident; (** module where the pattern constant is defined *)
+  id : ident; (** name of the pattern constant *)
+  args : pattern list; (** arguments list of the pattern constant *)
+  rhs : term; (** right hand side of the rule *)
+  esize : int; (** size of the context *)
+  l_args : linear_pattern array; (** free pattern without constraint *)
+  constraints : constr list; (** constraints generated from the pattern to the free pattern *)
 }
 
 val pp_rule_infos : Format.formatter -> rule_infos -> unit
-
-(** {2 Decision Trees} *)
-
-type case =
-  | CConst of int*ident*ident
-  | CDB    of int*int
-  | CLam
-
-(* Abstract (from a stack (or a term list)) matching problem *)
-type abstract_pb = { position2:int (*c*) ; dbs:int LList.t (*(k_i)_{i<=n}*) ; depth2:int }
-(* It corresponds to the following matching problem (modulo beta):
- * stck.(c) ~? F( (DB k_0) ... (DB k_n) )
- * where F is the variable
- * *)
-
-type pos = { position:int; depth:int }
-
-(* FIXME: change the name of this type *)
-(* Infos to build the context from the stack *)
-type pre_context =
-  | Syntactic of pos LList.t
-  (* the list of positions in the stack corresponding to the context. *)
-  | MillerPattern of abstract_pb LList.t
-  (* the list of abstract problem which list of solutions gives the context. *)
-
-val pp_pre_context : Format.formatter -> pre_context -> unit
-
-type dtree =
-  | Switch  of int * (case*dtree) list * dtree option
-  | Test    of pre_context * constr list * term * dtree option
-
-val pp_dtree : Format.formatter -> dtree -> unit
-
-type rw = ident * ident * int * dtree
-
-val pp_rw : Format.formatter -> rw -> unit

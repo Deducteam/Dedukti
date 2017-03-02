@@ -3,6 +3,7 @@
 open Basic
 open Term
 open Rule
+open Dtree
 
 let ignore_redecl = ref false
 let autodep = ref false
@@ -14,7 +15,7 @@ type signature_error =
   | UnmarshalUnknown of loc*string
   | SymbolNotFound of loc*ident*ident
   | AlreadyDefinedSymbol of loc*ident
-  | CannotBuildDtree of Dtree.dtree_error
+  | CannotBuildDtree of dtree_error
   | CannotAddRewriteRules of loc*ident
   | ConfluenceErrorImport of loc*ident*Confluence.confluence_error
   | ConfluenceErrorRules of loc*rule_infos list*Confluence.confluence_error

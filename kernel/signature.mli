@@ -3,6 +3,7 @@
 open Basic
 open Term
 open Rule
+open Dtree
 
 val ignore_redecl       : bool ref
 (** When [ignore_redecl] is [true], allows a constant to be redefined.

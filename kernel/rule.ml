@@ -108,63 +108,6 @@ type rule_infos = {
 let pp_rule_infos out r =
   pp_typed_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
 
-type case =
-  | CConst of int*ident*ident
-  | CDB    of int*int
-  | CLam
-
-type abstract_pb = { position2:int (*c*) ; dbs:int LList.t (*(k_i)_{i<=n}*) ; depth2:int }
-type pos = { position:int; depth:int }
-
-type pre_context =
-  | Syntactic of pos LList.t
-  | MillerPattern of abstract_pb LList.t
-
-let pp_pre_context fmt pre_context =
-  match pre_context with
-  | Syntactic _ -> fprintf fmt "Sy"
-  | MillerPattern _ -> fprintf fmt "Mi"
-
-
-type dtree =
-  | Switch  of int * (case*dtree) list * dtree option
-  | Test    of pre_context * constr list * term * dtree option
-
-
-let rec pp_dtree t fmt dtree =
-  let tab = String.make (t*4) ' ' in
-  match dtree with
-  | Test (pc,[],te,None)   -> fprintf fmt "(%a) %a" pp_pre_context pc pp_term te
-  | Test (_,[],_,def)      -> assert false
-  | Test (pc,lst,te,def)  ->
-    let aux out = function
-      | Linearity (i,j) -> fprintf out "%d =l %d" i j
-      | Bracket (i,j) -> fprintf out "%a =b %a" pp_term (mk_DB dloc dmark i) pp_term j
-    in
-    fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
-      pp_pre_context pc pp_term te tab pp_pre_context pc (pp_def (t+1)) def
-  | Switch (i,cases,def)->
-    let pp_case out = function
-      | CConst (_,m,v), g ->
-        fprintf out "\n%sif $%i=%a.%a then %a" tab i pp_ident m pp_ident v (pp_dtree (t+1)) g
-      | CLam, g -> fprintf out "\n%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
-      | CDB (_,n), g -> fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (pp_dtree (t+1)) g
-    in
-    fprintf fmt "%a\n%sdefault: %a" (pp_list "" pp_case)
-      cases tab (pp_def (t+1)) def
-
-and pp_def t fmt def =
-  match def with
-  | None        -> fprintf fmt "FAIL"
-  | Some g      -> pp_dtree t fmt g
-
-let pp_dtree fmt dtree = pp_dtree 0 fmt dtree
-
-type rw = ident * ident * int * dtree
-
-let pp_rw fmt (m,v,i,g) =
-  fprintf fmt "GDT for '%a.%a' with %i argument(s): %a"
-    pp_ident m pp_ident v i pp_dtree g
 
 let pattern_to_term p =
   let rec aux k = function
