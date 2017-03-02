@@ -1,17 +1,12 @@
 open Basic
 open Rule
 
-val allow_non_linear : bool ref
-
 type dtree_error =
-  | BoundVariableExpected of pattern
-  | VariableBoundOutsideTheGuard of Term.term
   | NotEnoughArguments of loc * ident * int * int * int
   | HeadSymbolMismatch of loc * ident*ident
   | ArityMismatch of loc * ident
   | UnboundVariable of loc * ident * pattern
   | AVariableIsNotAPattern of loc * ident
-  | DistinctBoundVariablesExpected of loc * ident
   | NonLinearRule of typed_rule
 
 

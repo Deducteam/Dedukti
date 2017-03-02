@@ -3,18 +3,12 @@ open Term
 open Rule
 open Format
 
-
-let allow_non_linear = ref false
-
 type dtree_error =
-  | BoundVariableExpected of pattern
-  | VariableBoundOutsideTheGuard of term
   | NotEnoughArguments of loc * ident * int * int * int
   | HeadSymbolMismatch of loc * ident * ident
   | ArityMismatch of loc * ident
   | UnboundVariable of loc * ident * pattern
   | AVariableIsNotAPattern of loc * ident
-  | DistinctBoundVariablesExpected of loc * ident
   | NonLinearRule of typed_rule
 
 exception DtreeExn of dtree_error
@@ -82,77 +76,6 @@ type rw = ident * ident * int * dtree
 let pp_rw fmt (m,v,i,g) =
   fprintf fmt "GDT for '%a.%a' with %i argument(s): %a"
     pp_ident m pp_ident v i pp_dtree g
-
-
-
-
-
-
-(* ************************************************************************** *)
-
-let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
-  let (clst,b2) =
-    List.fold_left (fun (accu,b1) a -> let (c,b2) = f b1 a in (c::accu,b2))
-      ([],b0) alst in
-    ( List.rev clst , b2 )
-
-(* ************************************************************************** *)
-
-module IntSet = Set.Make(struct type t=int let compare=(-) end)
-
-type lin_ty = { cstr:constr list; fvar:int ; seen:IntSet.t }
-
-let br = hstring "{_}"
-
-let extract_db k = function
-  | Var (_,_,n,[]) when n<k -> n
-  | p -> raise (DtreeExn (BoundVariableExpected p))
-
-let rec all_distinct = function
-  | [] -> true
-  | hd::tl -> if List.mem hd tl then false else all_distinct tl
-
-(* This function extracts non-linearity and bracket constraints from a list
- * of patterns. *)
-(* TODO : this should be inside Rule module *)
-let linearize (esize:int) (lst:pattern list) : int * linear_pattern list * constr list =
-  let rec aux k (s:lin_ty) = function
-  | Lambda (l,x,p) ->
-      let (p2,s2) = (aux (k+1) s p) in
-        ( LLambda (x,p2) , s2 )
-  | Var (l,x,n,args) when n<k ->
-      let (args2,s2) = fold_map (aux k) s args in
-        ( LBoundVar (x,n,Array.of_list args2) , s2 )
-  | Var (l,x,n,args) (* n>=k *) ->
-    let args2 = List.map (extract_db k) args in
-    (* to keep a most general unifier, all arguments applied to higher-order should be distincts.
-       eg : (x => F x x) =?= (x => x) implies that F is either (x => y => x) or (x => y => y) *)
-    if all_distinct args2 then
-      begin
-        if IntSet.mem (n-k) (s.seen) then
-          ( LVar(x,s.fvar+k,args2),
-            { s with fvar=(s.fvar+1);
-                     cstr= (Linearity (s.fvar,n-k))::(s.cstr) ; } )
-        else
-          ( LVar(x,n,args2) , { s with seen=IntSet.add (n-k) s.seen; } )
-      end
-    else
-      raise (DtreeExn (DistinctBoundVariablesExpected (l,x)))
-    | Brackets t ->
-      begin
-        try
-          ( LVar(br,s.fvar+k,[]),
-            { s with fvar=(s.fvar+1);
-                     cstr=(Bracket (s.fvar,Subst.unshift k t))::(s.cstr) ;} )
-        with
-        | Subst.UnshiftExn -> raise (DtreeExn (VariableBoundOutsideTheGuard t))
-      end
-    | Pattern (_,m,v,args) ->
-        let (args2,s2) = (fold_map (aux k) s args) in
-          ( LPattern(m,v,Array.of_list args2) , s2 )
-  in
-  let (lst,r) = fold_map (aux 0) { fvar=esize; cstr=[]; seen=IntSet.empty; } lst in
-    ( r.fvar , lst , r.cstr )
 
 (* For each matching variable count the number of arguments *)
 let get_nb_args (esize:int) (p:pattern) : int array =
@@ -230,9 +153,9 @@ let to_rule_infos (r:Rule.typed_rule) : (rule_infos,dtree_error) error =
       in
       let nb_args = get_nb_args esize lhs in
       let _ = check_nb_args nb_args rhs in
-      let (esize2,pats2,cstr) = linearize esize args in
+      let (esize2,pats2,cstr) = Rule.linearize esize args in
       let is_nl = not (is_linear cstr) in
-      if is_nl && (not !allow_non_linear) then
+      if is_nl && (not !Rule.allow_non_linear) then
         Err (NonLinearRule r)
       else
         let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in

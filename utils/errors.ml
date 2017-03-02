@@ -91,16 +91,6 @@ let fail_typing_error err =
 let fail_dtree_error err =
   let open Dtree in
     match err with
-      | BoundVariableExpected pat ->
-          fail (get_loc_pat pat)
-            "The pattern '%a' is not a bound variable." pp_pattern pat
-      | VariableBoundOutsideTheGuard te ->
-          fail (get_loc te)
-            "The term '%a' contains a variable bound outside the brackets."
-            pp_term te
-      | NotEnoughArguments (lc,id,n,nb_args,exp_nb_args) ->
-          fail lc "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
-            pp_ident id nb_args exp_nb_args
       | HeadSymbolMismatch (lc,hd1,hd2) ->
           fail lc "Unexpected head symbol '%a' \ (expected '%a')."
             pp_ident hd1 pp_ident hd2
@@ -113,14 +103,29 @@ let fail_dtree_error err =
             pp_ident x pp_pattern pat
       | AVariableIsNotAPattern (lc,id) ->
           fail lc "A variable is not a valid pattern."
-      | DistinctBoundVariablesExpected (lc,x) ->
-          fail lc "The variable '%a' should be applied to distinct variables."
-          pp_ident x
+      | NotEnoughArguments (lc,id,n,nb_args,exp_nb_args) ->
+        fail lc "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
+          pp_ident id nb_args exp_nb_args
       | NonLinearRule r ->
         let (_,p,_) = r in
           fail (Rule.get_loc_pat p) "Non left-linear rewrite rule:\n%a.\n\
                                      Maybe you forgot to pass the -nl option."
             pp_typed_rule r
+
+let fail_rule_error err =
+  let open Rule in
+    match err with
+      | BoundVariableExpected pat ->
+        fail (get_loc_pat pat)
+          "The pattern '%a' is not a bound variable." pp_pattern pat
+      | VariableBoundOutsideTheGuard te ->
+        fail (get_loc te)
+          "The term '%a' contains a variable bound outside the brackets."
+          pp_term te
+      | DistinctBoundVariablesExpected (lc,x) ->
+        fail lc "The variable '%a' should be applied to distinct variables."
+          pp_ident x
+
 
 let pp_cerr out err =
   let open Confluence in

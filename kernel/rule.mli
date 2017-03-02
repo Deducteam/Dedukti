@@ -1,6 +1,7 @@
 open Basic
 open Term
 
+
 (** Rewrite rules *)
 
 (** {2 Patterns} *)
@@ -74,3 +75,14 @@ type rule_infos = {
 }
 
 val pp_rule_infos : Format.formatter -> rule_infos -> unit
+
+(** {2 Linarization} *)
+
+type rule_error =
+  | BoundVariableExpected of pattern
+  | DistinctBoundVariablesExpected of loc * ident
+  | VariableBoundOutsideTheGuard of term
+
+val allow_non_linear : bool ref
+
+val linearize : int -> pattern list -> (int * linear_pattern list * constr list)
