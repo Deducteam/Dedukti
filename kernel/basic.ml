@@ -102,7 +102,7 @@ let set_debug_mode i = debug_mode := i
 
 let debug i fmt = Format.(
     if !debug_mode >= i then
-      kfprintf (fun _ -> prerr_newline () ) err_formatter fmt
+      kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
   else ifprintf err_formatter fmt
   )
 
@@ -113,6 +113,12 @@ let bind_opt f = function
 let map_opt f = function
   | None -> None
   | Some x -> Some (f x)
+
+let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
+  let (clst,b2) =
+    List.fold_left (fun (accu,b1) a -> let (c,b2) = f b1 a in (c::accu,b2))
+      ([],b0) alst in
+    ( List.rev clst , b2 )
 
 let string_of fp = Format.asprintf "%a" fp
 

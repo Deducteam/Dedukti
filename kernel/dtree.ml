@@ -4,18 +4,14 @@ open Rule
 open Format
 
 type dtree_error =
-  | NotEnoughArguments of loc * ident * int * int * int
   | HeadSymbolMismatch of loc * ident * ident
   | ArityMismatch of loc * ident
-  | UnboundVariable of loc * ident * pattern
-  | AVariableIsNotAPattern of loc * ident
-  | NonLinearRule of typed_rule
 
 exception DtreeExn of dtree_error
 
 (* TODO : rename this type *)
 type rule2 =
-    { loc:loc ; pats:linear_pattern array ; right:term ;
+    { loc:loc ; pats:wf_pattern array ; right:term ;
       constraints:constr list ; esize:int ; }
 
 
@@ -77,95 +73,7 @@ let pp_rw fmt (m,v,i,g) =
   fprintf fmt "GDT for '%a.%a' with %i argument(s): %a"
     pp_ident m pp_ident v i pp_dtree g
 
-(* For each matching variable count the number of arguments *)
-let get_nb_args (esize:int) (p:pattern) : int array =
-  let arr = Array.make esize (-1) in (* -1 means +inf *)
-  let min a b =
-    if a = -1 then b
-    else if a<b then a else b
-  in
-  let rec aux k = function
-    | Brackets _ -> ()
-    | Var (_,_,n,args) when n<k -> List.iter (aux k) args
-    | Var (_,id,n,args) -> arr.(n-k) <- min (arr.(n-k)) (List.length args)
-    | Lambda (_,_,pp) -> aux (k+1) pp
-    | Pattern (_,_,_,args) -> List.iter (aux k) args
-  in
-    ( aux 0 p ; arr )
 
-(* Checks that the variables are applied to enough arguments *)
-let check_nb_args (nb_args:int array) (te:term) : unit =
-  let rec aux k = function
-    | Kind | Type _ | Const _ -> ()
-    | DB (l,id,n) ->
-        if n>=k && nb_args.(n-k)>0 then
-          raise (DtreeExn (NotEnoughArguments (l,id,n,0,nb_args.(n-k))))
-    | App(DB(l,id,n),a1,args) when n>=k ->
-      let min_nb_args = nb_args.(n-k) in
-      let nb_args = List.length args + 1 in
-        if ( min_nb_args > nb_args  ) then
-          raise (DtreeExn (NotEnoughArguments (l,id,n,nb_args,min_nb_args)))
-        else List.iter (aux k) (a1::args)
-    | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
-    | Lam (_,_,None,b) -> aux (k+1) b
-    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
-  in
-    aux 0 te
-
-let check_vars esize ctx p =
-  let seen = Array.make esize false in
-  let rec aux q = function
-    | Pattern (_,_,_,args) -> List.iter (aux q) args
-    | Var (_,_,n,args) ->
-        begin
-          ( if n-q >= 0 then seen.(n-q) <- true );
-          List.iter (aux q) args
-        end
-    | Lambda (_,_,t) -> aux (q+1) t
-    | Brackets _ -> ()
-  in
-    aux 0 p;
-    Array.iteri (
-      fun i b ->
-        if (not b) then
-          let (l,x,_) = List.nth ctx i in
-            raise (DtreeExn (UnboundVariable (l,x,p)))
-    ) seen
-
-let rec is_linear = function
-  | [] -> true
-  | (Bracket _)::tl -> is_linear tl
-  | (Linearity _)::tl -> false
-
-let to_rule_infos (r:Rule.typed_rule) : (rule_infos,dtree_error) error =
-  try
-    begin
-      let (ctx,lhs,rhs) = r in
-      let esize = List.length ctx in
-      let (l,md,id,args) = match lhs with
-        | Pattern (l,md,id,args) ->
-            begin
-              check_vars esize ctx lhs;
-              (l,md,id,args)
-            end
-        | Var (l,x,_,_) -> raise (DtreeExn (AVariableIsNotAPattern (l,x)))
-        | Lambda _ | Brackets _ -> assert false
-      in
-      let nb_args = get_nb_args esize lhs in
-      let _ = check_nb_args nb_args rhs in
-      let (esize2,pats2,cstr) = Rule.linearize esize args in
-      let is_nl = not (is_linear cstr) in
-      if is_nl && (not !Rule.allow_non_linear) then
-        Err (NonLinearRule r)
-      else
-        let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in
-        OK { l ; ctx ; md ; id ; args ; rhs ;
-             esize = esize2 ;
-             l_args = Array.of_list pats2 ;
-             constraints = cstr ; }
-    end
-  with
-      DtreeExn e -> Err e
 
 (* ************************************************************************** *)
 

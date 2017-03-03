@@ -15,6 +15,7 @@ type signature_error =
   | UnmarshalUnknown of loc*string
   | SymbolNotFound of loc*ident*ident
   | AlreadyDefinedSymbol of loc*ident
+  | CannotMakeRuleInfos of rule_error
   | CannotBuildDtree of dtree_error
   | CannotAddRewriteRules of loc*ident
   | ConfluenceErrorImport of loc*ident*Confluence.confluence_error
@@ -215,9 +216,9 @@ let add_definable sg lc v ty = add sg lc v (Definable (ty,None))
 
 
 let add_rules sg lst : unit =
-  let rs = map_error_list Dtree.to_rule_infos lst in
+  let rs = map_error_list Rule.to_rule_infos lst in
   match rs with
-  | Err e -> raise (SignatureError (CannotBuildDtree e))
+  | Err e -> raise (SignatureError (CannotMakeRuleInfos e))
   | OK [] -> ()
   | OK (r::_ as rs) ->
     begin
@@ -226,7 +227,7 @@ let add_rules sg lst : unit =
         sg.external_rules <- rs::sg.external_rules;
       Confluence.add_rules rs;
       debug 1 "Checking confluence after adding rewrite rules on symbol '%a.%a'"
-      pp_ident r.md pp_ident r.id;
+        pp_ident r.md pp_ident r.id;
       match Confluence.check () with
       | OK () -> ()
       | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))

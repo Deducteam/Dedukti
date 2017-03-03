@@ -1,29 +1,21 @@
 open Basic
 open Rule
 
-type dtree_error =
-  | NotEnoughArguments of loc * ident * int * int * int
-  | HeadSymbolMismatch of loc * ident*ident
-  | ArityMismatch of loc * ident
-  | UnboundVariable of loc * ident * pattern
-  | AVariableIsNotAPattern of loc * ident
-  | NonLinearRule of typed_rule
-
-
 (** {2 Decision Trees} *)
 
-(** There are three cases to match arguments of a pattern. Either the argument is
+(** Arguments of a pattern may be the following:
     - a constant
     - a variable
     - a lambda expression
 *)
 type case =
   | CConst of int*ident*ident
-  (** [size] [m] [v] where size is the number of *static* arguments expected for the constant m.v *)
+  (** [size] [m] [v] where [size] is the number of *static* arguments expected for the constant [m.v] *)
   | CDB    of int*int
   (** [size] [i] where size is the number of *static* arguments expected for the variable (as a function) [i] *)
   | CLam
   (** Just a lambda term *)
+(** Since the arity of a constant can not be know statically, size should be always smaller than the number of arguments applied to the constant m.v *)
 
 (* Abstract (from a stack (or a term list)) matching problem *)
 type abstract_pb = { position2:int (*c*) ; dbs:int LList.t (*(k_i)_{i<=n}*) ; depth2:int }
@@ -54,8 +46,12 @@ type rw = ident * ident * int * dtree
 
 val pp_rw : Format.formatter -> rw -> unit
 
+(** {2 Error} *)
 
-val to_rule_infos : typed_rule -> (rule_infos, dtree_error) error
+type dtree_error =
+  | HeadSymbolMismatch of loc * ident * ident
+  | ArityMismatch of loc * ident
+
 
 val of_rules : rule_infos list -> (int * dtree, dtree_error) error
 (** Compilation of rewrite rules into decision trees. *)

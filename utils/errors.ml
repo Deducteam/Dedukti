@@ -98,34 +98,33 @@ let fail_dtree_error err =
           fail lc
             "All the rewrite rules for \ the symbol '%a' should have the same arity."
             pp_ident id
-      | UnboundVariable (lc,x,pat) ->
-          fail lc "The variables '%a' is not bound in '%a'."
-            pp_ident x pp_pattern pat
-      | AVariableIsNotAPattern (lc,id) ->
-          fail lc "A variable is not a valid pattern."
-      | NotEnoughArguments (lc,id,n,nb_args,exp_nb_args) ->
-        fail lc "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
-          pp_ident id nb_args exp_nb_args
-      | NonLinearRule r ->
-        let (_,p,_) = r in
-          fail (Rule.get_loc_pat p) "Non left-linear rewrite rule:\n%a.\n\
-                                     Maybe you forgot to pass the -nl option."
-            pp_typed_rule r
+
 
 let fail_rule_error err =
   let open Rule in
-    match err with
-      | BoundVariableExpected pat ->
-        fail (get_loc_pat pat)
-          "The pattern '%a' is not a bound variable." pp_pattern pat
-      | VariableBoundOutsideTheGuard te ->
-        fail (get_loc te)
-          "The term '%a' contains a variable bound outside the brackets."
-          pp_term te
-      | DistinctBoundVariablesExpected (lc,x) ->
-        fail lc "The variable '%a' should be applied to distinct variables."
-          pp_ident x
-
+  match err with
+  | BoundVariableExpected pat ->
+    fail (get_loc_pat pat)
+      "The pattern of the rule is not a Miller pattern. The pattern '%a' is not a bound variable." pp_pattern pat
+  | VariableBoundOutsideTheGuard te ->
+    fail (get_loc te)
+      "The term '%a' contains a variable bound outside the brackets."
+      pp_term te
+  | DistinctBoundVariablesExpected (lc,x) ->
+    fail lc "The pattern of the rule is not a Miller pattern. The variable '%a' should be applied to distinct variables." pp_ident x
+  | UnboundVariable (lc,x,pat) ->
+    fail lc "The variables '%a' does not appear in the pattern '%a'."
+      pp_ident x pp_pattern pat
+  | AVariableIsNotAPattern (lc,id) ->
+    fail lc "A variable is not a valid pattern."
+  | NotEnoughArguments (lc,id,n,nb_args,exp_nb_args) ->
+    fail lc "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
+      pp_ident id nb_args exp_nb_args
+  | NonLinearRule r ->
+    let (_,p,_) = r in
+    fail (Rule.get_loc_pat p) "Non left-linear rewrite rule:\n%a.\n\
+                               Maybe you forgot to pass the -nl option."
+      pp_typed_rule r
 
 let pp_cerr out err =
   let open Confluence in
@@ -153,6 +152,7 @@ let fail_signature_error err =
       | AlreadyDefinedSymbol (lc,id) ->
           fail lc "Already declared symbol '%a'." pp_ident id
       | CannotBuildDtree err -> fail_dtree_error err
+      | CannotMakeRuleInfos err -> fail_rule_error err
       | CannotAddRewriteRules (lc,id) ->
           fail lc
             "Cannot add rewrite\ rules for the static symbol '%a'.

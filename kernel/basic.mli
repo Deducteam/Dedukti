@@ -88,6 +88,8 @@ val debug : int -> ('a, Format.formatter, unit, unit) format4 -> 'a
 
 (** {2 Misc} *)
 
+val fold_map : ('b->'a-> ('c*'b)) -> 'b -> 'a list -> ('c list*'b)
+
 val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 
 val map_opt : ('a -> 'b) -> 'a option -> 'b option
