@@ -106,4 +106,8 @@ let scope_rule (l,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   let top = PPattern(l,md_opt,id,pargs) in
   let ctx = get_vars_order pctx top in
   let idents = List.map snd ctx in
-  ( ctx, p_of_pp idents top, t_of_pt idents pri )
+  let rule = ( ctx, p_of_pp idents top, t_of_pt idents pri ) in
+  if List.length ctx <> List.length pctx then
+    debug 1 "Warning: local variables in the rule %a are not used"
+      pp_prule (l,pctx,md_opt,id,pargs,pri);
+  rule

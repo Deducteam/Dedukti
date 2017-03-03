@@ -65,4 +65,11 @@ let pp_pcontext fmt ctx =
 type prule      = loc * pdecl list * ident option * ident * prepattern list * preterm
 
 (* TODO : implements this *)
-let pp_prule fmt (_, pdecl, pid, id, prepatterns, prete) = failwith "todo"
+let pp_prule fmt ((_, pdecl, pid, id, prepatterns, prete):prule) : unit  =
+  match pid with
+  | Some m ->
+    fprintf fmt "[%a] %a.%a %a --> %a" (pp_list "," pp_pdecl) pdecl pp_ident m pp_ident id
+      (pp_list " " pp_prepattern) prepatterns pp_preterm prete
+  | None ->
+    fprintf fmt "[%a] %a %a --> %a" (pp_list "," pp_pdecl) pdecl pp_ident id
+      (pp_list " " pp_prepattern) prepatterns pp_preterm prete
