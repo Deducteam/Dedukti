@@ -6,7 +6,7 @@ open Term
 exception NotUnifiable
 
 
-  (** solve [n] [k_lst] [te] solves the higher-order unification problems (unification modulo beta)
+(** solve [n] [k_lst] [te] solves the higher-order unification problems (unification modulo beta)
       x_1 => x_2 ... x_n => X x_(i_1) .. x_(i_m) = x_1 => x_2 ... x_n => te
       where X is the unknown, x_(i_1) .. x_(i_m) are distinct (bound) variables and [te] is a term.*)
 val solve : int -> int LList.t -> term -> term

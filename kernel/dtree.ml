@@ -9,18 +9,101 @@ type dtree_error =
 
 exception DtreeExn of dtree_error
 
-(* TODO : rename this type *)
-type rule2 =
-    { loc:loc ; pats:wf_pattern array ; right:term ;
-      constraints:constr list ; esize:int ; }
+(* A subtype of rule_infos with only the informations that the dtree need *)
+type dtree_rule =
+  { loc:loc ;
+    pats:wf_pattern array ;
+    right:term ;
+    constraints:constr list ;
+    esize:int ; }
 
+let to_dtree_rule (r:rule_infos) : dtree_rule =
+  { loc = r.l ;
+    pats = r.l_args ;
+    right = r.rhs ;
+    constraints = r.constraints ;
+    esize = r.esize ; }
+
+(*
+ * there is one matrix per head symbol that represents all the rules associated to this symbol.
+ * col_depth:   [ (n_0)          (n_1)          ...       (n_k)   ]
+ * first:       [ pats.(0)      pats.(1)        ...     pats.(k)  ]
+ * others:      [ pats.(0)      pats.(1)        ...     pats.(k)  ]
+ *                  ...           ...           ...       ...
+ *              [ pats.(0)      pats.(1)        ...     pats.(k)  ]
+ *
+ *              n_i records the depth of the column (number of binders under which it stands)
+ *)
+type matrix =
+    { col_depth: int array;
+      first:dtree_rule ;
+      others:dtree_rule list ; }
+
+
+(* mk_matrix lst builds a matrix out of the non-empty list of rules [lst]
+*  It is checked that all rules have the same head symbol and arity.
+* *)
+let mk_matrix : rule_infos list -> matrix = function
+  | [] -> assert false
+  | r1::rs ->
+    let n = Array.length r1.l_args in
+    let o = List.map (
+        fun r2 ->
+          if not (ident_eq r1.id r2.id) then
+            raise (DtreeExn (HeadSymbolMismatch (r2.l,r2.id,r1.id)))
+          else
+          if n != Array.length r2.l_args then
+            raise (DtreeExn (ArityMismatch (r2.l,r1.id)))
+          else
+            to_dtree_rule r2
+      ) rs in
+    { first=(to_dtree_rule r1); others=o; col_depth=Array.make n 0 ;}
+
+(* Remove a line of the matrix [mx] and return None if the new matrix is Empty. *)
+let pop mx =
+  match mx.others with
+    | [] -> None
+    | f::o -> Some { mx with first=f; others=o; }
+
+let filter (f:dtree_rule -> bool) (mx:matrix) : matrix option =
+  match List.filter f (mx.first::mx.others) with
+    | [] -> None
+    | f::o -> Some { mx with first=f; others=o; }
+
+(* Keeps only the rules with a lambda on column [c] *)
+let filter_on_lambda c r =
+  match r.pats.(c) with
+    | LLambda _ | LJoker | LVar _ -> true
+    | _ -> false
+
+(* Keeps only the rules with a bound variable of index [n] on column [c] *)
+let filter_on_bound_variable c n r =
+  match r.pats.(c) with
+    | LBoundVar (_,m,_) when n==m -> true
+    | LVar _ | LJoker -> true
+    | _ -> false
+
+(* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
+let filter_on_pattern c m v r =
+  match r.pats.(c) with
+    | LPattern (m',v',_) when ident_eq v v' && ident_eq m m' -> true
+    | LVar _ | LJoker -> true
+    | _ -> false
+
+(* Keeps only the rules with a joker or a variable on column [c] *)
+let filter_default (mx:matrix) (c:int) : matrix option =
+  filter (
+    fun r -> match r.pats.(c) with
+      | LVar _ | LJoker -> true
+      | LLambda _ | LPattern _ | LBoundVar _ -> false
+  ) mx
 
 type case =
   | CConst of int*ident*ident
   | CDB    of int*int
   | CLam
 
-type abstract_pb = { position2:int (*c*) ; dbs:int LList.t (*(k_i)_{i<=n}*) ; depth2:int }
+type abstract_pb = { position:int (*c*) ; dbs:int LList.t (*(k_i)_{i<=n}*) ; depth:int }
 type pos = { position:int; depth:int }
 
 type pre_context =
@@ -77,93 +160,7 @@ let pp_rw fmt (m,v,i,g) =
 
 (* ************************************************************************** *)
 
-type matrix =
-    { col_depth: int array;
-      first:rule2 ;
-      others:rule2 list ; }
-
-(*
- * col_depth:    [ (n_0,p_0)     (n_1,p_1)       ...     (n_k,p_k) ]
- * first:       [ pats.(0)      pats.(1)        ...     pats.(k)  ]
- * others:      [ pats.(0)      pats.(1)        ...     pats.(k)  ]
- *                      ...
- *              [ pats.(0)      pats.(1)        ...     pats.(k)  ]
- *
- *              n_i is a pointeur to the stack
- *              k_i records the depth of the column (number of binders under which it stands)
- *)
-
-let to_rule2 (r:rule_infos) : rule2 =
-  { loc = r.l ;
-    pats = r.l_args ;
-    right = r.rhs ;
-    constraints = r.constraints ;
-    esize = r.esize ; }
-
-(* mk_matrix lst builds a matrix out of the non-empty list of rules [lst]
-*  It is checked that all rules have the same head symbol and arity.
-* *)
-let mk_matrix : rule_infos list -> matrix = function
-  | [] -> assert false
-  | r1::rs ->
-      let f = to_rule2 r1 in
-      let n = Array.length f.pats in
-      let o = List.map (
-        fun r2 ->
-          if not (ident_eq r1.id r2.id) then
-            raise (DtreeExn (HeadSymbolMismatch (r2.l,r1.id,r2.id)))
-          else
-            let r2' = to_rule2 r2 in
-              if n != Array.length r2'.pats then
-                raise (DtreeExn (ArityMismatch (r2.l,r1.id)))
-              else r2'
-      ) rs in
-        { first=f; others=o; col_depth=Array.make (Array.length f.pats) 0 ;}
-
-let pop mx =
-  match mx.others with
-    | [] -> None
-    | f::o -> Some { mx with first=f; others=o; }
-
-let width mx = Array.length mx.first.pats
-
-let get_first_term mx = mx.first.right
-let get_first_constraints mx = mx.first.constraints
-
 (* ***************************** *)
-
-let filter (f:rule2 -> bool) (mx:matrix) : matrix option =
-  match List.filter f (mx.first::mx.others) with
-    | [] -> None
-    | f::o -> Some { mx with first=f; others=o; }
-
-(* Keeps only the rules with a lambda on column [c] *)
-let filter_l c r =
-  match r.pats.(c) with
-    | LLambda _ | LJoker | LVar _ -> true
-    | _ -> false
-
-(* Keeps only the rules with a bound variable of index [n] on column [c] *)
-let filter_bv c n r =
-  match r.pats.(c) with
-    | LBoundVar (_,m,_) when n==m -> true
-    | LVar _ | LJoker -> true
-    | _ -> false
-
-(* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
-let filter_p c m v r =
-  match r.pats.(c) with
-    | LPattern (m',v',_) when ident_eq v v' && ident_eq m m' -> true
-    | LVar _ | LJoker -> true
-    | _ -> false
-
-(* Keeps only the rules with a joker or a variable on column [c] *)
-let default (mx:matrix) (c:int) : matrix option =
-  filter (
-    fun r -> match r.pats.(c) with
-      | LVar _ | LJoker -> true
-      | LLambda _ | LPattern _ | LBoundVar _ -> false
-  ) mx
 
 (* ***************************** *)
 
@@ -174,7 +171,7 @@ let default (mx:matrix) (c:int) : matrix option =
  * - or the body if column [c] is a lambda
  * - or Jokers otherwise
 * *)
-let specialize_rule (c:int) (nargs:int) (r:rule2) : rule2 =
+let specialize_rule (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
   let size = Array.length r.pats in
   let aux i =
     if i < size then
@@ -215,9 +212,9 @@ let spec_col_depth_l (c:int) (col_depth: int array) : int array =
 (* Specialize the matrix [mx] on column [c] *)
 let specialize mx c case : matrix =
   let (mx_opt,nargs) = match case with
-    | CLam -> ( filter (filter_l c) mx , 1 )
-    | CDB (nargs,n) -> ( filter (filter_bv c n) mx , nargs )
-    | CConst (nargs,m,v) -> ( filter (filter_p c m v) mx , nargs )
+    | CLam -> ( filter (filter_on_lambda c) mx , 1 )
+    | CDB (nargs,n) -> ( filter (filter_on_bound_variable c n) mx , nargs )
+    | CConst (nargs,m,v) -> ( filter (filter_on_pattern c m v) mx , nargs )
   in
   let new_cn = match case with
     | CLam -> spec_col_depth_l c mx.col_depth
@@ -233,16 +230,6 @@ let specialize mx c case : matrix =
 
 (* ***************************** *)
 
-(* Give the index of the first non variable column *)
-let choose_column mx =
-  let rec aux i =
-    if i < Array.length mx.first.pats then
-      ( match mx.first.pats.(i) with
-        | LPattern _ | LLambda _ | LBoundVar _ -> Some i
-        | LVar _ | LJoker -> aux (i+1) )
-    else None
-  in aux 0
-
 let eq a b =
   match a, b with
     | CLam, CLam -> true
@@ -250,7 +237,7 @@ let eq a b =
     | CConst (_,m,v), CConst (_,m',v') when (ident_eq v v' && ident_eq m m') -> true
     | _, _ -> false
 
-let partition mx c =
+let partition (mx:matrix) (c:int) : case list =
   let aux lst li =
     let add h = if List.exists (eq h) lst then lst else h::lst in
       match li.pats.(c) with
@@ -266,11 +253,14 @@ let partition mx c =
 let array_to_llist arr =
   LList.make_unsafe (Array.length arr) (Array.to_list arr)
 
+let get_first_term mx = mx.first.right
+let get_first_constraints mx = mx.first.constraints
+
 (* Extracts the pre_context from the first line. *)
 let get_first_pre_context mx =
   let esize = mx.first.esize in
   let dummy = { position=(-1); depth=0; } in
-  let dummy2 = { position2=(-1); depth2=0; dbs=LList.nil; } in
+  let dummy2 = { position=(-1); depth=0; dbs=LList.nil; } in
   let arr1 = Array.make esize dummy in
   let arr2 = Array.make esize dummy2 in
   let mp = ref false in
@@ -284,10 +274,10 @@ let get_first_pre_context mx =
                  assert(n-k < esize ) ;
                  arr1.(n-k) <- { position=i; depth=mx.col_depth.(i); };
                  if lst=[] then
-                   arr2.(n-k) <- { position2=i; dbs=LList.nil; depth2=mx.col_depth.(i); }
+                   arr2.(n-k) <- { position=i; dbs=LList.nil; depth=mx.col_depth.(i); }
                  else (
                    mp := true ;
-                   arr2.(n-k) <- { position2=i; dbs=LList.of_list lst; depth2=mx.col_depth.(i); } )
+                   arr2.(n-k) <- { position=i; dbs=LList.of_list lst; depth=mx.col_depth.(i); } )
              end
          | _ -> assert false
       ) mx.first.pats ;
@@ -296,6 +286,16 @@ let get_first_pre_context mx =
     else Syntactic (array_to_llist arr1)
 
 (******************************************************************************)
+
+(* Give the index of the first non variable column *)
+let choose_column mx =
+  let rec aux i =
+    if i < Array.length mx.first.pats then
+      ( match mx.first.pats.(i) with
+        | LPattern _ | LLambda _ | LBoundVar _ -> Some i
+        | LVar _ | LJoker -> aux (i+1) )
+    else None
+  in aux 0
 
 (* Construct a decision tree out of a matrix *)
 let rec to_dtree (mx:matrix) : dtree =
@@ -309,7 +309,7 @@ let rec to_dtree (mx:matrix) : dtree =
     | Some c ->
         let cases = partition mx c in
         let aux ca = ( ca , to_dtree (specialize mx c ca) ) in
-          Switch (c, List.map aux cases, map_opt to_dtree (default mx c) )
+          Switch (c, List.map aux cases, map_opt to_dtree (filter_default mx c) )
 
 (******************************************************************************)
 

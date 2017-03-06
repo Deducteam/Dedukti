@@ -12,13 +12,13 @@ type case =
   | CConst of int*ident*ident
   (** [size] [m] [v] where [size] is the number of *static* arguments expected for the constant [m.v] *)
   | CDB    of int*int
-  (** [size] [i] where size is the number of *static* arguments expected for the variable (as a function) [i] *)
+  (** [size] [i] where size is the number of *static* arguments expected for the bounded variable (as a function) [i] *)
   | CLam
   (** Just a lambda term *)
 (** Since the arity of a constant can not be know statically, size should be always smaller than the number of arguments applied to the constant m.v *)
 
 (* Abstract (from a stack (or a term list)) matching problem *)
-type abstract_pb = { position2:int (*c*) ; dbs:int LList.t (*(k_i)_{i<=n}*) ; depth2:int }
+type abstract_pb = { position:int (*c*) ; dbs:int LList.t (*(k_i)_{i<=n}*) ; depth:int }
 (* It corresponds to the following matching problem (modulo beta):
  * stck.(c) ~? F( (DB k_0) ... (DB k_n) )
  * where F is the variable
@@ -27,6 +27,7 @@ type abstract_pb = { position2:int (*c*) ; dbs:int LList.t (*(k_i)_{i<=n}*) ; de
 type pos = { position:int; depth:int }
 
 (* FIXME: change the name of this type *)
+(* FIXME: MillerPattern is more general than Syntactic, are we loosing efficency by removing the Syntactic constructor ? *)
 (* Infos to build the context from the stack *)
 type pre_context =
   | Syntactic of pos LList.t

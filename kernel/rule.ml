@@ -238,28 +238,6 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
   in
     aux 0 te
 
-(* check that every free variable in the ctx appear in the pattern p *)
-(* FIXME : useless since the function get_vars_order in scoping.ml already handles this case *)
-let check_vars esize ctx p =
-  let seen = Array.make esize false in
-  let rec aux k = function
-    | Pattern (_,_,_,args) -> List.iter (aux k) args
-    | Var (_,_,n,args) ->
-        begin
-          ( if n-k >= 0 then seen.(n-k) <- true );
-          List.iter (aux k) args
-        end
-    | Lambda (_,_,t) -> aux (k+1) t
-    | Brackets _ -> ()
-  in
-  aux 0 p;
-  Array.iteri (
-    fun i b ->
-      if (not b) then
-        let (l,x,_) = List.nth ctx i in
-        raise (RuleExn (UnboundVariable (l,x,p)))
-  ) seen
-
 let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
   let rec is_linear = function
     | [] -> true
@@ -271,12 +249,7 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
       let (ctx,lhs,rhs) = r in
       let esize = List.length ctx in
       let (l,md,id,args) = match lhs with
-        | Pattern (l,md,id,args) ->
-          begin
-            (* FIXME : not necessary since the scoping remove unecessary free variables *)
-            check_vars esize ctx lhs;
-            (l,md,id,args)
-            end
+        | Pattern (l,md,id,args) -> (l,md,id,args)
         | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
         | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
       in

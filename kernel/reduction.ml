@@ -97,8 +97,8 @@ let rec find_case (st:state) (cases:(case * dtree) list) (default:dtree option) 
     else find_case st tl default
   | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
     begin
-      assert ( ctx = LList.nil );
-      if n==n' && (List.length stack == nargs) then
+      assert ( ctx = LList.nil ); (* no beta in patterns *)
+      if n==n' && (List.length stack >= nargs) then
         Some (tr,stack)
       else
         find_case st tl default
@@ -174,7 +174,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
           match split_stack i stack with
           | None -> state
           | Some (s1,s2) ->
-            ( match gamma_rw sg s1 g with
+            ( match gamma_rw sg state_whnf s1 g with
               | None -> state
               | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
             )
@@ -200,30 +200,30 @@ and test sg ctx = function
       failwith "Error while reducing a term: a guard was not satisfied."
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
-and gamma_rw (sg:Signature.t) (stack:stack) : dtree -> (env*term) option = function
+and gamma_rw (sg:Signature.t) (reduce: Signature.t -> state -> state) (stack:stack) : dtree -> (env*term) option = function
   | Switch (i,cases,def) ->
     begin
-      let arg_i = state_whnf sg (List.nth stack i) in
+      let arg_i = reduce sg (List.nth stack i) in
       match find_case arg_i cases def with
-      | Some (g,[]) -> gamma_rw sg stack g
-      | Some (g,s) -> gamma_rw sg (stack@s) g
+      | Some (g,[]) -> gamma_rw sg reduce stack g
+      | Some (g,s) -> gamma_rw sg reduce (stack@s) g (* this line highly depends on how the module dtree works. When a column is specialized, new columns are added at the end this explains why s is added at the end. *)
       | None -> None
     end
   | Test (Syntactic ord, eqs, right, def) ->
     begin
       match get_context_syn sg stack ord with
-      | None -> bind_opt (gamma_rw sg stack) def
+      | None -> bind_opt (gamma_rw sg reduce stack) def
       | Some ctx ->
         if test sg ctx eqs then Some (ctx, right)
-        else bind_opt (gamma_rw sg stack) def
+        else bind_opt (gamma_rw sg reduce stack) def
     end
   | Test (MillerPattern lst, eqs, right, def) ->
     begin
       match get_context_mp sg stack lst with
-      | None -> bind_opt (gamma_rw sg stack) def
+      | None -> bind_opt (gamma_rw sg reduce stack) def
       | Some ctx ->
         if test sg ctx eqs then Some (ctx, right)
-        else bind_opt (gamma_rw sg stack) def
+        else bind_opt (gamma_rw sg reduce stack) def
     end
 
 and unshift sg q te =
@@ -259,8 +259,8 @@ and solve (sg:Signature.t) (depth:int) (pbs:int LList.t) (te:term) : term =
 
 and get_context_mp (sg:Signature.t) (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
   let aux (pb:abstract_pb) : term Lazy.t =
-    let res = solve sg pb.depth2 pb.dbs (term_of_state (List.nth stack pb.position2)) in
-    Lazy.from_val (Subst.unshift pb.depth2 res)
+    let res = solve sg pb.depth pb.dbs (term_of_state (List.nth stack pb.position)) in
+    Lazy.from_val (Subst.unshift pb.depth res)
   in
   try Some (LList.map aux pb_lst)
   with Matching.NotUnifiable -> None
@@ -341,7 +341,7 @@ let rec state_one_step (sg:Signature.t) : state -> state option = function
           match split_stack i stack with
           | None -> None
           | Some (s1,s2) ->
-            ( match gamma_rw sg s1 g with
+            ( match gamma_rw sg state_whnf s1 g with
               | None -> None
               | Some (ctx,term) -> Some { ctx; term; stack=s2 }
             )
