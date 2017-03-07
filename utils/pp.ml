@@ -142,7 +142,7 @@ let print_term out t = print_term out (subst [] t)
 
 let print_bv out (_,id,i) = print_db out (id,i)
 
-let rec print_pattern out = function
+let rec print_raw_pattern out = function
   | Var (_,id,i,[]) -> print_db_or_underscore out (id,i)
   | Var (_,id,i,lst)     -> Format.fprintf out "%a %a" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | Brackets t           -> Format.fprintf out "{ %a }" print_term t
@@ -152,6 +152,12 @@ let rec print_pattern out = function
 and print_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> Format.fprintf out "(%a)" print_pattern p
   | p -> print_pattern out p
+and print_pattern out p =
+  if not !resugar then print_raw_pattern out p
+  else
+    try Builtins.print_pattern out p
+    with Builtins.Not_atomic_builtin ->
+      print_raw_pattern out p
 
 let print_context out ctx =
   print_list ".\n"
