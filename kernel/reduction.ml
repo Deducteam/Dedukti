@@ -200,30 +200,30 @@ and test sg ctx = function
       failwith "Error while reducing a term: a guard was not satisfied."
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
-and gamma_rw (sg:Signature.t) (reduce: Signature.t -> state -> state) (stack:stack) : dtree -> (env*term) option = function
+and gamma_rw (sg:Signature.t) (strategy: Signature.t -> state -> state) (stack:stack) : dtree -> (env*term) option = function
   | Switch (i,cases,def) ->
     begin
-      let arg_i = reduce sg (List.nth stack i) in
+      let arg_i = strategy sg (List.nth stack i) in
       match find_case arg_i cases def with
-      | Some (g,[]) -> gamma_rw sg reduce stack g
-      | Some (g,s) -> gamma_rw sg reduce (stack@s) g (* this line highly depends on how the module dtree works. When a column is specialized, new columns are added at the end this explains why s is added at the end. *)
+      | Some (g,[]) -> gamma_rw sg strategy stack g
+      | Some (g,s) -> gamma_rw sg strategy (stack@s) g (* this line highly depends on how the module dtree works. When a column is specialized, new columns are added at the end this explains why s is added at the end. *)
       | None -> None
     end
   | Test (Syntactic ord, eqs, right, def) ->
     begin
       match get_context_syn sg stack ord with
-      | None -> bind_opt (gamma_rw sg reduce stack) def
+      | None -> bind_opt (gamma_rw sg strategy stack) def
       | Some ctx ->
         if test sg ctx eqs then Some (ctx, right)
-        else bind_opt (gamma_rw sg reduce stack) def
+        else bind_opt (gamma_rw sg strategy stack) def
     end
   | Test (MillerPattern lst, eqs, right, def) ->
     begin
       match get_context_mp sg stack lst with
-      | None -> bind_opt (gamma_rw sg reduce stack) def
+      | None -> bind_opt (gamma_rw sg strategy stack) def
       | Some ctx ->
         if test sg ctx eqs then Some (ctx, right)
-        else bind_opt (gamma_rw sg reduce stack) def
+        else bind_opt (gamma_rw sg strategy stack) def
     end
 
 and unshift sg q te =
@@ -231,7 +231,7 @@ and unshift sg q te =
   with Subst.UnshiftExn ->
     Subst.unshift q (snf sg te)
 
-and get_context_syn (sg:Signature.t) (stack:stack) (ord:pos LList.t) : env option =
+and get_context_syn (sg:Signature.t) (stack:stack) (ord:arg_pos LList.t) : env option =
   try Some (LList.map (
       fun p ->
         if ( p.depth = 0 ) then
@@ -257,10 +257,10 @@ and solve (sg:Signature.t) (depth:int) (pbs:int LList.t) (te:term) : term =
   ( assert (are_convertible_lst sg [(te,te2)]); res )
 *)
 
-and get_context_mp (sg:Signature.t) (stack:stack) (pb_lst:abstract_pb LList.t) : env option =
-  let aux (pb:abstract_pb) : term Lazy.t =
-    let res = solve sg pb.depth pb.dbs (term_of_state (List.nth stack pb.position)) in
-    Lazy.from_val (Subst.unshift pb.depth res)
+and get_context_mp (sg:Signature.t) (stack:stack) (pb_lst:abstract_problem LList.t) : env option =
+  let aux ((pos,dbs):abstract_problem) : term Lazy.t =
+    let res = solve sg pos.depth dbs (term_of_state (List.nth stack pos.position)) in
+    Lazy.from_val (Subst.unshift pos.depth res)
   in
   try Some (LList.map aux pb_lst)
   with Matching.NotUnifiable -> None

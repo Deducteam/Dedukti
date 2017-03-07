@@ -25,7 +25,7 @@ let to_dtree_rule (r:rule_infos) : dtree_rule =
     esize = r.esize ; }
 
 (*
- * there is one matrix per head symbol that represents all the rules associated to this symbol.
+ * there is one matrix per head symbol that represents all the rules associated to that symbol.
  * col_depth:   [ (n_0)          (n_1)          ...       (n_k)   ]
  * first:       [ pats.(0)      pats.(1)        ...     pats.(k)  ]
  * others:      [ pats.(0)      pats.(1)        ...     pats.(k)  ]
@@ -103,36 +103,38 @@ type case =
   | CDB    of int*int
   | CLam
 
-type abstract_pb = { position:int (*c*) ; dbs:int LList.t (*(k_i)_{i<=n}*) ; depth:int }
-type pos = { position:int; depth:int }
+type arg_pos = { position:int; depth:int }
+type abstract_problem = arg_pos * int LList.t
 
-type pre_context =
-  | Syntactic of pos LList.t
-  | MillerPattern of abstract_pb LList.t
 
-let pp_pre_context fmt pre_context =
-  match pre_context with
+type matching_problem =
+  | Syntactic of arg_pos LList.t
+  | MillerPattern of abstract_problem LList.t
+
+let pp_matching_problem fmt matching_problem =
+  match matching_problem with
   | Syntactic _ -> fprintf fmt "Sy"
   | MillerPattern _ -> fprintf fmt "Mi"
 
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of pre_context * constr list * term * dtree option
+  | Test    of matching_problem * constr list * term * dtree option
 
 
 let rec pp_dtree t fmt dtree =
   let tab = String.make (t*4) ' ' in
   match dtree with
-  | Test (pc,[],te,None)   -> fprintf fmt "(%a) %a" pp_pre_context pc pp_term te
-  | Test (_,[],_,def)      -> assert false
-  | Test (pc,lst,te,def)  ->
+  | Test (mp,[],te,None)   -> fprintf fmt "(%a) %a" pp_matching_problem mp pp_term te
+  | Test (mp,[],te,def)      ->
+    fprintf fmt "\n%sif true then (%a) %a\n%selse (%a) %a" tab pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
+  | Test (mp,lst,te,def)  ->
     let aux out = function
       | Linearity (i,j) -> fprintf out "%d =l %d" i j
       | Bracket (i,j) -> fprintf out "%a =b %a" pp_term (mk_DB dloc dmark i) pp_term j
     in
     fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
-      pp_pre_context pc pp_term te tab pp_pre_context pc (pp_def (t+1)) def
+      pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
   | Switch (i,cases,def)->
     let pp_case out = function
       | CConst (_,m,v), g ->
@@ -156,13 +158,6 @@ let pp_rw fmt (m,v,i,g) =
   fprintf fmt "GDT for '%a.%a' with %i argument(s): %a"
     pp_ident m pp_ident v i pp_dtree g
 
-
-
-(* ************************************************************************** *)
-
-(* ***************************** *)
-
-(* ***************************** *)
 
 (* Specialize the rule [r] on column [c]
  * i.e. remove colum [c] and append [nargs] new column at the end.
@@ -256,11 +251,11 @@ let array_to_llist arr =
 let get_first_term mx = mx.first.right
 let get_first_constraints mx = mx.first.constraints
 
-(* Extracts the pre_context from the first line. *)
-let get_first_pre_context mx =
+(* Extracts the matching_problem from the first line. *)
+let get_first_matching_problem mx =
   let esize = mx.first.esize in
   let dummy = { position=(-1); depth=0; } in
-  let dummy2 = { position=(-1); depth=0; dbs=LList.nil; } in
+  let dummy2 = dummy, LList.nil in
   let arr1 = Array.make esize dummy in
   let arr2 = Array.make esize dummy2 in
   let mp = ref false in
@@ -270,14 +265,16 @@ let get_first_pre_context mx =
          | LVar (_,n,lst) ->
              begin
                let k = mx.col_depth.(i) in
-                 assert( 0 <= n-k ) ;
-                 assert(n-k < esize ) ;
-                 arr1.(n-k) <- { position=i; depth=mx.col_depth.(i); };
-                 if lst=[] then
-                   arr2.(n-k) <- { position=i; dbs=LList.nil; depth=mx.col_depth.(i); }
-                 else (
-                   mp := true ;
-                   arr2.(n-k) <- { position=i; dbs=LList.of_list lst; depth=mx.col_depth.(i); } )
+               assert( 0 <= n-k );
+               assert(n-k < esize );
+               let pos = { position=i; depth = mx.col_depth.(i) } in
+               arr1.(n-k) <- pos;
+               if lst=[] then
+                   arr2.(n-k) <- pos, LList.nil
+               else (
+                 mp := true ;
+                 arr2.(n-k) <- pos,LList.of_list lst
+               )
              end
          | _ -> assert false
       ) mx.first.pats ;
@@ -301,7 +298,7 @@ let choose_column mx =
 let rec to_dtree (mx:matrix) : dtree =
   match choose_column mx with
     (* There are only variables on the first line of the matrix *)
-    | None   -> Test ( get_first_pre_context mx,
+    | None   -> Test ( get_first_matching_problem mx,
                        get_first_constraints mx,
                        get_first_term mx,
                        map_opt to_dtree (pop mx) )
