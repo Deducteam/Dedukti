@@ -2,6 +2,7 @@ open Basic
 open Preterm
 open Term
 open Printf
+open Rule
 
 let modname = hstring "builtins"
 
@@ -80,3 +81,15 @@ let print_term out t =
        with Not_atomic_builtin ->
          (* try to print as a string *)
          Format.fprintf out "\"%s\"" (term_to_string t)
+
+let rec pattern_to_int = function
+  | Pattern (_, m, v, [])
+       when ident_eq m modname &&
+              ident_eq v _0 -> 0
+  | Pattern (_, m, v, [a])
+       when ident_eq m modname &&
+              ident_eq v _S -> pattern_to_int a + 1
+  | _ -> raise Not_atomic_builtin
+
+let print_pattern out p =
+  Format.fprintf out "%d" (pattern_to_int p)

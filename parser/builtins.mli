@@ -8,3 +8,4 @@ val mk_string : Basic.loc * string -> Preterm.preterm
 exception Not_atomic_builtin
 
 val print_term : Format.formatter -> Term.term -> unit
+val print_pattern : Format.formatter -> Rule.pattern -> unit
