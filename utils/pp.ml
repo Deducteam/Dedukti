@@ -4,8 +4,11 @@ open Term
 open Rule
 open Printf
 
-let print_db_enabled = ref false
+(* TODO: make that debuging functions returns a string *)
+let print_db_enabled = ref true
 let name = ref qmark
+
+let print_ident fmt id = Format.pp_print_string fmt (string_of_ident id)
 
 let rec print_list sep pp out = function
     | []        -> ()
@@ -142,13 +145,13 @@ and print_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> Format.fprintf out "(%a)" print_pattern p
   | p -> print_pattern out p
 
-let print_context out ctx =
+let print_typed_context out ctx =
   print_list ".\n"
     (fun out (_,x,ty) ->
       Format.fprintf out "@[<hv>%a:@ %a@]" print_ident x print_term ty
     ) out (List.rev ctx)
 
-let print_rule out (ctx,pat,te) =
+let print_untyped_rule out (ctx,pat,te) =
   let print_decl out (_,id) =
     Format.fprintf out "@[<hv>%a@]" print_ident id
   in
@@ -158,7 +161,7 @@ let print_rule out (ctx,pat,te) =
     print_pattern pat
     print_term te
 
-let print_rule2 out (ctx,pat,te) =
+let print_typed_rule out (ctx,pat,te) =
   let print_decl out (_,id,ty) =
     Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
   in
@@ -168,4 +171,4 @@ let print_rule2 out (ctx,pat,te) =
     print_pattern pat
     print_term te
 
-let print_frule out r = print_rule2 out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
+let print_rule_infos out r = print_typed_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)

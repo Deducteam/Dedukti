@@ -3,6 +3,7 @@
 open Basic
 open Term
 open Rule
+open Dtree
 
 val ignore_redecl       : bool ref
 (** When [ignore_redecl] is [true], allows a constant to be redefined.
@@ -21,6 +22,7 @@ type signature_error =
   | UnmarshalUnknown of loc*string
   | SymbolNotFound of loc*ident*ident
   | AlreadyDefinedSymbol of loc*ident
+  | CannotMakeRuleInfos of Rule.rule_error
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
   | ConfluenceErrorImport of loc*ident*Confluence.confluence_error
@@ -57,6 +59,6 @@ val add_definable       : t -> loc -> ident -> term -> unit
 (** [add_definable sg l id ty] declares the definable symbol [id] of type [ty]
     in the environment [sg]. *)
 
-val add_rules           : t -> Rule.rule2 list -> unit
+val add_rules           : t -> Rule.typed_rule list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)

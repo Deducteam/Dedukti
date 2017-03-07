@@ -23,7 +23,7 @@ module T = struct
           print_ident i print_term ty print_term t
 
   let mk_rules l =
-    Format.printf "@[<v0>%a@].@.@." (print_list "" print_rule) l
+    Format.printf "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) l
 
   let mk_command _ cmd =
     Format.printf "@[<2>%a@]@.@." Cmd.print_command cmd
