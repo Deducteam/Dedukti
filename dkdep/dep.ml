@@ -51,8 +51,7 @@ let mk_binding ( _,_, t) = mk_term t
 let mk_ctx = List.iter mk_binding
 
 let mk_prule (rule:untyped_rule) =
-  let (_,pat,rhs) = rule.rule in
-  mk_pattern pat; mk_term rhs
+  mk_pattern rule.pat; mk_term rule.rhs
 
 let mk_rules = List.iter mk_prule
 

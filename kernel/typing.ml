@@ -368,9 +368,9 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context option =
   | Subst.UnshiftExn -> None
 
 let check_rule sg (rule:untyped_rule) : typed_rule =
-  let ctx0,le,ri = rule.rule in
-  let delta = pc_make ctx0 in
-  let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] le in
+  (*  let ctx0,le,ri = rule.rule in *)
+  let delta = pc_make rule.ctx in
+  let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
   assert ( delta.padding == 0 );
   let sub = match pseudo_u sg SS.identity lst with
     | None -> raise (TypingError (CannotSolveConstraints (rule,lst)))
@@ -378,11 +378,11 @@ let check_rule sg (rule:untyped_rule) : typed_rule =
   in
   let sub = SS.mk_idempotent sub in
   let (ri2,ty_le2,ctx2) =
-    if SS.is_identity sub then (ri,ty_le,LList.lst delta.pctx)
+    if SS.is_identity sub then (rule.rhs,ty_le,LList.lst delta.pctx)
     else
       begin
         match subst_context sub (LList.lst delta.pctx) with
-        | Some ctx2 -> ( SS.apply sub ri 0, SS.apply sub ty_le 0, ctx2 )
+        | Some ctx2 -> ( SS.apply sub rule.rhs 0, SS.apply sub ty_le 0, ctx2 )
         | None ->
           begin
             (*TODO make Dedukti handle this case*)
@@ -392,11 +392,14 @@ let check_rule sg (rule:untyped_rule) : typed_rule =
               fun i (id,te) -> debug 2 "Try replacing '%a[%i]' by '%a'"
                   pp_ident id i (pp_term_j 0) te
             ) sub;
-            raise (TypingError (NotImplementedFeature (get_loc_pat le) ) )
+            raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
           end
       end
   in
   check sg ctx2 ri2 ty_le2;
-  debug 2 "[ %a ] %a --> %a" pp_context_inline ctx2 pp_pattern le pp_term ri2;
-  let typed_rule = (ctx2,le,ri2) in
-  {rule=typed_rule;name=rule.name}
+  debug 2 "[ %a ] %a --> %a" pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2;
+  { name = rule.name;
+    ctx = ctx2;
+    pat = rule.pat;
+    rhs = rule.rhs
+  }

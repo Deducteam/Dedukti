@@ -48,9 +48,15 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   | Kind -> raise (DefineExn (l,id))
   | _ ->
     Signature.add_definable !sg l id ty;
-    let rule = ([], Pattern (l, get_name (), id, []), te) in
     let name = Delta(get_name (), id) in
-    Signature.add_rules !sg [{rule=rule;name=name}]
+    let rule =
+      { name ;
+        ctx = [] ;
+        pat = Pattern(l, get_name (), id, []) ;
+        rhs = te ;
+      }
+    in
+    Signature.add_rules !sg [rule]
 
 let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with

@@ -24,8 +24,10 @@ type rule_name = Delta of ident * ident | Gamma of bool * ident * ident
 
 type 'a rule =
   {
-    name:rule_name;
-    rule:'a * pattern * term
+    name: rule_name;
+    ctx: 'a;
+    pat: pattern;
+    rhs:term
   }
 
 type untyped_rule = untyped_context rule
@@ -124,27 +126,26 @@ let pp_rule_name fmt rule_name =
   fprintf fmt "%s: %a.%a" sort pp_ident md pp_ident id
 
 (* FIXME: factorize this function with the follozing one *)
-let pp_untyped_rule fmt rule =
-  let (ctx,pat,te) = rule.rule in
+let pp_untyped_rule fmt (rule:untyped_rule) =
   fprintf fmt " {%a} [%a] %a --> %a"
-    pp_untyped_context ctx
-    pp_pattern pat
-    pp_term te
+    pp_untyped_context rule.ctx
+    pp_pattern rule.pat
+    pp_term rule.rhs
     pp_rule_name rule.name
 
-let pp_typed_rule out rule =
-  let (ctx,pat,te) = rule.rule in
-  fprintf out " {%a} [%a] %a --> %a"
-    pp_typed_context ctx
-    pp_pattern pat
-    pp_term te
+let pp_typed_rule fmt (rule:typed_rule) =
+  fprintf fmt " {%a} [%a] %a --> %a"
+    pp_typed_context rule.ctx
+    pp_pattern rule.pat
+    pp_term rule.rhs
     pp_rule_name rule.name
 
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
-  let rule = (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs) in
-  let name = r.name in
-  pp_typed_rule out {rule = rule ; name = name}
+  let rule = { name = r.name; ctx = r.ctx;
+               pat = Pattern (r.l, r.md, r.id,r.args);
+               rhs = r.rhs } in
+  pp_typed_rule out rule
 
 let pattern_to_term p =
   let rec aux k = function
@@ -272,23 +273,21 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
   in
   try
     begin
-      let (ctx,lhs,rhs) = r.rule in
-      let esize = List.length ctx in
-      let (l,md,id,args) = match lhs with
+      let esize = List.length r.ctx in
+      let (l,md,id,args) = match r.pat with
         | Pattern (l,md,id,args) -> (l,md,id,args)
         | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
         | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
       in
-      let nb_args = get_nb_args esize lhs in
-      let _ = check_nb_args nb_args rhs in
+      let nb_args = get_nb_args esize r.pat in
+      let _ = check_nb_args nb_args r.rhs in
       let (esize2,pats2,cstr) = check_patterns  esize args in
       let is_nl = not (is_linear cstr) in
       if is_nl && (not !allow_non_linear) then
         Err (NonLinearRule r)
       else
         let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in
-        let name = r.name in
-        OK { l ; name ; ctx ; md ; id ; args ; rhs ;
+        OK { l ; name = r.name ; ctx = r.ctx ; md ; id ; args ; rhs = r.rhs ;
              esize = esize2 ;
              l_args = Array.of_list pats2 ;
              constraints = cstr ; }

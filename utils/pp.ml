@@ -165,30 +165,32 @@ let print_rule_name fmt rule =
       | Delta(md,id) -> aux true md id (* not printed *)
     | Gamma(b,md,id) -> aux b md id
 
-let print_untyped_rule fmt rule =
-  let (ctx,pat,te) = rule.rule in
+let print_untyped_rule fmt (rule:untyped_rule) =
   let print_decl out (_,id) =
     Format.fprintf out "@[<hv>%a@]" print_ident id
   in
   Format.fprintf fmt
     "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
     print_rule_name rule.name
-    (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) ctx)
-    print_pattern pat
-    print_term te
+    (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) rule.ctx)
+    print_pattern rule.pat
+    print_term rule.rhs
 
-let print_typed_rule out rule =
-  let (ctx,pat,te) = rule.rule in
+let print_typed_rule out (rule:typed_rule) =
   let print_decl out (_,id,ty) =
     Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
   in
   Format.fprintf out
     "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_list ", " print_decl) ctx
-    print_pattern pat
-    print_term te
+    (print_list ", " print_decl) rule.ctx
+    print_pattern rule.pat
+    print_term rule.rhs
 
-let print_rule_infos out r =
-  let rule = (r.ctx, Pattern (r.l, r.md, r.id, r.args), r.rhs) in
-  let name = r.name in
-  print_typed_rule out {rule=rule; name=name}
+let print_rule_infos out ri =
+  let rule = { name = ri.name ;
+               ctx = ri.ctx ;
+               pat =  Pattern (ri.l, ri.md, ri.id, ri.args) ;
+               rhs = ri.rhs
+             }
+  in
+  print_typed_rule out rule

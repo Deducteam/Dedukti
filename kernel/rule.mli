@@ -60,7 +60,9 @@ val pp_rule_name : Format.formatter -> rule_name -> unit
 type 'a rule =
   {
     name: rule_name;
-    rule:'a * pattern * term
+    ctx: 'a;
+    pat: pattern;
+    rhs:term
   }
 
 type untyped_rule = untyped_context rule
