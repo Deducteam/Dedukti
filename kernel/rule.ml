@@ -20,9 +20,15 @@ type untyped_context = ( loc * ident ) list
 
 type typed_context = ( loc * ident * term ) list
 
-type 'a rule = 'a * pattern * term
+type rule_name = Delta of ident * ident | Gamma of bool * ident * ident
 
-type untyped_rule = untyped_context * pattern * term
+type 'a rule =
+  {
+    name:rule_name;
+    rule:'a * pattern * term
+  }
+
+type untyped_rule = untyped_context rule
 
 type typed_rule = typed_context rule
 
@@ -33,6 +39,7 @@ type constr =
 
 type rule_infos = {
   l : loc;
+  name : rule_name ;
   ctx : typed_context;
   md : ident;
   id : ident;
@@ -104,21 +111,40 @@ let pp_typed_context fmt ctx =
                    fprintf fmt "%a: %a" pp_ident x pp_term ty )
     fmt (List.rev ctx)
 
-let pp_untyped_rule fmt (ctx,pat,te) =
-  fprintf fmt "[%a] %a --> %a"
+let pp_rule_name fmt rule_name =
+  let sort,md,id =
+    match rule_name with
+    | Delta(md,id) -> "Delta", md,id
+    | Gamma(b,md,id) ->
+      if b then
+        "Gamma", md,id
+      else
+        "Gamma (default)", md, id
+  in
+  fprintf fmt "%s: %a.%a" sort pp_ident md pp_ident id
+
+(* FIXME: factorize this function with the follozing one *)
+let pp_untyped_rule fmt rule =
+  let (ctx,pat,te) = rule.rule in
+  fprintf fmt " {%a} [%a] %a --> %a"
     pp_untyped_context ctx
     pp_pattern pat
     pp_term te
+    pp_rule_name rule.name
 
-let pp_typed_rule out (ctx,pat,te) =
-    fprintf out "[%a] %a --> %a"
-      pp_typed_context ctx
-      pp_pattern pat
-      pp_term te
+let pp_typed_rule out rule =
+  let (ctx,pat,te) = rule.rule in
+  fprintf out " {%a} [%a] %a --> %a"
+    pp_typed_context ctx
+    pp_pattern pat
+    pp_term te
+    pp_rule_name rule.name
 
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
-  pp_typed_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
+  let rule = (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs) in
+  let name = r.name in
+  pp_typed_rule out {rule = rule ; name = name}
 
 let pattern_to_term p =
   let rec aux k = function
@@ -246,7 +272,7 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
   in
   try
     begin
-      let (ctx,lhs,rhs) = r in
+      let (ctx,lhs,rhs) = r.rule in
       let esize = List.length ctx in
       let (l,md,id,args) = match lhs with
         | Pattern (l,md,id,args) -> (l,md,id,args)
@@ -261,7 +287,8 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
         Err (NonLinearRule r)
       else
         let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in
-        OK { l ; ctx ; md ; id ; args ; rhs ;
+        let name = r.name in
+        OK { l ; name ; ctx ; md ; id ; args ; rhs ;
              esize = esize2 ;
              l_args = Array.of_list pats2 ;
              constraints = cstr ; }

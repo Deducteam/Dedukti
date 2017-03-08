@@ -68,7 +68,8 @@ let fail_typing_error err =
           fail (get_loc_pat p)
             "Error while typing '%a'%a.\nThe type could not be infered."
             pp_pattern p pp_typed_context ctx
-      | CannotSolveConstraints ((_,le,_) as r,cstr) ->
+      | CannotSolveConstraints (r,cstr) ->
+        let (_,le,_) = r.rule in
         fail (get_loc_pat le)
           "Error while typing the rewrite rule\n%a\nCannot solve typing constraints:\n%a"
           pp_untyped_rule r (pp_list "\n" (fun out (_,t1,t2) -> fprintf out "%a ~~ %a" pp_term t1 pp_term t2)) cstr
@@ -121,7 +122,7 @@ let fail_rule_error err =
     fail lc "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
       pp_ident id nb_args exp_nb_args
   | NonLinearRule r ->
-    let (_,p,_) = r in
+    let (_,p,_) = r.rule in
     fail (Rule.get_loc_pat p) "Non left-linear rewrite rule:\n%a.\n\
                                Maybe you forgot to pass the -nl option."
       pp_typed_rule r

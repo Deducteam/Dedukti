@@ -6,7 +6,7 @@ open Rule
 
 val name                : ident ref
 val print_db_enabled    : bool ref
-
+val print_default       : bool ref
 (** {2 Printing functions} *)
 
 (** print_ident [fmt] [id] prints the identifier [id] with the formatter [fmt] *)

@@ -4,8 +4,11 @@ open Term
 open Rule
 open Printf
 
+(* FIXME: this module is highly redondant with printing functions insides kernel modules *)
+
 (* TODO: make that debuging functions returns a string *)
 let print_db_enabled = ref true
+let print_default = ref false
 let name = ref qmark
 
 let print_ident fmt id = Format.pp_print_string fmt (string_of_ident id)
@@ -145,23 +148,37 @@ and print_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> Format.fprintf out "(%a)" print_pattern p
   | p -> print_pattern out p
 
-let print_typed_context out ctx =
+let print_typed_context fmt ctx =
   print_list ".\n"
     (fun out (_,x,ty) ->
-      Format.fprintf out "@[<hv>%a:@ %a@]" print_ident x print_term ty
-    ) out (List.rev ctx)
+      Format.fprintf fmt "@[<hv>%a:@ %a@]" print_ident x print_term ty
+    ) fmt (List.rev ctx)
 
-let print_untyped_rule out (ctx,pat,te) =
+let print_rule_name fmt rule =
+  let aux b _ id =
+    if b || !print_default then
+      Format.fprintf fmt "@[<h>{%s}@] " (string_of_ident id)
+    else
+      Format.fprintf fmt ""
+  in
+    match rule with
+      | Delta(md,id) -> aux true md id (* not printed *)
+    | Gamma(b,md,id) -> aux b md id
+
+let print_untyped_rule fmt rule =
+  let (ctx,pat,te) = rule.rule in
   let print_decl out (_,id) =
     Format.fprintf out "@[<hv>%a@]" print_ident id
   in
-  Format.fprintf out
-    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
+  Format.fprintf fmt
+    "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
+    print_rule_name rule.name
     (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) ctx)
     print_pattern pat
     print_term te
 
-let print_typed_rule out (ctx,pat,te) =
+let print_typed_rule out rule =
+  let (ctx,pat,te) = rule.rule in
   let print_decl out (_,id,ty) =
     Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
   in
@@ -171,4 +188,7 @@ let print_typed_rule out (ctx,pat,te) =
     print_pattern pat
     print_term te
 
-let print_rule_infos out r = print_typed_rule out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
+let print_rule_infos out r =
+  let rule = (r.ctx, Pattern (r.l, r.md, r.id, r.args), r.rhs) in
+  let name = r.name in
+  print_typed_rule out {rule=rule; name=name}

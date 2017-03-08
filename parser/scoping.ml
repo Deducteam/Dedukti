@@ -102,12 +102,20 @@ let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
 
 (******************************************************************************)
 
-let scope_rule (l,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
+let scope_rule (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   let top = PPattern(l,md_opt,id,pargs) in
   let ctx = get_vars_order pctx top in
   let idents = List.map snd ctx in
   let rule = ( ctx, p_of_pp idents top, t_of_pt idents pri ) in
+  let md = match md_opt with | None -> Env.get_name () | Some md -> md in
+  let b,id =
+    match pname with
+    | None ->
+      let id = Format.sprintf "%s!%d" (string_of_ident id) (fst (of_loc l)) in
+      (false,(hstring id))
+    | Some id -> (true,id)
+  in
   if List.length ctx <> List.length pctx then
     debug 1 "Warning: local variables in the rule %a are not used"
-      pp_prule (l,pctx,md_opt,id,pargs,pri);
-  rule
+      pp_prule (l,pname,pctx,md_opt,id,pargs,pri);
+  {rule=rule;name=Gamma(b,md,id)}

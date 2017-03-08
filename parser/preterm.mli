@@ -31,6 +31,6 @@ type pcontext   = pdecl list
 
 val pp_pcontext : formatter -> pcontext -> unit
 
-type prule      = loc * pdecl list * ident option * ident * prepattern list * preterm
+type prule      = loc * ident option * pdecl list * ident option * ident * prepattern list * preterm
 
 val pp_prule : formatter -> prule -> unit

@@ -45,7 +45,7 @@ val get_type            : t -> loc -> ident -> ident -> term
 (** [get_type sg l md id] returns the type of the constant [md.id] inside the environement [sg]. *)
 
 val is_constant         : t -> loc -> ident -> ident -> bool
-(** [is_constant sg l md id] returns true when [mkd.id] is a constant. *)
+(** [is_constant sg l md id] returns true when [md.id] is a constant. *)
 
 val get_dtree           : t -> loc -> ident -> ident -> (int*dtree) option
 (** [get_dtree sg l md id] returns the decision/matching tree associated with [md.id]

@@ -52,7 +52,16 @@ type typed_context = ( loc * ident * term ) list
 
 (** {2 Rewrite Rules} *)
 
-type 'a rule = 'a * pattern * term
+(** Delta rules are the rules associated to the definition of a constant while Gamma rules are the rules of lambda pi modulo. The first paraneter of Gamma indicates if the name of the rule has been given by the user. *)
+type rule_name = Delta of ident * ident | Gamma of bool * ident * ident
+
+val pp_rule_name : Format.formatter -> rule_name -> unit
+
+type 'a rule =
+  {
+    name: rule_name;
+    rule:'a * pattern * term
+  }
 
 type untyped_rule = untyped_context rule
 
@@ -77,6 +86,7 @@ type rule_error =
 
 type rule_infos = {
   l : loc; (** location of the rule *)
+  name : rule_name;
   ctx : typed_context; (** typed context of the rule *)
   md : ident; (** module where the pattern constant is defined *)
   id : ident; (** name of the pattern constant *)

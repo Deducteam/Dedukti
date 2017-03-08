@@ -2,7 +2,9 @@ open Basic
 open Pp
 
 module T = struct
-  let mk_prelude _ i = Format.printf "#NAME %a.@.@." print_ident i
+  let mk_prelude _ i =
+    Env.init i;
+    Format.printf "#NAME %a.@.@." print_ident i
 
   let mk_declaration _ i t =
     Format.printf "@[<2>%a :@ %a.@]@.@." print_ident i print_term t
@@ -54,7 +56,8 @@ let files = ref []
 let add_file f = files := f :: !files
 
 let options =
-  [ "-stdin", Arg.Set from_stdin, " read from stdin"
+  [ "-stdin", Arg.Set from_stdin, " read from stdin";
+    "-default-rule", Arg.Set print_default, "print default name for rules without name"
   ]
 
 let  _ =
