@@ -88,7 +88,7 @@ type rule_error =
 
 type rule_infos = {
   l : loc; (** location of the rule *)
-  name : rule_name;
+  name : rule_name; (** name of the rule *)
   ctx : typed_context; (** typed context of the rule *)
   md : ident; (** module where the pattern constant is defined *)
   id : ident; (** name of the pattern constant *)
