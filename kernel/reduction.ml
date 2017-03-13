@@ -85,6 +85,62 @@ let rec add_to_list lst (s:stack) (s':stack) =
 
 (* ********************* *)
 
+type rw_strategy = Signature.t -> term -> term
+
+type rw_state_strategy = Signature.t -> state -> state
+
+type convertibility_test = Signature.t -> term -> term -> bool
+
+let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (te:term) : term =
+(*   let res = *)
+    try Matching.solve depth pbs te
+    with Matching.NotUnifiable ->
+      Matching.solve depth pbs (reduce sg te)
+
+let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
+  try Subst.unshift q te
+  with Subst.UnshiftExn ->
+    Subst.unshift q (reduce sg te)
+
+let get_context_syn (sg:Signature.t) (forcing:rw_strategy) (stack:stack) (ord:arg_pos LList.t) : env option =
+  try Some (LList.map (
+      fun p ->
+        if ( p.depth = 0 ) then
+          lazy (term_of_state (List.nth stack p.position) )
+        else
+          Lazy.from_val
+            (unshift sg forcing p.depth (term_of_state (List.nth stack p.position) ))
+    ) ord )
+  with Subst.UnshiftExn -> ( None )
+
+let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack) (pb_lst:abstract_problem LList.t) : env option =
+  let aux ((pos,dbs):abstract_problem) : term Lazy.t =
+    let res = solve sg forcing pos.depth dbs (term_of_state (List.nth stack pos.position)) in
+    Lazy.from_val (Subst.unshift pos.depth res)
+  in
+  try Some (LList.map aux pb_lst)
+  with Matching.NotUnifiable -> None
+     | Subst.UnshiftExn -> assert false
+
+let rec test (sg:Signature.t) (convertible:convertibility_test) (ctx:env) (constrs: constr list) : bool  =
+  match constrs with
+  | [] -> true
+  | (Linearity (i,j))::tl ->
+    let t1 = mk_DB dloc dmark i in
+    let t2 = mk_DB dloc dmark j in
+    if convertible sg (term_of_state { ctx; term=t1; stack=[] })
+        (term_of_state { ctx; term=t2; stack=[] })
+    then test sg convertible ctx tl
+    else false
+  | (Bracket (i,t2))::tl ->
+    let t1 = mk_DB dloc dmark i in
+    if convertible sg (term_of_state { ctx; term=t1; stack=[] })
+                                (term_of_state { ctx; term=t2; stack=[] })
+    then test sg convertible ctx tl
+    else
+      (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
+      failwith "Error while reducing a term: a guard was not satisfied."
+
 let rec find_case (st:state) (cases:(case * dtree) list) (default:dtree option) : (dtree*state list) option =
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
@@ -111,6 +167,35 @@ let rec find_case (st:state) (cases:(case * dtree) list) (default:dtree option) 
       | _ -> assert false
     end
   | _, _::tl -> find_case st tl default
+
+
+(*TODO implement the stack as an array ? (the size is known in advance).*)
+let rec gamma_rw (sg:Signature.t) (convertible:convertibility_test) (forcing:rw_strategy) (strategy:rw_state_strategy) (stack:stack) : dtree -> (env*term) option = function
+  | Switch (i,cases,def) ->
+    begin
+      let arg_i = strategy sg (List.nth stack i) in
+      match find_case arg_i cases def with
+      | Some (g,[]) -> gamma_rw sg convertible forcing strategy stack g
+      | Some (g,s) -> gamma_rw sg convertible forcing strategy (stack@s) g (* this line highly depends on how the module dtree works. When a column is specialized, new columns are added at the end this explains why s is added at the end. *)
+      | None -> None
+    end
+  | Test (Syntactic ord, eqs, right, def) ->
+    begin
+      match get_context_syn sg forcing stack ord with
+      | None -> bind_opt (gamma_rw sg convertible forcing strategy stack) def
+      | Some ctx ->
+        if test sg convertible ctx eqs then Some (ctx, right)
+        else bind_opt (gamma_rw sg convertible forcing strategy stack) def
+    end
+  | Test (MillerPattern lst, eqs, right, def) ->
+    begin
+      match get_context_mp sg forcing stack lst with
+      | None -> bind_opt (gamma_rw sg convertible forcing strategy stack) def
+      | Some ctx ->
+        if test sg convertible ctx eqs then Some (ctx, right)
+        else bind_opt (gamma_rw sg convertible forcing strategy stack) def
+    end
+
 
 (* ********************* *)
 
@@ -174,97 +259,12 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
           match split_stack i stack with
           | None -> state
           | Some (s1,s2) ->
-            ( match gamma_rw sg state_whnf s1 g with
+            ( match gamma_rw sg are_convertible snf state_whnf s1 g with
               | None -> state
               | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
             )
         end
     end
-
-and test sg ctx = function
-  | [] -> true
-  | (Linearity (i,j))::tl ->
-    let t1 = mk_DB dloc dmark i in
-    let t2 = mk_DB dloc dmark j in
-    if are_convertible_lst sg [ term_of_state { ctx; term=t1; stack=[] },
-                                term_of_state { ctx; term=t2; stack=[] } ]
-    then test sg ctx tl
-    else false
-  | (Bracket (i,t2))::tl ->
-    let t1 = mk_DB dloc dmark i in
-    if are_convertible_lst sg [ term_of_state { ctx; term=t1; stack=[] },
-                                term_of_state { ctx; term=t2; stack=[] } ]
-    then test sg ctx tl
-    else
-      (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
-      failwith "Error while reducing a term: a guard was not satisfied."
-
-(*TODO implement the stack as an array ? (the size is known in advance).*)
-and gamma_rw (sg:Signature.t) (strategy: Signature.t -> state -> state) (stack:stack) : dtree -> (env*term) option = function
-  | Switch (i,cases,def) ->
-    begin
-      let arg_i = strategy sg (List.nth stack i) in
-      match find_case arg_i cases def with
-      | Some (g,[]) -> gamma_rw sg strategy stack g
-      | Some (g,s) -> gamma_rw sg strategy (stack@s) g (* this line highly depends on how the module dtree works. When a column is specialized, new columns are added at the end this explains why s is added at the end. *)
-      | None -> None
-    end
-  | Test (Syntactic ord, eqs, right, def) ->
-    begin
-      match get_context_syn sg stack ord with
-      | None -> bind_opt (gamma_rw sg strategy stack) def
-      | Some ctx ->
-        if test sg ctx eqs then Some (ctx, right)
-        else bind_opt (gamma_rw sg strategy stack) def
-    end
-  | Test (MillerPattern lst, eqs, right, def) ->
-    begin
-      match get_context_mp sg stack lst with
-      | None -> bind_opt (gamma_rw sg strategy stack) def
-      | Some ctx ->
-        if test sg ctx eqs then Some (ctx, right)
-        else bind_opt (gamma_rw sg strategy stack) def
-    end
-
-and unshift sg q te =
-  try Subst.unshift q te
-  with Subst.UnshiftExn ->
-    Subst.unshift q (snf sg te)
-
-and get_context_syn (sg:Signature.t) (stack:stack) (ord:arg_pos LList.t) : env option =
-  try Some (LList.map (
-      fun p ->
-        if ( p.depth = 0 ) then
-          lazy (term_of_state (List.nth stack p.position) )
-        else
-          Lazy.from_val
-            (unshift sg p.depth (term_of_state (List.nth stack p.position) ))
-    ) ord )
-  with Subst.UnshiftExn -> ( None )
-
-and solve (sg:Signature.t) (depth:int) (pbs:int LList.t) (te:term) : term =
-(*   let res = *)
-    try Matching.solve depth pbs te
-    with Matching.NotUnifiable ->
-      Matching.solve depth pbs (snf sg te)
-(*
-  in
-  let te2 =
-    match LList.lst pbs with
-    | [] -> res
-    | hd::tl -> mk_App res (mk_DB dloc qmark hd) (List.map (mk_DB dloc qmark) tl)
-  in
-  ( assert (are_convertible_lst sg [(te,te2)]); res )
-*)
-
-and get_context_mp (sg:Signature.t) (stack:stack) (pb_lst:abstract_problem LList.t) : env option =
-  let aux ((pos,dbs):abstract_problem) : term Lazy.t =
-    let res = solve sg pos.depth dbs (term_of_state (List.nth stack pos.position)) in
-    Lazy.from_val (Subst.unshift pos.depth res)
-  in
-  try Some (LList.map aux pb_lst)
-  with Matching.NotUnifiable -> None
-     | Subst.UnshiftExn -> assert false
 
 (* ********************* *)
 
@@ -302,7 +302,7 @@ and are_convertible_lst sg : (term*term) list -> bool = function
     end
 
 (* Convertibility Test *)
-let are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
+and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
 
 (* Head Normal Form *)
 let rec hnf sg t =
@@ -341,7 +341,7 @@ let rec state_one_step (sg:Signature.t) : state -> state option = function
           match split_stack i stack with
           | None -> None
           | Some (s1,s2) ->
-            ( match gamma_rw sg state_whnf s1 g with
+            ( match gamma_rw sg are_convertible snf state_whnf s1 g with
               | None -> None
               | Some (ctx,term) -> Some { ctx; term; stack=s2 }
             )
