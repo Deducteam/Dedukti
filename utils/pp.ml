@@ -7,7 +7,7 @@ open Printf
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
 
 (* TODO: make that debuging functions returns a string *)
-let print_db_enabled = ref true
+let print_db_enabled = ref false
 let print_default = ref false
 let name = ref qmark
 
