@@ -29,7 +29,7 @@ In order to compile `Dedukti` you will need `OCaml` and `Menhir`.
 * `dkcheck` is the type-checker for `Dedukti`.
 * `dktop` is an interactive wrapper around the type-checker.
 * `dkdep` is a dependency generator for `Dedukti` files.
-* `dkident` is a program to indent `Dedukti` files.
+* `dkindent` is a program to indent `Dedukti` files.
 
 ### A SMALL EXAMPLE
 
@@ -87,8 +87,8 @@ Supported commands are:
     #HNF t.         (;  diplay the head normal form of t. ;)
     #SNF t.         (;  display the strong normal form of t. ;)
     #STEP t.        (;  display a one-step reduce of t. ;)
-    #CONV t1 t2.    (;  display "OK" if t1 and t2 are convertible, "KO" otherwise. ;)
-    #CHECK t1 t2.   (;  display "OK" if t1 has type t2, "KO" otherwise. ;)
+    #CONV t1, t2.   (;  display "OK" if t1 and t2 are convertible, "KO" otherwise. ;)
+    #CHECK t1, t2.  (;  display "OK" if t1 has type t2, "KO" otherwise. ;)
     #INFER t1.      (;  infer the type of t1 and display it. ;)
     #PRINT s.       (;  print the string s. ;)
 
@@ -154,7 +154,7 @@ However, because we only intend to rewrite *well-typed* terms, the rule above is
     [ n, v1, m, e, v2, x ] append x (cons n e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
 
 `Dedukti` will also accept this rule, even if the left-hand side is not well-typed, because it is able to detect that, because of typing
-constraints, `x` can only be instantiated by a term of the for `succ n`.
+constraints, `x` can only be instantiated by a term of the form `succ n`.
 
 For the same reason, it is not necessary to check that the first argument of `append` is `zero` for the first rule:
 
