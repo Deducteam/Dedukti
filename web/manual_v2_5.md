@@ -184,7 +184,7 @@ side of the rewrite rules that are constrained by typing.
 The information between brackets will be used when typing the rule but they will not be match against when
 using the rule (as if they were replaced by fresh variables).
 
-**Remark:** in order to make this feature type-safe, `Dedukti` checks that the typing constraint in verified when using the rule and fails otherwise.
+**Remark:** in order to make this feature type-safe, `Dedukti` checks that the typing constraint is verified when using the rule and fails otherwise.
 
 **Remark:** a variable can occur inside brackets only if it also occurs outside brackets and on the left of the brackets.
 
