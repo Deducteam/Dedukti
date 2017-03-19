@@ -1,5 +1,8 @@
 open Basic
+open Format
 open Term
+
+exception UnshiftExn
 
 let rec shift_rec (r:int) (k:int) : term -> term = function
   | DB (_,x,n) as t -> if n<k then t else mk_DB dloc x (n+r)
@@ -11,7 +14,6 @@ let rec shift_rec (r:int) (k:int) : term -> term = function
 
 let shift r t = shift_rec r 0 t
 
-exception UnshiftExn
 let unshift q te =
   let rec aux k = function
   | DB (_,_,n) as t when n<k -> t
@@ -54,7 +56,7 @@ let subst (te:term) (u:term) =
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
   in aux 0 te
 
-(* replace x[n] by y[0] and shift by one*)
+
 let subst_n n y t =
   let rec aux k t =  match t with
     | Type _ | Kind | Const _ -> t
@@ -72,11 +74,15 @@ struct
   let compare = compare
 end)
 
-module S =
+
+(* Subst is only used inside the typing modules. I think it is only used to apply substituion on Miller patterns *)
+module Subst =
 struct
+  (* FIXME: why do we need a (ident * term) IntMap.t and not just a term IntMap.t, for debug? *)
   type t = (ident*term) IntMap.t
   let identity = IntMap.empty
 
+  (* q is a free index that corresponds to the order of the free variable inside the context of a rule *)
   let apply (sigma:t) (te:term) (q:int) : term =
     let rec aux q = function
       | Kind | Type _ | Const _ as t -> t
@@ -103,19 +109,12 @@ struct
       | Lam (_,_,Some ty,te) -> aux q ty || aux (q+1) te
       | Pi (_,_,a,b) -> aux q a || aux (q+1) b
     in aux 0 te
-(*
-    let merge s1 s2 =
-    let aux _ b1 b2 = match b1, b2 with
-      | None, b | b, None -> b
-      | Some b1, Some b2 -> failwith "Cannot merge overlapping substitutions."
-    in
-      IntMap.merge aux s1 s2
-*)
-  let is_identity = IntMap.is_empty
 
-  let pp (out:out_channel) (sigma:t) : unit =
+  let is_identity = IntMap.is_empty
+  (* TODO: put this inside pp *)
+  let pp (fmt:formatter) (sigma:t) : unit =
     IntMap.iter (fun i (x,t) ->
-        Printf.fprintf out "( %a[%i] = %a )" pp_ident x i pp_term t
+        fprintf fmt "( %a[%i] = %a )" pp_ident x i pp_term t
       ) sigma
 
   let add (sigma:t) (x:ident) (n:int) (t:term) : t option =

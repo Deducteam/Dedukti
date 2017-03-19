@@ -1,6 +1,9 @@
 open Basic
+open Format
 
 (** {2 PreTerms} *)
+(** This module regroup types before the scoping. That is to say before variables are scoped with De Bruijn indices *)
+
 
 type preterm =
   | PreType of loc
@@ -10,17 +13,24 @@ type preterm =
   | PreLam  of loc * ident * preterm option * preterm
   | PrePi   of loc * ident option * preterm * preterm
 
+val pp_preterm : formatter -> preterm -> unit
+
 type prepattern =
   | PCondition  of preterm
-  | PPattern    of loc*ident option*ident*prepattern list
-  | PLambda     of loc*ident*prepattern
+  | PPattern    of loc * ident option * ident * prepattern list
+  | PLambda     of loc * ident * prepattern
   | PJoker      of loc
 
 type ruletype = RegularRule | MetaRule
+val pp_prepattern : formatter -> prepattern -> unit
 
 type pdecl      = loc * ident
-type pcontext   = pdecl list
-type prule      = loc * pdecl list * ident option * ident * prepattern list * preterm * ruletype
 
-val pp_pterm    : out_channel -> preterm -> unit
-val pp_ppattern : out_channel -> prepattern -> unit
+val pp_pdecl : formatter -> pdecl -> unit
+
+type pcontext   = pdecl list
+type prule      = loc * ident option * pdecl list * ident option * ident * prepattern list * preterm * ruletype
+
+val pp_pcontext : formatter -> pcontext -> unit
+
+val pp_prule : formatter -> prule -> unit

@@ -1,5 +1,4 @@
 open Basic
-open Pp
 
 (* ********************************* *)
 
@@ -12,10 +11,10 @@ let sg_meta = ref (Signature.make (hstring "noname"))
 let eprint lc fmt =
   if !verbose then (
   let (l,c) = of_loc lc in
-    Printf.eprintf "line:%i column:%i " l c;
-    Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt
+    Format.eprintf "line:%i column:%i " l c;
+    Format.kfprintf (fun _ -> prerr_newline () ) Format.err_formatter fmt
   ) else
-    Printf.ifprintf stderr fmt
+    Format.ifprintf Format.err_formatter fmt
 
 (* the signature contains only meta rules and rules imported via previous files *)
 
@@ -31,14 +30,15 @@ let normalize ty =
 
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_ident name;
-  Format.printf "#NAME %a.@.@." print_ident name;
+  Format.printf "#NAME %a.@.@." pp_ident name;
   sg_meta := Signature.make (hstring  (string_of_ident name));
+  Env.init name;
   Confluence.initialize ()
 
 let mk_declaration lc id pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
   let pty' = normalize pty in
-  Format.printf "@[<2>%a :@ %a.@]@.@." print_ident id print_term pty';
+  Format.printf "@[<2>%a :@ %a.@]@.@." pp_ident id Pp.print_term pty';
   Signature.add_declaration !sg_meta lc id pty   (*
   match Env.declare_constant lc id pty with
     | OK () -> ()
@@ -47,7 +47,7 @@ let mk_declaration lc id pty : unit =
 let mk_definable lc id pty : unit =
   eprint lc "Declaration of definable '%a'." pp_ident id;
   let pty' = normalize pty in
-  Format.printf "@[<2>def %a :@ %a.@]@.@." print_ident id print_term pty';
+  Format.printf "@[<2>def %a :@ %a.@]@.@." pp_ident id Pp.print_term pty';
   Signature.add_definable !sg_meta lc id pty'  (*
   match Env.declare_definable lc id pty with
     | OK () -> ()
@@ -57,15 +57,23 @@ let mk_definition lc id pty_opt pte : unit =
   let pty = match pty_opt with | None -> Typing.inference !sg_meta pte | Some(ty) -> ty in
   let pty' = normalize pty in
   let pte' = normalize pte in
-  Signature.add_definable !sg_meta lc id pty;
+  Signature.add_definable !sg_meta lc id pty';
+  let name = Rule.Delta(Signature.get_name !sg_meta, id) in
+  let rule =
+    { Rule.name = name ;
+      Rule.ctx = [] ;
+      Rule.pat = Rule.Pattern(lc, Signature.get_name !sg_meta, id, []) ;
+      Rule.rhs = pte' ;
+    }
+  in
   if not !only_meta then
-    Signature.add_rules !sg_meta [([], Rule.Pattern (lc,Signature.get_name !sg_meta, id, []), pte')];
+    Signature.add_rules !sg_meta [rule];
   begin
   match pty_opt with
   | None ->
-    Format.printf "@[<hv2>def %a :=@ %a.@]@.@." print_ident id print_term pte'
+    Format.printf "@[<hv2>def %a :=@ %a.@]@.@." pp_ident id Pp.print_term pte'
   | Some _ ->
-    Format.printf "@[<hv2>def %a :@ %a@ :=@ %a.@]@.@." print_ident id print_term pty' print_term pte'
+    Format.printf "@[<hv2>def %a :@ %a@ :=@ %a.@]@.@." pp_ident id Pp.print_term pty' Pp.print_term pte'
   end
 
    (*
@@ -91,14 +99,16 @@ let rec normalize_pattern p = Rule.(
   | Lambda(loc,id,p) -> Lambda(loc,id, normalize_pattern p)
   | Brackets(t) -> Brackets(normalize t))
 
-let normalize_rule ((c,p,t),m) = ((c, normalize_pattern p, normalize t),m)
-
+let normalize_rule (rule,m) =
+  ({rule with
+    Rule.pat = normalize_pattern rule.Rule.pat;
+    Rule.rhs = normalize rule.Rule.rhs}, m)
 
 let mk_rules  = function
   | [] -> ()
-  | (((_,pat,_), _)::_) as lst ->
+  | ((rule, _)::_) as lst ->
     begin
-      let (l,md,id) = get_infos pat in
+      let (l,md,id) = get_infos rule.Rule.pat in
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
       let lst_meta = List.map fst
 	(List.filter ( fun (_,t) -> t = Preterm.MetaRule) lst ) in
@@ -118,9 +128,9 @@ let mk_rules  = function
       end;
 
       if !apply_on_rules then
-	Format.printf "@[<v0>%a@].@.@." (print_list "" print_rule) (List.map normalize_rule lst)
+	Format.printf "@[<v0>%a@].@.@." (pp_list "" Pp.print_untyped_rule) (List.map normalize_rule lst)
       else
-	Format.printf "@[<v0>%a@].@.@." (print_list "" print_rule) lst
+	Format.printf "@[<v0>%a@].@.@." (pp_list "" Pp.print_untyped_rule) lst
     (*  match Env.add_rules lst' with
       | OK lst2 ->
         List.iter ( fun (ctx,pat,rhs) ->
@@ -131,27 +141,27 @@ let mk_rules  = function
 
 let mk_command lc = function
   | Cmd.Whnf te ->
-     Format.printf "#WHNF@ %a." print_term (normalize te)
+     Format.printf "#WHNF@ %a." Pp.print_term (normalize te)
   | Cmd.Hnf te ->
-     Format.printf "#HNF@ %a." print_term (normalize te)
+     Format.printf "#HNF@ %a." Pp.print_term (normalize te)
   | Cmd.Snf te ->
-     Format.printf "#SNF@ %a." print_term (normalize te)
+     Format.printf "#SNF@ %a." Pp.print_term (normalize te)
   | Cmd.OneStep te ->
-     Format.printf "#STEP@ %a." print_term (normalize te)
+     Format.printf "#STEP@ %a." Pp.print_term (normalize te)
   | Cmd.Conv (te1,te2) ->
      Format.printf "#CONV@ %a,@ %a."
-        print_term (normalize te1)
-        print_term (normalize te2)
+        Pp.print_term (normalize te1)
+        Pp.print_term (normalize te2)
   | Cmd.Check (te,ty) ->
      Format.printf "#CHECK@ %a,@ %a."
-        print_term (normalize te)
-        print_term (normalize ty)
+        Pp.print_term (normalize te)
+        Pp.print_term (normalize ty)
   | Cmd.Infer te ->
-     Format.printf "#INFER@ %a." print_term (normalize te)
+     Format.printf "#INFER@ %a." Pp.print_term (normalize te)
   | Cmd.Gdt (m0,v) ->
       begin match m0 with
-      | None -> Format.printf "#GDT@ %a." print_ident v
-      | Some m -> Format.printf "#GDT@ %a.%a." print_ident m print_ident v
+      | None -> Format.printf "#GDT@ %a." pp_ident v
+      | Some m -> Format.printf "#GDT@ %a.%a." pp_ident m pp_ident v
       end
   | Cmd.Print str ->
      Format.printf "#PRINT \"%s\"." str

@@ -7,10 +7,10 @@ let verbose = ref false
 let eprint lc fmt =
   if !verbose then (
   let (l,c) = of_loc lc in
-    Printf.eprintf "line:%i column:%i " l c;
-    Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt
+    Format.eprintf "line:%i column:%i " l c;
+    Format.kfprintf (fun _ -> prerr_newline () ) Format.err_formatter fmt
   ) else
-    Printf.ifprintf stderr fmt
+    Format.ifprintf Format.err_formatter fmt
 
 (* ********************************* *)
 
@@ -47,11 +47,11 @@ let get_infos = function
   | Rule.Pattern (l,md,id,_) -> (l,md,id)
   | _ -> (dloc,qmark,qmark)
 
-let mk_rules = function
+let mk_rules = Rule.( function
   | [] -> ()
-  | (((_,pat,_), _)::_) as lst ->
+  | ((rule, _)::_) as lst ->
     begin
-      let (l,md,id) = get_infos pat in
+      let (l,md,id) = get_infos rule.pat in
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
       let lst' = 
 	List.map fst (List.filter 
@@ -59,12 +59,12 @@ let mk_rules = function
       in
       match Env.add_rules lst' with
       | OK lst2 ->
-        List.iter ( fun (ctx,pat,rhs) ->
-            eprint (Rule.get_loc_pat pat) "%a" Rule.pp_rule2 (ctx,pat,rhs)
+        List.iter ( fun rule ->
+            eprint (get_loc_pat rule.pat) "%a" pp_typed_rule rule
           ) lst2 ;
       | Err e -> Errors.fail_env_error e
     end
-
+  )
 let mk_command = Cmd.mk_command
 
 let export = ref false

@@ -5,7 +5,7 @@
     val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_definable   : Basic.loc -> Basic.ident -> Term.term -> unit
     val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
-    val mk_rules       : (Rule.rule * Preterm.ruletype) list -> unit
+    val mk_rules       : (Rule.untyped_rule * Preterm.ruletype) list -> unit
     val mk_command     : Basic.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
   end>
@@ -142,12 +142,16 @@ term_lst        : term                                  { [$1] }
 param           : LEFTPAR ID COLON term RIGHTPAR        { (fst $2,snd $2,$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6 , RegularRule ) }
+                { let (l,md_opt,id,args) = $4 in ( l , None, $2 , md_opt, id , args , $6 , RegularRule ) }
+		| LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+		{ let (l,md_opt,id,args) = $7 in ( l , Some (snd $2), $5 , md_opt, id , args , $9 , RegularRule)}
                 | LEFTSQU context RIGHTSQU top_pattern VERYLONGARROW term
-                { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6 , MetaRule) }
+                { let (l,md_opt,id,args) = $4 in ( l , None, $2 , md_opt, id , args , $6 , MetaRule) }
+		| LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern VERYLONGARROW term
+		{ let (l,md_opt,id,args) = $7 in ( l , Some (snd $2), $5 , md_opt, id , args , $9 , MetaRule)}
 
 
-decl            : ID COLON term         { debug "Ignoring type declaration in rule context."; $1 }
+decl            : ID COLON term         { debug 1 "Ignoring type declaration in rule context."; $1 }
                 | ID                    { $1 }
 
 context         : /* empty */          { [] }

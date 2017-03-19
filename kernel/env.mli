@@ -21,7 +21,7 @@ val get_name    : unit -> ident
 val get_type    : loc -> ident -> ident -> (term,signature_error) error
 (** [get_type l md id] returns the type of the constant [md.id]. *)
 
-val get_dtree   : loc -> ident -> ident -> ((int*Rule.dtree) option,signature_error) error
+val get_dtree   : loc -> ident -> ident -> ((int*Dtree.dtree) option,signature_error) error
 (** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
 
 val export      : unit -> bool
@@ -40,7 +40,7 @@ val define_op   : loc -> ident -> term -> term option -> (unit,env_error) error
 (** [define_op l id body ty] declares the symbol [id] of type [ty] and checks
     that [body] has this type (but forget it after). *)
 
-val add_rules   : Rule.rule list -> (Rule.rule2 list,env_error) error
+val add_rules   : Rule.untyped_rule list -> (Rule.typed_rule list,env_error) error
 (** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the
     same symbol. *)
 

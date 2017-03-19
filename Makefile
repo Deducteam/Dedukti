@@ -1,35 +1,33 @@
-
 # PLEASE EDIT THE FOLLOWING LINES TO FIT YOUR SYSTEM CONFIGURATION
 
 INSTALL_DIR=/usr/bin
 
 # DO NOT EDIT AFTER THIS LINE
 
-MENHIR = -menhir "menhir --external-tokens Tokens"
-SRC_DIRS = kernel,utils,parser
-
 all: dkcheck dkmeta dktop dkdep dkindent lib doc
 
 dkcheck:
-	ocamlbuild -Is $(SRC_DIRS),dkcheck $(MENHIR) -lib unix dkcheck.native
+	ocamlbuild -I dkcheck dkcheck.native
 
 dkmeta:
-	ocamlbuild -Is $(SRC_DIRS),dkmeta $(MENHIR) -lib unix dkmeta.native
+	ocamlbuild -I dkmeta dkmeta.native
 
 dktop:
-	ocamlbuild -Is $(SRC_DIRS),dktop $(MENHIR) -lib unix dktop.native
+	ocamlbuild -I dktop dktop.native
 
 dkdep:
-	ocamlbuild -Is $(SRC_DIRS),dkdep $(MENHIR) -lib unix dkdep.native
+	ocamlbuild -I dkdep dkdep.native
 
 dkindent:
-	ocamlbuild -Is $(SRC_DIRS),dkindent $(MENHIR) -lib unix dkindent.native
+	ocamlbuild -I dkindent dkindent.native
 
 doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
+	ocamlbuild -Is kernel kernel/dedukti.docdir/doc.tex
+	ocamlbuild -Is kernel kernel/dedukti.docdir/dependencies.dot
 
 lib:
-	ocamlbuild -Is kernel $(OPTIONS) dedukti.cmxa
+	ocamlbuild -Is kernel,utils,parser $(OPTIONS) dedukti.cmxa
 
 BINARIES=dkcheck dkmeta dktop dkdep dkindent
 
@@ -59,4 +57,4 @@ tests: dkcheck
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: dkcheck dkmeta dktop dkdep dkindent tests clean doc uninstall
+.PHONY: dkcheck dkmeta dktop dkdep dkindent lib tests clean doc install uninstall
