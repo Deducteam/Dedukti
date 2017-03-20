@@ -1,1 +1,7 @@
-See the Dedukti's webpage : http://dedukti.gforge.inria.fr/
+See the Meta Dedukti's webpage : http://deducteam.gforge.inria.fr/metadedukti
+
+You can setup Opam to install the development version of Meta Dedukti
+instead of the last stable version by typing the following commands in
+the current directory:
+- opam pin -k git add meta_dedukti .#meta
+- opam upgrade
