@@ -1,0 +1,12 @@
+opam-version: "1.2"
+name: "meta_dedukti"
+version: "dev"
+maintainer: "dedukti-dev@inria.fr"
+author: "François Thiré"
+homepage: "http://deducteam.gforge.inria.fr/metadedukti"
+bug-reports: "https://gforge.inria.fr/tracker/?func=browse&group_id=4434&atid=13818"
+dev-repo: "https://gforge.inria.fr/git/dedukti/dedukti.git#meta"
+build: [make "BINARIES=dkmeta" "all"]
+install: [make "BINARIES=dkmeta" "INSTALL_DIR=%{bin}%" "install"]
+remove: [make "BINARIES=dkmeta" "INSTALL_DIR=%{bin}%" "uninstall"]
+depends: ["menhir" "ocamlbuild" { >= "0.9" } ]
