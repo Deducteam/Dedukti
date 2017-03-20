@@ -4,10 +4,10 @@ INSTALL_DIR=/usr/bin
 
 # DO NOT EDIT AFTER THIS LINE
 
-all: skcheck sktop skdep skindent doc
+all: skcheck skmeta sktop skdep skindent doc
 
 skmeta:
-	ocamlbuild -Is $(SRC_DIRS),skmeta $(MENHIR) -lib unix skmeta.native
+	ocamlbuild -I skmeta skmeta.native
 
 skcheck:
 	ocamlbuild -I skcheck skcheck.native
@@ -49,4 +49,4 @@ tests: skdep skcheck
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: skcheck sktop skdep skindent tests clean doc install uninstall
+.PHONY: skcheck skmeta sktop skdep skindent tests clean doc install uninstall
