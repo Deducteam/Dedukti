@@ -39,7 +39,7 @@ let scope_term ctx (pte:preterm) : term =
 
 (* [get_vars_order vars p] traverses the pattern [p] from left to right and
  * builds the list of variables, taking jokers as variables. *)
-let get_vars_order (vars:pcontext) (ppat:prepattern) : (loc*ident) list =
+let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context =
   let nb_jokers = ref 0 in
   let get_fresh_name () =
     incr nb_jokers;
@@ -52,7 +52,7 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : (loc*ident) list =
       | _::lst -> aux lst
     in aux vars
   in
-  let rec aux (bvar:ident list) (ctx:(loc*ident) list) : prepattern -> (loc*ident) list = function
+  let rec aux (bvar:ident list) (ctx:(loc*ident) list) : prepattern -> untyped_context = function
     | PPattern (_,None,id,pargs) ->
       begin
         if List.exists (ident_eq id) bvar then
@@ -102,8 +102,22 @@ let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
 
 (******************************************************************************)
 
-let scope_rule (l,pctx,md_opt,id,pargs,pri,ruletype) =
+let scope_rule (l,pname,pctx,md_opt,id,pargs,pri,ruletype:prule) : untyped_rule * ruletype =
   let top = PPattern(l,md_opt,id,pargs) in
   let ctx = get_vars_order pctx top in
   let idents = List.map snd ctx in
-  ( ctx, p_of_pp idents top, t_of_pt idents pri ), ruletype
+  let md = match md_opt with | None -> Env.get_name () | Some md -> md in
+  let b,id =
+    match pname with
+    | None ->
+      let id = Format.sprintf "%s!%d" (string_of_ident id) (fst (of_loc l)) in
+      (false,(hstring id))
+    | Some id -> (true,id)
+  in
+  let name = Gamma(b,md,id) in
+  let rule = {name ; ctx= ctx; pat = p_of_pp idents top; rhs = t_of_pt idents pri}  in
+  if List.length ctx <> List.length pctx then
+    debug 1 "Warning: local variables in the rule %a are not used"
+      Pp.print_untyped_rule (rule, ruletype);
+  rule, ruletype
+

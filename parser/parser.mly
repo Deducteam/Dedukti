@@ -5,7 +5,7 @@
     val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_definable   : Basic.loc -> Basic.ident -> Term.term -> unit
     val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
-    val mk_rules       : (Rule.rule * Preterm.ruletype) list -> unit
+    val mk_rules       : (Rule.untyped_rule * Preterm.ruletype) list -> unit
     val mk_command     : Basic.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
   end>
@@ -129,9 +129,9 @@
                   (pre_subst (List.map field_proj_subst fields) field_type)
                   (params @ [PDecl(lf, rec_name, rec_type)])));
           (* Define the projection *)
-          mk_rules [
-            scope_rule (
+          let scoped = scope_rule (
               lf,
+              None,
               [(lf,field_name)],
               None,
               proj_id,
@@ -141,7 +141,8 @@
                            constr,
                            param_and_field_patterns field_name)],
               PreId (lf, field_name),
-              Preterm.RegularRule)])
+              Preterm.RegularRule) in
+          mk_rules [scoped])
         fields
 
       (* contains every modules that are declared in the current environement*)	
@@ -317,12 +318,16 @@ param           : LEFTPAR ID COLON arrterm RIGHTPAR        { PDecl (fst $2,of_id
                 | LEFTPAR ID DEF arrterm RIGHTPAR          { PDef  (fst $2,of_id (snd $2),$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
-                { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6 , RegularRule ) }
+                { let (l,md_opt,id,args) = $4 in ( l , None , $2 , md_opt, id , args , $6 , RegularRule ) }
                 | LEFTSQU context RIGHTSQU top_pattern VERYLONGARROW letterm
-                { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6 , MetaRule) }
+                { let (l,md_opt,id,args) = $4 in ( l , None , $2 , md_opt, id , args , $6 , MetaRule ) }
+		| LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
+		{ let (l,md_opt,id,args) = $7 in ( l , Some (snd $2), $5 , md_opt, id , args , $9 , RegularRule ) }
+		| LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern VERYLONGARROW letterm
+		{ let (l,md_opt,id,args) = $7 in ( l , Some (snd $2), $5 , md_opt, id , args , $9 , MetaRule ) }
 
-decl            : ID COLON term         { debug "Ignoring type declaration in rule context.";of_lid $1 }
-                | ID                    { of_lid $1 }
+decl            : ID COLON term         { debug 1 "Ignoring type declaration in rule context."; $1 }
+                | ID                    { $1 }
 
 def_decl        : ID COLON arrterm         { (fst $1,of_id (snd $1),$3) }
 
