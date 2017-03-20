@@ -1,1 +1,7 @@
 See the Dedukti's webpage : http://dedukti.gforge.inria.fr/
+
+You can setup Opam to install the development version of Dedukti
+instead of the last stable version by typing the following commands in
+the current directory:
+- opam pin -k git add dedukti .#develop
+- opam upgrade
