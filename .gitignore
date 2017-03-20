@@ -6,4 +6,7 @@
 _*/
 *.dko
 *.depend
+# emacs tmp files
 .bkp/
+*~
+\#*\#

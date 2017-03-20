@@ -1,34 +1,27 @@
-
 # PLEASE EDIT THE FOLLOWING LINES TO FIT YOUR SYSTEM CONFIGURATION
 
 INSTALL_DIR=/usr/bin
 
 # DO NOT EDIT AFTER THIS LINE
 
-MENHIR = -menhir "menhir --external-tokens Tokens"
-SRC_DIRS = kernel,utils,parser
-
-BINARIES=skcheck sktop skdep skindent
-
-all: lib $(BINARIES) doc
+all: skcheck sktop skdep skindent doc
 
 skcheck:
-	ocamlbuild -Is $(SRC_DIRS),skcheck $(MENHIR) -lib unix skcheck.native
+	ocamlbuild -I skcheck skcheck.native
 
 sktop:
-	ocamlbuild -Is $(SRC_DIRS),sktop $(MENHIR) -lib unix sktop.native
+	ocamlbuild -I sktop sktop.native
 
 skdep:
-	ocamlbuild -Is $(SRC_DIRS),skdep $(MENHIR) -lib unix skdep.native
+	ocamlbuild -I skdep skdep.native
 
 skindent:
-	ocamlbuild -Is $(SRC_DIRS),skindent $(MENHIR) -lib unix skindent.native
+	ocamlbuild -I skindent skindent.native
 
 doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
-
-lib:
-	ocamlbuild -Is kernel $(OPTIONS) dedukti.cmxa
+	ocamlbuild -Is kernel kernel/dedukti.docdir/doc.tex
+	ocamlbuild -Is kernel kernel/dedukti.docdir/dependencies.dot
 
 install:
 	for i in $(BINARIES) ; do \
@@ -53,4 +46,4 @@ tests: skdep skcheck
 	@echo "-----------------------"
 	@echo "tests OK"
 
-.PHONY: $(BINARIES) tests clean doc uninstall
+.PHONY: skcheck sktop skdep skindent tests clean doc install uninstall

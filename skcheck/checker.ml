@@ -48,20 +48,20 @@ let get_infos = function
   | Rule.Pattern (l,md,id,_) -> (l,md,id)
   | _ -> (dloc,qmark,qmark)
 
-let mk_rules = function
+let mk_rules = Rule.( function
   | [] -> ()
-  | ((_,pat,_)::_) as lst ->
+  | (rule::_) as lst ->
     begin
-      let (l,md,id) = get_infos pat in
-      eprint l "Adding rewrite rules for '%a.%a'" print_ident md print_ident id;
+      let (l,md,id) = get_infos rule.pat in
+      eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
       match Env.add_rules lst with
       | OK lst2 ->
-        List.iter ( fun (ctx,pat,rhs) ->
-            eprint (Rule.get_loc_pat pat) "%a" print_rule2 (ctx,pat,rhs)
+        List.iter ( fun rule ->
+            eprint (get_loc_pat rule.pat) "%a" pp_typed_rule rule
           ) lst2 ;
       | Err e -> Errors.fail_env_error e
     end
-
+  )
 let mk_command = Cmd.mk_command
 
 let export = ref false

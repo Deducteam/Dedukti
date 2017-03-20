@@ -2,7 +2,9 @@ open Basic
 open Pp
 
 module T = struct
-  let mk_prelude _ i = Format.printf "#NAME %a.@.@." print_ident i
+  let mk_prelude _ i =
+    Env.init i;
+    Format.printf "#NAME %a.@.@." print_ident i
 
   let mk_declaration _ i t =
     Format.printf "@[<2>%a :@ %a.@]@.@." print_ident i print_term t
@@ -23,7 +25,7 @@ module T = struct
           print_ident i print_term ty print_term t
 
   let mk_rules l =
-    Format.printf "@[<v0>%a@].@.@." (print_list "" print_rule) l
+    Format.printf "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) l
 
   let mk_command _ cmd =
     Format.printf "@[<2>%a@]@.@." Cmd.print_command cmd
@@ -57,7 +59,8 @@ let () = resugar := false
 
 let options =
   [ "-stdin", Arg.Set from_stdin, " read from stdin";
-    "-resugar", Arg.Set resugar, " use syntactic sugar in output"
+    "-resugar", Arg.Set resugar, " use syntactic sugar in output";
+    "-default-rule", Arg.Set print_default, "print default name for rules without name"
   ]
 
 let  _ =
