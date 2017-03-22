@@ -36,28 +36,34 @@ let mk_prelude lc name =
   Confluence.initialize ()
 
 let mk_declaration lc id pty : unit =
-  eprint lc "Declaration of constant '%a'." pp_ident id;
-  let pty' = normalize pty in
-  Format.printf "@[<2>%a :@ %a.@]@.@." pp_ident id Pp.print_term pty';
-  Signature.add_declaration !sg_meta lc id pty   (*
+  eprint lc "Declaration of symbol '%a'." pp_ident id;
+  let ty' = match pty with
+    | Signature.Constant t
+    | Signature.Definable (t, _)
+    | Signature.Injective (t, _) ->
+       normalize t
+  in
+  let pty' = match pty with
+    | Signature.Constant _ -> Signature.Constant ty'
+    | Signature.Definable (_, s) -> Signature.Definable (ty', s)
+    | Signature.Injective (_, s) -> Signature.Injective (ty', s)
+  in
+  let kw = match pty with
+    | Signature.Constant _ -> ""
+    | Signature.Definable _ -> "def "
+    | Signature.Injective _ -> "inj "
+  in
+  Format.printf "@[<2>%s%a :@ %a.@]@.@." kw pp_ident id Pp.print_term ty';
+  Signature.add_declaration !sg_meta lc id pty'   (*
   match Env.declare_constant lc id pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e  *)
-
-let mk_definable lc id pty : unit =
-  eprint lc "Declaration of definable '%a'." pp_ident id;
-  let pty' = normalize pty in
-  Format.printf "@[<2>def %a :@ %a.@]@.@." pp_ident id Pp.print_term pty';
-  Signature.add_definable !sg_meta lc id pty'  (*
-  match Env.declare_definable lc id pty with
-    | OK () -> ()
-    | Err e -> Errors.fail_env_error e *)
 
 let mk_definition lc id pty_opt pte : unit =
   let pty = match pty_opt with | None -> Typing.inference !sg_meta pte | Some(ty) -> ty in
   let pty' = normalize pty in
   let pte' = normalize pte in
-  Signature.add_definable !sg_meta lc id pty';
+  Signature.add_declaration !sg_meta lc id (Signature.Definable (pty', None));
   let name = Rule.Delta(Signature.get_name !sg_meta, id) in
   let rule =
     { Rule.name = name ;
