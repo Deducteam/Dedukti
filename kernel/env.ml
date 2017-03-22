@@ -30,7 +30,8 @@ let export () : bool = Signature.export !sg
 let _declare (l:loc) (id:ident) (info:Signature.rw_infos) : unit =
   let ty = match info with
     | Signature.Constant t
-    | Signature.Definable (t, _) -> t
+    | Signature.Definable (t, _)
+    | Signature.Injective (t, _) -> t
   in
   match inference !sg ty with
     | Kind | Type _ -> Signature.add_declaration !sg l id info

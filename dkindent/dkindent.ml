@@ -11,6 +11,8 @@ module T = struct
        Format.printf "@[<2>%a :@ %a.@]@.@." print_ident i print_term t
     | Signature.Definable (t, _) ->
        Format.printf "@[<2>def %a :@ %a.@]@.@." print_ident i print_term t
+    | Signature.Injective (t, _) ->
+       Format.printf "@[<2>inj %a :@ %a.@]@.@." print_ident i print_term t
 
   let mk_definition _ i ty t = match ty with
     | None -> Format.printf "@[<hv2>def %a@ :=@ %a.@]@.@." print_ident i print_term t

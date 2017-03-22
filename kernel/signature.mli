@@ -33,6 +33,7 @@ exception SignatureError of signature_error
 type rw_infos =
   | Constant of term
   | Definable of term * (Rule.rule_infos list*int*Dtree.dtree) option
+  | Injective of term * (Rule.rule_infos list*int*Dtree.dtree) option
 
 type t
 
@@ -48,8 +49,9 @@ val export              : t -> bool
 val get_type            : t -> loc -> ident -> ident -> term
 (** [get_type sg l md id] returns the type of the constant [md.id] inside the environement [sg]. *)
 
-val is_constant         : t -> loc -> ident -> ident -> bool
-(** [is_constant sg l md id] returns true when [md.id] is a constant. *)
+val is_injective        : t -> loc -> ident -> ident -> bool
+(** [is_injective sg l md id] returns true when [md.id] is either static
+    or declared as injective. *)
 
 val get_dtree           : t -> loc -> ident -> ident -> (int*dtree) option
 (** [get_dtree sg l md id] returns the decision/matching tree associated with [md.id]
