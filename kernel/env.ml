@@ -27,14 +27,9 @@ let get_dtree l md id =
 
 let export () : bool = Signature.export !sg
 
-let _declare (l:loc) (id:ident) (info:Signature.rw_infos) : unit =
-  let ty = match info with
-    | Signature.Constant t
-    | Signature.Definable (t, _)
-    | Signature.Injective (t, _) -> t
-  in
+let _declare (l:loc) (id:ident) st ty : unit =
   match inference !sg ty with
-    | Kind | Type _ -> Signature.add_declaration !sg l id info
+    | Kind | Type _ -> Signature.add_declaration !sg l id st ty
     | s -> raise (TypingError (SortExpected (ty,[],s)))
 
 exception DefineExn of loc*ident
@@ -47,7 +42,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   match ty with
   | Kind -> raise (DefineExn (l,id))
   | _ ->
-    _declare l id (Signature.Definable (ty, None));
+    _declare l id Signature.Definable ty;
     let name = Delta(get_name (), id) in
     let rule =
       { name ;
@@ -65,10 +60,10 @@ let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   in
   match ty with
   | Kind -> raise (DefineExn (l,id))
-  | _ -> Signature.add_declaration !sg l id (Signature.Constant ty)
+  | _ -> Signature.add_declaration !sg l id Signature.Static ty
 
-let declare l id ty : (unit,env_error) error =
-  try OK ( _declare l id ty )
+let declare l id st ty : (unit,env_error) error =
+  try OK ( _declare l id st ty )
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)

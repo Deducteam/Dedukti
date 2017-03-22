@@ -54,11 +54,7 @@ let rec mk_pattern = function
   | Lambda (_,_,te) -> mk_pattern te
   | Brackets t -> mk_term t
 
-let mk_declaration _ _ t =
-  match t with
-  | Signature.Constant t -> mk_term t
-  | Signature.Definable (t, _) -> mk_term t
-  | Signature.Injective (t, _) -> mk_term t
+let mk_declaration _ _ _ t = mk_term t
 
 let mk_definition _ _ = function
   | None -> mk_term
