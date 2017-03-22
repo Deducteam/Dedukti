@@ -11,11 +11,28 @@ let sorted = ref false
 
 let print_out fmt = Printf.kfprintf (fun _ -> output_string !out "\n" ) !out fmt
 
+(* This is similar to the function with the same name in
+   kernel/signature.ml but this one answers wether the file exists and
+   does not actually open the file *)
+let rec find_dko_in_path name = function
+  | [] -> false
+  | dir :: path ->
+      let filename = dir ^ "/" ^ name ^ ".dko" in
+        if Sys.file_exists filename then
+          true
+        else
+          find_dko_in_path name path
+
+(* If the file for module m is not found in load path, add it to the
+   list of dependencies *)
 let add_dep m =
   let s = string_of_ident m in
-  let (name,m_deps) = List.hd !deps in
-  if List.mem s (name :: m_deps) then ()
-  else deps := (name, List.sort compare (s :: m_deps))::(List.tl !deps)
+  if not (find_dko_in_path s (get_path()))
+  then begin
+      let (name,m_deps) = List.hd !deps in
+      if List.mem s (name :: m_deps) then ()
+      else deps := (name, List.sort compare (s :: m_deps))::(List.tl !deps)
+  end
 
 let mk_prelude _ prelude_name =
   let name = string_of_ident prelude_name in
