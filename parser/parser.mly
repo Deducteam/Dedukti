@@ -1,9 +1,8 @@
 %parameter <M :
   sig
     val mk_prelude     : Basic.loc -> Basic.ident -> unit
-    val mk_declaration : Basic.loc -> Basic.ident -> Term.term -> unit
+    val mk_declaration : Basic.loc -> Basic.ident -> Signature.rw_infos -> unit
     val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
-    val mk_definable   : Basic.loc -> Basic.ident -> Term.term -> unit
     val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_rules       : Rule.untyped_rule list -> unit
     val mk_command     : Basic.loc -> Cmd.command -> unit
@@ -116,18 +115,18 @@
       let field_proj_subst (l, n, t) = (n, field_proj_preterm (l, n, t)) in
       let param_and_field_patterns f = params_as_patterns @ fields_as_patterns f in
       (* Declare the record type *)
-      mk_declaration lt ty_name (scope_term [] (mk_pi (PreType lt) params));
+      mk_declaration lt ty_name (Signature.Constant (scope_term [] (mk_pi (PreType lt) params)));
       (* Declare the constructor *)
-      mk_declaration lc constr (scope_term [] (mk_pi rec_type (params_and_fields)));
+      mk_declaration lc constr (Signature.Constant (scope_term [] (mk_pi rec_type (params_and_fields))));
       List.iter
         (fun (lf, field_name, field_type) ->
           let proj_id = field_proj_id field_name in
           (* Declare the projection as definable *)
-          mk_definable lf proj_id
-            (scope_term []
+          mk_declaration lf proj_id
+            (Signature.Definable (scope_term []
                (mk_pi
                   (pre_subst (List.map field_proj_subst fields) field_type)
-                  (params @ [PDecl(lf, rec_name, rec_type)])));
+                  (params @ [PDecl(lf, rec_name, rec_type)])), None));
           (* Define the projection *)
           mk_rules [
             scope_rule (
@@ -232,6 +231,7 @@
 %token <Basic.loc> TYPE
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
+%token <Basic.loc> KW_INJ
 %token <Basic.loc*Basic.ident> ID
 %token <Basic.loc*Basic.ident list*Basic.ident> QID
 %token <Basic.loc*string> STRING
@@ -260,11 +260,13 @@ prelude         : NAME DOT      { let (lc,name) = $1 in
                                         mk_prelude lc name }
 
 line            : ID COLON letterm DOT
-                { mk_declaration (fst $1) (of_id (snd $1)) (scope_term [] $3) }
+                { mk_declaration (fst $1) (of_id (snd $1)) (Signature.Constant (scope_term [] $3)) }
                 | ID param+ COLON letterm DOT
-                { mk_declaration (fst $1) (of_id (snd $1)) (scope_term [] (mk_pi $4 $2)) }
+                { mk_declaration (fst $1) (of_id (snd $1)) (Signature.Constant (scope_term [] (mk_pi $4 $2))) }
                 | KW_DEF ID COLON arrterm DOT
-                { mk_definable (fst $2) (of_id (snd $2)) (scope_term [] $4) }
+                { mk_declaration (fst $2) (of_id (snd $2)) (Signature.Definable (scope_term [] $4, None)) }
+                | KW_INJ ID COLON arrterm DOT
+                { mk_declaration (fst $2) (of_id (snd $2)) (Signature.Injective (scope_term [] $4, None)) }
                 | KW_DEF ID COLON arrterm DEF letterm DOT
                 { mk_definition (fst $2) (of_id (snd $2)) (Some (scope_term [] $4)) (scope_term [] $6) }
                 | KW_DEF ID DEF letterm DOT

@@ -171,9 +171,9 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
           else None
 
-        | App (Const (l,md,id),_,_), _ when (not (Signature.is_constant sg l md id)) ->
+        | App (Const (l,md,id),_,_), _ when (not (Signature.is_injective sg l md id)) ->
           ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
-        | _, App (Const (l,md,id),_,_) when (not (Signature.is_constant sg l md id)) ->
+        | _, App (Const (l,md,id),_,_) when (not (Signature.is_injective sg l md id)) ->
           ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
 
         | App (f,a,args), App (f',a',args') ->
