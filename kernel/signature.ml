@@ -38,6 +38,7 @@ end )
 type rw_infos =
   | Constant of term
   | Definable of term * (rule_infos list*int*dtree) option
+  | Injective of term * (rule_infos list*int*dtree) option
 
 type t = { name:ident; tables:(rw_infos H.t) H.t;
            mutable external_rules:rule_infos list list; }
@@ -62,12 +63,16 @@ let add_rule_infos sg (lst:rule_infos list) : unit =
     let (ty,rules) = match infos with
       | Definable (ty,None) -> ( ty , rs )
       | Definable (ty,Some(mx,_,_)) -> ( ty , mx@rs )
-      | Constant _ -> 
-        raise  (SignatureError (CannotAddRewriteRules (r.l,r.id)))
+      | Injective (ty,None) -> ( ty , rs )
+      | Injective (ty,Some(mx,_,_)) -> ( ty , mx@rs )
+      | Constant _ ->
+        raise (SignatureError (CannotAddRewriteRules (r.l,r.id)))
     in
-    match Dtree.of_rules rules with
-    | OK (n,tree) -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
-    | Err e -> raise (SignatureError (CannotBuildDtree e))
+    match Dtree.of_rules rules, infos with
+    | OK (n,tree), Definable _ -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
+    | OK (n,tree), Injective _ -> H.add env r.id (Injective (ty,Some(rules,n,tree)))
+    | OK (_, _), Constant _ -> assert false
+    | Err e, _ -> raise (SignatureError (CannotBuildDtree e))
 
 (******************************************************************************)
 
@@ -134,6 +139,11 @@ let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
       match opt with
       | None -> ()
       | Some (rs,_,_) -> Confluence.add_rules rs )
+  | Injective (ty,opt) ->
+    ( Confluence.add_constant md id;
+      match opt with
+      | None -> ()
+      | Some (rs,_,_) -> Confluence.add_rules rs )
   in
   H.iter aux ctx;
   debug 1 "Checking confluence after loading module '%a'..." pp_ident md;
@@ -188,21 +198,25 @@ let get_type sg lc m v =
   match get_infos sg lc m v with
     | Constant ty
     | Definable (ty,_) -> ty
+    | Injective (ty, _) -> ty
 
-let is_constant sg lc m v =
+let is_injective sg lc m v =
   match get_infos sg lc m v with
     | Constant _ -> true
     | Definable _ -> false
+    | Injective _ -> true
 
 let get_dtree sg l m v =
   match get_infos sg l m v with
     | Constant _
     | Definable (_,None) -> None
     | Definable (_,Some(_,i,tr)) -> Some (i,tr)
+    | Injective (_,None) -> None
+    | Injective (_,Some(_,i,tr)) -> Some (i,tr)
 
 (******************************************************************************)
 
-let add sg lc v gst =
+let add_declaration sg lc v gst =
   Confluence.add_constant sg.name v;
   let env = H.find sg.tables sg.name in
   if H.mem env v then
@@ -210,10 +224,6 @@ let add sg lc v gst =
       else raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
   else
     H.add env v gst
-
-let add_declaration sg lc v ty = add sg lc v (Constant ty)
-let add_definable sg lc v ty = add sg lc v (Definable (ty,None))
-
 
 let add_rules sg lst : unit =
   let rs = map_error_list Rule.to_rule_infos lst in
