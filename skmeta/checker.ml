@@ -1,5 +1,4 @@
 open Basic
-open Pp
 
 (* ********************************* *)
 
@@ -31,33 +30,40 @@ let normalize ty =
 
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_ident name;
-  Format.printf "#NAME %a.@.@." print_ident name;
+  Format.printf "#NAME %a.@.@." pp_ident name;
   sg_meta := Signature.make (hstring  (string_of_ident name));
+  Env.init name;
   Confluence.initialize ()
 
 let mk_declaration lc id pty : unit =
-  eprint lc "Declaration of constant '%a'." pp_ident id;
-  let pty' = normalize pty in
-  Format.printf "@[<2>%a :@ %a.@]@.@." print_ident id print_term pty';
-  Signature.add_declaration !sg_meta lc id pty   (*
+  eprint lc "Declaration of symbol '%a'." pp_ident id;
+  let ty' = match pty with
+    | Signature.Constant t
+    | Signature.Definable (t, _)
+    | Signature.Injective (t, _) ->
+       normalize t
+  in
+  let pty' = match pty with
+    | Signature.Constant _ -> Signature.Constant ty'
+    | Signature.Definable (_, s) -> Signature.Definable (ty', s)
+    | Signature.Injective (_, s) -> Signature.Injective (ty', s)
+  in
+  let kw = match pty with
+    | Signature.Constant _ -> ""
+    | Signature.Definable _ -> "def "
+    | Signature.Injective _ -> "inj "
+  in
+  Format.printf "@[<2>%s%a :@ %a.@]@.@." kw pp_ident id Pp.print_term ty';
+  Signature.add_declaration !sg_meta lc id pty'   (*
   match Env.declare_constant lc id pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e  *)
-
-let mk_definable lc id pty : unit =
-  eprint lc "Declaration of definable '%a'." pp_ident id;
-  let pty' = normalize pty in
-  Format.printf "@[<2>def %a :@ %a.@]@.@." print_ident id print_term pty';
-  Signature.add_definable !sg_meta lc id pty'  (*
-  match Env.declare_definable lc id pty with
-    | OK () -> ()
-    | Err e -> Errors.fail_env_error e *)
 
 let mk_definition lc id pty_opt pte : unit =
   let pty = match pty_opt with | None -> Typing.inference !sg_meta pte | Some(ty) -> ty in
   let pty' = normalize pty in
   let pte' = normalize pte in
-  Signature.add_definable !sg_meta lc id pty';
+  Signature.add_declaration !sg_meta lc id (Signature.Definable (pty', None));
   let name = Rule.Delta(Signature.get_name !sg_meta, id) in
   let rule =
     { Rule.name = name ;
@@ -141,27 +147,27 @@ let mk_rules  = function
 
 let mk_command lc = function
   | Cmd.Whnf te ->
-     Format.printf "#WHNF@ %a." print_term (normalize te)
+     Format.printf "#WHNF@ %a." Pp.print_term (normalize te)
   | Cmd.Hnf te ->
-     Format.printf "#HNF@ %a." print_term (normalize te)
+     Format.printf "#HNF@ %a." Pp.print_term (normalize te)
   | Cmd.Snf te ->
-     Format.printf "#SNF@ %a." print_term (normalize te)
+     Format.printf "#SNF@ %a." Pp.print_term (normalize te)
   | Cmd.OneStep te ->
-     Format.printf "#STEP@ %a." print_term (normalize te)
+     Format.printf "#STEP@ %a." Pp.print_term (normalize te)
   | Cmd.Conv (te1,te2) ->
      Format.printf "#CONV@ %a,@ %a."
-        print_term (normalize te1)
-        print_term (normalize te2)
+        Pp.print_term (normalize te1)
+        Pp.print_term (normalize te2)
   | Cmd.Check (te,ty) ->
      Format.printf "#CHECK@ %a,@ %a."
-        print_term (normalize te)
-        print_term (normalize ty)
+        Pp.print_term (normalize te)
+        Pp.print_term (normalize ty)
   | Cmd.Infer te ->
-     Format.printf "#INFER@ %a." print_term (normalize te)
+     Format.printf "#INFER@ %a." Pp.print_term (normalize te)
   | Cmd.Gdt (m0,v) ->
       begin match m0 with
-      | None -> Format.printf "#GDT@ %a." print_ident v
-      | Some m -> Format.printf "#GDT@ %a.%a." print_ident m print_ident v
+      | None -> Format.printf "#GDT@ %a." pp_ident v
+      | Some m -> Format.printf "#GDT@ %a.%a." pp_ident m pp_ident v
       end
   | Cmd.Print str ->
      Format.printf "#PRINT \"%s\"." str
@@ -173,5 +179,5 @@ let export = ref false
 let mk_ending () =
   ( if !export then
     if not (Signature.export !sg_meta) then
-      Errors.fail dloc "Fail to export module '%a'." print_ident (Env.get_name ()) );
+      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
   Confluence.finalize ()

@@ -118,6 +118,5 @@ let scope_rule (l,pname,pctx,md_opt,id,pargs,pri,ruletype:prule) : untyped_rule 
   let rule = {name ; ctx= ctx; pat = p_of_pp idents top; rhs = t_of_pt idents pri}  in
   if List.length ctx <> List.length pctx then
     debug 1 "Warning: local variables in the rule %a are not used"
-      Pp.print_untyped_rule (rule, ruletype);
-  rule, ruletype
-
+      pp_prule (l,pname,pctx,md_opt,id,pargs,pri,ruletype);
+  (rule, ruletype)

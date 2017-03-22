@@ -17,9 +17,11 @@ let args = [
   ("-v"    , Arg.Set Checker.verbose, "Verbose mode" ) ;
   ("-d"    , Arg.Int Basic.set_debug_mode,   "Debug mode" ) ;
   ("-e"    , Arg.Set Checker.export,            "Create a .dko" ) ;
+  ("-nc"   , Arg.Clear Errors.color,             "Disable colored output" ) ;
   ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;
   ("-r"    , Arg.Set Signature.ignore_redecl,         "Ignore redeclaration" ) ;
   ("-version", Arg.Unit Version.print_version,  "Version" ) ;
+  ("-coc", Arg.Set Typing.coc,               "Typecheck the Calculus of Construction" ) ;
   ("-autodep", Arg.Set Signature.autodep  ,
    "Automatically handle dependencies (experimental)") ;
   ("-I"    , Arg.String Basic.add_path,        "Add a directory to load path");

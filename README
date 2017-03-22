@@ -1,10 +1,7 @@
-See the Dedukti's, Sukerujo's, and Meta Dedukti webpages for manuals or tutorials.
-http://dedukti.gforge.inria.fr/
-http://deducteam.gforge.inria.fr/sukerujo/
-http://deducteam.gforge.inria.fr/metadedukti/
+See the Meta Dedukti's webpage : http://deducteam.gforge.inria.fr/metadedukti
 
-You can setup Opam to install the development version of Meta Sukerujo
+You can setup Opam to install the development version of Meta Dedukti
 instead of the last stable version by typing the following commands in
 the current directory:
-- opam pin -k git add meta_sukerujo .#dkmeta
+- opam pin -k git add meta_dedukti .#meta
 - opam upgrade
