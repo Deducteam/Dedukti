@@ -48,7 +48,7 @@ tests: dkcheck
 	@echo "run tests..."
 	@for i in tests/OK/*.dk ; do \
 	    echo "on $$i...  " ; \
-	    ./dkcheck.native "$$i" 2>&1 | grep SUCCESS ; \
+	    ./dkcheck.native "$$i" || exit 1; \
 	done
 	@for i in tests/KO/*.dk ; do \
 	    echo "on $$i...  " ; \

@@ -39,6 +39,7 @@ rule token = parse
   | "Type"      { TYPE ( get_loc lexbuf )       }
   | "def"      { KW_DEF ( get_loc lexbuf )       }
   | "thm"      { KW_THM ( get_loc lexbuf )       }
+  | "inj"      { KW_INJ ( get_loc lexbuf )       }
   | "#NAME" space+ (modname as md)
   { NAME (get_loc lexbuf , hstring md) }
   | "#WHNF"     { WHNF ( get_loc lexbuf ) }
