@@ -6,12 +6,7 @@ let print fmt =
 let mk_prelude _ _ = failwith "Top.mk_prelude"
 
 let mk_declaration lc id pty =
-  match Env.declare_constant lc id pty with
-    | OK () -> Format.printf "%a is declared.@." pp_ident id
-    | Err e -> Errors.fail_env_error e
-
-let mk_definable lc id pty =
-  match Env.declare_definable lc id pty with
+  match Env.declare lc id pty with
     | OK () -> Format.printf "%a is declared.@." pp_ident id
     | Err e -> Errors.fail_env_error e
 

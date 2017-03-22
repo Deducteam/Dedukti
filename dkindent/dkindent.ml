@@ -6,11 +6,11 @@ module T = struct
     Env.init i;
     Format.printf "#NAME %a.@.@." print_ident i
 
-  let mk_declaration _ i t =
-    Format.printf "@[<2>%a :@ %a.@]@.@." print_ident i print_term t
-
-  let mk_definable _ i t =
-    Format.printf "@[<2>def %a :@ %a.@]@.@." print_ident i print_term t
+  let mk_declaration _ i = function
+    | Signature.Constant t ->
+       Format.printf "@[<2>%a :@ %a.@]@.@." print_ident i print_term t
+    | Signature.Definable (t, _) ->
+       Format.printf "@[<2>def %a :@ %a.@]@.@." print_ident i print_term t
 
   let mk_definition _ i ty t = match ty with
     | None -> Format.printf "@[<hv2>def %a@ :=@ %a.@]@.@." print_ident i print_term t

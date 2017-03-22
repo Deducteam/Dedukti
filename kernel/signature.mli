@@ -30,6 +30,10 @@ type signature_error =
 
 exception SignatureError of signature_error
 
+type rw_infos =
+  | Constant of term
+  | Definable of term * (Rule.rule_infos list*int*Dtree.dtree) option
+
 type t
 
 val make                : ident -> t
@@ -51,13 +55,9 @@ val get_dtree           : t -> loc -> ident -> ident -> (int*dtree) option
 (** [get_dtree sg l md id] returns the decision/matching tree associated with [md.id]
     inside the environment [sg]. *)
 
-val add_declaration     : t -> loc -> ident -> term -> unit
-(** [add_declaration sg l id ty] declares the constant symbol [id] of type [ty]
-    in the environment [sg]. *)
-
-val add_definable       : t -> loc -> ident -> term -> unit
-(** [add_definable sg l id ty] declares the definable symbol [id] of type [ty]
-    in the environment [sg]. *)
+val add_declaration     : t -> loc -> ident -> rw_infos -> unit
+(** [add_declaration sg l id sc] declares the symbol [id] of type [ty]
+    and class [sc] in the environment [sg]. *)
 
 val add_rules           : t -> Rule.typed_rule list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].

@@ -202,7 +202,7 @@ let get_dtree sg l m v =
 
 (******************************************************************************)
 
-let add sg lc v gst =
+let add_declaration sg lc v gst =
   Confluence.add_constant sg.name v;
   let env = H.find sg.tables sg.name in
   if H.mem env v then
@@ -210,10 +210,6 @@ let add sg lc v gst =
       else raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
   else
     H.add env v gst
-
-let add_declaration sg lc v ty = add sg lc v (Constant ty)
-let add_definable sg lc v ty = add sg lc v (Definable (ty,None))
-
 
 let add_rules sg lst : unit =
   let rs = map_error_list Rule.to_rule_infos lst in
