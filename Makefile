@@ -23,6 +23,7 @@ doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/doc.tex
 	ocamlbuild -Is kernel kernel/dedukti.docdir/dependencies.dot
 
+BINARIES=skcheck sktop skdep skindent
 install:
 	for i in $(BINARIES) ; do \
 	    install "_build/$$i/$$i.native" "${INSTALL_DIR}/$$i" ; \
