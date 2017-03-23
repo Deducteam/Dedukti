@@ -50,8 +50,8 @@ val is_injective        : t -> loc -> ident -> ident -> bool
 (** [is_injective sg l md id] returns true when [md.id] is either static
     or declared as injective. *)
 
-val get_dtree           : t -> loc -> ident -> ident -> (int*dtree) option
-(** [get_dtree sg l md id] returns the decision/matching tree associated with [md.id]
+val get_dtree           : t -> ?select:(ident -> bool) -> loc -> ident -> ident -> (int*dtree) option
+(** [get_dtree sg pred l md id] returns the decision/matching tree associated with [md.id]
     inside the environment [sg]. *)
 
 val add_declaration     : t -> loc -> ident -> staticity -> term -> unit

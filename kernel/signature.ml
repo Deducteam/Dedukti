@@ -39,9 +39,9 @@ type staticity = Static | Definable | Injective
 
 type rw_infos =
   {
-   stat: staticity;
-   ty: term;
-   rule_opt_info: (rule_infos list*int*dtree) option
+    stat: staticity;
+    ty: term;
+    rule_opt_info: (rule_infos list*int*dtree) option
   }
 
 type t = { name:ident; tables:(rw_infos H.t) H.t;
@@ -197,10 +197,26 @@ let is_injective sg lc m v =
     | Static | Injective -> true
     | Definable -> false
 
-let get_dtree sg l m v =
+let pred_true = fun x -> true
+
+let get_dtree sg ?select:(pred=pred_true) l m v =
   match (get_infos sg l m v).rule_opt_info with
   | None -> None
-  | Some(_,i,tr) -> Some (i,tr)
+  | Some(rules,i,tr) ->
+    if pred == pred_true then
+      Some (i,tr)
+    else
+      let extract_module (r:rule_infos) =
+        match r.name with
+        | Delta(md,_) -> md
+        | Gamma(_,md,_) -> md
+      in
+      let rules' = List.filter ( fun r -> pred (extract_module r)) rules in
+      match Dtree.of_rules rules' with
+      | OK (n,tree) ->
+        Some(n,tree)
+      | Err e -> raise (SignatureError (CannotBuildDtree e))
+
 
 (******************************************************************************)
 
