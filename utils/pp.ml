@@ -155,9 +155,12 @@ let print_typed_context fmt ctx =
     ) fmt (List.rev ctx)
 
 let print_rule_name fmt rule =
-  let aux b _ id =
+  let aux b md id =
     if b || !print_default then
-      Format.fprintf fmt "@[<h>{%s}@] " (string_of_ident id)
+      if ident_eq md (Env.get_name ()) then
+        Format.fprintf fmt "@[<h>{%s}@] " (string_of_ident id)
+      else
+      Format.fprintf fmt "@[<h>{%s.%s}@] " (string_of_ident md) (string_of_ident id)
     else
       Format.fprintf fmt ""
   in

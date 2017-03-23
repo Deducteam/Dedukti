@@ -62,11 +62,14 @@ let pp_pcontext fmt ctx =
   pp_list ".\n" (fun out (_,x) ->
       fprintf fmt "%a" pp_ident x) fmt (List.rev ctx)
 
-type prule      = loc * ident option * pdecl list * ident option * ident * prepattern list * preterm
+type prule      = loc * (ident option * ident) option * pdecl list * ident option * ident * prepattern list * preterm
 
 (* TODO : implements this *)
 let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, prete):prule) : unit  =
-  let name = match pname with | None -> "" | Some id -> "{"^string_of_ident id^"}" in
+  let name = match pname with | None -> "" | Some qid ->
+    let prefix = match fst qid with | None -> "" | Some md -> (string_of_ident md)^"." in
+    "{"^prefix^string_of_ident id^"}"
+  in
   match pid with
   | Some m ->
     fprintf fmt "[%a] %a.%a %a --> %a %s" (pp_list "," pp_pdecl) pdecl pp_ident m pp_ident id
