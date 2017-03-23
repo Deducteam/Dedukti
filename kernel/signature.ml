@@ -197,7 +197,7 @@ let is_injective sg lc m v =
     | Static | Injective -> true
     | Definable -> false
 
-let pred_true = fun x -> true
+let pred_true: Rule.rule_name -> bool = fun x -> true
 
 let get_dtree sg ?select:(pred=pred_true) l m v =
   match (get_infos sg l m v).rule_opt_info with
@@ -206,12 +206,7 @@ let get_dtree sg ?select:(pred=pred_true) l m v =
     if pred == pred_true then
       Some (i,tr)
     else
-      let extract_module (r:rule_infos) =
-        match r.name with
-        | Delta(md,_) -> md
-        | Gamma(_,md,_) -> md
-      in
-      let rules' = List.filter ( fun r -> pred (extract_module r)) rules in
+      let rules' = List.filter (fun (r:Rule.rule_infos) -> pred r.name) rules in
       match Dtree.of_rules rules' with
       | OK (n,tree) ->
         Some(n,tree)

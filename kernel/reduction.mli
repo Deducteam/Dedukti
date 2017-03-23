@@ -2,7 +2,7 @@
 
 open Term
 
-val select      : (Basic.ident list) option -> unit
+val select      : (Rule.rule_name list) option -> unit
 (** [select [Some [md1,...,mdn]]] restreins rules used during the reduction. Only rules declared in signature mdi are allowed. [select None] is the default behaviour. *)
 
 val hnf         : Signature.t -> term -> term
