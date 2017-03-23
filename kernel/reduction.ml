@@ -259,7 +259,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
       let dtree =
         match !selection with
         | None -> Signature.get_dtree sg l m v
-        | Some selection -> Signature.get_dtree sg ~select:(fun x -> List.mem x selection) l m v
+        | Some selection -> Signature.get_dtree sg ~select:selection l m v
       in
       match dtree with
       | None -> state
