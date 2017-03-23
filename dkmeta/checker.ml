@@ -18,12 +18,23 @@ let eprint lc fmt =
 
 (* the signature contains only meta rules and rules imported via previous files *)
 
+let filter_meta_rules r =
+            match r with
+            | Rule.Delta(md,_) -> string_of_ident md = "meta"
+            | Rule.Gamma(_,md,_) -> string_of_ident md = "meta"
+
 let normalize ty =
   if !only_meta then
-    Basic.do_beta := false;
+    begin
+      Basic.do_beta := false;
+      Reduction.select (Some filter_meta_rules)
+    end;
   let ty' = Reduction.snf !sg_meta ty in
   if !only_meta then
-    Basic.do_beta := true;
+    begin
+      Basic.do_beta := true;
+      Reduction.select None
+    end;
   ty'
 
 (* ********************************* *)
@@ -35,26 +46,16 @@ let mk_prelude lc name =
   Env.init name;
   Confluence.initialize ()
 
-let mk_declaration lc id pty : unit =
+let mk_declaration lc id st ty : unit =
   eprint lc "Declaration of symbol '%a'." pp_ident id;
-  let ty' = match pty with
-    | Signature.Constant t
-    | Signature.Definable (t, _)
-    | Signature.Injective (t, _) ->
-       normalize t
-  in
-  let pty' = match pty with
-    | Signature.Constant _ -> Signature.Constant ty'
-    | Signature.Definable (_, s) -> Signature.Definable (ty', s)
-    | Signature.Injective (_, s) -> Signature.Injective (ty', s)
-  in
-  let kw = match pty with
-    | Signature.Constant _ -> ""
-    | Signature.Definable _ -> "def "
-    | Signature.Injective _ -> "inj "
+  let ty' = normalize ty in
+  let kw = match st with
+    | Signature.Static -> ""
+    | Signature.Definable -> "def "
+    | Signature.Injective -> "inj "
   in
   Format.printf "@[<2>%s%a :@ %a.@]@.@." kw pp_ident id Pp.print_term ty';
-  Signature.add_declaration !sg_meta lc id pty'   (*
+  Signature.add_declaration !sg_meta lc id st ty'   (*
   match Env.declare_constant lc id pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e  *)
@@ -63,7 +64,7 @@ let mk_definition lc id pty_opt pte : unit =
   let pty = match pty_opt with | None -> Typing.inference !sg_meta pte | Some(ty) -> ty in
   let pty' = normalize pty in
   let pte' = normalize pte in
-  Signature.add_declaration !sg_meta lc id (Signature.Definable (pty', None));
+  Signature.add_declaration !sg_meta lc id Signature.Definable pty';
   let name = Rule.Delta(Signature.get_name !sg_meta, id) in
   let rule =
     { Rule.name = name ;

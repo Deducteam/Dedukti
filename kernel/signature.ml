@@ -199,14 +199,14 @@ let is_injective sg lc m v =
 
 let pred_true: Rule.rule_name -> bool = fun x -> true
 
-let get_dtree sg ?select:(pred=pred_true) l m v =
+let get_dtree sg ?(select=pred_true) l m v =
   match (get_infos sg l m v).rule_opt_info with
   | None -> None
   | Some(rules,i,tr) ->
-    if pred == pred_true then
+    if select == pred_true then
       Some (i,tr)
     else
-      let rules' = List.filter (fun (r:Rule.rule_infos) -> pred r.name) rules in
+      let rules' = List.filter (fun (r:Rule.rule_infos) -> Format.printf "debug: %a@." Rule.pp_rule_name r.name;select r.name) rules in
       match Dtree.of_rules rules' with
       | OK (n,tree) ->
         Some(n,tree)
