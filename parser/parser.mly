@@ -1,7 +1,7 @@
 %parameter <M :
   sig
     val mk_prelude     : Basic.loc -> Basic.ident -> unit
-    val mk_declaration : Basic.loc -> Basic.ident -> Signature.rw_infos -> unit
+    val mk_declaration : Basic.loc -> Basic.ident -> Signature.staticity -> Term.term -> unit
     val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_rules       : Rule.untyped_rule list -> unit
@@ -115,18 +115,18 @@
       let field_proj_subst (l, n, t) = (n, field_proj_preterm (l, n, t)) in
       let param_and_field_patterns f = params_as_patterns @ fields_as_patterns f in
       (* Declare the record type *)
-      mk_declaration lt ty_name (Signature.Constant (scope_term [] (mk_pi (PreType lt) params)));
+      mk_declaration lt ty_name Signature.Static (scope_term [] (mk_pi (PreType lt) params));
       (* Declare the constructor *)
-      mk_declaration lc constr (Signature.Constant (scope_term [] (mk_pi rec_type (params_and_fields))));
+      mk_declaration lc constr Signature.Static (scope_term [] (mk_pi rec_type (params_and_fields)));
       List.iter
         (fun (lf, field_name, field_type) ->
           let proj_id = field_proj_id field_name in
           (* Declare the projection as definable *)
-          mk_declaration lf proj_id
-            (Signature.Definable (scope_term []
+          mk_declaration lf proj_id Signature.Definable
+            (scope_term []
                (mk_pi
                   (pre_subst (List.map field_proj_subst fields) field_type)
-                  (params @ [PDecl(lf, rec_name, rec_type)])), None));
+                  (params @ [PDecl(lf, rec_name, rec_type)])));
           (* Define the projection *)
           mk_rules [
             scope_rule (
@@ -260,13 +260,13 @@ prelude         : NAME DOT      { let (lc,name) = $1 in
                                         mk_prelude lc name }
 
 line            : ID COLON letterm DOT
-                { mk_declaration (fst $1) (of_id (snd $1)) (Signature.Constant (scope_term [] $3)) }
+                { mk_declaration (fst $1) (of_id (snd $1)) Signature.Static (scope_term [] $3) }
                 | ID param+ COLON letterm DOT
-                { mk_declaration (fst $1) (of_id (snd $1)) (Signature.Constant (scope_term [] (mk_pi $4 $2))) }
+                { mk_declaration (fst $1) (of_id (snd $1)) Signature.Static (scope_term [] (mk_pi $4 $2)) }
                 | KW_DEF ID COLON arrterm DOT
-                { mk_declaration (fst $2) (of_id (snd $2)) (Signature.Definable (scope_term [] $4, None)) }
+                { mk_declaration (fst $2) (of_id (snd $2)) Signature.Definable (scope_term [] $4) }
                 | KW_INJ ID COLON arrterm DOT
-                { mk_declaration (fst $2) (of_id (snd $2)) (Signature.Injective (scope_term [] $4, None)) }
+                { mk_declaration (fst $2) (of_id (snd $2)) Signature.Injective (scope_term [] $4) }
                 | KW_DEF ID COLON arrterm DEF letterm DOT
                 { mk_definition (fst $2) (of_id (snd $2)) (Some (scope_term [] $4)) (scope_term [] $6) }
                 | KW_DEF ID DEF letterm DOT
@@ -320,7 +320,9 @@ param           : LEFTPAR ID COLON arrterm RIGHTPAR        { PDecl (fst $2,of_id
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
                 { let (l,md_opt,id,args) = $4 in ( l , None , $2 , md_opt, id , args , $6) }
 		| LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
-		{ let (l,md_opt,id,args) = $7 in ( l , Some (snd $2), $5 , md_opt, id , args , $9)}
+		{ let (l,md_opt,id,args) = $7 in ( l , Some (None, of_id (snd $2)), $5 , md_opt, id , args , $9)}
+		| LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
+		{ let (l,md_opt,id,args) = $7 in let (_,m,v) = of_qid $2 in ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 decl            : ID COLON term         { debug 1 "Ignoring type declaration in rule context."; $1 }
                 | ID                    { $1 }

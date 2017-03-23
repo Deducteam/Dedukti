@@ -4,6 +4,10 @@ open Rule
 open Term
 open Dtree
 
+let selection = ref None
+
+let select l = selection := l
+
 (* State *)
 
 type env = term Lazy.t LList.t
@@ -252,7 +256,12 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,m,v); stack } as state ->
     begin
-      match Signature.get_dtree sg l m v with
+      let dtree =
+        match !selection with
+        | None -> Signature.get_dtree sg l m v
+        | Some selection -> Signature.get_dtree sg ~select:selection l m v
+      in
+      match dtree with
       | None -> state
       | Some (i,g) ->
         begin

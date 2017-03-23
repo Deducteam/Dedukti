@@ -106,13 +106,16 @@ let scope_rule (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   let top = PPattern(l,md_opt,id,pargs) in
   let ctx = get_vars_order pctx top in
   let idents = List.map snd ctx in
-  let md = match md_opt with | None -> Env.get_name () | Some md -> md in
+  let md = match pname with
+    | Some (Some md, _) -> md
+    | _ -> Env.get_name ()
+  in
   let b,id =
     match pname with
     | None ->
       let id = Format.sprintf "%s!%d" (string_of_ident id) (fst (of_loc l)) in
       (false,(hstring id))
-    | Some id -> (true,id)
+    | Some (_, id) -> (true,id)
   in
   let name = Gamma(b,md,id) in
   let rule = {name ; ctx= ctx; pat = p_of_pp idents top; rhs = t_of_pt idents pri}  in
