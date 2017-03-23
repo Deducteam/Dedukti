@@ -43,15 +43,11 @@ let get_infos = function
 
 let mk_rules = Rule.( function
   | [] -> ()
-  | ((rule, _)::_) as lst ->
+  | (rule::_) as lst ->
     begin
       let (l,md,id) = get_infos rule.pat in
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
-      let lst' = 
-	List.map fst (List.filter 
-			(fun (_, rt) -> rt = Preterm.RegularRule) lst)
-      in
-      match Env.add_rules lst' with
+      match Env.add_rules lst with
       | OK lst2 ->
         List.iter ( fun rule ->
             eprint (get_loc_pat rule.pat) "%a" pp_typed_rule rule

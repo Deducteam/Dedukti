@@ -21,7 +21,6 @@ type prepattern =
   | PLambda     of loc * ident * prepattern
   | PJoker      of loc
 
-type ruletype = RegularRule | MetaRule
 val pp_prepattern : formatter -> prepattern -> unit
 
 type pdecl      = loc * ident
@@ -29,8 +28,9 @@ type pdecl      = loc * ident
 val pp_pdecl : formatter -> pdecl -> unit
 
 type pcontext   = pdecl list
-type prule      = loc * ident option * pdecl list * ident option * ident * prepattern list * preterm * ruletype
 
 val pp_pcontext : formatter -> pcontext -> unit
+
+type prule      = loc * (ident option *ident) option * pdecl list * ident option * ident * prepattern list * preterm
 
 val pp_prule : formatter -> prule -> unit

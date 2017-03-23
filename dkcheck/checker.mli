@@ -13,7 +13,7 @@ val mk_definition  : loc -> ident -> term option -> term -> unit
 
 val mk_opaque      : loc -> ident -> term option -> term -> unit
 
-val mk_rules       : (Rule.untyped_rule * Preterm.ruletype) list -> unit
+val mk_rules       : Rule.untyped_rule list -> unit
 
 val mk_command     : loc -> Cmd.command -> unit
 

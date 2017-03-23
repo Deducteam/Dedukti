@@ -58,20 +58,21 @@ type pdecl      = loc * ident
 let pp_pdecl fmt (_,id) = pp_ident fmt id
 
 type pcontext   = pdecl list
-type prule      = loc * ident option * pdecl list * ident option * ident * prepattern list * preterm * ruletype
+type prule      = loc * (ident option * ident) option * pdecl list * ident option * ident * prepattern list * preterm
 
 let pp_pcontext fmt ctx =
   pp_list ".\n" (fun out (_,x) ->
       fprintf fmt "%a" pp_ident x) fmt (List.rev ctx)
 
-(* TODO : implements this *)
-let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, prete,rt):prule) : unit  =
-  let name = match pname with | None -> "" | Some id -> "{"^string_of_ident id^"}" in
-  let rts = match rt with RegularRule -> "" | MetaRule -> "-" in
+let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, prete):prule) : unit  =
+  let name = match pname with | None -> "" | Some qid ->
+    let prefix = match fst qid with | None -> "" | Some md -> (string_of_ident md)^"." in
+    "{"^prefix^string_of_ident id^"}"
+  in
   match pid with
   | Some m ->
-    fprintf fmt "[%a] %a.%a %a %s--> %a %s" (pp_list "," pp_pdecl) pdecl pp_ident m pp_ident id
-      (pp_list " " pp_prepattern) prepatterns rts pp_preterm prete name
+    fprintf fmt "[%a] %a.%a %a --> %a %s" (pp_list "," pp_pdecl) pdecl pp_ident m pp_ident id
+      (pp_list " " pp_prepattern) prepatterns pp_preterm prete name
   | None ->
-    fprintf fmt "[%a] %a %a %s--> %a %s" (pp_list "," pp_pdecl) pdecl pp_ident id
-      (pp_list " " pp_prepattern) prepatterns rts pp_preterm prete name
+    fprintf fmt "[%a] %a %a --> %a %s" (pp_list "," pp_pdecl) pdecl pp_ident id
+      (pp_list " " pp_prepattern) prepatterns pp_preterm prete name

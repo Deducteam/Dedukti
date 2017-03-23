@@ -156,9 +156,12 @@ let print_typed_context fmt ctx =
     ) fmt (List.rev ctx)
 
 let print_rule_name fmt rule =
-  let aux b _ id =
+  let aux b md id =
     if b || !print_default then
-      Format.fprintf fmt "@[<h>{%s}@] " (string_of_ident id)
+      if ident_eq md (Env.get_name ()) then
+        Format.fprintf fmt "@[<h>{%s}@] " (string_of_ident id)
+      else
+      Format.fprintf fmt "@[<h>{%s.%s}@] " (string_of_ident md) (string_of_ident id)
     else
       Format.fprintf fmt ""
   in
@@ -166,17 +169,15 @@ let print_rule_name fmt rule =
       | Delta(md,id) -> aux true md id (* not printed *)
     | Gamma(b,md,id) -> aux b md id
 
-let print_untyped_rule fmt ((rule:Rule.untyped_rule), rt) =
+let print_untyped_rule fmt ((rule:Rule.untyped_rule)) =
   let print_decl out (_,id) =
     Format.fprintf out "@[<hv>%a@]" print_ident id
   in
-  let rts = match rt with Preterm.RegularRule -> "" | Preterm.MetaRule -> "-" in
   Format.fprintf fmt
-    "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ %s-->@ @[<hov2>%a@]@]@]@]"
+    "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
     print_rule_name rule.name
     (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) rule.ctx)
     print_pattern rule.pat
-    rts
     print_term rule.rhs
 
 let print_typed_rule out (rule:typed_rule) =

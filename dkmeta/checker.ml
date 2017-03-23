@@ -20,7 +20,7 @@ let eprint lc fmt =
 
 let filter_meta_rules r =
             match r with
-            | Rule.Delta(md,_) -> string_of_ident md = "meta"
+            | Rule.Delta(md,_) -> Format.printf "debug:: %a@." pp_ident md; string_of_ident md = "meta"
             | Rule.Gamma(_,md,_) -> string_of_ident md = "meta"
 
 let normalize ty =
@@ -106,24 +106,21 @@ let rec normalize_pattern p = Rule.(
   | Lambda(loc,id,p) -> Lambda(loc,id, normalize_pattern p)
   | Brackets(t) -> Brackets(normalize t))
 
-let normalize_rule (rule,m) =
-  ({rule with
-    Rule.pat = normalize_pattern rule.Rule.pat;
-    Rule.rhs = normalize rule.Rule.rhs}, m)
+let normalize_rule rule =
+  {rule with
+   Rule.pat = normalize_pattern rule.Rule.pat;
+   Rule.rhs = normalize rule.Rule.rhs}
 
 let mk_rules  = function
   | [] -> ()
-  | ((rule, _)::_) as lst ->
+  | (rule::_) as lst ->
     begin
       let (l,md,id) = get_infos rule.Rule.pat in
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
-      let lst_meta = List.map fst
-	(List.filter ( fun (_,t) -> t = Preterm.MetaRule) lst ) in
-      let lst' = if !only_meta then lst_meta else (List.map fst lst) in
       begin
       match Env.(Signature.(Typing.(
       try
-	let lst'' = List.map (Typing.check_rule !sg_meta) lst' in
+	let lst'' = List.map (Typing.check_rule !sg_meta) lst in
 	Signature.add_rules !sg_meta lst'';
 	OK lst'' with
 	| SignatureError e ->  Err (EnvErrorSignature e)
@@ -133,7 +130,6 @@ let mk_rules  = function
       | OK _ -> ()
       | Err e -> Errors.fail_env_error e
       end;
-
       if !apply_on_rules then
 	Format.printf "@[<v0>%a@].@.@." (pp_list "" Pp.print_untyped_rule) (List.map normalize_rule lst)
       else

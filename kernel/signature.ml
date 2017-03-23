@@ -206,11 +206,14 @@ let get_dtree sg ?(select=pred_true) l m v =
     if select == pred_true then
       Some (i,tr)
     else
-      let rules' = List.filter (fun (r:Rule.rule_infos) -> Format.printf "debug: %a@." Rule.pp_rule_name r.name;select r.name) rules in
-      match Dtree.of_rules rules' with
-      | OK (n,tree) ->
-        Some(n,tree)
-      | Err e -> raise (SignatureError (CannotBuildDtree e))
+      let rules' = List.filter (fun (r:Rule.rule_infos) -> select r.name) rules in
+      match rules' with
+      | [] -> None
+      | _ ->
+        match Dtree.of_rules rules' with
+        | OK (n,tree) ->
+          Some(n,tree)
+        | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 
 (******************************************************************************)

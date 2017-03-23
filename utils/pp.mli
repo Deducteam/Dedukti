@@ -23,7 +23,7 @@ val print_term  : Format.formatter -> term -> unit
 
 val print_pattern : Format.formatter -> pattern -> unit
 
-val print_untyped_rule  : Format.formatter -> untyped_rule * Preterm.ruletype -> unit
+val print_untyped_rule  : Format.formatter -> untyped_rule -> unit
 
 val print_typed_rule  : Format.formatter -> typed_rule -> unit
 
