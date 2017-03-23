@@ -27,9 +27,9 @@ val get_dtree   : loc -> ident -> ident -> ((int*Dtree.dtree) option,signature_e
 val export      : unit -> bool
 (** [export ()] saves the current environment in a [*.dko] file. *)
 
-val declare : loc -> ident -> Signature.rw_infos -> (unit,env_error) error
-(** [declare_constant l id sc] declares the symbol [id] whose type and
-   staticity are given by [sc]. *)
+val declare : loc -> ident -> Signature.staticity -> term -> (unit,env_error) error
+(** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
+   staticity [st]. *)
 
 val define      : loc -> ident -> term -> term option -> (unit,env_error) error
 (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)

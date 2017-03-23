@@ -3,7 +3,7 @@ open Term
 
 val mk_prelude     : loc -> ident -> unit
 
-val mk_declaration : loc -> ident -> Signature.rw_infos -> unit
+val mk_declaration : loc -> ident -> Signature.staticity -> term -> unit
 
 val mk_definition  : loc -> ident -> term option -> term -> unit
 

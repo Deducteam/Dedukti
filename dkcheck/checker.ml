@@ -19,9 +19,9 @@ let mk_prelude lc name =
   Env.init name;
   Confluence.initialize ()
 
-let mk_declaration lc id pty : unit =
+let mk_declaration lc id st pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
-  match Env.declare lc id pty with
+  match Env.declare lc id st pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 

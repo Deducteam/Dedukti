@@ -1,7 +1,7 @@
 %parameter <M :
   sig
     val mk_prelude     : Basic.loc -> Basic.ident -> unit
-    val mk_declaration : Basic.loc -> Basic.ident -> Signature.rw_infos -> unit
+    val mk_declaration : Basic.loc -> Basic.ident -> Signature.staticity -> Term.term -> unit
     val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_rules       : (Rule.untyped_rule * Preterm.ruletype) list -> unit
@@ -95,13 +95,13 @@ prelude         : NAME DOT      { let (lc,name) = $1 in
                                         mk_prelude lc name }
 
 line            : ID COLON term DOT
-                { mk_declaration (fst $1) (snd $1) (Signature.Constant (scope_term [] $3)) }
+                { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] $3) }
                 | ID param+ COLON term DOT
-                { mk_declaration (fst $1) (snd $1) (Signature.Constant (scope_term [] (mk_pi $4 $2))) }
+                { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] (mk_pi $4 $2)) }
                 | KW_DEF ID COLON term DOT
-                { mk_declaration (fst $2) (snd $2) (Signature.Definable (scope_term [] $4, None)) }
+                { mk_declaration (fst $2) (snd $2) Signature.Definable (scope_term [] $4) }
                 | KW_INJ ID COLON term DOT
-                { mk_declaration (fst $2) (snd $2) (Signature.Injective (scope_term [] $4, None)) }
+                { mk_declaration (fst $2) (snd $2) Signature.Injective (scope_term [] $4) }
                 | KW_DEF ID COLON term DEF term DOT
                 { mk_definition (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }
                 | KW_DEF ID DEF term DOT
