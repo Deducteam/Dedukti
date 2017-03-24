@@ -5,6 +5,8 @@ open Term
 val select      : (Rule.rule_name -> bool) option -> unit
 (** [select [Some [md1,...,mdn]]] restreins rules used during the reduction. Only rules declared in signature mdi are allowed. [select None] is the default behaviour. *)
 
+val beta        : bool ref
+
 val hnf         : Signature.t -> term -> term
 (** [hnf sg te] computes the head normal form of [te] using the signature [sg]. *)
 

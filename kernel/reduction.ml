@@ -6,6 +6,8 @@ open Dtree
 
 let selection = ref None
 
+let beta = ref true
+
 let select l = selection := l
 
 (* State *)
@@ -247,7 +249,10 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
       { ctx=LList.nil; term=(mk_DB l x (n-LList.len ctx)); stack }
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
-    state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    if not !beta then
+      st
+    else
+      state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
@@ -333,8 +338,11 @@ let rec state_one_step (sg:Signature.t) : state -> state option = function
     else
       None
   (* Beta redex *)
-  | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
-    Some { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+  | { ctx; term=Lam (_,_,_,t); stack=p::s } as st ->
+    if not !beta then
+      Some st
+    else
+      Some { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
