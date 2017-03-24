@@ -4,19 +4,21 @@ INSTALL_DIR=/usr/bin
 
 # DO NOT EDIT AFTER THIS LINE
 
+MENHIR = -menhir "menhir --external-tokens Tokens"
+
 all: dkcheck dktop dkdep dkindent lib doc
 
 dkcheck:
-	ocamlbuild -I dkcheck dkcheck.native
+	ocamlbuild -I $@ $(MENHIR) $@.native
 
 dktop:
-	ocamlbuild -I dktop dktop.native
+	ocamlbuild -I $@ $(MENHIR) $@.native
 
 dkdep:
-	ocamlbuild -I dkdep dkdep.native
+	ocamlbuild -I $@ $(MENHIR) $@.native
 
 dkindent:
-	ocamlbuild -I dkindent dkindent.native
+	ocamlbuild -I $@ $(MENHIR) $@.native
 
 doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
