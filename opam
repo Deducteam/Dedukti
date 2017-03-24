@@ -9,4 +9,4 @@ dev-repo: "https://gforge.inria.fr/git/dedukti/dedukti.git#meta"
 build: [make "BINARIES=dkmeta" "all"]
 install: [make "BINARIES=dkmeta" "INSTALL_DIR=%{bin}%" "install"]
 remove: [make "BINARIES=dkmeta" "INSTALL_DIR=%{bin}%" "uninstall"]
-depends: ["menhir" "ocamlbuild" { >= "0.9" } ]
+depends: ["menhir" "ocamlbuild"]
