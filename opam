@@ -9,4 +9,5 @@ dev-repo: "https://gforge.inria.fr/git/dedukti/dedukti.git#sukerujo"
 build: [make "all"]
 install: [make "INSTALL_DIR=%{bin}%" "install"]
 remove: [make "INSTALL_DIR=%{bin}%" "uninstall"]
-depends: ["menhir" "ocamlbuild" { >= "0.9" } ]
+available: [ ocaml-version >= "4.02" ]
+depends: ["menhir" "ocamlbuild"]
