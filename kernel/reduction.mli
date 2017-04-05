@@ -19,5 +19,5 @@ val snf         : Signature.t -> term -> term
 val are_convertible             : Signature.t -> term -> term -> bool
 (** [are_convertible sg t1 t2] check if [t1] and [t2] are convertible using the signature [sg]. *)
 
-val one_step                    : Signature.t -> term -> term option
+val one_step                    : Signature.t -> term -> term
 (** [one_step sg te] computes one reduction step on [te] using the signature [sg]. *)

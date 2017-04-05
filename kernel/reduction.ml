@@ -324,46 +324,55 @@ let rec hnf sg t =
   | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
   | App (f,a,lst) -> mk_App (hnf sg f) (hnf sg a) (List.map (hnf sg) lst)
 
+
+let reduced = ref false
+
 (* One-Step Reduction *)
-let rec state_one_step (sg:Signature.t) : state -> state option = function
+let rec state_one_step (sg:Signature.t) (state:state) : state =
+  match state with
   (* Weak heah beta normal terms *)
   | { term=Type _ }
   | { term=Kind }
   | { term=Pi _ }
-  | { term=Lam _; stack=[] } -> None
+  | { term=Lam _; stack=[] } -> state
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (_,_,n); stack } ->
     if n < LList.len ctx then
       state_one_step sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
     else
-      None
+      state
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } as st ->
-    if not !beta then
-      Some st
+    if not !beta || !reduced then
+      st
     else
-      Some { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+      { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
     let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
-    state_one_step sg { ctx; term=f; stack=List.rev_append tl' s }
+    let tl'' = List.map (state_one_step sg) tl' in
+    state_one_step sg { ctx; term=f; stack=List.rev_append tl'' s }
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,m,v); stack } ->
-    begin
-      match Signature.get_dtree sg l m v with
-      | None -> None
-      | Some (i,g) ->
-        begin
-          match split_stack i stack with
-          | None -> None
-          | Some (s1,s2) ->
-            ( match gamma_rw sg are_convertible snf state_whnf s1 g with
-              | None -> None
-              | Some (ctx,term) -> Some { ctx; term; stack=s2 }
-            )
-        end
-    end
+    if !reduced then
+      state
+    else
+      begin
+        match Signature.get_dtree sg l m v with
+        | None -> state
+        | Some (i,g) ->
+          begin
+            match split_stack i stack with
+            | None -> state
+            | Some (s1,s2) ->
+              ( match gamma_rw sg are_convertible snf state_whnf s1 g with
+                | None -> state
+                | Some (ctx,term) -> (reduced:= true; { ctx; term; stack=s2 })
+              )
+          end
+      end
 
 let one_step sg t =
-  map_opt term_of_state (state_one_step sg { ctx=LList.nil; term=t; stack=[] })
+  reduced := false;
+  term_of_state (state_one_step sg { ctx=LList.nil; term=t; stack=[] })

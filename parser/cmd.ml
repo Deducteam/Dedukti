@@ -35,8 +35,7 @@ let mk_command lc = function
           | Err e -> Errors.fail_env_error e )
   | OneStep te       ->
       ( match Env.one te with
-          | OK (Some te) -> Format.printf "%a@." print_term te
-          | OK None -> Format.printf "%a@." print_term te
+          | OK te -> Format.printf "%a@." print_term te
           | Err e -> Errors.fail_env_error e )
   | Conv (te1,te2)  ->
         ( match Env.are_convertible te1 te2 with
