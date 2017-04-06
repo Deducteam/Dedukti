@@ -13,6 +13,8 @@ type env_error =
 
 let sg = ref (Signature.make (hstring "noname"))
 
+let get_signature () = !sg
+
 let init name = sg := Signature.make name
 
 let get_name () = Signature.get_name !sg

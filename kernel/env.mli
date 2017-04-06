@@ -11,6 +11,8 @@ type env_error =
 
 (** {2 The Global Environment} *)
 
+val get_signature : unit -> Signature.t
+
 val init        : ident -> unit
 (** [init name] initializes a new global environement giving it the name [name].
     Every top level declaration will be qualified be this name. *)
@@ -54,7 +56,7 @@ val check       : term -> term -> (unit,env_error) error
 val hnf         : term -> (term,env_error) error
 val whnf        : term -> (term,env_error) error
 val snf         : term -> (term,env_error) error
-val one         : term -> (term option,env_error) error
+val one         : term -> (term,env_error) error
 
 val are_convertible : term -> term -> (bool,env_error) error
 
