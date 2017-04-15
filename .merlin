@@ -6,6 +6,7 @@ S dkcheck
 S dktop
 S dkdep
 S dkrule
+S dktrace
 
 B _build/kernel
 B _build/parser
@@ -16,5 +17,6 @@ B _build/dkcheck
 B _build/dkdep
 B _build/dktop
 B _build/dkrule
+B _build/dktrace
 
 FLG -w -3

@@ -208,11 +208,11 @@ let get_dtree sg ?select:(pred=pred_true) l m v =
     else
       let rules' = List.filter (fun (r:Rule.rule_infos) -> pred r.name) rules in
       (* A call to Dtree.of_rules must be made with a non-empty list *)
+      (* Format.printf "rules: %a %d@." pp_ident v (List.length rules'); *)
       match rules' with
       | [] -> None
       | _ -> match Dtree.of_rules rules' with
-        | OK (n,tree) ->
-          Some(n,tree)
+        | OK (n,tree) -> Some(n,tree)
         | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 

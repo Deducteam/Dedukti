@@ -11,6 +11,17 @@ let is_cst ty =
     end
   | _ -> false
 
+let is_proof ty =
+  match ty with
+  | Term.App (cst,_,_) ->
+    begin
+      match cst with
+      | Term.Const(_,md,id) -> string_of_ident id = "eps" && string_of_ident md = "hol"
+      | _ -> false
+    end
+  | _ -> false
+
+(* eta or eps *)
 let extract_type ty =
   match ty with
   | Term.App(_,ty,_) -> ty
@@ -94,6 +105,104 @@ let extract_context left right =
       db(), t, ty, (md,id)
     | Err e -> assert false
 
+
+
+let rec plug db holet t =
+    match holet with
+    | Term.DB(_, id,_) when id = db -> t
+    | Term.Lam(l,id,Some ty, te) ->
+      Term.mk_Lam l id  (Some(plug db ty t)) (plug db te t)
+    | Term.App(f,a,args) ->
+      Term.mk_App (plug db f t) (plug db a t) (List.map (fun x -> plug db x t) args)
+    | Term.Pi(l,id, ty, te) ->
+      Term.mk_Pi l id (plug db ty t) (plug db te t)
+    | _ -> holet
+
+
+let do_only_delta () =
+  Reduction.beta := false;
+  Reduction.select (Some (fun r ->
+      match r with
+      | Rule.Delta _ -> true
+      | _ -> false))
+
+let undo_only_delta () =
+  Reduction.beta := true;
+  Reduction.select None
+
+let leibnized ty_d t_d =
+  let to_const md id =
+    let name = "sym_eq_"^(string_of_ident id) in
+    Term.mk_Const dloc md (hstring name)
+  in
+  let rec aux ty ctx =
+    let ty = extract_type ty in
+    (* Format.printf "before: %a@." print_term ty; *)
+    do_only_delta ();
+    let ty' = Reduction.one_step (Env.get_signature ()) ty in
+    (* Format.printf "after: %a@." print_term ty'; *)
+    undo_only_delta ();
+    if Term.term_eq ty ty' then
+      t_d
+    else
+      begin
+        begin
+          match Tracer.compare_terms ty ty' with
+          | None -> failwith "error"
+          | Some ctx -> Format.printf "ctx: %a@." print_term ctx.Tracer.term
+        end;
+        let db',tyle,ty, (md,id) = extract_context ty ty' in
+        let tyle' =
+          match ctx with
+          | None -> tyle
+          | Some(db,holet) ->
+            plug db holet tyle
+        in
+        let t' = aux ty' (Some (db',tyle')) in
+        let ctx = Term.mk_Lam dloc db' (Some ty) tyle' in
+        (Term.mk_App (to_const md id) ctx [t'])
+      end
+  in
+  aux ty_d None
+
+let leibnized_term t = Term.(
+    let shift n l =
+      List.map (fun (i,(b,t)) -> (i+n,(b,t))) l
+    in
+    let rec adjust_db k t =
+      Format.printf "%a@." print_term t;
+      match t with
+      | App(f,a,[DB(l,id,0)]) -> mk_App f a [mk_DB l id k]
+      | App(f,a,[t]) -> adjust_db k t
+      | _ -> assert false
+    in
+    let rec leibnized_term dict t =
+      match t with
+      | Kind
+      | Type _
+      | Const _ -> t
+      | DB(loc,id,n) ->
+        let b,ty = (List.assoc n dict) in
+        if b then
+          adjust_db n ty
+        else
+          ty
+      | App(f,a,args) -> mk_App (leibnized_term dict f) (leibnized_term dict a) (List.map (leibnized_term dict) args)
+      | Lam(loc,id, Some ty, te) ->
+        if is_cst ty || is_proof ty then
+          let var = mk_DB dloc id 0 in
+          let tle = leibnized ty var in
+          let b = not (term_eq tle var) in
+          let dict' = (0,(b,tle))::(shift 1 dict) in
+          let te' = leibnized_term dict' te in
+          mk_Lam loc id (Some ty) te'
+        else
+          mk_Lam loc id (Some ty) (leibnized_term ((0,(false,ty))::(shift 1 dict)) te)
+      | _ -> assert false
+    in
+    leibnized_term [] t
+)
+
 module T = struct
   let mk_prelude _ i =
     Env.init i;
@@ -109,82 +218,6 @@ module T = struct
     | OK () -> Format.printf "@[<2>%s%a :@ %a.@]@.@." st_str print_ident id print_term ty
     | Err e -> Errors.fail_env_error e
 
-
-  let rec plug db holet t =
-    match holet with
-    | Term.DB(_, id,_) when id = db -> t
-    | Term.Lam(l,id,Some ty, te) ->
-      Term.mk_Lam l id  (Some(plug db ty t)) (plug db te t)
-    | Term.App(f,a,args) ->
-      Term.mk_App (plug db f t) (plug db a t) (List.map (fun x -> plug db x t) args)
-    | Term.Pi(l,id, ty, te) ->
-      Term.mk_Pi l id (plug db ty t) (plug db te t)
-    | _ -> holet
-
-
-  let do_only_delta () =
-    Reduction.beta := false;
-    Reduction.select (Some (fun r ->
-        match r with
-        | Rule.Delta _ -> true
-        | _ -> false))
-
-
-  let undo_only_delta () =
-    Reduction.beta := true;
-    Reduction.select None
-
-  let leibnized i ty_d t_d =
-    let to_const md id =
-      let name = "sym_eq_"^(string_of_ident id) in
-      Term.mk_Const dloc md (hstring name)
-    in
-    let rec aux ty ctx =
-      let ty = extract_type ty in
-      (* Format.printf "before: %a@." print_term ty; *)
-      do_only_delta ();
-      let ty' = Reduction.one_step (Env.get_signature ()) ty in
-      (* Format.printf "after: %a@." print_term ty'; *)
-      undo_only_delta ();
-      if Term.term_eq ty ty' then
-        t_d
-      else
-        let db',tyle,ty, (md,id) = extract_context ty ty' in
-        let tyle' =
-        match ctx with
-        | None -> tyle
-        | Some(db,holet) ->
-          plug db holet tyle
-        in
-        let t' = aux ty' (Some (db',tyle')) in
-        let ctx = Term.mk_Lam dloc db' (Some ty) tyle' in
-        (Term.mk_App (to_const md id) ctx [t'])
-        (*
-      match Env.one ty with
-      | OK ty' when not  (Term.term_eq ty ty') ->
-        let db',tyle,ty, (md,id) = extract_context ty ty' in
-        let tyle' =
-        match ctx with
-        | None -> tyle
-        | Some(db,holet) ->
-          plug db holet tyle
-        in
-        let t' = aux ty' (Some (db',tyle')) in
-        let ctx = Term.mk_Lam dloc db' (Some ty) tyle' in
-        (Term.mk_App (to_const md id) ctx [t'])
-        (* Format.printf "Debug2: %a@." print_term t'; *)
-        (*
-        Format.printf "Debug: %a@." print_term t';
-        Format.printf "Debug: %a,%a@." print_ident md print_ident id;
-        Format.printf "@[<hv2>def %a :@ %a@ :=@ %a.@]@.@."
-          print_ident i print_term ty print_term t; *)
-      | OK _ -> t_d
-           *)
-    in
-    let t' = aux ty_d None in
-    Format.printf "@[<hv2>def %a :@ %a@ :=@ %a.@]@.@."
-      print_ident i print_term ty_d print_term t'
-
   let mk_definition lc i ty t =
     match ty with
     | None -> Format.printf "@[<hv2>def %a@ :=@ %a.@]@.@." print_ident i print_term t
@@ -194,10 +227,13 @@ module T = struct
         if is_cst ty then
           begin
             Format.printf "@[<2>%a :@ %a.@]@.@." print_ident i print_term ty;
-            print_equality i (extract_type ty) t
+            Tracer.print_equality i (extract_type ty) t
           end
         else
-          leibnized i ty t;
+          let t' = Tracer.leibnize_term t in
+          let t'' = Tracer.leibnize Tracer.Fold t' ty in
+          Format.printf "@[<hv2>def %a :@ %a@ :=@ %a.@]@.@."
+            print_ident i print_term ty print_term t''
       | Err e -> Errors.fail_env_error e
 
   let mk_opaque _ i ty t = match ty with
@@ -207,7 +243,9 @@ module T = struct
           print_ident i print_term ty print_term t
 
   let mk_rules l =
-    Format.printf "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) l
+    match Env.add_rules l with
+    | OK _ ->  Format.printf "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) l
+    | Err err -> Errors.fail_env_error err
 
   let mk_command _ cmd =
     Format.printf "@[<2>%a@]@.@." Cmd.print_command cmd

@@ -131,10 +131,10 @@ let rec print_term out = function
 and print_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> print_term out t
   | t                                  -> Format.fprintf out "(%a)" print_term t
-
+(*
 (* Overwrite print_term by a name-clash avoiding version *)
 let print_term out t = print_term out (subst [] t)
-
+*)
 let print_bv out (_,id,i) = print_db out (id,i)
 
 let rec print_pattern out = function
