@@ -9,11 +9,29 @@ def eq :
   y:(hol.eta A) =>
   hol.forall (hol.arrow A hol.prop) (P:(hol.eta (hol.arrow A hol.prop)) => hol.impl (P x) (P y)).
 
+(;
 def refl :
   hol.eps
     (hol.forall_kind_prop
        (A:hol.type => hol.forall A (x:(hol.eta A) => eq A x x)))
   :=
-  A:hol.type =>
-  x:(hol.eta A) =>
-  P:(hol.eta (hol.arrow A hol.prop)) => p:(hol.eps (P x)) => p.
+A:hol.type =>
+x:(hol.eta A) =>
+P:(hol.eta (hol.arrow A hol.prop)) => p:(hol.eps (P x)) => p.
+;)
+
+def refl :
+  hol.eps
+    (hol.forall_kind_prop
+       (A:hol.type => hol.forall A (x:(hol.eta A) => eq A x x)))
+  :=
+  hol.sym_eq_eq
+    (ctx_var1:
+     (hol.eta
+        (hol.forall_kind_type
+           (A:hol.type => hol.arrow A (hol.arrow A hol.prop)))) =>
+     hol.forall_kind_prop
+       (A:hol.type => hol.forall A (x:(hol.eta A) => ctx_var1 A x x)))
+    (A:hol.type =>
+     x:(hol.eta A) =>
+     P:(hol.eta (hol.arrow A hol.prop)) => p:(hol.eps (P x)) => p).

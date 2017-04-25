@@ -11,7 +11,7 @@ SRC_DIRS = kernel,utils,parser
 all: ediloh dkcheck dktop dkdep dkindent lib doc
 
 ediloh:
-	ocamlbuild -Is $(SRC_DIRS),ediloh $(MENHIR) -lib unix ediloh.native
+	ocamlbuild -Is $(SRC_DIRS),ediloh $(MENHIR) -lib unix -lib str ediloh.native
 
 dkcheck:
 	ocamlbuild -Is $(SRC_DIRS),dkcheck $(MENHIR) -lib unix dkcheck.native

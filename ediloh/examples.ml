@@ -1,11 +1,13 @@
-open Opentheory
+open Openstt
+
+open OpenTheory
 
 let var_type str = mk_varType (mk_name [] "A")
 
 let id_term ty =
   let var = mk_name [] "x" in
   let v = mk_var var ty in
-  mk_absTerm (mk_var var ty) (mk_varTerm v)
+  mk_abs_term (mk_var var ty) (mk_var_term v)
 
 let equal_term t ty =
   mk_equal_term t t ty
@@ -26,12 +28,14 @@ let proof_refl_impl_id () =
   proof_refl (mk_impl_term mk_true_term mk_true_term) mk_bool_type
 
 let proof_axiom_true () =
-  let term,hyp,thm = mk_axiom_true in
-  mk_thm term hyp thm
-
+  let thm = mk_axiom_true in
+  let term = mk_true_term in
+  mk_thm term (mk_hyp []) thm
+(*
 let proof_axiom_and () =
-  let term,hyp,thm = mk_axiom_and (equal_term mk_true_term mk_true_type) mk_true_term in
-  mk_thm term hyp thm
+  let thm = mk_axiom_and (equal_term mk_true_term mk_true_type) mk_true_term in
+  let term = mk_and_term (equal_term mk_true_term mk_true_type) mk_true_term in
+  mk_thm term (mk_hyp []) thm
 
 let proof_axiom_impl () =
   let term,hyp,thm = mk_axiom_impl (equal_term mk_true_term mk_true_type) mk_true_term in
@@ -40,15 +44,17 @@ let proof_axiom_impl () =
 let proof_axiom_forall () =
   let term,hyp,thm = mk_axiom_forall (id_term mk_bool_type) mk_bool_type in
   mk_thm term hyp thm
+*)
 
 let proof_forall_intro () =
   let ty = mk_bool_type in
   let t = id_term ty in
   let thm =  mk_refl t in
   let eq = mk_equal_term t t (mk_arrow_type ty ty) in
-  let term,hyp,thm = mk_rule_intro_forall (mk_name [] "y") (var_type "A") eq thm in
-  mk_thm term hyp thm
-
+  let thm = mk_rule_intro_forall (mk_name [] "y") (var_type "A") eq thm in
+  let term = mk_forall_term (mk_abs_term (mk_var (mk_name [] "y") (var_type "A")) eq) (var_type "A") in
+  mk_thm term (mk_hyp []) thm
+(*
 let proof_forall_elim () =
   let ty = mk_bool_type in
   let t = id_term ty in
@@ -69,5 +75,5 @@ let proof_impl_elim () =
   let _,_,thm_true = mk_axiom_true in
   let term,hyp,thm = mk_rule_elim_impl thm_true thm mk_true_term (mk_equal_term mk_true_term mk_true_term mk_bool_type) in
   mk_thm term hyp thm
-
-let test () = proof_impl_elim ()
+*)
+let test () = proof_forall_intro ()

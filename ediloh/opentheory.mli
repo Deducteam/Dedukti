@@ -60,6 +60,8 @@ val mk_hyp : term list -> hyp
 
 val mk_axiom : hyp -> term -> thm
 
+val mk_eqMp : thm -> thm -> thm
+
 val mk_axiom_true : term * hyp * thm
 
 val mk_axiom_and : term -> term -> term * hyp * thm
