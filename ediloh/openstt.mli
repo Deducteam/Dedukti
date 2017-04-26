@@ -86,9 +86,11 @@ module type OpenSTT = sig
 
   val mk_sym : thm obj -> thm obj
 
+  val mk_betaConv : term obj -> thm obj
+
   val mk_thm : term obj -> hyp obj -> thm obj -> unit
 
-  val debug : unit -> unit
+  val debug : 'a obj -> unit
 end
 
 module OpenTheory : OpenSTT

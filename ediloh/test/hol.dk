@@ -28,7 +28,7 @@ forall_kind_prop : (type -> eta prop) -> eta prop.
 
 [a] eps (forall_kind_prop a) --> x:type -> eps (a x).
 
-def eq :
+def leibniz :
   hol.eta (hol.forall_kind_type (A => hol.arrow A (hol.arrow A hol.prop)))
   :=
   A =>

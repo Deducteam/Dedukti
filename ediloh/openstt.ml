@@ -86,9 +86,11 @@ module type OpenSTT = sig
 
   val mk_sym : thm obj -> thm obj
 
+  val mk_betaConv : term obj -> thm obj
+
   val mk_thm : term obj -> hyp obj -> thm obj -> unit
 
-  val debug : unit -> unit
+  val debug : 'a obj -> unit
 end
 
 module Basic = struct
@@ -342,7 +344,8 @@ module Basic = struct
     let obj_cst = {instr=push_cst; id = cst} in
     Hashtbl.add const_defined str (obj_thm,obj_cst)
 
-  let debug () = print_op Format.std_formatter (Pragma(String("debug", Empty)))
+  let debug obj =
+    print_op Format.std_formatter (Pop(Pragma(String("debug",load obj Empty))))
 
   let mk_hyp ts : hyp obj = mk_list ts
 
@@ -552,8 +555,10 @@ module OpenTheory = struct
     let te = mk_app_term (mk_abs_term (mk_var (mk_name [] "v") ty) mk_true_term) t in
     let beta = mk_betaConv te in
     let true_thm = mk_axiom_true in
-    let thm = mk_eqMp true_thm (mk_sym (mk_trans appThm beta)) in
-    save { push = fun k -> load thm k}
+    let eqMp = mk_eqMp true_thm (mk_sym (mk_trans appThm beta)) in
+    let beta = mk_betaConv (mk_app_term lambda t) in
+    let eqMp = mk_eqMp eqMp beta in
+    save { push = fun k -> load eqMp k}
 
   let proj thm bool left right =
     let binop_type = mk_arrow_type mk_bool_type (mk_arrow_type mk_bool_type mk_bool_type) in
@@ -649,19 +654,21 @@ module OpenTheory = struct
     let deduct = mk_deductAntiSym intro_impl_left intro_impl_right in
     save { push = fun k -> load deduct k}
 
-  let mk_forall_equal eq name lambda_l lambda_r ty =
+  let mk_forall_equal eq name left right ty =
+    let lambda_l = mk_abs_term (mk_var name ty) left in
+    let lambda_r = mk_abs_term (mk_var name ty) right in
     let assume = mk_assume (mk_forall_term lambda_l ty) in
     let tvar = mk_var_term (mk_var name ty) in
     let elim_forall = mk_rule_elim_forall assume lambda_l ty tvar in
     let eqMp = mk_eqMp elim_forall eq in
-    let intro_forall_left = mk_rule_intro_forall name ty lambda_r eqMp in
-
+    let intro_forall_left = mk_rule_intro_forall name ty right eqMp in
     let assume = mk_assume (mk_forall_term lambda_r ty) in
     let tvar = mk_var_term (mk_var name ty) in
     let elim_forall = mk_rule_elim_forall assume lambda_r ty tvar in
     let sym = mk_sym eq in
     let eqMp = mk_eqMp elim_forall sym in
-    let intro_forall_right = mk_rule_intro_forall name ty lambda_l eqMp in
+    let intro_forall_right = mk_rule_intro_forall name ty left eqMp in
     let deduct = mk_deductAntiSym intro_forall_left intro_forall_right in
-    save { push = fun k -> load deduct k}
+    let sym = mk_sym deduct in
+    save { push = fun k -> load sym k}
 end
