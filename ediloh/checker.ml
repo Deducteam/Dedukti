@@ -322,7 +322,8 @@ let rec proof_of_ctx variable base_proof lctx tl tr ctx proof =
     let tr' = instr_of_term lctx tr in
     tl',tr',base_proof
   else
-    match ctx with (*
+    match ctx with
+(*
     | Term.App(Term.Const(_,_,id), a, args) ->
       let vars,ty = List.assoc id !const_env in
       let tys,args = split (List.length vars) (a::args) in
@@ -388,20 +389,29 @@ let rec instr_of_proof ctx t =
         let ty' = extract_type ty in
         let poly_vars = extract_poly_vars ty' in
         let terml,termr, eq_proof = proof_of_ctx id equality [id,(poly_vars,ty')] tl tr  te thm in
-        debug termr;
         termr,mk_eqMp thm eq_proof
       | Term.Lam(_,_,None,_) -> failwith "lambda ctx is not typed"
       | _ -> failwith "it is not a context or it is not eta expanded"
     end
   | Term.Const(_,md,id) ->
     List.assoc id !proof_env
+      (*
   | Term.App(Term.Lam(_,id,Some ty, te), a, args) as t->
+    let ty' = extract_type ty in
+    let poly_vars = extract_poly_vars ty' in
+    let td,thm = instr_of_proof ((id,(poly_vars,ty'))::ctx) te in
+    let td' = mk_app_term (mk_abs_term (mk_var (mk_name [] (string_of_ident id)) (instr_of_type ty')) td)
+        (instr_of_term ctx a) in
+    let beta = mk_betaConv td' in
+    let sym = mk_sym beta in
+    let eqMp = mk_eqMp thm sym in
+    td',eqMp *)
+    (*
     begin
       match Env.one t with
       | OK None -> assert false
       | OK Some t' ->
         let td,thm = instr_of_proof ctx t' in
-        debug td;
         let ty' = extract_type ty in
         let td' =
           mk_app_term (mk_abs_term (mk_var (mk_name [] (string_of_ident id)) (instr_of_type ty')) td)
@@ -412,6 +422,7 @@ let rec instr_of_proof ctx t =
         td',eqMp
       | Err _ -> assert false
     end
+    *)
   | _ -> (Pp.print_term Format.std_formatter t; failwith "instr_of_proof")
 
 let mk_prelude lc name = Env.init name (* (Examples.test ()) *)
