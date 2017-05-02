@@ -170,7 +170,6 @@ let leibnized_term t = Term.(
       List.map (fun (i,(b,t)) -> (i+n,(b,t))) l
     in
     let rec adjust_db k t =
-      Format.printf "%a@." print_term t;
       match t with
       | App(f,a,[DB(l,id,0)]) -> mk_App f a [mk_DB l id k]
       | App(f,a,[t]) -> adjust_db k t
