@@ -222,7 +222,7 @@ let add_declaration sg lc v st ty =
   Confluence.add_constant sg.name v;
   let env = H.find sg.tables sg.name in
   if H.mem env v then
-    ( if !ignore_redecl then debug 1 "Redeclaration ignored."
+     ( if !ignore_redecl then debug 1 "Redeclaration ignored."
       else raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
   else
     H.add env v {stat=st; ty=ty; rule_opt_info=None}
