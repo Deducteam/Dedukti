@@ -3,14 +3,13 @@ open Openstt
 
 open OpenTheory
 
-let print_term t = Pp.print_term Format.std_formatter t;Format.printf "@."
-
+(* Brendregt convention is used *)
 (* ********************************* *)
 
 let counter = ref 0
 
 let hol_module = hstring "hol"
-let hol_sort = hstring "type"
+let hol_type = hstring "type"
 let hol_eta = hstring "eta"
 let hol_arrow = hstring "arrow"
 let hol_forall = hstring "forall"
@@ -31,11 +30,22 @@ type subst = (Basic.ident * Term.term) list
 
 let const_env:(Basic.ident * (Basic.ident list * Term.term)) list ref = ref []
 
+let print_const_env out const_env = List.iter ( fun (id, (poly,term)) -> Printf.fprintf out "%a\n" Basic.pp_ident id) const_env
+
+let lookup_const md id =
+  if List.mem_assoc id !const_env then
+    List.assoc id !const_env
+  else
+    Errors.fail dloc "The constant %a is unknown. List of known constants:\n%a" Basic.pp_ident id  print_const_env !const_env
+
+
 let type_env:(Basic.ident) list ref = ref []
 
 let proof_env:((Basic.ident) * (term obj * thm obj)) list ref = ref []
 
-let is_hol_sort t = is_hol_const hol_sort t
+let definition_env = ref []
+
+let is_hol_sort t = is_hol_const hol_type t
 
 let is_hol_eta t = is_hol_const hol_eta t
 
@@ -55,84 +65,85 @@ let is_hol_forall_kind_prop t = is_hol_const hol_forall_kind_prop t
 
 let is_hol_type t =
   match t with
-  | Term.App (c, _, _) -> is_hol_eta c
+  | Term.App(c, ty, _) when is_hol_eta c -> true
   | _ -> false
 
-let is_hol_proof t =
-  match t with
-  | Term.App (c, _, _) -> is_hol_eps c
-  | _ -> false
-
-let extract_type t =
+let extract_hol_type t =
   match t with
   | Term.App(c, ty, _) when is_hol_eta c -> ty
-  | _ -> assert false
+  | _ -> Errors.fail dloc "The term %a should be an application starting with hol.eta" Term.pp_term t
 
-let extract_proof t =
+let is_hol_thm t =
+  match t with
+  | Term.App(c, ty, _) when is_hol_eps c -> true
+  | _ -> false
+
+let extract_hol_thm t =
   match t with
   | Term.App(c, ty, _) when is_hol_eps c -> ty
-  | _ -> assert false
-
-let extract_term t =
-  match t with
-  | Term.App(c, ty, _) when is_hol_eps c -> ty
-  | _ -> assert false
-
-
+  | _ -> Errors.fail dloc "The term %a should be an application starting with hol.eps" Term.pp_term t
 
 let _ =
   let id = hstring "leibniz" in
   let ty =
     match Env.get_type dloc (hstring "hol") id with
-    | OK ty -> extract_type ty
-    | Err err -> failwith "the constant leibniz should be defined in hol.dk"
+    | OK ty -> extract_hol_type ty
+    | Err err -> Format.eprintf "the constant leibniz should be defined in hol.dk";
+      Errors.fail_signature_error err
   in
   let vars = [hstring "A"] in
   const_env := (id,(vars,ty))::!const_env
 
 
-let apply_poly env term =
+let apply_poly env ty =
   let rec apply_poly env term bool =
     match term with
     | Term.Kind -> assert false
     | Term.DB(_,id,n) -> List.assoc id env
-    | Term.Lam(_,_,_,_) -> failwith "not handled poly"
+    | Term.Lam(_,_,_,_) -> Errors.fail dloc "Lambda in types (apply poly)"
     | Term.App(f,Term.Lam(_,x, pty, te), []) when is_hol_forall_kind_type f ->
       if bool then
         apply_poly env te true
       else
-        assert false
+        Errors.fail dloc "The type %a is not a polymorphic prenex type" Term.pp_term ty
     | Term.App(f,a,args) ->
-      Term.mk_App (apply_poly env f false) (apply_poly env a false) (List.map (fun x -> apply_poly env x false) args)
+      Term.mk_App (apply_poly env f false) (apply_poly env a false)
+        (List.map (fun x -> apply_poly env x false) args)
     | _ -> term
   in
   match env with
-  | [] -> term
-  | _ -> apply_poly env term true
-
-let rec extract_poly_vars t =
-  match t with
-  | Term.App(c, Term.Lam(_,x, _, ty), []) when is_hol_forall_kind_type c ->
-    x::(extract_poly_vars ty)
-  | _ -> []
-
-let rec instr_of_type t =
-  match t with
-  | Term.Const(_,m,id) when is_hol_prop t ->
-    mk_bool_type
-  | Term.Const(_,m, id) ->
-    (* ASSUMPTION : every type operator is of arity 0 *)
-    ty_of_tyOp (mk_tyOp (mk_name [] (string_of_ident id))) []
-  (* ASSUMPTION : no clash in names and id should start with a majuscule *)
-  | Term.DB(_,id,i) ->
-    mk_varType (mk_name [] (string_of_ident id))
-  | Term.App(c, tyl, [tyr]) when is_hol_arrow c ->
-    mk_arrow_type (instr_of_type tyl) (instr_of_type tyr)
-  | Term.App(c, Term.Lam(_,x, _, ty), []) when is_hol_forall_kind_type c ->
-    instr_of_type ty
-  | _ -> Pp.print_term Format.std_formatter t; failwith "todo type"
+  | [] -> ty
+  | _ -> (apply_poly env ty true)
 
 
+
+let extract_poly_vars t =
+  let rec extract_poly_vars t =
+    match t with
+    | Term.App(c, Term.Lam(_,x, _, ty), []) when is_hol_forall_kind_type c ->
+      x::(extract_poly_vars ty)
+    | _ -> []
+  in
+  extract_poly_vars t
+
+let instr_of_type ty =
+  let rec instr_of_tyOp md id args =
+    let argsz = List.map instr_of_type args in
+    ty_of_tyOp (mk_tyOp (mk_name [] (string_of_ident id))) argsz
+  and instr_of_type t =
+    match t with
+    | Term.Const(_,md,id) when is_hol_prop t -> mk_bool_type
+    | Term.App(c,left,[right]) when is_hol_arrow c ->
+      mk_arrow_type (instr_of_type left) (instr_of_type right)
+    | Term.App(c, Term.Lam(_, var, _, ty), []) when is_hol_forall_kind_type c ->
+      instr_of_type ty
+    | Term.App(Term.Const(_,md,id),a,args) -> instr_of_tyOp md id (a::args)
+    | Term.Const(_,md,id) -> instr_of_tyOp md id []
+    | Term.DB(_,var,_) -> mk_varType (mk_name [] (string_of_ident var))
+    | _ ->
+      Errors.fail dloc "The term %a is not a hol type" Term.pp_term ty
+  in
+  instr_of_type ty
 
 type env = (Basic.ident * Term.term) list
 
@@ -154,55 +165,65 @@ let rec split n l =
     x::l,r
   | _ -> assert false
 
-
-
-
-(* TODO add a dictionnary *)
-let rec instr_of_term env t =
-  match t with
-  | Term.App(c, ty, [te])  when is_hol_forall c ->
-    mk_forall_term (instr_of_term env te) (instr_of_type ty)
-  | Term.App(c, tel, [ter]) when is_hol_impl c ->
-    mk_impl_term (instr_of_term env tel) (instr_of_term env ter)
-  | Term.App(c, Term.Lam(_,x, Some tx, ty), []) when is_hol_forall_kind_prop c ->
-    instr_of_term ((x,([],tx))::env) ty
-  | Term.App(Term.Const(_,_,id), a, args) ->
-    let vars,ty = List.assoc id !const_env in
-    let tys,args = split (List.length vars) (a::args) in
-    let ty' = instr_of_type (apply_poly (List.combine vars tys) ty) in
-    let cst = term_of_const (const_of_name (mk_name [] (string_of_ident id))) ty' in
-    List.fold_left (fun instr arg -> mk_app_term instr (instr_of_term env arg)) cst args
-  | Term.App(Term.DB(_,id,_), a, args) ->
-    let vars,ty = List.assoc id env in
-    let tys,args = split (List.length vars) (a::args) in
-    let ty' = instr_of_type (apply_poly (List.combine vars tys) ty) in
-    let var = mk_var_term (mk_var (mk_name [] (string_of_ident id)) ty') in
-    List.fold_left (fun instr arg -> mk_app_term instr (instr_of_term env arg)) var args
-  | Term.App(f, a, args) ->
-    List.fold_left (fun instr a -> if is_type_variable env a then instr else mk_app_term instr (instr_of_term env a))
-      (instr_of_term env f) (a::args)
-  | Term.Lam(_,x,Some tx, t') when is_hol_sort tx ->
-    instr_of_term ((x,([],tx))::env) t'
-  | Term.Lam(_,x,Some tx, t') ->
-    let tx' = extract_type tx in
-    let poly_vars = extract_poly_vars tx' in
-    let it = (instr_of_term ((x,(poly_vars,tx'))::env) t') in
-    let ty = instr_of_type tx' in
-    mk_abs_term (mk_var (mk_name [] (string_of_ident x)) ty) it
-  | Term.Lam(_, _, None, _) -> failwith "every lambda should be typed"
-  | Term.DB(_,id,i) ->
-    (* ASSUMPTION : no clash in names variable as in \x\x.x*)
-    let _,itx = (List.assoc id env) in
-    let itx = instr_of_type itx in
-    mk_var_term (mk_var (mk_name [] (string_of_ident id)) itx)
-  | Term.Const(_,_,id) ->
-    let vars,ty = List.assoc id !const_env in
-    term_of_const (const_of_name (mk_name [] (string_of_ident id))) (instr_of_type ty)
-  | _ -> Pp.print_term Format.std_formatter t; failwith "todo term"
-
+let instr_of_thm env thm =
+  let lookup env id =
+    if List.mem_assoc id env then
+      List.assoc id env
+    else
+      Errors.fail dloc "The variable %a is free in %a" Basic.pp_ident id Term.pp_term thm
+  in
+  let rec instr_of_thm env t =
+    match t with
+    | Term.App(c, ty, [te])  when is_hol_forall c ->
+      mk_forall_term (instr_of_thm  env te) (instr_of_type ty)
+    | Term.App(c, tel, [ter]) when is_hol_impl c ->
+      mk_impl_term (instr_of_thm  env tel) (instr_of_thm  env ter)
+    | Term.App(c, Term.Lam(_,x, Some tx, ty), []) when is_hol_forall_kind_prop c ->
+      instr_of_thm env ty
+    | Term.App(Term.Const(_,md,id), a, args) ->
+      let poly,ty = lookup_const md id in
+      let tys,args = split (List.length poly) (a::args) in
+      let tyz = instr_of_type  (apply_poly (List.combine poly tys) ty) in
+      let cst = term_of_const (const_of_name (mk_name [] (string_of_ident id))) tyz in
+      List.fold_left (fun instr arg -> mk_app_term instr (instr_of_thm  env arg)) cst args
+    | Term.App(Term.DB(_,id,_), a, args) ->
+      let vars,ty = lookup env id in
+      let tys,args = split (List.length vars) (a::args) in
+      let tyz = instr_of_type  (apply_poly (List.combine vars tys) ty) in
+      let var = mk_var_term (mk_var (mk_name [] (string_of_ident id)) tyz) in
+      List.fold_left (fun instr arg -> mk_app_term instr (instr_of_thm  env arg)) var args
+    | Term.App(f, a, args) -> Errors.fail dloc "Should not happen except if there is a beta"
+    | Term.Lam(_,x,Some ty, te) when is_hol_sort ty ->
+      instr_of_thm env te
+    | Term.Lam(_,x,Some ty, te) ->
+      let ty' = extract_hol_type ty in
+      let poly_vars = extract_poly_vars ty' in
+      let tz = (instr_of_thm  ((x,(poly_vars,ty'))::env) te) in
+      let tyz = instr_of_type  ty' in
+      mk_abs_term (mk_var (mk_name [] (string_of_ident x)) tyz) tz
+    | Term.Lam(_, _, None, _) ->
+      Errors.fail dloc "Lambdas in %a should be typed." Term.pp_term thm
+    | Term.DB(_,id,_) ->
+      let poly,ty = lookup env id in
+      if List.length poly <> 0 then
+        Errors.fail dloc "The variable %a should not have a polymorphic type" Basic.pp_ident id
+      else
+        let tyz = instr_of_type  ty in
+        mk_var_term (mk_var (mk_name [] (string_of_ident id)) tyz)
+    | Term.Const(_,md,id) ->
+      let vars,ty = lookup_const md id in
+      term_of_const (const_of_name (mk_name [] (string_of_ident id))) (instr_of_type  ty)
+    | _ -> Errors.fail dloc "The following term %a is not handled" Term.pp_term t;
+  in
+  instr_of_thm env thm
 
 let leb_prefix = "eq"
 let leb_sym_prefix = "sym_eq"
+
+let is_beta t =
+  match t with
+  | Term.App(Term.Const(_,_,id),_,_) -> string_of_ident id = "eq_beta"
+  | _ -> false
 
 let is_leibniz t =
   match t with
@@ -216,15 +237,10 @@ let extract_info_leb md leb = Str.(
       let dir = if matched_group 0 leb = "eq" then Direct else Indirect in
       let id = matched_group 2 leb in
       let cst = Term.mk_Const dloc md (hstring id) in
-      match Env.one cst with
-      | OK None -> assert false
-      | OK (Some def) ->
-        begin
-          match dir with
-          | Direct -> (dir,cst,def,id)
-          | Indirect -> (dir,def,cst,id)
-        end
-      | Err er -> Errors.fail_env_error er
+      let def = snd (List.assoc (hstring id) !definition_env) in
+      match dir with
+      | Direct -> (dir,cst,def,id)
+      | Indirect -> (dir,def,cst,id)
     else
       assert false
 )
@@ -233,17 +249,6 @@ let extract_cons t =
   match t with
   | Term.Const(_,md,id) -> md,id
   | _ -> assert false
-
-
-let is_forall_kind ctx =
-  match ctx with
-  | Term.App(f,a,args) -> is_hol_forall_kind_type f
-  | _ -> false
-
-let is_forall_prop ctx =
-  match ctx with
-  | Term.App(f,a,args) -> is_hol_forall_kind_prop f
-  | _ -> false
 
 let is_forall ctx =
   match ctx with
@@ -260,24 +265,9 @@ let is_ctx_var var ctx =
   | Term.DB(_,id,_) ->  Basic.ident_eq var id
   | _ -> false
 
-let extract_forall_kind ctx =
-  match ctx with
-  | Term.App(f,Term.Lam(_,x,Some ty,te),[]) -> x,ty,te
-  | _ -> assert false
-
-let extract_forall_prop ctx =
-  match ctx with
-  | Term.App(f,Term.Lam(_,x,Some ty,te),[]) -> x,ty,te
-  | _ -> assert false
-
 let extract_forall ctx =
   match ctx with
   | Term.App(f,a,[Term.Lam(_,x,Some ty,te)]) -> x,ty,te
-  | _ -> assert false
-
-let extract_impl ctx =
-  match ctx with
-  | Term.App(f,left,[right]) -> left,right
   | _ -> assert false
 
 let rec plug db holet t =
@@ -292,86 +282,102 @@ let rec plug db holet t =
   | _ -> holet
 
 let rec proof_of_ctx variable base_proof lctx tl tr ctx proof =
-  if is_forall_kind ctx then
-    let x,ty,te = extract_forall_kind ctx in
-    proof_of_ctx variable base_proof ((x,([],ty))::lctx) tl tr te proof
-  else
-  if is_forall_prop ctx then
-    let x,ty,te = extract_forall_prop ctx in
-    proof_of_ctx variable base_proof ((x,([],ty))::lctx) tl tr te proof
-  else
-  if is_forall ctx then
-    let var,ty,te = extract_forall ctx in
-    let ty = extract_type ty in
+  match ctx with
+  | Term.App(f,Term.Lam(_,x,Some ty,te),[]) when is_hol_forall_kind_type f ->
+    proof_of_ctx variable base_proof ((x,([], ty))::lctx) tl tr te proof
+  | Term.App(f,Term.Lam(_,x,Some ty,te),[]) when is_hol_forall_kind_prop f ->
+    proof_of_ctx variable base_proof ((x,([], ty))::lctx) tl tr te proof
+  | Term.App(f,a,[Term.Lam(_,var,Some ty,te)]) when is_hol_forall f ->
+    let ty = extract_hol_type ty in
     let poly_vars = extract_poly_vars ty in
     let lctx' = (var,(poly_vars,ty))::lctx in
-    let terml,termr,proof' = proof_of_ctx variable base_proof lctx' tl tr te proof in
-    let terml' = mk_abs_term (mk_var (mk_name [] (string_of_ident var)) (instr_of_type ty)) terml in
-    let termr' = mk_abs_term (mk_var (mk_name [] (string_of_ident var)) (instr_of_type ty)) termr in
-    terml',termr', mk_forall_equal proof' (mk_name [] (string_of_ident var)) terml termr  (instr_of_type ty)
-  else
-  if is_impl ctx then
-    let left,right = extract_impl ctx in
-    let _,left',proofl = proof_of_ctx variable base_proof lctx tl tr left proof in
-    let _,right',proofr = proof_of_ctx variable base_proof lctx tl tr right proof in
-    let left,right = instr_of_term lctx left, instr_of_term lctx right in
-    mk_impl_term left right, mk_impl_term left' right',mk_impl_equal proofl proofr left right left' right'
-  else
-  if is_ctx_var variable ctx then
-    let tl' = instr_of_term lctx tl in
-    let tr' = instr_of_term lctx tr in
-    tl',tr',base_proof
-  else
-    match ctx with
-(*
-    | Term.App(Term.Const(_,_,id), a, args) ->
-      let vars,ty = List.assoc id !const_env in
-      let tys,args = split (List.length vars) (a::args) in
-      let ty' = instr_of_type (apply_poly (List.combine vars tys) ty) in
-      let cst = term_of_const (const_of_name (mk_name [] (string_of_ident id))) ty' in
-      List.fold_left (fun instr arg -> mk_app_term instr (instr_of_term env arg)) cst args *)
-    | Term.App(Term.DB(_,id,_) as f, a, args) ->
-      let vars,ty = List.assoc id lctx in
-      let tys,args = split (List.length vars) (a::args) in
-      let ty' = instr_of_type (apply_poly (List.combine vars tys) ty) in
-      let var = mk_var_term (mk_var (mk_name [] (string_of_ident id)) ty') in
-      List.fold_left (fun (terml,termr,proof) arg ->
-          let terml',termr',proof' = proof_of_ctx variable base_proof lctx tl tr arg proof in
-          mk_app_term terml terml', mk_app_term termr termr', mk_appThm proof proof') (proof_of_ctx variable base_proof lctx tl tr f proof) args
-    | Term.App(f,a,args) ->
-      List.fold_left (fun (terml,termr,proof) arg ->
-          let terml', termr',proof' = proof_of_ctx variable base_proof lctx tl tr arg proof in
-          mk_app_term terml terml', mk_app_term termr termr', mk_appThm proof proof') (proof_of_ctx variable base_proof lctx tl tr f proof) (a::args)
-    | _ ->
-      let ctx' = instr_of_term lctx ctx in
-      ctx',ctx',mk_refl ctx'
+    let termlz,termrz,proof' = proof_of_ctx variable base_proof lctx' tl tr te proof in
+    let termlz' = mk_abs_term (mk_var (mk_name [] (string_of_ident var)) (instr_of_type ty)) termlz in
+    let termrz' = mk_abs_term (mk_var (mk_name [] (string_of_ident var)) (instr_of_type ty)) termrz in
+    termlz',termrz', mk_forall_equal proof' (mk_name [] (string_of_ident var)) termlz termrz  (instr_of_type ty)
+  | Term.App(f,left,[right]) when is_hol_impl f ->
+    let _,leftz,proofl = proof_of_ctx variable base_proof lctx tl tr left proof in
+    let _,rightz,proofr = proof_of_ctx variable base_proof lctx tl tr right proof in
+    let leftz',rightz' = instr_of_thm lctx left, instr_of_thm lctx right in
+    mk_impl_term leftz' rightz', mk_impl_term leftz rightz, mk_impl_equal proofl proofr leftz' rightz' leftz rightz
+  | Term.DB(_,id,_) when Basic.ident_eq id variable ->
+    let tlz = instr_of_thm lctx tl in
+    let trz = instr_of_thm lctx tr in
+    tlz,trz,base_proof
+  | Term.App(Term.Const(_,md,id), a, args) ->
+    let vars,ty = lookup_const md id in
+    let tys,args = split (List.length vars) (a::args) in
+    let ty' = instr_of_type (apply_poly (List.combine vars tys) ty) in
+    let cst = term_of_const (const_of_name (mk_name [] (string_of_ident id))) ty' in
+    List.fold_left (fun (terml,termr,proof) arg ->
+        let terml',termr',proof' = proof_of_ctx variable base_proof lctx tl tr arg proof in
+        mk_app_term terml terml', mk_app_term termr termr', mk_appThm proof proof') (cst,cst,mk_refl cst) args
+  | Term.App(Term.DB(_,id,_) as f, a, args) ->
+    let vars,ty = List.assoc id lctx in
+    let tys,args = split (List.length vars) (a::args) in
+    List.fold_left (fun (terml,termr,proof) arg ->
+        let terml',termr',proof' = proof_of_ctx variable base_proof lctx tl tr arg proof in
+        mk_app_term terml terml', mk_app_term termr termr', mk_appThm proof proof') (proof_of_ctx variable base_proof lctx tl tr f proof) args
+  | Term.App(f,a,args) ->
+    List.fold_left (fun (terml,termr,proof) arg ->
+        let terml', termr',proof' = proof_of_ctx variable base_proof lctx tl tr arg proof in
+        mk_app_term terml terml', mk_app_term termr termr', mk_appThm proof proof') (proof_of_ctx variable base_proof lctx tl tr f proof) (a::args)
+  | _ ->
+    let ctx' = instr_of_thm lctx ctx in
+    ctx',ctx',mk_refl ctx'
 
 
+let is_typed_beta redex =
+  match redex with
+  | Term.App(Term.Lam(_,_,Some ty,_),_,[])
+    when is_hol_sort ty -> true
+  | _ -> false
 
+let beta_reduce redex =
+  match redex with
+  | Term.App(Term.Lam(_,_,Some ty,te),a,[]) ->
+    Subst.subst te a
+  | _ -> assert false
 
-let rec instr_of_proof ctx t =
+let rec instr_of_proof  ctx t =
   match t with
   | Term.Lam(_,x, Some ty, t') when is_hol_sort ty ->
     instr_of_proof ctx t'
   | Term.Lam(_,x, Some ty, t') when is_hol_type ty ->
-    let ty' = (instr_of_type (extract_type ty)) in
+    let ty' = (instr_of_type  (extract_hol_type ty)) in
     let poly_vars = extract_poly_vars ty in
-    let t,thm = instr_of_proof ((x,(poly_vars,(extract_type ty)))::ctx) t' in
+    let t,thm = instr_of_proof  ((x,(poly_vars,(extract_hol_type ty)))::ctx) t' in
     let term = mk_forall_term (mk_abs_term (mk_var (mk_name [] (string_of_ident x)) ty') t) ty' in
     term, mk_rule_intro_forall (mk_name [] (string_of_ident x)) ty' t thm
-  | Term.Lam(_,x, Some ty, t') when is_hol_proof ty ->
-    let p = (instr_of_term ctx (extract_proof ty)) in
-    let ty' = extract_proof ty in
+  | Term.Lam(_,x, Some ty, t') when is_hol_thm ty ->
+    let p = (instr_of_thm ctx (extract_hol_thm ty)) in
+    let ty' = extract_hol_thm ty in
     let poly_vars = extract_poly_vars ty' in
-    let q,thm = instr_of_proof ((x,(poly_vars,ty'))::ctx) t' in
+    let q,thm = instr_of_proof  ((x,(poly_vars,ty'))::ctx) t' in
     let term = mk_impl_term p q in
     term, mk_rule_intro_impl thm p q
   | Term.DB(_,id,_) ->
     let _,ty' = List.assoc id ctx in
-    let instr = instr_of_term ctx ty' in
+    let instr = instr_of_thm ctx ty' in
     instr, mk_assume instr
+  | Term.App(f,redex,[a;args]) when is_beta t ->
+    if is_typed_beta redex then
+      instr_of_proof  ctx args
+    else
+      let t,thm = instr_of_proof  ctx args in
+      let equality = mk_betaConv (instr_of_thm ctx redex) in
+      let redex' = beta_reduce redex in
+      begin
+        match a with
+        | Term.Lam(_,id,Some ty,te) ->
+          let ty' = extract_hol_type ty in
+          let poly_vars = extract_poly_vars ty' in
+          let terml,termr, eq_proof = proof_of_ctx id equality [id,(poly_vars,ty')] redex redex' te thm in
+          termr, mk_eqMp thm eq_proof
+        | _ -> failwith "not valid context is it eta expanded ?"
+      end
   | Term.App(f,a,[args]) when is_leibniz t ->
-    let t,thm = instr_of_proof ctx args in
+    let t,thm = instr_of_proof  ctx args in
     let (md,cst) = extract_cons f in
     let (dir,tl,tr,id) = extract_info_leb md (string_of_ident cst) in
     let cst_name = mk_name [] id in
@@ -386,7 +392,7 @@ let rec instr_of_proof ctx t =
     begin
       match a with
       | Term.Lam(_,id,Some ty,te) ->
-        let ty' = extract_type ty in
+        let ty' = extract_hol_type ty in
         let poly_vars = extract_poly_vars ty' in
         let terml,termr, eq_proof = proof_of_ctx id equality [id,(poly_vars,ty')] tl tr  te thm in
         termr,mk_eqMp thm eq_proof
@@ -395,34 +401,6 @@ let rec instr_of_proof ctx t =
     end
   | Term.Const(_,md,id) ->
     List.assoc id !proof_env
-      (*
-  | Term.App(Term.Lam(_,id,Some ty, te), a, args) as t->
-    let ty' = extract_type ty in
-    let poly_vars = extract_poly_vars ty' in
-    let td,thm = instr_of_proof ((id,(poly_vars,ty'))::ctx) te in
-    let td' = mk_app_term (mk_abs_term (mk_var (mk_name [] (string_of_ident id)) (instr_of_type ty')) td)
-        (instr_of_term ctx a) in
-    let beta = mk_betaConv td' in
-    let sym = mk_sym beta in
-    let eqMp = mk_eqMp thm sym in
-    td',eqMp *)
-    (*
-    begin
-      match Env.one t with
-      | OK None -> assert false
-      | OK Some t' ->
-        let td,thm = instr_of_proof ctx t' in
-        let ty' = extract_type ty in
-        let td' =
-          mk_app_term (mk_abs_term (mk_var (mk_name [] (string_of_ident id)) (instr_of_type ty')) td)
-            (instr_of_term ctx a) in
-        let beta = mk_betaConv td' in
-        let sym = mk_sym beta in
-        let eqMp = mk_eqMp thm sym in
-        td',eqMp
-      | Err _ -> assert false
-    end
-    *)
   | _ -> (Pp.print_term Format.std_formatter t; failwith "instr_of_proof")
 
 let mk_prelude lc name = Env.init name (* (Examples.test ()) *)
@@ -431,10 +409,10 @@ let mk_prelude lc name = Env.init name (* (Examples.test ()) *)
 let define_hol_type id = type_env := id::!type_env
 
 
-let define_hol_const id te = mk_const (mk_name [] (string_of_ident id)) (instr_of_term [] te)
+let define_hol_const id te = mk_const (mk_name [] (string_of_ident id)) (instr_of_thm [] te)
 
 let define_axiom term =
-  let term' = instr_of_term [] term in
+  let term' = instr_of_thm [] term in
   (*
   mk_thm term' (mk_hyp []) (mk_axiom (mk_hyp []) term') *)
   mk_axiom (mk_hyp []) term'
@@ -443,29 +421,23 @@ let define_thm term hyp thm =
   mk_thm term hyp thm
 
 let mk_declaration lc id pty : unit =
-  begin
-    match Env.declare_constant lc id pty with
-    | OK _ -> ()
-    | Err err -> Errors.fail_env_error err
-  end;
-  if is_hol_sort pty then
+  match pty with
+  | Term.Const(_,md,id) when is_hol_sort pty ->
     define_hol_type id
-  else
-  if is_hol_type pty then
-    begin
+  | Term.App(f, a, []) when is_hol_eta f ->
       (* no implementation provided for that constant, then it is external *)
-      let pty' = extract_type pty in
+      let pty' = extract_hol_type pty in
       let poly_vars = extract_poly_vars pty' in
-      const_env := (id, (poly_vars,pty'))::!const_env;
-    end
-  else
-  if is_hol_proof pty then
-    let term = extract_term pty in
+      const_env := (id, (poly_vars,pty'))::!const_env
+  | Term.App(f, a, []) when is_hol_eps f ->
+    let term = extract_hol_thm pty in
     let ax = define_axiom term in
-    let term' = instr_of_term [] term in
+    let term' = instr_of_thm [] term in
     proof_env := (id,(term',ax))::!proof_env
-  else
-    failwith "case not handle"
+  | _ -> Errors.fail dloc "case not handle: %a" Term.pp_term pty
+
+let add_definition id ty pte =
+  definition_env := (id,(ty,pte))::!definition_env
 
 let mk_definable lc id pty : unit = failwith "definable symbol without definition... should not happend"
 
@@ -475,26 +447,21 @@ let mk_definition lc id pty_opt pte : unit =
     | Some ty -> ty
     | None -> failwith "missing type in the definition"
   in
-  begin
-    match Env.define lc id pte pty_opt with
-    | OK _ -> ()
-    | Err err -> Errors.fail_env_error err
-  end;
-  if is_hol_type ty then
+  add_definition id ty pte;
+  match ty with
+  | Term.App(f, a, []) when is_hol_eta f ->
     begin
-      let ty' = extract_type ty in
+      let ty' = extract_hol_type ty in
       let poly_vars = extract_poly_vars ty' in
       const_env := (id, (poly_vars,ty'))::!const_env;
       define_hol_const id pte
     end
-  else
-  if is_hol_proof ty then
+  | Term.App(f, a, []) when is_hol_eps f ->
     let _,thm = instr_of_proof [] pte in
-    let te = instr_of_term [] (extract_term ty) in
+    let te = instr_of_thm [] (extract_hol_thm ty) in
     proof_env :=(id,(te,thm))::!proof_env;
-    mk_thm (instr_of_term [] (extract_term ty)) (mk_hyp []) thm
-  else
-    failwith "case not handle"
+    mk_thm (instr_of_thm [] (extract_hol_thm ty)) (mk_hyp []) thm
+  | _ -> Errors.fail dloc "case not handle: %a" Term.pp_term ty
 
 
 let mk_opaque lc id pty_opt pte =
