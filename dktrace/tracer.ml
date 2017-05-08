@@ -227,7 +227,6 @@ let beta_step_to_trace term =
   match compare_terms term term' with
   | None -> None
   | Some ctx ->
-    print_context Format.std_formatter ctx;
     match  get_hole ctx term with
     | Term.App(Term.Lam(_,id,Some ty, te),a,[]) as redex ->
       let rule = Rule.Delta(Basic.hstring "hol", Basic.hstring"beta") in
@@ -313,14 +312,15 @@ let leibnize dir term ty =
   in
   let ty' = context_of_proof ty in
   let ty'',tr = trace ty' in
-  (* Format.printf "type: %a@.length: %d@." Pp.print_term ty' (List.length tr); *)
-  let term' =
-    match dir with
-    | Fold -> List.fold_right (fun step te -> leibnize_step dir step te) tr term
-    | Unfold -> List.fold_left (fun te step -> leibnize_step dir step te) term tr
-  in
   let _,btr = beta_trace ty'' in
-  List.fold_left (fun term (step,redex) -> leibnize_beta_step Unfold step term redex) term' (List.rev btr)
+  let term' = List.fold_left
+      (fun term (step,redex) -> leibnize_beta_step Unfold step term redex) term (List.rev btr) in
+  (* Format.printf "type: %a@.length: %d@." Pp.print_term ty' (List.length tr); *)
+  match dir with
+  | Fold -> List.fold_right (fun step te -> leibnize_step dir step te) tr term'
+  | Unfold -> List.fold_left (fun te step -> leibnize_step dir step te) term' tr
+
+
 
 let is_cst ty =
   match ty with
