@@ -397,7 +397,7 @@ let rec instr_of_proof  ctx t =
           termr, mk_eqMp thm eq_proof
         | Term.Lam(_,id,None,te) ->
           let terml,termr, eq_proof = proof_of_ctx id equality [id,([],Term.mk_Kind)] redex redex' te thm in
-          termr, mk_eqMp thm eq_proof
+          termr, mk_eqMp thm (mk_sym eq_proof)
         | _ -> Errors.fail dloc "not valid context is it eta expanded:\n %a\n" Term.pp_term a
       end
   | Term.App(f,a,[args]) when is_leibniz t ->
