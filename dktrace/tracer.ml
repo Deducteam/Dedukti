@@ -320,7 +320,7 @@ let leibnize dir term ty =
     | Unfold -> List.fold_left (fun te step -> leibnize_step dir step te) term tr
   in
   let _,btr = beta_trace ty'' in
-  List.fold_left (fun term (step,redex) -> leibnize_beta_step Unfold step term redex) term' btr
+  List.fold_left (fun term (step,redex) -> leibnize_beta_step Unfold step term redex) term' (List.rev btr)
 
 let is_cst ty =
   match ty with
