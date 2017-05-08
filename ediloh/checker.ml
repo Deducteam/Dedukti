@@ -192,7 +192,8 @@ let instr_of_thm env thm =
       let tyz = instr_of_type  (apply_poly (List.combine vars tys) ty) in
       let var = mk_var_term (mk_var (mk_name [] (string_of_ident id)) tyz) in
       List.fold_left (fun instr arg -> mk_app_term instr (instr_of_thm  env arg)) var args
-    | Term.App(f, a, args) -> Errors.fail dloc "Should not happen except if there is a beta"
+    | Term.App(f, a, args) ->
+      List.fold_left (fun instr arg -> mk_app_term instr (instr_of_thm  env arg)) (instr_of_thm env f) (a::args)
     | Term.Lam(_,x,Some ty, te) when is_hol_sort ty ->
       instr_of_thm env te
     | Term.Lam(_,x,Some ty, te) ->
@@ -326,6 +327,13 @@ let rec proof_of_ctx variable base_proof lctx tl tr ctx proof =
     let ctx' = instr_of_thm lctx ctx in
     ctx',ctx',mk_refl ctx'
 
+let rec unfold_redex redex =
+  match redex with
+  | Term.App(Term.Lam(_,_,_,_),_,[]) -> [],redex
+  | Term.Lam(_,id,Some ty,te) ->
+    let ctx,redex = unfold_redex te in
+    (id,ty)::ctx,redex
+  | _ -> assert false
 
 let is_typed_beta redex =
   match redex with
@@ -338,6 +346,17 @@ let beta_reduce redex =
   | Term.App(Term.Lam(_,_,Some ty,te),a,[]) ->
     Subst.subst te a
   | _ -> assert false
+
+let to_poly_ctx l =
+  let aux id ty =
+    if is_hol_sort ty then
+      None
+    else
+      let ty' = extract_hol_type ty in
+      let poly_vars = extract_poly_vars ty' in
+      Some (id,(poly_vars,ty'))
+  in
+  List.fold_right (fun (id,ty) l -> match aux id ty with None -> l | Some x -> x::l) l []
 
 let rec instr_of_proof  ctx t =
   match t with
@@ -361,11 +380,13 @@ let rec instr_of_proof  ctx t =
     let instr = instr_of_thm ctx ty' in
     instr, mk_assume instr
   | Term.App(f,redex,[a;args]) when is_beta t ->
+    let ctx_redex,redex = unfold_redex redex in
     if is_typed_beta redex then
       instr_of_proof  ctx args
     else
-      let t,thm = instr_of_proof  ctx args in
-      let equality = mk_betaConv (instr_of_thm ctx redex) in
+      let ctx_redex' = to_poly_ctx ctx_redex in
+      let t,thm = instr_of_proof ctx args in
+      let equality = mk_betaConv (instr_of_thm (ctx_redex'@ctx) redex) in
       let redex' = beta_reduce redex in
       begin
         match a with
@@ -374,7 +395,10 @@ let rec instr_of_proof  ctx t =
           let poly_vars = extract_poly_vars ty' in
           let terml,termr, eq_proof = proof_of_ctx id equality [id,(poly_vars,ty')] redex redex' te thm in
           termr, mk_eqMp thm eq_proof
-        | _ -> failwith "not valid context is it eta expanded ?"
+        | Term.Lam(_,id,None,te) ->
+          let terml,termr, eq_proof = proof_of_ctx id equality [id,([],Term.mk_Kind)] redex redex' te thm in
+          termr, mk_eqMp thm eq_proof
+        | _ -> Errors.fail dloc "not valid context is it eta expanded:\n %a\n" Term.pp_term a
       end
   | Term.App(f,a,[args]) when is_leibniz t ->
     let t,thm = instr_of_proof  ctx args in
