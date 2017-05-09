@@ -1,6 +1,8 @@
 open Basic
 open Pp
 
+let print_opentheory = ref false
+
 let is_cst ty =
   match ty with
   | Term.App (cst,_,_) ->
@@ -224,10 +226,13 @@ module T = struct
       match Env.define lc i t (Some ty) with
       | OK () ->
         if is_cst ty then
-          begin
-            Format.printf "@[<2>%a :@ %a.@]@.@." print_ident i print_term ty;
-            Tracer.print_equality i (extract_type ty) t
-          end
+          if !print_opentheory then
+            begin
+              Format.printf "@[<2>%a :@ %a.@]@.@." print_ident i print_term ty;
+              Tracer.print_equality i (extract_type ty) t
+            end
+          else
+            Format.printf "@[<hv2>def %a@ :=@ %a.@]@.@." print_ident i print_term t
         else
           let t' = Tracer.leibnize_term t in
           let t'' = Tracer.leibnize Tracer.Fold t' ty in
@@ -276,7 +281,9 @@ let add_file f = files := f :: !files
 
 let options =
   [ "-stdin", Arg.Set from_stdin, " read from stdin";
-    "-default-rule", Arg.Set print_default, "print default name for rules without name"
+    "-delta", Arg.Set Tracer.print_delta_trace , "delta trace";
+    "-beta", Arg.Set Tracer.print_beta_trace , "beta trace";
+    "-ot", Arg.Set  print_opentheory, "print is formated for open theory";
   ]
 
 let  _ =

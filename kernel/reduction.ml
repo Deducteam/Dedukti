@@ -359,8 +359,11 @@ let rec state_one_step (sg:Signature.t) (state:state) : state =
     if !reduced then
       st
     else
-      if !beta then
+    if !beta then
+      begin
+        reduced:=true;
         { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+      end
       else
         let state' = state_one_step sg {ctx=ctx;term=t; stack=[]} in
         {ctx=ctx; term=mk_Lam loc id ty (term_of_state state'); stack = p::s}

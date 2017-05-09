@@ -1,3 +1,7 @@
+let print_delta_trace = ref false
+
+let print_beta_trace = ref false
+
 type context =
   { term : Term.term;
     ty : Term.term option;
@@ -90,6 +94,7 @@ let get_hole ctx term =
   | None -> raise (Mismatch(ctx,term))
   | Some x -> x
 
+
 let compare_terms left right : context option =
   let make_ctx =
     let b = ref false in
@@ -115,8 +120,21 @@ let compare_terms left right : context option =
       match left,right with
       | Term.Kind, Term.Kind -> None
       | Term.Type _, Term.Type _ -> None
+      | Term.App(Term.Lam(_,id,_,_),_,[]), Term.App(Term.Lam(_,id',_,_),_,[]) when id <> id' -> Some (make_ctx k ctx)
       (* FIXME: the case below is too large. *)
-      | Term.App(Term.Lam(_,_,_,_),a,[]), _ -> Some (make_ctx k ctx)
+      | Term.App(Term.Lam(_,id,Some ty,te)as lam,a,[]), Term.App(Term.Lam(_,id', Some ty', te') as lam',a',[]) when id = id' ->
+        if lam = lam' then
+          match compare_terms k ctx a a' with
+          | None -> assert false
+          | Some x -> Some {x with term = (Term.mk_App lam x.term [])}
+        else
+          if ty = ty' && a = a' then
+            match compare_terms (k+1) ((id,ty)::ctx) te te' with
+            | None -> assert false
+            | Some x -> Some {x with term = (Term.mk_App (Term.mk_Lam Basic.dloc id (Some ty) x.term) a [])}
+          else
+            Some (make_ctx k ctx)
+      | Term.App(Term.Lam(_,id,_,_),_,[]), _ -> Some (make_ctx k ctx)
       (*One case of beta redex, the other is the last case. : x = a' *)
       | Term.App(Term.Lam(_,_,_,_),a,x::t), Term.App(_,a',args) when List.length (x::t) <> List.length args ->
         let ctx = make_ctx k ctx in
@@ -182,6 +200,7 @@ let delta_step term =
     Reduction.beta := false;
     Reduction.select (Some (fun r ->
         match r with
+        | Rule.Delta(md,id) when md = Basic.hstring "hol" -> false
         | Rule.Delta _ -> true
         | _ -> false))
   in
@@ -214,9 +233,7 @@ let rec snf_delta term =
     snf_delta term'
 
 let rec snf_beta term =
-  Format.printf "debug: %a@." Pp.print_term term;
   let term' = beta_step term in
-  Format.printf "debug: %a@." Pp.print_term term';
   if Term.term_eq term term' then
     term
   else
@@ -232,6 +249,7 @@ let beta_step_to_trace term =
       let rule = Rule.Delta(Basic.hstring "hol", Basic.hstring"beta") in
       Some(term', {ctx;rule}, redex)
     | _ -> assert false
+
 
 
 
@@ -252,7 +270,7 @@ let step_to_trace term =
           end
         in
         ty, Rule.Delta(md,id)
-      | _ -> assert false
+      | t -> Errors.fail Basic.dloc "Should be a constant %a.@.%a@." Pp.print_term t Pp.print_term ctx.term
     in
     Some(term',{ctx={ctx with ty = Some ty};rule})
 
@@ -311,14 +329,16 @@ let leibnize dir term ty =
     | _ -> Format.printf "Type: %a@." Pp.print_term ty; assert false
   in
   let ty' = context_of_proof ty in
-  let ty'',tr = trace ty' in
-  let _,btr = beta_trace ty'' in
-  let term' = List.fold_left
-      (fun term (step,redex) -> leibnize_beta_step Unfold step term redex) term (List.rev btr) in
-  (* Format.printf "type: %a@.length: %d@." Pp.print_term ty' (List.length tr); *)
-  match dir with
-  | Fold -> List.fold_right (fun step te -> leibnize_step dir step te) tr term'
-  | Unfold -> List.fold_left (fun te step -> leibnize_step dir step te) term' tr
+  try
+    let ty'',tr = if !print_delta_trace then trace ty' else ty', [] in
+    let _,btr = if !print_beta_trace then beta_trace ty'' else ty'', [] in
+    let term' = List.fold_left
+        (fun term (step,redex) -> leibnize_beta_step Unfold step term redex) term (List.rev btr) in
+    (* Format.printf "type: %a@.length: %d@." Pp.print_term ty' (List.length tr); *)
+    match dir with
+    | Fold -> List.fold_right (fun step te -> leibnize_step dir step te) tr term'
+    | Unfold -> List.fold_left (fun te step -> leibnize_step dir step te) term' tr
+  with Mismatch(ctx,term) -> Errors.fail Basic.dloc "should not happen, mismatch between ctx and term:@.%a@.%a@." print_context ctx Term.pp_term term
 
 
 
