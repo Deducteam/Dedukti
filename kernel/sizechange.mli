@@ -3,7 +3,7 @@ open Term
 open Rule
 open Format
 
-val add_const : bool -> ident -> Term.term -> unit
+val add_fonc : bool -> ident -> Term.term -> unit
        
 val add_rules : bool -> untyped_rule list -> unit
 
@@ -49,7 +49,8 @@ type call_graph
 val initialize : call_graph ref
 val table : (string*int) list ref
 val nom_module : ident -> string ref
-
+val finalize : bool
+  
 (** [create ()] returns a new, empty call graph. *)
 val create : unit -> call_graph ref
 

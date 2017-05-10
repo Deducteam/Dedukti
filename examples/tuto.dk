@@ -1,7 +1,14 @@
 #NAME simple.
 
+(; Les Types ;)
+
 Nat : Type.
 Bool : Type.
+Int : Type.
+NatList : Type.
+BoolVector : Nat -> Type.
+
+(; Constructeurs ;)
 
 0 : Nat.
 S : Nat -> Nat.
@@ -9,9 +16,27 @@ S : Nat -> Nat.
 True : Bool.
 False : Bool.
 
+def Diff : Nat -> Nat -> Int.
+[m, n] Diff (S m) (S n) --> Diff m n.
+
+Vide : NatList.
+Cons : Nat -> NatList -> NatList.
+
+vector_nil : BoolVector 0.
+vector_cons : n : Nat -> Bool -> BoolVector n -> BoolVector (S n).
+
+(; Plein de fonctions ;)
+
+def pred : Nat -> Nat.
+[n] pred (S n) --> n.
+
 def plus : Nat -> Nat -> Nat.
 [n] plus 0 n --> n
-[m, n] plus (S m) n --> plus m (S n).
+[m, n] plus (S m) n --> S (plus m n).
+
+def plus_rec_term : Nat -> Nat -> Nat.
+[n] plus_rec_term 0 n --> n
+[m, n] plus_rec_term (S m) n --> plus_rec_term m (S n).
 
 def mult : Nat -> Nat -> Nat.
 [] mult 0 _ --> 0
@@ -32,7 +57,6 @@ def leq : Nat -> Nat -> Bool.
 
 def moitie : Nat -> Nat.
 [] moitie 0 --> 0
-[] moitie (S 0) --> moitie (S 0)
 [n] moitie (S (S n)) --> S (moitie n).
 
 def double_add : Nat -> Nat.
@@ -40,3 +64,60 @@ def double_add : Nat -> Nat.
 
 def double_mult : Nat -> Nat.
 [n] double_mult n --> mult (S (S 0)) n.
+
+def double_constr : Nat -> Nat.
+[] double_constr 0 --> 0
+[n] double_constr (S n) --> S (S (double_constr n)).
+
+def boucle : Bool -> Bool.
+[x] boucle x --> boucle (not x).
+
+def Ackermann : Nat -> Nat -> Nat.
+[n] Ackermann 0 n --> S n
+[m] Ackermann (S m) 0 --> Ackermann m (S 0)
+[m, n] Ackermann (S m) (S n) --> Ackermann m (Ackermann (S m) n).
+
+def hd : NatList -> Nat.
+[n] hd (Cons n _) --> n.
+
+def tl : NatList -> NatList.
+[l] tl (Cons _ l) --> l.
+
+def append : NatList -> NatList -> NatList.
+[l] append Vide l --> l
+[n,l1,l2] append (Cons n l1) l2 --> Cons n (append l1 l2).
+
+def length : NatList -> Nat.
+[] length Vide --> 0
+[l] length (Cons _ l) --> S (length l).
+
+def abs : Int -> Nat.
+[m] abs (Diff m 0) --> m
+[n] abs (Diff 0 n) --> n.
+
+def succ_int : Int -> Int.
+[m] succ_int (Diff m 0) --> Diff (S m) 0
+[n] succ_int (Diff 0 (S n)) --> Diff 0 n.
+
+def pred_int : Int -> Int.
+[n] pred_int (Diff 0 n) --> Diff 0 (S n)
+[m] pred_int (Diff (S m) 0) --> Diff m 0.
+
+def plus_int : Int -> Int -> Int.
+[x] plus_int (Diff 0 0) x --> x
+[m, n, x] plus_int (Diff (S m) n) x --> plus_int (Diff m n) (succ_int x)
+[m, n, x] plus_int (Diff m (S n)) x --> plus_int (Diff m n) (pred_int x).
+
+def moins_int : Int -> Int -> Int.
+[x] moins_int x (Diff 0 0) --> x
+[m, n, x] moins_int x (Diff (S m) n) --> moins_int (pred_int x) (Diff m n)
+[m, n, x] moins_int x (Diff m (S n)) --> moins_int (succ_int x) (Diff m n).
+
+def mult_int : Int -> Int -> Int.
+[] mult_int (Diff 0 0) _ --> Diff 0 0
+[m, n, x] mult_int (Diff (S m) n) x --> plus_int x (mult_int (Diff m n) x)
+[m, n, x] mult_int (Diff m (S n)) x --> moins_int (mult_int (Diff m n) x) x.
+
+def vector_append : m : Nat -> BoolVector m -> n : Nat -> BoolVector n -> BoolVector (plus m n).
+[v] vector_append 0 vector_nil _ v --> v
+[m, n, x, v1, v2] vector_append _ (vector_cons m x v1) n v2 --> vector_cons (plus m n) x (vector_append m v1 n v2).

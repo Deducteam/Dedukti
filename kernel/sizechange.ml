@@ -154,14 +154,10 @@ let rec find_arity=function
   | Pi(_,_,_,t) -> 1+find_arity t
   | _ -> 0
 
-let add_const vb v t=
+let add_fonc vb v t=
   let n=find_arity t in
   match t with
-  | Pi(_,name,arg,res) -> begin
-    if vb then (printf "Nouvelle fonction : ";
-    printf "%s %a@." (string_of_ident v) pp_term t);
-    create_symbol vb (string_of_ident v) (Array.make n "x")
-  end
+  | Pi(_,name,arg,res) -> create_symbol vb (string_of_ident v) (Array.make n "x")
   | _ -> ()
 
 (** Copy a call graph. *)
@@ -176,20 +172,38 @@ let is_empty : call_graph -> bool =
   fun g -> !(g.calls) = []
 
 (** Add a new call to the call graph. *)
-let add_call : call option-> unit =
+let add_call : call-> unit =
   let g= !initialize in
-  fun c -> match c with
-  | Some cc -> g.calls := cc :: !(g.calls)
-  | None -> ()
+  fun cc -> g.calls := cc :: !(g.calls)
 
-exception Manquant
-
-
-let comparaison p t =
+let rec comparaison t p=
+  let moins1 =function
+    | Zero -> Min1
+    | n -> n
+  in
+  let rec mini cur=function
+    | []-> cur
+    | Min1::l -> Min1
+    | Zero::l -> mini Zero l
+    | Infi::l -> mini cur l
+  in
+  let rec comp_list cur lp lt=
+    assert (List.length lp=List.length lt);
+    match lp,lt with
+    | [],[] -> cur
+    | a::l1,b::l2 -> begin
+      match comparaison b a,cur with
+      | Infi, _ -> Infi
+      | Min1,_ -> comp_list Min1 l1 l2
+      | _, Min1 -> comp_list Min1 l1 l2
+      | Zero,Zero -> comp_list Zero l1 l2
+    end
+  in
   match p,t with
-  | Var (_,_,n,[]),DB (_,_,m) -> printf "CAS COOL !!@.Pattern : %a@.Terme : %a@." pp_pattern p pp_term t; if n=m then Zero else Infi
-  | Pattern (_,_,_,Var(_,_,n,[])::[]),DB(_,_,m) -> printf "CAS COOL !!@.Pattern : %a@.Terme : %a@." pp_pattern p pp_term t; if n=m then Min1 else Infi
-  | _ -> printf "Pattern : %a@.Terme : %a@." pp_pattern p pp_term t; Infi
+  | Var (_,_,n,[]),DB (_,_,m) -> if n=m then Zero else Infi
+  | Pattern (_,_,f,lp), App(Const(_,_,g),t1,lt) when (ident_eq f g) ->  comp_list Zero lp (t1::lt)
+  | Pattern (_,_,_,l),t -> moins1 (mini Infi (List.map (comparaison t) l))
+  | _ -> Infi
   
 let matrice l1 l2=
   let n=List.length l1 in
@@ -200,14 +214,13 @@ let matrice l1 l2=
     let loc_res =ref [] in
     for j=0 to n-1 do
       let t=List.nth l1 j in
-      loc_res:=(comparaison p t)::!loc_res
+      loc_res:=(comparaison t p)::!loc_res
     done;
     res:=(Array.of_list (List.rev !loc_res))::!res
   done;
   {w=m ; h=n ; tab = Array.of_list (List.rev !res)}
 
-let rule_to_call r =
-  let symbs= !(!initialize.symbols) in
+let rec rule_to_call r =
   let get_caller= match r.pat with 
     | Pattern (_,_,v,lp) -> Some (lp,(snd (List.find (fun (x,_) -> x=(string_of_ident v)) !table)))
     | p -> printf "ProblèmeCaller avec %a@." pp_pattern p ; None
@@ -217,26 +230,22 @@ let rule_to_call r =
     | App (Const(_,_,v),t1,lt) -> Some (t1::lt,(snd (List.find (fun (x,_) -> x=(string_of_ident v)) !table)))
     | p -> printf "ProblèmeAppelee avec %a@." pp_term p ; None
   in
-  try match get_callee,get_caller with
-  | None, _ -> raise Manquant
-  | _, None -> raise Manquant
-  | Some (l1,a), Some (l2,b) ->  Some {callee=a ; caller = b ; matrix=matrice l1 l2 ; is_rec = false}
-  with Manquant -> None
+  let term2rule t= {pat= r.pat ; rhs = t ; ctx= r.ctx ; name=r.name} in
+  match get_callee,get_caller with
+  | None, _ -> []
+  | _, None -> []
+  | Some (l1,a), Some (l2,b) ->  {callee=a ; caller = b ; matrix=matrice l1 l2 ; is_rec = false}::List.flatten (List.map rule_to_call (List.map term2rule  l1))
   
 let add_rules vb l =
-  let g = fun r -> r.pat in  
-  if vb then printf "Règles : @.";
   let f _ = () in
-  if vb then f (List.map (printf "%a@." pp_pattern) (List.map g l));
-  f (List.map add_call (List.map rule_to_call l)); 
-  if vb then printf "@."
+  f (List.map add_call (List.flatten (List.map rule_to_call l)))
 
 let latex_print_calls () =
   let ff= std_formatter in
   let tbl = !initialize in
   let arities = IMap.bindings !(tbl.symbols) in
   let calls = !(tbl.calls) in
-  fprintf ff "digraph G {\n";
+  fprintf ff "\\begin{dot2tex}[dot,options=-tmath]\n  digraph G {\n";
   let arities = List.filter (fun (j,_) ->
     List.exists (fun c -> j = c.caller || j = c.callee) calls)
     (List.rev arities)
@@ -265,9 +274,9 @@ let latex_print_calls () =
     fprintf ff "    N%d -> N%d [label = \"\\\\left(\\\\begin{smallmatrix}"
       (index j) (index i);
     for i = 0 to ai - 1 do
-      if i > 0 then fprintf ff "\\\\cr";
+      if i > 0 then fprintf ff "\\\\\\\\ ";
       for j = 0 to aj - 1 do
-        if j > 0 then fprintf ff "&";
+        if j > 0 then fprintf ff " & ";
         let c =
           match m.tab.(j).(i) with
           | Infi -> "\\\\infty"
@@ -280,4 +289,144 @@ let latex_print_calls () =
     fprintf ff "\\\\end{smallmatrix}\\\\right)\"]\n%!"
   in
   List.iter (print_call arities) calls;
-  fprintf ff "  }\n"
+  fprintf ff "  }\n\\end{dot2tex}\n"
+
+let print_array pp sep out v=Pp.print_list sep pp out (Array.to_list v)
+                       
+let print_call : formatter -> symbol IMap.t -> call -> unit = fun ff tbl c ->
+  let caller_sym = IMap.find c.caller tbl in
+  let callee_sym = IMap.find c.callee tbl in
+  let print_args = print_array pp_print_string "," in
+  fprintf ff "%s%d(%a%!) <- %s%d%!(" caller_sym.name c.caller
+    print_args caller_sym.args callee_sym.name c.callee;
+  for i = 0 to callee_sym.arity - 1 do
+    if i > 0 then fprintf ff ",";
+    let some = ref false in
+    for j = 0 to caller_sym.arity - 1 do
+      let c = c.matrix.tab.(j).(i) in
+      if c <> Infi then
+        begin
+          let sep = if !some then " " else "" in
+          fprintf ff "%s%s%s" sep (cmp_to_string c) caller_sym.args.(j);
+          some := true
+        end
+    done
+  done;
+  fprintf ff ")%!"
+    
+    (** the main function, checking if calls are well-founded *)
+let sct_only : call_graph -> bool = fun ftbl ->
+  let num_fun = !(ftbl.next_index) in
+  let arities = !(ftbl.symbols) in
+  let tbl = Array.init num_fun (fun _ -> Array.make num_fun []) in
+  (* let print_call ff = print_call ff arities in *)
+  (* counters to count added and composed edges *)
+  let added = ref 0 and composed = ref 0 in
+  (* function adding an edge, return a boolean indicating
+     if the edge is new or not *)
+  let add_edge i j m =
+    (* test idempotent edges as soon as they are discovered *)
+    if i = j && prod m m = m && not (decreasing m) then
+      begin
+        (* Io.log_sct "edge %a idempotent and looping\n%!" print_call
+           {callee = i; caller = j; matrix = m; is_rec = true};*)
+        raise Exit
+      end;
+    let ti = tbl.(i) in
+    let ms = ti.(j) in
+    if List.exists (fun m' -> subsumes m' m) ms then
+      false
+    else (
+      let ms = m :: List.filter (fun m' -> not (subsumes m m')) ms in
+      ti.(j) <- ms;
+      true)
+  in
+  (* adding initial edges *)
+  try
+    (* Io.log_sct "initial edges to be added:\n%!";*)
+    (*List.iter (fun c -> Io.log_sct "\t%a\n%!" print_call c) !(ftbl.calls);*)
+    let new_edges = ref !(ftbl.calls) in
+    (* compute the transitive closure of the call graph *)
+    (*Io.log_sct "start completion\n%!";*)
+    let rec fn () =
+      match !new_edges with
+      | [] -> ()
+      | {callee = i; caller = j}::l when j < 0 -> new_edges := l; fn () (* ignore root *)
+      | ({callee = i; caller = j; matrix = m} as c)::l ->
+        assert (i >= 0);
+        new_edges := l;
+        if add_edge i j m then begin
+          (*Io.log_sct "\tedge %a added\n%!" print_call c;*)
+          incr added;
+          let t' = tbl.(j) in
+          Array.iteri (fun k t -> List.iter (fun m' ->
+            let c' = {callee = j; caller = k; matrix = m'; is_rec = true} in
+            (*Io.log_sct "\tcompose: %a * %a = %!" print_call c print_call c';*)
+            let m'' = prod m' m in
+            incr composed;
+            let c'' = {callee = i; caller = k; matrix = m''; is_rec = true} in
+            new_edges := c'' :: !new_edges;
+          (*Io.log_sct "%a\n%!" print_call c'';*)
+          ) t) t'
+        end else
+        (*Io.log_sct "\tedge %a is old\n%!" print_call c;*)
+        fn ()
+    in
+    fn ();
+    (*Io.log_sct "SCT passed (%5d edges added, %6d composed)\n%!" !added !composed;*)
+    true
+  with Exit ->
+    (*Io.log_sct "SCT failed (%5d edges added, %6d composed)\n%!" !added !composed;*)
+    false
+
+(** Inlining can be deactivated *)
+let do_inline = ref true
+
+(** we inline sub-proof when they have only one non recursive call *)
+type count = Zero | One of call | More
+
+(** function to count the call according to the above comments     *)
+let insert_call rec_call n call =
+  if rec_call then More else
+    match n with
+    | Zero -> One call
+    | _ -> More
+
+(** inline function that calls only one function. *)
+(* TODO: inline function that are called at most once *)
+let inline : call_graph -> call_graph = fun g ->
+  if not !do_inline then g else
+  let calls = !(g.calls) in
+  let tbl = Hashtbl.create 31 in
+  let fn c =
+    let old = try Hashtbl.find tbl c.callee with Not_found -> Zero in
+    let n = insert_call c.is_rec old {c with is_rec = true} in
+    Hashtbl.replace tbl c.callee n
+  in
+  List.iter fn calls;
+  let rec fn ({callee = j; caller = i; matrix = m; is_rec = r} as c) =
+    try
+      match Hashtbl.find tbl i with
+      | One {caller = k; matrix = m'} ->
+          fn {callee = j; caller = k; matrix = prod m' m; is_rec = r}
+      | _ -> c
+    with Not_found -> c
+  in
+  let calls = List.filter (fun c -> Hashtbl.find tbl c.callee = More) calls in
+  let calls = List.map fn calls in
+  let rec gn calls =
+    let removed_one = ref false in
+    let calls =
+      let fn {caller} =
+        let b = List.exists (fun {callee} -> caller = callee) calls in
+        if not b then removed_one := true; b
+      in
+      List.filter fn calls
+    in
+    if !removed_one then gn calls else calls
+  in
+  { g with calls = ref (gn calls) }
+
+let sct : call_graph -> bool = fun tbl -> sct_only (inline tbl)
+
+let finalize = sct !initialize

@@ -3,7 +3,8 @@ open Basic
 (* ********************************* *)
 
 let verbose = ref false
-
+let graph = ref false
+                  
 let eprint lc fmt =
   if !verbose then (
   let (l,c) = of_loc lc in
@@ -22,7 +23,7 @@ let mk_prelude lc name =
 
 let mk_declaration lc id st pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
-  Sizechange.add_const !verbose id pty;
+  Sizechange.add_fonc !verbose id pty;
   match Env.declare lc id st pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
@@ -67,4 +68,5 @@ let mk_ending () =
     if not (Env.export ()) then
       Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
   Confluence.finalize ();
-  Sizechange.latex_print_calls ()
+  if Sizechange.finalize then Format.printf "La réécriture termine d'après le SCP\n" else Format.printf "La réécriture ne termine PAS d'après les SCP\n";
+  if !graph then Sizechange.latex_print_calls()

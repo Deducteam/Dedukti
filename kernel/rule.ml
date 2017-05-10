@@ -1,4 +1,4 @@
-0open Basic
+open Basic
 open Format
 open Term
 
