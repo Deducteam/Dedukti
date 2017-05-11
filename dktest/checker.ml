@@ -64,9 +64,9 @@ let mk_command = Cmd.mk_command
 let export = ref false
 
 let mk_ending () =
+  if Sizechange.sct_only () then Format.printf "La réécriture termine d'après le SCP\n" else Format.printf "La réécriture ne termine PAS d'après les SCP\n";
   ( if !export then
     if not (Env.export ()) then
       Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
   Confluence.finalize ();
-  if Sizechange.finalize then Format.printf "La réécriture termine d'après le SCP\n" else Format.printf "La réécriture ne termine PAS d'après les SCP\n";
   if !graph then Sizechange.latex_print_calls()

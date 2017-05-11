@@ -154,10 +154,17 @@ let rec find_arity=function
   | Pi(_,_,_,t) -> 1+find_arity t
   | _ -> 0
 
+let cree_array n=
+  let res=Array.make n "" in
+  for i =0 to n-1 do
+    res.(i)<-"x"^(string_of_int i)
+  done;
+  res
+     
 let add_fonc vb v t=
   let n=find_arity t in
   match t with
-  | Pi(_,name,arg,res) -> create_symbol vb (string_of_ident v) (Array.make n "x")
+  | Pi(_,name,arg,res) -> create_symbol vb (string_of_ident v) (cree_array n)
   | _ -> ()
 
 (** Copy a call graph. *)
@@ -218,7 +225,7 @@ let matrice l1 l2=
     done;
     res:=(Array.of_list (List.rev !loc_res))::!res
   done;
-  {w=m ; h=n ; tab = Array.of_list (List.rev !res)}
+  {h=m ; w=n ; tab = Array.of_list (List.rev !res)}
 
 let rec rule_to_call r =
   let get_caller= match r.pat with 
@@ -239,57 +246,6 @@ let rec rule_to_call r =
 let add_rules vb l =
   let f _ = () in
   f (List.map add_call (List.flatten (List.map rule_to_call l)))
-
-let latex_print_calls () =
-  let ff= std_formatter in
-  let tbl = !initialize in
-  let arities = IMap.bindings !(tbl.symbols) in
-  let calls = !(tbl.calls) in
-  fprintf ff "\\begin{dot2tex}[dot,options=-tmath]\n  digraph G {\n";
-  let arities = List.filter (fun (j,_) ->
-    List.exists (fun c -> j = c.caller || j = c.callee) calls)
-    (List.rev arities)
-  in
-  let numbering = List.mapi (fun i (j,_) -> (j,i)) arities in
-  let index j = List.assoc j numbering in
-  let not_unique name =
-    List.fold_left (fun acc (_,sym) -> if sym.name = name then acc+1 else acc) 0 arities
-                   >= 2
-  in
-  let f (j,sym) =
-    if not_unique sym.name then
-      fprintf ff "    N%d [ label = \"%s_{%d}\" ];\n" (index j) sym.name (index j)
-    else
-      fprintf ff "    N%d [ label = \"%s\" ];\n" (index j) sym.name
-  in
-  List.iter f (List.filter (fun (i,_) ->
-    List.exists (fun c -> i = c.caller || i = c.callee) calls) arities);
-  let print_call arities {callee = i; caller = j; matrix = m} =
-    let {name = namej; arity = aj; args = prj} =
-      try List.assoc j arities with Not_found -> assert false
-    in
-    let {name = namei; arity = ai; args = pri} =
-      try List.assoc i arities with Not_found -> assert false
-    in
-    fprintf ff "    N%d -> N%d [label = \"\\\\left(\\\\begin{smallmatrix}"
-      (index j) (index i);
-    for i = 0 to ai - 1 do
-      if i > 0 then fprintf ff "\\\\\\\\ ";
-      for j = 0 to aj - 1 do
-        if j > 0 then fprintf ff " & ";
-        let c =
-          match m.tab.(j).(i) with
-          | Infi -> "\\\\infty"
-          | Zero -> "0"
-          | Min1 -> "-1"
-        in
-        fprintf ff "%s" c
-      done;
-    done;
-    fprintf ff "\\\\end{smallmatrix}\\\\right)\"]\n%!"
-  in
-  List.iter (print_call arities) calls;
-  fprintf ff "  }\n\\end{dot2tex}\n"
 
 let print_array pp sep out v=Pp.print_list sep pp out (Array.to_list v)
                        
@@ -314,12 +270,64 @@ let print_call : formatter -> symbol IMap.t -> call -> unit = fun ff tbl c ->
   done;
   fprintf ff ")%!"
     
+let latex_print_calls () =
+  let ff= std_formatter in
+  let tbl = !initialize in
+  let arities = IMap.bindings !(tbl.symbols) in
+  let calls = !(tbl.calls) in
+  fprintf ff "\\begin{dot2tex}[dot,options=-tmath]\n  digraph G {\n";
+  let arities = List.filter (fun (j,_) ->
+    List.exists (fun c -> j = c.caller || j = c.callee) calls)
+    (List.rev arities)
+  in
+  let numbering = List.mapi (fun i (j,_) -> (j,i)) arities in
+  let index j = List.assoc j numbering in
+  let not_unique name =
+    List.fold_left (fun acc (_,sym) -> if sym.name = name then acc+1 else acc) 0 arities
+                   >= 2
+  in
+  let f (j,sym) =
+    if not_unique sym.name then
+      fprintf ff "    N%d [ label = \"%s_{%d}\" ];\n" (index j) sym.name (index j)
+    else
+      fprintf ff "    N%d [ label = \"%s\" ];\n" (index j) sym.name
+  in
+  List.iter f (List.filter (fun (i,_) ->
+    List.exists (fun c -> i = c.caller || i = c.callee) calls) arities);
+  let print_call2 arities {callee = i; caller = j; matrix = m} =
+    let {name = namej; arity = aj; args = prj} =
+      try List.assoc j arities with Not_found -> assert false
+    in
+    let {name = namei; arity = ai; args = pri} =
+      try List.assoc i arities with Not_found -> assert false
+    in
+    fprintf ff "    N%d -> N%d [label = \"\\\\left(\\\\begin{smallmatrix}"
+      (index j) (index i);
+    for i = 0 to ai - 1 do
+      if i > 0 then fprintf ff "\\\\\\\\ ";
+      for j = 0 to aj - 1 do
+        if j > 0 then fprintf ff " & ";
+        let c =
+          match m.tab.(j).(i) with
+          | Infi -> "\\\\infty"
+          | Zero -> "0"
+          | Min1 -> "-1"
+        in
+        fprintf ff "%s" c
+      done;
+    done;
+    fprintf ff "\\\\end{smallmatrix}\\\\right)\"]\n%!"
+  in
+  List.iter (print_call2 arities) calls;
+  fprintf ff "  }\n\\end{dot2tex}\n"
+    
     (** the main function, checking if calls are well-founded *)
-let sct_only : call_graph -> bool = fun ftbl ->
+let sct_only () =
+  let ftbl= !initialize in
   let num_fun = !(ftbl.next_index) in
   let arities = !(ftbl.symbols) in
   let tbl = Array.init num_fun (fun _ -> Array.make num_fun []) in
-  (* let print_call ff = print_call ff arities in *)
+  let print_call ff= print_call ff arities in 
   (* counters to count added and composed edges *)
   let added = ref 0 and composed = ref 0 in
   (* function adding an edge, return a boolean indicating
@@ -328,8 +336,8 @@ let sct_only : call_graph -> bool = fun ftbl ->
     (* test idempotent edges as soon as they are discovered *)
     if i = j && prod m m = m && not (decreasing m) then
       begin
-        (* Io.log_sct "edge %a idempotent and looping\n%!" print_call
-           {callee = i; caller = j; matrix = m; is_rec = true};*)
+        printf "edge %a idempotent and looping\n%!" print_call
+           {callee = i; caller = j; matrix = m; is_rec = true};
         raise Exit
       end;
     let ti = tbl.(i) in
@@ -343,11 +351,11 @@ let sct_only : call_graph -> bool = fun ftbl ->
   in
   (* adding initial edges *)
   try
-    (* Io.log_sct "initial edges to be added:\n%!";*)
-    (*List.iter (fun c -> Io.log_sct "\t%a\n%!" print_call c) !(ftbl.calls);*)
+    printf "initial edges to be added:\n%!";
+    List.iter (fun c -> printf "\t%a\n%!" print_call c) !(ftbl.calls);
     let new_edges = ref !(ftbl.calls) in
     (* compute the transitive closure of the call graph *)
-    (*Io.log_sct "start completion\n%!";*)
+    printf "start completion\n%!";
     let rec fn () =
       match !new_edges with
       | [] -> ()
@@ -356,27 +364,27 @@ let sct_only : call_graph -> bool = fun ftbl ->
         assert (i >= 0);
         new_edges := l;
         if add_edge i j m then begin
-          (*Io.log_sct "\tedge %a added\n%!" print_call c;*)
+          printf "\tedge %a added\n%!" print_call c;
           incr added;
           let t' = tbl.(j) in
           Array.iteri (fun k t -> List.iter (fun m' ->
             let c' = {callee = j; caller = k; matrix = m'; is_rec = true} in
-            (*Io.log_sct "\tcompose: %a * %a = %!" print_call c print_call c';*)
+            printf "\tcompose: %a * %a = %!" print_call c print_call c';
             let m'' = prod m' m in
             incr composed;
             let c'' = {callee = i; caller = k; matrix = m''; is_rec = true} in
             new_edges := c'' :: !new_edges;
-          (*Io.log_sct "%a\n%!" print_call c'';*)
+          printf "%a\n%!" print_call c'';
           ) t) t'
         end else
-        (*Io.log_sct "\tedge %a is old\n%!" print_call c;*)
+        printf "\tedge %a is old\n%!" print_call c;
         fn ()
     in
     fn ();
-    (*Io.log_sct "SCT passed (%5d edges added, %6d composed)\n%!" !added !composed;*)
+    printf "SCT passed (%5d edges added, %6d composed)\n%!" !added !composed;
     true
   with Exit ->
-    (*Io.log_sct "SCT failed (%5d edges added, %6d composed)\n%!" !added !composed;*)
+    printf "SCT failed (%5d edges added, %6d composed)\n%!" !added !composed;
     false
 
 (** Inlining can be deactivated *)
@@ -427,6 +435,4 @@ let inline : call_graph -> call_graph = fun g ->
   in
   { g with calls = ref (gn calls) }
 
-let sct : call_graph -> bool = fun tbl -> sct_only (inline tbl)
-
-let finalize = sct !initialize
+let sct : call_graph -> bool = fun tbl -> sct_only ()

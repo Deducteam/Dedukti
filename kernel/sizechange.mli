@@ -49,7 +49,7 @@ type call_graph
 val initialize : call_graph ref
 val table : (string*int) list ref
 val nom_module : ident -> string ref
-val finalize : bool
+val sct_only : unit -> bool
   
 (** [create ()] returns a new, empty call graph. *)
 val create : unit -> call_graph ref
