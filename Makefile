@@ -8,9 +8,12 @@ INSTALL_DIR=/usr/bin
 MENHIR = -menhir "menhir --external-tokens Tokens"
 SRC_DIRS = kernel,utils,parser
 
-BINARIES=dkcheck dktop dkdep dkindent
+BINARIES=dkcheck dktop dkdep dkindent ediloh
 
 all: lib $(BINARIES) doc
+
+ediloh:
+	ocamlbuild -Is $(SRC_DIRS),ediloh $(MENHIR) -lib unix ediloh.native
 
 dkcheck:
 	ocamlbuild -Is $(SRC_DIRS),dkcheck $(MENHIR) -lib unix dkcheck.native
