@@ -46,8 +46,6 @@ type call =
 (** The representation of the call graph. *)
 type call_graph
 
-val initialize : call_graph ref
-val table : (string*int) list ref
 val nom_module : ident -> string ref
 val sct_only : unit -> bool
   

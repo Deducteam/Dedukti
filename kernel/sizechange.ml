@@ -123,7 +123,7 @@ type call_graph =
 
 (** Creation of a new initial [call_graph]. It contains the initial root
     symbol. *)
-let create : unit ->  call_graph ref =
+let create : unit -> call_graph ref =
   let root = { index = -1 ; name  = "R" ; arity = 0 ; args  = [||] } in
   let syms = IMap.singleton (-1) root in
   fun () -> ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
@@ -322,7 +322,7 @@ let latex_print_calls () =
   fprintf ff "  }\n\\end{dot2tex}\n"
     
     (** the main function, checking if calls are well-founded *)
-let sct_only () =
+let sct_only ()=
   let ftbl= !initialize in
   let num_fun = !(ftbl.next_index) in
   let arities = !(ftbl.symbols) in
@@ -386,53 +386,3 @@ let sct_only () =
   with Exit ->
     printf "SCT failed (%5d edges added, %6d composed)\n%!" !added !composed;
     false
-
-(** Inlining can be deactivated *)
-let do_inline = ref true
-
-(** we inline sub-proof when they have only one non recursive call *)
-type count = Zero | One of call | More
-
-(** function to count the call according to the above comments     *)
-let insert_call rec_call n call =
-  if rec_call then More else
-    match n with
-    | Zero -> One call
-    | _ -> More
-
-(** inline function that calls only one function. *)
-(* TODO: inline function that are called at most once *)
-let inline : call_graph -> call_graph = fun g ->
-  if not !do_inline then g else
-  let calls = !(g.calls) in
-  let tbl = Hashtbl.create 31 in
-  let fn c =
-    let old = try Hashtbl.find tbl c.callee with Not_found -> Zero in
-    let n = insert_call c.is_rec old {c with is_rec = true} in
-    Hashtbl.replace tbl c.callee n
-  in
-  List.iter fn calls;
-  let rec fn ({callee = j; caller = i; matrix = m; is_rec = r} as c) =
-    try
-      match Hashtbl.find tbl i with
-      | One {caller = k; matrix = m'} ->
-          fn {callee = j; caller = k; matrix = prod m' m; is_rec = r}
-      | _ -> c
-    with Not_found -> c
-  in
-  let calls = List.filter (fun c -> Hashtbl.find tbl c.callee = More) calls in
-  let calls = List.map fn calls in
-  let rec gn calls =
-    let removed_one = ref false in
-    let calls =
-      let fn {caller} =
-        let b = List.exists (fun {callee} -> caller = callee) calls in
-        if not b then removed_one := true; b
-      in
-      List.filter fn calls
-    in
-    if !removed_one then gn calls else calls
-  in
-  { g with calls = ref (gn calls) }
-
-let sct : call_graph -> bool = fun tbl -> sct_only ()
