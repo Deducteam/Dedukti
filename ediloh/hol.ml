@@ -234,13 +234,28 @@ let compile_declaration (lc:loc) (id:ident) (te:Term.term) : (obj, compile_decl_
 
 let fail_compile_term (err:compile_term_err) (decl:decl) = failwith "todo"
 
-let fail_compile_type (err:compile_type_err) (decl:decl) = failwith "todo"
-
 let fail_compile_declaration (err:compile_decl_err) =
   match err with
   | DeclarationError(lc,id,te) ->
-    Errors.fail lc "Error while compiling the declaration '%a'. It seems that his type is not recognized by the compiler: %a@." Basic.print_ident id Pp.print_term te
-  | DeclarationTermError(err,decl) ->
-    fail_compile_term err decl
-  | DeclarationTypeError(err,decl) ->
-    fail_compile_type err decl
+    Errors.fail lc "Error while compiling the declaration '%a:%a'. It seems that the type is not recognized by the compiler." Pp.print_ident id Pp.print_term te
+  | DeclarationTermError(err,(lc,id,te)) ->
+    begin
+      match err with
+      | FreeTermVariable(var) ->
+        Errors.fail lc "Error while compiling the declaration '%a' as an axiom. The variable %a appears free in %a." Pp.print_ident id Pp.print_ident var Pp.print_term te
+      | PolymorphicType(var,ty) -> failwith "todo"
+      | UntypedLambda(te) ->
+        Errors.fail lc "Error while compiling the declaration '%a' as an axiom. The term %a has untyped lambdas." Pp.print_ident id Pp.print_term te
+      | TypeSubstitution(ty, subst) -> failwith "todo"
+      | MissingPolymorphicArgument(ty) -> failwith "todo"
+      | TermError(te) ->
+        Errors.fail lc "Error while compiling the declaration '%a' as an axiom. The term %a seems not to be an hol theorem." Pp.print_ident id Pp.print_term te
+    end
+  | DeclarationTypeError(err,(lc,id,te)) ->
+    begin
+      match err with
+      | FreeTypeVariable(var) ->
+        Errors.fail lc "Error while compiling the declaration '%a' as a constant. The variable %a appears free in %a." Pp.print_ident id Pp.print_ident var Pp.print_term te
+      | TypeError(te) ->
+        Errors.fail lc "Error while compiling the declaration '%a' as a constant. The type %a seems not to be an hol type." Pp.print_ident id Pp.print_term te
+    end

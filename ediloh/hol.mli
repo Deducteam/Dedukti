@@ -1,31 +1,18 @@
 open Basic
 
-type name = ident list * ident
+type obj
 
-type _ty =
-  | VarTy of ident
-  | Arrow of _ty * _ty
-  | OpType of name * _ty list
-  | Bool
+type decl = loc * ident * Term.term
 
-type ty =
-  | ForallK of ident * ty
-  | Type of _ty
+type compile_type_err
 
-type _term =
-  | Forall of ident * _ty * _term
-  | Impl of _term * _term
-  | VarTerm of ident * _ty * _term list
-  | Const of name * _ty * _term list
-  | Lam of ident * ty * _term
+type compile_term_err
 
-type term =
-  | ForallT of ident * term
-  | Term of _term
+type compile_decl_err =
+  | DeclarationError of decl
+  | DeclarationTypeError of compile_type_err * decl
+  | DeclarationTermError of compile_term_err * decl
 
-type proof
+val compile_declaration : loc -> ident -> Term.term -> (obj, compile_decl_err) error
 
-type obj =
-  | Cst of name * ty * term option
-  | TyOp of name * _ty list
-  | Thm of name * term * proof option
+val fail_compile_declaration : compile_decl_err -> 'a

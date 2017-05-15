@@ -4,20 +4,23 @@ open Term
 let mk_prelude (lc:loc) (id:ident) =
   Env.init id
 
-let mk_declaration (lc:loc) (id:ident) (te:term) =
-  match Env.declare_constant lc id te with
-  | OK () ->
+let mk_declaration (lc:loc) (id:ident) (st:Signature.staticity) (te:term) =
+  match st with
+  | Signature.Static ->
     begin
-      match Hol.compile_declaration lc id te with
-      | OK(obj) -> ()
-      | Err(err) -> failwith "todo"
+      match Env.declare lc id st te with
+      | OK () ->
+        begin
+          match Hol.compile_declaration lc id te with
+          | OK(obj) -> ()
+          | Err(err) -> failwith "todo"
+        end
+      | Err er -> Errors.fail_env_error er
     end
-  | Err er -> Errors.fail_env_error er
-
-let mk_definable (lc:loc) (id:ident) (te:term) =
-  match Env.declare_definable lc id te with
-  | OK () -> ()
-  | Err er -> Errors.fail_env_error er
+  | Signature.Definable ->
+    Errors.fail lc "Definable declaration are not handle by the compiler because no rule should be associated with it. Maybe the declaration should be static."
+  | Signature.Injective ->
+    Errors.fail lc "Injective declaration are not handle by the compiler, but maybe it could..."
 
 let mk_definition (lc:loc) (id:ident) (pty:term option) (te:term) =
   match Env.define lc id te pty with
@@ -29,7 +32,7 @@ let mk_opaque (lc:loc) (id:ident) (pty:term option) (te:term) =
   | OK () -> ()
   | Err er -> Errors.fail_env_error er
 
-let mk_rules (rules:Rule.rule list) =
+let mk_rules (rules:Rule.untyped_rule list) =
   match Env.add_rules rules with
   | OK _ -> ()
   | Err er -> Errors.fail_env_error er
