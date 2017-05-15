@@ -4,6 +4,7 @@ open Rule
 open Format
 
 val add_fonc : bool -> ident -> Term.term -> unit
+val add_symb : bool -> ident -> Term.term -> unit
        
 val add_rules : bool -> untyped_rule list -> unit
 

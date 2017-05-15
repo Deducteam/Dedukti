@@ -239,6 +239,7 @@ def vector_append : m : Nat -> n : Nat -> BoolVector m -> BoolVector n -> BoolVe
 
 Istrue : Bool -> Type.
 tt : Istrue True.
+
 def test1 : Istrue (equal (mult 10 10) 100) := tt.
 
 def equalBool : Bool -> Bool -> Bool.

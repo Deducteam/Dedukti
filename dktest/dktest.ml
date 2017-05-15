@@ -16,7 +16,7 @@ let parse lb =
 let args = [
   ("-v"    , Arg.Set Checker.verbose, "Verbose mode" ) ;
   ("-sz"   , Arg.Set Checker.sizechange, "Applying Size Change Principle" );
-  ("-szg"   , (Arg.Set Checker.sizechange; Arg.Set Checker.graph), "Applying Size Change Principle and printing call graph" );
+  ("-szg"   , Arg.Set Checker.szgraph, "Applying Size Change Principle and printing call graph" );
   ("-d"    , Arg.Int Basic.set_debug_mode,   "Debug mode" ) ;
   ("-e"    , Arg.Set Checker.export,            "Create a .dko" ) ;
   ("-nc"   , Arg.Clear Errors.color,             "Disable colored output" ) ;

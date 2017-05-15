@@ -4,7 +4,7 @@ open Basic
 
 let verbose = ref false
 let sizechange = ref false
-let graph = ref false
+let szgraph = ref false
                          
 let eprint lc fmt =
   if !verbose then (
@@ -23,13 +23,14 @@ let mk_prelude lc name =
 
 let mk_declaration lc id st pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
-  if !sizechange then Sizechange.add_fonc !verbose id pty;
+  if (!sizechange)|| (!szgraph) then Sizechange.add_fonc !verbose id pty;
   match Env.declare lc id st pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 
 let mk_definition lc id pty_opt pte : unit =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
+  if (!sizechange)|| (!szgraph) then Sizechange.add_symb !verbose id pte;
   match Env.define lc id pte pty_opt with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
@@ -50,7 +51,7 @@ let mk_rules = Rule.( function
     begin
       let (l,md,id) = get_infos rule.pat in
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
-      if !sizechange then Sizechange.add_rules !verbose lst;
+      if (!sizechange)||(!szgraph) then Sizechange.add_rules !verbose lst;
       match Env.add_rules lst with
       | OK lst2 ->
         List.iter ( fun rule ->
@@ -64,10 +65,10 @@ let mk_command = Cmd.mk_command
 let export = ref false
 
 let mk_ending () =
-  if !sizechange then if Sizechange.sct_only () then Format.printf "La réécriture termine d'après le SCP\n" else Format.printf "La réécriture ne termine PAS d'après les SCP\n";
+  if (!sizechange)|| (!szgraph) then if Sizechange.sct_only () then Format.printf "La réécriture termine d'après le SCP\n" else Format.printf "La réécriture ne termine PAS d'après les SCP\n";
   ( if !export then
     if not (Env.export ()) then
       Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
   Confluence.finalize ();
 
-  if !graph then Sizechange.latex_print_calls()
+  if !szgraph then Sizechange.latex_print_calls()

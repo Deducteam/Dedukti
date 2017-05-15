@@ -34,6 +34,7 @@ type matrix =
 
 (** Matrix product. *)
 let prod : matrix -> matrix -> matrix = fun m1 m2 ->
+  printf "%n %n,%n %n@." m1.h m1.w m2.h m2.w;
   assert (m1.w = m2.h);
   let tab =
     Array.init m1.h (fun y ->
@@ -164,9 +165,25 @@ let cree_array n=
 let add_fonc vb v t=
   let n=find_arity t in
   match t with
+  | Kind -> ()
+  | Type _ -> ()
+  | DB (_,_,_) -> ()
+  | Const (_,_,_) -> ()
+  | App (_,_,_) -> ()
+  | Lam (_,_,_,_) -> printf "AddFonc d'un lambda % a, je ne sais pas quoi faire @." pp_term t
   | Pi(_,name,arg,res) -> create_symbol vb (string_of_ident v) (cree_array n)
-  | _ -> ()
 
+
+let add_symb vb v q=
+  match q with
+  | Kind -> printf "AddSymb Kind, je ne sais pas que faire @."
+  | Type _ -> ()
+  | DB (_,_,_) -> printf "AddSymb variable %a, je ne sais pas que faire @." pp_term q
+  | Const (_,_,_) -> printf "AddSymb constante %a, je ne sais pas que faire @." pp_term q
+  | App (_,_,_) -> ()
+  | Lam (_,_,_,_) -> printf "Addsymb lambda % a, je ne sais pas quoi faire @." pp_term q
+  | Pi(_,name,arg,res) -> printf "AddSymb pi %a, je ne sais pas quoi faire @." pp_term q
+           
 (** Copy a call graph. *)
 let copy : call_graph -> call_graph =
   fun g ->
@@ -229,19 +246,25 @@ let matrice l1 l2=
 
 let rec rule_to_call r =
   let get_caller= match r.pat with 
-    | Pattern (_,_,v,lp) -> Some (lp,(snd (List.find (fun (x,_) -> x=(string_of_ident v)) !table)))
+    | Pattern (_,_,v,lp) -> begin
+                            try Some (lp,(snd (List.find (fun (x,_) -> x=(string_of_ident v)) !table)))
+                            with Not_found -> None
+                           end
     | p -> printf "ProblèmeCaller avec %a@." pp_pattern p ; None
   in
   let get_callee= match r.rhs with
     | Const (_,_,_) | DB (_,_,_) -> None
     | App (Const(_,_,v),t1,lt) -> Some (t1::lt,(snd (List.find (fun (x,_) -> x=(string_of_ident v)) !table)))
+    | App (_,_,_) as p -> printf "ProblèmeAppeleeApp avec %a@." pp_term p ; None
+    | Lam (_,_,_,_) as p -> printf "ProblèmeAppeleeLam avec %a@." pp_term p ; None
+    | Pi (_,_,_,_) as p -> () ; None
     | p -> printf "ProblèmeAppelee avec %a@." pp_term p ; None
   in
   let term2rule t= {pat= r.pat ; rhs = t ; ctx= r.ctx ; name=r.name} in
   match get_callee,get_caller with
   | None, _ -> []
   | _, None -> []
-  | Some (l1,a), Some (l2,b) ->  {callee=a ; caller = b ; matrix=matrice l1 l2 ; is_rec = false}::List.flatten (List.map rule_to_call (List.map term2rule  l1))
+  | Some (l1,a), Some (l2,b) ->  if List.length l1 <> (IMap.find a !(!initialize.symbols)).arity then failwith ("Appel partiel "^(fst (List.find (fun (_,x) -> x=a) !table))^" vers "^(fst (List.find (fun (_,x) -> x=b) !table))) else {callee=a ; caller = b ; matrix=matrice l1 l2 ; is_rec = false}::List.flatten (List.map rule_to_call (List.map term2rule  l1))
   
 let add_rules vb l =
   let f _ = () in
@@ -254,20 +277,23 @@ let print_call : formatter -> symbol IMap.t -> call -> unit = fun ff tbl c ->
   let callee_sym = IMap.find c.callee tbl in
   let print_args = print_array pp_print_string "," in
   fprintf ff "%s%d(%a%!) <- %s%d%!(" caller_sym.name c.caller
-    print_args caller_sym.args callee_sym.name c.callee;
-  for i = 0 to callee_sym.arity - 1 do
-    if i > 0 then fprintf ff ",";
-    let some = ref false in
-    for j = 0 to caller_sym.arity - 1 do
-      let c = c.matrix.tab.(j).(i) in
-      if c <> Infi then
-        begin
-          let sep = if !some then " " else "" in
-          fprintf ff "%s%s%s" sep (cmp_to_string c) caller_sym.args.(j);
-          some := true
-        end
-    done
-  done;
+          print_args caller_sym.args callee_sym.name c.callee;
+  let jj=Array.length c.matrix.tab in
+  if jj>0 then
+    let ii=Array.length c.matrix.tab.(0) in
+    for i = 0 to ii - 1 do
+      if i > 0 then fprintf ff ",";
+      let some = ref false in
+      for j = 0 to jj - 1 do
+        let c = c.matrix.tab.(j).(i) in
+        if c <> Infi then
+          begin
+            let sep = if !some then " " else "" in
+            fprintf ff "%s%s%s" sep (cmp_to_string c) caller_sym.args.(j);
+            some := true
+          end
+      done
+    done;
   fprintf ff ")%!"
     
 let latex_print_calls () =
