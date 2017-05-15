@@ -1,4 +1,5 @@
 open Basic
+open Format
 
 type preterm =
   | PreType of loc
@@ -8,46 +9,71 @@ type preterm =
   | PreLam  of loc * ident * preterm option * preterm
   | PrePi   of loc * ident option * preterm * preterm
 
+let rec pp_preterm fmt preterm =
+  match preterm with
+  | PreType _        -> fprintf fmt "Type"
+  | PreId (_,v)      -> pp_ident fmt v
+  | PreQId (_,m,v)   -> fprintf fmt "%a.%a" pp_ident m pp_ident v
+  | PreApp (f,a,lst) -> pp_list " " pp_preterm_wp  fmt (f::a::lst)
+  | PreLam (_,v,None,b) -> fprintf fmt "%a => %a" pp_ident v pp_preterm b
+  | PreLam (_,v,Some a,b) -> fprintf fmt "%a:%a => %a" pp_ident v pp_preterm_wp a pp_preterm b
+  | PrePi (_,o,a,b)    ->
+    ( match o with
+      | None   -> fprintf fmt "%a -> %a" pp_preterm_wp a pp_preterm b
+      | Some v -> fprintf fmt "%a:%a -> %a" pp_ident v pp_preterm_wp a pp_preterm b )
+
+and pp_preterm_wp fmt preterm =
+  match preterm with
+  | PreType _ | PreId _ | PreQId _ as t  -> pp_preterm fmt t
+  | t                                    -> fprintf fmt "(%a)" pp_preterm t
+
 type prepattern =
   | PCondition  of preterm
-  | PPattern    of loc*ident option*ident*prepattern list
-  | PLambda     of loc*ident*prepattern
+  | PPattern    of loc * ident option * ident * prepattern list
+  | PLambda     of loc * ident * prepattern
   | PJoker      of loc
 
-type pdecl      = loc * ident
-type pcontext   = pdecl list
-type prule      = loc * pdecl list * ident option * ident * prepattern list * preterm
 
-open Printf
+let rec pp_prepattern fmt ppatern =
+  let pp_pconst fmt mid =
+    match mid with
+    | ( None , id )     -> pp_ident fmt id
+    | ( Some md , id )  -> fprintf fmt "%a.%a" pp_ident md pp_ident id
+  in
+  match ppatern with
+  | PPattern (_,md,id,[])       -> pp_pconst fmt (md,id)
+  | PPattern (_,md,id,lst)      -> fprintf fmt "%a %a" pp_pconst (md,id) (pp_list " " pp_prepattern) lst
+  | PCondition pte              -> fprintf fmt "{ %a }" pp_preterm pte
+  | PJoker _                    -> fprintf fmt "_"
+  | PLambda (_,id,p)            -> fprintf fmt "%a => %a" pp_ident id pp_prepattern p
 
-let rec pp_pterm out = function
-  | PreType _        -> output_string out "Type"
-  | PreId (_,v)      -> pp_ident out v
-  | PreQId (_,m,v)   -> fprintf out "%a.%a" pp_ident m pp_ident v
-  | PreApp (f,a,lst) -> pp_list " " pp_pterm_wp  out (f::a::lst)
-  | PreLam (_,v,None,b) -> fprintf out "%a => %a" pp_ident v pp_pterm b
-  | PreLam (_,v,Some a,b) -> fprintf out "%a:%a => %a" pp_ident v pp_pterm_wp a pp_pterm b
-  | PrePi (_,o,a,b)    ->
-      ( match o with
-          | None   -> fprintf out "%a -> %a" pp_pterm_wp a pp_pterm b
-          | Some v -> fprintf out "%a:%a -> %a" pp_ident v pp_pterm_wp a pp_pterm b )
-
-and pp_pterm_wp out = function
-  | PreType _ | PreId _ | PreQId _ as t  -> pp_pterm out t
-  | t                                    -> fprintf out "(%a)" pp_pterm t
-
-let pp_pconst out = function
-    | ( None , id )     -> pp_ident out id
-    | ( Some md , id )  -> fprintf out "%a.%a" pp_ident md pp_ident id
-
-let rec pp_ppattern out = function
-  | PPattern (_,md,id,[])       -> pp_pconst out (md,id)
-  | PPattern (_,md,id,lst)      ->
-      fprintf out "%a %a" pp_pconst (md,id) (pp_list " " pp_ppattern) lst
-  | PCondition pte              -> fprintf out "{ %a }" pp_pterm pte
-  | PJoker _                    -> fprintf out "_"
-  | PLambda (_,id,p)            -> fprintf out "%a => %a" pp_ident id pp_ppattern p
-and pp_ppattern_wp out = function
+and pp_prepattern_wp fmt = function
   | PLambda (_,_,_)
-  | PPattern (_,_,_,_::_) as p  -> fprintf out "(%a)" pp_ppattern p
-  | p                           -> pp_ppattern out p
+  | PPattern (_,_,_,_::_) as p  -> fprintf fmt "(%a)" pp_prepattern p
+  | p                           -> pp_prepattern fmt p
+
+type pdecl      = loc * ident
+
+let pp_pdecl fmt (_,id) = pp_ident fmt id
+
+type pcontext   = pdecl list
+
+let pp_pcontext fmt ctx =
+  pp_list ".\n" (fun out (_,x) ->
+      fprintf fmt "%a" pp_ident x) fmt (List.rev ctx)
+
+type prule      = loc * (ident option * ident) option * pdecl list * ident option * ident * prepattern list * preterm
+
+(* TODO : implements this *)
+let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, prete):prule) : unit  =
+  let name = match pname with | None -> "" | Some qid ->
+    let prefix = match fst qid with | None -> "" | Some md -> (string_of_ident md)^"." in
+    "{"^prefix^string_of_ident id^"}"
+  in
+  match pid with
+  | Some m ->
+    fprintf fmt "[%a] %a.%a %a --> %a %s" (pp_list "," pp_pdecl) pdecl pp_ident m pp_ident id
+      (pp_list " " pp_prepattern) prepatterns pp_preterm prete name
+  | None ->
+    fprintf fmt "[%a] %a %a --> %a %s" (pp_list "," pp_pdecl) pdecl pp_ident id
+      (pp_list " " pp_prepattern) prepatterns pp_preterm prete name

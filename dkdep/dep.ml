@@ -11,11 +11,28 @@ let sorted = ref false
 
 let print_out fmt = Printf.kfprintf (fun _ -> output_string !out "\n" ) !out fmt
 
+(* This is similar to the function with the same name in
+   kernel/signature.ml but this one answers wether the file exists and
+   does not actually open the file *)
+let rec find_dko_in_path name = function
+  | [] -> false
+  | dir :: path ->
+      let filename = dir ^ "/" ^ name ^ ".dko" in
+        if Sys.file_exists filename then
+          true
+        else
+          find_dko_in_path name path
+
+(* If the file for module m is not found in load path, add it to the
+   list of dependencies *)
 let add_dep m =
   let s = string_of_ident m in
-  let (name,m_deps) = List.hd !deps in
-  if List.mem s (name :: m_deps) then ()
-  else deps := (name, List.sort compare (s :: m_deps))::(List.tl !deps)
+  if not (find_dko_in_path s (get_path()))
+  then begin
+      let (name,m_deps) = List.hd !deps in
+      if List.mem s (name :: m_deps) then ()
+      else deps := (name, List.sort compare (s :: m_deps))::(List.tl !deps)
+  end
 
 let mk_prelude _ prelude_name =
   let name = string_of_ident prelude_name in
@@ -37,8 +54,7 @@ let rec mk_pattern = function
   | Lambda (_,_,te) -> mk_pattern te
   | Brackets t -> mk_term t
 
-let mk_declaration _ _ t = mk_term t
-let mk_definable _ _ t = mk_term t
+let mk_declaration _ _ _ t = mk_term t
 
 let mk_definition _ _ = function
   | None -> mk_term
@@ -50,8 +66,8 @@ let mk_binding ( _,_, t) = mk_term t
 
 let mk_ctx = List.iter mk_binding
 
-let mk_prule (ctx,pat,rhs:rule) =
-  mk_pattern pat; mk_term rhs
+let mk_prule (rule:untyped_rule) =
+  mk_pattern rule.pat; mk_term rule.rhs
 
 let mk_rules = List.iter mk_prule
 

@@ -1,11 +1,10 @@
 %parameter <M :
   sig
     val mk_prelude     : Basic.loc -> Basic.ident -> unit
-    val mk_declaration : Basic.loc -> Basic.ident -> Term.term -> unit
+    val mk_declaration : Basic.loc -> Basic.ident -> Signature.staticity -> Term.term -> unit
     val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
-    val mk_definable   : Basic.loc -> Basic.ident -> Term.term -> unit
     val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
-    val mk_rules       : Rule.rule list -> unit
+    val mk_rules       : Rule.untyped_rule list -> unit
     val mk_command     : Basic.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
   end>
@@ -66,6 +65,7 @@
 %token <Basic.loc> TYPE
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
+%token <Basic.loc> KW_INJ
 %token <Basic.loc*Basic.ident> ID
 %token <Basic.loc*Basic.ident*Basic.ident> QID
 %token <string> STRING
@@ -94,11 +94,13 @@ prelude         : NAME DOT      { let (lc,name) = $1 in
                                         mk_prelude lc name }
 
 line            : ID COLON term DOT
-                { mk_declaration (fst $1) (snd $1) (scope_term [] $3) }
+                { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] $3) }
                 | ID param+ COLON term DOT
-                { mk_declaration (fst $1) (snd $1) (scope_term [] (mk_pi $4 $2)) }
+                { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] (mk_pi $4 $2)) }
                 | KW_DEF ID COLON term DOT
-                { mk_definable (fst $2) (snd $2) (scope_term [] $4) }
+                { mk_declaration (fst $2) (snd $2) Signature.Definable (scope_term [] $4) }
+                | KW_INJ ID COLON term DOT
+                { mk_declaration (fst $2) (snd $2) Signature.Injective (scope_term [] $4) }
                 | KW_DEF ID COLON term DEF term DOT
                 { mk_definition (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }
                 | KW_DEF ID DEF term DOT
@@ -141,9 +143,14 @@ term_lst        : term                                  { [$1] }
 param           : LEFTPAR ID COLON term RIGHTPAR        { (fst $2,snd $2,$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,md_opt,id,args) = $4 in ( l , $2 , md_opt, id , args , $6) }
+                { let (l,md_opt,id,args) = $4 in ( l , None, $2 , md_opt, id , args , $6) }
+		| LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+		{ let (l,md_opt,id,args) = $7 in ( l , Some (None,snd $2), $5 , md_opt, id , args , $9)}
+		| LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+		{ let (l,md_opt,id,args) = $7 in let (_,m,v) = $2 in ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
-decl            : ID COLON term         { debug "Ignoring type declaration in rule context."; $1 }
+
+decl            : ID COLON term         { debug 1 "Ignoring type declaration in rule context."; $1 }
                 | ID                    { $1 }
 
 context         : /* empty */          { [] }

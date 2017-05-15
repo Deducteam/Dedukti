@@ -3,6 +3,7 @@
 open Basic
 open Term
 open Rule
+open Dtree
 
 let ignore_redecl = ref false
 let autodep = ref false
@@ -14,7 +15,8 @@ type signature_error =
   | UnmarshalUnknown of loc*string
   | SymbolNotFound of loc*ident*ident
   | AlreadyDefinedSymbol of loc*ident
-  | CannotBuildDtree of Dtree.dtree_error
+  | CannotMakeRuleInfos of rule_error
+  | CannotBuildDtree of dtree_error
   | CannotAddRewriteRules of loc*ident
   | ConfluenceErrorImport of loc*ident*Confluence.confluence_error
   | ConfluenceErrorRules of loc*rule_infos list*Confluence.confluence_error
@@ -33,9 +35,14 @@ struct
   let hash      = Hashtbl.hash
 end )
 
+type staticity = Static | Definable | Injective
+
 type rw_infos =
-  | Constant of term
-  | Definable of term * (rule_infos list*int*dtree) option
+  {
+    stat: staticity;
+    ty: term;
+    rule_opt_info: (rule_infos list*int*dtree) option
+  }
 
 type t = { name:ident; tables:(rw_infos H.t) H.t;
            mutable external_rules:rule_infos list list; }
@@ -57,14 +64,17 @@ let add_rule_infos sg (lst:rule_infos list) : unit =
       with Not_found -> assert false in (*should not happen if the dependencies are loaded before*)
     let infos = try ( H.find env r.id )
       with Not_found -> assert false in
-    let (ty,rules) = match infos with
-      | Definable (ty,None) -> ( ty , rs )
-      | Definable (ty,Some(mx,_,_)) -> ( ty , mx@rs )
-      | Constant _ ->
-        raise (SignatureError (CannotAddRewriteRules (r.l,r.id)))
+    let ty = infos.ty in
+    if (infos.stat = Static) then
+      raise (SignatureError (CannotAddRewriteRules (r.l,r.id)));
+    let rules = match infos.rule_opt_info with
+      | None -> rs
+      | Some(mx,_,_) -> mx@rs
     in
     match Dtree.of_rules rules with
-    | OK (n,tree) -> H.add env r.id (Definable (ty,Some(rules,n,tree)))
+    | OK (n,tree) ->
+       H.add env r.id
+         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,n,tree)}
     | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 (******************************************************************************)
@@ -125,16 +135,14 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t * rule_infos list
 (******************************************************************************)
 
 let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
-  let aux id = function
-  | Constant ty -> Confluence.add_constant md id
-  | Definable (ty,opt) ->
-    ( Confluence.add_constant md id;
-      match opt with
-      | None -> ()
-      | Some (rs,_,_) -> Confluence.add_rules rs )
+  let aux id infos =
+    Confluence.add_constant md id;
+    match infos.rule_opt_info with
+    | None -> ()
+    | Some (rs,_,_) -> Confluence.add_rules rs
   in
   H.iter aux ctx;
-  debug "Checking confluence after loading module '%a'..." pp_ident md;
+  debug 1 "Checking confluence after loading module '%a'..." pp_ident md;
   match Confluence.check () with
   | OK () -> ()
   | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
@@ -157,7 +165,7 @@ let rec import sg lc m =
       let dep = hstring dep0 in
       if not (H.mem sg.tables dep) then ignore (import sg lc dep)
     ) deps ;
-  debug "Loading module '%a'..." pp_ident m;
+  debug 1 "Loading module '%a'..." pp_ident m;
   List.iter (fun rs -> add_rule_infos sg rs) ext;
   check_confluence_on_import lc m ctx;
   ctx
@@ -182,40 +190,47 @@ let get_infos sg lc m v =
     try ( H.find env v )
     with Not_found -> raise (SignatureError (SymbolNotFound (lc,m,v)))
 
-let get_type sg lc m v =
-  match get_infos sg lc m v with
-    | Constant ty
-    | Definable (ty,_) -> ty
+let get_type sg lc m v = (get_infos sg lc m v).ty
 
-let is_constant sg lc m v =
-  match get_infos sg lc m v with
-    | Constant _ -> true
-    | Definable _ -> false
+let is_injective sg lc m v =
+  match (get_infos sg lc m v).stat with
+    | Static | Injective -> true
+    | Definable -> false
 
-let get_dtree sg l m v =
-  match get_infos sg l m v with
-    | Constant _
-    | Definable (_,None) -> None
-    | Definable (_,Some(_,i,tr)) -> Some (i,tr)
+let pred_true: Rule.rule_name -> bool = fun x -> true
+
+let get_dtree sg ?select:(pred=pred_true) l m v =
+  match (get_infos sg l m v).rule_opt_info with
+  | None -> None
+  | Some(rules,i,tr) ->
+    if pred == pred_true then
+      Some (i,tr)
+    else
+      let rules' = List.filter (fun (r:Rule.rule_infos) -> pred r.name) rules in
+      (* A call to Dtree.of_rules must be made with a non-empty list *)
+      match rules' with
+      | [] -> None
+      | _ -> match Dtree.of_rules rules' with
+        | OK (n,tree) ->
+          Some(n,tree)
+        | Err e -> raise (SignatureError (CannotBuildDtree e))
+
 
 (******************************************************************************)
 
-let add sg lc v gst =
+let add_declaration sg lc v st ty =
   Confluence.add_constant sg.name v;
   let env = H.find sg.tables sg.name in
   if H.mem env v then
-    ( if !ignore_redecl then debug "Redeclaration ignored."
+    ( if !ignore_redecl then debug 1 "Redeclaration ignored."
       else raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
   else
-    H.add env v gst
-
-let add_declaration sg lc v ty = add sg lc v (Constant ty)
-let add_definable sg lc v ty = add sg lc v (Definable (ty,None))
+    H.add env v {stat=st; ty=ty; rule_opt_info=None}
 
 let add_rules sg lst : unit =
-  let rs = map_error_list Dtree.to_rule_infos lst in
+  let rs = map_error_list Rule.to_rule_infos lst in
   match rs with
-  | Err e -> raise (SignatureError (CannotBuildDtree e))
+  | Err e -> raise (SignatureError (CannotMakeRuleInfos e))
   | OK [] -> ()
   | OK (r::_ as rs) ->
     begin
@@ -223,8 +238,8 @@ let add_rules sg lst : unit =
       if not (ident_eq sg.name r.md) then
         sg.external_rules <- rs::sg.external_rules;
       Confluence.add_rules rs;
-      debug "Checking confluence after adding rewrite rules on symbol '%a.%a'"
-      pp_ident r.md pp_ident r.id;
+      debug 1 "Checking confluence after adding rewrite rules on symbol '%a.%a'"
+        pp_ident r.md pp_ident r.id;
       match Confluence.check () with
       | OK () -> ()
       | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))

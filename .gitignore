@@ -1,13 +1,11 @@
-/_build/
+dedukti.docdir
+*.native
 .*.swp
 .*.swo
-dkcheck.docdir
-dkcheck.native
-dkdep.native
-dkrule.native
-dktop.native
-dkindent.native
-dedukti.docdir
 _*/
 *.dko
 *.depend
+
+# emacs tmp files
+*~
+\#*\#

@@ -1,3 +1,3 @@
-let version             = "2.5"
+let version             = "2.6"
 let print_version _     =
-  Printf.printf "Dedukti v%s\n" version
+  Format.printf "Dedukti v%s@." version

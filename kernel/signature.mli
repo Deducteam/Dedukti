@@ -3,6 +3,7 @@
 open Basic
 open Term
 open Rule
+open Dtree
 
 val ignore_redecl       : bool ref
 (** When [ignore_redecl] is [true], allows a constant to be redefined.
@@ -21,12 +22,15 @@ type signature_error =
   | UnmarshalUnknown of loc*string
   | SymbolNotFound of loc*ident*ident
   | AlreadyDefinedSymbol of loc*ident
+  | CannotMakeRuleInfos of Rule.rule_error
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
   | ConfluenceErrorImport of loc*ident*Confluence.confluence_error
   | ConfluenceErrorRules of loc*rule_infos list*Confluence.confluence_error
 
 exception SignatureError of signature_error
+
+type staticity = Static | Definable | Injective
 
 type t
 
@@ -42,21 +46,18 @@ val export              : t -> bool
 val get_type            : t -> loc -> ident -> ident -> term
 (** [get_type sg l md id] returns the type of the constant [md.id] inside the environement [sg]. *)
 
-val is_constant         : t -> loc -> ident -> ident -> bool
-(** [is_constant sg l md id] returns true when [mkd.id] is a constant. *)
+val is_injective        : t -> loc -> ident -> ident -> bool
+(** [is_injective sg l md id] returns true when [md.id] is either static
+    or declared as injective. *)
 
-val get_dtree           : t -> loc -> ident -> ident -> (int*dtree) option
-(** [get_dtree sg l md id] returns the decision/matching tree associated with [md.id]
+val get_dtree           : t -> ?select:(Rule.rule_name -> bool) -> loc -> ident -> ident -> (int*dtree) option
+(** [get_dtree sg pred l md id] returns the decision/matching tree associated with [md.id]
     inside the environment [sg]. *)
 
-val add_declaration     : t -> loc -> ident -> term -> unit
-(** [add_declaration sg l id ty] declares the constant symbol [id] of type [ty]
-    in the environment [sg]. *)
+val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
+(** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
+    and staticity [st] in the environment [sg]. *)
 
-val add_definable       : t -> loc -> ident -> term -> unit
-(** [add_definable sg l id ty] declares the definable symbol [id] of type [ty]
-    in the environment [sg]. *)
-
-val add_rules           : t -> Rule.rule2 list -> unit
+val add_rules           : t -> Rule.typed_rule list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)
