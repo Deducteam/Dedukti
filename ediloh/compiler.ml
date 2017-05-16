@@ -12,8 +12,8 @@ let mk_declaration (lc:loc) (id:ident) (st:Signature.staticity) (te:term) =
       | OK () ->
         begin
           match Hol.compile_declaration lc id te with
-          | OK(obj) -> ()
-          | Err(err) -> failwith "todo"
+          | OK(obj) -> Hol.compile_hol_obj obj
+          | Err(err) -> Hol.fail_compile_declaration err
         end
       | Err er -> Errors.fail_env_error er
     end
@@ -24,7 +24,18 @@ let mk_declaration (lc:loc) (id:ident) (st:Signature.staticity) (te:term) =
 
 let mk_definition (lc:loc) (id:ident) (pty:term option) (te:term) =
   match Env.define lc id te pty with
-  | OK () -> ()
+  | OK () ->
+    begin
+      match pty with
+      | None ->
+        Errors.fail lc "Every definition should be typed"
+      | Some ty ->
+        begin
+          match Hol.compile_definition lc id ty te with
+          | OK(obj) -> Hol.compile_hol_obj obj
+          | Err(err) -> Hol.fail_compile_definition err
+        end
+    end
   | Err er -> Errors.fail_env_error er
 
 let mk_opaque (lc:loc) (id:ident) (pty:term option) (te:term) =
