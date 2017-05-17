@@ -88,7 +88,9 @@ module type OpenSTT = sig
 
   val mk_betaConv : term obj -> thm obj
 
-  val mk_thm : term obj -> hyp obj -> thm obj -> unit
+  val mk_thm : name obj -> term obj -> hyp obj -> thm obj -> unit
+
+  val thm_of_lemma : name obj -> thm obj
 
   val debug : 'a obj -> unit
 end
@@ -203,6 +205,8 @@ module Basic = struct
   type const_defined = (string, thm obj * const obj) Hashtbl.t
 
   let const_defined:const_defined = Hashtbl.create 87
+
+  let lemmas_defined = Hashtbl.create 87
 
   let load (t:'a obj) (k:'b op) : ('a *'b) op =
     Ref(Int(t.id,k))
@@ -396,14 +400,18 @@ module Basic = struct
   let mk_deductAntiSym thml thmr =
     save { push = fun k -> DeductAntiSym(load thmr (load thml k))}
 
-  let mk_thm term hyp thm =
+  let mk_thm name term hyp thm =
+    Hashtbl.add lemmas_defined name thm;
     print_op Format.std_formatter (Thm(load term (load hyp (load thm Empty))))
 
   let mk_remove x =
     print_op Format.std_formatter (Pop(Remove(Int(x,Empty))))
 
-
-
+  let thm_of_lemma name =
+    if Hashtbl.mem lemmas_defined name then
+      Hashtbl.find lemmas_defined name
+    else
+      failwith (Format.sprintf "Lemma %s not found" (string_of_name name))
 end
 
 module OpenTheory = struct

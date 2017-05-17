@@ -88,7 +88,9 @@ module type OpenSTT = sig
 
   val mk_betaConv : term obj -> thm obj
 
-  val mk_thm : term obj -> hyp obj -> thm obj -> unit
+  val mk_thm : name obj -> term obj -> hyp obj -> thm obj -> unit
+
+  val thm_of_lemma : name obj -> thm obj
 
   val debug : 'a obj -> unit
 end
