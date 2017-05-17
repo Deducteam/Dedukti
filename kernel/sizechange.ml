@@ -34,7 +34,6 @@ type matrix =
 
 (** Matrix product. *)
 let prod : matrix -> matrix -> matrix = fun m1 m2 ->
-  printf "%n %n,%n %n@." m1.h m1.w m2.h m2.w;
   assert (m1.w = m2.h);
   let tab =
     Array.init m1.h (fun y ->
@@ -124,29 +123,33 @@ type call_graph =
 
 (** Creation of a new initial [call_graph]. It contains the initial root
     symbol. *)
-let create : unit -> call_graph ref =
+let graph =
   let root = { index = -1 ; name  = "R" ; arity = 0 ; args  = [||] } in
   let syms = IMap.singleton (-1) root in
-  fun () -> ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
+  ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
 
-
-let initialize = create ()
 let table = ref []
 let nom_module s= ref (string_of_ident s)
-  
+                
+let initialize () = !graph.next_index :=0;
+                    let root = { index = -1 ; name  = "R" ; arity = 0 ; args  = [||] } in
+                    let syms = IMap.singleton (-1) root in
+                    !graph.symbols := syms;
+                    !graph.calls := [];
+                    table := []
 
 (** Creation of a new symbol. The return value is the key of the created
     symbol, to be used in calls. *)
 let create_symbol : bool -> string -> string array -> unit =
-  let g= !initialize in
+  let g= !graph in
   fun vb name args ->
     let arity = Array.length args in
     let index = !(g.next_index) in
     let sym = {index ; name ; arity ; args} in
-    table:=(name,index)::!table;
+    table:=(name, arity, index)::!table;
     if vb then (let rec print_list = function
       | [] -> ()
-      | (s,n)::l -> printf "%s,%d " s (int_of_index n); print_list l
+      | (s,ar,n)::l -> printf "%s,%d,%d " s ar (int_of_index n); print_list l
     in printf "La table vaut :"; print_list !table;printf "@.");
     incr g.next_index;
     g.symbols := IMap.add index sym !(g.symbols)
@@ -172,18 +175,7 @@ let add_fonc vb v t=
   | App (_,_,_) -> ()
   | Lam (_,_,_,_) -> printf "AddFonc d'un lambda % a, je ne sais pas quoi faire @." pp_term t
   | Pi(_,name,arg,res) -> create_symbol vb (string_of_ident v) (cree_array n)
-
-
-let add_symb vb v q=
-  match q with
-  | Kind -> printf "AddSymb Kind, je ne sais pas que faire @."
-  | Type _ -> ()
-  | DB (_,_,_) -> printf "AddSymb variable %a, je ne sais pas que faire @." pp_term q
-  | Const (_,_,_) -> printf "AddSymb constante %a, je ne sais pas que faire @." pp_term q
-  | App (_,_,_) -> ()
-  | Lam (_,_,_,_) -> printf "Addsymb lambda % a, je ne sais pas quoi faire @." pp_term q
-  | Pi(_,name,arg,res) -> printf "AddSymb pi %a, je ne sais pas quoi faire @." pp_term q
-           
+                                 
 (** Copy a call graph. *)
 let copy : call_graph -> call_graph =
   fun g ->
@@ -197,7 +189,7 @@ let is_empty : call_graph -> bool =
 
 (** Add a new call to the call graph. *)
 let add_call : call-> unit =
-  let g= !initialize in
+  let g= !graph in
   fun cc -> g.calls := cc :: !(g.calls)
 
 let rec comparaison t p=
@@ -244,40 +236,100 @@ let matrice l1 l2=
   done;
   {h=m ; w=n ; tab = Array.of_list (List.rev !res)}
 
-let rec rule_to_call r =
+let diag_nulle a b=
+  let pareil x y=if x=y then Zero else Infi in
+  let second (a,b,c) = b in
+  let n=second (List.find (fun (_,_,x) -> x=a) !table) in
+  let m=second (List.find (fun (_,_,x) -> x=b) !table) in
+  let res =ref [] in
+  for i=0 to n-1 do
+    let loc_res =ref [] in
+    for j=0 to m-1 do
+      loc_res:=(pareil i j)::!loc_res
+    done;
+    res:=(Array.of_list (List.rev !loc_res))::!res
+  done;
+  {h=m ; w=n ; tab = Array.of_list (List.rev !res)}
+    
+let rec rule_to_call vb r =
+  let third (a,b,c) = c in
   let get_caller= match r.pat with 
     | Pattern (_,_,v,lp) -> begin
-                            try Some (lp,(snd (List.find (fun (x,_) -> x=(string_of_ident v)) !table)))
-                            with Not_found -> None
-                           end
+      try Some (lp,third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar=List.length(lp)) !table))
+      with Not_found -> begin
+          try
+	    let vieil_indice=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>List.length(lp)) !table) in
+	    let nvl_indice= !(!graph.next_index) in
+	    create_symbol vb (string_of_ident v) (cree_array (List.length(lp)));
+	    add_call { callee = nvl_indice; caller = vieil_indice; matrix=diag_nulle vieil_indice nvl_indice; is_rec=false}; Some(lp,nvl_indice)
+          with Not_found -> printf "La foncion appelante n'a pas encore été déclarée@."; None
+      end
+    end
     | p -> printf "ProblèmeCaller avec %a@." pp_pattern p ; None
   in
+  let term2rule t= {pat= r.pat ; rhs = t ; ctx= r.ctx ; name=r.name} in
   let get_callee= match r.rhs with
     | Const (_,_,_) | DB (_,_,_) -> None
-    | App (Const(_,_,v),t1,lt) -> Some (t1::lt,(snd (List.find (fun (x,_) -> x=(string_of_ident v)) !table)))
-    | App (_,_,_) as p -> printf "ProblèmeAppeleeApp avec %a@." pp_term p ; None
-    | Lam (_,_,_,_) as p -> printf "ProblèmeAppeleeLam avec %a@." pp_term p ; None
-    | Pi (_,_,_,_) as p -> () ; None
+    | App (Const(_,_,v),t1,lt) -> begin
+                                  try Some (t1::lt,third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar=List.length(lt)+1) !table))
+                                            with Not_found ->
+                                              begin
+                                                try
+	                                          let vieil_indice=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>=List.length(lt)) !table) in
+	                                          let nvl_indice= !(!graph.next_index) in
+	                                          create_symbol vb (string_of_ident v) (cree_array (List.length(t1::lt)));
+	                                          add_call { callee = nvl_indice; caller = vieil_indice; matrix=diag_nulle vieil_indice nvl_indice; is_rec=false}; Some (t1::lt,nvl_indice)
+                                                with Not_found -> printf "La fonction appelée n'a pas encoe été déclarée@."; None
+                                              end
+                                            end
+    | App (t1,t2,lt) -> begin
+                             let f _ = () in
+                             f (List.map add_call ((rule_to_call vb (term2rule t1)) @ (rule_to_call vb (term2rule t2)) @ List.flatten (List.map (rule_to_call vb) (List.map term2rule lt)))) ;
+                             None
+                      end
+    | Lam (_,_,_,t) -> begin
+                       let f _ = () in
+                       f (List.map add_call ((rule_to_call vb (term2rule t)))) ;
+                       None
+                     end
+    | Pi (_,_,t1,t2) ->  begin
+                             let f _ = () in
+                             f (List.map add_call ((rule_to_call vb (term2rule t1)) @ (rule_to_call vb (term2rule t2)))) ;
+                             None
+                      end
     | p -> printf "ProblèmeAppelee avec %a@." pp_term p ; None
   in
-  let term2rule t= {pat= r.pat ; rhs = t ; ctx= r.ctx ; name=r.name} in
   match get_callee,get_caller with
   | None, _ -> []
   | _, None -> []
-  | Some (l1,a), Some (l2,b) ->  if List.length l1 <> (IMap.find a !(!initialize.symbols)).arity then failwith ("Appel partiel "^(fst (List.find (fun (_,x) -> x=a) !table))^" vers "^(fst (List.find (fun (_,x) -> x=b) !table))) else {callee=a ; caller = b ; matrix=matrice l1 l2 ; is_rec = false}::List.flatten (List.map rule_to_call (List.map term2rule  l1))
-  
+  | Some (l1,a), Some (l2,b) -> {callee=a ; caller = b ; matrix=matrice l1 l2 ; is_rec = false}::List.flatten (List.map (rule_to_call vb) (List.map term2rule  l1))
+
+
+let add_symb vb v q=
+  match q with
+  | Kind -> ()
+  | Type _ -> ()
+  | DB (_,_,_) -> ()
+  | _ as t -> create_symbol vb (string_of_ident v) (cree_array 0);
+              let f _ = () in
+              f (List.map add_call (rule_to_call vb {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
+                                                                                                              
 let add_rules vb l =
   let f _ = () in
-  f (List.map add_call (List.flatten (List.map rule_to_call l)))
+  f (List.map add_call (List.flatten (List.map (rule_to_call vb) l)))
 
 let print_array pp sep out v=Pp.print_list sep pp out (Array.to_list v)
                        
 let print_call : formatter -> symbol IMap.t -> call -> unit = fun ff tbl c ->
   let caller_sym = IMap.find c.caller tbl in
   let callee_sym = IMap.find c.callee tbl in
+  (*let print_cmparray out v=Pp.print_list "," pp_print_string out (List.map cmp_to_string (Array.to_list v)) in*)
   let print_args = print_array pp_print_string "," in
   fprintf ff "%s%d(%a%!) <- %s%d%!(" caller_sym.name c.caller
           print_args caller_sym.args callee_sym.name c.callee;
+  (*for j = 0 to Array.length c.matrix.tab-1 do
+    printf "%n :: %a@." j print_cmparray c.matrix.tab.(j)
+  done;*)
   let jj=Array.length c.matrix.tab in
   if jj>0 then
     let ii=Array.length c.matrix.tab.(0) in
@@ -294,11 +346,11 @@ let print_call : formatter -> symbol IMap.t -> call -> unit = fun ff tbl c ->
           end
       done
     done;
-  fprintf ff ")%!"
+    fprintf ff ")%!"
     
 let latex_print_calls () =
   let ff= std_formatter in
-  let tbl = !initialize in
+  let tbl = !graph in
   let arities = IMap.bindings !(tbl.symbols) in
   let calls = !(tbl.calls) in
   fprintf ff "\\begin{dot2tex}[dot,options=-tmath]\n  digraph G {\n";
@@ -328,7 +380,7 @@ let latex_print_calls () =
       try List.assoc i arities with Not_found -> assert false
     in
     fprintf ff "    N%d -> N%d [label = \"\\\\left(\\\\begin{smallmatrix}"
-      (index j) (index i);
+            (index j) (index i);
     for i = 0 to ai - 1 do
       if i > 0 then fprintf ff "\\\\\\\\ ";
       for j = 0 to aj - 1 do
@@ -349,7 +401,7 @@ let latex_print_calls () =
     
     (** the main function, checking if calls are well-founded *)
 let sct_only ()=
-  let ftbl= !initialize in
+  let ftbl= !graph in
   let num_fun = !(ftbl.next_index) in
   let arities = !(ftbl.symbols) in
   let tbl = Array.init num_fun (fun _ -> Array.make num_fun []) in

@@ -49,9 +49,6 @@ type call_graph
 
 val nom_module : ident -> string ref
 val sct_only : unit -> bool
-  
-(** [create ()] returns a new, empty call graph. *)
-val create : unit -> call_graph ref
 
 (** [copy g] returns a copy of the call graph [g]. *)
 val copy : call_graph -> call_graph
@@ -59,7 +56,7 @@ val copy : call_graph -> call_graph
 (** [is_empty g] indicates whether the call graph [g] contains calls. *)
 val is_empty : call_graph -> bool
 
-
+val initialize : unit -> unit
 
 (** [latex_print_calls ff g] prints the call graph [g] using a LaTeX format
     on the [Format.formatter] [ff]. *)

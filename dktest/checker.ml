@@ -17,6 +17,7 @@ let eprint lc fmt =
 (* ********************************* *)
 
 let mk_prelude lc name =
+  if (!sizechange)|| (!szgraph) then Sizechange.initialize ();
   eprint lc "Module name is '%a'." pp_ident name;
   Env.init name;
   Confluence.initialize ()
