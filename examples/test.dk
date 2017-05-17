@@ -16,3 +16,11 @@ def double : Nat -> Nat := mult (S (S 0)).
 
 def ddouble : Nat -> Nat.
 [] ddouble --> mult (S (S 0)).
+
+def plus1 : Nat -> Nat.
+[n] plus1 n --> S n.
+
+def moitie : Nat -> Nat.
+[] moitie 0 --> 0.
+[n] moitie (S (S n)) --> moitie (S n)
+[] moitie (S 0) --> 0.
