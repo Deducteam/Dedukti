@@ -401,15 +401,17 @@ module Basic = struct
     save { push = fun k -> DeductAntiSym(load thmr (load thml k))}
 
   let mk_thm name term hyp thm =
-    Hashtbl.add lemmas_defined name thm;
+    let str = string_of_name name in
+    Hashtbl.add lemmas_defined str thm;
     print_op Format.std_formatter (Thm(load term (load hyp (load thm Empty))))
 
   let mk_remove x =
     print_op Format.std_formatter (Pop(Remove(Int(x,Empty))))
 
   let thm_of_lemma name =
-    if Hashtbl.mem lemmas_defined name then
-      Hashtbl.find lemmas_defined name
+    let str = string_of_name name in
+    if Hashtbl.mem lemmas_defined str then
+      Hashtbl.find lemmas_defined str
     else
       failwith (Format.sprintf "Lemma %s not found" (string_of_name name))
 end
