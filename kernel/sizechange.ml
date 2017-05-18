@@ -129,7 +129,6 @@ let graph =
   ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
 
 let table = ref []
-let nom_module s= ref (string_of_ident s)
                 
 let initialize () = !graph.next_index :=0;
                     let root = { index = -1 ; name  = "R" ; arity = 0 ; args  = [||] } in
@@ -138,8 +137,7 @@ let initialize () = !graph.next_index :=0;
                     !graph.calls := [];
                     table := []
 
-(** Creation of a new symbol. The return value is the key of the created
-    symbol, to be used in calls. *)
+(** Creation of a new symbol.  *)
 let create_symbol : bool -> string -> string array -> unit =
   let g= !graph in
   fun vb name args ->
@@ -150,7 +148,7 @@ let create_symbol : bool -> string -> string array -> unit =
     if vb then (let rec print_list = function
       | [] -> ()
       | (s,ar,n)::l -> printf "%s,%d,%d " s ar (int_of_index n); print_list l
-    in printf "La table vaut :"; print_list !table;printf "@.");
+    in printf "The table contains :"; print_list !table;printf "@.");
     incr g.next_index;
     g.symbols := IMap.add index sym !(g.symbols)
 
@@ -158,7 +156,7 @@ let rec find_arity=function
   | Pi(_,_,_,t) -> 1+find_arity t
   | _ -> 0
 
-let cree_array n=
+let create_array n=
   let res=Array.make n "" in
   for i =0 to n-1 do
     res.(i)<-"x"^(string_of_int i)
@@ -174,7 +172,7 @@ let add_fonc vb v t=
   | Const (_,_,_) -> ()
   | App (_,_,_) -> ()
   | Lam (_,_,_,_) -> printf "AddFonc d'un lambda % a, je ne sais pas quoi faire @." pp_term t
-  | Pi(_,name,arg,res) -> create_symbol vb (string_of_ident v) (cree_array n)
+  | Pi(_,name,arg,res) -> create_symbol vb (string_of_ident v) (create_array n)
                                  
 (** Copy a call graph. *)
 let copy : call_graph -> call_graph =
@@ -192,8 +190,8 @@ let add_call : call-> unit =
   let g= !graph in
   fun cc -> g.calls := cc :: !(g.calls)
 
-let rec comparaison t p=
-  let moins1 =function
+let rec comparison t p=
+  let minus1 =function
     | Zero -> Min1
     | n -> n
   in
@@ -208,7 +206,7 @@ let rec comparaison t p=
     match lp,lt with
     | [],[] -> cur
     | a::l1,b::l2 -> begin
-      match comparaison b a,cur with
+      match comparison b a,cur with
       | Infi, _ -> Infi
       | Min1,_ -> comp_list Min1 l1 l2
       | _, Min1 -> comp_list Min1 l1 l2
@@ -218,10 +216,10 @@ let rec comparaison t p=
   match p,t with
   | Var (_,_,n,[]),DB (_,_,m) -> if n=m then Zero else Infi
   | Pattern (_,_,f,lp), App(Const(_,_,g),t1,lt) when (ident_eq f g) ->  comp_list Zero lp (t1::lt)
-  | Pattern (_,_,_,l),t -> moins1 (mini Infi (List.map (comparaison t) l))
+  | Pattern (_,_,_,l),t -> minus1 (mini Infi (List.map (comparison t) l))
   | _ -> Infi
   
-let matrice l1 l2=
+let matrix_of_lists l1 l2=
   let n=List.length l1 in
   let m=List.length l2 in
   let res =ref [] in
@@ -230,14 +228,14 @@ let matrice l1 l2=
     let loc_res =ref [] in
     for j=0 to n-1 do
       let t=List.nth l1 j in
-      loc_res:=(comparaison t p)::!loc_res
+      loc_res:=(comparison t p)::!loc_res
     done;
     res:=(Array.of_list (List.rev !loc_res))::!res
   done;
   {h=m ; w=n ; tab = Array.of_list (List.rev !res)}
 
-let diag_nulle a b=
-  let pareil x y=if x=y then Zero else Infi in
+let auto_call_matrix a b=
+  let same x y=if x=y then Zero else Infi in
   let second (a,b,c) = b in
   let n=second (List.find (fun (_,_,x) -> x=a) !table) in
   let m=second (List.find (fun (_,_,x) -> x=b) !table) in
@@ -245,7 +243,7 @@ let diag_nulle a b=
   for i=0 to n-1 do
     let loc_res =ref [] in
     for j=0 to m-1 do
-      loc_res:=(pareil i j)::!loc_res
+      loc_res:=(same i j)::!loc_res
     done;
     res:=(Array.of_list (List.rev !loc_res))::!res
   done;
@@ -258,14 +256,14 @@ let rec rule_to_call vb r =
       try Some (lp,third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar=List.length(lp)) !table))
       with Not_found -> begin
           try
-	    let vieil_indice=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>List.length(lp)) !table) in
-	    let nvl_indice= !(!graph.next_index) in
-	    create_symbol vb (string_of_ident v) (cree_array (List.length(lp)));
-	    add_call { callee = nvl_indice; caller = vieil_indice; matrix=diag_nulle vieil_indice nvl_indice; is_rec=false}; Some(lp,nvl_indice)
-          with Not_found -> printf "La foncion appelante n'a pas encore été déclarée@."; None
+	    let old_index=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>List.length(lp)) !table) in
+	    let new_index= !(!graph.next_index) in
+	    create_symbol vb (string_of_ident v) (create_array (List.length(lp)));
+	    add_call { callee = new_index; caller =old_index; matrix=auto_call_matrix old_index new_index; is_rec=false}; Some(lp,new_index)
+          with Not_found -> printf "The calling function is still undeclared.@."; None
       end
     end
-    | p -> printf "ProblèmeCaller avec %a@." pp_pattern p ; None
+    | p -> printf "Problem with Caller : %a@." pp_pattern p ; None
   in
   let term2rule t= {pat= r.pat ; rhs = t ; ctx= r.ctx ; name=r.name} in
   let get_callee= match r.rhs with
@@ -275,11 +273,11 @@ let rec rule_to_call vb r =
                                             with Not_found ->
                                               begin
                                                 try
-	                                          let vieil_indice=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>=List.length(lt)) !table) in
-	                                          let nvl_indice= !(!graph.next_index) in
-	                                          create_symbol vb (string_of_ident v) (cree_array (List.length(t1::lt)));
-	                                          add_call { callee = nvl_indice; caller = vieil_indice; matrix=diag_nulle vieil_indice nvl_indice; is_rec=false}; Some (t1::lt,nvl_indice)
-                                                with Not_found -> printf "La fonction appelée n'a pas encoe été déclarée@."; None
+	                                          let old_index=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>=List.length(lt)) !table) in
+	                                          let new_index= !(!graph.next_index) in
+	                                          create_symbol vb (string_of_ident v) (create_array (List.length(t1::lt)));
+	                                          add_call { callee = new_index; caller = old_index; matrix=auto_call_matrix old_index new_index; is_rec=false}; Some (t1::lt,new_index)
+                                                with Not_found -> printf "The called function is still undeclared@."; None
                                               end
                                             end
     | App (t1,t2,lt) -> begin
@@ -297,12 +295,12 @@ let rec rule_to_call vb r =
                              f (List.map add_call ((rule_to_call vb (term2rule t1)) @ (rule_to_call vb (term2rule t2)))) ;
                              None
                       end
-    | p -> printf "ProblèmeAppelee avec %a@." pp_term p ; None
+    | p -> printf "Problem with Callee : %a@." pp_term p ; None
   in
   match get_callee,get_caller with
   | None, _ -> []
   | _, None -> []
-  | Some (l1,a), Some (l2,b) -> {callee=a ; caller = b ; matrix=matrice l1 l2 ; is_rec = false}::List.flatten (List.map (rule_to_call vb) (List.map term2rule  l1))
+  | Some (l1,a), Some (l2,b) -> {callee=a ; caller = b ; matrix=matrix_of_lists l1 l2 ; is_rec = false}::List.flatten (List.map (rule_to_call vb) (List.map term2rule  l1))
 
 
 let add_symb vb v q=
@@ -310,7 +308,7 @@ let add_symb vb v q=
   | Kind -> ()
   | Type _ -> ()
   | DB (_,_,_) -> ()
-  | _ as t -> create_symbol vb (string_of_ident v) (cree_array 0);
+  | _ as t -> create_symbol vb (string_of_ident v) (create_array 0);
               let f _ = () in
               f (List.map add_call (rule_to_call vb {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
                                                                                                               

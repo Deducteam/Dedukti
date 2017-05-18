@@ -47,7 +47,6 @@ type call =
 (** The representation of the call graph. *)
 type call_graph
 
-val nom_module : ident -> string ref
 val sct_only : unit -> bool
 
 (** [copy g] returns a copy of the call graph [g]. *)

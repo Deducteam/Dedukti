@@ -1,12 +1,24 @@
 # PLEASE EDIT THE FOLLOWING LINES TO FIT YOUR SYSTEM CONFIGURATION
 
-INSTALL_DIR=/usr/bin
+INSTALL_DIR=/users/lsv/genestier/bin
 
 # DO NOT EDIT AFTER THIS LINE
 
 MENHIR = -menhir "menhir --external-tokens Tokens"
 
-all: dktest lib doc
+all: dkcheck dktop dkdep dkindent dktest lib doc
+
+dkcheck:
+	ocamlbuild -I $@ $(MENHIR) $@.native
+
+dktop:
+	ocamlbuild -I $@ $(MENHIR) $@.native
+
+dkdep:
+	ocamlbuild -I $@ $(MENHIR) $@.native
+
+dkindent:
+	ocamlbuild -I $@ $(MENHIR) $@.native
 
 dktest :
 	ocamlbuild -I $@ $(MENHIR) $@.native
@@ -19,7 +31,7 @@ doc:
 lib:
 	ocamlbuild -Is kernel,utils,parser $(OPTIONS) dedukti.cmxa
 
-BINARIES=dktest
+BINARIES=dkcheck dktop dkdep dkindent dktest
 
 install:
 	for i in $(BINARIES) ; do \
