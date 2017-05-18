@@ -6,6 +6,7 @@ dedukti.docdir
 _*/
 *.dko
 *.depend
+*.txt
 
 # emacs tmp files
 *~

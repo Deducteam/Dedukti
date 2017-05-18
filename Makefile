@@ -6,7 +6,10 @@ INSTALL_DIR=/users/lsv/genestier/bin
 
 MENHIR = -menhir "menhir --external-tokens Tokens"
 
-all: dkcheck dktop dkdep dkindent dktest lib doc
+all: dktest dkcheck dktop dkdep dkindent lib doc
+
+dktest :
+	ocamlbuild -I $@ $(MENHIR) $@.native
 
 dkcheck:
 	ocamlbuild -I $@ $(MENHIR) $@.native
@@ -20,9 +23,6 @@ dkdep:
 dkindent:
 	ocamlbuild -I $@ $(MENHIR) $@.native
 
-dktest :
-	ocamlbuild -I $@ $(MENHIR) $@.native
-
 doc:
 	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
 	ocamlbuild -Is kernel kernel/dedukti.docdir/doc.tex
@@ -31,7 +31,7 @@ doc:
 lib:
 	ocamlbuild -Is kernel,utils,parser $(OPTIONS) dedukti.cmxa
 
-BINARIES=dkcheck dktop dkdep dkindent dktest
+BINARIES=dktest dkcheck dktop dkdep dkindent
 
 install:
 	for i in $(BINARIES) ; do \

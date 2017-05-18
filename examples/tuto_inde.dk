@@ -79,3 +79,5 @@ def append : NatList -> NatList -> NatList.
 def length : NatList -> Nat.
 [] length Vide --> 0
 [l] length (Cons _ l) --> S (length l).
+
+[x,y,z] plus x (plus y z) --> plus (plus x y) z.
