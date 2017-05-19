@@ -77,34 +77,22 @@ type obj =
 
 type decl = loc * ident * Term.term
 
-type compile_type_err =
-  | FreeTypeVariable of ident
-  | TypeError of Term.term
-  | Eta of Term.term
+type compile_type_err = TypeError of Term.term
 
-type compile_term_err =
-  | FreeTermVariable of ident
-  | PolymorphicType of ident * ty
-  | UntypedLambda of Term.term
-  | MissingPolymorphicArgument of ty
-  | TermError of Term.term
+type compile_term_err = TermError of Term.term | UntypedLambda of Term.term
 
 type compile_decl_err =
   | DeclarationError of decl
   | DeclarationTypeError of compile_type_err * decl
   | DeclarationTermError of compile_term_err * decl
 
-type compile_proof_err =
-  | PolymorphicType of ident * ty
-  | PolymorphicTerm of ident * term
-  | MissingPolymorphicArgument of term
-  | Eps of Term.term
-  | FreeProofVariable of ident
+type compile_proof_err = ProofError of Term.term
 
 type compile_defn_err =
   | DefinitionError of decl * Term.term
   | DefinitionTypeError of compile_type_err * decl * Term.term
   | DefinitionTermError of compile_term_err * decl * Term.term
+  | DefinitionProofError of compile_proof_err * decl * Term.term
 
 let print_name out (md,id) =
   Format.fprintf out "%a.%a" Pp.print_ident md Pp.print_ident id
@@ -279,14 +267,14 @@ and compile__type (ty_ctx:ty_ctx) (ty:Term.term) : _ty =
     if List.mem var ty_ctx then
       VarTy(var)
     else
-      raise (CompileTypeError(FreeTypeVariable(var)))
+      assert false
   | _ ->
     raise (CompileTypeError(TypeError(ty)))
 
 let compile_eta_type (ty_ctx:ty_ctx) (ty:Term.term) : ty =
   match ty with
   | Term.App(cst, a, []) when is_hol_const hol_eta cst -> compile_type ty_ctx a
-  | _ -> raise(CompileTypeError(Eta(ty)))
+  | _ -> assert false
 
 let ty_of_const lc md id =
   match Env.get_type lc md id with
@@ -298,61 +286,58 @@ let rec compile__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : _term =
     if List.mem_assoc var te_ctx then
       List.assoc var te_ctx
     else
-      raise (CompileTermError(FreeTermVariable(var)))
+      assert false
   in
-  try
-    match te with
-    | Term.App(cst, ty, [Term.Lam(_,id, Some tyvar, te)]) when is_hol_const hol_forall cst ->
-      let ty' = compile__type ty_ctx ty in
-      let te' = compile__term ty_ctx ((id,Type ty')::te_ctx) te in
-      Forall(id, ty', te')
-    | Term.App(cst, tel, [ter]) when is_hol_const hol_impl cst ->
-      let tel' = compile__term ty_ctx te_ctx tel in
-      let ter' = compile__term ty_ctx te_ctx ter in
-      Impl(tel',ter')
-    | Term.Const(lc,md,id) ->
-      let ty = ty_of_const lc md id in
-      let ty' = compile_eta_type ty_ctx ty in
-      begin
-        match ty' with
-        | ForallK(var,te) -> raise(CompileTermError(PolymorphicType(var,ty')))
-        | Type(ty) -> Const(mk_name md id, ty, [])
-      end
-    | Term.DB(_,var,_) ->
-      let ty = lookup_ty var in
+  match te with
+  | Term.App(cst, ty, [Term.Lam(_,id, Some tyvar, te)]) when is_hol_const hol_forall cst ->
+    let ty' = compile__type ty_ctx ty in
+    let te' = compile__term ty_ctx ((id,Type ty')::te_ctx) te in
+    Forall(id, ty', te')
+  | Term.App(cst, tel, [ter]) when is_hol_const hol_impl cst ->
+    let tel' = compile__term ty_ctx te_ctx tel in
+    let ter' = compile__term ty_ctx te_ctx ter in
+    Impl(tel',ter')
+  | Term.Const(lc,md,id) ->
+    let ty = ty_of_const lc md id in
+    let ty' = compile_eta_type ty_ctx ty in
+    begin
+      match ty' with
+      | ForallK(var,te) -> assert false
+      | Type(ty) -> Const(mk_name md id, ty, [])
+    end
+  | Term.DB(_,var,_) ->
+    let ty = lookup_ty var in
+    begin
+      match ty with
+      | ForallK(var,te) -> assert false
+      | Type(ty) -> VarTerm(var,ty, [])
+    end
+  | Term.Lam(_,id, Some cst, te) when is_hol_const hol_type cst ->
+    compile__term (id::ty_ctx) te_ctx te
+  | Term.Lam(_,id, Some tyvar, te) ->
+    let ty = compile_eta_type ty_ctx tyvar in
+    let _ty' =
       begin
         match ty with
-        | ForallK(var,te) -> raise(CompileTermError(PolymorphicType(var,ty)))
-        | Type(ty) -> VarTerm(var,ty, [])
+        | ForallK(var,te) -> assert false
+        | Type(ty) -> ty
       end
-    | Term.Lam(_,id, Some cst, te) when is_hol_const hol_type cst ->
-      compile__term (id::ty_ctx) te_ctx te
-    | Term.Lam(_,id, Some tyvar, te) ->
-      let ty = compile_eta_type ty_ctx tyvar in
-      let _ty' =
-        begin
-          match ty with
-          | ForallK(var,te) -> raise(CompileTermError(PolymorphicType(var,ty)))
-          | Type(ty) -> ty
-        end
-      in
-      let te' = compile__term ty_ctx ((id,ty)::te_ctx) te in
-      Lam(id,_ty', te')
-    | Term.Lam(_, _, None, _) ->
-      raise(CompileTermError(UntypedLambda(te)))
-    | Term.App(Term.Const(lc,md,id),a,args) ->
-      let ty = ty_of_const lc md id in
-      let ty' = compile_eta_type ty_ctx ty in
-      let ty'', args' = _ty_of_ty ty_ctx te_ctx ty' (a::args) in
-      Const(mk_name md id, ty'', args')
-    | Term.App(Term.DB(_,var,_),a,args) ->
-      let ty = lookup_ty var in
-      let ty', args' = _ty_of_ty ty_ctx te_ctx ty (a::args) in
-      VarTerm(var, ty', args')
-    | _ -> raise(CompileTermError(TermError(te)))
-  with
-  | CompileTypeError(TypeError(ty)) ->
-    raise(CompileTermError(TermError(te)))
+    in
+    let te' = compile__term ty_ctx ((id,ty)::te_ctx) te in
+    Lam(id,_ty', te')
+  | Term.Lam(_, _, None, _) ->
+    raise(CompileTermError(UntypedLambda(te)))
+  | Term.App(Term.Const(lc,md,id),a,args) ->
+    let ty = ty_of_const lc md id in
+    let ty' = compile_eta_type ty_ctx ty in
+    let ty'', args' = _ty_of_ty ty_ctx te_ctx ty' (a::args) in
+    Const(mk_name md id, ty'', args')
+  | Term.App(Term.DB(_,var,_),a,args) ->
+    let ty = lookup_ty var in
+    let ty', args' = _ty_of_ty ty_ctx te_ctx ty (a::args) in
+    VarTerm(var, ty', args')
+  | _ -> raise(CompileTermError(TermError(te)))
+
 
 and _ty_of_ty (ty_ctx:ty_ctx) (te_ctx:term_ctx) (ty:ty) (args:Term.term list)
   : _ty * _term list =
@@ -361,7 +346,7 @@ and _ty_of_ty (ty_ctx:ty_ctx) (te_ctx:term_ctx) (ty:ty) (args:Term.term list)
       [],l
     else
       match l with
-      | [] -> raise(CompileTermError(MissingPolymorphicArgument(ty)))
+      | [] -> assert false
       | x::t ->
         let poly,args = split t (n-1) in
         x::poly,args
@@ -385,7 +370,7 @@ and compile_term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : term =
 let compile_eps_term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : term =
   match te with
   | Term.App(cst, a, []) when is_hol_const hol_eps cst -> compile_term ty_ctx te_ctx a
-  | _ -> raise(CompileProofError(Eps(te)))
+  | _ -> assert false
 
 let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof : _prooft =
   match proof with
@@ -394,7 +379,7 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
     let _prooft' = compile__proof ty_ctx ((x,ty')::te_ctx) pf_ctx proof in
     let _ty' =
       match ty' with
-      | ForallK _ -> raise (CompileProofError(PolymorphicType(x,ty')))
+      | ForallK _ -> assert false
       | Type(_ty) -> _ty
     in
     let _term = Forall(x,_ty', _prooft'._term) in
@@ -405,7 +390,7 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
     let _prooft' = compile__proof ty_ctx te_ctx ((x,te')::pf_ctx) proof in
     let _te' =
       match te' with
-      | ForallT _ -> raise (CompileProofError(PolymorphicTerm(x,te')))
+      | ForallT _ -> assert false
       | Term(_te) -> _te
     in
     let _term = Impl(_te', _prooft'._term) in
@@ -416,13 +401,13 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       let te' = List.assoc id pf_ctx in
       let _term =
         match te' with
-        | ForallT _ -> raise (CompileProofError(PolymorphicTerm(id,te')))
+        | ForallT _ -> assert false
         | Term(_te) -> _te
       in
       let _proof = Assume _term in
       {_term;_proof}
     else
-      raise (CompileProofError(FreeProofVariable(id)))
+      assert false
   | Term.Const(lc,md,id) ->
     let te =
       match Env.get_type lc md id with
@@ -432,7 +417,7 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
     let te' = compile_eps_term ty_ctx te_ctx te in
     let _term =
       match te' with
-      | ForallT _ -> raise (CompileProofError(PolymorphicTerm(id,te')))
+      | ForallT _ -> assert false
       | Term(_te) -> _te
     in
     let _proof = Lemma((md,id),te') in
@@ -452,12 +437,12 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       if List.mem_assoc var pf_ctx then
         List.assoc var pf_ctx
       else
-        raise (CompileProofError(FreeProofVariable(var)))
+        assert false
     in
     let _te',args = _te_of_te ty_ctx te_ctx te' (a::args) in
     let prooft:_prooft = {_term=_te'; _proof= Assume _te'} in
     compile_app ty_ctx te_ctx pf_ctx prooft args
-  | _ -> failwith "todo"
+  | _ -> failwith "todo proof"
 
 and _te_of_te (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:term) (args:Term.term list) =
   let rec split l n =
@@ -465,7 +450,7 @@ and _te_of_te (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:term) (args:Term.term list) 
       [],l
     else
       match l with
-      | [] -> raise(CompileProofError(MissingPolymorphicArgument(te)))
+      | [] -> assert false
       | x::t ->
         let poly,args = split t (n-1) in
         x::poly,args
@@ -489,7 +474,7 @@ and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_pr
     | Impl(_tel, _telr) ->
       let prooft' = compile__proof ty_ctx te_ctx pf_ctx arg in
       {_term=_telr;_proof=ImplE(prooft, prooft')}
-    | Const(name, _ty, _tes) -> failwith "todo"
+    | Const(name, _ty, _tes) -> assert false
     | VarTerm(id, _ty, _tes) -> assert false
     | Lam _ -> assert false
   in
@@ -529,24 +514,16 @@ let fail_compile_declaration (err:compile_decl_err) : 'a =
   | DeclarationTermError(err,(lc,id,te)) ->
     begin
       match err with
-      | FreeTermVariable(var) ->
-        Errors.fail lc "Error while compiling the declaration '%a' as an axiom. The variable %a appears free in %a." Pp.print_ident id Pp.print_ident var Pp.print_term te
-      | PolymorphicType(var,ty) -> Errors.fail lc "Error while compiling the declaration '%a' as an axiom. The variable %a as a polymorphic hol type %a and is not being applied to a concrete hol type." Pp.print_ident id Pp.print_ident var print_hol_type ty
       | UntypedLambda(te) ->
         Errors.fail lc "Error while compiling the declaration '%a' as an axiom. The term %a has untyped lambdas." Pp.print_ident id Pp.print_term te
-      | MissingPolymorphicArgument(ty) -> Errors.fail lc "Error while compiling the declaration '%a' as an axiom. This error is a bug of the compiler and should be reported (error:Missing polymorphic argument)." Pp.print_ident id
       | TermError(te) ->
         Errors.fail lc "Error while compiling the declaration '%a' as an axiom. The term %a seems not to be an hol theorem." Pp.print_ident id Pp.print_term te
     end
   | DeclarationTypeError(err,(lc,id,te)) ->
     begin
       match err with
-      | FreeTypeVariable(var) ->
-        Errors.fail lc "Error while compiling the declaration '%a' as a constant. The variable %a appears free in %a." Pp.print_ident id Pp.print_ident var Pp.print_term te
       | TypeError(ty) ->
         Errors.fail lc "Error while compiling the declaration '%a' as a constant. The type %a seems not to be an hol type." Pp.print_ident id Pp.print_term te
-      | Eta(ty) ->
-        Errors.fail lc "Error while compiling the declaration '%a' as a constant. The term %a should start with eta." Pp.print_ident id Pp.print_term ty
     end
 
 let compile_definition (lc:loc) (id:ident) (ty:Term.term) (te:Term.term)
@@ -566,6 +543,8 @@ let compile_definition (lc:loc) (id:ident) (ty:Term.term) (te:Term.term)
     Err(DefinitionTermError(err,(lc,id,te),ty))
   | CompileTypeError(err) ->
     Err(DefinitionTypeError(err,(lc,id,te),ty))
+  | CompileProofError(err) ->
+    Err(DefinitionProofError(err,(lc,id,te),ty))
 (*
            match compile_declaration lc id ty with
   | OK(obj) -> OK(obj)
@@ -575,27 +554,25 @@ let fail_compile_definition (err:compile_defn_err) : 'a =
   match err with
   | DefinitionError((lc,id,te),ty) ->
     Errors.fail lc "Error while compiling the definition '%a:%a:=%a'. It seems that the definition is not recognized by the compiler." Pp.print_ident id Pp.print_term te Pp.print_term ty
-| DefinitionTermError(err,(lc,id,te),ty) ->
+  | DefinitionTermError(err,(lc,id,te),ty) ->
     begin
       match err with
-      | FreeTermVariable(var) ->
-        Errors.fail lc "Error while compiling the definition '%a' as an axiom. The variable %a appears free in %a." Pp.print_ident id Pp.print_ident var Pp.print_term te
-      | PolymorphicType(var,ty) -> Errors.fail lc "Error while compiling the definition '%a' as an axiom. The variable %a as a polymorphic hol type %a and is not being applied to a concrete hol type." Pp.print_ident id Pp.print_ident var print_hol_type ty
       | UntypedLambda(te) ->
-        Errors.fail lc "Error while compiling the definition '%a' as an axiom. The term %a has untyped lambdas." Pp.print_ident id Pp.print_term te
-      | MissingPolymorphicArgument(ty) -> Errors.fail lc "Error while compiling the definition '%a' as an axiom. This error is a bug of the compiler and should be reported (error:Missing polymorphic argument)." Pp.print_ident id
+        Errors.fail lc "Error while compiling the definition '%a'. The term %a has untyped lambdas." Pp.print_ident id Pp.print_term te
       | TermError(te) ->
-        Errors.fail lc "Error while compiling the definition '%a' as an axiom. The term %a seems not to be an hol theorem." Pp.print_ident id Pp.print_term te
+        Errors.fail lc "Error while compiling the definition '%a'. The term %a seems not to be an hol theorem." Pp.print_ident id Pp.print_term te
     end
   | DefinitionTypeError(err,(lc,id,te),ty) ->
     begin
       match err with
-      | FreeTypeVariable(var) ->
-        Errors.fail lc "Error while compiling the definition '%a' as a constant. The variable %a appears free in %a." Pp.print_ident id Pp.print_ident var Pp.print_term te
       | TypeError(ty) ->
-        Errors.fail lc "Error while compiling the definition '%a' as a constant. The type %a seems not to be an hol type." Pp.print_ident id Pp.print_term te
-      | Eta(ty) ->
-        Errors.fail lc "Error while compiling the definition '%a' as a constant. The term %a should start with eta." Pp.print_ident id Pp.print_term ty
+        Errors.fail lc "Error while compiling the definition '%a' as a constant. The type %a seems not to be an hol term." Pp.print_ident id Pp.print_term te
+    end
+  | DefinitionProofError(err,(lc,id,te),ty) ->
+    begin
+      match err with
+      | ProofError(ty) ->
+        Errors.fail lc "Error while compiling the definition '%a' as a proof. The term %a seems not to be an hol proof." Pp.print_ident id Pp.print_term te
     end
 module OT = Openstt.OpenTheory
 
