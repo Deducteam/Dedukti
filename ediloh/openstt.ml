@@ -280,19 +280,19 @@ module Basic = struct
     save {push = fun k -> OpType(load list (load tyOp k))}
 
   let mk_arrow_type tyl tyr : ty obj =
-    save {push = fun k -> load (ty_of_tyOp arrow_tyOp [tyl;tyr]) k }
+    ty_of_tyOp arrow_tyOp [tyl;tyr]
 
   let mk_bool_type : ty obj =
-    save {push = fun k -> load (ty_of_tyOp bool_tyOp []) k}
+    ty_of_tyOp bool_tyOp []
 
   let mk_equal_type ty : ty obj =
-    save {push = fun k -> load ( mk_arrow_type ty (mk_arrow_type ty mk_bool_type)) k}
+    mk_arrow_type ty (mk_arrow_type ty mk_bool_type)
 
   let mk_impl_type =
-    save {push = fun k -> load (mk_arrow_type mk_bool_type (mk_arrow_type mk_bool_type mk_bool_type)) k}
+    mk_arrow_type mk_bool_type (mk_arrow_type mk_bool_type mk_bool_type)
 
   let mk_forall_type ty =
-    save {push = fun k -> load (mk_arrow_type (mk_arrow_type ty mk_bool_type) mk_bool_type) k}
+    mk_arrow_type (mk_arrow_type ty mk_bool_type) mk_bool_type
 
   let mk_app_term f t : term obj =
     save {push = fun k -> AppTerm(load t (load f k))}
@@ -318,16 +318,7 @@ module Basic = struct
   let mk_equal_term left right ty =
     let ty = mk_equal_type ty in
     let cst = term_of_const (const_of_name equal_name) ty in
-    save {push = fun k -> load(mk_app_term (mk_app_term cst left) right) k}
-
-  let mk_impl_term left right =
-    let cst = term_of_const (const_of_name impl_name) mk_impl_type in
-    save {push = fun k -> load(mk_app_term (mk_app_term cst left) right) k}
-
-  let mk_forall_term term ty =
-    let ty = mk_forall_type ty in
-    let cst = term_of_const (const_of_name forall_name) ty in
-    save {push = fun k -> load(mk_app_term cst term) k}
+    mk_app_term (mk_app_term cst left) right
 
   let mk_const name (term:term obj) : unit =
     let str =
@@ -441,17 +432,17 @@ module OpenTheory = struct
 
   let mk_and_term left right =
     let cst = term_of_const (const_of_name and_name) mk_and_type in
-    save {push = fun k -> load (mk_app_term (mk_app_term cst left) right) k}
+    mk_app_term (mk_app_term cst left) right
 
   let mk_impl_term left right =
     let cst = term_of_const (const_of_name impl_name) mk_impl_type in
-    save {push = fun k -> load (mk_app_term (mk_app_term cst left) right) k}
+    mk_app_term (mk_app_term cst left) right
 
   let mk_forall_term f ty =
     let cst = term_of_const (const_of_name forall_name) (mk_forall_type ty) in
-    save {push = fun k -> load (mk_app_term cst f) k}
+    mk_app_term cst f
 
-  let mk_axiom_true = save { push = fun k -> load(mk_axiom (mk_hyp []) mk_true_term) k}
+  let mk_axiom_true = mk_axiom (mk_hyp []) mk_true_term
 
   let mk_axiom_and_ =
     let binop_type = mk_arrow_type mk_bool_type (mk_arrow_type mk_bool_type mk_bool_type) in
@@ -467,7 +458,7 @@ module OpenTheory = struct
     let rhs = mk_abs_term vx (mk_abs_term vy (mk_equal_term rl rr
                                                 (mk_arrow_type binop_type mk_bool_type))) in
     let term = mk_equal_term tand rhs binop_type in
-    save {push = fun k -> load (mk_axiom (mk_hyp []) term) k}
+    mk_axiom (mk_hyp []) term
 
 
   (* proof of tl'=tr' with tl ->B tl' et tr ->B tr' and thm a proof of tl = tr *)
@@ -475,7 +466,7 @@ module OpenTheory = struct
     let left = mk_sym (mk_betaConv tl) in
     let right = mk_betaConv tr in
     let trans = mk_trans left thm in
-    save { push = fun k -> load (mk_trans trans right) k}
+    mk_trans trans right
 
   let mk_axiom_and left right =
     let binop_type = mk_arrow_type mk_bool_type (mk_arrow_type mk_bool_type mk_bool_type) in
@@ -498,7 +489,7 @@ module OpenTheory = struct
     let refl = mk_refl right in
     let tl = mk_app_term (mk_abs_term vy (mk_and_term left y)) right in
     let tr = mk_app_term (mk_abs_term vy t2) right in
-    save { push = fun k -> load (beta_equal (mk_appThm beta1 refl) tl tr) k}
+    beta_equal (mk_appThm beta1 refl) tl tr
 
   let mk_axiom_impl_ =
     let binop_type = mk_arrow_type mk_bool_type (mk_arrow_type mk_bool_type mk_bool_type) in
@@ -509,7 +500,7 @@ module OpenTheory = struct
     let implt = mk_abs_term vx (mk_abs_term vy (mk_impl_term x y)) in
     let r = mk_equal_term (mk_and_term x y) x mk_bool_type in
     let term = mk_equal_term implt (mk_abs_term vx (mk_abs_term vy r)) binop_type in
-    save { push = fun k -> load(mk_axiom (mk_hyp []) term) k}
+    mk_axiom (mk_hyp []) term
 
   let mk_axiom_impl left right =
     let vx = mk_var (mk_name [] "x") mk_bool_type in
@@ -525,8 +516,8 @@ module OpenTheory = struct
     let tr = mk_app_term
         (mk_abs_term vy (mk_equal_term (mk_and_term left y) left mk_bool_type)) right in
     let refl = mk_refl right in
-    let instr = beta_equal (mk_appThm beta1 refl) tl tr in
-    save {push = fun k -> load instr k}
+    beta_equal (mk_appThm beta1 refl) tl tr
+
 
   let mk_axiom_forall_ =
     let ty = mk_varType (mk_name [] "A") in
@@ -535,7 +526,7 @@ module OpenTheory = struct
     let tforall = mk_abs_term vx (mk_forall_term x ty) in
     let r = mk_abs_term (mk_var (mk_name [] "v") ty) mk_true_term in
     let instr = mk_equal_term tforall (mk_abs_term vx (mk_equal_term x r (mk_arrow_type ty mk_bool_type))) (mk_arrow_type (mk_arrow_type ty mk_bool_type) mk_bool_type) in
-    save { push = fun k -> load(mk_axiom (mk_hyp []) instr) k}
+    mk_axiom (mk_hyp []) instr
 
   let mk_axiom_forall p ty =
     let env_type = [(mk_name [] "A"),ty] in
@@ -544,8 +535,8 @@ module OpenTheory = struct
     let tl = mk_app_term (mk_abs_term var (mk_forall_term (mk_var_term var) ty)) p in
     let tr = mk_app_term (mk_abs_term var (mk_equal_term (mk_var_term var) (mk_abs_term (mk_var (mk_name [] "x") ty) mk_true_term) (mk_arrow_type ty mk_bool_type))) p in
     let refl = mk_refl p in
-    let instr = beta_equal (mk_appThm (mk_subst mk_axiom_forall_ env_type env_var) refl) tl tr in
-    save { push = fun k -> load instr k}
+    beta_equal (mk_appThm (mk_subst mk_axiom_forall_ env_type env_var) refl) tl tr
+
 
   let mk_rule_intro_forall name ty te thm =
     let var = mk_var name ty in
@@ -554,8 +545,8 @@ module OpenTheory = struct
     let lambda = mk_abs_term var te in
     let forall_thm = mk_axiom_forall lambda ty in
     let sym = mk_sym forall_thm in
-    let eqMp = mk_eqMp absThm sym in
-    save { push = fun k -> load eqMp k}
+    mk_eqMp absThm sym
+
 
   let mk_rule_elim_forall thm lambda ty t =
     let tforall = mk_axiom_forall lambda ty in
@@ -567,8 +558,8 @@ module OpenTheory = struct
     let true_thm = mk_axiom_true in
     let eqMp = mk_eqMp true_thm (mk_sym (mk_trans appThm beta)) in
     let beta = mk_betaConv (mk_app_term lambda t) in
-    let eqMp = mk_eqMp eqMp beta in
-    save { push = fun k -> load eqMp k}
+    mk_eqMp eqMp beta
+
 
   let proj thm bool left right =
     let binop_type = mk_arrow_type mk_bool_type (mk_arrow_type mk_bool_type mk_bool_type) in
@@ -601,14 +592,14 @@ module OpenTheory = struct
     let beta = beta_equal trans tl tr in
     let sym = mk_sym beta in
     let true_thm = mk_axiom_true in
-    let instr = mk_eqMp true_thm sym in
-    save { push = fun k -> load instr k}
+    mk_eqMp true_thm sym
+
 
   let proj_left thm left right =
-    save { push = fun k -> load (proj thm false left right) k}
+    proj thm false left right
 
   let proj_right thm left right =
-    save { push = fun k -> load (proj thm true left right) k}
+    proj thm true left right
 
   let mk_rule_intro_impl thm p q =
     let binop_type = mk_arrow_type mk_bool_type (mk_arrow_type mk_bool_type mk_bool_type) in
@@ -630,8 +621,8 @@ module OpenTheory = struct
     let deduct = mk_deductAntiSym eqMp proj_left in
     let timpl = mk_axiom_impl p q in
     let sym = mk_sym timpl in
-    let eqMp = mk_eqMp deduct sym in
-    save { push = fun k -> load eqMp k}
+    mk_eqMp deduct sym
+
 
   let mk_rule_elim_impl thmp thmimpl p q =
       let timpl = mk_axiom_impl p q in
@@ -642,8 +633,8 @@ module OpenTheory = struct
       let eqMp = mk_eqMp assume sym in
       let proj_right = proj_right eqMp p q in
       let proveHyp = mk_proveHyp proj_right thmp in
-      let proveHyp = mk_proveHyp proveHyp thmimpl in
-      save { push = fun k -> load proveHyp k}
+      mk_proveHyp proveHyp thmimpl
+
 
   let mk_impl_equal eqp eqq p q p' q' =
     let assume = mk_assume p' in
@@ -661,8 +652,8 @@ module OpenTheory = struct
     let sym = mk_sym eqq in
     let eqMp = mk_eqMp impl_elim sym in
     let intro_impl_right = mk_rule_intro_impl eqMp p q in
-    let deduct = mk_deductAntiSym intro_impl_left intro_impl_right in
-    save { push = fun k -> load deduct k}
+    mk_deductAntiSym intro_impl_left intro_impl_right
+
 
   let mk_forall_equal eq name left right ty =
     let lambda_l = mk_abs_term (mk_var name ty) left in
@@ -679,6 +670,5 @@ module OpenTheory = struct
     let eqMp = mk_eqMp elim_forall sym in
     let intro_forall_right = mk_rule_intro_forall name ty left eqMp in
     let deduct = mk_deductAntiSym intro_forall_left intro_forall_right in
-    let sym = mk_sym deduct in
-    save { push = fun k -> load sym k}
+    mk_sym deduct
 end
