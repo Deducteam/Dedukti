@@ -29,6 +29,10 @@ exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
+let snf sg = Reduction.reduction sg Reduction.Snf
+
+let whnf sg = Reduction.reduction sg Reduction.Whnf
+
 let get_type ctx l x n =
   try
     let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
@@ -70,7 +74,7 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
 and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
   match te with
   | Lam (l,x,None,u) ->
-    ( match Reduction.whnf sg ty_exp with
+    ( match whnf sg ty_exp with
       | Pi (_,_,a,b) -> check sg ((l,x,a)::ctx) u b
       | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp))) )
   | _ ->
@@ -79,7 +83,7 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     else raise (TypingError (ConvertibilityError (te,ctx,ty_exp,ty_inf)))
 
 and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
-  match Reduction.whnf sg ty_f with
+  match whnf sg ty_f with
     | Pi (_,_,a,b) ->
       let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
     | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
@@ -107,15 +111,15 @@ module SS = Subst.Subst
 let unshift_reduce sg q t =
   try Some (Subst.unshift q t)
   with Subst.UnshiftExn ->
-    ( try Some (Subst.unshift q (Reduction.snf sg t))
+    ( try Some (Subst.unshift q (snf sg t))
       with Subst.UnshiftExn -> None )
 
 let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = function
   | [] -> Some sigma
   | (q,t1,t2)::lst ->
     begin
-      let t1' = Reduction.whnf sg (SS.apply sigma t1 q) in
-      let t2' = Reduction.whnf sg (SS.apply sigma t2 q) in
+      let t1' = whnf sg (SS.apply sigma t1 q) in
+      let t2' = whnf sg (SS.apply sigma t2 q) in
       if term_eq t1' t2' then pseudo_u sg sigma lst
       else
         match t1', t2' with
@@ -139,7 +143,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             | Some t' ->
               ( match SS.add sigma x (n-q) t' with
                 | None ->
-                  ( match SS.add sigma x (n-q) (Reduction.snf sg t') with
+                  ( match SS.add sigma x (n-q) (snf sg t') with
                     | None -> None
                     | Some sigma2 -> pseudo_u sg sigma2 lst )
                 | Some sigma2 -> pseudo_u sg sigma2 lst )
@@ -151,7 +155,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             | Some t' ->
               ( match SS.add sigma x (n-q) t' with
                 | None ->
-                  ( match SS.add sigma x (n-q) (Reduction.snf sg t') with
+                  ( match SS.add sigma x (n-q) (snf sg t') with
                     | None -> None
                     | Some sigma2 -> pseudo_u sg sigma2 lst )
                 | Some sigma2 -> pseudo_u sg sigma2 lst )
@@ -245,7 +249,7 @@ let rec get_last = function
 
 let unshift_n sg n te =
   try Subst.unshift n te
-  with Subst.UnshiftExn -> Subst.unshift n (Reduction.snf sg te)
+  with Subst.UnshiftExn -> Subst.unshift n (snf sg te)
 
 let rec infer_pattern sg (delta:partial_context) (sigma:context2) (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
   match pat with
@@ -269,7 +273,7 @@ let rec infer_pattern sg (delta:partial_context) (sigma:context2) (lst:constrain
     raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
 
 and infer_pattern_aux sg (sigma:context2) (f,ty_f,delta,lst:term*typ*partial_context*constraints) (arg:pattern) : term * typ * partial_context * constraints =
-  match Reduction.whnf sg ty_f with
+  match whnf sg ty_f with
     | Pi (_,_,a,b) ->
         let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
         let arg' = pattern_to_term arg in
@@ -283,7 +287,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
   match pat with
   | Lambda (l,x,p) ->
     begin
-      match Reduction.whnf sg exp_ty with
+      match whnf sg exp_ty with
       | Pi (l,x,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
       | exp_ty ->
         let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in

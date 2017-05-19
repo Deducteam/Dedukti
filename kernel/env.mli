@@ -51,11 +51,8 @@ val check       : term -> term -> (unit,env_error) error
 (** {2 Safe Reduction/Conversion} *)
 (** terms are typechecked before the reduction/conversion *)
 
-val hnf         : term -> (term,env_error) error
-val whnf        : term -> (term,env_error) error
-val snf         : term -> (term,env_error) error
-val one         : term -> (term option,env_error) error
+val reduction       : ?red:(Reduction.red) -> Reduction.red_strategy -> term -> (term,env_error) error
 
-val are_convertible : term -> term -> (bool,env_error) error
+val are_convertible : ?red:(Reduction.red) -> term -> term -> (bool,env_error) error
 
-val unsafe_snf : term -> term
+val unsafe_snf : ?red:(Reduction.red) -> term -> term

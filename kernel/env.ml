@@ -103,41 +103,31 @@ let check te ty =
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let whnf te =
+let reduction ?red:(red=Reduction.default) strategy te =
   try
-    let _ = inference !sg te in OK (Reduction.whnf !sg te)
+    let _ = inference !sg te in
+    Reduction.select red;
+    let te' = (Reduction.reduction !sg strategy te) in
+    Reduction.select Reduction.default;
+    OK te'
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let hnf te =
-  try
-    let _ = inference !sg te in OK (Reduction.hnf !sg te)
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
+let unsafe_snf ?red:(red=Reduction.default) te =
+  Reduction.select red;
+  let te' = Reduction.reduction !sg Reduction.Snf te in
+  Reduction.select Reduction.default;
+  te'
 
-let snf te =
-  try
-    let _ = inference !sg te in OK (Reduction.snf !sg te)
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
-
-let unsafe_snf te = Reduction.snf !sg te
-
-let one te =
-  try
-    let _ = inference !sg te in OK (Reduction.one_step !sg te)
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
-
-let are_convertible te1 te2 =
+let are_convertible ?red:(red=Reduction.default) te1 te2 =
   try
     let _ = inference !sg te1 in
     let _ = inference !sg te2 in
-      OK (Reduction.are_convertible !sg te1 te2)
+    Reduction.select red;
+    let b = Reduction.are_convertible !sg te1 te2 in
+    Reduction.select Reduction.default;
+    OK b
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)

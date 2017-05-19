@@ -4,11 +4,22 @@ open Rule
 open Term
 open Dtree
 
-let selection = ref None
+type red = {
+  select : (Rule.rule_name -> bool) option;
+  beta : bool
+}
+
+let default = { select = None ; beta = true }
+
+let selection  = ref None
 
 let beta = ref true
 
-let select l = selection := l
+let select (red:red) : unit =
+  selection := red.select;
+  beta := red.beta
+
+type red_strategy = Hnf | Snf | Whnf | OneStep
 
 (* State *)
 
@@ -399,8 +410,11 @@ let rec state_one_step (sg:Signature.t) (state:state) : state =
 
 let one_step sg t =
   reduced := false;
-  let st = state_one_step sg { ctx=LList.nil; term=t; stack=[] } in
-  if !reduced then
-    Some (term_of_state st)
-  else
-    None
+  term_of_state (state_one_step sg { ctx=LList.nil; term=t; stack=[] })
+
+let reduction sg strategy te =
+  match strategy with
+  | Hnf -> hnf sg te
+  | Snf -> snf sg te
+  | Whnf -> whnf sg te
+  | OneStep -> one_step sg te
