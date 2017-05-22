@@ -55,4 +55,6 @@ val reduction       : ?red:(Reduction.red) -> Reduction.red_strategy -> term -> 
 
 val are_convertible : ?red:(Reduction.red) -> term -> term -> (bool,env_error) error
 
+val unsafe_one_step : ?red:(Reduction.red) -> term -> term
+
 val unsafe_snf : ?red:(Reduction.red) -> term -> term
