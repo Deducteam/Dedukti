@@ -114,6 +114,12 @@ let reduction ?red:(red=Reduction.default) strategy te =
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
+let unsafe_one_step ?red:(red=Reduction.default) te =
+  Reduction.select red;
+  let te' = Reduction.reduction !sg Reduction.OneStep te in
+  Reduction.select Reduction.default;
+  te'
+
 let unsafe_snf ?red:(red=Reduction.default) te =
   Reduction.select red;
   let te' = Reduction.reduction !sg Reduction.Snf te in
