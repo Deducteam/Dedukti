@@ -186,7 +186,7 @@ let add_call : call-> unit =
   let g= !graph in
   fun cc -> g.calls := cc :: !(g.calls)
 
-let rec comparison t p=
+let rec comparison nb t p=
   let minus1 =function
     | Zero -> Min1
     | n -> n
@@ -202,7 +202,7 @@ let rec comparison t p=
     match lp,lt with
     | [],[] -> cur
     | a::l1,b::l2 -> begin
-      match comparison b a,cur with
+      match comparison nb b a,cur with
       | Infi, _ -> Infi
       | Min1,_ -> comp_list Min1 l1 l2
       | _, Min1 -> comp_list Min1 l1 l2
@@ -210,12 +210,12 @@ let rec comparison t p=
     end
   in
   match p,t with
-  | Var (_,_,n,[]),DB (_,_,m) -> if n=m then Zero else Infi
+  | Var (_,_,n,[]),DB (_,_,m) -> if n+nb=m then Zero else Infi
   | Pattern (_,_,f,lp), App(Const(_,_,g),t1,lt) when (ident_eq f g) ->  comp_list Zero lp (t1::lt)
-  | Pattern (_,_,_,l),t -> minus1 (mini Infi (List.map (comparison t) l))
+  | Pattern (_,_,_,l),t -> minus1 (mini Infi (List.map (comparison nb t) l))
   | _ -> Infi
   
-let matrix_of_lists l1 l2=
+let matrix_of_lists nb l1 l2=
   let n=List.length l1 in
   let m=List.length l2 in
   let res =ref [] in
@@ -224,7 +224,7 @@ let matrix_of_lists l1 l2=
     let loc_res =ref [] in
     for j=0 to n-1 do
       let t=List.nth l1 j in
-      loc_res:=(comparison t p)::!loc_res
+      loc_res:=(comparison nb t p)::!loc_res
     done;
     res:=(Array.of_list (List.rev !loc_res))::!res
   done;
@@ -245,7 +245,7 @@ let auto_call_matrix a b=
   done;
   {h=m ; w=n ; tab = Array.of_list (List.rev !res)}
     
-let rec rule_to_call vb r =
+let rec rule_to_call vb nb r =
   let third (a,b,c) = c in
   let get_caller= match r.pat with 
     | Pattern (_,_,v,lp) -> begin
@@ -279,17 +279,17 @@ let rec rule_to_call vb r =
     | App (DB(_,_,_),_,_) -> failwith "SCP does not accept application of a variable"
     | App (t1,t2,lt) -> begin
       let f _ = () in
-      f (List.map add_call ((rule_to_call vb (term2rule t1)) @ (rule_to_call vb (term2rule t2)) @ List.flatten (List.map (rule_to_call vb) (List.map term2rule lt)))) ;
+      f (List.map add_call ((rule_to_call vb nb (term2rule t1)) @ (rule_to_call vb nb (term2rule t2)) @ List.flatten (List.map (rule_to_call vb nb) (List.map term2rule lt)))) ;
       None
     end
     | Lam (_,_,_,t) -> begin
       let f _ = () in
-      f (List.map add_call ((rule_to_call vb (term2rule t)))) ;
+      f (List.map add_call (rule_to_call vb (nb+1) (term2rule t))) ;
       None
     end
     | Pi (_,_,t1,t2) ->  begin
       let f _ = () in
-      f (List.map add_call ((rule_to_call vb (term2rule t1)) @ (rule_to_call vb (term2rule t2)))) ;
+      f (List.map add_call ((rule_to_call vb (nb+1) (term2rule t1)) @ (rule_to_call vb (nb+1) (term2rule t2)))) ;
       None
     end
     | p -> printf "Problem with Callee : %a@." pp_term p ; None
@@ -297,7 +297,7 @@ let rec rule_to_call vb r =
   match get_callee,get_caller with
   | None, _ -> []
   | _, None -> []
-  | Some (l1,a), Some (l2,b) -> {callee=a ; caller = b ; matrix=matrix_of_lists l1 l2 ; is_rec = false}::List.flatten (List.map (rule_to_call vb) (List.map term2rule  l1))
+  | Some (l1,a), Some (l2,b) -> {callee=a ; caller = b ; matrix=matrix_of_lists nb l1 l2 ; is_rec = false}::List.flatten (List.map (rule_to_call vb nb) (List.map term2rule  l1))
      
 
 let add_symb vb v q=
@@ -309,29 +309,29 @@ let add_symb vb v q=
   | Const(_,_,c) as t -> begin
     create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident c)) (List.rev !table))));
     let f _ = () in
-    f (List.map add_call (rule_to_call vb {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
+    f (List.map add_call (rule_to_call vb 0 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
   end
   | App (Const(_,_,f),u,lt) as t-> begin
     create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident f)) (List.rev !table)) -1-List.length lt));
     let f _ = () in
-    f (List.map add_call (rule_to_call vb {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
+    f (List.map add_call (rule_to_call vb 0 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
   end
   | App (_,_,_) as t-> printf "AddSymb problem, I dont know what to do with the application : %a@." pp_term t
   | Lam (loc,name,_,t) -> begin
     create_symbol vb (string_of_ident v) (create_array ((find_arity t)+1));
     let f _ = () in
-    f (List.map add_call (rule_to_call vb {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
+    f (List.map add_call (rule_to_call vb 1 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
   end
   | Pi(loc,name,arg,t) -> begin
     create_symbol vb (string_of_ident v) (create_array ((find_arity t)+1));
     let f _ = () in
-    f (List.map add_call (rule_to_call vb {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
+    f (List.map add_call (rule_to_call vb 1 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
   end
   
                                                                                                               
 let add_rules vb l =
   let f _ = () in
-  f (List.map add_call (List.flatten (List.map (rule_to_call vb) l)))
+  f (List.map add_call (List.flatten (List.map (rule_to_call vb 0) l)))
 
 let print_array pp sep out v=Pp.print_list sep pp out (Array.to_list v)
                        
