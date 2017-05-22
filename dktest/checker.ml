@@ -5,7 +5,8 @@ open Basic
 let verbose = ref false
 let sizechange = ref false
 let szgraph = ref false
-                         
+let variable_call = ref (-1)
+                  
 let eprint lc fmt =
   if !verbose then (
   let (l,c) = of_loc lc in
@@ -17,7 +18,7 @@ let eprint lc fmt =
 (* ********************************* *)
 
 let mk_prelude lc name =
-  if (!sizechange)|| (!szgraph) then Sizechange.initialize ();
+  if (!sizechange)|| (!szgraph) then (Sizechange.initialize (); variable_call:=(-1); Format.eprintf"\n");
   eprint lc "Module name is '%a'." pp_ident name;
   Env.init name;
   Confluence.initialize ()
@@ -31,7 +32,9 @@ let mk_declaration lc id st pty : unit =
 
 let mk_definition lc id pty_opt pte : unit =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
-  if (!sizechange)|| (!szgraph) then Sizechange.add_symb !verbose id pte;
+  if (!sizechange)|| (!szgraph) then
+    (try Sizechange.add_symb !verbose id pte
+    with Failure _-> let (l,c) = of_loc lc in variable_call := l);
   match Env.define lc id pte pty_opt with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
@@ -52,7 +55,9 @@ let mk_rules = Rule.( function
     begin
       let (l,md,id) = get_infos rule.pat in
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
-      if (!sizechange)||(!szgraph) then Sizechange.add_rules !verbose lst;
+      if (!sizechange)||(!szgraph) then
+        (try Sizechange.add_rules !verbose lst
+        with Failure _-> let (l,c) = of_loc l in variable_call:=l);
       match Env.add_rules lst with
       | OK lst2 ->
         List.iter ( fun rule ->
@@ -66,10 +71,17 @@ let mk_command = Cmd.mk_command
 let export = ref false
 
 let mk_ending () =
-  if (!sizechange)|| (!szgraph) then if Sizechange.sct_only () then Format.printf "La réécriture termine d'après le SCP\n" else Format.printf "La réécriture ne termine PAS d'après les SCP\n";
-  ( if !export then
+  let red_error fmt= Format.eprintf "\027[31mERROR \027[m";
+                     Format.kfprintf (fun _ -> Format.pp_print_newline Format.err_formatter () ) Format.err_formatter fmt
+  in
+  if (!sizechange)|| (!szgraph) then
+    if Sizechange.sct_only ()
+    then if !variable_call=(-1)
+         then Errors.success "Rewriting ends according to the SCP"
+         else red_error "SCP does not accept variable in functionnal position, like in line %i" !variable_call
+    else (red_error "Rewriting does not end according to the SCP");
+  if !export then
     if not (Env.export ()) then
-      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
+      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ());
   Confluence.finalize ();
-
   if !szgraph then Sizechange.latex_print_calls()

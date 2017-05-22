@@ -78,10 +78,10 @@ let root : index = -1
 module IMap =
   struct
     include Map.Make(
-      struct
-        type t = index
-        let compare = compare
-      end)
+                struct
+                  type t = index
+                  let compare = compare
+                end)
 
     (** [find k m] will not raise [Not_found] because it will always be used
         when we are sure that the given key [k] is mapped in [m]. *)
@@ -97,23 +97,23 @@ module IMap =
     Every other call refers to a previously introduced induction hypothesis and its boolean is [true]. *)
     
 type call =
-  { callee : index  (** Key of the function symbol being called. *)
-  ; caller : index  (** Key of the calling function symbol. *)
-  ; matrix : matrix (** Size change matrix of the call. *)
-  ; is_rec : bool   (** Indicates if this is a recursive call. *) }
+    { callee : index  (** Key of the function symbol being called. *)
+    ; caller : index  (** Key of the calling function symbol. *)
+    ; matrix : matrix (** Size change matrix of the call. *)
+    ; is_rec : bool   (** Indicates if this is a recursive call. *) }
 
 (** Representation of a function symbol. *)
 type symbol =
-  { index : index        (** Index for use in a [call]. *)
-  ; name  : string       (** Name of the symbol. *)
-  ; arity : int          (** Arity of the symbol (number of args). *)
-  ; args  : string array (** Name of the arguments. *) }
+    { index : index        (** Index for use in a [call]. *)
+    ; name  : string       (** Name of the symbol. *)
+    ; arity : int          (** Arity of the symbol (number of args). *)
+    ; args  : string array (** Name of the arguments. *) }
 
 (** Internal state of the SCT, including the representation of symbols and the call graph. *)
 type call_graph =
-  { next_index : index ref
-  ; symbols    : symbol IMap.t ref
-  ; calls      : call list ref }
+    { next_index : index ref
+    ; symbols    : symbol IMap.t ref
+    ; calls      : call list ref }
 
 (** Creation of a new initial [call_graph]. It contains the initial root symbol. *)
 let graph =
@@ -134,16 +134,16 @@ let initialize () = !graph.next_index :=0;
 let create_symbol : bool -> string -> string array -> unit =
   let g= !graph in
   fun vb name args ->
-    let arity = Array.length args in
-    let index = !(g.next_index) in
-    let sym = {index ; name ; arity ; args} in
-    table:=(name, arity, index)::!table;
-    if vb then (let rec print_list = function
-      | [] -> ()
-      | (s,ar,n)::l -> printf "%s,%d,%d " s ar (int_of_index n); print_list l
-    in printf "The table contains :"; print_list !table;printf "@.");
-    incr g.next_index;
-    g.symbols := IMap.add index sym !(g.symbols)
+  let arity = Array.length args in
+  let index = !(g.next_index) in
+  let sym = {index ; name ; arity ; args} in
+  table:=(name, arity, index)::!table;
+  if vb then (let rec print_list = function
+                | [] -> ()
+                | (s,ar,n)::l -> printf "%s,%d,%d " s ar (int_of_index n); print_list l
+              in printf "The table contains :"; print_list !table;printf "@.");
+  incr g.next_index;
+  g.symbols := IMap.add index sym !(g.symbols)
 
 let rec find_arity=function
   | Lam (_,_,_,t) -> 1+find_arity t
@@ -156,7 +156,7 @@ let create_array n=
     res.(i)<-"x"^(string_of_int i)
   done;
   res
-     
+    
 let add_fonc vb v t=
   let n=find_arity t in
   let second (a,b,c) = b in
@@ -169,13 +169,13 @@ let add_fonc vb v t=
   | App(_,_,_) as t -> printf "AddFonc of a lambda % a, I don't know how to react@." pp_term t
   | Lam (_,_,_,_) -> printf "AddFonc of a lambda % a, I don't know how to react@." pp_term t
   | Pi(_,name,arg,res) -> create_symbol vb (string_of_ident v) (create_array n)
-                                 
+                                        
 (** Copy a call graph. *)
 let copy : call_graph -> call_graph =
   fun g ->
-    { next_index = ref !(g.next_index)
-    ; symbols    = ref !(g.symbols)
-    ; calls      = ref !(g.calls) }
+  { next_index = ref !(g.next_index)
+  ; symbols    = ref !(g.symbols)
+  ; calls      = ref !(g.calls) }
 
 (** Test if the call graph is empty. *)
 let is_empty : call_graph -> bool =
@@ -202,19 +202,19 @@ let rec comparison nb t p=
     match lp,lt with
     | [],[] -> cur
     | a::l1,b::l2 -> begin
-      match comparison nb b a,cur with
-      | Infi, _ -> Infi
-      | Min1,_ -> comp_list Min1 l1 l2
-      | _, Min1 -> comp_list Min1 l1 l2
-      | Zero,Zero -> comp_list Zero l1 l2
-    end
+                     match comparison nb b a,cur with
+                     | Infi, _ -> Infi
+                     | Min1,_ -> comp_list Min1 l1 l2
+                     | _, Min1 -> comp_list Min1 l1 l2
+                     | Zero,Zero -> comp_list Zero l1 l2
+                   end
   in
   match p,t with
   | Var (_,_,n,[]),DB (_,_,m) -> if n+nb=m then Zero else Infi
   | Pattern (_,_,f,lp), App(Const(_,_,g),t1,lt) when (ident_eq f g) ->  comp_list Zero lp (t1::lt)
   | Pattern (_,_,_,l),t -> minus1 (mini Infi (List.map (comparison nb t) l))
   | _ -> Infi
-  
+           
 let matrix_of_lists nb l1 l2=
   let n=List.length l1 in
   let m=List.length l2 in
@@ -248,57 +248,65 @@ let auto_call_matrix a b=
 let rec rule_to_call vb nb r =
   let third (a,b,c) = c in
   let get_caller= match r.pat with 
-    | Pattern (_,_,v,lp) -> begin
-      try Some (lp,third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar=List.length(lp)) !table))
-      with Not_found -> begin
-          try
-	    let old_index=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>List.length(lp)) !table) in
-	    let new_index= !(!graph.next_index) in
-	    create_symbol vb (string_of_ident v) (create_array (List.length(lp)));
-	    add_call { callee = new_index; caller =old_index; matrix=auto_call_matrix old_index new_index; is_rec=false}; Some(lp,new_index)
-          with Not_found -> printf "The calling function is still undeclared.@."; None
-      end
-    end
+    | Pattern (_,_,v,lp) ->
+       begin
+         try Some (lp,third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar=List.length(lp)) !table))
+         with Not_found ->
+           begin
+             try
+	       let old_index=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>List.length(lp)) !table) in
+	       let new_index= !(!graph.next_index) in
+	       create_symbol vb (string_of_ident v) (create_array (List.length(lp)));
+	       add_call { callee = new_index; caller =old_index; matrix=auto_call_matrix old_index new_index; is_rec=false}; Some(lp,new_index)
+             with Not_found -> printf "The calling function is still undeclared.@."; None
+           end
+       end
     | p -> printf "Problem with Caller : %a@." pp_pattern p ; None
   in
   let term2rule t= {pat= r.pat ; rhs = t ; ctx= r.ctx ; name=r.name} in
   let get_callee= match r.rhs with
     | Const (_,_,_) | DB (_,_,_) -> None
-    | App (Const(_,_,v),t1,lt) -> begin
-      try Some (t1::lt,third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar=List.length(lt)+1) !table))
-      with Not_found ->
-        begin
-          try
-	    let old_index=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>=List.length(lt)) !table) in
-	    let new_index= !(!graph.next_index) in
-	    create_symbol vb (string_of_ident v) (create_array (List.length(t1::lt)));
-	    add_call { callee = new_index; caller = old_index; matrix=auto_call_matrix old_index new_index; is_rec=false}; Some (t1::lt,new_index)
-          with Not_found -> printf "The called function is still undeclared@."; None
-        end
-    end
+    | App (Const(_,_,v),t1,lt) ->
+       begin
+         try Some (t1::lt,third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar=List.length(lt)+1) !table))
+         with Not_found ->
+           begin
+             try
+	       let old_index=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>=List.length(lt)) !table)
+               in
+	       let new_index= !(!graph.next_index)
+               in
+	       create_symbol vb (string_of_ident v) (create_array (List.length(t1::lt)));
+	       add_call { callee = new_index; caller = old_index; matrix=auto_call_matrix old_index new_index; is_rec=false}; Some (t1::lt,new_index)
+             with Not_found -> printf "The called function is still undeclared@."; None
+           end
+       end
     | App (DB(_,_,_),_,_) -> failwith "SCP does not accept application of a variable"
-    | App (t1,t2,lt) -> begin
-      let f _ = () in
-      f (List.map add_call ((rule_to_call vb nb (term2rule t1)) @ (rule_to_call vb nb (term2rule t2)) @ List.flatten (List.map (rule_to_call vb nb) (List.map term2rule lt)))) ;
-      None
-    end
-    | Lam (_,_,_,t) -> begin
-      let f _ = () in
-      f (List.map add_call (rule_to_call vb (nb+1) (term2rule t))) ;
-      None
-    end
-    | Pi (_,_,t1,t2) ->  begin
-      let f _ = () in
-      f (List.map add_call ((rule_to_call vb (nb+1) (term2rule t1)) @ (rule_to_call vb (nb+1) (term2rule t2)))) ;
-      None
-    end
+    | App (t1,t2,lt) ->
+       begin
+         let f _ = () in
+         f (List.map add_call ((rule_to_call vb nb (term2rule t1)) @ (rule_to_call vb nb (term2rule t2)) @ List.flatten (List.map (rule_to_call vb nb) (List.map term2rule lt)))) ;
+         None
+       end
+    | Lam (_,_,_,t) ->
+       begin
+         let f _ = () in
+         f (List.map add_call (rule_to_call vb (nb+1) (term2rule t))) ;
+         None
+       end
+    | Pi (_,_,t1,t2) ->
+       begin
+         let f _ = () in
+         f (List.map add_call ((rule_to_call vb nb (term2rule t1)) @ (rule_to_call vb (nb+1) (term2rule t2)))) ;
+         None
+       end
     | p -> printf "Problem with Callee : %a@." pp_term p ; None
   in
   match get_callee,get_caller with
   | None, _ -> []
   | _, None -> []
   | Some (l1,a), Some (l2,b) -> {callee=a ; caller = b ; matrix=matrix_of_lists nb l1 l2 ; is_rec = false}::List.flatten (List.map (rule_to_call vb nb) (List.map term2rule  l1))
-     
+                                                                                                                         
 
 let add_symb vb v q=
   let second (a,b,c)=b in
@@ -306,27 +314,31 @@ let add_symb vb v q=
   | Kind -> printf "What the hell, are you seriously renaming Kind ?@."
   | Type _ ->  printf "What the hell, are you seriously renaming Type ?@."
   | DB (_,_,_) -> printf "AddSymb problem, what does it mean to declare something equal to a DB Variable ?@."
-  | Const(_,_,c) as t -> begin
-    create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident c)) (List.rev !table))));
-    let f _ = () in
-    f (List.map add_call (rule_to_call vb 0 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
-  end
-  | App (Const(_,_,f),u,lt) as t-> begin
-    create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident f)) (List.rev !table)) -1-List.length lt));
-    let f _ = () in
-    f (List.map add_call (rule_to_call vb 0 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
-  end
+  | Const(_,_,c) as t ->
+     begin
+       create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident c)) (List.rev !table))));
+       let f _ = () in
+       f (List.map add_call (rule_to_call vb 0 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
+     end
+  | App (Const(_,_,f),u,lt) as t->
+     begin
+       create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident f)) (List.rev !table)) -1-List.length lt));
+       let f _ = () in
+       f (List.map add_call (rule_to_call vb 0 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
+     end
   | App (_,_,_) as t-> printf "AddSymb problem, I dont know what to do with the application : %a@." pp_term t
-  | Lam (loc,name,_,t) -> begin
-    create_symbol vb (string_of_ident v) (create_array ((find_arity t)+1));
-    let f _ = () in
-    f (List.map add_call (rule_to_call vb 1 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
-  end
-  | Pi(loc,name,arg,t) -> begin
-    create_symbol vb (string_of_ident v) (create_array ((find_arity t)+1));
-    let f _ = () in
-    f (List.map add_call (rule_to_call vb 1 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
-  end
+  | Lam (loc,name,_,t) ->
+     begin
+       create_symbol vb (string_of_ident v) (create_array ((find_arity t)+1));
+       let f _ = () in
+       f (List.map add_call (rule_to_call vb 1 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
+     end
+  | Pi(loc,name,arg,t) ->
+     begin
+       create_symbol vb (string_of_ident v) (create_array ((find_arity t)+1));
+       let f _ = () in
+       f (List.map add_call (rule_to_call vb 1 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
+     end
   
                                                                                                               
 let add_rules vb l =
