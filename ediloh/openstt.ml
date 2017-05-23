@@ -52,6 +52,7 @@ module type OpenSTT = sig
 
   val const_of_name : name obj -> const obj
 
+  val mk_subst : thm obj -> (name obj * ty obj) list -> (var obj * term obj) list -> thm obj
 
   val mk_hyp : (term obj) list -> hyp obj
 
@@ -625,15 +626,15 @@ module OpenTheory = struct
 
 
   let mk_rule_elim_impl thmp thmimpl p q =
-      let timpl = mk_axiom_impl p q in
-      let assume = mk_assume (mk_impl_term p q) in
-      let eqMp = mk_eqMp assume timpl in
-      let sym = mk_sym eqMp in
-      let assume = mk_assume p in
-      let eqMp = mk_eqMp assume sym in
-      let proj_right = proj_right eqMp p q in
-      let proveHyp = mk_proveHyp proj_right thmp in
-      mk_proveHyp proveHyp thmimpl
+    let timpl = mk_axiom_impl p q in
+    let assume = mk_assume (mk_impl_term p q) in
+    let eqMp = mk_eqMp assume timpl in
+    let sym = mk_sym eqMp in
+    let assume = mk_assume p in
+    let eqMp = mk_eqMp assume sym in
+    let proj_right = proj_right eqMp p q in
+    let proveHyp = mk_proveHyp proj_right thmp in
+    mk_proveHyp proveHyp thmimpl
 
 
   let mk_impl_equal eqp eqq p q p' q' =

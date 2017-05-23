@@ -20,7 +20,8 @@ let args = [
   ("-version", Arg.Unit Version.print_version,  "Version" ) ;
   ("-I"    , Arg.String Basic.add_path,        "Add a directory to load path");
   ("-errors-in-snf", Arg.Set Errors.errors_in_snf, "Normalize the types in error messages");
-  ("-nl", Arg.Set Rule.allow_non_linear, "Allow non left-linear rewrite rules")
+  ("-nl", Arg.Set Rule.allow_non_linear, "Allow non left-linear rewrite rules");
+  ("-no-proof", Arg.Clear Hol.compile_proofs, "do not compile the proof, theorems are axioms");
 ]
 
 let run_on_file file =

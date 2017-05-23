@@ -207,9 +207,7 @@ let only_delta : Reduction.red =
   }
 
 let delta_step term =
-  match Env.reduction ~red:only_delta Reduction.OneStep term with
-  | Basic.OK te -> te
-  | Basic.Err err -> Errors.fail_env_error err
+  Env.unsafe_one_step ~red:only_delta term
 
 
 let only_beta : Reduction.red =
@@ -218,10 +216,7 @@ let only_beta : Reduction.red =
     Reduction.select = Some (fun _ -> false)
   }
 
-let beta_step term =
-  match Env.reduction ~red:only_beta Reduction.OneStep term with
-  | Basic.OK te -> te
-  | Basic.Err err -> Errors.fail_env_error err
+let beta_step term =  Env.unsafe_one_step ~red:only_beta term
 
 let rec snf_delta term =
   let term' = delta_step term in
@@ -289,9 +284,9 @@ let rec beta_trace term =
 type direction = Fold | Unfold
 
 
-let prefix_eq = "eq_"
+let prefix_eq = "__eq__"
 
-let prefix_sym_eq = "sym_"^prefix_eq
+let prefix_sym_eq = prefix_eq^"sym_"
 
 let print_equality id ty t =
   let name = prefix_eq^(Basic.string_of_ident id) in
@@ -302,7 +297,7 @@ let print_equality id ty t =
 let const_of_rule_name dir name =
   match name with
   | Rule.Delta(md,id) ->
-    let prefix = match dir with Unfold -> prefix_eq | Fold -> prefix_sym_eq in
+    let prefix = match dir with Unfold -> prefix_eq | Fold -> prefix_eq in
     let id' = Basic.hstring (prefix^(Basic.string_of_ident id)) in
     Term.mk_Const Basic.dloc md id'
   | _ -> failwith "not handled right now"

@@ -52,6 +52,7 @@ module type OpenSTT = sig
 
   val const_of_name : name obj -> const obj
 
+  val mk_subst : thm obj -> (name obj * ty obj) list -> (var obj * term obj) list -> thm obj
 
   val mk_hyp : (term obj) list -> hyp obj
 

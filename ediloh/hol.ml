@@ -1,7 +1,7 @@
 open Basic
 
+let compile_proofs = ref true
 
-(* TODO: errors handling is not good. *)
 (* TODO: suppress ctx in the last translation *)
 type name = ident * ident
 
@@ -18,9 +18,15 @@ type ty =
 type _term =
   | Forall of ident * _ty * _term
   | Impl of _term * _term
-  | VarTerm of ident * _ty * _term list
-  | Const of name * _ty * _term list
+  | VarTerm of ident * _ty
+  | Const of name * _ty
+  | App of _term * _term list
   | Lam of ident * _ty * _term
+
+let mk_App f args =
+  match f with
+    | App (f',args') -> App (f',args'@args)
+    | _ -> App(f,args)
 
 type term =
   | ForallT of ident * term
@@ -38,17 +44,15 @@ type te_subst = (Basic.ident * _term) list
 
 type proof_ctx = (Basic.ident * term) list
 
-type dir = Fold | Unfold
-
 type _proof =
-  | Lemma of name * term
-  | Assume of _term
+  | Lemma of name * term * ty_subst
+  | Assume of _term * ty_subst
   | ForallI of ident * _ty * _prooft
   | ImplI of _term * _prooft
   | ForallE of _prooft * _term
   | ImplE of _prooft * _prooft
-  | Delta of name * dir * rw_ctx * term
-  | Beta of term * rw_ctx * term
+  | DeltaU of name * rw_ctx * _prooft
+  | BetaU of term * rw_ctx * term
 
 
 
@@ -60,6 +64,8 @@ and _prooft =
 
 type proof =
   | ForallP of ident * prooft
+  | DeltaF of name * rw_ctx * prooft
+  | BetaF of term * rw_ctx * term
   | Proof of _prooft
 
 and prooft =
@@ -117,6 +123,27 @@ let print_ty_subst out subst =
     Format.fprintf out "%a[%a]" Pp.print_ident id print_hol__type _ty
   in
   Format.fprintf out "%a" (Pp.print_list "@." print_item) subst
+
+let rec print_hol__term out te =
+  match te with
+  | Forall (id, _ty, _te) ->
+    Format.printf "hol.forall (%a) (%a:(hol.eta (%a)) => %a)" print_hol__type _ty Pp.print_ident id print_hol__type _ty print_hol__term  _te
+  | Impl (tel,ter) ->
+    Format.printf "hol.impl (%a) (%a)" print_hol__term tel print_hol__term ter
+  | App(_te,_tes) ->
+    Format.printf "%a %a" print_hol__term _te (Pp.print_list " " print_hol__term) _tes
+  | VarTerm(id,_ty) ->
+    Format.printf "%a" Pp.print_ident id
+  | Const((md,id),_ty) ->
+    Format.printf "%a.%a" Pp.print_ident md Pp.print_ident id
+  | Lam(id, _ty, _te) ->
+    Format.printf "( %a :(%a) => %a)" Pp.print_ident id print_hol__type _ty print_hol__term  _te
+
+let rec print_hol_term out te =
+  match te with
+  | ForallT(id, te) ->
+    Format.printf "hol.forall_kind_type (%a: hol.type => %a)" Pp.print_ident id print_hol_term te
+  | Term te -> print_hol__term out te
 
 exception CompileTypeError of compile_type_err
 
@@ -191,14 +218,16 @@ and poly_subst__te (subst:ty_subst) (te:_term) : _term =
     let _tel' = poly_subst__te subst _tel in
     let _ter' = poly_subst__te subst _ter in
     Impl(_tel', _ter')
-  | VarTerm(id, _ty, _tes) ->
-    let _tes' = List.map (poly_subst__te subst) _tes in
+  | VarTerm(id, _ty) ->
     let _ty' = poly_subst__ty subst _ty in
-    VarTerm(id, _ty', _tes')
-  | Const(name, _ty, _tes) ->
+    VarTerm(id, _ty')
+  | App(f,_tes) ->
     let _tes' = List.map (poly_subst__te subst) _tes in
+    let f' = poly_subst__te subst f in
+    mk_App f' _tes'
+  | Const(name, _ty) ->
     let _ty' = poly_subst__ty subst _ty in
-    Const(name, _ty', _tes')
+    Const(name, _ty')
   | Lam(id, _ty, _te) ->
     let _te' = poly_subst__te subst _te in
     let _ty' = poly_subst__ty subst _ty in
@@ -213,14 +242,17 @@ let rec term_subst__te (subst:te_subst) (te:_term) : _term =
     let _tel' = term_subst__te subst _tel in
     let _ter' = term_subst__te subst _ter in
     Impl(_tel', _ter')
-  | VarTerm(id, _ty, _tes) ->
+  | VarTerm(id, _ty) ->
     if List.mem_assoc id subst then
       List.assoc id subst
     else
       te
-  | Const(name, _ty, _tes) ->
+  | App(f,_tes) ->
     let _tes' = List.map (term_subst__te subst) _tes in
-    Const(name, _ty, _tes')
+    let f' = term_subst__te subst f in
+    mk_App f' _tes'
+  | Const(name, _ty) ->
+    Const(name, _ty)
   | Lam(id, _ty, _te) ->
     let _te' = term_subst__te subst _te in
     Lam(id, _ty, _te')
@@ -303,14 +335,14 @@ let rec compile__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : _term =
     begin
       match ty' with
       | ForallK(var,te) -> assert false
-      | Type(ty) -> Const(mk_name md id, ty, [])
+      | Type(ty) -> Const(mk_name md id, ty)
     end
   | Term.DB(_,var,_) ->
     let ty = lookup_ty var in
     begin
       match ty with
       | ForallK(var,te) -> assert false
-      | Type(ty) -> VarTerm(var,ty, [])
+      | Type(ty) -> VarTerm(var,ty)
     end
   | Term.Lam(_,id, Some cst, te) when is_hol_const hol_type cst ->
     compile__term (id::ty_ctx) te_ctx te
@@ -331,11 +363,11 @@ let rec compile__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : _term =
     let ty = ty_of_const lc md id in
     let ty' = compile_eta_type ty_ctx ty in
     let ty'', args' = _ty_of_ty ty_ctx te_ctx ty' (a::args) in
-    Const(mk_name md id, ty'', args')
+    App(Const(mk_name md id, ty''), args')
   | Term.App(Term.DB(_,var,_),a,args) ->
     let ty = lookup_ty var in
     let ty', args' = _ty_of_ty ty_ctx te_ctx ty (a::args) in
-    VarTerm(var, ty', args')
+    App(VarTerm(var, ty'), args')
   | _ -> raise(CompileTermError(TermError(te)))
 
 
@@ -372,6 +404,24 @@ let compile_eps_term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : term =
   | Term.App(cst, a, []) when is_hol_const hol_eps cst -> compile_term ty_ctx te_ctx a
   | _ -> assert false
 
+let is_delta_rw cst =
+  match cst with
+  | Term.Const(_,_,id) -> Str.(string_match (regexp "__eq_\\|__eq_sym") (string_of_ident id) 0)
+  | _ -> false
+
+let get_infos_of_delta_rw md id = Str.(
+    let id = string_of_ident id in
+    if string_match (regexp "\\(__eq__\\)\\(.*\\)") id 0 then
+      let id = matched_group 2 id in
+      let cst = Term.mk_Const Basic.dloc md (hstring id) in
+      match Env.reduction Reduction.OneStep cst with
+      | OK te -> (hstring id),te
+      | Err err -> Errors.fail_env_error err
+    else
+      assert false
+)
+
+
 let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof : _prooft =
   match proof with
   | Term.Lam(_,x, Some ty, proof) when is_type ty ->
@@ -404,7 +454,7 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
         | ForallT _ -> assert false
         | Term(_te) -> _te
       in
-      let _proof = Assume _term in
+      let _proof = Assume(_term,[]) in
       {_term;_proof}
     else
       assert false
@@ -420,8 +470,27 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       | ForallT _ -> assert false
       | Term(_te) -> _te
     in
-    let _proof = Lemma((md,id),te') in
+    let _proof = Lemma((md,id),te', []) in
     {_term;_proof}
+  | Term.App(Term.Const(_,md,id) as rw, ctx, cst::args) when is_delta_rw rw ->
+    let id,te = get_infos_of_delta_rw md id in
+    let term =
+      match Env.reduction ~red:Tracer.only_beta Reduction.OneStep (Term.mk_App ctx te []) with
+      | OK te -> te
+      | Err err -> Errors.fail_env_error err
+    in
+    let term' = compile_term ty_ctx te_ctx term in
+    let _term', subst, args = _te_of_te ty_ctx te_ctx term' args in
+    let prooft' = {_term=_term'; _proof=Lemma((md,id),term', subst)} in
+    begin
+      match ctx with
+      | Term.Lam(_, var, Some ty, te) ->
+        let ty' = compile_type ty_ctx ty in
+        let _proof = DeltaU((md,id),(id,compile_term ty_ctx ((var,ty')::te_ctx) te), prooft') in
+        let prooft = {prooft' with _proof} in
+        compile_app ty_ctx te_ctx pf_ctx prooft args
+      | _ -> assert false
+    end
   | Term.App(Term.Const(lc,md,id),a,args) ->
     let te =
       match Env.get_type lc md id with
@@ -429,8 +498,8 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       | Err err -> Errors.fail_signature_error err
     in
     let te' = compile_eps_term ty_ctx te_ctx te in
-    let _te',args = _te_of_te ty_ctx te_ctx te' (a::args) in
-    let prooft:_prooft = {_term=_te'; _proof= Lemma((md,id),te')} in
+    let _te', subst, args = _te_of_te ty_ctx te_ctx te' (a::args) in
+    let prooft  = {_term=_te'; _proof= Lemma((md,id),te', subst)} in
     compile_app ty_ctx te_ctx pf_ctx prooft args
   | Term.App(Term.DB(_,var,_),a,args) ->
     let te' =
@@ -439,8 +508,8 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       else
         assert false
     in
-    let _te',args = _te_of_te ty_ctx te_ctx te' (a::args) in
-    let prooft:_prooft = {_term=_te'; _proof= Assume _te'} in
+    let _te', subst, args = _te_of_te ty_ctx te_ctx te' (a::args) in
+    let prooft:_prooft = {_term=_te'; _proof= Assume(_te', subst)} in
     compile_app ty_ctx te_ctx pf_ctx prooft args
   | _ -> failwith "todo proof"
 
@@ -461,11 +530,13 @@ and _te_of_te (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:term) (args:Term.term list) 
   let poly_args' = List.map (compile__type ty_ctx) poly_args in
   let subst = List.combine poly_vars poly_args' in
   let _te = poly_subst_te subst te in
-  _te, args
+  _te, subst, args
 
 and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_prooft)
     (args:Term.term list) : _prooft =
   let rec compile_arg (prooft:_prooft) arg =
+    Format.printf "debug:  %a@." print_hol__term prooft._term;
+    Format.printf "term: %a@." Pp.print_term arg;
     match prooft._term with
     | Forall(id,_ty,_term) ->
       let _term' = compile__term ty_ctx te_ctx arg in
@@ -474,11 +545,15 @@ and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_pr
     | Impl(_tel, _telr) ->
       let prooft' = compile__proof ty_ctx te_ctx pf_ctx arg in
       {_term=_telr;_proof=ImplE(prooft, prooft')}
-    | Const(name, _ty, _tes) -> assert false
-    | VarTerm(id, _ty, _tes) -> assert false
+    | App(Const(name, _ty), _tes) -> assert false
+    | App(VarTerm(id, _ty), _tes) -> assert false
+    | App _ -> failwith "don't know what to do"
+    | Const _
+    | VarTerm _ -> assert false
     | Lam _ -> assert false
   in
   List.fold_left compile_arg prooft args
+
 
 
 let rec compile_proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (proof:Term.term) : prooft =
@@ -486,6 +561,23 @@ let rec compile_proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (proof:Term.term) : proo
   | Term.Lam(_,x, Some ty, proof') when is_hol_const hol_type ty ->
     let prooft' = compile_proof (x::ty_ctx) te_ctx proof' in
     {term=ForallT(x,prooft'.term); proof=ForallP(x, prooft')}
+  | Term.App(Term.Const(_,md,id) as cst, ctx, [proof]) when is_delta_rw cst ->
+    let id,_ = get_infos_of_delta_rw md id in
+    let arg = Term.mk_Const Basic.dloc md id in
+    let term =
+      match Env.reduction ~red:Tracer.only_beta Reduction.OneStep (Term.mk_App ctx arg []) with
+      | OK te -> te
+      | Err err -> Errors.fail_env_error err
+    in
+    let term' = compile_term ty_ctx te_ctx term in
+    let prooft' = compile_proof ty_ctx te_ctx proof in
+    begin
+      match ctx with
+      | Term.Lam(_, var, Some ty, te) ->
+        let ty' = compile_type ty_ctx ty in
+        {term=term';proof=DeltaF((md,id),(id,compile_term ty_ctx ((var,ty')::te_ctx) te), prooft')}
+      | _ -> assert false
+    end
   | _ ->
     let _prooft' = compile__proof ty_ctx te_ctx [] proof in
     {term=Term(_prooft'._term); proof=Proof(_prooft')}
@@ -535,8 +627,15 @@ let compile_definition (lc:loc) (id:ident) (ty:Term.term) (te:Term.term)
       let te' = compile_term [] [] te in
       OK(Cst(mk_name md id, compile_type [] a, Some te'))
     | Term.App(cst,a,[]) when is_hol_const hol_eps cst ->
-      let proof' = compile_proof [] [] te in
-      OK(Thm(mk_name md id, compile_term [] [] a, Some proof'))
+      let proof' =
+        if !compile_proofs then
+          let te' = Tracer.leibnize_term te in
+          let te'' = Tracer.leibnize Tracer.Fold te' ty in
+          Some (compile_proof [] [] te'')
+        else
+          None
+      in
+        OK(Thm(mk_name md id, compile_term [] [] a, proof'))
     | _ -> Err(DefinitionError((lc,id,te),ty))
   with
   | CompileTermError(err) ->
@@ -617,19 +716,18 @@ let rec compile_hol__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
     let _tel' = compile_hol__term ty_ctx te_ctx _tel in
     let _ter' = compile_hol__term ty_ctx te_ctx _ter in
     OT.mk_impl_term _tel' _ter'
-  | VarTerm(var,_ty, _tes) ->
-    let _ty' = compile_hol__type ty_ctx _ty in
-    let var' = OT.mk_var (name_of_var var) _ty' in
-    let _tes' = List.map (compile_hol__term ty_ctx te_ctx) _tes in
+  | App(f, args) ->
+    let f' = compile_hol__term ty_ctx te_ctx f in
+    let args' = List.map (compile_hol__term ty_ctx te_ctx) args in
     List.fold_left (fun app arg ->
-        OT.mk_app_term app arg) (OT.mk_var_term var') _tes'
-  | Const(name, _ty, _tes) ->
+        OT.mk_app_term app arg) f' args'
+  | VarTerm(var,_ty) ->
+    let _ty' = compile_hol__type ty_ctx _ty in
+    OT.mk_var_term (OT.mk_var (name_of_var var) _ty')
+  | Const(name, _ty) ->
     let _ty' = compile_hol__type ty_ctx _ty in
     let cst = OT.const_of_name (compile_hol_name name) in
-    let cst' = OT.term_of_const cst _ty' in
-    let _tes' = List.map (compile_hol__term ty_ctx te_ctx) _tes in
-    List.fold_left (fun app arg ->
-        OT.mk_app_term app arg) cst' _tes'
+    OT.term_of_const cst _ty'
   | Lam(var,ty,_term) ->
     let _term' = compile_hol__term ty_ctx ((var,Type ty)::te_ctx) _term in
     let _ty' = compile_hol__type ty_ctx ty in
@@ -641,19 +739,32 @@ let rec compile_hol_term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
   | ForallT(var,te) -> compile_hol_term (var::ty_ctx) te_ctx te
   | Term(te) -> compile_hol__term ty_ctx te_ctx te
 
+let compile_ctx eq_proof (var,ctx) =
+  let rec compile_ctx ctx =
+    match ctx with
+    | VarTerm(var', _ty) when var' = var -> eq_proof
+    | _ -> failwith "todo compile_ctx"
+  in
+  compile_ctx ctx
+
+let compile_hol_subst ty_ctx subst =
+  let compile_binding (var,ty) = name_of_var var, compile_hol__type ty_ctx ty in
+  List.map compile_binding subst
+
 (* FIXME: ctx are not update *)
 let rec compile_hol__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof  =
   let open OT in
   match proof with
-  | Lemma(name,term) ->
-    begin
+  | Lemma(name,term, subst) ->
+    let proof =
       try
         thm_of_lemma (compile_hol_name name)
       with Failure _ ->
         mk_axiom (mk_hyp []) (compile_hol_term ty_ctx te_ctx term)
-    end
-  | Assume(_te) ->
-    OT.mk_assume (compile_hol__term ty_ctx te_ctx _te)
+    in
+    mk_subst proof (compile_hol_subst ty_ctx subst) []
+  | Assume(_te, subst) ->
+    mk_subst (OT.mk_assume (compile_hol__term ty_ctx te_ctx _te)) (compile_hol_subst ty_ctx subst) []
   | ForallI(id,_ty, _prooft) ->
     let name = name_of_var id in
     let _ty = compile_hol__type ty_ctx _ty in
@@ -686,14 +797,19 @@ let rec compile_hol__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) 
     let q' = compile_hol__term ty_ctx te_ctx q in
     let proofimpl = compile_hol__proof ty_ctx te_ctx pf_ctx _prooftl._proof in
     let proofp = compile_hol__proof ty_ctx te_ctx pf_ctx _prooftr._proof in
-    mk_rule_elim_impl proofimpl proofp p' q'
-  | Delta _ -> failwith "todo delta"
-  | Beta _ -> failwith "todo beta"
+    mk_rule_elim_impl proofp proofimpl p' q'
+  | DeltaU _ -> failwith "todo deltaU"
+  | BetaU _ -> failwith "todo betaU"
 
 let rec compile_hol_proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof =
   match proof with
   | ForallP(var,pf) -> compile_hol_proof (var::ty_ctx) te_ctx pf_ctx pf.proof
   | Proof(pf) -> compile_hol__proof ty_ctx te_ctx pf_ctx pf._proof
+  | DeltaF(name,rw_ctx, pf) ->
+    let proof = OT.mk_sym @@ OT.thm_of_const_name (compile_hol_name name) in
+    let pi = compile_hol_proof ty_ctx te_ctx pf_ctx pf.proof in
+    OT.mk_eqMp pi proof
+  | BetaF _ -> failwith "todo betaF"
 
 let compile_hol_const name ty term =
   match term with

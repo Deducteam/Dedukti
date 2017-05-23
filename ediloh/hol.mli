@@ -1,5 +1,7 @@
 open Basic
 
+val compile_proofs : bool ref
+
 type obj
 
 type compile_decl_err
