@@ -103,20 +103,35 @@ type compile_defn_err =
 let print_name out (md,id) =
   Format.fprintf out "%a.%a" Pp.print_ident md Pp.print_ident id
 
-(* FIXME: printing is won't work to print dedukti code. Some parenthesis are missing but right now it is only used for debugging *)
-let rec print_hol__type out ty =
-  match ty with
-  | VarTy id -> Format.fprintf out "%a " Pp.print_ident id
-  | Arrow(tyl,tyr) -> Format.fprintf out "hol.arrow (%a) (%a)" print_hol__type tyl print_hol__type tyr
-  | OpType(name,tys) -> Format.fprintf out "%a %a"
-                          print_name name (Pp.print_list " " print_hol__type) tys
-  | Bool -> Format.fprintf out "hol.prop"
+let dloc = Basic.dloc
+let hol = hstring "hol"
 
-let rec print_hol_type out ty =
+let name_dedukti (md,id) = Term.mk_Const dloc md id
+
+let rec hol__type_dedukti ty =
   match ty with
-  | ForallK(var,ty) -> Format.fprintf out "hol.forall_kind_type (%a:hol.type => %a)"
-                         Pp.print_ident var print_hol_type ty
-  | Type(ty) -> print_hol__type out ty
+  | VarTy id ->
+    (* painful to get the correct index, so this is a hack cause of Pp.subst function *)
+    Term.mk_DB dloc id 1000
+  | Arrow(tyl,tyr) -> Term.mk_App (Term.mk_Const dloc hol (hstring "arrow"))
+                        (hol__type_dedukti tyl) [(hol__type_dedukti tyl)]
+  | OpType(name,tys) ->
+    List.fold_left (fun term arg -> Term.mk_App term (hol__type_dedukti arg) [])
+    (name_dedukti name) tys
+  | Bool -> Term.mk_Const dloc hol (hstring "prop")
+
+let rec hol_type_dedukti ty =
+  match ty with
+  | ForallK(var,ty) ->
+    Term.mk_App (Term.mk_Const dloc hol (hstring "forall_kind_type"))
+      (Term.mk_Lam dloc var (Some (Term.mk_Const dloc hol (hstring "type")))
+         (hol_type_dedukti ty)) []
+  | Type(ty) -> hol__type_dedukti ty
+
+(* FIXME: printing is won't work to print dedukti code. Some parenthesis are missing but right now it is only used for debugging *)
+let rec print_hol__type out ty = Pp.print_term out (hol__type_dedukti ty)
+
+let rec print_hol_type out ty = Pp.print_term out (hol_type_dedukti ty)
 
 let print_ty_subst out subst =
   let print_item out (id,_ty) =
@@ -534,9 +549,9 @@ and _te_of_te (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:term) (args:Term.term list) 
 
 and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_prooft)
     (args:Term.term list) : _prooft =
-  let rec compile_arg (prooft:_prooft) arg =
+  let rec compile_arg (prooft:_prooft) arg = (*
     Format.printf "debug:  %a@." print_hol__term prooft._term;
-    Format.printf "term: %a@." Pp.print_term arg;
+    Format.printf "term: %a@." Pp.print_term arg; *)
     match prooft._term with
     | Forall(id,_ty,_term) ->
       let _term' = compile__term ty_ctx te_ctx arg in
@@ -618,6 +633,23 @@ let fail_compile_declaration (err:compile_decl_err) : 'a =
         Errors.fail lc "Error while compiling the declaration '%a' as a constant. The type %a seems not to be an hol type." Pp.print_ident id Pp.print_term te
     end
 
+let rec has_beta' te =
+  match te with
+  | Forall(_,_,te) -> has_beta' te
+  | Impl(tel,ter) -> has_beta' tel || has_beta' ter
+  | VarTerm _
+  | Const _ -> false
+  | Lam(_,_,te) -> has_beta' te
+  | App(Lam(_,_,_),[]) -> assert false
+  | App(Lam(_,_,_),x::_) -> true
+  | App(f,args) ->
+    List.fold_left (fun b arg -> b || (has_beta' arg)) false (f::args)
+
+let rec has_beta te =
+  match te with
+  | ForallT(_,te) -> has_beta te
+  | Term te -> has_beta' te
+
 let compile_definition (lc:loc) (id:ident) (ty:Term.term) (te:Term.term)
   : (obj, compile_defn_err) error =
   let md = Env.get_name () in
@@ -635,7 +667,8 @@ let compile_definition (lc:loc) (id:ident) (ty:Term.term) (te:Term.term)
         else
           None
       in
-        OK(Thm(mk_name md id, compile_term [] [] a, proof'))
+      let a' = compile_term [] [] a in
+        OK(Thm(mk_name md id, a', proof'))
     | _ -> Err(DefinitionError((lc,id,te),ty))
   with
   | CompileTermError(err) ->
@@ -756,6 +789,7 @@ let rec compile_hol__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) 
   let open OT in
   match proof with
   | Lemma(name,term, subst) ->
+    OT.comment "#Lemma %a.%a@." Pp.print_ident (fst name) Pp.print_ident (snd name);
     let proof =
       try
         thm_of_lemma (compile_hol_name name)
@@ -764,19 +798,23 @@ let rec compile_hol__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) 
     in
     mk_subst proof (compile_hol_subst ty_ctx subst) []
   | Assume(_te, subst) ->
+    OT.comment "@[#Assume %a@]@." print_hol__term _te;
     mk_subst (OT.mk_assume (compile_hol__term ty_ctx te_ctx _te)) (compile_hol_subst ty_ctx subst) []
   | ForallI(id,_ty, _prooft) ->
+    OT.comment "#Forall %a@." Pp.print_ident id;
     let name = name_of_var id in
     let _ty = compile_hol__type ty_ctx _ty in
     let _term = compile_hol__term ty_ctx te_ctx _prooft._term in
     let _proof = compile_hol__proof ty_ctx te_ctx pf_ctx _prooft._proof in
     mk_rule_intro_forall name _ty _term _proof
   | ImplI(_term, _prooft) ->
+    OT.comment "#Impl@.";
     let _proof = compile_hol__proof ty_ctx te_ctx pf_ctx _prooft._proof in
     let p = compile_hol__term ty_ctx te_ctx _term in
     let q = compile_hol__term ty_ctx te_ctx _prooft._term in
     mk_rule_intro_impl _proof p q
   | ForallE(_prooft,_term) ->
+    OT.comment "#Impl@.";
     let id,_ty,lam =
       match _prooft._term with
       | Forall(id,_ty,_term) -> id,_ty, Lam(id, _ty, _term)

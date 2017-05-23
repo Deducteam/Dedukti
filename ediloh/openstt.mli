@@ -94,6 +94,8 @@ module type OpenSTT = sig
   val thm_of_lemma : name obj -> thm obj
 
   val debug : 'a obj -> unit
+
+  val comment : ('a, Format.formatter, unit) format -> 'a
 end
 
 module OpenTheory : OpenSTT

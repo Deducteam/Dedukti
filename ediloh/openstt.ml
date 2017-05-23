@@ -94,6 +94,8 @@ module type OpenSTT = sig
   val thm_of_lemma : name obj -> thm obj
 
   val debug : 'a obj -> unit
+
+  val comment : ('a, Format.formatter, unit) format -> 'a
 end
 
 module Basic = struct
@@ -342,6 +344,9 @@ module Basic = struct
 
   let debug obj =
     print_op Format.std_formatter (Pop(Pragma(String("debug",load obj Empty))))
+
+  let comment fmt =
+      Format.printf fmt
 
   let mk_hyp ts : hyp obj = mk_list ts
 
