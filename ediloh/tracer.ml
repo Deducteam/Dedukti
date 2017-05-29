@@ -359,6 +359,12 @@ let cst_proof = Term.mk_Const Basic.dloc (Basic.hstring "proof") (Basic.hstring 
 let cst_term = Term.mk_Const Basic.dloc (Basic.hstring "term") (Basic.hstring "term")
 
 let leibnize_term term =
+  let is_forall ty =
+    match ty with
+    | Term.App(Term.Const(_,md,id),_,_) ->
+      Basic.string_of_ident md = "hol" && Basic.string_of_ident id = "forall"
+    | _ -> false
+  in
   let rec leibnize_term term =
     match term with
     | Term.Kind
@@ -376,6 +382,33 @@ let leibnize_term term =
             (snf_delta term)
         | Basic.Err er -> Errors.fail_signature_error er
       end;
+    | Term.App(Term.Const(l,md,id),a,args) ->
+      let fold t arg =
+        if is_forall t then
+          let t' = Env.unsafe_one_step t in
+          match t' with
+          | Term.Pi(_,id,a,b) ->
+            let b' = Subst.subst b arg in
+            let t'' = Env.unsafe_one_step b' in
+            Format.printf "debug: %a@.@." Term.pp_term t'';
+            beta_step t''
+          | _ -> Format.printf "type: %a@." Term.pp_term t'; assert false
+        else
+          let t' = Env.unsafe_one_step t in
+          match t' with
+          | Term.Pi(_,id,a,b) ->
+            let b' = Subst.subst b arg in
+            let t'' = Env.unsafe_one_step b' in
+            Format.printf "debug: %a@.@." Term.pp_term t'';
+            t''
+          | _ -> Format.printf "type: %a@." Term.pp_term t'; assert false
+      in
+      begin
+        match Env.get_type l md id with
+        | Basic.OK ty ->
+          List.fold_left fold ty (a::args)
+        | Basic.Err er -> Errors.fail_signature_error er
+      end
     | Term.App(f,a,args) ->
       Term.mk_App (leibnize_term f) (leibnize_term a) (List.map leibnize_term args)
     | Term.Lam(l,id, Some ty, te) ->
