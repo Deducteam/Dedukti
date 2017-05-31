@@ -346,7 +346,7 @@ module Basic = struct
     print_op Format.std_formatter (Pop(Pragma(String("debug",load obj Empty))))
 
   let comment fmt =
-      Format.fprintf Format.std_formatter fmt
+    Format.fprintf Format.std_formatter fmt
 
   let mk_hyp ts : hyp obj = mk_list ts
 
@@ -658,7 +658,7 @@ module OpenTheory = struct
     let sym = mk_sym eqq in
     let eqMp = mk_eqMp impl_elim sym in
     let intro_impl_right = mk_rule_intro_impl eqMp p q in
-    mk_deductAntiSym intro_impl_left intro_impl_right
+    mk_deductAntiSym intro_impl_right intro_impl_left
 
 
   let mk_forall_equal eq name left right ty =
