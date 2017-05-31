@@ -346,7 +346,7 @@ module Basic = struct
     print_op Format.std_formatter (Pop(Pragma(String("debug",load obj Empty))))
 
   let comment fmt =
-      Format.printf fmt
+      Format.fprintf Format.std_formatter fmt
 
   let mk_hyp ts : hyp obj = mk_list ts
 
