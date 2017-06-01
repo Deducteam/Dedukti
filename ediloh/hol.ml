@@ -85,39 +85,49 @@ type obj =
 
 let name_eq (md,id) (md',id') = Basic.ident_eq md md' && Basic.ident_eq id id'
 
-(* not modulo alpha, but maybe it should be ?*)
-let rec _ty_eq left right : bool =
+let alpha_eq ctx id id' =
+  if Basic.ident_eq id id' then
+    true
+  else
+    try
+      id' = List.assoc id ctx
+    with _ -> false
+
+
+
+
+let rec _ty_eq ctx left right : bool =
   match (left,right) with
   | Bool, Bool -> true
-  | VarTy x, VarTy y -> Basic.ident_eq x y
-  | Arrow(tyll, tylr), Arrow(tyrl, tyrr) -> _ty_eq tyll tyrl && _ty_eq tylr tyrr
+  | VarTy x, VarTy y -> alpha_eq ctx x y
+  | Arrow(tyll, tylr), Arrow(tyrl, tyrr) -> _ty_eq ctx tyll tyrl && _ty_eq ctx tylr tyrr
   | OpType(name, tys), OpType(name', tys') ->
-    name_eq name name' && List.for_all2 (fun l r -> _ty_eq l r) tys tys'
+    name_eq name name' && List.for_all2 (fun l r -> _ty_eq ctx l r) tys tys'
   | _, _ -> false
 
-let rec ty_eq left right : bool =
+let rec ty_eq ctx left right : bool =
   match (left,right) with
-  | Type(ty), Type(ty') -> _ty_eq ty ty'
-  | ForallK(id, ty), ForallK(id', ty') -> Basic.ident_eq id id' && ty_eq ty ty'
+  | Type(ty), Type(ty') -> _ty_eq ctx ty ty'
+  | ForallK(id, ty), ForallK(id', ty') -> ty_eq ((id,id')::ctx) ty ty'
   | _, _ -> false
 
-let rec _term_eq left right =
+(* FIXME: type ident and var ident should be always different. This can be fixed by chaning the grammar of ident to make a distinction between type ident and var ident *)
+let rec _term_eq ctx left right =
   match (left,right) with
-  | VarTerm(id,_ty), VarTerm(id',_ty') -> Basic.ident_eq id id' && _ty_eq _ty _ty'
-  | Const(name,_ty,_), Const(name',_ty',_) -> name_eq name name' && _ty_eq _ty _ty'
-  | Lam(id,_ty, _te), Lam(id',_ty', _te') -> Basic.ident_eq id id' && _ty_eq _ty _ty' &&
-                                             _term_eq _te _te'
-  | Impl(_tel,_ter), Impl(_tel',_ter') -> _term_eq _tel _tel' && _term_eq _ter _ter'
-  | Forall(id,_ty,_te), Forall(id',_ty',_te') -> Basic.ident_eq id id' && _ty_eq _ty _ty' &&
-                                                 _term_eq _te _te'
+  | VarTerm(id,_ty), VarTerm(id',_ty') -> alpha_eq ctx id id' && _ty_eq ctx _ty _ty'
+  | Const(name,_ty,_), Const(name',_ty',_) -> name_eq name name' && _ty_eq ctx _ty _ty'
+  | Lam(id,_ty, _te), Lam(id',_ty', _te') -> _ty_eq ctx _ty _ty' && _term_eq ((id,id')::ctx) _te _te'
+  | Impl(_tel,_ter), Impl(_tel',_ter') -> _term_eq ctx _tel _tel' && _term_eq ctx _ter _ter'
+  | Forall(id,_ty,_te), Forall(id',_ty',_te') -> _ty_eq ctx _ty _ty'
+                                                 && _term_eq ((id,id')::ctx) _te _te'
   | App(_te, _tes), App(_te', _tes') ->
-    _term_eq _te _te' && List.for_all2 (fun l r -> _term_eq l r) _tes _tes'
+    _term_eq ctx _te _te' && List.for_all2 (fun l r -> _term_eq ctx l r) _tes _tes'
   | _,_ -> false
 
-let rec term_eq left right =
+let rec term_eq ctx left right =
   match (left,right) with
-  | ForallT(id,term), ForallT(id',term') -> Basic.ident_eq id id' && term_eq term term'
-  | Term(_te), Term(_te') -> _term_eq _te _te'
+  | ForallT(id,term), ForallT(id',term') -> term_eq ((id,id')::ctx) term term'
+  | Term(_te), Term(_te') -> _term_eq ctx _te _te'
   | _, _ -> false
 
 type decl = loc * ident * Term.term
@@ -555,24 +565,24 @@ module Trace : Trace = struct
     | None -> None
     | Some(ctx, rw) -> Some(i::ctx, rw)
 
-  let rec _compare left right : (ctx * rw dir option) option =
+  let rec _compare ctx left right : (ctx * rw dir option) option =
     (* assume barendregt convention *)
     let same_lambda x _ty te u t' =
       match t' with
-      | App(Lam(x',_ty',te'), _) -> Basic.ident_eq x x' && _ty_eq _ty _ty'
+      | App(Lam(x',_ty',te'), _) -> Basic.ident_eq x x' && _ty_eq ctx _ty _ty'
       | _ -> false
     in
     match (left,right) with
-    | VarTerm(id,_ty), VarTerm(id',_ty') when Basic.ident_eq id id' && _ty_eq _ty _ty' -> None
-    | Const(name, _ty,_), Const(name', _ty',_) when name_eq name name' && _ty_eq _ty _ty' -> None
-    | Lam(id, _ty, _te), Lam(id', _ty', _te') when Basic.ident_eq id id' && _ty_eq _ty _ty' ->
-      bind 0 (_compare _te _te')
-    | Forall(id, _ty, _te), Forall(id', _ty', _te') when Basic.ident_eq id id' && _ty_eq _ty _ty' ->
-      bind 0 (_compare _te _te')
+    | VarTerm(id,_ty), VarTerm(id',_ty') when alpha_eq ctx id id' && _ty_eq ctx _ty _ty' -> None
+    | Const(name, _ty,_), Const(name', _ty',_) when name_eq name name' && _ty_eq ctx _ty _ty' -> None
+    | Lam(id, _ty, _te), Lam(id', _ty', _te') when _ty_eq ctx _ty _ty' ->
+      bind 0 (_compare ((id,id')::ctx) _te _te')
+    | Forall(id, _ty, _te), Forall(id', _ty', _te') when _ty_eq ctx _ty _ty' ->
+      bind 0 (_compare ((id,id')::ctx) _te _te')
     | Impl(_tel, _ter), Impl(_tel', _ter') ->
       begin
-        match _compare _tel _tel' with
-        | None -> bind 1 (_compare _ter _ter')
+        match _compare ctx _tel _tel' with
+        | None -> bind 1 (_compare ctx _ter _ter')
         | Some tr -> bind 0 (Some tr)
       end
     | App(Lam(x,_ty,te) as f,u::args), _ when not (same_lambda x _ty te u right) ->
@@ -587,7 +597,7 @@ module Trace : Trace = struct
           match tr with
           | None ->
             begin
-              match _compare l r with
+              match _compare ctx l r with
               | None -> (i+1,None)
               | Some tr' -> (i+1, bind i (Some tr'))
             end
@@ -595,11 +605,11 @@ module Trace : Trace = struct
 
     | _,_ -> Some ([0], None)
 
-  let rec compare left right : (ctx * rw dir option) option =
+  let rec compare ctx left right : (ctx * rw dir option) option =
     match (left,right) with
-    | Term(_te), Term(_te') -> bind 0 (_compare _te _te')
-    | ForallT(id,te), ForallT(id', te') when Basic.ident_eq id id' ->
-      bind 0 (compare te te')
+    | Term(_te), Term(_te') -> bind 0 (_compare ctx _te _te')
+    | ForallT(id,te), ForallT(id', te') ->
+      bind 0 (compare ((id,id')::ctx) te te')
     | _, _ -> Some ([], None)
 
   let print_ctx fmt ctx =
@@ -690,7 +700,7 @@ module Trace : Trace = struct
         Errors.fail Basic.dloc "Contextual error: The terms %a and %a seems not to be convertible. They differ at position %a"
           print_hol_term t print_hol_term pt.term print_ctx ctx
     in
-    match compare t pt.term with
+    match compare [] t pt.term with
     | None -> pt
     | Some (ctx,rw) ->
       let tr = to_trace ctx rw in
@@ -708,7 +718,7 @@ module Trace : Trace = struct
         Errors.fail Basic.dloc "Contextual error: The terms %a and %a seems not to be convertible. They differ at position %a"
           print_hol__term _t print_hol__term _pt._term print_ctx ctx
     in
-    match _compare _t _pt._term with
+    match _compare [] _t _pt._term with
     | None -> _pt
     | Some (ctx,rw) ->
       let ctx,rw = to_trace ctx rw in
@@ -954,6 +964,48 @@ let rec has_beta te =
   match te with
   | ForallT(_,te) -> has_beta te
   | Term te -> has_beta' te
+(*
+let prefix n =
+    "_"^(string_of_int n)^"_"
+
+let pre n id = hstring @@ prefix n ^(string_of_ident id)
+
+let alpha_rename__proof n _proof = failwith "todo"
+
+let alpha_rename_proof n proof =
+  match proof with
+  | ForallP(id, prooft) ->
+    ForallP(id, alpha_rename n prooft)
+  |
+
+let rec alpha_rename__term n _term =
+  match _term with
+  | Forall(id,_ty,_te) ->
+    Forall(pre n id, _ty, alpha_rename__term n _te)
+  | Impl(_tel, _ter) ->
+    Impl(alpha_rename__term n _tel, alpha_rename__term n _ter)
+  | VarTerm(id,_ty) -> VarTerm(pre n id, _ty)
+  | App(t,ts) ->
+    App(alpha_rename__term n t, List.map (alpha_rename__term n) ts)
+  | Lam(id,_ty, _te) ->
+    Lam(pre n id, _ty, alpha_rename__term n _te)
+  | _ -> _term
+
+let rec alpha_rename_term n term =
+  match term with
+  | ForallT(id, te) -> ForallT(id, alpha_rename_term n te)
+  | Term(_te) -> Term(alpha_rename__term n _te)
+
+
+let alpha_rename n prooft =
+  {
+    proof = alpha_rename_proof n prooft.proof;
+    term = alpha_rename_term n prooft.term
+  }
+  *)
+
+
+let c = ref 0
 
 let compile_definition (lc:loc) (id:ident) (ty:Term.term) (te:Term.term)
   : (obj, compile_defn_err) error =
@@ -966,8 +1018,10 @@ let compile_definition (lc:loc) (id:ident) (ty:Term.term) (te:Term.term)
     | Term.App(cst,a,[]) when is_hol_const hol_eps cst ->
       let thm = compile_term [] [] a in
       let proof = compile_proof [] [] te in
+      (*    let proof = alpha_rename !c proof in *)
       let proof' = Some (Trace.annotate thm proof) in
-        OK(Thm(mk_name md id, thm, proof'))
+      incr c;
+      OK(Thm(mk_name md id, thm, proof'))
     | _ -> Err(DefinitionError((lc,id,te),ty))
   with
   | CompileTermError(err) ->
