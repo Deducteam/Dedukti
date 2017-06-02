@@ -420,7 +420,10 @@ let rec compile__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : _term =
     if List.mem_assoc var te_ctx then
       List.assoc var te_ctx
     else
-      assert false
+      begin
+        Format.printf "%a@." Pp.print_ident var;
+        assert false
+      end
   in
   match te with
   | Term.App(cst, ty, [Term.Lam(_,id, Some tyvar, te)]) when is_hol_const hol_forall cst ->
@@ -746,6 +749,30 @@ module Trace : Trace = struct
       | _ -> failwith "it would be nice if this exception was not raised"
 end
 
+let c = ref 0
+
+let prefix n =
+    "_"^(string_of_int n)^"_"
+
+let pre n id = hstring @@ prefix n ^(string_of_ident id)
+
+let rec alpha_rename__term n _term =
+  match _term with
+  | Forall(id,_ty,_te) ->
+    Forall(pre n id, _ty, alpha_rename__term n _te)
+  | Impl(_tel, _ter) ->
+    Impl(alpha_rename__term n _tel, alpha_rename__term n _ter)
+  | VarTerm(id,_ty) -> VarTerm(pre n id, _ty)
+  | App(t,ts) ->
+    App(alpha_rename__term n t, List.map (alpha_rename__term n) ts)
+  | Lam(id,_ty, _te) ->
+    Lam(pre n id, _ty, alpha_rename__term n _te)
+  | _ -> _term
+
+let rec alpha_rename_term n term =
+  match term with
+  | ForallT(id, te) -> ForallT(id, alpha_rename_term n te)
+  | Term(_te) -> Term(alpha_rename__term n _te)
 
 let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof : _prooft =
   match proof with
@@ -824,6 +851,8 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       | Err err -> Errors.fail_signature_error err
     in
     let te' = compile_eps_term ty_ctx te_ctx te in
+    let te' = alpha_rename_term !c te' in
+    incr c;
     let _te', subst, args = _te_of_te ty_ctx te_ctx te' (a::args) in
     let prooft  = {_term=_te'; _proof= Lemma((md,id),te', subst)} in
     compile_app ty_ctx te_ctx pf_ctx prooft args
@@ -881,6 +910,8 @@ and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_pr
     | Lam _ -> assert false
   in
   List.fold_left compile_arg prooft args
+
+
 
 
 
@@ -964,12 +995,8 @@ let rec has_beta te =
   match te with
   | ForallT(_,te) -> has_beta te
   | Term te -> has_beta' te
+
 (*
-let prefix n =
-    "_"^(string_of_int n)^"_"
-
-let pre n id = hstring @@ prefix n ^(string_of_ident id)
-
 let alpha_rename__proof n _proof = failwith "todo"
 
 let alpha_rename_proof n proof =
@@ -978,34 +1005,12 @@ let alpha_rename_proof n proof =
     ForallP(id, alpha_rename n prooft)
   |
 
-let rec alpha_rename__term n _term =
-  match _term with
-  | Forall(id,_ty,_te) ->
-    Forall(pre n id, _ty, alpha_rename__term n _te)
-  | Impl(_tel, _ter) ->
-    Impl(alpha_rename__term n _tel, alpha_rename__term n _ter)
-  | VarTerm(id,_ty) -> VarTerm(pre n id, _ty)
-  | App(t,ts) ->
-    App(alpha_rename__term n t, List.map (alpha_rename__term n) ts)
-  | Lam(id,_ty, _te) ->
-    Lam(pre n id, _ty, alpha_rename__term n _te)
-  | _ -> _term
-
-let rec alpha_rename_term n term =
-  match term with
-  | ForallT(id, te) -> ForallT(id, alpha_rename_term n te)
-  | Term(_te) -> Term(alpha_rename__term n _te)
-
-
 let alpha_rename n prooft =
   {
     proof = alpha_rename_proof n prooft.proof;
     term = alpha_rename_term n prooft.term
   }
   *)
-
-
-let c = ref 0
 
 let compile_definition (lc:loc) (id:ident) (ty:Term.term) (te:Term.term)
   : (obj, compile_defn_err) error =
@@ -1018,9 +1023,7 @@ let compile_definition (lc:loc) (id:ident) (ty:Term.term) (te:Term.term)
     | Term.App(cst,a,[]) when is_hol_const hol_eps cst ->
       let thm = compile_term [] [] a in
       let proof = compile_proof [] [] te in
-      (*    let proof = alpha_rename !c proof in *)
       let proof' = Some (Trace.annotate thm proof) in
-      incr c;
       OK(Thm(mk_name md id, thm, proof'))
     | _ -> Err(DefinitionError((lc,id,te),ty))
   with
