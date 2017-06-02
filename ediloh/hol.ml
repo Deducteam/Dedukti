@@ -3,6 +3,8 @@ open Basic
 let compile_proofs = ref true
 
 (* TODO: suppress ctx in the last translation *)
+(* FIXME: alpha equivalence on substitution *)
+(* FIXME: binary application *)
 type name = ident * ident
 
 type _ty =
@@ -551,10 +553,10 @@ let rec snf_beta _term =
     Impl(snf_beta _tel, snf_beta _ter)
   | Lam(id,_ty,_te) -> Lam(id,_ty,snf_beta _te)
   | App(Lam(id,_ty,_te), [u]) ->
-    beta_step _term
+    snf_beta (beta_step _term)
   | App(Lam(id,_ty,_te), u::args) ->
     let f' = beta_step (App(Lam(id,_ty,_te),[u])) in
-    List.fold_left (fun t arg -> mk_App t [snf_beta arg]) f' args
+    List.fold_left (fun t arg -> snf_beta (mk_App t [snf_beta arg])) (snf_beta f') args
   | _ -> _term
 
 
@@ -605,8 +607,16 @@ module Trace : Trace = struct
               | Some tr' -> (i+1, bind i (Some tr'))
             end
           | Some tr' -> (i+1,tr)) (0,None) (f::args) (f'::args')
-
-    | _,_ -> Some ([0], None)
+    | App(Const(name, _ty, subst), args), Impl(_, _) ->
+      Some ([0], Some(Fold(Delta(name,_ty,subst))))
+    | Impl(_, _), App(Const(name, _ty, subst), args) ->
+      Some ([0], Some(Unfold(Delta(name,_ty,subst))))
+    | Forall(_,_,_), App(Const(name, _ty, subst), args) ->
+      Some ([0], Some(Unfold(Delta(name,_ty,subst))))
+    | App(Const(name, _ty, subst), args), Forall(_, _, _) ->
+      Some ([0], Some(Fold(Delta(name,_ty,subst))))
+    | _,_ ->
+      Some ([], None)
 
   let rec compare ctx left right : (ctx * rw dir option) option =
     match (left,right) with
@@ -630,9 +640,21 @@ module Trace : Trace = struct
       {_term=_te;_proof=proof}
     | _ -> assert false
        *)
-  let rec _replace t ctx u =
+  let rec _replace ?(beta=false) t ctx u =
     match t, ctx with
-    | _, [] -> u
+    | _, [] ->
+      if not beta then
+        u
+      else
+        begin
+          match t with
+          | App(f,a::args) ->
+            if List.length args = 0 then
+              u
+            else
+              App(u,args)
+          | _ -> u
+        end
     | Forall(id,_ty,_term), 0::ctx' -> Forall(id,_ty,_replace _term ctx' u)
     | Impl(tel,ter), i::ctx' ->
       let tel' = if i = 0 then _replace tel ctx' u else tel in
@@ -642,15 +664,12 @@ module Trace : Trace = struct
     | VarTerm _, [0] -> u
     | Lam(id,ty, _te), 0::ctx' -> Lam(id,ty,_replace _te ctx' u)
     | App(f,args'), i::ctx' ->
-      let f' =
       if i = 0 then
         App(_replace f ctx' u, args')
       else
-        f
-      in
-      let (i,t) = List.fold_left (fun (i,t) arg ->
-          let arg' = if i = 0 then _replace arg ctx' u else arg in
-          (i-1),mk_App t [arg']) ((i-1),f') args' in
+        let (i,t) = List.fold_left (fun (i,t) arg ->
+            let arg' = if i = 0 then _replace arg ctx' u else arg in
+            (i-1),mk_App t [arg']) ((i-1),f) args' in
       assert (i<0);
       t
     | _ -> assert false
@@ -661,41 +680,8 @@ module Trace : Trace = struct
     | Term(_te), 0::ctx' -> Term(_replace _te ctx' u)
     | _ -> assert false
 
-  let apply__trace (ctx,rw) _pt =
-      match rw with
-    | Fold(Delta(name,_ty,subst)) ->
-      let _proof = RewriteU(ctx,rw,_pt) in
-      let _term = _replace _pt._term ctx (Const(name,_ty,subst)) in
-      {_term;_proof}
-    | Fold(Beta(term)) ->
-      let _proof = RewriteU(ctx,rw,_pt) in
-      let _term = _replace _pt._term ctx (beta_step term) in
-      {_term;_proof}
-    | Unfold(Beta(term)) ->
-      let _proof = RewriteU(ctx,rw,_pt) in
-      let _term = _replace _pt._term ctx term in
-      {_term;_proof}
-    | _ -> failwith "it would be nice if this exception was not raised"
-
-  let apply_trace (ctx,rw) pt =
-    match rw with
-    | Fold(Delta(name,_ty,subst)) ->
-      let proof = RewriteF(ctx,rw,pt) in
-      let term = replace pt.term ctx (Const(name,_ty,subst)) in
-      {term;proof}
-    | Fold(Beta(term)) ->
-      let proof = RewriteF(ctx,rw,pt) in
-      let term = replace pt.term ctx (beta_step term) in
-      {term;proof}
-    | Unfold(Beta(term)) ->
-      let proof = RewriteF(ctx,rw,pt) in
-      let term = replace pt.term ctx term in
-      {term;proof}
-    | _ -> failwith "it would be nice if this exception was not raised"
-
-
   let rec annotate (t:term) (pt:prooft) : prooft =
-    (* Format.eprintf "annotate:@. %a@.%a@." print_hol_term t print_hol_term pt.term; *)
+    Format.eprintf "annotate:@. %a@.%a@." print_hol_term t print_hol_term pt.term;
     let to_trace ctx rw =
       match rw with
       | Some(rw) -> (ctx, rw)
@@ -706,14 +692,39 @@ module Trace : Trace = struct
     match compare [] t pt.term with
     | None -> pt
     | Some (ctx,rw) ->
-      let tr = to_trace ctx rw in
-      annotate t (apply_trace tr pt)
-
-
-
+      let ctx,rw = to_trace ctx rw in
+      match rw with
+      | Fold(Delta(name,_ty,subst)) ->
+        let cst = const_of_name name in
+        let te = Env.unsafe_one_step cst in
+        let te'= compile_term [] [] te in
+        let _te = poly_subst_te subst te' in
+        let t' = replace t ctx _te in
+        let pt' = annotate t' pt in
+        let proof = RewriteF(ctx,rw,pt') in
+        let term = replace pt'.term ctx (Const(name,_ty,subst)) in
+        {term;proof}
+      | Fold(Beta(term)) ->
+        let proof = RewriteF(ctx,rw,pt) in
+        let term = replace pt.term ctx (beta_step term) in
+        annotate t ({term;proof})
+      | Unfold(Beta(term)) ->
+        let t' = replace t ctx (beta_step term) in
+        let pt' = annotate t' pt in
+        let proof = RewriteF(ctx,rw,pt') in
+        let term = replace pt'.term ctx term in
+        {term;proof}
+      | Unfold(Delta(name,_ty,subst)) ->
+        let cst = const_of_name name in
+        let te = Env.unsafe_one_step cst in
+        let te'= compile_term [] [] te in
+        let _te = poly_subst_te subst te' in
+        let term = replace pt.term ctx _te in
+        let proof = RewriteF(ctx,rw,pt) in
+        annotate t {term;proof}
 
   let rec _annotate (_t:_term) (_pt:_prooft) : _prooft =
-    (* Format.eprintf "_annotate:@. %a@.%a@." print_hol__term _t print_hol__term _pt._term; *)
+    Format.eprintf "_annotate:@. %a@.%a@." print_hol__term _t print_hol__term _pt._term;
     let to_trace ctx rw =
       match rw with
       | Some(rw) -> (ctx, rw)
@@ -738,7 +749,10 @@ module Trace : Trace = struct
         {_term;_proof}
       | Fold(Beta(term)) ->
         let _proof = RewriteU(ctx,rw,_pt) in
-        let _term = _replace _pt._term ctx (beta_step term) in
+        Format.eprintf "before:@. %a@." print_hol__term _pt._term;
+        Format.eprintf "ctx:@. %a@." print_ctx ctx;
+        let _term = _replace ~beta:true _pt._term ctx (beta_step term) in
+        Format.eprintf "after:@. %a@." print_hol__term _term;
         _annotate _t ({_term;_proof})
       | Unfold(Beta(term)) ->
         let _t' = _replace _t ctx (beta_step term) in
@@ -746,7 +760,15 @@ module Trace : Trace = struct
         let _proof = RewriteU(ctx,rw,_pt') in
         let _term = _replace _pt'._term ctx term in
         {_term;_proof}
-      | _ -> failwith "it would be nice if this exception was not raised"
+      | Unfold(Delta(name,_ty,subst)) ->
+        let cst = const_of_name name in
+        let te = Env.unsafe_one_step cst in
+        let te'= compile_term [] [] te in
+        let _te = poly_subst_te subst te' in
+        let _term = _replace _pt._term ctx _te in
+        let _proof = RewriteU(ctx,rw,_pt) in
+        _annotate _t {_term;_proof}
+
 end
 
 let c = ref 0
@@ -901,8 +923,17 @@ and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_pr
       Trace._annotate term' pt
     | Impl(_tel, _telr) ->
       let prooft' = compile__proof ty_ctx te_ctx pf_ctx arg in
+      let prooft' = Trace._annotate _tel prooft' in
       {_term=_telr;_proof=ImplE(prooft, prooft')}
-    | App(Const(name, _ty, subst), _tes) -> assert false
+    | App(Const(name, _ty, subst), _tes) -> Format.eprintf "%a@." print_hol__term prooft._term;
+      let cst = const_of_name name in
+      let te = Env.unsafe_one_step cst in
+      let te'= compile_term [] [] te in
+      let _te = poly_subst_te subst te' in
+      let _te' = snf_beta (App(_te, _tes)) in
+      let pt' = Trace._annotate _te' prooft in
+      Format.eprintf "test %a@." print_hol__term pt'._term;
+      compile_arg pt' arg
     | App(VarTerm(id, _ty), _tes) -> assert false
     | App _ -> failwith "don't know what to do"
     | Const _
