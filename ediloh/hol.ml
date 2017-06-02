@@ -1174,7 +1174,7 @@ let base_proof rw_proof =
     let left = compile_hol__term [] [] @@ hol_const_of_name name _ty ty_subst in
     let right = compile_hol__term [] [] @@ Const(name,_ty,ty_subst) in
     let pr = OT.thm_of_const_name (compile_hol_name name) in
-    {prf=OT.mk_sym pr;left=right;right=left}
+    {prf=OT.mk_sym pr;left=left;right=right}
 
 (* FIXME: ctx are not update *)
 let rec compile_hol__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof  =
