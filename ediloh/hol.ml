@@ -42,10 +42,10 @@ type proof_ctx = (Basic.ident * term) list
 
 type 'a dir = Fold of 'a | Unfold of 'a
 
-type rw = Delta of name *  _ty * ty_subst | Beta of _term
+type rw = Delta of name *  _ty * ty_subst | Beta of _term | Gamma of _proof * _term * _term
 
 
-type _proof =
+and _proof =
   | Lemma of name * term * ty_subst
   | Assume of _term * ty_subst
   | ForallI of ident * _ty * _prooft
@@ -158,7 +158,7 @@ let rec hol__type_dedukti ty =
     (* painful to get the correct index, so this is a hack cause of Pp.subst function *)
     Term.mk_DB dloc id 1000
   | Arrow(tyl,tyr) -> Term.mk_App (Term.mk_Const dloc hol (hstring "arrow"))
-                        (hol__type_dedukti tyl) [(hol__type_dedukti tyl)]
+                        (hol__type_dedukti tyl) [(hol__type_dedukti tyr)]
   | OpType(name,tys) ->
     List.fold_left (fun term arg -> Term.mk_App term (hol__type_dedukti arg) [])
     (name_dedukti name) tys
@@ -495,8 +495,9 @@ let compile_eps_term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : term =
   | _ -> assert false
 
 let is_delta_rw cst =
+  Format.eprintf "delta: %a@." Pp.print_term cst;
   match cst with
-  | Term.Const(_,_,id) -> Str.(string_match (regexp "__eq_\\|__eq_sym") (string_of_ident id) 0)
+  | Term.Const(_,md,id) -> md <> (hstring "logic") && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident id) 0)
   | _ -> false
 
 let get_infos_of_delta_rw md id = Str.(
@@ -550,6 +551,10 @@ sig
   val annotate : term -> prooft -> prooft
 
   val _annotate : ?prectx: int list -> _term -> _prooft -> _prooft
+
+  val _replace : _term -> int list -> _term -> _term
+
+  val replace : term -> int list -> _term -> term
 end
 
 module Trace : Trace = struct
@@ -707,6 +712,7 @@ module Trace : Trace = struct
         let term = replace pt.term ctx _te in
         let proof = RewriteF(ctx,rw,pt) in
         annotate t {term;proof}
+      | _ -> assert false
 
   let rec _annotate ?(prectx=[]) (_t:_term) (_pt:_prooft) : _prooft =
     Format.eprintf "_annotate:@. %a@.%a@." print_hol__term _t print_hol__term _pt._term;
@@ -752,8 +758,56 @@ module Trace : Trace = struct
         let _term = _replace _pt._term ctx _te in
         let _proof = RewriteU(ctx,rw,_pt) in
         _annotate _t {_term;_proof}
-
+      | _ -> assert false
 end
+
+
+  let rec ctx_of__term term var =
+    match term with
+    | Forall(id, _ty, _te) ->
+      let b,ctx = ctx_of__term _te var in
+      b,0::ctx
+    | Impl(_tel, _ter) ->
+      let bl, ctxl = ctx_of__term _tel var in
+      let br, ctxr = ctx_of__term _ter var in
+      if bl then
+        if br then
+          failwith "the variable appears twice"
+        else
+          bl, 0::ctxl
+      else
+        br, 1::ctxr
+    | VarTerm(id, _ty) ->
+      if Basic.ident_eq id var then
+        true,[]
+      else
+        false,[]
+    | Const _ -> false, []
+    | App(_tel,_ter) ->
+      let bl, ctxl = ctx_of__term _tel var in
+      let br, ctxr = ctx_of__term _ter var in
+      if bl then
+        if br then
+          failwith "the variable appears twice"
+        else
+          bl,0::ctxl
+      else
+        br,1::ctxr
+    | Lam(id, _ty, _te) ->
+      let b,ctx = ctx_of__term _te var in
+      b,0::ctx
+
+  let rec ctx_of_term term var =
+    match term with
+    | ForallT(id,te) ->
+      let ctx = ctx_of_term te var in
+      0::ctx
+    | Term(_te) ->
+      let b,ctx = ctx_of__term _te var in
+      if b then
+        ctx
+      else
+        assert false
 
 let c = ref 0
 
@@ -780,8 +834,63 @@ let rec alpha_rename_term n term =
   | ForallT(id, te) -> ForallT(id, alpha_rename_term n te)
   | Term(_te) -> Term(alpha_rename__term n _te)
 
+let rec with_ctx args =
+  List.exists (fun t -> match t with | Term.Lam _ -> true | _ -> false) args
+
 let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof : _prooft =
   match proof with
+  | Term.App(rw, a, args) when is_delta_rw rw && with_ctx (a::args) ->
+    Format.eprintf "args: %a@." (Pp.print_list "\n" Pp.print_term) (a::args);
+    let rec find_ctx args =
+      match args with
+      | [] -> assert false
+      | [_] -> assert false
+      | Term.Lam _ as ctx::r::t -> [], ctx,r,t
+      | x::args' ->
+        let l,ctx,r,t = find_ctx args' in
+        x::l,ctx,r,t
+    in
+    let l,ctx,r,t = find_ctx (a::args) in
+    (*
+    Format.eprintf "Debug: %d, %a, %a@." (List.length l) Pp.print_term ctx Pp.print_term r;
+    let red =
+      {
+        Reduction.select = Some (fun rw -> match rw with | Rule.Delta(md,id) -> md <> hol || id <> (hstring "leibniz") | _ -> true);
+        Reduction.beta = true
+      }
+    in
+    *)
+    let _pt =
+      match l with
+      | [] -> compile__proof ty_ctx te_ctx pf_ctx rw
+      | x::t -> compile__proof ty_ctx te_ctx pf_ctx (Term.mk_App rw x t)
+    in
+    let ctx =
+      match ctx with
+      | Term.Lam (_,id, Some ty, te) ->
+        let ty' = compile_type ty_ctx ty in
+        let te' = (compile_term ty_ctx ((id,ty')::te_ctx) te) in
+        ctx_of_term te' id
+      | _ -> Format.eprintf "debug ctx: %a@." Pp.print_term ctx ;assert false
+    in
+    let _pt' = compile__proof ty_ctx te_ctx pf_ctx r in
+    let left,right =
+      match _pt._term with
+      | App(App(_,l),r) -> l,r
+      | _ -> assert false
+    in
+    let _proof = RewriteU(ctx, Fold(Gamma(_pt._proof,left,right)), _pt') in
+    let _term = Trace._replace _pt'._term ctx right in
+    let pt = {_proof;_term} in
+    compile_app ty_ctx te_ctx pf_ctx pt t
+
+    (*
+        begin
+          match Env.reduction ~red:red  Reduction.Whnf (Term.mk_App rw x t) with
+          | OK t -> Format.eprintf "%a@." Pp.print_term t; failwith "todo"
+          | Err err -> Errors.fail_env_error err
+        end
+    end *)
   | Term.Lam(_,x, Some ty, proof) when is_type ty ->
     let ty' = compile_eta_type ty_ctx ty in
     let _prooft' = compile__proof ty_ctx ((x,ty')::te_ctx) pf_ctx proof in
@@ -1119,7 +1228,7 @@ let rec compile_hol_type (ty_ctx:ty_ctx) (ty:ty) =
   | ForallK(var,te) -> compile_hol_type (var::ty_ctx) te
   | Type(te) -> compile_hol__type ty_ctx te
 
-
+let is_hol_equal (md,id) = md = hstring "hol" && id = hstring "leibniz"
 (* FIXME: ctx are unecessary. They can be useful to make some assertions *)
 let rec compile_hol__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
   match term with
@@ -1132,6 +1241,16 @@ let rec compile_hol__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
     let _tel' = compile_hol__term ty_ctx te_ctx _tel in
     let _ter' = compile_hol__term ty_ctx te_ctx _ter in
     OT.mk_impl_term _tel' _ter'
+  | App(App(Const(name,_ty, subst),l),r) when is_hol_equal name ->
+    let l' = compile_hol__term ty_ctx te_ctx l in
+    let r' = compile_hol__term ty_ctx te_ctx r in
+    let ty' =
+      match _ty with
+      | Arrow(l,Arrow(_,_)) -> l
+      | _ -> Format.eprintf "debug: %a@." print_hol__type _ty; assert false
+    in
+    let _ty' = compile_hol__type ty_ctx ty' in
+    OT.mk_equal_term l' r' _ty'
   | App(f, a) ->
     let f' = compile_hol__term ty_ctx te_ctx f in
     let a' = compile_hol__term ty_ctx te_ctx a in
@@ -1180,7 +1299,7 @@ let hol_const_of_name name _ty ty_subst =
   let te' = compile_term [] [] te in
   poly_subst_te ty_subst te'
 
-let base_proof rw_proof =
+let rec base_proof rw_proof =
   match rw_proof with
   | Unfold(Beta(left)) ->
     let left' = compile_hol__term [] [] left in
@@ -1201,9 +1320,14 @@ let base_proof rw_proof =
     let right = compile_hol__term [] [] @@ Const(name,_ty,ty_subst) in
     let pr = OT.thm_of_const_name (compile_hol_name name) in
     {prf=OT.mk_sym pr;left=left;right=right}
+  | Unfold(Gamma(_proof,left,right))
+  | Fold(Gamma(_proof,left,right)) ->
+    let pr = compile_hol__proof [] [] [] _proof in
+    let left = compile_hol__term [] [] left in
+    let right = compile_hol__term [] [] right in
+    {prf=pr;left=left;right=right}
 
-(* FIXME: ctx are not update *)
-let rec compile_hol__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof  =
+and compile_hol__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof  =
   let open OT in
   match proof with
   | Lemma(name,term, subst) ->
@@ -1384,7 +1508,7 @@ let rec alpha_rename_types left right =
   match left,right with
   | ForallT(name, te), ForallT(name',te') ->
     let subst = alpha_rename_types te te' in
-    (name,name')::subst
+    (name',name)::subst
   | Term(_), Term(_) -> []
   | _ -> assert false
 
