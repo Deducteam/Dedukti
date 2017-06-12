@@ -77,6 +77,8 @@ module type OpenSTT = sig
 
   val mk_forall_equal : thm obj -> name obj -> term obj -> term obj -> ty obj -> thm obj
 
+  val mk_equal_equal : term obj -> term obj -> term obj -> term obj -> thm obj -> thm obj -> ty obj -> thm obj
+
   val thm_of_const_name : name obj -> thm obj
 
   val mk_refl : term obj -> thm obj

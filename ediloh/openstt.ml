@@ -77,6 +77,8 @@ module type OpenSTT = sig
 
   val mk_forall_equal : thm obj -> name obj -> term obj -> term obj -> ty obj -> thm obj
 
+  val mk_equal_equal : term obj -> term obj -> term obj -> term obj -> thm obj -> thm obj -> ty obj -> thm obj
+
   val thm_of_const_name : name obj -> thm obj
 
   val mk_refl : term obj -> thm obj
@@ -677,4 +679,17 @@ module OpenTheory = struct
     let intro_forall_right = mk_rule_intro_forall name ty left eqMp in
     let deduct = mk_deductAntiSym intro_forall_left intro_forall_right in
     mk_sym deduct
+
+  let mk_equal_equal l r l' r' ll' rr' ty =
+    let sym = mk_sym ll' in
+    let assume = mk_assume (mk_equal_term l r ty) in
+    let trans = mk_trans sym assume in
+    let l'r' = mk_trans trans rr' in
+
+    let assume = mk_assume (mk_equal_term l' r' ty) in
+    let trans = mk_trans ll' assume in
+    let sym = mk_sym rr' in
+    let lr = mk_trans trans sym in
+    mk_deductAntiSym  lr l'r'
+
 end

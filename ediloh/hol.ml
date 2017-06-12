@@ -292,8 +292,6 @@ let merge sub subst =
 
 
 let rec poly_subst_te (subst:ty_subst) (te:term) : _term =
-  Format.eprintf "debug term: %a@." print_hol_term te;
-  Format.eprintf "debug subst: %a@." print_ty_subst subst;
   match te with
   | ForallT(var, te') ->
     assert(List.mem_assoc var subst);
@@ -343,7 +341,6 @@ let rec free_variables ctx _te =
     free_variables (id::ctx) _term
 
 let rec term_subst__te (subst:te_subst) (te:_term) : _term =
-  Format.eprintf "debug list:%a@." (Pp.print_list "\n" Pp.print_ident) (List.map fst subst);
   match te with
   | Forall(var,_ty,_term) ->
     let _term' = term_subst__te subst _term in
@@ -515,7 +512,6 @@ let compile_eps_term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : term =
   | _ -> assert false
 
 let is_delta_rw cst =
-  Format.eprintf "delta: %a@." Pp.print_term cst;
   match cst with
   | Term.Const(_,md,id) -> md <> (hstring "logic") && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident id) 0)
   | _ -> false
@@ -768,10 +764,7 @@ module Trace : Trace = struct
         let _t' = _replace _t ctx (beta_step term) in
         let _pt' = _annotate _t' _pt in
         let _proof = RewriteU(ctx,rw,_pt') in
-        Format.eprintf "capture: %a@." print_hol__term _pt'._term;
-        Format.eprintf "capture: %a@." print_hol__term  term;
         let _term = _replace _pt'._term ctx term in
-        Format.eprintf "capture: %a@." print_hol__term _term;
         {_term;_proof}
       | Unfold(Beta(term)) ->
         let _term = _replace _pt._term ctx (beta_step term) in
@@ -869,21 +862,47 @@ let rec alpha_rename_term n term =
 let rec with_ctx args =
   List.exists (fun t -> match t with | Term.Lam _ -> true | _ -> false) args
 
+let rec arguments_needed rw =
+  let ty =
+    match rw with
+    | Term.Const(lc,md,id) ->
+      begin
+        match Env.get_type lc md id with
+        | OK ty -> ty
+        | Err err -> Errors.fail_signature_error err
+      end
+    | _ -> assert false
+  in
+  let rec aux t n =
+    let is_forall_prop md id =
+      Basic.ident_eq md (hstring "hol") && (Basic.ident_eq id (hstring "forall_kind_prop"))
+    in
+    let is_forall md id =
+      Basic.ident_eq md (hstring "hol") && Basic.ident_eq id (hstring "forall")
+    in
+    match t with
+    | Term.App(Term.Const(_,md,id),_,_) when Basic.ident_eq md (hstring "hol") && Basic.ident_eq id (hstring "leibniz") -> n
+    | Term.App(Term.Const(_,md,id),Term.Lam(_,_,_,te),[]) when is_forall_prop md id -> aux te (n+1)
+    | Term.App(Term.Const(_,md,id),_,[Term.Lam(_,_,_,te)]) when is_forall md id -> aux te (n+1)
+    | Term.App(Term.Const(_,md,id), t', []) when Basic.ident_eq md (hstring "hol") && Basic.ident_eq id (hstring "eps") -> aux t' n
+    | _ -> Format.eprintf "debug: %a@." Pp.print_term t; assert false
+  in
+  aux ty 0
+
 let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof : _prooft =
-  Format.eprintf "debug compile proof: %a@." Pp.print_term proof;
   match proof with
-  | Term.App(rw, a, args) when is_delta_rw rw && with_ctx (a::args) ->
-    Format.eprintf "args: %a@." (Pp.print_list "\n" Pp.print_term) (a::args);
-    let rec find_ctx args =
-      match args with
-      | [] -> assert false
-      | [_] -> assert false
-      | Term.Lam _ as ctx::r::t -> [], ctx,r,t
-      | x::args' ->
-        let l,ctx,r,t = find_ctx args' in
+  | Term.App(rw, a, args) when is_delta_rw rw && List.length (a::args) > arguments_needed rw ->
+    (* Format.eprintf "args: %d@." (Pp.print_list "\n" Pp.print_term) (a::args); *)
+    let rec find_ctx args n =
+      match args,n with
+      | [],_ -> assert false
+      | [_],_ -> assert false
+      | ctx::r::t,0 -> [], ctx,r,t
+      | x::args',_ ->
+        let l,ctx,r,t = find_ctx args' (n-1) in
         x::l,ctx,r,t
     in
-    let l,ctx,r,t = find_ctx (a::args) in
+    let l,ctx,r,t = find_ctx (a::args) (arguments_needed rw) in
     let _pt =
       match l with
       | [] -> compile__proof ty_ctx te_ctx pf_ctx rw
@@ -903,7 +922,7 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       | App(App(_,l),r) -> l,r
       | _ -> assert false
     in
-    let _proof = RewriteU(ctx, Fold(Gamma(_pt._proof,left,right)), _pt') in
+    let _proof = RewriteU(ctx, Unfold(Gamma(_pt._proof,left,right)), _pt') in
     let _term = Trace._replace _pt'._term ctx right in
     let pt = {_proof;_term} in
     compile_app ty_ctx te_ctx pf_ctx pt t
@@ -1254,6 +1273,8 @@ let rec compile_hol__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
   | VarTerm(var,_ty) ->
     let _ty' = compile_hol__type ty_ctx _ty in
     OT.mk_var_term (OT.mk_var (name_of_var var) _ty')
+  | Const(name, _ty, subst) when is_hol_equal name ->
+    failwith "no"
   | Const(name, _ty, subst) ->
     let _ty' = compile_hol__type ty_ctx _ty in
     let cst = OT.const_of_name (compile_hol_name name) in
@@ -1315,9 +1336,14 @@ let rec base_proof rw_proof =
   | Fold(Delta(name,_ty,ty_subst)) ->
     let left = compile_hol__term [] [] @@ hol_const_of_name name _ty ty_subst in
     let right = compile_hol__term [] [] @@ Const(name,_ty,ty_subst) in
-    let pr = OT.thm_of_const_name (compile_hol_name name) in
+    let subst = compile_hol_subst [] ty_subst in
+    let pr = OT.mk_subst (OT.thm_of_const_name (compile_hol_name name)) subst [] in
     {prf=OT.mk_sym pr;left=left;right=right}
-  | Unfold(Gamma(_proof,left,right))
+  | Unfold(Gamma(_proof,left,right)) ->
+    let pr = compile_hol__proof [] [] [] _proof in
+    let left = compile_hol__term [] [] left in
+    let right = compile_hol__term [] [] right in
+    {prf=pr;left=left;right=right}
   | Fold(Gamma(_proof,left,right)) ->
     let pr = compile_hol__proof [] [] [] _proof in
     let left = compile_hol__term [] [] left in
@@ -1328,8 +1354,6 @@ and compile_hol__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
   let open OT in
   match proof with
   | Lemma(name,term, subst) ->
-    OT.comment "#Lemma %a.%a@." Pp.print_ident (fst name) Pp.print_ident (snd name);
-    Format.eprintf "Lemma: %a, %d@." print_name name (List.length subst);
     let proof =
       try
         thm_of_lemma (compile_hol_name name)
@@ -1338,76 +1362,49 @@ and compile_hol__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
     in
     mk_subst proof (compile_hol_subst ty_ctx subst) []
   | Assume(_te, subst) ->
-    (* OT.comment "@[#Assume %a@]@." print_hol__term _te; *)
     mk_subst (OT.mk_assume (compile_hol__term ty_ctx te_ctx _te)) (compile_hol_subst ty_ctx subst) []
   | ForallI(id,_ty, _prooft) ->
-    OT.comment "#Forall (intro) %a@." Pp.print_ident id;
     let name = name_of_var id in
-    OT.comment "#Forall (intro) type@.";
     let _ty = compile_hol__type ty_ctx _ty in
-    OT.comment "#Forall (intro) term@.";
     let _term = compile_hol__term ty_ctx te_ctx _prooft._term in
-    OT.comment "#Forall (intro) proof@.";
     let _proof = compile_hol__proof ty_ctx te_ctx pf_ctx _prooft._proof in
-    OT.comment "#Forall (intro) rule@.";
     mk_rule_intro_forall name _ty _term _proof
   | ImplI(_term, _prooft) ->
-    OT.comment "#Impl (intro)@.";
     let _proof = compile_hol__proof ty_ctx te_ctx pf_ctx _prooft._proof in
-    OT.comment "#Impl (intro) left@.";
     let p = compile_hol__term ty_ctx te_ctx _term in
-    OT.comment "#Impl (intro) right@.";
     let q = compile_hol__term ty_ctx te_ctx _prooft._term in
-    OT.comment "#Impl (intro) rule@.";
     mk_rule_intro_impl _proof p q
   | ForallE(_prooft,_term) ->
-    OT.comment "#Forall elim@.";
     let id,_ty,lam =
       match _prooft._term with
       | Forall(id,_ty,_term) -> id,_ty, Lam(id, _ty, _term)
       | _ -> assert false
     in
-    OT.comment "#Forall (elim) type@.";
     let _ty' = compile_hol__type ty_ctx _ty in
-    OT.comment "#Forall (elim) lambda@.";
     let lam' = compile_hol__term ty_ctx te_ctx lam in
-    OT.comment "#Forall (elim) proof@.";
     let _proof' = compile_hol__proof ty_ctx ((id,Type _ty)::te_ctx) pf_ctx _prooft._proof in
-    OT.comment "#Forall (elim) term@.";
     let _term' = compile_hol__term ty_ctx te_ctx _term in
-    OT.comment "#Forall (elim) rule@.";
     mk_rule_elim_forall _proof' lam' _ty' _term'
   | ImplE(_prooftl,_prooftr) ->
-    OT.comment "#Impl (elim)@.";
     let p,q =
       match _prooftl._term with
       | Impl(p,q) -> p,q
       | _ -> assert false
     in
-    OT.comment "#Impl (elim) term p@.";
     let p' = compile_hol__term ty_ctx te_ctx p in
-    OT.comment "#Impl (elim) term q@.";
     let q' = compile_hol__term ty_ctx te_ctx q in
-    OT.comment "#Impl (elim) proof p=>q@.";
     let proofimpl = compile_hol__proof ty_ctx te_ctx pf_ctx _prooftl._proof in
-    OT.comment "#Impl (elim) proof p@.";
     let proofp = compile_hol__proof ty_ctx te_ctx pf_ctx _prooftr._proof in
-    OT.comment "#Impl (elim) rule@.";
     mk_rule_elim_impl proofp proofimpl p' q'
   | RewriteU(ctx,rw,_pt) ->
-    OT.comment "#rewriteU eq proof@.";
     let eq_proof = (compile__ctx_proof (base_proof rw) ctx _pt._term).prf in
-    OT.comment "#rewriteU proof@.";
     let proof' = compile_hol__proof ty_ctx te_ctx pf_ctx _pt._proof in
     OT.mk_eqMp proof' eq_proof
 
 and compile__ctx_proof base_proof ctx _te =
-  (* Format.eprintf "debug: %d, %a@." (List.length ctx) print_hol__term _te; *)
   match _te, ctx with
   | _, [] -> base_proof
   | Forall(id,_ty,_te), 0::ctx' ->
-    Format.eprintf "id: %a@." Pp.print_ident id;
-    OT.comment "#ctx forall@.";
     let pr = compile__ctx_proof base_proof ctx' _te in
     let ty' = compile_hol__type [] _ty in
     let prf = OT.mk_forall_equal pr.prf (name_of_var id) pr.left pr.right ty' in
@@ -1416,18 +1413,15 @@ and compile__ctx_proof base_proof ctx _te =
     let right = OT.mk_forall_term (lambda' pr.right) ty' in
     {prf;left;right}
   | Impl(tel,ter), i::ctx' ->
-    OT.comment "#ctx impl left@.";
     let prl,prr =
       if i = 0 then
         let prl = compile__ctx_proof base_proof ctx' tel in
         let ter' = compile_hol__term [] [] ter in
-        OT.comment "#ctx impl right 0@.";
         let prr = {prf=OT.mk_refl ter'; left=ter'; right=ter'} in
         prl,prr
       else if i = 1 then
         let prr = compile__ctx_proof base_proof ctx' ter in
         let tel' = compile_hol__term [] [] tel in
-        OT.comment "#ctx impl right 1@.";
         let prl = {prf=OT.mk_refl tel'; left=tel'; right=tel'} in
         prl,prr
       else assert false
@@ -1437,8 +1431,35 @@ and compile__ctx_proof base_proof ctx _te =
     let right = OT.mk_impl_term prl.right prr.right in
     let pr = {prf;left;right} in
     pr
+  | App(App(Const(name,_ty, subst),l),r), i::ctx' when is_hol_equal name ->
+    let prl,prr =
+      if i = 0  then
+        let ctx' =
+        match ctx' with
+          | [] -> assert false
+          | _::ctx -> ctx
+        in
+        let prl = compile__ctx_proof base_proof ctx' l in
+        let ter' = compile_hol__term [] [] r in
+        let prr = {prf=OT.mk_refl ter'; left=ter'; right=ter'} in
+        prl,prr
+      else if i = 1 then
+        let prr = compile__ctx_proof base_proof ctx' r in
+        let tel' = compile_hol__term [] [] l in
+        let prl = {prf=OT.mk_refl tel'; left=tel'; right=tel'} in
+        prl,prr
+      else assert false
+    in
+    OT.debug prl.left;
+    OT.debug prl.right;
+    let ty = match _ty with Arrow(l,Arrow(_,_)) -> l | _ -> assert false in
+    let ty' = compile_hol__type [] ty in
+    let prf = OT.mk_equal_equal prl.left prr.left prl.right prr.right prl.prf prr.prf ty' in
+    let left = OT.mk_equal_term prl.left prr.left ty' in
+    let right = OT.mk_equal_term prl.right prr.right ty' in
+    let pr = {prf;left;right} in
+    pr
   | App(f,a), i::ctx' ->
-    OT.comment "#ctx app@.";
     if i = 0 then
       let pr = compile__ctx_proof base_proof ctx' f in
       compile_app pr (compile_hol__term [] [] a)
@@ -1453,7 +1474,6 @@ and compile__ctx_proof base_proof ctx _te =
       }
     else assert false
   | Lam(id,_ty,_te), 0::ctx' ->
-    OT.comment "#ctx lam@.";
     let pr = compile__ctx_proof base_proof ctx' _te in
     let ty' = compile_hol__type [] _ty in
     let lambda' t = OT.mk_abs_term (OT.mk_var (name_of_var id) ty') t in
