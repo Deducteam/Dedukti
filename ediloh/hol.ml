@@ -323,7 +323,25 @@ and poly_subst__te (subst:ty_subst) (te:_term) : _term =
     let _ty' = poly_subst__ty subst _ty in
     Lam(id, _ty', _te')
 
+let rec free_variables ctx _te =
+  match _te with
+  | Forall(var,_ty,_term) ->
+    free_variables (var::ctx) _term
+  | Impl(_tel,_ter) ->
+    (free_variables ctx _tel)@(free_variables ctx _ter)
+  | VarTerm(id,_ty) ->
+    if List.mem id ctx then
+      []
+    else
+      [id]
+  | App(f,a) ->
+    (free_variables ctx f)@(free_variables ctx a)
+  | Const _ -> []
+  | Lam(id,_ty, _term) ->
+    free_variables (id::ctx) _term
+
 let rec term_subst__te (subst:te_subst) (te:_term) : _term =
+  Format.eprintf "debug list:%a@." (Pp.print_list "\n" Pp.print_ident) (List.map fst subst);
   match te with
   | Forall(var,_ty,_term) ->
     let _term' = term_subst__te subst _term in
@@ -635,22 +653,27 @@ module Trace : Trace = struct
   let print_ctx fmt ctx =
     Pp.print_list " " (fun fmt d -> Format.fprintf fmt "%d" d) fmt ctx
 
-    (*
-    match _pt._term, ctx with
-    | VarTerm _, _ -> assert false
-    | Const(name,_ty, subst), [] ->
-      let cst = const_of_name name in
-      let te = Env.unsafe_one_step cst in
-      let te'= compile_term [] [] te in
-      let _te = poly_subst_te subst te' in
-      let proof = Rewrite(name, [], _pt) in
-      {_term=_te;_proof=proof}
-    | _ -> assert false
-       *)
+  let rec rename_var t id id' =
+    match t with
+    | Forall(id,_ty,_te) ->
+      Forall(id,_ty,rename_var _te id id')
+    | Impl(_tel,_ter) ->
+      Impl(rename_var _tel id id', rename_var _ter id id')
+    | Const _ -> t
+    | VarTerm(var,_ty) ->
+      if Basic.ident_eq var id then VarTerm(id',_ty) else VarTerm(var,_ty)
+    | Lam(id, _ty, _te) ->
+      Lam(id,_ty,rename_var _te id id')
+    | App(_tel, _ter) ->
+      App(rename_var _tel id id', rename_var _ter id id')
+
+  let prefix id = hstring(string_of_ident id ^ "___")
+
   let rec _replace t ctx u =
     match t, ctx with
     | _, [] -> u
-    | Forall(id,_ty,_term), 0::ctx' -> Forall(id,_ty,_replace _term ctx' u)
+    | Forall(id,_ty,_term), 0::ctx' ->
+      Forall(id,_ty,_replace _term ctx' u)
     | Impl(tel,ter), i::ctx' ->
       let tel' = if i = 0 then _replace tel ctx' u else tel in
       let ter' = if i = 1 then _replace ter ctx' u else ter in
@@ -724,7 +747,7 @@ module Trace : Trace = struct
           print_hol__term _t print_hol__term _pt._term print_ctx ctx
     in
     match _compare [] _t _pt._term with
-    | None -> _pt
+    | None -> {_pt with _term = _t}
     | Some (ctx,rw) ->
       let ctx,rw = to_trace ctx rw in
       let ctx = prectx@ctx in
@@ -743,7 +766,10 @@ module Trace : Trace = struct
         let _t' = _replace _t ctx (beta_step term) in
         let _pt' = _annotate _t' _pt in
         let _proof = RewriteU(ctx,rw,_pt') in
+        Format.eprintf "capture: %a@." print_hol__term _pt'._term;
+        Format.eprintf "capture: %a@." print_hol__term  term;
         let _term = _replace _pt'._term ctx term in
+        Format.eprintf "capture: %a@." print_hol__term _term;
         {_term;_proof}
       | Unfold(Beta(term)) ->
         let _term = _replace _pt._term ctx (beta_step term) in
@@ -816,23 +842,27 @@ let prefix n =
 
 let pre n id = hstring @@ prefix n ^(string_of_ident id)
 
-let rec alpha_rename__term n _term =
+let rec alpha_rename__term ctx n _term =
   match _term with
   | Forall(id,_ty,_te) ->
-    Forall(pre n id, _ty, alpha_rename__term n _te)
+    Forall(pre n id, _ty, alpha_rename__term (id::ctx) n _te)
   | Impl(_tel, _ter) ->
-    Impl(alpha_rename__term n _tel, alpha_rename__term n _ter)
-  | VarTerm(id,_ty) -> VarTerm(pre n id, _ty)
+    Impl(alpha_rename__term ctx n _tel, alpha_rename__term ctx n _ter)
+  | VarTerm(id,_ty) ->
+    if List.mem id ctx then
+      VarTerm(pre n id, _ty)
+    else
+      VarTerm(id, _ty)
   | App(f,a) ->
-    App(alpha_rename__term n f, alpha_rename__term n a)
+    App(alpha_rename__term ctx n f, alpha_rename__term ctx n a)
   | Lam(id,_ty, _te) ->
-    Lam(pre n id, _ty, alpha_rename__term n _te)
+    Lam(pre n id, _ty, alpha_rename__term ctx n _te)
   | _ -> _term
 
 let rec alpha_rename_term n term =
   match term with
   | ForallT(id, te) -> ForallT(id, alpha_rename_term n te)
-  | Term(_te) -> Term(alpha_rename__term n _te)
+  | Term(_te) -> Term(alpha_rename__term [] n _te)
 
 let rec with_ctx args =
   List.exists (fun t -> match t with | Term.Lam _ -> true | _ -> false) args
@@ -851,15 +881,6 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
         x::l,ctx,r,t
     in
     let l,ctx,r,t = find_ctx (a::args) in
-    (*
-    Format.eprintf "Debug: %d, %a, %a@." (List.length l) Pp.print_term ctx Pp.print_term r;
-    let red =
-      {
-        Reduction.select = Some (fun rw -> match rw with | Rule.Delta(md,id) -> md <> hol || id <> (hstring "leibniz") | _ -> true);
-        Reduction.beta = true
-      }
-    in
-    *)
     let _pt =
       match l with
       | [] -> compile__proof ty_ctx te_ctx pf_ctx rw
@@ -883,14 +904,6 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
     let _term = Trace._replace _pt'._term ctx right in
     let pt = {_proof;_term} in
     compile_app ty_ctx te_ctx pf_ctx pt t
-
-    (*
-        begin
-          match Env.reduction ~red:red  Reduction.Whnf (Term.mk_App rw x t) with
-          | OK t -> Format.eprintf "%a@." Pp.print_term t; failwith "todo"
-          | Err err -> Errors.fail_env_error err
-        end
-    end *)
   | Term.Lam(_,x, Some ty, proof) when is_type ty ->
     let ty' = compile_eta_type ty_ctx ty in
     let _prooft' = compile__proof ty_ctx ((x,ty')::te_ctx) pf_ctx proof in
@@ -939,26 +952,6 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
     in
     let _proof = Lemma((md,id),te', []) in
     {_term;_proof}
-    (*
-  | Term.App(Term.Const(_,md,id) as rw, ctx, cst::args) when is_delta_rw rw ->
-    let id,te = get_infos_of_delta_rw md id in
-    let term =
-      match Env.reduction ~red:Tracer.only_beta Reduction.OneStep (Term.mk_App ctx te []) with
-      | OK te -> te
-      | Err err -> Errors.fail_env_error err
-    in
-    let term' = compile_term ty_ctx te_ctx term in
-    let _term', subst, args = _te_of_te ty_ctx te_ctx term' args in
-    let prooft' = {_term=_term'; _proof=Lemma((md,id),term', subst)} in
-    begin
-      match ctx with
-      | Term.Lam(_, var, Some ty, te) ->
-        let ty' = compile_type ty_ctx ty in
-        let _proof = DeltaU((md,id),(id,compile_term ty_ctx ((var,ty')::te_ctx) te), prooft') in
-        let prooft = {prooft' with _proof} in
-        compile_app ty_ctx te_ctx pf_ctx prooft args
-      | _ -> assert false
-    end *)
   | Term.App(Term.Const(lc,md,id),a,args) ->
     let te =
       match Env.get_type lc md id with
@@ -1409,6 +1402,7 @@ and compile__ctx_proof base_proof ctx _te =
   match _te, ctx with
   | _, [] -> base_proof
   | Forall(id,_ty,_te), 0::ctx' ->
+    Format.eprintf "id: %a@." Pp.print_ident id;
     OT.comment "#ctx forall@.";
     let pr = compile__ctx_proof base_proof ctx' _te in
     let ty' = compile_hol__type [] _ty in
