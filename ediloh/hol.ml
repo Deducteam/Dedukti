@@ -292,6 +292,8 @@ let merge sub subst =
 
 
 let rec poly_subst_te (subst:ty_subst) (te:term) : _term =
+  Format.eprintf "debug term: %a@." print_hol_term te;
+  Format.eprintf "debug subst: %a@." print_ty_subst subst;
   match te with
   | ForallT(var, te') ->
     assert(List.mem_assoc var subst);
@@ -856,7 +858,7 @@ let rec alpha_rename__term ctx n _term =
   | App(f,a) ->
     App(alpha_rename__term ctx n f, alpha_rename__term ctx n a)
   | Lam(id,_ty, _te) ->
-    Lam(pre n id, _ty, alpha_rename__term ctx n _te)
+    Lam(pre n id, _ty, alpha_rename__term (id::ctx) n _te)
   | _ -> _term
 
 let rec alpha_rename_term n term =
@@ -868,6 +870,7 @@ let rec with_ctx args =
   List.exists (fun t -> match t with | Term.Lam _ -> true | _ -> false) args
 
 let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof : _prooft =
+  Format.eprintf "debug compile proof: %a@." Pp.print_term proof;
   match proof with
   | Term.App(rw, a, args) when is_delta_rw rw && with_ctx (a::args) ->
     Format.eprintf "args: %a@." (Pp.print_list "\n" Pp.print_term) (a::args);
@@ -937,7 +940,7 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       let _proof = Assume(_term,[]) in
       {_term;_proof}
     else
-      assert false
+      (Format.eprintf "id:%a@." Pp.print_ident id; assert false)
   | Term.Const(lc,md,id) ->
     let te =
       match Env.get_type lc md id with
@@ -1306,7 +1309,8 @@ let rec base_proof rw_proof =
   | Unfold(Delta(name,_ty,ty_subst)) ->
     let left = compile_hol__term [] [] @@ hol_const_of_name name _ty ty_subst in
     let right = compile_hol__term [] [] @@ Const(name,_ty,ty_subst) in
-    let pr = OT.thm_of_const_name (compile_hol_name name) in
+    let subst = compile_hol_subst [] ty_subst in
+    let pr = OT.mk_subst (OT.thm_of_const_name (compile_hol_name name)) subst [] in
     {prf=pr;left;right}
   | Fold(Delta(name,_ty,ty_subst)) ->
     let left = compile_hol__term [] [] @@ hol_const_of_name name _ty ty_subst in
