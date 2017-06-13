@@ -3,6 +3,7 @@ open Basic
 let compile_proofs = ref true
 
 (* TODO: suppress ctx in the last translation *)
+(* TODO: Fixe the base case for compare, but the latter should return the alpha renaming *)
 (* FIXME: varible capture with substitution *)
 type name = ident * ident
 
@@ -696,6 +697,13 @@ module Trace : Trace = struct
     | Term(_te), 0::ctx' -> Term(_replace _te ctx' u)
     | _ -> assert false
 
+  let rec alpha_rename_type left right =
+    match left,right with
+    | ForallT(name, te), ForallT(name',te') ->
+      ForallT(name',alpha_rename_type te te')
+    | Term(t), Term(_) -> Term(t)
+    | _ -> assert false
+
   let rec annotate (t:term) (pt:prooft) : prooft =
     (* Format.eprintf "annotate:@. %a@.%a@." print_hol_term t print_hol_term pt.term; *)
     let to_trace ctx rw =
@@ -706,7 +714,7 @@ module Trace : Trace = struct
           print_hol_term t print_hol_term pt.term print_ctx ctx
     in
     match compare [] t pt.term with
-    | None -> pt
+    | None -> {pt with term = alpha_rename_type t pt.term}
     | Some (ctx,rw) ->
       let ctx,rw = to_trace ctx rw in
       match rw with
@@ -741,7 +749,7 @@ module Trace : Trace = struct
       | _ -> assert false
 
   let rec _annotate ?(prectx=[]) (_t:_term) (_pt:_prooft) : _prooft =
-    (* Format.eprintf "_annotate:@. %a@.%a@." print_hol__term _t print_hol__term _pt._term; *)
+    Format.eprintf "_annotate:@. %a@.%a@." print_hol__term _t print_hol__term _pt._term;
     let to_trace ctx rw =
       match rw with
       | Some(rw) -> (ctx, rw)
@@ -935,7 +943,6 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       | _ -> Format.eprintf "debug ctx: %a@." Pp.print_term ctx ;assert false
     in
     let _proof = RewriteU(ctx, Unfold(Gamma(_pt._proof,left,right)), _pt') in
-    (* Format.eprintf "handwritten: %a@." print_hol__term _pt'._term; *)
     let _term = Trace._replace _pt'._term ctx right in
     let pt = {_proof;_term} in
     compile_app ty_ctx te_ctx pf_ctx pt t
@@ -1033,13 +1040,13 @@ and _te_of_te (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:term) (args:Term.term list) 
 and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_prooft)
     (args:Term.term list) : _prooft =
   let rec compile_arg (prooft:_prooft) arg =
-    (* Format.eprintf "debug:  %a@." print_hol__term prooft._term;
-       Format.eprintf "term: %a@." Pp.print_term arg; *)
-    match prooft._term with
+    (*  Format.eprintf "debug:  %a@." print_hol__term prooft._term;
+        Format.eprintf "term: %a@." Pp.print_term arg; *)
+    let _term = alpha_rename__term [] !c prooft._term in
+    incr c;
+    match _term with
     | Forall(id,_ty,_term) ->
       let _term' = compile__term ty_ctx te_ctx arg in
-      let _term = alpha_rename__term [] !c _term in
-      incr c;
       let term = term_subst__te [id,_term'] _term in
       let pt = {_term=term;_proof=ForallE(prooft, _term')} in
       let term' = snf_beta term in
@@ -1288,8 +1295,6 @@ let rec compile_hol__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
   | VarTerm(var,_ty) ->
     let _ty' = compile_hol__type ty_ctx _ty in
     OT.mk_var_term (OT.mk_var (name_of_var var) _ty')
-  | Const(name, _ty, subst) when is_hol_equal name ->
-    failwith "no"
   | Const(name, _ty, subst) ->
     let _ty' = compile_hol__type ty_ctx _ty in
     let cst = OT.const_of_name (compile_hol_name name) in
@@ -1334,32 +1339,38 @@ let hol_const_of_name name _ty ty_subst =
 let rec base_proof rw_proof =
   match rw_proof with
   | Unfold(Beta(left)) ->
+    (* Format.eprintf "unfold beta@."; *)
     let left' = compile_hol__term [] [] left in
     let right' = compile_hol__term [] [] (beta_step left) in
     let p = OT.mk_betaConv left' in
     {prf=p; right=right';left=left'}
   | Fold(Beta(left)) ->
+    (* Format.eprintf "fold beta: %a@."  print_hol__term left; *)
     let left' = compile_hol__term [] [] left in
     let right' = compile_hol__term [] [] (beta_step left) in
     {prf=OT.mk_sym (OT.mk_betaConv left'); right=left'; left=right'}
   | Unfold(Delta(name,_ty,ty_subst)) ->
+    (* Format.eprintf "unfold delta@."; *)
     let left = compile_hol__term [] [] @@ hol_const_of_name name _ty ty_subst in
     let right = compile_hol__term [] [] @@ Const(name,_ty,ty_subst) in
     let subst = compile_hol_subst [] ty_subst in
     let pr = OT.mk_subst (OT.thm_of_const_name (compile_hol_name name)) subst [] in
     {prf=pr;left;right}
   | Fold(Delta(name,_ty,ty_subst)) ->
+    (* Format.eprintf "fold delta@."; *)
     let left = compile_hol__term [] [] @@ hol_const_of_name name _ty ty_subst in
     let right = compile_hol__term [] [] @@ Const(name,_ty,ty_subst) in
     let subst = compile_hol_subst [] ty_subst in
     let pr = OT.mk_subst (OT.thm_of_const_name (compile_hol_name name)) subst [] in
     {prf=OT.mk_sym pr;left=left;right=right}
   | Unfold(Gamma(_proof,left,right)) ->
+    (* Format.eprintf "unfold gamma@."; *)
     let pr = compile_hol__proof [] [] [] _proof in
     let left = compile_hol__term [] [] left in
     let right = compile_hol__term [] [] right in
     {prf=pr;left=left;right=right}
   | Fold(Gamma(_proof,left,right)) ->
+    (* Format.eprintf "fold gamma@."; *)
     let pr = compile_hol__proof [] [] [] _proof in
     let left = compile_hol__term [] [] left in
     let right = compile_hol__term [] [] right in
@@ -1417,6 +1428,7 @@ and compile_hol__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
     OT.mk_eqMp proof' eq_proof
 
 and compile__ctx_proof base_proof ctx _te =
+  (* Format.eprintf "debug ctx proof : %a@." print_hol__term _te; *)
   match _te, ctx with
   | _, [] -> base_proof
   | Forall(id,_ty,_te), 0::ctx' ->
@@ -1465,8 +1477,6 @@ and compile__ctx_proof base_proof ctx _te =
         prl,prr
       else assert false
     in
-    OT.debug prl.left;
-    OT.debug prl.right;
     let ty = match _ty with Arrow(l,Arrow(_,_)) -> l | _ -> assert false in
     let ty' = compile_hol__type [] ty in
     let prf = OT.mk_equal_equal prl.left prr.left prl.right prr.right prl.prf prr.prf ty' in
@@ -1546,6 +1556,7 @@ let rec alpha_rename_types left right =
   | _ -> assert false
 
 let rename_types t pt =
+  (* Format.eprintf "left: %a@.right: %a@." print_hol_term t print_hol_term pt.term; *)
   let subst = alpha_rename_types t pt.term in
   List.map (fun (id,id') -> name_of_var id, OT.mk_varType (name_of_var id')) subst
 
