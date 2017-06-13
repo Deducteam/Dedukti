@@ -1038,6 +1038,8 @@ and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_pr
     match prooft._term with
     | Forall(id,_ty,_term) ->
       let _term' = compile__term ty_ctx te_ctx arg in
+      let _term = alpha_rename__term [] !c _term in
+      incr c;
       let term = term_subst__te [id,_term'] _term in
       let pt = {_term=term;_proof=ForallE(prooft, _term')} in
       let term' = snf_beta term in
