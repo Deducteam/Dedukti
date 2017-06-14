@@ -249,11 +249,14 @@ let hol_type = hstring "type"
 let hol_eta = hstring "eta"
 let hol_arrow = hstring "arrow"
 let hol_forall = hstring "forall"
+let hol_leibniz = hstring "leibniz"
 let hol_impl = hstring "impl"
 let hol_prop = hstring "prop"
 let hol_eps = hstring "eps"
 let hol_forall_kind_type = hstring "forall_kind_type"
 let hol_forall_kind_prop = hstring "forall_kind_prop"
+
+let logic_module = hstring "logic"
 
 let (===) = Basic.ident_eq
 
@@ -509,7 +512,7 @@ let compile_eps_term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : term =
 
 let is_delta_rw cst =
   match cst with
-  | Term.Const(_,md,id) -> md <> (hstring "logic") && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident id) 0)
+  | Term.Const(_,md,id) -> not (md === logic_module) && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident id) 0)
   | _ -> false
 
 let get_infos_of_delta_rw md id = Str.(
@@ -887,16 +890,16 @@ let rec arguments_needed rw =
   in
   let rec aux t n =
     let is_forall_prop md id =
-      Basic.ident_eq md (hstring "hol") && (Basic.ident_eq id (hstring "forall_kind_prop"))
+      md === hol_module && id === hol_forall_kind_prop
     in
     let is_forall md id =
-      Basic.ident_eq md (hstring "hol") && Basic.ident_eq id (hstring "forall")
+      md === hol_module && id === hol_forall
     in
     match t with
-    | Term.App(Term.Const(_,md,id),_,_) when Basic.ident_eq md (hstring "hol") && Basic.ident_eq id (hstring "leibniz") -> n
+    | Term.App(Term.Const(_,md,id),_,_) when md === hol_module && id === hol_leibniz -> n
     | Term.App(Term.Const(_,md,id),Term.Lam(_,_,_,te),[]) when is_forall_prop md id -> aux te (n+1)
     | Term.App(Term.Const(_,md,id),_,[Term.Lam(_,_,_,te)]) when is_forall md id -> aux te (n+1)
-    | Term.App(Term.Const(_,md,id), t', []) when Basic.ident_eq md (hstring "hol") && Basic.ident_eq id (hstring "eps") -> aux t' n
+    | Term.App(Term.Const(_,md,id), t', []) when md === hol_module && id === hol_eps -> aux t' n
     | _ -> Format.eprintf "debug: %a@." Pp.print_term t; assert false
   in
   aux ty 0
@@ -1245,7 +1248,7 @@ let rec compile_hol_type (ty_ctx:ty_ctx) (ty:ty) =
   | ForallK(var,te) -> compile_hol_type (var::ty_ctx) te
   | Type(te) -> compile_hol__type ty_ctx te
 
-let is_hol_equal (md,id) = md = hstring "hol" && id = hstring "leibniz"
+let is_hol_equal (md,id) = md === hol && id === hol_leibniz
 (* FIXME: ctx are unecessary. They can be useful to make some assertions *)
 let rec compile_hol__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
   match term with
