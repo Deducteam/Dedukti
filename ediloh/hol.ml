@@ -33,7 +33,7 @@ type _term =
   | Forall of ident * _ty * _term
   | Impl of _term * _term
   | VarTerm of ident * _ty
-  | Const of name * _ty * ty_subst
+  | Const of name * ty * ty_subst
   | App of _term * _term
   | Lam of ident * _ty * _term
 
@@ -53,7 +53,7 @@ type proof_ctx = (Basic.ident * term) list
 
 type 'a dir = Fold of 'a | Unfold of 'a
 
-type rw = Delta of name *  _ty * ty_subst | Beta of _term | Gamma of _proof * _term * _term
+type rw = Delta of name *  ty * ty_subst | Beta of _term | Gamma of _proof * _term * _term
 
 
 and _proof =
@@ -118,7 +118,7 @@ let rec ty_eq ctx left right : bool =
 let rec _term_eq ctx left right =
   match (left,right) with
   | VarTerm(id,_ty), VarTerm(id',_ty') -> alpha_eq ctx id id' && _ty_eq ctx _ty _ty'
-  | Const(name,_ty,_), Const(name',_ty',_) -> name_eq name name' && _ty_eq ctx _ty _ty'
+  | Const(name, ty,_), Const(name', ty',_) -> name_eq name name' && ty_eq ctx ty ty'
   | Lam(id,_ty, _te), Lam(id',_ty', _te') -> _ty_eq ctx _ty _ty' && _term_eq ((id,id')::ctx) _te _te'
   | Impl(_tel,_ter), Impl(_tel',_ter') -> _term_eq ctx _tel _tel' && _term_eq ctx _ter _ter'
   | Forall(id,_ty,_te), Forall(id',_ty',_te') -> _ty_eq ctx _ty _ty'
@@ -322,10 +322,9 @@ and poly_subst__te (subst:ty_subst) (te:_term) : _term =
     let _a' = poly_subst__te subst _a in
     let f' = poly_subst__te subst f in
     App(f', _a')
-  | Const(name, _ty, sub) ->
+  | Const(name, ty, sub) ->
     let subst' = merge sub subst in
-    let _ty' = poly_subst__ty subst _ty in
-    Const(name, _ty', subst')
+    Const(name, ty, subst')
   | Lam(id, _ty, _te) ->
     let _te' = poly_subst__te subst _te in
     let _ty' = poly_subst__ty subst _ty in
@@ -462,7 +461,7 @@ let rec compile__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : _term =
   | Term.Const(lc,md,id) ->
     let ty = ty_of_const lc md id in
     let _ty' = compile_eta__type ty_ctx ty in
-    Const(mk_name md id, _ty', [])
+    Const(mk_name md id, (Type _ty'), [])
   | Term.DB(_,var,_) ->
     let ty = lookup_ty var in
     VarTerm(var,ty)
@@ -475,10 +474,9 @@ let rec compile__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : _term =
   | Term.Lam(_, _, None, _) ->
     raise(CompileTermError(UntypedLambda(te)))
   | Term.App(Term.Const(lc,md,id),a,args) ->
-    let ty = ty_of_const lc md id in
-    let ty' = compile_eta_type ty_ctx ty in
-    let ty'', subst, args' = _ty_of_ty ty_ctx te_ctx ty' (a::args) in
-    List.fold_left (fun t a -> App(t,a)) (Const(mk_name md id, ty'', subst)) args'
+    let ty',subst,args = extract_ty_of_const lc md id ty_ctx (a::args) in
+    let args' = List.map (compile__term ty_ctx te_ctx) args in
+    List.fold_left (fun t a -> App(t,a)) (Const(mk_name md id, ty', subst)) args'
   | Term.App(Term.DB(_,var,_),a,args) ->
     let ty = lookup_ty var in
     let args' = List.map (compile__term ty_ctx te_ctx) (a::args) in
@@ -594,11 +592,11 @@ module Trace : Trace = struct
     in
     let rec ctx_of_app b app =
       match app with
-      | Const(name, _ty, subst) ->
+      | Const(name, ty, subst) ->
         if b then
-          Some([], Some(Unfold(Delta(name, _ty, subst))))
+          Some([], Some(Unfold(Delta(name, ty, subst))))
         else
-          Some([], Some(Fold(Delta(name, _ty, subst))))
+          Some([], Some(Fold(Delta(name, ty, subst))))
       | App(Lam(x,_ty,te) as f,u) ->
         if b then
           Some([], Some(Unfold(Beta(App(f,u)))))
@@ -610,7 +608,7 @@ module Trace : Trace = struct
     in
     match (left,right) with
     | VarTerm(id,_ty), VarTerm(id',_ty') when alpha_eq ctx id id' && _ty_eq ctx _ty _ty' -> None
-    | Const(name, _ty,_), Const(name', _ty',_) when name_eq name name' && _ty_eq ctx _ty _ty' -> None
+    | Const(name, ty, subst), Const(name', ty', subst') when name_eq name name' && _ty_eq ctx (poly_subst_ty subst ty) (poly_subst_ty subst' ty') -> None
     | Lam(id, _ty, _te), Lam(id', _ty', _te') when _ty_eq ctx _ty _ty' ->
       bind 0 (_compare ((id,id')::ctx) _te _te')
     | Forall(id, _ty, _te), Forall(id', _ty', _te') when _ty_eq ctx _ty _ty' ->
@@ -1260,15 +1258,15 @@ let rec compile_hol__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
     let _tel' = compile_hol__term ty_ctx te_ctx _tel in
     let _ter' = compile_hol__term ty_ctx te_ctx _ter in
     OT.mk_impl_term _tel' _ter'
-  | App(App(Const(name,_ty, subst),l),r) when is_hol_equal name ->
+  | App(App(Const(name,ty, subst),l),r) when is_hol_equal name ->
     let l' = compile_hol__term ty_ctx te_ctx l in
     let r' = compile_hol__term ty_ctx te_ctx r in
-    let ty' =
-      match _ty with
+    let _ty' =
+      match (poly_subst_ty subst ty) with
       | Arrow(l,Arrow(_,_)) -> l
-      | _ -> Format.eprintf "debug: %a@." print_hol__type _ty; assert false
+      | _ -> Format.eprintf "debug: %a@." print_hol_type ty; assert false
     in
-    let _ty' = compile_hol__type ty_ctx ty' in
+    let _ty' = compile_hol__type ty_ctx _ty' in
     OT.mk_equal_term l' r' _ty'
   | App(f, a) ->
     let f' = compile_hol__term ty_ctx te_ctx f in
@@ -1277,10 +1275,10 @@ let rec compile_hol__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
   | VarTerm(var,_ty) ->
     let _ty' = compile_hol__type ty_ctx _ty in
     OT.mk_var_term (OT.mk_var (name_of_var var) _ty')
-  | Const(name, _ty, subst) ->
-    let _ty' = compile_hol__type ty_ctx _ty in
+  | Const(name, ty, subst) ->
+    let ty' = compile_hol__type ty_ctx (poly_subst_ty subst ty) in
     let cst = OT.const_of_name (compile_hol_name name) in
-    OT.term_of_const cst _ty'
+    OT.term_of_const cst ty'
   | Lam(var, _ty,_term) ->
     let _term' = compile_hol__term ty_ctx ((var, _ty)::te_ctx) _term in
     let _ty' = compile_hol__type ty_ctx _ty in
@@ -1440,7 +1438,7 @@ and compile__ctx_proof base_proof ctx _te =
     let right = OT.mk_impl_term prl.right prr.right in
     let pr = {prf;left;right} in
     pr
-  | App(App(Const(name,_ty, subst),l),r), i::ctx' when is_hol_equal name ->
+  | App(App(Const(name,ty, subst),l),r), i::ctx' when is_hol_equal name ->
     let prl,prr =
       if i = 0  then
         let ctx' =
@@ -1459,7 +1457,7 @@ and compile__ctx_proof base_proof ctx _te =
         prl,prr
       else assert false
     in
-    let ty = match _ty with Arrow(l,Arrow(_,_)) -> l | _ -> assert false in
+    let ty = match (poly_subst_ty subst ty) with Arrow(l,Arrow(_,_)) -> l | _ -> assert false in
     let ty' = compile_hol__type [] ty in
     let prf = OT.mk_equal_equal prl.left prr.left prl.right prr.right prl.prf prr.prf ty' in
     let left = OT.mk_equal_term prl.left prr.left ty' in
