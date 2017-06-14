@@ -2,6 +2,8 @@ open Basic
 
 let compile_proofs = ref true
 
+let _ = Pp.print_db_enabled := true
+
 let rec split l n =
   if n = 0 then
     [],l
@@ -11,6 +13,14 @@ let rec split l n =
     | x::l' ->
       let left,right = split l' (n-1) in
       x::left,right
+
+let find_assoc_index x l =
+  let rec find_assoc_index x l n =
+    match l with
+    | [] -> None
+    | (y,t)::l' -> if x = y then Some(n, t) else find_assoc_index x l' (n+1)
+  in
+  find_assoc_index x l 0
 
 (* TODO: suppress ctx in the last translation *)
 (* TODO: Fixe the base case for compare, but the latter should return the alpha renaming *)
@@ -32,7 +42,7 @@ type ty_subst = (Basic.ident * _ty) list
 type _term =
   | Forall of ident * _ty * _term
   | Impl of _term * _term
-  | VarTerm of ident * _ty
+  | VarTerm of ident * int * _ty
   | Const of name * ty * ty_subst
   | App of _term * _term
   | Lam of ident * _ty * _term
@@ -114,15 +124,14 @@ let rec ty_eq ctx left right : bool =
   | ForallK(id, ty), ForallK(id', ty') -> ty_eq ((id,id')::ctx) ty ty'
   | _, _ -> false
 
-(* FIXME: type ident and var ident should be always different. This can be fixed by chaning the grammar of ident to make a distinction between type ident and var ident *)
 let rec _term_eq ctx left right =
   match (left,right) with
-  | VarTerm(id,_ty), VarTerm(id',_ty') -> alpha_eq ctx id id' && _ty_eq ctx _ty _ty'
+  | VarTerm(id, n, _ty), VarTerm(id', n',_ty') -> n = n' && _ty_eq ctx _ty _ty'
   | Const(name, ty,_), Const(name', ty',_) -> name_eq name name' && ty_eq ctx ty ty'
-  | Lam(id,_ty, _te), Lam(id',_ty', _te') -> _ty_eq ctx _ty _ty' && _term_eq ((id,id')::ctx) _te _te'
+  | Lam(id,_ty, _te), Lam(id',_ty', _te') -> _ty_eq ctx _ty _ty' && _term_eq ctx _te _te'
   | Impl(_tel,_ter), Impl(_tel',_ter') -> _term_eq ctx _tel _tel' && _term_eq ctx _ter _ter'
   | Forall(id,_ty,_te), Forall(id',_ty',_te') -> _ty_eq ctx _ty _ty'
-                                                 && _term_eq ((id,id')::ctx) _te _te'
+                                                 && _term_eq ctx _te _te'
   | App(_tel, _ter), App(_tel', _ter') ->
     _term_eq ctx _tel _tel' &&     _term_eq ctx _ter _ter'
   | _,_ -> false
@@ -180,7 +189,6 @@ let rec hol_type_dedukti ty =
          (hol_type_dedukti ty)) []
   | Type(ty) -> hol__type_dedukti ty
 
-(* FIXME: printing is won't work to print dedukti code. Some parenthesis are missing but right now it is only used for debugging *)
 let rec print_hol__type out ty = Pp.print_term out (hol__type_dedukti ty)
 
 let rec print_hol_type out ty = Pp.print_term out (hol_type_dedukti ty)
@@ -212,7 +220,7 @@ let rec hol__term_dedukti te =
   | Impl(_tel,_ter) ->
     Term.mk_App (Term.mk_Const dloc hol (hstring "impl"))
       (hol__term_dedukti _tel) [(hol__term_dedukti _ter)]
-  | VarTerm(ident,_) -> Term.mk_DB dloc ident 1000
+  | VarTerm(ident,n,_) -> Term.mk_DB dloc ident n
   | Const(name,_,_) -> name_dedukti name
   | Lam(id, _ty, _term) -> Term.mk_Lam dloc id (Some (hol__type_dedukti _ty)) (hol__term_dedukti _term)
   | App(f,a) ->
@@ -318,9 +326,9 @@ and poly_subst__te (subst:ty_subst) (te:_term) : _term =
     let _tel' = poly_subst__te subst _tel in
     let _ter' = poly_subst__te subst _ter in
     Impl(_tel', _ter')
-  | VarTerm(id, _ty) ->
+  | VarTerm(id, n, _ty) ->
     let _ty' = poly_subst__ty subst _ty in
-    VarTerm(id, _ty')
+    VarTerm(id, n, _ty')
   | App(f,_a) ->
     let _a' = poly_subst__te subst _a in
     let f' = poly_subst__te subst f in
@@ -339,7 +347,7 @@ let rec free_variables ctx _te =
     free_variables (var::ctx) _term
   | Impl(_tel,_ter) ->
     (free_variables ctx _tel)@(free_variables ctx _ter)
-  | VarTerm(id,_ty) ->
+  | VarTerm(id, n, _ty) ->
     if List.mem id ctx then
       []
     else
@@ -350,28 +358,43 @@ let rec free_variables ctx _te =
   | Lam(id,_ty, _term) ->
     free_variables (id::ctx) _term
 
-let rec term_subst__te (subst:te_subst) (te:_term) : _term =
-  match te with
-  | Forall(var,_ty,_term) ->
-    let _term' = term_subst__te subst _term in
-    Forall(var, _ty, _term')
-  | Impl(_tel, _ter) ->
-    let _tel' = term_subst__te subst _tel in
-    let _ter' = term_subst__te subst _ter in
-    Impl(_tel', _ter')
-  | VarTerm(id, _ty) ->
-    if List.mem_assoc id subst then
-      List.assoc id subst
-    else
-      te
-  | App(f,_a) ->
-    let _a' = term_subst__te subst _a in
-    let f' = term_subst__te subst f in
-    App(f',_a')
-  | Const _ -> te
-  | Lam(id, _ty, _te) ->
-    let _te' = term_subst__te subst _te in
-    Lam(id, _ty, _te')
+let rec lift n k t =
+  match t with
+  | VarTerm(id, i, _ty) ->
+    if i < k then
+      t
+    else VarTerm(id, i+n, _ty)
+  | Lam(id,_ty,_te) -> Lam(id,_ty,lift n (k+1) _te)
+  | Forall(id,_ty,_te) -> Forall(id,_ty, lift n (k+1) _te)
+  | Impl(_tel, _ter) -> Impl(lift n k _tel, lift n k _ter)
+  | App(f,a) -> App(lift n k f, lift n k a)
+  | _ -> t
+
+let term_subst__te n u (te:_term) : _term =
+  let rec term_subst__te k n u (te:_term) : _term =
+    match te with
+    | Forall(var,_ty,_term) ->
+      let _term' = term_subst__te (k+1) n u _term in
+      Forall(var, _ty, _term')
+    | Impl(_tel, _ter) ->
+      let _tel' = term_subst__te k n u _tel in
+      let _ter' = term_subst__te k n u _ter in
+      Impl(_tel', _ter')
+    | VarTerm(var, i, _ty) ->
+      if i < k then
+        te
+      else if i = k then (lift k 0 u)
+      else VarTerm(var, i-1, _ty)
+    | App(f,_a) ->
+      let _a' = term_subst__te k n u _a in
+      let f' = term_subst__te k n u f in
+      App(f',_a')
+    | Const _ -> te
+    | Lam(id, _ty, _te) ->
+      let _te' = term_subst__te (k+1) n u _te in
+      Lam(id, _ty, _te')
+  in
+  term_subst__te 0 n u te
 
 let rec poly_var_of_ty (ty:ty) : ident list =
   match ty with
@@ -444,13 +467,13 @@ let extract_ty_of_const lc md id ty_ctx (args:Term.term list) : ty * ty_subst * 
 
 let rec compile__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : _term =
   let lookup_ty var =
-    if List.mem_assoc var te_ctx then
-      List.assoc var te_ctx
-    else
+    match find_assoc_index var te_ctx with
+    | None ->
       begin
         Format.printf "Free variable: %a@." Pp.print_ident var;
         assert false
       end
+    | Some(n,t) -> (n,t)
   in
   match te with
   | Term.App(cst, ty, [Term.Lam(_,id, Some tyvar, te)]) when is_hol_const hol_forall cst ->
@@ -465,9 +488,9 @@ let rec compile__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : _term =
     let ty = ty_of_const lc md id in
     let _ty' = compile_eta__type ty_ctx ty in
     Const(mk_name md id, (Type _ty'), [])
-  | Term.DB(_,var,_) ->
-    let ty = lookup_ty var in
-    VarTerm(var,ty)
+  | Term.DB(_,var,n) ->
+    let n',ty = lookup_ty var in
+    VarTerm(var, n', ty)
   | Term.Lam(_,id, Some cst, te) when is_hol_const hol_type cst ->
     compile__term (id::ty_ctx) te_ctx te
   | Term.Lam(_,id, Some tyvar, te) ->
@@ -480,10 +503,10 @@ let rec compile__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : _term =
     let ty',subst,args = extract_ty_of_const lc md id ty_ctx (a::args) in
     let args' = List.map (compile__term ty_ctx te_ctx) args in
     List.fold_left (fun t a -> App(t,a)) (Const(mk_name md id, ty', subst)) args'
-  | Term.App(Term.DB(_,var,_),a,args) ->
-    let ty = lookup_ty var in
+  | Term.App(Term.DB(_,var,n),a,args) ->
+    let n',ty = lookup_ty var in
     let args' = List.map (compile__term ty_ctx te_ctx) (a::args) in
-    List.fold_left (fun t a -> App(t,a))(VarTerm(var, ty)) args'
+    List.fold_left (fun t a -> App(t,a))(VarTerm(var, n', ty)) args'
   | _ -> raise(CompileTermError(TermError(te)))
 
 
@@ -527,20 +550,10 @@ let get_infos_of_delta_rw md id = Str.(
       assert false
 )
 
-let rec subst var u t =
-  match t with
-  | VarTerm(id,_ty) when Basic.ident_eq id var ->
-    u
-  | Lam(id,_ty,_te) when not @@ Basic.ident_eq id var -> Lam(id,_ty,subst var u _te)
-  | Forall(id,_ty,_te) -> Forall(id,_ty, subst var u _te)
-  | Impl(_tel, _ter) -> Impl(subst var u _tel, subst var u _ter)
-  | App(f,a) -> App(subst var u f, subst var u a)
-  | _ -> t
-
 let beta_step left =
   match left with
   | App(Lam(id,_ty,te), u) ->
-    subst id u te
+    term_subst__te 0 u te
   | _ -> assert false
 
 let rec snf_beta _term =
@@ -610,7 +623,7 @@ module Trace : Trace = struct
       | _ -> Some ([], None)
     in
     match (left,right) with
-    | VarTerm(id,_ty), VarTerm(id',_ty') when alpha_eq ctx id id' && _ty_eq ctx _ty _ty' -> None
+    | VarTerm(id, n, _ty), VarTerm(id', n', _ty') when alpha_eq ctx id id' && _ty_eq ctx _ty _ty' -> None
     | Const(name, ty, subst), Const(name', ty', subst') when name_eq name name' && _ty_eq ctx (poly_subst_ty subst ty) (poly_subst_ty subst' ty') -> None
     | Lam(id, _ty, _te), Lam(id', _ty', _te') when _ty_eq ctx _ty _ty' ->
       bind 0 (_compare ((id,id')::ctx) _te _te')
@@ -663,8 +676,8 @@ module Trace : Trace = struct
     | Impl(_tel,_ter) ->
       Impl(rename_var _tel id id', rename_var _ter id id')
     | Const _ -> t
-    | VarTerm(var,_ty) ->
-      if Basic.ident_eq var id then VarTerm(id',_ty) else VarTerm(var,_ty)
+    | VarTerm(var, n, _ty) ->
+      if Basic.ident_eq var id then VarTerm(id', n, _ty) else VarTerm(var, n, _ty)
     | Lam(id, _ty, _te) ->
       Lam(id,_ty,rename_var _te id id')
     | App(_tel, _ter) ->
@@ -813,7 +826,7 @@ end
           bl, 0::ctxl
       else
         br, 1::ctxr
-    | VarTerm(id, _ty) ->
+    | VarTerm(id, n, _ty) ->
       if Basic.ident_eq id var then
         true,[]
       else
@@ -858,11 +871,11 @@ let rec alpha_rename__term ctx n _term =
     Forall(pre n id, _ty, alpha_rename__term (id::ctx) n _te)
   | Impl(_tel, _ter) ->
     Impl(alpha_rename__term ctx n _tel, alpha_rename__term ctx n _ter)
-  | VarTerm(id,_ty) ->
+  | VarTerm(id, i, _ty) ->
     if List.mem id ctx then
-      VarTerm(pre n id, _ty)
+      VarTerm(pre n id, i, _ty)
     else
-      VarTerm(id, _ty)
+      VarTerm(id, i, _ty)
   | App(f,a) ->
     App(alpha_rename__term ctx n f, alpha_rename__term ctx n a)
   | Lam(id,_ty, _te) ->
@@ -873,6 +886,28 @@ let rec alpha_rename_term n term =
   match term with
   | ForallT(id, te) -> ForallT(id, alpha_rename_term n te)
   | Term(_te) -> Term(alpha_rename__term [] n _te)
+
+let rec _bound_variable_renaming ctx n _term =
+  match _term with
+  | Forall(id,_ty,_te) ->
+    Forall(pre n id, _ty, _bound_variable_renaming (pre n id::ctx) (n+1) _te)
+  | Impl(_tel, _ter) ->
+    Impl(_bound_variable_renaming ctx n _tel, _bound_variable_renaming ctx n _ter)
+  | VarTerm(id, i, _ty) ->
+    if i < List.length ctx then
+      VarTerm(List.nth ctx i, i, _ty)
+    else
+      VarTerm(id, i, _ty)
+  | App(f,a) ->
+    App(_bound_variable_renaming ctx n f, _bound_variable_renaming ctx n a)
+  | Lam(id,_ty, _te) ->
+    Lam(pre n id, _ty, _bound_variable_renaming (pre n id::ctx) (n+1) _te)
+  | _ -> _term
+
+let rec bound_variable_renaming  term =
+  match term with
+  | ForallT(id, te) -> ForallT(id, bound_variable_renaming te)
+  | Term(_te) -> Term(_bound_variable_renaming [] 0 _te)
 
 let rec with_ctx args =
   List.exists (fun t -> match t with | Term.Lam _ -> true | _ -> false) args
@@ -1030,7 +1065,7 @@ and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_pr
     match _term with
     | Forall(id,_ty,_term) ->
       let _term' = compile__term ty_ctx te_ctx arg in
-      let term = term_subst__te [id,_term'] _term in
+      let term = term_subst__te id _term' _term in
       let pt = {_term=term;_proof=ForallE(prooft, _term')} in
       let term' = snf_beta term in
       Trace._annotate term' pt
@@ -1046,7 +1081,7 @@ and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_pr
       let _te' = snf_beta (App(_te, _tes)) in
       let pt' = Trace._annotate _te' prooft in
       compile_arg pt' arg
-    | App(VarTerm(id, _ty), _tes) -> assert false
+    | App(VarTerm(id, i, _ty), _tes) -> assert false
     | App(f,a) ->
       let term' = unfold_step prooft._term (fun x -> x) in
       let term' = snf_beta term' in
@@ -1248,9 +1283,27 @@ let rec compile_hol_type (ty_ctx:ty_ctx) (ty:ty) =
   | ForallK(var,te) -> compile_hol_type (var::ty_ctx) te
   | Type(te) -> compile_hol__type ty_ctx te
 
+let rec conflict ctx _term =
+  match _term with
+  | App(f,a) -> conflict ctx f || conflict ctx a
+  | Impl(f,a) -> conflict ctx f || conflict ctx a
+  | Lam(id,ty,te) ->
+    if List.mem id ctx then true
+    else
+      conflict (id::ctx) te
+  | Forall(id,ty,te) ->
+    if List.mem id ctx then true
+    else
+      conflict (id::ctx) te
+  | Const _ -> false
+  | VarTerm _ -> false
+
+
 let is_hol_equal (md,id) = md === hol && id === hol_leibniz
 (* FIXME: ctx are unecessary. They can be useful to make some assertions *)
 let rec compile_hol__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
+ (*  if conflict [] term then
+      Format.eprintf "before: %a@.after: %a@." print_hol__term term print_hol__term (_bound_variable_renaming [] 0 term); *)
   match term with
   | Forall(var,_ty, _te) ->
     let _ty' = compile_hol__type ty_ctx _ty in
@@ -1275,7 +1328,7 @@ let rec compile_hol__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
     let f' = compile_hol__term ty_ctx te_ctx f in
     let a' = compile_hol__term ty_ctx te_ctx a in
     OT.mk_app_term f' a'
-  | VarTerm(var,_ty) ->
+  | VarTerm(var, n, _ty) ->
     let _ty' = compile_hol__type ty_ctx _ty in
     OT.mk_var_term (OT.mk_var (name_of_var var) _ty')
   | Const(name, ty, subst) ->
@@ -1296,7 +1349,7 @@ let rec compile_hol_term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
 let compile_ctx eq_proof (var,ctx) =
   let rec compile_ctx ctx =
     match ctx with
-    | VarTerm(var', _ty) when var' = var -> eq_proof
+    | VarTerm(var', n, _ty) when var' = var -> eq_proof
     | _ -> failwith "todo compile_ctx"
   in
   compile_ctx ctx
