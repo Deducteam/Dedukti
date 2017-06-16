@@ -358,17 +358,22 @@ let rec free_variables ctx _te =
   | Lam(id,_ty, _term) ->
     free_variables (id::ctx) _term
 
-let rec lift n k t =
+let rec _lift n k t =
   match t with
   | VarTerm(id, i, _ty) ->
     if i < k then
       t
     else VarTerm(id, i+n, _ty)
-  | Lam(id,_ty,_te) -> Lam(id,_ty,lift n (k+1) _te)
-  | Forall(id,_ty,_te) -> Forall(id,_ty, lift n (k+1) _te)
-  | Impl(_tel, _ter) -> Impl(lift n k _tel, lift n k _ter)
-  | App(f,a) -> App(lift n k f, lift n k a)
+  | Lam(id,_ty,_te) -> Lam(id,_ty,_lift n (k+1) _te)
+  | Forall(id,_ty,_te) -> Forall(id,_ty, _lift n (k+1) _te)
+  | Impl(_tel, _ter) -> Impl(_lift n k _tel, _lift n k _ter)
+  | App(f,a) -> App(_lift n k f, _lift n k a)
   | _ -> t
+
+let rec lift n t =
+  match t with
+  | ForallT(id,te) -> ForallT(id, lift n te)
+  | Term(_te) -> Term(_lift n 0 _te)
 
 let term_subst__te n u (te:_term) : _term =
   let rec term_subst__te k n u (te:_term) : _term =
@@ -383,7 +388,7 @@ let term_subst__te n u (te:_term) : _term =
     | VarTerm(var, i, _ty) ->
       if i < k then
         te
-      else if i = k then (lift k 0 u)
+      else if i = k then (_lift k 0 u)
       else VarTerm(var, i-1, _ty)
     | App(f,_a) ->
       let _a' = term_subst__te k n u _a in
@@ -580,7 +585,7 @@ sig
 
   val _annotate : ?prectx: int list -> _term -> _prooft -> _prooft
 
-  val _replace : _term -> int list -> _term -> _term
+  val _replace : ?db: bool -> _term -> int list -> _term -> _term
 
   val replace : term -> int list -> _term -> term
 end
@@ -623,7 +628,8 @@ module Trace : Trace = struct
       | _ -> Some ([], None)
     in
     match (left,right) with
-    | VarTerm(id, n, _ty), VarTerm(id', n', _ty') when alpha_eq ctx id id' && _ty_eq ctx _ty _ty' -> None
+    | VarTerm(id, n, _ty), VarTerm(id', n', _ty') when n = n' && _ty_eq ctx _ty _ty' -> None
+    (*    | VarTerm(id, n, _ty), VarTerm(id', n', _ty') when alpha_eq ctx id id && _ty_eq ctx _ty _ty' -> None *)
     | Const(name, ty, subst), Const(name', ty', subst') when name_eq name name' && _ty_eq ctx (poly_subst_ty subst ty) (poly_subst_ty subst' ty') -> None
     | Lam(id, _ty, _te), Lam(id', _ty', _te') when _ty_eq ctx _ty _ty' ->
       bind 0 (_compare ((id,id')::ctx) _te _te')
@@ -685,22 +691,25 @@ module Trace : Trace = struct
 
   let prefix id = hstring(string_of_ident id ^ "___")
 
-  let rec _replace t ctx u =
-    (* Format.eprintf "debug _replace: %a by %a at %a@." print_hol__term t print_hol__term u print_ctx ctx; *)
-    match t, ctx with
-    | _, [] -> u
-    | Forall(id,_ty,_term), 0::ctx' ->
-      Forall(id,_ty,_replace _term ctx' u)
-    | Impl(tel,ter), i::ctx' ->
-      let tel' = if i = 0 then _replace tel ctx' u else tel in
-      let ter' = if i = 1 then _replace ter ctx' u else ter in
-      Impl(tel',ter')
-    | Lam(id,ty, _te), 0::ctx' -> Lam(id,ty,_replace _te ctx' u)
-    | App(f,a), i::ctx' ->
-      let f' = if i = 0 then _replace f ctx' u else f in
-      let a' = if i = 1 then _replace a ctx' u else a in
-      App(f',a')
-    | _ -> Format.eprintf "debug: %a@.ctx: %a@." print_hol__term t print_ctx ctx; assert false
+  let _replace ?(db=false) t ctx u =
+    let rec _replace k t ctx u =
+      (* Format.eprintf "debug _replace: %a by %a at %a@." print_hol__term t print_hol__term u print_ctx ctx; *)
+      match t, ctx with
+      | _, [] -> if db then _lift k 0 u else u
+      | Forall(id,_ty,_term), 0::ctx' ->
+        Forall(id,_ty,_replace (k+1) _term ctx' u)
+      | Impl(tel,ter), i::ctx' ->
+        let tel' = if i = 0 then _replace k tel ctx' u else tel in
+        let ter' = if i = 1 then _replace k ter ctx' u else ter in
+        Impl(tel',ter')
+      | Lam(id,ty, _te), 0::ctx' -> Lam(id,ty,_replace (k+1) _te ctx' u)
+      | App(f,a), i::ctx' ->
+        let f' = if i = 0 then _replace k f ctx' u else f in
+        let a' = if i = 1 then _replace k a ctx' u else a in
+        App(f',a')
+      | _ -> Format.eprintf "debug: %a@.ctx: %a@." print_hol__term t print_ctx ctx; assert false
+    in
+    _replace 0 t ctx u
 
   let rec replace t ctx u =
     match t,ctx with
@@ -811,52 +820,52 @@ module Trace : Trace = struct
 end
 
 
-  let rec ctx_of__term term var =
-    match term with
-    | Forall(id, _ty, _te) ->
-      let b,ctx = ctx_of__term _te var in
-      b,0::ctx
-    | Impl(_tel, _ter) ->
-      let bl, ctxl = ctx_of__term _tel var in
-      let br, ctxr = ctx_of__term _ter var in
-      if bl then
-        if br then
-          failwith "the variable appears twice"
-        else
-          bl, 0::ctxl
+let rec ctx_of__term term var =
+  match term with
+  | Forall(id, _ty, _te) ->
+    let b,ctx = ctx_of__term _te var in
+    b,0::ctx
+  | Impl(_tel, _ter) ->
+    let bl, ctxl = ctx_of__term _tel var in
+    let br, ctxr = ctx_of__term _ter var in
+    if bl then
+      if br then
+        failwith "the variable appears twice"
       else
-        br, 1::ctxr
-    | VarTerm(id, n, _ty) ->
-      if Basic.ident_eq id var then
-        true,[]
+        bl, 0::ctxl
+    else
+      br, 1::ctxr
+  | VarTerm(id, n, _ty) ->
+    if Basic.ident_eq id var then
+      true,[]
+    else
+      false,[]
+  | Const _ -> false, []
+  | App(_tel,_ter) ->
+    let bl, ctxl = ctx_of__term _tel var in
+    let br, ctxr = ctx_of__term _ter var in
+    if bl then
+      if br then
+        failwith "the variable appears twice"
       else
-        false,[]
-    | Const _ -> false, []
-    | App(_tel,_ter) ->
-      let bl, ctxl = ctx_of__term _tel var in
-      let br, ctxr = ctx_of__term _ter var in
-      if bl then
-        if br then
-          failwith "the variable appears twice"
-        else
-          bl,0::ctxl
-      else
-        br,1::ctxr
-    | Lam(id, _ty, _te) ->
-      let b,ctx = ctx_of__term _te var in
-      b,0::ctx
+        bl,0::ctxl
+    else
+      br,1::ctxr
+  | Lam(id, _ty, _te) ->
+    let b,ctx = ctx_of__term _te var in
+    b,0::ctx
 
-  let rec ctx_of_term term var =
-    match term with
-    | ForallT(id,te) ->
-      let ctx = ctx_of_term te var in
-      0::ctx
-    | Term(_te) ->
-      let b,ctx = ctx_of__term _te var in
-      if b then
-        ctx
-      else
-        assert false
+let rec ctx_of_term term var =
+  match term with
+  | ForallT(id,te) ->
+    let ctx = ctx_of_term te var in
+    0::ctx
+  | Term(_te) ->
+    let b,ctx = ctx_of__term _te var in
+    if b then
+      ctx
+    else
+      assert false
 
 let c = ref 0
 
@@ -940,6 +949,12 @@ let rec arguments_needed rw =
   aux ty 0
 
 let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof : _prooft =
+  let lift_pf_ctx n pf_ctx =
+    let lift_binding n (id,te) =
+      (id,lift 1 te)
+    in
+    List.map (lift_binding n) pf_ctx
+  in
   match proof with
   | Term.App(rw, a, args) when is_delta_rw rw && List.length (a::args) > arguments_needed rw ->
     (* Format.eprintf "args: %d@." (Pp.print_list "\n" Pp.print_term) (a::args); *)
@@ -976,10 +991,11 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       | _ -> Format.eprintf "debug ctx: %a@." Pp.print_term ctx ;assert false
     in
     let _proof = RewriteU(ctx, Unfold(Gamma(_pt._proof,left,right)), _pt') in
-    let _term = Trace._replace _pt'._term ctx right in
+    let _term = Trace._replace ~db:true _pt'._term ctx right in
     let pt = {_proof;_term} in
     compile_app ty_ctx te_ctx pf_ctx pt t
   | Term.Lam(_,x, Some ty, proof) when is_type ty ->
+    let pf_ctx = lift_pf_ctx 1 pf_ctx in
     let _ty' = compile_eta__type ty_ctx ty in
     let _prooft' = compile__proof ty_ctx ((x,_ty')::te_ctx) pf_ctx proof in
     let _term = Forall(x,_ty', _prooft'._term) in
@@ -1029,8 +1045,10 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       | Err err -> Errors.fail_signature_error err
     in
     let te' = compile_eps_term ty_ctx te_ctx te in
+    (*
     let te' = alpha_rename_term !c te' in
     incr c;
+    *)
     let _te', subst, args = _te_of_te ty_ctx te_ctx te' (a::args) in
     let prooft  = {_term=_te'; _proof= Lemma((md,id),te', subst)} in
     compile_app ty_ctx te_ctx pf_ctx prooft args
@@ -1060,8 +1078,10 @@ and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_pr
   let rec compile_arg (prooft:_prooft) arg =
     (*  Format.eprintf "debug:  %a@." print_hol__term prooft._term;
         Format.eprintf "term: %a@." Pp.print_term arg; *)
+    let _term = prooft._term in
+    (*
     let _term = alpha_rename__term [] !c prooft._term in
-    incr c;
+    incr c; *)
     match _term with
     | Forall(id,_ty,_term) ->
       let _term' = compile__term ty_ctx te_ctx arg in
