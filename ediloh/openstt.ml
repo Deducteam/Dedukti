@@ -478,12 +478,12 @@ module OpenTheory = struct
 
   let mk_axiom_and left right =
     let binop_type = mk_arrow_type mk_bool_type (mk_arrow_type mk_bool_type mk_bool_type) in
-    let vx = mk_var (mk_name [] "x") mk_bool_type in
-    let vy = mk_var (mk_name [] "y") mk_bool_type in
+    let vx = mk_var (mk_name [] "freshx") mk_bool_type in
+    let vy = mk_var (mk_name [] "freshy") mk_bool_type in
     let x = mk_var_term vx in
     let y = mk_var_term vy in
     let t1 = (mk_abs_term vy (mk_and_term x y)) in
-    let fv = mk_var (mk_name [] "f") (binop_type) in
+    let fv = mk_var (mk_name [] "freshf") (binop_type) in
     let ft = mk_var_term fv in
     let rl = mk_abs_term fv (mk_app_term (mk_app_term ft x) y) in
     let rr = mk_abs_term fv (mk_app_term (mk_app_term ft mk_true_term) mk_true_term) in
@@ -511,8 +511,8 @@ module OpenTheory = struct
     mk_axiom (mk_hyp []) term
 
   let mk_axiom_impl left right =
-    let vx = mk_var (mk_name [] "x") mk_bool_type in
-    let vy = mk_var (mk_name [] "y") mk_bool_type in
+    let vx = mk_var (mk_name [] "freshx") mk_bool_type in
+    let vy = mk_var (mk_name [] "freshy") mk_bool_type in
     let x = mk_var_term vx in
     let y = mk_var_term vy in
     let tl = mk_app_term (mk_abs_term vx (mk_abs_term vy (mk_impl_term x y))) left in
@@ -524,7 +524,9 @@ module OpenTheory = struct
     let tr = mk_app_term
         (mk_abs_term vy (mk_equal_term (mk_and_term left y) left mk_bool_type)) right in
     let refl = mk_refl right in
-    beta_equal (mk_appThm beta1 refl) tl tr
+    let thm = beta_equal (mk_appThm beta1 refl) tl tr in
+    thm
+
 
 
   let mk_axiom_forall_ =
@@ -571,8 +573,8 @@ module OpenTheory = struct
 
   let proj thm bool left right =
     let binop_type = mk_arrow_type mk_bool_type (mk_arrow_type mk_bool_type mk_bool_type) in
-    let x = mk_var (mk_name [] "x") mk_bool_type in
-    let y = mk_var (mk_name [] "y") mk_bool_type in
+    let x = mk_var (mk_name [] "freshx") mk_bool_type in
+    let y = mk_var (mk_name [] "freshy") mk_bool_type in
     let pleft = mk_abs_term x (mk_abs_term y (mk_var_term x)) in
     let pright = mk_abs_term x (mk_abs_term y (mk_var_term y)) in
     let side = if bool then pright else pleft in
@@ -600,7 +602,8 @@ module OpenTheory = struct
     let beta = beta_equal trans tl tr in
     let sym = mk_sym beta in
     let true_thm = mk_axiom_true in
-    mk_eqMp true_thm sym
+    let thm = mk_eqMp true_thm sym in
+    thm
 
 
   let proj_left thm left right =
@@ -614,7 +617,7 @@ module OpenTheory = struct
     let assume = mk_assume p in
     let thm_true = mk_axiom_true in
     let deduct = mk_deductAntiSym assume thm_true in
-    let vf = mk_var (mk_name [] "f") binop_type in
+    let vf = mk_var (mk_name [] "freshf") binop_type in
     let f = mk_var_term vf in
     let refl = mk_refl f in
     let appThm = mk_appThm refl deduct in
@@ -641,7 +644,8 @@ module OpenTheory = struct
     let eqMp = mk_eqMp assume sym in
     let proj_right = proj_right eqMp p q in
     let proveHyp = mk_proveHyp proj_right thmp in
-    mk_proveHyp proveHyp thmimpl
+    let thm = mk_proveHyp proveHyp thmimpl in
+    thm
 
 
   let mk_impl_equal eqp eqq p q p' q' =

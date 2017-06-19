@@ -375,6 +375,47 @@ let rec lift n t =
   | ForallT(id,te) -> ForallT(id, lift n te)
   | Term(_te) -> Term(_lift n 0 _te)
 
+let lift_rw n k rw =
+  match rw with
+  | Fold(Beta(te)) -> Fold(Beta(_lift n k te))
+  | Unfold(Beta(te)) -> Unfold(Beta(_lift n k te))
+  | _ -> rw
+
+(* should only be called for equality proof *)
+let rec proof_lift n k _proof =
+  match _proof with
+  | Lemma(name, term, ty_subst) -> Lemma(name, lift n term, ty_subst)
+  | Assume(_term, ty_subst) -> Assume(_lift n k _term, ty_subst)
+  | ForallI(id, _ty, _prooft) ->
+    let _proof = proof_lift n (k+1) _prooft._proof in
+    let _term = _lift n k _prooft._term in
+    ForallI(id, _ty, {_proof;_term})
+  | ImplI(_term, _prooft) ->
+    let _term' = _lift n k _term in
+    let _proof = proof_lift n k _prooft._proof in
+    let _term = _lift n k _prooft._term in
+    ImplI(_term', {_proof;_term})
+  | ForallE(_prooft, _term) ->
+    let _term' = _lift n k _term in
+    let _proof = proof_lift n k _prooft._proof in
+    let _term = _lift n k _prooft._term in
+    ForallE({_proof;_term}, _term')
+  | ImplE(_prooftl, _prooftr) ->
+    let _proofl = proof_lift n k _prooftl._proof in
+    let _terml = _lift n k _prooftl._term in
+    let _proofr = proof_lift n k _prooftr._proof in
+    let _termr = _lift n k _prooftr._term in
+    let _prooftl' = {_proof=_proofl;_term=_terml} in
+    let _prooftr' = {_proof=_proofr;_term=_termr} in
+    ImplE(_prooftl',_prooftr')
+  | RewriteU(rw_ctx, rw, _prooft) ->
+    let _proof = proof_lift n k _prooft._proof in
+    let _term = _lift n k _prooft._term in
+    let rw' = lift_rw n k rw in
+    RewriteU(rw_ctx, rw', {_proof;_term})
+
+
+
 let term_subst__te n u (te:_term) : _term =
   let rec term_subst__te k n u (te:_term) : _term =
     match te with
@@ -823,78 +864,285 @@ end
 let rec ctx_of__term term var =
   match term with
   | Forall(id, _ty, _te) ->
-    let b,ctx = ctx_of__term _te var in
-    b,0::ctx
+    let k,b,ctx = ctx_of__term _te var in
+    k+1,b,0::ctx
   | Impl(_tel, _ter) ->
-    let bl, ctxl = ctx_of__term _tel var in
-    let br, ctxr = ctx_of__term _ter var in
+    let k,bl, ctxl = ctx_of__term _tel var in
+    let k',br, ctxr = ctx_of__term _ter var in
     if bl then
       if br then
         failwith "the variable appears twice"
       else
-        bl, 0::ctxl
+        k,bl, 0::ctxl
     else
-      br, 1::ctxr
+      k',br, 1::ctxr
   | VarTerm(id, n, _ty) ->
     if Basic.ident_eq id var then
-      true,[]
+      0,true,[]
     else
-      false,[]
-  | Const _ -> false, []
+      0,false,[]
+  | Const _ -> 0,false, []
   | App(_tel,_ter) ->
-    let bl, ctxl = ctx_of__term _tel var in
-    let br, ctxr = ctx_of__term _ter var in
+    let k,bl, ctxl = ctx_of__term _tel var in
+    let k',br, ctxr = ctx_of__term _ter var in
     if bl then
       if br then
         failwith "the variable appears twice"
       else
-        bl,0::ctxl
+        k,bl,0::ctxl
     else
-      br,1::ctxr
+      k',br,1::ctxr
   | Lam(id, _ty, _te) ->
-    let b,ctx = ctx_of__term _te var in
-    b,0::ctx
+    let k,b,ctx = ctx_of__term _te var in
+    k+1,b,0::ctx
 
 let rec ctx_of_term term var =
   match term with
   | ForallT(id,te) ->
-    let ctx = ctx_of_term te var in
-    0::ctx
+    let k,ctx = ctx_of_term te var in
+    k,0::ctx
   | Term(_te) ->
-    let b,ctx = ctx_of__term _te var in
+    let k,b,ctx = ctx_of__term _te var in
     if b then
-      ctx
+      k,ctx
     else
       assert false
-
-let c = ref 0
 
 let prefix n =
     "_"^(string_of_int n)^"_"
 
 let pre n id = hstring @@ prefix n ^(string_of_ident id)
 
-let rec alpha_rename__term ctx n _term =
+let post n id = hstring (string_of_ident id ^ "_" ^ (string_of_int n))
+
+let rec alpha_rename__term bdg _term =
+  let rec find_id' id n =
+    let id' = post n id in
+    if List.mem id' bdg then
+      find_id' id (n+1)
+    else
+      id'
+  in
   match _term with
   | Forall(id,_ty,_te) ->
-    Forall(pre n id, _ty, alpha_rename__term (id::ctx) n _te)
+    let id' =
+      if List.mem id bdg then
+        find_id' id 0
+      else
+        id
+    in
+    let binding, _te' = alpha_rename__term (id'::bdg)  _te in
+    binding, Forall(id', _ty, _te')
   | Impl(_tel, _ter) ->
-    Impl(alpha_rename__term ctx n _tel, alpha_rename__term ctx n _ter)
+    let bindingl, _tel' = alpha_rename__term bdg _tel in
+    let bindingr, _ter' = alpha_rename__term bdg _ter in
+    bindingl@bindingr,Impl(_tel', _ter')
   | VarTerm(id, i, _ty) ->
-    if List.mem id ctx then
-      VarTerm(pre n id, i, _ty)
+    if i < List.length bdg then
+      [], VarTerm(List.nth bdg i, i, _ty)
     else
-      VarTerm(id, i, _ty)
+      [], VarTerm(id, i, _ty)
   | App(f,a) ->
-    App(alpha_rename__term ctx n f, alpha_rename__term ctx n a)
+    let bindingf,f' = alpha_rename__term bdg f in
+    let bindinga,a' = alpha_rename__term bdg a in
+    bindingf@bindinga, App(f',a')
   | Lam(id,_ty, _te) ->
-    Lam(pre n id, _ty, alpha_rename__term (id::ctx) n _te)
-  | _ -> _term
+    let id' =
+      if List.mem id bdg then
+        find_id' id 0
+      else
+        id
+    in
+    let binding,_te' = alpha_rename__term (id'::bdg) _te in
+    binding, Lam(id',_ty, _te')
+  | Const _ -> [],_term
 
-let rec alpha_rename_term n term =
+let rec alpha_rename_term bdg term =
   match term with
-  | ForallT(id, te) -> ForallT(id, alpha_rename_term n te)
-  | Term(_te) -> Term(alpha_rename__term [] n _te)
+  | ForallT(id, te) ->
+    let binding, te' = alpha_rename_term bdg te in
+    binding,ForallT(id, te')
+  | Term(_te) ->
+    let binding, _te' = alpha_rename__term bdg _te in
+    binding, Term(_te')
+
+let rec alpha_rename__term_ctx bdg ctx _term =
+  let rec find_id' id n =
+    let id' = post n id in
+    if List.mem id' bdg then
+      find_id' id (n+1)
+    else
+      id'
+  in
+  match _term, ctx with
+  | _, [] ->
+    [], snd @@ alpha_rename__term bdg _term
+  | Forall(id,_ty,_te), 0::ctx ->
+    let id' =
+      if List.mem id bdg then
+        find_id' id 0
+      else
+        id
+    in
+    let binding, _te' = alpha_rename__term_ctx (id'::bdg) ctx _te in
+    (id'::binding), Forall(id', _ty, _te')
+  | Impl(_tel, _ter), i::ctx ->
+    if i = 0 then
+      let binding, _tel' = alpha_rename__term_ctx bdg ctx _tel in
+      let _,_ter' = alpha_rename__term bdg _ter in
+      binding, Impl(_tel', _ter')
+    else if i = 1 then
+      let _,_tel' = alpha_rename__term bdg _tel in
+      let binding, _ter' = alpha_rename__term_ctx bdg ctx _ter in
+      binding, Impl(_tel', _ter')
+    else assert false
+  | App(f,a), i::ctx ->
+    if i = 0 then
+      let binding, f' = alpha_rename__term_ctx bdg ctx f in
+      let _,a' = alpha_rename__term bdg a in
+      binding, App(f', a')
+    else if i = 1 then
+      let _,f' = alpha_rename__term bdg f in
+      let binding, a' = alpha_rename__term_ctx bdg ctx a in
+      binding, App(f', a')
+    else assert false
+  | Lam(id,_ty, _te), 0::ctx ->
+    let id' =
+      if List.mem id bdg then
+        find_id' id 0
+      else
+        id
+    in
+    let binding,_te' = alpha_rename__term_ctx (id'::bdg) ctx _te in
+    (id'::binding), Lam(id',_ty, _te')
+  | _ -> assert false
+
+let rec alpha_rename_term_ctx bdg ctx term =
+  match term, ctx with
+  | ForallT(id, te), 0::ctx ->
+    let binding, te' = alpha_rename_term_ctx bdg ctx te in
+    binding,ForallT(id, te')
+  | Term(_te), 0::ctx ->
+    let binding, _te' = alpha_rename__term_ctx bdg ctx _te in
+    binding, Term(_te')
+  | _ -> assert false
+
+let rec alpha_rename_rw bdg rw =
+  (* Format.eprintf "rw ctx: @[%a@]@." (Pp.print_list " " Pp.print_ident) bdg; *)
+  match rw with
+  | Fold(Delta( _)) -> rw
+  | Unfold(Delta(_)) -> rw
+  | Fold(Beta(te)) ->
+    let te' = snd @@ alpha_rename__term bdg te in
+    (*
+    Format.eprintf "Fold Beta@.";
+    Format.eprintf "before: %a@.right: %a@." print_hol__term te print_hol__term te';
+*)
+    Fold(Beta(te'))
+  | Unfold(Beta(te)) ->
+    let te' = snd @@ alpha_rename__term bdg te in
+    (*
+    Format.eprintf "Unfold Beta@.";
+    Format.eprintf "before: %a@.right: %a@." print_hol__term te print_hol__term te';
+*)
+    Unfold(Beta(te'))
+  | Fold(Gamma(_proof, _tel, _ter)) ->
+    let fake = {_proof=_proof; _term = _tel} in
+    let _proof' = (snd @@ alpha_rename__prooft bdg fake)._proof in
+    let _tel' = snd @@ alpha_rename__term bdg _tel in
+    let _ter' = snd @@ alpha_rename__term bdg _ter in
+    Fold(Gamma(_proof', _tel', _ter'))
+  | Unfold(Gamma(_proof, _tel, _ter)) ->
+    let fake = {_proof=_proof; _term = _tel} in
+    let _proof' = (snd @@ alpha_rename__prooft bdg fake)._proof in
+    let _tel' = snd @@ alpha_rename__term bdg _tel in
+    let _ter' = snd @@ alpha_rename__term bdg _ter in
+    (*
+    Format.eprintf "Unfold Gamma@.";
+    Format.eprintf "left before: %a@.left after: %a@." print_hol__term _tel print_hol__term _tel';
+    Format.eprintf "right before: %a@.right after: %a@." print_hol__term _ter print_hol__term _ter';
+    *)
+    Unfold(Gamma(_proof', _tel', _ter'))
+
+
+and alpha_rename__prooft bdg _prooft =
+  let rec find_id' id n =
+    let id' = post n id in
+    if List.mem id' bdg then
+      find_id' id (n+1)
+    else
+      id'
+  in
+  let _proof =
+    match _prooft._proof with
+    | Lemma(name, term, ty_subst) ->
+      Lemma(name, term, ty_subst)
+    | Assume(_term, ty_subst) ->
+      let _,_term' = alpha_rename__term bdg _term in
+      Assume(_term', ty_subst)
+    | ForallI(id, _ty, _prooft) ->
+      let id' =
+        if List.mem id bdg then
+          find_id' id 0
+        else
+          id
+      in
+      let _, _prooft' = alpha_rename__prooft (id'::bdg) _prooft in
+      ForallI(id', _ty, _prooft')
+    | ImplI(_term, _prooft) ->
+      let _,_term' = alpha_rename__term bdg _term in
+      let _,_prooft' = alpha_rename__prooft bdg _prooft in
+      ImplI(_term', _prooft')
+    | ForallE(_prooft, _term) ->
+      let _,_prooft' = alpha_rename__prooft bdg _prooft in
+      (*
+      Format.eprintf "before: %a@.right: %a@."
+        print_hol__term _prooft._term print_hol__term _prooft'._term;
+*)
+      let _,_term' = alpha_rename__term bdg _term in
+      ForallE(_prooft', _term')
+    | ImplE(_prooftl, _prooftr) ->
+      let _,_prooftl' = alpha_rename__prooft bdg _prooftl in
+      let _,_prooftr' = alpha_rename__prooft bdg _prooftr in
+      ImplE(_prooftl', _prooftr')
+    | RewriteU(rw_ctx, rw, _prooft) ->
+      let binding, term' = alpha_rename__term_ctx bdg rw_ctx _prooft._term in
+      (*
+      Format.eprintf "ctx before: @[%a@]@." (Pp.print_list " " Pp.print_ident) bdg;
+      Format.eprintf "ctx after: @[%a@]@." (Pp.print_list " " Pp.print_ident) binding;
+      Format.eprintf "rewriteU@.before: %a@.right: %a@."
+        print_hol__term _prooft._term print_hol__term term'; *)
+      let rw' = alpha_rename_rw (List.rev binding@bdg) rw in
+      let binding, prooft' = alpha_rename__prooft bdg _prooft in
+      RewriteU(rw_ctx, rw', prooft')
+  in
+  let binding,_term = alpha_rename__term bdg _prooft._term in
+  (*
+  Format.eprintf "ctx: @[%a@]@." (Pp.print_list " " Pp.print_ident) bdg;
+  Format.eprintf "before: %a@.right: %a@." print_hol__term _prooft._term print_hol__term _term;
+  *)
+  binding,{_term;_proof}
+
+let rec alpha_rename_prooft bdg prooft =
+  let binding,term = alpha_rename_term bdg prooft.term in
+  (* Format.eprintf "prooft@.before: %a@.right: %a@." print_hol_term prooft.term print_hol_term term; *)
+  let proof =
+    match prooft.proof with
+    | ForallP(id, prooft) ->
+      let _,prooft = alpha_rename_prooft bdg prooft in
+      ForallP(id, prooft)
+    | Proof(_prooft) ->
+      let _,_prooft = alpha_rename__prooft bdg _prooft in
+      Proof(_prooft)
+    | RewriteF(rw_ctx,rw,prooft) ->
+      let binding, term' = alpha_rename_term_ctx bdg rw_ctx prooft.term in
+      let rw' = alpha_rename_rw (List.rev binding@bdg) rw in
+      let _, prooft' = alpha_rename_prooft bdg prooft in
+      RewriteF(rw_ctx, rw', prooft')
+  in
+  binding,{term;proof}
+
+
 
 let rec _bound_variable_renaming ctx n _term =
   match _term with
@@ -982,7 +1230,7 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
     let ctx' = compile__term ty_ctx te_ctx ctx in
     let _term' = beta_step (App(ctx', left)) in
     let _pt' = Trace._annotate _term' _pt' in
-    let ctx =
+    let k,ctx =
       match ctx with
       | Term.Lam (_,id, Some ty, te) ->
         let ty' = compile__type ty_ctx ty in
@@ -990,7 +1238,7 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
         ctx_of_term te' id
       | _ -> Format.eprintf "debug ctx: %a@." Pp.print_term ctx ;assert false
     in
-    let _proof = RewriteU(ctx, Unfold(Gamma(_pt._proof,left,right)), _pt') in
+    let _proof = RewriteU(ctx, Unfold(Gamma(proof_lift k 0 _pt._proof, _lift k 0 left, _lift k 0 right)), _pt') in
     let _term = Trace._replace ~db:true _pt'._term ctx right in
     let pt = {_proof;_term} in
     compile_app ty_ctx te_ctx pf_ctx pt t
@@ -1045,10 +1293,6 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
       | Err err -> Errors.fail_signature_error err
     in
     let te' = compile_eps_term ty_ctx te_ctx te in
-    (*
-    let te' = alpha_rename_term !c te' in
-    incr c;
-    *)
     let _te', subst, args = _te_of_te ty_ctx te_ctx te' (a::args) in
     let prooft  = {_term=_te'; _proof= Lemma((md,id),te', subst)} in
     compile_app ty_ctx te_ctx pf_ctx prooft args
@@ -1079,9 +1323,6 @@ and compile_app (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) (prooft:_pr
     (*  Format.eprintf "debug:  %a@." print_hol__term prooft._term;
         Format.eprintf "term: %a@." Pp.print_term arg; *)
     let _term = prooft._term in
-    (*
-    let _term = alpha_rename__term [] !c prooft._term in
-    incr c; *)
     match _term with
     | Forall(id,_ty,_term) ->
       let _term' = compile__term ty_ctx te_ctx arg in
@@ -1207,24 +1448,9 @@ let rec has_beta te =
   | ForallT(_,te) -> has_beta te
   | Term te -> has_beta' te
 
-(*
-let alpha_rename__proof n _proof = failwith "todo"
-
-let alpha_rename_proof n proof =
-  match proof with
-  | ForallP(id, prooft) ->
-    ForallP(id, alpha_rename n prooft)
-  |
-
-let alpha_rename n prooft =
-  {
-    proof = alpha_rename_proof n prooft.proof;
-    term = alpha_rename_term n prooft.term
-  }
-  *)
-
 let compile_definition (lc:loc) (id:ident) (ty:Term.term) (te:Term.term)
   : (obj, compile_defn_err) error =
+  Format.eprintf "Compilation of definition %a@." Pp.print_ident id;
   let md = Env.get_name () in
   try
     match ty with
@@ -1234,8 +1460,9 @@ let compile_definition (lc:loc) (id:ident) (ty:Term.term) (te:Term.term)
     | Term.App(cst,a,[]) when is_hol_const hol_eps cst ->
       let thm = compile_term [] [] a in
       let proof = compile_proof [] [] te in
-      let proof' = Some (Trace.annotate thm proof) in
-      OK(Thm(mk_name md id, thm, proof'))
+      let proof' = Trace.annotate thm proof in
+      let _,proof'' = alpha_rename_prooft [] proof' in
+      OK(Thm(mk_name md id, thm, Some proof''))
     | _ -> Err(DefinitionError((lc,id,te),ty))
   with
   | CompileTermError(err) ->
