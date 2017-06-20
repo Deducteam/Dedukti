@@ -381,37 +381,54 @@ let lift_rw n k rw =
   | Unfold(Beta(te)) -> Unfold(Beta(_lift n k te))
   | _ -> rw
 
+let rec get_depth _term ctx =
+  match _term,ctx with
+  | _, [] -> 0
+  | Forall(_,_,_te),0::ctx' -> 1+(get_depth _te ctx')
+  | Lam(_,_,_te),0::ctx' -> 1+(get_depth _te ctx')
+  | App(f,a), i::ctx' ->
+    if i = 0 then
+      get_depth f ctx'
+    else
+      get_depth a ctx'
+  | Impl(_tel, _ter), i::ctx' ->
+    if i = 0 then
+      get_depth _tel ctx'
+    else
+      get_depth _ter ctx'
+  | _ -> assert false
+
 (* should only be called for equality proof *)
-let rec proof_lift n k _proof =
+let rec proof_lift n k _proof _term =
   match _proof with
   | Lemma(name, term, ty_subst) -> Lemma(name, lift n term, ty_subst)
   | Assume(_term, ty_subst) -> Assume(_lift n k _term, ty_subst)
   | ForallI(id, _ty, _prooft) ->
-    let _proof = proof_lift n (k+1) _prooft._proof in
+    let _proof = proof_lift n (k+1) _prooft._proof _prooft._term in
     let _term = _lift n k _prooft._term in
     ForallI(id, _ty, {_proof;_term})
   | ImplI(_term, _prooft) ->
     let _term' = _lift n k _term in
-    let _proof = proof_lift n k _prooft._proof in
+    let _proof = proof_lift n k _prooft._proof _prooft._term in
     let _term = _lift n k _prooft._term in
     ImplI(_term', {_proof;_term})
   | ForallE(_prooft, _term) ->
     let _term' = _lift n k _term in
-    let _proof = proof_lift n k _prooft._proof in
+    let _proof = proof_lift n k _prooft._proof _prooft._term in
     let _term = _lift n k _prooft._term in
     ForallE({_proof;_term}, _term')
   | ImplE(_prooftl, _prooftr) ->
-    let _proofl = proof_lift n k _prooftl._proof in
+    let _proofl = proof_lift n k _prooftl._proof _prooftl._term in
     let _terml = _lift n k _prooftl._term in
-    let _proofr = proof_lift n k _prooftr._proof in
+    let _proofr = proof_lift n k _prooftr._proof _prooftr._term in
     let _termr = _lift n k _prooftr._term in
     let _prooftl' = {_proof=_proofl;_term=_terml} in
     let _prooftr' = {_proof=_proofr;_term=_termr} in
     ImplE(_prooftl',_prooftr')
   | RewriteU(rw_ctx, rw, _prooft) ->
-    let _proof = proof_lift n k _prooft._proof in
+    let _proof = proof_lift n k _prooft._proof _prooft._term in
     let _term = _lift n k _prooft._term in
-    let rw' = lift_rw n k rw in
+    let rw' = lift_rw n (k+get_depth _term rw_ctx) rw in
     RewriteU(rw_ctx, rw', {_proof;_term})
 
 
@@ -553,6 +570,10 @@ let rec compile__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : _term =
     let n',ty = lookup_ty var in
     let args' = List.map (compile__term ty_ctx te_ctx) (a::args) in
     List.fold_left (fun t a -> App(t,a))(VarTerm(var, n', ty)) args'
+  | Term.App(f,a,args) ->
+    let f' = compile__term ty_ctx te_ctx f in
+    let args' = List.map (fun x -> compile__term ty_ctx te_ctx x) (a::args) in
+    List.fold_left (fun t a -> App(t,a)) f' args'
   | _ -> raise(CompileTermError(TermError(te)))
 
 
@@ -572,16 +593,19 @@ and compile_term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : term =
   | Term.App(cst, Term.Lam(_,x, Some ty, te'), []) when is_hol_const hol_forall_kind_prop cst ->
     assert (is_hol_const hol_type ty);
     ForallT(x,compile_term (x::ty_ctx) (te_ctx) te')
-  | _ -> Term (compile__term ty_ctx te_ctx te)
+  | _ ->  Term (compile__term ty_ctx te_ctx te)
 
 let compile_eps_term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : term =
   match te with
   | Term.App(cst, a, []) when is_hol_const hol_eps cst -> compile_term ty_ctx te_ctx a
   | _ -> assert false
 
+let list_of_hol_theorem_with_eq =
+  [hstring "eq_minus_O"; hstring "eq_minus_S_pred"]
+
 let is_delta_rw cst =
   match cst with
-  | Term.Const(_,md,id) -> not (md === logic_module) && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident id) 0) && not (id === hstring "eq_minus_O")
+  | Term.Const(_,md,id) -> not (md === logic_module) && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident id) 0) && not (List.exists (fun thm -> id === thm) list_of_hol_theorem_with_eq)
   | _ -> false
 
 let get_infos_of_delta_rw md id = Str.(
@@ -647,11 +671,12 @@ module Trace : Trace = struct
       let t =  Env.unsafe_one_step cst in
       if Term.term_eq cst t then false else true
     in
+    (*
     let same_lambda x _ty te u t' =
       match t' with
       | App(Lam(x',_ty',te'), _) -> Basic.ident_eq x x' && _ty_eq ctx _ty _ty'
       | _ -> false
-    in
+    in *)
     let rec ctx_of_app b app =
       match app with
       | Const(name, ty, subst) ->
@@ -666,6 +691,14 @@ module Trace : Trace = struct
           Some([], Some(Fold(Beta(App(f,u)))))
       | App(f,a) ->
         bind 0 (ctx_of_app b f)
+        (*
+        let rw = bind 0 (ctx_of_app b f) in
+        begin
+          match rw with
+          | Some([], None) -> bind 1 (ctx_of_app b a)
+          | _ -> rw
+        end
+        *)
       | _ -> Some ([], None)
     in
     match (left,right) with
@@ -682,19 +715,32 @@ module Trace : Trace = struct
         | None -> bind 1 (_compare ctx _ter _ter')
         | Some tr -> bind 0 (Some tr)
       end
-    | App(Lam(x,_ty,te) as f, u), _ when not (same_lambda x _ty te u right) ->
+    | App(Lam(x,_ty,te) as f, u), _ (* when not (same_lambda x _ty te u right) *)->
       Some ([], Some(Fold(Beta(App(f,u)))))
-    | _,App(Lam(x,_ty,te) as f, u) when not (same_lambda x _ty te u left) ->
+    | _,App(Lam(x,_ty,te) as f, u) (* when not (same_lambda x _ty te u left) *) ->
       Some ([], Some(Unfold(Beta(App(f,u)))))
     | Const(name, _ty, subst),_ when is_unfoldable name ->
       Some ([], Some(Fold(Delta(name,_ty,subst))))
-    | _,Const(name, _ty, subst) -> Some ([], Some(Unfold(Delta(name,_ty,subst))))
+    | _,Const(name, _ty, subst) when is_unfoldable name ->
+      Some ([], Some(Unfold(Delta(name,_ty,subst))))
     | App(f,a), App(f', a') ->
       begin
         match _compare ctx f f' with
         | None -> bind 1 (_compare ctx a a')
         | Some tr -> bind 0 (Some tr)
       end
+    | App(f, a), _ ->
+      ctx_of_app false left
+      (*
+      let rw = ctx_of_app false left in
+      begin
+        match rw with
+        | Some([],None) -> ctx_of_app true right
+        | _ -> rw
+      end *)
+    | _ , App(f, a) ->
+      ctx_of_app true right
+        (*
     | App(f, a), Impl(_, _) ->
       ctx_of_app false left
     | Impl(_, _), App(f, a) ->
@@ -703,6 +749,7 @@ module Trace : Trace = struct
       ctx_of_app true right
     | App(f, a), Forall(_, _, _) ->
       ctx_of_app false left
+*)
     | _,_ ->
       Some ([], None)
 
@@ -809,62 +856,79 @@ module Trace : Trace = struct
         annotate t {term;proof}
       | _ -> assert false
 
+  let bool = ref false
   let rec _annotate ?(prectx=[]) (_t:_term) (_pt:_prooft) : _prooft =
     (* Format.eprintf "_annotate:@. %a@.%a@." print_hol__term _t print_hol__term _pt._term; *)
     let to_trace ctx rw =
       match rw with
-      | Some(rw) -> (ctx, rw)
-      | None -> failwith "are they convertible?"
+      | Some(rw) -> bool := true; (ctx, rw)
+      | None ->
+        Format.eprintf "%a@.%a@." print_hol__term _t print_hol__term _pt._term;
+        failwith "are they convertible?"
     in
-    try
-      match _compare [] _t _pt._term with
-      | None -> {_pt with _term = _t}
-      | Some (ctx,rw) ->
-        let ctx,rw = to_trace ctx rw in
-        let ctx = prectx@ctx in
-        match rw with
-        | Fold(Delta(name,_ty,subst)) ->
-          (* Format.eprintf "unfold delta: %a@." print_name name; *)
-          let cst = const_of_name name in
-          let te = Env.unsafe_one_step cst in
-          let te'= compile_term [] [] te in
-          let _te = poly_subst_te subst te' in
-          let _t' = _replace _t ctx _te in
-          let _pt' = _annotate _t' _pt in
-          let _proof = RewriteU(ctx,rw,_pt') in
-          let _term = _replace _pt'._term ctx (Const(name,_ty,subst)) in
-          {_term;_proof}
-        | Fold(Beta(term)) ->
-          (* Format.eprintf "fold beta: %a@." print_hol__term term; *)
-          let _t' = _replace _t ctx (beta_step term) in
-          let _pt' = _annotate _t' _pt in
-          let _proof = RewriteU(ctx,rw,_pt') in
-          let _term = _replace _pt'._term ctx term in
-          {_term;_proof}
-        | Unfold(Beta(term)) ->
-          Format.eprintf "unfold beta: %a@." print_hol__term term;
-          let _term = _replace _pt._term ctx (beta_step term) in
-          let _proof = RewriteU(ctx,rw,_pt) in
-          let pt' = {_term; _proof} in
-          _annotate _t pt'
-        | Unfold(Delta(name,_ty,subst)) ->
-          (* Format.eprintf "fold delta: %a@." print_name name; *)
-          let cst = const_of_name name in
-          let te = Env.unsafe_one_step cst in
-          let te'= compile_term [] [] te in
-          let _te = poly_subst_te subst te' in
-          let _term = _replace _pt._term ctx _te in
-          let _proof = RewriteU(ctx,rw,_pt) in
-          _annotate _t {_term;_proof}
-        | _ -> assert false
-    with _ ->
-      _backtrack ~prectx:prectx _t _pt
-
+    match _compare [] _t _pt._term with
+    | None -> {_pt with _term = _t}
+    | Some (ctx,rw) ->
+      let ctx,rw = to_trace ctx rw in
+      let ctx = prectx@ctx in
+      match rw with
+      | Fold(Delta(name,_ty,subst)) ->
+        (* Format.eprintf "unfold delta: %a@." print_name name; *)
+        let cst = const_of_name name in
+        let te = Env.unsafe_one_step cst in
+        let te'= compile_term [] [] te in
+        let _te = poly_subst_te subst te' in
+        let _t' = _replace _t ctx _te in
+        let _pt' = _annotate _t' _pt in
+        let _proof = RewriteU(ctx,rw,_pt') in
+        let _term = _replace _pt'._term ctx (Const(name,_ty,subst)) in
+        {_term;_proof}
+      | Fold(Beta(term)) ->
+        (* Format.eprintf "fold beta: %a@." print_hol__term term; *)
+        let _t' = _replace _t ctx (beta_step term) in
+        let _pt' = _annotate _t' _pt in
+        let _proof = RewriteU(ctx,rw,_pt') in
+        let _term = _replace _pt'._term ctx term in
+        {_term;_proof}
+      | Unfold(Beta(term)) ->
+        (* Format.eprintf "unfold beta: %a@." print_hol__term term; *)
+        let _term = _replace _pt._term ctx (beta_step term) in
+        let _proof = RewriteU(ctx,rw,_pt) in
+        let pt' = {_term; _proof} in
+        _annotate _t pt'
+      | Unfold(Delta(name,_ty,subst)) ->
+        (* Format.eprintf "fold delta: %a@." print_name name; *)
+        let cst = const_of_name name in
+        let te = Env.unsafe_one_step cst in
+        let te'= compile_term [] [] te in
+        let _te = poly_subst_te subst te' in
+        let _term = _replace _pt._term ctx _te in
+        let _proof = RewriteU(ctx,rw,_pt) in
+        _annotate _t {_term;_proof}
+      | _ -> assert false
+        (*
+    with e ->
+      Format.eprintf "%s@." (Printexc.to_string e);
+      if !bool then
+        _backtrack ~prectx:prectx _t _pt
+      else
+        Errors.fail Basic.dloc "Contextual error: The terms %a and %a seems not to be convertible."
+          print_hol__term _t print_hol__term _pt._term
+     *)
   and _backtrack ?(prectx=[]) (_t:_term) (_pt:_prooft) : _prooft =
+    bool:=false;
     let _term' = snf_beta _pt._term in
     if _term' = _pt._term then
-      Errors.fail Basic.dloc "Contextual error: The terms %a and %a seems not to be convertible."
-        print_hol__term _t print_hol__term _pt._term
+      let _t' = snf_beta _t in
+      if _t' = _t then
+        (
+          Format.eprintf "left: %a@.right: %a@." print_hol__term _t print_hol__term _t';
+          Errors.fail Basic.dloc "Contextual error: The terms %a and %a seems not to be convertible."
+            print_hol__term _t print_hol__term _pt._term
+        )
+      else
+        let _pt' = _annotate ~prectx:prectx _t' _pt in
+        _annotate ~prectx:prectx _t _pt'
     else
       let _pt' = _annotate ~prectx:prectx _term' _pt in
       _annotate ~prectx:prectx _t _pt'
@@ -1038,19 +1102,19 @@ let rec alpha_rename_term_ctx bdg ctx term =
   | _ -> assert false
 
 let rec alpha_rename_rw bdg rw =
-  Format.eprintf "rw ctx: @[%a@]@." (Pp.print_list " " Pp.print_ident) bdg;
+  (* Format.eprintf "rw ctx: @[%a@]@." (Pp.print_list " " Pp.print_ident) bdg; *)
   match rw with
   | Fold(Delta( _)) -> rw
   | Unfold(Delta(_)) -> rw
   | Fold(Beta(te)) ->
     let te' = snd @@ alpha_rename__term bdg te in
-       Format.eprintf "Fold Beta@.";
-       Format.eprintf "before: %a@.right: %a@." print_hol__term te print_hol__term te';
+   (*  Format.eprintf "Fold Beta@.";
+       Format.eprintf "before: %a@.right: %a@." print_hol__term te print_hol__term te'; *)
     Fold(Beta(te'))
   | Unfold(Beta(te)) ->
     let te' = snd @@ alpha_rename__term bdg te in
-    Format.eprintf "Unfold Beta@.";
-    Format.eprintf "before: %a@.right: %a@." print_hol__term te print_hol__term te';
+    (* Format.eprintf "Unfold Beta@.";
+       Format.eprintf "before: %a@.right: %a@." print_hol__term te print_hol__term te'; *)
     Unfold(Beta(te'))
   | Fold(Gamma(_proof, _tel, _ter)) ->
     let fake = {_proof=_proof; _term = _tel} in
@@ -1063,14 +1127,14 @@ let rec alpha_rename_rw bdg rw =
     let _proof' = (snd @@ alpha_rename__prooft bdg fake)._proof in
     let _tel' = snd @@ alpha_rename__term bdg _tel in
     let _ter' = snd @@ alpha_rename__term bdg _ter in
-    Format.eprintf "Unfold Gamma@.";
+    (* Format.eprintf "Unfold Gamma@.";
     Format.eprintf "left before: %a@.left after: %a@." print_hol__term _tel print_hol__term _tel';
-    Format.eprintf "right before: %a@.right after: %a@." print_hol__term _ter print_hol__term _ter';
+       Format.eprintf "right before: %a@.right after: %a@." print_hol__term _ter print_hol__term _ter'; *)
     Unfold(Gamma(_proof', _tel', _ter'))
 
 
 and alpha_rename__prooft bdg _prooft =
-  Format.eprintf "current term: @[%a@]@." print_hol__term _prooft._term;
+  (* Format.eprintf "current term: @[%a@]@." print_hol__term _prooft._term; *)
   let rec find_id' id n =
     let id' = post n id in
     if List.mem id' bdg then
@@ -1112,10 +1176,10 @@ and alpha_rename__prooft bdg _prooft =
       ImplE(_prooftl', _prooftr')
     | RewriteU(rw_ctx, rw, _prooft) ->
       let binding, term' = alpha_rename__term_ctx bdg rw_ctx _prooft._term in
-      Format.eprintf "ctx before: @[%a@]@." (Pp.print_list " " Pp.print_ident) bdg;
+      (* Format.eprintf "ctx before: @[%a@]@." (Pp.print_list " " Pp.print_ident) bdg;
       Format.eprintf "ctx after: @[%a@]@." (Pp.print_list " " Pp.print_ident) binding;
-      Format.eprintf "rewriteU@.before: %a@.right: %a@."
-        print_hol__term _prooft._term print_hol__term term';
+         Format.eprintf "rewriteU@.before: %a@.right: %a@."
+         print_hol__term _prooft._term print_hol__term term'; *)
       let rw' = alpha_rename_rw (List.rev binding@bdg) rw in
       let binding, prooft' = alpha_rename__prooft bdg _prooft in
       RewriteU(rw_ctx, rw', prooft')
@@ -1247,7 +1311,7 @@ let rec compile__proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proo
     Format.eprintf "before@.left %a@.right %a@." print_hol__term left print_hol__term right;
     Format.eprintf "after@.left %a@.right %a@." print_hol__term (_lift k 0 left) print_hol__term (_lift k 0 right);
     *)
-    let _proof = RewriteU(ctx, Unfold(Gamma(proof_lift k 0 _pt._proof, _lift k 0 left, _lift k 0 right)), _pt') in
+    let _proof = RewriteU(ctx, Unfold(Gamma(proof_lift k 0 _pt._proof _pt._term , _lift k 0 left, _lift k 0 right)), _pt') in
     let _term = Trace._replace ~db:true _pt'._term ctx right in
     let pt = {_proof;_term} in
     compile_app ty_ctx te_ctx pf_ctx pt t
