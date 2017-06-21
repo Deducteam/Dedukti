@@ -2,7 +2,7 @@
 "kernel" or "utils" or "parser": include
 
 #only applied for dkcheck, dktop etc...
-not <*.cmxa>: use_menhir, use_unix
+not <*.cmxa>: use_menhir, use_unix, use_str
 
 #applied for every compiled module
 <*/*.cmx>: inline(11), optimize(3), bin_annot, for-pack(Dedukti)
