@@ -601,11 +601,12 @@ let compile_eps_term (ty_ctx:ty_ctx) (te_ctx:term_ctx) (te:Term.term) : term =
   | _ -> assert false
 
 let list_of_hol_theorem_with_eq =
-  [hstring "eq_minus_O"; hstring "eq_minus_S_pred"]
+  [hstring "eq_minus_O"; hstring "eq_minus_S_pred"; hstring "eq_to_eqb_true"; hstring "eq_to_eqb_false"; hstring "eq_times_div_minus_mod"; hstring "eq_to_bijn"; hstring "eq_minus_gcd_aux"; hstring "eq_div_O"; hstring "eq_minus_gcd"; hstring "eq_times_plus_to_congruent"; hstring "eq_mod_to_divides"; hstring "eq_fact_pi_p"]
 
 let is_delta_rw cst =
   match cst with
-  | Term.Const(_,md,id) -> not (md === logic_module) && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident id) 0) && not (List.exists (fun thm -> id === thm) list_of_hol_theorem_with_eq)
+  | Term.Const(_,md,id) ->
+    not (md === logic_module) && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident id) 0) && not (List.exists (fun thm -> id === thm) list_of_hol_theorem_with_eq)
   | _ -> false
 
 let get_infos_of_delta_rw md id = Str.(
@@ -643,6 +644,18 @@ let rec snf_beta _term =
     end
   | _ -> _term
 
+let rec unfold_left t =
+  match t with
+  | Const((md,id),ty, ty_subst) ->
+    let cst = Term.mk_Const Basic.dloc md id in
+    let te = Env.unsafe_one_step cst in
+    let te'= compile_term [] [] te in
+    let _te = poly_subst_te ty_subst te' in
+    _te
+  | App(f,a) ->
+    App(unfold_left f, a)
+  | _ -> t
+
 module type Trace =
 sig
 
@@ -659,12 +672,15 @@ module Trace : Trace = struct
 
   type trace = ctx * rw dir
 
+  let print_ctx fmt ctx =
+    Pp.print_list " " (fun fmt d -> Format.fprintf fmt "%d" d) fmt ctx
+
   let bind i pl =
     match pl with
     | None -> None
     | Some(ctx, rw) -> Some(i::ctx, rw)
 
-  let rec _compare ctx left right : (ctx * rw dir option) option =
+  let rec _compare_naive ctx left right : (ctx * rw dir option) option =
     (* assume barendregt convention *)
     let is_unfoldable (md,id) =
       let cst = Term.mk_Const Basic.dloc md id in
@@ -706,13 +722,13 @@ module Trace : Trace = struct
     (*    | VarTerm(id, n, _ty), VarTerm(id', n', _ty') when alpha_eq ctx id id && _ty_eq ctx _ty _ty' -> None *)
     | Const(name, ty, subst), Const(name', ty', subst') when name_eq name name' && _ty_eq ctx (poly_subst_ty subst ty) (poly_subst_ty subst' ty') -> None
     | Lam(id, _ty, _te), Lam(id', _ty', _te') when _ty_eq ctx _ty _ty' ->
-      bind 0 (_compare ((id,id')::ctx) _te _te')
+      bind 0 (_compare_naive ((id,id')::ctx) _te _te')
     | Forall(id, _ty, _te), Forall(id', _ty', _te') when _ty_eq ctx _ty _ty' ->
-      bind 0 (_compare ((id,id')::ctx) _te _te')
+      bind 0 (_compare_naive ((id,id')::ctx) _te _te')
     | Impl(_tel, _ter), Impl(_tel', _ter') ->
       begin
-        match _compare ctx _tel _tel' with
-        | None -> bind 1 (_compare ctx _ter _ter')
+        match _compare_naive ctx _tel _tel' with
+        | None -> bind 1 (_compare_naive ctx _ter _ter')
         | Some tr -> bind 0 (Some tr)
       end
     | App(Lam(x,_ty,te) as f, u), _ (* when not (same_lambda x _ty te u right) *)->
@@ -725,8 +741,8 @@ module Trace : Trace = struct
       Some ([], Some(Unfold(Delta(name,_ty,subst))))
     | App(f,a), App(f', a') ->
       begin
-        match _compare ctx f f' with
-        | None -> bind 1 (_compare ctx a a')
+        match _compare_naive ctx f f' with
+        | None -> bind 1 (_compare_naive ctx a a')
         | Some tr -> bind 0 (Some tr)
       end
     | App(f, a), _ ->
@@ -737,7 +753,8 @@ module Trace : Trace = struct
         match rw with
         | Some([],None) -> ctx_of_app true right
         | _ -> rw
-      end *)
+      end
+      *)
     | _ , App(f, a) ->
       ctx_of_app true right
         (*
@@ -752,32 +769,6 @@ module Trace : Trace = struct
 *)
     | _,_ ->
       Some ([], None)
-
-  let rec compare ctx left right : (ctx * rw dir option) option =
-    match (left,right) with
-    | Term(_te), Term(_te') -> bind 0 (_compare ctx _te _te')
-    | ForallT(id,te), ForallT(id', te') ->
-      bind 0 (compare ((id,id')::ctx) te te')
-    | _, _ -> Some ([], None)
-
-  let print_ctx fmt ctx =
-    Pp.print_list " " (fun fmt d -> Format.fprintf fmt "%d" d) fmt ctx
-
-  let rec rename_var t id id' =
-    match t with
-    | Forall(id,_ty,_te) ->
-      Forall(id,_ty,rename_var _te id id')
-    | Impl(_tel,_ter) ->
-      Impl(rename_var _tel id id', rename_var _ter id id')
-    | Const _ -> t
-    | VarTerm(var, n, _ty) ->
-      if Basic.ident_eq var id then VarTerm(id', n, _ty) else VarTerm(var, n, _ty)
-    | Lam(id, _ty, _te) ->
-      Lam(id,_ty,rename_var _te id id')
-    | App(_tel, _ter) ->
-      App(rename_var _tel id id', rename_var _ter id id')
-
-  let prefix id = hstring(string_of_ident id ^ "___")
 
   let _replace ?(db=false) t ctx u =
     let rec _replace k t ctx u =
@@ -799,77 +790,15 @@ module Trace : Trace = struct
     in
     _replace 0 t ctx u
 
-  let rec replace t ctx u =
-    match t,ctx with
-    | ForallT(x,te),0::ctx' -> ForallT(x,replace te ctx' u)
-    | Term(_te), 0::ctx' -> Term(_replace _te ctx' u)
-    | _ -> assert false
-
-  let rec alpha_rename_type left right =
-    match left,right with
-    | ForallT(name, te), ForallT(name',te') ->
-      ForallT(name',alpha_rename_type te te')
-    | Term(t), Term(_) -> Term(t)
-    | _ -> assert false
-
-  let rec annotate (t:term) (pt:prooft) : prooft =
-    (* Format.eprintf "annotate:@. %a@.%a@." print_hol_term t print_hol_term pt.term; *)
-    let to_trace ctx rw =
-      match rw with
-      | Some(rw) -> (ctx, rw)
-      | None ->
-        Errors.fail Basic.dloc "Contextual error: The terms %a and %a seems not to be convertible. They differ at position %a"
-          print_hol_term t print_hol_term pt.term print_ctx ctx
-    in
-    match compare [] t pt.term with
-    | None -> {pt with term = alpha_rename_type t pt.term}
-    | Some (ctx,rw) ->
-      let ctx,rw = to_trace ctx rw in
-      match rw with
-      | Fold(Delta(name,_ty,subst)) ->
-        let cst = const_of_name name in
-        let te = Env.unsafe_one_step cst in
-        let te'= compile_term [] [] te in
-        let _te = poly_subst_te subst te' in
-        let t' = replace t ctx _te in
-        let pt' = annotate t' pt in
-        let proof = RewriteF(ctx,rw,pt') in
-        let term = replace pt'.term ctx (Const(name,_ty,subst)) in
-        {term;proof}
-      | Unfold(Beta(term)) ->
-        let proof = RewriteF(ctx,rw,pt) in
-        let term = replace pt.term ctx (beta_step term) in
-        annotate t ({term;proof})
-      | Fold(Beta(term)) ->
-        let t' = replace t ctx (beta_step term) in
-        let pt' = annotate t' pt in
-        let proof = RewriteF(ctx,rw,pt') in
-        let term = replace pt'.term ctx term in
-        {term;proof}
-      | Unfold(Delta(name,_ty,subst)) ->
-        let cst = const_of_name name in
-        let te = Env.unsafe_one_step cst in
-        let te'= compile_term [] [] te in
-        let _te = poly_subst_te subst te' in
-        let term = replace pt.term ctx _te in
-        let proof = RewriteF(ctx,rw,pt) in
-        annotate t {term;proof}
-      | _ -> assert false
-
-  let bool = ref false
   let rec _annotate ?(prectx=[]) (_t:_term) (_pt:_prooft) : _prooft =
     (* Format.eprintf "_annotate:@. %a@.%a@." print_hol__term _t print_hol__term _pt._term; *)
-    let to_trace ctx rw =
-      match rw with
-      | Some(rw) -> bool := true; (ctx, rw)
-      | None ->
-        Format.eprintf "%a@.%a@." print_hol__term _t print_hol__term _pt._term;
-        failwith "are they convertible?"
-    in
-    match _compare [] _t _pt._term with
+    match _compare_naive [] _t _pt._term with
     | None -> {_pt with _term = _t}
-    | Some (ctx,rw) ->
-      let ctx,rw = to_trace ctx rw in
+    | Some (ctx,None) ->
+      _backtrack ~prectx:prectx _t _pt (*
+      Format.eprintf "%a@.%a@." print_hol__term _t print_hol__term _pt._term;
+        failwith "are they convertible?" *)
+    | Some (ctx,Some rw) ->
       let ctx = prectx@ctx in
       match rw with
       | Fold(Delta(name,_ty,subst)) ->
@@ -916,22 +845,95 @@ module Trace : Trace = struct
           print_hol__term _t print_hol__term _pt._term
      *)
   and _backtrack ?(prectx=[]) (_t:_term) (_pt:_prooft) : _prooft =
-    bool:=false;
     let _term' = snf_beta _pt._term in
     if _term' = _pt._term then
       let _t' = snf_beta _t in
       if _t' = _t then
-        (
-          Format.eprintf "left: %a@.right: %a@." print_hol__term _t print_hol__term _t';
-          Errors.fail Basic.dloc "Contextual error: The terms %a and %a seems not to be convertible."
-            print_hol__term _t print_hol__term _pt._term
-        )
+        let _t' = unfold_left _t in
+        if _t' = _t then
+          (
+            Format.eprintf "left: %a@.right: %a@." print_hol__term _t print_hol__term _t';
+            Errors.fail Basic.dloc
+              "Contextual error: The terms %a and %a seems not to be convertible."
+              print_hol__term _t print_hol__term _pt._term
+          )
+        else
+          let _pt' = _annotate ~prectx:prectx _t' _pt in
+        _annotate ~prectx:prectx _t _pt'
       else
         let _pt' = _annotate ~prectx:prectx _t' _pt in
         _annotate ~prectx:prectx _t _pt'
     else
       let _pt' = _annotate ~prectx:prectx _term' _pt in
       _annotate ~prectx:prectx _t _pt'
+
+
+  let rec replace t ctx u =
+    match t,ctx with
+    | ForallT(x,te),0::ctx' -> ForallT(x,replace te ctx' u)
+    | Term(_te), 0::ctx' -> Term(_replace _te ctx' u)
+    | _ -> assert false
+
+  let rec alpha_rename_type left right =
+    match left,right with
+    | ForallT(name, te), ForallT(name',te') ->
+      ForallT(name',alpha_rename_type te te')
+    | Term(t), Term(_) -> Term(t)
+    | _ -> assert false
+
+
+  let rec compare ctx left right : (ctx * rw dir option) option =
+    match (left,right) with
+    | Term(_te), Term(_te') -> bind 0 (_compare_naive ctx _te _te')
+    | ForallT(id,te), ForallT(id', te') ->
+      bind 0 (compare ((id,id')::ctx) te te')
+    | _, _ -> Some ([], None)
+
+  let rec annotate (t:term) (pt:prooft) : prooft =
+    (* Format.eprintf "annotate:@. %a@.%a@." print_hol_term t print_hol_term pt.term; *)
+    let to_trace ctx rw =
+      match rw with
+      | Some(rw) -> (ctx, rw)
+      | None ->
+        Errors.fail Basic.dloc "Contextual error: The terms %a and %a seems not to be convertible. They differ at position %a"
+          print_hol_term t print_hol_term pt.term print_ctx ctx
+    in
+    match compare [] t pt.term with
+    | None -> {pt with term = alpha_rename_type t pt.term}
+    | Some (ctx,rw) ->
+      let ctx,rw = to_trace ctx rw in
+      match rw with
+      | Fold(Delta(name,_ty,subst)) ->
+        let cst = const_of_name name in
+        let te = Env.unsafe_one_step cst in
+        let te'= compile_term [] [] te in
+        let _te = poly_subst_te subst te' in
+        let t' = replace t ctx _te in
+        let pt' = annotate t' pt in
+        let proof = RewriteF(ctx,rw,pt') in
+        let term = replace pt'.term ctx (Const(name,_ty,subst)) in
+        {term;proof}
+      | Unfold(Beta(term)) ->
+        let proof = RewriteF(ctx,rw,pt) in
+        let term = replace pt.term ctx (beta_step term) in
+        annotate t ({term;proof})
+      | Fold(Beta(term)) ->
+        let t' = replace t ctx (beta_step term) in
+        let pt' = annotate t' pt in
+        let proof = RewriteF(ctx,rw,pt') in
+        let term = replace pt'.term ctx term in
+        {term;proof}
+      | Unfold(Delta(name,_ty,subst)) ->
+        let cst = const_of_name name in
+        let te = Env.unsafe_one_step cst in
+        let te'= compile_term [] [] te in
+        let _te = poly_subst_te subst te' in
+        let term = replace pt.term ctx _te in
+        let proof = RewriteF(ctx,rw,pt) in
+        annotate t {term;proof}
+      | _ -> assert false
+
+
 end
 
 
@@ -1622,8 +1624,6 @@ let rec conflict ctx _term =
 let is_hol_equal (md,id) = md === hol && id === hol_leibniz
 (* FIXME: ctx are unecessary. They can be useful to make some assertions *)
 let rec compile_hol__term (ty_ctx:ty_ctx) (te_ctx:term_ctx) term =
- (*  if conflict [] term then
-      Format.eprintf "before: %a@.after: %a@." print_hol__term term print_hol__term (_bound_variable_renaming [] 0 term); *)
   match term with
   | Forall(var,_ty, _te) ->
     let _ty' = compile_hol__type ty_ctx _ty in
@@ -1706,12 +1706,11 @@ let rec base_proof rw_proof =
     let right' = compile_hol__term [] [] (beta_step left) in
     {prf=OT.mk_sym (OT.mk_betaConv left'); right=left'; left=right'}
   | Unfold(Delta(name,_ty,ty_subst)) ->
-    (* Format.eprintf "unfold delta@."; *)
     let left = compile_hol__term [] [] @@ hol_const_of_name name _ty ty_subst in
     let right = compile_hol__term [] [] @@ Const(name,_ty,ty_subst) in
     let subst = compile_hol_subst [] ty_subst in
     let pr = OT.mk_subst (OT.thm_of_const_name (compile_hol_name name)) subst [] in
-    {prf=pr;left;right}
+    {prf=pr;left=right; right=left}
   | Fold(Delta(name,_ty,ty_subst)) ->
     (* Format.eprintf "fold delta@."; *)
     let left = compile_hol__term [] [] @@ hol_const_of_name name _ty ty_subst in
@@ -1840,7 +1839,7 @@ and compile__ctx_proof base_proof ctx _te =
     let right = OT.mk_equal_term prl.right prr.right ty' in
     let pr = {prf;left;right} in
     pr
-  | App(f,a), i::ctx' ->
+  | App(f,a), i::ctx'  ->
     if i = 0 then
       let pr = compile__ctx_proof base_proof ctx' f in
       compile_app pr (compile_hol__term [] [] a)
@@ -1879,8 +1878,10 @@ let rec compile_ctx_proof base_proof ctx te =
 
 let rec compile_hol_proof (ty_ctx:ty_ctx) (te_ctx:term_ctx) (pf_ctx:proof_ctx) proof =
   match proof.proof with
-  | ForallP(var,pf) -> compile_hol_proof (var::ty_ctx) te_ctx pf_ctx pf
-  | Proof(pf) -> compile_hol__proof ty_ctx te_ctx pf_ctx pf._proof
+  | ForallP(var,pf) ->
+    compile_hol_proof (var::ty_ctx) te_ctx pf_ctx pf
+  | Proof(pf) ->
+    compile_hol__proof ty_ctx te_ctx pf_ctx pf._proof
   | RewriteF(ctx,rw,pt) ->
     let eq_proof = (compile_ctx_proof (base_proof rw) ctx pt.term).prf in
     let proof' = compile_hol_proof ty_ctx te_ctx pf_ctx pt in
