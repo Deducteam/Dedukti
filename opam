@@ -1,0 +1,13 @@
+opam-version: "1.2"
+name: "dedukti"
+version: "dev"
+maintainer: "dedukti-dev@inria.fr"
+author: "Ronan Saillard"
+homepage: "http://dedukti.gforge.inria.fr"
+bug-reports: "https://gforge.inria.fr/tracker/?func=browse&group_id=4434&atid=13818"
+dev-repo: "https://gforge.inria.fr/git/dedukti/dedukti.git#develop"
+build: [make "all"]
+install: [make "INSTALL_DIR=%{bin}%" "install"]
+remove: [make "INSTALL_DIR=%{bin}%" "uninstall"]
+available: [ ocaml-version >= "4.02" ]
+depends: ["menhir" "ocamlbuild"]

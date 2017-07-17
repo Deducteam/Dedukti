@@ -1,17 +1,16 @@
 (** Basic Datatypes *)
 
-let rec pp_list sep pp out = function
-    | []        -> ()
-    | [a]       -> pp out a
-    | a::lst    -> Printf.fprintf out "%a%s%a" pp a sep (pp_list sep pp) lst
 
 (** {2 Identifiers (hashconsed strings)} *)
 
 type ident = string
+
+let pp_ident fmt id = Format.fprintf fmt "%s" id
+
 let string_of_ident s = s
+
 let ident_eq s1 s2 = s1==s2 || s1=s2
-let pp_ident = output_string
-let print_ident = Format.pp_print_string
+
 
 module WS = Weak.Make(
 struct
@@ -23,6 +22,7 @@ end )
 let shash       = WS.create 251
 let hstring     = WS.merge shash
 let qmark       = hstring "?"
+let dmark       = hstring "$"
 
 (** {2 Lists with Length} *)
 
@@ -97,10 +97,15 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
   in
     aux lst
 
-let debug_mode = ref false
-let debug fmt =
-  if !debug_mode then Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt
-  else Printf.ifprintf stderr fmt
+let debug_mode = ref 0
+
+let set_debug_mode i = debug_mode := i
+
+let debug i fmt = Format.(
+    if !debug_mode >= i then
+      kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
+  else ifprintf err_formatter fmt
+  )
 
 let bind_opt f = function
   | None -> None
@@ -109,3 +114,16 @@ let bind_opt f = function
 let map_opt f = function
   | None -> None
   | Some x -> Some (f x)
+
+let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
+  let (clst,b2) =
+    List.fold_left (fun (accu,b1) a -> let (c,b2) = f b1 a in (c::accu,b2))
+      ([],b0) alst in
+    ( List.rev clst , b2 )
+
+let string_of fp = Format.asprintf "%a" fp
+
+let format_of_sep str fmt () : unit =
+  Format.fprintf fmt "%s" str
+
+let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l

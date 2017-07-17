@@ -1,6 +1,6 @@
 open Term
 open Rule
-open Basics
+open Basic
 
 (** Type checking/inference *)
 
@@ -8,31 +8,30 @@ val coc : bool ref
 
 type typing_error =
   | KindIsNotTypable
-  | ConvertibilityError of term*context*term*term
-  | VariableNotFound of loc*ident*int*context
-  | SortExpected of term*context*term
-  | ProductExpected of term*context*term
-  | InexpectedKind of term*context
+  | ConvertibilityError of term * typed_context * term * term
+  | VariableNotFound of loc * ident * int * typed_context
+  | SortExpected of term * typed_context * term
+  | ProductExpected of term * typed_context * term
+  | InexpectedKind of term * typed_context
   | DomainFreeLambda of loc
-  | CannotInferTypeOfPattern of pattern*context
-  | CannotSolveConstraints of rule * (int*term*term) list
-  | BracketError1 of term*context
-  | BracketError2 of term*context*term
-  | FreeVariableDependsOnBoundVariable of loc*ident*int*context*term
+  | CannotInferTypeOfPattern of pattern * typed_context
+  | CannotSolveConstraints of untyped_rule * (int * term * term) list
+  | BracketError1 of term * typed_context
+  | BracketError2 of term * typed_context*term
+  | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
 
 exception TypingError of typing_error
 
 type typ = term
-type context = (loc*ident*term) list
 
 (** {2 Type Inference/Checking} *)
 
-val infer       : Signature.t -> context -> term -> typ
+val infer       : Signature.t -> typed_context -> term -> typ
 (** [infer sg ctx te] infers a type for the term [te] in the signature [sg] and context [ctx]
     The context is assumed to be well-formed *)
 
-val check       : Signature.t -> context -> term -> typ -> unit
+val check       : Signature.t -> typed_context -> term -> typ -> unit
 (** [check sg ctx te ty] checks that the term [te] has type [ty]
     in the signature [sg] and context [ty.ctx].
     [ty] is assumed to be well-typed in [ctx]
@@ -45,5 +44,5 @@ val checking    : Signature.t -> term -> term -> unit
 val inference   : Signature.t -> term -> typ
 (** [inference sg ctx te] infers a type for the term [te] in empty context. *)
 
-val check_rule  : Signature.t -> rule -> rule2
+val check_rule  : Signature.t -> untyped_rule -> typed_rule
 (** [check_rule sg ru] checks that a rule is well-typed. *)

@@ -1,5 +1,5 @@
 {
-  open Basics
+  open Basic
   open Lexing
   open Tokens
   open Printf
@@ -38,6 +38,7 @@ rule token = parse
   | "Type"      { TYPE ( get_loc lexbuf )       }
   | "def"      { KW_DEF ( get_loc lexbuf )       }
   | "thm"      { KW_THM ( get_loc lexbuf )       }
+  | "inj"      { KW_INJ ( get_loc lexbuf )       }
   | "#NAME" space+ (modname as md)
   { NAME (get_loc lexbuf , hstring md) }
   | "#WHNF"     { WHNF ( get_loc lexbuf ) }
@@ -77,5 +78,3 @@ and string buf = parse
   { Buffer.add_char buf c; string buf lexbuf }
   | eof
   { Errors.fail (get_loc lexbuf) "Unexpected end of file." }
-
-

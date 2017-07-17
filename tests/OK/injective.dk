@@ -1,0 +1,21 @@
+#NAME injective.
+
+type : Type.
+inj term : type -> Type.
+arr : type -> type -> type.
+[A, B] term (arr A B) --> term A -> term B.
+
+symbol : Type.
+def typeof : symbol -> type.
+apply : s : symbol -> term (typeof s).
+
+def id : A : type -> term A -> term A.
+
+[s] id _ (apply s) --> apply s.
+
+A : type.
+f : symbol.
+[] typeof f --> arr A A.
+
+#PRINT "Expected answer: YES".
+#CONV id (arr A A) (apply f), apply f.

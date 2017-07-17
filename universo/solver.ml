@@ -1,4 +1,4 @@
-open Basics
+open Basic
 
 let univ_m = hstring "univs"
 let base_m = hstring "cic"
@@ -13,7 +13,7 @@ let fresh_uname () =
   let str = Constraints.basename ^ (string_of_int !c) in
   incr c;
   let v = hstring str in
-  ignore(Env.declare_constant dloc v sort);
+  ignore(Env.declare dloc v Signature.Static sort);
   v
 
 
@@ -22,11 +22,11 @@ let rec elaboration term = Term.(
   let m_name = Env.get_name () in
   match term with
   (* the constant is an explicit universe *)
-  | Const(loc,m,s) when Basics.ident_eq m univ_m ->
+  | Const(loc,m,s) when Basic.ident_eq m univ_m ->
      mk_Const loc m_name (fresh_uname())
   (* capture universe like "cic.type (cic.s cic.z)" *)
-  | App(Const(loc,m,s), _, _) when Basics.ident_eq m base_m &&
-   List.exists (fun x -> Basics.ident_eq s x) univ_constructors ->
+  | App(Const(loc,m,s), _, _) when Basic.ident_eq m base_m &&
+   List.exists (fun x -> Basic.ident_eq s x) univ_constructors ->
      mk_Const loc m_name (fresh_uname())
   | App(f, a, al) ->
     let f' = elaboration f in
@@ -94,7 +94,7 @@ let sort_of_nat n = Term.(
 (* associate to each univ variable the universe found *)
 let env = Hashtbl.create 83
 
-type result = (Basics.ident,Term.term) Hashtbl.t
+type result = (Basic.ident,Term.term) Hashtbl.t
 
 (* return a Map that associate for each univ variable its universe *)
 let solve() =

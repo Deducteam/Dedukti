@@ -1,13 +1,14 @@
-open Basics
+open Basic
 open Pp
 open Solver
+open Rule
 
 type entry =
 | Declaration of ident * Term.term
 | Definable of ident * Term.term
 | Definition of ident * Term.term option * Term.term
 | Opaque of ident * Term.term option * Term.term
-| RewriteRule of (loc * ident) list * Rule.pattern * Term.term
+| RewriteRule of Rule.untyped_rule
 
 type ast = entry list
 
@@ -21,7 +22,7 @@ let reconstruction_of_entry env entry =
   | Definition(id, Some(ty), te) -> Definition(id, Some(reconstruction env ty), reconstruction env te)
   | Opaque(id, None, te) -> Opaque(id, None, reconstruction env te)
   | Opaque(id, Some(ty), te) -> Opaque(id, Some(reconstruction env ty), reconstruction env te)
-  | RewriteRule(ctx, pat, te) -> RewriteRule(ctx, pat, reconstruction env te)
+  | RewriteRule(rule) -> RewriteRule({rule with rhs= reconstruction env rule.rhs})
 
 module Checker = struct
 
@@ -33,10 +34,10 @@ let verbose = ref false
 let eprint lc fmt =
   if !verbose then (
   let (l,c) = of_loc lc in
-    Printf.eprintf "line:%i column:%i " l c;
-    Printf.kfprintf (fun _ -> prerr_newline () ) stderr fmt
+    Format.eprintf "line:%i column:%i " l c;
+    Format.kfprintf (fun _ -> prerr_newline () ) Format.err_formatter fmt
   ) else
-    Printf.ifprintf stderr fmt
+    Format.ifprintf Format.err_formatter fmt
 
 (* ********************************* *)
 
@@ -49,22 +50,14 @@ let mk_prelude lc name =
   Env.init name;
   Confluence.initialize ()
 
-let mk_declaration lc id pty : unit =
+let mk_declaration lc id st pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
   let pty' = elaboration pty in
   entries := Declaration(id, pty')::!entries;
-  match Env.declare_constant lc id pty' with
+  match Env.declare lc id st pty' with
     | OK () -> () ;
 (*      Format.printf "@[<2>%a :@ %a.@]@.@."
 	print_ident id print_term pty'; *)
-    | Err e -> Errors.fail_env_error e
-
-let mk_definable lc id pty : unit =
-  eprint lc "Declaration of definable '%a'." pp_ident id;
-  let pty' = elaboration pty in
-  entries := Definable(id, pty')::!entries;
-  match Env.declare_definable lc id pty' with
-    | OK () -> ()
     | Err e -> Errors.fail_env_error e
 
 let mk_definition lc id pty_opt pte : unit =
@@ -94,26 +87,26 @@ let mk_opaque lc id pty_opt pte =
     | Err e -> Errors.fail_env_error e
 
 let get_infos = function
-  | Rule.Pattern (l,md,id,_) -> (l,md,id)
+  | Pattern (l,md,id,_) -> (l,md,id)
   | _ -> (dloc,qmark,qmark)
 
-let mk_rules = function
+let mk_rules : untyped_rule list -> unit = Rule.(function
   | [] -> ()
-  | ((_,pat,pty)::_) as lst ->
-     let lst' = List.map (fun (loc,pat, pty) ->
-                    let pty' = elaboration pty in (loc,pat,pty')) lst in
+  | (rule::_) as lst ->
+    let lst' : untyped_rule list = List.map (fun (rule : untyped_rule) ->
+        {rule with rhs = elaboration rule.rhs} ) lst in
     begin
-      let (l,md,id) = get_infos pat in
+      let (l,md,id) = get_infos rule.pat in
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
-      let to_ru = List.rev_map (fun (loc, pat, te) -> RewriteRule(loc,pat,te)) lst' in
+      let to_ru = List.rev_map (fun (rule : untyped_rule) -> RewriteRule(rule)) lst' in
       entries := List.rev_append to_ru !entries;
       match Env.add_rules lst' with
       | OK lst2 ->
-        List.iter ( fun (ctx,pat,rhs) ->
-            eprint (Rule.get_loc_pat pat) "%a" Rule.pp_rule2 (ctx,pat,rhs)
+        List.iter ( fun rule ->
+            eprint (Rule.get_loc_pat rule.pat) "%a" pp_typed_rule rule
           ) lst2 ;
       | Err e -> Errors.fail_env_error e
-    end
+    end)
 
 let mk_command = Cmd.mk_command
 
@@ -130,7 +123,7 @@ let print_entry entry = Pp.(
   | Definition (id, Some(ty), te) ->
     Format.printf "def @[%a:@;<1 2>%a@;<1 2>:=@;<1 2>%a.@]@." print_ident id print_term ty print_term te
   | Opaque (id, ty_opt, te) -> failwith "TODO"
-  | RewriteRule(loc, pat, te) -> Format.printf "@[%a. @]@." print_rule (loc,pat,te)
+  | RewriteRule(rule) -> Format.printf "@[%a. @]@." print_untyped_rule rule
 )
 let print_entries entries = ignore(List.map (print_entry) entries)
 
@@ -162,12 +155,12 @@ let parse lb =
 
 let args = [
   ("-v"    , Arg.Set Checker.verbose, "Verbose mode" ) ;
-  ("-d"    , Arg.Set Basics.debug_mode,   "Debug mode" ) ;
-  ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;	  ("-nl", Arg.Set Dtree.allow_non_linear, "Allow non left-linear rewrite rules")]
+  ("-d"    , Arg.Int Basic.set_debug_mode,   "Debug mode" ) ;
+  ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;	  ("-nl", Arg.Set Rule.allow_non_linear, "Allow non left-linear rewrite rules")]
 
 let run_on_file file =
   let input = open_in file in
-    Basics.debug "Processing file '%s'..." file;
+    Basic.debug 1 "Processing file '%s'..." file;
     parse (Lexing.from_channel input) ;
     Errors.success "File '%s' was successfully checked." file;
     close_in input

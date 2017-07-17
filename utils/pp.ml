@@ -1,11 +1,17 @@
-open Basics
+open Basic
 open Preterm
 open Term
 open Rule
 open Printf
 
+(* FIXME: this module is highly redondant with printing functions insides kernel modules *)
+
+(* TODO: make that debuging functions returns a string *)
 let print_db_enabled = ref false
+let print_default = ref false
 let name = ref qmark
+
+let print_ident fmt id = Format.pp_print_string fmt (string_of_ident id)
 
 let rec print_list sep pp out = function
     | []        -> ()
@@ -84,8 +90,15 @@ let rec subst map = function
        with Failure _ -> t
      end
   | Kind
-  | Type _
-  | Const _ as t       -> t
+  | Type _ as t -> t
+  (* if there is a local variable that have the same name as a top level constant,
+        then the module has to be printed *)
+  (* a hack proposed by Raphael Cauderlier *)
+  | Const (l,m,v) as t       ->
+     if List.mem v map && ident_eq !name m then
+       mk_Const l m (hstring ((string_of_ident m) ^ "." ^ (string_of_ident v)))
+     else
+       t
   | App (f,a,args)     -> mk_App (subst map f)
                                 (subst map a)
                                 (List.map (subst map) args)
@@ -135,30 +148,52 @@ and print_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> Format.fprintf out "(%a)" print_pattern p
   | p -> print_pattern out p
 
-let print_context out ctx =
+let print_typed_context fmt ctx =
   print_list ".\n"
     (fun out (_,x,ty) ->
-      Format.fprintf out "@[<hv>%a:@ %a@]" print_ident x print_term ty
-    ) out (List.rev ctx)
+      Format.fprintf fmt "@[<hv>%a:@ %a@]" print_ident x print_term ty
+    ) fmt (List.rev ctx)
 
-let print_rule out (ctx,pat,te) =
+let print_rule_name fmt rule =
+  let aux b md id =
+    if b || !print_default then
+      if ident_eq md (Env.get_name ()) then
+        Format.fprintf fmt "@[<h>{%s}@] " (string_of_ident id)
+      else
+      Format.fprintf fmt "@[<h>{%s.%s}@] " (string_of_ident md) (string_of_ident id)
+    else
+      Format.fprintf fmt ""
+  in
+    match rule with
+      | Delta(md,id) -> aux true md id (* not printed *)
+    | Gamma(b,md,id) -> aux b md id
+
+let print_untyped_rule fmt (rule:untyped_rule) =
   let print_decl out (_,id) =
     Format.fprintf out "@[<hv>%a@]" print_ident id
   in
-  Format.fprintf out
-    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) ctx)
-    print_pattern pat
-    print_term te
+  Format.fprintf fmt
+    "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
+    print_rule_name rule.name
+    (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) rule.ctx)
+    print_pattern rule.pat
+    print_term rule.rhs
 
-let print_rule2 out (ctx,pat,te) =
+let print_typed_rule out (rule:typed_rule) =
   let print_decl out (_,id,ty) =
     Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
   in
   Format.fprintf out
     "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_list ", " print_decl) ctx
-    print_pattern pat
-    print_term te
+    (print_list ", " print_decl) rule.ctx
+    print_pattern rule.pat
+    print_term rule.rhs
 
-let print_frule out r = print_rule2 out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
+let print_rule_infos out ri =
+  let rule = { name = ri.name ;
+               ctx = ri.ctx ;
+               pat =  Pattern (ri.l, ri.md, ri.id, ri.args) ;
+               rhs = ri.rhs
+             }
+  in
+  print_typed_rule out rule
