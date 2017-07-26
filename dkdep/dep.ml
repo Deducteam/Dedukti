@@ -5,6 +5,7 @@ open Cmd
 
 let out = ref stdout
 let deps = ref []
+let md_to_file = ref []
 let filename = ref ""
 let verbose = ref false
 let sorted = ref false
@@ -95,11 +96,12 @@ let topological_sort graph =
   List.fold_left (fun visited (node,_) -> dfs graph visited node) [] graph
 
 let mk_ending () =
+  let name, deps = List.hd !deps in
+  md_to_file := (name, !filename)::!md_to_file;
   if not !sorted then
-    let name, deps = List.hd !deps in
     print_out "%s.dko : %s %s" name !filename
               (String.concat " " (List.map (fun s -> s ^ ".dko") deps))
   else
     ()
 
-let sort () = List.rev (topological_sort !deps)
+let sort () = List.map (fun md -> List.assoc md !md_to_file) (List.rev (topological_sort !deps))
