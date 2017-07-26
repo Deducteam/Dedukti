@@ -4,7 +4,7 @@ open Solver
 open Rule
 
 type entry =
-| Declaration of ident * Term.term
+| Declaration of ident * Signature.staticity * Term.term
 | Definable of ident * Term.term
 | Definition of ident * Term.term option * Term.term
 | Opaque of ident * Term.term option * Term.term
@@ -16,7 +16,7 @@ let entries : (entry list) ref  = ref []
 
 let reconstruction_of_entry env entry =
   match entry with
-  | Declaration(id, t) -> Declaration(id, reconstruction env t)
+  | Declaration(id, st, t) -> Declaration(id, st, reconstruction env t)
   | Definable(id, t) -> Definable(id, reconstruction env t)
   | Definition(id, None, te) -> Definition(id, None, reconstruction env te)
   | Definition(id, Some(ty), te) -> Definition(id, Some(reconstruction env ty), reconstruction env te)
@@ -53,7 +53,7 @@ let mk_prelude lc name =
 let mk_declaration lc id st pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
   let pty' = elaboration pty in
-  entries := Declaration(id, pty')::!entries;
+  entries := Declaration(id, st, pty')::!entries;
   match Env.declare lc id st pty' with
     | OK () -> () ;
 (*      Format.printf "@[<2>%a :@ %a.@]@.@."
@@ -114,8 +114,13 @@ let export = ref false
 
 let print_entry entry = Pp.(
   match entry with
-  | Declaration (id, ty) ->
-    Format.printf "@[%a :@;<1 2>%a.@]@." print_ident id print_term ty
+    | Declaration (id, st, ty) ->
+      begin
+        match st with
+        | Signature.Static -> Format.printf "@[%a :@;<1 2>%a.@]@." print_ident id print_term ty
+        | Signature.Definable -> Format.printf "@[def %a :@;<1 2>%a.@]@." print_ident id print_term ty
+        | Signature.Injective -> failwith "injective symbols are not supported"
+      end;
   | Definable (id, ty) ->
     Format.printf "@[def %a :@;<1 2>%a.@]@." print_ident id print_term ty
   | Definition (id, None, te) ->
