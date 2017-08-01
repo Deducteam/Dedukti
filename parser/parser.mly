@@ -65,7 +65,6 @@
 %token <Basic.loc> TYPE
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
-%token <Basic.loc> KW_INJ
 %token <Basic.loc*Basic.ident> ID
 %token <Basic.loc*Basic.ident*Basic.ident> QID
 %token <string> STRING
@@ -99,8 +98,6 @@ line            : ID COLON term DOT
                 { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] (mk_pi $4 $2)) }
                 | KW_DEF ID COLON term DOT
                 { mk_declaration (fst $2) (snd $2) Signature.Definable (scope_term [] $4) }
-                | KW_INJ ID COLON term DOT
-                { mk_declaration (fst $2) (snd $2) Signature.Injective (scope_term [] $4) }
                 | KW_DEF ID COLON term DEF term DOT
                 { mk_definition (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }
                 | KW_DEF ID DEF term DOT

@@ -10,7 +10,6 @@ module T = struct
     let st_str = match st with
       | Signature.Static -> ""
       | Signature.Definable -> "def "
-      | Signature.Injective -> "inj "
     in
     Format.printf "@[<2>%s%a :@ %a.@]@.@." st_str print_ident i print_term ty
 
