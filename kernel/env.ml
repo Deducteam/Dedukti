@@ -47,7 +47,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
     let rule =
       { name ;
         ctx = [] ;
-        pat = Pattern(l, get_name (), id, []) ;
+        pat = Pattern(l, get_name (), id, []);
         rhs = te ;
       }
     in
@@ -91,14 +91,14 @@ let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let infer te =
-  try  OK (inference !sg te)
+let infer ?ctx:(ctx=[]) te =
+  try  OK (infer !sg ctx te)
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let check te ty =
-  try OK (ignore(checking !sg te ty))
+let check ?ctx:(ctx=[]) te ty =
+  try OK (ignore(check !sg ctx te ty))
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
