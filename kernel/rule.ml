@@ -52,6 +52,9 @@ type rule_infos = {
   constraints : constr list;
 }
 
+let pattern_of_rule_infos r =
+  Pattern (r.l,r.md,r.id,r.args)
+
 type rule_error =
   | BoundVariableExpected of pattern
   | DistinctBoundVariablesExpected of loc * ident
@@ -143,7 +146,7 @@ let pp_typed_rule fmt (rule:typed_rule) =
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
   let rule = { name = r.name; ctx = r.ctx;
-               pat = Pattern (r.l, r.md, r.id,r.args);
+               pat = pattern_of_rule_infos r;
                rhs = r.rhs } in
   pp_typed_rule out rule
 
@@ -159,7 +162,6 @@ let pattern_to_term p =
     | Lambda (l,x,pat) -> mk_Lam l x None (aux (k+1) pat)
   in
     aux 0 p
-
 
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
 

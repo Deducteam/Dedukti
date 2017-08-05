@@ -135,7 +135,7 @@ let rec pp_term (ar:int IdMap.t) k fmt term = Format.(
   )
 
 let get_bvars r =
-  let pat = (Pattern (r.l,r.md,r.id,r.args)) in
+  let pat = pattern_of_rule_infos r in
   let rec aux_t k bvars = function
     | Const _ | Kind | Type _ | DB _ -> bvars
     | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
@@ -176,7 +176,7 @@ let pp_rule fmt (r:rule_infos) = Format.(
     for i=1 to n do fprintf fmt "term -> " done;
     fprintf fmt "term"
   in
-  let pat = (Pattern (r.l,r.md,r.id,r.args)) in
+  let pat = pattern_of_rule_infos r in
   let arities = get_arities r.ctx pat in
   (* Variables*)
   fprintf fmt "(VAR\n";
