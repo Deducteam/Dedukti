@@ -192,7 +192,7 @@ let print_typed_rule out (rule:typed_rule) =
 let print_rule_infos out ri =
   let rule = { name = ri.name ;
                ctx = ri.ctx ;
-               pat =  Pattern (ri.l, ri.md, ri.id, ri.args) ;
+               pat =  pattern_of_rule_infos ri;
                rhs = ri.rhs
              }
   in
