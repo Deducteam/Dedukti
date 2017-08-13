@@ -88,7 +88,6 @@
 %%
 
 prelude         : NAME DOT      { let (lc,name) = $1 in
-                                        Pp.name := name;
                                         Scoping.name := name;
                                         mk_prelude lc name }
 

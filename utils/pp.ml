@@ -1,5 +1,4 @@
 open Basic
-open Preterm
 open Term
 open Rule
 open Printf
@@ -9,7 +8,7 @@ open Printf
 (* TODO: make that debuging functions returns a string *)
 let print_db_enabled = ref false
 let print_default = ref false
-let name = ref qmark
+let name () = Env.get_name ()
 
 let print_ident fmt id = Format.pp_print_string fmt (string_of_ident id)
 
@@ -19,30 +18,8 @@ let rec print_list sep pp out = function
     | a::lst    ->
         Format.fprintf out "%a%s@,%a" pp a sep (print_list sep pp) lst
 
-let rec print_pterm out = function
-  | PreType _        -> Format.pp_print_string out "Type"
-  | PreId (_,v)      -> print_ident out v
-  | PreQId (_,m,v)   -> Format.fprintf out "%a.%a" print_ident m print_ident v
-  | PreApp (f,a,lst) -> print_list " " print_pterm_wp  out (f::a::lst)
-  | PreLam (_,v,None,b) -> Format.fprintf out "%a => %a" print_ident v print_pterm b
-  | PreLam (_,v,Some a,b) -> Format.fprintf out "%a:%a => %a" print_ident v print_pterm_wp a print_pterm b
-  | PrePi (_,o,a,b)    ->
-      match o with
-      | None   ->
-          Format.fprintf out "%a -> %a" print_pterm_wp a print_pterm b
-      | Some v ->
-          Format.fprintf out "%a:%a -> %a" print_ident v print_pterm_wp a print_pterm b
-
-and print_pterm_wp out = function
-  | PreType _ | PreId _ | PreQId _ as t  -> print_pterm out t
-  | t                                    -> Format.fprintf out "(%a)" print_pterm t
-
-let print_pconst out = function
-    | ( None , id )     -> print_ident out id
-    | ( Some md , id )  -> Format.fprintf out "%a.%a" print_ident md print_ident id
-
 let print_const out (m,v) =
-  if ident_eq m !name then print_ident out v
+  if ident_eq m (name ()) then print_ident out v
   else Format.fprintf out "%a.%a" print_ident m print_ident v
 
 (* Idents generated from underscores by the parser start with a question mark.
@@ -57,18 +34,6 @@ let print_db out (x,n) =
 let print_db_or_underscore out (x,n) =
   if is_dummy_ident x then Format.fprintf out "_"
   else print_ident out x
-
-let rec print_ppattern out = function
-  | PPattern (_,md,id,[])       -> print_pconst out (md,id)
-  | PPattern (_,md,id,lst)      ->
-      Format.fprintf out "%a %a" print_pconst (md,id) (print_list " " print_ppattern) lst
-  | PCondition pte              -> Format.fprintf out "{ %a }" print_pterm pte
-  | PJoker _                    -> Format.fprintf out "_"
-  | PLambda (_,id,p)            -> Format.fprintf out "%a => %a" print_ident id print_ppattern p
-and print_ppattern_wp out = function
-  | PLambda (_,_,_)
-  | PPattern (_,_,_,_::_) as p  -> Format.fprintf out "(%a)" print_ppattern p
-  | p                           -> print_ppattern out p
 
 let fresh_name names base =
   if List.mem base names then
@@ -95,7 +60,7 @@ let rec subst map = function
         then the module has to be printed *)
   (* a hack proposed by Raphael Cauderlier *)
   | Const (l,m,v) as t       ->
-     if List.mem v map && ident_eq !name m then
+     if List.mem v map && ident_eq (name ()) m then
        mk_Const l m (hstring ((string_of_ident m) ^ "." ^ (string_of_ident v)))
      else
        t
