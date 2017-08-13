@@ -1,0 +1,71 @@
+OASISFormat: 0.4
+Name: Dedukti
+Version: 2.6
+OCamlVersion: >= 4.2.0
+Synopsis: An implementation of the \lambda\Pi-calculus modulo theory
+Authors: Ronan Saillard
+Maintainers: François Thiré <franth2@gmail.com>
+License: CeCILL-B
+LicenseFile: LICENSE
+FilesAB: kernel/version.ml.ab
+Description: Dedukti is an implementation of the \lambda\Pi-calculus modulo theory
+Homepage: http://dedukti.gforge.inria.fr/
+Plugins: META (0.4), DevFiles (0.4)
+AlphaFeatures: ocamlbuild_more_args
+
+BuildTools: ocamlbuild
+XOCamlbuildExtraArgs: -package unix -menhir \"menhir --external-tokens Tokens\"
+
+Library "kernel"
+        Path: kernel
+        Modules: Basic,
+                 Term,
+                 Typing,
+                 Rule,
+                 Dtree,
+                 Env,
+                 Signature,
+                 Confluence
+        InternalModules: Typing,
+                         Dtree
+        CompiledObject: best
+
+Library "printing"
+        Path: utils
+        Modules: Pp
+        BuildDepends: kernel
+        CompiledObject: best
+
+Library "parser"
+        Path: parser
+        Modules: Cmd,
+                 Parser,
+                 Scoping,
+                 Tokens
+        InternalModules: Scoping
+        BuildDepends: kernel, printing
+        CompiledObject: best
+
+Executable "dkcheck"
+        Path: dkcheck
+        MainIs: dkcheck.ml
+        BuildDepends: kernel, printing, parser
+        CompiledObject: best
+
+Executable "dkdep"
+        Path:dkdep
+        MainIs: dkdep.ml
+        BuildDepends: kernel, printing, parser
+        CompiledObject: best
+
+Executable "dktop"
+        Path:dktop
+        MainIs: dktop.ml
+        BuildDepends: kernel, printing, parser
+        CompiledObject: best
+
+Executable "dkindent"
+        Path:dkindent
+        MainIs: dkindent.ml
+        BuildDepends: kernel, printing, parser
+        CompiledObject: best
