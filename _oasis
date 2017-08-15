@@ -25,7 +25,8 @@ Library "kernel"
                  Dtree,
                  Env,
                  Signature,
-                 Confluence
+                 Confluence,
+                 Cmd
         InternalModules: Typing,
                          Dtree
         CompiledObject: best
@@ -38,8 +39,7 @@ Library "printing"
 
 Library "parser"
         Path: parser
-        Modules: Cmd,
-                 Parser,
+        Modules: Parser,
                  Scoping,
                  Tokens
         InternalModules: Scoping
@@ -69,3 +69,15 @@ Executable "dkindent"
         MainIs: dkindent.ml
         BuildDepends: kernel, printing, parser
         CompiledObject: best
+
+Test "main"
+        Command: ./tests/tests.sh
+        TestTools: dkcheck
+
+Document "api-kernel"
+  Title:                API reference for Dedukti kernel
+  Type:                 OCamlbuild (0.4)
+  InstallDir:           $htmldir/kernel
+  BuildTools+:          ocamldoc
+  XOCamlbuildPath:      kernel/
+  XOCamlbuildLibraries: kernel
