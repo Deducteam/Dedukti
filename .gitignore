@@ -1,5 +1,8 @@
 /_build/
-dedukti.docdir
+META
+api-kernel.docdir
+/setup.log
+*.byte
 *.native
 .*.swp
 .*.swo
