@@ -23,6 +23,9 @@ Library "kernel"
                  Typing,
                  Rule,
                  Dtree,
+                 Reduction,
+                 Matching,
+                 Subst,
                  Env,
                  Signature,
                  Confluence,
@@ -30,7 +33,9 @@ Library "kernel"
                  Errors,
                  Pp
         InternalModules: Typing,
-                         Dtree
+                         Dtree,
+                         Subst,
+                         Matching
         CompiledObject: best
 
 Library "parser"
