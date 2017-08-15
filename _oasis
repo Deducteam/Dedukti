@@ -26,15 +26,11 @@ Library "kernel"
                  Env,
                  Signature,
                  Confluence,
-                 Cmd
+                 Cmd,
+                 Errors,
+                 Pp
         InternalModules: Typing,
                          Dtree
-        CompiledObject: best
-
-Library "printing"
-        Path: utils
-        Modules: Pp
-        BuildDepends: kernel
         CompiledObject: best
 
 Library "parser"
@@ -43,31 +39,31 @@ Library "parser"
                  Scoping,
                  Tokens
         InternalModules: Scoping
-        BuildDepends: kernel, printing
+        BuildDepends: kernel
         CompiledObject: best
 
 Executable "dkcheck"
         Path: dkcheck
         MainIs: dkcheck.ml
-        BuildDepends: kernel, printing, parser
+        BuildDepends: kernel, parser
         CompiledObject: best
 
 Executable "dkdep"
         Path:dkdep
         MainIs: dkdep.ml
-        BuildDepends: kernel, printing, parser
+        BuildDepends: kernel, parser
         CompiledObject: best
 
 Executable "dktop"
         Path:dktop
         MainIs: dktop.ml
-        BuildDepends: kernel, printing, parser
+        BuildDepends: kernel, parser
         CompiledObject: best
 
 Executable "dkindent"
         Path:dkindent
         MainIs: dkindent.ml
-        BuildDepends: kernel, printing, parser
+        BuildDepends: kernel, parser
         CompiledObject: best
 
 Test "main"
