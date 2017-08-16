@@ -20,28 +20,25 @@ Library "kernel"
         Path: kernel
         Modules: Basic,
                  Term,
-                 Typing,
-                 Rule,
-                 Dtree,
-                 Reduction,
-                 Matching,
-                 Subst,
                  Env,
                  Signature,
+                 Reduction,
+                 Rule,
                  Confluence,
                  Cmd,
                  Errors,
-                 Pp
+                 Pp,
+                 Version
         InternalModules: Typing,
                          Dtree,
                          Subst,
                          Matching
+        Pack: true
         CompiledObject: best
 
 Library "parser"
         Path: parser
         Modules: Parser,
-                 Scoping,
                  Tokens
         InternalModules: Scoping
         BuildDepends: kernel
