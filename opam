@@ -1,13 +1,19 @@
 opam-version: "1.2"
-name: "dedukti"
-version: "dev"
+name: "Dedukti"
+version: "2.5.1"
 maintainer: "dedukti-dev@inria.fr"
 author: "Ronan Saillard"
 homepage: "http://dedukti.gforge.inria.fr"
 bug-reports: "https://gforge.inria.fr/tracker/?func=browse&group_id=4434&atid=13818"
 dev-repo: "https://gforge.inria.fr/git/dedukti/dedukti.git#develop"
-build: [make "all"]
-install: [make "INSTALL_DIR=%{bin}%" "install"]
-remove: [make "INSTALL_DIR=%{bin}%" "uninstall"]
+build: [
+  ["ocaml" "setup.ml" "-configure" "--prefix" prefix]
+  ["ocaml" "setup.ml" "-build"]
+]
+install: ["ocaml" "setup.ml" "-install"]
+remove: [
+  ["ocaml" "%{etc}%/oasis/setup.ml" "-C" "%{etc}%/oasis" "-uninstall"]
+]
+build-doc: [ "ocaml" "setup.ml" "-doc" ]
 available: [ ocaml-version >= "4.02" ]
-depends: ["menhir" "ocamlbuild"]
+depends: ["menhir" "ocamlbuild" "oasis"]

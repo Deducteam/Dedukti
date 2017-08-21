@@ -1,10 +1,11 @@
 OASISFormat: 0.4
 Name: Dedukti
-Version: 2.6
+Version: 2.5.1
 OCamlVersion: >= 4.2.0
+FindlibVersion: >= 1.3.1
 Synopsis: An implementation of the \lambda\Pi-calculus modulo theory
 Authors: Ronan Saillard
-Maintainers: François Thiré <franth2@gmail.com>
+Maintainers: François Thiré <dedukti-dev@inria.fr>
 License: CeCILL-B
 LicenseFile: LICENSE
 FilesAB: kernel/version.ml.ab
@@ -15,6 +16,10 @@ AlphaFeatures: ocamlbuild_more_args
 
 BuildTools: ocamlbuild
 XOCamlbuildExtraArgs: -package unix -menhir \"menhir --external-tokens Tokens\"
+
+Library "dedukti"
+        Path: .
+        CompiledObject:best
 
 Library "kernel"
         Path: kernel
@@ -33,39 +38,46 @@ Library "kernel"
                          Dtree,
                          Subst,
                          Matching
-        Pack: true
+        FindlibParent: dedukti
         CompiledObject: best
 
 Library "parser"
         Path: parser
         Modules: Parser,
-                 Tokens
-        InternalModules: Scoping
-        BuildDepends: kernel
+                 Lexer
+        InternalModules: Scoping,
+                         Preterm,
+                         Tokens
+        BuildDepends: dedukti.kernel
+        FindlibParent: dedukti
         CompiledObject: best
 
 Executable "dkcheck"
         Path: dkcheck
         MainIs: dkcheck.ml
-        BuildDepends: kernel, parser
+        BuildDepends: dedukti.kernel, dedukti.parser
+        Install: true
         CompiledObject: best
 
 Executable "dkdep"
         Path:dkdep
         MainIs: dkdep.ml
-        BuildDepends: kernel, parser
+        BuildDepends: dedukti.kernel, dedukti.parser
+        Install: true
         CompiledObject: best
 
 Executable "dktop"
         Path:dktop
         MainIs: dktop.ml
-        BuildDepends: kernel, parser
+        BuildDepends: dedukti.kernel, dedukti.parser
+        Install: true
         CompiledObject: best
 
 Executable "dkindent"
         Path:dkindent
         MainIs: dkindent.ml
-        BuildDepends: kernel, parser
+        BuildDepends: dedukti.kernel, dedukti.parser
+        Install: true
         CompiledObject: best
 
 Test "main"
@@ -78,4 +90,4 @@ Document "api-kernel"
   InstallDir:           $htmldir/kernel
   BuildTools+:          ocamldoc
   XOCamlbuildPath:      kernel/
-  XOCamlbuildLibraries: kernel
+  XOCamlbuildLibraries: dedukti.kernel
