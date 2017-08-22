@@ -1,5 +1,6 @@
 /_build/
 api-kernel.docdir
+/setup.data
 /setup.log
 *.byte
 *.native
