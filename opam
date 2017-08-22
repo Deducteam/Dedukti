@@ -12,7 +12,7 @@ build: [
 ]
 install: ["ocaml" "setup.ml" "-install"]
 remove: [
-  ["ocaml" "%{etc}%/oasis/setup.ml" "-C" "%{etc}%/oasis" "-uninstall"]
+  ["ocaml" "%{etc}%/dedukti/setup.ml" "-C" "%{etc}%/dedukti" "-uninstall"]
 ]
 build-doc: [ "ocaml" "setup.ml" "-doc" ]
 available: [ ocaml-version >= "4.02" ]
