@@ -14,7 +14,7 @@ USER MANUAL FOR DEDUKTI v2.5 (DRAFT)
 
 In order to compile `Dedukti` you will need `OCaml` and `Menhir`.
 
-    git clone -b v2.5 git://scm.gforge.inria.fr/dedukti/dedukti.git dedukti
+    git clone -b v2.5 https://scm.gforge.inria.fr/anonscm/git/dedukti/dedukti.git dedukti
     cd dedukti
     make
     sudo make install
