@@ -14,23 +14,23 @@ def or_intro_2 := FO.or_intro_2.
 (;  Encoded proposition families corresponding to:
   Law of Excluded Middle
   Double Negation Elimination
-  Pierce Law
+  Peirce Law
 ;)
 def prop_lem    := A : Prop             => or A (not A).
 def prop_dne    := A : Prop             => imp (not (not A)) A.
-def prop_pierce := A : Prop => B : Prop => imp (imp (imp A B) A) A.
+def prop_peirce := A : Prop => B : Prop => imp (imp (imp A B) A) A.
 
 (;  Propositions in Dedukti's logic (Types)  ;)
 def lem    := A : Prop             -> prf (prop_lem    A  ).
 def dne    := A : Prop             -> prf (prop_dne    A  ).
-def pierce := A : Prop -> B : Prop -> prf (prop_pierce A B).
+def peirce := A : Prop -> B : Prop -> prf (prop_peirce A B).
 
 (;  Theorems to prove in Dedukti's logic (Types)  ;)
 def    lem_imp_dne    := lem    -> dne.
-def pierce_imp_dne    := pierce -> dne.
+def peirce_imp_dne    := peirce -> dne.
 def    dne_imp_lem    := dne    -> lem.
-def    lem_imp_pierce := lem    -> pierce.
-def pierce_imp_lem    := pierce -> lem.
+def    lem_imp_peirce := lem    -> peirce.
+def peirce_imp_lem    := peirce -> lem.
 
 
 (;  Proofs of the above theorems  ;)
@@ -43,11 +43,11 @@ def lem_imp_dne_prf : lem_imp_dne :=
 				(y : prf (not A) => (p y) A)
 .
 
-def pierce_imp_dne_prf : pierce_imp_dne :=
-  pierce_prf : (A : Prop -> B : Prop -> prf (prop_pierce A B)) =>
+def peirce_imp_dne_prf : peirce_imp_dne :=
+  peirce_prf : (A : Prop -> B : Prop -> prf (prop_peirce A B)) =>
   A : Prop =>
   p : prf (not (not A)) =>
-  pierce_prf A false
+  peirce_prf A false
 			 (q: prf (not A) =>
 			  (p q) A)
 .
@@ -63,12 +63,12 @@ def dne_imp_lem_prf : dne_imp_lem :=
 		  )
 .
 
-def lem_imp_pierce_prf : lem_imp_pierce :=
+def lem_imp_peirce_prf : lem_imp_peirce :=
   lem_prf : (A : Prop -> prf (prop_lem A))  =>
   A : Prop =>
   B : Prop =>
     (lem_prf A)
-    (prop_pierce A B)
+    (prop_peirce A B)
     (x : prf A => f : (((prf A) -> prf B) -> prf A) => x)
     (
       f : ((prf A) -> P : Prop -> prf P) =>
@@ -77,10 +77,10 @@ def lem_imp_pierce_prf : lem_imp_pierce :=
 	)
 .
 
-def pierce_imp_lem_prf : pierce_imp_lem :=
-  pierce_prf : (A : Prop -> B : Prop -> prf (prop_pierce A B)) =>
+def peirce_imp_lem_prf : peirce_imp_lem :=
+  peirce_prf : (A : Prop -> B : Prop -> prf (prop_peirce A B)) =>
   A : Prop =>
-    pierce_prf
+    peirce_prf
 	  (prop_lem A)
 	  false
 	  (
