@@ -29,7 +29,6 @@ tt: prf true.
 [A]  prf (exists A)  --> P:Prop -> (x:Term -> prf (A x) -> prf P) -> prf P
 [x,y] prf (equals x y) --> P:(Term -> Prop) -> prf (P x) -> prf (P y).
 
-lem: A:Prop -> prf (or A (not A)).
 
 (; *** Theorems ;)
 
