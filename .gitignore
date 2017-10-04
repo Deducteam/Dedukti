@@ -9,6 +9,7 @@ api-kernel.docdir
 _*/
 *.dko
 *.depend
+kernel/version.ml
 
 # emacs tmp files
 *~

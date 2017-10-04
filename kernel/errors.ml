@@ -98,6 +98,10 @@ let fail_dtree_error err =
           fail lc
             "All the rewrite rules for \ the symbol '%a' should have the same arity."
             pp_ident id
+      | ArityInnerMismatch (lc,rid, id) ->
+          fail lc
+            "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
+            pp_ident id pp_ident rid
 
 
 let fail_rule_error err =
