@@ -16,6 +16,7 @@ let space   = [' ' '\t' '\r']
 let modname = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
 let ident   = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
 let capital = ['A'-'Z']+
+let number  = ['0'-'9']+
 
 rule token = parse
   | space       { token lexbuf  }
@@ -30,27 +31,29 @@ rule token = parse
   | '}'         { RIGHTBRA      }
   | '('         { LEFTPAR       }
   | ')'         { RIGHTPAR      }
-  | "-->"	{ LONGARROW     }
-  | "->"	{ ARROW         }
-  | "=>"	{ FATARROW      }
-  | ":="	{ DEF           }
+  | "-->"       { LONGARROW     }
+  | "->"        { ARROW         }
+  | "=>"        { FATARROW      }
+  | ":="        { DEF           }
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
-  | "Type"      { TYPE ( get_loc lexbuf )       }
-  | "def"      { KW_DEF ( get_loc lexbuf )       }
-  | "thm"      { KW_THM ( get_loc lexbuf )       }
+  | "Type"      { TYPE       ( get_loc lexbuf )       }
+  | "def"       { KW_DEF     ( get_loc lexbuf )       }
+  | "thm"       { KW_THM     ( get_loc lexbuf )       }
   | "#NAME" space+ (modname as md)
   { NAME (get_loc lexbuf , hstring md) }
-  | "#WHNF"     { WHNF ( get_loc lexbuf ) }
-  | "#HNF"      { HNF ( get_loc lexbuf ) }
-  | "#SNF"      { SNF ( get_loc lexbuf ) }
-  | "#STEP"     { STEP ( get_loc lexbuf ) }
-  | "#INFER"    { INFER ( get_loc lexbuf ) }
-  | "#CONV"     { CONV ( get_loc lexbuf ) }
-  | "#CHECK"    { CHECK ( get_loc lexbuf ) }
-  | "#PRINT"    { PRINT ( get_loc lexbuf ) }
-  | "#GDT"      { GDT ( get_loc lexbuf ) }
-  | '#' (capital as cmd)
-  { OTHER (get_loc lexbuf, cmd) }
+  | "#WHNF"     { WHNF       ( get_loc lexbuf ) }
+  | "#HNF"      { HNF        ( get_loc lexbuf ) }
+  | "#SNF"      { SNF        ( get_loc lexbuf ) }
+  | "#STEP"     { STEP       ( get_loc lexbuf ) }
+  | "#INFER"    { INFER      ( get_loc lexbuf ) }
+  | "#INFERSNF" { INFERSNF   ( get_loc lexbuf ) }
+  | "#NSTEPS"   { NSTEPS     ( get_loc lexbuf ) }
+  | "#CONV"     { CONV       ( get_loc lexbuf ) }
+  | "#CHECK"    { CHECK      ( get_loc lexbuf ) }
+  | "#PRINT"    { PRINT      ( get_loc lexbuf ) }
+  | "#GDT"      { GDT        ( get_loc lexbuf ) }
+  | '#' (capital as cmd) { OTHER (get_loc lexbuf, cmd) }
+  | '#' (number  as i  ) { INT   (int_of_string i)     }
   | modname as md '.' (ident as id)
   { QID ( get_loc lexbuf , hstring md , hstring id ) }
   | ident  as id
@@ -60,7 +63,7 @@ rule token = parse
   { Errors.fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }
   | eof { EOF }
 
- and comment = parse
+and comment = parse
   | ";)" { token lexbuf          }
   | '\n' { new_line lexbuf ; comment lexbuf }
   | _    { comment lexbuf        }

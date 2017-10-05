@@ -29,9 +29,12 @@ type token =
   | SNF         of loc
   | STEP        of loc
   | INFER       of loc
+  | INFERSNF    of loc
+  | NSTEPS      of loc
   | CONV        of loc
   | CHECK       of loc
   | PRINT       of loc
   | GDT         of loc
   | OTHER       of ( loc * string )
   | STRING      of string
+  | INT         of int

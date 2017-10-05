@@ -80,21 +80,21 @@ let pp_pattern ar out pat =
     end
   | Var (_,x,n,[]) (* n>=k *) -> fprintf out "m_%a" pp_ident x ;
   | Var (_,x,n,a::args) (* n>=k *) ->
-    let arity = IdMap.find x ar in
-      if arity == 0 then (
-        List.iter (fun _ -> fprintf out "app(" ) (a::args);
-        fprintf out "m_%a" pp_ident x;
-        List.iter ( fprintf out ",%a)" (aux k) ) (a::args)
-      ) else (
-        let (args1,args2) = split (arity-1) args in
-        List.iter (fun _ -> fprintf out "app(" ) args2;
-        fprintf out "m_%a(%a" pp_ident x (aux k) a;
-        List.iter ( fprintf out ",%a" (aux k) ) args1;
-        fprintf out ")";
-        List.iter ( fprintf out ",%a)" (aux k) ) args2
-      )
+     let arity = IdMap.find x ar in
+     if arity == 0 then (
+       List.iter (fun _ -> fprintf out "app(" ) (a::args);
+       fprintf out "m_%a" pp_ident x;
+       List.iter ( fprintf out ",%a)" (aux k) ) (a::args)
+     ) else (
+       let (args1,args2) = split (arity-1) args in
+       List.iter (fun _ -> fprintf out "app(" ) args2;
+       fprintf out "m_%a(%a" pp_ident x (aux k) a;
+       List.iter ( fprintf out ",%a" (aux k) ) args1;
+       fprintf out ")";
+       List.iter ( fprintf out ",%a)" (aux k) ) args2
+     )
   | Lambda (_,x,p) ->
-    fprintf out "lam(m_typ,\\v_%a.%a)" pp_ident x (aux (k+1)) p
+     fprintf out "lam(m_typ,\\v_%a.%a)" pp_ident x (aux (k+1)) p
   | Brackets _ -> ( incr nb; fprintf out "b_%i" !nb )
   in
   aux 0 out pat

@@ -48,6 +48,8 @@ val add_rules   : Rule.rule list -> (Rule.rule2 list,env_error) error
 
 val infer       : term -> (term,env_error) error
 
+val infersnf    : term -> (term,env_error) error
+
 val check       : term -> term -> (unit,env_error) error
 
 (** {2 Safe Reduction/Conversion} *)
@@ -57,6 +59,7 @@ val hnf         : term -> (term,env_error) error
 val whnf        : term -> (term,env_error) error
 val snf         : term -> (term,env_error) error
 val one         : term -> (term option,env_error) error
+val nsteps      : int -> term -> (term list,env_error) error
 
 val are_convertible : term -> term -> (bool,env_error) error
 

@@ -56,6 +56,8 @@
 %token <Basic.loc> SNF
 %token <Basic.loc> STEP
 %token <Basic.loc> INFER
+%token <Basic.loc> INFERSNF
+%token <Basic.loc> NSTEPS
 %token <Basic.loc> CONV
 %token <Basic.loc> CHECK
 %token <Basic.loc> PRINT
@@ -69,6 +71,7 @@
 %token <Basic.loc*Basic.ident> ID
 %token <Basic.loc*Basic.ident*Basic.ident> QID
 %token <string> STRING
+%token <int> INT
 
 %start prelude
 %start line
@@ -122,17 +125,22 @@ line            : ID COLON term DOT
                 { mk_ending () ; raise Tokens.EndOfFile }
 
 
-                command         : WHNF  term    { mk_command $1 (Whnf (scope_term [] $2)) }
-                | HNF   term    { mk_command $1 (Hnf (scope_term [] $2)) }
-                | SNF   term    { mk_command $1 (Snf (scope_term [] $2)) }
-                | STEP  term    { mk_command $1 (OneStep (scope_term [] $2)) }
-                | INFER term    { mk_command $1 (Infer (scope_term [] $2)) }
-                | CONV  term  COMMA term { mk_command $1 (Conv (scope_term [] $2,scope_term [] $4)) }
-                | CHECK term  COMMA term { mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
+command         : WHNF     term    { mk_command $1 (Whnf     (scope_term [] $2)) }
+                | HNF      term    { mk_command $1 (Hnf      (scope_term [] $2)) }
+                | SNF      term    { mk_command $1 (Snf      (scope_term [] $2)) }
+                | STEP     term    { mk_command $1 (OneStep  (scope_term [] $2)) }
+                | INFER    term    { mk_command $1 (Infer    (scope_term [] $2)) }
+                | INFERSNF term    { mk_command $1 (InferSnf (scope_term [] $2)) }
+                | NSTEPS INT term  { mk_command $1 (NSteps ($2,(scope_term [] $3))) }
+                | CONV  term  COMMA term
+				{ mk_command $1 (Conv (scope_term [] $2,scope_term [] $4)) }
+                | CHECK term  COMMA term
+				{ mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
                 | PRINT STRING  { mk_command $1 (Print $2) }
                 | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }
-                | OTHER term_lst { mk_command (fst $1) (Other (snd $1,List.map (scope_term []) $2)) }
+                | OTHER term_lst
+				{ mk_command (fst $1) (Other (snd $1,List.map (scope_term []) $2)) }
 
 
 term_lst        : term                                  { [$1] }
