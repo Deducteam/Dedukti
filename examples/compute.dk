@@ -17,16 +17,9 @@ def fact : Nat -> Nat.
 []      fact Z --> S Z
 [x] fact (S x) --> mult (S x) (fact x).
 
-def one   : Nat := (S Z).
-def two   : Nat := (S one).
-def three : Nat := (S two).
-def four  : Nat := (S three).
-def five  : Nat := (S four).
-def six   : Nat := (S five).
-def seven : Nat := (S six).
+def six   : Nat :=  (S (S (S (S (S (S Z)))))).
+def seven : Nat :=  (S (S (S (S (S (S (S Z))))))).
 
 
 #CONV	(plus (fact seven) (fact six)),
 	(plus (fact six) (fact seven)).
-
-

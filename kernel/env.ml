@@ -100,15 +100,6 @@ let infer te =
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let infersnf te =
-  try
-    let ty = inference !sg te in
-    let _  = inference !sg ty in
-    OK (Reduction.snf !sg ty)
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
-
 let check te ty =
   try OK (ignore(checking !sg te ty))
   with
@@ -141,20 +132,6 @@ let unsafe_snf te = Reduction.snf !sg te
 let one te =
   try
     let _ = inference !sg te in OK (Reduction.one_step !sg te)
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
-
-  
-let nsteps n te =
-  let rec f = function
-    | (_, None  ) -> []
-    | (0, Some t) -> [t]
-    | (i, Some t) ->
-       let _ = inference !sg t in
-       t :: (f (i-1, (Reduction.one_step !sg t)))
-  in
-  try OK (f (n,Some te))
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)

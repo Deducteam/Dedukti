@@ -112,7 +112,7 @@ let rec print_term out = function
   | DB  (_,x,n)        -> print_db out (x,n)
   | Const (_,m,v)      -> print_const out (m,v)
   | App (f,a,args)     ->
-      Format.fprintf out "@[%a@]" (print_list " " print_term_wp) (f::a::args)
+      Format.fprintf out "@[<hov2>%a@]" (print_list " " print_term_wp) (f::a::args)
   | Lam (_,x,None,f)   -> Format.fprintf out "@[%a =>@ @[%a@]@]" print_ident x print_term f
   | Lam (_,x,Some a,f) ->
       Format.fprintf out "@[%a:@,%a =>@ @[%a@]@]" print_ident x print_term_wp a print_term f
@@ -126,13 +126,8 @@ and print_term_wp out = function
   | Kind | Type _ | DB _ | Const _ as t -> print_term out t
   | t                                  -> Format.fprintf out "(%a)" print_term t
 
-let print_term_nl out t = Format.fprintf out "%a@." print_term t
-
 (* Overwrite print_term by a name-clash avoiding version *)
 let print_term out t = print_term out (subst [] t)
-
-(* Overwrite print_term by a name-clash avoiding version *)
-let print_term_nl out t = print_term_nl out (subst [] t)
 
 let print_bv out (_,id,i) = print_db out (id,i)
 
