@@ -44,7 +44,8 @@ val add_rules   : Rule.untyped_rule list -> (Rule.typed_rule list,env_error) err
 
 (** {2 Type checking/inference} *)
 
-val infer       : ?ctx:Rule.typed_context -> term -> (term,env_error) error
+val infer   : ?ctx:Rule.typed_context -> ?red:Reduction.red ->
+              Reduction.red_strategy -> term -> (term,env_error) error
 
 val check       : ?ctx:Rule.typed_context -> term -> term -> (unit,env_error) error
 

@@ -71,7 +71,11 @@ let mk_command lc = function
           | OK te -> Format.printf "%a@." Pp.print_term te
           | Err e -> Errors.fail_env_error e )
   | OneStep te       ->
-      ( match Env.reduction Reduction.OneStep te with
+      ( match Env.reduction (Reduction.NSteps 1) te with
+          | OK te -> Format.printf "%a@." Pp.print_term te
+          | Err e -> Errors.fail_env_error e )
+  | NSteps (n,te)    ->
+      ( match Env.reduction (Reduction.NSteps n) te with
           | OK te -> Format.printf "%a@." Pp.print_term te
           | Err e -> Errors.fail_env_error e )
   | Conv (te1,te2)  ->
@@ -84,7 +88,11 @@ let mk_command lc = function
             | OK () -> Format.printf "YES@."
             | Err e -> Errors.fail_env_error e )
   | Infer te         ->
-      ( match Env.infer te with
+      ( match Env.infer (Reduction.NSteps 0) te with
+          | OK ty -> Format.printf "%a@." Pp.print_term ty
+          | Err e -> Errors.fail_env_error e )
+  | InferSnf te         ->
+      ( match Env.infer Reduction.Snf te with
           | OK ty -> Format.printf "%a@." Pp.print_term ty
           | Err e -> Errors.fail_env_error e )
   | Gdt (m0,v)         ->
