@@ -22,6 +22,7 @@ let args = [
   ("-r"    , Arg.Set Signature.ignore_redecl,         "Ignore redeclaration" ) ;
   ("-version", Arg.Unit Version.print_version,  "Version" ) ;
   ("-coc", Arg.Set Typing.coc,               "Typecheck the Calculus of Construction" ) ;
+  ("-types", Arg.Set Typing.enable_types_file, "Print the types of subterms in a file");
   ("-autodep", Arg.Set Signature.autodep  ,
    "Automatically handle dependencies (experimental)") ;
   ("-I"    , Arg.String Basic.add_path,        "Add a directory to load path");
@@ -31,11 +32,12 @@ let args = [
 ]
 
 let run_on_file file =
-  let input = open_in file in
+  Typing.with_types_file (Filename.chop_extension file ^ ".txt") (fun () ->
+    let input = open_in file in
     Basic.debug "Processing file '%s'..." file;
     parse (Lexing.from_channel input) ;
     Errors.success "File '%s' was successfully checked." file;
-    close_in input
+    close_in input)
 
 let _ =
   try

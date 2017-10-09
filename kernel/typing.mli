@@ -4,6 +4,10 @@ open Basic
 
 (** Type checking/inference *)
 
+val types_file : out_channel option ref
+val with_types_file : string -> (unit -> unit) -> unit
+val enable_types_file : bool ref
+
 val coc : bool ref
 
 type typing_error =
