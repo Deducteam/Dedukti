@@ -21,7 +21,7 @@ val get_name    : unit -> ident
 val get_type    : loc -> ident -> ident -> (term,signature_error) error
 (** [get_type l md id] returns the type of the constant [md.id]. *)
 
-val get_dtree   : loc -> ident -> ident -> ((int*Dtree.dtree) option,signature_error) error
+val get_dtree   : loc -> ident -> ident -> (Dtree.dtree option,signature_error) error
 (** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
 
 val export      : unit -> bool

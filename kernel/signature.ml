@@ -35,13 +35,13 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-type staticity = Static | Definable
+type staticity = Static | Definable | DefinableAC | DefinableACU of term
 
 type rw_infos =
   {
     stat: staticity;
     ty: term;
-    rule_opt_info: (rule_infos list*int*dtree) option
+    rule_opt_info: (rule_infos list*dtree) option
   }
 
 type t = { name:ident; tables:(rw_infos H.t) H.t;
@@ -69,12 +69,12 @@ let add_rule_infos sg (lst:rule_infos list) : unit =
       raise (SignatureError (CannotAddRewriteRules (r.l,r.id)));
     let rules = match infos.rule_opt_info with
       | None -> rs
-      | Some(mx,_,_) -> mx@rs
+      | Some(mx,_) -> mx@rs
     in
     match Dtree.of_rules rules with
-    | OK (n,tree) ->
+    | OK tree ->
        H.add env r.id
-         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,n,tree)}
+         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,tree)}
     | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 (******************************************************************************)
@@ -134,12 +134,85 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t * rule_infos list
 
 (******************************************************************************)
 
+let get_type_from_AC (ty:term) =
+  match ty with
+  | Pi(_,_,t,_) -> t
+  | _ -> assert false
+
+let to_rule_infos_aux (r:typed_rule) =
+  match Rule.to_rule_infos r with
+  | Err e -> raise (SignatureError (CannotMakeRuleInfos e))
+  | OK  e -> e
+
+let comm_rule (md:ident) (id:ident) (ty:term) =
+  to_rule_infos_aux
+    { name=Gamma(true,md,(hstring ("comm_" ^ (string_of_ident id))));
+      ctx=[(dloc, (hstring "x"), ty); (dloc,(hstring "y"), ty)];
+      pat=Pattern (dloc, md, id,
+                   [ Var (dloc,(hstring "x"),0,[]);
+                     Var (dloc,(hstring "y"),1,[]) ]);
+      rhs=mk_App (mk_Const dloc md id)
+                 (mk_DB dloc (hstring "y") 1)
+                 [mk_DB dloc (hstring "x") 0]
+    }
+
+(* FIXME *)
+let asso_rule (md:ident) (id:ident) (ty:term) =
+  to_rule_infos_aux
+    { name=Gamma(true,md,(hstring ("asso_" ^ (string_of_ident id))));
+      ctx=[ (dloc, (hstring "x"), ty);
+            (dloc, (hstring "y"), ty);
+            (dloc, (hstring "z"), ty) ];
+      pat=Pattern (dloc, md, id,
+                   [ Pattern (dloc, md, id,
+                              [ Var (dloc,(hstring "x"),0,[]);
+                                Var (dloc,(hstring "y"),1,[]) ] );
+                     Var (dloc,(hstring "z"),2,[]) ] );
+      rhs=mk_App (mk_Const dloc md id)
+                 (mk_DB dloc (hstring "x") 0)
+                 [mk_App (mk_Const dloc md id)
+                         (mk_DB dloc (hstring "y") 1)
+                         [(mk_DB dloc (hstring "z") 2)] ]
+    }
+    
+let neu1_rule (md:ident) (id:ident) (ty:term) (neu:term) =
+  to_rule_infos_aux
+    { name=Gamma(true,md,(hstring ("neut_" ^ (string_of_ident id))));
+      ctx=[(dloc, (hstring "x"), ty)];
+      pat=Pattern (dloc, md, id,
+                   [ Var (dloc,(hstring "x"),0,[]);
+(* FIXME: Translate term neu to pattern here  *) ]);
+      rhs=mk_App (mk_Const dloc md id)
+                 (mk_DB dloc (hstring "x") 0)
+                 []
+    }
+
+let neu2_rule (md:ident) (id:ident) (ty:term) (neu:term) =
+  to_rule_infos_aux
+    { name=Gamma(true,md,(hstring ("neut_" ^ (string_of_ident id))));
+      ctx=[(dloc, (hstring "x"), ty)];
+      pat=Pattern (dloc, md, id,
+                   [ Var (dloc,(hstring "x"),0,[]) ]);
+      rhs=mk_App (mk_Const dloc md id)
+                 (mk_DB dloc (hstring "x") 0)
+                 [neu]
+    }
+
 let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
   let aux id infos =
     Confluence.add_constant md id;
     match infos.rule_opt_info with
     | None -> ()
-    | Some (rs,_,_) -> Confluence.add_rules rs
+    | Some (rs,_) -> Confluence.add_rules rs;
+    match infos.stat with
+    | DefinableAC ->
+       let ty = get_type_from_AC infos.ty in
+       Confluence.add_rules [ comm_rule md id ty; asso_rule md id ty ]
+    | DefinableACU neu ->
+       let ty = get_type_from_AC infos.ty in
+       Confluence.add_rules [ comm_rule md id ty; asso_rule md id ty;
+                              neu1_rule md id ty neu; neu2_rule md id ty neu ]
+    | _ -> ()
   in
   H.iter aux ctx;
   debug 1 "Checking confluence after loading module '%a'..." pp_ident md;
@@ -195,26 +268,26 @@ let get_type sg lc m v = (get_infos sg lc m v).ty
 let is_injective sg lc m v =
   match (get_infos sg lc m v).stat with
     | Static -> true
-    | Definable -> false
+    | _ -> false
 
 let pred_true: Rule.rule_name -> bool = fun x -> true
 
 let get_dtree sg ?select:(pred=pred_true) l m v =
   match (get_infos sg l m v).rule_opt_info with
   | None -> None
-  | Some(rules,i,tr) ->
+  | Some(rules,tr) ->
     if pred == pred_true then
-      Some (i,tr)
+      Some tr
     else
       let rules' = List.filter (fun (r:Rule.rule_infos) -> pred r.name) rules in
       if List.length rules' == List.length rules
-      then Some (i,tr)
+      then Some tr
       else
         (* A call to Dtree.of_rules must be made with a non-empty list *)
         match rules' with
         | [] -> None
         | _ -> match Dtree.of_rules rules' with
-               | OK (n,tree) -> Some(n,tree)
+               | OK tree -> Some tree
                | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 
@@ -240,8 +313,8 @@ let add_rules sg lst : unit =
       if not (ident_eq sg.name r.md) then
         sg.external_rules <- rs::sg.external_rules;
       Confluence.add_rules rs;
-      debug 1 "Checking confluence after adding rewrite rules on symbol '%a.%a'"
-        pp_ident r.md pp_ident r.id;
+      debug 1 "Checking confluence after adding rewrite rules on symbol '%a.%a' test"
+            pp_ident r.md pp_ident r.id;
       match Confluence.check () with
       | OK () -> ()
       | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))

@@ -98,8 +98,8 @@ let mk_command lc = function
   | Gdt (m0,v)         ->
       let m = match m0 with None -> Env.get_name () | Some m -> m in
         ( match Env.get_dtree lc m v with
-            | OK (Some (i,g)) ->
-                Format.printf "%a\n" Dtree.pp_rw (m,v,i,g)
+            | OK (Some g) ->
+                Format.printf "%a\n" Dtree.pp_rw (m,v,g)
             | _ -> Format.printf "No GDT.@." )
   | Print str         -> Format.printf "%s@." str
   | Other (cmd,_)     -> Format.eprintf "Unknown command '%s'.@." cmd

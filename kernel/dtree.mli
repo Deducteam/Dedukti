@@ -45,8 +45,8 @@ type dtree =
 
 val pp_dtree : Format.formatter -> dtree -> unit
 
-(** [md] [v] [i] [tree] is the dtree associated to the constant [md].[v] with [i] arguments *)
-type rw = ident * ident * int * dtree
+(** [md] [v] [tree] is the dtree associated to the constant [md].[v] *)
+type rw = ident * ident * dtree
 
 val pp_rw : Format.formatter -> rw -> unit
 
@@ -58,4 +58,4 @@ type dtree_error =
   | ArityInnerMismatch of loc * ident * ident
 
 (** Compilation of rewrite rules into decision trees. *)
-val of_rules : rule_infos list -> (int * dtree, dtree_error) error
+val of_rules : rule_infos list -> (dtree, dtree_error) error

@@ -267,12 +267,12 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
   in
     aux 0 te
 
+let rec is_linear = function
+  | [] -> true
+  | (Bracket _)::tl -> is_linear tl
+  | (Linearity _)::tl -> false
+
 let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
-  let rec is_linear = function
-    | [] -> true
-    | (Bracket _)::tl -> is_linear tl
-    | (Linearity _)::tl -> false
-  in
   try
     begin
       let esize = List.length r.ctx in

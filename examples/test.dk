@@ -1,0 +1,20 @@
+#NAME test.
+
+nat : Type.
+0 : nat.
+S : nat -> nat.
+
+def test : nat -> nat -> nat.
+[x]   test x 0     --> x.
+[x,y] test x (S y) --> S (test y x).
+[]    test 0       --> (x : nat => x).
+
+
+defacu plus [nat,0].
+
+#INFER plus.
+
+
+defac time [nat].
+
+#INFER time.

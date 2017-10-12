@@ -163,36 +163,43 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
       failwith "Error while reducing a term: a guard was not satisfied."
 
 let rec find_case (st:state) (cases:(case * dtree) list)
-                  (default:dtree option) : (dtree*state list) option =
+                  (default:dtree option) : (dtree*state list) list =
   match st, cases with
-  | _, [] -> map_opt (fun g -> (g,[])) default
+  | _, [] -> (match default with None -> [] | Some g -> [(g,[])])
   | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
-    if ident_eq v v' && ident_eq m m' then
-      begin
-        assert (List.length stack >= nargs);
-        Some (tr,stack)
-      end
-    else find_case st tl default
+     if ident_eq v v' && ident_eq m m' && List.length stack >= nargs
+     then [(tr,stack)]
+     else find_case st tl default
   | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
     begin
       assert ( ctx = LList.nil ); (* no beta in patterns *)
-      if n==n' && (List.length stack >= nargs) then
-        Some (tr,stack)
-      else
-        find_case st tl default
+      if n==n' && (List.length stack >= nargs)  (* Why not == ?? *)
+      then [(tr,stack)]
+      else find_case st tl default
     end
   | { ctx; term=Lam (_,_,_,_) } , ( CLam , tr )::tl ->
     begin
       match term_of_state st with (*TODO could be optimized*)
       | Lam (_,_,_,te) ->
-        Some ( tr , [{ ctx=LList.nil; term=te; stack=[] }] )
+        [( tr , [{ ctx=LList.nil; term=te; stack=[] }] )]
       | _ -> assert false
     end
   | _, _::tl -> find_case st tl default
 
 
+let rec gamma_rw_list (sg:Signature.t)
+                  (convertible:convertibility_test)
+                  (forcing:rw_strategy)
+                  (strategy:rw_state_strategy) : (stack*dtree) list -> (env*term) option =
+  function
+  | [] -> None
+  | (stack, tree) :: tl ->
+     match gamma_rw sg convertible forcing strategy stack tree with
+     | None -> gamma_rw_list sg convertible forcing strategy tl
+     | Some _ as x -> x
+
 (*TODO implement the stack as an array ? (the size is known in advance).*)
-let gamma_rw (sg:Signature.t)
+and gamma_rw (sg:Signature.t)
              (convertible:convertibility_test)
              (forcing:rw_strategy)
              (strategy:rw_state_strategy) : stack -> dtree -> (env*term) option =
@@ -200,13 +207,13 @@ let gamma_rw (sg:Signature.t)
     | Switch (i,cases,def) ->
        begin
          let arg_i = strategy sg (List.nth stack i) in
-         match find_case arg_i cases def with
-         | Some (g,[]) -> rw stack g
-         | Some (g,s ) -> rw (stack@s) g
-         (* This line highly depends on how the module dtree works.
-         When a column is specialized, new columns are added at the end
-         This is the reason why s is added at the end. *)
-         | None -> None
+         let new_cases =
+           List.map
+             (function
+              | g, [] -> ( stack    , g)
+              | g, s  -> ( (stack@s), g) )
+             (find_case arg_i cases def) in
+         gamma_rw_list sg convertible forcing strategy new_cases
        end
     | Test (Syntactic ord, eqs, right, def) ->
        begin
@@ -288,21 +295,28 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     begin
       let dtree =
         match !selection with
-        | None -> Signature.get_dtree sg l m v
+        | None           -> Signature.get_dtree sg l m v
         | Some selection -> Signature.get_dtree sg ~select:selection l m v
       in
       match dtree with
       | None -> state
-      | Some (i,g) ->
-        begin
-          match split_stack i stack with
-          | None -> state
-          | Some (s1,s2) ->
-            ( match gamma_rw sg are_convertible snf state_whnf s1 g with
-              | None -> state
-              | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
-            )
-        end
+      | Some (Switch (0,cases,None)) ->
+         let rec f = function
+           | [] -> state
+           | (CConst(nargs,m',v'), tr) :: tl -> begin
+               assert (ident_eq m m' && ident_eq v v');
+               match split_stack nargs stack with
+               | None -> f tl
+               | Some (s1,s2) ->
+                  ( match gamma_rw sg are_convertible snf state_whnf (state::s1) tr with
+                    | None -> f tl
+                    | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
+                  )
+             end
+           | _ -> assert false
+         in
+         f cases
+      | _ -> assert false
     end
 
 (* ********************* *)
@@ -407,16 +421,23 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
         begin
           match dtree with
           | None -> (red,state)
-          | Some (i,g) ->
-             begin
-               match split_stack i stack with
-               | None -> (red,state)
-               | Some (s1,s2) ->
-                  ( match gamma_rw sg are_convertible snf state_whnf s1 g with
-                    | None -> (red,state)
-                    | Some (ctx,term) -> state_one_step sg (red-1, { ctx; term; stack=s2 })
-                  )
-             end
+          | Some (Switch (0,cases,None)) ->
+             let rec f = function
+               | [] -> (red,state)
+               | (CConst(nargs,m',v'), tr) :: tl -> begin
+                   assert (ident_eq m m' && ident_eq v v');
+                   match split_stack nargs stack with
+                   | None -> f tl
+                   | Some (s1,s2) ->
+                      ( match gamma_rw sg are_convertible snf state_whnf (state::s1) tr with
+                        | None -> f tl
+                        | Some (ctx,term) -> state_one_step sg (red-1,{ ctx; term; stack=s2 })
+                      )
+                 end
+               | _ -> assert false
+             in
+             f cases
+          | _ -> assert false
         end
     end
 

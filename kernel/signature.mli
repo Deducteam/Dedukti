@@ -30,7 +30,7 @@ type signature_error =
 
 exception SignatureError of signature_error
 
-type staticity = Static | Definable
+type staticity = Static | Definable | DefinableAC | DefinableACU of term
 
 type t
 
@@ -50,7 +50,7 @@ val is_injective        : t -> loc -> ident -> ident -> bool
 (** [is_injective sg l md id] returns true when [md.id] is either static
     or declared as injective. *)
 
-val get_dtree           : t -> ?select:(Rule.rule_name -> bool) -> loc -> ident -> ident -> (int*dtree) option
+val get_dtree           : t -> ?select:(Rule.rule_name -> bool) -> loc -> ident -> ident -> dtree option
 (** [get_dtree sg pred l md id] returns the decision/matching tree associated with [md.id]
     inside the environment [sg]. *)
 
