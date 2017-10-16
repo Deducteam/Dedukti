@@ -82,8 +82,8 @@ let filter_default (mx:matrix) (c:int) : matrix option =
   ) mx
 
 type case =
-  | CConst of int*ident*ident
-  | CDB    of int*int
+  | CConst   of int*ident*ident
+  | CDB      of int*int
   | CLam
 
 type arg_pos = { position:int; depth:int }
@@ -96,7 +96,7 @@ type matching_problem =
 
 let pp_matching_problem fmt matching_problem =
   match matching_problem with
-  | Syntactic _ -> fprintf fmt "Sy"
+  | Syntactic     _ -> fprintf fmt "Sy"
   | MillerPattern _ -> fprintf fmt "Mi"
 
 
@@ -133,8 +133,8 @@ let rec pp_dtree t fmt dtree =
 
 and pp_def t fmt def =
   match def with
-  | None        -> fprintf fmt "FAIL"
-  | Some g      -> pp_dtree t fmt g
+  | None   -> fprintf fmt "FAIL"
+  | Some g -> pp_dtree t fmt g
 
 let pp_dtree fmt dtree = pp_dtree 0 fmt dtree
 
@@ -288,9 +288,7 @@ let rec to_dtree (mx:matrix) : dtree =
                        map_opt to_dtree (pop mx) )
     (* Pattern on the first line at column c *)
     | Some c ->
-       debug 1 "Gaspard test2 %i %i %i" c (Array.length mx.first.pats) (Array.length mx.col_depth);
        let cases = partition mx c in
-       debug 1 "Gaspard test2 %i" (List.length cases);
        let aux ca = ( ca , to_dtree (specialize mx c ca) ) in
        Switch (c, List.map aux cases, map_opt to_dtree (filter_default mx c) )
 

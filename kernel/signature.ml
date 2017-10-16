@@ -263,13 +263,31 @@ let get_infos sg lc m v =
     try ( H.find env v )
     with Not_found -> raise (SignatureError (SymbolNotFound (lc,m,v)))
 
+
 let get_type sg lc m v = (get_infos sg lc m v).ty
 
+let get_staticity sg lc m v = (get_infos sg lc m v).stat
+
+let stat_code = function
+  | Static         -> 0
+  | Definable      -> 1
+  | DefinableAC    -> 2
+  | DefinableACU _ -> 3
+
+let get_id_comparator sg m v m' v' =
+  compare (stat_code (get_staticity sg dloc m  v ), m , v )
+          (stat_code (get_staticity sg dloc m' v'), m', v')
+
 let is_injective sg lc m v =
-  match (get_infos sg lc m v).stat with
+  match (get_staticity sg lc m v) with
     | Static -> true
     | _ -> false
 
+let is_AC sg lc m v =
+  match (get_staticity sg lc m v) with
+    | DefinableAC | DefinableACU _ -> true
+    | _ -> false
+                                                   
 let pred_true: Rule.rule_name -> bool = fun x -> true
 
 let get_dtree sg ?select:(pred=pred_true) l m v =

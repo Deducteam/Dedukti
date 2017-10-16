@@ -4,6 +4,13 @@ nat : Type.
 0 : nat.
 S : nat -> nat.
 
+def 1 := S 0.
+def 2 := S 1.
+def 3 := S 2.
+def 4 := S 3.
+def 5 := S 4.
+
+
 def test : nat -> nat -> nat.
 [x]   test x 0     --> x.
 [x,y] test x (S y) --> S (test y x).
@@ -18,3 +25,11 @@ defacu plus [nat,0].
 defac time [nat].
 
 #INFER time.
+
+#CONV plus 1 0, plus 0 1.
+#CONV plus 0 1, plus 1 0.
+#CONV plus 1 0, plus 0 0.
+
+#SNF plus (plus 2 0) (plus 1 ( (x : nat => plus x x) 4)).
+
+#CONV plus (plus 3 4) (plus 0 1), plus (plus (plus 1 4) 0) 3.

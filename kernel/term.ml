@@ -59,3 +59,48 @@ let rec term_eq t1 t2 =
     | Lam (_,_,a,b), Lam (_,_,a',b') -> term_eq b b'
     | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false
+
+(** Type of ident comparison functions *)
+type ident_comparator = ident -> ident -> ident -> ident -> int
+
+(** Type of term comparison functions *)
+type term_comparator = term -> term -> int
+
+let rec compare_term id_comp t1 t2 =
+  match t1, t2 with
+  | Kind  , Kind   -> 0
+  | Type _, Type _ -> 0
+  | Const  (_,m,v), Const (_,m',v') -> id_comp m v m' v'
+  | DB (_,_,n), DB (_,_,n') -> compare n n'
+  | App (f,a,ar), App (f',a',ar') ->
+     let c = compare_term id_comp f f' in
+     if c <> 0 then c
+     else
+       let c = compare_term id_comp a a' in
+       if c <> 0 then c
+       else compare_term_list id_comp ar ar'
+  | Lam (_,_,_,t), Lam (_,_,_,t') -> compare_term id_comp t t'
+  | Pi (_,_,a,b), Pi (_,_,a',b') ->
+     let c = compare_term id_comp a a' in
+     if c = 0 then compare_term id_comp b b' else c
+  | _, Kind    -> 1
+  | Kind, _    -> -1
+  | _, Type _  -> 1
+  | Type _, _  -> -1
+  | _, Const _ -> 1
+  | Const _, _ -> -1
+  | _, DB _    -> 1
+  | DB _, _    -> -1
+  | _, App _   -> 1
+  | App _, _   -> -1
+  | _, Lam _   -> 1
+  | Lam _, _   -> -1
+
+and compare_term_list id_comp a b =
+  match a,b with
+  | [], [] -> 0
+  | l , [] -> 1
+  | [], l  -> -1
+  | h::t, h'::t' ->
+     let c = compare_term id_comp h h' in
+     if c = 0 then compare_term_list id_comp t t' else c

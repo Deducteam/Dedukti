@@ -29,17 +29,17 @@ type env = term Lazy.t LList.t
 represents a term where [ctx] is a ctx that contains the free variables
 of [term] and [stack] represents the terms that [term] is applied to. *)
 type state = {
-  ctx:env;        (*context*)
-  term : term;    (*term to reduce*)
+  ctx   : env;    (*context*)
+  term  : term;   (*term to reduce*)
   stack : stack;  (*stack*)
 }
 and stack = state list
 
 let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx 0 term ) in
-    match stack with
-      | [] -> t
-      | a::lst -> mk_App t (term_of_state a) (List.map term_of_state lst)
+  match stack with
+  | [] -> t
+  | a::lst -> mk_App t (term_of_state a) (List.map term_of_state lst)
 
 (* Pretty Printing *)
 
@@ -265,6 +265,8 @@ and gamma_rw (sg:Signature.t)
  * - state.term is not an application
  * - state.term can only be a variable if term.ctx is empty
  *    (and therefore this variable is free in the corresponding term)
+ * - when state.term is an AC constant, then state.stack contains no application
+ *     of that same constant
  * *)
 let rec state_whnf (sg:Signature.t) (st:state) : state =
   match st with
@@ -272,7 +274,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   | { term=Type _ }
   | { term=Kind }
   | { term=Pi _ }
-  | { term=Lam _; stack=[] } as state -> state
+  | { term=Lam _; stack=[] } -> st
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
     if n < LList.len ctx then
@@ -281,43 +283,119 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
       { ctx=LList.nil; term=(mk_DB l x (n-LList.len ctx)); stack }
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
-    if not !beta then
-      st
-    else
-      state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+     if not !beta then st
+     else state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
     let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
-  | { ctx; term=Const (l,m,v); stack } as state ->
-    begin
-      let dtree =
-        match !selection with
-        | None           -> Signature.get_dtree sg l m v
-        | Some selection -> Signature.get_dtree sg ~select:selection l m v
-      in
-      match dtree with
-      | None -> state
-      | Some (Switch (0,cases,None)) ->
-         let rec f = function
-           | [] -> state
-           | (CConst(nargs,m',v'), tr) :: tl -> begin
-               assert (ident_eq m m' && ident_eq v v');
-               match split_stack nargs stack with
-               | None -> f tl
-               | Some (s1,s2) ->
-                  ( match gamma_rw sg are_convertible snf state_whnf (state::s1) tr with
+  | { ctx; term=Const (l,m,v); stack } ->
+     begin
+       let dtree =
+         match !selection with
+         | None           -> Signature.get_dtree sg l m v
+         | Some selection -> Signature.get_dtree sg ~select:selection l m v
+       in
+       let st =
+         begin
+           match dtree with
+           | None -> st
+           | Some (Switch (0,cases,None)) ->
+              let rec f = function
+                | [] -> flatten_AC sg st
+                | (CConst(nargs,m',v'), tr) :: tl -> begin
+                    assert (ident_eq m m' && ident_eq v v');
+                    match split_stack nargs stack with
                     | None -> f tl
-                    | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
-                  )
-             end
+                    | Some (s1,s2) -> begin
+                        match gamma_rw sg are_convertible snf state_whnf (st::s1) tr with
+                        | None -> f tl
+                        | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
+                      end
+                  end
+                | _ -> assert false
+              in
+              f cases
            | _ -> assert false
-         in
-         f cases
-      | _ -> assert false
-    end
+         end in
+       flatten_AC sg st
+     end
+
+and flatten_AC (sg:Signature.t) (st:state) = match st with
+  | { ctx; term=Const (l,m,v); stack=(s1::s2::stack) } when Signature.is_AC sg l m v ->
+     begin
+       let rec flatten acc = function
+         | [] -> acc
+         | st :: tl ->
+            let whnf_st = state_whnf sg st in
+            match whnf_st with
+            | { ctx; term=Const (l',m',v'); stack=(st1::st2::[]) }
+                 when ident_eq m' m && ident_eq v' v ->
+               flatten acc (st1 :: st2 :: tl)
+            | _ -> flatten (whnf_st::acc) tl
+       in
+       let stack = flatten [] [s1;s2] in
+       let stack = begin
+           match Signature.get_staticity sg l m v with
+           | Signature.DefinableACU neu ->
+              let rec filter_neu acc = function
+                | [] -> acc
+                | st::tl ->
+                   filter_neu
+                     (if are_convertible sg (term_of_state st) neu then acc else st :: acc)
+                     tl in
+              (match filter_neu [] stack with [] -> [{ctx=LList.nil;term=neu;stack=[]}] | s -> s)
+           | _ -> stack
+         end in
+       let rec to_comb = function
+         | [] -> assert false
+         | t :: [] -> t
+         | t1::tl  -> {ctx=ctx; term=mk_Const l m v; stack=[t1;to_comb tl]}
+       in
+       to_comb stack
+     end
+  | st -> st
+
+and flatten_SNF_AC_term (sg:Signature.t) (t:term) = match t with
+  | App(Const (l,m,v), a1, a2::remain_args) when Signature.is_AC sg l m v ->
+     begin
+       let rec flatten acc = function
+         | [] -> acc
+         | arg :: tl ->
+            match arg with
+            | App(Const (l',m',v'), a1', a2'::[]) when ident_eq m' m && ident_eq v' v ->
+               flatten acc (a1'::a2'::tl)
+            | _ -> flatten (arg::acc) tl
+       in
+       let args = flatten [] [a1;a2] in
+       let args = begin
+           match Signature.get_staticity sg l m v with
+           | Signature.DefinableACU neu ->
+              let rec filter_neu acc = function
+                | [] -> acc
+                | a::tl ->
+                   filter_neu (if are_convertible sg a neu then acc else a::acc) tl
+              in
+              (match filter_neu [] args with [] -> [neu] | s -> s)
+           | _ -> args
+         end in
+       let id_comp = Signature.get_id_comparator sg in
+       let args  = List.sort (compare_term id_comp) args in
+       match args, remain_args with
+       |    [], _         -> assert false
+       | a::[], []        -> a
+       | a::[], ra::rargs -> mk_App a ra args
+       | a::tl, rargs ->
+           let rec to_comb = function
+             | [] -> assert false
+             | a::[] -> a
+             | a::tl -> mk_App (mk_Const l m v) a tl
+           in
+           mk_App (mk_Const l m v) a ((to_comb tl)::rargs)
+     end
+  | t -> t
 
 (* ********************* *)
 
@@ -329,7 +407,9 @@ and snf sg (t:term) : term =
   match whnf sg t with
   | Kind | Const _
   | DB _ | Type _ as t' -> t'
-  | App (f,a,lst) -> mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst)
+  | App (f,a,lst) ->
+     let res = mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst) in
+     flatten_SNF_AC_term sg res
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
@@ -340,10 +420,25 @@ and are_convertible_lst sg : (term*term) list -> bool = function
       match (
         if term_eq t1 t2 then Some lst
         else
-          match whnf sg t1, whnf sg t2 with
+          let t1 = whnf sg t1 in
+          let t2 = whnf sg t2 in
+          match t1, t2 with
           | Kind, Kind | Type _, Type _ -> Some lst
           | Const (_,m,v), Const (_,m',v') when ( ident_eq v v' && ident_eq m m' ) -> Some lst
           | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
+          | App (Const(l ,m ,v ), _, _),
+            App (Const(l',m',v'), _, _) when Signature.is_AC sg l m v ->
+             (* TODO: Replace this with less hardcore criteria: put all terms in whnf
+              * then look at the heads to match arguments with one another. *)
+             if ident_eq m m' && ident_eq v v' then
+               match snf sg t1, snf sg t2 with
+               | App (Const(l ,m2 ,v2 ), a , args ),
+                 App (Const(l',m2',v2'), a', args') ->
+                  if ident_eq m2 m && ident_eq m2' m && ident_eq v2 v' && ident_eq v2' v' then
+                    add_to_list2 args args' ((a,a')::lst)
+                  else None
+               | _ -> None
+             else None
           | App (f,a,args), App (f',a',args') ->
             add_to_list2 args args' ((f,f')::(a,a')::lst)
           | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)

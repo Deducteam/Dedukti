@@ -29,3 +29,21 @@ val mk_Arrow    : loc -> term -> term -> term
 
 (** term_eq [t] [t'] is true if [t]=[t'] (up to alpha equivalence) *)
 val term_eq : term -> term -> bool
+
+(** Type of ident comparison functions *)
+type ident_comparator = ident -> ident -> ident -> ident -> int
+
+(** Type of term comparison functions *)
+type term_comparator = term -> term -> int
+
+(** compare_term [id_comp] [t] [t'] compares both terms (up to alpha equivalence).
+ * The order relation goes :
+ * Kind < Type < Const < DB < App < Lam < Pi
+ * Besides
+ * Const m v < Const m' v' iif (m,v) < (m',v')
+ * DB n < DB n' iif n < n'
+ * App f a args < App f' a' args' iif (f,a,args) < (f',a',args')
+ * Lam x ty t < Lam x' ty' t'  iif t < t'
+ * Pi  x a  b < Pi  x' a'  b'  iif (a,b) < (a',b')
+ *)
+val compare_term : ident_comparator -> term_comparator

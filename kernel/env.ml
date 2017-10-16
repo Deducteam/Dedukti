@@ -29,8 +29,17 @@ let export () : bool = Signature.export !sg
 
 let _declare (l:loc) (id:ident) st ty : unit =
   match inference !sg ty with
-    | Kind | Type _ -> Signature.add_declaration !sg l id st ty
-    | s -> raise (TypingError (SortExpected (ty,[],s)))
+  | Kind | Type _ ->
+     let ty =
+       match st with
+       | DefinableAC -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
+       | DefinableACU neu ->
+          ignore(check !sg [] neu ty);
+          mk_Arrow dloc ty (mk_Arrow dloc ty ty)
+       | _ -> ty
+     in
+     Signature.add_declaration !sg l id st ty
+  | s -> raise (TypingError (SortExpected (ty,[],s)))
 
 exception DefineExn of loc*ident
 
@@ -66,20 +75,20 @@ let declare l id st ty : (unit,env_error) error =
   try OK ( _declare l id st ty )
   with
     | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
+    | TypingError    e -> Err (EnvErrorType e)
 
 let define l id te ty_opt : (unit,env_error) error =
   try OK ( _define l id te ty_opt )
   with
   | SignatureError e -> Err (EnvErrorSignature e)
-  | TypingError e -> Err (EnvErrorType e)
+  | TypingError    e -> Err (EnvErrorType e)
   | DefineExn (l,id) -> Err (KindLevelDefinition (l,id))
 
 let define_op l id te ty_opt =
   try OK ( _define_op l id te ty_opt )
   with
     | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
+    | TypingError    e -> Err (EnvErrorType e)
     | DefineExn (l,id) -> Err (KindLevelDefinition (l,id))
 
 let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
@@ -101,13 +110,13 @@ let infer ?ctx:(ctx=[]) ?red:(red=Reduction.default) strategy te =
     OK (ty')
   with
   | SignatureError e -> Err (EnvErrorSignature e)
-  | TypingError e -> Err (EnvErrorType e)
+  | TypingError    e -> Err (EnvErrorType e)
 
 let check ?ctx:(ctx=[]) te ty =
   try OK (ignore(check !sg ctx te ty))
   with
     | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
+    | TypingError    e -> Err (EnvErrorType e)
 
 let reduction ?red:(red=Reduction.default) strategy te =
   try
@@ -118,7 +127,7 @@ let reduction ?red:(red=Reduction.default) strategy te =
     OK te'
   with
     | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
+    | TypingError    e -> Err (EnvErrorType e)
 
 let unsafe_one_step ?red:(red=Reduction.default) te =
   Reduction.select red;
