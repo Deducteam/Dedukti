@@ -10,26 +10,61 @@ def 3 := S 2.
 def 4 := S 3.
 def 5 := S 4.
 
+defac mset [nat].
 
-def test : nat -> nat -> nat.
-[x]   test x 0     --> x.
-[x,y] test x (S y) --> S (test y x).
-[]    test 0       --> (x : nat => x).
+#CONV mset 1 0, mset 0 1.
+#CONV mset 0 1, mset 1 0.
+#CONV mset 1 0, mset 0 0.
 
+#WHNF mset (mset 2 0) (mset 1 ( (x : nat => mset x (mset (S x) x)) 4)).
+#SNF mset (mset 2 0) (mset 1 ( (x : nat => mset x (mset (S x) x)) 4)).
+
+#CONV mset (mset 3 4) (mset 0 1), mset (mset (mset 1 4) 0) 3.
+
+
+defac min [nat].
+[] min 0 --> (x : nat => 0)
+[x]   min 0     x     --> 0
+[x,y] min (S x) (S y) --> S (min x y).
+#GDT min.
+
+#SNF min (S (S 0)) (min 0 (S 0)).
+
+
+#PRINT "".
+#PRINT "----------- plus ------------".
 
 defacu plus [nat,0].
+[x,y] plus (S x) y --> S (plus x y).
+#GDT plus.
 
-#INFER plus.
+#SNF plus (plus 2 0) (plus 1 ( (x : nat => plus x (plus (S x) x)) 4)).
 
 
-defac time [nat].
+#PRINT "".
+#PRINT "----------- time ------------".
 
-#INFER time.
+defacu time [nat,S 0].
+[]    time 0     _ --> 0.
+[x,y] time (S x) y --> plus y (time x y).
+#GDT time.
 
-#CONV plus 1 0, plus 0 1.
-#CONV plus 0 1, plus 1 0.
-#CONV plus 1 0, plus 0 0.
+#WHNF time 1 2.
+#SNF time 1 2.
+#SNF time 5 5.
 
-#SNF plus (plus 2 0) (plus 1 ( (x : nat => plus x x) 4)).
 
-#CONV plus (plus 3 4) (plus 0 1), plus (plus (plus 1 4) 0) 3.
+#PRINT "----------- square ------------".
+
+def square := (x : nat => time x x).
+#CONV plus (square 3) (square 4), square 5.
+
+
+#PRINT "----------- tricky ------------".
+
+defac tricky [nat].
+[x,y,z] tricky (tricky x z) (tricky y x) --> 0.
+
+#GDT tricky.
+#SNF tricky (tricky 1 (tricky 2 3)) (tricky 5 1).
+#SNF tricky (tricky 1 (tricky 2 3)) (tricky 5 4).

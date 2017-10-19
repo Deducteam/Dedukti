@@ -162,29 +162,168 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
       (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
       failwith "Error while reducing a term: a guard was not satisfied."
 
-let rec find_case (st:state) (cases:(case * dtree) list)
-                  (default:dtree option) : (dtree*state list) list =
-  match st, cases with
-  | _, [] -> (match default with None -> [] | Some g -> [(g,[])])
-  | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
-     if ident_eq v v' && ident_eq m m' && List.length stack >= nargs
-     then [(tr,stack)]
-     else find_case st tl default
-  | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
-    begin
+
+(** Unfolds all occurence of the AC(U) symbol in the stack
+  * Removes occurence of neutral element.  *)
+let flatten_AC_stack (sg:Signature.t) (strategy:rw_state_strategy)
+                     (convertible:convertibility_test)
+                     ?not_empty:(not_empty=false)
+                     (l:loc) (m:ident) (v:ident) (stack:stack) : stack =
+  let rec flatten acc = function
+    | [] -> acc
+    | st :: tl ->
+       let whnf_st = (strategy sg) st in
+       match whnf_st with
+       | { ctx; term=Const (l',m',v'); stack=(st1::st2::[]) }
+            when ident_eq m' m && ident_eq v' v ->
+          flatten acc (st1 :: st2 :: tl)
+       | _ -> flatten (whnf_st::acc) tl
+  in
+  let stack = flatten [] stack in
+  match Signature.get_staticity sg l m v with
+  | Signature.DefinableACU neu ->
+     List.filter (fun st -> not (convertible sg (term_of_state st) neu)) stack
+  | _ -> stack
+  
+
+let rec to_comb sg = function
+  | { ctx; term=Const (l,m,v); stack } as st ->
+     let rec f = function
+       | []     -> {ctx=ctx;term=Signature.get_neutral sg l m v;stack=[]}
+       | [t]    -> t
+       | t1::tl -> {st with stack=[t1;(f tl)]}
+     in
+     f stack
+  | _ -> assert false
+
+
+let flatten_AC (sg:Signature.t)
+               (strategy:rw_state_strategy)
+               (convertible:convertibility_test) : state -> state = function
+  | { ctx; term=Const (l,m,v); stack=(s1::s2::rstack) } as st when Signature.is_AC sg l m v ->
+     let s = to_comb sg { st with stack=(flatten_AC_stack sg strategy convertible l m v [s1;s2]) } in
+     (match rstack with [] -> s | l ->  {s with stack=(s.stack@l)})
+  | st -> st
+
+let flatten_SNF_AC_term (sg:Signature.t)
+                        (convertible:convertibility_test) : term -> term = function
+  | App(Const (l,m,v), a1, a2::remain_args) when Signature.is_AC sg l m v ->
+     begin
+       let rec flatten acc = function
+         | [] -> acc
+         | App(Const (_,m',v'), a1', a2'::[]) :: tl
+              when ident_eq m' m && ident_eq v' v ->
+            flatten acc (a1'::a2'::tl)
+         | arg::tl -> flatten (arg::acc) tl
+       in
+       let args = flatten [] [a1;a2] in
+       let args =
+         match Signature.get_staticity sg l m v with
+         | Signature.DefinableACU neu ->
+            (match List.filter (fun x -> not (convertible sg neu x)) args with
+             | [] -> [neu] | s -> s)
+         | _ -> args
+       in
+       let id_comp = Signature.get_id_comparator sg in
+       let args  = List.sort (compare_term id_comp) args in
+       match args, remain_args with
+       |    [], _         -> assert false
+       | a::[], []        -> a
+       | a::[], ra::rargs -> mk_App a ra args
+       | a::tl, rargs ->
+           let rec to_comb = function
+             | [] -> assert false
+             | a::[] -> a
+             | a::tl -> mk_App (mk_Const l m v) a [to_comb tl]
+           in
+           mk_App (mk_Const l m v) a ((to_comb tl)::rargs)
+     end
+  | t -> t
+
+let rec find_case (flattenner:loc->ident->ident->stack->stack)
+                  (st:state) (case:case) : stack option =
+  match st, case with
+  | { ctx; term=Const (l,m,v); stack } , CConst (nargs,m',v',ac_symb) ->
+     if ident_eq v v' && ident_eq m m' && List.length stack == nargs
+     then
+       match ac_symb,stack with
+       | true , t1::t2::s -> Some ({st with stack = flattenner l m v [t1;t2]}::s)
+       | false, _         -> Some stack
+       | _ -> assert false
+     else None
+  | { ctx; term=DB (l,x,n); stack }, CDB(nargs,n') ->
       assert ( ctx = LList.nil ); (* no beta in patterns *)
-      if n==n' && (List.length stack >= nargs)  (* Why not == ?? *)
-      then [(tr,stack)]
-      else find_case st tl default
-    end
-  | { ctx; term=Lam (_,_,_,_) } , ( CLam , tr )::tl ->
+      if n==n' && List.length stack == nargs then Some stack else None
+  | { ctx; term=Lam (_,_,_,_) }, CLam ->
     begin
       match term_of_state st with (*TODO could be optimized*)
-      | Lam (_,_,_,te) ->
-        [( tr , [{ ctx=LList.nil; term=te; stack=[] }] )]
+      | Lam (_,_,_,te) -> Some [{ ctx=LList.nil; term=te; stack=[] }]
       | _ -> assert false
     end
-  | _, _::tl -> find_case st tl default
+  | _ -> None
+
+let rec nbags l n = match l, n with
+  | [], n -> let rec f = function 0 -> [] | n -> [] :: (f (n-1)) in [f n]
+  | hd::tl, n ->
+     let rec dispatch_in_one_bag acc prefix = function
+       | [] -> acc
+       | bag::obags -> dispatch_in_one_bag
+                         ((List.rev_append prefix ((hd::bag)::obags))::acc)
+                         (bag::prefix) obags
+     in
+     let rec dispatch_in_all_bag_sets = function
+       | [] -> []
+       | h :: t -> List.rev_append (dispatch_in_one_bag [] [] h) (dispatch_in_all_bag_sets t)
+     in
+     dispatch_in_all_bag_sets (nbags tl n)
+
+
+let rec fetch_case sg (flattenner:loc->ident->ident->stack->stack)
+                   (state:state) (case:case)
+                   (dt_suc:dtree) (dt_def:dtree option) : (dtree*state*stack) list =
+  let def_s = match dt_def with None -> [] | Some g -> [(g,state,[])] in
+  match state, case with
+  | {ctx; term=Const(l,m,v); stack=[]   }, Unflatten 0 -> (dt_suc,state,[]) :: def_s
+  | {ctx; term=Const(l,m,v); stack=_    }, Unflatten 0 -> def_s
+  | {ctx; term=Const(l,m,v); stack=stack}, Unflatten n ->
+     let rec to_combed = function
+       | [] -> []
+       | s :: ls -> 
+          try
+            let combs = List.map (fun s -> to_comb sg {state with stack=s}) s in
+            (dt_suc, {state with stack=[]}, combs) :: (to_combed ls)
+          with Signature.SignatureError _ -> to_combed ls
+     in
+     to_combed (nbags stack n)
+  | {ctx; term=Const(l,m,v); stack=stack},_ ->
+     let rec f acc stack_acc st = match st, case with
+       | [], _ -> acc
+       | hd::tl, _ ->
+          let new_stack_acc = (hd::stack_acc) in
+          let new_acc = match find_case flattenner hd case with
+            | None   -> acc
+            | Some s -> let new_stack = List.rev_append stack_acc tl in (* Remove hd from stack *)
+                        let new_state = {state with stack=new_stack} in
+                        (dt_suc,new_state,s)::acc
+          in
+          f new_acc new_stack_acc tl
+     in
+     List.rev_append (f [] [] stack) def_s
+   | _ -> assert false
+
+
+let rec find_cases (flattenner:loc->ident->ident->stack->stack)
+                  (st:state) (cases:(case * dtree) list)
+                  (default:dtree option) : (dtree*stack) list =
+  match cases with
+  | [] -> (match default with None -> [] | Some g -> [(g,[])])
+  | (case,tr)::tl ->
+     (
+       match find_case flattenner st case with
+       | None -> find_cases flattenner st tl default
+       | Some stack -> [(tr,stack)]
+     )
+
 
 
 let rec gamma_rw_list (sg:Signature.t)
@@ -199,22 +338,35 @@ let rec gamma_rw_list (sg:Signature.t)
      | Some _ as x -> x
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
-and gamma_rw (sg:Signature.t)
-             (convertible:convertibility_test)
-             (forcing:rw_strategy)
-             (strategy:rw_state_strategy) : stack -> dtree -> (env*term) option =
+and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
+             (forcing:rw_strategy) (strategy:rw_state_strategy)
+             ?rewrite:(rewrite=true) : stack -> dtree -> (env*term) option =
   let rec rw stack = function
+    | Fetch (i,case,dt_suc,dt_def) ->
+       let rec split_ith acc i l = match i,l with
+         | 0, h::t -> (acc,h,t)
+         | i, h::t -> split_ith (h::acc) (i-1) t
+         | _ -> assert false
+       in
+       let (stack_h, arg_i, stack_t) = split_ith [] i stack in
+       assert (match arg_i.term with Const(l,m,v) -> Signature.is_AC sg l m v | _ -> false);
+       let new_cases =
+         List.map
+           (function
+            | g, new_s, [] -> (List.rev_append stack_h (new_s::stack_t  ), g)
+            | g, new_s, s  -> (List.rev_append stack_h (new_s::stack_t@s), g) )
+           (fetch_case sg (flatten_AC_stack sg strategy convertible) arg_i case dt_suc dt_def) in
+       gamma_rw_list sg convertible forcing strategy new_cases
     | Switch (i,cases,def) ->
-       begin
-         let arg_i = strategy sg (List.nth stack i) in
-         let new_cases =
-           List.map
-             (function
-              | g, [] -> ( stack    , g)
-              | g, s  -> ( (stack@s), g) )
-             (find_case arg_i cases def) in
-         gamma_rw_list sg convertible forcing strategy new_cases
-       end
+       let arg_i = (List.nth stack i) in
+       let arg_i = if rewrite then strategy sg arg_i else arg_i in
+       let new_cases =
+         List.map
+           (function
+            | g, [] -> ( stack    , g)
+            | g, s  -> ( (stack@s), g) )
+           (find_cases (flatten_AC_stack sg strategy convertible) arg_i cases def) in
+       gamma_rw_list sg convertible forcing strategy new_cases
     | Test (Syntactic ord, eqs, right, def) ->
        begin
          match get_context_syn sg forcing stack ord with
@@ -233,6 +385,32 @@ and gamma_rw (sg:Signature.t)
        end
   in
   rw
+
+and gamma_head_rw (sg:Signature.t)
+                  (convertible:convertibility_test)
+                  (forcing:rw_strategy)
+                  (strategy:rw_state_strategy) (s:state) (t:dtree) : state option =
+  match s, t with
+  | { ctx; term=Const(l,m,v); stack }, Switch (0,cases,None) ->
+     let rec f = function
+       | []      -> None
+       | ((CConst(nargs,_,_,_),_) as c) :: tl ->
+          begin
+            match split_stack nargs stack with
+            | None -> f tl
+            | Some (s1,s2) ->
+               begin
+                 let s' = {s with stack=s1} in
+                 match gamma_rw sg convertible forcing strategy ~rewrite:false [s']
+                                (Switch (0,[c],None)) with
+                 | None -> f tl
+                 | Some (ctx,term) -> Some { ctx; term; stack=s2 }
+               end
+          end
+       | _ -> assert false
+     in
+     f cases
+  | _ -> assert false
 
 
 (* ********************* *)
@@ -293,109 +471,15 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,m,v); stack } ->
      begin
-       let dtree =
-         match !selection with
-         | None           -> Signature.get_dtree sg l m v
-         | Some selection -> Signature.get_dtree sg ~select:selection l m v
-       in
-       let st =
-         begin
-           match dtree with
-           | None -> st
-           | Some (Switch (0,cases,None)) ->
-              let rec f = function
-                | [] -> flatten_AC sg st
-                | (CConst(nargs,m',v'), tr) :: tl -> begin
-                    assert (ident_eq m m' && ident_eq v v');
-                    match split_stack nargs stack with
-                    | None -> f tl
-                    | Some (s1,s2) -> begin
-                        match gamma_rw sg are_convertible snf state_whnf (st::s1) tr with
-                        | None -> f tl
-                        | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
-                      end
-                  end
-                | _ -> assert false
-              in
-              f cases
-           | _ -> assert false
-         end in
-       flatten_AC sg st
+       match Signature.get_dtree sg ~select:(!selection) l m v with
+       | None    -> flatten_AC sg state_whnf are_convertible st
+       | Some tr -> begin
+           match gamma_head_rw sg are_convertible snf state_whnf st tr with
+           | None -> flatten_AC sg state_whnf are_convertible st
+           | Some st -> state_whnf sg st
+         end
      end
 
-and flatten_AC (sg:Signature.t) (st:state) = match st with
-  | { ctx; term=Const (l,m,v); stack=(s1::s2::stack) } when Signature.is_AC sg l m v ->
-     begin
-       let rec flatten acc = function
-         | [] -> acc
-         | st :: tl ->
-            let whnf_st = state_whnf sg st in
-            match whnf_st with
-            | { ctx; term=Const (l',m',v'); stack=(st1::st2::[]) }
-                 when ident_eq m' m && ident_eq v' v ->
-               flatten acc (st1 :: st2 :: tl)
-            | _ -> flatten (whnf_st::acc) tl
-       in
-       let stack = flatten [] [s1;s2] in
-       let stack = begin
-           match Signature.get_staticity sg l m v with
-           | Signature.DefinableACU neu ->
-              let rec filter_neu acc = function
-                | [] -> acc
-                | st::tl ->
-                   filter_neu
-                     (if are_convertible sg (term_of_state st) neu then acc else st :: acc)
-                     tl in
-              (match filter_neu [] stack with [] -> [{ctx=LList.nil;term=neu;stack=[]}] | s -> s)
-           | _ -> stack
-         end in
-       let rec to_comb = function
-         | [] -> assert false
-         | t :: [] -> t
-         | t1::tl  -> {ctx=ctx; term=mk_Const l m v; stack=[t1;to_comb tl]}
-       in
-       to_comb stack
-     end
-  | st -> st
-
-and flatten_SNF_AC_term (sg:Signature.t) (t:term) = match t with
-  | App(Const (l,m,v), a1, a2::remain_args) when Signature.is_AC sg l m v ->
-     begin
-       let rec flatten acc = function
-         | [] -> acc
-         | arg :: tl ->
-            match arg with
-            | App(Const (l',m',v'), a1', a2'::[]) when ident_eq m' m && ident_eq v' v ->
-               flatten acc (a1'::a2'::tl)
-            | _ -> flatten (arg::acc) tl
-       in
-       let args = flatten [] [a1;a2] in
-       let args = begin
-           match Signature.get_staticity sg l m v with
-           | Signature.DefinableACU neu ->
-              let rec filter_neu acc = function
-                | [] -> acc
-                | a::tl ->
-                   filter_neu (if are_convertible sg a neu then acc else a::acc) tl
-              in
-              (match filter_neu [] args with [] -> [neu] | s -> s)
-           | _ -> args
-         end in
-       let id_comp = Signature.get_id_comparator sg in
-       let args  = List.sort (compare_term id_comp) args in
-       match args, remain_args with
-       |    [], _         -> assert false
-       | a::[], []        -> a
-       | a::[], ra::rargs -> mk_App a ra args
-       | a::tl, rargs ->
-           let rec to_comb = function
-             | [] -> assert false
-             | a::[] -> a
-             | a::tl -> mk_App (mk_Const l m v) a tl
-           in
-           mk_App (mk_Const l m v) a ((to_comb tl)::rargs)
-     end
-  | t -> t
 
 (* ********************* *)
 
@@ -409,7 +493,7 @@ and snf sg (t:term) : term =
   | DB _ | Type _ as t' -> t'
   | App (f,a,lst) ->
      let res = mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst) in
-     flatten_SNF_AC_term sg res
+     flatten_SNF_AC_term sg are_convertible res
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
@@ -462,12 +546,12 @@ let rec hnf sg t =
 (* One-Step Reduction *)
   (* Weak heah beta normal terms *)
 let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
-  | (0  , state) -> (0, state)
-  | (red, state) -> begin
-     match state with
+  | (0  , st) as s -> s
+  | (red, st) -> begin
+     match st with
      | { term=Type _ }
      | { term=Kind }
-     | { term=Pi _ } -> (red,state)
+     | { term=Pi _ } -> (red,st)
      | { ctx=ctx; term=Lam(loc,id,ty,t); stack=[] } ->
         let n',state' = state_one_step sg (red,{ctx=ctx;term=t; stack=[]}) in
         (n', {ctx=ctx; term=mk_Lam loc id ty (term_of_state state'); stack = []})
@@ -486,7 +570,7 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
         if n < LList.len ctx then
           state_one_step sg (red,{ ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack })
         else
-          (red,state)
+          (red,st)
      (* Beta redex *)
      | { ctx; term=Lam (loc,id,ty,t); stack=p::s } ->
         if !beta then
@@ -508,31 +592,14 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
         state_one_step sg (!aux,{ ctx; term=f; stack=List.rev_append new_stack s })
      (* Potential Gamma redex *)
      | { ctx; term=Const (l,m,v); stack } ->
-        let dtree =
-          match !selection with
-          | None -> Signature.get_dtree sg l m v
-          | Some selection -> Signature.get_dtree sg ~select:selection l m v
-        in
         begin
-          match dtree with
-          | None -> (red,state)
-          | Some (Switch (0,cases,None)) ->
-             let rec f = function
-               | [] -> (red,state)
-               | (CConst(nargs,m',v'), tr) :: tl -> begin
-                   assert (ident_eq m m' && ident_eq v v');
-                   match split_stack nargs stack with
-                   | None -> f tl
-                   | Some (s1,s2) ->
-                      ( match gamma_rw sg are_convertible snf state_whnf (state::s1) tr with
-                        | None -> f tl
-                        | Some (ctx,term) -> state_one_step sg (red-1,{ ctx; term; stack=s2 })
-                      )
-                 end
-               | _ -> assert false
-             in
-             f cases
-          | _ -> assert false
+          match Signature.get_dtree sg ~select:(!selection) l m v with
+          | None    -> (red,flatten_AC sg state_whnf are_convertible st)
+          | Some tr -> begin
+              match gamma_head_rw sg are_convertible snf state_whnf st tr with
+              | None -> (red,flatten_AC sg state_whnf are_convertible st)
+              | Some st -> state_one_step sg (red-1,st)
+            end
         end
     end
 

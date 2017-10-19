@@ -9,17 +9,18 @@ let ignore_redecl = ref false
 let autodep = ref false
 
 type signature_error =
-  | FailToCompileModule of loc*ident
+  | FailToCompileModule       of loc*ident
   | UnmarshalBadVersionNumber of loc*string
-  | UnmarshalSysError of loc*string*string
-  | UnmarshalUnknown of loc*string
-  | SymbolNotFound of loc*ident*ident
-  | AlreadyDefinedSymbol of loc*ident
-  | CannotMakeRuleInfos of rule_error
-  | CannotBuildDtree of dtree_error
-  | CannotAddRewriteRules of loc*ident
-  | ConfluenceErrorImport of loc*ident*Confluence.confluence_error
-  | ConfluenceErrorRules of loc*rule_infos list*Confluence.confluence_error
+  | UnmarshalSysError         of loc*string*string
+  | UnmarshalUnknown          of loc*string
+  | SymbolNotFound            of loc*ident*ident
+  | AlreadyDefinedSymbol      of loc*ident
+  | ExpectedACUSymbol         of loc*ident*ident
+  | CannotMakeRuleInfos       of rule_error
+  | CannotBuildDtree          of dtree_error
+  | CannotAddRewriteRules     of loc*ident
+  | ConfluenceErrorImport     of loc*ident*Confluence.confluence_error
+  | ConfluenceErrorRules      of loc*rule_infos list*Confluence.confluence_error
 
 exception SignatureError of signature_error
 
@@ -55,27 +56,6 @@ let get_name sg = sg.name
 
 (******************************************************************************)
 
-let add_rule_infos sg (lst:rule_infos list) : unit =
-  match lst with
-  | [] -> ()
-  | (r::_ as rs) ->
-    let env =
-      try H.find sg.tables r.md
-      with Not_found -> assert false in (*should not happen if the dependencies are loaded before*)
-    let infos = try ( H.find env r.id )
-      with Not_found -> assert false in
-    let ty = infos.ty in
-    if (infos.stat = Static) then
-      raise (SignatureError (CannotAddRewriteRules (r.l,r.id)));
-    let rules = match infos.rule_opt_info with
-      | None -> rs
-      | Some(mx,_) -> mx@rs
-    in
-    match Dtree.of_rules rules with
-    | OK tree ->
-       H.add env r.id
-         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,tree)}
-    | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 (******************************************************************************)
 
@@ -243,6 +223,45 @@ let rec import sg lc m =
   check_confluence_on_import lc m ctx;
   ctx
 
+and add_rule_infos sg (lst:rule_infos list) : unit =
+  match lst with
+  | [] -> ()
+  | (r::_ as rs) ->
+    let env =
+      try H.find sg.tables r.md
+      with Not_found -> assert false in (*should not happen if the dependencies are loaded before*)
+    let infos = try ( H.find env r.id )
+      with Not_found -> assert false in
+    let ty = infos.ty in
+    if (infos.stat = Static) then
+      raise (SignatureError (CannotAddRewriteRules (r.l,r.id)));
+    let rules = match infos.rule_opt_info with
+      | None -> rs
+      | Some(mx,_) -> mx@rs
+    in
+    match Dtree.of_rules (is_AC sg dloc) rules with
+    | OK tree ->
+       H.add env r.id
+         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,tree)}
+    | Err e -> raise (SignatureError (CannotBuildDtree e))
+
+and get_infos sg lc m v =
+  let env =
+    try H.find sg.tables m
+    with Not_found -> import sg lc m
+  in
+    try ( H.find env v )
+    with Not_found -> raise (SignatureError (SymbolNotFound (lc,m,v)))
+
+and get_type sg lc m v = (get_infos sg lc m v).ty
+
+and get_staticity sg lc m v = (get_infos sg lc m v).stat
+
+and is_AC sg lc m v =
+  match (get_staticity sg lc m v) with
+    | DefinableAC | DefinableACU _ -> true
+    | _ -> false
+
 let get_deps sg : string list = (*only direct dependencies*)
   H.fold (
     fun md _ lst ->
@@ -254,19 +273,6 @@ let export sg =
   marshal sg.name (get_deps sg) (H.find sg.tables sg.name) sg.external_rules
 
 (******************************************************************************)
-
-let get_infos sg lc m v =
-  let env =
-    try H.find sg.tables m
-    with Not_found -> import sg lc m
-  in
-    try ( H.find env v )
-    with Not_found -> raise (SignatureError (SymbolNotFound (lc,m,v)))
-
-
-let get_type sg lc m v = (get_infos sg lc m v).ty
-
-let get_staticity sg lc m v = (get_infos sg lc m v).stat
 
 let stat_code = function
   | Static         -> 0
@@ -283,28 +289,24 @@ let is_injective sg lc m v =
     | Static -> true
     | _ -> false
 
-let is_AC sg lc m v =
+let get_neutral sg lc m v =
   match (get_staticity sg lc m v) with
-    | DefinableAC | DefinableACU _ -> true
-    | _ -> false
-                                                   
-let pred_true: Rule.rule_name -> bool = fun x -> true
+    | DefinableACU neu -> neu
+    | _ -> raise (SignatureError (ExpectedACUSymbol(lc,m,v)))
 
-let get_dtree sg ?select:(pred=pred_true) l m v =
-  match (get_infos sg l m v).rule_opt_info with
-  | None -> None
-  | Some(rules,tr) ->
-    if pred == pred_true then
-      Some tr
-    else
-      let rules' = List.filter (fun (r:Rule.rule_infos) -> pred r.name) rules in
+let get_dtree sg ?select:(s=None) l m v =
+  match (get_infos sg l m v).rule_opt_info, s with
+  | None          , _           -> None
+  | Some(rules,tr), None        -> Some tr
+  | Some(rules,tr), Some select ->
+      let rules' = List.filter (fun (r:Rule.rule_infos) -> select r.name) rules in
       if List.length rules' == List.length rules
       then Some tr
       else
         (* A call to Dtree.of_rules must be made with a non-empty list *)
         match rules' with
         | [] -> None
-        | _ -> match Dtree.of_rules rules' with
+        | _ -> match Dtree.of_rules (is_AC sg dloc) rules' with
                | OK tree -> Some tree
                | Err e -> raise (SignatureError (CannotBuildDtree e))
 

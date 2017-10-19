@@ -22,6 +22,7 @@ type signature_error =
   | UnmarshalUnknown of loc*string
   | SymbolNotFound of loc*ident*ident
   | AlreadyDefinedSymbol of loc*ident
+  | ExpectedACUSymbol         of loc*ident*ident
   | CannotMakeRuleInfos of Rule.rule_error
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc*ident
@@ -50,15 +51,18 @@ val get_type            : t -> loc -> ident -> ident -> term
 
 val get_staticity       : t -> loc -> ident -> ident -> staticity
 (** [get_staticity sg l md id] returns the staticity of the symbol [md.id] *)
-                                                          
+
 val is_injective        : t -> loc -> ident -> ident -> bool
 (** [is_injective sg l md id] returns true when [md.id] is either static
     or declared as injective. *)
 
+val get_neutral         : t -> loc -> ident -> ident -> term
+(** [get_neutral sg l md id] returns the neutral element of the ACU symbol [md.id]. *)
+
 val is_AC               : t -> loc -> ident -> ident -> bool
 (** [is_injective sg l md id] returns true when [md.id] is declared as AC symbol *)
 
-val get_dtree           : t -> ?select:(Rule.rule_name -> bool) -> loc -> ident -> ident -> dtree option
+val get_dtree           : t -> ?select:(Rule.rule_name -> bool) option -> loc -> ident -> ident -> dtree option
 (** [get_dtree sg pred l md id] returns the decision/matching tree associated with [md.id]
     inside the environment [sg]. *)
 

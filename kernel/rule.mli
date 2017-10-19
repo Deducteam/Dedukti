@@ -28,6 +28,7 @@ type wf_pattern =
   | LLambda      of ident * wf_pattern
   | LPattern     of ident * ident * wf_pattern array
   | LBoundVar    of ident * int * wf_pattern array
+  | LACSet       of wf_pattern list
 
 (** {2 Linarization} *)
 
