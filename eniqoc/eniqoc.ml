@@ -9,9 +9,9 @@ let parse lb =
     P.prelude Lexer.token lb ;
     while true do P.line Lexer.token lb done
   with
-    | Tokens.EndOfFile -> ()
-    | P.Error       -> Errors.fail (Lexer.get_loc lb)
-                         "Unexpected token '%s'." (Lexing.lexeme lb)
+  | Tokens.EndOfFile -> ()
+  | P.Error       -> Errors.fail (Lexer.get_loc lb)
+                       "Unexpected token '%s'." (Lexing.lexeme lb)
 
 let args = [
   ("-v"    , Arg.Set Checker.verbose, "Verbose mode" ) ;
@@ -44,7 +44,9 @@ let _ =
       if !run_on_stdin then (
         parse (Lexing.from_channel stdin) ;
         Errors.success "Standard input was successfully checked.\n" )
-    end
+    end;
+    let ast = Compiler.get_ast () in
+    Print.print_ast Format.std_formatter ast
   with
     | Sys_error err             -> ( Printf.eprintf "ERROR %s.\n" err; exit 1 )
     | Exit                      -> exit 3

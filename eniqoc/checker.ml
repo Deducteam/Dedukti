@@ -1,6 +1,9 @@
 open Basic
 open Ast
 open Print
+
+(* TO DO:cut the files in modules *)
+
 (* ********************************* *)
 
 let verbose = ref false
@@ -15,7 +18,7 @@ let eprint lc fmt =
 
 (* ********************************* *)
 
-let _ =   Format.printf "%a@." Print.print_prelude ()
+let _ = Compiler.init_ast (hstring "arith")
 
 let mk_prelude lc name =
   Env.init name
@@ -24,7 +27,7 @@ let mk_declaration lc id st pty : unit =
   match Env.declare lc id st pty with
   | OK () ->
     let decl = Compiler.compile_declaration (Env.get_name ()) id pty in
-    Format.printf "%a@." Print.print_obj decl
+    Compiler.add_declaration decl
   | Err e -> Errors.fail_env_error e
 
 let mk_definition lc id pty_opt pte : unit =
@@ -36,8 +39,8 @@ let mk_definition lc id pty_opt pte : unit =
   in
   match Env.define lc id pte pty_opt with
   | OK () ->
-    let decl = Compiler.compile_definition (Env.get_name ()) id ty pte in
-    Format.printf "%a@." Print.print_obj decl
+    let defn = Compiler.compile_definition (Env.get_name ()) id ty pte in
+    Compiler.add_definition defn
   | Err e -> Errors.fail_env_error e
 
 let mk_opaque lc id pty_opt pte =

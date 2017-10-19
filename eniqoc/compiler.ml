@@ -82,70 +82,7 @@ let rec arguments_needed rw =
   aux ty 0
 
 let rec compile_term ty_ctx te_ctx te =
-  match te with (*
-  | Term.App(rw, a, args) when is_delta_rw rw && List.length (a::args) > arguments_needed rw ->
-    let rec find_ctx args n =
-      match args,n with
-      | [],_ -> assert false
-      | [_],_ -> assert false
-      | ctx::r::t,0 -> [], ctx,r,t
-      | x::args',_ ->
-        let l,ctx,r,t = find_ctx args' (n-1) in
-        x::l,ctx,r,t
-    in
-    let l,ctx,r,t = find_ctx (a::args) (arguments_needed rw) in
-    let ty,l =
-      match l with
-      | [] -> assert false
-      | x::t -> x,t
-    in
-    let te = Term.mk_App rw ty l in
-    let red = {Reduction.beta = true; Reduction.select = Some (fun x ->
-        match x with
-        | Rule.Delta(md,id) when md = hstring "hol" && id = hstring "leibniz" -> false
-        | _ -> true) } in
-    let te' =
-      match Env.reduction ~red:red Reduction.Whnf te with
-      | OK t -> t
-      | Err err -> Errors.fail_env_error err
-    in
-    let ty' =
-      match Env.infer te' with
-      | OK ty ->
-        begin
-          match Env.reduction ~red:red Reduction.Hnf ty with
-          | OK t -> t
-          | Err err -> Errors.fail_env_error err
-        end
-      | Err err -> Errors.fail_env_error err
-    in
-    let x, y =
-    match ty' with
-      | Term.App(_,Term.App(cst, ty, [tel;ter]), []) when is_hol_const hol_leibniz cst -> tel, ter
-      | _ -> Format.eprintf "debug: %a@." Pp.print_term ty'; assert false
-    in
-    let ty' = compile_term ty_ctx te_ctx ty in
-    let x' = compile_term ty_ctx te_ctx x in
-    let y' = compile_term ty_ctx te_ctx y in
-    let p' = compile_term ty_ctx te_ctx ctx in
-    let px' = compile_term ty_ctx te_ctx r in
-    let rw' = compile_term ty_ctx te_ctx rw in
-    let stuff =
-      Ast.App(
-        Ast.App(
-          Ast.App(
-            Ast.App(
-              Ast.App(
-                Ast.App(
-                  Ast.Const(hstring "", hstring "eq_ind"),
-                  ty'),
-                x'),
-              p'),
-            px'),
-          y'),
-        rw')
-    in
-    List.fold_left (fun t a -> Ast.App(t,compile_term ty_ctx te_ctx a)) stuff t *)
+  match te with
   | Term.App(c, Term.Lam(_, var, _, ty), []) when is_hol_const hol_forall_kind_type c ->
     let ty' = compile_term (var::ty_ctx) te_ctx ty in
     Ast.Forall(var, Ast.Type, ty')
@@ -165,12 +102,6 @@ let rec compile_term ty_ctx te_ctx te =
     let tel' = compile_term ty_ctx te_ctx tel in
     let ter' = compile_term ty_ctx te_ctx ter in
     Ast.Impl(tel',ter')
-      (*
-  | Term.App(cst, ty, [tel;ter]) when is_hol_const hol_leibniz cst ->
-    let ty' = compile_term ty_ctx te_ctx ty in
-    let tel' = compile_term ty_ctx te_ctx tel in
-    let ter' = compile_term ty_ctx te_ctx ter in
-    Ast.Eq(ty',(tel',ter')) *)
   | Term.Const(lc,md,id) ->
     Ast.Const(md,id)
   | Term.DB(_,var,n) ->
@@ -195,6 +126,13 @@ and compile_wrapped_type (ty_ctx:ty_ctx) te_ctx (ty:Term.term)  =
   | _ -> assert false
 
 
+let empty_obj =
+  {
+    Ast.depends=[];
+    Ast.definition=[]
+  }
+
+
 let compile_declaration md id ty =
       match ty with
     | Term.App(cst,a,[]) when is_hol_const hol_eta cst ->
@@ -212,3 +150,38 @@ let compile_definition md id ty term =
   | Term.App(cst,a,[]) when is_hol_const hol_eps cst ->
     Ast.Theorem((md,id), compile_term [] [] a, compile_term [] [] term)
   | _ -> assert false
+
+let ast = ref {Ast.name="";
+               Ast.prelude=[];
+               Ast.obj=
+                 {
+                   Ast.depends=[];
+                   Ast.definition=[]
+                 }
+              }
+
+let init_ast name =
+  ast :=
+    {
+      Ast.name=string_of_ident name;
+      Ast.prelude=["leibniz"];
+      Ast.obj=empty_obj
+    }
+
+let get_ast () =
+  let open Ast in
+  let reverse obj =
+    {depends = List.rev obj.depends;
+     definition=List.rev obj.definition
+    }
+  in
+  let ast = !ast in
+  {ast with obj = reverse ast.obj}
+
+let add_declaration decl =
+  let ast' = !ast in
+  ast := {ast' with Ast.obj = {ast'.obj with Ast.depends=decl::ast'.obj.Ast.depends}}
+
+let add_definition defn =
+  let ast' = !ast in
+  ast := {ast' with Ast.obj = {ast'.obj with Ast.definition=defn::ast'.obj.Ast.definition}}

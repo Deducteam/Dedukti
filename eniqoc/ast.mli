@@ -12,8 +12,21 @@ type term =
   | Var of ident
   | Const of name
 
+type declaration = Axiom of name * term | Parameter of name * term
+
+type definition = Theorem of name * term * term | Constant of name * term * term
+
 type obj =
-  | Axiom of name * term
-  | Parameter of name * term
-  | Constant of name * term * term
-  | Theorem of name * term * term
+  {
+    depends: declaration list;
+    definition: definition list
+  }
+
+type module_id = string
+
+type ast =
+  {
+    name:module_id;
+    prelude:module_id list;
+    obj:obj
+  }
