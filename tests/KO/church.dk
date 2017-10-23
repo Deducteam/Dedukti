@@ -30,11 +30,3 @@ P2: n:numeral -> P n -> Type.
 
 y : P test_.
 z: P2 test y.
-
-#NORMALIZE zero.
-#NORMALIZE one.
-#NORMALIZE two.
-#NORMALIZE three.
-#NORMALIZE four.
-
-#NORMALIZE plus one (times three four).
