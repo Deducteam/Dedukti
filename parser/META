@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: f7a96870f3f7a51ecb7c14318307eb45)
+version = "2.5.1"
+description = "An implementation of the \\lambda\\Pi-calculus modulo theory"
+requires = "kernel"
+archive(byte) = "parser.cma"
+archive(byte, plugin) = "parser.cma"
+archive(native) = "parser.cmxa"
+archive(native, plugin) = "parser.cmxs"
+exists_if = "parser.cma"
+# OASIS_STOP
+

@@ -1,5 +1,8 @@
 /_build/
-dedukti.docdir
+api-kernel.docdir
+/setup.data
+/setup.log
+*.byte
 *.native
 .*.swp
 .*.swo
@@ -7,6 +10,7 @@ _*/
 *.dko
 *.depend
 *.txt
+kernel/version.ml
 
 # emacs tmp files
 *~

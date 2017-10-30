@@ -6,12 +6,14 @@ open Format
 type dtree_error =
   | HeadSymbolMismatch of loc * ident * ident
   | ArityMismatch of loc * ident
+  | ArityInnerMismatch of loc * ident * ident
 
 exception DtreeExn of dtree_error
 
 (* A subtype of rule_infos with only the informations that the dtree need *)
 type dtree_rule =
   { loc:loc ;
+    pid:ident;
     pats:wf_pattern array ;
     right:term ;
     constraints:constr list ;
@@ -19,6 +21,7 @@ type dtree_rule =
 
 let to_dtree_rule (r:rule_infos) : dtree_rule =
   { loc = r.l ;
+    pid = r.id;
     pats = r.l_args ;
     right = r.rhs ;
     constraints = r.constraints ;
@@ -38,7 +41,6 @@ type matrix =
     { col_depth: int array;
       first:dtree_rule ;
       others:dtree_rule list ; }
-
 
 (* mk_matrix lst builds a matrix out of the non-empty list of rules [lst]
 *  It is checked that all rules have the same head symbol and arity.
@@ -178,9 +180,10 @@ let specialize_rule (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
     else (* size <= i < size+nargs *)
       match r.pats.(c) with
         | LJoker | LVar _ -> LJoker
-        | LPattern (_,_,pats2) | LBoundVar (_,_,pats2) ->
-            ( assert ( Array.length pats2 == nargs );
-              pats2.( i - size ) )
+        | LPattern (_,id,pats2) | LBoundVar (id,_,pats2) ->
+          if ( Array.length pats2 != nargs ) then
+            raise (DtreeExn(ArityInnerMismatch(r.loc, r.pid, id)));
+                pats2.( i - size)
         | LLambda (_,p) -> ( assert ( nargs == 1); p )
   in
     { r with pats = Array.init (size+nargs) aux }
