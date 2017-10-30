@@ -122,13 +122,15 @@ let graph =
   ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
 
 let table = ref []
+let constructors = Hashtbl.create 5
                 
 let initialize () = !graph.next_index :=0;
                     let root = { index = -1 ; name  = "R" ; arity = 0 ; args  = [||] } in
                     let syms = IMap.singleton (-1) root in
                     !graph.symbols := syms;
                     !graph.calls := [];
-                    table := []
+                    table := [];
+                    Hashtbl.clear constructors
 
 (** Creation of a new symbol.  *)
 let create_symbol : bool -> string -> string array -> unit =
@@ -157,18 +159,25 @@ let create_array n=
   done;
   res
     
-let add_fonc vb v t=
+let add_fonc vb v t st=
+  let rec get_all_from_pi l res=
+    match res with
+    | Pi(_,_,a,r) -> get_all_from_pi (a::l) r
+    | Const(_,_,r) -> Hashtbl.replace constructors r ((v,l)::Hashtbl.find constructors r)
+    | Type _ -> Hashtbl.add constructors v []
+    | _ -> printf "I don't understand what you are adding under he Pi : %a@." pp_term res
+  in
   let n=find_arity t in
   let second (a,b,c) = b in
   match t with
-  | Kind -> create_symbol vb (string_of_ident v) (create_array 0)
-  | Type _ -> create_symbol vb (string_of_ident v) (create_array 0)
+  | Kind -> create_symbol vb (string_of_ident v) (create_array 0); printf "How is it possible to create a symbol in Kind ?@."
+  | Type _ -> create_symbol vb (string_of_ident v) (create_array 0); if st = Signature.Static then Hashtbl.add constructors v []
   | DB (_,_,_) -> printf "AddFonc of a DB Variable %a, I don't understand how it can happen@." pp_term t
-  | Const (_,_,_) -> create_symbol vb (string_of_ident v) (create_array 0)
-  | App (Const(_,_,f),u,lt) -> create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident f)) (List.rev !table)) -1-List.length lt))
-  | App(_,_,_) as t -> printf "AddFonc of a lambda % a, I don't know how to react@." pp_term t
-  | Lam (_,_,_,_) -> printf "AddFonc of a lambda % a, I don't know how to react@." pp_term t
-  | Pi(_,name,arg,res) -> create_symbol vb (string_of_ident v) (create_array n)
+  | Const (_,_,r) -> create_symbol vb (string_of_ident v) (create_array 0); if st=Signature.Static then Hashtbl.replace constructors r ((v,[])::Hashtbl.find constructors r) 
+  | App (Const(_,_,f),u,lt) -> create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident f)) (List.rev !table)) -1-List.length lt)); printf "Here is an App %a, %s@." pp_term t (if st=Signature.Static then "Static !!!" else "Definable")
+  | App(_,_,_) as t -> printf "AddFonc of a app of a not const %a, I don't know how to react@." pp_term t
+  | Lam (_,_,_,_) -> printf "AddFonc of a lambda %a, I don't know how to react@." pp_term t
+  | Pi(_,name,arg,res) -> create_symbol vb (string_of_ident v) (create_array n); if st = Signature.Static then get_all_from_pi [arg] res
                                         
 (** Copy a call graph. *)
 let copy : call_graph -> call_graph =
@@ -425,9 +434,18 @@ let latex_print_calls () =
   in
   List.iter (print_call2 arities) calls;
   fprintf ff "  }\n\\end{dot2tex}\n"
-    
-    (** the main function, checking if calls are well-founded *)
-let sct_only ()=
+
+let printHT key_printer elt_printer ht=
+  Hashtbl.iter (fun a b -> printf "%a : %a@." key_printer a elt_printer b) ht
+
+let pp_couple pp_fst pp_snd fmt x = fprintf fmt "(%a , [%a])" pp_fst (fst x) pp_snd (snd x) 
+               
+let print_constr ()= printHT pp_ident (pp_list "," (pp_couple pp_ident (pp_list "," pp_term))) constructors
+               
+(** the main function, checking if calls are well-founded *)
+let sct_only : bool -> bool =
+  fun vb ->
+  print_constr ();
   let ftbl= !graph in
   let num_fun = !(ftbl.next_index) in
   let arities = !(ftbl.symbols) in
@@ -441,9 +459,10 @@ let sct_only ()=
     (* test idempotent edges as soon as they are discovered *)
     if i = j && prod m m = m && not (decreasing m) then
       begin
-        printf "edge %a idempotent and looping\n%!" print_call
-           {callee = i; caller = j; matrix = m; is_rec = true};
-        raise Exit
+        if vb then 
+          printf "edge %a idempotent and looping\n%!" print_call
+             {callee = i; caller = j; matrix = m; is_rec = true};
+          raise Exit
       end;
     let ti = tbl.(i) in
     let ms = ti.(j) in
@@ -456,11 +475,12 @@ let sct_only ()=
   in
   (* adding initial edges *)
   try
-    printf "initial edges to be added:\n%!";
-    List.iter (fun c -> printf "\t%a\n%!" print_call c) !(ftbl.calls);
+    if vb then
+      (printf "initial edges to be added:\n%!";
+      List.iter (fun c -> printf "\t%a\n%!" print_call c) !(ftbl.calls));
     let new_edges = ref !(ftbl.calls) in
     (* compute the transitive closure of the call graph *)
-    printf "start completion\n%!";
+    if vb then printf "start completion\n%!";
     let rec fn () =
       match !new_edges with
       | [] -> ()
@@ -469,20 +489,20 @@ let sct_only ()=
         assert (i >= 0);
         new_edges := l;
         if add_edge i j m then begin
-          printf "\tedge %a added\n%!" print_call c;
+          if vb then printf "\tedge %a added\n%!" print_call c;
           incr added;
           let t' = tbl.(j) in
           Array.iteri (fun k t -> List.iter (fun m' ->
             let c' = {callee = j; caller = k; matrix = m'; is_rec = true} in
-            printf "\tcompose: %a * %a = %!" print_call c print_call c';
+            if vb then printf "\tcompose: %a * %a = %!" print_call c print_call c';
             let m'' = prod m' m in
             incr composed;
             let c'' = {callee = i; caller = k; matrix = m''; is_rec = true} in
             new_edges := c'' :: !new_edges;
-          printf "%a\n%!" print_call c'';
+          if vb then printf "%a\n%!" print_call c'';
           ) t) t'
         end else
-        printf "\tedge %a is old\n%!" print_call c;
+        if vb then printf "\tedge %a is old\n%!" print_call c;
         fn ()
     in
     fn ();

@@ -3,7 +3,7 @@ open Term
 open Rule
 open Format
 
-val add_fonc : bool -> ident -> Term.term -> unit
+val add_fonc : bool -> ident -> Term.term -> Signature.staticity -> unit
 val add_symb : bool -> ident -> Term.term -> unit
        
 val add_rules : bool -> untyped_rule list -> unit
@@ -47,7 +47,7 @@ type call =
 (** The representation of the call graph. *)
 type call_graph
 
-val sct_only : unit -> bool
+val sct_only : bool -> bool
 
 (** [copy g] returns a copy of the call graph [g]. *)
 val copy : call_graph -> call_graph

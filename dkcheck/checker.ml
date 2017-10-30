@@ -26,7 +26,7 @@ let mk_prelude lc name =
 
 let mk_declaration lc id st pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
-  if (!sizechange)|| (!szgraph) then Sizechange.add_fonc !verbose id pty;
+  if (!sizechange)|| (!szgraph) then Sizechange.add_fonc !verbose id pty st;
   match Env.declare lc id st pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
@@ -122,7 +122,7 @@ let mk_ending () =
                      Format.kfprintf (fun _ -> Format.pp_print_newline Format.err_formatter () ) Format.err_formatter fmt
   in
   if (!sizechange)|| (!szgraph) then
-    if Sizechange.sct_only ()
+    if Sizechange.sct_only !verbose
     then if !variable_call=(-1)
          then Errors.success "Rewriting ends according to the SCP"
          else red_error "SCP does not accept variable in functionnal position, like in line %i" !variable_call
