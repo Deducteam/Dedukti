@@ -26,10 +26,11 @@ let args = [
   ("-coc", Arg.Set Typing.coc,               "Typecheck the Calculus of Construction" ) ;
   ("-autodep", Arg.Set Signature.autodep  ,
    "Automatically handle dependencies (experimental)") ;
-  ("-I"    , Arg.String Basic.add_path,        "Add a directory to load path");
-  ("-errors-in-snf", Arg.Set Errors.errors_in_snf, "Normalize the types in error messages");
-  ("-cc", Arg.String Confluence.set_cmd, "Set the external confluence checker");
-  ("-nl", Arg.Set Rule.allow_non_linear, "Allow non left-linear rewrite rules")
+  ("-I"      , Arg.String Basic.add_path         , "Add a directory to load path");
+  ("-errors-in-snf",
+               Arg.Set    Errors.errors_in_snf   , "Normalize the types in error messages");
+  ("-cc"     , Arg.String Confluence.set_cmd     , "Set the external confluence checker");
+  ("-nl"     , Arg.Set    Rule.allow_non_linear  , "Allow non left-linear rewrite rules")
 ]
 
 let run_on_file file =
@@ -48,5 +49,5 @@ let _ =
         Errors.success "Standard input was successfully checked.\n" )
     end
   with
-    | Sys_error err             -> ( Printf.eprintf "ERROR %s.\n" err; exit 1 )
-    | Exit                      -> exit 3
+    | Sys_error err -> ( Printf.eprintf "ERROR %s.\n" err; exit 1 )
+    | Exit          -> exit 3

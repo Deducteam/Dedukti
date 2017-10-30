@@ -38,7 +38,7 @@ val check       : Signature.t -> typed_context -> term -> typ -> unit
     and [ctx] is assumed to be well-formed *)
 
 val checking    : Signature.t -> term -> term -> unit
-(** [checking sg te ty] checks that [te] has type [te] in the empty context.
+(** [checking sg te ty] checks that [te] has type [ty] in the empty context.
     [ty] is typechecked first. *)
 
 val inference   : Signature.t -> term -> typ

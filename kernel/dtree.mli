@@ -55,6 +55,7 @@ val pp_rw : Format.formatter -> rw -> unit
 type dtree_error =
   | HeadSymbolMismatch of loc * ident * ident
   | ArityMismatch of loc * ident
+  | ArityInnerMismatch of loc * ident * ident
 
 (** Compilation of rewrite rules into decision trees. *)
 val of_rules : rule_infos list -> (int * dtree, dtree_error) error

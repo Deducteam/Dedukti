@@ -35,7 +35,7 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-type staticity = Static | Definable | Injective
+type staticity = Static | Definable
 
 type rw_infos =
   {
@@ -194,7 +194,7 @@ let get_type sg lc m v = (get_infos sg lc m v).ty
 
 let is_injective sg lc m v =
   match (get_infos sg lc m v).stat with
-    | Static | Injective -> true
+    | Static -> true
     | Definable -> false
 
 let pred_true: Rule.rule_name -> bool = fun x -> true
@@ -207,13 +207,15 @@ let get_dtree sg ?select:(pred=pred_true) l m v =
       Some (i,tr)
     else
       let rules' = List.filter (fun (r:Rule.rule_infos) -> pred r.name) rules in
-      (* A call to Dtree.of_rules must be made with a non-empty list *)
-      match rules' with
-      | [] -> None
-      | _ -> match Dtree.of_rules rules' with
-        | OK (n,tree) ->
-          Some(n,tree)
-        | Err e -> raise (SignatureError (CannotBuildDtree e))
+      if List.length rules' == List.length rules
+      then Some (i,tr)
+      else
+        (* A call to Dtree.of_rules must be made with a non-empty list *)
+        match rules' with
+        | [] -> None
+        | _ -> match Dtree.of_rules rules' with
+               | OK (n,tree) -> Some(n,tree)
+               | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 
 (******************************************************************************)

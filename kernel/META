@@ -1,0 +1,11 @@
+# OASIS_START
+# DO NOT EDIT (digest: 4d1ff5c5e36004fa9721ff1f34a729a3)
+version = "2.5.1"
+description = "An implementation of the \\lambda\\Pi-calculus modulo theory"
+archive(byte) = "kernel.cma"
+archive(byte, plugin) = "kernel.cma"
+archive(native) = "kernel.cmxa"
+archive(native, plugin) = "kernel.cmxs"
+exists_if = "kernel.cma"
+# OASIS_STOP
+

@@ -30,7 +30,7 @@ type signature_error =
 
 exception SignatureError of signature_error
 
-type staticity = Static | Definable | Injective
+type staticity = Static | Definable
 
 type t
 

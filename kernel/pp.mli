@@ -1,10 +1,9 @@
 (** Pretty printing. *)
 open Basic
-open Preterm
 open Term
 open Rule
 
-val name                : ident ref
+val name                : unit -> ident
 val print_db_enabled    : bool ref
 val print_default       : bool ref
 (** {2 Printing functions} *)
@@ -14,10 +13,6 @@ val print_ident : Format.formatter -> ident -> unit
 
 val print_list  : string -> (Format.formatter -> 'a -> unit)
                   -> Format.formatter -> 'a list -> unit
-
-val print_pterm : Format.formatter -> preterm -> unit
-
-val print_ppattern : Format.formatter -> prepattern -> unit
 
 val print_term  : Format.formatter -> term -> unit
 

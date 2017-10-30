@@ -5,6 +5,7 @@ open Cmd
 
 let out = ref stdout
 let deps = ref []
+let md_to_file = ref []
 let filename = ref ""
 let verbose = ref false
 let sorted = ref false
@@ -72,11 +73,12 @@ let mk_prule (rule:untyped_rule) =
 let mk_rules = List.iter mk_prule
 
 let mk_command _ = function
-  | Whnf t | Hnf t | Snf t
-  | OneStep t | Infer t                 -> mk_term t
-  | Conv (t1,t2) | Check (t1,t2)        -> ( mk_term t1 ; mk_term t2 )
-  | Gdt (_,_) | Print _                 -> ()
-  | Other (_,lst)                       -> List.iter mk_term lst
+  | Whnf t    | Hnf t          | Snf t
+  | OneStep t | NSteps (_,t)
+  | Infer t   | InferSnf t             -> mk_term t
+  | Conv (t1,t2) | Check (t1,t2)       -> ( mk_term t1 ; mk_term t2 )
+  | Gdt (_,_) | Print _                -> ()
+  | Other (_,lst)                      -> List.iter mk_term lst
 
 
 let dfs graph visited start_node =
@@ -95,11 +97,12 @@ let topological_sort graph =
   List.fold_left (fun visited (node,_) -> dfs graph visited node) [] graph
 
 let mk_ending () =
+  let name, deps = List.hd !deps in
+  md_to_file := (name, !filename)::!md_to_file;
   if not !sorted then
-    let name, deps = List.hd !deps in
     print_out "%s.dko : %s %s" name !filename
               (String.concat " " (List.map (fun s -> s ^ ".dko") deps))
   else
     ()
 
-let sort () = List.rev (topological_sort !deps)
+let sort () = List.map (fun md -> List.assoc md !md_to_file) (List.rev (topological_sort !deps))
