@@ -64,7 +64,6 @@ let pp_pcontext fmt ctx =
 
 type prule      = loc * (ident option * ident) option * pdecl list * ident option * ident * prepattern list * preterm
 
-(* TODO : implements this *)
 let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, prete):prule) : unit  =
   let name = match pname with | None -> "" | Some qid ->
     let prefix = match fst qid with | None -> "" | Some md -> (string_of_ident md)^"." in
@@ -77,3 +76,18 @@ let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, prete):prule) : unit  
   | None ->
     fprintf fmt "[%a] %a %a --> %a %s" (pp_list "," pp_pdecl) pdecl pp_ident id
       (pp_list " " pp_prepattern) prepatterns pp_preterm prete name
+
+type pbox_term = loc * pcontext * preterm
+
+type pmtype =
+  | PImpl of loc * pmtype * pmtype
+  | PForall of loc * ident * pbox_term * pmtype
+  | PBoxTy of pbox_term
+
+type pmterm =
+  | PMLamF of loc * ident * pbox_term * pmterm
+  | PMLamI of loc * ident * pmterm * pmterm
+  | Case of loc * ident * pcase list
+  | PBoxTe of pbox_term
+
+and pcase = pbox_term * pmterm

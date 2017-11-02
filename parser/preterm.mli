@@ -34,3 +34,18 @@ val pp_pcontext : formatter -> pcontext -> unit
 type prule      = loc * (ident option *ident) option * pdecl list * ident option * ident * prepattern list * preterm
 
 val pp_prule : formatter -> prule -> unit
+
+type pbox_term = loc * pcontext * preterm
+
+type pmtype =
+  | PImpl of loc * pmtype * pmtype
+  | PForall of loc * ident * pbox_term * pmtype
+  | PBoxTy of pbox_term
+
+type pmterm =
+  | PMLamF of loc * ident * pbox_term * pmterm
+  | PMLamI of loc * ident * pmterm * pmterm
+  | Case of loc * ident * pcase list
+  | PBoxTe of pbox_term
+
+and pcase = pbox_term * pmterm

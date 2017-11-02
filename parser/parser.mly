@@ -29,6 +29,11 @@
         | PrePi   (l,_,_,_) -> l
         | PreApp (f,_,_) -> preterm_loc f
 
+    let rec premtype_loc = function
+        | PImpl(l,_,_)
+        | PForall(l,_,_,_) -> l
+        | PBoxTy(l,_,_) -> l
+
     let mk_pre_from_list = function
         | [] -> assert false
         | [t] -> t
@@ -42,6 +47,7 @@
 %token COLON
 %token ARROW
 %token FATARROW
+%token LONGFATARROW
 %token LONGARROW
 %token DEF
 %token LEFTPAR
@@ -50,6 +56,8 @@
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
+%token VDASH
+%token QMARK
 %token <Basic.loc> WHNF
 %token <Basic.loc> HNF
 %token <Basic.loc> SNF
@@ -67,6 +75,8 @@
 %token <Basic.loc> TYPE
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
+%token <Basic.loc> KW_LET
+(* %token <Basic.loc> KW_REC *)
 %token <Basic.loc*Basic.ident> ID
 %token <Basic.loc*Basic.ident*Basic.ident> QID
 %token <string> STRING
@@ -90,7 +100,7 @@
 
 %%
 
-prelude         : NAME DOT      { let (lc,name) = $1 in	
+prelude         : NAME DOT      { let (lc,name) = $1 in
                                         Scoping.name := name;
                                         mk_prelude lc name }
 
@@ -114,8 +124,8 @@ line            : ID COLON term DOT
                 | KW_THM ID param+ COLON term DEF term DOT
                 { mk_opaque (fst $2) (snd $2) (Some (scope_term [] (mk_pi $5 $3)))
                         (scope_term [] (mk_lam $7 $3)) }
-                | LEFTBRA ID param+ RIGHTBRA DEF term DOT
-                { mk_opaque (fst $2) (snd $2)  None (scope_term [] (mk_lam $6 $3)) }
+                | KW_LET ID COLON mtype DEF mterm DOT
+                { }
                 | rule+ DOT
                 { mk_rules (List.map scope_rule $1) }
                 | command DOT { $1 }
@@ -202,4 +212,23 @@ term            : sterm+
                 { PreLam (fst $1,snd $1,None,$3) }
                 | ID COLON sterm+ FATARROW term
                 { PreLam (fst $1,snd $1,Some(mk_pre_from_list $3),$5) }
+
+
+box_term        : LEFTSQU context VDASH term RIGHTSQU
+                { preterm_loc $4, $2, $4 }
+
+mtype           : mtype ARROW mtype
+                { PImpl(premtype_loc $1, $1, $3) }
+                | ID COLON box_term ARROW mtype
+                { PForall(fst $1, snd $1, $3, $5) }
+                | box_term
+                { PBoxTy($1) }
+
+mterm           : ID COLON box_term FATARROW mterm
+                { PMLamF(fst $1, snd $1,  $3, $5) }
+                | ID COLON mterm LONGFATARROW mterm
+                { PMLamI(fst $1, snd $1,  $3, $5) }
+                | box_term
+                { PBoxTe($1) }
+
 %%

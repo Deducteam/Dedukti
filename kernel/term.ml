@@ -59,3 +59,31 @@ let rec term_eq t1 t2 =
     | Lam (_,_,a,b), Lam (_,_,a',b') -> term_eq b b'
     | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false
+
+
+
+type var
+
+type mvar
+
+type ctx
+
+type box_term =
+  | MT of loc * ctx * term (* [ g |- term] *)
+  | CT of loc * ctx (* [g] *)
+
+type mtype =
+  | Impl of loc * mtype * mtype (* mty -> mty' *)
+  | Forall of loc * var * box_term * mtype (* forall m : [g|- term], mty *)
+  | BoxTy of  box_term (* [g |- term] *)
+
+type mterm =
+  | MLamF of loc * var * box_term * mterm (* x : [g|-term] => mte *)
+  | MLamI of loc * var * mterm * mterm (* e : mt => mte *)
+  | BoxTe of box_term (* [g |- term] *)
+  | Var of loc * var (* x *)
+  | MApp of mterm * mterm (* f x *)
+  | Case of branch_case
+
+and branch_case =
+  | BCase of box_term * mterm (* | [g |- t] -> mte *)

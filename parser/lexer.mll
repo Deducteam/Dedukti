@@ -23,7 +23,7 @@
 
 let space   = [' ' '\t' '\r']
 let modname = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
-let ident   = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
+let ident   = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '\'' ]*
 let capital = ['A'-'Z']+
 let number  = ['0'-'9']+
 
@@ -36,6 +36,7 @@ rule token = parse
   | ':'         { COLON         }
   | '['         { LEFTSQU       }
   | ']'         { RIGHTSQU      }
+  | "|-"        { VDASH         }
   | '{'         { LEFTBRA       }
   | '}'         { RIGHTBRA      }
   | '('         { LEFTPAR       }
@@ -43,11 +44,14 @@ rule token = parse
   | "-->"       { LONGARROW     }
   | "->"        { ARROW         }
   | "=>"        { FATARROW      }
+  | "==>"       { LONGFATARROW  }
   | ":="        { DEF           }
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
-  | "Type"      { TYPE ( get_loc lexbuf )       }
+  | "Type"      { TYPE   ( get_loc lexbuf )       }
   | "def"       { KW_DEF ( get_loc lexbuf )       }
   | "thm"       { KW_THM ( get_loc lexbuf )       }
+  | "rec"       { KW_REC ( get_loc lexbuf )       }
+  | "let"       { KW_LET ( get_loc lexbuf )       }
   | "#NAME" space+ (modname as md)
   { NAME (get_loc lexbuf , hstring md) }
   | "#WHNF"     { WHNF     ( get_loc lexbuf ) }

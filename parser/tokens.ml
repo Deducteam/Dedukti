@@ -7,9 +7,12 @@ type token =
   | TYPE        of loc
   | KW_DEF      of loc
   | KW_THM      of loc
+  | KW_REC      of loc
+  | KW_LET      of loc
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
+  | VDASH
   | QID         of ( loc * ident * ident )
   | NAME        of ( loc * ident )
   | LONGARROW
@@ -18,6 +21,7 @@ type token =
   | LEFTBRA
   | ID          of ( loc * ident )
   | FATARROW
+  | LONGFATARROW
   | EOF
   | DOT
   | DEF
