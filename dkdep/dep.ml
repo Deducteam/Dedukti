@@ -42,7 +42,7 @@ let mk_prelude _ prelude_name =
 
 let rec mk_term = function
   | Kind | Type _ | DB _ -> ()
-  | Const (_,md,_) -> add_dep md
+  | Const (_,cst) -> add_dep (md cst)
   | App (f,a,args) -> List.iter mk_term (f::a::args)
   | Lam (_,_,None,te) -> mk_term te
   | Lam (_,_,Some a,b)
@@ -51,7 +51,7 @@ let rec mk_term = function
 
 let rec mk_pattern = function
   | Var  (_,_,_,args) -> List.iter mk_pattern args
-  | Pattern (_,md,_,args) -> ( add_dep md ; List.iter mk_pattern args )
+  | Pattern (_,cst,args) -> ( add_dep (md cst) ; List.iter mk_pattern args )
   | Lambda (_,_,te) -> mk_pattern te
   | Brackets t -> mk_term t
 

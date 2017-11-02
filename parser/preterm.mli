@@ -8,7 +8,7 @@ open Format
 type preterm =
   | PreType of loc
   | PreId   of loc * ident
-  | PreQId  of loc * ident * ident
+  | PreQId  of loc * name
   | PreApp  of preterm * preterm * preterm list
   | PreLam  of loc * ident * preterm option * preterm
   | PrePi   of loc * ident option * preterm * preterm

@@ -7,9 +7,21 @@ type ident = string
 
 let pp_ident fmt id = Format.fprintf fmt "%s" id
 
+type name = ident * ident
+
+let pp_name fmt (md,id) = Format.fprintf fmt "%s.%s" md id
+
+let md = fst
+
+let id = snd
+
+let mk_name md id = (md,id)
+
 let string_of_ident s = s
 
 let ident_eq s1 s2 = s1==s2 || s1=s2
+
+let ident_name n n' = ident_eq (md n) (md n') && ident_eq (id n) (id n')
 
 
 module WS = Weak.Make(

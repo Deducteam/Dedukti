@@ -20,10 +20,10 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
     | PreId (l,id) ->
         begin
           match get_db_index ctx id with
-            | None   -> mk_Const l !name id
+            | None   -> mk_Const l (mk_name !name id)
             | Some n -> mk_DB l id n
         end
-    | PreQId (l,md,id) -> mk_Const l md id
+    | PreQId (l,cst) -> mk_Const l cst
     | PreApp (f,a,args) ->
         mk_App (t_of_pt ctx f) (t_of_pt ctx a) (List.map (t_of_pt ctx) args)
     | PrePi (l,None,a,b) -> mk_Arrow l (t_of_pt ctx a) (t_of_pt (empty::ctx) b)
@@ -85,9 +85,9 @@ let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
       begin
         match get_db_index ctx id with
         | Some n -> Var (l,id,n,List.map (aux ctx) pargs)
-        | None -> Pattern (l,!name,id,List.map (aux ctx) pargs)
+        | None -> Pattern (l,mk_name !name id,List.map (aux ctx) pargs)
       end
-    | PPattern (l,Some md,id,pargs) -> Pattern (l,md,id,List.map (aux ctx) pargs)
+    | PPattern (l,Some md,id,pargs) -> Pattern (l,mk_name md id,List.map (aux ctx) pargs)
     | PLambda (l,x,pp) -> Lambda (l,x, aux (x::ctx) pp)
     | PCondition pte -> Brackets (t_of_pt ctx pte)
     | PJoker l ->
@@ -117,7 +117,7 @@ let scope_rule (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
       (false,(hstring id))
     | Some (_, id) -> (true,id)
   in
-  let name = Gamma(b,md,id) in
+  let name = Gamma(b,mk_name md id) in
   let rule = {name ; ctx= ctx; pat = p_of_pp idents top; rhs = t_of_pt idents pri}  in
   if List.length ctx <> List.length pctx then
     debug 1 "Warning: local variables in the rule %a are not used"

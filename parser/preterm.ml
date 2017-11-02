@@ -4,7 +4,7 @@ open Format
 type preterm =
   | PreType of loc
   | PreId   of loc * ident
-  | PreQId  of loc * ident * ident
+  | PreQId  of loc * name
   | PreApp  of preterm * preterm * preterm list
   | PreLam  of loc * ident * preterm option * preterm
   | PrePi   of loc * ident option * preterm * preterm
@@ -13,7 +13,7 @@ let rec pp_preterm fmt preterm =
   match preterm with
   | PreType _        -> fprintf fmt "Type"
   | PreId (_,v)      -> pp_ident fmt v
-  | PreQId (_,m,v)   -> fprintf fmt "%a.%a" pp_ident m pp_ident v
+  | PreQId (_,cst)   -> fprintf fmt "%a" pp_name cst
   | PreApp (f,a,lst) -> pp_list " " pp_preterm_wp  fmt (f::a::lst)
   | PreLam (_,v,None,b) -> fprintf fmt "%a => %a" pp_ident v pp_preterm b
   | PreLam (_,v,Some a,b) -> fprintf fmt "%a:%a => %a" pp_ident v pp_preterm_wp a pp_preterm b

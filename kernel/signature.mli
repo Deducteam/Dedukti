@@ -16,17 +16,17 @@ val autodep             : bool ref
     - There is no circular dependencies. *)
 
 type signature_error =
-  | FailToCompileModule of loc*ident
-  | UnmarshalBadVersionNumber of loc*string
-  | UnmarshalSysError of loc*string*string
-  | UnmarshalUnknown of loc*string
-  | SymbolNotFound of loc*ident*ident
-  | AlreadyDefinedSymbol of loc*ident
+  | FailToCompileModule of loc * ident
+  | UnmarshalBadVersionNumber of loc * string
+  | UnmarshalSysError of loc * string * string
+  | UnmarshalUnknown of loc * string
+  | SymbolNotFound of loc * name
+  | AlreadyDefinedSymbol of loc * ident
   | CannotMakeRuleInfos of Rule.rule_error
   | CannotBuildDtree of Dtree.dtree_error
-  | CannotAddRewriteRules of loc*ident
-  | ConfluenceErrorImport of loc*ident*Confluence.confluence_error
-  | ConfluenceErrorRules of loc*rule_infos list*Confluence.confluence_error
+  | CannotAddRewriteRules of loc * ident
+  | ConfluenceErrorImport of loc * ident * Confluence.confluence_error
+  | ConfluenceErrorRules of loc * rule_infos list * Confluence.confluence_error
 
 exception SignatureError of signature_error
 
@@ -43,14 +43,10 @@ val get_name            : t -> ident
 val export              : t -> bool
 (** [export ()] saves the current environment in a [*.dko] file.*)
 
-val get_type            : t -> loc -> ident -> ident -> term
+val get_type            : t -> loc -> name -> term
 (** [get_type sg l md id] returns the type of the constant [md.id] inside the environement [sg]. *)
 
-val is_injective        : t -> loc -> ident -> ident -> bool
-(** [is_injective sg l md id] returns true when [md.id] is either static
-    or declared as injective. *)
-
-val get_dtree           : t -> ?select:(Rule.rule_name -> bool) -> loc -> ident -> ident -> (int*dtree) option
+val get_dtree           : t -> ?select:(Rule.rule_name -> bool) -> loc -> name -> (int*dtree) option
 (** [get_dtree sg pred l md id] returns the decision/matching tree associated with [md.id]
     inside the environment [sg]. *)
 

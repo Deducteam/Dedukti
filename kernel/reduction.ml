@@ -166,8 +166,8 @@ let rec find_case (st:state) (cases:(case * dtree) list)
                   (default:dtree option) : (dtree*state list) option =
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
-  | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
-    if ident_eq v v' && ident_eq m m' then
+  | { term=Const (_,n); stack } , (CConst (nargs,n'),tr)::tl ->
+    if ident_name n n' then
       begin
         assert (List.length stack >= nargs);
         Some (tr,stack)
@@ -284,12 +284,12 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
-  | { ctx; term=Const (l,m,v); stack } as state ->
+  | { ctx; term=Const (l,n); stack } as state ->
     begin
       let dtree =
         match !selection with
-        | None -> Signature.get_dtree sg l m v
-        | Some selection -> Signature.get_dtree sg ~select:selection l m v
+        | None -> Signature.get_dtree sg l n
+        | Some selection -> Signature.get_dtree sg ~select:selection l n
       in
       match dtree with
       | None -> state
@@ -328,7 +328,7 @@ and are_convertible_lst sg : (term*term) list -> bool = function
         else
           match whnf sg t1, whnf sg t2 with
           | Kind, Kind | Type _, Type _ -> Some lst
-          | Const (_,m,v), Const (_,m',v') when ( ident_eq v v' && ident_eq m m' ) -> Some lst
+          | Const (_,n), Const (_,n') when ( ident_name n n' ) -> Some lst
           | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
           | App (f,a,args), App (f',a',args') ->
             add_to_list2 args args' ((f,f')::(a,a')::lst)
@@ -398,11 +398,11 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
             (a::lst) in
         state_one_step sg (!aux,{ ctx; term=f; stack=List.rev_append new_stack s })
      (* Potential Gamma redex *)
-     | { ctx; term=Const (l,m,v); stack } ->
+     | { ctx; term=Const (l,n); stack } ->
         let dtree =
           match !selection with
-          | None -> Signature.get_dtree sg l m v
-          | Some selection -> Signature.get_dtree sg ~select:selection l m v
+          | None -> Signature.get_dtree sg l n
+          | Some selection -> Signature.get_dtree sg ~select:selection l n
         in
         begin
           match dtree with

@@ -25,7 +25,7 @@
         | (l,x,ty)::tl -> PrePi(l,Some x,ty,mk_pi te tl)
 
     let rec preterm_loc = function
-        | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
+        | PreType l | PreId (l,_) | PreQId (l,_) | PreLam  (l,_,_,_)
         | PrePi   (l,_,_,_) -> l
         | PreApp (f,_,_) -> preterm_loc f
 
@@ -90,7 +90,7 @@
 
 %%
 
-prelude         : NAME DOT      { let (lc,name) = $1 in	
+prelude         : NAME DOT      { let (lc,name) = $1 in
                                         Scoping.name := name;
                                         mk_prelude lc name }
 
@@ -114,8 +114,6 @@ line            : ID COLON term DOT
                 | KW_THM ID param+ COLON term DEF term DOT
                 { mk_opaque (fst $2) (snd $2) (Some (scope_term [] (mk_pi $5 $3)))
                         (scope_term [] (mk_lam $7 $3)) }
-                | LEFTBRA ID param+ RIGHTBRA DEF term DOT
-                { mk_opaque (fst $2) (snd $2)  None (scope_term [] (mk_lam $6 $3)) }
                 | rule+ DOT
                 { mk_rules (List.map scope_rule $1) }
                 | command DOT { $1 }
@@ -184,7 +182,7 @@ pattern         : ID  pattern_wp+
                         { $1 }
 
 sterm           : QID
-                { let (l,md,id)=$1 in PreQId(l,md,id) }
+                { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
                 | ID
                 { PreId (fst $1,snd $1) }
                 | LEFTPAR term RIGHTPAR

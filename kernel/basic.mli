@@ -9,6 +9,21 @@ type ident
 (** pp_ident [fmt] [id] print the identifier [id] on the formatter [fmt] *)
 val pp_ident : Format.formatter -> ident -> unit
 
+(** type for constant names such as [foo.bar] *)
+type name
+
+(** md [foo.bar] returns foo *)
+val md : name -> ident
+
+(** id [foo.bar] returns bar *)
+val id : name -> ident
+
+(** mk_name foo bar returns the foo.bar *)
+val mk_name : ident -> ident -> name
+
+(** pp_name [fmt] [n] print the name [n] on the formatter [fmt] *)
+val pp_name : Format.formatter -> name -> unit
+
 (** string_of_ident [id] returns a string of the identifier [id] *)
 val string_of_ident : ident -> string
 
@@ -17,6 +32,9 @@ val hstring : string -> ident
 
 (** ident_eq [id] [id'] checks if the two identifiers [id] and [id'] are equals *)
 val ident_eq : ident -> ident -> bool
+
+(** ident_name [n] [n'] checks if the two names [n] and [n'] are equals *)
+val ident_name : name -> name -> bool
 
 (** qmark is a special identifier for unification variables *)
 val qmark : ident

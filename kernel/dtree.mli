@@ -8,8 +8,8 @@ open Rule
     - a variable
     - a lambda expression *)
 type case =
-  | CConst of int*ident*ident
-  (** [size] [m] [v] where [size] is the number of *static* arguments expected for the constant [m.v] *)
+  | CConst of int*name
+  (** [size] [c] where [size] is the number of *static* arguments expected for the constant [c] *)
   | CDB    of int*int
   (** [size] [i] where size is the number of *static* arguments expected for the bounded variable [i] *)
   | CLam (** Just a lambda term *)
@@ -53,8 +53,8 @@ val pp_rw : Format.formatter -> rw -> unit
 (** {2 Error} *)
 
 type dtree_error =
-  | HeadSymbolMismatch of loc * ident * ident
-  | ArityMismatch of loc * ident
+  | HeadSymbolMismatch of loc * name * name
+  | ArityMismatch of loc * name
   | ArityInnerMismatch of loc * ident * ident
 
 (** Compilation of rewrite rules into decision trees. *)

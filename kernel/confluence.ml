@@ -72,10 +72,10 @@ let pp_pattern ar fmt pat = Format.(
       fprintf fmt "v_%a" pp_ident x ;
       List.iter (fun pat -> fprintf fmt ",%a)" (aux 0) pat) args
     end
-  | Pattern (_,m,v,args) ->
+  | Pattern (_,cst,args) ->
     begin
       List.iter (fun _ -> fprintf fmt "app(") args ;
-      fprintf fmt "c_%a_%a" pp_ident m pp_ident v ;
+      fprintf fmt "c_%a_%a" pp_ident (md cst) pp_ident (id cst) ;
       List.iter (fun pat -> fprintf fmt ",%a)" (aux k) pat) args
     end
   | Var (_,x,n,[]) (* n>=k *) -> fprintf fmt "m_%a" pp_ident x ;
@@ -102,7 +102,7 @@ let pp_pattern ar fmt pat = Format.(
 
 let rec pp_term (ar:int IdMap.t) k fmt term = Format.(
   match term with
-  | Const (_,m,v) -> fprintf fmt "c_%a_%a" pp_ident m pp_ident v
+  | Const (_,cst) -> fprintf fmt "c_%a_%a" pp_ident (md cst) pp_ident (id cst)
   | Lam (_,x,Some a,b) ->
     fprintf fmt "lam(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
   | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
@@ -145,7 +145,7 @@ let get_bvars r =
       List.fold_left (aux_t k) bvars (f::a::args)
   in
   let rec aux_p k bvars = function
-    | Var (_,_,_,args) | Pattern (_,_,_,args) ->
+    | Var (_,_,_,args) | Pattern (_,_,args) ->
       List.fold_left (aux_p k) bvars args
     | Lambda (_,x,p) -> aux_p (k+1) (x::bvars) p
     | Brackets te -> aux_t k bvars te
@@ -156,7 +156,7 @@ let get_bvars r =
 let get_arities (ctx:typed_context) (p:pattern) : int IdMap.t =
   let rec aux k map = function
     | Var (_,x,n,args) when (n<k) -> List.fold_left (aux k) map args
-    | Pattern (_,m,v,args) -> List.fold_left (aux k) map args
+    | Pattern (_,_,args) -> List.fold_left (aux k) map args
     | Var (_,x,n,args) (* n>=k *) ->
       let map2 = List.fold_left (aux k) map args in
       let ar1 = List.length args in

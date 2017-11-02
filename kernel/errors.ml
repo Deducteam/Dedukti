@@ -91,13 +91,13 @@ let fail_typing_error err =
 let fail_dtree_error err =
   let open Dtree in
     match err with
-      | HeadSymbolMismatch (lc,hd1,hd2) ->
+      | HeadSymbolMismatch (lc,cst1,cst2) ->
           fail lc "Unexpected head symbol '%a' \ (expected '%a')."
-            pp_ident hd1 pp_ident hd2
-      | ArityMismatch (lc,id) ->
+            pp_name cst1 pp_name cst2
+      | ArityMismatch (lc,cst) ->
           fail lc
             "All the rewrite rules for \ the symbol '%a' should have the same arity."
-            pp_ident id
+            pp_name cst
       | ArityInnerMismatch (lc,rid, id) ->
           fail lc
             "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
@@ -150,8 +150,8 @@ let fail_signature_error err =
           fail lc "Fail to open module '%s' (%s)." md msg
       | UnmarshalUnknown (lc,md) ->
           fail lc "Fail to open module '%s'." md
-      | SymbolNotFound (lc,md,id) ->
-          fail lc "Cannot find symbol '%a.%a'." pp_ident md pp_ident id
+      | SymbolNotFound (lc,cst) ->
+          fail lc "Cannot find symbol '%a'." pp_name cst
       | AlreadyDefinedSymbol (lc,id) ->
           fail lc "Already declared symbol '%a'." pp_ident id
       | CannotBuildDtree err -> fail_dtree_error err
