@@ -69,7 +69,7 @@ let mk_command lc = function
     let cst = mk_name m v in
         ( match Env.get_dtree lc cst with
             | OK (Some (i,g)) ->
-                Format.printf "%a\n" Dtree.pp_rw (m,v,i,g)
+                Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
             | _ -> Format.printf "No GDT.@." )
   | Print str         -> Format.printf "%s@." str
   | Other (cmd,_)     -> Format.eprintf "Unknown command '%s'.@." cmd

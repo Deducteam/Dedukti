@@ -16,7 +16,7 @@ val autodep             : bool ref
     - There is no circular dependencies. *)
 
 type signature_error =
-  | FailToCompileModule of loc * ident
+  | FailToCompileModule of loc * mident
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError of loc * string * string
   | UnmarshalUnknown of loc * string
@@ -25,7 +25,7 @@ type signature_error =
   | CannotMakeRuleInfos of Rule.rule_error
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc * ident
-  | ConfluenceErrorImport of loc * ident * Confluence.confluence_error
+  | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules of loc * rule_infos list * Confluence.confluence_error
 
 exception SignatureError of signature_error
@@ -34,10 +34,10 @@ type staticity = Static | Definable
 
 type t
 
-val make                : ident -> t
+val make                : mident -> t
 (** [make name] creates a new signature withe the name [name]. *)
 
-val get_name            : t -> ident
+val get_name            : t -> mident
 (** [get_name sg] returns the name of the signature [sg]. *)
 
 val export              : t -> bool

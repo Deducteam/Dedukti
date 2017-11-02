@@ -51,7 +51,7 @@ let mk_matrix : rule_infos list -> matrix = function
     let n = Array.length r1.l_args in
     let o = List.map (
         fun r2 ->
-          if not (ident_name r1.cst r2.cst) then
+          if not (name_eq r1.cst r2.cst) then
             raise (DtreeExn (HeadSymbolMismatch (r2.l,r2.cst,r1.cst)))
           else
           if n != Array.length r2.l_args then
@@ -88,7 +88,7 @@ let filter_on_bound_variable c n r =
 (* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
 let filter_on_pattern c cst r =
   match r.pats.(c) with
-    | LPattern (cst',_) when ident_name cst cst' -> true
+    | LPattern (cst',_) when name_eq cst cst' -> true
     | LVar _ | LJoker -> true
     | _ -> false
 
@@ -154,11 +154,11 @@ and pp_def t fmt def =
 
 let pp_dtree fmt dtree = pp_dtree 0 fmt dtree
 
-type rw = ident * ident * int * dtree
+type rw = name * int * dtree
 
-let pp_rw fmt (m,v,i,g) =
-  fprintf fmt "GDT for '%a.%a' with %i argument(s): %a"
-    pp_ident m pp_ident v i pp_dtree g
+let pp_rw fmt (cst,i,g) =
+  fprintf fmt "GDT for '%a' with %i argument(s): %a"
+    pp_name cst i pp_dtree g
 
 
 (* Specialize the rule [r] on column [c]
@@ -238,7 +238,7 @@ let eq a b =
   match a, b with
     | CLam, CLam -> true
     | CDB (_,n), CDB (_,n') when n==n' -> true
-    | CConst (_,cst), CConst (_,cst') when (ident_name cst cst') -> true
+    | CConst (_,cst), CConst (_,cst') when (name_eq cst cst') -> true
     | _, _ -> false
 
 let partition (mx:matrix) (c:int) : case list =

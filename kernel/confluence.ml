@@ -63,6 +63,8 @@ let rec split n lst =
       let (x,y) = split (n-1) tl in
       ( hd::x, tl )
 
+let print_name fmt cst = Format.fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
+
 let pp_pattern ar fmt pat = Format.(
   let nb = ref 0 in
   let rec aux k fmt = function
@@ -75,7 +77,7 @@ let pp_pattern ar fmt pat = Format.(
   | Pattern (_,cst,args) ->
     begin
       List.iter (fun _ -> fprintf fmt "app(") args ;
-      fprintf fmt "c_%a_%a" pp_ident (md cst) pp_ident (id cst) ;
+      fprintf fmt "c_%a" print_name cst;
       List.iter (fun pat -> fprintf fmt ",%a)" (aux k) pat) args
     end
   | Var (_,x,n,[]) (* n>=k *) -> fprintf fmt "m_%a" pp_ident x ;
@@ -102,7 +104,7 @@ let pp_pattern ar fmt pat = Format.(
 
 let rec pp_term (ar:int IdMap.t) k fmt term = Format.(
   match term with
-  | Const (_,cst) -> fprintf fmt "c_%a_%a" pp_ident (md cst) pp_ident (id cst)
+  | Const (_,cst) -> fprintf fmt "c_%a" print_name cst;
   | Lam (_,x,Some a,b) ->
     fprintf fmt "lam(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
   | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
@@ -212,12 +214,12 @@ let check () : (unit,confluence_error) error =
         with End_of_file -> Err (CCFailure cmd)
       end
 
-let add_constant md id =
+let add_constant cst =
   match !file_out with
   | None -> ()
   | Some (file,out) ->
     let fmt = Format.formatter_of_out_channel out in
-    Format.fprintf fmt "(FUN c_%a_%a : term)\n" pp_ident md pp_ident id
+    Format.fprintf fmt "(FUN c_%a : term)\n" print_name cst
 
 let add_rules lst =
   match !file_out with

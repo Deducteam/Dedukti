@@ -46,7 +46,7 @@ type dtree =
 val pp_dtree : Format.formatter -> dtree -> unit
 
 (** [md] [v] [i] [tree] is the dtree associated to the constant [md].[v] with [i] arguments *)
-type rw = ident * ident * int * dtree
+type rw = name * int * dtree
 
 val pp_rw : Format.formatter -> rw -> unit
 

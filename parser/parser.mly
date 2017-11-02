@@ -1,6 +1,6 @@
 %parameter <M :
   sig
-    val mk_prelude     : Basic.loc -> Basic.ident -> unit
+    val mk_prelude     : Basic.loc -> Basic.mident -> unit
     val mk_declaration : Basic.loc -> Basic.ident -> Signature.staticity -> Term.term -> unit
     val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
@@ -63,12 +63,12 @@
 %token <Basic.loc> GDT
 %token <Basic.loc*string> OTHER
 %token <Basic.loc> UNDERSCORE
-%token <Basic.loc*Basic.ident>NAME
+%token <Basic.loc*Basic.mident>NAME
 %token <Basic.loc> TYPE
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
 %token <Basic.loc*Basic.ident> ID
-%token <Basic.loc*Basic.ident*Basic.ident> QID
+%token <Basic.loc*Basic.mident*Basic.ident> QID
 %token <string> STRING
 %token <int>    INT
 
@@ -80,7 +80,7 @@
 %type <Preterm.pdecl> decl
 %type <Basic.loc*Basic.ident*Preterm.preterm> param
 %type <Preterm.pdecl list> context
-%type <Basic.loc*Basic.ident option*Basic.ident*Preterm.prepattern list> top_pattern
+%type <Basic.loc*Basic.mident option*Basic.ident*Preterm.prepattern list> top_pattern
 %type <Preterm.prepattern> pattern
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm

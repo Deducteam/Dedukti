@@ -3,7 +3,7 @@ open Preterm
 open Term
 open Rule
 
-let name = ref qmark
+let name = ref (mk_mident "unknown")
 
 let get_db_index ctx id =
   let rec aux n = function
@@ -12,7 +12,7 @@ let get_db_index ctx id =
     | _::lst -> aux (n+1) lst
   in aux 0 ctx
 
-let empty = hstring ""
+let empty = mk_ident ""
 
 let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
   match pte with
@@ -43,7 +43,7 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context =
   let nb_jokers = ref 0 in
   let get_fresh_name () =
     incr nb_jokers;
-    hstring ("?_" ^ string_of_int !nb_jokers)
+    mk_ident ("?_" ^ string_of_int !nb_jokers)
   in
   let is_a_var id1 =
     let rec aux = function
@@ -78,7 +78,7 @@ let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
   let nb_jokers = ref 0 in
   let get_fresh_name () =
     incr nb_jokers;
-    hstring ("?_" ^ string_of_int !nb_jokers)
+    mk_ident ("?_" ^ string_of_int !nb_jokers)
   in
   let rec aux (ctx:ident list): prepattern -> pattern = function
     | PPattern (l,None,id,pargs) ->
@@ -114,7 +114,7 @@ let scope_rule (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
     match pname with
     | None ->
       let id = Format.sprintf "%s!%d" (string_of_ident id) (fst (of_loc l)) in
-      (false,(hstring id))
+      (false,(mk_ident id))
     | Some (_, id) -> (true,id)
   in
   let name = Gamma(b,mk_name md id) in

@@ -27,7 +27,7 @@ let rec find_dko_in_path name = function
 (* If the file for module m is not found in load path, add it to the
    list of dependencies *)
 let add_dep m =
-  let s = string_of_ident m in
+  let s = string_of_mident m in
   if not (find_dko_in_path s (get_path()))
   then begin
       let (name,m_deps) = List.hd !deps in
@@ -36,7 +36,7 @@ let add_dep m =
   end
 
 let mk_prelude _ prelude_name =
-  let name = string_of_ident prelude_name in
+  let name = string_of_mident prelude_name in
   deps := (name, [])::!deps
 
 

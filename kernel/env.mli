@@ -11,12 +11,12 @@ type env_error =
 
 (** {2 The Global Environment} *)
 
-val init        : ident -> unit
+val init        : mident -> unit
 (** [init name] initializes a new global environement giving it the name [name].
     Every top level declaration will be qualified be this name. *)
 
-val get_name    : unit -> ident
-(** [get_name ()] returns the name of environment/module. *)
+val get_name    : unit -> mident
+(** [get_name ()] returns the name of the module. *)
 
 val get_type    : loc -> name -> (term,signature_error) error
 (** [get_type l md id] returns the type of the constant [md.id]. *)

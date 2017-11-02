@@ -22,7 +22,7 @@
 }
 
 let space   = [' ' '\t' '\r']
-let modname = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
+let mident = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
 let ident   = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
 let capital = ['A'-'Z']+
 let number  = ['0'-'9']+
@@ -48,8 +48,8 @@ rule token = parse
   | "Type"      { TYPE ( get_loc lexbuf )       }
   | "def"       { KW_DEF ( get_loc lexbuf )       }
   | "thm"       { KW_THM ( get_loc lexbuf )       }
-  | "#NAME" space+ (modname as md)
-  { NAME (get_loc lexbuf , hstring md) }
+  | "#NAME" space+ (mident as md)
+  { NAME (get_loc lexbuf , mk_mident md) }
   | "#WHNF"     { WHNF     ( get_loc lexbuf ) }
   | "#HNF"      { HNF      ( get_loc lexbuf ) }
   | "#SNF"      { SNF      ( get_loc lexbuf ) }
@@ -63,10 +63,10 @@ rule token = parse
   | "#GDT"      { GDT      ( get_loc lexbuf ) }
   | '#' (capital as cmd) { OTHER (get_loc lexbuf, cmd) }
   | '#' (number  as i  ) { INT   (int_of_string i) }
-  | modname as md '.' (ident as id)
-  { QID ( get_loc lexbuf , hstring md , hstring id ) }
+  | mident as md '.' (ident as id)
+  { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id
-  { ID  ( get_loc lexbuf , hstring id ) }
+  { ID  ( get_loc lexbuf , mk_ident id ) }
   | '"' { string (Buffer.create 42) lexbuf }
   | _   as s
   { fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }

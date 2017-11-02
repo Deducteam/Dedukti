@@ -10,8 +10,8 @@ type token =
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
-  | QID         of ( loc * ident * ident )
-  | NAME        of ( loc * ident )
+  | QID         of ( loc * mident * ident )
+  | NAME        of ( loc * mident )
   | LONGARROW
   | LEFTSQU
   | LEFTPAR

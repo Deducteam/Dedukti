@@ -52,7 +52,7 @@ let rec term_eq t1 t2 =
   match t1, t2 with
     | Kind, Kind | Type _, Type _ -> true
     | DB (_,_,n), DB (_,_,n') -> n==n'
-    | Const (_,n), Const (_,n') -> ident_name n n'
+    | Const (_,cst), Const (_,cst') -> name_eq cst cst'
     | App (f,a,l), App (f',a',l') ->
         ( try List.for_all2 term_eq (f::a::l) (f'::a'::l')
           with _ -> false )

@@ -18,11 +18,13 @@ let rec print_list sep pp out = function
 
 let print_ident = pp_ident
 
+let print_mident = pp_mident
+
 let print_name = pp_name
 
 let print_const out cst =
   let md = md cst in
-  if ident_eq md (name ()) then print_ident out (id cst)
+  if mident_eq md (name ()) then print_ident out (id cst)
   else Format.fprintf out "%a" pp_name cst
 
 (* Idents generated from underscores by the parser start with a question mark.
@@ -41,7 +43,7 @@ let print_db_or_underscore out (x,n) =
 let fresh_name names base =
   if List.mem base names then
     let i = ref 0 in
-    let name i = hstring (string_of_ident base ^ string_of_int i) in
+    let name i = mk_ident (string_of_ident base ^ string_of_int i) in
     while List.mem (name !i) names do
       incr i
     done;
@@ -64,8 +66,8 @@ let rec subst map = function
   (* a hack proposed by Raphael Cauderlier *)
   | Const (l,cst) as t       ->
     let m,v = md cst, id cst in
-    if List.mem v map && ident_eq (name ()) m then
-      let v' = (hstring ((string_of_ident m) ^ "." ^ (string_of_ident v))) in
+    if List.mem v map && mident_eq (name ()) m then
+      let v' = (mk_ident ((string_of_mident m) ^ "." ^ (string_of_ident v))) in
        mk_Const l (mk_name m v')
     else
       t
@@ -127,7 +129,7 @@ let print_typed_context fmt ctx =
 let print_rule_name fmt rule =
   let aux b cst =
     if b || !print_default then
-      if ident_eq (md cst) (Env.get_name ()) then
+      if mident_eq (md cst) (Env.get_name ()) then
         Format.fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
       else
       Format.fprintf fmt "@[<h>{%a}@] " print_name cst

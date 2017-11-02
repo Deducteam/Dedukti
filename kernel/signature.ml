@@ -9,7 +9,7 @@ let ignore_redecl = ref false
 let autodep = ref false
 
 type signature_error =
-  | FailToCompileModule of loc * ident
+  | FailToCompileModule of loc * mident
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError of loc * string * string
   | UnmarshalUnknown of loc * string
@@ -18,7 +18,7 @@ type signature_error =
   | CannotMakeRuleInfos of Rule.rule_error
   | CannotBuildDtree of Dtree.dtree_error
   | CannotAddRewriteRules of loc * ident
-  | ConfluenceErrorImport of loc * ident * Confluence.confluence_error
+  | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules of loc * rule_infos list * Confluence.confluence_error
 
 exception SignatureError of signature_error
@@ -28,7 +28,14 @@ type dtree_or_def =
   | DoD_Def of term
   | DoD_Dtree of int*dtree
 
-module H = Hashtbl.Make(
+module HMd = Hashtbl.Make(
+struct
+  type t        = mident
+  let equal     = mident_eq
+  let hash      = Hashtbl.hash
+end )
+
+module HId = Hashtbl.Make(
 struct
   type t        = ident
   let equal     = ident_eq
@@ -44,12 +51,13 @@ type rw_infos =
     rule_opt_info: (rule_infos list*int*dtree) option
   }
 
-type t = { name:ident; tables:(rw_infos H.t) H.t;
+type t = { name:mident;
+           tables:(rw_infos HId.t) HMd.t;
            mutable external_rules:rule_infos list list; }
 
 let make name =
-  let ht = H.create 19 in
-  H.add ht name (H.create 251); { name=name; tables=ht; external_rules=[]; }
+  let ht = HMd.create 19 in
+  HMd.add ht name (HId.create 251); { name=name; tables=ht; external_rules=[]; }
 
 let get_name sg = sg.name
 
@@ -60,9 +68,9 @@ let add_rule_infos sg (lst:rule_infos list) : unit =
   | [] -> ()
   | (r::_ as rs) ->
     let env =
-      try H.find sg.tables (md r.cst)
+      try HMd.find sg.tables (md r.cst)
       with Not_found -> assert false in (*should not happen if the dependencies are loaded before*)
-    let infos = try ( H.find env (id r.cst) )
+    let infos = try ( HId.find env (id r.cst) )
       with Not_found -> assert false in
     let ty = infos.ty in
     if (infos.stat = Static) then
@@ -73,16 +81,16 @@ let add_rule_infos sg (lst:rule_infos list) : unit =
     in
     match Dtree.of_rules rules with
     | OK (n,tree) ->
-       H.add env (id r.cst)
+       HId.add env (id r.cst)
          {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,n,tree)}
     | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 (******************************************************************************)
 
-let marshal (name:ident) (deps:string list) (env:rw_infos H.t) (ext:rule_infos list list) : bool =
+let marshal (name:mident) (deps:string list) (env:rw_infos HId.t) (ext:rule_infos list list) : bool =
   try
     begin
-      let out = open_out (string_of_ident name ^ ".dko" ) in
+      let out = open_out (string_of_mident name ^ ".dko" ) in
         Marshal.to_channel out Version.version [] ;
         Marshal.to_channel out deps [] ;
         Marshal.to_channel out env [] ;
@@ -113,7 +121,7 @@ let find_dko name =
       (* If not found in the current directory, search in load-path *)
       find_dko_in_path name (get_path())
 
-let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t * rule_infos list list =
+let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos list list =
   try
     begin
       let chan = find_dko m in
@@ -121,7 +129,7 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t * rule_infos list
         if String.compare ver Version.version = 0 then
           begin
             let deps:string list = Marshal.from_channel chan in
-            let ctx:rw_infos H.t = Marshal.from_channel chan in
+            let ctx:rw_infos HId.t = Marshal.from_channel chan in
             let ext:rule_infos list list= Marshal.from_channel chan in
               close_in chan ; (deps,ctx,ext)
           end
@@ -134,61 +142,62 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos H.t * rule_infos list
 
 (******************************************************************************)
 
-let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
+let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
   let aux id infos =
-    Confluence.add_constant md id;
+    let cst = mk_name md id in
+    Confluence.add_constant cst;
     match infos.rule_opt_info with
     | None -> ()
     | Some (rs,_,_) -> Confluence.add_rules rs
   in
-  H.iter aux ctx;
-  debug 1 "Checking confluence after loading module '%a'..." pp_ident md;
+  HId.iter aux ctx;
+  debug 1 "Checking confluence after loading module '%a'..." pp_mident md;
   match Confluence.check () with
   | OK () -> ()
   | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
-  assert ( not (H.mem sg.tables m) ) ;
+  assert ( not (HMd.mem sg.tables m) ) ;
 
   (* If the [.dko] file is not found, try to compile it first.
      This hack is terrible. It uses system calls and can loop with circular dependencies.
      Also, this hack supposes that the module name and the file name are the same.*)
-  ( if !autodep && not ( Sys.file_exists ( string_of_ident m ^ ".dko" ) ) then
-      if Sys.command ( "dkcheck -autodep -e " ^ string_of_ident m ^ ".dk" ) <> 0 then
+  ( if !autodep && not ( Sys.file_exists ( string_of_mident m ^ ".dko" ) ) then
+      if Sys.command ( "dkcheck -autodep -e " ^ string_of_mident m ^ ".dk" ) <> 0 then
         raise (SignatureError (FailToCompileModule (lc,m)))
   ) ;
 
-  let (deps,ctx,ext) = unmarshal lc (string_of_ident m) in
-  H.add sg.tables m ctx;
+  let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
+  HMd.add sg.tables m ctx;
   List.iter ( fun dep0 ->
-      let dep = hstring dep0 in
-      if not (H.mem sg.tables dep) then ignore (import sg lc dep)
+      let dep = mk_mident dep0 in
+      if not (HMd.mem sg.tables dep) then ignore (import sg lc dep)
     ) deps ;
-  debug 1 "Loading module '%a'..." pp_ident m;
+  debug 1 "Loading module '%a'..." pp_mident m;
   List.iter (fun rs -> add_rule_infos sg rs) ext;
   check_confluence_on_import lc m ctx;
   ctx
 
 let get_deps sg : string list = (*only direct dependencies*)
-  H.fold (
+  HMd.fold (
     fun md _ lst ->
-      if ident_eq md sg.name then lst
-      else (string_of_ident md)::lst
+      if mident_eq md sg.name then lst
+      else (string_of_mident md)::lst
     ) sg.tables []
 
 let export sg =
-  marshal sg.name (get_deps sg) (H.find sg.tables sg.name) sg.external_rules
+  marshal sg.name (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
 
 (******************************************************************************)
 
 let get_infos sg lc cst =
   let md = md cst in
   let env =
-    try H.find sg.tables md
+    try HMd.find sg.tables md
     with Not_found -> import sg lc md
   in
-    try ( H.find env (id cst))
+    try ( HId.find env (id cst))
     with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
@@ -217,13 +226,14 @@ let get_dtree sg ?select:(pred=pred_true) l cst =
 (******************************************************************************)
 
 let add_declaration sg lc v st ty =
-  Confluence.add_constant sg.name v;
-  let env = H.find sg.tables sg.name in
-  if H.mem env v then
+  let cst = mk_name sg.name v in
+  Confluence.add_constant cst;
+  let env = HMd.find sg.tables sg.name in
+  if HId.mem env v then
     ( if !ignore_redecl then debug 1 "Redeclaration ignored."
       else raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
   else
-    H.add env v {stat=st; ty=ty; rule_opt_info=None}
+    HId.add env v {stat=st; ty=ty; rule_opt_info=None}
 
 let add_rules sg lst : unit =
   let rs = map_error_list Rule.to_rule_infos lst in
@@ -233,7 +243,7 @@ let add_rules sg lst : unit =
   | OK (r::_ as rs) ->
     begin
       add_rule_infos sg rs;
-      if not (ident_eq sg.name (md r.cst)) then
+      if not (mident_eq sg.name (md r.cst)) then
         sg.external_rules <- rs::sg.external_rules;
       Confluence.add_rules rs;
       debug 1 "Checking confluence after adding rewrite rules on symbol '%a'"

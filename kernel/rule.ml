@@ -176,7 +176,7 @@ let allow_non_linear = ref false
 (* This function checks that the pattern is a Miller pattern and extracts non-linearity and bracket constraints from a list of patterns. *)
 (* TODO : cut this function in smaller ones *)
 let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * constr list =
-  let br = hstring "{_}" in  (* FIXME : can be replaced by dmark? *)
+  let br = mk_ident "{_}" in  (* FIXME : can be replaced by dmark? *)
   let rec all_distinct l =
     match l with
     | [] -> true
