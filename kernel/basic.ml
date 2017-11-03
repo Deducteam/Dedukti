@@ -11,15 +11,18 @@ type mident = string
 
 let pp_mident fmt md = Format.fprintf fmt "%s" md
 
-type name = mident * ident
+type name =
+  { md:mident;
+    id:ident
+  }
 
-let pp_name fmt (md,id) = Format.fprintf fmt "%s.%s" md id
+let pp_name fmt name = Format.fprintf fmt "%s.%s" name.md name.id
 
-let md = fst
+let md name = name.md
 
-let id = snd
+let id name = name.id
 
-let mk_name md id = (md,id)
+let mk_name md id = {md;id}
 
 let string_of_ident s = s
 
@@ -29,7 +32,7 @@ let ident_eq s1 s2 = s1==s2 || s1=s2
 
 let mident_eq = ident_eq
 
-let name_eq n n' = ident_eq (md n) (md n') && ident_eq (id n) (id n')
+let name_eq n n' = ident_eq n.md n'.md && ident_eq n.id n'.id
 
 
 module WS = Weak.Make(

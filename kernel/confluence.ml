@@ -9,8 +9,8 @@ type confluence_error =
 
 module IdMap = Map.Make(
     struct
-      type t = ident
-      let compare x y = String.compare (string_of_ident x) (string_of_ident y)
+      type t = string
+      let compare x y = String.compare x y
     end
   )
 
@@ -71,32 +71,32 @@ let pp_pattern ar fmt pat = Format.(
   | Var (_,x,n,args) when (n<k) ->
     begin
       List.iter (fun _ -> fprintf fmt "app(") args ;
-      fprintf fmt "v_%a" pp_ident x ;
+      fprintf fmt "v_%s" x;
       List.iter (fun pat -> fprintf fmt ",%a)" (aux 0) pat) args
     end
   | Pattern (_,cst,args) ->
     begin
       List.iter (fun _ -> fprintf fmt "app(") args ;
-      fprintf fmt "c_%a" print_name cst;
+      fprintf fmt "c_%a" Name.pp_ident cst;
       List.iter (fun pat -> fprintf fmt ",%a)" (aux k) pat) args
     end
-  | Var (_,x,n,[]) (* n>=k *) -> fprintf fmt "m_%a" pp_ident x ;
+  | Var (_,x,n,[]) (* n>=k *) -> fprintf fmt "m_%s" x ;
   | Var (_,x,n,a::args) (* n>=k *) ->
     let arity = IdMap.find x ar in
       if arity == 0 then (
         List.iter (fun _ -> fprintf fmt "app(" ) (a::args);
-        fprintf fmt "m_%a" pp_ident x;
+        fprintf fmt "m_%s" x;
         List.iter ( fprintf fmt ",%a)" (aux k) ) (a::args)
       ) else (
         let (args1,args2) = split (arity-1) args in
         List.iter (fun _ -> fprintf fmt "app(" ) args2;
-        fprintf fmt "m_%a(%a" pp_ident x (aux k) a;
+        fprintf fmt "m_%s(%a" x (aux k) a;
         List.iter ( fprintf fmt ",%a" (aux k) ) args1;
         fprintf fmt ")";
         List.iter ( fprintf fmt ",%a)" (aux k) ) args2
       )
   | Lambda (_,x,p) ->
-    fprintf fmt "lam(m_typ,\\v_%a.%a)" pp_ident x (aux (k+1)) p
+    fprintf fmt "lam(m_typ,\\v_%s.%a)" x (aux (k+1)) p
   | Brackets _ -> ( incr nb; fprintf fmt "b_%i" !nb )
   in
   aux 0 fmt pat
@@ -104,24 +104,24 @@ let pp_pattern ar fmt pat = Format.(
 
 let rec pp_term (ar:int IdMap.t) k fmt term = Format.(
   match term with
-  | Const (_,cst) -> fprintf fmt "c_%a" print_name cst;
+  | Const (_,cst) -> fprintf fmt "c_%a" Name.pp_ident cst;
   | Lam (_,x,Some a,b) ->
-    fprintf fmt "lam(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
+    fprintf fmt "lam(%a,\\v_%s.%a)" (pp_term ar k) a x (pp_term ar (k+1)) b
   | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
   | Pi (_,x,a,b) ->
-    fprintf fmt "pi(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
-  | DB (_,x,n) when n<k -> fprintf fmt "v_%a" pp_ident x
-  | DB (_,x,_) -> fprintf fmt "m_%a" pp_ident x
+    fprintf fmt "pi(%a,\\v_%s.%a)" (pp_term ar k) a x (pp_term ar (k+1)) b
+  | DB (_,x,n) when n<k -> fprintf fmt "v_%s" x
+  | DB (_,x,_) -> fprintf fmt "m_%s" x
   | App (DB (_,x,n),a,args) when (n>=k) ->
     let arity = IdMap.find x ar in
     if arity == 0 then (
       List.iter (fun _ -> fprintf fmt "app(" ) (a::args);
-      fprintf fmt "m_%a" pp_ident x;
+      fprintf fmt "m_%s" x;
       List.iter ( fprintf fmt ",%a)" (pp_term ar k) ) (a::args)
     ) else (
       let (args1,args2) = split (arity-1) args in
       List.iter (fun _ -> fprintf fmt "app(" ) args2;
-      fprintf fmt "m_%a(%a" pp_ident x (pp_term ar k) a;
+      fprintf fmt "m_%s(%a"  x (pp_term ar k) a;
       List.iter ( fprintf fmt ",%a" (pp_term ar k) ) args1;
       fprintf fmt ")";
       List.iter ( fprintf fmt ",%a)" (pp_term ar k) ) args2
@@ -182,8 +182,8 @@ let pp_rule fmt (r:rule_infos) = Format.(
   let arities = get_arities r.ctx pat in
   (* Variables*)
   fprintf fmt "(VAR\n";
-  IdMap.iter (fun x n -> fprintf fmt "  m_%a : %a\n" pp_ident x pp_type n) arities;
-  List.iter  (fun x -> fprintf fmt "  v_%a : term\n" pp_ident x) (get_bvars r) ;
+  IdMap.iter (fun x n -> fprintf fmt "  m_%s : %a\n"x pp_type n) arities;
+  List.iter  (fun x -> fprintf fmt "  v_%s : term\n" x) (get_bvars r) ;
   List.iteri (fun i _ -> fprintf fmt "  b_%i : term\n" (i+1)) (r.constraints) ;
   fprintf fmt ")\n";
   (* Rule *)
@@ -219,7 +219,7 @@ let add_constant cst =
   | None -> ()
   | Some (file,out) ->
     let fmt = Format.formatter_of_out_channel out in
-    Format.fprintf fmt "(FUN c_%a : term)\n" print_name cst
+    Format.fprintf fmt "(FUN c_%a : term)\n" Name.pp_ident cst
 
 let add_rules lst =
   match !file_out with

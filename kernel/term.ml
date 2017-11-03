@@ -6,22 +6,22 @@ open Format
 type term =
   | Kind                                             (* Kind *)
   | Type  of loc                                     (* Type *)
-  | DB    of loc * ident * int                       (* deBruijn *)
-  | Const of loc * name                              (* Global variable *)
+  | DB    of loc * string * int                       (* deBruijn *)
+  | Const of loc * Name.ident                        (* Global variable *)
   | App   of term * term * term list                 (* f a1 [ a2 ; ... an ] , f not an App *)
-  | Lam   of loc * ident * term option * term        (* Lambda abstraction *)
-  | Pi    of loc * ident * term * term               (* Pi abstraction *)
+  | Lam   of loc * string * term option * term        (* Lambda abstraction *)
+  | Pi    of loc * string * term * term               (* Pi abstraction *)
 
 let rec pp_term fmt te =
   match te with
   | Kind               -> fprintf fmt "Kind"
   | Type _             -> fprintf fmt "Type"
-  | DB  (_,x,n)        -> fprintf fmt "%a[%i]" pp_ident x n
-  | Const (_,n)        -> fprintf fmt "%a" pp_name n
+  | DB  (_,x,n)        -> fprintf fmt "%s[%i]" x n
+  | Const (_,n)        -> fprintf fmt "%a" Name.pp_ident n
   | App (f,a,args)     -> pp_list " " pp_term_wp fmt (f::a::args)
-  | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
-  | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
-  | Pi  (_,x,a,b)      -> fprintf fmt "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
+  | Lam (_,x,None,f)   -> fprintf fmt "%s => %a" x pp_term f
+  | Lam (_,x,Some a,f) -> fprintf fmt "%s:%a => %a" x pp_term_wp a pp_term f
+  | Pi  (_,x,a,b)      -> fprintf fmt "%s:%a -> %a" x pp_term_wp a pp_term b
 
 and pp_term_wp fmt te =
   match te with
@@ -52,7 +52,7 @@ let rec term_eq t1 t2 =
   match t1, t2 with
     | Kind, Kind | Type _, Type _ -> true
     | DB (_,_,n), DB (_,_,n') -> n==n'
-    | Const (_,cst), Const (_,cst') -> name_eq cst cst'
+    | Const (_,cst), Const (_,cst') -> Name.equal cst cst'
     | App (f,a,l), App (f',a',l') ->
         ( try List.for_all2 term_eq (f::a::l) (f'::a'::l')
           with _ -> false )

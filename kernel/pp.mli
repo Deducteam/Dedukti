@@ -3,17 +3,15 @@ open Basic
 open Term
 open Rule
 
-val name                : unit -> mident
+val name                : unit -> Name.mident
 val print_db_enabled    : bool ref
 val print_default       : bool ref
 (** {2 Printing functions} *)
 
 (** print_ident [fmt] [id] prints the identifier [id] with the formatter [fmt] *)
-val print_ident : Format.formatter -> ident -> unit
+val print_ident : Format.formatter -> Name.ident -> unit
 
-val print_mident : Format.formatter -> mident -> unit
-
-val print_name : Format.formatter -> name -> unit
+val print_mident : Format.formatter -> Name.mident -> unit
 
 val print_list  : string -> (Format.formatter -> 'a -> unit)
                   -> Format.formatter -> 'a list -> unit

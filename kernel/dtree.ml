@@ -4,16 +4,16 @@ open Rule
 open Format
 
 type dtree_error =
-  | HeadSymbolMismatch of loc * name * name
-  | ArityMismatch of loc * name
-  | ArityInnerMismatch of loc * ident * ident
+  | HeadSymbolMismatch of loc * Name.ident * Name.ident
+  | ArityMismatch of loc * Name.ident
+  | ArityInnerMismatch of loc * Name.ident * string
 
 exception DtreeExn of dtree_error
 
 (* A subtype of rule_infos with only the informations that the dtree need *)
 type dtree_rule =
   { loc:loc ;
-    pid:ident;
+    pid:Name.ident;
     pats:wf_pattern array ;
     right:term ;
     constraints:constr list ;
@@ -21,7 +21,7 @@ type dtree_rule =
 
 let to_dtree_rule (r:rule_infos) : dtree_rule =
   { loc = r.l ;
-    pid = id r.cst;
+    pid = r.cst;
     pats = r.l_args ;
     right = r.rhs ;
     constraints = r.constraints ;
@@ -51,7 +51,7 @@ let mk_matrix : rule_infos list -> matrix = function
     let n = Array.length r1.l_args in
     let o = List.map (
         fun r2 ->
-          if not (name_eq r1.cst r2.cst) then
+          if not (Name.equal r1.cst r2.cst) then
             raise (DtreeExn (HeadSymbolMismatch (r2.l,r2.cst,r1.cst)))
           else
           if n != Array.length r2.l_args then
@@ -88,7 +88,7 @@ let filter_on_bound_variable c n r =
 (* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
 let filter_on_pattern c cst r =
   match r.pats.(c) with
-    | LPattern (cst',_) when name_eq cst cst' -> true
+    | LPattern (cst',_) when Name.equal cst cst' -> true
     | LVar _ | LJoker -> true
     | _ -> false
 
@@ -101,7 +101,7 @@ let filter_default (mx:matrix) (c:int) : matrix option =
   ) mx
 
 type case =
-  | CConst of int * name
+  | CConst of int * Name.ident
   | CDB    of int * int
   | CLam
 
@@ -140,7 +140,7 @@ let rec pp_dtree t fmt dtree =
   | Switch (i,cases,def)->
     let pp_case out = function
       | CConst (_,cst), g ->
-        fprintf out "\n%sif $%i=%a then %a" tab i pp_name cst (pp_dtree (t+1)) g
+        fprintf out "\n%sif $%i=%a then %a" tab i Name.pp_ident cst (pp_dtree (t+1)) g
       | CLam, g -> fprintf out "\n%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
       | CDB (_,n), g -> fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (pp_dtree (t+1)) g
     in
@@ -154,11 +154,11 @@ and pp_def t fmt def =
 
 let pp_dtree fmt dtree = pp_dtree 0 fmt dtree
 
-type rw = name * int * dtree
+type rw = Name.ident * int * dtree
 
 let pp_rw fmt (cst,i,g) =
   fprintf fmt "GDT for '%a' with %i argument(s): %a"
-    pp_name cst i pp_dtree g
+    Name.pp_ident cst i pp_dtree g
 
 
 (* Specialize the rule [r] on column [c]
@@ -186,8 +186,7 @@ let specialize_rule (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
       match r.pats.(c) with
         | LJoker | LVar _ -> LJoker
         | LPattern (cst,pats2) ->
-          let id = id cst in
-          check_args id pats2
+          check_args (Name.id cst) pats2
         | LBoundVar (id,_,pats2) ->
           check_args id pats2
         | LLambda (_,p) -> ( assert ( nargs == 1); p )
@@ -238,7 +237,7 @@ let eq a b =
   match a, b with
     | CLam, CLam -> true
     | CDB (_,n), CDB (_,n') when n==n' -> true
-    | CConst (_,cst), CConst (_,cst') when (name_eq cst cst') -> true
+    | CConst (_,cst), CConst (_,cst') when (Name.equal cst cst') -> true
     | _, _ -> false
 
 let partition (mx:matrix) (c:int) : case list =

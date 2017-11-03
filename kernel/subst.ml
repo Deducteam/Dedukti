@@ -79,7 +79,7 @@ end)
 module Subst =
 struct
   (* FIXME: why do we need a (ident * term) IntMap.t and not just a term IntMap.t, for debug? *)
-  type t = (ident*term) IntMap.t
+  type t = (string * term) IntMap.t
   let identity = IntMap.empty
 
   (* q is a free index that corresponds to the order of the free variable inside the context of a rule *)
@@ -114,10 +114,10 @@ struct
   (* TODO: put this inside pp *)
   let pp (fmt:formatter) (sigma:t) : unit =
     IntMap.iter (fun i (x,t) ->
-        fprintf fmt "( %a[%i] = %a )" pp_ident x i pp_term t
+        fprintf fmt "( %s[%i] = %a )" x i pp_term t
       ) sigma
 
-  let add (sigma:t) (x:ident) (n:int) (t:term) : t option =
+  let add (sigma:t) (x:string) (n:int) (t:term) : t option =
     assert ( not ( IntMap.mem n sigma ) );
     if occurs n t then None
     else Some ( IntMap.add n (x,t) sigma )

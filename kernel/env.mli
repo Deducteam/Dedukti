@@ -7,34 +7,34 @@ open Signature
 type env_error =
   | EnvErrorType of Typing.typing_error
   | EnvErrorSignature of signature_error
-  | KindLevelDefinition of loc*ident
+  | KindLevelDefinition of loc * Name.ident
 
 (** {2 The Global Environment} *)
 
-val init        : mident -> unit
+val init        : Name.mident -> unit
 (** [init name] initializes a new global environement giving it the name [name].
     Every top level declaration will be qualified be this name. *)
 
-val get_name    : unit -> mident
+val get_name    : unit -> Name.mident
 (** [get_name ()] returns the name of the module. *)
 
-val get_type    : loc -> name -> (term,signature_error) error
+val get_type    : loc -> Name.ident -> (term,signature_error) error
 (** [get_type l md id] returns the type of the constant [md.id]. *)
 
-val get_dtree   : loc -> name -> ((int*Dtree.dtree) option,signature_error) error
+val get_dtree   : loc -> Name.ident -> ((int*Dtree.dtree) option,signature_error) error
 (** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
 
 val export      : unit -> bool
 (** [export ()] saves the current environment in a [*.dko] file. *)
 
-val declare : loc -> ident -> Signature.staticity -> term -> (unit,env_error) error
+val declare : loc -> Name.ident -> Signature.staticity -> term -> (unit,env_error) error
 (** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
    staticity [st]. *)
 
-val define      : loc -> ident -> term -> term option -> (unit,env_error) error
+val define      : loc -> Name.ident -> term -> term option -> (unit,env_error) error
 (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
 
-val define_op   : loc -> ident -> term -> term option -> (unit,env_error) error
+val define_op   : loc -> Name.ident -> term -> term option -> (unit,env_error) error
 (** [define_op l id body ty] declares the symbol [id] of type [ty] and checks
     that [body] has this type (but forget it after). *)
 

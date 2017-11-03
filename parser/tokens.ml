@@ -10,13 +10,13 @@ type token =
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
-  | QID         of ( loc * mident * ident )
-  | NAME        of ( loc * mident )
+  | QID         of ( loc * string * string )
+  | NAME        of ( loc * Name.mident )
   | LONGARROW
   | LEFTSQU
   | LEFTPAR
   | LEFTBRA
-  | ID          of ( loc * ident )
+  | ID          of ( loc * string )
   | FATARROW
   | EOF
   | DOT

@@ -8,9 +8,9 @@ open Rule
     - a variable
     - a lambda expression *)
 type case =
-  | CConst of int*name
+  | CConst of int * Name.ident
   (** [size] [c] where [size] is the number of *static* arguments expected for the constant [c] *)
-  | CDB    of int*int
+  | CDB    of int * int
   (** [size] [i] where size is the number of *static* arguments expected for the bounded variable [i] *)
   | CLam (** Just a lambda term *)
 (** Since the arity of a constant can not be know statically, size should be always smaller than the number of arguments applied to the constant m.v *)
@@ -46,16 +46,16 @@ type dtree =
 val pp_dtree : Format.formatter -> dtree -> unit
 
 (** [md] [v] [i] [tree] is the dtree associated to the constant [md].[v] with [i] arguments *)
-type rw = name * int * dtree
+type rw = Name.ident * int * dtree
 
 val pp_rw : Format.formatter -> rw -> unit
 
 (** {2 Error} *)
 
 type dtree_error =
-  | HeadSymbolMismatch of loc * name * name
-  | ArityMismatch of loc * name
-  | ArityInnerMismatch of loc * ident * ident
+  | HeadSymbolMismatch of loc * Name.ident * Name.ident
+  | ArityMismatch of loc * Name.ident
+  | ArityInnerMismatch of loc * Name.ident * string
 
 (** Compilation of rewrite rules into decision trees. *)
 val of_rules : rule_infos list -> (int * dtree, dtree_error) error
