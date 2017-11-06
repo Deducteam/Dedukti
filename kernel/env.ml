@@ -28,18 +28,18 @@ let get_dtree l md id =
 let export () : bool = Signature.export !sg
 
 let _declare (l:loc) (id:ident) st ty : unit =
-  match inference !sg ty with
-  | Kind | Type _ ->
-     let ty =
-       match st with
-       | DefinableAC -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
-       | DefinableACU neu ->
-          ignore(check !sg [] neu ty);
-          mk_Arrow dloc ty (mk_Arrow dloc ty ty)
-       | _ -> ty
-     in
-     Signature.add_declaration !sg l id st ty
-  | s -> raise (TypingError (SortExpected (ty,[],s)))
+  let sort = inference !sg ty in
+  Signature.add_declaration !sg l id st
+    (
+      match sort, st with
+      | Kind  , DefinableAC      -> raise (TypingError (SortExpected (ty,[],sort) ))
+      | Kind  , DefinableACU _   -> raise (TypingError (SortExpected (ty,[],sort) ))
+      | Type _, DefinableAC      -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
+      | Type _, DefinableACU neu -> ignore(check !sg [] neu ty);
+                                    mk_Arrow dloc ty (mk_Arrow dloc ty ty)
+      | Kind, _ | Type _, _ -> ty
+      | _ -> raise (TypingError (SortExpected (ty,[],sort)))
+    )
 
 exception DefineExn of loc*ident
 

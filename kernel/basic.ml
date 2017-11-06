@@ -101,10 +101,10 @@ let debug_mode = ref 0
 
 let set_debug_mode i = debug_mode := i
 
-let debug i fmt = Format.(
-    if !debug_mode >= i then
-      kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
-  else ifprintf err_formatter fmt
+let debug i fmt =
+  Format.(if !debug_mode >= i then
+            kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
+          else ifprintf err_formatter fmt
   )
 
 let bind_opt f = function

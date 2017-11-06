@@ -3,6 +3,7 @@ open Format
 open Rule
 open Term
 open Dtree
+open Matching
 
 type red = {
   select : (Rule.rule_name -> bool) option;
@@ -28,11 +29,12 @@ type env = term Lazy.t LList.t
 (* A state {ctx; term; stack} is the state of an abstract machine that
 represents a term where [ctx] is a ctx that contains the free variables
 of [term] and [stack] represents the terms that [term] is applied to. *)
-type state = {
-  ctx   : env;    (*context*)
-  term  : term;   (*term to reduce*)
-  stack : stack;  (*stack*)
-}
+type state =
+  {
+    ctx   : env;    (* context *)
+    term  : term;   (* term to reduce *)
+    stack : stack;  (* stack *)
+  }
 and stack = state list
 
 let rec term_of_state {ctx;term;stack} : term =
@@ -40,6 +42,8 @@ let rec term_of_state {ctx;term;stack} : term =
   match stack with
   | [] -> t
   | a::lst -> mk_App t (term_of_state a) (List.map term_of_state lst)
+
+let state_of_term t = {ctx=LList.nil;term=t;stack=[]}
 
 (* Pretty Printing *)
 
@@ -52,29 +56,19 @@ let pp_stack fmt stck =
   fprintf fmt "]\n"
 
 let pp_env fmt (ctx:env) =
-  let pp_lazy_term out lt = pp_term fmt (Lazy.force lt) in
-    pp_list ", " pp_lazy_term fmt (LList.lst ctx)
+  pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst ctx))
 
 let pp_stack fmt (st:stack) =
-  let aux fmt state =
-    pp_term fmt (term_of_state state)
-  in
-    fprintf fmt "[ %a ]\n" (pp_list "\n | " aux) st
+  fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state st)
 
 let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
-  begin
-    if if_ctx then
-      fprintf fmt "{ctx=[%a];@." pp_env ctx
-    else
-      fprintf fmt "{ctx=[...](%i);@." (LList.len ctx)
-  end;
+  if if_ctx
+  then fprintf fmt "{ctx=[%a];@." pp_env ctx
+  else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx);
   fprintf fmt "term=%a;@." pp_term term;
-  begin
-    if if_stack then
-      fprintf fmt "stack=%a}@." pp_stack stack
-    else
-      fprintf fmt "stack=[...]}@."
-  end;
+  if if_stack
+  then fprintf fmt "stack=%a}@." pp_stack stack
+  else fprintf fmt "stack=[...]}@.";
   fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
 
 (* Misc *)
@@ -90,84 +84,30 @@ let rec split_stack (i:int) : stack -> (stack*stack) option = function
   | []          -> None
   | x::l        -> map_opt (fun (s1,s2) -> (x::s1,s2) ) (split_stack (i-1) l)
 
-let rec safe_find m v = function
-  | []                  -> None
-  | (_,m',v',tr)::tl       ->
-      if ident_eq v v' && ident_eq m m' then Some tr
-      else safe_find m v tl
-
-let rec add_to_list lst (s:stack) (s':stack) =
-  match s,s' with
-    | [] , []           -> Some lst
-    | x::s1 , y::s2     -> add_to_list ((x,y)::lst) s1 s2
-    | _ ,_              -> None
-
 (* ********************* *)
 
-type rw_strategy = Signature.t -> term -> term
-
-type rw_state_strategy = Signature.t -> state -> state
-
+type rw_strategy         = Signature.t -> term -> term
+type rw_state_strategy   = Signature.t -> state -> state
 type convertibility_test = Signature.t -> term -> term -> bool
 
-let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (te:term) : term =
-(*   let res = *)
-    try Matching.solve depth pbs te
-    with Matching.NotUnifiable ->
-      Matching.solve depth pbs (reduce sg te)
-
-let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
-  try Subst.unshift q te
-  with Subst.UnshiftExn ->
-    Subst.unshift q (reduce sg te)
-
-let get_context_syn (sg:Signature.t) (forcing:rw_strategy) (stack:stack) (ord:arg_pos LList.t) : env option =
-  try Some (LList.map (
-      fun p ->
-        if ( p.depth = 0 ) then
-          lazy (term_of_state (List.nth stack p.position) )
-        else
-          Lazy.from_val
-            (unshift sg forcing p.depth (term_of_state (List.nth stack p.position) ))
-    ) ord )
-  with Subst.UnshiftExn -> ( None )
-
-let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
-                   (pb_lst:abstract_problem LList.t) : env option =
-  let aux ((pos,dbs):abstract_problem) : term Lazy.t =
-    let res = solve sg forcing pos.depth dbs (term_of_state (List.nth stack pos.position)) in
-    Lazy.from_val (Subst.unshift pos.depth res)
-  in
-  try Some (LList.map aux pb_lst)
-  with Matching.NotUnifiable -> None
-     | Subst.UnshiftExn -> assert false
-
-let rec test (sg:Signature.t) (convertible:convertibility_test)
-             (ctx:env) (constrs: constr list) : bool  =
-  match constrs with
-  | [] -> true
-  | (Linearity (i,j))::tl ->
-    let t1 = mk_DB dloc dmark i in
-    let t2 = mk_DB dloc dmark j in
-    if convertible sg (term_of_state { ctx; term=t1; stack=[] })
-                      (term_of_state { ctx; term=t2; stack=[] })
-    then test sg convertible ctx tl
-    else false
-  | (Bracket (i,t2))::tl ->
-    let t1 = mk_DB dloc dmark i in
-    if convertible sg (term_of_state { ctx; term=t1; stack=[] })
-                      (term_of_state { ctx; term=t2; stack=[] })
-    then test sg convertible ctx tl
-    else
-      (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
-      failwith "Error while reducing a term: a guard was not satisfied."
+let convert_problem stack problem =
+  let convert i = lazy (term_of_state (List.nth stack i) ) in
+  let convert_ac_sets = function
+    | [i] ->
+       begin
+         match List.nth stack i with
+         | {ctx; term=Const(l,m',v'); stack=st} ->
+            List.map (fun s -> lazy (term_of_state s)) st
+         | _ -> assert false
+       end
+    | _ -> assert false in
+  Matching.convert_problems convert convert_ac_sets problem
 
 
 (** Unfolds all occurence of the AC(U) symbol in the stack
   * Removes occurence of neutral element.  *)
 let flatten_AC_stack (sg:Signature.t) (strategy:rw_state_strategy)
                      (convertible:convertibility_test)
-                     ?not_empty:(not_empty=false)
                      (l:loc) (m:ident) (v:ident) (stack:stack) : stack =
   let rec flatten acc = function
     | [] -> acc
@@ -187,7 +127,7 @@ let flatten_AC_stack (sg:Signature.t) (strategy:rw_state_strategy)
   
 
 let rec to_comb sg = function
-  | { ctx; term=Const (l,m,v); stack } as st ->
+  | { ctx; term=Const(l,m,v); stack } as st ->
      let rec f = function
        | []     -> {ctx=ctx;term=Signature.get_neutral sg l m v;stack=[]}
        | [t]    -> t
@@ -196,12 +136,17 @@ let rec to_comb sg = function
      f stack
   | _ -> assert false
 
+let terms_to_comb sg l m v terms =
+  let dum_st = state_of_term (mk_Const l m v) in
+  let st = { dum_st with stack=List.map state_of_term terms} in
+  term_of_state (to_comb sg st)
 
 let flatten_AC (sg:Signature.t)
                (strategy:rw_state_strategy)
                (convertible:convertibility_test) : state -> state = function
   | { ctx; term=Const (l,m,v); stack=(s1::s2::rstack) } as st when Signature.is_AC sg l m v ->
-     let s = to_comb sg { st with stack=(flatten_AC_stack sg strategy convertible l m v [s1;s2]) } in
+     let nstack = flatten_AC_stack sg strategy convertible l m v [s1;s2] in
+     let s = to_comb sg { st with stack=nstack } in
      (match rstack with [] -> s | l ->  {s with stack=(s.stack@l)})
   | st -> st
 
@@ -226,17 +171,21 @@ let flatten_SNF_AC_term (sg:Signature.t)
        in
        let id_comp = Signature.get_id_comparator sg in
        let args  = List.sort (compare_term id_comp) args in
+       let _ = assert (List.length args > 0) in
+       mk_App2 (terms_to_comb sg l m v args) remain_args
+               (*
        match args, remain_args with
        |    [], _         -> assert false
        | a::[], []        -> a
        | a::[], ra::rargs -> mk_App a ra args
-       | a::tl, rargs ->
+       | a::tl, rargs -> 
            let rec to_comb = function
              | [] -> assert false
              | a::[] -> a
              | a::tl -> mk_App (mk_Const l m v) a [to_comb tl]
            in
            mk_App (mk_Const l m v) a ((to_comb tl)::rargs)
+                *)
      end
   | t -> t
 
@@ -257,7 +206,7 @@ let rec find_case (flattenner:loc->ident->ident->stack->stack)
   | { ctx; term=Lam (_,_,_,_) }, CLam ->
     begin
       match term_of_state st with (*TODO could be optimized*)
-      | Lam (_,_,_,te) -> Some [{ ctx=LList.nil; term=te; stack=[] }]
+      | Lam (_,_,_,te) -> Some [state_of_term te]
       | _ -> assert false
     end
   | _ -> None
@@ -282,20 +231,9 @@ let rec fetch_case sg (flattenner:loc->ident->ident->stack->stack)
                    (state:state) (case:case)
                    (dt_suc:dtree) (dt_def:dtree option) : (dtree*state*stack) list =
   let def_s = match dt_def with None -> [] | Some g -> [(g,state,[])] in
-  match state, case with
-  | {ctx; term=Const(l,m,v); stack=[]   }, Unflatten 0 -> (dt_suc,state,[]) :: def_s
-  | {ctx; term=Const(l,m,v); stack=_    }, Unflatten 0 -> def_s
-  | {ctx; term=Const(l,m,v); stack=stack}, Unflatten n ->
-     let rec to_combed = function
-       | [] -> []
-       | s :: ls -> 
-          try
-            let combs = List.map (fun s -> to_comb sg {state with stack=s}) s in
-            (dt_suc, {state with stack=[]}, combs) :: (to_combed ls)
-          with Signature.SignatureError _ -> to_combed ls
-     in
-     to_combed (nbags stack n)
-  | {ctx; term=Const(l,m,v); stack=stack},_ ->
+  let stack = state.stack in
+  match state.term with
+  | Const(l,m,v) ->
      let rec f acc stack_acc st = match st, case with
        | [], _ -> acc
        | hd::tl, _ ->
@@ -340,51 +278,69 @@ let rec gamma_rw_list (sg:Signature.t)
 (*TODO implement the stack as an array ? (the size is known in advance).*)
 and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
              (forcing:rw_strategy) (strategy:rw_state_strategy)
-             ?rewrite:(rewrite=true) : stack -> dtree -> (env*term) option =
-  let rec rw stack = function
-    | Fetch (i,case,dt_suc,dt_def) ->
-       let rec split_ith acc i l = match i,l with
-         | 0, h::t -> (acc,h,t)
-         | i, h::t -> split_ith (h::acc) (i-1) t
-         | _ -> assert false
-       in
-       let (stack_h, arg_i, stack_t) = split_ith [] i stack in
-       assert (match arg_i.term with Const(l,m,v) -> Signature.is_AC sg l m v | _ -> false);
-       let new_cases =
-         List.map
-           (function
-            | g, new_s, [] -> (List.rev_append stack_h (new_s::stack_t  ), g)
-            | g, new_s, s  -> (List.rev_append stack_h (new_s::stack_t@s), g) )
-           (fetch_case sg (flatten_AC_stack sg strategy convertible) arg_i case dt_suc dt_def) in
-       gamma_rw_list sg convertible forcing strategy new_cases
-    | Switch (i,cases,def) ->
-       let arg_i = (List.nth stack i) in
-       let arg_i = if rewrite then strategy sg arg_i else arg_i in
-       let new_cases =
-         List.map
-           (function
-            | g, [] -> ( stack    , g)
-            | g, s  -> ( (stack@s), g) )
-           (find_cases (flatten_AC_stack sg strategy convertible) arg_i cases def) in
-       gamma_rw_list sg convertible forcing strategy new_cases
-    | Test (Syntactic ord, eqs, right, def) ->
-       begin
-         match get_context_syn sg forcing stack ord with
-         | None -> bind_opt (rw stack) def
-         | Some ctx ->
-            if test sg convertible ctx eqs then Some (ctx, right)
-            else bind_opt (rw stack) def
-       end
-    | Test (MillerPattern lst, eqs, right, def) ->
-       begin
-         match get_context_mp sg forcing stack lst with
-         | None -> bind_opt (rw stack) def
-         | Some ctx ->
-            if test sg convertible ctx eqs then Some (ctx, right)
-            else bind_opt (rw stack) def
-       end
-  in
-  rw
+             ?rewrite:(rewrite=true) (stack:stack) :  dtree -> (env*term) option = function
+  | Fetch (i,case,dt_suc,dt_def) ->
+     let rec split_ith acc i l = match i,l with
+       | 0, h::t -> (acc,h,t)
+       | i, h::t -> split_ith (h::acc) (i-1) t
+       | _ -> assert false
+     in
+     let (stack_h, arg_i, stack_t) = split_ith [] i stack in
+     assert (match arg_i.term with Const(l,m,v) -> Signature.is_AC sg l m v | _ -> false);
+     let new_cases =
+       List.map
+         (function
+          | g, new_s, [] -> (List.rev_append stack_h (new_s::stack_t  ), g)
+          | g, new_s, s  -> (List.rev_append stack_h (new_s::stack_t@s), g) )
+         (fetch_case sg (flatten_AC_stack sg strategy convertible) arg_i case dt_suc dt_def) in
+     gamma_rw_list sg convertible forcing strategy new_cases
+  | ACEmpty (i, dt_suc, dt_def) ->
+     begin
+       match List.nth stack i with
+       | {ctx; term=Const(l,m,v); stack=st} ->
+          begin
+            assert (Signature.is_AC sg l m v);
+            if st == []
+            then gamma_rw sg convertible forcing strategy stack dt_suc
+            else bind_opt (gamma_rw sg convertible forcing strategy stack) dt_def
+          end
+       | _ -> assert false
+     end
+  | Switch (i,cases,def) ->
+     let arg_i = (List.nth stack i) in
+     let arg_i = if rewrite then strategy sg arg_i else arg_i in
+     let new_cases =
+       List.map
+         (fun (g,l) -> ( (match l with |[] -> stack | s -> stack@s), g))
+         (find_cases (flatten_AC_stack sg strategy convertible) arg_i cases def) in
+     gamma_rw_list sg convertible forcing strategy new_cases
+  | Test (problem, cstr, right, def) ->
+     let pb = convert_problem stack problem in
+     begin
+       match Matching.solve_problem (forcing sg) (convertible sg) (terms_to_comb sg) pb with
+       | None -> bind_opt (gamma_rw sg convertible forcing strategy stack) def
+       | Some subst ->
+          begin
+            List.iter
+              (function
+               | Linearity (i,j) -> assert(pb.subst.(i) == None); pb.subst.(i) <- pb.subst.(j)
+               | _ -> ())
+              cstr;
+            let aux e acc = match e with None -> assert false | Some e -> e :: acc in
+            let ctx_list = Array.fold_right aux subst [] in
+            let ctx = LList.make ~len:(Array.length subst) ctx_list in
+            if List.exists
+                 (function 
+                  | Bracket (i,t2) ->
+                     let t1 = mk_DB dloc dmark i in
+                     not (convertible sg (term_of_state { ctx; term=t1; stack=[] })
+                                      (term_of_state { ctx; term=t2; stack=[] }))
+                  | _ -> false)
+                 cstr
+            then failwith "Error while reducing a term: a guard was not satisfied."
+            else Some (ctx, right)
+          end
+     end
 
 and gamma_head_rw (sg:Signature.t)
                   (convertible:convertibility_test)
@@ -409,7 +365,8 @@ and gamma_head_rw (sg:Signature.t)
           end
        | _ -> assert false
      in
-     f cases
+     let a = f cases in
+     a
   | _ -> assert false
 
 
@@ -578,7 +535,7 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
         else
           let (red',state') = state_one_step sg (red,{ctx=ctx;term=t; stack=[]}) in
           (red',{ctx=ctx; term=mk_Lam loc id ty (term_of_state state'); stack = p::s})
-  (* Application: arguments go on the stack *)
+     (* Application: arguments go on the stack *)
      | { ctx; term=App (f,a,lst); stack=s } ->
         let aux = ref red in
         (* rev_map + rev_append to avoid map + append*)
@@ -603,9 +560,7 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
         end
     end
 
-
-let nsteps sg n t =
-  term_of_state (snd (state_one_step sg (n,{ ctx=LList.nil; term=t; stack=[] })))
+let nsteps sg n t = term_of_state (snd (state_one_step sg (n, state_of_term t)))
 
 let reduction sg strategy te =
   match strategy with

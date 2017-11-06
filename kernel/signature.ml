@@ -190,7 +190,7 @@ let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
        Confluence.add_rules [ comm_rule md id ty; asso_rule md id ty ]
     | DefinableACU neu ->
        let ty = get_type_from_AC infos.ty in
-       Confluence.add_rules [ comm_rule md id ty; asso_rule md id ty;
+       Confluence.add_rules [ comm_rule md id ty;     asso_rule md id ty;
                               neu1_rule md id ty neu; neu2_rule md id ty neu ]
     | _ -> ()
   in

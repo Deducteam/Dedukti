@@ -46,6 +46,9 @@ let mk_App f a1 args =
   match f with
     | App (f',a1',args') -> App (f',a1',args'@(a1::args))
     | _ -> App(f,a1,args)
+let mk_App2 f = function
+  | [] -> f
+  | hd :: tl -> mk_App f hd tl
 
 let rec term_eq t1 t2 =
   (* t1 == t2 || *)

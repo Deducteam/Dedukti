@@ -4,18 +4,18 @@ open Term
 
 (* Miller's patterns *)
 type pattern =
-  | Var         of loc*ident*int*pattern list (* Y x1 ... xn *)
-  | Pattern     of loc*ident*ident*pattern list
-  | Lambda      of loc*ident*pattern
-  | Brackets    of term
+  | Var       of loc*ident*int*pattern list (* Y x1 ... xn *)
+  | Pattern   of loc*ident*ident*pattern list
+  | Lambda    of loc*ident*pattern
+  | Brackets  of term
 
 type wf_pattern =
   | LJoker
-  | LVar         of ident * int * int list
-  | LLambda      of ident * wf_pattern
-  | LPattern     of ident * ident * wf_pattern array
-  | LBoundVar    of ident * int * wf_pattern array
-  | LACSet       of wf_pattern list
+  | LVar      of ident * int * int list
+  | LLambda   of ident * wf_pattern
+  | LPattern  of ident * ident * wf_pattern array
+  | LBoundVar of ident * int   * wf_pattern array
+  | LACSet    of ident * ident * wf_pattern list
 
 type untyped_context = ( loc * ident ) list
 
@@ -39,6 +39,10 @@ type typed_rule = typed_context rule
 type constr =
   | Linearity of int * int
   | Bracket of int * term
+
+let pp_constr fmt = function
+  | Linearity (i,j) -> fprintf fmt "%i =l %i" i j
+  | Bracket   (i,t) -> fprintf fmt "%i =b %a" i pp_term t
 
 type rule_infos = {
   l : loc;
@@ -96,6 +100,8 @@ let rec pp_wf_pattern fmt wf_pattern =
   | LBoundVar(x, n, pats) when Array.length pats = 0 -> fprintf fmt "%a[%i]" pp_ident x n
   | LBoundVar(x,n, pats) ->
     fprintf fmt "%a[%i] %a" pp_ident x n (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
+  | LACSet (m,v,l) ->
+     fprintf fmt "%a.%a{%a}" pp_ident m pp_ident v (pp_list "; " pp_wf_pattern_wp) l
 
 and pp_wf_pattern_wp fmt wf_pattern =
   match wf_pattern with
@@ -284,7 +290,7 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
       in
       let nb_args = get_nb_args esize r.pat in
       let _ = check_nb_args nb_args r.rhs in
-      let (esize2,pats2,cstr) = check_patterns  esize args in
+      let (esize2,pats2,cstr) = check_patterns esize args in
       let is_nl = not (is_linear cstr) in
       if is_nl && (not !allow_non_linear) then
         Err (NonLinearRule r)
@@ -297,3 +303,4 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
     end
   with
       RuleExn e -> Err e
+

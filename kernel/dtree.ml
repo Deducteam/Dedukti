@@ -2,6 +2,7 @@ open Basic
 open Term
 open Rule
 open Format
+open Matching
 
 type dtree_error =
   | HeadSymbolMismatch of loc * ident * ident
@@ -70,7 +71,7 @@ let filter (f:dtree_rule -> bool) (mx:matrix) : matrix option =
 let filter_on_lambda c r =
   match r.pats.(c) with
   | LLambda _ | LJoker | LVar _ -> true
-  | LACSet s -> List.exists (function LLambda _ -> true | _ -> false) s
+  | LACSet (_,_,s) -> List.exists (function LLambda _ -> true | _ -> false) s
   | _ -> false
 
 (* Keeps only the rules with a bound variable of index [n] on column [c] *)
@@ -78,17 +79,16 @@ let filter_on_bound_variable c nargs n r =
   match r.pats.(c) with
   | LVar _ | LJoker -> true
   | LBoundVar (_,n',args) -> (n' == n && Array.length args == nargs)
-  | LACSet s -> List.exists
+  | LACSet (_,_,s) -> List.exists
                   (function
                    | LBoundVar (_,n',args) -> (n' == n && Array.length args == nargs)
                    | _ -> false)
                   s
   | _ -> false
 
-let filter_on_variable_AC_set n c r =
+let filter_on_empty_AC_set c r =
   match r.pats.(c) with
-  | LACSet l -> n == List.length l &&
-                  List.for_all (function LJoker | LVar _ -> true | _ -> false) l
+  | LACSet (_,_,[]) -> true
   | _ -> false
   
 (* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
@@ -96,7 +96,7 @@ let filter_on_pattern c nargs m v r =
   match r.pats.(c) with
     | LVar _ | LJoker -> true
     | LPattern (m',v',ar') -> (ident_eq v v' && ident_eq m m' && Array.length ar' == nargs)
-    | LACSet s -> List.exists
+    | LACSet (_,_,s) -> List.exists
                     (function
                      | LPattern (m',v',ar') -> (ident_eq v v' &&
                                                   ident_eq m m' &&
@@ -109,80 +109,63 @@ type case =
   | CConst   of int*ident*ident*bool
   | CDB      of int*int
   | CLam
-  | Unflatten of int
-
-type arg_pos = { position:int; depth:int }
-type abstract_problem = arg_pos * int LList.t
-
-
-type matching_problem =
-  | Syntactic of arg_pos LList.t
-  | MillerPattern of abstract_problem LList.t
-
-let pp_matching_problem fmt matching_problem =
-  match matching_problem with
-  | Syntactic     _ -> fprintf fmt "Sy"
-  | MillerPattern _ -> fprintf fmt "Mi"
 
 
 type dtree =
   | Fetch   of int * case * dtree * dtree option
+  | ACEmpty of int * dtree * dtree option
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of matching_problem * constr list * term * dtree option
+  | Test    of int matching_problem * constr list * term * dtree option
 
+let pp_AC_args fmt i =
+  fprintf fmt (if i > 2 then "%i args, first 2 AC flattened" else "%i args") i
 
 let rec pp_dtree t fmt dtree =
-  let tab = String.make (t*4) ' ' in
+  let tab = String.init (1 + t*4) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
-  | Test (mp,[],te,None)   -> fprintf fmt "(%a) %a" pp_matching_problem mp pp_term te
-  | Test (mp,[],te,def)      ->
-     fprintf fmt "\n%sif true then (%a) %a\n%selse (%a) %a"
-             tab pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
-  | Test (mp,lst,te,def)  ->
-     let aux out = function
-       | Linearity (i,j) -> fprintf out "%d =l %d" i j
-       | Bracket (i,j) -> fprintf out "%a =b %a" pp_term (mk_DB dloc dmark i) pp_term j
-     in
-     fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
-             pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
+  | Test (mp,[],te,def) when Array.length mp.problems == 0 -> fprintf fmt "%s%a" tab pp_term te
+  | Test (mp,[],te,def)  ->
+     fprintf fmt "%stry %a%sthen %a%selse %a"
+             tab (pp_int_matching_problem tab) mp tab pp_term te tab (pp_def (t+1)) def
+  | Test (mp,cstr,te,def)  ->
+     fprintf fmt "%stry %a%sunder constraints %a%sthen %a%selse %a"
+             tab (pp_int_matching_problem tab) mp tab (pp_list ", " pp_constr) cstr
+             tab pp_term te tab (pp_def (t+1)) def
+  | ACEmpty (i,tree_suc,tree_def) ->
+     fprintf fmt "%sif $%i (AC flattened) is empty then %a%selse %a"
+             tab i (pp_dtree (t+1)) tree_suc tab (pp_def (t+1)) tree_def
   | Fetch (i,case,tree_suc,tree_def) ->
      (match case with
-       | Unflatten n ->
-          fprintf fmt "\n%sif $%i is an AC symbol applied to exactly %i args then %a\n%selse %a"
-                  tab i n
        | CConst (nargs,m,v,false) ->
-          fprintf fmt "\n%sif $%i is AC applied to %a.%a (%i args) then %a\n%selse %a"
+          fprintf fmt "%sif $%i is AC applied to %a.%a (%i args) then %a%selse %a"
                   tab i pp_ident m pp_ident v nargs
        | CConst (nargs,m,v,true) ->
-          fprintf fmt "\n%sif $%i is AC applied to %a.%a (%i args, first 2 AC flattened) then %a\n%selse %a"
-                  tab i pp_ident m pp_ident v nargs
+          fprintf fmt "%sif $%i is AC applied to %a.%a (%a) then %a%selse %a"
+                  tab i pp_ident m pp_ident v pp_AC_args nargs
        | CDB (nargs,n) ->
-          fprintf fmt "\n%sif $%i is AC applied to DB[%i] (%i args) then %a\n%selse %a"
+          fprintf fmt "%sif $%i is AC applied to DB[%i] (%i args) then %a%selse %a"
                   tab i n nargs
-       | CLam -> fprintf fmt "\n%sif $%i is AC applied to Lambda then %a\n%selse %a" tab i
+       | CLam -> fprintf fmt "%sif $%i is AC applied to Lambda then %a%selse %a" tab i
      ) (pp_dtree (t+1)) tree_suc tab (pp_def (t+1)) tree_def
   | Switch (i,cases,def) ->
      let pp_case out = function
-       | Unflatten n, g -> assert false
        | CConst (nargs,m,v,false), g ->
-          fprintf out "\n%sif $%i=%a.%a (%i args) then %a"
+          fprintf out "%sif $%i is %a.%a (%i args) then %a"
                   tab i pp_ident m pp_ident v nargs (pp_dtree (t+1)) g
        | CConst (nargs,m,v,true), g ->
-          fprintf out "\n%sif $%i=%a.%a (%i args, first 2 AC flattened) then %a"
-                  tab i pp_ident m pp_ident v nargs (pp_dtree (t+1)) g
+          fprintf out "%sif $%i=%a.%a (%a) then %a"
+                  tab i pp_ident m pp_ident v pp_AC_args nargs (pp_dtree (t+1)) g
        | CDB (nargs,n), g ->
-          fprintf out "\n%sif $%i=DB[%i] (%i args) then %a"
+          fprintf out "%sif $%i=DB[%i] (%i args) then %a"
                   tab i n nargs (pp_dtree (t+1)) g
-       | CLam, g -> fprintf out "\n%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
+       | CLam, g -> fprintf out "%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
      in
-     fprintf fmt "%a\n%sdefault: %a" (pp_list "" pp_case)
-             cases tab (pp_def (t+1)) def
+     fprintf fmt "%a%sdefault: %a" (pp_list "" pp_case) cases tab (pp_def (t+1)) def
 and pp_case fmt = function
-  | Unflatten n -> fprintf fmt "Unflatten %i" n
   | CConst (nargs,m,v,false) ->
      fprintf fmt "CConst %a.%a (%i args)" pp_ident m pp_ident v nargs
   | CConst (nargs,m,v,true) ->
-     fprintf fmt "AC CConst %a.%a (%i args)" pp_ident m pp_ident v nargs
+     fprintf fmt "AC CConst %a.%a (%a)" pp_ident m pp_ident v pp_AC_args nargs
   | CDB (nargs,n) -> fprintf fmt "DB[%i] (%i args)" n nargs
   | CLam -> fprintf fmt "Lambda"
 
@@ -223,7 +206,7 @@ let case_pattern_match (case:case) (pat:wf_pattern) : bool = match case, pat wit
   | CLam                  , LLambda _            -> true
   | _ -> false
 
-
+    
 let flatten_pattern (m:ident) (v:ident) pats =
   let rec flatten acc = function
   | [] -> acc
@@ -231,20 +214,22 @@ let flatten_pattern (m:ident) (v:ident) pats =
      flatten acc (args.(0) :: args.(1) :: tl)
   | t :: tl -> flatten (t::acc) tl
   in
-  let pats = flatten [] pats in
-  pats
+  flatten [] pats
 
+let specialize_empty_AC_rule (c:int) (r:dtree_rule) : dtree_rule =
+  { r with pats = Array.init (Array.length r.pats)
+                             (fun i -> if i==c then LJoker else r.pats.(i))
+  }
 
 let specialize_AC_rule case (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
   let size = Array.length r.pats in
   let new_pats_c, pat =
     match r.pats.(c), case with
-    | LACSet l, Unflatten _ -> LJoker, LACSet l
-    | LACSet l, c ->
+    | LACSet (m,v,l), c ->
        let rec remove_case acc = function
          | [] -> assert false
          | hd :: tl -> if case_pattern_match case hd
-                       then LACSet(List.rev_append acc tl), hd
+                       then LACSet (m,v,(List.rev_append acc tl)), hd
                        else remove_case (hd::acc) tl
        in
        remove_case [] l
@@ -254,15 +239,12 @@ let specialize_AC_rule case (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
       if i==c then new_pats_c else r.pats.(i)
     else (* size <= i < size+nargs *)
       match pat, case with
-      | LACSet l, Unflatten n -> (assert (nargs==n);
-                                  assert (n==List.length l);
-                                  List.nth l (i - size))
       | LPattern (m,v,pats2), CConst(nargs',m',v',true) ->
          assert(ident_eq m m'); assert(ident_eq v v');
          assert(nargs >= 1);
          assert(Array.length pats2 == (nargs+1) );
          if i == size
-         then LACSet (flatten_pattern m v [pats2.(0);pats2.(1)])
+         then LACSet (m,v,(flatten_pattern m v [pats2.(0);pats2.(1)]))
          else pats2.(i - size + 1)
       | LPattern (_,id,pats2),_ | LBoundVar (id,_,pats2),_ ->
          assert ( Array.length pats2 == nargs );
@@ -296,7 +278,7 @@ let specialize_rule case (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
            assert(nargs >= 1);
            assert(Array.length pats2 == (nargs+1) );
            if i == size
-           then LACSet (flatten_pattern m v [pats2.(0);pats2.(1)])
+           then LACSet (m, v, (flatten_pattern m v [pats2.(0);pats2.(1)]))
            else pats2.(i - size + 1)
         | LACSet _, _ -> assert false
         | LPattern (_,id,pats2),_ | LBoundVar (id,_,pats2),_ ->
@@ -335,6 +317,21 @@ let filter_default (mx:matrix) (c:int) : matrix option =
   ) mx
 
 (* Specialize the matrix [mx] on column [c] *)
+let specialize_ACEmpty (mx:matrix) (c:int) : matrix * matrix option =
+  let (rules_suc, rules_def) =
+    List.partition (filter_on_empty_AC_set c) (mx.first::mx.others) in
+  match rules_suc with
+  | [] -> assert false
+  | first::others ->
+     { mx with
+       first =            specialize_empty_AC_rule c first;
+       others = List.map (specialize_empty_AC_rule c ) others
+     },
+     (match rules_def with
+      | [] -> None
+      | f::o -> Some ({ mx with first = f; others = o}))
+
+(* Specialize the matrix [mx] on column [c] *)
 let specialize_AC (mx:matrix) (c:int) (case:case) : matrix * matrix option =
   let nargs, (rules_suc, rules_def) = match case with
     | CLam                   -> 1    , List.partition (filter_on_lambda c)
@@ -342,8 +339,6 @@ let specialize_AC (mx:matrix) (c:int) (case:case) : matrix * matrix option =
     | CDB      (nargs,n)     -> nargs, List.partition (filter_on_bound_variable c nargs n)
                                                       (mx.first::mx.others)
     | CConst   (nargs,m,v,_) -> nargs, List.partition (filter_on_pattern c nargs m v)
-                                                      (mx.first::mx.others)
-    | Unflatten n            -> n    , List.partition (filter_on_variable_AC_set n c)
                                                       (mx.first::mx.others)
   in
   let ac_const = match case with CConst(_,_,_,t) -> t | _ -> false in
@@ -371,7 +366,6 @@ let specialize (mx:matrix) (c:int) (case:case) : matrix =
     | CLam                   -> ( filter (filter_on_lambda         c          ) mx , 1    )
     | CDB      (nargs,n)     -> ( filter (filter_on_bound_variable c nargs n  ) mx , nargs)
     | CConst   (nargs,m,v,_) -> ( filter (filter_on_pattern        c nargs m v) mx , nargs)
-    | Unflatten n -> assert false
   in
   let ac_const = match case with CConst(_,_,_,t) -> t | _ -> false in
   let add_args = if ac_const then nargs-1 else nargs in
@@ -391,16 +385,15 @@ let specialize (mx:matrix) (c:int) (case:case) : matrix =
 
 
 
-let partition_AC (is_AC:ident->ident->bool) (l:wf_pattern list) : case =
-  let rec f x = function
-    | [] -> Unflatten x
-    | hd::tl ->
-       begin
-         match case_of_pattern is_AC hd with
-         | Some c -> c
-         | None   -> f (x+1) tl
-       end in
-  f 0 l
+let rec partition_AC (is_AC:ident->ident->bool) : wf_pattern list -> case =
+  function
+  | [] -> assert false
+  | hd::tl ->
+     begin
+       match case_of_pattern is_AC hd with
+       | Some c -> c
+       | None   -> partition_AC is_AC tl
+     end
   
 let partition (is_AC:ident->ident->bool) (mx:matrix) (c:int) : case list =
   let aux lst li =
@@ -421,42 +414,65 @@ let get_first_constraints mx = mx.first.constraints
 (* Extracts the matching_problem from the first line. *)
 let get_first_matching_problem mx =
   let esize = mx.first.esize in
-  let dummy = { position=(-1); depth=0; } in
-  let dummy2 = dummy, LList.nil in
-  let arr1 = Array.make esize dummy in
-  let arr2 = Array.make esize dummy2 in
-  let mp = ref false in
+  let ac_sets = ref (LList.nil) in
+  let pbs    = Array.make esize [] in
   Array.iteri
     (fun i p ->
+      let depth = mx.col_depth.(i) in
+      let arg_pos = (depth,i) in
       match p with
       | LJoker -> ()
       | LVar (_,n,lst) ->
          begin
-           let depth = mx.col_depth.(i) in
-           let n = n - depth in
-           assert( 0 <= n );
-           assert(n < esize );
-           let pos = { position=i; depth = mx.col_depth.(i) } in
-           arr1.(n) <- pos;
-           arr2.(n) <- pos, LList.of_list lst;
-           mp := !mp || (lst <> []);
+           assert(depth <= n && n < esize + depth);
+           pbs.(n - depth) <- (mk_problem_type lst, Eq arg_pos) :: pbs.(n - depth)
+         end
+      | LACSet (m,v,patl) ->
+         begin
+           let index = LList.len !ac_sets in
+           let var_count = List.length patl in
+           ac_sets := LList.cons ((depth, [i]), m, v, var_count) !ac_sets;
+           List.iter
+             (function
+              | LJoker -> ()
+              | LVar (_,n,lst) ->
+                 begin
+                   assert(depth <= n && n < esize + depth);
+                   pbs.(n - depth) <- (mk_problem_type lst, AC_Subset(index, 1)) :: pbs.(n - depth)
+                 end
+              | _ -> assert false
+             )
+             patl
          end
       | _ -> assert false
-    ) mx.first.pats ;
-  ( Array.iter ( fun r -> assert (r.position >= 0 ) ) arr1 );
-  if !mp then MillerPattern (array_to_llist arr2)
-    else Syntactic (array_to_llist arr1)
+    ) mx.first.pats;
+  ignore(Array.map (fun x -> assert(List.length x > 0)) pbs);
+  (** Group porblems linked through linearity constraints.  *)
+  List.iter
+    (function
+     | Bracket _ -> ()
+     | Linearity (i,j) -> ( pbs.(j) <- List.rev_append pbs.(i) pbs.(j);  pbs.(i) <- [])  )
+    mx.first.constraints;
+  {
+    problems = pbs;
+    ac_sets = Array.of_list (List.rev (LList.lst !ac_sets));
+    subst = Array.make esize None
+  }
 
 (******************************************************************************)
+
+(*  TODO: check at some point that no neutral element can occur in a pattern *)
+let rec non_var_pat = function
+  | LVar _ | LJoker -> false
+  | LACSet (_,_,[]) -> true
+  | LACSet (_,_,patl) -> List.exists non_var_pat patl
+  | _ -> true
 
 (* Give the index of the first non variable column *)
 let choose_column mx =
   let rec aux i =
     if i < Array.length mx.first.pats then
-      let pat = mx.first.pats.(i) in
-      ( match pat with
-        | LPattern _ | LLambda _ | LBoundVar _ | LACSet _ -> Some i
-        | LVar _ | LJoker -> aux (i+1))
+      if non_var_pat mx.first.pats.(i) then Some i else aux (i+1)
     else None
   in
   aux 0
@@ -465,21 +481,24 @@ let choose_column mx =
 let rec to_dtree (is_AC:ident->ident->bool) (mx:matrix) : dtree =
   match choose_column mx with
     (* There are only variables on the first line of the matrix *)
-    | None   -> Test ( get_first_matching_problem mx,
-                       get_first_constraints mx,
-                       get_first_term mx,
-                       map_opt (to_dtree is_AC) (pop mx) )
-    (* Pattern on the first line at column c *)
-    | Some c ->
-       match mx.first.pats.(c) with
-       | LACSet l ->
-          let case = partition_AC is_AC l in
-          let mx_suc, mx_def = specialize_AC mx c case in
-          Fetch (c, case, to_dtree is_AC mx_suc, map_opt (to_dtree is_AC) mx_def)
-       | _ ->
-          let cases = partition is_AC mx c in
-          let aux ca = ( ca , to_dtree is_AC (specialize mx c ca) ) in
-          Switch (c, List.map aux cases, map_opt (to_dtree is_AC) (filter_default mx c) )
+  | None   -> Test ( get_first_matching_problem mx,
+                     get_first_constraints mx,
+                     get_first_term mx,
+                     map_opt (to_dtree is_AC) (pop mx) )
+  (* Pattern on the first line at column c *)
+  | Some c ->
+     match mx.first.pats.(c) with
+     | LACSet (_,_,[]) ->
+        let mx_suc, mx_def = specialize_ACEmpty mx c in
+        ACEmpty (c, to_dtree is_AC mx_suc, map_opt (to_dtree is_AC) mx_def)
+     | LACSet (_,_,l) ->
+        let case = partition_AC is_AC l in
+        let mx_suc, mx_def = specialize_AC mx c case in
+        Fetch (c, case, to_dtree is_AC mx_suc, map_opt (to_dtree is_AC) mx_def)
+     | _ ->
+        let cases = partition is_AC mx c in
+        let aux ca = ( ca , to_dtree is_AC (specialize mx c ca) ) in
+        Switch (c, List.map aux cases, map_opt (to_dtree is_AC) (filter_default mx c) )
 
 (******************************************************************************)
 

@@ -7,14 +7,14 @@ open Term
 (** {2 Patterns} *)
 
 type pattern =
-  | Var         of loc * ident * int * pattern list
+  | Var       of loc * ident * int * pattern list
       (** l x i [x1 ; x2 ; ... ; xn ] where [i] is the position of x inside the context
           of the rule *)
-  | Pattern     of loc * ident * ident * pattern list
+  | Pattern   of loc * ident * ident * pattern list
       (** l md id [p1 ; p2 ; ... ; pn ] where [md.id] is a constant *)
-  | Lambda      of loc * ident * pattern
+  | Lambda    of loc * ident * pattern
       (** lambda abstraction *)
-  | Brackets    of term
+  | Brackets  of term
       (** te where [te] is convertible to the pattern matched *)
 
 val get_loc_pat : pattern -> loc
@@ -24,11 +24,11 @@ val pattern_to_term : pattern -> term
 (** a wf_pattern is a Miller pattern without brackets constraints and each free variable appear exactly once. *)
 type wf_pattern =
   | LJoker
-  | LVar         of ident * int * int list
-  | LLambda      of ident * wf_pattern
-  | LPattern     of ident * ident * wf_pattern array
-  | LBoundVar    of ident * int * wf_pattern array
-  | LACSet       of wf_pattern list
+  | LVar      of ident * int * int list
+  | LLambda   of ident * wf_pattern
+  | LPattern  of ident * ident * wf_pattern array
+  | LBoundVar of ident * int   * wf_pattern array
+  | LACSet    of ident * ident * wf_pattern list
 
 (** {2 Linarization} *)
 
@@ -38,6 +38,8 @@ val allow_non_linear : bool ref
 type constr =
   | Linearity of int * int (** DB indices [i] and [j] of the pattern should be convertible *)
   | Bracket of int * term (** DB indicies [i] should be convertible to the term [te] *)
+
+val pp_constr : Format.formatter -> constr -> unit
 
 (** Check_patterns [i] [ps] checks that if the list of patterns [ps] with a context of size [i] are Miller's pattern. Moreover, if these patterns are non-linear
     or contains brackets, then constraints are generated *)
