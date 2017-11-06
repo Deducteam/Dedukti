@@ -123,14 +123,19 @@ let graph =
 
 let table = ref []
 let constructors = Hashtbl.create 5
-                
+let after = Hashtbl.create 5                                  
+
+let updateHT ht id a=
+  Hashtbl.replace ht id (a::Hashtbl.find ht id) 
+                            
 let initialize () = !graph.next_index :=0;
                     let root = { index = -1 ; name  = "R" ; arity = 0 ; args  = [||] } in
                     let syms = IMap.singleton (-1) root in
                     !graph.symbols := syms;
                     !graph.calls := [];
                     table := [];
-                    Hashtbl.clear constructors
+                    Hashtbl.clear constructors;
+                    Hashtbl.clear after
 
 (** Creation of a new symbol.  *)
 let create_symbol : bool -> string -> string array -> unit =
@@ -160,24 +165,44 @@ let create_array n=
   res
     
 let add_fonc vb v t st=
-  let rec get_all_from_pi l res=
+  let rec get_all_from_pi b l res=
     match res with
-    | Pi(_,_,a,r) -> get_all_from_pi (a::l) r
-    | Const(_,_,r) -> Hashtbl.replace constructors r ((v,l)::Hashtbl.find constructors r)
-    | Type _ -> Hashtbl.add constructors v []
-    | _ -> printf "I don't understand what you are adding under he Pi : %a@." pp_term res
+    | Pi(_,_,arg,r) ->
+       begin
+       match arg with
+       | Const(_,_,f) -> get_all_from_pi b (f::l) r
+       | Pi(_,_,_,_) as p -> get_all_from_pi b l r; get_all_from_pi false [] p
+       | App(Const(_,_,f),_,_) -> get_all_from_pi b (f::l) r
+       | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term res
+       end
+    | Const(_,_,f) -> if b then updateHT constructors f v;
+                      List.iter (updateHT after f) l
+    | App(Const(_,_,f),_,_) -> if b then updateHT constructors f v;
+                               List.iter (updateHT after f) l
+    | Type _ -> Hashtbl.add constructors v [];
+                Hashtbl.add after v l
+    | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term res
   in
   let n=find_arity t in
   let second (a,b,c) = b in
   match t with
-  | Kind -> create_symbol vb (string_of_ident v) (create_array 0); printf "How is it possible to create a symbol in Kind ?@."
-  | Type _ -> create_symbol vb (string_of_ident v) (create_array 0); if st = Signature.Static then Hashtbl.add constructors v []
+  | Kind -> create_symbol vb (string_of_ident v) (create_array 0);
+            printf "How is it possible to create a symbol in Kind ?@."
+  | Type _ -> create_symbol vb (string_of_ident v) (create_array 0);
+              if st = Signature.Static
+              then Hashtbl.add constructors v []; Hashtbl.add after v []
   | DB (_,_,_) -> printf "AddFonc of a DB Variable %a, I don't understand how it can happen@." pp_term t
-  | Const (_,_,r) -> create_symbol vb (string_of_ident v) (create_array 0); if st=Signature.Static then Hashtbl.replace constructors r ((v,[])::Hashtbl.find constructors r) 
-  | App (Const(_,_,f),u,lt) -> create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident f)) (List.rev !table)) -1-List.length lt)); printf "Here is an App %a, %s@." pp_term t (if st=Signature.Static then "Static !!!" else "Definable")
-  | App(_,_,_) as t -> printf "AddFonc of a app of a not const %a, I don't know how to react@." pp_term t
+  | Const (_,_,f) -> create_symbol vb (string_of_ident v) (create_array 0);
+                     if st=Signature.Static
+                     then updateHT constructors f v
+  | App (Const(_,_,f),u,lt) -> create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident f)) (List.rev !table)) -1-List.length lt));
+                    if st = Signature.Static
+                    then updateHT constructors f v
+  | App (_,_,_) as t -> printf "Add Fonc of an application of a non constant %a, I don't know how to deal with it@." pp_term t
   | Lam (_,_,_,_) -> printf "AddFonc of a lambda %a, I don't know how to react@." pp_term t
-  | Pi(_,name,arg,res) -> create_symbol vb (string_of_ident v) (create_array n); if st = Signature.Static then get_all_from_pi [arg] res
+  | Pi(_,_,_,_) as t -> create_symbol vb (string_of_ident v) (create_array n);
+                          if st = Signature.Static
+                          then get_all_from_pi true [] t
                                         
 (** Copy a call graph. *)
 let copy : call_graph -> call_graph =
@@ -438,14 +463,68 @@ let latex_print_calls () =
 let printHT key_printer elt_printer ht=
   Hashtbl.iter (fun a b -> printf "%a : %a@." key_printer a elt_printer b) ht
 
-let pp_couple pp_fst pp_snd fmt x = fprintf fmt "(%a , [%a])" pp_fst (fst x) pp_snd (snd x) 
+let pp_couple pp_fst pp_snd fmt x = fprintf fmt "(%a , %a)" pp_fst (fst x) pp_snd (snd x) 
                
-let print_constr ()= printHT pp_ident (pp_list "," (pp_couple pp_ident (pp_list "," pp_term))) constructors
-               
+let print_constr ()=
+  printf "@.Constructors :@."; printHT pp_ident (pp_list "," pp_ident) constructors;
+  printf "@.After :@."; printHT pp_ident (pp_list "," pp_ident) after;
+  printf "@;"
+      
+let tarjan graph=
+  let num=ref 0 and p = ref [] and partition = ref []
+      and numHT= Hashtbl.create 5 and numAcc = Hashtbl.create 5 in
+  let rec parcours v=
+    Hashtbl.add numHT v !num;
+    Hashtbl.add numAcc v !num;
+    incr num;
+    p := v::!p;
+    let parcours_intern w=
+      if not (Hashtbl.mem numHT w)
+      then
+        (parcours w;
+         Hashtbl.replace numAcc v (min (Hashtbl.find numAcc v) (Hashtbl.find numAcc w)))
+      else
+        (if List.mem w !p
+        then Hashtbl.replace numAcc v (min (Hashtbl.find numAcc v) (Hashtbl.find numHT w)))
+    in
+    List.iter parcours_intern (Hashtbl.find graph v);
+    if (Hashtbl.find numAcc v)=(Hashtbl.find numHT v)
+    then
+      begin
+        let c=ref [] and w=ref (hstring "") in
+        while not (ident_eq !w v)
+        do
+          w:= List.hd !p;
+          p:= List.tl !p;
+          c:= !w::!c;
+        done;
+        partition:=!c::!partition
+      end
+  in
+  Hashtbl.iter (fun v -> fun _ -> if not (Hashtbl.mem numHT v) then parcours v) graph;
+  let eq_class id=
+    List.find (fun l-> List.exists (fun x-> ident_eq x id) l) !partition
+  in
+  let uncycled_graph=Hashtbl.create 5 in
+  List.iter (fun l-> Hashtbl.add uncycled_graph l []) !partition;
+  Hashtbl.iter (fun a -> fun l -> List.iter (fun x -> updateHT uncycled_graph (eq_class a) (eq_class x)) l) graph;
+  uncycled_graph
+
+let tri_topo gr=
+  let listeSommets=ref [] and tabCouleur=Hashtbl.create 5 in
+  let rec parcours_profondeur_topo x=
+    Hashtbl.add tabCouleur x 0;
+    List.iter (fun y -> if not (Hashtbl.mem tabCouleur y) then parcours_profondeur_topo y) (Hashtbl.find gr x);
+    listeSommets:=x::!listeSommets
+  in
+  Hashtbl.iter (fun x -> fun _ -> if not (Hashtbl.mem tabCouleur x) then parcours_profondeur_topo x) gr;
+  List.rev !listeSommets
+   
 (** the main function, checking if calls are well-founded *)
 let sct_only : bool -> bool =
   fun vb ->
-  print_constr ();
+  if vb then print_constr ();
+  printf "%a@." (pp_list ";" (pp_list "," pp_ident)) (tri_topo (tarjan after));
   let ftbl= !graph in
   let num_fun = !(ftbl.next_index) in
   let arities = !(ftbl.symbols) in

@@ -33,9 +33,8 @@ let mk_declaration lc id st pty : unit =
 
 let mk_definition lc id pty_opt pte : unit =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
-  if (!sizechange)|| (!szgraph) then
-    (try Sizechange.add_symb !verbose id pte
-    with Failure _-> let (l,c) = of_loc lc in variable_call := l);
+  if (!sizechange)|| (!szgraph)
+  then Sizechange.add_symb !verbose id pte;
   match Env.define lc id pte pty_opt with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
