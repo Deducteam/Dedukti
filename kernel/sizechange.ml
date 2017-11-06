@@ -122,7 +122,8 @@ let graph =
   ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
 
 let table = ref []
-let constructors = Hashtbl.create 5
+let constructors = ref []
+let must_be_before = Hashtbl.create 5
 let after = Hashtbl.create 5                                  
 
 let updateHT ht id a=
@@ -134,7 +135,8 @@ let initialize () = !graph.next_index :=0;
                     !graph.symbols := syms;
                     !graph.calls := [];
                     table := [];
-                    Hashtbl.clear constructors;
+                    constructors := []
+                    Hashtbl.clear must_be_before;
                     Hashtbl.clear after
 
 (** Creation of a new symbol.  *)
