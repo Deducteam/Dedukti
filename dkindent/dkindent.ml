@@ -40,13 +40,9 @@ module T = struct
     | Check (te,ty)    -> Format.printf "#CHECK@ %a,@ %a." print_term te print_term ty
     | Infer te         -> Format.printf "#INFER@ %a." print_term te
     | InferSnf te      -> Format.printf "#INFERSNF@ %a." print_term te
-    | Gdt (m0,v)       ->
-      begin match m0 with
-        | None -> Format.printf "#GDT@ %a." print_ident v
-        | Some m -> Format.printf "#GDT@ %a.%a." print_mident m print_ident v
-      end
-    | Print str         -> Format.printf "#PRINT \"%s\"." str
-    | Other (cmd,_)     -> failwith (Format.sprintf "Unknown command '%s'.\n" cmd)
+    | Gdt (cst)        -> Format.printf "#GDT@ %a." Name.pp_ident cst
+    | Print str        -> Format.printf "#PRINT \"%s\"." str
+    | Other (cmd,_)    -> failwith (Format.sprintf "Unknown command '%s'.\n" cmd)
 
   let mk_ending _ = ()
 end

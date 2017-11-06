@@ -27,7 +27,7 @@ let rec find_dko_in_path name = function
 (* If the file for module m is not found in load path, add it to the
    list of dependencies *)
 let add_dep m =
-  let s = string_of_mident m in
+  let s = Name.string_of_mident m in
   if not (find_dko_in_path s (get_path()))
   then begin
       let (name,m_deps) = List.hd !deps in
@@ -36,13 +36,13 @@ let add_dep m =
   end
 
 let mk_prelude _ prelude_name =
-  let name = string_of_mident prelude_name in
+  let name = Name.string_of_mident prelude_name in
   deps := (name, [])::!deps
 
 
 let rec mk_term = function
   | Kind | Type _ | DB _ -> ()
-  | Const (_,cst) -> add_dep (md cst)
+  | Const (_,cst) -> add_dep (Name.md cst)
   | App (f,a,args) -> List.iter mk_term (f::a::args)
   | Lam (_,_,None,te) -> mk_term te
   | Lam (_,_,Some a,b)
@@ -51,7 +51,7 @@ let rec mk_term = function
 
 let rec mk_pattern = function
   | Var  (_,_,_,args) -> List.iter mk_pattern args
-  | Pattern (_,cst,args) -> ( add_dep (md cst) ; List.iter mk_pattern args )
+  | Pattern (_,cst,args) -> ( add_dep (Name.md cst) ; List.iter mk_pattern args )
   | Lambda (_,_,te) -> mk_pattern te
   | Brackets t -> mk_term t
 
@@ -77,7 +77,7 @@ let mk_command _ = function
   | OneStep t | NSteps (_,t)
   | Infer t   | InferSnf t             -> mk_term t
   | Conv (t1,t2) | Check (t1,t2)       -> ( mk_term t1 ; mk_term t2 )
-  | Gdt (_,_) | Print _                -> ()
+  | Gdt (_) | Print _                -> ()
   | Other (_,lst)                      -> List.iter mk_term lst
 
 

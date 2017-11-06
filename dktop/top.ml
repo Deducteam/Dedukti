@@ -8,17 +8,17 @@ let mk_prelude _ _ = failwith "Top.mk_prelude"
 
 let mk_declaration lc id st pty =
   match Env.declare lc id st pty with
-    | OK () -> Format.printf "%a is declared.@." pp_ident id
+    | OK () -> Format.printf "%a is declared.@." Name.pp_ident id
     | Err e -> Errors.fail_env_error e
 
 let mk_definition lc id pty_opt pte =
   match Env.define lc id pte pty_opt with
-    | OK () -> Format.printf "%a is defined.@." pp_ident id
+    | OK () -> Format.printf "%a is defined.@." Name.pp_ident id
     | Err e -> Errors.fail_env_error e
 
 let mk_opaque lc id pty_opt pte =
   match Env.define_op lc id pte pty_opt with
-    | OK () -> Format.printf "%a is declared.@." pp_ident id
+    | OK () -> Format.printf "%a is declared.@." Name.pp_ident id
     | Err e -> Errors.fail_env_error e
 
 let mk_rules lst =
@@ -64,9 +64,7 @@ let mk_command lc = function
       ( match Env.infer Reduction.Snf te with
           | OK ty -> Format.printf "%a@." Pp.print_term ty
           | Err e -> Errors.fail_env_error e )
-  | Gdt (m0,v)         ->
-    let m = match m0 with None -> Env.get_name () | Some m -> m in
-    let cst = mk_name m v in
+  | Gdt (cst)         ->
         ( match Env.get_dtree lc cst with
             | OK (Some (i,g)) ->
                 Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
