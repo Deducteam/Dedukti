@@ -8,7 +8,7 @@ let update_dbs (depth:int) (dbs:int LList.t) (te:term) : term =
   let arr = Array.make size None in
   let _ = List.iteri ( fun i n -> arr.(n) <- Some (size-i-1) ) (LList.lst dbs) in (* XXX: could be computed once for all at compile time *)
   let rec aux k = function
-    | Type _ | Kind | Const _ as t -> t
+    | Type _ | Kind | Const _ | Meta _ as t -> t
     | DB (l,x,n) as t ->
         if n < k (* var bound in te *) then t
         else if n >= k+depth (* var free in te*) then

@@ -250,7 +250,7 @@ let get_nb_args (esize:int) (p:pattern) : int array =
 (* Checks that the variables are applied to enough arguments *)
 let check_nb_args (nb_args:int array) (te:term) : unit =
   let rec aux k = function
-    | Kind | Type _ | Const _ -> ()
+    | Kind | Type _ | Const _ | Meta _ -> ()
     | DB (l,id,n) ->
         if n>=k && nb_args.(n-k)>0 then
           raise (RuleExn (NotEnoughArguments (l,id,n,0,nb_args.(n-k))))

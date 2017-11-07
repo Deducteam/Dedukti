@@ -20,6 +20,7 @@ type typing_error =
   | BracketError2 of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
+  | CannotInferTypeMetaVar of loc * ident * int
 
 exception TypingError of typing_error
 

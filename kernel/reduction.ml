@@ -265,6 +265,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   | { term=Type _ }
   | { term=Kind }
   | { term=Pi _ }
+  | { term=Meta _ }
   | { term=Lam _; stack=[] } as state -> state
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
@@ -314,7 +315,7 @@ and whnf sg term = term_of_state ( state_whnf sg { ctx=LList.nil; term; stack=[]
 and snf sg (t:term) : term =
   match whnf sg t with
   | Kind | Const _
-  | DB _ | Type _ as t' -> t'
+  | DB _ | Type _ | Meta _ as t' -> t'
   | App (f,a,lst) -> mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst)
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
@@ -346,7 +347,7 @@ and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
 (* Head Normal Form *)
 let rec hnf sg t =
   match whnf sg t with
-  | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
+  | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) | Meta _ as t' -> t'
   | App (f,a,lst) -> mk_App (hnf sg f) (hnf sg a) (List.map (hnf sg) lst)
 
 
@@ -358,6 +359,7 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
      match state with
      | { term=Type _ }
      | { term=Kind }
+     | { term=Meta _}
      | { term=Pi _ } -> (red,state)
      | { ctx=ctx; term=Lam(loc,id,ty,t); stack=[] } ->
         let n',state' = state_one_step sg (red,{ctx=ctx;term=t; stack=[]}) in

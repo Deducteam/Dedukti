@@ -24,6 +24,7 @@ type typing_error =
   | BracketError2 of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
+  | CannotInferTypeMetaVar of loc * ident * int
 
 exception TypingError of typing_error
 
@@ -70,6 +71,10 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
             | Kind -> raise (TypingError (InexpectedKind (b, ctx2)))
             | _ -> mk_Pi l x a ty_b )
   | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
+  | Meta (l,x,n, mt) ->
+    match !mt with
+    | None -> raise (TypingError(CannotInferTypeMetaVar(l,x,n)))
+    | Some t -> infer sg ctx t
 
 and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
   match te with
@@ -77,6 +82,7 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     ( match whnf sg ty_exp with
       | Pi (_,_,a,b) -> check sg ((l,x,a)::ctx) u b
       | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp))) )
+  | Meta _ -> ()
   | _ ->
     let ty_inf = infer sg ctx te in
     if Reduction.are_convertible sg ty_inf ty_exp then ()
@@ -352,6 +358,10 @@ let rec pp_term_j k fmt = function
   | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
   | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term f
   | Pi  (_,x,a,b)      -> fprintf fmt "%a:%a -> %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term b
+  | Meta (_,x,n,mt)    ->
+    match !mt with
+    | None -> fprintf fmt "%a[%d]" pp_ident x n
+    | Some t -> fprintf fmt "%a" (pp_term_wp_j k) t
 
 and pp_term_wp_j k fmt = function
   | Kind | Type _ | DB _ | Const _ as t -> pp_term_j k fmt t

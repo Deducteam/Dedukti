@@ -41,7 +41,7 @@ let mk_prelude _ prelude_name =
 
 
 let rec mk_term = function
-  | Kind | Type _ | DB _ -> ()
+  | Kind | Type _ | DB _ | Meta _ -> ()
   | Const (_,cst) -> add_dep (md cst)
   | App (f,a,args) -> List.iter mk_term (f::a::args)
   | Lam (_,_,None,te) -> mk_term te

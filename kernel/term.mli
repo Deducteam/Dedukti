@@ -13,6 +13,8 @@ type term = private
   | App   of term * term * term list          (** f a1 [ a2 ; ... ; an ] , f not an App *)
   | Lam   of loc * ident * term option * term (** Lambda abstraction *)
   | Pi    of loc * ident * term * term        (** Pi abstraction *)
+  | Meta  of loc * ident * int * term option ref
+
 
 val pp_term : Format.formatter -> term -> unit
 
@@ -26,6 +28,7 @@ val mk_Lam      : loc -> ident -> term option -> term -> term
 val mk_App      : term -> term -> term list -> term
 val mk_Pi       : loc -> ident -> term -> term -> term
 val mk_Arrow    : loc -> term -> term -> term
+val mk_Meta     : loc -> ident -> int -> term
 
 (** term_eq [t] [t'] is true if [t]=[t'] (up to alpha equivalence) *)
 val term_eq : term -> term -> bool
