@@ -105,14 +105,18 @@ let pp_pattern ar fmt pat = Format.(
 let rec pp_term (ar:int IdMap.t) k fmt term = Format.(
   match term with
   | Const (_,cst) -> fprintf fmt "c_%a" print_name cst;
-  | Lam (_,x,Some a,b) ->
+  | Lam (_,x,a,b) ->
     fprintf fmt "lam(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
-  | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
   | Pi (_,x,a,b) ->
     fprintf fmt "pi(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
   | DB (_,x,n) when n<k -> fprintf fmt "v_%a" pp_ident x
   | DB (_,x,_) -> fprintf fmt "m_%a" pp_ident x
-  | Meta _ -> failwith "confluence checking on meta variables is not handle"
+  | Meta(_,_,_,mt) ->
+    begin
+      match !mt with
+      | None -> failwith "confluence checking on meta variables is not handle"
+      | Some a -> pp_term ar k fmt a
+    end
   | App (DB (_,x,n),a,args) when (n>=k) ->
     let arity = IdMap.find x ar in
     if arity == 0 then (
@@ -141,8 +145,7 @@ let get_bvars r =
   let pat = pattern_of_rule_infos r in
   let rec aux_t k bvars = function
     | Const _ | Kind | Type _ | DB _ | Meta _ -> bvars
-    | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
-    | Lam (_,x,Some a,b) | Pi (_,x,a,b) ->
+    | Lam (_,x, a,b) | Pi (_,x,a,b) ->
       let bvars2 = aux_t k bvars a in aux_t (k+1) (x::bvars2) b
     | App (f,a,args) ->
       List.fold_left (aux_t k) bvars (f::a::args)

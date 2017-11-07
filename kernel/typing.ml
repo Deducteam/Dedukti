@@ -63,14 +63,13 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
       ( match ty_b with
         | Kind | Type _ -> ty_b
         | _ -> raise (TypingError (SortExpected (b, ctx2, ty_b))) )
-  | Lam  (l,x,Some a,b) ->
+  | Lam  (l,x,a,b) ->
       let ty_a = infer sg ctx a in
       let ctx2 = extend_ctx (l,x,a) ctx ty_a in
       let ty_b = infer sg ctx2 b in
         ( match ty_b with
             | Kind -> raise (TypingError (InexpectedKind (b, ctx2)))
             | _ -> mk_Pi l x a ty_b )
-  | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
   | Meta (l,x,n, mt) ->
     match !mt with
     | None -> raise (TypingError(CannotInferTypeMetaVar(l,x,n)))
@@ -78,10 +77,12 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
 
 and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
   match te with
+  (* TODO: handle the cases with Meta varuabke
   | Lam (l,x,None,u) ->
     ( match whnf sg ty_exp with
       | Pi (_,_,a,b) -> check sg ((l,x,a)::ctx) u b
       | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp))) )
+  *)
   | Meta _ -> ()
   | _ ->
     let ty_inf = infer sg ctx te in
@@ -355,8 +356,7 @@ let rec pp_term_j k fmt = function
   | DB  (_,x,n)        -> fprintf fmt "_"
   | Const (_,cst)      -> fprintf fmt "%a" pp_name cst
   | App (f,a,args)     -> pp_list " " (pp_term_wp_j k) fmt (f::a::args)
-  | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
-  | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term f
+  | Lam (_,x, a,f) -> fprintf fmt "%a:%a => %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term f
   | Pi  (_,x,a,b)      -> fprintf fmt "%a:%a -> %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term b
   | Meta (_,x,n,mt)    ->
     match !mt with

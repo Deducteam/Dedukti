@@ -44,8 +44,7 @@ let rec mk_term = function
   | Kind | Type _ | DB _ | Meta _ -> ()
   | Const (_,cst) -> add_dep (md cst)
   | App (f,a,args) -> List.iter mk_term (f::a::args)
-  | Lam (_,_,None,te) -> mk_term te
-  | Lam (_,_,Some a,b)
+  | Lam (_,_, a,b)
   | Pi (_,_,a,b) -> ( mk_term a; mk_term b )
 
 

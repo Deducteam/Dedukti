@@ -74,10 +74,8 @@ let rec subst map = function
   | App (f,a,args)     -> mk_App (subst map f)
                                 (subst map a)
                                 (List.map (subst map) args)
-  | Lam (l,x,None,f)   -> let x' = fresh_name map x in
-                         mk_Lam l x' None (subst (x' :: map) f)
-  | Lam (l,x,Some a,f) -> let x' = fresh_name map x in
-                         mk_Lam l x' (Some (subst map a)) (subst (x' :: map) f)
+  | Lam (l,x,a,f) -> let x' = fresh_name map x in
+                         mk_Lam l x' (subst map a) (subst (x' :: map) f)
   | Pi  (l,x,a,b)      -> let x' =
                            if is_dummy_ident x then x else fresh_name map x
                          in
@@ -97,8 +95,7 @@ let rec print_term fmt = function
   | Const (_,cst)      -> print_const fmt cst
   | App (f,a,args)     ->
       Format.fprintf fmt "@[<hov2>%a@]" (print_list " " print_term_wp) (f::a::args)
-  | Lam (_,x,None,f)   -> Format.fprintf fmt "@[%a =>@ @[%a@]@]" print_ident x print_term f
-  | Lam (_,x,Some a,f) ->
+  | Lam (_,x, a,f) ->
       Format.fprintf fmt "@[%a:@,%a =>@ @[%a@]@]" print_ident x print_term_wp a print_term f
   | Pi  (_,x,a,b) when ident_eq x qmark  ->
       (* arrow, no pi *)

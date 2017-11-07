@@ -158,7 +158,7 @@ let pattern_to_term p =
         mk_App (mk_Const l n) (aux k a) (List.map (aux k) args)
     | Var (l,x,n,a::args) ->
         mk_App (mk_DB l x n) (aux k a) (List.map (aux k) args)
-    | Lambda (l,x,pat) -> mk_Lam l x None (aux (k+1) pat)
+    | Lambda (l,x,pat) -> mk_Lam l x (Term.mk_Meta dloc x)  (aux (k+1) pat)
   in
     aux 0 p
 
@@ -261,8 +261,7 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
           raise (RuleExn (NotEnoughArguments (l,id,n,nb_args,min_nb_args)))
         else List.iter (aux k) (a1::args)
     | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
-    | Lam (_,_,None,b) -> aux (k+1) b
-    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
+    | Lam (_,_,a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
   in
     aux 0 te
 

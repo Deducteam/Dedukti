@@ -318,7 +318,7 @@ and snf sg (t:term) : term =
   | DB _ | Type _ | Meta _ as t' -> t'
   | App (f,a,lst) -> mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst)
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
-  | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
+  | Lam (_,x,a,b) -> mk_Lam dloc x (snf sg a) (snf sg b)
 
 and are_convertible_lst sg : (term*term) list -> bool = function
   | [] -> true
