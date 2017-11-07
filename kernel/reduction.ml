@@ -335,6 +335,16 @@ and are_convertible_lst sg : (term*term) list -> bool = function
             add_to_list2 args args' ((f,f')::(a,a')::lst)
           | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
           | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
+          | Meta(_,_,n,mt), Meta(_,_,n',mt') ->
+            begin
+              match !mt, !mt' with
+              | None, None -> if n==n' then Some lst else None
+              | Some t, Some t' -> Some ((t,t')::lst)
+              | None, Some t -> mt := Some t; Some lst
+              | Some t, None -> mt' := Some t; Some lst
+            end
+          | Meta(_,_,_,mt), t
+          | t, Meta(_,_,_,mt) -> mt := Some t; Some lst
           | t1, t2 -> None
       ) with
       | None -> false
@@ -342,7 +352,9 @@ and are_convertible_lst sg : (term*term) list -> bool = function
     end
 
 (* Convertibility Test *)
-and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
+and are_convertible sg t1 t2 =
+  debug 1 "Convertible: %a %a" pp_term t1 pp_term t2;
+  are_convertible_lst sg [(t1,t2)]
 
 (* Head Normal Form *)
 let rec hnf sg t =

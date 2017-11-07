@@ -83,6 +83,16 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
       | Pi (_,_,a,b) -> check sg ((l,x,a)::ctx) u b
       | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp))) )
   *)
+  | Lam(l,x,a,u) ->
+    begin
+      match whnf sg ty_exp with
+      | Pi(_,_,a',b') ->
+        if Reduction.are_convertible sg a a' then
+          check sg ((l,x,a)::ctx )u b'
+        else
+          raise (TypingError (ConvertibilityError (te,ctx,ty_exp,mk_Pi dloc x a (mk_Meta dloc dmark))))
+      | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
+    end
   | Meta _ -> ()
   | _ ->
     let ty_inf = infer sg ctx te in
