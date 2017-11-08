@@ -52,10 +52,10 @@ val name_eq : name -> name -> bool
 val pp_name : Format.formatter -> name -> unit
 
 (** qmark is a special identifier for unification variables *)
-val qmark : string
+val qmark : ident
 
 (** dmark is a meaningless identifier *)
-val dmark : string
+val dmark : ident
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
 
 (** {2 Lists with Length} *)

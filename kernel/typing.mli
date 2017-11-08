@@ -9,7 +9,7 @@ val coc : bool ref
 type typing_error =
   | KindIsNotTypable
   | ConvertibilityError of term * typed_context * term * term
-  | VariableNotFound of loc * string * int * typed_context
+  | VariableNotFound of loc * ident * int * typed_context
   | SortExpected of term * typed_context * term
   | ProductExpected of term * typed_context * term
   | InexpectedKind of term * typed_context
@@ -18,7 +18,7 @@ type typing_error =
   | CannotSolveConstraints of untyped_rule * (int * term * term) list
   | BracketError1 of term * typed_context
   | BracketError2 of term * typed_context*term
-  | FreeVariableDependsOnBoundVariable of loc * string * int * typed_context * term
+  | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
 
 exception TypingError of typing_error

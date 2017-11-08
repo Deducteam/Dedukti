@@ -17,19 +17,19 @@ val psubst_l            : (term Lazy.t) Basic.LList.t -> int -> term -> term
 val subst               : term -> term -> term
 
 (** [subst_n n y t] replaces x[n] by y[0] and shift by one. *)
-val subst_n : int -> string -> term -> term
+val subst_n : int -> Basic.ident -> term -> term
 
 
 module Subst :
 sig
   type t
   val identity : t
-  val add : t -> string -> int -> term -> t option
+  val add : t -> Basic.ident -> int -> term -> t option
   val apply : t -> term -> int -> term
   (* val merge : t -> t -> t *)
   val is_identity : t -> bool
   val mk_idempotent : t -> t
   val pp : Format.formatter -> t -> unit
-  val fold : (int -> (string * term) -> 'b -> 'b) -> t -> 'b -> 'b
-  val iter : (int -> (string * term) -> unit) -> t -> unit
+  val fold : (int -> (Basic.ident*term) -> 'b -> 'b) -> t -> 'b -> 'b
+  val iter : (int -> (Basic.ident*term) -> unit) -> t -> unit
 end

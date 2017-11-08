@@ -13,7 +13,7 @@ type typ = term
 type typing_error =
   | KindIsNotTypable
   | ConvertibilityError of term * typed_context * term * term
-  | VariableNotFound of loc * string * int * typed_context
+  | VariableNotFound of loc * ident * int * typed_context
   | SortExpected of term * typed_context * term
   | ProductExpected of term * typed_context * term
   | InexpectedKind of term * typed_context
@@ -22,7 +22,7 @@ type typing_error =
   | CannotSolveConstraints of untyped_rule * (int * term * term) list
   | BracketError1 of term * typed_context
   | BracketError2 of term * typed_context*term
-  | FreeVariableDependsOnBoundVariable of loc * string * int * typed_context * term
+  | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
 
 exception TypingError of typing_error
@@ -126,7 +126,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
         | DB (_,_,n), DB (_,_,n') when ( n=n' ) -> pseudo_u sg sigma lst
         | Const (_,cst), Const (_,cst') when
-            ( Name.equal cst cst' ) ->
+            ( name_eq cst cst' ) ->
           pseudo_u sg sigma lst
 
         | DB (l1,x1,n1), DB (l2,x2,n2) when ( n1>=q && n2>=q) ->
@@ -188,8 +188,8 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
 
 (* **** TYPE CHECKING/INFERENCE FOR PATTERNS ******************************** *)
 
-type constraints = (int * term * term) list
-type context2 = (loc * string * typ) LList.t
+type constraints = (int*term*term) list
+type context2 = (loc*ident*typ) LList.t
 
 (* Partial Context *)
 
@@ -198,7 +198,7 @@ type partial_context =
     pctx:context2 (*partial context*)
   }
 
-let pc_make (ctx:(loc * string) list) : partial_context =
+let pc_make (ctx:(loc*ident) list) : partial_context =
   let size = List.length ctx in
   assert ( size >= 0 );
   { padding=size; pctx=LList.nil }
@@ -209,7 +209,7 @@ let pc_get (delta:partial_context) (n:int) : term option =
     let (_,_,ty) = List.nth (LList.lst delta.pctx) (n-delta.padding)
     in Some (Subst.shift (n+1) ty)
 
-let pc_add (delta:partial_context) (n:int) (l:loc) (id:string) (ty0:typ) : partial_context =
+let pc_add (delta:partial_context) (n:int) (l:loc) (id:ident) (ty0:typ) : partial_context =
   assert ( n == delta.padding-1 && n >= 0 );
   let ty = Subst.unshift (n+1) ty0 in
   { padding = delta.padding - 1;
@@ -227,7 +227,7 @@ let pc_to_context_wp (delta:partial_context) : typed_context =
 
 let pp_pcontext fmt delta =
   let lst = List.rev (LList.lst delta.pctx) in
-  List.iteri (fun i (_,x,ty) -> fprintf fmt "%s[%i]:%a\n" x i pp_term ty) lst;
+  List.iteri (fun i (_,x,ty) -> fprintf fmt "%a[%i]:%a\n" pp_ident x i pp_term ty) lst;
   for i = 0 to delta.padding -1 do
     fprintf fmt "?[%i]:?\n" (i+LList.len delta.pctx)
   done
@@ -339,19 +339,19 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
 
 let pp_context_inline fmt ctx =
   pp_list ", "
-    (fun fmt (_,x,ty) -> fprintf fmt "%s: %a" x pp_term ty )
+    (fun fmt (_,x,ty) -> fprintf fmt "%a: %a" pp_ident x pp_term ty )
     fmt (List.rev ctx)
 
 let rec pp_term_j k fmt = function
   | Kind               -> Format.fprintf fmt "Kind"
   | Type _             -> Format.fprintf fmt "Type"
-  | DB  (_,x,n) when n<k -> fprintf fmt "%s[%i]" x n
+  | DB  (_,x,n) when n<k -> fprintf fmt "%a[%i]" pp_ident x n
   | DB  (_,x,n)        -> fprintf fmt "_"
-  | Const (_,cst)      -> fprintf fmt "%a" Name.pp_ident cst
+  | Const (_,cst)      -> fprintf fmt "%a" pp_name cst
   | App (f,a,args)     -> pp_list " " (pp_term_wp_j k) fmt (f::a::args)
-  | Lam (_,x,None,f)   -> fprintf fmt "%s => %a" x pp_term f
-  | Lam (_,x,Some a,f) -> fprintf fmt "%s:%a => %a" x (pp_term_wp_j (k+1)) a pp_term f
-  | Pi  (_,x,a,b)      -> fprintf fmt "%s:%a -> %a" x (pp_term_wp_j (k+1)) a pp_term b
+  | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
+  | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term f
+  | Pi  (_,x,a,b)      -> fprintf fmt "%a:%a -> %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term b
 
 and pp_term_wp_j k fmt = function
   | Kind | Type _ | DB _ | Const _ as t -> pp_term_j k fmt t
@@ -387,8 +387,8 @@ let check_rule sg (rule:untyped_rule) : typed_rule =
             debug 1 "Failed to infer a typing context for the rule:\n%a."
               pp_untyped_rule rule;
             SS.iter (
-              fun i (id,te) -> debug 2 "Try replacing '%s[%i]' by '%a'"
-                 id i (pp_term_j 0) te
+              fun i (id,te) -> debug 2 "Try replacing '%a[%i]' by '%a'"
+                  pp_ident id i (pp_term_j 0) te
             ) sub;
             raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
           end

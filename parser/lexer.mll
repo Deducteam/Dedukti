@@ -49,7 +49,7 @@ rule token = parse
   | "def"       { KW_DEF ( get_loc lexbuf )       }
   | "thm"       { KW_THM ( get_loc lexbuf )       }
   | "#NAME" space+ (mident as md)
-  { NAME (get_loc lexbuf , Name.make_mident md) }
+  { NAME (get_loc lexbuf , mk_mident md) }
   | "#WHNF"     { WHNF     ( get_loc lexbuf ) }
   | "#HNF"      { HNF      ( get_loc lexbuf ) }
   | "#SNF"      { SNF      ( get_loc lexbuf ) }
@@ -64,9 +64,9 @@ rule token = parse
   | '#' (capital as cmd) { OTHER (get_loc lexbuf, cmd) }
   | '#' (number  as i  ) { INT   (int_of_string i) }
   | mident as md '.' (ident as id)
-  { QID ( get_loc lexbuf , md , id ) }
+  { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id
-  { ID  ( get_loc lexbuf , id ) }
+  { ID  ( get_loc lexbuf , mk_ident id ) }
   | '"' { string (Buffer.create 42) lexbuf }
   | _   as s
   { fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }

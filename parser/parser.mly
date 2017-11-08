@@ -1,9 +1,9 @@
 %parameter <M :
   sig
-    val mk_prelude     : Basic.loc -> Name.mident -> unit
-    val mk_declaration : Basic.loc -> Name.ident -> Signature.staticity -> Term.term -> unit
-    val mk_definition  : Basic.loc -> Name.ident -> Term.term option -> Term.term -> unit
-    val mk_opaque      : Basic.loc -> Name.ident -> Term.term option -> Term.term -> unit
+    val mk_prelude     : Basic.loc -> Basic.mident -> unit
+    val mk_declaration : Basic.loc -> Basic.ident -> Signature.staticity -> Term.term -> unit
+    val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
+    val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_rules       : Rule.untyped_rule list -> unit
     val mk_command     : Basic.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
@@ -16,18 +16,16 @@
     open Cmd
     open M
 
-    let mk_name id = Name.make !Scoping.name id
-
-    let rec mk_lam (te:preterm) : (loc * string * preterm) list -> preterm = function
+    let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
         | [] -> te
         | (l,x,ty)::tl -> PreLam (l,x,Some ty,mk_lam te tl)
 
-    let rec mk_pi (te:preterm) : (loc * string * preterm) list -> preterm = function
+    let rec mk_pi (te:preterm) : (loc*ident*preterm) list -> preterm = function
         | [] -> te
         | (l,x,ty)::tl -> PrePi(l,Some x,ty,mk_pi te tl)
 
     let rec preterm_loc = function
-        | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
+        | PreType l | PreId (l,_) | PreQId (l,_) | PreLam  (l,_,_,_)
         | PrePi   (l,_,_,_) -> l
         | PreApp (f,_,_) -> preterm_loc f
 
@@ -65,12 +63,12 @@
 %token <Basic.loc> GDT
 %token <Basic.loc*string> OTHER
 %token <Basic.loc> UNDERSCORE
-%token <Basic.loc * Name.mident>NAME
+%token <Basic.loc*Basic.mident>NAME
 %token <Basic.loc> TYPE
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
-%token <Basic.loc * string> ID
-%token <Basic.loc * string * string> QID
+%token <Basic.loc*Basic.ident> ID
+%token <Basic.loc*Basic.mident*Basic.ident> QID
 %token <string> STRING
 %token <int>    INT
 
@@ -80,9 +78,9 @@
 %type <unit> line
 %type <Preterm.prule> rule
 %type <Preterm.pdecl> decl
-%type <Basic.loc * string * Preterm.preterm> param
+%type <Basic.loc*Basic.ident*Preterm.preterm> param
 %type <Preterm.pdecl list> context
-%type <Basic.loc * string option * string * Preterm.prepattern list> top_pattern
+%type <Basic.loc*Basic.mident option*Basic.ident*Preterm.prepattern list> top_pattern
 %type <Preterm.prepattern> pattern
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm
@@ -97,24 +95,24 @@ prelude         : NAME DOT      { let (lc,name) = $1 in
                                         mk_prelude lc name }
 
 line            : ID COLON term DOT
-                { mk_declaration (fst $1) (mk_name (snd $1)) Signature.Static (scope_term [] $3) }
+                { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] $3) }
                 | ID param+ COLON term DOT
-                { mk_declaration (fst $1) (mk_name (snd $1)) Signature.Static (scope_term [] (mk_pi $4 $2)) }
+                { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] (mk_pi $4 $2)) }
                 | KW_DEF ID COLON term DOT
-                { mk_declaration (fst $2) (mk_name (snd $2)) Signature.Definable (scope_term [] $4) }
+                { mk_declaration (fst $2) (snd $2) Signature.Definable (scope_term [] $4) }
                 | KW_DEF ID COLON term DEF term DOT
-                { mk_definition (fst $2) (mk_name (snd $2)) (Some (scope_term [] $4)) (scope_term [] $6) }
+                { mk_definition (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }
                 | KW_DEF ID DEF term DOT
-                { mk_definition (fst $2) (mk_name (snd $2))  None (scope_term [] $4) }
+                { mk_definition (fst $2) (snd $2)  None (scope_term [] $4) }
                 | KW_DEF ID param+ COLON term DEF term DOT
-                { mk_definition (fst $2) (mk_name (snd $2)) (Some (scope_term [] (mk_pi $5 $3)))
+                { mk_definition (fst $2) (snd $2) (Some (scope_term [] (mk_pi $5 $3)))
                         (scope_term [] (mk_lam $7 $3)) }
                 | KW_DEF ID param+ DEF term DOT
-                { mk_definition (fst $2) (mk_name (snd $2)) None (scope_term [] (mk_lam $5 $3)) }
+                { mk_definition (fst $2) (snd $2) None (scope_term [] (mk_lam $5 $3)) }
                 | KW_THM ID COLON term DEF term DOT
-                { mk_opaque (fst $2) (mk_name (snd $2)) (Some (scope_term [] $4)) (scope_term [] $6) }
+                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }
                 | KW_THM ID param+ COLON term DEF term DOT
-                { mk_opaque (fst $2) (mk_name (snd $2)) (Some (scope_term [] (mk_pi $5 $3)))
+                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] (mk_pi $5 $3)))
                         (scope_term [] (mk_lam $7 $3)) }
                 | rule+ DOT
                 { mk_rules (List.map scope_rule $1) }
@@ -135,8 +133,8 @@ command         : WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }
                 | CHECK term  COMMA term
 				{ mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
                 | PRINT STRING  { mk_command $1 (Print $2) }
-                | GDT   ID      { let md = !Scoping.name in mk_command $1 (Gdt (Name.make md (snd $2))) }
-                | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Name.make (Name.make_mident m) v)) }
+                | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
+                | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }
                 | OTHER term_lst { mk_command (fst $1) (Other (snd $1,List.map (scope_term []) $2)) }
 
 
@@ -184,7 +182,7 @@ pattern         : ID  pattern_wp+
                         { $1 }
 
 sterm           : QID
-                { let (l,md,id)=$1 in PreQId(l,md,id) }
+                { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
                 | ID
                 { PreId (fst $1,snd $1) }
                 | LEFTPAR term RIGHTPAR

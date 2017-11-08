@@ -167,7 +167,7 @@ let rec find_case (st:state) (cases:(case * dtree) list)
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
   | { term=Const (_,n); stack } , (CConst (nargs,n'),tr)::tl ->
-    if Name.equal n n' then
+    if name_eq n n' then
       begin
         assert (List.length stack >= nargs);
         Some (tr,stack)
@@ -328,7 +328,7 @@ and are_convertible_lst sg : (term*term) list -> bool = function
         else
           match whnf sg t1, whnf sg t2 with
           | Kind, Kind | Type _, Type _ -> Some lst
-          | Const (_,n), Const (_,n') when ( Name.equal n n' ) -> Some lst
+          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
           | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
           | App (f,a,args), App (f',a',args') ->
             add_to_list2 args args' ((f,f')::(a,a')::lst)

@@ -7,12 +7,12 @@ open Term
 (** {2 Patterns} *)
 
 type pattern =
-  | Var         of loc * string * int * pattern list
+  | Var         of loc * ident * int * pattern list
       (** l x i [x1 ; x2 ; ... ; xn ] where [i] is the position of x inside the context
           of the rule *)
-  | Pattern     of loc * Name.ident * pattern list
+  | Pattern     of loc * name * pattern list
       (** l n [p1 ; p2 ; ... ; pn ] where [md.id] is a constant *)
-  | Lambda      of loc * string * pattern
+  | Lambda      of loc * ident * pattern
       (** lambda abstraction *)
   | Brackets    of term
       (** te where [te] is convertible to the pattern matched *)
@@ -24,10 +24,10 @@ val pattern_to_term : pattern -> term
 (** a wf_pattern is a Miller pattern without brackets constraints and each free variable appear exactly once. *)
 type wf_pattern =
   | LJoker
-  | LVar         of string * int * int list
-  | LLambda      of string * wf_pattern
-  | LPattern     of Name.ident * wf_pattern array
-  | LBoundVar    of string * int * wf_pattern array
+  | LVar         of ident * int * int list
+  | LLambda      of ident * wf_pattern
+  | LPattern     of name * wf_pattern array
+  | LBoundVar    of ident * int * wf_pattern array
 
 (** {2 Linarization} *)
 
@@ -45,15 +45,15 @@ val check_patterns : int -> pattern list -> (int * wf_pattern list * constr list
 (** {2 Contexts} *)
 
 (** context of rules after they have been parsed *)
-type untyped_context = (loc * string) list
+type untyped_context = (loc * ident) list
 
 (** type checking rules implies to give a type to the variables of the context *)
-type typed_context = ( loc * string * term ) list
+type typed_context = ( loc * ident * term ) list
 
 (** {2 Rewrite Rules} *)
 
 (** Delta rules are the rules associated to the definition of a constant while Gamma rules are the rules of lambda pi modulo. The first paraneter of Gamma indicates if the name of the rule has been given by the user. *)
-type rule_name = Delta of Name.ident | Gamma of bool * Name.ident
+type rule_name = Delta of name | Gamma of bool * name
 
 val pp_rule_name : Format.formatter -> rule_name -> unit
 
@@ -77,12 +77,12 @@ val pp_typed_rule : Format.formatter -> typed_rule -> unit
 
 type rule_error =
   | BoundVariableExpected of pattern
-  | DistinctBoundVariablesExpected of loc * string
+  | DistinctBoundVariablesExpected of loc * ident
   | VariableBoundOutsideTheGuard of term
-  | UnboundVariable of loc * string * pattern
-  | AVariableIsNotAPattern of loc * string
+  | UnboundVariable of loc * ident * pattern
+  | AVariableIsNotAPattern of loc * ident
   | NonLinearRule of typed_rule
-  | NotEnoughArguments of loc * string * int * int * int
+  | NotEnoughArguments of loc * ident * int * int * int
 
 (** {2 Rule infos} *)
 
@@ -90,7 +90,7 @@ type rule_infos = {
   l : loc; (** location of the rule *)
   name : rule_name; (** name of the rule *)
   ctx : typed_context; (** typed context of the rule *)
-  cst : Name.ident; (** name of the pattern constant *)
+  cst : name; (** name of the pattern constant *)
   args : pattern list; (** arguments list of the pattern constant *)
   rhs : term; (** right hand side of the rule *)
   esize : int; (** size of the context *)

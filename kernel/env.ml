@@ -7,11 +7,11 @@ open Signature
 type env_error =
   | EnvErrorType of typing_error
   | EnvErrorSignature of signature_error
-  | KindLevelDefinition of loc*Name.ident
+  | KindLevelDefinition of loc*ident
 
 (* Wrapper around Signature *)
 
-let sg = ref (Signature.make (Name.make_mident "noname"))
+let sg = ref (Signature.make (mk_mident "noname"))
 
 let init name = sg := Signature.make name
 
@@ -27,14 +27,14 @@ let get_dtree l cst =
 
 let export () : bool = Signature.export !sg
 
-let _declare (l:loc) (id:Name.ident) st ty : unit =
+let _declare (l:loc) (id:ident) st ty : unit =
   match inference !sg ty with
     | Kind | Type _ -> Signature.add_declaration !sg l id st ty
     | s -> raise (TypingError (SortExpected (ty,[],s)))
 
-exception DefineExn of loc * Name.ident
+exception DefineExn of loc*ident
 
-let _define (l:loc) (id:Name.ident) (te:term) (ty_opt:typ option) : unit =
+let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
     | None -> inference !sg te
     | Some ty -> ( checking !sg te ty; ty )
@@ -43,17 +43,18 @@ let _define (l:loc) (id:Name.ident) (te:term) (ty_opt:typ option) : unit =
   | Kind -> raise (DefineExn (l,id))
   | _ ->
     _declare l id Signature.Definable ty;
-    let name = Delta(id) in
+    let cst = mk_name (get_name ()) id in
+    let name = Delta(cst) in
     let rule =
       { name ;
         ctx = [] ;
-        pat = Pattern(l, id, []);
+        pat = Pattern(l, cst, []);
         rhs = te ;
       }
     in
     Signature.add_rules !sg [rule]
 
-let _define_op (l:loc) (id:Name.ident) (te:term) (ty_opt:typ option) : unit =
+let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
     | None -> inference !sg te
     | Some ty -> ( checking !sg te ty; ty )
