@@ -16,38 +16,38 @@ let eprint lc fmt =
 (* ********************************* *)
 
 let mk_prelude lc name =
-  eprint lc "Module name is '%a'." Name.pp_mident name;
+  eprint lc "Module name is '%a'." pp_mident name;
   Env.init name;
   Confluence.initialize ()
 
 let mk_declaration lc id st pty : unit =
-  eprint lc "Declaration of constant '%a'." Name.pp_ident id;
+  eprint lc "Declaration of constant '%a'." pp_ident id;
   match Env.declare lc id st pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 
 let mk_definition lc id pty_opt pte : unit =
-  eprint lc "Definition of symbol '%a'." Name.pp_ident id ;
+  eprint lc "Definition of symbol '%a'." pp_ident id ;
   match Env.define lc id pte pty_opt with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 
 let mk_opaque lc id pty_opt pte =
-  eprint lc "Opaque definition of symbol '%a'." Name.pp_ident id ;
+  eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
   match Env.define_op lc id pte pty_opt with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 
 let get_infos = function
   | Rule.Pattern (l,cst,_) -> (l,cst)
-  | _ -> (dloc,Name.make2 "" qmark)
+  | _ -> (dloc,mk_name (mk_mident "") qmark)
 
 let mk_rules = Rule.( function
   | [] -> ()
   | (rule::_) as lst ->
     begin
       let (l,cst) = get_infos rule.pat in
-      eprint l "Adding rewrite rules for '%a'" Name.pp_ident cst;
+      eprint l "Adding rewrite rules for '%a'" pp_name cst;
       match Env.add_rules lst with
       | OK lst2 ->
         List.iter ( fun rule ->
@@ -95,7 +95,9 @@ let mk_command lc = function
       ( match Env.infer Reduction.Snf te with
           | OK ty -> Format.printf "%a@." Pp.print_term ty
           | Err e -> Errors.fail_env_error e )
-  | Gdt (cst)         ->
+  | Gdt (m0,v)         ->
+    let m = match m0 with None -> Env.get_name () | Some m -> m in
+    let cst = mk_name m v in
         ( match Env.get_dtree lc cst with
             | OK (Some (i,g)) ->
                 Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
@@ -108,5 +110,5 @@ let export = ref false
 let mk_ending () =
   ( if !export then
     if not (Env.export ()) then
-      Errors.fail dloc "Fail to export module '%a'." Name.pp_mident (Env.get_name ()) );
+      Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );
   Confluence.finalize ()

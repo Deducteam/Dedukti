@@ -22,6 +22,8 @@ let args = [
   ("-r"      , Arg.Set    Signature.ignore_redecl, "Ignore redeclaration" ) ;
   ("-version", Arg.Unit   Version.print_version  , "Version" ) ;
   ("-coc"    , Arg.Set    Typing.coc             , "Typecheck the Calculus of Construction" ) ;
+  ("-autodep", Arg.Set    Signature.autodep      ,
+   "Automatically handle dependencies (experimental)") ;
   ("-I"      , Arg.String Basic.add_path         , "Add a directory to load path");
   ("-errors-in-snf",
                Arg.Set    Errors.errors_in_snf   , "Normalize the types in error messages");
