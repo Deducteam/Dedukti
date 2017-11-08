@@ -3,6 +3,8 @@ open Term
 open Rule
 open Format
 
+exception NotPositive
+
 val add_fonc : bool -> ident -> Term.term -> Signature.staticity -> unit
 val add_symb : bool -> ident -> Term.term -> unit
        
@@ -55,7 +57,7 @@ val copy : call_graph -> call_graph
 (** [is_empty g] indicates whether the call graph [g] contains calls. *)
 val is_empty : call_graph -> bool
 
-val initialize : unit -> unit
+val initialize : ident -> unit
 
 (** [latex_print_calls ff g] prints the call graph [g] using a LaTeX format
     on the [Format.formatter] [ff]. *)

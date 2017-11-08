@@ -19,7 +19,13 @@ let eprint lc fmt =
 (* ********************************* *)
 
 let mk_prelude lc name =
-  if (!sizechange)|| (!szgraph) then (Sizechange.initialize (); variable_call:=(-1); Format.eprintf"\n");
+  if (!sizechange)|| (!szgraph)
+  then
+    begin
+      Sizechange.initialize name;
+      variable_call:=(-1);
+      Format.eprintf"\n"
+    end;
   eprint lc "Module name is '%a'." pp_ident name;
   Env.init name;
   Confluence.initialize ()
@@ -121,11 +127,14 @@ let mk_ending () =
                      Format.kfprintf (fun _ -> Format.pp_print_newline Format.err_formatter () ) Format.err_formatter fmt
   in
   if (!sizechange)|| (!szgraph) then
-    if Sizechange.sct_only !verbose
-    then if !variable_call=(-1)
-         then Errors.success "Rewriting ends according to the SCP"
-         else red_error "SCP does not accept variable in functionnal position, like in line %i" !variable_call
-    else (red_error "Rewriting does not end according to the SCP");
+    try
+      if Sizechange.sct_only !verbose
+      then if !variable_call=(-1)
+        then Errors.success "Rewriting ends according to the SCP"
+        else red_error "SCP does not accept variable in functionnal position, like in line %i" !variable_call
+      else (red_error "Rewriting does not end according to the SCP")
+    with
+    | Sizechange.NotPositive -> red_error "SCT can't be applied on non-positive signature";
   if !export then
     if not (Env.export ()) then
       Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ());

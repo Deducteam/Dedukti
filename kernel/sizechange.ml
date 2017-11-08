@@ -7,7 +7,9 @@ open Basic
 open Term
 open Rule
 open Format
-    
+
+exception NotPositive
+
 (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
 
@@ -104,10 +106,10 @@ type call =
 
 (** Representation of a function symbol. *)
 type symbol =
-    { index : index        (** Index for use in a [call]. *)
-    ; name  : string       (** Name of the symbol. *)
-    ; arity : int          (** Arity of the symbol (number of args). *)
-    ; args  : string array (** Name of the arguments. *) }
+    { index : index           (** Index for use in a [call]. *)
+    ; name  : (ident * ident) (** Name of the symbol. *)
+    ; arity : int             (** Arity of the symbol (number of args). *)
+    ; args  : string array    (** Name of the arguments. *) }
 
 (** Internal state of the SCT, including the representation of symbols and the call graph. *)
 type call_graph =
@@ -115,96 +117,157 @@ type call_graph =
     ; symbols    : symbol IMap.t ref
     ; calls      : call list ref }
 
+(** Printing functions *)
+let printHT key_printer elt_printer ht=
+  Hashtbl.iter (fun a b -> printf "%a : %a@." key_printer a elt_printer b) ht
+
+let pp_index fmt x = pp_print_int fmt (int_of_index x)
+    
+let pp_couple pp_fst pp_snd fmt x = fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd (snd x) 
+
+let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) = fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z  
+  
 (** Creation of a new initial [call_graph]. It contains the initial root symbol. *)
 let graph =
-  let root = { index = -1 ; name  = "R" ; arity = 0 ; args  = [||] } in
+  let root = { index = -1 ; name  = (hstring "",hstring "") ; arity = 0 ; args  = [||] } in
   let syms = IMap.singleton (-1) root in
   ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
 
-let table = ref []
-let constructors = ref []
-let must_be_before = Hashtbl.create 5
-let after = Hashtbl.create 5                                  
+(** A reference to the name of the module *)
+let mod_name : ident ref = ref (hstring "")
 
-let updateHT ht id a=
-  Hashtbl.replace ht id (a::Hashtbl.find ht id) 
-                            
-let initialize () = !graph.next_index :=0;
-                    let root = { index = -1 ; name  = "R" ; arity = 0 ; args  = [||] } in
-                    let syms = IMap.singleton (-1) root in
-                    !graph.symbols := syms;
-                    !graph.calls := [];
-                    table := [];
-                    constructors := []
-                    Hashtbl.clear must_be_before;
-                    Hashtbl.clear after
+(** The table contains all the symbols *)
+let table : ((ident * ident) * int * index) list ref = ref []
+
+(** The list of every constuctors *)
+let constructors : (ident * ident) list ref= ref []
+
+(** Hashtable containing the symbols occurring in non-strictly positive position in the definition or the constructors of the key *)
+let must_be_str_after : (ident*ident, (ident*ident) list) Hashtbl.t  = Hashtbl.create 5
+
+(** Hashtable containing the symbols occurring in the definition or the constructors of the key *)
+let after : (ident*ident, (ident*ident) list) Hashtbl.t = Hashtbl.create 5                                  
+
+(** Adding the element a at the begining of the list accessed in ht with key id *)
+let updateHT : ('a,'b list) Hashtbl.t -> 'a -> 'b -> unit =
+  fun ht id a ->
+    Hashtbl.replace ht id (a::Hashtbl.find ht id) 
+
+(** Initialize the SCT-checker with the name of the module *)
+let initialize : ident -> unit =
+  fun name ->
+    mod_name := name;
+    !graph.next_index :=0;
+    let root = { index = -1 ; name  = (hstring "",hstring "") ; arity = 0 ; args  = [||] } in
+    let syms = IMap.singleton (-1) root in
+    !graph.symbols := syms;
+    !graph.calls := [];
+    table := [];
+    constructors := [];
+    Hashtbl.clear must_be_str_after;
+    Hashtbl.clear after
 
 (** Creation of a new symbol.  *)
-let create_symbol : bool -> string -> string array -> unit =
+let create_symbol : bool -> (ident * ident) -> string array -> unit =
   let g= !graph in
   fun vb name args ->
   let arity = Array.length args in
   let index = !(g.next_index) in
   let sym = {index ; name ; arity ; args} in
   table:=(name, arity, index)::!table;
-  if vb then (let rec print_list = function
-                | [] -> ()
-                | (s,ar,n)::l -> printf "%s,%d,%d " s ar (int_of_index n); print_list l
-              in printf "The table contains :"; print_list !table;printf "@.");
+  if vb then printf "The table contains : %a@." (pp_list ";" (pp_triple (pp_couple pp_ident pp_ident) pp_print_int pp_index)) !table;
   incr g.next_index;
   g.symbols := IMap.add index sym !(g.symbols)
 
-let rec find_arity=function
+let rec find_arity : term -> int =
+  function
   | Lam (_,_,_,t) -> 1+find_arity t
   | Pi (_,_,_,t) -> 1+find_arity t
   | _ -> 0
 
-let create_array n=
-  let res=Array.make n "" in
-  for i =0 to n-1 do
-    res.(i)<-"x"^(string_of_int i)
-  done;
-  res
-    
-let add_fonc vb v t st=
-  let rec get_all_from_pi b l res=
-    match res with
-    | Pi(_,_,arg,r) ->
+let create_array : int -> string array =
+  fun n-> 
+    let res=Array.make n "" in
+    for i =0 to n-1 do
+      res.(i)<-"x"^(string_of_int i)
+    done;
+    res
+
+(** Adding a fonction declare in a .dk file to the SCT-checker *)
+let add_fonc : bool -> ident -> term -> Signature.staticity -> unit =
+  fun vb v t st ->
+    let rec right_most : term -> (ident * ident)=
+      function
+      | Pi(_,_,_,r) -> right_most r
+      | Const(_,m,f) -> (m,f)
+      | App(Const(_,m,f),_,_) -> (m,f)
+      | Type _ -> (!mod_name,v)
+      | _ as tt -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt; (!mod_name,v)
+    in
+    let rec get_all_from_pi : bool -> (ident * ident) list -> term -> ident * ident -> unit =
+      fun b l tt rm ->
+	match tt with
+	| Pi(_,_,arg,r) ->
+	   begin
+	     match arg with
+	     | Const(_,m,f) -> get_all_from_pi b ((m,f)::l) r rm
+	     | Pi(_,_,_,_) as p -> get_all_from_pi b l r rm; get_all_from_pi false [] p rm
+	     | App(Const(_,m,f),_,_) -> get_all_from_pi b ((m,f)::l) r rm
+	     | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt
+	   end
+	| Const(_,m,f) ->
+	   begin
+	     if b then constructors:=(!mod_name,f)::!constructors
+             else (List.iter (updateHT must_be_str_after rm) l; updateHT after rm (m,f));
+             List.iter (updateHT after rm) l
+	   end
+        | App(Const(_,m,f),_,_) ->
+	   begin
+	     if b then constructors:=(!mod_name,f)::!constructors
+             else (List.iter (updateHT must_be_str_after rm) l; updateHT after rm (m,f));
+             List.iter (updateHT after rm) l
+	   end
+	| Type _ as tt ->
+	   begin
+             constructors:=rm::!constructors;
+	     Hashtbl.add after rm l;
+	     Hashtbl.add must_be_str_after rm l
+	   end;
+	| _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt
+    in
+    let n : int = find_arity t in
+    let second (a,b,c) = b in
+    match t with
+    | Kind ->
        begin
-       match arg with
-       | Const(_,_,f) -> get_all_from_pi b (f::l) r
-       | Pi(_,_,_,_) as p -> get_all_from_pi b l r; get_all_from_pi false [] p
-       | App(Const(_,_,f),_,_) -> get_all_from_pi b (f::l) r
-       | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term res
+	 create_symbol vb (!mod_name,v) (create_array 0);
+	 printf "How is it possible to create a symbol in Kind ?@."
        end
-    | Const(_,_,f) -> if b then updateHT constructors f v;
-                      List.iter (updateHT after f) l
-    | App(Const(_,_,f),_,_) -> if b then updateHT constructors f v;
-                               List.iter (updateHT after f) l
-    | Type _ -> Hashtbl.add constructors v [];
-                Hashtbl.add after v l
-    | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term res
-  in
-  let n=find_arity t in
-  let second (a,b,c) = b in
-  match t with
-  | Kind -> create_symbol vb (string_of_ident v) (create_array 0);
-            printf "How is it possible to create a symbol in Kind ?@."
-  | Type _ -> create_symbol vb (string_of_ident v) (create_array 0);
-              if st = Signature.Static
-              then Hashtbl.add constructors v []; Hashtbl.add after v []
-  | DB (_,_,_) -> printf "AddFonc of a DB Variable %a, I don't understand how it can happen@." pp_term t
-  | Const (_,_,f) -> create_symbol vb (string_of_ident v) (create_array 0);
-                     if st=Signature.Static
-                     then updateHT constructors f v
-  | App (Const(_,_,f),u,lt) -> create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident f)) (List.rev !table)) -1-List.length lt));
-                    if st = Signature.Static
-                    then updateHT constructors f v
-  | App (_,_,_) as t -> printf "Add Fonc of an application of a non constant %a, I don't know how to deal with it@." pp_term t
-  | Lam (_,_,_,_) -> printf "AddFonc of a lambda %a, I don't know how to react@." pp_term t
-  | Pi(_,_,_,_) as t -> create_symbol vb (string_of_ident v) (create_array n);
-                          if st = Signature.Static
-                          then get_all_from_pi true [] t
+    | Type _ ->
+       begin
+	 create_symbol vb (!mod_name,v) (create_array 0);
+	 if st = Signature.Static
+	 then Hashtbl.add must_be_str_after (!mod_name,v) [];
+	 Hashtbl.add after (!mod_name,v) []
+       end
+    | DB (_,_,_) -> printf "AddFonc of a DB Variable %a, I don't understand how it can happen@." pp_term t
+    | Const (_,_,_) ->
+       begin
+	 create_symbol vb (!mod_name,v) (create_array 0);
+	 if st=Signature.Static
+	 then constructors:= (!mod_name,v)::!constructors
+       end
+    | App (Const(_,m,f),u,lt) ->
+       begin
+	 create_symbol vb (!mod_name,v) (create_array 0);
+	 if st = Signature.Static
+	 then constructors:= (!mod_name,v)::!constructors
+       end
+    | App (_,_,_) as t -> printf "Add Fonc of an application of a non constant %a, I don't know how to deal with it@." pp_term t
+    | Lam (_,_,_,_) -> printf "AddFonc of a lambda %a, I don't know how to react@." pp_term t
+    | Pi(_,_,_,_) as t -> create_symbol vb (!mod_name,v) (create_array n);
+      if st = Signature.Static
+      then get_all_from_pi true [] t (right_most t)
                                         
 (** Copy a call graph. *)
 let copy : call_graph -> call_graph =
@@ -222,36 +285,43 @@ let add_call : call-> unit =
   let g= !graph in
   fun cc -> g.calls := cc :: !(g.calls)
 
-let rec comparison nb t p=
-  let minus1 =function
-    | Zero -> Min1
-    | n -> n
-  in
-  let rec mini cur=function
-    | []-> cur
-    | Min1::l -> Min1
-    | Zero::l -> mini Zero l
-    | Infi::l -> mini cur l
-  in
-  let rec comp_list cur lp lt=
-    assert (List.length lp=List.length lt);
-    match lp,lt with
-    | [],[] -> cur
-    | a::l1,b::l2 -> begin
-                     match comparison nb b a,cur with
-                     | Infi, _ -> Infi
-                     | Min1,_ -> comp_list Min1 l1 l2
-                     | _, Min1 -> comp_list Min1 l1 l2
-                     | Zero,Zero -> comp_list Zero l1 l2
-                   end
-  in
-  match p,t with
-  | Var (_,_,n,[]),DB (_,_,m) -> if n+nb=m then Zero else Infi
-  | Pattern (_,_,f,lp), App(Const(_,_,g),t1,lt) when (ident_eq f g) ->  comp_list Zero lp (t1::lt)
-  | Pattern (_,_,_,l),t -> minus1 (mini Infi (List.map (comparison nb t) l))
-  | _ -> Infi
+let rec comparison : int -> term -> pattern -> cmp =
+  fun nb t p ->
+    let minus1 : cmp -> cmp =
+      function
+      | Zero -> Min1
+      | n -> n
+    in
+    let rec mini : cmp -> cmp list -> cmp =
+      fun cur ll ->
+	match ll with
+	| []-> cur
+	| Min1::l -> Min1
+	| Zero::l -> mini Zero l
+	| Infi::l -> mini cur l
+    in
+    let rec comp_list : cmp -> pattern list -> term list -> cmp =
+      fun cur lp lt ->
+	assert (List.length lp=List.length lt);
+	match lp,lt with
+	| [],[] -> cur
+	| a::l1,b::l2 ->
+	   begin
+             match comparison nb b a,cur with
+             | Infi, _ -> Infi
+             | Min1,_ -> comp_list Min1 l1 l2
+             | _, Min1 -> comp_list Min1 l1 l2
+             | Zero,Zero -> comp_list Zero l1 l2
+           end
+    in
+    match p,t with
+    | Var (_,_,n,[]), DB (_,_,m) -> if n+nb=m then Zero else Infi
+    | Pattern (_,_,f,lp), App(Const(_,_,g),t1,lt) when (ident_eq f g) ->  comp_list Zero lp (t1::lt)
+    | Pattern (_,_,_,l),t -> minus1 (mini Infi (List.map (comparison nb t) l))
+    | _ -> Infi
            
-let matrix_of_lists nb l1 l2=
+let matrix_of_lists : int -> term list -> pattern list -> matrix =
+  fun nb l1 l2 ->
   let n=List.length l1 in
   let m=List.length l2 in
   let res =ref [] in
@@ -266,7 +336,8 @@ let matrix_of_lists nb l1 l2=
   done;
   {h=m ; w=n ; tab = Array.of_list (List.rev !res)}
 
-let auto_call_matrix a b=
+let auto_call_matrix : index -> index -> matrix =
+  fun a b ->
   let same x y=if x=y then Zero else Infi in
   let second (a,b,c) = b in
   let n=second (List.find (fun (_,_,x) -> x=a) !table) in
@@ -281,19 +352,22 @@ let auto_call_matrix a b=
   done;
   {h=m ; w=n ; tab = Array.of_list (List.rev !res)}
     
-let rec rule_to_call vb nb r =
+let rec rule_to_call : bool -> int -> 'a rule -> call_list =
+  fun vb nb r ->
   let third (a,b,c) = c in
-  let get_caller= match r.pat with 
-    | Pattern (_,_,v,lp) ->
+  let get_caller : (pattern list * index) option =
+    match r.pat with 
+    | Pattern (_,m,v,lp) ->
        begin
-         try Some (lp,third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar=List.length(lp)) !table))
+         try Some (lp,third (List.find (fun (x,ar,_) -> x=(m,v) && ar=List.length(lp)) !table))
          with Not_found ->
            begin
              try
-	       let old_index=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>List.length(lp)) !table) in
+	       let old_index=third (List.find (fun (x,ar,_) -> x=(m,v) && ar>List.length(lp)) !table) in
 	       let new_index= !(!graph.next_index) in
-	       create_symbol vb (string_of_ident v) (create_array (List.length(lp)));
-	       add_call { callee = new_index; caller =old_index; matrix=auto_call_matrix old_index new_index; is_rec=false}; Some(lp,new_index)
+	       create_symbol vb (m,v) (create_array (List.length(lp)));
+	       add_call { callee = new_index; caller =old_index; matrix=auto_call_matrix old_index new_index; is_rec=false};
+	       Some(lp,new_index)
              with Not_found -> printf "The calling function is still undeclared.@."; None
            end
        end
@@ -462,16 +536,9 @@ let latex_print_calls () =
   List.iter (print_call2 arities) calls;
   fprintf ff "  }\n\\end{dot2tex}\n"
 
-let printHT key_printer elt_printer ht=
-  Hashtbl.iter (fun a b -> printf "%a : %a@." key_printer a elt_printer b) ht
-
-let pp_couple pp_fst pp_snd fmt x = fprintf fmt "(%a , %a)" pp_fst (fst x) pp_snd (snd x) 
-               
-let print_constr ()=
-  printf "@.Constructors :@."; printHT pp_ident (pp_list "," pp_ident) constructors;
-  printf "@.After :@."; printHT pp_ident (pp_list "," pp_ident) after;
-  printf "@;"
-      
+let couple_id_eq (a,b) (c,d)=
+    (ident_eq a c) && (ident_eq b d)
+    
 let tarjan graph=
   let num=ref 0 and p = ref [] and partition = ref []
       and numHT= Hashtbl.create 5 and numAcc = Hashtbl.create 5 in
@@ -493,8 +560,8 @@ let tarjan graph=
     if (Hashtbl.find numAcc v)=(Hashtbl.find numHT v)
     then
       begin
-        let c=ref [] and w=ref (hstring "") in
-        while not (ident_eq !w v)
+        let c=ref [] and w=ref (hstring "",hstring "") in
+        while not (couple_id_eq !w v)
         do
           w:= List.hd !p;
           p:= List.tl !p;
@@ -504,91 +571,88 @@ let tarjan graph=
       end
   in
   Hashtbl.iter (fun v -> fun _ -> if not (Hashtbl.mem numHT v) then parcours v) graph;
-  let eq_class id=
-    List.find (fun l-> List.exists (fun x-> ident_eq x id) l) !partition
-  in
-  let uncycled_graph=Hashtbl.create 5 in
-  List.iter (fun l-> Hashtbl.add uncycled_graph l []) !partition;
-  Hashtbl.iter (fun a -> fun l -> List.iter (fun x -> updateHT uncycled_graph (eq_class a) (eq_class x)) l) graph;
-  uncycled_graph
+  !partition
+    
+let are_equiv a b l=
+  List.exists (fun x -> (List.mem a x) && (List.mem b x)) l
 
-let tri_topo gr=
-  let listeSommets=ref [] and tabCouleur=Hashtbl.create 5 in
-  let rec parcours_profondeur_topo x=
-    Hashtbl.add tabCouleur x 0;
-    List.iter (fun y -> if not (Hashtbl.mem tabCouleur y) then parcours_profondeur_topo y) (Hashtbl.find gr x);
-    listeSommets:=x::!listeSommets
-  in
-  Hashtbl.iter (fun x -> fun _ -> if not (Hashtbl.mem tabCouleur x) then parcours_profondeur_topo x) gr;
-  List.rev !listeSommets
-   
+
+let print_constr ()=
+  printf "@.Constructors :@.%a@." (pp_list ";" (pp_couple pp_ident pp_ident)) !constructors;
+  printf "@.After :@."; printHT (pp_couple pp_ident pp_ident) (pp_list "," (pp_couple pp_ident pp_ident)) after;
+  printf "@;"
+    
+let str_positive l ht=
+  Hashtbl.iter (fun a -> fun b -> if List.exists (fun x -> are_equiv a x l) b then raise NotPositive) ht
+    
 (** the main function, checking if calls are well-founded *)
 let sct_only : bool -> bool =
   fun vb ->
-  if vb then print_constr ();
-  printf "%a@." (pp_list ";" (pp_list "," pp_ident)) (tri_topo (tarjan after));
-  let ftbl= !graph in
-  let num_fun = !(ftbl.next_index) in
-  let arities = !(ftbl.symbols) in
-  let tbl = Array.init num_fun (fun _ -> Array.make num_fun []) in
-  let print_call ff= print_call ff arities in 
+    if vb
+    then (print_constr ();
+	  printf "%a@." (pp_list ";" (pp_list "," (pp_couple pp_ident pp_ident))) (tarjan after));
+    let ftbl= !graph in
+    let num_fun = !(ftbl.next_index) in
+    let arities = !(ftbl.symbols) in
+    let tbl = Array.init num_fun (fun _ -> Array.make num_fun []) in
+    let print_call ff= print_call ff arities in 
   (* counters to count added and composed edges *)
-  let added = ref 0 and composed = ref 0 in
+    let added = ref 0 and composed = ref 0 in
   (* function adding an edge, return a boolean indicating
      if the edge is new or not *)
-  let add_edge i j m =
+    let add_edge i j m =
     (* test idempotent edges as soon as they are discovered *)
-    if i = j && prod m m = m && not (decreasing m) then
-      begin
-        if vb then 
-          printf "edge %a idempotent and looping\n%!" print_call
-             {callee = i; caller = j; matrix = m; is_rec = true};
+      if i = j && prod m m = m && not (decreasing m) then
+	begin
+          if vb then 
+            printf "edge %a idempotent and looping\n%!" print_call
+              {callee = i; caller = j; matrix = m; is_rec = true};
           raise Exit
-      end;
-    let ti = tbl.(i) in
-    let ms = ti.(j) in
-    if List.exists (fun m' -> subsumes m' m) ms then
-      false
-    else (
-      let ms = m :: List.filter (fun m' -> not (subsumes m m')) ms in
-      ti.(j) <- ms;
-      true)
-  in
-  (* adding initial edges *)
-  try
-    if vb then
-      (printf "initial edges to be added:\n%!";
-      List.iter (fun c -> printf "\t%a\n%!" print_call c) !(ftbl.calls));
-    let new_edges = ref !(ftbl.calls) in
-    (* compute the transitive closure of the call graph *)
-    if vb then printf "start completion\n%!";
-    let rec fn () =
-      match !new_edges with
-      | [] -> ()
-      | {callee = i; caller = j}::l when j < 0 -> new_edges := l; fn () (* ignore root *)
-      | ({callee = i; caller = j; matrix = m} as c)::l ->
-        assert (i >= 0);
-        new_edges := l;
-        if add_edge i j m then begin
-          if vb then printf "\tedge %a added\n%!" print_call c;
-          incr added;
-          let t' = tbl.(j) in
-          Array.iteri (fun k t -> List.iter (fun m' ->
-            let c' = {callee = j; caller = k; matrix = m'; is_rec = true} in
-            if vb then printf "\tcompose: %a * %a = %!" print_call c print_call c';
-            let m'' = prod m' m in
-            incr composed;
-            let c'' = {callee = i; caller = k; matrix = m''; is_rec = true} in
-            new_edges := c'' :: !new_edges;
-          if vb then printf "%a\n%!" print_call c'';
-          ) t) t'
-        end else
-        if vb then printf "\tedge %a is old\n%!" print_call c;
-        fn ()
+	end;
+      let ti = tbl.(i) in
+      let ms = ti.(j) in
+      if List.exists (fun m' -> subsumes m' m) ms then
+	false
+      else (
+	let ms = m :: List.filter (fun m' -> not (subsumes m m')) ms in
+	ti.(j) <- ms;
+	true)
     in
-    fn ();
-    printf "SCT passed (%5d edges added, %6d composed)\n%!" !added !composed;
-    true
-  with Exit ->
-    printf "SCT failed (%5d edges added, %6d composed)\n%!" !added !composed;
-    false
+  (* adding initial edges *)
+    try
+      str_positive (tarjan after) must_be_str_after;
+      if vb then
+	(printf "initial edges to be added:\n%!";
+	 List.iter (fun c -> printf "\t%a\n%!" print_call c) !(ftbl.calls));
+      let new_edges = ref !(ftbl.calls) in
+    (* compute the transitive closure of the call graph *)
+      if vb then printf "start completion\n%!";
+      let rec fn () =
+	match !new_edges with
+	| [] -> ()
+	| {callee = i; caller = j}::l when j < 0 -> new_edges := l; fn () (* ignore root *)
+	| ({callee = i; caller = j; matrix = m} as c)::l ->
+           assert (i >= 0);
+          new_edges := l;
+          if add_edge i j m then begin
+            if vb then printf "\tedge %a added\n%!" print_call c;
+            incr added;
+            let t' = tbl.(j) in
+            Array.iteri (fun k t -> List.iter (fun m' ->
+              let c' = {callee = j; caller = k; matrix = m'; is_rec = true} in
+              if vb then printf "\tcompose: %a * %a = %!" print_call c print_call c';
+              let m'' = prod m' m in
+              incr composed;
+              let c'' = {callee = i; caller = k; matrix = m''; is_rec = true} in
+              new_edges := c'' :: !new_edges;
+              if vb then printf "%a\n%!" print_call c'';
+            ) t) t'
+          end else
+            if vb then printf "\tedge %a is old\n%!" print_call c;
+          fn ()
+      in
+      fn ();
+      printf "SCT passed (%5d edges added, %6d composed)\n%!" !added !composed;
+      true
+    with
+    | Exit -> printf "SCT failed (%5d edges added, %6d composed)\n%!" !added !composed; false
