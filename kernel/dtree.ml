@@ -411,11 +411,26 @@ let array_to_llist arr =
 let get_first_term mx = mx.first.right
 let get_first_constraints mx = mx.first.constraints
 
+let eq_ptype pt1 pt2 = match pt1, pt2 with
+  | Syntactic , Syntactic -> true
+  | MillerPattern l1, MillerPattern l2 ->
+     List.for_all2 (fun a b -> a == b) (LList.lst l1) (LList.lst l2)
+  | _ -> false
+
 (* Extracts the matching_problem from the first line. *)
 let get_first_matching_problem mx =
   let esize = mx.first.esize in
   let ac_sets = ref (LList.nil) in
   let pbs    = Array.make esize [] in
+  let rec insert_prob prob l = match l, prob with
+    | [],_ -> [prob]
+    | (ptype1, AC_Subset(i,n)) :: tl, (ptype, AC_Subset(j,m))
+         when eq_ptype ptype1 ptype && i == j ->
+       (ptype1, AC_Subset(i,n+m)) :: tl
+    | hd :: tl,_ -> hd :: (insert_prob prob tl) in
+  let rec merge_prob l1 = function
+    | [] -> l1
+    | hd :: tl -> insert_prob hd (merge_prob tl l1) in
   Array.iteri
     (fun i p ->
       let depth = mx.col_depth.(i) in
@@ -431,7 +446,7 @@ let get_first_matching_problem mx =
          begin
            let index = LList.len !ac_sets in
            let var_count = List.length patl in
-           ac_sets := LList.cons ((depth, [i]), m, v, var_count) !ac_sets;
+           ac_sets := LList.cons (depth, (m, v, var_count, [i])) !ac_sets;
            List.iter
              (function
               | LJoker -> ()
@@ -447,16 +462,16 @@ let get_first_matching_problem mx =
       | _ -> assert false
     ) mx.first.pats;
   ignore(Array.map (fun x -> assert(List.length x > 0)) pbs);
-  (** Group porblems linked through linearity constraints.  *)
+  (** Group problems linked through linearity constraints.  *)
   List.iter
     (function
      | Bracket _ -> ()
-     | Linearity (i,j) -> ( pbs.(j) <- List.rev_append pbs.(i) pbs.(j);  pbs.(i) <- [])  )
+     | Linearity (i,j) -> ( pbs.(j) <- List.rev_append pbs.(i) pbs.(j);  pbs.(i) <- []) )
+        (* ( pbs.(j) <- merge_prob pbs.(j) pbs.(i);  pbs.(i) <- [])  ) *)
     mx.first.constraints;
   {
-    problems = pbs;
-    ac_sets = Array.of_list (List.rev (LList.lst !ac_sets));
-    subst = Array.make esize None
+    problems = Array.map (fun x -> Unsolved x) pbs;
+    ac_sets = Array.of_list (List.rev (LList.lst !ac_sets))
   }
 
 (******************************************************************************)

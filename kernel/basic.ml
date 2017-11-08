@@ -115,6 +115,11 @@ let map_opt f = function
   | None -> None
   | Some x -> Some (f x)
 
+let array_for_all f arr =
+  let l = Array.length arr in
+  let rec aux i = i == l || (f arr.(i) && aux (i+1)) in
+  aux 0
+
 let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
   let (clst,b2) =
     List.fold_left (fun (accu,b1) a -> let (c,b2) = f b1 a in (c::accu,b2))
@@ -127,3 +132,5 @@ let format_of_sep str fmt () : unit =
   Format.fprintf fmt "%s" str
 
 let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l
+let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
+

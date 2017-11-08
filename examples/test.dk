@@ -34,7 +34,7 @@ defac min [nat].
 #GDT min.
 
 #PRINT "----------- Gaspard ------------".
-#SNF min (S (S 0)) (min 0 (S 0)).
+#SNF min 3 (min 1 2).
 
 
 #PRINT "".
@@ -44,6 +44,7 @@ defacu plus [nat,0].
 [x,y] plus (S x) y --> S (plus x y).
 #GDT plus.
 
+#SNF plus 10 6.
 #SNF plus (plus 2 0) (plus 1 ( (x : nat => plus x (plus (S x) x)) 4)).
 
 
@@ -119,14 +120,16 @@ def c : n : nat -> b (S n).
 #PRINT "----------- bin ------------".
 
 defac bin [nat].
-[x]   bin x         x --> S x
-[x,y] bin (bin x x) y --> bin (S x) y.
+[x]          bin x x  -->        S x
+[x,y] bin y (bin x x) --> bin y (S x).
 
 def e : nat -> nat.
 []    e 0         --> 1
 [x]   e (S x)     --> plus (e x) (e x)
 [x,y] e (bin x y) --> plus (e x) (e y).
 
-
+#SNF bin 1 1.
+#WHNF bin 1 (bin 2 (bin 3 1)).
 #SNF bin 1 (bin 2 (bin 3 2)).
+#SNF bin 1 (bin 2 (bin 3 1)).
 #SNF e (bin 1 (bin 2 (bin 3 1))).

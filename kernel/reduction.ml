@@ -112,12 +112,11 @@ let flatten_AC_stack (sg:Signature.t) (strategy:rw_state_strategy)
   let rec flatten acc = function
     | [] -> acc
     | st :: tl ->
-       let whnf_st = (strategy sg) st in
-       match whnf_st with
+       match strategy sg st with
        | { ctx; term=Const (l',m',v'); stack=(st1::st2::[]) }
             when ident_eq m' m && ident_eq v' v ->
           flatten acc (st1 :: st2 :: tl)
-       | _ -> flatten (whnf_st::acc) tl
+       | whnf_st -> flatten (whnf_st::acc) tl
   in
   let stack = flatten [] stack in
   match Signature.get_staticity sg l m v with
@@ -141,6 +140,7 @@ let terms_to_comb sg l m v terms =
   let st = { dum_st with stack=List.map state_of_term terms} in
   term_of_state (to_comb sg st)
 
+
 let flatten_AC (sg:Signature.t)
                (strategy:rw_state_strategy)
                (convertible:convertibility_test) : state -> state = function
@@ -149,6 +149,7 @@ let flatten_AC (sg:Signature.t)
      let s = to_comb sg { st with stack=nstack } in
      (match rstack with [] -> s | l ->  {s with stack=(s.stack@l)})
   | st -> st
+
 
 let flatten_SNF_AC_term (sg:Signature.t)
                         (convertible:convertibility_test) : term -> term = function
@@ -196,7 +197,8 @@ let rec find_case (flattenner:loc->ident->ident->stack->stack)
      if ident_eq v v' && ident_eq m m' && List.length stack == nargs
      then
        match ac_symb,stack with
-       | true , t1::t2::s -> Some ({st with stack = flattenner l m v [t1;t2]}::s)
+       | true , t1::t2::s -> Some ({st with stack = flattenner l m v [t1;t2]}::s
+       )
        | false, _         -> Some stack
        | _ -> assert false
      else None
@@ -323,7 +325,7 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
           begin
             List.iter
               (function
-               | Linearity (i,j) -> assert(pb.subst.(i) == None); pb.subst.(i) <- pb.subst.(j)
+               | Linearity (i,j) -> assert(subst.(i) == None); subst.(i) <- subst.(j)
                | _ -> ())
               cstr;
             let aux e acc = match e with None -> assert false | Some e -> e :: acc in

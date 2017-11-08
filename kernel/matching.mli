@@ -8,9 +8,6 @@ exception NotUnifiable
 (** ([n], [t]) represents the term represented by [t] under [n] lambda abstractions. *)
 type 'a depthed = int * 'a
 
-type dpos  = int depthed
-type dterm = (term lazy_t) depthed
-
 (* TODO: Should syntactic simply be Miller with the empty list ? *) 
 type problem_type =
   | Syntactic (** a simple variable occurence  *)
@@ -31,7 +28,7 @@ type 'a problem_relation =
 (** ( ([l], [depth]), [m], [v], [n]) corresponds to the flattened set
  * of terms in [l] under [depth] lambda and headed by the [m].[v] AC symbol.
  * [n] variables (including Jokers) are subsets of this set. *)
-type 'a ac_set  = 'a list depthed * ident * ident * int
+type 'a ac_set  =  ident * ident * int * 'a list
 
 type 'a problem =
   | Solved of 'a
@@ -42,7 +39,7 @@ type 'a matching_problem =
   {
     (** For each variable a list of typed problems. *)
     problems    : 'a problem array;  (** Partial substituion. Initialized with Nones. *)
-    ac_sets     : 'a ac_set array;  (** AC sets referred in AC subset problems. *)
+    ac_sets     : 'a ac_set depthed array;  (** AC sets referred in AC subset problems. *)
   }
 
 val convert_problems : ('a -> 'b) -> ('a list -> 'b list) ->

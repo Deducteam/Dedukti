@@ -94,7 +94,10 @@ val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 
 val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
+val array_for_all : ('a -> bool) -> 'a array -> bool
+
 val string_of : (Format.formatter -> 'a -> unit) -> 'a -> string
 
 (** pp_list [sep] [fp] [l] print a list [\[l1 ; ... ln\]] by applying [fp] on each element and use se separator [sep] between elements *)
-val pp_list : string -> (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
+val pp_list : string -> (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list  -> unit
+val pp_arr  : string -> (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a array -> unit

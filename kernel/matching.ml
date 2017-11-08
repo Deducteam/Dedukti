@@ -8,9 +8,6 @@ exception NotUnifiable
 (** ([n], [t]) represents the term represented by [t] under [n] lambda abstractions. *)
 type 'a depthed = int * 'a
 
-type dpos  = int depthed
-type dterm = (term lazy_t) depthed
-
 type problem_type =
   | Syntactic
   | MillerPattern of int LList.t
@@ -23,7 +20,8 @@ type 'a problem_relation =
   | Eq        of 'a depthed
   | AC_Subset of int * int
 
-type 'a ac_set  = 'a list depthed * ident * ident * int
+(* TODO: add loc to this to better handle errors *)
+type 'a ac_set  = ident * ident * int * 'a list
 
 type 'a problem =
   | Solved of 'a
@@ -32,12 +30,11 @@ type 'a problem =
 type 'a matching_problem =
   {
     problems  : 'a problem array;
-    ac_sets   : 'a ac_set array;
+    ac_sets   : 'a ac_set depthed array;
   }
 
 
 (**     Printing functions       **)
-
 
 let pp_pos = pp_print_int
 let pp_lazy_term fmt t = fprintf fmt "%a" pp_term (Lazy.force t)
@@ -62,41 +59,31 @@ let pp_indexed_prob pp_a fmt (i, prob) = match prob with
   | Unsolved plist -> fprintf fmt "%i : { %a }" i (pp_list " ; " (pp_typed_problem pp_a)) plist
   | Solved t -> fprintf fmt "%i = %a" i pp_a t
 
-let pp_indexed_ac_set pp_a fmt (i,(l,m,v,nvars)) =
-  fprintf fmt "%i : %i vars in %a.%a{%a}" i nvars pp_ident m pp_ident v
-          (pp_depthed (pp_list "; " pp_a)) l
-
 let pp_mp_problems pp_a fmt mp_p =
   fprintf fmt "[ %a ]" (pp_list " and " (pp_indexed_prob pp_a))
           (Array.to_list (Array.mapi (fun i x -> (i,x)) mp_p))
 
+let pp_ac_set pp_a fmt (m,v,nvars,l) =
+  fprintf fmt "%i vars in %a.%a{%a}" nvars pp_ident m pp_ident v (pp_list "; " pp_a) l
+let pp_indexed_depthed_ac_set pp_a fmt (i,dset) =
+  fprintf fmt "%i : %a" i (pp_depthed (pp_ac_set pp_a)) dset
+
 let pp_mp_ac_sets sep pp_a fmt mp_acs =
   if Array.length mp_acs > 0 then
     fprintf fmt "%swith AC sets [ %a ]" sep
-            (pp_list " ; " (pp_indexed_ac_set pp_a))
-            (Array.to_list (Array.mapi (fun i x -> (i,x)) mp_acs))
-
-let pp_mp_subst sep pp_a fmt arr =
-  if Array.fold_left (fun a b -> a || b <> None) false arr then
-    let pp_aux fmt = function None -> fprintf fmt "_"
-                            | Some a -> fprintf fmt "%a" pp_a a in
-    fprintf fmt "%ssubst = [%a]" sep (pp_list " " pp_aux) (Array.to_list arr)
+            (pp_list " ; " (pp_indexed_depthed_ac_set pp_a))
+            (Array.to_list (Array.mapi (fun i dset -> (i,dset)) mp_acs))
 
 let pp_matching_problem sep pp_a fmt mp =
-  fprintf fmt "%a%a"
-          (pp_mp_problems     pp_a) mp.problems
-          (pp_mp_ac_sets  sep pp_a) mp.ac_sets
+  fprintf fmt "%a%a" (pp_mp_problems     pp_a) mp.problems
+                     (pp_mp_ac_sets  sep pp_a) mp.ac_sets
 
 let pp_int_matching_problem   sep = pp_matching_problem sep pp_pos
 let pp_lterm_matching_problem sep = pp_matching_problem sep pp_lazy_term
 
 
 (**     Problem convertion         **)
-
-
-
 let convert_problems f g pb =
-  let convert_ac_set ((d,l),m,v,j) = ((d,g l),m,v,j) in
   let convert_problem = function
     | Eq (d,p)        -> Eq (d, f p)
     | AC_Subset (i,n) -> AC_Subset (i,n) in
@@ -104,6 +91,7 @@ let convert_problems f g pb =
   let convert_prob = function
     | Solved t   -> Solved (f t)
     | Unsolved l -> Unsolved (List.map convert_typed_p l) in
+  let convert_ac_set (d,(m,v,j,l)) = (d,(m,v,j,g l)) in
   {
     problems = Array.map convert_prob   pb.problems;
     ac_sets  = Array.map convert_ac_set pb.ac_sets;
@@ -136,7 +124,6 @@ let solve (depth:int) (k_lst:int LList.t) (te:term) : term =
                  (update_dbs depth k_lst te)
                  (LList.lst k_lst)
 
-
 let unshift reduce (d,t) =
   if d = 0 then t
   else let te = Lazy.force t in
@@ -151,115 +138,173 @@ let force_solve_eq_problem reduce (d,t) = function
           let res = try solve d l t with NotUnifiable -> solve d l (reduce t) in
           Lazy.from_val (Subst.unshift d res)
 
-(** Updates the substitution with simple Eq problems *)
-let process_eqs reduce pb =
-  let comp = ref [] in
-  let try_set pb i t =
-    match pb.subst.(i) with
-    | None    -> pb.subst.(i) <- Some t
-    | Some ti -> comp := (ti,t) :: !comp in
-  let rec aux i = function
-    | [] -> []
-    | (ptype, Eq e) :: tl ->
-       try_set pb i (force_solve_eq_problem reduce e ptype);
-       aux i tl
-    | hd :: tl -> hd :: (aux i tl) in
-  Array.iteri (fun i l -> pb.problems.(i) <- aux i l) pb.problems;
-  !comp
+
+(** Remove [n] occurences of term [t] from list [l] under [d] lambdas *)
+let remove_n_occ reduce convertible t d n l =
+  let rec aux acc n l =
+    if n == 0 then Some (List.rev_append acc l) else
+      match l with
+      | [] -> None
+      | hd :: tl ->
+         if convertible (Lazy.force (unshift reduce (d,hd))) t
+         then aux acc       (n-1) tl
+         else aux (hd::acc) n     tl in
+  aux [] n l
 
 
-let rec remove_n_occ convertible t n l =
-  if n == 0 then Some l else
-    match l with
-    | [] -> None
-    | hd :: tl ->
-       if convertible hd t
-       then remove_n_occ convertible t (n-1) tl
-       else remove_n_occ convertible t n     tl
+let try_set reduce convertible pb i t =
+  match pb.problems.(i) with
+  | Solved _ -> None
+  | Unsolved pbs ->
+     let update (ptype,p) = match p with
+       | AC_Subset(i,n) ->
+          let (d, (m, v, k, terms)) = pb.ac_sets.(i) in
+          let l = (match ptype with Syntactic -> [] | MillerPattern l -> LList.lst l) in
+          let t = mk_App2 (Lazy.force t) (List.map (fun k -> mk_DB dloc qmark k) l) in
+          begin
+            assert(k >= n);
+            match remove_n_occ reduce convertible t d n terms with
+            | Some nterms when k > n || List.length nterms == 0 ->
+               pb.ac_sets.(i) <- (d, (m, v, k-n, nterms)); true
+            | _ -> false
+          end
+       | Eq(d, ti) -> convertible (Lazy.force t) (Lazy.force ti)
+     in
+     let ok = List.for_all update pbs in
+     if ok then ( pb.problems.(i) <- Solved t; Some pb) else None
+
+let rec process f i pb =
+  if i >= Array.length pb.problems then Some pb else
+    match pb.problems.(i) with
+    | Solved _ -> process f (i+1) pb
+    | Unsolved pbs -> bind_opt (process f (i+1))
+                               (f pb i pbs)
+
+(** Solve all Eq problems *)
+let process_eqs reduce convertible problem =
+  let f pb ind =
+    let rec aux = function
+      | [] -> Some pb
+      | (ptype, Eq e) :: tl ->
+         try_set reduce convertible pb ind
+                 (force_solve_eq_problem reduce e ptype)
+      | hd :: tl -> aux tl in
+    aux in
+  process f 0 problem
 
 
-let try_set convertible pb i t =
-  let ok = match pb.subst.(i) with
-    | None    -> pb.subst.(i) <- Some t; true
-    | Some ti -> convertible ti t in
-  if not ok then None else
-  let update (ptype,p) = match p with
-    | AC_Subset(i,n) ->
-       let l = (match ptype with Syntactic -> [] | MillerPattern l -> LList.lst l) in
-       let t = mk_App2 t (List.map (fun k -> mk_DB dloc qmark k) l) in
-       let ( (d,terms), m, v, k) = pb.ac_sets.(i) in
-       begin
-         assert(k >= n);
-         match remove_n_occ convertible t n terms with
-         | Some nterms -> pb.ac_sets.(i) <- ( (d,nterms), m, v, k-n); true
-         | None -> false
-       end
-    | _ -> assert false
-  in
-  let ok = List.for_all update pb.problems.(i) in
-  if not ok then None
-  else (pb.problems.(i) <- []; Some pb)
+let process_one_variable_sets reduce convertible to_comb problem =
+  let f pb ind =
+    let rec aux = function
+      | [] -> Some pb
+      | (ptype, AC_Subset(i,n)) :: tl ->
+         let (d,(m,v,k,terms)) = pb.ac_sets.(i)  in
+         if      n <  k then Some pb
+         else if n == 1 && k == 1 then
+           let t = force_solve_eq_problem reduce (d, to_comb m v terms) ptype in
+           try_set reduce convertible pb ind t
+         else aux tl
+      | _ -> assert false in
+    aux in
+  process f 0 problem
 
-
-(** Update problems using current substitution. *)
-let update_problems convertible pb i t =
-  Array.iteri
-    (fun i a ->
-      match pb.subst.(i) with
-      | None -> ()
-      | Some t ->
-         begin
-           
-         end)
-    pb.problems;
-  pb
-
-let process_one_variable_sets reduce convertible to_comb check pb =
-  let rec aux = function
-    | [] -> []
-    | (ptype, AC_Subset(i,n)) as hd :: tl ->
-       let ( (d,terms), m, v, k) = pb.ac_sets.(i)  in
-       if      n >  k then hd :: (aux tl)
-       else if n == k then
-         let t = (d, to_comb dloc m v terms) in
-         begin
-           pb.subst.(i) <- Some (force_solve_eq_problem reduce t ptype);
-           aux tl
-         end
-       else assert false
-    | _ -> assert false in
-  Array.iteri f pb.ac_sets;
-
-
-let fetch_lowest_score pb =
-  let g a (ptype,p) = match p with
+let fetch_lowest_score_var pb =
+  let score (ptype,p) = match p with
     | Eq _ -> assert false
     | AC_Subset(i,n) ->
-       let ( (d,terms), m, v, k) = pb.ac_sets.(i) in
-       (assert(k >= n); min a (1 + (List.length terms) * (k-n))) in
-  let f l = List.fold_left g max_int l in
-  let mini = ref 0 in
-  let minv = ref max_int in
-  Array.iteri
-    (fun i a ->
-      let v = f a in
-      if v < !minv then (mini := i; minv := v) )
-    pb.problems;
-  !mini
+       let (d,(m, v, k, terms)) = pb.ac_sets.(i) in
+       (n, (List.length terms) - k + n) in
+  let rec search_l m i = function
+    | [] -> m
+    | hd::tl ->
+       let (maxv, maxs) = m in
+       let s = score hd in
+       let nm = (if s > maxs then ((i,hd), s) else m) in
+       search_l nm i tl in
+  let rec search m i =
+  if i >= Array.length pb.problems then m else
+    match pb.problems.(i) with
+    | Solved _     -> search m                  (i+1)
+    | Unsolved pbs -> search (search_l m i pbs) (i+1)  in
+  let dummy = (-1, (Syntactic,AC_Subset(0,0)))  in
+  let ((i,prob),s) = search (dummy, (-1,-1)) 0 in
+  (i, prob)
 
+let l_init l f =
+  let rec aux i = if i == l then [] else (f i) :: aux (i+1) in aux 0
+
+let init size n = l_init size (fun x -> x >= size - n)
+
+let next (size, max, i, bag) =
+  let rec aux = function
+    | [] -> None
+    | false :: true :: l -> Some (true :: false :: l)
+    | false :: l -> map_opt (fun x -> false :: x) (aux l)
+    | true  :: l -> map_opt append (aux l)
+  and append = function
+    | [] -> [true]
+    | true :: l -> true :: true :: l
+    | false :: l -> false :: (append l)
+  in
+  match aux bag with
+  | Some nbag -> Some (size, max, i, nbag)
+  | None -> if i >= max then None else Some (size, max, i+1, init size (i+1))
+
+let first size max min = (size, max, min, init size min)
+
+let get_subset (size,max,i,bag) l =
+  let rec aux acc flag e = if flag then e::acc else acc in
+  List.fold_left2 aux [] bag l
+
+
+let is_solved = function
+  | None -> true
+  | Some pb -> array_for_all (function Solved _ | Unsolved [] -> true | _ -> false) pb.problems
+
+let get_subst =
+  map_opt (fun pb -> Array.map (function Solved t -> Some t | _ -> None) pb.problems)
+
+
+let rec process_all reduce convertible to_comb pb =
+  debug 1 "---------------------";
+  debug 1 "%a" (pp_lterm_matching_problem "\n") pb;
+  debug 1 "---------------------";
+  let var, (ptype, p) = fetch_lowest_score_var pb in
+  match p with
+  | Eq _ -> assert false
+  | AC_Subset(i,n) ->
+     let d, (m,v,k,terms) = pb.ac_sets.(i) in
+     assert(k >= n);
+     let nb_terms = List.length terms in
+     let rec search bag =
+       let subset = get_subset bag terms in
+       let (_,_,_,b) = bag in
+       debug 1 "Permut: %i (%a)" (List.length subset) (pp_list "; " pp_print_bool) b;
+       let t = force_solve_eq_problem reduce (d, to_comb m v subset) ptype in
+       let npb = {
+           problems = Array.copy pb.problems;
+           ac_sets = Array.copy pb.ac_sets
+         } in
+       match try_set reduce convertible npb var t with
+       | None -> (debug 1 "Fail"; bind_opt search (next bag))
+       | Some npb -> if is_solved (Some npb)
+                     then (debug 1 "Success !"; Some npb)
+                     else (debug 1 "Found var %i !" var;
+                           process_all reduce convertible to_comb npb)
+     in
+     if n == k && nb_terms mod n <> 0 then None
+     else
+       let size_min = if n == k then nb_terms / n else 1 in
+       let size_max = (nb_terms + n - k) / n in
+       debug 1 "try var %i from set %i: %i %i %i" var i nb_terms size_max size_min;
+       search (first nb_terms size_max size_min)
 
 
 let solve_problem reduce convertible to_comb pb =
-  let to_comb l m v terms = Lazy.from_val (to_comb l m v (List.map Lazy.force terms)) in
-  let check (a,b) = not (convertible (Lazy.force a) (Lazy.force b)) in
-  let check_l l = List.exists check l in
-  let cstr = process_eqs reduce pb in
-  if check_l cstr then None else
-  let cstr = process_one_variable_sets reduce to_comb check pb in
-  if check_l cstr then None else
-  let i = fetch_lowest_score pb in
-  Some pb.subst
+  let to_comb m v terms = Lazy.from_val (to_comb dloc m v (List.map Lazy.force terms)) in
+  let pb = process_eqs reduce convertible pb in
+  if is_solved pb then get_subst pb else
+  let pb = bind_opt (process_one_variable_sets reduce convertible to_comb) pb in
+  if is_solved pb then get_subst pb else
+    get_subst (bind_opt (process_all reduce convertible to_comb) pb)
 
-
-let generator l =
-  
