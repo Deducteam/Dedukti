@@ -8,6 +8,7 @@ type preterm =
   | PreApp  of preterm * preterm * preterm list
   | PreLam  of loc * ident * preterm option * preterm
   | PrePi   of loc * ident option * preterm * preterm
+  | PreMeta of loc * ident option
 
 let rec pp_preterm fmt preterm =
   match preterm with
@@ -21,6 +22,8 @@ let rec pp_preterm fmt preterm =
     ( match o with
       | None   -> fprintf fmt "%a -> %a" pp_preterm_wp a pp_preterm b
       | Some v -> fprintf fmt "%a:%a -> %a" pp_ident v pp_preterm_wp a pp_preterm b )
+  | PreMeta (_,None) -> fprintf fmt "_"
+  | PreMeta (_,Some v) -> fprintf fmt "%a" pp_ident v
 
 and pp_preterm_wp fmt preterm =
   match preterm with

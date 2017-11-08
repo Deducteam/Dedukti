@@ -23,7 +23,7 @@
 
 let space   = [' ' '\t' '\r']
 let mident = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
-let ident   = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
+let ident   = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '\'' ]*
 let capital = ['A'-'Z']+
 let number  = ['0'-'9']+
 
@@ -45,6 +45,7 @@ rule token = parse
   | "=>"        { FATARROW      }
   | ":="        { DEF           }
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
+  | "?" (ident as id)  { META (get_loc lexbuf, mk_ident id) }
   | "Type"      { TYPE ( get_loc lexbuf )       }
   | "def"       { KW_DEF ( get_loc lexbuf )       }
   | "thm"       { KW_THM ( get_loc lexbuf )       }

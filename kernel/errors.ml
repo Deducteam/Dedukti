@@ -88,7 +88,7 @@ let fail_typing_error err =
                 Infered type:%a." pp_ident x n pp_typed_context ctx pp_term ty
       | NotImplementedFeature l -> fail l "Feature not implemented."
       | CannotInferTypeMetaVar(loc,ident,int) ->
-        fail loc "Cannot infer the type of the meta variable %a" pp_ident ident
+        fail loc "Cannot infer the type of the meta variable ?%a" pp_ident ident
 
 
 let fail_dtree_error err =

@@ -4,6 +4,7 @@ exception EndOfFile
 
 type token =
   | UNDERSCORE  of loc
+  | META        of (loc * ident)
   | TYPE        of loc
   | KW_DEF      of loc
   | KW_THM      of loc

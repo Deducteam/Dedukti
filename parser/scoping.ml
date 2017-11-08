@@ -14,6 +14,8 @@ let get_db_index ctx id =
 
 let empty = mk_ident ""
 
+let under = mk_ident "_"
+
 let type_label x = mk_ident ("T"^string_of_ident x)
 
 let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
@@ -32,7 +34,11 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
     | PrePi (l,Some x,a,b) -> mk_Pi l x (t_of_pt ctx a) (t_of_pt (x::ctx) b)
     | PreLam  (l,id,None,b) -> mk_Lam l id (mk_Meta l (type_label id)) (t_of_pt (id::ctx) b)
     | PreLam  (l,id,Some a,b) ->
-        mk_Lam l id (t_of_pt ctx a) (t_of_pt (id::ctx) b)
+      mk_Lam l id (t_of_pt ctx a) (t_of_pt (id::ctx) b)
+    | PreMeta(l,None) ->
+      mk_Meta l under
+    | PreMeta(l,Some a) ->
+      mk_Meta l a
 
 let scope_term ctx (pte:preterm) : term =
   t_of_pt (List.map (fun (_,x,_) -> x) ctx) pte
