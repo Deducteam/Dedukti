@@ -6,7 +6,8 @@ open Cmd
 let verbose = ref false
 let sizechange = ref false
 let szgraph = ref false
-let variable_call = ref (-1)
+let type_rew = ref (-1)
+let mod_dep = ref (-1)
                   
 let eprint lc fmt =
   if !verbose then (
@@ -23,7 +24,8 @@ let mk_prelude lc name =
   then
     begin
       Sizechange.initialize name;
-      variable_call:=(-1);
+      type_rew:=(-1);
+      mod_dep:=(-1);
       Format.eprintf"\n"
     end;
   eprint lc "Module name is '%a'." pp_ident name;
@@ -32,7 +34,13 @@ let mk_prelude lc name =
 
 let mk_declaration lc id st pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
-  if (!sizechange)|| (!szgraph) then Sizechange.add_fonc !verbose id pty st;
+  if (!sizechange)|| (!szgraph)
+  then
+    begin
+      try Sizechange.add_fonc !verbose id pty st;
+      with
+      | Sizechange.TypeLevelRewriting -> type_rew := fst (of_loc lc)
+    end;
   match Env.declare lc id st pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
@@ -40,7 +48,11 @@ let mk_declaration lc id st pty : unit =
 let mk_definition lc id pty_opt pte : unit =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
   if (!sizechange)|| (!szgraph)
-  then Sizechange.add_symb !verbose id pte;
+  then
+    ( try Sizechange.add_symb !verbose id pte;
+      with
+      | Sizechange.TypeLevelRewriting -> type_rew := fst (of_loc lc)
+      | Sizechange.ModuleDependancy -> mod_dep := fst (of_loc lc));
   match Env.define lc id pte pty_opt with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
@@ -61,9 +73,7 @@ let mk_rules = Rule.( function
     begin
       let (l,md,id) = get_infos rule.pat in
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
-      if (!sizechange)||(!szgraph) then
-        (try Sizechange.add_rules !verbose lst
-        with Failure _-> let (l,c) = of_loc l in variable_call:=l);
+      if (!sizechange)||(!szgraph) then Sizechange.add_rules !verbose lst;
       match Env.add_rules lst with
       | OK lst2 ->
         List.iter ( fun rule ->
@@ -124,17 +134,23 @@ let export = ref false
 
 let mk_ending () =
   let red_error fmt= Format.eprintf "\027[31mERROR \027[m";
-                     Format.kfprintf (fun _ -> Format.pp_print_newline Format.err_formatter () ) Format.err_formatter fmt
+    Format.kfprintf (fun _ -> Format.pp_print_newline Format.err_formatter () ) Format.err_formatter fmt
   in
   if (!sizechange)|| (!szgraph) then
-    try
-      if Sizechange.sct_only !verbose
-      then if !variable_call=(-1)
-        then Errors.success "Rewriting ends according to the SCP"
-        else red_error "SCP does not accept variable in functionnal position, like in line %i" !variable_call
-      else (red_error "Rewriting does not end according to the SCP")
-    with
-    | Sizechange.NotPositive -> red_error "SCT can't be applied on non-positive signature";
+    begin
+      try
+	if Sizechange.sct_only !verbose
+	then if !type_rew=(-1)
+          then
+	    if !mod_dep=(-1)
+	    then Errors.success "Rewriting ends according to the SCP"
+	    else red_error "SCP does not manage module dependancy yet, like in line %i" !mod_dep
+          else red_error "SCP does not accept rewriting at type level yet, like in line %i" !type_rew
+	else (red_error "Rewriting does not end according to the SCP")
+      with
+      | Sizechange.NotPositive -> red_error "SCT can't be applied on non-strictly positive signature"
+      | Sizechange.TypeLevelRewriting -> red_error "SCP does not accept rewriting at type level yet"
+    end;
   if !export then
     if not (Env.export ()) then
       Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ());

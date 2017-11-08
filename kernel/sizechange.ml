@@ -9,7 +9,13 @@ open Rule
 open Format
 
 exception NotPositive
+exception TypeLevelRewriting
+exception ModuleDependancy
 
+(** The most useful function in the world *)
+let erase : 'a -> unit =
+  fun _ -> ()
+  
 (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
 
@@ -126,6 +132,11 @@ let pp_index fmt x = pp_print_int fmt (int_of_index x)
 let pp_couple pp_fst pp_snd fmt x = fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd (snd x) 
 
 let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) = fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z  
+
+(** An enrichment of Basic with couple *)
+let couple_id_eq : (ident * ident) -> (ident * ident) -> bool =
+    fun (a,b) (c,d)->
+      (ident_eq a c) && (ident_eq b d)
   
 (** Creation of a new initial [call_graph]. It contains the initial root symbol. *)
 let graph =
@@ -196,78 +207,81 @@ let create_array : int -> string array =
 (** Adding a fonction declare in a .dk file to the SCT-checker *)
 let add_fonc : bool -> ident -> term -> Signature.staticity -> unit =
   fun vb v t st ->
-    let rec right_most : term -> (ident * ident)=
-      function
-      | Pi(_,_,_,r) -> right_most r
-      | Const(_,m,f) -> (m,f)
-      | App(Const(_,m,f),_,_) -> (m,f)
-      | Type _ -> (!mod_name,v)
-      | _ as tt -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt; (!mod_name,v)
-    in
-    let rec get_all_from_pi : bool -> (ident * ident) list -> term -> ident * ident -> unit =
-      fun b l tt rm ->
-	match tt with
-	| Pi(_,_,arg,r) ->
-	   begin
-	     match arg with
-	     | Const(_,m,f) -> get_all_from_pi b ((m,f)::l) r rm
-	     | Pi(_,_,_,_) as p -> get_all_from_pi b l r rm; get_all_from_pi false [] p rm
-	     | App(Const(_,m,f),_,_) -> get_all_from_pi b ((m,f)::l) r rm
-	     | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt
-	   end
-	| Const(_,m,f) ->
-	   begin
-	     if b then constructors:=(!mod_name,f)::!constructors
-             else (List.iter (updateHT must_be_str_after rm) l; updateHT after rm (m,f));
-             List.iter (updateHT after rm) l
-	   end
-        | App(Const(_,m,f),_,_) ->
-	   begin
-	     if b then constructors:=(!mod_name,f)::!constructors
-             else (List.iter (updateHT must_be_str_after rm) l; updateHT after rm (m,f));
-             List.iter (updateHT after rm) l
-	   end
-	| Type _ as tt ->
-	   begin
-             constructors:=rm::!constructors;
-	     Hashtbl.add after rm l;
-	     Hashtbl.add must_be_str_after rm l
-	   end;
-	| _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt
-    in
-    let n : int = find_arity t in
-    let second (a,b,c) = b in
-    match t with
-    | Kind ->
-       begin
-	 create_symbol vb (!mod_name,v) (create_array 0);
-	 printf "How is it possible to create a symbol in Kind ?@."
-       end
-    | Type _ ->
-       begin
-	 create_symbol vb (!mod_name,v) (create_array 0);
-	 if st = Signature.Static
-	 then Hashtbl.add must_be_str_after (!mod_name,v) [];
-	 Hashtbl.add after (!mod_name,v) []
-       end
-    | DB (_,_,_) -> printf "AddFonc of a DB Variable %a, I don't understand how it can happen@." pp_term t
-    | Const (_,_,_) ->
-       begin
-	 create_symbol vb (!mod_name,v) (create_array 0);
-	 if st=Signature.Static
-	 then constructors:= (!mod_name,v)::!constructors
-       end
-    | App (Const(_,m,f),u,lt) ->
-       begin
-	 create_symbol vb (!mod_name,v) (create_array 0);
-	 if st = Signature.Static
-	 then constructors:= (!mod_name,v)::!constructors
-       end
-    | App (_,_,_) as t -> printf "Add Fonc of an application of a non constant %a, I don't know how to deal with it@." pp_term t
-    | Lam (_,_,_,_) -> printf "AddFonc of a lambda %a, I don't know how to react@." pp_term t
-    | Pi(_,_,_,_) as t -> create_symbol vb (!mod_name,v) (create_array n);
-      if st = Signature.Static
-      then get_all_from_pi true [] t (right_most t)
+    try 
+      let rec right_most : term -> (ident * ident)=
+	function
+	| Pi(_,_,_,r) -> right_most r
+	| Const(_,m,f) -> (m,f)
+	| App(Const(_,m,f),_,_) -> (m,f)
+	| Type _ -> (!mod_name,v)
+	| _ as tt -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt; (!mod_name,v)
+      in
+      let rec get_all_from_pi : bool -> (ident * ident) list -> term -> ident * ident -> unit =
+	fun b l tt rm ->
+	  match tt with
+	  | Pi(_,_,arg,r) ->
+	     begin
+	       match arg with
+	       | Const(_,m,f) -> get_all_from_pi b ((m,f)::l) r rm
+	       | Pi(_,_,_,_) as p -> get_all_from_pi b l r rm; get_all_from_pi false [] p rm
+	       | App(Const(_,m,f),_,_) -> get_all_from_pi b ((m,f)::l) r rm
+	       | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt
+	     end
+	  | Const(_,m,f) ->
+	     begin
+	       if b then constructors:=(!mod_name,f)::!constructors
+               else (List.iter (updateHT must_be_str_after rm) l; updateHT after rm (m,f));
+               List.iter (updateHT after rm) l
+	     end
+          | App(Const(_,m,f),_,_) ->
+	     begin
+	       if b then constructors:=(!mod_name,f)::!constructors
+               else (List.iter (updateHT must_be_str_after rm) l; updateHT after rm (m,f));
+               List.iter (updateHT after rm) l
+	     end
+	  | Type _ as tt ->
+	     begin
+               constructors:=rm::!constructors;
+	       Hashtbl.add after rm l;
+	       Hashtbl.add must_be_str_after rm l
+	     end;
+	  | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt
+      in
+      let n : int = find_arity t in
+      let second (a,b,c) = b in
+      match t with
+      | Kind ->
+	 begin
+	   create_symbol vb (!mod_name,v) (create_array 0);
+	   printf "How is it possible to create a symbol in Kind ?@."
+	 end
+      | Type _ ->
+	 begin
+	   create_symbol vb (!mod_name,v) (create_array 0);
+	   if st = Signature.Static
+	   then Hashtbl.add must_be_str_after (!mod_name,v) [];
+	   Hashtbl.add after (!mod_name,v) []
+	 end
+      | DB (_,_,_) -> printf "AddFonc of a DB Variable %a, I don't understand how it can happen@." pp_term t
+      | Const (_,_,_) ->
+	 begin
+	   create_symbol vb (!mod_name,v) (create_array 0);
+	   if st=Signature.Static
+	   then constructors:= (!mod_name,v)::!constructors
+	 end
+      | App (Const(_,m,f),u,lt) ->
+	 begin
+	   create_symbol vb (!mod_name,v) (create_array 0);
+	   if st = Signature.Static
+	   then constructors:= (!mod_name,v)::!constructors
+	 end
+      | App (_,_,_) as t -> printf "Add Fonc of an application of a non constant %a, I don't know how to deal with it@." pp_term t
+      | Lam (_,_,_,_) -> printf "AddFonc of a lambda %a, I don't know how to react@." pp_term t
+      | Pi(_,_,_,_) as t -> create_symbol vb (!mod_name,v) (create_array n);
+	if st = Signature.Static
+	then get_all_from_pi true [] t (right_most t)
+    with
+    | _ -> raise TypeLevelRewriting
                                         
 (** Copy a call graph. *)
 let copy : call_graph -> call_graph =
@@ -352,46 +366,45 @@ let auto_call_matrix : index -> index -> matrix =
   done;
   {h=m ; w=n ; tab = Array.of_list (List.rev !res)}
     
-let rec rule_to_call : bool -> int -> 'a rule -> call_list =
+let rec rule_to_call : bool -> int -> 'a rule -> call list =
   fun vb nb r ->
   let third (a,b,c) = c in
   let get_caller : (pattern list * index) option =
     match r.pat with 
     | Pattern (_,m,v,lp) ->
        begin
-         try Some (lp,third (List.find (fun (x,ar,_) -> x=(m,v) && ar=List.length(lp)) !table))
+         try Some (lp,third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v)) && ar=List.length(lp)) !table))
          with Not_found ->
            begin
              try
-	       let old_index=third (List.find (fun (x,ar,_) -> x=(m,v) && ar>List.length(lp)) !table) in
+	       let old_index=third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v)) && ar>List.length(lp)) !table) in
 	       let new_index= !(!graph.next_index) in
 	       create_symbol vb (m,v) (create_array (List.length(lp)));
 	       add_call { callee = new_index; caller =old_index; matrix=auto_call_matrix old_index new_index; is_rec=false};
 	       Some(lp,new_index)
-             with Not_found -> printf "The calling function is still undeclared.@."; None
+             with Not_found -> if vb then printf "The calling function is still undeclared: %a@." pp_untyped_rule r; None
            end
        end
-    | p -> printf "Problem with Caller : %a@." pp_pattern p ; None
+    | p -> if vb then if vb then printf "Problem with Caller : %a@." pp_pattern p ; None
   in
   let term2rule t= {pat= r.pat ; rhs = t ; ctx= r.ctx ; name=r.name} in
-  let get_callee= match r.rhs with
-    | Const (_,_,_) | DB (_,_,_) -> None
-    | App (Const(_,_,v),t1,lt) ->
+  let get_callee : (term list * index) option = match r.rhs with
+    | Const (_,_,_) | DB (_,_,_) | App (DB(_,_,_),_,_) -> None
+    | App (Const(_,m,v),t1,lt) ->
        begin
-         try Some (t1::lt,third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar=List.length(lt)+1) !table))
+         try Some (t1::lt,third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v)) && ar=List.length(lt)+1) !table))
          with Not_found ->
            begin
              try
-	       let old_index=third (List.find (fun (x,ar,_) -> x=(string_of_ident v) && ar>=List.length(lt)) !table)
+	       let old_index=third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v)) && ar>=List.length(lt)) !table)
                in
 	       let new_index= !(!graph.next_index)
                in
-	       create_symbol vb (string_of_ident v) (create_array (List.length(t1::lt)));
+	       create_symbol vb (m,v) (create_array (List.length(t1::lt)));
 	       add_call { callee = new_index; caller = old_index; matrix=auto_call_matrix old_index new_index; is_rec=false}; Some (t1::lt,new_index)
-             with Not_found -> printf "The called function is still undeclared@."; None
+             with Not_found -> if vb then printf "The called function is still undeclared@."; None
            end
        end
-    | App (DB(_,_,_),_,_) -> failwith "SCP does not accept application of a variable"
     | App (t1,t2,lt) ->
        begin
          let f _ = () in
@@ -410,63 +423,61 @@ let rec rule_to_call : bool -> int -> 'a rule -> call_list =
          f (List.map add_call ((rule_to_call vb nb (term2rule t1)) @ (rule_to_call vb (nb+1) (term2rule t2)))) ;
          None
        end
-    | p -> printf "Problem with Callee : %a@." pp_term p ; None
+    | p -> if vb then printf "Problem with Callee : %a@." pp_term p ; None
   in
   match get_callee,get_caller with
   | None, _ -> []
   | _, None -> []
   | Some (l1,a), Some (l2,b) -> {callee=a ; caller = b ; matrix=matrix_of_lists nb l1 l2 ; is_rec = false}::List.flatten (List.map (rule_to_call vb nb) (List.map term2rule  l1))
-                                                                                                                         
 
-let add_symb vb v q=
+let add_symb : bool -> ident -> term -> unit =
+  fun vb v q ->
   let second (a,b,c)=b in
   match q with
   | Kind -> printf "What the hell, are you seriously renaming Kind ?@."
   | Type _ ->  printf "What the hell, are you seriously renaming Type ?@."
   | DB (_,_,_) -> printf "AddSymb problem, what does it mean to declare something equal to a DB Variable ?@."
-  | Const(_,_,c) as t ->
+  | Const(_,m,c) as t ->
      begin
-       create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident c)) (List.rev !table))));
-       let f _ = () in
-       f (List.map add_call (rule_to_call vb 0 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
+     try 
+       create_symbol vb (!mod_name,v) (create_array (second (List.find (fun (x,_,_) -> (couple_id_eq x (m,c))) (List.rev !table))));
+       erase (List.map add_call (rule_to_call vb 0 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
+     with
+     | _ -> raise ModuleDependancy
      end
-  | App (Const(_,_,f),u,lt) as t->
+  | App (Const(_,m,f),u,lt) as t->
      begin
-       create_symbol vb (string_of_ident v) (create_array (second (List.find (fun (x,_,_) -> x=(string_of_ident f)) (List.rev !table)) -1-List.length lt));
-       let f _ = () in
-       f (List.map add_call (rule_to_call vb 0 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
+     try
+       create_symbol vb (!mod_name,v) (create_array (second (List.find (fun (x,_,_) -> (couple_id_eq x(m,f))) (List.rev !table)) -1-List.length lt));
+       erase (List.map add_call (rule_to_call vb 0 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[]); rhs=t}))
+     with
+     | _ -> raise ModuleDependancy
      end
   | App (_,_,_) as t-> printf "AddSymb problem, I dont know what to do with the application : %a@." pp_term t
   | Lam (loc,name,_,t) ->
      begin
-       create_symbol vb (string_of_ident v) (create_array ((find_arity t)+1));
-       let f _ = () in
-       f (List.map add_call (rule_to_call vb 1 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
+       create_symbol vb (!mod_name,v) (create_array ((find_arity t)+1));
+       erase (List.map add_call (rule_to_call vb 1 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
      end
   | Pi(loc,name,arg,t) ->
      begin
-       create_symbol vb (string_of_ident v) (create_array ((find_arity t)+1));
-       let f _ = () in
-       f (List.map add_call (rule_to_call vb 1 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
+       create_symbol vb (!mod_name,v) (create_array ((find_arity t)+1));
+       erase (List.map add_call (rule_to_call vb 1 {name=Delta(dmark,dmark); ctx=[]; pat=Pattern(dloc, dmark, v,[Var(loc,name,0,[])]); rhs=t}))
      end
-  
                                                                                                               
-let add_rules vb l =
-  let f _ = () in
-  f (List.map add_call (List.flatten (List.map (rule_to_call vb 0) l)))
+let add_rules : bool -> 'a list -> unit =
+  fun vb l ->
+  erase (List.map add_call (List.flatten (List.map (rule_to_call vb 0) l)))
 
-let print_array pp sep out v=Pp.print_list sep pp out (Array.to_list v)
+let pp_array sep pp fmt v=pp_list sep pp fmt (Array.to_list v)
                        
-let print_call : formatter -> symbol IMap.t -> call -> unit = fun ff tbl c ->
+let print_call : formatter -> symbol IMap.t -> call -> unit =
+  fun ff tbl c ->
   let caller_sym = IMap.find c.caller tbl in
   let callee_sym = IMap.find c.callee tbl in
-  (*let print_cmparray out v=Pp.print_list "," pp_print_string out (List.map cmp_to_string (Array.to_list v)) in*)
-  let print_args = print_array pp_print_string "," in
-  fprintf ff "%s%d(%a%!) <- %s%d%!(" caller_sym.name c.caller
-          print_args caller_sym.args callee_sym.name c.callee;
-  (*for j = 0 to Array.length c.matrix.tab-1 do
-    printf "%n :: %a@." j print_cmparray c.matrix.tab.(j)
-  done;*)
+  let pp_args = (pp_array "," pp_print_string)  in
+  fprintf ff "%a%d(%a%!) <- %a%d%!(" (pp_couple pp_ident pp_ident) caller_sym.name c.caller
+          pp_args caller_sym.args (pp_couple pp_ident pp_ident) callee_sym.name c.callee;
   let jj=Array.length c.matrix.tab in
   if jj>0 then
     let ii=Array.length c.matrix.tab.(0) in
@@ -503,9 +514,9 @@ let latex_print_calls () =
   in
   let f (j,sym) =
     if not_unique sym.name then
-      fprintf ff "    N%d [ label = \"%s_{%d}\" ];\n" (index j) sym.name (index j)
+      fprintf ff "    N%d [ label = \"%a_{%d}\" ];\n" (index j) pp_ident (snd sym.name) (index j)
     else
-      fprintf ff "    N%d [ label = \"%s\" ];\n" (index j) sym.name
+      fprintf ff "    N%d [ label = \"%a\" ];\n" (index j) pp_ident (snd sym.name)
   in
   List.iter f (List.filter (fun (i,_) ->
     List.exists (fun c -> i = c.caller || i = c.callee) calls) arities);
@@ -535,47 +546,46 @@ let latex_print_calls () =
   in
   List.iter (print_call2 arities) calls;
   fprintf ff "  }\n\\end{dot2tex}\n"
-
-let couple_id_eq (a,b) (c,d)=
-    (ident_eq a c) && (ident_eq b d)
     
 let tarjan graph=
-  let num=ref 0 and p = ref [] and partition = ref []
-      and numHT= Hashtbl.create 5 and numAcc = Hashtbl.create 5 in
-  let rec parcours v=
-    Hashtbl.add numHT v !num;
-    Hashtbl.add numAcc v !num;
-    incr num;
-    p := v::!p;
-    let parcours_intern w=
-      if not (Hashtbl.mem numHT w)
+  try 
+    let num=ref 0 and p = ref [] and partition = ref []
+    and numHT= Hashtbl.create 5 and numAcc = Hashtbl.create 5 in
+    let rec parcours v=
+      Hashtbl.add numHT v !num;
+      Hashtbl.add numAcc v !num;
+      incr num;
+      p := v::!p;
+      let parcours_intern w=
+	if not (Hashtbl.mem numHT w)
+	then
+          (parcours w;
+           Hashtbl.replace numAcc v (min (Hashtbl.find numAcc v) (Hashtbl.find numAcc w)))
+	else
+          (if List.mem w !p
+           then Hashtbl.replace numAcc v (min (Hashtbl.find numAcc v) (Hashtbl.find numHT w)))
+      in
+      List.iter parcours_intern (Hashtbl.find graph v);
+      if (Hashtbl.find numAcc v)=(Hashtbl.find numHT v)
       then
-        (parcours w;
-         Hashtbl.replace numAcc v (min (Hashtbl.find numAcc v) (Hashtbl.find numAcc w)))
-      else
-        (if List.mem w !p
-        then Hashtbl.replace numAcc v (min (Hashtbl.find numAcc v) (Hashtbl.find numHT w)))
+	begin
+          let c=ref [] and w=ref (hstring "",hstring "") in
+          while not (couple_id_eq !w v)
+          do
+            w:= List.hd !p;
+            p:= List.tl !p;
+            c:= !w::!c;
+          done;
+          partition:=!c::!partition
+	end
     in
-    List.iter parcours_intern (Hashtbl.find graph v);
-    if (Hashtbl.find numAcc v)=(Hashtbl.find numHT v)
-    then
-      begin
-        let c=ref [] and w=ref (hstring "",hstring "") in
-        while not (couple_id_eq !w v)
-        do
-          w:= List.hd !p;
-          p:= List.tl !p;
-          c:= !w::!c;
-        done;
-        partition:=!c::!partition
-      end
-  in
-  Hashtbl.iter (fun v -> fun _ -> if not (Hashtbl.mem numHT v) then parcours v) graph;
-  !partition
-    
+    Hashtbl.iter (fun v -> fun _ -> if not (Hashtbl.mem numHT v) then parcours v) graph;
+    !partition
+  with
+  | _ -> raise TypeLevelRewriting
+      
 let are_equiv a b l=
   List.exists (fun x -> (List.mem a x) && (List.mem b x)) l
-
 
 let print_constr ()=
   printf "@.Constructors :@.%a@." (pp_list ";" (pp_couple pp_ident pp_ident)) !constructors;
@@ -583,7 +593,8 @@ let print_constr ()=
   printf "@;"
     
 let str_positive l ht=
-  Hashtbl.iter (fun a -> fun b -> if List.exists (fun x -> are_equiv a x l) b then raise NotPositive) ht
+  Hashtbl.iter (fun a b -> if List.exists (fun x -> are_equiv a x l) b then raise NotPositive) ht
+	
     
 (** the main function, checking if calls are well-founded *)
 let sct_only : bool -> bool =
