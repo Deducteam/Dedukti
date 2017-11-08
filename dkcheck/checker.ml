@@ -103,6 +103,10 @@ let mk_command lc = function
                 Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
             | _ -> Format.printf "No GDT.@." )
   | Print str         -> Format.printf "%s@." str
+  | Require m         ->
+    ( match Env.import lc m with
+      | OK () -> ()
+      | Err e -> Errors.fail_signature_error e )
   | Other (cmd,_)     -> Format.eprintf "Unknown command '%s'.@." cmd
 
 let export = ref false

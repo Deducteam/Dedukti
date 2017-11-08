@@ -78,6 +78,7 @@ let mk_command _ = function
   | Infer t   | InferSnf t             -> mk_term t
   | Conv (t1,t2) | Check (t1,t2)       -> ( mk_term t1 ; mk_term t2 )
   | Gdt (_,_) | Print _                -> ()
+  | Require md -> add_dep md
   | Other (_,lst)                      -> List.iter mk_term lst
 
 

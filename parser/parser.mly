@@ -60,6 +60,7 @@
 %token <Basic.loc> CONV
 %token <Basic.loc> CHECK
 %token <Basic.loc> PRINT
+%token <Basic.loc*Basic.mident> REQUIRE
 %token <Basic.loc> GDT
 %token <Basic.loc*string> OTHER
 %token <Basic.loc> UNDERSCORE
@@ -135,6 +136,7 @@ command         : WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }
                 | PRINT STRING  { mk_command $1 (Print $2) }
                 | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }
+                | REQUIRE { let (l,m) = $1 in mk_command l (Require(m) ) }
                 | OTHER term_lst { mk_command (fst $1) (Other (snd $1,List.map (scope_term []) $2)) }
 
 

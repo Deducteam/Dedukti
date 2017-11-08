@@ -172,12 +172,11 @@ let rec import sg lc m =
   HMd.add sg.tables m ctx;
   List.iter ( fun dep0 ->
       let dep = mk_mident dep0 in
-      if not (HMd.mem sg.tables dep) then ignore (import sg lc dep)
+      if not (HMd.mem sg.tables dep) then import sg lc dep
     ) deps ;
   debug 1 "Loading module '%a'..." pp_mident m;
   List.iter (fun rs -> add_rule_infos sg rs) ext;
-  check_confluence_on_import lc m ctx;
-  ctx
+  check_confluence_on_import lc m ctx
 
 let get_deps sg : string list = (*only direct dependencies*)
   HMd.fold (
@@ -195,7 +194,7 @@ let get_infos sg lc cst =
   let md = md cst in
   let env =
     try HMd.find sg.tables md
-    with Not_found -> import sg lc md
+    with Not_found -> import sg lc md; HMd.find sg.tables md
   in
     try ( HId.find env (id cst))
     with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))

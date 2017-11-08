@@ -43,6 +43,9 @@ val get_name            : t -> mident
 val export              : t -> bool
 (** [export ()] saves the current environment in a [*.dko] file.*)
 
+val import              : t -> loc -> mident -> unit
+(** [import sg md] the module [md] in the signature [sg]. *)
+
 val get_type            : t -> loc -> name -> term
 (** [get_type sg l md id] returns the type of the constant [md.id] inside the environement [sg]. *)
 

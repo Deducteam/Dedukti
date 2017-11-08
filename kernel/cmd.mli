@@ -15,5 +15,6 @@ type command =
   | InferSnf of term
   (* Misc *)
   | Gdt      of mident option*ident
+  | Require  of mident
   | Print    of string
   | Other    of string*term list

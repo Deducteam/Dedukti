@@ -35,6 +35,7 @@ type token =
   | CHECK       of loc
   | PRINT       of loc
   | GDT         of loc
+  | REQUIRE     of (loc * mident)
   | OTHER       of ( loc * string )
   | STRING      of string
   | INT         of int

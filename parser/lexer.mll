@@ -61,6 +61,7 @@ rule token = parse
   | "#CHECK"    { CHECK    ( get_loc lexbuf ) }
   | "#PRINT"    { PRINT    ( get_loc lexbuf ) }
   | "#GDT"      { GDT      ( get_loc lexbuf ) }
+  | "#REQUIRE" space+ (mident as md) {REQUIRE (get_loc lexbuf, mk_mident md)}
   | '#' (capital as cmd) { OTHER (get_loc lexbuf, cmd) }
   | '#' (number  as i  ) { INT   (int_of_string i) }
   | mident as md '.' (ident as id)

@@ -27,6 +27,9 @@ val get_dtree   : loc -> name -> ((int*Dtree.dtree) option,signature_error) erro
 val export      : unit -> bool
 (** [export ()] saves the current environment in a [*.dko] file. *)
 
+val import      : loc -> mident -> (unit, signature_error) error
+(** [import lc md] the module [md] in the current environment. *)
+
 val declare : loc -> ident -> Signature.staticity -> term -> (unit,env_error) error
 (** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
    staticity [st]. *)
