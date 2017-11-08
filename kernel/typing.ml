@@ -24,7 +24,7 @@ type typing_error =
   | BracketError2 of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
-  | CannotInferTypeMetaVar of loc * ident * int
+  | CannotInferTypeMetaVar of loc * ident * int (* TODO: Context is Missing here *)
 
 exception TypingError of typing_error
 
