@@ -6,6 +6,7 @@ open Format
 exception NotPositive
 exception TypeLevelRewriting
 exception ModuleDependancy
+exception Error
 
 val add_fonc : bool -> ident -> Term.term -> Signature.staticity -> unit
 val add_symb : bool -> ident -> Term.term -> unit

@@ -11,6 +11,7 @@ open Format
 exception NotPositive
 exception TypeLevelRewriting
 exception ModuleDependancy
+exception Error
 
 (** The most useful function in the world *)
 let erase : 'a -> unit =
@@ -214,7 +215,7 @@ let add_fonc : bool -> ident -> term -> Signature.staticity -> unit =
 	| Const(_,m,f) -> (m,f)
 	| App(Const(_,m,f),_,_) -> (m,f)
 	| Type _ -> (!mod_name,v)
-	| _ as tt -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt; (!mod_name,v)
+	| _ as tt -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt; raise Error
       in
       let rec get_all_from_pi : bool -> (ident * ident) list -> term -> ident * ident -> unit =
 	fun b l tt rm ->
@@ -225,7 +226,7 @@ let add_fonc : bool -> ident -> term -> Signature.staticity -> unit =
 	       | Const(_,m,f) -> get_all_from_pi b ((m,f)::l) r rm
 	       | Pi(_,_,_,_) as p -> get_all_from_pi b l r rm; get_all_from_pi false [] p rm
 	       | App(Const(_,m,f),_,_) -> get_all_from_pi b ((m,f)::l) r rm
-	       | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt
+	       | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt; raise Error
 	     end
 	  | Const(_,m,f) ->
 	     begin
@@ -245,7 +246,7 @@ let add_fonc : bool -> ident -> term -> Signature.staticity -> unit =
 	       Hashtbl.add after rm l;
 	       Hashtbl.add must_be_str_after rm l
 	     end;
-	  | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt
+	  | _ -> printf "I don't understand what you are adding under the Pi : %a@." pp_term tt; raise Error
       in
       let n : int = find_arity t in
       let second (a,b,c) = b in
@@ -253,7 +254,8 @@ let add_fonc : bool -> ident -> term -> Signature.staticity -> unit =
       | Kind ->
 	 begin
 	   create_symbol vb (!mod_name,v) (create_array 0);
-	   printf "How is it possible to create a symbol in Kind ?@."
+	   printf "How is it possible to create a symbol in Kind ?@.";
+	   raise Error
 	 end
       | Type _ ->
 	 begin
@@ -262,7 +264,8 @@ let add_fonc : bool -> ident -> term -> Signature.staticity -> unit =
 	   then Hashtbl.add must_be_str_after (!mod_name,v) [];
 	   Hashtbl.add after (!mod_name,v) []
 	 end
-      | DB (_,_,_) -> printf "AddFonc of a DB Variable %a, I don't understand how it can happen@." pp_term t
+      | DB (_,_,_) -> printf "AddFonc of a DB Variable %a, I don't understand how it can happen@." pp_term t;
+	   raise Error
       | Const (_,_,_) ->
 	 begin
 	   create_symbol vb (!mod_name,v) (create_array 0);
@@ -275,12 +278,15 @@ let add_fonc : bool -> ident -> term -> Signature.staticity -> unit =
 	   if st = Signature.Static
 	   then constructors:= (!mod_name,v)::!constructors
 	 end
-      | App (_,_,_) as t -> printf "Add Fonc of an application of a non constant %a, I don't know how to deal with it@." pp_term t
-      | Lam (_,_,_,_) -> printf "AddFonc of a lambda %a, I don't know how to react@." pp_term t
+      | App (_,_,_) as t -> printf "Add Fonc of an application of a non constant %a, I don't know how to deal with it@." pp_term t;
+	   raise Error
+      | Lam (_,_,_,_) -> printf "AddFonc of a lambda %a, I don't know how to react@." pp_term t;
+	   raise Error
       | Pi(_,_,_,_) as t -> create_symbol vb (!mod_name,v) (create_array n);
 	if st = Signature.Static
 	then get_all_from_pi true [] t (right_most t)
     with
+    | Error -> raise Error
     | _ -> raise TypeLevelRewriting
                                         
 (** Copy a call graph. *)
@@ -382,14 +388,29 @@ let rec rule_to_call : bool -> int -> 'a rule -> call list =
 	       create_symbol vb (m,v) (create_array (List.length(lp)));
 	       add_call { callee = new_index; caller =old_index; matrix=auto_call_matrix old_index new_index; is_rec=false};
 	       Some(lp,new_index)
-             with Not_found -> if vb then printf "The calling function is still undeclared: %a@." pp_untyped_rule r; None
+             with Not_found -> if vb then printf "The calling function is still undeclared: %a@." pp_untyped_rule r; raise Error
            end
        end
-    | p -> if vb then if vb then printf "Problem with Caller : %a@." pp_pattern p ; None
+    | p -> if vb then if vb then printf "Problem with Caller : %a@." pp_pattern p ; raise Error
   in
   let term2rule t= {pat= r.pat ; rhs = t ; ctx= r.ctx ; name=r.name} in
   let get_callee : (term list * index) option = match r.rhs with
-    | Const (_,_,_) | DB (_,_,_) | App (DB(_,_,_),_,_) -> None
+    | DB (_,_,_) | App (DB(_,_,_),_,_) -> None
+    | Const (_,m,v) ->
+       begin
+         try Some ([],third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v)) && ar=0) !table))
+         with Not_found ->
+           begin
+             try
+	       let old_index=third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v))) !table)
+               in
+	       let new_index= !(!graph.next_index)
+               in
+	       create_symbol vb (m,v) (create_array 0);
+	       add_call { callee = new_index; caller = old_index; matrix=auto_call_matrix old_index new_index; is_rec=false}; Some ([],new_index)
+             with Not_found -> if vb then printf "The called function is still undeclared@."; raise Error
+           end
+       end
     | App (Const(_,m,v),t1,lt) ->
        begin
          try Some (t1::lt,third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v)) && ar=List.length(lt)+1) !table))
@@ -402,7 +423,7 @@ let rec rule_to_call : bool -> int -> 'a rule -> call list =
                in
 	       create_symbol vb (m,v) (create_array (List.length(t1::lt)));
 	       add_call { callee = new_index; caller = old_index; matrix=auto_call_matrix old_index new_index; is_rec=false}; Some (t1::lt,new_index)
-             with Not_found -> if vb then printf "The called function is still undeclared@."; None
+             with Not_found -> if vb then printf "The called function is still undeclared@."; raise Error
            end
        end
     | App (t1,t2,lt) ->
@@ -423,7 +444,7 @@ let rec rule_to_call : bool -> int -> 'a rule -> call list =
          f (List.map add_call ((rule_to_call vb nb (term2rule t1)) @ (rule_to_call vb (nb+1) (term2rule t2)))) ;
          None
        end
-    | p -> if vb then printf "Problem with Callee : %a@." pp_term p ; None
+    | p -> if vb then printf "Problem with Callee : %a@." pp_term p ; raise Error
   in
   match get_callee,get_caller with
   | None, _ -> []
@@ -434,9 +455,12 @@ let add_symb : bool -> ident -> term -> unit =
   fun vb v q ->
   let second (a,b,c)=b in
   match q with
-  | Kind -> printf "What the hell, are you seriously renaming Kind ?@."
-  | Type _ ->  printf "What the hell, are you seriously renaming Type ?@."
-  | DB (_,_,_) -> printf "AddSymb problem, what does it mean to declare something equal to a DB Variable ?@."
+  | Kind -> printf "What the hell, are you seriously renaming Kind ?@.";
+	   raise Error
+  | Type _ ->  printf "What the hell, are you seriously renaming Type ?@.";
+	   raise Error
+  | DB (_,_,_) -> printf "AddSymb problem, what does it mean to declare something equal to a DB Variable ?@.";
+	   raise Error
   | Const(_,m,c) as t ->
      begin
      try 
@@ -453,7 +477,8 @@ let add_symb : bool -> ident -> term -> unit =
      with
      | _ -> raise ModuleDependancy
      end
-  | App (_,_,_) as t-> printf "AddSymb problem, I dont know what to do with the application : %a@." pp_term t
+  | App (_,_,_) as t-> printf "AddSymb problem, I dont know what to do with the application : %a@." pp_term t;
+	   raise Error
   | Lam (loc,name,_,t) ->
      begin
        create_symbol vb (!mod_name,v) (create_array ((find_arity t)+1));
@@ -663,7 +688,7 @@ let sct_only : bool -> bool =
           fn ()
       in
       fn ();
-      printf "SCT passed (%5d edges added, %6d composed)\n%!" !added !composed;
+      if vb then printf "SCT passed (%5d edges added, %6d composed)\n%!" !added !composed;
       true
     with
-    | Exit -> printf "SCT failed (%5d edges added, %6d composed)\n%!" !added !composed; false
+    | Exit -> if vb then printf "SCT failed (%5d edges added, %6d composed)\n%!" !added !composed; false
