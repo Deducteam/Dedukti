@@ -14,8 +14,8 @@ let rec parse lb =
 
 let  _ =
   print_string "Welcome to Dedukti\n";
-  let v = Basic.hstring "?top" in
-    Pp.name := v;
+  let v = Basic.mk_mident "?top" in
+    Env.init v;
     Scoping.name := v;
     Env.init v ;
     parse (Lexing.from_channel stdin)

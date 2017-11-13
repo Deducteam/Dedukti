@@ -75,7 +75,8 @@ struct
 end)
 
 
-(* Subst is only used inside the typing modules. I think it is only used to apply substituion on Miller patterns *)
+(* Subst is only used inside the typing modules. I think it is only used to apply
+ * substituion on Miller patterns *)
 module Subst =
 struct
   (* FIXME: why do we need a (ident * term) IntMap.t and not just a term IntMap.t, for debug? *)

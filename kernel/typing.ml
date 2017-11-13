@@ -52,7 +52,7 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
   | Kind -> raise (TypingError KindIsNotTypable)
   | Type l -> mk_Kind
   | DB (l,x,n) -> get_type ctx l x n
-  | Const (l,md,id) -> Signature.get_type sg l md id
+  | Const (l,cst) -> Signature.get_type sg l cst
   | App (f,a,args) ->
     snd (List.fold_left (check_app sg ctx) (f,infer sg ctx f) (a::args))
   | Pi (l,x,a,b) ->
@@ -126,11 +126,11 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
         | DB (_,_,n), DB (_,_,n') when ( n=n' ) -> pseudo_u sg sigma lst
         (* univ_stuff *)
-        | Const (_,md,id), Const (_,md',id') when
-            ( Constraints.is_univ_variable id) && (Constraints.is_univ_variable id') ->
-          Constraints.add_constraint_eq id id' ; pseudo_u sg sigma lst
-        | Const (_,md,id), Const (_,md',id') when
-            ( ident_eq id id' && ident_eq md md' ) ->
+        | Const (_,n), Const (_, n') when
+            ( Constraints.is_univ_variable (id n)) && (Constraints.is_univ_variable (id n')) ->
+          Constraints.add_constraint_eq (id n) (id n') ; pseudo_u sg sigma lst
+        | Const (_,cst), Const (_,cst') when
+            ( name_eq cst cst' ) ->
           pseudo_u sg sigma lst
 
         | DB (l1,x1,n1), DB (l2,x2,n2) when ( n1>=q && n2>=q) ->
@@ -178,12 +178,6 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
           if Reduction.are_convertible sg t1' t2' then
             ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
           else None
-
-        | App (Const (l,md,id),_,_), _ when (not (Signature.is_injective sg l md id)) ->
-          ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
-        | _, App (Const (l,md,id),_,_) when (not (Signature.is_injective sg l md id)) ->
-          ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
-
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
            * | Const md.id when (is_constant md id) *)
@@ -257,9 +251,9 @@ let unshift_n sg n te =
 
 let rec infer_pattern sg (delta:partial_context) (sigma:context2) (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
   match pat with
-  | Pattern (l,md,id,args) ->
+  | Pattern (l,cst,args) ->
     let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
-        ( mk_Const l md id , Signature.get_type sg l md id , delta , lst ) args
+        ( mk_Const l cst , Signature.get_type sg l cst , delta , lst ) args
     in (ty,delta2,lst2)
   | Var (l,x,n,args) ->
     if n < (LList.len sigma) then
@@ -357,7 +351,7 @@ let rec pp_term_j k fmt = function
   | Type _             -> Format.fprintf fmt "Type"
   | DB  (_,x,n) when n<k -> fprintf fmt "%a[%i]" pp_ident x n
   | DB  (_,x,n)        -> fprintf fmt "_"
-  | Const (_,m,v)      -> fprintf fmt "%a.%a" pp_ident m pp_ident v
+  | Const (_,cst)      -> fprintf fmt "%a" pp_name cst
   | App (f,a,args)     -> pp_list " " (pp_term_wp_j k) fmt (f::a::args)
   | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
   | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term f
