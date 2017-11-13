@@ -10,8 +10,8 @@ type token =
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
-  | QID         of ( loc * ident * ident )
-  | NAME        of ( loc * ident )
+  | QID         of ( loc * mident * ident )
+  | NAME        of ( loc * mident )
   | LONGARROW
   | LEFTSQU
   | LEFTPAR
@@ -35,6 +35,7 @@ type token =
   | CHECK       of loc
   | PRINT       of loc
   | GDT         of loc
+  | REQUIRE     of (loc * mident)
   | OTHER       of ( loc * string )
   | STRING      of string
   | INT         of int

@@ -5,7 +5,7 @@ open Term
 val export         : bool ref
 val verbose        : bool ref
 
-val mk_prelude     : loc -> ident -> unit
+val mk_prelude     : loc -> mident -> unit
 
 val mk_declaration : loc -> ident -> Signature.staticity -> term -> unit
 

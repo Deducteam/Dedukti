@@ -65,12 +65,17 @@ let mk_command lc = function
           | OK ty -> Format.printf "%a@." Pp.print_term ty
           | Err e -> Errors.fail_env_error e )
   | Gdt (m0,v)         ->
-      let m = match m0 with None -> Env.get_name () | Some m -> m in
-        ( match Env.get_dtree lc m v with
+    let m = match m0 with None -> Env.get_name () | Some m -> m in
+    let cst = mk_name m v in
+        ( match Env.get_dtree lc cst with
             | OK (Some (i,g)) ->
-                Format.printf "%a\n" Dtree.pp_rw (m,v,i,g)
+                Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
             | _ -> Format.printf "No GDT.@." )
   | Print str         -> Format.printf "%s@." str
+  | Require m         ->
+    ( match Env.import lc m with
+      | OK () -> ()
+      | Err e -> Errors.fail_signature_error e )
   | Other (cmd,_)     -> Format.eprintf "Unknown command '%s'.@." cmd
 
 let mk_ending _ = ()
