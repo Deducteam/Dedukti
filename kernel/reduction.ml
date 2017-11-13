@@ -111,10 +111,9 @@ type rw_state_strategy = Signature.t -> state -> state
 type convertibility_test = Signature.t -> term -> term -> bool
 
 let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (te:term) : term =
-(*   let res = *)
-    try Matching.solve depth pbs te
-    with Matching.NotUnifiable ->
-      Matching.solve depth pbs (reduce sg te)
+  try Matching.solve depth pbs te
+  with Matching.NotUnifiable ->
+    Matching.solve depth pbs (reduce sg te)
 
 let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
   try Subst.unshift q te
@@ -167,16 +166,13 @@ let rec find_case (st:state) (cases:(case * dtree) list)
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
   | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
-    if ident_eq v v' && ident_eq m m' then
-      begin
-        assert (List.length stack >= nargs);
+    if ident_eq v v' && ident_eq m m' && List.length stack == nargs then
         Some (tr,stack)
-      end
     else find_case st tl default
   | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
     begin
       assert ( ctx = LList.nil ); (* no beta in patterns *)
-      if n==n' && (List.length stack >= nargs) then
+      if n == n' && List.length stack == nargs then
         Some (tr,stack)
       else
         find_case st tl default
