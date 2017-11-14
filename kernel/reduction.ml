@@ -324,72 +324,21 @@ and are_convertible_lst sg : (term*term) list -> bool = function
     begin
       match (
         if term_eq t1 t2 then Some lst
+        (* UNIVERSO: needed to type check terms *)
         else
-          match whnf sg t1, whnf sg t2 with
-          | Kind, Kind | Type _, Type _ -> Some lst
-          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
-          | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
-          | App (f,a,args), App (f',a',args') ->
-            add_to_list2 args args' ((f,f')::(a,a')::lst)
-          | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
-          | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
-          (* univ stuff : by pass the typing system *)
-	  | Const (_,m,v), Const (_,m',v') when (Constraints.is_univ_variable v) && 
-						   (Constraints.is_univ_variable v') -> 
-	    Constraints.add_constraint_eq v v'; Some lst
-	  | Const(_,m,v), App(Const(_,m',s),a,args) when 
-	      (Constraints.is_univ_variable v) && (string_of_ident s = "type")  -> 
-	    let v' = 
-	      match a with
-	      | Const(_,_,v) when string_of_ident v= "z" -> hstring ("univ_variable1")
-	      | _ -> assert false
-	    in
-	    Constraints.add_constraint_eq v' v; Some lst
-	  | App(Const(_,m',s),a,args), Const(_,m,v) when
-	      (Constraints.is_univ_variable v)  && (string_of_ident s = "type") -> 
-	    let v' = 
-	      match a with
-	      | Const(_,_,v) when string_of_ident v ="z" -> hstring ("univ_variable1")
-	      | _ -> assert false
-	    in
-	    Constraints.add_constraint_eq v' v; Some lst
-	  | Const(_,m,v), App(Const(_,m',s),a,args) when 
-	      (Constraints.is_univ_variable v) && (string_of_ident s = "succ") -> 
-	   
-	    let v' = 
-	    match a with
-	    | Const (_,_,v) when (Constraints.is_univ_variable v) -> v
-	    | _ -> assert false
-	    in
-	    Constraints.add_constraint_lt v' v; Some lst
-	  | App(Const(_,m',s),a,args), Const(_,m,v) when
-	      (Constraints.is_univ_variable v) && (string_of_ident s = "succ") -> 
-	   
-	    let v' = 
-	    match a with
-	    | Const (_,_,v) when (Constraints.is_univ_variable v) -> v
-	    | Const (_,_,v) when string_of_ident v = "prop" ->  hstring ("univ_variable0")
-	    | _ -> assert false
-	    in
-	    Constraints.add_constraint_lt v' v; Some lst
-	  | Const(_,m,v), App(Const(_,m',s),a,args) when 
-	      (Constraints.is_univ_variable v) && (string_of_ident s = "rule") -> 
-	    let v' =
-	    match args with
-	    | Const (_,_,v)::_ when (Constraints.is_univ_variable v) -> v
-	    | _ -> assert false
-	    in
-	    Constraints.add_constraint_eq v v'; Some lst
-	  | App(Const(_,m',s),a,args), Const(_,m,v) when
-	      (Constraints.is_univ_variable v) && (string_of_ident s = "rule") -> 
-	    let v' =
-	    match args with
-	    | Const (_,_,v)::_ when (Constraints.is_univ_variable v) -> v
-	    | _ -> assert false
-	    in
-	    Constraints.add_constraint_eq v v'; Some lst
-	    
-          | t1, t2 -> None
+          let t1',t2' = whnf sg t1, whnf sg t2 in
+          if Constraints.generate_constraints t1' t2' then
+            Some lst
+          else
+            match t1', t2' with
+            | Kind, Kind | Type _, Type _ -> Some lst
+            | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
+            | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
+            | App (f,a,args), App (f',a',args') ->
+              add_to_list2 args args' ((f,f')::(a,a')::lst)
+            | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
+            | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
+            | t1, t2 -> None
       ) with
       | None -> false
       | Some lst2 -> are_convertible_lst sg lst2

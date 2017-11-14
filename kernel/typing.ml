@@ -121,14 +121,13 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
       let t1' = whnf sg (SS.apply sigma t1 q) in
       let t2' = whnf sg (SS.apply sigma t2 q) in
       if term_eq t1' t2' then pseudo_u sg sigma lst
+      (* UNIVERSO: needed to type check rewrite rules *)
+      else if Constraints.generate_constraints t1 t2 then
+        pseudo_u sg sigma lst
       else
         match t1', t2' with
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
         | DB (_,_,n), DB (_,_,n') when ( n=n' ) -> pseudo_u sg sigma lst
-        (* univ_stuff *)
-        | Const (_,n), Const (_, n') when
-            ( Constraints.is_univ_variable (id n)) && (Constraints.is_univ_variable (id n')) ->
-          Constraints.add_constraint_eq (id n) (id n') ; pseudo_u sg sigma lst
         | Const (_,cst), Const (_,cst') when
             ( name_eq cst cst' ) ->
           pseudo_u sg sigma lst

@@ -27,6 +27,7 @@ Library "kernel"
                  Term,
                  Env,
                  Signature,
+                 Constraints,
                  Reduction,
                  Rule,
                  Confluence,
@@ -78,6 +79,13 @@ Executable "dkindent"
         MainIs: dkindent.ml
         BuildDepends: dedukti.kernel, dedukti.parser
         Install: true
+        CompiledObject: best
+
+Executable "universo"
+        Path:universo
+        MainIs: universo.ml
+        BuildDepends: dedukti.kernel, dedukti.parser, ocamlgraph
+        Install:false
         CompiledObject: best
 
 Test "main"

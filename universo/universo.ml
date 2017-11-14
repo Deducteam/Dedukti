@@ -1,6 +1,5 @@
 open Basic
 open Pp
-open Solver
 open Rule
 
 type entry =
@@ -13,7 +12,7 @@ type entry =
 type ast = entry list
 
 let entries : (entry list) ref  = ref []
-
+(*
 let reconstruction_of_entry env entry =
   match entry with
   | Declaration(id, st, t) -> Declaration(id, st, reconstruction env t)
@@ -23,7 +22,9 @@ let reconstruction_of_entry env entry =
   | Opaque(id, None, te) -> Opaque(id, None, reconstruction env te)
   | Opaque(id, Some(ty), te) -> Opaque(id, Some(reconstruction env ty), reconstruction env te)
   | RewriteRule(rule) -> RewriteRule({rule with rhs= reconstruction env rule.rhs})
+*)
 
+module C = Constraints
 module Checker = struct
 
 
@@ -41,33 +42,32 @@ let eprint lc fmt =
 
 (* ********************************* *)
 
-let sg = ref (Signature.make (hstring "noname"))
+let sg = ref (Signature.make (mk_mident "noname"))
 
 let mk_prelude lc name =
-  eprint lc "Module name is '%a'." pp_ident name;
-  Format.printf "#NAME %a.@.@." print_ident name;
- (*  sg := Signature.make (hstring ((string_of_ident name) ^ "_")); *)
+  eprint lc "Module name is '%a'." pp_mident name;
+  Format.printf "#NAME %a.@.@." print_mident name;
   Env.init name;
   Confluence.initialize ()
 
 let mk_declaration lc id st pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
-  let pty' = elaboration pty in
+  let sg = Env.get_signature () in
+  let pty' = C.elaboration sg pty in
   entries := Declaration(id, st, pty')::!entries;
   match Env.declare lc id st pty' with
     | OK () -> () ;
-(*      Format.printf "@[<2>%a :@ %a.@]@.@."
-	print_ident id print_term pty'; *)
     | Err e -> Errors.fail_env_error e
 
 let mk_definition lc id pty_opt pte : unit =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
+  let sg = Env.get_signature () in
   let pty_opt' =
     match pty_opt with
     | None -> None
-    | Some pty -> Some (elaboration pty)
+    | Some pty -> Some (C.elaboration sg pty)
   in
-  let pte' = elaboration pte in
+  let pte' = C.elaboration sg pte in
   entries := Definition(id, pty_opt', pte')::!entries;
   match Env.define lc id pte' pty_opt' with
     | OK () -> ()
@@ -75,29 +75,32 @@ let mk_definition lc id pty_opt pte : unit =
 
 let mk_opaque lc id pty_opt pte =
   eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
+  let sg = Env.get_signature () in
   let pty_opt' =
     match pty_opt with
     | None -> None
-    | Some pty -> Some (elaboration pty)
+    | Some pty -> Some (C.elaboration sg pty)
   in
-  let pte' = elaboration pte in
+  let sg = Env.get_signature () in
+  let pte' = C.elaboration sg pte in
   entries := Definition(id, pty_opt', pte')::!entries;
   match Env.define_op lc id pte pty_opt with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 
 let get_infos = function
-  | Pattern (l,md,id,_) -> (l,md,id)
-  | _ -> (dloc,qmark,qmark)
+  | Pattern (l,cst,_) -> (l,cst)
+  | _ -> (dloc,mk_name (mk_mident "") qmark)
 
 let mk_rules : untyped_rule list -> unit = Rule.(function
   | [] -> ()
   | (rule::_) as lst ->
+    let sg = Env.get_signature () in
     let lst' : untyped_rule list = List.map (fun (rule : untyped_rule) ->
-        {rule with rhs = elaboration rule.rhs} ) lst in
+        {rule with rhs = C.elaboration sg rule.rhs} ) lst in
     begin
-      let (l,md,id) = get_infos rule.pat in
-      eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
+      let (l,cst) = get_infos rule.pat in
+      eprint l "Adding rewrite rules for '%a'" pp_name cst;
       let to_ru = List.rev_map (fun (rule : untyped_rule) -> RewriteRule(rule)) lst' in
       entries := List.rev_append to_ru !entries;
       match Env.add_rules lst' with
@@ -108,7 +111,7 @@ let mk_rules : untyped_rule list -> unit = Rule.(function
       | Err e -> Errors.fail_env_error e
     end)
 
-let mk_command = Cmd.mk_command
+let mk_command c = failwith "not handle right now"
 
 let export = ref false
 
@@ -119,7 +122,6 @@ let print_entry entry = Pp.(
         match st with
         | Signature.Static -> Format.printf "@[%a :@;<1 2>%a.@]@." print_ident id print_term ty
         | Signature.Definable -> Format.printf "@[def %a :@;<1 2>%a.@]@." print_ident id print_term ty
-        | Signature.Injective -> failwith "injective symbols are not supported"
       end;
   | Definable (id, ty) ->
     Format.printf "@[def %a :@;<1 2>%a.@]@." print_ident id print_term ty
@@ -133,12 +135,15 @@ let print_entry entry = Pp.(
 let print_entries entries = ignore(List.map (print_entry) entries)
 
 let mk_ending () =
+  (*
   let env = solve() in
   let entries' = List.rev_map (reconstruction_of_entry env) !entries in
-  print_entries entries';
+  *)
+  print_entries !entries;
+  Constraints.Constraints.info ();
   ( if !export then
       if not (Env.export ()) then
-	  Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
+	  Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );
   Confluence.finalize ()
 
 end
@@ -161,7 +166,9 @@ let parse lb =
 let args = [
   ("-v"    , Arg.Set Checker.verbose, "Verbose mode" ) ;
   ("-d"    , Arg.Int Basic.set_debug_mode,   "Debug mode" ) ;
-  ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;	  ("-nl", Arg.Set Rule.allow_non_linear, "Allow non left-linear rewrite rules")]
+  ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;
+  ("-errors-in-snf", Arg.Set    Errors.errors_in_snf   , "Normalize the types in error messages");
+  ("-nl", Arg.Set Rule.allow_non_linear, "Allow non left-linear rewrite rules")]
 
 let run_on_file file =
   let input = open_in file in

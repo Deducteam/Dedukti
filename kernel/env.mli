@@ -15,6 +15,9 @@ val init        : mident -> unit
 (** [init name] initializes a new global environement giving it the name [name].
     Every top level declaration will be qualified be this name. *)
 
+val get_signature : unit -> Signature.t
+(* FIXME: Use in universo to avoid a circular dependency issue.*)
+
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)
 
