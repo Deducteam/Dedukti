@@ -35,14 +35,10 @@ type untyped_rule = untyped_context rule
 
 type typed_rule = typed_context rule
 
-(* TODO : may be replace constr by Linearity | Bracket and constr list by a constr Map.t *)
-type constr =
-  | Linearity of int * int
-  | Bracket of int * term
+(* TODO : We don't need a constructor *)
+type constr = Bracket of int * term
 
-let pp_constr fmt = function
-  | Linearity (i,j) -> fprintf fmt "%i =l %i" i j
-  | Bracket   (i,t) -> fprintf fmt "%i =b %a" i pp_term t
+let pp_constr fmt = function Bracket   (i,t) -> fprintf fmt "%i =b %a" i pp_term t
 
 type rule_infos = {
   l : loc;
@@ -183,8 +179,9 @@ let allow_non_linear = ref false
 
 (* This function checks that the pattern is a Miller pattern and extracts non-linearity and bracket constraints from a list of patterns. *)
 (* TODO : cut this function in smaller ones *)
-let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * constr list =
+let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * constr list * bool =
   let br = hstring "{_}" in  (* FIXME : can be replaced by dmark? *)
+  let linear = ref true in
   let rec all_distinct l =
     match l with
     | [] -> true
@@ -205,18 +202,14 @@ let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * con
       ( LBoundVar (x,n,Array.of_list args2) , s2 )
     | Var (l,x,n,args) (* n>=k *) ->
       (* In a Miller pattern, higher order variables should be applied only to bound variables *)
-      let args' = List.map (extract_db k) args in
+       let args' = List.map (extract_db k) args in
+       let wf_pat = LVar(x,n,args') in
       (* In a Miller pattern higher order variables should be applied to distinct variables *)
       if all_distinct args' then
-        if IntSet.mem (n-k) (s.seen) then
-          let fvar = s.next_fvar in
-          let wf_pat = LVar(x,fvar+k,args') in
-          let constraints = {s with
-                             next_fvar=(fvar+1);
-                             cstr=(Linearity (fvar, n-k))::(s.cstr)} in
-          (wf_pat, constraints)
-          else
-            ( LVar(x,n,args') , { s with seen=IntSet.add (n-k) s.seen; } )
+        if IntSet.mem (n-k) s.seen
+        then ( linear := false;
+               (wf_pat, s) )
+        else (wf_pat, { s with seen=IntSet.add (n-k) s.seen; } )
       else
         raise (RuleExn (DistinctBoundVariablesExpected (l,x)))
     | Brackets t ->
@@ -237,7 +230,7 @@ let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * con
   in
   let lin_infos = {next_fvar = esize; cstr = []; seen = IntSet.empty; } in
   let (pats,r) = fold_map (aux 0) lin_infos pats in
-  ( r.next_fvar , pats , r.cstr )
+  ( r.next_fvar , pats , r.cstr, !linear )
 
 (* For each matching variable count the number of arguments *)
 let get_nb_args (esize:int) (p:pattern) : int array =
@@ -274,11 +267,6 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
   in
     aux 0 te
 
-let rec is_linear = function
-  | [] -> true
-  | (Bracket _)::tl -> is_linear tl
-  | (Linearity _)::tl -> false
-
 let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
   try
     begin
@@ -290,8 +278,8 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
       in
       let nb_args = get_nb_args esize r.pat in
       let _ = check_nb_args nb_args r.rhs in
-      let (esize2,pats2,cstr) = check_patterns esize args in
-      let is_nl = not (is_linear cstr) in
+      let (esize2,pats2,cstr,is_linear) = check_patterns esize args in
+      let is_nl = not is_linear in
       if is_nl && (not !allow_non_linear) then
         Err (NonLinearRule r)
       else

@@ -36,7 +36,7 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-type staticity = Static | Definable | DefinableAC | DefinableACU of term
+type staticity = Static | Definable of algebra
 
 type rw_infos =
   {
@@ -185,10 +185,10 @@ let check_confluence_on_import lc (md:ident) (ctx:rw_infos H.t) : unit =
     | None -> ()
     | Some (rs,_) -> Confluence.add_rules rs;
     match infos.stat with
-    | DefinableAC ->
+    | Definable AC ->
        let ty = get_type_from_AC infos.ty in
        Confluence.add_rules [ comm_rule md id ty; asso_rule md id ty ]
-    | DefinableACU neu ->
+    | Definable(ACU neu) ->
        let ty = get_type_from_AC infos.ty in
        Confluence.add_rules [ comm_rule md id ty;     asso_rule md id ty;
                               neu1_rule md id ty neu; neu2_rule md id ty neu ]
@@ -239,7 +239,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       | None -> rs
       | Some(mx,_) -> mx@rs
     in
-    match Dtree.of_rules (is_AC sg dloc) rules with
+    match Dtree.of_rules (get_algebra sg dloc) rules with
     | OK tree ->
        H.add env r.id
          {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,tree)}
@@ -257,10 +257,11 @@ and get_type sg lc m v = (get_infos sg lc m v).ty
 
 and get_staticity sg lc m v = (get_infos sg lc m v).stat
 
-and is_AC sg lc m v =
-  match (get_staticity sg lc m v) with
-    | DefinableAC | DefinableACU _ -> true
-    | _ -> false
+and get_algebra sg lc m v = 
+  match get_staticity sg lc m v with
+  | Definable a -> a | Static -> Free
+
+and is_AC sg lc m v = (get_algebra sg lc m v) <> Free
 
 let get_deps sg : string list = (*only direct dependencies*)
   H.fold (
@@ -275,23 +276,20 @@ let export sg =
 (******************************************************************************)
 
 let stat_code = function
-  | Static         -> 0
-  | Definable      -> 1
-  | DefinableAC    -> 2
-  | DefinableACU _ -> 3
+  | Static            -> 0
+  | Definable Free    -> 1
+  | Definable AC      -> 2
+  | Definable (ACU _) -> 3
 
 let get_id_comparator sg m v m' v' =
   compare (stat_code (get_staticity sg dloc m  v ), m , v )
           (stat_code (get_staticity sg dloc m' v'), m', v')
 
-let is_injective sg lc m v =
-  match (get_staticity sg lc m v) with
-    | Static -> true
-    | _ -> false
+let is_injective sg lc m v = (get_staticity sg lc m v) == Static
 
 let get_neutral sg lc m v =
-  match (get_staticity sg lc m v) with
-    | DefinableACU neu -> neu
+  match get_algebra sg lc m v with
+    | ACU neu -> neu
     | _ -> raise (SignatureError (ExpectedACUSymbol(lc,m,v)))
 
 let get_dtree sg ?select:(s=None) l m v =
@@ -306,7 +304,7 @@ let get_dtree sg ?select:(s=None) l m v =
         (* A call to Dtree.of_rules must be made with a non-empty list *)
         match rules' with
         | [] -> None
-        | _ -> match Dtree.of_rules (is_AC sg dloc) rules' with
+        | _ -> match Dtree.of_rules (get_algebra sg dloc) rules' with
                | OK tree -> Some tree
                | Err e -> raise (SignatureError (CannotBuildDtree e))
 

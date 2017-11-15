@@ -96,8 +96,11 @@ val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
 val array_for_all : ('a -> bool) -> 'a array -> bool
 
+type 'a printer = Format.formatter -> 'a -> unit
+
 val string_of : (Format.formatter -> 'a -> unit) -> 'a -> string
 
 (** pp_list [sep] [fp] [l] print a list [\[l1 ; ... ln\]] by applying [fp] on each element and use se separator [sep] between elements *)
-val pp_list : string -> (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list  -> unit
-val pp_arr  : string -> (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a array -> unit
+val pp_list   : string -> 'a printer -> 'a list printer
+val pp_arr    : string -> 'a printer -> 'a array printer
+val pp_option : string -> 'a printer -> 'a option printer

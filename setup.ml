@@ -7368,7 +7368,7 @@ let setup_t =
                         ];
                       lib_pack = false;
                       lib_internal_modules =
-                        ["Typing"; "Dtree"; "Subst"; "Matching"];
+                        ["Typing"; "Dtree"; "Subst"; "Matching"; "Ac"];
                       lib_findlib_parent = Some "dedukti";
                       lib_findlib_name = None;
                       lib_findlib_directory = None;

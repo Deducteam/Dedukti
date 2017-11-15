@@ -1,3 +1,4 @@
+open Term
 open Basic
 open Rule
 open Matching
@@ -30,7 +31,7 @@ type dtree =
   (** Switch [i] [(case_0,tree_0) ; ... ; (case_n, tree_n)] [tree_opt] tests
    * whether the [i]-th argument of a pattern can be matched with one of the cases of the list.
    * If so then look at the corresponding tree, otherwise, look at the default tree *)
-  | Test    of int matching_problem * constr list * Term.term * dtree option
+  | Test    of int matching_problem * constr list * term * dtree option
   (** Test [pb] [cstrs] [te] [tree_opt] are the leaves of the tree.
     * Checks that each problem can be solved such that constraints are satisfied.
     * If it does then return a local context for the term [te]. *)
@@ -51,4 +52,4 @@ type dtree_error =
   | ArityInnerMismatch of loc * ident * ident
 
 (** Compilation of rewrite rules into decision trees. *)
-val of_rules : (ident->ident->bool) -> rule_infos list -> (dtree, dtree_error) error
+val of_rules : (ident->ident->algebra) -> rule_infos list -> (dtree, dtree_error) error

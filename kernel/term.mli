@@ -48,3 +48,6 @@ type term_comparator = term -> term -> int
  * Pi  x a  b < Pi  x' a'  b'  iif (a,b) < (a',b')
  *)
 val compare_term : ident_comparator -> term_comparator
+
+type algebra = Free | AC | ACU of term
+val is_AC : algebra -> bool

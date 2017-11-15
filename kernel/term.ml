@@ -107,3 +107,8 @@ and compare_term_list id_comp a b =
   | h::t, h'::t' ->
      let c = compare_term id_comp h h' in
      if c = 0 then compare_term_list id_comp t t' else c
+
+
+type algebra = Free | AC | ACU of term
+
+let is_AC alg = alg <> Free

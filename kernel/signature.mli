@@ -31,7 +31,7 @@ type signature_error =
 
 exception SignatureError of signature_error
 
-type staticity = Static | Definable | DefinableAC | DefinableACU of term
+type staticity = Static | Definable of algebra
 
 type t
 
@@ -52,6 +52,9 @@ val get_type            : t -> loc -> ident -> ident -> term
 val get_staticity       : t -> loc -> ident -> ident -> staticity
 (** [get_staticity sg l md id] returns the staticity of the symbol [md.id] *)
 
+val get_algebra         : t -> loc -> ident -> ident -> algebra
+(** [get_algebra sg l md id] returns the algebra of the symbol [md.id]. *)
+
 val is_injective        : t -> loc -> ident -> ident -> bool
 (** [is_injective sg l md id] returns true when [md.id] is either static
     or declared as injective. *)
@@ -60,7 +63,7 @@ val get_neutral         : t -> loc -> ident -> ident -> term
 (** [get_neutral sg l md id] returns the neutral element of the ACU symbol [md.id]. *)
 
 val is_AC               : t -> loc -> ident -> ident -> bool
-(** [is_injective sg l md id] returns true when [md.id] is declared as AC symbol *)
+(** [is_AC sg l md id] returns true when [md.id] is declared as AC symbol *)
 
 val get_dtree           : t -> ?select:(Rule.rule_name -> bool) option -> loc -> ident -> ident -> dtree option
 (** [get_dtree sg pred l md id] returns the decision/matching tree associated with [md.id]

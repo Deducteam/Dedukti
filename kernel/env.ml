@@ -32,10 +32,10 @@ let _declare (l:loc) (id:ident) st ty : unit =
   Signature.add_declaration !sg l id st
     (
       match sort, st with
-      | Kind  , DefinableAC      -> raise (TypingError (SortExpected (ty,[],sort) ))
-      | Kind  , DefinableACU _   -> raise (TypingError (SortExpected (ty,[],sort) ))
-      | Type _, DefinableAC      -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
-      | Type _, DefinableACU neu -> ignore(check !sg [] neu ty);
+      | Kind  , Definable AC        -> raise (TypingError (SortExpected (ty,[],sort) ))
+      | Kind  , Definable (ACU _)   -> raise (TypingError (SortExpected (ty,[],sort) ))
+      | Type _, Definable AC        -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
+      | Type _, Definable (ACU neu) -> ignore(check !sg [] neu ty);
                                     mk_Arrow dloc ty (mk_Arrow dloc ty ty)
       | Kind, _ | Type _, _ -> ty
       | _ -> raise (TypingError (SortExpected (ty,[],sort)))
@@ -51,7 +51,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   match ty with
   | Kind -> raise (DefineExn (l,id))
   | _ ->
-    _declare l id Signature.Definable ty;
+    _declare l id (Signature.Definable Free) ty;
     let name = Delta(get_name (), id) in
     let rule =
       { name ;

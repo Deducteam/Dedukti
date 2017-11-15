@@ -101,12 +101,14 @@ line            : ID COLON term DOT
                 | ID param+ COLON term DOT
                 { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] (mk_pi $4 $2)) }
                 | KW_DEF ID COLON term DOT
-                { mk_declaration (fst $2) (snd $2) Signature.Definable (scope_term [] $4) }
+                { mk_declaration (fst $2) (snd $2)
+				  				 (Signature.Definable Term.Free) (scope_term [] $4) }
                 | KW_DEFAC ID LEFTSQU term RIGHTSQU DOT
-                { mk_declaration (fst $2) (snd $2) Signature.DefinableAC (scope_term [] $4) }
+                { mk_declaration (fst $2) (snd $2)
+				  				 (Signature.Definable Term.AC) (scope_term [] $4) }
                 | KW_DEFACU ID LEFTSQU term COMMA term RIGHTSQU DOT
                 { mk_declaration (fst $2) (snd $2)
-                                 (Signature.DefinableACU (scope_term [] $6))
+                                 (Signature.Definable (Term.ACU (scope_term [] $6)))
                                  (scope_term [] $4) }
                 | KW_DEF ID COLON term DEF term DOT
                 { mk_definition (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }

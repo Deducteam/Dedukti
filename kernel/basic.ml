@@ -1,6 +1,8 @@
 (** Basic Datatypes *)
 
 
+type 'a printer = Format.formatter -> 'a -> unit
+
 (** {2 Identifiers (hashconsed strings)} *)
 
 type ident = string
@@ -134,3 +136,6 @@ let format_of_sep str fmt () : unit =
 let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l
 let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
 
+let pp_option def pp fmt = function
+  | None -> Format.fprintf fmt "%s" def
+  | Some a -> Format.fprintf fmt "%a" pp a

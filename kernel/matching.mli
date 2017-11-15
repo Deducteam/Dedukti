@@ -2,44 +2,39 @@
 
 open Basic
 open Term
+open Ac
 
 exception NotUnifiable
 
 (** ([n], [t]) represents the term represented by [t] under [n] lambda abstractions. *)
 type 'a depthed = int * 'a
 
-(* TODO: Should syntactic simply be Miller with the empty list ? *) 
-type problem_type =
-  | Syntactic (** a simple variable occurence  *)
-  (** A Miller pattern problem [k_0 ; ... ; k_n] corresponds to
-     the following matching problem (modulo beta):
-        F( (DB k_0) ... (DB k_n)
-     where F is the variable *)
-  | MillerPattern of int LList.t
+(** ([n], [vars]) represents the [n]-th variable applied to the [vars] bound variables. *)
+type var_p = int * int LList.t
 
-val mk_problem_type : int list -> problem_type
-
-type 'a problem_relation =
-  (** ... is exactly the provided depthed term (or position) *)
-  | Eq        of 'a depthed
-  (** ... is an AC symbol applied to elements of the [i]-th set ([n] occurences). *)
-  | AC_Subset of int * int
-
-(** ( ([l], [depth]), [m], [v], [n]) corresponds to the flattened set
- * of terms in [l] under [depth] lambda and headed by the [m].[v] AC symbol.
- * [n] variables (including Jokers) are subsets of this set. *)
-type 'a ac_set  =  ident * ident * int * 'a list
-
+(* TODO: add loc to this to better handle errors *)
 type 'a problem =
-  | Solved of 'a
-  | Unsolved of (problem_type * 'a problem_relation) list
+  (** the variable is exactly the given term. *)
+  | Eq of var_p * 'a
+  (** ([m],[v],[joks],[u],[vars],[terms])
+   *  Represents the flattenned equality under AC([u]) symbol [m].[v] of:
+   *  - [njoks] jokers and the given variables [vars]
+   *  - The given [terms] *)
+  | AC of ac_ident * int * (var_p list) * ('a list)
+
+type 'a status =
+  | Unsolved                            (** X is unknown *)
+  | Solved of 'a                        (** X = [term] *)
+  | Partly of ac_ident * ('a list) (** X = [m].[v](X', [terms])  *)
 
 (** Infos to build the context from the stack *)
 type 'a matching_problem =
   {
-    (** For each variable a list of typed problems. *)
-    problems    : 'a problem array;  (** Partial substituion. Initialized with Nones. *)
-    ac_sets     : 'a ac_set depthed array;  (** AC sets referred in AC subset problems. *)
+    problems : 'a problem depthed list; (** A list of problems under a certain depth.       *)
+    (* TODO: This array should be immutable *)
+    status   : 'a status array;         (** Partial substituion. Initialized with Unsolved. *)
+    (* TODO: This array should be immutable *)
+    miller   : int array                (** Variables Miller arity. *)
   }
 
 val convert_problems : ('a -> 'b) -> ('a list -> 'b list) ->
@@ -70,7 +65,6 @@ val solve : int -> int LList.t -> term -> term
  *)
 val solve_problem : (term -> term) ->
                     (term -> term -> bool) ->
-                    (loc -> ident -> ident -> term list -> term) ->
                     term Lazy.t matching_problem -> term Lazy.t option array option
 
 val pp_matching_problem : string -> (Format.formatter -> 'a -> unit) ->

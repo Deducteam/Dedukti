@@ -9,10 +9,10 @@ module T = struct
 
   let mk_declaration _ i st ty =
     let st_str = match st with
-      | Signature.Static         -> ""
-      | Signature.Definable      -> "def "
-      | Signature.DefinableAC    -> "defac "
-      | Signature.DefinableACU n -> "defacu "
+      | Signature.Static                 -> ""
+      | Signature.Definable Term.Free    -> "def "
+      | Signature.Definable Term.AC      -> "defac "
+      | Signature.Definable (Term.ACU n) -> "defacu "
     in
     Format.printf "@[<2>%s%a :@ %a.@]@.@." st_str print_ident i print_term ty
 
