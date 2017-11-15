@@ -141,6 +141,8 @@ let mk_ending () =
   *)
   print_entries !entries;
   Constraints.Constraints.info ();
+  Export.Z3.add_constraints !Constraints.Constraints.global_constraints;
+  Export.Z3.solve ();
   ( if !export then
       if not (Env.export ()) then
 	  Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );

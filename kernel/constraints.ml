@@ -57,6 +57,7 @@ struct
     else
       raise (MappingError n)
 
+  let string_of_index n = string_of_int n
 end
 
 module Constraints =
@@ -70,11 +71,21 @@ struct
     | Le of M.index * M.index
     | Rule of M.index * M.index * M.index (* leave it abstract for now *)
 
+  module Variables = Set.Make (struct type t = M.index let compare = compare end)
+
   module ConstraintSet = Set.Make (struct type t = constraints let compare = compare end)
 
   module CS = ConstraintSet
 
+  let global_variables = ref Variables.empty
+
   let global_constraints = ref ConstraintSet.empty
+
+  let add_variable v =
+    global_variables := Variables.add v !global_variables
+
+  let add_variables vs =
+    List.iter add_variable vs
 
   let add_constraint c =
     global_constraints := ConstraintSet.add c !global_constraints
@@ -82,22 +93,26 @@ struct
   let add_constraint_eq ident ident' =
     let n = M.to_index ident in
     let n' = M.to_index ident' in
+    add_variables [n;n'];
     add_constraint (Eq(n,n'))
 
   let add_constraint_succ ident ident' =
     let n = M.to_index ident in
     let n' = M.to_index ident' in
+    add_variables [n;n'];
     add_constraint (Succ(n,n'))
 
   let add_constraint_le ident ident' =
     let n = M.to_index ident in
     let n' = M.to_index ident' in
+    add_variables [n;n'];
     add_constraint (Le(n,n'))
 
   let add_constraint_rule ident ident' ident'' =
     let n = M.to_index ident in
     let n' = M.to_index ident' in
     let n'' = M.to_index ident'' in
+    add_variables [n;n';n''];
     add_constraint (Rule(n,n',n''))
 
   let info () =
@@ -108,6 +123,7 @@ struct
         | Succ _ -> incr succ
         | Le _ -> incr le
         | Rule _ -> incr rule) !global_constraints;
+    Format.printf "Number of variables  : %d@." (Variables.cardinal !global_variables);
     Format.printf "Number of constraints:@.";
     Format.printf "@[eq  :%d@]@." !eq;
     Format.printf "@[succ:%d@]@." !succ;
@@ -178,7 +194,7 @@ let extract_succ t =
 
 let extract_lift t =
   match t with
-  | Term.App(c,s1,[s2;a]) when is_const lift c -> extract_uvar s1, extract_uvar s2
+  | Term.App(c,s1,[s2;a]) when is_const lift c -> a
   | _ -> failwith "is not a lift"
 
 let extract_rule t =
@@ -198,19 +214,13 @@ let rec generate_constraints (l:Term.term) (r:Term.term) =
     Constraints.add_constraint_eq l r;
     true
   else if is_succ l && is_uvar r then
-    let l = extract_succ l in
-    let r = extract_uvar r in
-    Constraints.add_constraint_succ l r;
-    true
+    begin
+      let l = extract_succ l in
+      let r = extract_uvar r in
+      Constraints.add_constraint_succ l r;
+      true
+    end
   else if is_uvar l && is_succ r then
-    generate_constraints r l (* just a switch of arguments *)
-  else if is_lift l && is_uvar r then
-    let s1,s2 = extract_lift l in
-    let r = extract_uvar r in
-    Constraints.add_constraint_eq s2 r;
-    Constraints.add_constraint_le s1 s2;
-    true
-  else if is_uvar l && is_lift r then
     generate_constraints r l (* just a switch of arguments *)
   else if is_rule l && is_uvar r then
     let s1,s2 = extract_rule l in
@@ -221,6 +231,7 @@ let rec generate_constraints (l:Term.term) (r:Term.term) =
     generate_constraints r l (* just a switch of arguments *)
   else
     false
+
 let new_uvar sg =
   let id = UVar.fresh () in
   let md = Signature.get_name sg in
@@ -234,6 +245,15 @@ let rec elaboration sg term =
   (* can be optimized by fixing prop *)
   if is_prop term || is_type term then
     new_uvar sg
+  else if is_lift term then
+    let a = extract_lift term in
+    let s1 = new_uvar sg in
+    let s2 = new_uvar sg in
+    let a' = elaboration sg a in
+    let s1' = extract_uvar s1 in
+    let s2' = extract_uvar s2 in
+    Constraints.add_constraint_le s1' s2';
+    mk_App (Term.mk_Const Basic.dloc lift) s1 ([s2;a'])
   else
     match term with
     | App(f, a, al) ->

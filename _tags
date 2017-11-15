@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 9cc6c0d7bdf19ef6879067b9b52034ff)
+# DO NOT EDIT (digest: 01e32e008f5a1baf7da245f67701bf8b)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -42,9 +42,11 @@ true: annot, bin_annot
 <dkindent/*.ml{,i,y}>: use_kernel
 <dkindent/*.ml{,i,y}>: use_parser
 # Executable universo
+<universo/universo.{native,byte}>: package(Z3)
 <universo/universo.{native,byte}>: package(ocamlgraph)
 <universo/universo.{native,byte}>: use_kernel
 <universo/universo.{native,byte}>: use_parser
+<universo/*.ml{,i,y}>: package(Z3)
 <universo/*.ml{,i,y}>: package(ocamlgraph)
 <universo/*.ml{,i,y}>: use_kernel
 <universo/*.ml{,i,y}>: use_parser

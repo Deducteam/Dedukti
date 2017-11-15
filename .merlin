@@ -21,6 +21,6 @@ B _build/universo
 B _build/universo/unionfind
 B _build/universo/shortestpath
 
-PKG ocamlgraph
+PKG ocamlgraph, Z3
 
 FLG -w -3

@@ -84,7 +84,7 @@ Executable "dkindent"
 Executable "universo"
         Path:universo
         MainIs: universo.ml
-        BuildDepends: dedukti.kernel, dedukti.parser, ocamlgraph
+        BuildDepends: dedukti.kernel, dedukti.parser, ocamlgraph, Z3
         Install:false
         CompiledObject: best
 
