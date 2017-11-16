@@ -1,6 +1,45 @@
 (********** universes' variables ************)
 
-let log_file = ref None
+
+module Log =
+struct
+  let file = ref ""
+  let in_c = ref None
+  let log_file () =
+    match !in_c with
+    | None -> failwith "no log file"
+    | Some x ->  !file
+
+  let log () =
+    match !in_c with
+    | None -> false
+    | Some _ -> true
+
+  let set_log_file s =
+    match !in_c with
+    | None ->
+      file := s; in_c := Some (open_out s)
+    | Some _ -> failwith "a log file is already set"
+
+  let out_channel () =
+    match !in_c with
+    | None -> failwith "no log file"
+    | Some x -> x
+
+  let append s =
+    match !in_c with
+    | None -> ()
+    | Some in_c ->
+      Format.fprintf (Format.formatter_of_out_channel in_c) "%s" s
+
+  let close () =
+    match !in_c with
+    | None -> failwith "no log file"
+    | Some x -> close_out x
+
+
+end
+
 
 module UVar =
 struct
@@ -243,7 +282,7 @@ struct
     add_variables [n;n';n''];
     add_constraint (Rule(n,n',n''))
 
-  let info fmt =
+  let info () =
     let open ReverseCiC in
     let prop,ty,eq,succ,le,rule = ref 0, ref 0, ref 0, ref 0, ref 0, ref 0 in
     CS.iter (fun x ->
@@ -254,14 +293,17 @@ struct
         | Succ _ -> incr succ
         (*      | Lift _ -> incr le *)
         | Rule _ -> incr rule) !global_constraints;
-    Format.fprintf fmt "Number of variables  : %d@." (Variables.cardinal !global_variables);
-    Format.fprintf fmt "Number of constraints:@.";
-    Format.fprintf fmt "@[prop  :%d@]@." !prop;
-    Format.fprintf fmt "@[ty  :%d@]@." !ty;
-    Format.fprintf fmt "@[eq  :%d@]@." !eq;
-    Format.fprintf fmt "@[succ:%d@]@." !succ;
-    Format.fprintf fmt "@[le  :%d@]@." !le;
-    Format.fprintf fmt "@[rule:%d@]@." !rule
+    let print fmt () =
+      Format.fprintf fmt "Number of variables  : %d@." (Variables.cardinal !global_variables);
+      Format.fprintf fmt "Number of constraints:@.";
+      Format.fprintf fmt "@[prop  :%d@]@." !prop;
+      Format.fprintf fmt "@[ty  :%d@]@." !ty;
+      Format.fprintf fmt "@[eq  :%d@]@." !eq;
+      Format.fprintf fmt "@[succ:%d@]@." !succ;
+      Format.fprintf fmt "@[le  :%d@]@." !le;
+      Format.fprintf fmt "@[rule:%d@]@." !rule
+    in
+    Format.asprintf "%a" print ()
 
   module V = UVar
 
@@ -386,9 +428,4 @@ struct
         mk_Pi loc id ta' tb'
       | _ ->     term
 
-end
-
-module Log =
-struct
-  let log_file s = log_file := Some (open_in s)
 end
