@@ -151,6 +151,7 @@ struct
 *)
     | Solver.UNKNOWN -> failwith "unknown"
     | Solver.SATISFIABLE ->
+      Log.append "Problem solved!";
       match Optimize.get_model solver with
       | None -> assert false
       | Some model -> (* Format.printf "%s@." (Model.to_string model); *)
