@@ -2,23 +2,6 @@ open Basic
 open Term
 open Rule
 
-let types_file = ref None
-let enable_types_file = ref false
-let in_check = ref false
-
-let with_types_file fn action =
-  if !enable_types_file then types_file := Some (open_out fn);
-  action ();
-  match !types_file with
-  | Some f -> close_out f; types_file := None
-  | None   -> ()
-
-let to_types_file ty =
-  match !types_file with
-  | Some f -> if !enable_types_file && !in_check then
-                Printf.fprintf f "  %a\n%!" pp_term ty
-  | None   -> ()
-
 let coc = ref false
 
 type typ = term
@@ -84,7 +67,6 @@ let rec infer sg (ctx:context) : term -> typ = function
   | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
 and check sg (ctx:context) (te:term) (ty_exp:typ) : unit =
-  begin
   match te with
   | Lam (l,x,None,u) ->
     ( match Reduction.whnf sg ty_exp with
@@ -94,28 +76,12 @@ and check sg (ctx:context) (te:term) (ty_exp:typ) : unit =
     let ty_inf = infer sg ctx te in
     if Reduction.are_convertible sg ty_inf ty_exp then ()
     else raise (TypingError (ConvertibilityError (te,ctx,ty_exp,ty_inf)))
-  end;
-  to_types_file ty_exp
 
 and check_app sg (ctx:context) (f,ty_f:term*typ) (arg:term) : term*typ =
-  to_types_file ty_f;
   match Reduction.whnf sg ty_f with
     | Pi (_,_,a,b) ->
       let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
     | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
-
-let check sg (ctx:context) (te:term) (ty:typ) : unit =
-  in_check := true;
-  begin
-    match !types_file with
-    | Some f ->
-        Printf.fprintf f "CHECK [%a]\n%!" pp_term te;
-        check sg ctx te ty;
-        Printf.fprintf f "DONE\n%!"
-    | None   ->
-        check sg ctx te ty
-  end;
-  in_check := false
 
 let inference sg (te:term) : typ = infer sg [] te
 
