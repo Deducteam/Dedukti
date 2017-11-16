@@ -117,24 +117,24 @@ let mk_command c = failwith "not handle right now"
 
 let export = ref false
 
-let print_entry entry = Pp.(
+let print_entry fmt entry = Pp.(
   match entry with
     | Declaration (id, st, ty) ->
       begin
         match st with
-        | Signature.Static -> Format.printf "@[%a :@;<1 2>%a.@]@." print_ident id print_term ty
-        | Signature.Definable -> Format.printf "@[def %a :@;<1 2>%a.@]@." print_ident id print_term ty
+        | Signature.Static -> Format.fprintf fmt "@[%a :@;<1 2>%a.@]@." print_ident id print_term ty
+        | Signature.Definable -> Format.fprintf fmt "@[def %a :@;<1 2>%a.@]@." print_ident id print_term ty
       end;
   | Definable (id, ty) ->
-    Format.printf "@[def %a :@;<1 2>%a.@]@." print_ident id print_term ty
+    Format.fprintf fmt "@[def %a :@;<1 2>%a.@]@." print_ident id print_term ty
   | Definition (id, None, te) ->
-    Format.printf "def @[%a :=@;<1 2>%a.@]@." print_ident id print_term te
+    Format.fprintf fmt "def @[%a :=@;<1 2>%a.@]@." print_ident id print_term te
   | Definition (id, Some(ty), te) ->
-    Format.printf "def @[%a:@;<1 2>%a@;<1 2>:=@;<1 2>%a.@]@." print_ident id print_term ty print_term te
-  | Opaque (id, ty_opt, te) -> failwith "TODO"
-  | RewriteRule(rule) -> Format.printf "@[%a. @]@." print_untyped_rule rule
+    Format.fprintf fmt "def @[%a:@;<1 2>%a@;<1 2>:=@;<1 2>%a.@]@." print_ident id print_term ty print_term te
+  | Opaque (id, ty_opt, te) -> failwith "not supported"
+  | RewriteRule(rule) -> Format.fprintf fmt "@[%a. @]@." print_untyped_rule rule
 )
-let print_entries entries = ignore(List.map (print_entry) entries)
+let print_entries fmt entries = ignore(List.map (Format.fprintf fmt "%a@." print_entry) entries)
 
 let mk_ending () =
   let open Constraints in
@@ -142,12 +142,14 @@ let mk_ending () =
   let env = solve() in
   let entries' = List.rev_map (reconstruction_of_entry env) !entries in
   *)
-  (* print_entries (List.rev !entries); *)
+  Log.append  (Format.asprintf "%a" print_entries (List.rev !entries));
   (* Constraints.Constraints.info (); *)
   Log.append "Elaboration is over";
   Log.append (BasicConstraints.info ());
   let model = Export.Z3.solve (BasicConstraints.export ()) in
-  print_entries (List.rev_map (reconstruction_of_entry model Reconstruction.reconstruction) !entries);
+  let entries =
+    (List.rev_map (reconstruction_of_entry model Reconstruction.reconstruction) !entries) in
+  Format.printf "%a@." print_entries  entries;
   ( if !export then
       if not (Env.export ()) then
 	  Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );

@@ -157,12 +157,12 @@ struct
     match t with
     | Term.App(c,arg,[]) when is_const succ c -> true
     | _ -> false
-(*
+
   let is_lift t =
     match t with
     | Term.App(c, s1, [s2;a]) when is_const lift c -> true
     | _ -> false
-*)
+
   let is_rule t =
     match t with
     | Term.App(c, s1, [s2]) when is_const rule c -> true
@@ -183,12 +183,12 @@ struct
     match t with
     | Term.App(c,arg,[]) when is_const succ c -> arg
     | _ -> failwith "is not a succ"
-(*
+
   let extract_lift t =
     match t with
-    | Term.App(c,s1,[s2;a]) when is_const lift c -> a
+    | Term.App(c,s1,[s2;a]) when is_const lift c -> s1,s2
     | _ -> failwith "is not a lift"
-*)
+
   let extract_rule t =
     match t with
     | Term.App(c, s1, [s2]) when is_const rule c -> s1, s2
@@ -205,6 +205,7 @@ sig
   type constraints =
     | Univ of var * ReverseCiC.univ
     | Eq of var * var
+    | Lift of (var * var) * (var * var)
     | Succ of var * var
     | Rule of var * var * var
 
@@ -235,6 +236,7 @@ struct
   type constraints =
     | Univ of index * univ
     | Eq of index * index
+    | Lift of (var * var) * (var * var)
     | Succ of index * index
     | Rule of index * index * index
 
@@ -286,13 +288,15 @@ struct
     let n' = var_of_ident ident' in
     add_variables [n;n'];
     add_constraint (Succ(n,n'))
-(*
-  let add_constraint_lift ident ident' =
-    let n = M.var_of_ident ident in
-    let n' = M.var_of_ident ident' in
-    add_variables [n;n'];
-    add_constraint (Lift(n,n'))
-    *)
+
+  let add_constraint_lift ident ident' ident'' ident''' =
+    let n = var_of_ident ident in
+    let n' = var_of_ident ident' in
+    let n'' = var_of_ident ident'' in
+    let n''' = var_of_ident ident''' in
+    add_variables [n;n';n'';n'''];
+    add_constraint (Lift((n,n'),(n'',n''')))
+
   let add_constraint_rule ident ident' ident'' =
     let n = var_of_ident ident in
     let n' = var_of_ident ident' in
@@ -302,23 +306,29 @@ struct
 
   let info () =
     let open ReverseCiC in
-    let prop,ty,eq,succ,le,rule = ref 0, ref 0, ref 0, ref 0, ref 0, ref 0 in
+    let prop,ty,eq,succ,lift,rule = ref 0, ref 0, ref 0, ref 0, ref 0, ref 0 in
     CS.iter (fun x ->
         match x with
         | Univ(_,Prop) -> incr prop
         | Univ (_, Type _) -> incr ty
         | Eq _ -> incr eq
         | Succ _ -> incr succ
-        (*      | Lift _ -> incr le *)
+        | Lift _ -> incr lift
         | Rule _ -> incr rule) !global_constraints;
+
+    let hash_to_string fmt (k,v) =
+      Format.fprintf fmt "%a --> %d@." Basic.pp_ident k (var_of_index v)
+    in
     let print fmt () =
+      Format.fprintf fmt "Variable correspondance:@.";
+      Hashtbl.iter (fun k v -> Format.fprintf fmt "%a" hash_to_string (k,v)) Mapping.memory.to_index;
       Format.fprintf fmt "Number of variables  : %d@." (Variables.cardinal !global_variables);
       Format.fprintf fmt "Number of constraints:@.";
       Format.fprintf fmt "@[prop  :%d@]@." !prop;
       Format.fprintf fmt "@[ty  :%d@]@." !ty;
       Format.fprintf fmt "@[eq  :%d@]@." !eq;
       Format.fprintf fmt "@[succ:%d@]@." !succ;
-      Format.fprintf fmt "@[le  :%d@]@." !le;
+      Format.fprintf fmt "@[le  :%d@]@." !lift;
       Format.fprintf fmt "@[rule:%d@]@." !rule
     in
     Format.asprintf "%a" print ()
@@ -327,9 +337,9 @@ struct
 
   let rec generate_constraints (l:Term.term) (r:Term.term) =
     let open ReverseCiC in
-  (*
-  Format.printf "debug: %a@." Term.pp_term l;
-  Format.printf "debug: %a@." Term.pp_term r; *)
+
+  Log.append (Format.asprintf "debugl: %a@." Term.pp_term l);
+  Log.append (Format.asprintf "debugr: %a@." Term.pp_term r);
     if is_uvar l && is_prop r then
       let l = extract_uvar l in
       add_constraint_prop l;
@@ -365,8 +375,53 @@ struct
       let r = extract_uvar r in
       add_constraint_rule s1 s2 r;
       true
-    else if is_uvar r && is_rule l then
+    else if is_uvar l && is_rule r then
       generate_constraints r l (* just a switch of arguments *)
+    else if is_lift l && is_lift r then
+      let s1,s2 = extract_lift l in
+      let s3,s4 = extract_lift r in
+      let s1 = extract_uvar s1 in
+      let s2 = extract_uvar s2 in
+      let s3 = extract_uvar s3 in
+      let s4 = extract_uvar s4 in
+      add_constraint_lift s1 s2 s3 s4;
+      true
+    else if is_lift l && is_succ r then
+      failwith "BUG"
+    else if is_succ l && is_lift r then
+      failwith "BUG"
+    else if is_lift l && is_prop r then
+      failwith "BUG"
+    else if is_prop l && is_lift r then
+      failwith "BUG"
+    else if is_lift l && is_uvar r then
+      failwith "BUG"
+    else if is_uvar l && is_lift r then
+      failwith "BUG"
+    else if is_succ l && is_prop r then
+      failwith "BUG"
+    else if is_prop l && is_succ r then
+      failwith "BUG"
+    else if is_prop l && is_rule r then
+      failwith "BUG"
+    else if is_rule l && is_prop r then
+      failwith "BUG"
+    else if is_succ l && is_type r then
+      failwith "BUG"
+    else if is_type l && is_succ r then
+      failwith "BUG"
+    else if is_type l && is_rule r then
+      failwith "BUG"
+    else if is_rule l && is_type r then
+      failwith "BUG"
+    else if is_succ l && is_rule r then
+      failwith "BUG"
+    else if is_rule l && is_succ r then
+      failwith "BUG"
+    else if is_succ l && is_type r then
+      failwith "BUG"
+    else if is_type l && is_succ r then
+      failwith "BUG"
     else
       false
 
@@ -377,6 +432,7 @@ struct
       match c with
       | Univ(n,u) -> Univ(find n,u)
       | Eq(n,n') -> Eq(find n, find n')
+      | Lift((n,n'),(n'',n''')) -> Lift((find n, find n'),(find n'', find n'''))
       | Succ(n,n') -> Succ(find n, find n')
       | Rule(n,n',n'') -> Rule(find n, find n', find n'')
     in

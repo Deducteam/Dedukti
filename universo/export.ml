@@ -82,12 +82,15 @@ struct
     let le = Arithmetic.mk_le ctx x y in
     Boolean.mk_ite ctx le y x
 
-  let add_constraint_lift var var' =
+  let add_constraint_lift var var' var'' var''' =
     let zvar = get_variable var in
     let zvar' = get_variable var' in
-    let le = Arithmetic.mk_le ctx zvar zvar' in
-    Optimize.add solver [le]
-
+    let zvar'' = get_variable var'' in
+    let zvar''' = get_variable var''' in
+    let maxl = Arithmetic.mk_le ctx zvar zvar' in
+    let maxr = Arithmetic.mk_le ctx zvar'' zvar''' in
+    let eq = Boolean.mk_eq ctx maxl maxr in
+    Optimize.add solver [eq]
 
   let add_constraint_rule var var' var'' =
     let x = get_variable var in
@@ -108,7 +111,7 @@ struct
     | Univ(n,u) -> add_constraint_univ (sofi n) u
     | Eq(n,n') -> add_constraint_eq (sofi n) (sofi n')
     | Succ(n,n') -> add_constraint_succ (sofi n) (sofi n')
-    (*    | Constraints.Constraints.Lift(n,n') -> add_constraint_lift (sofi n) (sofi n') *)
+    | Lift((n,n'),(n'',n''')) -> add_constraint_lift (sofi n) (sofi n') (sofi n'') (sofi n''')
     | Rule(n,n',n'') -> add_constraint_rule (sofi n) (sofi n') (sofi n'')
 
   let import cs =
@@ -136,7 +139,7 @@ struct
     let open Arithmetic in
     Log.append "Generate a Z3 problem...";
     import constraints;
-    (* Log.append (Optimize.to_string solver); *)
+    Log.append (Optimize.to_string solver);
     Log.append "Try to solve the problem...";
     ignore(add_obj_var ());
     match Optimize.check solver with
