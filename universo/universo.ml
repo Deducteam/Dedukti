@@ -12,8 +12,8 @@ type entry =
 type ast = entry list
 
 let entries : (entry list) ref  = ref []
-(*
-let reconstruction_of_entry env entry =
+
+let reconstruction_of_entry env reconstruction entry =
   match entry with
   | Declaration(id, st, t) -> Declaration(id, st, reconstruction env t)
   | Definable(id, t) -> Definable(id, reconstruction env t)
@@ -22,7 +22,7 @@ let reconstruction_of_entry env entry =
   | Opaque(id, None, te) -> Opaque(id, None, reconstruction env te)
   | Opaque(id, Some(ty), te) -> Opaque(id, Some(reconstruction env ty), reconstruction env te)
   | RewriteRule(rule) -> RewriteRule({rule with rhs= reconstruction env rule.rhs})
-*)
+
 
 module C = Constraints
 module Checker = struct
@@ -139,10 +139,11 @@ let mk_ending () =
   let env = solve() in
   let entries' = List.rev_map (reconstruction_of_entry env) !entries in
   *)
-  print_entries !entries;
+  print_entries (List.rev !entries);
   Constraints.Constraints.info ();
   Export.Z3.add_constraints !Constraints.Constraints.global_constraints;
-  Export.Z3.solve ();
+  let model = Export.Z3.solve () in
+  print_entries (List.rev_map (reconstruction_of_entry model Export.Z3.reconstruction) !entries);
   ( if !export then
       if not (Env.export ()) then
 	  Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );

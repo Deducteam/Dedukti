@@ -65,7 +65,13 @@ struct
 
   module M = Mapping
 
+  (* Only Prop and Type 0 are necessary actually *)
+  type univ =
+    | Prop
+    | Type of int
+
   type constraints =
+    | Univ of M.index * univ
     | Eq of M.index * M.index
     | Succ of M.index * M.index
     | Le of M.index * M.index
@@ -89,6 +95,16 @@ struct
 
   let add_constraint c =
     global_constraints := ConstraintSet.add c !global_constraints
+
+  let add_constraint_prop ident =
+    let n = M.to_index ident in
+    add_variables [n];
+    add_constraint (Univ(n, Prop))
+
+  let add_constraint_type ident i =
+    let n = M.to_index ident in
+    add_variables [n];
+    add_constraint (Univ(n, Type i))
 
   let add_constraint_eq ident ident' =
     let n = M.to_index ident in
@@ -116,15 +132,19 @@ struct
     add_constraint (Rule(n,n',n''))
 
   let info () =
-    let eq,succ,le,rule = ref 0, ref 0, ref 0, ref 0 in
+    let prop,ty,eq,succ,le,rule = ref 0, ref 0, ref 0, ref 0, ref 0, ref 0 in
     CS.iter (fun x ->
         match x with
+        | Univ(_,Prop) -> incr prop
+        | Univ (_, Type _) -> incr ty
         | Eq _ -> incr eq
         | Succ _ -> incr succ
         | Le _ -> incr le
         | Rule _ -> incr rule) !global_constraints;
     Format.printf "Number of variables  : %d@." (Variables.cardinal !global_variables);
     Format.printf "Number of constraints:@.";
+    Format.printf "@[prop  :%d@]@." !prop;
+    Format.printf "@[ty  :%d@]@." !ty;
     Format.printf "@[eq  :%d@]@." !eq;
     Format.printf "@[succ:%d@]@." !succ;
     Format.printf "@[le  :%d@]@." !le;
@@ -134,6 +154,10 @@ end
 let cic = Basic.mk_mident "cic"
 
 let mk_const id = Term.mk_Const Basic.dloc (Basic.mk_name cic id)
+
+let z = Basic.mk_name cic (Basic.mk_ident "z")
+
+let s = Basic.mk_name cic (Basic.mk_ident "s")
 
 let succ = Basic.mk_name cic (Basic.mk_ident "succ")
 
@@ -182,6 +206,17 @@ let is_rule t =
   | Term.App(c, s1, [s2]) when is_const rule c -> true
   | _ -> false
 
+let extract_type t =
+  let rec to_int t =
+    match t with
+    | Term.Const(_,z) when is_const z t -> 0
+    | Term.App(t,u, []) when is_const s t -> 1+(to_int u)
+    | _ -> assert false
+  in
+  match t with
+  | Term.App(t,u,[]) when is_const utype t -> to_int u
+  | _ -> failwith "is not a type"
+
 let extract_uvar t =
   match t with
   | Term.Const(_,n) when UVar.is_uvar (Basic.id n) -> Basic.id n
@@ -208,7 +243,20 @@ let rec generate_constraints (l:Term.term) (r:Term.term) =
   (*
   Format.printf "debug: %a@." Term.pp_term l;
   Format.printf "debug: %a@." Term.pp_term r; *)
-  if is_uvar l && is_uvar r then
+  if is_uvar l && is_prop r then
+    let l = extract_uvar l in
+    Constraints.add_constraint_prop l;
+    true
+  else if is_prop l && is_uvar r then
+    generate_constraints r l
+  else if is_uvar l && is_type r then
+    let l = extract_uvar l in
+    let i = extract_type r in
+    Constraints.add_constraint_type l i;
+    true
+  else if is_type l && is_uvar r then
+    generate_constraints r l
+  else if is_uvar l && is_uvar r then
     let l = extract_uvar l in
     let r = extract_uvar r in
     Constraints.add_constraint_eq l r;
@@ -242,8 +290,9 @@ let new_uvar sg =
 
 let rec elaboration sg term =
   let open Term in
-  (* can be optimized by fixing prop *)
-  if is_prop term || is_type term then
+  if is_prop term then
+    term
+  else if  is_type term then
     new_uvar sg
   else if is_lift term then
     let a = extract_lift term in
