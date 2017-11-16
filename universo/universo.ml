@@ -144,9 +144,9 @@ let mk_ending () =
   *)
   (* print_entries (List.rev !entries); *)
   (* Constraints.Constraints.info (); *)
-  Export.Z3.import (Constraints.export ());
+  Log.append "Elaboration is over";
   Log.append (Constraints.info ());
-  let model = Export.Z3.solve () in
+  let model = Export.Z3.solve (Constraints.export ()) in
   print_entries (List.rev_map (reconstruction_of_entry model Reconstruction.reconstruction) !entries);
   ( if !export then
       if not (Env.export ()) then

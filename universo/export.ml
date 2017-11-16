@@ -130,12 +130,14 @@ struct
         int_of_string s
       with _ -> failwith "should be a numeral"
 
-  let solve () =
+  let solve constraints =
     let open Symbol in
     let open Expr in
     let open Arithmetic in
-    let module L = Log in
+    Log.append "Generate a Z3 problem";
+    import constraints;
     Log.append (Optimize.to_string solver);
+    Log.append "Try to solve the problem";
     ignore(add_obj_var ());
     match Optimize.check solver with
     | Solver.UNSATISFIABLE ->

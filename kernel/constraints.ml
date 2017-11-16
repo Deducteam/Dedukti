@@ -30,7 +30,7 @@ struct
     match !in_c with
     | None -> ()
     | Some in_c ->
-      Format.fprintf (Format.formatter_of_out_channel in_c) "%s" s
+      Format.fprintf (Format.formatter_of_out_channel in_c) "%s@." s
 
   let close () =
     match !in_c with
