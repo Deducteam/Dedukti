@@ -22,8 +22,6 @@ sig
 
   val from_index : index -> UVar.uvar
 
-  val string_of_index : index -> string
-
 end
 
 module ReverseCiC:
@@ -68,25 +66,33 @@ sig
 
 end
 
-module Constraints:
+module type ConstraintsInterface =
 sig
 
+  type var
 
   type constraints =
-    | Univ of Mapping.index * ReverseCiC.univ
-    | Eq of Mapping.index * Mapping.index
-    | Succ of Mapping.index * Mapping.index
-    | Rule of Mapping.index * Mapping.index * Mapping.index
+    | Univ of var * ReverseCiC.univ
+    | Eq of var * var
+    | Succ of var * var
+    | Rule of var * var * var
+
+  val var_of_index : Mapping.index -> var
 
   val generate_constraints : Term.term -> Term.term -> bool
   (** generate_constraints [l] [r] returns [true] if some constraints has been generated *)
 
-  module ConstraintSet : Set.S with type elt = constraints
+  module ConstraintsSet : Set.S with type elt = constraints
 
-  val export : unit -> ConstraintSet.t
+  val export : unit -> ConstraintsSet.t
 
   val info : unit -> string
+
+  val string_of_var : var -> string
 end
+
+module BasicConstraints:ConstraintsInterface
+
 
 module Elaboration:
 sig
@@ -109,8 +115,6 @@ sig
   val set_log_file : string -> unit
 
   val log_file : unit -> string
-
-  val log : unit -> bool
 
   val append : string -> unit
 

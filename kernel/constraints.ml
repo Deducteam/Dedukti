@@ -3,40 +3,22 @@
 
 module Log =
 struct
-  let file = ref ""
-  let in_c = ref None
-  let log_file () =
-    match !in_c with
-    | None -> failwith "no log file"
-    | Some x ->  !file
+  let file = ref "stderr"
+  let in_c = ref stderr
+  let log_file () = !file
 
-  let log () =
-    match !in_c with
-    | None -> false
-    | Some _ -> true
 
   let set_log_file s =
-    match !in_c with
-    | None ->
-      file := s; in_c := Some (open_out s)
-    | Some _ -> failwith "a log file is already set"
+    file := s;
+    in_c := (open_out s)
 
-  let out_channel () =
-    match !in_c with
-    | None -> failwith "no log file"
-    | Some x -> x
+
+  let out_channel () = in_c
 
   let append s =
-    match !in_c with
-    | None -> ()
-    | Some in_c ->
-      Format.fprintf (Format.formatter_of_out_channel in_c) "%s@." s
+    Format.fprintf (Format.formatter_of_out_channel !in_c) "%s@." s
 
-  let close () =
-    match !in_c with
-    | None -> failwith "no log file"
-    | Some x -> close_out x
-
+  let close () = close_out !in_c
 
 end
 
@@ -105,8 +87,6 @@ struct
       Hashtbl.find memory.from_index n
     else
       raise (MappingError n)
-
-  let string_of_index n = string_of_int n
 end
 
 module ReverseCiC =
@@ -215,12 +195,42 @@ struct
     | _ -> failwith "is not a rule"
 end
 
-module Constraints =
+
+
+module type ConstraintsInterface =
+sig
+
+  type var
+
+  type constraints =
+    | Univ of var * ReverseCiC.univ
+    | Eq of var * var
+    | Succ of var * var
+    | Rule of var * var * var
+
+  val var_of_index : Mapping.index -> var
+
+  val generate_constraints : Term.term -> Term.term -> bool
+  (** generate_constraints [l] [r] returns [true] if some constraints has been generated *)
+
+  module ConstraintsSet : Set.S with type elt = constraints
+
+  val export : unit -> ConstraintsSet.t
+
+  val info : unit -> string
+
+  val string_of_var : var -> string
+end
+
+
+module BasicConstraints:ConstraintsInterface with type var = Mapping.index =
 struct
 
   open UVar
   open Mapping
   open ReverseCiC
+
+  type var = index
 
   type constraints =
     | Univ of index * univ
@@ -230,13 +240,21 @@ struct
 
   module Variables = Set.Make (struct type t = index let compare = compare end)
 
-  module ConstraintSet = Set.Make (struct type t = constraints let compare = compare end)
+  module ConstraintsSet = Set.Make (struct type t = constraints let compare = compare end)
 
-  module CS = ConstraintSet
+  module CS = ConstraintsSet
+
+  module UF = Unionfind
+
+  let uf = ref (UF.create 10000)
+
+  let var_of_index i = UF.find !uf i
+
+  let var_of_ident ident = var_of_index (to_index ident)
 
   let global_variables = ref Variables.empty
 
-  let global_constraints = ref ConstraintSet.empty
+  let global_constraints = ref ConstraintsSet.empty
 
   let add_variable v =
     global_variables := Variables.add v !global_variables
@@ -245,40 +263,40 @@ struct
     List.iter add_variable vs
 
   let add_constraint c =
-    global_constraints := ConstraintSet.add c !global_constraints
+    global_constraints := ConstraintsSet.add c !global_constraints
 
   let add_constraint_prop ident =
-    let n = to_index ident in
+    let n = var_of_ident ident in
     add_variables [n];
     add_constraint (Univ(n, Prop))
 
   let add_constraint_type ident i =
-    let n = to_index ident in
+    let n = var_of_ident ident in
     add_variables [n];
     add_constraint (Univ(n, Type i))
 
   let add_constraint_eq ident ident' =
-    let n = to_index ident in
-    let n' = to_index ident' in
+    let n = var_of_ident ident in
+    let n' = var_of_ident ident' in
     add_variables [n;n'];
-    add_constraint (Eq(n,n'))
+    uf := UF.union !uf n n'
 
   let add_constraint_succ ident ident' =
-    let n = to_index ident in
-    let n' = to_index ident' in
+    let n = var_of_ident ident in
+    let n' = var_of_ident ident' in
     add_variables [n;n'];
     add_constraint (Succ(n,n'))
 (*
   let add_constraint_lift ident ident' =
-    let n = M.to_index ident in
-    let n' = M.to_index ident' in
+    let n = M.var_of_ident ident in
+    let n' = M.var_of_ident ident' in
     add_variables [n;n'];
     add_constraint (Lift(n,n'))
     *)
   let add_constraint_rule ident ident' ident'' =
-    let n = to_index ident in
-    let n' = to_index ident' in
-    let n'' = to_index ident'' in
+    let n = var_of_ident ident in
+    let n' = var_of_ident ident' in
+    let n'' = var_of_ident ident'' in
     add_variables [n;n';n''];
     add_constraint (Rule(n,n',n''))
 
@@ -352,7 +370,19 @@ struct
     else
       false
 
-  let export () = !global_constraints
+  let export () =
+    let uf = !uf in
+    let find n = UF.find uf n in
+    let normalize c =
+      match c with
+      | Univ(n,u) -> Univ(find n,u)
+      | Eq(n,n') -> Eq(find n, find n')
+      | Succ(n,n') -> Succ(find n, find n')
+      | Rule(n,n',n'') -> Rule(find n, find n', find n'')
+    in
+    ConstraintsSet.map (fun c -> normalize c) !global_constraints
+
+  let string_of_var n = string_of_int n
 
 end
 

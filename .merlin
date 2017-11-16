@@ -1,4 +1,5 @@
 S kernel
+S kernel/unionfind
 S parser
 S dkcheck
 S dktop
@@ -6,10 +7,9 @@ S dkdep
 S dkrule
 S dkindent
 S universo
-S universo/unionfind
-S universo/shortestpath
 
 B _build/kernel
+B _build/kernel/unionfind
 B _build/parser
 B _build/dkcheck
 B _build/dkdep
@@ -18,8 +18,6 @@ B _build/dkindent
 
 B _build/dkrule
 B _build/universo
-B _build/universo/unionfind
-B _build/universo/shortestpath
 
 PKG ocamlgraph, Z3
 

@@ -38,7 +38,8 @@ Library "kernel"
         InternalModules: Typing,
                          Dtree,
                          Subst,
-                         Matching
+                         Matching,
+                         unionfind/Unionfind
         FindlibParent: dedukti
         CompiledObject: best
 
