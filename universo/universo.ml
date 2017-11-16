@@ -25,6 +25,8 @@ let reconstruction_of_entry env reconstruction entry =
 
 
 module C = Constraints
+module E = C.Elaboration
+
 module Checker = struct
 
 
@@ -53,7 +55,7 @@ let mk_prelude lc name =
 let mk_declaration lc id st pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
   let sg = Env.get_signature () in
-  let pty' = C.elaboration sg pty in
+  let pty' = E.elaboration sg pty in
   entries := Declaration(id, st, pty')::!entries;
   match Env.declare lc id st pty' with
     | OK () -> () ;
@@ -65,9 +67,9 @@ let mk_definition lc id pty_opt pte : unit =
   let pty_opt' =
     match pty_opt with
     | None -> None
-    | Some pty -> Some (C.elaboration sg pty)
+    | Some pty -> Some (E.elaboration sg pty)
   in
-  let pte' = C.elaboration sg pte in
+  let pte' = E.elaboration sg pte in
   entries := Definition(id, pty_opt', pte')::!entries;
   match Env.define lc id pte' pty_opt' with
     | OK () -> ()
@@ -79,10 +81,10 @@ let mk_opaque lc id pty_opt pte =
   let pty_opt' =
     match pty_opt with
     | None -> None
-    | Some pty -> Some (C.elaboration sg pty)
+    | Some pty -> Some (E.elaboration sg pty)
   in
   let sg = Env.get_signature () in
-  let pte' = C.elaboration sg pte in
+  let pte' = E.elaboration sg pte in
   entries := Definition(id, pty_opt', pte')::!entries;
   match Env.define_op lc id pte pty_opt with
     | OK () -> ()
@@ -97,7 +99,7 @@ let mk_rules : untyped_rule list -> unit = Rule.(function
   | (rule::_) as lst ->
     let sg = Env.get_signature () in
     let lst' : untyped_rule list = List.map (fun (rule : untyped_rule) ->
-        {rule with rhs = C.elaboration sg rule.rhs} ) lst in
+        {rule with rhs = E.elaboration sg rule.rhs} ) lst in
     begin
       let (l,cst) = get_infos rule.pat in
       eprint l "Adding rewrite rules for '%a'" pp_name cst;
@@ -135,15 +137,16 @@ let print_entry entry = Pp.(
 let print_entries entries = ignore(List.map (print_entry) entries)
 
 let mk_ending () =
+  let open Constraints in
   (*
   let env = solve() in
   let entries' = List.rev_map (reconstruction_of_entry env) !entries in
   *)
-  print_entries (List.rev !entries);
-  Constraints.Constraints.info ();
-  Export.Z3.add_constraints !Constraints.Constraints.global_constraints;
+  (* print_entries (List.rev !entries); *)
+  (* Constraints.Constraints.info (); *)
+  Export.Z3.import (Constraints.export ());
   let model = Export.Z3.solve () in
-  print_entries (List.rev_map (reconstruction_of_entry model Export.Z3.reconstruction) !entries);
+  print_entries (List.rev_map (reconstruction_of_entry model Reconstruction.reconstruction) !entries);
   ( if !export then
       if not (Env.export ()) then
 	  Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );

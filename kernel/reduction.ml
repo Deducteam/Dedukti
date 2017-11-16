@@ -318,7 +318,9 @@ and snf sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
-and are_convertible_lst sg : (term*term) list -> bool = function
+and are_convertible_lst sg (lst : (term*term) list) : bool  =
+  let open Constraints in
+  match lst with
   | [] -> true
   | (t1,t2)::lst ->
     begin
