@@ -7,11 +7,24 @@ open Term
 open Rule
 open Format
 
+
+(** Index of a function symbol. *)
+type index = int
+
+(** Conversion to int. *)
+let int_of_index : index -> int = fun i -> i
+
+(** Index of the root. *)
+let root : index = -1
+
 exception Ext_ru
 exception Calling_unknown of int
 exception NonLinearity of int
 exception Error
-  
+exception TypingError of (ident * ident)
+
+type symb_status = Set_constructor | Elt_constructor | Def_function | Def_type
+      
 (** The most useful function in the world *)
 let erase : 'a -> unit =
   fun _ -> ()
@@ -72,15 +85,6 @@ let subsumes : matrix -> matrix -> bool = fun m1 m2 ->
       ) l
     ) m1.tab; true
   with Exit -> false
-
-(** Index of a function symbol. *)
-type index = int
-
-(** Conversion to int. *)
-let int_of_index : index -> int = fun i -> i
-
-(** Index of the root. *)
-let root : index = -1
 
 (** Map with indices as keys. *)
 module IMap =
@@ -519,7 +523,55 @@ let sct_only : bool -> call_graph ref -> (ident * ident) list ref -> (ident*iden
     with
     | Exit -> if vb then printf "SCT failed (%5d edges added, %6d composed)\n%!" !added !composed; false
 
+type position =  Global | Argument | Negative
+
+let under : position -> position =
+  function
+  | Global -> Argument
+  | _ -> Negative
+
+let rec right_most : term -> term =
+  function
+  | Pi(_,_,_,a) -> right_most a
+  | t -> t
+
+let find_status : ident -> ident -> (ident * ident * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> symb_status=
+  fun md id sign ->
+    let (_,_,stat,typ,_) = List.find (fun (a,b,_,_,_) -> (couple_id_eq (md,id) (a,b))) sign in
+    match stat,(right_most typ) with
+    | Signature.Static,Type _ -> Set_constructor
+    | Signature.Static,_ -> Elt_constructor
+    | Signature.Definable,Type _ -> Def_type
+    | Signature.Definable,_ -> Def_function
       
+let rec constructors_infos : position -> ident -> ident -> term -> term -> (ident * ident) list ref -> (ident*ident, (ident*ident) list) Hashtbl.t -> (ident*ident, (ident*ident) list) Hashtbl.t -> (ident * ident * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> unit =
+  fun posit md id typ rm const must_be after sign->
+    match rm with
+    | Type _ -> (Hashtbl.add must_be (md,id) []; Hashtbl.add after (md,id) [])
+    | _ -> ();
+    match typ with
+    | Kind -> raise (TypingError (md,id))
+    | DB(_,_,_) | Type _ -> ()
+    | App(a,_,_) | Lam(_,_,_,a) -> constructors_infos posit md id a rm const must_be after sign
+    | Pi(_,_,lhs,rhs) ->
+       begin
+	 constructors_infos posit md id rhs rm const must_be after sign;
+	 constructors_infos (under posit) md id lhs rm const must_be after sign
+       end
+    | Const(_,m,f) ->
+       begin
+	 match find_status md id sign with
+	 | Set_constructor ->
+	    begin
+	      updateHT after (md,id) (m,f);
+	      match rm,posit with
+	      | Type _,_ | _,Negative ->updateHT must_be (md,id) (m,f)
+	      | _ -> ()
+	    end
+	 | _ -> ()
+       end
+       
+	 
 (** Initialize the SCT-checker *)	
 let termination_check vb szgraph mod_name ext_ru whole_sig =
   let root = { name  = (hstring "",hstring "") ; arity = 0} in
@@ -543,5 +595,11 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
       | Some (rul,arit,dec_tree) -> add_rules vb graph table rul
     ) whole_sig;
   if vb then printf "Table :@.%a@." (pp_list "/" (pp_triple pp_name pp_print_int pp_index)) !table;
+  List.iter
+    (fun (md,fct,st,typ,rules_opt) ->
+      match st with
+      | Signature.Definable -> ()
+      | Signature.Static -> constructors_infos Global md fct typ (right_most typ) constructors must_be_str_after after whole_sig
+    ) whole_sig;
   if szgraph then latex_print_calls graph;
   sct_only vb graph constructors after must_be_str_after
