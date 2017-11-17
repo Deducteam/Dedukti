@@ -112,8 +112,7 @@ type call =
 
 (** Representation of a function symbol. *)
 type symbol =
-    { index : index           (** Index for use in a [call]. *)
-    ; name  : (ident * ident) (** Name of the symbol. *)
+    { name  : (ident * ident) (** Name of the symbol. *)
     ; arity : int             (** Arity of the symbol (number of args). *)}
 
 (** Internal state of the SCT, including the representation of symbols and the call graph. *)
@@ -185,10 +184,10 @@ let create_symbol : bool -> call_graph ref -> ((ident * ident) * int * index) li
   fun vb g tb md_name fct_name arity ->
     if vb then printf "Ajout du symbole %a.%a@." pp_ident md_name pp_ident fct_name; 
     let index = !(!g.next_index) in
-    let sym = {index ; name=(md_name,fct_name) ; arity} in
+    let sym = {name=(md_name,fct_name) ; arity} in
     tb:=((md_name,fct_name), arity, index)::!tb;
-    incr !g.next_index;
-    !g.symbols := IMap.add index sym !(!g.symbols)
+    !g.symbols := IMap.add index sym !(!g.symbols);
+    incr !g.next_index
 
 (** Add a new call to the call graph. *)
 let add_call : bool -> call_graph ref -> call-> unit =
