@@ -1,11 +1,16 @@
 /_build/
 *.docdir
+api-kernel.docdir
+/setup.data
+/setup.log
+*.byte
 *.native
 .*.swp
 .*.swo
 _*/
 *.dko
 *.depend
+kernel/version.ml
 # emacs tmp files
 .bkp/
 *~

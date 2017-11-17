@@ -11,21 +11,26 @@ type env_error =
 
 (* Wrapper around Signature *)
 
-let sg = ref (Signature.make (hstring "noname"))
+let sg = ref (Signature.make (mk_mident "noname"))
 
 let init name = sg := Signature.make name
 
 let get_name () = Signature.get_name !sg
 
-let get_type l md id =
-  try OK (Signature.get_type !sg l md id)
+let get_type l cst =
+  try OK (Signature.get_type !sg l cst)
   with SignatureError e -> Err e
 
-let get_dtree l md id =
-  try OK (Signature.get_dtree !sg l md id)
+let get_dtree l cst =
+  try OK (Signature.get_dtree !sg l cst)
   with SignatureError e -> Err e
 
 let export () : bool = Signature.export !sg
+
+let import lc md =
+  try
+    OK(Signature.import !sg lc md)
+  with SignatureError e -> Err e
 
 let _declare (l:loc) (id:ident) st ty : unit =
   match inference !sg ty with
@@ -43,11 +48,12 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   | Kind -> raise (DefineExn (l,id))
   | _ ->
     _declare l id Signature.Definable ty;
-    let name = Delta(get_name (), id) in
+    let cst = mk_name (get_name ()) id in
+    let name = Delta(cst) in
     let rule =
       { name ;
         ctx = [] ;
-        pat = Pattern(l, get_name (), id, []) ;
+        pat = Pattern(l, cst, []);
         rhs = te ;
       }
     in
@@ -91,53 +97,55 @@ let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let infer te =
-  try  OK (inference !sg te)
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
-
-let check te ty =
-  try OK (ignore(checking !sg te ty))
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
-
-let whnf te =
+let infer ?ctx:(ctx=[]) ?red:(red=Reduction.default) strategy te =
   try
-    let _ = inference !sg te in OK (Reduction.whnf !sg te)
+    let ty = Typing.infer !sg ctx te in
+    let _  = inference !sg ty in
+    Reduction.select red;
+    let ty' = (Reduction.reduction !sg strategy ty) in
+    Reduction.select Reduction.default;
+    OK (ty')
+  with
+  | SignatureError e -> Err (EnvErrorSignature e)
+  | TypingError e -> Err (EnvErrorType e)
+
+let check ?ctx:(ctx=[]) te ty =
+  try OK (ignore(check !sg ctx te ty))
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let hnf te =
+let reduction ?red:(red=Reduction.default) strategy te =
   try
-    let _ = inference !sg te in OK (Reduction.hnf !sg te)
+    let _ = inference !sg te in
+    Reduction.select red;
+    let te' = (Reduction.reduction !sg strategy te) in
+    Reduction.select Reduction.default;
+    OK te'
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let snf te =
-  try
-    let _ = inference !sg te in OK (Reduction.snf !sg te)
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
+let unsafe_one_step ?red:(red=Reduction.default) te =
+  Reduction.select red;
+  let te' = Reduction.reduction !sg (Reduction.NSteps 1) te in
+  Reduction.select Reduction.default;
+  te'
 
-let unsafe_snf te = Reduction.snf !sg te
+let unsafe_snf ?red:(red=Reduction.default) te =
+  Reduction.select red;
+  let te' = Reduction.reduction !sg Reduction.Snf te in
+  Reduction.select Reduction.default;
+  te'
 
-let one te =
-  try
-    let _ = inference !sg te in OK (Reduction.one_step !sg te)
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
-
-let are_convertible te1 te2 =
+let are_convertible ?red:(red=Reduction.default) te1 te2 =
   try
     let _ = inference !sg te1 in
     let _ = inference !sg te2 in
-      OK (Reduction.are_convertible !sg te1 te2)
+    Reduction.select red;
+    let b = Reduction.are_convertible !sg te1 te2 in
+    Reduction.select Reduction.default;
+    OK b
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)

@@ -1,6 +1,6 @@
 %parameter <M :
   sig
-    val mk_prelude     : Basic.loc -> Basic.ident -> unit
+    val mk_prelude     : Basic.loc -> Basic.mident -> unit
     val mk_declaration : Basic.loc -> Basic.ident -> Signature.staticity -> Term.term -> unit
     val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
@@ -33,10 +33,10 @@
                   int_of_string !number_part
                 with Failure "int_of_string" -> 0)
         in
-        while List.mem (hstring (Printf.sprintf "%s%d" name_part !int_part)) var_list do
+        while List.mem (mk_ident (Printf.sprintf "%s%d" name_part !int_part)) var_list do
           int_part := !int_part + 1
         done;
-        hstring (Printf.sprintf "%s%d" name_part !int_part)
+        mk_ident (Printf.sprintf "%s%d" name_part !int_part)
       else
         var
 
@@ -76,7 +76,7 @@
         | PDef(l,x,t)::tl -> mk_let x t (mk_pi te tl)
 
     let rec preterm_loc = function
-        | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
+        | PreType l | PreId (l,_) | PreQId (l,_) | PreLam  (l,_,_,_)
         | PrePi   (l,_,_,_) -> l
         | PreApp (f,_,_) -> preterm_loc f
 
@@ -107,8 +107,8 @@
       let params_and_fields = params @ List.map pdecl fields in
 
       let rec_type = mk_pre_from_list (PreId (lt, ty_name) :: params_as_terms) in
-      let rec_name = hstring "record" in
-      let field_proj_id n = let s = string_of_ident n in hstring ("proj_" ^ s) in
+      let rec_name = mk_ident "record" in
+      let field_proj_id n = let s = string_of_ident n in mk_ident ("proj_" ^ s) in
       let field_proj_preterm (l, n, t) =
         mk_pre_from_list (PreId(l, field_proj_id n) :: params_as_terms @ [PreId(lt, rec_name)])
       in
@@ -143,7 +143,7 @@
               PreId (lf, field_name))])
         fields
 
-      (* contains every modules that are declared in the current environement*)	
+      (* contains every modules that are declared in the current environement*)
       let modules = ref []
       (* contains only the modules that are not closed *)
       let current_modules = ref []
@@ -165,12 +165,12 @@
 	  modules := mds;
 	  decr level
 
-      (* prefix the ident id by the list of modules mds *)	  	  
+      (* prefix the ident id by the list of modules mds *)
       let rec prefix_by_mds mds id =
-     	  match mds with   
+     	  match mds with
 	  | [] -> id
 	  | x::t ->
-	    hstring ((string_of_ident x) ^ "__" ^ string_of_ident (prefix_by_mds t id))
+	    mk_ident ((string_of_mident x) ^ "__" ^ string_of_ident (prefix_by_mds t id))
 
       (* for a module md, find in which modules it is defined. For example
       	 with #NEWMODULE D. #NEWMODULE E. prefix_of_md E is D *)
@@ -179,21 +179,21 @@
       	      match mds with
 	      	  | [] -> []
 		  | (x,l)::t -> let p' = List.filter (fun (md,l') -> l' < l) p in
-		    	     	if ident_eq x md then p'
-				else aux ((x,l)::p') t 		    	     
+		    	     	if mident_eq x md then p'
+				else aux ((x,l)::p') t
 	  in
 	  List.map fst (aux [] (List.rev !modules))
 
-      (* transform a qid in a old qid of dedukti *)	  	  
+      (* transform a qid in a old qid of dedukti *)
       let of_qid (loc, mds, id) =
       	  match mds with
 	  | [] -> assert false
-	  | x::t -> if List.exists (fun (md,_) -> Basic.ident_eq x md) !modules then
+	  | x::t -> if List.exists (fun (md,_) -> Basic.mident_eq x md) !modules then
 	    	        (loc, !Scoping.name, prefix_by_mds ((prefix_of_md x)@mds) id)
 		    else (
 			(loc, x, prefix_by_mds t id))
 
-      (* update prefixes to match new modules declarations *)		
+      (* update prefixes to match new modules declarations *)
       let of_id id = prefix_by_mds (List.rev !current_modules) id
 
       let of_lid lid = (fst lid, of_id (snd lid))
@@ -218,22 +218,24 @@
 %token <Basic.loc> HNF
 %token <Basic.loc> SNF
 %token <Basic.loc> STEP
+%token <Basic.loc> NSTEPS
 %token <Basic.loc> INFER
+%token <Basic.loc> INFERSNF
 %token <Basic.loc> CONV
 %token <Basic.loc> CHECK
 %token <Basic.loc> PRINT
+%token <Basic.loc*Basic.mident> REQUIRE
 %token <Basic.loc> GDT
 %token <Basic.loc*string> OTHER
 %token <Basic.loc> UNDERSCORE
-%token <Basic.loc*Basic.ident>NAME
-%token <Basic.loc*Basic.ident>NEWMODULE
+%token <Basic.loc*Basic.mident>NEWMODULE
 %token <Basic.loc>ENDMODULE
+%token <Basic.loc*Basic.mident>NAME
 %token <Basic.loc> TYPE
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
-%token <Basic.loc> KW_INJ
 %token <Basic.loc*Basic.ident> ID
-%token <Basic.loc*Basic.ident list*Basic.ident> QID
+%token <Basic.loc*Basic.mident list*Basic.ident> QID
 %token <Basic.loc*string> STRING
 %token <Basic.loc*string> NUM
 %token <Basic.loc*char> CHAR
@@ -246,7 +248,7 @@
 %type <Preterm.pdecl> decl
 %type <Preterm.param> param
 %type <Preterm.pdecl list> context
-%type <Basic.loc*Basic.ident option*Basic.ident*Preterm.prepattern list> top_pattern
+%type <Basic.loc*Basic.mident option*Basic.ident*Preterm.prepattern list> top_pattern
 %type <Preterm.prepattern> pattern
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm
@@ -255,7 +257,6 @@
 %%
 
 prelude         : NAME DOT      { let (lc,name) = $1 in
-                                        Pp.name := name;
                                         Scoping.name := name;
                                         mk_prelude lc name }
 
@@ -265,8 +266,6 @@ line            : ID COLON letterm DOT
                 { mk_declaration (fst $1) (of_id (snd $1)) Signature.Static (scope_term [] (mk_pi $4 $2)) }
                 | KW_DEF ID COLON arrterm DOT
                 { mk_declaration (fst $2) (of_id (snd $2)) Signature.Definable (scope_term [] $4) }
-                | KW_INJ ID COLON arrterm DOT
-                { mk_declaration (fst $2) (of_id (snd $2)) Signature.Injective (scope_term [] $4) }
                 | KW_DEF ID COLON arrterm DEF letterm DOT
                 { mk_definition (fst $2) (of_id (snd $2)) (Some (scope_term [] $4)) (scope_term [] $6) }
                 | KW_DEF ID DEF letterm DOT
@@ -308,8 +307,8 @@ command         : WHNF  letterm    { mk_command $1 (Whnf (scope_term [] $2)) }
                 | PRINT STRING  { mk_command $1 (Print (snd $2)) }
                 | GDT   ID      { mk_command $1 (Gdt (None, of_id (snd $2))) }
                 | GDT   QID     { let (_,m,v) =  of_qid $2 in mk_command $1 (Gdt (Some m,v)) }
-                | OTHER term_lst { mk_command (fst $1) (Other (snd $1,List.map (scope_term []) $2)) }
-
+                | INFERSNF term { mk_command $1 (InferSnf (scope_term [] $2)) }
+                | REQUIRE { let (l,m) = $1 in mk_command l (Require(m) ) }
 
 term_lst        : letterm                                  { [$1] }
                 | letterm COMMA term_lst                   { $1::$3 }
@@ -362,7 +361,7 @@ pattern         : ID  pattern_wp+
                         { $1 }
 
 sterm           : QID
-                { let (l,md,id)=  of_qid $1 in PreQId(l,md,id) }
+                { let (l,md,id)=  of_qid $1 in PreQId(l,mk_name md id) }
                 | ID
                 { PreId (fst $1, (of_id (snd $1))) }
                 | LEFTPAR letterm RIGHTPAR

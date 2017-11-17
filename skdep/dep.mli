@@ -3,7 +3,7 @@ open Term
 
 val out                 : out_channel ref
 
-val mk_prelude          : loc -> ident -> unit
+val mk_prelude          : loc -> mident -> unit
 
 val mk_declaration      : loc -> ident -> Signature.staticity -> term -> unit
 
@@ -21,6 +21,6 @@ val filename            : string ref
 
 val verbose             : bool ref
 
-val sorted                : bool ref
+val sorted              : bool ref
 
 val sort                : unit -> string list

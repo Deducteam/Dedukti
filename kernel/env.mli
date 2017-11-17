@@ -11,21 +11,24 @@ type env_error =
 
 (** {2 The Global Environment} *)
 
-val init        : ident -> unit
+val init        : mident -> unit
 (** [init name] initializes a new global environement giving it the name [name].
     Every top level declaration will be qualified be this name. *)
 
-val get_name    : unit -> ident
-(** [get_name ()] returns the name of environment/module. *)
+val get_name    : unit -> mident
+(** [get_name ()] returns the name of the module. *)
 
-val get_type    : loc -> ident -> ident -> (term,signature_error) error
+val get_type    : loc -> name -> (term,signature_error) error
 (** [get_type l md id] returns the type of the constant [md.id]. *)
 
-val get_dtree   : loc -> ident -> ident -> ((int*Dtree.dtree) option,signature_error) error
+val get_dtree   : loc -> name -> ((int*Dtree.dtree) option,signature_error) error
 (** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
 
 val export      : unit -> bool
 (** [export ()] saves the current environment in a [*.dko] file. *)
+
+val import      : loc -> mident -> (unit, signature_error) error
+(** [import lc md] the module [md] in the current environment. *)
 
 val declare : loc -> ident -> Signature.staticity -> term -> (unit,env_error) error
 (** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
@@ -44,18 +47,18 @@ val add_rules   : Rule.untyped_rule list -> (Rule.typed_rule list,env_error) err
 
 (** {2 Type checking/inference} *)
 
-val infer       : term -> (term,env_error) error
+val infer   : ?ctx:Rule.typed_context -> ?red:Reduction.red ->
+              Reduction.red_strategy -> term -> (term,env_error) error
 
-val check       : term -> term -> (unit,env_error) error
+val check       : ?ctx:Rule.typed_context -> term -> term -> (unit,env_error) error
 
 (** {2 Safe Reduction/Conversion} *)
 (** terms are typechecked before the reduction/conversion *)
 
-val hnf         : term -> (term,env_error) error
-val whnf        : term -> (term,env_error) error
-val snf         : term -> (term,env_error) error
-val one         : term -> (term option,env_error) error
+val reduction       : ?red:(Reduction.red) -> Reduction.red_strategy -> term -> (term,env_error) error
 
-val are_convertible : term -> term -> (bool,env_error) error
+val are_convertible : ?red:(Reduction.red) -> term -> term -> (bool,env_error) error
 
-val unsafe_snf : term -> term
+val unsafe_one_step : ?red:(Reduction.red) -> term -> term
+
+val unsafe_snf : ?red:(Reduction.red) -> term -> term

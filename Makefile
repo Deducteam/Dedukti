@@ -1,52 +1,41 @@
-# PLEASE EDIT THE FOLLOWING LINES TO FIT YOUR SYSTEM CONFIGURATION
+# OASIS_START
+# DO NOT EDIT (digest: a3c674b4239234cbbe53afe090018954)
 
-INSTALL_DIR=/usr/bin
+SETUP = ocaml setup.ml
 
-# DO NOT EDIT AFTER THIS LINE
+build: setup.data
+	$(SETUP) -build $(BUILDFLAGS)
 
-MENHIR = -menhir "menhir --external-tokens Tokens"
+doc: setup.data build
+	$(SETUP) -doc $(DOCFLAGS)
 
-all: skcheck sktop skdep skindent doc
+test: setup.data build
+	$(SETUP) -test $(TESTFLAGS)
 
-skcheck:
-	ocamlbuild -I $@ $(MENHIR) $@.native
+all:
+	$(SETUP) -all $(ALLFLAGS)
 
-sktop:
-	ocamlbuild -I $@ $(MENHIR) $@.native
+install: setup.data
+	$(SETUP) -install $(INSTALLFLAGS)
 
-skdep:
-	ocamlbuild -I $@ $(MENHIR) $@.native
+uninstall: setup.data
+	$(SETUP) -uninstall $(UNINSTALLFLAGS)
 
-skindent:
-	ocamlbuild -I $@ $(MENHIR) $@.native
-
-doc:
-	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
-	ocamlbuild -Is kernel kernel/dedukti.docdir/doc.tex
-	ocamlbuild -Is kernel kernel/dedukti.docdir/dependencies.dot
-
-BINARIES=skcheck sktop skdep skindent
-install:
-	for i in $(BINARIES) ; do \
-	    install "_build/$$i/$$i.native" "${INSTALL_DIR}/$$i" ; \
-	done
-
-uninstall:
-	for i in $(BINARIES) ; do \
-	    rm -f "${INSTALL_DIR}/$$i" ; \
-	done
+reinstall: setup.data
+	$(SETUP) -reinstall $(REINSTALLFLAGS)
 
 clean:
-	ocamlbuild -clean
+	$(SETUP) -clean $(CLEANFLAGS)
 
-tests: skdep skcheck
-	@echo "run tests..."
-	$(MAKE) -C tests/OK/ all
-	@for i in tests/KO/*.sk ; do \
-	    echo "on $$i...  " ; \
-	    ./skcheck.native "$$i" 2>&1 | grep ERROR ; \
-	done
-	@echo "-----------------------"
-	@echo "tests OK"
+distclean:
+	$(SETUP) -distclean $(DISTCLEANFLAGS)
 
-.PHONY: skcheck sktop skdep skindent tests clean doc install uninstall
+setup.data:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+configure:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+.PHONY: build doc test all install uninstall reinstall clean distclean configure
+
+# OASIS_STOP

@@ -14,8 +14,7 @@ let rec parse lb =
 
 let  _ =
   print_string "Welcome to Sukerujo\n";
-  let v = Basic.hstring "?top" in
-    Pp.name := v;
-    Scoping.name := v;
-    Env.init v ;
-    parse (Lexing.from_channel stdin)
+  let v = Basic.mk_mident "?top" in
+  Scoping.name := v;
+  Env.init v ;
+  parse (Lexing.from_channel stdin)

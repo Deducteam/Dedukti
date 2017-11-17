@@ -29,6 +29,10 @@ exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
+let snf sg = Reduction.reduction sg Reduction.Snf
+
+let whnf sg = Reduction.reduction sg Reduction.Whnf
+
 let get_type ctx l x n =
   try
     let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
@@ -48,7 +52,7 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
   | Kind -> raise (TypingError KindIsNotTypable)
   | Type l -> mk_Kind
   | DB (l,x,n) -> get_type ctx l x n
-  | Const (l,md,id) -> Signature.get_type sg l md id
+  | Const (l,cst) -> Signature.get_type sg l cst
   | App (f,a,args) ->
     snd (List.fold_left (check_app sg ctx) (f,infer sg ctx f) (a::args))
   | Pi (l,x,a,b) ->
@@ -70,7 +74,7 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
 and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
   match te with
   | Lam (l,x,None,u) ->
-    ( match Reduction.whnf sg ty_exp with
+    ( match whnf sg ty_exp with
       | Pi (_,_,a,b) -> check sg ((l,x,a)::ctx) u b
       | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp))) )
   | _ ->
@@ -79,7 +83,7 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     else raise (TypingError (ConvertibilityError (te,ctx,ty_exp,ty_inf)))
 
 and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
-  match Reduction.whnf sg ty_f with
+  match whnf sg ty_f with
     | Pi (_,_,a,b) ->
       let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
     | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
@@ -107,22 +111,22 @@ module SS = Subst.Subst
 let unshift_reduce sg q t =
   try Some (Subst.unshift q t)
   with Subst.UnshiftExn ->
-    ( try Some (Subst.unshift q (Reduction.snf sg t))
+    ( try Some (Subst.unshift q (snf sg t))
       with Subst.UnshiftExn -> None )
 
 let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = function
   | [] -> Some sigma
   | (q,t1,t2)::lst ->
     begin
-      let t1' = Reduction.whnf sg (SS.apply sigma t1 q) in
-      let t2' = Reduction.whnf sg (SS.apply sigma t2 q) in
+      let t1' = whnf sg (SS.apply sigma t1 q) in
+      let t2' = whnf sg (SS.apply sigma t2 q) in
       if term_eq t1' t2' then pseudo_u sg sigma lst
       else
         match t1', t2' with
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
         | DB (_,_,n), DB (_,_,n') when ( n=n' ) -> pseudo_u sg sigma lst
-        | Const (_,md,id), Const (_,md',id') when
-            ( ident_eq id id' && ident_eq md md' ) ->
+        | Const (_,cst), Const (_,cst') when
+            ( name_eq cst cst' ) ->
           pseudo_u sg sigma lst
 
         | DB (l1,x1,n1), DB (l2,x2,n2) when ( n1>=q && n2>=q) ->
@@ -139,7 +143,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             | Some t' ->
               ( match SS.add sigma x (n-q) t' with
                 | None ->
-                  ( match SS.add sigma x (n-q) (Reduction.snf sg t') with
+                  ( match SS.add sigma x (n-q) (snf sg t') with
                     | None -> None
                     | Some sigma2 -> pseudo_u sg sigma2 lst )
                 | Some sigma2 -> pseudo_u sg sigma2 lst )
@@ -151,7 +155,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             | Some t' ->
               ( match SS.add sigma x (n-q) t' with
                 | None ->
-                  ( match SS.add sigma x (n-q) (Reduction.snf sg t') with
+                  ( match SS.add sigma x (n-q) (snf sg t') with
                     | None -> None
                     | Some sigma2 -> pseudo_u sg sigma2 lst )
                 | Some sigma2 -> pseudo_u sg sigma2 lst )
@@ -170,12 +174,6 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
           if Reduction.are_convertible sg t1' t2' then
             ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
           else None
-
-        | App (Const (l,md,id),_,_), _ when (not (Signature.is_injective sg l md id)) ->
-          ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
-        | _, App (Const (l,md,id),_,_) when (not (Signature.is_injective sg l md id)) ->
-          ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
-
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
            * | Const md.id when (is_constant md id) *)
@@ -245,13 +243,13 @@ let rec get_last = function
 
 let unshift_n sg n te =
   try Subst.unshift n te
-  with Subst.UnshiftExn -> Subst.unshift n (Reduction.snf sg te)
+  with Subst.UnshiftExn -> Subst.unshift n (snf sg te)
 
 let rec infer_pattern sg (delta:partial_context) (sigma:context2) (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
   match pat with
-  | Pattern (l,md,id,args) ->
+  | Pattern (l,cst,args) ->
     let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
-        ( mk_Const l md id , Signature.get_type sg l md id , delta , lst ) args
+        ( mk_Const l cst , Signature.get_type sg l cst , delta , lst ) args
     in (ty,delta2,lst2)
   | Var (l,x,n,args) ->
     if n < (LList.len sigma) then
@@ -269,7 +267,7 @@ let rec infer_pattern sg (delta:partial_context) (sigma:context2) (lst:constrain
     raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
 
 and infer_pattern_aux sg (sigma:context2) (f,ty_f,delta,lst:term*typ*partial_context*constraints) (arg:pattern) : term * typ * partial_context * constraints =
-  match Reduction.whnf sg ty_f with
+  match whnf sg ty_f with
     | Pi (_,_,a,b) ->
         let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
         let arg' = pattern_to_term arg in
@@ -283,7 +281,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
   match pat with
   | Lambda (l,x,p) ->
     begin
-      match Reduction.whnf sg exp_ty with
+      match whnf sg exp_ty with
       | Pi (l,x,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
       | exp_ty ->
         let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
@@ -349,7 +347,7 @@ let rec pp_term_j k fmt = function
   | Type _             -> Format.fprintf fmt "Type"
   | DB  (_,x,n) when n<k -> fprintf fmt "%a[%i]" pp_ident x n
   | DB  (_,x,n)        -> fprintf fmt "_"
-  | Const (_,m,v)      -> fprintf fmt "%a.%a" pp_ident m pp_ident v
+  | Const (_,cst)      -> fprintf fmt "%a" pp_name cst
   | App (f,a,args)     -> pp_list " " (pp_term_wp_j k) fmt (f::a::args)
   | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
   | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term f

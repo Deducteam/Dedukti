@@ -8,7 +8,7 @@ open Format
 type preterm =
   | PreType of loc
   | PreId   of loc * ident
-  | PreQId  of loc * ident * ident
+  | PreQId  of loc * name
   | PreApp  of preterm * preterm * preterm list
   | PreLam  of loc * ident * preterm option * preterm
   | PrePi   of loc * ident option * preterm * preterm
@@ -17,7 +17,7 @@ val pp_preterm : formatter -> preterm -> unit
 
 type prepattern =
   | PCondition  of preterm
-  | PPattern    of loc * ident option * ident * prepattern list
+  | PPattern    of loc * mident option * ident * prepattern list
   | PLambda     of loc * ident * prepattern
   | PJoker      of loc
 
@@ -35,6 +35,6 @@ type pcontext   = pdecl list
 
 val pp_pcontext : formatter -> pcontext -> unit
 
-type prule      = loc * (ident option *ident) option * pdecl list * ident option * ident * prepattern list * preterm
+type prule      = loc * (mident option *ident) option * pdecl list * mident option * ident * prepattern list * preterm
 
 val pp_prule : formatter -> prule -> unit
