@@ -522,7 +522,7 @@ let sct_only : bool -> call_graph ref -> (ident * ident) list ref -> (ident*iden
       
 (** Initialize the SCT-checker *)	
 let termination_check vb szgraph mod_name ext_ru whole_sig =
-  let root = { index = -1 ; name  = (hstring "",hstring "") ; arity = 0} in
+  let root = { name  = (hstring "",hstring "") ; arity = 0} in
   let syms = IMap.singleton (-1) root in
   let graph : call_graph ref =ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] } in
   let table : ((ident * ident) * int * index) list ref = ref [] in
