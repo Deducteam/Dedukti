@@ -53,6 +53,18 @@ let make name =
 
 let get_name sg = sg.name
 
+let get_external_rules sg = sg.external_rules
+
+let get_tables sg=
+  let res=ref [] in
+  H.iter (fun a tb ->
+    H.iter (fun b x ->
+      if not (List.exists (fun (_,n,_,_,_) -> ident_eq n b) !res)
+      then res:=(a,b,x.stat,x.ty,x.rule_opt_info)::(!res)
+    ) tb
+  ) sg.tables;
+  !res
+  
 (******************************************************************************)
 
 let add_rule_infos sg (lst:rule_infos list) : unit =

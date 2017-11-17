@@ -6,9 +6,6 @@ open Cmd
 let verbose = ref false
 let sizechange = ref false
 let szgraph = ref false
-let type_rew = ref (-1)
-let mod_dep = ref (-1)
-let sz_bug = ref (-1)
                   
 let eprint lc fmt =
   if !verbose then (
@@ -21,44 +18,18 @@ let eprint lc fmt =
 (* ********************************* *)
 
 let mk_prelude lc name =
-  if (!sizechange)|| (!szgraph)
-  then
-    begin
-      Sizechange.initialize name;
-      type_rew:=(-1);
-      mod_dep:=(-1);
-      sz_bug:=(-1);
-      Format.eprintf"\n"
-    end;
   eprint lc "Module name is '%a'." pp_ident name;
   Env.init name;
   Confluence.initialize ()
 
 let mk_declaration lc id st pty : unit =
   eprint lc "Declaration of constant '%a'." pp_ident id;
-  if (!sizechange)|| (!szgraph)
-  then
-    begin
-      try Sizechange.add_fonc !verbose id pty st;
-      with
-      | Sizechange.TypeLevelRewriting -> type_rew := fst (of_loc lc)
-      | Sizechange.ModuleDependancy -> mod_dep := fst (of_loc lc)
-      | Sizechange.Error -> sz_bug := fst (of_loc lc)
-    end;
   match Env.declare lc id st pty with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
 
 let mk_definition lc id pty_opt pte : unit =
   eprint lc "Definition of symbol '%a'." pp_ident id ;
-  if (!sizechange)|| (!szgraph)
-  then
-    ( try Sizechange.add_symb !verbose id pte;
-      with
-      | Sizechange.TypeLevelRewriting -> type_rew := fst (of_loc lc)
-      | Sizechange.ModuleDependancy -> mod_dep := fst (of_loc lc)
-      | Sizechange.Error -> sz_bug := fst (of_loc lc)
-    );
   match Env.define lc id pte pty_opt with
     | OK () -> ()
     | Err e -> Errors.fail_env_error e
@@ -79,11 +50,6 @@ let mk_rules = Rule.( function
     begin
       let (l,md,id) = get_infos rule.pat in
       eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
-      if (!sizechange)||(!szgraph) then
-	(try Sizechange.add_rules !verbose lst
-	 with
-	 | Sizechange.Error -> sz_bug := fst (of_loc l)
-	);
       match Env.add_rules lst with
       | OK lst2 ->
         List.iter ( fun rule ->
@@ -148,23 +114,16 @@ let mk_ending () =
   in
   if (!sizechange)|| (!szgraph) then
     begin
-      try
-	if Sizechange.sct_only !verbose
-	then
-	  if !sz_bug=(-1) then 
-	    if !type_rew=(-1) then
-	      if !mod_dep=(-1)
-	      then Errors.success "Rewriting ends according to the SCP"
-	      else red_error "SCP does not manage module dependancy yet, like in line %i" !mod_dep
-            else red_error "SCP does not accept rewriting at type level yet, like in line %i" !type_rew
-	  else red_error "SCP met an uncaptured error, like in line %i" !sz_bug
-	else (red_error "Rewriting does not end according to the SCP")
+      try (
+	if Env.sizechange !verbose !szgraph
+	then Errors.success "The file was proved terminating"
+	else red_error "The SCT checker did not proved this file terminating"
+      )
       with
-      | Sizechange.NotPositive -> red_error "SCT can't be applied on non-strictly positive signature"
-      | Sizechange.TypeLevelRewriting -> red_error "SCP does not accept rewriting at type level yet"
+      | Sizechange.Ext_ru -> red_error "The meaning of external_rules is actually unknown, hence the case where it is not empty is unaccepted"
+      | _ -> red_error "We were unable to prove this file terminating"
     end;
   if !export then
     if not (Env.export ()) then
       Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ());
   Confluence.finalize ();
-  if !szgraph then Sizechange.latex_print_calls()

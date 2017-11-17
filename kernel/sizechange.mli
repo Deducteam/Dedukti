@@ -3,15 +3,10 @@ open Term
 open Rule
 open Format
 
-exception NotPositive
-exception TypeLevelRewriting
-exception ModuleDependancy
+exception Ext_ru
+exception Calling_unknown of int
+exception NonLinearity of int
 exception Error
-
-val add_fonc : bool -> ident -> Term.term -> Signature.staticity -> unit
-val add_symb : bool -> ident -> Term.term -> unit
-       
-val add_rules : bool -> untyped_rule list -> unit
 
   (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
@@ -52,16 +47,13 @@ type call =
 (** The representation of the call graph. *)
 type call_graph
 
-val sct_only : bool -> bool
-
-(** [copy g] returns a copy of the call graph [g]. *)
-val copy : call_graph -> call_graph
-
-(** [is_empty g] indicates whether the call graph [g] contains calls. *)
-val is_empty : call_graph -> bool
-
-val initialize : ident -> unit
+val add_rules : bool -> call_graph ref -> ((ident * ident) * int * index) list ref -> rule_infos list -> unit
+  
+val sct_only : bool -> call_graph ref -> (ident * ident) list ref -> (ident*ident, (ident*ident) list) Hashtbl.t -> (ident*ident, (ident*ident) list) Hashtbl.t -> bool
 
 (** [latex_print_calls ff g] prints the call graph [g] using a LaTeX format
     on the [Format.formatter] [ff]. *)
-val latex_print_calls : unit -> unit
+val latex_print_calls : call_graph ref -> unit
+
+  
+val termination_check : bool -> bool -> ident -> rule_infos list list -> (ident * ident * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> bool

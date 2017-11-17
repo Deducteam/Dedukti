@@ -38,6 +38,8 @@ val make                : ident -> t
 (** [make name] creates a new signature withe the name [name]. *)
 
 val get_name            : t -> ident
+val get_external_rules  : t -> rule_infos list list
+val get_tables          : t -> (ident * ident * staticity * term * (rule_infos list*int*dtree) option) list
 (** [get_name sg] returns the name of the signature [sg]. *)
 
 val export              : t -> bool

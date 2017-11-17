@@ -59,3 +59,5 @@ val are_convertible : ?red:(Reduction.red) -> term -> term -> (bool,env_error) e
 val unsafe_one_step : ?red:(Reduction.red) -> term -> term
 
 val unsafe_snf : ?red:(Reduction.red) -> term -> term
+
+val sizechange : bool -> bool -> bool
