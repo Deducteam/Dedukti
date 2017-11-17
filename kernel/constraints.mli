@@ -74,7 +74,7 @@ sig
   type constraints =
     | Univ of var * ReverseCiC.univ
     | Eq of var * var
-    | Lift of (var * var) * (var * var)
+    | Max of var * var * var
     | Succ of var * var
     | Rule of var * var * var
 

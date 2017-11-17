@@ -82,6 +82,14 @@ struct
     let le = Arithmetic.mk_le ctx x y in
     Boolean.mk_ite ctx le y x
 
+  let add_constraint_max var var' var'' =
+    let zvar = get_variable var in
+    let zvar' = get_variable var' in
+    let zvar'' = get_variable var'' in
+    let max = z3_max zvar zvar' in
+    let eq = Boolean.mk_eq ctx max zvar'' in
+    Optimize.add solver [eq]
+
   let add_constraint_lift var var' var'' var''' =
     let zvar = get_variable var in
     let zvar' = get_variable var' in
@@ -111,7 +119,7 @@ struct
     | Univ(n,u) -> add_constraint_univ (sofi n) u
     | Eq(n,n') -> add_constraint_eq (sofi n) (sofi n')
     | Succ(n,n') -> add_constraint_succ (sofi n) (sofi n')
-    | Lift((n,n'),(n'',n''')) -> add_constraint_lift (sofi n) (sofi n') (sofi n'') (sofi n''')
+    | Max(n,n',n'') -> add_constraint_max (sofi n) (sofi n') (sofi n'')
     | Rule(n,n',n'') -> add_constraint_rule (sofi n) (sofi n') (sofi n'')
 
   let import cs =
