@@ -145,8 +145,9 @@ let mk_ending () =
   Log.append  (Format.asprintf "%a" print_entries (List.rev !entries));
   (* Constraints.Constraints.info (); *)
   Log.append "Elaboration is over";
-  Log.append (BasicConstraints.info ());
-  let model = Export.Z3.solve (BasicConstraints.export ()) in
+  let constraints = BasicConstraints.export () in
+  Log.append (BasicConstraints.info constraints);
+  let model = Export.Z3.solve constraints in
   let entries =
     (List.rev_map (reconstruction_of_entry model Reconstruction.reconstruction) !entries) in
   Format.printf "%a@." print_entries  entries;

@@ -230,7 +230,7 @@ sig
 
   val export : unit -> ConstraintsSet.t
 
-  val info : unit -> string
+  val info : ConstraintsSet.t -> string
 
   val string_of_var : var -> string
 end
@@ -279,21 +279,35 @@ struct
   let add_constraint c =
     global_constraints := ConstraintsSet.add c !global_constraints
 
-  let add_constraint_prop ident =
-    let n = var_of_ident ident in
-    add_variables [n];
-    add_constraint (Univ(n, Prop))
+  let hash_univ = Hashtbl.create 11
 
-  let add_constraint_type ident i =
-    let n = var_of_ident ident in
-    add_variables [n];
-    add_constraint (Univ(n, Type i))
+  let find_univ univ =
+      if Hashtbl.mem hash_univ univ then
+        Hashtbl.find hash_univ univ
+      else
+        let uvar = UVar.fresh () in
+        let vi = var_of_ident uvar in
+        Hashtbl.add hash_univ univ vi;
+        add_constraint(Univ(vi, univ));
+        vi
 
-  let add_constraint_eq ident ident' =
-    let n = var_of_ident ident in
-    let n' = var_of_ident ident' in
-    add_variables [n;n'];
-    uf := UF.union !uf n n'
+  let var_of_univ () = Hashtbl.fold (fun k v l -> (v,k)::l) hash_univ []
+
+  (* Probably never happen *)
+  let add_constraint_prop =
+    fun ident ->
+      let n = var_of_ident ident in
+      add_variables [n];
+      uf := UF.union !uf n (find_univ Prop)
+
+  let add_constraint_type =
+    fun v i ->
+    add_variables [v];
+    uf := UF.union !uf v (find_univ i)
+
+  let add_constraint_eq v v' =
+    add_variables [v;v'];
+    uf := UF.union !uf v v'
 
   let add_constraint_succ ident ident' =
     let n = var_of_ident ident in
@@ -310,21 +324,15 @@ struct
     add_constraint (Lift((n,n'),(n'',n''')))
 *)
 
-  let add_constraint_max ident ident' ident'' =
-    let n = var_of_ident ident in
-    let n' = var_of_ident ident' in
-    let n'' = var_of_ident ident'' in
-    add_variables [n;n';n''];
-    add_constraint (Max(n,n',n''))
+  let add_constraint_max v v' v'' =
+    add_variables [v;v';v''];
+    add_constraint (Max(v,v',v''))
 
-  let add_constraint_rule ident ident' ident'' =
-    let n = var_of_ident ident in
-    let n' = var_of_ident ident' in
-    let n'' = var_of_ident ident'' in
-    add_variables [n;n';n''];
-    add_constraint (Rule(n,n',n''))
+  let add_constraint_rule v v' v'' =
+    add_variables [v;v';v''];
+    add_constraint (Rule(v,v',v''))
 
-  let info () =
+  let info constraints =
     let open ReverseCiC in
     let prop,ty,eq,succ,max,rule = ref 0, ref 0, ref 0, ref 0, ref 0, ref 0 in
     CS.iter (fun x ->
@@ -334,7 +342,7 @@ struct
         | Eq _ -> incr eq
         | Succ _ -> incr succ
         | Max _ -> incr max
-        | Rule _ -> incr rule) !global_constraints;
+        | Rule _ -> incr rule) constraints;
 
     let hash_to_string fmt (k,v) =
       Format.fprintf fmt "%a --> %d@." Basic.pp_ident k (var_of_index v)
@@ -368,14 +376,14 @@ struct
     else if is_uvar l && is_type r then
       let l = extract_uvar l in
       let i = extract_type r in
-      add_constraint_type l i;
+      add_constraint_type (var_of_ident l) (Type i);
       true
     else if is_type l && is_uvar r then
       generate_constraints r l
     else if is_uvar l && is_uvar r then
       let l = extract_uvar l in
       let r = extract_uvar r in
-      add_constraint_eq l r;
+      add_constraint_eq (var_of_ident l) (var_of_ident r);
       true
     else if is_succ l && is_uvar r then
       begin
@@ -389,18 +397,18 @@ struct
       generate_constraints r l (* just a switch of arguments *)
     else if is_rule l && is_uvar r then
       let s1,s2 = extract_rule l in
-      let s1 = extract_uvar s1 in
-      let s2 = extract_uvar s2 in
-      let r = extract_uvar r in
+      let s1 = var_of_ident @@ extract_uvar s1 in
+      let s2 = var_of_ident @@ extract_uvar s2 in
+      let r = var_of_ident @@ extract_uvar r in
       add_constraint_rule s1 s2 r;
       true
     else if is_uvar l && is_rule r then
       generate_constraints r l (* just a switch of arguments *)
     else if is_max l && is_uvar r then
       let s1,s2 = extract_max l in
-      let s1 = extract_uvar s1 in
-      let s2 = extract_uvar s2 in
-      let r = extract_uvar r in
+      let s1 = var_of_ident @@ extract_uvar s1 in
+      let s2 = var_of_ident @@ extract_uvar s2 in
+      let r = var_of_ident @@ extract_uvar r in
       add_constraint_max s1 s2 r;
       true
     else if is_uvar l && is_max r then
@@ -447,13 +455,52 @@ struct
   let export () =
     let uf = !uf in
     let find n = UF.find uf n in
+    let univ_var = List.map (fun (x,u) -> find x,u) (var_of_univ ()) in
     let normalize c =
       match c with
       | Univ(n,u) -> Univ(find n,u)
       | Eq(n,n') -> Eq(find n, find n')
-      | Max(n,n',n'') -> Max(find n, find n',find n'')
-      | Succ(n,n') -> Succ(find n, find n')
-      | Rule(n,n',n'') -> Rule(find n, find n', find n'')
+      | Max(n,n',n'') ->
+        let n = find n in
+        let n' = find n' in
+        let n'' = find n'' in
+        if n = n' then
+          begin
+            Log.append @@ Format.sprintf "Normalize Max.";
+            Eq(n, n'')
+          end
+        else
+          Max(find n, find n',find n'')
+      | Succ(n,n') -> (*
+        let n = find n in
+        let n' = find n' in
+        if List.mem_assoc n univ_var || List.mem_assoc n' univ_var then
+          failwith "yes"
+        else *)
+          Succ(find n, find n')
+      | Rule(n,n',n'') ->
+        let n = find n in
+        let n' = find n' in
+        let n'' = find n'' in
+        if n = n' then
+          begin
+            Log.append @@ Format.sprintf "Normalize Req type";
+            Eq(n,n'')
+          end
+        else
+        if List.mem_assoc n' univ_var then
+          match List.assoc n' univ_var with
+          | Prop -> Log.append @@ Format.sprintf "Normalize Rr Prop.";  Univ(n,Prop)
+          | Type(i) ->
+            if List.mem_assoc n univ_var then
+              match List.assoc n univ_var with
+              | Prop -> Log.append @@ Format.sprintf "Normalize Rl Prop"; Eq(n',n'')
+              | Type(j) -> Log.append @@ Format.sprintf "Normalize Rl Type";
+                Max(n, n', n'')
+            else
+              Rule(n, n', n'')
+        else
+          Rule(n, n', n'')
     in
     ConstraintsSet.map (fun c -> normalize c) !global_constraints
 

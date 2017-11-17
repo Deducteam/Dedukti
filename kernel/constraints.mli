@@ -87,7 +87,7 @@ sig
 
   val export : unit -> ConstraintsSet.t
 
-  val info : unit -> string
+  val info : ConstraintsSet.t -> string
 
   val string_of_var : var -> string
 end
