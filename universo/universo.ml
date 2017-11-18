@@ -2,12 +2,18 @@ open Basic
 open Pp
 open Rule
 
+let output_dir = ref "/tmp"
+
+let set_output_dir s = output_dir := s
+
 type entry =
-| Declaration of ident * Signature.staticity * Term.term
-| Definable of ident * Term.term
-| Definition of ident * Term.term option * Term.term
-| Opaque of ident * Term.term option * Term.term
-| RewriteRule of Rule.untyped_rule
+  | StartModule of mident
+  | EndModule
+  | Declaration of ident * Signature.staticity * Term.term
+  | Definable of ident * Term.term
+  | Definition of ident * Term.term option * Term.term
+  | Opaque of ident * Term.term option * Term.term
+  | RewriteRule of Rule.untyped_rule
 
 type ast = entry list
 
@@ -15,6 +21,8 @@ let entries : (entry list) ref  = ref []
 
 let reconstruction_of_entry env reconstruction entry =
   match entry with
+  | StartModule(mid) -> StartModule(mid)
+  | EndModule -> EndModule
   | Declaration(id, st, t) -> Declaration(id, st, reconstruction env t)
   | Definable(id, t) -> Definable(id, reconstruction env t)
   | Definition(id, None, te) -> Definition(id, None, reconstruction env te)
@@ -48,8 +56,9 @@ let sg = ref (Signature.make (mk_mident "noname"))
 
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_mident name;
-  Format.printf "#NAME %a.@.@." print_mident name;
+  (* Format.printf "#NAME %a.@.@." print_mident name; *)
   Env.init name;
+  entries := StartModule(name)::!entries;
   Confluence.initialize ()
 
 let mk_declaration lc id st pty : unit =
@@ -117,8 +126,46 @@ let mk_command c = failwith "not handle right now"
 
 let export = ref false
 
-let print_entry fmt entry = Pp.(
-  match entry with
+let mk_ending () =
+  (*
+  let env = solve() in
+  let entries' = List.rev_map (reconstruction_of_entry env) !entries in
+  *)
+  entries := EndModule::!entries;
+  ( if !export then
+      if not (Env.export ()) then
+	  Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );
+  Confluence.finalize ()
+
+end
+
+let file = ref None
+
+let open_module mid =
+  let name = Format.sprintf "%s/%s.dk" !output_dir (string_of_mident mid) in
+  file := Some (open_out name)
+
+let close_module mid =
+  match !file with
+  | None -> assert false
+  | Some f ->
+    close_out f;
+    file := None
+
+let find_fmt () =
+  match !file with
+  | None -> Format.std_formatter
+  | Some f ->
+    if  !output_dir = "/tmp" then
+        Format.std_formatter
+    else  Format.formatter_of_out_channel f
+
+let print_entry entry = Pp.(
+    let fmt = find_fmt () in
+    match entry with
+    | StartModule(mid) -> open_module mid;
+      let fmt=find_fmt () in Format.fprintf fmt "#NAME %a.@." print_mident mid
+    | EndModule -> close_module ()
     | Declaration (id, st, ty) ->
       begin
         match st with
@@ -134,15 +181,12 @@ let print_entry fmt entry = Pp.(
   | Opaque (id, ty_opt, te) -> failwith "not supported"
   | RewriteRule(rule) -> Format.fprintf fmt "@[%a. @]@." print_untyped_rule rule
 )
-let print_entries fmt entries = ignore(List.map (Format.fprintf fmt "%a@." print_entry) entries)
+let print_entries entries =
+  List.iter print_entry entries
 
-let mk_ending () =
+let solve () =
   let open Constraints in
-  (*
-  let env = solve() in
-  let entries' = List.rev_map (reconstruction_of_entry env) !entries in
-  *)
-  Log.append  (Format.asprintf "%a" print_entries (List.rev !entries));
+  (* Log.append  (Format.asprintf "%a" (print_entries false) (List.rev !entries)); *)
   (* Constraints.Constraints.info (); *)
   Log.append "Elaboration is over";
   let constraints = BasicConstraints.export () in
@@ -150,13 +194,7 @@ let mk_ending () =
   let model = Export.Z3.solve constraints in
   let entries =
     (List.rev_map (reconstruction_of_entry model Reconstruction.reconstruction) !entries) in
-  Format.printf "%a@." print_entries  entries;
-  ( if !export then
-      if not (Env.export ()) then
-	  Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );
-  Confluence.finalize ()
-
-end
+   print_entries entries;
 
 open Term
 
@@ -179,7 +217,8 @@ let args = [
   ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;
   ("-errors-in-snf", Arg.Set    Errors.errors_in_snf   , "Normalize the types in error messages");
   ("-nl", Arg.Set Rule.allow_non_linear, "Allow non left-linear rewrite rules");
-  ("-log", Arg.String Constraints.Log.set_log_file, "Put log informations in a file")]
+  ("-log", Arg.String Constraints.Log.set_log_file, "Put log informations in a file");
+  ("-output-dir", Arg.String set_output_dir, "Specify an outpu directory")]
 
 let run_on_file file =
   let input = open_in file in
@@ -193,6 +232,7 @@ let _ =
   try
     begin
       Arg.parse args run_on_file ("Usage: "^ Sys.argv.(0) ^" [options] files");
+      solve ();
       if !run_on_stdin then (
         parse (Lexing.from_channel stdin) ;
         Errors.success "Standard input was successfully checked.\n" )

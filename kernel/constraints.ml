@@ -417,7 +417,16 @@ struct
       true
     else if is_uvar l && is_max r then
       generate_constraints r l
-(*    else if is_lift l && is_succ r then
+    else if is_max l && is_type r then
+      let s1,s2 = extract_max l in
+      let s1 = var_of_ident @@ extract_uvar s1 in
+      let s2 = var_of_ident @@ extract_uvar s2 in
+      let s3 = find_univ (Type (extract_type r)) in
+      add_constraint_max s1 s2 s3;
+      true
+    else if is_type l && is_max r then
+      generate_constraints r l
+    else if is_lift l && is_succ r then
       failwith "BUG"
     else if is_succ l && is_lift r then
       failwith "BUG"
@@ -452,7 +461,7 @@ struct
     else if is_succ l && is_type r then
       failwith "BUG"
     else if is_type l && is_succ r then
-      failwith "BUG" *)
+      failwith "BUG"
     else
       false
 
@@ -484,7 +493,7 @@ struct
     let n = find n in
     let n' = find n' in
     if List.mem_assoc n uvar then
-      failwith "succ todo left"
+      (false,Some (Succ(n,n'))) (* TODO optimize that *)
     else if List.mem_assoc n' uvar then
       failwith "succ todo right"
     else
