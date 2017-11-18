@@ -132,14 +132,19 @@ struct
       ReverseCiC.Type(n-1)
 
   let var_solution model var =
-    let zvar = Hashtbl.find variables var in
-    match Model.get_const_interp_e model zvar with
-    | None -> failwith "no value associated to a variable"
-    | Some e ->
-      try
-        let s = Arithmetic.Integer.numeral_to_string e in
-        int_of_string s
-      with _ -> failwith "should be a numeral"
+    Log.append "before";
+    if Hashtbl.mem variables var then
+      let zvar = Hashtbl.find variables var in
+
+      match Model.get_const_interp_e model zvar with
+      | None -> failwith "no value associated to a variable"
+      | Some e ->
+        try
+          let s = Arithmetic.Integer.numeral_to_string e in
+          int_of_string s
+        with _ -> failwith "should be a numeral"
+    else
+      failwith (Format.sprintf "Variable %s not found" var)
 
   let solve constraints =
     let open Symbol in
@@ -167,6 +172,7 @@ struct
       | None -> assert false
       | Some model -> (* Format.printf "%s@." (Model.to_string model); *)
         fun uvar ->
+          Log.append (Format.sprintf "model var: %s@." (Obj.magic uvar));
           let var' = uvar
                      |> Mapping.to_index
                      |> BasicConstraints.var_of_index

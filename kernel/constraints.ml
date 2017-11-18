@@ -216,6 +216,7 @@ sig
 
   type constraints =
     | Univ of var * ReverseCiC.univ
+    (*    | Neq of var * var *)
     | Eq of var * var
     | Max of var * var * var
     | Succ of var * var
@@ -247,6 +248,7 @@ struct
 
   type constraints =
     | Univ of index * univ
+    (*    | Neq of index * index *)
     | Eq of index * index
     | Max of index * index * index
     | Succ of index * index
@@ -334,11 +336,12 @@ struct
 
   let info constraints =
     let open ReverseCiC in
-    let prop,ty,eq,succ,max,rule = ref 0, ref 0, ref 0, ref 0, ref 0, ref 0 in
+    let prop,ty,neq,eq,succ,max,rule = ref 0, ref 0, ref 0, ref 0, ref 0, ref 0, ref 0 in
     CS.iter (fun x ->
         match x with
         | Univ(_,Prop) -> incr prop
         | Univ (_, Type _) -> incr ty
+        (*        | Neq _ -> incr neq *)
         | Eq _ -> incr eq
         | Succ _ -> incr succ
         | Max _ -> incr max
@@ -352,11 +355,12 @@ struct
       Hashtbl.iter (fun k v -> Format.fprintf fmt "%a" hash_to_string (k,v)) Mapping.memory.to_index;
       Format.fprintf fmt "Number of variables  : %d@." (Variables.cardinal !global_variables);
       Format.fprintf fmt "Number of constraints:@.";
-      Format.fprintf fmt "@[prop  :%d@]@." !prop;
+      Format.fprintf fmt "@[prop:%d@]@." !prop;
       Format.fprintf fmt "@[ty  :%d@]@." !ty;
+      (*    Format.fprintf fmt "@[neq :%d@]@." !neq; *)
       Format.fprintf fmt "@[eq  :%d@]@." !eq;
       Format.fprintf fmt "@[succ:%d@]@." !succ;
-      Format.fprintf fmt "@[max  :%d@]@." !max;
+      Format.fprintf fmt "@[max :%d@]@." !max;
       Format.fprintf fmt "@[rule:%d@]@." !rule
     in
     Format.asprintf "%a" print ()
@@ -452,57 +456,84 @@ struct
     else
       false
 
+  let normalize_univ uvar n u =
+    let find n = UF.find !uf n in
+    (false,Some (Univ(find n, u)))
+(*
+  let normalize_neq uvar n n' =
+    let find n = UF.find !uf n in
+    (false, Some (Neq(find n, find n')))
+*)
+  let normalize_eq uvar n n' =
+    let find n = UF.find !uf n in
+    uf := UF.union !uf (find n) (find n');
+    (true, None)
+
+  let rec normalize_max uvar n n' n'' =
+    let find n = UF.find !uf n in
+    let n = find n in
+    let n' = find n' in
+    let n'' = find n'' in
+    if n = n' then
+      (true, Some (Eq(n,n'')))
+    else
+      (false, Some (Max(n, n', n'')))
+
+  let normalize_succ uvar n n' =
+    let find n = UF.find !uf n in
+    let n = find n in
+    let n' = find n' in
+    if List.mem_assoc n uvar then
+      failwith "succ todo left"
+    else if List.mem_assoc n' uvar then
+      failwith "succ todo right"
+    else
+      (false,Some (Succ(n,n')))
+
+  let normalize_rule uvar n n' n'' : bool * constraints option =
+    let find n = UF.find !uf n in
+    let n = find n in
+    let n' = find n' in
+    let n'' = find n'' in
+    if n = n' then
+      (true, Some (Eq(n,n'')))
+    else if List.mem_assoc n' uvar then
+      match List.assoc n' uvar with
+      | Prop -> (Log.append @@ Format.sprintf "Normalize Rr Prop.";  (true,Some (Univ(n,Prop))))
+      | Type(i) ->
+        if List.mem_assoc n uvar then
+          match List.assoc n uvar with
+          | Prop -> Log.append @@ Format.sprintf "Normalize Rl Prop"; (true,Some (Eq(n',n'')))
+          | Type(j) -> Log.append @@ Format.sprintf "Normalize Rl Type";
+            (false, Some (Max(n, n', n'')))
+        else
+          (false, Some (Rule(n, n', n'')))
+    else
+      (false, Some (Rule(n, n', n'')))
+
+  let rec normalize uvar cset =
+    let add_opt c set =
+      match c with
+      | None -> set
+      | Some c -> ConstraintsSet.add c set
+    in
+    let fold cstr (b,set) =
+      match cstr with
+      | Univ(n,u) -> let b', c = normalize_univ uvar n u in b || b', add_opt c set
+      (*      | Neq(n,n') -> let b', c = normalize_neq uvar n n' in b || b', add_opt c set *)
+      | Eq(n,n')  -> let b', c = normalize_eq uvar n n' in b || b', add_opt c set
+      | Max(n,n',n'') -> let b', c = normalize_max uvar n n' n'' in b || b', add_opt c set
+      | Succ(n,n') -> let b', c = normalize_succ uvar n n' in b || b', add_opt c set
+      | Rule(n,n',n'') -> let b', c = normalize_rule uvar n n' n'' in b || b', add_opt c set
+    in
+    let (b,set) = ConstraintsSet.fold fold cset (false,ConstraintsSet.empty) in
+    if b then normalize uvar set else set
+
   let export () =
     let uf = !uf in
     let find n = UF.find uf n in
-    let univ_var = List.map (fun (x,u) -> find x,u) (var_of_univ ()) in
-    let normalize c =
-      match c with
-      | Univ(n,u) -> Univ(find n,u)
-      | Eq(n,n') -> Eq(find n, find n')
-      | Max(n,n',n'') ->
-        let n = find n in
-        let n' = find n' in
-        let n'' = find n'' in
-        if n = n' then
-          begin
-            Log.append @@ Format.sprintf "Normalize Max.";
-            Eq(n, n'')
-          end
-        else
-          Max(find n, find n',find n'')
-      | Succ(n,n') -> (*
-        let n = find n in
-        let n' = find n' in
-        if List.mem_assoc n univ_var || List.mem_assoc n' univ_var then
-          failwith "yes"
-        else *)
-          Succ(find n, find n')
-      | Rule(n,n',n'') ->
-        let n = find n in
-        let n' = find n' in
-        let n'' = find n'' in
-        if n = n' then
-          begin
-            Log.append @@ Format.sprintf "Normalize Req type";
-            Eq(n,n'')
-          end
-        else
-        if List.mem_assoc n' univ_var then
-          match List.assoc n' univ_var with
-          | Prop -> Log.append @@ Format.sprintf "Normalize Rr Prop.";  Univ(n,Prop)
-          | Type(i) ->
-            if List.mem_assoc n univ_var then
-              match List.assoc n univ_var with
-              | Prop -> Log.append @@ Format.sprintf "Normalize Rl Prop"; Eq(n',n'')
-              | Type(j) -> Log.append @@ Format.sprintf "Normalize Rl Type";
-                Max(n, n', n'')
-            else
-              Rule(n, n', n'')
-        else
-          Rule(n, n', n'')
-    in
-    ConstraintsSet.map (fun c -> normalize c) !global_constraints
+    let uvar = List.map (fun (x,u) -> find x,u) (var_of_univ ()) in
+    normalize uvar !global_constraints
 
   let string_of_var n = string_of_int n
 
