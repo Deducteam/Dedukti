@@ -186,9 +186,9 @@ let print_entries entries =
 
 let solve () =
   let open Constraints in
-   print_entries (List.rev !entries);
+  print_entries (List.rev !entries);
   (* Log.append  (Format.asprintf "%a" (print_entries false) (List.rev !entries)); *)
-  (* Constraints.Constraints.info (); *)
+   (* Constraints.Constraints.info (); *)
   Log.append "Elaboration is over";
   let constraints = BasicConstraints.export () in
   Log.append (BasicConstraints.info constraints);

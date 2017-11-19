@@ -262,7 +262,7 @@ struct
 
   module UF = Unionfind
 
-  let uf = ref (UF.create 10000)
+  let uf = ref (UF.create 100000)
 
   let var_of_index i = UF.find !uf i
 
@@ -303,9 +303,9 @@ struct
       uf := UF.union !uf n (find_univ Prop)
 
   let add_constraint_type =
-    fun v i ->
-    add_variables [v];
-    uf := UF.union !uf v (find_univ i)
+    fun v u ->
+      add_variables [v];
+    uf := UF.union !uf v (find_univ u)
 
   let add_constraint_eq v v' =
     add_variables [v;v'];
@@ -369,8 +369,8 @@ struct
 
   let rec generate_constraints (l:Term.term) (r:Term.term) =
     let open ReverseCiC in
-(*    Log.append (Format.asprintf "debugl: %a@." Term.pp_term l);
-      Log.append (Format.asprintf "debugr: %a@." Term.pp_term r); *)
+    Log.append (Format.asprintf "debugl: %a@." Term.pp_term l);
+    Log.append (Format.asprintf "debugr: %a@." Term.pp_term r);
     if is_uvar l && is_prop r then
       let l = extract_uvar l in
       add_constraint_prop l;
@@ -426,42 +426,50 @@ struct
       true
     else if is_type l && is_max r then
       generate_constraints r l
-    else if is_lift l && is_succ r then
-      failwith "BUG"
-    else if is_succ l && is_lift r then
-      failwith "BUG"
-    else if is_lift l && is_prop r then
-      failwith "BUG"
-    else if is_prop l && is_lift r then
-      failwith "BUG"
-    else if is_lift l && is_uvar r then
-      failwith "BUG"
-    else if is_uvar l && is_lift r then
-      failwith "BUG"
-    else if is_succ l && is_prop r then
-      failwith "BUG"
-    else if is_prop l && is_succ r then
-      failwith "BUG"
-    else if is_prop l && is_rule r then
-      failwith "BUG"
-    else if is_rule l && is_prop r then
-      failwith "BUG"
-    else if is_succ l && is_type r then
-      failwith "BUG"
-    else if is_type l && is_succ r then
-      failwith "BUG"
-    else if is_type l && is_rule r then
-      failwith "BUG"
     else if is_rule l && is_type r then
-      failwith "BUG"
-    else if is_succ l && is_rule r then
-      failwith "BUG"
-    else if is_rule l && is_succ r then
-      failwith "BUG"
+      failwith "BUG13"
+(*
+      let s1,s2 = extract_rule l in
+      let s1 = var_of_ident @@ extract_uvar s1 in
+      let s2 = var_of_ident @@ extract_uvar s2 in
+      let s3 = find_univ (Type (extract_type r)) in
+      add_constraint_rule s1 s2 s3;
+      true *)
+    else if is_type l && is_rule r then
+      failwith "BUG14"
+      (*      generate_constraints r l *)
+    else if is_lift l && is_succ r then
+      failwith "BUG1"
+    else if is_succ l && is_lift r then
+      failwith "BUG2"
+    else if is_lift l && is_prop r then
+      failwith "BUG3"
+    else if is_prop l && is_lift r then
+      failwith "BUG4"
+    else if is_lift l && is_uvar r then
+      failwith "BUG5"
+    else if is_uvar l && is_lift r then
+      failwith "BUG6"
+    else if is_succ l && is_prop r then
+      failwith "BUG7"
+    else if is_prop l && is_succ r then
+      failwith "BUG8"
+    else if is_prop l && is_rule r then
+      failwith "BUG9"
+    else if is_rule l && is_prop r then
+      failwith "BUG10"
     else if is_succ l && is_type r then
-      failwith "BUG"
+      failwith "BUG11"
     else if is_type l && is_succ r then
-      failwith "BUG"
+      failwith "BUG12"
+    else if is_succ l && is_rule r then
+      failwith "BUG15"
+    else if is_rule l && is_succ r then
+      failwith "BUG16"
+    else if is_succ l && is_type r then
+      failwith "BUG17"
+    else if is_type l && is_succ r then
+      failwith "BUG18"
     else
       false
 
@@ -537,12 +545,22 @@ struct
     in
     let (b,set) = ConstraintsSet.fold fold cset (false,ConstraintsSet.empty) in
     if b then normalize uvar set else set
-
+(*
+  let normalize' c =
+    let find n = UF.find !uf n in
+    match c with
+    | Univ(n,u) -> Univ(find n,u)
+    | Eq(n,n') -> Eq(find n, find n')
+    | Max(n,n',n'') -> Max(find n, find n', find n'')
+    | Succ(n,n') -> Succ(find n, find n')
+    | Rule(n,n',n'') -> Rule(find n, find n', find n'')
+                        *)
   let export () =
     let uf = !uf in
     let find n = UF.find uf n in
     let uvar = List.map (fun (x,u) -> find x,u) (var_of_univ ()) in
     normalize uvar !global_constraints
+
 
   let string_of_var n = string_of_int n
 
