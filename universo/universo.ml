@@ -186,6 +186,7 @@ let print_entries entries =
 
 let solve () =
   let open Constraints in
+   print_entries (List.rev !entries);
   (* Log.append  (Format.asprintf "%a" (print_entries false) (List.rev !entries)); *)
   (* Constraints.Constraints.info (); *)
   Log.append "Elaboration is over";
@@ -194,7 +195,7 @@ let solve () =
   let model = Export.Z3.solve constraints in
   let entries =
     (List.rev_map (reconstruction_of_entry model Reconstruction.reconstruction) !entries) in
-   print_entries entries;
+    print_entries entries
 
 open Term
 

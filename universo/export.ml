@@ -24,7 +24,7 @@ struct
 
   let ctx = mk_context (string_of_cfg cfg)
 
-  let solver = Optimize.mk_opt ctx
+  let solver = Solver.mk_simple_solver ctx
 
   let variables = Hashtbl.create 100
 
@@ -35,14 +35,20 @@ struct
   let add_obj_var () =
     let zero = Arithmetic.Integer.mk_numeral_i ctx 0 in
     let obj_fun = Hashtbl.fold (fun _ v r -> add_obj_var r v) variables zero in
-    Optimize.minimize solver obj_fun
+    assert false
+    (*    Solver.minimize solver obj_fun *)
+
+  let add_obj_sup i =
+    let i = Arithmetic.Integer.mk_numeral_i ctx i in
+    Hashtbl.iter (fun _ v ->
+        let le = Arithmetic.mk_le ctx v i in Solver.add solver [le]) variables
 
   let register_variable var =
     let zvar = Arithmetic.Integer.mk_const_s ctx var in
     Hashtbl.add variables var zvar;
     let zero = Arithmetic.Integer.mk_numeral_i ctx 0 in
     let le = Arithmetic.mk_le ctx zero zvar in
-    Optimize.add solver [le];
+    Solver.add solver [le];
     zvar
 
   let get_variable var =
@@ -61,13 +67,13 @@ struct
         Arithmetic.Integer.mk_numeral_i ctx (i+1)
     in
     let eq = Boolean.mk_eq ctx zvar level in
-    Optimize.add solver [eq]
+    Solver.add solver [eq]
 
   let add_constraint_eq var var' =
     let zvar = get_variable var in
     let zvar' = get_variable var' in
     let eq = Boolean.mk_eq ctx zvar zvar' in
-    Optimize.add solver [eq]
+    Solver.add solver [eq]
 
   let add_constraint_succ var var' =
     let zvar = get_variable var in
@@ -75,7 +81,7 @@ struct
     let one = Arithmetic.Integer.mk_numeral_i ctx 1 in
     let plus = Arithmetic.mk_add ctx [zvar;one] in
     let eq = Boolean.mk_eq ctx plus zvar' in
-    Optimize.add solver [eq]
+    Solver.add solver [eq]
 
 
   let z3_max x y =
@@ -88,7 +94,7 @@ struct
     let zvar'' = get_variable var'' in
     let max = z3_max zvar zvar' in
     let eq = Boolean.mk_eq ctx max zvar'' in
-    Optimize.add solver [eq]
+    Solver.add solver [eq]
 
   let add_constraint_lift var var' var'' var''' =
     let zvar = get_variable var in
@@ -98,7 +104,7 @@ struct
     let maxl = Arithmetic.mk_le ctx zvar zvar' in
     let maxr = Arithmetic.mk_le ctx zvar'' zvar''' in
     let eq = Boolean.mk_eq ctx maxl maxr in
-    Optimize.add solver [eq]
+    Solver.add solver [eq]
 
   let add_constraint_rule var var' var'' =
     let x = get_variable var in
@@ -110,7 +116,7 @@ struct
     let zeqmax = Boolean.mk_eq ctx z maxxy in
     let yeq0 = Boolean.mk_eq ctx y zero in
     let ite = Boolean.mk_ite ctx yeq0 zeq0 zeqmax in
-    Optimize.add solver [ite]
+    Solver.add solver [ite]
 
   let add_constraint c =
     let open BasicConstraints in
@@ -146,18 +152,23 @@ struct
     else
       failwith (Format.sprintf "Variable %s not found" var)
 
-  let solve constraints =
+
+  let rec check constraints i =
     let open Symbol in
     let open Expr in
     let open Arithmetic in
     Log.append "Generate a Z3 problem...";
+    Solver.reset solver;
+    Hashtbl.clear variables;
     import constraints;
-    Log.append (Optimize.to_string solver);
+    Log.append (Solver.to_string solver);
     Log.append "Try to solve the problem...";
-    ignore(add_obj_var ());
-    match Optimize.check solver with
+    add_obj_sup i;
+    (*    ignore(add_obj_var ()); *)
+    match Solver.check solver [] with
     | Solver.UNSATISFIABLE ->
-      failwith "unsatisfiable"
+      Format.printf "fail: %d@." i;
+      check constraints (i+1)
           (*
           begin
             match Solver.get_proof solver with
@@ -165,10 +176,10 @@ struct
             | Some x -> Format.printf "proof@.%s@." (Expr.to_string x)
           end
 *)
-    | Solver.UNKNOWN -> failwith "unknown"
+    | Solver.UNKNOWN -> failwith (Format.sprintf "%s" (Solver.get_reason_unknown solver))
     | Solver.SATISFIABLE ->
       Log.append "Problem solved!";
-      match Optimize.get_model solver with
+      match Solver.get_model solver with
       | None -> assert false
       | Some model -> (* Format.printf "%s@." (Model.to_string model); *)
         fun uvar ->
@@ -178,4 +189,6 @@ struct
                      |> BasicConstraints.var_of_index
                      |> BasicConstraints.string_of_var in
           (var_solution model var') |> univ_of_int |> ReverseCiC.term_of_univ
+
+  let solve constraints = check constraints 2
 end
