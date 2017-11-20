@@ -12,7 +12,7 @@ module T = struct
       | Signature.Static                 -> ""
       | Signature.Definable Term.Free    -> "def "
       | Signature.Definable Term.AC      -> "defac "
-      | Signature.Definable (Term.ACU n) -> "defacu "
+      | Signature.Definable (Term.ACU _) -> "defacu "
     in
     Format.printf "@[<2>%s%a :@ %a.@]@.@." st_str print_ident i print_term ty
 

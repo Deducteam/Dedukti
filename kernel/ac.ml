@@ -41,8 +41,6 @@ let flatten_AC_terms name =
 
 let flatten_AC_term name t = flatten_AC_terms name [t]
 
-let flatten_term (name,alg) t = if is_AC alg then flatten_AC_term name t else [t]
-
 let rec unflatten_AC (name,alg) = function
   | [] -> ( match alg with ACU neu -> neu | _ -> assert false )
   | [t] -> t

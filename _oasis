@@ -38,7 +38,7 @@ Library "kernel"
                          Dtree,
                          Subst,
                          Matching,
-						 Ac
+                         Ac
         FindlibParent: dedukti
         CompiledObject: best
 

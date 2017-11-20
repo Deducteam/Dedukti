@@ -35,23 +35,21 @@ type untyped_rule = untyped_context rule
 
 type typed_rule = typed_context rule
 
-(* TODO : We don't need a constructor *)
-type constr = Bracket of int * term
+type constr = int * term
 
-let pp_constr fmt = function Bracket   (i,t) -> fprintf fmt "%i =b %a" i pp_term t
+let pp_constr fmt (i,t) = fprintf fmt "%i =b %a" i pp_term t
 
-type rule_infos =
-  {
-    l      : loc;
-    name   : rule_name ;
-    ctx    : typed_context;
-    cst    : name;
-    args   : pattern list;
-    rhs    : term;
-    esize  : int;
-    l_args : wf_pattern array;
-    constraints : constr list;
-  }
+type rule_infos = {
+  l      : loc;
+  name   : rule_name ;
+  ctx    : typed_context;
+  cst    : name;
+  args   : pattern list;
+  rhs    : term;
+  esize  : int;
+  l_args : wf_pattern array;
+  constraints : constr list;
+}
 
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
@@ -175,8 +173,9 @@ type lin_infos = { cstr:constr list; next_fvar:int ; seen:IntSet.t }
 
 let allow_non_linear = ref false
 
-(* This function checks that the pattern is a Miller pattern and extracts non-linearity and bracket constraints from a list of patterns. *)
 (* TODO : cut this function in smaller ones *)
+(** This function checks that the pattern is a Miller pattern and extracts
+ * bracket constraints from a list of patterns. *)
 let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * constr list * bool =
   let br = mk_ident "{_}" in  (* FIXME : can be replaced by dmark? *)
   let linear = ref true in
@@ -217,7 +216,7 @@ let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * con
           let wf_pat = LVar(br,fvar+k,[]) in
           let constraints = {s with
                              next_fvar=(s.next_fvar+1);
-                             cstr=(Bracket (fvar, Subst.unshift k t))::(s.cstr)} in
+                             cstr=(fvar, Subst.unshift k t)::(s.cstr)} in
           (wf_pat, constraints)
         with
         | Subst.UnshiftExn -> raise (RuleExn (VariableBoundOutsideTheGuard t))
@@ -278,8 +277,8 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
       let _ = check_nb_args nb_args r.rhs in
       let (esize2,pats2,cstr,is_linear) = check_patterns esize args in
       let is_nl = not is_linear in
-      if is_nl && (not !allow_non_linear) then
-        Err (NonLinearRule r)
+      if is_nl && (not !allow_non_linear)
+      then Err (NonLinearRule r)
       else
         let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in
         OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;

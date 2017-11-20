@@ -37,9 +37,9 @@ type 'a matching_problem =
     miller   : int array                (** Variables Miller arity. *)
   }
 
+(** Translate matching problems from one type to the other using conversion functions. *)
 val convert_problems : ('a -> 'b) -> ('a list -> 'b list) ->
                        'a matching_problem -> 'b matching_problem
-
 
 (** solve [n] [k_lst] [te] solves the higher-order unification problems
     (unification modulo beta)
@@ -59,7 +59,7 @@ val solve : int -> int LList.t -> term -> term
 
 
 (** solve_problem [reduce] [conv] [pb] solves the given matching problem
- * on depthed terms using:
+ * on lazy terms using:
  * - the [reduce] reduction strategy when necessary
  * - the [conv] convertability test
  *)
@@ -67,7 +67,8 @@ val solve_problem : (term -> term) ->
                     (term -> term -> bool) ->
                     term Lazy.t matching_problem -> term Lazy.t option array option
 
-val pp_matching_problem : string -> (Format.formatter -> 'a -> unit) ->
-                          Format.formatter -> 'a matching_problem -> unit
+(** Generic matching problem printing function (for debug). *)
+val pp_matching_problem : string -> 'a printer -> 'a matching_problem printer
 
-val pp_int_matching_problem : string -> Format.formatter -> int matching_problem -> unit
+(** int matching problem printing function (for dtree). *)
+val pp_int_matching_problem : string -> int matching_problem printer

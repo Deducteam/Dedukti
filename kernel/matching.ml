@@ -90,7 +90,9 @@ let convert_problems f g pb =
     miller   = Array.copy pb.miller
   }
 
-
+(** Solve the following problem for lambda term X:
+ *    (lambda^[depth]. X) [args] = [t] where [args] are distincts bound variables
+ * Raises NotUnifiable if [t] contains variables not in [args]. *)
 let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
   let size = LList.len args in
   let arr = Array.make depth None in
@@ -109,19 +111,18 @@ let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
 
 let solve d args t =
   if LList.is_empty args
-  then try Subst.unshift d t
-       with Subst.UnshiftExn -> raise NotUnifiable
+  then try Subst.unshift d t with Subst.UnshiftExn -> raise NotUnifiable
   else solve_miller d args t
 
-let force_solve reduce d ( (i,args), t) =
-  if LList.is_empty args && d == 0 then t
+let force_solve reduce d i args t =
+  if d == 0 then (assert(LList.is_empty args); t)
   else
     let te = Lazy.force t in
     Lazy.from_val( try solve d args te
                    with NotUnifiable -> solve d args (reduce te) )
 
-let try_force_solve reduce d p =
-  try Some (force_solve reduce d p)
+let try_force_solve reduce d i args t =
+  try Some (force_solve reduce d i args t)
   with NotUnifiable -> None
 
 let rec add_n_lambdas n t =
@@ -336,7 +337,7 @@ let solve_problem reduce convertible pb =
   let rec solve_next pb =
     let try_solve_next pb = bind_opt solve_next pb in
     match fetch_next_problem pb with
-    | None -> Some pb (* If no problem left then return (success !) *)
+    | None -> get_subst pb (* If no problem left, compute substitution and return (success !) *)
     | Some ((d, p), other_problems, (i,args)) -> (* Else explore the problem fetched... *)
        match p with
        | Eq((j,_), term) -> (* If it's an easy equational problem*)
@@ -345,7 +346,7 @@ let solve_problem reduce convertible pb =
             assert (pb.status.(i) == Unsolved);
             let npb = bind_opt
                         (set_unsolved convertible {pb with problems=other_problems} i)
-                        (try_force_solve reduce d ((i,args), term)) in
+                        (try_force_solve reduce d i args term) in
             (* Update the rest of the problems with the solved variable and keep solving *)
             try_solve_next npb
           end
@@ -359,7 +360,7 @@ let solve_problem reduce convertible pb =
              let rec try_add_terms = function
                | [] -> try_solve_next (close_partly convertible pb d i)
                | t :: tl ->
-                  let sol = try_force_solve reduce d ((i,args), t) in
+                  let sol = try_force_solve reduce d i args t in
                   let npb = bind_opt (add_partly convertible pb i) sol in
                   match try_solve_next npb with
                   | None -> try_add_terms tl
@@ -380,7 +381,7 @@ let solve_problem reduce convertible pb =
                   in
                   try_symbols symbols
                | t :: tl ->
-                  let sol = try_force_solve reduce d ((i,args), t) in
+                  let sol = try_force_solve reduce d i args t in
                   let npb = bind_opt (set_unsolved convertible pb i) sol in
                   match try_solve_next npb with
                   | None -> try_eq_terms tl
@@ -388,5 +389,4 @@ let solve_problem reduce convertible pb =
              try_eq_terms terms
           | Solved _ -> assert false
   in
-  bind_opt get_subst
-           (solve_next { pb with problems = first_rearrange pb.problems })
+  solve_next { pb with problems = first_rearrange pb.problems }

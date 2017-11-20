@@ -6,8 +6,6 @@
 (** type of identifiers (hash-consing) *)
 type ident
 
-(** pp_ident [fmt] [id] print the identifier [id] on the formatter [fmt] *)
-val pp_ident : Format.formatter -> ident -> unit
 
 (** mkd_ident [str] casts a string [str] to an identifier *)
 val mk_ident : string -> ident
@@ -20,9 +18,6 @@ val string_of_ident : ident -> string
 
 (** type of module identifers *)
 type mident
-
-(** pp_ident [fmt] [id] print the identifier [id] on the formatter [fmt] *)
-val pp_mident : Format.formatter -> mident -> unit
 
 (** mk_ident [str] casts a string [str] to an module identifier *)
 val mk_mident : string -> mident
@@ -48,8 +43,6 @@ val mk_name : mident -> ident -> name
 (** name_eq [n] [n'] checks if the two names [n] and [n'] are equals *)
 val name_eq : name -> name -> bool
 
-(** pp_name [fmt] [n] print the name [n] on the formatter [fmt] *)
-val pp_name : Format.formatter -> name -> unit
 
 (** qmark is a special identifier for unification variables *)
 val qmark : ident
@@ -129,11 +122,19 @@ val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
 val array_for_all : ('a -> bool) -> 'a array -> bool
 
-type 'a printer = Format.formatter -> 'a -> unit
-
 val string_of : (Format.formatter -> 'a -> unit) -> 'a -> string
 
-(** pp_list [sep] [fp] [l] print a list [\[l1 ; ... ln\]] by applying [fp] on each element and use se separator [sep] between elements *)
+(** Functions printing objects on the given formatter. *)
+type 'a printer = Format.formatter -> 'a -> unit
+
+(** Printing identifiers and names *)
+val pp_ident  : ident  printer
+val pp_mident : mident printer
+val pp_name   : name   printer
+
+(** Printing each elements of arrays / lists using the separator [sep] between elements. *)
 val pp_list   : string -> 'a printer -> 'a list printer
 val pp_arr    : string -> 'a printer -> 'a array printer
+
+(** Printing object with printer or default string when None. *)
 val pp_option : string -> 'a printer -> 'a option printer

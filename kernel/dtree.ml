@@ -5,7 +5,7 @@ open Format
 open Matching
 
 type dtree_error =
-  | HeadSymbolMismatch of loc * name * name
+  | HeadSymbolMismatch  of loc * name * name
   | ArityDBMismatch     of loc * name * int
   | AritySymbolMismatch of loc * name * name
 
@@ -123,6 +123,7 @@ let pp_AC_args fmt i =
   fprintf fmt (if i > 2 then "%i args, first 2 AC flattened" else "%i args") i
 
 let rec pp_dtree t fmt dtree =
+  (* FIXME: Use format boxex here instead of manual tabs. *)
   let tab = String.init (1 + t*4) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
   | Test (mp,[],te,def) when List.length mp.problems == 0 -> fprintf fmt "%s%a" tab pp_term te

@@ -36,8 +36,8 @@ type dtree =
     * Checks that each problem can be solved such that constraints are satisfied.
     * If it does then return a local context for the term [te]. *)
 
-val pp_dtree : Format.formatter -> dtree -> unit
-val pp_case : Format.formatter -> case -> unit
+val pp_dtree : dtree printer
+val pp_case  : case  printer
 
 (** {2 Error} *)
 

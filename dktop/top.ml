@@ -70,8 +70,7 @@ let mk_command lc = function
     ( match Env.get_dtree lc cst with
       | OK (Some tr) -> Format.printf "GDT for %a: %a" pp_name cst Dtree.pp_dtree tr
       | OK None      -> Format.printf "No GDT.@."
-      | Err e        -> Errors.fail_signature_error e
-    )
+      | Err e        -> Errors.fail_signature_error e )
   | Print str         -> Format.printf "%s@." str
   | Require m         ->
     ( match Env.import lc m with

@@ -103,10 +103,10 @@ line            : ID COLON term DOT
                 { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] (mk_pi $4 $2)) }
                 | KW_DEF ID COLON term DOT
                 { mk_declaration (fst $2) (snd $2)
-				  				 (Signature.Definable Term.Free) (scope_term [] $4) }
+                                 (Signature.Definable Term.Free) (scope_term [] $4) }
                 | KW_DEFAC ID LEFTSQU term RIGHTSQU DOT
                 { mk_declaration (fst $2) (snd $2)
-				  				 (Signature.Definable Term.AC) (scope_term [] $4) }
+                                 (Signature.Definable Term.AC) (scope_term [] $4) }
                 | KW_DEFACU ID LEFTSQU term COMMA term RIGHTSQU DOT
                 { mk_declaration (fst $2) (snd $2)
                                  (Signature.Definable (Term.ACU (scope_term [] $6)))
@@ -140,9 +140,9 @@ command         : WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }
                 | INFER    term { mk_command $1 (Infer    (scope_term [] $2)) }
                 | INFERSNF term { mk_command $1 (InferSnf (scope_term [] $2)) }
                 | CONV  term  COMMA term
-				{ mk_command $1 (Conv  (scope_term [] $2,scope_term [] $4)) }
+                { mk_command $1 (Conv  (scope_term [] $2,scope_term [] $4)) }
                 | CHECK term  COMMA term
-				{ mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
+                { mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
                 | PRINT STRING  { mk_command $1 (Print $2) }
                 | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }
@@ -156,11 +156,15 @@ term_lst        : term                                  { [$1] }
 param           : LEFTPAR ID COLON term RIGHTPAR        { (fst $2,snd $2,$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,md_opt,id,args) = $4 in ( l , None, $2 , md_opt, id , args , $6) }
-		| LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-		{ let (l,md_opt,id,args) = $7 in ( l , Some (None,snd $2), $5 , md_opt, id , args , $9)}
-		| LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-		{ let (l,md_opt,id,args) = $7 in let (_,m,v) = $2 in ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
+                { let (l,md_opt,id,args) = $4 in
+                    ( l , None, $2 , md_opt, id , args , $6) }
+                | LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+                { let (l,md_opt,id,args) = $7 in
+                    ( l , Some (None,snd $2), $5 , md_opt, id , args , $9)}
+                | LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+                { let (l,md_opt,id,args) = $7 in
+                  let (_,m,v) = $2 in
+                    ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 
 decl            : ID COLON term         { debug 1 "Ignoring type declaration in rule context."; $1 }

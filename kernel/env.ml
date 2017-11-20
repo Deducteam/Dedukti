@@ -37,7 +37,7 @@ let _declare (l:loc) (id:ident) st ty : unit =
   Signature.add_declaration !sg l id st
     (
       match sort, st with
-      | Kind  , Definable AC        -> raise (TypingError (SortExpected (ty,[],sort) ))
+      | Kind  , Definable AC
       | Kind  , Definable (ACU _)   -> raise (TypingError (SortExpected (ty,[],sort) ))
       | Type _, Definable AC        -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
       | Type _, Definable (ACU neu) -> ignore(check !sg [] neu ty);

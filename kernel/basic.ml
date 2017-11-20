@@ -1,8 +1,5 @@
 (** Basic Datatypes *)
 
-
-type 'a printer = Format.formatter -> 'a -> unit
-
 (** {2 Identifiers (hashconsed strings)} *)
 
 (* TODO: rename sident *)
@@ -10,16 +7,12 @@ type ident = string
 
 let string_of_ident s = s
 
-let pp_ident fmt id = Format.fprintf fmt "%s" id
-
 let ident_eq s1 s2 = s1==s2 || s1=s2
 
 
 type mident = string
 
 let string_of_mident s = s
-
-let pp_mident fmt md = Format.fprintf fmt "%s" md
 
 let mident_eq = ident_eq
 
@@ -29,13 +22,10 @@ type name = mident * ident
 
 let mk_name md id = (md,id)
 
-let md = fst
-let id = snd
-
-let pp_name fmt (md,id) = Format.fprintf fmt "%s.%s" md id
-
 let name_eq (m,s) (m',s') = mident_eq m m' && ident_eq s s'
 
+let md = fst
+let id = snd
 
 
 
@@ -129,15 +119,18 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
   in
     aux lst
 
+(** {2 Debugging} *)
+
 let debug_mode = ref 0
 
 let set_debug_mode i = debug_mode := i
 
 let debug i fmt =
-  Format.(if !debug_mode >= i then
-            kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
-          else ifprintf err_formatter fmt
-  )
+  Format.(if !debug_mode >= i
+          then kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
+          else ifprintf err_formatter fmt )
+
+(** {2 Misc functions} *)
 
 let bind_opt f = function
   | None -> None
@@ -158,10 +151,17 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
+(** {2 Printing functions} *)
+
+type 'a printer = Format.formatter -> 'a -> unit
+
+let pp_ident  fmt id = Format.fprintf fmt "%s" id
+let pp_mident fmt md = Format.fprintf fmt "%s" md
+let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
+
 let string_of fp = Format.asprintf "%a" fp
 
-let format_of_sep str fmt () : unit =
-  Format.fprintf fmt "%s" str
+let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 
 let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l
 let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)

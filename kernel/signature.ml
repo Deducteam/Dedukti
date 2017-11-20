@@ -141,7 +141,6 @@ let comm_rule (name:name) (ty:term) =
                  [mk_DB dloc (mk_ident "x") 0]
     }
 
-(* FIXME *)
 let asso_rule (name:name) (ty:term) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("asso_" ^ (string_of_ident (id name)))));
@@ -166,7 +165,7 @@ let neu1_rule (name:name) (ty:term) (neu:term) =
       ctx=[(dloc, (mk_ident "x"), ty)];
       pat=Pattern (dloc, name,
                    [ Var (dloc,mk_ident "x",0,[]);
-(* FIXME: Translate term neu to pattern here  *) ]);
+                     (* FIXME: Translate term neu to pattern here  *) ]);
       rhs=mk_App (mk_Const dloc name)
                  (mk_DB dloc (mk_ident "x") 0)
                  []
@@ -307,7 +306,6 @@ let get_infos sg lc cst =
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
 let pred_true: Rule.rule_name -> bool = fun x -> true
-
 
 let get_dtree sg ?select:(s=None) l cst =
   match (get_infos sg l cst).rule_opt_info, s with
