@@ -29,6 +29,7 @@ val mk_App      : term -> term -> term list -> term
 val mk_Pi       : loc -> ident -> term -> term -> term
 val mk_Arrow    : loc -> term -> term -> term
 val mk_Meta     : loc -> ident -> term
+val mk_Meta2     : loc -> ident -> int -> term
 
 (** term_eq [t] [t'] is true if [t]=[t'] (up to alpha equivalence) *)
 val term_eq : term -> term -> bool
