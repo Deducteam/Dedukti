@@ -98,6 +98,10 @@ type var = int
 (* TODO: the same as Rule.untyped_context *)
 type ctx = ( loc * ident ) list
 
+let pp_ctx fmt ctx =
+  let ctx = List.map snd ctx in
+  pp_list "" pp_ident fmt ctx
+
 type mctx = (loc * ident) list
 
 type box_term =
@@ -116,3 +120,33 @@ type mterm =
   | MDB of loc * ident * var (* x *)
   | MApp of mterm * mterm (* f x *)
   | MConst of loc * name
+
+let pp_box fmt box =
+  match box with
+  | MT(l, ctx, term) ->
+    Format.fprintf fmt "[%a|- %a]" pp_ctx ctx pp_term term
+  | CT(l, ctx) ->
+    Format.fprintf fmt "[%a]" pp_ctx ctx
+
+let rec pp_mtype fmt mty =
+  match mty with
+  | BoxTy(box) -> Format.fprintf fmt "%a" pp_box box
+  | Forall(l,id,box,mty) ->
+    Format.fprintf fmt "%a:%a -> %a" pp_ident id pp_box box pp_mtype mty
+  | Impl(l,mtyl, mtyr) ->
+    Format.fprintf fmt "%a -> %a" pp_mtype mtyl pp_mtype mtyr
+
+let rec pp_mterm fmt mte =
+  match mte with
+  | MLamF(l,id,box,mte) ->
+    Format.fprintf fmt "%a:%a => %a" pp_ident id pp_box box pp_mterm mte
+  | MLamI(l,id,mty,mte) ->
+    Format.fprintf fmt "%a:%a => %a" pp_ident id pp_mtype mty pp_mterm mte
+  | BoxTe(box) ->
+    Format.fprintf fmt "%a" pp_box box
+  | MDB(l, id, n) ->
+    Format.fprintf fmt "%a[%d]" pp_ident id n
+  | MApp(mtel, mter) ->
+    Format.fprintf fmt "%a (%a)" pp_mterm mtel pp_mterm mter
+  | MConst(l,name) ->
+    Format.fprintf fmt "%a" pp_name name

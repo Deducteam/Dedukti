@@ -57,3 +57,9 @@ type mterm =
   | MDB of loc * ident * var  (* x *)
   | MApp of mterm * mterm (* f x *)
   | MConst of loc * name
+
+val pp_box : Format.formatter -> box_term -> unit
+
+val pp_mtype : Format.formatter -> mtype -> unit
+
+val pp_mterm : Format.formatter -> mterm -> unit

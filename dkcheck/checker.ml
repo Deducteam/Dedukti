@@ -106,7 +106,8 @@ let mk_command lc = function
   | Other (cmd,_)     -> Format.eprintf "Unknown command '%s'.@." cmd
 
 
-let mk_meta_definition l id mty mte = failwith "dkcheck todo mdefinition"
+let mk_meta_definition l id mty mte =
+  Format.printf "let %a : %a := %a@." pp_ident id Term.pp_mtype mty Term.pp_mterm mte
 
 let export = ref false
 
