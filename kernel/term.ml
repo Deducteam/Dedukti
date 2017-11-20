@@ -41,6 +41,7 @@ let rec get_loc (te:term) : loc =
   | App (f,_,_) -> get_loc f
 
 let meta_uniq_id = ref IntSet.empty
+let current = ref 0
 
 let mk_Kind             = Kind
 let mk_Type l           = Type l
@@ -50,17 +51,20 @@ let mk_Lam l x a b      = Lam (l,x,a,b)
 let mk_Pi l x a b       = Pi (l,x,a,b)
 let mk_Arrow l a b      = Pi (l,qmark,a,b)
 
-let rec new_fresh_id c =
-  if IntSet.mem c !meta_uniq_id then
-    new_fresh_id (c+1)
+let rec new_fresh_meta_id () =
+  if IntSet.mem !current  !meta_uniq_id then
+    begin
+      incr current;
+      new_fresh_meta_id ()
+    end
   else
     begin
-      meta_uniq_id := IntSet.add c !meta_uniq_id;
-      c
+      meta_uniq_id := IntSet.add !current !meta_uniq_id;
+      !current
     end
 
 let mk_Meta l id =
-    let c = new_fresh_id 0 in
+    let c = new_fresh_meta_id () in
     Meta(l, id, c, ref None)
 
 let mk_Meta2 l id n =
