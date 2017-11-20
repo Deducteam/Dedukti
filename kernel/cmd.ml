@@ -14,6 +14,6 @@ type command =
   | Infer    of term
   | InferSnf of term
   (* Misc *)
-  | Gdt      of ident option*ident
+  | Gdt      of mident option*ident
   | Print    of string
   | Other    of string*term list

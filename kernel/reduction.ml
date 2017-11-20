@@ -166,8 +166,8 @@ let rec find_case (st:state) (cases:(case * dtree) list)
                   (default:dtree option) : (dtree*state list) option =
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
-  | { term=Const (_,m,v); stack } , (CConst (nargs,m',v'),tr)::tl ->
-    if ident_eq v v' && ident_eq m m' then
+  | { term=Const (_,n); stack } , (CConst (nargs,n'),tr)::tl ->
+    if name_eq n n' then
       begin
         assert (List.length stack >= nargs);
         Some (tr,stack)
@@ -265,6 +265,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   | { term=Type _ }
   | { term=Kind }
   | { term=Pi _ }
+  | { term=Meta _ }
   | { term=Lam _; stack=[] } as state -> state
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
@@ -284,12 +285,12 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
-  | { ctx; term=Const (l,m,v); stack } as state ->
+  | { ctx; term=Const (l,n); stack } as state ->
     begin
       let dtree =
         match !selection with
-        | None -> Signature.get_dtree sg l m v
-        | Some selection -> Signature.get_dtree sg ~select:selection l m v
+        | None -> Signature.get_dtree sg l n
+        | Some selection -> Signature.get_dtree sg ~select:selection l n
       in
       match dtree with
       | None -> state
@@ -314,10 +315,10 @@ and whnf sg term = term_of_state ( state_whnf sg { ctx=LList.nil; term; stack=[]
 and snf sg (t:term) : term =
   match whnf sg t with
   | Kind | Const _
-  | DB _ | Type _ as t' -> t'
+  | DB _ | Type _ | Meta _ as t' -> t'
   | App (f,a,lst) -> mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst)
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
-  | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
+  | Lam (_,x,a,b) -> mk_Lam dloc x (snf sg a) (snf sg b)
 
 and are_convertible_lst sg : (term*term) list -> bool = function
   | [] -> true
@@ -328,12 +329,22 @@ and are_convertible_lst sg : (term*term) list -> bool = function
         else
           match whnf sg t1, whnf sg t2 with
           | Kind, Kind | Type _, Type _ -> Some lst
-          | Const (_,m,v), Const (_,m',v') when ( ident_eq v v' && ident_eq m m' ) -> Some lst
+          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
           | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
           | App (f,a,args), App (f',a',args') ->
             add_to_list2 args args' ((f,f')::(a,a')::lst)
           | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
           | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
+          | Meta(_,_,n,mt), Meta(_,_,n',mt') ->
+            begin
+              match !mt, !mt' with
+              | None, None -> if n==n' then Some lst else None
+              | Some t, Some t' -> Some ((t,t')::lst)
+              | None, Some t -> mt := Some t; Some lst
+              | Some t, None -> mt' := Some t; Some lst
+            end
+          | Meta(_,_,_,mt), t
+          | t, Meta(_,_,_,mt) -> mt := Some t; Some lst
           | t1, t2 -> None
       ) with
       | None -> false
@@ -341,12 +352,14 @@ and are_convertible_lst sg : (term*term) list -> bool = function
     end
 
 (* Convertibility Test *)
-and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
+and are_convertible sg t1 t2 =
+  debug 1 "Convertible: %a %a" pp_term t1 pp_term t2;
+  are_convertible_lst sg [(t1,t2)]
 
 (* Head Normal Form *)
 let rec hnf sg t =
   match whnf sg t with
-  | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
+  | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) | Meta _ as t' -> t'
   | App (f,a,lst) -> mk_App (hnf sg f) (hnf sg a) (List.map (hnf sg) lst)
 
 
@@ -358,6 +371,7 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
      match state with
      | { term=Type _ }
      | { term=Kind }
+     | { term=Meta _}
      | { term=Pi _ } -> (red,state)
      | { ctx=ctx; term=Lam(loc,id,ty,t); stack=[] } ->
         let n',state' = state_one_step sg (red,{ctx=ctx;term=t; stack=[]}) in
@@ -398,11 +412,11 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
             (a::lst) in
         state_one_step sg (!aux,{ ctx; term=f; stack=List.rev_append new_stack s })
      (* Potential Gamma redex *)
-     | { ctx; term=Const (l,m,v); stack } ->
+     | { ctx; term=Const (l,n); stack } ->
         let dtree =
           match !selection with
-          | None -> Signature.get_dtree sg l m v
-          | Some selection -> Signature.get_dtree sg ~select:selection l m v
+          | None -> Signature.get_dtree sg l n
+          | Some selection -> Signature.get_dtree sg ~select:selection l n
         in
         begin
           match dtree with

@@ -19,6 +19,8 @@ val subst               : term -> term -> term
 (** [subst_n n y t] replaces x[n] by y[0] and shift by one. *)
 val subst_n : int -> Basic.ident -> term -> term
 
+(** [meta_subst_n te t] replaces the meta-variable [n] by [te] in [t] *)
+val meta_subst : int -> term -> term -> unit
 
 module Subst :
 sig

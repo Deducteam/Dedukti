@@ -16,7 +16,7 @@ let eprint lc fmt =
 (* ********************************* *)
 
 let mk_prelude lc name =
-  eprint lc "Module name is '%a'." pp_ident name;
+  eprint lc "Module name is '%a'." pp_mident name;
   Env.init name;
   Confluence.initialize ()
 
@@ -39,15 +39,15 @@ let mk_opaque lc id pty_opt pte =
     | Err e -> Errors.fail_env_error e
 
 let get_infos = function
-  | Rule.Pattern (l,md,id,_) -> (l,md,id)
-  | _ -> (dloc,qmark,qmark)
+  | Rule.Pattern (l,cst,_) -> (l,cst)
+  | _ -> (dloc,mk_name (mk_mident "") qmark)
 
 let mk_rules = Rule.( function
   | [] -> ()
   | (rule::_) as lst ->
     begin
-      let (l,md,id) = get_infos rule.pat in
-      eprint l "Adding rewrite rules for '%a.%a'" pp_ident md pp_ident id;
+      let (l,cst) = get_infos rule.pat in
+      eprint l "Adding rewrite rules for '%a'" pp_name cst;
       match Env.add_rules lst with
       | OK lst2 ->
         List.iter ( fun rule ->
@@ -96,10 +96,11 @@ let mk_command lc = function
           | OK ty -> Format.printf "%a@." Pp.print_term ty
           | Err e -> Errors.fail_env_error e )
   | Gdt (m0,v)         ->
-      let m = match m0 with None -> Env.get_name () | Some m -> m in
-        ( match Env.get_dtree lc m v with
+    let m = match m0 with None -> Env.get_name () | Some m -> m in
+    let cst = mk_name m v in
+        ( match Env.get_dtree lc cst with
             | OK (Some (i,g)) ->
-                Format.printf "%a\n" Dtree.pp_rw (m,v,i,g)
+                Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
             | _ -> Format.printf "No GDT.@." )
   | Print str         -> Format.printf "%s@." str
   | Other (cmd,_)     -> Format.eprintf "Unknown command '%s'.@." cmd
@@ -109,5 +110,5 @@ let export = ref false
 let mk_ending () =
   ( if !export then
     if not (Env.export ()) then
-      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
+      Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );
   Confluence.finalize ()

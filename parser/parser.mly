@@ -1,6 +1,6 @@
 %parameter <M :
   sig
-    val mk_prelude     : Basic.loc -> Basic.ident -> unit
+    val mk_prelude     : Basic.loc -> Basic.mident -> unit
     val mk_declaration : Basic.loc -> Basic.ident -> Signature.staticity -> Term.term -> unit
     val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
     val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
@@ -25,14 +25,17 @@
         | (l,x,ty)::tl -> PrePi(l,Some x,ty,mk_pi te tl)
 
     let rec preterm_loc = function
-        | PreType l | PreId (l,_) | PreQId (l,_,_) | PreLam  (l,_,_,_)
-        | PrePi   (l,_,_,_) -> l
+        | PreType l | PreId (l,_) | PreQId (l,_) | PreLam  (l,_,_,_)
+        | PrePi   (l,_,_,_) | PreMeta(l,_) -> l
         | PreApp (f,_,_) -> preterm_loc f
+
+    let prembox_loc = function
+        | PMT(l,_,_) -> l
 
     let rec premtype_loc = function
         | PImpl(l,_,_)
         | PForall(l,_,_,_) -> l
-        | PBoxTy(l,_,_) -> l
+        | PBoxTy(b) -> prembox_loc b
 
     let mk_pre_from_list = function
         | [] -> assert false
@@ -71,14 +74,15 @@
 %token <Basic.loc> GDT
 %token <Basic.loc*string> OTHER
 %token <Basic.loc> UNDERSCORE
-%token <Basic.loc*Basic.ident>NAME
+%token <Basic.loc * Basic.ident> META
+%token <Basic.loc*Basic.mident>NAME
 %token <Basic.loc> TYPE
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
 %token <Basic.loc> KW_LET
 (* %token <Basic.loc> KW_REC *)
 %token <Basic.loc*Basic.ident> ID
-%token <Basic.loc*Basic.ident*Basic.ident> QID
+%token <Basic.loc*Basic.mident*Basic.ident> QID
 %token <string> STRING
 %token <int>    INT
 
@@ -90,7 +94,7 @@
 %type <Preterm.pdecl> decl
 %type <Basic.loc*Basic.ident*Preterm.preterm> param
 %type <Preterm.pdecl list> context
-%type <Basic.loc*Basic.ident option*Basic.ident*Preterm.prepattern list> top_pattern
+%type <Basic.loc*Basic.mident option*Basic.ident*Preterm.prepattern list> top_pattern
 %type <Preterm.prepattern> pattern
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm
@@ -194,9 +198,13 @@ pattern         : ID  pattern_wp+
                         { $1 }
 
 sterm           : QID
-                { let (l,md,id)=$1 in PreQId(l,md,id) }
+                { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
                 | ID
                 { PreId (fst $1,snd $1) }
+                | UNDERSCORE
+                { PreMeta($1, None) }
+                | META
+                { PreMeta(fst $1, Some (snd $1))}
                 | LEFTPAR term RIGHTPAR
                 { $2 }
                 | TYPE
@@ -215,7 +223,7 @@ term            : sterm+
 
 
 box_term        : LEFTSQU context VDASH term RIGHTSQU
-                { preterm_loc $4, $2, $4 }
+                { PMT(preterm_loc $4, $2, $4) }
 
 mtype           : mtype ARROW mtype
                 { PImpl(premtype_loc $1, $1, $3) }

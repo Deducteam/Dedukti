@@ -4,6 +4,7 @@ exception EndOfFile
 
 type token =
   | UNDERSCORE  of loc
+  | META        of (loc * ident)
   | TYPE        of loc
   | KW_DEF      of loc
   | KW_THM      of loc
@@ -13,8 +14,8 @@ type token =
   | RIGHTPAR
   | RIGHTBRA
   | VDASH
-  | QID         of ( loc * ident * ident )
-  | NAME        of ( loc * ident )
+  | QID         of ( loc * mident * ident )
+  | NAME        of ( loc * mident )
   | LONGARROW
   | LEFTSQU
   | LEFTPAR

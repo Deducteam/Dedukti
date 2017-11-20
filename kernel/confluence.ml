@@ -63,6 +63,8 @@ let rec split n lst =
       let (x,y) = split (n-1) tl in
       ( hd::x, tl )
 
+let print_name fmt cst = Format.fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
+
 let pp_pattern ar fmt pat = Format.(
   let nb = ref 0 in
   let rec aux k fmt = function
@@ -72,10 +74,10 @@ let pp_pattern ar fmt pat = Format.(
       fprintf fmt "v_%a" pp_ident x ;
       List.iter (fun pat -> fprintf fmt ",%a)" (aux 0) pat) args
     end
-  | Pattern (_,m,v,args) ->
+  | Pattern (_,cst,args) ->
     begin
       List.iter (fun _ -> fprintf fmt "app(") args ;
-      fprintf fmt "c_%a_%a" pp_ident m pp_ident v ;
+      fprintf fmt "c_%a" print_name cst;
       List.iter (fun pat -> fprintf fmt ",%a)" (aux k) pat) args
     end
   | Var (_,x,n,[]) (* n>=k *) -> fprintf fmt "m_%a" pp_ident x ;
@@ -102,14 +104,19 @@ let pp_pattern ar fmt pat = Format.(
 
 let rec pp_term (ar:int IdMap.t) k fmt term = Format.(
   match term with
-  | Const (_,m,v) -> fprintf fmt "c_%a_%a" pp_ident m pp_ident v
-  | Lam (_,x,Some a,b) ->
+  | Const (_,cst) -> fprintf fmt "c_%a" print_name cst;
+  | Lam (_,x,a,b) ->
     fprintf fmt "lam(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
-  | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
   | Pi (_,x,a,b) ->
     fprintf fmt "pi(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
   | DB (_,x,n) when n<k -> fprintf fmt "v_%a" pp_ident x
   | DB (_,x,_) -> fprintf fmt "m_%a" pp_ident x
+  | Meta(_,_,_,mt) ->
+    begin
+      match !mt with
+      | None -> failwith "confluence checking on meta variables is not handle"
+      | Some a -> pp_term ar k fmt a
+    end
   | App (DB (_,x,n),a,args) when (n>=k) ->
     let arity = IdMap.find x ar in
     if arity == 0 then (
@@ -137,15 +144,14 @@ let rec pp_term (ar:int IdMap.t) k fmt term = Format.(
 let get_bvars r =
   let pat = pattern_of_rule_infos r in
   let rec aux_t k bvars = function
-    | Const _ | Kind | Type _ | DB _ -> bvars
-    | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
-    | Lam (_,x,Some a,b) | Pi (_,x,a,b) ->
+    | Const _ | Kind | Type _ | DB _ | Meta _ -> bvars
+    | Lam (_,x, a,b) | Pi (_,x,a,b) ->
       let bvars2 = aux_t k bvars a in aux_t (k+1) (x::bvars2) b
     | App (f,a,args) ->
       List.fold_left (aux_t k) bvars (f::a::args)
   in
   let rec aux_p k bvars = function
-    | Var (_,_,_,args) | Pattern (_,_,_,args) ->
+    | Var (_,_,_,args) | Pattern (_,_,args) ->
       List.fold_left (aux_p k) bvars args
     | Lambda (_,x,p) -> aux_p (k+1) (x::bvars) p
     | Brackets te -> aux_t k bvars te
@@ -156,7 +162,7 @@ let get_bvars r =
 let get_arities (ctx:typed_context) (p:pattern) : int IdMap.t =
   let rec aux k map = function
     | Var (_,x,n,args) when (n<k) -> List.fold_left (aux k) map args
-    | Pattern (_,m,v,args) -> List.fold_left (aux k) map args
+    | Pattern (_,_,args) -> List.fold_left (aux k) map args
     | Var (_,x,n,args) (* n>=k *) ->
       let map2 = List.fold_left (aux k) map args in
       let ar1 = List.length args in
@@ -212,12 +218,12 @@ let check () : (unit,confluence_error) error =
         with End_of_file -> Err (CCFailure cmd)
       end
 
-let add_constant md id =
+let add_constant cst =
   match !file_out with
   | None -> ()
   | Some (file,out) ->
     let fmt = Format.formatter_of_out_channel out in
-    Format.fprintf fmt "(FUN c_%a_%a : term)\n" pp_ident md pp_ident id
+    Format.fprintf fmt "(FUN c_%a : term)\n" print_name cst
 
 let add_rules lst =
   match !file_out with
