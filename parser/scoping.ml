@@ -18,10 +18,10 @@ let under = mk_ident "_"
 
 let type_label x = mk_ident ("T"^string_of_ident x)
 
-let inter s = List.exists (fun c -> ident_eq s c)
+let inter m = List.exists (fun x -> ident_eq m x)
 
 let rec t_of_pt ?(mctx=[]) (ctx:ident list) (pte:preterm) : term =
-  if List.exists (fun s -> inter s ctx) mctx; then
+  if List.exists (fun (m,_) -> inter m ctx) mctx; then
     Format.eprintf "Warning: Conflict between meta-variables name and bounded variables.";
   match pte with
     | PreType l    -> mk_Type l
@@ -29,7 +29,10 @@ let rec t_of_pt ?(mctx=[]) (ctx:ident list) (pte:preterm) : term =
         begin
           match get_db_index ctx id with
           | None   ->
-            mk_Const l (mk_name !name id)
+            if List.mem_assoc id mctx then
+              mk_Meta2 l id (List.assoc id mctx)
+            else
+              mk_Const l (mk_name !name id)
             | Some n -> mk_DB l id n
         end
     | PreQId (l,cst) -> mk_Const l cst
@@ -53,15 +56,34 @@ let scope_box mctx pbox  =
   match pbox with
   | PMT(lc,pc,pte) -> MT(lc,pc, t_of_pt ~mctx:mctx (List.map (fun (_,x) -> x) pc) pte)
 
-let rec mty_of_pmty (mctx:ident list) (pmty:pmtype) : mtype =
+let rec mty_of_pmty mctx (pmty:pmtype) : mtype =
   match pmty with
   | PBoxTy(box) -> BoxTy(scope_box mctx box)
-  | PForall(l,var,pbox, pmty) -> Forall(l,var, scope_box mctx pbox, mty_of_pmty (var::mctx) pmty)
+  | PForall(l,var,pbox, pmty) -> Forall(l,var, scope_box mctx pbox,
+                                        mty_of_pmty ((var,new_fresh_meta_id ())::mctx) pmty)
   | PImpl(l, pmtyl, pmtyr) -> Impl(l, mty_of_pmty mctx pmtyl, mty_of_pmty mctx pmtyr)
 
-let scope_mtype mctx (pmty:pmtype) : mtype = mty_of_pmty (List.map snd mctx) pmty
+let mindex l =
+  List.map (fun (_,m) -> (m,new_fresh_meta_id ())) l
 
-let scope_mterm (pmte:pmterm) : mterm = failwith "todo"
+let scope_mtype mctx (pmty:pmtype) : mtype = mty_of_pmty  (mindex mctx) pmty
+
+let rec mte_of_pmte mctx ctx (pmte:pmterm) : mterm =
+  match pmte with
+  | PMDB(l,id) ->
+    begin
+      match get_db_index ctx id with
+      | None ->  MConst(l, (mk_name !name id))
+      | Some i -> MDB(l,id,i)
+    end
+  | PBoxTe(box) ->
+    BoxTe(scope_box mctx box)
+  | PMApp(l,r) -> MApp(mte_of_pmte mctx ctx l, mte_of_pmte mctx ctx r)
+  | PMLamI(l,id,pmty, pmte) -> MLamI(l, id, mty_of_pmty mctx pmty, mte_of_pmte mctx (id::ctx) pmte)
+  | PMLamF(l,id,box, pmte) -> MLamF(l, id, scope_box mctx box,
+                                    mte_of_pmte ((id,new_fresh_meta_id ())::mctx) ctx pmte)
+
+let scope_mterm mctx ctx (pmte:pmterm) : mterm = mte_of_pmte (mindex mctx) (List.map snd ctx) pmte
 
 (******************************************************************************)
 

@@ -1,0 +1,21 @@
+#NAME tapl.
+
+term : Type.
+
+true : term.
+
+false : term.
+
+z : term.
+
+succ : term -> term.
+
+pred : term -> term.
+
+step : term -> term -> Type.
+
+e_pred : M : term -> N : term -> step M N -> step (pred M) (pred N).
+
+e_pred_zero : step (pred z) z.
+
+let e1 : [|- step (pred z) z] := [|- e_pred_zero].

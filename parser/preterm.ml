@@ -91,8 +91,7 @@ type pmtype =
 
 type pmterm =
   | PMLamF of loc * ident * pbox_term * pmterm
-  | PMLamI of loc * ident * pmterm * pmterm
-  | Case of loc * ident * pcase list
+  | PMLamI of loc * ident * pmtype * pmterm
   | PBoxTe of pbox_term
-
-and pcase = pbox_term * pmterm
+  | PMDB of loc * ident
+  | PMApp of pmterm * pmterm

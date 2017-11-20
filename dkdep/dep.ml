@@ -80,6 +80,8 @@ let mk_command _ = function
   | Other (_,lst)                      -> List.iter mk_term lst
 
 
+let mk_meta_definition l id mty mte = failwith "dkdep todo mdefinition"
+
 let dfs graph visited start_node =
   let rec explore path visited node =
     if List.mem node path    then failwith "Circular dependencies"

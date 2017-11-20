@@ -93,9 +93,7 @@ let rec term_eq t1 t2 =
 
 
 
-type var = ident
-
-type mvar
+type var = int
 
 (* TODO: the same as Rule.untyped_context *)
 type ctx = ( loc * ident ) list
@@ -108,12 +106,13 @@ type box_term =
 
 type mtype =
   | Impl of loc * mtype * mtype (* mty -> mty' *)
-  | Forall of loc * var * box_term * mtype (* forall m : [g|- term], mty *)
+  | Forall of loc * ident * box_term * mtype (* forall m : [g|- term], mty *)
   | BoxTy of  box_term (* [g |- term] *)
 
 type mterm =
   | MLamF of loc * ident * box_term * mterm (* x : [g|-term] => mte *)
-  | MLamI of loc * ident * mterm * mterm (* e : mt => mte *)
+  | MLamI of loc * ident * mtype * mterm (* e : mt => mte *)
   | BoxTe of box_term (* [g |- term] *)
-  | Var of loc * var (* x *)
+  | MDB of loc * ident * var (* x *)
   | MApp of mterm * mterm (* f x *)
+  | MConst of loc * name

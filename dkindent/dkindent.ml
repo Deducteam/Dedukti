@@ -48,6 +48,8 @@ module T = struct
     | Print str         -> Format.printf "#PRINT \"%s\"." str
     | Other (cmd,_)     -> failwith (Format.sprintf "Unknown command '%s'.\n" cmd)
 
+let mk_meta_definition l id mty mte = failwith "dkindent todo mdefinition"
+
   let mk_ending _ = ()
 end
 

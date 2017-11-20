@@ -7,6 +7,7 @@
     val mk_rules       : Rule.untyped_rule list -> unit
     val mk_command     : Basic.loc -> Cmd.command -> unit
     val mk_ending      : unit -> unit
+    val mk_meta_definition : Basic.loc -> Basic.ident -> Term.mtype -> Term.mterm -> unit
   end>
 %{
     open Basic
@@ -129,8 +130,10 @@ line            : ID COLON term DOT
                 { mk_opaque (fst $2) (snd $2) (Some (scope_term [] (mk_pi $5 $3)))
                         (scope_term [] (mk_lam $7 $3)) }
                 | KW_LET ID COLON mtype DEF mterm DOT
-                { }
+                { mk_meta_definition (fst $2) (snd $2)
+                     (scope_mtype [] $4) (scope_mterm [] [] $6)}
                 | rule+ DOT
+
                 { mk_rules (List.map scope_rule $1) }
                 | command DOT { $1 }
                 | EOF
@@ -234,7 +237,7 @@ mtype           : mtype ARROW mtype
 
 mterm           : ID COLON box_term FATARROW mterm
                 { PMLamF(fst $1, snd $1,  $3, $5) }
-                | ID COLON mterm LONGFATARROW mterm
+                | ID COLON mtype LONGFATARROW mterm
                 { PMLamI(fst $1, snd $1,  $3, $5) }
                 | box_term
                 { PBoxTe($1) }

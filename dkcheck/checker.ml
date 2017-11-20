@@ -105,6 +105,9 @@ let mk_command lc = function
   | Print str         -> Format.printf "%s@." str
   | Other (cmd,_)     -> Format.eprintf "Unknown command '%s'.@." cmd
 
+
+let mk_meta_definition l id mty mte = failwith "dkcheck todo mdefinition"
+
 let export = ref false
 
 let mk_ending () =

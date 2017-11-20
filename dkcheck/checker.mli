@@ -17,4 +17,6 @@ val mk_rules       : Rule.untyped_rule list -> unit
 
 val mk_command     : loc -> Cmd.command -> unit
 
+val mk_meta_definition : Basic.loc -> Basic.ident -> Term.mtype -> Term.mterm -> unit
+
 val mk_ending      : unit -> unit
