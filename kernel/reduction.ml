@@ -91,41 +91,39 @@ type rw_strategy         = Signature.t -> term -> term
 type rw_state_strategy   = Signature.t -> state -> state
 type convertibility_test = Signature.t -> term -> term -> bool
 
+(* Problem convertion *)
+
 let convert_problem stack problem =
   let convert i = lazy (term_of_state (List.nth stack i) ) in
   let convert_ac_sets = function
     | [i] ->
        begin
          match List.nth stack i with
-         | {ctx; term=Const(l,m',v'); stack=st} ->
+         | {ctx; term=Const(l,cst'); stack=st} ->
             List.map (fun s -> lazy (term_of_state s)) st
          | _ -> assert false
        end
     | _ -> assert false in
   Matching.convert_problems convert convert_ac_sets problem
 
+(* AC related operations *)
 
-
-(* Unused *)
-let filter_neutral conv sg l m v terms =
-  match Signature.get_algebra sg l m v with
+let filter_neutral conv sg l cst terms =
+  match Signature.get_algebra sg l cst with
   | ACU neu ->
      (match List.filter (fun x -> not (conv neu x)) terms with
       | [] -> [neu] | s -> s)
   | _ -> terms
 
-
-(* Unused *)
-let rec unflatten sg l m v = function
-  | []     -> Signature.get_neutral sg l m v
+let rec unflatten sg l cst = function
+  | []     -> Signature.get_neutral sg l cst
   | [t]    -> t
-  | t1::tl -> mk_App (mk_Const dloc m v) t1 [(unflatten sg l m v tl)]
+  | t1::tl -> mk_App (mk_Const dloc cst) t1 [(unflatten sg l cst tl)]
 
-(* Unused *)
 let ac_to_comb sg t = match t with
-  | App( Const (l,m,v), a1, a2::remain_args)
-       when Signature.is_AC sg l m v ->
-     mk_App2 (unflatten sg l m v (flatten_AC_term m v t)) remain_args
+  | App( Const (l,cst), a1, a2::remain_args)
+       when Signature.is_AC sg l cst ->
+     mk_App2 (unflatten sg l cst (flatten_AC_term cst t)) remain_args
   | t -> t
   
 (*       AC manipulating functions     *)
@@ -134,56 +132,56 @@ let ac_to_comb sg t = match t with
   * Removes occurence of neutral element.  *)
 let flatten_AC_stack (sg:Signature.t) (strategy:rw_state_strategy)
                      (convertible:convertibility_test)
-                     (l:loc) (m:ident) (v:ident) (stack:stack) : stack =
+                     (l:loc) (cst:name) (stack:stack) : stack =
   let rec flatten acc = function
     | [] -> acc
     | st :: tl ->
        match strategy sg st with
-       | { ctx; term=Const (l',m',v'); stack=(st1::st2::[]) }
-            when ident_eq m' m && ident_eq v' v ->
+       | { ctx; term=Const (l',cst'); stack=(st1::st2::[]) }
+            when name_eq cst cst' ->
           flatten acc (st1 :: st2 :: tl)
        | whnf_st -> flatten (whnf_st::acc) tl
   in
   let stack = flatten [] stack in
-  match Signature.get_algebra sg l m v with
+  match Signature.get_algebra sg l cst with
   | ACU neu -> List.filter (fun st -> not (convertible sg (term_of_state st) neu)) stack
   | _ -> stack
 
-let to_comb sg l m v ctx stack =
+let to_comb sg l cst ctx stack =
   let rec f = function
-    | []     -> {ctx=LList.nil;term=Signature.get_neutral sg l m v;stack=[]}
+    | []     -> {ctx=LList.nil;term=Signature.get_neutral sg l cst;stack=[]}
     | [t]    -> t
-    | t1::t2::tl -> f ({ ctx; term=mk_Const l m v; stack=[t1;t2]} :: tl)
+    | t1::t2::tl -> f ({ ctx; term=mk_Const l cst; stack=[t1;t2]} :: tl)
   in
   f stack
 
 let comb_state_shape_if_AC sg strategy convertible : state -> state = function
-  | { ctx; term=Const (l,m,v); stack=(s1::s2::rstack) } when Signature.is_AC sg l m v ->
-     let nstack = flatten_AC_stack sg strategy convertible l m v [s1;s2] in
-     let s = to_comb sg l m v ctx nstack in
+  | { ctx; term=Const (l,cst); stack=(s1::s2::rstack) } when Signature.is_AC sg l cst ->
+     let nstack = flatten_AC_stack sg strategy convertible l cst [s1;s2] in
+     let s = to_comb sg l cst ctx nstack in
      (match rstack with [] -> s | l ->  {s with stack=(s.stack@l)})
   | st -> st
 
 
 let comb_term_shape_if_AC (sg:Signature.t)
                         (convertible:convertibility_test) : term -> term = function
-  | App(Const (l,m,v), a1, a2::remain_args) when Signature.is_AC sg l m v ->
+  | App(Const (l,cst), a1, a2::remain_args) when Signature.is_AC sg l cst ->
      let id_comp = Signature.get_id_comparator sg in
-     let args = flatten_AC_terms m v [a1;a2] in
-     let args = filter_neutral (convertible sg) sg l m v args in
+     let args = flatten_AC_terms cst [a1;a2] in
+     let args = filter_neutral (convertible sg) sg l cst args in
      let args = List.sort (compare_term id_comp) args in
      let _ = assert (List.length args > 0) in
-     mk_App2 (unflatten sg l m v args) remain_args
+     mk_App2 (unflatten sg l cst args) remain_args
   | t -> t
 
-let rec find_case (flattenner:loc->ident->ident->stack->stack)
+let rec find_case (flattenner:loc->name->stack->stack)
                   (st:state) (case:case) : stack option =
   match st, case with
-  | { ctx; term=Const (l,m,v); stack } , CConst (nargs,m',v',ac_symb) ->
-     if ident_eq v v' && ident_eq m m' && List.length stack == nargs
+  | { ctx; term=Const (l,cst); stack } , CConst (nargs,cst',ac_symb) ->
+     if name_eq cst cst' && List.length stack == nargs
      then
        match ac_symb,stack with
-       | true , t1::t2::s -> Some ({st with stack = flattenner l m v [t1;t2]}::s
+       | true , t1::t2::s -> Some ({st with stack = flattenner l cst [t1;t2]}::s
        )
        | false, _         -> Some stack
        | _ -> assert false
@@ -200,13 +198,13 @@ let rec find_case (flattenner:loc->ident->ident->stack->stack)
   | _ -> None
 
 
-let rec fetch_case sg (flattenner:loc->ident->ident->stack->stack)
+let rec fetch_case sg (flattenner:loc->name->stack->stack)
                    (state:state) (case:case)
                    (dt_suc:dtree) (dt_def:dtree option) : (dtree*state*stack) list =
   let def_s = match dt_def with None -> [] | Some g -> [(g,state,[])] in
   let stack = state.stack in
   match state.term with
-  | Const(l,m,v) ->
+  | Const(l,_) ->
      let rec f acc stack_acc st = match st, case with
        | [], _ -> acc
        | hd::tl, _ ->
@@ -223,7 +221,7 @@ let rec fetch_case sg (flattenner:loc->ident->ident->stack->stack)
    | _ -> assert false
 
 
-let rec find_cases (flattenner:loc->ident->ident->stack->stack)
+let rec find_cases (flattenner:loc->name->stack->stack)
                   (st:state) (cases:(case * dtree) list)
                   (default:dtree option) : (dtree*stack) list =
   match cases with
@@ -259,7 +257,7 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
        | _ -> assert false
      in
      let (stack_h, arg_i, stack_t) = split_ith [] i stack in
-     assert (match arg_i.term with Const(l,m,v) -> Signature.is_AC sg l m v | _ -> false);
+     assert (match arg_i.term with Const(l,cst) -> Signature.is_AC sg l cst | _ -> false);
      let new_cases =
        List.map
          (function
@@ -270,9 +268,9 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
   | ACEmpty (i, dt_suc, dt_def) ->
      begin
        match List.nth stack i with
-       | {ctx; term=Const(l,m,v); stack=st} ->
+       | {ctx; term=Const(l,cst); stack=st} ->
           begin
-            assert (Signature.is_AC sg l m v);
+            assert (Signature.is_AC sg l cst);
             if st == []
             then gamma_rw sg convertible forcing strategy stack dt_suc
             else bind_opt (gamma_rw sg convertible forcing strategy stack) dt_def
@@ -314,10 +312,10 @@ and gamma_head_rw (sg:Signature.t)
                   (forcing:rw_strategy)
                   (strategy:rw_state_strategy) (s:state) (t:dtree) : state option =
   match s, t with
-  | { ctx; term=Const(l,m,v); stack }, Switch (0,cases,None) ->
+  | { ctx; term=Const(l,cst); stack }, Switch (0,cases,None) ->
      let rec f = function
        | []      -> None
-       | ((CConst(nargs,_,_,_),_) as c) :: tl ->
+       | ((CConst(nargs,_,_),_) as c) :: tl ->
           begin
             match split_stack nargs stack with
             | None -> f tl
@@ -392,9 +390,9 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
-  | { ctx; term=Const (l,m,v); stack } ->
+  | { ctx; term=Const (l,cst); stack } ->
      begin
-       match Signature.get_dtree sg ~select:(!selection) l m v with
+       match Signature.get_dtree sg ~select:(!selection) l cst with
        | None    -> comb_state_shape_if_AC sg state_whnf are_convertible st
        | Some tr -> begin
            match gamma_head_rw sg are_convertible snf state_whnf st tr with
@@ -402,7 +400,6 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
            | Some st -> state_whnf sg st
          end
      end
-
 
 (* ********************* *)
 
@@ -431,17 +428,18 @@ and are_convertible_lst sg : (term*term) list -> bool = function
           let t2 = whnf sg t2 in
           match t1, t2 with
           | Kind, Kind | Type _, Type _ -> Some lst
-          | Const (_,m,v), Const (_,m',v') when ( ident_eq v v' && ident_eq m m' ) -> Some lst
+          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
           | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
-          | App (Const(l ,m ,v ), _, _),
-            App (Const(l',m',v'), _, _) when Signature.is_AC sg l m v ->
+          | App (Const(l,cst), _, _),
+            App (Const(l',cst'), _, _) when Signature.is_AC sg l cst ->
              (* TODO: Replace this with less hardcore criteria: put all terms in whnf
               * then look at the heads to match arguments with one another. *)
-             if ident_eq m m' && ident_eq v v' then
+             if name_eq cst cst' then
                match snf sg t1, snf sg t2 with
-               | App (Const(l ,m2 ,v2 ), a , args ),
-                 App (Const(l',m2',v2'), a', args') ->
-                  if ident_eq m2 m && ident_eq m2' m && ident_eq v2 v' && ident_eq v2' v' then
+               | App (Const(l ,cst2 ), a , args ),
+                 App (Const(l',cst2'), a', args') ->
+                  if name_eq cst2 cst && name_eq cst2' cst &&
+                       name_eq cst2 cst' && name_eq cst2' cst' then
                     add_to_list2 args args' ((a,a')::lst)
                   else None
                | _ -> None
@@ -514,9 +512,9 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
             (a::lst) in
         state_one_step sg (!aux,{ ctx; term=f; stack=List.rev_append new_stack s })
      (* Potential Gamma redex *)
-     | { ctx; term=Const (l,m,v); stack } ->
+     | { ctx; term=Const(l,name); stack } ->
         begin
-          match Signature.get_dtree sg ~select:(!selection) l m v with
+          match Signature.get_dtree sg ~select:(!selection) l name with
           | None    -> (red, comb_state_shape_if_AC sg state_whnf are_convertible st)
           | Some tr -> begin
               match gamma_head_rw sg are_convertible snf state_whnf st tr with

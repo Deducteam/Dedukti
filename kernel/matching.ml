@@ -206,10 +206,9 @@ let set_unsolved convertible pb i sol =
          if convertible (Lazy.force ti) (apply_args shifted args)
          then Throw else Fail
     | AC(aci,joks,vars,terms) ->
-       let (m,v,ac) = aci in
-       let flat_sols = flatten_AC_term m v (Lazy.force sol) in
-       (* Tricky !! sol could be a term headed my Const(m,v) and in that case we need
-        * to flatten it and remove AC terms one by one (before lambdaing).  *)
+       let sol = Lazy.force sol in
+       (* If sol is headed by the same AC-symbol then flatten it. *)
+       let flat_sols = flatten_AC_term (fst aci) sol in
        let lambdaed = List.map (add_n_lambdas pb.miller.(i)) flat_sols in
        let shifted = List.map (Subst.shift d) lambdaed in
        let sols = compute_all_sols i vars shifted in
@@ -246,7 +245,7 @@ let close_partly convertible pb d i =
        match update_problems filter pb with
        | None -> None (* If the substitution is incompatible, then fail *)
        | Some nprob ->
-          let (m,v,alg) = aci in
+          let (cst,alg) = aci in
           if terms = [] then (* If [i] is closed on empty list *)
             match alg with
             | ACU neu ->

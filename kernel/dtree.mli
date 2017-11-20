@@ -10,9 +10,9 @@ open Matching
     - a variable
     - a lambda expression *)
 type case =
-  | CConst of int*ident*ident*bool
-  (** [size] [m] [v] [ac] where [size] is the number of arguments expected for the constant [m.v] and [ac] is true iif the constant is a definable AC(U) symbol. *)
-  | CDB    of int*int
+  | CConst of int * name * bool
+  (** [size] [c] [ac] where [size] is the number of arguments expected for the constant [c] and [ac] is true iff the constant is a definable AC(U) symbol. *)
+  | CDB    of int * int
   (** [size] [i] where size is the number of *static* arguments expected for the bounded variable [i] *)
   | CLam (** Just a lambda term *)
 
@@ -39,17 +39,12 @@ type dtree =
 val pp_dtree : Format.formatter -> dtree -> unit
 val pp_case : Format.formatter -> case -> unit
 
-(** [md] [v] [tree] is the dtree associated to the constant [md].[v] *)
-type rw = ident * ident * dtree
-
-val pp_rw : Format.formatter -> rw -> unit
-
 (** {2 Error} *)
 
 type dtree_error =
-  | HeadSymbolMismatch of loc * ident * ident
-  | ArityMismatch of loc * ident
-  | ArityInnerMismatch of loc * ident * ident
+  | HeadSymbolMismatch  of loc * name * name
+  | ArityDBMismatch     of loc * name * int
+  | AritySymbolMismatch of loc * name * name
 
 (** Compilation of rewrite rules into decision trees. *)
-val of_rules : (ident->ident->algebra) -> rule_infos list -> (dtree, dtree_error) error
+val of_rules : (name->algebra) -> rule_infos list -> (dtree, dtree_error) error

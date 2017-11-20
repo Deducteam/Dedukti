@@ -7,28 +7,27 @@ open Term
 (** {2 Patterns} *)
 
 type pattern =
-  | Var       of loc * ident * int * pattern list
-      (** l x i [x1 ; x2 ; ... ; xn ] where [i] is the position of x inside the context
-          of the rule *)
-  | Pattern   of loc * ident * ident * pattern list
-      (** l md id [p1 ; p2 ; ... ; pn ] where [md.id] is a constant *)
-  | Lambda    of loc * ident * pattern
-      (** lambda abstraction *)
-  | Brackets  of term
-      (** te where [te] is convertible to the pattern matched *)
+  (** l x i [x1 ; x2 ; ... ; xn] where [i] is the position of x inside the context of the rule *)
+  | Var of loc * ident * int * pattern list
+  (** l md id [p1 ; p2 ; ... ; pn ] where [md.id] is a constant *)
+  | Pattern of loc * name * pattern list
+  (** lambda abstraction *)
+  | Lambda of loc * ident * pattern
+  (** te where [te] is convertible to the pattern matched *)
+  | Brackets of term
 
 val get_loc_pat : pattern -> loc
 
 val pattern_to_term : pattern -> term
 
-(** a wf_pattern is a Miller pattern without brackets constraints and each free variable appear exactly once. *)
+(** a wf_pattern is a Miller pattern without brackets constraints. *)
 type wf_pattern =
   | LJoker
   | LVar      of ident * int * int list
   | LLambda   of ident * wf_pattern
-  | LPattern  of ident * ident * wf_pattern array
+  | LPattern  of name * wf_pattern array
   | LBoundVar of ident * int   * wf_pattern array
-  | LACSet    of ident * ident * wf_pattern list
+  | LACSet    of name * wf_pattern list
 
 (** {2 Linarization} *)
 
@@ -54,7 +53,7 @@ type typed_context = ( loc * ident * term ) list
 (** {2 Rewrite Rules} *)
 
 (** Delta rules are the rules associated to the definition of a constant while Gamma rules are the rules of lambda pi modulo. The first paraneter of Gamma indicates if the name of the rule has been given by the user. *)
-type rule_name = Delta of ident * ident | Gamma of bool * ident * ident
+type rule_name = Delta of name | Gamma of bool * name
 
 val pp_rule_name : Format.formatter -> rule_name -> unit
 
@@ -91,8 +90,7 @@ type rule_infos = {
   l : loc; (** location of the rule *)
   name : rule_name; (** name of the rule *)
   ctx : typed_context; (** typed context of the rule *)
-  md : ident; (** module where the pattern constant is defined *)
-  id : ident; (** name of the pattern constant *)
+  cst : name; (** name of the pattern constant *)
   args : pattern list; (** arguments list of the pattern constant *)
   rhs : term; (** right hand side of the rule *)
   esize : int; (** size of the context *)

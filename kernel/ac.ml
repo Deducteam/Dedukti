@@ -1,51 +1,50 @@
 open Basic
 open Term
 
-type ac_ident = ident * ident * algebra
+type ac_ident = name * algebra
 
-let ac_ident_eq (m,v,ac) (m',v',ac') = assert(ac == ac'); ident_eq m m' && ident_eq v v'
+let ac_ident_eq (name,ac) (name',ac') = name_eq name name'
 
-let pp_ac_ident fmt (m,v,ac) =
-  Format.fprintf fmt "%a.%a" pp_ident m pp_ident v
+let pp_ac_ident fmt (name,_) = Format.fprintf fmt "%a" pp_name name
 
-let is_acu (_,_,alg) = match alg with | ACU _ -> true | _ -> false
+let is_acu (_,alg) = match alg with | ACU _ -> true | _ -> false
 
-let get_AC_args m v = function
-  | App( Const (l,m',v'), a1, [a2])
-       when ident_eq m m' && ident_eq v v' ->
-     Some (a1, a2)
-  | t -> None
+let get_AC_args name = function
+  | App( Const (l,name'), a1, [a2]) when name_eq name name' -> Some (a1, a2)
+  | _ -> None
 
 (* Reduces subterms with f to have a maximal set of elements. *)
-let force_flatten_AC_terms f m v =
+let force_flatten_AC_terms f name =
   let rec aux acc = function
   | [] -> acc
   | hd :: tl ->
-     match get_AC_args m v hd with
+     match get_AC_args name hd with
      | Some (a1,a2) -> aux acc (a1 :: a2 :: tl)
      | None         ->
         let fhd = f hd in
-        match get_AC_args m v fhd with
+        match get_AC_args name fhd with
         | Some (a1,a2) -> aux acc (a1 :: a2 :: tl)
         | None         -> aux (fhd :: acc) tl in
   aux []
 
 (* Reduces subterms with f to have a maximal set of elements. *)
-let force_flatten_AC_term f m v t = force_flatten_AC_terms f m v [t]
+let force_flatten_AC_term f name t = force_flatten_AC_terms f name [t]
 
-let flatten_AC_terms m v =
+let flatten_AC_terms name =
   let rec aux acc = function
   | [] -> acc
   | hd :: tl ->
-     match get_AC_args m v hd with
+     match get_AC_args name hd with
      | Some (a1,a2) -> aux acc (a1 :: a2 :: tl)
      | None         -> aux (hd :: acc) tl in
   aux []
 
-let flatten_AC_term m v t = flatten_AC_terms m v [t]
+let flatten_AC_term name t = flatten_AC_terms name [t]
 
-let rec unflatten_AC (m,v,alg) = function
+let flatten_term (name,alg) t = if is_AC alg then flatten_AC_term name t else [t]
+
+let rec unflatten_AC (name,alg) = function
   | [] -> ( match alg with ACU neu -> neu | _ -> assert false )
   | [t] -> t
   | t1 :: t2 :: tl ->
-     unflatten_AC (m,v,alg) ((mk_App (mk_Const dloc m v) t1 [t2]) :: tl)
+     unflatten_AC (name,alg) ((mk_App (mk_Const dloc name) t1 [t2]) :: tl)
