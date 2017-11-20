@@ -6,6 +6,7 @@ open Cmd
 let verbose = ref false
 let sizechange = ref false
 let szgraph = ref false
+let szvb = ref false
                   
 let eprint lc fmt =
   if !verbose then (
@@ -112,16 +113,25 @@ let mk_ending () =
   let red_error fmt= Format.eprintf "\027[31mERROR \027[m";
     Format.kfprintf (fun _ -> Format.pp_print_newline Format.err_formatter () ) Format.err_formatter fmt
   in
-  if (!sizechange)|| (!szgraph) then
+  if (!sizechange|| !szgraph|| !szvb) then
     begin
       try (
-	if Env.sizechange !verbose !szgraph
+	if Env.sizechange (!verbose|| !szvb) !szgraph
 	then Errors.success "The file was proved terminating"
 	else red_error "The SCT checker did not proved this file terminating"
       )
       with
-      | Sizechange.Ext_ru -> red_error "The meaning of external_rules is actually unknown, hence the case where it is not empty is unaccepted"
-      | _ -> red_error "We were unable to prove this file terminating"
+      | Sizechange.Ext_ru e-> red_error "The meaning of external_rules is actually unknown, hence the case where it is not empty is unaccepted yet. Here this variable contains %a" (pp_list " ; " (pp_list "," Rule.pp_rule_infos)) e
+      | Sizechange.Calling_unknown i -> red_error "The caller line %i is unknown" i
+      | Sizechange.NonLinearity i -> red_error "The rule declared line %i is not linear" i
+      | Sizechange.PatternMatching i -> red_error "The rule declared line %i require to pattern match on defined symbol" i
+      | Sizechange.TypingError (m,f) -> red_error "There is a typing error with the symbol %a.%a" pp_ident m pp_ident f
+      | Sizechange.NonPositivity (m,f) -> red_error "The symbol %a.%a is not strictly positive" pp_ident m pp_ident f
+      | Sizechange.TarjanError -> red_error "Problem with the Tarjan algorithm"
+      | Sizechange.Callee_unknown (m,v,i) -> red_error "The callee %a.%a line %i is unknown" pp_ident m pp_ident v i
+      | Sizechange.TypeLevelRewriteRule (a,b,c,d) -> red_error "Type level rewriting between %a.%a and %a.%a" pp_ident a pp_ident b pp_ident c pp_ident d
+      | Sizechange.TypeLevelWeird (a,b,t) -> red_error "Type level contains something weird in definition of %a.%a : %a" pp_ident a pp_ident b Term.pp_term t
+      | Sizechange.ModuleDependancy (a,b) -> red_error "Module dependancy %a.%a" pp_ident a pp_ident b
     end;
   if !export then
     if not (Env.export ()) then

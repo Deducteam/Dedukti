@@ -3,10 +3,17 @@ open Term
 open Rule
 open Format
 
-exception Ext_ru
+exception Ext_ru of rule_infos list list
 exception Calling_unknown of int
+exception Callee_unknown of (ident * ident * int)
 exception NonLinearity of int
-exception Error
+exception PatternMatching of int
+exception TypingError of (ident * ident)
+exception NonPositivity of (ident * ident)
+exception ModuleDependancy of (ident * ident)
+exception TypeLevelRewriteRule of (ident * ident * ident * ident)
+exception TypeLevelWeird of (ident * ident * term)
+exception TarjanError
 
   (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
@@ -41,19 +48,14 @@ val root : index
 type call =
   { callee : index  (** Key of the function symbol being called. *)
   ; caller : index  (** Key of the calling function symbol. *)
-  ; matrix : matrix (** Size change matrix of the call. *)
-  ; is_rec : bool   (** Indicates if this is a recursive call. *) }
+  ; matrix : matrix (** Size change matrix of the call. *)}
 
 (** The representation of the call graph. *)
 type call_graph
 
-val add_rules : bool -> call_graph ref -> ((ident * ident) * int * index) list ref -> rule_infos list -> unit
-  
-val sct_only : bool -> call_graph ref -> (ident * ident) list ref -> (ident*ident, (ident*ident) list) Hashtbl.t -> (ident*ident, (ident*ident) list) Hashtbl.t -> bool
-
 (** [latex_print_calls ff g] prints the call graph [g] using a LaTeX format
     on the [Format.formatter] [ff]. *)
-val latex_print_calls : call_graph ref -> unit
+val latex_print_calls : unit -> unit
 
   
 val termination_check : bool -> bool -> ident -> rule_infos list list -> (ident * ident * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> bool
