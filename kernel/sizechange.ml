@@ -139,7 +139,7 @@ let graph : call_graph ref =
   ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
 
 let vb : bool ref=ref false
-let table : (name * int * index * bool) list ref = ref []
+let table : (name * int * index) list ref = ref []
 let constructors : name list ref= ref []
 let must_be_str_after : (name, name list) Hashtbl.t  = Hashtbl.create 5
 let after : (name, name list) Hashtbl.t = Hashtbl.create 5
@@ -307,6 +307,11 @@ let auto_call_matrix : index -> index -> matrix =
     res:=(Array.of_list (List.rev !loc_res))::!res
   done;
   {h=m ; w=n ; tab = Array.of_list (List.rev !res)}
+
+let rec detect_wrong_pm : pattern -> unit=
+  function
+  | Pattern (l,n,ar) -> if not (List.mem n !constructors) then raise (PatternMatching (fst (of_loc l))); List.iter detect_wrong_pm ar
+  | _ -> ()
     
 let rec rule_to_call : int -> rule_infos -> call list =
   fun nb r ->
@@ -316,6 +321,7 @@ let rec rule_to_call : int -> rule_infos -> call list =
       let third (a,b,c) = c in
       let get_caller : pattern list * index =
 	let lp=r.args in
+	List.iter detect_wrong_pm lp;
 	try 
 	  (lp,third (List.find (fun (x,ar,_) -> (name_eq x r.cst && ar=List.length(lp))) !table))
 	with Not_found ->
@@ -644,16 +650,16 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
   if vb then printf "La signature est:@. * %a@." (pp_list "\n * " (pp_quat pp_name pp_stat pp_term (pp_option (pp_triple (pp_list ";" pp_rule_infos) pp_print_int Dtree.pp_dtree)))) whole_sig;
   if not (ext_ru=[]) then raise (Ext_ru ext_ru);
   List.iter
-    (fun (fct,st,typ,rules_opt) ->
+    (fun (fct,_,_,rules_opt) ->
       match rules_opt with
       | None -> ()
-      | Some (rul,arit,dec_tree) -> create_symbol fct arit
+      | Some (_,arit,_) -> create_symbol fct arit
     ) whole_sig;
   List.iter
-    (fun (fct,st,typ,rules_opt) ->
+    (fun (fct,st,typ,_) ->
       match st with
       | Signature.Definable -> ()
-      | Signature.Static -> constructors_infos Global fct typ (right_most typ) whole_sig
+      | Signature.Static ->  constructors:= fct:: !constructors; constructors_infos Global fct typ (right_most typ) whole_sig
     ) whole_sig;
   List.iter
     (fun (fct,st,typ,rules_opt) ->
@@ -661,7 +667,7 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
       | None -> ()
       | Some (rul,arit,dec_tree) -> add_rules rul
     ) whole_sig;
-  if vb then printf "Table :@. ' %a@." (pp_list "@. ' " (pp_triple pp_name pp_print_int pp_index)) !table;
+  if vb then printf "Table :@. ' %a@." (pp_list "\n ' " (pp_triple pp_name pp_print_int pp_index)) !table;
   if vb
   then (print_constr ();
     printf "%a@." (pp_list ";" (pp_list "," pp_name)) (tarjan after));
