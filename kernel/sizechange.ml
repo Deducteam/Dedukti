@@ -121,7 +121,7 @@ type call =
 
 (** Representation of a function symbol. *)
 type symbol =
-    { name  : (ident * ident) (** Name of the symbol. *)
+    { name  : name (** Name of the symbol. *)
     ; arity : int             (** Arity of the symbol (number of args). *)}
 
 (** Internal state of the SCT, including the representation of symbols and the call graph. *)
@@ -130,9 +130,11 @@ type call_graph =
     ; symbols    : symbol IMap.t ref
     ; calls      : call list ref }
 
+let def_name=mk_name (mk_mident "") (mk_ident "")
+      
 (* Global variables *)
 let graph : call_graph ref =
-  let root = { name  = (hstring "",hstring "") ; arity = 0} in
+  let root = { name  = def_name ; arity = 0} in
   let syms = IMap.singleton (-1) root in
   ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
 
@@ -144,7 +146,7 @@ let after : (ident*ident, (ident*ident) list) Hashtbl.t = Hashtbl.create 5
 
 let initialize : bool -> unit =
   fun v->
-  let root = { name  = (hstring "",hstring "") ; arity = 0} in
+  let root = { name  = def_name ; arity = 0} in
   let syms = IMap.singleton (-1) root in
   graph:={ next_index = ref 0 ; symbols = ref syms ; calls = ref [] };
   table:=[];
@@ -160,8 +162,6 @@ let printHT key_printer elt_printer ht=
 let pp_index fmt x = pp_print_int fmt (int_of_index x)
     
 let pp_couple pp_fst pp_snd fmt x = fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd (snd x)
-
-let pp_name fmt (md,id) = fprintf fmt "%a.%a" pp_ident md pp_ident id
 
 let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) = fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z
 
@@ -224,13 +224,13 @@ let updateHT : ('a,'b list) Hashtbl.t -> 'a -> 'b -> unit =
     Hashtbl.add ht id [x]
                     
 (** Creation of a new symbol.  *)
-let create_symbol : ident -> ident -> int -> unit =
-  fun md_name fct_name arity ->
+let create_symbol : name -> int -> unit =
+  fun name arity ->
   let g= !graph in
   if !vb then printf "Ajout du symbole %a.%a d'arité %i@." pp_ident md_name pp_ident fct_name arity; 
   let index = !(g.next_index) in
-  let sym = {name=(md_name,fct_name) ; arity} in
-  table:=((md_name,fct_name), arity, index)::!table;
+  let sym = {name=name ; arity} in
+  table:=(name, arity, index)::!table;
   g.symbols := IMap.add index sym !(g.symbols);
   incr g.next_index
 

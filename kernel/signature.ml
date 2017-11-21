@@ -65,8 +65,8 @@ let get_external_rules sg = sg.external_rules
 
 let get_tables sg=
   let res=ref [] in
-  H.iter (fun a tb ->
-    H.iter (fun b x ->
+  HMd.iter (fun a tb ->
+    HId.iter (fun b x ->
       if not (List.exists (fun (_,n,_,_,_) -> ident_eq n b) !res)
       then res:=(a,b,x.stat,x.ty,x.rule_opt_info)::(!res)
     ) tb

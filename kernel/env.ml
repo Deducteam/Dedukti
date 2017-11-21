@@ -58,7 +58,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
         pat = Pattern(l, cst, []);
         rhs = te ;
       }
-    in Signature.add_rules !sg [rule];
+    in Signature.add_rules !sg [rule]
 
 let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with

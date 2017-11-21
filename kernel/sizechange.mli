@@ -58,4 +58,4 @@ type call_graph
 val latex_print_calls : unit -> unit
 
   
-val termination_check : bool -> bool -> ident -> rule_infos list list -> (ident * ident * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> bool
+val termination_check : bool -> bool -> mident -> rule_infos list list -> (mident * ident * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> bool
