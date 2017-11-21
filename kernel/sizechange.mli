@@ -5,14 +5,14 @@ open Format
 
 exception Ext_ru of rule_infos list list
 exception Calling_unknown of int
-exception Callee_unknown of (ident * ident * int)
+exception Callee_unknown of (name * int)
 exception NonLinearity of int
 exception PatternMatching of int
-exception TypingError of (ident * ident)
-exception NonPositivity of (ident * ident)
-exception ModuleDependancy of (ident * ident)
-exception TypeLevelRewriteRule of (ident * ident * ident * ident)
-exception TypeLevelWeird of (ident * ident * term)
+exception TypingError of name
+exception NonPositivity of name
+exception ModuleDependancy of name
+exception TypeLevelRewriteRule of (name * name)
+exception TypeLevelWeird of (name * term)
 exception TarjanError
 
   (** Representation of the set {-1, 0, ∞} *)
@@ -58,4 +58,4 @@ type call_graph
 val latex_print_calls : unit -> unit
 
   
-val termination_check : bool -> bool -> mident -> rule_infos list list -> (mident * ident * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> bool
+val termination_check : bool -> bool -> mident -> rule_infos list list -> (name * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> bool

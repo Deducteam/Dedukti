@@ -67,8 +67,8 @@ let get_tables sg=
   let res=ref [] in
   HMd.iter (fun a tb ->
     HId.iter (fun b x ->
-      if not (List.exists (fun (_,n,_,_,_) -> ident_eq n b) !res)
-      then res:=(a,b,x.stat,x.ty,x.rule_opt_info)::(!res)
+      if not (List.exists (fun (n,_,_,_) -> name_eq n (mk_name a b)) !res)
+      then res:=(mk_name a b,x.stat,x.ty,x.rule_opt_info)::(!res)
     ) tb
   ) sg.tables;
   !res

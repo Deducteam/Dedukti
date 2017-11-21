@@ -17,14 +17,14 @@ let root : index = -1
 
 exception Ext_ru of rule_infos list list
 exception Calling_unknown of int
-exception Callee_unknown of (ident * ident * int)
+exception Callee_unknown of (name * int)
 exception NonLinearity of int
-exception TypingError of (ident * ident)
-exception NonPositivity of (ident * ident)
-exception ModuleDependancy of (ident * ident)
+exception TypingError of name
+exception NonPositivity of name
+exception ModuleDependancy of name
 exception PatternMatching of int
-exception TypeLevelRewriteRule of (ident * ident * ident * ident)
-exception TypeLevelWeird of (ident * ident * term)
+exception TypeLevelRewriteRule of (name * name)
+exception TypeLevelWeird of (name * term)
 exception TarjanError
             
 type symb_status = Set_constructor | Elt_constructor | Def_function | Def_type
@@ -130,7 +130,7 @@ type call_graph =
     ; symbols    : symbol IMap.t ref
     ; calls      : call list ref }
 
-let def_name=mk_name (mk_mident "") (mk_ident "")
+let def_name = mk_name (mk_mident "") (mk_ident "")
       
 (* Global variables *)
 let graph : call_graph ref =
@@ -139,10 +139,10 @@ let graph : call_graph ref =
   ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
 
 let vb : bool ref=ref false
-let table : ((ident * ident) * int * index) list ref = ref []
-let constructors : (ident * ident) list ref= ref []
-let must_be_str_after : (ident*ident, (ident*ident) list) Hashtbl.t  = Hashtbl.create 5
-let after : (ident*ident, (ident*ident) list) Hashtbl.t = Hashtbl.create 5
+let table : (name * int * index * bool) list ref = ref []
+let constructors : name list ref= ref []
+let must_be_str_after : (name, name list) Hashtbl.t  = Hashtbl.create 5
+let after : (name, name list) Hashtbl.t = Hashtbl.create 5
 
 let initialize : bool -> unit =
   fun v->
@@ -165,7 +165,7 @@ let pp_couple pp_fst pp_snd fmt x = fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd
 
 let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) = fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z
 
- let pp_quint pp1 pp2 pp3 pp4 pp5 fmt (a,b,c,d,e)= fprintf fmt "%a,%a,%a,%a,%a" pp1 a pp2 b pp3 c pp4 d pp5 e
+ let pp_quat pp1 pp2 pp3 pp4 fmt (a,b,c,d)= fprintf fmt "%a,%a,%a,%a" pp1 a pp2 b pp3 c pp4 d
 
 let pp_stat fmt s = fprintf fmt "%s" (if s=Signature.Static then "Static" else "Definable")
                                                          
@@ -227,7 +227,7 @@ let updateHT : ('a,'b list) Hashtbl.t -> 'a -> 'b -> unit =
 let create_symbol : name -> int -> unit =
   fun name arity ->
   let g= !graph in
-  if !vb then printf "Ajout du symbole %a.%a d'arité %i@." pp_ident md_name pp_ident fct_name arity; 
+  if !vb then printf "Ajout du symbole %a d'arité %i@." pp_name name arity; 
   let index = !(g.next_index) in
   let sym = {name=name ; arity} in
   table:=(name, arity, index)::!table;
@@ -272,8 +272,8 @@ let rec comparison : int -> term -> pattern -> cmp =
     in
     match p,t with
     | Var (_,_,n,[]), DB (_,_,m) -> if n+nb=m then Zero else Infi
-    | Pattern (_,_,f,lp), App(Const(_,_,g),t1,lt) when (ident_eq f g) ->  comp_list Zero lp (t1::lt)
-    | Pattern (_,_,_,l),t -> minus1 (mini Infi (List.map (comparison nb t) l))
+    | Pattern (_,n,lp), App(Const(_,g),t1,lt) when (name_eq n g) ->  comp_list Zero lp (t1::lt)
+    | Pattern (_,_,l),t -> minus1 (mini Infi (List.map (comparison nb t) l))
     | _ -> Infi
            
 let matrix_of_lists : int -> term list -> pattern list -> matrix =
@@ -317,59 +317,59 @@ let rec rule_to_call : int -> rule_infos -> call list =
       let get_caller : pattern list * index =
 	let lp=r.args in
 	try 
-	  (lp,third (List.find (fun (x,ar,_) -> (couple_id_eq x (r.md,r.id)) && ar=List.length(lp)) !table))
+	  (lp,third (List.find (fun (x,ar,_) -> (name_eq x r.cst && ar=List.length(lp))) !table))
 	with Not_found ->
 	  begin
             try
-	      let old_index=third (List.find (fun (x,ar,_) -> (couple_id_eq x (r.md,r.id)) && ar>List.length(lp)) !table) in
+	      let old_index=third (List.find (fun (x,ar,_) -> (name_eq x r.cst && ar>List.length(lp))) !table) in
 	      let new_index= !(gr.next_index) in
-	      create_symbol r.md r.id (List.length lp);
+	      create_symbol r.cst (List.length lp);
 	      add_call { callee = new_index; caller =old_index; matrix=auto_call_matrix old_index new_index};
 	      (lp,new_index)
             with Not_found -> raise (Calling_unknown (fst (of_loc r.l)))
 	  end
       in
-      let term2rule t= {l=r.l; name=r.name; ctx=r.ctx; md=r.md; id=r.id; args=r.args; rhs=t; esize=r.esize; l_args=r.l_args; constraints=[]} in
+      let term2rule t= {l=r.l; name=r.name; ctx=r.ctx; cst=r.cst; args=r.args; rhs=t; esize=r.esize; l_args=r.l_args; constraints=[]} in
       let get_callee : (term list * index) option =
 	match r.rhs with
 	| DB (_,_,_) | Kind | Type(_) -> None
-	| Const (_,m,v) ->
+	| Const (_,f) ->
 	   begin
-             try Some ([],third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v)) && ar=0) !table))
+             try Some ([],third (List.find (fun (x,ar,_) -> (name_eq x f) && ar=0) !table))
              with Not_found ->
                begin
 		 try
-		   let old_index=third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v))) !table)
+		   let old_index=third (List.find (fun (x,ar,_) -> (name_eq x f)) !table)
 		   in
 		   let new_index= !(gr.next_index)
 		   in
-		   create_symbol m v 0;
+		   create_symbol f 0;
 		   add_call { callee = new_index; caller = old_index; matrix=auto_call_matrix new_index old_index};
 		   Some ([],new_index)
 		 with Not_found -> None
                end
 	   end
-	| App (Const(_,m,v),t1,lt) ->
+	| App (Const(_,f),t1,lt) ->
 	   begin
-             try Some (t1::lt,third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v)) && ar=List.length(lt)+1) !table))
+             try Some (t1::lt,third (List.find (fun (x,ar,_) -> (name_eq x f) && ar=List.length(lt)+1) !table))
              with Not_found ->
                begin
 		 try
-		   let old_index=third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v)) && ar>List.length(lt)+1) !table)
+		   let old_index=third (List.find (fun (x,ar,_) -> (name_eq x f) && ar>List.length(lt)+1) !table)
 		   in
 		   let new_index= !(gr.next_index)
 		   in
-		   create_symbol m v (List.length (t1::lt));
+		   create_symbol f (List.length (t1::lt));
 		   add_call { callee = new_index; caller = old_index; matrix=auto_call_matrix new_index old_index};
 		   Some (t1::lt,new_index)
 		 with Not_found ->
                    begin
 		     try
-		       let old_index=third (List.find (fun (x,ar,_) -> (couple_id_eq x (m,v)) && ar<=List.length(lt)) !table)
+		       let old_index=third (List.find (fun (x,ar,_) -> (name_eq x f) && ar<=List.length(lt)) !table)
 		       in
 		       let new_index= !(gr.next_index)
 		       in
-		       create_symbol m v (List.length (t1::lt));
+		       create_symbol f (List.length (t1::lt));
 		       add_call { callee = old_index; caller = new_index; matrix=auto_call_matrix old_index new_index};
 		       Some (t1::lt,new_index)
 		     with Not_found ->
@@ -425,9 +425,9 @@ let latex_print_calls : unit -> unit=
   in
   let f (j,sym) =
     if not_unique sym.name then
-      fprintf ff "    N%d [ label = \"%a_{%d}\" ];\n" (index j) pp_ident (snd sym.name) (index j)
+      fprintf ff "    N%d [ label = \"%a_{%d}\" ];\n" (index j) pp_name sym.name (index j)
     else
-      fprintf ff "    N%d [ label = \"%a\" ];\n" (index j) pp_ident (snd sym.name)
+      fprintf ff "    N%d [ label = \"%a\" ];\n" (index j) pp_name sym.name
   in
   List.iter f (List.filter (fun (i,_) ->
     List.exists (fun c -> i = c.caller || i = c.callee) calls) arities);
@@ -480,8 +480,8 @@ let tarjan graph=
       if (Hashtbl.find numAcc v)=(Hashtbl.find numHT v)
       then
 	begin
-          let c=ref [] and w=ref (hstring "",hstring "") in
-          while not (couple_id_eq !w v)
+          let c=ref [] and w=ref def_name in
+          while not (name_eq !w v)
           do
             w:= List.hd !p;
             p:= List.tl !p;
@@ -500,8 +500,8 @@ let are_equiv a b l=
 
 let print_constr : unit -> unit=
   fun () ->
-  printf "@.Constructors :@.%a@." (pp_list ";" (pp_couple pp_ident pp_ident)) !constructors;
-  printf "@.After :@."; printHT (pp_couple pp_ident pp_ident) (pp_list "," (pp_couple pp_ident pp_ident)) after;
+  printf "@.Constructors :@.%a@." (pp_list ";" pp_name) !constructors;
+  printf "@.After :@."; printHT pp_name (pp_list "," pp_name) after;
   printf "@;"
     
 let str_positive l ht=
@@ -511,9 +511,6 @@ let str_positive l ht=
 (** the main function, checking if calls are well-founded *)
 let sct_only : unit -> bool =
   fun ()->
-    if !vb
-    then (print_constr ();
-	  printf "%a@." (pp_list ";" (pp_list "," (pp_couple pp_ident pp_ident))) (tarjan after));
     let ftbl= !graph in
     let num_fun = !(ftbl.next_index) in
     let arities = !(ftbl.symbols) in
@@ -594,76 +591,79 @@ let rec right_most : term -> term =
   | App(a,_,_) -> right_most a
   | t -> t
 
-let find_status : ident -> ident -> (ident * ident * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> symb_status=
-  fun md id sign ->
+let find_status : name -> (name * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> symb_status=
+  fun f sign ->
   try 
-    let (_,_,stat,typ,_) = List.find (fun (a,b,_,_,_) -> (couple_id_eq (md,id) (a,b))) sign in
+    let (_,stat,typ,_) = List.find (fun (g,_,_,_) -> (name_eq f g)) sign in
     match stat,(right_most typ) with
     | Signature.Static,Type _ -> Set_constructor
     | Signature.Static,_ -> Elt_constructor
     | Signature.Definable,Type _ -> Def_type
     | Signature.Definable,_ -> Def_function
   with
-  | _ -> raise (ModuleDependancy (md,id))
+  | _ -> raise (ModuleDependancy f)
       
-let rec constructors_infos : position -> ident -> ident -> term -> term -> (ident * ident * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> unit =
-  fun posit md id typ rm sign->
+let rec constructors_infos : position -> name -> term -> term -> (name * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> unit =
+  fun posit f typ rm sign->
     match rm with
-    | Type _ -> if not (Hashtbl.mem after (md,id)) then (Hashtbl.add must_be_str_after (md,id) []; Hashtbl.add after (md,id) [])
+    | Type _ -> if not (Hashtbl.mem after f) then (Hashtbl.add must_be_str_after f []; Hashtbl.add after f [])
     | _ -> ();
     match typ with
-    | Kind -> raise (TypingError (md,id))
+    | Kind -> raise (TypingError f)
     | DB(_,_,_) | Type _ -> ()
-    | App(a,_,_) | Lam(_,_,_,a) -> constructors_infos posit md id a rm sign
+    | App(a,_,_) | Lam(_,_,_,a) -> constructors_infos posit f a rm sign
     | Pi(_,_,lhs,rhs) ->
        begin
-	 constructors_infos posit md id rhs rm sign;
-	 constructors_infos (under posit) md id lhs rm sign
+	 constructors_infos posit f rhs rm sign;
+	 constructors_infos (under posit) f lhs rm sign
        end
-    | Const(_,m,f) ->
+    | Const(_,g) ->
        begin
-	 match find_status m f sign with
+	 match find_status g sign with
 	 | Set_constructor ->
 	    begin
 	        match rm with
-	        | Type _ ->  updateHT after (md,id) (m,f); updateHT must_be_str_after (md,id) (m,f)
-                | Const(_,m2,f2) ->
+	        | Type _ ->  updateHT after f g; updateHT must_be_str_after f g
+                | Const(_,g2) ->
                    begin
-                     updateHT after (m2,f2) (m,f);
+                     updateHT after g2 g;
                      match posit with
-                     | Negative -> updateHT must_be_str_after (m2,f2) (m,f)
+                     | Negative -> updateHT must_be_str_after g2 g
                      | _ -> ()
                    end
-	        | _ -> raise (TypeLevelRewriteRule (md,id,m,f))
+	        | _ -> raise (TypeLevelRewriteRule (f,g))
 	    end
          |_ -> ()
        end
-    | _ -> raise (TypeLevelWeird (md,id,typ))
+    | _ -> raise (TypeLevelWeird (f,typ))
        
 	 
 (** Initialize the SCT-checker *)	
 let termination_check vb szgraph mod_name ext_ru whole_sig =
   initialize vb;
-  if vb then printf "La signature est:@. * %a@." (pp_list "\n * " (pp_quint pp_ident pp_ident pp_stat pp_term (pp_option (pp_triple (pp_list ";" pp_rule_infos) pp_print_int Dtree.pp_dtree)))) whole_sig;
+  if vb then printf "La signature est:@. * %a@." (pp_list "\n * " (pp_quat pp_name pp_stat pp_term (pp_option (pp_triple (pp_list ";" pp_rule_infos) pp_print_int Dtree.pp_dtree)))) whole_sig;
   if not (ext_ru=[]) then raise (Ext_ru ext_ru);
   List.iter
-    (fun (md,fct,st,typ,rules_opt) ->
+    (fun (fct,st,typ,rules_opt) ->
       match rules_opt with
       | None -> ()
-      | Some (rul,arit,dec_tree) -> create_symbol md fct arit
+      | Some (rul,arit,dec_tree) -> create_symbol fct arit
     ) whole_sig;
   List.iter
-    (fun (md,fct,st,typ,rules_opt) ->
+    (fun (fct,st,typ,rules_opt) ->
+      match st with
+      | Signature.Definable -> ()
+      | Signature.Static -> constructors_infos Global fct typ (right_most typ) whole_sig
+    ) whole_sig;
+  List.iter
+    (fun (fct,st,typ,rules_opt) ->
       match rules_opt with
       | None -> ()
       | Some (rul,arit,dec_tree) -> add_rules rul
     ) whole_sig;
-  if vb then printf "Table :@.%a@." (pp_list "/" (pp_triple pp_name pp_print_int pp_index)) !table;
-  List.iter
-    (fun (md,fct,st,typ,rules_opt) ->
-      match st with
-      | Signature.Definable -> ()
-      | Signature.Static -> constructors_infos Global md fct typ (right_most typ) whole_sig
-    ) whole_sig;
+  if vb then printf "Table :@. ' %a@." (pp_list "@. ' " (pp_triple pp_name pp_print_int pp_index)) !table;
+  if vb
+  then (print_constr ();
+    printf "%a@." (pp_list ";" (pp_list "," pp_name)) (tarjan after));
   if szgraph then latex_print_calls ();
   sct_only ()

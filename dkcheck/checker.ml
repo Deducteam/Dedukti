@@ -130,15 +130,15 @@ let mk_ending () =
       | Sizechange.Calling_unknown i -> red_error "The caller line %i is unknown" i
       | Sizechange.NonLinearity i -> red_error "The rule declared line %i is not linear" i
       | Sizechange.PatternMatching i -> red_error "The rule declared line %i require to pattern match on defined symbol" i
-      | Sizechange.TypingError (m,f) -> red_error "There is a typing error with the symbol %a.%a" pp_ident m pp_ident f
-      | Sizechange.NonPositivity (m,f) -> red_error "The symbol %a.%a is not strictly positive" pp_ident m pp_ident f
+      | Sizechange.TypingError f -> red_error "There is a typing error with the symbol %a" pp_name f
+      | Sizechange.NonPositivity f -> red_error "The symbol %a is not strictly positive" pp_name f
       | Sizechange.TarjanError -> red_error "Problem with the Tarjan algorithm"
-      | Sizechange.Callee_unknown (m,v,i) -> red_error "The callee %a.%a line %i is unknown" pp_ident m pp_ident v i
-      | Sizechange.TypeLevelRewriteRule (a,b,c,d) -> red_error "Type level rewriting between %a.%a and %a.%a" pp_ident a pp_ident b pp_ident c pp_ident d
-      | Sizechange.TypeLevelWeird (a,b,t) -> red_error "Type level contains something weird in definition of %a.%a : %a" pp_ident a pp_ident b Term.pp_term t
-      | Sizechange.ModuleDependancy (a,b) -> red_error "Module dependancy %a.%a" pp_ident a pp_ident b
+      | Sizechange.Callee_unknown (f,i) -> red_error "The callee %a line %i is unknown" pp_name f i
+      | Sizechange.TypeLevelRewriteRule (f,g) -> red_error "Type level rewriting between %a and %a" pp_name f pp_name g
+      | Sizechange.TypeLevelWeird (f,t) -> red_error "Type level contains something weird in definition of %a : %a" pp_name f Term.pp_term t
+      | Sizechange.ModuleDependancy f -> red_error "Module dependancy %a" pp_name f
     end;
   if !export then
     if not (Env.export ()) then
-      Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );
+      Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ());
   Confluence.finalize ()
