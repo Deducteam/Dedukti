@@ -4,8 +4,6 @@ open Basic
 open Term
 open Ac
 
-exception NotUnifiable
-
 (** ([n], [t]) represents the term represented by [t] under [n] lambda abstractions. *)
 type 'a depthed = int * 'a
 
@@ -14,32 +12,40 @@ type var_p = int * int LList.t
 
 (* TODO: add loc to this to better handle errors *)
 type 'a problem =
-  (** the variable is exactly the given term. *)
   | Eq of var_p * 'a
-  (** ([m],[v],[joks],[u],[vars],[terms])
-   *  Represents the flattenned equality under AC([u]) symbol [m].[v] of:
+  (** the variable is exactly the given term. *)
+  | AC of ac_ident * int * (var_p list) * ('a list)
+  (** ([cst],[joks],[u],[vars],[terms])
+   *  Represents the flattenned equality under AC([u]) symbol [cst] of:
    *  - [njoks] jokers and the given variables [vars]
    *  - The given [terms] *)
-  | AC of ac_ident * int * (var_p list) * ('a list)
 
-type 'a status =
-  | Unsolved                            (** X is unknown *)
-  | Solved of 'a                        (** X = [term] *)
-  | Partly of ac_ident * ('a list) (** X = [m].[v](X', [terms])  *)
-
-(** Infos to build the context from the stack *)
-type 'a matching_problem =
+(** Problem with int referencing stack indices *)
+type pre_matching_problem =
   {
-    problems : 'a problem depthed list; (** A list of problems under a certain depth.       *)
-    (* TODO: This array should be immutable *)
-    status   : 'a status array;         (** Partial substituion. Initialized with Unsolved. *)
-    (* TODO: This array should be immutable *)
-    miller   : int array                (** Variables Miller arity. *)
+    pm_problems : int problem depthed list; (** A list of problems under a certain depth. *)
+    pm_miller   : int array                 (** Variables Miller arity. *)
   }
 
-(** Translate matching problems from one type to the other using conversion functions. *)
-val convert_problems : ('a -> 'b) -> ('a list -> 'b list) ->
-                       'a matching_problem -> 'b matching_problem
+type te = term Lazy.t
+
+type status =
+  | Unsolved                      (** X is unknown *)
+  | Solved of te                   (** X = [term] *)
+  | Partly of ac_ident * (te list) (** X = [m].[v](X', [terms])  *)
+
+type matching_problem =
+  {
+    problems : te problem depthed list; (** A list of problems under a certain depth.       *)
+    (* TODO: This array should somehow be immutable *)
+    status   : status array;           (** Partial substituion. Initialized with Unsolved. *)
+    (* TODO: This array should somehow be immutable *)
+    miller   : int array               (** Variables Miller arity. *)
+  }
+
+val mk_matching_problem: (int -> te) -> (int list -> te list) ->
+                         pre_matching_problem -> matching_problem
+
 
 (** solve [n] [k_lst] [te] solves the higher-order unification problems
     (unification modulo beta)
@@ -65,10 +71,10 @@ val solve : int -> int LList.t -> term -> term
  *)
 val solve_problem : (term -> term) ->
                     (term -> term -> bool) ->
-                    term Lazy.t matching_problem -> term Lazy.t option array option
+                    matching_problem -> te option array option
 
 (** Generic matching problem printing function (for debug). *)
-val pp_matching_problem : string -> 'a printer -> 'a matching_problem printer
+val pp_matching_problem : string -> matching_problem printer
 
 (** int matching problem printing function (for dtree). *)
-val pp_int_matching_problem : string -> int matching_problem printer
+val pp_pre_matching_problem : string -> pre_matching_problem printer

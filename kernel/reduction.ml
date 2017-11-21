@@ -103,7 +103,7 @@ let convert_problem stack problem =
          | _ -> assert false
        end
     | _ -> assert false in
-  Matching.convert_problems convert convert_ac_sets problem
+  Matching.mk_matching_problem convert convert_ac_sets problem
 
 (* AC related operations *)
 

@@ -15,22 +15,28 @@ type 'a problem =
   | Eq of var_p * 'a
   | AC of ac_ident * int * (var_p list) * ('a list)
 
-type 'a status =
-  | Unsolved
-  | Solved of 'a
-  | Partly of ac_ident * 'a list
+type pre_matching_problem = {
+  pm_problems : int problem depthed list;
+  pm_miller   : int array
+}
 
-type 'a matching_problem =
-  {
-    problems : 'a problem depthed list;
-    status   : 'a status array;
-    miller   : int array
-  }
+type te = term Lazy.t
+
+type status =
+  | Unsolved
+  | Solved of te
+  | Partly of ac_ident * te list
+
+type matching_problem = {
+  problems : te problem depthed list;
+  status   : status array;
+  miller   : int array
+}
 
 (**     Printing functions       **)
 
 let pp_pos = pp_print_int
-let pp_lazy_term fmt t = fprintf fmt "%a" pp_term (Lazy.force t)
+let pp_te fmt t = fprintf fmt "%a" pp_term (Lazy.force t)
 
 let pp_depthed pp_a fmt (d,a) = fprintf fmt "%a" pp_a a
 
@@ -52,43 +58,37 @@ let pp_problem pp_a fmt = function
 let pp_mp_problems sep pp_a fmt mp_p =
   fprintf fmt "[ %a ]" (pp_list sep (pp_depthed (pp_problem pp_a))) mp_p
 
-let pp_indexed_status pp_a fmt (i,st) = match st with
+let pp_indexed_status fmt (i,st) = match st with
   | Unsolved -> ()
-  | Solved a -> fprintf fmt "%i = %a" i pp_a a
+  | Solved a -> fprintf fmt "%i = %a" i pp_te a
   | Partly(aci,terms) ->
      fprintf fmt "%i = %a{ %i', %a }" i
              pp_ac_ident aci i
-             (pp_list " ; " pp_a) terms
+             (pp_list " ; " pp_te) terms
 
-let pp_mp_status sep pp_a fmt mp_s =
+let pp_mp_status sep fmt mp_s =
   let stl = Array.to_list (Array.mapi (fun i st -> (i,st)) mp_s) in
   if List.for_all (function (i,Unsolved) -> true | _ -> false) stl
   then ()
-  else fprintf fmt "%swith [ %a ]" sep (pp_list " and " (pp_indexed_status pp_a)) stl
+  else fprintf fmt "%swith [ %a ]" sep (pp_list " and " pp_indexed_status) stl
 
-let pp_matching_problem sep pp_a fmt mp =
-  fprintf fmt "%a%a" (pp_mp_problems sep pp_a) mp.problems
-                     (pp_mp_status   sep pp_a) mp.status
+let pp_pre_matching_problem sep fmt mp = pp_mp_problems sep pp_pos fmt mp.pm_problems
 
-let pp_int_matching_problem   sep = pp_matching_problem sep pp_pos
-let pp_lterm_matching_problem sep = pp_matching_problem sep pp_lazy_term
+let pp_matching_problem sep fmt mp =
+  fprintf fmt "%a%a" (pp_mp_problems sep pp_te) mp.problems
+                     (pp_mp_status   sep      ) mp.status
 
-
-(**  Problem convertion  **)
-let convert_problems f g pb =
+(**  Problem conversion from pre_problem  **)
+let mk_matching_problem f g pre_problem =
   let convert_problem = function
-    | Eq (vp,p) -> Eq (vp, f p)
+    | Eq (vp,p)                -> Eq (vp, f p)
     | AC (aci,joks,vars,terms) -> AC(aci,joks,vars,g terms) in
-  let convert_depthed_problem (i,p) = (i, convert_problem p) in
-  let convert_status = function
-    | Unsolved -> Unsolved
-    | Solved a -> Solved (f a)
-    | Partly(aci,terms) -> Partly(aci,List.map f terms) in
   {
-    problems =  List.map convert_depthed_problem pb.problems;
-    status   = Array.map convert_status          pb.status;
-    miller   = Array.copy pb.miller
+    problems =  List.map (fun (i,p) -> (i, convert_problem p)) pre_problem.pm_problems;
+    status   = Array.make (Array.length pre_problem.pm_miller) Unsolved;
+    miller   = Array.copy pre_problem.pm_miller
   }
+
 
 (** Solve the following problem for lambda term X:
  *    (lambda^[depth]. X) [args] = [t] where [args] are distincts bound variables
@@ -101,8 +101,8 @@ let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
     | Type _ | Kind | Const _ as t -> t
     | DB (l,x,n) as t ->
        if n < k            (* var bound in te *) then t
-       else if n >= k+depth (* var free in te *) then mk_DB l x (n-k+size)
-       else mk_DB l x (match arr.(n-k) with None -> raise NotUnifiable | Some n' ->  n')
+       else if n >= k+depth (* var free in te *) then mk_DB l x (n-depth+size)
+       else mk_DB l x (match arr.(n-k) with None -> raise NotUnifiable | Some n' ->  n'+k)
     | Lam (l,x,a,b) -> mk_Lam l x (map_opt (aux k) a) (aux (k+1) b)
     | Pi  (l,x,a,b) -> mk_Pi  l x (aux k a) (aux (k+1) b)
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)

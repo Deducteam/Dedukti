@@ -117,7 +117,7 @@ type dtree =
   | Fetch   of int * case * dtree * dtree option
   | ACEmpty of int * dtree * dtree option
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of int matching_problem * constr list * term * dtree option
+  | Test    of pre_matching_problem * constr list * term * dtree option
 
 let pp_AC_args fmt i =
   fprintf fmt (if i > 2 then "%i args, first 2 AC flattened" else "%i args") i
@@ -126,13 +126,13 @@ let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxex here instead of manual tabs. *)
   let tab = String.init (1 + t*4) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
-  | Test (mp,[],te,def) when List.length mp.problems == 0 -> fprintf fmt "%s%a" tab pp_term te
+  | Test (mp,[],te,def) when List.length mp.pm_problems == 0 -> fprintf fmt "%s%a" tab pp_term te
   | Test (mp,[],te,def)  ->
      fprintf fmt "%stry %a%sthen %a%selse %a"
-             tab (pp_int_matching_problem (tab^"      ")) mp tab pp_term te tab (pp_def (t+1)) def
+             tab (pp_pre_matching_problem (tab^"      ")) mp tab pp_term te tab (pp_def (t+1)) def
   | Test (mp,cstr,te,def)  ->
      fprintf fmt "%stry %a%sunder constraints %a%sthen %a%selse %a"
-             tab (pp_int_matching_problem (tab^"      ")) mp tab (pp_list ", " pp_constr) cstr
+             tab (pp_pre_matching_problem (tab^"      ")) mp tab (pp_list ", " pp_constr) cstr
              tab pp_term te tab (pp_def (t+1)) def
   | ACEmpty (i,tree_suc,tree_def) ->
      fprintf fmt "%sif $%i (AC flattened) is empty then %a%selse %a"
@@ -453,9 +453,8 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
     ) mx.first.pats;
   assert (Array.fold_left (fun a x -> a && x >= 0) true miller);
   {
-    problems = !pbs;
-    status = Array.make esize Unsolved;
-    miller = miller
+    pm_problems = !pbs;
+    pm_miller = miller
   }
 
 (******************************************************************************)

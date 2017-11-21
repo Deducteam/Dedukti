@@ -28,8 +28,7 @@ let get_dtree l cst =
 let export () : bool = Signature.export !sg
 
 let import lc md =
-  try
-    OK(Signature.import !sg lc md)
+  try OK(Signature.import !sg lc md)
   with SignatureError e -> Err e
 
 let _declare (l:loc) (id:ident) st ty : unit =
