@@ -591,6 +591,7 @@ let under : position -> position =
 let rec right_most : term -> term =
   function
   | Pi(_,_,_,a) -> right_most a
+  | App(a,_,_) -> right_most a
   | t -> t
 
 let find_status : ident -> ident -> (ident * ident * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> symb_status=

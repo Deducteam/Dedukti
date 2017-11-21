@@ -3,6 +3,7 @@ open Term
 open Rule
 open Typing
 open Signature
+open Format
 
 type env_error =
   | EnvErrorType of typing_error
@@ -29,8 +30,9 @@ let export () : bool = Signature.export !sg
 
 let _declare (l:loc) (id:ident) st ty : unit =
   match inference !sg ty with
-    | Kind | Type _ -> Signature.add_declaration !sg l id st ty
-    | s -> raise (TypingError (SortExpected (ty,[],s)))
+  | Kind | Type _ -> Signature.add_declaration !sg l id st ty; 
+  | s -> raise (TypingError (SortExpected (ty,[],s)))
+	 
 
 exception DefineExn of loc*ident
 
@@ -50,8 +52,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
         pat = Pattern(l, get_name (), id, []);
         rhs = te ;
       }
-    in
-    Signature.add_rules !sg [rule]
+    in Signature.add_rules !sg [rule];
 
 let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
@@ -85,8 +86,7 @@ let define_op l id te ty_opt =
 let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
   try
     let rs2 = List.map (check_rule !sg) rules in
-    Signature.add_rules !sg rs2;
-    OK rs2
+    Signature.add_rules !sg rs2; OK rs2
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
