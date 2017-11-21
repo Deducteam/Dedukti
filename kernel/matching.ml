@@ -5,7 +5,7 @@ exception NotUnifiable
 
 let update_dbs (depth:int) (dbs:int LList.t) (te:term) : term =
   let size = LList.len dbs in
-  let arr = Array.make size None in
+  let arr = Array.make depth None in
   let _ = List.iteri ( fun i n -> arr.(n) <- Some (size-i-1) ) (LList.lst dbs) in (* XXX: could be computed once for all at compile time *)
   let rec aux k = function
     | Type _ | Kind | Const _ as t -> t

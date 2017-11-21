@@ -8,7 +8,7 @@ val szgraph        : bool ref
 val sizechange     : bool ref
 val szvb           : bool ref
 
-val mk_prelude     : loc -> ident -> unit
+val mk_prelude     : loc -> mident -> unit
 
 val mk_declaration : loc -> ident -> Signature.staticity -> term -> unit
 
