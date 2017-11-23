@@ -107,7 +107,10 @@ let mk_command lc = function
 
 
 let mk_meta_definition l id mty mte =
-  Format.printf "let %a : %a := %a@." pp_ident id Term.pp_mtype mty Term.pp_mterm mte
+  Format.printf "let %a : %a := %a@." pp_ident id Term.pp_mtype mty Term.pp_mterm mte;
+  match Env.define_meta l id mty mte with
+  | OK () -> ()
+  | Err e -> Errors.fail_env_error e
 
 let export = ref false
 

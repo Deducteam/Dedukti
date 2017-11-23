@@ -421,3 +421,22 @@ let check_rule sg (rule:untyped_rule) : typed_rule =
     pat = rule.pat;
     rhs = rule.rhs
   }
+
+
+let checking_box boxte boxty =
+  match boxte, boxty with
+  | MT(_,ctx,term),MT(_,ctx',term') -> failwith "todo"
+  | CT(_,ctx), CT(_,ctx') -> failwith "todo CT CT"
+  | _ -> failwith "not compatible"
+
+
+let checking_meta sg (mte:mterm) (mty:mtype) =
+  let open Term in
+  match mte with
+  | BoxTe(boxte) ->
+    begin
+      match mty with
+      | BoxTy(boxty) -> checking_box boxte boxty
+      | _ -> failwith "expected a box type"
+    end
+  | _ -> failwith "TODO checking meta"
