@@ -26,6 +26,7 @@ exception PatternMatching of int
 exception TypeLevelRewriteRule of (name * name)
 exception TypeLevelWeird of (name * term)
 exception TarjanError
+exception CompError of ((pattern list) * (term list))
             
 type symb_status = Set_constructor | Elt_constructor | Def_function | Def_type
       
@@ -258,17 +259,20 @@ let rec comparison : int -> term -> pattern -> cmp =
     in
     let rec comp_list : cmp -> pattern list -> term list -> cmp =
       fun cur lp lt ->
-	assert (List.length lp=List.length lt);
-	match lp,lt with
-	| [],[] -> cur
-	| a::l1,b::l2 ->
-	   begin
-             match comparison nb b a,cur with
-             | Infi, _ -> Infi
-             | Min1,_ -> comp_list Min1 l1 l2
-             | _, Min1 -> comp_list Min1 l1 l2
-             | Zero,Zero -> comp_list Zero l1 l2
-           end
+        try
+          assert (List.length lp=List.length lt);
+          match lp,lt with
+          | [],[] -> cur
+          | a::l1,b::l2 ->
+            begin
+              match comparison nb b a,cur with
+              | Infi, _ -> Infi
+              | Min1,_ -> comp_list Min1 l1 l2
+      	      | _, Min1 -> comp_list Min1 l1 l2
+      	      | Zero,Zero -> comp_list Zero l1 l2
+      	    end
+	with
+	| _ -> raise (CompError (lp,lt)); Zero;
     in
     match p,t with
     | Var (_,_,n,[]), DB (_,_,m) -> if n+nb=m then Zero else Infi

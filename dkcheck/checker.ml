@@ -137,6 +137,7 @@ let mk_ending () =
       | Sizechange.TypeLevelRewriteRule (f,g) -> red_error "Type level rewriting between %a and %a" pp_name f pp_name g
       | Sizechange.TypeLevelWeird (f,t) -> red_error "Type level contains something weird in definition of %a : %a" pp_name f Term.pp_term t
       | Sizechange.ModuleDependancy f -> red_error "Module dependancy %a" pp_name f
+      | Sizechange.CompError (lp,lt) -> red_error "Comp error %a with %a" (pp_list "," Rule.pp_pattern) lp (pp_list "," Term.pp_term) lt
     end;
   if !export then
     if not (Env.export ()) then

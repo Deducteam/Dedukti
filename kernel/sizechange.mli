@@ -14,6 +14,7 @@ exception ModuleDependancy of name
 exception TypeLevelRewriteRule of (name * name)
 exception TypeLevelWeird of (name * term)
 exception TarjanError
+exception CompError of ((pattern list) * (term list)) 
 
   (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
