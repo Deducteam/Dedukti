@@ -54,7 +54,9 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
     in
     Signature.add_rules !sg [rule]
 
-let _define_meta (l:loc) (id:ident) (mty:mtype) (mte:mterm) : unit = failwith "todo"
+let _define_meta (l:loc) (id:ident) (mty:mtype) (mte:mterm) : unit =
+  checking_meta !sg mte mty;
+  failwith "(env) TODO: what to do once a meta is checked?"
 
 let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
@@ -80,7 +82,7 @@ let define l id te ty_opt : (unit,env_error) error =
 
 let define_meta l id mty mte : (unit, env_error) error =
   try OK (_define_meta l id mty mte)
-  with _ -> failwith "add exceptions for define_meta"
+  with e -> raise e (* TODO: change that *)
 
 let define_op l id te ty_opt =
   try OK ( _define_op l id te ty_opt )

@@ -26,9 +26,13 @@ val pp_prepattern : formatter -> prepattern -> unit
 
 type pdecl      = loc * ident
 
+type ptypeddecl     = (loc * ident) * preterm
+
 val pp_pdecl : formatter -> pdecl -> unit
 
 type pcontext   = pdecl list
+
+type ptypedcontext = ptypeddecl  list
 
 val pp_pcontext : formatter -> pcontext -> unit
 
@@ -37,7 +41,7 @@ type prule      = loc * (mident option *ident) option * pdecl list * mident opti
 val pp_prule : formatter -> prule -> unit
 
 type pbox_term =
-  | PMT of loc * pcontext * preterm
+  | PMT of loc * ptypedcontext * preterm
 
 type pmtype =
   | PImpl of loc * pmtype * pmtype

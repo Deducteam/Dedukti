@@ -47,3 +47,5 @@ val inference   : Signature.t -> term -> typ
 
 val check_rule  : Signature.t -> untyped_rule -> typed_rule
 (** [check_rule sg ru] checks that a rule is well-typed. *)
+
+val checking_meta : Signature.t -> mterm -> mtype -> unit

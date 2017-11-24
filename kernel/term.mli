@@ -36,8 +36,8 @@ val new_fresh_meta_id : unit -> int
 val term_eq : term -> term -> bool
 
 type var = int
-(* TODO: the same as Rule.untyped_context *)
-type ctx = ( loc * ident ) list
+(* TODO: the same as Rule.typed_context *)
+type ctx = ( loc * ident * term) list
 
 type mctx = (loc * ident) list
 

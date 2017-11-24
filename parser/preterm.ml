@@ -57,9 +57,13 @@ and pp_prepattern_wp fmt = function
 
 type pdecl      = loc * ident
 
+type ptypeddecl     = (loc * ident) * preterm
+
 let pp_pdecl fmt (_,id) = pp_ident fmt id
 
 type pcontext   = pdecl list
+
+type ptypedcontext = ptypeddecl  list
 
 let pp_pcontext fmt ctx =
   pp_list ".\n" (fun out (_,x) ->
@@ -82,7 +86,7 @@ let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, prete):prule) : unit  
       (pp_list " " pp_prepattern) prepatterns pp_preterm prete name
 
 type pbox_term =
-  | PMT of loc * pcontext * preterm
+  | PMT of loc * ptypedcontext * preterm
 
 type pmtype =
   | PImpl of loc * pmtype * pmtype

@@ -93,6 +93,7 @@
 %type <unit> line
 %type <Preterm.prule> rule
 %type <Preterm.pdecl> decl
+%type <Preterm.ptypeddecl> typeddecl
 %type <Basic.loc*Basic.ident*Preterm.preterm> param
 %type <Preterm.pdecl list> context
 %type <Basic.loc*Basic.mident option*Basic.ident*Preterm.prepattern list> top_pattern
@@ -170,8 +171,13 @@ rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
 		{ let (l,md_opt,id,args) = $7 in let (_,m,v) = $2 in ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 
-decl            : ID COLON term         { debug 1 "Ignoring type declaration in rule context."; $1 }
+decl            : typeddecl              { debug 1 "Ignoring type declaration in rule context.";
+                                           let (decl,_) = $1 in decl }
                 | ID                    { $1 }
+
+typeddecl        : ID COLON term         {$1, $3}
+
+typedcontext     : separated_nonempty_list(COMMA,typeddecl) { $1 }
 
 context         : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, decl) { $1 }
@@ -225,7 +231,7 @@ term            : sterm+
                 { PreLam (fst $1,snd $1,Some(mk_pre_from_list $3),$5) }
 
 
-box_term        : LEFTSQU context VDASH term RIGHTSQU
+box_term        : LEFTSQU typedcontext VDASH term RIGHTSQU
                 { PMT(preterm_loc $4, $2, $4) }
 
 mtype           : mtype ARROW mtype

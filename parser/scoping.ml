@@ -52,9 +52,15 @@ let rec t_of_pt ?(mctx=[]) (ctx:ident list) (pte:preterm) : term =
 let scope_term ?(mctx=[])ctx (pte:preterm) : term =
   t_of_pt ~mctx:mctx (List.map (fun (_,x,_) -> x) ctx) pte
 
+let c_of_pc mctx pc : Term.ctx =
+  let unfold ((a,b),c) = (a,b,c) in
+  let item ctx (l,id,pt) = ctx@[(l,id,t_of_pt ~mctx:mctx (List.map (fun (_,id,_) -> id) ctx) pt)] in
+  List.fold_left item [] (List.map unfold pc)
+
 let scope_box mctx pbox  =
   match pbox with
-  | PMT(lc,pc,pte) -> MT(lc,pc, t_of_pt ~mctx:mctx (List.map (fun (_,x) -> x) pc) pte)
+  | PMT(lc,pc,pte) -> MT(lc,c_of_pc mctx pc, t_of_pt ~mctx:mctx
+                           (List.map (fun ((_,x),_) -> x) pc) pte)
 
 let rec mty_of_pmty mctx (pmty:pmtype) : mtype =
   match pmty with

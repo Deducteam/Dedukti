@@ -423,9 +423,13 @@ let check_rule sg (rule:untyped_rule) : typed_rule =
   }
 
 
-let checking_box boxte boxty =
+(* TODO probably need to check alpha renaming at some point*)
+let ctx_equal = (=)
+
+let checking_box sg boxte boxty =
   match boxte, boxty with
-  | MT(_,ctx,term),MT(_,ctx',term') -> failwith "todo"
+  | MT(_,ctx,term),MT(_,ctx',ty) ->
+    if ctx_equal ctx ctx' then check sg ctx term ty else failwith "context are not equals"
   | CT(_,ctx), CT(_,ctx') -> failwith "todo CT CT"
   | _ -> failwith "not compatible"
 
@@ -436,7 +440,7 @@ let checking_meta sg (mte:mterm) (mty:mtype) =
   | BoxTe(boxte) ->
     begin
       match mty with
-      | BoxTy(boxty) -> checking_box boxte boxty
+      | BoxTy(boxty) -> checking_box sg boxte boxty
       | _ -> failwith "expected a box type"
     end
   | _ -> failwith "TODO checking meta"

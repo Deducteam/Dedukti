@@ -96,11 +96,12 @@ let rec term_eq t1 t2 =
 type var = int
 
 (* TODO: the same as Rule.untyped_context *)
-type ctx = ( loc * ident ) list
+type ctx = ( loc * ident * term) list
 
 let pp_ctx fmt ctx =
-  let ctx = List.map snd ctx in
-  pp_list "" pp_ident fmt ctx
+  pp_list ".\n" (fun fmtt (_,x,ty) ->
+      fprintf fmt "%a: %a" pp_ident x pp_term ty )
+    fmt ctx
 
 type mctx = (loc * ident) list
 

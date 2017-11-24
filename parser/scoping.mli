@@ -6,4 +6,4 @@ val scope_rule : Preterm.prule -> Rule.untyped_rule
 
 val scope_mtype : Term.mctx -> Preterm.pmtype -> Term.mtype
 
-val scope_mterm : Term.mctx -> Term.ctx -> Preterm.pmterm -> Term.mterm
+val scope_mterm : Term.mctx -> (Basic.loc * Basic.ident) list -> Preterm.pmterm -> Term.mterm
