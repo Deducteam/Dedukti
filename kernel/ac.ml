@@ -1,13 +1,15 @@
 open Basic
 open Term
 
+(*   AC identifier (name and algebra).   *)
+
 type ac_ident = name * algebra
 
 let ac_ident_eq (name,ac) (name',ac') = name_eq name name'
 
 let pp_ac_ident fmt (name,_) = Format.fprintf fmt "%a" pp_name name
 
-let is_acu (_,alg) = match alg with | ACU _ -> true | _ -> false
+(* AC functions *)
 
 let get_AC_args name = function
   | App( Const (l,name'), a1, [a2]) when name_eq name name' -> Some (a1, a2)
@@ -46,3 +48,8 @@ let rec unflatten_AC (name,alg) = function
   | [t] -> t
   | t1 :: t2 :: tl ->
      unflatten_AC (name,alg) ((mk_App (mk_Const dloc name) t1 [t2]) :: tl)
+
+
+(* ACU functions *)
+
+let is_acu (_,alg) = match alg with | ACU _ -> true | _ -> false

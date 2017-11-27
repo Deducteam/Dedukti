@@ -61,52 +61,68 @@ let split_mx (f:dtree_rule -> bool) (mx:matrix) : matrix option * matrix option 
   in
   (aux l1, aux l2)
 
-let filter_on_pattern_size size r =
-  match r.pats.(0) with
-  | LPattern(_,p) -> (Array.length p == size)
-  | _ -> assert false
-
 let filter (f:dtree_rule -> bool) (mx:matrix) : matrix option =
   match List.filter f (mx.first::mx.others) with
     | [] -> None
     | f::o -> Some { mx with first=f; others=o; }
 
+let get_rule_filter f c r = f r.pats.(c)
+
 (* Keeps only the rules with a lambda on column [c] *)
-let filter_on_lambda c r =
-  match r.pats.(c) with
+let filter_on_lambda = function
   | LLambda _ | LJoker | LVar _ -> true
   | LACSet (_,s) -> List.exists (function LLambda _ -> true | _ -> false) s
   | _ -> false
 
 (* Keeps only the rules with a bound variable of index [n] on column [c] *)
-let filter_on_bound_variable c nargs n r =
-  match r.pats.(c) with
+let filter_on_bound_variable nargs n = function
   | LVar _ | LJoker -> true
   | LBoundVar (_,n',args) -> (n' == n && Array.length args == nargs)
-  | LACSet(_,s) -> List.exists
-                  (function
-                   | LBoundVar (_,n',args) -> (n' == n && Array.length args == nargs)
-                   | _ -> false)
-                  s
+  | LACSet(_,s) -> assert false
   | _ -> false
 
-let filter_on_empty_AC_set c r =
-  match r.pats.(c) with
-  | LACSet (_,[]) -> true
-  | _ -> false
-  
 (* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
-let filter_on_pattern c nargs cst r =
-  match r.pats.(c) with
+let filter_on_pattern nargs cst = function
   | LVar _ | LJoker -> true
   | LPattern (cst',ar') -> (name_eq cst cst' && Array.length ar' == nargs)
-  | LACSet (_,s) -> List.exists
-                      (function
-                       | LPattern (cst',ar') -> (name_eq cst cst' &&
-                                                   Array.length ar' == nargs)
-                       | _ -> false)
-                      s
+  | LACSet (_,s) -> assert false
   | _ -> false
+
+
+
+let partition_AC_rules c f rules =
+  let rec aux (keep,def) = function
+    | [] -> (keep,def)
+    | r :: tl ->
+      match r.pats.(c) with
+      | LVar _ | LJoker -> aux (r :: keep, r :: def) tl
+      | LACSet (_,pats) ->
+        if f pats
+        then aux (r::keep,    def) tl
+        else aux (   keep, r::def) tl
+      | _ -> aux (keep, r::def) tl
+  in
+  aux ([],[]) rules
+
+let filter_AC_on_empty_set = function
+  | LACSet (_,[]) -> true
+  | _ -> false
+
+let filter_AC_on_lambda s = List.exists (function LLambda _ -> true | _ -> false) s
+
+let filter_AC_on_bound_variable nargs n s =
+  List.exists
+    (function
+      | LBoundVar (_,n',args) -> (n' == n && Array.length args == nargs)
+      | _ -> false)
+    s
+
+let filter_AC_on_pattern nargs cst s =
+  List.exists (function
+      | LPattern (cst',ar') -> (name_eq cst cst' &&
+                                Array.length ar' == nargs)
+      | _ -> false)
+    s
 
 type case =
   | CConst   of int * name * bool
@@ -182,8 +198,8 @@ let pp_dtree fmt dtree = pp_dtree 0 fmt dtree
 let eq a b =
   match a, b with
     | CLam              , CLam                  -> true
-    | CDB    (ar,n)     , CDB    (ar',n')       -> (ar==ar' && n==n')
-    | CConst (ar,cst,ac), CConst (ar',cst',ac') -> (ar==ar' && name_eq cst cst')
+    | CDB    (ar,n)     , CDB    (ar',n')       -> ar == ar' && n == n'
+    | CConst (ar,cst,ac), CConst (ar',cst',ac') -> ar == ar' && name_eq cst cst'
     | _, _ -> false
 
 let case_of_pattern (is_AC:name->bool) : wf_pattern -> case option = function
@@ -217,8 +233,8 @@ let specialize_empty_AC_rule (c:int) (r:dtree_rule) : dtree_rule =
 let specialize_AC_rule case (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
   let size = Array.length r.pats in
   let new_pats_c, pat =
-    match r.pats.(c), case with
-    | LACSet (cst,l), c ->
+    match r.pats.(c) with
+    | LACSet (cst,l) ->
        let rec remove_case acc = function
          | [] -> assert false
          | hd :: tl -> if case_pattern_match case hd
@@ -226,6 +242,7 @@ let specialize_AC_rule case (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
                        else remove_case (hd::acc) tl
        in
        remove_case [] l
+    | LVar _ | LJoker -> r.pats.(c), LJoker
     | _ -> assert false in
   let aux i =
     if i < size then
@@ -244,6 +261,7 @@ let specialize_AC_rule case (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
          assert ( Array.length pats2 == nargs );
          pats2.(i - size)
       | LLambda (_,p),_ -> ( assert ( nargs == 1); p )
+      | LJoker,_ -> LJoker
       | _ -> assert false
   in
   { r with pats = Array.init (size+nargs) aux }
@@ -313,7 +331,7 @@ let filter_default (mx:matrix) (c:int) : matrix option =
 (* Specialize the matrix [mx] on column [c] *)
 let specialize_ACEmpty (mx:matrix) (c:int) : matrix * matrix option =
   let (rules_suc, rules_def) =
-    List.partition (filter_on_empty_AC_set c) (mx.first::mx.others) in
+    List.partition (get_rule_filter filter_AC_on_empty_set c) (mx.first::mx.others) in
   match rules_suc with
   | [] -> assert false
   | first::others ->
@@ -327,20 +345,15 @@ let specialize_ACEmpty (mx:matrix) (c:int) : matrix * matrix option =
 
 (* Specialize the matrix [mx] on column [c] *)
 let specialize_AC (mx:matrix) (c:int) (case:case) : matrix * matrix option =
-  let nargs, (rules_suc, rules_def) = match case with
-    | CLam                   -> 1    , List.partition (filter_on_lambda c)
-                                                      (mx.first::mx.others)
-    | CDB      (nargs,n)     -> nargs, List.partition (filter_on_bound_variable c nargs n)
-                                                      (mx.first::mx.others)
-    | CConst   (nargs,cst,_) -> nargs, List.partition (filter_on_pattern c nargs cst)
-                                                      (mx.first::mx.others)
-  in
-  let ac_const = match case with CConst(_,_,t) -> t | _ -> false in
-  let add_args = if ac_const then nargs-1 else nargs in
+  let nargs, part_f = match case with
+    | CLam                 -> 1    , filter_AC_on_lambda
+    | CDB    (nargs,n)     -> nargs, filter_AC_on_bound_variable nargs n
+    | CConst (nargs,cst,_) -> nargs, filter_AC_on_pattern        nargs cst  in
+  let rules_suc, rules_def = partition_AC_rules c part_f (mx.first::mx.others) in
+  let add_args = nargs - (match case with CConst(_,_,true) -> 1 | _ -> 0) in
   let new_cn = match case with
-    | CLam                -> spec_col_depth_l c          mx.col_depth
-    | _                   -> spec_col_depth   c add_args mx.col_depth
-  in
+    | CLam -> spec_col_depth_l c          mx.col_depth
+    | _    -> spec_col_depth   c add_args mx.col_depth  in
   match rules_suc with
   | [] -> assert false
   | first::others ->
@@ -352,17 +365,15 @@ let specialize_AC (mx:matrix) (c:int) (case:case) : matrix * matrix option =
       | [] -> None
       | f::o -> Some ({ mx with first = f; others = o}))
 
-
-
 (* Specialize the matrix [mx] on column [c] *)
 let specialize (mx:matrix) (c:int) (case:case) : matrix =
-  let (mx_opt,nargs) = match case with
-    | CLam                   -> ( filter (filter_on_lambda         c          ) mx , 1    )
-    | CDB      (nargs,n)     -> ( filter (filter_on_bound_variable c nargs n  ) mx , nargs)
-    | CConst   (nargs,cst,_) -> ( filter (filter_on_pattern        c nargs cst) mx , nargs)
+  let nargs, filter_f = match case with
+    | CLam                   -> 1    , filter_on_lambda
+    | CDB      (nargs,n)     -> nargs, filter_on_bound_variable nargs n
+    | CConst   (nargs,cst,_) -> nargs, filter_on_pattern        nargs cst
   in
-  let ac_const = match case with CConst(_,_,t) -> t | _ -> false in
-  let add_args = if ac_const then nargs-1 else nargs in
+  let mx_opt = filter (get_rule_filter filter_f c) mx in
+  let add_args = nargs - (match case with CConst(_,_,true) -> 1 | _ -> 0) in
   let new_cn = match case with
     | CLam                -> spec_col_depth_l c          mx.col_depth
     | _                   -> spec_col_depth   c add_args mx.col_depth
@@ -377,15 +388,12 @@ let specialize (mx:matrix) (c:int) (case:case) : matrix =
 
 (* ***************************** *)
 
-let rec partition_AC (is_AC:name->bool) : wf_pattern list -> case =
-  function
+let rec partition_AC (is_AC:name->bool) : wf_pattern list -> case = function
   | [] -> assert false
-  | hd::tl ->
-     begin
-       match case_of_pattern is_AC hd with
-       | Some c -> c
-       | None   -> partition_AC is_AC tl
-     end
+  | hd :: tl ->
+    match case_of_pattern is_AC hd with
+    | Some c -> c
+    | None   -> partition_AC is_AC tl
 
 let partition (ignore_arity:bool) (is_AC:name->bool) (mx:matrix) (c:int) : case list =
   let aux lst li =
@@ -411,7 +419,7 @@ let partition (ignore_arity:bool) (is_AC:name->bool) (mx:matrix) (c:int) : case 
 let array_to_llist arr =
   LList.make_unsafe (Array.length arr) (Array.to_list arr)
 
-let get_first_term mx = mx.first.right
+let get_first_term        mx = mx.first.right
 let get_first_constraints mx = mx.first.constraints
 
 (* Extracts the matching_problem from the first line. *)
@@ -504,21 +512,16 @@ let rec to_dtree get_algebra (mx:matrix) : dtree =
 
 let of_rules (get_algebra:name->algebra) (rs:rule_infos list) : (dtree,dtree_error) error =
   try
-    let r1, ro = match rs with
-      | [] -> assert false
-      | r1::ro -> r1,ro
-    in
-    (*  Building a matrix out of the non-empty list of rules r1::ro
-     *  It is checked that all rules have the same head symbol and arity.
-     *)
-    let o = List.map (
-                fun r2 ->
-                if not (name_eq r1.cst r2.cst) then
-                  raise (DtreeExn (HeadSymbolMismatch (r2.l,r2.cst,r1.cst)))
-                else
-                  to_dtree_rule r2
-              ) ro
-    in
-    let mx = { first=(to_dtree_rule r1); others=o; col_depth=Array.make 1 0 ;} in
-    OK (to_dtree get_algebra mx)
+    match rs with
+    | [] -> assert false
+    | r1 :: ro ->
+      (*  Building a matrix out of the non-empty list of rules.
+       *  It is checked that all rules have the same head symbol.  *)
+      let to_dtree_r r2 =
+        if not (name_eq r1.cst r2.cst)
+        then raise (DtreeExn (HeadSymbolMismatch (r2.l,r2.cst,r1.cst)))
+        else to_dtree_rule r2 in
+      let o = List.map to_dtree_r ro in
+      let mx = { first=(to_dtree_rule r1); others=o; col_depth=Array.make 1 0 ;} in
+      OK (to_dtree get_algebra mx)
   with DtreeExn e -> Err e

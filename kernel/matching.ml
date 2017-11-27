@@ -210,6 +210,10 @@ let set_unsolved convertible pb i sol =
        let sol = Lazy.force sol in
        (* If sol is headed by the same AC-symbol then flatten it. *)
        let flat_sols = flatten_AC_term (fst aci) sol in
+       let flat_sols =
+         match snd aci with
+         | ACU neu -> List.filter (fun x -> not (convertible neu x)) flat_sols
+         | _ -> flat_sols in
        let lambdaed = List.map (add_n_lambdas pb.miller.(i)) flat_sols in
        let shifted = List.map (Subst.shift d) lambdaed in
        let sols = compute_all_sols i vars shifted in
@@ -335,6 +339,7 @@ let get_subst pb =
 (** Main solving function *)
 let solve_problem reduce convertible pb =
   let rec solve_next pb =
+    debug 3 "Problem: %a" (pp_matching_problem "    ") pb;
     let try_solve_next pb = bind_opt solve_next pb in
     match fetch_next_problem pb with
     | None -> get_subst pb (* If no problem left, compute substitution and return (success !) *)
