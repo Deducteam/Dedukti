@@ -295,7 +295,6 @@ let get_all_ac_symbols pb i =
   List.iter aux pb.problems;
   !set
 
-(* TODO: when non linearity is implemented, push non linear variables at top position. *)
 (** Fetches most interesting problem and most interesting variable in it. *)
 let fetch_next_problem pb =
   match pb.problems with
@@ -314,13 +313,14 @@ let fetch_next_problem pb =
           | Solved _ -> assert false
         in
         let aux (bv,bs) v =
-          let s = score v in if s < bs then (v,s) else (bv,bs) in
+          let s = score v in
+          if s < bs then (v,s) else (bv,bs) in
         let (best,_) = List.fold_left aux (first, score first) vars in
         Some ((d,p),other_problems,best)
 
 let first_rearrange problems =
   (* TODO: better rearrange to have easiest AC sets first. *)
-  let ac_f j v t = (List.length v, List.length t, j > 0) in
+  let ac_f j v t = (List.length v, -List.length t, j > 0) in
   let comp (_,a) (_,b) = match a, b with
     | Eq _, AC _ -> -1
     | AC _, Eq _ -> 1
@@ -376,21 +376,21 @@ let solve_problem reduce convertible pb =
              let rec try_eq_terms = function
                | [] -> (* If all terms have been tried unsucessfully, then
                         * the variable [i] is a combination of terms under an AC symbol. *)
-                  let symbols = get_all_ac_symbols pb i in
-                  let rec try_symbols = function
-                    | [] -> None
-                    | aci :: tl ->
-                       match solve_next (set_partly pb i aci) with
-                       | None -> try_symbols tl
-                       | a -> a
-                  in
-                  try_symbols symbols
+                 let symbols = [aci] in (*get_all_ac_symbols pb i in*)
+                 let rec try_symbols = function
+                   | [] -> None
+                   | aci :: tl ->
+                     match solve_next (set_partly pb i aci) with
+                     | None -> try_symbols tl
+                     | a -> a
+                 in
+                 try_symbols symbols
                | t :: tl ->
-                  let sol = try_force_solve reduce d i args t in
-                  let npb = bind_opt (set_unsolved convertible pb i) sol in
-                  match try_solve_next npb with
-                  | None -> try_eq_terms tl
-                  | a -> a in
+                 let sol = try_force_solve reduce d i args t in
+                 let npb = bind_opt (set_unsolved convertible pb i) sol in
+                 match try_solve_next npb with
+                 | None -> try_eq_terms tl
+                 | a -> a in
              try_eq_terms terms
           | Solved _ -> assert false
   in

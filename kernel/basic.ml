@@ -158,6 +158,8 @@ type 'a printer = Format.formatter -> 'a -> unit
 let pp_ident  fmt id = Format.fprintf fmt "%s" id
 let pp_mident fmt md = Format.fprintf fmt "%s" md
 let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
+let pp_loc    fmt (l,c) = Format.fprintf fmt "line:%i column:%i" l c
+
 
 let string_of fp = Format.asprintf "%a" fp
 

@@ -177,10 +177,12 @@ let rec find_case (flattenner:loc->name->stack->stack)
   | { ctx; term=t; stack } , CConst (nargs,cst,true)
     (* TODO: check that this case is used properly !  *)
     (* is_pos (+ 1 i) --> T. #SNF is_pos 1.  *)
-    when List.length stack == nargs - 1 (* should we check for type of t ? *) ->
+    when List.length stack == nargs - 2 (* should we check for type of t ? *) ->
+    let new_st = {st with stack=[]} in
+    let new_stack = flattenner dloc cst [new_st] in
     Some ({ctx   = ctx;
            term  = mk_Const dloc cst;
-           stack = flattenner dloc cst [st]} :: stack)
+           stack = new_stack } :: stack)
       
   | { ctx; term=Const (l,cst); stack=t1::t2::s } , CConst (nargs,cst',true)
     when name_eq cst cst' && nargs == List.length s + 2 ->
@@ -226,17 +228,17 @@ let rec fetch_case sg (flattenner:loc->name->stack->stack)
    | _ -> assert false
 
 
-let rec find_cases (flattenner:loc->name->stack->stack)
-                  (st:state) (cases:(case * dtree) list)
-                  (default:dtree option) : (dtree*stack) list =
-  match cases with
-  | [] -> (match default with None -> [] | Some g -> [(g,[])])
-  | (case,tr)::tl ->
-     (
+let find_cases (flattenner:loc->name->stack->stack)
+    (st:state) (cases:(case * dtree) list)
+    (default:dtree option) : (dtree*stack) list =
+  List.fold_left
+    (fun acc (case, tr) ->
        match find_case flattenner st case with
-       | None -> find_cases flattenner st tl default
-       | Some stack -> [(tr,stack)]
-     )
+       | None -> acc
+       | Some stack -> (tr,stack) :: acc
+    )
+    (match default with None -> [] | Some g -> [(g,[])])
+    cases
 
 
 let rec gamma_rw_list (sg:Signature.t)

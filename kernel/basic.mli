@@ -131,6 +131,7 @@ type 'a printer = Format.formatter -> 'a -> unit
 val pp_ident  : ident  printer
 val pp_mident : mident printer
 val pp_name   : name   printer
+val pp_loc    : loc    printer
 
 (** Printing each elements of arrays / lists using the separator [sep] between elements. *)
 val pp_list   : string -> 'a printer -> 'a list printer
