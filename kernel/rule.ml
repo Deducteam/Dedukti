@@ -265,27 +265,19 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
     aux 0 te
 
 let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
-  try
-    begin
-      let esize = List.length r.ctx in
-      let (l,cst,args) = match r.pat with
-        | Pattern (l,cst,args) -> (l, cst, args)
-        | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
-        | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
-      in
-      let nb_args = get_nb_args esize r.pat in
-      let _ = check_nb_args nb_args r.rhs in
-      let (esize2,pats2,cstr,is_linear) = check_patterns esize args in
-      let is_nl = not is_linear in
-      if is_nl && (not !allow_non_linear)
-      then Err (NonLinearRule r)
-      else
-        let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in
-        OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
-             esize = esize2 ;
-             l_args = Array.of_list pats2 ;
-             constraints = cstr ; }
-    end
-  with
-      RuleExn e -> Err e
-
+  match r.pat with
+  | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
+  | Var (l,x,_,_) -> Err( AVariableIsNotAPattern(l,x) )
+  | Pattern (l,cst,args) ->
+    let esize = List.length r.ctx in
+    let nb_args = get_nb_args esize r.pat in
+    let _ = check_nb_args nb_args r.rhs in
+    let (esize2,pats2,cstr,is_linear) = check_patterns esize args in
+    if not is_linear && (not !allow_non_linear)
+    then Err (NonLinearRule r)
+    else
+      let () = if not is_linear then debug 1 "Non-linear Rewrite Rule detected" in
+      OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
+           esize = esize2 ;
+           l_args = Array.of_list pats2 ;
+           constraints = cstr ; }

@@ -34,10 +34,8 @@ let snf sg = Reduction.reduction sg Reduction.Snf
 let whnf sg = Reduction.reduction sg Reduction.Whnf
 
 let get_type ctx l x n =
-  try
-    let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
-  with Failure _ ->
-    raise (TypingError (VariableNotFound (l,x,n,ctx)))
+  try let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
+  with Failure _ -> raise (TypingError (VariableNotFound (l,x,n,ctx)))
 
 let extend_ctx a ctx = function
   | Type _ -> a::ctx
@@ -129,9 +127,11 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             ( name_eq cst cst' ) ->
           pseudo_u sg sigma lst
 
-        | DB (l1,x1,n1), DB (l2,x2,n2) when ( n1>=q && n2>=q) ->
+        | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
           begin
-            let (x,n,t) = if n1<n2 then (x1,n1,mk_DB l2 x2 (n2-q)) else (x2,n2,mk_DB l1 x1 (n1-q)) in
+            let (x,n,t) = if n1<n2
+              then (x1,n1,mk_DB l2 x2 (n2-q))
+              else (x2,n2,mk_DB l1 x1 (n1-q)) in
             match SS.add sigma x (n-q) t with
             | None -> assert false
             | Some sigma2 -> pseudo_u sg sigma2 lst
@@ -168,11 +168,13 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
 
         | App (DB (_,_,n),_,_), _  when ( n >= q ) ->
           if Reduction.are_convertible sg t1' t2' then
-            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2';
+              pseudo_u sg sigma lst )
           else None
         | _, App (DB (_,_,n),_,_) when ( n >= q ) ->
           if Reduction.are_convertible sg t1' t2' then
-            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2';
+              pseudo_u sg sigma lst )
           else None
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _

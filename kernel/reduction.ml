@@ -172,20 +172,28 @@ let comb_term_shape_if_AC (sg:Signature.t)
   | t -> t
 
 let rec find_case (flattenner:loc->name->stack->stack)
-                  (st:state) (case:case) : stack option =
+    (st:state) (case:case) : stack option =
   match st, case with
-  | { ctx; term=Const (l,cst); stack } , CConst (nargs,cst',ac_symb) ->
-     if name_eq cst cst' && List.length stack == nargs
-     then
-       match ac_symb,stack with
-       | true , t1::t2::s -> Some ({st with stack = flattenner l cst [t1;t2]}::s
-       )
-       | false, _         -> Some stack
-       | _ -> assert false
-     else None
+  | { ctx; term=t; stack } , CConst (nargs,cst,true)
+    (* TODO: check that this case is used properly !  *)
+    (* is_pos (+ 1 i) --> T. #SNF is_pos 1.  *)
+    when List.length stack == nargs - 1 (* should we check for type of t ? *) ->
+    Some ({ctx   = ctx;
+           term  = mk_Const dloc cst;
+           stack = flattenner dloc cst [st]} :: stack)
+      
+  | { ctx; term=Const (l,cst); stack=t1::t2::s } , CConst (nargs,cst',true)
+    when name_eq cst cst' && nargs == List.length s + 2 ->
+    Some ({st with stack = flattenner l cst [t1;t2]}::s)
+      
+  | { ctx; term=Const (l,cst); stack } , CConst (nargs,cst',false)
+    when name_eq cst cst' && List.length stack == nargs ->
+    Some stack
+      
   | { ctx; term=DB (l,x,n); stack }, CDB(nargs,n') ->
       assert ( ctx = LList.nil ); (* no beta in patterns *)
       if n==n' && List.length stack == nargs then Some stack else None
+        
   | { ctx; term=Lam (_,_,_,_) }, CLam ->
     begin
       match term_of_state st with (*TODO could be optimized*)
