@@ -646,12 +646,14 @@ let rec constructors_infos : position -> name -> term -> term -> (name * Signatu
          |_ -> ()
        end
     | _ -> raise (TypeLevelWeird (f,typ))
-       
+
+let print_sig sg=
+  printf "La signature est:@. * %a@." (pp_list "\n * " (pp_quat pp_name pp_stat pp_term (pp_option (pp_triple (pp_list ";" pp_rule_infos) pp_print_int Dtree.pp_dtree)))) sg
 	 
 (** Initialize the SCT-checker *)	
 let termination_check vb szgraph mod_name ext_ru whole_sig =
   initialize vb;
-  if vb then printf "La signature est:@. * %a@." (pp_list "\n * " (pp_quat pp_name pp_stat pp_term (pp_option (pp_triple (pp_list ";" pp_rule_infos) pp_print_int Dtree.pp_dtree)))) whole_sig;
+  if vb then print_sig whole_sig;
   if not (ext_ru=[]) then raise (Ext_ru ext_ru);
   List.iter
     (fun (fct,_,_,rules_opt) ->
