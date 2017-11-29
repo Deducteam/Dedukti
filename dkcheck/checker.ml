@@ -60,7 +60,7 @@ let mk_rules = Rule.( function
     end
   )
 
-let mk_command lc = function
+let rec mk_command lc = function
   | Whnf te          ->
       ( match Env.reduction Reduction.Whnf  te with
           | OK te -> Format.printf "%a@." Pp.print_term te
@@ -78,9 +78,14 @@ let mk_command lc = function
           | OK te -> Format.printf "%a@." Pp.print_term te
           | Err e -> Errors.fail_env_error e )
   | NSteps (n,te)    ->
-      ( match Env.reduction (Reduction.NSteps n) te with
-          | OK te -> Format.printf "%a@." Pp.print_term te
-          | Err e -> Errors.fail_env_error e )
+     begin
+       if n=0 then () else
+	 ( match Env.reduction (Reduction.NSteps 1) te with
+         | OK ts ->
+	    (Format.printf "%i. %a@." n Pp.print_term ts;
+	     mk_command lc (NSteps(n-1,ts)))
+         | Err e -> Errors.fail_env_error e )
+     end
   | Conv (te1,te2)  ->
         ( match Env.are_convertible te1 te2 with
             | OK true -> Format.printf "YES@."
