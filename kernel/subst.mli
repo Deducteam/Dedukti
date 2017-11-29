@@ -11,7 +11,7 @@ val shift               : int -> term -> term
 val unshift             : int -> term -> term
 
 (** psubst_l [l] [k] [t] substitutes the i first free variables in [t] by [l_i] when i<n with [n] = length [l] *)
-val psubst_l            : (term Lazy.t) Basic.LList.t -> int -> term -> term
+val psubst_l            : (term Lazy.t) Basic.LList.t -> term -> term
 
 (** [subst te u] substitutes the deBruijn indice [0] with [u] in [te]. *)
 val subst               : term -> term -> term
