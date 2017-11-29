@@ -37,11 +37,13 @@ type state = {
 }
 and stack = state list
 
+let state_of_term t = {ctx=LList.nil;term=t;stack=[]}
+
+
 let rec term_of_state {ctx;term;stack} : term =
-  let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx 0 term ) in
+  let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
   mk_App2 t (List.map term_of_state stack)
 
-let state_of_term t = {ctx=LList.nil;term=t;stack=[]}
 
 (* Pretty Printing *)
 

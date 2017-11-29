@@ -90,6 +90,8 @@ val mk_loc              : int -> int -> loc
 
 val of_loc              : loc -> (int*int)
 
+val pp_loc : Format.formatter -> loc -> unit
+
 val add_path       : string -> unit
 val get_path       : unit -> string list
 
