@@ -35,6 +35,10 @@ os:
   - osx
 notifications:
   email:
-    - gaspard.ferey@lsv.fr
     - genestier@lsv.fr
+    - gaspard.ferey@lsv.fr
     - rodolphe.lepigre@inria.fr
+branches:
+  only:
+    - master
+    - develop
