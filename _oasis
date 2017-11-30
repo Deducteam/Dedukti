@@ -15,7 +15,7 @@ Plugins: META (0.4), DevFiles (0.4)
 AlphaFeatures: ocamlbuild_more_args
 
 BuildTools: ocamlbuild
-XOCamlbuildExtraArgs: -package unix -menhir \"menhir --external-tokens Tokens\"
+XOCamlbuildExtraArgs: -menhir \"menhir --external-tokens Tokens\"
 
 Library "dedukti"
         Path: .
@@ -38,6 +38,7 @@ Library "kernel"
                          Dtree,
                          Subst,
                          Matching
+        BuildDepends: unix
         FindlibParent: dedukti
         CompiledObject: best
 
