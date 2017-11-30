@@ -30,3 +30,11 @@ install:
   - make build
 script:
   - make test
+os:
+  - linux
+  - osx
+notifications:
+  email:
+    - gaspard.ferey@lsv.fr
+    - genestier@lsv.fr
+    - rodolphe.lepigre@inria.fr
