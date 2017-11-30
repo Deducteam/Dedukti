@@ -59,3 +59,8 @@ let rec term_eq t1 t2 =
     | Lam (_,_,a,b), Lam (_,_,a',b') -> term_eq b b'
     | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false
+
+
+type untyped_context = ( loc * ident ) list
+
+type typed_context = ( loc * ident * term ) list

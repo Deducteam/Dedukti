@@ -12,7 +12,7 @@ let rec shift_rec (r:int) (k:int) : term -> term = function
   | Pi  (_,x,a,b) -> mk_Pi dloc x (shift_rec r k a) (shift_rec r (k+1) b)
   | t -> t
 
-let shift r t = shift_rec r 0 t
+let shift r t = if r = 0 then t else shift_rec r 0 t
 
 let unshift q te =
   let rec aux k = function
@@ -26,23 +26,33 @@ let unshift q te =
   | Pi  (l,x,a,b) -> mk_Pi l x (aux k a) (aux (k+1) b)
   | Type _ | Kind | Const _ as t -> t
   in
-    aux 0 te
+  aux 0 te
 
-let rec psubst_l (args:(term Lazy.t) LList.t) (k:int) (t:term) : term =
+let psubst_l (args:(term Lazy.t) LList.t) (te:term) : term =
   let nargs = args.LList.len in
-  match t with
+  let tab = Array.make nargs [] in
+  let rec get i k =
+    let l = tab.(i) in
+    try List.assoc k l
+    with Not_found ->
+      if k == 0 then Lazy.force (LList.nth args i)
+      else
+        let res = shift k (get i 0) in
+        tab.(i) <- (k,res) :: l;
+        res
+  in
+  let rec aux k t = match t with
     | Type _ | Kind | Const _ -> t
-    | DB (_,x,n) when (n >= (k+nargs))  -> mk_DB dloc x (n-nargs)
-    | DB (_,_,n) when (n < k)           -> t
-    | DB (_,_,n) (* (k<=n<(k+nargs)) *) ->
-        shift k ( Lazy.force (LList.nth args (n-k)) )
-    | Lam (_,x,a,b)                     ->
-        mk_Lam dloc x (map_opt (psubst_l args k) a) (psubst_l args (k+1) b)
-    | Pi  (_,x,a,b)                     ->
-        mk_Pi dloc x (psubst_l args k a) (psubst_l args (k+1) b)
-    | App (f,a,lst)                     ->
-        mk_App (psubst_l args k f) (psubst_l args k a)
-          (List.map (psubst_l args k) lst)
+    | DB (_,x,n) when n >= (k+nargs) -> mk_DB dloc x (n-nargs)
+    | DB (_,_,n) when n < k          -> t
+    | DB (_,_,n) (* k<=n<k+nargs *)  -> get (n-k) k
+    | Lam (_,x,a,b)                  ->
+        mk_Lam dloc x (map_opt (aux k) a) (aux (k+1) b)
+    | Pi  (_,x,a,b)                  ->
+        mk_Pi dloc x (aux k a) (aux (k+1) b)
+    | App (f,a,lst)                  ->
+        mk_App (aux k f) (aux k a) (List.map (aux k) lst)
+  in aux 0 te
 
 let subst (te:term) (u:term) =
   let rec  aux k = function
@@ -55,7 +65,6 @@ let subst (te:term) (u:term) =
     | Pi  (_,x,a,b) -> mk_Pi dloc  x (aux k a) (aux(k+1) b)
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
   in aux 0 te
-
 
 let subst_n n y t =
   let rec aux k t =  match t with
