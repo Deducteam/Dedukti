@@ -91,6 +91,8 @@ let dloc = (0,0)
 let mk_loc l c = (l,c)
 let of_loc l = l
 
+let pp_loc    fmt (l,c) = Format.fprintf fmt "line:%i column:%i" l c
+
 let path = ref []
 let get_path () = !path
 let add_path s = path := s :: !path
