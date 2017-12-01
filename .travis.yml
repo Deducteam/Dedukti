@@ -32,7 +32,6 @@ script:
   - make test
 os:
   - linux
-  - osx
 notifications:
   email:
     - genestier@lsv.fr
