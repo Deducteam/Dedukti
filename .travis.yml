@@ -35,9 +35,6 @@ os:
 notifications:
   email:
     - genestier@lsv.fr
-    - gaspard.ferey@lsv.fr
-    - rodolphe.lepigre@inria.fr
 branches:
   only:
-    - master
-    - develop
+    - making_experiments
