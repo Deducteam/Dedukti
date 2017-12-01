@@ -119,7 +119,7 @@ line            : ID COLON term DOT
                 { mk_rules (List.map scope_rule $1) }
                 | command DOT { $1 }
                 | EOF
-                { mk_ending () ; raise Tokens.EndOfFile }
+                { mk_ending () ; raise Lexer.EndOfFile }
 
 
 command         : WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }

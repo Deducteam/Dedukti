@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 93ee908c254077e435f902ac35e657a7)
+# DO NOT EDIT (digest: 897f0ea79a1e325a69e68e0c83312f39)
 version = "2.5.1"
 description = "An implementation of the \\lambda\\Pi-calculus modulo theory"
 archive(byte) = "dedukti.cma"
@@ -21,6 +21,7 @@ package "parser" (
 package "kernel" (
  version = "2.5.1"
  description = "An implementation of the \\lambda\\Pi-calculus modulo theory"
+ requires = "unix"
  archive(byte) = "kernel.cma"
  archive(byte, plugin) = "kernel.cma"
  archive(native) = "kernel.cmxa"

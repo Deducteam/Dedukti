@@ -7,9 +7,9 @@ module P = Parser.Make(Checker)
 let parse lb =
   try
     P.prelude Lexer.token lb ;
-    while true do P.line Lexer.token lb done
+    while true do P.line Lexer.token lb done;
   with
-    | Tokens.EndOfFile -> ()
+    | Lexer.EndOfFile -> ()
     | P.Error       -> Errors.fail (Lexer.get_loc lb)
                          "Unexpected token '%s'." (Lexing.lexeme lb)
 
