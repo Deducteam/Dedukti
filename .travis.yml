@@ -29,7 +29,7 @@ before_install:
 install:
   - make
 script:
-  - make test
+  - make tests
 os:
   - linux
 notifications:
