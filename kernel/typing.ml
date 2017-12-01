@@ -183,7 +183,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
           
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
-           * | Const md.id when (is_constant md id) *)
+           * | Const name when (is_injective name) *)
           begin
             match safe_add_to_list q lst args args' with
             | None -> None
