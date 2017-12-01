@@ -21,6 +21,7 @@ cache:
 before_install:
   - export OPAMYES=1
   - export OPAMVERBOSE=1
+  - export CONFIGUREFLAGS=--enable-tests
   - opam init
   - opam switch ${OCAML_VERSION}
   - eval `opam config env`
