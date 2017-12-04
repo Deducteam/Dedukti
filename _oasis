@@ -25,6 +25,7 @@ Library "kernel"
         Path: kernel
         Modules: Basic,
                  Term,
+                 Typing,
                  Env,
                  Signature,
                  Reduction,
@@ -34,8 +35,7 @@ Library "kernel"
                  Errors,
                  Pp,
                  Version
-        InternalModules: Typing,
-                         Dtree,
+        InternalModules: Dtree,
                          Subst,
                          Matching
         BuildDepends: unix
