@@ -8,3 +8,15 @@ bug-reports: "https://gforge.inria.fr/tracker/?func=browse&group_id=4434&atid=13
 dev-repo: "https://gforge.inria.fr/git/dedukti/dedukti.git#develop"
 available: [ ocaml-version >= "4.02" ]
 depends: ["menhir" "ocamlbuild"]
+build: [make "all"]
+build-test: [make "tests"]
+install:[
+  [make
+    "INSTALL_DIR=%{package_name:share}%"
+    "install"]
+]
+remove: [
+  [make
+    "INSTALL_DIR=%{package_name:share}%"
+    "uninstall"]
+]
