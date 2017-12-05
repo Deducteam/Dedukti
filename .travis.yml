@@ -35,11 +35,7 @@ os:
   - linux
 notifications:
   email:
-    - genestier@lsv.fr
     - gaspard.ferey@lsv.fr
-    - rodolphe.lepigre@inria.fr
-    - francois.thire@lsv.fr
 branches:
   only:
-    - master
-    - develop
+    - acu
