@@ -48,5 +48,7 @@ clean:
 tests:
 	tests/tests.sh
 
+upload-redirect:
+	scp web/index.html scm.gforge.inria.fr:/home/groups/dedukti/htdocs/index.html
 
 .PHONY: $(BINARIES) tests clean doc uninstall
