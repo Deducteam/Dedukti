@@ -129,7 +129,7 @@ line            : ID COLON term DOT
                 { mk_rules (List.map scope_rule $1) }
                 | command DOT { $1 }
                 | EOF
-                { mk_ending () ; raise Tokens.EndOfFile }
+                { mk_ending () ; raise Lexer.EndOfFile }
 
 
 command         : WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }
@@ -166,7 +166,6 @@ rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
                   let (_,m,v) = $2 in
                     ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
-
 decl            : ID COLON term         { debug 1 "Ignoring type declaration in rule context."; $1 }
                 | ID                    { $1 }
 
@@ -175,7 +174,6 @@ context         : /* empty */          { [] }
 
 top_pattern     : ID pattern_wp*        { (fst $1,None,snd $1,$2) }
                 | QID pattern_wp*       { let (l,md,id)=$1 in (l,Some md,id,$2) }
-
 
 pattern_wp      : ID
                         { PPattern (fst $1,None,snd $1,[]) }

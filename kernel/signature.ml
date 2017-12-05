@@ -303,6 +303,11 @@ let get_infos sg lc cst =
     try ( HId.find env (id cst))
     with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))
 
+let is_injective sg lc cst =
+  match (get_infos sg lc cst).stat with
+  | Static -> true
+  | Definable _ -> false
+
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
 let pred_true: Rule.rule_name -> bool = fun x -> true

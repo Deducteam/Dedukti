@@ -54,3 +54,11 @@ type algebra = Free | AC | ACU of term
 
 val is_AC : algebra -> bool
 (** Return true iff given algebra is AC or ACU. *)
+
+(** {2 Contexts} *)
+
+(** context of rules after they have been parsed *)
+type untyped_context = (loc * ident) list
+
+(** type checking rules implies to give a type to the variables of the context *)
+type typed_context = ( loc * ident * term ) list

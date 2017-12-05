@@ -1,0 +1,45 @@
+language: c
+env:
+  - OCAML_VERSION=4.03.0
+  - OCAML_VERSION=4.03.0+flambda
+  - OCAML_VERSION=4.04.2
+  - OCAML_VERSION=4.04.2+flambda
+  - OCAML_VERSION=4.05.0
+  - OCAML_VERSION=4.05.0+flambda
+  - OCAML_VERSION=4.06.0
+  - OCAML_VERSION=4.06.0+flambda
+addons:
+  apt:
+    sources:
+      - avsm
+    packages:
+      - opam
+      - time
+cache:
+  directories:
+    - $HOME/.opam
+before_install:
+  - export OPAMYES=1
+  - export OPAMVERBOSE=1
+  - export CONFIGUREFLAGS=--enable-tests
+  - opam init
+  - opam switch ${OCAML_VERSION}
+  - eval `opam config env`
+  - opam pin add --no-action dedukti .
+  - opam install --deps-only dedukti
+install:
+  - make build
+script:
+  - make test
+os:
+  - linux
+notifications:
+  email:
+    - genestier@lsv.fr
+    - gaspard.ferey@lsv.fr
+    - rodolphe.lepigre@inria.fr
+    - francois.thire@lsv.fr
+branches:
+  only:
+    - master
+    - develop

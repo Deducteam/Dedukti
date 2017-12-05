@@ -110,3 +110,7 @@ and compare_term_list id_comp a b =
 type algebra = Free | AC | ACU of term
 
 let is_AC alg = alg <> Free
+
+type untyped_context = ( loc * ident ) list
+
+type typed_context = ( loc * ident * term ) list

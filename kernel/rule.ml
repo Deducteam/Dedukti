@@ -17,10 +17,6 @@ type wf_pattern =
   | LBoundVar of ident * int * wf_pattern array
   | LACSet    of name * wf_pattern list
 
-type untyped_context = ( loc * ident ) list
-
-type typed_context = ( loc * ident * term ) list
-
 type rule_name = Delta of name | Gamma of bool * name
 
 type 'a rule =
