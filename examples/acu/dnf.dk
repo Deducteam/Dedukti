@@ -1,0 +1,61 @@
+#NAME dnf.
+
+Lit : Type.
+a : Lit.
+b : Lit.
+c : Lit.
+d : Lit.
+
+Prop : Type.
+T : Prop.
+F : Prop.
+L : Lit -> Prop.
+
+
+defac and [Prop].
+[x] and F x --> F
+[x] and T x --> x
+[x] and x x --> x
+[x,y] and (and x x) y --> and x y.
+
+defac or [Prop].
+[x] or F x --> x
+[x] or T x --> T
+[x] or x x --> x
+[x,y] or (or x x) y --> or x y.
+
+[A,B] or A (and A B) --> A.
+[A,B,C] or (or A (and A B)) C --> or A C.
+
+[A,B] and A (or A B) --> A.
+[A,B,C] and (and A (or A B)) C --> and A C.
+
+[A,B,C] and A (or B C) --> or (and A B) (and A C).
+
+def not : Prop -> Prop.
+[A,B] not (and A B) --> or (not A) (not B)
+[A,B] not (or A B) --> and (not A) (not B).
+[x] and (L x) (not (L x)) --> F.
+[x] or  (L x) (not (L x)) --> T.
+
+def cnf :=
+  and
+	(not (and (L a) (L b)))
+	(and
+	  (not (and (L b) (L c)))
+	  (and 
+		(not (and (L c) (L d)))
+		(not (and (L d) (L a))))).
+
+def dnf :=
+  or
+	(not (or (L a) (L b)))
+	(or
+	  (not (or (L b) (L c)))
+	  (or 
+		(not (or (L c) (L d)))
+		(not (or (L d) (L a))))).
+
+#SNF dnf.  (; Still long... ;)
+#SNF cnf.  (; Much shorter ! ;)
+

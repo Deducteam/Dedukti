@@ -1,7 +1,7 @@
 passed=0
 total=0
 
-echo "running tests..."
+echo "Running tests..."
 for i in tests/OK/*.dk ; do
 	total=$((total+1)) ;
     echo "on $i...  " ;
@@ -16,7 +16,7 @@ done
 for i in tests/KO/*.dk ; do
 	total=$((total+1)) ;
     echo "on $i...  " ;
-	lines=$(wc -l $i | cut -d" " -f1) ;
+#	lines=$(wc -l $i | cut -d" " -f1) ;
 #	"error.* line:$lines "
     if ./dkcheck.native -nc "$i" 2>&1 | grep -i -q "error" ;
 	then
