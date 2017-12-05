@@ -1,7 +1,9 @@
 
 # PLEASE EDIT THE FOLLOWING LINES TO FIT YOUR SYSTEM CONFIGURATION
 
+ifeq ($(INSTALL_DIR),)
 INSTALL_DIR=/usr/bin
+endif
 
 # DO NOT EDIT AFTER THIS LINE
 
@@ -43,18 +45,8 @@ uninstall:
 clean:
 	ocamlbuild -clean
 
-tests: dkcheck
-	@echo "run tests..."
-	@for i in tests/OK/*.dk ; do \
-	    echo "on $$i...  " ; \
-	    ./dkcheck.native "$$i" 2>&1 | grep SUCCESS ; \
-	done
-	@for i in tests/KO/*.dk ; do \
-	    echo "on $$i...  " ; \
-	    ./dkcheck.native "$$i" 2>&1 | grep ERROR ; \
-	done
-	@echo "-----------------------"
-	@echo "tests OK"
+tests:
+	tests/tests.sh
 
 
 .PHONY: $(BINARIES) tests clean doc uninstall
