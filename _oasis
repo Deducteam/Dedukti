@@ -81,6 +81,13 @@ Executable "dkindent"
         Install: true
         CompiledObject: best
 
+Executable "eniqoc"
+        Path:eniqoc
+        MainIs: eniqoc.ml
+        BuildDepends: dedukti.kernel, dedukti.parser, str
+        Install: true
+        CompiledObject: best
+
 Test "main"
         Command: ./tests/tests.sh
         TestTools: dkcheck

@@ -2,25 +2,23 @@ open Basic
 
 type ty_ctx = ident list
 
-let hol_module = hstring "hol"
-let hol_type = hstring "type"
-let hol_eta = hstring "eta"
-let hol_arrow = hstring "arrow"
-let hol_forall = hstring "forall"
-let hol_leibniz = hstring "leibniz"
-let hol_impl = hstring "impl"
-let hol_prop = hstring "prop"
-let hol_eps = hstring "eps"
-let hol_forall_kind_type = hstring "forall_kind_type"
-let hol_forall_kind_prop = hstring "forall_kind_prop"
+let hol_module = mk_mident "hol"
+let hol_type = mk_ident "type"
+let hol_eta = mk_ident "eta"
+let hol_arrow = mk_ident "arrow"
+let hol_forall = mk_ident "forall"
+let hol_leibniz = mk_ident "leibniz"
+let hol_impl = mk_ident "impl"
+let hol_prop = mk_ident "prop"
+let hol_eps = mk_ident "eps"
+let hol_forall_kind_type = mk_ident "forall_kind_type"
+let hol_forall_kind_prop = mk_ident "forall_kind_prop"
 
-let logic_module = hstring "logic"
-
-let (===) = Basic.ident_eq
+let logic_module = mk_mident "logic"
 
 let is_hol_const c t =
   match t with
-  | Term.Const(_, m, id) -> (m === hol_module) &&  (c === id)
+  | Term.Const(_, cst) -> name_eq cst (mk_name hol_module c)
   | _ -> false
 
 let is_type t =
@@ -34,21 +32,21 @@ let is_term t =
   | _ -> false
 
 let list_of_hol_theorem_with_eq =
-  [hstring "eq_minus_O"; hstring "eq_minus_S_pred"; hstring "eq_to_eqb_true"; hstring "eq_to_eqb_false"; hstring "eq_times_div_minus_mod"; hstring "eq_to_bijn"; hstring "eq_minus_gcd_aux"; hstring "eq_div_O"; hstring "eq_minus_gcd"; hstring "eq_times_plus_to_congruent"; hstring "eq_mod_to_divides"; hstring "eq_fact_pi_p"]
+  [mk_ident "eq_minus_O"; mk_ident "eq_minus_S_pred"; mk_ident "eq_to_eqb_true"; mk_ident "eq_to_eqb_false"; mk_ident "eq_times_div_minus_mod"; mk_ident "eq_to_bijn"; mk_ident "eq_minus_gcd_aux"; mk_ident "eq_div_O"; mk_ident "eq_minus_gcd"; mk_ident "eq_times_plus_to_congruent"; mk_ident "eq_mod_to_divides"; mk_ident "eq_fact_pi_p"]
 
 let is_delta_rw cst =
   match cst with
-  | Term.Const(_,md,id) ->
-    not (md === logic_module) && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident id) 0) && not (List.exists (fun thm -> id === thm) list_of_hol_theorem_with_eq)
+  | Term.Const(_,cst) ->
+    not (mident_eq (md cst) logic_module) && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident (id cst)) 0) && not (List.exists (fun thm -> ident_eq (id cst) thm) list_of_hol_theorem_with_eq)
   | _ -> false
 
 let get_infos_of_delta_rw md id = Str.(
     let id = string_of_ident id in
     if string_match (regexp "\\(__eq__\\)\\(.*\\)") id 0 then
       let id = matched_group 2 id in
-      let cst = Term.mk_Const Basic.dloc md (hstring id) in
-      match Env.reduction Reduction.OneStep cst with
-      | OK te -> (hstring id),te
+      let cst = Term.mk_Const Basic.dloc (mk_name md (mk_ident id)) in
+      match Env.reduction (Reduction.NSteps 1) cst with
+      | OK te -> (mk_ident id),te
       | Err err -> Errors.fail_env_error err
     else
       assert false
@@ -57,26 +55,22 @@ let get_infos_of_delta_rw md id = Str.(
 let rec arguments_needed rw =
   let ty =
     match rw with
-    | Term.Const(lc,md,id) ->
+    | Term.Const(lc,cst) ->
       begin
-        match Env.get_type lc md id with
+        match Env.get_type lc cst with
         | OK ty -> ty
         | Err err -> Errors.fail_signature_error err
       end
     | _ -> assert false
   in
   let rec aux t n =
-    let is_forall_prop md id =
-      md === hol_module && id === hol_forall_kind_prop
-    in
-    let is_forall md id =
-      md === hol_module && id === hol_forall
-    in
     match t with
-    | Term.App(Term.Const(_,md,id),_,_) when md === hol_module && id === hol_leibniz -> n
-    | Term.App(Term.Const(_,md,id),Term.Lam(_,_,_,te),[]) when is_forall_prop md id -> aux te (n+1)
-    | Term.App(Term.Const(_,md,id),_,[Term.Lam(_,_,_,te)]) when is_forall md id -> aux te (n+1)
-    | Term.App(Term.Const(_,md,id), t', []) when md === hol_module && id === hol_eps -> aux t' n
+    | Term.App(Term.Const(_,_) as cst,_,_) when is_hol_const hol_leibniz cst -> n
+    | Term.App(Term.Const(_,_) as cst, Term.Lam(_,_,_,te),[])
+      when is_hol_const hol_forall_kind_prop cst -> aux te (n+1)
+    | Term.App(Term.Const(_,_) as cst,_,[Term.Lam(_,_,_,te)]) when is_hol_const hol_forall cst ->
+      aux te (n+1)
+    | Term.App(Term.Const(_,_) as cst, t', []) when is_hol_const hol_eps cst -> aux t' n
     | _ -> Format.eprintf "debug: %a@." Pp.print_term rw; assert false
   in
   aux ty 0
@@ -86,7 +80,7 @@ let rec compile_term ty_ctx te_ctx te =
   | Term.App(c, Term.Lam(_, var, _, ty), []) when is_hol_const hol_forall_kind_type c ->
     let ty' = compile_term (var::ty_ctx) te_ctx ty in
     Ast.Forall(var, Ast.Type, ty')
-  | Term.Const(_,md,id) when is_hol_const hol_prop te -> Ast.Prop
+  | Term.Const(_,cst) when is_hol_const hol_prop te -> Ast.Prop
   | Term.App(c,left,[right]) when is_hol_const hol_arrow c ->
     let left' = compile_term ty_ctx te_ctx left in
     let right' = compile_term ty_ctx te_ctx right in
@@ -102,8 +96,8 @@ let rec compile_term ty_ctx te_ctx te =
     let tel' = compile_term ty_ctx te_ctx tel in
     let ter' = compile_term ty_ctx te_ctx ter in
     Ast.Impl(tel',ter')
-  | Term.Const(lc,md,id) ->
-    Ast.Const(md,id)
+  | Term.Const(lc,cst) ->
+    Ast.Const(cst)
   | Term.DB(_,var,n) ->
     Ast.Var(var)
   | Term.Lam(_,id, Some cst, te) when is_hol_const hol_type cst ->
@@ -133,22 +127,22 @@ let empty_obj =
   }
 
 
-let compile_declaration md id ty =
+let compile_declaration name ty =
       match ty with
     | Term.App(cst,a,[]) when is_hol_const hol_eta cst ->
-      Ast.Parameter((md,id), compile_term [] [] a)
+      Ast.Parameter(name, compile_term [] [] a)
     | Term.App(cst,a,[]) when is_hol_const hol_eps cst ->
-      Ast.Axiom((md,id), compile_term [] [] a)
-    | Term.Const(_,_,_) when is_hol_const hol_type ty ->
-      Ast.Parameter((md,id), Ast.Type)
+      Ast.Axiom(name, compile_term [] [] a)
+    | Term.Const(_,_) when is_hol_const hol_type ty ->
+      Ast.Parameter(name, Ast.Type)
     | _ -> assert false
 
-let compile_definition md id ty term =
+let compile_definition name ty term =
   match ty with
   | Term.App(cst,a,[]) when is_hol_const hol_eta cst ->
-    Ast.Constant((md,id), compile_term [] [] a, compile_term [] [] term)
+    Ast.Constant(name, compile_term [] [] a, compile_term [] [] term)
   | Term.App(cst,a,[]) when is_hol_const hol_eps cst ->
-    Ast.Theorem((md,id), compile_term [] [] a, compile_term [] [] term)
+    Ast.Theorem(name, compile_term [] [] a, compile_term [] [] term)
   | _ -> assert false
 
 let ast = ref {Ast.name="";
@@ -179,9 +173,15 @@ let get_ast () =
   {ast with obj = reverse ast.obj}
 
 let add_declaration decl =
+  let open Ast in
   let ast' = !ast in
-  ast := {ast' with Ast.obj = {ast'.obj with Ast.depends=decl::ast'.obj.Ast.depends}}
+  ast := {ast' with obj = {ast'.obj with depends=Declaration(decl)::ast'.obj.depends}}
 
 let add_definition defn =
+  let open Ast in
   let ast' = !ast in
-  ast := {ast' with Ast.obj = {ast'.obj with Ast.definition=defn::ast'.obj.Ast.definition}}
+  ast := {ast' with obj = {ast'.obj with definition=defn::ast'.obj.definition}};
+  match defn with
+  | Theorem _ -> ()
+  | Constant(name,ty,te) ->
+    ast := {!ast with obj = {!ast.obj with depends=DefConstant(name,ty,te)::!ast.obj.depends}}

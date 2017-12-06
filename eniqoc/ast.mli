@@ -1,7 +1,5 @@
 open Basic
 
-type name = ident * ident
-
 type term =
   | Type
   | Prop
@@ -16,9 +14,11 @@ type declaration = Axiom of name * term | Parameter of name * term
 
 type definition = Theorem of name * term * term | Constant of name * term * term
 
+type dep = Declaration of declaration | DefConstant of name * term * term
+
 type obj =
   {
-    depends: declaration list;
+    depends: dep list;
     definition: definition list
   }
 

@@ -18,7 +18,7 @@ let eprint lc fmt =
 
 (* ********************************* *)
 
-let _ = Compiler.init_ast (hstring "arith")
+let _ = Compiler.init_ast (mk_ident "arith")
 
 let mk_prelude lc name =
   Env.init name
@@ -26,7 +26,8 @@ let mk_prelude lc name =
 let mk_declaration lc id st pty : unit =
   match Env.declare lc id st pty with
   | OK () ->
-    let decl = Compiler.compile_declaration (Env.get_name ()) id pty in
+    let name = mk_name (Env.get_name ()) id in
+    let decl = Compiler.compile_declaration name pty in
     Compiler.add_declaration decl
   | Err e -> Errors.fail_env_error e
 
@@ -39,7 +40,8 @@ let mk_definition lc id pty_opt pte : unit =
   in
   match Env.define lc id pte pty_opt with
   | OK () ->
-    let defn = Compiler.compile_definition (Env.get_name ()) id ty pte in
+    let name = mk_name (Env.get_name ()) id in
+    let defn = Compiler.compile_definition name ty pte in
     Compiler.add_definition defn
   | Err e -> Errors.fail_env_error e
 
@@ -50,8 +52,8 @@ let mk_opaque lc id pty_opt pte =
     | Err e -> Errors.fail_env_error e
 
 let get_infos = function
-  | Rule.Pattern (l,md,id,_) -> (l,md,id)
-  | _ -> (dloc,qmark,qmark)
+  | Rule.Pattern (l,cst,_) -> (l,cst)
+  | _ -> (dloc, mk_name (mk_mident "") qmark)
 
 let mk_rules = Rule.( function
   | [] -> ()
@@ -60,12 +62,12 @@ let mk_rules = Rule.( function
       | OK lst2 -> failwith "Rules are not handled"
       | Err e -> Errors.fail_env_error e
   )
-let mk_command = Cmd.mk_command
+let mk_command _ = failwith "Commands are not handled right now"
 
 let export = ref false
 
 let mk_ending () =
   ( if !export then
     if not (Env.export ()) then
-      Errors.fail dloc "Fail to export module '%a'." pp_ident (Env.get_name ()) );
+      Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );
   Confluence.finalize ()

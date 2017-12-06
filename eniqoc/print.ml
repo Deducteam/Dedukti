@@ -1,9 +1,9 @@
 open Basic
 open Ast
 
-let rename id = hstring @@ (string_of_ident id) ^ "_"
+let rename id = mk_ident @@ (string_of_ident id) ^ "_"
 
-let keyword = [hstring "return"]
+let keyword = [mk_ident "return"]
 
 let rec rename_keyword term =
   match term with
@@ -25,8 +25,8 @@ let rec rename_keyword term =
 let print_ident out id =
   Format.fprintf out "%a" Pp.print_ident id
 
-let print_name out (md,id) =
-  print_ident out id
+let print_name out name =
+  print_ident out (id name)
 
 let rec print_term out term =
   match term with
@@ -37,7 +37,7 @@ let rec print_term out term =
   | Forall(id,ty,term) -> Format.fprintf out "forall %a : %a, %a" print_ident id print_term ty print_term term
   | Impl(tel,ter) -> Format.fprintf out "%a -> %a" print_term_wp tel print_term ter
   | Var(id) -> Format.fprintf out "%a" print_ident id
-  | Const((md,id)) -> Format.fprintf out "%a" print_name (md,id)
+  | Const(name) -> Format.fprintf out "%a" print_name name
 
 and print_term_wp out term =
   match term with
@@ -63,8 +63,13 @@ let print_definition out defn =
 let initial = String.uppercase_ascii "initial"
 
 let print_depends out depends =
+  let print_depend out dep =
+    match dep with
+    | Declaration(decl) -> print_declaration out decl
+    | DefConstant(name,ty,te) -> print_definition out (Constant(name,ty,te))
+  in
   Format.fprintf out "Module Type %s.@." initial;
-  List.iter (fun x -> print_declaration out x;Format.printf "@.") depends;
+  List.iter (fun x -> Format.printf "%a@." print_depend x) depends;
   Format.fprintf out "End %s.@." initial
 
 let forget_definition defn =

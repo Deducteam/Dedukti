@@ -1,6 +1,6 @@
-val compile_declaration : Basic.ident -> Basic.ident -> Term.term  -> Ast.declaration
+val compile_declaration : Basic.name -> Term.term  -> Ast.declaration
 
-val compile_definition : Basic.ident -> Basic.ident -> Term.term -> Term.term -> Ast.definition
+val compile_definition : Basic.name -> Term.term -> Term.term -> Ast.definition
 
 val add_declaration : Ast.declaration -> unit
 
