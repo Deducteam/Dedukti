@@ -31,15 +31,15 @@ install:
   - make build
 script:
   - make test
+  - wget https://deducteam.github.io/data/librairies/focalide.tar.gz
+  - tar zxvf focalide.tar.gz
+  - cd focalide_dks
+  - make
 os:
   - linux
 notifications:
   email:
     - genestier@lsv.fr
-    - gaspard.ferey@lsv.fr
-    - rodolphe.lepigre@inria.fr
-    - francois.thire@lsv.fr
 branches:
   only:
-    - master
-    - develop
+    - adding_lib
