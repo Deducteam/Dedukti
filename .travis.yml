@@ -21,9 +21,11 @@ before_install:
   - opam pin add --no-action dedukti .
   - opam install --deps-only dedukti
 install:
-  - make
+  - make build
 script:
   - make test
+  - alias dkcheck='./dkcheck.native'
+  - alias dkdep='./dkdep.native'
   - wget https://deducteam.github.io/data/libraries/focalide.tar.gz
   - tar zxvf focalide.tar.gz
   - cd focalide_dks
