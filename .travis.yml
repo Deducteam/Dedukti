@@ -24,15 +24,7 @@ install:
   - make build
 script:
   - make test
-  - wget https://deducteam.github.io/data/libraries/focalide.tar.gz
-  - tar zxvf focalide.tar.gz
-  - cd focalide_dks
-  - make all DKCHECK=../dkcheck.native DKDEP=../dkdep.native
-  - cd ..
-  - wget https://deducteam.github.io/data/libraries/matita.tar.gz
-  - tar zxvf matita.tar.gz
-  - cd matita
-  - make all DKCHECK=../dkcheck.native DKDEP=../dkdep.native
+  - travis_wait 20 tests/external_tests.sh
 os:
   - linux
 notifications:
