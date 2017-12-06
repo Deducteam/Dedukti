@@ -7,7 +7,7 @@ type red = {
   beta : bool
 }
 
-type red_strategy = Hnf | Snf | Whnf | OneStep
+type red_strategy = Hnf | Snf | Whnf | NSteps of int
 
 val default : red
 

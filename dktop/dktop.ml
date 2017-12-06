@@ -10,12 +10,12 @@ let rec parse lb =
     | P.Error   ->
         Printf.eprintf "Unexpected token '%s'.\n" (Lexing.lexeme lb);
         flush stderr; parse lb
-    | Tokens.EndOfFile -> exit 0
+    | Lexer.EndOfFile -> exit 0
 
 let  _ =
   print_string "Welcome to Dedukti\n";
-  let v = Basic.hstring "?top" in
-    Pp.name := v;
+  let v = Basic.mk_mident "?top" in
+    Env.init v;
     Scoping.name := v;
     Env.init v ;
     parse (Lexing.from_channel stdin)

@@ -5,6 +5,7 @@ open Cmd
 
 let out = ref stdout
 let deps = ref []
+let md_to_file = ref []
 let filename = ref ""
 let verbose = ref false
 let sorted = ref false
@@ -26,7 +27,7 @@ let rec find_dko_in_path name = function
 (* If the file for module m is not found in load path, add it to the
    list of dependencies *)
 let add_dep m =
-  let s = string_of_ident m in
+  let s = string_of_mident m in
   if not (find_dko_in_path s (get_path()))
   then begin
       let (name,m_deps) = List.hd !deps in
@@ -35,13 +36,13 @@ let add_dep m =
   end
 
 let mk_prelude _ prelude_name =
-  let name = string_of_ident prelude_name in
+  let name = string_of_mident prelude_name in
   deps := (name, [])::!deps
 
 
 let rec mk_term = function
   | Kind | Type _ | DB _ -> ()
-  | Const (_,md,_) -> add_dep md
+  | Const (_,cst) -> add_dep (md cst)
   | App (f,a,args) -> List.iter mk_term (f::a::args)
   | Lam (_,_,None,te) -> mk_term te
   | Lam (_,_,Some a,b)
@@ -50,7 +51,7 @@ let rec mk_term = function
 
 let rec mk_pattern = function
   | Var  (_,_,_,args) -> List.iter mk_pattern args
-  | Pattern (_,md,_,args) -> ( add_dep md ; List.iter mk_pattern args )
+  | Pattern (_,cst,args) -> ( add_dep (md cst) ; List.iter mk_pattern args )
   | Lambda (_,_,te) -> mk_pattern te
   | Brackets t -> mk_term t
 
@@ -72,11 +73,13 @@ let mk_prule (rule:untyped_rule) =
 let mk_rules = List.iter mk_prule
 
 let mk_command _ = function
-  | Whnf t | Hnf t | Snf t
-  | OneStep t | Infer t                 -> mk_term t
-  | Conv (t1,t2) | Check (t1,t2)        -> ( mk_term t1 ; mk_term t2 )
-  | Gdt (_,_) | Print _                 -> ()
-  | Other (_,lst)                       -> List.iter mk_term lst
+  | Whnf t    | Hnf t          | Snf t
+  | OneStep t | NSteps (_,t)
+  | Infer t   | InferSnf t             -> mk_term t
+  | Conv (t1,t2) | Check (t1,t2)       -> ( mk_term t1 ; mk_term t2 )
+  | Gdt (_,_) | Print _                -> ()
+  | Require md -> add_dep md
+  | Other (_,lst)                      -> List.iter mk_term lst
 
 
 let dfs graph visited start_node =
@@ -95,11 +98,12 @@ let topological_sort graph =
   List.fold_left (fun visited (node,_) -> dfs graph visited node) [] graph
 
 let mk_ending () =
+  let name, deps = List.hd !deps in
+  md_to_file := (name, !filename)::!md_to_file;
   if not !sorted then
-    let name, deps = List.hd !deps in
     print_out "%s.dko : %s %s" name !filename
               (String.concat " " (List.map (fun s -> s ^ ".dko") deps))
   else
     ()
 
-let sort () = List.rev (topological_sort !deps)
+let sort () = List.map (fun md -> List.assoc md !md_to_file) (List.rev (topological_sort !deps))

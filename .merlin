@@ -1,22 +1,19 @@
 S kernel
-S utils
 S parser
-S refiner
 S dkcheck
 S dktop
 S dkdep
 S dkrule
 S eniqoc
+S dkindent
 
 B _build/kernel
 B _build/parser
-B _build/utils
-B _build/refiner
-
 B _build/dkcheck
 B _build/dkdep
 B _build/dktop
 B _build/dkrule
 B _build/eniqoc
+B _build/dkindent
 
 FLG -w -3

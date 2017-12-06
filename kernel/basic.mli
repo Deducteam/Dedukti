@@ -9,14 +9,47 @@ type ident
 (** pp_ident [fmt] [id] print the identifier [id] on the formatter [fmt] *)
 val pp_ident : Format.formatter -> ident -> unit
 
-(** string_of_ident [id] returns a string of the identifier [id] *)
-val string_of_ident : ident -> string
-
-(** hstring [str] casts a string [str] to an identifier *)
-val hstring : string -> ident
+(** mkd_ident [str] casts a string [str] to an identifier *)
+val mk_ident : string -> ident
 
 (** ident_eq [id] [id'] checks if the two identifiers [id] and [id'] are equals *)
 val ident_eq : ident -> ident -> bool
+
+(** string_of_ident [id] returns a string of the identifier [id] *)
+val string_of_ident : ident -> string
+
+(** type of module identifers *)
+type mident
+
+(** pp_ident [fmt] [id] print the identifier [id] on the formatter [fmt] *)
+val pp_mident : Format.formatter -> mident -> unit
+
+(** mk_ident [str] casts a string [str] to an module identifier *)
+val mk_mident : string -> mident
+
+(** mident_eq [md] [md'] checks if the two modules identifiers [mid] and [mid'] are equals *)
+val mident_eq : mident -> mident -> bool
+
+(** string_of_ident [id] returns a string of the identifier [id] *)
+val string_of_mident : mident -> string
+
+(** type for constant names such as [foo.bar] *)
+type name
+
+(** md [foo.bar] returns foo *)
+val md : name -> mident
+
+(** id [foo.bar] returns bar *)
+val id : name -> ident
+
+(** mk_name foo bar returns the foo.bar *)
+val mk_name : mident -> ident -> name
+
+(** name_eq [n] [n'] checks if the two names [n] and [n'] are equals *)
+val name_eq : name -> name -> bool
+
+(** pp_name [fmt] [n] print the name [n] on the formatter [fmt] *)
+val pp_name : Format.formatter -> name -> unit
 
 (** qmark is a special identifier for unification variables *)
 val qmark : ident
@@ -63,6 +96,8 @@ val dloc                : loc
 val mk_loc              : int -> int -> loc
 
 val of_loc              : loc -> (int*int)
+
+val pp_loc : Format.formatter -> loc -> unit
 
 val add_path       : string -> unit
 val get_path       : unit -> string list

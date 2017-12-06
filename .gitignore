@@ -1,11 +1,23 @@
 /_build/
-dedukti.docdir
+api-kernel.docdir
+/setup.data
+/setup.log
+/setup.ml
+Makefile
+_tags
+myocamlbuild.ml
+configure
+META
+*.byte
 *.native
 .*.swp
 .*.swo
 _*/
 *.dko
 *.depend
+kernel/version.ml
+*.mldylib
+*.mllib
 
 # emacs tmp files
 *~

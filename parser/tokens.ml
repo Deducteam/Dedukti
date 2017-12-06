@@ -1,18 +1,15 @@
 open Basic
 
-exception EndOfFile
-
 type token =
   | UNDERSCORE  of loc
   | TYPE        of loc
   | KW_DEF      of loc
   | KW_THM      of loc
-  | KW_INJ      of loc
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
-  | QID         of ( loc * ident * ident )
-  | NAME        of ( loc * ident )
+  | QID         of ( loc * mident * ident )
+  | NAME        of ( loc * mident )
   | LONGARROW
   | LEFTSQU
   | LEFTPAR
@@ -29,10 +26,14 @@ type token =
   | HNF         of loc
   | SNF         of loc
   | STEP        of loc
+  | NSTEPS      of loc
   | INFER       of loc
+  | INFERSNF    of loc
   | CONV        of loc
   | CHECK       of loc
   | PRINT       of loc
   | GDT         of loc
+  | REQUIRE     of (loc * mident)
   | OTHER       of ( loc * string )
   | STRING      of string
+  | INT         of int

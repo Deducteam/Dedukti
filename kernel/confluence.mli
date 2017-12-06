@@ -12,7 +12,7 @@ val set_cmd : string -> unit
 val initialize : unit -> unit
 
 val check : unit -> bool
-val add_constant : ident -> ident -> unit
+val add_constant : name -> unit
 val add_rules : rule_infos list -> unit
 val check : unit -> (unit,confluence_error) error
 
