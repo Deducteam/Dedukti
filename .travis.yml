@@ -24,7 +24,7 @@ install:
   - make build
 script:
   - make test
-  - wget https://deducteam.github.io/data/librairies/focalide.tar.gz
+  - wget https://deducteam.github.io/data/libraries/focalide.tar.gz
   - tar zxvf focalide.tar.gz
   - cd focalide_dks
   - make
