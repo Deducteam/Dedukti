@@ -175,12 +175,15 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
             ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
           else None
 
-        | App (Const (l,cst),_,_), _
+        | App (Const (l,cst),_,_), _ when (not (Signature.is_injective sg l cst)) ->
+          ( debug 2 "Ignoring non injective constraint: %a ~ %a"
+              pp_term t1' pp_term t2';
+            pseudo_u sg sigma lst )
         | _, App (Const (l,cst),_,_) when (not (Signature.is_injective sg l cst)) ->
           ( debug 2 "Ignoring non injective constraint: %a ~ %a"
               pp_term t1' pp_term t2';
             pseudo_u sg sigma lst )
-          
+
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
            * | Const name when (is_injective name) *)
