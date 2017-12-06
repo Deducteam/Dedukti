@@ -24,7 +24,7 @@ install:
   - make build
 script:
   - make test
-  - chmod tests/external_tests.sh
+  - chmod u+x tests/external_tests.sh
   - travis_wait 20 tests/external_tests.sh
 os:
   - linux
