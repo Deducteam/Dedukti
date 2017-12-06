@@ -21,7 +21,7 @@ before_install:
   - opam pin add --no-action dedukti .
   - opam install --deps-only dedukti
 install:
-  - make build
+  - make
 script:
   - make test
   - wget https://deducteam.github.io/data/libraries/focalide.tar.gz
