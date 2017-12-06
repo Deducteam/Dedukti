@@ -28,6 +28,8 @@ before_install:
   - opam pin add --no-action dedukti .
   - opam install --deps-only dedukti
 install:
+  - oasis setup
+  - ./configure
   - make build
 script:
   - make test
