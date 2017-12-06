@@ -24,12 +24,10 @@ install:
   - make build
 script:
   - make test
-  - alias dkcheck='./dkcheck.native'
-  - alias dkdep='./dkdep.native'
   - wget https://deducteam.github.io/data/libraries/focalide.tar.gz
   - tar zxvf focalide.tar.gz
   - cd focalide_dks
-  - make
+  - make all DKCHECK=../dkcheck.native DKDEP=../dkdep.native
 os:
   - linux
 notifications:
