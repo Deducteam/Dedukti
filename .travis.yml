@@ -28,6 +28,11 @@ script:
   - tar zxvf focalide.tar.gz
   - cd focalide_dks
   - make all DKCHECK=../dkcheck.native DKDEP=../dkdep.native
+  - cd ..
+  - wget https://deducteam.github.io/data/libraries/matita.tar.gz
+  - tar zxvf matita.tar.gz
+  - cd matita
+  - make all DKCHECK=../dkcheck.native DKDEP=../dkdep.native
 os:
   - linux
 notifications:
