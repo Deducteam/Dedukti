@@ -14,19 +14,16 @@ type declaration = Axiom of name * term | Parameter of name * term
 
 type definition = Theorem of name * term * term | Constant of name * term * term
 
-type dep = Declaration of declaration | DefConstant of name * term * term
+type obj = Declaration of declaration | Definition of definition
 
-type obj =
-  {
-    depends: dep list;
-    definition: definition list
-  }
 
 type module_id = string
+
+type prelude = module_id list (* modules required *)
 
 type ast =
   {
     name:module_id;
-    prelude:module_id list;
-    obj:obj
+    prelude:prelude;
+    obj:obj list
   }

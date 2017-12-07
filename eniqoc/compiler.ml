@@ -119,14 +119,6 @@ and compile_wrapped_type (ty_ctx:ty_ctx) te_ctx (ty:Term.term)  =
     compile_term ty_ctx te_ctx a
   | _ -> assert false
 
-
-let empty_obj =
-  {
-    Ast.depends=[];
-    Ast.definition=[]
-  }
-
-
 let compile_declaration name ty =
       match ty with
     | Term.App(cst,a,[]) when is_hol_const hol_eta cst ->
@@ -147,11 +139,7 @@ let compile_definition name ty term =
 
 let ast = ref {Ast.name="";
                Ast.prelude=[];
-               Ast.obj=
-                 {
-                   Ast.depends=[];
-                   Ast.definition=[]
-                 }
+               Ast.obj=[];
               }
 
 let init_ast name =
@@ -159,29 +147,20 @@ let init_ast name =
     {
       Ast.name=string_of_ident name;
       Ast.prelude=["leibniz"];
-      Ast.obj=empty_obj
+      Ast.obj=[];
     }
 
 let get_ast () =
   let open Ast in
-  let reverse obj =
-    {depends = List.rev obj.depends;
-     definition=List.rev obj.definition
-    }
-  in
   let ast = !ast in
-  {ast with obj = reverse ast.obj}
+  {ast with obj = List.rev ast.obj}
 
 let add_declaration decl =
   let open Ast in
   let ast' = !ast in
-  ast := {ast' with obj = {ast'.obj with depends=Declaration(decl)::ast'.obj.depends}}
+  ast := {ast' with obj = Declaration(decl)::ast'.obj}
 
 let add_definition defn =
   let open Ast in
   let ast' = !ast in
-  ast := {ast' with obj = {ast'.obj with definition=defn::ast'.obj.definition}};
-  match defn with
-  | Theorem _ -> ()
-  | Constant(name,ty,te) ->
-    ast := {!ast with obj = {!ast.obj with depends=DefConstant(name,ty,te)::!ast.obj.depends}}
+  ast := {ast' with obj = Definition(defn)::ast'.obj}
