@@ -21,7 +21,6 @@ cache:
 before_install:
   - export OPAMYES=1
   - export OPAMVERBOSE=1
-  - export CONFIGUREFLAGS=--enable-tests
   - opam init
   - opam switch ${OCAML_VERSION}
   - eval `opam config env`
@@ -30,7 +29,7 @@ before_install:
   - opam install oasis
 install:
   - oasis setup
-  - ./configure
+  - ./configure --enable-tests
   - make build
 script:
   - make test
