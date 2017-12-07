@@ -50,7 +50,7 @@ let initialize () =
 )
 (RULES
   app( lam(m_typ,\\v_x. m_F v_x), m_B) -> m_F(m_B)
-)\n";
+)@.";
     end
 
 
@@ -182,9 +182,9 @@ let pp_rule fmt (r:rule_infos) =
   IdMap.iter (fun x n -> fprintf fmt "  m_%a : %a\n" pp_ident x pp_type n) arities;
   List.iter  (fun x   -> fprintf fmt "  v_%a : term\n" pp_ident x) (get_bvars r) ;
   List.iteri (fun i _ -> fprintf fmt "  b_%i : term\n" (i+1)) (r.constraints) ;
-  fprintf fmt ")\n";
+  fprintf fmt ")@.";
   (* Rule *)
-  fprintf fmt "(RULES %a -> %a )\n\n" (pp_pattern arities) pat (pp_term arities 0) r.rhs
+  fprintf fmt "(RULES %a -> %a )@.@." (pp_pattern arities) pat (pp_term arities 0) r.rhs
 
 let check () : (unit,confluence_error) error =
   match !file_out with
@@ -214,12 +214,8 @@ let add_constant cst =
   match !file_out with
   | None -> ()
   | Some (file,out) ->
-    Printf.fprintf out "(FUN c_%s_%s : term)\n"
-      (string_of_mident (md cst))
-      (string_of_ident (id cst));
-    (* For some reason the following won't work... *)
     let fmt = formatter_of_out_channel out in
-    fprintf fmt "(FUN c_%a : term)\n" pp_name cst
+    fprintf fmt "(FUN c_%a : term)@." pp_name cst
 
 let add_rules lst =
   match !file_out with
