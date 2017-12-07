@@ -32,7 +32,7 @@ let _ =
     Arg.parse args run_on_file "Usage: dkdep [options] files";
     if !Dep.sorted then
       let l = Dep.sort() in
-      print_out "%s" (String.concat " " (List.map (fun s -> s ^ ".dk") l))
+      print_out "%s" (String.concat " " l)
   with
     | Sys_error err             -> Printf.eprintf "ERROR %s.\n" err; exit 1
     | Exit                      -> exit 3
