@@ -15,9 +15,7 @@ let int_of_index : index -> int = fun i -> i
 (** Index of the root. *)
 let root : index = -1
 
-exception Ext_ru of rule_infos list list
 exception Calling_unknown of int
-exception Callee_unknown of (name * int)
 exception NonLinearity of int
 exception TypingError of name
 exception NonPositivity of name
@@ -26,7 +24,6 @@ exception PatternMatching of int
 exception TypeLevelRewriteRule of (name * name)
 exception TypeLevelWeird of (name * term)
 exception TarjanError
-exception CompError of ((pattern list) * (term list))
             
 type symb_status = Set_constructor | Elt_constructor | Def_function | Def_type
       
@@ -259,8 +256,8 @@ let rec comparison : int -> term -> pattern -> cmp =
     in
     let rec comp_list : cmp -> pattern list -> term list -> cmp =
       fun cur lp lt ->
-        try
-          assert (List.length lp=List.length lt);
+        if List.length lp=List.length lt
+	then
           match lp,lt with
           | [],[] -> cur
           | a::l1,b::l2 ->
@@ -271,17 +268,22 @@ let rec comparison : int -> term -> pattern -> cmp =
       	      | _, Min1 -> comp_list Min1 l1 l2
       	      | Zero,Zero -> comp_list Zero l1 l2
       	    end
-	with
-	| _ -> raise (CompError (lp,lt)); Zero;
+	else
+	  Infi
     in
     match p,t with
     | Var (_,_,n,[]), DB (_,_,m) -> if n+nb=m then Zero else Infi
-    | Pattern (_,n,lp), App(Const(_,g),t1,lt) when (name_eq n g) ->  comp_list Zero lp (t1::lt)
+    | Pattern (_,n,lp), App(Const(_,g),t1,lt) when (name_eq n g) ->
+       begin
+	 printf "%a et %a\n" pp_pattern p pp_term t;
+	 comp_list Zero lp (t1::lt)
+       end
     | Pattern (_,_,l),t -> minus1 (mini Infi (List.map (comparison nb t) l))
     | _ -> Infi
            
 let matrix_of_lists : int -> term list -> pattern list -> matrix =
   fun nb l1 l2 ->
+  printf "Matrix_of_list de@.patt:%a@.term:%a@." (pp_list " , " pp_pattern) l2 (pp_list " , " pp_term) l1;
   let n=List.length l1 in
   let m=List.length l2 in
   let res =ref [] in
@@ -290,6 +292,7 @@ let matrix_of_lists : int -> term list -> pattern list -> matrix =
     let loc_res =ref [] in
     for j=0 to n-1 do
       let t=List.nth l1 j in
+      printf "In matrix_of_lists, %a et %a@." pp_pattern p pp_term t;
       loc_res:=(comparison nb t p)::!loc_res
     done;
     res:=(Array.of_list (List.rev !loc_res))::!res
@@ -320,8 +323,8 @@ let rec detect_wrong_pm : pattern -> unit=
 let rec rule_to_call : int -> rule_infos -> call list =
   fun nb r ->
   let gr= !graph in
-  if not (r.constraints=[]) then raise (NonLinearity (fst (of_loc r.l)))
-  else
+  (* if not (r.constraints=[]) then raise (NonLinearity (fst (of_loc r.l)))
+  else *)
       let third (a,b,c) = c in
       let get_caller : pattern list * index =
 	let lp=r.args in
@@ -649,12 +652,15 @@ let rec constructors_infos : position -> name -> term -> term -> (name * Signatu
 
 let print_sig sg=
   printf "La signature est:@. * %a@." (pp_list "\n * " (pp_quat pp_name pp_stat pp_term (pp_option (pp_triple (pp_list ";" pp_rule_infos) pp_print_int Dtree.pp_dtree)))) sg
-	 
+
+let print_ext_ru er=
+  if er=[] then () else
+    printf "Ext_ru contient:@. + %a@." (pp_list "\n + " (pp_list " ; " pp_rule_infos)) er
+    
 (** Initialize the SCT-checker *)	
 let termination_check vb szgraph mod_name ext_ru whole_sig =
   initialize vb;
-  if vb then print_sig whole_sig;
-  if not (ext_ru=[]) then raise (Ext_ru ext_ru);
+  if vb then (print_sig whole_sig; print_ext_ru ext_ru);
   List.iter
     (fun (fct,_,_,rules_opt) ->
       match rules_opt with
@@ -673,6 +679,7 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
       | None -> ()
       | Some (rul,arit,dec_tree) -> add_rules rul
     ) whole_sig;
+  List.iter add_rules ext_ru;
   if vb then printf "Table :@. ' %a@." (pp_list "\n ' " (pp_triple pp_name pp_print_int pp_index)) !table;
   if vb
   then (print_constr ();

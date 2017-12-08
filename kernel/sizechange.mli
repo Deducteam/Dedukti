@@ -3,18 +3,15 @@ open Term
 open Rule
 open Format
 
-exception Ext_ru of rule_infos list list
 exception Calling_unknown of int
-exception Callee_unknown of (name * int)
 exception NonLinearity of int
-exception PatternMatching of int
 exception TypingError of name
 exception NonPositivity of name
 exception ModuleDependancy of name
+exception PatternMatching of int
 exception TypeLevelRewriteRule of (name * name)
 exception TypeLevelWeird of (name * term)
 exception TarjanError
-exception CompError of ((pattern list) * (term list)) 
 
   (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi

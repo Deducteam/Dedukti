@@ -131,18 +131,15 @@ let mk_ending () =
 	else red_error "The SCT checker did not proved this file terminating"
       )
       with
-      | Sizechange.Ext_ru e-> red_error "The meaning of external_rules is actually unknown, hence the case where it is not empty is unaccepted yet. Here this variable contains %a" (pp_list " ; " (pp_list "," Rule.pp_rule_infos)) e
       | Sizechange.Calling_unknown i -> red_error "The caller line %i is unknown" i
       | Sizechange.NonLinearity i -> red_error "The rule declared line %i is not linear" i
       | Sizechange.PatternMatching i -> red_error "The pattern matching done line %i require to pattern match on defined symbol" i
       | Sizechange.TypingError f -> red_error "There is a typing error with the symbol %a" pp_name f
       | Sizechange.NonPositivity f -> red_error "The symbol %a is not strictly positive" pp_name f
       | Sizechange.TarjanError -> red_error "Problem with the Tarjan algorithm"
-      | Sizechange.Callee_unknown (f,i) -> red_error "The callee %a line %i is unknown" pp_name f i
       | Sizechange.TypeLevelRewriteRule (f,g) -> red_error "Type level rewriting between %a and %a" pp_name f pp_name g
       | Sizechange.TypeLevelWeird (f,t) -> red_error "Type level contains something weird in definition of %a : %a" pp_name f Term.pp_term t
       | Sizechange.ModuleDependancy f -> red_error "Module dependancy %a" pp_name f
-      | Sizechange.CompError (lp,lt) -> red_error "Comp error %a with %a" (pp_list "," Rule.pp_pattern) lp (pp_list "," Term.pp_term) lt
     end;
   if !export then
     if not (Env.export ()) then
