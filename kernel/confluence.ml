@@ -3,6 +3,9 @@ open Basic
 open Term
 open Rule
 
+let pp_name fmt cst =
+  fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
+
 type confluence_error =
   | NotConfluent of string
   | MaybeConfluent of string
