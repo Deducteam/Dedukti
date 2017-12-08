@@ -31,6 +31,7 @@ Library "kernel"
                  Reduction,
                  Rule,
                  Confluence,
+                 Sizechange,
                  Cmd,
                  Errors,
                  Pp,
