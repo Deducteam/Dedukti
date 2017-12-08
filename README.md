@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Deducteam/Dedukti.svg?branch=develop)](https://travis-ci.org/Deducteam/Dedukti.svg?branch=develop)
+
 See the Dedukti's webpage : http://dedukti.gforge.inria.fr/
 
 1) User

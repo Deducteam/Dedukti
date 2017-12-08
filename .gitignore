@@ -2,6 +2,10 @@
 api-kernel.docdir
 /setup.data
 /setup.log
+_tags
+myocamlbuild.ml
+configure
+META
 *.byte
 *.native
 .*.swp
@@ -11,7 +15,8 @@ _*/
 *.depend
 *.txt
 kernel/version.ml
-dedukti.docdir
+*.mldylib
+*.mllib
 
 # emacs tmp files
 *~
