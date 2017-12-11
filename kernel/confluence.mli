@@ -3,6 +3,8 @@
 open Basic
 open Rule
 
+val print_confluence_result : bool ref
+       
 type confluence_error =
   | NotConfluent of string
   | MaybeConfluent of string

@@ -20,6 +20,7 @@ module IdMap = Map.Make(
 
 let confluence_command = ref ""
 let file_out = ref None
+let print_confluence_result = ref false
 let do_not_erase_confluence_file = ref false
 
 let set_cmd cmd =
@@ -228,12 +229,26 @@ let add_rules lst =
     List.iter (pp_rule fmt) lst
 
 let finalize () =
+  do_not_erase_confluence_file := true;
   match !file_out with
   | None -> ()
   | Some (file, fmt) ->
     begin
       close_out fmt;
-      ( if !do_not_erase_confluence_file then ()
-        else Sys.remove file );
-
+      if !print_confluence_result
+        then
+          begin
+            let cmd = !confluence_command ^ " " ^ file in
+            let input = Unix.open_process_in cmd in
+            printf "Conflence result:@.";
+            try 
+              while true do
+                let answer = input_line input in
+                printf "%s@." answer;
+              done;
+            with |_ -> let _ = Unix.close_process_in input in ()
+          end;
+      if !do_not_erase_confluence_file
+      then ()
+      else Sys.remove file
     end
