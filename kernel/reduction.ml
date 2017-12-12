@@ -44,6 +44,7 @@ let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
   mk_App2 t (List.map term_of_state stack)
 
+exception Not_convertible
 
 (* Pretty Printing *)
 
@@ -72,12 +73,6 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
   fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
 
 (* Misc *)
-(* FIXME: only used once in are_convertible_list, should it be declared at top level? *)
-let rec add_to_list2 l1 l2 lst =
-  match l1, l2 with
-    | [], [] -> Some lst
-    | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
-    | _,_ -> None
 
 let rec split_stack (i:int) : stack -> (stack*stack) option = function
   | l  when i=0 -> Some ([],l)
@@ -116,16 +111,12 @@ let filter_neutral conv sg l cst terms =
       | [] -> [neu] | s -> s)
   | _ -> terms
 
+(*
 let rec unflatten sg l cst = function
   | []     -> Signature.get_neutral sg l cst
   | [t]    -> t
   | t1::tl -> mk_App (mk_Const dloc cst) t1 [(unflatten sg l cst tl)]
-
-let ac_to_comb sg t = match t with
-  | App( Const (l,cst), a1, a2::remain_args)
-       when Signature.is_AC sg l cst ->
-     mk_App2 (unflatten sg l cst (flatten_AC_term cst t)) remain_args
-  | t -> t
+*)
   
 (*       AC manipulating functions     *)
 
@@ -163,14 +154,17 @@ let comb_state_shape_if_AC sg strategy convertible : state -> state = function
   | st -> st
 
 let comb_term_shape_if_AC (sg:Signature.t)
-                        (convertible:convertibility_test) : term -> term = function
+                          (convertible:convertibility_test) : term -> term = function
   | App(Const (l,cst), a1, a2::remain_args) when Signature.is_AC sg l cst ->
      let id_comp = Signature.get_id_comparator sg in
      let args = flatten_AC_terms cst [a1;a2] in
      let args = filter_neutral (convertible sg) sg l cst args in
      let args = List.sort (compare_term id_comp) args in
      let _ = assert (List.length args > 0) in
-     mk_App2 (unflatten sg l cst args) remain_args
+     mk_App2
+       (unflatten_AC (cst, Signature.get_algebra sg l cst) args)
+       remain_args
+  (* mk_App2 (unflatten sg l cst args) remain_args *)
   | t -> t
 
 let rec find_case (flattenner:loc->name->stack->stack)
@@ -398,15 +392,15 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,cst); stack } ->
-     begin
-       match Signature.get_dtree sg ~select:(!selection) l cst with
-       | None    -> comb_state_shape_if_AC sg state_whnf are_convertible st
-       | Some tr -> begin
-           match gamma_head_rw sg are_convertible snf state_whnf st tr with
-           | None -> comb_state_shape_if_AC sg state_whnf are_convertible st
-           | Some st -> state_whnf sg st
-         end
-     end
+    begin
+      match Signature.get_dtree sg ~select:(!selection) l cst with
+      | None    -> comb_state_shape_if_AC sg state_whnf are_convertible st
+      | Some tr -> begin
+          match gamma_head_rw sg are_convertible snf state_whnf st tr with
+          | None -> comb_state_shape_if_AC sg state_whnf are_convertible st
+          | Some st -> state_whnf sg st
+        end
+    end
 
 (* ********************* *)
 
@@ -427,16 +421,16 @@ and snf sg (t:term) : term =
 and are_convertible_lst sg : (term*term) list -> bool = function
   | [] -> true
   | (t1,t2)::lst ->
-    begin
-      match (
-        if term_eq t1 t2 then Some lst
+    are_convertible_lst sg
+      begin
+        if term_eq t1 t2 then lst
         else
           let t1 = whnf sg t1 in
           let t2 = whnf sg t2 in
           match t1, t2 with
-          | Kind, Kind | Type _, Type _ -> Some lst
-          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
-          | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
+          | Kind, Kind | Type _, Type _ -> lst
+          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> lst
+          | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> lst
           | App (Const(l,cst), _, _),
             App (Const(l',cst'), _, _) when Signature.is_AC sg l cst ->
              (* TODO: Replace this with less hardcore criteria: put all terms in whnf
@@ -446,23 +440,23 @@ and are_convertible_lst sg : (term*term) list -> bool = function
                | App (Const(l ,cst2 ), a , args ),
                  App (Const(l',cst2'), a', args') ->
                   if name_eq cst2 cst && name_eq cst2' cst &&
-                       name_eq cst2 cst' && name_eq cst2' cst' then
-                    add_to_list2 args args' ((a,a')::lst)
-                  else None
-               | _ -> None
-             else None
+                     name_eq cst2 cst' && name_eq cst2' cst'
+                  then List.fold_left2 (fun l a b -> (a,b)::l) ((a,a')::lst) args args'
+                  else raise Not_convertible
+               | _ -> raise Not_convertible
+             else raise Not_convertible
           | App (f,a,args), App (f',a',args') ->
-            add_to_list2 args args' ((f,f')::(a,a')::lst)
-          | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
-          | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
-          | t1, t2 -> None
-      ) with
-      | None -> false
-      | Some lst2 -> are_convertible_lst sg lst2
+            List.fold_left2 (fun l a b -> (a,b)::l) ((f,f')::(a,a')::lst) args args'
+          | Lam (_,_,_,b), Lam (_,_,_,b') -> ((b,b')::lst)
+          | Pi (_,_,a,b), Pi (_,_,a',b') -> ((a,a')::(b,b')::lst)
+          | t1, t2 -> raise Not_convertible
     end
 
 (* Convertibility Test *)
-and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
+and are_convertible sg t1 t2 =
+  try are_convertible_lst sg [(t1,t2)]
+  with Not_convertible -> false
+     | Invalid_argument _ -> false
 
 (* Head Normal Form *)
 let rec hnf sg t =
