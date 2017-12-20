@@ -97,14 +97,11 @@ let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let infer ?ctx:(ctx=[]) ?red:(red=Reduction.default) strategy te =
+let infer ?ctx:(ctx=[]) te =
   try
     let ty = Typing.infer !sg ctx te in
-    let _  = inference !sg ty in
-    Reduction.select red;
-    let ty' = (Reduction.reduction !sg strategy ty) in
-    Reduction.select Reduction.default;
-    OK (ty')
+    ignore(inference !sg ty);
+    OK ty
   with
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError e -> Err (EnvErrorType e)
@@ -117,20 +114,26 @@ let check ?ctx:(ctx=[]) te ty =
 
 let reduction ?red:(red=Reduction.default) strategy te =
   try
-    let _ = inference !sg te in
+    ignore(inference !sg te);
     Reduction.select red;
-    let te' = (Reduction.reduction !sg strategy te) in
+    let te' = Reduction.reduction !sg strategy te in
     Reduction.select Reduction.default;
     OK te'
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let unsafe_one_step ?red:(red=Reduction.default) te =
-  Reduction.select red;
-  let te' = Reduction.reduction !sg (Reduction.NSteps 1) te in
-  Reduction.select Reduction.default;
-  te'
+let reduction_steps ?red:(red=Reduction.default) strategy n te =
+  try
+    ignore(inference !sg te);
+    Reduction.select red;
+    let te' = Reduction.reduction_steps !sg strategy n te in
+    Reduction.select Reduction.default;
+    OK te'
+  with
+    | SignatureError e -> Err (EnvErrorSignature e)
+    | TypingError e -> Err (EnvErrorType e)
+
 
 let unsafe_snf ?red:(red=Reduction.default) te =
   Reduction.select red;

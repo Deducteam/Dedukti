@@ -74,7 +74,7 @@ let mk_rules = List.iter mk_prule
 
 let mk_command _ = function
   | Whnf t    | Hnf t          | Snf t
-  | OneStep t | NSteps (_,t)
+  | Whnf_n_steps (_,t) | Hnf_n_steps (_,t) | Snf_n_steps (_,t)
   | Infer t   | InferSnf t             -> mk_term t
   | Conv (t1,t2) | Check (t1,t2)       -> ( mk_term t1 ; mk_term t2 )
   | Gdt (_,_) | Print _                -> ()

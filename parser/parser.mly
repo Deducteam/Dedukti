@@ -122,11 +122,12 @@ line            : ID COLON term DOT
                 { mk_ending () ; raise Lexer.EndOfFile }
 
 
-command         : WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }
+command         : WHNF INT term { mk_command $1 (Whnf_n_steps ($2, scope_term [] $3)) }
+                | HNF  INT term { mk_command $1 (Hnf_n_steps  ($2, scope_term [] $3)) }
+                | SNF  INT term { mk_command $1 (Snf_n_steps  ($2, scope_term [] $3)) }
+                | WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }
                 | HNF      term { mk_command $1 (Hnf      (scope_term [] $2)) }
                 | SNF      term { mk_command $1 (Snf      (scope_term [] $2)) }
-                | STEP     term { mk_command $1 (OneStep  (scope_term [] $2)) }
-                | NSTEPS INT term { mk_command $1 (NSteps ($2,(scope_term [] $3))) }
                 | INFER    term { mk_command $1 (Infer    (scope_term [] $2)) }
                 | INFERSNF term { mk_command $1 (InferSnf (scope_term [] $2)) }
                 | CONV  term  COMMA term

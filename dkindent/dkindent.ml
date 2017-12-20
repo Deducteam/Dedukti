@@ -34,8 +34,9 @@ module T = struct
     | Whnf te         -> Format.printf "#WHNF@ %a." print_term te
     | Hnf te          -> Format.printf "#HNF@ %a." print_term te
     | Snf te          -> Format.printf "#SNF@ %a." print_term te
-    | OneStep te      -> Format.printf "#STEP@ %a." print_term te
-    | NSteps (n,te)   -> Format.printf "#NSTEPS@ #%i@ %a." n print_term te
+    | Whnf_n_steps (n,te) -> Format.printf "#WHNF@ #%i@ %a." n print_term te
+    | Hnf_n_steps  (n,te) -> Format.printf "#HNF@ #%i@ %a."  n print_term te
+    | Snf_n_steps  (n,te) -> Format.printf "#SNF@ #%i@ %a."  n print_term te
     | Conv (te1,te2)  -> Format.printf "#CONV@ %a,@ %a." print_term te1 print_term te2
     | Check (te,ty)   -> Format.printf "#CHECK@ %a,@ %a." print_term te print_term ty
     | Infer te        -> Format.printf "#INFER@ %a." print_term te

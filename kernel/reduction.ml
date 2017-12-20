@@ -19,7 +19,7 @@ let select (red:red) : unit =
   selection := red.select;
   beta := red.beta
 
-type red_strategy = Hnf | Snf | Whnf | NSteps of int
+type red_strategy = Hnf | Snf | Whnf
 
 (* State *)
 
@@ -264,26 +264,24 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   | { term=Type _ }
   | { term=Kind }
   | { term=Pi _ }
-  | { term=Lam _; stack=[] } as state -> state
+  | { term=Lam _; stack=[] } -> st
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
-    if n < LList.len ctx then
-      state_whnf sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
-    else
-      { ctx=LList.nil; term=(mk_DB l x (n-LList.len ctx)); stack }
+    if n < LList.len ctx
+    then state_whnf sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
+    else { ctx=LList.nil; term=(mk_DB l x (n-LList.len ctx)); stack }
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
-    if not !beta then
-      st
-    else
-      state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    if not !beta
+    then st
+    else state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
     let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
-  | { ctx; term=Const (l,n); stack } as state ->
+  | { ctx; term=Const (l,n); stack } ->
     begin
       let dtree =
         match !selection with
@@ -291,14 +289,14 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
         | Some selection -> Signature.get_dtree sg ~select:selection l n
       in
       match dtree with
-      | None -> state
+      | None -> st
       | Some (i,g) ->
         begin
           match split_stack i stack with
-          | None -> state
+          | None -> st
           | Some (s1,s2) ->
             ( match gamma_rw sg are_convertible snf state_whnf s1 g with
-              | None -> state
+              | None -> st
               | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
             )
         end
@@ -348,85 +346,107 @@ let rec hnf sg t =
   | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
   | App (f,a,lst) -> mk_App (hnf sg f) (hnf sg a) (List.map (hnf sg) lst)
 
+let get_reduction_function = function
+  | Hnf  -> hnf
+  | Snf  -> snf
+  | Whnf -> whnf
 
-(* One-Step Reduction *)
-  (* Weak heah beta normal terms *)
-let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
-  | (0  , state) -> (0, state)
-  | (red, state) -> begin
-     match state with
-     | { term=Type _ }
-     | { term=Kind }
-     | { term=Pi _ } -> (red,state)
-     | { ctx=ctx; term=Lam(loc,id,ty,t); stack=[] } ->
-        let n',state' = state_one_step sg (red,{ctx=ctx;term=t; stack=[]}) in
-        (n', {ctx=ctx; term=mk_Lam loc id ty (term_of_state state'); stack = []})
-     (*
-    let t' = Subst.shift 1 term in
-    begin
-      match t' with
-      | Lam(loc,id,ty,t) ->
-        let (red',st) = state_one_step sg
-            (red,{ctx=LList.cons (lazy (mk_DB dloc id 0)) ctx; term=t; stack = []}) in
-        (red',{ctx = ctx; term=mk_Lam loc id ty (Subst.unshift 1 (term_of_state st)); stack = []})
-      | _ -> assert false
-    end *)
-     (* DeBruijn index: environment lookup *)
-     | { ctx; term=DB (_,_,n); stack } ->
-        if n < LList.len ctx then
-          state_one_step sg (red,{ ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack })
-        else
-          (red,state)
-     (* Beta redex *)
-     | { ctx; term=Lam (loc,id,ty,t); stack=p::s } ->
-        if !beta then
-          (red-1,{ ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s })
-        else
-          let (red',state') = state_one_step sg (red,{ctx=ctx;term=t; stack=[]}) in
-          (red',{ctx=ctx; term=mk_Lam loc id ty (term_of_state state'); stack = p::s})
+let reduction sg strategy te =
+  (get_reduction_function strategy) sg te
+
+
+
+(* WHNF nsteps Reduction *)
+let rec state_whnf_nsteps (sg:Signature.t) (red,st:(int*state)) : int*state =
+  if red <= 0 then (0, st)
+  else match st with
+    (* Weak heah beta normal terms *)
+    | { term=Type _ } | { term=Kind } | { term=Pi _ } -> (red, st)
+    | { term=Lam _; stack=[] } -> (red, st)
+  (* DeBruijn index: environment lookup *)
+  | { ctx; term=DB (l,x,n); stack } ->
+    if n < LList.len ctx
+    then state_whnf_nsteps sg (red,{ ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack })
+    else (red, { ctx=LList.nil; term=(mk_DB l x (n-LList.len ctx)); stack })
+  (* Beta redex *)
+  | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
+    if not !beta then (red, st)
+    else state_whnf_nsteps sg
+        (red-1, { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s })
   (* Application: arguments go on the stack *)
-     | { ctx; term=App (f,a,lst); stack=s } ->
-        let aux = ref red in
-        (* rev_map + rev_append to avoid map + append*)
-        let new_stack =
-          List.rev_map
-            (fun t ->
-              let new_aux,st = state_one_step sg (!aux, {ctx;term=t;stack=[]}) in
-              aux := new_aux;
-              st)
-            (a::lst) in
-        state_one_step sg (!aux,{ ctx; term=f; stack=List.rev_append new_stack s })
-     (* Potential Gamma redex *)
-     | { ctx; term=Const (l,n); stack } ->
-        let dtree =
-          match !selection with
-          | None -> Signature.get_dtree sg l n
-          | Some selection -> Signature.get_dtree sg ~select:selection l n
-        in
+  | { ctx; term=App (f,a,lst); stack=s } ->
+    (* rev_map + rev_append to avoid map + append*)
+    let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
+    state_whnf_nsteps sg (red, { ctx; term=f; stack=List.rev_append tl' s })
+  (* Potential Gamma redex *)
+  | { ctx; term=Const (l,n); stack } ->
+    begin
+      let dtree =
+        match !selection with
+        | None           -> Signature.get_dtree sg l n
+        | Some selection -> Signature.get_dtree sg ~select:selection l n
+      in
+      match dtree with
+      | None -> (red, st)
+      | Some (i,g) ->
         begin
-          match dtree with
-          | None -> (red,state)
-          | Some (i,g) ->
-             begin
-               match split_stack i stack with
-               | None -> (red,state)
-               | Some (s1,s2) ->
-                  ( match gamma_rw sg are_convertible snf state_whnf s1 g with
-                    | None -> (red,state)
-                    | Some (ctx,term) -> state_one_step sg (red-1, { ctx; term; stack=s2 })
-                  )
-             end
+          match split_stack i stack with
+          | None -> (red, st)
+          | Some (s1,s2) ->
+            ( match gamma_rw sg are_convertible snf state_whnf s1 g with
+              | None -> (red, st)
+              | Some (ctx,term) -> state_whnf_nsteps sg (red-1, { ctx; term; stack=s2 })
+            )
         end
     end
 
+let whnf_nsteps sg (n,t) =
+  let st = { ctx=LList.nil; term=t; stack=[] } in
+  let (n',st') = state_whnf_nsteps sg (n,st) in
+  (n', term_of_state st')
 
-let nsteps sg n t =
-  term_of_state (snd (state_one_step sg (n,{ ctx=LList.nil; term=t; stack=[] })))
+let rec snf_nsteps sg (n,t) =
+  if n < 0 then (0,t) else
+    let (n', t') = whnf_nsteps sg (n,t) in
+    snf_nsteps_aux sg n'
+      begin
+        match t' with
+        | Kind | Const _ | DB _ | Type _ -> ([], fun _ -> t')
+        | App (f,a,lst) ->
+          (f :: a :: lst, function f'::a'::lst' -> mk_App f' a' lst'     | _ -> assert false)
+        | Pi (_,x,a,b) ->
+          ([a;b]        , function [a';b']      -> mk_Pi dloc x a' b'    | _ -> assert false)
+        | Lam (_,x,None,b) ->
+          ([b]          , function [b']         -> mk_Lam dloc x None b' | _ -> assert false)
+        | Lam (_,x,Some a,b) ->
+          ([a;b]        , function [a';b'] -> mk_Lam dloc x (Some a') b' | _ -> assert false)
+      end
+and snf_nsteps_list sg (n,acc) t =
+  let (n',t') = snf_nsteps sg (n,t) in (n',t'::acc)
+and snf_nsteps_aux sg n (l, f) =
+  let (n',l') = List.fold_left (snf_nsteps_list sg) (n,[]) l in
+  (n',f (List.rev l'))
 
-let reduction sg strategy te =
-  match strategy with
-  | Hnf      -> hnf    sg te
-  | Snf      -> snf    sg te
-  | Whnf     -> whnf   sg te
-  | NSteps n when n > 0 -> nsteps sg n te
-  | NSteps n -> te
+let rec hnf_nsteps sg (n,t) =
+  if n < 0 then (0,t) else
+    let (n', t') = whnf_nsteps sg (n,t) in
+    match t' with
+    | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) -> (n',t')
+    | App (f,a,lst) ->
+      let (n'',lst') = List.fold_left (hnf_nsteps_list sg) (n',[]) (f::a::lst) in
+      match List.rev lst' with
+      | f' :: a' :: lst' -> (n'', mk_App f' a' lst')
+      | _ -> assert false
+and hnf_nsteps_list sg (n,acc) t =
+  let (n',t') = hnf_nsteps sg (n,t) in (n',t'::acc)
+and hnf_nsteps_aux sg n (l, f) =
+  let (n',l') = List.fold_left (snf_nsteps_list sg) (n,[]) l in
+  (n',f (List.rev l'))
+
+let get_reduction_steps_function = function
+  | Hnf  -> hnf_nsteps
+  | Snf  -> snf_nsteps
+  | Whnf -> whnf_nsteps
+
+let reduction_steps sg strategy n te =
+  snd ((get_reduction_steps_function strategy) sg (n,te))
