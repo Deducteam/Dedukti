@@ -1,6 +1,5 @@
 opam-version: "1.2"
 name: "Dedukti"
-version: "2.5.1"
 maintainer: "dedukti-dev@inria.fr"
 author: "Ronan Saillard"
 homepage: "http://dedukti.gforge.inria.fr"
