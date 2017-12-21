@@ -22,7 +22,7 @@ let get_type l cst =
   with SignatureError e -> Err e
 
 let get_dtree l cst =
-  try OK (Signature.get_dtree !sg l cst)
+  try OK (Signature.get_dtree !sg None l cst)
   with SignatureError e -> Err e
 
 let export () : bool = Signature.export !sg
