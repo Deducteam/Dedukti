@@ -100,7 +100,7 @@ let mk_command lc = function
       | OK ty ->
         begin
           match Env.reduction Reduction.Snf ty with
-          | OK ty' -> Format.printf "%a@." Pp.print_term te
+          | OK ty' -> Format.printf "%a@." Pp.print_term ty'
           | Err e -> Errors.fail_env_error e
         end
       | Err e -> Errors.fail_env_error e )
