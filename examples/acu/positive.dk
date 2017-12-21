@@ -1,0 +1,33 @@
+#NAME positive.
+
+t : Type.
+xH : t.
+xO : t -> t.
+xI : t -> t.
+
+def S : t -> t.
+[]  S xH     --> xO xH
+[x] S (xO x) --> xI x
+[x] S (xI x) --> xO (S x).
+
+def add : t -> t -> t.
+[]    add xH     xH     --> xO xH
+[x]   add (xO x) xH     --> xI x
+[x]   add (xI x) xH     --> xO (S x)
+[y]   add xH     (xO y) --> xI y
+[x,y] add (xO x) (xO y) --> xO (add x y)
+[x,y] add (xI x) (xO y) --> xI (add x y)
+[y]   add xH     (xI y) --> xO (S y)
+[x,y] add (xO x) (xI y) --> xI (add x y)
+[x,y] add (xI x) (xI y) --> xO (S (add x y)).
+
+def pred_double : t -> t.
+[]  pred_double xH     --> xH.
+[x] pred_double (xO x) --> xI (pred_double x).
+[x] pred_double (xI x) --> xI (xO x).
+
+def 1 := xH.
+def 2 := xO 1.
+def 3 := xI 1.
+def 4 := xO 2.
+def 5 := xI 2.

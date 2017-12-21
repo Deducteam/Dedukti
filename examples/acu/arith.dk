@@ -1,0 +1,72 @@
+#NAME arith.
+
+Z : Type.
+0  : Z.
+Zpos : positive.t -> Z.
+Zneg : positive.t -> Z.
+
+def double : Z -> Z.
+[]  double 0        --> 0
+[p] double (Zpos p) --> Zpos (positive.xO p)
+[p] double (Zneg p) --> Zneg (positive.xO p).
+
+def succ_double : Z -> Z.
+[]  succ_double 0        --> Zpos positive.xH
+[p] succ_double (Zpos p) --> Zpos (positive.xI p)
+[p] succ_double (Zneg p) --> Zneg (positive.pred_double p).
+
+def pred_double : Z -> Z.
+[]  pred_double 0        --> Zneg positive.xH
+[p] pred_double (Zpos p) --> Zpos (positive.pred_double p)
+[p] pred_double (Zneg p) --> Zneg (positive.xI p).
+
+def opp : Z -> Z.
+[]  opp 0 --> 0
+[p] opp (Zpos p) --> Zneg p
+[p] opp (Zneg p) --> Zpos p.
+
+def pos_sub : positive.t -> positive.t -> Z.
+[]    pos_sub positive.xH     positive.xH     --> 0
+[y]   pos_sub positive.xH     (positive.xO y) --> Zneg (positive.pred_double y)
+[y]   pos_sub positive.xH     (positive.xI y) --> Zneg (positive.xO y)
+[x]   pos_sub (positive.xO x) positive.xH     --> Zpos (positive.pred_double x)
+[x,y] pos_sub (positive.xO x) (positive.xO y) --> double (pos_sub x y)
+[x,y] pos_sub (positive.xO x) (positive.xI y) --> pred_double (pos_sub x y)
+[x]   pos_sub (positive.xI x) positive.xH     --> Zpos (positive.xO x)
+[x,y] pos_sub (positive.xI x) (positive.xO y) --> succ_double (pos_sub x y)
+[x,y] pos_sub (positive.xI x) (positive.xI y) --> double (pos_sub x y).
+
+defacu add [Z,0].
+[x,y,z] add (add (Zpos x) (Zpos y)) z --> add z (Zpos (positive.add x y))
+[x,y,z] add (add (Zpos x) (Zneg y)) z --> add z (pos_sub x y)
+[x,y,z] add (add (Zneg x) (Zpos y)) z --> add z (pos_sub y x)
+[x,y,z] add (add (Zneg x) (Zneg y)) z --> add z (Zneg (positive.add x y)).
+
+def 1 := Zpos positive.1.
+def 2 := Zpos positive.2.
+def 3 := Zpos positive.3.
+def 4 := Zpos positive.4.
+def 5 := Zpos positive.5.
+
+#CONV add 1 (add 3 2), add 3 3.
+#CONV add 2 (add 4 5), add 3 (add 4 4).
+#CONV add (add 0 0) (add 3 (add 3 2)), add (add 1 (add 0 4)) (add 0 3).
+
+
+
+Prop : Type.
+def proof : Prop -> Type.
+
+eq : Z -> Z -> Prop.
+refl : n : Z -> proof (eq n n).
+
+inf : Z -> Z -> Prop.
+inf_0_pos : n : positive.t -> proof (inf 0        (Zpos n)).
+inf_neg_0 : n : positive.t -> proof (inf (Zneg n) 0       ).
+
+
+
+
+
+
+
