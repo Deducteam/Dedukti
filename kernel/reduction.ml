@@ -39,7 +39,6 @@ and stack = state list
 
 let state_of_term t = {ctx=LList.nil;term=t;stack=[]}
 
-
 let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
   mk_App2 t (List.map term_of_state stack)
@@ -260,12 +259,14 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
     in
     let (stack_h, arg_i, stack_t) = split_ith [] i stack in
     assert (match arg_i.term with Const(l,cst) -> Signature.is_AC sg l cst | _ -> false);
-    let new_cases = (* Generate all possible pick for the fetch *)
-      List.map
-        (function
-          | g, new_s, [] -> (List.rev_append stack_h (new_s::stack_t  ), g)
-          | g, new_s, s  -> (List.rev_append stack_h (new_s::stack_t@s), g) )
-        (fetch_case sg (flatten_AC_stack sg strategy convertible) arg_i case dt_suc dt_def) in
+    let process (g, new_s, s) =
+      List.rev_append stack_h
+        (match s with
+          | [] -> new_s::stack_t
+          | s  -> new_s::stack_t@s), g in
+    let cases =  (* Generate all possible pick for the fetch... *)
+      fetch_case sg (flatten_AC_stack sg strategy convertible) arg_i case dt_suc dt_def in
+    let new_cases = List.map process cases in
     gamma_rw_list sg convertible forcing strategy new_cases (* ... try them all *)
   | ACEmpty (i, dt_suc, dt_def) ->
     begin
