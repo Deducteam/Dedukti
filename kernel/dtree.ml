@@ -288,7 +288,8 @@ let get_first_matching_problem mx =
          | _ -> assert false
       ) mx.first.pats ;
     ( Array.iter ( fun r -> assert (r.position >= 0 ) ) arr1 );
-    if !mp then MillerPattern (array_to_llist arr2)
+    if !mp
+    then MillerPattern (array_to_llist arr2)
     else Syntactic (array_to_llist arr1)
 
 (******************************************************************************)
