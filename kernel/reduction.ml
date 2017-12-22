@@ -285,11 +285,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack } as state ->
     begin
-      let dtree =
-        match !selection with
-        | None -> Signature.get_dtree sg l n
-        | Some selection -> Signature.get_dtree sg ~select:selection l n
-      in
+      let dtree = Signature.get_dtree sg !selection l n in
       match dtree with
       | None -> state
       | Some (i,g) ->
@@ -398,11 +394,7 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
         state_one_step sg (!aux,{ ctx; term=f; stack=List.rev_append new_stack s })
      (* Potential Gamma redex *)
      | { ctx; term=Const (l,n); stack } ->
-        let dtree =
-          match !selection with
-          | None -> Signature.get_dtree sg l n
-          | Some selection -> Signature.get_dtree sg ~select:selection l n
-        in
+        let dtree = Signature.get_dtree sg !selection l n in
         begin
           match dtree with
           | None -> (red,state)
