@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 01e32e008f5a1baf7da245f67701bf8b)
+# DO NOT EDIT (digest: c63e1325757e44ebe33dc2e9434e24d2)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -18,36 +18,49 @@ true: annot, bin_annot
 "dedukti.cmxs": use_dedukti
 # Library kernel
 "kernel/kernel.cmxs": use_kernel
+<kernel/*.ml{,i,y}>: package(unix)
+<kernel/unionfind/*.ml{,i,y}>: package(unix)
 # Library parser
 "parser/parser.cmxs": use_parser
+<parser/*.ml{,i,y}>: package(unix)
 <parser/*.ml{,i,y}>: use_kernel
 # Executable dkcheck
+<dkcheck/dkcheck.{native,byte}>: package(unix)
 <dkcheck/dkcheck.{native,byte}>: use_kernel
 <dkcheck/dkcheck.{native,byte}>: use_parser
+<dkcheck/*.ml{,i,y}>: package(unix)
 <dkcheck/*.ml{,i,y}>: use_kernel
 <dkcheck/*.ml{,i,y}>: use_parser
 # Executable dkdep
+<dkdep/dkdep.{native,byte}>: package(unix)
 <dkdep/dkdep.{native,byte}>: use_kernel
 <dkdep/dkdep.{native,byte}>: use_parser
+<dkdep/*.ml{,i,y}>: package(unix)
 <dkdep/*.ml{,i,y}>: use_kernel
 <dkdep/*.ml{,i,y}>: use_parser
 # Executable dktop
+<dktop/dktop.{native,byte}>: package(unix)
 <dktop/dktop.{native,byte}>: use_kernel
 <dktop/dktop.{native,byte}>: use_parser
+<dktop/*.ml{,i,y}>: package(unix)
 <dktop/*.ml{,i,y}>: use_kernel
 <dktop/*.ml{,i,y}>: use_parser
 # Executable dkindent
+<dkindent/dkindent.{native,byte}>: package(unix)
 <dkindent/dkindent.{native,byte}>: use_kernel
 <dkindent/dkindent.{native,byte}>: use_parser
+<dkindent/*.ml{,i,y}>: package(unix)
 <dkindent/*.ml{,i,y}>: use_kernel
 <dkindent/*.ml{,i,y}>: use_parser
 # Executable universo
 <universo/universo.{native,byte}>: package(Z3)
 <universo/universo.{native,byte}>: package(ocamlgraph)
+<universo/universo.{native,byte}>: package(unix)
 <universo/universo.{native,byte}>: use_kernel
 <universo/universo.{native,byte}>: use_parser
 <universo/*.ml{,i,y}>: package(Z3)
 <universo/*.ml{,i,y}>: package(ocamlgraph)
+<universo/*.ml{,i,y}>: package(unix)
 <universo/*.ml{,i,y}>: use_kernel
 <universo/*.ml{,i,y}>: use_parser
 # OASIS_STOP

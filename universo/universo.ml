@@ -208,7 +208,7 @@ let parse lb =
     P.prelude Lexer.token lb ;
     while true do P.line Lexer.token lb done
   with
-  | Tokens.EndOfFile -> ()
+  | Lexer.EndOfFile -> ()
   | P.Error -> Errors.fail (Lexer.get_loc lb)
     "Unexpected token '%s'." (Lexing.lexeme lb)
 
@@ -218,6 +218,7 @@ let args = [
   ("-stdin", Arg.Set run_on_stdin,              "Use standart input" ) ;
   ("-errors-in-snf", Arg.Set    Errors.errors_in_snf   , "Normalize the types in error messages");
   ("-nl", Arg.Set Rule.allow_non_linear, "Allow non left-linear rewrite rules");
+  ("-I"      , Arg.String Basic.add_path         , "Add a directory to load path");
   ("-log", Arg.String Constraints.Log.set_log_file, "Put log informations in a file");
   ("-output-dir", Arg.String set_output_dir, "Specify an outpu directory")]
 

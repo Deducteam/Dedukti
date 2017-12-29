@@ -29,3 +29,11 @@ val mk_Arrow    : loc -> term -> term -> term
 
 (** term_eq [t] [t'] is true if [t]=[t'] (up to alpha equivalence) *)
 val term_eq : term -> term -> bool
+
+(** {2 Contexts} *)
+
+(** context of rules after they have been parsed *)
+type untyped_context = (loc * ident) list
+
+(** type checking rules implies to give a type to the variables of the context *)
+type typed_context = ( loc * ident * term ) list

@@ -36,7 +36,7 @@ type state = {
 and stack = state list
 
 let rec term_of_state {ctx;term;stack} : term =
-  let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx 0 term ) in
+  let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
     match stack with
       | [] -> t
       | a::lst -> mk_App t (term_of_state a) (List.map term_of_state lst)
@@ -123,8 +123,8 @@ let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
 let get_context_syn (sg:Signature.t) (forcing:rw_strategy) (stack:stack) (ord:arg_pos LList.t) : env option =
   try Some (LList.map (
       fun p ->
-        if ( p.depth = 0 ) then
-          lazy (term_of_state (List.nth stack p.position) )
+        if ( p.depth = 0 )
+        then lazy (term_of_state (List.nth stack p.position) )
         else
           Lazy.from_val
             (unshift sg forcing p.depth (term_of_state (List.nth stack p.position) ))
@@ -285,11 +285,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack } as state ->
     begin
-      let dtree =
-        match !selection with
-        | None -> Signature.get_dtree sg l n
-        | Some selection -> Signature.get_dtree sg ~select:selection l n
-      in
+      let dtree = Signature.get_dtree sg !selection l n in
       match dtree with
       | None -> state
       | Some (i,g) ->
@@ -405,11 +401,7 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
         state_one_step sg (!aux,{ ctx; term=f; stack=List.rev_append new_stack s })
      (* Potential Gamma redex *)
      | { ctx; term=Const (l,n); stack } ->
-        let dtree =
-          match !selection with
-          | None -> Signature.get_dtree sg l n
-          | Some selection -> Signature.get_dtree sg ~select:selection l n
-        in
+        let dtree = Signature.get_dtree sg !selection l n in
         begin
           match dtree with
           | None -> (red,state)

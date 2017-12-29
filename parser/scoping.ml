@@ -38,8 +38,9 @@ let scope_term ctx (pte:preterm) : term =
 (******************************************************************************)
 
 (* [get_vars_order vars p] traverses the pattern [p] from left to right and
- * builds the list of variables, taking jokers as variables. *)
-let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context =
+ * builds the list of variables, turning jokers into unapplied fresh variables.
+ * Return false as second argument if some variables never occur (warning needed). *)
+let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context*bool =
   let nb_jokers = ref 0 in
   let get_fresh_name () =
     incr nb_jokers;
@@ -54,25 +55,23 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context =
   in
   let rec aux (bvar:ident list) (ctx:(loc*ident) list) : prepattern -> untyped_context = function
     | PPattern (_,None,id,pargs) ->
-      begin
-        if List.exists (ident_eq id) bvar then
-          List.fold_left (aux bvar) ctx pargs
-        else
+      if List.exists (ident_eq id) bvar
+      then List.fold_left (aux bvar) ctx pargs
+      else
+        let ctx = (
           match is_a_var id with
-          | Some l ->
-            if List.exists (fun (_,a) -> ident_eq id a) ctx then
-              List.fold_left (aux bvar) ctx pargs
-            else
-              let ctx2 = (l,id)::ctx in
-              List.fold_left (aux bvar) ctx2 pargs
-          | None -> List.fold_left (aux bvar) ctx pargs
-      end
+          | Some l when not (List.exists (fun (_,a) -> ident_eq id a) ctx)
+            -> (l,id)::ctx
+          | _ -> ctx
+        ) in
+        List.fold_left (aux bvar) ctx pargs
     | PPattern (l,Some md,id,pargs) -> List.fold_left (aux bvar) ctx pargs
     | PLambda (l,x,pp) -> aux (x::bvar) ctx pp
     | PCondition _ -> ctx
-    | PJoker _ -> (dloc,get_fresh_name ())::ctx
+    | PJoker l -> (l, get_fresh_name ()) :: ctx
   in
-  aux [] [] ppat
+  let ordered_ctx = aux [] [] ppat in
+  ( ordered_ctx , List.length ordered_ctx <> List.length vars + !nb_jokers )
 
 let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
   let nb_jokers = ref 0 in
@@ -104,7 +103,10 @@ let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
 
 let scope_rule (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   let top = PPattern(l,md_opt,id,pargs) in
-  let ctx = get_vars_order pctx top in
+  let ctx, unused_vars = get_vars_order pctx top in
+  if unused_vars
+  then debug 0 "Warning: local variables in the rule %a are not used (%a)"
+      pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
   let idents = List.map snd ctx in
   let md = match pname with
     | Some (Some md, _) -> md
@@ -118,8 +120,4 @@ let scope_rule (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
     | Some (_, id) -> (true,id)
   in
   let name = Gamma(b,mk_name md id) in
-  let rule = {name ; ctx= ctx; pat = p_of_pp idents top; rhs = t_of_pt idents pri}  in
-  if List.length ctx <> List.length pctx then
-    debug 1 "Warning: local variables in the rule %a are not used"
-      pp_prule (l,pname,pctx,md_opt,id,pargs,pri);
-  rule
+  { name ; ctx= ctx; pat = p_of_pp idents top; rhs = t_of_pt idents pri }

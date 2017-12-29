@@ -16,10 +16,6 @@ type wf_pattern =
   | LPattern     of name * wf_pattern array
   | LBoundVar    of ident * int * wf_pattern array
 
-type untyped_context = ( loc * ident ) list
-
-type typed_context = ( loc * ident * term ) list
-
 type rule_name = Delta of name | Gamma of bool * name
 
 type 'a rule =
@@ -51,8 +47,7 @@ type rule_infos = {
   constraints : constr list;
 }
 
-let pattern_of_rule_infos r =
-  Pattern (r.l,r.cst,r.args)
+let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
 type rule_error =
   | BoundVariableExpected of pattern
@@ -160,7 +155,7 @@ let pattern_to_term p =
         mk_App (mk_DB l x n) (aux k a) (List.map (aux k) args)
     | Lambda (l,x,pat) -> mk_Lam l x None (aux (k+1) pat)
   in
-    aux 0 p
+  aux 0 p
 
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
 

@@ -199,18 +199,21 @@ let get_infos sg lc cst =
     try ( HId.find env (id cst))
     with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))
 
+let is_injective sg lc cst =
+  match (get_infos sg lc cst).stat with
+  | Static -> true
+  | Definable -> false
+
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
-let pred_true: Rule.rule_name -> bool = fun x -> true
-
-let get_dtree sg ?select:(pred=pred_true) l cst =
+let get_dtree sg rule_filter l cst =
   match (get_infos sg l cst).rule_opt_info with
   | None -> None
   | Some(rules,i,tr) ->
-    if pred == pred_true then
-      Some (i,tr)
-    else
-      let rules' = List.filter (fun (r:Rule.rule_infos) -> pred r.name) rules in
+    match rule_filter with
+    | None -> Some (i,tr)
+    | Some f ->
+      let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
       if List.length rules' == List.length rules
       then Some (i,tr)
       else

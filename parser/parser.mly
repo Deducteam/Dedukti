@@ -119,7 +119,7 @@ line            : ID COLON term DOT
                 { mk_rules (List.map scope_rule $1) }
                 | command DOT { $1 }
                 | EOF
-                { mk_ending () ; raise Tokens.EndOfFile }
+                { mk_ending () ; raise Lexer.EndOfFile }
 
 
 command         : WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }
@@ -147,10 +147,10 @@ param           : LEFTPAR ID COLON term RIGHTPAR        { (fst $2,snd $2,$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
                 { let (l,md_opt,id,args) = $4 in ( l , None, $2 , md_opt, id , args , $6) }
-		| LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-		{ let (l,md_opt,id,args) = $7 in ( l , Some (None,snd $2), $5 , md_opt, id , args , $9)}
-		| LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-		{ let (l,md_opt,id,args) = $7 in let (_,m,v) = $2 in ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
+                | LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+                { let (l,md_opt,id,args) = $7 in ( l , Some (None,snd $2), $5 , md_opt, id , args , $9)}
+                | LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+                { let (l,md_opt,id,args) = $7 in let (_,m,v) = $2 in ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 
 decl            : ID COLON term         { debug 1 "Ignoring type declaration in rule context."; $1 }
