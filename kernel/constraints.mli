@@ -1,3 +1,5 @@
+val just_check : bool ref
+
 module UVar:
 sig
 

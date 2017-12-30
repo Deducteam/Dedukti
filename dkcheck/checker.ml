@@ -17,6 +17,7 @@ let eprint lc fmt =
 
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_mident name;
+  Constraints.just_check := true;
   Env.init name;
   Confluence.initialize ()
 

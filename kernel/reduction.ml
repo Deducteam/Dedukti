@@ -325,18 +325,18 @@ and are_convertible_lst sg (lst : (term*term) list) : bool  =
         (* UNIVERSO: needed to type check terms *)
         else
           let t1',t2' = whnf sg t1, whnf sg t2 in
-          if BasicConstraints.generate_constraints t1' t2' then
+          if BasicConstraints.generate_constraints t1 t2 then
             Some lst
           else
-            match t1', t2' with
-            | Kind, Kind | Type _, Type _ -> Some lst
-            | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
-            | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
-            | App (f,a,args), App (f',a',args') ->
-              add_to_list2 args args' ((f,f')::(a,a')::lst)
-            | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
-            | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
-            | t1, t2 -> None
+          match t1', t2' with
+          | Kind, Kind | Type _, Type _ -> Some lst
+          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
+          | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
+          | App (f,a,args), App (f',a',args') ->
+            add_to_list2 args args' ((f,f')::(a,a')::lst)
+          | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
+          | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
+          | t1, t2 -> None
       ) with
       | None -> false
       | Some lst2 -> are_convertible_lst sg lst2

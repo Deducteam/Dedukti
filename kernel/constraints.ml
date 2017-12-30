@@ -1,5 +1,6 @@
 (********** universes' variables ************)
 
+let just_check = ref false
 
 module Log =
 struct
@@ -41,7 +42,7 @@ struct
   let extract_uvar t =
     match t with
     | Term.Const(_,n) when is_uvar t -> Basic.id n
-    | _ -> failwith "is not an uvar"
+    | _ -> Format.printf "%a@." Term.pp_term t; failwith "is not an uvar"
 
   let fresh =
     let counter = ref 0 in
@@ -368,6 +369,8 @@ struct
   module V = UVar
 
   let rec generate_constraints (l:Term.term) (r:Term.term) =
+    if !just_check then false
+    else
     let open ReverseCiC in
     Log.append (Format.asprintf "debugl: %a@." Term.pp_term l);
     Log.append (Format.asprintf "debugr: %a@." Term.pp_term r);
@@ -426,18 +429,18 @@ struct
       true
     else if is_type l && is_max r then
       generate_constraints r l
+        (*
     else if is_rule l && is_type r then
       failwith "BUG13"
-(*
       let s1,s2 = extract_rule l in
       let s1 = var_of_ident @@ extract_uvar s1 in
       let s2 = var_of_ident @@ extract_uvar s2 in
       let s3 = find_univ (Type (extract_type r)) in
       add_constraint_rule s1 s2 s3;
-      true *)
+      true
     else if is_type l && is_rule r then
       failwith "BUG14"
-      (*      generate_constraints r l *)
+        generate_constraints r l
     else if is_lift l && is_succ r then
       failwith "BUG1"
     else if is_succ l && is_lift r then
@@ -470,6 +473,7 @@ struct
       failwith "BUG17"
     else if is_type l && is_succ r then
       failwith "BUG18"
+      *)
     else
       false
 
@@ -582,7 +586,8 @@ struct
     let open Term in
     let open ReverseCiC in
     if is_prop term then
-      term
+      (*      term *)
+      new_uvar sg
     else if  is_type term then
       new_uvar sg
     else

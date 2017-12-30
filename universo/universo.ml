@@ -220,7 +220,7 @@ let args = [
   ("-nl", Arg.Set Rule.allow_non_linear, "Allow non left-linear rewrite rules");
   ("-I"      , Arg.String Basic.add_path         , "Add a directory to load path");
   ("-log", Arg.String Constraints.Log.set_log_file, "Put log informations in a file");
-  ("-output-dir", Arg.String set_output_dir, "Specify an outpu directory")]
+  ("-output-dir", Arg.String set_output_dir, "Specify an output directory")]
 
 let run_on_file file =
   let input = open_in file in

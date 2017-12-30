@@ -138,10 +138,8 @@ struct
       ReverseCiC.Type(n-1)
 
   let var_solution model var =
-    Log.append "before";
     if Hashtbl.mem variables var then
       let zvar = Hashtbl.find variables var in
-
       match Model.get_const_interp_e model zvar with
       | None -> failwith "no value associated to a variable"
       | Some e ->
@@ -161,21 +159,14 @@ struct
     Solver.reset solver;
     Hashtbl.clear variables;
     import constraints;
-    Log.append (Solver.to_string solver);
+    (* Log.append (Solver.to_string solver); *)
     Log.append "Try to solve the problem...";
     add_obj_sup i;
     (*    ignore(add_obj_var ()); *)
     match Solver.check solver [] with
     | Solver.UNSATISFIABLE ->
-      Format.printf "fail: %d@." i;
+      Format.eprintf "fail: %d@." i;
       check constraints (i+1)
-          (*
-          begin
-            match Solver.get_proof solver with
-            | None -> assert false
-            | Some x -> Format.printf "proof@.%s@." (Expr.to_string x)
-          end
-*)
     | Solver.UNKNOWN -> failwith (Format.sprintf "%s" (Solver.get_reason_unknown solver))
     | Solver.SATISFIABLE ->
       Log.append "Problem solved!";
@@ -183,12 +174,11 @@ struct
       | None -> assert false
       | Some model -> (* Format.printf "%s@." (Model.to_string model); *)
         fun uvar ->
-          Log.append (Format.sprintf "model var: %s@." (Obj.magic uvar));
           let var' = uvar
                      |> Mapping.to_index
                      |> BasicConstraints.var_of_index
                      |> BasicConstraints.string_of_var in
           (var_solution model var') |> univ_of_int |> ReverseCiC.term_of_univ
 
-  let solve constraints = check constraints 2
+  let solve constraints = check constraints 1
 end
