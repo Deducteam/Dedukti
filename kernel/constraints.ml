@@ -50,6 +50,15 @@ struct
       let name = Format.sprintf "%s%d" basename !counter in
       incr counter; Basic.mk_ident name
 
+  let new_uvar sg =
+    let id = fresh () in
+    let md = Signature.get_name sg in
+    let name = Basic.mk_name md id in
+    let cst = Term.mk_Const Basic.dloc name in
+    Signature.add_declaration sg Basic.dloc id Signature.Static
+      (Term.mk_Const Basic.dloc (Basic.mk_name (Basic.mk_mident "cic") (Basic.mk_ident "Sort")));
+    cst
+
 end
 
 
@@ -225,8 +234,8 @@ sig
 
   val var_of_index : Mapping.index -> var
 
-  val generate_constraints : Term.term -> Term.term -> bool
-  (** generate_constraints [l] [r] returns [true] if some constraints has been generated *)
+  val generate_constraints : Signature.t -> Term.term -> Term.term -> bool
+  (** generate_constraints [sg] [l] [r] returns [true] if some constraints has been generated *)
 
   module ConstraintsSet : Set.S with type elt = constraints
 
@@ -235,6 +244,8 @@ sig
   val info : ConstraintsSet.t -> string
 
   val string_of_var : var -> string
+
+  val is_matching : bool ref
 end
 
 
@@ -262,6 +273,8 @@ struct
   module CS = ConstraintsSet
 
   module UF = Unionfind
+
+  let is_matching = ref false
 
   let uf = ref (UF.create 100000)
 
@@ -368,8 +381,23 @@ struct
 
   module V = UVar
 
-  let rec generate_constraints (l:Term.term) (r:Term.term) =
-    if !just_check then false
+  let rec extract_universe sg (s:Term.term) =
+    if is_uvar s then
+       var_of_ident (extract_uvar s)
+    else if is_rule s then
+      begin
+        let l = var_of_ident @@ (extract_uvar (new_uvar sg)) in
+        let s1,s2 = extract_rule s in
+        let s1' = extract_universe sg s1 in
+        let s2' = extract_universe sg s2 in
+        add_constraint_rule s1' s2' l;
+        l
+      end
+    else
+      failwith "don't know what to do yet"
+
+  let rec generate_constraints sg (l:Term.term) (r:Term.term) =
+    if !just_check || !is_matching then false
     else
     let open ReverseCiC in
     Log.append (Format.asprintf "debugl: %a@." Term.pp_term l);
@@ -379,14 +407,14 @@ struct
       add_constraint_prop l;
       true
     else if is_prop l && is_uvar r then
-      generate_constraints r l
+      generate_constraints sg r l
     else if is_uvar l && is_type r then
       let l = extract_uvar l in
       let i = extract_type r in
       add_constraint_type (var_of_ident l) (Type i);
       true
     else if is_type l && is_uvar r then
-      generate_constraints r l
+      generate_constraints sg r l
     else if is_uvar l && is_uvar r then
       let l = extract_uvar l in
       let r = extract_uvar r in
@@ -401,16 +429,16 @@ struct
         true
       end
     else if is_uvar l && is_succ r then
-      generate_constraints r l (* just a switch of arguments *)
+      generate_constraints sg r l (* just a switch of arguments *)
     else if is_rule l && is_uvar r then
       let s1,s2 = extract_rule l in
-      let s1 = var_of_ident @@ extract_uvar s1 in
-      let s2 = var_of_ident @@ extract_uvar s2 in
+      let s1 = extract_universe sg s1 in
+      let s2 = extract_universe sg s2 in
       let r = var_of_ident @@ extract_uvar r in
       add_constraint_rule s1 s2 r;
       true
     else if is_uvar l && is_rule r then
-      generate_constraints r l (* just a switch of arguments *)
+      generate_constraints sg r l (* just a switch of arguments *)
     else if is_max l && is_uvar r then
       let s1,s2 = extract_max l in
       let s1 = var_of_ident @@ extract_uvar s1 in
@@ -419,7 +447,7 @@ struct
       add_constraint_max s1 s2 r;
       true
     else if is_uvar l && is_max r then
-      generate_constraints r l
+      generate_constraints sg r l
     else if is_max l && is_type r then
       let s1,s2 = extract_max l in
       let s1 = var_of_ident @@ extract_uvar s1 in
@@ -428,19 +456,17 @@ struct
       add_constraint_max s1 s2 s3;
       true
     else if is_type l && is_max r then
-      generate_constraints r l
-        (*
+      generate_constraints sg r l
     else if is_rule l && is_type r then
-      failwith "BUG13"
+      failwith "BUG13" (*
       let s1,s2 = extract_rule l in
       let s1 = var_of_ident @@ extract_uvar s1 in
       let s2 = var_of_ident @@ extract_uvar s2 in
       let s3 = find_univ (Type (extract_type r)) in
       add_constraint_rule s1 s2 s3;
-      true
+      true *)
     else if is_type l && is_rule r then
       failwith "BUG14"
-        generate_constraints r l
     else if is_lift l && is_succ r then
       failwith "BUG1"
     else if is_succ l && is_lift r then
@@ -473,7 +499,6 @@ struct
       failwith "BUG17"
     else if is_type l && is_succ r then
       failwith "BUG18"
-      *)
     else
       false
 
@@ -573,23 +598,14 @@ end
 module Elaboration =
 struct
 
-  let new_uvar sg =
-    let id = UVar.fresh () in
-    let md = Signature.get_name sg in
-    let name = Basic.mk_name md id in
-    let cst = Term.mk_Const Basic.dloc name in
-    Signature.add_declaration sg Basic.dloc id Signature.Static
-      (Term.mk_Const Basic.dloc ReverseCiC.sort);
-    cst
-
   let rec elaboration sg term =
     let open Term in
     let open ReverseCiC in
     if is_prop term then
       (*      term *)
-      new_uvar sg
+      UVar.new_uvar sg
     else if  is_type term then
-      new_uvar sg
+      UVar.new_uvar sg
     else
       match term with
       | App(f, a, al) ->

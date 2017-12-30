@@ -142,21 +142,35 @@ let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
      | Subst.UnshiftExn -> assert false
 
 let rec test (sg:Signature.t) (convertible:convertibility_test)
-             (ctx:env) (constrs: constr list) : bool  =
+    (ctx:env) (constrs: constr list) : bool  =
+  let open Constraints in
+  let is_uvar = UVar.is_uvar in
   match constrs with
   | [] -> true
   | (Linearity (i,j))::tl ->
     let t1 = mk_DB dloc dmark i in
     let t2 = mk_DB dloc dmark j in
-    if convertible sg (term_of_state { ctx; term=t1; stack=[] })
-                      (term_of_state { ctx; term=t2; stack=[] })
-    then test sg convertible ctx tl
+    BasicConstraints.is_matching :=
+      if is_uvar (Lazy.force (LList.nth ctx i)) || is_uvar (Lazy.force (LList.nth ctx j)) then
+        true else
+        false;
+    let is_conv = convertible sg (term_of_state { ctx; term=t1; stack=[] })
+        (term_of_state { ctx; term=t2; stack=[] }) in
+    BasicConstraints.is_matching := false;
+    if is_conv then
+      test sg convertible ctx tl
     else false
   | (Bracket (i,t2))::tl ->
     let t1 = mk_DB dloc dmark i in
-    if convertible sg (term_of_state { ctx; term=t1; stack=[] })
-                      (term_of_state { ctx; term=t2; stack=[] })
-    then test sg convertible ctx tl
+    BasicConstraints.is_matching :=
+      if is_uvar (Lazy.force (LList.nth ctx i)) || is_uvar t2 then
+        true else
+        false;
+    let is_conv = convertible sg (term_of_state { ctx; term=t1; stack=[] })
+        (term_of_state { ctx; term=t2; stack=[] }) in
+    BasicConstraints.is_matching := false;
+    if is_conv then
+      test sg convertible ctx tl
     else
       (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
       failwith "Error while reducing a term: a guard was not satisfied."
@@ -325,7 +339,7 @@ and are_convertible_lst sg (lst : (term*term) list) : bool  =
         (* UNIVERSO: needed to type check terms *)
         else
           let t1',t2' = whnf sg t1, whnf sg t2 in
-          if BasicConstraints.generate_constraints t1 t2 then
+          if BasicConstraints.generate_constraints sg t1 t2 then
             Some lst
           else
           match t1', t2' with

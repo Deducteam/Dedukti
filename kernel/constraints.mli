@@ -82,7 +82,7 @@ sig
 
   val var_of_index : Mapping.index -> var
 
-  val generate_constraints : Term.term -> Term.term -> bool
+  val generate_constraints : Signature.t -> Term.term -> Term.term -> bool
   (** generate_constraints [l] [r] returns [true] if some constraints has been generated *)
 
   module ConstraintsSet : Set.S with type elt = constraints
@@ -92,6 +92,8 @@ sig
   val info : ConstraintsSet.t -> string
 
   val string_of_var : var -> string
+
+  val is_matching : bool ref
 end
 
 module BasicConstraints:ConstraintsInterface
