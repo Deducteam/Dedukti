@@ -40,6 +40,9 @@ val make                : mident -> t
 val get_name            : t -> mident
 (** [get_name sg] returns the name of the signature [sg]. *)
 
+val add_name         : t -> mident -> t
+(** [get_name sg] returns the name of the signature [sg]. *)
+
 val export              : t -> bool
 (** [export ()] saves the current environment in a [*.dko] file.*)
 

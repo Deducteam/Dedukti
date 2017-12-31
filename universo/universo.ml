@@ -52,12 +52,12 @@ let eprint lc fmt =
 
 (* ********************************* *)
 
-let sg = ref (Signature.make (mk_mident "noname"))
+let _ = Env.init (Basic.mk_mident "noname")
 
 let mk_prelude lc name =
   eprint lc "Module name is '%a'." pp_mident name;
   (* Format.printf "#NAME %a.@.@." print_mident name; *)
-  Env.init name;
+  Env.add_name name;
   entries := StartModule(name)::!entries;
   Confluence.initialize ()
 

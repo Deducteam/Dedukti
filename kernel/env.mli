@@ -16,7 +16,10 @@ val init        : mident -> unit
     Every top level declaration will be qualified be this name. *)
 
 val get_signature : unit -> Signature.t
-(* FIXME: Use in universo to avoid a circular dependency issue.*)
+(* FIXME: Used in universo to avoid a circular dependency issue.*)
+
+val add_name    : mident -> unit
+(* FIXME: Used in universo *)
 
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)

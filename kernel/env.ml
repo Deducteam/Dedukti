@@ -19,6 +19,8 @@ let init name = sg := Signature.make name
 
 let get_name () = Signature.get_name !sg
 
+let add_name name = sg := Signature.add_name !sg name
+
 let get_type l cst =
   try OK (Signature.get_type !sg l cst)
   with SignatureError e -> Err e

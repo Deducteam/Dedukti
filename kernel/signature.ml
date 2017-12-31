@@ -61,6 +61,10 @@ let make name =
 
 let get_name sg = sg.name
 
+let add_name sg name =
+  HMd.add sg.tables name (HId.create 251);
+  {sg with name=name}
+
 (******************************************************************************)
 
 let add_rule_infos sg (lst:rule_infos list) : unit =
