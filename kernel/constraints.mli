@@ -11,6 +11,7 @@ sig
 
   val fresh : unit -> uvar
 
+  val count : unit -> int
 end
 
 module Mapping:

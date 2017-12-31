@@ -190,6 +190,7 @@ let solve () =
   (* Log.append  (Format.asprintf "%a" (print_entries false) (List.rev !entries)); *)
    (* Constraints.Constraints.info (); *)
   Log.append "Elaboration is over";
+  Log.append (Format.sprintf "Number of variables %d@." (UVar.count ()));
   let constraints = BasicConstraints.export () in
   Log.append (BasicConstraints.info constraints);
   let model = Export.Z3.solve constraints in

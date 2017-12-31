@@ -339,7 +339,7 @@ and are_convertible_lst sg (lst : (term*term) list) : bool  =
         (* UNIVERSO: needed to type check terms *)
         else
           let t1',t2' = whnf sg t1, whnf sg t2 in
-          if BasicConstraints.generate_constraints sg t1 t2 then
+          if BasicConstraints.generate_constraints sg t1' t2' then
             Some lst
           else
           match t1', t2' with

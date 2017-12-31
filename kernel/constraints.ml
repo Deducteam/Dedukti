@@ -44,9 +44,11 @@ struct
     | Term.Const(_,n) when is_uvar t -> Basic.id n
     | _ -> Format.printf "%a@." Term.pp_term t; failwith "is not an uvar"
 
-  let fresh =
-    let counter = ref 0 in
-    fun () ->
+  let counter = ref 0
+
+  let count () = !counter
+
+  let fresh () =
       let name = Format.sprintf "%s%d" basename !counter in
       incr counter; Basic.mk_ident name
 
@@ -276,7 +278,7 @@ struct
 
   let is_matching = ref false
 
-  let uf = ref (UF.create 100000)
+  let uf = ref (UF.create 1000000000)
 
   let var_of_index i = UF.find !uf i
 
@@ -458,15 +460,14 @@ struct
     else if is_type l && is_max r then
       generate_constraints sg r l
     else if is_rule l && is_type r then
-      failwith "BUG13" (*
       let s1,s2 = extract_rule l in
       let s1 = var_of_ident @@ extract_uvar s1 in
       let s2 = var_of_ident @@ extract_uvar s2 in
       let s3 = find_univ (Type (extract_type r)) in
       add_constraint_rule s1 s2 s3;
-      true *)
+      true
     else if is_type l && is_rule r then
-      failwith "BUG14"
+      generate_constraints sg r l
     else if is_lift l && is_succ r then
       failwith "BUG1"
     else if is_succ l && is_lift r then
@@ -505,11 +506,7 @@ struct
   let normalize_univ uvar n u =
     let find n = UF.find !uf n in
     (false,Some (Univ(find n, u)))
-(*
-  let normalize_neq uvar n n' =
-    let find n = UF.find !uf n in
-    (false, Some (Neq(find n, find n')))
-*)
+
   let normalize_eq uvar n n' =
     let find n = UF.find !uf n in
     uf := UF.union !uf (find n) (find n');
@@ -566,7 +563,6 @@ struct
     let fold cstr (b,set) =
       match cstr with
       | Univ(n,u) -> let b', c = normalize_univ uvar n u in b || b', add_opt c set
-      (*      | Neq(n,n') -> let b', c = normalize_neq uvar n n' in b || b', add_opt c set *)
       | Eq(n,n')  -> let b', c = normalize_eq uvar n n' in b || b', add_opt c set
       | Max(n,n',n'') -> let b', c = normalize_max uvar n n' n'' in b || b', add_opt c set
       | Succ(n,n') -> let b', c = normalize_succ uvar n n' in b || b', add_opt c set
@@ -574,16 +570,7 @@ struct
     in
     let (b,set) = ConstraintsSet.fold fold cset (false,ConstraintsSet.empty) in
     if b then normalize uvar set else set
-(*
-  let normalize' c =
-    let find n = UF.find !uf n in
-    match c with
-    | Univ(n,u) -> Univ(find n,u)
-    | Eq(n,n') -> Eq(find n, find n')
-    | Max(n,n',n'') -> Max(find n, find n', find n'')
-    | Succ(n,n') -> Succ(find n, find n')
-    | Rule(n,n',n'') -> Rule(find n, find n', find n'')
-                        *)
+
   let export () =
     let uf = !uf in
     let find n = UF.find uf n in
@@ -602,8 +589,8 @@ struct
     let open Term in
     let open ReverseCiC in
     if is_prop term then
-      (*      term *)
-      UVar.new_uvar sg
+      term
+      (* UVar.new_uvar sg *)
     else if  is_type term then
       UVar.new_uvar sg
     else
