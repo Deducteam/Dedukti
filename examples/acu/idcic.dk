@@ -1,0 +1,30 @@
+#NAME idic.
+
+def id : s : cc.Sort -> t : cc.U s -> cc.T s t -> cc.T s t
+      := s => t => x => x.
+		  
+def id2 :=
+  s : cc.Sort =>
+  id (cc.plus cc.1 s)
+	 (cc.prod
+	   (cc.plus s cc.1)
+	   s
+       (cc.u s)
+       (t => cc.prod s s t (x => t)))
+     (id s).
+
+#INFERSNF id2.
+
+
+def 2 := cc.plus cc.1 cc.1.
+def 3 := cc.plus cc.1 2.
+def 4 := cc.plus cc.1 3.
+def 5 := cc.plus cc.1 4.
+
+#SNF a : cc.Sort => b : cc.Sort => c : cc.Sort =>
+  (cc.max
+    (cc.max
+                (cc.plus a 2)
+                (cc.plus (cc.plus a 3) b))
+                (cc.plus a (cc.max 5 (cc.plus 4 c)))).
+

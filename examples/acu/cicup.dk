@@ -12,16 +12,17 @@ defac max [Sort].
 [i,j,k] max (plus i k) (plus i j) --> plus i (max j k)
 [i,j  ] max i (plus i j) --> plus i j
 [i,j  ] max (plus i j) i --> plus i j
-[i,j  ] max i i --> i
+[i    ] max i i --> i
 [i    ] max 0 i --> i.
 
 def rule : Sort -> Sort -> Sort.
 [i  ] rule i 0 --> 0
+[j  ] rule 0 j --> j
+[i  ] rule i i --> i
 [i,j] rule i (plus 1 j) --> max i (plus 1 j)
-[i,j] rule i 1 --> max i 1
+[i  ] rule i 1          --> max i 1
 [i,j] rule i (plus i j) --> plus i j
-[i,j] rule i i --> i
-[i,j] rule 0 j --> j.
+[i,j] rule (plus 1 i) j --> max (plus 1 i) j.
 
 [i,j,k] max (rule i j) (rule i k) --> rule i (max j k).
 [i,j,k] max (rule j i) (rule k i) --> rule (max j k) i.
@@ -59,12 +60,22 @@ def prod :
   U (rule i j).
 
 [i,a,b] T 0 (prod i 0 a b) --> x : T i a -> T 0 (b x)
-
+(;
 [i,j,a,b] T _ (prod i (plus i j) a b)
       --> x: T i a -> T (plus i j) (b x)
+[i,j,a,b] T _ (prod i i a b)
+      --> x: T i a -> T i (b x)
+[i,j,a,b] T _ (prod 0 j a b)
+      --> x: T 0 a -> T j (b x)
 
 [i,j,a,b] T _ (prod (plus (plus i j) 1) (plus j 1) a b)
 	  --> x : T (plus (plus i j) 1) a -> T (plus j 1) (b x).
+
+[i,j,a,b] T _ (prod (plus (plus i j) 1) (plus j 1) a b)
+	  --> x : T (plus (plus i j) 1) a -> T (plus j 1) (b x).
+ ;)
+[i,j,a,b] T _ (prod i j a b) --> x : T i a -> T j (b x).
+
 
 [i,j,a,b] prod _ (plus (plus i j) 1) (lift i a) b
       --> prod i (plus (plus i j) 1) a          b
@@ -88,4 +99,3 @@ def prod :
 
 [i,a,b] prod (plus i 1) 0 (lift i a) b
 	  --> prod i 0 a b.
-
