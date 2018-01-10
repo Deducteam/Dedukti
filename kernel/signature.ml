@@ -23,11 +23,6 @@ type signature_error =
 
 exception SignatureError of signature_error
 
-type dtree_or_def =
-  | DoD_None
-  | DoD_Def of term
-  | DoD_Dtree of int*dtree
-
 module HMd = Hashtbl.Make(
 struct
   type t        = mident
