@@ -228,10 +228,7 @@ let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * con
 (* For each matching variable count the number of arguments *)
 let get_nb_args (esize:int) (p:pattern) : int array =
   let arr = Array.make esize (-1) in (* -1 means +inf *)
-  let min a b =
-    if a = -1 then b
-    else if a<b then a else b
-  in
+  let min a b = if a < 0 then b else min a b in
   let rec aux k = function
     | Brackets _ -> ()
     | Var (_,_,n,args) when n<k -> List.iter (aux k) args
@@ -239,15 +236,14 @@ let get_nb_args (esize:int) (p:pattern) : int array =
     | Lambda (_,_,pp) -> aux (k+1) pp
     | Pattern (_,_,args) -> List.iter (aux k) args
   in
-    ( aux 0 p ; arr )
+  aux 0 p;
+  arr
 
 (* Checks that the variables are applied to enough arguments *)
 let check_nb_args (nb_args:int array) (te:term) : unit =
   let rec aux k = function
-    | Kind | Type _ | Const _ -> ()
-    | DB (l,id,n) ->
-        if n>=k && nb_args.(n-k)>0 then
-          raise (RuleExn (NotEnoughArguments (l,id,n,0,nb_args.(n-k))))
+    | DB (l,id,n) when n >= k && nb_args.(n-k) > 0 ->
+      raise (RuleExn (NotEnoughArguments (l,id,n,0,nb_args.(n-k))))
     | App(DB(l,id,n),a1,args) when n>=k ->
       let min_nb_args = nb_args.(n-k) in
       let nb_args = List.length args + 1 in
@@ -257,8 +253,9 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
     | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
     | Lam (_,_,None,b) -> aux (k+1) b
     | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
+    | _ -> ()
   in
-    aux 0 te
+  aux 0 te
 
 let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
   match r.pat with
@@ -267,13 +264,16 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
   | Pattern (l,cst,args) ->
     let esize = List.length r.ctx in
     let nb_args = get_nb_args esize r.pat in
-    let _ = check_nb_args nb_args r.rhs in
-    let (esize2,pats2,cstr,is_linear) = check_patterns esize args in
-    if not is_linear && (not !allow_non_linear)
-    then Err (NonLinearRule r)
-    else
-      let () = if not is_linear then debug 1 "Non-linear Rewrite Rule detected" in
+    try
+      check_nb_args nb_args r.rhs;
+      let (esize2,pats2,cstr,is_linear) = check_patterns esize args in
+      if not is_linear && (not !allow_non_linear)
+      then raise( RuleExn (NonLinearRule r) );
+      if not is_linear
+      then debug 1 "Non-linear Rewrite Rule detected";
       OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
            esize = esize2 ;
            l_args = Array.of_list pats2 ;
            constraints = cstr ; }
+    with
+      RuleExn e -> Err e
