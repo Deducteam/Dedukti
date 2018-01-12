@@ -2,7 +2,9 @@
 
 def Prop := cc.0.
 def 1    := cc.1.
-def 2    := cc.plus 1 1.
+def plus := cc.plus.
+def 2    := plus 1 1.
+
 
 (;
 (* id_example.v *)
@@ -115,9 +117,28 @@ pid@{Top.11} (@id)
               *)
  ;)
 (; Somehow translate here that Top.11 >= Top.1 + 1;)
-(;
+
+constraints : Type.
+prf : constraints -> Type.
+
+eq : cc.Sort -> cc.Sort -> constraints.
+refl : i : cc.Sort -> prf (eq i i).
+
+lt : cc.Sort -> cc.Sort -> constraints.
+ltp : i : cc.Sort -> j : cc.Sort -> prf (lt i (plus (plus i j) 1)).
+
+le : cc.Sort -> cc.Sort -> constraints.
+lep : i : cc.Sort -> j : cc.Sort -> prf (lt i (plus i j)).
+
+and : constraints -> constraints -> constraints.
+conj : a : constraints -> b : constraints -> prf a -> prf b -> prf (and a b).
+
+
 def p_pid_id : Top_11 : cc.Sort ->
-               A : cc.U Top_1 -> cc.T Top_1 A -> cc.T Top_1 A :=
+			   p : prf (lt Top_1 Top_11) ->
+               A : cc.U Top_1 -> cc.T Top_1 A -> cc.T Top_1 A.
+(;
+[] p_pid_id -->
   Top_11 : cc.Sort =>
   pid Top_11
     (cc.prod
