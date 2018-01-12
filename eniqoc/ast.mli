@@ -19,11 +19,8 @@ type obj = Declaration of declaration | Definition of definition
 
 type module_id = string
 
-type prelude = module_id list (* modules required *)
-
 type ast =
   {
     name:module_id;
-    prelude:prelude;
     obj:obj list
   }

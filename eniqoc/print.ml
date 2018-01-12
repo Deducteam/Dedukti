@@ -15,7 +15,7 @@ sig
 
   val print_definition : Format.formatter -> definition -> unit
 
-  val print_prelude : Format.formatter -> prelude -> unit
+  val print_prelude : Format.formatter -> unit -> unit
 end
 
 let replace str =
@@ -24,10 +24,12 @@ let replace str =
 let rename kw id =
   if List.mem id kw then
     mk_ident @@ (string_of_ident id) ^ "_"
-  else if string_of_ident id = "__" then
-    mk_ident "_agda_you_suck_"
   else
-    mk_ident (replace (string_of_ident id))
+    let id = string_of_ident id in
+    if String.length id > 0 && String.sub id 0 1 = "_" then
+      mk_ident @@ "Joker"^(String.sub id 1 (String.length id - 1))
+  else
+    mk_ident (replace id)
 
 
 let rec rename_keyword kw term =
@@ -92,9 +94,9 @@ struct
     | Constant(name, ty, term) ->
       Format.fprintf out "Definition %a : %a := %a." print_name name print_term ty print_term term
 
-  let print_prelude out mds =
+  let print_prelude out () =
     let print_import out md = Format.fprintf out "Require Import %s.@." md in
-    List.iter (print_import out) mds
+    List.iter (print_import out) ["leibniz"]
 
 end
 
@@ -148,9 +150,58 @@ struct
       Format.fprintf out "%a : %a@.%a = %a" print_name name print_term ty
         print_name name print_term term
 
-  let print_prelude out mds =
+  let print_prelude out () =
     let print_import out md = Format.fprintf out "open import %s@." md in
-    List.iter (print_import out) mds
+    List.iter (print_import out) []
+end
+
+module MatitaPrinter =
+struct
+    let keywords = [mk_ident "return"; mk_ident "and"]
+
+  let print_ident out id =
+    Format.fprintf out "%a" Pp.print_ident id
+
+  let print_mident out md = Format.fprintf out "%a" Pp.print_mident md
+
+  let print_name out name =
+    print_ident out (id name)
+
+  let rec print_term out term =
+    match term with
+    | Type -> Format.fprintf out "Type[0]"
+    | Prop -> Format.fprintf out "Prop"
+    | Lam(id, ty, term) -> Format.fprintf out "\\lambda %a : %a. %a" print_ident id print_term ty print_term term
+    | App(f,a) -> Format.fprintf out "%a %a" print_term_wp f print_term_wp a
+    | Forall(id,ty,term) -> Format.fprintf out "\\forall %a : %a. %a" print_ident id print_term ty print_term term
+    | Impl(tel,ter) -> Format.fprintf out "%a \\to %a" print_term_wp tel print_term ter
+    | Var(id) -> Format.fprintf out "%a" print_ident id
+    | Const(name) -> Format.fprintf out "%a" print_name name
+
+  and print_term_wp out term =
+    match term with
+    | Prop -> print_term out term
+    | t -> Format.fprintf out "(%a)" print_term t
+
+  let print_term out term = print_term out (rename_keyword keywords term)
+
+  let print_declaration out decl =
+    match decl with
+    | Axiom(name, term) ->
+      Format.fprintf out "axiom %a : %a." print_name name print_term term
+    | Parameter(name, term) ->
+      Format.fprintf out "axiom %a : %a." print_name name print_term term
+
+  let print_definition out defn =
+    match defn with
+    | Theorem(name, ty, term) ->
+      Format.fprintf out "definition %a : %a := %a." print_name name print_term ty print_term term
+    | Constant(name, ty, term) ->
+      Format.fprintf out "definition %a : %a := %a." print_name name print_term ty print_term term
+
+  let print_prelude out mds =
+    let print_import out md = Format.fprintf out "include \"%s\".@." md in
+    List.iter (print_import out) ["basics/pts.ma";"leibniz.ma"]
 end
 
 let initial = String.uppercase_ascii "initial"
@@ -205,11 +256,12 @@ let printer : (module Printer) ref = ref ((module CoqPrinter):(module Printer))
 let set_printer s : unit =
   if s = "coq" then printer := (module CoqPrinter)
   else if s = "agda" then printer := (module AgdaPrinter)
+  else if s = "matita" then printer := (module MatitaPrinter)
   else
     failwith (Printf.sprintf "printer %s is not supported" s)
 
 
 let print_ast out ast =
   let (module P) = !printer in
-  P.print_prelude out ast.prelude;
+  P.print_prelude out ();
   List.iter (print_obj !printer out ast.name) ast.obj

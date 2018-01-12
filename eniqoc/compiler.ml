@@ -138,7 +138,6 @@ let compile_definition name ty term =
   | _ -> assert false
 
 let ast = ref {Ast.name="";
-               Ast.prelude=[];
                Ast.obj=[];
               }
 
@@ -146,7 +145,6 @@ let init_ast name =
   ast :=
     {
       Ast.name=string_of_ident name;
-      Ast.prelude=["leibniz"];
       Ast.obj=[];
     }
 

@@ -14,7 +14,7 @@ sig
 
   val print_definition : Format.formatter -> definition -> unit
 
-  val print_prelude : Format.formatter -> prelude -> unit
+  val print_prelude : Format.formatter -> unit -> unit
 end
 
 module CoqPrinter:Printer
