@@ -135,8 +135,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
       else
         match t1', t2' with
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
-        | DB    (_,_,n), DB    (_,_,n') when n = n'           -> pseudo_u sg sigma lst
-        | Const (_,cst), Const (_,cst') when name_eq cst cst' -> pseudo_u sg sigma lst
+        | DB    (_,_,n), DB    (_,_,n') when n = n' -> pseudo_u sg sigma lst
         | Const (l,cst), Const (l',cst') ->
           if name_eq cst cst'
           then pseudo_u sg sigma lst
