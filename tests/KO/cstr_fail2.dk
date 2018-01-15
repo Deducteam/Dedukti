@@ -1,0 +1,8 @@
+#NAME cstr_fail2.
+
+A : Type.
+a : A.
+T : A -> Type.
+
+def f : T a -> A.
+[] f a --> a.

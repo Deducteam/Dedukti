@@ -135,11 +135,19 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
       else
         match t1', t2' with
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
-        | DB (_,_,n), DB (_,_,n') when ( n=n' ) -> pseudo_u sg sigma lst
-        | Const (_,cst), Const (_,cst') when
-            ( name_eq cst cst' ) ->
-          pseudo_u sg sigma lst
-
+        | DB    (_,_,n), DB    (_,_,n') when n = n'           -> pseudo_u sg sigma lst
+        | Const (_,cst), Const (_,cst') when name_eq cst cst' -> pseudo_u sg sigma lst
+        | Const (l,cst), Const (l',cst') ->
+          if name_eq cst cst'
+          then pseudo_u sg sigma lst
+          else if not (Signature.is_injective sg l cst) || not (Signature.is_injective sg l' cst')
+          then
+            begin
+              debug 2 "Ignoring non injective constraint: %a ~ %a" pp_term t1' pp_term t2';
+              pseudo_u sg sigma lst
+            end
+          else None
+          
         | DB (l1,x1,n1), DB (l2,x2,n2) when ( n1>=q && n2>=q) ->
           begin
             let (x,n,t) = if n1<n2 then (x1,n1,mk_DB l2 x2 (n2-q)) else (x2,n2,mk_DB l1 x1 (n1-q)) in
@@ -179,11 +187,13 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
 
         | App (DB (_,_,n),_,_), _  when ( n >= q ) ->
           if Reduction.are_convertible sg t1' t2' then
-            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2';
+              pseudo_u sg sigma lst )
           else None
         | _, App (DB (_,_,n),_,_) when ( n >= q ) ->
           if Reduction.are_convertible sg t1' t2' then
-            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2';
+              pseudo_u sg sigma lst )
           else None
 
         | App (Const (l,cst),_,_), _ when (not (Signature.is_injective sg l cst)) ->
