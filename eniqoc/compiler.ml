@@ -2,42 +2,45 @@ open Basic
 
 type ty_ctx = ident list
 
-let hol_module = mk_mident "hol"
-let hol_type = mk_ident "type"
-let hol_eta = mk_ident "eta"
-let hol_arrow = mk_ident "arrow"
-let hol_forall = mk_ident "forall"
-let hol_leibniz = mk_ident "leibniz"
-let hol_impl = mk_ident "impl"
-let hol_prop = mk_ident "prop"
-let hol_eps = mk_ident "eps"
-let hol_forall_kind_type = mk_ident "forall_kind_type"
-let hol_forall_kind_prop = mk_ident "forall_kind_prop"
+let sttfa_module = mk_mident "sttfa"
+let sttfa_type = mk_ident "type"
+let sttfa_ptype = mk_ident "ptype"
+let sttfa_eta = mk_ident "eta"
+let sttfa_etap = mk_ident "etap"
+let sttfa_p = mk_ident "p"
+let sttfa_arrow = mk_ident "arrow"
+let sttfa_forall = mk_ident "forall"
+let sttfa_leibniz = mk_ident "leibniz"
+let sttfa_impl = mk_ident "impl"
+let sttfa_prop = mk_ident "bool"
+let sttfa_eps = mk_ident "eps"
+let sttfa_forall_kind_type = mk_ident "forallK"
+let sttfa_forall_kind_prop = mk_ident "forallP"
 
 let logic_module = mk_mident "logic"
 
-let is_hol_const c t =
+let is_sttfa_const c t =
   match t with
-  | Term.Const(_, cst) -> name_eq cst (mk_name hol_module c)
+  | Term.Const(_, cst) -> name_eq cst (mk_name sttfa_module c)
   | _ -> false
 
 let is_type t =
   match t with
-  | Term.App(cst, ty, _) when is_hol_const hol_eta cst -> true
+  | Term.App(cst, ty, _) when is_sttfa_const sttfa_eta cst -> true
   | _ -> false
 
 let is_term t =
   match t with
-  | Term.App(cst, ty, _) when is_hol_const hol_eps cst -> true
+  | Term.App(cst, ty, _) when is_sttfa_const sttfa_eps cst -> true
   | _ -> false
 
-let list_of_hol_theorem_with_eq =
+let list_of_sttfa_theorem_with_eq =
   [mk_ident "eq_minus_O"; mk_ident "eq_minus_S_pred"; mk_ident "eq_to_eqb_true"; mk_ident "eq_to_eqb_false"; mk_ident "eq_times_div_minus_mod"; mk_ident "eq_to_bijn"; mk_ident "eq_minus_gcd_aux"; mk_ident "eq_div_O"; mk_ident "eq_minus_gcd"; mk_ident "eq_times_plus_to_congruent"; mk_ident "eq_mod_to_divides"; mk_ident "eq_fact_pi_p"]
 
 let is_delta_rw cst =
   match cst with
   | Term.Const(_,cst) ->
-    not (mident_eq (md cst) logic_module) && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident (id cst)) 0) && not (List.exists (fun thm -> ident_eq (id cst) thm) list_of_hol_theorem_with_eq)
+    not (mident_eq (md cst) logic_module) && Str.(string_match (regexp "eq_\\|sym_eq") (string_of_ident (id cst)) 0) && not (List.exists (fun thm -> ident_eq (id cst) thm) list_of_sttfa_theorem_with_eq)
   | _ -> false
 
 let get_infos_of_delta_rw md id = Str.(
@@ -65,34 +68,36 @@ let rec arguments_needed rw =
   in
   let rec aux t n =
     match t with
-    | Term.App(Term.Const(_,_) as cst,_,_) when is_hol_const hol_leibniz cst -> n
+    | Term.App(Term.Const(_,_) as cst,_,_) when is_sttfa_const sttfa_leibniz cst -> n
     | Term.App(Term.Const(_,_) as cst, Term.Lam(_,_,_,te),[])
-      when is_hol_const hol_forall_kind_prop cst -> aux te (n+1)
-    | Term.App(Term.Const(_,_) as cst,_,[Term.Lam(_,_,_,te)]) when is_hol_const hol_forall cst ->
+      when is_sttfa_const sttfa_forall_kind_prop cst -> aux te (n+1)
+    | Term.App(Term.Const(_,_) as cst,_,[Term.Lam(_,_,_,te)]) when is_sttfa_const sttfa_forall cst ->
       aux te (n+1)
-    | Term.App(Term.Const(_,_) as cst, t', []) when is_hol_const hol_eps cst -> aux t' n
+    | Term.App(Term.Const(_,_) as cst, t', []) when is_sttfa_const sttfa_eps cst -> aux t' n
     | _ -> Format.eprintf "debug: %a@." Pp.print_term rw; assert false
   in
   aux ty 0
 
 let rec compile_term ty_ctx te_ctx te =
   match te with
-  | Term.App(c, Term.Lam(_, var, _, ty), []) when is_hol_const hol_forall_kind_type c ->
+  | Term.App(c, Term.Lam(_, var, _, ty), []) when is_sttfa_const sttfa_forall_kind_type c ->
     let ty' = compile_term (var::ty_ctx) te_ctx ty in
     Ast.Forall(var, Ast.Type, ty')
-  | Term.Const(_,cst) when is_hol_const hol_prop te -> Ast.Prop
-  | Term.App(c,left,[right]) when is_hol_const hol_arrow c ->
+  | Term.App(c, a, []) when is_sttfa_const sttfa_p c ->
+    compile_term ty_ctx te_ctx a
+  | Term.Const(_,cst) when is_sttfa_const sttfa_prop te -> Ast.Prop
+  | Term.App(c,left,[right]) when is_sttfa_const sttfa_arrow c ->
     let left' = compile_term ty_ctx te_ctx left in
     let right' = compile_term ty_ctx te_ctx right in
     Ast.Impl(left',right')
-  | Term.App(cst, Term.Lam(_,x, Some ty, te'), []) when is_hol_const hol_forall_kind_prop cst ->
-    assert (is_hol_const hol_type ty);
+  | Term.App(cst, Term.Lam(_,x, Some ty, te'), []) when is_sttfa_const sttfa_forall_kind_prop cst ->
+    assert (is_sttfa_const sttfa_type ty);
     Ast.Forall(x, Ast.Type, compile_term (x::ty_ctx) (te_ctx) te')
-  | Term.App(cst, ty, [Term.Lam(_,id, Some tyvar, te)]) when is_hol_const hol_forall cst ->
+  | Term.App(cst, ty, [Term.Lam(_,id, Some tyvar, te)]) when is_sttfa_const sttfa_forall cst ->
     let ty' = compile_term ty_ctx te_ctx ty in
     let te' = compile_term ty_ctx ((id, ty')::te_ctx) te in
     Ast.Forall(id, ty', te')
-  | Term.App(cst, tel, [ter]) when is_hol_const hol_impl cst ->
+  | Term.App(cst, tel, [ter]) when is_sttfa_const sttfa_impl cst ->
     let tel' = compile_term ty_ctx te_ctx tel in
     let ter' = compile_term ty_ctx te_ctx ter in
     Ast.Impl(tel',ter')
@@ -100,7 +105,7 @@ let rec compile_term ty_ctx te_ctx te =
     Ast.Const(cst)
   | Term.DB(_,var,n) ->
     Ast.Var(var)
-  | Term.Lam(_,id, Some cst, te) when is_hol_const hol_type cst ->
+  | Term.Lam(_,id, Some cst, te) when is_sttfa_const sttfa_type cst ->
     Ast.Lam(id, Ast.Type, compile_term (id::ty_ctx) te_ctx te)
   | Term.Lam(_,id, Some tyvar, te) ->
     let _ty' = compile_wrapped_type ty_ctx te_ctx tyvar in
@@ -115,25 +120,27 @@ let rec compile_term ty_ctx te_ctx te =
 
 and compile_wrapped_type (ty_ctx:ty_ctx) te_ctx (ty:Term.term)  =
   match ty with
-  | Term.App(cst, a, []) when is_hol_const hol_eta cst || is_hol_const hol_eps cst ->
+  | Term.App(cst, Term.App(c,a,[]), []) when (is_sttfa_const sttfa_etap cst && is_sttfa_const sttfa_p c)  ->
     compile_term ty_ctx te_ctx a
-  | _ -> assert false
+  | Term.App(cst, a, []) when is_sttfa_const sttfa_eps cst ->
+    compile_term ty_ctx te_ctx a
+  | _ -> Format.printf "debug:%a@." Pp.print_term ty; assert false
 
 let compile_declaration name ty =
       match ty with
-    | Term.App(cst,a,[]) when is_hol_const hol_eta cst ->
+    | Term.App(cst,a,[]) when is_sttfa_const sttfa_etap cst ->
       Ast.Parameter(name, compile_term [] [] a)
-    | Term.App(cst,a,[]) when is_hol_const hol_eps cst ->
+    | Term.App(cst,a,[]) when is_sttfa_const sttfa_eps cst ->
       Ast.Axiom(name, compile_term [] [] a)
-    | Term.Const(_,_) when is_hol_const hol_type ty ->
+    | Term.Const(_,_) when is_sttfa_const sttfa_type ty ->
       Ast.Parameter(name, Ast.Type)
     | _ -> assert false
 
 let compile_definition name ty term =
   match ty with
-  | Term.App(cst,a,[]) when is_hol_const hol_eta cst ->
+  | Term.App(cst,a,[]) when is_sttfa_const sttfa_etap cst ->
     Ast.Constant(name, compile_term [] [] a, compile_term [] [] term)
-  | Term.App(cst,a,[]) when is_hol_const hol_eps cst ->
+  | Term.App(cst,a,[]) when is_sttfa_const sttfa_eps cst ->
     Ast.Theorem(name, compile_term [] [] a, compile_term [] [] term)
   | _ -> assert false
 
