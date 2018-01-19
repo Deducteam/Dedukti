@@ -134,12 +134,12 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
       if term_eq t1' t2' then pseudo_u sg sigma lst
       else
         let ignore_cstr () = 
-          debug 2 "Ignoring non injective constraint: %a ~ %a" pp_term t1' pp_term t2';
+          debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2';
           pseudo_u sg sigma lst in
         match t1', t2' with
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
-        | _,Kind | Kind,_ |_,Type _ | Type _,_ -> None
-        | DB    (_,_,n), DB    (_,_,n') when n = n' -> pseudo_u sg sigma lst
+        | _, Kind | Kind, _ |_, Type _ | Type _, _ -> None
+        | DB (_,_,n), DB (_,_,n') when n = n' -> pseudo_u sg sigma lst
 
         | Const (l,cst), Const (l',cst') when name_eq cst cst' -> ignore_cstr ()
         | Const (l,cst), t when not (Signature.is_injective sg l cst) ->
@@ -192,16 +192,10 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
         | Lam (_,_,_,b), Lam (_,_,_,b') ->
           pseudo_u sg sigma ((q+1,b,b')::lst)
 
-        | App (DB (_,_,n),_,_), _  when ( n >= q ) ->
-          if Reduction.are_convertible sg t1' t2' then
-            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2';
-              pseudo_u sg sigma lst )
-          else None
-        | _, App (DB (_,_,n),_,_) when ( n >= q ) ->
-          if Reduction.are_convertible sg t1' t2' then
-            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2';
-              pseudo_u sg sigma lst )
-          else None
+        | App (DB (_,_,n),_,_), _ when n >= q ->
+          if Reduction.are_convertible sg t1' t2' then ignore_cstr () else None
+        | _, App (DB (_,_,n),_,_) when n >= q ->
+          if Reduction.are_convertible sg t1' t2' then ignore_cstr () else None
 
         | App (Const (l,cst),_,_), _ when (not (Signature.is_injective sg l cst)) -> ignore_cstr ()
         | _, App (Const (l,cst),_,_) when (not (Signature.is_injective sg l cst)) -> ignore_cstr ()
