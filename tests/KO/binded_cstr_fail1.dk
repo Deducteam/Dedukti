@@ -1,0 +1,10 @@
+#NAME binded_cstr_fail1.
+
+A : Type.
+def a : A.
+
+T : (A -> A) -> Type.
+t : f : (A -> A) -> T f.
+
+def g : T (x => x) -> Type.
+[] g (t (x => a)) --> A.
