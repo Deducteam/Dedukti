@@ -133,20 +133,27 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
       let t2' = whnf sg (SS.apply sigma t2 q) in
       if term_eq t1' t2' then pseudo_u sg sigma lst
       else
+        let ignore_cstr () = 
+          debug 2 "Ignoring non injective constraint: %a ~ %a" pp_term t1' pp_term t2';
+          pseudo_u sg sigma lst in
         match t1', t2' with
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
         | _,Kind | Kind,_ |_,Type _ | Type _,_ -> None
         | DB    (_,_,n), DB    (_,_,n') when n = n' -> pseudo_u sg sigma lst
-        | Const (l,cst), Const (l',cst') ->
-          if name_eq cst cst'
-          then pseudo_u sg sigma lst
-          else if not (Signature.is_injective sg l cst) || not (Signature.is_injective sg l' cst')
-          then
-            begin
-              debug 2 "Ignoring non injective constraint: %a ~ %a" pp_term t1' pp_term t2';
-              pseudo_u sg sigma lst
-            end
-          else None
+
+        | Const (l,cst), Const (l',cst') when name_eq cst cst' -> ignore_cstr ()
+        | Const (l,cst), t when not (Signature.is_injective sg l cst) ->
+          begin
+            match unshift_reduce sg q t with
+            | None   -> None
+            | Some _ -> ignore_cstr ()
+          end
+        | t, Const (l,cst) when not (Signature.is_injective sg l cst) ->
+          begin
+            match unshift_reduce sg q t with
+            | None   -> None
+            | Some _ -> ignore_cstr ()
+          end
           
         | DB (l1,x1,n1), DB (l2,x2,n2) when ( n1>=q && n2>=q) ->
           begin
@@ -196,14 +203,8 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
               pseudo_u sg sigma lst )
           else None
 
-        | App (Const (l,cst),_,_), _ when (not (Signature.is_injective sg l cst)) ->
-          ( debug 2 "Ignoring non injective constraint: %a ~ %a"
-              pp_term t1' pp_term t2';
-            pseudo_u sg sigma lst )
-        | _, App (Const (l,cst),_,_) when (not (Signature.is_injective sg l cst)) ->
-          ( debug 2 "Ignoring non injective constraint: %a ~ %a"
-              pp_term t1' pp_term t2';
-            pseudo_u sg sigma lst )
+        | App (Const (l,cst),_,_), _ when (not (Signature.is_injective sg l cst)) -> ignore_cstr ()
+        | _, App (Const (l,cst),_,_) when (not (Signature.is_injective sg l cst)) -> ignore_cstr ()
 
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
