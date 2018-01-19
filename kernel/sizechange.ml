@@ -283,7 +283,7 @@ let rec comparison : int -> term -> pattern -> cmp =
            
 let matrix_of_lists : int -> term list -> pattern list -> matrix =
   fun nb l1 l2 ->
-  printf "Matrix_of_list de@.patt:%a@.term:%a@." (pp_list " , " pp_pattern) l2 (pp_list " , " pp_term) l1;
+  (* printf "Matrix_of_list de@.patt:%a@.term:%a@." (pp_list " , " pp_pattern) l2 (pp_list " , " pp_term) l1; *)
   let n=List.length l1 in
   let m=List.length l2 in
   let res =ref [] in
@@ -292,7 +292,7 @@ let matrix_of_lists : int -> term list -> pattern list -> matrix =
     let loc_res =ref [] in
     for j=0 to n-1 do
       let t=List.nth l1 j in
-      printf "In matrix_of_lists, %a et %a@." pp_pattern p pp_term t;
+      (* printf "In matrix_of_lists, %a et %a@." pp_pattern p pp_term t; *)
       loc_res:=(comparison nb t p)::!loc_res
     done;
     res:=(Array.of_list (List.rev !loc_res))::!res
@@ -602,6 +602,7 @@ let rec right_most : term -> term =
   function
   | Pi(_,_,_,a) -> right_most a
   | App(a,_,_) -> right_most a
+  | Lam(_,_,_,a) -> right_most a
   | t -> t
 
 let find_status : name -> (name * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> symb_status=
