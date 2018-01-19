@@ -1,0 +1,8 @@
+#NAME cstr_ignored1.
+
+def A : Type.
+B : Type.
+b : B.
+def f : A -> B.
+
+[] f b --> b.
