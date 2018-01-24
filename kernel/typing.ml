@@ -295,7 +295,13 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
         raise (TypingError (BracketError1 (te,ctx)))
     in
     let ty2 =
-      try unshift_n sg (delta.padding + LList.len sigma) exp_ty
+      try unshift_n sg (LList.len sigma) exp_ty
+      with Subst.UnshiftExn ->
+        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
+        raise (TypingError (BracketError2 (te,ctx,exp_ty)))
+    in
+    let _ =
+      try unshift_n sg delta.padding ty2
       with Subst.UnshiftExn ->
         let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
         raise (TypingError (BracketError2 (te,ctx,exp_ty)))
