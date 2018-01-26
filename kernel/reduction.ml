@@ -37,9 +37,9 @@ and stack = state list
 
 let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
-    match stack with
-      | [] -> t
-      | a::lst -> mk_App t (term_of_state a) (List.map term_of_state lst)
+  match stack with
+  | [] -> t
+  | a::lst -> mk_App t (term_of_state a) (List.map term_of_state lst)
 
 (* Pretty Printing *)
 
@@ -153,13 +153,13 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
     then test sg convertible ctx tl
     else false
   | (Bracket (i,t2))::tl ->
-    let t1 = mk_DB dloc dmark i in
-    if convertible sg (term_of_state { ctx; term=t1; stack=[] })
-                      (term_of_state { ctx; term=t2; stack=[] })
+    let t1 = Lazy.force (LList.nth ctx i) in
+    let t2 = term_of_state { ctx; term=t2; stack=[] } in
+    if convertible sg t1 t2
     then test sg convertible ctx tl
     else
       (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
-      raise (Signature.SignatureError GuardNotSatisfied)
+      raise (Signature.SignatureError( Signature.GuardNotSatisfied(get_loc t1, t1, t2) ))
 
 let rec find_case (st:state) (cases:(case * dtree) list)
                   (default:dtree option) : (dtree*state list) option =
