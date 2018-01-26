@@ -2,6 +2,8 @@
 api-kernel.docdir
 /setup.data
 /setup.log
+/setup.ml
+/Makefile
 _tags
 myocamlbuild.ml
 configure
