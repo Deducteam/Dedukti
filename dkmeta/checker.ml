@@ -27,13 +27,17 @@ let normalize ty =
   if !only_meta then
     begin
       Basic.do_beta := false;
-      Reduction.select (Some filter_meta_rules)
+      Reduction.select
+        { Reduction.select = Some filter_meta_rules;
+          Reduction.beta = false }
     end;
-  let ty' = Reduction.snf !sg_meta ty in
+  let ty' = Reduction.reduction !sg_meta Reduction.Snf ty in
   if !only_meta then
     begin
       Basic.do_beta := true;
-      Reduction.select None
+      Reduction.select
+        { Reduction.select = None;
+          Reduction.beta = true }
     end;
   ty'
 
@@ -52,7 +56,6 @@ let mk_declaration lc id st ty : unit =
   let kw = match st with
     | Signature.Static -> ""
     | Signature.Definable -> "def "
-    | Signature.Injective -> "inj "
   in
   Format.printf "@[<2>%s%a :@ %a.@]@.@." kw pp_ident id Pp.print_term ty';
   Signature.add_declaration !sg_meta lc id st ty'   (*

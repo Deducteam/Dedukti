@@ -2,7 +2,8 @@
   open Basic
   open Lexing
   open Tokens
-  open Printf
+  open Format
+
 
   let get_loc lexbuf =
           let start = lexbuf.lex_start_p                in
@@ -10,6 +11,14 @@
           let cnum = start.pos_cnum - start.pos_bol     in
                 mk_loc line cnum
 
+  let prerr_loc lc =
+  let (l,c) = of_loc lc in
+    eprintf "line:%i column:%i " l c
+
+  let fail lc fmt =
+        eprintf "%s"  "parsing error: ";
+        prerr_loc lc;
+        kfprintf (fun _ -> pp_print_newline err_formatter () ; raise Exit) err_formatter fmt
 }
 
 let space   = [' ' '\t' '\r']
@@ -38,7 +47,6 @@ rule token = parse
   | "Type"      { TYPE ( get_loc lexbuf )       }
   | "def"      { KW_DEF ( get_loc lexbuf )       }
   | "thm"      { KW_THM ( get_loc lexbuf )       }
-  | "inj"      { KW_INJ ( get_loc lexbuf )       }
   | "#NAME" space+ (modname as md)
   { NAME (get_loc lexbuf , hstring md) }
   | "#WHNF"     { WHNF ( get_loc lexbuf ) }
@@ -58,14 +66,14 @@ rule token = parse
   { ID  ( get_loc lexbuf , hstring id ) }
   | '"' { string (Buffer.create 42) lexbuf }
   | _   as s
-  { Errors.fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }
+  { fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }
   | eof { EOF }
 
  and comment = parse
   | ";)" { token lexbuf          }
   | '\n' { new_line lexbuf ; comment lexbuf }
   | _    { comment lexbuf        }
-  | eof	 { Errors.fail (get_loc lexbuf) "Unexpected end of file."  }
+  | eof	 { fail (get_loc lexbuf) "Unexpected end of file."  }
 
 and string buf = parse
   | '\\' (_ as c)
@@ -77,4 +85,4 @@ and string buf = parse
   | _ as c
   { Buffer.add_char buf c; string buf lexbuf }
   | eof
-  { Errors.fail (get_loc lexbuf) "Unexpected end of file." }
+  { fail (get_loc lexbuf) "Unexpected end of file." }

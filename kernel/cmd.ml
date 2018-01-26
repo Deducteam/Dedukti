@@ -15,7 +15,3 @@ type command =
   | Gdt of ident option*ident
   | Print of string
   | Other of string*term list
-
-val mk_command : loc -> command -> unit
-
-val print_command : Format.formatter -> command -> unit

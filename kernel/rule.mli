@@ -99,6 +99,8 @@ type rule_infos = {
   constraints : constr list; (** constraints generated from the pattern to the free pattern *)
 }
 
+val pattern_of_rule_infos : rule_infos -> pattern
+
 val to_rule_infos : typed_rule -> (rule_infos, rule_error) error
 
 (** {2 Printing} *)

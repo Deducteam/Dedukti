@@ -6,7 +6,14 @@ author: "François Thiré"
 homepage: "http://deducteam.gforge.inria.fr/metadedukti"
 bug-reports: "https://gforge.inria.fr/tracker/?func=browse&group_id=4434&atid=13818"
 dev-repo: "https://gforge.inria.fr/git/dedukti/dedukti.git#meta"
-build: [make "BINARIES=dkmeta" "all"]
-install: [make "BINARIES=dkmeta" "INSTALL_DIR=%{bin}%" "install"]
-remove: [make "BINARIES=dkmeta" "INSTALL_DIR=%{bin}%" "uninstall"]
+build: [
+  ["ocaml" "setup.ml" "-configure" "--prefix" prefix]
+  ["ocaml" "setup.ml" "-build"]
+]
+install: ["ocaml" "setup.ml" "-install"]
+remove: [
+  ["ocaml" "%{etc}%/dedukti/setup.ml" "-C" "%{etc}%/dedukti" "-uninstall"]
+]
+build-doc: [ "ocaml" "setup.ml" "-doc" ]
+available: [ ocaml-version >= "4.02" ]
 depends: ["menhir" "ocamlbuild"]

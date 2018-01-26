@@ -35,7 +35,7 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-type staticity = Static | Definable | Injective
+type staticity = Static | Definable
 
 type rw_infos =
   {
@@ -194,7 +194,7 @@ let get_type sg lc m v = (get_infos sg lc m v).ty
 
 let is_injective sg lc m v =
   match (get_infos sg lc m v).stat with
-    | Static | Injective -> true
+    | Static -> true
     | Definable -> false
 
 let pred_true: Rule.rule_name -> bool = fun x -> true

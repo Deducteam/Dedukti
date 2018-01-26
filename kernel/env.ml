@@ -47,7 +47,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
     let rule =
       { name ;
         ctx = [] ;
-        pat = Pattern(l, get_name (), id, []) ;
+        pat = Pattern(l, get_name (), id, []);
         rhs = te ;
       }
     in
@@ -91,53 +91,49 @@ let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let infer te =
-  try  OK (inference !sg te)
+let infer ?ctx:(ctx=[]) te =
+  try  OK (infer !sg ctx te)
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let check te ty =
-  try OK (ignore(checking !sg te ty))
+let check ?ctx:(ctx=[]) te ty =
+  try OK (ignore(check !sg ctx te ty))
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let whnf te =
+let reduction ?red:(red=Reduction.default) strategy te =
   try
-    let _ = inference !sg te in OK (Reduction.whnf !sg te)
+    let _ = inference !sg te in
+    Reduction.select red;
+    let te' = (Reduction.reduction !sg strategy te) in
+    Reduction.select Reduction.default;
+    OK te'
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)
 
-let hnf te =
-  try
-    let _ = inference !sg te in OK (Reduction.hnf !sg te)
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
+let unsafe_one_step ?red:(red=Reduction.default) te =
+  Reduction.select red;
+  let te' = Reduction.reduction !sg Reduction.OneStep te in
+  Reduction.select Reduction.default;
+  te'
 
-let snf te =
-  try
-    let _ = inference !sg te in OK (Reduction.snf !sg te)
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
+let unsafe_snf ?red:(red=Reduction.default) te =
+  Reduction.select red;
+  let te' = Reduction.reduction !sg Reduction.Snf te in
+  Reduction.select Reduction.default;
+  te'
 
-let unsafe_snf te = Reduction.snf !sg te
-
-let one te =
-  try
-    let _ = inference !sg te in OK (Reduction.one_step !sg te)
-  with
-    | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
-
-let are_convertible te1 te2 =
+let are_convertible ?red:(red=Reduction.default) te1 te2 =
   try
     let _ = inference !sg te1 in
     let _ = inference !sg te2 in
-      OK (Reduction.are_convertible !sg te1 te2)
+    Reduction.select red;
+    let b = Reduction.are_convertible !sg te1 te2 in
+    Reduction.select Reduction.default;
+    OK b
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e -> Err (EnvErrorType e)

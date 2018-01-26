@@ -1,62 +1,42 @@
-# PLEASE EDIT THE FOLLOWING LINES TO FIT YOUR SYSTEM CONFIGURATION
+# OASIS_START
+# DO NOT EDIT (digest: a3c674b4239234cbbe53afe090018954)
 
-INSTALL_DIR=/usr/bin
+SETUP = ocaml setup.ml
 
-# DO NOT EDIT AFTER THIS LINE
+build: setup.data
+	$(SETUP) -build $(BUILDFLAGS)
 
-MENHIR = -menhir "menhir --external-tokens Tokens"
+doc: setup.data build
+	$(SETUP) -doc $(DOCFLAGS)
 
-all: dkcheck dkmeta dktop dkdep dkindent lib doc
+test: setup.data build
+	$(SETUP) -test $(TESTFLAGS)
 
-dkcheck:
-	ocamlbuild -I $@ $(MENHIR) $@.native
+all:
+	$(SETUP) -all $(ALLFLAGS)
 
-dkmeta:
-	ocamlbuild -I $@ $(MENHIR) $@.native
+install: setup.data
+	$(SETUP) -install $(INSTALLFLAGS)
 
-dktop:
-	ocamlbuild -I $@ $(MENHIR) $@.native
+uninstall: setup.data
+	$(SETUP) -uninstall $(UNINSTALLFLAGS)
 
-dkdep:
-	ocamlbuild -I $@ $(MENHIR) $@.native
-
-dkindent:
-	ocamlbuild -I $@ $(MENHIR) $@.native
-
-doc:
-	ocamlbuild -Is kernel kernel/dedukti.docdir/index.html
-	ocamlbuild -Is kernel kernel/dedukti.docdir/doc.tex
-	ocamlbuild -Is kernel kernel/dedukti.docdir/dependencies.dot
-
-lib:
-	ocamlbuild -Is kernel,utils,parser $(OPTIONS) dedukti.cmxa
-
-BINARIES=dkcheck dkmeta dktop dkdep dkindent
-
-install:
-	for i in $(BINARIES) ; do \
-	    install "_build/$$i/$$i.native" "${INSTALL_DIR}/$$i" ; \
-	done
-
-uninstall:
-	for i in $(BINARIES) ; do \
-	    rm -f "${INSTALL_DIR}/$$i" ; \
-	done
+reinstall: setup.data
+	$(SETUP) -reinstall $(REINSTALLFLAGS)
 
 clean:
-	ocamlbuild -clean
+	$(SETUP) -clean $(CLEANFLAGS)
 
-tests: dkcheck
-	@echo "run tests..."
-	@for i in tests/OK/*.dk ; do \
-	    echo "on $$i...  " ; \
-	    ./dkcheck.native "$$i" || exit 1; \
-	done
-	@for i in tests/KO/*.dk ; do \
-	    echo "on $$i...  " ; \
-	    ./dkcheck.native "$$i" 2>&1 | grep ERROR ; \
-	done
-	@echo "-----------------------"
-	@echo "tests OK"
+distclean:
+	$(SETUP) -distclean $(DISTCLEANFLAGS)
 
-.PHONY: dkcheck dkmeta dktop dkdep dkindent lib tests clean doc install uninstall
+setup.data:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+configure:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+.PHONY: build doc test all install uninstall reinstall clean distclean configure
+
+# OASIS_STOP
+
