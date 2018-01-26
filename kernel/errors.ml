@@ -163,6 +163,7 @@ Add the keyword 'def' to its declaration to make the symbol '%a' definable."
   | ConfluenceErrorImport (lc,md,cerr) ->
     fail lc "Confluence checking failed when importing the module '%a'.\n%a"
       pp_mident md pp_cerr cerr
+  | GuardNotSatisfied -> fail dloc "Error while reducing a term: a guard was not satisfied."
 
 let fail_env_error = function
   | Env.EnvErrorSignature e -> fail_signature_error e

@@ -20,6 +20,7 @@ type signature_error =
   | CannotAddRewriteRules of loc * ident
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules of loc * rule_infos list * Confluence.confluence_error
+  | GuardNotSatisfied
 
 exception SignatureError of signature_error
 

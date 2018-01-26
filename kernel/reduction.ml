@@ -159,7 +159,7 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
     then test sg convertible ctx tl
     else
       (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
-      failwith "Error while reducing a term: a guard was not satisfied."
+      raise (Signature.SignatureError GuardNotSatisfied)
 
 let rec find_case (st:state) (cases:(case * dtree) list)
                   (default:dtree option) : (dtree*state list) option =
