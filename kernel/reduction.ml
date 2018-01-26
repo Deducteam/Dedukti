@@ -152,9 +152,9 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
                       (term_of_state { ctx; term=t2; stack=[] })
     then test sg convertible ctx tl
     else false
-  | (Bracket (i,t2))::tl ->
+  | (Bracket (i,t))::tl ->
     let t1 = Lazy.force (LList.nth ctx i) in
-    let t2 = term_of_state { ctx; term=t2; stack=[] } in
+    let t2 = term_of_state { ctx; term=t; stack=[] } in
     if convertible sg t1 t2
     then test sg convertible ctx tl
     else
