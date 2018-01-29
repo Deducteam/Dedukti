@@ -275,7 +275,7 @@ let rec comparison : int -> term -> pattern -> cmp =
     | Var (_,_,n,[]), DB (_,_,m) -> if n+nb=m then Zero else Infi
     | Pattern (_,n,lp), App(Const(_,g),t1,lt) when (name_eq n g) ->
        begin
-	 printf "%a et %a\n" pp_pattern p pp_term t;
+	 (* printf "%a et %a\n" pp_pattern p pp_term t; *)
 	 comp_list Zero lp (t1::lt)
        end
     | Pattern (_,_,l),t -> minus1 (mini Infi (List.map (comparison nb t) l))
