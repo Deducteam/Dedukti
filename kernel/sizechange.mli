@@ -11,9 +11,11 @@ exception ModuleDependancy of name
 exception PatternMatching of int
 exception TypeLevelRewriteRule of (name * name)
 exception TypeLevelWeird of (name * term)
-exception TarjanError
+exception ProductIncompatibility
+exception BracketPatternMatching of int
+exception OverApplication
 
-  (** Representation of the set {-1, 0, ∞} *)
+(** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
 
 (** [cmp_to_string c] returns a string representation of the given [cmp]
@@ -28,9 +30,6 @@ type index
 
 (** [int_of_index i] returns an [int] corresponding to the index [i]. *)
 val int_of_index : index -> int
-
-(** Special index denoting the entry point. *)
-val root : index
 
 (** A call [{callee; caller; matrix; is_rec}] represents a call to the
     function symbol with key [callee] by the function symbole with the
@@ -55,5 +54,7 @@ type call_graph
     on the [Format.formatter] [ff]. *)
 val latex_print_calls : unit -> unit
 
-  
-val termination_check : bool -> bool -> mident -> rule_infos list list -> (name * Signature.staticity * term * (rule_infos list*int*Dtree.dtree) option) list -> bool
+val termination_check : bool -> bool -> mident -> rule_infos list list ->
+  (name * Signature.staticity * term *
+     (rule_infos list*int*Dtree.dtree) option
+  ) list -> bool
