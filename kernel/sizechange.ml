@@ -46,9 +46,20 @@ type matrix =
   { w   : int (* Number of argument of callee *)
   ; h   : int (* Number of argument of caller *)
   ; tab : cmp array array }
-  
+
+let pp_matrix fmt m=
+  let res=ref [] in
+  Array.iter (fun l ->
+    let res2=ref [] in
+    Array.iter (fun x -> res2:=(cmp_to_string x):: !res2) l;
+    res:=(List.rev !res2):: !res
+  ) m.tab;
+  fprintf fmt "w=%i, h=%i, tab=@.[[%a]]@." m.w m.h
+    (pp_list "]\n[" (pp_list "," pp_print_string)) (List.rev !res)
+    
 (** Matrix product. *)
 let prod : matrix -> matrix -> matrix = fun m1 m2 ->
+  printf "m1 %a@.m2 %a@." pp_matrix m1 pp_matrix m2;
   try
     assert (m1.w = m2.h);
     let tab =
@@ -200,16 +211,6 @@ let pp_option pp_arg fmt a =
 let pp_array sep pp fmt v =
   pp_list sep pp fmt (Array.to_list v)
 
-let pp_matrix fmt m=
-  let res=ref [] in
-  Array.iter (fun l ->
-    let res2=ref [] in
-    Array.iter (fun x -> res2:=(cmp_to_string x):: !res2) l;
-    res:=(List.rev !res2):: !res
-  ) m.tab;
-  fprintf fmt "w=%i, h=%i, tab=@.[[%a]]@." m.w m.h
-    (pp_list "]\n[" (pp_list "," pp_print_string)) (List.rev !res)
-
 let print_call : symbol IMap.t -> formatter -> call -> unit =
   fun tbl ff c->
   let caller_sym = IMap.find c.caller tbl in
@@ -349,9 +350,8 @@ which cannot compare %a and %a@."
 let matrix_of_lists : int -> pattern list -> int -> term list -> int -> matrix =
   fun m lp n lt nb ->
     printf "%i %a@.%i %a@." m (pp_list " , " pp_pattern) lp n (pp_list " , " pp_term) lt;
-    let nn=List.length lt in
-    let mm=List.length lp in
-    if (mm> m || nn> n) then raise OverApplication;
+    let mm= min m (List.length lp) in
+    let nn= min n (List.length lt) in
     let tab =Array.make_matrix m n Infi in
     for i=0 to mm-1 do
       let p=List.nth lp i in
@@ -646,7 +646,7 @@ let sct_only : unit -> bool =
             Array.iteri (fun k t -> List.iter (fun m' ->
               let c' = {callee = j; caller = k; matrix = m'} in
               if !vb then printf "\tcompose: %a * %a = %!" print_call c print_call c';
-              let m'' = prod m' m in
+              let m'' = prod m m' in
               incr composed;
               let c'' = {callee = i; caller = k; matrix = m''} in
               new_edges := c'' :: !new_edges;
