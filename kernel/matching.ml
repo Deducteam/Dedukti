@@ -338,8 +338,10 @@ let get_subst pb =
 
 (** Main solving function *)
 let solve_problem reduce convertible pb =
+  let problems = first_rearrange pb.problems in
+  debug (if problems = [] then 4 else 3) "Solving problem: %a" (pp_matching_problem "    ") pb;
   let rec solve_next pb =
-    debug 3 "Problem: %a" (pp_matching_problem "    ") pb;
+    debug (if pb.problems = [] then 4 else 3) "Problem: %a" (pp_matching_problem "    ") pb;
     let try_solve_next pb = bind_opt solve_next pb in
     match fetch_next_problem pb with
     | None -> get_subst pb (* If no problem left, compute substitution and return (success !) *)
@@ -394,4 +396,4 @@ let solve_problem reduce convertible pb =
              try_eq_terms terms
           | Solved _ -> assert false
   in
-  solve_next { pb with problems = first_rearrange pb.problems }
+  solve_next { pb with problems = problems }
