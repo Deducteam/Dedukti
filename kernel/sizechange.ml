@@ -47,6 +47,7 @@ type matrix =
   ; h   : int (* Number of argument of caller *)
   ; tab : cmp array array }
 
+(** The pretty printer associated to the matrix type *)
 let pp_matrix fmt m=
   let res=ref [] in
   Array.iter (fun l ->
@@ -78,7 +79,6 @@ let prod : matrix -> matrix -> matrix = fun m1 m2 ->
   with
   | _ -> raise ProductIncompatibility
       
-    
 (** Check if a matrix corresponds to a decreasing idempotent call. *)
 let decreasing : matrix -> bool = fun m ->
   assert (m.w = m.h);
@@ -101,6 +101,9 @@ let subsumes : matrix -> matrix -> bool = fun m1 m2 ->
 (** The status expresses if a symbol is definable or if it is a constructor *)
 type symb_status = Set_constructor | Elt_constructor | Def_function | Def_type
 
+(** The local result express the result of the termination checker for this symbol *)
+type local_result = Unknown | Terminating | SelfLooping | CallingDefined | NonLinear | NonPositive
+    
 (** Representation of a function symbol. *)
 type symbol =
   {
@@ -683,23 +686,23 @@ let infer_arity_from_type : term -> int = fun t ->
     | _ -> n
   in arity_bis 0 t
       
-let rec constructors_infos : position -> name -> term -> term -> symb_status -> unit =
-  fun posit f typ rm stat->
+let rec constructors_infos : position -> name -> term -> term -> unit =
+  fun posit f typ rm ->
     match rm with
     | Type _ -> if not (Hashtbl.mem after f) then (Hashtbl.add must_be_str_after f []; Hashtbl.add after f [])
     | _ -> ();
     match typ with
     | Kind -> raise (TypingError f)
     | DB(_,_,_) | Type _ -> ()
-    | App(a,_,_) | Lam(_,_,_,a) -> constructors_infos posit f a rm stat
+    | App(a,_,_) | Lam(_,_,_,a) -> constructors_infos posit f a rm
     | Pi(_,_,lhs,rhs) ->
        begin
-	 constructors_infos posit f rhs rm stat;
-	 constructors_infos (under posit) f lhs rm stat
+	 constructors_infos posit f rhs rm;
+	 constructors_infos (under posit) f lhs rm
        end
     | Const(_,g) ->
        begin
-	 match stat with
+	 match find_stat g  with
 	 | Set_constructor ->
 	    begin
 	        match rm with
@@ -734,20 +737,17 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
 	(
 	  match (right_most typ),stat with
 	  | Type _, Signature.Definable -> Def_type
-	  | Type _, Signature.Static    ->
-	     begin
-	       constructors_infos Global fct typ (right_most typ) Set_constructor;
-	       Set_constructor
-	     end
+	  | Type _, Signature.Static    -> Set_constructor
 	  | _     , Signature.Definable -> Def_function
-	  | _     , Signature.Static    ->
-	     begin
-	       constructors_infos Global fct typ (right_most typ) Elt_constructor;
-	       Elt_constructor
-	     end
+	  | _     , Signature.Static    -> Elt_constructor
 	)
       in
       create_symbol fct ar stat
+    ) whole_sig;
+  List.iter
+    (fun (fct,st,typ,_) ->
+      if st=Signature.Static
+      then constructors_infos Global fct typ (right_most typ)
     ) whole_sig;
   List.iter
     (fun (fct,st,typ,rules_opt) ->
