@@ -149,6 +149,8 @@ let fail_signature_error err =
     fail lc "Cannot find symbol '%a'." pp_name cst
   | AlreadyDefinedSymbol (lc,id) ->
     fail lc "Already declared symbol '%a'." pp_ident id
+  | ExpectedACUSymbol (lc,cst) ->
+    fail lc "Expected ACU symbol '%a'." pp_name cst
   | CannotBuildDtree err -> fail_dtree_error err
   | CannotMakeRuleInfos err -> fail_rule_error err
   | CannotAddRewriteRules (lc,id) ->
