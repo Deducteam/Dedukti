@@ -6,17 +6,8 @@ open Term
 open Rule
 open Format
 
-exception Calling_unknown of int
-exception NonLinearity of int
-exception TypingError of name
-exception NonPositivity of name
-exception ModuleDependancy of name
-exception PatternMatching of int
 exception TypeLevelRewriteRule of (name * name)
-exception TypeLevelWeird of (name * term)
-exception ProductIncompatibility
-exception BracketPatternMatching of int
-exception OverApplication
+exception NonPositive of name
 
 (** Index of a function symbol. *)
 type index = int
@@ -61,23 +52,20 @@ let pp_matrix fmt m=
 (** Matrix product. *)
 let prod : matrix -> matrix -> matrix = fun m1 m2 ->
   printf "m1 %a@.m2 %a@." pp_matrix m1 pp_matrix m2;
-  try
-    assert (m1.w = m2.h);
-    let tab =
-      Array.init m1.h
-	(fun y ->
-	  Array.init m2.w
-            (fun x ->
-              let r = ref Infi in
-              for k = 0 to m1.w - 1 do
-		r := !r <+> (m1.tab.(y).(k) <*> m2.tab.(k).(x))
-              done; !r
-            )
-	)
-    in
-    { w = m2.w ; h = m1.h ; tab }
-  with
-  | _ -> raise ProductIncompatibility
+  assert (m1.w = m2.h);
+  let tab =
+    Array.init m1.h
+      (fun y ->
+	Array.init m2.w
+          (fun x ->
+            let r = ref Infi in
+            for k = 0 to m1.w - 1 do
+	      r := !r <+> (m1.tab.(y).(k) <*> m2.tab.(k).(x))
+            done; !r
+          )
+      )
+  in
+  { w = m2.w ; h = m1.h ; tab }
       
 (** Check if a matrix corresponds to a decreasing idempotent call. *)
 let decreasing : matrix -> bool = fun m ->
@@ -102,14 +90,16 @@ let subsumes : matrix -> matrix -> bool = fun m1 m2 ->
 type symb_status = Set_constructor | Elt_constructor | Def_function | Def_type
 
 (** The local result express the result of the termination checker for this symbol *)
-type local_result = Unknown | Terminating | SelfLooping | CallingDefined | NonLinear | NonPositive
+type local_result = Terminating | SelfLooping | CallingDefined | NonLinear
+                  | UsingBrackets
     
 (** Representation of a function symbol. *)
 type symbol =
   {
-    name   : name        ; (** Name of the symbol. *)
-    arity  : int         ; (** Arity of the symbol (number of args). *)
-    status : symb_status ; (** The status of the symbol *)
+    name           : name         ; (** Name of the symbol. *)
+    arity          : int          ; (** Arity of the symbol (number of args). *)
+    status         : symb_status  ; (** The status of the symbol *)
+    mutable result : local_result ; (** The result of the SCP, initially set to unknown *)
   }
 
 (** Map with symbol as keys. *)
@@ -267,7 +257,13 @@ let find_stat : name -> symb_status = fun f ->
       ) !(!(graph).symbols);
     raise Not_found
   with Success_status s -> s
-      
+
+let update_result : index -> local_result -> unit = fun i res ->
+  let tbl= !(!graph.symbols) in
+  let sy=(IMap.find i tbl) in
+  if sy.result=Terminating 
+  then sy.result <- res
+    
 (** Adding the element a at the begining of the list accessed in ht with key id *)
 let updateHT : ('a,'b list) Hashtbl.t -> 'a -> 'b -> unit =
   fun ht id x ->
@@ -286,7 +282,7 @@ let create_symbol : name -> int -> symb_status -> unit =
     printf "Adding the %a symbol %a of arity %i@."
       pp_status status pp_name name arity; 
   let index = !(g.next_index) in
-  let sym = {name ; arity ; status} in
+  let sym = {name ; arity ; status; result=Terminating} in
   g.symbols := IMap.add index sym !(g.symbols);
   incr g.next_index
 
@@ -343,8 +339,7 @@ let rec comparison :  int ->term -> pattern -> cmp =
     | Pattern (_,_,l),t -> minus1 (mini Infi (List.map (comparison nb t) l))
     | _ ->
        begin
-	 printf "WARNING : This case is not handled yet by the implementation,
-which cannot compare %a and %a@."
+	 printf "WARNING : This case is not handled yet by the implementation, which cannot compare %a and %a@."
 	   pp_pattern p pp_term t;
 	 Infi
        end
@@ -366,28 +361,25 @@ let matrix_of_lists : int -> pattern list -> int -> term list -> int -> matrix =
     {h=m ; w=n ; tab}
 
 (** Detect if a pattern follow the specification of the Size-changePrinciple (no pattern matching on defined functions and no brackets) *)
-let rec detect_wrong_pm : pattern -> unit=
+let rec detect_wrong_pm : name -> pattern -> unit= fun f ->
   function
   | Pattern  (l,n,ar)  ->
      begin
        let stat= find_stat n in
        if stat=Def_function || stat=Def_type
-       then raise (PatternMatching (fst (of_loc l)));
-       List.iter detect_wrong_pm ar
+       then update_result (find_key f !(!graph.symbols)) CallingDefined;
+       List.iter (detect_wrong_pm f) ar
      end
-  | Var      (_,_,_,l) -> List.iter detect_wrong_pm l
-  | Lambda   (_,_,p)   -> detect_wrong_pm p
-  | Brackets (t)       -> raise
-     (BracketPatternMatching (fst (of_loc (get_loc t))))
+  | Var      (_,_,_,l) -> List.iter (detect_wrong_pm f) l
+  | Lambda   (_,_,p)   -> detect_wrong_pm f p
+  | Brackets (t)       ->
+     update_result (find_key f !(!graph.symbols)) UsingBrackets
 
 (** Find the index of the caller of a rule *)
 let get_caller : rule_infos -> index = fun r ->
   let gr= !graph in
-    try
-      find_key r.cst !(gr.symbols)
-    with
-      Not_found -> raise (Calling_unknown (fst (of_loc r.l)))
-
+    find_key r.cst !(gr.symbols)
+	
 (** Replace the right hand side of a rule with the term chosen *)
 let term2rule : rule_infos -> term -> rule_infos = fun r t ->
   {l=r.l;
@@ -464,10 +456,9 @@ unknown symbol such that %a in line %i@."
 and rule_to_call : int -> rule_infos -> call list = fun nb r ->
   let gr= !graph in
   if not (r.constraints=[])
-  then
-    raise (NonLinearity (fst (of_loc r.l)));
+  then update_result (find_key r.cst !(gr.symbols)) NonLinear;
   let lp=r.args in
-  List.iter detect_wrong_pm lp;
+  List.iter (detect_wrong_pm r.cst) lp;
   if !vb
   then
     printf "We are studying %a@.The caller is %a@.The callee is %a@."
@@ -579,7 +570,7 @@ let tarjan graph=
   Hashtbl.iter (fun v -> fun _ -> if not (Hashtbl.mem numHT v) then parcours v) graph;
   !partition
       
-let are_equiv a b l=
+let are_equiv : name -> name -> name list list -> bool = fun a b l ->
   List.exists (fun x -> (List.mem a x) && (List.mem b x)) l
 
 let print_after : unit -> unit=
@@ -587,16 +578,17 @@ let print_after : unit -> unit=
   printf "@.After :@.%a@." (pp_HT pp_name (pp_list "," pp_name)) after;
   printf "@;"
     
-let str_positive l ht=
-  Hashtbl.iter (
-    fun a b ->
-      if List.exists (fun x -> are_equiv a x l) b
-      then raise (NonPositivity a)
-  ) ht
+let str_positive : name list list -> (name, name list) Hashtbl.t -> unit =
+  fun l ht ->
+    Hashtbl.iter (
+      fun a b ->
+        if List.exists (fun x -> are_equiv a x l) b
+        then raise (NonPositive a)
+    ) ht
 	
     
 (** the main function, checking if calls are well-founded *)
-let sct_only : unit -> bool =
+let sct_only : unit -> unit =
   fun ()->
     let ftbl= !graph in
     let num_fun = !(ftbl.next_index) in
@@ -614,39 +606,41 @@ let sct_only : unit -> bool =
           if !vb then 
             printf "edge %a idempotent and looping\n%!" print_call
               {callee = i; caller = j; matrix = m};
-          raise Exit
+          update_result i SelfLooping
 	end;
       let ti = tbl.(i) in
       let ms = ti.(j) in
-      if List.exists (fun m' -> subsumes m' m) ms then
+      if List.exists (fun m' -> subsumes m' m) ms
+      then
 	false
-      else (
-	let ms = m :: List.filter (fun m' -> not (subsumes m m')) ms in
-	ti.(j) <- ms;
-	true)
+      else
+        begin
+	  let ms = m :: List.filter (fun m' -> not (subsumes m m')) ms in
+          ti.(j) <- ms;
+          true
+        end
     in
     (* Test positivity of the signature *)
     str_positive (tarjan after) must_be_str_after;
-  (* adding initial edges *)
-    try
-      if !vb then
-	(printf "initial edges to be added:\n%!";
-	 List.iter (fun c -> printf "\t%a\n%!" print_call c) !(ftbl.calls));
-      let new_edges = ref !(ftbl.calls) in
+    (* adding initial edges *)
+    if !vb then
+      (printf "initial edges to be added:\n%!";
+       List.iter (fun c -> printf "\t%a\n%!" print_call c) !(ftbl.calls));
+    let new_edges = ref !(ftbl.calls) in
     (* compute the transitive closure of the call graph *)
-      if !vb then printf "start completion\n%!";
-      let rec fn () =
-	match !new_edges with
-	| [] -> ()
-	| {callee = i; caller = j}::l when j < 0 -> new_edges := l; fn () (* ignore root *)
-	| ({callee = i; caller = j; matrix = m} as c)::l ->
-           assert (i >= 0);
-          new_edges := l;
-          if add_edge i j m then begin
-            if !vb then printf "\tedge %a added\n%!" print_call c;
-            incr added;
-            let t' = tbl.(j) in
-            Array.iteri (fun k t -> List.iter (fun m' ->
+    if !vb then printf "start completion\n%!";
+    let rec fn () =
+      match !new_edges with
+      | [] -> ()
+      | {callee = i; caller = j}::l when j < 0 -> new_edges := l; fn () (* ignore root *)
+      | ({callee = i; caller = j; matrix = m} as c)::l ->
+        assert (i >= 0);
+        new_edges := l;
+        if add_edge i j m then begin
+          if !vb then printf "\tedge %a added\n%!" print_call c;
+          incr added;
+          let t' = tbl.(j) in
+          Array.iteri (fun k t -> List.iter (fun m' ->
               let c' = {callee = j; caller = k; matrix = m'} in
               if !vb then printf "\tcompose: %a * %a = %!" print_call c print_call c';
               let m'' = prod m m' in
@@ -655,15 +649,12 @@ let sct_only : unit -> bool =
               new_edges := c'' :: !new_edges;
               if !vb then printf "%a\n%!" print_call c'';
             ) t) t'
-          end else
-            if !vb then printf "\tedge %a is old\n%!" print_call c;
-          fn ()
-      in
-      fn ();
-      if !vb then printf "SCT passed (%5d edges added, %6d composed)\n%!" !added !composed;
-      true
-    with
-    | Exit -> if !vb then printf "SCT failed (%5d edges added, %6d composed)\n%!" !added !composed; false
+        end else
+        if !vb then printf "\tedge %a is old\n%!" print_call c;
+        fn ()
+    in
+    fn ();
+    if !vb then printf "SCT passed (%5d edges added, %6d composed)\n%!" !added !composed
 
 type position =  Global | Argument | Negative
 
@@ -692,7 +683,7 @@ let rec constructors_infos : position -> name -> term -> term -> unit =
     | Type _ -> if not (Hashtbl.mem after f) then (Hashtbl.add must_be_str_after f []; Hashtbl.add after f [])
     | _ -> ();
     match typ with
-    | Kind -> raise (TypingError f)
+    | Kind -> assert false
     | DB(_,_,_) | Type _ -> ()
     | App(a,_,_) | Lam(_,_,_,a) -> constructors_infos posit f a rm
     | Pi(_,_,lhs,rhs) ->
@@ -725,7 +716,7 @@ let print_sig sg=
 let print_ext_ru er=
   if er=[] then () else
     printf "Ext_ru contient:@. + %a@." (pp_list "\n + " (pp_list " ; " pp_rule_infos)) er
-    
+
 (** Initialize the SCT-checker *)	
 let termination_check vb szgraph mod_name ext_ru whole_sig =
   initialize vb;
@@ -750,7 +741,7 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
       then constructors_infos Global fct typ (right_most typ)
     ) whole_sig;
   List.iter
-    (fun (fct,st,typ,rules_opt) ->
+    (fun (_,_,_,rules_opt) ->
       match rules_opt with
       | None -> ()
       | Some (rul,arit,dec_tree) -> add_rules rul
@@ -760,4 +751,27 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
   then (print_after ();
     printf "%a@." (pp_list ";" (pp_list "," pp_name)) (tarjan after));
   if szgraph then latex_print_calls ();
-  sct_only ()
+  sct_only ();
+  let tbl= !(!graph.symbols) in
+  let res=ref [] in
+  IMap.iter
+    (fun _ s->
+      if (s.status=Def_function || s.status=Def_type)
+      then res:=(s.name, s.result):: !res
+    ) tbl;
+  !res
+
+let print_res : name -> local_result-> unit = fun f ->
+  function
+  | Terminating    ->
+      Format.eprintf "\027[32m Proved terminating\027[m %a@." pp_name f
+  | SelfLooping    ->
+      Format.eprintf "\027[31m Not proved terminating\027[m %a@." pp_name f
+  | CallingDefined ->
+    Format.eprintf "\027[31m Pattern matching on defined symbol\027[m %a@."
+      pp_name f
+  | NonLinear      ->
+      Format.eprintf "\027[31m Non linear\027[m %a@." pp_name f
+  | UsingBrackets  ->
+      Format.eprintf "\027[31m Use brackets\027[m %a@." pp_name f
+                     

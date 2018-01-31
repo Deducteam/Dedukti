@@ -126,21 +126,15 @@ let mk_ending () =
   if (!sizechange|| !szgraph|| !szvb) then
     begin
       try (
-	if Env.sizechange (!verbose|| !szvb) !szgraph
-	then Errors.success "The file was proved terminating"
-	else red_error "The SCT checker did not proved this file terminating"
+	List.iter
+          (fun (f,res) -> Sizechange.print_res f res)
+          (Env.sizechange (!verbose|| !szvb) !szgraph)
       )
       with
-      | Sizechange.Calling_unknown i -> red_error "The caller line %i is unknown" i
-      | Sizechange.NonLinearity i -> red_error "The rule declared line %i is not linear" i
-      | Sizechange.PatternMatching i -> red_error "The pattern matching done line %i require to pattern match on defined symbol" i
-      | Sizechange.TypingError f -> red_error "There is a typing error with the symbol %a" pp_name f
-      | Sizechange.NonPositivity f -> red_error "The symbol %a is not strictly positive" pp_name f
-      | Sizechange.TypeLevelRewriteRule (f,g) -> red_error "Type level rewriting between %a and %a" pp_name f pp_name g
-      | Sizechange.TypeLevelWeird (f,t) -> red_error "Type level contains something weird in definition of %a : %a" pp_name f Term.pp_term t
-      | Sizechange.ModuleDependancy f -> red_error "Module dependancy %a" pp_name f
-      | Sizechange.ProductIncompatibility -> red_error "Product incompatibility !!!"
-      | Sizechange.OverApplication -> red_error "OverApplication"
+      | Sizechange.TypeLevelRewriteRule (f,g) ->
+        red_error "Type level rewriting between %a and %a" pp_name f pp_name g
+      | Sizechange.NonPositive f ->
+        red_error "The symbol %a is not strictly positive" pp_name f
     end;
   if !export then
     if not (Env.export ()) then

@@ -3,17 +3,8 @@ open Term
 open Rule
 open Format
 
-exception Calling_unknown of int
-exception NonLinearity of int
-exception TypingError of name
-exception NonPositivity of name
-exception ModuleDependancy of name
-exception PatternMatching of int
 exception TypeLevelRewriteRule of (name * name)
-exception TypeLevelWeird of (name * term)
-exception ProductIncompatibility
-exception BracketPatternMatching of int
-exception OverApplication
+exception NonPositive of name
 
 (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
@@ -27,6 +18,9 @@ type matrix = { w : int ; h : int ; tab : cmp array array }
 
 (** Abstract type used to refer to function symbols. *)
 type index
+
+type local_result = Terminating | SelfLooping | CallingDefined | NonLinear
+                  | UsingBrackets 
 
 (** [int_of_index i] returns an [int] corresponding to the index [i]. *)
 val int_of_index : index -> int
@@ -57,4 +51,6 @@ val latex_print_calls : unit -> unit
 val termination_check : bool -> bool -> mident -> rule_infos list list ->
   (name * Signature.staticity * term *
      (rule_infos list*int*Dtree.dtree) option
-  ) list -> bool
+  ) list -> (name * local_result) list
+
+val print_res : name -> local_result-> unit
