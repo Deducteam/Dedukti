@@ -394,7 +394,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,cst); stack } ->
     begin
-      match Signature.get_dtree sg ~select:(!selection) l cst with
+      match Signature.get_dtree sg !selection l cst with
       | None    -> comb_state_shape_if_AC sg state_whnf are_convertible st
       | Some tr -> begin
           match gamma_head_rw sg are_convertible snf state_whnf st tr with
@@ -506,7 +506,7 @@ let rec state_one_step (sg:Signature.t) : int*state -> int*state = function
      (* Potential Gamma redex *)
      | { ctx; term=Const(l,name); stack } ->
         begin
-          match Signature.get_dtree sg ~select:(!selection) l name with
+          match Signature.get_dtree sg !selection l name with
           | None    -> (red, comb_state_shape_if_AC sg state_whnf are_convertible st)
           | Some tr -> begin
               match gamma_head_rw sg are_convertible snf state_whnf st tr with

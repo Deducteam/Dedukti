@@ -50,13 +50,14 @@ type rule_infos = {
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
 type rule_error =
-  | BoundVariableExpected of pattern
+  | BoundVariableExpected          of pattern
   | DistinctBoundVariablesExpected of loc * ident
-  | VariableBoundOutsideTheGuard of term
-  | UnboundVariable of loc * ident * pattern (* FIXME : this exception seems never to be raised *)
-  | AVariableIsNotAPattern of loc * ident
-  | NonLinearRule of typed_rule
-  | NotEnoughArguments of loc * ident * int * int * int
+  | VariableBoundOutsideTheGuard   of term
+  | UnboundVariable                of loc * ident * pattern
+  (* FIXME : this exception seems never to be raised *)
+  | AVariableIsNotAPattern         of loc * ident
+  | NonLinearRule                  of typed_rule
+  | NotEnoughArguments             of loc * ident * int * int * int
 
 exception RuleExn of rule_error
 
@@ -156,7 +157,7 @@ let pattern_to_term p =
         mk_App (mk_DB l x n) (aux k a) (List.map (aux k) args)
     | Lambda (l,x,pat) -> mk_Lam l x None (aux (k+1) pat)
   in
-    aux 0 p
+  aux 0 p
 
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
 
@@ -258,22 +259,23 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
   aux 0 te
 
 let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
-  match r.pat with
-  | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
-  | Var (l,x,_,_) -> Err( AVariableIsNotAPattern(l,x) )
-  | Pattern (l,cst,args) ->
+  try
     let esize = List.length r.ctx in
+    let (l,cst,args) = match r.pat with
+      | Pattern (l,cst,args) -> (l, cst, args)
+      | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
+      | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
+    in
     let nb_args = get_nb_args esize r.pat in
-    try
-      check_nb_args nb_args r.rhs;
-      let (esize2,pats2,cstr,is_linear) = check_patterns esize args in
-      if not is_linear && (not !allow_non_linear)
-      then raise( RuleExn (NonLinearRule r) );
-      if not is_linear
-      then debug 1 "Non-linear Rewrite Rule detected";
-      OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
-           esize = esize2 ;
-           l_args = Array.of_list pats2 ;
-           constraints = cstr ; }
-    with
-      RuleExn e -> Err e
+    ignore(check_nb_args nb_args r.rhs);
+    let (esize2,pats2,cstr,is_linear) = check_patterns esize args in
+    if not is_linear && (not !allow_non_linear)
+    then raise( RuleExn (NonLinearRule r) );
+    if not is_linear
+    then debug 1 "Non-linear Rewrite Rule detected";
+    OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
+         esize = esize2 ;
+         l_args = Array.of_list pats2 ;
+         constraints = cstr ; }
+  with
+    RuleExn e -> Err e

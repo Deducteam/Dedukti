@@ -21,13 +21,9 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | ExpectedACUSymbol     of loc * name
+  | GuardNotSatisfied of loc * term * term
 
 exception SignatureError of signature_error
-
-type dtree_or_def =
-  | DoD_None
-  | DoD_Def of term
-  | DoD_Dtree of int*dtree
 
 module HMd = Hashtbl.Make(
 struct
@@ -310,23 +306,23 @@ let is_injective sg lc cst =
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
-let pred_true: Rule.rule_name -> bool = fun x -> true
-
-let get_dtree sg ?select:(s=None) l cst =
-  match (get_infos sg l cst).rule_opt_info, s with
-  | None          , _           -> None
-  | Some(rules,tr), None        -> Some tr
-  | Some(rules,tr), Some select ->
-     let rules' = List.filter (fun (r:Rule.rule_infos) -> select r.name) rules in
-     if List.length rules' == List.length rules
-     then Some tr
-     else
-       (* A call to Dtree.of_rules must be made with a non-empty list *)
-       match rules' with
-       | [] -> None
-       | _ -> match Dtree.of_rules (get_algebra sg dloc) rules' with
-              | OK tree -> Some tree
-              | Err e -> raise (SignatureError (CannotBuildDtree e))
+let get_dtree sg rule_filter l cst =
+  match (get_infos sg l cst).rule_opt_info with
+  | None -> None
+  | Some(rules,tree) ->
+    match rule_filter with
+    | None -> Some tree
+    | Some f ->
+      let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
+      if List.length rules' == List.length rules
+      then Some tree
+      else
+        (* A call to Dtree.of_rules must be made with a non-empty list *)
+        match rules' with
+        | [] -> None
+        | _ -> match Dtree.of_rules (get_algebra sg dloc) rules' with
+               | OK tree -> Some tree
+               | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 
 (******************************************************************************)

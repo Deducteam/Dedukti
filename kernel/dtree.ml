@@ -43,14 +43,14 @@ let to_dtree_rule (r:rule_infos) : dtree_rule =
  *              n_i records the depth of the column (number of binders under which it stands)
  *)
 type matrix =
-    { col_depth: int array;
-      first:dtree_rule ;
-      others:dtree_rule list ; }
+  { col_depth : int array;
+    first     : dtree_rule ;
+    others    : dtree_rule list ; }
 
 (* Remove a line of the matrix [mx] and return None if the new matrix is Empty. *)
 let pop mx =
   match mx.others with
-    | [] -> None
+  | [] -> None
     | f::o -> Some { mx with first=f; others=o; }
 
 let split_mx (f:dtree_rule -> bool) (mx:matrix) : matrix option * matrix option =
@@ -63,8 +63,8 @@ let split_mx (f:dtree_rule -> bool) (mx:matrix) : matrix option * matrix option 
 
 let filter (f:dtree_rule -> bool) (mx:matrix) : matrix option =
   match List.filter f (mx.first::mx.others) with
-    | [] -> None
-    | f::o -> Some { mx with first=f; others=o; }
+  | [] -> None
+  | f::o -> Some { mx with first=f; others=o; }
 
 let get_rule_filter f c r = f r.pats.(c)
 
@@ -267,7 +267,7 @@ let specialize_AC_rule case (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
   { r with pats = Array.init (size+nargs) aux }
 
 (* Specialize the rule [r] on column [c]
- * i.e. remove colum [c] and append [nargs] new column at the end.
+ * i.e. replace colum [c] with a joker and append [nargs] new column at the end.
  * These new columns contain
  * - the arguments if column [c] is a pattern
  * - or the body if column [c] is a lambda
@@ -308,7 +308,7 @@ let spec_col_depth (c:int) (nargs:int) (col_depth: int array) : int array =
     if i < size then col_depth.(i)
     else (* < size+nargs *) col_depth.(c)
   in
-    Array.init (size+nargs) aux
+  Array.init (size+nargs) aux
 
 (* Specialize the col_infos field of a matrix: the lambda case. *)
 let spec_col_depth_l (c:int) (col_depth: int array) : int array =
@@ -416,8 +416,7 @@ let partition (ignore_arity:bool) (is_AC:name->bool) (mx:matrix) (c:int) : case 
 
 (* ***************************** *)
 
-let array_to_llist arr =
-  LList.make_unsafe (Array.length arr) (Array.to_list arr)
+let array_to_llist arr = LList.of_array arr
 
 let get_first_term        mx = mx.first.right
 let get_first_constraints mx = mx.first.constraints

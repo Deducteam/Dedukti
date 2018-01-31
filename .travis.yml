@@ -21,13 +21,15 @@ cache:
 before_install:
   - export OPAMYES=1
   - export OPAMVERBOSE=1
-  - export CONFIGUREFLAGS=--enable-tests
   - opam init
   - opam switch ${OCAML_VERSION}
   - eval `opam config env`
   - opam pin add --no-action dedukti .
   - opam install --deps-only dedukti
+  - opam install oasis
 install:
+  - oasis setup
+  - ./configure --enable-tests
   - make build
 script:
   - make test

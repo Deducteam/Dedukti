@@ -71,10 +71,21 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
 
 and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
   match te with
-  | Lam (l,x,None,u) ->
-    ( match whnf sg ty_exp with
-      | Pi (_,_,a,b) -> check sg ((l,x,a)::ctx) u b
-      | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp))) )
+  | Lam (l,x,None,b) ->
+    begin
+      match whnf sg ty_exp with
+      | Pi (_,_,a,ty_b) -> check sg ((l,x,a)::ctx) b ty_b
+      | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
+    end
+  | Lam (l,x,Some a,b) ->
+    begin
+      match whnf sg ty_exp with
+      | Pi (_,_,a',ty_b) ->
+        if not (Reduction.are_convertible sg a a')
+        then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a,a')))
+        else check sg ((l,x,a)::ctx) b ty_b
+      | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
+    end
   | _ ->
     let ty_inf = infer sg ctx te in
     if Reduction.are_convertible sg ty_inf ty_exp then ()
@@ -186,7 +197,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
           ( debug 2 "Ignoring non injective constraint: %a ~ %a"
               pp_term t1' pp_term t2';
             pseudo_u sg sigma lst )
-          
+
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
            * | Const name when (is_injective name) *)
