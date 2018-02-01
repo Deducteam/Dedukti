@@ -51,7 +51,6 @@ let pp_matrix fmt m=
     
 (** Matrix product. *)
 let prod : matrix -> matrix -> matrix = fun m1 m2 ->
-  printf "m1 %a@.m2 %a@." pp_matrix m1 pp_matrix m2;
   assert (m1.w = m2.h);
   let tab =
     Array.init m1.h
@@ -337,17 +336,11 @@ let rec comparison :  int ->term -> pattern -> cmp =
 	 comp_list Zero lp (t1::lt)
        end
     | Pattern (_,_,l),t -> minus1 (mini Infi (List.map (comparison nb t) l))
-    | _ ->
-       begin
-	 printf "WARNING : This case is not handled yet by the implementation, which cannot compare %a and %a@."
-	   pp_pattern p pp_term t;
-	 Infi
-       end
+    | _ -> Infi
 
 (** [matrix_of_lists m lp n lt n] compare each term of a list [lt] with a list of pattern [lp] considering that we are under [nb] lambdas and add some Infi to respect the arities of the caller and called functions *)
 let matrix_of_lists : int -> pattern list -> int -> term list -> int -> matrix =
   fun m lp n lt nb ->
-    printf "%i %a@.%i %a@." m (pp_list " , " pp_pattern) lp n (pp_list " , " pp_term) lt;
     let mm= min m (List.length lp) in
     let nn= min n (List.length lt) in
     let tab =Array.make_matrix m n Infi in
