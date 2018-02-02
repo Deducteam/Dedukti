@@ -1,32 +1,50 @@
+# Main team branches
+
 **master** Used by everyone - Default branch
-
-**sizechange** Created by Guillaume Genestier - An implementation of a termination checker for Dedukti
-
-**acu** Created by Gaspard Ferey
 
 **develop** Used by everyone - The state of the art of Dedukti, will be supressed soon (once merged in master)
 
-**meta** 
+**sizechange** Created by Guillaume Genestier - An implementation of a termination checker for Dedukti
 
-**brackets**
+**acu** Created by Gaspard Ferey - Dedukti with AC/ACU (WIP)
 
-**fix-rule-cstr** Created by Gaspard Ferey
-
-**fix-rule-cstr2** Created by Gaspard Ferey
+**sukerujo**
 
 **eniqoc**
 
 **universo**
 
-**fix-step-reduction** Created by Gaspard Ferey - Reduction commands are now parametric allowing to do things like '''#SNF #17 t''' to perform 17 step of reduction and no more, using the SNF strategy.
+# Pull requests being reviewed
+
+**brackets** Created by Gaspard Ferey - Work on issue #22 (Brackets checking) - PR #5
+
+**fix-rule-cstr** Created by Gaspard Ferey - Work on issue #17 (Rule constraints) - PR #19
+
+**fix-rule-cstr2** Created by Gaspard Ferey - Alternative work on issue #17 (Rule constraints) - PR #21
+
+**fix-step-reduction** Created by Gaspard Ferey - Toward parametric reduction commands. - PR #14
+
+# Temporary branches
 
 **adding_lib** Created by Guillaume Genestier - Making a few experiments about continuous integration, will be on master this week (to delete soon)
+
+# Old version branches
+
+**v2.5** Who created this ? Where does it branch from ?
+
+**v2.4**
+
+**v2.3beta**
+
+**v1.2**
+
+# Will be deleted if remain in this section for too long...
 
 **contextual-typing** 
 
 **metavar**
 
-**sukerujo**
+**meta** 
 
 **extract-types**
 
@@ -44,8 +62,6 @@
 
 **comments**
 
-**v2.5**
-
 **dkprint**
 
 **sukerujo-dev**
@@ -53,8 +69,6 @@
 **deduktipli**
 
 **lambdafree**
-
-**v2.4**
 
 **Dedukti_AC**
 
@@ -65,8 +79,6 @@
 **da_lib_in_da_place**
 
 **develop-let**
-
-**v2.3beta**
 
 **no-de-bruijn-format**
 
@@ -89,7 +101,5 @@
 **CriticalPairs**
 
 **Profiling**
-
-**v1.2**
 
 **luaBindings**
