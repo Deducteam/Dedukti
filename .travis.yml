@@ -39,7 +39,8 @@ os:
   - linux
 notifications:
   email:
-    - genestier@lsv.fr
+    - dedukti-commits@lists.gforge.inria.fr
 branches:
   only:
-    - adding_lib
+    - master
+    - develop
