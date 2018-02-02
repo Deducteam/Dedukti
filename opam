@@ -10,10 +10,7 @@ build: [
   ["ocaml" "setup.ml" "-configure" "--prefix" prefix]
   ["ocaml" "setup.ml" "-build"]
 ]
-install: ["ocaml" "setup.ml" "-install"]
-remove: [
-  ["ocaml" "%{etc}%/dedukti/setup.ml" "-C" "%{etc}%/dedukti" "-uninstall"]
-]
-build-doc: [ "ocaml" "setup.ml" "-doc" ]
+install: ["cp" "dkmeta.native" "%{bin}%/dkmeta"]
+remove: ["rm" "-f" "%{bin}%/dkmeta"]
 available: [ ocaml-version >= "4.02" ]
-depends: ["menhir" "ocamlbuild"]
+depends: ["menhir" "ocamlbuild" {"dedukti" = "2.5.1"}]
