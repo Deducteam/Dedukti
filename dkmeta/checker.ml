@@ -86,17 +86,12 @@ let mk_definition lc id pty_opt pte : unit =
     Format.printf "@[<hv2>def %a :@ %a@ :=@ %a.@]@.@." pp_ident id Pp.print_term pty' Pp.print_term pte'
   end
 
-   (*
-  eprint lc "Definition of symbol '%a'." pp_ident id ;
-  match Env.define lc id pte pty_opt with
-    | OK () -> ()
-    | Err e -> Errors.fail_env_error e *)
-
-let mk_opaque lc id pty_opt pte = () (*
-  eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
-  match Env.define_op lc id pte pty_opt with
-    | OK () -> ()
-    | Err e -> Errors.fail_env_error e *)
+let mk_opaque lc id pty_opt pte : unit =
+  let pty = match pty_opt with | None -> Typing.inference !sg_meta pte | Some(ty) -> ty in
+  let pty' = normalize pty in
+  let pte' = normalize pte in
+  Signature.add_declaration !sg_meta lc id Signature.Definable pty';
+  Format.printf "@[<hv2>thm %a :@ %a@ :=@ %a.@]@.@." pp_ident id Pp.print_term pty' Pp.print_term pte'
 
 let get_infos = function
   | Rule.Pattern (l,md,id,_) -> (l,md,id)
