@@ -14,4 +14,4 @@ cd ..
 echo "Running dklib-master"
 git clone https://github.com/rafoo/dklib.git dklib
 cd dklib
-make
+make DKCHECK=../dkcheck.native DKDEP=../dkdep.native

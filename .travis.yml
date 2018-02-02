@@ -25,7 +25,7 @@ install:
 script:
   - make test
   - chmod u+x tests/external_tests.sh
-  - travis_wait tests/external_tests.sh
+  - tests/external_tests.sh
 os:
   - linux
 notifications:
