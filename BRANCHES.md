@@ -8,11 +8,11 @@
 
 **acu** Created by Gaspard Ferey - Dedukti with AC/ACU (WIP)
 
-**sukerujo**
+**sukerujo** Created by Raphaël Cauderlier - An extension of the Dedukti parser with syntactic sugar and built-ins . In the long run, should be a soft on its own, independent of Dedukti.
 
-**eniqoc**
+**eniqoc** Created by François Thiré - Translate proofs from Dedukti[STTforall] to Coq and Matita. Should be a soft on its own, independent of Dedukti.
 
-**universo**
+**universo** Created by François Thiré - Translate proofs form Dedukti[STTforall] to OpenTheory. Should be a soft on its own (probably merged with eniqoc), independent of Dedukti.
 
 # Pull requests being reviewed
 
@@ -38,33 +38,33 @@
 
 # Will be deleted if remain in this section for too long...
 
-**contextual-typing** 
+**contextual-typing** Created by François Thiré -- An experiment.
 
-**metavar**
+**metavar** Created by François Thiré -- An experiment that adds meta variables in Dedukti.
 
-**meta** 
+**meta**
 
-**extract-types**
+**extract-types** Created by François Thiré -- enhance dkindent to print types variable inside the lambdas.
 
-**develop-oasis**
+**develop-oasis** Created by François Thiré -- can be suppressed.
 
-**ediloh-dev**
+**ediloh-dev** Created by François Thiré - Translate proofs form Dedukti[STTforall] to OpenTheory. Should be a soft on its own (probably merged with eniqoc), independent of Dedukti.
 
-**ediloh2**
+**ediloh2** Created by François Thiré -- will be suppressed soon.
 
-**trace** 
+**trace** Created by François Thiré -- can be suppressed.
 
-**ediloh** 
+**ediloh** Created by François Thiré -- will be suppressed soon.
 
-**skmeta**
+**skmeta** Created by François Thiré -- can be suppressed.
 
-**comments**
+**comments** Created by François Thiré -- can be suppressed.
 
-**dkprint**
+**dkprint** Created by François Thiré -- can be suppressed.
 
-**sukerujo-dev**
+**sukerujo-dev** Created by François Thiré -- can be suppressed.
 
-**deduktipli**
+**deduktipli** Created by François Thiré -- Change the parser fonctor so that mk_declaration ; mk_definition etc... use monads. Should be a soft on its own. But is it useful?
 
 **lambdafree**
 
