@@ -44,7 +44,7 @@
 
 **meta**
 
-**extract-types** Created by François Thiré -- enhance dkindent to print types variable inside the lambdas.
+**extract-types** Created by Rodolphe Lepigre -- Attempts to extract type information for generating PVS proofs.
 
 **develop-oasis** Created by François Thiré -- can be suppressed.
 
