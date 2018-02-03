@@ -14,7 +14,9 @@
 
 **universo** Created by François Thiré - Translate proofs form Dedukti[STTforall] to OpenTheory. Should be a soft on its own (probably merged with eniqoc), independent of Dedukti.
 
-**meta** Probably created by François Thiré - Add a tool called dkmeta to normalize files. In the long run, should be a soft on its own, independent of Dedukti. See http://deducteam.gforge.inria.fr/metadedukti/
+**meta** Probably created by François Thiré - Meta Dedukti - Add a tool called dkmeta to normalize files. In the long run, should be a soft on its own, independent of Dedukti. See http://deducteam.gforge.inria.fr/metadedukti/
+
+**skmeta** Created by Raphaël Cauderlier - Meta Sukerujo - Meta Dedukti meets Sukerujo
 
 # Pull requests being reviewed
 
@@ -55,8 +57,6 @@
 **trace** Created by François Thiré -- can be suppressed.
 
 **ediloh** Created by François Thiré -- will be suppressed soon.
-
-**skmeta** Created by François Thiré -- can be suppressed.
 
 **comments** Created by François Thiré -- can be suppressed.
 
