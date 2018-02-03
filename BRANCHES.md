@@ -8,11 +8,13 @@
 
 **acu** Created by Gaspard Ferey - Dedukti with AC/ACU (WIP)
 
-**sukerujo** Created by Raphaël Cauderlier - An extension of the Dedukti parser with syntactic sugar and built-ins . In the long run, should be a soft on its own, independent of Dedukti.
+**sukerujo** Created by Raphaël Cauderlier - An alternative parser with syntactic sugar and built-ins. In the long run, should be a soft on its own, independent of Dedukti. See http://deducteam.gforge.inria.fr/sukerujo/
 
 **eniqoc** Created by François Thiré - Translate proofs from Dedukti[STTforall] to Coq and Matita. Should be a soft on its own, independent of Dedukti.
 
 **universo** Created by François Thiré - Translate proofs form Dedukti[STTforall] to OpenTheory. Should be a soft on its own (probably merged with eniqoc), independent of Dedukti.
+
+**meta** Probably created by François Thiré - Add a tool called dkmeta to normalize files. In the long run, should be a soft on its own, independent of Dedukti. See http://deducteam.gforge.inria.fr/metadedukti/
 
 # Pull requests being reviewed
 
@@ -28,13 +30,13 @@
 
 # Old version branches
 
-**v2.5** Who created this ? Where does it branch from ?
+**v2.5** merged, Who created this ? Where does it branch from ?
 
-**v2.4**
+**v2.4** merged
 
-**v2.3beta**
+**v2.3beta** merged
 
-**v1.2**
+**v1.2** merged
 
 # Will be deleted if remain in this section for too long...
 
@@ -42,9 +44,7 @@
 
 **metavar** Created by François Thiré -- An experiment that adds meta variables in Dedukti.
 
-**meta**
-
-**extract-types** Created by Rodolphe Lepigre -- Attempts to extract type information for generating PVS proofs.
+**extract-types** Created by Rodolphe Lepigre, merged -- Attempts to extract type information for generating PVS proofs.
 
 **develop-oasis** Created by François Thiré -- can be suppressed.
 
@@ -66,7 +66,7 @@
 
 **deduktipli** Created by François Thiré -- Change the parser fonctor so that mk_declaration ; mk_definition etc... use monads. Should be a soft on its own. But is it useful?
 
-**lambdafree**
+**lambdafree** Created by Raphaël Cauderlier -- An unfinished variant of Meta Dedukti that removes the lambda abstractions. Should be a soft on its own, maybe an option of Meta Dedukti.
 
 **Dedukti_AC**
 
@@ -74,7 +74,7 @@
 
 **printers**
 
-**da_lib_in_da_place**
+**da_lib_in_da_place** Created by Simon Cruanes, an OCaml library exporting Dedukti features
 
 **develop-let**
 
@@ -82,17 +82,17 @@
 
 **no-de-bruijn-let**
 
-**no-de-bruijn**
+**no-de-bruijn** Created by Simon Cruanes, uses named variables instead of De Bruijn indexes
 
-**let-binder**
+**let-binder** Created by Simon Cruanes, let bindings in the kernel
 
-**develop-simon**
+**develop-simon** Created by Simon Cruanes, merged.
 
-**mmt**
+**mmt** Created by Ronan Saillard, a translator from Dedukti to MMT
 
 **dkconf**
 
-**dev**
+**dev** Created by Ronan Saillard, old name of the develop branch
 
 **confluence**
 
