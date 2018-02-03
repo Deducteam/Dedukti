@@ -347,6 +347,10 @@ pattern_wp      : ID
                         { PPattern (fst $1,None,of_id (snd $1),[]) }
                 | NUM
                         { Builtins.mk_num_patt $1 }
+                | CHAR
+                        { Builtins.mk_char_patt $1 }
+                | STRING
+                        { Builtins.mk_string_patt $1 }
                 | QID
                         { let (l,md,id)= of_qid $1 in PPattern (l,Some md,id,[]) }
                 | UNDERSCORE

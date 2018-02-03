@@ -30,11 +30,24 @@ let mk_num_patt (l, s) = mk_num_patt_from_int l (int_of_string s)
 let mk_char (l, c) =
   PreApp(PreQId(l, modname, _char_of_nat), mk_num_from_int l (int_of_char c), [])
 
+let mk_char_patt (l, c) =
+  PPattern (l, Some modname, _char_of_nat, [mk_num_patt_from_int l (int_of_char c)])
+
 let rec mk_string (l, s) =
   if String.length s = 0 then
     PreQId(l, modname, _string_nil)
   else
-    PreApp(PreQId(l, modname, _string_cons), mk_char (l, s.[0]), [mk_string (l, String.sub s 1 (String.length s - 1))])
+    PreApp(PreQId(l, modname, _string_cons),
+           mk_char (l, s.[0]),
+           [mk_string (l, String.sub s 1 (String.length s - 1))])
+
+let rec mk_string_patt (l, s) =
+  if String.length s = 0 then
+    PPattern (l, Some modname, _string_nil, [])
+  else
+    PPattern (l, Some modname, _string_cons,
+              [mk_char_patt (l, s.[0]);
+               mk_string_patt (l, String.sub s 1 (String.length s - 1))])
 
 (* Exception raised when trying to print a non-atomic value *)
 exception Not_atomic_builtin
