@@ -31,7 +31,6 @@ let mident_eq = ident_eq
 
 let name_eq n n' = ident_eq (md n) (md n') && ident_eq (id n) (id n')
 
-
 module WS = Weak.Make(
 struct
   type t        = ident

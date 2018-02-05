@@ -4,7 +4,6 @@ open Rule
 open Format
 
 exception TypeLevelRewriteRule of (name * name)
-exception NonPositive of name
 
 (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
@@ -20,7 +19,7 @@ type matrix = { w : int ; h : int ; tab : cmp array array }
 type index
 
 type local_result = Terminating | SelfLooping | CallingDefined | NonLinear
-                  | UsingBrackets 
+                  | UsingBrackets | NonPositive
 
 (** [int_of_index i] returns an [int] corresponding to the index [i]. *)
 val int_of_index : index -> int
@@ -51,6 +50,6 @@ val latex_print_calls : unit -> unit
 val termination_check : bool -> bool -> mident -> rule_infos list list ->
   (name * Signature.staticity * term *
      (rule_infos list*int*Dtree.dtree) option
-  ) list -> (name * local_result) list
+  ) list -> (local_result, name list) Hashtbl.t
 
-val print_res : name -> local_result-> unit
+val print_res : bool -> (local_result, name list) Hashtbl.t -> unit

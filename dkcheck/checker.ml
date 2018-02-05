@@ -7,6 +7,7 @@ let verbose = ref false
 let sizechange = ref false
 let szgraph = ref false
 let szvb = ref false
+let szstat = ref false
                   
 let eprint lc fmt =
   if !verbose then (
@@ -123,18 +124,15 @@ let mk_ending () =
   let red_error fmt= Format.eprintf "\027[31mERROR \027[m";
     Format.kfprintf (fun _ -> Format.pp_print_newline Format.err_formatter () ) Format.err_formatter fmt
   in
-  if (!sizechange|| !szgraph|| !szvb) then
+  if (!sizechange|| !szgraph|| !szvb|| !szstat) then
     begin
       try (
-	List.iter
-          (fun (f,res) -> Sizechange.print_res f res)
+        Sizechange.print_res !szstat
           (Env.sizechange (!verbose|| !szvb) !szgraph)
       )
       with
       | Sizechange.TypeLevelRewriteRule (f,g) ->
         red_error "Type level rewriting between %a and %a" pp_name f pp_name g
-      | Sizechange.NonPositive f ->
-        red_error "The symbol %a is not strictly positive" pp_name f
     end;
   if !export then
     if not (Env.export ()) then

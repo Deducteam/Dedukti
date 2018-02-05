@@ -7,7 +7,6 @@ open Rule
 open Format
 
 exception TypeLevelRewriteRule of (name * name)
-exception NonPositive of name
 
 (** Index of a function symbol. *)
 type index = int
@@ -90,7 +89,7 @@ type symb_status = Set_constructor | Elt_constructor | Def_function | Def_type
 
 (** The local result express the result of the termination checker for this symbol *)
 type local_result = Terminating | SelfLooping | CallingDefined | NonLinear
-                  | UsingBrackets
+                  | UsingBrackets | NonPositive
     
 (** Representation of a function symbol. *)
 type symbol =
@@ -147,21 +146,24 @@ let graph : call_graph ref =
 let vb : bool ref=ref false
 
 (** A table linking each symbol with the list of symbols which must be strictly after *)
-let must_be_str_after : (name, name list) Hashtbl.t  = Hashtbl.create 5
+let must_be_str_after : (name, (name * name) list) Hashtbl.t  = Hashtbl.create 5
 (* Here 5 is perfectly arbitrary *)
 
 (** A table linking each symbol with the list of symbols which effectively are after (after is a pre-order, it is possible that [a] is after [b] and [b] is after [a] *)
 let after : (name, name list) Hashtbl.t = Hashtbl.create 5
 (* Here again 5 is arbitrary *)
 
+let mod_name=ref (mk_mident "")
+  
 (** This function clean all the global variables, in order to study another file *)
-let initialize : bool -> unit =
-  fun v->
+let initialize : bool -> mident -> unit =
+  fun v mod_n->
   let syms = IMap.empty in
   graph:={ next_index = ref 0 ; symbols = ref syms ; calls = ref [] };
   Hashtbl.clear must_be_str_after;
   Hashtbl.clear after;
-  vb:=v
+  vb:=v;
+  mod_name:=mod_n
                                                                          
 (* Printing functions *)
 
@@ -260,7 +262,7 @@ let find_stat : name -> symb_status = fun f ->
 let update_result : index -> local_result -> unit = fun i res ->
   let tbl= !(!graph.symbols) in
   let sy=(IMap.find i tbl) in
-  if sy.result=Terminating 
+  if sy.result=Terminating || res=NonPositive
   then sy.result <- res
     
 (** Adding the element a at the begining of the list accessed in ht with key id *)
@@ -571,12 +573,14 @@ let print_after : unit -> unit=
   printf "@.After :@.%a@." (pp_HT pp_name (pp_list "," pp_name)) after;
   printf "@;"
     
-let str_positive : name list list -> (name, name list) Hashtbl.t -> unit =
+let str_positive : name list list -> (name, (name * name) list) Hashtbl.t -> unit =
   fun l ht ->
     Hashtbl.iter (
       fun a b ->
-        if List.exists (fun x -> are_equiv a x l) b
-        then raise (NonPositive a)
+        List.iter (
+          fun (x,y) ->
+            if (are_equiv a x l)
+            then update_result (find_key y !(!graph.symbols)) NonPositive) b
     ) ht
 	
     
@@ -690,12 +694,12 @@ let rec constructors_infos : position -> name -> term -> term -> unit =
 	 | Set_constructor ->
 	    begin
 	        match rm with
-	        | Type _ ->  updateHT after f g; updateHT must_be_str_after f g
+	        | Type _ ->  updateHT after f g; updateHT must_be_str_after f (g,f)
                 | Const(_,g2) ->
                    begin
                      updateHT after g2 g;
                      match posit with
-                     | Negative -> updateHT must_be_str_after g2 g
+                     | Negative -> updateHT must_be_str_after g2 (g,f)
                      | _ -> ()
                    end
 	        | _ -> raise (TypeLevelRewriteRule (f,g))
@@ -712,7 +716,7 @@ let print_ext_ru er=
 
 (** Initialize the SCT-checker *)	
 let termination_check vb szgraph mod_name ext_ru whole_sig =
-  initialize vb;
+  initialize vb mod_name;
   if vb then (print_sig whole_sig; print_ext_ru ext_ru);
   List.iter
     (fun (fct,stat,typ,_) ->
@@ -746,25 +750,49 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
   if szgraph then latex_print_calls ();
   sct_only ();
   let tbl= !(!graph.symbols) in
-  let res=ref [] in
+  let res=Hashtbl.create 5 in
   IMap.iter
     (fun _ s->
       if (s.status=Def_function || s.status=Def_type)
-      then res:=(s.name, s.result):: !res
+      then updateHT res s.result s.name
     ) tbl;
-  !res
-
-let print_res : name -> local_result-> unit = fun f ->
-  function
-  | Terminating    ->
-      Format.eprintf "\027[32m Proved terminating\027[m %a@." pp_name f
-  | SelfLooping    ->
-      Format.eprintf "\027[31m Not proved terminating\027[m %a@." pp_name f
-  | CallingDefined ->
-    Format.eprintf "\027[31m Pattern matching on defined symbol\027[m %a@."
-      pp_name f
-  | NonLinear      ->
-      Format.eprintf "\027[31m Non linear\027[m %a@." pp_name f
-  | UsingBrackets  ->
-      Format.eprintf "\027[31m Use brackets\027[m %a@." pp_name f
-                     
+  res
+    
+let print_res : bool -> (local_result, name list) Hashtbl.t -> unit =
+  fun st ht ->
+    let good_module=fun n -> md n = !mod_name in
+    match Hashtbl.find_opt ht Terminating with
+    | None   -> ()
+    | Some l ->
+       begin
+         if st
+         then Format.eprintf "\027[32m Proved terminating\027[m %a@."
+           (pp_list " , " pp_name) (List.filter good_module l)
+       end;
+    match Hashtbl.find_opt ht SelfLooping with
+    | None   -> ()
+    | Some l -> Format.eprintf "\027[31m Not proved terminating\027[m %a@."
+       (pp_list " , " pp_name)
+       (if st then (List.filter (fun n -> md n= !mod_name) l) else l);
+    match Hashtbl.find_opt ht CallingDefined with
+    | None   -> ()
+    | Some l ->
+       Format.eprintf "\027[31m Pattern matching on defined symbol\027[m %a@."
+         (pp_list " , " pp_name)
+         (if st then (List.filter (fun n -> md n= !mod_name) l) else l);
+    match Hashtbl.find_opt ht NonLinear with
+    | None   -> ()
+    | Some l -> Format.eprintf "\027[31m Non linear\027[m %a@."
+       (pp_list " , " pp_name)
+       (if st then (List.filter (fun n -> md n= !mod_name) l) else l);
+    match Hashtbl.find_opt ht UsingBrackets with
+    | None   -> ()
+    | Some l -> Format.eprintf "\027[31m Use brackets\027[m %a@."
+       (pp_list " , " pp_name)
+       (if st then (List.filter (fun n -> md n= !mod_name) l) else l);
+    match Hashtbl.find_opt ht NonPositive with
+    | None   -> ()
+    | Some l -> Format.eprintf "\027[31m Not strictly positive\027[m %a@."
+       (pp_list " , " pp_name)
+       (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
+       

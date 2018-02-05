@@ -18,6 +18,7 @@ let args = [
   ("-sz"   , Arg.Set Checker.sizechange, "Apply Size Change Principle" );
   ("-szg"   , Arg.Set Checker.szgraph, "Apply Size Change Principle and printing call graph" );
   ("-szv"   , Arg.Set Checker.szvb, "Apply Size Change Principle and verbose it" );
+  ("-szst"   , Arg.Set Checker.szstat, "Apply Size Change Principle and print results useful for stats" );
   ("-d"    , Arg.Int Basic.set_debug_mode,   "Debug mode" ) ;
   ("-e"    , Arg.Set Checker.export,            "Create a .dko" ) ;
   ("-nc"   , Arg.Clear Errors.color,             "Disable colored output" ) ;
