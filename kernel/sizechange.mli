@@ -4,6 +4,8 @@ open Rule
 open Format
 
 exception TypeLevelRewriteRule of (name * name)
+exception MillerPatternTypeLevel of int
+exception BracketsTypeLevel of int
 
 (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
@@ -18,8 +20,8 @@ type matrix = { w : int ; h : int ; tab : cmp array array }
 (** Abstract type used to refer to function symbols. *)
 type index
 
-type local_result = Terminating | SelfLooping | CallingDefined | NonLinear
-                  | UsingBrackets | NonPositive
+type local_result = Terminating | SelfLooping | CallingDefined
+                  | UsingBrackets | NonPositive | CriticalPair
 
 (** [int_of_index i] returns an [int] corresponding to the index [i]. *)
 val int_of_index : index -> int

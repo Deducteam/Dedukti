@@ -7,6 +7,8 @@ open Rule
 open Format
 
 exception TypeLevelRewriteRule of (name * name)
+exception MillerPatternTypeLevel of int
+exception BracketsTypeLevel of int
 
 (** Index of a function symbol. *)
 type index = int
@@ -88,8 +90,8 @@ let subsumes : matrix -> matrix -> bool = fun m1 m2 ->
 type symb_status = Set_constructor | Elt_constructor | Def_function | Def_type
 
 (** The local result express the result of the termination checker for this symbol *)
-type local_result = Terminating | SelfLooping | CallingDefined | NonLinear
-                  | UsingBrackets | NonPositive
+type local_result = Terminating | SelfLooping | CallingDefined
+                  | UsingBrackets | NonPositive | CriticalPair
     
 (** Representation of a function symbol. *)
 type symbol =
@@ -240,12 +242,12 @@ exception Success_index  of index
 exception Success_status of symb_status
 
 (** [find_key f m] will return the key [k] which is mapped in [m] to the symbol named [f] *)
-let find_key : name -> symbol IMap.t -> index = fun f m ->
+let find_key : name ->  index = fun f ->
   try
     IMap.iter
       (
 	fun k x -> if x.name=f then raise (Success_index k)
-      ) m;
+      ) !(!graph.symbols);
     raise Not_found
   with Success_index k -> k
 
@@ -362,18 +364,17 @@ let rec detect_wrong_pm : name -> pattern -> unit= fun f ->
      begin
        let stat= find_stat n in
        if stat=Def_function || stat=Def_type
-       then update_result (find_key f !(!graph.symbols)) CallingDefined;
+       then update_result (find_key f) CallingDefined;
        List.iter (detect_wrong_pm f) ar
      end
   | Var      (_,_,_,l) -> List.iter (detect_wrong_pm f) l
   | Lambda   (_,_,p)   -> detect_wrong_pm f p
   | Brackets (t)       ->
-     update_result (find_key f !(!graph.symbols)) UsingBrackets
+     update_result (find_key f) UsingBrackets
 
 (** Find the index of the caller of a rule *)
 let get_caller : rule_infos -> index = fun r ->
-  let gr= !graph in
-    find_key r.cst !(gr.symbols)
+  find_key r.cst
 	
 (** Replace the right hand side of a rule with the term chosen *)
 let term2rule : rule_infos -> term -> rule_infos = fun r t ->
@@ -390,17 +391,16 @@ let term2rule : rule_infos -> term -> rule_infos = fun r t ->
 (** Find the index of the callee of a rule and the list of its arguments *)
 let rec get_callee : int -> rule_infos -> (term list * index) option =
   fun nb r ->
-    let gr= !graph in
     match r.rhs with
     | DB (_,_,_) | Kind | Type(_) -> None
     | Const (_,f) ->
        begin
-	 try Some ([], find_key f !(gr.symbols))
+	 try Some ([], find_key f)
 	 with Not_found -> None
        end
     | App (Const(l,f),t1,lt) ->
        begin
-	 try Some (t1::lt, find_key f !(gr.symbols))
+	 try Some (t1::lt, find_key f)
 	 with Not_found ->
 	   begin
 	   (* Here we study the subterms if needed *)
@@ -450,8 +450,6 @@ unknown symbol such that %a in line %i@."
 (** Generate the list of calls associated to a rule. An int is used to specified under how many lambdas are the call *)
 and rule_to_call : int -> rule_infos -> call list = fun nb r ->
   let gr= !graph in
-  if not (r.constraints=[])
-  then update_result (find_key r.cst !(gr.symbols)) NonLinear;
   let lp=r.args in
   List.iter (detect_wrong_pm r.cst) lp;
   if !vb
@@ -580,7 +578,7 @@ let str_positive : name list list -> (name, (name * name) list) Hashtbl.t -> uni
         List.iter (
           fun (x,y) ->
             if (are_equiv a x l)
-            then update_result (find_key y !(!graph.symbols)) NonPositive) b
+            then update_result (find_key y) NonPositive) b
     ) ht
 	
     
@@ -708,20 +706,105 @@ let rec constructors_infos : position -> name -> term -> term -> unit =
        end
 
 let print_sig sg=
-  printf "La signature est:@. * %a@." (pp_list "\n * " (pp_quat pp_name pp_staticity pp_term (pp_option (pp_triple (pp_list ";" pp_rule_infos) pp_print_int Dtree.pp_dtree)))) sg
+  printf "The signature is:@. * %a@." (pp_list "\n * " (pp_quat pp_name pp_staticity pp_term (pp_option (pp_triple (pp_list ";" pp_rule_infos) pp_print_int Dtree.pp_dtree)))) sg
 
 let print_ext_ru er=
   if er=[] then () else
-    printf "Ext_ru contient:@. + %a@." (pp_list "\n + " (pp_list " ; " pp_rule_infos)) er
+    printf "Ext_ru contains:@. + %a@." (pp_list "\n + " (pp_list " ; " pp_rule_infos)) er
 
+let rec name_var : int -> int -> pattern -> pattern = fun i n ->
+  function
+  | Var(loc, _, k, ll) when k>=n ->
+     Var(loc, mk_ident ("x"^(string_of_int i)^"_"^(string_of_int (k-n))), k,
+         List.map (name_var i n) ll)
+  | Var(loc, _, k, ll)           ->
+     Var(loc, mk_ident "bound", k, List.map (name_var i n) ll)
+  | Pattern(loc, f, ll)          ->
+     Pattern(loc, f, List.map (name_var i n) ll)
+  | Lambda(loc, _, pat)          ->
+     Lambda(loc, mk_ident "bound", name_var i (n+1) pat)
+  | Brackets(t) -> raise (BracketsTypeLevel (fst (of_loc (get_loc t))))
+
+let rec occurs : ident -> pattern -> bool = fun nk ->
+  function
+  | Var(_, nn, _, _ ) when nk=nn -> true
+  | Var(_, _ , _, ll)            -> List.exists (occurs nk) ll
+  | Pattern(_, _, ll)            -> List.exists (occurs nk) ll
+  | Lambda(_, _, pat)            -> occurs nk pat
+  | Brackets(_)                  -> assert false
+      
+let rec zip_with_int : 'a list -> 'b list -> int -> ('a * 'b * int) list=
+  fun l1 l2 n->
+    match l1,l2 with
+    | []   , []    -> []
+    | a::t1, b::t2 -> (a,b,n)::(zip_with_int t1 t2 n)
+    | _            -> assert false
+       
+let rec solve : (pattern * pattern * int) list -> bool = fun l ->
+  match l with
+  | []                                                                ->
+     true
+  | (Var(_, n1, _, l1), Var(_, n2, _, l2), n)::tl
+      when (n1=n2 && l1=[] && l2=[]) ->
+     solve tl
+  | (Var(_, nk, k, ll)  , t2             , n)::tl when (k>=n && ll=[]) ->
+     elim nk t2 tl n
+  | (t1             , Var(_, nk, k, ll)  , n)::tl when (k>=n && ll=[]) ->
+     elim nk t1 tl n
+  | (Pattern(_, f, l1), Pattern(_, g, l2), n)::tl when f=g            ->
+     solve ((zip_with_int l1 l2 n)@tl)
+  | (Lambda(_, _, t1) , Lambda(_, _, t2) , n)::tl                     ->
+     solve ((t1, t2, n+1)::tl)
+  | (Var(loc, _, k, ll), t2             , n)::tl when ll!= []         ->
+     raise (MillerPatternTypeLevel (fst (of_loc loc)))
+  | (t1             , Var(loc, _, k, ll), n)::tl when ll!= []         ->
+     raise (MillerPatternTypeLevel (fst (of_loc loc)))
+  | _ -> false
+and elim : ident -> pattern -> (pattern * pattern * int) list ->
+       int -> bool
+       =fun nk t l n ->
+         let rec lift : ident -> pattern -> pattern -> pattern
+           = fun nk t ->
+             function
+             | Var(_,nn,_,_)               when nk=nn -> t
+             | Var(_)                      as   t1    -> t1
+             | Pattern(loc,f,lt)                      ->
+                Pattern(loc,f,List.map (lift nk t) lt)
+             | Lambda(loc,id,t1)                      ->
+                Lambda(loc,id,lift nk t t1)
+             | Brackets(t)                            ->
+                assert false
+         in
+         if occurs nk t then false
+         else
+           solve
+             (List.map
+                (fun (t1,t2,n) ->
+                  (lift nk t t1, lift nk t t2, n)
+                ) l
+             )
+     
+let unifiable : pattern list -> pattern list -> bool = fun t1 t2->
+  solve
+    (zip_with_int (List.map (name_var 1 0) t1) (List.map (name_var 2 0) t2) 0)
+
+let rec cp_at_root : rule_infos list -> (rule_infos * rule_infos) option =
+  function
+  | []   -> None
+  | a::l ->
+     try
+       Some (a, List.find (fun r -> unifiable a.args r.args) l)
+     with
+       Not_found -> cp_at_root l
+    
 (** Initialize the SCT-checker *)	
 let termination_check vb szgraph mod_name ext_ru whole_sig =
   initialize vb mod_name;
   if vb then (print_sig whole_sig; print_ext_ru ext_ru);
   List.iter
     (fun (fct,stat,typ,_) ->
-      let ar=infer_arity_from_type typ in
-      let stat=
+      let ar = infer_arity_from_type typ in
+      let stat =
 	(
 	  match (right_most typ),stat with
 	  | Type _, Signature.Definable -> Def_type
@@ -738,10 +821,21 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
       then constructors_infos Global fct typ (right_most typ)
     ) whole_sig;
   List.iter
-    (fun (_,_,_,rules_opt) ->
+    (fun (fct,_,typ,rules_opt) ->
       match rules_opt with
       | None -> ()
-      | Some (rul,arit,dec_tree) -> add_rules rul
+      | Some (rul,_,_) ->
+         begin
+           add_rules rul;
+           match right_most typ with
+           | Type _ ->
+              begin
+                match cp_at_root rul with
+                | None          -> ()
+                | Some (l1, l2) -> update_result (find_key fct) CriticalPair
+              end
+           | _ -> ()
+         end
     ) whole_sig;
   List.iter add_rules ext_ru;
   if vb
@@ -760,39 +854,58 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
     
 let print_res : bool -> (local_result, name list) Hashtbl.t -> unit =
   fun st ht ->
-    let good_module=fun n -> md n = !mod_name in
-    match Hashtbl.find_opt ht Terminating with
-    | None   -> ()
-    | Some l ->
-       begin
-         if st
-         then Format.eprintf "\027[32m Proved terminating\027[m %a@."
-           (pp_list " , " pp_name) (List.filter good_module l)
-       end;
-    match Hashtbl.find_opt ht SelfLooping with
-    | None   -> ()
-    | Some l -> Format.eprintf "\027[31m Not proved terminating\027[m %a@."
-       (pp_list " , " pp_name)
-       (if st then (List.filter (fun n -> md n= !mod_name) l) else l);
-    match Hashtbl.find_opt ht CallingDefined with
-    | None   -> ()
-    | Some l ->
-       Format.eprintf "\027[31m Pattern matching on defined symbol\027[m %a@."
+  let good_module=fun n -> md n = !mod_name in
+  begin
+    try
+      if st
+      then Format.eprintf "\027[32m Proved terminating\027[m %a@."
+        (pp_list " , " pp_name)
+        (List.filter good_module (Hashtbl.find ht Terminating))
+    with Not_found -> ()
+  end;
+  begin
+    try
+      let l = Hashtbl.find ht SelfLooping
+      in
+      Format.eprintf "\027[31m Not proved terminating\027[m %a@."
          (pp_list " , " pp_name)
-         (if st then (List.filter (fun n -> md n= !mod_name) l) else l);
-    match Hashtbl.find_opt ht NonLinear with
-    | None   -> ()
-    | Some l -> Format.eprintf "\027[31m Non linear\027[m %a@."
-       (pp_list " , " pp_name)
-       (if st then (List.filter (fun n -> md n= !mod_name) l) else l);
-    match Hashtbl.find_opt ht UsingBrackets with
-    | None   -> ()
-    | Some l -> Format.eprintf "\027[31m Use brackets\027[m %a@."
-       (pp_list " , " pp_name)
-       (if st then (List.filter (fun n -> md n= !mod_name) l) else l);
-    match Hashtbl.find_opt ht NonPositive with
-    | None   -> ()
-    | Some l -> Format.eprintf "\027[31m Not strictly positive\027[m %a@."
-       (pp_list " , " pp_name)
-       (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
-       
+         (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
+    with Not_found -> ()
+  end;
+  begin
+    try
+      let l=Hashtbl.find ht CallingDefined
+      in
+      Format.eprintf "\027[31m Pattern matching on defined symbol\027[m %a@."
+        (pp_list " , " pp_name)
+        (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
+    with Not_found -> ()
+  end;
+  begin
+    try
+      let l=Hashtbl.find ht UsingBrackets
+      in
+      Format.eprintf "\027[31m Use brackets\027[m %a@."
+        (pp_list " , " pp_name)
+        (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
+    with Not_found -> ()
+  end;
+  begin
+    try
+      let l=Hashtbl.find ht NonPositive
+      in
+      Format.eprintf "\027[31m Not strictly positive\027[m %a@."
+        (pp_list " , " pp_name)
+        (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
+    with Not_found -> ()
+  end;
+  begin
+    try
+      let l=Hashtbl.find ht CriticalPair
+      in
+      Format.eprintf "\027[31m Critical pair\027[m %a@."
+        (pp_list " , " pp_name)
+        (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
+    with Not_found -> ()
+  end
+                   
