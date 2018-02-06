@@ -4,4 +4,4 @@ A : Type.
 B : Type.
 a : A.
 
-#ASSERT a, B.
+#ASSERT a :: B.
