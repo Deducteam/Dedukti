@@ -1,0 +1,10 @@
+#NAME CheckCommand.
+
+A : Type.
+B : Type.
+a : A.
+
+#CHECK a, A.
+#PRINT YES.
+#CHECK a, B.
+#PRINT NO.
