@@ -8,15 +8,9 @@ type command =
   | Snf of term
   | OneStep of term
   (*Typing*)
-  | Conv of term*term
-  | Inhabit of term*term
-  | ConvNot of term*term
-  | InhabitNot of term*term
+  | Conv of bool*bool*term*term
+  | Inhabit of bool*bool*term*term
   | Infer of term
-  | AssertConv of term*term
-  | AssertInhabit of term*term
-  | AssertConvNot of term*term
-  | AssertInhabitNot of term*term
   (* Misc *)
   | Gdt of ident option*ident
   | Print of string
