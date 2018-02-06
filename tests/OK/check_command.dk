@@ -5,6 +5,6 @@ B : Type.
 a : A.
 
 #CHECK a, A.
-#PRINT YES.
+#PRINT "YES".
 #CHECK a, B.
-#PRINT NO.
+#PRINT "NO".
