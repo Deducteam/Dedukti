@@ -112,18 +112,26 @@ let mk_command lc =
 
 let print_command out c =
   match c with
-  | Whnf te          -> Format.fprintf out "#WHNF@ %a." print_term te
-  | Hnf te           -> Format.fprintf out "#HNF@ %a." print_term te
-  | Snf te           -> Format.fprintf out "#SNF@ %a." print_term te
-  | OneStep te       -> Format.fprintf out "#STEP@ %a." print_term te
-  | Conv (te,ty)    -> Format.fprintf out "#CHECK@ %a==@ %a." print_term te print_term ty
-  | ConvNot (te,ty)    -> Format.fprintf out "#CHECKNOT@ %a==@ %a." print_term te print_term ty
-  | Inhabit (te,ty)    -> Format.fprintf out "#CHECK@ %a::@ %a." print_term te print_term ty
-  | InhabitNot (te,ty)    -> Format.fprintf out "#CHECKNOT@ %a::@ %a." print_term te print_term ty
-  | AssertConv (te,ty)    -> Format.fprintf out "#ASSERT@ %a==@ %a." print_term te print_term ty
-  | AssertConvNot (te,ty)    -> Format.fprintf out "#ASSERTNOT@ %a==@ %a." print_term te print_term ty
-  | AssertInhabit (te,ty)    -> Format.fprintf out "#ASSERT@ %a::@ %a." print_term te print_term ty
-  | AssertInhabitNot (te,ty)    -> Format.fprintf out "#ASSERTNOT@ %a::@ %a." print_term te print_term ty        
+  | Whnf te                  -> Format.fprintf out "#WHNF@ %a." print_term te
+  | Hnf te                   -> Format.fprintf out "#HNF@ %a." print_term te
+  | Snf te                   -> Format.fprintf out "#SNF@ %a." print_term te
+  | OneStep te               -> Format.fprintf out "#STEP@ %a." print_term te
+  | Conv (t1,t2)             -> Format.fprintf out "#CHECK@ %a==@ %a."
+                          print_term t1 print_term t2
+  | ConvNot (t1,t2)          -> Format.fprintf out "#CHECKNOT@ %a==@ %a."
+                                  print_term t1 print_term t2
+  | Inhabit (te,ty)          -> Format.fprintf out "#CHECK@ %a::@ %a."
+                                  print_term te print_term ty
+  | InhabitNot (te,ty)       -> Format.fprintf out "#CHECKNOT@ %a::@ %a."
+                                  print_term te print_term ty
+  | AssertConv (t1,t2)       -> Format.fprintf out "#ASSERT@ %a==@ %a."
+                                  print_term t1 print_term t2
+  | AssertConvNot (t1,t2)    -> Format.fprintf out "#ASSERTNOT@ %a==@ %a."
+                                  print_term t1 print_term t2
+  | AssertInhabit (te,ty)    -> Format.fprintf out "#ASSERT@ %a::@ %a."
+                                  print_term te print_term ty
+  | AssertInhabitNot (te,ty) -> Format.fprintf out "#ASSERTNOT@ %a::@ %a."
+                                  print_term te print_term ty        
   | Infer te         -> Format.fprintf out "#INFER@ %a." print_term te
   | Gdt (m0,v)       ->
       begin match m0 with
