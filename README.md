@@ -93,8 +93,9 @@ Supported commands are:
     #HNF t.         (;  diplay the head normal form of t. ;)
     #SNF t.         (;  display the strong normal form of t. ;)
     #STEP t.        (;  display a one-step reduce of t. ;)
-    #CONV t1, t2.   (;  display "OK" if t1 and t2 are convertible, "KO" otherwise. ;)
-    #CHECK t1, t2.  (;  display "OK" if t1 has type t2, "KO" otherwise. ;)
+    #CONV t1, t2.   (;  display "YES" if t1 and t2 are convertible, "NO" otherwise. ;)
+    #CHECK t1, t2.  (;  display "YES" if t1 has type t2, "NO" otherwise. ;)
+    #ASSERT t1, t2. (;  fail if t1 does not have type t2. ;)
     #INFER t1.      (;  infer the type of t1 and display it. ;)
     #PRINT s.       (;  print the string s. ;)
 

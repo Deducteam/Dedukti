@@ -47,6 +47,7 @@ rule token = parse
   | "#INFER"    { INFER ( get_loc lexbuf ) }
   | "#CONV"     { CONV ( get_loc lexbuf ) }
   | "#CHECK"    { CHECK ( get_loc lexbuf ) }
+  | "#ASSERT"   { ASSERT ( get_loc lexbuf ) }
   | "#PRINT"    { PRINT ( get_loc lexbuf ) }
   | "#GDT"      { GDT ( get_loc lexbuf ) }
   | '#' (capital as cmd)

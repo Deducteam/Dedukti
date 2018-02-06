@@ -11,6 +11,7 @@ type command =
   (*Typing*)
   | Check of term*term
   | Infer of term
+  | Assert of term*term
   (* Misc *)
   | Gdt of ident option*ident
   | Print of string

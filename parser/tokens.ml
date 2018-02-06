@@ -31,6 +31,7 @@ type token =
   | INFER       of loc
   | CONV        of loc
   | CHECK       of loc
+  | ASSERT      of loc
   | PRINT       of loc
   | GDT         of loc
   | OTHER       of ( loc * string )

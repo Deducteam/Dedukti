@@ -13,6 +13,7 @@ type command =
   (*Typing*)
   | Check of term*term
   | Infer of term
+  | Assert of term*term
   (* Misc *)
   | Gdt of ident option*ident
   | Print of string
@@ -42,12 +43,16 @@ let mk_command lc =
           | Err e -> Errors.fail_env_error e )
   | Conv (te1,te2)  ->
         ( match Env.are_convertible te1 te2 with
-            | OK true -> print "YES"
-            | OK false -> print "NO"
+            | OK true -> Format.printf "YES@."
+            | OK false -> Format.printf "NO@."
             | Err e -> Errors.fail_env_error e )
   | Check (te,ty) ->
         ( match Env.check te ty with
-            | OK () -> print "YES"
+            | OK () -> Format.printf "YES@."
+            | Err e -> Format.printf "NO@." )
+  | Assert (te,ty) ->
+        ( match Env.check te ty with
+            | OK () -> ()
             | Err e -> Errors.fail_env_error e )
   | Infer te         ->
       ( match Env.infer te with
@@ -70,6 +75,7 @@ let print_command out c =
   | OneStep te       -> Format.fprintf out "#STEP@ %a." print_term te
   | Conv (te1,te2)   -> Format.fprintf out "#CONV@ %a,@ %a." print_term te1 print_term te2
   | Check (te,ty)    -> Format.fprintf out "#CHECK@ %a,@ %a." print_term te print_term ty
+  | Assert (te,ty)    -> Format.fprintf out "#ASSERT@ %a,@ %a." print_term te print_term ty            
   | Infer te         -> Format.fprintf out "#INFER@ %a." print_term te
   | Gdt (m0,v)       ->
       begin match m0 with
