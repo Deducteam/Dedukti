@@ -48,8 +48,9 @@ let mk_command lc =
             | Err e -> Errors.fail_env_error e )
   | Check (te,ty) ->
         ( match Env.check te ty with
-            | OK () -> Format.printf "YES@."
-            | Err e -> Format.printf "NO@." )
+            | OK ()                -> Format.printf "YES@."
+            | Err (EnvErrorType _) -> Format.printf "NO@."
+            | Err e                -> Errors.fail_env_error e )
   | Assert (te,ty) ->
         ( match Env.check te ty with
             | OK () -> ()

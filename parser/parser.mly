@@ -130,7 +130,7 @@ line            : ID COLON term DOT
                 | INFER term    { mk_command $1 (Infer (scope_term [] $2)) }
                 | CONV  term  COMMA term { mk_command $1 (Conv (scope_term [] $2,scope_term [] $4)) }
                 | CHECK term  COMMA term { mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
-		| ASSERT term COMMA term { mk_command $1 (Assert (scope_term [] $2,scope_term [] $4)) }
+                | ASSERT term COMMA term { mk_command $1 (Assert (scope_term [] $2,scope_term [] $4)) }
                 | PRINT STRING  { mk_command $1 (Print $2) }
                 | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }
