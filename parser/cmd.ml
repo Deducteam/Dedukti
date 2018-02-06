@@ -9,11 +9,16 @@ type command =
   | Hnf of term
   | Snf of term
   | OneStep of term
-  | Conv of term*term
   (*Typing*)
-  | Check of term*term
+  | Conv of term*term
+  | Inhabit of term*term
+  | ConvNot of term*term
+  | InhabitNot of term*term
   | Infer of term
-  | Assert of term*term
+  | AssertConv of term*term
+  | AssertInhabit of term*term
+  | AssertConvNot of term*term
+  | AssertInhabitNot of term*term
   (* Misc *)
   | Gdt of ident option*ident
   | Print of string
@@ -46,15 +51,52 @@ let mk_command lc =
             | OK true -> Format.printf "YES@."
             | OK false -> Format.printf "NO@."
             | Err e -> Errors.fail_env_error e )
-  | Check (te,ty) ->
+  | Inhabit (te,ty) ->
         ( match Env.check te ty with
             | OK ()                -> Format.printf "YES@."
             | Err (EnvErrorType _) -> Format.printf "NO@."
             | Err e                -> Errors.fail_env_error e )
-  | Assert (te,ty) ->
-        ( match Env.check te ty with
-            | OK () -> ()
+  | ConvNot (te1,te2)  ->
+        ( match Env.are_convertible te1 te2 with
+            | OK true -> Format.printf "NO@."
+            | OK false -> Format.printf "YES@."
             | Err e -> Errors.fail_env_error e )
+  | InhabitNot (te,ty) ->
+        ( match Env.check te ty with
+            | OK ()                -> Format.printf "NO@."
+            | Err (EnvErrorType _) -> Format.printf "YES@."
+            | Err e                -> Errors.fail_env_error e )
+  | AssertConv (te1,te2) ->
+        ( match Env.are_convertible te1 te2 with
+            | OK true -> ()
+            | OK false ->
+              Errors.fail_env_error
+                (Env.EnvErrorType
+                   (Unconvertible (lc,te1,te2))
+                )
+            | Err e -> Errors.fail_env_error e )
+  | AssertInhabit (te,ty) ->
+        ( match Env.check te ty with
+            | OK ()                -> ()
+            | Err e                -> Errors.fail_env_error e )
+  | AssertConvNot (te1,te2)  ->
+        ( match Env.are_convertible te1 te2 with
+            | OK true -> 
+              Errors.fail_env_error
+                (Env.EnvErrorType
+                   (Convertible (lc,te1,te2))
+                )
+            | OK false -> ()
+            | Err e -> Errors.fail_env_error e )
+  | AssertInhabitNot (te,ty) ->
+        ( match Env.check te ty with
+            | OK ()                -> 
+              Errors.fail_env_error
+                (Env.EnvErrorType
+                   (Inhabit (lc,te,ty))
+                )
+            | Err (EnvErrorType _) -> ()
+            | Err e                -> Errors.fail_env_error e )
   | Infer te         ->
       ( match Env.infer te with
           | OK ty -> Format.printf "%a\n" print_term ty
@@ -74,9 +116,14 @@ let print_command out c =
   | Hnf te           -> Format.fprintf out "#HNF@ %a." print_term te
   | Snf te           -> Format.fprintf out "#SNF@ %a." print_term te
   | OneStep te       -> Format.fprintf out "#STEP@ %a." print_term te
-  | Conv (te1,te2)   -> Format.fprintf out "#CONV@ %a,@ %a." print_term te1 print_term te2
-  | Check (te,ty)    -> Format.fprintf out "#CHECK@ %a,@ %a." print_term te print_term ty
-  | Assert (te,ty)    -> Format.fprintf out "#ASSERT@ %a,@ %a." print_term te print_term ty            
+  | Conv (te,ty)    -> Format.fprintf out "#CHECK@ %a==@ %a." print_term te print_term ty
+  | ConvNot (te,ty)    -> Format.fprintf out "#CHECKNOT@ %a==@ %a." print_term te print_term ty
+  | Inhabit (te,ty)    -> Format.fprintf out "#CHECK@ %a::@ %a." print_term te print_term ty
+  | InhabitNot (te,ty)    -> Format.fprintf out "#CHECKNOT@ %a::@ %a." print_term te print_term ty
+  | AssertConv (te,ty)    -> Format.fprintf out "#ASSERT@ %a==@ %a." print_term te print_term ty
+  | AssertConvNot (te,ty)    -> Format.fprintf out "#ASSERTNOT@ %a==@ %a." print_term te print_term ty
+  | AssertInhabit (te,ty)    -> Format.fprintf out "#ASSERT@ %a::@ %a." print_term te print_term ty
+  | AssertInhabitNot (te,ty)    -> Format.fprintf out "#ASSERTNOT@ %a::@ %a." print_term te print_term ty        
   | Infer te         -> Format.fprintf out "#INFER@ %a." print_term te
   | Gdt (m0,v)       ->
       begin match m0 with

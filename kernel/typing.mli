@@ -20,6 +20,9 @@ type typing_error =
   | BracketError2 of term*context*term
   | FreeVariableDependsOnBoundVariable of loc*ident*int*context*term
   | NotImplementedFeature of loc
+  | Unconvertible of loc*term*term
+  | Convertible of loc*term*term
+  | Inhabit of loc*term*term
 
 exception TypingError of typing_error
 

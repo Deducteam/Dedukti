@@ -23,15 +23,18 @@ type token =
   | DEF
   | COMMA
   | COLON
+  | CCOLON
+  | EQUAL
   | ARROW
   | WHNF        of loc
   | HNF         of loc
   | SNF         of loc
   | STEP        of loc
   | INFER       of loc
-  | CONV        of loc
   | CHECK       of loc
   | ASSERT      of loc
+  | CHECKNOT    of loc
+  | ASSERTNOT   of loc
   | PRINT       of loc
   | GDT         of loc
   | OTHER       of ( loc * string )

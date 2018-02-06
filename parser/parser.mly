@@ -41,6 +41,8 @@
 %token DOT
 %token COMMA
 %token COLON
+%token CCOLON
+%token EQUAL
 %token ARROW
 %token FATARROW
 %token LONGARROW
@@ -56,9 +58,10 @@
 %token <Basic.loc> SNF
 %token <Basic.loc> STEP
 %token <Basic.loc> INFER
-%token <Basic.loc> CONV
 %token <Basic.loc> CHECK
 %token <Basic.loc> ASSERT
+%token <Basic.loc> CHECKNOT
+%token <Basic.loc> ASSERTNOT
 %token <Basic.loc> PRINT
 %token <Basic.loc> GDT
 %token <Basic.loc*string> OTHER
@@ -128,9 +131,14 @@ line            : ID COLON term DOT
                 | SNF   term    { mk_command $1 (Snf (scope_term [] $2)) }
                 | STEP  term    { mk_command $1 (OneStep (scope_term [] $2)) }
                 | INFER term    { mk_command $1 (Infer (scope_term [] $2)) }
-                | CONV  term  COMMA term { mk_command $1 (Conv (scope_term [] $2,scope_term [] $4)) }
-                | CHECK term  COMMA term { mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
-                | ASSERT term COMMA term { mk_command $1 (Assert (scope_term [] $2,scope_term [] $4)) }
+                | CHECK  term EQUAL term { mk_command $1 (Conv (scope_term [] $2,scope_term [] $4)) }
+                | CHECK term  CCOLON term { mk_command $1 (Inhabit (scope_term [] $2,scope_term [] $4)) }
+                | ASSERT term EQUAL term { mk_command $1 (AssertConv (scope_term [] $2,scope_term [] $4)) }
+		| ASSERT term CCOLON term { mk_command $1 (AssertInhabit (scope_term [] $2,scope_term [] $4)) }
+		| CHECKNOT  term EQUAL term { mk_command $1 (ConvNot (scope_term [] $2,scope_term [] $4)) }
+                | CHECKNOT term  CCOLON term { mk_command $1 (InhabitNot (scope_term [] $2,scope_term [] $4)) }
+                | ASSERTNOT term EQUAL term { mk_command $1 (AssertConvNot (scope_term [] $2,scope_term [] $4)) }
+		| ASSERTNOT term CCOLON term { mk_command $1 (AssertInhabitNot (scope_term [] $2,scope_term [] $4)) }
                 | PRINT STRING  { mk_command $1 (Print $2) }
                 | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }

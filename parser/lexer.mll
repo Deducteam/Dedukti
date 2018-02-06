@@ -24,6 +24,8 @@ rule token = parse
   | '.'         { DOT           }
   | ','         { COMMA         }
   | ':'         { COLON         }
+  | "::"        { CCOLON        }
+  | "=="        { EQUAL         }
   | '['         { LEFTSQU       }
   | ']'         { RIGHTSQU      }
   | '{'         { LEFTBRA       }
@@ -45,9 +47,10 @@ rule token = parse
   | "#SNF"      { SNF ( get_loc lexbuf ) }
   | "#STEP"     { STEP ( get_loc lexbuf ) }
   | "#INFER"    { INFER ( get_loc lexbuf ) }
-  | "#CONV"     { CONV ( get_loc lexbuf ) }
   | "#CHECK"    { CHECK ( get_loc lexbuf ) }
   | "#ASSERT"   { ASSERT ( get_loc lexbuf ) }
+  | "#CHECKNOT" { CHECKNOT ( get_loc lexbuf ) }
+  | "#ASSERTNOT"{ ASSERTNOT ( get_loc lexbuf ) }
   | "#PRINT"    { PRINT ( get_loc lexbuf ) }
   | "#GDT"      { GDT ( get_loc lexbuf ) }
   | '#' (capital as cmd)

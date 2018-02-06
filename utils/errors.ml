@@ -82,6 +82,15 @@ let fail_typing_error err =
         fail l "Error while typing '%a[%i]'%a.\n\
                 The type is not allowed to refer to bound variables.\n\
                 Infered type:%a." pp_ident x n pp_context2 ctx pp_term ty
+      | Unconvertible (l,t1,t2) ->
+        fail l "Error while trying to convert '%a' and '%a'"
+          pp_term t1 pp_term t2
+      | Convertible (l,t1,t2) ->
+        fail l "'%a' and '%a' are convertible"
+          pp_term t1 pp_term t2
+      | Inhabit (l,t1,t2) ->
+        fail l "'%a' is of type '%a'"
+          pp_term t1 pp_term t2
       | NotImplementedFeature l -> fail l "Feature not implemented."
 
 let fail_dtree_error err =
