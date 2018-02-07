@@ -1,4 +1,5 @@
 USER MANUAL FOR DEDUKTI v2.5 (DRAFT)
+See the Dedukti's webpage : https://deducteam.github.io/
 ====================================
 
 ### INSTALLATION
@@ -16,8 +17,21 @@ In order to compile `Dedukti` you will need `OCaml` and `Menhir`.
 
     git clone https://github.com/Deducteam/Dedukti.git
     cd Dedukti
-    make
+    make configure
+    make build
     sudo make install
+
+Most of the time, you won't change the project. Therefore, you only need to use the commande `make build`.
+However, if you add new modules, or tools, you have to modify the _oasis file.
+To update the Makefile and some other files, you have to run the command `oasis setup` to take care of the
+modifications made in the _oasis file.
+
+
+You can setup Opam to install the development version of Dedukti
+instead of the last stable version by typing the following commands in
+the current directory:
+- opam pin -k git add dedukti .
+- opam upgrade
 
 ### QUICK START
 
@@ -237,4 +251,3 @@ To enable confluence checking you need to call `dkcheck` with the option `-cc` f
 ### LICENSE
 
 `Dedukti` is distributed under the CeCILL-B License.
-

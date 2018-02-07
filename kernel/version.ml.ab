@@ -1,0 +1,3 @@
+let version = "$(pkg_version)"
+let print_version _     =
+  Format.printf "Dedukti v%s@." version

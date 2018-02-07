@@ -1,17 +1,23 @@
 /_build/
+api-kernel.docdir
+/setup.data
+/setup.log
+/setup.ml
+/Makefile
+_tags
+myocamlbuild.ml
+configure
+META
+*.byte
+*.native
 .*.swp
 .*.swo
-dkcheck.docdir
-dkcheck.native
-dkdep.native
-dkrule.native
-dktop.native
-dkindent.native
-dedukti.docdir
 _*/
 *.dko
 *.depend
-
+kernel/version.ml
+*.mldylib
+*.mllib
 
 # emacs tmp files
 *~

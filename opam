@@ -6,17 +6,14 @@ author: "Ronan Saillard"
 homepage: "http://dedukti.gforge.inria.fr"
 bug-reports: "https://gforge.inria.fr/tracker/?func=browse&group_id=4434&atid=13818"
 dev-repo: "https://gforge.inria.fr/git/dedukti/dedukti.git#develop"
+build: [
+  ["ocaml" "setup.ml" "-configure" "--prefix" prefix]
+  ["ocaml" "setup.ml" "-build"]
+]
+install: ["ocaml" "setup.ml" "-install"]
+remove: [
+  ["ocaml" "%{etc}%/dedukti/setup.ml" "-C" "%{etc}%/dedukti" "-uninstall"]
+]
+build-doc: [ "ocaml" "setup.ml" "-doc" ]
 available: [ ocaml-version >= "4.02" ]
 depends: ["menhir" "ocamlbuild"]
-build: [make "all"]
-build-test: [make "tests"]
-install:[
-  [make
-    "INSTALL_DIR=%{package_name:share}%"
-    "install"]
-]
-remove: [
-  [make
-    "INSTALL_DIR=%{package_name:share}%"
-    "uninstall"]
-]

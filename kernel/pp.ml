@@ -1,11 +1,14 @@
 open Basic
-open Preterm
 open Term
 open Rule
 open Printf
 
+(* FIXME: this module is highly redondant with printing functions insides kernel modules *)
+
+(* TODO: make that debuging functions returns a string *)
 let print_db_enabled = ref false
-let name = ref qmark
+let print_default = ref false
+let name () = Env.get_name ()
 
 let rec print_list sep pp out = function
     | []        -> ()
@@ -13,31 +16,16 @@ let rec print_list sep pp out = function
     | a::lst    ->
         Format.fprintf out "%a%s@,%a" pp a sep (print_list sep pp) lst
 
-let rec print_pterm out = function
-  | PreType _        -> Format.pp_print_string out "Type"
-  | PreId (_,v)      -> print_ident out v
-  | PreQId (_,m,v)   -> Format.fprintf out "%a.%a" print_ident m print_ident v
-  | PreApp (f,a,lst) -> print_list " " print_pterm_wp  out (f::a::lst)
-  | PreLam (_,v,None,b) -> Format.fprintf out "%a => %a" print_ident v print_pterm b
-  | PreLam (_,v,Some a,b) -> Format.fprintf out "%a:%a => %a" print_ident v print_pterm_wp a print_pterm b
-  | PrePi (_,o,a,b)    ->
-      match o with
-      | None   ->
-          Format.fprintf out "%a -> %a" print_pterm_wp a print_pterm b
-      | Some v ->
-          Format.fprintf out "%a:%a -> %a" print_ident v print_pterm_wp a print_pterm b
+let print_ident = pp_ident
 
-and print_pterm_wp out = function
-  | PreType _ | PreId _ | PreQId _ as t  -> print_pterm out t
-  | t                                    -> Format.fprintf out "(%a)" print_pterm t
+let print_mident = pp_mident
 
-let print_pconst out = function
-    | ( None , id )     -> print_ident out id
-    | ( Some md , id )  -> Format.fprintf out "%a.%a" print_ident md print_ident id
+let print_name = pp_name
 
-let print_const out (m,v) =
-  if ident_eq m !name then print_ident out v
-  else Format.fprintf out "%a.%a" print_ident m print_ident v
+let print_const out cst =
+  let md = md cst in
+  if mident_eq md (name ()) then print_ident out (id cst)
+  else Format.fprintf out "%a" pp_name cst
 
 (* Idents generated from underscores by the parser start with a question mark.
    We have sometimes to avoid to print them because they are not valid tokens. *)
@@ -52,22 +40,10 @@ let print_db_or_underscore out (x,n) =
   if is_dummy_ident x then Format.fprintf out "_"
   else print_ident out x
 
-let rec print_ppattern out = function
-  | PPattern (_,md,id,[])       -> print_pconst out (md,id)
-  | PPattern (_,md,id,lst)      ->
-      Format.fprintf out "%a %a" print_pconst (md,id) (print_list " " print_ppattern) lst
-  | PCondition pte              -> Format.fprintf out "{ %a }" print_pterm pte
-  | PJoker _                    -> Format.fprintf out "_"
-  | PLambda (_,id,p)            -> Format.fprintf out "%a => %a" print_ident id print_ppattern p
-and print_ppattern_wp out = function
-  | PLambda (_,_,_)
-  | PPattern (_,_,_,_::_) as p  -> Format.fprintf out "(%a)" print_ppattern p
-  | p                           -> print_ppattern out p
-
 let fresh_name names base =
   if List.mem base names then
     let i = ref 0 in
-    let name i = hstring (string_of_ident base ^ string_of_int i) in
+    let name i = mk_ident (string_of_ident base ^ string_of_int i) in
     while List.mem (name !i) names do
       incr i
     done;
@@ -88,11 +64,13 @@ let rec subst map = function
   (* if there is a local variable that have the same name as a top level constant,
         then the module has to be printed *)
   (* a hack proposed by Raphael Cauderlier *)
-  | Const (l,m,v) as t       ->
-     if List.mem v map && ident_eq !name m then
-       mk_Const l m (hstring ((string_of_ident m) ^ "." ^ (string_of_ident v)))
-     else
-       t
+  | Const (l,cst) as t       ->
+    let m,v = md cst, id cst in
+    if List.mem v map && mident_eq (name ()) m then
+      let v' = (mk_ident ((string_of_mident m) ^ "." ^ (string_of_ident v))) in
+       mk_Const l (mk_name m v')
+    else
+      t
   | App (f,a,args)     -> mk_App (subst map f)
                                 (subst map a)
                                 (List.map (subst map) args)
@@ -110,7 +88,7 @@ let rec print_term out = function
   | Kind               -> Format.pp_print_string out "Kind"
   | Type _             -> Format.pp_print_string out "Type"
   | DB  (_,x,n)        -> print_db out (x,n)
-  | Const (_,m,v)      -> print_const out (m,v)
+  | Const (_,cst)      -> print_const out cst
   | App (f,a,args)     ->
       Format.fprintf out "@[<hov2>%a@]" (print_list " " print_term_wp) (f::a::args)
   | Lam (_,x,None,f)   -> Format.fprintf out "@[%a =>@ @[%a@]@]" print_ident x print_term f
@@ -135,38 +113,59 @@ let rec print_pattern out = function
   | Var (_,id,i,[]) -> print_db_or_underscore out (id,i)
   | Var (_,id,i,lst)     -> Format.fprintf out "%a %a" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | Brackets t           -> Format.fprintf out "{ %a }" print_term t
-  | Pattern (_,m,v,[])   -> Format.fprintf out "%a" print_const (m,v)
-  | Pattern (_,m,v,pats) -> Format.fprintf out "%a %a" print_const (m,v) (print_list " " print_pattern_wp) pats
+  | Pattern (_,cst,[])   -> Format.fprintf out "%a" print_const cst
+  | Pattern (_,cst,pats) -> Format.fprintf out "%a %a" print_const cst (print_list " " print_pattern_wp) pats
   | Lambda (_,x,p)       -> Format.fprintf out "@[%a => %a@]" print_ident x print_pattern p
 and print_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> Format.fprintf out "(%a)" print_pattern p
   | p -> print_pattern out p
 
-let print_context out ctx =
+let print_typed_context fmt ctx =
   print_list ".\n"
     (fun out (_,x,ty) ->
-      Format.fprintf out "@[<hv>%a:@ %a@]" print_ident x print_term ty
-    ) out (List.rev ctx)
+      Format.fprintf fmt "@[<hv>%a:@ %a@]" print_ident x print_term ty
+    ) fmt (List.rev ctx)
 
-let print_rule out (ctx,pat,te) =
+let print_rule_name fmt rule =
+  let aux b cst =
+    if b || !print_default then
+      if mident_eq (md cst) (Env.get_name ()) then
+        Format.fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
+      else
+      Format.fprintf fmt "@[<h>{%a}@] " print_name cst
+    else
+      Format.fprintf fmt ""
+  in
+    match rule with
+      | Delta(cst) -> aux true cst (* not printed *)
+    | Gamma(b,cst) -> aux b cst
+
+let print_untyped_rule fmt (rule:untyped_rule) =
   let print_decl out (_,id) =
     Format.fprintf out "@[<hv>%a@]" print_ident id
   in
-  Format.fprintf out
-    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) ctx)
-    print_pattern pat
-    print_term te
+  Format.fprintf fmt
+    "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
+    print_rule_name rule.name
+    (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) rule.ctx)
+    print_pattern rule.pat
+    print_term rule.rhs
 
-let print_rule2 out (ctx,pat,te) =
+let print_typed_rule out (rule:typed_rule) =
   let print_decl out (_,id,ty) =
     Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
   in
   Format.fprintf out
     "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_list ", " print_decl) (List.rev ctx)
-    print_pattern pat
-    print_term te
+    (print_list ", " print_decl) rule.ctx
+    print_pattern rule.pat
+    print_term rule.rhs
 
-let print_frule out r = print_rule2 out (r.ctx,Pattern(r.l,r.md,r.id,r.args),r.rhs)
-
+let print_rule_infos out ri =
+  let rule = { name = ri.name ;
+               ctx = ri.ctx ;
+               pat =  pattern_of_rule_infos ri;
+               rhs = ri.rhs
+             }
+  in
+  print_typed_rule out rule
