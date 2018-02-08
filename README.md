@@ -1,37 +1,28 @@
-USER MANUAL FOR DEDUKTI v2.5 (DRAFT)
-See the Dedukti's webpage : https://deducteam.github.io/
-====================================
+User manual for Dedukti (development version)
+=============================================
 
-### INSTALLATION
+### Installation
 
+To compile (and optionally install) `Dedukti` you will need:
+ - `OCaml >= 4.02`,
+ - `Menhir`,
+ - `OCamlBuild` (build only),
+ - `OCamlFind` (build only).
 
-#### FROM OPAM
+#### Installation with Opam
 
-    opam repository add deducteam https://gforge.inria.fr/git/opam-deducteam/opam-deducteam.git
-    opam update
-    opam install dedukti.2.5
+```bash
+opam pin add dedukti https://github.com/Deducteam/Dedukti.git
+```
 
-#### FROM SOURCES
+#### Installation from source
 
-In order to compile `Dedukti` you will need `OCaml` and `Menhir`.
-
-    git clone https://github.com/Deducteam/Dedukti.git
-    cd Dedukti
-    make configure
-    make build
-    sudo make install
-
-Most of the time, you won't change the project. Therefore, you only need to use the commande `make build`.
-However, if you add new modules, or tools, you have to modify the _oasis file.
-To update the Makefile and some other files, you have to run the command `oasis setup` to take care of the
-modifications made in the _oasis file.
-
-
-You can setup Opam to install the development version of Dedukti
-instead of the last stable version by typing the following commands in
-the current directory:
-- opam pin -k git add dedukti .
-- opam upgrade
+```bash
+git clone https://github.com/Deducteam/Dedukti.git
+cd Dedukti
+make
+sudo make install
+```
 
 ### QUICK START
 
