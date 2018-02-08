@@ -1,1 +1,11 @@
-<*/*.cmx>: inline(11), bin_annot, for-pack(Dedukti)
+true: use_menhir
+true: external_tokens(Tokens)
+
+true: package(unix)
+
+"kernel"  : include
+"parser"  : include
+"dkcheck" : include
+"dkdep"   : include
+"dkindent": include
+"dktop"   : include
