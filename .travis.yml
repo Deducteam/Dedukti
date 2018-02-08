@@ -25,7 +25,7 @@ before_install:
   - opam pin add --no-action dedukti .
   - opam install --deps-only dedukti
 install:
-  - make build
+  - make
   - make install
 script:
   - make tests
