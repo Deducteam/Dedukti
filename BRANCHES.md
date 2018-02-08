@@ -28,8 +28,6 @@
 
 **fix-step-reduction** Created by Gaspard Ferey - Toward parametric reduction commands. - PR #14
 
-**adding_lib** Created by Guillaume Genestier - Making a few experiments about continuous integration, in order to check the type-checking of libraries and not only the compilation of Dedukti - PR #26
-
 # Old version branches
 
 **v2.5** merged, Who created this ? Where does it branch from ?
