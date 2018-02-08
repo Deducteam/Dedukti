@@ -1,7 +1,7 @@
-User manual for Dedukti (development version)
+USER MANUAL FOR DEDUKTI (DEVELOPMENT VERSION)
 =============================================
 
-### Installation
+### INSTALLATION
 
 To compile (and optionally install) `Dedukti` you will need:
  - `OCaml >= 4.02`,
@@ -9,13 +9,13 @@ To compile (and optionally install) `Dedukti` you will need:
  - `OCamlBuild` (build only),
  - `OCamlFind` (build only).
 
-#### Installation with Opam
+#### INSTALLATION WITH OPAM
 
 ```bash
 opam pin add dedukti https://github.com/Deducteam/Dedukti.git
 ```
 
-#### Installation from source
+#### INSTALLATION FROM SOURCE
 
 ```bash
 git clone https://github.com/Deducteam/Dedukti.git
@@ -24,17 +24,24 @@ make
 sudo make install
 ```
 
-### QUICK START
+### QUICK START (ASSUMING INSTALLATION)
 
-    $ dkcheck examples/append.dk
-    > File examples/append.dk was successfully checked.
+The command
+```bash
+dkcheck examples/append.dk
+```
+should output the following.
+```
+SUCCESS File 'examples/append.dk' was successfully checked.
+```
 
 ### COMMAND LINE PROGRAMS
 
-* `dkcheck` is the type-checker for `Dedukti`.
-* `dktop` is an interactive wrapper around the type-checker.
-* `dkdep` is a dependency generator for `Dedukti` files.
-* `dkindent` is a program to indent `Dedukti` files.
+The installation provides the following commands:
+ - `dkcheck` is the type-checker for `Dedukti`,
+ - `dktop` is an interactive wrapper around the type-checker,
+ - `dkdep` is a dependency generator for `Dedukti` files,
+ - `dkindent` is a program to indent `Dedukti` files.
 
 ### A SMALL EXAMPLE
 
