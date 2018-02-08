@@ -48,19 +48,20 @@ _build/parser/parser.cmxa: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
 .PHONY: commands
 commands: dkcheck.native dkdep.native dkindent.native dktop.native
 
-dkcheck.native: $(wildcard dkcheck/*.ml) $(wildcard dkcheck/*.mli)
+dkcheck.native: kernel parser $(wildcard dkcheck/*.ml dkcheck/*.mli)
 	@echo "[OPT] $@"
+	echo "$^"
 	$(Q)ocamlbuild -quiet -use-ocamlfind dkcheck/dkcheck.native
 
-dkdep.native: $(wildcard dkdep/*.ml) $(wildcard dkdep/*.mli)
+dkdep.native: kernel parser $(wildcard dkdep/*.ml dkdep/*.mli)
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind dkdep/dkdep.native
 
-dkindent.native: $(wildcard dkindent/*.ml) $(wildcard dkindent/*.mli)
+dkindent.native: kernel parser $(wildcard dkindent/*.ml dkindent/*.mli)
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind dkindent/dkindent.native
 
-dktop.native: $(wildcard dktop/*.ml) $(wildcard dktop/*.mli)
+dktop.native: kernel parser $(wildcard dktop/*.ml dktop/*.mli)
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind dktop/dktop.native
 
@@ -119,6 +120,12 @@ install: uninstall all
 	install -m 755 -p dkdep.native    $(BINDIR)/dkdep
 	install -m 755 -p dkindent.native $(BINDIR)/dkindent
 	install -m 755 -p dktop.native    $(BINDIR)/dktop
+
+#### Test targets ############################################################
+
+.PHONY: tests
+tests: dkcheck.native tests/tests.sh
+	tests/tests.sh 
 
 #### Cleaning targets ########################################################
 
