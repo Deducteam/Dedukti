@@ -50,7 +50,6 @@ commands: dkcheck.native dkdep.native dkindent.native dktop.native
 
 dkcheck.native: kernel parser $(wildcard dkcheck/*.ml dkcheck/*.mli)
 	@echo "[OPT] $@"
-	echo "$^"
 	$(Q)ocamlbuild -quiet -use-ocamlfind dkcheck/dkcheck.native
 
 dkdep.native: kernel parser $(wildcard dkdep/*.ml dkdep/*.mli)
