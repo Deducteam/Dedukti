@@ -1,5 +1,5 @@
 # Current version number of Dedukti.
-VERSION = master
+VERSION = devel
 
 # Compile with "make Q=" to display the commands that are run.
 Q = @
