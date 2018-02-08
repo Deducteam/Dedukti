@@ -72,13 +72,21 @@ META: GNUmakefile
 	@echo 'version = "$(VERSION)"'                                      >> META
 	@echo 'description = "Dedukti library - λΠ-calculus modulo theory"' >> META
 	@echo 'requires = "unix"'                                           >> META
-	@echo 'archive(byte) = "dedukti.cma"'                               >> META
-	@echo 'archive(native) = "dedukti.cmxa"'                            >> META
+	@echo 'archive(byte) = "kernel.cma, parser.cma"'                    >> META
+	@echo 'archive(native) = "kernel.cmxa, parser.cmxa"'                >> META
+	@echo                                                               >> META
+	@echo 'package "kernel" ('                                          >> META
+	@echo '  version = "$(VERSION)"'                                    >> META
+	@echo '  description = "Dedukti kernel"'                            >> META
+	@echo '  requires = "unix"'                                         >> META
+	@echo '  archive(byte) = "kernel.cma"'                              >> META
+	@echo '  archive(native) = "kernel.cmxa"'                           >> META
+	@echo ')'                                                           >> META
 	@echo                                                               >> META
 	@echo 'package "parser" ('                                          >> META
 	@echo '  version = "$(VERSION)"'                                    >> META
 	@echo '  description = "Dedukti parser"'                            >> META
-	@echo '  requires = "unix, dedukti"'                                >> META
+	@echo '  requires = "unix, dedukti.kernel"'                         >> META
 	@echo '  archive(byte) = "parser.cma"'                              >> META
 	@echo '  archive(native) = "parser.cmxa"'                           >> META
 	@echo ')'                                                           >> META
