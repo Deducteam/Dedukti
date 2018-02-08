@@ -12,6 +12,7 @@ type preterm =
   | PreApp  of preterm * preterm * preterm list
   | PreLam  of loc * ident * preterm option * preterm
   | PrePi   of loc * ident option * preterm * preterm
+  | TypeOf  of loc * preterm
 
 val pp_preterm : formatter -> preterm -> unit
 

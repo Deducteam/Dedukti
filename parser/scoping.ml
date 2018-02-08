@@ -8,13 +8,27 @@ let name = ref (mk_mident "unknown")
 let get_db_index ctx id =
   let rec aux n = function
     | [] -> None
-    | x::_ when (ident_eq id x) -> Some n
+    | (x,_)::_ when (ident_eq id x) -> Some n
     | _::lst -> aux (n+1) lst
   in aux 0 ctx
 
 let empty = mk_ident ""
 
-let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
+let type_of_ctx ctx =
+  let ctx = List.filter (fun (id,_) -> id <> empty) ctx in
+  List.fold_left (fun nctx (id, pty) ->
+      match pty with
+      | None -> failwith "type of failed because some variables are untyped"
+      | Some ty -> (dloc,id,ty)::nctx
+    ) [] ctx
+
+let type_of ctx a =
+  let ctx' = type_of_ctx ctx in
+  match Env.infer ~ctx:ctx' Reduction.Whnf a with
+  | OK(ty) -> ty
+  | Err(err) -> Errors.fail_env_error err
+
+let rec t_of_pt (ctx:(ident * term option) list) (pte:preterm) : term =
   match pte with
     | PreType l    -> mk_Type l
     | PreId (l,id) ->
@@ -26,14 +40,24 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
     | PreQId (l,cst) -> mk_Const l cst
     | PreApp (f,a,args) ->
         mk_App (t_of_pt ctx f) (t_of_pt ctx a) (List.map (t_of_pt ctx) args)
-    | PrePi (l,None,a,b) -> mk_Arrow l (t_of_pt ctx a) (t_of_pt (empty::ctx) b)
-    | PrePi (l,Some x,a,b) -> mk_Pi l x (t_of_pt ctx a) (t_of_pt (x::ctx) b)
-    | PreLam  (l,id,None,b) -> mk_Lam l id None (t_of_pt (id::ctx) b)
+    | PrePi (l,None,a,b) -> mk_Arrow l (t_of_pt ctx a) (t_of_pt ((empty, None)::ctx) b)
+    | PrePi (l,Some x,a,b) ->
+      let a' = t_of_pt ctx a in
+      mk_Pi l x a' (t_of_pt ((x,Some a')::ctx) b)
+    | PreLam  (l,id,None,b) -> mk_Lam l id None (t_of_pt ((id,None)::ctx) b)
     | PreLam  (l,id,Some a,b) ->
-        mk_Lam l id (Some (t_of_pt ctx a)) (t_of_pt (id::ctx) b)
+      let a' = Some (t_of_pt ctx a) in
+        mk_Lam l id a' (t_of_pt ((id,a')::ctx) b)
+    | TypeOf(l,a) ->
+      let a' = t_of_pt ctx a in
+      type_of ctx a'
+
+let of_ctx = List.map (fun x -> (x,None))
 
 let scope_term ctx (pte:preterm) : term =
-  t_of_pt (List.map (fun (_,x,_) -> x) ctx) pte
+  t_of_pt (List.map (fun (_,x,_) -> (x,None)) ctx) pte
+
+
 
 (******************************************************************************)
 
@@ -82,17 +106,17 @@ let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
   let rec aux (ctx:ident list): prepattern -> pattern = function
     | PPattern (l,None,id,pargs) ->
       begin
-        match get_db_index ctx id with
+        match get_db_index (of_ctx ctx) id with
         | Some n -> Var (l,id,n,List.map (aux ctx) pargs)
         | None -> Pattern (l,mk_name !name id,List.map (aux ctx) pargs)
       end
     | PPattern (l,Some md,id,pargs) -> Pattern (l,mk_name md id,List.map (aux ctx) pargs)
     | PLambda (l,x,pp) -> Lambda (l,x, aux (x::ctx) pp)
-    | PCondition pte -> Brackets (t_of_pt ctx pte)
+    | PCondition pte -> Brackets (t_of_pt (of_ctx ctx) pte)
     | PJoker l ->
       begin
         let id = get_fresh_name () in
-        match get_db_index ctx id with
+        match get_db_index (of_ctx ctx) id with
         | Some n -> Var (l,id,n,[])
         | None -> assert false
       end
@@ -120,4 +144,4 @@ let scope_rule (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
     | Some (_, id) -> (true,id)
   in
   let name = Gamma(b,mk_name md id) in
-  { name ; ctx= ctx; pat = p_of_pp idents top; rhs = t_of_pt idents pri }
+  { name ; ctx= ctx; pat = p_of_pp idents top; rhs = t_of_pt (of_ctx idents) pri }

@@ -62,6 +62,7 @@
          let x' = fresh_var (List.map fst map) x in
          let map' = (x, PreId (l, x')) :: map in
          PrePi (l, Some x', pre_subst map' ty, pre_subst map' body)
+      | TypeOf(l,a) -> TypeOf(l, pre_subst map a)
 
     let mk_let var term body = pre_subst [(var, term)] body
 
@@ -76,7 +77,7 @@
         | PDef(l,x,t)::tl -> mk_let x t (mk_pi te tl)
 
     let rec preterm_loc = function
-        | PreType l | PreId (l,_) | PreQId (l,_) | PreLam  (l,_,_,_)
+        | PreType l | PreId (l,_) | PreQId (l,_) | PreLam  (l,_,_,_) | TypeOf(l,_)
         | PrePi   (l,_,_,_) -> l
         | PreApp (f,_,_) -> preterm_loc f
 
@@ -366,6 +367,8 @@ sterm           : QID
                 { PreId (fst $1, (of_id (snd $1))) }
                 | LEFTPAR letterm RIGHTPAR
                 { $2 }
+                | LEFTBRA letterm RIGHTBRA
+                { TypeOf (preterm_loc $2, $2) }
                 | TYPE
                 { PreType $1 }
                 | NUM
