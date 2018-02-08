@@ -24,11 +24,9 @@ before_install:
   - eval `opam config env`
   - opam pin add --no-action dedukti .
   - opam install --deps-only dedukti
-  - opam install oasis
+  - opam install dedukti
 install:
-  - oasis setup
-  - ./configure --enable-tests
-  - make build
+  - make install
 script:
   - make test
   - if [[ "$OCAML_VERSION" == "4.06.0" ]];
