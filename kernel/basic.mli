@@ -68,15 +68,13 @@ module LList : sig
 
   val cons : 'a -> 'a t -> 'a t
   val nil : 'a t
+  val make : len:int -> 'a list -> 'a t
+  val of_list : 'a list -> 'a t
+  val of_array : 'a array -> 'a t
+
   val is_empty : _ t -> bool
   val len : _ t -> int
   val lst : 'a t -> 'a list
-  val of_list : 'a list -> 'a t
-
-  val make : len:int -> 'a list -> 'a t
-
-  (** make_unsafe [n] [l] is as make [n] [l] without checking that the length of [l] is [n] *)
-  val make_unsafe : len:int -> 'a list -> 'a t
 
   val map : ('a -> 'b) -> 'a t -> 'b t
   val append_l : 'a t -> 'a list -> 'a t
@@ -96,6 +94,8 @@ val dloc                : loc
 val mk_loc              : int -> int -> loc
 
 val of_loc              : loc -> (int*int)
+
+val pp_loc : Format.formatter -> loc -> unit
 
 val add_path       : string -> unit
 val get_path       : unit -> string list

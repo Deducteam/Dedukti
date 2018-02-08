@@ -4,6 +4,7 @@
   open Tokens
   open Format
 
+  exception EndOfFile
 
   let get_loc lexbuf =
           let start = lexbuf.lex_start_p                in

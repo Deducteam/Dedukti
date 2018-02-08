@@ -2,15 +2,17 @@
 
 Set:Type.
 Prop:Type.
-prf:Prop->Type.
+
+def prf:Prop->Type.
 
 forall:(Set->Prop)->Prop.
 imp:Prop->Prop->Prop.
 [f:Set->Prop] prf (forall f) --> x:Set -> prf (f x)
+
 [A:Prop,B:Prop] prf (imp A B) --> prf A -> prf B.
 
 False:Prop.
-not (A:Prop) := imp A False.
+def not (A:Prop) := imp A False.
 
 in : Set -> Set -> Prop.
 empty : Set.
@@ -31,7 +33,9 @@ min_ax2 : prf (
 	imp (min x s) (in x s)
 	)) ).
 
-stmt := forall (x => not (min x empty)).
+def stmt := forall (x => not (min x empty)).
 
-thm: prf stmt := x => p => (empty_ax x) (min_ax2 empty x p).
+
+def theorem: prf stmt := (x => p => (empty_ax x) (min_ax2 empty x p)).
+
 

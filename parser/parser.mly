@@ -294,7 +294,7 @@ line            : ID COLON letterm DOT
 		| ENDMODULE DOT { umk_module $1 }
                 | command DOT { $1 }
                 | EOF
-                { mk_ending () ; raise Tokens.EndOfFile }
+                { mk_ending () ; raise Lexer.EndOfFile }
 
 
 command         : WHNF  letterm    { mk_command $1 (Whnf (scope_term [] $2)) }

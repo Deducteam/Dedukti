@@ -1,44 +1,11 @@
-# OASIS_START
-# DO NOT EDIT (digest: 2d58bcb7e581d417ae070c2f612bf442)
-# Ignore VCS directories, you can use the same kind of rule outside
-# OASIS_START/STOP if you want to exclude directories that contains
-# useless stuff for the build process
-true: annot, bin_annot
-<**/.svn>: -traverse
-<**/.svn>: not_hygienic
-".bzr": -traverse
-".bzr": not_hygienic
-".hg": -traverse
-".hg": not_hygienic
-".git": -traverse
-".git": not_hygienic
-"_darcs": -traverse
-"_darcs": not_hygienic
-# Library dedukti
-"dedukti.cmxs": use_dedukti
-# Library kernel
-"kernel/kernel.cmxs": use_kernel
-# Library parser
-"parser/parser.cmxs": use_parser
-<parser/*.ml{,i,y}>: use_kernel
-# Executable skcheck
-<skcheck/skcheck.{native,byte}>: use_kernel
-<skcheck/skcheck.{native,byte}>: use_parser
-<skcheck/*.ml{,i,y}>: use_kernel
-<skcheck/*.ml{,i,y}>: use_parser
-# Executable skdep
-<skdep/skdep.{native,byte}>: use_kernel
-<skdep/skdep.{native,byte}>: use_parser
-<skdep/*.ml{,i,y}>: use_kernel
-<skdep/*.ml{,i,y}>: use_parser
-# Executable sktop
-<sktop/sktop.{native,byte}>: use_kernel
-<sktop/sktop.{native,byte}>: use_parser
-<sktop/*.ml{,i,y}>: use_kernel
-<sktop/*.ml{,i,y}>: use_parser
-# Executable skindent
-<skindent/skindent.{native,byte}>: use_kernel
-<skindent/skindent.{native,byte}>: use_parser
-<skindent/*.ml{,i,y}>: use_kernel
-<skindent/*.ml{,i,y}>: use_parser
-# OASIS_STOP
+true: use_menhir
+true: external_tokens(Tokens)
+
+true: package(unix)
+
+"kernel"  : include
+"parser"  : include
+"skcheck" : include
+"skdep"   : include
+"skindent": include
+"sktop"   : include

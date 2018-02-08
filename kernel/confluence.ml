@@ -1,6 +1,10 @@
+open Format
 open Basic
 open Term
 open Rule
+
+let pp_name fmt cst =
+  fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
 
 type confluence_error =
   | NotConfluent of string
@@ -12,7 +16,7 @@ module IdMap = Map.Make(
       type t = ident
       let compare x y = String.compare (string_of_ident x) (string_of_ident y)
     end
-  )
+    )
 
 let confluence_command = ref ""
 let file_out = ref None
@@ -29,10 +33,10 @@ let initialize () =
   else
     begin
       let (file,out) = Filename.open_temp_file "dkcheck" ".trs" in
-      let fmt = Format.formatter_of_out_channel out in
+      let fmt = formatter_of_out_channel out in
       debug 1 "Confluence temporary file:%s" file;
       file_out := (Some (file,out));
-      Format.fprintf fmt "\
+      fprintf fmt "\
 (FUN
   lam : term -> (term -> term) -> term
   app : term -> term -> term
@@ -49,23 +53,21 @@ let initialize () =
 )
 (RULES
   app( lam(m_typ,\\v_x. m_F v_x), m_B) -> m_F(m_B)
-)\n";
+)@.";
     end
 
 
-
 let rec split n lst =
-  if n <= 0 then ( [], lst )
-  else
-    match lst with
-    | [] -> assert false
-    | hd::tl ->
-      let (x,y) = split (n-1) tl in
-      ( hd::x, tl )
+  let rec aux n acc lst =
+    if n <= 0 then (List.rev acc, lst)
+    else match lst with
+      | [] -> assert false
+      | hd::tl -> aux (n-1) (hd :: acc) tl in
+  aux n [] lst
 
-let print_name fmt cst = Format.fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
+let print_name fmt cst = fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
 
-let pp_pattern ar fmt pat = Format.(
+let pp_pattern ar fmt pat =
   let nb = ref 0 in
   let rec aux k fmt = function
   | Var (_,x,n,args) when (n<k) ->
@@ -100,9 +102,8 @@ let pp_pattern ar fmt pat = Format.(
   | Brackets _ -> ( incr nb; fprintf fmt "b_%i" !nb )
   in
   aux 0 fmt pat
-  )
 
-let rec pp_term (ar:int IdMap.t) k fmt term = Format.(
+let rec pp_term (ar:int IdMap.t) k fmt term =
   match term with
   | Const (_,cst) -> fprintf fmt "c_%a" print_name cst;
   | Lam (_,x,Some a,b) ->
@@ -134,7 +135,6 @@ let rec pp_term (ar:int IdMap.t) k fmt term = Format.(
     end
   | Type _  -> fprintf fmt "type"
   | Kind  -> assert false
-  )
 
 let get_bvars r =
   let pat = pattern_of_rule_infos r in
@@ -173,59 +173,58 @@ let get_arities (ctx:typed_context) (p:pattern) : int IdMap.t =
   in
   aux 0 IdMap.empty p
 
-let pp_rule fmt (r:rule_infos) = Format.(
-  let pp_type fmt n =
-    for i=1 to n do fprintf fmt "term -> " done;
-    fprintf fmt "term"
+let pp_rule fmt (r:rule_infos) =
+  let rec pp_type fmt n =
+    fprintf fmt "term";
+    if n > 0 then (fprintf fmt " -> "; pp_type fmt (n-1))
   in
   let pat = pattern_of_rule_infos r in
   let arities = get_arities r.ctx pat in
   (* Variables*)
   fprintf fmt "(VAR\n";
   IdMap.iter (fun x n -> fprintf fmt "  m_%a : %a\n" pp_ident x pp_type n) arities;
-  List.iter  (fun x -> fprintf fmt "  v_%a : term\n" pp_ident x) (get_bvars r) ;
+  List.iter  (fun x   -> fprintf fmt "  v_%a : term\n" pp_ident x) (get_bvars r) ;
   List.iteri (fun i _ -> fprintf fmt "  b_%i : term\n" (i+1)) (r.constraints) ;
-  fprintf fmt ")\n";
+  fprintf fmt ")@.";
   (* Rule *)
-  fprintf fmt "(RULES %a -> %a )\n\n" (pp_pattern arities) pat (pp_term arities 0) r.rhs
-  )
+  fprintf fmt "(RULES %a -> %a )@.@." (pp_pattern arities) pat (pp_term arities 0) r.rhs
 
 let check () : (unit,confluence_error) error =
   match !file_out with
   | None -> OK ()
   | Some (file,out) ->
-      begin
-(*         debug "Checking confluence..."; *)
-        let cmd = !confluence_command ^ " -p " ^ file in
-        flush out;
-        let input = Unix.open_process_in cmd in
-        try (
-          let answer = input_line input in
-          let _ = Unix.close_process_in input in
-          if ( String.compare answer "YES" == 0 ) then OK ()
-          else (
-            do_not_erase_confluence_file := true;
-            if ( String.compare answer "NO" == 0 ) then
-              Err (NotConfluent cmd)
-            else if ( String.compare answer "MAYBE" == 0 ) then
-              Err (MaybeConfluent cmd)
-            else Err (CCFailure cmd)
-          ) )
-        with End_of_file -> Err (CCFailure cmd)
-      end
+    begin
+      flush out;
+      let cmd = !confluence_command ^ " -p " ^ file in
+      debug 1 "Checking confluence : %s" cmd;
+      let input = Unix.open_process_in cmd in
+      try (
+        let answer = input_line input in
+        let _ = Unix.close_process_in input in
+        if ( String.compare answer "YES" == 0 ) then OK ()
+        else (
+          do_not_erase_confluence_file := true;
+          if ( String.compare answer "NO" == 0 ) then
+            Err (NotConfluent cmd)
+          else if ( String.compare answer "MAYBE" == 0 ) then
+            Err (MaybeConfluent cmd)
+          else Err (CCFailure cmd)
+        ) )
+      with End_of_file -> Err (CCFailure cmd)
+    end
 
 let add_constant cst =
   match !file_out with
   | None -> ()
   | Some (file,out) ->
-    let fmt = Format.formatter_of_out_channel out in
-    Format.fprintf fmt "(FUN c_%a : term)\n" print_name cst
+    let fmt = formatter_of_out_channel out in
+    fprintf fmt "(FUN c_%a : term)@." pp_name cst
 
 let add_rules lst =
   match !file_out with
   | None -> ()
   | Some (file,out) ->
-    let fmt = Format.formatter_of_out_channel out in
+    let fmt = formatter_of_out_channel out in
     List.iter (pp_rule fmt) lst
 
 let finalize () =

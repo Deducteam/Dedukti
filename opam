@@ -1,4 +1,5 @@
 opam-version: "1.2"
+<<<<<<< HEAD
 name: "sukerujo"
 version: "dev"
 maintainer: "dedukti-dev@inria.fr"
@@ -16,4 +17,8 @@ remove: [
 ]
 build-doc: [ "ocaml" "setup.ml" "-doc" ]
 available: [ ocaml-version >= "4.02" ]
-depends: ["menhir" "ocamlbuild"]
+depends: [
+  "menhir"
+  "ocamlbuild" {build}
+  "ocamlfind" {build}
+]

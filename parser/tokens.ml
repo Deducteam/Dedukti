@@ -1,7 +1,5 @@
 open Basic
 
-exception EndOfFile
-
 type token =
   | UNDERSCORE  of loc
   | TYPE        of loc

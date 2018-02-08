@@ -7,11 +7,14 @@ module P = Parser.Make(Checker)
 let parse lb =
   try
     P.prelude Lexer.token lb ;
-    while true do P.line Lexer.token lb done
+    while true do P.line Lexer.token lb done;
   with
-    | Tokens.EndOfFile -> ()
+    | Lexer.EndOfFile -> ()
     | P.Error       -> Errors.fail (Lexer.get_loc lb)
                          "Unexpected token '%s'." (Lexing.lexeme lb)
+
+let print_version () =
+  Printf.printf "Dedukti %s\n%!" Version.version
 
 let args = [
   ("-v"      , Arg.Set    Checker.verbose        , "Verbose mode" ) ;
@@ -20,7 +23,7 @@ let args = [
   ("-nc"     , Arg.Clear  Errors.color           , "Disable colored output" ) ;
   ("-stdin"  , Arg.Set    run_on_stdin           , "Use standart input" ) ;
   ("-r"      , Arg.Set    Signature.ignore_redecl, "Ignore redeclaration" ) ;
-  ("-version", Arg.Unit   Version.print_version  , "Version" ) ;
+  ("-version", Arg.Unit   print_version          , "Version" ) ;
   ("-coc"    , Arg.Set    Typing.coc             , "Typecheck the Calculus of Construction" ) ;
   ("-autodep", Arg.Set    Signature.autodep      ,
    "Automatically handle dependencies (experimental)") ;

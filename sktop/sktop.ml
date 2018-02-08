@@ -10,7 +10,7 @@ let rec parse lb =
     | P.Error   ->
         Printf.eprintf "Unexpected token '%s'.\n" (Lexing.lexeme lb);
         flush stderr; parse lb
-    | Tokens.EndOfFile -> exit 0
+    | Lexer.EndOfFile -> exit 0
 
 let  _ =
   print_string "Welcome to Sukerujo\n";

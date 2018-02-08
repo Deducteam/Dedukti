@@ -42,14 +42,6 @@ type constr =
     or contains brackets, then constraints are generated *)
 val check_patterns : int -> pattern list -> (int * wf_pattern list * constr list)
 
-(** {2 Contexts} *)
-
-(** context of rules after they have been parsed *)
-type untyped_context = (loc * ident) list
-
-(** type checking rules implies to give a type to the variables of the context *)
-type typed_context = ( loc * ident * term ) list
-
 (** {2 Rewrite Rules} *)
 
 (** Delta rules are the rules associated to the definition of a constant while Gamma rules are the rules of lambda pi modulo. The first paraneter of Gamma indicates if the name of the rule has been given by the user. *)
@@ -94,7 +86,7 @@ type rule_infos = {
   args : pattern list; (** arguments list of the pattern constant *)
   rhs : term; (** right hand side of the rule *)
   esize : int; (** size of the context *)
-  l_args : wf_pattern array; (** free pattern without constraint *)
+  pats : wf_pattern array; (** free pattern without constraint *)
   constraints : constr list; (** constraints generated from the pattern to the free pattern *)
 }
 
