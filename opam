@@ -1,24 +1,18 @@
 opam-version: "1.2"
-<<<<<<< HEAD
 name: "sukerujo"
-version: "dev"
+version: "devel"
 maintainer: "dedukti-dev@inria.fr"
 author: "Raphaël Cauderlier"
 homepage: "http://deducteam.gforge.inria.fr/sukerujo"
-bug-reports: "https://gforge.inria.fr/tracker/?func=browse&group_id=4434&atid=13818"
-dev-repo: "https://gforge.inria.fr/git/dedukti/dedukti.git#sukerujo"
-build: [
-  ["ocaml" "setup.ml" "-configure" "--prefix" prefix]
-  ["ocaml" "setup.ml" "-build"]
-]
-install: ["ocaml" "setup.ml" "-install"]
-remove: [
-  ["ocaml" "%{etc}%/dedukti/setup.ml" "-C" "%{etc}%/dedukti" "-uninstall"]
-]
-build-doc: [ "ocaml" "setup.ml" "-doc" ]
+bug-reports: "https://github.com/Deducteam/Dedukti/issues"
+dev-repo: "https://github.com/Deducteam/Dedukti/tree/sukerujo"
+build: [make]
+install: [make "install"]
+remove: [make "uninstall"]
 available: [ ocaml-version >= "4.02" ]
 depends: [
   "menhir"
   "ocamlbuild" {build}
   "ocamlfind" {build}
+  "dedukti" {= devel}
 ]
