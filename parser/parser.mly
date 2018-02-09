@@ -215,6 +215,7 @@
 %token LEFTSQU
 %token RIGHTSQU
 %token RECORD
+%token TYPEOF
 %token <Basic.loc> WHNF
 %token <Basic.loc> HNF
 %token <Basic.loc> SNF
@@ -371,7 +372,7 @@ sterm           : QID
                 { PreId (fst $1, (of_id (snd $1))) }
                 | LEFTPAR letterm RIGHTPAR
                 { $2 }
-                | LEFTBRA letterm RIGHTBRA
+                | TYPEOF letterm
                 { TypeOf (preterm_loc $2, $2) }
                 | TYPE
                 { PreType $1 }

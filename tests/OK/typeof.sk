@@ -4,4 +4,5 @@ pair : A : Type -> B : Type -> A -> B -> Type.
 
 bool : Type.
 
-def test : bool -> bool -> Type := T : bool => F : bool => pair {T} {F} T F.
+def test (T : bool) (F : bool) : Type :=
+  pair (%typeof T) (%typeof F) T F.

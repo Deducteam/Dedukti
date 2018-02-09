@@ -59,6 +59,7 @@ rule token = parse
   | "Type"      { TYPE ( get_loc lexbuf )       }
   | "def"      { KW_DEF ( get_loc lexbuf )       }
   | "thm"      { KW_THM ( get_loc lexbuf )       }
+  | "%typeof"   { TYPEOF }
   | "#NAME" space+ (modname as md)
   { NAME (get_loc lexbuf , mk_mident md) }
   | "#NEWMODULE" space+ (modname as md)
