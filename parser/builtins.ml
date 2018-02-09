@@ -37,7 +37,7 @@ let rec mk_string (l, s) =
   if String.length s = 0 then
     PreQId(l, mk_name modname _string_nil)
   else
-    PreApp(PreQId(l, modname, _string_cons),
+    PreApp(PreQId(l, mk_name modname _string_cons),
            mk_char (l, s.[0]),
            [mk_string (l, String.sub s 1 (String.length s - 1))])
 
@@ -53,18 +53,18 @@ let rec mk_string_patt (l, s) =
 exception Not_atomic_builtin
 
 let rec term_to_int = function
-  | Const (_, m, v)
-       when ident_eq m modname &&
-              ident_eq v _0 -> 0
-  | App (Const (_, m, v), a, [])
-       when ident_eq m modname &&
-              ident_eq v _S -> term_to_int a + 1
+  | Const (_, mv)
+       when mident_eq (md mv) modname &&
+              ident_eq (id mv) _0 -> 0
+  | App (Const (_, mv), a, [])
+       when mident_eq (md mv) modname &&
+              ident_eq (id mv) _S -> term_to_int a + 1
   | _ -> raise Not_atomic_builtin
 
 let term_to_char = function
-  | App (Const (_, m, v), a, [])
-       when ident_eq m modname &&
-              ident_eq v _char_of_nat ->
+  | App (Const (_, mv), a, [])
+       when mident_eq (md mv) modname &&
+              ident_eq (id mv) _char_of_nat ->
      begin
        try
          char_of_int (term_to_int a)
@@ -74,12 +74,12 @@ let term_to_char = function
   | _ -> raise Not_atomic_builtin
 
 let rec term_to_string = function
-  | Const (_, m, v)
-       when ident_eq m modname &&
-              ident_eq v _string_nil -> ""
-  | App (Const (_, m, v), a, [b])
-       when ident_eq m modname &&
-              ident_eq v _string_cons ->
+  | Const (_, mv)
+       when mident_eq (md mv) modname &&
+              ident_eq (id mv) _string_nil -> ""
+  | App (Const (_, mv), a, [b])
+       when mident_eq (md mv) modname &&
+              ident_eq (id mv) _string_cons ->
      Printf.sprintf "%c%s" (term_to_char a) (term_to_string b)
   | _ -> raise Not_atomic_builtin
 
@@ -96,12 +96,12 @@ let print_term out t =
          Format.fprintf out "\"%s\"" (term_to_string t)
 
 let rec pattern_to_int = function
-  | Pattern (_, m, v, [])
-       when ident_eq m modname &&
-              ident_eq v _0 -> 0
-  | Pattern (_, m, v, [a])
-       when ident_eq m modname &&
-              ident_eq v _S -> pattern_to_int a + 1
+  | Pattern (_, mv, [])
+       when mident_eq (md mv) modname &&
+              ident_eq (id mv) _0 -> 0
+  | Pattern (_, mv, [a])
+       when mident_eq (md mv) modname &&
+              ident_eq (id mv) _S -> pattern_to_int a + 1
   | _ -> raise Not_atomic_builtin
 
 let print_pattern out p =
