@@ -1,0 +1,15 @@
+#NAME self_dep2.
+
+def A : Type.
+U : A -> Type.
+a : A.
+
+def B : Type.
+V : B -> Type.
+b : B.
+
+[] A --> V b.
+[] B --> U a.
+
+#CHECK a, V b.
+#CHECK b, U a.

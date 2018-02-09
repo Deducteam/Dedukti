@@ -4,23 +4,19 @@ open Term
 
 (* Miller's patterns *)
 type pattern =
-  | Var         of loc*ident*int*pattern list (* Y x1 ... xn *)
-  | Pattern     of loc*ident*ident*pattern list
-  | Lambda      of loc*ident*pattern
+  | Var         of loc * ident * int * pattern list (* Y x1 ... xn *)
+  | Pattern     of loc * name * pattern list
+  | Lambda      of loc * ident * pattern
   | Brackets    of term
 
 type wf_pattern =
   | LJoker
   | LVar         of ident * int * int list
   | LLambda      of ident * wf_pattern
-  | LPattern     of ident * ident * wf_pattern array
+  | LPattern     of name * wf_pattern array
   | LBoundVar    of ident * int * wf_pattern array
 
-type untyped_context = ( loc * ident ) list
-
-type typed_context = ( loc * ident * term ) list
-
-type rule_name = Delta of ident * ident | Gamma of bool * ident * ident
+type rule_name = Delta of name | Gamma of bool * name
 
 type 'a rule =
   {
@@ -43,14 +39,15 @@ type rule_infos = {
   l : loc;
   name : rule_name ;
   ctx : typed_context;
-  md : ident;
-  id : ident;
+  cst : name;
   args : pattern list;
   rhs : term;
   esize : int;
-  l_args : wf_pattern array;
+  pats : wf_pattern array;
   constraints : constr list;
 }
+
+let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
 type rule_error =
   | BoundVariableExpected of pattern
@@ -67,9 +64,9 @@ let rec pp_pattern out pattern =
   match pattern with
   | Var (_, x, n, []) -> fprintf out "%a[%i]" pp_ident x n
   | Var (_, x, n, lst) -> fprintf out "%a[%i] %a" pp_ident x n (pp_list " " pp_pattern_wp) lst
-  | Pattern (_, m, v,[]) -> fprintf out "%a.%a" pp_ident m pp_ident v
-  | Pattern (_, m, v, pats) ->
-    fprintf out "%a.%a %a" pp_ident m pp_ident v (pp_list " " pp_pattern_wp) pats
+  | Pattern (_, n,[]) -> fprintf out "%a" pp_name n
+  | Pattern (_, n, pats) ->
+    fprintf out "%a %a" pp_name n (pp_list " " pp_pattern_wp) pats
   | Lambda (_, x, p) -> fprintf out "%a => %a" pp_ident x pp_pattern p
   | Brackets t -> fprintf out "{ %a }" pp_term t
 
@@ -84,9 +81,9 @@ let rec pp_wf_pattern fmt wf_pattern =
   | LVar (x, n, []) -> fprintf fmt "%a[%i]" pp_ident x n
   | LVar (x, n, lst) ->
     fprintf fmt "%a[%i] %a" pp_ident x n (pp_list " " pp_print_int) lst
-  | LPattern (m, v, pats) when Array.length pats = 0 -> fprintf fmt "%a.%a" pp_ident m pp_ident v
-  | LPattern (m, v, pats) ->
-    fprintf fmt "%a.%a %a" pp_ident m pp_ident v
+  | LPattern (n, pats) when Array.length pats = 0 -> fprintf fmt "%a" pp_name n
+  | LPattern (n, pats) ->
+    fprintf fmt "%a %a" pp_name n
       (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
   | LLambda (x, p) -> fprintf fmt "%a => %a" pp_ident x pp_wf_pattern p
   | LBoundVar(x, n, pats) when Array.length pats = 0 -> fprintf fmt "%a[%i]" pp_ident x n
@@ -99,7 +96,7 @@ and pp_wf_pattern_wp fmt wf_pattern =
   | _ -> pp_wf_pattern fmt wf_pattern
 
 let get_loc_pat = function
-  | Var (l,_,_,_) | Pattern (l,_,_,_)
+  | Var (l,_,_,_) | Pattern (l,_,_)
   | Lambda (l,_,_) -> l
   | Brackets t -> get_loc t
 
@@ -114,16 +111,16 @@ let pp_typed_context fmt ctx =
     fmt (List.rev ctx)
 
 let pp_rule_name fmt rule_name =
-  let sort,md,id =
+  let sort,n =
     match rule_name with
-    | Delta(md,id) -> "Delta", md,id
-    | Gamma(b,md,id) ->
+    | Delta(n) -> "Delta", n
+    | Gamma(b,n) ->
       if b then
-        "Gamma", md,id
+        "Gamma", n
       else
-        "Gamma (default)", md, id
+        "Gamma (default)", n
   in
-  fprintf fmt "%s: %a.%a" sort pp_ident md pp_ident id
+  fprintf fmt "%s: %a" sort pp_name n
 
 (* FIXME: factorize this function with the follozing one *)
 let pp_untyped_rule fmt (rule:untyped_rule) =
@@ -143,23 +140,22 @@ let pp_typed_rule fmt (rule:typed_rule) =
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
   let rule = { name = r.name; ctx = r.ctx;
-               pat = Pattern (r.l, r.md, r.id,r.args);
+               pat = pattern_of_rule_infos r;
                rhs = r.rhs } in
   pp_typed_rule out rule
 
 let pattern_to_term p =
   let rec aux k = function
     | Brackets t -> t
-    | Pattern (l,m,v,[]) -> mk_Const l m v
+    | Pattern (l,n,[]) -> mk_Const l n
     | Var (l,x,n,[]) -> mk_DB l x n
-    | Pattern (l,m,v,a::args) ->
-        mk_App (mk_Const l m v) (aux k a) (List.map (aux k) args)
+    | Pattern (l,n,a::args) ->
+        mk_App (mk_Const l n) (aux k a) (List.map (aux k) args)
     | Var (l,x,n,a::args) ->
         mk_App (mk_DB l x n) (aux k a) (List.map (aux k) args)
     | Lambda (l,x,pat) -> mk_Lam l x None (aux (k+1) pat)
   in
-    aux 0 p
-
+  aux 0 p
 
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
 
@@ -175,7 +171,7 @@ let allow_non_linear = ref false
 (* This function checks that the pattern is a Miller pattern and extracts non-linearity and bracket constraints from a list of patterns. *)
 (* TODO : cut this function in smaller ones *)
 let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * constr list =
-  let br = hstring "{_}" in  (* FIXME : can be replaced by dmark? *)
+  let br = mk_ident "{_}" in  (* FIXME : can be replaced by dmark? *)
   let rec all_distinct l =
     match l with
     | [] -> true
@@ -222,9 +218,9 @@ let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * con
         with
         | Subst.UnshiftExn -> raise (RuleExn (VariableBoundOutsideTheGuard t))
       end
-    | Pattern (_,m,v,args) ->
+    | Pattern (_,n,args) ->
       let (args2,s2) = (fold_map (aux k) s args) in
-      ( LPattern(m,v,Array.of_list args2) , s2 )
+      ( LPattern(n,Array.of_list args2) , s2 )
   in
   let lin_infos = {next_fvar = esize; cstr = []; seen = IntSet.empty; } in
   let (pats,r) = fold_map (aux 0) lin_infos pats in
@@ -242,7 +238,7 @@ let get_nb_args (esize:int) (p:pattern) : int array =
     | Var (_,_,n,args) when n<k -> List.iter (aux k) args
     | Var (_,id,n,args) -> arr.(n-k) <- min (arr.(n-k)) (List.length args)
     | Lambda (_,_,pp) -> aux (k+1) pp
-    | Pattern (_,_,_,args) -> List.iter (aux k) args
+    | Pattern (_,_,args) -> List.iter (aux k) args
   in
     ( aux 0 p ; arr )
 
@@ -274,23 +270,23 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
   try
     begin
       let esize = List.length r.ctx in
-      let (l,md,id,args) = match r.pat with
-        | Pattern (l,md,id,args) -> (l,md,id,args)
+      let (l,cst,args) = match r.pat with
+        | Pattern (l,cst,args) -> (l, cst, args)
         | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
         | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
       in
       let nb_args = get_nb_args esize r.pat in
-      let _ = check_nb_args nb_args r.rhs in
+      ignore(check_nb_args nb_args r.rhs);
       let (esize2,pats2,cstr) = check_patterns  esize args in
       let is_nl = not (is_linear cstr) in
       if is_nl && (not !allow_non_linear) then
         Err (NonLinearRule r)
       else
         let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in
-        OK { l ; name = r.name ; ctx = r.ctx ; md ; id ; args ; rhs = r.rhs ;
+        OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
              esize = esize2 ;
-             l_args = Array.of_list pats2 ;
+             pats = Array.of_list pats2 ;
              constraints = cstr ; }
     end
   with
-      RuleExn e -> Err e
+    RuleExn e -> Err e

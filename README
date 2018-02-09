@@ -1,8 +1,0 @@
-See the Dedukti's and Sukerujo's webpages for manuals or tutorials. http://dedukti.gforge.inria.fr/
-http://deducteam.gforge.inria.fr/sukerujo/
-
-You can setup Opam to install the development version of Sukerujo
-instead of the last stable version by typing the following commands in
-the current directory:
-- opam pin -k git add sukerujo .#sukerujo
-- opam upgrade

@@ -4,25 +4,11 @@ open Rule
 open Format
 
 type dtree_error =
-  | HeadSymbolMismatch of loc * ident * ident
-  | ArityMismatch of loc * ident
+  | HeadSymbolMismatch of loc * name * name
+  | ArityMismatch      of loc * name
+  | ArityInnerMismatch of loc * ident * ident
 
 exception DtreeExn of dtree_error
-
-(* A subtype of rule_infos with only the informations that the dtree need *)
-type dtree_rule =
-  { loc:loc ;
-    pats:wf_pattern array ;
-    right:term ;
-    constraints:constr list ;
-    esize:int ; }
-
-let to_dtree_rule (r:rule_infos) : dtree_rule =
-  { loc = r.l ;
-    pats = r.l_args ;
-    right = r.rhs ;
-    constraints = r.constraints ;
-    esize = r.esize ; }
 
 (*
  * there is one matrix per head symbol that represents all the rules associated to that symbol.
@@ -35,10 +21,9 @@ let to_dtree_rule (r:rule_infos) : dtree_rule =
  *              n_i records the depth of the column (number of binders under which it stands)
  *)
 type matrix =
-    { col_depth: int array;
-      first:dtree_rule ;
-      others:dtree_rule list ; }
-
+  { col_depth: int array;
+    first    : rule_infos ;
+    others   : rule_infos list ; }
 
 (* mk_matrix lst builds a matrix out of the non-empty list of rules [lst]
 *  It is checked that all rules have the same head symbol and arity.
@@ -46,49 +31,46 @@ type matrix =
 let mk_matrix : rule_infos list -> matrix = function
   | [] -> assert false
   | r1::rs ->
-    let n = Array.length r1.l_args in
-    let o = List.map (
-        fun r2 ->
-          if not (ident_eq r1.id r2.id) then
-            raise (DtreeExn (HeadSymbolMismatch (r2.l,r2.id,r1.id)))
-          else
-          if n != Array.length r2.l_args then
-            raise (DtreeExn (ArityMismatch (r2.l,r1.id)))
-          else
-            to_dtree_rule r2
-      ) rs in
-    { first=(to_dtree_rule r1); others=o; col_depth=Array.make n 0 ;}
+    let n = Array.length r1.pats in
+    List.iter (
+      fun r2 ->
+        if not (name_eq r1.cst r2.cst)
+        then raise (DtreeExn (HeadSymbolMismatch (r2.l,r2.cst,r1.cst)));
+        if n != Array.length r2.pats
+        then raise (DtreeExn (ArityMismatch (r2.l,r1.cst)))
+      ) rs;
+    { first=r1; others=rs; col_depth=Array.make n 0; }
 
 (* Remove a line of the matrix [mx] and return None if the new matrix is Empty. *)
 let pop mx =
   match mx.others with
-    | [] -> None
+  | [] -> None
     | f::o -> Some { mx with first=f; others=o; }
 
-let filter (f:dtree_rule -> bool) (mx:matrix) : matrix option =
+let filter (f:rule_infos -> bool) (mx:matrix) : matrix option =
   match List.filter f (mx.first::mx.others) with
-    | [] -> None
-    | f::o -> Some { mx with first=f; others=o; }
+  | [] -> None
+  | f::o -> Some { mx with first=f; others=o; }
 
 (* Keeps only the rules with a lambda on column [c] *)
 let filter_on_lambda c r =
   match r.pats.(c) with
-    | LLambda _ | LJoker | LVar _ -> true
-    | _ -> false
+  | LLambda _ | LJoker | LVar _ -> true
+  | _ -> false
 
 (* Keeps only the rules with a bound variable of index [n] on column [c] *)
 let filter_on_bound_variable c n r =
   match r.pats.(c) with
-    | LBoundVar (_,m,_) when n==m -> true
-    | LVar _ | LJoker -> true
-    | _ -> false
+  | LBoundVar (_,m,_) when n==m -> true
+  | LVar _ | LJoker -> true
+  | _ -> false
 
 (* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
-let filter_on_pattern c m v r =
+let filter_on_pattern c cst r =
   match r.pats.(c) with
-    | LPattern (m',v',_) when ident_eq v v' && ident_eq m m' -> true
-    | LVar _ | LJoker -> true
-    | _ -> false
+  | LPattern (cst',_) when name_eq cst cst' -> true
+  | LVar _ | LJoker -> true
+  | _ -> false
 
 (* Keeps only the rules with a joker or a variable on column [c] *)
 let filter_default (mx:matrix) (c:int) : matrix option =
@@ -99,8 +81,8 @@ let filter_default (mx:matrix) (c:int) : matrix option =
   ) mx
 
 type case =
-  | CConst of int*ident*ident
-  | CDB    of int*int
+  | CConst of int * name
+  | CDB    of int * int
   | CLam
 
 type arg_pos = { position:int; depth:int }
@@ -137,53 +119,59 @@ let rec pp_dtree t fmt dtree =
       pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
   | Switch (i,cases,def)->
     let pp_case out = function
-      | CConst (_,m,v), g ->
-        fprintf out "\n%sif $%i=%a.%a then %a" tab i pp_ident m pp_ident v (pp_dtree (t+1)) g
+      | CConst (_,cst), g ->
+        fprintf out "\n%sif $%i=%a then %a" tab i pp_name cst (pp_dtree (t+1)) g
       | CLam, g -> fprintf out "\n%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
       | CDB (_,n), g -> fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (pp_dtree (t+1)) g
     in
     fprintf fmt "%a\n%sdefault: %a" (pp_list "" pp_case)
       cases tab (pp_def (t+1)) def
 
-and pp_def t fmt def =
-  match def with
-  | None        -> fprintf fmt "FAIL"
-  | Some g      -> pp_dtree t fmt g
+and pp_def t fmt = function
+  | None   -> fprintf fmt "FAIL"
+  | Some g -> pp_dtree t fmt g
 
 let pp_dtree fmt dtree = pp_dtree 0 fmt dtree
 
-type rw = ident * ident * int * dtree
+type rw = name * int * dtree
 
-let pp_rw fmt (m,v,i,g) =
-  fprintf fmt "GDT for '%a.%a' with %i argument(s): %a"
-    pp_ident m pp_ident v i pp_dtree g
+let pp_rw fmt (cst,i,g) =
+  fprintf fmt "GDT for '%a' with %i argument(s): %a"
+    pp_name cst i pp_dtree g
 
 
 (* Specialize the rule [r] on column [c]
- * i.e. remove colum [c] and append [nargs] new column at the end.
+ * i.e. replace colum [c] with a joker and append [nargs] new column at the end.
  * These new columns contain
  * - the arguments if column [c] is a pattern
  * - or the body if column [c] is a lambda
  * - or Jokers otherwise
 * *)
-let specialize_rule (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
+let specialize_rule (c:int) (nargs:int) (r:rule_infos) : rule_infos =
   let size = Array.length r.pats in
   let aux i =
     if i < size then
       if i==c then
         match r.pats.(c) with
-          | LVar _ as v -> v
-          | _ -> LJoker
+        | LVar _ as v -> v
+        | _ -> LJoker
       else r.pats.(i)
     else (* size <= i < size+nargs *)
+      let check_args id pats =
+        if ( Array.length pats != nargs ) then
+          raise (DtreeExn(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
+        pats.( i - size)
+      in
       match r.pats.(c) with
         | LJoker | LVar _ -> LJoker
-        | LPattern (_,_,pats2) | LBoundVar (_,_,pats2) ->
-            ( assert ( Array.length pats2 == nargs );
-              pats2.( i - size ) )
+        | LPattern (cst,pats2) ->
+          let id = id cst in
+          check_args id pats2
+        | LBoundVar (id,_,pats2) ->
+          check_args id pats2
         | LLambda (_,p) -> ( assert ( nargs == 1); p )
   in
-    { r with pats = Array.init (size+nargs) aux }
+  { r with pats = Array.init (size+nargs) aux }
 
 (* Specialize the col_infos field of a matrix.
  * Invalid for specialization by lambda. *)
@@ -193,7 +181,7 @@ let spec_col_depth (c:int) (nargs:int) (col_depth: int array) : int array =
     if i < size then col_depth.(i)
     else (* < size+nargs *) col_depth.(c)
   in
-    Array.init (size+nargs) aux
+  Array.init (size+nargs) aux
 
 (* Specialize the col_infos field of a matrix: the lambda case. *)
 let spec_col_depth_l (c:int) (col_depth: int array) : int array =
@@ -209,34 +197,34 @@ let specialize mx c case : matrix =
   let (mx_opt,nargs) = match case with
     | CLam -> ( filter (filter_on_lambda c) mx , 1 )
     | CDB (nargs,n) -> ( filter (filter_on_bound_variable c n) mx , nargs )
-    | CConst (nargs,m,v) -> ( filter (filter_on_pattern c m v) mx , nargs )
+    | CConst (nargs,cst) -> ( filter (filter_on_pattern c cst) mx , nargs )
   in
   let new_cn = match case with
     | CLam -> spec_col_depth_l c mx.col_depth
     | _ ->    spec_col_depth c nargs mx.col_depth
   in
     match mx_opt with
-      | None -> assert false
-      | Some mx2 ->
-          { first = specialize_rule c nargs mx2.first;
-            others = List.map (specialize_rule c nargs) mx2.others;
-            col_depth = new_cn;
-          }
+    | None -> assert false
+    | Some mx2 ->
+      { first = specialize_rule c nargs mx2.first;
+        others = List.map (specialize_rule c nargs) mx2.others;
+        col_depth = new_cn;
+      }
 
 (* ***************************** *)
 
 let eq a b =
   match a, b with
-    | CLam, CLam -> true
-    | CDB (_,n), CDB (_,n') when n==n' -> true
-    | CConst (_,m,v), CConst (_,m',v') when (ident_eq v v' && ident_eq m m') -> true
-    | _, _ -> false
+  | CLam, CLam -> true
+  | CDB (_,n), CDB (_,n') when n==n' -> true
+  | CConst (_,cst), CConst (_,cst') when (name_eq cst cst') -> true
+  | _, _ -> false
 
 let partition (mx:matrix) (c:int) : case list =
   let aux lst li =
     let add h = if List.exists (eq h) lst then lst else h::lst in
       match li.pats.(c) with
-        | LPattern (m,v,pats)  -> add (CConst (Array.length pats,m,v))
+        | LPattern (cst,pats)  -> add (CConst (Array.length pats,cst))
         | LBoundVar (_,n,pats) -> add (CDB (Array.length pats,n))
         | LLambda _ -> add CLam
         | LVar _ | LJoker -> lst
@@ -245,10 +233,9 @@ let partition (mx:matrix) (c:int) : case list =
 
 (* ***************************** *)
 
-let array_to_llist arr =
-  LList.make_unsafe (Array.length arr) (Array.to_list arr)
+let array_to_llist arr = LList.of_array arr
 
-let get_first_term mx = mx.first.right
+let get_first_term mx = mx.first.rhs
 let get_first_constraints mx = mx.first.constraints
 
 (* Extracts the matching_problem from the first line. *)
@@ -279,7 +266,8 @@ let get_first_matching_problem mx =
          | _ -> assert false
       ) mx.first.pats ;
     ( Array.iter ( fun r -> assert (r.position >= 0 ) ) arr1 );
-    if !mp then MillerPattern (array_to_llist arr2)
+    if !mp
+    then MillerPattern (array_to_llist arr2)
     else Syntactic (array_to_llist arr1)
 
 (******************************************************************************)

@@ -1,4 +1,4 @@
-val modname : Basic.ident
+val modname : Basic.mident
 
 val mk_num : Basic.loc * string -> Preterm.preterm
 val mk_num_patt : Basic.loc * string -> Preterm.prepattern

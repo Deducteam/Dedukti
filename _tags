@@ -1,8 +1,11 @@
-#default directories used by Sukerujo
-"kernel" or "utils" or "parser": include
+true: use_menhir
+true: external_tokens(Tokens)
 
-#only applied for skcheck, sktop etc...
-not <*.cmxa>: use_menhir, use_unix
+true: package(unix)
 
-#applied for every compiled module
-<*/*.cmx>: inline(11), optimize(3), bin_annot, for-pack(Dedukti)
+"kernel"  : include
+"parser"  : include
+"skcheck" : include
+"skdep"   : include
+"skindent": include
+"sktop"   : include
