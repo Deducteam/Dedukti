@@ -1,0 +1,11 @@
+#NAME guard2.
+
+A :Type.
+
+a : A.
+g : A -> A.
+
+def ff : A -> (A -> A) -> A.
+[x] ff x (y => {g x}) --> a.
+
+#ASSERTNOT (ff a (y => y)) == a.

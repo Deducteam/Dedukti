@@ -4,7 +4,5 @@ A : Type.
 B : Type.
 a : A.
 
-#CHECK a :: A.
-#PRINT "YES".
-#CHECK a :: B.
-#PRINT "NO".
+#ASSERT    a :: A.
+#ASSERTNOT a :: B.

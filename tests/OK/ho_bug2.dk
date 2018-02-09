@@ -10,6 +10,7 @@ a : A.
 g : A -> A.
 def test (b : A) := F (x => g x) b.
 
+#PRINT "b:A => a".
 #SNF test.
-#CHECK test == b : A => a. (; Answer must be YES ;)
-#PRINT "YES".
+
+#ASSERT test == b : A => a.

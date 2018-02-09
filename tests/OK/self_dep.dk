@@ -1,0 +1,9 @@
+#NAME self_dep.
+
+def A : Type.
+U : A -> Type.
+a : A.
+[] A --> U a.
+
+#ASSERT a :: U a.
+#ASSERT U :: U a -> Type.

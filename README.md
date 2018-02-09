@@ -1,35 +1,47 @@
-USER MANUAL FOR DEDUKTI v2.5 (DRAFT)
-====================================
+USER MANUAL FOR DEDUKTI (DEVELOPMENT VERSION)
+=============================================
 
 ### INSTALLATION
 
+To compile (and optionally install) `Dedukti` you will need:
+ - `OCaml >= 4.02`,
+ - `Menhir`,
+ - `OCamlBuild` (build only),
+ - `OCamlFind` (build only).
 
-#### FROM OPAM
+#### INSTALLATION WITH OPAM
 
-    opam repository add deducteam https://gforge.inria.fr/git/opam-deducteam/opam-deducteam.git
-    opam update
-    opam install dedukti.2.5
+```bash
+opam pin add dedukti https://github.com/Deducteam/Dedukti.git
+```
 
-#### FROM SOURCES
+#### INSTALLATION FROM SOURCE
 
-In order to compile `Dedukti` you will need `OCaml` and `Menhir`.
+```bash
+git clone https://github.com/Deducteam/Dedukti.git
+cd Dedukti
+make
+sudo make install
+```
 
-    git clone https://github.com/Deducteam/Dedukti.git
-    cd Dedukti
-    make
-    sudo make install
+### QUICK START (ASSUMING INSTALLATION)
 
-### QUICK START
-
-    $ dkcheck examples/append.dk
-    > File examples/append.dk was successfully checked.
+The command
+```bash
+dkcheck examples/append.dk
+```
+should output the following.
+```
+SUCCESS File 'examples/append.dk' was successfully checked.
+```
 
 ### COMMAND LINE PROGRAMS
 
-* `dkcheck` is the type-checker for `Dedukti`.
-* `dktop` is an interactive wrapper around the type-checker.
-* `dkdep` is a dependency generator for `Dedukti` files.
-* `dkindent` is a program to indent `Dedukti` files.
+The installation provides the following commands:
+ - `dkcheck` is the type-checker for `Dedukti`,
+ - `dktop` is an interactive wrapper around the type-checker,
+ - `dkdep` is a dependency generator for `Dedukti` files,
+ - `dkindent` is a program to indent `Dedukti` files.
 
 ### A SMALL EXAMPLE
 
@@ -243,4 +255,3 @@ To enable confluence checking you need to call `dkcheck` with the option `-cc` f
 ### LICENSE
 
 `Dedukti` is distributed under the CeCILL-B License.
-
