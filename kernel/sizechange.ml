@@ -419,7 +419,7 @@ let term2rule : rule_infos -> term -> rule_infos = fun r t ->
    args=r.args;
    rhs=t;
    esize=r.esize;
-   l_args=r.l_args;
+   pats=r.pats;
    constraints=[]}
 	
 (** Find the index of the callee of a rule and the list of its arguments *)

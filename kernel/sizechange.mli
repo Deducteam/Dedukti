@@ -20,7 +20,7 @@ type matrix = { w : int ; h : int ; tab : cmp array array }
 (** Abstract type used to refer to function symbols. *)
 type index
 
-type local_result = Terminating | SelfLooping of (index list) | CallingDefined
+type local_result = Terminating | SelfLooping  | CallingDefined
                   | UsingBrackets | NonPositive | CriticalPair
 
 (** [int_of_index i] returns an [int] corresponding to the index [i]. *)
