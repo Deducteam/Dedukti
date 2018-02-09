@@ -3,7 +3,6 @@ open Term
 open Rule
 open Format
 
-exception TypeLevelRewriteRule of (name * name)
 exception MillerPatternTypeLevel of int
 exception BracketsTypeLevel of int
 

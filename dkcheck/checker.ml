@@ -131,8 +131,6 @@ let mk_ending () =
           (Env.sizechange (!verbose|| !szvb) !szgraph)
       )
       with
-      | Sizechange.TypeLevelRewriteRule (f,g) ->
-         red_error "Type level rewriting between %a and %a" pp_name f pp_name g
       | Sizechange.MillerPatternTypeLevel i ->
          red_error "Miller pattern at type level, like in line %i is not handled yet by the sizechange principle implementation" i
       | Sizechange.BracketsTypeLevel i ->

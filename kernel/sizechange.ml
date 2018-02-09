@@ -5,7 +5,7 @@ open Basic
 open Term
 open Rule
 open Format
-    
+
 exception MillerPatternTypeLevel of int
 exception BracketsTypeLevel of int
 
@@ -708,11 +708,13 @@ let under : position -> position =
 
 let rec right_most : term -> term =
   function
-  | Kind         -> assert false
-  | Pi(_,_,_,a)  -> right_most a
-  | App(a,_,_)   -> right_most a
-  | Lam(_,_,_,a) -> right_most a
-  | t -> t
+  | Kind               -> assert false
+  | Pi(_,_,_,a)        -> right_most a
+  | App(Lam(_),_,_)    -> TODO
+  | App(a,_,_)         -> right_most a
+  | Lam(_,_,_,a)       -> assert false
+  | DB(_)              -> assert false
+  | t                  -> t
 
 let infer_arity_from_type : term -> int = fun t ->
   let rec arity_bis : int -> term -> int = fun n ->
