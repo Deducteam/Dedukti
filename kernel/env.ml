@@ -126,7 +126,7 @@ let reduction_steps ?red:(red=Reduction.default) strategy n te =
   try
     ignore(inference !sg te);
     Reduction.select red;
-    let te' = Reduction.reduction_steps !sg strategy n te in
+    let te' = Reduction.reduction_steps n !sg strategy te in
     Reduction.select Reduction.default;
     OK te'
   with

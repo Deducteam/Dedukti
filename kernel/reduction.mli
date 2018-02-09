@@ -20,7 +20,7 @@ val reduction : Signature.t -> red_strategy -> term -> term
 (** [reduction sg red te] reduces the term [te] following the strategy [red]
     and using the signature [sg]. *)
 
-val reduction_steps : Signature.t -> red_strategy -> int -> term -> term
+val reduction_steps : int -> Signature.t -> red_strategy -> term -> term
 (** [reduction sg red n te] performs [n] reduction steps on the term [te]
     following the strategy [red] using the signature [sg]. *)
 

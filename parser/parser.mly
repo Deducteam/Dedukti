@@ -53,8 +53,6 @@
 %token <Basic.loc> WHNF
 %token <Basic.loc> HNF
 %token <Basic.loc> SNF
-%token <Basic.loc> STEP
-%token <Basic.loc> NSTEPS
 %token <Basic.loc> INFER
 %token <Basic.loc> INFERSNF
 %token <Basic.loc> CONV

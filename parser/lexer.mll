@@ -54,8 +54,6 @@ rule token = parse
   | "#WHNF"     { WHNF     ( get_loc lexbuf ) }
   | "#HNF"      { HNF      ( get_loc lexbuf ) }
   | "#SNF"      { SNF      ( get_loc lexbuf ) }
-  | "#STEP"     { STEP     ( get_loc lexbuf ) }
-  | "#NSTEPS"   { NSTEPS   ( get_loc lexbuf ) }
   | "#INFER"    { INFER    ( get_loc lexbuf ) }
   | "#INFERSNF" { INFERSNF ( get_loc lexbuf ) }
   | "#CONV"     { CONV     ( get_loc lexbuf ) }
