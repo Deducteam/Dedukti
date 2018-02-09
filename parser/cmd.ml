@@ -46,7 +46,11 @@ let mk_command lc =
         begin
           if b=expected
           then
-            if asserted then () else Format.printf "YES@."
+            if asserted
+            then ()
+            else
+              Format.printf "YES@.As expected %a and %a are %s convertible@."
+                print_term te1 print_term te2 (if asserted then "" else "not")
           else
             if asserted
             then
@@ -57,7 +61,8 @@ let mk_command lc =
               in
               Errors.fail_env_error (Env.EnvErrorType chose_error)
             else
-              Format.printf "NO@."
+              Format.printf "NO@.%a and %a are %s convertible@."
+                print_term te1 print_term te2 (if asserted then "not" else "")
           end
       | Err e -> Errors.fail_env_error e )
   | Inhabit (expected,asserted,te,ty) ->
@@ -66,13 +71,15 @@ let mk_command lc =
         begin
           if expected
           then
-            if asserted then () else Format.printf "YES@."
+            if asserted then () else Format.printf "YES@.As expected %a : %a@."
+                print_term te print_term ty
           else
             if asserted
             then
               Errors.fail_env_error (Env.EnvErrorType (Inhabit (lc,te,ty)))
             else
-              Format.printf "NO@."
+              Format.printf "NO@.%a does not have type %a@."
+                print_term te print_term ty
           end
       | Err (EnvErrorType e) ->
         begin
@@ -80,13 +87,15 @@ let mk_command lc =
           then
             if asserted
             then Errors.fail_env_error (EnvErrorType e)
-            else Format.printf "NO@."
+            else Format.printf "NO@.%a : %a@."
+                print_term te print_term ty
           else
             if asserted
             then
               ()
             else
-              Format.printf "YES@."
+              Format.printf "YES@.%a does not have type %a@."
+                print_term te print_term ty
           end
       | Err e                -> Errors.fail_env_error e )
   | Infer te         ->
