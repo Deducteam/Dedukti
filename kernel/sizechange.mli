@@ -3,9 +3,6 @@ open Term
 open Rule
 open Format
 
-exception MillerPatternTypeLevel of int
-exception BracketsTypeLevel of int
-
 (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
 
@@ -21,6 +18,7 @@ type index
 
 type local_result = Terminating | SelfLooping  | CallingDefined
                   | UsingBrackets | NonPositive | CriticalPair
+                  | BetaReductionInType | MillerPatternTypeLevel
 
 (** [int_of_index i] returns an [int] corresponding to the index [i]. *)
 val int_of_index : index -> int
@@ -53,6 +51,6 @@ val latex_print_calls : unit -> unit
 val termination_check : bool -> bool -> mident -> rule_infos list list ->
   (name * Signature.staticity * term *
      (rule_infos list*int*Dtree.dtree) option
-  ) list -> (local_result, name list) Hashtbl.t
+  ) list -> bool
 
-val print_res : bool -> (local_result, name list) Hashtbl.t -> unit
+val print_res : bool -> bool -> unit

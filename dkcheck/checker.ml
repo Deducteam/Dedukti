@@ -121,21 +121,9 @@ let rec mk_command lc = function
 let export = ref false
 
 let mk_ending () =
-  let red_error fmt= Format.eprintf "\027[31mERROR \027[m";
-    Format.kfprintf (fun _ -> Format.pp_print_newline Format.err_formatter () ) Format.err_formatter fmt
-  in
-  if (!sizechange|| !szgraph|| !szvb|| !szstat) then
-    begin
-      try (
-        Sizechange.print_res !szstat
-          (Env.sizechange (!verbose|| !szvb) !szgraph)
-      )
-      with
-      | Sizechange.MillerPatternTypeLevel i ->
-         red_error "Miller pattern at type level, like in line %i is not handled yet by the sizechange principle implementation" i
-      | Sizechange.BracketsTypeLevel i ->
-         red_error "Brackets at type level, like in line %i is not handled yet by the sizechange principle implementation" i
-    end;
+  if (!sizechange|| !szgraph|| !szvb|| !szstat)
+  then
+   Sizechange.print_res !szstat (Env.sizechange (!verbose|| !szvb) !szgraph);
   if !export then
     if not (Env.export ()) then
       Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ());

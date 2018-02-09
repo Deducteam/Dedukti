@@ -63,4 +63,4 @@ val unsafe_one_step : ?red:(Reduction.red) -> term -> term
 
 val unsafe_snf : ?red:(Reduction.red) -> term -> term
 
-val sizechange : bool -> bool -> (Sizechange.local_result, name list) Hashtbl.t
+val sizechange : bool -> bool -> bool

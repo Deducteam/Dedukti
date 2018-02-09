@@ -6,9 +6,6 @@ open Term
 open Rule
 open Format
 
-exception MillerPatternTypeLevel of int
-exception BracketsTypeLevel of int
-
 (** Index of a function symbol. *)
 type index = int
 
@@ -91,6 +88,7 @@ type symb_status = Set_constructor | Elt_constructor | Def_function | Def_type
 (** The local result express the result of the termination checker for this symbol *)
 type local_result = Terminating | SelfLooping | CallingDefined
                   | UsingBrackets | NonPositive | CriticalPair
+                  | BetaReductionInType | MillerPatternTypeLevel
     
 (** Representation of a function symbol. *)
 type symbol =
@@ -390,7 +388,7 @@ let matrix_of_lists : int -> pattern list -> int -> term list -> int -> matrix =
     done;
     {h=m ; w=n ; tab}
 
-(** Detect if a pattern follow the specification of the Size-changePrinciple (no pattern matching on defined functions and no brackets) *)
+(** Detect if a pattern follow the specification of the Size-change Principle (no pattern matching on defined functions and no brackets containing more than a variable) *)
 let rec detect_wrong_pm : name -> pattern -> unit= fun f ->
   function
   | Pattern  (l,n,ar)  ->
@@ -402,8 +400,8 @@ let rec detect_wrong_pm : name -> pattern -> unit= fun f ->
      end
   | Var      (_,_,_,l) -> List.iter (detect_wrong_pm f) l
   | Lambda   (_,_,p)   -> detect_wrong_pm f p
-  | Brackets (t)       ->
-     update_result (find_key f) UsingBrackets
+  | Brackets (DB(_))   -> ()
+  | Brackets (_)       -> update_result (find_key f) UsingBrackets
 
 (** Find the index of the caller of a rule *)
 let get_caller : rule_infos -> index = fun r ->
@@ -706,15 +704,15 @@ let under : position -> position =
   | Global -> Argument
   | _ -> Negative
 
-let rec right_most : term -> term =
+let rec right_most : name -> term -> term = fun f ->
   function
-  | Kind               -> assert false
-  | Pi(_,_,_,a)        -> right_most a
-  | App(Lam(_),_,_)    -> TODO
-  | App(a,_,_)         -> right_most a
-  | Lam(_,_,_,a)       -> assert false
-  | DB(_)              -> assert false
-  | t                  -> t
+  | Kind                 -> assert false
+  | Pi(_,_,_,a)          -> right_most f a
+  | App(Lam(_),_,_) as t -> update_result (find_key f) BetaReductionInType; t
+  | App(a,_,_)           -> right_most f a
+  | Lam(_,_,_,a)         -> assert false
+  | DB(_)                -> assert false
+  | t                    -> t
 
 let infer_arity_from_type : term -> int = fun t ->
   let rec arity_bis : int -> term -> int = fun n ->
@@ -764,18 +762,24 @@ let print_ext_ru er=
   if er=[] then () else
     printf "Ext_ru contains:@. + %a@." (pp_list "\n + " (pp_list " ; " pp_rule_infos)) er
 
-let rec name_var : int -> int -> pattern -> pattern = fun i n ->
+let rec name_var : name -> int -> int -> pattern -> pattern = fun f i n ->
   function
-  | Var(loc, _, k, ll) when k>=n ->
+  | Var(loc, _, k, ll) when k>=n      ->
      Var(loc, mk_ident ("x"^(string_of_int i)^"_"^(string_of_int (k-n))), k,
-         List.map (name_var i n) ll)
-  | Var(loc, _, k, ll)           ->
-     Var(loc, mk_ident "bound", k, List.map (name_var i n) ll)
-  | Pattern(loc, f, ll)          ->
-     Pattern(loc, f, List.map (name_var i n) ll)
-  | Lambda(loc, _, pat)          ->
-     Lambda(loc, mk_ident "bound", name_var i (n+1) pat)
-  | Brackets(t) -> raise (BracketsTypeLevel (fst (of_loc (get_loc t))))
+         List.map (name_var f i n) ll)
+  | Var(loc, _, k, ll)                ->
+     Var(loc, mk_ident "bound", k, List.map (name_var f i n) ll)
+  | Pattern(loc, g, ll)               ->
+     Pattern(loc, g, List.map (name_var f i n) ll)
+  | Lambda(loc, _, pat)               ->
+    Lambda(loc, mk_ident "bound", name_var f i (n+1) pat)
+  | Brackets(DB(loc, _, k)) when k>=n ->
+      Var(loc, mk_ident ("x"^(string_of_int i)^"_"^(string_of_int (k-n))), k,
+          [])
+  | Brackets(DB(loc, _, k))           ->
+     Var(loc, mk_ident "bound", k, [])
+  | Brackets(_)                       ->
+      update_result (find_key f) UsingBrackets; raise Exit
 
 let rec occurs : ident -> pattern -> bool = fun nk ->
   function
@@ -792,60 +796,64 @@ let rec zip_with_int : 'a list -> 'b list -> int -> ('a * 'b * int) list=
     | a::t1, b::t2 -> (a,b,n)::(zip_with_int t1 t2 n)
     | _            -> assert false
        
-let rec solve : (pattern * pattern * int) list -> bool = fun l ->
+let rec solve : name -> (pattern * pattern * int) list -> bool = fun f l ->
   match l with
   | []                                                                ->
      true
   | (Var(_, n1, _, l1), Var(_, n2, _, l2), n)::tl
       when (n1=n2 && l1=[] && l2=[]) ->
-     solve tl
+     solve f tl
   | (Var(_, nk, k, ll)  , t2             , n)::tl when (k>=n && ll=[]) ->
-     elim nk t2 tl n
+     elim f nk t2 tl n
   | (t1             , Var(_, nk, k, ll)  , n)::tl when (k>=n && ll=[]) ->
-     elim nk t1 tl n
-  | (Pattern(_, f, l1), Pattern(_, g, l2), n)::tl when f=g            ->
-     solve ((zip_with_int l1 l2 n)@tl)
-  | (Lambda(_, _, t1) , Lambda(_, _, t2) , n)::tl                     ->
-     solve ((t1, t2, n+1)::tl)
-  | (Var(loc, _, k, ll), t2             , n)::tl when ll!= []         ->
-     raise (MillerPatternTypeLevel (fst (of_loc loc)))
-  | (t1             , Var(loc, _, k, ll), n)::tl when ll!= []         ->
-     raise (MillerPatternTypeLevel (fst (of_loc loc)))
+     elim f nk t1 tl n
+  | (Pattern(_, f, l1), Pattern(_, g, l2), n)::tl when f=g             ->
+     solve f ((zip_with_int l1 l2 n)@tl)
+  | (Lambda(_, _, t1) , Lambda(_, _, t2) , n)::tl                      ->
+     solve f ((t1, t2, n+1)::tl)
+  | (Var(loc, _, k, ll), t2             , n)::tl when ll!= []          ->
+     update_result (find_key f) MillerPatternTypeLevel; true
+  | (t1             , Var(loc, _, k, ll), n)::tl when ll!= []          ->
+     update_result (find_key f) MillerPatternTypeLevel; true
   | _ -> false
-and elim : ident -> pattern -> (pattern * pattern * int) list ->
-       int -> bool
-       =fun nk t l n ->
-         let rec lift : ident -> pattern -> pattern -> pattern
-           = fun nk t ->
-             function
-             | Var(_,nn,_,_)               when nk=nn -> t
-             | Var(_)                      as   t1    -> t1
-             | Pattern(loc,f,lt)                      ->
-                Pattern(loc,f,List.map (lift nk t) lt)
-             | Lambda(loc,id,t1)                      ->
-                Lambda(loc,id,lift nk t t1)
-             | Brackets(t)                            ->
-                assert false
-         in
-         if occurs nk t then false
-         else
-           solve
-             (List.map
-                (fun (t1,t2,n) ->
-                  (lift nk t t1, lift nk t t2, n)
-                ) l
-             )
+and elim : name -> ident -> pattern -> (pattern * pattern * int) list ->
+  int -> bool
+  =fun f nk t l n ->
+    let rec lift : ident -> pattern -> pattern -> pattern
+      = fun nk t ->
+        function
+        | Var(_,nn,_,_)               when nk=nn -> t
+        | Var(_)                      as   t1    -> t1
+        | Pattern(loc,f,lt)                      ->
+          Pattern(loc,f,List.map (lift nk t) lt)
+        | Lambda(loc,id,t1)                      ->
+          Lambda(loc,id,lift nk t t1)
+        | Brackets(t)                            ->
+          assert false
+    in
+    if occurs nk t then false
+    else
+      solve f
+        (List.map
+           (fun (t1,t2,n) ->
+              (lift nk t t1, lift nk t t2, n)
+           ) l
+        )
      
-let unifiable : pattern list -> pattern list -> bool = fun t1 t2->
-  solve
-    (zip_with_int (List.map (name_var 1 0) t1) (List.map (name_var 2 0) t2) 0)
+let unifiable : name -> pattern list -> pattern list -> bool = fun f t1 t2->
+  try
+    solve f
+      (zip_with_int
+         (List.map (name_var f 1 0) t1) (List.map (name_var f 2 0) t2) 0
+      )
+  with _ -> true
 
 let rec cp_at_root : rule_infos list -> (rule_infos * rule_infos) option =
   function
   | []   -> None
   | a::l ->
      try
-       Some (a, List.find (fun r -> unifiable a.args r.args) l)
+       Some (a, List.find (fun r -> unifiable a.cst a.args r.args) l)
      with
        Not_found -> cp_at_root l
     
@@ -858,7 +866,7 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
       let ar = infer_arity_from_type typ in
       let stat =
 	(
-	  match (right_most typ),stat with
+	  match (right_most fct typ),stat with
 	  | Type _, Signature.Definable -> Def_type
 	  | Type _, Signature.Static    -> Set_constructor
 	  | _     , Signature.Definable -> Def_function
@@ -873,7 +881,7 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
   List.iter
     (fun (fct,st,typ,_) ->
       if st=Signature.Static
-      then constructors_infos Global fct typ (right_most typ)
+      then constructors_infos Global fct typ (right_most fct typ)
     ) whole_sig;
   List.iter
     (fun (fct,_,typ,rules_opt) ->
@@ -882,7 +890,7 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
       | Some (rul,_,_) ->
          begin
            add_rules rul;
-           match right_most typ with
+           match right_most fct typ with
            | Type _ ->
               begin
                 match cp_at_root rul with
@@ -899,16 +907,18 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
   if szgraph then latex_print_calls ();
   sct_only ();
   let tbl= !(!graph.symbols) in
-  let res=Hashtbl.create 5 in
+  IMap.for_all
+    (fun _ s-> s.result = Terminating) tbl
+    
+let print_res : bool -> bool -> unit =
+  fun st res ->
+  let tbl= !(!graph.symbols) in
+  let ht=Hashtbl.create 5 in
   IMap.iter
     (fun _ s->
-      if (s.result != Terminating || s.status=Def_function || s.status=Def_type)
-      then updateHT res s.result s.identifier
+       if (s.result != Terminating || s.status=Def_function || s.status=Def_type)
+       then updateHT ht s.result s.identifier
     ) tbl;
-  res
-    
-let print_res : bool -> (local_result, name list) Hashtbl.t -> unit =
-  fun st ht ->
   let good_module=fun n -> md n = !mod_name in
   begin
     try
@@ -962,5 +972,28 @@ let print_res : bool -> (local_result, name list) Hashtbl.t -> unit =
         (pp_list " , " pp_name)
         (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
     with Not_found -> ()
-  end
+  end;
+  begin
+    try
+      let l=Hashtbl.find ht BetaReductionInType
+      in
+      Format.eprintf "\027[31m Beta reduction in type\027[m %a@."
+        (pp_list " , " pp_name)
+        (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
+    with Not_found -> ()
+  end;
+  begin
+    try
+      let l=Hashtbl.find ht MillerPatternTypeLevel
+      in
+      Format.eprintf "\027[31m Miller pattern at type level\027[m %a@."
+        (pp_list " , " pp_name)
+        (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
+    with Not_found -> ()
+  end;
+  if res
+  then
+    Format.eprintf "\027[32mTERMINATING\027[m The file %a was proved terminating using SCP@." pp_mident !mod_name
+  else
+    Format.eprintf "\027[31mTERMINATION ERROR\027[m The file %a was not proved terminating@." pp_mident !mod_name
                    
