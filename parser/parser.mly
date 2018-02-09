@@ -133,14 +133,14 @@ command         : WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }
                 | NSTEPS INT term { mk_command $1 (NSteps ($2,(scope_term [] $3))) }
                 | INFER    term { mk_command $1 (Infer    (scope_term [] $2)) }
                 | INFERSNF term { mk_command $1 (InferSnf (scope_term [] $2)) }
-		| CHECK  term EQUAL term { mk_command $1 (Conv (true,false,scope_term [] $2,scope_term [] $4)) }
+                | CHECK  term EQUAL term { mk_command $1 (Conv (true,false,scope_term [] $2,scope_term [] $4)) }
                 | CHECK term  CCOLON term { mk_command $1 (Inhabit (true,false,scope_term [] $2,scope_term [] $4)) }
                 | ASSERT term EQUAL term { mk_command $1 (Conv (true,true,scope_term [] $2,scope_term [] $4)) }
-		| ASSERT term CCOLON term { mk_command $1 (Inhabit (true,true,scope_term [] $2,scope_term [] $4)) }
-		| CHECKNOT  term EQUAL term { mk_command $1 (Conv (false,false,scope_term [] $2,scope_term [] $4)) }
+                | ASSERT term CCOLON term { mk_command $1 (Inhabit (true,true,scope_term [] $2,scope_term [] $4)) }
+                | CHECKNOT  term EQUAL term { mk_command $1 (Conv (false,false,scope_term [] $2,scope_term [] $4)) }
                 | CHECKNOT term  CCOLON term { mk_command $1 (Inhabit (false,false,scope_term [] $2,scope_term [] $4)) }
                 | ASSERTNOT term EQUAL term { mk_command $1 (Conv (false,true,scope_term [] $2,scope_term [] $4)) }
-		| ASSERTNOT term CCOLON term { mk_command $1 (Inhabit (false,true,scope_term [] $2,scope_term [] $4)) }
+                | ASSERTNOT term CCOLON term { mk_command $1 (Inhabit (false,true,scope_term [] $2,scope_term [] $4)) }
                 | PRINT STRING  { mk_command $1 (Print $2) }
                 | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }
