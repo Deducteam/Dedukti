@@ -143,61 +143,6 @@
                            param_and_field_patterns field_name)],
               PreId (lf, field_name))])
         fields
-
-      (* contains every modules that are declared in the current environement*)
-      let modules = ref []
-      (* contains only the modules that are not closed *)
-      let current_modules = ref []
-      (* to each module, a level is associated *)
-      let level = ref 0
-
-      (* called on the NEWMODULE declaration *)
-      let mk_module _ m =
-          modules :=  (m,!level)::!modules;
-	  current_modules := m::!current_modules;
-	  incr level
-
-      (* called on the ENDMODULE declaration *)
-      let umk_module _ =
-      	  assert (List.length !modules <> 0);
-       	  assert (List.length !current_modules <> 0);
-	  current_modules := List.tl (!current_modules);
-	  let mds = List.filter (fun (md,l) -> l < !level ) !modules in
-	  modules := mds;
-	  decr level
-
-      (* prefix the ident id by the list of modules mds *)
-      let rec prefix_by_mds mds id =
-     	  match mds with
-	  | [] -> id
-	  | x::t ->
-	    mk_ident ((string_of_mident x) ^ "__" ^ string_of_ident (prefix_by_mds t id))
-
-      (* for a module md, find in which modules it is defined. For example
-      	 with #NEWMODULE D. #NEWMODULE E. prefix_of_md E is D *)
-      let rec prefix_of_md md =
-      	  let rec aux p mds =
-      	      match mds with
-	      	  | [] -> []
-		  | (x,l)::t -> let p' = List.filter (fun (md,l') -> l' < l) p in
-		    	     	if mident_eq x md then p'
-				else aux ((x,l)::p') t
-	  in
-	  List.map fst (aux [] (List.rev !modules))
-
-      (* transform a qid in a old qid of dedukti *)
-      let of_qid (loc, mds, id) =
-      	  match mds with
-	  | [] -> assert false
-	  | x::t -> if List.exists (fun (md,_) -> Basic.mident_eq x md) !modules then
-	    	        (loc, !Scoping.name, prefix_by_mds ((prefix_of_md x)@mds) id)
-		    else (
-			(loc, x, prefix_by_mds t id))
-
-      (* update prefixes to match new modules declarations *)
-      let of_id id = prefix_by_mds (List.rev !current_modules) id
-
-      let of_lid lid = (fst lid, of_id (snd lid))
 %}
 
 %token EOF
@@ -230,14 +175,12 @@
 %token <Basic.loc> GDT
 %token <Basic.loc*string> OTHER
 %token <Basic.loc> UNDERSCORE
-%token <Basic.loc*Basic.mident>NEWMODULE
-%token <Basic.loc>ENDMODULE
 %token <Basic.loc*Basic.mident>NAME
 %token <Basic.loc> TYPE
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
 %token <Basic.loc*Basic.ident> ID
-%token <Basic.loc*Basic.mident list*Basic.ident> QID
+%token <Basic.loc*Basic.mident*Basic.ident> QID
 %token <Basic.loc*string> STRING
 %token <Basic.loc*string> NUM
 %token <Basic.loc*char> CHAR
@@ -263,37 +206,35 @@ prelude         : NAME DOT      { let (lc,name) = $1 in
                                         mk_prelude lc name }
 
 line            : ID COLON letterm DOT
-                { mk_declaration (fst $1) (of_id (snd $1)) Signature.Static (scope_term [] $3) }
+                { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] $3) }
                 | ID param+ COLON letterm DOT
-                { mk_declaration (fst $1) (of_id (snd $1)) Signature.Static (scope_term [] (mk_pi $4 $2)) }
+                { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] (mk_pi $4 $2)) }
                 | KW_DEF ID COLON arrterm DOT
-                { mk_declaration (fst $2) (of_id (snd $2)) Signature.Definable (scope_term [] $4) }
+                { mk_declaration (fst $2) (snd $2) Signature.Definable (scope_term [] $4) }
                 | KW_DEF ID COLON arrterm DEF letterm DOT
-                { mk_definition (fst $2) (of_id (snd $2)) (Some (scope_term [] $4)) (scope_term [] $6) }
+                { mk_definition (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }
                 | KW_DEF ID DEF letterm DOT
-                { mk_definition (fst $2) (of_id (snd $2))  None (scope_term [] $4) }
+                { mk_definition (fst $2) (snd $2)  None (scope_term [] $4) }
                 | KW_DEF ID param+ COLON arrterm DEF letterm DOT
-                { mk_definition (fst $2) (of_id (snd $2)) (Some (scope_term [] (mk_pi $5 $3)))
+                { mk_definition (fst $2) (snd $2) (Some (scope_term [] (mk_pi $5 $3)))
                         (scope_term [] (mk_lam $7 $3)) }
                 | KW_DEF ID param+ DEF letterm DOT
-                { mk_definition (fst $2) (of_id (snd $2)) None (scope_term [] (mk_lam $5 $3)) }
+                { mk_definition (fst $2) (snd $2) None (scope_term [] (mk_lam $5 $3)) }
                 | KW_THM ID COLON arrterm DEF letterm DOT
-                { mk_opaque (fst $2) (of_id (snd $2)) (Some (scope_term [] $4)) (scope_term [] $6) }
+                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] $4)) (scope_term [] $6) }
                 | KW_THM ID DEF letterm DOT
-                { mk_opaque (fst $2) (of_id (snd $2))  None (scope_term [] $4) }
+                { mk_opaque (fst $2) (snd $2)  None (scope_term [] $4) }
                 | KW_THM ID param+ COLON arrterm DEF letterm DOT
-                { mk_opaque (fst $2) (of_id (snd $2)) (Some (scope_term [] (mk_pi $5 $3)))
+                { mk_opaque (fst $2) (snd $2) (Some (scope_term [] (mk_pi $5 $3)))
                         (scope_term [] (mk_lam $7 $3)) }
                 | KW_THM ID param+ DEF letterm DOT
-                { mk_opaque (fst $2) (of_id (snd $2)) None (scope_term [] (mk_lam $5 $3)) }
+                { mk_opaque (fst $2) (snd $2) None (scope_term [] (mk_lam $5 $3)) }
                 | rule+ DOT
                 { mk_rules (List.map scope_rule $1) }
                 | RECORD ID DEF ID LEFTBRA def_context RIGHTBRA DOT
-                { mk_record_type (of_lid $2) [] $4 $6 }
+                { mk_record_type $2 [] $4 $6 }
                 | RECORD ID param+ DEF ID LEFTBRA def_context RIGHTBRA DOT
-                { mk_record_type (of_lid $2) $3 $5 $7 }
-		| NEWMODULE DOT { mk_module (fst $1) (snd $1) }
-		| ENDMODULE DOT { umk_module $1 }
+                { mk_record_type $2 $3 $5 $7 }
                 | command DOT { $1 }
                 | EOF
                 { mk_ending () ; raise Lexer.EndOfFile }
@@ -307,28 +248,28 @@ command         : WHNF  letterm    { mk_command $1 (Whnf (scope_term [] $2)) }
                 | CONV  letterm  COMMA letterm { mk_command $1 (Conv (scope_term [] $2,scope_term [] $4)) }
                 | CHECK letterm  COMMA letterm { mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
                 | PRINT STRING  { mk_command $1 (Print (snd $2)) }
-                | GDT   ID      { mk_command $1 (Gdt (None, of_id (snd $2))) }
-                | GDT   QID     { let (_,m,v) =  of_qid $2 in mk_command $1 (Gdt (Some m,v)) }
+                | GDT   ID      { mk_command $1 (Gdt (None, snd $2)) }
+                | GDT   QID     { let (_,m,v) =  $2 in mk_command $1 (Gdt (Some m,v)) }
                 | INFERSNF term { mk_command $1 (InferSnf (scope_term [] $2)) }
                 | REQUIRE { let (l,m) = $1 in mk_command l (Require(m) ) }
 
 term_lst        : letterm                                  { [$1] }
                 | letterm COMMA term_lst                   { $1::$3 }
 
-param           : LEFTPAR ID COLON arrterm RIGHTPAR        { PDecl (fst $2,of_id (snd $2),$4) }
-                | LEFTPAR ID DEF arrterm RIGHTPAR          { PDef  (fst $2,of_id (snd $2),$4) }
+param           : LEFTPAR ID COLON arrterm RIGHTPAR        { PDecl (fst $2,snd $2,$4) }
+                | LEFTPAR ID DEF arrterm RIGHTPAR          { PDef  (fst $2,snd $2,$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
                 { let (l,md_opt,id,args) = $4 in ( l , None , $2 , md_opt, id , args , $6) }
 		| LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
-		{ let (l,md_opt,id,args) = $7 in ( l , Some (None, of_id (snd $2)), $5 , md_opt, id , args , $9)}
+		{ let (l,md_opt,id,args) = $7 in ( l , Some (None, snd $2), $5 , md_opt, id , args , $9)}
 		| LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
-		{ let (l,md_opt,id,args) = $7 in let (_,m,v) = of_qid $2 in ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
+		{ let (l,md_opt,id,args) = $7 in let (_,m,v) = $2 in ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 decl            : ID COLON term         { debug 1 "Ignoring type declaration in rule context."; $1 }
                 | ID                    { $1 }
 
-def_decl        : ID COLON arrterm         { (fst $1,of_id (snd $1),$3) }
+def_decl        : ID COLON arrterm         { (fst $1, snd $1,$3) }
 
 context         : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, decl) { $1 }
@@ -336,12 +277,12 @@ context         : /* empty */          { [] }
 def_context     : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, def_decl) { $1 }
 
-top_pattern     : ID pattern_wp*        { (fst $1,None,of_id (snd $1),$2) }
-                | QID pattern_wp*       { let (l,md,id)= of_qid $1 in (l,Some md,id,$2) }
+top_pattern     : ID pattern_wp*        { (fst $1,None, snd $1,$2) }
+                | QID pattern_wp*       { let (l,md,id)= $1 in (l,Some md,id,$2) }
 
 
 pattern_wp      : ID
-                        { PPattern (fst $1,None,of_id (snd $1),[]) }
+                        { PPattern (fst $1,None, snd $1,[]) }
                 | NUM
                         { Builtins.mk_num_patt $1 }
                 | CHAR
@@ -349,7 +290,7 @@ pattern_wp      : ID
                 | STRING
                         { Builtins.mk_string_patt $1 }
                 | QID
-                        { let (l,md,id)= of_qid $1 in PPattern (l,Some md,id,[]) }
+                        { let (l,md,id)= $1 in PPattern (l,Some md,id,[]) }
                 | UNDERSCORE
                         { PJoker $1 }
                 | LEFTBRA term RIGHTBRA
@@ -358,18 +299,18 @@ pattern_wp      : ID
                         { $2 }
 
 pattern         : ID  pattern_wp+
-                        { PPattern (fst $1,None,of_id (snd $1),$2) }
+                        { PPattern (fst $1,None, snd $1,$2) }
                 | QID pattern_wp+
-                        { let (l,md,id)= of_qid $1 in PPattern (l,Some md,id,$2) }
+                        { let (l,md,id)= $1 in PPattern (l,Some md,id,$2) }
                 | ID FATARROW pattern
-                        { PLambda (fst $1,of_id (snd $1),$3) }
+                        { PLambda (fst $1, snd $1,$3) }
                 | pattern_wp
                         { $1 }
 
 sterm           : QID
-                { let (l,md,id)=  of_qid $1 in PreQId(l,mk_name md id) }
+                { let (l,md,id)=  $1 in PreQId(l,mk_name md id) }
                 | ID
-                { PreId (fst $1, (of_id (snd $1))) }
+                { PreId (fst $1, (snd $1)) }
                 | LEFTPAR letterm RIGHTPAR
                 { $2 }
                 | TYPEOF letterm
@@ -389,22 +330,22 @@ term            : sterm+
 letterm         : term
                 { $1 }
                 | ID DEF term FATARROW letterm
-                { mk_let (of_id (snd $1)) $3 $5 }
+                { mk_let (snd $1) $3 $5 }
                 | ID COLON term ARROW letterm
-                { PrePi (fst $1,Some (of_id (snd $1)),$3,$5) }
+                { PrePi (fst $1,Some (snd $1),$3,$5) }
                 | term ARROW letterm
                 { PrePi (preterm_loc $1,None,$1,$3) }
                 | ID COLON UNDERSCORE FATARROW letterm
-                { PreLam (fst $1,of_id (snd $1),None,$5) }
+                { PreLam (fst $1, snd $1,None,$5) }
                 | ID COLON term FATARROW letterm
-                { PreLam (fst $1,of_id (snd $1),Some($3),$5) }
+                { PreLam (fst $1, snd $1,Some($3),$5) }
                 | ID FATARROW letterm
-                { PreLam (fst $1,of_id (snd $1),None,$3) }
+                { PreLam (fst $1, snd $1,None,$3) }
 
 arrterm         : term
                 { $1 }
                 | ID COLON term ARROW arrterm
-                { PrePi (fst $1,Some (of_id (snd $1)),$3,$5) }
+                { PrePi (fst $1,Some (snd $1),$3,$5) }
                 | term ARROW arrterm
                 { PrePi (preterm_loc $1,None,$1,$3) }
 
