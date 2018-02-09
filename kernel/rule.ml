@@ -49,12 +49,11 @@ type rule_infos = {
   args : pattern list;
   rhs : term;
   esize : int;
-  l_args : wf_pattern array;
+  pats : wf_pattern array;
   constraints : constr list;
 }
 
-let pattern_of_rule_infos r =
-  Pattern (r.l,r.cst,r.args)
+let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
 type rule_error =
   | BoundVariableExpected of pattern
@@ -162,7 +161,7 @@ let pattern_to_term p =
         mk_App (mk_DB l x n) (aux k a) (List.map (aux k) args)
     | Lambda (l,x,pat) -> mk_Lam l x None (aux (k+1) pat)
   in
-    aux 0 p
+  aux 0 p
 
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
 
@@ -283,7 +282,7 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
         | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
       in
       let nb_args = get_nb_args esize r.pat in
-      let _ = check_nb_args nb_args r.rhs in
+      ignore(check_nb_args nb_args r.rhs);
       let (esize2,pats2,cstr) = check_patterns  esize args in
       let is_nl = not (is_linear cstr) in
       if is_nl && (not !allow_non_linear) then
@@ -292,8 +291,8 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
         let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in
         OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
              esize = esize2 ;
-             l_args = Array.of_list pats2 ;
+             pats = Array.of_list pats2 ;
              constraints = cstr ; }
     end
   with
-      RuleExn e -> Err e
+    RuleExn e -> Err e

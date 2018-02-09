@@ -58,17 +58,20 @@ module LList = struct
 
   let cons x {len;lst} = {len=len+1; lst=x::lst}
   let nil = {len=0;lst=[];}
-  let len x = x.len
-  let lst x = x.lst
-  let is_empty x = x.len = 0
-
-  let of_list lst = {len=List.length lst;lst}
 
   let make ~len lst =
     assert (List.length lst = len);
     {lst;len}
 
   let make_unsafe ~len lst = {len;lst}
+  (** make_unsafe [n] [l] is as make [n] [l] without checking that the length of [l] is [n] *)
+
+  let of_list  lst = {len=List.length lst ; lst}
+  let of_array arr = {len=Array.length arr; lst=Array.to_list arr}
+
+  let len x = x.len
+  let lst x = x.lst
+  let is_empty x = x.len = 0
 
   let map f {len;lst} = {len; lst=List.map f lst}
   let append_l {len;lst} l = {len=len+List.length l; lst=lst@l}

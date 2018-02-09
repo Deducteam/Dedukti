@@ -88,7 +88,7 @@ type rule_infos = {
   args : pattern list; (** arguments list of the pattern constant *)
   rhs : term; (** right hand side of the rule *)
   esize : int; (** size of the context *)
-  l_args : wf_pattern array; (** free pattern without constraint *)
+  pats : wf_pattern array; (** free pattern without constraint *)
   constraints : constr list; (** constraints generated from the pattern to the free pattern *)
 }
 
