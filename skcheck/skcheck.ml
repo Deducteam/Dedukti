@@ -14,7 +14,7 @@ let parse lb =
                          "Unexpected token '%s'." (Lexing.lexeme lb)
 
 let print_version () =
-  Printf.printf "Dedukti %s\n%!" Version.version
+  Printf.printf "Sukerujo %s\n%!" Version.version
 
 let args = [
   ("-v"      , Arg.Set    Checker.verbose        , "Verbose mode" ) ;
