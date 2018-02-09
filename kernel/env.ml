@@ -111,12 +111,11 @@ let check ?ctx:(ctx=[]) te ty =
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)
 
-let _reduction (f:Reduction.red_strategy -> Signature.t -> Term.term -> Term.term)
-    ?red:(red=Reduction.default) strategy te =
+let _reduction reduction ?red:(red=Reduction.default) strategy te =
   try
     ignore(inference !sg te);
     Reduction.select red;
-    let te' = f strategy !sg te in
+    let te' = reduction strategy !sg te in
     Reduction.select Reduction.default;
     OK te'
   with
