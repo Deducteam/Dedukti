@@ -20,13 +20,9 @@ type signature_error =
   | CannotAddRewriteRules of loc * ident
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules of loc * rule_infos list * Confluence.confluence_error
+  | GuardNotSatisfied of loc * term * term
 
 exception SignatureError of signature_error
-
-type dtree_or_def =
-  | DoD_None
-  | DoD_Def of term
-  | DoD_Dtree of int*dtree
 
 module HMd = Hashtbl.Make(
 struct
@@ -206,16 +202,14 @@ let is_injective sg lc cst =
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
-let pred_true: Rule.rule_name -> bool = fun x -> true
-
-let get_dtree sg ?select:(pred=pred_true) l cst =
+let get_dtree sg rule_filter l cst =
   match (get_infos sg l cst).rule_opt_info with
   | None -> None
   | Some(rules,i,tr) ->
-    if pred == pred_true then
-      Some (i,tr)
-    else
-      let rules' = List.filter (fun (r:Rule.rule_infos) -> pred r.name) rules in
+    match rule_filter with
+    | None -> Some (i,tr)
+    | Some f ->
+      let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
       if List.length rules' == List.length rules
       then Some (i,tr)
       else

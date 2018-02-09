@@ -197,6 +197,8 @@ term            : sterm+
                 { mk_pre_from_list $1 }
                 | ID COLON sterm+ ARROW term
                 { PrePi (fst $1,Some (snd $1),mk_pre_from_list $3,$5) }
+                | LEFTPAR ID COLON sterm+ RIGHTPAR ARROW term
+                { PrePi (fst $2,Some (snd $2),mk_pre_from_list $4,$7) }
                 | term ARROW term
                 { PrePi (preterm_loc $1,None,$1,$3) }
                 | ID FATARROW term

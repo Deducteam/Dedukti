@@ -29,7 +29,6 @@ tt: prf true.
 [A]  prf (exists A)  --> P:Prop -> (x:Term -> prf (A x) -> prf P) -> prf P
 [x,y] prf (equals x y) --> P:(Term -> Prop) -> prf (P x) -> prf (P y).
 
-lem: A:Prop -> prf (or A (not A)).
 
 (; *** Theorems ;)
 
@@ -77,7 +76,6 @@ def exists_intro: P:(Term->Prop) -> t:Term -> prf (P t) -> prf (exists P)
 def exists_elim: P:(Term->Prop) -> Q:Prop -> prf (exists P) -> prf (forall (x => imp (P x) Q)) -> prf Q
 := P:(Term->Prop) => Q:Prop => p1:prf (exists P) => p2:prf (forall (x => imp (P x) Q))
 	=> p1 Q p2.
-
 
 (; Equality ;)
 
