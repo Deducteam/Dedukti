@@ -1,6 +1,7 @@
 open Basic
 open Cmd
 open Pp
+open Reduction
 
 module T = struct
   let mk_prelude _ i =
@@ -31,24 +32,24 @@ module T = struct
 
   let mk_command _ cmd =
     match cmd with
-    | Whnf te         -> Format.printf "#WHNF@ %a." print_term te
-    | Hnf te          -> Format.printf "#HNF@ %a." print_term te
-    | Snf te          -> Format.printf "#SNF@ %a." print_term te
-    | Whnf_n_steps (n,te) -> Format.printf "#WHNF@ #%i@ %a." n print_term te
-    | Hnf_n_steps  (n,te) -> Format.printf "#HNF@ #%i@ %a."  n print_term te
-    | Snf_n_steps  (n,te) -> Format.printf "#SNF@ #%i@ %a."  n print_term te
-    | Conv (te1,te2)  -> Format.printf "#CONV@ %a,@ %a." print_term te1 print_term te2
-    | Check (te,ty)   -> Format.printf "#CHECK@ %a,@ %a." print_term te print_term ty
-    | Infer te        -> Format.printf "#INFER@ %a." print_term te
-    | InferSnf te     -> Format.printf "#INFERSNF@ %a." print_term te
-    | Require md      -> Format.printf "#NAME %a.@.@." print_mident md
-    | Gdt (m0,v)      ->
+    | Reduce (Whnf,  te) -> Format.printf "#WHNF@ %a." print_term te
+    | Reduce (Hnf ,  te) -> Format.printf "#HNF@ %a." print_term te
+    | Reduce (Snf ,  te) -> Format.printf "#SNF@ %a." print_term te
+    | Nsteps (Whnf,n,te) -> Format.printf "#WHNF[%i]@ %a." n print_term te
+    | Nsteps (Hnf ,n,te) -> Format.printf "#HNF[%i]@ %a."  n print_term te
+    | Nsteps (Snf ,n,te) -> Format.printf "#SNF[%i]@ %a."  n print_term te
+    | Conv (te1,te2)     -> Format.printf "#CONV@ %a,@ %a." print_term te1 print_term te2
+    | Check (te,ty)      -> Format.printf "#CHECK@ %a,@ %a." print_term te print_term ty
+    | Infer te           -> Format.printf "#INFER@ %a." print_term te
+    | InferSnf te        -> Format.printf "#INFERSNF@ %a." print_term te
+    | Require md         -> Format.printf "#NAME %a.@.@." print_mident md
+    | Gdt (m0,v)         ->
       begin match m0 with
         | None -> Format.printf "#GDT@ %a." print_ident v
         | Some m -> Format.printf "#GDT@ %a.%a." print_mident m print_ident v
       end
-    | Print str         -> Format.printf "#PRINT \"%s\"." str
-    | Other (cmd,_)     -> failwith (Format.sprintf "Unknown command '%s'.\n" cmd)
+    | Print str          -> Format.printf "#PRINT \"%s\"." str
+    | Other (cmd,_)      -> failwith (Format.sprintf "Unknown command '%s'.\n" cmd)
 
   let mk_ending _ = ()
 end

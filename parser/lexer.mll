@@ -62,7 +62,7 @@ rule token = parse
   | "#GDT"      { GDT      ( get_loc lexbuf ) }
   | "#REQUIRE" space+ (mident as md) {REQUIRE (get_loc lexbuf, mk_mident md)}
   | '#' (capital as cmd) { OTHER (get_loc lexbuf, cmd) }
-  | '#' (number  as i  ) { INT   (int_of_string i) }
+  | '[' (number  as i) ']' { INT   (int_of_string i) }
   | mident as md '.' (ident as id)
   { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id

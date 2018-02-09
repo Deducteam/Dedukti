@@ -1,0 +1,13 @@
+#NAME nsteps1.
+
+def A : Type.
+[] A --> A -> A.
+
+#SNF[1] A.
+#SNF[0] A -> A.
+
+#SNF[2] A.
+#SNF[0] (A -> A) -> A.
+
+#SNF[3] A.
+#SNF[0] ((A -> A) -> A) -> A.

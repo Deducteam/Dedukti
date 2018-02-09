@@ -58,28 +58,12 @@ let mk_rules = Rule.( function
   )
 
 let mk_command lc = function
-  | Whnf te          ->
-    ( match Env.reduction Reduction.Whnf  te with
+  | Reduce (strat, te) ->
+    ( match Env.reduction strat te with
       | OK te -> Format.printf "%a@." Pp.print_term te
       | Err e -> Errors.fail_env_error e )
-  | Hnf te ->
-    ( match Env.reduction Reduction.Hnf te with
-      | OK te -> Format.printf "%a@." Pp.print_term te
-      | Err e -> Errors.fail_env_error e )
-  | Snf te ->
-    ( match Env.reduction Reduction.Snf te with
-      | OK te -> Format.printf "%a@." Pp.print_term te
-      | Err e -> Errors.fail_env_error e )
-  | Whnf_n_steps (n,te) ->
-    ( match Env.reduction_steps Reduction.Whnf n te with
-      | OK te -> Format.printf "%a@." Pp.print_term te
-      | Err e -> Errors.fail_env_error e )
-  | Hnf_n_steps (n,te) ->
-    ( match Env.reduction_steps Reduction.Hnf n te with
-      | OK te -> Format.printf "%a@." Pp.print_term te
-      | Err e -> Errors.fail_env_error e )
-  | Snf_n_steps (n,te) ->
-    ( match Env.reduction_steps Reduction.Snf n te with
+  | Nsteps (strat,n,te) ->
+    ( match Env.reduction_steps strat n te with
       | OK te -> Format.printf "%a@." Pp.print_term te
       | Err e -> Errors.fail_env_error e )
   | Conv (te1,te2) ->

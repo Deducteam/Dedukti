@@ -115,18 +115,18 @@ let reduction ?red:(red=Reduction.default) strategy te =
   try
     ignore(inference !sg te);
     Reduction.select red;
-    let te' = Reduction.reduction !sg strategy te in
+    let te' = Reduction.reduction strategy !sg te in
     Reduction.select Reduction.default;
     OK te'
   with
     | SignatureError e -> Err (EnvErrorSignature e)
-    | TypingError e -> Err (EnvErrorType e)
+    | TypingError    e -> Err (EnvErrorType e)
 
 let reduction_steps ?red:(red=Reduction.default) strategy n te =
   try
     ignore(inference !sg te);
     Reduction.select red;
-    let te' = Reduction.reduction_steps n !sg strategy te in
+    let te' = Reduction.reduction_steps n strategy !sg te in
     Reduction.select Reduction.default;
     OK te'
   with
@@ -136,7 +136,7 @@ let reduction_steps ?red:(red=Reduction.default) strategy n te =
 
 let unsafe_snf ?red:(red=Reduction.default) te =
   Reduction.select red;
-  let te' = Reduction.reduction !sg Reduction.Snf te in
+  let te' = Reduction.reduction Reduction.Snf !sg te in
   Reduction.select Reduction.default;
   te'
 
@@ -150,4 +150,4 @@ let are_convertible ?red:(red=Reduction.default) te1 te2 =
     OK b
   with
   | SignatureError e -> Err (EnvErrorSignature e)
-  | TypingError e -> Err (EnvErrorType e)
+  | TypingError    e -> Err (EnvErrorType e)

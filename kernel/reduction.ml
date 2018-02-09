@@ -342,15 +342,10 @@ let rec hnf sg t =
   | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
   | App (f,a,lst) -> mk_App (hnf sg f) (hnf sg a) (List.map (hnf sg) lst)
 
-let get_reduction_function = function
+let reduction = function
   | Hnf  -> hnf
   | Snf  -> snf
   | Whnf -> whnf
-
-let reduction sg strategy te =
-  (get_reduction_function strategy) sg te
-
-
 
 (* n-steps reduction on state *)
 let state_nsteps (sg:Signature.t) (strat:red_strategy)
@@ -431,9 +426,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
   in
   aux (steps,state)
 
-let nsteps (n:int) (sg:Signature.t) (strat:red_strategy) t =
+let reduction_steps n strat sg t =
   let st = { ctx=LList.nil; term=t; stack=[] } in
   let (n',st') = state_nsteps sg strat n st in
-  (n', term_of_state st')
-
-let reduction_steps n sg strategy te = snd (nsteps n sg strategy te)
+  term_of_state st'
