@@ -32,7 +32,7 @@ let mk_command lc = function
       | OK te -> Format.printf "%a@." Pp.print_term te
       | Err e -> Errors.fail_env_error e )
   | Nsteps (strat,n,te) ->
-    ( match Env.reduction_steps strat n te with
+    ( match Env.reduction_steps n strat te with
       | OK te -> Format.printf "%a@." Pp.print_term te
       | Err e -> Errors.fail_env_error e )
   | Conv (te1,te2)  ->

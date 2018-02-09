@@ -63,7 +63,7 @@ let mk_command lc = function
       | OK te -> Format.printf "%a@." Pp.print_term te
       | Err e -> Errors.fail_env_error e )
   | Nsteps (strat,n,te) ->
-    ( match Env.reduction_steps strat n te with
+    ( match Env.reduction_steps n strat te with
       | OK te -> Format.printf "%a@." Pp.print_term te
       | Err e -> Errors.fail_env_error e )
   | Conv (te1,te2) ->
@@ -92,9 +92,8 @@ let mk_command lc = function
     let m = match m0 with None -> Env.get_name () | Some m -> m in
     let cst = mk_name m v in
     ( match Env.get_dtree lc cst with
-      | OK (Some (i,g)) ->
-        Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
-      | _ -> Format.printf "No GDT.@." )
+      | OK (Some (i,g)) -> Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
+      | _               -> Format.printf "No GDT.@." )
   | Print str -> Format.printf "%s@." str
   | Require m ->
     ( match Env.import lc m with

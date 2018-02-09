@@ -6,13 +6,14 @@ type red = {
   select : (Rule.rule_name -> bool) option;
   beta : bool
 }
+(** [beta] flag enables/disables beta reductions.
+    [select] = [Some f] restreins rules according to the given filter on names.
+    [select] = [None] is the default behaviour (all rules allowed). *)
 
 val default : red
 
 val select : red -> unit
-(** [select [Some [md1,...,mdn]]] restreins rules used during the reduction.
-    Only rules declared in signature mdi are allowed. [select None] is the
-    default behaviour. *)
+(** [select red] restreins reduction using the given filter. *)
 
 type red_strategy = Hnf | Snf | Whnf
 

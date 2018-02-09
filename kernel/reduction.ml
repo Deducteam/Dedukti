@@ -272,8 +272,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     else { ctx=LList.nil; term=(mk_DB l x (n-LList.len ctx)); stack }
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
-    if not !beta
-    then st
+    if not !beta then st
     else state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->

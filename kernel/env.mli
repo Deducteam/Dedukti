@@ -54,11 +54,11 @@ val check : ?ctx:typed_context -> term -> term -> (unit,env_error) error
 (** {2 Safe Reduction/Conversion} *)
 (** terms are typechecked before the reduction/conversion *)
 
-val reduction       : ?red:(Reduction.red) -> Reduction.red_strategy -> term ->
-                      (term,env_error) error
+val reduction : ?red:(Reduction.red) -> Reduction.red_strategy ->
+  term -> (term,env_error) error
 
-val reduction_steps : ?red:(Reduction.red) -> Reduction.red_strategy -> int -> term ->
-                      (term,env_error) error
+val reduction_steps : int -> ?red:(Reduction.red) -> Reduction.red_strategy ->
+  term -> (term,env_error) error
 
 val are_convertible : ?red:(Reduction.red) -> term -> term -> (bool,env_error) error
 

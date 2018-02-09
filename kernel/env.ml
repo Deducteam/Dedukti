@@ -111,28 +111,20 @@ let check ?ctx:(ctx=[]) te ty =
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)
 
-let reduction ?red:(red=Reduction.default) strategy te =
+let _reduction (f:Reduction.red_strategy -> Signature.t -> Term.term -> Term.term)
+    ?red:(red=Reduction.default) strategy te =
   try
     ignore(inference !sg te);
     Reduction.select red;
-    let te' = Reduction.reduction strategy !sg te in
+    let te' = f strategy !sg te in
     Reduction.select Reduction.default;
     OK te'
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError    e -> Err (EnvErrorType e)
 
-let reduction_steps ?red:(red=Reduction.default) strategy n te =
-  try
-    ignore(inference !sg te);
-    Reduction.select red;
-    let te' = Reduction.reduction_steps n strategy !sg te in
-    Reduction.select Reduction.default;
-    OK te'
-  with
-  | SignatureError e -> Err (EnvErrorSignature e)
-  | TypingError    e -> Err (EnvErrorType e)
-
+let reduction         = _reduction Reduction.reduction
+let reduction_steps n = _reduction (Reduction.reduction_steps n)
 
 let unsafe_snf ?red:(red=Reduction.default) te =
   Reduction.select red;

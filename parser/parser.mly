@@ -14,7 +14,7 @@
     open Scoping
     open Rule
     open Cmd
-	open Reduction
+    open Reduction
     open M
 
     let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
