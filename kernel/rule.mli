@@ -47,6 +47,8 @@ val check_patterns : int -> pattern list -> (int * wf_pattern list * constr list
 (** Delta rules are the rules associated to the definition of a constant while Gamma rules are the rules of lambda pi modulo. The first paraneter of Gamma indicates if the name of the rule has been given by the user. *)
 type rule_name = Delta of name | Gamma of bool * name
 
+val rule_name_eq : rule_name -> rule_name -> bool
+  
 val pp_rule_name : Format.formatter -> rule_name -> unit
 
 type 'a rule =

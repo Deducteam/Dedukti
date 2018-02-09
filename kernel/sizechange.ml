@@ -96,13 +96,13 @@ type local_result = Terminating | SelfLooping | CallingDefined
 (** Representation of a function symbol. *)
 type symbol =
   {
-    name           : name         ; (** Name of the symbol. *)
+    identifier     : name         ; (** Name of the symbol. *)
     arity          : int          ; (** Arity of the symbol (number of args). *)
     status         : symb_status  ; (** The status of the symbol *)
-    mutable result : local_result ; (** The result of the SCP, initially set to unknown *)
+    mutable result : local_result   (** The result of the SCP, initially set to unknown *)
   }
 
-(** Map with symbol as keys. *)
+(** Map with index as keys. *)
 module IMap =
   struct
     include Map.Make(
@@ -123,18 +123,22 @@ module IMap =
     The coefficient [matrix.(a).(b)] give the relation between the [a]-th parameter of the caller and the [b]-th argument of the callee.
     The boolean [is_rec] is true when the call is a reccursive call (i.e. a call to a generalised hypothesis lower in the tree.
     It is [false] for every call to subtyping in the typing algorithm and the same goes for rules introducing a new induction hypothesis.
-    Every other call refers to a previously introduced induction hypothesis and its boolean is [true]. *)  
+    Every other call refers to a previously introduced induction hypothesis and its boolean is [true]. *)
 type call =
-    { callee : index  (** The function symbol being called. *)
-    ; caller : index  (** The calling function symbol. *)
-    ; matrix : matrix (** Size change matrix of the call. *)}
+  { callee : index      ; (** Key of the function symbol being called. *)
+    caller : index      ; (** Key of the calling function symbol. *)
+    matrix : matrix     ; (** Size change matrix of the call. *)
+    rules  : index list   (** The list of rules leading to this call *)
+  }
 
 (** Internal state of the SCT, including the representation of symbols and the call graph. *)
 type call_graph =
   {
-    next_index : index ref;
-    symbols    : symbol IMap.t ref ;
-    calls      : call list ref
+    next_index      : index ref             ;
+    next_rule_index : index ref             ;
+    symbols         : symbol IMap.t ref     ;
+    all_rules       : rule_infos IMap.t ref ;
+    calls           : call list ref
   }
       
 (* Global variables *)
@@ -142,7 +146,10 @@ type call_graph =
 (** The call graph which will be studied *)
 let graph : call_graph ref =
   let syms = IMap.empty in
-  ref { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
+  let ruls = IMap.empty in
+  ref { next_index = ref 0 ; next_rule_index = ref 0; symbols = ref syms ;
+        all_rules = ref ruls ; calls = ref []
+      }
 
 (** Saying if the size-change module must be verbose *)
 let vb : bool ref=ref false
@@ -161,7 +168,9 @@ let mod_name=ref (mk_mident "")
 let initialize : bool -> mident -> unit =
   fun v mod_n->
   let syms = IMap.empty in
-  graph:={ next_index = ref 0 ; symbols = ref syms ; calls = ref [] };
+  let ruls = IMap.empty in
+  graph:={ next_index = ref 0 ; next_rule_index = ref 0; symbols = ref syms ;
+           all_rules = ref ruls ; calls = ref [] };
   Hashtbl.clear must_be_str_after;
   Hashtbl.clear after;
   vb:=v;
@@ -207,33 +216,35 @@ let pp_option pp_arg fmt a =
 let pp_array sep pp fmt v =
   pp_list sep pp fmt (Array.to_list v)
 
-let print_call : symbol IMap.t -> formatter -> call -> unit =
-  fun tbl ff c->
-  let caller_sym = IMap.find c.caller tbl in
-  let callee_sym = IMap.find c.callee tbl in
-  let res=ref "" in
-  for i=0 to caller_sym.arity -1 do
-    res:=!res^"x"^(string_of_int i)^" "
-  done;
-  fprintf ff "%a%d(%s%!) <- %a%d%!(" pp_name caller_sym.name c.caller
-    !res pp_name callee_sym.name c.callee;
-  let jj=Array.length c.matrix.tab in
-  if jj>0 then
-    let ii=Array.length c.matrix.tab.(0) in
-    for i = 0 to ii - 1 do
-      if i > 0 then fprintf ff ",";
-      let some = ref false in
-      for j = 0 to jj - 1 do
-        let c = c.matrix.tab.(j).(i) in
-        if c <> Infi then
-          begin
-            let sep = if !some then " " else "" in
-            fprintf ff "%s%s" sep (cmp_to_string c);
-            some := true
-          end
-      done
+let print_call : formatter -> call -> unit =
+  fun ff c->
+    let tbl= !(!graph.symbols) in
+    let caller_sym = IMap.find c.caller tbl in
+    let callee_sym = IMap.find c.callee tbl in
+    let res=ref "" in
+    for i=0 to caller_sym.arity -1 do
+      res:=!res^"x"^(string_of_int i)^" "
     done;
-    fprintf ff ")%!"
+    fprintf ff "%a%d(%s%!) <- %a%d%!(" pp_name caller_sym.identifier c.caller
+      !res pp_name callee_sym.identifier c.callee;
+    let jj=Array.length c.matrix.tab in
+    if jj>0 then
+      let ii=Array.length c.matrix.tab.(0) in
+      for i = 0 to ii - 1 do
+        if i > 0 then fprintf ff ",";
+        let some = ref false in
+        for j = 0 to jj - 1 do
+          let c = c.matrix.tab.(j).(i) in
+          if c <> Infi then
+            begin
+              let sep = if !some then " " else "" in
+              fprintf ff "%s%s" sep (cmp_to_string c);
+              some := true
+            end
+        done
+      done;
+      fprintf ff ")%!";
+      
 
 (* The main code of this module *)
 
@@ -241,13 +252,23 @@ let print_call : symbol IMap.t -> formatter -> call -> unit =
 exception Success_index  of index
 exception Success_status of symb_status
 
-(** [find_key f m] will return the key [k] which is mapped in [m] to the symbol named [f] *)
+(** [find_key f] will return the key [k] which is mapped to the symbol named [f] *)
 let find_key : name ->  index = fun f ->
   try
     IMap.iter
       (
-	fun k x -> if x.name=f then raise (Success_index k)
+	fun k x -> if name_eq x.identifier f then raise (Success_index k)
       ) !(!graph.symbols);
+    raise Not_found
+  with Success_index k -> k
+
+(** [find_rule_key r] will return the key [k] which is mapped to the rule [r] *)
+let find_rule_key : rule_infos ->  index = fun r ->
+  try
+    IMap.iter
+      (
+	fun k x -> if rule_name_eq x.name r.name then raise (Success_index k)
+      ) !(!graph.all_rules);
     raise Not_found
   with Success_index k -> k
 
@@ -256,7 +277,9 @@ let find_stat : name -> symb_status = fun f ->
   try
     IMap.iter
       (
-	fun _ x -> if x.name=f then raise (Success_status x.status)
+	fun _ x ->
+          if name_eq x.identifier f
+          then raise (Success_status x.status)
       ) !(!(graph).symbols);
     raise Not_found
   with Success_status s -> s
@@ -278,22 +301,33 @@ let updateHT : ('a,'b list) Hashtbl.t -> 'a -> 'b -> unit =
 
 (** Creation of a new symbol.  *)
 let create_symbol : name -> int -> symb_status -> unit =
-  fun name arity status ->
+  fun identifier arity status ->
   let g= !graph in
   if !vb
   then
     printf "Adding the %a symbol %a of arity %i@."
-      pp_status status pp_name name arity; 
+      pp_status status pp_name identifier arity; 
   let index = !(g.next_index) in
-  let sym = {name ; arity ; status; result=Terminating} in
+  let sym = {identifier ; arity ; status; result=Terminating} in
   g.symbols := IMap.add index sym !(g.symbols);
   incr g.next_index
+
+let create_rule : rule_infos -> unit =
+  fun r ->
+  let g= !graph in
+  if !vb
+  then
+    printf "Adding the rule %a@."
+      pp_rule_infos r; 
+  let index = !(g.next_rule_index) in
+  g.all_rules := IMap.add index r !(g.all_rules);
+  incr g.next_rule_index
 
 (** Add a new call to the call graph. *)
 let add_call : call-> unit =
   fun cc ->
   let gr= !graph in
-  if !vb then printf "%a@." (print_call !(gr.symbols)) cc;
+  if !vb then printf "%a@." print_call cc;
   gr.calls := cc :: !(gr.calls)
 
 (** Compare a term and a pattern, using an int indicating under how many lambdas the comparison occurs *)
@@ -464,7 +498,8 @@ and rule_to_call : int -> rule_infos -> call list = fun nb r ->
       begin
 	let m= (IMap.find a !(gr.symbols)).arity in
 	let n= (IMap.find b !(gr.symbols)).arity in
-	{callee=a ; caller = b ; matrix=matrix_of_lists m lp n lt nb}::
+        {callee=a ; caller = b ;
+         matrix=matrix_of_lists m lp n lt nb; rules=[find_rule_key r]}::
 	  List.flatten (List.map (rule_to_call nb) (List.map (term2rule r) lt))
       end
 
@@ -489,23 +524,23 @@ let latex_print_calls : unit -> unit=
   in
   let numbering = List.mapi (fun i (j,_) -> (j,i)) arities in
   let index j = List.assoc j numbering in
-  let not_unique name =
-    List.fold_left (fun acc (_,sym) -> if sym.name = name then acc+1 else acc) 0 arities
+  let not_unique n =
+    List.fold_left (fun acc (_,sym) -> if sym.identifier = n then acc+1 else acc) 0 arities
                    >= 2
   in
   let f (j,sym) =
-    if not_unique sym.name then
-      fprintf ff "    N%d [ label = \"%a_{%d}\" ];\n" (index j) pp_name sym.name (index j)
+    if not_unique sym.identifier then
+      fprintf ff "    N%d [ label = \"%a_{%d}\" ];\n" (index j) pp_name sym.identifier (index j)
     else
-      fprintf ff "    N%d [ label = \"%a\" ];\n" (index j) pp_name sym.name
+      fprintf ff "    N%d [ label = \"%a\" ];\n" (index j) pp_name sym.identifier
   in
   List.iter f (List.filter (fun (i,_) ->
     List.exists (fun c -> i = c.caller || i = c.callee) calls) arities);
   let print_call2 arities {callee = i; caller = j; matrix = m} =
-    let {name = namej; arity = aj} =
+    let {identifier = namej; arity = aj} =
       try List.assoc j arities with Not_found -> assert false
     in
-    let {name = namei; arity = ai} =
+    let {identifier = namei; arity = ai} =
       try List.assoc i arities with Not_found -> assert false
     in
     fprintf ff "    N%d -> N%d [label = \"\\\\left(\\\\begin{smallmatrix}"
@@ -587,30 +622,31 @@ let sct_only : unit -> unit =
   fun ()->
     let ftbl= !graph in
     let num_fun = !(ftbl.next_index) in
-    let arities = !(ftbl.symbols) in
+    (* tbl is a num_fun x num_fun Array in which each element is the list of all matrices between the two symbols with the rules which generated this matrix *)
     let tbl = Array.init num_fun (fun _ -> Array.make num_fun []) in
-    let print_call ff= print_call arities ff in 
+    let print_call ff= print_call ff in 
   (* counters to count added and composed edges *)
     let added = ref 0 and composed = ref 0 in
   (* function adding an edge, return a boolean indicating
      if the edge is new or not *)
-    let add_edge i j m =
+    let add_edge i j m r =
     (* test idempotent edges as soon as they are discovered *)
       if i = j && prod m m = m && not (decreasing m) then
 	begin
           if !vb then 
             printf "edge %a idempotent and looping\n%!" print_call
-              {callee = i; caller = j; matrix = m};
+              {callee = i; caller = j; matrix = m; rules = r};
           update_result i SelfLooping
 	end;
       let ti = tbl.(i) in
       let ms = ti.(j) in
-      if List.exists (fun m' -> subsumes m' m) ms
+      if List.exists (fun m' -> subsumes (fst m') m) ms
       then
 	false
       else
         begin
-	  let ms = m :: List.filter (fun m' -> not (subsumes m m')) ms in
+	  let ms = (m, r) ::
+            List.filter (fun m' -> not (subsumes m (fst m'))) ms in
           ti.(j) <- ms;
           true
         end
@@ -627,23 +663,36 @@ let sct_only : unit -> unit =
     let rec fn () =
       match !new_edges with
       | [] -> ()
-      | {callee = i; caller = j}::l when j < 0 -> new_edges := l; fn () (* ignore root *)
-      | ({callee = i; caller = j; matrix = m} as c)::l ->
-        assert (i >= 0);
+      | ({callee = i; caller = j; matrix = m; rules=r} as c)::l ->
         new_edges := l;
-        if add_edge i j m then begin
-          if !vb then printf "\tedge %a added\n%!" print_call c;
-          incr added;
-          let t' = tbl.(j) in
-          Array.iteri (fun k t -> List.iter (fun m' ->
-              let c' = {callee = j; caller = k; matrix = m'} in
-              if !vb then printf "\tcompose: %a * %a = %!" print_call c print_call c';
-              let m'' = prod m m' in
-              incr composed;
-              let c'' = {callee = i; caller = k; matrix = m''} in
-              new_edges := c'' :: !new_edges;
-              if !vb then printf "%a\n%!" print_call c'';
-            ) t) t'
+        if add_edge i j m r
+        then
+          begin
+            if !vb
+            then printf "\tedge %a added\n%!" print_call c;
+            incr added;
+            let t' = tbl.(j) in
+            Array.iteri
+              (fun k t ->
+                 List.iter
+                   (fun (m',r') ->
+                      let c' = {callee = j; caller = k; matrix = m'; rules=r'}
+                      in
+                      if !vb
+                      then
+                        printf "\tcompose: %a * %a = %!"
+                          print_call c
+                          print_call c';
+                      let m'' = prod m m' in
+                      let r'' = r @ r' in
+                      incr composed;
+                      let c'' =
+                        {callee = i; caller = k; matrix = m''; rules = r''}
+                      in
+                      new_edges := c'' :: !new_edges;
+                      if !vb then printf "%a\n%!" print_call c'';
+                   ) t
+              ) t'
         end else
         if !vb then printf "\tedge %a is old\n%!" print_call c;
         fn ()
@@ -802,7 +851,7 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
   initialize vb mod_name;
   if vb then (print_sig whole_sig; print_ext_ru ext_ru);
   List.iter
-    (fun (fct,stat,typ,_) ->
+    (fun (fct,stat,typ,rules_opt) ->
       let ar = infer_arity_from_type typ in
       let stat =
 	(
@@ -813,7 +862,10 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
 	  | _     , Signature.Static    -> Elt_constructor
 	)
       in
-      create_symbol fct ar stat
+      create_symbol fct ar stat;
+      match rules_opt with
+      | None -> ()
+      | Some (rul,_,_) -> List.iter create_rule rul
     ) whole_sig;
   List.iter
     (fun (fct,st,typ,_) ->
@@ -847,8 +899,8 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
   let res=Hashtbl.create 5 in
   IMap.iter
     (fun _ s->
-      if (s.status=Def_function || s.status=Def_type)
-      then updateHT res s.result s.name
+      if (s.result != Terminating || s.status=Def_function || s.status=Def_type)
+      then updateHT res s.result s.identifier
     ) tbl;
   res
     

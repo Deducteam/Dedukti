@@ -20,7 +20,7 @@ type matrix = { w : int ; h : int ; tab : cmp array array }
 (** Abstract type used to refer to function symbols. *)
 type index
 
-type local_result = Terminating | SelfLooping | CallingDefined
+type local_result = Terminating | SelfLooping of (index list) | CallingDefined
                   | UsingBrackets | NonPositive | CriticalPair
 
 (** [int_of_index i] returns an [int] corresponding to the index [i]. *)
@@ -38,9 +38,11 @@ val int_of_index : index -> int
     induction hypothesis. Every other call refers to a previously
     introduced induction hypothesis and its boolean is [true]. *)
 type call =
-  { callee : index  (** Key of the function symbol being called. *)
-  ; caller : index  (** Key of the calling function symbol. *)
-  ; matrix : matrix (** Size change matrix of the call. *)}
+  { callee : index           ; (** Key of the function symbol being called. *)
+    caller : index           ; (** Key of the calling function symbol. *)
+    matrix : matrix          ; (** Size change matrix of the call. *)
+    rules  : index list   (** The list of rules leading to this call *)
+  }
 
 (** The representation of the call graph. *)
 type call_graph
