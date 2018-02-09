@@ -5,8 +5,7 @@ open Basic
 open Term
 open Rule
 open Format
-
-exception TypeLevelRewriteRule of (name * name)
+    
 exception MillerPatternTypeLevel of int
 exception BracketsTypeLevel of int
 
@@ -709,8 +708,9 @@ let under : position -> position =
 
 let rec right_most : term -> term =
   function
-  | Pi(_,_,_,a) -> right_most a
-  | App(a,_,_) -> right_most a
+  | Kind         -> assert false
+  | Pi(_,_,_,a)  -> right_most a
+  | App(a,_,_)   -> right_most a
   | Lam(_,_,_,a) -> right_most a
   | t -> t
 
@@ -749,9 +749,10 @@ let rec constructors_infos : position -> name -> term -> term -> unit =
                      | Negative -> updateHT must_be_str_after g2 (g,f)
                      | _ -> ()
                    end
-	        | _ -> raise (TypeLevelRewriteRule (f,g))
+                (* TODO : Understand when this case can occur *)
+	        | _ -> assert false
 	    end
-         |_ -> ()
+         | _ -> if posit= Negative then update_result (find_key f) NonPositive 
        end
 
 let print_sig sg=
