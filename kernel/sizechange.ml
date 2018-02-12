@@ -31,9 +31,10 @@ let (<*>) : cmp -> cmp -> cmp = fun e1 e2 ->
 
 (** Type of a size change matrix. *)
 type matrix =
-  { w   : int (* Number of argument of callee *)
-  ; h   : int (* Number of argument of caller *)
-  ; tab : cmp array array }
+  { w   : int             ; (* Number of argument of callee *)
+    h   : int             ; (* Number of argument of caller *)
+    tab : cmp array array   (* The matrix of size h*w *)
+  }
 
 (** The pretty printer associated to the matrix type *)
 let pp_matrix fmt m=
