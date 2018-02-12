@@ -83,13 +83,13 @@ let fail_typing_error err =
             The type is not allowed to refer to bound variables.\n\
             Infered type:%a." pp_ident x n pp_typed_context ctx pp_term ty
   | Unconvertible (l,t1,t2) ->
-    fail l "Error while trying to convert '%a' and '%a'"
+    fail l "Assertion error. Given terms are not convertible: '%a' and '%a'"
       pp_term t1 pp_term t2
   | Convertible (l,t1,t2) ->
-    fail l "'%a' and '%a' are convertible"
+    fail l "Assertion error. Given terms are convertible: '%a' and '%a'"
       pp_term t1 pp_term t2
   | Inhabit (l,t1,t2) ->
-    fail l "'%a' is of type '%a'"
+    fail l "Assertion error. '%a' is of type '%a'"
       pp_term t1 pp_term t2
   | NotImplementedFeature l -> fail l "Feature not implemented."
 

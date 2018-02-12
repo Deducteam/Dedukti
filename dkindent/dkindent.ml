@@ -31,47 +31,34 @@ module T = struct
 
   let mk_command _ cmd =
     match cmd with
-    | Whnf te         -> Format.printf "#WHNF@ %a." print_term te
-    | Hnf te          -> Format.printf "#HNF@ %a." print_term te
-    | Snf te          -> Format.printf "#SNF@ %a." print_term te
-    | OneStep te      -> Format.printf "#STEP@ %a." print_term te
-    | NSteps (n,te)   -> Format.printf "#NSTEPS@ #%i@ %a." n print_term te
-    | Conv (exp,ass,t1,t2) when exp && (not ass)
-      -> Format.printf "#CHECK@ %a==@ %a."
-           print_term t1 print_term t2
-    | Conv (exp,ass,t1,t2) when (not exp) && (not ass)
-      -> Format.printf "#CHECKNOT@ %a==@ %a."
-           print_term t1 print_term t2
-    | Inhabit (exp,ass,te,ty) when exp && (not ass)
-      -> Format.printf "#CHECK@ %a::@ %a."
-           print_term te print_term ty
-    | Inhabit (exp,ass,te,ty) when (not exp) && (not ass)
-      -> Format.printf "#CHECKNOT@ %a::@ %a."
-           print_term te print_term ty
-    | Conv (exp,ass,t1,t2) when exp && ass
-      -> Format.printf "#ASSERT@ %a==@ %a."
-           print_term t1 print_term t2
-    | Conv (exp,ass,t1,t2) when (not exp) && ass
-      -> Format.printf "#ASSERTNOT@ %a==@ %a."
-           print_term t1 print_term t2
-    | Inhabit (exp,ass,te,ty) when exp && ass
-      -> Format.printf "#ASSERT@ %a::@ %a."
-           print_term te print_term ty
-    | Inhabit (exp,ass,te,ty) when (not exp) && ass
-      -> Format.printf "#ASSERTNOT@ %a::@ %a."
-           print_term te print_term ty
-    | Inhabit (_,_,_,_)-> assert false
-    | Conv (_,_,_,_)   -> assert false
-    | Infer te        -> Format.printf "#INFER@ %a." print_term te
-    | InferSnf te     -> Format.printf "#INFERSNF@ %a." print_term te
-    | Require md      -> Format.printf "#NAME %a.@.@." print_mident md
-    | Gdt (m0,v)      ->
-      begin match m0 with
-        | None -> Format.printf "#GDT@ %a." print_ident v
-        | Some m -> Format.printf "#GDT@ %a.%a." print_mident m print_ident v
-      end
-    | Print str         -> Format.printf "#PRINT \"%s\"." str
-    | Other (cmd,_)     -> failwith (Format.sprintf "Unknown command '%s'.\n" cmd)
+    | Whnf te        -> Format.printf "#WHNF@ %a." print_term te
+    | Hnf te         -> Format.printf "#HNF@ %a." print_term te
+    | Snf te         -> Format.printf "#SNF@ %a." print_term te
+    | OneStep te     -> Format.printf "#STEP@ %a." print_term te
+    | NSteps (n,te)  -> Format.printf "#NSTEPS@ #%i@ %a." n print_term te
+    | Conv (true ,false,t1,t2) -> Format.printf "#CHECK@ %a==@ %a."
+                                   print_term t1 print_term t2
+    | Conv (false,false,t1,t2) -> Format.printf "#CHECKNOT@ %a==@ %a."
+                                    print_term t1 print_term t2
+    | Conv (true ,true ,t1,t2) -> Format.printf "#ASSERT@ %a==@ %a."
+                                    print_term t1 print_term t2
+    | Conv (false,true ,t1,t2) -> Format.printf "#ASSERTNOT@ %a==@ %a."
+                                    print_term t1 print_term t2
+    | Inhabit (true,false,te,ty)  -> Format.printf "#CHECK@ %a::@ %a."
+                                       print_term te print_term ty
+    | Inhabit (false,false,te,ty) -> Format.printf "#CHECKNOT@ %a::@ %a."
+                                       print_term te print_term ty
+    | Inhabit (true ,true ,te,ty) -> Format.printf "#ASSERT@ %a::@ %a."
+                                     print_term te print_term ty
+    | Inhabit (false,true ,te,ty) -> Format.printf "#ASSERTNOT@ %a::@ %a."
+                                       print_term te print_term ty
+    | Infer te       -> Format.printf "#INFER@ %a." print_term te
+    | InferSnf te    -> Format.printf "#INFERSNF@ %a." print_term te
+    | Require md     -> Format.printf "#NAME %a.@.@." print_mident md
+    | Gdt (None,v)   -> Format.printf "#GDT@ %a." print_ident v
+    | Gdt (Some m,v) -> Format.printf "#GDT@ %a.%a." print_mident m print_ident v
+    | Print str      -> Format.printf "#PRINT \"%s\"." str
+    | Other (cmd,_)  -> failwith (Format.sprintf "Unknown command '%s'.\n" cmd)
 
   let mk_ending _ = ()
 end

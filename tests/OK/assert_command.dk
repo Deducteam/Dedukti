@@ -1,7 +1,0 @@
-#NAME AssertCommand.
-
-A : Type.
-B : Type.
-a : A.
-
-#ASSERT a :: A.
