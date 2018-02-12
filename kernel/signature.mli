@@ -33,6 +33,8 @@ exception SignatureError of signature_error
 
 type staticity = Static | Definable
 
+val pp_staticity        : Format.formatter -> staticity -> unit
+                            
 type t
 
 val make                : mident -> t

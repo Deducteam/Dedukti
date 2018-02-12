@@ -12,12 +12,20 @@ type index = int
 (** Conversion to int. *)
 let int_of_index : index -> int = fun i -> i
 
+(** The pretty printer for the type [index] *)
+let pp_index fmt x =
+  pp_print_int fmt (int_of_index x)
+  
 (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
 
 (** String representation. *)
 let cmp_to_string : cmp -> string =
   function Min1 -> "<" | Zero -> "=" | Infi -> "?"
+
+(** The pretty printer for the type [cmp] *)
+let pp_comp fmt c=
+  fprintf fmt "%s" (cmp_to_string c)
 
 (** Addition operation (minimum) *)
 let (<+>) : cmp -> cmp -> cmp = min
@@ -36,7 +44,7 @@ type matrix =
     tab : cmp array array   (* The matrix of size h*w *)
   }
 
-(** The pretty printer associated to the matrix type *)
+(** The pretty printer for the type [matrix] *)
 let pp_matrix fmt m=
   let res=ref [] in
   Array.iter (fun l ->
@@ -86,18 +94,28 @@ let subsumes : matrix -> matrix -> bool = fun m1 m2 ->
 (** The status expresses if a symbol is definable or if it is a constructor *)
 type symb_status = Set_constructor | Elt_constructor | Def_function | Def_type
 
+(** The pretty printer for the type [symb_status] *)
+let pp_status fmt s =
+  fprintf fmt "%s"
+    (
+      if s=Set_constructor || s=Elt_constructor
+      then "Static"
+      else "Definable"
+    )
+
+                                                                        
 (** The local result express the result of the termination checker for this symbol *)
-type local_result = Terminating | SelfLooping | CallingDefined
+type local_result = SelfLooping of (index list) | CallingDefined
                   | UsingBrackets | NonPositive | CriticalPair
                   | BetaReductionInType | MillerPatternTypeLevel
-    
+
 (** Representation of a function symbol. *)
 type symbol =
   {
-    identifier     : name         ; (** Name of the symbol. *)
-    arity          : int          ; (** Arity of the symbol (number of args). *)
-    status         : symb_status  ; (** The status of the symbol *)
-    mutable result : local_result   (** The result of the SCP, initially set to unknown *)
+    identifier     : name              ; (** Name of the symbol. *)
+    arity          : int               ; (** Arity of the symbol (number of args). *)
+    status         : symb_status       ; (** The status of the symbol *)
+    mutable result : local_result list ; (** The information about non termination for this symbol, initially empty *)
   }
 
 (** Map with index as keys. *)
@@ -123,10 +141,10 @@ module IMap =
     It is [false] for every call to subtyping in the typing algorithm and the same goes for rules introducing a new induction hypothesis.
     Every other call refers to a previously introduced induction hypothesis and its boolean is [true]. *)
 type call =
-  { callee : index      ; (** Key of the function symbol being called. *)
-    caller : index      ; (** Key of the calling function symbol. *)
-    matrix : matrix     ; (** Size change matrix of the call. *)
-    rules  : index list   (** The list of rules leading to this call *)
+  { callee      : index      ; (** Key of the function symbol being called. *)
+    caller      : index      ; (** Key of the calling function symbol. *)
+    matrix      : matrix     ; (** Size change matrix of the call. *)
+    rules       : index list ; (** The list of rules leading to this call *)
   }
 
 (** Internal state of the SCT, including the representation of symbols and the call graph. *)
@@ -136,7 +154,7 @@ type call_graph =
     next_rule_index : index ref             ;
     symbols         : symbol IMap.t ref     ;
     all_rules       : rule_infos IMap.t ref ;
-    calls           : call list ref
+    calls           : call list ref         ;
   }
       
 (* Global variables *)
@@ -173,48 +191,11 @@ let initialize : bool -> mident -> unit =
   Hashtbl.clear after;
   vb:=v;
   mod_name:=mod_n
-                                                                         
-(* Printing functions *)
-
-let pp_HT pp_key pp_elt fmt ht=
-  Hashtbl.iter (fun a b -> fprintf fmt "%a : %a@." pp_key a pp_elt b) ht
-
-let pp_comp fmt c=
-  fprintf fmt "%s" (cmp_to_string c)
-    
-let pp_index fmt x =
-  pp_print_int fmt (int_of_index x)
-    
-let pp_couple pp_fst pp_snd fmt x =
-  fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd (snd x)
-
-let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) =
-  fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z
-
-let pp_quat pp1 pp2 pp3 pp4 fmt (a,b,c,d) =
-  fprintf fmt "%a,%a,%a,%a" pp1 a pp2 b pp3 c pp4 d
-
-let pp_status fmt s =
-  fprintf fmt "%s"
-    (
-      if s=Set_constructor || s=Elt_constructor
-      then "Static"
-      else "Definable"
-    )
-
-let pp_staticity fmt s =
-  fprintf fmt "%s" (if s=Signature.Static then "Static" else "Definable")
-
-    
-let pp_option pp_arg fmt a =
-  match a with
-  | None -> fprintf fmt "%a" pp_print_string "None"
-  | Some n -> fprintf fmt "%a" pp_arg n
 
 let pp_array sep pp fmt v =
   pp_list sep pp fmt (Array.to_list v)
 
-let print_call : formatter -> call -> unit =
+let pp_call : formatter -> call -> unit =
   fun ff c->
     let tbl= !(!graph.symbols) in
     let caller_sym = IMap.find c.caller tbl in
@@ -285,8 +266,7 @@ let find_stat : name -> symb_status = fun f ->
 let update_result : index -> local_result -> unit = fun i res ->
   let tbl= !(!graph.symbols) in
   let sy=(IMap.find i tbl) in
-  if sy.result=Terminating || res=NonPositive
-  then sy.result <- res
+  sy.result <- res::sy.result
     
 (** Adding the element a at the begining of the list accessed in ht with key id *)
 let updateHT : ('a,'b list) Hashtbl.t -> 'a -> 'b -> unit =
@@ -306,7 +286,7 @@ let create_symbol : name -> int -> symb_status -> unit =
     printf "Adding the %a symbol %a of arity %i@."
       pp_status status pp_name identifier arity; 
   let index = !(g.next_index) in
-  let sym = {identifier ; arity ; status; result=Terminating} in
+  let sym = {identifier ; arity ; status; result=[]} in
   g.symbols := IMap.add index sym !(g.symbols);
   incr g.next_index
 
@@ -325,7 +305,7 @@ let create_rule : rule_infos -> unit =
 let add_call : call-> unit =
   fun cc ->
   let gr= !graph in
-  if !vb then printf "%a@." print_call cc;
+  if !vb then printf "%a@." pp_call cc;
   gr.calls := cc :: !(gr.calls)
 
 (** Compare a term and a pattern, using an int indicating under how many lambdas the comparison occurs *)
@@ -419,7 +399,15 @@ let term2rule : rule_infos -> term -> rule_infos = fun r t ->
    esize=r.esize;
    pats=r.pats;
    constraints=[]}
-	
+
+let pp_couple pp_fst pp_snd fmt x =
+  fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd (snd x)
+
+let pp_option pp_arg fmt a =
+  match a with
+  | None -> fprintf fmt "%a" pp_print_string "None"
+  | Some n -> fprintf fmt "%a" pp_arg n
+    
 (** Find the index of the callee of a rule and the list of its arguments *)
 let rec get_callee : int -> rule_infos -> (term list * index) option =
   fun nb r ->
@@ -478,7 +466,7 @@ unknown symbol such that %a in line %i@."
 	 ) ;
 	 None
        end
-	
+          
 (** Generate the list of calls associated to a rule. An int is used to specified under how many lambdas are the call *)
 and rule_to_call : int -> rule_infos -> call list = fun nb r ->
   let gr= !graph in
@@ -599,6 +587,11 @@ let tarjan graph=
 let are_equiv : name -> name -> name list list -> bool = fun a b l ->
   List.exists (fun x -> (List.mem a x) && (List.mem b x)) l
 
+
+let pp_HT pp_key pp_elt fmt ht=
+  Hashtbl.iter (fun a b -> fprintf fmt "%a : %a@." pp_key a pp_elt b) ht
+  
+              
 let print_after : unit -> unit=
   fun () ->
   printf "@.After :@.%a@." (pp_HT pp_name (pp_list "," pp_name)) after;
@@ -622,7 +615,7 @@ let sct_only : unit -> unit =
     let num_fun = !(ftbl.next_index) in
     (* tbl is a num_fun x num_fun Array in which each element is the list of all matrices between the two symbols with the rules which generated this matrix *)
     let tbl = Array.init num_fun (fun _ -> Array.make num_fun []) in
-    let print_call ff= print_call ff in 
+    let print_call ff= pp_call ff in 
   (* counters to count added and composed edges *)
     let added = ref 0 and composed = ref 0 in
   (* function adding an edge, return a boolean indicating
@@ -631,10 +624,11 @@ let sct_only : unit -> unit =
     (* test idempotent edges as soon as they are discovered *)
       if i = j && prod m m = m && not (decreasing m) then
 	begin
-          if !vb then 
+          if !vb
+          then 
             printf "edge %a idempotent and looping\n%!" print_call
               {callee = i; caller = j; matrix = m; rules = r};
-          update_result i SelfLooping
+          update_result i (SelfLooping r)
 	end;
       let ti = tbl.(i) in
       let ms = ti.(j) in
@@ -756,8 +750,15 @@ let rec constructors_infos : position -> name -> term -> term -> unit =
          | _ -> if posit= Negative then update_result (find_key f) NonPositive 
        end
 
+
+let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) =
+  fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z
+  
+let pp_quat pp1 pp2 pp3 pp4 fmt (a,b,c,d) =
+  fprintf fmt "%a,%a,%a,%a" pp1 a pp2 b pp3 c pp4 d
+          
 let print_sig sg=
-  printf "The signature is:@. * %a@." (pp_list "\n * " (pp_quat pp_name pp_staticity pp_term (pp_option (pp_triple (pp_list ";" pp_rule_infos) pp_print_int Dtree.pp_dtree)))) sg
+  printf "The signature is:@. * %a@." (pp_list "\n * " (pp_quat pp_name Signature.pp_staticity pp_term (pp_option (pp_triple (pp_list ";" pp_rule_infos) pp_print_int Dtree.pp_dtree)))) sg
 
 let print_ext_ru er=
   if er=[] then () else
@@ -909,16 +910,58 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
   sct_only ();
   let tbl= !(!graph.symbols) in
   IMap.for_all
-    (fun _ s-> s.result = Terminating) tbl
-    
+    (fun _ s-> s.result = []) tbl
+
+type global_result=Terminating | G_SelfLooping | G_CallingDefined
+                  | G_UsingBrackets | G_NonPositive | G_CriticalPair
+                  | G_BetaReductionInType | G_MillerPatternTypeLevel
+                                              
 let print_res : bool -> bool -> unit =
   fun st res ->
   let tbl= !(!graph.symbols) in
-  let ht=Hashtbl.create 5 in
+  let ht= Hashtbl.create 5 in
+  let list_SL=ref [] in
+  let rec fill_res_HT b id = function
+    | []                 -> if b then updateHT ht Terminating id
+    | SelfLooping(l)::tl ->
+       begin
+         list_SL:= (id,l):: !list_SL;
+         fill_res_HT false id tl
+       end
+    | CallingDefined ::tl ->
+       begin
+         updateHT ht G_CallingDefined id;
+         fill_res_HT false id tl
+       end
+    | UsingBrackets ::tl ->
+       begin
+         updateHT ht G_UsingBrackets id;
+         fill_res_HT false id tl
+       end
+    | NonPositive ::tl ->
+       begin
+         updateHT ht G_NonPositive id;
+         fill_res_HT false id tl
+       end
+    | CriticalPair ::tl ->
+       begin
+         updateHT ht G_CriticalPair id;
+         fill_res_HT false id tl
+       end
+    | BetaReductionInType ::tl ->
+       begin
+         updateHT ht G_BetaReductionInType id;
+         fill_res_HT false id tl
+       end
+    | MillerPatternTypeLevel ::tl ->
+       begin
+         updateHT ht G_MillerPatternTypeLevel id;
+         fill_res_HT false id tl
+       end
+  in
   IMap.iter
-    (fun _ s->
-       if (s.result != Terminating || s.status=Def_function || s.status=Def_type)
-       then updateHT ht s.result s.identifier
+    (fun _ s -> fill_res_HT (s.status = Def_function || s.status = Def_type)
+                  s.identifier s.result
     ) tbl;
   let good_module=fun n -> md n = !mod_name in
   begin
@@ -931,16 +974,18 @@ let print_res : bool -> bool -> unit =
   end;
   begin
     try
-      let l = Hashtbl.find ht SelfLooping
-      in
-      Format.eprintf "\027[31m Not proved terminating\027[m %a@."
-         (pp_list " , " pp_name)
-         (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
+      Format.eprintf "\027[31m Not proved terminating\027[m@. - %a@."
+        (pp_list "@. - " (pp_couple pp_name (pp_list " , "
+           (fun fmt ind -> fprintf fmt "%a" pp_rule_infos (IMap.find ind !(!graph.all_rules))))))
+        (if st
+         then (List.filter (fun (n,ll) -> md n= !mod_name) !list_SL)
+         else !list_SL
+        )
     with Not_found -> ()
   end;
   begin
     try
-      let l=Hashtbl.find ht CallingDefined
+      let l=Hashtbl.find ht G_CallingDefined
       in
       Format.eprintf "\027[31m Pattern matching on defined symbol\027[m %a@."
         (pp_list " , " pp_name)
@@ -949,7 +994,7 @@ let print_res : bool -> bool -> unit =
   end;
   begin
     try
-      let l=Hashtbl.find ht UsingBrackets
+      let l=Hashtbl.find ht G_UsingBrackets
       in
       Format.eprintf "\027[31m Use brackets\027[m %a@."
         (pp_list " , " pp_name)
@@ -958,7 +1003,7 @@ let print_res : bool -> bool -> unit =
   end;
   begin
     try
-      let l=Hashtbl.find ht NonPositive
+      let l=Hashtbl.find ht G_NonPositive
       in
       Format.eprintf "\027[31m Not strictly positive\027[m %a@."
         (pp_list " , " pp_name)
@@ -967,7 +1012,7 @@ let print_res : bool -> bool -> unit =
   end;
   begin
     try
-      let l=Hashtbl.find ht CriticalPair
+      let l=Hashtbl.find ht G_CriticalPair
       in
       Format.eprintf "\027[31m Critical pair\027[m %a@."
         (pp_list " , " pp_name)
@@ -976,7 +1021,7 @@ let print_res : bool -> bool -> unit =
   end;
   begin
     try
-      let l=Hashtbl.find ht BetaReductionInType
+      let l=Hashtbl.find ht G_BetaReductionInType
       in
       Format.eprintf "\027[31m Beta reduction in type\027[m %a@."
         (pp_list " , " pp_name)
@@ -985,7 +1030,7 @@ let print_res : bool -> bool -> unit =
   end;
   begin
     try
-      let l=Hashtbl.find ht MillerPatternTypeLevel
+      let l=Hashtbl.find ht G_MillerPatternTypeLevel
       in
       Format.eprintf "\027[31m Miller pattern at type level\027[m %a@."
         (pp_list " , " pp_name)
