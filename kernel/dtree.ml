@@ -101,19 +101,19 @@ let pp_matching_problem fmt matching_problem =
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of matching_problem * constr list * term * dtree option
+  | Test    of Rule.rule_name * matching_problem * constr list * term * dtree option
 
 
 let rec pp_dtree t fmt dtree =
   let tab = String.make (t*4) ' ' in
   match dtree with
-  | Test (mp,[],te,None)   -> fprintf fmt "(%a) %a" pp_matching_problem mp pp_term te
-  | Test (mp,[],te,def)      ->
-    fprintf fmt "\n%sif true then (%a) %a\n%selse (%a) %a" tab pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
-  | Test (mp,lst,te,def)  ->
+  | Test (name,mp,[],te,None)   -> fprintf fmt "{%a} (%a) %a" pp_rule_name name pp_matching_problem mp pp_term te
+  | Test (name,mp,[],te,def)      ->
+    fprintf fmt "\n%s{%a} if true then (%a) %a\n%selse (%a) %a" tab pp_rule_name name  pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
+  | Test (name,mp,lst,te,def)  ->
     let aux out = function
-      | Linearity (i,j) -> fprintf out "%d =l %d" i j
-      | Bracket (i,j) -> fprintf out "%a =b %a" pp_term (mk_DB dloc dmark i) pp_term j
+      | Linearity (i,j) -> fprintf out "{%a} %d =l %d" pp_rule_name name i j
+      | Bracket (i,j) -> fprintf out "{%a} %a =b %a" pp_rule_name name pp_term (mk_DB dloc dmark i) pp_term j
     in
     fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
       pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
@@ -286,10 +286,11 @@ let choose_column mx =
 let rec to_dtree (mx:matrix) : dtree =
   match choose_column mx with
     (* There are only variables on the first line of the matrix *)
-    | None   -> Test ( get_first_matching_problem mx,
-                       get_first_constraints mx,
-                       get_first_term mx,
-                       map_opt to_dtree (pop mx) )
+  | None   -> Test (mx.first.name,
+                    get_first_matching_problem mx,
+                    get_first_constraints mx,
+                    get_first_term mx,
+                    map_opt to_dtree (pop mx) )
     (* Pattern on the first line at column c *)
     | Some c ->
         let cases = partition mx c in
