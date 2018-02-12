@@ -105,10 +105,12 @@ Supported commands are:
     #WHNF t.        (;  display the weak head normal form of term t ;)
     #HNF t.         (;  display the head normal form of t. ;)
     
+    (;   !!! n-steps reduction commands are still a WIP !!!   ;)
     #SNF[n] t.      (;  display the result of n reduction steps toward the SNF of t. ;)
+    (; This doesn't follow Dedukti's reduction strategy but rather uses a simple call-by-value strategy ;)
     #WHNF[n] t.     (;  display the result of n reduction steps at the head toward the WHNF of t. ;)
     #HNF[n] t.      (;  display the result of n reduction steps at the head toward the HNF of t. ;)
-    (; A single reduction step at the head may perform several other reduction steps below ;)
+    (; A single reduction step "at the head" may perform several other reduction steps below ;)
     
     #CONV t1, t2.   (;  display "OK" if t1 and t2 are convertible, "KO" otherwise. ;)
     #CHECK t1, t2.  (;  display "OK" if t1 has type t2, "KO" otherwise. ;)
