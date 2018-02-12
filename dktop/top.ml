@@ -50,60 +50,30 @@ let mk_command lc = function
   | Conv (expected,asserted,te1,te2)  ->
     ( match Env.are_convertible te1 te2 with
       | OK b ->
-        begin
-          if b=expected
-          then
-            if asserted
-            then ()
-            else
-              Format.printf "YES@.As expected %a and %a are %s convertible@."
-                Pp.print_term te1 Pp.print_term te2 (if asserted then "" else "not")
+        if asserted
+        then
+          if b = expected then ()
           else
-            if asserted
-            then
-              let chose_error=
-                if expected
-                then Typing.Unconvertible (lc,te1,te2)
-                else Typing.Convertible (lc,te1,te2)
-              in
-              Errors.fail_env_error (Env.EnvErrorType chose_error)
-            else
-              Format.printf "NO@.%a and %a are %s convertible@."
-                Pp.print_term te1 Pp.print_term te2 (if asserted then "not" else "")
-          end
+            let chose_error=
+              if expected
+              then Typing.Unconvertible (lc,te1,te2)
+              else Typing.Convertible (lc,te1,te2)
+            in
+            Errors.fail_env_error (Env.EnvErrorType chose_error)
+        else
+          Format.printf (if b = expected then "YES@." else "NO@.")
       | Err e -> Errors.fail_env_error e )
-  | Inhabit (expected,asserted,te,ty) ->
+  | Inhabit (expected,true,te,ty) ->
     ( match Env.check te ty with
-      | OK () ->
-        begin
-          if expected
-          then
-            if asserted then () else Format.printf "YES@.As expected %a : %a@."
-                Pp.print_term te Pp.print_term ty
-          else
-            if asserted
-            then
-              Errors.fail_env_error (Env.EnvErrorType (Typing.Inhabit (lc,te,ty)))
-            else
-              Format.printf "NO@.%a does not have type %a@."
-                Pp.print_term te Pp.print_term ty
-          end
-      | Err (Env.EnvErrorType e) ->
-        begin
-          if expected
-          then
-            if asserted
-            then Errors.fail_env_error (Env.EnvErrorType e)
-            else Format.printf "NO@.%a : %a@."
-                Pp.print_term te Pp.print_term ty
-          else
-            if asserted
-            then
-              ()
-            else
-              Format.printf "YES@.%a does not have type %a@."
-                Pp.print_term te Pp.print_term ty
-          end
+      | OK () when not expected ->
+        Errors.fail_env_error (Env.EnvErrorType (Typing.Inhabit (lc,te,ty)))
+      | Err (Env.EnvErrorType _) when not expected -> ()
+      | OK () -> ()
+      | Err e -> Errors.fail_env_error e )
+  | Inhabit (expected,false,te,ty) ->
+    ( match Env.check te ty with
+      | OK ()                    -> Format.printf (if expected then "YES@." else "NO@.")
+      | Err (Env.EnvErrorType e) -> Format.printf (if expected then "NO@." else "YES@.")
       | Err e -> Errors.fail_env_error e )
   | Infer te ->
       ( match Env.infer (Reduction.NSteps 0) te with

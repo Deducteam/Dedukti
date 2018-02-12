@@ -126,11 +126,11 @@ let mk_command lc = function
           verb_print "Could not check typing judgement %a : %a@."
             Pp.print_term te Pp.print_term ty )
       | Err e -> Errors.fail_env_error e );
-  | Infer te         ->
+  | Infer te ->
       ( match Env.infer (Reduction.NSteps 0) te with
           | OK ty -> Format.printf "%a@." Pp.print_term ty
           | Err e -> Errors.fail_env_error e )
-  | InferSnf te         ->
+  | InferSnf te ->
       ( match Env.infer Reduction.Snf te with
           | OK ty -> Format.printf "%a@." Pp.print_term ty
           | Err e -> Errors.fail_env_error e )
