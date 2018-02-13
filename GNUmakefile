@@ -135,3 +135,7 @@ distclean: clean
 	$(Q)find -name "*~" -exec rm {} \;
 	$(Q)rm -f kernel/version.ml
 	$(Q)rm -f META
+
+doc: kernel
+	@echo "[DOC] _build/doc"
+	$(Q)ocamlbuild -quiet -use-ocamlfind 'kernel/kernel.docdir/index.html'
