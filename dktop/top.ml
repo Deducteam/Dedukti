@@ -1,5 +1,5 @@
 open Basic
-open Cmd
+open Toplevel
 
 let print fmt =
   Format.kfprintf (fun _ -> print_newline () ) Format.std_formatter fmt
@@ -79,3 +79,12 @@ let mk_command lc = function
   | Other (cmd,_)     -> Format.eprintf "Unknown command '%s'.@." cmd
 
 let mk_ending _ = ()
+
+let mk_entry = function
+  | Prelude(lc,md) -> mk_prelude lc md
+  | Declaration(lc,id,st,te) -> mk_declaration lc id st te
+  | Definition(lc,id,false,pty,te) -> mk_definition lc id pty te
+  | Definition(lc,id,true,pty,te) -> mk_opaque lc id pty te
+  | Rules(rs) -> mk_rules rs
+  | Command(lc,cmd) -> mk_command lc cmd
+  | Ending -> mk_ending ()

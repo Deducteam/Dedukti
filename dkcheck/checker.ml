@@ -1,5 +1,5 @@
 open Basic
-open Cmd
+open Toplevel
 
 (* ********************************* *)
 
@@ -116,3 +116,12 @@ let mk_ending () =
     if not (Env.export ()) then
       Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );
   Confluence.finalize ()
+
+let mk_entry = function
+  | Prelude(lc,md) -> mk_prelude lc md
+  | Declaration(lc,id,st,te) -> mk_declaration lc id st te
+  | Definition(lc,id,false,pty,te) -> mk_definition lc id pty te
+  | Definition(lc,id,true,pty,te) -> mk_opaque lc id pty te
+  | Rules(rs) -> mk_rules rs
+  | Command(lc,cmd) -> mk_command lc cmd
+  | Ending -> mk_ending ()

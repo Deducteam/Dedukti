@@ -1,19 +1,13 @@
 %parameter <M :
   sig
-    val mk_prelude     : Basic.loc -> Basic.mident -> unit
-    val mk_declaration : Basic.loc -> Basic.ident -> Signature.staticity -> Term.term -> unit
-    val mk_definition  : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
-    val mk_opaque      : Basic.loc -> Basic.ident -> Term.term option -> Term.term -> unit
-    val mk_rules       : Rule.untyped_rule list -> unit
-    val mk_command     : Basic.loc -> Cmd.command -> unit
-    val mk_ending      : unit -> unit
+    val mk_entry : Toplevel.entry -> unit
   end>
 %{
     open Basic
     open Preterm
     open Scoping
     open Rule
-    open Cmd
+    open Toplevel
     open M
 
     let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
@@ -33,6 +27,20 @@
         | [] -> assert false
         | [t] -> t
         | f::a1::args -> PreApp (f,a1,args)
+
+    let mk_prelude lc md = mk_entry(Prelude(lc,md))
+
+    let mk_declaration lc id st t = mk_entry(Declaration(lc,id,st,t))
+
+    let mk_definition lc id pty te = mk_entry(Definition(lc,id,false,pty,te))
+
+    let mk_opaque lc id pty te = mk_entry(Definition(lc,id,true,pty,te))
+
+    let mk_rules rs = mk_entry(Rules(rs))
+
+    let mk_command lc cmd = mk_entry(Command(lc,cmd))
+
+    let mk_ending = mk_entry(Ending)
 
 %}
 
@@ -119,7 +127,7 @@ line            : ID COLON term DOT
                 { mk_rules (List.map scope_rule $1) }
                 | command DOT { $1 }
                 | EOF
-                { mk_ending () ; raise Lexer.EndOfFile }
+                { mk_ending ; raise Lexer.EndOfFile }
 
 
 command         : WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }

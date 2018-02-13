@@ -1,7 +1,7 @@
 open Basic
 open Term
 open Rule
-open Cmd
+open Toplevel
 
 let out = ref stdout
 let deps = ref []
@@ -107,3 +107,12 @@ let mk_ending () =
     ()
 
 let sort () = List.map (fun md -> List.assoc md !md_to_file) (List.rev (topological_sort !deps))
+
+let mk_entry = function
+  | Prelude(lc,md) -> mk_prelude lc md
+  | Declaration(lc,id,st,te) -> mk_declaration lc id st te
+  | Definition(lc,id,false,pty,te) -> mk_definition lc id pty te
+  | Definition(lc,id,true,pty,te) -> mk_opaque lc id pty te
+  | Rules(rs) -> mk_rules rs
+  | Command(lc,cmd) -> mk_command lc cmd
+  | Ending -> mk_ending ()
