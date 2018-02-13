@@ -20,6 +20,6 @@ val reduction : Signature.t -> red_strategy -> term -> term
 (** [hnf sg red te] reduces the term [te] according to the strategy [red]
     using the signature [sg]. *)
 
-val are_convertible             : Signature.t -> term -> term -> bool
+val are_convertible : Signature.t -> term -> term -> bool
 (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
     in the signature [sg]. *)
