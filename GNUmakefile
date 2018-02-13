@@ -135,3 +135,7 @@ distclean: clean
 	$(Q)find -name "*~" -exec rm {} \;
 	$(Q)rm -f kernel/version.ml
 	$(Q)rm -f META
+
+doc: kernel
+	mkdir _build/doc
+	ocamldoc -html -I _build/kernel/  -d _build/doc/ kernel/*.ml kernel/*.mli
