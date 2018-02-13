@@ -132,7 +132,8 @@ let rec import sg lc m =
     begin
       debug 2 "[Warning] try to import twice the same module";
       ()
-    end;
+    end
+  else
 
   (* If the [.dko] file is not found, try to compile it first.
      This hack is terrible. It uses system calls and can loop with circular dependencies.
