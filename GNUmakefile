@@ -70,7 +70,7 @@ dktop.native: kernel parser $(wildcard dktop/*.ml dktop/*.mli)
 doc: _build/kernel/kernel.docdir/index.html
 	
 _build/kernel/kernel.docdir/index.html: $(KERNEL_MLI) $(KERNEL_ML)
-	@echo "[DOC] _build/doc"
+	@echo "[DOC] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.docdir/index.html
 
 #### Generation of the META file #############################################
