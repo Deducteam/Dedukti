@@ -138,5 +138,4 @@ distclean: clean
 
 doc: kernel
 	@echo "[DOC] _build/doc"
-	$(Q)mkdir _build/doc
-	$(Q)ocamldoc -html -I _build/kernel/  -d _build/doc/ kernel/*.ml kernel/*.mli
+	$(Q)ocamlbuild -quiet -use-ocamlfind 'kernel/kernel.docdir/index.html'
