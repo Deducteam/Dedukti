@@ -255,7 +255,7 @@ let pp_pcontext fmt delta =
 
 (* *** *)
 
-let rec get_last =
+let get_last =
   let rec aux acc = function
   | [] -> assert false
   | [a] -> (List.rev acc, a)

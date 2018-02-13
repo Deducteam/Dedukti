@@ -137,5 +137,6 @@ distclean: clean
 	$(Q)rm -f META
 
 doc: kernel
-	mkdir _build/doc
-	ocamldoc -html -I _build/kernel/  -d _build/doc/ kernel/*.ml kernel/*.mli
+	@echo "[DOC] _build/doc"
+	$(Q)mkdir _build/doc
+	$(Q)ocamldoc -html -I _build/kernel/  -d _build/doc/ kernel/*.ml kernel/*.mli
