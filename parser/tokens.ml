@@ -1,20 +1,20 @@
 open Basic
 
 type token =
-  | UNDERSCORE  of loc
-  | TYPE        of loc
-  | KW_DEF      of loc
-  | KW_THM      of loc
+  | UNDERSCORE of loc
+  | TYPE       of loc
+  | KW_DEF     of loc
+  | KW_THM     of loc
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
-  | QID         of ( loc * mident * ident )
-  | NAME        of ( loc * mident )
+  | QID        of ( loc * mident * ident )
+  | NAME       of ( loc * mident )
   | LONGARROW
   | LEFTSQU
   | LEFTPAR
   | LEFTBRA
-  | ID          of ( loc * ident )
+  | ID         of ( loc * ident )
   | FATARROW
   | EOF
   | DOT
@@ -22,11 +22,11 @@ type token =
   | COMMA
   | COLON
   | ARROW
-  | EVAL        of loc
-  | INFER       of loc
-  | CONV        of loc
-  | CHECK       of loc
-  | PRINT       of loc
-  | GDT         of loc
-  | STRING      of string
-  | INT         of int
+  | EVAL       of loc
+  | INFER      of loc
+  | CONV       of loc
+  | CHECK      of loc
+  | PRINT      of loc
+  | GDT        of loc
+  | STRING     of string
+  | INT        of int

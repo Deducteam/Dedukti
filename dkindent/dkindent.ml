@@ -1,82 +1,74 @@
 open Basic
 open Parser
 open Pp
-open Reduction
 
-let default_mident = ref None
-
-let set_default_mident md = default_mident := Some md
-
-module T = struct
-  let mk_declaration _ i st ty =
-    let st_str = match st with
-      | Signature.Static -> ""
-      | Signature.Definable -> "def "
-    in
-    Format.printf "@[<2>%s%a :@ %a.@]@.@." st_str print_ident i print_term ty
-
-  let mk_definition _ i ty t = match ty with
-    | None -> Format.printf "@[<hv2>def %a@ :=@ %a.@]@.@." print_ident i print_term t
-    | Some ty ->
-        Format.printf "@[<hv2>def %a :@ %a@ :=@ %a.@]@.@."
-          print_ident i print_term ty print_term t
-
-  let mk_opaque _ i ty t = match ty with
-    | None -> Format.printf "@[<hv2>{%a}@ :=@ %a.@]@.@." print_ident i print_term t
-    | Some ty ->
-        Format.printf "@[<hv2>{%a}@ :@ %a :=@ %a.@]@.@."
-          print_ident i print_term ty print_term t
-
-  let mk_rules l =
-    Format.printf "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) l
-
-  let mk_entry = function
-  | Decl(lc,id,st,te) -> mk_declaration lc id st te
-  | Def(lc,id,false,pty,te) -> mk_definition lc id pty te
-  | Def(lc,id,true,pty,te) -> mk_opaque lc id pty te
-  | Rules(rs) -> mk_rules rs
-  | Eval(lc,red_cfg,  te) -> Format.printf "#WHNF%a@ %a." print_red_cfg red_cfg print_term te
-  | Check(lc,false,false,Convert(te1,te2)) ->
-    Format.printf "#CONV@ %a,@ %a." print_term te1 print_term te2
-  | Check(lc,false,false,HasType(te,ty)) ->
-    Format.printf "#CHECK@ %a,@ %a." print_term te print_term ty
-  | Check _ -> failwith "unsupported command yet"
-  | Infer(lc,red_cfg,te)  -> Format.printf "#INFER%a@ %a." print_red_cfg red_cfg print_term te
-  | DTree (lc,m0,v)         ->
-    begin match m0 with
-      | None -> Format.printf "#GDT@ %a." print_ident v
-      | Some m -> Format.printf "#GDT@ %a.%a." print_mident m print_ident v
-    end
-    | Print(lc, str) -> Format.printf "#PRINT %S." str
-end
-
-let process_chan md ic =
-  Parser.handle_channel md T.mk_entry ic
-
-let process_file file =
-  (* Print.debug "Processing file %s\n" name; *)
-  let ic = open_in file in
-  let md =  Basic.mk_mident (match !default_mident with None -> file | Some str -> str) in
-  process_chan md ic;
-  close_in ic
-
-let from_stdin = ref false
-let files = ref []
-let add_file f = files := f :: !files
-
-let options =
-  [ "-stdin", Arg.Set from_stdin, " read from stdin";
-    "-default-rule", Arg.Set print_default, "print default name for rules without name";
-    ("-module" , Arg.String set_default_mident     , "Give a default name to the current module")
-  ]
+let handle_entry e =
+  let open Format in
+  match e with
+  | Decl(_,id,stat,ty)      ->
+      let stat = if stat = Signature.Definable then "def " else "" in
+      printf "@[<2>%s%a :@ %a.@]@.@." stat print_ident id print_term ty
+  | Def(_,id,opaque,ty,te)  ->
+      let key = if opaque then "thm" else "def" in
+      begin
+        match ty with
+        | None    -> printf "@[<hv2>%s %a@ :=@ %a.@]@.@." key
+                       print_ident id print_term te
+        | Some ty -> printf "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
+                       print_ident id print_term ty print_term te
+      end
+  | Rules(rs)               ->
+      printf "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) rs
+  | Eval(_,cfg,te)          ->
+      printf "#EVAL%a %a.@." print_red_cfg cfg print_term te
+  | Infer(_,cfg,te)         ->
+      printf "#INFER%a %a.@." print_red_cfg cfg print_term te
+  | Check(_,assrt,neg,test) ->
+      let cmd = if assrt then "#ASSERT" else "#CHECK" in
+      let neg = if neg then "NOT" else "" in
+      begin
+        match test with
+        | Convert(t1,t2) ->
+            printf "%s%s %a ==@ %a.@." cmd neg print_term t1 print_term t2
+        | HasType(te,ty) ->
+            printf "%s%s %a ::@ %a.@." cmd neg print_term te print_term ty
+      end
+  | DTree(_,m,v)            ->
+      begin
+        match m with
+        | None   -> printf "#GDT %a.@." print_ident v
+        | Some m -> printf "#GDT %a.%a.@." print_mident m print_ident v
+      end
+  | Print(_, str)           ->
+      printf "#PRINT %S.@." str
 
 let  _ =
-  Arg.parse options add_file "usage: dkindent file [file...]";
-  if !from_stdin then (
-    let md = Basic.mk_mident (
-        match !default_mident with
-        | None -> Basic.debug 0 "[Warning] no module name given"; "stdin"
-        | Some str -> str)
-    in
-    process_chan md stdin)
-  else List.iter process_file (List.rev !files)
+  (* Parsing of command line arguments. *)
+  let from_stdin = ref None in
+  let options =
+    [ ( "--from-stdin"
+      , Arg.String (fun name -> from_stdin := Some name)
+      , "MODNAME parses from standard with the given module name" )
+    ; ( "--default-rule"
+      , Arg.Set print_default
+      , " print a default rule name when none is given" ) ]
+  in
+  let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...\n" in
+  let usage = usage ^ "Available options:" in
+  let files =
+    let files = ref [] in
+    Arg.parse options (fun f -> files := f :: !files) usage;
+    List.rev !files
+  in
+  (* Handle files. *)
+  let handle_file fname =
+    let ic = open_in fname in
+    let md = Basic.mk_mident fname in
+    Parser.handle_channel md handle_entry ic;
+    close_in ic
+  in
+  List.iter handle_file files;
+  (* Handle stdin. *)
+  match !from_stdin with
+  | None      -> ()
+  | Some name -> Parser.handle_channel (mk_mident name) handle_entry stdin
