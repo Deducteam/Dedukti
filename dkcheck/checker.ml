@@ -5,6 +5,18 @@ open Cmd
 
 let verbose = ref false
 
+let colored n s =
+  if !Errors.color then "\027[3" ^ string_of_int n ^ "m" ^ s ^ "\027[m" else s
+
+let pp_yes_no fmt = function
+  | true  -> Format.fprintf fmt "%s" (colored 2 "YES")
+  | false -> Format.fprintf fmt "%s" (colored 1 "NO")
+
+let verb_print x =
+  if !verbose
+  then Format.printf x
+  else Format.ifprintf Format.err_formatter x
+
 let eprint lc fmt =
   if !verbose then (
   let (l,c) = of_loc lc in
@@ -78,20 +90,47 @@ let mk_command lc = function
       ( match Env.reduction (Reduction.NSteps n) te with
           | OK te -> Format.printf "%a@." Pp.print_term te
           | Err e -> Errors.fail_env_error e )
-  | Conv (te1,te2)  ->
-        ( match Env.are_convertible te1 te2 with
-            | OK true -> Format.printf "YES@."
-            | OK false -> Format.printf "NO@."
-            | Err e -> Errors.fail_env_error e )
-  | Check (te,ty) ->
-        ( match Env.check te ty with
-            | OK () -> Format.printf "YES@."
-            | Err e -> Errors.fail_env_error e )
-  | Infer te         ->
+  | Conv (expected,asserted,te1,te2) ->
+    ( match Env.are_convertible te1 te2 with
+      | OK b ->
+        if asserted
+        then
+          if b = expected then ()
+          else
+            let chose_error=
+              if expected
+              then Typing.Unconvertible (lc,te1,te2)
+              else Typing.Convertible (lc,te1,te2)
+            in
+            Errors.fail_env_error (Env.EnvErrorType chose_error)
+        else
+          ( Format.printf "%a@." pp_yes_no (b = expected);
+            verb_print "%a and %a are%s convertible@."
+              Pp.print_term te1 Pp.print_term te2 (if b then "" else " not") )
+      | Err e -> Errors.fail_env_error e )
+  | Inhabit (expected,true,te,ty) ->
+    ( match Env.check te ty with
+      | OK () when not expected ->
+        Errors.fail_env_error (Env.EnvErrorType (Typing.Inhabit (lc,te,ty)))
+      | Err (Env.EnvErrorType _) when not expected -> ()
+      | OK () -> ()
+      | Err e -> Errors.fail_env_error e )
+  | Inhabit (expected,false,te,ty) ->
+    ( match Env.check te ty with
+      | OK () -> (
+          Format.printf "%a@." pp_yes_no expected;
+          verb_print "Typing judgment checked %a : %a@."
+            Pp.print_term te Pp.print_term ty )
+      | Err (Env.EnvErrorType e) -> (
+          Format.printf "%a@." pp_yes_no (not expected);
+          verb_print "Could not check typing judgement %a : %a@."
+            Pp.print_term te Pp.print_term ty )
+      | Err e -> Errors.fail_env_error e );
+  | Infer te ->
       ( match Env.infer (Reduction.NSteps 0) te with
           | OK ty -> Format.printf "%a@." Pp.print_term ty
           | Err e -> Errors.fail_env_error e )
-  | InferSnf te         ->
+  | InferSnf te ->
       ( match Env.infer Reduction.Snf te with
           | OK ty -> Format.printf "%a@." Pp.print_term ty
           | Err e -> Errors.fail_env_error e )
@@ -102,8 +141,8 @@ let mk_command lc = function
             | OK (Some (i,g)) ->
                 Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
             | _ -> Format.printf "No GDT.@." )
-  | Print str         -> Format.printf "%s@." str
-  | Require m         ->
+  | Print str -> Format.printf "%s@." str
+  | Require m ->
     ( match Env.import lc m with
       | OK () -> ()
       | Err e -> Errors.fail_signature_error e )

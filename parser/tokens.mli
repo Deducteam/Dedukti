@@ -21,6 +21,8 @@ type token =
   | DEF
   | COMMA
   | COLON
+  | CCOLON
+  | EQUAL
   | ARROW
   | WHNF        of loc
   | HNF         of loc
@@ -29,8 +31,10 @@ type token =
   | NSTEPS      of loc
   | INFER       of loc
   | INFERSNF    of loc
-  | CONV        of loc
   | CHECK       of loc
+  | ASSERT      of loc
+  | CHECKNOT    of loc
+  | ASSERTNOT   of loc
   | PRINT       of loc
   | GDT         of loc
   | REQUIRE     of (loc * mident)

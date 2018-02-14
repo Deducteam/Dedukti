@@ -8,9 +8,9 @@ type command =
   | Snf      of term
   | OneStep  of term
   | NSteps   of int*term
-  | Conv     of term*term
   (*Typing*)
-  | Check    of term*term
+  | Conv     of bool*bool*term*term
+  | Inhabit  of bool*bool*term*term
   | Infer    of term
   | InferSnf of term
   (* Misc *)

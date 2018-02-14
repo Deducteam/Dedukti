@@ -5,5 +5,5 @@ U : A -> Type.
 a : A.
 [] A --> U a.
 
-#CHECK a, U a.
-#CHECK U, U a -> Type.
+#ASSERT a : (U a).
+#ASSERT U : (U a -> Type).

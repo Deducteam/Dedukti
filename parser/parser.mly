@@ -40,6 +40,7 @@
 %token DOT
 %token COMMA
 %token COLON
+%token EQUAL
 %token ARROW
 %token FATARROW
 %token LONGARROW
@@ -57,8 +58,10 @@
 %token <Basic.loc> NSTEPS
 %token <Basic.loc> INFER
 %token <Basic.loc> INFERSNF
-%token <Basic.loc> CONV
 %token <Basic.loc> CHECK
+%token <Basic.loc> ASSERT
+%token <Basic.loc> CHECKNOT
+%token <Basic.loc> ASSERTNOT
 %token <Basic.loc> PRINT
 %token <Basic.loc*Basic.mident> REQUIRE
 %token <Basic.loc> GDT
@@ -119,8 +122,8 @@ line            : ID COLON term DOT
                 { mk_rules (List.map scope_rule $1) }
                 | command DOT { $1 }
                 | EOF
-                { mk_ending () ; raise Lexer.EndOfFile }
 
+                { mk_ending () ; raise Lexer.EndOfFile }
 
 command         : WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }
                 | HNF      term { mk_command $1 (Hnf      (scope_term [] $2)) }
@@ -129,10 +132,14 @@ command         : WHNF     term { mk_command $1 (Whnf     (scope_term [] $2)) }
                 | NSTEPS INT term { mk_command $1 (NSteps ($2,(scope_term [] $3))) }
                 | INFER    term { mk_command $1 (Infer    (scope_term [] $2)) }
                 | INFERSNF term { mk_command $1 (InferSnf (scope_term [] $2)) }
-                | CONV  term  COMMA term
-				{ mk_command $1 (Conv  (scope_term [] $2,scope_term [] $4)) }
-                | CHECK term  COMMA term
-				{ mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
+                | CHECK  sterm EQUAL sterm { mk_command $1 (Conv (true,false,scope_term [] $2,scope_term [] $4)) }
+                | CHECK sterm  COLON sterm { mk_command $1 (Inhabit (true,false,scope_term [] $2,scope_term [] $4)) }
+                | ASSERT sterm EQUAL sterm { mk_command $1 (Conv (true,true,scope_term [] $2,scope_term [] $4)) }
+                | ASSERT sterm COLON sterm { mk_command $1 (Inhabit (true,true,scope_term [] $2,scope_term [] $4)) }
+                | CHECKNOT  sterm EQUAL sterm { mk_command $1 (Conv (false,false,scope_term [] $2,scope_term [] $4)) }
+                | CHECKNOT sterm  COLON sterm { mk_command $1 (Inhabit (false,false,scope_term [] $2,scope_term [] $4)) }
+                | ASSERTNOT sterm EQUAL sterm { mk_command $1 (Conv (false,true,scope_term [] $2,scope_term [] $4)) }
+                | ASSERTNOT sterm COLON sterm { mk_command $1 (Inhabit (false,true,scope_term [] $2,scope_term [] $4)) }
                 | PRINT STRING  { mk_command $1 (Print $2) }
                 | GDT   ID      { mk_command $1 (Gdt (None,snd $2)) }
                 | GDT   QID     { let (_,m,v) = $2 in mk_command $1 (Gdt (Some m,v)) }
