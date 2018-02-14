@@ -11,5 +11,5 @@ b : B.
 [] A --> V b.
 [] B --> U a.
 
-#ASSERT a :: V b.
-#ASSERT b :: U a.
+#ASSERT a : (V b).
+#ASSERT b : (U a).
