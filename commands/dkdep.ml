@@ -9,20 +9,18 @@ let find_dko : string -> string list -> bool = fun name ->
   let name = name ^ ".dko" in
   List.exists (fun dir -> Sys.file_exists (Filename.concat dir name))
 
-(** [deps] contains the dependencies found so far. *)
-let deps : (string * string list) list ref = ref []
+(** [deps] contains the dependencies found so far, reset before each file. *)
+let current_mod  : string      ref = ref "<not initialised>"
+let current_deps : string list ref = ref []
 
 (** [add_dep name] adds the module named [name] to the list of dependencies if
     no corresponding ".dko" file is found in the load path. The dependency is
     not added either if it is already present. *)
 let add_dep : string -> unit = fun name ->
-  if find_dko name (get_path ()) then () else
-  match !deps with
-  | []                              -> assert false (* impossible *)
-  | (m,ds)::l when name = m         -> () (* Current module. *)
-  | (m,ds)::l when List.mem name ds -> () (* Already a dependency. *)
-  | (m,ds)::l                       ->
-      deps := (m, List.sort String.compare (name::ds))::l
+  if find_dko name (get_path ()) then ()      (* The ".dko" exists.    *)
+  else if name = !current_mod then ()         (* Current module.       *)
+  else if List.mem name !current_deps then () (* Already a dependency. *)
+  else current_deps := List.sort String.compare (name :: !current_deps)
 
 (** Term / pattern / entry traversal commands. *)
 
@@ -62,58 +60,78 @@ let handle_entry e =
   | Print(_,_)                  -> ()
   | Name(_,_)                   -> ()
 
-(** ... TODO clean from here *)
+type dep_data = string * (string * string list)
 
+let handle_file : string -> dep_data = fun file ->
+  try
+    (* Initialisation. *)
+    let md = Basic.mk_mident file in
+    let name = string_of_mident md in
+    current_mod := name; current_deps := [];
+    (* Actully parsing and gathering data. *)
+    let input = open_in file in
+    Parser.handle_channel md handle_entry input;
+    close_in input;
+    (name, (file, !current_deps))
+  with
+  | Parse_error(loc,msg)      -> Printf.eprintf "Parse error...\n%!"; exit 1
+  | Sys_error err             -> Printf.eprintf "ERROR %s.\n%!" err; exit 1
+  | Exit                      -> exit 3
 
-let out = ref stdout
-let md_to_file = ref []
-let filename = ref ""
-let verbose = ref false
-let sorted = ref false
+(** Output main program. *)
 
-let dfs graph visited start_node =
-  let rec explore path visited node =
-    if List.mem node path then failwith "Circular dependencies";
-    if List.mem node visited then visited else
-    let new_path = node :: path in
-    let edges    = List.assoc node graph in
-    node :: List.fold_left (explore new_path) visited edges
-  in explore [] visited start_node
+let output_deps : out_channel -> dep_data list -> unit = fun oc data ->
+  let output_line (name, (file, deps)) =
+    let deps = List.map (fun n -> n ^ ".dko") deps in
+    let deps = String.concat " " deps in
+    Printf.fprintf oc "%s.dko : %s %s\n" name file deps
+  in
+  List.iter output_line data
 
 let topological_sort graph =
-  List.fold_left (fun visited (node,_) -> dfs graph visited node) [] graph
+  let rec explore path visited node =
+    if List.mem node path then
+      begin
+        Printf.eprintf "Circular dependencies...";
+        exit 1
+      end;
+    if List.mem node visited then visited else
+    let edges = List.assoc node graph in
+    node :: List.fold_left (explore (node :: path)) visited edges
+  in
+  List.fold_left (fun visited (n,_) -> explore [] visited n) [] graph
 
-let finalize () =
-  let name, deps = List.hd !deps in
-  md_to_file := (name, !filename)::!md_to_file;
-  if not !sorted then
-    Printf.fprintf !out "%s.dko : %s %s\n" name !filename
-      (String.concat " " (List.map (fun s -> s ^ ".dko") deps))
-
-let sort () = List.map (fun md -> List.assoc md !md_to_file) (List.rev (topological_sort !deps))
-
-let run_on_file file =
-  if !(verbose) then Printf.eprintf "Running Dkdep on file \"%s\".\n" file;
-  flush stderr;
-  let input = open_in file in
-  filename := file;
-  let md =  Basic.mk_mident file in
-  deps := (string_of_mident md, [])::!deps;
-  Parser.handle_channel md handle_entry input;
-  finalize ();
-  close_in input
-
-let args =
-  [ ("-o", Arg.String (fun fi -> out := open_out fi), "Output file"  );
-    ("-v", Arg.Set verbose, "Verbose mode" );
-    ("-s", Arg.Set sorted, "Sort file with respect to their dependence");
-    ("-I", Arg.String Basic.add_path, "Add a directory to load path, dependencies to files found in load path are not printed");
-  ]
+let output_sorted : out_channel -> dep_data list -> unit = fun oc data ->
+  let deps = List.map (fun (n,(_,ds)) -> (n,ds)) data in
+  let filename n = fst (List.assoc n data) in
+  let res = List.map filename (List.rev (topological_sort deps)) in
+  Printf.printf "%s\n" (String.concat " " res)
 
 let _ =
-  try
-    Arg.parse args run_on_file "Usage: dkdep [options] files";
-    if !sorted then Printf.printf "%s\n" (String.concat " " (sort ()))
-  with
-    | Sys_error err             -> Printf.eprintf "ERROR %s.\n" err; exit 1
-    | Exit                      -> exit 3
+  (* Parsing of command line arguments. *)
+  let output  = ref stdout in
+  let sorted  = ref false in
+  let args = Arg.align
+    [ ( "-o"
+      , Arg.String (fun n -> output := open_out n)
+      , "FILE Outputs to file FILE" )
+    ; ( "-s"
+      , Arg.Set sorted
+      , " Sort the source files according to their dependencies" )
+    ; ( "-I"
+      , Arg.String Basic.add_path
+      , "DIR Add the directory DIR to the load path" ) ]
+  in
+  let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...\n" in
+  let usage = usage ^ "Existing \".dko\" files are not included in deps.\n" in
+  let usage = usage ^ "Available options:" in
+  let files =
+    let files = ref [] in
+    Arg.parse args (fun f -> files := f :: !files) usage;
+    List.rev !files
+  in
+  (* Actual work. *)
+  let dep_data = List.map handle_file files in
+  let output_fun = if !sorted then output_sorted else output_deps in
+  output_fun !output dep_data;
+  close_out !output
