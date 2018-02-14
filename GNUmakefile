@@ -116,13 +116,12 @@ uninstall:
 install: uninstall all
 	@ocamlfind install dedukti META \
 		$(wildcard _build/kernel/*.mli) $(wildcard _build/kernel/*.cmi) \
-		$(wildcard _build/kernel/*.cmo) $(wildcard _build/kernel/*.cmx) \
-		$(wildcard _build/kernel/*.o) _build/kernel/kernel.cma \
-		_build/kernel/kernel.cmxa _build/kernel/kernel.a \
+		$(wildcard _build/kernel/*.cmx) $(wildcard _build/kernel/*.o) \
 		$(wildcard _build/parser/*.mli) $(wildcard _build/parser/*.cmi) \
-		$(wildcard _build/parser/*.cmo) $(wildcard _build/parser/*.cmx) \
-		$(wildcard _build/parser/*.o) _build/parser/parser.cma \
-		_build/parser/parser.cmxa _build/parser/parser.a
+		$(wildcard _build/parser/*.cmx) $(wildcard _build/parser/*.o) \
+		_build/kernel/kernel.cma _build/parser/parser.cma \
+		_build/kernel/kernel.cmxa _build/parser/parser.cmxa \
+		_build/kernel/kernel.a _build/parser/parser.a
 	install -m 755 -d $(BINDIR)
 	install -m 755 -p dkcheck.native  $(BINDIR)/dkcheck
 	install -m 755 -p dkdep.native    $(BINDIR)/dkdep
