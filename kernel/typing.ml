@@ -258,12 +258,12 @@ let pp_pcontext fmt delta =
 
 (* *** *)
 
-let rec get_last = function
+let get_last =
+  let rec aux acc = function
   | [] -> assert false
-  | [a] -> ([],a)
-  | hd::tl ->
-    let (tl0,a) = get_last tl in
-    (hd::tl0,a)
+  | [a] -> (List.rev acc, a)
+  | hd::tl -> aux (hd::acc) tl in
+  aux []
 
 let unshift_n sg n te =
   try Subst.unshift n te
