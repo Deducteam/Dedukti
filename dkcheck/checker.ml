@@ -1,5 +1,5 @@
 open Basic
-open Toplevel
+open Parser
 
 (* ********************************* *)
 
@@ -57,55 +57,38 @@ let mk_rules = Rule.( function
     end
   )
 
-let mk_command lc = function
-  | Eval (config, te) ->
-    ( match Env.reduction config te with
+let mk_entry = function
+  | Decl(lc,id,st,te) -> mk_declaration lc id st te
+  | Def(lc,id,false,pty,te) -> mk_definition lc id pty te
+  | Def(lc,id,true,pty,te) -> mk_opaque lc id pty te
+  | Rules(rs) -> mk_rules rs
+  | Eval (lc,config, te) ->
+    ( match Env.reduction ~red:config te with
       | OK te -> Format.printf "%a@." Pp.print_term te
       | Err e -> Errors.fail_env_error e )
-  | Conv (te1,te2) ->
+  | Check(lc,false,false,(Convert(te1,te2))) ->
     ( match Env.are_convertible te1 te2 with
       | OK true -> Format.printf "YES@."
       | OK false -> Format.printf "NO@."
       | Err e -> Errors.fail_env_error e )
-  | Check (te,ty) ->
+  | Check(lc,false,false,HasType(te,ty)) ->
     ( match Env.check te ty with
       | OK () -> Format.printf "YES@."
       | Err e -> Errors.fail_env_error e )
-  | Infer (config, te) ->
+  | Check(lc,_,_,_) -> failwith "unsupported right now"
+  | Infer (lc,config, te) ->
     ( match Env.infer te with
       | OK ty ->
         begin
-          match Env.reduction config ty with
+          match Env.reduction ~red:config ty with
           | OK ty' -> Format.printf "%a@." Pp.print_term ty'
           | Err e -> Errors.fail_env_error e
         end
       | Err e -> Errors.fail_env_error e )
-  | Gdt (m0,v) ->
+  | DTree (lc,m0,v) ->
     let m = match m0 with None -> Env.get_name () | Some m -> m in
     let cst = mk_name m v in
     ( match Env.get_dtree lc cst with
       | OK (Some (i,g)) -> Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
       | _               -> Format.printf "No GDT.@." )
-  | Print str -> Format.printf "%s@." str
-  | Require m ->
-    ( match Env.import lc m with
-      | OK () -> ()
-      | Err e -> Errors.fail_signature_error e )
-  | Other (cmd,_)     -> Format.eprintf "Unknown command '%s'.@." cmd
-
-let export = ref false
-
-let mk_ending () =
-  ( if !export then
-    if not (Env.export ()) then
-      Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ()) );
-  Confluence.finalize ()
-
-let mk_entry = function
-  | Prelude(lc,md) -> mk_prelude lc md
-  | Declaration(lc,id,st,te) -> mk_declaration lc id st te
-  | Definition(lc,id,false,pty,te) -> mk_definition lc id pty te
-  | Definition(lc,id,true,pty,te) -> mk_opaque lc id pty te
-  | Rules(rs) -> mk_rules rs
-  | Command(lc,cmd) -> mk_command lc cmd
-  | Ending -> mk_ending ()
+  | Print(lc,str)-> Format.printf "%s@." str

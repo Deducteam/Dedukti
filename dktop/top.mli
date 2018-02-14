@@ -1,1 +1,1 @@
-val mk_entry : Toplevel.entry -> unit
+val mk_entry : Parser.entry -> unit

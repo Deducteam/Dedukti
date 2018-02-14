@@ -111,7 +111,7 @@ let check ?ctx:(ctx=[]) te ty =
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)
 
-let reduction ?red:(red=Reduction.default) te =
+let reduction ?red:(red=Reduction.default_cfg) te =
   try
     ignore(inference !sg te);
     let te' = Reduction.reduction red !sg te in
@@ -120,7 +120,7 @@ let reduction ?red:(red=Reduction.default) te =
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError    e -> Err (EnvErrorType e)
 
-let unsafe_reduction ?red:(red=Reduction.default) te =
+let unsafe_reduction ?red:(red=Reduction.default_cfg) te =
   let te' = Reduction.reduction red !sg te in
   te'
 

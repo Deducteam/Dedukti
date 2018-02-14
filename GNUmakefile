@@ -30,7 +30,7 @@ _build/kernel/kernel.cmxa: $(KERNEL_MLI) $(KERNEL_ML)
 
 PARSER_MLI := $(wildcard parser/*.mli)
 PARSER_ML  := $(PARSER_MLI:.mli=.ml)
-PARSER_GEN := parser/parser.mly parser/lexer.mll
+PARSER_GEN := parser/menhir_parser.mly parser/lexer.mll
 
 .PHONY: parser
 parser: kernel _build/parser/parser.cma _build/parser/parser.cmxa
@@ -68,7 +68,7 @@ dktop.native: kernel parser $(wildcard dktop/*.ml dktop/*.mli)
 
 .PHONY: doc
 doc: _build/kernel/kernel.docdir/index.html
-	
+
 _build/kernel/kernel.docdir/index.html: $(KERNEL_MLI) $(KERNEL_ML)
 	@echo "[DOC] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.docdir/index.html
@@ -133,7 +133,7 @@ install: uninstall all
 
 .PHONY: tests
 tests: dkcheck.native tests/tests.sh
-	tests/tests.sh 
+	tests/tests.sh
 
 #### Cleaning targets ########################################################
 

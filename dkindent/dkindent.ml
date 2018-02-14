@@ -1,13 +1,13 @@
 open Basic
-open Toplevel
+open Parser
 open Pp
 open Reduction
 
-module T = struct
-  let mk_prelude _ i =
-    Env.init i;
-    Format.printf "#NAME %a.@.@." print_mident i
+let default_mident = ref None
 
+let set_default_mident md = default_mident := Some md
+
+module T = struct
   let mk_declaration _ i st ty =
     let st_str = match st with
       | Signature.Static -> ""
@@ -30,49 +30,34 @@ module T = struct
   let mk_rules l =
     Format.printf "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) l
 
-  let mk_command _ cmd =
-    match cmd with
-    | Eval (config,  te) -> Format.printf "#WHNF%a@ %a." print_eval_config config print_term te
-    | Conv (te1,te2)     -> Format.printf "#CONV@ %a,@ %a." print_term te1 print_term te2
-    | Check (te,ty)      -> Format.printf "#CHECK@ %a,@ %a." print_term te print_term ty
-    | Infer (config,te)  -> Format.printf "#INFER%a@ %a." print_eval_config config print_term te
-    | Require md         -> Format.printf "#NAME %a.@.@." print_mident md
-    | Gdt (m0,v)         ->
-      begin match m0 with
-        | None -> Format.printf "#GDT@ %a." print_ident v
-        | Some m -> Format.printf "#GDT@ %a.%a." print_mident m print_ident v
-      end
-    | Print str          -> Format.printf "#PRINT \"%s\"." str
-    | Other (cmd,_)      -> failwith (Format.sprintf "Unknown command '%s'.\n" cmd)
-
-  let mk_ending _ = ()
-
   let mk_entry = function
-  | Prelude(lc,md) -> mk_prelude lc md
-  | Declaration(lc,id,st,te) -> mk_declaration lc id st te
-  | Definition(lc,id,false,pty,te) -> mk_definition lc id pty te
-  | Definition(lc,id,true,pty,te) -> mk_opaque lc id pty te
+  | Decl(lc,id,st,te) -> mk_declaration lc id st te
+  | Def(lc,id,false,pty,te) -> mk_definition lc id pty te
+  | Def(lc,id,true,pty,te) -> mk_opaque lc id pty te
   | Rules(rs) -> mk_rules rs
-  | Command(lc,cmd) -> mk_command lc cmd
-  | Ending -> mk_ending ()
+  | Eval(lc,red_cfg,  te) -> Format.printf "#WHNF%a@ %a." print_red_cfg red_cfg print_term te
+  | Check(lc,false,false,Convert(te1,te2)) ->
+    Format.printf "#CONV@ %a,@ %a." print_term te1 print_term te2
+  | Check(lc,false,false,HasType(te,ty)) ->
+    Format.printf "#CHECK@ %a,@ %a." print_term te print_term ty
+  | Check _ -> failwith "unsupported command yet"
+  | Infer(lc,red_cfg,te)  -> Format.printf "#INFER%a@ %a." print_red_cfg red_cfg print_term te
+  | DTree (lc,m0,v)         ->
+    begin match m0 with
+      | None -> Format.printf "#GDT@ %a." print_ident v
+      | Some m -> Format.printf "#GDT@ %a.%a." print_mident m print_ident v
+    end
+    | Print(lc, str) -> Format.printf "#PRINT %S." str
 end
 
-module P = Parser.Make(T)
+let process_chan md ic =
+  Parser.handle_channel md T.mk_entry ic
 
-let parse lb =
-  try
-    P.prelude Lexer.token lb ;
-    while true do P.line Lexer.token lb done
-  with
-    | Lexer.EndOfFile -> ()
-    | P.Error       -> Errors.fail (Lexer.get_loc lb)
-                         "Unexpected token '%s'." (Lexing.lexeme lb)
-
-let process_chan ic = parse (Lexing.from_channel ic)
-let process_file name =
+let process_file file =
   (* Print.debug "Processing file %s\n" name; *)
-  let ic = open_in name in
-  process_chan ic;
+  let ic = open_in file in
+  let md =  Basic.mk_mident (match !default_mident with None -> file | Some str -> str) in
+  process_chan md ic;
   close_in ic
 
 let from_stdin = ref false
@@ -81,11 +66,17 @@ let add_file f = files := f :: !files
 
 let options =
   [ "-stdin", Arg.Set from_stdin, " read from stdin";
-    "-default-rule", Arg.Set print_default, "print default name for rules without name"
+    "-default-rule", Arg.Set print_default, "print default name for rules without name";
+    ("-module" , Arg.String set_default_mident     , "Give a default name to the current module")
   ]
 
 let  _ =
   Arg.parse options add_file "usage: dkindent file [file...]";
-  if !from_stdin
-    then process_chan stdin
-    else List.iter process_file (List.rev !files)
+  if !from_stdin then (
+    let md = Basic.mk_mident (
+        match !default_mident with
+        | None -> Basic.debug 0 "[Warning] no module name given"; "stdin"
+        | Some str -> str)
+    in
+    process_chan md stdin)
+  else List.iter process_file (List.rev !files)

@@ -6,14 +6,14 @@ open Dtree
 
 type red_strategy = Hnf | Snf | Whnf
 
-type red_config = {
+type red_cfg = {
   select : (Rule.rule_name -> bool) option;
   nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
   strategy : red_strategy;
   beta : bool
 }
 
-let default = { select = None ; nb_steps = None ; strategy = Whnf ; beta = true }
+let default_cfg = { select = None ; nb_steps = None ; strategy = Whnf ; beta = true }
 
 let selection  = ref None
 
@@ -439,5 +439,5 @@ let reduction strat sg te =
     | { nb_steps = Some n; _} -> reduction_steps n strat.strategy sg te
     | _ -> reduction strat.strategy sg te
   in
-  select default.select default.beta;
+  select default_cfg.select default_cfg.beta;
   te'

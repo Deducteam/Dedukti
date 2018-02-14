@@ -170,7 +170,7 @@ let print_rule_infos out ri =
   in
   print_typed_rule out rule
 
-let print_red_config fmt strat =
+let print_red_cfg fmt strat =
   let open Reduction in
   match strat with
   | {strategy=Reduction.Snf ;nb_steps=None   } -> ()

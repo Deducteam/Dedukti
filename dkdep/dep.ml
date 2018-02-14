@@ -1,7 +1,7 @@
 open Basic
 open Term
 open Rule
-open Toplevel
+open Parser
 
 let out = ref stdout
 let deps = ref []
@@ -35,8 +35,8 @@ let add_dep m =
       else deps := (name, List.sort compare (s :: m_deps))::(List.tl !deps)
   end
 
-let mk_prelude _ prelude_name =
-  let name = string_of_mident prelude_name in
+let init md =
+  let name = string_of_mident md in
   deps := (name, [])::!deps
 
 
@@ -72,13 +72,6 @@ let mk_prule (rule:untyped_rule) =
 
 let mk_rules = List.iter mk_prule
 
-let mk_command _ = function
-  | Eval (_, t) | Infer (_, t) -> mk_term t
-  | Conv (t1,t2) | Check (t1,t2)       -> ( mk_term t1 ; mk_term t2 )
-  | Gdt (_,_) | Print _                -> ()
-  | Require md -> add_dep md
-  | Other (_,lst)                      -> List.iter mk_term lst
-
 let dfs graph visited start_node =
   let rec explore path visited node =
     if List.mem node path    then failwith "Circular dependencies"
@@ -94,7 +87,7 @@ let dfs graph visited start_node =
 let topological_sort graph =
   List.fold_left (fun visited (node,_) -> dfs graph visited node) [] graph
 
-let mk_ending () =
+let finalize () =
   let name, deps = List.hd !deps in
   md_to_file := (name, !filename)::!md_to_file;
   if not !sorted then
@@ -106,10 +99,10 @@ let mk_ending () =
 let sort () = List.map (fun md -> List.assoc md !md_to_file) (List.rev (topological_sort !deps))
 
 let mk_entry = function
-  | Prelude(lc,md) -> mk_prelude lc md
-  | Declaration(lc,id,st,te) -> mk_declaration lc id st te
-  | Definition(lc,id,false,pty,te) -> mk_definition lc id pty te
-  | Definition(lc,id,true,pty,te) -> mk_opaque lc id pty te
+  | Decl(lc,id,st,te) -> mk_declaration lc id st te
+  | Def(lc,id,false,pty,te) -> mk_definition lc id pty te
+  | Def(lc,id,true,pty,te) -> mk_opaque lc id pty te
   | Rules(rs) -> mk_rules rs
-  | Command(lc,cmd) -> mk_command lc cmd
-  | Ending -> mk_ending ()
+  | Eval(_, _, t) | Infer (_, _, t) -> mk_term t
+  | Check(_,_,_, Convert(t1,t2)) | Check (_,_,_, HasType(t1,t2)) -> ( mk_term t1 ; mk_term t2 )
+  | DTree _ | Print _                -> ()

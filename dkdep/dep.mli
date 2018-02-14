@@ -1,6 +1,10 @@
 val out                 : out_channel ref
 
-val mk_entry            : Toplevel.entry -> unit
+val init                : Basic.mident -> unit
+
+val mk_entry            : Parser.entry -> unit
+
+val finalize            : unit -> unit
 
 val filename            : string ref
 
