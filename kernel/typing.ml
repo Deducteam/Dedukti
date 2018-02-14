@@ -29,9 +29,9 @@ exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let snf sg = Reduction.reduction sg Reduction.Snf
+let snf = Reduction.reduction Reduction.Snf
 
-let whnf sg = Reduction.reduction sg Reduction.Whnf
+let whnf = Reduction.reduction Reduction.Whnf
 
 let get_type ctx l x n =
   try

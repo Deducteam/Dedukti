@@ -3,11 +3,8 @@ open Term
 
 type command =
   (* Reduction *)
-  | Whnf     of term
-  | Hnf      of term
-  | Snf      of term
-  | OneStep  of term
-  | NSteps   of int*term
+  | Reduce   of Reduction.red_strategy * term
+  | Nsteps   of Reduction.red_strategy * int * term
   | Conv     of term*term
   (*Typing*)
   | Check    of term*term

@@ -54,8 +54,6 @@ rule token = parse
   | "#WHNF"     { WHNF     ( get_loc lexbuf ) }
   | "#HNF"      { HNF      ( get_loc lexbuf ) }
   | "#SNF"      { SNF      ( get_loc lexbuf ) }
-  | "#STEP"     { STEP     ( get_loc lexbuf ) }
-  | "#NSTEPS"   { NSTEPS   ( get_loc lexbuf ) }
   | "#INFER"    { INFER    ( get_loc lexbuf ) }
   | "#INFERSNF" { INFERSNF ( get_loc lexbuf ) }
   | "#CONV"     { CONV     ( get_loc lexbuf ) }
@@ -64,7 +62,7 @@ rule token = parse
   | "#GDT"      { GDT      ( get_loc lexbuf ) }
   | "#REQUIRE" space+ (mident as md) {REQUIRE (get_loc lexbuf, mk_mident md)}
   | '#' (capital as cmd) { OTHER (get_loc lexbuf, cmd) }
-  | '#' (number  as i  ) { INT   (int_of_string i) }
+  | '[' (number  as i) ']' { INT   (int_of_string i) }
   | mident as md '.' (ident as id)
   { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id

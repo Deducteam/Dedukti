@@ -25,8 +25,6 @@ type token =
   | WHNF        of loc
   | HNF         of loc
   | SNF         of loc
-  | STEP        of loc
-  | NSTEPS      of loc
   | INFER       of loc
   | INFERSNF    of loc
   | CONV        of loc

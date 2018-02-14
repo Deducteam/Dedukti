@@ -1,0 +1,30 @@
+#NAME nsteps2.
+
+Bool : Type.
+T : Bool.
+F : Bool.
+
+def a := T.
+def b := a.
+
+def P : Bool -> Bool.
+[]  P T --> T.
+[x] P x --> F.
+
+
+#SNF[1] P b.
+#SNF[0] P a.
+
+#SNF[2] P b.
+#SNF[0] P T.
+
+#SNF[3] P b.
+#SNF[0] T.
+
+
+#WHNF[1] P b.
+#SNF[0] T.
+
+
+#HNF[1] P b.
+#SNF[0] T.
