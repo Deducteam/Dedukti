@@ -45,13 +45,13 @@ let handle_entry e =
 let  _ =
   (* Parsing of command line arguments. *)
   let from_stdin = ref None in
-  let options =
+  let options = Arg.align
     [ ( "--from-stdin"
       , Arg.String (fun name -> from_stdin := Some name)
-      , "MODNAME parses from standard with the given module name" )
+      , "NAME Parse standard input with the given module name" )
     ; ( "--default-rule"
       , Arg.Set print_default
-      , " print a default rule name when none is given" ) ]
+      , " Print a default rule name when none is given" ) ]
   in
   let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...\n" in
   let usage = usage ^ "Available options:" in
