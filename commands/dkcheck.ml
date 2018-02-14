@@ -2,97 +2,96 @@ open Term
 open Basic
 open Parser
 
-(* ********************************* *)
-
 let verbose = ref false
 
 let eprint lc fmt =
-  if !verbose then (
-  let (l,c) = of_loc lc in
+  if !verbose then
+    let (l,c) = of_loc lc in
     Format.eprintf "line:%i column:%i " l c;
-    Format.kfprintf (fun _ -> prerr_newline () ) Format.err_formatter fmt
-  ) else
-    Format.ifprintf Format.err_formatter fmt
+    Format.kfprintf (fun _ -> prerr_newline ()) Format.err_formatter fmt
+  else Format.ifprintf Format.err_formatter fmt
 
-(* ********************************* *)
-
-let mk_prelude lc name =
-  eprint lc "Module name is '%a'." pp_mident name;
-  Env.init name;
-  Confluence.initialize ()
-
-let mk_declaration lc id st pty : unit =
-  eprint lc "Declaration of constant '%a'." pp_ident id;
-  match Env.declare lc id st pty with
-    | OK () -> ()
-    | Err e -> Errors.fail_env_error e
-
-let mk_definition lc id pty_opt pte : unit =
-  eprint lc "Definition of symbol '%a'." pp_ident id ;
-  match Env.define lc id pte pty_opt with
-    | OK () -> ()
-    | Err e -> Errors.fail_env_error e
-
-let mk_opaque lc id pty_opt pte =
-  eprint lc "Opaque definition of symbol '%a'." pp_ident id ;
-  match Env.define_op lc id pte pty_opt with
-    | OK () -> ()
-    | Err e -> Errors.fail_env_error e
-
-let get_infos = function
-  | Rule.Pattern (l,cst,_) -> (l,cst)
-  | _ -> (dloc,mk_name (mk_mident "") qmark)
-
-let mk_rules = Rule.( function
-  | [] -> ()
-  | (rule::_) as lst ->
-    begin
-      let (l,cst) = get_infos rule.pat in
-      eprint l "Adding rewrite rules for '%a'" pp_name cst;
-      match Env.add_rules lst with
-      | OK lst2 ->
-        List.iter ( fun rule ->
-            eprint (get_loc_pat rule.pat) "%a" pp_typed_rule rule
-          ) lst2 ;
-      | Err e -> Errors.fail_env_error e
-    end
-  )
+let mk_rules rs =
+  let open Rule in
+  let get_infos p =
+    match p with
+    | Pattern(l,cst,_) -> (l,cst)
+    | _                -> (dloc,mk_name (mk_mident "") qmark)
+  in
+  let r = List.hd rs in (* cannot fail. *)
+  let (l,cst) = get_infos r.pat in
+  eprint l "Adding rewrite rules for '%a'" pp_name cst;
+  match Env.add_rules rs with
+  | OK rs -> List.iter (eprint (get_loc_pat r.pat) "%a" pp_typed_rule) rs
+  | Err e -> Errors.fail_env_error e
 
 let mk_entry = function
-  | Decl(lc,id,st,te) -> mk_declaration lc id st te
-  | Def(lc,id,false,pty,te) -> mk_definition lc id pty te
-  | Def(lc,id,true,pty,te) -> mk_opaque lc id pty te
-  | Rules(rs) -> mk_rules rs
-  | Eval (lc,config, te) ->
-    ( match Env.reduction ~red:config te with
-      | OK te -> Format.printf "%a@." Pp.print_term te
-      | Err e -> Errors.fail_env_error e )
-  | Check(lc,false,false,(Convert(te1,te2))) ->
-    ( match Env.are_convertible te1 te2 with
-      | OK true -> Format.printf "YES@."
-      | OK false -> Format.printf "NO@."
-      | Err e -> Errors.fail_env_error e )
-  | Check(lc,false,false,HasType(te,ty)) ->
-    ( match Env.check te ty with
-      | OK () -> Format.printf "YES@."
-      | Err e -> Errors.fail_env_error e )
-  | Check(lc,_,_,_) -> failwith "unsupported right now"
-  | Infer (lc,config, te) ->
-    ( match Env.infer te with
-      | OK ty ->
-        begin
-          match Env.reduction ~red:config ty with
-          | OK ty' -> Format.printf "%a@." Pp.print_term ty'
-          | Err e -> Errors.fail_env_error e
-        end
-      | Err e -> Errors.fail_env_error e )
-  | DTree (lc,m0,v) ->
-    let m = match m0 with None -> Env.get_name () | Some m -> m in
-    let cst = mk_name m v in
-    ( match Env.get_dtree lc cst with
-      | OK (Some (i,g)) -> Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
-      | _               -> Format.printf "No GDT.@." )
-  | Print(lc,str)-> Format.printf "%s@." str
+  | Decl(lc,id,st,ty)       ->
+      begin
+        eprint lc "Declaration of constant '%a'." pp_ident id;
+        match Env.declare lc id st ty with
+        | OK () -> ()
+        | Err e -> Errors.fail_env_error e
+      end
+  | Def(lc,id,opaque,ty,te) ->
+      begin
+        let opaque_str = if opaque then " (opaque)" else "" in
+        eprint lc "Definition of symbol '%a'%s." pp_ident id opaque_str;
+        let define = if opaque then Env.define_op else Env.define in
+        match define lc id te ty with
+        | OK () -> ()
+        | Err e -> Errors.fail_env_error e
+      end
+  | Rules(rs)               ->
+      mk_rules rs
+  | Eval(_,red,te)          ->
+      begin
+        match Env.reduction ~red te with
+        | OK te -> Format.printf "%a@." Pp.print_term te
+        | Err e -> Errors.fail_env_error e
+      end
+  | Infer(_,red,te)         ->
+      begin
+        match Env.infer te with
+        | OK ty ->
+            begin
+              match Env.reduction ~red ty with
+              | OK ty -> Format.printf "%a@." Pp.print_term ty
+              | Err e -> Errors.fail_env_error e
+            end
+        | Err e -> Errors.fail_env_error e
+      end
+  | Check(_,assrt,neg,test) ->
+      begin
+        match test with
+        | Convert(t1,t2) ->
+            begin
+              match Env.are_convertible t1 t2 with
+              | OK ok when ok = not neg -> Format.printf "YES@."
+              | OK _  when assrt        -> failwith "Assertion failed."
+              | OK _                    -> Format.printf "NO@."
+              | Err e                   -> Errors.fail_env_error e
+            end
+        | HasType(te,ty) ->
+            begin
+              match Env.check te ty with
+              | OK () when not neg -> Format.printf "YES@."
+              | Err _ when neg     -> Format.printf "YES@."
+              | OK () when assrt   -> failwith "Assertion failed."
+              | Err _ when assrt   -> failwith "Assertion failed."
+              | _                  -> Format.printf "NO@."
+            end
+      end
+  | DTree(lc,m,v)           ->
+      begin
+        let m = match m with None -> Env.get_name () | Some m -> m in
+        let cst = mk_name m v in
+        match Env.get_dtree lc cst with
+        | OK (Some(i,g)) -> Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
+        | _              -> Format.printf "No GDT.@."
+      end
+  | Print(_,s)              ->
+      Format.printf "%s@." s
 
 let run_on_stdin        = ref false
 
