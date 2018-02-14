@@ -39,7 +39,7 @@
 
     let mk_config id1 id2_opt =
       try
-		let open Env in
+        let open Env in
         match (id1, id2_opt) with
         | "SNF" , None   -> { nb_steps = None; strategy=Reduction.Snf  }
         | "HNF" , None   -> { nb_steps = None; strategy=Reduction.Hnf  }
@@ -51,7 +51,7 @@
         | i, Some "HNF"  -> { nb_steps = Some (int_of_string i); strategy=Reduction.Hnf  }
         | i, Some "WHNF" -> { nb_steps = Some (int_of_string i); strategy=Reduction.Whnf }
         | i, None        -> { nb_steps = Some (int_of_string i); strategy=Reduction.Snf  }
-	    | _ -> raise InvalidConfig
+        | _ -> raise InvalidConfig
       with _ -> raise InvalidConfig
 
 %}
@@ -145,7 +145,7 @@ command         : EVAL term
                 | INFER eval_config term
                 { mk_command $1 (Infer ($2, scope_term [] $3)) }
                 | CONV  term  COMMA term
-				{ mk_command $1 (Conv  (scope_term [] $2,scope_term [] $4)) }
+                { mk_command $1 (Conv  (scope_term [] $2,scope_term [] $4)) }
                 | CHECK term  COMMA term
 				{ mk_command $1 (Check (scope_term [] $2,scope_term [] $4)) }
                 | PRINT STRING  { mk_command $1 (Print $2) }

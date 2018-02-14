@@ -67,7 +67,7 @@ rule token = parse
   { fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }
   | eof { EOF }
 
- and comment = parse
+and comment = parse
   | ";)" { token lexbuf          }
   | '\n' { new_line lexbuf ; comment lexbuf }
   | _    { comment lexbuf        }
