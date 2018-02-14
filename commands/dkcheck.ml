@@ -11,20 +11,6 @@ let eprint lc fmt =
     Format.kfprintf (fun _ -> prerr_newline ()) Format.err_formatter fmt
   else Format.ifprintf Format.err_formatter fmt
 
-let mk_rules rs =
-  let open Rule in
-  let get_infos p =
-    match p with
-    | Pattern(l,cst,_) -> (l,cst)
-    | _                -> (dloc,mk_name (mk_mident "") qmark)
-  in
-  let r = List.hd rs in (* cannot fail. *)
-  let (l,cst) = get_infos r.pat in
-  eprint l "Adding rewrite rules for '%a'" pp_name cst;
-  match Env.add_rules rs with
-  | OK rs -> List.iter (eprint (get_loc_pat r.pat) "%a" pp_typed_rule) rs
-  | Err e -> Errors.fail_env_error e
-
 let mk_entry = function
   | Decl(lc,id,st,ty)       ->
       begin
@@ -43,7 +29,20 @@ let mk_entry = function
         | Err e -> Errors.fail_env_error e
       end
   | Rules(rs)               ->
-      mk_rules rs
+      begin
+        let open Rule in
+        let get_infos p =
+          match p with
+          | Pattern(l,cst,_) -> (l,cst)
+          | _                -> (dloc,mk_name (mk_mident "") qmark)
+        in
+        let r = List.hd rs in (* cannot fail. *)
+        let (l,cst) = get_infos r.pat in
+        eprint l "Adding rewrite rules for '%a'" pp_name cst;
+        match Env.add_rules rs with
+        | OK rs -> List.iter (eprint (get_loc_pat r.pat) "%a" pp_typed_rule) rs
+        | Err e -> Errors.fail_env_error e
+      end
   | Eval(_,red,te)          ->
       begin
         match Env.reduction ~red te with
