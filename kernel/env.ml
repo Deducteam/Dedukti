@@ -33,6 +33,7 @@ let import lc md =
   with SignatureError e -> Err e
 
 let _declare (l:loc) (id:ident) st ty : unit =
+  if ty = mk_Kind && !coc then Signature.add_declaration !sg l id st ty else
   match inference !sg ty with
   | Kind | Type _ -> Signature.add_declaration !sg l id st ty
   | s -> raise (TypingError (SortExpected (ty,[],s)))
@@ -42,30 +43,29 @@ exception DefineExn of loc*ident
 let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
     | None -> inference !sg te
+    | Some (Kind as ty) -> ty
     | Some ty -> ( checking !sg te ty; ty )
   in
-  match ty with
-  | Kind -> raise (DefineExn (l,id))
-  | _ ->
-    _declare l id Signature.Definable ty;
-    let cst = mk_name (get_name ()) id in
-    let rule =
-      { name= Delta(cst) ;
-        ctx = [] ;
-        pat = Pattern(l, cst, []);
-        rhs = te ;
-      }
-    in
-    Signature.add_rules !sg [rule]
+  match ty with Kind when not !coc -> raise (DefineExn (l,id)) | _ -> ();
+  _declare l id Signature.Definable ty;
+  let cst = mk_name (get_name ()) id in
+  let rule =
+    { name= Delta(cst) ;
+      ctx = [] ;
+      pat = Pattern(l, cst, []);
+      rhs = te ;
+    }
+  in
+  Signature.add_rules !sg [rule]
 
 let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
     | None -> inference !sg te
+    | Some (Kind as ty) -> ty
     | Some ty -> ( checking !sg te ty; ty )
   in
-  match ty with
-  | Kind -> raise (DefineExn (l,id))
-  | _ -> Signature.add_declaration !sg l id Signature.Static ty
+  match ty with Kind when not !coc -> raise (DefineExn (l,id)) | _ -> ();
+  Signature.add_declaration !sg l id Signature.Static ty
 
 let declare l id st ty : (unit,env_error) error =
   try OK ( _declare l id st ty )

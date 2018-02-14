@@ -3,6 +3,7 @@ open Format
 
 type preterm =
   | PreType of loc
+  | PreKind of loc
   | PreId   of loc * ident
   | PreQId  of loc * name
   | PreApp  of preterm * preterm * preterm list
@@ -12,6 +13,7 @@ type preterm =
 let rec pp_preterm fmt preterm =
   match preterm with
   | PreType _        -> fprintf fmt "Type"
+  | PreKind _        -> fprintf fmt "Kind"
   | PreId (_,v)      -> pp_ident fmt v
   | PreQId (_,cst)   -> fprintf fmt "%a" pp_name cst
   | PreApp (f,a,lst) -> pp_list " " pp_preterm_wp  fmt (f::a::lst)
@@ -24,8 +26,8 @@ let rec pp_preterm fmt preterm =
 
 and pp_preterm_wp fmt preterm =
   match preterm with
-  | PreType _ | PreId _ | PreQId _ as t  -> pp_preterm fmt t
-  | t                                    -> fprintf fmt "(%a)" pp_preterm t
+  | PreType _ | PreKind _ | PreId _ | PreQId _ as t  -> pp_preterm fmt t
+  | t                                                -> fprintf fmt "(%a)" pp_preterm t
 
 type prepattern =
   | PCondition  of preterm

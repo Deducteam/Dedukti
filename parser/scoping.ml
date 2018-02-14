@@ -17,6 +17,7 @@ let empty = mk_ident ""
 let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
   match pte with
     | PreType l    -> mk_Type l
+    | PreKind l    -> mk_Kind
     | PreId (l,id) ->
         begin
           match get_db_index ctx id with

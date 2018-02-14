@@ -47,6 +47,7 @@ rule token = parse
   | ":="        { DEF           }
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE ( get_loc lexbuf )       }
+  | "Kind"      { KIND ( get_loc lexbuf )       }
   | "def"       { KW_DEF ( get_loc lexbuf )       }
   | "thm"       { KW_THM ( get_loc lexbuf )       }
   | "#NAME" space+ (mident as md)

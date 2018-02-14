@@ -26,7 +26,7 @@
         | (l,x,ty)::tl -> PrePi(l,Some x,ty,mk_pi te tl)
 
     let rec preterm_loc = function
-        | PreType l | PreId (l,_) | PreQId (l,_) | PreLam  (l,_,_,_)
+        | PreType l | PreKind l | PreId (l,_) | PreQId (l,_) | PreLam  (l,_,_,_)
         | PrePi   (l,_,_,_) -> l
         | PreApp (f,_,_) -> preterm_loc f
 
@@ -65,6 +65,7 @@
 %token <Basic.loc> UNDERSCORE
 %token <Basic.loc*Basic.mident>NAME
 %token <Basic.loc> TYPE
+%token <Basic.loc> KIND
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
 %token <Basic.loc*Basic.ident> ID
@@ -191,6 +192,8 @@ sterm           : QID
                 { $2 }
                 | TYPE
                 { PreType $1 }
+                | KIND
+                { PreKind $1 }
 
 term            : sterm+
                 { mk_pre_from_list $1 }
