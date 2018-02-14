@@ -41,9 +41,9 @@
       try
         let open Env in
         match (id1, id2_opt) with
-        | "SNF" , None   -> { nb_steps = None; strategy=Reduction.Snf  }
-        | "HNF" , None   -> { nb_steps = None; strategy=Reduction.Hnf  }
-        | "WHNF", None   -> { nb_steps = None; strategy=Reduction.Whnf }
+        | "SNF" , None   -> { nb_steps = None                  ; strategy=Reduction.Snf  }
+        | "HNF" , None   -> { nb_steps = None                  ; strategy=Reduction.Hnf  }
+        | "WHNF", None   -> { nb_steps = None                  ; strategy=Reduction.Whnf }
         | "SNF" , Some i -> { nb_steps = Some (int_of_string i); strategy=Reduction.Snf  }
         | "HNF" , Some i -> { nb_steps = Some (int_of_string i); strategy=Reduction.Hnf  }
         | "WHNF", Some i -> { nb_steps = Some (int_of_string i); strategy=Reduction.Whnf }
@@ -105,9 +105,9 @@
 
 %%
 
-prelude         : NAME DOT      { let (lc,name) = $1 in
-                                        Scoping.name := name;
-                                        mk_prelude lc name }
+prelude         : NAME DOT { let (lc,name) = $1 in
+                             Scoping.name := name;
+                             mk_prelude lc name }
 
 line            : ID COLON term DOT
                 { mk_declaration (fst $1) (snd $1) Signature.Static (scope_term [] $3) }
@@ -155,61 +155,52 @@ command         : EVAL term
                 | OTHER term_lst { mk_command (fst $1) (Other (snd $1,List.map (scope_term []) $2)) }
 
 eval_config     : LEFTSQU ID RIGHTSQU
-                { mk_config (string_of_ident (snd $2)) None            }
+                { mk_config (string_of_ident (snd $2)) None }
                 | LEFTSQU ID COMMA ID RIGHTSQU
                 { mk_config (string_of_ident (snd $2)) (Some (string_of_ident (snd $4))) }
 
-term_lst        : term                                  { [$1] }
-                | term COMMA term_lst                   { $1::$3 }
+term_lst        : term                { [$1]   }
+                | term COMMA term_lst { $1::$3 }
 
-param           : LEFTPAR ID COLON term RIGHTPAR        { (fst $2,snd $2,$4) }
+param           : LEFTPAR ID COLON term RIGHTPAR { (fst $2,snd $2,$4) }
 
 rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,md_opt,id,args) = $4 in ( l , None, $2 , md_opt, id , args , $6) }
+                { let (l,md_opt,id,args) = $4 in
+                  ( l , None, $2 , md_opt, id , args , $6) }
                 | LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,md_opt,id,args) = $7 in ( l , Some (None,snd $2), $5 , md_opt, id , args , $9)}
+                { let (l,md_opt,id,args) = $7 in
+                  ( l , Some (None,snd $2), $5 , md_opt, id , args , $9)}
                 | LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,md_opt,id,args) = $7 in let (_,m,v) = $2 in ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
+                { let (l,md_opt,id,args) = $7 in
+                  let (_,m,v) = $2 in
+                  ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 
-decl            : ID COLON term         { debug 1 "Ignoring type declaration in rule context."; $1 }
-                | ID                    { $1 }
+decl            : ID COLON term { debug 1 "Ignoring type declaration in rule context."; $1 }
+                | ID            { $1 }
 
-context         : /* empty */          { [] }
+context         : /* empty */  { [] }
                 | separated_nonempty_list(COMMA, decl) { $1 }
 
-top_pattern     : ID pattern_wp*        { (fst $1,None,snd $1,$2) }
-                | QID pattern_wp*       { let (l,md,id)=$1 in (l,Some md,id,$2) }
+top_pattern     : ID pattern_wp*           { (fst $1,None,snd $1,$2) }
+                | QID pattern_wp*          { let (l,md,id)=$1 in (l,Some md,id,$2) }
 
 
-pattern_wp      : ID
-                        { PPattern (fst $1,None,snd $1,[]) }
-                | QID
-                        { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
-                | UNDERSCORE
-                        { PJoker $1 }
-                | LEFTBRA term RIGHTBRA
-                        { PCondition $2 }
-                | LEFTPAR pattern RIGHTPAR
-                        { $2 }
+pattern_wp      : ID                       { PPattern (fst $1,None,snd $1,[]) }
+                | QID                      { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
+                | UNDERSCORE               { PJoker $1 }
+                | LEFTBRA term RIGHTBRA    { PCondition $2 }
+                | LEFTPAR pattern RIGHTPAR { $2 }
 
-pattern         : ID  pattern_wp+
-                        { PPattern (fst $1,None,snd $1,$2) }
-                | QID pattern_wp+
-                        { let (l,md,id)=$1 in PPattern (l,Some md,id,$2) }
-                | ID FATARROW pattern
-                        { PLambda (fst $1,snd $1,$3) }
-                | pattern_wp
-                        { $1 }
+pattern         : ID  pattern_wp+          { PPattern (fst $1,None,snd $1,$2) }
+                | QID pattern_wp+          { let (l,md,id)=$1 in PPattern (l,Some md,id,$2) }
+                | ID FATARROW pattern      { PLambda (fst $1,snd $1,$3) }
+                | pattern_wp               { $1 }
 
-sterm           : QID
-                { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
-                | ID
-                { PreId (fst $1,snd $1) }
-                | LEFTPAR term RIGHTPAR
-                { $2 }
-                | TYPE
-                { PreType $1 }
+sterm           : QID                      { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
+                | ID                       { PreId (fst $1,snd $1) }
+                | LEFTPAR term RIGHTPAR    { $2 }
+                | TYPE                     { PreType $1 }
 
 term            : sterm+
                 { mk_pre_from_list $1 }
