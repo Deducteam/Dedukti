@@ -44,8 +44,8 @@ let shash        = WS.create 251
 let mk_ident     = WS.merge shash
 
 let mk_mident md =
-  let open Filename in
-  mk_ident (remove_extension (basename md))
+  let base = Filename.basename md in
+  try Filename.chop_extension base with _ -> base
 
 let qmark       = mk_ident "?"
 
