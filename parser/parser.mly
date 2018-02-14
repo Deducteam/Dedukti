@@ -17,6 +17,8 @@
     open Reduction
     open M
 
+    exception InvalidConfig
+
     let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
         | [] -> te
         | (l,x,ty)::tl -> PreLam (l,x,Some ty,mk_lam te tl)
@@ -35,6 +37,23 @@
         | [t] -> t
         | f::a1::args -> PreApp (f,a1,args)
 
+    let mk_config id1 id2_opt =
+      try
+		let open Env in
+        match (id1, id2_opt) with
+        | "SNF" , None   -> { nb_steps = None; strategy=Reduction.Snf  }
+        | "HNF" , None   -> { nb_steps = None; strategy=Reduction.Hnf  }
+        | "WHNF", None   -> { nb_steps = None; strategy=Reduction.Whnf }
+        | "SNF" , Some i -> { nb_steps = Some (int_of_string i); strategy=Reduction.Snf  }
+        | "HNF" , Some i -> { nb_steps = Some (int_of_string i); strategy=Reduction.Hnf  }
+        | "WHNF", Some i -> { nb_steps = Some (int_of_string i); strategy=Reduction.Whnf }
+        | i, Some "SNF"  -> { nb_steps = Some (int_of_string i); strategy=Reduction.Snf  }
+        | i, Some "HNF"  -> { nb_steps = Some (int_of_string i); strategy=Reduction.Hnf  }
+        | i, Some "WHNF" -> { nb_steps = Some (int_of_string i); strategy=Reduction.Whnf }
+        | i, None        -> { nb_steps = Some (int_of_string i); strategy=Reduction.Snf  }
+	    | _ -> raise InvalidConfig
+      with _ -> raise InvalidConfig
+
 %}
 
 %token EOF
@@ -51,11 +70,8 @@
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
-%token <Basic.loc> WHNF
-%token <Basic.loc> HNF
-%token <Basic.loc> SNF
+%token <Basic.loc> EVAL
 %token <Basic.loc> INFER
-%token <Basic.loc> INFERSNF
 %token <Basic.loc> CONV
 %token <Basic.loc> CHECK
 %token <Basic.loc> PRINT
@@ -70,7 +86,6 @@
 %token <Basic.loc*Basic.ident> ID
 %token <Basic.loc*Basic.mident*Basic.ident> QID
 %token <string> STRING
-%token <int>    INT
 
 %start prelude
 %start line
@@ -121,14 +136,14 @@ line            : ID COLON term DOT
                 { mk_ending () ; raise Lexer.EndOfFile }
 
 
-command         : WHNF INT term { mk_command $1 (Nsteps (Whnf, $2, scope_term [] $3)) }
-                | HNF  INT term { mk_command $1 (Nsteps (Hnf , $2, scope_term [] $3)) }
-                | SNF  INT term { mk_command $1 (Nsteps (Snf , $2, scope_term [] $3)) }
-                | WHNF     term { mk_command $1 (Reduce (Whnf    , scope_term [] $2)) }
-                | HNF      term { mk_command $1 (Reduce (Hnf     , scope_term [] $2)) }
-                | SNF      term { mk_command $1 (Reduce (Snf     , scope_term [] $2)) }
-                | INFER    term { mk_command $1 (Infer    (scope_term [] $2)) }
-                | INFERSNF term { mk_command $1 (InferSnf (scope_term [] $2)) }
+command         : EVAL term
+                { mk_command $1 (Eval (Env.default_eval_config, scope_term [] $2)) }
+                | EVAL eval_config term
+                { mk_command $1 (Eval ($2, scope_term [] $3)) }
+                | INFER term
+                { mk_command $1 (Infer (Env.default_eval_config, scope_term [] $2)) }
+                | INFER eval_config term
+                { mk_command $1 (Infer ($2, scope_term [] $3)) }
                 | CONV  term  COMMA term
 				{ mk_command $1 (Conv  (scope_term [] $2,scope_term [] $4)) }
                 | CHECK term  COMMA term
@@ -139,6 +154,10 @@ command         : WHNF INT term { mk_command $1 (Nsteps (Whnf, $2, scope_term []
                 | REQUIRE { let (l,m) = $1 in mk_command l (Require(m) ) }
                 | OTHER term_lst { mk_command (fst $1) (Other (snd $1,List.map (scope_term []) $2)) }
 
+eval_config     : LEFTSQU ID RIGHTSQU
+                { mk_config (string_of_ident (snd $2)) None            }
+                | LEFTSQU ID COMMA ID RIGHTSQU
+                { mk_config (string_of_ident (snd $2)) (Some (string_of_ident (snd $4))) }
 
 term_lst        : term                                  { [$1] }
                 | term COMMA term_lst                   { $1::$3 }

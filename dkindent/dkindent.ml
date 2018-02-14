@@ -32,16 +32,10 @@ module T = struct
 
   let mk_command _ cmd =
     match cmd with
-    | Reduce (Whnf,  te) -> Format.printf "#WHNF@ %a." print_term te
-    | Reduce (Hnf ,  te) -> Format.printf "#HNF@ %a." print_term te
-    | Reduce (Snf ,  te) -> Format.printf "#SNF@ %a." print_term te
-    | Nsteps (Whnf,n,te) -> Format.printf "#WHNF[%i]@ %a." n print_term te
-    | Nsteps (Hnf ,n,te) -> Format.printf "#HNF[%i]@ %a."  n print_term te
-    | Nsteps (Snf ,n,te) -> Format.printf "#SNF[%i]@ %a."  n print_term te
+    | Eval (config,  te) -> Format.printf "#WHNF%a@ %a." print_eval_config config print_term te
     | Conv (te1,te2)     -> Format.printf "#CONV@ %a,@ %a." print_term te1 print_term te2
     | Check (te,ty)      -> Format.printf "#CHECK@ %a,@ %a." print_term te print_term ty
-    | Infer te           -> Format.printf "#INFER@ %a." print_term te
-    | InferSnf te        -> Format.printf "#INFERSNF@ %a." print_term te
+    | Infer (config,te)  -> Format.printf "#INFER%a@ %a." print_eval_config config print_term te
     | Require md         -> Format.printf "#NAME %a.@.@." print_mident md
     | Gdt (m0,v)         ->
       begin match m0 with

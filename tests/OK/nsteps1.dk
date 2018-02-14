@@ -3,11 +3,11 @@
 def A : Type.
 [] A --> A -> A.
 
-#SNF[1] A.
-#SNF[0] A -> A.
+#EVAL[1] A.
+#EVAL[0] A -> A.
 
-#SNF[2] A.
-#SNF[0] (A -> A) -> A.
+#EVAL[2] A.
+#EVAL[0] (A -> A) -> A.
 
-#SNF[3] A.
-#SNF[0] ((A -> A) -> A) -> A.
+#EVAL[3] A.
+#EVAL[0] ((A -> A) -> A) -> A.

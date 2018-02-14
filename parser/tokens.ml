@@ -22,11 +22,8 @@ type token =
   | COMMA
   | COLON
   | ARROW
-  | WHNF        of loc
-  | HNF         of loc
-  | SNF         of loc
+  | EVAL        of loc
   | INFER       of loc
-  | INFERSNF    of loc
   | CONV        of loc
   | CHECK       of loc
   | PRINT       of loc

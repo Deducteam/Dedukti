@@ -16,27 +16,27 @@ def plus : N -> N -> N.
 def a := plus 2 3.
 
 
-#WHNF[1] a.
-#SNF[0] plus 2 3.
+#EVAL[WHNF,1] a.
+#EVAL[0] plus 2 3.
 
-#WHNF[2] a.
-#SNF[0] plus 1 (S (S 2)).
+#EVAL[WHNF,2] a.
+#EVAL[0] plus 1 (S (S 2)).
 
-#WHNF[3] a.
-#SNF[0] plus 0 (S (S (S 2))).
+#EVAL[WHNF,3] a.
+#EVAL[0] plus 0 (S (S (S 2))).
 
-#WHNF[4] a.
-#WHNF[5] plus 2 3.
+#EVAL[WHNF,4] a.
+#EVAL[WHNF,5] plus 2 3.
 
 
-#HNF[1] a.
-#SNF[0] plus 2 3.
+#EVAL[HNF,1] a.
+#EVAL[0] plus 2 3.
 
-#HNF[2] a.
-#SNF[0] plus 1 (S (S 2)).
+#EVAL[HNF,2] a.
+#EVAL[0] plus 1 (S (S 2)).
 
-#HNF[3] a.
-#SNF[0] plus 0 (S (S (S 2))).
+#EVAL[HNF,3] a.
+#EVAL[0] plus 0 (S (S (S 2))).
 
-#HNF[4] a.
-#HNF[5] plus 2 3.
+#EVAL[HNF,4] a.
+#EVAL[HNF,5] plus 2 3.

@@ -27,12 +27,8 @@ let mk_rules lst =
     | Err e -> Errors.fail_env_error e
 
 let mk_command lc = function
-  | Reduce (strat,te) ->
-    ( match Env.reduction strat te with
-      | OK te -> Format.printf "%a@." Pp.print_term te
-      | Err e -> Errors.fail_env_error e )
-  | Nsteps (strat,n,te) ->
-    ( match Env.reduction_steps n strat te with
+  | Eval (config,te) ->
+    ( match Env.reduction config te with
       | OK te -> Format.printf "%a@." Pp.print_term te
       | Err e -> Errors.fail_env_error e )
   | Conv (te1,te2)  ->
@@ -44,15 +40,11 @@ let mk_command lc = function
     ( match Env.check te ty with
       | OK () -> Format.printf "YES@."
       | Err e -> Errors.fail_env_error e )
-  | Infer te ->
-    ( match Env.infer te with
-      | OK ty -> Format.printf "%a@." Pp.print_term ty
-      | Err e -> Errors.fail_env_error e )
-  | InferSnf te ->
+  | Infer (config, te) ->
     ( match Env.infer te with
       | OK ty ->
         begin
-          match Env.reduction Reduction.Snf ty with
+          match Env.reduction config ty with
           | OK ty' -> Format.printf "%a@." Pp.print_term ty'
           | Err e -> Errors.fail_env_error e
         end
