@@ -24,7 +24,7 @@ let mk_rules lst =
     | OK _ -> List.iter (fun r -> print "%a" Rule.pp_untyped_rule r) lst
     | Err e -> Errors.fail_env_error e
 
-let mk_entry = function
+let handle_entry = function
   | Decl(lc,id,st,te) -> mk_declaration lc id st te
   | Def(lc,id,false,pty,te) -> mk_definition lc id pty te
   | Def(lc,id,true,pty,te) -> mk_opaque lc id pty te
@@ -63,7 +63,13 @@ let mk_entry = function
   | Name(_,_) -> Format.printf "#NAME ignored.@."
 
 let  _ =
-  print_string "Welcome to Dedukti\n";
   let md = Basic.mk_mident "<toplevel>" in
   Env.init md;
-  Parser.handle_channel md mk_entry stdin
+  let str = from_channel md stdin in
+  Printf.printf "\tDedukti (%s)\n\n%!" Version.version;
+  while true do
+    Printf.printf ">> %!";
+    try handle_entry (read str) with
+    | Parse_error(_,s) -> Printf.eprintf "Parse error: %s\n%!" s
+    | End_of_file      -> exit 0
+  done

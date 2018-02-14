@@ -11,7 +11,8 @@ let eprint lc fmt =
     Format.kfprintf (fun _ -> prerr_newline ()) Format.err_formatter fmt
   else Format.ifprintf Format.err_formatter fmt
 
-let mk_entry = function
+let mk_entry md e =
+  match e with
   | Decl(lc,id,st,ty)       ->
       begin
         eprint lc "Declaration of constant '%a'." pp_ident id;
@@ -92,7 +93,8 @@ let mk_entry = function
   | Print(_,s)              ->
       Format.printf "%s@." s
   | Name(_,n)               ->
-      ()
+      if not (mident_eq n md) then
+        Printf.eprintf "[Warning] invalid #NAME directive ignored.\n%!"
 
 let run_on_stdin        = ref false
 
@@ -132,7 +134,7 @@ let run_on_file file =
   let md =  Basic.mk_mident (match !default_mident with None -> file | Some str -> str) in
   Env.init md;
   Confluence.initialize ();
-  Parser.handle_channel md mk_entry input;
+  Parser.handle_channel md (mk_entry md) input;
   Errors.success "File '%s' was successfully checked." file;
   ( if !export then
     if not (Env.export ()) then
@@ -151,7 +153,7 @@ let _ =
             | Some str -> str)
         in
         Env.init md;
-        Parser.handle_channel md mk_entry stdin;
+        Parser.handle_channel md (mk_entry md) stdin;
         Errors.success "Standard input was successfully checked.\n" )
     end
   with
