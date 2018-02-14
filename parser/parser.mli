@@ -40,8 +40,7 @@ type stream
 exception Parse_error of loc * string
 
 (** [from_channel mod ic] creates a parser [stream] for the module named [mod]
-    given the channel [ic]. If the obsolete "#NAME" construct is given, and if
-    it does not match [mod] then a warning is displayed. *)
+    given the channel [ic]. *)
 val from_channel : mident -> in_channel -> stream
 
 (** [read str] reads a single entry from the parser stream [str]. When no more
@@ -49,12 +48,10 @@ val from_channel : mident -> in_channel -> stream
 val read : stream -> entry
 
 (** [handle_channel mod f ic] parses the channel [ic] for module [mod],  using
-    the action [f] on each entry. The obsolete "#NAME" construct is handled as
-    described in the documentation of [from_channel]. Note that the channel is
-    parsed lazily, and this function can thus be applied to [stdin]. *)
+    the action [f] on each entry. Note that the channel is parsed lazily. This
+    function can thus be applied to [stdin]. *)
 val handle_channel : mident -> (entry -> unit) -> in_channel -> unit
 
 (** [parse_channel mod ic] completely parses the channel [ic] for module [mod]
-    and returns the corresponding list of entries. Once again,  if the "#NAME"
-    construct is given, it is handled a with [from_channel]. *)
+    and returns the corresponding list of entries. *)
 val parse_channel : mident -> in_channel -> entry list
