@@ -13,7 +13,7 @@ type red_cfg = {
   beta : bool
 }
 
-let default_cfg = { select = None ; nb_steps = None ; strategy = Whnf ; beta = true }
+let default_cfg = { select = None ; nb_steps = None ; strategy = Snf ; beta = true }
 
 let selection  = ref None
 

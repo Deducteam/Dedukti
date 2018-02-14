@@ -1,6 +1,9 @@
 open Basic
 open Term
 
+(** Raised on any kind of parse error. *)
+exception Parse_error of loc * string
+
 type is_opaque    = bool
 type is_assertion = bool
 type should_fail  = bool

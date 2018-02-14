@@ -6,8 +6,6 @@ open Internals
 open Reduction
 open Signature
 
-exception InvalidConfig
-
 let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
     | [] -> te
     | (l,x,ty)::tl -> PreLam (l,x,Some ty,mk_lam te tl)
@@ -26,34 +24,24 @@ let mk_pre_from_list = function
     | [t] -> t
     | f::a1::args -> PreApp (f,a1,args)
 
-let mk_config id1 id2_opt =
+let mk_config loc id1 id2_opt =
   try
     let open Env in
+    let some i = Some(int_of_string i) in
+    let config nb_steps strategy = {default_cfg with nb_steps; strategy} in
     match (id1, id2_opt) with
-    | "SNF" , None   ->
-      {default_cfg with nb_steps = None; strategy=Reduction.Snf  }
-    | "HNF" , None   ->
-      {default_cfg with nb_steps = None; strategy=Reduction.Hnf  }
-    | "WHNF", None   ->
-      {default_cfg with nb_steps = None; strategy=Reduction.Whnf }
-    | "SNF" , Some i ->
-      {default_cfg with nb_steps = Some (int_of_string i); strategy=Reduction.Snf  }
-    | "HNF" , Some i ->
-      {default_cfg with nb_steps = Some (int_of_string i); strategy=Reduction.Hnf  }
-    | "WHNF", Some i ->
-      {default_cfg with nb_steps = Some (int_of_string i); strategy=Reduction.Whnf }
-    | i, Some "SNF"  ->
-      {default_cfg with nb_steps = Some (int_of_string i); strategy=Reduction.Snf  }
-    | i, Some "HNF"  ->
-      {default_cfg with nb_steps = Some (int_of_string i); strategy=Reduction.Hnf  }
-    | i, Some "WHNF" ->
-      {default_cfg with nb_steps = Some (int_of_string i); strategy=Reduction.Whnf }
-    | i, None        ->
-      {default_cfg with nb_steps = Some (int_of_string i); strategy=Reduction.Snf  }
-    | _ -> raise InvalidConfig
-  with _ -> raise InvalidConfig
-
-  let snf_cfg = mk_config "SNF" None
+    | ("SNF" , None       ) -> config None     Snf
+    | ("HNF" , None       ) -> config None     Hnf
+    | ("WHNF", None       ) -> config None     Whnf
+    | ("SNF" , Some i     ) -> config (some i) Snf
+    | ("HNF" , Some i     ) -> config (some i) Hnf
+    | ("WHNF", Some i     ) -> config (some i) Whnf
+    | (i     , Some "SNF" ) -> config (some i) Snf
+    | (i     , Some "HNF" ) -> config (some i) Hnf
+    | (i     , Some "WHNF") -> config (some i) Whnf
+    | (i     , None       ) -> {default_cfg with nb_steps = some i}
+    | (_     , _          ) -> raise Exit (* captured bellow *)
+  with _ -> raise (Parse_error(loc, "invalid command configuration"))
 %}
 
 %token EOF
@@ -124,7 +112,7 @@ line:
       {fun md -> Rules(List.map (scope_rule md) rs)}
 
   | EVAL te=term DOT
-      {fun md -> Eval($1, snf_cfg, scope_term md [] te)}
+      {fun md -> Eval($1, default_cfg, scope_term md [] te)}
   | EVAL cfg=eval_config te=term DOT
       {fun md -> Eval($1, cfg, scope_term md [] te)}
   | INFER te=term DOT
@@ -145,9 +133,9 @@ line:
 
 eval_config:
   | LEFTSQU id=ID RIGHTSQU
-      {mk_config (string_of_ident (snd id)) None}
+      {mk_config (fst id) (string_of_ident (snd id)) None}
   | LEFTSQU id1=ID COMMA id2=ID RIGHTSQU
-      {mk_config (string_of_ident (snd id1)) (Some(string_of_ident (snd id2)))}
+      {mk_config (fst id1) (string_of_ident (snd id1)) (Some(string_of_ident (snd id2)))}
 
 param:
   | LEFTPAR id=ID COLON te=term RIGHTPAR

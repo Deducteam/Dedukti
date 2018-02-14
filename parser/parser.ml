@@ -3,8 +3,6 @@ open Term
 
 include Internals
 
-exception Parse_error of loc * string
-
 type stream = {mod_name : Basic.mident; lexbuf : Lexing.lexbuf}
 
 let from_channel mod_name ic =
