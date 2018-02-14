@@ -207,7 +207,7 @@ let gamma_rw (sg:Signature.t)
          This is the reason why s is added at the end. *)
          | None -> None
        end
-    | Test (Syntactic ord, eqs, right, def) ->
+    | Test (_,Syntactic ord, eqs, right, def) ->
        begin
          match get_context_syn sg forcing stack ord with
          | None -> bind_opt (rw stack) def
@@ -215,7 +215,7 @@ let gamma_rw (sg:Signature.t)
             if test sg convertible ctx eqs then Some (ctx, right)
             else bind_opt (rw stack) def
        end
-    | Test (MillerPattern lst, eqs, right, def) ->
+    | Test (_,MillerPattern lst, eqs, right, def) ->
        begin
          match get_context_mp sg forcing stack lst with
          | None -> bind_opt (rw stack) def
