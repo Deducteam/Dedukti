@@ -38,4 +38,4 @@ def f : R -> R -> R := x : R => y : R => ch x.
 #SNF grad (trans f).
 #SNF flip (grad f).
 
-#ASSERT (grad (trans f)) == (flip (grad f)).
+#ASSERT grad (trans f) == flip (grad f).

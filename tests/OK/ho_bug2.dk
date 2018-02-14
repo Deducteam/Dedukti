@@ -13,4 +13,4 @@ def test (b : A) := F (x => g x) b.
 #PRINT "b:A => a".
 #SNF test.
 
-#ASSERT test == (b : A => a).
+#ASSERT test == b : A => a.
