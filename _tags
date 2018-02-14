@@ -5,7 +5,3 @@ true: package(unix)
 
 "kernel"  : include
 "parser"  : include
-"dkcheck" : include
-"dkdep"   : include
-"dkindent": include
-"dktop"   : include

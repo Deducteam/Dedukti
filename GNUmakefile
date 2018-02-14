@@ -48,21 +48,21 @@ _build/parser/parser.cmxa: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
 .PHONY: commands
 commands: dkcheck.native dkdep.native dkindent.native dktop.native
 
-dkcheck.native: kernel parser $(wildcard dkcheck/*.ml dkcheck/*.mli)
+dkcheck.native: kernel parser commands/dkcheck.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dkcheck/dkcheck.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkcheck.native
 
-dkdep.native: kernel parser $(wildcard dkdep/*.ml dkdep/*.mli)
+dkdep.native: kernel parser commands/dkdep.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dkdep/dkdep.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkdep.native
 
-dkindent.native: kernel parser $(wildcard dkindent/*.ml dkindent/*.mli)
+dkindent.native: kernel parser commands/dkindent.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dkindent/dkindent.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkindent.native
 
-dktop.native: kernel parser $(wildcard dktop/*.ml dktop/*.mli)
+dktop.native: kernel parser commands/dktop.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dktop/dktop.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dktop.native
 
 #### Generation of the documentation #########################################
 

@@ -65,8 +65,6 @@ let mk_opaque = mk_definition
 
 let mk_binding ( _,_, t) = mk_term t
 
-let mk_ctx = List.iter mk_binding
-
 let mk_prule (rule:untyped_rule) =
   mk_pattern rule.pat; mk_term rule.rhs
 
@@ -106,3 +104,38 @@ let mk_entry = function
   | Eval(_, _, t) | Infer (_, _, t) -> mk_term t
   | Check(_,_,_, Convert(t1,t2)) | Check (_,_,_, HasType(t1,t2)) -> ( mk_term t1 ; mk_term t2 )
   | DTree _ | Print _                -> ()
+
+let default_mident = ref None
+
+let set_default_mident md = default_mident := Some md
+
+let run_on_file file =
+  if !(verbose) then Printf.eprintf "Running Dkdep on file \"%s\".\n" file;
+  flush stderr;
+  let input = open_in file in
+  filename := file;
+  let md =  Basic.mk_mident (match !default_mident with None -> file | Some str -> str) in
+  init md;
+  Parser.handle_channel md mk_entry input;
+  finalize ();
+  close_in input
+
+let args =
+  [ ("-o", Arg.String (fun fi -> out := open_out fi), "Output file"  );
+    ("-v", Arg.Set verbose, "Verbose mode" );
+    ("-s", Arg.Set sorted, "Sort file with respect to their dependence");
+    ("-I", Arg.String Basic.add_path, "Add a directory to load path, dependencies to files found in load path are not printed");
+    ("-module" , Arg.String set_default_mident     , "Give a default name to the current module");
+  ]
+
+let print_out fmt = Printf.kfprintf (fun _ -> output_string stdout "\n" ) stdout fmt
+
+let _ =
+  try
+    Arg.parse args run_on_file "Usage: dkdep [options] files";
+    if !sorted then
+      let l = sort() in
+      print_out "%s" (String.concat " " l)
+  with
+    | Sys_error err             -> Printf.eprintf "ERROR %s.\n" err; exit 1
+    | Exit                      -> exit 3
