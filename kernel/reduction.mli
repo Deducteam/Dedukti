@@ -13,7 +13,9 @@ type red = {
 val default : red
 
 val select : red -> unit
-(** [select red] restreins reduction using the given filter. *)
+(** [select filter] restrains the rules used during the reduction
+    allowing only those whose name is accepted by the given [filter] function.
+    [select None] is the default behaviour. *)
 
 type red_strategy = Hnf | Snf | Whnf
 

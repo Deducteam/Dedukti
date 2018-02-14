@@ -64,6 +64,15 @@ dktop.native: kernel parser $(wildcard dktop/*.ml dktop/*.mli)
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind dktop/dktop.native
 
+#### Generation of the documentation #########################################
+
+.PHONY: doc
+doc: _build/kernel/kernel.docdir/index.html
+	
+_build/kernel/kernel.docdir/index.html: $(KERNEL_MLI) $(KERNEL_ML)
+	@echo "[DOC] $@"
+	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.docdir/index.html
+
 #### Generation of the META file #############################################
 
 META: GNUmakefile

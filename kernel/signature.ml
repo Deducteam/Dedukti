@@ -57,32 +57,6 @@ let make name =
 
 let get_name sg = sg.name
 
-(******************************************************************************)
-
-let add_rule_infos sg (lst:rule_infos list) : unit =
-  match lst with
-  | [] -> ()
-  | (r::_ as rs) ->
-    let env =
-      try HMd.find sg.tables (md r.cst)
-      with Not_found -> assert false in (*should not happen if the dependencies are loaded before*)
-    let infos = try ( HId.find env (id r.cst) )
-      with Not_found -> assert false in
-    let ty = infos.ty in
-    if (infos.stat = Static) then
-      raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
-    let rules = match infos.rule_opt_info with
-      | None -> rs
-      | Some(mx,_,_) -> mx@rs
-    in
-    match Dtree.of_rules rules with
-    | OK (n,tree) ->
-       HId.add env (id r.cst)
-         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,n,tree)}
-    | Err e -> raise (SignatureError (CannotBuildDtree e))
-
-(******************************************************************************)
-
 let marshal (name:mident) (deps:string list) (env:rw_infos HId.t) (ext:rule_infos list list) : bool =
   try
     begin
@@ -154,7 +128,9 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
-  assert ( not (HMd.mem sg.tables m) ) ;
+  if HMd.mem sg.tables m then
+    debug 0 "[Warning] try to import twice the same module"
+  else
 
   (* If the [.dko] file is not found, try to compile it first.
      This hack is terrible. It uses system calls and can loop with circular dependencies.
@@ -173,6 +149,33 @@ let rec import sg lc m =
   debug 1 "Loading module '%a'..." pp_mident m;
   List.iter (fun rs -> add_rule_infos sg rs) ext;
   check_confluence_on_import lc m ctx
+
+and add_rule_infos sg (lst:rule_infos list) : unit =
+  match lst with
+  | [] -> ()
+  | (r::_ as rs) ->
+    let env =
+      try HMd.find sg.tables (md r.cst)
+      with Not_found ->
+        import sg r.l (md r.cst); HMd.find sg.tables (md r.cst)
+    in
+    let infos = try ( HId.find env (id r.cst) )
+      with Not_found -> raise (SignatureError (SymbolNotFound(r.l, r.cst))) in
+    let ty = infos.ty in
+    if (infos.stat = Static) then
+      raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
+    let rules = match infos.rule_opt_info with
+      | None -> rs
+      | Some(mx,_,_) -> mx@rs
+    in
+    match Dtree.of_rules rules with
+    | OK (n,tree) ->
+       HId.add env (id r.cst)
+         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,n,tree)}
+    | Err e -> raise (SignatureError (CannotBuildDtree e))
+
+(******************************************************************************)
+
 
 let get_deps sg : string list = (*only direct dependencies*)
   HMd.fold (
