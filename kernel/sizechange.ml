@@ -973,15 +973,15 @@ let print_res : bool -> bool -> unit =
     with Not_found -> ()
   end;
   begin
-    try
+    if !list_SL = [] then ()
+    else
       Format.eprintf "\027[31m Not proved terminating\027[m@. - %a@."
-        (pp_list "@. - " (pp_couple pp_name (pp_list " , "
-           (fun fmt ind -> fprintf fmt "%a" pp_rule_infos (IMap.find ind !(!graph.all_rules))))))
+        (pp_list "\n - " (pp_couple pp_name (pp_list " , "
+                                               (fun fmt ind -> fprintf fmt "%a" pp_rule_infos (IMap.find ind !(!graph.all_rules))))))
         (if st
          then (List.filter (fun (n,ll) -> md n= !mod_name) !list_SL)
          else !list_SL
         )
-    with Not_found -> ()
   end;
   begin
     try
