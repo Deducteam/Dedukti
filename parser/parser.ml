@@ -5,26 +5,17 @@ include Internals
 
 exception Parse_error of loc * string
 
-type stream = Lexing.lexbuf
+type stream = {mod_name : Basic.mident; lexbuf : Lexing.lexbuf}
 
-let check_module str md =
-  match Menhir_parser.prelude Lexer.token str with
-  | None     -> ()
-  | Some md' ->
-    if not (Basic.mident_eq md md') then
-      Basic.debug 0 "[Warning] Module name mismatch: filename \
-                     is different from the one of deprecated command #NAME"
-
-let from_channel md ic =
-  let str = Lexing.from_channel ic in
-  check_module str md;
-  Scoping.name := md;
-  str
+let from_channel mod_name ic =
+  {mod_name; lexbuf = Lexing.from_channel ic}
 
 let read str =
-  try Menhir_parser.line Lexer.token str with Menhir_parser.Error ->
-    let loc = Lexer.get_loc str in
-    let msg = Format.sprintf "Unexpected token '%s'." (Lexing.lexeme str) in
+  try Menhir_parser.line Lexer.token str.lexbuf str.mod_name
+  with Menhir_parser.Error ->
+    let loc = Lexer.get_loc str.lexbuf in
+    let lex = Lexing.lexeme str.lexbuf in
+    let msg = Format.sprintf "Unexpected token '%s'." lex in
     raise (Parse_error(loc, msg))
 
 let handle_channel md f ic =

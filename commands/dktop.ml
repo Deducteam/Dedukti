@@ -60,10 +60,10 @@ let mk_entry = function
         Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
       | _ -> Format.printf "No GDT.@." )
   | Print(lc, str) -> Format.printf "%s@." str
+  | Name(_,_) -> Format.printf "#NAME ignored.@."
 
 let  _ =
   print_string "Welcome to Dedukti\n";
-  let md = Basic.mk_mident "?top" in
+  let md = Basic.mk_mident "<toplevel>" in
   Env.init md;
-  Scoping.name := md;
   Parser.handle_channel md mk_entry stdin

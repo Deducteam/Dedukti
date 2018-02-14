@@ -30,3 +30,5 @@ type entry =
   | Print of loc * string
   (** Decision tree printing. *)
   | DTree of loc * mident option * ident
+  (** Obsolete #NAME command. *)
+  | Name  of loc * mident

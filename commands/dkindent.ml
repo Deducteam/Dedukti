@@ -41,6 +41,8 @@ let handle_entry e =
       end
   | Print(_, str)           ->
       printf "#PRINT %S.@." str
+  | Name(_,_)               ->
+      ()
 
 let  _ =
   (* Parsing of command line arguments. *)

@@ -100,7 +100,7 @@ let mk_entry = function
   | Rules(rs) -> mk_rules rs
   | Eval(_, _, t) | Infer (_, _, t) -> mk_term t
   | Check(_,_,_, Convert(t1,t2)) | Check (_,_,_, HasType(t1,t2)) -> ( mk_term t1 ; mk_term t2 )
-  | DTree _ | Print _                -> ()
+  | DTree _ | Print _ | Name _ -> ()
 
 let default_mident = ref None
 

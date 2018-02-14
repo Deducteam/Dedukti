@@ -91,6 +91,8 @@ let mk_entry = function
       end
   | Print(_,s)              ->
       Format.printf "%s@." s
+  | Name(_,n)               ->
+      ()
 
 let run_on_stdin        = ref false
 
