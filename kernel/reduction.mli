@@ -2,24 +2,25 @@
 
 open Term
 
-type red = {
+type red_strategy = Hnf | Snf | Whnf
+
+type red_config = {
   select : (Rule.rule_name -> bool) option;
+  nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
+  strategy : red_strategy;
   beta : bool
 }
 
-type red_strategy = Hnf | Snf | Whnf | NSteps of int
+(** [beta] flag enables/disables beta reductions.
+    [select] = [Some f] restreins rules according to the given filter on names.
+    [select] = [None] is the default behaviour (all rules allowed). *)
 
-val default : red
+val default : red_config
 
-val select : red -> unit
-(** [select filter] restrains the rules used during the reduction
-    allowing only those whose name is accepted by the given [filter] function.
-    [select None] is the default behaviour. *)
-
-val reduction : Signature.t -> red_strategy -> term -> term
-(** [hnf sg red te] reduces the term [te] according to the strategy [red]
-    using the signature [sg]. *)
+val reduction : red_config -> Signature.t -> term -> term
+(** [reduction sg red te] reduces the term [te] following the strategy [red]
+    and using the signature [sg]. *)
 
 val are_convertible : Signature.t -> term -> term -> bool
-(** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
-    in the signature [sg]. *)
+(** [are_convertible sg t1 t2] check if [t1] and [t2] are convertible using the
+    signature [sg]. *)

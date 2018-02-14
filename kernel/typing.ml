@@ -2,7 +2,7 @@ open Basic
 open Format
 open Rule
 open Term
-
+open Reduction
 
 let coc = ref false
 
@@ -29,9 +29,9 @@ exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let snf sg = Reduction.reduction sg Reduction.Snf
+let snf = reduction {default with strategy = Snf}
 
-let whnf sg = Reduction.reduction sg Reduction.Whnf
+let whnf = reduction {default with strategy = Reduction.Whnf}
 
 let get_type ctx l x n =
   try

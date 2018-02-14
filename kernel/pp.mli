@@ -29,3 +29,5 @@ val print_typed_rule  : Format.formatter -> typed_rule -> unit
 val print_rule_infos : Format.formatter -> rule_infos -> unit
 
 val print_typed_context: Format.formatter -> typed_context -> unit
+
+val print_red_config :  Format.formatter -> Reduction.red_config -> unit

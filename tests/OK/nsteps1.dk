@@ -1,0 +1,13 @@
+#NAME nsteps1.
+
+def A : Type.
+[] A --> A -> A.
+
+#EVAL[1] A.
+#EVAL[0] A -> A.
+
+#EVAL[2] A.
+#EVAL[0] (A -> A) -> A.
+
+#EVAL[3] A.
+#EVAL[0] ((A -> A) -> A) -> A.

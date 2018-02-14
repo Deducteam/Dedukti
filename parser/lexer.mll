@@ -26,7 +26,6 @@ let space   = [' ' '\t' '\r']
 let mident = ['a'-'z' 'A'-'Z' '0'-'9' '_']+
 let ident   = ['a'-'z' 'A'-'Z' '0'-'9' '_']['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?' '\'' ]*
 let capital = ['A'-'Z']+
-let number  = ['0'-'9']+
 
 rule token = parse
   | space       { token lexbuf  }
@@ -51,20 +50,14 @@ rule token = parse
   | "thm"       { KW_THM ( get_loc lexbuf )       }
   | "#NAME" space+ (mident as md)
   { NAME (get_loc lexbuf , mk_mident md) }
-  | "#WHNF"     { WHNF     ( get_loc lexbuf ) }
-  | "#HNF"      { HNF      ( get_loc lexbuf ) }
-  | "#SNF"      { SNF      ( get_loc lexbuf ) }
-  | "#STEP"     { STEP     ( get_loc lexbuf ) }
-  | "#NSTEPS"   { NSTEPS   ( get_loc lexbuf ) }
+  | "#EVAL"     { EVAL     ( get_loc lexbuf ) }
   | "#INFER"    { INFER    ( get_loc lexbuf ) }
-  | "#INFERSNF" { INFERSNF ( get_loc lexbuf ) }
   | "#CONV"     { CONV     ( get_loc lexbuf ) }
   | "#CHECK"    { CHECK    ( get_loc lexbuf ) }
   | "#PRINT"    { PRINT    ( get_loc lexbuf ) }
   | "#GDT"      { GDT      ( get_loc lexbuf ) }
   | "#REQUIRE" space+ (mident as md) {REQUIRE (get_loc lexbuf, mk_mident md)}
   | '#' (capital as cmd) { OTHER (get_loc lexbuf, cmd) }
-  | '#' (number  as i  ) { INT   (int_of_string i) }
   | mident as md '.' (ident as id)
   { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id

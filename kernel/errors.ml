@@ -2,11 +2,13 @@ open Basic
 open Format
 open Rule
 open Term
-
+open Reduction
 
 let errors_in_snf = ref false
 
-let snf t = if !errors_in_snf then Env.unsafe_snf t else t
+let snf_config = {default with strategy = Snf}
+
+let snf t = if !errors_in_snf then Env.unsafe_reduction ~red:snf_config t else t
 
 let color = ref true
 

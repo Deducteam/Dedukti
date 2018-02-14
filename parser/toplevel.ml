@@ -3,16 +3,11 @@ open Term
 
 type command =
   (* Reduction *)
-  | Whnf     of term
-  | Hnf      of term
-  | Snf      of term
-  | OneStep  of term
-  | NSteps   of int*term
+  | Eval     of Env.eval_config * term
   | Conv     of term*term
   (*Typing*)
   | Check    of term*term
-  | Infer    of term
-  | InferSnf of term
+  | Infer    of Env.eval_config * term
   (* Misc *)
   | Gdt      of mident option*ident
   | Require  of mident
