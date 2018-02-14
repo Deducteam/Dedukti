@@ -61,8 +61,6 @@ let mk_definition _ _ = function
   | None -> mk_term
   | Some t -> mk_term t; mk_term
 
-let mk_opaque = mk_definition
-
 let mk_binding ( _,_, t) = mk_term t
 
 let mk_prule (rule:untyped_rule) =
@@ -98,8 +96,7 @@ let sort () = List.map (fun md -> List.assoc md !md_to_file) (List.rev (topologi
 
 let mk_entry = function
   | Decl(lc,id,st,te) -> mk_declaration lc id st te
-  | Def(lc,id,false,pty,te) -> mk_definition lc id pty te
-  | Def(lc,id,true,pty,te) -> mk_opaque lc id pty te
+  | Def(lc,id,_,pty,te) -> mk_definition lc id pty te
   | Rules(rs) -> mk_rules rs
   | Eval(_, _, t) | Infer (_, _, t) -> mk_term t
   | Check(_,_,_, Convert(t1,t2)) | Check (_,_,_, HasType(t1,t2)) -> ( mk_term t1 ; mk_term t2 )
