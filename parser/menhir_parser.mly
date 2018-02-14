@@ -147,7 +147,7 @@ line            : ID COLON term DOT
                 { mk_rules (List.map scope_rule $1) }
                 | command DOT { $1 }
                 | EOF
-                { raise Lexer.EndOfFile }
+                { raise End_of_file }
 
 
 command         : EVAL term
