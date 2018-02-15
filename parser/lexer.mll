@@ -30,6 +30,7 @@ rule token = parse
   | '.'         { DOT           }
   | ','         { COMMA         }
   | ':'         { COLON         }
+  | "=="        { EQUAL         }
   | '['         { LEFTSQU       }
   | ']'         { RIGHTSQU      }
   | '{'         { LEFTBRA       }
@@ -48,8 +49,10 @@ rule token = parse
   { NAME (get_loc lexbuf , mk_mident md) }
   | "#EVAL"     { EVAL       ( get_loc lexbuf ) }
   | "#INFER"    { INFER      ( get_loc lexbuf ) }
-  | "#CONV"     { CONV       ( get_loc lexbuf ) }
   | "#CHECK"    { CHECK      ( get_loc lexbuf ) }
+  | "#CHECKNOT" { CHECKNOT   ( get_loc lexbuf ) }
+  | "#ASSERT"   { ASSERT     ( get_loc lexbuf ) }
+  | "#ASSERTNOT"{ ASSERTNOT  ( get_loc lexbuf ) }
   | "#PRINT"    { PRINT      ( get_loc lexbuf ) }
   | "#GDT"      { GDT        ( get_loc lexbuf ) }
   | mident as md '.' (ident as id)
@@ -65,7 +68,7 @@ and comment = parse
   | ";)" { token lexbuf }
   | '\n' { new_line lexbuf ; comment lexbuf }
   | _    { comment lexbuf }
-  | eof	 { fail (get_loc lexbuf) "Unexpected end of file."  }
+  | eof  { fail (get_loc lexbuf) "Unexpected end of file."  }
 
 and string buf = parse
   | '\\' (_ as c)

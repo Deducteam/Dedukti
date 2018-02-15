@@ -67,7 +67,7 @@ let mk_entry md e =
         | Convert(t1,t2) ->
             begin
               match Env.are_convertible t1 t2 with
-              | OK ok when ok = not neg -> Format.printf "YES@."
+              | OK ok when ok = not neg -> if not assrt then Format.printf "YES@."
               | OK _  when assrt        -> failwith "Assertion failed."
               | OK _                    -> Format.printf "NO@."
               | Err e                   -> Errors.fail_env_error e
@@ -75,8 +75,8 @@ let mk_entry md e =
         | HasType(te,ty) ->
             begin
               match Env.check te ty with
-              | OK () when not neg -> Format.printf "YES@."
-              | Err _ when neg     -> Format.printf "YES@."
+              | OK () when not neg -> if not assrt then Format.printf "YES@."
+              | Err _ when neg     -> if not assrt then Format.printf "YES@."
               | OK () when assrt   -> failwith "Assertion failed."
               | Err _ when assrt   -> failwith "Assertion failed."
               | _                  -> Format.printf "NO@."

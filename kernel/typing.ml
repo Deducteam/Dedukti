@@ -24,6 +24,9 @@ type typing_error =
   | BracketError2 of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
+  | Unconvertible of loc*term*term
+  | Convertible of loc*term*term
+  | Inhabit of loc*term*term
 
 exception TypingError of typing_error
 

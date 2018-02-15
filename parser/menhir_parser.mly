@@ -16,11 +16,6 @@ let rec mk_pi  : preterm -> (loc*ident*preterm) list -> preterm = fun ty ps ->
   | []           -> ty
   | (l,x,aa)::ps -> PrePi(l, Some x, aa, mk_pi ty ps)
 
-let mk_pre_from_list : preterm -> preterm list -> preterm = fun te ts ->
-  match ts with
-  | []      -> te
-  | a::args -> PreApp(te,a,args)
-
 let mk_config loc id1 id2_opt =
   try
     let open Env in
@@ -45,6 +40,7 @@ let mk_config loc id1 id2_opt =
 %token DOT
 %token COMMA
 %token COLON
+%token EQUAL
 %token ARROW
 %token FATARROW
 %token LONGARROW
@@ -57,8 +53,10 @@ let mk_config loc id1 id2_opt =
 %token RIGHTSQU
 %token <Basic.loc> EVAL
 %token <Basic.loc> INFER
-%token <Basic.loc> CONV
 %token <Basic.loc> CHECK
+%token <Basic.loc> CHECKNOT
+%token <Basic.loc> ASSERT
+%token <Basic.loc> ASSERTNOT
 %token <Basic.loc> PRINT
 %token <Basic.loc> GDT
 %token <Basic.loc> UNDERSCORE
@@ -116,10 +114,24 @@ line:
       {fun md -> Infer($1, Reduction.default_cfg, scope_term md [] te)}
   | INFER cfg=eval_config te=term DOT
       {fun md -> Infer($1, cfg, scope_term md [] te)}
-  | CONV  t1=term  COMMA t2=term DOT
-      {fun md -> Check($1, false, false, Convert(scope_term md [] t1, scope_term md [] t2))}
-  | CHECK te=term  COMMA ty=term DOT
+
+  | CHECK te=aterm COLON ty=term DOT
       {fun md -> Check($1, false, false, HasType(scope_term md [] te, scope_term md [] ty))}
+  | CHECKNOT te=aterm COLON ty=term DOT
+      {fun md -> Check($1, false, true , HasType(scope_term md [] te, scope_term md [] ty))}
+  | ASSERT te=aterm COLON ty=term DOT
+      {fun md -> Check($1, true , false, HasType(scope_term md [] te, scope_term md [] ty))}
+  | ASSERTNOT te=aterm COLON ty=term DOT
+      {fun md -> Check($1, true , true , HasType(scope_term md [] te, scope_term md [] ty))}
+
+  | CHECK t1=aterm EQUAL t2=term DOT
+      {fun md -> Check($1, false, false, Convert(scope_term md [] t1, scope_term md [] t2))}
+  | CHECKNOT t1=aterm EQUAL t2=term DOT
+      {fun md -> Check($1, false, true , Convert(scope_term md [] t1, scope_term md [] t2))}
+  | ASSERT t1=aterm EQUAL t2=term DOT
+      {fun md -> Check($1, true , false, Convert(scope_term md [] t1, scope_term md [] t2))}
+  | ASSERTNOT t1=aterm EQUAL t2=term DOT
+      {fun md -> Check($1, true , true , Convert(scope_term md [] t1, scope_term md [] t2))}
 
   | PRINT STRING DOT {fun _ -> Print($1, $2)}
   | GDT   ID     DOT {fun _ -> DTree($1, None, snd $2)}
@@ -181,17 +193,21 @@ sterm:
   | LEFTPAR term RIGHTPAR    { $2 }
   | TYPE                     { PreType $1 }
 
-term:
+aterm:
   | te=sterm ts=sterm*
-      { mk_pre_from_list te ts }
-  | ID COLON sterm sterm* ARROW term
-      { PrePi (fst $1,Some (snd $1),mk_pre_from_list $3 $4, $6) }
-  | LEFTPAR ID COLON sterm sterm* RIGHTPAR ARROW term
-      { PrePi (fst $2,Some (snd $2),mk_pre_from_list $4 $5,$8) }
+      {match ts with [] -> te | a::args -> PreApp(te,a,args)}
+
+term:
+  | t=aterm
+      { t }
+  | ID COLON aterm ARROW term
+      { PrePi (fst $1,Some (snd $1), $3, $5) }
+  | LEFTPAR ID COLON aterm RIGHTPAR ARROW term
+      { PrePi (fst $2,Some (snd $2), $4 ,$7) }
   | term ARROW term
       { PrePi (Lexer.loc_of_pos $startpos,None,$1,$3) }
   | ID FATARROW term
-      { PreLam (fst $1,snd $1,None,$3) }
-  | ID COLON sterm sterm* FATARROW term
-      { PreLam (fst $1,snd $1,Some(mk_pre_from_list $3 $4),$6) }
+      {PreLam (fst $1, snd $1, None, $3)}
+  | ID COLON aterm FATARROW term
+      {PreLam (fst $1, snd $1, Some $3, $5)}
 %%

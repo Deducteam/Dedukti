@@ -38,5 +38,4 @@ def f : R -> R -> R := x : R => y : R => ch x.
 #EVAL grad (trans f).
 #EVAL flip (grad f).
 
-#PRINT "YES".
-#CONV grad (trans f), flip (grad f).
+#ASSERT grad (trans f) == flip (grad f).

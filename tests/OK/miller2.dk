@@ -49,5 +49,4 @@ def f : R -> R -> R := plus (x : R => y : R => ch x) (x : R => y : R => sh y).
 #EVAL flip (grad f).
 #EVAL grad (trans f).
 
-#PRINT "YES".
-#CONV grad (trans f), flip (grad f).
+#ASSERT grad (trans f) == flip (grad f).

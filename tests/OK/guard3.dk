@@ -8,5 +8,4 @@ g : A -> A.
 def ff : A -> (A -> A) -> A.
 [x] ff x (y => {g x}) --> a.
 
-#CONV (ff a (y => (g a))), a.
-#PRINT "YES".
+#ASSERT ff a (y => (g a)) == a.
