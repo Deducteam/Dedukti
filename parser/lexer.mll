@@ -4,11 +4,9 @@
   open Tokens
   open Format
 
-  let get_loc lexbuf =
-    let start = lexbuf.lex_start_p in
-    let line = start.pos_lnum in
-    let cnum = start.pos_cnum - start.pos_bol in
-    mk_loc line cnum
+  let loc_of_pos pos = mk_loc (pos.pos_lnum) (pos.pos_cnum - pos.pos_bol)
+
+  let get_loc lexbuf = loc_of_pos lexbuf.lex_start_p
 
   let prerr_loc lc =
   let (l,c) = of_loc lc in

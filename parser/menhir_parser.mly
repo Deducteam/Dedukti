@@ -6,23 +6,20 @@ open Internals
 open Reduction
 open Signature
 
-let rec mk_lam (te:preterm) : (loc*ident*preterm) list -> preterm = function
-    | [] -> te
-    | (l,x,ty)::tl -> PreLam (l,x,Some ty,mk_lam te tl)
+let rec mk_lam : preterm -> (loc*ident*preterm) list -> preterm = fun te ps ->
+  match ps with
+  | []           -> te
+  | (l,x,ty)::ps -> PreLam(l, x, Some ty, mk_lam te ps)
 
-let rec mk_pi (te:preterm) : (loc*ident*preterm) list -> preterm = function
-    | [] -> te
-    | (l,x,ty)::tl -> PrePi(l,Some x,ty,mk_pi te tl)
+let rec mk_pi  : preterm -> (loc*ident*preterm) list -> preterm = fun ty ps ->
+  match ps with
+  | []           -> ty
+  | (l,x,aa)::ps -> PrePi(l, Some x, aa, mk_pi ty ps)
 
-let rec preterm_loc = function
-    | PreType l | PreId (l,_) | PreQId (l,_) | PreLam  (l,_,_,_)
-    | PrePi   (l,_,_,_) -> l
-    | PreApp (f,_,_) -> preterm_loc f
-
-let mk_pre_from_list = function
-    | [] -> assert false
-    | [t] -> t
-    | f::a1::args -> PreApp (f,a1,args)
+let mk_pre_from_list : preterm -> preterm list -> preterm = fun te ts ->
+  match ts with
+  | []      -> te
+  | a::args -> PreApp(te,a,args)
 
 let mk_config loc id1 id2_opt =
   try
@@ -130,65 +127,71 @@ line:
   | n=NAME       DOT {fun _ -> Name(fst n, snd n)}
   | EOF              {raise End_of_file}
 
-
 eval_config:
   | LEFTSQU id=ID RIGHTSQU
-      {mk_config (fst id) (string_of_ident (snd id)) None}
+      {mk_config (Lexer.loc_of_pos $startpos) (string_of_ident (snd id)) None}
   | LEFTSQU id1=ID COMMA id2=ID RIGHTSQU
-      {mk_config (fst id1) (string_of_ident (snd id1)) (Some(string_of_ident (snd id2)))}
+      {mk_config (Lexer.loc_of_pos $startpos) (string_of_ident (snd id1))
+        (Some(string_of_ident (snd id2)))}
 
 param:
   | LEFTPAR id=ID COLON te=term RIGHTPAR
       {(fst id, snd id, te)}
 
-rule            : LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,md_opt,id,args) = $4 in
-                  ( l , None, $2 , md_opt, id , args , $6) }
-                | LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,md_opt,id,args) = $7 in
-                  ( l , Some (None,snd $2), $5 , md_opt, id , args , $9)}
-                | LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
-                { let (l,md_opt,id,args) = $7 in
-                  let (_,m,v) = $2 in
-                  ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
+rule:
+  | LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+      { let (l,md_opt,id,args) = $4 in
+        ( l , None, $2 , md_opt, id , args , $6) }
+  | LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+      { let (l,md_opt,id,args) = $7 in
+        ( l , Some (None,snd $2), $5 , md_opt, id , args , $9)}
+  | LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+      { let (l,md_opt,id,args) = $7 in
+        let (_,m,v) = $2 in
+        ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
+decl:
+  | ID COLON term { debug 1 "Ignoring type declaration in rule context."; $1 }
+  | ID            { $1 }
 
-decl            : ID COLON term { debug 1 "Ignoring type declaration in rule context."; $1 }
-                | ID            { $1 }
+context:
+  | /* empty */                          { [] }
+  | separated_nonempty_list(COMMA, decl) { $1 }
 
-context         : /* empty */  { [] }
-                | separated_nonempty_list(COMMA, decl) { $1 }
+top_pattern:
+  | ID  pattern_wp* { (fst $1,None,snd $1,$2) }
+  | QID pattern_wp* { let (l,md,id)=$1 in (l,Some md,id,$2) }
 
-top_pattern     : ID pattern_wp*           { (fst $1,None,snd $1,$2) }
-                | QID pattern_wp*          { let (l,md,id)=$1 in (l,Some md,id,$2) }
+pattern_wp:
+  | ID                       { PPattern (fst $1,None,snd $1,[]) }
+  | QID                      { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
+  | UNDERSCORE               { PJoker $1 }
+  | LEFTBRA term RIGHTBRA    { PCondition $2 }
+  | LEFTPAR pattern RIGHTPAR { $2 }
 
+pattern:
+  | ID  pattern_wp+          { PPattern (fst $1,None,snd $1,$2) }
+  | QID pattern_wp+          { let (l,md,id)=$1 in PPattern (l,Some md,id,$2) }
+  | ID FATARROW pattern      { PLambda (fst $1,snd $1,$3) }
+  | pattern_wp               { $1 }
 
-pattern_wp      : ID                       { PPattern (fst $1,None,snd $1,[]) }
-                | QID                      { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
-                | UNDERSCORE               { PJoker $1 }
-                | LEFTBRA term RIGHTBRA    { PCondition $2 }
-                | LEFTPAR pattern RIGHTPAR { $2 }
+sterm:
+  | QID                      { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
+  | ID                       { PreId (fst $1,snd $1) }
+  | LEFTPAR term RIGHTPAR    { $2 }
+  | TYPE                     { PreType $1 }
 
-pattern         : ID  pattern_wp+          { PPattern (fst $1,None,snd $1,$2) }
-                | QID pattern_wp+          { let (l,md,id)=$1 in PPattern (l,Some md,id,$2) }
-                | ID FATARROW pattern      { PLambda (fst $1,snd $1,$3) }
-                | pattern_wp               { $1 }
-
-sterm           : QID                      { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
-                | ID                       { PreId (fst $1,snd $1) }
-                | LEFTPAR term RIGHTPAR    { $2 }
-                | TYPE                     { PreType $1 }
-
-term            : sterm+
-                { mk_pre_from_list $1 }
-                | ID COLON sterm+ ARROW term
-                { PrePi (fst $1,Some (snd $1),mk_pre_from_list $3,$5) }
-                | LEFTPAR ID COLON sterm+ RIGHTPAR ARROW term
-                { PrePi (fst $2,Some (snd $2),mk_pre_from_list $4,$7) }
-                | term ARROW term
-                { PrePi (preterm_loc $1,None,$1,$3) }
-                | ID FATARROW term
-                { PreLam (fst $1,snd $1,None,$3) }
-                | ID COLON sterm+ FATARROW term
-                { PreLam (fst $1,snd $1,Some(mk_pre_from_list $3),$5) }
+term:
+  | te=sterm ts=sterm*
+      { mk_pre_from_list te ts }
+  | ID COLON sterm sterm* ARROW term
+      { PrePi (fst $1,Some (snd $1),mk_pre_from_list $3 $4, $6) }
+  | LEFTPAR ID COLON sterm sterm* RIGHTPAR ARROW term
+      { PrePi (fst $2,Some (snd $2),mk_pre_from_list $4 $5,$8) }
+  | term ARROW term
+      { PrePi (Lexer.loc_of_pos $startpos,None,$1,$3) }
+  | ID FATARROW term
+      { PreLam (fst $1,snd $1,None,$3) }
+  | ID COLON sterm sterm* FATARROW term
+      { PreLam (fst $1,snd $1,Some(mk_pre_from_list $3 $4),$6) }
 %%
