@@ -91,7 +91,8 @@ let output_deps : out_channel -> dep_data list -> unit = fun oc data ->
     let deps = List.map objfile deps in
     let deps = List.filter (fun s -> s <> "") deps in
     let deps = String.concat " " deps in
-    Printf.fprintf oc "%s : %s %s\n" (objfile name) file deps
+    try Printf.fprintf oc "%s : %s %s\n" (objfile name) file deps
+    with Not_found -> ()
   in
   List.iter output_line data
 
