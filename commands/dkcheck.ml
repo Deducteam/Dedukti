@@ -96,70 +96,80 @@ let mk_entry md e =
       if not (mident_eq n md) then
         Printf.eprintf "[Warning] invalid #NAME directive ignored.\n%!"
 
-let run_on_stdin        = ref false
 
-let export = ref false
-
-let print_version () =
-  Printf.printf "Dedukti %s\n%!" Version.version
-
-let default_mident = ref None
-
-let set_default_mident md = default_mident := Some(Basic.mk_mident md)
-
-let args = [
-  ("-v"      , Arg.Set    verbose                , "Verbose mode" ) ;
-  ("-d"      , Arg.Int    Basic.set_debug_mode   , "Debug mode" ) ;
-  ("-e"      , Arg.Set    export                 , "Create a .dko" ) ;
-  ("-nc"     , Arg.Clear  Errors.color           , "Disable colored output" ) ;
-  ("-stdin"  , Arg.Set    run_on_stdin           , "Use standart input" ) ;
-  ("-r"      , Arg.Set    Signature.ignore_redecl, "Ignore redeclaration" ) ;
-  ("-version", Arg.Unit   print_version          , "Version" ) ;
-  ("-coc"    , Arg.Set    Typing.coc             , "Typecheck the Calculus of Construction" ) ;
-  ("-autodep", Arg.Set    Signature.autodep      ,
-   "Automatically handle dependencies (experimental)") ;
-  ("-I"      , Arg.String Basic.add_path         , "Add a directory to load path");
-  ("-errors-in-snf",
-               Arg.Set    Errors.errors_in_snf   , "Normalize the types in error messages");
-  ("-cc"     , Arg.String Confluence.set_cmd     , "Set the external confluence checker");
-  ("-nl"     , Arg.Set    Rule.allow_non_linear  , "Allow non left-linear rewrite rules");
-  ("-module" , Arg.String set_default_mident     , "Give a default name to the current module");
-]
-
-
-
-let run_on_file file =
+let run_on_file export file =
   let input = open_in file in
   debug 1 "Processing file '%s'..." file;
-  let md =
-    match !default_mident with
-    | None    -> mk_mident file
-    | Some md -> md
-  in
+  let md = mk_mident file in
   Env.init md;
   Confluence.initialize ();
   Parser.handle_channel md (mk_entry md) input;
   Errors.success "File '%s' was successfully checked." file;
-  if !export && not (Env.export ()) then
+  if export && not (Env.export ()) then
     Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ());
   Confluence.finalize ();
   close_in input
 
+
 let _ =
+  let run_on_stdin = ref None  in
+  let export       = ref false in
+  let options = Arg.align
+    [ ( "-v"
+      , Arg.Set verbose
+      , " Enable the verbose mode" )
+    ; ( "-d"
+      , Arg.Int Basic.set_debug_mode
+      , "N sets the debuging level to N" )
+    ; ( "-e"
+      , Arg.Set export
+      , " Generates an object file (\".dko\")" )
+    ; ( "-nc"
+      , Arg.Clear Errors.color
+      , " Disable colors in the output" )
+    ; ( "-stdin"
+      , Arg.String (fun n -> run_on_stdin := Some(mk_mident n))
+      , "MOD Parses standard input using module name MOD" )
+    ; ( "-r"
+      , Arg.Set Signature.ignore_redecl
+      , " Ignore redeclaration of symbols" )
+    ; ( "-version"
+      , Arg.Unit (fun _ -> Printf.printf "Dedukti %s\n%!" Version.version)
+      , " Print the version number" )
+    ; ( "-coc"
+      , Arg.Set Typing.coc
+      , " Typecheck the Calculus of Construction" )
+    ; ( "-autodep"
+      , Arg.Set Signature.autodep
+      , " Automatically handle dependencies (experimental)" )
+    ; ( "-I"
+      , Arg.String Basic.add_path
+      , "DIR Add the directory DIR to the load path" )
+    ; ( "-errors-in-snf"
+      , Arg.Set Errors.errors_in_snf
+      , " Normalize the types in error messages" )
+    ; ( "-cc"
+      , Arg.String Confluence.set_cmd
+      , "CMD Set the external confluence checker command to CMD" )
+    ; ( "-nl"
+      , Arg.Set Rule.allow_non_linear
+      , " Allow non left-linear rewriting rules" ) ]
+  in
+  let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...\n" in
+  let usage = usage ^ "Available options:" in
+  let files =
+    let files = ref [] in
+    Arg.parse options (fun f -> files := f :: !files) usage;
+    List.rev !files
+  in
   try
-    Arg.parse args run_on_file ("Usage: "^ Sys.argv.(0) ^" [options] files");
-    if !run_on_stdin then
-      begin
-        if !default_mident = None then debug 0 "[Warning] no module name given";
-        let md =
-          match !default_mident with
-          | None    -> mk_mident "<stdin>"
-          | Some md -> md
-        in
+    List.iter (run_on_file !export) files;
+    match !run_on_stdin with
+    | None    -> ()
+    | Some md ->
         Env.init md;
         Parser.handle_channel md (mk_entry md) stdin;
         Errors.success "Standard input was successfully checked.\n"
-      end
   with
   | Sys_error err -> Printf.eprintf "ERROR %s.\n" err; exit 1
   | Exit          -> exit 3
