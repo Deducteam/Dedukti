@@ -82,11 +82,14 @@ let handle_file : string -> dep_data = fun file ->
 
 let output_deps : out_channel -> dep_data list -> unit = fun oc data ->
   let objfile n =
-    let src = fst (List.assoc n data) in
-    (try Filename.chop_extension src with _ -> src) ^ ".dko"
+    try
+      let src = fst (List.assoc n data) in
+      (try Filename.chop_extension src with _ -> src) ^ ".dko"
+    with Not_found -> ""
   in
   let output_line (name, (file, deps)) =
     let deps = List.map objfile deps in
+    let deps = List.filter (fun s -> s <> "") deps in
     let deps = String.concat " " deps in
     Printf.fprintf oc "%s : %s %s\n" (objfile name) file deps
   in
@@ -107,9 +110,11 @@ let topological_sort graph =
 
 let output_sorted : out_channel -> dep_data list -> unit = fun oc data ->
   let deps = List.map (fun (n,(_,ds)) -> (n,ds)) data in
-  let filename n = fst (List.assoc n data) in
-  let res = List.map filename (List.rev (topological_sort deps)) in
-  Printf.printf "%s\n" (String.concat " " res)
+  let filename n = try fst (List.assoc n data) with Not_found -> "" in
+  let deps = List.rev (topological_sort deps) in
+  let deps = List.map filename deps in
+  let deps = List.filter (fun s -> s <> "") deps in
+  Printf.printf "%s\n" (String.concat " " deps)
 
 let _ =
   (* Parsing of command line arguments. *)
