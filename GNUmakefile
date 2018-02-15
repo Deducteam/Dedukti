@@ -117,7 +117,7 @@ install: uninstall all
 	@ocamlfind install dedukti META \
 		$(wildcard _build/kernel/*.mli) $(wildcard _build/kernel/*.cmi) \
 		$(wildcard _build/kernel/*.cmx) $(wildcard _build/kernel/*.o) \
-		$(wildcard _build/parser/*.mli) $(wildcard _build/parser/*.cmi) \
+		_build/parser/parser.mli _build/parser/parser.cmi \
 		$(wildcard _build/parser/*.cmx) $(wildcard _build/parser/*.o) \
 		_build/kernel/kernel.cma _build/parser/parser.cma \
 		_build/kernel/kernel.cmxa _build/parser/parser.cmxa \
