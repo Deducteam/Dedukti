@@ -3,24 +3,37 @@ open Term
 open Rule
 open Parser
 
-(** [find_dko name path] answers whether there is a ".dko" file corresponding
-    to the module [name] in the path. If found, the file is left untouched. *)
-let find_dko : string -> string list -> bool = fun name ->
-  let name = name ^ ".dko" in
-  List.exists (fun dir -> Sys.file_exists (Filename.concat dir name))
-
 (** [deps] contains the dependencies found so far, reset before each file. *)
-let current_mod  : string      ref = ref "<not initialised>"
-let current_deps : string list ref = ref []
+let current_mod  : string                 ref = ref "<not initialised>"
+let current_deps : (string * string) list ref = ref []
+
+let in_deps : string -> bool = fun n ->
+  List.mem_assoc n !current_deps
+
+let add_dep : string -> string -> unit = fun name file ->
+  let cmp (s1,_) (s2,_) = String.compare s1 s2 in
+  current_deps := List.sort cmp ((name, file) :: !current_deps)
+
+(** [locate name path] looks for the ".dk" file corresponding to the module
+    named [name] in the directories of [path]. If no corresponding file is
+    found, or if there are several possibilities, the program fails with a
+    graceful error message. *)
+let find_dk : string -> string list -> string = fun name path ->
+  let file_name = name ^ ".dk" in
+  let path = List.sort_uniq String.compare ("." :: path) in
+  let files = List.map (fun dir -> Filename.concat dir file_name) path in
+  match List.filter Sys.file_exists files with
+  | []  -> Printf.eprintf "No file for module %S in path...\n%!" name; exit 1
+  | [f] -> f
+  | fs  -> Printf.eprintf "Several files correspond to module %S...\n" name;
+           List.iter (Printf.eprintf "  - %s\n%!") fs; exit 1
 
 (** [add_dep name] adds the module named [name] to the list of dependencies if
     no corresponding ".dko" file is found in the load path. The dependency is
     not added either if it is already present. *)
 let add_dep : string -> unit = fun name ->
-  if find_dko name (get_path ()) then ()      (* The ".dko" exists.    *)
-  else if name = !current_mod then ()         (* Current module.       *)
-  else if List.mem name !current_deps then () (* Already a dependency. *)
-  else current_deps := List.sort String.compare (name :: !current_deps)
+  if name = !current_mod || in_deps name then () else
+  add_dep name (find_dk name (get_path ()))
 
 (** Term / pattern / entry traversal commands. *)
 
@@ -60,7 +73,7 @@ let handle_entry e =
   | Print(_,_)                  -> ()
   | Name(_,_)                   -> ()
 
-type dep_data = string * (string * string list)
+type dep_data = string * (string * (string * string) list)
 
 let handle_file : string -> dep_data = fun file ->
   try
@@ -81,18 +94,11 @@ let handle_file : string -> dep_data = fun file ->
 (** Output main program. *)
 
 let output_deps : out_channel -> dep_data list -> unit = fun oc data ->
-  let objfile n =
-    try
-      let src = fst (List.assoc n data) in
-      (try Filename.chop_extension src with _ -> src) ^ ".dko"
-    with Not_found -> ""
-  in
-  let output_line (name, (file, deps)) =
-    let deps = List.map objfile deps in
-    let deps = List.filter (fun s -> s <> "") deps in
+  let objfile src = Filename.chop_extension src ^ ".dko" in
+  let output_line : dep_data -> unit = fun (name, (file, deps)) ->
+    let deps = List.map (fun (_,src) -> objfile src) deps in
     let deps = String.concat " " deps in
-    try Printf.fprintf oc "%s : %s %s\n" (objfile name) file deps
-    with Not_found -> ()
+    Printf.fprintf oc "%s : %s %s\n" (objfile file) file deps
   in
   List.iter output_line data
 
@@ -100,7 +106,7 @@ let topological_sort graph =
   let rec explore path visited node =
     if List.mem node path then
       begin
-        Printf.eprintf "Circular dependencies...";
+        Printf.eprintf "Dependecies are circular...";
         exit 1
       end;
     if List.mem node visited then visited else
@@ -110,11 +116,8 @@ let topological_sort graph =
   List.fold_left (fun visited (n,_) -> explore [] visited n) [] graph
 
 let output_sorted : out_channel -> dep_data list -> unit = fun oc data ->
-  let deps = List.map (fun (n,(_,ds)) -> (n,ds)) data in
-  let filename n = try fst (List.assoc n data) with Not_found -> "" in
+  let deps = List.map (fun (_,(f,deps)) -> (f, List.map snd deps)) data in
   let deps = List.rev (topological_sort deps) in
-  let deps = List.map filename deps in
-  let deps = List.filter (fun s -> s <> "") deps in
   Printf.printf "%s\n" (String.concat " " deps)
 
 let _ =
@@ -133,7 +136,6 @@ let _ =
       , "DIR Add the directory DIR to the load path" ) ]
   in
   let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...\n" in
-  let usage = usage ^ "Existing \".dko\" files are not included in deps.\n" in
   let usage = usage ^ "Available options:" in
   let files =
     let files = ref [] in

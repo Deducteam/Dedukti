@@ -1,3 +1,5 @@
+#!/bin/bash
+
 TMPDIR=/tmp/dedukti_tmp_testdir/
 DKCHECK=$(pwd)/dkcheck.native
 DKDEP=$(pwd)/dkdep.native
@@ -13,19 +15,19 @@ cd $TMPDIR
 
 # Focalide library.
 
-echo "Running Focalide"
-wget https://deducteam.github.io/data/libraries/focalide.tar.gz
-tar zxvf focalide.tar.gz
+echo "#### Running Focalide ##############################################"
+wget -q https://deducteam.github.io/data/libraries/focalide.tar.gz
+tar zxf focalide.tar.gz
 cd focalide_dks
 make all
 cd ..
 
 # Matita library.
 
-echo "Running matita"
+echo "#### Running Matita ################################################"
 
-wget https://deducteam.github.io/data/libraries/matita.tar.gz
-tar zxvf matita.tar.gz
+wget -q https://deducteam.github.io/data/libraries/matita.tar.gz
+tar zxf matita.tar.gz
 cd matita
 rm matita_arithmetics_factorial.dk
 rm matita_arithmetics_binomial.dk
@@ -41,7 +43,7 @@ cd ..
 
 # Dklib.
 
-echo "Running dklib-master"
+echo "#### Running DKlib #################################################"
 
 git clone https://github.com/rafoo/dklib.git dklib
 cd dklib

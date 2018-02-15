@@ -131,11 +131,11 @@ install: uninstall all
 #### Test targets ############################################################
 
 .PHONY: tests
-tests: dkcheck.native tests/tests.sh
+tests: all tests/tests.sh
 	@./tests/tests.sh
 
 .PHONY: full_tests
-full_tests: dkcheck.native tests/external_tests.sh
+full_tests: all tests/external_tests.sh
 	@./tests/external_tests.sh
 
 #### Cleaning targets ########################################################
