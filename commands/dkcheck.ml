@@ -105,7 +105,7 @@ let print_version () =
 
 let default_mident = ref None
 
-let set_default_mident md = default_mident := Some md
+let set_default_mident md = default_mident := Some(Basic.mk_mident md)
 
 let args = [
   ("-v"      , Arg.Set    verbose                , "Verbose mode" ) ;
@@ -130,32 +130,36 @@ let args = [
 
 let run_on_file file =
   let input = open_in file in
-  Basic.debug 1 "Processing file '%s'..." file;
-  let md =  Basic.mk_mident (match !default_mident with None -> file | Some str -> str) in
+  debug 1 "Processing file '%s'..." file;
+  let md =
+    match !default_mident with
+    | None    -> mk_mident file
+    | Some md -> md
+  in
   Env.init md;
   Confluence.initialize ();
   Parser.handle_channel md (mk_entry md) input;
   Errors.success "File '%s' was successfully checked." file;
-  ( if !export then
-    if not (Env.export ()) then
-      Errors.fail Basic.dloc "Fail to export module '%a'." Basic.pp_mident (Env.get_name ()) );
+  if !export && not (Env.export ()) then
+    Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ());
   Confluence.finalize ();
   close_in input
 
 let _ =
   try
-    begin
-      Arg.parse args run_on_file ("Usage: "^ Sys.argv.(0) ^" [options] files");
-      if !run_on_stdin then (
-        let md = Basic.mk_mident (
-            match !default_mident with
-            | None -> Basic.debug 0 "[Warning] no module name given"; "stdin"
-            | Some str -> str)
+    Arg.parse args run_on_file ("Usage: "^ Sys.argv.(0) ^" [options] files");
+    if !run_on_stdin then
+      begin
+        if !default_mident = None then debug 0 "[Warning] no module name given";
+        let md =
+          match !default_mident with
+          | None    -> mk_mident "<stdin>"
+          | Some md -> md
         in
         Env.init md;
         Parser.handle_channel md (mk_entry md) stdin;
-        Errors.success "Standard input was successfully checked.\n" )
-    end
+        Errors.success "Standard input was successfully checked.\n"
+      end
   with
-    | Sys_error err -> ( Printf.eprintf "ERROR %s.\n" err; exit 1 )
-    | Exit          -> exit 3
+  | Sys_error err -> Printf.eprintf "ERROR %s.\n" err; exit 1
+  | Exit          -> exit 3
