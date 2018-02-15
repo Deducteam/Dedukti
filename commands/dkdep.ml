@@ -81,10 +81,14 @@ let handle_file : string -> dep_data = fun file ->
 (** Output main program. *)
 
 let output_deps : out_channel -> dep_data list -> unit = fun oc data ->
+  let objfile n =
+    let src = fst (List.assoc n data) in
+    (try Filename.chop_extension src with _ -> src) ^ ".dko"
+  in
   let output_line (name, (file, deps)) =
-    let deps = List.map (fun n -> n ^ ".dko") deps in
+    let deps = List.map objfile deps in
     let deps = String.concat " " deps in
-    Printf.fprintf oc "%s.dko : %s %s\n" name file deps
+    Printf.fprintf oc "%s : %s %s\n" (objfile name) file deps
   in
   List.iter output_line data
 
