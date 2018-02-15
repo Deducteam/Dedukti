@@ -1,6 +1,6 @@
-TMPDIR="/tmp/dedukti_tmp_testdir/"
-DKCHECK="$(pwd)/dkcheck.native"
-DKDEP="$(pwd)/dkdep.native"
+TMPDIR=/tmp/dedukti_tmp_testdir/
+DKCHECK=$(pwd)/dkcheck.native
+DKDEP=$(pwd)/dkdep.native
 
 export DKCHECK
 export DKDEP
