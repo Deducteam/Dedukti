@@ -1,6 +1,8 @@
 (** Size change principle.
-    This module implements a decision procedure based on the work of Chin Soon Lee, Neil D. Jones and Amir M. Ben-Amram (POPL 2001).
-    Most of this module comes from an implementation of Rodolphe  Lepigre and Christophe Raffalli. *)
+    This module implements a decision procedure based on the work of
+Chin Soon Lee, Neil D. Jones and Amir M. Ben-Amram (POPL 2001).
+    Most of this module comes from an implementation of Rodolphe Lepigre
+and Christophe Raffalli. *)
 open Basic
 open Term
 open Rule
@@ -102,12 +104,11 @@ let pp_status fmt s =
       then "Static"
       else "Definable"
     )
-
-                                                                        
+                                                           
 (** The local result express the result of the termination checker for this symbol *)
 type local_result = SelfLooping of (index list) | CallingDefined
                   | UsingBrackets | NonPositive | CriticalPair
-                  | BetaReductionInType | MillerPatternTypeLevel
+                  | NotHandledRewritingTypeLevel
 
 (** Representation of a function symbol. *)
 type symbol =
@@ -299,7 +300,10 @@ let create_rule : rule_infos -> unit =
       pp_rule_infos r; 
   let index = !(g.next_rule_index) in
   g.all_rules := IMap.add index r !(g.all_rules);
-  incr g.next_rule_index
+  incr g.next_rule_index;
+  match r.rhs with
+  |Pi _ -> update_result (find_key r.cst) NotHandledRewritingTypeLevel
+  | _   -> ()
 
 (** Add a new call to the call graph. *)
 let add_call : call-> unit =
@@ -497,58 +501,6 @@ let add_rules : rule_infos list -> unit =
     if ll=[] then if !vb then printf "Liste de call vide générée@.";
     ignore (List.map add_call ll)
     
-let latex_print_calls : unit -> unit=
-  fun () ->
-  let gr= !graph in
-  let ff= std_formatter in
-  let arities = IMap.bindings !(gr.symbols) in
-  let calls = !(gr.calls) in
-  fprintf ff "\\begin{dot2tex}[dot,options=-tmath]\n  digraph G {\n";
-  let arities = List.filter (fun (j,_) ->
-    List.exists (fun c -> j = c.caller || j = c.callee) calls)
-    (List.rev arities)
-  in
-  let numbering = List.mapi (fun i (j,_) -> (j,i)) arities in
-  let index j = List.assoc j numbering in
-  let not_unique n =
-    List.fold_left (fun acc (_,sym) -> if sym.identifier = n then acc+1 else acc) 0 arities
-                   >= 2
-  in
-  let f (j,sym) =
-    if not_unique sym.identifier then
-      fprintf ff "    N%d [ label = \"%a_{%d}\" ];\n" (index j) pp_name sym.identifier (index j)
-    else
-      fprintf ff "    N%d [ label = \"%a\" ];\n" (index j) pp_name sym.identifier
-  in
-  List.iter f (List.filter (fun (i,_) ->
-    List.exists (fun c -> i = c.caller || i = c.callee) calls) arities);
-  let print_call2 arities {callee = i; caller = j; matrix = m} =
-    let {identifier = namej; arity = aj} =
-      try List.assoc j arities with Not_found -> assert false
-    in
-    let {identifier = namei; arity = ai} =
-      try List.assoc i arities with Not_found -> assert false
-    in
-    fprintf ff "    N%d -> N%d [label = \"\\\\left(\\\\begin{smallmatrix}"
-            (index j) (index i);
-    for i = 0 to ai - 1 do
-      if i > 0 then fprintf ff "\\\\\\\\ ";
-      for j = 0 to aj - 1 do
-        if j > 0 then fprintf ff " & ";
-        let c =
-          match m.tab.(j).(i) with
-          | Infi -> "\\\\infty"
-          | Zero -> "0"
-          | Min1 -> "-1"
-        in
-        fprintf ff "%s" c
-      done;
-    done;
-    fprintf ff "\\\\end{smallmatrix}\\\\right)\"]\n%!"
-  in
-  List.iter (print_call2 arities) calls;
-  fprintf ff "  }\n\\end{dot2tex}\n"
-    
 let tarjan graph=
   let num=ref 0 and p = ref [] and partition = ref []
   and numHT= Hashtbl.create 5 and numAcc = Hashtbl.create 5 in
@@ -621,15 +573,6 @@ let sct_only : unit -> unit =
   (* function adding an edge, return a boolean indicating
      if the edge is new or not *)
     let add_edge i j m r =
-    (* test idempotent edges as soon as they are discovered *)
-      if i = j && prod m m = m && not (decreasing m) then
-	begin
-          if !vb
-          then 
-            printf "edge %a idempotent and looping\n%!" print_call
-              {callee = i; caller = j; matrix = m; rules = r};
-          update_result i (SelfLooping r)
-	end;
       let ti = tbl.(i) in
       let ms = ti.(j) in
       if List.exists (fun m' -> subsumes (fst m') m) ms
@@ -637,6 +580,15 @@ let sct_only : unit -> unit =
 	false
       else
         begin
+          (* test idempotent edges as soon as they are discovered *)
+          if i = j && prod m m = m && not (decreasing m) then
+	    begin
+              if !vb
+              then 
+                printf "edge %a idempotent and looping\n%!" print_call
+                  {callee = i; caller = j; matrix = m; rules = r};
+              update_result i (SelfLooping r)
+	    end;
 	  let ms = (m, r) ::
             List.filter (fun m' -> not (subsumes m (fst m'))) ms in
           ti.(j) <- ms;
@@ -703,7 +655,7 @@ let rec right_most : name -> term -> term = fun f ->
   function
   | Kind                 -> assert false
   | Pi(_,_,_,a)          -> right_most f a
-  | App(Lam(_),_,_) as t -> update_result (find_key f) BetaReductionInType; t
+  | App(Lam(_),_,_) as t -> update_result (find_key f) NotHandledRewritingTypeLevel; t
   | App(a,_,_)           -> right_most f a
   | Lam(_,_,_,a)         -> assert false
   | DB(_)                -> assert false
@@ -814,9 +766,9 @@ let rec solve : name -> (pattern * pattern * int) list -> bool = fun f l ->
   | (Lambda(_, _, t1) , Lambda(_, _, t2) , n)::tl                      ->
      solve f ((t1, t2, n+1)::tl)
   | (Var(loc, _, k, ll), t2             , n)::tl when ll!= []          ->
-     update_result (find_key f) MillerPatternTypeLevel; true
+     update_result (find_key f) NotHandledRewritingTypeLevel; true
   | (t1             , Var(loc, _, k, ll), n)::tl when ll!= []          ->
-     update_result (find_key f) MillerPatternTypeLevel; true
+     update_result (find_key f) NotHandledRewritingTypeLevel; true
   | _ -> false
 and elim : name -> ident -> pattern -> (pattern * pattern * int) list ->
   int -> bool
@@ -860,7 +812,7 @@ let rec cp_at_root : rule_infos list -> (rule_infos * rule_infos) option =
        Not_found -> cp_at_root l
     
 (** Initialize the SCT-checker *)	
-let termination_check vb szgraph mod_name ext_ru whole_sig =
+let termination_check vb mod_name ext_ru whole_sig =
   initialize vb mod_name;
   if vb then (print_sig whole_sig; print_ext_ru ext_ru);
   List.iter
@@ -906,7 +858,6 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
   if vb
   then (print_after ();
     printf "%a@." (pp_list ";" (pp_list "," pp_name)) (tarjan after));
-  if szgraph then latex_print_calls ();
   sct_only ();
   let tbl= !(!graph.symbols) in
   IMap.for_all
@@ -914,7 +865,7 @@ let termination_check vb szgraph mod_name ext_ru whole_sig =
 
 type global_result=Terminating | G_SelfLooping | G_CallingDefined
                   | G_UsingBrackets | G_NonPositive | G_CriticalPair
-                  | G_BetaReductionInType | G_MillerPatternTypeLevel
+                  | G_NotHandledRewritingTypeLevel
                                               
 let print_res : bool -> bool -> unit =
   fun st res ->
@@ -948,14 +899,9 @@ let print_res : bool -> bool -> unit =
          updateHT ht G_CriticalPair id;
          fill_res_HT false id tl
        end
-    | BetaReductionInType ::tl ->
+    | NotHandledRewritingTypeLevel ::tl ->
        begin
-         updateHT ht G_BetaReductionInType id;
-         fill_res_HT false id tl
-       end
-    | MillerPatternTypeLevel ::tl ->
-       begin
-         updateHT ht G_MillerPatternTypeLevel id;
+         updateHT ht G_NotHandledRewritingTypeLevel id;
          fill_res_HT false id tl
        end
   in
@@ -967,7 +913,7 @@ let print_res : bool -> bool -> unit =
   begin
     try
       if st
-      then Format.eprintf "\027[32m Proved terminating\027[m %a@."
+      then Format.eprintf "\027[32m Respect SCP\027[m %a@."
         (pp_list " , " pp_name)
         (List.filter good_module (Hashtbl.find ht Terminating))
     with Not_found -> ()
@@ -975,9 +921,21 @@ let print_res : bool -> bool -> unit =
   begin
     if !list_SL = [] then ()
     else
-      Format.eprintf "\027[31m Not proved terminating\027[m@. - %a@."
-        (pp_list "\n - " (pp_couple pp_name (pp_list " , "
-                                               (fun fmt ind -> fprintf fmt "%a" pp_rule_infos (IMap.find ind !(!graph.all_rules))))))
+      let pp_local= fun fmt (x,y) ->
+        fprintf fmt "%a\n%a" pp_name x
+          (pp_list "\n"
+             (fun fmt ind ->
+                let r=IMap.find ind !(!graph.all_rules) in
+                fprintf fmt "{%a} %a %a --> %a"
+                  pp_rule_name r.name
+                  pp_name r.cst
+                  (pp_list " " pp_pattern) r.args
+                  pp_term r.rhs
+             )
+          ) y
+      in
+      Format.eprintf "\027[31m Is self-looping according to SCP\027[m@. - %a@."
+        (pp_list "\n - " pp_local)
         (if st
          then (List.filter (fun (n,ll) -> md n= !mod_name) !list_SL)
          else !list_SL
@@ -1021,18 +979,9 @@ let print_res : bool -> bool -> unit =
   end;
   begin
     try
-      let l=Hashtbl.find ht G_BetaReductionInType
+      let l=Hashtbl.find ht G_NotHandledRewritingTypeLevel
       in
-      Format.eprintf "\027[31m Beta reduction in type\027[m %a@."
-        (pp_list " , " pp_name)
-        (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
-    with Not_found -> ()
-  end;
-  begin
-    try
-      let l=Hashtbl.find ht G_MillerPatternTypeLevel
-      in
-      Format.eprintf "\027[31m Miller pattern at type level\027[m %a@."
+      Format.eprintf "\027[31m Not handled rewriting at type level\027[m %a@."
         (pp_list " , " pp_name)
         (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
     with Not_found -> ()
@@ -1042,4 +991,3 @@ let print_res : bool -> bool -> unit =
     Format.eprintf "\027[32mTERMINATING\027[m The file %a was proved terminating using SCP@." pp_mident !mod_name
   else
     Format.eprintf "\027[31mTERMINATION ERROR\027[m The file %a was not proved terminating@." pp_mident !mod_name
-                   

@@ -4,7 +4,6 @@ open Term
 
 val export         : bool ref
 val verbose        : bool ref
-val szgraph        : bool ref
 val sizechange     : bool ref
 val szvb           : bool ref
 val szstat         : bool ref

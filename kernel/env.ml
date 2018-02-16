@@ -148,6 +148,6 @@ let are_convertible ?red:(red=Reduction.default) te1 te2 =
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError e    -> Err (EnvErrorType e)
 
-let sizechange vb szgraph=
-  Sizechange.termination_check vb szgraph (Signature.get_name !sg)
+let sizechange vb=
+  Sizechange.termination_check vb (Signature.get_name !sg)
     (get_external_rules !sg) (get_tables !sg)

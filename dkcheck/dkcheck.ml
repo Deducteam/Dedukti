@@ -20,8 +20,6 @@ let args = [
   ("-v"       , Arg.Set    Checker.verbose           , "Verbose mode" ) ;
   ("-sz"      , Arg.Set    Checker.sizechange        ,
      "Apply Size Change Principle" );
-  ("-szg"     , Arg.Set    Checker.szgraph           ,
-     "Apply Size Change Principle and printing call graph" );
   ("-szv"     , Arg.Set    Checker.szvb              ,
      "Apply Size Change Principle and verbose it" );
   ("-szst"    , Arg.Set    Checker.szstat           ,

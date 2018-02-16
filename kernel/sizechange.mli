@@ -40,11 +40,7 @@ type call =
 (** The representation of the call graph. *)
 type call_graph
 
-(** [latex_print_calls ff g] prints the call graph [g] using a LaTeX format
-    on the [Format.formatter] [ff]. *)
-val latex_print_calls : unit -> unit
-
-val termination_check : bool -> bool -> mident -> rule_infos list list ->
+val termination_check : bool -> mident -> rule_infos list list ->
   (name * Signature.staticity * term *
      (rule_infos list*int*Dtree.dtree) option
   ) list -> bool

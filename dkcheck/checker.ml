@@ -5,7 +5,6 @@ open Cmd
 
 let verbose = ref false
 let sizechange = ref false
-let szgraph = ref false
 let szvb = ref false
 let szstat = ref false
                   
@@ -121,9 +120,9 @@ let rec mk_command lc = function
 let export = ref false
 
 let mk_ending () =
-  if (!sizechange|| !szgraph|| !szvb|| !szstat)
+  if (!sizechange|| !szvb|| !szstat)
   then
-   Sizechange.print_res !szstat (Env.sizechange (!verbose|| !szvb) !szgraph);
+   Sizechange.print_res !szstat (Env.sizechange (!verbose|| !szvb));
   if !export then
     if not (Env.export ()) then
       Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ());
