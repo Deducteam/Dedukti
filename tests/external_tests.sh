@@ -41,5 +41,6 @@ make -C matita
 
 echo "#### Running DKlib #################################################"
 
-git clone https://github.com/rlepigre/dklib.git dklib
+git clone -q -b v2.6 https://github.com/rafoo/dklib.git
+
 make -C dklib
