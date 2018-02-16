@@ -4,22 +4,24 @@ open Rule
 open Term
 open Dtree
 
-type red = {
+type red_strategy = Hnf | Snf | Whnf
+
+type red_cfg = {
   select : (Rule.rule_name -> bool) option;
+  nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
+  strategy : red_strategy;
   beta : bool
 }
 
-let default = { select = None ; beta = true }
+let default_cfg = { select = None ; nb_steps = None ; strategy = Snf ; beta = true }
 
 let selection  = ref None
 
 let beta = ref true
 
-let select (red:red) : unit =
-  selection := red.select;
-  beta := red.beta
-
-type red_strategy = Hnf | Snf | Whnf
+let select f b : unit =
+  selection := f;
+  beta := b
 
 (* State *)
 
@@ -363,7 +365,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
         let state_b = {ctx=LList.cons (lazy snf_a) ctx; term=b; stack=[]} in
         let (red, b') = aux (red, state_b) in
         (red, {st with term=mk_Pi l x snf_a (term_of_state b') } )
-        
+
       (* Beta redex *)
       | { ctx; term=Lam (_,_,_,t); stack=p::s } when !beta ->
         aux (red-1, { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s })
@@ -385,13 +387,13 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
             end
           | _ -> assert false
         end
-        
+
       (* DeBruijn index: environment lookup *)
       | { ctx; term=DB (_,_,n); stack } when n < LList.len ctx ->
         aux (red, { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack })
       (* DeBruijn index: out of environment *)
       | { term=DB _ } -> (red, st)
-                         
+
       (* Application: arguments go on the stack *)
       | { ctx; term=App (f,a,lst); stack=s } when strat <> Snf ->
         let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
@@ -399,13 +401,13 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
       (* Application: arguments are reduced then go on the stack *)
       | { ctx; term=App (f,a,lst); stack=s } ->
         let redc = ref red in
-        let reduce t = 
+        let reduce t =
           let new_redc, st = aux (!redc, {ctx;term=t;stack=[]}) in
           redc := new_redc;
           st in
         let new_stack = List.rev_append (List.rev_map reduce (a::lst)) s in
         aux (!redc, {ctx; term=f; stack=new_stack })
-          
+
       (* Potential Gamma redex *)
       | { ctx; term=Const (l,n); stack } ->
         begin
@@ -429,3 +431,13 @@ let reduction_steps n strat sg t =
   let st = { ctx=LList.nil; term=t; stack=[] } in
   let (n',st') = state_nsteps sg strat n st in
   term_of_state st'
+
+let reduction strat sg te =
+  select strat.select strat.beta;
+  let te' =
+    match strat with
+    | { nb_steps = Some n; _} -> reduction_steps n strat.strategy sg te
+    | _ -> reduction strat.strategy sg te
+  in
+  select default_cfg.select default_cfg.beta;
+  te'

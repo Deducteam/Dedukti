@@ -9,12 +9,6 @@ type env_error =
   | EnvErrorSignature of signature_error
   | KindLevelDefinition of loc*ident
 
-type eval_config =
-  { nb_steps : int option (* [Some 0] for no evaluation, [None] for no bound *)
-  ; strategy : Reduction.red_strategy }
-
-let default_eval_config = { nb_steps = None; strategy = Reduction.Snf }
-
 (* Wrapper around Signature *)
 
 let sg = ref (Signature.make (mk_mident "noname"))
@@ -117,34 +111,24 @@ let check ?ctx:(ctx=[]) te ty =
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)
 
-let reduction ?red:(red=Reduction.default) config te =
+let reduction ?red:(red=Reduction.default_cfg) te =
   try
     ignore(inference !sg te);
-    Reduction.select red;
-    let te' =
-      match config.nb_steps with
-      | Some n -> Reduction.reduction_steps n config.strategy !sg te
-      | None   -> Reduction.reduction config.strategy !sg te
-    in
-    Reduction.select Reduction.default;
+    let te' = Reduction.reduction red !sg te in
     OK te'
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError    e -> Err (EnvErrorType e)
 
-let unsafe_snf ?red:(red=Reduction.default) te =
-  Reduction.select red;
-  let te' = Reduction.reduction Reduction.Snf !sg te in
-  Reduction.select Reduction.default;
+let unsafe_reduction ?red:(red=Reduction.default_cfg) te =
+  let te' = Reduction.reduction red !sg te in
   te'
 
-let are_convertible ?red:(red=Reduction.default) te1 te2 =
+let are_convertible te1 te2 =
   try
     ignore(inference !sg te1);
     ignore(inference !sg te2);
-    Reduction.select red;
     let b = Reduction.are_convertible !sg te1 te2 in
-    Reduction.select Reduction.default;
     OK b
   with
   | SignatureError e -> Err (EnvErrorSignature e)

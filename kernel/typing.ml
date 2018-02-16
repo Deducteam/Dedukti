@@ -2,7 +2,7 @@ open Basic
 open Format
 open Rule
 open Term
-
+open Reduction
 
 let coc = ref false
 
@@ -24,14 +24,17 @@ type typing_error =
   | BracketError2 of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
+  | Unconvertible of loc*term*term
+  | Convertible of loc*term*term
+  | Inhabit of loc*term*term
 
 exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let snf = Reduction.reduction Reduction.Snf
+let snf = reduction {default_cfg with strategy = Snf}
 
-let whnf = Reduction.reduction Reduction.Whnf
+let whnf = reduction {default_cfg with strategy = Reduction.Whnf}
 
 let get_type ctx l x n =
   try

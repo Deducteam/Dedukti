@@ -170,7 +170,9 @@ let print_rule_infos out ri =
   in
   print_typed_rule out rule
 
-let print_eval_config fmt = function
+let print_red_cfg fmt strat =
+  let open Reduction in
+  match strat with
   | {strategy=Reduction.Snf ;nb_steps=None   } -> ()
   | {strategy=Reduction.Snf ;nb_steps=Some i } -> Format.fprintf fmt "[%i]" i
   | {strategy=Reduction.Hnf ;nb_steps=None   } -> Format.fprintf fmt "[HNF]"

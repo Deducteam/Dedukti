@@ -4,13 +4,9 @@
   open Tokens
   open Format
 
-  exception EndOfFile
+  let loc_of_pos pos = mk_loc (pos.pos_lnum) (pos.pos_cnum - pos.pos_bol)
 
-  let get_loc lexbuf =
-    let start = lexbuf.lex_start_p in
-    let line = start.pos_lnum in
-    let cnum = start.pos_cnum - start.pos_bol in
-    mk_loc line cnum
+  let get_loc lexbuf = loc_of_pos lexbuf.lex_start_p
 
   let prerr_loc lc =
   let (l,c) = of_loc lc in
@@ -34,6 +30,7 @@ rule token = parse
   | '.'         { DOT           }
   | ','         { COMMA         }
   | ':'         { COLON         }
+  | "=="        { EQUAL         }
   | '['         { LEFTSQU       }
   | ']'         { RIGHTSQU      }
   | '{'         { LEFTBRA       }
@@ -52,12 +49,12 @@ rule token = parse
   { NAME (get_loc lexbuf , mk_mident md) }
   | "#EVAL"     { EVAL       ( get_loc lexbuf ) }
   | "#INFER"    { INFER      ( get_loc lexbuf ) }
-  | "#CONV"     { CONV       ( get_loc lexbuf ) }
   | "#CHECK"    { CHECK      ( get_loc lexbuf ) }
+  | "#CHECKNOT" { CHECKNOT   ( get_loc lexbuf ) }
+  | "#ASSERT"   { ASSERT     ( get_loc lexbuf ) }
+  | "#ASSERTNOT"{ ASSERTNOT  ( get_loc lexbuf ) }
   | "#PRINT"    { PRINT      ( get_loc lexbuf ) }
   | "#GDT"      { GDT        ( get_loc lexbuf ) }
-  | "#REQUIRE" space+ (mident as md) {REQUIRE (get_loc lexbuf, mk_mident md)}
-  | '#' (capital as cmd) { OTHER (get_loc lexbuf, cmd) }
   | mident as md '.' (ident as id)
   { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id
@@ -71,7 +68,7 @@ and comment = parse
   | ";)" { token lexbuf }
   | '\n' { new_line lexbuf ; comment lexbuf }
   | _    { comment lexbuf }
-  | eof	 { fail (get_loc lexbuf) "Unexpected end of file."  }
+  | eof  { fail (get_loc lexbuf) "Unexpected end of file."  }
 
 and string buf = parse
   | '\\' (_ as c)

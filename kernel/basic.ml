@@ -39,11 +39,13 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-let shash       = WS.create 251
+let shash        = WS.create 251
 
-let mk_ident    = WS.merge shash
+let mk_ident     = WS.merge shash
 
-let mk_mident   = mk_ident
+let mk_mident md =
+  let base = Filename.basename md in
+  try Filename.chop_extension base with _ -> base
 
 let qmark       = mk_ident "?"
 

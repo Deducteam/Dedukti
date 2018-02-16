@@ -30,7 +30,7 @@ _build/kernel/kernel.cmxa: $(KERNEL_MLI) $(KERNEL_ML)
 
 PARSER_MLI := $(wildcard parser/*.mli)
 PARSER_ML  := $(PARSER_MLI:.mli=.ml)
-PARSER_GEN := parser/parser.mly parser/lexer.mll
+PARSER_GEN := parser/menhir_parser.mly parser/lexer.mll
 
 .PHONY: parser
 parser: kernel _build/parser/parser.cma _build/parser/parser.cmxa
@@ -48,27 +48,27 @@ _build/parser/parser.cmxa: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
 .PHONY: commands
 commands: dkcheck.native dkdep.native dkindent.native dktop.native
 
-dkcheck.native: kernel parser $(wildcard dkcheck/*.ml dkcheck/*.mli)
+dkcheck.native: kernel parser commands/dkcheck.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dkcheck/dkcheck.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkcheck.native
 
-dkdep.native: kernel parser $(wildcard dkdep/*.ml dkdep/*.mli)
+dkdep.native: kernel parser commands/dkdep.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dkdep/dkdep.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkdep.native
 
-dkindent.native: kernel parser $(wildcard dkindent/*.ml dkindent/*.mli)
+dkindent.native: kernel parser commands/dkindent.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dkindent/dkindent.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkindent.native
 
-dktop.native: kernel parser $(wildcard dktop/*.ml dktop/*.mli)
+dktop.native: kernel parser commands/dktop.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dktop/dktop.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dktop.native
 
 #### Generation of the documentation #########################################
 
 .PHONY: doc
 doc: _build/kernel/kernel.docdir/index.html
-	
+
 _build/kernel/kernel.docdir/index.html: $(KERNEL_MLI) $(KERNEL_ML)
 	@echo "[DOC] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.docdir/index.html
@@ -117,7 +117,7 @@ install: uninstall all
 	@ocamlfind install dedukti META \
 		$(wildcard _build/kernel/*.mli) $(wildcard _build/kernel/*.cmi) \
 		$(wildcard _build/kernel/*.cmx) $(wildcard _build/kernel/*.o) \
-		$(wildcard _build/parser/*.mli) $(wildcard _build/parser/*.cmi) \
+		_build/parser/parser.mli _build/parser/parser.cmi \
 		$(wildcard _build/parser/*.cmx) $(wildcard _build/parser/*.o) \
 		_build/kernel/kernel.cma _build/parser/parser.cma \
 		_build/kernel/kernel.cmxa _build/parser/parser.cmxa \
@@ -131,8 +131,12 @@ install: uninstall all
 #### Test targets ############################################################
 
 .PHONY: tests
-tests: dkcheck.native tests/tests.sh
-	tests/tests.sh 
+tests: all tests/tests.sh
+	@./tests/tests.sh
+
+.PHONY: full_tests
+full_tests: all tests/external_tests.sh
+	@./tests/external_tests.sh
 
 #### Cleaning targets ########################################################
 

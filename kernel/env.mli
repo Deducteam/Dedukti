@@ -9,12 +9,6 @@ type env_error =
   | EnvErrorSignature of signature_error
   | KindLevelDefinition of loc*ident
 
-type eval_config =
-  { nb_steps : int option (* [Some 0] for no evaluation, [None] for no bound *)
-  ; strategy : Reduction.red_strategy }
-
-val default_eval_config : eval_config
-
 (** {2 The Global Environment} *)
 
 val init        : mident -> unit
@@ -60,8 +54,8 @@ val check : ?ctx:typed_context -> term -> term -> (unit,env_error) error
 (** {2 Safe Reduction/Conversion} *)
 (** terms are typechecked before the reduction/conversion *)
 
-val reduction : ?red:(Reduction.red) -> eval_config -> term -> (term,env_error) error
+val reduction : ?red:(Reduction.red_cfg) -> term -> (term,env_error) error
 
-val are_convertible : ?red:(Reduction.red) -> term -> term -> (bool,env_error) error
+val are_convertible : term -> term -> (bool,env_error) error
 
-val unsafe_snf : ?red:(Reduction.red) -> term -> term
+val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term
