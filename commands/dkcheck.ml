@@ -171,5 +171,9 @@ let _ =
         Parser.handle_channel md (mk_entry md) stdin;
         Errors.success "Standard input was successfully checked.\n"
   with
-  | Sys_error err -> Printf.eprintf "ERROR %s.\n" err; exit 1
-  | Exit          -> exit 3
+  | Parse_error(loc,msg) ->
+      let (l,c) = of_loc loc in
+      Printf.eprintf "Parse error at (%i,%i): %s\n" l c msg;
+      exit 1
+  | Sys_error err        -> Printf.eprintf "ERROR %s.\n" err; exit 1
+  | Exit                 -> exit 3
