@@ -13,6 +13,15 @@ type red_cfg = {
   beta : bool
 }
 
+let pp_red_cfg fmt strat =
+  match strat with
+  | {strategy=Snf ;nb_steps=None   } -> ()
+  | {strategy=Snf ;nb_steps=Some i } -> Format.fprintf fmt "[%i]" i
+  | {strategy=Hnf ;nb_steps=None   } -> Format.fprintf fmt "[HNF]"
+  | {strategy=Hnf ;nb_steps=Some i } -> Format.fprintf fmt "[HNF,%i]" i
+  | {strategy=Whnf;nb_steps=None   } -> Format.fprintf fmt "[WHNF]"
+  | {strategy=Whnf;nb_steps=Some i } -> Format.fprintf fmt "[WHNF,%i]" i
+
 let default_cfg = { select = None ; nb_steps = None ; strategy = Snf ; beta = true }
 
 let selection  = ref None

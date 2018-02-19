@@ -46,7 +46,7 @@ _build/parser/parser.cmxa: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
 #### Compilation of the dedukti suite ########################################
 
 .PHONY: commands
-commands: dkcheck.native dkdep.native dkindent.native dktop.native
+commands: dkcheck.native dkdep.native dktop.native
 
 dkcheck.native: kernel parser commands/dkcheck.ml
 	@echo "[OPT] $@"
@@ -55,10 +55,6 @@ dkcheck.native: kernel parser commands/dkcheck.ml
 dkdep.native: kernel parser commands/dkdep.ml
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkdep.native
-
-dkindent.native: kernel parser commands/dkindent.ml
-	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkindent.native
 
 dktop.native: kernel parser commands/dktop.ml
 	@echo "[OPT] $@"
@@ -109,7 +105,6 @@ uninstall:
 	@ocamlfind remove dedukti
 	@rm -f $(BINDIR)/dkcheck
 	@rm -f $(BINDIR)/dkdep
-	@rm -f $(BINDIR)/dkindent
 	@rm -f $(BINDIR)/dktop
 
 .PHONY: install
@@ -125,7 +120,6 @@ install: uninstall all
 	install -m 755 -d $(BINDIR)
 	install -m 755 -p dkcheck.native  $(BINDIR)/dkcheck
 	install -m 755 -p dkdep.native    $(BINDIR)/dkdep
-	install -m 755 -p dkindent.native $(BINDIR)/dkindent
 	install -m 755 -p dktop.native    $(BINDIR)/dktop
 
 #### Test targets ############################################################

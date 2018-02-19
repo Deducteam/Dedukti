@@ -1,6 +1,7 @@
 open Term
 open Basic
 open Parser
+open Entry
 
 let verbose = ref false
 
@@ -96,15 +97,20 @@ let mk_entry md e =
       if not (mident_eq n md) then
         Printf.eprintf "[Warning] invalid #NAME directive ignored.\n%!"
 
+let mk_entry beautify md =
+  if beautify then Pp.print_entry Format.std_formatter
+  else mk_entry md
 
-let run_on_file export file =
+
+let run_on_file beautify export file =
   let input = open_in file in
   debug 1 "Processing file '%s'..." file;
   let md = mk_mident file in
   Env.init md;
   Confluence.initialize ();
-  Parser.handle_channel md (mk_entry md) input;
-  Errors.success "File '%s' was successfully checked." file;
+  Parser.handle_channel md (mk_entry beautify md) input;
+  if not beautify then
+    Errors.success "File '%s' was successfully checked." file;
   if export && not (Env.export ()) then
     Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ());
   Confluence.finalize ();
@@ -114,6 +120,7 @@ let run_on_file export file =
 let _ =
   let run_on_stdin = ref None  in
   let export       = ref false in
+  let beautify     = ref false in
   let options = Arg.align
     [ ( "-v"
       , Arg.Set verbose
@@ -153,7 +160,10 @@ let _ =
       , "CMD Set the external confluence checker command to CMD" )
     ; ( "-nl"
       , Arg.Set Rule.allow_non_linear
-      , " Allow non left-linear rewriting rules" ) ]
+      , " Allow non left-linear rewriting rules" )
+    ; ( "--beautify"
+      , Arg.Set beautify
+      , " Pretty printer. Print on the standard output" )]
   in
   let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...\n" in
   let usage = usage ^ "Available options:" in
@@ -162,14 +172,17 @@ let _ =
     Arg.parse options (fun f -> files := f :: !files) usage;
     List.rev !files
   in
+  if !beautify && !export then
+    (Printf.eprintf "Beautify and export cannot be set at the same time\n"; exit 2);
   try
-    List.iter (run_on_file !export) files;
+    List.iter (run_on_file !beautify !export) files;
     match !run_on_stdin with
     | None    -> ()
     | Some md ->
         Env.init md;
-        Parser.handle_channel md (mk_entry md) stdin;
-        Errors.success "Standard input was successfully checked.\n"
+        Parser.handle_channel md (mk_entry !beautify md) stdin;
+        if not !beautify then
+          Errors.success "Standard input was successfully checked.\n"
   with
   | Parse_error(loc,msg) ->
       let (l,c) = of_loc loc in
