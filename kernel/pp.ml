@@ -94,7 +94,7 @@ let rec print_term out = function
   | Lam (_,x,None,f)   -> Format.fprintf out "@[%a =>@ @[%a@]@]" print_ident x print_term f
   | Lam (_,x,Some a,f) ->
       Format.fprintf out "@[%a:@,%a =>@ @[%a@]@]" print_ident x print_term_wp a print_term f
-  | Pi  (_,x,a,b) when ident_eq x qmark  ->
+  | Pi  (_,x,a,b) when ident_eq x dmark  ->
       (* arrow, no pi *)
       Format.fprintf out "@[%a ->@ @[%a@]@]" print_term_wp a print_term b
   | Pi  (_,x,a,b)      ->

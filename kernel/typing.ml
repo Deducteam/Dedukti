@@ -242,10 +242,10 @@ let pc_add (delta:partial_context) (n:int) (l:loc) (id:ident) (ty0:typ) : partia
 let pc_to_context (delta:partial_context) : typed_context = LList.lst delta.pctx
 
 let pc_to_context_wp (delta:partial_context) : typed_context =
-  let dummy = mk_DB dloc qmark 0 in
+  let dummy = mk_DB dloc dmark 0 in
   let rec aux lst n =
     if n <= 0 then lst
-    else aux ((dloc,qmark,dummy)::lst) (n-1)
+    else aux ((dloc,dmark,dummy)::lst) (n-1)
   in
   aux (LList.lst delta.pctx) delta.padding
 
