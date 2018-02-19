@@ -29,8 +29,8 @@ let print_const out cst =
 
 (* Idents generated from underscores by the parser start with a question mark.
    We have sometimes to avoid to print them because they are not valid tokens. *)
-let is_dummy_ident i = (string_of_ident i).[0] = '?'
-let is_regular_ident i = (string_of_ident i).[0] <> '?'
+let is_dummy_ident i = (string_of_ident i).[0] = '$'
+let is_regular_ident i = (string_of_ident i).[0] <> '$'
 
 let print_db out (x,n) =
   if !print_db_enabled then Format.fprintf out "%a[%i]" print_ident x n
