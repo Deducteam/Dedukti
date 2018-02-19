@@ -29,8 +29,8 @@ let print_const out cst =
 
 (* Idents generated from underscores by the parser start with a question mark.
    We have sometimes to avoid to print them because they are not valid tokens. *)
-let is_dummy_ident i = (string_of_ident i).[0] = '?'
-let is_regular_ident i = (string_of_ident i).[0] <> '?'
+let is_dummy_ident i = (string_of_ident i).[0] = '$'
+let is_regular_ident i = (string_of_ident i).[0] <> '$'
 
 let print_db out (x,n) =
   if !print_db_enabled then Format.fprintf out "%a[%i]" print_ident x n
@@ -94,7 +94,7 @@ let rec print_term out = function
   | Lam (_,x,None,f)   -> Format.fprintf out "@[%a =>@ @[%a@]@]" print_ident x print_term f
   | Lam (_,x,Some a,f) ->
       Format.fprintf out "@[%a:@,%a =>@ @[%a@]@]" print_ident x print_term_wp a print_term f
-  | Pi  (_,x,a,b) when ident_eq x qmark  ->
+  | Pi  (_,x,a,b) when ident_eq x dmark  ->
       (* arrow, no pi *)
       Format.fprintf out "@[%a ->@ @[%a@]@]" print_term_wp a print_term b
   | Pi  (_,x,a,b)      ->

@@ -174,6 +174,10 @@ top_pattern:
   | ID  pattern_wp* { (fst $1,None,snd $1,$2) }
   | QID pattern_wp* { let (l,md,id)=$1 in (l,Some md,id,$2) }
 
+%inline pid:
+  | UNDERSCORE { ($1, mk_ident "_") }
+  | ID { $1 }
+
 pattern_wp:
   | ID                       { PPattern (fst $1,None,snd $1,[]) }
   | QID                      { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
@@ -184,12 +188,12 @@ pattern_wp:
 pattern:
   | ID  pattern_wp+          { PPattern (fst $1,None,snd $1,$2) }
   | QID pattern_wp+          { let (l,md,id)=$1 in PPattern (l,Some md,id,$2) }
-  | ID FATARROW pattern      { PLambda (fst $1,snd $1,$3) }
+  | ID  FATARROW pattern     { PLambda (fst $1,snd $1,$3) }
   | pattern_wp               { $1 }
 
 sterm:
   | QID                      { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
-  | ID                       { PreId (fst $1,snd $1) }
+  | pid                      { PreId (fst $1,snd $1) }
   | LEFTPAR term RIGHTPAR    { $2 }
   | TYPE                     { PreType $1 }
 
@@ -200,14 +204,14 @@ aterm:
 term:
   | t=aterm
       { t }
-  | ID COLON aterm ARROW term
+  | pid COLON aterm ARROW term
       { PrePi (fst $1,Some (snd $1), $3, $5) }
   | LEFTPAR ID COLON aterm RIGHTPAR ARROW term
       { PrePi (fst $2,Some (snd $2), $4 ,$7) }
   | term ARROW term
       { PrePi (Lexer.loc_of_pos $startpos,None,$1,$3) }
-  | ID FATARROW term
+  | pid FATARROW term
       {PreLam (fst $1, snd $1, None, $3)}
-  | ID COLON aterm FATARROW term
+  | pid COLON aterm FATARROW term
       {PreLam (fst $1, snd $1, Some $3, $5)}
 %%
