@@ -133,3 +133,13 @@ let are_convertible ?ctx:(ctx=[]) te1 te2 =
   with
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)
+
+let are_convertible_witness ?ctx:(ctx=[]) te1 te2 =
+  try
+    ignore(Typing.infer !sg ctx te1);
+    ignore(Typing.infer !sg ctx te2);
+    let b = Reduction.are_convertible_witness !sg te1 te2 in
+    OK b
+  with
+  | SignatureError e -> Err (EnvErrorSignature e)
+  | TypingError    e -> Err (EnvErrorType e)
