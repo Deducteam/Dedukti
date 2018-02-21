@@ -58,4 +58,6 @@ val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> (term,
 
 val are_convertible : ?ctx:typed_context -> term -> term -> (bool,env_error) error
 
+val are_convertible_witness : ?ctx:typed_context -> term -> term -> ((unit, term * term) error,env_error) error
+
 val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term
