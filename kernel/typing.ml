@@ -86,6 +86,7 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     begin
       match whnf sg ty_exp with
       | Pi (_,_,a',ty_b) ->
+        ignore(infer sg ctx a);
         if not (Reduction.are_convertible sg a a')
         then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a,a')))
         else check sg ((l,x,a)::ctx) b ty_b
