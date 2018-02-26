@@ -64,7 +64,7 @@ dktop.native: kernel parser commands/dktop.ml
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dktop.native
 
-universo.native: kernel parser commands/dkcheck.ml $(wildcard universo/*.ml)
+universo.native: kernel parser $(wildcard universo/*.ml)
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -package z3 -I commands -use-ocamlfind universo/universo.native
 
@@ -115,6 +115,7 @@ uninstall:
 	@rm -f $(BINDIR)/dkdep
 	@rm -f $(BINDIR)/dkindent
 	@rm -f $(BINDIR)/dktop
+	@rm -f $(BINDIR)/universo
 
 .PHONY: install
 install: uninstall all
@@ -131,6 +132,7 @@ install: uninstall all
 	install -m 755 -p dkdep.native    $(BINDIR)/dkdep
 	install -m 755 -p dkindent.native $(BINDIR)/dkindent
 	install -m 755 -p dktop.native    $(BINDIR)/dktop
+	install -m 755 -p universo.native $(BINDIR)/universo
 
 #### Test targets ############################################################
 

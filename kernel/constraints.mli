@@ -52,8 +52,6 @@ sig
   val extract_succ : Term.term -> Term.term
 
   val extract_rule : Term.term -> Term.term * Term.term
-
-
 end
 
 module type ConstraintsInterface =
@@ -83,7 +81,7 @@ sig
 end
 
 module Naive:ConstraintsInterface with type var = Basic.ident
-
+(*
 module Log:
 sig
 
@@ -95,3 +93,4 @@ sig
 
   val close : unit -> unit
 end
+*)

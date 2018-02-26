@@ -1,7 +1,7 @@
 (********** universes' variables ************)
 
 let just_check = ref false
-
+(*
 module Log =
 struct
   let file = ref "stderr"
@@ -22,7 +22,7 @@ struct
   let close () = close_out !in_c
 
 end
-
+*)
 
 module UVar =
 struct
@@ -194,7 +194,6 @@ sig
 
   type constraints =
     | Univ of var * ReverseCiC.univ
-    (*    | Neq of var * var *)
     | Eq of var * var
     | Max of var * var * var
     | Succ of var * var
@@ -241,7 +240,7 @@ struct
 
   let is_matching = ref false
 
-  let uf = ref (UF.create 1000000000)
+  let uf = ref (UF.create 1000)
 
   let var_of_index i = UF.find !uf i
 
@@ -332,9 +331,6 @@ struct
         | Max _ -> incr max
         | Rule _ -> incr rule) constraints;
 
-    let hash_to_string fmt (k,v) =
-      Format.fprintf fmt "%a --> %d@." Basic.pp_ident k (var_of_index v)
-    in
     let print fmt () =
       Format.fprintf fmt "Variable correspondance:@.";
       Format.fprintf fmt "Number of variables  : %d@." (Variables.cardinal !global_variables);
@@ -370,8 +366,6 @@ struct
     if !just_check || !is_matching then false
     else
     let open ReverseCiC in
-    Log.append (Format.asprintf "debugl: %a@." Term.pp_term l);
-    Log.append (Format.asprintf "debugr: %a@." Term.pp_term r);
     if is_uvar l && is_prop r then
       let l = ident_of_uvar l in
       add_constraint_prop l;
@@ -541,10 +535,6 @@ struct
     if b then normalize uvar set else set
 *)
   let export () =
-    (*
-    let uf = !uf in
-    let find n = UF.find uf n in *)
-    (* let uvar = List.map (fun (x,u) -> find x,u) (var_of_univ ()) in *)
     !global_constraints
 
 

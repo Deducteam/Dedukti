@@ -26,4 +26,14 @@ let rec elaboration sg term =
       mk_Pi loc id ta' tb'
     | _ ->     term
 
-let elaboration sg e = failwith "todo"
+let elaboration sg e =
+  let open Rule in
+  let open Parser in
+  match e with
+  | Decl(l,id,st,t) -> Decl(l,id,st, elaboration sg t)
+  | Def(l,id,op,pty,te) -> Def(l,id,op, Basic.map_opt (elaboration sg) pty, elaboration sg te)
+  | Rules(rs) ->
+    let rs' = List.map (fun (r: untyped_rule) -> {r  with rhs = elaboration sg r.rhs}) rs in
+    Rules(rs')
+  | Name (l,id) -> Name(l,id)
+  | _ -> failwith "unsupported"

@@ -32,11 +32,12 @@ struct
     let le = Arithmetic.mk_le ctx left right in
     Boolean.mk_ite ctx le right left
 
+  (*
   let add_obj_var () =
     let zero = Arithmetic.Integer.mk_numeral_i ctx 0 in
     let obj_fun = Hashtbl.fold (fun _ v r -> add_obj_var r v) variables zero in
     assert false
-    (*    Solver.minimize solver obj_fun *)
+  *)
 
   let add_obj_sup i =
     let i = Arithmetic.Integer.mk_numeral_i ctx i in
@@ -155,12 +156,12 @@ struct
     let open Symbol in
     let open Expr in
     let open Arithmetic in
-    Log.append "Generate a Z3 problem...";
+    (*    Log.append "Generate a Z3 problem..."; *)
     Solver.reset solver;
     Hashtbl.clear variables;
     import constraints;
     (* Log.append (Solver.to_string solver); *)
-    Log.append "Try to solve the problem...";
+    (*    Log.append "Try to solve the problem..."; *)
     add_obj_sup i;
     (*    ignore(add_obj_var ()); *)
     match Solver.check solver [] with
@@ -169,7 +170,7 @@ struct
       check constraints (i+1)
     | Solver.UNKNOWN -> failwith (Format.sprintf "%s" (Solver.get_reason_unknown solver))
     | Solver.SATISFIABLE ->
-      Log.append "Problem solved!";
+      (* Log.append "Problem solved!"; *)
       match Solver.get_model solver with
       | None -> assert false
       | Some model -> (* Format.printf "%s@." (Model.to_string model); *)
