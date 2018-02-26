@@ -28,7 +28,7 @@ let rec elaboration sg term =
 
 let elaboration sg e =
   let open Rule in
-  let open Parser in
+  let open Entry in
   match e with
   | Decl(l,id,st,t) -> Decl(l,id,st, elaboration sg t)
   | Def(l,id,op,pty,te) -> Def(l,id,op, Basic.map_opt (elaboration sg) pty, elaboration sg te)

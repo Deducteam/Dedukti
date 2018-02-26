@@ -28,7 +28,7 @@ let rec reconstruction model term =
 
 let reconstruction model entry =
   let open Rule in
-  let open Parser in
+  let open Entry in
   match entry with
   | Decl(l,id,st,t) -> Decl(l,id,st, reconstruction model t)
   | Def(l,id,op,pty,te) -> Def(l,id,op,

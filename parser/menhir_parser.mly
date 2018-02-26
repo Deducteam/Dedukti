@@ -1,10 +1,11 @@
 %{
 open Basic
 open Preterm
-open Scoping
 open Internals
+open Scoping
 open Reduction
 open Signature
+open Entry
 
 let rec mk_lam : preterm -> (loc*ident*preterm) list -> preterm = fun te ps ->
   match ps with
@@ -69,7 +70,7 @@ let mk_config loc id1 id2_opt =
 %token <string> STRING
 
 %start line
-%type <Basic.mident -> Internals.entry> line
+%type <Basic.mident -> Entry.entry> line
 %type <Preterm.prule> rule
 %type <Preterm.pdecl> decl
 %type <Basic.loc*Basic.ident*Preterm.preterm> param

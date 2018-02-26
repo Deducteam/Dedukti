@@ -1,7 +1,7 @@
 open Basic
 open Pp
 open Rule
-open Parser
+open Entry
 
 module C = Constraints
 
