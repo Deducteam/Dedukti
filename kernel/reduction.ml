@@ -152,25 +152,25 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
   | (Linearity (i,j))::tl ->
     let t1 = mk_DB dloc dmark i in
     let t2 = mk_DB dloc dmark j in
-    BasicConstraints.is_matching :=
+    Naive.is_matching :=
       if is_uvar (Lazy.force (LList.nth ctx i)) || is_uvar (Lazy.force (LList.nth ctx j)) then
         true else
         false;
     let is_conv = convertible sg (term_of_state { ctx; term=t1; stack=[] })
         (term_of_state { ctx; term=t2; stack=[] }) in
-    BasicConstraints.is_matching := false;
+    Naive.is_matching := false;
     if is_conv then
       test sg convertible ctx tl
     else false
   | (Bracket (i,t2))::tl ->
     let t1 = mk_DB dloc dmark i in
-    BasicConstraints.is_matching :=
+    Naive.is_matching :=
       if is_uvar (Lazy.force (LList.nth ctx i)) || is_uvar t2 then
         true else
         false;
     let is_conv = convertible sg (term_of_state { ctx; term=t1; stack=[] })
         (term_of_state { ctx; term=t2; stack=[] }) in
-    BasicConstraints.is_matching := false;
+    Naive.is_matching := false;
     if is_conv then
       test sg convertible ctx tl
     else
@@ -338,7 +338,7 @@ and are_convertible_lst sg (lst : (term*term) list) : bool  =
         (* UNIVERSO: needed to type check terms *)
         else
           let t1',t2' = whnf sg t1, whnf sg t2 in
-          if BasicConstraints.generate_constraints sg t1' t2' then
+          if Naive.generate_constraints sg t1' t2' then
             Some lst
           else
           match t1', t2' with

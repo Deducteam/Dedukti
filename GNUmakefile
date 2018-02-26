@@ -46,7 +46,7 @@ _build/parser/parser.cmxa: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
 #### Compilation of the dedukti suite ########################################
 
 .PHONY: commands
-commands: dkcheck.native dkdep.native dkindent.native dktop.native
+commands: dkcheck.native dkdep.native dkindent.native dktop.native universo.native
 
 dkcheck.native: kernel parser commands/dkcheck.ml
 	@echo "[OPT] $@"
@@ -63,6 +63,10 @@ dkindent.native: kernel parser commands/dkindent.ml
 dktop.native: kernel parser commands/dktop.ml
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dktop.native
+
+universo.native: kernel parser commands/dkcheck.ml $(wildcard universo/*.ml)
+	@echo "[OPT] $@"
+	$(Q)ocamlbuild -quiet -package z3 -I commands -use-ocamlfind universo/universo.native
 
 #### Generation of the documentation #########################################
 

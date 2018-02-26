@@ -10,7 +10,7 @@ struct
 
   let cfg = [`Model(true);
              `Proof(false);
-             `Trace(true);
+             `Trace(false);
              `TraceFile("z3.trace")]
 
   let string_of_cfg_item item =
@@ -119,7 +119,7 @@ struct
     Solver.add solver [ite]
 
   let add_constraint c =
-    let open BasicConstraints in
+    let open Naive in
     let sofi = string_of_var in
     match c with
     | Univ(n,u) -> add_constraint_univ (sofi n) u
@@ -129,7 +129,7 @@ struct
     | Rule(n,n',n'') -> add_constraint_rule (sofi n) (sofi n') (sofi n'')
 
   let import cs =
-    BasicConstraints.ConstraintsSet.iter add_constraint cs
+    Naive.ConstraintsSet.iter add_constraint cs
 
   let univ_of_int n =
     if n = 0 then
@@ -173,11 +173,9 @@ struct
       match Solver.get_model solver with
       | None -> assert false
       | Some model -> (* Format.printf "%s@." (Model.to_string model); *)
-        fun uvar ->
+        fun (uvar:Basic.ident) : Term.term ->
           let var' = uvar
-                     |> Mapping.to_index
-                     |> BasicConstraints.var_of_index
-                     |> BasicConstraints.string_of_var in
+                     |> Naive.string_of_var in
           (var_solution model var') |> univ_of_int |> ReverseCiC.term_of_univ
 
   let solve constraints = check constraints 1

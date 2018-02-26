@@ -137,7 +137,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
       let t2' = whnf sg (SS.apply sigma t2 q) in
       if term_eq t1' t2' then pseudo_u sg sigma lst
       (* UNIVERSO: needed to type check rewrite rules *)
-      else if Constraints.BasicConstraints.generate_constraints sg t1 t2 then
+      else if Constraints.Naive.generate_constraints sg t1 t2 then
         pseudo_u sg sigma lst
       else
         match t1', t2' with

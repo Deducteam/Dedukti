@@ -1,24 +1,14 @@
 S kernel
-S kernel/unionfind
 S parser
-S dkcheck
-S dktop
-S dkdep
-S dkrule
-S dkindent
+S commands
 S universo
 
 B _build/kernel
-B _build/kernel/unionfind
+B _build/kernel
 B _build/parser
-B _build/dkcheck
-B _build/dkdep
-B _build/dktop
-B _build/dkindent
-
-B _build/dkrule
+B _build/commands
 B _build/universo
 
-PKG ocamlgraph, Z3
+PKG Z3
 
 FLG -w -3

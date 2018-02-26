@@ -1,6 +1,6 @@
 module Z3 :
 sig
 
-  val solve : Constraints.BasicConstraints.ConstraintsSet.t -> Constraints.Reconstruction.model
+  val solve : Constraints.Naive.ConstraintsSet.t -> Reconstruction.model
 
 end

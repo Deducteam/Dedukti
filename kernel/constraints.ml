@@ -26,33 +26,38 @@ end
 
 module UVar =
 struct
+  open Basic
+  type uvar = ident
 
-  type uvar = Basic.ident
+  let basename = "?"
 
-  let basename = "univ_variable"
+  exception NotUvar
 
   let is_uvar t =
     match t with
     | Term.Const(_,n) ->
-      let s = Basic.string_of_ident (Basic.id n) in
+      let s = string_of_ident (id n) in
       let n = String.length basename in
       String.length s > n && String.sub s 0 n = basename
     | _ -> false
 
-  let extract_uvar t =
+  let ident_of_uvar t =
     match t with
-    | Term.Const(_,n) when is_uvar t -> Basic.id n
-    | _ -> Format.printf "%a@." Term.pp_term t; failwith "is not an uvar"
+    | Term.Const(_,n) when is_uvar t -> id n
+    | _ -> Format.printf "%a@." Term.pp_term t; raise NotUvar
 
   let counter = ref 0
 
-  let count () = !counter
+  let next () = !counter
 
   let fresh () =
-      let name = Format.sprintf "%s%d" basename !counter in
-      incr counter; Basic.mk_ident name
+    let name = Format.sprintf "%s%d" basename !counter in
+    incr counter; mk_ident name
 
-  let new_uvar sg =
+  let ident_of_counter n =
+    mk_ident (Format.sprintf "%s%d" basename n)
+
+  let fresh_uvar sg =
     let id = fresh () in
     let md = Signature.get_name sg in
     let name = Basic.mk_name md id in
@@ -61,50 +66,11 @@ struct
       (Term.mk_Const Basic.dloc (Basic.mk_name (Basic.mk_mident "cic") (Basic.mk_ident "Sort")));
     cst
 
-end
-
-
-module Mapping =
-struct
-
-  type index = int
-
-  exception MappingError of index
-
-  type t =
-    {
-      to_index: (UVar.uvar, index) Hashtbl.t;
-      from_index: (index, UVar.uvar) Hashtbl.t
-    }
-
-  let memory =
-    {
-      to_index = Hashtbl.create 251;
-      from_index = Hashtbl.create 251
-    }
-
-  let to_index =
-    let counter = ref 0 in
-    fun name ->
-      if Hashtbl.mem memory.to_index name then begin
-        Hashtbl.find memory.to_index name end
-      else
-        let n = !counter in
-        Hashtbl.add memory.to_index name n;
-        Hashtbl.add memory.from_index n name;
-        incr counter; n
-
-  let from_index n =
-    if Hashtbl.mem memory.from_index n then
-      Hashtbl.find memory.from_index n
-    else
-      raise (MappingError n)
+  let count () = !counter
 end
 
 module ReverseCiC =
 struct
-
-  open UVar
   open Basic
   (* Only Prop and Type 0 are necessary actually *)
   type univ =
@@ -234,8 +200,6 @@ sig
     | Succ of var * var
     | Rule of var * var * var
 
-  val var_of_index : Mapping.index -> var
-
   val generate_constraints : Signature.t -> Term.term -> Term.term -> bool
   (** generate_constraints [sg] [l] [r] returns [true] if some constraints has been generated *)
 
@@ -251,24 +215,23 @@ sig
 end
 
 
-module BasicConstraints:ConstraintsInterface with type var = Mapping.index =
+module Naive (* :ConstraintsInterface with type var = Basic.ident *) =
 struct
 
   open UVar
-  open Mapping
   open ReverseCiC
+  open Basic
 
-  type var = index
+  type var = Basic.ident
 
   type constraints =
-    | Univ of index * univ
-    (*    | Neq of index * index *)
-    | Eq of index * index
-    | Max of index * index * index
-    | Succ of index * index
-    | Rule of index * index * index
+    | Univ of ident * ReverseCiC.univ
+    | Eq of ident * ident
+    | Max of ident * ident * ident
+    | Succ of ident * ident
+    | Rule of ident * ident * ident
 
-  module Variables = Set.Make (struct type t = index let compare = compare end)
+  module Variables = Set.Make (struct type t = Basic.ident let compare = compare end)
 
   module ConstraintsSet = Set.Make (struct type t = constraints let compare = compare end)
 
@@ -282,7 +245,7 @@ struct
 
   let var_of_index i = UF.find !uf i
 
-  let var_of_ident ident = var_of_index (to_index ident)
+  let var_of_ident ident = ident
 
   let global_variables = ref Variables.empty
 
@@ -316,17 +279,23 @@ struct
     fun ident ->
       let n = var_of_ident ident in
       add_variables [n];
+      add_constraint (Eq(n, find_univ Prop))
+        (*
       uf := UF.union !uf n (find_univ Prop)
-
+*)
   let add_constraint_type =
     fun v u ->
       add_variables [v];
+      add_constraint (Eq(v, find_univ u))
+      (*
     uf := UF.union !uf v (find_univ u)
-
+*)
   let add_constraint_eq v v' =
     add_variables [v;v'];
+    add_constraint (Eq(v,v'))
+    (*
     uf := UF.union !uf v v'
-
+*)
   let add_constraint_succ ident ident' =
     let n = var_of_ident ident in
     let n' = var_of_ident ident' in
@@ -368,7 +337,6 @@ struct
     in
     let print fmt () =
       Format.fprintf fmt "Variable correspondance:@.";
-      Hashtbl.iter (fun k v -> Format.fprintf fmt "%a" hash_to_string (k,v)) Mapping.memory.to_index;
       Format.fprintf fmt "Number of variables  : %d@." (Variables.cardinal !global_variables);
       Format.fprintf fmt "Number of constraints:@.";
       Format.fprintf fmt "@[prop:%d@]@." !prop;
@@ -385,10 +353,10 @@ struct
 
   let rec extract_universe sg (s:Term.term) =
     if is_uvar s then
-       var_of_ident (extract_uvar s)
+       var_of_ident (V.ident_of_uvar s)
     else if is_rule s then
       begin
-        let l = var_of_ident @@ (extract_uvar (new_uvar sg)) in
+        let l = var_of_ident @@ (V.ident_of_uvar (V.fresh_uvar sg)) in
         let s1,s2 = extract_rule s in
         let s1' = extract_universe sg s1 in
         let s2' = extract_universe sg s2 in
@@ -405,28 +373,28 @@ struct
     Log.append (Format.asprintf "debugl: %a@." Term.pp_term l);
     Log.append (Format.asprintf "debugr: %a@." Term.pp_term r);
     if is_uvar l && is_prop r then
-      let l = extract_uvar l in
+      let l = ident_of_uvar l in
       add_constraint_prop l;
       true
     else if is_prop l && is_uvar r then
       generate_constraints sg r l
     else if is_uvar l && is_type r then
-      let l = extract_uvar l in
+      let l = ident_of_uvar l in
       let i = extract_type r in
       add_constraint_type (var_of_ident l) (Type i);
       true
     else if is_type l && is_uvar r then
       generate_constraints sg r l
     else if is_uvar l && is_uvar r then
-      let l = extract_uvar l in
-      let r = extract_uvar r in
+      let l = ident_of_uvar l in
+      let r = ident_of_uvar r in
       add_constraint_eq (var_of_ident l) (var_of_ident r);
       true
     else if is_succ l && is_uvar r then
       begin
         let l = extract_succ l in
-        let uvar = extract_uvar l in
-        let uvar' = extract_uvar r in
+        let uvar = ident_of_uvar l in
+        let uvar' = ident_of_uvar r in
         add_constraint_succ uvar uvar';
         true
       end
@@ -436,24 +404,24 @@ struct
       let s1,s2 = extract_rule l in
       let s1 = extract_universe sg s1 in
       let s2 = extract_universe sg s2 in
-      let r = var_of_ident @@ extract_uvar r in
+      let r = var_of_ident @@ ident_of_uvar r in
       add_constraint_rule s1 s2 r;
       true
     else if is_uvar l && is_rule r then
       generate_constraints sg r l (* just a switch of arguments *)
     else if is_max l && is_uvar r then
       let s1,s2 = extract_max l in
-      let s1 = var_of_ident @@ extract_uvar s1 in
-      let s2 = var_of_ident @@ extract_uvar s2 in
-      let r = var_of_ident @@ extract_uvar r in
+      let s1 = var_of_ident @@ ident_of_uvar s1 in
+      let s2 = var_of_ident @@ ident_of_uvar s2 in
+      let r = var_of_ident @@ ident_of_uvar r in
       add_constraint_max s1 s2 r;
       true
     else if is_uvar l && is_max r then
       generate_constraints sg r l
     else if is_max l && is_type r then
       let s1,s2 = extract_max l in
-      let s1 = var_of_ident @@ extract_uvar s1 in
-      let s2 = var_of_ident @@ extract_uvar s2 in
+      let s1 = var_of_ident @@ ident_of_uvar s1 in
+      let s2 = var_of_ident @@ ident_of_uvar s2 in
       let s3 = find_univ (Type (extract_type r)) in
       add_constraint_max s1 s2 s3;
       true
@@ -461,8 +429,8 @@ struct
       generate_constraints sg r l
     else if is_rule l && is_type r then
       let s1,s2 = extract_rule l in
-      let s1 = var_of_ident @@ extract_uvar s1 in
-      let s2 = var_of_ident @@ extract_uvar s2 in
+      let s1 = var_of_ident @@ ident_of_uvar s1 in
+      let s2 = var_of_ident @@ ident_of_uvar s2 in
       let s3 = find_univ (Type (extract_type r)) in
       add_constraint_rule s1 s2 s3;
       true
@@ -503,6 +471,7 @@ struct
     else
       false
 
+  (*
   let normalize_univ uvar n u =
     let find n = UF.find !uf n in
     (false,Some (Univ(find n, u)))
@@ -570,80 +539,15 @@ struct
     in
     let (b,set) = ConstraintsSet.fold fold cset (false,ConstraintsSet.empty) in
     if b then normalize uvar set else set
-
+*)
   let export () =
+    (*
     let uf = !uf in
-    let find n = UF.find uf n in
-    let uvar = List.map (fun (x,u) -> find x,u) (var_of_univ ()) in
-    normalize uvar !global_constraints
+    let find n = UF.find uf n in *)
+    (* let uvar = List.map (fun (x,u) -> find x,u) (var_of_univ ()) in *)
+    !global_constraints
 
 
-  let string_of_var n = string_of_int n
-
-end
-
-module Elaboration =
-struct
-
-  let rec elaboration sg term =
-    let open Term in
-    let open ReverseCiC in
-    if is_prop term then
-      term
-      (* UVar.new_uvar sg *)
-    else if  is_type term then
-      UVar.new_uvar sg
-    else
-      match term with
-      | App(f, a, al) ->
-        let f' = elaboration sg f in
-        let a' = elaboration sg a in
-        let al' = List.map (elaboration sg) al in
-        mk_App f' a' al'
-      | Lam(loc, id, t_opt, t) ->
-        let t' = elaboration sg t in
-        begin
-          match t_opt with
-          | None -> mk_Lam loc id t_opt t'
-          | Some x -> let x' = elaboration sg x in
-            mk_Lam loc id (Some x') t'
-        end
-      | Pi(loc, id, ta, tb) ->
-        let ta' = elaboration sg ta in
-        let tb' = elaboration sg tb in
-        mk_Pi loc id ta' tb'
-      | _ ->     term
-end
-
-module Reconstruction =
-struct
-
-  type model = UVar.uvar -> Term.term
-
-  let rec reconstruction model term =
-    let open Term in
-    if UVar.is_uvar term then
-      let var = UVar.extract_uvar term in
-      model var
-    else
-      match term with
-      | App(f, a, al) ->
-        let f' = reconstruction model f in
-        let a' = reconstruction model a in
-        let al' = List.map (reconstruction model) al in
-        mk_App f' a' al'
-      | Lam(loc, id, t_opt, t) ->
-        let t' = reconstruction model t in
-        begin
-          match t_opt with
-          | None -> mk_Lam loc id t_opt t'
-          | Some x -> let x' = reconstruction model x in
-            mk_Lam loc id (Some x') t'
-        end
-      | Pi(loc, id, ta, tb) ->
-        let ta' = reconstruction model ta in
-        let tb' = reconstruction model tb in
-        mk_Pi loc id ta' tb'
-      | _ ->     term
+  let string_of_var n = string_of_ident n
 
 end

@@ -7,24 +7,11 @@ sig
 
   val is_uvar : Term.term -> bool
 
-  val extract_uvar : Term.term -> Basic.ident
+  val ident_of_uvar : Term.term -> Basic.ident
 
-  val fresh : unit -> uvar
+  val fresh_uvar : Signature.t -> Term.term
 
   val count : unit -> int
-end
-
-module Mapping:
-sig
-
-  type index
-
-  type t
-
-  val to_index : UVar.uvar -> index
-
-  val from_index : index -> UVar.uvar
-
 end
 
 module ReverseCiC:
@@ -81,8 +68,6 @@ sig
     | Succ of var * var
     | Rule of var * var * var
 
-  val var_of_index : Mapping.index -> var
-
   val generate_constraints : Signature.t -> Term.term -> Term.term -> bool
   (** generate_constraints [l] [r] returns [true] if some constraints has been generated *)
 
@@ -97,24 +82,8 @@ sig
   val is_matching : bool ref
 end
 
-module BasicConstraints:ConstraintsInterface
+module Naive:ConstraintsInterface with type var = Basic.ident
 
-
-module Elaboration:
-sig
-
-  val elaboration : Signature.t -> Term.term -> Term.term
-
-end
-
-module Reconstruction :
-sig
-
-  type model = UVar.uvar -> Term.term
-
-  val reconstruction : model -> Term.term -> Term.term
-
-end
 module Log:
 sig
 
