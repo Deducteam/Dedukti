@@ -26,6 +26,6 @@ let update_dbs (depth:int) (dbs:int LList.t) (te:term) : term =
 let solve (n:int) (k_lst:int LList.t) (te:term) : term =
   let rec add_lam te = function
     | [] -> te
-    | _::lst -> add_lam (mk_Lam dloc qmark None te) lst
+    | _::lst -> add_lam (mk_Lam dloc dmark None te) lst
   in
   add_lam (update_dbs n k_lst te) (LList.lst k_lst)

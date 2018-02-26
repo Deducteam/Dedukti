@@ -1,0 +1,15 @@
+#NAME self_dep2.
+
+def A : Type.
+U : A -> Type.
+a : A.
+
+def B : Type.
+V : B -> Type.
+b : B.
+
+[] A --> V b.
+[] B --> U a.
+
+#ASSERT a : V b.
+#ASSERT b : U a.

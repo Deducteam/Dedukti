@@ -1,4 +1,4 @@
-#NAME FOL.
+#NAME firstOrder.
 
 Prop : Type.
 prf  : Prop -> Type.

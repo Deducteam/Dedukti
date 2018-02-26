@@ -2,11 +2,13 @@ open Basic
 open Format
 open Rule
 open Term
-
+open Reduction
 
 let errors_in_snf = ref false
 
-let snf t = if !errors_in_snf then Env.unsafe_snf t else t
+let snf_config = {default_cfg with strategy = Snf}
+
+let snf t = if !errors_in_snf then Env.unsafe_reduction ~red:snf_config t else t
 
 let color = ref true
 
@@ -82,6 +84,15 @@ let fail_typing_error err =
     fail l "Error while typing '%a[%i]'%a.\n\
             The type is not allowed to refer to bound variables.\n\
             Infered type:%a." pp_ident x n pp_typed_context ctx pp_term ty
+  | Unconvertible (l,t1,t2) ->
+    fail l "Assertion error. Given terms are not convertible: '%a' and '%a'"
+      pp_term t1 pp_term t2
+  | Convertible (l,t1,t2) ->
+    fail l "Assertion error. Given terms are convertible: '%a' and '%a'"
+      pp_term t1 pp_term t2
+  | Inhabit (l,t1,t2) ->
+    fail l "Assertion error. '%a' is of type '%a'"
+      pp_term t1 pp_term t2
   | NotImplementedFeature l -> fail l "Feature not implemented."
 
 let fail_dtree_error err =
@@ -163,6 +174,11 @@ Add the keyword 'def' to its declaration to make the symbol '%a' definable."
   | ConfluenceErrorImport (lc,md,cerr) ->
     fail lc "Confluence checking failed when importing the module '%a'.\n%a"
       pp_mident md pp_cerr cerr
+  | GuardNotSatisfied(lc, t1, t2) ->
+    fail lc "Error while reducing a term: a guard was not satisfied.\n\
+             Expected: %a.\n\
+             Found: %a"
+      pp_term t1 pp_term t2
 
 let fail_env_error = function
   | Env.EnvErrorSignature e -> fail_signature_error e

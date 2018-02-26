@@ -53,18 +53,15 @@ val add_rules   : Rule.untyped_rule list -> (Rule.typed_rule list,env_error) err
 
 (** {2 Type checking/inference} *)
 
-val infer   : ?ctx:typed_context -> ?red:Reduction.red ->
-              Reduction.red_strategy -> term -> (term,env_error) error
+val infer : ?ctx:typed_context -> term         -> (term,env_error) error
 
-val check       : ?ctx:typed_context -> term -> term -> (unit,env_error) error
+val check : ?ctx:typed_context -> term -> term -> (unit,env_error) error
 
 (** {2 Safe Reduction/Conversion} *)
 (** terms are typechecked before the reduction/conversion *)
 
-val reduction       : ?red:(Reduction.red) -> Reduction.red_strategy -> term -> (term,env_error) error
+val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> (term,env_error) error
 
-val are_convertible : ?red:(Reduction.red) -> term -> term -> (bool,env_error) error
+val are_convertible : ?ctx:typed_context -> term -> term -> (bool,env_error) error
 
-val unsafe_one_step : ?red:(Reduction.red) -> term -> term
-
-val unsafe_snf : ?red:(Reduction.red) -> term -> term
+val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term

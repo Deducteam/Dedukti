@@ -10,23 +10,6 @@ type dtree_error =
 
 exception DtreeExn of dtree_error
 
-(* A subtype of rule_infos with only the informations that the dtree need *)
-type dtree_rule =
-  { loc        : loc ;
-    pid        : ident ;
-    pats       : wf_pattern array ;
-    right      : term ;
-    constraints: constr list ;
-    esize      : int ; }
-
-let to_dtree_rule (r:rule_infos) : dtree_rule =
-  { loc = r.l ;
-    pid = id r.cst;
-    pats = r.l_args ;
-    right = r.rhs ;
-    constraints = r.constraints ;
-    esize = r.esize ; }
-
 (*
  * there is one matrix per head symbol that represents all the rules associated to that symbol.
  * col_depth:   [ (n_0)          (n_1)          ...       (n_k)   ]
@@ -38,9 +21,9 @@ let to_dtree_rule (r:rule_infos) : dtree_rule =
  *              n_i records the depth of the column (number of binders under which it stands)
  *)
 type matrix =
-    { col_depth: int array;
-      first:dtree_rule ;
-      others:dtree_rule list ; }
+  { col_depth: int array;
+    first    : rule_infos ;
+    others   : rule_infos list ; }
 
 (* mk_matrix lst builds a matrix out of the non-empty list of rules [lst]
 *  It is checked that all rules have the same head symbol and arity.
@@ -48,16 +31,15 @@ type matrix =
 let mk_matrix : rule_infos list -> matrix = function
   | [] -> assert false
   | r1::rs ->
-    let n = Array.length r1.l_args in
-    let o = List.map (
-        fun r2 ->
-          if not (name_eq r1.cst r2.cst)
-          then raise (DtreeExn (HeadSymbolMismatch (r2.l,r2.cst,r1.cst)))
-          else if n != Array.length r2.l_args
-          then raise (DtreeExn (ArityMismatch (r2.l,r1.cst)))
-          else to_dtree_rule r2
-      ) rs in
-    { first=(to_dtree_rule r1); others=o; col_depth=Array.make n 0; }
+    let n = Array.length r1.pats in
+    List.iter (
+      fun r2 ->
+        if not (name_eq r1.cst r2.cst)
+        then raise (DtreeExn (HeadSymbolMismatch (r2.l,r2.cst,r1.cst)));
+        if n != Array.length r2.pats
+        then raise (DtreeExn (ArityMismatch (r2.l,r1.cst)))
+      ) rs;
+    { first=r1; others=rs; col_depth=Array.make n 0; }
 
 (* Remove a line of the matrix [mx] and return None if the new matrix is Empty. *)
 let pop mx =
@@ -65,7 +47,7 @@ let pop mx =
   | [] -> None
     | f::o -> Some { mx with first=f; others=o; }
 
-let filter (f:dtree_rule -> bool) (mx:matrix) : matrix option =
+let filter (f:rule_infos -> bool) (mx:matrix) : matrix option =
   match List.filter f (mx.first::mx.others) with
   | [] -> None
   | f::o -> Some { mx with first=f; others=o; }
@@ -119,19 +101,19 @@ let pp_matching_problem fmt matching_problem =
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of matching_problem * constr list * term * dtree option
+  | Test    of Rule.rule_name * matching_problem * constr list * term * dtree option
 
 
 let rec pp_dtree t fmt dtree =
   let tab = String.make (t*4) ' ' in
   match dtree with
-  | Test (mp,[],te,None)   -> fprintf fmt "(%a) %a" pp_matching_problem mp pp_term te
-  | Test (mp,[],te,def)      ->
-    fprintf fmt "\n%sif true then (%a) %a\n%selse (%a) %a" tab pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
-  | Test (mp,lst,te,def)  ->
+  | Test (name,mp,[],te,None)   -> fprintf fmt "{%a} (%a) %a" pp_rule_name name pp_matching_problem mp pp_term te
+  | Test (name,mp,[],te,def)      ->
+    fprintf fmt "\n%s{%a} if true then (%a) %a\n%selse (%a) %a" tab pp_rule_name name  pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
+  | Test (name,mp,lst,te,def)  ->
     let aux out = function
-      | Linearity (i,j) -> fprintf out "%d =l %d" i j
-      | Bracket (i,j) -> fprintf out "%a =b %a" pp_term (mk_DB dloc dmark i) pp_term j
+      | Linearity (i,j) -> fprintf out "{%a} %d =l %d" pp_rule_name name i j
+      | Bracket (i,j) -> fprintf out "{%a} %a =b %a" pp_rule_name name pp_term (mk_DB dloc dmark i) pp_term j
     in
     fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
       pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
@@ -165,7 +147,7 @@ let pp_rw fmt (cst,i,g) =
  * - or the body if column [c] is a lambda
  * - or Jokers otherwise
 * *)
-let specialize_rule (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
+let specialize_rule (c:int) (nargs:int) (r:rule_infos) : rule_infos =
   let size = Array.length r.pats in
   let aux i =
     if i < size then
@@ -177,7 +159,7 @@ let specialize_rule (c:int) (nargs:int) (r:dtree_rule) : dtree_rule =
     else (* size <= i < size+nargs *)
       let check_args id pats =
         if ( Array.length pats != nargs ) then
-          raise (DtreeExn(ArityInnerMismatch(r.loc, r.pid, id)));
+          raise (DtreeExn(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
         pats.( i - size)
       in
       match r.pats.(c) with
@@ -253,7 +235,7 @@ let partition (mx:matrix) (c:int) : case list =
 
 let array_to_llist arr = LList.of_array arr
 
-let get_first_term mx = mx.first.right
+let get_first_term mx = mx.first.rhs
 let get_first_constraints mx = mx.first.constraints
 
 (* Extracts the matching_problem from the first line. *)
@@ -304,10 +286,11 @@ let choose_column mx =
 let rec to_dtree (mx:matrix) : dtree =
   match choose_column mx with
     (* There are only variables on the first line of the matrix *)
-    | None   -> Test ( get_first_matching_problem mx,
-                       get_first_constraints mx,
-                       get_first_term mx,
-                       map_opt to_dtree (pop mx) )
+  | None   -> Test (mx.first.name,
+                    get_first_matching_problem mx,
+                    get_first_constraints mx,
+                    get_first_term mx,
+                    map_opt to_dtree (pop mx) )
     (* Pattern on the first line at column c *)
     | Some c ->
         let cases = partition mx c in
