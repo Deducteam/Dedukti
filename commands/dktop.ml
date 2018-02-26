@@ -1,5 +1,6 @@
 open Basic
 open Parser
+open Entry
 
 let print fmt =
   Format.kfprintf (fun _ -> print_newline () ) Format.std_formatter fmt

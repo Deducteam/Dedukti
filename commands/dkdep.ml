@@ -2,6 +2,7 @@ open Basic
 open Term
 open Rule
 open Parser
+open Entry
 
 (** [deps] contains the dependencies found so far, reset before each file. *)
 let current_mod  : string                 ref = ref "<not initialised>"

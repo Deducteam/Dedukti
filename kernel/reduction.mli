@@ -11,6 +11,8 @@ type red_cfg = {
   beta : bool
 }
 
+val pp_red_cfg : Format.formatter -> red_cfg -> unit
+
 (** [beta] flag enables/disables beta reductions.
     [select] = [Some f] restreins rules according to the given filter on names.
     [select] = [None] is the default behaviour (all rules allowed). *)
