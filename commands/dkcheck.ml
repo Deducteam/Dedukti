@@ -173,7 +173,10 @@ let _ =
     List.rev !files
   in
   if !beautify && !export then
-    (Printf.eprintf "Beautify and export cannot be set at the same time\n"; exit 2);
+    begin
+      Printf.eprintf "Beautify and export cannot be set at the same time\n";
+      exit 2
+    end;
   try
     List.iter (run_on_file !beautify !export) files;
     match !run_on_stdin with
