@@ -111,9 +111,9 @@ let check ?ctx:(ctx=[]) te ty =
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)
 
-let reduction ?red:(red=Reduction.default_cfg) te =
+let reduction ?ctx:(ctx=[]) ?red:(red=Reduction.default_cfg) te =
   try
-    ignore(inference !sg te);
+    ignore(Typing.infer !sg ctx te);
     let te' = Reduction.reduction red !sg te in
     OK te'
   with
@@ -124,10 +124,10 @@ let unsafe_reduction ?red:(red=Reduction.default_cfg) te =
   let te' = Reduction.reduction red !sg te in
   te'
 
-let are_convertible te1 te2 =
+let are_convertible ?ctx:(ctx=[]) te1 te2 =
   try
-    ignore(inference !sg te1);
-    ignore(inference !sg te2);
+    ignore(Typing.infer !sg ctx te1);
+    ignore(Typing.infer !sg ctx te2);
     let b = Reduction.are_convertible !sg te1 te2 in
     OK b
   with

@@ -54,8 +54,8 @@ val check : ?ctx:typed_context -> term -> term -> (unit,env_error) error
 (** {2 Safe Reduction/Conversion} *)
 (** terms are typechecked before the reduction/conversion *)
 
-val reduction : ?red:(Reduction.red_cfg) -> term -> (term,env_error) error
+val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> (term,env_error) error
 
-val are_convertible : term -> term -> (bool,env_error) error
+val are_convertible : ?ctx:typed_context -> term -> term -> (bool,env_error) error
 
 val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term
