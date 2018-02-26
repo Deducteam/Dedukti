@@ -47,8 +47,6 @@ let mk_mident md =
   let base = Filename.basename md in
   try Filename.chop_extension base with _ -> base
 
-let qmark       = mk_ident "?"
-
 let dmark       = mk_ident "$"
 
 (** {2 Lists with Length} *)

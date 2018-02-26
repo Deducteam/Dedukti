@@ -21,8 +21,13 @@ let add_dep : string -> string -> unit = fun name file ->
     graceful error message. *)
 let find_dk : string -> string list -> string = fun name path ->
   let file_name = name ^ ".dk" in
-  let path = List.sort_uniq String.compare ("." :: path) in
-  let files = List.map (fun dir -> Filename.concat dir file_name) path in
+  let path = Filename.current_dir_name :: path in
+  let path = List.sort_uniq String.compare path in
+  let add_dir dir =
+    if dir = Filename.current_dir_name then file_name
+    else Filename.concat dir file_name
+  in
+  let files = List.map add_dir path in
   match List.filter Sys.file_exists files with
   | []  -> Printf.eprintf "No file for module %S in path...\n%!" name; exit 1
   | [f] -> f
@@ -111,7 +116,7 @@ let topological_sort graph =
         exit 1
       end;
     if List.mem node visited then visited else
-    let edges = List.assoc node graph in
+    let edges = try List.assoc node graph with Not_found -> assert false in
     node :: List.fold_left (explore (node :: path)) visited edges
   in
   List.fold_left (fun visited (n,_) -> explore [] visited n) [] graph

@@ -86,6 +86,7 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     begin
       match whnf sg ty_exp with
       | Pi (_,_,a',ty_b) ->
+        ignore(infer sg ctx a);
         if not (Reduction.are_convertible sg a a')
         then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a,a')))
         else check sg ((l,x,a)::ctx) b ty_b
@@ -242,10 +243,10 @@ let pc_add (delta:partial_context) (n:int) (l:loc) (id:ident) (ty0:typ) : partia
 let pc_to_context (delta:partial_context) : typed_context = LList.lst delta.pctx
 
 let pc_to_context_wp (delta:partial_context) : typed_context =
-  let dummy = mk_DB dloc qmark 0 in
+  let dummy = mk_DB dloc dmark 0 in
   let rec aux lst n =
     if n <= 0 then lst
-    else aux ((dloc,qmark,dummy)::lst) (n-1)
+    else aux ((dloc,dmark,dummy)::lst) (n-1)
   in
   aux (LList.lst delta.pctx) delta.padding
 

@@ -36,7 +36,7 @@ let mk_entry md e =
         let get_infos p =
           match p with
           | Pattern(l,cst,_) -> (l,cst)
-          | _                -> (dloc,mk_name (mk_mident "") qmark)
+          | _                -> (dloc,mk_name (mk_mident "") dmark)
         in
         let r = List.hd rs in (* cannot fail. *)
         let (l,cst) = get_infos r.pat in
