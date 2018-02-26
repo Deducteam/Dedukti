@@ -138,10 +138,6 @@ let run_on_file output export file =
   Errors.success "File '%s' was successfully elaborated." file;
   List.iter (Checker.mk_entry md) entries;
   Errors.success "File '%s' was successfully checked." file;
-  let model = Export.Z3.solve (Constraints.Naive.export ()) in
-  Errors.success "File '%s' was successfully solved with Z3." file;
-  let entries = List.map (Reconstruction.reconstruction model) entries in
-  Errors.success "File '%s' was successfully reconstructed." file;
   if export && not (Env.export ()) then
     Errors.fail dloc "Fail to export module '%a@." pp_mident (Env.get_name ());
   close_in input;
@@ -149,10 +145,15 @@ let run_on_file output export file =
   (Format.formatter_of_out_channel (open_out file),
    entries)
 
-let print_file (fmt,entries) =
-  List.iter (Indent.mk_entry fmt) entries
+let solve () =
+  let model = Export.Z3.solve (Constraints.Naive.export ()) in
+  Errors.success "Files was successfully solved with Z3.";
+  model
 
-let print_files = List.iter print_file
+let print_file model (fmt,entries) =
+  List.iter (fun x -> Indent.mk_entry fmt (Reconstruction.reconstruction model x)) entries
+
+let print_files model = List.iter (print_file model)
 
 let _ =
   let export = ref false in
@@ -177,7 +178,9 @@ let _ =
   in
   Rule.allow_non_linear := true;
   try
-    print_files (List.map (run_on_file !output_dir !export) files);
+    let entries' = List.map (run_on_file !output_dir !export) files in
+    let model = solve () in
+    print_files model entries'
   with
   | Sys_error err -> Printf.eprintf "ERROR %s.\n" err; exit 1
   | Exit          -> exit 3

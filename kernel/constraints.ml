@@ -1,28 +1,6 @@
 (********** universes' variables ************)
 
 let just_check = ref false
-(*
-module Log =
-struct
-  let file = ref "stderr"
-  let in_c = ref stderr
-  let log_file () = !file
-
-
-  let set_log_file s =
-    file := s;
-    in_c := (open_out s)
-
-
-  let out_channel () = in_c
-
-  let append s =
-    Format.fprintf (Format.formatter_of_out_channel !in_c) "%s@." s
-
-  let close () = close_out !in_c
-
-end
-*)
 
 module UVar =
 struct
@@ -72,7 +50,7 @@ end
 module ReverseCiC =
 struct
   open Basic
-  (* Only Prop and Type 0 are necessary actually *)
+
   type univ =
     | Prop
     | Type of int
@@ -240,10 +218,6 @@ struct
 
   let is_matching = ref false
 
-  let uf = ref (UF.create 1000)
-
-  let var_of_index i = UF.find !uf i
-
   let var_of_ident ident = ident
 
   let global_variables = ref Variables.empty
@@ -273,42 +247,26 @@ struct
 
   let var_of_univ () = Hashtbl.fold (fun k v l -> (v,k)::l) hash_univ []
 
-  (* Probably never happen *)
   let add_constraint_prop =
     fun ident ->
       let n = var_of_ident ident in
       add_variables [n];
       add_constraint (Eq(n, find_univ Prop))
-        (*
-      uf := UF.union !uf n (find_univ Prop)
-*)
+
   let add_constraint_type =
     fun v u ->
       add_variables [v];
       add_constraint (Eq(v, find_univ u))
-      (*
-    uf := UF.union !uf v (find_univ u)
-*)
+
   let add_constraint_eq v v' =
     add_variables [v;v'];
     add_constraint (Eq(v,v'))
-    (*
-    uf := UF.union !uf v v'
-*)
+
   let add_constraint_succ ident ident' =
     let n = var_of_ident ident in
     let n' = var_of_ident ident' in
     add_variables [n;n'];
     add_constraint (Succ(n,n'))
-(*
-  let add_constraint_lift ident ident' ident'' ident''' =
-    let n = var_of_ident ident in
-    let n' = var_of_ident ident' in
-    let n'' = var_of_ident ident'' in
-    let n''' = var_of_ident ident''' in
-    add_variables [n;n';n'';n'''];
-    add_constraint (Lift((n,n'),(n'',n''')))
-*)
 
   let add_constraint_max v v' v'' =
     add_variables [v;v';v''];
@@ -393,7 +351,7 @@ struct
         true
       end
     else if is_uvar l && is_succ r then
-      generate_constraints sg r l (* just a switch of arguments *)
+      generate_constraints sg r l
     else if is_rule l && is_uvar r then
       let s1,s2 = extract_rule l in
       let s1 = extract_universe sg s1 in
@@ -402,7 +360,7 @@ struct
       add_constraint_rule s1 s2 r;
       true
     else if is_uvar l && is_rule r then
-      generate_constraints sg r l (* just a switch of arguments *)
+      generate_constraints sg r l
     else if is_max l && is_uvar r then
       let s1,s2 = extract_max l in
       let s1 = var_of_ident @@ ident_of_uvar s1 in
