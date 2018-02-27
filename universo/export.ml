@@ -173,9 +173,10 @@ struct
       (* Log.append "Problem solved!"; *)
       match Solver.get_model solver with
       | None -> assert false
-      | Some model -> (* Format.printf "%s@." (Model.to_string model); *)
+      | Some model ->
         fun (uvar:Basic.ident) : Term.term ->
           let var' = uvar
+                     |> Naive.var_of_ident
                      |> Naive.string_of_var in
           (var_solution model var') |> univ_of_int |> ReverseCiC.term_of_univ
 

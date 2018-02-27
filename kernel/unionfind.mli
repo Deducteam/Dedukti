@@ -18,10 +18,10 @@
    The datatype [t] maintains a partition of the set [0,1,...,n-1],
    where [n] is the value passed to [create]. *)
 
-type t
+type 'a t
 
-val create : int -> t
+val create : unit -> 'a t
 
-val find : t -> int -> int
+val find : 'a t -> 'a -> 'a
 
-val union : t -> int -> int -> t
+val union : 'a t -> 'a -> 'a -> 'a t

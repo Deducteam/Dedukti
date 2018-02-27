@@ -78,9 +78,13 @@ sig
   val string_of_var : var -> string
 
   val is_matching : bool ref
+
+  val var_of_ident : Basic.ident -> var
+
+  val optimize : ConstraintsSet.t -> ConstraintsSet.t
 end
 
-module Naive:ConstraintsInterface with type var = Basic.ident
+module Naive:ConstraintsInterface
 (*
 module Log:
 sig

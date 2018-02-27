@@ -146,7 +146,8 @@ let run_on_file output export file =
    entries)
 
 let solve () =
-  let model = Export.Z3.solve (Constraints.Naive.export ()) in
+  let cs = Constraints.Naive.export () in
+  let model = Export.Z3.solve cs in
   Errors.success "Files was successfully solved with Z3.";
   model
 
