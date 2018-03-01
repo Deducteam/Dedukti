@@ -1,4 +1,4 @@
-#NAME tr.
+#NAME type_rewrite.
 
 def A : Type.
 B : Type.

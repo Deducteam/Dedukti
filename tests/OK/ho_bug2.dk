@@ -1,4 +1,4 @@
-#NAME bug.
+#NAME ho_bug2.
 
 A : Type.
 
@@ -10,5 +10,7 @@ a : A.
 g : A -> A.
 def test (b : A) := F (x => g x) b.
 
-#SNF test.
-#CONV test, b : A => a. (; Answer must be YES ;)
+#PRINT "b:A => a".
+#EVAL test.
+
+#ASSERT test == b : A => a.

@@ -1,0 +1,9 @@
+#NAME rule_name2.
+
+nat : Type.
+
+0 : nat.
+
+def plus : nat -> nat -> nat.
+
+{rule_name.plus_0_n} [n] plus 0 n --> n.

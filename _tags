@@ -1,45 +1,7 @@
-# OASIS_START
-# DO NOT EDIT (digest: 2a01631b3de71296a0b162cd0781b640)
-# Ignore VCS directories, you can use the same kind of rule outside
-true: inline(100), optimize(3), unbox_closures, unbox_closures_factor(20)
-# OASIS_START/STOP if you want to exclude directories that contains
-# useless stuff for the build process
-true: annot, bin_annot
-<**/.svn>: -traverse
-<**/.svn>: not_hygienic
-".bzr": -traverse
-".bzr": not_hygienic
-".hg": -traverse
-".hg": not_hygienic
-".git": -traverse
-".git": not_hygienic
-"_darcs": -traverse
-"_darcs": not_hygienic
-# Library dedukti
-"dedukti.cmxs": use_dedukti
-# Library kernel
-"kernel/kernel.cmxs": use_kernel
-# Library parser
-"parser/parser.cmxs": use_parser
-<parser/*.ml{,i,y}>: use_kernel
-# Executable dkcheck
-<dkcheck/dkcheck.{native,byte}>: use_kernel
-<dkcheck/dkcheck.{native,byte}>: use_parser
-<dkcheck/*.ml{,i,y}>: use_kernel
-<dkcheck/*.ml{,i,y}>: use_parser
-# Executable dkdep
-<dkdep/dkdep.{native,byte}>: use_kernel
-<dkdep/dkdep.{native,byte}>: use_parser
-<dkdep/*.ml{,i,y}>: use_kernel
-<dkdep/*.ml{,i,y}>: use_parser
-# Executable dktop
-<dktop/dktop.{native,byte}>: use_kernel
-<dktop/dktop.{native,byte}>: use_parser
-<dktop/*.ml{,i,y}>: use_kernel
-<dktop/*.ml{,i,y}>: use_parser
-# Executable dkindent
-<dkindent/dkindent.{native,byte}>: use_kernel
-<dkindent/dkindent.{native,byte}>: use_parser
-<dkindent/*.ml{,i,y}>: use_kernel
-<dkindent/*.ml{,i,y}>: use_parser
-# OASIS_STOP
+true: use_menhir
+true: external_tokens(Tokens)
+
+true: package(unix)
+
+"kernel"  : include
+"parser"  : include

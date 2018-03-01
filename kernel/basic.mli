@@ -52,10 +52,8 @@ val name_eq : name -> name -> bool
 val pp_name : Format.formatter -> name -> unit
 
 (** qmark is a special identifier for unification variables *)
-val qmark : ident
-
-(** dmark is a meaningless identifier *)
 val dmark : ident
+
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
 
 (** {2 Lists with Length} *)
@@ -68,15 +66,13 @@ module LList : sig
 
   val cons : 'a -> 'a t -> 'a t
   val nil : 'a t
+  val make : len:int -> 'a list -> 'a t
+  val of_list : 'a list -> 'a t
+  val of_array : 'a array -> 'a t
+
   val is_empty : _ t -> bool
   val len : _ t -> int
   val lst : 'a t -> 'a list
-  val of_list : 'a list -> 'a t
-
-  val make : len:int -> 'a list -> 'a t
-
-  (** make_unsafe [n] [l] is as make [n] [l] without checking that the length of [l] is [n] *)
-  val make_unsafe : len:int -> 'a list -> 'a t
 
   val map : ('a -> 'b) -> 'a t -> 'b t
   val append_l : 'a t -> 'a list -> 'a t

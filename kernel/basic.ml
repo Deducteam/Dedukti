@@ -39,13 +39,13 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-let shash       = WS.create 251
+let shash        = WS.create 251
 
-let mk_ident    = WS.merge shash
+let mk_ident     = WS.merge shash
 
-let mk_mident   = mk_ident
-
-let qmark       = mk_ident "?"
+let mk_mident md =
+  let base = Filename.basename md in
+  try Filename.chop_extension base with _ -> base
 
 let dmark       = mk_ident "$"
 
@@ -59,17 +59,20 @@ module LList = struct
 
   let cons x {len;lst} = {len=len+1; lst=x::lst}
   let nil = {len=0;lst=[];}
-  let len x = x.len
-  let lst x = x.lst
-  let is_empty x = x.len = 0
-
-  let of_list lst = {len=List.length lst;lst}
 
   let make ~len lst =
     assert (List.length lst = len);
     {lst;len}
 
   let make_unsafe ~len lst = {len;lst}
+  (** make_unsafe [n] [l] is as make [n] [l] without checking that the length of [l] is [n] *)
+
+  let of_list  lst = {len=List.length lst ; lst}
+  let of_array arr = {len=Array.length arr; lst=Array.to_list arr}
+
+  let len x = x.len
+  let lst x = x.lst
+  let is_empty x = x.len = 0
 
   let map f {len;lst} = {len; lst=List.map f lst}
   let append_l {len;lst} l = {len=len+List.length l; lst=lst@l}
@@ -129,9 +132,9 @@ let debug_mode = ref 0
 let set_debug_mode i = debug_mode := i
 
 let debug i fmt = Format.(
-    if !debug_mode >= i then
-      kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
-  else ifprintf err_formatter fmt
+    if !debug_mode >= i
+    then kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
+    else ifprintf err_formatter fmt
   )
 
 let bind_opt f = function
