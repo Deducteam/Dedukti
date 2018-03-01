@@ -98,8 +98,8 @@ let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
 
 let infer ?ctx:(ctx=[]) te =
   try
-    let ty = Typing.infer !sg ctx te in
-    ignore(inference !sg ty);
+    let ty = infer !sg ctx te in
+    ignore(infer !sg ctx ty);
     OK ty
   with
   | SignatureError e -> Err (EnvErrorSignature e)
