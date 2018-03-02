@@ -3,14 +3,9 @@ open Basic
 open Parser
 open Entry
 
-let verbose = ref false
-
 let eprint lc fmt =
-  if !verbose then
-    let (l,c) = of_loc lc in
-    Format.eprintf "line:%i column:%i " l c;
-    Format.kfprintf (fun _ -> prerr_newline ()) Format.err_formatter fmt
-  else Format.ifprintf Format.err_formatter fmt
+  let (l,c) = of_loc lc in
+  debug 1 ("line:%i column:%i " ^^ fmt) l c
 
 let mk_entry md e =
   match e with
@@ -94,8 +89,8 @@ let mk_entry md e =
   | Print(_,s)              ->
       Format.printf "%s@." s
   | Name(_,n)               ->
-      if not (mident_eq n md) then
-        Printf.eprintf "[Warning] invalid #NAME directive ignored.\n%!"
+      if not (mident_eq n md)
+      then warn "Invalid #NAME directive ignored.\n%!"
 
 let mk_entry beautify md =
   if beautify then Pp.print_entry Format.std_formatter
@@ -122,12 +117,15 @@ let _ =
   let export       = ref false in
   let beautify     = ref false in
   let options = Arg.align
-    [ ( "-v"
-      , Arg.Set verbose
-      , " Enable the verbose mode" )
-    ; ( "-d"
+    [ ( "-d"
       , Arg.Int Basic.set_debug_mode
       , "N sets the debuging level to N" )
+    ; ( "-v"
+      , Arg.Unit (fun _ -> Basic.set_debug_mode 1)
+      , " Verbose mode (equivalent to -d 1)" )
+    ; ( "-q"
+      , Arg.Unit (fun _ -> Basic.set_debug_mode (-1))
+      , " Quiet mode (equivalent to -d -1" )
     ; ( "-e"
       , Arg.Set export
       , " Generates an object file (\".dko\")" )

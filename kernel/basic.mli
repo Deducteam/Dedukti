@@ -110,12 +110,20 @@ val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 
 (** {2 Debug} *)
 
-(** print informations on the standard error channel *)
+(** Level of information printing on the standard error channel
+ <0 is quiet mode (no printing)
+ 0 is warning level (default)
+ 1 is verbose mode
+ >1 is debugging mode
+*)
 val debug_mode : int ref
 
+(** Sets the debugging level *)
 val set_debug_mode : int -> unit
 
 val debug : int -> ('a, Format.formatter, unit, unit) format4 -> 'a
+
+val warn : ('a, Format.formatter, unit, unit) format4 -> 'a
 
 (** {2 Misc} *)
 
