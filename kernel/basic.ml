@@ -137,6 +137,8 @@ let debug i fmt = Format.(
     else ifprintf err_formatter fmt
   )
 
+let warn fmt = debug 0 ("[Warning] " ^^ fmt)
+
 let bind_opt f = function
   | None -> None
   | Some x -> f x
