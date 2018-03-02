@@ -119,7 +119,7 @@ let _ =
   let options = Arg.align
     [ ( "-d"
       , Arg.Int Basic.set_debug_mode
-      , "N sets the debuging level to N" )
+      , "N sets the verbosity level to N" )
     ; ( "-v"
       , Arg.Unit (fun _ -> Basic.set_debug_mode 1)
       , " Verbose mode (equivalent to -d 1)" )
