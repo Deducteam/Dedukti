@@ -107,20 +107,26 @@ let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
   in
   aux 0 te
 
-(** solve [n] [k_lst] [te] solves the following higher-order unification problem:
+(** [solve n k_lst te] solves the following higher-order unification problem:
     (unification modulo beta)
-      x_1 => x_2 ... x_n => X x_(i_1) .. x_(i_m) = x_1 => x_2 ... x_n => te
-    where X is the unknown, x_(i_1) .. x_(i_m) are distinct variables bound
+    
+    x{_1} => x{_2} => ... x{_[n]} => X x{_i{_1}} .. x{_i{_m}}
+    {b =}
+    x{_1} => x{_2} => ... x{_[n]} => [te]
+    
+    where X is the unknown, x{_i{_1}}, ..., x{_i{_m}} are distinct bound variables
     in the local context and [te] is a term.
   
-  If the free variables of [te] that are in x_1 .. x_n are also in x_(i_1) .. x_(i_m) then
-  the problem has a unique solution (modulo beta) that is
-  x_(i_1) => .. => x_(i_m) => te.
-  Otherwise this problem has no solution.
-
-  Since we use deBruijn indexes, the problem is given as the equation
-  x_1 => .. => x_n => X (DB [k_0]) ... (DB [k_n]) =~ x_1 => .. => x_n => [te]
-  and where [k_lst] = \[[k_0::k_1::..::k_m]\].
+   If the free variables of [te] that are in x{_1}, ..., x{_[n]} are also in
+   x{_i{_1}}, ..., x{_i{_m}} then the problem has a unique solution modulo beta that is
+   x{_i{_1}} => .. => x{_i{_m}} => [te].
+   Otherwise this problem has no solution and the function raises [NotUnifiable].
+   
+   Since we use deBruijn indexes, the problem is given as the equation
+   
+   x{_1} => ... => x{_[n]} => X DB(k{_0}) ... DB(k{_m}) =~ x{_1} => ... => x{_[n]} => [te]
+   
+   and where [k_lst] = [\[]k{_0}[; ]k{_1}[; ]...[; ]k{_m}[\]].
 *)
 let solve d args t =
   if LList.is_empty args
@@ -139,7 +145,7 @@ let try_force_solve reduce d i args t =
   with NotUnifiable -> None
 
 let rec add_n_lambdas n t =
-  if n == 0 then t else add_n_lambdas (n-1) (mk_Lam dloc qmark None t)
+  if n == 0 then t else add_n_lambdas (n-1) (mk_Lam dloc dmark None t)
 
 let lazy_add_n_lambdas n t =
   if n == 0 then t
@@ -148,11 +154,11 @@ let lazy_add_n_lambdas n t =
 
 (** Returns term [t] applied to (local) variables [args] from a local context of size [d] *)
 let convert_solution t args d =
-  let args_DB = List.map (fun k -> mk_DB dloc qmark k) (LList.lst args) in
+  let args_DB = List.map (fun k -> mk_DB dloc dmark k) (LList.lst args) in
   mk_App2 (Subst.shift d (Lazy.force t)) args_DB
 
 (** Apply a Miller solution to variables *)
-let apply_args t l = mk_App2 t (List.map (fun k -> mk_DB dloc qmark k) (LList.lst l))
+let apply_args t l = mk_App2 t (List.map (fun k -> mk_DB dloc dmark k) (LList.lst l))
 
 
 (** Compute all right hand terms fixed by substitution i = t *)
@@ -410,26 +416,3 @@ let solve_problem reduce convertible whnf pb =
         | Solved _ -> assert false
   in
   solve_next { pb with problems = problems }
-
-
-module rec Test :
-sig
-  val a : unit -> int
-  val b : unit -> int
-end =
-struct
-  open Test2
-  let a x = 1
-  let b x = d ()
-end
-
-and Test2 :
-sig
-  val c : unit -> int
-  val d : unit -> int
-end =
-struct
-  open Test
-  let c x = a ()
-  let d x = 2
-end

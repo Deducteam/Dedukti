@@ -36,13 +36,13 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-let shash       = WS.create 251
+let shash        = WS.create 251
 
-let mk_ident    = WS.merge shash
+let mk_ident     = WS.merge shash
 
-let mk_mident   = mk_ident
-
-let qmark       = mk_ident "?"
+let mk_mident md =
+  let base = Filename.basename md in
+  try Filename.chop_extension base with _ -> base
 
 let dmark       = mk_ident "$"
 
@@ -130,10 +130,13 @@ let debug_mode = ref 0
 
 let set_debug_mode i = debug_mode := i
 
-let debug i fmt =
-  Format.(if !debug_mode >= i
-          then kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
-          else ifprintf err_formatter fmt )
+let debug i fmt = Format.(
+    if !debug_mode >= i
+    then kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
+    else ifprintf err_formatter fmt
+  )
+
+let warn fmt = debug 0 ("[Warning] " ^^ fmt)
 
 (** {2 Misc functions} *)
 

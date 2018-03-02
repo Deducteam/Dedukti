@@ -3,9 +3,7 @@ env:
   - OCAML_VERSION=4.03.0
   - OCAML_VERSION=4.03.0+flambda
   - OCAML_VERSION=4.04.2
-  - OCAML_VERSION=4.04.2+flambda
   - OCAML_VERSION=4.05.0
-  - OCAML_VERSION=4.05.0+flambda
   - OCAML_VERSION=4.06.0
   - OCAML_VERSION=4.06.0+flambda
 addons:
@@ -26,13 +24,12 @@ before_install:
   - eval `opam config env`
   - opam pin add --no-action dedukti .
   - opam install --deps-only dedukti
-  - opam install oasis
 install:
-  - oasis setup
-  - ./configure --enable-tests
-  - make build
+  - make
+  - make install
 script:
-  - make test
+  - make tests
+  - if [[ "$OCAML_VERSION" == "4.06.0" ]]; then make full_tests; fi
 os:
   - linux
 notifications:

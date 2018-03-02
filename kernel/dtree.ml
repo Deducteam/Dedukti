@@ -20,6 +20,7 @@ type dtree_rule =
     right:term ;
     constraints:constr list ;
     esize:int ;
+    name : Rule.rule_name ;
   }
 
 let to_dtree_rule (r:rule_infos) : dtree_rule =
@@ -30,6 +31,7 @@ let to_dtree_rule (r:rule_infos) : dtree_rule =
     right = r.rhs ;
     constraints = r.constraints ;
     esize = r.esize ;
+    name = r.name ;
   }
 
 (*
@@ -133,7 +135,7 @@ type dtree =
   | Fetch   of int * case * dtree * dtree option
   | ACEmpty of int * dtree * dtree option
   | Switch  of int * (case*dtree) list * dtree option
-  | Test    of pre_matching_problem * constr list * term * dtree option
+  | Test    of Rule.rule_name * pre_matching_problem * constr list * term * dtree option
 
 let pp_AC_args fmt i =
   fprintf fmt (if i > 2 then "%i args, first 2 AC flattened" else "%i args") i
@@ -142,11 +144,12 @@ let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxex here instead of manual tabs. *)
   let tab = String.init (1 + t*4) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
-  | Test (mp,[],te,def) when List.length mp.pm_problems == 0 -> fprintf fmt "%s%a" tab pp_term te
-  | Test (mp,[],te,def)  ->
+  | Test (name,mp,[],te,def) when List.length mp.pm_problems == 0 ->
+    fprintf fmt "%s%a" tab pp_term te
+  | Test (name,mp,[],te,def) ->
      fprintf fmt "%stry %a%sthen %a%selse %a"
              tab (pp_pre_matching_problem (tab^"      ")) mp tab pp_term te tab (pp_def (t+1)) def
-  | Test (mp,cstr,te,def)  ->
+  | Test (name,mp,cstr,te,def)  ->
      fprintf fmt "%stry %a%sunder constraints %a%sthen %a%selse %a"
              tab (pp_pre_matching_problem (tab^"      ")) mp tab (pp_list ", " pp_constr) cstr
              tab pp_term te tab (pp_def (t+1)) def
@@ -487,7 +490,8 @@ let rec to_dtree get_algebra (mx:matrix) : dtree =
   let is_AC cst = is_AC (get_algebra cst) in
   match choose_column mx with
     (* There are only variables on the first line of the matrix *)
-  | None   -> Test ( get_first_matching_problem get_algebra mx,
+  | None   -> Test ( mx.first.name,
+                     get_first_matching_problem get_algebra mx,
                      get_first_constraints mx,
                      get_first_term mx,
                      map_opt (to_dtree get_algebra) (pop mx) )

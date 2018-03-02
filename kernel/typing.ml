@@ -2,7 +2,7 @@ open Basic
 open Format
 open Rule
 open Term
-
+open Reduction
 
 let coc = ref false
 
@@ -24,14 +24,17 @@ type typing_error =
   | BracketError2 of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
+  | Unconvertible of loc*term*term
+  | Convertible of loc*term*term
+  | Inhabit of loc*term*term
 
 exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let snf sg = Reduction.reduction sg Reduction.Snf
+let snf = reduction {default_cfg with strategy = Snf}
 
-let whnf sg = Reduction.reduction sg Reduction.Whnf
+let whnf = reduction {default_cfg with strategy = Reduction.Whnf}
 
 let get_type ctx l x n =
   try let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
@@ -81,6 +84,7 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     begin
       match whnf sg ty_exp with
       | Pi (_,_,a',ty_b) ->
+        ignore(infer sg ctx a);
         if not (Reduction.are_convertible sg a a')
         then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a,a')))
         else check sg ((l,x,a)::ctx) b ty_b
@@ -242,10 +246,10 @@ let pc_add (delta:partial_context) (n:int) (l:loc) (id:ident) (ty0:typ) : partia
 let pc_to_context (delta:partial_context) : typed_context = LList.lst delta.pctx
 
 let pc_to_context_wp (delta:partial_context) : typed_context =
-  let dummy = mk_DB dloc qmark 0 in
+  let dummy = mk_DB dloc dmark 0 in
   let rec aux lst n =
     if n <= 0 then lst
-    else aux ((dloc,qmark,dummy)::lst) (n-1)
+    else aux ((dloc,dmark,dummy)::lst) (n-1)
   in
   aux (LList.lst delta.pctx) delta.padding
 
@@ -258,12 +262,12 @@ let pp_pcontext fmt delta =
 
 (* *** *)
 
-let rec get_last = function
+let get_last =
+  let rec aux acc = function
   | [] -> assert false
-  | [a] -> ([],a)
-  | hd::tl ->
-    let (tl0,a) = get_last tl in
-    (hd::tl0,a)
+  | [a] -> (List.rev acc, a)
+  | hd::tl -> aux (hd::acc) tl in
+  aux []
 
 let unshift_n sg n te =
   try Subst.unshift n te

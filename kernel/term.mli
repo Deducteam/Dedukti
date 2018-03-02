@@ -28,8 +28,8 @@ val mk_App2     : term -> term list -> term
 val mk_Pi       : loc -> ident -> term -> term -> term
 val mk_Arrow    : loc -> term -> term -> term
 
+(** [term_eq t t'] is [true] if [t] = [t'] (up to alpha equivalence) *)
 val term_eq : term -> term -> bool
-(** term_eq [t] [t'] is true if [t]=[t'] (up to alpha equivalence) *)
 
 type ident_comparator = name -> name -> int
 (** Type of ident comparison functions *)

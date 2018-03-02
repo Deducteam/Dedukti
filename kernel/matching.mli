@@ -59,4 +59,3 @@ val solve_problem : (term -> term) ->
                     (term -> term -> bool) ->
                     (term -> term) ->
                     matching_problem -> te option array option
-

@@ -28,3 +28,7 @@ val print_typed_rule  : typed_rule printer
 val print_rule_infos : rule_infos printer
 
 val print_typed_context: typed_context printer
+
+val print_red_cfg :  Reduction.red_cfg printer
+
+val print_entry   : Entry.entry printer

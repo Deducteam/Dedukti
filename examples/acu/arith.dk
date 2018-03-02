@@ -1,5 +1,3 @@
-#NAME arith.
-
 Z : Type.
 0  : Z.
 Zpos : positive.t -> Z.
@@ -48,9 +46,9 @@ def 3 := Zpos positive.3.
 def 4 := Zpos positive.4.
 def 5 := Zpos positive.5.
 
-#CONV add 1 (add 3 2), add 3 3.
-#CONV add 2 (add 4 5), add 3 (add 4 4).
-#CONV add (add 0 0) (add 3 (add 3 2)), add (add 1 (add 0 4)) (add 0 3).
+#ASSERT add 1 (add 3 2) == add 3 3.
+#ASSERT add 2 (add 4 5) == add 3 (add 4 4).
+#ASSERT add (add 0 0) (add 3 (add 3 2)) == add (add 1 (add 0 4)) (add 0 3).
 
 
 
@@ -63,10 +61,4 @@ refl : n : Z -> proof (eq n n).
 inf : Z -> Z -> Prop.
 inf_0_pos : n : positive.t -> proof (inf 0        (Zpos n)).
 inf_neg_0 : n : positive.t -> proof (inf (Zneg n) 0       ).
-
-
-
-
-
-
 

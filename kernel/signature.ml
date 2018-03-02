@@ -203,7 +203,9 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
-  assert ( not (HMd.mem sg.tables m) ) ;
+  if HMd.mem sg.tables m then
+    warn "Trying to import twice the same module"
+  else
 
   (* If the [.dko] file is not found, try to compile it first.
      This hack is terrible. It uses system calls and can loop with circular dependencies.
@@ -229,9 +231,12 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   | (r::_ as rs) ->
     let env =
       try HMd.find sg.tables (md r.cst)
-      with Not_found -> assert false in (*should not happen if the dependencies are loaded before*)
+      with Not_found ->
+        import sg r.l (md r.cst); HMd.find sg.tables (md r.cst)
+    in
     let rid = id r.cst in
-    let infos = HId.find env rid in
+    let infos = try ( HId.find env rid )
+      with Not_found -> raise (SignatureError (SymbolNotFound(r.l, r.cst))) in
     let ty = infos.ty in
     if (infos.stat = Static)
     then raise (SignatureError (CannotAddRewriteRules (r.l,rid)));
@@ -260,6 +265,8 @@ and get_algebra sg lc name =
   | Definable a -> a | Static -> Free
 
 and is_AC sg lc name = (get_algebra sg lc name) <> Free
+
+(******************************************************************************)
 
 let get_deps sg : string list = (*only direct dependencies*)
   HMd.fold (

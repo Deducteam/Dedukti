@@ -2,19 +2,16 @@ open Basic
 open Term
 open Rule
 open Printf
-
+open Env
+open Entry
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
 
 (* TODO: make that debuging functions returns a string *)
 let print_db_enabled = ref false
 let print_default = ref false
-let name () = Env.get_name ()
+let name () = get_name ()
 
-let rec print_list sep pp out = function
-    | []        -> ()
-    | [a]       -> pp out a
-    | a::lst    ->
-        Format.fprintf out "%a%s@,%a" pp a sep (print_list sep pp) lst
+let rec print_list = pp_list
 
 let print_ident = pp_ident
 
@@ -29,8 +26,8 @@ let print_const out cst =
 
 (* Idents generated from underscores by the parser start with a question mark.
    We have sometimes to avoid to print them because they are not valid tokens. *)
-let is_dummy_ident i = (string_of_ident i).[0] = '?'
-let is_regular_ident i = (string_of_ident i).[0] <> '?'
+let is_dummy_ident i = (string_of_ident i).[0] = '$'
+let is_regular_ident i = (string_of_ident i).[0] <> '$'
 
 let print_db out (x,n) =
   if !print_db_enabled then Format.fprintf out "%a[%i]" print_ident x n
@@ -94,7 +91,7 @@ let rec print_term out = function
   | Lam (_,x,None,f)   -> Format.fprintf out "@[%a =>@ @[%a@]@]" print_ident x print_term f
   | Lam (_,x,Some a,f) ->
       Format.fprintf out "@[%a:@,%a =>@ @[%a@]@]" print_ident x print_term_wp a print_term f
-  | Pi  (_,x,a,b) when ident_eq x qmark  ->
+  | Pi  (_,x,a,b) when ident_eq x dmark  ->
       (* arrow, no pi *)
       Format.fprintf out "@[%a ->@ @[%a@]@]" print_term_wp a print_term b
   | Pi  (_,x,a,b)      ->
@@ -129,7 +126,7 @@ let print_typed_context fmt ctx =
 let print_rule_name fmt rule =
   let aux b cst =
     if b || !print_default then
-      if mident_eq (md cst) (Env.get_name ()) then
+      if mident_eq (md cst) (get_name ()) then
         Format.fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
       else
       Format.fprintf fmt "@[<h>{%a}@] " print_name cst
@@ -169,3 +166,60 @@ let print_rule_infos out ri =
              }
   in
   print_typed_rule out rule
+
+let print_red_cfg fmt strat =
+  let open Reduction in
+  match strat with
+  | {strategy=Reduction.Snf ;nb_steps=None   } -> ()
+  | {strategy=Reduction.Snf ;nb_steps=Some i } -> Format.fprintf fmt "[%i]" i
+  | {strategy=Reduction.Hnf ;nb_steps=None   } -> Format.fprintf fmt "[HNF]"
+  | {strategy=Reduction.Hnf ;nb_steps=Some i } -> Format.fprintf fmt "[HNF,%i]" i
+  | {strategy=Reduction.Whnf;nb_steps=None   } -> Format.fprintf fmt "[WHNF]"
+  | {strategy=Reduction.Whnf;nb_steps=Some i } -> Format.fprintf fmt "[WHNF,%i]" i
+
+let print_entry fmt e =
+  let open Format in
+  match e with
+  | Decl(_,id,Signature.Static,ty) ->
+      fprintf fmt "@[<2>%a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Signature.Definable Free,ty) ->
+      fprintf fmt "@[<2>def %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Signature.Definable AC,ty) ->
+      fprintf fmt "@[<2>defac %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Signature.Definable(ACU(neu)),ty) ->
+      fprintf fmt "@[<2>defacu[%a] %a :@ %a.@]@.@." pp_term neu pp_ident id pp_term ty
+  | Def(_,id,opaque,ty,te)  ->
+    let key = if opaque then "thm" else "def" in
+    begin
+      match ty with
+      | None    -> fprintf fmt "@[<hv2>%s %a@ :=@ %a.@]@.@." key
+                     print_ident id print_term te
+      | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
+                     print_ident id print_term ty print_term te
+    end
+  | Rules(rs)               ->
+      fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) rs
+  | Eval(_,cfg,te)          ->
+      fprintf fmt "#EVAL%a %a.@." print_red_cfg cfg print_term te
+  | Infer(_,cfg,te)         ->
+      fprintf fmt "#INFER%a %a.@." print_red_cfg cfg print_term te
+  | Check(_,assrt,neg,test) ->
+      let cmd = if assrt then "#ASSERT" else "#CHECK" in
+      let neg = if neg then "NOT" else "" in
+      begin
+        match test with
+        | Convert(t1,t2) ->
+            fprintf fmt "%s%s %a ==@ %a.@." cmd neg print_term t1 print_term t2
+        | HasType(te,ty) ->
+            fprintf fmt "%s%s %a ::@ %a.@." cmd neg print_term te print_term ty
+      end
+  | DTree(_,m,v)            ->
+      begin
+        match m with
+        | None   -> fprintf fmt "#GDT %a.@." print_ident v
+        | Some m -> fprintf fmt "#GDT %a.%a.@." print_mident m print_ident v
+      end
+  | Print(_, str)           ->
+      fprintf fmt "#PRINT %S.@." str
+  | Name(_,_)               ->
+      ()
