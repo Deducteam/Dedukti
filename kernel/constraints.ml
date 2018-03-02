@@ -584,10 +584,66 @@ struct
          | Some c -> ConstraintsSet.add c cs) cs ConstraintsSet.empty
 
 
+  module VarSet = Set.Make(struct type t = Basic.ident let compare = compare end)
+
+  let get_vars cs =
+    ConstraintsSet.fold (fun x vs ->
+        match x with
+        | Eq(n,n') -> VarSet.add n (VarSet.add n' vs)
+        | Succ(n,n') -> VarSet.add n (VarSet.add n' vs)
+        | Max(n,n', n'') -> VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
+        | Rule(n,n', n'') -> VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
+        | Univ(n,_) -> VarSet.add n vs
+      ) cs VarSet.empty
+
+  let acc var cs =
+    let test vs =
+      ConstraintsSet.fold (fun x vs ->
+          match x with
+          | Eq(n,n') ->
+            if VarSet.mem n vs || VarSet.mem n' vs then
+              VarSet.add n (VarSet.add n' vs)
+            else
+              vs
+          | Succ(n,n') ->
+            if VarSet.mem n vs || VarSet.mem n' vs then
+              VarSet.add n (VarSet.add n' vs)
+            else
+              vs
+          | Max(n,n', n'') ->
+            if VarSet.mem n vs || VarSet.mem n' vs || VarSet.mem n'' vs  then
+              VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
+            else
+              vs
+          | Rule(n,n', n'') ->
+            if VarSet.mem n vs || VarSet.mem n' vs || VarSet.mem n'' vs  then
+              VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
+            else
+              vs
+          | Univ(n,_) -> vs
+        ) cs vs
+    in
+    let rec fp vs =
+      let vs' = test vs in
+      if VarSet.equal vs' vs then
+        vs
+      else
+        fp vs'
+    in
+    fp (VarSet.singleton var)
+
+
+  let print_acc cs vs =
+    VarSet.iter (fun var ->
+        Format.eprintf "%d@." (VarSet.cardinal (acc var cs))) vs
+
   let rec optimize s =
     Format.eprintf "Before optimizations.@.%s@." (info s);
     let cs = ConstraintsSet.map normalize_eq (opt_map normalize s) in
     Format.eprintf "After optimizations.@.%s@." (info cs);
+    let vs = get_vars cs in
+    Format.eprintf "Real number of variables: %d@." (VarSet.cardinal vs);
+    print_acc cs vs;
     cs
 
   let export () =
