@@ -5,4 +5,4 @@ a : A.
 
 def f : (A -> A) -> A -> A.
 
-[t] f (x => t) {t} --> a.
+[t] f (x => {t}) t --> a.
