@@ -22,3 +22,8 @@ kernel/version.ml
 # emacs tmp files
 *~
 \#*\#
+
+# Generated doc
+*.html
+*.css
+

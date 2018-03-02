@@ -114,3 +114,6 @@ let is_AC alg = alg <> Free
 type untyped_context = ( loc * ident ) list
 
 type typed_context = ( loc * ident * term ) list
+
+type 'a depthed = int * 'a
+

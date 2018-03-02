@@ -6,8 +6,6 @@ open Ac
 
 exception NotUnifiable
 
-type 'a depthed = int * 'a
-
 type var_p = int * int LList.t
 
 (* TODO: add loc to this to better handle errors *)
@@ -109,6 +107,21 @@ let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
   in
   aux 0 te
 
+(** solve [n] [k_lst] [te] solves the following higher-order unification problem:
+    (unification modulo beta)
+      x_1 => x_2 ... x_n => X x_(i_1) .. x_(i_m) = x_1 => x_2 ... x_n => te
+    where X is the unknown, x_(i_1) .. x_(i_m) are distinct variables bound
+    in the local context and [te] is a term.
+  
+  If the free variables of [te] that are in x_1 .. x_n are also in x_(i_1) .. x_(i_m) then
+  the problem has a unique solution (modulo beta) that is
+  x_(i_1) => .. => x_(i_m) => te.
+  Otherwise this problem has no solution.
+
+  Since we use deBruijn indexes, the problem is given as the equation
+  x_1 => .. => x_n => X (DB [k_0]) ... (DB [k_n]) =~ x_1 => .. => x_n => [te]
+  and where [k_lst] = \[[k_0::k_1::..::k_m]\].
+*)
 let solve d args t =
   if LList.is_empty args
   then try Subst.unshift d t with Subst.UnshiftExn -> raise NotUnifiable
@@ -337,7 +350,7 @@ let get_subst pb =
     Some( Array.mapi aux pb.status )
 
 (** Main solving function *)
-let solve_problem reduce convertible pb =
+let solve_problem reduce convertible whnf pb =
   let problems = first_rearrange pb.problems in
   debug (if problems = [] then 4 else 3) "Solving problem: %a" (pp_matching_problem "    ") pb;
   let rec solve_next pb =
@@ -346,54 +359,77 @@ let solve_problem reduce convertible pb =
     match fetch_next_problem pb with
     | None -> get_subst pb (* If no problem left, compute substitution and return (success !) *)
     | Some ((d, p), other_problems, (i,args)) -> (* Else explore the problem fetched... *)
-       match p with
-       | Eq((j,_), term) -> (* If it's an easy equational problem*)
-          begin
-            assert (j == i);
-            assert (pb.status.(i) == Unsolved);
-            let npb = bind_opt
-                        (set_unsolved convertible {pb with problems=other_problems} i)
-                        (try_force_solve reduce d i args term) in
-            (* Update the rest of the problems with the solved variable and keep solving *)
-            try_solve_next npb
-          end
-       | AC(aci,joks,[],terms) -> (* Left hand side empty. Fail or discard AC equation. *)
-          if terms = [] || joks > 0
-          then solve_next { pb with problems = other_problems }
-          else None
-       | AC(aci,joks,vars,terms) -> (* An AC equation *)
-          match pb.status.(i) with
-          | Partly(aci',sols) when ac_ident_eq aci aci' ->
-             let rec try_add_terms = function
-               | [] -> try_solve_next (close_partly convertible pb d i)
-               | t :: tl ->
-                  let sol = try_force_solve reduce d i args t in
-                  let npb = bind_opt (add_partly convertible pb i) sol in
-                  match try_solve_next npb with
-                  | None -> try_add_terms tl
-                  | a -> a in
-             try_add_terms terms
-          | Partly(acip',sols) -> assert false
-          | Unsolved ->
-             let rec try_eq_terms = function
-               | [] -> (* If all terms have been tried unsucessfully, then
-                        * the variable [i] is a combination of terms under an AC symbol. *)
-                 let symbols = [aci] in (*get_all_ac_symbols pb i in*)
-                 let rec try_symbols = function
-                   | [] -> None
-                   | aci :: tl ->
-                     match solve_next (set_partly pb i aci) with
-                     | None -> try_symbols tl
-                     | a -> a
-                 in
-                 try_symbols symbols
-               | t :: tl ->
-                 let sol = try_force_solve reduce d i args t in
-                 let npb = bind_opt (set_unsolved convertible pb i) sol in
-                 match try_solve_next npb with
-                 | None -> try_eq_terms tl
-                 | a -> a in
-             try_eq_terms terms
-          | Solved _ -> assert false
+      match p with
+      | Eq((j,_), term) -> (* If it's an easy equational problem*)
+        begin
+          assert (j == i);
+          assert (pb.status.(i) == Unsolved);
+          let npb = bind_opt
+              (set_unsolved convertible {pb with problems=other_problems} i)
+              (try_force_solve reduce d i args term) in
+          (* Update the rest of the problems with the solved variable and keep solving *)
+          try_solve_next npb
+        end
+      | AC(aci,joks,[],terms) -> (* Left hand side empty. Fail or discard AC equation. *)
+        if terms = [] || joks > 0
+        then solve_next { pb with problems = other_problems }
+        else None
+      | AC(aci,joks,vars,terms) -> (* An AC equation *)
+        match pb.status.(i) with
+        | Partly(aci',sols) when ac_ident_eq aci aci' ->
+          let rec try_add_terms = function
+            | [] -> try_solve_next (close_partly convertible pb d i)
+            | t :: tl ->
+              let sol = try_force_solve reduce d i args t in
+              let npb = bind_opt (add_partly convertible pb i) sol in
+              match try_solve_next npb with
+              | None -> try_add_terms tl
+              | a -> a in
+          try_add_terms terms
+        | Partly(acip',sols) -> assert false
+        | Unsolved ->
+          let rec try_eq_terms = function
+            | [] -> (* If all terms have been tried unsucessfully, then
+                     * the variable [i] is a combination of terms under an AC symbol. *)
+              let symbols = [aci] in (*get_all_ac_symbols pb i in*)
+              let rec try_symbols = function
+                | [] -> None
+                | aci :: tl ->
+                  match solve_next (set_partly pb i aci) with
+                  | None -> try_symbols tl
+                  | a -> a
+              in
+              try_symbols symbols
+            | t :: tl ->
+              let sol = try_force_solve reduce d i args t in
+              let npb = bind_opt (set_unsolved convertible pb i) sol in
+              match try_solve_next npb with
+              | None -> try_eq_terms tl
+              | a -> a in
+          try_eq_terms terms
+        | Solved _ -> assert false
   in
   solve_next { pb with problems = problems }
+
+
+module rec Test :
+sig
+  val a : unit -> int
+  val b : unit -> int
+end =
+struct
+  open Test2
+  let a x = 1
+  let b x = d ()
+end
+
+and Test2 :
+sig
+  val c : unit -> int
+  val d : unit -> int
+end =
+struct
+  open Test
+  let c x = a ()
+  let d x = 2
+end

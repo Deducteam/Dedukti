@@ -269,7 +269,10 @@ let unshift_n sg n te =
   try Subst.unshift n te
   with Subst.UnshiftExn -> Subst.unshift n (snf sg te)
 
-let rec infer_pattern sg (delta:partial_context) (sigma:context2) (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
+type contexted_type = typ * partial_context * constraints
+
+let rec infer_pattern sg (delta:partial_context) (sigma:context2)
+    (lst:constraints) (pat:pattern) : contexted_type =
   match pat with
   | Pattern (l,cst,args) ->
     let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
@@ -290,7 +293,9 @@ let rec infer_pattern sg (delta:partial_context) (sigma:context2) (lst:constrain
     let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
     raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
 
-and infer_pattern_aux sg (sigma:context2) (f,ty_f,delta,lst:term*typ*partial_context*constraints) (arg:pattern) : term * typ * partial_context * constraints =
+and infer_pattern_aux sg (sigma:context2)
+    (f,ty_f,delta,lst:term*typ*partial_context*constraints)
+    (arg:pattern) : term * typ * partial_context * constraints =
   match whnf sg ty_f with
     | Pi (_,_,a,b) ->
         let (delta2,lst2) = check_pattern sg delta sigma a lst arg in

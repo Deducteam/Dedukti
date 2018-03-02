@@ -232,8 +232,10 @@ let get_nb_args (esize:int) (p:pattern) : int array =
   let min a b = if a < 0 then b else min a b in
   let rec aux k = function
     | Brackets _ -> ()
-    | Var (_,_,n,args) when n<k -> List.iter (aux k) args
-    | Var (_,id,n,args) -> arr.(n-k) <- min (arr.(n-k)) (List.length args)
+    | Var (_,_,n,args) ->
+      if n < k (* If the variable is locally bound.  *)
+      then List.iter (aux k) args
+      else arr.(n-k) <- min (arr.(n-k)) (List.length args)
     | Lambda (_,_,pp) -> aux (k+1) pp
     | Pattern (_,_,args) -> List.iter (aux k) args
   in
@@ -258,7 +260,7 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
   in
   aux 0 te
 
-let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
+let to_rule_infos (r : typed_rule) : (rule_infos,rule_error) error =
   try
     let esize = List.length r.ctx in
     let (l,cst,args) = match r.pat with

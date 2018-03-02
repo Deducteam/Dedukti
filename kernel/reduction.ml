@@ -6,6 +6,7 @@ open Dtree
 open Matching
 open Ac
 
+
 type red = {
   select : (Rule.rule_name -> bool) option;
   beta : bool
@@ -47,14 +48,6 @@ exception Not_convertible
 
 (* Pretty Printing *)
 
-(* Do we need these ?*)
-(*
-let pp_state fmt st =
-  fprintf fmt "{ctx} {%a} {stack[%i]}\n" pp_term st.term (List.length st.stack)
-
-let pp_stack fmt stck = fprintf fmt "[\n%a]\n" (pp_list "" pp_state) stck
-*)
-
 let pp_env fmt (ctx:env) =
   pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst ctx))
 
@@ -73,10 +66,12 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
 
 (* Misc *)
 
-let rec split_stack (i:int) : stack -> (stack*stack) option = function
-  | l  when i=0 -> Some ([],l)
+let rec split_stack (i:int) (s:stack) : (stack*stack) option =
+  let rec aux i acc = function
+  | l  when i=0 -> Some (List.rev acc,l)
   | []          -> None
-  | x::l        -> map_opt (fun (s1,s2) -> (x::s1,s2) ) (split_stack (i-1) l)
+  | x::l        -> aux (i-1) (x::acc) l in
+  aux i [] s
 
 (* ********************* *)
 
@@ -99,7 +94,7 @@ let convert_problem stack problem =
          | _ -> assert false
        end
     | _ -> assert false in
-  Matching.mk_matching_problem convert convert_ac_sets problem
+  mk_matching_problem convert convert_ac_sets problem
 
 (* AC related operations *)
 
@@ -247,7 +242,7 @@ let rec gamma_rw_list (sg:Signature.t)
      | None -> gamma_rw_list sg convertible forcing strategy tl
      | Some _ as x -> x
 
-(*TODO implement the stack as an array ? (the size is known in advance).*)
+(* TODO implement the stack as an array ? (the size is known in advance). *)
 and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
              (forcing:rw_strategy) (strategy:rw_state_strategy)
              ?rewrite:(rewrite=true) (stack:stack) :  dtree -> (env*term) option = function
@@ -291,7 +286,7 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
   | Test (problem, cstr, right, def) ->
     let pb = convert_problem stack problem in (* Convert problem with the stack *)
     begin
-      match Matching.solve_problem (forcing sg) (convertible sg) pb with
+      match solve_problem (forcing sg) (convertible sg) (forcing sg) pb with
       | None -> bind_opt (gamma_rw sg convertible forcing strategy stack) def
       | Some subst ->
         begin

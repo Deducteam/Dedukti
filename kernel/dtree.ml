@@ -416,8 +416,6 @@ let partition (ignore_arity:bool) (is_AC:name->bool) (mx:matrix) (c:int) : case 
 
 (* ***************************** *)
 
-let array_to_llist arr = LList.of_array arr
-
 let get_first_term        mx = mx.first.right
 let get_first_constraints mx = mx.first.constraints
 
@@ -448,7 +446,9 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
                    assert(depth <= n && n < esize + depth);
                    let n = n - depth in
                    let len = List.length lst in
-                   if miller.(n) == -1 then miller.(n) <- len else assert(miller.(n) == len);
+                   if miller.(n) == -1
+                   then miller.(n) <- len
+                   else assert(miller.(n) == len);
                    let nvars = (n, LList.make len lst) :: vars in
                    (joks,nvars)
                  end
