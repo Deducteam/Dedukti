@@ -34,7 +34,8 @@ os:
   - linux
 notifications:
   email:
-    - gaspard.ferey@lsv.fr
+    - dedukti-commits@lists.gforge.inria.fr
 branches:
   only:
-    - acu
+    - master
+    - develop
