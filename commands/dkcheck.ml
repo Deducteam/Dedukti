@@ -137,9 +137,6 @@ let _ =
     ; ( "-stdin"
       , Arg.String (fun n -> run_on_stdin := Some(mk_mident n))
       , "MOD Parses standard input using module name MOD" )
-    ; ( "-r"
-      , Arg.Set Signature.ignore_redecl
-      , " Ignore redeclaration of symbols" )
     ; ( "-version"
       , Arg.Unit (fun _ -> Printf.printf "Dedukti %s\n%!" Version.version)
       , " Print the version number" )

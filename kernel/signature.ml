@@ -5,7 +5,6 @@ open Term
 open Rule
 open Dtree
 
-let ignore_redecl = ref false
 let autodep = ref false
 
 type signature_error =
@@ -231,8 +230,7 @@ let add_declaration sg lc v st ty =
   Confluence.add_constant cst;
   let env = HMd.find sg.tables sg.name in
   if HId.mem env v then
-    ( if !ignore_redecl then debug 1 "Redeclaration ignored."
-      else raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
+    raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
   else
     HId.add env v {stat=st; ty=ty; rule_opt_info=None}
 

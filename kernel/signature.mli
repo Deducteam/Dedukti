@@ -5,10 +5,6 @@ open Term
 open Rule
 open Dtree
 
-val ignore_redecl       : bool ref
-(** When [ignore_redecl] is [true], allows a constant to be redefined.
-    By default, [ignore_redecl] is set to [false].*)
-
 val autodep             : bool ref
 (** When [autodep] is [true], handles automically dependencies. Be careful,
     [autodep] makes two hypothesis :
