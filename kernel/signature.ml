@@ -128,7 +128,7 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   if HMd.mem sg.tables m then
-    debug 0 "[Warning] try to import twice the same module"
+    warn "Trying to import twice the same module"
   else
 
   (* If the [.dko] file is not found, try to compile it first.
