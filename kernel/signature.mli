@@ -5,14 +5,7 @@ open Term
 open Rule
 open Dtree
 
-val autodep             : bool ref
-(** When [autodep] is [true], handles automically dependencies. Be careful,
-    [autodep] makes two hypothesis :
-    - Every file declares a module of the same name of the file
-    - There is no circular dependencies. *)
-
 type signature_error =
-  | FailToCompileModule of loc * mident
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError of loc * string * string
   | UnmarshalUnknown of loc * string

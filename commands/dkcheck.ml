@@ -141,9 +141,6 @@ let _ =
     ; ( "-coc"
       , Arg.Set Typing.coc
       , " Typecheck the Calculus of Construction" )
-    ; ( "-autodep"
-      , Arg.Set Signature.autodep
-      , " Automatically handle dependencies (experimental)" )
     ; ( "-I"
       , Arg.String Basic.add_path
       , "DIR Add the directory DIR to the load path" )
