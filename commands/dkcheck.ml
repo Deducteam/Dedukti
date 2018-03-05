@@ -135,18 +135,12 @@ let _ =
     ; ( "-stdin"
       , Arg.String (fun n -> run_on_stdin := Some(mk_mident n))
       , "MOD Parses standard input using module name MOD" )
-    ; ( "-r"
-      , Arg.Set Signature.ignore_redecl
-      , " Ignore redeclaration of symbols" )
     ; ( "-version"
       , Arg.Unit (fun _ -> Printf.printf "Dedukti %s\n%!" Version.version)
       , " Print the version number" )
     ; ( "-coc"
       , Arg.Set Typing.coc
       , " Typecheck the Calculus of Construction" )
-    ; ( "-autodep"
-      , Arg.Set Signature.autodep
-      , " Automatically handle dependencies (experimental)" )
     ; ( "-I"
       , Arg.String Basic.add_path
       , "DIR Add the directory DIR to the load path" )

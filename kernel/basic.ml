@@ -163,13 +163,12 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
 
 type 'a printer = Format.formatter -> 'a -> unit
 
-let pp_ident  fmt id = Format.fprintf fmt "%s" id
-let pp_mident fmt md = Format.fprintf fmt "%s" md
-let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
-let pp_loc    fmt (l,c) = Format.fprintf fmt "line:%i column:%i" l c
-
-
 let string_of fp = Format.asprintf "%a" fp
+
+let pp_ident  fmt id      = Format.fprintf fmt "%s" id
+let pp_mident fmt md      = Format.fprintf fmt "%s" md
+let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
+let pp_loc    fmt (l,c)   = Format.fprintf fmt "line:%i column:%i" l c
 
 let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 
@@ -177,5 +176,5 @@ let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp f
 let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
 
 let pp_option def pp fmt = function
-  | None -> Format.fprintf fmt "%s" def
+  | None   -> Format.fprintf fmt "%s" def
   | Some a -> Format.fprintf fmt "%a" pp a

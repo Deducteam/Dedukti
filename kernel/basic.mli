@@ -3,51 +3,50 @@
 (** {2 Identifiers (hashconsed strings)} *)
 (** Internal representation of identifiers as hashconsed strings. *)
 
-(** type of identifiers (hash-consing) *)
+(** Type of identifiers (hash-consing) *)
 type ident
 
-
-(** mkd_ident [str] casts a string [str] to an identifier *)
+(** [mkd_ident str] casts a string [str] to an identifier *)
 val mk_ident : string -> ident
 
-(** ident_eq [id] [id'] checks if the two identifiers [id] and [id'] are equals *)
+(** [ident_eq id id'] checks if the two identifiers [id] and [id'] are equals *)
 val ident_eq : ident -> ident -> bool
 
-(** string_of_ident [id] returns a string of the identifier [id] *)
+(** [string_of_ident id] returns a string of the identifier [id] *)
 val string_of_ident : ident -> string
 
 (** type of module identifers *)
 type mident
 
-(** mk_ident [str] casts a string [str] to an module identifier *)
+(** [mk_ident str] casts a string [str] to an module identifier *)
 val mk_mident : string -> mident
 
-(** mident_eq [md] [md'] checks if the two modules identifiers [mid] and [mid'] are equals *)
+(** [mident_eq md md'] checks if the two modules identifiers [mid] and [mid'] are equals *)
 val mident_eq : mident -> mident -> bool
 
-(** string_of_ident [id] returns a string of the identifier [id] *)
+(** [string_of_ident id] returns a string of the identifier [id] *)
 val string_of_mident : mident -> string
 
 (** type for constant names such as [foo.bar] *)
 type name
 
-(** md [foo.bar] returns foo *)
+(** [md foo.bar] returns foo *)
 val md : name -> mident
 
-(** id [foo.bar] returns bar *)
+(** [id foo.bar] returns bar *)
 val id : name -> ident
 
-(** mk_name foo bar returns the foo.bar *)
+(** [mk_name foo bar] returns the identifier foo.bar *)
 val mk_name : mident -> ident -> name
 
-(** name_eq [n] [n'] checks if the two names [n] and [n'] are equals *)
+(** [name_eq n n'] checks if the two names [n] and [n'] are equals *)
 val name_eq : name -> name -> bool
-
 
 (** qmark is a special identifier for unification variables *)
 val dmark : ident
 
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
+
 
 (** {2 Lists with Length} *)
 
@@ -78,16 +77,16 @@ end
 (** type of locations *)
 type loc
 
-(** dloc is the default location *)
-val dloc                : loc
+(** a dummy location *)
+val dloc : loc
 
-(** mk_loc l c build the location where [l] is the line and [c] the column *)
-val mk_loc              : int -> int -> loc
+(** [mk_loc l c] builds the location where [l] is the line and [c] the column *)
+val mk_loc : int -> int -> loc
 
-val of_loc              : loc -> (int*int)
+val of_loc : loc -> (int*int)
 
-val add_path       : string -> unit
-val get_path       : unit -> string list
+val add_path : string -> unit
+val get_path : unit -> string list
 
 (** {2 Error Datatype} *)
 
@@ -125,10 +124,11 @@ val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
 val array_for_all : ('a -> bool) -> 'a array -> bool
 
-val string_of : (Format.formatter -> 'a -> unit) -> 'a -> string
-
 (** Functions printing objects on the given formatter. *)
 type 'a printer = Format.formatter -> 'a -> unit
+
+(** Prints to a string *)
+val string_of : 'a printer -> 'a -> string
 
 (** Printing identifiers and names *)
 val pp_ident  : ident  printer

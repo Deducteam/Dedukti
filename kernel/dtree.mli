@@ -47,4 +47,4 @@ type dtree_error =
   | AritySymbolMismatch of loc * name * name
 
 (** Compilation of rewrite rules into decision trees. *)
-val of_rules : (name->algebra) -> rule_infos list -> (dtree, dtree_error) error
+val of_rules : (name -> algebra) -> rule_infos list -> (dtree, dtree_error) error

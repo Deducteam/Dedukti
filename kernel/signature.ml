@@ -5,9 +5,6 @@ open Term
 open Rule
 open Dtree
 
-let ignore_redecl = ref false
-let autodep = ref false
-
 type signature_error =
   | FailToCompileModule   of loc * mident
   | UnmarshalBadVersionNumber of loc * string
@@ -206,24 +203,15 @@ let rec import sg lc m =
   if HMd.mem sg.tables m then
     warn "Trying to import twice the same module"
   else
-
-  (* If the [.dko] file is not found, try to compile it first.
-     This hack is terrible. It uses system calls and can loop with circular dependencies.
-     Also, this hack supposes that the module name and the file name are the same.*)
-  ( if !autodep && not ( Sys.file_exists ( string_of_mident m ^ ".dko" ) ) then
-      if Sys.command ( "dkcheck -autodep -e " ^ string_of_mident m ^ ".dk" ) <> 0 then
-        raise (SignatureError (FailToCompileModule (lc,m)))
-  ) ;
-
-  let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
-  HMd.add sg.tables m ctx;
-  List.iter ( fun dep0 ->
-      let dep = mk_mident dep0 in
-      if not (HMd.mem sg.tables dep) then import sg lc dep
-    ) deps ;
-  debug 1 "Loading module '%a'..." pp_mident m;
-  List.iter (fun rs -> add_rule_infos sg rs) ext;
-  check_confluence_on_import lc m ctx
+    let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
+    HMd.add sg.tables m ctx;
+    List.iter ( fun dep0 ->
+        let dep = mk_mident dep0 in
+        if not (HMd.mem sg.tables dep) then import sg lc dep
+      ) deps ;
+    debug 1 "Loading module '%a'..." pp_mident m;
+    List.iter (fun rs -> add_rule_infos sg rs) ext;
+    check_confluence_on_import lc m ctx
 
 and add_rule_infos sg (lst:rule_infos list) : unit =
   match lst with
@@ -339,8 +327,7 @@ let add_declaration sg lc v st ty =
   Confluence.add_constant cst;
   let env = HMd.find sg.tables sg.name in
   if HId.mem env v then
-    ( if !ignore_redecl then debug 1 "Redeclaration ignored."
-      else raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
+    raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
   else
     HId.add env v {stat=st; ty=ty; rule_opt_info=None}
 
