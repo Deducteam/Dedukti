@@ -14,7 +14,7 @@ type term = private
   | Lam   of loc * ident * term option * term (** Lambda abstraction *)
   | Pi    of loc * ident * term * term        (** Pi abstraction *)
 
-val pp_term : Format.formatter -> term -> unit
+val pp_term : term printer
 
 val get_loc : term -> loc
 

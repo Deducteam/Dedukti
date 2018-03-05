@@ -5,31 +5,28 @@
 
 type ident = string
 
-let pp_ident fmt id = Format.fprintf fmt "%s" id
-
-type mident = string
-
-let pp_mident fmt md = Format.fprintf fmt "%s" md
-
-type name = mident * ident
-
-let pp_name fmt (md,id) = Format.fprintf fmt "%s.%s" md id
-
-let md = fst
-
-let id = snd
-
-let mk_name md id = (md,id)
-
 let string_of_ident s = s
-
-let string_of_mident s = s
 
 let ident_eq s1 s2 = s1==s2 || s1=s2
 
+
+type mident = string
+
+let string_of_mident s = s
+
 let mident_eq = ident_eq
 
-let name_eq n n' = ident_eq (md n) (md n') && ident_eq (id n) (id n')
+
+(* TODO: rename ident *)
+type name = mident * ident
+
+let mk_name md id = (md,id)
+
+let name_eq (m,s) (m',s') = mident_eq m m' && ident_eq s s'
+
+let md = fst
+let id = snd
+
 
 
 module WS = Weak.Make(
@@ -127,6 +124,8 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
   in
     aux lst
 
+(** {2 Debugging} *)
+
 let debug_mode = ref 0
 
 let set_debug_mode i = debug_mode := i
@@ -138,6 +137,8 @@ let debug i fmt = Format.(
   )
 
 let warn fmt = debug 0 ("[Warning] " ^^ fmt)
+
+(** {2 Misc functions} *)
 
 let bind_opt f = function
   | None -> None
@@ -153,9 +154,22 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
+(** {2 Printing functions} *)
+
+type 'a printer = Format.formatter -> 'a -> unit
+
 let string_of fp = Format.asprintf "%a" fp
 
-let format_of_sep str fmt () : unit =
-  Format.fprintf fmt "%s" str
+let pp_ident  fmt id = Format.fprintf fmt "%s" id
+let pp_mident fmt md = Format.fprintf fmt "%s" md
+let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
+let pp_loc    fmt (l,c) = Format.fprintf fmt "line:%i column:%i" l c
+
+let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 
 let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l
+let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
+
+let pp_option def pp fmt = function
+  | None -> Format.fprintf fmt "%s" def
+  | Some a -> Format.fprintf fmt "%a" pp a
