@@ -32,7 +32,7 @@ total=0
 for i in tests/OK/*.dk ; do
 	total=$((total+1)) ;
     echo -n "$i..." ;
-    if ./dkcheck.native -nc "$i" 2>&1 | uniq -c | egrep  "^ *[0-9]*(1|3|5|7|9) .*" | egrep -v -q "^ *1 SUCCESS.*" ;
+    if ./dkcheck.native -q -nc "$i" 2>&1 | uniq -c | egrep  "^ *[0-9]*(1|3|5|7|9) .*" | egrep -v -q "^ *1 SUCCESS.*" ;
 	then
 		echo -e "\033[0;31mKO\033[0m"
 	else

@@ -301,8 +301,9 @@ and infer_pattern_aux sg (sigma:context2) (f,ty_f,delta,lst:term*typ*partial_con
       let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
       raise (TypingError (ProductExpected (f,ctx,ty_f)))
 
-and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:constraints) (pat:pattern) : partial_context * constraints =
-(*   debug "check_pattern %a:%a" pp_pattern pat pp_term exp_ty; *)
+and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
+    (lst:constraints) (pat:pattern) : partial_context * constraints =
+  debug 3 "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty;
   match pat with
   | Lambda (l,x,p) ->
     begin
@@ -313,20 +314,20 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
         raise (TypingError ( ProductExpected (pattern_to_term pat,ctx,exp_ty)))
     end
   | Brackets te ->
-        let te2 =
-          try Subst.unshift (delta.padding + LList.len sigma) te
-          with Subst.UnshiftExn ->
-            let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-            raise (TypingError (BracketError1 (te,ctx)))
-        in
-        let ty2 =
-          try unshift_n sg (delta.padding + LList.len sigma) exp_ty
-          with Subst.UnshiftExn ->
-            let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-            raise (TypingError (BracketError2 (te,ctx,exp_ty)))
-        in
-        check sg (pc_to_context delta) te2 ty2;
-        ( delta, lst )
+    let te2 =
+      try Subst.unshift (delta.padding + LList.len sigma) te
+      with Subst.UnshiftExn ->
+        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
+        raise (TypingError (BracketError1 (te,ctx)))
+    in
+    let ty2 =
+      try unshift_n sg (delta.padding + LList.len sigma) exp_ty
+      with Subst.UnshiftExn ->
+        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
+        raise (TypingError (BracketError2 (te,ctx,exp_ty)))
+    in
+    check sg (pc_to_context delta) te2 ty2;
+    ( delta, lst )
   | Var (l,x,n,[]) when ( n >= LList.len sigma ) ->
     begin
       let k = LList.len sigma in
