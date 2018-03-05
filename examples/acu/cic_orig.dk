@@ -1,5 +1,3 @@
-#NAME cic.
-
 Nat : Type.
 
 z : Nat.

@@ -1,5 +1,3 @@
-#NAME cnf.
-
 Lit : Type.
 a : Lit.
 b : Lit.
@@ -41,7 +39,8 @@ def not : Prop -> Prop.
 [x] or  (L x) (not (L x)) --> T.
 
 
-def cnf :=
+(;  ~(A /\ B) /\ ~(B /\ C) /\ ~(C /\ D) /\ ~(D /\ A)  ;)
+def conj :=
   and
 	(not (and (L a) (L b)))
 	(and
@@ -50,7 +49,8 @@ def cnf :=
 		(not (and (L c) (L d)))
 		(not (and (L d) (L a))))).
 
-def dnf :=
+(;  ~(A \/ B) \/ ~(B \/ C) \/ ~(C \/ D) \/ ~(D \/ A)  ;)
+def disj :=
   or
 	(not (or (L a) (L b)))
 	(or
@@ -59,5 +59,5 @@ def dnf :=
 		(not (or (L c) (L d)))
 		(not (or (L d) (L a))))).
 
-#SNF dnf.  (; Much shorter ! ;)
-#SNF cnf.  (; Still long... ;)
+#EVAL[SNF] conj.  (; Still long... ;)
+#EVAL[SNF] disj.  (; Much shorter ! ;)

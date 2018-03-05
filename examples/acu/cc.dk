@@ -25,15 +25,33 @@ def rule : Sort -> Sort -> Sort.
 [i,j,k] max (rule i j) (rule i k) --> rule i (max j k).
 [i,j,k] max (rule j i) (rule k i) --> rule (max j k) i.
 
+#EVAL[SNF] u : Sort => v : Sort => w : Sort =>
+  max (plus u v) (plus u w).
+
+#EVAL[SNF] x : Sort => y : Sort =>
+  rule 0 (rule (plus (plus x 1) (plus y 0)) (plus (plus 0 (plus 0 1)) (plus x y))).
+
+#EVAL[SNF] x : Sort => y : Sort =>
+  rule (rule (plus (plus x 1) (plus y 0)) (plus (plus 0 (plus 0 1)) (plus x y))) 0.
+
+#EVAL[SNF] i : Sort => rule (plus 1 i) 1.
+
+
 U : Sort -> Type.
 u : i : Sort -> U (plus i 1).
 
-def lift : i : Sort -> j : Sort -> a : U i -> U (plus i j).
-[i,a] lift i 0 a --> a.
+lift : i : Sort -> a : U i -> U (plus i 1).
+
+def lnlift : n : Sort -> i : Sort -> a : U n -> U (plus n i).
+[n,a]   lnlift n 0 a --> a
+[n,i,a] lnlift n (plus i 1) a --> lift (plus n i) (lnlift n i a).
+
+def llift : i : Sort -> a : U 0 -> U i := lnlift 0.
 
 def T : i : Sort -> a : U i -> Type.
-[i,  k  ] T k (u i)        --> U i
-[i,j,k,a] T k (lift i j a) --> T i a.
+[i,k]   T k (u i)      --> U i
+[i,k,a] T k (lift i a) --> T i a
+[i,k,a] T k (llift i a) --> T 0 a. (; This rule deduces from above. ;)
 
 def prod :
   i : Sort ->
@@ -42,9 +60,25 @@ def prod :
   b : (x : T i a -> U j) ->
   U (rule i j).
 
+[i,a,b] T 0 (prod i 0 a b) --> x : T i a -> T 0 (b x)
+(;
+[i,j,a,b] T _ (prod i (plus i j) a b)
+      --> x: T i a -> T (plus i j) (b x)
+[i,j,a,b] T _ (prod i i a b)
+      --> x: T i a -> T i (b x)
+[i,j,a,b] T _ (prod 0 j a b)
+      --> x: T 0 a -> T j (b x)
+
+[i,j,a,b] T _ (prod (plus (plus i j) 1) (plus j 1) a b)
+	  --> x : T (plus (plus i j) 1) a -> T (plus j 1) (b x).
+
+[i,j,a,b] T _ (prod (plus (plus i j) 1) (plus j 1) a b)
+	  --> x : T (plus (plus i j) 1) a -> T (plus j 1) (b x).
+ ;)
 [i,j,a,b] T _ (prod i j a b) --> x : T i a -> T j (b x).
 
-[i,j,a,b] prod _ (plus (plus i j) 1) (lift i j a) b
+
+[i,j,a,b] prod _ (plus (plus i j) 1) (lift i a) b
       --> prod i (plus (plus i j) 1) a          b
 
 [i,j,a,b] prod _ (plus j 1) (lift (plus (plus i j) 1) a) b

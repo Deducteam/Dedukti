@@ -61,4 +61,3 @@ refl : n : Z -> proof (eq n n).
 inf : Z -> Z -> Prop.
 inf_0_pos : n : positive.t -> proof (inf 0        (Zpos n)).
 inf_neg_0 : n : positive.t -> proof (inf (Zneg n) 0       ).
-

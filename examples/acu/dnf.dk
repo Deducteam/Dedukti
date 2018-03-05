@@ -38,7 +38,9 @@ def not : Prop -> Prop.
 [x] and (L x) (not (L x)) --> F.
 [x] or  (L x) (not (L x)) --> T.
 
-def cnf :=
+
+(;  ~(A /\ B) /\ ~(B /\ C) /\ ~(C /\ D) /\ ~(D /\ A)  ;)
+def conj :=
   and
 	(not (and (L a) (L b)))
 	(and
@@ -47,7 +49,8 @@ def cnf :=
 		(not (and (L c) (L d)))
 		(not (and (L d) (L a))))).
 
-def dnf :=
+(;  ~(A \/ B) \/ ~(B \/ C) \/ ~(C \/ D) \/ ~(D \/ A)  ;)
+def disj :=
   or
 	(not (or (L a) (L b)))
 	(or
@@ -56,6 +59,5 @@ def dnf :=
 		(not (or (L c) (L d)))
 		(not (or (L d) (L a))))).
 
-#SNF dnf.  (; Still long... ;)
-#SNF cnf.  (; Much shorter ! ;)
-
+#EVAL[SNF] conj.  (; Much shorter ! ;)
+#EVAL[SNF] disj.  (; Still long... ;)

@@ -1,8 +1,8 @@
 (** Basic Datatypes *)
 
+
 (** {2 Identifiers (hashconsed strings)} *)
 
-(* TODO: rename sident *)
 type ident = string
 
 let string_of_ident s = s

@@ -1,5 +1,3 @@
-#NAME idic.
-
 def Prop := cc.0.
 def 1    := cc.1.
 def plus := cc.plus.

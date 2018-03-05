@@ -1,5 +1,3 @@
-#NAME test.
-
 N : Type.
 0 : N.
 S : N -> N.
@@ -35,18 +33,19 @@ defac mset [N].
 
 #PRINT "--------".
 #PRINT "YES".
-#CONV mset 1 0, mset 0 1.
+#CHECK mset 1 0 == mset 0 1.
 #PRINT "--------".
 #PRINT "YES".
-#CONV mset 0 1, mset 1 0.
+#CHECK mset 0 1 == mset 1 0.
 #PRINT "--------".
 #PRINT "NO".
-#CONV mset 1 0, mset 0 0.
+#CHECK mset 1 0 == mset 0 0.
 
-#WHNF mset (mset 2 0) (mset 1 ( (x : N => mset x (mset (S x) x)) 4)).
-#SNF mset (mset 2 0) (mset 1 ( (x : N => mset x (mset (S x) x)) 4)).
+#EVAL[WHNF] mset (mset 2 0) (mset 1 ( (x : N => mset x (mset (S x) x)) 4)).
+#EVAL[SNF] mset (mset 2 0) (mset 1 ( (x : N => mset x (mset (S x) x)) 4)).
 
-#CONV mset (mset 3 4) (mset 0 1), mset (mset (mset 1 4) 0) 3.
+#CHECK mset (mset 3 4) (mset 0 1)
+    == mset (mset (mset 1 4) 0) 3.
 
 
 defac min [N].
@@ -56,7 +55,7 @@ defac min [N].
 #GDT min.
 
 #PRINT "----------- Gaspard ------------".
-#SNF min 3 (min 1 2).
+#EVAL[SNF] min 3 (min 1 2).
 
 
 #PRINT "".
@@ -66,8 +65,8 @@ defacu plus [N,0].
 [x,y] plus (S x) y --> S (plus x y).
 #GDT plus.
 
-#SNF plus 10 6.
-#SNF plus (plus 2 0) (plus 1 ( (x : N => plus x (plus (S x) x)) 4)).
+#EVAL[SNF] plus 10 6.
+#EVAL[SNF] plus (plus 2 0) (plus 1 ( (x : N => plus x (plus (S x) x)) 4)).
 
 
 #PRINT "".
@@ -78,15 +77,17 @@ defacu time [N,S 0].
 [x,y] time (S x) y --> plus y (time x y).
 #GDT time.
 
-#WHNF time 1 2.
-#SNF time 1 2.
-#CONV time 5 5, plus (plus 10 10) 5.
+#EVAL[WHNF] time 1 2.
+#EVAL[SNF] time 1 2.
+#CHECK time 5 5
+    == plus (plus 10 10) 5.
 
 
 #PRINT "----------- square ------------".
 
 def square := (x : N => time x x).
-#CONV plus (square 3) (square 4), square 5.
+#CHECK plus (square 3) (square 4)
+    == square 5.
 
 
 #PRINT "----------- bug ------------".
@@ -96,7 +97,7 @@ defacu bug [N,0].
 [x] bug (S x) (S x) --> x.
 [x] bug     x (S x) --> x.
 
-#SNF bug (bug 1 3) 3.
+#EVAL[SNF] bug (bug 1 3) 3.
 
 (; Use an extra variable to fix it ;)
 defacu dbug [N,0].
@@ -105,7 +106,7 @@ defacu dbug [N,0].
 [x]           dbug     x (S x)  --> x.
 [x,y] dbug y (dbug     x (S x)) --> dbug y x.
 
-#WHNF dbug (dbug 1 3) 3.
+#EVAL[WHNF] dbug (dbug 1 3) 3.
 
 
 (; Loops because of the following loop when x <- 0 :
@@ -114,7 +115,7 @@ defacu dbug [N,0].
 defacu bug2 [N,0].
 [x,y] bug2 y (bug2 x x) --> bug2 y x.
 (;
-#WHNF bug2 1 1.
+#EVAL[WHNF] bug2 1 1.
 (;;)
 
 
@@ -134,7 +135,7 @@ def c : n : N -> b (S n).
 [x]     c     0 x   --> x
 [x,y,n] c (S n) x y --> c n (max x y).
 
-#SNF (c (double 10) 8 7 3 4 5 6 7 4 6 1 2 2 3 5 4 1 2 2 2 9).
+#EVAL[SNF] (c (double 10) 8 7 3 4 5 6 7 4 6 1 2 2 3 5 4 1 2 2 2 9).
 
 
 #PRINT "----------- bin ------------".
@@ -148,8 +149,8 @@ def e : N -> N.
 [x]   e (S x)     --> plus (e x) (e x)
 [x,y] e (bin x y) --> plus (e x) (e y).
 
-#CONV bin 1 1, 2.
-#CONV bin 1 (bin 2 (bin 3 2)), bin 1 4.
-#CONV bin 1 (bin 2 (bin 3 1)), 4.
-#CONV e (bin 1 (bin 2 (bin 3 1))), double 8.
+#CHECK bin 1 1 == 2.
+#CHECK bin 1 (bin 2 (bin 3 2)) == bin 1 4.
+#CHECK bin 1 (bin 2 (bin 3 1)) == 4.
+#CHECK e (bin 1 (bin 2 (bin 3 1))) == double 8.
 
