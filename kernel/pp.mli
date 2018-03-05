@@ -6,30 +6,21 @@ open Rule
 val name                : unit -> mident
 val print_db_enabled    : bool ref
 val print_default       : bool ref
+
 (** {2 Printing functions} *)
 
-(** print_ident [fmt] [id] prints the identifier [id] with the formatter [fmt] *)
-val print_ident : Format.formatter -> ident -> unit
+val print_ident         : ident              printer
+val print_mident        : mident             printer
+val print_name          : name               printer
+val print_term          : term               printer
+val print_pattern       : pattern            printer
+val print_untyped_rule  : untyped_rule       printer
+val print_typed_rule    : typed_rule         printer
+val print_rule_infos    : rule_infos         printer
+val print_typed_context : typed_context      printer
+val print_red_cfg       : Reduction.red_cfg printer
+val print_entry         : Entry.entry        printer
 
-val print_mident : Format.formatter -> mident -> unit
-
-val print_name : Format.formatter -> name -> unit
-
-val print_list  : string -> (Format.formatter -> 'a -> unit)
-                  -> Format.formatter -> 'a list -> unit
-
-val print_term  : Format.formatter -> term -> unit
-
-val print_pattern : Format.formatter -> pattern -> unit
-
-val print_untyped_rule  : Format.formatter -> untyped_rule -> unit
-
-val print_typed_rule  : Format.formatter -> typed_rule -> unit
-
-val print_rule_infos : Format.formatter -> rule_infos -> unit
-
-val print_typed_context: Format.formatter -> typed_context -> unit
-
-val print_red_cfg :  Format.formatter -> Reduction.red_cfg -> unit
-
-val print_entry   : Format.formatter -> Entry.entry -> unit
+(** [print_list sep printer] returns a printer for ['a list] using [printer] as
+    element printer and [sep] as separator between elements. *)
+val print_list  : string -> 'a printer -> 'a list printer

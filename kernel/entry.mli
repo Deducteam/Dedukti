@@ -34,4 +34,4 @@ type entry =
   (** Obsolete #NAME command. *)
   | Name  of loc * mident
 
-val pp_entry : Format.formatter -> entry -> unit
+val pp_entry : entry printer

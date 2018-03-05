@@ -34,7 +34,7 @@ sig
   (* val merge : t -> t -> t *)
   val is_identity : t -> bool
   val mk_idempotent : t -> t
-  val pp : Format.formatter -> t -> unit
+  val pp : t Basic.printer
   val fold : (int -> (Basic.ident*term) -> 'b -> 'b) -> t -> 'b -> 'b
   val iter : (int -> (Basic.ident*term) -> unit) -> t -> unit
 end
