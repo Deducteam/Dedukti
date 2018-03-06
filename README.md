@@ -45,10 +45,6 @@ The installation provides the following commands:
 
 ### A SMALL EXAMPLE
 
-A `Dedukti` file must begin with the name of the module.
-
-    #NAME my_module.
-
 Then we can declare constants, giving their name and their type.
 `Dedukti` distinguishes two kinds of declarations:
 
@@ -69,7 +65,7 @@ Let's add rewrite rules to compute additions.
     [ n, m ] plus (succ n) m --> succ (plus n m)
     [ n, m ] plus n (succ m) --> succ (plus n m).
 
-When adding rewrite rules, `Dedukti` checks that they preserves typing.
+When adding rewrite rules, `Dedukti` checks that they preserve typing.
 For this, it checks that the left-hand and right-hand sides of the rules have the same type in some context giving types to the free variables
 (in fact, the criterion used is more general, see below), that the free variables occurring in the right-hand side also occur in the left-hand side
 and that the left-hand side is a *higher-order pattern* (see below).
@@ -122,7 +118,7 @@ The supported evaluation strategies are:
  - `WHNF` (weak head normal form).
 
 Note that the `#INFER` command accepts the same form of configuration as
-the `#EVAL` command. When given, it is used to evaluate the obtaine type.
+the `#EVAL` command. When given, it is used to evaluate the obtained type.
 
 #### DEFINITIONS
 
