@@ -105,7 +105,6 @@ Supported commands are:
     #EVAL[N].            (; same as above, but evaluate in at most N steps. ;)
     #EVAL[STRAT].        (; evaluate t with the strategy STRAT. :)
     #EVAL[N,STRAT].      (; same as above, but evaluate in at most N steps. :)
-    #STEP t.             (; display a one-step reduce of t. ;)
     #CHECK t1 == t2.     (; display "YES" if t1 and t2 are convertible, "NO" otherwise. ;)
     #CHECK t1 : t2.      (; display "YES" if t1 has type t2, "NO" otherwise. ;)
     #CHECKNOT t1 == t2.  (; display "YES" if t1 and t2 are not convertible, "NO" otherwise. ;)
@@ -121,6 +120,9 @@ The supported evaluation strategies are:
  - `SNF` (strong normal form),
  - `HNF` (head normal form),
  - `WHNF` (weak head normal form).
+
+Note thatthe `#INFER` command also accepts the same form of configuration as
+the `#EVAL` command. When given, it is used to evaluate the obtaine type.
 
 #### DEFINITIONS
 
