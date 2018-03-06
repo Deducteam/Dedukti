@@ -121,7 +121,7 @@ The supported evaluation strategies are:
  - `HNF` (head normal form),
  - `WHNF` (weak head normal form).
 
-Note thatthe `#INFER` command also accepts the same form of configuration as
+Note that the `#INFER` command accepts the same form of configuration as
 the `#EVAL` command. When given, it is used to evaluate the obtaine type.
 
 #### DEFINITIONS
