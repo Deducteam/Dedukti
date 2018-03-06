@@ -142,16 +142,17 @@ let run_on_file output export file =
     Errors.fail dloc "Fail to export module '%a@." pp_mident (Env.get_name ());
   close_in input;
   let file = Filename.concat output (string_of_mident md ^ ".dk") in
-  (Format.formatter_of_out_channel (open_out file),
+  (md,Format.formatter_of_out_channel (open_out file),
    entries)
 
 let solve () =
   let cs = Constraints.Naive.export () in
   let model = Export.Z3.solve cs in
-  Errors.success "Files was successfully solved with Z3.";
+  Errors.success "Constraints were successfully solved with Z3.";
   model
 
-let print_file model (fmt,entries) =
+let print_file model (md,fmt,entries) =
+  Errors.success "File '%a.dk' was fully reconstructed." pp_mident md;
   List.iter (fun x -> Indent.mk_entry fmt (Reconstruction.reconstruction model x)) entries
 
 let print_files model = List.iter (print_file model)

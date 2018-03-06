@@ -94,11 +94,44 @@ struct
 
   let prop = mk_name cic (mk_ident "prop")
 
-  let type_ = mk_name cic (mk_ident "type")
+  let typ = mk_name cic (mk_ident "type")
+
+  let univ = mk_name cic (mk_ident "Univ")
+
+  let cuni = mk_name cic (mk_ident "univ")
+
+  let term = mk_name cic (mk_ident "Term")
+
+  let prod = mk_name cic (mk_ident "prod")
 
   let is_const cst t =
     match t with
     | Term.Const(_,n) -> name_eq cst n
+    | _ -> false
+
+  let is_z t =
+    match t with
+    | Term.Const(_,u) when is_const z t -> true
+    | _ -> false
+
+  let is_s t =
+    match t with
+    | Term.App(u,_,[]) when is_const s u -> true
+    | _ -> false
+
+  let is_term t =
+    match t with
+    | Term.App(u,_,[_]) when is_const term u -> true
+    | _ -> false
+
+  let is_univ t =
+    match t with
+    | Term.App(u,_,[]) when is_const univ u -> true
+    | _ -> false
+
+  let is_cuni t =
+    match t with
+    | Term.App(u,_,[]) when is_const cuni u -> true
     | _ -> false
 
   let is_prop t =
@@ -108,7 +141,7 @@ struct
 
   let is_type t =
     match t with
-    | Term.App(t,_,[]) when is_const type_ t -> true
+    | Term.App(t,_,[]) when is_const typ t -> true
     | _ -> false
 
   let is_succ t =
@@ -131,16 +164,96 @@ struct
     | Term.App(c, s1, [s2]) when is_const rule c -> true
     | _ -> false
 
+  let is_prod t =
+    match t with
+    | Term.App(c, s1, [s2;a;f]) when is_const prod c -> true
+    | _ -> false
+
+  let is_var t =
+    match t with
+    | Term.DB _ -> true
+    | _ -> false
+
+  let is_lam t =
+    match t with
+    | Term.Lam _ -> true
+    | _ -> false
+
+  let is_app t =
+    match t with
+    | Term.App _ -> true
+    | _ -> false
+
+  let extract_app t =
+    match t with
+    | Term.App (f,a,args) -> f,a,args
+    | _ -> failwith "is not an app"
+
+  let extract_var t =
+    match t with
+    | Term.DB(_,id,_) -> id
+    | _ -> failwith "is not a local variable"
+
+  let extract_s t =
+    match t with
+    | Term.App(t,u,[]) when is_const s t -> u
+    | _ -> failwith "is not a s"
+
   let extract_type t =
     let rec to_int t =
       match t with
       | Term.Const(_,z) when is_const z t -> 0
       | Term.App(t,u, []) when is_const s t -> 1+(to_int u)
-      | _ -> assert false
+      | _ ->     Format.eprintf "%a@." Term.pp_term t; assert false
     in
     match t with
-    | Term.App(t,u,[]) when is_const type_ t -> to_int u
+    | Term.App(t,u,[]) when is_const typ t -> to_int u
     | _ -> failwith "is not a type"
+
+  let extract_term t =
+    match t with
+    | Term.App(t,s,[u]) when is_const term t -> s,u
+    | _ -> failwith "is not a term"
+
+  let extract_succ t =
+    match t with
+    | Term.App(c,arg,[]) when is_const succ c -> arg
+    | _ -> failwith "is not a succ"
+
+  let extract_lift t =
+    match t with
+    | Term.App(c,s1,[s2;a]) when is_const lift c -> s1,s2,a
+    | _ -> failwith "is not a lift"
+
+  let extract_max t =
+    match t with
+    | Term.App(c,s1,[s2]) when is_const max c -> s1,s2
+    | _ -> failwith "is not a max"
+
+  let extract_rule t =
+    match t with
+    | Term.App(c, s1, [s2]) when is_const rule c -> s1, s2
+    | _ -> failwith "is not a rule"
+
+  let extract_univ t =
+    match t with
+    | Term.App(c, s, []) when is_const univ c -> s
+    | _ -> failwith "is not a univ"
+
+  let extract_cuni t =
+    match t with
+    | Term.App(c, s, []) when is_const cuni c -> s
+    | _ -> failwith "is not a cuni"
+
+  let extract_prod t =
+    match t with
+    | Term.App(c, s1, [s2;a;f]) when is_const prod c -> s1,s2,a,f
+    | _ -> failwith "is not a prod"
+
+  let extract_lam t =
+    match t with
+    | Term.Lam(_,x,Some ty,te) -> x,ty,te
+    | _ -> failwith "not a lambda or lambda without a type"
 
   let extract_succ t =
     match t with
@@ -250,16 +363,19 @@ struct
 
   let hash_univ = Hashtbl.create 11
 
+  let string_of_univ univ =
+    match univ with
+    | Prop -> "prop"
+    | Type(i) -> "type"^(string_of_int i)
 
   let find_univ univ =
       if Hashtbl.mem hash_univ univ then
-        Hashtbl.find hash_univ univ
+        var_of_ident (Hashtbl.find hash_univ univ)
       else
-        let uvar = UVar.fresh () in
-        let vi = var_of_ident uvar in
-        Hashtbl.add hash_univ univ vi;
-        add_constraint(Univ(vi, univ));
-        vi
+        let uvar = mk_ident (string_of_univ univ) in
+        Hashtbl.add hash_univ univ uvar;
+        add_constraint(Univ(uvar, univ));
+        uvar
 
   let var_of_univ () = Hashtbl.fold (fun k v l -> (v,k)::l) hash_univ []
 
@@ -285,10 +401,7 @@ struct
   let add_constraint_succ v v' =
     let v = var_of_ident v in
     let v' = var_of_ident v' in
-    if UF.find v = UF.find (find_univ (Type 0)) then
-      add_constraint_type v' (Type 1)
-    else
-      add_constraint (Succ(v,v'))
+    add_constraint (Succ(v,v'))
 
   let add_constraint_max v v' v'' =
     let v = var_of_ident v in
@@ -302,26 +415,31 @@ struct
     let v'' = var_of_ident v'' in
     add_constraint (Rule(v,v',v''))
 
+  module VarSet = Set.Make(struct type t = Basic.ident let compare = compare end)
+
   let info constraints =
     let open ReverseCiC in
     let prop,ty,neq,eq,succ,max,rule = ref 0, ref 0, ref 0, ref 0, ref 0, ref 0, ref 0 in
-    CS.iter (fun x ->
-        match x with
-        | Univ(_,Prop) -> incr prop
-        | Univ (_, Type _) -> incr ty
-        (*        | Neq _ -> incr neq *)
-        | Eq _ -> incr eq
-        | Succ _ -> incr succ
-        | Max _ -> incr max
-        | Rule _ -> incr rule) constraints;
-
+    let vars =
+      CS.fold (fun x vs ->
+          match x with
+          | Eq(n,n') -> incr eq;
+            VarSet.add n (VarSet.add n' vs)
+          | Succ(n,n') -> incr succ;
+            VarSet.add n (VarSet.add n' vs)
+          | Max(n,n', n'') -> incr max;
+            VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
+          | Rule(n,n', n'') -> incr rule;
+            VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
+          | Univ(n,u) -> begin match u with | Prop -> incr prop | Type _ -> incr ty end;
+            VarSet.add n vs
+        ) constraints VarSet.empty
+    in
     let print fmt () =
-      Format.fprintf fmt "Variable correspondance:@.";
-      Format.fprintf fmt "Number of variables  : %d@." (UVar.count ());
+      Format.fprintf fmt "Number of variables: %d@." (VarSet.cardinal vars);
       Format.fprintf fmt "Number of constraints:@.";
       Format.fprintf fmt "@[prop:%d@]@." !prop;
       Format.fprintf fmt "@[ty  :%d@]@." !ty;
-      (*    Format.fprintf fmt "@[neq :%d@]@." !neq; *)
       Format.fprintf fmt "@[eq  :%d@]@." !eq;
       Format.fprintf fmt "@[succ:%d@]@." !succ;
       Format.fprintf fmt "@[max :%d@]@." !max;
@@ -331,22 +449,84 @@ struct
 
   module V = UVar
 
+  let fresh_rule l r =
+    mk_ident ("r"^string_of_ident l^","^string_of_ident r)
+
+  let fresh_succ l =
+    mk_ident ("s"^(string_of_ident l))
+
+  let rec simple s =
+    if is_succ s then
+      let s' = extract_succ s in
+      let s' = simple s' in
+      if is_prop s' then
+        term_of_univ (Type 0)
+      else if is_type s' then
+        failwith "todo"
+      else Term.mk_App (Term.mk_Const dloc succ) s' []
+    else if is_rule s then
+      let s1,s2 = extract_rule s in
+      let s1' = simple s1 in
+      let s2' = simple s2 in
+      if is_prop s1' then
+        s2'
+      else if Term.term_eq s1' s2' then
+        s2'
+      else if is_prop s2' then
+        Term.mk_Const dloc prop
+      else
+        Term.mk_App (Term.mk_Const dloc rule) s1 [s2]
+    else if is_max s then
+      failwith "todo"
+    else
+      s
+
+
   let rec extract_universe sg (s:Term.term) =
-    if is_uvar s then
+    let s = simple s in
+    if is_prop s then
+      find_univ Prop
+    else if is_type s then
+      let i = extract_type s in
+      assert(i=0);
+      find_univ (Type 0)
+    else if is_succ s then
+      let s' = extract_succ s in
+      if is_prop s' then
+        find_univ (Type 0)
+      else
+        let v' = V.ident_of_uvar s' in
+        let v = fresh_succ v' in
+        add_constraint_succ v' v;
+        v
+    else if is_uvar s then
        V.ident_of_uvar s
     else if is_rule s then
       begin
-        let l = V.ident_of_uvar (V.fresh_uvar sg) in
         let s1,s2 = extract_rule s in
         let s1' = extract_universe sg s1 in
         let s2' = extract_universe sg s2 in
-        add_constraint_rule s1' s2' l;
-        l
+        if s1' = find_univ Prop then
+          s2'
+        else
+          let l = fresh_rule s1' s2' in
+          begin
+            if is_succ s2 then
+              add_constraint_max s1' s2' l
+            else
+              add_constraint_rule s1' s2' l
+          end;
+          l
       end
     else
-      failwith "don't know what to do yet"
+      begin
+        Format.printf "%a@." Term.pp_term s;
+        failwith "don't know what to do yet"
+      end
 
   let rec generate_constraints sg (l:Term.term) (r:Term.term) =
+  (*  Format.eprintf "l:%a@." Term.pp_term l;
+      Format.eprintf "r:%a@." Term.pp_term r; *)
     if !just_check || !is_matching then false
     else
     let open ReverseCiC in
@@ -380,10 +560,12 @@ struct
       generate_constraints sg r l
     else if is_rule l && is_uvar r then
       let s1,s2 = extract_rule l in
-      let s1 = extract_universe sg s1 in
-      let s2 = extract_universe sg s2 in
+      let s1' = extract_universe sg s1 in
+      let s2' = extract_universe sg s2 in
+      let m_or_r =
+        if is_succ s2 then add_constraint_max else add_constraint_rule in
       let r = ident_of_uvar r in
-      add_constraint_rule s1 s2 r;
+      m_or_r s1' s2' r;
       true
     else if is_uvar l && is_rule r then
       generate_constraints sg r l
@@ -583,19 +765,6 @@ struct
          | None -> cs
          | Some c -> ConstraintsSet.add c cs) cs ConstraintsSet.empty
 
-
-  module VarSet = Set.Make(struct type t = Basic.ident let compare = compare end)
-
-  let get_vars cs =
-    ConstraintsSet.fold (fun x vs ->
-        match x with
-        | Eq(n,n') -> VarSet.add n (VarSet.add n' vs)
-        | Succ(n,n') -> VarSet.add n (VarSet.add n' vs)
-        | Max(n,n', n'') -> VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
-        | Rule(n,n', n'') -> VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
-        | Univ(n,_) -> VarSet.add n vs
-      ) cs VarSet.empty
-
   let acc var cs =
     let test vs =
       ConstraintsSet.fold (fun x vs ->
@@ -637,15 +806,18 @@ struct
     VarSet.iter (fun var ->
         Format.eprintf "%d@." (VarSet.cardinal (acc var cs))) vs
 
-  let rec optimize s =
-    Format.eprintf "Before optimizations.@.%s@." (info s);
+  let rec optimize cs =
+    Format.eprintf "...Before optimizations...@.%s@." (info cs);
+    Format.eprintf "No optimization@.";
+ (*
     let cs = ConstraintsSet.map normalize_eq (opt_map normalize s) in
-    Format.eprintf "After optimizations.@.%s@." (info cs);
-    let vs = get_vars cs in
-    Format.eprintf "Real number of variables: %d@." (VarSet.cardinal vs);
-    print_acc cs vs;
+    Format.eprintf "After optimizations.@.%s@." (info cs); *)
     cs
 
+  (* Use canonical guy from UF for every constraints, otherwise, it might be inconsistent *)
+  let normalize cs =
+    ConstraintsSet.map normalize_eq cs
+
   let export () =
-    optimize !global_constraints
+    normalize (optimize !global_constraints)
 end

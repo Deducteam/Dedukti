@@ -32,13 +32,6 @@ struct
     let le = Arithmetic.mk_le ctx left right in
     Boolean.mk_ite ctx le right left
 
-  (*
-  let add_obj_var () =
-    let zero = Arithmetic.Integer.mk_numeral_i ctx 0 in
-    let obj_fun = Hashtbl.fold (fun _ v r -> add_obj_var r v) variables zero in
-    assert false
-  *)
-
   let add_obj_sup i =
     let i = Arithmetic.Integer.mk_numeral_i ctx i in
     Hashtbl.iter (fun _ v ->
@@ -58,7 +51,7 @@ struct
     else
       register_variable var
 
-  let add_constraint_univ var univ =
+  let gen_constraint_univ var univ =
     let zvar = get_variable var in
     let level =
       match univ with
@@ -70,13 +63,13 @@ struct
     let eq = Boolean.mk_eq ctx zvar level in
     Solver.add solver [eq]
 
-  let add_constraint_eq var var' =
+  let gen_constraint_eq var var' =
     let zvar = get_variable var in
     let zvar' = get_variable var' in
     let eq = Boolean.mk_eq ctx zvar zvar' in
     Solver.add solver [eq]
 
-  let add_constraint_succ var var' =
+  let gen_constraint_succ var var' =
     let zvar = get_variable var in
     let zvar' = get_variable var' in
     let one = Arithmetic.Integer.mk_numeral_i ctx 1 in
@@ -89,7 +82,7 @@ struct
     let le = Arithmetic.mk_le ctx x y in
     Boolean.mk_ite ctx le y x
 
-  let add_constraint_max var var' var'' =
+  let gen_constraint_max var var' var'' =
     let zvar = get_variable var in
     let zvar' = get_variable var' in
     let zvar'' = get_variable var'' in
@@ -97,7 +90,7 @@ struct
     let eq = Boolean.mk_eq ctx max zvar'' in
     Solver.add solver [eq]
 
-  let add_constraint_lift var var' var'' var''' =
+  let gen_constraint_lift var var' var'' var''' =
     let zvar = get_variable var in
     let zvar' = get_variable var' in
     let zvar'' = get_variable var'' in
@@ -107,7 +100,7 @@ struct
     let eq = Boolean.mk_eq ctx maxl maxr in
     Solver.add solver [eq]
 
-  let add_constraint_rule var var' var'' =
+  let gen_constraint_rule var var' var'' =
     let x = get_variable var in
     let y = get_variable var' in
     let z = get_variable var'' in
@@ -119,18 +112,18 @@ struct
     let ite = Boolean.mk_ite ctx yeq0 zeq0 zeqmax in
     Solver.add solver [ite]
 
-  let add_constraint c =
+  let gen_constraint c =
     let open Naive in
     let sofi = string_of_var in
     match c with
-    | Univ(n,u) -> add_constraint_univ (sofi n) u
-    | Eq(n,n') -> add_constraint_eq (sofi n) (sofi n')
-    | Succ(n,n') -> add_constraint_succ (sofi n) (sofi n')
-    | Max(n,n',n'') -> add_constraint_max (sofi n) (sofi n') (sofi n'')
-    | Rule(n,n',n'') -> add_constraint_rule (sofi n) (sofi n') (sofi n'')
+    | Univ(n,u) -> gen_constraint_univ (sofi n) u
+    | Eq(n,n') -> gen_constraint_eq (sofi n) (sofi n')
+    | Succ(n,n') -> gen_constraint_succ (sofi n) (sofi n')
+    | Max(n,n',n'') -> gen_constraint_max (sofi n) (sofi n') (sofi n'')
+    | Rule(n,n',n'') -> gen_constraint_rule (sofi n) (sofi n') (sofi n'')
 
   let import cs =
-    Naive.ConstraintsSet.iter add_constraint cs
+    Naive.ConstraintsSet.iter gen_constraint cs
 
   let univ_of_int n =
     if n = 0 then
@@ -166,7 +159,7 @@ struct
     (*    ignore(add_obj_var ()); *)
     match Solver.check solver [] with
     | Solver.UNSATISFIABLE ->
-      Format.eprintf "fail: %d@." i;
+      Format.eprintf "No solution found with %d universes@." (i+2);
       check constraints (i+1)
     | Solver.UNKNOWN -> failwith (Format.sprintf "%s" (Solver.get_reason_unknown solver))
     | Solver.SATISFIABLE ->
@@ -174,11 +167,15 @@ struct
       match Solver.get_model solver with
       | None -> assert false
       | Some model ->
+(*           Format.eprintf "%s@." (Solver.to_string solver);
+             Format.eprintf "%s@." (Model.to_string model); *)
         fun (uvar:Basic.ident) : Term.term ->
+          try
           let var' = uvar
                      |> Naive.var_of_ident
                      |> Naive.string_of_var in
           (var_solution model var') |> univ_of_int |> ReverseCiC.term_of_univ
+          with _ -> ReverseCiC.term_of_univ ReverseCiC.Prop
 
-  let solve constraints = check constraints 1
+  let solve constraints = check constraints 0
 end
