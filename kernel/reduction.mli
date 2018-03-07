@@ -11,7 +11,7 @@ type red_cfg = {
   beta : bool
 }
 
-val pp_red_cfg : Format.formatter -> red_cfg -> unit
+val pp_red_cfg : red_cfg Basic.printer
 
 (** [beta] flag enables/disables beta reductions.
     [select] = [Some f] restreins rules according to the given filter on names.

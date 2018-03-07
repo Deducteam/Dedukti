@@ -1,0 +1,8 @@
+#NAME brackets1.
+
+A : Type.
+a : A.
+
+def f : (A -> A) -> A.
+
+[] f (x => {x}) --> a.
