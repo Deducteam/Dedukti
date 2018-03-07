@@ -112,7 +112,7 @@ line:
   | EVAL cfg=eval_config te=term DOT
       {fun md -> Eval($1, cfg, scope_term md [] te)}
   | INFER te=term DOT
-      {fun md -> Infer($1, Reduction.default_cfg, scope_term md [] te)}
+      {fun md -> Infer($1, default_cfg, scope_term md [] te)}
   | INFER cfg=eval_config te=term DOT
       {fun md -> Infer($1, cfg, scope_term md [] te)}
 

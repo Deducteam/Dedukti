@@ -101,7 +101,7 @@ In `Dedukti` comments are delimited by `(;` and `;)`.
 
 Supported commands are:
 
-    #EVAL t.             (; evaluate t to its strong normal form and display it. ;)
+    #EVAL t.             (; evaluate t to its weak head normal form and display it. ;)
     #EVAL[N].            (; same as above, but evaluate in at most N steps. ;)
     #EVAL[STRAT].        (; evaluate t with the strategy STRAT. :)
     #EVAL[N,STRAT].      (; same as above, but evaluate in at most N steps. :)
