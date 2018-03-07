@@ -145,15 +145,14 @@ let elaboration sg e =
   match e with
   | Decl(l,id,st,t) ->
     let e' = Decl(l,id,st, elaborate sg [] t) in
-
     e'
   | Def(l,id,op,pty,te) ->
     let e' = Def(l,id,op, Basic.map_opt (elaborate sg []) pty, elaborate sg [] te) in
-
+    (* if string_of_ident id = "DPair_discr" then
+       Format.eprintf "%a@." Pp.print_entry e'; *)
     e'
   | Rules(rs) ->
     let rs' = List.map (fun (r: untyped_rule) -> {r  with rhs = elaborate sg [] r.rhs}) rs in
-
     Rules(rs')
   | Name (l,id) -> Name(l,id)
   | _ -> failwith "unsupported"
