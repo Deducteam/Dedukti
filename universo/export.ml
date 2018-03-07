@@ -149,33 +149,39 @@ struct
     let open Symbol in
     let open Expr in
     let open Arithmetic in
-    (*    Log.append "Generate a Z3 problem..."; *)
     Solver.reset solver;
     Hashtbl.clear variables;
     import constraints;
-    (* Log.append (Solver.to_string solver); *)
-    (*    Log.append "Try to solve the problem..."; *)
     add_obj_sup i;
-    (*    ignore(add_obj_var ()); *)
     match Solver.check solver [] with
     | Solver.UNSATISFIABLE ->
       Format.eprintf "No solution found with %d universes@." (i+2);
       check constraints (i+1)
     | Solver.UNKNOWN -> failwith (Format.sprintf "%s" (Solver.get_reason_unknown solver))
     | Solver.SATISFIABLE ->
-      (* Log.append "Problem solved!"; *)
       match Solver.get_model solver with
       | None -> assert false
       | Some model ->
+        let hmodel = Hashtbl.create (UVar.count ()) in
+        let find uvar =
+          try
+            uvar
+            |> Naive.var_of_ident
+            |> Naive.string_of_var
+            |> var_solution model
+            |> univ_of_int
+            |> ReverseCiC.term_of_univ
+          with _ -> ReverseCiC.term_of_univ ReverseCiC.Prop
+        in
 (*           Format.eprintf "%s@." (Solver.to_string solver);
              Format.eprintf "%s@." (Model.to_string model); *)
         fun (uvar:Basic.ident) : Term.term ->
-          try
-          let var' = uvar
-                     |> Naive.var_of_ident
-                     |> Naive.string_of_var in
-          (var_solution model var') |> univ_of_int |> ReverseCiC.term_of_univ
-          with _ -> ReverseCiC.term_of_univ ReverseCiC.Prop
+          if Hashtbl.mem hmodel uvar then
+            Hashtbl.find hmodel uvar
+          else
+            let t = find uvar in
+            Hashtbl.add hmodel uvar t;
+            t
 
   let solve constraints = check constraints 0
 end
