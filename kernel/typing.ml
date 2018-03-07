@@ -32,9 +32,9 @@ exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let snf = reduction {default_cfg with strategy = Snf}
+let snf = reduction default_cfg
 
-let whnf = reduction {default_cfg with strategy = Reduction.Whnf}
+let whnf = reduction {default_cfg with strategy = Whnf}
 
 let get_type ctx l x n =
   try
