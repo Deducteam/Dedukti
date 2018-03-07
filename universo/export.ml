@@ -10,8 +10,7 @@ struct
 
   let cfg = [`Model(true);
              `Proof(false);
-             `Trace(false);
-             `TraceFile("z3.trace")]
+             `Trace(false)]
 
   let string_of_cfg_item item =
     match item with

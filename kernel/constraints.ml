@@ -337,13 +337,21 @@ struct
 
     let rec find l =
       try
-        find (Hashtbl.find uf l)
+        let l' = Hashtbl.find uf l in
+        let f = find l' in
+        if Basic.ident_eq f l' then
+          l'
+        else
+          begin
+            Hashtbl.add uf l' f;
+            f
+          end
       with _ -> l
 
     let union l r =
       let l' = find l in
       let r' = find r in
-      if l' = r' then
+      if Basic.ident_eq l' r' then
         ()
       else
         Hashtbl.add uf l' r'
