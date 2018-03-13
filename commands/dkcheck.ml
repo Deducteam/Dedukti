@@ -97,7 +97,7 @@ let mk_entry beautify md =
   else mk_entry md
 
 
-let run_on_file beautify export file =
+let run_on_file beautify export sizechange szstat szvb file =
   let input = open_in file in
   debug 1 "Processing file '%s'..." file;
   let md = mk_mident file in
@@ -109,9 +109,9 @@ let run_on_file beautify export file =
   if export && not (Env.export ()) then
     Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ());
   Confluence.finalize ();
-  if (!sizechange|| !szvb|| !szstat)
+  if (sizechange|| szvb|| szstat)
   then
-   Sizechange.print_res !szstat (Env.sizechange (!verbose|| !szvb));
+   Sizechange.print_res szstat (Env.sizechange szvb);
   close_in input
 
 
@@ -133,13 +133,13 @@ let _ =
       , Arg.Unit (fun _ -> Basic.set_debug_mode (-1))
       , " Quiet mode (equivalent to -d -1" )
     ; ("-sz"
-      , Arg.Set    Checker.sizechange
+      , Arg.Set sizechange
       , "Apply Size Change Principle" )
     ; ("-szv"
-      , Arg.Set    Checker.szvb
+      , Arg.Set szvb
       , "Apply Size Change Principle and verbose it" )
     ; ("-szst"
-      , Arg.Set    Checker.szstat
+      , Arg.Set szstat
       , "Apply Size Change Principle and print results useful for stats" )
     ; ( "-e"
       , Arg.Set export
@@ -185,7 +185,7 @@ let _ =
       exit 2
     end;
   try
-    List.iter (run_on_file !beautify !export) files;
+    List.iter (run_on_file !beautify !export !sizechange !szstat !szvb) files;
     match !run_on_stdin with
     | None    -> ()
     | Some md ->
