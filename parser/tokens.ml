@@ -10,6 +10,7 @@ type token =
   | RIGHTBRA
   | QID        of ( loc * mident * ident )
   | NAME       of ( loc * mident )
+  | REQUIRE    of ( loc * mident )
   | LONGARROW
   | LEFTSQU
   | LEFTPAR
@@ -26,10 +27,10 @@ type token =
   | ARROW
   | EVAL       of loc
   | INFER      of loc
-  | CHECK       of loc
-  | ASSERT      of loc
-  | CHECKNOT    of loc
-  | ASSERTNOT   of loc
+  | CHECK      of loc
+  | ASSERT     of loc
+  | CHECKNOT   of loc
+  | ASSERTNOT  of loc
   | PRINT      of loc
   | GDT        of loc
   | STRING     of string

@@ -33,5 +33,7 @@ type entry =
   | DTree of loc * mident option * ident
   (** Obsolete #NAME command. *)
   | Name  of loc * mident
+  (** Require command. *)
+  | Require  of loc * mident
 
 val pp_entry : entry printer

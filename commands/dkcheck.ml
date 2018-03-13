@@ -91,6 +91,12 @@ let mk_entry md e =
   | Name(_,n)               ->
       if not (mident_eq n md)
       then warn "Invalid #NAME directive ignored.\n%!"
+  | Require(lc,md)               ->
+    begin
+      match Env.import lc md with
+      | OK () -> ()
+      | Err e -> Errors.fail_signature_error e
+    end
 
 let mk_entry beautify md =
   if beautify then Pp.print_entry Format.std_formatter
