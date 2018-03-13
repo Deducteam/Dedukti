@@ -25,5 +25,4 @@ def five  : Nat := (S four).
 def six   : Nat := (S five).
 def seven : Nat := (S six).
 
-#CONV	(plus (fact seven) (fact six)),
-	(plus (fact six) (fact seven)).
+#ASSERT plus (fact seven) (fact six) == plus (fact six) (fact seven).

@@ -5,11 +5,7 @@ open Term
 open Rule
 open Dtree
 
-let ignore_redecl = ref false
-let autodep = ref false
-
 type signature_error =
-  | FailToCompileModule of loc * mident
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError of loc * string * string
   | UnmarshalUnknown of loc * string
@@ -73,8 +69,6 @@ let get_tables sg=
   ) sg.tables;
   !res
   
-(******************************************************************************)
-
 let add_rule_infos sg (lst:rule_infos list) : unit =
   match lst with
   | [] -> ()
@@ -170,25 +164,45 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
-  assert ( not (HMd.mem sg.tables m) ) ;
+  if HMd.mem sg.tables m then
+    warn "Trying to import twice the same module"
+  else
+    let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
+    HMd.add sg.tables m ctx;
+    List.iter ( fun dep0 ->
+        let dep = mk_mident dep0 in
+        if not (HMd.mem sg.tables dep) then import sg lc dep
+      ) deps ;
+    debug 1 "Loading module '%a'..." pp_mident m;
+    List.iter (fun rs -> add_rule_infos sg rs) ext;
+    check_confluence_on_import lc m ctx
 
-  (* If the [.dko] file is not found, try to compile it first.
-     This hack is terrible. It uses system calls and can loop with circular dependencies.
-     Also, this hack supposes that the module name and the file name are the same.*)
-  ( if !autodep && not ( Sys.file_exists ( string_of_mident m ^ ".dko" ) ) then
-      if Sys.command ( "dkcheck -autodep -e " ^ string_of_mident m ^ ".dk" ) <> 0 then
-        raise (SignatureError (FailToCompileModule (lc,m)))
-  ) ;
+and add_rule_infos sg (lst:rule_infos list) : unit =
+  match lst with
+  | [] -> ()
+  | (r::_ as rs) ->
+    let env =
+      try HMd.find sg.tables (md r.cst)
+      with Not_found ->
+        import sg r.l (md r.cst); HMd.find sg.tables (md r.cst)
+    in
+    let infos = try ( HId.find env (id r.cst) )
+      with Not_found -> raise (SignatureError (SymbolNotFound(r.l, r.cst))) in
+    let ty = infos.ty in
+    if (infos.stat = Static) then
+      raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
+    let rules = match infos.rule_opt_info with
+      | None -> rs
+      | Some(mx,_,_) -> mx@rs
+    in
+    match Dtree.of_rules rules with
+    | OK (n,tree) ->
+       HId.add env (id r.cst)
+         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,n,tree)}
+    | Err e -> raise (SignatureError (CannotBuildDtree e))
 
-  let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
-  HMd.add sg.tables m ctx;
-  List.iter ( fun dep0 ->
-      let dep = mk_mident dep0 in
-      if not (HMd.mem sg.tables dep) then import sg lc dep
-    ) deps ;
-  debug 1 "Loading module '%a'..." pp_mident m;
-  List.iter (fun rs -> add_rule_infos sg rs) ext;
-  check_confluence_on_import lc m ctx
+(******************************************************************************)
+
 
 let get_deps sg : string list = (*only direct dependencies*)
   HMd.fold (
@@ -244,8 +258,7 @@ let add_declaration sg lc v st ty =
   Confluence.add_constant cst;
   let env = HMd.find sg.tables sg.name in
   if HId.mem env v then
-    ( if !ignore_redecl then debug 1 "Redeclaration ignored."
-      else raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
+    raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
   else
     HId.add env v {stat=st; ty=ty; rule_opt_info=None}
 

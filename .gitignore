@@ -1,6 +1,7 @@
 # OCamlbuild files.
 _build/
 *.native
+*.docdir
 
 # Dedukti files.
 *.dko

@@ -40,7 +40,7 @@ let mk_DB l x n         = DB (l,x,n)
 let mk_Const l n        = Const (l,n)
 let mk_Lam l x a b      = Lam (l,x,a,b)
 let mk_Pi l x a b       = Pi (l,x,a,b)
-let mk_Arrow l a b      = Pi (l,qmark,a,b)
+let mk_Arrow l a b      = Pi (l,dmark,a,b)
 
 let mk_App f a1 args =
   match f with

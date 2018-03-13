@@ -30,7 +30,7 @@ _build/kernel/kernel.cmxa: $(KERNEL_MLI) $(KERNEL_ML)
 
 PARSER_MLI := $(wildcard parser/*.mli)
 PARSER_ML  := $(PARSER_MLI:.mli=.ml)
-PARSER_GEN := parser/parser.mly parser/lexer.mll
+PARSER_GEN := parser/menhir_parser.mly parser/lexer.mll
 
 .PHONY: parser
 parser: kernel _build/parser/parser.cma _build/parser/parser.cmxa
@@ -46,23 +46,28 @@ _build/parser/parser.cmxa: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
 #### Compilation of the dedukti suite ########################################
 
 .PHONY: commands
-commands: dkcheck.native dkdep.native dkindent.native dktop.native
+commands: dkcheck.native dkdep.native dktop.native
 
-dkcheck.native: kernel parser $(wildcard dkcheck/*.ml dkcheck/*.mli)
+dkcheck.native: kernel parser commands/dkcheck.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dkcheck/dkcheck.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkcheck.native
 
-dkdep.native: kernel parser $(wildcard dkdep/*.ml dkdep/*.mli)
+dkdep.native: kernel parser commands/dkdep.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dkdep/dkdep.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkdep.native
 
-dkindent.native: kernel parser $(wildcard dkindent/*.ml dkindent/*.mli)
+dktop.native: kernel parser commands/dktop.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dkindent/dkindent.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dktop.native
 
-dktop.native: kernel parser $(wildcard dktop/*.ml dktop/*.mli)
-	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind dktop/dktop.native
+#### Generation of the documentation #########################################
+
+.PHONY: doc
+doc: _build/kernel/kernel.docdir/index.html
+
+_build/kernel/kernel.docdir/index.html: $(KERNEL_MLI) $(KERNEL_ML)
+	@echo "[DOC] $@"
+	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.docdir/index.html
 
 #### Generation of the META file #############################################
 
@@ -100,31 +105,32 @@ uninstall:
 	@ocamlfind remove dedukti
 	@rm -f $(BINDIR)/dkcheck
 	@rm -f $(BINDIR)/dkdep
-	@rm -f $(BINDIR)/dkindent
 	@rm -f $(BINDIR)/dktop
 
 .PHONY: install
 install: uninstall all
 	@ocamlfind install dedukti META \
 		$(wildcard _build/kernel/*.mli) $(wildcard _build/kernel/*.cmi) \
-		$(wildcard _build/kernel/*.cmo) $(wildcard _build/kernel/*.cmx) \
-		$(wildcard _build/kernel/*.o) _build/kernel/kernel.cma \
-		_build/kernel/kernel.cmxa _build/kernel/kernel.a \
-		$(wildcard _build/parser/*.mli) $(wildcard _build/parser/*.cmi) \
-		$(wildcard _build/parser/*.cmo) $(wildcard _build/parser/*.cmx) \
-		$(wildcard _build/parser/*.o) _build/parser/parser.cma \
-		_build/parser/parser.cmxa _build/parser/parser.a
+		$(wildcard _build/kernel/*.cmx) $(wildcard _build/kernel/*.o) \
+		_build/parser/parser.mli _build/parser/parser.cmi \
+		$(wildcard _build/parser/*.cmx) $(wildcard _build/parser/*.o) \
+		_build/kernel/kernel.cma _build/parser/parser.cma \
+		_build/kernel/kernel.cmxa _build/parser/parser.cmxa \
+		_build/kernel/kernel.a _build/parser/parser.a
 	install -m 755 -d $(BINDIR)
 	install -m 755 -p dkcheck.native  $(BINDIR)/dkcheck
 	install -m 755 -p dkdep.native    $(BINDIR)/dkdep
-	install -m 755 -p dkindent.native $(BINDIR)/dkindent
 	install -m 755 -p dktop.native    $(BINDIR)/dktop
 
 #### Test targets ############################################################
 
 .PHONY: tests
-tests: dkcheck.native tests/tests.sh
-	tests/tests.sh 
+tests: all tests/tests.sh
+	@./tests/tests.sh
+
+.PHONY: full_tests
+full_tests: all tests/external_tests.sh
+	@./tests/external_tests.sh
 
 #### Cleaning targets ########################################################
 

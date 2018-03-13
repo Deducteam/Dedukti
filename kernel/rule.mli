@@ -48,8 +48,8 @@ val check_patterns : int -> pattern list -> (int * wf_pattern list * constr list
 type rule_name = Delta of name | Gamma of bool * name
 
 val rule_name_eq : rule_name -> rule_name -> bool
-  
-val pp_rule_name : Format.formatter -> rule_name -> unit
+
+val pp_rule_name : rule_name printer
 
 type 'a rule =
   {
@@ -61,11 +61,11 @@ type 'a rule =
 
 type untyped_rule = untyped_context rule
 
-val pp_untyped_rule : Format.formatter -> untyped_rule -> unit
+val pp_untyped_rule : untyped_rule printer
 
 type typed_rule = typed_context rule
 
-val pp_typed_rule : Format.formatter -> typed_rule -> unit
+val pp_typed_rule : typed_rule printer
 
 (** {2 Errors} *)
 
@@ -98,12 +98,8 @@ val to_rule_infos : typed_rule -> (rule_infos, rule_error) error
 
 (** {2 Printing} *)
 
-val pp_pattern : Format.formatter -> pattern -> unit
-
-val pp_wf_pattern : Format.formatter -> wf_pattern -> unit
-
-val pp_untyped_context : Format.formatter -> untyped_context -> unit
-
-val pp_typed_context : Format.formatter -> typed_context -> unit
-
-val pp_rule_infos : Format.formatter -> rule_infos -> unit
+val pp_pattern         : pattern         printer
+val pp_wf_pattern      : wf_pattern      printer
+val pp_untyped_context : untyped_context printer
+val pp_typed_context   : typed_context   printer
+val pp_rule_infos      : rule_infos      printer

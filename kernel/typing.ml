@@ -2,7 +2,7 @@ open Basic
 open Format
 open Rule
 open Term
-
+open Reduction
 
 let coc = ref false
 
@@ -24,14 +24,17 @@ type typing_error =
   | BracketError2 of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
+  | Unconvertible of loc*term*term
+  | Convertible of loc*term*term
+  | Inhabit of loc*term*term
 
 exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let snf sg = Reduction.reduction sg Reduction.Snf
+let snf = reduction {default_cfg with strategy = Snf}
 
-let whnf sg = Reduction.reduction sg Reduction.Whnf
+let whnf = reduction {default_cfg with strategy = Reduction.Whnf}
 
 let get_type ctx l x n =
   try
@@ -83,6 +86,7 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     begin
       match whnf sg ty_exp with
       | Pi (_,_,a',ty_b) ->
+        ignore(infer sg ctx a);
         if not (Reduction.are_convertible sg a a')
         then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a,a')))
         else check sg ((l,x,a)::ctx) b ty_b
@@ -239,10 +243,10 @@ let pc_add (delta:partial_context) (n:int) (l:loc) (id:ident) (ty0:typ) : partia
 let pc_to_context (delta:partial_context) : typed_context = LList.lst delta.pctx
 
 let pc_to_context_wp (delta:partial_context) : typed_context =
-  let dummy = mk_DB dloc qmark 0 in
+  let dummy = mk_DB dloc dmark 0 in
   let rec aux lst n =
     if n <= 0 then lst
-    else aux ((dloc,qmark,dummy)::lst) (n-1)
+    else aux ((dloc,dmark,dummy)::lst) (n-1)
   in
   aux (LList.lst delta.pctx) delta.padding
 
@@ -255,12 +259,12 @@ let pp_pcontext fmt delta =
 
 (* *** *)
 
-let rec get_last = function
+let get_last =
+  let rec aux acc = function
   | [] -> assert false
-  | [a] -> ([],a)
-  | hd::tl ->
-    let (tl0,a) = get_last tl in
-    (hd::tl0,a)
+  | [a] -> (List.rev acc, a)
+  | hd::tl -> aux (hd::acc) tl in
+  aux []
 
 let unshift_n sg n te =
   try Subst.unshift n te
@@ -297,8 +301,9 @@ and infer_pattern_aux sg (sigma:context2) (f,ty_f,delta,lst:term*typ*partial_con
       let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
       raise (TypingError (ProductExpected (f,ctx,ty_f)))
 
-and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:constraints) (pat:pattern) : partial_context * constraints =
-(*   debug "check_pattern %a:%a" pp_pattern pat pp_term exp_ty; *)
+and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
+    (lst:constraints) (pat:pattern) : partial_context * constraints =
+  debug 3 "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty;
   match pat with
   | Lambda (l,x,p) ->
     begin
@@ -309,20 +314,20 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
         raise (TypingError ( ProductExpected (pattern_to_term pat,ctx,exp_ty)))
     end
   | Brackets te ->
-        let te2 =
-          try Subst.unshift (delta.padding + LList.len sigma) te
-          with Subst.UnshiftExn ->
-            let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-            raise (TypingError (BracketError1 (te,ctx)))
-        in
-        let ty2 =
-          try unshift_n sg (delta.padding + LList.len sigma) exp_ty
-          with Subst.UnshiftExn ->
-            let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-            raise (TypingError (BracketError2 (te,ctx,exp_ty)))
-        in
-        check sg (pc_to_context delta) te2 ty2;
-        ( delta, lst )
+    let te2 =
+      try Subst.unshift (delta.padding + LList.len sigma) te
+      with Subst.UnshiftExn ->
+        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
+        raise (TypingError (BracketError1 (te,ctx)))
+    in
+    let ty2 =
+      try unshift_n sg (delta.padding + LList.len sigma) exp_ty
+      with Subst.UnshiftExn ->
+        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
+        raise (TypingError (BracketError2 (te,ctx,exp_ty)))
+    in
+    check sg (pc_to_context delta) te2 ty2;
+    ( delta, lst )
   | Var (l,x,n,[]) when ( n >= LList.len sigma ) ->
     begin
       let k = LList.len sigma in

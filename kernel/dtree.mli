@@ -36,19 +36,20 @@ type matching_problem =
   | MillerPattern of abstract_problem LList.t
   (** the list of abstract problem which list of solutions gives the context. *)
 
-val pp_matching_problem : Format.formatter -> matching_problem -> unit
+val pp_matching_problem : matching_problem printer
 
 (** Type of decision trees *)
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option (** Switch [i] [(case_0,tree_0) ; ... ; (case_n, tree_n)] [tree_opt] test if the [i] arg of a pattern can be match with one of the case of the list. if it does then look at the corresponding tree, otherwise, look at the default tree *)
-  | Test    of matching_problem * constr list * Term.term * dtree option (** Test [pb] [cstrs] [te] [tree_opt] are the leaves of the tree. Check that each problem can be solves and such that constraints are satisfied. If it does then return a local context for the term [te]. *)
+  | Test    of rule_name * matching_problem * constr list * Term.term * dtree option
+  (** Test [name] [pb] [cstrs] [te] [tree_opt] are the leaves of the tree. Check that each problem can be solves and such that constraints are satisfied. If it does then return a local context for the term [te]. *)
 
-val pp_dtree : Format.formatter -> dtree -> unit
+val pp_dtree : dtree printer
 
 (** [md] [v] [i] [tree] is the dtree associated to the constant [md].[v] with [i] arguments *)
 type rw = name * int * dtree
 
-val pp_rw : Format.formatter -> rw -> unit
+val pp_rw : rw printer
 
 (** {2 Error} *)
 
