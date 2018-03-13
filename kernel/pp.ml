@@ -177,7 +177,4 @@ let print_red_cfg fmt strat =
   | {strategy=Reduction.Whnf;nb_steps=None   } -> Format.fprintf fmt "[WHNF]"
   | {strategy=Reduction.Whnf;nb_steps=Some i } -> Format.fprintf fmt "[WHNF,%i]" i
 
-let print_entry fmt e =
-  let open Format in
-  match e with
-  | _ -> Entry.pp_entry fmt e
+let print_entry = Entry.pp_entry
