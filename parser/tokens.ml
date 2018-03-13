@@ -10,6 +10,7 @@ type token =
   | RIGHTBRA
   | QID        of ( loc * mident * ident )
   | NAME       of ( loc * mident )
+  | REQUIRE    of ( loc * mident )
   | LONGARROW
   | LEFTSQU
   | LEFTPAR

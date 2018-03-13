@@ -78,6 +78,7 @@ let handle_entry e =
   | DTree(_,_,_)                -> ()
   | Print(_,_)                  -> ()
   | Name(_,_)                   -> ()
+  | Require(_,md)               -> add_dep (string_of_mident md)
 
 type dep_data = string * (string * (string * string) list)
 
