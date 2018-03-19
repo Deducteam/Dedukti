@@ -518,12 +518,7 @@ struct
           s2'
         else
           let l = fresh_rule s1' s2' in
-          begin
-            if is_succ s2 then
-              add_constraint_max s1' s2' l
-            else
-              add_constraint_rule s1' s2' l
-          end;
+          add_constraint_rule s1' s2' l;
           l
       end
     else
@@ -570,10 +565,8 @@ struct
       let s1,s2 = extract_rule l in
       let s1' = extract_universe sg s1 in
       let s2' = extract_universe sg s2 in
-      let m_or_r =
-        if is_succ s2 then add_constraint_max else add_constraint_rule in
       let r = ident_of_uvar r in
-      m_or_r s1' s2' r;
+      add_constraint_rule s1' s2' r;
       true
     else if is_uvar l && is_rule r then
       generate_constraints sg r l
