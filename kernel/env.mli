@@ -11,9 +11,11 @@ type env_error =
 
 (** {2 The Global Environment} *)
 
-val init        : mident -> unit
-(** [init name] initializes a new global environement giving it the name [name].
-    Every top level declaration will be qualified be this name. *)
+val init        : string -> mident
+(** [init name] initializes a new global environement giving it the name of
+    the corresponding source file. The function returns the module identifier
+    corresponding to this file, built from its basename. Every toplevel
+    declaration will be qualified be this name. *)
 
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)

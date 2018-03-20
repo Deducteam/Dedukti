@@ -44,28 +44,28 @@ type rw_infos =
   }
 
 type t = { name:mident;
+           file:string;
            tables:(rw_infos HId.t) HMd.t;
            mutable external_rules:rule_infos list list; }
 
-let make name =
-  let ht = HMd.create 19 in
-  HMd.add ht name (HId.create 251); { name=name; tables=ht; external_rules=[]; }
+let make file =
+  let name = mk_mident file in 
+  let tables = HMd.create 19 in
+  HMd.add tables name (HId.create 251);
+  { name; file; tables; external_rules=[]; }
 
 let get_name sg = sg.name
 
-let marshal (name:mident) (deps:string list) (env:rw_infos HId.t) (ext:rule_infos list list) : bool =
+let marshal (file:string) (deps:string list) (env:rw_infos HId.t) (ext:rule_infos list list) : bool =
   try
-    begin
-      let out = open_out (string_of_mident name ^ ".dko" ) in
-        Marshal.to_channel out Version.version [] ;
-        Marshal.to_channel out deps [] ;
-        Marshal.to_channel out env [] ;
-        Marshal.to_channel out ext [] ;
-        close_out out ;
-        true
-    end
-  with
-    | _ -> false
+    let file = (try Filename.chop_extension file with _ -> file) ^ ".dko" in
+    let oc = open_out file in
+    Marshal.to_channel oc Version.version [];
+    Marshal.to_channel oc deps [];
+    Marshal.to_channel oc env [];
+    Marshal.to_channel oc ext [];
+    close_out oc; true
+  with _ -> false
 
 let file_exists = Sys.file_exists
 
@@ -172,7 +172,7 @@ let get_deps sg : string list = (*only direct dependencies*)
     ) sg.tables []
 
 let export sg =
-  marshal sg.name (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
+  marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
 
 (******************************************************************************)
 

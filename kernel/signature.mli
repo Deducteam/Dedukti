@@ -24,8 +24,8 @@ type staticity = Static | Definable
 
 type t
 
-val make                : mident -> t
-(** [make name] creates a new signature withe the name [name]. *)
+val make                : string -> t
+(** [make file] creates a new signature corresponding to the file [file]. *)
 
 val get_name            : t -> mident
 (** [get_name sg] returns the name of the signature [sg]. *)

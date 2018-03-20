@@ -106,8 +106,7 @@ let mk_entry beautify md =
 let run_on_file beautify export file =
   let input = open_in file in
   debug 1 "Processing file '%s'..." file;
-  let md = mk_mident file in
-  Env.init md;
+  let md = Env.init file in
   Confluence.initialize ();
   Parser.handle_channel md (mk_entry beautify md) input;
   if not beautify then
@@ -139,7 +138,7 @@ let _ =
       , Arg.Clear Errors.color
       , " Disable colors in the output" )
     ; ( "-stdin"
-      , Arg.String (fun n -> run_on_stdin := Some(mk_mident n))
+      , Arg.String (fun n -> run_on_stdin := Some(n))
       , "MOD Parses standard input using module name MOD" )
     ; ( "-version"
       , Arg.Unit (fun _ -> Printf.printf "Dedukti %s\n%!" Version.version)
@@ -178,9 +177,9 @@ let _ =
   try
     List.iter (run_on_file !beautify !export) files;
     match !run_on_stdin with
-    | None    -> ()
-    | Some md ->
-        Env.init md;
+    | None   -> ()
+    | Some m ->
+        let md = Env.init m in
         Parser.handle_channel md (mk_entry !beautify md) stdin;
         if not !beautify then
           Errors.success "Standard input was successfully checked.\n"
