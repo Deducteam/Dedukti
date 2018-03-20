@@ -118,10 +118,12 @@ and print_pattern_wp out = function
   | p -> print_pattern out p
 
 let print_typed_context fmt ctx =
-  print_list ".\n"
+  Format.fprintf fmt "@[<v>%a@]"
+    (Format.pp_print_list
+       ~pp_sep:(fun fmt () -> Format.fprintf fmt ".@.")
     (fun out (_,x,ty) ->
-      Format.fprintf fmt "@[<hv>%a:@ %a@]" print_ident x print_term ty
-    ) fmt (List.rev ctx)
+      Format.fprintf fmt "@[<hv>%a:@ %a@]" print_ident x print_term ty))
+    (List.rev ctx)
 
 let print_rule_name fmt rule =
   let aux b cst =
@@ -142,7 +144,7 @@ let print_untyped_rule fmt (rule:untyped_rule) =
     Format.fprintf out "@[<hv>%a@]" print_ident id
   in
   Format.fprintf fmt
-    "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
+    "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]"
     print_rule_name rule.name
     (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) rule.ctx)
     print_pattern rule.pat
@@ -153,7 +155,7 @@ let print_typed_rule out (rule:typed_rule) =
     Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
   in
   Format.fprintf out
-    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
+    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]"
     (print_list ", " print_decl) rule.ctx
     print_pattern rule.pat
     print_term rule.rhs
