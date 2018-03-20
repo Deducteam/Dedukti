@@ -154,7 +154,7 @@ struct
     add_obj_sup i;
     match Solver.check solver [] with
     | Solver.UNSATISFIABLE ->
-      Format.eprintf "No solution found with %d universes@." (i+2);
+      (* Format.eprintf "No solution found with %d universes@." (i+2); *)
       check constraints (i+1)
     | Solver.UNKNOWN -> failwith (Format.sprintf "%s" (Solver.get_reason_unknown solver))
     | Solver.SATISFIABLE ->
@@ -172,6 +172,7 @@ struct
             |> ReverseCiC.term_of_univ
           with _ -> ReverseCiC.term_of_univ ReverseCiC.Prop
         in
+        i,
 (*           Format.eprintf "%s@." (Solver.to_string solver);
              Format.eprintf "%s@." (Model.to_string model); *)
         fun (uvar:Basic.ident) : Term.term ->

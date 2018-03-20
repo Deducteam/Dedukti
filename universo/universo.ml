@@ -3,6 +3,11 @@ open Pp
 open Rule
 open Entry
 
+let solve () =
+  let cs = Constraints.Naive.export () in
+  let i,model = Export.Z3.solve cs in
+  i,model
+
 module C = Constraints
 
 module Checker =
@@ -86,6 +91,13 @@ struct
         | OK () -> ()
         | Err e -> Errors.fail_signature_error e
       end
+
+  let mk_entry md e =
+    mk_entry md e (*;
+    let i,_ = solve () in
+    if i >= 2 then
+      failwith "coucou"
+                  *)
 end
 
 let run_on_file output export file =
@@ -104,12 +116,6 @@ let run_on_file output export file =
   let file = Filename.concat output (string_of_mident md ^ ".dk") in
   (md,Format.formatter_of_out_channel (open_out file),
    entries)
-
-let solve () =
-  let cs = Constraints.Naive.export () in
-  let model = Export.Z3.solve cs in
-  Errors.success "Constraints were successfully solved with Z3.";
-  model
 
 let print_file model (md,fmt,entries) =
   Errors.success "File '%a.dk' was fully reconstructed." pp_mident md;
@@ -141,7 +147,8 @@ let _ =
   Rule.allow_non_linear := true;
   try
     let entries' = List.map (run_on_file !output_dir !export) files in
-    let model = solve () in
+    let _,model = solve () in
+    Errors.success "Constraints were successfully solved with Z3.";
     print_files model entries'
   with
   | Sys_error err -> Printf.eprintf "ERROR %s.\n" err; exit 1

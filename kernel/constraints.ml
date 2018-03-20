@@ -808,8 +808,9 @@ struct
         Format.eprintf "%d@." (VarSet.cardinal (acc var cs))) vs
 
   let rec optimize cs =
+    (*
     Format.eprintf "...Before optimizations...@.%s@." (info cs);
-    Format.eprintf "No optimization@.";
+    Format.eprintf "No optimization@."; *)
  (*
     let cs = ConstraintsSet.map normalize_eq (opt_map normalize s) in
     Format.eprintf "After optimizations.@.%s@." (info cs); *)
