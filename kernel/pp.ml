@@ -217,4 +217,6 @@ let print_entry fmt e =
   | Print(_, str)           ->
       fprintf fmt "#PRINT %S.@." str
   | Name(_,_)               ->
-      ()
+    ()
+  | Require(lc,md)          ->
+      fprintf fmt "#REQUIRE %a@." print_mident md

@@ -14,7 +14,7 @@ type term = private
   | Lam   of loc * ident * term option * term (** Lambda abstraction *)
   | Pi    of loc * ident * term * term        (** Pi abstraction *)
 
-val pp_term : Format.formatter -> term -> unit
+val pp_term : term printer
 
 val get_loc : term -> loc
 
@@ -37,3 +37,5 @@ type untyped_context = (loc * ident) list
 
 (** type checking rules implies to give a type to the variables of the context *)
 type typed_context = ( loc * ident * term ) list
+
+val rename_vars_with_typed_context : typed_context -> term -> term

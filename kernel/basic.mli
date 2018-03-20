@@ -3,58 +3,50 @@
 (** {2 Identifiers (hashconsed strings)} *)
 (** Internal representation of identifiers as hashconsed strings. *)
 
-(** type of identifiers (hash-consing) *)
+(** Type of identifiers (hash-consing) *)
 type ident
 
-(** pp_ident [fmt] [id] print the identifier [id] on the formatter [fmt] *)
-val pp_ident : Format.formatter -> ident -> unit
-
-(** mkd_ident [str] casts a string [str] to an identifier *)
+(** [mkd_ident str] casts a string [str] to an identifier *)
 val mk_ident : string -> ident
 
-(** ident_eq [id] [id'] checks if the two identifiers [id] and [id'] are equals *)
+(** [ident_eq id id'] checks if the two identifiers [id] and [id'] are equals *)
 val ident_eq : ident -> ident -> bool
 
-(** string_of_ident [id] returns a string of the identifier [id] *)
+(** [string_of_ident id] returns a string of the identifier [id] *)
 val string_of_ident : ident -> string
 
 (** type of module identifers *)
 type mident
 
-(** pp_ident [fmt] [id] print the identifier [id] on the formatter [fmt] *)
-val pp_mident : Format.formatter -> mident -> unit
-
-(** mk_ident [str] casts a string [str] to an module identifier *)
+(** [mk_ident str] casts a string [str] to an module identifier *)
 val mk_mident : string -> mident
 
-(** mident_eq [md] [md'] checks if the two modules identifiers [mid] and [mid'] are equals *)
+(** [mident_eq md md'] checks if the two modules identifiers [mid] and [mid'] are equals *)
 val mident_eq : mident -> mident -> bool
 
-(** string_of_ident [id] returns a string of the identifier [id] *)
+(** [string_of_ident id] returns a string of the identifier [id] *)
 val string_of_mident : mident -> string
 
 (** type for constant names such as [foo.bar] *)
 type name
 
-(** md [foo.bar] returns foo *)
+(** [md foo.bar] returns foo *)
 val md : name -> mident
 
-(** id [foo.bar] returns bar *)
+(** [id foo.bar] returns bar *)
 val id : name -> ident
 
-(** mk_name foo bar returns the foo.bar *)
+(** [mk_name foo bar] returns the identifier foo.bar *)
 val mk_name : mident -> ident -> name
 
-(** name_eq [n] [n'] checks if the two names [n] and [n'] are equals *)
+(** [name_eq n n'] checks if the two names [n] and [n'] are equals *)
 val name_eq : name -> name -> bool
-
-(** pp_name [fmt] [n] print the name [n] on the formatter [fmt] *)
-val pp_name : Format.formatter -> name -> unit
 
 (** qmark is a special identifier for unification variables *)
 val dmark : ident
 
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
+
 
 (** {2 Lists with Length} *)
 
@@ -85,18 +77,16 @@ end
 (** type of locations *)
 type loc
 
-(** dloc is the default location *)
-val dloc                : loc
+(** a dummy location *)
+val dloc : loc
 
-(** mk_loc l c build the location where [l] is the line and [c] the column *)
-val mk_loc              : int -> int -> loc
+(** [mk_loc l c] builds the location where [l] is the line and [c] the column *)
+val mk_loc : int -> int -> loc
 
-val of_loc              : loc -> (int*int)
+val of_loc : loc -> (int*int)
 
-val pp_loc : Format.formatter -> loc -> unit
-
-val add_path       : string -> unit
-val get_path       : unit -> string list
+val add_path : string -> unit
+val get_path : unit -> string list
 
 (** {2 Error Datatype} *)
 
@@ -110,12 +100,19 @@ val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 
 (** {2 Debug} *)
 
-(** print informations on the standard error channel *)
-val debug_mode : int ref
-
+(** Sets the level of information printing on the standard error channel
+   <0 is quiet mode (no printing)
+   0 is warning level (default)
+   1 is verbose mode
+   >1 is debugging mode  *)
 val set_debug_mode : int -> unit
 
+(** [debug i] prints information on the standard error channel
+    if the selected debugging level is at least [i]. *)
 val debug : int -> ('a, Format.formatter, unit, unit) format4 -> 'a
+
+(** Prints a warning when debugging level is at least 0. *)
+val warn : ('a, Format.formatter, unit, unit) format4 -> 'a
 
 (** {2 Misc} *)
 
@@ -125,7 +122,21 @@ val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 
 val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
-val string_of : (Format.formatter -> 'a -> unit) -> 'a -> string
+(** Functions printing objects on the given formatter. *)
+type 'a printer = Format.formatter -> 'a -> unit
 
-(** pp_list [sep] [fp] [l] print a list [\[l1 ; ... ln\]] by applying [fp] on each element and use se separator [sep] between elements *)
-val pp_list : string -> (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
+(** Prints to a string *)
+val string_of : 'a printer -> 'a -> string
+
+(** Printing identifiers and names *)
+val pp_ident  : ident  printer
+val pp_mident : mident printer
+val pp_name   : name   printer
+val pp_loc    : loc    printer
+
+(** Printing each elements of arrays / lists using the separator [sep] between elements. *)
+val pp_list   : string -> 'a printer -> 'a list printer
+val pp_arr    : string -> 'a printer -> 'a array printer
+
+(** Printing object with printer or default string when None. *)
+val pp_option : string -> 'a printer -> 'a option printer

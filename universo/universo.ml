@@ -80,58 +80,18 @@ struct
     | Name(_,n)               ->
       if not (mident_eq n md) then
         Printf.eprintf "[Warning] invalid #NAME directive ignored.\n%!"
-end
-
-module Indent =
-struct
-  let mk_entry fmt e =
-  let open Format in
-  match e with
-  | Decl(_,id,stat,ty)      ->
-      let stat = if stat = Signature.Definable then "def " else "" in
-      fprintf fmt "@[<2>%s%a :@ %a.@]@.@." stat print_ident id print_term ty
-  | Def(_,id,opaque,ty,te)  ->
-      let key = if opaque then "thm" else "def" in
+    | Require(lc,md) ->
       begin
-        match ty with
-        | None    -> fprintf fmt "@[<hv2>%s %a@ :=@ %a.@]@.@." key
-                       print_ident id print_term te
-        | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
-                       print_ident id print_term ty print_term te
+        match Env.import lc md with
+        | OK () -> ()
+        | Err e -> Errors.fail_signature_error e
       end
-  | Rules(rs)               ->
-      fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) rs
-  | Eval(_,cfg,te)          ->
-      fprintf fmt "#EVAL%a %a.@." print_red_cfg cfg print_term te
-  | Infer(_,cfg,te)         ->
-      fprintf fmt "#INFER%a %a.@." print_red_cfg cfg print_term te
-  | Check(_,assrt,neg,test) ->
-      let cmd = if assrt then "#ASSERT" else "#CHECK" in
-      let neg = if neg then "NOT" else "" in
-      begin
-        match test with
-        | Convert(t1,t2) ->
-            fprintf fmt "%s%s %a ==@ %a.@." cmd neg print_term t1 print_term t2
-        | HasType(te,ty) ->
-            fprintf fmt "%s%s %a ::@ %a.@." cmd neg print_term te print_term ty
-      end
-  | DTree(_,m,v)            ->
-      begin
-        match m with
-        | None   -> fprintf fmt "#GDT %a.@." print_ident v
-        | Some m -> fprintf fmt "#GDT %a.%a.@." print_mident m print_ident v
-      end
-  | Print(_, str)           ->
-      fprintf fmt "#PRINT %S.@." str
-  | Name(_,_)               ->
-      ()
 end
 
 let run_on_file output export file =
   let input = open_in file in
   debug 1 "Processing file '%s'..." file;
-  let md = mk_mident file in
-  Env.init md;
+  let md = Env.init file in
   let entries = Parser.parse_channel md input in
   Errors.success "File '%s' was successfully parsed." file;
   let entries = List.map (Elaboration.elaboration (Env.get_signature ())) entries in
@@ -153,7 +113,7 @@ let solve () =
 
 let print_file model (md,fmt,entries) =
   Errors.success "File '%a.dk' was fully reconstructed." pp_mident md;
-  List.iter (fun x -> Indent.mk_entry fmt (Reconstruction.reconstruction model x)) entries
+  List.iter (fun x -> Pp.print_entry fmt (Reconstruction.reconstruction model x)) entries
 
 let print_files model = List.iter (print_file model)
 

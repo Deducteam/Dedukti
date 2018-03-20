@@ -5,11 +5,7 @@ open Term
 open Rule
 open Dtree
 
-let ignore_redecl = ref false
-let autodep = ref false
-
 type signature_error =
-  | FailToCompileModule of loc * mident
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError of loc * string * string
   | UnmarshalUnknown of loc * string
@@ -48,12 +44,15 @@ type rw_infos =
   }
 
 type t = { name:mident;
+           file:string;
            tables:(rw_infos HId.t) HMd.t;
            mutable external_rules:rule_infos list list; }
 
-let make name =
-  let ht = HMd.create 19 in
-  HMd.add ht name (HId.create 251); { name=name; tables=ht; external_rules=[]; }
+let make file =
+  let name = mk_mident file in
+  let tables = HMd.create 19 in
+  HMd.add tables name (HId.create 251);
+  { name; file; tables; external_rules=[]; }
 
 let get_name sg = sg.name
 
@@ -87,19 +86,16 @@ let add_rule_infos sg (lst:rule_infos list) : unit =
 
 (******************************************************************************)
 
-let marshal (name:mident) (deps:string list) (env:rw_infos HId.t) (ext:rule_infos list list) : bool =
+let marshal (file:string) (deps:string list) (env:rw_infos HId.t) (ext:rule_infos list list) : bool =
   try
-    begin
-      let out = open_out (string_of_mident name ^ ".dko" ) in
-        Marshal.to_channel out Version.version [] ;
-        Marshal.to_channel out deps [] ;
-        Marshal.to_channel out env [] ;
-        Marshal.to_channel out ext [] ;
-        close_out out ;
-        true
-    end
-  with
-    | _ -> false
+    let file = (try Filename.chop_extension file with _ -> file) ^ ".dko" in
+    let oc = open_out file in
+    Marshal.to_channel oc Version.version [];
+    Marshal.to_channel oc deps [];
+    Marshal.to_channel oc env [];
+    Marshal.to_channel oc ext [];
+    close_out oc; true
+  with _ -> false
 
 let file_exists = Sys.file_exists
 
@@ -159,50 +155,17 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   if HMd.mem sg.tables m then
-    debug 0 "[Warning] try to import twice the same module"
+    warn "Trying to import the already loaded module %s." (string_of_mident m)
   else
-
-  (* If the [.dko] file is not found, try to compile it first.
-     This hack is terrible. It uses system calls and can loop with circular dependencies.
-     Also, this hack supposes that the module name and the file name are the same.*)
-  ( if !autodep && not ( Sys.file_exists ( string_of_mident m ^ ".dko" ) ) then
-      if Sys.command ( "dkcheck -autodep -e " ^ string_of_mident m ^ ".dk" ) <> 0 then
-        raise (SignatureError (FailToCompileModule (lc,m)))
-  ) ;
-
-  let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
-  HMd.add sg.tables m ctx;
-  List.iter ( fun dep0 ->
-      let dep = mk_mident dep0 in
-      if not (HMd.mem sg.tables dep) then import sg lc dep
-    ) deps ;
-  debug 1 "Loading module '%a'..." pp_mident m;
-  List.iter (fun rs -> add_rule_infos sg rs) ext;
-  check_confluence_on_import lc m ctx
-
-and add_rule_infos sg (lst:rule_infos list) : unit =
-  match lst with
-  | [] -> ()
-  | (r::_ as rs) ->
-    let env =
-      try HMd.find sg.tables (md r.cst)
-      with Not_found ->
-        import sg r.l (md r.cst); HMd.find sg.tables (md r.cst)
-    in
-    let infos = try ( HId.find env (id r.cst) )
-      with Not_found -> raise (SignatureError (SymbolNotFound(r.l, r.cst))) in
-    let ty = infos.ty in
-    if (infos.stat = Static) then
-      raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
-    let rules = match infos.rule_opt_info with
-      | None -> rs
-      | Some(mx,_,_) -> mx@rs
-    in
-    match Dtree.of_rules rules with
-    | OK (n,tree) ->
-       HId.add env (id r.cst)
-         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,n,tree)}
-    | Err e -> raise (SignatureError (CannotBuildDtree e))
+    let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
+    HMd.add sg.tables m ctx;
+    List.iter ( fun dep0 ->
+        let dep = mk_mident dep0 in
+        if not (HMd.mem sg.tables dep) then import sg lc dep
+      ) deps ;
+    debug 1 "Loading module '%a'..." pp_mident m;
+    List.iter (fun rs -> add_rule_infos sg rs) ext;
+    check_confluence_on_import lc m ctx
 
 (******************************************************************************)
 
@@ -215,7 +178,7 @@ let get_deps sg : string list = (*only direct dependencies*)
     ) sg.tables []
 
 let export sg =
-  marshal sg.name (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
+  marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
 
 (******************************************************************************)
 
@@ -261,8 +224,7 @@ let add_declaration sg lc v st ty =
   Confluence.add_constant cst;
   let env = HMd.find sg.tables sg.name in
   if HId.mem env v then
-    ( if !ignore_redecl then debug 1 "Redeclaration ignored."
-      else raise (SignatureError (AlreadyDefinedSymbol (lc,v))) )
+    raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
   else
     HId.add env v {stat=st; ty=ty; rule_opt_info=None}
 

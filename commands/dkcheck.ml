@@ -3,14 +3,9 @@ open Basic
 open Parser
 open Entry
 
-let verbose = ref false
-
 let eprint lc fmt =
-  if !verbose then
-    let (l,c) = of_loc lc in
-    Format.eprintf "line:%i column:%i " l c;
-    Format.kfprintf (fun _ -> prerr_newline ()) Format.err_formatter fmt
-  else Format.ifprintf Format.err_formatter fmt
+  let (l,c) = of_loc lc in
+  debug 1 ("line:%i column:%i " ^^ fmt) l c
 
 let mk_entry md e =
   match e with
@@ -94,8 +89,14 @@ let mk_entry md e =
   | Print(_,s)              ->
       Format.printf "%s@." s
   | Name(_,n)               ->
-      if not (mident_eq n md) then
-        Printf.eprintf "[Warning] invalid #NAME directive ignored.\n%!"
+      if not (mident_eq n md)
+      then warn "Invalid #NAME directive ignored.\n%!"
+  | Require(lc,md)               ->
+    begin
+      match Env.import lc md with
+      | OK () -> ()
+      | Err e -> Errors.fail_signature_error e
+    end
 
 let mk_entry beautify md =
   if beautify then Pp.print_entry Format.std_formatter
@@ -105,8 +106,7 @@ let mk_entry beautify md =
 let run_on_file beautify export file =
   let input = open_in file in
   debug 1 "Processing file '%s'..." file;
-  let md = mk_mident file in
-  Env.init md;
+  let md = Env.init file in
   Confluence.initialize ();
   Parser.handle_channel md (mk_entry beautify md) input;
   if not beautify then
@@ -122,12 +122,15 @@ let _ =
   let export       = ref false in
   let beautify     = ref false in
   let options = Arg.align
-    [ ( "-v"
-      , Arg.Set verbose
-      , " Enable the verbose mode" )
-    ; ( "-d"
+    [ ( "-d"
       , Arg.Int Basic.set_debug_mode
-      , "N sets the debuging level to N" )
+      , "N sets the verbosity level to N" )
+    ; ( "-v"
+      , Arg.Unit (fun _ -> Basic.set_debug_mode 1)
+      , " Verbose mode (equivalent to -d 1)" )
+    ; ( "-q"
+      , Arg.Unit (fun _ -> Basic.set_debug_mode (-1))
+      , " Quiet mode (equivalent to -d -1" )
     ; ( "-e"
       , Arg.Set export
       , " Generates an object file (\".dko\")" )
@@ -135,20 +138,14 @@ let _ =
       , Arg.Clear Errors.color
       , " Disable colors in the output" )
     ; ( "-stdin"
-      , Arg.String (fun n -> run_on_stdin := Some(mk_mident n))
+      , Arg.String (fun n -> run_on_stdin := Some(n))
       , "MOD Parses standard input using module name MOD" )
-    ; ( "-r"
-      , Arg.Set Signature.ignore_redecl
-      , " Ignore redeclaration of symbols" )
     ; ( "-version"
       , Arg.Unit (fun _ -> Printf.printf "Dedukti %s\n%!" Version.version)
       , " Print the version number" )
     ; ( "-coc"
       , Arg.Set Typing.coc
       , " Typecheck the Calculus of Construction" )
-    ; ( "-autodep"
-      , Arg.Set Signature.autodep
-      , " Automatically handle dependencies (experimental)" )
     ; ( "-I"
       , Arg.String Basic.add_path
       , "DIR Add the directory DIR to the load path" )
@@ -180,9 +177,9 @@ let _ =
   try
     List.iter (run_on_file !beautify !export) files;
     match !run_on_stdin with
-    | None    -> ()
-    | Some md ->
-        Env.init md;
+    | None   -> ()
+    | Some m ->
+        let md = Env.init m in
         Parser.handle_channel md (mk_entry !beautify md) stdin;
         if not !beautify then
           Errors.success "Standard input was successfully checked.\n"

@@ -76,10 +76,11 @@ let handle_entry e =
       Format.printf "%s@." s
   | Name(_,_)           ->
       Format.printf "\"#NAME\" directive ignored.@."
+  | Require(_,_)        ->
+      Format.printf "\"#REQUIRE\" directive ignored.@."
 
 let  _ =
-  let md = Basic.mk_mident "<toplevel>" in
-  Env.init md;
+  let md = Env.init "<toplevel>" in
   let str = from_channel md stdin in
   Printf.printf "\tDedukti (%s)\n\n%!" Version.version;
   while true do

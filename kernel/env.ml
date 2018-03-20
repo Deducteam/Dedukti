@@ -11,11 +11,13 @@ type env_error =
 
 (* Wrapper around Signature *)
 
-let sg = ref (Signature.make (mk_mident "noname"))
+let sg = ref (Signature.make "noname")
 
 let get_signature () = !sg
 
-let init name = sg := Signature.make name
+let init file =
+  sg := Signature.make file;
+  Signature.get_name !sg
 
 let get_name () = Signature.get_name !sg
 
@@ -32,8 +34,7 @@ let get_dtree l cst =
 let export () : bool = Signature.export !sg
 
 let import lc md =
-  try
-    OK(Signature.import !sg lc md)
+  try OK(Signature.import !sg lc md)
   with SignatureError e -> Err e
 
 let _declare (l:loc) (id:ident) st ty : unit =
@@ -102,8 +103,8 @@ let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
 
 let infer ?ctx:(ctx=[]) te =
   try
-    let ty = Typing.infer !sg ctx te in
-    ignore(inference !sg ty);
+    let ty = infer !sg ctx te in
+    ignore(infer !sg ctx ty);
     OK ty
   with
   | SignatureError e -> Err (EnvErrorSignature e)

@@ -61,7 +61,8 @@ let mk_config loc id1 id2_opt =
 %token <Basic.loc> PRINT
 %token <Basic.loc> GDT
 %token <Basic.loc> UNDERSCORE
-%token <Basic.loc*Basic.mident>NAME
+%token <Basic.loc*Basic.mident> NAME
+%token <Basic.loc*Basic.mident> REQUIRE
 %token <Basic.loc> TYPE
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
@@ -112,7 +113,7 @@ line:
   | EVAL cfg=eval_config te=term DOT
       {fun md -> Eval($1, cfg, scope_term md [] te)}
   | INFER te=term DOT
-      {fun md -> Infer($1, Reduction.default_cfg, scope_term md [] te)}
+      {fun md -> Infer($1, default_cfg, scope_term md [] te)}
   | INFER cfg=eval_config te=term DOT
       {fun md -> Infer($1, cfg, scope_term md [] te)}
 
@@ -138,6 +139,7 @@ line:
   | GDT   ID     DOT {fun _ -> DTree($1, None, snd $2)}
   | GDT   QID    DOT {fun _ -> let (_,m,v) = $2 in DTree($1, Some m, v)}
   | n=NAME       DOT {fun _ -> Name(fst n, snd n)}
+  | r=REQUIRE    DOT {fun _ -> Require(fst r,snd r)}
   | EOF              {raise End_of_file}
 
 eval_config:

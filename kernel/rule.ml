@@ -229,14 +229,10 @@ let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * con
 (* For each matching variable count the number of arguments *)
 let get_nb_args (esize:int) (p:pattern) : int array =
   let arr = Array.make esize (-1) in (* -1 means +inf *)
-  let min a b =
-    if a = -1 then b
-    else if a<b then a else b
-  in
   let rec aux k = function
     | Brackets _ -> ()
     | Var (_,_,n,args) when n<k -> List.iter (aux k) args
-    | Var (_,id,n,args) -> arr.(n-k) <- min (arr.(n-k)) (List.length args)
+    | Var (_,id,n,args) -> arr.(n-k) <- max (arr.(n-k)) (List.length args)
     | Lambda (_,_,pp) -> aux (k+1) pp
     | Pattern (_,_,args) -> List.iter (aux k) args
   in

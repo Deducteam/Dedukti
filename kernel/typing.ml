@@ -32,9 +32,9 @@ exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let snf = reduction {default_cfg with strategy = Snf}
+let snf = reduction default_cfg
 
-let whnf = reduction {default_cfg with strategy = Reduction.Whnf}
+let whnf = reduction {default_cfg with strategy = Whnf}
 
 let get_type ctx l x n =
   try
@@ -75,6 +75,7 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
   | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
 and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
+  debug 3 "Checking: %a : %a" pp_term te pp_term ty_exp;
   match te with
   | Lam (l,x,None,b) ->
     begin
@@ -95,7 +96,9 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
   | _ ->
     let ty_inf = infer sg ctx te in
     if Reduction.are_convertible sg ty_inf ty_exp then ()
-    else raise (TypingError (ConvertibilityError (te,ctx,ty_exp,ty_inf)))
+    else
+      let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
+      raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
 
 and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
   match whnf sg ty_f with
@@ -304,8 +307,9 @@ and infer_pattern_aux sg (sigma:context2) (f,ty_f,delta,lst:term*typ*partial_con
       let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
       raise (TypingError (ProductExpected (f,ctx,ty_f)))
 
-and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:constraints) (pat:pattern) : partial_context * constraints =
-(*   debug "check_pattern %a:%a" pp_pattern pat pp_term exp_ty; *)
+and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
+    (lst:constraints) (pat:pattern) : partial_context * constraints =
+  debug 3 "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty;
   match pat with
   | Lambda (l,x,p) ->
     begin
@@ -316,20 +320,20 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ) (lst:
         raise (TypingError ( ProductExpected (pattern_to_term pat,ctx,exp_ty)))
     end
   | Brackets te ->
-        let te2 =
-          try Subst.unshift (delta.padding + LList.len sigma) te
-          with Subst.UnshiftExn ->
-            let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-            raise (TypingError (BracketError1 (te,ctx)))
-        in
-        let ty2 =
-          try unshift_n sg (delta.padding + LList.len sigma) exp_ty
-          with Subst.UnshiftExn ->
-            let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-            raise (TypingError (BracketError2 (te,ctx,exp_ty)))
-        in
-        check sg (pc_to_context delta) te2 ty2;
-        ( delta, lst )
+    let te2 =
+      try Subst.unshift (delta.padding + LList.len sigma) te
+      with Subst.UnshiftExn ->
+        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
+        raise (TypingError (BracketError1 (te,ctx)))
+    in
+    let ty2 =
+      try unshift_n sg (delta.padding + LList.len sigma) exp_ty
+      with Subst.UnshiftExn ->
+        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
+        raise (TypingError (BracketError2 (te,ctx,exp_ty)))
+    in
+    check sg (pc_to_context delta) te2 ty2;
+    ( delta, lst )
   | Var (l,x,n,[]) when ( n >= LList.len sigma ) ->
     begin
       let k = LList.len sigma in
