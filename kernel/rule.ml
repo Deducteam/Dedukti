@@ -283,8 +283,10 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
       
       (* Checking if pattern has linearity constraints *)
       if not (is_linear infos.constraints)
-      then raise (RuleExn (NonLinearRule r))
-      else debug 1 "Non-linear Rewrite Rule detected";
+      then
+        if !allow_non_linear
+        then debug 1 "Non-linear Rewrite Rule detected"
+        else raise (RuleExn (NonLinearRule r));
       
       OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
            esize = infos.context_size ;
