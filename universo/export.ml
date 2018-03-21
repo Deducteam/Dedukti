@@ -134,12 +134,12 @@ struct
     if Hashtbl.mem variables var then
       let zvar = Hashtbl.find variables var in
       match Model.get_const_interp_e model zvar with
-      | None -> failwith "no value associated to a variable"
+      | None -> failwith "This bug should be reported (var_solution 1)"
       | Some e ->
         try
           let s = Arithmetic.Integer.numeral_to_string e in
           int_of_string s
-        with _ -> failwith "should be a numeral"
+        with _ -> failwith "This bug should be reported (var_solution 1)"
     else
       failwith (Format.sprintf "Variable %s not found" var)
 
@@ -154,9 +154,9 @@ struct
     add_obj_sup i;
     match Solver.check solver [] with
     | Solver.UNSATISFIABLE ->
-      (* Format.eprintf "No solution found with %d universes@." (i+2); *)
+      Basic.debug 1 "No solution found with %d universes@." (i+2);
       check constraints (i+1)
-    | Solver.UNKNOWN -> failwith (Format.sprintf "%s" (Solver.get_reason_unknown solver))
+    | Solver.UNKNOWN -> failwith "This bug should be reported (check)"
     | Solver.SATISFIABLE ->
       match Solver.get_model solver with
       | None -> assert false
@@ -172,9 +172,9 @@ struct
             |> ReverseCiC.term_of_univ
           with _ -> ReverseCiC.term_of_univ ReverseCiC.Prop
         in
+        Basic.debug 2 "%s@." (Solver.to_string solver);
+        Basic.debug 2 "%s@." (Model.to_string model);
         i,
-(*           Format.eprintf "%s@." (Solver.to_string solver);
-             Format.eprintf "%s@." (Model.to_string model); *)
         fun (uvar:Basic.ident) : Term.term ->
           if Hashtbl.mem hmodel uvar then
             Hashtbl.find hmodel uvar

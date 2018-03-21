@@ -37,4 +37,4 @@ let reconstruction model entry =
     let rs' = List.map (fun (r: untyped_rule) -> {r  with rhs = reconstruction model r.rhs}) rs in
     Rules(rs')
   | Name (l,id) -> Name(l,id)
-  | _ -> failwith "unsupported"
+  | _ -> assert false

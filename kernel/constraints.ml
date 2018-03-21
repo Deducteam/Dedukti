@@ -309,7 +309,7 @@ sig
 end
 
 
-module Naive (* :ConstraintsInterface with type var = Basic.ident *) =
+module Naive =
 struct
 
   open UVar
@@ -391,20 +391,16 @@ struct
     fun ident ->
       let v = var_of_ident ident in
       UF.union v (find_univ Prop)
-      (* add_constraint (Eq(v, find_univ Prop)) *)
 
   let add_constraint_type =
     fun v u ->
       let v = var_of_ident v in
       UF.union v (find_univ u)
-  (* add_constraint (Eq(v, find_univ u)) *)
-
 
   let add_constraint_eq v v' =
     let v = var_of_ident v in
     let v' = var_of_ident v' in
     UF.union v v'
-    (* add_constraint (Eq(v,v')) *)
 
   let add_constraint_succ v v' =
     let v = var_of_ident v in
@@ -470,7 +466,7 @@ struct
       if is_prop s' then
         term_of_univ (Type 0)
       else if is_type s' then
-        failwith "todo"
+        failwith "This bug should be reported (simple 1)"
       else Term.mk_App (Term.mk_Const dloc succ) s' []
     else if is_rule s then
       let s1,s2 = extract_rule s in
@@ -485,7 +481,7 @@ struct
       else
         Term.mk_App (Term.mk_Const dloc rule) s1 [s2]
     else if is_max s then
-      failwith "todo"
+      failwith "This bug should be reported (simple 2)"
     else
       s
 
@@ -524,7 +520,7 @@ struct
     else
       begin
         Format.printf "%a@." Term.pp_term s;
-        failwith "don't know what to do yet"
+        failwith "This bug should be reported (extract_universe)"
       end
 
   let rec generate_constraints sg (l:Term.term) (r:Term.term) =
@@ -598,109 +594,39 @@ struct
     else if is_type l && is_rule r then
       generate_constraints sg r l
     else if is_lift l && is_succ r then
-      failwith "BUG1"
+      failwith "This bug should be reported (case 0)"
     else if is_succ l && is_lift r then
-      failwith "BUG2"
+      failwith "This bug should be reported (case 1)"
     else if is_lift l && is_prop r then
-      failwith "BUG3"
+      failwith "This bug should be reported (case 2)"
     else if is_prop l && is_lift r then
-      failwith "BUG4"
+      failwith "This bug should be reported (case 3)"
     else if is_lift l && is_uvar r then
-      failwith "BUG5"
+      failwith "This bug should be reported (case 4)"
     else if is_uvar l && is_lift r then
-      failwith "BUG6"
+      failwith "This bug should be reported (case 5)"
     else if is_succ l && is_prop r then
-      failwith "BUG7"
+      failwith "This bug should be reported (case 6)"
     else if is_prop l && is_succ r then
-      failwith "BUG8"
+      failwith "This bug should be reported (case 7)"
     else if is_prop l && is_rule r then
-      failwith "BUG9"
+      failwith "This bug should be reported (case 8)"
     else if is_rule l && is_prop r then
-      failwith "BUG10"
+      failwith "This bug should be reported (case 9)"
     else if is_succ l && is_type r then
-      failwith "BUG11"
+      failwith "This bug should be reported (case 10)"
     else if is_type l && is_succ r then
-      failwith "BUG12"
+      failwith "This bug should be reported (case 11)"
     else if is_succ l && is_rule r then
-      failwith "BUG15"
+      failwith "This bug should be reported (case 12)"
     else if is_rule l && is_succ r then
-      failwith "BUG16"
+      failwith "This bug should be reported (case 13)"
     else if is_succ l && is_type r then
-      failwith "BUG17"
+      failwith "This bug should be reported (case 14)"
     else if is_type l && is_succ r then
-      failwith "BUG18"
+      failwith "This bug should be reported (case 15)"
     else
       false
-
-  (*
-  let normalize_univ uvar n u =
-    let find n = UF.find !uf n in
-    (false,Some (Univ(find n, u)))
-
-  let normalize_eq uvar n n' =
-    let find n = UF.find !uf n in
-    uf := UF.union !uf (find n) (find n');
-    (true, None)
-
-  let rec normalize_max uvar n n' n'' =
-    let find n = UF.find !uf n in
-    let n = find n in
-    let n' = find n' in
-    let n'' = find n'' in
-    if n = n' then
-      (true, Some (Eq(n,n'')))
-    else
-      (false, Some (Max(n, n', n'')))
-
-  let normalize_succ uvar n n' =
-    let find n = UF.find !uf n in
-    let n = find n in
-    let n' = find n' in
-    if List.mem_assoc n uvar then
-      (false,Some (Succ(n,n'))) (* TODO optimize that *)
-    else if List.mem_assoc n' uvar then
-      failwith "succ todo right"
-    else
-      (false,Some (Succ(n,n')))
-
-  let normalize_rule uvar n n' n'' : bool * constraints option =
-    let find n = UF.find !uf n in
-    let n = find n in
-    let n' = find n' in
-    let n'' = find n'' in
-    if n = n' then
-      (true, Some (Eq(n,n'')))
-    else if List.mem_assoc n' uvar then
-      match List.assoc n' uvar with
-      | Prop -> (Log.append @@ Format.sprintf "Normalize Rr Prop.";  (true,Some (Univ(n,Prop))))
-      | Type(i) ->
-        if List.mem_assoc n uvar then
-          match List.assoc n uvar with
-          | Prop -> Log.append @@ Format.sprintf "Normalize Rl Prop"; (true,Some (Eq(n',n'')))
-          | Type(j) -> Log.append @@ Format.sprintf "Normalize Rl Type";
-            (false, Some (Max(n, n', n'')))
-        else
-          (false, Some (Rule(n, n', n'')))
-    else
-      (false, Some (Rule(n, n', n'')))
-
-  let rec normalize uvar cset =
-    let add_opt c set =
-      match c with
-      | None -> set
-      | Some c -> ConstraintsSet.add c set
-    in
-    let fold cstr (b,set) =
-      match cstr with
-      | Univ(n,u) -> let b', c = normalize_univ uvar n u in b || b', add_opt c set
-      | Eq(n,n')  -> let b', c = normalize_eq uvar n n' in b || b', add_opt c set
-      | Max(n,n',n'') -> let b', c = normalize_max uvar n n' n'' in b || b', add_opt c set
-      | Succ(n,n') -> let b', c = normalize_succ uvar n n' in b || b', add_opt c set
-      | Rule(n,n',n'') -> let b', c = normalize_rule uvar n n' n'' in b || b', add_opt c set
-    in
-    let (b,set) = ConstraintsSet.fold fold cset (false,ConstraintsSet.empty) in
-    if b then normalize uvar set else set
-*)
 
   let string_of_var n = string_of_ident n
 
@@ -726,94 +652,8 @@ struct
       let n'' = UF.find n'' in
       Rule(n, n', n'')
 
-  let normalize cstr =
-    match cstr with
-    | Univ(n,u) -> Some(Univ(UF.find n,u))
-    | Eq(n,n') ->
-      let n = UF.find n in
-      let n' = UF.find n' in
-      UF.union n n';
-      None
-    | Max(n,n',n'') ->
-      let n = UF.find n in
-      let n' = UF.find n' in
-      let n'' = UF.find n'' in
-      if n = n' then
-        Some(Eq(n,n''))
-      else
-        Some(Max(n,n',n''))
-    | Succ(n,n') ->
-      let n = UF.find n in
-      let n' = UF.find n' in
-      Some(Succ(n, n'))
-    | Rule(n,n',n'') ->
-      let n = UF.find n in
-      let n' = UF.find n' in
-      let n'' = UF.find n'' in
-      if n = n' then
-        Some(Eq(n,n''))
-      else if n' = UF.find (find_univ (Type 0)) then
-        Some(Max(n,n',n''))
-      else if n'' = UF.find (find_univ (Type 0)) then
-        Some(Max(n, n', n''))
-      else
-        Some(Rule(n, n', n''))
-
-  let opt_map f cs =
-    ConstraintsSet.fold
-      (fun elt cs ->
-         match f elt with
-         | None -> cs
-         | Some c -> ConstraintsSet.add c cs) cs ConstraintsSet.empty
-
-  let acc var cs =
-    let test vs =
-      ConstraintsSet.fold (fun x vs ->
-          match x with
-          | Eq(n,n') ->
-            if VarSet.mem n vs || VarSet.mem n' vs then
-              VarSet.add n (VarSet.add n' vs)
-            else
-              vs
-          | Succ(n,n') ->
-            if VarSet.mem n vs || VarSet.mem n' vs then
-              VarSet.add n (VarSet.add n' vs)
-            else
-              vs
-          | Max(n,n', n'') ->
-            if VarSet.mem n vs || VarSet.mem n' vs || VarSet.mem n'' vs  then
-              VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
-            else
-              vs
-          | Rule(n,n', n'') ->
-            if VarSet.mem n vs || VarSet.mem n' vs || VarSet.mem n'' vs  then
-              VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
-            else
-              vs
-          | Univ(n,_) -> vs
-        ) cs vs
-    in
-    let rec fp vs =
-      let vs' = test vs in
-      if VarSet.equal vs' vs then
-        vs
-      else
-        fp vs'
-    in
-    fp (VarSet.singleton var)
-
-
-  let print_acc cs vs =
-    VarSet.iter (fun var ->
-        Format.eprintf "%d@." (VarSet.cardinal (acc var cs))) vs
-
   let rec optimize cs =
-    (*
-    Format.eprintf "...Before optimizations...@.%s@." (info cs);
-    Format.eprintf "No optimization@."; *)
- (*
-    let cs = ConstraintsSet.map normalize_eq (opt_map normalize s) in
-    Format.eprintf "After optimizations.@.%s@." (info cs); *)
+    debug 1 "%s@." (info cs);
     cs
 
   (* Use canonical guy from UF for every constraints, otherwise, it might be inconsistent *)
