@@ -38,7 +38,6 @@ type constr =
 type rule_infos = {
   l : loc;
   name : rule_name ;
-  ctx : untyped_context;
   cst : name;
   args : pattern list;
   rhs : term;
@@ -140,7 +139,9 @@ let pp_typed_rule fmt (rule:typed_rule) =
 
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
-  let rule = { name = r.name; ctx = r.ctx;
+  let rule = { name = r.name;
+               ctx = [];
+               (* TODO: here infer context from named variable inside left hand side pattern *)
                pat = pattern_of_rule_infos r;
                rhs = r.rhs } in
   pp_untyped_rule out rule
@@ -284,7 +285,7 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
         Err (NonLinearRule r)
       else
         let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in
-        OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
+        OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;
              esize = esize2 ;
              pats = Array.of_list pats2 ;
              constraints = cstr ; }

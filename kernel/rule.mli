@@ -81,7 +81,6 @@ type rule_error =
 type rule_infos =
   { l     : loc               (** location of the rule *)
   ; name  : rule_name         (** name of the rule *)
-  ; ctx   : untyped_context   (** typed context of the rule *)
   ; cst   : name              (** name of the pattern constant *)
   ; args  : pattern list      (** arguments list of the pattern constant *)
   ; rhs   : term              (** right hand side of the rule *)
