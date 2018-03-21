@@ -159,7 +159,12 @@ let pattern_to_term p =
 
 module IntSet = Set.Make(struct type t=int let compare=(-) end)
 
-type lin_infos = { cstr:constr list; next_fvar:int ; seen:IntSet.t }
+type lin_infos =
+  {
+    constraints  : constr list;
+    context_size : int;
+    seen      : IntSet.t
+  }
 
 (* ************************************************************************** *)
 
@@ -196,11 +201,11 @@ let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * con
       (* In a Miller pattern higher order variables should be applied to distinct variables *)
       if all_distinct args' then
         if IntSet.mem (n-k) (s.seen) then
-          let fvar = s.next_fvar in
+          let fvar = s.context_size in
           let wf_pat = LVar(x,fvar+k,args') in
           let constraints = {s with
-                             next_fvar=(fvar+1);
-                             cstr=(Linearity (fvar, n-k))::(s.cstr)} in
+                             context_size=(fvar+1);
+                             constraints=(Linearity (fvar, n-k))::(s.constraints)} in
           (wf_pat, constraints)
           else
             ( LVar(x,n,args') , { s with seen=IntSet.add (n-k) s.seen; } )
@@ -209,11 +214,12 @@ let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * con
     | Brackets t ->
       begin
         try
-          let fvar = s.next_fvar in
+          let fvar = s.context_size in
           let wf_pat = LVar(br,fvar+k,[]) in
+          let cstr = Bracket (fvar, Subst.unshift k t) in
           let constraints = {s with
-                             next_fvar=(s.next_fvar+1);
-                             cstr=(Bracket (fvar, Subst.unshift k t))::(s.cstr)} in
+                             context_size = s.context_size + 1;
+                             constraints  = cstr :: s.constraints} in
           (wf_pat, constraints)
         with
         | Subst.UnshiftExn -> raise (RuleExn (VariableBoundOutsideTheGuard t))
@@ -222,9 +228,9 @@ let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * con
       let (args2,s2) = (fold_map (aux k) s args) in
       ( LPattern(n,Array.of_list args2) , s2 )
   in
-  let lin_infos = {next_fvar = esize; cstr = []; seen = IntSet.empty; } in
+  let lin_infos = {context_size = esize; constraints = []; seen = IntSet.empty; } in
   let (pats,r) = fold_map (aux 0) lin_infos pats in
-  ( r.next_fvar , pats , r.cstr )
+  ( r.context_size, pats , r.constraints )
 
 (* For each matching variable count the number of arguments *)
 let get_nb_args (esize:int) (p:pattern) : int array =
