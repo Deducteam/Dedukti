@@ -75,6 +75,7 @@ type rule_error =
   | AVariableIsNotAPattern of loc * ident
   | NonLinearRule of typed_rule
   | NotEnoughArguments of loc * ident * int * int * int
+  | NonLinearNonEqArguments of loc * ident
 
 (** {2 Rule infos} *)
 
