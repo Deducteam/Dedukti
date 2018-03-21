@@ -78,17 +78,17 @@ type rule_error =
 
 (** {2 Rule infos} *)
 
-type rule_infos = {
-  l : loc; (** location of the rule *)
-  name : rule_name; (** name of the rule *)
-  ctx : typed_context; (** typed context of the rule *)
-  cst : name; (** name of the pattern constant *)
-  args : pattern list; (** arguments list of the pattern constant *)
-  rhs : term; (** right hand side of the rule *)
-  esize : int; (** size of the context *)
-  pats : wf_pattern array; (** free pattern without constraint *)
-  constraints : constr list; (** constraints generated from the pattern to the free pattern *)
-}
+type rule_infos =
+  { l     : loc               (** location of the rule *)
+  ; name  : rule_name         (** name of the rule *)
+  ; ctx   : typed_context     (** typed context of the rule *)
+  ; cst   : name              (** name of the pattern constant *)
+  ; args  : pattern list      (** arguments list of the pattern constant *)
+  ; rhs   : term              (** right hand side of the rule *)
+  ; esize : int               (** size of the context *)
+  ; pats  : wf_pattern array  (** free pattern without constraint *)
+  ; constraints : constr list (** constraints generated from the pattern to the free pattern *)
+  }
 
 val pattern_of_rule_infos : rule_infos -> pattern
 
