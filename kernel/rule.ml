@@ -246,10 +246,10 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
         if n>=k && nb_args.(n-k)>0 then
           raise (RuleExn (NotEnoughArguments (l,id,n,0,nb_args.(n-k))))
     | App(DB(l,id,n),a1,args) when n>=k ->
-      let min_nb_args = nb_args.(n-k) in
+      let max_nb_args = nb_args.(n-k) in
       let nb_args = List.length args + 1 in
-        if ( min_nb_args > nb_args  ) then
-          raise (RuleExn (NotEnoughArguments (l,id,n,nb_args,min_nb_args)))
+        if ( max_nb_args > nb_args  ) then
+          raise (RuleExn (NotEnoughArguments (l,id,n,nb_args,max_nb_args)))
         else List.iter (aux k) (a1::args)
     | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
     | Lam (_,_,None,b) -> aux (k+1) b
