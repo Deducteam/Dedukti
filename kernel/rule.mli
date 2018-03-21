@@ -73,7 +73,7 @@ type rule_error =
   | VariableBoundOutsideTheGuard of term
   | UnboundVariable of loc * ident * pattern
   | AVariableIsNotAPattern of loc * ident
-  | NonLinearRule of typed_rule
+  | NonLinearRule of untyped_rule
   | NotEnoughArguments of loc * ident * int * int * int
 
 (** {2 Rule infos} *)
@@ -81,7 +81,7 @@ type rule_error =
 type rule_infos =
   { l     : loc               (** location of the rule *)
   ; name  : rule_name         (** name of the rule *)
-  ; ctx   : typed_context     (** typed context of the rule *)
+  ; ctx   : untyped_context   (** typed context of the rule *)
   ; cst   : name              (** name of the pattern constant *)
   ; args  : pattern list      (** arguments list of the pattern constant *)
   ; rhs   : term              (** right hand side of the rule *)
@@ -92,7 +92,7 @@ type rule_infos =
 
 val pattern_of_rule_infos : rule_infos -> pattern
 
-val to_rule_infos : typed_rule -> (rule_infos, rule_error) error
+val to_rule_infos : untyped_rule -> (rule_infos, rule_error) error
 
 (** {2 Printing} *)
 

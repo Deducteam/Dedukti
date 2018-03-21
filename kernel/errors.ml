@@ -134,7 +134,7 @@ let fail_rule_error err =
   | NonLinearRule r ->
     fail (Rule.get_loc_pat r.pat) "Non left-linear rewrite rule:\n%a.\n\
                                Maybe you forgot to pass the -nl option."
-      pp_typed_rule r
+      pp_untyped_rule r
 
 let pp_cerr out err =
   let open Confluence in

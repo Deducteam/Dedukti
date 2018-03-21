@@ -165,7 +165,7 @@ let print_rule_infos out ri =
                rhs = ri.rhs
              }
   in
-  print_typed_rule out rule
+  print_untyped_rule out rule
 
 let print_red_cfg fmt strat =
   let open Reduction in
