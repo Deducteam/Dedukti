@@ -53,10 +53,11 @@ type rule_error =
   | BoundVariableExpected of pattern
   | DistinctBoundVariablesExpected of loc * ident
   | VariableBoundOutsideTheGuard of term
-  | UnboundVariable of loc * ident * pattern (* FIXME : this exception seems never to be raised *)
+  | UnboundVariable of loc * ident * pattern (* FIXME: this exception seems never to be raised *)
   | AVariableIsNotAPattern of loc * ident
   | NonLinearRule of typed_rule
   | NotEnoughArguments of loc * ident * int * int * int
+  | NonLinearNonEqArguments of loc * ident (* FIXME: this necessary condition should be formalalized on paper *)
 
 exception RuleExn of rule_error
 
@@ -227,12 +228,18 @@ let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * con
   ( r.next_fvar , pats , r.cstr )
 
 (* For each matching variable count the number of arguments *)
-let get_nb_args (esize:int) (p:pattern) : int array =
+let get_nb_args (lc:loc) (esize:int) (p:pattern) : int array =
   let arr = Array.make esize (-1) in (* -1 means +inf *)
+  let eq id x y =
+    if x <> -1 && x<> y then
+      raise (RuleExn (NonLinearNonEqArguments(lc,id)))
+    else
+      y
+  in
   let rec aux k = function
     | Brackets _ -> ()
     | Var (_,_,n,args) when n<k -> List.iter (aux k) args
-    | Var (_,id,n,args) -> arr.(n-k) <- max (arr.(n-k)) (List.length args)
+    | Var (_,id,n,args) -> arr.(n-k) <- eq id (arr.(n-k)) (List.length args)
     | Lambda (_,_,pp) -> aux (k+1) pp
     | Pattern (_,_,args) -> List.iter (aux k) args
   in
@@ -271,7 +278,7 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
         | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
         | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
       in
-      let nb_args = get_nb_args esize r.pat in
+      let nb_args = get_nb_args l esize r.pat in
       ignore(check_nb_args nb_args r.rhs);
       let (esize2,pats2,cstr) = check_patterns  esize args in
       let is_nl = not (is_linear cstr) in

@@ -135,6 +135,8 @@ let fail_rule_error err =
     fail (Rule.get_loc_pat r.pat) "Non left-linear rewrite rule:\n%a.\n\
                                Maybe you forgot to pass the -nl option."
       pp_typed_rule r
+  | NonLinearNonEqArguments(lc,arg) ->
+    fail lc "For each occurence of the free variable %a, the symbol should be applied to the same number of arguments" pp_ident arg
 
 let pp_cerr out err =
   let open Confluence in
