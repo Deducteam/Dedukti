@@ -158,13 +158,13 @@ let pattern_to_term p =
   in
   aux 0 p
 
-module IntSet = Set.Make(struct type t=int let compare=(-) end)
+module IntMap = Map.Make(struct type t=int let compare=(-) end)
 
-type lin_infos =
+type pattern_info =
   {
     constraints  : constr list;
     context_size : int;
-    seen      : IntSet.t
+    arity        : int IntMap.t
   }
 
 (* ************************************************************************** *)
@@ -174,21 +174,33 @@ type lin_infos =
 
 let allow_non_linear = ref false
 
-(* This function checks that the pattern is a Miller pattern and extracts non-linearity and bracket constraints from a list of patterns. *)
+let bracket_ident = mk_ident "{_}"  (* FIXME: can this be replaced by dmark? *)
+
+let rec all_distinct = function
+  | [] -> true
+  | hd::tl -> if List.mem hd tl then false else all_distinct tl
+
+
 (* TODO : cut this function in smaller ones *)
-let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * constr list =
-  let br = mk_ident "{_}" in  (* FIXME : can be replaced by dmark? *)
-  let rec all_distinct l =
-    match l with
-    | [] -> true
-    | hd::tl -> if List.mem hd tl then false else all_distinct tl
-  in
+(** [check_patterns size ps] checks that the given patterns are a well formed
+Miller pattern in a context of size [size].
+
+More precisely:
+- Context variables are exclusively applied to distinct locally bound variables
+- Occurences of such variable are all applied to the same number of arguments
+
+Returns the corresponding well formed patterns as well as pattern information:
+- Convertibility constraints from non-linearity and brackets
+- Size of generated context
+- Arity infered for all context variables
+*)
+let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_info =
   let extract_db k pat =
     match pat with
     | Var (_,_,n,[]) when n<k -> n
     | p -> raise (RuleExn (BoundVariableExpected p))
   in
-  let rec aux (k:int) (s:lin_infos) (pat:pattern) : wf_pattern * lin_infos =
+  let rec aux (k:int) (s:pattern_info) (pat:pattern) : wf_pattern * pattern_info =
     match pat with
     | Lambda (l,x,p) ->
       let (p2,s2) = (aux (k+1) s p) in
@@ -197,85 +209,65 @@ let check_patterns (esize:int) (pats:pattern list) : int * wf_pattern list * con
       let (args2,s2) = fold_map (aux k) s args in
       ( LBoundVar (x,n,Array.of_list args2) , s2 )
     | Var (l,x,n,args) (* n>=k *) ->
-      (* In a Miller pattern, higher order variables should be applied only to bound variables *)
+      (* Miller variables should only be applied to locally bound variables *)
       let args' = List.map (extract_db k) args in
-      (* In a Miller pattern higher order variables should be applied to distinct variables *)
-      if all_distinct args' then
-        if IntSet.mem (n-k) (s.seen) then
+      (* Miller variables should be applied to distinct variables *)
+      if not (all_distinct args')
+      then raise (RuleExn (DistinctBoundVariablesExpected (l,x)));
+      let nb_args' = List.length args' in
+      if IntMap.mem (n-k) s.arity
+      then
+        if nb_args' <> IntMap.find (n-k) s.arity
+        then raise (RuleExn (NonLinearNonEqArguments(l,x)))
+        else
           let fvar = s.context_size in
-          let wf_pat = LVar(x,fvar+k,args') in
-          let constraints = {s with
-                             context_size=(fvar+1);
-                             constraints=(Linearity (fvar, n-k))::(s.constraints)} in
-          (wf_pat, constraints)
-          else
-            ( LVar(x,n,args') , { s with seen=IntSet.add (n-k) s.seen; } )
+          ( LVar(x,fvar+k,args') (* Well formed pattern *)
+          , {s with
+             context_size=(fvar+1);
+             constraints=(Linearity (fvar, n-k))::(s.constraints)}
+          )
       else
-        raise (RuleExn (DistinctBoundVariablesExpected (l,x)))
+        let arity' = IntMap.add (n-k) nb_args' s.arity in
+        ( LVar(x,n,args') , { s with arity = arity' } )
     | Brackets t ->
-      begin
-        try
-          let fvar = s.context_size in
-          let wf_pat = LVar(br,fvar+k,[]) in
-          let cstr = Bracket (fvar, Subst.unshift k t) in
-          let constraints = {s with
-                             context_size = s.context_size + 1;
-                             constraints  = cstr :: s.constraints} in
-          (wf_pat, constraints)
-        with
-        | Subst.UnshiftExn -> raise (RuleExn (VariableBoundOutsideTheGuard t))
-      end
+      let fvar = s.context_size in
+      let wf_pat = LVar(bracket_ident,fvar+k,[]) in
+      let cstr =
+        try Bracket (fvar, Subst.unshift k t)
+        with Subst.UnshiftExn -> raise (RuleExn (VariableBoundOutsideTheGuard t))
+      in
+      let constraints = { s with
+                         context_size = s.context_size + 1;
+                         constraints  = cstr :: s.constraints} in
+      (wf_pat, constraints)
     | Pattern (_,n,args) ->
       let (args2,s2) = (fold_map (aux k) s args) in
-      ( LPattern(n,Array.of_list args2) , s2 )
+      ( LPattern(n, Array.of_list args2), s2 )
   in
-  let lin_infos = {context_size = esize; constraints = []; seen = IntSet.empty; } in
-  let (pats,r) = fold_map (aux 0) lin_infos pats in
-  ( r.context_size, pats , r.constraints )
+  let pat_infos = {context_size = esize; constraints = []; arity = IntMap.empty; } in
+  fold_map (aux 0) pat_infos pats
 
-(* For each matching variable count the number of arguments *)
-let get_nb_args (lc:loc) (esize:int) (p:pattern) : int array =
-  let arr = Array.make esize (-1) in (* -1 means +inf *)
-  let eq id x y =
-    if x <> -1 && x<> y then
-      raise (RuleExn (NonLinearNonEqArguments(lc,id)))
-    else
-      y
-  in
-  let rec aux k = function
-    | Brackets _ -> ()
-    | Var (_,_,n,args) when n<k -> List.iter (aux k) args
-    | Var (_,id,n,args) -> arr.(n-k) <- eq id (arr.(n-k)) (List.length args)
-    | Lambda (_,_,pp) -> aux (k+1) pp
-    | Pattern (_,_,args) -> List.iter (aux k) args
-  in
-    ( aux 0 p ; arr )
-
-(* Checks that the variables are applied to enough arguments *)
-let check_nb_args (nb_args:int array) (te:term) : unit =
+(* Checks that the lhs variables are applied to enough arguments *)
+let check_nb_args (arity:int IntMap.t) (rhs:term) : unit =
+  let check l id n k nargs =
+    let expected_args = IntMap.find (n-k) arity in
+    if nargs < expected_args
+    then raise (RuleExn (NotEnoughArguments (l,id,n,nargs,expected_args))) in
   let rec aux k = function
     | Kind | Type _ | Const _ -> ()
     | DB (l,id,n) ->
-        if n>=k && nb_args.(n-k)>0 then
-          raise (RuleExn (NotEnoughArguments (l,id,n,0,nb_args.(n-k))))
+      if n >= k then check l id n k 0
     | App(DB(l,id,n),a1,args) when n>=k ->
-      let max_nb_args = nb_args.(n-k) in
-      let nb_args = List.length args + 1 in
-        if ( max_nb_args > nb_args  ) then
-          raise (RuleExn (NotEnoughArguments (l,id,n,nb_args,max_nb_args)))
-        else List.iter (aux k) (a1::args)
+      check l id n k (List.length args + 1);
+      List.iter (aux k) (a1::args)
     | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
     | Lam (_,_,None,b) -> aux (k+1) b
     | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
   in
-    aux 0 te
+  aux 0 rhs
 
 let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
-  let rec is_linear = function
-    | [] -> true
-    | (Bracket _)::tl -> is_linear tl
-    | (Linearity _)::tl -> false
-  in
+  let is_linear = List.for_all (function Linearity _ -> false | _ -> true) in
   try
     begin
       let esize = List.length r.ctx in
@@ -284,18 +276,20 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
         | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
         | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
       in
-      let nb_args = get_nb_args l esize r.pat in
-      ignore(check_nb_args nb_args r.rhs);
-      let (esize2,pats2,cstr) = check_patterns  esize args in
-      let is_nl = not (is_linear cstr) in
-      if is_nl && (not !allow_non_linear) then
-        Err (NonLinearRule r)
-      else
-        let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in
-        OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
-             esize = esize2 ;
-             pats = Array.of_list pats2 ;
-             constraints = cstr ; }
+      let (pats2,infos) = check_patterns  esize args in
+      
+      (* Checking that Miller variable are correctly applied in lhs *)
+      check_nb_args infos.arity r.rhs;
+      
+      (* Checking if pattern has linearity constraints *)
+      if not (is_linear infos.constraints)
+      then raise (RuleExn (NonLinearRule r))
+      else debug 1 "Non-linear Rewrite Rule detected";
+      
+      OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
+           esize = infos.context_size ;
+           pats = Array.of_list pats2 ;
+           constraints = infos.constraints ; }
     end
   with
     RuleExn e -> Err e
