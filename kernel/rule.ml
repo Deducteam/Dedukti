@@ -38,7 +38,6 @@ type constr =
 type rule_infos = {
   l : loc;
   name : rule_name ;
-  ctx : typed_context;
   cst : name;
   args : pattern list;
   rhs : term;
@@ -53,9 +52,10 @@ type rule_error =
   | BoundVariableExpected of pattern
   | DistinctBoundVariablesExpected of loc * ident
   | VariableBoundOutsideTheGuard of term
-  | UnboundVariable of loc * ident * pattern (* FIXME : this exception seems never to be raised *)
+  | UnboundVariable of loc * ident * pattern
+  (* FIXME : this exception seems never to be raised *)
   | AVariableIsNotAPattern of loc * ident
-  | NonLinearRule of typed_rule
+  | NonLinearRule of untyped_rule
   | NotEnoughArguments of loc * ident * int * int * int
 
 exception RuleExn of rule_error
@@ -139,10 +139,12 @@ let pp_typed_rule fmt (rule:typed_rule) =
 
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
-  let rule = { name = r.name; ctx = r.ctx;
+  let rule = { name = r.name;
+               ctx = [];
+               (* TODO: here infer context from named variable inside left hand side pattern *)
                pat = pattern_of_rule_infos r;
                rhs = r.rhs } in
-  pp_typed_rule out rule
+  pp_untyped_rule out rule
 
 let pattern_to_term p =
   let rec aux k = function
@@ -261,7 +263,7 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
   in
     aux 0 te
 
-let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
+let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
   let rec is_linear = function
     | [] -> true
     | (Bracket _)::tl -> is_linear tl
@@ -283,7 +285,7 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
         Err (NonLinearRule r)
       else
         let () = if is_nl then debug 1 "Non-linear Rewrite Rule detected" in
-        OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
+        OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;
              esize = esize2 ;
              pats = Array.of_list pats2 ;
              constraints = cstr ; }
