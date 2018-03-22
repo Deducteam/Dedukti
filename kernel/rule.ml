@@ -2,7 +2,6 @@ open Basic
 open Format
 open Term
 
-(* Miller's patterns *)
 type pattern =
   | Var         of loc * ident * int * pattern list (* Y x1 ... xn *)
   | Pattern     of loc * name * pattern list
@@ -30,20 +29,20 @@ type untyped_rule = untyped_context rule
 
 type typed_rule = typed_context rule
 
-(* TODO : may be replace constr by Linearity | Bracket and constr list by a constr Map.t *)
+(* TODO : maybe replace constr by Linearity | Bracket and constr list by a constr Map.t *)
 type constr =
   | Linearity of int * int
-  | Bracket of int * term
+  | Bracket   of int * term
 
 type rule_infos = {
-  l : loc;
-  name : rule_name ;
-  ctx : typed_context;
-  cst : name;
-  args : pattern list;
-  rhs : term;
-  esize : int;
-  pats : wf_pattern array;
+  l           : loc;
+  name        : rule_name;
+  ctx         : typed_context;
+  cst         : name;
+  args        : pattern list;
+  rhs         : term;
+  esize       : int;
+  pats        : wf_pattern array;
   constraints : constr list;
 }
 
@@ -57,7 +56,8 @@ type rule_error =
   | AVariableIsNotAPattern of loc * ident
   | NonLinearRule of typed_rule
   | NotEnoughArguments of loc * ident * int * int * int
-  | NonLinearNonEqArguments of loc * ident (* FIXME: this necessary condition should be formalalized on paper *)
+  | NonLinearNonEqArguments of loc * ident
+  (* FIXME: the reason for this exception should be formalized on paper ! *)
 
 exception RuleExn of rule_error
 
@@ -187,14 +187,15 @@ module IntHashtbl =
   )
 
 (* TODO : cut this function in smaller ones *)
-(** [check_patterns size ps] checks that the given patterns are a well formed
-Miller pattern in a context of size [size].
+(** [check_patterns size pats] checks that the given pattern is a well formed
+Miller pattern in a context of size [size] and linearizes it.
 
 More precisely:
 - Context variables are exclusively applied to distinct locally bound variables
 - Occurences of each context variable are all applied to the same number of arguments
 
-Returns the corresponding well formed patterns as well as pattern information:
+Returns the representation of the corresponding linear well formed pattern
+together with extracted pattern information:
 - Convertibility constraints from non-linearity and brackets
 - Size of generated context
 - Arity infered for all context variables

@@ -1,7 +1,6 @@
 open Basic
 open Term
 
-
 (** Rewrite rules *)
 
 (** {2 Patterns} *)
