@@ -158,13 +158,11 @@ let pattern_to_term p =
   in
   aux 0 p
 
-module IntMap = Map.Make(struct type t=int let compare=(-) end)
-
 type pattern_info =
   {
     constraints  : constr list;
     context_size : int;
-    arity        : int IntMap.t
+    arity        : int array
   }
 
 (* ************************************************************************** *)
@@ -180,6 +178,13 @@ let rec all_distinct = function
   | [] -> true
   | hd::tl -> if List.mem hd tl then false else all_distinct tl
 
+module IntHashtbl =
+  Hashtbl.Make(struct
+    type t = int
+    let equal i j = i=j
+    let hash i = i land max_int
+  end
+  )
 
 (* TODO : cut this function in smaller ones *)
 (** [check_patterns size ps] checks that the given patterns are a well formed
@@ -187,7 +192,7 @@ Miller pattern in a context of size [size].
 
 More precisely:
 - Context variables are exclusively applied to distinct locally bound variables
-- Occurences of such variable are all applied to the same number of arguments
+- Occurences of each context variable are all applied to the same number of arguments
 
 Returns the corresponding well formed patterns as well as pattern information:
 - Convertibility constraints from non-linearity and brackets
@@ -195,62 +200,62 @@ Returns the corresponding well formed patterns as well as pattern information:
 - Arity infered for all context variables
 *)
 let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_info =
+  let constraints  = ref [] in
+  let context_size = ref esize in
+  let arity = IntHashtbl.create 10 in
+  let fresh_var ar = (* DB indice for a fresh context variable with given arity *)
+    IntHashtbl.add arity !context_size ar;
+    incr context_size;
+    !context_size - 1 in
   let extract_db k pat =
     match pat with
     | Var (_,_,n,[]) when n<k -> n
     | p -> raise (RuleExn (BoundVariableExpected p))
   in
-  let rec aux (k:int) (s:pattern_info) (pat:pattern) : wf_pattern * pattern_info =
+  let rec aux (k:int) (pat:pattern) : wf_pattern =
     match pat with
-    | Lambda (l,x,p) ->
-      let (p2,s2) = (aux (k+1) s p) in
-      ( LLambda (x,p2) , s2 )
+    | Lambda (l,x,p) -> LLambda (x, aux (k+1) p)
     | Var (l,x,n,args) when n<k ->
-      let (args2,s2) = fold_map (aux k) s args in
-      ( LBoundVar (x,n,Array.of_list args2) , s2 )
-    | Var (l,x,n,args) (* n>=k *) ->
+      LBoundVar(x, n, Array.of_list (List.map (aux k) args))
+    | Var (l,x,n,args) (* Context variable (n>=k)  *) ->
       (* Miller variables should only be applied to locally bound variables *)
       let args' = List.map (extract_db k) args in
       (* Miller variables should be applied to distinct variables *)
       if not (all_distinct args')
       then raise (RuleExn (DistinctBoundVariablesExpected (l,x)));
       let nb_args' = List.length args' in
-      if IntMap.mem (n-k) s.arity
+      if IntHashtbl.mem arity (n-k)
       then
-        if nb_args' <> IntMap.find (n-k) s.arity
+        if nb_args' <> IntHashtbl.find arity (n-k)
         then raise (RuleExn (NonLinearNonEqArguments(l,x)))
         else
-          let fvar = s.context_size in
-          ( LVar(x,fvar+k,args') (* Well formed pattern *)
-          , {s with
-             context_size=(fvar+1);
-             constraints=(Linearity (fvar, n-k))::(s.constraints)}
-          )
+          let nvar = fresh_var nb_args' in 
+          constraints := Linearity(nvar, n-k) :: !constraints;
+          LVar(x, nvar + k, args')
       else
-        let arity' = IntMap.add (n-k) nb_args' s.arity in
-        ( LVar(x,n,args') , { s with arity = arity' } )
+        let _ = IntHashtbl.add arity (n-k) nb_args' in
+        LVar(x,n,args')
     | Brackets t ->
-      let fvar = s.context_size in
-      let wf_pat = LVar(bracket_ident,fvar+k,[]) in
-      let cstr =
-        try Bracket (fvar, Subst.unshift k t)
+      let unshifted =
+        try Subst.unshift k t
         with Subst.UnshiftExn -> raise (RuleExn (VariableBoundOutsideTheGuard t))
       in
-      let constraints = { s with
-                         context_size = s.context_size + 1;
-                         constraints  = cstr :: s.constraints} in
-      (wf_pat, constraints)
-    | Pattern (_,n,args) ->
-      let (args2,s2) = (fold_map (aux k) s args) in
-      ( LPattern(n, Array.of_list args2), s2 )
+      let nvar = fresh_var 0 in
+      constraints := Bracket (nvar, unshifted) :: !constraints;
+      LVar(bracket_ident, nvar + k, [])
+    | Pattern (_,n,args) -> LPattern(n, Array.of_list  (List.map (aux k) args))
   in
-  let pat_infos = {context_size = esize; constraints = []; arity = IntMap.empty; } in
-  fold_map (aux 0) pat_infos pats
+  let wf_pats = List.map (aux 0) pats in
+  ( wf_pats
+  , { context_size = !context_size;
+      constraints = !constraints;
+      arity = Array.init !context_size (fun i -> IntHashtbl.find arity i)
+    } )
 
 (* Checks that the lhs variables are applied to enough arguments *)
-let check_nb_args (arity:int IntMap.t) (rhs:term) : unit =
+let check_nb_args (arity:int array) (rhs:term) : unit =
   let check l id n k nargs =
-    let expected_args = IntMap.find (n-k) arity in
+    let expected_args = arity.(n-k) in
     if nargs < expected_args
     then raise (RuleExn (NotEnoughArguments (l,id,n,nargs,expected_args))) in
   let rec aux k = function
