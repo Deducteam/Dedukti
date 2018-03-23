@@ -46,6 +46,19 @@ type rule_infos = {
   constraints : constr list;
 }
 
+let infer_rule_context ri =
+  let res = Array.make ri.esize (mk_ident "_") in
+  let rec aux k = function
+  | LJoker -> ()
+  | LVar (name,n,args) -> res.(n-k) <- name
+  | LLambda (_,body) -> aux (k+1) body
+  | LPattern  (_  ,args) -> Array.iter (aux k) args
+  | LBoundVar (_,_,args) -> Array.iter (aux k) args
+  in
+  Array.iter (aux 0) ri.pats;
+  List.map (fun i -> (dloc, i)) (Array.to_list res)
+  
+
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
 type rule_error =
@@ -100,52 +113,43 @@ let get_loc_pat = function
   | Lambda (l,_,_) -> l
   | Brackets t -> get_loc t
 
-let pp_untyped_context fmt ctx =
-  pp_list ", " (fun out (_,x) ->
-      fprintf fmt "%a" pp_ident x) fmt (List.rev ctx)
-
-
-let pp_typed_context fmt ctx =
-  pp_list ".\n" (fun fmtt (_,x,ty) ->
-                   fprintf fmt "%a: %a" pp_ident x pp_term ty )
-    fmt (List.rev ctx)
+let pp_idents fmt l = fprintf fmt "[%a]" (pp_list ", " pp_ident) (List.rev l)
+let pp_untyped_context fmt ctx = pp_idents fmt (List.map snd                ctx)
+let pp_typed_context   fmt ctx = pp_idents fmt (List.map (fun (_,a,_) -> a) ctx)
 
 let pp_rule_name fmt rule_name =
   let sort,n =
     match rule_name with
-    | Delta(n) -> "Delta", n
-    | Gamma(b,n) ->
-      if b then
-        "Gamma", n
-      else
-        "Gamma (default)", n
+    | Delta(n)        -> "Delta"          , n
+    | Gamma(true , n) -> "Gamma"          , n
+    | Gamma(false, n) -> "Gamma (default)", n
   in
   fprintf fmt "%s: %a" sort pp_name n
 
 (* FIXME: factorize this function with the follozing one *)
 let pp_untyped_rule fmt (rule:untyped_rule) =
   fprintf fmt " {%a} [%a] %a --> %a"
+    pp_rule_name rule.name
     pp_untyped_context rule.ctx
     pp_pattern rule.pat
     pp_term rule.rhs
-    pp_rule_name rule.name
 
 let pp_typed_rule fmt (rule:typed_rule) =
   fprintf fmt " {%a} [%a] %a --> %a"
+    pp_rule_name rule.name
     pp_typed_context rule.ctx
     pp_pattern rule.pat
     pp_term rule.rhs
-    pp_rule_name rule.name
 
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
-  let rule = { name = r.name;
-               ctx = [];
-               (* TODO: here infer context from named variable inside left hand side pattern *)
-               pat = pattern_of_rule_infos r;
-               rhs = r.rhs } in
-  pp_untyped_rule out rule
-
+  pp_untyped_rule out
+    { name = r.name;
+      ctx = infer_rule_context r;
+      pat = pattern_of_rule_infos r;
+      rhs = r.rhs
+    }
+    
 let pattern_to_term p =
   let rec aux k = function
     | Brackets t -> t
@@ -242,7 +246,7 @@ let get_nb_args (esize:int) (p:pattern) : int array =
     | Lambda (_,_,pp) -> aux (k+1) pp
     | Pattern (_,_,args) -> List.iter (aux k) args
   in
-    ( aux 0 p ; arr )
+  ( aux 0 p ; arr )
 
 (* Checks that the variables are applied to enough arguments *)
 let check_nb_args (nb_args:int array) (te:term) : unit =
@@ -261,7 +265,7 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
     | Lam (_,_,None,b) -> aux (k+1) b
     | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
   in
-    aux 0 te
+  aux 0 te
 
 let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
   let rec is_linear = function
