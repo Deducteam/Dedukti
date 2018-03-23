@@ -11,9 +11,11 @@ type env_error =
 
 (* Wrapper around Signature *)
 
-let sg = ref (Signature.make (mk_mident "noname"))
+let sg = ref (Signature.make "noname")
 
-let init name = sg := Signature.make name
+let init file =
+  sg := Signature.make file;
+  Signature.get_name !sg
 
 let get_name () = Signature.get_name !sg
 

@@ -75,6 +75,7 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
   | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
 and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
+  debug 3 "Checking: %a : %a" pp_term te pp_term ty_exp;
   match te with
   | Lam (l,x,None,b) ->
     begin
@@ -95,7 +96,9 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
   | _ ->
     let ty_inf = infer sg ctx te in
     if Reduction.are_convertible sg ty_inf ty_exp then ()
-    else raise (TypingError (ConvertibilityError (te,ctx,ty_exp,ty_inf)))
+    else
+      let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
+      raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
 
 and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
   match whnf sg ty_f with
