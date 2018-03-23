@@ -4,8 +4,8 @@ let rec reconstruction model term =
   let open Term in
   let open Constraints in
   match term with
-  | Const _ when UVar.is_uvar term ->
-    let var = UVar.ident_of_uvar term in
+  | Const _ when Uvar.is_uvar term ->
+    let var = Uvar.ident_of_uvar term in
     model var
   | App(f, a, al) ->
     let f' = reconstruction model f in

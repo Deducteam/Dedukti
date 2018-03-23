@@ -155,7 +155,7 @@ let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
 let rec test (sg:Signature.t) (convertible:convertibility_test)
     (ctx:env) (constrs: constr list) : bool  =
   let open Constraints in
-  let is_uvar = UVar.is_uvar in
+  let is_uvar = Uvar.is_uvar in
   match constrs with
   | [] -> true
   | (Linearity (i,j))::tl ->

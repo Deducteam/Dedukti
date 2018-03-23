@@ -1,283 +1,18 @@
-(********** universes' variables ************)
+open Uvar
 
 let just_check = ref false
-
-module UVar =
-struct
-  open Basic
-  type uvar = ident
-
-  let basename = "?"
-
-  exception NotUvar
-
-  let is_uvar t =
-    match t with
-    | Term.Const(_,n) ->
-      let s = string_of_ident (id n) in
-      let n = String.length basename in
-      String.length s > n && String.sub s 0 n = basename
-    | _ -> false
-
-  let ident_of_uvar t =
-    match t with
-    | Term.Const(_,n) when is_uvar t -> id n
-    | _ -> Format.printf "%a@." Term.pp_term t; raise NotUvar
-
-  let counter = ref 0
-
-  let fresh () =
-    let name = Format.sprintf "%s%d" basename !counter in
-    incr counter; mk_ident name
-
-  let fresh_uvar sg =
-    let id = fresh () in
-    let md = Signature.get_name sg in
-    let name = Basic.mk_name md id in
-    let cst = Term.mk_Const Basic.dloc name in
-    Signature.add_declaration sg Basic.dloc id Signature.Static
-      (Term.mk_Const Basic.dloc (Basic.mk_name (Basic.mk_mident "cic") (Basic.mk_ident "Sort")));
-    cst
-end
-
-module ReverseCiC =
-struct
-  open Basic
-
-  type univ =
-    | Prop
-    | Type of int
-
-  let term_of_univ univ =
-    let md = Basic.mk_mident "cic" in
-    let prop = Basic.mk_ident "prop" in
-    let utype = Basic.mk_ident "type" in
-    let z = Basic.mk_ident "z" in
-    let s = Basic.mk_ident "s" in
-    let mk_const id = Term.mk_Const Basic.dloc (Basic.mk_name md id) in
-    let rec term_of_nat i =
-      assert (i>= 0);
-      if i = 0 then
-        mk_const z
-      else
-        Term.mk_App (mk_const s) (term_of_nat (i-1)) []
-    in
-    match univ with
-    | Prop -> mk_const prop
-    | Type i -> Term.mk_App (mk_const utype) (term_of_nat i) []
-
-
-  let cic = mk_mident "cic"
-
-  let mk_const id = Term.mk_Const dloc (mk_name cic id)
-
-  let z = mk_name cic (mk_ident "z")
-
-  let s = mk_name cic (mk_ident "s")
-
-  let succ = mk_name cic (mk_ident "succ")
-
-  let sort = mk_name cic (mk_ident "Sort")
-
-  let lift = mk_name cic (mk_ident "lift")
-
-  let max = mk_name cic (mk_ident "max")
-
-  let rule = mk_name cic (mk_ident "rule")
-
-  let prop = mk_name cic (mk_ident "prop")
-
-  let typ = mk_name cic (mk_ident "type")
-
-  let univ = mk_name cic (mk_ident "Univ")
-
-  let cuni = mk_name cic (mk_ident "univ")
-
-  let term = mk_name cic (mk_ident "Term")
-
-  let prod = mk_name cic (mk_ident "prod")
-
-  let is_const cst t =
-    match t with
-    | Term.Const(_,n) -> name_eq cst n
-    | _ -> false
-
-  let is_z t =
-    match t with
-    | Term.Const(_,u) when is_const z t -> true
-    | _ -> false
-
-  let is_s t =
-    match t with
-    | Term.App(u,_,[]) when is_const s u -> true
-    | _ -> false
-
-  let is_term t =
-    match t with
-    | Term.App(u,_,[_]) when is_const term u -> true
-    | _ -> false
-
-  let is_univ t =
-    match t with
-    | Term.App(u,_,[]) when is_const univ u -> true
-    | _ -> false
-
-  let is_cuni t =
-    match t with
-    | Term.App(u,_,[]) when is_const cuni u -> true
-    | _ -> false
-
-  let is_prop t =
-    match t with
-    | Term.Const(_,n) when is_const prop t -> true
-    | _ -> false
-
-  let is_type t =
-    match t with
-    | Term.App(t,_,[]) when is_const typ t -> true
-    | _ -> false
-
-  let is_succ t =
-    match t with
-    | Term.App(c,arg,[]) when is_const succ c -> true
-    | _ -> false
-
-  let is_lift t =
-    match t with
-    | Term.App(c, s1, [s2;a]) when is_const lift c -> true
-    | _ -> false
-
-  let is_max t =
-    match t with
-    | Term.App(c, s1, [s2]) when is_const max c -> true
-    | _ -> false
-
-  let is_rule t =
-    match t with
-    | Term.App(c, s1, [s2]) when is_const rule c -> true
-    | _ -> false
-
-  let is_prod t =
-    match t with
-    | Term.App(c, s1, [s2;a;f]) when is_const prod c -> true
-    | _ -> false
-
-  let is_var t =
-    match t with
-    | Term.DB _ -> true
-    | _ -> false
-
-  let is_lam t =
-    match t with
-    | Term.Lam _ -> true
-    | _ -> false
-
-  let is_app t =
-    match t with
-    | Term.App _ -> true
-    | _ -> false
-
-  let extract_app t =
-    match t with
-    | Term.App (f,a,args) -> f,a,args
-    | _ -> failwith "is not an app"
-
-  let extract_var t =
-    match t with
-    | Term.DB(_,id,_) -> id
-    | _ -> failwith "is not a local variable"
-
-  let extract_s t =
-    match t with
-    | Term.App(t,u,[]) when is_const s t -> u
-    | _ -> failwith "is not a s"
-
-  let extract_type t =
-    let rec to_int t =
-      match t with
-      | Term.Const(_,z) when is_const z t -> 0
-      | Term.App(t,u, []) when is_const s t -> 1+(to_int u)
-      | _ ->     Format.eprintf "%a@." Term.pp_term t; assert false
-    in
-    match t with
-    | Term.App(t,u,[]) when is_const typ t -> to_int u
-    | _ -> failwith "is not a type"
-
-  let extract_term t =
-    match t with
-    | Term.App(t,s,[u]) when is_const term t -> s,u
-    | _ -> failwith "is not a term"
-
-  let extract_succ t =
-    match t with
-    | Term.App(c,arg,[]) when is_const succ c -> arg
-    | _ -> failwith "is not a succ"
-
-  let extract_lift t =
-    match t with
-    | Term.App(c,s1,[s2;a]) when is_const lift c -> s1,s2,a
-    | _ -> failwith "is not a lift"
-
-  let extract_max t =
-    match t with
-    | Term.App(c,s1,[s2]) when is_const max c -> s1,s2
-    | _ -> failwith "is not a max"
-
-  let extract_rule t =
-    match t with
-    | Term.App(c, s1, [s2]) when is_const rule c -> s1, s2
-    | _ -> failwith "is not a rule"
-
-  let extract_univ t =
-    match t with
-    | Term.App(c, s, []) when is_const univ c -> s
-    | _ -> failwith "is not a univ"
-
-  let extract_cuni t =
-    match t with
-    | Term.App(c, s, []) when is_const cuni c -> s
-    | _ -> failwith "is not a cuni"
-
-  let extract_prod t =
-    match t with
-    | Term.App(c, s1, [s2;a;f]) when is_const prod c -> s1,s2,a,f
-    | _ -> failwith "is not a prod"
-
-  let extract_lam t =
-    match t with
-    | Term.Lam(_,x,Some ty,te) -> x,ty,te
-    | _ -> failwith "not a lambda or lambda without a type"
-
-  let extract_succ t =
-    match t with
-    | Term.App(c,arg,[]) when is_const succ c -> arg
-    | _ -> failwith "is not a succ"
-
-  let extract_lift t =
-    match t with
-    | Term.App(c,s1,[s2;a]) when is_const lift c -> s1,s2
-    | _ -> failwith "is not a lift"
-
-  let extract_max t =
-    match t with
-    | Term.App(c,s1,[s2]) when is_const max c -> s1,s2
-    | _ -> failwith "is not a max"
-
-  let extract_rule t =
-    match t with
-    | Term.App(c, s1, [s2]) when is_const rule c -> s1, s2
-    | _ -> failwith "is not a rule"
-end
-
-
 
 module type ConstraintsInterface =
 sig
 
   type var
 
+  type univ =
+    | Prop
+    | Type of int
+
   type constraints =
-    | Univ of var * ReverseCiC.univ
+    | Univ of var * univ
     | Eq of var * var
     | Max of var * var * var
     | Succ of var * var
@@ -304,19 +39,32 @@ end
 
 module Naive =
 struct
-
-  open UVar
-  open ReverseCiC
   open Basic
 
   type var = Basic.ident
 
+  type univ =
+    | Prop
+    | Type of int
+
   type constraints =
-    | Univ of var * ReverseCiC.univ
+    | Univ of var * univ
     | Eq of var * var
     | Max of var * var * var
     | Succ of var * var
     | Rule of var * var * var
+
+  let term_of_univ univ =
+    let rec term_of_nat i =
+      assert (i>= 0);
+      if i = 0 then
+        Cic.mk_z
+      else
+        Cic.mk_s (term_of_nat (i-1))
+    in
+    match univ with
+    | Prop -> Cic.mk_prop
+    | Type i -> Cic.mk_type (term_of_nat i)
 
   module Variables = Set.Make (struct type t = Basic.ident let compare = compare end)
 
@@ -415,7 +163,7 @@ struct
   module VarSet = Set.Make(struct type t = Basic.ident let compare = compare end)
 
   let info constraints =
-    let open ReverseCiC in
+    let open Cic in
     let prop,ty,neq,eq,succ,max,rule = ref 0, ref 0, ref 0, ref 0, ref 0, ref 0, ref 0 in
     let vars =
       CS.fold (fun x vs ->
@@ -444,8 +192,6 @@ struct
     in
     Format.asprintf "%a" print ()
 
-  module V = UVar
-
   let fresh_rule l r =
     mk_ident ("r"^string_of_ident l^","^string_of_ident r)
 
@@ -453,6 +199,7 @@ struct
     mk_ident ("s"^(string_of_ident l))
 
   let rec simple s =
+    let open Cic in
     if is_succ s then
       let s' = extract_succ s in
       let s' = simple s' in
@@ -460,7 +207,7 @@ struct
         term_of_univ (Type 0)
       else if is_type s' then
         failwith "This bug should be reported (simple 1)"
-      else Term.mk_App (Term.mk_Const dloc succ) s' []
+      else mk_succ s'
     else if is_rule s then
       let s1,s2 = extract_rule s in
       let s1' = simple s1 in
@@ -470,34 +217,42 @@ struct
       else if Term.term_eq s1' s2' then
         s2'
       else if is_prop s2' then
-        Term.mk_Const dloc prop
+        mk_prop
       else
-        Term.mk_App (Term.mk_Const dloc rule) s1 [s2]
+        mk_rule s1 s2
     else if is_max s then
       failwith "This bug should be reported (simple 2)"
     else
       s
 
 
+  let assert_type_zero t =
+    if Cic.is_z (Cic.extract_type t) then
+      ()
+    else
+      failwith "This bug should be reported (assert_type_zero)"
+
   let rec extract_universe sg (s:Term.term) =
+    let open Cic in
     let s = simple s in
     if is_prop s then
       find_univ Prop
     else if is_type s then
-      let i = extract_type s in
-      assert(i=0);
-      find_univ (Type 0)
+      begin
+        assert_type_zero s;
+        find_univ (Type 0)
+      end
     else if is_succ s then
       let s' = extract_succ s in
       if is_prop s' then
         find_univ (Type 0)
       else
-        let v' = V.ident_of_uvar s' in
+        let v' = ident_of_uvar s' in
         let v = fresh_succ v' in
         add_constraint_succ v' v;
         v
     else if is_uvar s then
-       V.ident_of_uvar s
+       ident_of_uvar s
     else if is_rule s then
       begin
         let s1,s2 = extract_rule s in
@@ -519,7 +274,7 @@ struct
   let rec generate_constraints sg (l:Term.term) (r:Term.term) =
     if !just_check || !is_matching then false
     else
-    let open ReverseCiC in
+    let open Cic in
     if is_uvar l && is_prop r then
       let l = ident_of_uvar l in
       add_constraint_prop l;
@@ -528,8 +283,8 @@ struct
       generate_constraints sg r l
     else if is_uvar l && is_type r then
       let l = ident_of_uvar l in
-      let i = extract_type r in
-      add_constraint_type l (Type i);
+      assert_type_zero r;
+      add_constraint_type l (Type 0);
       true
     else if is_type l && is_uvar r then
       generate_constraints sg r l
@@ -570,7 +325,8 @@ struct
       let s1,s2 = extract_max l in
       let s1 = ident_of_uvar s1 in
       let s2 = ident_of_uvar s2 in
-      let s3 = find_univ (Type (extract_type r)) in
+      assert_type_zero r;
+      let s3 = find_univ (Type 0) in
       add_constraint_max s1 s2 s3;
       true
     else if is_type l && is_max r then
@@ -579,7 +335,8 @@ struct
       let s1,s2 = extract_rule l in
       let s1 = ident_of_uvar s1 in
       let s2 = ident_of_uvar s2 in
-      let s3 = find_univ (Type (extract_type r)) in
+      assert_type_zero r;
+      let s3 = find_univ (Type 0) in
       add_constraint_rule s1 s2 s3;
       true
     else if is_type l && is_rule r then

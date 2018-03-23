@@ -1,31 +1,9 @@
 open Basic
 open Term
-open Constraints.ReverseCiC
-open Constraints.UVar
+open Cic
+open Uvar
 
-let mk_prop =
-  mk_Const dloc prop
-
-let mk_univ s =
-  mk_App (mk_Const dloc univ) s []
-
-let mk_cuni s =
-  mk_App (mk_Const dloc cuni) s []
-
-let mk_succ s =
-  mk_App (mk_Const dloc succ) s []
-
-let mk_type0 =
-  mk_App (mk_Const dloc typ) (mk_Const dloc z) []
-
-let mk_prod s1 s2 a x ty te =
-  mk_App (mk_Const dloc prod) s1 [s2;a;(mk_Lam dloc x (Some ty) te)]
-
-let mk_rule s1 s2 =
-  mk_App (mk_Const dloc rule) s1 [s2]
-
-let mk_term s a =
-  mk_App (mk_Const dloc term) s [a]
+let mk_type0 = mk_type mk_z
 
 let extract_prod' te =
   let s1,s2,a,t = extract_prod te in

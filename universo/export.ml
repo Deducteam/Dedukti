@@ -54,9 +54,9 @@ struct
     let zvar = get_variable var in
     let level =
       match univ with
-      | ReverseCiC.Prop ->
+      | Constraints.Naive.Prop ->
         Arithmetic.Integer.mk_numeral_i ctx 0
-      | ReverseCiC.Type i ->
+      | Constraints.Naive.Type i ->
         Arithmetic.Integer.mk_numeral_i ctx (i+1)
     in
     let eq = Boolean.mk_eq ctx zvar level in
@@ -126,9 +126,9 @@ struct
 
   let univ_of_int n =
     if n = 0 then
-      ReverseCiC.Prop
+      Constraints.Naive.Prop
     else
-      ReverseCiC.Type(n-1)
+      Constraints.Naive.Type(n-1)
 
   let var_solution model var =
     if Hashtbl.mem variables var then
@@ -169,8 +169,8 @@ struct
             |> Naive.string_of_var
             |> var_solution model
             |> univ_of_int
-            |> ReverseCiC.term_of_univ
-          with _ -> ReverseCiC.term_of_univ ReverseCiC.Prop
+            |> Constraints.Naive.term_of_univ
+          with _ -> Constraints.Naive.term_of_univ Constraints.Naive.Prop
         in
         Basic.debug 2 "%s@." (Solver.to_string solver);
         Basic.debug 2 "%s@." (Model.to_string model);
