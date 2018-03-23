@@ -54,9 +54,9 @@ struct
     let zvar = get_variable var in
     let level =
       match univ with
-      | Constraints.Naive.Prop ->
+      | Prop ->
         Arithmetic.Integer.mk_numeral_i ctx 0
-      | Constraints.Naive.Type i ->
+      | Type i ->
         Arithmetic.Integer.mk_numeral_i ctx (i+1)
     in
     let eq = Boolean.mk_eq ctx zvar level in
@@ -112,7 +112,6 @@ struct
     Solver.add solver [ite]
 
   let gen_constraint c =
-    let open Naive in
     let sofi = string_of_var in
     match c with
     | Univ(n,u) -> gen_constraint_univ (sofi n) u
@@ -122,13 +121,13 @@ struct
     | Rule(n,n',n'') -> gen_constraint_rule (sofi n) (sofi n') (sofi n'')
 
   let import cs =
-    Naive.ConstraintsSet.iter gen_constraint cs
+    ConstraintsSet.iter gen_constraint cs
 
   let univ_of_int n =
     if n = 0 then
-      Constraints.Naive.Prop
+      Prop
     else
-      Constraints.Naive.Type(n-1)
+      Type(n-1)
 
   let var_solution model var =
     if Hashtbl.mem variables var then
@@ -165,12 +164,12 @@ struct
         let find uvar =
           try
             uvar
-            |> Naive.var_of_ident
-            |> Naive.string_of_var
+            |> var_of_ident
+            |> string_of_var
             |> var_solution model
             |> univ_of_int
-            |> Constraints.Naive.term_of_univ
-          with _ -> Constraints.Naive.term_of_univ Constraints.Naive.Prop
+            |> term_of_univ
+          with _ -> term_of_univ Constraints.Prop
         in
         Basic.debug 2 "%s@." (Solver.to_string solver);
         Basic.debug 2 "%s@." (Model.to_string model);

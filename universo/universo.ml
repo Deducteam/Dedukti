@@ -4,7 +4,7 @@ open Rule
 open Entry
 
 let solve () =
-  let cs = Constraints.Naive.export () in
+  let cs = Constraints.export () in
   let i,model = Export.Z3.solve cs in
   i,model
 

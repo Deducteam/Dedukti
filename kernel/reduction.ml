@@ -154,32 +154,31 @@ let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
 
 let rec test (sg:Signature.t) (convertible:convertibility_test)
     (ctx:env) (constrs: constr list) : bool  =
-  let open Constraints in
   let is_uvar = Uvar.is_uvar in
   match constrs with
   | [] -> true
   | (Linearity (i,j))::tl ->
     let t1 = mk_DB dloc dmark i in
     let t2 = mk_DB dloc dmark j in
-    Naive.is_matching :=
+    Constraints.is_matching :=
       if is_uvar (Lazy.force (LList.nth ctx i)) || is_uvar (Lazy.force (LList.nth ctx j)) then
         true else
         false;
     let is_conv = convertible sg (term_of_state { ctx; term=t1; stack=[] })
         (term_of_state { ctx; term=t2; stack=[] }) in
-    Naive.is_matching := false;
+    Constraints.is_matching := false;
     if is_conv then
       test sg convertible ctx tl
     else false
   | (Bracket (i,t2))::tl ->
     let t1 = mk_DB dloc dmark i in
-    Naive.is_matching :=
+    Constraints.is_matching :=
       if is_uvar (Lazy.force (LList.nth ctx i)) || is_uvar t2 then
         true else
         false;
     let is_conv = convertible sg (term_of_state { ctx; term=t1; stack=[] })
         (term_of_state { ctx; term=t2; stack=[] }) in
-    Naive.is_matching := false;
+    Constraints.is_matching := false;
     if is_conv then
       test sg convertible ctx tl
     else
@@ -337,7 +336,6 @@ and snf sg (t:term) : term =
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
 and are_convertible_lst sg (lst : (term*term) list) : bool  =
-  let open Constraints in
   match lst with
   | [] -> true
   | (t1,t2)::lst ->
@@ -347,7 +345,7 @@ and are_convertible_lst sg (lst : (term*term) list) : bool  =
         (* UNIVERSO: needed to type check terms *)
         else
           let t1',t2' = whnf sg t1, whnf sg t2 in
-          if Naive.generate_constraints sg t1' t2' then
+          if Constraints.generate_constraints sg t1' t2' then
             Some lst
           else
           match t1', t2' with
