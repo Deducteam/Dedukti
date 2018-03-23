@@ -63,7 +63,7 @@ type rule_error =
   | VariableBoundOutsideTheGuard   of term
   | UnboundVariable                of loc * ident * pattern
   | AVariableIsNotAPattern         of loc * ident
-  | NonLinearRule                  of typed_rule
+  | NonLinearRule                  of untyped_rule
   | NotEnoughArguments             of loc * ident * int * int * int
   | NonLinearNonEqArguments        of loc * ident
 
