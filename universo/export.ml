@@ -161,7 +161,7 @@ struct
       match Solver.get_model solver with
       | None -> assert false
       | Some model ->
-        let hmodel = Hashtbl.create (UVar.count ()) in
+        let hmodel = Hashtbl.create 10001 in
         let find uvar =
           try
             uvar

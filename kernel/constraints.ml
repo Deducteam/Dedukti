@@ -26,14 +26,9 @@ struct
 
   let counter = ref 0
 
-  let next () = !counter
-
   let fresh () =
     let name = Format.sprintf "%s%d" basename !counter in
     incr counter; mk_ident name
-
-  let ident_of_counter n =
-    mk_ident (Format.sprintf "%s%d" basename n)
 
   let fresh_uvar sg =
     let id = fresh () in
@@ -43,8 +38,6 @@ struct
     Signature.add_declaration sg Basic.dloc id Signature.Static
       (Term.mk_Const Basic.dloc (Basic.mk_name (Basic.mk_mident "cic") (Basic.mk_ident "Sort")));
     cst
-
-  let count () = !counter
 end
 
 module ReverseCiC =
@@ -524,8 +517,6 @@ struct
       end
 
   let rec generate_constraints sg (l:Term.term) (r:Term.term) =
-  (*  Format.eprintf "l:%a@." Term.pp_term l;
-      Format.eprintf "r:%a@." Term.pp_term r; *)
     if !just_check || !is_matching then false
     else
     let open ReverseCiC in
