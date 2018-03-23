@@ -37,7 +37,6 @@ type constr =
 type rule_infos = {
   l           : loc;
   name        : rule_name;
-  ctx         : typed_context;
   cst         : name;
   args        : pattern list;
   rhs         : term;
@@ -49,14 +48,15 @@ type rule_infos = {
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
 type rule_error =
-  | BoundVariableExpected of pattern
+  | BoundVariableExpected          of pattern
   | DistinctBoundVariablesExpected of loc * ident
-  | VariableBoundOutsideTheGuard of term
-  | UnboundVariable of loc * ident * pattern (* FIXME: this exception seems never to be raised *)
-  | AVariableIsNotAPattern of loc * ident
-  | NonLinearRule of typed_rule
-  | NotEnoughArguments of loc * ident * int * int * int
-  | NonLinearNonEqArguments of loc * ident
+  | VariableBoundOutsideTheGuard   of term
+  | UnboundVariable                of loc * ident * pattern
+  (* FIXME : this exception seems never to be raised *)
+  | AVariableIsNotAPattern         of loc * ident
+  | NonLinearRule                  of untyped_rule
+  | NotEnoughArguments             of loc * ident * int * int * int
+  | NonLinearNonEqArguments        of loc * ident
   (* FIXME: the reason for this exception should be formalized on paper ! *)
 
 exception RuleExn of rule_error
@@ -140,10 +140,12 @@ let pp_typed_rule fmt (rule:typed_rule) =
 
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
-  let rule = { name = r.name; ctx = r.ctx;
+  let rule = { name = r.name;
+               ctx = [];
+               (* TODO: here infer context from named variable inside left hand side pattern *)
                pat = pattern_of_rule_infos r;
                rhs = r.rhs } in
-  pp_typed_rule out rule
+  pp_untyped_rule out rule
 
 let pattern_to_term p =
   let rec aux k = function
@@ -272,7 +274,7 @@ let check_nb_args (arity:int array) (rhs:term) : unit =
   in
   aux 0 rhs
 
-let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
+let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
   let is_linear = List.for_all (function Linearity _ -> false | _ -> true) in
   try
     begin
@@ -294,7 +296,7 @@ let to_rule_infos (r:typed_rule) : (rule_infos,rule_error) error =
         then debug 1 "Non-linear Rewrite Rule detected"
         else raise (RuleExn (NonLinearRule r));
       
-      OK { l ; name = r.name ; ctx = r.ctx ; cst ; args ; rhs = r.rhs ;
+      OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;
            esize = infos.context_size ;
            pats = Array.of_list pats2 ;
            constraints = infos.constraints ; }
