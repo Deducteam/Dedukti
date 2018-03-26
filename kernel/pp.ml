@@ -11,7 +11,9 @@ let print_db_enabled = ref false
 let print_default = ref false
 let name () = get_name ()
 
-let rec print_list = pp_list
+let print_list = pp_list
+
+let print_arr = pp_arr
 
 let print_ident = pp_ident
 
@@ -138,29 +140,29 @@ let print_rule_name fmt rule =
     | Gamma(b,cst) -> aux b cst
 
 let print_untyped_rule fmt (rule:untyped_rule) =
-  let print_decl out (_,id) =
+  let print_decl out (id,_) =
     Format.fprintf out "@[<hv>%a@]" print_ident id
   in
   Format.fprintf fmt
     "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
     print_rule_name rule.name
-    (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) rule.ctx)
+    (print_arr ", " print_decl) rule.ctx
     print_pattern rule.pat
     print_term rule.rhs
 
 let print_typed_rule out (rule:typed_rule) =
-  let print_decl out (_,id,ty) =
+  let print_decl out (id,(_,ty)) =
     Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
   in
   Format.fprintf out
     "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_list ", " print_decl) rule.ctx
+    (print_arr ", " print_decl) rule.ctx
     print_pattern rule.pat
     print_term rule.rhs
 
 let print_rule_infos out ri =
   let rule = { name = ri.name ;
-               ctx = [] ;
+               ctx = [| |] ;
                (* TODO: here infer context from named variable inside left hand side pattern *)
                pat =  pattern_of_rule_infos ri;
                rhs = ri.rhs

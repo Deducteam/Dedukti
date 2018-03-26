@@ -50,14 +50,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   | _ ->
     _declare l id Signature.Definable ty;
     let cst = mk_name (get_name ()) id in
-    let rule =
-      { name= Delta(cst) ;
-        ctx = [] ;
-        pat = Pattern(l, cst, []);
-        rhs = te ;
-      }
-    in
-    Signature.add_rules !sg [rule]
+    Signature.add_rules !sg [ define_rule_infos l cst te ]
 
 let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
@@ -90,9 +83,9 @@ let define_op l id te ty_opt =
 
 let add_rules (rules: rule_infos list) : (typed_rule list,env_error) error =
   try
-    List.iter (check_rule !sg) rules in
+    List.iter (check_rule !sg) rules;
     Signature.add_rules !sg rules;
-    OK rs2
+    OK (assert false)
   with
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)

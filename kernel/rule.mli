@@ -49,19 +49,22 @@ type rule_name = Delta of name | Gamma of bool * name
 
 val pp_rule_name : rule_name printer
 
+
+type 'a rule_context = (ident * 'a) array
+
 type 'a rule =
   {
     name: rule_name;
-    ctx: 'a;
+    ctx: 'a rule_context;
     pat: pattern;
     rhs:term
   }
 
-type untyped_rule = untyped_context rule
+type untyped_rule = loc          rule
+type   typed_rule = (loc * term) rule
+type   arity_rule = int          rule
 
 val pp_untyped_rule : untyped_rule printer
-
-type typed_rule = typed_context rule
 
 val pp_typed_rule : typed_rule printer
 
@@ -89,6 +92,9 @@ type rule_infos =
   ; constraints : constr list (** constraints generated from the pattern to the free pattern *)
   }
 
+val get_full_pattern : rule_infos -> wf_pattern
+
+val define_rule_infos : loc -> name -> term -> rule_infos
 val pattern_of_rule_infos : rule_infos -> pattern
 
 val to_rule_infos : untyped_rule -> (rule_infos, rule_error) error

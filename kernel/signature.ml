@@ -222,12 +222,9 @@ let add_declaration sg lc v st ty =
   else
     HId.add env v {stat=st; ty=ty; rule_opt_info=None}
 
-let add_rules sg lst : unit =
-  let rs = map_error_list Rule.to_rule_infos lst in
-  match rs with
-  | Err e -> raise (SignatureError (CannotMakeRuleInfos e))
-  | OK [] -> ()
-  | OK (r::_ as rs) ->
+let add_rules sg = function
+    [] -> ()
+  | r::_ as rs ->
     begin
       add_rule_infos sg rs;
       if not (mident_eq sg.name (md r.cst)) then

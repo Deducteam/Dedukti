@@ -19,19 +19,21 @@ type wf_pattern =
 
 type rule_name = Delta of name | Gamma of bool * name
 
+type 'a rule_context = (ident * 'a) array
+
 type 'a rule =
   {
     name: rule_name;
-    ctx: 'a;
+    ctx: 'a rule_context;
     pat: pattern;
     rhs:term
   }
 
-type untyped_rule = untyped_context rule
+type untyped_rule = loc          rule
+type   typed_rule = (loc * term) rule
+type   arity_rule = int          rule
 
-type typed_rule = typed_context rule
-
-(* TODO : may be replace constr by Linearity | Bracket and constr list by a constr Map.t *)
+(* TODO (maybe): replace constr by Linearity | Bracket and constr list by a constr Map.t *)
 type constr =
   | Linearity of int * int
   | Bracket of int * term
@@ -46,6 +48,8 @@ type rule_infos = {
   pats : wf_pattern array;
   constraints : constr list;
 }
+
+let get_full_pattern ri = LPattern(ri.cst, ri.pats)
 
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
@@ -263,6 +267,28 @@ let check_nb_args (nb_args:int array) (te:term) : unit =
     | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
   in
     aux 0 te
+
+type rule_infos = {
+  l : loc;
+  name : rule_name ;
+  cst : name;
+  args : pattern list;
+  rhs : term;
+  esize : int;
+  pats : wf_pattern array;
+  constraints : constr list;
+}
+
+let define_rule_infos (loc:loc) (name:name) (rhs:term) =
+  { l    = loc;
+    name = Delta(name);
+    cst  = name;
+    args = [];
+    rhs  = rhs;
+    esize= 0;
+    pats = [| |];
+    constraints = []
+  }
 
 let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
   let rec is_linear = function

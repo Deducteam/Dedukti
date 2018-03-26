@@ -24,3 +24,5 @@ val print_entry         : Entry.entry        printer
 (** [print_list sep printer] returns a printer for ['a list] using [printer] as
     element printer and [sep] as separator between elements. *)
 val print_list  : string -> 'a printer -> 'a list printer
+
+val print_arr  : string -> 'a printer -> 'a array printer

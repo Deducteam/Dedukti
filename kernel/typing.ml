@@ -19,7 +19,7 @@ type typing_error =
   | InexpectedKind of term * typed_context
   | DomainFreeLambda of loc
   | CannotInferTypeOfPattern of pattern * typed_context
-  | CannotSolveConstraints of untyped_rule * (int * term * term) list
+  | CannotSolveConstraints of rule_infos * (int * term * term) list
   | BracketError1 of term * typed_context
   | BracketError2 of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
@@ -222,8 +222,8 @@ type context2 = (loc*ident*typ) LList.t
 (* Partial Context *)
 
 type partial_context =
-  { padding:int; (* expected size*)
-    pctx:context2 (*partial context*)
+  { padding : int;     (* expected size*)
+    pctx    : context2 (* partial context*)
   }
 
 let pc_make (ctx:(loc*ident) list) : partial_context =
@@ -394,39 +394,36 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context option =
   with
   | Subst.UnshiftExn -> None
 
-let check_rule sg (rule:untyped_rule) : typed_rule =
-  (*  let ctx0,le,ri = rule.rule in *)
-  let delta = pc_make rule.ctx in
-  let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
+let check_rule sg (ri:rule_infos) : unit =
+  assert (ri.esize >= 0);
+  let delta = { padding = ri.esize; pctx=LList.nil } in
+  let pat = get_full_pattern ri in
+
+  let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] pat in
   assert ( delta.padding == 0 );
   let sub = match pseudo_u sg SS.identity lst with
-    | None -> raise (TypingError (CannotSolveConstraints (rule,lst)))
+    | None -> raise (TypingError (CannotSolveConstraints (ri,lst)))
     | Some s -> ( (*debug "%a" SS.pp s;*) s )
   in
   let sub = SS.mk_idempotent sub in
   let (ri2,ty_le2,ctx2) =
-    if SS.is_identity sub then (rule.rhs,ty_le,LList.lst delta.pctx)
+    if SS.is_identity sub then (ri.rhs,ty_le,LList.lst delta.pctx)
     else
       begin
         match subst_context sub (LList.lst delta.pctx) with
-        | Some ctx2 -> ( SS.apply sub rule.rhs 0, SS.apply sub ty_le 0, ctx2 )
+        | Some ctx2 -> ( SS.apply sub ri.rhs 0, SS.apply sub ty_le 0, ctx2 )
         | None ->
           begin
             (*TODO make Dedukti handle this case*)
             debug 1 "Failed to infer a typing context for the rule:\n%a."
-              pp_untyped_rule rule;
+              pp_rule_infos ri;
             SS.iter (
               fun i (id,te) -> debug 2 "Try replacing '%a[%i]' by '%a'"
                   pp_ident id i (pp_term_j 0) te
             ) sub;
-            raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
+            raise (TypingError (NotImplementedFeature ri.l))
           end
       end
   in
   check sg ctx2 ri2 ty_le2;
-  debug 2 "[ %a ] %a --> %a" pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2;
-  { name = rule.name;
-    ctx = ctx2;
-    pat = rule.pat;
-    rhs = rule.rhs
-  }
+  debug 2 "[ %a ] %a --> %a" pp_context_inline ctx2 pp_wf_pattern pat pp_term ri2
