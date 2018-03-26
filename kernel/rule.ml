@@ -298,7 +298,7 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
   in
   try
     begin
-      let esize = List.length r.ctx in
+      let esize = Array.length r.ctx in
       let (l,cst,args) = match r.pat with
         | Pattern (l,cst,args) -> (l, cst, args)
         | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
