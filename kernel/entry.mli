@@ -20,7 +20,7 @@ type entry =
   (** Definition (possibly opaque). *)
   | Def   of loc * ident * is_opaque * term option * term
   (** Reduction rules declaration. *)
-  | Rules of Rule.untyped_rule list
+  | Rules of Rule.rule_infos list
   (** Evaluation command. *)
   | Eval  of loc * Reduction.red_cfg * term
   (** Test command. *)

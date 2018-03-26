@@ -12,7 +12,7 @@ type test =
 type entry =
   | Decl  of loc * ident * Signature.staticity * term
   | Def   of loc * ident * is_opaque * term option * term
-  | Rules of Rule.untyped_rule list
+  | Rules of Rule.rule_infos list
   | Eval  of loc * Reduction.red_cfg * term
   | Check of loc * is_assertion * should_fail * test
   | Infer of loc * Reduction.red_cfg * term
@@ -37,7 +37,7 @@ let pp_entry fmt e =
                        pp_ident id pp_term ty pp_term te
       end
   | Rules(rs)               ->
-      fprintf fmt "@[<v0>%a@].@.@." (pp_list "" Rule.pp_untyped_rule) rs
+      fprintf fmt "@[<v0>%a@].@.@." (pp_list "" Rule.pp_rule_infos) rs
   | Eval(_,cfg,te)          ->
       fprintf fmt "#EVAL%a %a.@." Reduction.pp_red_cfg cfg pp_term te
   | Infer(_,cfg,te)         ->

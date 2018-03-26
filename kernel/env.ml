@@ -88,9 +88,9 @@ let define_op l id te ty_opt =
   | TypingError    e -> Err (EnvErrorType e)
   | DefineExn (l,id) -> Err (KindLevelDefinition (l,id))
 
-let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
+let add_rules (rules: rule_infos list) : (typed_rule list,env_error) error =
   try
-    let rs2 = List.map (check_rule !sg) rules in
+    List.iter (check_rule !sg) rules in
     Signature.add_rules !sg rules;
     OK rs2
   with

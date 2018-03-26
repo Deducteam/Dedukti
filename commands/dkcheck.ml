@@ -3,9 +3,7 @@ open Basic
 open Parser
 open Entry
 
-let eprint lc fmt =
-  let (l,c) = of_loc lc in
-  debug 1 ("line:%i column:%i " ^^ fmt) l c
+let eprint lc fmt = debug 1 ("%a " ^^ fmt) pp_loc lc
 
 let mk_entry md e =
   match e with
@@ -25,22 +23,17 @@ let mk_entry md e =
         | OK () -> ()
         | Err e -> Errors.fail_env_error e
       end
-  | Rules(rs)               ->
-      begin
-        let open Rule in
-        let get_infos p =
-          match p with
-          | Pattern(l,cst,_) -> (l,cst)
-          | _                -> (dloc,mk_name (mk_mident "") dmark)
-        in
-        let r = List.hd rs in (* cannot fail. *)
-        let (l,cst) = get_infos r.pat in
-        eprint l "Adding rewrite rules for '%a'" pp_name cst;
-        match Env.add_rules rs with
-        | OK rs -> List.iter (eprint (get_loc_pat r.pat) "%a" pp_typed_rule) rs
-        | Err e -> Errors.fail_env_error e
-      end
-  | Eval(_,red,te)          ->
+  | Rules(rs) ->
+    begin
+      let open Rule in
+      let get_name = function Delta n | Gamma (_,n) -> n in
+      let r = List.hd rs in (* cannot fail. *)
+      eprint r.l "Adding rewrite rules for '%a'" pp_name (get_name r.name);
+      match Env.add_rules rs with
+      | OK rs -> List.iter (eprint r.l "%a" pp_typed_rule) rs
+      | Err e -> Errors.fail_env_error e
+    end
+  | Eval(_,red,te) ->
       begin
         match Env.reduction ~red te with
         | OK te -> Format.printf "%a@." Pp.print_term te
@@ -185,8 +178,10 @@ let _ =
           Errors.success "Standard input was successfully checked.\n"
   with
   | Parse_error(loc,msg) ->
-      let (l,c) = of_loc loc in
-      Printf.eprintf "Parse error at (%i,%i): %s\n" l c msg;
-      exit 1
-  | Sys_error err        -> Printf.eprintf "ERROR %s.\n" err; exit 1
+    Format.eprintf "Parse error at %a: %s\n" pp_loc loc msg;
+    exit 1
+  | Scoping_error(loc,msg) ->
+    Format.eprintf "Scoping error at %a: %s\n" pp_loc loc msg;
+    exit 1
+  | Sys_error err        -> Format.eprintf "ERROR %s.\n" err; exit 1
   | Exit                 -> exit 3

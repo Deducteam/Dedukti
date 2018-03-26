@@ -121,6 +121,11 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : Rule.rule_infos =
     in
     Gamma(b,mk_name md id)
   in
-  try
+  match
     Rule.to_rule_infos
       { name ; ctx= ctx; pat = p_of_pp md idents top; rhs = t_of_pt md idents pri }
+  with
+  | OK r -> r
+  | Err e ->
+    let err_msg = Format.sprintf "" in
+    raise( Internals.Scoping_error(l, err_msg) )

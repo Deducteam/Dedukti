@@ -194,7 +194,7 @@ let print_entry fmt e =
                        print_ident id print_term ty print_term te
       end
   | Rules(rs)               ->
-      fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) rs
+      fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_rule_infos) rs
   | Eval(_,cfg,te)          ->
       fprintf fmt "#EVAL%a %a.@." print_red_cfg cfg print_term te
   | Infer(_,cfg,te)         ->
