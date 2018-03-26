@@ -122,8 +122,12 @@ and print_pattern_wp out = function
 let print_typed_context fmt ctx =
   print_list ".\n"
     (fun out (_,x,ty) ->
-      Format.fprintf fmt "@[<hv>%a:@ %a@]" print_ident x print_term ty
+       Format.fprintf fmt "@[<hv>%a:@ %a@]" print_ident x print_term ty
     ) fmt (List.rev ctx)
+
+let print_untyped_context fmt ctx =
+  Format.fprintf fmt "\[%a\]"
+    (print_list ", " print_ident) (List.map snd ctx)
 
 let print_rule_name fmt rule =
   let aux b cst =
@@ -136,39 +140,25 @@ let print_rule_name fmt rule =
       Format.fprintf fmt ""
   in
     match rule with
-      | Delta(cst) -> aux true cst (* not printed *)
+    | Delta(cst)   -> aux true cst (* not printed *)
     | Gamma(b,cst) -> aux b cst
 
 let print_untyped_rule fmt (rule:untyped_rule) =
-  let print_decl out (id,_) =
-    Format.fprintf out "@[<hv>%a@]" print_ident id
-  in
   Format.fprintf fmt
     "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
     print_rule_name rule.name
-    (print_arr ", " print_decl) rule.ctx
-    print_pattern rule.pat
-    print_term rule.rhs
-
-let print_typed_rule out (rule:typed_rule) =
-  let print_decl out (id,(_,ty)) =
-    Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
-  in
-  Format.fprintf out
-    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_arr ", " print_decl) rule.ctx
+    (print_list ", " print_ident) (List.map snd rule.ctx)
     print_pattern rule.pat
     print_term rule.rhs
 
 let print_rule_infos out ri =
-  let rule = { name = ri.name ;
-               ctx = [| |] ;
-               (* TODO: here infer context from named variable inside left hand side pattern *)
-               pat =  pattern_of_rule_infos ri;
-               rhs = ri.rhs
-             }
-  in
-  print_untyped_rule out rule
+  (* TODO: here infer dedukti-like context and pattern from rule_info. *)
+  let ctx = [] in
+  let pat = pattern_of_rule_infos ri in
+  print_untyped_rule out { name = ri.name ; ctx  = ctx; pat  = pat; rhs  = ri.rhs }
+
+let print_typed_rule_infos out ri =
+  print_rule_infos out {ri with ctxt = Array.map fst ri.ctxt }
 
 let print_red_cfg fmt strat =
   let open Reduction in

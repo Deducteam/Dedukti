@@ -19,49 +19,48 @@ type wf_pattern =
 
 type rule_name = Delta of name | Gamma of bool * name
 
-type 'a rule_context = (ident * 'a) array
-
-type 'a rule =
+type untyped_rule =
   {
     name: rule_name;
-    ctx: 'a rule_context;
-    pat: pattern;
-    rhs:term
+    ctx : untyped_context;
+    pat : pattern;
+    rhs : term
   }
-
-type untyped_rule = loc          rule
-type   typed_rule = (loc * term) rule
-type   arity_rule = int          rule
 
 (* TODO (maybe): replace constr by Linearity | Bracket and constr list by a constr Map.t *)
 type constr =
   | Linearity of int * int
   | Bracket   of int * term
 
-type rule_infos = {
+type 'a rule = {
   l           : loc;
   name        : rule_name;
   cst         : name;
   args        : pattern list;
   rhs         : term;
   esize       : int;
+  ctxt        : 'a array;
   pats        : wf_pattern array;
   constraints : constr list;
 }
 
+type rule_infos = ident rule
+
+type typed_rule_infos = (ident * term) rule
+
 let get_full_pattern ri = LPattern(ri.cst, ri.pats)
 
 let infer_rule_context ri =
-  let res = Array.make ri.esize (mk_ident "_") in
+  let res = Array.make ri.esize (dloc, mk_ident "_") in
   let rec aux k = function
   | LJoker -> ()
-  | LVar (name,n,args) -> res.(n-k) <- name
+  | LVar (name,n,args) -> res.(n-k) <- (dloc, name)
   | LLambda (_,body) -> aux (k+1) body
   | LPattern  (_  ,args) -> Array.iter (aux k) args
   | LBoundVar (_,_,args) -> Array.iter (aux k) args
   in
   Array.iter (aux 0) ri.pats;
-  List.map (fun i -> (dloc, i)) (Array.to_list res)
+  Array.to_list res
 
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
@@ -132,7 +131,6 @@ let pp_rule_name fmt rule_name =
   in
   fprintf fmt "%s: %a" sort pp_name n
 
-(* FIXME: factorize this function with the follozing one *)
 let pp_untyped_rule fmt (rule:untyped_rule) =
   fprintf fmt " {%a} [%a] %a --> %a"
     pp_rule_name rule.name
@@ -140,22 +138,17 @@ let pp_untyped_rule fmt (rule:untyped_rule) =
     pp_pattern rule.pat
     pp_term rule.rhs
 
-let pp_typed_rule fmt (rule:typed_rule) =
-  fprintf fmt " {%a} [%a] %a --> %a"
-    pp_rule_name rule.name
-    pp_typed_context rule.ctx
-    pp_pattern rule.pat
-    pp_term rule.rhs
-
 (* FIXME: do not print all the informations because it is used in utils/errors *)
-let pp_rule_infos out r =
-  pp_untyped_rule out
-    { name = r.name;
-      ctx = infer_rule_context r;
-      pat = pattern_of_rule_infos r;
-      rhs = r.rhs
-    }
+let pp_rule_infos out ri =
+  (* TODO: here infer dedukti-like context and pattern from rule_info. *)
+  let ctx = infer_rule_context ri in
+  let pat = pattern_of_rule_infos ri in
+  pp_untyped_rule out { name = ri.name ; ctx = ctx; pat  = pat; rhs  = ri.rhs }
     
+let pp_typed_rule_infos out ri =
+  pp_rule_infos out {ri with ctxt = Array.map fst ri.ctxt }
+  
+
 let pattern_to_term p =
   let rec aux k = function
     | Brackets t -> t
@@ -171,9 +164,9 @@ let pattern_to_term p =
 
 type pattern_info =
   {
-    constraints  : constr list;
-    context_size : int;
-    arity        : int array
+    constraints   : constr list;
+    context_size  : int;
+    arity_context : (ident * int) array
   }
 
 (* ************************************************************************** *)
@@ -216,7 +209,8 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
   let context_size = ref esize in
   let arity = IntHashtbl.create 10 in
   let fresh_var ar = (* DB indice for a fresh context variable with given arity *)
-    IntHashtbl.add arity !context_size ar;
+    let name = mk_ident (Format.sprintf "_%i" !context_size) in
+    IntHashtbl.add arity !context_size (name,ar);
     incr context_size;
     !context_size - 1 in
   let extract_db k pat =
@@ -238,14 +232,14 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       let nb_args' = List.length args' in
       if IntHashtbl.mem arity (n-k)
       then
-        if nb_args' <> IntHashtbl.find arity (n-k)
+        if nb_args' <> snd (IntHashtbl.find arity (n-k))
         then raise (RuleExn (NonLinearNonEqArguments(l,x)))
         else
           let nvar = fresh_var nb_args' in 
           constraints := Linearity(nvar, n-k) :: !constraints;
           LVar(x, nvar + k, args')
       else
-        let _ = IntHashtbl.add arity (n-k) nb_args' in
+        let _ = IntHashtbl.add arity (n-k) (x,nb_args') in
         LVar(x,n,args')
     | Brackets t ->
       let unshifted =
@@ -259,9 +253,9 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
   in
   let wf_pats = List.map (aux 0) pats in
   ( wf_pats
-  , { context_size = !context_size;
-      constraints = !constraints;
-      arity = Array.init !context_size (fun i -> IntHashtbl.find arity i)
+  , { context_size  = !context_size;
+      constraints   = !constraints;
+      arity_context = Array.init !context_size (fun i -> IntHashtbl.find arity i)
     } )
 
 (* Checks that the lhs variables are applied to enough arguments *)
@@ -283,23 +277,13 @@ let check_nb_args (arity:int array) (rhs:term) : unit =
   in
   aux 0 rhs
 
-type rule_infos = {
-  l : loc;
-  name : rule_name ;
-  cst : name;
-  args : pattern list;
-  rhs : term;
-  esize : int;
-  pats : wf_pattern array;
-  constraints : constr list;
-}
-
 let define_rule_infos (loc:loc) (name:name) (rhs:term) =
   { l    = loc;
     name = Delta(name);
     cst  = name;
     args = [];
     rhs  = rhs;
+    ctxt = [| |];
     esize= 0;
     pats = [| |];
     constraints = []
@@ -309,16 +293,16 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
   let is_linear = List.for_all (function Linearity _ -> false | _ -> true) in
   try
     begin
-      let esize = Array.length r.ctx in
+      let esize = List.length r.ctx in
       let (l,cst,args) = match r.pat with
         | Pattern (l,cst,args) -> (l, cst, args)
         | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
         | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
       in
-      let (pats2,infos) = check_patterns  esize args in
+      let (pats2,infos) = check_patterns esize args in
       
       (* Checking that Miller variable are correctly applied in lhs *)
-      check_nb_args infos.arity r.rhs;
+      check_nb_args infos.arity_context r.rhs;
       
       (* Checking if pattern has linearity constraints *)
       if not (is_linear infos.constraints)
@@ -328,6 +312,7 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
         else raise (RuleExn (NonLinearRule r));
       
       OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;
+           ctxt = infos.arity_context;
            esize = infos.context_size ;
            pats = Array.of_list pats2 ;
            constraints = infos.constraints ; }

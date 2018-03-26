@@ -394,7 +394,7 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context option =
   with
   | Subst.UnshiftExn -> None
 
-let check_rule sg (ri:rule_infos) : unit =
+let check_rule sg (ri:rule_infos) : typed_rule_infos =
   assert (ri.esize >= 0);
   let delta = { padding = ri.esize; pctx=LList.nil } in
   let pat = get_full_pattern ri in
@@ -426,4 +426,5 @@ let check_rule sg (ri:rule_infos) : unit =
       end
   in
   check sg ctx2 ri2 ty_le2;
-  debug 2 "[ %a ] %a --> %a" pp_context_inline ctx2 pp_wf_pattern pat pp_term ri2
+  debug 2 "[ %a ] %a --> %a" pp_context_inline ctx2 pp_wf_pattern pat pp_term ri2;
+  {ri with ctxt = Array.of_list (List.map (fun (loc,id,ty) -> (id,ty)) ctx2) }

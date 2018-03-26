@@ -44,19 +44,13 @@ type rule_name =
 
 
 
-type 'a rule_context = (ident * 'a) array
-
-type 'a rule =
+type untyped_rule =
   {
     name: rule_name;
-    ctx : 'a rule_context;
+    ctx : untyped_context;
     pat : pattern;
     rhs : term
   }
-
-type untyped_rule = loc          rule
-type   typed_rule = (loc * term) rule
-type   arity_rule = int          rule
 
 (** {2 Errors} *)
 
@@ -72,17 +66,23 @@ type rule_error =
 
 (** {2 Rule infos} *)
 
-type rule_infos = {
+(** Rule representation. Type parameter is context information.*)
+type 'a rule = {
   l           : loc;              (** location of the rule *)
   name        : rule_name;        (** name of the rule *)
   cst         : name;             (** name of the pattern constant *)
   args        : pattern list;     (** arguments list of the pattern constant *)
   rhs         : term;             (** right hand side of the rule *)
   esize       : int;              (** size of the context *)
+  ctxt        : 'a array;         (** Context information *)
   pats        : wf_pattern array; (** free pattern without constraint *)
   constraints : constr list;
   (** constraints generated from the pattern to the free pattern *)
 }
+
+type rule_infos = (ident*int) rule
+
+type typed_rule_infos = (ident * term) rule
 
 val get_full_pattern : rule_infos -> wf_pattern
 
@@ -93,11 +93,12 @@ val to_rule_infos : untyped_rule -> (rule_infos, rule_error) error
 
 (** {2 Printing} *)
 
-val pp_rule_name       : rule_name       printer
-val pp_untyped_rule    : untyped_rule    printer
-val pp_typed_rule      : typed_rule      printer
-val pp_pattern         : pattern         printer
-val pp_wf_pattern      : wf_pattern      printer
-val pp_untyped_context : untyped_context printer
-val pp_typed_context   : typed_context   printer
-val pp_rule_infos      : rule_infos      printer
+val pp_rule_name        : rule_name        printer
+val pp_untyped_rule     : untyped_rule     printer
+val pp_pattern          : pattern          printer
+val pp_wf_pattern       : wf_pattern       printer
+val pp_untyped_context  : untyped_context  printer
+val pp_typed_context    : typed_context    printer
+
+val pp_rule_infos       : rule_infos       printer
+val pp_typed_rule_infos : typed_rule_infos printer
