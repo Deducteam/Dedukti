@@ -2,13 +2,14 @@ open Basic
 open Format
 open Term
 
-(* Miller's patterns *)
+(* Miller's patterns from the parser *)
 type pattern =
   | Var         of loc * ident * int * pattern list (* Y x1 ... xn *)
   | Pattern     of loc * name * pattern list
   | Lambda      of loc * ident * pattern
   | Brackets    of term
 
+(* Miller's patterns efficient representation *)
 type wf_pattern =
   | LJoker
   | LVar         of ident * int * int list

@@ -100,7 +100,7 @@ let p_of_pp md (ctx:ident list) (ppat:prepattern) : pattern =
 
 (******************************************************************************)
 
-let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
+let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : Rule.rule_infos =
   let top = PPattern(l,md_opt,id,pargs) in
   let ctx, unused_vars = get_vars_order pctx top in
   if unused_vars
@@ -121,4 +121,6 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
     in
     Gamma(b,mk_name md id)
   in
-  { name ; ctx= ctx; pat = p_of_pp md idents top; rhs = t_of_pt md idents pri }
+  try
+    Rule.to_rule_infos
+      { name ; ctx= ctx; pat = p_of_pp md idents top; rhs = t_of_pt md idents pri }
