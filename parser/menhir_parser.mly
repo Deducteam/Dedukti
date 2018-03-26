@@ -165,8 +165,7 @@ rule:
         ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 context:
-  | /* empty */                        { [] }
-  | separated_nonempty_list(COMMA, ID) { $1 }
+  | l=separated_list(COMMA, ID) { l }
 
 top_pattern:
   | ID  pattern_wp* { (fst $1,None,snd $1,$2) }
