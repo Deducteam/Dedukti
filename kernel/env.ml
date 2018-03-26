@@ -90,9 +90,9 @@ let define_op l id te ty_opt =
 
 let add_rules (rules: rule_infos list) : (typed_rule list,env_error) error =
   try
-    List.iter (check_rule !sg) rules in
+    List.iter (check_rule !sg) rules;
     Signature.add_rules !sg rules;
-    OK rs2
+    OK rules
   with
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)
