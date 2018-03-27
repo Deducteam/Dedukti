@@ -44,9 +44,9 @@ type 'a rule = {
   constraints : constr list;
 }
 
-type rule_infos = ident rule
+type       rule_infos =  (ident * int)         rule
+type typed_rule_infos = ((ident * int) * term) rule
 
-type typed_rule_infos = (ident * term) rule
 
 let get_full_pattern ri = LPattern(ri.cst, ri.pats)
 
@@ -302,7 +302,7 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
       let (pats2,infos) = check_patterns esize args in
       
       (* Checking that Miller variable are correctly applied in lhs *)
-      check_nb_args infos.arity_context r.rhs;
+      check_nb_args (Array.map snd infos.arity_context) r.rhs;
       
       (* Checking if pattern has linearity constraints *)
       if not (is_linear infos.constraints)

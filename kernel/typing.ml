@@ -18,7 +18,7 @@ type typing_error =
   | ProductExpected of term * typed_context * term
   | InexpectedKind of term * typed_context
   | DomainFreeLambda of loc
-  | CannotInferTypeOfPattern of pattern * typed_context
+  | CannotInferTypeOfPattern of loc * wf_pattern * typed_context
   | CannotSolveConstraints of rule_infos * (int * term * term) list
   | BracketError1 of term * typed_context
   | BracketError2 of term * typed_context*term
@@ -273,45 +273,46 @@ let unshift_n sg n te =
   try Subst.unshift n te
   with Subst.UnshiftExn -> Subst.unshift n (snf sg te)
 
-let rec infer_pattern sg (delta:partial_context) (sigma:context2) (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
+let rec infer_pattern sg (l:loc) (delta:partial_context) (sigma:context2) (lst:constraints)
+    (pat:wf_pattern) : typ * partial_context * constraints =
+  let fail () =
+    let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
+    raise (TypingError (CannotInferTypeOfPattern(l,pat,ctx))) in
   match pat with
-  | Pattern (l,cst,args) ->
-    let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
-        ( mk_Const l cst , Signature.get_type sg l cst , delta , lst ) args
+  | LJoker    -> fail ()
+  | LLambda _ -> fail ()
+  | LPattern (cst,args) ->
+    let (_,ty,delta2,lst2) = Array.fold_left (infer_pattern_aux sg l sigma)
+        ( mk_Const dloc cst , Signature.get_type sg dloc cst, delta, lst ) args
     in (ty,delta2,lst2)
-  | Var (l,x,n,args) ->
-    if n < (LList.len sigma) then
-      let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
-          ( mk_DB l x n, get_type (LList.lst sigma) l x n , delta , lst ) args
-      in (ty,delta2,lst2)
-    else
-      let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-      raise (TypingError (CannotInferTypeOfPattern (pat,ctx))) (* not a pattern *)
-  | Brackets _ ->
-    let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-    raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
-  | Lambda _ ->
-    let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-    raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
+  | LBoundVar (x,n,args) -> fail ()
+  | LVar (x,n,args) ->
+    assert (n < LList.len sigma);
+    let (_,ty,delta2,lst2) =
+      Array.fold_left
+        (infer_pattern_aux sg l sigma)
+        ( mk_DB dloc x n, get_type (LList.lst sigma) dloc x n , delta , lst )
+        args
+    in (ty,delta2,lst2)
 
-and infer_pattern_aux sg (sigma:context2) (f,ty_f,delta,lst:term*typ*partial_context*constraints) (arg:pattern) : term * typ * partial_context * constraints =
+and infer_pattern_aux sg (l:loc) (sigma:context2) (f,ty_f,delta,lst:term*typ*partial_context*constraints) (arg:wf_pattern) : term * typ * partial_context * constraints =
   match whnf sg ty_f with
     | Pi (_,_,a,b) ->
-        let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
-        let arg' = pattern_to_term arg in
-        ( Term.mk_App f arg' [], Subst.subst b arg', delta2 , lst2 )
+      let (delta2,lst2) = check_pattern sg l delta sigma a lst arg in
+      let arg' = pattern_to_term arg in
+      ( Term.mk_App f arg' [], Subst.subst b arg', delta2 , lst2 )
     | ty_f ->
       let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
       raise (TypingError (ProductExpected (f,ctx,ty_f)))
 
-and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
-    (lst:constraints) (pat:pattern) : partial_context * constraints =
-  debug 3 "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty;
+and check_pattern sg (l:loc) (delta:partial_context) (sigma:context2) (exp_ty:typ)
+    (lst:constraints) (pat:wf_pattern) : partial_context * constraints =
+  debug 3 "Checking pattern %a:%a" pp_wf_pattern pat pp_term exp_ty;
   match pat with
-  | Lambda (l,x,p) ->
+  | LLambda(x,p) ->
     begin
       match whnf sg exp_ty with
-      | Pi (l,x,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
+      | Pi (l,x,a,b) -> check_pattern sg l delta (LList.cons (l,x,a) sigma) b lst p
       | exp_ty ->
         let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
         raise (TypingError ( ProductExpected (pattern_to_term pat,ctx,exp_ty)))
@@ -331,8 +332,9 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     in
     check sg (pc_to_context delta) te2 ty2;
     ( delta, lst )
-  | Var (l,x,n,[]) when ( n >= LList.len sigma ) ->
+  | LVar(x,n,[]) ->
     begin
+      assert(n >= LList.len sigma);
       let k = LList.len sigma in
 
       match pc_get delta (n-k) with
@@ -345,21 +347,22 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
         let inf_ty = Subst.shift k ty in
         ( delta, (k,inf_ty,exp_ty)::lst )
     end
-  | Var (l,x,n,args) when (n>=LList.len sigma) ->
+  | LVar (x,n,args) ->
     begin
+      assert (n>=LList.len sigma);
       let (args2,last) = get_last args in
       match last with
-      | Var (l2,x2,n2,[]) ->
-        check_pattern sg delta sigma
+      | LVar(x2,n2,[]) ->
+        check_pattern sg l delta sigma
           (mk_Pi l2 x2 (get_type (LList.lst sigma) l2 x2 n2) (Subst.subst_n n2 x2 exp_ty) )
           lst (Var(l,x,n,args2))
       | _ ->
         let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-        raise (TypingError (CannotInferTypeOfPattern (pat,ctx))) (* not a pattern *)
+        raise (TypingError (CannotInferTypeOfPattern (l,pat,ctx))) (* not a pattern *)
     end
   | _ ->
     begin
-      let (inf_ty,delta2,lst2) = infer_pattern sg delta sigma lst pat in
+      let (inf_ty,delta2,lst2) = infer_pattern sg l delta sigma lst pat in
       let q = LList.len sigma in
       ( delta2 , (q,inf_ty,exp_ty)::lst2 )
     end
@@ -399,7 +402,7 @@ let check_rule sg (ri:rule_infos) : typed_rule_infos =
   let delta = { padding = ri.esize; pctx=LList.nil } in
   let pat = get_full_pattern ri in
 
-  let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] pat in
+  let (ty_le,delta,lst) = infer_pattern sg ri.l delta LList.nil [] pat in
   assert ( delta.padding == 0 );
   let sub = match pseudo_u sg SS.identity lst with
     | None -> raise (TypingError (CannotSolveConstraints (ri,lst)))

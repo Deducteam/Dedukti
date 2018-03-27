@@ -14,7 +14,7 @@ type typing_error =
   | ProductExpected of term * typed_context * term
   | InexpectedKind of term * typed_context
   | DomainFreeLambda of loc
-  | CannotInferTypeOfPattern of pattern * typed_context
+  | CannotInferTypeOfPattern of loc * wf_pattern * typed_context
   | CannotSolveConstraints of untyped_rule * (int * term * term) list
   | BracketError1 of term * typed_context
   | BracketError2 of term * typed_context*term

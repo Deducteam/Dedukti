@@ -80,14 +80,13 @@ type 'a rule = {
   (** constraints generated from the pattern to the free pattern *)
 }
 
-type rule_infos = (ident*int) rule
-
-type typed_rule_infos = (ident * term) rule
+type       rule_infos =  (ident * int)         rule
+type typed_rule_infos = ((ident * int) * term) rule
 
 val get_full_pattern : rule_infos -> wf_pattern
 
 val define_rule_infos : loc -> name -> term -> rule_infos
-val pattern_of_rule_infos : rule_infos -> pattern
+val pattern_of_rule_infos : 'a rule -> pattern
 
 val to_rule_infos : untyped_rule -> (rule_infos, rule_error) error
 

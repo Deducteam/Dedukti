@@ -60,10 +60,10 @@ let fail_typing_error err =
       pp_term te pp_typed_context ctx
   | DomainFreeLambda lc ->
     fail lc "Cannot infer the type of domain-free lambda."
-  | CannotInferTypeOfPattern (p,ctx) ->
-    fail (get_loc_pat p)
+  | CannotInferTypeOfPattern (loc,p,ctx) ->
+    fail loc
       "Error while typing '%a'%a.\nThe type could not be infered."
-      pp_pattern p pp_typed_context ctx
+      pp_wf_pattern p pp_typed_context ctx
   | CannotSolveConstraints (r,cstr) ->
     fail (get_loc_pat r.pat)
       "Error while typing the rewrite rule\n%a\nCannot solve typing constraints:\n%a"

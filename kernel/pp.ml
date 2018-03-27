@@ -126,8 +126,7 @@ let print_typed_context fmt ctx =
     ) fmt (List.rev ctx)
 
 let print_untyped_context fmt ctx =
-  Format.fprintf fmt "\[%a\]"
-    (print_list ", " print_ident) (List.map snd ctx)
+  Format.fprintf fmt "[%a]" (print_list ", " print_ident) (List.map snd ctx)
 
 let print_rule_name fmt rule =
   let aux b cst =
