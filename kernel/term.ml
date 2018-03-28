@@ -71,13 +71,13 @@ let rec get_name_from_typed_ctxt ctxt i =
 
 let rename_vars_with_typed_context ctxt t =
   let rec aux ctxt d = function
-    | DB  (l,v,n)        ->
+    | DB  (l,v,n) when n > d ->
       let v' = (match get_name_from_typed_ctxt ctxt (n - d) with Some v -> v | None -> v) in
       mk_DB l v' n
     | App (f,a,args)     ->
       mk_App (aux ctxt d f) (aux ctxt d a) (List.map (aux ctxt d) args)
-    | Lam (l,x,None,f)   -> mk_Lam l x None (aux (x::ctxt) (d+1) f)
-    | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux ctxt d a)) (aux (x::ctxt) (d+1) f)
-    | Pi  (l,x,a,b)      -> mk_Pi l x (aux ctxt d a) (aux (x::ctxt) (d+1) b)
+    | Lam (l,x,None,f)   -> mk_Lam l x None (aux ctxt (d+1) f)
+    | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux ctxt d a)) (aux ctxt (d+1) f)
+    | Pi  (l,x,a,b)      -> mk_Pi l x (aux ctxt d a) (aux ctxt (d+1) b)
     | te -> te in
   aux (List.map (fun (_,v,_) -> v) ctxt) 0 t
