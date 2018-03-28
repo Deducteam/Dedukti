@@ -4,10 +4,8 @@ open Basic
 open Term
 open Signature
 
-type env_error =
-  | EnvErrorType of Typing.typing_error
-  | EnvErrorSignature of signature_error
-  | KindLevelDefinition of loc*ident
+val solve       : unit -> int * Reconstruction.model
+(* universo *)
 
 (** {2 The Global Environment} *)
 
@@ -16,6 +14,9 @@ val init        : string -> mident
     the corresponding source file. The function returns the module identifier
     corresponding to this file, built from its basename. Every toplevel
     declaration will be qualified be this name. *)
+
+val get_signature : unit -> Signature.t
+(* universo *)
 
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)
@@ -32,32 +33,30 @@ val export      : unit -> bool
 val import      : loc -> mident -> (unit, signature_error) error
 (** [import lc md] the module [md] in the current environment. *)
 
-val declare : loc -> ident -> Signature.staticity -> term -> (unit,env_error) error
+val declare : loc -> ident -> Signature.staticity -> term -> (unit,Env.env_error) error
 (** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
    staticity [st]. *)
 
-val define      : loc -> ident -> term -> term option -> (unit,env_error) error
+val define      : loc -> ident -> term -> term option -> (unit,Env.env_error) error
 (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
 
-val define_op   : loc -> ident -> term -> term option -> (unit,env_error) error
+val define_op   : loc -> ident -> term -> term option -> (unit,Env.env_error) error
 (** [define_op l id body ty] declares the symbol [id] of type [ty] and checks
     that [body] has this type (but forget it after). *)
 
-val add_rules   : Rule.untyped_rule list -> (Rule.typed_rule list,env_error) error
+val add_rules   : Rule.untyped_rule list -> (Rule.typed_rule list,Env.env_error) error
 (** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the
     same symbol. *)
 
 (** {2 Type checking/inference} *)
 
-val infer : ?ctx:typed_context -> term         -> (term,env_error) error
+val infer : ?ctx:typed_context -> term         -> (term,Env.env_error) error
 
-val check : ?ctx:typed_context -> term -> term -> (unit,env_error) error
+val check : ?ctx:typed_context -> term -> term -> (unit,Env.env_error) error
 
 (** {2 Safe Reduction/Conversion} *)
 (** terms are typechecked before the reduction/conversion *)
 
-val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> (term,env_error) error
+val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> (term,Env.env_error) error
 
-val are_convertible : ?ctx:typed_context -> term -> term -> (bool,env_error) error
-
-val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term
+val are_convertible : ?ctx:typed_context -> term -> term -> (bool,Env.env_error) error

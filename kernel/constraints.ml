@@ -60,6 +60,9 @@ struct
       ()
     else
       Hashtbl.add uf l' r'
+
+  let reset () =
+    Hashtbl.clear uf
 end
 
 (* When is true, does no generate any constraint *)
@@ -103,7 +106,9 @@ let add_constraint_type =
 let add_constraint_eq v v' =
   let v = var_of_ident v in
   let v' = var_of_ident v' in
-  UF.union v v'
+  (*
+  UF.union v v' *)
+  add_constraint (Eq(v,v'))
 
 let add_constraint_succ v v' =
   let v = var_of_ident v in
@@ -340,5 +345,26 @@ let rec generate_constraints sg (l:Term.term) (r:Term.term) =
 let string_of_var n = string_of_ident (UF.find n)
 
 let export () =
-  debug 1 "%s@." (info !global_constraints);
+  debug 2 "%s@." (info !global_constraints);
   !global_constraints
+
+let optimize cs =
+  let union c cs =
+    match c with
+    | Eq(v,v') -> UF.union v v'; cs
+    | _ -> ConstraintsSet.add c cs
+  in
+  let cs' = ConstraintsSet.fold union cs ConstraintsSet.empty in
+  let normalize_eq c =
+    match c with
+    | Eq(v,v') -> assert false
+    | Succ(v,v') -> Succ(UF.find v, UF.find v')
+    | Max(v,v',v'') -> Max(UF.find v, UF.find v', UF.find v'')
+    | Rule(v,v',v'') -> Rule(UF.find v, UF.find v', UF.find v'')
+    | Univ(v,u) -> Univ(UF.find v, u)
+  in
+  ConstraintsSet.map normalize_eq cs'
+
+let import cs =
+  UF.reset ();
+  global_constraints := cs
