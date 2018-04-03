@@ -203,6 +203,8 @@ let mk_succ arg = mk_App (mk_Const dloc succ) arg []
 
 let mk_rule left right  = mk_App (mk_Const dloc rule) left [right]
 
+let mk_max  left right  = mk_App (mk_Const dloc max) left [right]
+
 let mk_univ s =
   mk_App (mk_Const dloc univ) s []
 

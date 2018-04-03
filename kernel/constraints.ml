@@ -1,7 +1,12 @@
 open Uvar
 
-(* When is true, does not generate any constraint *)
+(* When is true, does not generate any constraint. Used while using other tools than Universo *)
 let just_check = ref false
+
+
+(* When is true, does no generate any constraint. Used while matching a rule. Useful for non linear rules. *)
+let is_matching = ref false
+
 
 open Basic
 
@@ -61,9 +66,6 @@ struct
     else
       Hashtbl.add uf l' r'
 end
-
-(* When is true, does no generate any constraint *)
-let is_matching = ref false
 
 let var_of_ident ident = UF.find ident
 
@@ -157,8 +159,17 @@ let info constraints =
 let fresh_var_rule l r =
   mk_ident ("r"^string_of_ident l^","^string_of_ident r)
 
+let fresh_var_max l r =
+  mk_ident ("m"^string_of_ident l^","^string_of_ident r)
+
 let fresh_var_succ l =
   mk_ident ("s"^(string_of_ident l))
+
+let assert_type_zero t =
+  if Cic.is_z (Cic.extract_type t) then
+    ()
+  else
+    failwith "This bug should be reported (assert_type_zero)"
 
 let rec simple s =
   let open Cic in
@@ -170,6 +181,11 @@ let rec simple s =
     else if is_type s' then
       failwith "This bug should be reported (simple 1)"
     else mk_succ s'
+  else if is_type s then
+    begin
+      assert_type_zero s;
+      term_of_univ (Type 0)
+    end
   else if is_rule s then
     let s1,s2 = extract_rule s in
     let s1' = simple s1 in
@@ -182,16 +198,21 @@ let rec simple s =
       mk_prop
     else
       mk_rule s1 s2
-  else if is_max s then
-    failwith "This bug should be reported (simple 2)"
+  else
+  if is_max s then
+    let s1,s2 = extract_max s in
+    let s1' = simple s1 in
+    let s2' = simple s2 in
+    if is_prop s1' then
+      s2'
+    else if is_prop s2' then
+      s1'
+    else if Term.term_eq s1' s2' then
+        s1'
+    else
+      mk_max s1' s2'
   else
     s
-
-let assert_type_zero t =
-  if Cic.is_z (Cic.extract_type t) then
-    ()
-  else
-    failwith "This bug should be reported (assert_type_zero)"
 
 let rec extract_universe sg (s:Term.term) =
   let open Cic in
@@ -220,6 +241,8 @@ let rec extract_universe sg (s:Term.term) =
       let s1' = extract_universe sg s1 in
       let s2' = extract_universe sg s2 in
       if s1' = find_univ Prop then
+        s2'
+      else if s2' = find_univ Prop then
         s2'
       else
         let l = fresh_var_rule s1' s2' in
@@ -257,7 +280,7 @@ let rec generate_constraints sg (l:Term.term) (r:Term.term) =
     else if is_succ l && is_uvar r then
       begin
         let l = extract_succ l in
-        let l = ident_of_uvar l in
+        let l = extract_universe sg l in
         let r = ident_of_uvar r in
         add_constraint_succ l r;
         true
@@ -275,8 +298,8 @@ let rec generate_constraints sg (l:Term.term) (r:Term.term) =
       generate_constraints sg r l
     else if is_max l && is_uvar r then
       let s1,s2 = extract_max l in
-      let s1 = ident_of_uvar s1 in
-      let s2 = ident_of_uvar s2 in
+      let s1 = extract_universe sg s1 in
+      let s2 = extract_universe sg s2 in
       let r = ident_of_uvar r in
       add_constraint_max s1 s2 r;
       true
@@ -284,8 +307,8 @@ let rec generate_constraints sg (l:Term.term) (r:Term.term) =
       generate_constraints sg r l
     else if is_max l && is_type r then
       let s1,s2 = extract_max l in
-      let s1 = ident_of_uvar s1 in
-      let s2 = ident_of_uvar s2 in
+      let s1 = extract_universe sg s1 in
+      let s2 = extract_universe sg s2 in
       assert_type_zero r;
       let s3 = find_univ (Type 0) in
       add_constraint_max s1 s2 s3;
@@ -340,5 +363,5 @@ let rec generate_constraints sg (l:Term.term) (r:Term.term) =
 let string_of_var n = string_of_ident (UF.find n)
 
 let export () =
-  debug 1 "%s@." (info !global_constraints);
+  Format.eprintf "%s@." (info !global_constraints);
   !global_constraints
