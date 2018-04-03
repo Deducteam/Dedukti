@@ -88,7 +88,7 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
       match whnf sg ty_exp with
       | Pi (_,_,a',ty_b) ->
         ignore(infer sg ctx a);
-        if not (Reduction.are_convertible sg a a')
+        if not (Reduction.are_convertible sg a' a)
         then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a,a')))
         else check sg ((l,x,a)::ctx) b ty_b
       | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
@@ -140,7 +140,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
       let t2' = whnf sg (SS.apply sigma t2 q) in
       if term_eq t1' t2' then pseudo_u sg sigma lst
       (* UNIVERSO: needed to type check rewrite rules *)
-      else if are_univ_convertible sg t1 t2 then
+      else if are_univ_convertible sg false t1 t2 then
         pseudo_u sg sigma lst
       else
         match t1', t2' with

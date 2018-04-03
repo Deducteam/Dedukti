@@ -9,6 +9,6 @@ B _build/parser
 B _build/commands
 B _build/universo
 
-PKG Z3
+PKG z3
 
 FLG -w -3

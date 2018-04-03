@@ -28,7 +28,7 @@ and elaborate_prod sg ctx s1 s2 a x te =
       s1,a',ctx
     else if is_cuni a then
       let v,a' =
-        elaborate_cuni sg a in
+        elaborate_cuni sg (extract_cuni a) in
       mk_succ v, a', (x,v)::ctx
     else if is_var a then
       let id = extract_var a in
@@ -88,6 +88,15 @@ and elaborate sg ctx t =
   else if is_term t then
     let s1, t' = extract_term t in
     elaborate_term sg ctx s1 t'
+  else if is_lift t then
+    begin
+      let _,_,t' = extract_lift t in
+      if is_cuni t' then
+        let s,t' = elaborate_cuni sg (extract_cuni t') in
+        mk_lift (mk_succ s) (fresh_uvar sg) t'
+      else
+        mk_lift (fresh_uvar sg) (fresh_uvar sg) (elaborate sg ctx t')
+    end
   else if is_prod t then
     let s1,s2,a,x,te = extract_prod' t in
     snd @@ elaborate_prod sg ctx s1 s2 a x te

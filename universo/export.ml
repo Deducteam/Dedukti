@@ -111,6 +111,16 @@ struct
     let ite = Boolean.mk_ite ctx yeq0 zeq0 zeqmax in
     Solver.add solver [ite]
 
+  let gen_constraint_nl var var' var'' var''' =
+    let x = get_variable var    in
+    let y = get_variable var'   in
+    let z = get_variable var''  in
+    let t = get_variable var''' in
+    let eqxy = Boolean.mk_eq ctx x y in
+    let eqzt = Boolean.mk_eq ctx z t in
+    let iff = Boolean.mk_iff ctx eqxy eqzt in
+    Solver.add solver [iff]
+
   let gen_constraint c =
     let sofi = string_of_var in
     match c with
@@ -119,6 +129,7 @@ struct
     | Succ(n,n') -> gen_constraint_succ (sofi n) (sofi n')
     | Max(n,n',n'') -> gen_constraint_max (sofi n) (sofi n') (sofi n'')
     | Rule(n,n',n'') -> gen_constraint_rule (sofi n) (sofi n') (sofi n'')
+    | Nl(x,y,z,t) -> gen_constraint_nl (sofi x) (sofi y) (sofi z) (sofi t)
 
   let import cs =
     ConstraintsSet.iter gen_constraint cs
@@ -147,6 +158,7 @@ struct
     let open Symbol in
     let open Expr in
     let open Arithmetic in
+    if i > 6 then failwith "Probably the Constraints are inconsistent";
     Solver.reset solver;
     Hashtbl.clear variables;
     import constraints;

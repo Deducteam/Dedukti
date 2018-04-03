@@ -211,6 +211,9 @@ let mk_univ s =
 let mk_cuni s =
   mk_App (mk_Const dloc cuni) s []
 
+let mk_lift s1 s2 a =
+  mk_App (mk_Const dloc lift) s1 [s2;a]
+
 let mk_prod s1 s2 a x ty te =
   mk_App (mk_Const dloc prod) s1 [s2;a;(mk_Lam dloc x (Some ty) te)]
 

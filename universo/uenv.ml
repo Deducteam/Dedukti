@@ -57,6 +57,7 @@ let import lc md =
   with SignatureError e -> Err e
 
 let _declare (l:loc) (id:ident) st ty : unit =
+  Format.eprintf "Declaration %a@." pp_ident id;
   try
     match inference !sg ty with
     | Kind | Type _ ->
@@ -70,6 +71,7 @@ let _declare (l:loc) (id:ident) st ty : unit =
 exception DefineExn of loc*ident
 
 let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
+  Format.eprintf "Definition %a@." pp_ident id;
   try
     let ty = match ty_opt with
       | None -> inference !sg te

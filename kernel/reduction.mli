@@ -33,6 +33,6 @@ val are_convertible : Signature.t -> term -> term -> bool
 (** [are_convertible sg t1 t2] check if [t1] and [t2] are convertible using the
     signature [sg]. *)
 
-val are_univ_convertible : Signature.t -> term -> term -> bool
+val are_univ_convertible : Signature.t -> bool -> term -> term -> bool
 (** [are_convertible sg t1 t2] check if [t1] and [t2] are convertible using the
     signature [sg]. *)

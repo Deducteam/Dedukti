@@ -8,6 +8,7 @@ module C = Constraints
 module Checker =
 struct
   let mk_entry md e =
+    Format.eprintf "%a@." Pp.print_entry e;
     match e with
     | Decl(lc,id,st,ty)       ->
       begin

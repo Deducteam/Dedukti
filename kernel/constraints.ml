@@ -14,6 +14,7 @@ type constraints =
   | Max of var * var * var
   | Succ of var * var
   | Rule of var * var * var
+  | Nl of var * var * var * var
 
 let term_of_univ univ =
   let rec term_of_nat i =
@@ -117,11 +118,18 @@ let add_constraint_rule v v' v'' =
   let v'' = var_of_ident v'' in
   add_constraint (Rule(v,v',v''))
 
+let add_constraint_nl x y z t =
+  let x = var_of_ident x in
+  let y = var_of_ident y in
+  let z = var_of_ident z in
+  let t = var_of_ident t in
+  add_constraint (Nl(x,y,z,t))
+
 module VarSet = Set.Make(struct type t = Basic.ident let compare = compare end)
 
 let info constraints =
   let open Cic in
-  let prop,ty,neq,eq,succ,max,rule = ref 0, ref 0, ref 0, ref 0, ref 0, ref 0, ref 0 in
+  let prop,ty,neq,eq,succ,max,rule,nl = ref 0, ref 0, ref 0, ref 0, ref 0, ref 0, ref 0, ref 0 in
   let vars =
     CS.fold (fun x vs ->
         match x with
@@ -135,6 +143,8 @@ let info constraints =
           VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
         | Univ(n,u) -> begin match u with | Prop -> incr prop | Type _ -> incr ty end;
           VarSet.add n vs
+        | Nl(x,y,z,t) -> incr nl;
+          VarSet.add x (VarSet.add y (VarSet.add z (VarSet.add t vs)))
       ) constraints VarSet.empty
   in
   let print fmt () =
@@ -145,7 +155,8 @@ let info constraints =
     Format.fprintf fmt "@[eq  :%d@]@." !eq;
     Format.fprintf fmt "@[succ:%d@]@." !succ;
     Format.fprintf fmt "@[max :%d@]@." !max;
-    Format.fprintf fmt "@[rule:%d@]@." !rule
+    Format.fprintf fmt "@[rule:%d@]@." !rule;
+    Format.fprintf fmt "@[nl  :%d@]@." !nl
   in
   Format.asprintf "%a" print ()
 
@@ -263,6 +274,7 @@ let optimize cs =
     | Max(v,v',v'') -> Max(UF.find v, UF.find v', UF.find v'')
     | Rule(v,v',v'') -> Rule(UF.find v, UF.find v', UF.find v'')
     | Univ(v,u) -> Univ(UF.find v, u)
+    | Nl(x,y,z,t) -> Nl(UF.find x, UF.find y, UF.find z, UF.find t)
   in
   ConstraintsSet.map normalize_eq cs'
 
