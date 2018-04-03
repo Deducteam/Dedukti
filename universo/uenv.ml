@@ -7,7 +7,7 @@ open Signature
 let current_level = ref 1
 
 let before_cs = ref Constraints.ConstraintsSet.empty
-let check_bump id  =
+let check_bump id  = false (*
   let cs = Constraints.export () in
   let i,_ = Export.Z3.solve (Constraints.optimize cs) in
   current_level := i;
@@ -24,7 +24,7 @@ let check_bump id  =
       before_cs := cs;
       false
     end
-
+*)
 let solve () =
   let cs = Constraints.export () in
   let i,model = Export.Z3.solve cs in

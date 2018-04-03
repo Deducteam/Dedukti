@@ -76,3 +76,5 @@ val mk_max  : term -> term -> term
 val mk_prod : term -> term -> term -> ident -> term -> term -> term
 
 val mk_term : term -> term -> term
+
+val assert_type_zero : term -> unit

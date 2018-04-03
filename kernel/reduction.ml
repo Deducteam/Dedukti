@@ -4,6 +4,13 @@ open Rule
 open Term
 open Dtree
 
+(* When is true, does not generate any constraint. Used while using other tools than Universo *)
+let just_check = ref false
+
+
+(* When is true, does no generate any constraint. Used while matching a rule. Useful for non linear rules. *)
+let is_matching = ref false
+
 type red_strategy = Hnf | Snf | Whnf
 
 type red_cfg = {
@@ -160,25 +167,25 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
   | (Linearity (i,j))::tl ->
     let t1 = mk_DB dloc dmark i in
     let t2 = mk_DB dloc dmark j in
-    Constraints.is_matching :=
+    is_matching :=
       if is_uvar (Lazy.force (LList.nth ctx i)) || is_uvar (Lazy.force (LList.nth ctx j)) then
         true else
         false;
     let is_conv = convertible sg (term_of_state { ctx; term=t1; stack=[] })
         (term_of_state { ctx; term=t2; stack=[] }) in
-    Constraints.is_matching := false;
+    is_matching := false;
     if is_conv then
       test sg convertible ctx tl
     else false
   | (Bracket (i,t2))::tl ->
     let t1 = mk_DB dloc dmark i in
-    Constraints.is_matching :=
+    is_matching :=
       if is_uvar (Lazy.force (LList.nth ctx i)) || is_uvar t2 then
         true else
         false;
     let is_conv = convertible sg (term_of_state { ctx; term=t1; stack=[] })
         (term_of_state { ctx; term=t2; stack=[] }) in
-    Constraints.is_matching := false;
+    is_matching := false;
     if is_conv then
       test sg convertible ctx tl
     else
@@ -345,7 +352,7 @@ and are_convertible_lst sg (lst : (term*term) list) : bool  =
         (* UNIVERSO: needed to type check terms *)
         else
           let t1',t2' = whnf sg t1, whnf sg t2 in
-          if Constraints.generate_constraints sg t1' t2' then
+          if are_univ_convertible sg t1' t2' then
             Some lst
           else
           match t1', t2' with
@@ -362,6 +369,101 @@ and are_convertible_lst sg (lst : (term*term) list) : bool  =
       | Some lst2 -> are_convertible_lst sg lst2
     end
 
+and are_univ_convertible sg (l:Term.term) (r:Term.term) =
+  let open Cic in
+  let open Uvar in
+  let open Constraints in
+  let var_of_uvar x = var_of_ident (ident_of_uvar x) in
+  if !just_check || !is_matching then false
+  else
+    if is_uvar l && is_prop r then
+      let l = var_of_uvar l in
+      add_constraint_prop l;
+      true
+    else if is_prop l && is_uvar r then
+      are_univ_convertible sg r l
+    else if is_uvar l && is_type r then
+      let l = var_of_uvar l in
+      assert_type_zero r;
+      add_constraint_type l (Type 0);
+      true
+    else if is_type l && is_uvar r then
+      are_univ_convertible sg r l
+    else if is_uvar l && is_uvar r then
+      let l = var_of_uvar l in
+      let r = var_of_uvar r in
+      add_constraint_eq l r;
+      true
+    else if is_succ l && is_uvar r then
+      begin
+        let l = extract_succ l in
+        let l = extract_universe sg l in
+        let r = var_of_uvar r in
+        add_constraint_succ l r;
+        true
+      end
+    else if is_uvar l && is_succ r then
+      are_univ_convertible sg r l
+    else if is_rule l && is_uvar r then
+      let s1,s2 = extract_rule l in
+      let s1' = extract_universe sg s1 in
+      let s2' = extract_universe sg s2 in
+      let r = var_of_uvar r in
+      add_constraint_rule s1' s2' r;
+      true
+    else if is_uvar l && is_rule r then
+      are_univ_convertible sg r l
+    else if is_max l && is_uvar r then
+      let s1,s2 = extract_max l in
+      let s1 = extract_universe sg s1 in
+      let s2 = extract_universe sg s2 in
+      let r = var_of_uvar r in
+      add_constraint_max s1 s2 r;
+      true
+    else if is_uvar l && is_max r then
+      are_univ_convertible sg r l
+    else if is_max l && is_type r then
+      let s1,s2 = extract_max l in
+      let s1 = extract_universe sg s1 in
+      let s2 = extract_universe sg s2 in
+      assert_type_zero r;
+      let s3 = var_of_univ (Type 0) in
+      add_constraint_max s1 s2 s3;
+      true
+    else if is_type l && is_max r then
+      are_univ_convertible sg r l
+    else if is_rule l && is_type r then
+      let s1,s2 = extract_rule l in
+      let s1 = extract_universe sg s1 in
+      let s2 = extract_universe sg s2 in
+      assert_type_zero r;
+      let s3 = var_of_univ (Type 0) in
+      add_constraint_rule s1 s2 s3;
+      true
+    else if is_type l && is_rule r then
+      are_univ_convertible sg r l
+    else if is_succ l && is_prop r then
+      failwith "This bug should be reported (case 6)"
+    else if is_prop l && is_succ r then
+      failwith "This bug should be reported (case 7)"
+    else if is_prop l && is_rule r then
+      failwith "This bug should be reported (case 8)"
+    else if is_rule l && is_prop r then
+      failwith "This bug should be reported (case 9)"
+    else if is_succ l && is_type r then
+      failwith "This bug should be reported (case 10)"
+    else if is_type l && is_succ r then
+      failwith "This bug should be reported (case 11)"
+    else if is_succ l && is_rule r then
+      failwith "This bug should be reported (case 12)"
+    else if is_rule l && is_succ r then
+      failwith "This bug should be reported (case 13)"
+    else if is_succ l && is_type r then
+      failwith "This bug should be reported (case 14)"
+    else if is_type l && is_succ r then
+      failwith "This bug should be reported (case 15)"
+    else
+      false
 (* Convertibility Test *)
 and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
 

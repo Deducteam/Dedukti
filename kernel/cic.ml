@@ -216,3 +216,9 @@ let mk_prod s1 s2 a x ty te =
 
 let mk_term s a =
   mk_App (mk_Const dloc term) s [a]
+
+let assert_type_zero t =
+  if is_z (extract_type t) then
+    ()
+  else
+    failwith "This bug should be reported (assert_type_zero)"
