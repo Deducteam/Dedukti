@@ -3,11 +3,6 @@ open Pp
 open Rule
 open Entry
 
-let solve () =
-  let cs = Constraints.export () in
-  let i,model = Export.Z3.solve cs in
-  i,model
-
 module C = Constraints
 
 module Checker =
@@ -16,13 +11,13 @@ struct
     match e with
     | Decl(lc,id,st,ty)       ->
       begin
-        match Env.declare lc id st ty with
+        match Uenv.declare lc id st ty with
         | OK () -> ()
         | Err e -> Errors.fail_env_error e
       end
     | Def(lc,id,opaque,ty,te) ->
       begin
-        let define = if opaque then Env.define_op else Env.define in
+        let define = if opaque then Uenv.define_op else Uenv.define in
         match define lc id te ty with
         | OK () -> ()
         | Err e -> Errors.fail_env_error e
@@ -30,22 +25,22 @@ struct
     | Rules(rs)               ->
       begin
         let open Rule in
-        match Env.add_rules rs with
+        match Uenv.add_rules rs with
         | OK rs -> ()
         | Err e -> Errors.fail_env_error e
       end
     | Eval(_,red,te)          ->
       begin
-        match Env.reduction ~red te with
+        match Uenv.reduction ~red te with
         | OK te -> Format.printf "%a@." Pp.print_term te
         | Err e -> Errors.fail_env_error e
       end
     | Infer(_,red,te)         ->
       begin
-        match Env.infer te with
+        match Uenv.infer te with
         | OK ty ->
           begin
-            match Env.reduction ~red ty with
+            match Uenv.reduction ~red ty with
             | OK ty -> Format.printf "%a@." Pp.print_term ty
             | Err e -> Errors.fail_env_error e
           end
@@ -56,7 +51,7 @@ struct
         match test with
         | Convert(t1,t2) ->
           begin
-            match Env.are_convertible t1 t2 with
+            match Uenv.are_convertible t1 t2 with
             | OK ok when ok = not neg -> if not assrt then Format.printf "YES@."
             | OK _  when assrt        -> failwith "Assertion failed."
             | OK _                    -> Format.printf "NO@."
@@ -64,7 +59,7 @@ struct
           end
         | HasType(te,ty) ->
           begin
-            match Env.check te ty with
+            match Uenv.check te ty with
             | OK () when not neg -> if not assrt then Format.printf "YES@."
             | Err _ when neg     -> if not assrt then Format.printf "YES@."
             | OK () when assrt   -> failwith "Assertion failed."
@@ -74,9 +69,9 @@ struct
       end
     | DTree(lc,m,v)           ->
       begin
-        let m = match m with None -> Env.get_name () | Some m -> m in
+        let m = match m with None -> Uenv.get_name () | Some m -> m in
         let cst = mk_name m v in
-        match Env.get_dtree lc cst with
+        match Uenv.get_dtree lc cst with
         | OK (Some(i,g)) -> Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
         | _              -> Format.printf "No GDT.@."
       end
@@ -87,31 +82,27 @@ struct
         Printf.eprintf "[Warning] invalid #NAME directive ignored.\n%!"
     | Require(lc,md) ->
       begin
-        match Env.import lc md with
+        match Uenv.import lc md with
         | OK () -> ()
         | Err e -> Errors.fail_signature_error e
       end
 
   let mk_entry md e =
-    mk_entry md e (*;
-    let i,_ = solve () in
-    if i >= 2 then
-      failwith "coucou"
-                  *)
+    mk_entry md e
 end
 
 let run_on_file output export file =
   let input = open_in file in
   debug 1 "Processing file '%s'..." file;
-  let md = Env.init file in
+  let md = Uenv.init file in
   let entries = Parser.parse_channel md input in
   Errors.success "File '%s' was successfully parsed." file;
-  let entries = List.map (Elaboration.elaboration (Env.get_signature ())) entries in
+  let entries = List.map (Elaboration.elaboration (Uenv.get_signature ())) entries in
   Errors.success "File '%s' was successfully elaborated." file;
   List.iter (Checker.mk_entry md) entries;
   Errors.success "File '%s' was successfully checked." file;
-  if export && not (Env.export ()) then
-    Errors.fail dloc "Fail to export module '%a@." pp_mident (Env.get_name ());
+  if export && not (Uenv.export ()) then
+    Errors.fail dloc "Fail to export module '%a@." pp_mident (Uenv.get_name ());
   close_in input;
   let file = Filename.concat output (string_of_mident md ^ ".dk") in
   (md,Format.formatter_of_out_channel (open_out file),
@@ -147,7 +138,7 @@ let _ =
   Rule.allow_non_linear := true;
   try
     let entries' = List.map (run_on_file !output_dir !export) files in
-    let _,model = solve () in
+    let _,model = Uenv.solve () in
     Errors.success "Constraints were successfully solved with Z3.";
     print_files model entries'
   with
