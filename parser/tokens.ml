@@ -35,3 +35,4 @@ type token =
   | GDT of loc
   | STRING of string
   | INT of int
+  | WHEN
