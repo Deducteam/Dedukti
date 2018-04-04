@@ -17,12 +17,13 @@ type typing_error =
   | CannotInferTypeOfPattern of pattern * typed_context
   | CannotSolveConstraints of untyped_rule * (int * term * term) list
   | BracketError1 of term * typed_context
-  | BracketError2 of term * typed_context*term
-  | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
+  | BracketError2 of term * typed_context * term
+  | FreeVariableDependsOnBoundVariable of
+      loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
-  | Unconvertible of loc*term*term
-  | Convertible of loc*term*term
-  | Inhabit of loc*term*term
+  | Unconvertible of loc * term * term
+  | Convertible of loc * term * term
+  | Inhabit of loc * term * term
 
 exception TypingError of typing_error
 
@@ -30,22 +31,22 @@ type typ = term
 
 (** {2 Type Inference/Checking} *)
 
-val infer       : Signature.t -> typed_context -> term -> typ
+val infer : Signature.t -> typed_context -> term -> typ
 (** [infer sg ctx te] infers a type for the term [te] in the signature [sg] and context [ctx]
     The context is assumed to be well-formed *)
 
-val check       : Signature.t -> typed_context -> term -> typ -> unit
+val check : Signature.t -> typed_context -> term -> typ -> unit
 (** [check sg ctx te ty] checks that the term [te] has type [ty]
     in the signature [sg] and context [ty.ctx].
     [ty] is assumed to be well-typed in [ctx]
     and [ctx] is assumed to be well-formed *)
 
-val checking    : Signature.t -> term -> term -> unit
+val checking : Signature.t -> term -> term -> unit
 (** [checking sg te ty] checks that [te] has type [ty] in the empty context.
     [ty] is typechecked first. *)
 
-val inference   : Signature.t -> term -> typ
+val inference : Signature.t -> term -> typ
 (** [inference sg ctx te] infers a type for the term [te] in empty context. *)
 
-val check_rule  : Signature.t -> untyped_rule -> typed_rule
+val check_rule : Signature.t -> untyped_rule -> typed_rule
 (** [check_rule sg ru] checks that a rule is well-typed. *)
