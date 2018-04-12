@@ -4,12 +4,12 @@ open Term
 
 type red_strategy = Hnf | Snf | Whnf
 
-type red_cfg =
-  { select: (Rule.rule_name -> bool) option
-  ; nb_steps: int option
-  ; (* [Some 0] for no evaluation, [None] for no bound *)
-  strategy: red_strategy
-  ; beta: bool }
+type red_cfg = {
+  select : (Rule.rule_name -> bool) option;
+  nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
+  strategy : red_strategy;
+  beta : bool
+}
 
 val pp_red_cfg : red_cfg Basic.printer
 
