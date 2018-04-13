@@ -59,4 +59,4 @@ type dtree_error =
   | ArityInnerMismatch of loc * ident * ident
 
 (** Compilation of rewrite rules into decision trees. *)
-val of_rules : rule_infos list -> (int * dtree, dtree_error) error
+val of_rules : rule_infos list -> ( (int * dtree) list, dtree_error) error

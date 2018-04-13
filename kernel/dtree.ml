@@ -299,8 +299,31 @@ let rec to_dtree (mx:matrix) : dtree =
 
 (******************************************************************************)
 
+(** Adds an integer to a (reverse) sorted list of distincts integers *)
+let rec add x l = match l with
+  | [] -> [x]
+  | hd :: tl ->
+    if x > hd then x :: l
+    else if x == hd then l (* x is already in l *)
+    else hd :: (add x tl)
 
-let of_rules (rs:rule_infos list) : (int*dtree,dtree_error) error =
+let of_rules (rs:rule_infos list) : ( (int*dtree) list ,dtree_error) error =
   try
-    let mx = mk_matrix rs in OK ( Array.length mx.first.pats , to_dtree mx )
+    let arities = ref [] in
+    List.iter (fun x -> arities := add (List.length x.args) !arities) rs;
+    (* !arities is now the reverse sorted list of all rewrite rules arities. *)
+    let f ar =
+      let new_rules =
+        (* TODO: instead of returning all rs, the list of all rule_infos
+           compute here the new set of rules that should be used when
+           the arity is *exactly* ar. This means:
+           - filter out rules with too high arity
+           - edit rules with too low arity (add extra arguments)
+        *)
+        rs
+      in
+      let mx = mk_matrix new_rules in
+      (ar, to_dtree mx)
+    in
+    OK (List.map f !arities)
   with DtreeExn e -> Err e

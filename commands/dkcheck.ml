@@ -83,8 +83,10 @@ let mk_entry md e =
         let m = match m with None -> Env.get_name () | Some m -> m in
         let cst = mk_name m v in
         match Env.get_dtree lc cst with
-        | OK (Some(i,g)) -> Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
-        | _              -> Format.printf "No GDT.@."
+        | OK (Some trees) ->
+          let rws = List.map (fun (ar, tree) -> (cst, ar, tree)) trees in
+          Format.printf "%a\n" (pp_list "\n" Dtree.pp_rw) rws
+        | _               -> Format.printf "No GDT.@."
       end
   | Print(_,s)              ->
       Format.printf "%s@." s

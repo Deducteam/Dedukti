@@ -40,7 +40,7 @@ type rw_infos =
   {
     stat: staticity;
     ty: term;
-    rule_opt_info: (rule_infos list*int*dtree) option
+    rule_opt_info: (rule_infos list* ((int*dtree) list)) option
   }
 
 type t = { name:mident;
@@ -114,7 +114,7 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
     Confluence.add_constant cst;
     match infos.rule_opt_info with
     | None -> ()
-    | Some (rs,_,_) -> Confluence.add_rules rs
+    | Some (rs,_) -> Confluence.add_rules rs
   in
   HId.iter aux ctx;
   debug 1 "Checking confluence after loading module '%a'..." pp_mident md;
@@ -153,12 +153,12 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
     let rules = match infos.rule_opt_info with
       | None -> rs
-      | Some(mx,_,_) -> mx@rs
+      | Some(mx,_) -> mx@rs
     in
     match Dtree.of_rules rules with
-    | OK (n,tree) ->
+    | OK trees ->
        HId.add env (id r.cst)
-         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,n,tree)}
+         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
     | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 (******************************************************************************)
@@ -195,19 +195,19 @@ let get_type sg lc cst = (get_infos sg lc cst).ty
 let get_dtree sg rule_filter l cst =
   match (get_infos sg l cst).rule_opt_info with
   | None -> None
-  | Some(rules,i,tr) ->
+  | Some(rules,trees) ->
     match rule_filter with
-    | None -> Some (i,tr)
+    | None -> Some trees
     | Some f ->
       let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
       if List.length rules' == List.length rules
-      then Some (i,tr)
+      then Some trees
       else
         (* A call to Dtree.of_rules must be made with a non-empty list *)
         match rules' with
         | [] -> None
         | _ -> match Dtree.of_rules rules' with
-               | OK (n,tree) -> Some(n,tree)
+               | OK ntrees -> Some ntrees
                | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 
