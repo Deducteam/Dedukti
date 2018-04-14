@@ -27,19 +27,22 @@ type matrix =
 
 (* mk_matrix lst builds a matrix out of the non-empty list of rules [lst]
 *  It is checked that all rules have the same head symbol and arity.
-* *)
-let mk_matrix : rule_infos list -> matrix = function
-  | [] -> assert false
-  | r1::rs ->
-    let n = Array.length r1.pats in
-    List.iter (
-      fun r2 ->
-        if not (name_eq r1.cst r2.cst)
-        then raise (DtreeExn (HeadSymbolMismatch (r2.l,r2.cst,r1.cst)));
-        if n != Array.length r2.pats
-        then raise (DtreeExn (ArityMismatch (r2.l,r1.cst)))
-      ) rs;
-    { first=r1; others=rs; col_depth=Array.make n 0; }
+*)
+let mk_matrix (arity:int) (l:rule_infos list) : matrix =
+  let name = (List.hd l).cst in
+  let f r =
+    if not (name_eq r.cst name)
+    then raise (DtreeExn (HeadSymbolMismatch (r.l,r.cst,name)));
+    let ar = Array.length r.pats in
+    if ar > arity  then raise (DtreeExn (ArityMismatch (r.l,name)));
+    if ar < arity
+    then
+      (* TODO: Edit rule r with too low arity : add extra arguments *)
+      r
+    else r
+  in
+  let nrules = List.map f l in
+  { first=List.hd nrules; others=List.tl nrules; col_depth=Array.make arity 0; }
 
 (* Remove a line of the matrix [mx] and return None if the new matrix is Empty. *)
 let pop mx =
@@ -313,16 +316,9 @@ let of_rules (rs:rule_infos list) : ( (int*dtree) list ,dtree_error) error =
     List.iter (fun x -> arities := add (List.length x.args) !arities) rs;
     (* !arities is now the reverse sorted list of all rewrite rules arities. *)
     let f ar =
-      let new_rules =
-        (* TODO: instead of returning all rs, the list of all rule_infos
-           compute here the new set of rules that should be used when
-           the arity is *exactly* ar. This means:
-           - filter out rules with too high arity
-           - edit rules with too low arity (add extra arguments)
-        *)
-        rs
-      in
-      let mx = mk_matrix new_rules in
+      let new_rules = List.filter (fun x -> List.length x.args <= ar) rs in
+      assert (new_rules <> []);
+      let mx = mk_matrix ar new_rules in
       (ar, to_dtree mx)
     in
     OK (List.map f !arities)
