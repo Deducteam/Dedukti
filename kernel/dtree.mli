@@ -54,28 +54,26 @@ type dtree =
       Checks that each problem can be solved such that constraints are satisfied.
       If it does then return a local context for the term [rhs]. *)
 
-(** Type of decision forest *)
 type t
+(** Type mapping arities to decision trees (also called "forest") *)
 
 val empty : t
+(** Empty forest *)
 
 val find_dtree : int -> t -> (int * dtree) option
 (** [find_dtree ar forest] returns a pair (arity,dtree) in given forest
     such that arity <= ar. Returns [None] when not found. *)
 
-
-val pp_matching_problem : matching_problem printer
-
-(** Printer for a single decision tree. *)
 val pp_dtree : dtree printer
+(** Printer for a single decision tree. *)
 
-(** Printer for forests of decision trees. *)
 val pp_dforest : t printer
+(** Printer for forests of decision trees. *)
 
 
+val of_rules : rule_infos list -> (t, dtree_error) error
 (** Compilation of rewrite rules into decision trees.
 Returns a list of arities and corresponding decision trees.
 Invariant : arities must be sorted in decreasing order.
 (see use case in [state_whnf] in [reduction.ml])
 *)
-val of_rules : rule_infos list -> (t, dtree_error) error
