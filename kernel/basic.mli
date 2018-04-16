@@ -122,6 +122,10 @@ val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 
 val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
+val split_list : int -> 'a list -> 'a list * 'a list
+
+val add_to_list2 : 'a list -> 'b list -> ('a * 'b) list -> ('a * 'b) list option
+
 (** Functions printing objects on the given formatter. *)
 type 'a printer = Format.formatter -> 'a -> unit
 
