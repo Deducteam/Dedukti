@@ -90,13 +90,6 @@ let rec add_to_list2 l1 l2 lst =
     | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
     | _,_ -> None
 
-
-(** Return first pair (ar,tree) in given list such that ar <= stack_size *)
-let rec find_dtree stack_size = function
-  | [] -> None
-  | hd :: tl -> if fst hd <= stack_size then Some hd
-    else find_dtree stack_size tl
-
 let rec add_to_list lst (s:stack) (s':stack) =
   match s,s' with
     | [] , []           -> Some lst
@@ -282,16 +275,14 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack } ->
-    match Signature.get_dtree sg !selection l n with
+    let trees = Signature.get_dtree sg !selection l n in
+    match find_dtree (List.length stack) trees with
     | None -> st
-    | Some trees ->
-      match find_dtree (List.length stack) trees with
+    | Some (ar, tree) ->
+      let s1, s2 = split_list ar stack in
+      match gamma_rw sg are_convertible snf state_whnf s1 tree with
       | None -> st
-      | Some (ar, tree) ->
-        let s1, s2 = split_list ar stack in
-        match gamma_rw sg are_convertible snf state_whnf s1 tree with
-        | None -> st
-        | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
+      | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
 
 (* ********************* *)
 
@@ -404,16 +395,14 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
 
       (* Potential Gamma redex *)
       | { ctx; term=Const (l,n); stack } ->
-        match Signature.get_dtree sg !selection l n with
+        let trees = Signature.get_dtree sg !selection l n in
+        match find_dtree (List.length stack) trees with
         | None -> (red,st)
-        | Some trees ->
-          match find_dtree (List.length stack) trees with
+        | Some (ar, tree) ->
+          let s1, s2 = split_list ar stack in
+          match gamma_rw sg are_convertible snf state_whnf s1 tree with
           | None -> (red,st)
-          | Some (ar, tree) ->
-            let s1, s2 = split_list ar stack in
-            match gamma_rw sg are_convertible snf state_whnf s1 tree with
-            | None -> (red,st)
-            | Some (ctx,term) -> aux (red-1, { ctx; term; stack=s2 })
+          | Some (ctx,term) -> aux (red-1, { ctx; term; stack=s2 })
   in
   aux (steps,state)
 

@@ -9,6 +9,36 @@ type dtree_error =
 
 exception DtreeExn of dtree_error
 
+type case =
+  | CConst of int * name
+  | CDB    of int * int
+  | CLam
+
+type arg_pos = { position:int; depth:int }
+type abstract_problem = arg_pos * int LList.t
+
+type matching_problem =
+  | Syntactic of arg_pos LList.t
+  | MillerPattern of abstract_problem LList.t
+
+type dtree =
+  | Switch of int * (case*dtree) list * dtree option
+  | Test of Rule.rule_name * matching_problem * constr list * Term.term * dtree option
+
+(** Type of decision forests *)
+type t = (int * dtree) list
+
+let empty = []
+
+(** Return first pair (ar,tree) in given list such that ar <= stack_size *)
+let rec find_dtree stack_size = function
+  | [] -> None
+  | hd :: tl -> if fst hd <= stack_size then Some hd
+    else find_dtree stack_size tl
+
+
+(******************************************************************************)
+
 (*
  * there is one matrix per head symbol that represents all the rules associated to that symbol.
  * col_depth:   [ (n_0)          (n_1)          ...       (n_k)   ]
@@ -90,65 +120,6 @@ let filter_default (mx:matrix) (c:int) : matrix option =
       | LLambda _ | LPattern _ | LBoundVar _ -> false
   ) mx
 
-type case =
-  | CConst of int * name
-  | CDB    of int * int
-  | CLam
-
-type arg_pos = { position:int; depth:int }
-type abstract_problem = arg_pos * int LList.t
-
-
-type matching_problem =
-  | Syntactic of arg_pos LList.t
-  | MillerPattern of abstract_problem LList.t
-
-let pp_matching_problem fmt matching_problem =
-  match matching_problem with
-  | Syntactic _ -> fprintf fmt "Sy"
-  | MillerPattern _ -> fprintf fmt "Mi"
-
-
-type dtree =
-  | Switch  of int * (case*dtree) list * dtree option
-  | Test    of Rule.rule_name * matching_problem * constr list * term * dtree option
-
-
-let rec pp_dtree t fmt dtree =
-  let tab = String.make (t*4) ' ' in
-  match dtree with
-  | Test (name,mp,[],te,None)   -> fprintf fmt "{%a} (%a) %a" pp_rule_name name pp_matching_problem mp pp_term te
-  | Test (name,mp,[],te,def)      ->
-    fprintf fmt "\n%s{%a} if true then (%a) %a\n%selse (%a) %a" tab pp_rule_name name  pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
-  | Test (name,mp,lst,te,def)  ->
-    let aux out = function
-      | Linearity (i,j) -> fprintf out "{%a} %d =l %d" pp_rule_name name i j
-      | Bracket (i,j) -> fprintf out "{%a} %a =b %a" pp_rule_name name pp_term (mk_DB dloc dmark i) pp_term j
-    in
-    fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
-      pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
-  | Switch (i,cases,def)->
-    let pp_case out = function
-      | CConst (_,cst), g ->
-        fprintf out "\n%sif $%i=%a then %a" tab i pp_name cst (pp_dtree (t+1)) g
-      | CLam, g -> fprintf out "\n%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
-      | CDB (_,n), g -> fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (pp_dtree (t+1)) g
-    in
-    fprintf fmt "%a\n%sdefault: %a" (pp_list "" pp_case)
-      cases tab (pp_def (t+1)) def
-
-and pp_def t fmt = function
-  | None   -> fprintf fmt "FAIL"
-  | Some g -> pp_dtree t fmt g
-
-let pp_dtree fmt dtree = pp_dtree 0 fmt dtree
-
-let pp_rw fmt (i,g) =
-  fprintf fmt "When applied to %i argument(s): %a" i pp_dtree g
-
-let pp_trees fmt trees = (pp_list "\n" pp_rw) fmt trees
-  
-
 (* Specialize the rule [r] on column [c]
  * i.e. replace colum [c] with a joker and append [nargs] new column at the end.
  * These new columns contain
@@ -220,7 +191,8 @@ let specialize mx c case : matrix =
         col_depth = new_cn;
       }
 
-(* ***************************** *)
+
+(******************************************************************************)
 
 let eq a b =
   match a, b with
@@ -240,7 +212,8 @@ let partition (mx:matrix) (c:int) : case list =
   in
     List.fold_left aux [] (mx.first::mx.others)
 
-(* ***************************** *)
+
+(******************************************************************************)
 
 let array_to_llist arr = LList.of_array arr
 
@@ -279,6 +252,7 @@ let get_first_matching_problem mx =
     then MillerPattern (array_to_llist arr2)
     else Syntactic (array_to_llist arr1)
 
+
 (******************************************************************************)
 
 (* Give the index of the first non variable column *)
@@ -306,6 +280,7 @@ let rec to_dtree (mx:matrix) : dtree =
         let aux ca = ( ca , to_dtree (specialize mx c ca) ) in
           Switch (c, List.map aux cases, map_opt to_dtree (filter_default mx c) )
 
+
 (******************************************************************************)
 
 (** Adds an integer to a (reverse) sorted list of distincts integers *)
@@ -316,7 +291,7 @@ let rec add x l = match l with
     else if x == hd then l (* x is already in l *)
     else hd :: (add x tl)
 
-let of_rules (rs:rule_infos list) : ( (int*dtree) list ,dtree_error) error =
+let of_rules (rs:rule_infos list) : (t, dtree_error) error =
   try
     let arities = ref [] in
     List.iter (fun x -> arities := add (List.length x.args) !arities) rs;
@@ -324,3 +299,46 @@ let of_rules (rs:rule_infos list) : ( (int*dtree) list ,dtree_error) error =
     OK (List.map (fun ar -> (ar, to_dtree (mk_matrix ar rs))) !arities)
   with DtreeExn e -> Err e
 
+
+(******************************************************************************)
+
+let pp_matching_problem fmt matching_problem =
+  match matching_problem with
+  | Syntactic _ -> fprintf fmt "Sy"
+  | MillerPattern _ -> fprintf fmt "Mi"
+
+let rec pp_dtree t fmt dtree =
+  let tab = String.make (t*4) ' ' in
+  match dtree with
+  | Test (name,mp,[],te,None)   -> fprintf fmt "{%a} (%a) %a" pp_rule_name name pp_matching_problem mp pp_term te
+  | Test (name,mp,[],te,def)      ->
+    fprintf fmt "\n%s{%a} if true then (%a) %a\n%selse (%a) %a" tab pp_rule_name name  pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
+  | Test (name,mp,lst,te,def)  ->
+    let aux out = function
+      | Linearity (i,j) -> fprintf out "{%a} %d =l %d" pp_rule_name name i j
+      | Bracket (i,j) -> fprintf out "{%a} %a =b %a" pp_rule_name name pp_term (mk_DB dloc dmark i) pp_term j
+    in
+    fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
+      pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
+  | Switch (i,cases,def)->
+    let pp_case out = function
+      | CConst (_,cst), g ->
+        fprintf out "\n%sif $%i=%a then %a" tab i pp_name cst (pp_dtree (t+1)) g
+      | CLam, g -> fprintf out "\n%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
+      | CDB (_,n), g -> fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (pp_dtree (t+1)) g
+    in
+    fprintf fmt "%a\n%sdefault: %a" (pp_list "" pp_case)
+      cases tab (pp_def (t+1)) def
+
+and pp_def t fmt = function
+  | None   -> fprintf fmt "FAIL"
+  | Some g -> pp_dtree t fmt g
+
+let pp_dtree fmt dtree = pp_dtree 0 fmt dtree
+
+let pp_rw fmt (i,g) =
+  fprintf fmt "When applied to %i argument(s): %a" i pp_dtree g
+
+let pp_dforest fmt = function
+  | []    -> fprintf fmt "No GDT.@."
+  | trees -> (pp_list "\n" pp_rw) fmt trees

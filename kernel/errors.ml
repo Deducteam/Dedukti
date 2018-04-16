@@ -101,7 +101,7 @@ let fail_dtree_error err =
   | HeadSymbolMismatch (lc,cst1,cst2) ->
     fail lc "Unexpected head symbol '%a' \ (expected '%a')."
       pp_name cst1 pp_name cst2
-  | ArityInnerMismatch (lc,rid, id) ->
+  | ArityInnerMismatch (lc, rid, id) ->
     fail lc
       "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
       pp_ident id pp_ident rid

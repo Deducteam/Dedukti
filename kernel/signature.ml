@@ -40,7 +40,7 @@ type rw_infos =
   {
     stat: staticity;
     ty: term;
-    rule_opt_info: (rule_infos list* ((int*dtree) list)) option
+    rule_opt_info: (rule_infos list* Dtree.t) option
   }
 
 type t = { name:mident;
@@ -187,28 +187,22 @@ let get_infos sg lc cst =
 
 let is_injective sg lc cst =
   match (get_infos sg lc cst).stat with
-  | Static -> true
+  | Static    -> true
   | Definable -> false
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
 let get_dtree sg rule_filter l cst =
-  match (get_infos sg l cst).rule_opt_info with
-  | None -> None
-  | Some(rules,trees) ->
-    match rule_filter with
-    | None -> Some trees
-    | Some f ->
-      let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
-      if List.length rules' == List.length rules
-      then Some trees
-      else
-        (* A call to Dtree.of_rules must be made with a non-empty list *)
-        match rules' with
-        | [] -> None
-        | _ -> match Dtree.of_rules rules' with
-               | OK ntrees -> Some ntrees
-               | Err e -> raise (SignatureError (CannotBuildDtree e))
+  match (get_infos sg l cst).rule_opt_info, rule_filter with
+  | None             , _      -> Dtree.empty
+  | Some(_,trees)    , None   -> trees
+  | Some(rules,trees), Some f ->
+    let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
+    if List.length rules' == List.length rules then trees
+    else
+      match Dtree.of_rules rules' with
+      | OK ntrees -> ntrees
+      | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 
 (******************************************************************************)
