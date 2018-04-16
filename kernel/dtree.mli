@@ -1,6 +1,12 @@
 open Basic
 open Rule
 
+(** {2 Error} *)
+
+type dtree_error =
+  | HeadSymbolMismatch of loc * name * name
+  | ArityInnerMismatch of loc * ident * ident
+
 (** {2 Decision Trees} *)
 
 (** Arguments of a pattern may be the following:
@@ -44,19 +50,12 @@ type dtree =
   | Test    of rule_name * matching_problem * constr list * Term.term * dtree option
   (** Test [name] [pb] [cstrs] [te] [tree_opt] are the leaves of the tree. Check that each problem can be solves and such that constraints are satisfied. If it does then return a local context for the term [te]. *)
 
+
+(** Printer for a single decision tree. *)
 val pp_dtree : dtree printer
 
-(** [md] [v] [i] [tree] is the dtree associated to the constant [md].[v] with [i] arguments *)
-type rw = name * int * dtree
-
-val pp_rw : rw printer
-
-(** {2 Error} *)
-
-type dtree_error =
-  | HeadSymbolMismatch of loc * name * name
-  | ArityMismatch of loc * name
-  | ArityInnerMismatch of loc * ident * ident
+(** Printer for a list of decision trees with their arity. *)
+val pp_trees : (int * dtree) list printer
 
 
 (** Compilation of rewrite rules into decision trees.

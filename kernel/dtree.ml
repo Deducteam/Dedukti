@@ -5,7 +5,6 @@ open Format
 
 type dtree_error =
   | HeadSymbolMismatch of loc * name * name
-  | ArityMismatch      of loc * name
   | ArityInnerMismatch of loc * ident * ident
 
 exception DtreeExn of dtree_error
@@ -144,12 +143,11 @@ and pp_def t fmt = function
 
 let pp_dtree fmt dtree = pp_dtree 0 fmt dtree
 
-type rw = name * int * dtree
+let pp_rw fmt (i,g) =
+  fprintf fmt "When applied to %i argument(s): %a" i pp_dtree g
 
-let pp_rw fmt (cst,i,g) =
-  fprintf fmt "GDT for '%a' with %i argument(s): %a"
-    pp_name cst i pp_dtree g
-
+let pp_trees fmt trees = (pp_list "\n" pp_rw) fmt trees
+  
 
 (* Specialize the rule [r] on column [c]
  * i.e. replace colum [c] with a joker and append [nargs] new column at the end.

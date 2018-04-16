@@ -58,41 +58,40 @@ let mk_entry md e =
         | Err e -> Errors.fail_env_error e
       end
   | Check(_,assrt,neg,test) ->
-      begin
-        match test with
-        | Convert(t1,t2) ->
-            begin
-              match Env.are_convertible t1 t2 with
-              | OK ok when ok = not neg -> if not assrt then Format.printf "YES@."
-              | OK _  when assrt        -> failwith "Assertion failed."
-              | OK _                    -> Format.printf "NO@."
-              | Err e                   -> Errors.fail_env_error e
-            end
-        | HasType(te,ty) ->
-            begin
-              match Env.check te ty with
-              | OK () when not neg -> if not assrt then Format.printf "YES@."
-              | Err _ when neg     -> if not assrt then Format.printf "YES@."
-              | OK () when assrt   -> failwith "Assertion failed."
-              | Err _ when assrt   -> failwith "Assertion failed."
-              | _                  -> Format.printf "NO@."
-            end
-      end
-  | DTree(lc,m,v)           ->
-      begin
-        let m = match m with None -> Env.get_name () | Some m -> m in
-        let cst = mk_name m v in
-        match Env.get_dtree lc cst with
-        | OK (Some trees) ->
-          let rws = List.map (fun (ar, tree) -> (cst, ar, tree)) trees in
-          Format.printf "%a\n" (pp_list "\n" Dtree.pp_rw) rws
-        | _               -> Format.printf "No GDT.@."
-      end
-  | Print(_,s)              ->
-      Format.printf "%s@." s
+    begin
+      match test with
+      | Convert(t1,t2) ->
+        begin
+          match Env.are_convertible t1 t2 with
+          | OK ok when ok = not neg -> if not assrt then Format.printf "YES@."
+          | OK _  when assrt        -> failwith "Assertion failed."
+          | OK _                    -> Format.printf "NO@."
+          | Err e                   -> Errors.fail_env_error e
+        end
+      | HasType(te,ty) ->
+        begin
+          match Env.check te ty with
+          | OK () when not neg -> if not assrt then Format.printf "YES@."
+          | Err _ when neg     -> if not assrt then Format.printf "YES@."
+          | OK () when assrt   -> failwith "Assertion failed."
+          | Err _ when assrt   -> failwith "Assertion failed."
+          | _                  -> Format.printf "NO@."
+        end
+    end
+  | DTree(lc,m,v) ->
+    begin
+      let m = match m with None -> Env.get_name () | Some m -> m in
+      let cst = mk_name m v in
+      match Env.get_dtree lc cst with
+      | OK (Some trees) ->
+        Format.printf "GDTs for symbol %a:\n%a" pp_name cst Dtree.pp_trees trees
+      | _  -> Format.printf "No GDT.@."
+    end
+  | Print(_,s) ->
+    Format.printf "%s@." s
   | Name(_,n)               ->
-      if not (mident_eq n md)
-      then warn "Invalid #NAME directive ignored.\n%!"
+    if not (mident_eq n md)
+    then warn "Invalid #NAME directive ignored.\n%!"
   | Require(lc,md)               ->
     begin
       match Env.import lc md with
