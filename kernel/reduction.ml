@@ -145,10 +145,10 @@ let rec find_case (st:state) (cases:(case * dtree) list)
                   (default:dtree option) : (dtree*state list) option =
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
-  | { term=Const (_,n); stack } , (CConst (nargs,n'),tr)::tl ->
+  | { term=Const (_,cst); stack } , (CConst (nargs,cst'),tr)::tl ->
      (* The case doesn't match if the identifiers differ or the stack is not
       * of the expected size. *)
-     if name_eq n n' && List.length stack == nargs
+     if name_eq cst cst' && List.length stack == nargs
      then Some (tr,stack)
      else find_case st tl default
   | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
@@ -160,7 +160,7 @@ let rec find_case (st:state) (cases:(case * dtree) list)
       then Some (tr,stack)
       else find_case st tl default
     end
-  | { ctx; term=Lam (_,_,_,_) } , ( CLam , tr )::tl ->
+  | { ctx; term=Lam _; stack } , ( CLam , tr )::tl ->
     begin
       match term_of_state st with (*TODO could be optimized*)
       | Lam (_,_,_,te) ->

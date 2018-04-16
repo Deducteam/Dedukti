@@ -101,14 +101,15 @@ let filter_on_lambda c r =
 (* Keeps only the rules with a bound variable of index [n] on column [c] *)
 let filter_on_bound_variable c n r =
   match r.pats.(c) with
-  | LBoundVar (_,m,_) when n==m -> true
+  | LBoundVar (_,m,_) -> n == m
   | LVar _ | LJoker -> true
   | _ -> false
 
-(* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
-let filter_on_pattern c cst r =
+(* Keeps only the rules with a pattern head by [cst]
+   applied to [ar] arguments on column [c] *)
+let filter_on_pattern c cst ar r =
   match r.pats.(c) with
-  | LPattern (cst',_) when name_eq cst cst' -> true
+  | LPattern (cst', args) -> name_eq cst cst' && Array.length args == ar
   | LVar _ | LJoker -> true
   | _ -> false
 
@@ -143,13 +144,10 @@ let specialize_rule (c:int) (nargs:int) (r:rule_infos) : rule_infos =
         pats.( i - size)
       in
       match r.pats.(c) with
-        | LJoker | LVar _ -> LJoker
-        | LPattern (cst,pats2) ->
-          let id = id cst in
-          check_args id pats2
-        | LBoundVar (id,_,pats2) ->
-          check_args id pats2
-        | LLambda (_,p) -> ( assert ( nargs == 1); p )
+      | LJoker | LVar _ -> LJoker
+      | LPattern  (cst , pats2) -> check_args (id cst) pats2
+      | LBoundVar (id,_, pats2) -> check_args id       pats2
+      | LLambda (_,p) -> ( assert ( nargs == 1); p )
   in
   { r with pats = Array.init (size+nargs) aux }
 
@@ -174,22 +172,22 @@ let spec_col_depth_l (c:int) (col_depth: int array) : int array =
 
 (* Specialize the matrix [mx] on column [c] *)
 let specialize mx c case : matrix =
-  let (mx_opt,nargs) = match case with
-    | CLam -> ( filter (filter_on_lambda c) mx , 1 )
-    | CDB (nargs,n) -> ( filter (filter_on_bound_variable c n) mx , nargs )
-    | CConst (nargs,cst) -> ( filter (filter_on_pattern c cst) mx , nargs )
-  in
+  let (mx_filter, nargs) = match case with
+    | CLam               -> (filter_on_lambda c           , 1     )
+    | CDB (nargs,n)      -> (filter_on_bound_variable c n , nargs )
+    | CConst (nargs,cst) -> (filter_on_pattern c cst nargs, nargs ) in
+  let mx_opt = filter mx_filter mx in
   let new_cn = match case with
     | CLam -> spec_col_depth_l c mx.col_depth
     | _ ->    spec_col_depth c nargs mx.col_depth
   in
-    match mx_opt with
-    | None -> assert false
-    | Some mx2 ->
-      { first = specialize_rule c nargs mx2.first;
-        others = List.map (specialize_rule c nargs) mx2.others;
-        col_depth = new_cn;
-      }
+  match mx_opt with
+  | None -> assert false
+  | Some mx2 ->
+    { first = specialize_rule c nargs mx2.first;
+      others = List.map (specialize_rule c nargs) mx2.others;
+      col_depth = new_cn;
+    }
 
 
 (******************************************************************************)
@@ -203,14 +201,14 @@ let eq a b =
 
 let partition (mx:matrix) (c:int) : case list =
   let aux lst li =
-    let add h = if List.exists (eq h) lst then lst else h::lst in
-      match li.pats.(c) with
-        | LPattern (cst,pats)  -> add (CConst (Array.length pats,cst))
-        | LBoundVar (_,n,pats) -> add (CDB (Array.length pats,n))
-        | LLambda _ -> add CLam
-        | LVar _ | LJoker -> lst
+    let add h = if List.mem h lst then lst else h::lst in
+    match li.pats.(c) with
+    | LPattern (cst,pats)  -> add (CConst (Array.length pats,cst))
+    | LBoundVar (_,n,pats) -> add (CDB (Array.length pats,n))
+    | LLambda _ -> add CLam
+    | LVar _ | LJoker -> lst
   in
-    List.fold_left aux [] (mx.first::mx.others)
+  List.fold_left aux [] (mx.first::mx.others)
 
 
 (******************************************************************************)
@@ -283,20 +281,21 @@ let rec to_dtree (mx:matrix) : dtree =
 
 (******************************************************************************)
 
-(** Adds an integer to a (reverse) sorted list of distincts integers *)
-let rec add x l = match l with
-  | [] -> [x]
+(** Adds the arity of a rewrite rule to a (reverse) sorted list of distincts integers *)
+let rec add l x =
+  let ar = List.length x.args in
+  match l with
+  | [] -> [ar]
   | hd :: tl ->
-    if x > hd then x :: l
-    else if x == hd then l (* x is already in l *)
-    else hd :: (add x tl)
+    if ar > hd then ar :: l
+    else if ar == hd then l (* x is already in l *)
+    else hd :: (add tl x)
 
 let of_rules (rs:rule_infos list) : (t, dtree_error) error =
   try
-    let arities = ref [] in
-    List.iter (fun x -> arities := add (List.length x.args) !arities) rs;
-    (* !arities is now the reverse sorted list of all rewrite rules arities. *)
-    OK (List.map (fun ar -> (ar, to_dtree (mk_matrix ar rs))) !arities)
+    let sorted_arities = List.fold_left add [] rs in
+    (* reverse sorted list of all rewrite rules arities. *)
+    OK (List.map (fun ar -> (ar, to_dtree (mk_matrix ar rs))) sorted_arities)
   with DtreeExn e -> Err e
 
 
