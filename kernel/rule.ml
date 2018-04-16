@@ -153,14 +153,10 @@ let pp_rule_infos out r =
     
 let pattern_to_term p =
   let rec aux k = function
-    | Brackets t -> t
-    | Pattern (l,n,[]) -> mk_Const l n
-    | Var (l,x,n,[]) -> mk_DB l x n
-    | Pattern (l,n,a::args) ->
-        mk_App (mk_Const l n) (aux k a) (List.map (aux k) args)
-    | Var (l,x,n,a::args) ->
-        mk_App (mk_DB l x n) (aux k a) (List.map (aux k) args)
-    | Lambda (l,x,pat) -> mk_Lam l x None (aux (k+1) pat)
+    | Brackets t         -> t
+    | Pattern (l,n,args) -> mk_App2 (mk_Const l n) (List.map (aux k) args)
+    | Var (l,x,n,args)   -> mk_App2 (mk_DB  l x n) (List.map (aux k) args)
+    | Lambda (l,x,pat)   -> mk_Lam l x None (aux (k+1) pat)
   in
   aux 0 p
 
@@ -288,7 +284,7 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
         | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
         | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
       in
-      let (pats2,infos) = check_patterns  esize args in
+      let (pats2,infos) = check_patterns esize args in
       
       (* Checking that Miller variable are correctly applied in lhs *)
       check_nb_args infos.arity r.rhs;

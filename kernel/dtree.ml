@@ -30,15 +30,26 @@ type matrix =
 *)
 let mk_matrix (arity:int) (l:rule_infos list) : matrix =
   let name = (List.hd l).cst in
+  debug 0 "Rules info :\n%a" (pp_list "\n" pp_rule_infos) (l);
   let f r =
     if not (name_eq r.cst name)
     then raise (DtreeExn (HeadSymbolMismatch (r.l,r.cst,name)));
     let ar = Array.length r.pats in
-    if ar > arity  then raise (DtreeExn (ArityMismatch (r.l,name)));
+    if ar > arity then raise (DtreeExn (ArityMismatch (r.l,name)));
     if ar < arity
     then
       (* TODO: Edit rule r with too low arity : add extra arguments *)
-      r
+      let tail =
+        Array.init (arity-ar) (fun i -> LVar(dmark, i + r.esize,[])) in
+      let new_pats = Array.append r.pats tail in
+      let new_args =
+        List.map (function LVar(x,n,[]) ->  mk_DB dloc x n | _ -> assert false)
+          (Array.to_list tail) in
+      {r with
+       esize = r.esize + arity - ar;
+       rhs = mk_App2 r.rhs new_args;
+       pats = new_pats
+      }
     else r
   in
   let nrules = List.map f l in

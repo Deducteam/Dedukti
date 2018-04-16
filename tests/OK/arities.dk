@@ -17,10 +17,9 @@ def f : A -> A -> A -> A -> A.
 
 
 #ASSERT f a a a b == g b.
-#ASSERT f a a b == i a a b.
+#ASSERT f c a b == i c a b.
 #ASSERT f b a b == h a b.
 #ASSERT f b a == h a.
 #ASSERT f a a == i a a.
 #ASSERT f a == i a.
 #ASSERT f == i.
-
