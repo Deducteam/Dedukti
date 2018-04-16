@@ -82,20 +82,6 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
   else fprintf fmt "stack=[...]}@.";
   fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
 
-(* Misc *)
-(* FIXME: only used once in are_convertible_list, should it be declared at top level? *)
-let rec add_to_list2 l1 l2 lst =
-  match l1, l2 with
-    | [], [] -> Some lst
-    | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
-    | _,_ -> None
-
-let rec add_to_list lst (s:stack) (s':stack) =
-  match s,s' with
-    | [] , []           -> Some lst
-    | x::s1 , y::s2     -> add_to_list ((x,y)::lst) s1 s2
-    | _ ,_              -> None
-
 (* ********************* *)
 
 type rw_strategy = Signature.t -> term -> term
@@ -298,7 +284,8 @@ and snf sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
-and are_convertible_lst sg : (term*term) list -> bool = function
+and are_convertible_lst sg : (term*term) list -> bool =
+  function
   | [] -> true
   | (t1,t2)::lst ->
     begin
@@ -408,7 +395,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
 
 let reduction_steps n strat sg t =
   let st = { ctx=LList.nil; term=t; stack=[] } in
-  let (n',st') = state_nsteps sg strat n st in
+  let (_,st') = state_nsteps sg strat n st in
   term_of_state st'
 
 let reduction strat sg te =
