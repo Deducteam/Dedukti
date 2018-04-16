@@ -29,28 +29,25 @@ type matrix =
 *  It is checked that all rules have the same head symbol and arity.
 *)
 let mk_matrix (arity:int) (l:rule_infos list) : matrix =
+  let l = List.filter (fun x -> List.length x.args <= arity) l in
+  assert (l <> []); (* At least one rule should correspond to the given arity. *)
   let name = (List.hd l).cst in
-  debug 0 "Rules info :\n%a" (pp_list "\n" pp_rule_infos) (l);
   let f r =
     if not (name_eq r.cst name)
     then raise (DtreeExn (HeadSymbolMismatch (r.l,r.cst,name)));
     let ar = Array.length r.pats in
-    if ar > arity then raise (DtreeExn (ArityMismatch (r.l,name)));
-    if ar < arity
-    then
-      (* TODO: Edit rule r with too low arity : add extra arguments *)
-      let tail =
-        Array.init (arity-ar) (fun i -> LVar(dmark, i + r.esize,[])) in
-      let new_pats = Array.append r.pats tail in
+    assert (ar <= arity); (* This guaranted by  *)
+    if ar == arity then r
+    else (* Edit rule r with too low arity : add extra arguments*)
+      let tail = Array.init (arity-ar) (fun i -> LVar(dmark, i + r.esize,[])) in
       let new_args =
         List.map (function LVar(x,n,[]) ->  mk_DB dloc x n | _ -> assert false)
           (Array.to_list tail) in
       {r with
        esize = r.esize + arity - ar;
-       rhs = mk_App2 r.rhs new_args;
-       pats = new_pats
+       rhs   = mk_App2 r.rhs new_args;
+       pats  = Array.append r.pats tail
       }
-    else r
   in
   let nrules = List.map f l in
   { first=List.hd nrules; others=List.tl nrules; col_depth=Array.make arity 0; }
@@ -326,11 +323,5 @@ let of_rules (rs:rule_infos list) : ( (int*dtree) list ,dtree_error) error =
     let arities = ref [] in
     List.iter (fun x -> arities := add (List.length x.args) !arities) rs;
     (* !arities is now the reverse sorted list of all rewrite rules arities. *)
-    let f ar =
-      let new_rules = List.filter (fun x -> List.length x.args <= ar) rs in
-      assert (new_rules <> []);
-      let mx = mk_matrix ar new_rules in
-      (ar, to_dtree mx)
-    in
-    OK (List.map f !arities)
+    OK (List.map (fun ar -> (ar, to_dtree (mk_matrix ar rs))) !arities)
   with DtreeExn e -> Err e

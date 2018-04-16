@@ -58,5 +58,10 @@ type dtree_error =
   | ArityMismatch of loc * name
   | ArityInnerMismatch of loc * ident * ident
 
-(** Compilation of rewrite rules into decision trees. *)
+
+(** Compilation of rewrite rules into decision trees.
+Returns a list of arities and corresponding decision trees.
+Invariant : arities must be sorted in decreasing order.
+(see use case in [state_whnf] in [reduction.ml])
+*)
 val of_rules : rule_infos list -> ( (int * dtree) list, dtree_error) error
