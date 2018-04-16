@@ -325,3 +325,4 @@ let of_rules (rs:rule_infos list) : ( (int*dtree) list ,dtree_error) error =
     (* !arities is now the reverse sorted list of all rewrite rules arities. *)
     OK (List.map (fun ar -> (ar, to_dtree (mk_matrix ar rs))) !arities)
   with DtreeExn e -> Err e
+
