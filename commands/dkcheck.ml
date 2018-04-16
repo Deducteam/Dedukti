@@ -87,12 +87,11 @@ let mk_entry md e =
         Format.printf "GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
       | Err e -> Errors.fail_signature_error e
     end
-  | Print(_,s) ->
-    Format.printf "%s@." s
-  | Name(_,n)               ->
+  | Print(_,s) -> Format.printf "%s@." s
+  | Name(_,n) ->
     if not (mident_eq n md)
     then warn "Invalid #NAME directive ignored.\n%!"
-  | Require(lc,md)               ->
+  | Require(lc,md) ->
     begin
       match Env.import lc md with
       | OK () -> ()

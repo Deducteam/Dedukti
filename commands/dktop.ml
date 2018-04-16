@@ -73,12 +73,9 @@ let handle_entry e =
         Format.printf "GDTs for symbol %a:\n%a" pp_name cst Dtree.pp_dforest forest
       | Err e -> Errors.fail_signature_error e
     end
-  | Print(_,s)          ->
-    Format.printf "%s@." s
-  | Name(_,_)           ->
-    Format.printf "\"#NAME\" directive ignored.@."
-  | Require(_,_)        ->
-    Format.printf "\"#REQUIRE\" directive ignored.@."
+  | Print(_,s)   -> Format.printf "%s@." s
+  | Name(_,_)    -> Format.printf "\"#NAME\" directive ignored.@."
+  | Require(_,_) -> Format.printf "\"#REQUIRE\" directive ignored.@."
 
 let  _ =
   let md = Env.init "<toplevel>" in
