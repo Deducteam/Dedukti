@@ -26,13 +26,11 @@ type wf_pattern =
 
 (** {2 Linearization} *)
 
-val allow_non_linear : bool ref
+val allow_conditional : bool ref
 
 (** Constraints *)
-type constr =
-  | Linearity of int * int  (** DB indices [i] and [j] of the pattern should be convertible *)
-  | Bracket   of int * term (** DB indices [i] should be convertible to the term [te] *)
-  | Condition of term * term
+type constr = Condition of term * term * bool
+(** Condition(t1,t2,b) is satisfied if t1 is convertible with t2, otherwise, b indicates if it should fails *)
 
 (** {2 Rewrite Rules} *)
 

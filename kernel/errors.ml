@@ -170,8 +170,8 @@ Add the keyword 'def' to its declaration to make the symbol '%a' definable."
   | ConfluenceErrorImport (lc,md,cerr) ->
     fail lc "Confluence checking failed when importing the module '%a'.\n%a"
       pp_mident md pp_cerr cerr
-  | GuardNotSatisfied(lc, t1, t2) ->
-    fail lc "Error while reducing a term: a guard was not satisfied.\n\
+  | ConstraintNotSatisfied(lc, t1, t2) ->
+    fail lc "Error while reducing a term: a constraint was not satisfied.\n\
              Expected: %a.\n\
              Found: %a"
       pp_term t1 pp_term t2

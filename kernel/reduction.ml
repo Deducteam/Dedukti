@@ -125,26 +125,14 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
              (ctx:env) (constrs: constr list) : bool  =
   match constrs with
   | [] -> true
-  | (Linearity (i,j))::tl ->
-    let t1 = mk_DB dloc dmark i in
-    let t2 = mk_DB dloc dmark j in
-    if convertible sg (term_of_state { ctx; term=t1; stack=[] })
-                      (term_of_state { ctx; term=t2; stack=[] })
-    then test sg convertible ctx tl
-    else false
-  | (Bracket (i,t))::tl ->
-    let t1 = Lazy.force (LList.nth ctx i) in
-    let t2 = term_of_state { ctx; term=t; stack=[] } in
-    if convertible sg t1 t2
-    then test sg convertible ctx tl
-    else
-      (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
-      raise (Signature.SignatureError( Signature.GuardNotSatisfied(get_loc t1, t1, t2) ))
-  | (Condition(l,r))::tl ->
+  | (Condition(l,r,b))::tl ->
     let l' = term_of_state {ctx;term=l; stack=[] } in
     let r' = term_of_state {ctx;term=r; stack=[] } in
     if convertible sg l' r' then
       test sg convertible ctx tl
+    else
+    if b then
+      raise (Signature.SignatureError( Signature.ConstraintNotSatisfied(get_loc l, l, r) ))
     else false
 
 let rec find_case (st:state) (cases:(case * dtree) list)

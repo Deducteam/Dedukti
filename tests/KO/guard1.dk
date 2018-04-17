@@ -11,4 +11,4 @@ def ff : A -> (A -> A) -> A.
 def pr1 : A -> A -> A.
 [x,y] pr1 x y --> x.
 
-#EVAL[WHNF] (ff a (y => (pr1 a y))).
+#EVAL[SNF] (ff a (y => (pr1 a y))).

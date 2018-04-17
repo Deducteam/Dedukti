@@ -32,11 +32,8 @@ type untyped_rule = untyped_context rule
 
 type typed_rule = typed_context rule
 
-(* TODO : maybe replace constr by Linearity | Bracket and constr list by a constr Map.t *)
-type constr =
-  | Linearity of int * int
-  | Bracket   of int * term
-  | Condition of term * term
+type constr = Condition of term * term * bool
+(** Condition(t1,t2,b) is satisfied if t1 is convertible with t2, otherwise, b indicates if it should fails *)
 
 type rule_infos = {
   l           : loc;
@@ -178,7 +175,7 @@ type pattern_info =
 
 (* ************************************************************************** *)
 
-let allow_non_linear = ref false
+let allow_conditional = ref false
 
 let bracket_ident = mk_ident "{_}"  (* FIXME: can this be replaced by dmark? *)
 
@@ -239,7 +236,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
         then raise (RuleExn (NonLinearNonEqArguments(l,x)))
         else
           let nvar = fresh_var nb_args' in
-          constraints := Linearity(nvar, n-k) :: !constraints;
+          constraints := Condition(mk_DB dloc dmark nvar, mk_DB dloc dmark (n-k), false) :: !constraints;
           LVar(x, nvar + k, args')
       else
         let _ = IntHashtbl.add arity (n-k) nb_args' in
@@ -250,7 +247,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
         with Subst.UnshiftExn -> raise (RuleExn (VariableBoundOutsideTheGuard t))
       in
       let nvar = fresh_var 0 in
-      constraints := Bracket (nvar, unshifted) :: !constraints;
+      constraints := Condition (mk_DB dloc dmark nvar, unshifted, true) :: !constraints;
       LVar(bracket_ident, nvar + k, [])
     | Pattern (_,n,args) -> LPattern(n, Array.of_list  (List.map (aux k) args))
   in
@@ -281,7 +278,6 @@ let check_nb_args (arity:int array) (rhs:term) : unit =
   aux 0 rhs
 
 let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
-  let is_linear = List.for_all (function Linearity _ -> false | _ -> true) in
   try
     begin
       let esize = List.length r.ctx in
@@ -293,15 +289,15 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
       let (pats2,infos) = check_patterns esize args in
       let constraints_of_cond = function
         | None -> []
-        | Some({left;right}) -> [Condition(left,right)]
+        | Some({left;right}) -> [Condition(left,right, false)]
       in
       (* Checking that Miller variable are correctly applied in lhs *)
       check_nb_args infos.arity r.rhs;
 
       (* Checking if pattern has linearity constraints *)
-      if not (is_linear infos.constraints)
+      if List.length infos.constraints > 0
       then
-        if !allow_non_linear
+        if !allow_conditional
         then debug 1 "Non-linear Rewrite Rule detected"
         else raise (RuleExn (NonLinearRule r));
 

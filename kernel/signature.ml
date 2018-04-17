@@ -16,7 +16,7 @@ type signature_error =
   | CannotAddRewriteRules of loc * ident
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules of loc * rule_infos list * Confluence.confluence_error
-  | GuardNotSatisfied of loc * term * term
+  | ConstraintNotSatisfied of loc * term * term
 
 exception SignatureError of signature_error
 
@@ -49,7 +49,7 @@ type t = { name:mident;
            mutable external_rules:rule_infos list list; }
 
 let make file =
-  let name = mk_mident file in 
+  let name = mk_mident file in
   let tables = HMd.create 19 in
   HMd.add tables name (HId.create 251);
   { name; file; tables; external_rules=[]; }
