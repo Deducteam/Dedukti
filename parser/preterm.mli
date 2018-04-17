@@ -34,7 +34,7 @@ val pp_pcontext : formatter -> pcontext -> unit
 type pcond = preterm * preterm
 
 type prule =
-  loc
+    loc
   * (mident option * ident) option
   * pdecl list
   * mident option

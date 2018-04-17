@@ -122,18 +122,18 @@ let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
      | Subst.UnshiftExn -> assert false
 
 let rec test (sg:Signature.t) (convertible:convertibility_test)
-             (ctx:env) (constrs: constr list) : bool  =
-  match constrs with
-  | [] -> true
-  | (Condition(l,r,b))::tl ->
+    (ctx:env) (constrs: constr list) : bool  =
+  let is_satisfied = function
+    | Condition(l,r,b) ->
     let l' = term_of_state {ctx;term=l; stack=[] } in
     let r' = term_of_state {ctx;term=r; stack=[] } in
     if convertible sg l' r' then
-      test sg convertible ctx tl
-    else
-    if b then
+      true
+    else if b then
       raise (Signature.SignatureError( Signature.ConstraintNotSatisfied(get_loc l, l, r) ))
     else false
+  in
+  List.for_all is_satisfied constrs
 
 let rec find_case (st:state) (cases:(case * dtree) list)
                   (default:dtree option) : (dtree*state list) option =

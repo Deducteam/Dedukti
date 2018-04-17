@@ -58,13 +58,19 @@ let pp_pdecl fmt (_,id) = pp_ident fmt id
 
 type pcontext   = pdecl list
 
-let pp_pcontext fmt ctx =
-  pp_list ".\n" (fun out (_,x) ->
-      fprintf fmt "%a" pp_ident x) fmt (List.rev ctx)
+let pp_pcontext fmt ctx = pp_list ".\n" (fun out (_,x) -> fprintf fmt "%a" pp_ident x) fmt (List.rev ctx)
 
-type pcond = preterm * preterm
+type pcond      = preterm * preterm
 
-type prule      = loc * (mident option * ident) option * pdecl list * mident option * ident * prepattern list * pcond option * preterm
+type prule      =
+      loc
+    * (mident option * ident) option
+    * pdecl list
+    * mident option
+    * ident
+    * prepattern list
+    * pcond option
+    * preterm
 
 let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, pcond, prete):prule) : unit  =
   let name = match pname with | None -> "" | Some qid ->

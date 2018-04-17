@@ -277,9 +277,7 @@ let check_nb_args (arity:int array) (rhs:term) : unit =
   in
   aux 0 rhs
 
-let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
-  try
-    begin
+let to_rule_infos r =
       let esize = List.length r.ctx in
       let (l,cst,args) = match r.pat with
         | Pattern (l,cst,args) -> (l, cst, args)
@@ -287,25 +285,23 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
         | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
       in
       let (pats2,infos) = check_patterns esize args in
-      let constraints_of_cond = function
-        | None -> []
-        | Some({left;right}) -> [Condition(left,right, false)]
+      let get_constraints = function
+        | None -> infos.constraints
+        | Some({left;right}) -> Condition(left,right, false)::infos.constraints
       in
       (* Checking that Miller variable are correctly applied in lhs *)
       check_nb_args infos.arity r.rhs;
-
       (* Checking if pattern has linearity constraints *)
-      if List.length infos.constraints > 0
-      then
-        if !allow_conditional
-        then debug 1 "Non-linear Rewrite Rule detected"
+      if List.length infos.constraints > 0 then
+        if !allow_conditional then
+          debug 1 "Conditional rewrite rule detected"
         else raise (RuleExn (NonLinearRule r));
-
-
-      OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ; cond = r.cond ;
+      { l ; name = r.name ; cst ; args ; rhs = r.rhs ; cond = r.cond ;
            esize = infos.context_size ;
            pats = Array.of_list pats2 ;
-           constraints = constraints_of_cond r.cond@infos.constraints ; }
-    end
-  with
-    RuleExn e -> Err e
+           constraints = get_constraints r.cond ; }
+
+let to_rule_infos (r:untyped_rule) : (rule_infos, rule_error) error =
+  try
+    OK(to_rule_infos r)
+  with RuleExn e -> Err e
