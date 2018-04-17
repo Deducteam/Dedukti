@@ -52,6 +52,7 @@ let mk_config loc id1 id2_opt =
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
+%token WHEN
 %token <Basic.loc> EVAL
 %token <Basic.loc> INFER
 %token <Basic.loc> CHECK
@@ -81,7 +82,7 @@ let mk_config loc id1 id2_opt =
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm
 %type <Preterm.preterm> term
-%type <Preterm.preterm*Preterm.preterm> term
+%type <Preterm.preterm*Preterm.preterm> cond
 
 %right ARROW FATARROW
 
@@ -158,17 +159,18 @@ cond:
   | WHEN t1=term EQUAL t2=term
       {(t1,t2)}
 
+rule_name:
+  | LEFTBRA id=ID RIGHTBRA
+      { (None, snd id) }
+  | LEFTBRA qid=QID RIGHTBRA LEFTSQU
+      { let (_,m,v) = qid in
+        (Some m, v) }
+
 rule:
-  | LEFTSQU context RIGHTSQU top_pattern c=cond? LONGARROW term
-      { let (l,md_opt,id,args) = $4 in
-        ( l , None, $2 , md_opt, id , args , c , $7) }
-  | LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern c=cond? LONGARROW term
-      { let (l,md_opt,id,args) = $7 in
-        ( l , Some (None,snd $2), $5 , md_opt, id , args , c , $10)}
-  | LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern c=cond? LONGARROW term
-      { let (l,md_opt,id,args) = $7 in
-        let (_,m,v) = $2 in
-        ( l , Some (Some m,v), $5 , md_opt, id , args , c , $10)}
+  | name=rule_name? LEFTSQU context RIGHTSQU top_pattern c=cond? LONGARROW term
+      { let (l,md_opt,id,args) = $5 in
+        ( l , name, $3 , md_opt, id , args , c , $8) }
+
 
 decl:
   | ID COLON term { debug 1 "Ignoring type declaration in rule context."; $1 }

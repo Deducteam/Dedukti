@@ -316,6 +316,7 @@ let rec pp_dtree t fmt dtree =
     let aux out = function
       | Linearity (i,j) -> fprintf out "{%a} %d =l %d" pp_rule_name name i j
       | Bracket (i,j) -> fprintf out "{%a} %a =b %a" pp_rule_name name pp_term (mk_DB dloc dmark i) pp_term j
+      | Condition(l,r) -> fprintf out "{%a} %a =c %a" pp_rule_name name pp_term l pp_term r
     in
     fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
       pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def

@@ -32,6 +32,7 @@ val allow_non_linear : bool ref
 type constr =
   | Linearity of int * int  (** DB indices [i] and [j] of the pattern should be convertible *)
   | Bracket   of int * term (** DB indices [i] should be convertible to the term [te] *)
+  | Condition of term * term
 
 (** {2 Rewrite Rules} *)
 
@@ -42,13 +43,15 @@ type rule_name =
   (** Rules of lambda pi modulo. The first parameter indicates whether
       the name of the rule has been given by the user. *)
 
+type condition = {left:term; right:term}
 
 type 'a rule =
   {
-    name: rule_name;
-    ctx : 'a;
-    pat : pattern;
-    rhs : term
+    name : rule_name;
+    ctx  : 'a;
+    pat  : pattern;
+    cond : condition option;
+    rhs  : term
   }
 
 type untyped_rule = untyped_context rule
@@ -74,6 +77,7 @@ type rule_infos = {
   name        : rule_name;        (** name of the rule *)
   cst         : name;             (** name of the pattern constant *)
   args        : pattern list;     (** arguments list of the pattern constant *)
+  cond        : condition option; (** optional condition to satisfy *)
   rhs         : term;             (** right hand side of the rule *)
   esize       : int;              (** size of the context *)
   pats        : wf_pattern array; (** free pattern without constraint *)

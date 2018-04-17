@@ -163,6 +163,7 @@ let print_rule_infos out ri =
                ctx = [] ;
                (* TODO: here infer context from named variable inside left hand side pattern *)
                pat =  pattern_of_rule_infos ri;
+               cond = ri.cond;
                rhs = ri.rhs
              }
   in

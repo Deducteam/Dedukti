@@ -100,12 +100,12 @@ let p_of_pp md (ctx:ident list) (ppat:prepattern) : pattern =
 
 (******************************************************************************)
 
-let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
+let scope_rule md (l,pname,pctx,md_opt,id,pargs,pcond,pri:prule) : untyped_rule =
   let top = PPattern(l,md_opt,id,pargs) in
   let ctx, unused_vars = get_vars_order pctx top in
   if unused_vars
   then warn "Local variables in the rule %a are not used (%a)"
-      pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
+      pp_prule (l,pname,pctx,md_opt,id,pargs,pcond,pri) pp_loc l;
   let idents = List.map snd ctx in
   let b,id =
     match pname with
@@ -121,4 +121,9 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
     in
     Gamma(b,mk_name md id)
   in
-  { name ; ctx= ctx; pat = p_of_pp md idents top; rhs = t_of_pt md idents pri }
+  let cond_of_pcond = function
+    | None -> None
+    | Some(pt1,pt2) -> Some ({left=t_of_pt md idents pt1; right=t_of_pt md idents pt2})
+  in
+  let cond = cond_of_pcond pcond in
+  { name ; ctx= ctx; pat = p_of_pp md idents top; cond; rhs = t_of_pt md idents pri }

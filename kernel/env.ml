@@ -54,6 +54,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
       { name= Delta(cst) ;
         ctx = [] ;
         pat = Pattern(l, cst, []);
+        cond = None ;
         rhs = te ;
       }
     in

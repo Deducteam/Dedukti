@@ -40,7 +40,7 @@ type prule =
   * mident option
   * ident
   * prepattern list
-  * pcond
+  * pcond option
   * preterm
 
 val pp_prule : formatter -> prule -> unit

@@ -428,5 +428,6 @@ let check_rule sg (rule:untyped_rule) : typed_rule =
   { name = rule.name;
     ctx = ctx2;
     pat = rule.pat;
+    cond = rule.cond;
     rhs = rule.rhs
   }
