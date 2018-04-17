@@ -32,9 +32,9 @@ exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let snf = reduction {default_cfg with strategy = Snf}
+let snf = reduction default_cfg
 
-let whnf = reduction {default_cfg with strategy = Reduction.Whnf}
+let whnf = reduction {default_cfg with strategy = Whnf}
 
 let get_type ctx l x n =
   try let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
@@ -73,6 +73,7 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
   | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
 and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
+  debug 3 "Checking: %a : %a" pp_term te pp_term ty_exp;
   match te with
   | Lam (l,x,None,b) ->
     begin
@@ -86,14 +87,16 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
       | Pi (_,_,a',ty_b) ->
         ignore(infer sg ctx a);
         if not (Reduction.are_convertible sg a a')
-        then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a,a')))
+        then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a',a)))
         else check sg ((l,x,a)::ctx) b ty_b
       | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
     end
   | _ ->
     let ty_inf = infer sg ctx te in
     if Reduction.are_convertible sg ty_inf ty_exp then ()
-    else raise (TypingError (ConvertibilityError (te,ctx,ty_exp,ty_inf)))
+    else
+      let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
+      raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
 
 and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
   match whnf sg ty_f with

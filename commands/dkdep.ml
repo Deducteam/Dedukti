@@ -4,22 +4,28 @@ open Rule
 open Parser
 open Entry
 
+
+
 (** [deps] contains the dependencies found so far, reset before each file. *)
 let current_mod  : string                 ref = ref "<not initialised>"
 let current_deps : (string * string) list ref = ref []
+let ignore       : bool                   ref = ref false
 
 let in_deps : string -> bool = fun n ->
   List.mem_assoc n !current_deps
 
-let add_dep : string -> string -> unit = fun name file ->
+let add_dep : string -> string option -> unit = fun name file ->
   let cmp (s1,_) (s2,_) = String.compare s1 s2 in
-  current_deps := List.sort cmp ((name, file) :: !current_deps)
+  match file with
+  | None -> ()
+  | Some file ->
+    current_deps := List.sort cmp ((name, file) :: !current_deps)
 
 (** [locate name path] looks for the ".dk" file corresponding to the module
     named [name] in the directories of [path]. If no corresponding file is
     found, or if there are several possibilities, the program fails with a
     graceful error message. *)
-let find_dk : string -> string list -> string = fun name path ->
+let find_dk : string -> string list -> string option = fun name path ->
   let file_name = name ^ ".dk" in
   let path = Filename.current_dir_name :: path in
   let path = List.sort_uniq String.compare path in
@@ -29,8 +35,10 @@ let find_dk : string -> string list -> string = fun name path ->
   in
   let files = List.map add_dir path in
   match List.filter Sys.file_exists files with
-  | []  -> Printf.eprintf "No file for module %S in path...\n%!" name; exit 1
-  | [f] -> f
+  | []  ->
+    if !ignore then None
+    else (Printf.eprintf "No file for module %S in path...\n%!" name; exit 1)
+  | [f] -> Some f
   | fs  -> Printf.eprintf "Several files correspond to module %S...\n" name;
            List.iter (Printf.eprintf "  - %s\n%!") fs; exit 1
 
@@ -78,6 +86,7 @@ let handle_entry e =
   | DTree(_,_,_)                -> ()
   | Print(_,_)                  -> ()
   | Name(_,_)                   -> ()
+  | Require(_,md)               -> add_dep (string_of_mident md)
 
 type dep_data = string * (string * (string * string) list)
 
@@ -129,7 +138,7 @@ let output_sorted : out_channel -> dep_data list -> unit = fun oc data ->
 let _ =
   (* Parsing of command line arguments. *)
   let output  = ref stdout in
-  let sorted  = ref false in
+  let sorted  = ref false  in
   let args = Arg.align
     [ ( "-o"
       , Arg.String (fun n -> output := open_out n)
@@ -137,6 +146,9 @@ let _ =
     ; ( "-s"
       , Arg.Set sorted
       , " Sort the source files according to their dependencies" )
+    ; ( "--ignore"
+      , Arg.Set ignore
+      , " If some dependencies are not found, ignore them" )
     ; ( "-I"
       , Arg.String Basic.add_path
       , "DIR Add the directory DIR to the load path" ) ]

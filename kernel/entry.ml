@@ -19,6 +19,7 @@ type entry =
   | Print of loc * string
   | DTree of loc * mident option * ident
   | Name  of loc * mident
+  | Require of loc * mident
 
 let pp_entry fmt e =
   let open Format in
@@ -66,3 +67,5 @@ let pp_entry fmt e =
       fprintf fmt "#PRINT %S.@." str
   | Name(_,_)               ->
       ()
+  | Require(_,m)            ->
+      fprintf fmt "#REQUIRE %a.@." pp_mident m

@@ -42,34 +42,32 @@ type rw_infos =
   {
     stat: staticity;
     ty: term;
-    rule_opt_info: (rule_infos list*dtree) option
+    rule_opt_info: (rule_infos list* Dtree.t) option
   }
 
 type t = { name:mident;
+           file:string;
            tables:(rw_infos HId.t) HMd.t;
            mutable external_rules:rule_infos list list; }
 
-let make name =
-  let ht = HMd.create 19 in
-  HMd.add ht name (HId.create 251); { name=name; tables=ht; external_rules=[]; }
+let make file =
+  let name = mk_mident file in 
+  let tables = HMd.create 19 in
+  HMd.add tables name (HId.create 251);
+  { name; file; tables; external_rules=[]; }
 
 let get_name sg = sg.name
 
-(******************************************************************************)
-
-let marshal (name:mident) (deps:string list) (env:rw_infos HId.t) (ext:rule_infos list list) : bool =
+let marshal (file:string) (deps:string list) (env:rw_infos HId.t) (ext:rule_infos list list) : bool =
   try
-    begin
-      let out = open_out (string_of_mident name ^ ".dko" ) in
-        Marshal.to_channel out Version.version [] ;
-        Marshal.to_channel out deps [] ;
-        Marshal.to_channel out env [] ;
-        Marshal.to_channel out ext [] ;
-        close_out out ;
-        true
-    end
-  with
-    | _ -> false
+    let file = (try Filename.chop_extension file with _ -> file) ^ ".dko" in
+    let oc = open_out file in
+    Marshal.to_channel oc Version.version [];
+    Marshal.to_channel oc deps [];
+    Marshal.to_channel oc env [];
+    Marshal.to_channel oc ext [];
+    close_out oc; true
+  with _ -> false
 
 let file_exists = Sys.file_exists
 
@@ -117,15 +115,15 @@ let get_type_from_AC (ty:term) =
   | Pi(_,_,t,_) -> t
   | _ -> assert false
 
-let to_rule_infos_aux (r:typed_rule) =
+let to_rule_infos_aux (r:untyped_rule) =
   match Rule.to_rule_infos r with
   | Err e -> raise (SignatureError (CannotMakeRuleInfos e))
   | OK  e -> e
 
-let comm_rule (name:name) (ty:term) =
+let comm_rule (name:name) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("comm_" ^ (string_of_ident (id name)))));
-      ctx=[(dloc,mk_ident "x",ty); (dloc,mk_ident "y", ty)];
+      ctx=[(dloc,mk_ident "x"); (dloc,mk_ident "y")];
       pat=Pattern (dloc, name,
                    [ Var (dloc,mk_ident "x",0,[]);
                      Var (dloc,mk_ident "y",1,[]) ]);
@@ -134,12 +132,12 @@ let comm_rule (name:name) (ty:term) =
                  [mk_DB dloc (mk_ident "x") 0]
     }
 
-let asso_rule (name:name) (ty:term) =
+let asso_rule (name:name) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("asso_" ^ (string_of_ident (id name)))));
-      ctx=[ (dloc, (mk_ident "x"), ty);
-            (dloc, (mk_ident "y"), ty);
-            (dloc, (mk_ident "z"), ty) ];
+      ctx=[ (dloc, (mk_ident "x"));
+            (dloc, (mk_ident "y"));
+            (dloc, (mk_ident "z")) ];
       pat=Pattern (dloc, name,
                    [ Pattern (dloc, name,
                               [ Var (dloc,mk_ident "x",0,[]);
@@ -152,10 +150,10 @@ let asso_rule (name:name) (ty:term) =
                          [(mk_DB dloc (mk_ident "z") 2)] ]
     }
     
-let neu1_rule (name:name) (ty:term) (neu:term) =
+let neu1_rule (name:name) (neu:term) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("neut_" ^ (string_of_ident (id name)))));
-      ctx=[(dloc, (mk_ident "x"), ty)];
+      ctx=[(dloc, (mk_ident "x"))];
       pat=Pattern (dloc, name,
                    [ Var (dloc,mk_ident "x",0,[]);
                      (* FIXME: Translate term neu to pattern here  *) ]);
@@ -164,10 +162,10 @@ let neu1_rule (name:name) (ty:term) (neu:term) =
                  []
     }
 
-let neu2_rule (name:name) (ty:term) (neu:term) =
+let neu2_rule (name:name) (neu:term) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("neut_" ^ (string_of_ident (id name)))));
-      ctx=[(dloc, (mk_ident "x"), ty)];
+      ctx=[(dloc, (mk_ident "x"))];
       pat=Pattern (dloc, name,
                    [ Var (dloc,(mk_ident "x"),0,[]) ]);
       rhs=mk_App (mk_Const dloc name)
@@ -183,13 +181,9 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
     | None -> ()
     | Some (rs,_) -> Confluence.add_rules rs;
     match infos.stat with
-    | Definable AC ->
-       let ty = get_type_from_AC infos.ty in
-       Confluence.add_rules [ comm_rule cst ty; asso_rule cst ty ]
-    | Definable(ACU neu) ->
-       let ty = get_type_from_AC infos.ty in
-       Confluence.add_rules [ comm_rule cst ty;     asso_rule cst ty;
-                              neu1_rule cst ty neu; neu2_rule cst ty neu ]
+    | Definable AC -> Confluence.add_rules [ comm_rule cst; asso_rule cst ]
+    | Definable(ACU neu) -> Confluence.add_rules [ comm_rule cst    ; asso_rule cst;
+                                                   neu1_rule cst neu; neu2_rule cst neu ]
     | _ -> ()
   in
   HId.iter aux ctx;
@@ -201,7 +195,7 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   if HMd.mem sg.tables m then
-    warn "Trying to import twice the same module"
+    warn "Trying to import the already loaded module %s." (string_of_mident m)
   else
     let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
     HMd.add sg.tables m ctx;
@@ -230,11 +224,12 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     then raise (SignatureError (CannotAddRewriteRules (r.l,rid)));
     let rules = match infos.rule_opt_info with
       | None -> rs
-      | Some(mx,_) -> mx@rs in
+      | Some(mx,_) -> mx@rs
+    in
     match Dtree.of_rules (get_algebra sg dloc) rules with
-    | OK tree ->
-       HId.add env rid
-               {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,tree)}
+    | OK trees ->
+       HId.add env (id r.cst)
+         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
     | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 and get_infos sg lc name =
@@ -264,7 +259,7 @@ let get_deps sg : string list = (*only direct dependencies*)
     ) sg.tables []
 
 let export sg =
-  marshal sg.name (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
+  marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
 
 (******************************************************************************)
 
@@ -296,28 +291,22 @@ let get_infos sg lc cst =
 
 let is_injective sg lc cst =
   match (get_infos sg lc cst).stat with
-  | Static -> true
+  | Static      -> true
   | Definable _ -> false
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
 let get_dtree sg rule_filter l cst =
-  match (get_infos sg l cst).rule_opt_info with
-  | None -> None
-  | Some(rules,tree) ->
-    match rule_filter with
-    | None -> Some tree
-    | Some f ->
-      let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
-      if List.length rules' == List.length rules
-      then Some tree
-      else
-        (* A call to Dtree.of_rules must be made with a non-empty list *)
-        match rules' with
-        | [] -> None
-        | _ -> match Dtree.of_rules (get_algebra sg dloc) rules' with
-               | OK tree -> Some tree
-               | Err e -> raise (SignatureError (CannotBuildDtree e))
+  match (get_infos sg l cst).rule_opt_info, rule_filter with
+  | None             , _      -> Dtree.empty
+  | Some(_,trees)    , None   -> trees
+  | Some(rules,trees), Some f ->
+    let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
+    if List.length rules' == List.length rules then trees
+    else
+      match Dtree.of_rules (get_algebra sg dloc) rules' with
+      | OK ntrees -> ntrees
+      | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 
 (******************************************************************************)

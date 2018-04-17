@@ -26,8 +26,8 @@ type staticity = Static | Definable of algebra
 
 type t
 
-val make                : mident -> t
-(** [make name] creates a new signature withe the name [name]. *)
+val make                : string -> t
+(** [make file] creates a new signature corresponding to the file [file]. *)
 
 val get_name            : t -> mident
 (** [get_name sg] returns the name of the signature [sg]. *)
@@ -63,8 +63,7 @@ val is_AC               : t -> loc -> name -> bool
 val import              : t -> loc -> mident -> unit
 (** [import sg md] the module [md] in the signature [sg]. *)
 
-
-val get_dtree           : t -> (Rule.rule_name -> bool) option -> loc -> name -> dtree option
+val get_dtree           : t -> (Rule.rule_name -> bool) option -> loc -> name -> Dtree.t
 (** [get_dtree sg filter l cst] returns the decision/matching tree associated
     with [cst] inside the environment [sg]. When filter is specified, it is used
     to select only the corresponding set of rules  *)
@@ -73,6 +72,6 @@ val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
 
-val add_rules           : t -> Rule.typed_rule list -> unit
+val add_rules           : t -> Rule.untyped_rule list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)

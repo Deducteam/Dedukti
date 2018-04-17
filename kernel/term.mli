@@ -63,6 +63,8 @@ type untyped_context = (loc * ident) list
 (** type checking rules implies to give a type to the variables of the context *)
 type typed_context = ( loc * ident * term ) list
 
+val rename_vars_with_typed_context : typed_context -> term -> term
+
 (** ([n], [t]) represents the term represented by [t]
   * (whichever its representation) under [n] lambda abstractions. *)
 type 'a depthed = int * 'a

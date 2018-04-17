@@ -109,6 +109,10 @@ let fail_dtree_error err =
     fail lc
       "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
       pp_name symb pp_name cst
+  | ArityInnerMismatch (lc, rid, id) ->
+    fail lc
+      "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
+      pp_ident id pp_ident rid
 
 let fail_rule_error err =
   let open Rule in
@@ -133,7 +137,9 @@ let fail_rule_error err =
   | NonLinearRule r ->
     fail (Rule.get_loc_pat r.pat) "Non left-linear rewrite rule:\n%a.\n\
                                Maybe you forgot to pass the -nl option."
-      pp_typed_rule r
+      pp_untyped_rule r
+  | NonLinearNonEqArguments(lc,arg) ->
+    fail lc "For each occurence of the free variable %a, the symbol should be applied to the same number of arguments" pp_ident arg
 
 let pp_cerr out err =
   let open Confluence in

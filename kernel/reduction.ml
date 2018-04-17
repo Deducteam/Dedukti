@@ -18,12 +18,12 @@ type red_cfg = {
 
 let pp_red_cfg fmt strat =
   match strat with
-  | {strategy=Snf ;nb_steps=None   } -> ()
-  | {strategy=Snf ;nb_steps=Some i } -> Format.fprintf fmt "[%i]" i
+  | {strategy=Snf ;nb_steps=None   } -> Format.fprintf fmt "[SNF]"
+  | {strategy=Snf ;nb_steps=Some i } -> Format.fprintf fmt "[SNF,%i]" i
   | {strategy=Hnf ;nb_steps=None   } -> Format.fprintf fmt "[HNF]"
   | {strategy=Hnf ;nb_steps=Some i } -> Format.fprintf fmt "[HNF,%i]" i
-  | {strategy=Whnf;nb_steps=None   } -> Format.fprintf fmt "[WHNF]"
-  | {strategy=Whnf;nb_steps=Some i } -> Format.fprintf fmt "[WHNF,%i]" i
+  | {strategy=Whnf;nb_steps=None   } -> ()
+  | {strategy=Whnf;nb_steps=Some i } -> Format.fprintf fmt "[%i]" i
 
 let default_cfg = { select = None ; nb_steps = None ; strategy = Snf ; beta = true }
 
@@ -74,15 +74,6 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
   then fprintf fmt "stack=%a}@." pp_stack stack
   else fprintf fmt "stack=[...]}@.";
   fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
-
-(* Misc *)
-
-let rec split_stack (i:int) (s:stack) : (stack*stack) option =
-  let rec aux i acc = function
-  | l  when i=0 -> Some (List.rev acc,l)
-  | []          -> None
-  | x::l        -> aux (i-1) (x::acc) l in
-  aux i [] s
 
 (* ********************* *)
 
@@ -315,32 +306,6 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
         end
     end
 
-and gamma_head_rw (sg:Signature.t)
-                  (convertible:convertibility_test)
-                  (forcing:rw_strategy)
-                  (strategy:rw_state_strategy) (s:state) (t:dtree) : state option =
-  match s, t with
-  | { ctx; term=Const(l,cst); stack }, Switch (0,cases,None) ->
-     let rec f = function
-       | []      -> None
-       | ((CConst(nargs,_,_),_) as c) :: tl ->
-          begin
-            match split_stack nargs stack with
-            | None -> f tl
-            | Some (s1,s2) ->
-               begin
-                 let s' = {s with stack=s1} in
-                 match gamma_rw sg convertible forcing strategy ~rewrite:false [s']
-                                (Switch (0,[c],None)) with
-                 | None -> f tl
-                 | Some (ctx,term) -> Some { ctx; term; stack=s2 }
-               end
-          end
-       | _ -> assert false
-     in
-     f cases
-  | _ -> assert false
-
 
 (* ********************* *)
 
@@ -397,16 +362,15 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
-  | { ctx; term=Const (l,cst); stack } ->
-    begin
-      match Signature.get_dtree sg !selection l cst with
-      | None    -> comb_state_shape_if_AC sg state_whnf are_convertible st
-      | Some dtree -> begin
-          match gamma_head_rw sg are_convertible snf state_whnf st dtree with
-          | None -> comb_state_shape_if_AC sg state_whnf are_convertible st
-          | Some st -> state_whnf sg st
-        end
-    end
+  | { ctx; term=Const (l,n); stack } ->
+    let trees = Signature.get_dtree sg !selection l n in
+    match find_dtree (List.length stack) trees with
+    | None -> comb_state_shape_if_AC sg state_whnf are_convertible st
+    | Some (ar, tree) ->
+      let s1, s2 = split_list ar stack in
+      match gamma_rw sg are_convertible snf state_whnf s1 tree with
+      | None -> comb_state_shape_if_AC sg state_whnf are_convertible st
+      | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
 
 (* ********************* *)
 
@@ -424,7 +388,8 @@ and snf sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
-and are_convertible_lst sg : (term*term) list -> bool = function
+and are_convertible_lst sg : (term*term) list -> bool =
+  function
   | [] -> true
   | (t1,t2)::lst ->
     are_convertible_lst sg
@@ -536,22 +501,21 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
         aux (!redc, {ctx; term=f; stack=new_stack })
 
       (* Potential Gamma redex *)
-     | { ctx; term=Const(l,name); stack } ->
-        begin
-          match Signature.get_dtree sg !selection l name with
-          | None    -> (red, comb_state_shape_if_AC sg state_whnf are_convertible st)
-          | Some tr -> begin
-              match gamma_head_rw sg are_convertible snf state_whnf st tr with
-              | None -> (red, comb_state_shape_if_AC sg state_whnf are_convertible st)
-              | Some st -> aux (red-1, st)
-            end
-        end
+      | { ctx; term=Const (l,n); stack } ->
+        let trees = Signature.get_dtree sg !selection l n in
+        match find_dtree (List.length stack) trees with
+        | None -> (red,comb_state_shape_if_AC sg state_whnf are_convertible st)
+        | Some (ar, tree) ->
+          let s1, s2 = split_list ar stack in
+          match gamma_rw sg are_convertible snf state_whnf s1 tree with
+          | None -> (red,comb_state_shape_if_AC sg state_whnf are_convertible st)
+          | Some (ctx,term) -> aux (red-1, { ctx; term; stack=s2 })
   in
   aux (steps,state)
 
 let reduction_steps n strat sg t =
   let st = { ctx=LList.nil; term=t; stack=[] } in
-  let (n',st') = state_nsteps sg strat n st in
+  let (_,st') = state_nsteps sg strat n st in
   term_of_state st'
 
 let reduction strat sg te =

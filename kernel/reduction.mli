@@ -19,6 +19,12 @@ val pp_red_cfg : red_cfg printer
     [select] = [None] is the default behaviour (all rules allowed). *)
 
 val default_cfg : red_cfg
+(** default configuration where:
+    [select] = [None] ;
+    [nb_steps] = [None] ;
+    [strategy] = [Snf] ;
+    [beta] = [true] ;
+*)
 
 val reduction : red_cfg -> Signature.t -> term -> term
 (** [reduction sg red te] reduces the term [te] following the strategy [red]

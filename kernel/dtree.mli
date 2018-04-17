@@ -3,6 +3,14 @@ open Basic
 open Rule
 open Matching
 
+(** {2 Error} *)
+
+type dtree_error =
+  | HeadSymbolMismatch  of loc * name * name
+  | ArityDBMismatch     of loc * name * int
+  | AritySymbolMismatch of loc * name * name
+  | ArityInnerMismatch of loc * ident * ident
+
 (** {2 Decision Trees} *)
 
 (** Arguments of a pattern may be the following:
@@ -11,11 +19,12 @@ open Matching
     - a lambda expression *)
 type case =
   | CConst of int * name * bool
-  (** [size] [c] [ac] where [size] is the number of arguments expected for the constant [c] and [ac] is true iff the constant is a definable AC(U) symbol. *)
-  | CDB    of int * int
-  (** [size] [i] where size is the number of *static* arguments expected for the bounded variable [i] *)
-  | CLam (** Just a lambda term *)
-
+  (** [size c ac] where [size] is the number of arguments expected for the
+      constant [c] and [ac] is true iff the constant is a definable AC(U) symbol. *)
+  | CDB of int * int
+  (** [size i] where size is the number of *static* arguments expected for the
+      bounded variable [i] *)
+  | CLam (** A lambda term *)
 
 (** Type of decision trees *)
 type dtree =
@@ -28,23 +37,37 @@ type dtree =
   (** [ACEmpty i tree_suc tree_def] assumes the [i]-th argument of a pattern is a
    * flattened AC symbols and checks that it is now empty. *)
   | Switch  of int * (case*dtree) list * dtree option
-  (** [Switch i (case_0,tree_0) ; ... ; (case_n, tree_n) tree_opt] tests
-   * whether the [i]-th argument of a pattern can be matched with one of the cases of the list.
-   * If so then look at the corresponding tree, otherwise, look at the default tree *)
+  (** [Switch i \[(case_0,tree_0) ; ... ; (case_n, tree_n)\] default_tree]
+      tests whether the [i]-th argument in the stack matches with one of the given cases.
+      If it does then proceed with the corresponding tree
+      Otherwise, branch to the given default tree. *)
   | Test    of rule_name * pre_matching_problem * constr list * term * dtree option
-  (** [Test name pb cstrs te tree_opt] are the leaves of the tree.
-    * Checks that each problem can be solved such that constraints are satisfied.
-    * If it does then return a local context for the term [te]. *)
+  (** [Test name pb cstrs rhs default_tree] are the leaves of the tree.
+      Checks that each problem can be solved such that constraints are satisfied.
+      If it does then return a local context for the term [rhs]. *)
 
-val pp_dtree : dtree printer
+type t
+(** Type mapping arities to decision trees (also called "forest") *)
+
+val empty : t
+(** Empty forest *)
+
+val find_dtree : int -> t -> (int * dtree) option
+(** [find_dtree ar forest] returns a pair (arity,dtree) in given forest
+    such that arity <= ar. Returns [None] when not found. *)
+
 val pp_case  : case  printer
 
-(** {2 Error} *)
+val pp_dtree : dtree printer
+(** Printer for a single decision tree. *)
 
-type dtree_error =
-  | HeadSymbolMismatch  of loc * name * name
-  | ArityDBMismatch     of loc * name * int
-  | AritySymbolMismatch of loc * name * name
+val pp_dforest : t printer
+(** Printer for forests of decision trees. *)
 
-(** Compilation of rewrite rules into decision trees. *)
-val of_rules : (name -> algebra) -> rule_infos list -> (dtree, dtree_error) error
+
+val of_rules : (name -> algebra) -> rule_infos list -> (t, dtree_error) error
+(** Compilation of rewrite rules into decision trees.
+Returns a list of arities and corresponding decision trees.
+Invariant : arities must be sorted in decreasing order.
+(see use case in [state_whnf] in [reduction.ml])
+*)
