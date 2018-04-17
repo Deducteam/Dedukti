@@ -302,6 +302,4 @@ let to_rule_infos r =
            constraints = get_constraints r.cond ; }
 
 let to_rule_infos (r:untyped_rule) : (rule_infos, rule_error) error =
-  try
-    OK(to_rule_infos r)
-  with RuleExn e -> Err e
+  try OK(to_rule_infos r) with RuleExn e -> Err e
