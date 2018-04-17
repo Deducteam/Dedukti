@@ -162,7 +162,7 @@ cond:
 rule_name:
   | LEFTBRA id=ID RIGHTBRA
       { (None, snd id) }
-  | LEFTBRA qid=QID RIGHTBRA LEFTSQU
+  | LEFTBRA qid=QID RIGHTBRA
       { let (_,m,v) = qid in
         (Some m, v) }
 

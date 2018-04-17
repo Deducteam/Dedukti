@@ -291,7 +291,10 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
         | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
       in
       let (pats2,infos) = check_patterns esize args in
-
+      let constraints_of_cond = function
+        | None -> []
+        | Some({left;right}) -> [Condition(left,right)]
+      in
       (* Checking that Miller variable are correctly applied in lhs *)
       check_nb_args infos.arity r.rhs;
 
@@ -302,10 +305,11 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
         then debug 1 "Non-linear Rewrite Rule detected"
         else raise (RuleExn (NonLinearRule r));
 
+
       OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ; cond = r.cond ;
            esize = infos.context_size ;
            pats = Array.of_list pats2 ;
-           constraints = infos.constraints ; }
+           constraints = constraints_of_cond r.cond@infos.constraints ; }
     end
   with
     RuleExn e -> Err e

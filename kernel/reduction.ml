@@ -140,6 +140,12 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
     else
       (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
       raise (Signature.SignatureError( Signature.GuardNotSatisfied(get_loc t1, t1, t2) ))
+  | (Condition(l,r))::tl ->
+    let l' = term_of_state {ctx;term=l; stack=[] } in
+    let r' = term_of_state {ctx;term=r; stack=[] } in
+    if convertible sg l' r' then
+      test sg convertible ctx tl
+    else false
 
 let rec find_case (st:state) (cases:(case * dtree) list)
                   (default:dtree option) : (dtree*state list) option =

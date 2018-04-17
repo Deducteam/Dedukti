@@ -1,0 +1,12 @@
+A : Type.
+
+a : A.
+
+b : A.
+
+def f : A -> A.
+
+[x] f x ? x == a --> a.
+
+#ASSERT f a == a.
+#ASSERTNOT f b == a.
