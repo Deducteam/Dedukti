@@ -54,8 +54,8 @@ let mk_entry md e =
         match Env.reduction ~red ty with
         | OK ty -> Format.printf "%a@." Pp.print_term ty
         | Err e -> Errors.fail_env_error e
-      end
-  | Check(_,assrt,neg,Convert(t1,t2)) ->
+    end
+  | Check(_, assrt, neg, Convert(t1,t2)) ->
     begin
       match Env.are_convertible t1 t2 with
       | OK ok when ok = not neg -> if not assrt then Format.printf "YES@."
@@ -63,7 +63,7 @@ let mk_entry md e =
       | OK _                    -> Format.printf "NO@."
       | Err e                   -> Errors.fail_env_error e
     end
-  | Check(_,assrt,neg, HasType(te,ty)) ->
+  | Check(_, assrt, neg, HasType(te,ty)) ->
     begin
       match Env.check te ty with
       | OK () when not neg -> if not assrt then Format.printf "YES@."
@@ -77,8 +77,9 @@ let mk_entry md e =
       let m = match m with None -> Env.get_name () | Some m -> m in
       let cst = mk_name m v in
       match Env.get_dtree lc cst with
-      | OK (Some(i,g)) -> Format.printf "%a\n" Dtree.pp_rw (cst,i,g)
-      | _              -> Format.printf "No GDT.@."
+      | OK forest ->
+        Format.printf "GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
+      | Err e -> Errors.fail_signature_error e
     end
   | Print(_,s) -> Format.printf "%s@." s
   | Name(_,n) ->
