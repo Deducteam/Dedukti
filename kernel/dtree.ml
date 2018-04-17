@@ -8,7 +8,8 @@ type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityDBMismatch     of loc * name * int
   | AritySymbolMismatch of loc * name * name
-  | ArityInnerMismatch of loc * ident * ident
+  | ArityInnerMismatch  of loc * ident * ident
+  | ACLessThanTwoArity  of loc * name * int
 
 exception DtreeExn of dtree_error
 
@@ -41,6 +42,15 @@ let rec find_dtree stack_size = function
   | hd :: tl -> if fst hd <= stack_size then Some hd
     else find_dtree stack_size tl
 
+let mk_AC_set cst pat1 pat2 =
+  let rec flatten acc = function
+    | [] -> acc
+    | LPattern(cst',args)::tl when name_eq cst cst' && Array.length args == 2 ->
+      flatten acc (args.(0) :: args.(1) :: tl)
+    | t :: tl -> flatten (t::acc) tl
+  in
+  LACSet(cst, flatten [] [pat1; pat2])
+
 
 (******************************************************************************)
 
@@ -62,13 +72,10 @@ type matrix =
 (* mk_matrix lst builds a matrix out of the non-empty list of rules [lst]
 *  It is checked that all rules have the same head symbol and arity.
 *)
-let mk_matrix (arity:int) (l:rule_infos list) : matrix =
-  let l = List.filter (fun x -> List.length x.args <= arity) l in
-  assert (l <> []); (* At least one rule should correspond to the given arity. *)
-  let name = (List.hd l).cst in
+let mk_matrix (ac:bool) (arity:int) (ri:rule_infos list) : matrix =
+  let rules = List.filter (fun x -> List.length x.args <= arity) ri in
+  assert (rules <> []); (* At least one rule should correspond to the given arity. *)
   let f r =
-    if not (name_eq r.cst name)
-    then raise (DtreeExn (HeadSymbolMismatch (r.l,r.cst,name)));
     let ar = Array.length r.pats in
     assert (ar <= arity); (* This guaranted by  *)
     if ar == arity then r
@@ -83,8 +90,15 @@ let mk_matrix (arity:int) (l:rule_infos list) : matrix =
        pats  = Array.append r.pats tail
       }
   in
-  let nrules = List.map f l in
-  { first=List.hd nrules; others=List.tl nrules; col_depth=Array.make arity 0; }
+  let g r =
+    let p0 = mk_AC_set r.cst r.pats.(0) r.pats.(1) in
+    {r with pats=Array.init (Array.length r.pats - 1)
+                (fun i -> if i = 0 then p0 else r.pats.(i-1))
+    }
+    in
+  let rules = List.map f rules in
+  let rules = if ac then List.map g rules else rules in
+  { first=List.hd rules; others=List.tl rules; col_depth=Array.make arity 0; }
 
 (* Remove a line of the matrix [mx] and return None if the new matrix is Empty. *)
 let pop mx =
@@ -158,8 +172,8 @@ let filter_AC_on_bound_variable nargs n s =
 
 let filter_AC_on_pattern nargs cst s =
   List.exists (function
-      | LPattern (cst',ar') -> (name_eq cst cst' &&
-                                Array.length ar' == nargs)
+      | LPattern (cst',ar') ->
+        name_eq cst cst' && Array.length ar' == nargs
       | _ -> false)
     s
 
@@ -184,15 +198,6 @@ let case_pattern_match (case:case) (pat:wf_pattern) : bool = match case, pat wit
   | CDB    (lpats,n')  , LBoundVar (_,n,pats) -> n' == n && lpats == Array.length pats
   | CLam               , LLambda _            -> true
   | _ -> false
-
-let flatten_pattern cst pats =
-  let rec flatten acc = function
-  | [] -> acc
-  | LPattern(cst',args)::tl when name_eq cst cst' && Array.length args == 2 ->
-     flatten acc (args.(0) :: args.(1) :: tl)
-  | t :: tl -> flatten (t::acc) tl
-  in
-  flatten [] pats
 
 let specialize_empty_AC_rule (c:int) (r:rule_infos) : rule_infos =
   { r with pats = Array.init (Array.length r.pats)
@@ -222,7 +227,7 @@ let specialize_AC_rule case (c:int) (nargs:int) (r:rule_infos) : rule_infos =
          assert(nargs >= 1);
          assert(Array.length pats2 == (nargs+1) );
          if i == size
-         then LACSet(cst, flatten_pattern cst [pats2.(0);pats2.(1)])
+         then mk_AC_set cst pats2.(0) pats2.(1)
          else pats2.(i - size + 1)
       | LPattern  (_,pats2),_
       | LBoundVar (_,_,pats2),_ ->
@@ -267,7 +272,7 @@ let specialize_rule case (c:int) (nargs:int) (r:rule_infos) : rule_infos =
           assert(name_eq cst cst');
           assert(Array.length pats2 == (nargs+1) && nargs != 0);
           if i == size
-          then LACSet(cst, (flatten_pattern cst [pats2.(0);pats2.(1)]))
+          then mk_AC_set cst pats2.(0) pats2.(1)
           else pats2.(i - size + 1)
         | _ -> check_args (id cst) pats2
   in
@@ -487,25 +492,38 @@ let rec to_dtree get_algebra (mx:matrix) : dtree =
 
 (******************************************************************************)
 
-(** Adds the arity of a rewrite rule to a (reverse) sorted list of distincts integers *)
-let rec add l x =
-  let ar = List.length x.args in
+(** Adds a new arity to a (reverse) sorted list of distincts arities *)
+let rec add l ar =
   match l with
   | [] -> [ar]
   | hd :: tl ->
     if ar > hd then ar :: l
-    else if ar == hd then l (* x is already in l *)
-    else hd :: (add tl x)
+    else if ar == hd then l (* ar is already in l *)
+    else hd :: (add tl ar)
 
-let of_rules (get_algebra:name->algebra) (rs:rule_infos list) : (t, dtree_error) error =
-  try
-    let sorted_arities = List.fold_left add [] rs in
-    (* reverse sorted list of all rewrite rules arities. *)
-    let aux ar =
-      let m = mk_matrix ar rs in
-      (ar, to_dtree get_algebra m) in
-    OK (List.map aux sorted_arities)
-  with DtreeExn e -> Err e
+let of_rules get_algebra = function
+  | [] -> OK []
+  | r::tl as rs -> 
+    try
+      let name = r.cst in
+      let ac = is_AC (get_algebra name) in
+      let arities =
+        List.map
+          (fun x ->
+             if not (name_eq x.cst name)
+             then raise (DtreeExn (HeadSymbolMismatch (x.l,x.cst,name)));
+             let arity = List.length x.args in
+             if ac && arity < 2
+             then raise (DtreeExn (ACLessThanTwoArity(x.l,x.cst,arity)));
+             arity)
+          rs in
+      let sorted_arities = List.fold_left add [] arities in
+      (* reverse sorted list of all rewrite rules arities. *)
+      let aux ar =
+        let m = mk_matrix ac ar rs in
+        (ar, to_dtree get_algebra m) in
+      OK (List.map aux sorted_arities)
+    with DtreeExn e -> Err e
 
 
 (******************************************************************************)

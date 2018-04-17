@@ -10,6 +10,7 @@ type dtree_error =
   | ArityDBMismatch     of loc * name * int
   | AritySymbolMismatch of loc * name * name
   | ArityInnerMismatch of loc * ident * ident
+  | ACLessThanTwoArity  of loc * name * int
 
 (** {2 Decision Trees} *)
 

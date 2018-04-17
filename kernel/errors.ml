@@ -113,6 +113,10 @@ let fail_dtree_error err =
     fail lc
       "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
       pp_ident id pp_ident rid
+  | ACLessThanTwoArity (lc, cst, ar) ->
+    fail lc
+      "Rewrite rules for AC definable symbol '%a' should have arity at least 2."
+      pp_name cst
 
 let fail_rule_error err =
   let open Rule in

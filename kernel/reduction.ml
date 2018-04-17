@@ -362,12 +362,21 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
-  | { ctx; term=Const (l,n); stack } ->
-    let trees = Signature.get_dtree sg !selection l n in
+  | { ctx; term=Const (l,cst); stack } ->
+    let trees = Signature.get_dtree sg !selection l cst in
     match find_dtree (List.length stack) trees with
     | None -> comb_state_shape_if_AC sg state_whnf are_convertible st
     | Some (ar, tree) ->
       let s1, s2 = split_list ar stack in
+      let s1 = 
+        if Signature.is_AC sg l cst && ar > 1
+        then
+          match s1 with
+          | t1 :: t2 :: tl ->
+            let flat = flatten_AC_stack sg state_whnf are_convertible l cst [t1;t2] in
+            { ctx; term=mk_Const l cst; stack = flat}:: tl
+          | _ -> assert false
+        else s1 in
       match gamma_rw sg are_convertible snf state_whnf s1 tree with
       | None -> comb_state_shape_if_AC sg state_whnf are_convertible st
       | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
@@ -501,12 +510,21 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
         aux (!redc, {ctx; term=f; stack=new_stack })
 
       (* Potential Gamma redex *)
-      | { ctx; term=Const (l,n); stack } ->
-        let trees = Signature.get_dtree sg !selection l n in
+      | { ctx; term=Const(l, cst); stack } ->
+        let trees = Signature.get_dtree sg !selection l cst in
         match find_dtree (List.length stack) trees with
         | None -> (red,comb_state_shape_if_AC sg state_whnf are_convertible st)
         | Some (ar, tree) ->
           let s1, s2 = split_list ar stack in
+          let s1 =
+            if Signature.is_AC sg l cst && ar > 1
+            then
+              match s1 with
+              | t1 :: t2 :: tl ->
+                let flat = flatten_AC_stack sg state_whnf are_convertible l cst [t1;t2] in
+                { ctx; term=mk_Const l cst; stack = flat}:: tl
+              | _ -> assert false
+            else s1 in
           match gamma_rw sg are_convertible snf state_whnf s1 tree with
           | None -> (red,comb_state_shape_if_AC sg state_whnf are_convertible st)
           | Some (ctx,term) -> aux (red-1, { ctx; term; stack=s2 })
