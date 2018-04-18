@@ -55,21 +55,21 @@ let mk_entry md e =
         | OK ty -> Format.printf "%a@." Pp.print_term ty
         | Err e -> Errors.fail_env_error e
     end
-  | Check(_, assrt, neg, Convert(t1,t2)) ->
+  | Check(l, assrt, neg, Convert(t1,t2)) ->
     begin
       match Env.are_convertible t1 t2 with
       | OK ok when ok = not neg -> if not assrt then Format.printf "YES@."
-      | OK _  when assrt        -> failwith "Assertion failed."
+      | OK _  when assrt        -> failwith (Format.sprintf "At line %d: Assertion failed." (fst (of_loc l)))
       | OK _                    -> Format.printf "NO@."
       | Err e                   -> Errors.fail_env_error e
     end
-  | Check(_, assrt, neg, HasType(te,ty)) ->
+  | Check(l, assrt, neg, HasType(te,ty)) ->
     begin
       match Env.check te ty with
       | OK () when not neg -> if not assrt then Format.printf "YES@."
       | Err _ when neg     -> if not assrt then Format.printf "YES@."
-      | OK () when assrt   -> failwith "Assertion failed."
-      | Err _ when assrt   -> failwith "Assertion failed."
+      | OK () when assrt   -> failwith (Format.sprintf "At line %d: Assertion failed." (fst (of_loc l)))
+      | Err _ when assrt   -> failwith (Format.sprintf "At line %d: Assertion failed." (fst (of_loc l)))
       | _                  -> Format.printf "NO@."
     end
   | DTree(lc,m,v) ->
@@ -91,7 +91,7 @@ let mk_entry md e =
       | OK () -> ()
       | Err e -> Errors.fail_signature_error e
     end
-    
+
 let mk_entry beautify md =
   if beautify then Pp.print_entry Format.std_formatter
   else mk_entry md

@@ -32,14 +32,14 @@ let handle_entry e =
         | OK te -> Format.printf "%a@." Pp.print_term te
         | Err e -> Errors.fail_env_error e
       end
-  | Check(_,assrt,neg,test) ->
+  | Check(l,assrt,neg,test) ->
       begin
         match test with
         | Convert(t1,t2) ->
             begin
               match Env.are_convertible t1 t2 with
               | OK ok when ok = not neg -> Format.printf "YES@."
-              | OK _  when assrt        -> failwith "Assertion failed."
+              | OK _  when assrt        -> failwith (Format.sprintf "At line %d: Assertion failed." (fst (of_loc l)))
               | OK _                    -> Format.printf "NO@."
               | Err e                   -> Errors.fail_env_error e
             end
@@ -48,8 +48,8 @@ let handle_entry e =
               match Env.check te ty with
               | OK () when not neg -> Format.printf "YES@."
               | Err _ when neg     -> Format.printf "YES@."
-              | OK () when assrt   -> failwith "Assertion failed."
-              | Err _ when assrt   -> failwith "Assertion failed."
+              | OK () when assrt   -> failwith (Format.sprintf "At line %d: Assertion failed." (fst (of_loc l)))
+              | Err _ when assrt   -> failwith (Format.sprintf "At line %d: Assertion failed." (fst (of_loc l)))
               | _                  -> Format.printf "NO@."
             end
       end
