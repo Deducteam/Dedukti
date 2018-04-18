@@ -39,11 +39,9 @@ passed=0
 
 for i in $all_tests ; do
     echo -n "$i... " ;
-	instructions=$(head -n 1 $i)
-	cmd=$(echo $instructions | cut -d' ' -f 2-2)
-	flags=$(echo $instructions | cut -d' ' -f 3-)
-	flags=${flags::(-2)}
-    echo -n "$cmd --> " ;
+	instructions=$(head -n 1 $i | sed -e "s/^ *(;//g" | sed -e "s/;) *$//g" | tr -s ' ')
+	cmd=$(echo $instructions | cut -d ' ' -f 1-1)
+	flags=$(echo $instructions | cut -s -d ' ' -f 2-)
     if bash "./tests/scripts/$cmd.sh" $i $flags;
 	then
 		passed=$((passed+1)) ;
