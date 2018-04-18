@@ -6,7 +6,6 @@ open Rule
 open Dtree
 
 type signature_error =
-  | FailToCompileModule   of loc * mident
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError     of loc * string * string
   | UnmarshalUnknown      of loc * string
@@ -17,8 +16,9 @@ type signature_error =
   | CannotAddRewriteRules of loc * ident
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
-  | ExpectedACUSymbol     of loc * name
   | GuardNotSatisfied     of loc * term * term
+  | FailToCompileModule   of loc * mident
+  | ExpectedACUSymbol     of loc * name
 
 exception SignatureError of signature_error
 
