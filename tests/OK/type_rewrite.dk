@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME type_rewrite.
-
 def A : Type.
 B : Type.
 def x : A.

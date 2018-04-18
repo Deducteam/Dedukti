@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME nsteps3.
-
 N : Type.
 0 : N.
 S : N -> N.

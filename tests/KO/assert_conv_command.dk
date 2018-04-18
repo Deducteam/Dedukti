@@ -1,7 +1,5 @@
 (; KO ;)
 
-#NAME assert_conv_command.
-
 A : Type.
 B : Type.
 

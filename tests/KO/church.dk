@@ -1,7 +1,5 @@
 (; KO ;)
 
-#NAME Church.
-
 type : Type.
 arr : type -> type -> type.
 def e : type -> Type.

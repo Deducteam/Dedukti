@@ -1,7 +1,5 @@
 (; KO ;)
 
-#NAME NonInjectivity.
-
 Nat : Type.
 Vect : Nat -> Type.
 

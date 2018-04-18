@@ -1,5 +1,4 @@
 (; KO ;)
-
 type : Type.
 def term : type -> Type.
 

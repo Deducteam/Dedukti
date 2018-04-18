@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME firstOrder.
-
 Prop : Type.
 prf  : Prop -> Type.
 

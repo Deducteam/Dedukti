@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME self_dep2.
-
 def A : Type.
 U : A -> Type.
 a : A.

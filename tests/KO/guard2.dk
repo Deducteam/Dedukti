@@ -1,7 +1,5 @@
 (; KO ;)
 
-#NAME guard2.
-
 A :Type.
 
 a : A.

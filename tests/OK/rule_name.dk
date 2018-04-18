@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME rule_name.
-
 nat : Type.
 
 0 : nat.

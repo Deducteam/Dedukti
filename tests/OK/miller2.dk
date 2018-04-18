@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME miller2.
-
 R : Type.
 0 : R.
 def p : R -> R -> R.

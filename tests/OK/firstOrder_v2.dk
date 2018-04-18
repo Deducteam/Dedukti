@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME firstOrder_v2.
-
 Prop: Type.
 def prf : Prop -> Type.
 Term: Type.

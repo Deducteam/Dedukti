@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME assert_conv_command.
-
 A : Type.
 def B := A.
 def C := A.

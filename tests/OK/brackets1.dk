@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME brackets1.
-
 A : Type.
 a : A.
 

@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME nsteps1.
-
 def A : Type.
 [] A --> A -> A.
 

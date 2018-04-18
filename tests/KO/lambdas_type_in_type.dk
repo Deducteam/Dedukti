@@ -1,5 +1,4 @@
 (; KO ;)
-
 Nat : Type.
 
 z : Nat.

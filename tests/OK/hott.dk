@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME hott.
-
 Nat: Type.
 Fin : Nat -> Type.
 

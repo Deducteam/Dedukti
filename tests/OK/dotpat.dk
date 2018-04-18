@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME dotpat.
-
 N: Type.
 Z: N.
 S: N->N.

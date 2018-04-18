@@ -1,7 +1,5 @@
 (; KO ;)
 
-#NAME assert_type_command.
-
 A : Type.
 B : Type.
 a : A.

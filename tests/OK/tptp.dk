@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME tptp.
-
 Term : Type.
 Prop: Type.
 def prf: Prop -> Type.

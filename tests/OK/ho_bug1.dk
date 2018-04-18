@@ -1,7 +1,5 @@
 (; OK ;)
 
-#NAME ho_bug1.
-
 A : Type.
 
 def e0 : A -> A.
