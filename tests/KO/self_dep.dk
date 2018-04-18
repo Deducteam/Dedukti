@@ -1,4 +1,6 @@
-#NAME self_dep.
+(; KO ;)
+
+(; KO ;)
 
 def A : Type.
 def U : A -> Type.

@@ -1,3 +1,5 @@
+(; OK ;)
+
 #NAME check_typed_lambda.
 
 A : Type.

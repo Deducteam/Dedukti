@@ -1,3 +1,5 @@
+(; OK ;)
+
 #NAME rule_name2.
 
 nat : Type.

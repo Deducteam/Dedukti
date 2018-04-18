@@ -1,3 +1,5 @@
+(; KO ;)
+
 #NAME self_dep2.
 
 def A : Type.

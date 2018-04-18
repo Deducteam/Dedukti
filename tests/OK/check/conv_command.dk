@@ -1,3 +1,5 @@
+(; OK ;)
+
 #NAME check_conv_command.
 
 A : Type.

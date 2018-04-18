@@ -1,3 +1,5 @@
+(; OK ;)
+
 #NAME brackets1.
 
 A : Type.

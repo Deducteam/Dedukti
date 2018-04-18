@@ -26,34 +26,34 @@
 #
 # Tests failing with an internal error (segfault) will break the test script.
 
-passed=0
-total=0
 
-for i in tests/OK/*.dk ; do
-	total=$((total+1)) ;
-    echo -n "$i..." ;
-    if ./dkcheck.native -q -nc "$i" 2>&1 | uniq -c | egrep  "^ *[0-9]*(1|3|5|7|9) .*" | egrep -v -q "^ *1 SUCCESS.*" ;
+all_tests=$(find tests -name "*.dk")
+total=$(wc -w <<< "$all_tests")
+
+echo ""
+echo "------------------------"
+echo "  Running $total tests"
+echo "------------------------"
+
+passed=0
+
+for i in $all_tests ; do
+    echo -n "$i... " ;
+	instructions=$(head -n 1 $i)
+	cmd=$(echo $instructions | cut -d' ' -f 2-2)
+	flags=$(echo $instructions | cut -d' ' -f 3-)
+	flags=${flags::(-2)}
+    echo -n "$cmd --> " ;
+    if bash "./tests/scripts/$cmd.sh" $i $flags;
 	then
-		echo -e "\033[0;31mKO\033[0m"
-	else
 		passed=$((passed+1)) ;
-		echo -e "\033[0;32mOK\033[0m"
+		echo -e "\033[0;32mPassed\033[0m"
+	else
+		echo -e "\033[0;31mFailed !\033[0m"
 	fi ;
 done
 
-for i in tests/KO/*.dk ; do
-	total=$((total+1)) ;
-    echo -n "$i...  " ;
-    if ./dkcheck.native -nc "$i" 2>&1 | grep -i -q "error" ;
-	then
-		passed=$((passed+1)) ;
-		echo -e "\033[0;32mKO\033[0m"
-	else
-		echo -e "\033[0;31mOK\033[0m"
-	fi
-done
-
-echo "-----------------------"
+echo "------------------------"
 if [ "$passed" -eq "$total" ]
 then
 	echo -e "\033[0;32mPassed: $passed / $total\033[0m"
