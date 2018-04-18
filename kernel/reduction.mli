@@ -1,5 +1,6 @@
 (** Term reduction and conversion test. *)
 
+open Basic
 open Term
 
 type red_strategy = Hnf | Snf | Whnf
@@ -11,7 +12,7 @@ type red_cfg = {
   beta : bool
 }
 
-val pp_red_cfg : red_cfg Basic.printer
+val pp_red_cfg : red_cfg printer
 
 (** [beta] flag enables/disables beta reductions.
     [select] = [Some f] restreins rules according to the given filter on names.

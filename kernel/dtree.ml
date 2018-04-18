@@ -256,17 +256,17 @@ let choose_column mx =
 (* Construct a decision tree out of a matrix *)
 let rec to_dtree (mx:matrix) : dtree =
   match choose_column mx with
-    (* There are only variables on the first line of the matrix *)
+  (* There are only variables on the first line of the matrix *)
   | None   -> Test (mx.first.name,
                     get_first_matching_problem mx,
                     get_first_constraints mx,
                     get_first_term mx,
                     map_opt to_dtree (pop mx) )
-    (* Pattern on the first line at column c *)
-    | Some c ->
-        let cases = partition mx c in
-        let aux ca = ( ca , to_dtree (specialize mx c ca) ) in
-          Switch (c, List.map aux cases, map_opt to_dtree (filter_default mx c) )
+  (* Pattern on the first line at column c *)
+  | Some c ->
+    let cases = partition mx c in
+    let aux ca = ( ca , to_dtree (specialize mx c ca) ) in
+    Switch (c, List.map aux cases, map_opt to_dtree (filter_default mx c) )
 
 
 (******************************************************************************)
