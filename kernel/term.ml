@@ -47,6 +47,10 @@ let mk_App f a1 args =
     | App (f',a1',args') -> App (f',a1',args'@(a1::args))
     | _ -> App(f,a1,args)
 
+let mk_App2 f = function
+  | [] -> f
+  | hd :: tl -> mk_App f hd tl
+
 let rec term_eq t1 t2 =
   (* t1 == t2 || *)
   match t1, t2 with
@@ -70,14 +74,12 @@ let rec get_name_from_typed_ctxt ctxt i =
   with Failure _ -> None
 
 let rename_vars_with_typed_context ctxt t =
-  let rec aux d = function
-    | DB  (l,v,n)        ->
-      let v' = (match get_name_from_typed_ctxt ctxt (n - d) with Some v -> v | None -> v) in
-      mk_DB l v' n
-    | App (f,a,args)     ->
+  let rec aux d t = match t with
+    | DB(l,v,n) when n > d ->
+      (match get_name_from_typed_ctxt ctxt (n - d) with Some v' -> mk_DB l v' n | None -> t)
+    | App (f,a,args) ->
       mk_App (aux d f) (aux d a) (List.map (aux d) args)
-    | Lam (l,x,None,f)   -> mk_Lam l x None (aux (d+1) f)
-    | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux d a)) (aux (d+1) f)
-    | Pi  (l,x,a,b)      -> mk_Pi l x (aux d a) (aux (d+1) b)
-    | te -> te in
+    | Lam (l,x,ty,f) -> mk_Lam l x (map_opt (aux d) ty) (aux (d+1) f)
+    | Pi  (l,x,ty,b) -> mk_Pi  l x          (aux d  ty) (aux (d+1) b)
+    | _ -> t in
   aux 0 t

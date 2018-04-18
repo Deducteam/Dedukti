@@ -160,12 +160,13 @@ let print_typed_rule out (rule:typed_rule) =
 
 let print_rule_infos out ri =
   let rule = { name = ri.name ;
-               ctx = ri.ctx ;
+               ctx = [] ;
+               (* TODO: here infer context from named variable inside left hand side pattern *)
                pat =  pattern_of_rule_infos ri;
                rhs = ri.rhs
              }
   in
-  print_typed_rule out rule
+  print_untyped_rule out rule
 
 let print_red_cfg fmt strat =
   let open Reduction in

@@ -143,7 +143,7 @@ let add_rules (rules: untyped_rule list)
     try
       if check_bump (mk_ident "some rule") then OK rs2
       else (
-        Signature.add_rules !sg rs2 ;
+        Signature.add_rules !sg rules ;
         OK rs2 )
     with _ ->
       Format.eprintf "some rule@." ;

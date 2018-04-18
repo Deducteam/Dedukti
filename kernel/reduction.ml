@@ -76,48 +76,15 @@ let pp_env fmt (ctx: env) =
   let pp_lazy_term out lt = pp_term fmt (Lazy.force lt) in
   pp_list ", " pp_lazy_term fmt (LList.lst ctx)
 
-
-let pp_stack fmt (st: stack) =
-  let aux fmt state = pp_term fmt (term_of_state state) in
-  fprintf fmt "[ %a ]\n" (pp_list "\n | " aux) st
-
-
-let pp_state ?(if_ctx= true) ?(if_stack= true) fmt {ctx; term; stack} =
-  if if_ctx then fprintf fmt "{ctx=[%a];@." pp_env ctx
-  else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx) ;
-  fprintf fmt "term=%a;@." pp_term term ;
-  if if_stack then fprintf fmt "stack=%a}@." pp_stack stack
-  else fprintf fmt "stack=[...]}@." ;
+let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
+  if if_ctx
+  then fprintf fmt "{ctx=[%a];@." pp_env ctx
+  else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx);
+  fprintf fmt "term=%a;@." pp_term term;
+  if if_stack
+  then fprintf fmt "stack=%a}@." pp_stack stack
+  else fprintf fmt "stack=[...]}@.";
   fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
-
-
-(* Misc *)
-(* FIXME: only used once in are_convertible_list, should it be declared at top level? *)
-let rec add_to_list2 l1 l2 lst =
-  match (l1, l2) with
-  | [], [] -> Some lst
-  | s1 :: l1, s2 :: l2 -> add_to_list2 l1 l2 ((s1, s2) :: lst)
-  | _, _ -> None
-
-
-let rec split_stack (i: int) : stack -> (stack * stack) option = function
-  | l when i = 0 -> Some ([], l)
-  | [] -> None
-  | x :: l -> map_opt (fun (s1, s2) -> (x :: s1, s2)) (split_stack (i - 1) l)
-
-
-let rec safe_find m v = function
-  | [] -> None
-  | (_, m', v', tr) :: tl ->
-      if ident_eq v v' && ident_eq m m' then Some tr else safe_find m v tl
-
-
-let rec add_to_list lst (s: stack) (s': stack) =
-  match (s, s') with
-  | [], [] -> Some lst
-  | x :: s1, y :: s2 -> add_to_list ((x, y) :: lst) s1 s2
-  | _, _ -> None
-
 
 (* ********************* *)
 
@@ -176,52 +143,48 @@ let rec test (sg: Signature.t) (convertible: convertibility_test) (ctx: env) r
   in
   match constrs with
   | [] -> true
-  | (Linearity (i, j)) :: tl ->
-      let t1 = mk_DB dloc dmark i in
-      let t2 = mk_DB dloc dmark j in
-      let is_conv =
-        convertible sg ism
-          [ ( term_of_state {ctx; term= t1; stack= []}
-            , term_of_state {ctx; term= t2; stack= []} ) ]
-      in
-      if is_conv then test sg convertible ctx r tl else false
-  | (Bracket (i, t2)) :: tl ->
-      let t1 = mk_DB dloc dmark i in
-      let is_conv =
-        convertible sg ism
-          [ ( term_of_state {ctx; term= t1; stack= []}
-            , term_of_state {ctx; term= t2; stack= []} ) ]
-      in
-      if is_conv then test sg convertible ctx r tl
-      else
-        (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
-        raise
-          (Signature.SignatureError
-             (Signature.GuardNotSatisfied (get_loc t1, t1, t2)))
+  | (Linearity (i,j))::tl ->
+    let t1 = mk_DB dloc dmark i in
+    let t2 = mk_DB dloc dmark j in
+    if convertible sg ism [(term_of_state { ctx; term=t1; stack=[] }),
+                      (term_of_state { ctx; term=t2; stack=[] })]
+    then test sg convertible ctx r tl
+    else false
+  | (Bracket (i,t))::tl ->
+    let t1 = Lazy.force (LList.nth ctx i) in
+    let t2 = term_of_state { ctx; term=t; stack=[] } in
+    if convertible sg ism [t1,t2]
+    then test sg convertible ctx r tl
+    else
+      (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
+      raise (Signature.SignatureError( Signature.GuardNotSatisfied(get_loc t1, t1, t2) ))
 
-
-let rec find_case (st: state) (cases: (case * dtree) list)
-    (default: dtree option) : (dtree * state list) option =
-  match (st, cases) with
-  | _, [] -> map_opt (fun g -> (g, [])) default
-  | {term= Const (_, n); stack}, (CConst (nargs, n'), tr) :: tl ->
-      (* The case doesn't match if the identifiers differ or the stack is not
+let rec find_case (st:state) (cases:(case * dtree) list)
+                  (default:dtree option) : (dtree*state list) option =
+  match st, cases with
+  | _, [] -> map_opt (fun g -> (g,[])) default
+  | { term=Const (_,cst); stack } , (CConst (nargs,cst'),tr)::tl ->
+     (* The case doesn't match if the identifiers differ or the stack is not
       * of the expected size. *)
-      if name_eq n n' && List.length stack == nargs then Some (tr, stack)
-      else find_case st tl default
-  | {ctx; term= DB (l, x, n); stack}, (CDB (nargs, n'), tr) :: tl ->
-      assert (ctx = LList.nil) ;
-      (* no beta in patterns *)
-      (* The case doesn't match if the DB indices differ or the stack is not
+     if name_eq cst cst' && List.length stack == nargs
+     then Some (tr,stack)
+     else find_case st tl default
+  | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
+    begin
+      assert ( ctx = LList.nil ); (* no beta in patterns *)
+     (* The case doesn't match if the DB indices differ or the stack is not
       * of the expected size. *)
       if n == n' && List.length stack == nargs then Some (tr, stack)
       else find_case st tl default
-  | {ctx; term= Lam (_, _, _, _)}, (CLam, tr) :: tl -> (
-    match term_of_state st with
-    (*TODO could be optimized*)
-    | Lam (_, _, _, te) -> Some (tr, [{ctx= LList.nil; term= te; stack= []}])
-    | _ -> assert false )
-  | _, _ :: tl -> find_case st tl default
+    end
+  | { ctx; term=Lam _; stack } , ( CLam , tr )::tl ->
+    begin
+      match term_of_state st with (*TODO could be optimized*)
+      | Lam (_,_,_,te) ->
+        Some ( tr , [{ ctx=LList.nil; term=te; stack=[] }] )
+      | _ -> assert false
+    end
+  | _, _::tl -> find_case st tl default
 
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
@@ -310,18 +273,15 @@ let rec state_whnf (sg: Signature.t) (st: state) : state =
       let tl' = List.rev_map (fun t -> {ctx; term= t; stack= []}) (a :: lst) in
       state_whnf sg {ctx; term= f; stack= List.rev_append tl' s}
   (* Potential Gamma redex *)
-  | {ctx; term= Const (l, n); stack} ->
-      let dtree = Signature.get_dtree sg !selection l n in
-      match dtree with
+  | { ctx; term=Const (l,n); stack } ->
+    let trees = Signature.get_dtree sg !selection l n in
+    match find_dtree (List.length stack) trees with
+    | None -> st
+    | Some (ar, tree) ->
+      let s1, s2 = split_list ar stack in
+      match gamma_rw sg are_convertible_lst snf state_whnf s1 tree with
       | None -> st
-      | Some (i, g) ->
-        match split_stack i stack with
-        | None -> st
-        | Some (s1, s2) ->
-          match gamma_rw sg are_convertible_lst snf state_whnf s1 g with
-          | None -> st
-          | Some (ctx, term) -> state_whnf sg {ctx; term; stack= s2}
-
+      | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
 
 (* ********************* *)
 (* Weak Head Normal Form *)
@@ -338,8 +298,9 @@ and snf sg (t: term) : term =
   | Lam (_, x, a, b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
 
-and are_convertible_lst sg ism (lst: (term * term) list) : bool =
-  match lst with
+
+and are_convertible_lst sg ism :  (term * term) list -> bool =
+  function
   | [] -> true
   | (t1, t2) :: lst ->
     match
@@ -563,22 +524,21 @@ let state_nsteps (sg: Signature.t) (strat: red_strategy) (steps: int)
           aux (!redc, {ctx; term= f; stack= new_stack})
       (* Potential Gamma redex *)
       | {ctx; term= Const (l, n); stack} ->
-        match Signature.get_dtree sg !selection l n with
-        | None -> (red, st)
-        | Some (i, g) ->
-          match split_stack i stack with
-          | None -> (red, st)
-          | Some (s1, s2) ->
-            match gamma_rw sg are_convertible_lst snf state_whnf s1 g with
-            | None -> (red, st)
-            | Some (ctx, term) -> aux (red - 1, {ctx; term; stack= s2})
+        let trees = Signature.get_dtree sg !selection l n in
+        match find_dtree (List.length stack) trees with
+        | None -> (red,st)
+        | Some (ar, tree) ->
+          let s1, s2 = split_list ar stack in
+          match gamma_rw sg are_convertible_lst snf state_whnf s1 tree with
+          | None -> (red,st)
+          | Some (ctx,term) -> aux (red-1, { ctx; term; stack=s2 })
   in
   aux (steps, state)
 
 
 let reduction_steps n strat sg t =
-  let st = {ctx= LList.nil; term= t; stack= []} in
-  let n', st' = state_nsteps sg strat n st in
+  let st = { ctx=LList.nil; term=t; stack=[] } in
+  let (_,st') = state_nsteps sg strat n st in
   term_of_state st'
 
 

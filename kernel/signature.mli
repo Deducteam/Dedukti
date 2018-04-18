@@ -46,7 +46,7 @@ val get_type            : t -> loc -> name -> term
 (** [get_type sg l md id] returns the type of the constant [md.id] inside the
     environement [sg]. *)
 
-val get_dtree           : t -> (Rule.rule_name -> bool) option -> loc -> name -> (int*dtree) option
+val get_dtree           : t -> (Rule.rule_name -> bool) option -> loc -> name -> Dtree.t
 (** [get_dtree sg filter l cst] returns the decision/matching tree associated
     with [cst] inside the environment [sg]. When filter is specified, it is used
     to select only the corresponding set of rules  *)
@@ -55,6 +55,6 @@ val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
 
-val add_rules           : t -> Rule.typed_rule list -> unit
+val add_rules           : t -> Rule.untyped_rule list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)

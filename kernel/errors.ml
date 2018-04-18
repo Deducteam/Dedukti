@@ -118,19 +118,13 @@ let fail_typing_error sg err =
 let fail_dtree_error err =
   let open Dtree in
   match err with
-  | HeadSymbolMismatch (lc, cst1, cst2) ->
-      fail lc "Unexpected head symbol '%a'  (expected '%a')." pp_name cst1
-        pp_name cst2
-  | ArityMismatch (lc, cst) ->
-      fail lc
-        "All the rewrite rules for  the symbol '%a' should have the same arity."
-        pp_name cst
+  | HeadSymbolMismatch (lc,cst1,cst2) ->
+    fail lc "Unexpected head symbol '%a' \ (expected '%a')."
+      pp_name cst1 pp_name cst2
   | ArityInnerMismatch (lc, rid, id) ->
-      fail lc
-        "The definable symbol '%a' inside the rewrite rules for  '%a' should \
-         have the same arity when they are on the same column." pp_ident id
-        pp_ident rid
-
+    fail lc
+      "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
+      pp_ident id pp_ident rid
 
 let fail_rule_error err =
   let open Rule in
@@ -157,10 +151,11 @@ let fail_rule_error err =
         "The variable '%a' is applied to %i argument(s) (expected: at least \
          %i)." pp_ident id nb_args exp_nb_args
   | NonLinearRule r ->
-      fail (Rule.get_loc_pat r.pat)
-        "Non left-linear rewrite rule:\n\
-         %a.\n\
-         Maybe you forgot to pass the -nl option." pp_typed_rule r
+    fail (Rule.get_loc_pat r.pat) "Non left-linear rewrite rule:\n%a.\n\
+                               Maybe you forgot to pass the -nl option."
+      pp_untyped_rule r
+  | NonLinearNonEqArguments(lc,arg) ->
+    fail lc "For each occurence of the free variable %a, the symbol should be applied to the same number of arguments" pp_ident arg
 
 
 let pp_cerr out err =

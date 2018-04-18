@@ -155,7 +155,7 @@ let get_bvars r =
   let bvars0 = aux_p 0 [] pat in
   aux_t 0 bvars0 r.rhs
 
-let get_arities (ctx:typed_context) (p:pattern) : int IdMap.t =
+let get_arities (p:pattern) : int IdMap.t =
   let rec aux k map = function
     | Var (_,x,n,args) when (n<k) -> List.fold_left (aux k) map args
     | Pattern (_,_,args) -> List.fold_left (aux k) map args
@@ -179,7 +179,7 @@ let pp_rule fmt (r:rule_infos) =
     if n > 0 then (fprintf fmt " -> "; pp_type fmt (n-1))
   in
   let pat = pattern_of_rule_infos r in
-  let arities = get_arities r.ctx pat in
+  let arities = get_arities pat in
   (* Variables*)
   fprintf fmt "(VAR\n";
   IdMap.iter (fun x n -> fprintf fmt "  m_%a : %a\n" pp_ident x pp_type n) arities;

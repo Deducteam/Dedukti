@@ -95,7 +95,7 @@ let define_op l id te ty_opt =
 let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
   try
     let rs2 = List.map (check_rule !sg) rules in
-    Signature.add_rules !sg rs2;
+    Signature.add_rules !sg rules;
     OK rs2
   with
   | SignatureError e -> Err (EnvErrorSignature e)
