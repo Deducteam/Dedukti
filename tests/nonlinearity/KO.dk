@@ -1,0 +1,8 @@
+(; KO ;)
+
+A : Type.
+
+def f : A -> A -> A.
+[x] f x x --> x.
+
+
