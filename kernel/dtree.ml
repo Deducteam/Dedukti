@@ -6,9 +6,9 @@ open Matching
 
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
+  | ArityInnerMismatch  of loc * ident * ident
   | ArityDBMismatch     of loc * name * int
   | AritySymbolMismatch of loc * name * name
-  | ArityInnerMismatch  of loc * ident * ident
   | ACSymbolRewritten   of loc * name * int
 
 exception DtreeExn of dtree_error
@@ -26,10 +26,10 @@ type matching_problem =
   | MillerPattern of abstract_problem LList.t
 
 type dtree =
-  | Fetch   of int * case * dtree * dtree option
-  | ACEmpty of int * dtree * dtree option
   | Switch  of int * (case*dtree) list * dtree option
   | Test    of Rule.rule_name * pre_matching_problem * constr list * term * dtree option
+  | Fetch   of int * case * dtree * dtree option
+  | ACEmpty of int * dtree * dtree option
 
 (** Type of decision forests *)
 type t = (int * dtree) list
@@ -174,6 +174,14 @@ let filter_on_pattern nargs cst = function
   | LACSet (_,s) -> assert false
   | _ -> false
 
+(* Keeps only the rules with a joker or a variable on column [c] *)
+let filter_default (mx:matrix) (c:int) : matrix option =
+  filter (
+    fun r -> match r.pats.(c) with
+      | LVar _ | LJoker -> true
+      | LLambda _ | LPattern _  | LBoundVar _ -> false
+      | LACSet _ -> assert false
+  ) mx
 
 let partition_AC_rules c f rules =
   let rec aux (keep,def) = function
@@ -329,17 +337,7 @@ let spec_col_depth_l (c:int) (col_depth: int array) : int array =
   in
     Array.init (size+1) aux
 
-(* Keeps only the rules with a joker or a variable on column [c] *)
-let filter_default (mx:matrix) (c:int) : matrix option =
-  filter (
-    fun r -> match r.pats.(c) with
-      | LVar _ | LJoker -> true
-      | LLambda _ | LPattern _  | LBoundVar _ -> false
-      | LACSet _ -> assert false
-  ) mx
-
 (* Specialize the matrix [mx] on column [c] *)
-
 let specialize_ACEmpty (mx:matrix) (c:int) : matrix * matrix option =
   let (rules_suc, rules_def) =
     List.partition (get_rule_filter filter_AC_on_empty_set c) (mx.first::mx.others) in
@@ -566,7 +564,7 @@ let pp_AC_args fmt i =
   fprintf fmt (if i > 2 then "%i args, first 2 AC flattened" else "%i args") i
 
 let rec pp_dtree t fmt dtree =
-  (* FIXME: Use format boxex here instead of manual tabs. *)
+  (* FIXME: Use format boxes here instead of manual tabs. *)
   let tab = String.init (1 + t*4) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
   | Test (name,mp,[],te,def) when List.length mp.pm_problems == 0 ->
