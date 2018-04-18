@@ -60,7 +60,9 @@ type pcontext   = pdecl list
 
 let pp_pcontext fmt ctx = pp_list ".\n" (fun out (_,x) -> fprintf fmt "%a" pp_ident x) fmt (List.rev ctx)
 
-type pcond      = preterm * preterm
+type pcond      = preterm * preterm * is_negated
+
+type guard      = pcond list
 
 type prule      =
       loc
@@ -69,23 +71,27 @@ type prule      =
     * mident option
     * ident
     * prepattern list
-    * pcond option
+    * guard option
     * preterm
 
-let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, pcond, prete):prule) : unit  =
+let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, pguard, prete):prule) : unit  =
   let name = match pname with | None -> "" | Some qid ->
     let prefix = match fst qid with | None -> "" | Some md -> (string_of_mident md)^"." in
     "{"^prefix^string_of_ident id^"}"
   in
-  let pp_pcond fmt = function
+  let pp_pcond fmt (t1,t2,b) =
+    let op = if b then "==" else "!=" in
+    Format.fprintf fmt "%a %s %a" pp_preterm t1 op pp_preterm t2
+  in
+  let pp_guard fmt = function
     | None -> Format.fprintf fmt ""
-    | Some(t1,t2) -> Format.fprintf fmt " ? %a == %a " pp_preterm t1 pp_preterm t2
+    | Some(cs) -> Format.fprintf fmt " ? %a " (pp_list " && " pp_pcond) cs
   in
   match pid with
   | Some m ->
     let cst = mk_name m id in
     fprintf fmt "%s [%a] %a %a %a --> %a" name (pp_list "," pp_pdecl) pdecl pp_name cst
-      (pp_list " " pp_prepattern) prepatterns pp_pcond pcond pp_preterm prete
+      (pp_list " " pp_prepattern) prepatterns pp_guard pguard pp_preterm prete
   | None ->
     fprintf fmt "%s [%a] %a %a %a --> %a" name (pp_list "," pp_pdecl) pdecl pp_ident id
-      (pp_list " " pp_prepattern) prepatterns pp_pcond pcond pp_preterm prete
+      (pp_list " " pp_prepattern) prepatterns pp_guard pguard pp_preterm prete

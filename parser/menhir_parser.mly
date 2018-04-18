@@ -42,6 +42,7 @@ let mk_config loc id1 id2_opt =
 %token COMMA
 %token COLON
 %token EQUAL
+%token NOTEQUAL
 %token ARROW
 %token FATARROW
 %token LONGARROW
@@ -53,6 +54,7 @@ let mk_config loc id1 id2_opt =
 %token LEFTSQU
 %token RIGHTSQU
 %token WHEN
+%token AND
 %token <Basic.loc> EVAL
 %token <Basic.loc> INFER
 %token <Basic.loc> CHECK
@@ -82,8 +84,8 @@ let mk_config loc id1 id2_opt =
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm
 %type <Preterm.preterm> term
-%type <Preterm.preterm*Preterm.preterm> cond
-
+%type <Preterm.pcond> cond
+%type <Preterm.pcond list> guard
 %right ARROW FATARROW
 
 %%
@@ -156,8 +158,14 @@ param:
       {(fst id, snd id, te)}
 
 cond:
-  | WHEN t1=term EQUAL t2=term
-      {(t1,t2)}
+  | l=term EQUAL r=term
+      {(l,r,false)}
+  | l=term NOTEQUAL r=term
+      {(l,r,true)}
+
+guard:
+  | WHEN separated_nonempty_list (AND, cond)
+      { $2 }
 
 rule_name:
   | LEFTBRA id=ID RIGHTBRA
@@ -167,9 +175,9 @@ rule_name:
         (Some m, v) }
 
 rule:
-  | name=rule_name? LEFTSQU context RIGHTSQU top_pattern c=cond? LONGARROW term
+  | name=rule_name? LEFTSQU context RIGHTSQU top_pattern g=guard? LONGARROW term
       { let (l,md_opt,id,args) = $5 in
-        ( l , name, $3 , md_opt, id , args , c , $8) }
+        ( l , name, $3 , md_opt, id , args , g , $8) }
 
 
 decl:

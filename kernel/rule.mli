@@ -29,7 +29,7 @@ type wf_pattern =
 val allow_conditional : bool ref
 
 (** Constraints *)
-type constr = Condition of term * term * bool
+type constr = Convertible of term * term * should_fail * is_negated
 (** Condition(t1,t2,b) is satisfied if t1 is convertible with t2, otherwise, b indicates if it should fails *)
 
 (** {2 Rewrite Rules} *)
@@ -41,14 +41,14 @@ type rule_name =
   (** Rules of lambda pi modulo. The first parameter indicates whether
       the name of the rule has been given by the user. *)
 
-type condition = {left:term; right:term}
+type condition = {left:term; right:term; is_negated:bool}
 
 type 'a rule =
   {
     name : rule_name;
     ctx  : 'a;
     pat  : pattern;
-    cond : condition option;
+    cond : condition list;
     rhs  : term
   }
 
@@ -75,7 +75,7 @@ type rule_infos = {
   name        : rule_name;        (** name of the rule *)
   cst         : name;             (** name of the pattern constant *)
   args        : pattern list;     (** arguments list of the pattern constant *)
-  cond        : condition option; (** optional condition to satisfy *)
+  cond        : condition list;   (** optional condition to satisfy *)
   rhs         : term;             (** right hand side of the rule *)
   esize       : int;              (** size of the context *)
   pats        : wf_pattern array; (** free pattern without constraint *)

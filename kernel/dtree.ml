@@ -314,7 +314,8 @@ let rec pp_dtree t fmt dtree =
     fprintf fmt "\n%s{%a} if true then (%a) %a\n%selse (%a) %a" tab pp_rule_name name  pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
   | Test (name,mp,lst,te,def)  ->
     let aux out = function
-      Condition(l,r,_) -> fprintf out "{%a} %a =c %a" pp_rule_name name pp_term l pp_term r
+      | Convertible(l,r,_,false) -> fprintf out "{%a} %a  =c %a" pp_rule_name name pp_term l pp_term r
+      | Convertible(l,r,_,true)  -> fprintf out "{%a} %a !=c %a" pp_rule_name name pp_term l pp_term r
     in
     fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
       pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def

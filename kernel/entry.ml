@@ -2,7 +2,7 @@ open Basic
 open Term
 
 type is_opaque    = bool
-type is_assertion = bool
+type is_negated   = bool
 type should_fail  = bool
 
 type test =
@@ -14,7 +14,7 @@ type entry =
   | Def   of loc * ident * is_opaque * term option * term
   | Rules of Rule.untyped_rule list
   | Eval  of loc * Reduction.red_cfg * term
-  | Check of loc * is_assertion * should_fail * test
+  | Check of loc * should_fail * is_negated * test
   | Infer of loc * Reduction.red_cfg * term
   | Print of loc * string
   | DTree of loc * mident option * ident

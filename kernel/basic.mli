@@ -116,6 +116,10 @@ val warn : ('a, Format.formatter, unit, unit) format4 -> 'a
 
 (** {2 Misc} *)
 
+type is_negated   = bool
+
+type should_fail  = bool
+
 val fold_map : ('b->'a-> ('c*'b)) -> 'b -> 'a list -> ('c list*'b)
 
 val bind_opt : ('a -> 'b option) -> 'a option -> 'b option

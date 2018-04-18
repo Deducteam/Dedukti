@@ -140,6 +140,10 @@ let warn fmt = debug 0 ("[Warning] " ^^ fmt)
 
 (** {2 Misc functions} *)
 
+type is_negated   = bool
+
+type should_fail  = bool
+
 let bind_opt f = function
   | None -> None
   | Some x -> f x

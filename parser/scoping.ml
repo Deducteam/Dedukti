@@ -121,9 +121,11 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pcond,pri:prule) : untyped_rule 
     in
     Gamma(b,mk_name md id)
   in
-  let cond_of_pcond = function
-    | None -> None
-    | Some(pt1,pt2) -> Some ({left=t_of_pt md idents pt1; right=t_of_pt md idents pt2})
+  let cond_of_guard = function
+    | None -> []
+    | Some(cs) ->
+      let to_cond (t1,t2,b) = {left=t_of_pt md idents t1;right=t_of_pt md idents t2;is_negated=b} in
+      List.map to_cond cs
   in
-  let cond = cond_of_pcond pcond in
+  let cond = cond_of_guard pcond in
   { name ; ctx= ctx; pat = p_of_pp md idents top; cond; rhs = t_of_pt md idents pri }

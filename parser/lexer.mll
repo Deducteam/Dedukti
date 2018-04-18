@@ -31,6 +31,7 @@ rule token = parse
   | ','         { COMMA         }
   | ':'         { COLON         }
   | "=="        { EQUAL         }
+  | "!="        { NOTEQUAL      }
   | '['         { LEFTSQU       }
   | ']'         { RIGHTSQU      }
   | '{'         { LEFTBRA       }
@@ -42,6 +43,7 @@ rule token = parse
   | "=>"        { FATARROW      }
   | ":="        { DEF           }
   | "?"         { WHEN          }
+  | "&&"        { AND           }
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE       ( get_loc lexbuf ) }
   | "def"       { KW_DEF     ( get_loc lexbuf ) }

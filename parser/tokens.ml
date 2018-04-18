@@ -24,6 +24,7 @@ type token =
   | COLON
   | CCOLON
   | EQUAL
+  | NOTEQUAL
   | ARROW
   | EVAL       of loc
   | INFER      of loc
@@ -36,3 +37,4 @@ type token =
   | STRING     of string
   | INT        of int
   | WHEN
+  | AND

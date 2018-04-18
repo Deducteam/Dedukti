@@ -31,7 +31,9 @@ type pcontext = pdecl list
 
 val pp_pcontext : formatter -> pcontext -> unit
 
-type pcond = preterm * preterm
+type pcond = preterm * preterm * is_negated
+
+type guard = pcond list
 
 type prule =
     loc
@@ -40,7 +42,7 @@ type prule =
   * mident option
   * ident
   * prepattern list
-  * pcond option
+  * guard option
   * preterm
 
 val pp_prule : formatter -> prule -> unit

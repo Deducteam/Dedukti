@@ -124,14 +124,15 @@ let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
 let rec test (sg:Signature.t) (convertible:convertibility_test)
     (ctx:env) (constrs: constr list) : bool  =
   let is_satisfied = function
-    | Condition(l,r,b) ->
+    | Convertible(l,r,b,is_negated) ->
     let l' = term_of_state {ctx;term=l; stack=[] } in
     let r' = term_of_state {ctx;term=r; stack=[] } in
     if convertible sg l' r' then
-      true
-    else if b then
-      raise (Signature.SignatureError( Signature.ConstraintNotSatisfied(get_loc l, l, r) ))
-    else false
+      not is_negated
+    else if b then (
+      assert (not is_negated);
+      raise (Signature.SignatureError( Signature.ConstraintNotSatisfied(get_loc l, l, r) )) )
+    else is_negated
   in
   List.for_all is_satisfied constrs
 

@@ -2,9 +2,6 @@ open Basic
 open Term
 
 type is_opaque    = bool
-type is_assertion = bool
-type should_fail  = bool
-
 
 (** Possible tests in source files. *)
 type test =
@@ -24,7 +21,7 @@ type entry =
   (** Evaluation command. *)
   | Eval  of loc * Reduction.red_cfg * term
   (** Test command. *)
-  | Check of loc * is_assertion * should_fail * test
+  | Check of loc * should_fail * is_negated * test
   (** Type inference command. *)
   | Infer of loc * Reduction.red_cfg * term
   (** Printing command. *)

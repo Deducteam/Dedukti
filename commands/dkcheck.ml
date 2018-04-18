@@ -157,7 +157,7 @@ let _ =
       , "CMD Set the external confluence checker command to CMD" )
     ; ( "-nl"
       , Arg.Set Rule.allow_conditional
-      , " Allow non conditional rewriting rules" )
+      , " Allow conditional rewriting rules" )
     ; ( "--beautify"
       , Arg.Set beautify
       , " Pretty printer. Print on the standard output" )]
