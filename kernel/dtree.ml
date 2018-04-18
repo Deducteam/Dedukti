@@ -359,15 +359,15 @@ let specialize_AC (mx:matrix) (c:int) (case:case) : matrix * matrix option =
     | CDB    (nargs,n)     -> nargs, filter_AC_on_bound_variable nargs n
     | CConst (nargs,cst,_) -> nargs, filter_AC_on_pattern        nargs cst  in
   let rules_suc, rules_def = partition_AC_rules c part_f (mx.first::mx.others) in
-  let add_args = nargs - (match case with CConst(_,_,true) -> 1 | _ -> 0) in
+  let nargs = nargs - (match case with CConst(_,_,true) -> 1 | _ -> 0) in
   let new_cn = match case with
-    | CLam -> spec_col_depth_l c          mx.col_depth
-    | _    -> spec_col_depth   c add_args mx.col_depth  in
+    | CLam -> spec_col_depth_l c       mx.col_depth
+    | _    -> spec_col_depth   c nargs mx.col_depth  in
   match rules_suc with
   | [] -> assert false
   | first::others ->
-     { first =            specialize_AC_rule case c add_args  first;
-       others = List.map (specialize_AC_rule case c add_args) others;
+     { first =            specialize_AC_rule case c nargs  first;
+       others = List.map (specialize_AC_rule case c nargs) others;
        col_depth = new_cn;
      },
      (match rules_def with
@@ -497,28 +497,28 @@ let choose_column mx =
 let rec to_dtree get_algebra (mx:matrix) : dtree =
   let is_AC cst = is_AC (get_algebra cst) in
   match choose_column mx with
-    (* There are only variables on the first line of the matrix *)
-  | None   -> Test ( mx.first.name,
-                     get_first_matching_problem get_algebra mx,
-                     get_first_constraints mx,
-                     get_first_term mx,
-                     map_opt (to_dtree get_algebra) (pop mx) )
+  (* There are only variables on the first line of the matrix *)
+  | None   -> Test (mx.first.name,
+                    get_first_matching_problem get_algebra mx,
+                    get_first_constraints mx,
+                    get_first_term mx,
+                    map_opt (to_dtree get_algebra) (pop mx) )
   (* Pattern on the first line at column c *)
   | Some c ->
-     match mx.first.pats.(c) with
-     | LACSet (_,[]) ->
-        let mx_suc, mx_def = specialize_ACEmpty mx c in
-        ACEmpty (c, to_dtree get_algebra mx_suc, map_opt (to_dtree get_algebra) mx_def)
-     | LACSet (_,l) ->
-        let case = partition_AC is_AC l in
-        let mx_suc, mx_def = specialize_AC mx c case in
-        Fetch (c, case, to_dtree get_algebra mx_suc, map_opt (to_dtree get_algebra) mx_def)
-     | _ ->
-        (* Carry parameter (false) above  *)
-        let cases = partition true is_AC mx c in
-        let aux ca = ( ca , to_dtree get_algebra (specialize mx c ca) ) in
-        Switch (c, List.map aux cases, map_opt (to_dtree get_algebra) (filter_default mx c) )
-
+    match mx.first.pats.(c) with
+    | LACSet (_,[]) ->
+      let mx_suc, mx_def = specialize_ACEmpty mx c in
+      ACEmpty (c, to_dtree get_algebra mx_suc, map_opt (to_dtree get_algebra) mx_def)
+    | LACSet (_,l) ->
+      let case = partition_AC is_AC l in
+      let mx_suc, mx_def = specialize_AC mx c case in
+      Fetch (c, case, to_dtree get_algebra mx_suc, map_opt (to_dtree get_algebra) mx_def)
+    | _ ->
+      (* Carry parameter (false) above  *)
+      let cases = partition true is_AC mx c in
+      let aux ca = ( ca , to_dtree get_algebra (specialize mx c ca) ) in
+      Switch (c, List.map aux cases, map_opt (to_dtree get_algebra) (filter_default mx c) )
+        
 
 (******************************************************************************)
 

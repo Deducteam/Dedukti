@@ -25,13 +25,13 @@ let pp_entry fmt e =
   let open Format in
   match e with
   | Decl(_,id,Signature.Static,ty) ->
-      fprintf fmt "@[<2>%a :@ %a.@]@.@." pp_ident id pp_term ty
+    fprintf fmt "@[<2>%a :@ %a.@]@.@." pp_ident id pp_term ty
   | Decl(_,id,Signature.Definable Free,ty) ->
-      fprintf fmt "@[<2>def %a :@ %a.@]@.@." pp_ident id pp_term ty
+    fprintf fmt "@[<2>def %a :@ %a.@]@.@." pp_ident id pp_term ty
   | Decl(_,id,Signature.Definable AC,ty) ->
-      fprintf fmt "@[<2>defac %a :@ %a.@]@.@." pp_ident id pp_term ty
+    fprintf fmt "@[<2>defac %a :@ %a.@]@.@." pp_ident id pp_term ty
   | Decl(_,id,Signature.Definable(ACU(neu)),ty) ->
-      fprintf fmt "@[<2>defacu[%a] %a :@ %a.@]@.@." pp_term neu pp_ident id pp_term ty
+    fprintf fmt "@[<2>defacu[%a] %a :@ %a.@]@.@." pp_term neu pp_ident id pp_term ty
   | Def(_,id,opaque,ty,te)  ->
     let key = if opaque then "thm" else "def" in
     begin

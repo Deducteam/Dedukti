@@ -182,14 +182,14 @@ let print_entry fmt e =
   let open Format in
   match e with
   | Decl(_,id,Signature.Static,ty) ->
-      fprintf fmt "@[<2>%a :@ %a.@]@.@." pp_ident id pp_term ty
+    fprintf fmt "@[<2>%a :@ %a.@]@.@." pp_ident id pp_term ty
   | Decl(_,id,Signature.Definable Free,ty) ->
-      fprintf fmt "@[<2>def %a :@ %a.@]@.@." pp_ident id pp_term ty
+    fprintf fmt "@[<2>def %a :@ %a.@]@.@." pp_ident id pp_term ty
   | Decl(_,id,Signature.Definable AC,ty) ->
-      fprintf fmt "@[<2>defac %a :@ %a.@]@.@." pp_ident id pp_term ty
+    fprintf fmt "@[<2>defac %a :@ %a.@]@.@." pp_ident id pp_term ty
   | Decl(_,id,Signature.Definable(ACU(neu)),ty) ->
-      fprintf fmt "@[<2>defacu[%a] %a :@ %a.@]@.@." pp_term neu pp_ident id pp_term ty
-  | Def(_,id,opaque,ty,te)  ->
+    fprintf fmt "@[<2>defacu[%a] %a :@ %a.@]@.@." pp_term neu pp_ident id pp_term ty
+  | Def(_,id,opaque,ty,te) ->
     let key = if opaque then "thm" else "def" in
     begin
       match ty with
@@ -199,30 +199,30 @@ let print_entry fmt e =
                      print_ident id print_term ty print_term te
     end
   | Rules(rs)               ->
-      fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) rs
+    fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) rs
   | Eval(_,cfg,te)          ->
-      fprintf fmt "#EVAL%a %a.@." print_red_cfg cfg print_term te
+    fprintf fmt "#EVAL%a %a.@." print_red_cfg cfg print_term te
   | Infer(_,cfg,te)         ->
-      fprintf fmt "#INFER%a %a.@." print_red_cfg cfg print_term te
+    fprintf fmt "#INFER%a %a.@." print_red_cfg cfg print_term te
   | Check(_,assrt,neg,test) ->
-      let cmd = if assrt then "#ASSERT" else "#CHECK" in
-      let neg = if neg then "NOT" else "" in
-      begin
-        match test with
-        | Convert(t1,t2) ->
-            fprintf fmt "%s%s %a ==@ %a.@." cmd neg print_term t1 print_term t2
-        | HasType(te,ty) ->
-            fprintf fmt "%s%s %a ::@ %a.@." cmd neg print_term te print_term ty
-      end
+    let cmd = if assrt then "#ASSERT" else "#CHECK" in
+    let neg = if neg then "NOT" else "" in
+    begin
+      match test with
+      | Convert(t1,t2) ->
+        fprintf fmt "%s%s %a ==@ %a.@." cmd neg print_term t1 print_term t2
+      | HasType(te,ty) ->
+        fprintf fmt "%s%s %a ::@ %a.@." cmd neg print_term te print_term ty
+    end
   | DTree(_,m,v)            ->
-      begin
-        match m with
-        | None   -> fprintf fmt "#GDT %a.@." print_ident v
-        | Some m -> fprintf fmt "#GDT %a.%a.@." print_mident m print_ident v
-      end
+    begin
+      match m with
+      | None   -> fprintf fmt "#GDT %a.@." print_ident v
+      | Some m -> fprintf fmt "#GDT %a.%a.@." print_mident m print_ident v
+    end
   | Print(_, str)           ->
-      fprintf fmt "#PRINT %S.@." str
+    fprintf fmt "#PRINT %S.@." str
   | Name(_,_)               ->
     ()
   | Require(_, md) ->
-      fprintf fmt "#REQUIRE %a.@." print_mident md
+    fprintf fmt "#REQUIRE %a.@." print_mident md
