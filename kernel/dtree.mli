@@ -9,8 +9,8 @@ type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityDBMismatch     of loc * name * int
   | AritySymbolMismatch of loc * name * name
-  | ArityInnerMismatch of loc * ident * ident
-  | ACLessThanTwoArity  of loc * name * int
+  | ArityInnerMismatch  of loc * ident * ident
+  | ACSymbolRewritten   of loc * name * int
 
 (** {2 Decision Trees} *)
 

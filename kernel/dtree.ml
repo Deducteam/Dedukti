@@ -9,7 +9,7 @@ type dtree_error =
   | ArityDBMismatch     of loc * name * int
   | AritySymbolMismatch of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
-  | ACLessThanTwoArity  of loc * name * int
+  | ACSymbolRewritten   of loc * name * int
 
 exception DtreeExn of dtree_error
 
@@ -69,6 +69,43 @@ type matrix =
     first    : rule_infos ;
     others   : rule_infos list ; }
 
+(** Merge the first two argument of AC headed patterns into the LACSet representation *)
+let merge_AC_arguments =
+  let aux r =
+    let f = function 0 ->  mk_AC_set r.cst r.pats.(0) r.pats.(1) | i -> r.pats.(i-1) in
+    let npats = Array.init (Array.length r.pats - 1) f in
+    {r with pats=npats} in
+  List.map aux
+
+let is_var = function
+  | LJoker -> true
+  | LVar (_,_,[]) -> true
+  | _ -> false
+
+let expand_AC_rules =
+  let rec aux acc = function
+    | [] -> List.rev acc
+    | r :: tl ->
+      assert (Array.length r.pats == 1);
+      match r.pats.(0) with
+      | LACSet (cst,args) ->
+        let new_acc =
+          if List.exists is_var args then r :: acc
+          else (* +{pats} --> r    where pats contains no variable. *)
+            let newr = (* becomes  +{pats,x} --> + r x  with x fresh variable *)
+              { r with
+                esize = r.esize + 1;
+                rhs   = mk_App (mk_Const dloc cst) r.rhs [mk_DB dloc dmark r.esize];
+                pats = [| LACSet (cst, LVar(dmark,r.esize,[]) :: args) |]
+              } in
+            newr :: r :: acc
+      (* +{pats} where pats contains no variable. *)
+        in aux (new_acc) tl
+      | _ -> assert false
+  in
+  aux []
+
+
 (* mk_matrix lst builds a matrix out of the non-empty list of rules [lst]
 *  It is checked that all rules have the same head symbol and arity.
 *)
@@ -77,12 +114,12 @@ let mk_matrix (ac:bool) (arity:int) (ri:rule_infos list) : matrix =
   assert (rules <> []); (* At least one rule should correspond to the given arity. *)
   let f r =
     let ar = Array.length r.pats in
-    assert (ar <= arity); (* This guaranted by  *)
+    assert (ar <= arity); (* This guaranted in the of_rules function.  *)
     if ar == arity then r
     else (* Edit rule r with too low arity : add extra arguments*)
       let tail = Array.init (arity-ar) (fun i -> LVar(dmark, i + r.esize,[])) in
       let new_args =
-        List.map (function LVar(x,n,[]) ->  mk_DB dloc x n | _ -> assert false)
+        List.map (function LVar(x,n,[]) -> mk_DB dloc x n | _ -> assert false)
           (Array.to_list tail) in
       {r with
        esize = r.esize + arity - ar;
@@ -90,14 +127,9 @@ let mk_matrix (ac:bool) (arity:int) (ri:rule_infos list) : matrix =
        pats  = Array.append r.pats tail
       }
   in
-  let g r =
-    let p0 = mk_AC_set r.cst r.pats.(0) r.pats.(1) in
-    {r with pats=Array.init (Array.length r.pats - 1)
-                (fun i -> if i = 0 then p0 else r.pats.(i-1))
-    }
-    in
   let rules = List.map f rules in
-  let rules = if ac then List.map g rules else rules in
+  let rules = if ac && arity > 1 then merge_AC_arguments rules else rules in
+  let rules = if ac && arity == 2 then expand_AC_rules rules else rules in
   { first=List.hd rules; others=List.tl rules; col_depth=Array.make arity 0; }
 
 (* Remove a line of the matrix [mx] and return None if the new matrix is Empty. *)
@@ -507,17 +539,19 @@ let of_rules get_algebra = function
     try
       let name = r.cst in
       let ac = is_AC (get_algebra name) in
-      let arities =
-        List.map
-          (fun x ->
-             if not (name_eq x.cst name)
-             then raise (DtreeExn (HeadSymbolMismatch (x.l,x.cst,name)));
-             let arity = List.length x.args in
-             if ac && arity < 2
-             then raise (DtreeExn (ACLessThanTwoArity(x.l,x.cst,arity)));
-             arity)
-          rs in
-      let sorted_arities = List.fold_left add [] arities in
+      let arities = ref [] in
+      List.iter
+        (fun x ->
+           if not (name_eq x.cst name)
+           then raise (DtreeExn (HeadSymbolMismatch (x.l,x.cst,name)));
+           let arity = List.length x.args in
+           if ac && arity == 0
+           then raise (DtreeExn (ACSymbolRewritten(x.l,x.cst,arity)));
+           if ac && arity == 1
+           then arities := add !arities 2; (* Also add a rule of arity 2. *)
+           arities := add !arities arity)
+        rs;
+      let sorted_arities = List.fold_left add [] !arities in
       (* reverse sorted list of all rewrite rules arities. *)
       let aux ar =
         let m = mk_matrix ac ar rs in

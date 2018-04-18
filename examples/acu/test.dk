@@ -49,7 +49,7 @@ defac mset [N].
 
 
 defac min [N].
-[] min 0 --> (x : N => x)
+[]    min 0           --> (x : N => x)
 [x]   min 0     x     --> 0
 [x,y] min (S x) (S y) --> S (min x y).
 #GDT min.
