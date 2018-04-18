@@ -140,7 +140,7 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
       else
         match t1', t2' with
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
-        | DB (_,_,n), DB (_,_,n') when ( n=n' ) -> pseudo_u sg sigma lst
+        | DB (_,_,n), DB (_,_,n') when n=n' -> pseudo_u sg sigma lst
         | Const (_,cst), Const (_,cst') when
             ( name_eq cst cst' ) ->
           pseudo_u sg sigma lst
@@ -199,7 +199,6 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
           ( debug 2 "Ignoring non injective constraint: %a ~ %a"
               pp_term t1' pp_term t2';
             pseudo_u sg sigma lst )
-
         | _, App (Const (l,cst),_,_) when (not (Signature.is_injective sg l cst)) ->
           ( debug 2 "Ignoring non injective constraint: %a ~ %a"
               pp_term t1' pp_term t2';
@@ -276,10 +275,8 @@ let unshift_n sg n te =
   try Subst.unshift n te
   with Subst.UnshiftExn -> Subst.unshift n (snf sg te)
 
-type contexted_type = typ * partial_context * constraints
-
 let rec infer_pattern sg (delta:partial_context) (sigma:context2)
-    (lst:constraints) (pat:pattern) : contexted_type =
+    (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
   match pat with
   | Pattern (l,cst,args) ->
     let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)

@@ -98,7 +98,7 @@ let rec pp_wf_pattern fmt wf_pattern =
     fprintf fmt "%a[%i] %a" pp_ident x n (pp_list " " pp_print_int) lst
   | LPattern (n, pats) when Array.length pats = 0 -> fprintf fmt "%a" pp_name n
   | LPattern (n, pats) -> fprintf fmt "%a %a" pp_name n
-                                  (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
+                            (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
   | LLambda (x, p) -> fprintf fmt "%a => %a" pp_ident x pp_wf_pattern p
   | LBoundVar(x, n, pats) when Array.length pats = 0 -> fprintf fmt "%a[%i]" pp_ident x n
   | LBoundVar(x,n, pats) ->
