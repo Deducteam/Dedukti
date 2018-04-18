@@ -3,17 +3,17 @@ open Format
 open Term
 
 type pattern =
-  | Var         of loc * ident * int * pattern list (* Y x1 ... xn *)
-  | Pattern     of loc * name * pattern list
-  | Lambda      of loc * ident * pattern
-  | Brackets    of term
+  | Var      of loc * ident * int * pattern list (* Y x1 ... xn *)
+  | Pattern  of loc * name * pattern list
+  | Lambda   of loc * ident * pattern
+  | Brackets of term
 
 type wf_pattern =
   | LJoker
-  | LVar         of ident * int * int list
-  | LLambda      of ident * wf_pattern
-  | LPattern     of name * wf_pattern array
-  | LBoundVar    of ident * int * wf_pattern array
+  | LVar      of ident * int * int list
+  | LLambda   of ident * wf_pattern
+  | LPattern  of name * wf_pattern array
+  | LBoundVar of ident * int * wf_pattern array
 
 type rule_name = Delta of name | Gamma of bool * name
 
@@ -48,15 +48,15 @@ type rule_infos = {
 let infer_rule_context ri =
   let res = Array.make ri.esize (mk_ident "_") in
   let rec aux k = function
-  | LJoker -> ()
-  | LVar (name,n,args) -> res.(n-k) <- name
-  | LLambda (_,body) -> aux (k+1) body
-  | LPattern  (_  ,args) -> Array.iter (aux k) args
-  | LBoundVar (_,_,args) -> Array.iter (aux k) args
+    | LJoker -> ()
+    | LVar (name,n,args) -> res.(n-k) <- name
+    | LLambda (_,body) -> aux (k+1) body
+    | LPattern  (_  ,args) -> Array.iter (aux k) args
+    | LBoundVar (_,_,args) -> Array.iter (aux k) args
   in
   Array.iter (aux 0) ri.pats;
   List.map (fun i -> (dloc, i)) (Array.to_list res)
-  
+
 
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
@@ -96,9 +96,8 @@ let rec pp_wf_pattern fmt wf_pattern =
   | LVar (x, n, lst) ->
     fprintf fmt "%a[%i] %a" pp_ident x n (pp_list " " pp_print_int) lst
   | LPattern (n, pats) when Array.length pats = 0 -> fprintf fmt "%a" pp_name n
-  | LPattern (n, pats) ->
-    fprintf fmt "%a %a" pp_name n
-      (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
+  | LPattern (n, pats) -> fprintf fmt "%a %a" pp_name n
+                            (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
   | LLambda (x, p) -> fprintf fmt "%a => %a" pp_ident x pp_wf_pattern p
   | LBoundVar(x, n, pats) when Array.length pats = 0 -> fprintf fmt "%a[%i]" pp_ident x n
   | LBoundVar(x,n, pats) ->
@@ -164,7 +163,7 @@ type pattern_info =
   {
     constraints  : constr list;
     context_size : int;
-    arity        : int array
+    arity        : int array;
   }
 
 (* ************************************************************************** *)
@@ -228,8 +227,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       then raise (RuleExn (DistinctBoundVariablesExpected (l,x)));
       let nb_args' = List.length args' in
       if IntHashtbl.mem arity (n-k)
-      then
-        if nb_args' <> IntHashtbl.find arity (n-k)
+      then if nb_args' <> IntHashtbl.find arity (n-k)
         then raise (RuleExn (NonLinearNonEqArguments(l,x)))
         else
           let nvar = fresh_var nb_args' in 
@@ -277,29 +275,27 @@ let check_nb_args (arity:int array) (rhs:term) : unit =
 let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
   let is_linear = List.for_all (function Linearity _ -> false | _ -> true) in
   try
-    begin
-      let esize = List.length r.ctx in
-      let (l,cst,args) = match r.pat with
-        | Pattern (l,cst,args) -> (l, cst, args)
-        | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
-        | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
-      in
-      let (pats2,infos) = check_patterns esize args in
-      
-      (* Checking that Miller variable are correctly applied in lhs *)
-      check_nb_args infos.arity r.rhs;
-      
-      (* Checking if pattern has linearity constraints *)
-      if not (is_linear infos.constraints)
-      then
-        if !allow_non_linear
-        then debug 1 "Non-linear Rewrite Rule detected"
-        else raise (RuleExn (NonLinearRule r));
-      
-      OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;
-           esize = infos.context_size ;
-           pats = Array.of_list pats2 ;
-           constraints = infos.constraints ; }
-    end
+    let esize = List.length r.ctx in
+    let (l,cst,args) = match r.pat with
+      | Pattern (l,cst,args) -> (l, cst, args)
+      | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
+      | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
+    in
+    let (pats2,infos) = check_patterns esize args in
+    
+    (* Checking that Miller variable are correctly applied in lhs *)
+    check_nb_args infos.arity r.rhs;
+    
+    (* Checking if pattern has linearity constraints *)
+    if not (is_linear infos.constraints)
+    then
+      if !allow_non_linear
+      then debug 1 "Non-linear Rewrite Rule detected"
+      else raise (RuleExn (NonLinearRule r));
+    
+    OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;
+         esize = infos.context_size ;
+         pats = Array.of_list pats2 ;
+         constraints = infos.constraints ; }
   with
     RuleExn e -> Err e

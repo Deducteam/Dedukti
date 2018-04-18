@@ -1,5 +1,6 @@
 (** Term reduction and conversion test. *)
 
+open Basic
 open Term
 
 type red_strategy = Hnf | Snf | Whnf
@@ -11,7 +12,7 @@ type red_cfg = {
   beta : bool
 }
 
-val pp_red_cfg : red_cfg Basic.printer
+val pp_red_cfg : red_cfg printer
 
 (** [beta] flag enables/disables beta reductions.
     [select] = [Some f] restreins rules according to the given filter on names.
@@ -30,5 +31,5 @@ val reduction : red_cfg -> Signature.t -> term -> term
     and using the signature [sg]. *)
 
 val are_convertible : Signature.t -> term -> term -> bool
-(** [are_convertible sg t1 t2] check if [t1] and [t2] are convertible using the
-    signature [sg]. *)
+(** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
+    or not in the signature [sg]. *)

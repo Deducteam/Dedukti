@@ -7,16 +7,16 @@ open Dtree
 
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
-  | UnmarshalSysError of loc * string * string
-  | UnmarshalUnknown of loc * string
-  | SymbolNotFound of loc * name
-  | AlreadyDefinedSymbol of loc * ident
-  | CannotMakeRuleInfos of Rule.rule_error
-  | CannotBuildDtree of Dtree.dtree_error
+  | UnmarshalSysError     of loc * string * string
+  | UnmarshalUnknown      of loc * string
+  | SymbolNotFound        of loc * name
+  | AlreadyDefinedSymbol  of loc * ident
+  | CannotMakeRuleInfos   of Rule.rule_error
+  | CannotBuildDtree      of Dtree.dtree_error
   | CannotAddRewriteRules of loc * ident
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
-  | ConfluenceErrorRules of loc * rule_infos list * Confluence.confluence_error
-  | GuardNotSatisfied of loc * term * term
+  | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
+  | GuardNotSatisfied     of loc * term * term
 
 exception SignatureError of signature_error
 
@@ -149,8 +149,8 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     let infos = try ( HId.find env (id r.cst) )
       with Not_found -> raise (SignatureError (SymbolNotFound(r.l, r.cst))) in
     let ty = infos.ty in
-    if (infos.stat = Static) then
-      raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
+    if infos.stat = Static
+    then raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
     let rules = match infos.rule_opt_info with
       | None -> rs
       | Some(mx,_) -> mx@rs
@@ -162,7 +162,6 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 (******************************************************************************)
-
 
 let get_deps sg : string list = (*only direct dependencies*)
   HMd.fold (
@@ -187,8 +186,8 @@ let get_infos sg lc cst =
 
 let is_injective sg lc cst =
   match (get_infos sg lc cst).stat with
-  | Static    -> true
-  | Definable -> false
+  | Static      -> true
+  | Definable   -> false
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
