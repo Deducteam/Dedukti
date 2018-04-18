@@ -42,30 +42,30 @@ let pp_entry fmt e =
                      pp_ident id pp_term ty pp_term te
     end
   | Rules(rs)               ->
-      fprintf fmt "@[<v0>%a@].@.@." (pp_list "" Rule.pp_untyped_rule) rs
+    fprintf fmt "@[<v0>%a@].@.@." (pp_list "" Rule.pp_untyped_rule) rs
   | Eval(_,cfg,te)          ->
-      fprintf fmt "#EVAL%a %a.@." Reduction.pp_red_cfg cfg pp_term te
+    fprintf fmt "#EVAL%a %a.@." Reduction.pp_red_cfg cfg pp_term te
   | Infer(_,cfg,te)         ->
-      fprintf fmt "#INFER%a %a.@." Reduction.pp_red_cfg cfg pp_term te
+    fprintf fmt "#INFER%a %a.@." Reduction.pp_red_cfg cfg pp_term te
   | Check(_,assrt,neg,test) ->
-      let cmd = if assrt then "#ASSERT" else "#CHECK" in
-      let neg = if neg then "NOT" else "" in
-      begin
+    let cmd = if assrt then "#ASSERT" else "#CHECK" in
+    let neg = if neg then "NOT" else "" in
+    begin
         match test with
-        | Convert(t1,t2) ->
+          | Convert(t1,t2) ->
             fprintf fmt "%s%s %a ==@ %a.@." cmd neg pp_term t1 pp_term t2
-        | HasType(te,ty) ->
+          | HasType(te,ty) ->
             fprintf fmt "%s%s %a ::@ %a.@." cmd neg pp_term te pp_term ty
       end
   | DTree(_,m,v)            ->
-      begin
-        match m with
-        | None   -> fprintf fmt "#GDT %a.@." pp_ident v
-        | Some m -> fprintf fmt "#GDT %a.%a.@." pp_mident m pp_ident v
-      end
+    begin
+      match m with
+      | None   -> fprintf fmt "#GDT %a.@." pp_ident v
+      | Some m -> fprintf fmt "#GDT %a.%a.@." pp_mident m pp_ident v
+    end
   | Print(_, str)           ->
-      fprintf fmt "#PRINT %S.@." str
+    fprintf fmt "#PRINT %S.@." str
   | Name(_,_)               ->
-      ()
+    ()
   | Require(_,m)            ->
-      fprintf fmt "#REQUIRE %a.@." pp_mident m
+    fprintf fmt "#REQUIRE %a.@." pp_mident m
