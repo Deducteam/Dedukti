@@ -163,7 +163,6 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
 
 (******************************************************************************)
 
-
 let get_deps sg : string list = (*only direct dependencies*)
   HMd.fold (
     fun md _ lst ->
@@ -187,8 +186,8 @@ let get_infos sg lc cst =
 
 let is_injective sg lc cst =
   match (get_infos sg lc cst).stat with
-  | Static     -> true
-  | Definable  -> false
+  | Static      -> true
+  | Definable   -> false
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
