@@ -125,8 +125,13 @@ let topological_sort graph =
         exit 1
       end;
     if List.mem node visited then visited else
-    let edges = try List.assoc node graph with Not_found -> assert false in
-    node :: List.fold_left (explore (node :: path)) visited edges
+      let edges = try List.assoc node graph with Not_found ->
+        if !ignore then
+          []
+        else
+         (Printf.eprintf "Cannot compute dependencies for the file %S... (maybe you forgot to put it on the command line?)\n%!" node; exit 1)
+      in
+      node :: List.fold_left (explore (node :: path)) visited edges
   in
   List.fold_left (fun visited (n,_) -> explore [] visited n) [] graph
 
