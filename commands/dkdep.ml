@@ -21,38 +21,16 @@ type deps =
 
 type t = (mident, deps) Hashtbl.t
 
-let deps : t = Hashtbl.create 81
-
-(*
-let update_up item up =
-  if Hashtbl.mem deps item then
-    let dep = Hashtbl.find deps item in
-    Hashtbl.replace deps item {dep with up=NameSet.add up dep.up}
-  else
-    Hashtbl.add deps item {up=NameSet.singleton up;down=NameSet.empty}
-
-let update_down item down =
-  if Hashtbl.mem deps item then
-    let dep = Hashtbl.find deps item in
-    Hashtbl.replace deps item {dep with down=NameSet.add down dep.down}
-  else
-    Hashtbl.add deps item {down=NameSet.singleton down;up=NameSet.empty}
-
-let update_deps item dep =
-  update_down item dep;
-  update_up dep item
-*)
-
 let empty_deps () = {file=""; deps = MDepSet.empty; ideps=Hashtbl.create 81}
 
+let deps = Hashtbl.create 11
+
 (** [deps] contains the dependencies found so far, reset before each file. *)
-let current_mod  : mident    ref = ref (mk_mident "<not initialised>")
-let current_deps : deps      ref = ref (empty_deps ())
-let ignore       : bool      ref = ref false
-
-
-let in_deps : mident -> bool = fun n ->
-  MDepSet.exists (fun (md,_) -> mident_eq md n) !current_deps.deps
+let current_mod   : mident    ref = ref (mk_mident "<not initialised>")
+let current_name  : name      ref = ref (mk_name (!current_mod) (mk_ident  "<not initialised>"))
+let current_deps  : deps      ref = ref (empty_deps ())
+let ignore        : bool      ref = ref false
+let process_items : bool      ref = ref false
 
 let add_mdep : mident -> path option -> unit = fun name file ->
   match file with
@@ -85,14 +63,51 @@ let find_dk : mident -> path list -> path option = fun md path ->
 (** [add_dep name] adds the module named [name] to the list of dependencies if
     no corresponding ".dko" file is found in the load path. The dependency is
     not added either if it is already present. *)
-let add_dep : mident -> unit = fun md ->
-  if md = !current_mod || in_deps md then () else
+let add_mdep : mident -> unit = fun md ->
+  if mident_eq md !current_mod then () else
     add_mdep md (find_dk md (get_path ()))
+
+let update_up ideps item up =
+  if Hashtbl.mem ideps item then
+    let idep = Hashtbl.find ideps item in
+    Hashtbl.replace ideps item {idep with up=NameSet.add up idep.up}
+  else
+    Hashtbl.add ideps item {up=NameSet.singleton up;down=NameSet.empty}
+
+let update_down ideps item down =
+  if Hashtbl.mem ideps item then
+    let idep = Hashtbl.find ideps item in
+    Hashtbl.replace ideps item {idep with down=NameSet.add down idep.down}
+  else
+    Hashtbl.add ideps item {down=NameSet.singleton down;up=NameSet.empty}
+
+let find deps md =
+  if Hashtbl.mem deps md then
+    Hashtbl.find deps md
+  else
+    begin
+      Hashtbl.add deps md (empty_deps ());
+      Hashtbl.find deps md
+    end
+
+
+let update_ideps item dep =
+  let ideps = (find deps (md item)).ideps in
+  update_down ideps (id item) dep;
+  let ideps = (find deps (md dep)).ideps in
+  update_up ideps (id dep) item
+
+
+let add_idep : name -> unit = fun dep_name ->
+  update_ideps !current_name dep_name
+
 
 (** Term / pattern / entry traversal commands. *)
 
 let mk_name c =
-  add_dep (md c)
+  add_mdep (md c);
+  if !process_items then
+    add_idep c
 
 let rec mk_term t =
   match t with
@@ -113,12 +128,20 @@ let rec mk_pattern p =
 let mk_rule r =
   mk_pattern r.pat; mk_term r.rhs
 
+let find_rule_name r =
+  let open Rule in
+  match r.pat with
+  | Pattern(_,n,_) -> n
+  | _ -> assert false
+
 let handle_entry e =
+  let name_of_id id = Basic.mk_name !current_mod id in
   match e with
-  | Decl(_,_,_,te)              -> mk_term te
-  | Def(_,_,_,None,te)          -> mk_term te
-  | Def(_,_,_,Some(ty),te)      -> mk_term ty; mk_term te
-  | Rules(rs)                   -> List.iter mk_rule rs
+  | Decl(_,id,_,te)             -> current_name := name_of_id id; mk_term te
+  | Def(_,id,_,None,te)         -> current_name := name_of_id id; mk_term te
+  | Def(_,id,_,Some(ty),te)     -> current_name := name_of_id id; mk_term ty; mk_term te
+  | Rules([])                   -> ()
+  | Rules(r::_ as rs)           -> current_name := find_rule_name r; List.iter mk_rule rs
   | Eval(_,_,te)                -> mk_term te
   | Infer (_,_,te)              -> mk_term te
   | Check(_,_,_,Convert(t1,t2)) -> mk_term t1; mk_term t2
@@ -126,20 +149,20 @@ let handle_entry e =
   | DTree(_,_,_)                -> ()
   | Print(_,_)                  -> ()
   | Name(_,_)                   -> ()
-  | Require(_,md)               -> add_dep md
+  | Require(_,md)               -> add_mdep md
 
 let handle_file : string -> unit = fun file ->
   try
     (* Initialisation. *)
     let md = Basic.mk_mident file in
     current_mod := md;
-    current_deps := empty_deps ();
+    current_deps := find deps md;
     current_deps := {!current_deps with file};
     (* Actully parsing and gathering data. *)
     let input = open_in file in
     Parser.handle_channel md handle_entry input;
     close_in input;
-    Hashtbl.add deps md !current_deps
+    Hashtbl.replace deps md !current_deps
   with
   | Parse_error(loc,msg)      -> Printf.eprintf "Parse error...\n%!"; exit 1
   | Sys_error err             -> Printf.eprintf "ERROR %s.\n%!" err; exit 1
@@ -149,11 +172,13 @@ let handle_file : string -> unit = fun file ->
 
 let output_deps : out_channel -> t -> unit = fun oc data ->
   let objfile src = Filename.chop_extension src ^ ".dko" in
-  let output_line : mident -> deps -> unit = fun _ deps ->
+  let output_line : mident -> deps -> unit = fun md deps ->
     let file = deps.file in
     let deps = List.map (fun (_,src) -> objfile src) (MDepSet.elements deps.deps) in
     let deps = String.concat " " deps in
-    Printf.fprintf oc "%s : %s %s\n" (objfile file) file deps
+    try
+      Printf.fprintf oc "%s : %s %s\n" (objfile file) file deps
+    with _ -> () (* Dependency is missing *)
   in
   Hashtbl.iter output_line data
 
@@ -199,7 +224,10 @@ let _ =
       , " If some dependencies are not found, ignore them" )
     ; ( "-I"
       , Arg.String Basic.add_path
-      , "DIR Add the directory DIR to the load path" ) ]
+      , "DIR Add the directory DIR to the load path" )
+    ; ( "--items"
+      , Arg.Set process_items
+      , "Compute also item dependencies" ) ]
   in
   let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...\n" in
   let usage = usage ^ "Available options:" in
