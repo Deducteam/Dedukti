@@ -4,28 +4,30 @@ open Rule
 open Parser
 open Entry
 
-
+type path = string
 
 (** [deps] contains the dependencies found so far, reset before each file. *)
-let current_mod  : string                 ref = ref "<not initialised>"
-let current_deps : (string * string) list ref = ref []
+let current_mod  : mident                 ref = ref (mk_mident "<not initialised>")
+let current_deps : (mident * path) list   ref = ref []
 let ignore       : bool                   ref = ref false
 
-let in_deps : string -> bool = fun n ->
+
+let in_deps : mident -> bool = fun n ->
   List.mem_assoc n !current_deps
 
-let add_dep : string -> string option -> unit = fun name file ->
-  let cmp (s1,_) (s2,_) = String.compare s1 s2 in
+let add_dep : mident -> path option -> unit = fun name file ->
+  let cmp (s1,_) (s2,_) = compare s1 s2 in
   match file with
   | None -> ()
   | Some file ->
     current_deps := List.sort cmp ((name, file) :: !current_deps)
 
-(** [locate name path] looks for the ".dk" file corresponding to the module
+(** [find_dk md path] looks for the ".dk" file corresponding to the module
     named [name] in the directories of [path]. If no corresponding file is
     found, or if there are several possibilities, the program fails with a
     graceful error message. *)
-let find_dk : string -> string list -> string option = fun name path ->
+let find_dk : mident -> path list -> path option = fun md path ->
+  let name = string_of_mident md in
   let file_name = name ^ ".dk" in
   let path = Filename.current_dir_name :: path in
   let path = List.sort_uniq String.compare path in
@@ -45,14 +47,14 @@ let find_dk : string -> string list -> string option = fun name path ->
 (** [add_dep name] adds the module named [name] to the list of dependencies if
     no corresponding ".dko" file is found in the load path. The dependency is
     not added either if it is already present. *)
-let add_dep : string -> unit = fun name ->
-  if name = !current_mod || in_deps name then () else
-  add_dep name (find_dk name (get_path ()))
+let add_dep : mident -> unit = fun md ->
+  if md = !current_mod || in_deps md then () else
+  add_dep md (find_dk md (get_path ()))
 
 (** Term / pattern / entry traversal commands. *)
 
 let mk_name c =
-  add_dep (string_of_mident (md c))
+  add_dep (md c)
 
 let rec mk_term t =
   match t with
@@ -86,21 +88,20 @@ let handle_entry e =
   | DTree(_,_,_)                -> ()
   | Print(_,_)                  -> ()
   | Name(_,_)                   -> ()
-  | Require(_,md)               -> add_dep (string_of_mident md)
+  | Require(_,md)               -> add_dep md
 
-type dep_data = string * (string * (string * string) list)
+type dep_data = mident * (path * (mident * path) list)
 
 let handle_file : string -> dep_data = fun file ->
   try
     (* Initialisation. *)
     let md = Basic.mk_mident file in
-    let name = string_of_mident md in
-    current_mod := name; current_deps := [];
+    current_mod := md; current_deps := [];
     (* Actully parsing and gathering data. *)
     let input = open_in file in
     Parser.handle_channel md handle_entry input;
     close_in input;
-    (name, (file, !current_deps))
+    (md, (file, !current_deps))
   with
   | Parse_error(loc,msg)      -> Printf.eprintf "Parse error...\n%!"; exit 1
   | Sys_error err             -> Printf.eprintf "ERROR %s.\n%!" err; exit 1
