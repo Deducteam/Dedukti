@@ -6,21 +6,59 @@ open Entry
 
 type path = string
 
+module MDepSet = Set.Make(struct type t = Basic.mident * path let compare = compare end)
+
+module NameSet = Set.Make(struct type t = Basic.name let compare = compare end)
+
+type ideps = {up: NameSet.t ; down: NameSet.t}
+
+type deps =
+  {
+    file:path; (** path associated to the module *)
+    deps: MDepSet.t; (** pairs of module and its associated path *)
+    ideps: (ident, ideps) Hashtbl.t;
+  }
+
+type t = (mident, deps) Hashtbl.t
+
+let deps : t = Hashtbl.create 81
+
+(*
+let update_up item up =
+  if Hashtbl.mem deps item then
+    let dep = Hashtbl.find deps item in
+    Hashtbl.replace deps item {dep with up=NameSet.add up dep.up}
+  else
+    Hashtbl.add deps item {up=NameSet.singleton up;down=NameSet.empty}
+
+let update_down item down =
+  if Hashtbl.mem deps item then
+    let dep = Hashtbl.find deps item in
+    Hashtbl.replace deps item {dep with down=NameSet.add down dep.down}
+  else
+    Hashtbl.add deps item {down=NameSet.singleton down;up=NameSet.empty}
+
+let update_deps item dep =
+  update_down item dep;
+  update_up dep item
+*)
+
+let empty_deps () = {file=""; deps = MDepSet.empty; ideps=Hashtbl.create 81}
+
 (** [deps] contains the dependencies found so far, reset before each file. *)
-let current_mod  : mident                 ref = ref (mk_mident "<not initialised>")
-let current_deps : (mident * path) list   ref = ref []
-let ignore       : bool                   ref = ref false
+let current_mod  : mident    ref = ref (mk_mident "<not initialised>")
+let current_deps : deps      ref = ref (empty_deps ())
+let ignore       : bool      ref = ref false
 
 
 let in_deps : mident -> bool = fun n ->
-  List.mem_assoc n !current_deps
+  MDepSet.exists (fun (md,_) -> mident_eq md n) !current_deps.deps
 
-let add_dep : mident -> path option -> unit = fun name file ->
-  let cmp (s1,_) (s2,_) = compare s1 s2 in
+let add_mdep : mident -> path option -> unit = fun name file ->
   match file with
   | None -> ()
   | Some file ->
-    current_deps := List.sort cmp ((name, file) :: !current_deps)
+    current_deps := {!current_deps with deps = MDepSet.add (name, file) !current_deps.deps}
 
 (** [find_dk md path] looks for the ".dk" file corresponding to the module
     named [name] in the directories of [path]. If no corresponding file is
@@ -49,7 +87,7 @@ let find_dk : mident -> path list -> path option = fun md path ->
     not added either if it is already present. *)
 let add_dep : mident -> unit = fun md ->
   if md = !current_mod || in_deps md then () else
-  add_dep md (find_dk md (get_path ()))
+    add_mdep md (find_dk md (get_path ()))
 
 (** Term / pattern / entry traversal commands. *)
 
@@ -90,18 +128,18 @@ let handle_entry e =
   | Name(_,_)                   -> ()
   | Require(_,md)               -> add_dep md
 
-type dep_data = mident * (path * (mident * path) list)
-
-let handle_file : string -> dep_data = fun file ->
+let handle_file : string -> unit = fun file ->
   try
     (* Initialisation. *)
     let md = Basic.mk_mident file in
-    current_mod := md; current_deps := [];
+    current_mod := md;
+    current_deps := empty_deps ();
+    current_deps := {!current_deps with file};
     (* Actully parsing and gathering data. *)
     let input = open_in file in
     Parser.handle_channel md handle_entry input;
     close_in input;
-    (md, (file, !current_deps))
+    Hashtbl.add deps md !current_deps
   with
   | Parse_error(loc,msg)      -> Printf.eprintf "Parse error...\n%!"; exit 1
   | Sys_error err             -> Printf.eprintf "ERROR %s.\n%!" err; exit 1
@@ -109,14 +147,15 @@ let handle_file : string -> dep_data = fun file ->
 
 (** Output main program. *)
 
-let output_deps : out_channel -> dep_data list -> unit = fun oc data ->
+let output_deps : out_channel -> t -> unit = fun oc data ->
   let objfile src = Filename.chop_extension src ^ ".dko" in
-  let output_line : dep_data -> unit = fun (name, (file, deps)) ->
-    let deps = List.map (fun (_,src) -> objfile src) deps in
+  let output_line : mident -> deps -> unit = fun _ deps ->
+    let file = deps.file in
+    let deps = List.map (fun (_,src) -> objfile src) (MDepSet.elements deps.deps) in
     let deps = String.concat " " deps in
     Printf.fprintf oc "%s : %s %s\n" (objfile file) file deps
   in
-  List.iter output_line data
+  Hashtbl.iter output_line data
 
 let topological_sort graph =
   let rec explore path visited node =
@@ -132,12 +171,15 @@ let topological_sort graph =
         else
          (Printf.eprintf "Cannot compute dependencies for the file %S... (maybe you forgot to put it on the command line?)\n%!" node; exit 1)
       in
-      node :: List.fold_left (explore (node :: path)) visited edges
+      node :: List.fold_left (explore (node :: path)) visited (List.map snd edges)
   in
   List.fold_left (fun visited (n,_) -> explore [] visited n) [] graph
 
-let output_sorted : out_channel -> dep_data list -> unit = fun oc data ->
-  let deps = List.map (fun (_,(f,deps)) -> (f, List.map snd deps)) data in
+let output_sorted : out_channel -> t -> unit = fun oc data ->
+  let to_graph _ deps graph =
+    (deps.file, MDepSet.elements deps.deps)::graph
+  in
+  let deps = Hashtbl.fold to_graph data [] in
   let deps = List.rev (topological_sort deps) in
   Printf.printf "%s\n" (String.concat " " deps)
 
@@ -167,7 +209,7 @@ let _ =
     List.rev !files
   in
   (* Actual work. *)
-  let dep_data = List.map handle_file files in
+  List.iter handle_file files;
   let output_fun = if !sorted then output_sorted else output_deps in
-  output_fun !output dep_data;
+  output_fun !output deps;
   close_out !output
