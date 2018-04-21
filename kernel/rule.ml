@@ -17,7 +17,7 @@ type wf_pattern =
 
 type rule_name = Delta of name | Gamma of bool * name
 
-type condition = {left:term; right:term; is_negated: bool}
+type condition = {left:term; right:term}
 
 type 'a rule =
   {
@@ -32,7 +32,7 @@ type untyped_rule = untyped_context rule
 
 type typed_rule = typed_context rule
 
-type constr = Convertible of term * term * should_fail * is_negated
+type constr = Convertible of term * term * should_fail
 (** Condition(t1,t2,b) is satisfied if t1 is convertible with t2, otherwise, b indicates if it should fails *)
 
 type rule_infos = {
@@ -236,7 +236,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
         then raise (RuleExn (NonLinearNonEqArguments(l,x)))
         else
           let nvar = fresh_var nb_args' in
-          constraints := Convertible(mk_DB dloc dmark nvar, mk_DB dloc dmark (n-k), false, false) :: !constraints;
+          constraints := Convertible(mk_DB dloc dmark nvar, mk_DB dloc dmark (n-k), false) :: !constraints;
           LVar(x, nvar + k, args')
       else
         let _ = IntHashtbl.add arity (n-k) nb_args' in
@@ -247,7 +247,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
         with Subst.UnshiftExn -> raise (RuleExn (VariableBoundOutsideTheGuard t))
       in
       let nvar = fresh_var 0 in
-      constraints := Convertible (mk_DB dloc dmark nvar, unshifted, true, false) :: !constraints;
+      constraints := Convertible (mk_DB dloc dmark nvar, unshifted, true) :: !constraints;
       LVar(bracket_ident, nvar + k, [])
     | Pattern (_,n,args) -> LPattern(n, Array.of_list  (List.map (aux k) args))
   in
@@ -286,7 +286,7 @@ let to_rule_infos r =
       in
       let (pats2,infos) = check_patterns esize args in
       let get_constraint constraints = function
-        | {left;right;is_negated} -> Convertible(left,right, false, is_negated)::constraints
+        | {left;right} -> Convertible(left,right, false)::constraints
       in
       let get_constraints = List.fold_left get_constraint infos.constraints r.cond in
       (* Checking that Miller variable are correctly applied in lhs *)

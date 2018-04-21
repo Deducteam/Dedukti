@@ -42,7 +42,6 @@ let mk_config loc id1 id2_opt =
 %token COMMA
 %token COLON
 %token EQUAL
-%token NOTEQUAL
 %token ARROW
 %token FATARROW
 %token LONGARROW
@@ -159,9 +158,7 @@ param:
 
 cond:
   | l=term EQUAL r=term
-      {(l,r,false)}
-  | l=term NOTEQUAL r=term
-      {(l,r,true)}
+      {(l,r)}
 
 guard:
   | WHEN separated_nonempty_list (AND, cond)

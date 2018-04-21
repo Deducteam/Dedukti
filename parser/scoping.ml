@@ -124,7 +124,7 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pcond,pri:prule) : untyped_rule 
   let cond_of_guard = function
     | None -> []
     | Some(cs) ->
-      let to_cond (t1,t2,b) = {left=t_of_pt md idents t1;right=t_of_pt md idents t2;is_negated=b} in
+      let to_cond (t1,t2) = {left=t_of_pt md idents t1;right=t_of_pt md idents t2} in
       List.map to_cond cs
   in
   let cond = cond_of_guard pcond in

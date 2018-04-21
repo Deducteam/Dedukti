@@ -31,7 +31,6 @@ rule token = parse
   | ','         { COMMA         }
   | ':'         { COLON         }
   | "=="        { EQUAL         }
-  | "!="        { NOTEQUAL      }
   | '['         { LEFTSQU       }
   | ']'         { RIGHTSQU      }
   | '{'         { LEFTBRA       }

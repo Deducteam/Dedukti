@@ -60,7 +60,7 @@ type pcontext   = pdecl list
 
 let pp_pcontext fmt ctx = pp_list ".\n" (fun out (_,x) -> fprintf fmt "%a" pp_ident x) fmt (List.rev ctx)
 
-type pcond      = preterm * preterm * is_negated
+type pcond      = preterm * preterm
 
 type guard      = pcond list
 
@@ -79,9 +79,8 @@ let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, pguard, prete):prule) 
     let prefix = match fst qid with | None -> "" | Some md -> (string_of_mident md)^"." in
     "{"^prefix^string_of_ident id^"}"
   in
-  let pp_pcond fmt (t1,t2,b) =
-    let op = if b then "==" else "!=" in
-    Format.fprintf fmt "%a %s %a" pp_preterm t1 op pp_preterm t2
+  let pp_pcond fmt (t1,t2) =
+    Format.fprintf fmt "%a == %a" pp_preterm t1 pp_preterm t2
   in
   let pp_guard fmt = function
     | None -> Format.fprintf fmt ""

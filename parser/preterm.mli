@@ -31,7 +31,7 @@ type pcontext = pdecl list
 
 val pp_pcontext : formatter -> pcontext -> unit
 
-type pcond = preterm * preterm * is_negated
+type pcond = preterm * preterm
 
 type guard = pcond list
 
