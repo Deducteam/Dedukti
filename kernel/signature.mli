@@ -36,7 +36,7 @@ val export              : t -> bool
 val import              : t -> loc -> mident -> unit
 (** [import sg md] the module [md] in the signature [sg]. *)
 
-val is_injective        : t -> loc -> name -> bool
+val is_static           : t -> loc -> name -> bool
 (** [is_injective sg l cst] is true when [cst] is a static symbol. *)
 
 val get_type            : t -> loc -> name -> term

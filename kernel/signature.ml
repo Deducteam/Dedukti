@@ -49,7 +49,7 @@ type t = { name:mident;
            mutable external_rules:rule_infos list list; }
 
 let make file =
-  let name = mk_mident file in 
+  let name = mk_mident file in
   let tables = HMd.create 19 in
   HMd.add tables name (HId.create 251);
   { name; file; tables; external_rules=[]; }
@@ -184,7 +184,7 @@ let get_infos sg lc cst =
     try ( HId.find env (id cst))
     with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))
 
-let is_injective sg lc cst =
+let is_static sg lc cst =
   match (get_infos sg lc cst).stat with
   | Static      -> true
   | Definable   -> false

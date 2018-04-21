@@ -40,6 +40,8 @@ let _declare (l:loc) (id:ident) st ty : unit =
 
 exception DefineExn of loc*ident
 
+let is_static lc cst = Signature.is_static !sg lc cst
+
 let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
     | None -> inference !sg te
