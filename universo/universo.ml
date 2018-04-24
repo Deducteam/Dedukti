@@ -1,70 +1,8 @@
 open Basic
-open Pp
-open Rule
-open Entry
-module C = Constraints
 
-module Checker = struct
-  let mk_entry md e =
-    match e with
-    | Decl (lc, id, st, ty) -> (
-      match Uenv.declare lc id st ty with
-      | OK () -> ()
-      | Err e -> Errors.fail_env_error (Uenv.get_signature ()) e )
-    | Def (lc, id, opaque, ty, te) -> (
-        let define = if opaque then Uenv.define_op else Uenv.define in
-        match define lc id te ty with
-        | OK () -> ()
-        | Err e -> Errors.fail_env_error (Uenv.get_signature ()) e )
-    | Rules rs -> (
-        let open Rule in
-        match Uenv.add_rules rs with
-        | OK rs -> ()
-        | Err e -> Errors.fail_env_error (Uenv.get_signature ()) e )
-    | Eval (_, red, te) -> (
-      match Uenv.reduction ~red te with
-      | OK te -> Format.printf "%a@." Pp.print_term te
-      | Err e -> Errors.fail_env_error (Uenv.get_signature ()) e )
-    | Infer (_, red, te) -> (
-      match Uenv.infer te with
-      | OK ty -> (
-        match Uenv.reduction ~red ty with
-        | OK ty -> Format.printf "%a@." Pp.print_term ty
-        | Err e -> Errors.fail_env_error (Uenv.get_signature ()) e )
-      | Err e -> Errors.fail_env_error (Uenv.get_signature ()) e )
-    | Check (_, assrt, neg, test) -> (
-      match test with
-      | Convert (t1, t2) -> (
-        match Uenv.are_convertible t1 t2 with
-        | OK ok when ok = not neg -> if not assrt then Format.printf "YES@."
-        | OK _ when assrt -> failwith "Assertion failed."
-        | OK _ -> Format.printf "NO@."
-        | Err e -> Errors.fail_env_error (Uenv.get_signature ()) e )
-      | HasType (te, ty) ->
-        match Uenv.check te ty with
-        | OK () when not neg -> if not assrt then Format.printf "YES@."
-        | Err _ when neg -> if not assrt then Format.printf "YES@."
-        | OK () when assrt -> failwith "Assertion failed."
-        | Err _ when assrt -> failwith "Assertion failed."
-        | _ -> Format.printf "NO@." )
-    | DTree (lc, m, v) -> (
-        let m = match m with None -> Env.get_name () | Some m -> m in
-        let cst = mk_name m v in
-        match Env.get_dtree lc cst with
-        | OK forest ->
-            Format.printf "GDTs for symbol %a:@.%a" pp_name cst
-              Dtree.pp_dforest forest
-        | Err e -> Errors.fail_signature_error e )
-    | Print (_, s) -> Format.printf "%s@." s
-    | Name (_, n) ->
-        if not (mident_eq n md) then
-          Printf.eprintf "[Warning] invalid #NAME directive ignored.\n%!"
-    | Require (lc, md) ->
-      match Uenv.import lc md with
-      | OK () -> ()
-      | Err e -> Errors.fail_signature_error e
-
-  let mk_entry md e = mk_entry md e
+module Universo =
+struct
+  let mk_entry e = failwith "todo"
 end
 
 let run_on_file output export file =
@@ -73,8 +11,8 @@ let run_on_file output export file =
   let md = Uenv.init file in
   let entries = Parser.parse_channel md input in
   Errors.success "File '%s' was successfully parsed." file ;
-  List.iter (Checker.mk_entry md) entries ;
-  Errors.success "File '%s' was successfully checked." file ;
+  List.iter (Universo.mk_entry md) entries ;
+  Errors.success "File '%s' was successfully checked by universo." file ;
   if export && not (Uenv.export ()) then
     Errors.fail dloc "Fail to export module '%a@." pp_mident (Uenv.get_name ()) ;
   close_in input ;
@@ -89,22 +27,19 @@ let print_file model (md, fmt, entries) =
 
 let print_files model = List.iter (print_file model)
 
-let mk_cfg eonly conly log =
-  let open Uenv in
-  if eonly && conly then
+let mk_cfg elabonly checkonly debug =
+  if elabonly && checkonly then
     begin
       Printf.eprintf "-elaboration-only and -checking-only are mutually exlucisves";
       exit 4
     end;
-  let elaborating,checking,solving =
-    if eonly then
-      true,false,false
-    else if conly then
-      true,true,false
-    else
-      true,true,true
-  in
-  {elaborating;checking;solving;log}
+  if elabonly then
+    Cfg.set_checking false
+  else if checkonly || elabonly then
+    begin
+    Cfg.set_solving false;
+    Cfg.set_debug debug
+  end
 
 let _ =
   let export = ref false in
@@ -121,8 +56,8 @@ let _ =
       ; ( "--output-dir"
         , Arg.String set_output_dir
         , " Directory to print the files by default /tmp is used" )
-      ; ("-elaboration-only", Arg.Set elaboration_only, "(debug) option")
-      ; ("-checking-only", Arg.Set checking_only, "(debug) option")
+      ; ("--elaboration-only", Arg.Set elaboration_only, "(debug) option")
+      ; ("--checking-only", Arg.Set checking_only, "(debug) option")
       ; ("-dd", Arg.Int set_universo_debug_mode, "Print debug informations in md.universo")
       ]
   in
@@ -133,8 +68,7 @@ let _ =
     List.rev !files
   in
   Rule.allow_non_linear := true ;
-  let cfg = mk_cfg !elaboration_only !checking_only !debug_mode in
-  Uenv.mk_cfg cfg;
+  mk_cfg !elaboration_only !checking_only !debug_mode;
   try
     let fmtentries' = List.map (run_on_file !output_dir !export) files in
     let _, model = Uenv.solve () in

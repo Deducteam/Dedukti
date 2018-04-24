@@ -12,17 +12,22 @@ type cfg =
     log:int;
   }
 
+let env = ref {elaborating=true;checking=true;solving=true;log=0}
+
+let sg = ref (Signature.make "noname")
+
+let log i fmt =
+  let open Format in
+  if !env.log >= i
+    then kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
+    else ifprintf err_formatter fmt
 
 let solve () =
   let cs = Constraints.export () in
   let i, model = Export.Z3.solve cs in
   (i, model)
 
-let sg = ref (Signature.make "noname")
-
 let get_signature () = !sg
-
-let env = ref {elaborating=true;checking=true;solving=true;log=0}
 
 let mk_cfg cfg = env := cfg
 
@@ -45,42 +50,80 @@ let export () : bool = Signature.export !sg
 let import lc md =
   try OK (Signature.import !sg lc md) with SignatureError e -> Err e
 
+let elaborate ctx is_prop te = snd @@ Elaboration.elaborate !sg ctx is_prop te
+
+let elaborate_type ty =
+  let s,_,x = Elaboration.elaborate_term !sg [] ty in s,x
+
 let _declare (l: loc) (id: ident) st ty : unit =
-  match inference !sg ty with
-  | Kind | Type _ -> Signature.add_declaration !sg l id st ty
-  | s -> raise (TypingError (SortExpected (ty, [], s)))
+  log 1 "Declare %a@." Pp.print_ident id;
+  let _,ty' = elaborate_type ty in
+  log 2 "%a@." Pp.print_term ty';
+  match inference !sg ty' with
+  | Kind | Type _ -> Signature.add_declaration !sg l id st ty'
+  | s -> raise (TypingError (SortExpected (ty', [], s)))
 
 exception DefineExn of loc * ident
 
 let _define (l: loc) (id: ident) (te: term) (ty_opt: typ option) : unit =
-  let ty =
+  log 1 "Define %a@." Pp.print_ident id;
+  let te', ty_opt' =
     match ty_opt with
-    | None -> inference !sg te
+    | None ->
+      let te' = elaborate [] false te in
+      log 2 "%a@." Pp.print_term te;
+      te' , None
     | Some ty ->
-        checking !sg te ty ;
+      log 2 "%a@." Pp.print_term te;
+      let s,ty' = elaborate_type ty in
+      let te' = elaborate [] (Elaboration.if_prop s) te in
+      log 2 "%a@." Pp.print_term ty;
+      log 2 "%a@." Pp.print_term te;
+      te' , Some ty'
+  in
+  let ty' =
+    match ty_opt' with
+    | None -> inference !sg te'
+    | Some ty ->
+        checking !sg te' ty ;
         ty
   in
-  match ty with
+  match ty' with
   | Kind -> raise (DefineExn (l, id))
   | _ ->
-      _declare l id Signature.Definable ty ;
+      _declare l id Signature.Definable ty' ;
       let cst = mk_name (get_name ()) id in
       let rule =
-        {name= Delta cst; ctx= []; pat= Pattern (l, cst, []); rhs= te}
+        {name= Delta cst; ctx= []; pat= Pattern (l, cst, []); rhs= te'}
       in
       Signature.add_rules !sg [rule]
 
 let _define_op (l: loc) (id: ident) (te: term) (ty_opt: typ option) : unit =
-  let ty =
+  log 1 "Define Opaque %a@." Pp.print_ident id;
+  let te', ty_opt' =
     match ty_opt with
-    | None -> inference !sg te
+    | None ->
+      let te' = elaborate [] false te in
+      log 2 "%a@." Pp.print_term te;
+      te' , None
     | Some ty ->
-        checking !sg te ty ;
+      log 2 "%a@." Pp.print_term te;
+      let s,ty' = elaborate_type ty in
+      let te' = elaborate [] (Elaboration.if_prop s) te in
+      log 2 "%a@." Pp.print_term ty;
+      log 2 "%a@." Pp.print_term te;
+      te' , Some ty'
+  in
+  let ty' =
+    match ty_opt' with
+    | None -> inference !sg te'
+    | Some ty ->
+        checking !sg te' ty ;
         ty
   in
-  match ty with
+  match ty' with
   | Kind -> raise (DefineExn (l, id))
-  | _ -> Signature.add_declaration !sg l id Signature.Static ty
+  | _ -> Signature.add_declaration !sg l id Signature.Static ty'
 
 let declare l id st ty : (unit, Env.env_error) error =
   try OK (_declare l id st ty) with
@@ -102,7 +145,20 @@ let define_op l id te ty_opt =
 let add_rules (rules: untyped_rule list)
     : (typed_rule list, Env.env_error) error =
   try
+    Reduction.just_check := true;
     let rs2 = List.map (check_rule !sg) rules in
+    Reduction.just_check := false;
+    let ctx_of_rctx ctx =
+      let open Elaboration in
+      List.fold_left (fun ctx (l,x,t) ->
+          let s',u',_ = elaborate_term !sg ctx t in
+          ((x,{ty=u'; sort=s'})::ctx)) [] ctx
+    in
+    let forget_types ctx = List.map (fun (lc,id,_) -> (lc,id)) ctx in
+    let elab_rules =
+      List.map (fun r -> {r with rhs = elaborate (ctx_of_rctx r.ctx) false r.rhs;
+                                 ctx = forget_types r.ctx}) rs2 in
+    let rs2 = List.map (check_rule !sg) elab_rules in
     Signature.add_rules !sg rules ;
     OK rs2
   with

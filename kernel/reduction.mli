@@ -11,6 +11,8 @@ type red_cfg = {
   beta : bool
 }
 
+val just_check : bool ref
+
 val pp_red_cfg : red_cfg Basic.printer
 
 (** [beta] flag enables/disables beta reductions.

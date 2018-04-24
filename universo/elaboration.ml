@@ -36,13 +36,14 @@ let elaborate_var sg ctx var =
       extract_cuni (List.assoc id ctx).ty, var
     else
     (List.assoc id ctx).sort, var
-  else (* inside rule *)
-    fresh_uvar sg, var
+  else assert false
+
+let if_prop s = if Cic.is_prop s then true else false
 
 let rec elaborate_prod sg ctx s1 s2 a x b =
-  let s1',a' = elaborate sg ctx a in
+  let s1',a' = elaborate sg ctx (if_prop s1) a in
   let ctx' = (x,{ty=a';sort=s1'})::ctx in
-  let s2',b' = elaborate sg ctx' b in
+  let s2',b' = elaborate sg ctx' (if_prop s2) b in
   let ty' = mk_term s1' a' in
   mk_rule s1' s2', mk_prod s1' s2' a' x ty' b'
 
@@ -51,15 +52,15 @@ and elaborate_cast sg ctx s1 s2 a b t =
     if is_var t then
       try
         (List.assoc (extract_var t) ctx).sort, (List.assoc (extract_var t) ctx).ty
-      with _ -> elaborate sg ctx a
+      with _ -> elaborate sg ctx (if_prop s1) a
     else
-      elaborate sg ctx a
+      elaborate sg ctx (if_prop s1) a
   in
-  let s2',b' = elaborate sg ctx b in
-  let s,t'  = elaborate sg ctx t in
+  let s2',b' = elaborate sg ctx (if_prop s2) b in
+  let s,t'  = elaborate sg ctx false t in
   mk_max s1' s2', mk_cast s1' s2' a' b' t'
 
-and elaborate sg ctx t =
+and elaborate sg ctx is_prop t =
   if is_cuni t then
     let s = extract_cuni t in
     elaborate_cuni sg s
@@ -74,24 +75,24 @@ and elaborate sg ctx t =
   else
     match t with
     | App(f, a, al) ->
-      let s,f' = elaborate sg ctx f in
-      let _,a' = elaborate sg ctx a in
-      let _,al' = List.split (List.map (elaborate sg ctx) al) in
+      let s,f' = elaborate sg ctx is_prop f in
+      let _,a' = elaborate sg ctx is_prop a in
+      let _,al' = List.split (List.map (elaborate sg ctx is_prop) al) in
       s, mk_App f' a' al'
-    | Lam(loc, id, Some ty, t) when is_univ ty ->
+    | Lam(loc, id, Some ty, t) ->
       let s',u', ty' = elaborate_term sg ctx ty in
       let ctx' = ((id,{ty=u';sort=s'})::ctx) in
-      let st,t' = elaborate sg ctx' t in
+      let st,t' = elaborate sg ctx' is_prop t in
       st,mk_Lam loc id (Some ty') t'
     | Lam(loc, id, None, t) -> failwith "untyped lambdas are not supported"
     | Pi(loc, id, ta, tb) -> assert false
-    | _ -> fresh_uvar sg, t
+    | _ -> if is_prop then mk_prop,t else fresh_uvar sg, t
 
 
 and elaborate_term sg ctx t =
   if is_term t then
     let s,t   = extract_term t in
-    let s',t' = elaborate sg [] t in
+    let s',t' = elaborate sg [] (if_prop s) t in
     s',t',mk_term s' t'
   else if is_univ t then
     let s = extract_univ t in
@@ -103,125 +104,26 @@ and elaborate_term sg ctx t =
   else
     assert false
 
-(*
-let rec elaborate_prod sg ctx s1 s2 a x te =
-  let s1',a', ctx' =
-    if is_prop s1 then
-      let a' = elaborate sg ctx a in
-      s1,a',ctx
-    else if is_cuni a then
-      let v,a' =
-        elaborate_cuni sg (extract_cuni a) in
-      mk_succ v, a', (x,v)::ctx
-    else if is_var a then
-      let id = extract_var a in
-      let s = elaborate_var sg ctx id in
-      s, a, ctx
-    else if is_prod a then
-      let s1,s2,a,x,te = extract_prod' a in
-      let s1',a' = elaborate_prod sg ctx s1 s2 a x te in
-      s1',a', ctx
-    else
-      let a' = elaborate sg ctx a in
-      if is_prop s1 then
-        s1,a',ctx
-      else
-        fresh_uvar sg, a', ctx
+let forget_types : typed_context -> untyped_context =
+  fun ctx -> List.map (fun (lc,id,_) -> (lc,id)) ctx
+
+let ctx_of_rule_ctx sg ctx =
+  let add_binding ctx (l,x,t) =
+    let s',u',_ = elaborate_term sg ctx t in
+    ((x,{ty=u'; sort=s'})::ctx)
   in
-  let ty' = mk_term s1' a' in
-  let s2',te' =
-    if is_cuni te then
-      let v, te' =
-        elaborate_cuni sg (extract_cuni te) in
-      mk_succ v, te'
-    else if is_prod te then
-      let s1,s2,a,x,te = extract_prod' te in
-      elaborate_prod sg ctx' s1 s2 a x te
-    else
-      let te' =  elaborate sg ctx' te in
-      if is_prop s2 then
-        s2,te'
-      else
-        fresh_uvar sg, te'
-  in
-  mk_rule s1' s2',mk_prod s1' s2' a' x ty' te'
+  List.fold_left add_binding []  ctx
 
-and elaborate_term sg ctx s1 t =
-  let s1',t' =
-    if is_prod t then
-      let s1,s2,a,x,te = extract_prod' t in
-      elaborate_prod sg ctx s1 s2 a x te
-    else if is_var t then
-      let id = extract_var t in
-      elaborate_var sg ctx id, t
-    else if is_prop s1 then
-      s1, elaborate sg ctx t
-    else
-      fresh_uvar sg, elaborate sg ctx t
-  in
-  mk_term s1' t'
+let rule_elaboration sg r =
+  let open Rule in
+  let _,rhs' = elaborate sg (ctx_of_rule_ctx sg r.ctx) false r.rhs in
+  let ctx' = forget_types r.ctx in
+  {r with rhs=rhs'; ctx=ctx'}
 
-and elaborate_var sg ctx id =
-  try
-    List.assoc id ctx
-  with _ -> fresh_uvar sg
-
-and elaborate sg ctx t =
-  if is_type t then
-    fresh_uvar sg
-  else if is_term t then
-    let s1, t' = extract_term t in
-    elaborate_term sg ctx s1 t'
-  else if is_cast t then
-    begin
-      let _,_,tyl,tyr,t' = extract_cast t in
-      if is_cuni tyl then
-        begin
-          assert (is_cuni tyr);
-          assert (is_var t');
-          let s,tyr' = elaborate_cuni sg (extract_cuni tyr) in
-          let var = extract_var t' in
-          let svar = List.assoc var ctx in
-          mk_cast (mk_succ svar) (mk_succ s) (mk_cuni svar) tyr' t'
-        end
-      else if is_prod tyl then
-        begin
-          assert (is_prod tyr);
-          failwith "todo"
-        end
-      else assert false
-        (* mk_cast (fresh_uvar sg) (fresh_uvar sg) (elaborate sg ctx t') *)
-    end
-  else if is_prod t then
-    let s1,s2,a,x,te = extract_prod' t in
-    snd @@ elaborate_prod sg ctx s1 s2 a x te
-  else
-    match t with
-    | App(f, a, al) ->
-      let f' = elaborate sg ctx f in
-      let a' = elaborate sg ctx a in
-      let al' = List.map (elaborate sg ctx) al in
-      mk_App f' a' al'
-    | Lam(loc, id, Some ty, t) when is_univ ty ->
-      let v = fresh_uvar sg in
-      let ty' =  mk_univ v in
-      let t' = elaborate sg ((id,v)::ctx) t in
-      mk_Lam loc id (Some ty') t'
-    | Lam(loc, id, t_opt, t) ->
-      let ty' =
-        match t_opt with
-        | None -> None
-        | Some ty -> Some (elaborate sg ctx ty)
-      in
-      let t' = elaborate sg ctx t in
-      mk_Lam loc id ty' t'
-    | Pi(loc, id, ta, tb) -> assert false
-    | _ -> t
-           *)
-
-let elaboration sg e =
+let elaboration env e =
   let open Rule in
   let open Entry in
+  let sg = Cfg.get_signature env in
   match e with
   | Decl(l,id,st,t) ->
     let _, _, t' = elaborate_term sg [] t in
@@ -229,14 +131,14 @@ let elaboration sg e =
   | Def(l,id,op,pty,te) -> (
     match pty with
     | None ->
-      Def(l,id,op, None, snd @@ elaborate sg [] te)
+      Def(l,id,op, None, snd @@ elaborate sg [] false te)
     | Some ty ->
-      let _,_,ty'    = elaborate_term sg [] ty in
-      let _, te' = elaborate sg [] te in
+      let s,_,ty'    = elaborate_term sg [] ty in
+      let _, te' = elaborate sg [] (if_prop s) te in
     Def(l,id,op, Some ty', te'))
   | Rules(rs) ->
-    let rs' = List.map
-        (fun (r: untyped_rule) -> {r  with rhs = snd @@ elaborate sg [] r.rhs}) rs in
+    let rs2 = List.map (Typing.check_rule sg)  rs in
+    let rs' = List.map (rule_elaboration sg) rs2 in
     Rules(rs')
   | Name (l,id) -> Name(l,id)
   | _ -> assert false
