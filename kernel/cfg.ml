@@ -18,6 +18,6 @@ let set_solving b = env.solving <- b
 
 let set_debug b = env.debug <- b
 
-let make = env
+let make () = env
 
 let get_signature env = env.sg

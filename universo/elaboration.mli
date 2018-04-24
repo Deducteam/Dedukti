@@ -1,1 +1,1 @@
-val elaboration : Signature.t -> Entry.entry -> Entry.entry
+val elaboration : Cfg.t -> Entry.entry -> Entry.entry

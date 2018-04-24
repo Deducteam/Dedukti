@@ -3,18 +3,23 @@ open Basic
 module Universo =
 struct
   let mk_entry e = failwith "todo"
+
+  let solve () =
+    let cs = Constraints.export () in
+    let i, model = Export.Z3.solve cs in
+    (i, model)
 end
 
 let run_on_file output export file =
   let input = open_in file in
   debug 1 "Processing file '%s'..." file ;
-  let md = Uenv.init file in
+  let md = Env.init file in
   let entries = Parser.parse_channel md input in
   Errors.success "File '%s' was successfully parsed." file ;
   List.iter (Universo.mk_entry md) entries ;
   Errors.success "File '%s' was successfully checked by universo." file ;
-  if export && not (Uenv.export ()) then
-    Errors.fail dloc "Fail to export module '%a@." pp_mident (Uenv.get_name ()) ;
+  if export && not (Env.export ()) then
+    Errors.fail dloc "Fail to export module '%a@." pp_mident (Env.get_name ()) ;
   close_in input ;
   let file = Filename.concat output (string_of_mident md ^ ".dk") in
   (md, Format.formatter_of_out_channel (open_out file), entries)
@@ -71,7 +76,7 @@ let _ =
   mk_cfg !elaboration_only !checking_only !debug_mode;
   try
     let fmtentries' = List.map (run_on_file !output_dir !export) files in
-    let _, model = Uenv.solve () in
+    let _, model = Universo.solve () in
     Errors.success "Constraints were successfully solved with Z3." ;
     print_files model fmtentries'
   with
