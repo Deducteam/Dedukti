@@ -3,14 +3,16 @@ type model = Basic.ident -> Term.term
 let rec reconstruction model term =
   let open Term in
   let open Constraints in
-  let open Cic in
-  if is_lift term then
-    let s1, s2, t = extract_lift term in
+  let open Cic in (* TODO: probably there is going to be a bug that can be fixed here
+  if is_cast term then
+    let s1, s2, t1,t2, t = extract_cast term in
     let s1' = reconstruction model s1 in
-    let s2' = reconstruction model (mk_max s1 s2) in
-    let t' = reconstruction model t in
-    mk_lift s1' s2' t'
-  else
+    let s2' = reconstruction model s2 in
+    let t1' = reconstruction model t1 in
+    let t2' = reconstruction model t2 in
+    let t'  = reconstruction model t  in
+    mk_cast s1' s2' t1' t2' t'
+  else *)
     match term with
     | Const _ when Uvar.is_uvar term ->
         let var = Uvar.ident_of_uvar term in

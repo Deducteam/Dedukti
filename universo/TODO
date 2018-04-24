@@ -1,0 +1,4 @@
+- Type check rules with a type context. Left patterns do not need to be check by universo.
+- fixed dkcheck
+- Write in LaTeX the translation function
+- Have a better options to configure universo

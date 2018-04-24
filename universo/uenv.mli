@@ -4,10 +4,20 @@ open Basic
 open Term
 open Signature
 
+type cfg =
+  {
+    elaborating:bool;
+    checking:bool;
+    solving:bool;
+    log:int;
+  }
+
 val solve       : unit -> int * Reconstruction.model
 (* universo *)
 
 (** {2 The Global Environment} *)
+
+val mk_cfg      : cfg    -> unit
 
 val init        : string -> mident
 (** [init name] initializes a new global environement giving it the name of

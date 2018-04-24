@@ -19,7 +19,7 @@ val is_prop : term -> bool
 
 val is_type : term -> bool
 
-val is_lift : term -> bool
+val is_cast : term -> bool
 
 val is_max  : term -> bool
 
@@ -48,9 +48,9 @@ val extract_max  : term -> term * term
 
 val extract_rule : term -> term * term
 
-val extract_lift : term -> term * term
+val extract_cast : term -> term * term
 
-val extract_lift : term -> term * term * term
+val extract_cast : term -> term * term * term * term * term
 
 val extract_prod : term -> term * term * term * term
 
@@ -75,7 +75,7 @@ val mk_max  : term -> term -> term
 
 val mk_term : term -> term -> term
 
-val mk_lift : term -> term -> term -> term
+val mk_cast : term -> term -> term -> term -> term -> term
 
 val mk_prod : term -> term -> term -> ident -> term -> term -> term
 

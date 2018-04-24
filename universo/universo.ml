@@ -47,15 +47,14 @@ module Checker = struct
         | OK () when assrt -> failwith "Assertion failed."
         | Err _ when assrt -> failwith "Assertion failed."
         | _ -> Format.printf "NO@." )
-    | DTree(lc,m,v) ->
-      begin
+    | DTree (lc, m, v) -> (
         let m = match m with None -> Env.get_name () | Some m -> m in
         let cst = mk_name m v in
         match Env.get_dtree lc cst with
         | OK forest ->
-          Format.printf "GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
-        | Err e -> Errors.fail_signature_error e
-      end
+            Format.printf "GDTs for symbol %a:@.%a" pp_name cst
+              Dtree.pp_dforest forest
+        | Err e -> Errors.fail_signature_error e )
     | Print (_, s) -> Format.printf "%s@." s
     | Name (_, n) ->
         if not (mident_eq n md) then
@@ -64,7 +63,6 @@ module Checker = struct
       match Uenv.import lc md with
       | OK () -> ()
       | Err e -> Errors.fail_signature_error e
-
 
   let mk_entry md e = mk_entry md e
 end
@@ -75,10 +73,6 @@ let run_on_file output export file =
   let md = Uenv.init file in
   let entries = Parser.parse_channel md input in
   Errors.success "File '%s' was successfully parsed." file ;
-  let entries =
-    List.map (Elaboration.elaboration (Uenv.get_signature ())) entries
-  in
-  Errors.success "File '%s' was successfully elaborated." file ;
   List.iter (Checker.mk_entry md) entries ;
   Errors.success "File '%s' was successfully checked." file ;
   if export && not (Uenv.export ()) then
@@ -87,27 +81,50 @@ let run_on_file output export file =
   let file = Filename.concat output (string_of_mident md ^ ".dk") in
   (md, Format.formatter_of_out_channel (open_out file), entries)
 
-
 let print_file model (md, fmt, entries) =
-  Errors.success "File '%a.dk' was fully reconstructed." pp_mident md ;
   List.iter
     (fun x -> Pp.print_entry fmt (Reconstruction.reconstruction model x))
-    entries
-
+    entries ;
+  Errors.success "File '%a.dk' was fully reconstructed." pp_mident md
 
 let print_files model = List.iter (print_file model)
+
+let mk_cfg eonly conly log =
+  let open Uenv in
+  if eonly && conly then
+    begin
+      Printf.eprintf "-elaboration-only and -checking-only are mutually exlucisves";
+      exit 4
+    end;
+  let elaborating,checking,solving =
+    if eonly then
+      true,false,false
+    else if conly then
+      true,true,false
+    else
+      true,true,true
+  in
+  {elaborating;checking;solving;log}
 
 let _ =
   let export = ref false in
   let output_dir = ref "/tmp" in
+  let elaboration_only = ref false in
+  let checking_only = ref false in
+  let debug_mode = ref 0 in
   let set_output_dir s = output_dir := s in
+  let set_universo_debug_mode i = debug_mode := i in
   let options =
     Arg.align
       [ ("-d", Arg.Int Basic.set_debug_mode, "N sets the debuging level to N")
       ; ("-e", Arg.Set export, " Generates an object file (\".dko\")")
       ; ( "--output-dir"
         , Arg.String set_output_dir
-        , " Directory to print the files by default /tmp is used" ) ]
+        , " Directory to print the files by default /tmp is used" )
+      ; ("-elaboration-only", Arg.Set elaboration_only, "(debug) option")
+      ; ("-checking-only", Arg.Set checking_only, "(debug) option")
+      ; ("-dd", Arg.Int set_universo_debug_mode, "Print debug informations in md.universo")
+      ]
   in
   let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]... \n" in
   let files =
@@ -116,11 +133,13 @@ let _ =
     List.rev !files
   in
   Rule.allow_non_linear := true ;
+  let cfg = mk_cfg !elaboration_only !checking_only !debug_mode in
+  Uenv.mk_cfg cfg;
   try
-    let entries' = List.map (run_on_file !output_dir !export) files in
+    let fmtentries' = List.map (run_on_file !output_dir !export) files in
     let _, model = Uenv.solve () in
     Errors.success "Constraints were successfully solved with Z3." ;
-    print_files model entries'
+    print_files model fmtentries'
   with
   | Sys_error err ->
       Printf.eprintf "ERROR %s.\n" err ;

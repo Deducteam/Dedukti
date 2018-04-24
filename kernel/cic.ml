@@ -17,7 +17,7 @@ let succ = mk_name cic (mk_ident "succ")
 
 let sort = mk_name cic (mk_ident "Sort")
 
-let lift = mk_name cic (mk_ident "lift")
+let cast = mk_name cic (mk_ident "cast")
 
 let max = mk_name cic (mk_ident "max")
 
@@ -80,9 +80,9 @@ let is_succ t =
   | App(c,arg,[]) when is_const succ c -> true
   | _ -> false
 
-let is_lift t =
+let is_cast t =
   match t with
-  | App(c, s1, [s2;a]) when is_const lift c -> true
+  | App(c, s1, [s2;t1;t2;a]) when is_const cast c -> true
   | _ -> false
 
 let is_max t =
@@ -145,10 +145,10 @@ let extract_succ t =
   | App(c,arg,[]) when is_const succ c -> arg
   | _ -> failwith "is not a succ"
 
-let extract_lift t =
+let extract_cast t =
   match t with
-  | App(c,s1,[s2;a]) when is_const lift c -> s1,s2,a
-  | _ -> failwith "is not a lift"
+  | App(c,s1,[s2;t1;t2;a]) when is_const cast c -> s1,s2,t1,t2,a
+  | _ -> failwith "is not a cast"
 
 let extract_max t =
   match t with
@@ -185,12 +185,6 @@ let extract_succ t =
   | App(c,arg,[]) when is_const succ c -> arg
   | _ -> failwith "is not a succ"
 
-let extract_lift t =
-  match t with
-  | App(c,s1,[s2;a]) when is_const lift c -> s1,s2,a
-  | _ -> failwith "is not a lift"
-
-
 let mk_prop     = mk_Const dloc prop
 
 let mk_z        = mk_Const dloc z
@@ -211,8 +205,8 @@ let mk_univ s =
 let mk_cuni s =
   mk_App (mk_Const dloc cuni) s []
 
-let mk_lift s1 s2 a =
-  mk_App (mk_Const dloc lift) s1 [s2;a]
+let mk_cast s1 s2 t1 t2 a =
+  mk_App (mk_Const dloc cast) s1 [s2;t1;t2;a]
 
 let mk_prod s1 s2 a x ty te =
   mk_App (mk_Const dloc prod) s1 [s2;a;(mk_Lam dloc x (Some ty) te)]

@@ -366,7 +366,7 @@ and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
     add_constraint_max s1 s2 r ; true )
   else if is_uvar l && is_max r then are_univ_convertible sg ism r l
   else if is_max l && is_type r then
-    failwith "This bug should be reported (case 5)"
+    failwith "This bug should be reported (case 1)"
     (*
       let s1,s2 = extract_max l in
       let s1 = extract_universe sg s1 in
@@ -385,7 +385,7 @@ and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
     add_constraint_rule s1 s2 s3 ;
     true )
   else if is_type l && is_rule r then are_univ_convertible sg ism r l
-  else if is_lift l && is_lift r then false
+  else if is_cast l && is_cast r then     failwith "This bug should be reported (case 2)"
     (* (
     Format.eprintf "coucou2@." ;
     let s1, s2, l' = extract_lift l in
@@ -396,7 +396,7 @@ and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
     let sr = extract_universe sg mr in
     add_constraint_eq sl sr ;
     are_convertible_lst sg ism [(l', r')] ) *)
-  else if is_lift l && is_cuni r then false
+  else if is_cast l && is_cuni r then     failwith "This bug should be reported (case 3)"
     (* (
     let s1, s2, l' = extract_lift l in
     let r' = extract_cuni r in
@@ -404,15 +404,17 @@ and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
     let m = extract_universe sg m in
     let r' = extract_universe sg r' in
                                                add_constraint_eq m r' ; true ) *)
-  else if is_cuni l && is_lift r then are_univ_convertible sg ism r l
-  else if is_lift l && not (is_lift r) then
+  else if is_cuni l && is_cast r then are_univ_convertible sg ism r l
+  else if is_cast l && not (is_cast r) then failwith "This bug should be reported (case 4)"
+    (*
     let s1, s2, l' = extract_lift l in
     if Term.term_eq l' r then (
       let s1 = extract_universe sg s1 in
       let s2 = extract_universe sg s2 in
       add_constraint_eq s1 s2 ; true )
     else failwith "what to do here?"
-  else if not (is_lift l) && is_lift r then are_univ_convertible sg ism r l
+*)
+  else if not (is_cast l) && is_cast r then are_univ_convertible sg ism r l
   else if is_succ l && is_rule r then (
     let l = extract_universe sg l in
     let r = extract_universe sg r in
