@@ -17,6 +17,9 @@ val init        : string -> mident
     corresponding to this file, built from its basename. Every toplevel
     declaration will be qualified be this name. *)
 
+val get_signature : unit -> Signature.t
+(** [get_signature ()] returns the signature used by this module *)
+
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)
 

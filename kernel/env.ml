@@ -19,6 +19,8 @@ let init file =
 
 let get_name () = Signature.get_name !sg
 
+let get_signature () = !sg
+
 let get_type l cst =
   try OK (Signature.get_type !sg l cst)
   with SignatureError e -> Err e
