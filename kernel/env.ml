@@ -21,7 +21,7 @@ let init file =
 
 let get_name () = Signature.get_name !sg
 
-let add_name name = sg := Signature.add_name !sg name
+let get_signature () = !sg
 
 let get_type l cst =
   try OK (Signature.get_type !sg l cst)
@@ -43,6 +43,8 @@ let _declare (l:loc) (id:ident) st ty : unit =
   | s -> raise (TypingError (SortExpected (ty,[],s)))
 
 exception DefineExn of loc*ident
+
+let is_static lc cst = Signature.is_static !sg lc cst
 
 let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with

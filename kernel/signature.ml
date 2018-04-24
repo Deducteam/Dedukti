@@ -7,16 +7,16 @@ open Dtree
 
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
-  | UnmarshalSysError of loc * string * string
-  | UnmarshalUnknown of loc * string
-  | SymbolNotFound of loc * name
-  | AlreadyDefinedSymbol of loc * ident
-  | CannotMakeRuleInfos of Rule.rule_error
-  | CannotBuildDtree of Dtree.dtree_error
+  | UnmarshalSysError     of loc * string * string
+  | UnmarshalUnknown      of loc * string
+  | SymbolNotFound        of loc * name
+  | AlreadyDefinedSymbol  of loc * ident
+  | CannotMakeRuleInfos   of Rule.rule_error
+  | CannotBuildDtree      of Dtree.dtree_error
   | CannotAddRewriteRules of loc * ident
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
-  | ConfluenceErrorRules of loc * rule_infos list * Confluence.confluence_error
-  | GuardNotSatisfied of loc * term * term
+  | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
+  | GuardNotSatisfied     of loc * term * term
 
 exception SignatureError of signature_error
 
@@ -169,7 +169,6 @@ let rec import sg lc m =
 
 (******************************************************************************)
 
-
 let get_deps sg : string list = (*only direct dependencies*)
   HMd.fold (
     fun md _ lst ->
@@ -191,10 +190,10 @@ let get_infos sg lc cst =
     try ( HId.find env (id cst))
     with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))
 
-let is_injective sg lc cst =
+let is_static sg lc cst =
   match (get_infos sg lc cst).stat with
-  | Static    -> true
-  | Definable -> false
+  | Static      -> true
+  | Definable   -> false
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 

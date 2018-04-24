@@ -7,16 +7,16 @@ open Dtree
 
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
-  | UnmarshalSysError of loc * string * string
-  | UnmarshalUnknown of loc * string
-  | SymbolNotFound of loc * name
-  | AlreadyDefinedSymbol of loc * ident
-  | CannotMakeRuleInfos of Rule.rule_error
-  | CannotBuildDtree of Dtree.dtree_error
+  | UnmarshalSysError     of loc * string * string
+  | UnmarshalUnknown      of loc * string
+  | SymbolNotFound        of loc * name
+  | AlreadyDefinedSymbol  of loc * ident
+  | CannotMakeRuleInfos   of Rule.rule_error
+  | CannotBuildDtree      of Dtree.dtree_error
   | CannotAddRewriteRules of loc * ident
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
-  | ConfluenceErrorRules of loc * rule_infos list * Confluence.confluence_error
-  | GuardNotSatisfied of loc * term * term
+  | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
+  | GuardNotSatisfied     of loc * term * term
 
 exception SignatureError of signature_error
 
@@ -39,7 +39,7 @@ val export              : t -> bool
 val import              : t -> loc -> mident -> unit
 (** [import sg md] the module [md] in the signature [sg]. *)
 
-val is_injective        : t -> loc -> name -> bool
+val is_static           : t -> loc -> name -> bool
 (** [is_injective sg l cst] is true when [cst] is a static symbol. *)
 
 val get_type            : t -> loc -> name -> term

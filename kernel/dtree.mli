@@ -4,8 +4,8 @@ open Rule
 (** {2 Error} *)
 
 type dtree_error =
-  | HeadSymbolMismatch of loc * name * name
-  | ArityInnerMismatch of loc * ident * ident
+  | HeadSymbolMismatch  of loc * name * name
+  | ArityInnerMismatch  of loc * ident * ident
 
 (** {2 Decision Trees} *)
 
@@ -17,9 +17,9 @@ type case =
   | CConst of int * name
   (** [size c] where [size] is the number of *static* arguments expected for the constant [c] *)
   | CDB of int * int
-  (** [size i] where size is the number of *static* arguments expected for the bounded variable [i] *)
-  | CLam (** Just a lambda term *)
-(** Since the arity of a constant can not be know statically, size should be always smaller than the number of arguments applied to the constant m.v *)
+  (** [size i] where size is the number of *static* arguments expected for the
+      bounded variable [i] *)
+  | CLam (** A lambda term *)
 
 
 (** Represent the position of an argument in a pattern *)

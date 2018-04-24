@@ -37,10 +37,8 @@ let snf = reduction default_cfg
 let whnf = reduction {default_cfg with strategy = Whnf}
 
 let get_type ctx l x n =
-  try
-    let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
-  with Failure _ ->
-    raise (TypingError (VariableNotFound (l,x,n,ctx)))
+  try let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
+  with Failure _ -> raise (TypingError (VariableNotFound (l,x,n,ctx)))
 
 let extend_ctx a ctx = function
   | Type _ -> a::ctx
@@ -145,14 +143,16 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
       else
         match t1', t2' with
         | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
-        | DB (_,_,n), DB (_,_,n') when ( n=n' ) -> pseudo_u sg sigma lst
+        | DB (_,_,n), DB (_,_,n') when n=n' -> pseudo_u sg sigma lst
         | Const (_,cst), Const (_,cst') when
             ( name_eq cst cst' ) ->
           pseudo_u sg sigma lst
 
-        | DB (l1,x1,n1), DB (l2,x2,n2) when ( n1>=q && n2>=q) ->
+        | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
           begin
-            let (x,n,t) = if n1<n2 then (x1,n1,mk_DB l2 x2 (n2-q)) else (x2,n2,mk_DB l1 x1 (n1-q)) in
+            let (x,n,t) = if n1<n2
+              then (x1,n1,mk_DB l2 x2 (n2-q))
+              else (x2,n2,mk_DB l1 x1 (n1-q)) in
             match SS.add sigma x (n-q) t with
             | None -> assert false
             | Some sigma2 -> pseudo_u sg sigma2 lst
@@ -189,18 +189,20 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
 
         | App (DB (_,_,n),_,_), _  when ( n >= q ) ->
           if Reduction.are_convertible sg t1' t2' then
-            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2';
+              pseudo_u sg sigma lst )
           else None
         | _, App (DB (_,_,n),_,_) when ( n >= q ) ->
           if Reduction.are_convertible sg t1' t2' then
-            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2'; pseudo_u sg sigma lst )
+            ( debug 2 "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2';
+              pseudo_u sg sigma lst )
           else None
 
-        | App (Const (l,cst),_,_), _ when (not (Signature.is_injective sg l cst)) ->
+        | App (Const (l,cst),_,_), _ when (not (Signature.is_static sg l cst)) ->
           ( debug 2 "Ignoring non injective constraint: %a ~ %a"
               pp_term t1' pp_term t2';
             pseudo_u sg sigma lst )
-        | _, App (Const (l,cst),_,_) when (not (Signature.is_injective sg l cst)) ->
+        | _, App (Const (l,cst),_,_) when (not (Signature.is_static sg l cst)) ->
           ( debug 2 "Ignoring non injective constraint: %a ~ %a"
               pp_term t1' pp_term t2';
             pseudo_u sg sigma lst )
@@ -276,7 +278,8 @@ let unshift_n sg n te =
   try Subst.unshift n te
   with Subst.UnshiftExn -> Subst.unshift n (snf sg te)
 
-let rec infer_pattern sg (delta:partial_context) (sigma:context2) (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
+let rec infer_pattern sg (delta:partial_context) (sigma:context2)
+    (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
   match pat with
   | Pattern (l,cst,args) ->
     let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
@@ -297,7 +300,9 @@ let rec infer_pattern sg (delta:partial_context) (sigma:context2) (lst:constrain
     let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
     raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
 
-and infer_pattern_aux sg (sigma:context2) (f,ty_f,delta,lst:term*typ*partial_context*constraints) (arg:pattern) : term * typ * partial_context * constraints =
+and infer_pattern_aux sg (sigma:context2)
+    (f,ty_f,delta,lst:term*typ*partial_context*constraints)
+    (arg:pattern) : term * typ * partial_context * constraints =
   match whnf sg ty_f with
     | Pi (_,_,a,b) ->
         let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
