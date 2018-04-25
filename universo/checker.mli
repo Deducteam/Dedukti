@@ -1,1 +1,1 @@
-val check : Signature.t -> Entry.entry -> Entry.entry
+val check : Basic.mident -> Entry.entry -> unit

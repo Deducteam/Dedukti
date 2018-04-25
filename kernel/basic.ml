@@ -186,3 +186,6 @@ let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
 let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def
   | Some a -> Format.fprintf fmt "%a" pp a
+
+
+module ISet = Set.Make (struct type t = ident let compare = compare end)

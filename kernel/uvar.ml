@@ -23,6 +23,7 @@ let counter = ref 0
 
 let fresh () =
   let name = Format.sprintf "%s%d" basename !counter in
+  Cfg.incr_cpt_uvars ();
   incr counter; mk_ident name
 
 let fresh_uvar sg =

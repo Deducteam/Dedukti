@@ -59,6 +59,8 @@ val mk_prop : term
 
 val mk_z    : term
 
+val mk_sort : term
+
 val mk_s    : term -> term
 
 val mk_type : term -> term

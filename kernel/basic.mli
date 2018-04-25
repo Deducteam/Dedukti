@@ -144,3 +144,5 @@ val pp_arr    : string -> 'a printer -> 'a array printer
 
 (** Printing object with printer or default string when None. *)
 val pp_option : string -> 'a printer -> 'a option printer
+
+module ISet : Set.S with type elt = ident

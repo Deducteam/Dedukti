@@ -219,3 +219,5 @@ let assert_type_zero t =
     ()
   else
     failwith "This bug should be reported (assert_type_zero)"
+
+let mk_sort = mk_Const dloc sort

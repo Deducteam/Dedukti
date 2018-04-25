@@ -6,6 +6,26 @@ open Uvar
 (* TODO: remove the var case rule *)
 type binding = { ty : Term.term ; sort : Term.term }
 
+let name : name ref = ref (mk_name (mk_mident "") (mk_ident ""))
+
+let add_name name =
+  Cfg.add_name name;
+  name
+
+let vars = ref []
+
+
+let add_vars () =
+  let vars = ISet.of_list !vars in
+  Cfg.add_uvars !name vars
+
+let fresh_uvar sg =
+  let var = Uvar.fresh_uvar sg in
+  let id = Uvar.ident_of_uvar var in
+  vars := id::!vars;
+  var
+
+
 let extract_prod' te =
   let s1,s2,a,t = extract_prod te in
   let x,te =
@@ -114,31 +134,65 @@ let ctx_of_rule_ctx sg ctx =
   in
   List.fold_left add_binding []  ctx
 
-let rule_elaboration sg r =
+let get_rule_name (r:'a Rule.rule) =
   let open Rule in
+  match r.name with
+  | Gamma(_,name) -> name
+  | _ -> assert false
+
+let rule_elaboration sg (r:Rule.typed_rule) =
+  let open Rule in
+  name := get_rule_name r;
   let _,rhs' = elaborate sg (ctx_of_rule_ctx sg r.ctx) false r.rhs in
   let ctx' = forget_types r.ctx in
+  add_vars ();
   {r with rhs=rhs'; ctx=ctx'}
 
-let elaboration env e =
+
+let elaboration md e =
   let open Rule in
   let open Entry in
-  let sg = Cfg.get_signature env in
+  let sg = Cfg.get_signature () in
+  vars := [];
   match e with
   | Decl(l,id,st,t) ->
+    name := add_name (mk_name md id);
     let _, _, t' = elaborate_term sg [] t in
+    add_vars();
     Decl(l,id,st, t')
   | Def(l,id,op,pty,te) -> (
-    match pty with
-    | None ->
-      Def(l,id,op, None, snd @@ elaborate sg [] false te)
-    | Some ty ->
-      let s,_,ty'    = elaborate_term sg [] ty in
-      let _, te' = elaborate sg [] (if_prop s) te in
-    Def(l,id,op, Some ty', te'))
+      name := add_name (mk_name md id);
+      match pty with
+      | None ->
+        add_vars ();
+        Def(l,id,op, None, snd @@ elaborate sg [] false te)
+      | Some ty ->
+        let s,_,ty'    = elaborate_term sg [] ty in
+        let _, te' = elaborate sg [] (if_prop s) te in
+        add_vars ();
+        Def(l,id,op, Some ty', te'))
   | Rules(rs) ->
     let rs2 = List.map (Typing.check_rule sg)  rs in
     let rs' = List.map (rule_elaboration sg) rs2 in
     Rules(rs')
   | Name (l,id) -> Name(l,id)
   | _ -> assert false
+
+let print_entry md fmt e =
+  let open Entry in
+  let get_vars name = Cfg.get_uvars name in
+  let vars =
+    match e with
+    | Decl(_,id,_,_) ->
+      get_vars (mk_name md id)
+    | Def(_,id,_,_,_) ->
+      get_vars (mk_name md id)
+    | Rules(rs) ->
+      List.fold_left (fun vars r ->
+          ISet.union (get_vars (get_rule_name r)) vars) ISet.empty rs
+    | _ -> ISet.empty
+  in
+  let entries = ISet.fold
+      (fun id l -> (Decl(dloc, id, Signature.Definable, mk_sort))::l) vars [] in
+  List.iter (Format.fprintf fmt "%a@." Pp.print_entry) entries;
+  Format.fprintf fmt "@.%a@." Pp.print_entry e

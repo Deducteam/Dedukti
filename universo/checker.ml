@@ -3,14 +3,14 @@ open Pp
 open Rule
 open Entry
 
-let mk_entry md e =
+let check md e =
     match e with
     | Decl (lc, id, st, ty) -> (
       match Env.declare lc id st ty with
       | OK () -> ()
       | Err e -> Errors.fail_env_error (Env.get_signature ()) e )
     | Def (lc, id, opaque, ty, te) -> (
-        let define = if opaque then Uenv.define_op else Uenv.define in
+        let define = if opaque then Env.define_op else Env.define in
         match define lc id te ty with
         | OK () -> ()
         | Err e -> Errors.fail_env_error (Env.get_signature ()) e )
