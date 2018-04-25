@@ -9,8 +9,15 @@ open Entry
 (* TODO: make that debuging functions returns a string *)
 let print_db_enabled = ref false
 let print_default = ref false
-let name () = get_name ()
 
+let cur_md = ref None
+let get_module () =
+  match !cur_md with
+  | None -> get_name ()
+  | Some md -> md
+
+let set_module md =
+  cur_md := Some md
 let rec print_list = pp_list
 
 let print_ident = pp_ident
@@ -21,7 +28,7 @@ let print_name = pp_name
 
 let print_const out cst =
   let md = md cst in
-  if mident_eq md (name ()) then print_ident out (id cst)
+  if mident_eq md (get_module ()) then print_ident out (id cst)
   else Format.fprintf out "%a" pp_name cst
 
 (* Idents generated from underscores by the parser start with a question mark.
@@ -63,7 +70,7 @@ let rec subst map = function
   (* a hack proposed by Raphael Cauderlier *)
   | Const (l,cst) as t       ->
     let m,v = md cst, id cst in
-    if List.mem v map && mident_eq (name ()) m then
+    if List.mem v map && mident_eq (get_module ()) m then
       let v' = (mk_ident ((string_of_mident m) ^ "." ^ (string_of_ident v))) in
        mk_Const l (mk_name m v')
     else

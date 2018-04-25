@@ -3,7 +3,8 @@ open Basic
 open Term
 open Rule
 
-val name                : unit -> mident
+val set_module          : mident -> unit
+val get_module          : unit -> mident
 val print_db_enabled    : bool ref
 val print_default       : bool ref
 
