@@ -3,6 +3,14 @@ open Basic
 module Universo =
 struct
 
+  let elab_oc = ref stdout
+
+  let init file =
+    let md = Env.init file in
+    Cfg.set_signature (Env.get_signature());
+    elab_oc := open_out (Filename.concat "/tmp" (string_of_mident md ^ ".dk"));
+    md
+
   let debug_mode = ref false
 
   let mk_entry md e =
@@ -10,15 +18,16 @@ struct
     let open Format in
     let e' = elaboration md e in
     if !debug_mode then
-      begin
-        let out_file = Filename.concat "/tmp" (string_of_mident md ^ ".dk") in
-        let oc = open_out out_file in
-        fprintf (formatter_of_out_channel oc) "%a@." (print_entry md) e;
-        close_out oc
-      end;
+        fprintf (formatter_of_out_channel !elab_oc) "%a@." (print_entry md) e';
 
     if Cfg.get_checking () then
       Checker.check md e'
+
+  let ending export =
+    close_out !elab_oc;
+    if export && not (Env.export ()) then
+      Errors.fail dloc "Fail to export module '%a@." pp_mident (Env.get_name ())
+
 
   let solve () =
     let cs = Constraints.export () in
@@ -29,15 +38,14 @@ end
 let run_on_file output export file =
   let input = open_in file in
   debug 1 "Processing file '%s'..." file ;
-  let md = Env.init file in
+  let md = Universo.init file in
   let file = Filename.concat output (string_of_mident md ^ ".dk") in
   Cfg.add_fmt md file;
   let entries = Parser.parse_channel md input in
   Errors.success "File '%s' was successfully parsed." file ;
   List.iter (Universo.mk_entry md) entries ;
   Errors.success "File '%s' was successfully checked by universo." file ;
-  if export && not (Env.export ()) then
-    Errors.fail dloc "Fail to export module '%a@." pp_mident (Env.get_name ()) ;
+  Universo.ending export;
   close_in input ;
 
   (md, Format.formatter_of_out_channel (open_out file), entries)

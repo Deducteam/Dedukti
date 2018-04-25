@@ -28,6 +28,8 @@ let set_solving b = env.solving <- b
 
 let set_debug b = env.debug <- b
 
+let set_signature sg = env.sg <- sg
+
 let get_signature () = env.sg
 
 let get_checking () = env.checking

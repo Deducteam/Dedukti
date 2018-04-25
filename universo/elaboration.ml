@@ -194,5 +194,7 @@ let print_entry md fmt e =
   in
   let entries = ISet.fold
       (fun id l -> (Decl(dloc, id, Signature.Definable, mk_sort))::l) vars [] in
-  List.iter (Format.fprintf fmt "%a@." Pp.print_entry) entries;
-  Format.fprintf fmt "@.%a@." Pp.print_entry e
+  Pp.set_module md;
+  Pp.print_db_enabled := false;
+  List.iter (Format.fprintf fmt "%a" Pp.print_entry) entries;
+  Format.fprintf fmt "%a" Pp.print_entry e

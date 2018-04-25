@@ -6,6 +6,8 @@ val set_solving    : bool -> unit
 
 val set_debug      : int -> unit
 
+val set_signature  : Signature.t -> unit
+
 val get_signature  : unit -> Signature.t
 
 val get_checking   : unit -> bool

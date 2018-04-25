@@ -37,6 +37,7 @@ let is_dummy_ident i = (string_of_ident i).[0] = '$'
 let is_regular_ident i = (string_of_ident i).[0] <> '$'
 
 let print_db out (x,n) =
+  Format.eprintf "db:%b@." !print_db_enabled;
   if !print_db_enabled then Format.fprintf out "%a[%i]" print_ident x n
   else print_ident out x
 
