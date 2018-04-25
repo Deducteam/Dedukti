@@ -190,9 +190,9 @@ let print_entry fmt e =
   let open Format in
   match e with
   | Decl(_,id,Signature.Static,ty) ->
-    fprintf fmt "@[<2>%a :@ %a.@]@.@." pp_ident id pp_term ty
+    fprintf fmt "@[<2>%a :@ %a.@]@.@." print_ident id print_term ty
   | Decl(_,id,Signature.Definable,ty) ->
-    fprintf fmt "@[<2>def %a :@ %a.@]@.@." pp_ident id pp_term ty
+    fprintf fmt "@[<2>def %a :@ %a.@]@.@." print_ident id print_term ty
   | Def(_,id,opaque,ty,te) ->
     let key = if opaque then "thm" else "def" in
     begin
