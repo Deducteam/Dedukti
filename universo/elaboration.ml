@@ -49,7 +49,7 @@ let elaborate_cuni sg s =
   mk_succ s, mk_cuni s
 
 let elaborate_var sg ctx var =
-  Format.eprintf "debug: %a@." Pp.print_term var;
+  Format.eprintf "debug:%d@.%a@." (List.length ctx) Pp.print_term var;
   let id = extract_var var in
   if List.mem_assoc id ctx then
     if is_cuni (List.assoc id ctx).ty then
@@ -65,7 +65,8 @@ let rec elaborate_prod sg ctx s1 s2 a x b =
   let ctx' = (x,{ty=a';sort=s1'})::ctx in
   let s2',b' = elaborate sg ctx' (if_prop s2) b in
   let ty' = mk_term s1' a' in
-  mk_rule s1' s2', mk_prod s1' s2' a' x ty' b'
+  let srule = if is_prop s2' then s2' else mk_rule s1' s2' in
+  srule, mk_prod s1' s2' a' x ty' b'
 
 and elaborate_cast sg ctx s1 s2 a b t =
   let s1',a' =
@@ -95,15 +96,21 @@ and elaborate sg ctx is_prop t =
   else
     match t with
     | App(f, a, al) ->
-      let s,f' = elaborate sg ctx is_prop f in
+      let _,f' = elaborate sg ctx is_prop f in
       let _,a' = elaborate sg ctx is_prop a in
       let _,al' = List.split (List.map (elaborate sg ctx is_prop) al) in
-      s, mk_App f' a' al'
+      if is_prop then
+        mk_prop, mk_App f' a' al'
+      else
+        fresh_uvar sg, mk_App f' a' al'
     | Lam(loc, id, Some ty, t) ->
       let s',u', ty' = elaborate_term sg ctx ty in
       let ctx' = ((id,{ty=u';sort=s'})::ctx) in
       let st,t' = elaborate sg ctx' is_prop t in
-      st,mk_Lam loc id (Some ty') t'
+      if is_prop then
+        mk_prop, mk_Lam loc id (Some ty') t'
+      else
+        fresh_uvar sg,mk_Lam loc id (Some ty') t'
     | Lam(loc, id, None, t) -> failwith "untyped lambdas are not supported"
     | Pi(loc, id, ta, tb) -> assert false
     | _ -> if is_prop then mk_prop,t else fresh_uvar sg, t
@@ -112,7 +119,7 @@ and elaborate sg ctx is_prop t =
 and elaborate_term sg ctx t =
   if is_term t then
     let s,t   = extract_term t in
-    let s',t' = elaborate sg [] (if_prop s) t in
+    let s',t' = elaborate sg ctx (if_prop s) t in
     s',t',mk_term s' t'
   else if is_univ t then
     let s = extract_univ t in
@@ -129,10 +136,12 @@ let forget_types : typed_context -> untyped_context =
 
 let ctx_of_rule_ctx sg ctx =
   let add_binding ctx (l,x,t) =
+    Format.eprintf "%a@." Pp.print_ident x;
+    Format.eprintf "%d@." (List.length ctx);
     let s',u',_ = elaborate_term sg ctx t in
     ((x,{ty=u'; sort=s'})::ctx)
   in
-  List.fold_left add_binding []  ctx
+  List.fold_left add_binding []  (List.rev ctx)
 
 let get_rule_name (r:'a Rule.rule) =
   let open Rule in
@@ -156,11 +165,13 @@ let elaboration md e =
   vars := [];
   match e with
   | Decl(l,id,st,t) ->
+    Format.eprintf "%a@." Pp.print_ident id;
     name := add_name (mk_name md id);
     let _, _, t' = elaborate_term sg [] t in
     add_vars();
     Decl(l,id,st, t')
   | Def(l,id,op,pty,te) -> (
+      Format.eprintf "%a@." Pp.print_ident id;
       name := add_name (mk_name md id);
       match pty with
       | None ->

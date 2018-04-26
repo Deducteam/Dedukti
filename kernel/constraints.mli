@@ -10,7 +10,6 @@ type constraints = private
   | Max of var * var * var
   | Succ of var * var
   | Rule of var * var * var
-  | Nl of var * var * var * var
 
 val extract_universe : Signature.t -> Term.term -> var
 
@@ -25,8 +24,6 @@ val add_constraint_succ : var -> var -> unit
 val add_constraint_max  : var -> var -> var -> unit
 
 val add_constraint_rule : var -> var -> var -> unit
-
-val add_constraint_nl   : var -> var -> var -> var -> unit
 
 module ConstraintsSet : Set.S with type elt = constraints
 

@@ -3,21 +3,35 @@ open Pp
 open Rule
 open Entry
 
+let before = ref Constraints.ConstraintsSet.empty
+
+let update_constraints name =
+  let open Constraints in
+  let after = export () in
+  let now = ConstraintsSet.diff after !before in
+  Cfg.add_constraints name now
+
+let get_rule_name (r:'a Rule.rule) =
+  let open Rule in
+  match r.name with
+  | Gamma(_,name) -> name
+  | _ -> assert false
+
 let check md e =
     match e with
     | Decl (lc, id, st, ty) -> (
       match Env.declare lc id st ty with
-      | OK () -> ()
+      | OK () -> update_constraints (mk_name md id)
       | Err e -> Errors.fail_env_error (Env.get_signature ()) e )
     | Def (lc, id, opaque, ty, te) -> (
         let define = if opaque then Env.define_op else Env.define in
         match define lc id te ty with
-        | OK () -> ()
+        | OK () -> update_constraints (mk_name md id)
         | Err e -> Errors.fail_env_error (Env.get_signature ()) e )
     | Rules rs -> (
         let open Rule in
         match Env.add_rules rs with
-        | OK rs -> ()
+        | OK rs -> update_constraints (get_rule_name (List.hd rs))
         | Err e -> Errors.fail_env_error (Env.get_signature ()) e )
     | Eval (_, red, te) -> (
       match Env.reduction ~red te with

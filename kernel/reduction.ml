@@ -303,8 +303,10 @@ and are_convertible_lst sg ism :  (term * term) list -> bool =
   function
   | [] -> true
   | (t1, t2) :: lst ->
+    Format.eprintf "ll:%a@." pp_term t1;
+    Format.eprintf "rr:%a@." pp_term t2;
     match
-      if term_eq t1 t2 then Some lst (* UNIVERSO: needed to type check terms *)
+      if term_eq t1 t2 then Some lst
       else
         let t1', t2' = (whnf sg t1, whnf sg t2) in
         if are_univ_convertible sg ism t1' t2' then Some lst
@@ -328,121 +330,34 @@ and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
   let open Cic in
   let open Uvar in
   let open Constraints in
-  let var_of_uvar x = var_of_ident (ident_of_uvar x) in
   if !just_check || ism then false
-  else if is_uvar l && is_prop r then (
-    let l = var_of_uvar l in
-    add_constraint_prop l ; true )
-  else if is_prop l && is_uvar r then are_univ_convertible sg ism r l
-  else if is_uvar l && is_type r then (
-    let l = var_of_uvar l in
-    assert_type_zero r ;
-    add_constraint_type l (Type 0) ;
-    true )
-  else if is_type l && is_uvar r then are_univ_convertible sg ism r l
-  else if is_uvar l && is_uvar r then (
-    let l = var_of_uvar l in
-    let r = var_of_uvar r in
-    add_constraint_eq l r ; true )
-  else if is_succ l && is_uvar r then (
-    let l = extract_succ l in
-    let l = extract_universe sg l in
-    let r = var_of_uvar r in
-    add_constraint_succ l r ; true )
-  else if is_uvar l && is_succ r then are_univ_convertible sg ism r l
-  else if is_rule l && is_uvar r then (
-    let s1, s2 = extract_rule l in
-    let s1' = extract_universe sg s1 in
-    let s2' = extract_universe sg s2 in
-    let r = var_of_uvar r in
-    add_constraint_rule s1' s2' r ;
-    true )
-  else if is_uvar l && is_rule r then are_univ_convertible sg ism r l
-  else if is_max l && is_uvar r then (
-    let s1, s2 = extract_max l in
-    let s1 = extract_universe sg s1 in
-    let s2 = extract_universe sg s2 in
-    let r = var_of_uvar r in
-    add_constraint_max s1 s2 r ; true )
-  else if is_uvar l && is_max r then are_univ_convertible sg ism r l
-  else if is_max l && is_type r then
-    failwith "This bug should be reported (case 1)"
-    (*
-      let s1,s2 = extract_max l in
-      let s1 = extract_universe sg s1 in
-      let s2 = extract_universe sg s2 in
-      assert_type_zero r;
-      let s3 = var_of_univ (Type 0) in
-      add_constraint_max s1 s2 s3;
-      true *)
-  else if is_type l && is_max r then are_univ_convertible sg ism r l
-  else if is_rule l && is_type r then (
-    let s1, s2 = extract_rule l in
-    let s1 = extract_universe sg s1 in
-    let s2 = extract_universe sg s2 in
-    assert_type_zero r ;
-    let s3 = var_of_univ (Type 0) in
-    add_constraint_rule s1 s2 s3 ;
-    true )
-  else if is_type l && is_rule r then are_univ_convertible sg ism r l
-  else if is_cast l && is_cast r then     failwith "This bug should be reported (case 2)"
-    (* (
-    Format.eprintf "coucou2@." ;
-    let s1, s2, l' = extract_lift l in
-    let s3, s4, r' = extract_lift r in
-    let ml = mk_max s1 s2 in
-    let mr = mk_max s3 s4 in
-    let sl = extract_universe sg ml in
-    let sr = extract_universe sg mr in
-    add_constraint_eq sl sr ;
-    are_convertible_lst sg ism [(l', r')] ) *)
-  else if is_cast l && is_cuni r then     failwith "This bug should be reported (case 3)"
-    (* (
-    let s1, s2, l' = extract_lift l in
-    let r' = extract_cuni r in
-    let m = mk_max s1 s2 in
-    let m = extract_universe sg m in
-    let r' = extract_universe sg r' in
-                                               add_constraint_eq m r' ; true ) *)
-  else if is_cuni l && is_cast r then are_univ_convertible sg ism r l
-  else if is_cast l && not (is_cast r) then failwith "This bug should be reported (case 4)"
-    (*
-    let s1, s2, l' = extract_lift l in
-    if Term.term_eq l' r then (
-      let s1 = extract_universe sg s1 in
-      let s2 = extract_universe sg s2 in
-      add_constraint_eq s1 s2 ; true )
-    else failwith "what to do here?"
-*)
-  else if not (is_cast l) && is_cast r then are_univ_convertible sg ism r l
-  else if is_succ l && is_rule r then (
-    let l = extract_universe sg l in
-    let r = extract_universe sg r in
-    add_constraint_eq l r ; true )
-  else if is_rule l && is_succ r then are_univ_convertible sg ism r l
-  else if is_max l && is_prop r then (
-    let s1, s2 = extract_max l in
-    let s1 = extract_universe sg s1 in
-    let s2 = extract_universe sg s2 in
-    add_constraint_prop s1 ; add_constraint_prop s2 ; true )
-  else if is_prop l && is_max r then are_univ_convertible sg ism r l
-  else if is_succ l && is_prop r then
-    failwith "This bug should be reported (case 6)"
-  else if is_prop l && is_succ r then
-    failwith "This bug should be reported (case 7)"
-  else if is_prop l && is_rule r then
-    failwith "This bug should be reported (case 8)"
-  else if is_rule l && is_prop r then
-    failwith "This bug should be reported (case 9)"
-  else if is_succ l && is_type r then
-    failwith "This bug should be reported (case 10)"
-  else if is_type l && is_succ r then
-    failwith "This bug should be reported (case 11)"
-  else if is_succ l && is_type r then
-    failwith "This bug should be reported (case 14)"
-  else if is_type l && is_succ r then
-    failwith "This bug should be reported (case 15)"
-  else false
+  else if is_cast l && not (is_cast r) then
+    begin
+      Format.eprintf "l:%a@." pp_term l;
+      Format.eprintf "r:%a@." pp_term r;
+      let s1,s2,t1,t2,a = extract_cast l in
+      are_convertible_lst sg ism [(s1,s2);(t1,t2);(a,r)]
+    end
+  else if not (is_cast r) && is_cast l then
+    are_univ_convertible sg ism r l
+  else if is_cast l && is_cast r then
+    begin
+      Format.eprintf "l:%a@." pp_term l;
+      Format.eprintf "r:%a@." pp_term r;
+      let s1,s2,t1,t2,a = extract_cast l in
+      let s3,s4,t3,t4,b = extract_cast r in
+      if are_convertible_lst sg ism [a,b] then
+        false (* let are_convertible work *)
+      else
+        failwith "todo cast"
+    end
+  else
+    try
+      let sl = extract_universe sg l in
+      let sr = extract_universe sg r in
+      add_constraint_eq sl sr;
+      true
+    with _ -> false
 
 
 (* Convertibility Test *)

@@ -3,6 +3,12 @@ open Basic
 module Universo =
 struct
 
+  let get_rule_name (r:'a Rule.rule) =
+    let open Rule in
+    match r.name with
+    | Gamma(_,name) -> name
+    | _ -> assert false
+
   let elab_oc = ref stdout
 
   let init file =
@@ -13,15 +19,39 @@ struct
 
   let debug_mode = ref false
 
+  let print_vars_decl md fmt e =
+    let open Entry in
+    let open Cic in
+    let get_vars name = Cfg.get_uvars name in
+    let vars =
+      match e with
+      | Decl(_,id,_,_) ->
+        get_vars (mk_name md id)
+      | Def(_,id,_,_,_) ->
+        get_vars (mk_name md id)
+      | Rules(rs) ->
+        List.fold_left (fun vars r ->
+            ISet.union (get_vars (get_rule_name r)) vars) ISet.empty rs
+      | _ -> ISet.empty
+    in
+    let vars_entries = ISet.fold
+        (fun id l -> (Decl(dloc, id, Signature.Definable, mk_sort))::l) vars [] in
+    List.iter (Format.fprintf fmt "%a" Pp.print_entry) vars_entries
+
+  let print_entry md fmt e =
+    let open Entry in
+    Format.fprintf fmt "%a@." (print_vars_decl md) e;
+    Format.fprintf fmt "%a" Pp.print_entry e
+
   let mk_entry md e =
     let open Elaboration in
     let open Format in
     let e' = elaboration md e in
-    if !debug_mode then
-        fprintf (formatter_of_out_channel !elab_oc) "%a@." (print_entry md) e';
-
     if Cfg.get_checking () then
-      Checker.check md e'
+      Checker.check md e';
+
+    if !debug_mode then
+      fprintf (formatter_of_out_channel !elab_oc) "%a@." (print_entry md) e'
 
   let ending export =
     close_out !elab_oc;
@@ -39,16 +69,15 @@ let run_on_file output export file =
   let input = open_in file in
   debug 1 "Processing file '%s'..." file ;
   let md = Universo.init file in
-  let file = Filename.concat output (string_of_mident md ^ ".dk") in
-  Cfg.add_fmt md file;
+  let outfile = Filename.concat output (string_of_mident md ^ ".dk") in
+  Cfg.add_fmt md outfile;
   let entries = Parser.parse_channel md input in
   Errors.success "File '%s' was successfully parsed." file ;
   List.iter (Universo.mk_entry md) entries ;
   Errors.success "File '%s' was successfully checked by universo." file ;
   Universo.ending export;
   close_in input ;
-
-  (md, Format.formatter_of_out_channel (open_out file), entries)
+  (md, Format.formatter_of_out_channel (open_out outfile), entries)
 
 let print_file model (md, fmt, entries) =
   List.iter
@@ -61,7 +90,7 @@ let print_files model = List.iter (print_file model)
 let update_cfg elabonly checkonly =
   if elabonly && checkonly then
     begin
-      Printf.eprintf "-elaboration-only and -checking-only are mutually exlucisves";
+      Printf.eprintf "-elaboration-only and -checking-only are mutually exclusives";
       exit 4
     end;
   if elabonly then

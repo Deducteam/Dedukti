@@ -14,7 +14,6 @@ type constraints =
   | Max of var * var * var
   | Succ of var * var
   | Rule of var * var * var
-  | Nl of var * var * var * var
 
 let term_of_univ univ =
   let rec term_of_nat i =
@@ -118,13 +117,6 @@ let add_constraint_rule v v' v'' =
   let v'' = var_of_ident v'' in
   add_constraint (Rule(v,v',v''))
 
-let add_constraint_nl x y z t =
-  let x = var_of_ident x in
-  let y = var_of_ident y in
-  let z = var_of_ident z in
-  let t = var_of_ident t in
-  add_constraint (Nl(x,y,z,t))
-
 module VarSet = Set.Make(struct type t = Basic.ident let compare = compare end)
 
 let info constraints =
@@ -143,8 +135,6 @@ let info constraints =
           VarSet.add n (VarSet.add n' (VarSet.add n'' vs))
         | Univ(n,u) -> begin match u with | Prop -> incr prop | Type _ -> incr ty end;
           VarSet.add n vs
-        | Nl(x,y,z,t) -> incr nl;
-          VarSet.add x (VarSet.add y (VarSet.add z (VarSet.add t vs)))
       ) constraints VarSet.empty
   in
   let print fmt () =
@@ -156,7 +146,6 @@ let info constraints =
     Format.fprintf fmt "@[succ:%d@]@." !succ;
     Format.fprintf fmt "@[max :%d@]@." !max;
     Format.fprintf fmt "@[rule:%d@]@." !rule;
-    Format.fprintf fmt "@[nl  :%d@]@." !nl
   in
   Format.asprintf "%a" print ()
 
@@ -256,9 +245,19 @@ let rec extract_universe sg (s:Term.term) =
 
 let string_of_var n = string_of_ident (UF.find n)
 
-let export () =
-  Format.eprintf "%s@." (info !global_constraints);
-  !global_constraints
+
+let pp_univ fmt = function
+  | Prop -> Format.fprintf fmt "Prop"
+  | Type i -> Format.fprintf fmt "Type %d" i
+
+let pp_constraint fmt = function
+  | Eq(v,v') -> Format.fprintf fmt "%a =? %a" pp_ident v pp_ident v'
+  | Succ(v,v') -> Format.fprintf fmt "Succ(%a) =? %a" pp_ident v pp_ident v'
+  | Max(v,v',v'') -> Format.fprintf fmt "Max(%a,%a) =? %a" pp_ident v pp_ident v' pp_ident v''
+  | Rule(v,v',v'') -> Format.fprintf fmt "Rule(%a,%a) =? %a" pp_ident v pp_ident v' pp_ident v''
+  | Univ(v,u) -> Format.fprintf fmt "%a =? %a" pp_ident v pp_univ u
+
+let pp_cs fmt = ConstraintsSet.iter (fun x -> Format.fprintf fmt "%a@." pp_constraint x)
 
 let optimize cs =
   let union c cs =
@@ -274,9 +273,13 @@ let optimize cs =
     | Max(v,v',v'') -> Max(UF.find v, UF.find v', UF.find v'')
     | Rule(v,v',v'') -> Rule(UF.find v, UF.find v', UF.find v'')
     | Univ(v,u) -> Univ(UF.find v, u)
-    | Nl(x,y,z,t) -> Nl(UF.find x, UF.find y, UF.find z, UF.find t)
   in
-  ConstraintsSet.map normalize_eq cs'
+  ConstraintsSet.fold (fun c s -> ConstraintsSet.add (normalize_eq c) s) cs' ConstraintsSet.empty
+
+let export () =
+  global_constraints := optimize !global_constraints;
+  Format.eprintf "%s@." (info !global_constraints);
+  !global_constraints
 
 let import cs =
   UF.reset ();
