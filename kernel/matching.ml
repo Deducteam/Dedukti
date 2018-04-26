@@ -370,9 +370,7 @@ let solve_problem reduce convertible whnf pb =
         begin
           assert (j == i);
           assert (pb.status.(i) == Unsolved);
-          debug 3 "Eq %i = %a" j pp_te term;
           let solu = try_force_solve reduce d i args term in
-          debug 3 "Eq %i = %a : %a" j pp_te term (pp_opt pp_te) solu;
           let npb = bind_opt
               (set_unsolved convertible reduce {pb with problems=other_problems} i)
               solu in

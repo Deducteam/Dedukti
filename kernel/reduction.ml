@@ -9,8 +9,6 @@ open Ac
 
 type red_strategy = Hnf | Snf | Whnf
 
-let depth = ref 0
-
 type red_cfg = {
   select : (Rule.rule_name -> bool) option;
   nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
@@ -97,9 +95,6 @@ let mk_reduc st ctx term stack =
 (** Creates a fresh state using the same reduc pointer as [st].
     This pointer now points to the fresh state. *)
 let mk_reduc st ctx term stack =
-  debug 3 "Reduc:@.%a%a@.@."
-    (pp_state ~if_ctx:true ~if_stack:true)  st
-    (pp_state ~if_ctx:true ~if_stack:true) (mk_state ctx term stack);
   if st.ctx == ctx && st.term == term && st.stack == stack
   then st
   else
@@ -331,7 +326,6 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
         (find_cases (flatten_AC_stack sg strategy convertible) arg_i cases def) in
     gamma_rw_list sg convertible forcing strategy new_cases
   | Test (rule_name, problem, cstr, right, def) ->
-    debug 3 "Testing : %a" pp_rule_name rule_name;
     let pb = convert_problem stack problem in (* Convert problem with the stack *)
     begin
       match solve_problem (forcing sg) (convertible sg) (forcing sg) pb with
@@ -388,7 +382,6 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
  *     of that same constant
  * *)
 let rec state_whnf (sg:Signature.t) (st:state) : state =
-  debug 3 "State WHNF: %a" (pp_state ~if_ctx:true ~if_stack:true) st;
   if !(st.reduc) != st
   then state_whnf sg !(st.reduc)
   else
@@ -430,22 +423,9 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
             (mk_state ctx (mk_Const l cst) flat):: tl
           | _ -> assert false
         else s1 in
-      debug 3 "%i Reducing: %a" !depth pp_term (term_of_state {st with stack=s1});
-      depth := !depth + 1;
       match gamma_rw sg are_convertible snf state_whnf s1 tree with
-      | None ->
-        begin
-          depth := !depth - 1;
-          debug 3 "%i Failed..." !depth;
-          comb_state_shape_if_AC sg state_whnf are_convertible st
-        end
-      | Some (ctx,term) ->
-        begin
-          depth := !depth - 1;
-          debug 3 "%i Success : %a" !depth
-            pp_term (term_of_state (mk_state ctx term []));
-          rec_call ctx term s2
-        end
+      | None -> comb_state_shape_if_AC sg state_whnf are_convertible st
+      | Some (ctx,term) -> rec_call ctx term s2
 
 (* ********************* *)
 
