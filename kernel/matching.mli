@@ -12,7 +12,7 @@ type 'a problem =
   | Eq of var_p * 'a
   (** the variable is exactly the given term. *)
   | AC of ac_ident * int * (var_p list) * ('a list)
-  (** ([cst],[joks],[u],[vars],[terms])
+  (** [(cst, joks, u, vars, terms)]
    *  Represents the flattenned equality under AC([u]) symbol [cst] of:
    *  - [njoks] jokers and the given variables [vars]
    *  - The given [terms] *)

@@ -143,6 +143,7 @@ val pp_loc    : loc    printer
 (** Printing each elements of arrays / lists using the separator [sep] between elements. *)
 val pp_list   : string -> 'a printer -> 'a list printer
 val pp_arr    : string -> 'a printer -> 'a array printer
+val pp_opt    : 'a printer -> 'a option printer
 
 (** Printing object with printer or default string when None. *)
 val pp_option : string -> 'a printer -> 'a option printer
