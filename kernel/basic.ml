@@ -126,79 +126,72 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
 
 (** {2 Debugging} *)
 
-type debug_flag =
-  | D_Std
-  | D_Warn
-  | D_Module
-  | D_Confluence
-  | D_Rule
-  | D_TypeChecking
-  | D_Reduce
-  | D_Matching
+module Debug = struct
+  
+  type flag = int
+  let d_std          : flag = 0
+  let d_warn         : flag = 1
+  let d_module       : flag = 2
+  let d_confluence   : flag = 3
+  let d_rule         : flag = 4
+  let d_typeChecking : flag = 5
+  let d_reduce       : flag = 6
+  let d_matching     : flag = 7
 
-(* TODO: Instead of doing this conversion, debug_flag could be int. *)
+  let nb_flags = 8
 
-let convert : debug_flag -> int = function
-  | D_Std          -> 1 lsl 0
-  | D_Warn         -> 1 lsl 1
-  | D_Module       -> 1 lsl 2
-  | D_Confluence   -> 1 lsl 3
-  | D_Rule         -> 1 lsl 4
-  | D_TypeChecking -> 1 lsl 5
-  | D_Reduce       -> 1 lsl 6
-  | D_Matching     -> 1 lsl 7
+  (* Default mode is to debug only [d_std] messages. *)
+  let default_flags = [d_std]
 
-let header : debug_flag -> string = function
-  | D_Std          -> ""
-  | D_Warn         -> "Warning"
-  | D_Module       -> "Module"
-  | D_Confluence   -> "Confluence"
-  | D_Rule         -> "Rule"
-  | D_TypeChecking -> "TypeChecking"
-  | D_Reduce       -> "Reduce"
-  | D_Matching     -> "Matching"
+  (* Headers for debugging messages *)
+  let headers =
+    [| ""
+     ; "Warning"
+     ; "Module"
+     ; "Confluence"
+     ; "Rule"
+     ; "TypeChecking"
+     ; "Reduce"
+     ; "Matching"
+    |]
 
-(* Default mode is to debug only d_Std messages. *)
-let debug_mode = ref (convert D_Std)
-let reset_debug () = debug_mode := (convert D_Std)
+  (* Array of activated flags. Initialized with [false]s except at [default_flags] indices. *)
+  let active = Array.init nb_flags (fun f -> List.mem f default_flags)
 
-(******** Flag arithmetic **********)
-let flip_flag  f = debug_mode := !debug_mode lxor f
-let get_flag   f = !debug_mode land f <> 0 [@@inline]
-let set_flag b f = if get_flag f <> b then flip_flag f
-let  enable_flag f = set_flag true  (convert f)
-let disable_flag f = set_flag false (convert f)
-
-exception DebugFlagNotRecognized of char
-
-let set_debug_mode =
-  String.iter (function
-      | 'q' -> disable_flag D_Std
-      | 'w' -> enable_flag  D_Warn
-      | 'c' -> enable_flag  D_Confluence
-      | 'u' -> enable_flag  D_Rule
-      | 't' -> enable_flag  D_TypeChecking
-      | 'r' -> enable_flag  D_Reduce
-      | 'm' -> enable_flag  D_Matching
-      | c -> raise (DebugFlagNotRecognized c)
-    )
-
-let do_debug fmt =
-  Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
-
-let ignore_debug fmt =
-  Format.(ifprintf err_formatter) fmt
-
-let debug i =
-  if get_flag (convert i)
-  then
-    match header i with
-    | "" -> do_debug
-    | h -> (fun fmt -> do_debug ("[%s] " ^^ fmt) h)
-  else ignore_debug
-[@@inline]
-
-let warn fmt = debug D_Warn ("[Warning] " ^^ fmt)
+  let  enable_flag f = active.(f) <- true
+  let disable_flag f = active.(f) <- false
+      
+  exception DebugFlagNotRecognized of char
+      
+  let set_debug_mode =
+    String.iter (function
+        | 'q' -> disable_flag d_std
+        | 'w' -> enable_flag  d_warn
+        | 'c' -> enable_flag  d_confluence
+        | 'u' -> enable_flag  d_rule
+        | 't' -> enable_flag  d_typeChecking
+        | 'r' -> enable_flag  d_reduce
+        | 'm' -> enable_flag  d_matching
+        | c -> raise (DebugFlagNotRecognized c)
+      )
+      
+  let do_debug fmt =
+    Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
+      
+  let ignore_debug fmt =
+    Format.(ifprintf err_formatter) fmt
+      
+  let debug f =
+    if active.(f) 
+    then
+      match headers.(f) with
+      | "" -> do_debug
+      | h -> (fun fmt -> do_debug ("[%s] " ^^ fmt) h)
+    else ignore_debug
+  [@@inline]
+  
+  let warn fmt = debug d_warn ("[Warning] " ^^ fmt)
+end
 
 (** {2 Misc functions} *)
 

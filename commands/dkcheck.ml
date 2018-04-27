@@ -5,7 +5,7 @@ open Entry
 
 let eprint lc fmt =
   let (l,c) = of_loc lc in
-  debug D_Warn ("line:%i column:%i " ^^ fmt) l c
+  Debug.(debug d_warn ("line:%i column:%i " ^^ fmt) l c)
 
 let mk_entry md e =
   match e with
@@ -84,7 +84,7 @@ let mk_entry md e =
   | Print(_,s) -> Format.printf "%s@." s
   | Name(_,n) ->
     if not (mident_eq n md)
-    then warn "Invalid #NAME directive ignored.\n%!"
+    then Debug.(warn "Invalid #NAME directive ignored.@.")
   | Require(lc,md) ->
     begin
       match Env.import lc md with
@@ -99,7 +99,7 @@ let mk_entry beautify md =
 
 let run_on_file beautify export file =
   let input = open_in file in
-  debug D_Warn "Processing file '%s'..." file;
+  Debug.(debug d_warn "Processing file '%s'..." file);
   let md = Env.init file in
   Confluence.initialize ();
   Parser.handle_channel md (mk_entry beautify md) input;
@@ -117,13 +117,13 @@ let _ =
   let beautify     = ref false in
   let options = Arg.align
     [ ( "-d"
-      , Arg.String Basic.set_debug_mode
+      , Arg.String Debug.set_debug_mode
       , "flags enables debugging for all given flags" )
     ; ( "-v"
-      , Arg.Unit (fun _ -> Basic.set_debug_mode "w")
+      , Arg.Unit (fun () -> Debug.set_debug_mode "w")
       , " Verbose mode (equivalent to -d 'w')" )
     ; ( "-q"
-      , Arg.Unit (fun _ -> Basic.set_debug_mode "q")
+      , Arg.Unit (fun () -> Debug.set_debug_mode "q")
       , " Quiet mode (equivalent to -d 'q'" )
     ; ( "-e"
       , Arg.Set export

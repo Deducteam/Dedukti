@@ -101,7 +101,7 @@ type dep_data = mident * (path * (mident * path) list)
 let handle_file : string -> dep_data = fun file ->
   try
     (* Initialisation. *)
-    let md = Basic.mk_mident file in
+    let md = mk_mident file in
     current_mod := md; current_deps := [];
     (* Actully parsing and gathering data. *)
     let input = open_in file in
@@ -158,13 +158,13 @@ let _ =
   let sorted  = ref false  in
   let args = Arg.align
       [ ( "-d"
-        , Arg.String Basic.set_debug_mode
+        , Arg.String Debug.set_debug_mode
         , "flags enables debugging for all given flags" )
       ; ( "-v"
-        , Arg.Unit (fun _ -> Basic.set_debug_mode "w")
+        , Arg.Unit (fun () -> Debug.set_debug_mode "w")
         , " Verbose mode (equivalent to -d 'w')" )
       ; ( "-q"
-        , Arg.Unit (fun _ -> Basic.set_debug_mode "q")
+        , Arg.Unit (fun () -> Debug.set_debug_mode "q")
       , " Quiet mode (equivalent to -d 'q'" )
       ; ( "-o"
         , Arg.String (fun n -> output := open_out n)
@@ -176,7 +176,7 @@ let _ =
         , Arg.Set ignore
         , " If some dependencies are not found, ignore them" )
       ; ( "-I"
-        , Arg.String Basic.add_path
+        , Arg.String add_path
         , "DIR Add the directory DIR to the load path" ) ]
   in
   let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...@." in

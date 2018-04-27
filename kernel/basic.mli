@@ -100,36 +100,40 @@ val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 
 (** {2 Debug} *)
 
-type debug_flag =
-  | D_Std           (** Standard messaging. Default is enabled.  *)
-  | D_Warn          (** Warnings *)
-  | D_Module        (** Modules *)
-  | D_Confluence    (** Confluence *)
-  | D_Rule          (** Rule type checking *)
-  | D_TypeChecking  (** Type checking *)
-  | D_Reduce        (** Reduction *)
-  | D_Matching      (** Pattern matching *)
+module Debug : sig
+  
+  type flag
+  val d_std          : flag (** Standard messaging. Default is enabled.  *)
+  val d_warn         : flag (** Warnings *)
+  val d_module       : flag (** Modules *)
+  val d_confluence   : flag (** Confluence *)
+  val d_rule         : flag (** Rule type checking *)
+  val d_typeChecking : flag (** Type checking *)
+  val d_reduce       : flag (** Reduction *)
+  val d_matching     : flag (** Pattern matching *)
 
-val  enable_flag : debug_flag -> unit
-val disable_flag : debug_flag -> unit
+  val  enable_flag : flag -> unit (** Activates given flag's debugging *)
+  val disable_flag : flag -> unit (** Deactivates given flag's debugging *)
 
-(** Sets multiple debugging flags from a string: 
-  q : disables D_Std
-  w : enables  D_Warn
-  c : enables  D_Confluence
-  u : enables  D_Rule
-  t : enables  D_TypeChecking
-  r : enables  D_Reduce
-  m : enables  D_Matching
-*)
-val set_debug_mode : string -> unit
+  (** Sets multiple debugging flags from a string: 
+      q : disables D_Std
+      w : enables  D_Warn
+      c : enables  D_Confluence
+      u : enables  D_Rule
+      t : enables  D_TypeChecking
+      r : enables  D_Reduce
+      m : enables  D_Matching
+  *)
+  val set_debug_mode : string -> unit
 
-(** [debug i] prints information on the standard error channel
-    if the selected debugging level is at least [i]. *)
-val debug : debug_flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
+  (** [debug f] prints information on the standard error channel
+      if the given flag [f] is currently active. *)
+  val debug : flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
 
-(** Prints a warning when debugging level is at least 0. *)
-val warn : ('a, Format.formatter, unit, unit) format4 -> 'a
+  (** Prints a warning when [d_warn] flag is active. *)
+  val warn : ('a, Format.formatter, unit, unit) format4 -> 'a
+end
+
 
 (** {2 Misc} *)
 
