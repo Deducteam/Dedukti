@@ -4,8 +4,7 @@ open Parser
 open Entry
 
 let eprint lc fmt =
-  let (l,c) = of_loc lc in
-  Debug.(debug d_warn ("line:%i column:%i " ^^ fmt) l c)
+  Debug.(debug d_warn ("%a " ^^ fmt) pp_loc lc)
 
 let mk_entry md e =
   match e with
@@ -135,7 +134,7 @@ let _ =
       , Arg.String (fun n -> run_on_stdin := Some(n))
       , "MOD Parses standard input using module name MOD" )
     ; ( "-version"
-      , Arg.Unit (fun _ -> Printf.printf "Dedukti %s\n%!" Version.version)
+      , Arg.Unit (fun _ -> Format.printf "Dedukti %s@." Version.version)
       , " Print the version number" )
     ; ( "-coc"
       , Arg.Set Typing.coc
@@ -165,7 +164,7 @@ let _ =
   in
   if !beautify && !export then
     begin
-      Printf.eprintf "Beautify and export cannot be set at the same time\n";
+      Format.eprintf "Beautify and export cannot be set at the same time@.";
       exit 2
     end;
   try
@@ -178,9 +177,6 @@ let _ =
       if not !beautify
       then Errors.success "Standard input was successfully checked.\n"
   with
-  | Parse_error(loc,msg) ->
-    let (l,c) = of_loc loc in
-    Printf.eprintf "Parse error at (%i,%i): %s\n" l c msg;
-    exit 1
-  | Sys_error err        -> Printf.eprintf "ERROR %s.\n" err; exit 1
+  | Parse_error(loc,msg) -> Format.eprintf "Parse error at (%a): %s\n" pp_loc loc msg; exit 1
+  | Sys_error err        -> Format.eprintf "ERROR %s.@." err; exit 1
   | Exit                 -> exit 3
