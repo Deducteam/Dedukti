@@ -177,6 +177,6 @@ let _ =
       if not !beautify
       then Errors.success "Standard input was successfully checked.\n"
   with
-  | Parse_error(loc,msg) -> Format.eprintf "Parse error at (%a): %s\n" pp_loc loc msg; exit 1
+  | Parse_error(loc,msg) -> Format.eprintf "Parse error at (%a): %s@." pp_loc loc msg; exit 1
   | Sys_error err        -> Format.eprintf "ERROR %s.@." err; exit 1
   | Exit                 -> exit 3
