@@ -117,7 +117,7 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
     | Some (rs,_) -> Confluence.add_rules rs
   in
   HId.iter aux ctx;
-  debug 1 "Checking confluence after loading module '%a'..." pp_mident md;
+  debug D_Confluence "Checking confluence after loading module '%a'..." pp_mident md;
   match Confluence.check () with
   | OK () -> ()
   | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
@@ -133,7 +133,7 @@ let rec import sg lc m =
         let dep = mk_mident dep0 in
         if not (HMd.mem sg.tables dep) then import sg lc dep
       ) deps ;
-    debug 1 "Loading module '%a'..." pp_mident m;
+    debug D_Module "Loading module '%a'..." pp_mident m;
     List.iter (fun rs -> add_rule_infos sg rs) ext;
     check_confluence_on_import lc m ctx
 
@@ -226,7 +226,7 @@ let add_rules sg lst : unit =
       if not (mident_eq sg.name (md r.cst)) then
         sg.external_rules <- rs::sg.external_rules;
       Confluence.add_rules rs;
-      debug 1 "Checking confluence after adding rewrite rules on symbol '%a'"
+      debug D_Confluence "Checking confluence after adding rewrite rules on symbol '%a'"
         pp_name r.cst;
       match Confluence.check () with
       | OK () -> ()

@@ -80,12 +80,12 @@ let handle_entry e =
 let  _ =
   let md = Env.init "<toplevel>" in
   let str = from_channel md stdin in
-  Printf.printf "\tDedukti (%s)\n\n%!" Version.version;
+  Format.printf "\tDedukti (%s)@.@." Version.version;
   while true do
-    Printf.printf ">> %!";
+    Format.printf ">> ";
     try handle_entry (read str) with
     | End_of_file      -> exit 0
-    | Parse_error(_,s) -> Printf.eprintf "Parse error: %s\n%!" s
+    | Parse_error(_,s) -> Format.eprintf "Parse error: %s@." s
     | e                ->
-        Printf.eprintf "Uncaught exception %S\n%!" (Printexc.to_string e)
+        Format.eprintf "Uncaught exception %S@." (Printexc.to_string e)
   done

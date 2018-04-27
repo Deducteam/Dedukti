@@ -100,16 +100,33 @@ val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 
 (** {2 Debug} *)
 
-(** Sets the level of information printing on the standard error channel
-   <0 is quiet mode (no printing)
-   0 is warning level (default)
-   1 is verbose mode
-   >1 is debugging mode  *)
-val set_debug_mode : int -> unit
+type debug_flag =
+  | D_Std           (** Standard messaging. Default is enabled.  *)
+  | D_Warn          (** Warnings *)
+  | D_Module        (** Modules *)
+  | D_Confluence    (** Confluence *)
+  | D_Rule          (** Rule type checking *)
+  | D_TypeChecking  (** Type checking *)
+  | D_Reduce        (** Reduction *)
+  | D_Matching      (** Pattern matching *)
+
+val  enable_flag : debug_flag -> unit
+val disable_flag : debug_flag -> unit
+
+(** Sets multiple debugging flags from a string: 
+  q : disables D_Std
+  w : enables  D_Warn
+  c : enables  D_Confluence
+  u : enables  D_Rule
+  t : enables  D_TypeChecking
+  r : enables  D_Reduce
+  m : enables  D_Matching
+*)
+val set_debug_mode : string -> unit
 
 (** [debug i] prints information on the standard error channel
     if the selected debugging level is at least [i]. *)
-val debug : int -> ('a, Format.formatter, unit, unit) format4 -> 'a
+val debug : debug_flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
 
 (** Prints a warning when debugging level is at least 0. *)
 val warn : ('a, Format.formatter, unit, unit) format4 -> 'a

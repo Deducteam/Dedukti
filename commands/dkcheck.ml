@@ -5,7 +5,7 @@ open Entry
 
 let eprint lc fmt =
   let (l,c) = of_loc lc in
-  debug 1 ("line:%i column:%i " ^^ fmt) l c
+  debug D_Warn ("line:%i column:%i " ^^ fmt) l c
 
 let mk_entry md e =
   match e with
@@ -99,7 +99,7 @@ let mk_entry beautify md =
 
 let run_on_file beautify export file =
   let input = open_in file in
-  debug 1 "Processing file '%s'..." file;
+  debug D_Warn "Processing file '%s'..." file;
   let md = Env.init file in
   Confluence.initialize ();
   Parser.handle_channel md (mk_entry beautify md) input;
@@ -117,14 +117,14 @@ let _ =
   let beautify     = ref false in
   let options = Arg.align
     [ ( "-d"
-      , Arg.Int Basic.set_debug_mode
-      , "N sets the verbosity level to N" )
+      , Arg.String Basic.set_debug_mode
+      , "flags enables debugging for all given flags" )
     ; ( "-v"
-      , Arg.Unit (fun _ -> Basic.set_debug_mode 1)
-      , " Verbose mode (equivalent to -d 1)" )
+      , Arg.Unit (fun _ -> Basic.set_debug_mode "w")
+      , " Verbose mode (equivalent to -d 'w')" )
     ; ( "-q"
-      , Arg.Unit (fun _ -> Basic.set_debug_mode (-1))
-      , " Quiet mode (equivalent to -d -1" )
+      , Arg.Unit (fun _ -> Basic.set_debug_mode "q")
+      , " Quiet mode (equivalent to -d 'q'" )
     ; ( "-e"
       , Arg.Set export
       , " Generates an object file (\".dko\")" )

@@ -126,17 +126,79 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
 
 (** {2 Debugging} *)
 
-let debug_mode = ref 0
+type debug_flag =
+  | D_Std
+  | D_Warn
+  | D_Module
+  | D_Confluence
+  | D_Rule
+  | D_TypeChecking
+  | D_Reduce
+  | D_Matching
 
-let set_debug_mode i = debug_mode := i
+(* TODO: Instead of doing this conversion, debug_flag could be int. *)
 
-let debug i fmt = Format.(
-    if !debug_mode >= i
-    then kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
-    else ifprintf err_formatter fmt
-  )
+let convert : debug_flag -> int = function
+  | D_Std          -> 1 lsl 0
+  | D_Warn         -> 1 lsl 1
+  | D_Module       -> 1 lsl 2
+  | D_Confluence   -> 1 lsl 3
+  | D_Rule         -> 1 lsl 4
+  | D_TypeChecking -> 1 lsl 5
+  | D_Reduce       -> 1 lsl 6
+  | D_Matching     -> 1 lsl 7
 
-let warn fmt = debug 0 ("[Warning] " ^^ fmt)
+let header : debug_flag -> string = function
+  | D_Std          -> ""
+  | D_Warn         -> "Warning"
+  | D_Module       -> "Module"
+  | D_Confluence   -> "Confluence"
+  | D_Rule         -> "Rule"
+  | D_TypeChecking -> "TypeChecking"
+  | D_Reduce       -> "Reduce"
+  | D_Matching     -> "Matching"
+
+(* Default mode is to debug only d_Std messages. *)
+let debug_mode = ref (convert D_Std)
+let reset_debug () = debug_mode := (convert D_Std)
+
+(******** Flag arithmetic **********)
+let flip_flag  f = debug_mode := !debug_mode lxor f
+let get_flag   f = !debug_mode land f <> 0 [@@inline]
+let set_flag b f = if get_flag f <> b then flip_flag f
+let  enable_flag f = set_flag true  (convert f)
+let disable_flag f = set_flag false (convert f)
+
+exception DebugFlagNotRecognized of char
+
+let set_debug_mode =
+  String.iter (function
+      | 'q' -> disable_flag D_Std
+      | 'w' -> enable_flag  D_Warn
+      | 'c' -> enable_flag  D_Confluence
+      | 'u' -> enable_flag  D_Rule
+      | 't' -> enable_flag  D_TypeChecking
+      | 'r' -> enable_flag  D_Reduce
+      | 'm' -> enable_flag  D_Matching
+      | c -> raise (DebugFlagNotRecognized c)
+    )
+
+let do_debug fmt =
+  Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
+
+let ignore_debug fmt =
+  Format.(ifprintf err_formatter) fmt
+
+let debug i =
+  if get_flag (convert i)
+  then
+    match header i with
+    | "" -> do_debug
+    | h -> (fun fmt -> do_debug ("[%s] " ^^ fmt) h)
+  else ignore_debug
+[@@inline]
+
+let warn fmt = debug D_Warn ("[Warning] " ^^ fmt)
 
 (** {2 Misc functions} *)
 
