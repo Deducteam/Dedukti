@@ -191,6 +191,8 @@ module Debug = struct
     else ignore_debug
   [@@inline]
 
+  let debug_eval f clos = if active.(f) then clos ()
+
 end
 
 (** {2 Misc functions} *)

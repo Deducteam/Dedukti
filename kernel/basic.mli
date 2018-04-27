@@ -130,6 +130,10 @@ module Debug : sig
   (** [debug f] prints information on the standard error channel
       if the given flag [f] is currently active. *)
   val debug : flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
+    
+  (** [debug_eval f (fun () -> body] evaluates [body]
+      if the given flag [f] is currently active. *)
+  val debug_eval : flag -> (unit -> unit) -> unit
 end
 
 

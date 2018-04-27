@@ -418,12 +418,13 @@ let check_rule sg (rule:untyped_rule) : typed_rule =
         | None ->
           begin
             (*TODO make Dedukti handle this case*)
-            Debug.(debug d_rule "Failed to infer a typing context for the rule:\n%a."
-              pp_untyped_rule rule);
-            SS.iter (
-              fun i (id,te) -> Debug.(debug d_rule "Try replacing '%a[%i]' by '%a'"
-                  pp_ident id i (pp_term_j 0) te)
-            ) sub;
+            Debug.(debug_eval d_rule (fun () ->
+                debug d_rule "Failed to infer a typing context for the rule:\n%a."
+                  pp_untyped_rule rule;
+                let aux i (id,te) = debug d_rule "Try replacing '%a[%i]' by '%a'"
+                    pp_ident id i (pp_term_j 0) te in
+                SS.iter aux sub
+              ));
             raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
           end
       end
