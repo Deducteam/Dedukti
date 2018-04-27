@@ -39,6 +39,10 @@ let select f b : unit =
 
 type env = term Lazy.t LList.t
 
+let pp_env fmt (ctx:env) =
+  pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst ctx))
+
+
 (* A state {ctx; term; stack} is the state of an abstract machine that
 represents a term where [ctx] is a ctx that contains the free variables
 of [term] and [stack] represents the terms that [term] is applied to. *)
@@ -61,9 +65,6 @@ let mk_state ctx term stack =
   let rec t = { ctx; term; stack; reduc = ref t} in t
 
 (* Pretty Printing *)
-
-let pp_env fmt (ctx:env) =
-  pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst ctx))
 
 let pp_stack fmt (st:stack) =
   fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state st)
@@ -95,12 +96,9 @@ let mk_reduc st ctx term stack =
 (** Creates a fresh state using the same reduc pointer as [st].
     This pointer now points to the fresh state. *)
 let mk_reduc st ctx term stack =
-  if st.ctx == ctx && st.term == term && st.stack == stack
-  then st
-  else
-    let st' = { ctx; term; stack; reduc=st.reduc } in
-    st.reduc := st';
-    st'
+  let st' = { ctx; term; stack; reduc=st.reduc } in
+  st.reduc := st';
+  st'
 
 
 (** Set [st'] as a reduc of [st] and return it *)
