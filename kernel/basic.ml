@@ -129,8 +129,8 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
 module Debug = struct
   
   type flag = int
-  let d_std          : flag = 0
-  let d_warn         : flag = 1
+  let d_warn         : flag = 0
+  let d_notice       : flag = 1
   let d_module       : flag = 2
   let d_confluence   : flag = 3
   let d_rule         : flag = 4
@@ -138,15 +138,15 @@ module Debug = struct
   let d_reduce       : flag = 6
   let d_matching     : flag = 7
 
-  let nb_flags = 8
+  let nb_flags = 7
 
   (* Default mode is to debug only [d_std] messages. *)
-  let default_flags = [d_std]
+  let default_flags = [d_warn]
 
   (* Headers for debugging messages *)
   let headers =
-    [| ""
-     ; "Warning"
+    [| "Warning"
+     ; "Notice"
      ; "Module"
      ; "Confluence"
      ; "Rule"
@@ -165,8 +165,9 @@ module Debug = struct
       
   let set_debug_mode =
     String.iter (function
-        | 'q' -> disable_flag d_std
-        | 'w' -> enable_flag  d_warn
+        | 'q' -> disable_flag d_warn
+        | 'n' -> enable_flag  d_notice
+        | 'o' -> enable_flag  d_module
         | 'c' -> enable_flag  d_confluence
         | 'u' -> enable_flag  d_rule
         | 't' -> enable_flag  d_typeChecking
@@ -189,8 +190,7 @@ module Debug = struct
       | h -> (fun fmt -> do_debug ("[%s] " ^^ fmt) h)
     else ignore_debug
   [@@inline]
-  
-  let warn fmt = debug d_warn ("[Warning] " ^^ fmt)
+
 end
 
 (** {2 Misc functions} *)

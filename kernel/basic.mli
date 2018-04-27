@@ -103,8 +103,8 @@ val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 module Debug : sig
   
   type flag
-  val d_std          : flag (** Standard messaging. Default is enabled.  *)
   val d_warn         : flag (** Warnings *)
+  val d_notice       : flag (** Notices *)
   val d_module       : flag (** Modules *)
   val d_confluence   : flag (** Confluence *)
   val d_rule         : flag (** Rule type checking *)
@@ -116,22 +116,20 @@ module Debug : sig
   val disable_flag : flag -> unit (** Deactivates given flag's debugging *)
 
   (** Sets multiple debugging flags from a string: 
-      q : disables D_Std
-      w : enables  D_Warn
-      c : enables  D_Confluence
-      u : enables  D_Rule
-      t : enables  D_TypeChecking
-      r : enables  D_Reduce
-      m : enables  D_Matching
+      q : disables d_Warn
+      n : enables  d_Notice
+      o : enables  d_Module
+      c : enables  d_Confluence
+      u : enables  d_Rule
+      t : enables  d_TypeChecking
+      r : enables  d_Reduce
+      m : enables  d_Matching
   *)
   val set_debug_mode : string -> unit
 
   (** [debug f] prints information on the standard error channel
       if the given flag [f] is currently active. *)
   val debug : flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
-
-  (** Prints a warning when [d_warn] flag is active. *)
-  val warn : ('a, Format.formatter, unit, unit) format4 -> 'a
 end
 
 

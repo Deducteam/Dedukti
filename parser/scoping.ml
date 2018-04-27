@@ -104,7 +104,7 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   let top = PPattern(l,md_opt,id,pargs) in
   let ctx, unused_vars = get_vars_order pctx top in
   if unused_vars
-  then Debug.(warn "Local variables in the rule %a are not used (%a)")
+  then Debug.(debug d_warn "Local variables in the rule %a are not used (%a)")
       pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
   let idents = List.map snd ctx in
   let b,id =

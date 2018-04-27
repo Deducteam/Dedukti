@@ -4,7 +4,7 @@ open Parser
 open Entry
 
 let eprint lc fmt =
-  Debug.(debug d_warn ("%a " ^^ fmt) pp_loc lc)
+  Debug.(debug d_notice ("%a " ^^ fmt) pp_loc lc)
 
 let mk_entry md e =
   match e with
@@ -83,7 +83,7 @@ let mk_entry md e =
   | Print(_,s) -> Format.printf "%s@." s
   | Name(_,n) ->
     if not (mident_eq n md)
-    then Debug.(warn "Invalid #NAME directive ignored.@.")
+    then Debug.(debug d_warn "Invalid #NAME directive ignored.@.")
   | Require(lc,md) ->
     begin
       match Env.import lc md with
@@ -98,7 +98,7 @@ let mk_entry beautify md =
 
 let run_on_file beautify export file =
   let input = open_in file in
-  Debug.(debug d_warn "Processing file '%s'..." file);
+  Debug.(debug d_module "Processing file '%s'..." file);
   let md = Env.init file in
   Confluence.initialize ();
   Parser.handle_channel md (mk_entry beautify md) input;
@@ -134,7 +134,7 @@ let _ =
       , Arg.String (fun n -> run_on_stdin := Some(n))
       , "MOD Parses standard input using module name MOD" )
     ; ( "-version"
-      , Arg.Unit (fun _ -> Format.printf "Dedukti %s@." Version.version)
+      , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
       , " Print the version number" )
     ; ( "-coc"
       , Arg.Set Typing.coc
