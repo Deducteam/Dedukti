@@ -32,6 +32,7 @@ type token =
   | CHECKNOT   of loc
   | ASSERTNOT  of loc
   | PRINT      of loc
+  | TRACE      of loc
   | GDT        of loc
   | STRING     of string
   | INT        of int

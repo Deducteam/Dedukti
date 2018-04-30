@@ -59,6 +59,7 @@ let mk_config loc id1 id2_opt =
 %token <Basic.loc> ASSERT
 %token <Basic.loc> ASSERTNOT
 %token <Basic.loc> PRINT
+%token <Basic.loc> TRACE
 %token <Basic.loc> GDT
 %token <Basic.loc> UNDERSCORE
 %token <Basic.loc*Basic.mident> NAME
@@ -136,6 +137,7 @@ line:
       {fun md -> Check($1, true , true , Convert(scope_term md [] t1, scope_term md [] t2))}
 
   | PRINT STRING DOT {fun _ -> Print($1, $2)}
+  | TRACE DOT        {fun _ -> Trace($1)}
   | GDT   ID     DOT {fun _ -> DTree($1, None, snd $2)}
   | GDT   QID    DOT {fun _ -> let (_,m,v) = $2 in DTree($1, Some m, v)}
   | n=NAME       DOT {fun _ -> Name(fst n, snd n)}

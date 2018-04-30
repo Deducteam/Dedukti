@@ -54,6 +54,7 @@ rule token = parse
   | "#ASSERT"   { ASSERT     ( get_loc lexbuf ) }
   | "#ASSERTNOT"{ ASSERTNOT  ( get_loc lexbuf ) }
   | "#PRINT"    { PRINT      ( get_loc lexbuf ) }
+  | "#TRACE"    { TRACE      ( get_loc lexbuf ) }
   | "#GDT"      { GDT        ( get_loc lexbuf ) }
   | mident as md '.' (ident as id)
   { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }

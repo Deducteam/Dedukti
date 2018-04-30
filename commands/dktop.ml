@@ -74,6 +74,7 @@ let handle_entry e =
       | Err e -> Errors.fail_signature_error e
     end
   | Print(_,s)   -> Format.printf "%s@." s
+  | Trace(_)   -> Format.printf "%a@." Reduction.pp_trace (Reduction.get_trace ())
   | Name(_,_)    -> Format.printf "\"#NAME\" directive ignored.@."
   | Require(_,_) -> Format.printf "\"#REQUIRE\" directive ignored.@."
 

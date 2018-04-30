@@ -33,6 +33,8 @@ type entry =
   | DTree of loc * mident option * ident
   (** Obsolete #NAME command. *)
   | Name  of loc * mident
+  (** Trace command. *)
+  | Trace  of loc
   (** Require command. *)
   | Require  of loc * mident
 

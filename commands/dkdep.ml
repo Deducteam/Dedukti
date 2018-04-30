@@ -87,6 +87,7 @@ let handle_entry e =
   | Check(_,_,_,HasType(te,ty)) -> mk_term te; mk_term ty
   | DTree(_,_,_)                -> ()
   | Print(_,_)                  -> ()
+  | Trace(_)                    -> ()
   | Name(_,_)                   -> ()
   | Require(_,md)               -> add_dep md
 

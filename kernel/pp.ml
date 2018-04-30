@@ -225,6 +225,7 @@ let print_entry fmt e =
     end
   | Print(_, str)           ->
     fprintf fmt "#PRINT %S.@." str
+  | Trace(_)   -> printf "#TRACE."
   | Name(_,_)               ->
     ()
   | Require(_, md) ->

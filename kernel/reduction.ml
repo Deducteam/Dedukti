@@ -13,16 +13,48 @@ type red_cfg = {
   beta : bool
 }
 
-let pp_red_cfg fmt strat =
-  match strat with
-  | {strategy=Snf ;nb_steps=None   } -> Format.fprintf fmt "[SNF]"
-  | {strategy=Snf ;nb_steps=Some i } -> Format.fprintf fmt "[SNF,%i]" i
-  | {strategy=Hnf ;nb_steps=None   } -> Format.fprintf fmt "[HNF]"
-  | {strategy=Hnf ;nb_steps=Some i } -> Format.fprintf fmt "[HNF,%i]" i
-  | {strategy=Whnf;nb_steps=None   } -> ()
-  | {strategy=Whnf;nb_steps=Some i } -> Format.fprintf fmt "[%i]" i
+(* None for Beta *)
+type step = rule_name option
 
-let default_cfg = { select = None ; nb_steps = None ; strategy = Snf ; beta = true }
+type trace =
+  {
+    left  : step list;
+    right : step list
+  }
+
+let pp_step fmt step =
+  match step with
+  | None -> Format.fprintf fmt "Beta"
+  | Some rname -> Format.fprintf fmt "%a" pp_rule_name rname
+
+let pp_trace fmt {left;right} =
+  Format.fprintf fmt "left:@.%a@." (pp_list ";" pp_step) left;
+  Format.fprintf fmt "right:@.%a@." (pp_list ";" pp_step) right
+
+let empty_trace = { left = [] ; right = [] }
+
+let tracer = ref empty_trace
+
+let get_trace () = !tracer
+
+let is_left = ref true
+
+let init_tracer b =
+  is_left := b;
+  tracer := empty_trace
+
+let finalize_tracer () =
+  tracer := {left  = List.rev !tracer.left;
+             right = List.rev !tracer.right;
+            }
+
+let add_step rw =
+  if !is_left then
+    tracer := {!tracer with left = rw:: !tracer.left}
+  else
+    tracer := {!tracer with right = rw:: !tracer.right}
+
+let default_cfg = { select = None ; nb_steps = None ; strategy = Snf ;  beta = true }
 
 let selection  = ref None
 
@@ -31,6 +63,18 @@ let beta = ref true
 let select f b : unit =
   selection := f;
   beta := b
+
+let pp_red_cfg fmt cfg =
+  let string_of_strat strat =
+    match strat with
+    | Snf  -> "SNF"
+    | Whnf -> ""
+    | Hnf  -> "HNF"
+  in
+  let string_of_step step = match step with None -> "" | Some i -> string_of_int i in
+  let string_of_cfg cfg  = [string_of_strat cfg.strategy; string_of_step cfg.nb_steps] in
+  let string_fmt str = Format.fprintf fmt "%s" in
+  Format.fprintf fmt "[%a]" (pp_list "," string_fmt) (string_of_cfg cfg)
 
 (* State *)
 
@@ -138,7 +182,6 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
     if convertible sg t1 t2
     then test sg convertible ctx tl
     else
-      (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
       raise (Signature.SignatureError( Signature.GuardNotSatisfied(get_loc t1, t1, t2) ))
 
 let rec find_case (st:state) (cases:(case * dtree) list)
@@ -187,7 +230,8 @@ let gamma_rw (sg:Signature.t)
          This is the reason why s is added at the end. *)
          | None -> None
        end
-    | Test (_,Syntactic ord, eqs, right, def) ->
+    | Test (rname,Syntactic ord, eqs, right, def) ->
+      add_step (Some rname);
        begin
          match get_context_syn sg forcing stack ord with
          | None -> bind_opt (rw stack) def
@@ -195,7 +239,8 @@ let gamma_rw (sg:Signature.t)
             if test sg convertible ctx eqs then Some (ctx, right)
             else bind_opt (rw stack) def
        end
-    | Test (_,MillerPattern lst, eqs, right, def) ->
+    | Test (rname,MillerPattern lst, eqs, right, def) ->
+      add_step (Some rname);
        begin
          match get_context_mp sg forcing stack lst with
          | None -> bind_opt (rw stack) def
@@ -253,7 +298,9 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
     if not !beta then st
-    else state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    else (
+      add_step None;
+      state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s } )
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
@@ -273,7 +320,8 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
 (* ********************* *)
 
 (* Weak Head Normal Form *)
-and whnf sg term = term_of_state ( state_whnf sg { ctx=LList.nil; term; stack=[] } )
+and whnf  sg term =
+  term_of_state ( state_whnf sg { ctx=LList.nil; term; stack=[] } )
 
 (* Strong Normal Form *)
 and snf sg (t:term) : term =
@@ -286,13 +334,15 @@ and snf sg (t:term) : term =
 
 and are_convertible_lst sg : (term*term) list -> bool =
   function
-  | [] -> true
+  | [] -> finalize_tracer (); true
   | (t1,t2)::lst ->
     begin
       match (
         if term_eq t1 t2 then Some lst
         else
-          match whnf sg t1, whnf sg t2 with
+          let t1' = (is_left := true;  whnf sg t1) in
+          let t2' = (is_left := false; whnf sg t2) in
+          match t1', t2' with
           | Kind, Kind | Type _, Type _ -> Some lst
           | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
           | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
@@ -302,7 +352,7 @@ and are_convertible_lst sg : (term*term) list -> bool =
           | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
           | t1, t2 -> None
       ) with
-      | None -> false
+      | None -> finalize_tracer (); false
       | Some lst2 -> are_convertible_lst sg lst2
     end
 
@@ -400,10 +450,12 @@ let reduction_steps n strat sg t =
 
 let reduction strat sg te =
   select strat.select strat.beta;
+  init_tracer true; (* default rewrite are on the left side *)
   let te' =
     match strat with
     | { nb_steps = Some n; _} -> reduction_steps n strat.strategy sg te
     | _ -> reduction strat.strategy sg te
   in
   select default_cfg.select default_cfg.beta;
+  finalize_tracer ();
   te'

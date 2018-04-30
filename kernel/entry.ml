@@ -10,15 +10,16 @@ type test =
   | HasType of term * term
 
 type entry =
-  | Decl  of loc * ident * Signature.staticity * term
-  | Def   of loc * ident * is_opaque * term option * term
-  | Rules of Rule.untyped_rule list
-  | Eval  of loc * Reduction.red_cfg * term
-  | Check of loc * is_assertion * should_fail * test
-  | Infer of loc * Reduction.red_cfg * term
-  | Print of loc * string
-  | DTree of loc * mident option * ident
-  | Name  of loc * mident
+  | Decl    of loc * ident * Signature.staticity * term
+  | Def     of loc * ident * is_opaque * term option * term
+  | Rules   of Rule.untyped_rule list
+  | Eval    of loc * Reduction.red_cfg * term
+  | Check   of loc * is_assertion * should_fail * test
+  | Infer   of loc * Reduction.red_cfg * term
+  | Print   of loc * string
+  | DTree   of loc * mident option * ident
+  | Name    of loc * mident
+  | Trace   of loc
   | Require of loc * mident
 
 let pp_entry fmt e =
@@ -63,5 +64,6 @@ let pp_entry fmt e =
     fprintf fmt "#PRINT %S.@." str
   | Name(_,_)               ->
     ()
+  | Trace _                 -> fprintf fmt "#TRACE"
   | Require(_,m)            ->
     fprintf fmt "#REQUIRE %a.@." pp_mident m
