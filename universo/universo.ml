@@ -11,13 +11,14 @@ struct
 
   let elab_oc = ref stdout
 
+  let debug_mode = ref false
+
   let init file =
     let md = Env.init file in
     Cfg.set_signature (Env.get_signature());
-    elab_oc := open_out (Filename.concat "/tmp" (string_of_mident md ^ ".dk"));
+    if !debug_mode then
+      elab_oc := open_out (Filename.concat "/tmp" (string_of_mident md ^ ".dk"));
     md
-
-  let debug_mode = ref false
 
   let print_vars_decl md fmt e =
     let open Entry in
