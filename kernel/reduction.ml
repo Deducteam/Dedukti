@@ -81,10 +81,7 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt t =
   if if_stack
   then fprintf fmt "stack=%a}" pp_stack_no_endline stack
   else fprintf fmt "stack=[...]}";
-  fprintf fmt "  %a" pp_term (term_of_state t);
-  if !(t.reduc) != t
-  then fprintf fmt " reduces to %a@." pp_term (term_of_state !(t.reduc))
-  else fprintf fmt "@."
+  fprintf fmt "  %a" pp_term (term_of_state t)
 
 
 (*
@@ -129,12 +126,12 @@ let convert_problem stack problem =
   let convert i = lazy_array.(i) in
   let convert_ac_sets = function
     | [i] ->
-       begin
-         match List.nth stack i with
-         | {ctx; term=Const(l,cst'); stack=st} ->
-            List.map (fun s -> lazy (term_of_state s)) st
-         | _ -> assert false
-       end
+      begin
+        match List.nth stack i with
+        | {ctx; term=Const(l,cst'); stack=st} ->
+          List.map (fun s -> lazy (term_of_state s)) st
+        | _ -> assert false
+      end
     | _ -> assert false in
   mk_matching_problem convert convert_ac_sets problem
 
@@ -144,8 +141,8 @@ let convert_problem stack problem =
 let filter_neutral conv sg l cst terms =
   match Signature.get_algebra sg l cst with
   | ACU neu ->
-     (match List.filter (fun x -> not (conv neu x)) terms with
-      | [] -> [neu] | s -> s)
+    (match List.filter (fun x -> not (conv neu x)) terms with
+     | [] -> [neu] | s -> s)
   | _ -> terms
 
 (* Unfolds all occurences of the AC(U) symbol in the stack
@@ -368,6 +365,8 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
  *   where the (a'_i)s are reducts of (a_i)s.
  *)
 
+let red_depth = ref 0
+
 (* This function reduces a state to a weak-head-normal form.
  * This means that the term [term_of_state (state_whnf sg state)] is a
  * weak-head-normal reduct of [term_of_state state].
@@ -381,8 +380,11 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
  * *)
 let rec state_whnf (sg:Signature.t) (st:state) : state =
   if !(st.reduc) != st
-  then state_whnf sg !(st.reduc)
+  then ( debug 4 "%i Jumping %a ---> %a" !red_depth (pp_state ~if_ctx:true ~if_stack:true) st (pp_state ~if_ctx:true ~if_stack:true) !(st.reduc);
+         state_whnf sg !(st.reduc)
+       )
   else
+    let _ = debug 4 "%i Reducing %a" !red_depth (pp_state ~if_ctx:true ~if_stack:true) st in
     let rec_call c t s = state_whnf sg (mk_reduc st c t s) in
   match st with
   (* Weak heah beta normal terms *)
@@ -421,9 +423,13 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
             (mk_state ctx (mk_Const l cst) flat):: tl
           | _ -> assert false
         else s1 in
-      match gamma_rw sg are_convertible snf state_whnf s1 tree with
+      red_depth := !red_depth + 1;
+      let t = gamma_rw sg are_convertible snf state_whnf s1 tree in
+      red_depth := !red_depth - 1;
+      match t with
       | None -> comb_state_shape_if_AC sg state_whnf are_convertible st
-      | Some (ctx,term) -> rec_call ctx term s2
+      | Some (ctx,term) ->
+        rec_call ctx term s2
 
 (* ********************* *)
 

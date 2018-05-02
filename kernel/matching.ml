@@ -355,12 +355,18 @@ let get_subst pb =
       | _ -> None in
     Some( Array.mapi aux pb.status )
 
+let sol_depth = ref 0
+let inc_sol_depth () = sol_depth := !sol_depth + 1
+let dec_sol_depth () = sol_depth := !sol_depth - 1
+
+
 (** Main solving function *)
 let solve_problem reduce convertible whnf pb =
+  inc_sol_depth ();
   let problems = first_rearrange pb.problems in
-  debug (if problems = [] then 4 else 3) "Solving problem: %a" (pp_matching_problem "    ") pb;
+  debug (if problems = [] then 5 else 3) "%i Solving problem: %a" !sol_depth  (pp_matching_problem "    ") pb;
   let rec solve_next pb =
-    debug (if pb.problems = [] then 4 else 3) "Problem: %a" (pp_matching_problem "    ") pb;
+    debug (if pb.problems = [] then 5 else 4) "Problem: %a" (pp_matching_problem "    ") pb;
     let try_solve_next pb = bind_opt solve_next pb in
     match fetch_next_problem pb with
     | None -> get_subst pb (* If no problem left, compute substitution and return (success !) *)
@@ -416,4 +422,6 @@ let solve_problem reduce convertible whnf pb =
           try_eq_terms terms
         | Solved _ -> assert false
   in
-  solve_next { pb with problems = problems }
+  let t = solve_next { pb with problems = problems } in
+  dec_sol_depth ();
+  t
