@@ -8,9 +8,7 @@
 
   let get_loc lexbuf = loc_of_pos lexbuf.lex_start_p
 
-  let prerr_loc lc =
-  let (l,c) = of_loc lc in
-    eprintf "line:%i column:%i " l c
+  let prerr_loc lc = eprintf "%a " pp_loc lc
 
   let fail lc fmt =
     eprintf "%s"  "parsing error: ";

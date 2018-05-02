@@ -24,9 +24,7 @@ let success fmt =
   kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter fmt
 
 
-let prerr_loc lc =
-  let (l,c) = of_loc lc in
-    eprintf "line:%i column:%i " l c
+let prerr_loc lc = eprintf "%a " pp_loc lc
 
 let fail lc fmt =
   eprintf "%s" (red "ERROR ") ;

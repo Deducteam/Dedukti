@@ -290,7 +290,7 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
     if not (is_linear infos.constraints)
     then
       if !allow_non_linear
-      then debug 1 "Non-linear Rewrite Rule detected"
+      then Debug.(debug d_rule "Non-linear Rewrite Rule detected")
       else raise (RuleExn (NonLinearRule r));
     
     OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;
