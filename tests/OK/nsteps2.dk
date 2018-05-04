@@ -1,4 +1,3 @@
-#NAME nsteps2.
 
 Bool : Type.
 T : Bool.

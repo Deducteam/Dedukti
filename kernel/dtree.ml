@@ -303,7 +303,7 @@ let specialize_rule case (c:int) (nargs:int) (r:rule_infos) : rule_infos =
       in
       match r.pats.(c) with
       | LJoker | LVar _ -> LJoker
-      | LBoundVar (id,_, pats2) -> check_args id       pats2
+      | LBoundVar (id,_, pats2) -> check_args id pats2
       | LLambda (_,p) -> ( assert ( nargs == 1); p )
       | LACSet _ -> assert false
       | LPattern  (cst , pats2) ->
@@ -561,7 +561,10 @@ let of_rules get_algebra = function
 (******************************************************************************)
 
 let pp_AC_args fmt i =
-  fprintf fmt (if i > 2 then "%i args, first 2 AC flattened" else "%i args") i
+  if i < 2 then fprintf fmt "%i args" i
+  else if i == 2 then fprintf fmt "AC args"
+  else fprintf fmt "AC args, %i args" (i-2)
+
 
 let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
@@ -595,15 +598,15 @@ let rec pp_dtree t fmt dtree =
   | Switch (i,cases,def) ->
      let pp_case out = function
        | CConst (nargs,name,false), g ->
-          fprintf out "%sif $%i is %a (%i args) then %a"
+          fprintf out "%sif $%i = %a (%i args) then %a"
                   tab i pp_name name nargs (pp_dtree (t+1)) g
        | CConst (nargs,name,true), g ->
-          fprintf out "%sif $%i=%a (%a) then %a"
+          fprintf out "%sif $%i = %a (%a) then %a"
                   tab i pp_name name pp_AC_args nargs (pp_dtree (t+1)) g
        | CDB (nargs,n), g ->
-          fprintf out "%sif $%i=DB[%i] (%i args) then %a"
+          fprintf out "%sif $%i = DB[%i] (%i args) then %a"
                   tab i n nargs (pp_dtree (t+1)) g
-       | CLam, g -> fprintf out "%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
+       | CLam, g -> fprintf out "%sif $%i = Lambda then %a" tab i (pp_dtree (t+1)) g
      in
      fprintf fmt "%a%sdefault: %a" (pp_list "" pp_case) cases tab (pp_def (t+1)) def
 

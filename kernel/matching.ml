@@ -216,7 +216,7 @@ let update_status i s pb =
   {pb with status = nstat}
 
 (** Resolves variable [i] = [t] *)
-let set_unsolved convertible reducer pb i sol =
+let set_unsolved reducer convertible whnf pb i sol =
   let filter d = function
     | Eq((vi,args),ti) as p ->
        if vi <> i then Keep p
@@ -226,9 +226,10 @@ let set_unsolved convertible reducer pb i sol =
          if convertible (Lazy.force ti) (apply_args shifted args)
          then Throw else Fail
     | AC(aci,joks,vars,terms) ->
-       let sol = Lazy.force sol in
-       (* If sol is headed by the same AC-symbol then flatten it. *)
+       let sol = whnf (Lazy.force sol) in
+       (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
        let flat_sols = force_flatten_AC_term reducer (fst aci) sol in
+       (* If aci represent ACU symbol, remove corresponding neutral element. *)
        let flat_sols =
          match snd aci with
          | ACU neu -> List.filter (fun x -> not (convertible neu x)) flat_sols
@@ -252,7 +253,7 @@ let set_partly pb i aci =
   assert(pb.status.(i) == Unsolved);
   update_status i (Partly(aci,[])) pb
 
-let close_partly convertible reduce pb d i =
+let close_partly reduce convertible whnf pb d i =
   match pb.status.(i) with
   | Partly(aci,terms) ->
      (* Remove occurence of variable i from all m.v headed AC problems. *)
@@ -273,11 +274,11 @@ let close_partly convertible reduce pb d i =
           if terms = [] then (* If [i] is closed on empty list *)
             match alg with
             | ACU neu ->
-               set_unsolved convertible reduce nprob i (Lazy.from_val neu)
+               set_unsolved reduce convertible whnf nprob i (Lazy.from_val neu)
             | _ -> None
           else
             let sol = Lazy.from_val (unflatten_AC aci (List.map Lazy.force terms)) in
-            set_unsolved convertible reduce nprob i sol
+            set_unsolved reduce convertible whnf nprob i sol
      end
   | _ -> assert false
 
@@ -355,18 +356,13 @@ let get_subst pb =
       | _ -> None in
     Some( Array.mapi aux pb.status )
 
-let sol_depth = ref 0
-let inc_sol_depth () = sol_depth := !sol_depth + 1
-let dec_sol_depth () = sol_depth := !sol_depth - 1
-
 
 (** Main solving function *)
 let solve_problem reduce convertible whnf pb =
-  inc_sol_depth ();
   let problems = first_rearrange pb.problems in
-  debug (if problems = [] then 5 else 3) "%i Solving problem: %a" !sol_depth  (pp_matching_problem "    ") pb;
   let rec solve_next pb =
-    debug (if pb.problems = [] then 5 else 4) "Problem: %a" (pp_matching_problem "    ") pb;
+    if pb.problems <> []
+    then Debug.(debug d_matching "Problem: %a" (pp_matching_problem "    ") pb);
     let try_solve_next pb = bind_opt solve_next pb in
     match fetch_next_problem pb with
     | None -> get_subst pb (* If no problem left, compute substitution and return (success !) *)
@@ -378,7 +374,7 @@ let solve_problem reduce convertible whnf pb =
           assert (pb.status.(i) == Unsolved);
           let solu = try_force_solve reduce d i args term in
           let npb = bind_opt
-              (set_unsolved convertible reduce {pb with problems=other_problems} i)
+              (set_unsolved reduce convertible whnf {pb with problems=other_problems} i)
               solu in
           (* Update the rest of the problems with the solved variable and keep solving *)
           try_solve_next npb
@@ -391,7 +387,7 @@ let solve_problem reduce convertible whnf pb =
         match pb.status.(i) with
         | Partly(aci',sols) when ac_ident_eq aci aci' ->
           let rec try_add_terms = function
-            | [] -> try_solve_next (close_partly convertible reduce pb d i)
+            | [] -> try_solve_next (close_partly reduce convertible whnf pb d i)
             | t :: tl ->
               let sol = try_force_solve reduce d i args t in
               let npb = bind_opt (add_partly convertible pb i) sol in
@@ -415,13 +411,11 @@ let solve_problem reduce convertible whnf pb =
               try_symbols symbols
             | t :: tl ->
               let sol = try_force_solve reduce d i args t in
-              let npb = bind_opt (set_unsolved convertible reduce pb i) sol in
+              let npb = bind_opt (set_unsolved reduce convertible whnf pb i) sol in
               match try_solve_next npb with
               | None -> try_eq_terms tl
               | a -> a in
           try_eq_terms terms
         | Solved _ -> assert false
   in
-  let t = solve_next { pb with problems = problems } in
-  dec_sol_depth ();
-  t
+  solve_next { pb with problems = problems }

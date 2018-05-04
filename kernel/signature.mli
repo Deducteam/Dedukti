@@ -37,7 +37,7 @@ val export              : t -> bool
 
 val get_id_comparator   : t -> ident_comparator
 
-val is_injective        : t -> loc -> name -> bool
+val is_static           : t -> loc -> name -> bool
 (** [is_injective sg l cst] is true when [cst] is a static symbol. *)
 
 val get_type            : t -> loc -> name -> term

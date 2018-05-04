@@ -51,8 +51,9 @@ type state =
     ctx   : env;    (* context *)
     term  : term;   (* term to reduce *)
     stack : stack;  (* stack *)
-    reduc : state ref;
-    (* Pointer to a state in a more reduced form representing the same term. *)
+    reduc : state ref option;
+    (* Pointer to a state in a more reduced form representing the same term.
+       [None] means the term is already in normal form.  *)
   }
 and stack = state list
 
@@ -60,9 +61,16 @@ let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
   mk_App2 t (List.map term_of_state stack)
 
+let st_cnt = ref 0
+
 (** Creates a fresh state with reduc pointing to itself. *)
 let mk_state ctx term stack =
-  let rec t = { ctx; term; stack; reduc = ref t} in t
+  let rec t = { ctx; term; stack; reduc = Some (ref t)} in
+  incr st_cnt;
+  Debug.(debug d_debug "States: %i -> %a" !st_cnt pp_term (term_of_state t) );
+  t
+
+let mk_final ctx term stack = { ctx; term; stack; reduc=None}
 
 (* Pretty Printing *)
 
@@ -72,38 +80,44 @@ let pp_stack fmt (st:stack) =
 let pp_stack_no_endline fmt (st:stack) =
   fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state st)
 
-let pp_state ?(if_ctx=true) ?(if_stack=true) fmt t =
-  let { ctx; term; stack; reduc } = t in
+let pp_state ?(if_ctx=true) ?(if_stack=true) fmt st =
+  let { ctx; term; stack; reduc } = st in
   if if_ctx
   then fprintf fmt "{ctx=[%a]; " pp_env ctx
   else fprintf fmt "{ctx=[...](%i);@ " (LList.len ctx);
   fprintf fmt "term=%a; " pp_term term;
   if if_stack
   then fprintf fmt "stack=%a}" pp_stack_no_endline stack
-  else fprintf fmt "stack=[...]}";
-  fprintf fmt "  %a" pp_term (term_of_state t)
+  else fprintf fmt "stack=[...]}"
 
+let simpl_pp_state = pp_state ~if_ctx:true ~if_stack:true
 
-(*
-let mk_reduc st ctx term stack =
-  st.reduc := { st with ctx; term; stack };
-  !(st.reduc)
-*)
 
 (** Creates a fresh state using the same reduc pointer as [st].
     This pointer now points to the fresh state. *)
-let mk_reduc st ctx term stack =
-  let st' = { ctx; term; stack; reduc=st.reduc } in
-  st.reduc := st';
-  st'
+let mk_reduc_state st ctx term stack =
+  match st.reduc with
+  | None -> assert false
+  | Some reduc ->
+    let st' = { ctx; term; stack; reduc=Some reduc } in
+    reduc := st';
+    st'
 
+(** Creates a (fresh) final state from given state and redirect pointer to it. *)
+let rec mk_reduc_final st ctx term stack =
+  match st.reduc with
+    | None   -> assert false
+    | Some r ->
+      let st' = mk_final ctx term stack in
+      r := st';
+      st'
 
-(** Set [st'] as a reduc of [st] and return it *)
-let set_reduc st st' =
+(** Sets [st'] as a reduc of [st] and returns it *)
+let set_reduc_state st st' =
   if st == st' then st
-  else if !(st'.reduc) != st'
-  then ( st.reduc := !(st'.reduc); st')
-  else mk_reduc st st'.ctx st'.term st'.stack
+  else mk_reduc_state st st'.ctx st'.term st'.stack
+
+let rec set_reduc_final st st' = mk_reduc_final st st'.ctx st'.term st'.stack
 
 let state_of_term t = mk_state LList.nil t []
 
@@ -117,23 +131,6 @@ exception Not_convertible
 type rw_strategy         = Signature.t -> term -> term
 type rw_state_strategy   = Signature.t -> state -> state
 type convertibility_test = Signature.t -> term -> term -> bool
-
-(* Problem convertion *)
-
-let convert_problem stack problem =
-  let lazy_stack = List.map (fun s -> lazy (term_of_state s)) stack in
-  let lazy_array = Array.of_list lazy_stack in
-  let convert i = lazy_array.(i) in
-  let convert_ac_sets = function
-    | [i] ->
-      begin
-        match List.nth stack i with
-        | {ctx; term=Const(l,cst'); stack=st} ->
-          List.map (fun s -> lazy (term_of_state s)) st
-        | _ -> assert false
-      end
-    | _ -> assert false in
-  mk_matching_problem convert convert_ac_sets problem
 
 
 (*******      AC manipulating functions   *******)
@@ -178,8 +175,8 @@ let comb_state_shape_if_AC sg strategy convertible st =
   | { ctx; term=Const (l,cst); stack=(s1::s2::rstack) } when Signature.is_AC sg l cst ->
     let nstack = flatten_AC_stack sg strategy convertible l cst [s1;s2] in
     let s = to_comb sg l cst ctx nstack in
-    let s = (match rstack with [] -> s | l ->  {s with stack=(s.stack@l)}) in
-    set_reduc st s
+    let rstack = (match rstack with [] -> s.stack | l -> s.stack@l) in
+    mk_reduc_state st s.ctx s.term rstack
   | st -> st
 
 let comb_term_shape_if_AC (sg:Signature.t)
@@ -245,9 +242,10 @@ let rec fetch_case sg (flattenner:loc->name->stack->stack)
           let new_stack_acc = (hd::stack_acc) in
           let new_acc = match find_case flattenner hd case with
             | None   -> acc
-            | Some s -> let new_stack = List.rev_append stack_acc tl in (* Remove hd from stack *)
-                        let new_state = {state with stack=new_stack} in
-                        (dt_suc,new_state,s)::acc
+            | Some s ->
+              let new_stack = List.rev_append stack_acc tl in (* Remove hd from stack *)
+              let new_state = mk_state state.ctx state.term new_stack in
+              (dt_suc,new_state,s)::acc
           in
           f new_acc new_stack_acc tl
      in
@@ -268,6 +266,24 @@ let find_cases (flattenner:loc->name->stack->stack)
     cases
 
 
+(* Problem conversion *)
+
+let convert_problem stack problem =
+  let lazy_stack = List.map (fun s -> lazy (term_of_state s)) stack in
+  let lazy_array = Array.of_list lazy_stack in
+  let convert i = lazy_array.(i) in
+  let convert_ac_sets = function
+    | [i] ->
+      begin
+        match List.nth stack i with
+        | {ctx; term=Const(l,cst'); stack=st} ->
+          List.map (fun s -> lazy (term_of_state s)) st
+        | _ -> assert false
+      end
+    | _ -> assert false in
+  mk_matching_problem convert convert_ac_sets problem
+
+
 let rec gamma_rw_list (sg:Signature.t)
                   (convertible:convertibility_test)
                   (forcing:rw_strategy)
@@ -282,7 +298,7 @@ let rec gamma_rw_list (sg:Signature.t)
 (* TODO implement the stack as an array ? (the size is known in advance). *)
 and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
              (forcing:rw_strategy) (strategy:rw_state_strategy)
-             ?rewrite:(rewrite=true) (stack:stack) :  dtree -> (env*term) option = function
+             (stack:stack) :  dtree -> (env*term) option = function
   | Fetch (i,case,dt_suc,dt_def) -> (* Fetch case from AC-headed i-th state *)
     let rec split_ith acc i l = match i,l with
       | 0, h::t -> (acc,h,t)
@@ -314,7 +330,7 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
     end
   | Switch (i,cases,def) ->
     let arg_i = List.nth stack i in
-    let arg_i = if rewrite then strategy sg arg_i else arg_i in
+    let arg_i = strategy sg arg_i in
     let new_cases =
       List.map
         (fun (g,l) -> ( (match l with |[] -> stack | s -> stack@s), g))
@@ -365,8 +381,6 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
  *   where the (a'_i)s are reducts of (a_i)s.
  *)
 
-let red_depth = ref 0
-
 (* This function reduces a state to a weak-head-normal form.
  * This means that the term [term_of_state (state_whnf sg state)] is a
  * weak-head-normal reduct of [term_of_state state].
@@ -379,28 +393,31 @@ let red_depth = ref 0
  *     of that same constant
  * *)
 let rec state_whnf (sg:Signature.t) (st:state) : state =
-  if !(st.reduc) != st
-  then ( debug 4 "%i Jumping %a ---> %a" !red_depth (pp_state ~if_ctx:true ~if_stack:true) st (pp_state ~if_ctx:true ~if_stack:true) !(st.reduc);
-         state_whnf sg !(st.reduc)
-       )
-  else
-    let _ = debug 4 "%i Reducing %a" !red_depth (pp_state ~if_ctx:true ~if_stack:true) st in
-    let rec_call c t s = state_whnf sg (mk_reduc st c t s) in
+  match st.reduc with
+  | Some reduc when !reduc != st ->
+    begin
+      Debug.(debug d_reduce "Jumping %a ---> %a" simpl_pp_state st simpl_pp_state !reduc);
+      state_whnf sg !reduc
+    end
+  | None -> st
+  | _ ->
+    let _ = Debug.(debug d_reduce "Reducing %a" simpl_pp_state st) in
+    let rec_call c t s = state_whnf sg (mk_reduc_state st c t s) in
   match st with
   (* Weak heah beta normal terms *)
   | { term=Type _ }
   | { term=Kind }
   | { term=Pi _ }
-  | { term=Lam _; stack=[] } -> st
+  | { term=Lam _; stack=[] } -> set_reduc_final st st
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
     if n < LList.len ctx
     then rec_call LList.nil (Lazy.force (LList.nth ctx n)) stack
-    else mk_reduc st LList.nil (mk_DB l x (n-LList.len ctx)) stack
+    else mk_reduc_final st LList.nil (mk_DB l x (n-LList.len ctx)) stack
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
     if not !beta
-    then st
+    then set_reduc_final st st
     else rec_call (LList.cons (lazy (term_of_state p)) ctx) t s
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
@@ -411,7 +428,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   | { ctx; term=Const (l,cst); stack } ->
     let trees = Signature.get_dtree sg !selection l cst in
     match find_dtree (List.length stack) trees with
-    | None -> comb_state_shape_if_AC sg state_whnf are_convertible st
+    | None -> set_reduc_final st (comb_state_shape_if_AC sg state_whnf are_convertible st)
     | Some (ar, tree) ->
       let s1, s2 = split_list ar stack in
       let s1 =
@@ -423,13 +440,9 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
             (mk_state ctx (mk_Const l cst) flat):: tl
           | _ -> assert false
         else s1 in
-      red_depth := !red_depth + 1;
-      let t = gamma_rw sg are_convertible snf state_whnf s1 tree in
-      red_depth := !red_depth - 1;
-      match t with
-      | None -> comb_state_shape_if_AC sg state_whnf are_convertible st
-      | Some (ctx,term) ->
-        rec_call ctx term s2
+      match gamma_rw sg are_convertible snf state_whnf s1 tree with
+      | None -> set_reduc_final st (comb_state_shape_if_AC sg state_whnf are_convertible st)
+      | Some (ctx,term) -> rec_call ctx term s2
 
 (* ********************* *)
 
@@ -472,13 +485,14 @@ and are_convertible_lst sg : (term*term) list -> bool =
                  when name_eq cst2 cst && name_eq cst2' cst &&
                       name_eq cst2 cst' && name_eq cst2' cst' ->
                  List.fold_left2 (fun l a b -> (a,b)::l) ((a,a')::lst) args args'
-               | _ -> raise Not_convertible
+               | t1', t2' -> (t1',t2') :: lst
             end
           | App (f,a,args), App (f',a',args') ->
             List.fold_left2 (fun l a b -> (a,b)::l) ((f,f')::(a,a')::lst) args args'
           | Lam (_,_,_,b), Lam (_,_,_,b') -> ((b,b')::lst)
           | Pi (_,_,a,b), Pi (_,_,a',b') -> ((a,a')::(b,b')::lst)
-          | t1, t2 -> raise Not_convertible
+          | t1, t2 -> ( Debug.(debug d_rule "Not convertible: %a / %a" pp_term t1 pp_term t2 );
+                        raise Not_convertible)
     end
 
 (* Convertibility Test *)
@@ -503,8 +517,12 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
     (steps:int) (state:state) =
   let rec aux (red,st:(int*state)) : int*state =
     if red <= 0 then (0, st)
-    else if !(st.reduc) != st then aux (red-1, !(st.reduc))
     else
+      match st.reduc with
+      | None -> (red, st)
+      | Some reduc ->
+        if !reduc != st then aux (red-1, !reduc)
+        else
       match st with
       (* Normal terms *)
       | { term=Type _ }  | { term=Kind } -> (red, st)
@@ -517,11 +535,11 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
         let state_b = mk_state (LList.cons (lazy snf_a) ctx) b [] in
         let (red, b') = aux (red, state_b) in
         let snf_b = term_of_state b' in
-        (red, mk_reduc st ctx (mk_Pi l x snf_a snf_b) [])
+        (red, mk_reduc_state st ctx (mk_Pi l x snf_a snf_b) [])
 
       (* Beta redex *)
       | { ctx; term=Lam (_,_,_,t); stack=p::s } when !beta ->
-        aux (red-1, mk_reduc st (LList.cons (lazy (term_of_state p)) ctx) t s)
+        aux (red-1, mk_reduc_state st (LList.cons (lazy (term_of_state p)) ctx) t s)
       (* Not a beta redex (or beta disabled) *)
       | { term=Lam _ } when strat == Whnf -> (red, st)
       (* Not a beta redex (or beta disabled) but keep looking for normal form *)
@@ -529,28 +547,29 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
         begin
           match term_of_state st with
           | Lam(_,_,_,t') ->
-            let (red, st_t) = aux (red, mk_reduc st LList.nil t' []) in
+            let (red, st_t) = aux (red, mk_reduc_state st LList.nil t' []) in
             let t' = term_of_state st_t in
             begin
               match strat, ty_opt with
               | Snf, Some ty ->
                 let red, ty = aux (red, mk_state ctx ty []) in
-                (red, mk_reduc st LList.nil (mk_Lam l x (Some (term_of_state ty)) t') stack)
-              | _ -> (red, mk_reduc st ctx (mk_Lam l x ty_opt t') stack)
+                (red, mk_reduc_state st LList.nil
+                   (mk_Lam l x (Some (term_of_state ty)) t') stack)
+              | _ -> (red, mk_reduc_state st ctx (mk_Lam l x ty_opt t') stack)
             end
           | _ -> assert false
         end
 
       (* DeBruijn index: environment lookup *)
       | { ctx; term=DB (_,_,n); stack } when n < LList.len ctx ->
-        aux (red, mk_reduc st LList.nil (Lazy.force (LList.nth ctx n)) stack)
+        aux (red, mk_reduc_state st LList.nil (Lazy.force (LList.nth ctx n)) stack)
       (* DeBruijn index: out of environment *)
       | { term=DB _ } -> (red, st)
 
       (* Application: arguments go on the stack *)
       | { ctx; term=App (f,a,lst); stack=s } when strat <> Snf ->
         let tl' = List.rev_map ( fun t -> mk_state ctx t [] ) (a::lst) in
-        aux (red, mk_reduc st ctx f (List.rev_append tl' s) )
+        aux (red, mk_reduc_state st ctx f (List.rev_append tl' s) )
       (* Application: arguments are reduced then go on the stack *)
       | { ctx; term=App (f,a,lst); stack=s } ->
         let redc = ref red in
@@ -559,7 +578,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
           redc := new_redc;
           st in
         let new_stack = List.rev_append (List.rev_map reduce (a::lst)) s in
-        aux (!redc, mk_reduc st ctx f new_stack)
+        aux (!redc, mk_reduc_state st ctx f new_stack)
 
       (* Potential Gamma redex *)
       | { ctx; term=Const(l, cst); stack } ->
@@ -579,7 +598,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
             else s1 in
           match gamma_rw sg are_convertible snf state_whnf s1 tree with
           | None -> (red,comb_state_shape_if_AC sg state_whnf are_convertible st)
-          | Some (ctx,term) -> aux (red-1, mk_reduc st ctx term s2)
+          | Some (ctx,term) -> aux (red-1, mk_reduc_state st ctx term s2)
   in
   aux (steps,state)
 

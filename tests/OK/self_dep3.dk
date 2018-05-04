@@ -1,4 +1,3 @@
-#NAME self_dep3.
 
 def A : Type.
 def U : A -> Type.

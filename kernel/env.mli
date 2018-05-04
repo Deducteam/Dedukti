@@ -17,11 +17,17 @@ val init        : string -> mident
     corresponding to this file, built from its basename. Every toplevel
     declaration will be qualified be this name. *)
 
+val get_signature : unit -> Signature.t
+(** [get_signature ()] returns the signature used by this module *)
+
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)
 
 val get_type    : loc -> name -> (term,signature_error) error
 (** [get_type l md id] returns the type of the constant [md.id]. *)
+
+val is_static   : loc -> name -> bool
+(** [is_static l cst] returns [true] if the symbol is declared as [static], [false] otherwise *)
 
 val get_dtree   : loc -> name -> (Dtree.t, signature_error) error
 (** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)

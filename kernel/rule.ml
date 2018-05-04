@@ -120,6 +120,10 @@ let pp_idents fmt l = fprintf fmt "[%a]" (pp_list ", " pp_ident) (List.rev l)
 let pp_untyped_context fmt ctx = pp_idents fmt (List.map snd                ctx)
 let pp_typed_context   fmt ctx = pp_idents fmt (List.map (fun (_,a,_) -> a) ctx)
 
+let pp_typed_var fmt (a,b) = fprintf fmt "%a : %a" pp_ident a pp_term b
+let pp_typed_context   fmt ctx =
+  fprintf fmt "[%a]" (pp_list ", " pp_typed_var) (List.rev (List.map (fun (_,a,b) -> (a,b)) ctx))
+
 let pp_rule_name fmt rule_name =
   let sort,n =
     match rule_name with
@@ -291,7 +295,7 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
     if not infos.linear
     then
       if !allow_non_linear
-      then debug 1 "Non-linear Rewrite Rule detected"
+      then Debug.(debug d_rule "Non-linear Rewrite Rule detected")
       else raise (RuleExn (NonLinearRule r));
     
     OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;

@@ -4,8 +4,7 @@ open Parser
 open Entry
 
 let eprint lc fmt =
-  let (l,c) = of_loc lc in
-  debug 1 ("line:%i column:%i " ^^ fmt) l c
+  Debug.(debug d_notice ("%a " ^^ fmt) pp_loc lc)
 
 let mk_entry md e =
   match e with
@@ -84,7 +83,7 @@ let mk_entry md e =
   | Print(_,s) -> Format.printf "%s@." s
   | Name(_,n) ->
     if not (mident_eq n md)
-    then warn "Invalid #NAME directive ignored.\n%!"
+    then Debug.(debug d_warn "Invalid #NAME directive ignored.@.")
   | Require(lc,md) ->
     begin
       match Env.import lc md with
@@ -99,7 +98,7 @@ let mk_entry beautify md =
 
 let run_on_file beautify export file =
   let input = open_in file in
-  debug 1 "Processing file '%s'..." file;
+  Debug.(debug d_module "Processing file '%s'..." file);
   let md = Env.init file in
   Confluence.initialize ();
   Parser.handle_channel md (mk_entry beautify md) input;
@@ -117,14 +116,14 @@ let _ =
   let beautify     = ref false in
   let options = Arg.align
     [ ( "-d"
-      , Arg.Int Basic.set_debug_mode
-      , "N sets the verbosity level to N" )
+      , Arg.String Debug.set_debug_mode
+      , "flags enables debugging for all given flags" )
     ; ( "-v"
-      , Arg.Unit (fun _ -> Basic.set_debug_mode 1)
-      , " Verbose mode (equivalent to -d 1)" )
+      , Arg.Unit (fun () -> Debug.set_debug_mode "w")
+      , " Verbose mode (equivalent to -d 'w')" )
     ; ( "-q"
-      , Arg.Unit (fun _ -> Basic.set_debug_mode (-1))
-      , " Quiet mode (equivalent to -d -1" )
+      , Arg.Unit (fun () -> Debug.set_debug_mode "q")
+      , " Quiet mode (equivalent to -d 'q'" )
     ; ( "-e"
       , Arg.Set export
       , " Generates an object file (\".dko\")" )
@@ -135,7 +134,7 @@ let _ =
       , Arg.String (fun n -> run_on_stdin := Some(n))
       , "MOD Parses standard input using module name MOD" )
     ; ( "-version"
-      , Arg.Unit (fun _ -> Printf.printf "Dedukti %s\n%!" Version.version)
+      , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
       , " Print the version number" )
     ; ( "-coc"
       , Arg.Set Typing.coc
@@ -165,7 +164,7 @@ let _ =
   in
   if !beautify && !export then
     begin
-      Printf.eprintf "Beautify and export cannot be set at the same time\n";
+      Format.eprintf "Beautify and export cannot be set at the same time@.";
       exit 2
     end;
   try
@@ -178,9 +177,6 @@ let _ =
       if not !beautify
       then Errors.success "Standard input was successfully checked.\n"
   with
-  | Parse_error(loc,msg) ->
-    let (l,c) = of_loc loc in
-    Printf.eprintf "Parse error at (%i,%i): %s\n" l c msg;
-    exit 1
-  | Sys_error err        -> Printf.eprintf "ERROR %s.\n" err; exit 1
+  | Parse_error(loc,msg) -> Format.eprintf "Parse error at (%a): %s@." pp_loc loc msg; exit 1
+  | Sys_error err        -> Format.eprintf "ERROR %s.@." err; exit 1
   | Exit                 -> exit 3
