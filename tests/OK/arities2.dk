@@ -1,0 +1,19 @@
+N : Type.
+0 : N.
+S : N -> N.
+
+def A : N -> Type.
+[] A 0 --> N.
+[X] A (S X) --> N -> A X.
+
+f : x : N -> A x.
+
+def g : N -> N.
+[] g (f 0            ) --> 0.
+[] g (f (S 0)     0  ) --> S 0.
+[] g (f (S (S 0)) 0 0) --> S (S 0).
+
+
+#ASSERT g (f 0            ) == 0.
+#ASSERT g (f (S 0)     0  ) == S 0.
+#ASSERT g (f (S (S 0)) 0 0) == S (S 0).

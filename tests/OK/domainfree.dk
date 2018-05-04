@@ -1,0 +1,4 @@
+
+A:Type.
+F:(A->A)->A.
+def f := F (x=>x).

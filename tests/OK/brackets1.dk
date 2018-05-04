@@ -1,0 +1,9 @@
+
+A : Type.
+a : A.
+
+def f : (A -> A) -> A -> A -> A.
+
+[t] f _ {a} t   --> a.
+[t] f _ t   {a} --> a.
+[t] f _ {a} {a} --> a.

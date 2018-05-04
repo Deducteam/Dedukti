@@ -1,5 +1,3 @@
-#NAME stlc.
-
 type:Type.
 o:type.
 arrow: type -> type -> type.
@@ -13,4 +11,6 @@ Lam: a:type -> b:type -> (term a -> term b) -> term (arrow a b).
 
 c:term o.
 
-#STEP App o o (Lam o o (x=> x)) c.
+#EVAL[WHNF,0] App o o (Lam o o (x=> x)) c.
+#EVAL[WHNF,1] App o o (Lam o o (x=> x)) c.
+#EVAL[WHNF,2] App o o (Lam o o (x=> x)) c.

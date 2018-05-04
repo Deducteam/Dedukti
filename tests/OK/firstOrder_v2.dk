@@ -1,4 +1,3 @@
-#NAME Prop.
 
 Prop: Type.
 def prf : Prop -> Type.
@@ -72,4 +71,3 @@ def exists_intro: P:(Term->Prop) -> t:Term -> prf (P t) -> prf (exists P)
 
 e: (Term -> Prop) -> Term. (;Hilbert operator;)
 exists_elim: P:(Term->Prop) -> prf (exists P) -> prf (P (e P)).
-

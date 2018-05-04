@@ -3,8 +3,6 @@ open Preterm
 open Term
 open Rule
 
-let name = ref (mk_mident "unknown")
-
 let get_db_index ctx id =
   let rec aux n = function
     | [] -> None
@@ -14,13 +12,14 @@ let get_db_index ctx id =
 
 let empty = mk_ident ""
 
-let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
+let rec t_of_pt md (ctx:ident list) (pte:preterm) : term =
+  let t_of_pt = t_of_pt md in
   match pte with
     | PreType l    -> mk_Type l
     | PreId (l,id) ->
         begin
           match get_db_index ctx id with
-            | None   -> mk_Const l (mk_name !name id)
+            | None   -> mk_Const l (mk_name md id)
             | Some n -> mk_DB l id n
         end
     | PreQId (l,cst) -> mk_Const l cst
@@ -32,8 +31,8 @@ let rec t_of_pt (ctx:ident list) (pte:preterm) : term =
     | PreLam  (l,id,Some a,b) ->
         mk_Lam l id (Some (t_of_pt ctx a)) (t_of_pt (id::ctx) b)
 
-let scope_term ctx (pte:preterm) : term =
-  t_of_pt (List.map (fun (_,x,_) -> x) ctx) pte
+let scope_term md ctx (pte:preterm) : term =
+  t_of_pt md (List.map (fun (_,x,_) -> x) ctx) pte
 
 (******************************************************************************)
 
@@ -73,7 +72,7 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context*bool =
   let ordered_ctx = aux [] [] ppat in
   ( ordered_ctx , List.length ordered_ctx <> List.length vars + !nb_jokers )
 
-let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
+let p_of_pp md (ctx:ident list) (ppat:prepattern) : pattern =
   let nb_jokers = ref 0 in
   let get_fresh_name () =
     incr nb_jokers;
@@ -84,11 +83,11 @@ let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
       begin
         match get_db_index ctx id with
         | Some n -> Var (l,id,n,List.map (aux ctx) pargs)
-        | None -> Pattern (l,mk_name !name id,List.map (aux ctx) pargs)
+        | None -> Pattern (l,mk_name md id,List.map (aux ctx) pargs)
       end
     | PPattern (l,Some md,id,pargs) -> Pattern (l,mk_name md id,List.map (aux ctx) pargs)
     | PLambda (l,x,pp) -> Lambda (l,x, aux (x::ctx) pp)
-    | PCondition pte -> Brackets (t_of_pt ctx pte)
+    | PCondition pte -> Brackets (t_of_pt md ctx pte)
     | PJoker l ->
       begin
         let id = get_fresh_name () in
@@ -101,17 +100,13 @@ let p_of_pp (ctx:ident list) (ppat:prepattern) : pattern =
 
 (******************************************************************************)
 
-let scope_rule (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
+let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   let top = PPattern(l,md_opt,id,pargs) in
   let ctx, unused_vars = get_vars_order pctx top in
   if unused_vars
-  then debug 0 "Warning: local variables in the rule %a are not used (%a)"
+  then Debug.(debug d_warn "Local variables in the rule %a are not used (%a)")
       pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
   let idents = List.map snd ctx in
-  let md = match pname with
-    | Some (Some md, _) -> md
-    | _ -> Env.get_name ()
-  in
   let b,id =
     match pname with
     | None ->
@@ -119,5 +114,11 @@ let scope_rule (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
       (false,(mk_ident id))
     | Some (_, id) -> (true,id)
   in
-  let name = Gamma(b,mk_name md id) in
-  { name ; ctx= ctx; pat = p_of_pp idents top; rhs = t_of_pt idents pri }
+  let name =
+    let md = match pname with
+      | Some (Some md, _) -> md
+      | _ -> Env.get_name ()
+    in
+    Gamma(b,mk_name md id)
+  in
+  { name ; ctx= ctx; pat = p_of_pp md idents top; rhs = t_of_pt md idents pri }

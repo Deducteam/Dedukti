@@ -1,4 +1,3 @@
-#NAME miller.
 
 R : Type.
 0 : R.
@@ -35,8 +34,7 @@ def flip : (R -> R -> R2) -> (R -> R -> R2).
 
 def f : R -> R -> R := x : R => y : R => ch x.
 
-#SNF grad (trans f).
-#SNF flip (grad f).
+#EVAL grad (trans f).
+#EVAL flip (grad f).
 
-#PRINT "YES".
-#CONV grad (trans f), flip (grad f).
+#ASSERT grad (trans f) == flip (grad f).

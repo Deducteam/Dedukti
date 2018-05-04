@@ -1,0 +1,13 @@
+
+A :Type.
+
+a : A.
+g : A -> A.
+
+def ff : A -> (A -> A) -> A.
+[x] ff x (y => {g x}) --> a.
+
+def pr1 : A -> A -> A.
+[x,y] pr1 x y --> x.
+
+#ASSERTNOT ff a (y => (pr1 y a)) == a.

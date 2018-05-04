@@ -1,0 +1,41 @@
+
+N : Type.
+0 : N.
+S : N -> N.
+
+def 1 := S 0.
+def 2 := S 1.
+def 3 := S 2.
+
+def plus : N -> N -> N.
+[x]   plus x 0 --> x
+[x]   plus 0 x --> x
+[x,y] plus (S x) (S y) --> plus x (S (S y)).
+
+def a := plus 2 3.
+
+
+#EVAL[WHNF,1] a.
+#EVAL[0] plus 2 3.
+
+#EVAL[WHNF,2] a.
+#EVAL[0] plus 1 (S (S 2)).
+
+#EVAL[WHNF,3] a.
+#EVAL[0] plus 0 (S (S (S 2))).
+
+#EVAL[WHNF,4] a.
+#EVAL[WHNF,5] plus 2 3.
+
+
+#EVAL[HNF,1] a.
+#EVAL[0] plus 2 3.
+
+#EVAL[HNF,2] a.
+#EVAL[0] plus 1 (S (S 2)).
+
+#EVAL[HNF,3] a.
+#EVAL[0] plus 0 (S (S (S 2))).
+
+#EVAL[HNF,4] a.
+#EVAL[HNF,5] plus 2 3.
