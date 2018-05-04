@@ -1,4 +1,4 @@
-#NAME kind_cstr_ignored2.
+(; KO -fail-on-warning ;)
 
 A : Type.
 a : A.

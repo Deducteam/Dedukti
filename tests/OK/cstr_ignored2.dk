@@ -1,4 +1,4 @@
-#NAME cstr_ignored2.
+(; OK ;)
 
 A : Type.
 def B : Type.

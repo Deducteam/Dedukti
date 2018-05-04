@@ -23,6 +23,7 @@ type typing_error =
   | Unconvertible of loc*term*term
   | Convertible of loc*term*term
   | Inhabit of loc*term*term
+  | UnsatisfiableConstraints of int*term*term
 
 exception TypingError of typing_error
 

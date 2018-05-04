@@ -1,4 +1,4 @@
-#NAME binded_cstr_fail1.
+(; KO -fail-on-warning ;)
 
 A : Type.
 def a : A.

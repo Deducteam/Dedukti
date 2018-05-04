@@ -115,6 +115,8 @@ module Debug : sig
   val  enable_flag : flag -> unit (** Activates given flag's debugging *)
   val disable_flag : flag -> unit (** Deactivates given flag's debugging *)
 
+  val fail_on_warning : bool ref
+  
   (** Sets multiple debugging flags from a string: 
       q : disables d_Warn
       n : enables  d_Notice
@@ -131,6 +133,10 @@ module Debug : sig
       if the given flag [f] is currently active. *)
   val debug : flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
     
+  (** [warn e] prints information on the standard error channel
+      unless the fail-on-warning is true is which case it raises [e]. *)
+  val warn : exn -> ('a, Format.formatter, unit, unit) format4 -> 'a
+
   (** [debug_eval f (fun () -> body] evaluates [body]
       if the given flag [f] is currently active. *)
   val debug_eval : flag -> (unit -> unit) -> unit

@@ -17,6 +17,7 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
+  | AlreadyImportedModule of loc * mident
 
 exception SignatureError of signature_error
 

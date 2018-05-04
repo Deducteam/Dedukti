@@ -92,6 +92,10 @@ let fail_typing_error err =
     fail l "Assertion error. '%a' is of type '%a'"
       pp_term t1 pp_term t2
   | NotImplementedFeature l -> fail l "Feature not implemented."
+  | UnsatisfiableConstraints(q,t1,t2) ->
+    fail (get_loc t1)
+      "Unsatisfiable constraint: %a ~ %a%s" pp_term t1 pp_term t2
+      (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")
 
 let fail_dtree_error err =
   let open Dtree in
@@ -173,6 +177,8 @@ Add the keyword 'def' to its declaration to make the symbol '%a' definable."
              Expected: %a.\n\
              Found: %a"
       pp_term t1 pp_term t2
+  | AlreadyImportedModule(lc,m) ->
+    fail lc "Already imported module: '%a'." pp_mident m
 
 let fail_env_error = function
   | Env.EnvErrorSignature e -> fail_signature_error e
