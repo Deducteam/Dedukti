@@ -344,7 +344,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
       (* Not a beta redex (or beta disabled) *)
       | { term=Lam _ } when strat == Whnf -> (red, st)
       (* Not a beta redex (or beta disabled) but keep looking for normal form *)
-      | { ctx; term=Lam(l,x,ty_opt,t); stack } ->
+      | { ctx; term=Lam(l,x,ty_opt,t); stack=[] } ->
         begin
           match term_of_state st with
           | Lam(_,_,_,t') ->
@@ -359,13 +359,29 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
             end
           | _ -> assert false
         end
-
+      | { ctx; term=Lam(l,x,ty_opt,t); stack=a::args } ->
+        begin
+          match term_of_state st with
+          | App(Lam(_,_,_,t'),_,_) ->
+            let (red, st_t) = aux (red, {ctx=LList.nil; term=t'; stack=[]}) in
+            let t' = term_of_state st_t in
+            begin
+              match strat with
+              | Snf ->
+                let red, args = List.fold_right (fun a (red,args) ->
+                  let red, a' = aux (red,a) in
+                  red,a::args) (a::args)  (red,[])
+                in
+                (red, {ctx; term = mk_Lam l x ty_opt t'; stack= args})
+              | _ -> (red, {ctx; term = mk_Lam l x ty_opt t'; stack= a::args})
+            end
+          | _ -> assert false
+        end
       (* DeBruijn index: environment lookup *)
       | { ctx; term=DB (_,_,n); stack } when n < LList.len ctx ->
         aux (red, { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack })
       (* DeBruijn index: out of environment *)
       | { term=DB _ } -> (red, st)
-
       (* Application: arguments go on the stack *)
       | { ctx; term=App (f,a,lst); stack=s } when strat <> Snf ->
         let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
@@ -379,7 +395,6 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
           st in
         let new_stack = List.rev_append (List.rev_map reduce (a::lst)) s in
         aux (!redc, {ctx; term=f; stack=new_stack })
-
       (* Potential Gamma redex *)
       | { ctx; term=Const (l,n); stack } ->
         let trees = Signature.get_dtree sg !selection l n in
