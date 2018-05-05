@@ -39,9 +39,33 @@ struct
         (fun id l -> (Decl(dloc, id, Signature.Definable, mk_sort))::l) vars [] in
     List.iter (Format.fprintf fmt "%a" Pp.print_entry) vars_entries
 
+
+  let print_constraints md fmt e =
+    let open Entry in
+    let open Cic in
+    let open Constraints in
+    let get_constraints name = Cfg.get_constraints name in
+    let vars =
+      match e with
+      | Decl(_,id,_,_) ->
+        get_constraints (mk_name md id)
+      | Def(_,id,_,_,_) ->
+        get_constraints (mk_name md id)
+      | Rules(rs) ->
+        List.fold_left (fun vars r ->
+            ConstraintsSet.union (get_constraints (get_rule_name r)) vars) ConstraintsSet.empty rs
+      | _ -> ConstraintsSet.empty
+    in
+    let entry_of_constraint c = failwith "todo" in
+    failwith "todo"
+
+
   let print_entry md fmt e =
     let open Entry in
     Format.fprintf fmt "%a@." (print_vars_decl md) e;
+    if Cfg.get_checking () then
+      Format.fprintf fmt "%a@." (print_constraints md) e;
+
     Format.fprintf fmt "%a" Pp.print_entry e
 
   let mk_entry md e =
