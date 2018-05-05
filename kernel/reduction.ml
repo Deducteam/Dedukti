@@ -43,11 +43,6 @@ let init_tracer b =
   is_left := b;
   tracer := empty_trace
 
-let finalize_tracer () =
-  tracer := {left  = List.rev !tracer.left;
-             right = List.rev !tracer.right;
-            }
-
 let add_step rw =
   if !is_left then
     tracer := {!tracer with left = rw:: !tracer.left}
@@ -334,7 +329,7 @@ and snf sg (t:term) : term =
 
 and are_convertible_lst sg : (term*term) list -> bool =
   function
-  | [] -> finalize_tracer (); true
+  | [] -> true
   | (t1,t2)::lst ->
     begin
       match (
@@ -352,7 +347,7 @@ and are_convertible_lst sg : (term*term) list -> bool =
           | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
           | t1, t2 -> None
       ) with
-      | None -> finalize_tracer (); false
+      | None -> false
       | Some lst2 -> are_convertible_lst sg lst2
     end
 
@@ -457,5 +452,4 @@ let reduction strat sg te =
     | _ -> reduction strat.strategy sg te
   in
   select default_cfg.select default_cfg.beta;
-  finalize_tracer ();
   te'
