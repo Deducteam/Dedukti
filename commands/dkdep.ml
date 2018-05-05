@@ -39,17 +39,23 @@ let find_dk : mident -> path list -> path option = fun md path ->
   match List.filter Sys.file_exists files with
   | []  ->
     if !ignore then None
-    else (Printf.eprintf "No file for module %S in path...\n%!" name; exit 1)
+    else
+      begin
+        Format.eprintf "No file for module %S in path...@." name;
+        exit 1
+      end
   | [f] -> Some f
-  | fs  -> Printf.eprintf "Several files correspond to module %S...\n" name;
-           List.iter (Printf.eprintf "  - %s\n%!") fs; exit 1
+  | fs  ->
+    Format.eprintf "Several files correspond to module %S...@." name;
+    List.iter (Format.eprintf "  - %s@.") fs;
+    exit 1
 
 (** [add_dep name] adds the module named [name] to the list of dependencies if
     no corresponding ".dko" file is found in the load path. The dependency is
     not added either if it is already present. *)
 let add_dep : mident -> unit = fun md ->
-  if md = !current_mod || in_deps md then () else
-  add_dep md (find_dk md (get_path ()))
+  if md <> !current_mod && not (in_deps md)
+  then add_dep md (find_dk md (get_path ()))
 
 (** Term / pattern / entry traversal commands. *)
 
@@ -95,7 +101,7 @@ type dep_data = mident * (path * (mident * path) list)
 let handle_file : string -> dep_data = fun file ->
   try
     (* Initialisation. *)
-    let md = Basic.mk_mident file in
+    let md = mk_mident file in
     current_mod := md; current_deps := [];
     (* Actully parsing and gathering data. *)
     let input = open_in file in
@@ -103,18 +109,18 @@ let handle_file : string -> dep_data = fun file ->
     close_in input;
     (md, (file, !current_deps))
   with
-  | Parse_error(loc,msg)      -> Printf.eprintf "Parse error...\n%!"; exit 1
-  | Sys_error err             -> Printf.eprintf "ERROR %s.\n%!" err; exit 1
-  | Exit                      -> exit 3
+  | Parse_error(loc,msg) -> Format.eprintf "Parse error in %a...@." pp_loc loc; exit 1
+  | Sys_error err        -> Format.eprintf "ERROR %s.@." err; exit 1
+  | Exit                 -> exit 3
 
 (** Output main program. *)
 
-let output_deps : out_channel -> dep_data list -> unit = fun oc data ->
+let output_deps : Format.formatter -> dep_data list -> unit = fun oc data ->
   let objfile src = Filename.chop_extension src ^ ".dko" in
   let output_line : dep_data -> unit = fun (name, (file, deps)) ->
     let deps = List.map (fun (_,src) -> objfile src) deps in
     let deps = String.concat " " deps in
-    Printf.fprintf oc "%s : %s %s\n" (objfile file) file deps
+    Format.fprintf oc "%s : %s %s@." (objfile file) file deps
   in
   List.iter output_line data
 
@@ -122,44 +128,58 @@ let topological_sort graph =
   let rec explore path visited node =
     if List.mem node path then
       begin
-        Printf.eprintf "Dependecies are circular...";
+        Format.eprintf "Dependecies are circular...";
         exit 1
       end;
     if List.mem node visited then visited else
-      let edges = try List.assoc node graph with Not_found ->
-        if !ignore then
-          []
-        else
-         (Printf.eprintf "Cannot compute dependencies for the file %S... (maybe you forgot to put it on the command line?)\n%!" node; exit 1)
+      let edges =
+        try List.assoc node graph
+        with Not_found ->
+          if !ignore
+          then []
+          else
+            begin
+              Format.eprintf "Cannot compute dependencies for the file %S... (maybe you forgot to put it on the command line?)@." node;
+              exit 1
+            end
       in
       node :: List.fold_left (explore (node :: path)) visited edges
   in
   List.fold_left (fun visited (n,_) -> explore [] visited n) [] graph
 
-let output_sorted : out_channel -> dep_data list -> unit = fun oc data ->
+let output_sorted : Format.formatter -> dep_data list -> unit = fun oc data ->
   let deps = List.map (fun (_,(f,deps)) -> (f, List.map snd deps)) data in
   let deps = List.rev (topological_sort deps) in
-  Printf.printf "%s\n" (String.concat " " deps)
+  Format.printf "%s@." (String.concat " " deps)
 
 let _ =
   (* Parsing of command line arguments. *)
   let output  = ref stdout in
   let sorted  = ref false  in
   let args = Arg.align
-    [ ( "-o"
-      , Arg.String (fun n -> output := open_out n)
-      , "FILE Outputs to file FILE" )
-    ; ( "-s"
-      , Arg.Set sorted
-      , " Sort the source files according to their dependencies" )
-    ; ( "--ignore"
-      , Arg.Set ignore
-      , " If some dependencies are not found, ignore them" )
-    ; ( "-I"
-      , Arg.String Basic.add_path
-      , "DIR Add the directory DIR to the load path" ) ]
+      [ ( "-d"
+        , Arg.String Debug.set_debug_mode
+        , "flags enables debugging for all given flags" )
+      ; ( "-v"
+        , Arg.Unit (fun () -> Debug.set_debug_mode "w")
+        , " Verbose mode (equivalent to -d 'w')" )
+      ; ( "-q"
+        , Arg.Unit (fun () -> Debug.set_debug_mode "q")
+      , " Quiet mode (equivalent to -d 'q'" )
+      ; ( "-o"
+        , Arg.String (fun n -> output := open_out n)
+        , "FILE Outputs to file FILE" )
+      ; ( "-s"
+        , Arg.Set sorted
+        , " Sort the source files according to their dependencies" )
+      ; ( "--ignore"
+        , Arg.Set ignore
+        , " If some dependencies are not found, ignore them" )
+      ; ( "-I"
+        , Arg.String add_path
+        , "DIR Add the directory DIR to the load path" ) ]
   in
-  let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...\n" in
+  let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...@." in
   let usage = usage ^ "Available options:" in
   let files =
     let files = ref [] in
@@ -168,6 +188,8 @@ let _ =
   in
   (* Actual work. *)
   let dep_data = List.map handle_file files in
+  let formatter = Format.formatter_of_out_channel !output in
   let output_fun = if !sorted then output_sorted else output_deps in
-  output_fun !output dep_data;
+  output_fun formatter dep_data;
+  Format.pp_print_flush formatter ();
   close_out !output
