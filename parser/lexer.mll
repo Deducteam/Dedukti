@@ -22,6 +22,9 @@
 	  with Not_found -> l
       in
       List.rev (aux s [])
+
+  let no_keyword = ref false
+
 }
 
 let space       = [' ' '\t' '\r']
@@ -52,7 +55,8 @@ rule token = parse
   | "->"	{ ARROW         }
   | "=>"	{ FATARROW      }
   | ":="	{ DEF           }
-  | "Record"    { RECORD        }
+  | "Record"    { if !no_keyword then ID (get_loc lexbuf, hstring "Record") else
+                  RECORD        }
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE ( get_loc lexbuf )       }
   | "def"      { KW_DEF ( get_loc lexbuf )       }
@@ -77,9 +81,11 @@ rule token = parse
   | ((modname '.')+ as mds) (ident as id)
   { QID (get_loc lexbuf , list_of_modules '.' mds, hstring id) }
   | non_neg_num as s
-  { NUM (get_loc lexbuf, s) }
+  { if !no_keyword then ID (get_loc lexbuf, hstring s) else
+    NUM (get_loc lexbuf, s) }
   | const  as id
-  { QID (get_loc lexbuf , [builtins], hstring id) }
+  { if !no_keyword then ID (get_loc lexbuf, hstring id) else
+    QID (get_loc lexbuf , [builtins], hstring id) }
   | '\'' (_ as c) '\''
   { CHAR ( get_loc lexbuf, c) }
   | ident  as id

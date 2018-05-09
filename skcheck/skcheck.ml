@@ -27,7 +27,8 @@ let args = [
   ("-I"    , Arg.String Basic.add_path,        "Add a directory to load path");
   ("-errors-in-snf", Arg.Set Errors.errors_in_snf, "Normalize the types in error messages");
   ("-cc", Arg.String Confluence.set_cmd, "Set the external confluence checker");
-  ("-nl", Arg.Set Rule.allow_non_linear, "Allow non left-linear rewrite rules")
+  ("-nl", Arg.Set Rule.allow_non_linear, "Allow non left-linear rewrite rules");
+  ("-nk", Arg.Set Lexer.no_keyword, "Disable Sukerujo keywords")
 ]
 
 let run_on_file file =
