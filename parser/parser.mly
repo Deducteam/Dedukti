@@ -310,7 +310,7 @@ pattern         : ID  pattern_wp+
 sterm           : QID
                 { let (l,md,id)=  $1 in PreQId(l,mk_name md id) }
                 | ID
-                { PreId (fst $1, (snd $1)) }
+                { PreId (fst $1, snd $1) }
                 | LEFTPAR letterm RIGHTPAR
                 { $2 }
                 | TYPEOF letterm
