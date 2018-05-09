@@ -11,9 +11,7 @@ type token =
   | RIGHTPAR
   | RIGHTBRA
   | RECORD
-  | NEWMODULE      of ( loc * mident )
-  | ENDMODULE   of ( loc )
-  | QID         of ( loc * mident list * ident )
+  | QID         of ( loc * mident * ident )
   | NAME        of ( loc * mident )
   | LONGARROW
   | LEFTLST     of loc

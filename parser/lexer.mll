@@ -66,9 +66,6 @@ rule token = parse
   | "%typeof"   { TYPEOF }
   | "#NAME" space+ (modname as md)
   { NAME (get_loc lexbuf , mk_mident md) }
-  | "#NEWMODULE" space+ (modname as md)
-  { NEWMODULE (get_loc lexbuf , mk_mident md) }
-  | "#ENDMODULE"{ ENDMODULE (get_loc lexbuf) }
   | "#WHNF"     { WHNF ( get_loc lexbuf ) }
   | "#HNF"      { HNF ( get_loc lexbuf ) }
   | "#SNF"      { SNF ( get_loc lexbuf ) }
@@ -80,25 +77,25 @@ rule token = parse
   | "#GDT"      { GDT ( get_loc lexbuf ) }
   | '#' (capital as cmd)
   { OTHER (get_loc lexbuf, cmd) }
-  | ((modname '.')+ as mds) (ident as id)
-  { QID (get_loc lexbuf , list_of_modules '.' mds, mk_ident id) }
+  | (mident as md) '.' (ident as id)
+  { QID (get_loc lexbuf , mk_mident md, mk_ident id) }
   | non_neg_num as s
   { if !no_keyword then ID (get_loc lexbuf, mk_ident s) else
     NUM (get_loc lexbuf, s) }
   | const  as id
   { if !no_keyword then ID (get_loc lexbuf, mk_ident id) else
-    QID (get_loc lexbuf , [builtins], mk_ident id) }
+    QID (get_loc lexbuf , builtins, mk_ident id) }
   | '\'' (_ as c) '\''
   { CHAR ( get_loc lexbuf, c) }
   | ident  as id
   { ID  ( get_loc lexbuf , mk_ident id ) }
   | "\"\""
-  { QID (get_loc lexbuf , [builtins], mk_ident "string_nil") }
+  { QID (get_loc lexbuf , builtins, mk_ident "string_nil") }
   | "#REQUIRE" space+ (mident as md) {REQUIRE (get_loc lexbuf, mk_mident md)}
   | '#' (capital as cmd) { OTHER (get_loc lexbuf, cmd) }
   | '#' (non_neg_num  as i  ) { INT   (int_of_string i) }
   | mident as md '.' (ident as id)
-  { QID ( get_loc lexbuf , [mk_mident md] , mk_ident id ) }
+  { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id
   { ID  ( get_loc lexbuf , mk_ident id ) }
   | '"' { string (Buffer.create 42) lexbuf }
