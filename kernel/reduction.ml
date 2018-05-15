@@ -360,7 +360,6 @@ end (* module MkReducer (SR : StateReducer) : Reducer *)
 
 (******************************************************************************)
 
-
 (** Standard controller *)
 module StdController : Controller = struct
   let use_rule sg s r = true
@@ -374,6 +373,7 @@ module
   and StdStateReducer : StateReducer = MkStateReducer(StdGammaRW)(StdController)
   and StdReducer      : Reducer      = MkReducer(StdStateReducer)
 
+(******************************************************************************)
 
 let beta = ref true
 let steps_limit = ref None
@@ -383,10 +383,11 @@ let reset () = count := 0
 
 module ParamController : Controller =
 struct
-  let use_rule sg s r = match !steps_limit with
+  let try_reduce () = match !steps_limit with
     | None -> true
     | Some limit -> if !count < limit then (incr count; true) else false
-  let use_beta sg s = !beta
+  let use_rule sg s r = (Debug.(debug d_warn) "Test %i" !count; try_reduce ())
+  let use_beta sg s = !beta && try_reduce ()
   let rule_filter () = !rule_filter
   let beta_filter () = !beta
 end
@@ -406,111 +407,5 @@ struct
     steps_limit := s.nb_steps
   let reset = reset
 end
-and ParamStateReducer : StateReducer = MkStateReducer(StdGammaRW)(ParamController)
-
-
-(*
-
-(* n-steps reduction on state *)
-let state_nsteps (sg:Signature.t) (strat:red_strategy)
-    (steps:int) (state:state) =
-  let rec aux (red,st:(int*state)) : int*state =
-    if red <= 0 then (0, st)
-    else match st with
-      (* Normal terms *)
-      | { term=Type _ }  | { term=Kind } -> (red, st)
-      (* Pi types are head normal terms *)
-      | { term=Pi _ } when strat <> Snf  -> (red, st)
-      (* Strongly normalizing Pi types *)
-      | { ctx=ctx; term=Pi(l,x,a,b) } ->
-        let (red, a') = aux (red , {st with term=a} ) in
-        let snf_a = term_of_state a' in
-        let state_b = {ctx=LList.cons (lazy snf_a) ctx; term=b; stack=[]} in
-        let (red, b') = aux (red, state_b) in
-        (red, {st with term=mk_Pi l x snf_a (term_of_state b') } )
-
-      (* Beta redex *)
-      | { ctx; term=Lam (_,_,_,t); stack=p::s } when !beta ->
-        aux (red-1, { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s })
-      (* Not a beta redex (or beta disabled) *)
-      | { term=Lam _ } when strat == Whnf -> (red, st)
-      (* Not a beta redex (or beta disabled) but keep looking for normal form *)
-      | { ctx; term=Lam(l,x,ty_opt,t); stack=[] } ->
-        begin
-          match term_of_state st with
-          | Lam(_,_,_,t') ->
-            let (red, st_t) = aux (red, {ctx=LList.nil; term=t'; stack=[]}) in
-            let t' = term_of_state st_t in
-            begin
-              match strat, ty_opt with
-              | Snf, Some ty ->
-                let red, ty = aux (red, {ctx; term=ty; stack=[]}) in
-                (red, {st with term=mk_Lam l x (Some (term_of_state ty)) t' })
-              | _ -> (red, {st with term=mk_Lam l x ty_opt t' })
-            end
-          | _ -> assert false
-        end
-      | { ctx; term=Lam(l,x,ty_opt,t); stack=a::args } ->
-        begin
-          match term_of_state st with
-          | App(Lam(_,_,_,t'),_,_) ->
-            let (red, st_t) = aux (red, {ctx=LList.nil; term=t'; stack=[]}) in
-            let t' = term_of_state st_t in
-            begin
-              match strat with
-              | Snf ->
-                let red, args = List.fold_right (fun a (red,args) ->
-                  let red, a' = aux (red,a) in
-                  red,a::args) (a::args)  (red,[])
-                in
-                (red, {ctx; term = mk_Lam l x ty_opt t'; stack= args})
-              | _ -> (red, {ctx; term = mk_Lam l x ty_opt t'; stack= a::args})
-            end
-          | _ -> assert false
-        end
-      (* DeBruijn index: environment lookup *)
-      | { ctx; term=DB (_,_,n); stack } when n < LList.len ctx ->
-        aux (red, { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack })
-      (* DeBruijn index: out of environment *)
-      | { term=DB _ } -> (red, st)
-      (* Application: arguments go on the stack *)
-      | { ctx; term=App (f,a,lst); stack=s } when strat <> Snf ->
-        let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
-        aux (red, { ctx; term=f; stack=List.rev_append tl' s })
-      (* Application: arguments are reduced then go on the stack *)
-      | { ctx; term=App (f,a,lst); stack=s } ->
-        let redc = ref red in
-        let reduce t =
-          let new_redc, st = aux (!redc, {ctx;term=t;stack=[]}) in
-          redc := new_redc;
-          st in
-        let new_stack = List.rev_append (List.rev_map reduce (a::lst)) s in
-        aux (!redc, {ctx; term=f; stack=new_stack })
-      (* Potential Gamma redex *)
-      | { ctx; term=Const (l,n); stack } ->
-        let trees = Signature.get_dtree sg !selection l n in
-        match find_dtree (List.length stack) trees with
-        | None -> (red,st)
-        | Some (ar, tree) ->
-          let s1, s2 = split_list ar stack in
-          match StdGammaRW.gamma_rw sg s1 tree with
-          | None -> (red,st)
-          | Some (ctx,term) -> aux (red-1, { ctx; term; stack=s2 })
-  in
-  aux (steps,state)
-
-let reduction_steps n strat sg t =
-  let st = { ctx=LList.nil; term=t; stack=[] } in
-  let (_,st') = state_nsteps sg strat n st in
-  term_of_state st'
-
-let reduction strat sg te =
-  select strat.select strat.beta;
-  let te' =
-    match strat with
-    | { nb_steps = Some n; _} -> reduction_steps n strat.strategy sg te
-    | _ -> reduction strat.strategy sg te
-  in
-  select default_cfg.select default_cfg.beta;
-  te'
-*)
+and ParamStateReducer : StateReducer = MkStateReducer(ParamGammaRW)(ParamController)
+and ParamGammaRW      : GammaRW      = MkRewriter(ParamStateReducer)(ParamReducer)
