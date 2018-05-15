@@ -116,24 +116,33 @@ let check ?ctx:(ctx=[]) te ty =
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)
 
+let get_reduction_function (red:Reduction.red_cfg) =
+  let open Reduction in
+  ParamReducer.set_strategy red;
+  ParamReducer.reset ();
+  match red.strategy with
+  | Hnf  -> ParamReducer.hnf
+  | Snf  -> ParamReducer.snf
+  | Whnf -> ParamReducer.whnf
+
 let reduction ?ctx:(ctx=[]) ?red:(red=Reduction.default_cfg) te =
   try
     ignore(Typing.infer !sg ctx te);
-    let te' = Reduction.reduction red !sg te in
+    let te' = get_reduction_function red !sg te in
     OK te'
   with
     | SignatureError e -> Err (EnvErrorSignature e)
     | TypingError    e -> Err (EnvErrorType e)
 
 let unsafe_reduction ?red:(red=Reduction.default_cfg) te =
-  let te' = Reduction.reduction red !sg te in
+  let te' = get_reduction_function red !sg te in
   te'
 
 let are_convertible ?ctx:(ctx=[]) te1 te2 =
   try
     ignore(Typing.infer !sg ctx te1);
     ignore(Typing.infer !sg ctx te2);
-    let b = Reduction.are_convertible !sg te1 te2 in
+    let b = Reduction.StdReducer.are_convertible !sg te1 te2 in
     OK b
   with
   | SignatureError e -> Err (EnvErrorSignature e)

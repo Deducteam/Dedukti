@@ -32,9 +32,8 @@ exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let snf = reduction default_cfg
-
-let whnf = reduction {default_cfg with strategy = Whnf}
+let snf  = Reduction.StdReducer.snf
+let whnf = Reduction.StdReducer.whnf
 
 let get_type ctx l x n =
   try let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
@@ -86,14 +85,14 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
       match whnf sg ty_exp with
       | Pi (_,_,a',ty_b) ->
         ignore(infer sg ctx a);
-        if not (Reduction.are_convertible sg a a')
+        if not (Reduction.StdReducer.are_convertible sg a a')
         then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a',a)))
         else check sg ((l,x,a)::ctx) b ty_b
       | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
     end
   | _ ->
     let ty_inf = infer sg ctx te in
-    if Reduction.are_convertible sg ty_inf ty_exp then ()
+    if Reduction.StdReducer.are_convertible sg ty_inf ty_exp then ()
     else
       let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
       raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
@@ -185,12 +184,12 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
           pseudo_u sg sigma ((q+1,b,b')::lst)
 
         | App (DB (_,_,n),_,_), _  when ( n >= q ) ->
-          if Reduction.are_convertible sg t1' t2' then
+          if Reduction.StdReducer.are_convertible sg t1' t2' then
             ( Debug.(debug d_rule "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2');
               pseudo_u sg sigma lst )
           else None
         | _, App (DB (_,_,n),_,_) when ( n >= q ) ->
-          if Reduction.are_convertible sg t1' t2' then
+          if Reduction.StdReducer.are_convertible sg t1' t2' then
             ( Debug.(debug d_rule "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2');
               pseudo_u sg sigma lst )
           else None

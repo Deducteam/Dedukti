@@ -95,39 +95,14 @@ module type Controller =
 sig
   (** This allows/forbids the use of given rule on given state. *)
   val use_rule : Signature.t -> state -> rule_name -> bool
+  val use_beta : Signature.t -> state -> bool
+  val rule_filter : unit -> (rule_name -> bool) option
+  val beta_filter : unit -> bool
 end
-
-(** Standard controller *)
-module StdController : Controller = struct
-  let use_rule sg s r = true
-end
-
-(** Controller allowing all rules but keeping track of usage *)
-module TraceController =
-struct
-  let stack = ref []
-  let reset () = stack := []
-  let use_rule sg s r =
-    stack := (r, s) :: !stack;
-    true
-end
-
-(** Controller counting *)
-module CountController =
-struct
-  let count = ref 0
-  let limit = ref 0
-  let reset () = count := 0
-  let set_limit l = limit := l
-  let use_rule sg s r =
-    if !count >= !limit then false else (incr count; true)
-end
-
-
 
 module type GammaRW =
 sig
-  val gamma_rw : Signature.t -> stack -> dtree -> (env*term) option
+  val gamma_rw : Signature.t -> stack -> dtree -> (rule_name*env*term) option
 end
 
 module type StateReducer =
@@ -145,7 +120,7 @@ end
 
 (******************************************************************************)
 
-module MakeRewriter (SR : StateReducer) (R : Reducer) : GammaRW  = struct
+module MkRewriter (SR : StateReducer) (R : Reducer) : GammaRW  = struct
 
 let solve (sg:Signature.t) (depth:int) (pbs:int LList.t) (te:term) : term =
   try Matching.solve depth pbs te
@@ -227,10 +202,7 @@ let rec find_case (st:state) (cases:(case * dtree) list)
 
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
-let gamma_rw (sg:Signature.t) : stack -> dtree -> (env*term) option =
-(*             (convertible:convertibility_test)
-             (forcing:rw_strategy)
-               (strategy:rw_state_strategy) *)
+let gamma_rw (sg:Signature.t) : stack -> dtree -> (rule_name*env*term) option =
   let rec rw stack = function
     | Switch (i,cases,def) ->
        begin
@@ -243,30 +215,30 @@ let gamma_rw (sg:Signature.t) : stack -> dtree -> (env*term) option =
          This is the reason why s is added at the end. *)
          | None -> None
        end
-    | Test (_,Syntactic ord, eqs, right, def) ->
+    | Test (rname,Syntactic ord, eqs, right, def) ->
        begin
          match get_context_syn sg stack ord with
          | None -> bind_opt (rw stack) def
          | Some ctx ->
-            if test sg ctx eqs then Some (ctx, right)
+            if test sg ctx eqs then Some (rname, ctx, right)
             else bind_opt (rw stack) def
        end
-    | Test (_,MillerPattern lst, eqs, right, def) ->
+    | Test (rname,MillerPattern lst, eqs, right, def) ->
        begin
          match get_context_mp sg stack lst with
          | None -> bind_opt (rw stack) def
          | Some ctx ->
-            if test sg ctx eqs then Some (ctx, right)
+            if test sg ctx eqs then Some (rname, ctx, right)
             else bind_opt (rw stack) def
        end
   in
   rw
 
-end (* module MakeRewriter (SR : StateReducer) (R : Reducer) : GammaRW *)
+end (* module MkRewriter (SR : StateReducer) (R : Reducer) : GammaRW *)
 
 (******************************************************************************)
 
-module MakeStateReducer (GR : GammaRW) (C:Controller) : StateReducer = struct
+module MkStateReducer (GR : GammaRW) (C:Controller) : StateReducer = struct
 
 (* Definition: a term is in weak-head-normal form if all its reducts
  * (including itself) have same 'shape' at the root.
@@ -304,7 +276,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   | { term=Kind }
   | { term=Pi _ }
   | { term=Lam _; stack=[] } -> st
-  | { term=Lam _ } when not !beta -> st
+  | { term=Lam _ } when not (C.beta_filter ()) -> st
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
     if n < LList.len ctx
@@ -312,8 +284,10 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     else { ctx=LList.nil; term=(mk_DB l x (n-LList.len ctx)); stack }
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
-    (* TODO: use C.use_rule here to see if we are allowed to reduce *)
-    state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    if C.use_beta sg st
+    then state_whnf sg
+        { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    else st
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
@@ -321,22 +295,23 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack } ->
-    let trees = Signature.get_dtree sg !selection l n in
+    let trees = Signature.get_dtree sg (C.rule_filter ()) l n in
     match find_dtree (List.length stack) trees with
     | None -> st
     | Some (ar, tree) ->
       let s1, s2 = split_list ar stack in
       match GR.gamma_rw sg s1 tree with
       | None -> st
-      | Some (ctx,term) ->
-        (* TODO: use C.use_rule here to see if we are allowed to reduce *)
-        state_whnf sg { ctx; term; stack=s2 }
+      | Some (rname,ctx,term) ->
+        if C.use_rule sg st rname
+        then state_whnf sg { ctx; term; stack=s2 }
+        else st
 
-end (* module MakeStateReducer (GR : GammaRW) (C:Controller) : StateReducer *)
+end (* module MkStateReducer (GR : GammaRW) (C:Controller) : StateReducer *)
 
 (******************************************************************************)
 
-module MakeReducer (SR : StateReducer) : Reducer = struct
+module MkReducer (SR : StateReducer) : Reducer = struct
 
 (* Weak Head Normal Form *)
 let whnf sg term = term_of_state ( SR.state_whnf sg { ctx=LList.nil; term; stack=[] } )
@@ -381,21 +356,60 @@ let rec hnf sg t =
   | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
   | App (f,a,lst) -> mk_App (hnf sg f) (hnf sg a) (List.map (hnf sg) lst)
 
-end (* module MakeReducer (SR : StateReducer) : Reducer *)
+end (* module MkReducer (SR : StateReducer) : Reducer *)
 
 (******************************************************************************)
 
 
-module rec StdGammaRW      : GammaRW      = MakeRewriter(StdStateReducer)(StdReducer)
-and        StdStateReducer : StateReducer = MakeStateReducer(StdGammaRW)(StdController)
-and        StdReducer      : Reducer      = MakeReducer(StdStateReducer)
+(** Standard controller *)
+module StdController : Controller = struct
+  let use_rule sg s r = true
+  let use_beta sg s = true
+  let rule_filter () = None
+  let beta_filter () = true
+end
 
-let are_convertible = StdReducer.are_convertible
+module
+  rec StdGammaRW      : GammaRW      = MkRewriter(StdStateReducer)(StdReducer)
+  and StdStateReducer : StateReducer = MkStateReducer(StdGammaRW)(StdController)
+  and StdReducer      : Reducer      = MkReducer(StdStateReducer)
 
-let reduction = function
-  | Hnf  -> StdReducer.hnf
-  | Snf  -> StdReducer.snf
-  | Whnf -> StdReducer.whnf
+
+let beta = ref true
+let steps_limit = ref None
+let rule_filter  = ref None
+let count = ref 0
+let reset () = count := 0
+
+module ParamController : Controller =
+struct
+  let use_rule sg s r = match !steps_limit with
+    | None -> true
+    | Some limit -> if !count < limit then (incr count; true) else false
+  let use_beta sg s = !beta
+  let rule_filter () = !rule_filter
+  let beta_filter () = !beta
+end
+
+
+module rec ParamReducer :
+sig
+  include Reducer
+  val set_strategy : red_cfg -> unit
+  val reset : unit -> unit
+end =
+struct
+  include MkReducer(ParamStateReducer)
+  let set_strategy s =
+    rule_filter := s.select;
+    beta        := s.beta;
+    steps_limit := s.nb_steps
+  let reset = reset
+end
+and ParamStateReducer : StateReducer = MkStateReducer(StdGammaRW)(ParamController)
+
+
+(*
 
 (* n-steps reduction on state *)
 let state_nsteps (sg:Signature.t) (strat:red_strategy)
@@ -499,3 +513,4 @@ let reduction strat sg te =
   in
   select default_cfg.select default_cfg.beta;
   te'
+*)

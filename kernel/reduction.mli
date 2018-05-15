@@ -3,6 +3,20 @@
 open Basic
 open Term
 
+
+module type Reducer =
+sig
+  val whnf : Signature.t -> term -> term (** Weak head normal form. *)
+  val snf  : Signature.t -> term -> term (** Strong normal form. *)
+  val hnf  : Signature.t -> term -> term (** Head normal form. *)
+  val are_convertible : Signature.t -> term -> term -> bool
+  (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
+      or not in the signature [sg]. *)
+end
+
+module StdReducer : Reducer (** Standard reducer *)
+
+
 type red_strategy = Hnf | Snf | Whnf
 
 type red_cfg = {
@@ -26,10 +40,11 @@ val default_cfg : red_cfg
     [beta] = [true] ;
 *)
 
-val reduction : red_cfg -> Signature.t -> term -> term
-(** [reduction sg red te] reduces the term [te] following the strategy [red]
-    and using the signature [sg]. *)
 
-val are_convertible : Signature.t -> term -> term -> bool
-(** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
-    or not in the signature [sg]. *)
+(** Parameterized reducer *)
+module ParamReducer : sig
+  include Reducer
+  val set_strategy : red_cfg -> unit
+  val reset : unit -> unit
+end
+
