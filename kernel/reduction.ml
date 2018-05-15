@@ -7,7 +7,7 @@ open Dtree
 type red_strategy = Hnf | Snf | Whnf
 
 type red_cfg = {
-  select : (Rule.rule_name -> bool) option;
+  select : (rule_name -> bool) option;
   nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
   strategy : red_strategy;
   beta : bool
@@ -90,53 +90,109 @@ type rw_state_strategy = Signature.t -> state -> state
 
 type convertibility_test = Signature.t -> term -> term -> bool
 
-let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (te:term) : term =
+
+module type Controller =
+sig
+  (** This allows/forbids the use of given rule on given state. *)
+  val use_rule : Signature.t -> state -> rule_name -> bool
+end
+
+(** Standard controller *)
+module StdController : Controller = struct
+  let use_rule sg s r = true
+end
+
+(** Controller allowing all rules but keeping track of usage *)
+module TraceController =
+struct
+  let stack = ref []
+  let reset () = stack := []
+  let use_rule sg s r =
+    stack := (r, s) :: !stack;
+    true
+end
+
+(** Controller counting *)
+module CountController =
+struct
+  let count = ref 0
+  let limit = ref 0
+  let reset () = count := 0
+  let set_limit l = limit := l
+  let use_rule sg s r =
+    if !count >= !limit then false else (incr count; true)
+end
+
+
+
+module type GammaRW =
+sig
+  val gamma_rw : Signature.t -> stack -> dtree -> (env*term) option
+end
+
+module type StateReducer =
+sig
+  val state_whnf : Signature.t -> state -> state
+end
+
+module type Reducer =
+sig
+  val whnf : Signature.t -> term -> term
+  val snf  : Signature.t -> term -> term
+  val hnf  : Signature.t -> term -> term
+  val are_convertible : Signature.t -> term -> term -> bool
+end
+
+(******************************************************************************)
+
+module MakeRewriter (SR : StateReducer) (R : Reducer) : GammaRW  = struct
+
+let solve (sg:Signature.t) (depth:int) (pbs:int LList.t) (te:term) : term =
   try Matching.solve depth pbs te
   with Matching.NotUnifiable ->
-    Matching.solve depth pbs (reduce sg te)
+    Matching.solve depth pbs (R.snf sg te)
 
-let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
+let unshift (sg:Signature.t) (q:int) (te:term) =
   try Subst.unshift q te
   with Subst.UnshiftExn ->
-    Subst.unshift q (reduce sg te)
+    Subst.unshift q (R.snf sg te)
 
-let get_context_syn (sg:Signature.t) (forcing:rw_strategy) (stack:stack) (ord:arg_pos LList.t) : env option =
+let get_context_syn (sg:Signature.t) (stack:stack) (ord:arg_pos LList.t) : env option =
   try Some (LList.map (
       fun p ->
         if ( p.depth = 0 )
         then lazy (term_of_state (List.nth stack p.position) )
         else
           Lazy.from_val
-            (unshift sg forcing p.depth (term_of_state (List.nth stack p.position) ))
+            (unshift sg p.depth (term_of_state (List.nth stack p.position) ))
     ) ord )
   with Subst.UnshiftExn -> ( None )
 
-let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
+let get_context_mp (sg:Signature.t) (stack:stack)
                    (pb_lst:abstract_problem LList.t) : env option =
   let aux ((pos,dbs):abstract_problem) : term Lazy.t =
-    let res = solve sg forcing pos.depth dbs (term_of_state (List.nth stack pos.position)) in
+    let res = solve sg pos.depth dbs (term_of_state (List.nth stack pos.position)) in
     Lazy.from_val (Subst.unshift pos.depth res)
   in
   try Some (LList.map aux pb_lst)
   with Matching.NotUnifiable -> None
      | Subst.UnshiftExn -> assert false
 
-let rec test (sg:Signature.t) (convertible:convertibility_test)
-             (ctx:env) (constrs: constr list) : bool  =
+let rec test (sg:Signature.t) (ctx:env) (constrs: constr list) : bool =
   match constrs with
   | [] -> true
   | (Linearity (i,j))::tl ->
     let t1 = mk_DB dloc dmark i in
     let t2 = mk_DB dloc dmark j in
-    if convertible sg (term_of_state { ctx; term=t1; stack=[] })
+    if R.are_convertible sg (term_of_state { ctx; term=t1; stack=[] })
                       (term_of_state { ctx; term=t2; stack=[] })
-    then test sg convertible ctx tl
+    then test sg ctx tl
     else false
   | (Bracket (i,t))::tl ->
     let t1 = Lazy.force (LList.nth ctx i) in
     let t2 = term_of_state { ctx; term=t; stack=[] } in
-    if convertible sg t1 t2
-    then test sg convertible ctx tl
+    if R.are_convertible sg t1 t2
+    then test sg ctx tl
     else
       (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
       raise (Signature.SignatureError( Signature.GuardNotSatisfied(get_loc t1, t1, t2) ))
@@ -171,14 +227,14 @@ let rec find_case (st:state) (cases:(case * dtree) list)
 
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
-let gamma_rw (sg:Signature.t)
-             (convertible:convertibility_test)
+let gamma_rw (sg:Signature.t) : stack -> dtree -> (env*term) option =
+(*             (convertible:convertibility_test)
              (forcing:rw_strategy)
-             (strategy:rw_state_strategy) : stack -> dtree -> (env*term) option =
+               (strategy:rw_state_strategy) *)
   let rec rw stack = function
     | Switch (i,cases,def) ->
        begin
-         let arg_i = strategy sg (List.nth stack i) in
+         let arg_i = SR.state_whnf sg (List.nth stack i) in
          match find_case arg_i cases def with
          | Some (g,[]) -> rw stack g
          | Some (g,s ) -> rw (stack@s) g
@@ -189,25 +245,28 @@ let gamma_rw (sg:Signature.t)
        end
     | Test (_,Syntactic ord, eqs, right, def) ->
        begin
-         match get_context_syn sg forcing stack ord with
+         match get_context_syn sg stack ord with
          | None -> bind_opt (rw stack) def
          | Some ctx ->
-            if test sg convertible ctx eqs then Some (ctx, right)
+            if test sg ctx eqs then Some (ctx, right)
             else bind_opt (rw stack) def
        end
     | Test (_,MillerPattern lst, eqs, right, def) ->
        begin
-         match get_context_mp sg forcing stack lst with
+         match get_context_mp sg stack lst with
          | None -> bind_opt (rw stack) def
          | Some ctx ->
-            if test sg convertible ctx eqs then Some (ctx, right)
+            if test sg ctx eqs then Some (ctx, right)
             else bind_opt (rw stack) def
        end
   in
   rw
 
+end (* module MakeRewriter (SR : StateReducer) (R : Reducer) : GammaRW *)
 
-(* ********************* *)
+(******************************************************************************)
+
+module MakeStateReducer (GR : GammaRW) (C:Controller) : StateReducer = struct
 
 (* Definition: a term is in weak-head-normal form if all its reducts
  * (including itself) have same 'shape' at the root.
@@ -245,6 +304,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   | { term=Kind }
   | { term=Pi _ }
   | { term=Lam _; stack=[] } -> st
+  | { term=Lam _ } when not !beta -> st
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
     if n < LList.len ctx
@@ -252,8 +312,8 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     else { ctx=LList.nil; term=(mk_DB l x (n-LList.len ctx)); stack }
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
-    if not !beta then st
-    else state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    (* TODO: use C.use_rule here to see if we are allowed to reduce *)
+    state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
@@ -266,17 +326,23 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     | None -> st
     | Some (ar, tree) ->
       let s1, s2 = split_list ar stack in
-      match gamma_rw sg are_convertible snf state_whnf s1 tree with
+      match GR.gamma_rw sg s1 tree with
       | None -> st
-      | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
+      | Some (ctx,term) ->
+        (* TODO: use C.use_rule here to see if we are allowed to reduce *)
+        state_whnf sg { ctx; term; stack=s2 }
 
-(* ********************* *)
+end (* module MakeStateReducer (GR : GammaRW) (C:Controller) : StateReducer *)
+
+(******************************************************************************)
+
+module MakeReducer (SR : StateReducer) : Reducer = struct
 
 (* Weak Head Normal Form *)
-and whnf sg term = term_of_state ( state_whnf sg { ctx=LList.nil; term; stack=[] } )
+let whnf sg term = term_of_state ( SR.state_whnf sg { ctx=LList.nil; term; stack=[] } )
 
 (* Strong Normal Form *)
-and snf sg (t:term) : term =
+let rec snf sg (t:term) : term =
   match whnf sg t with
   | Kind | Const _
   | DB _ | Type _ as t' -> t'
@@ -284,7 +350,7 @@ and snf sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
-and are_convertible_lst sg : (term*term) list -> bool =
+let rec are_convertible_lst sg : (term*term) list -> bool =
   function
   | [] -> true
   | (t1,t2)::lst ->
@@ -307,7 +373,7 @@ and are_convertible_lst sg : (term*term) list -> bool =
     end
 
 (* Convertibility Test *)
-and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
+let are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
 
 (* Head Normal Form *)
 let rec hnf sg t =
@@ -315,10 +381,21 @@ let rec hnf sg t =
   | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
   | App (f,a,lst) -> mk_App (hnf sg f) (hnf sg a) (List.map (hnf sg) lst)
 
+end (* module MakeReducer (SR : StateReducer) : Reducer *)
+
+(******************************************************************************)
+
+
+module rec StdGammaRW      : GammaRW      = MakeRewriter(StdStateReducer)(StdReducer)
+and        StdStateReducer : StateReducer = MakeStateReducer(StdGammaRW)(StdController)
+and        StdReducer      : Reducer      = MakeReducer(StdStateReducer)
+
+let are_convertible = StdReducer.are_convertible
+
 let reduction = function
-  | Hnf  -> hnf
-  | Snf  -> snf
-  | Whnf -> whnf
+  | Hnf  -> StdReducer.hnf
+  | Snf  -> StdReducer.snf
+  | Whnf -> StdReducer.whnf
 
 (* n-steps reduction on state *)
 let state_nsteps (sg:Signature.t) (strat:red_strategy)
@@ -402,7 +479,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
         | None -> (red,st)
         | Some (ar, tree) ->
           let s1, s2 = split_list ar stack in
-          match gamma_rw sg are_convertible snf state_whnf s1 tree with
+          match StdGammaRW.gamma_rw sg s1 tree with
           | None -> (red,st)
           | Some (ctx,term) -> aux (red-1, { ctx; term; stack=s2 })
   in
