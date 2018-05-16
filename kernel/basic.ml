@@ -172,3 +172,10 @@ let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
 let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def
   | Some a -> Format.fprintf fmt "%a" pp a
+
+let pp_couple pp_fst pp_snd fmt x =
+  Format.fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd (snd x)
+
+let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) =
+  Format.fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z
+ 

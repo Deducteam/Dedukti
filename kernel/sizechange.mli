@@ -45,4 +45,4 @@ val termination_check : bool -> mident -> rule_infos list list ->
      (rule_infos list*int*Dtree.dtree) option
   ) list -> bool
 
-val print_res : bool -> bool -> unit
+val print_res : bool -> bool -> bool -> unit
