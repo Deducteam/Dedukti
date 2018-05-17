@@ -17,8 +17,6 @@ type wf_pattern =
 
 type rule_name = Delta of name | Gamma of bool * name
 
-type polar = Pos | Neg | Both
-
 type 'a rule =
   {
     name: rule_name;

@@ -46,6 +46,10 @@ let mk_mident md =
 
 let dmark       = mk_ident "$"
 
+
+type polar = Pos | Neg | Both
+
+  
 (** {2 Lists with Length} *)
 
 module LList = struct

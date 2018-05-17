@@ -43,9 +43,6 @@ type rule_name =
   (** Rules of lambda pi modulo. The first parameter indicates whether
       the name of the rule has been given by the user. *)
 
-(** Polarity of rewriting rules as in polarized deduction modulo theory *)
-type polar = Pos | Neg | Both
-
 type 'a rule =
   {
     name: rule_name;

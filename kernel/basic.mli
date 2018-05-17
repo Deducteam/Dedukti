@@ -47,6 +47,9 @@ val dmark : ident
 
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
 
+(** Polarity of rewriting rules as in polarized deduction modulo theory *)
+type polar = Pos | Neg | Both
+
 
 (** {2 Lists with Length} *)
 
