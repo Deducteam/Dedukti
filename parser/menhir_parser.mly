@@ -45,6 +45,8 @@ let mk_config loc id1 id2_opt =
 %token ARROW
 %token FATARROW
 %token LONGARROW
+%token LONGARROWPLUS
+%token LONGARROWMINUS
 %token DEF
 %token LEFTPAR
 %token RIGHTPAR
@@ -154,16 +156,21 @@ param:
       {(fst id, snd id, te)}
 
 rule:
-  | LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+  | LEFTSQU context RIGHTSQU top_pattern longarrow term
       { let (l,md_opt,id,args) = $4 in
-        ( l , None, $2 , md_opt, id , args , $6) }
-  | LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+        ( l , None, $2 , md_opt, id , args , $6, $5) }
+  | LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern longarrow term
       { let (l,md_opt,id,args) = $7 in
-        ( l , Some (None,snd $2), $5 , md_opt, id , args , $9)}
-  | LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+        ( l , Some (None,snd $2), $5 , md_opt, id , args , $9, $8)}
+  | LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern longarrow term
       { let (l,md_opt,id,args) = $7 in
         let (_,m,v) = $2 in
-        ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
+        ( l , Some (Some m,v), $5 , md_opt, id , args , $9, $8)}
+
+longarrow:
+  | LONGARROW { Both }
+  | LONGARROWPLUS { Pos }
+  | LONGARROWMINUS { Neg }
 
 decl:
   | ID COLON term { Debug.(debug d_warn "Ignoring type declaration in rule context."); $1 }

@@ -12,6 +12,8 @@ type token =
   | NAME       of ( loc * mident )
   | REQUIRE    of ( loc * mident )
   | LONGARROW
+  | LONGARROWPLUS
+  | LONGARROWMINUS
   | LEFTSQU
   | LEFTPAR
   | LEFTBRA

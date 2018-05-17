@@ -36,6 +36,8 @@ rule token = parse
   | '('         { LEFTPAR       }
   | ')'         { RIGHTPAR      }
   | "-->"       { LONGARROW     }
+  | "-->+"      { LONGARROWPLUS }
+  | "-->-"      { LONGARROWMINUS}
   | "->"        { ARROW         }
   | "=>"        { FATARROW      }
   | ":="        { DEF           }
