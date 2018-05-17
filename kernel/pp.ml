@@ -164,7 +164,8 @@ let print_rule_infos out ri =
                ctx = [] ;
                (* TODO: here infer context from named variable inside left hand side pattern *)
                pat =  pattern_of_rule_infos ri;
-               rhs = ri.rhs
+               rhs = ri.rhs;
+               pol = ri.polarity;
              }
   in
   print_untyped_rule out rule

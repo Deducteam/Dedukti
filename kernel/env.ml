@@ -59,6 +59,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
         ctx = [] ;
         pat = Pattern(l, cst, []);
         rhs = te ;
+        pol = Both;
       }
     in
     Signature.add_rules !sg [rule]

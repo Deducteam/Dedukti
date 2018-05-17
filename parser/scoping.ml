@@ -121,4 +121,9 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
     in
     Gamma(b,mk_name md id)
   in
-  { name ; ctx= ctx; pat = p_of_pp md idents top; rhs = t_of_pt md idents pri }
+  { name ;
+    ctx= ctx;
+    pat = p_of_pp md idents top;
+    rhs = t_of_pt md idents pri;
+    pol = Both
+  }

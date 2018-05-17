@@ -43,13 +43,16 @@ type rule_name =
   (** Rules of lambda pi modulo. The first parameter indicates whether
       the name of the rule has been given by the user. *)
 
+(** Polarity of rewriting rules as in polarized deduction modulo theory *)
+type polar = Pos | Neg | Both
 
 type 'a rule =
   {
     name: rule_name;
     ctx : 'a;
     pat : pattern;
-    rhs : term
+    rhs : term;
+    pol : polar
   }
 
 type untyped_rule = untyped_context rule
@@ -80,6 +83,7 @@ type rule_infos = {
   pats        : wf_pattern array; (** free pattern without constraint *)
   constraints : constr list;
   (** constraints generated from the pattern to the free pattern *)
+  polarity    : polar;            (** polarity of the rule *)
 }
 
 val pattern_of_rule_infos : rule_infos -> pattern

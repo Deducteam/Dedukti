@@ -435,5 +435,6 @@ let check_rule sg (rule:untyped_rule) : typed_rule =
   { name = rule.name;
     ctx = ctx2;
     pat = rule.pat;
-    rhs = rule.rhs
+    rhs = rule.rhs;
+    pol = rule.pol
   }

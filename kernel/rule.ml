@@ -17,12 +17,15 @@ type wf_pattern =
 
 type rule_name = Delta of name | Gamma of bool * name
 
+type polar = Pos | Neg | Both
+
 type 'a rule =
   {
     name: rule_name;
     ctx: 'a;
     pat: pattern;
-    rhs:term
+    rhs:term;
+    pol: polar;
   }
 
 type untyped_rule = untyped_context rule
@@ -43,6 +46,7 @@ type rule_infos = {
   esize       : int;
   pats        : wf_pattern array;
   constraints : constr list;
+  polarity    : polar;
 }
 
 let infer_rule_context ri =
@@ -147,9 +151,10 @@ let pp_rule_infos out r =
     { name = r.name;
       ctx = infer_rule_context r;
       pat = pattern_of_rule_infos r;
-      rhs = r.rhs
+      rhs = r.rhs;
+      pol = r.polarity
     }
-    
+
 let pattern_to_term p =
   let rec aux k = function
     | Brackets t         -> t
@@ -230,7 +235,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       then if nb_args' <> IntHashtbl.find arity (n-k)
         then raise (RuleExn (NonLinearNonEqArguments(l,x)))
         else
-          let nvar = fresh_var nb_args' in 
+          let nvar = fresh_var nb_args' in
           constraints := Linearity(nvar, n-k) :: !constraints;
           LVar(x, nvar + k, args')
       else
@@ -282,20 +287,22 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
       | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
     in
     let (pats2,infos) = check_patterns esize args in
-    
+
     (* Checking that Miller variable are correctly applied in lhs *)
     check_nb_args infos.arity r.rhs;
-    
+
     (* Checking if pattern has linearity constraints *)
     if not (is_linear infos.constraints)
     then
       if !allow_non_linear
       then Debug.(debug d_rule "Non-linear Rewrite Rule detected")
       else raise (RuleExn (NonLinearRule r));
-    
+
     OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;
          esize = infos.context_size ;
          pats = Array.of_list pats2 ;
-         constraints = infos.constraints ; }
+         constraints = infos.constraints ;
+         polarity = r.pol
+       }
   with
     RuleExn e -> Err e
