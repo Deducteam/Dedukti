@@ -303,8 +303,8 @@ and are_convertible_lst sg ism :  (term * term) list -> bool =
   function
   | [] -> true
   | (t1, t2) :: lst ->
-    Format.eprintf "ll:%a@." pp_term t1;
-    Format.eprintf "rr:%a@." pp_term t2;
+(*    Format.eprintf "ll:%a@." pp_term t1;
+      Format.eprintf "rr:%a@." pp_term t2; *)
     match
       if term_eq t1 t2 then Some lst
       else
@@ -333,8 +333,8 @@ and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
   if !just_check || ism then false
   else if is_cast l && not (is_cast r) then
     begin
-      Format.eprintf "l:%a@." pp_term l;
-      Format.eprintf "r:%a@." pp_term r;
+(*      Format.eprintf "l:%a@." pp_term l;
+        Format.eprintf "r:%a@." pp_term r; *)
       let s1,s2,t1,t2,a = extract_cast l in
       are_convertible_lst sg ism [(s1,s2);(t1,t2);(a,r)]
     end
@@ -342,23 +342,19 @@ and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
     are_univ_convertible sg ism r l
   else if is_cast l && is_cast r then
     begin
-      Format.eprintf "l:%a@." pp_term l;
-      Format.eprintf "r:%a@." pp_term r;
+(*      Format.eprintf "l:%a@." pp_term l;
+        Format.eprintf "r:%a@." pp_term r; *)
       let s1,s2,t1,t2,a = extract_cast l in
       let s3,s4,t3,t4,b = extract_cast r in
       if are_convertible_lst sg ism [a,b] then
-        false (* let are_convertible work *)
+        false (* let are_convertible makes the work *)
       else
         failwith "todo cast"
     end
+  else if is_univ l && is_univ r then
+    failwith "todo univ"
   else
-    try
-      let sl = extract_universe sg l in
-      let sr = extract_universe sg r in
-      add_constraint_eq sl sr;
-      true
-    with _ -> false
-
+    false
 
 (* Convertibility Test *)
 and are_convertible sg t1 t2 = are_convertible_lst sg false [(t1, t2)]

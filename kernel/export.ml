@@ -1,27 +1,133 @@
-module Z3 =
+type model = Basic.ident -> Term.term
+
+module type Solver =
+sig
+  type expr
+
+  val mk_var  : string -> expr
+
+  val mk_prop : expr
+
+  val mk_type : int -> expr
+
+  val mk_succ : expr -> expr
+
+  val mk_max : expr -> expr -> expr
+
+  val mk_rule : expr -> expr -> expr
+
+  val mk_eq : expr -> expr -> unit
+
+  val solve : unit -> int * model
+
+  val reset : unit -> unit
+end
+
+open Z3
+
+type cfg_item = [`Model of bool | `Proof of bool | `Trace of bool | `TraceFile of string]
+
+type cfg = cfg_item list
+
+let cfg = [`Model(true);
+           `Proof(true);
+           `Trace(false)]
+
+let string_of_cfg_item item =
+  match item with
+  | `Model(b) -> ("model", string_of_bool b)
+  | `Proof(b) -> ("proof", string_of_bool b)
+  | `Trace(b) -> ("trace", string_of_bool b)
+  | `TraceFile(file) -> ("trace_file_name", file)
+
+let string_of_cfg cfg = List.map string_of_cfg_item cfg
+
+let ctx = mk_context (string_of_cfg cfg)
+
+let univ_max = ref 6
+
+module Z3Syn =
 struct
 
-  open Z3
-  open Constraints
+  type expr = Expr.expr
 
-  type cfg_item = [`Model of bool | `Proof of bool | `Trace of bool | `TraceFile of string]
+  let solver = Solver.mk_simple_solver ctx
 
-  type cfg = cfg_item list
+  let sort      = Sort.mk_uninterpreted_s ctx "Univ"
 
-  let cfg = [`Model(true);
-             `Proof(true);
-             `Trace(false)]
+  (* Type 0 is impredictive *)
+  let mk_univ i = Expr.mk_const_s ctx ("type"^(string_of_int i)) sort
 
-  let string_of_cfg_item item =
-    match item with
-    | `Model(b) -> ("model", string_of_bool b)
-    | `Proof(b) -> ("proof", string_of_bool b)
-    | `Trace(b) -> ("trace", string_of_bool b)
-    | `TraceFile(file) -> ("trace_file_name", file)
+  let mk_succ   = FuncDecl.mk_func_decl_s ctx "S" [sort] sort
 
-  let string_of_cfg cfg = List.map string_of_cfg_item cfg
+  let mk_max    = FuncDecl.mk_func_decl_s ctx "M" [sort;sort] sort
 
-  let ctx = mk_context (string_of_cfg cfg)
+  let mk_rule   = FuncDecl.mk_func_decl_s ctx "R" [sort;sort] sort
+
+  let mk_eq l r = Boolean.mk_eq ctx l r
+
+  let mk_succ l  =
+    Expr.mk_app ctx mk_succ [l]
+
+  let mk_max l1 l2 =
+    Expr.mk_app ctx mk_max [l1;l2]
+
+  let mk_rule l1 l2 =
+   Expr.mk_app ctx mk_rule [l1;l2]
+
+  let mk_axiom_succ i =
+    mk_eq (mk_succ (mk_univ i)) (mk_univ (i+1))
+
+  let mk_axiom_max i j =
+    mk_eq (mk_max (mk_univ i) (mk_univ j)) (mk_univ (max i j))
+
+  let mk_axiom_rule i j =
+    if j = 0 then
+      mk_eq (mk_rule (mk_univ i) (mk_univ 0)) (mk_univ 0)
+    else
+      mk_eq (mk_rule (mk_univ i) (mk_univ j)) (mk_univ (max i j))
+
+  let mk_var s =
+    Expr.mk_const_s ctx s sort
+
+  let mk_type i = mk_univ (i + 1)
+
+  let mk_prop = mk_univ 0
+
+  let add expr = Solver.add solver [expr]
+
+  let mk_eq l r = add (mk_eq l r)
+
+  let register_axioms i =
+    for i = 0 to i
+    do
+      add (mk_axiom_succ i);
+      for j = 0 to i
+      do
+        add (mk_axiom_max i j);
+        add (mk_axiom_rule i j);
+      done;
+    done
+
+  let reset () = Solver.reset solver
+
+  let rec check constraints i =
+    reset ();
+    register_axioms i;
+    if i > !univ_max then failwith "Probably the Constraints are inconsistent";
+    match Solver.check solver [] with
+    | Solver.UNSATISFIABLE ->
+      Basic.debug 1 "No solution found with %d universes@." (i + 2);
+      check constraints (i+1)
+    | Solver.UNKNOWN -> failwith "This bug should be reported (check)"
+    | Solver.SATISFIABLE -> failwith "yes"
+
+  let solve constraints = check constraints 0
+end
+
+(*
+module Z3LRA =
+struct
 
   let solver = Solver.mk_simple_solver ctx
 
@@ -137,7 +243,7 @@ struct
     let open Symbol in
     let open Expr in
     let open Arithmetic in
-    if i > 6 then failwith "Probably the Constraints are inconsistent";
+    if i > !univ_max then failwith "Probably the Constraints are inconsistent";
     Solver.reset solver;
     Hashtbl.clear variables;
     import constraints;
@@ -175,3 +281,4 @@ struct
 
   let solve constraints = check constraints 0
 end
+*)

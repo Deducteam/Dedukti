@@ -1,3 +1,117 @@
+open Export
+
+module type S =
+sig
+  type t
+
+  val mk_constraint : Term.term -> Term.term -> unit
+
+  val infos : unit -> string
+
+  val export : unit -> t
+
+  val import : t -> unit
+end
+
+module UF =
+struct
+  let uf = Hashtbl.create 10007
+
+  let rec find l =
+    try
+      let l' = Hashtbl.find uf l in
+      let f = find l' in
+      if Basic.ident_eq f l' then
+        l'
+      else
+        begin
+          Hashtbl.add uf l' f;
+          f
+        end
+    with _ -> l
+
+  let union l r =
+    let l' = find l in
+    let r' = find r in
+    if Basic.ident_eq l' r' then
+      ()
+    else
+      Hashtbl.add uf l' r'
+
+  let reset () =
+    Hashtbl.clear uf
+end
+
+module Naive(S:Export.Solver) =
+struct
+
+  type expr = Var of string
+            | Succ of expr
+            | Rule of expr * expr
+            | Max of expr * expr
+            | Prop
+            | Type of int
+
+  type t = (expr * expr) list
+
+  let constraints = ref []
+
+  let rec int_of_type t =
+    let open Cic in
+    if is_z t then
+      1
+    else
+      int_of_type (extract_s t)
+
+  let rec expr_of_term t =
+    let open Cic in
+    if is_var t then
+      Var (Basic.string_of_ident (extract_var t))
+    else if is_prop t then
+      Prop
+    else if is_type t then
+      Type (int_of_type (extract_type t))
+    else if is_succ t then
+      Succ (expr_of_term (extract_succ t))
+    else if is_max t then
+      let t1,t2 = extract_max t in
+      Max (expr_of_term t1, expr_of_term t2)
+    else if is_rule t then
+      let t1,t2 = extract_rule t in
+      Max (expr_of_term t1, expr_of_term t2)
+    else
+      assert false
+
+  let rec of_expr e =
+    match e with
+    | Var(s) -> S.mk_var s
+    | Prop -> S.mk_prop
+    | Type i -> S.mk_type i
+    | Succ(e) -> S.mk_succ (of_expr e)
+    | Max(el,er) -> S.mk_max (of_expr el) (of_expr er)
+    | Rule(el,er) -> S.mk_rule (of_expr el) (of_expr er)
+
+  let mk_constraint left right =
+    let eleft = expr_of_term left in
+    let eright = expr_of_term right in
+    constraints := (eleft,eright)::!constraints;
+    S.mk_eq (of_expr eleft) (of_expr eright)
+
+  let infos () = "Not implemented yet"
+
+  let export () = !constraints
+
+  let import cstrs =
+    S.reset ();
+    List.iter (fun (l,r) -> S.mk_eq (of_expr l) (of_expr r)) cstrs;
+    constraints := cstrs
+end
+
+module NaiveSyn : S = Naive(Export.Z3Syn)
+
+let s : (module S) ref = ref ((module NaiveSyn) : (module S))
+
+(*
 open Uvar
 
 open Basic
@@ -32,35 +146,6 @@ module Variables = Set.Make (struct type t = Basic.ident let compare = compare e
 module ConstraintsSet = Set.Make (struct type t = constraints let compare = compare end)
 
 module CS = ConstraintsSet
-
-module UF =
-struct
-  let uf = Hashtbl.create 10007
-
-  let rec find l =
-    try
-      let l' = Hashtbl.find uf l in
-      let f = find l' in
-      if Basic.ident_eq f l' then
-        l'
-      else
-        begin
-          Hashtbl.add uf l' f;
-          f
-        end
-    with _ -> l
-
-  let union l r =
-    let l' = find l in
-    let r' = find r in
-    if Basic.ident_eq l' r' then
-      ()
-    else
-      Hashtbl.add uf l' r'
-
-  let reset () =
-    Hashtbl.clear uf
-end
 
 let var_of_ident ident = UF.find ident
 
@@ -98,6 +183,7 @@ let add_constraint_type =
 let add_constraint_eq v v' =
   let v = var_of_ident v in
   let v' = var_of_ident v' in
+  add_constraint (Eq(v,v'));
   UF.union v v'
 
 let add_constraint_succ v v' =
@@ -245,7 +331,6 @@ let rec extract_universe sg (s:Term.term) =
 
 let string_of_var n = string_of_ident (UF.find n)
 
-
 let pp_univ fmt = function
   | Prop -> Format.fprintf fmt "Prop"
   | Type i -> Format.fprintf fmt "Type %d" i
@@ -259,28 +344,11 @@ let pp_constraint fmt = function
 
 let pp_cs fmt = ConstraintsSet.iter (fun x -> Format.fprintf fmt "%a@." pp_constraint x)
 
-let optimize cs =
-  let union c cs =
-    match c with
-    | Eq(v,v') -> UF.union v v'; cs
-    | _ -> ConstraintsSet.add c cs
-  in
-  let cs' = ConstraintsSet.fold union cs ConstraintsSet.empty in
-  let normalize_eq c =
-    match c with
-    | Eq(v,v') -> assert false
-    | Succ(v,v') -> Succ(UF.find v, UF.find v')
-    | Max(v,v',v'') -> Max(UF.find v, UF.find v', UF.find v'')
-    | Rule(v,v',v'') -> Rule(UF.find v, UF.find v', UF.find v'')
-    | Univ(v,u) -> Univ(UF.find v, u)
-  in
-  ConstraintsSet.fold (fun c s -> ConstraintsSet.add (normalize_eq c) s) cs' ConstraintsSet.empty
-
 let export () =
-  global_constraints := optimize !global_constraints;
-  Format.eprintf "%s@." (info !global_constraints);
+  global_constraints := !global_constraints;
   !global_constraints
 
 let import cs =
   UF.reset ();
   global_constraints := cs
+*)

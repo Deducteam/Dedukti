@@ -3,14 +3,14 @@ open Pp
 open Rule
 open Entry
 
-let before = ref Constraints.ConstraintsSet.empty
+(* let before = ref Constraints.ConstraintsSet.empty *)
 
-let update_constraints name =
+let update_constraints name = () (*
   let open Constraints in
   let after = export () in
   let now = ConstraintsSet.diff after !before in
   Cfg.add_constraints name now
-
+  *)
 let get_rule_name (r:'a Rule.rule) =
   let open Rule in
   match r.name with
@@ -19,7 +19,7 @@ let get_rule_name (r:'a Rule.rule) =
 
 let check md e =
     match e with
-    | Decl (lc, id, st, ty) -> (
+      | Decl (lc, id, st, ty) -> (
       match Env.declare lc id st ty with
       | OK () -> update_constraints (mk_name md id)
       | Err e -> Errors.fail_env_error (Env.get_signature ()) e )

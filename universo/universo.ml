@@ -44,6 +44,7 @@ struct
     let open Entry in
     let open Cic in
     let open Constraints in
+    (*
     let get_constraints name = Cfg.get_constraints name in
     let vars =
       match e with
@@ -56,16 +57,17 @@ struct
             ConstraintsSet.union (get_constraints (get_rule_name r)) vars) ConstraintsSet.empty rs
       | _ -> ConstraintsSet.empty
     in
-    let entry_of_constraint c = failwith "todo" in
+    let entry_of_constraint c = failwith "todo" in *)
     failwith "todo"
 
 
   let print_entry md fmt e =
     let open Entry in
     Format.fprintf fmt "%a@." (print_vars_decl md) e;
+    (*
     if Cfg.get_checking () then
       Format.fprintf fmt "%a@." (print_constraints md) e;
-
+       *)
     Format.fprintf fmt "%a" Pp.print_entry e
 
   let mk_entry md e =
@@ -83,10 +85,11 @@ struct
     if export && not (Env.export ()) then
       Errors.fail dloc "Fail to export module '%a@." pp_mident (Env.get_name ())
 
-
   let solve () =
-    let cs = Constraints.export () in
-    let i, model = Export.Z3.solve cs in
+    let open Constraints in
+    let module M = (val !s) in
+    let i, model = Export.Z3Syn.solve () in
+    Format.eprintf "%s@." (M.infos ());
     (i, model)
 end
 

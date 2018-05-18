@@ -49,7 +49,7 @@ let elaborate_cuni sg s =
   mk_succ s, mk_cuni s
 
 let elaborate_var sg ctx var =
-  Format.eprintf "debug:%d@.%a@." (List.length ctx) Pp.print_term var;
+  (* Format.eprintf "debug:%d@.%a@." (List.length ctx) Pp.print_term var; *)
   let id = extract_var var in
   if List.mem_assoc id ctx then
     if is_cuni (List.assoc id ctx).ty then
@@ -136,8 +136,6 @@ let forget_types : typed_context -> untyped_context =
 
 let ctx_of_rule_ctx sg ctx =
   let add_binding ctx (l,x,t) =
-    Format.eprintf "%a@." Pp.print_ident x;
-    Format.eprintf "%d@." (List.length ctx);
     let s',u',_ = elaborate_term sg ctx t in
     ((x,{ty=u'; sort=s'})::ctx)
   in
@@ -165,13 +163,13 @@ let elaboration md e =
   vars := [];
   match e with
   | Decl(l,id,st,t) ->
-    Format.eprintf "%a@." Pp.print_ident id;
+   (* Format.eprintf "%a@." Pp.print_ident id; *)
     name := add_name (mk_name md id);
     let _, _, t' = elaborate_term sg [] t in
     add_vars();
     Decl(l,id,st, t')
   | Def(l,id,op,pty,te) -> (
-      Format.eprintf "%a@." Pp.print_ident id;
+      (*      Format.eprintf "%a@." Pp.print_ident id; *)
       name := add_name (mk_name md id);
       match pty with
       | None ->

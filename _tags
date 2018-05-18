@@ -1,6 +1,6 @@
 true: use_menhir
 true: external_tokens(Tokens)
-
+true: package(z3)
 true: package(unix)
 
 "kernel"  : include

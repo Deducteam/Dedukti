@@ -18,8 +18,9 @@ val add_fmt         : Basic.mident -> string -> unit
 
 val add_uvars       : Basic.name -> Basic.ISet.t -> unit
 
+val get_uvars       : Basic.name -> Basic.ISet.t
+(*
 val add_constraints : Basic.name -> Constraints.ConstraintsSet.t -> unit
 
-val get_uvars       : Basic.name -> Basic.ISet.t
-
 val get_constraints : Basic.name -> Constraints.ConstraintsSet.t
+*)

@@ -1,5 +1,3 @@
-type model = Basic.ident -> Term.term
-
 let rec reconstruction model term =
   let open Term in
   let open Constraints in

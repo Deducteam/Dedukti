@@ -1,3 +1,21 @@
+module type S =
+sig
+  type t
+
+  val mk_constraint : Term.term -> Term.term -> unit
+
+  val infos : unit -> string
+
+  val export : unit -> t
+
+  val import : t -> unit
+end
+
+val s : (module S) ref
+
+module Naive : functor (S:Export.Solver) -> S
+
+(*
 type var
 
 type univ =
@@ -40,5 +58,4 @@ val var_of_ident : Basic.ident -> var
 val var_of_univ  : univ -> var
 
 val term_of_univ : univ -> Term.term
-
-val optimize : ConstraintsSet.t -> ConstraintsSet.t
+*)
