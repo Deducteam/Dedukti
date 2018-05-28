@@ -9,6 +9,10 @@ let just_check = ref false
 
 let old_match = ref false
 
+let univ_convertible = ref (fun x -> assert false)
+
+let set_univ_convertible f = univ_convertible := f
+
 type red_strategy = Hnf | Snf | Whnf
 
 type red_cfg =
@@ -326,7 +330,10 @@ and are_convertible_lst sg ism :  (term * term) list -> bool =
     | Some lst2 -> are_convertible_lst sg ism lst2
 
 
-and are_univ_convertible sg ism (l: Term.term) (r: Term.term) = false
+and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
+  if ism then false
+  else
+    !univ_convertible sg ~term_convertible:(fun l r -> are_convertible_lst sg false [l,r]) l r
   (*
   let open Cic in
   let open Uvar in

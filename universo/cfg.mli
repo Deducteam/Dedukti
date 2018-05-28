@@ -1,4 +1,4 @@
-type univ = Prop | Type of int | Succ of univ | Max of univ * univ | Rule of univ * univ
+type univ = Var of string | Prop | Type of int | Succ of univ | Max of univ * univ | Rule of univ * univ
 
 type cstr = univ * univ
 

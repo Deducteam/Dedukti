@@ -469,8 +469,51 @@ struct
     | _ -> assert false
 end
 
+module Convertibility =
+struct
+  open Dk
+
+  let rec int_of_type t =
+    let open Cic in
+    if is_z t then
+      1
+    else
+      int_of_type (extract_s t)
+
+  let rec to_univ t =
+    let open Cfg in
+    if Uvar.is_uvar t then
+      Var (string_of_ident (id (Uvar.name_of_uvar t)))
+    else if is_prop t then
+      Prop
+    else if is_type t then
+      Type (int_of_type (extract_type t))
+    else if is_succ t then
+      Succ (to_univ (extract_succ t))
+    else if is_max t then
+      let t1,t2 = extract_max t in
+      Max(to_univ t1, to_univ t2)
+    else if is_rule t then
+      let t1,t2 = extract_rule t in
+      Rule(to_univ t1, to_univ t2)
+    else
+      assert false
+
+  let univ_convertible sg ~term_convertible left right =
+    if is_univ left && is_univ right then
+      let ul = extract_univ left in
+      let ur = extract_univ right in
+      Some(to_univ ul, to_univ ur)
+    else
+      begin
+        Format.eprintf "left:%a@." Pp.print_term left;
+        Format.eprintf "right:%a@." Pp.print_term right;
+        failwith "todo"
+      end
+end
+
 include Elaboration
 
 include Reconstruction
 
-let univ_convertible foo = failwith "todo"
+include Convertibility

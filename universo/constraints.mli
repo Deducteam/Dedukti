@@ -17,8 +17,9 @@ end
 
 val s : (module S) ref
 
-module Naive : functor (S:Export.Solver) -> S
+module Naive : functor (S:Export.SOLVER) -> S
 
+val to_handler : (module Export.SOLVER) -> string -> (module S)
 
 (*
 type var

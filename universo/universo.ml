@@ -14,9 +14,15 @@ sig
 end
 
 
-module Make(T:THEORY) =
+module Make(T:THEORY)(H:Constraints.S) =
 struct
-  module Env = Env
+
+  let () = Reduction.set_univ_convertible (fun sg ~term_convertible left right ->
+      match T.univ_convertible sg ~term_convertible:term_convertible left right with
+      | None -> false
+      | Some(left,right) ->
+        H.mk_constraint (left,right);
+        true)
 
   let get_rule_name (r:'a Rule.rule) =
     let open Rule in
@@ -141,13 +147,18 @@ let update_cfg elabonly checkonly =
     Cfg.set_solving false
 
 let _ =
+  let open Export in
   let export = ref false in
   let output_dir = ref "/tmp" in
   let elaboration_only = ref false in
   let checking_only = ref false in
   let set_output_dir s = output_dir := s in
-  let theory = ref "" in
-  let set_theory s = theory := s in
+  let theory  = ref "cic"   in
+  let solver  = ref "z3syn" in
+  let handler = ref "naive" in
+  let set_theory  s = theory  := s in
+  let set_solver  s = solver  := s in
+  let set_handler s = handler := s in
   let options =
     Arg.align
       [ ("-d", Arg.Int Basic.set_debug_mode, "N sets the debuging level to N")
@@ -158,6 +169,8 @@ let _ =
       ; ("--elaboration-only", Arg.Set elaboration_only, " (debug) option")
       ; ("--checking-only", Arg.Set checking_only, " (debug) option")
       ; ("--theory", Arg.String set_theory, " Set theory used by dk files.")
+      ; ("--solver", Arg.String set_solver, " Set solver")
+      ; ("--handler", Arg.String set_handler, " Set handler")
       ; ("--debug", Arg.Set debug_mode, " Print debug informations in universo")
       ]
   in
@@ -171,7 +184,9 @@ let _ =
   update_cfg !elaboration_only !checking_only;
   try
     let (module T:THEORY) = Theory.to_theory !theory in
-    let (module U:UNIVERSO) = (module Make(T)) in
+    let (module S:SOLVER) = to_solver !solver in
+    let (module H:Constraints.S) = Constraints.to_handler (module S:SOLVER) !handler in
+    let (module U:UNIVERSO) = (module Make(T)(H)) in
     let fmtentries' = List.map (run_on_file (module U:UNIVERSO) !output_dir !export) files in
     let _, model = U.solve () in
     Errors.success "Constraints were successfully solved with Z3." ;

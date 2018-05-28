@@ -40,7 +40,7 @@ val import      : loc -> mident -> (unit, signature_error) error
 
 val declare : loc -> ident -> Signature.staticity -> term -> (unit,env_error) error
 (** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
-   staticity [st]. *)
+    staticity [st]. *)
 
 val define      : loc -> ident -> term -> term option -> (unit,env_error) error
 (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)

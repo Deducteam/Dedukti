@@ -45,19 +45,12 @@ struct
     Hashtbl.clear uf
 end
 
-module Naive(S:Solver) =
+module Naive(S:SOLVER) =
 struct
 
   type t = ConstraintsSet.t
 
   let constraints = ref ConstraintsSet.empty
-
-  let rec int_of_type t =
-    let open Cic in
-    if is_z t then
-      1
-    else
-      int_of_type (extract_s t)
 
   let of_name n = Basic.((string_of_mident (md n), string_of_ident (id n)))
 
@@ -65,6 +58,7 @@ struct
     let open Cic in
     let open Basic in
     match u with
+    | Var s -> S.mk_var s
     | Prop -> S.mk_prop
     | Type i -> S.mk_type i
     | Succ u -> S.mk_succ (of_univ u)
@@ -110,6 +104,13 @@ end
 module NaiveSyn : S = Naive(Export.Z3Syn)
 
 let s : (module S) ref = ref ((module NaiveSyn) : (module S))
+
+let to_handler s h =
+  let (module S:SOLVER) = (module (val s:SOLVER)) in
+  if h = "naive" then
+    (module NaiveSyn:S)
+  else
+    failwith "unrecognized handler"
 
 (*
 open Uvar

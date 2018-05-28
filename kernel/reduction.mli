@@ -37,4 +37,7 @@ val are_convertible : Signature.t -> term -> term -> bool
 (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
     or not in the signature [sg]. *)
 
-val are_univ_convertible : Signature.t -> bool -> term -> term -> bool
+val set_univ_convertible : (Signature.t ->
+                            term_convertible:(term -> term -> bool) ->
+                            term ->
+                            term -> bool) -> unit

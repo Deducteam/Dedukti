@@ -1,6 +1,6 @@
 type model = Basic.name -> Term.term
 
-module type Solver =
+module type SOLVER =
 sig
   type t
 
@@ -23,4 +23,6 @@ sig
   val reset   : unit -> unit
 end
 
-module Z3Syn : Solver
+module Z3Syn : SOLVER
+
+val to_solver : string -> (module SOLVER)

@@ -2,7 +2,7 @@ open Cfg
 
 type model = Basic.name -> Term.term
 
-module type Solver =
+module type SOLVER =
 sig
   type t
 
@@ -282,3 +282,6 @@ struct
   let solve constraints = check constraints 0
 end
 *)
+
+let to_solver s =
+  if s = "z3syn" then (module Z3Syn:SOLVER) else failwith "Unrecognized solver"
