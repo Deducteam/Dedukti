@@ -1,19 +1,24 @@
+open Cfg
+
 module type S =
 sig
   type t
 
-  val mk_constraint : Term.term -> Term.term -> unit
+  val mk_constraint : cstr -> unit
 
   val infos : unit -> string
 
   val export : unit -> t
 
   val import : t -> unit
+
+  val to_set : t -> ConstraintsSet.t
 end
 
 val s : (module S) ref
 
 module Naive : functor (S:Export.Solver) -> S
+
 
 (*
 type var

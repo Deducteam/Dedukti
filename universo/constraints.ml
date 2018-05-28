@@ -1,16 +1,19 @@
 open Export
+open Cfg
 
 module type S =
 sig
   type t
 
-  val mk_constraint : Term.term -> Term.term -> unit
+  val mk_constraint : cstr -> unit
 
   val infos : unit -> string
 
   val export : unit -> t
 
   val import : t -> unit
+
+  val to_set : t -> ConstraintsSet.t
 end
 
 module UF =
@@ -42,19 +45,12 @@ struct
     Hashtbl.clear uf
 end
 
-module Naive(S:Export.Solver) =
+module Naive(S:Solver) =
 struct
 
-  type expr = Var of string
-            | Succ of expr
-            | Rule of expr * expr
-            | Max of expr * expr
-            | Prop
-            | Type of int
+  type t = ConstraintsSet.t
 
-  type t = (expr * expr) list
-
-  let constraints = ref []
+  let constraints = ref ConstraintsSet.empty
 
   let rec int_of_type t =
     let open Cic in
@@ -63,39 +59,41 @@ struct
     else
       int_of_type (extract_s t)
 
-  let rec expr_of_term t =
-    let open Cic in
-    if is_var t then
-      Var (Basic.string_of_ident (extract_var t))
-    else if is_prop t then
-      Prop
-    else if is_type t then
-      Type (int_of_type (extract_type t))
-    else if is_succ t then
-      Succ (expr_of_term (extract_succ t))
-    else if is_max t then
-      let t1,t2 = extract_max t in
-      Max (expr_of_term t1, expr_of_term t2)
-    else if is_rule t then
-      let t1,t2 = extract_rule t in
-      Max (expr_of_term t1, expr_of_term t2)
-    else
-      assert false
+  let of_name n = Basic.((string_of_mident (md n), string_of_ident (id n)))
 
-  let rec of_expr e =
-    match e with
-    | Var(s) -> S.mk_var s
+  let rec of_univ u =
+    let open Cic in
+    let open Basic in
+    match u with
     | Prop -> S.mk_prop
     | Type i -> S.mk_type i
-    | Succ(e) -> S.mk_succ (of_expr e)
-    | Max(el,er) -> S.mk_max (of_expr el) (of_expr er)
-    | Rule(el,er) -> S.mk_rule (of_expr el) (of_expr er)
+    | Succ u -> S.mk_succ (of_univ u)
+    | Max(ul,ur) -> S.mk_max (of_univ ul) (of_univ ur)
+    | Rule(ul,ur) -> S.mk_rule (of_univ ul) (of_univ ur)
 
-  let mk_constraint left right =
-    let eleft = expr_of_term left in
-    let eright = expr_of_term right in
-    constraints := (eleft,eright)::!constraints;
-    S.mk_eq (of_expr eleft) (of_expr eright)
+    (*
+    if Uvar.is_uvar t then
+      S.mk_var (string_of_ident (id (Uvar.name_of_uvar t)))
+    else if is_prop t then
+      S.mk_prop
+    else if is_type t then
+      S.mk_type (int_of_type (extract_type t))
+    else if is_succ t then
+      S.mk_succ (of_term (extract_succ t))
+    else if is_max t then
+      let t1,t2 = extract_max t in
+      S.mk_max (of_term t1) (of_term t2)
+    else if is_rule t then
+      let t1,t2 = extract_rule t in
+      S.mk_rule (of_term t1) (of_term t2)
+    else
+      assert false
+       *)
+  let mk_constraint (left,right) =
+    let eleft = of_univ left in
+    let eright = of_univ right in
+    constraints := ConstraintsSet.add (left, right) !constraints;
+    S.mk_eq  eleft eright
 
   let infos () = "Not implemented yet"
 
@@ -103,8 +101,10 @@ struct
 
   let import cstrs =
     S.reset ();
-    List.iter (fun (l,r) -> S.mk_eq (of_expr l) (of_expr r)) cstrs;
+    ConstraintsSet.iter (fun (l,r) -> S.mk_eq (of_univ l) (of_univ r)) cstrs;
     constraints := cstrs
+
+  let to_set t = t
 end
 
 module NaiveSyn : S = Naive(Export.Z3Syn)

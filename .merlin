@@ -2,12 +2,14 @@ S kernel
 S parser
 S commands
 S universo
+S universo/theory
 
 B _build/kernel
 B _build/kernel
 B _build/parser
 B _build/commands
 B _build/universo
+B _build/universo/theory
 
 PKG z3
 

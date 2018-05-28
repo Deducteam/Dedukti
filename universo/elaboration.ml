@@ -3,7 +3,6 @@ open Term
 open Cic
 open Uvar
 
-(* TODO: remove the var case rule *)
 type binding = { ty : Term.term ; sort : Term.term }
 
 let name : name ref = ref (mk_name (mk_mident "") (mk_ident ""))
@@ -14,15 +13,14 @@ let add_name name =
 
 let vars = ref []
 
-
 let add_vars () =
   let vars = ISet.of_list !vars in
   Cfg.add_uvars !name vars
 
 let fresh_uvar sg =
   let var = Uvar.fresh_uvar sg in
-  let id = Uvar.ident_of_uvar var in
-  vars := id::!vars;
+  let v = Uvar.name_of_uvar var in
+  vars := (id v)::!vars;
   var
 
 

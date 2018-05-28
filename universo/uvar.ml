@@ -14,9 +14,9 @@ let is_uvar t =
     String.length s > n && String.sub s 0 n = basename
   | _ -> false
 
-let ident_of_uvar t =
+let name_of_uvar t =
   match t with
-  | Term.Const(_,n) when is_uvar t -> id n
+  | Term.Const(_,n) when is_uvar t -> n
   | _ -> Format.printf "%a@." Term.pp_term t; raise Not_uvar
 
 let counter = ref 0

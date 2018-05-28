@@ -13,7 +13,7 @@ let rec reconstruction model term =
   else *)
     match term with
     | Const _ when Uvar.is_uvar term ->
-        let var = Uvar.ident_of_uvar term in
+        let var = Uvar.name_of_uvar term in
         model var
     | App (f, a, al) ->
         let f' = reconstruction model f in

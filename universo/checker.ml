@@ -3,14 +3,15 @@ open Pp
 open Rule
 open Entry
 
-(* let before = ref Constraints.ConstraintsSet.empty *)
+let before = ref Cfg.ConstraintsSet.empty
 
-let update_constraints name = () (*
+let update_constraints name =
   let open Constraints in
-  let after = export () in
-  let now = ConstraintsSet.diff after !before in
+  let (module M:S) = (module (val !s)) in
+  let after = M.to_set (M.export ()) in
+  let now = Cfg.ConstraintsSet.diff after !before in
   Cfg.add_constraints name now
-  *)
+
 let get_rule_name (r:'a Rule.rule) =
   let open Rule in
   match r.name with

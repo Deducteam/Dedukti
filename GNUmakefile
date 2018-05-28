@@ -61,9 +61,9 @@ dktop.native: kernel parser commands/dktop.ml
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dktop.native
 
-universo.native: kernel parser $(wildcard universo/*.ml)
+universo.native: kernel parser $(wildcard universo/*.ml) $(wildcard universo/theory/*.ml)
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -package z3 -I commands -use-ocamlfind universo/universo.native
+	$(Q)ocamlbuild -quiet -package z3 -Is universo,universo/theory -use-ocamlfind universo/universo.native
 
 #### Generation of the documentation #########################################
 

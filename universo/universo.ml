@@ -1,7 +1,22 @@
 open Basic
+open Theory
+let debug_mode = ref false
 
-module Universo =
+module type UNIVERSO =
+sig
+  val init : string -> mident
+
+  val mk_entry : mident -> Entry.entry -> unit
+
+  val ending : bool -> unit
+
+  val solve : unit -> int * Export.model
+end
+
+
+module Make(T:THEORY) =
 struct
+  module Env = Env
 
   let get_rule_name (r:'a Rule.rule) =
     let open Rule in
@@ -10,8 +25,6 @@ struct
     | _ -> assert false
 
   let elab_oc = ref stdout
-
-  let debug_mode = ref false
 
   let init file =
     let md = Env.init file in
@@ -71,9 +84,8 @@ struct
     Format.fprintf fmt "%a" Pp.print_entry e
 
   let mk_entry md e =
-    let open Elaboration in
     let open Format in
-    let e' = elaboration md e in
+    let e' = T.elaboration md e in
     if Cfg.get_checking () then
       Checker.check md e';
 
@@ -93,27 +105,29 @@ struct
     (i, model)
 end
 
-let run_on_file output export file =
+let run_on_file universo output export file =
   let input = open_in file in
   debug 1 "Processing file '%s'..." file ;
-  let md = Universo.init file in
+  let (module U:UNIVERSO) = (module (val universo:UNIVERSO)) in
+  let md = U.init file in
   let outfile = Filename.concat output (string_of_mident md ^ ".dk") in
   Cfg.add_fmt md outfile;
   let entries = Parser.parse_channel md input in
   Errors.success "File '%s' was successfully parsed." file ;
-  List.iter (Universo.mk_entry md) entries ;
+  List.iter (U.mk_entry md) entries ;
   Errors.success "File '%s' was successfully checked by universo." file ;
-  Universo.ending export;
+  U.ending export;
   close_in input ;
   (md, Format.formatter_of_out_channel (open_out outfile), entries)
 
-let print_file model (md, fmt, entries) =
+let print_file theory model (md, fmt, entries) =
+  let (module T:THEORY) = theory in
   List.iter
-    (fun x -> Pp.print_entry fmt (Reconstruction.reconstruction model x))
+    (fun x -> Pp.print_entry fmt (T.reconstruction model x))
     entries ;
   Errors.success "File '%a.dk' was fully reconstructed." pp_mident md
 
-let print_files model = List.iter (print_file model)
+let print_files theory model = List.iter (print_file theory model)
 
 let update_cfg elabonly checkonly =
   if elabonly && checkonly then
@@ -132,6 +146,8 @@ let _ =
   let elaboration_only = ref false in
   let checking_only = ref false in
   let set_output_dir s = output_dir := s in
+  let theory = ref "" in
+  let set_theory s = theory := s in
   let options =
     Arg.align
       [ ("-d", Arg.Int Basic.set_debug_mode, "N sets the debuging level to N")
@@ -141,7 +157,8 @@ let _ =
         , " Directory to print the files by default /tmp is used" )
       ; ("--elaboration-only", Arg.Set elaboration_only, " (debug) option")
       ; ("--checking-only", Arg.Set checking_only, " (debug) option")
-      ; ("--debug", Arg.Set Universo.debug_mode, " Print debug informations in universo")
+      ; ("--theory", Arg.String set_theory, " Set theory used by dk files.")
+      ; ("--debug", Arg.Set debug_mode, " Print debug informations in universo")
       ]
   in
   let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]... \n" in
@@ -153,10 +170,12 @@ let _ =
   Rule.allow_non_linear := true ;
   update_cfg !elaboration_only !checking_only;
   try
-    let fmtentries' = List.map (run_on_file !output_dir !export) files in
-    let _, model = Universo.solve () in
+    let (module T:THEORY) = Theory.to_theory !theory in
+    let (module U:UNIVERSO) = (module Make(T)) in
+    let fmtentries' = List.map (run_on_file (module U:UNIVERSO) !output_dir !export) files in
+    let _, model = U.solve () in
     Errors.success "Constraints were successfully solved with Z3." ;
-    print_files model fmtentries'
+    print_files (module T:THEORY) model fmtentries'
   with
   | Sys_error err ->
       Printf.eprintf "ERROR %s.\n" err ;

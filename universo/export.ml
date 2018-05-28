@@ -1,26 +1,28 @@
-type model = Basic.ident -> Term.term
+open Cfg
+
+type model = Basic.name -> Term.term
 
 module type Solver =
 sig
-  type expr
+  type t
 
-  val mk_var  : string -> expr
+  val mk_var  : string -> t
 
-  val mk_prop : expr
+  val mk_prop : t
 
-  val mk_type : int -> expr
+  val mk_type : int -> t
 
-  val mk_succ : expr -> expr
+  val mk_succ : t -> t
 
-  val mk_max : expr -> expr -> expr
+  val mk_max  : t -> t -> t
 
-  val mk_rule : expr -> expr -> expr
+  val mk_rule : t -> t -> t
 
-  val mk_eq : expr -> expr -> unit
+  val mk_eq   : t -> t -> unit
 
-  val solve : unit -> int * model
+  val solve   : unit -> int * model
 
-  val reset : unit -> unit
+  val reset   : unit -> unit
 end
 
 open Z3
@@ -44,12 +46,10 @@ let string_of_cfg cfg = List.map string_of_cfg_item cfg
 
 let ctx = mk_context (string_of_cfg cfg)
 
-let univ_max = ref 6
-
 module Z3Syn =
 struct
 
-  type expr = Expr.expr
+  type t = Expr.expr
 
   let solver = Solver.mk_simple_solver ctx
 
@@ -114,7 +114,7 @@ struct
   let rec check constraints i =
     reset ();
     register_axioms i;
-    if i > !univ_max then failwith "Probably the Constraints are inconsistent";
+    if i > Cfg.univ_max () then failwith "Probably the Constraints are inconsistent";
     match Solver.check solver [] with
     | Solver.UNSATISFIABLE ->
       Basic.debug 1 "No solution found with %d universes@." (i + 2);

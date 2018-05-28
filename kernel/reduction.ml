@@ -326,7 +326,8 @@ and are_convertible_lst sg ism :  (term * term) list -> bool =
     | Some lst2 -> are_convertible_lst sg ism lst2
 
 
-and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
+and are_univ_convertible sg ism (l: Term.term) (r: Term.term) = false
+  (*
   let open Cic in
   let open Uvar in
   let open Constraints in
@@ -355,7 +356,7 @@ and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
     failwith "todo univ"
   else
     false
-
+*)
 (* Convertibility Test *)
 and are_convertible sg t1 t2 = are_convertible_lst sg false [(t1, t2)]
 

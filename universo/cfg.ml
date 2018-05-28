@@ -1,5 +1,10 @@
 open Basic
-open Constraints
+
+type univ = Prop | Type of int | Succ of univ | Max of univ * univ | Rule of univ * univ
+
+type cstr = univ * univ
+
+module ConstraintsSet = Set.Make(struct type t = cstr let compare = compare end)
 
 type t =
   {
@@ -8,19 +13,21 @@ type t =
     mutable debug:int;
     mutable sg:Signature.t;
     mutable names: name list;
+    mutable univ_max:int;
     output_file: (mident, string) Hashtbl.t;
     uvars: (name, ISet.t) Hashtbl.t;
-    (*    constraints: (name, ConstraintsSet.t) Hashtbl.t *)
+    constraints: (name, ConstraintsSet.t) Hashtbl.t
   }
 
 let env = { checking = true;
             solving = true;
             debug = 0;
             sg = Signature.make "noname";
+            univ_max = 6;
             output_file = Hashtbl.create 23;
             names = [];
             uvars = Hashtbl.create 503;
-            (* constraints = Hashtbl.create 11; *)
+            constraints = Hashtbl.create 11;
           }
 
 let set_checking b = env.checking <- b
@@ -46,11 +53,11 @@ let get_uvars name =
     Hashtbl.find env.uvars name
   with _ -> assert false
 
-(*
+let univ_max () = env.univ_max
+
 let add_constraints name constraints = Hashtbl.add env.constraints name constraints
 
 let get_constraints name =
   try
     Hashtbl.find env.constraints name
   with _ -> assert false
-*)
