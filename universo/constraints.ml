@@ -65,31 +65,13 @@ struct
     | Max(ul,ur) -> S.mk_max (of_univ ul) (of_univ ur)
     | Rule(ul,ur) -> S.mk_rule (of_univ ul) (of_univ ur)
 
-    (*
-    if Uvar.is_uvar t then
-      S.mk_var (string_of_ident (id (Uvar.name_of_uvar t)))
-    else if is_prop t then
-      S.mk_prop
-    else if is_type t then
-      S.mk_type (int_of_type (extract_type t))
-    else if is_succ t then
-      S.mk_succ (of_term (extract_succ t))
-    else if is_max t then
-      let t1,t2 = extract_max t in
-      S.mk_max (of_term t1) (of_term t2)
-    else if is_rule t then
-      let t1,t2 = extract_rule t in
-      S.mk_rule (of_term t1) (of_term t2)
-    else
-      assert false
-       *)
   let mk_constraint (left,right) =
     let eleft = of_univ left in
     let eright = of_univ right in
     constraints := ConstraintsSet.add (left, right) !constraints;
     S.mk_eq  eleft eright
 
-  let infos () = "Not implemented yet"
+  let infos () = "Infos is not implemented yet"
 
   let export () = !constraints
 

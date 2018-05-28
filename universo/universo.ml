@@ -6,7 +6,7 @@ module type UNIVERSO =
 sig
   val init : string -> mident
 
-  val mk_entry : mident -> Entry.entry -> unit
+  val mk_entry : mident -> Entry.entry -> Entry.entry
 
   val ending : bool -> unit
 
@@ -96,7 +96,8 @@ struct
       Checker.check md e';
 
     if !debug_mode then
-      fprintf (formatter_of_out_channel !elab_oc) "%a@." (print_entry md) e'
+      fprintf (formatter_of_out_channel !elab_oc) "%a@." (print_entry md) e';
+    e'
 
   let ending export =
     close_out !elab_oc;
@@ -120,7 +121,7 @@ let run_on_file universo output export file =
   Cfg.add_fmt md outfile;
   let entries = Parser.parse_channel md input in
   Errors.success "File '%s' was successfully parsed." file ;
-  List.iter (U.mk_entry md) entries ;
+  let entries = List.map (U.mk_entry md) entries in
   Errors.success "File '%s' was successfully checked by universo." file ;
   U.ending export;
   close_in input ;
@@ -189,7 +190,7 @@ let _ =
     let (module U:UNIVERSO) = (module Make(T)(H)) in
     let fmtentries' = List.map (run_on_file (module U:UNIVERSO) !output_dir !export) files in
     let _, model = U.solve () in
-    Errors.success "Constraints were successfully solved with Z3." ;
+    Errors.success "Constraints were successfully solved with %s" !solver ;
     print_files (module T:THEORY) model fmtentries'
   with
   | Sys_error err ->

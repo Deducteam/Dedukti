@@ -410,6 +410,20 @@ end
 
 module Reconstruction =
 struct
+  let term_of_univ univ =
+    let rec term_of_nat i =
+      assert (i>= 0);
+      if i = 0 then
+        Dk.mk_z
+      else
+        Dk.mk_s (term_of_nat (i-1))
+    in
+    match univ with
+    | Cfg.Prop -> Dk.mk_prop
+    | Cfg.Type i -> Dk.mk_type (term_of_nat i)
+    | _ -> assert false
+
+
   let rec reconstruction model term =
     let open Term in
     let open Constraints in
@@ -426,7 +440,7 @@ struct
     match term with
     | Const _ when Uvar.is_uvar term ->
       let var = Uvar.name_of_uvar term in
-      model var
+      term_of_univ (model (string_of_ident (id var)))
     | App (f, a, al) ->
       let f' = reconstruction model f in
       let a' = reconstruction model a in
@@ -504,11 +518,17 @@ struct
       let ul = extract_univ left in
       let ur = extract_univ right in
       Some(to_univ ul, to_univ ur)
+    else if Uvar.is_uvar left || is_max left || is_succ left || is_rule left then
+      Some(to_univ left, to_univ right)
+    else if is_cast left && not (is_cast right) then
+      failwith "todo cast left"
+    else if not (is_cast left) && is_cast right then
+      failwith "todo cast right"
     else
       begin
         Format.eprintf "left:%a@." Pp.print_term left;
         Format.eprintf "right:%a@." Pp.print_term right;
-        failwith "todo"
+        None
       end
 end
 

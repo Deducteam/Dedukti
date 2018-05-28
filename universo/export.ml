@@ -1,6 +1,6 @@
 open Cfg
 
-type model = Basic.name -> Term.term
+type model = string -> Cfg.univ
 
 module type SOLVER =
 sig
@@ -109,6 +109,21 @@ struct
       done;
     done
 
+  let solution_of_var model var =
+    let univ_of_int i =
+      if i = 0 then
+        Prop
+      else
+        Type (i - 1)
+    in
+    match Model.get_const_interp_e model (mk_var var) with
+    | None -> failwith "This bug should be reported (var_solution 1)"
+    | Some e ->
+      try
+        let s = Arithmetic.Integer.numeral_to_string e in
+        univ_of_int (int_of_string s)
+      with _ -> failwith "This bug should be reported (var_solution 1)"
+
   let reset () = Solver.reset solver
 
   let rec check constraints i =
@@ -120,7 +135,27 @@ struct
       Basic.debug 1 "No solution found with %d universes@." (i + 2);
       check constraints (i+1)
     | Solver.UNKNOWN -> failwith "This bug should be reported (check)"
-    | Solver.SATISFIABLE -> failwith "yes"
+    | Solver.SATISFIABLE ->
+      match Solver.get_model solver with
+      | None -> assert false
+      | Some model ->
+        let hmodel = Hashtbl.create 10001 in
+        Format.eprintf "%s@." (Solver.to_string solver);
+        Format.eprintf "%s@." (Model.to_string model);
+        let find var =
+          try
+            (solution_of_var model var)
+          with _ -> Cfg.Prop
+        in
+        i,
+        fun (var:string) : Cfg.univ ->
+          if Hashtbl.mem hmodel var then
+            Hashtbl.find hmodel var
+          else
+            let t = find var in
+            Hashtbl.add hmodel var t;
+            t
+
 
   let solve constraints = check constraints 0
 end

@@ -1,4 +1,4 @@
-type model = Basic.name -> Term.term
+type model = string -> Cfg.univ
 
 module type SOLVER =
 sig
