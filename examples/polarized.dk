@@ -1,0 +1,13 @@
+def A : Type.
+B : Type.
+C : Type.
+b : B.
+c : C.
+[] A -->+ B.
+[] A -->- C.
+def f : A -> A.
+[c] f c --> b.
+#CHECK (f c) : A.
+#CHECKNOT (f b) : A.
+#CHECK (f c) : B.
+#CHECKNOT (f c) : C.
