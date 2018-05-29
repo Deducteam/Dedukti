@@ -46,10 +46,13 @@ let mk_mident md =
 
 let dmark       = mk_ident "$"
 
+type polarity = P | N
+
+let notp = function P -> N | N -> P
 
 type polar = Pos | Neg | Both
 
-  
+
 (** {2 Lists with Length} *)
 
 module LList = struct
@@ -131,7 +134,7 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
 (** {2 Debugging} *)
 
 module Debug = struct
-  
+
   type flag = int
   let d_warn         : flag = 0
   let d_notice       : flag = 1
@@ -164,9 +167,9 @@ module Debug = struct
 
   let  enable_flag f = active.(f) <- true
   let disable_flag f = active.(f) <- false
-      
+
   exception DebugFlagNotRecognized of char
-      
+
   let set_debug_mode =
     String.iter (function
         | 'q' -> disable_flag d_warn
@@ -179,15 +182,15 @@ module Debug = struct
         | 'm' -> enable_flag  d_matching
         | c -> raise (DebugFlagNotRecognized c)
       )
-      
+
   let do_debug fmt =
     Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
-      
+
   let ignore_debug fmt =
     Format.(ifprintf err_formatter) fmt
-      
+
   let debug f =
-    if active.(f) 
+    if active.(f)
     then
       match headers.(f) with
       | "" -> do_debug
@@ -215,10 +218,10 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
-let rec add_to_list2 l1 l2 lst =
+let rec add_to_list2_const l1 l2 const lst =
   match l1, l2 with
   | [], [] -> Some lst
-  | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
+  | s1::l1, s2::l2 -> add_to_list2_const l1 l2 const ((s1,s2,const)::lst)
   | _,_ -> None
 
 let rec split_list i l =
@@ -247,3 +250,7 @@ let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
 let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def
   | Some a -> Format.fprintf fmt "%a" pp a
+
+let pp_pol fmt = function
+  | P -> Format.fprintf fmt "%s" "+"
+  | N -> Format.fprintf fmt "%s" "-"

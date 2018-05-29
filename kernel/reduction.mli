@@ -26,10 +26,10 @@ val default_cfg : red_cfg
     [beta] = [true] ;
 *)
 
-val reduction : red_cfg -> Signature.t -> term -> term
-(** [reduction sg red te] reduces the term [te] following the strategy [red]
-    and using the signature [sg]. *)
+val reduction : red_cfg -> polarity -> Signature.t -> term -> term
+(** [reduction sg pol red te] reduces the term [te] following the strategy [red]
+    and using the signature [sg], at a position of polarity [pol]. *)
 
-val are_convertible : Signature.t -> term -> term -> bool
-(** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
-    or not in the signature [sg]. *)
+val are_convertible : polarity -> Signature.t -> term -> term -> bool
+(** [are_convertible pol sg t1 t2] checks whether [t1] and [t2] are convertible
+    or not in the signature [sg], at a position of polarity [pol]. *)

@@ -75,9 +75,13 @@ let mk_entry md e =
     begin
       let m = match m with None -> Env.get_name () | Some m -> m in
       let cst = mk_name m v in
-      match Env.get_dtree lc cst with
+      (match Env.get_dtree lc cst P with
       | OK forest ->
-        Format.printf "GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
+        Format.printf "Positive GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
+      | Err e -> Errors.fail_signature_error e);
+      match Env.get_dtree lc cst N with
+      | OK forest ->
+        Format.printf "negative GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
       | Err e -> Errors.fail_signature_error e
     end
   | Print(_,s) -> Format.printf "%s@." s

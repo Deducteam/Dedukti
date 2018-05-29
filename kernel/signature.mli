@@ -43,10 +43,11 @@ val get_type            : t -> loc -> name -> term
 (** [get_type sg l md id] returns the type of the constant [md.id] inside the
     environement [sg]. *)
 
-val get_dtree           : t -> (Rule.rule_name -> bool) option -> loc -> name -> Dtree.t
-(** [get_dtree sg filter l cst] returns the decision/matching tree associated
-    with [cst] inside the environment [sg]. When filter is specified, it is used
-    to select only the corresponding set of rules  *)
+val get_dtree           : t -> (Rule.rule_name -> bool) option -> loc -> name -> polarity -> Dtree.t
+(** [get_dtree sg filter l cst pol] returns the decision/matching tree
+    associated with [cst] inside the environment [sg], when the
+    position is of polarity [pol]. When filter is specified, it is
+    used to select only the corresponding set of rules *)
 
 val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]

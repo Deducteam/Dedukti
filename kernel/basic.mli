@@ -47,6 +47,11 @@ val dmark : ident
 
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
 
+(** Polarity of a position *)
+type polarity = P | N
+
+val notp : polarity -> polarity
+
 (** Polarity of rewriting rules as in polarized deduction modulo theory *)
 type polar = Pos | Neg | Both
 
@@ -104,7 +109,7 @@ val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 (** {2 Debug} *)
 
 module Debug : sig
-  
+
   type flag
   val d_warn         : flag (** Warnings *)
   val d_notice       : flag (** Notices *)
@@ -118,7 +123,7 @@ module Debug : sig
   val  enable_flag : flag -> unit (** Activates given flag's debugging *)
   val disable_flag : flag -> unit (** Deactivates given flag's debugging *)
 
-  (** Sets multiple debugging flags from a string: 
+  (** Sets multiple debugging flags from a string:
       q : disables d_Warn
       n : enables  d_Notice
       o : enables  d_Module
@@ -133,7 +138,7 @@ module Debug : sig
   (** [debug f] prints information on the standard error channel
       if the given flag [f] is currently active. *)
   val debug : flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
-    
+
   (** [debug_eval f (fun () -> body] evaluates [body]
       if the given flag [f] is currently active. *)
   val debug_eval : flag -> (unit -> unit) -> unit
@@ -150,7 +155,7 @@ val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
 val split_list : int -> 'a list -> 'a list * 'a list
 
-val add_to_list2 : 'a list -> 'b list -> ('a * 'b) list -> ('a * 'b) list option
+val add_to_list2_const : 'a list -> 'b list -> 'c -> ('a * 'b * 'c) list -> ('a * 'b * 'c) list option
 
 (** Functions printing objects on the given formatter. *)
 type 'a printer = Format.formatter -> 'a -> unit
@@ -170,3 +175,7 @@ val pp_arr    : string -> 'a printer -> 'a array printer
 
 (** Printing object with printer or default string when None. *)
 val pp_option : string -> 'a printer -> 'a option printer
+
+
+(** Printing polarity *)
+val pp_pol : polarity printer

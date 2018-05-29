@@ -15,7 +15,7 @@ type typing_error =
   | InexpectedKind of term * typed_context
   | DomainFreeLambda of loc
   | CannotInferTypeOfPattern of pattern * typed_context
-  | CannotSolveConstraints of untyped_rule * (int * term * term) list
+  | CannotSolveConstraints of untyped_rule * (int * term * term * polarity) list
   | BracketError1 of term * typed_context
   | BracketError2 of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
@@ -30,13 +30,13 @@ type typ = term
 
 (** {2 Type Inference/Checking} *)
 
-val infer       : Signature.t -> typed_context -> term -> typ
-(** [infer sg ctx te] infers a type for the term [te] in the signature [sg] and context [ctx]
+val infer       : polarity -> Signature.t -> typed_context -> term -> typ
+(** [infer pol sg ctx te] infers a type for the term [te] in the signature [sg] and context [ctx], at a position of polarity [pol]
     The context is assumed to be well-formed *)
 
-val check       : Signature.t -> typed_context -> term -> typ -> unit
-(** [check sg ctx te ty] checks that the term [te] has type [ty]
-    in the signature [sg] and context [ty.ctx].
+val check       : polarity -> Signature.t -> typed_context -> term -> typ -> unit
+(** [check pol sg ctx te ty] checks that the term [te] has type [ty]
+    in the signature [sg] and context [ty.ctx], at a position of polarity [pol].
     [ty] is assumed to be well-typed in [ctx]
     and [ctx] is assumed to be well-formed *)
 

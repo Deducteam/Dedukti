@@ -36,11 +36,18 @@ end )
 
 type staticity = Static | Definable
 
+type compiled_rule_info =
+  {
+    rules: rule_infos list;
+    trees: Dtree.t;
+  }
+
 type rw_infos =
   {
     stat: staticity;
     ty: term;
-    rule_opt_info: (rule_infos list* Dtree.t) option
+    rule_opt_info: (compiled_rule_info * compiled_rule_info) option;
+    polarized: bool;
   }
 
 type t = { name:mident;
@@ -114,7 +121,16 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
     Confluence.add_constant cst;
     match infos.rule_opt_info with
     | None -> ()
-    | Some (rs,_) -> Confluence.add_rules rs
+    | Some (pos,neg) ->
+       if infos.polarized
+       then begin
+         Debug.(debug d_warn "Checking confluence of a polarized rewriting system non-supported.\n Checking as if all rules were not polarized.");
+         Confluence.add_rules pos.rules;
+         Confluence.add_rules neg.rules
+       end
+       else (* in non polarized rewrite systems, the positive and negative
+               subsystems shoud be equal *)
+         Confluence.add_rules pos.rules
   in
   HId.iter aux ctx;
   Debug.(debug d_confluence "Checking confluence after loading module '%a'..." pp_mident md);
@@ -151,14 +167,30 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     let ty = infos.ty in
     if infos.stat = Static
     then raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
-    let rules = match infos.rule_opt_info with
-      | None -> rs
-      | Some(mx,_) -> mx@rs
+    let former_posrules, former_negrules = match infos.rule_opt_info with
+      | None -> [],[]
+      | Some(pos,neg) -> pos.rules, neg.rules
     in
-    match Dtree.of_rules rules with
+    let former_pol = infos.polarized in
+    let polarized,pos_rules,neg_rules =
+      List.fold_left (fun (pol,pos,neg) r ->
+        match r.polarity with
+          Both -> pol, pos@[r], neg@[r]
+        | Pos -> true, pos@[r], neg
+        | Neg -> true, pos, neg@[r]
+      ) (former_pol, former_posrules, former_negrules) rs
+    in
+    if polarized then
+      match Dtree.of_rules pos_rules, Dtree.of_rules neg_rules with
+        OK pos_trees, OK neg_trees ->
+          HId.add env (id r.cst)
+            {stat = infos.stat; ty=ty; rule_opt_info = Some({rules=pos_rules;trees=pos_trees},{rules=neg_rules;trees=neg_trees}); polarized}
+      | Err e, _ | _ , Err e -> raise (SignatureError (CannotBuildDtree e))
+    else
+      match Dtree.of_rules pos_rules with
     | OK trees ->
        HId.add env (id r.cst)
-         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
+         {stat = infos.stat; ty=ty; rule_opt_info = Some({rules=pos_rules;trees},{rules=neg_rules;trees}); polarized}
     | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 (******************************************************************************)
@@ -191,17 +223,19 @@ let is_static sg lc cst =
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
-let get_dtree sg rule_filter l cst =
+let get_dtree sg rule_filter l cst pol =
   match (get_infos sg l cst).rule_opt_info, rule_filter with
   | None             , _      -> Dtree.empty
-  | Some(_,trees)    , None   -> trees
-  | Some(rules,trees), Some f ->
-    let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
-    if List.length rules' == List.length rules then trees
-    else
-      match Dtree.of_rules rules' with
-      | OK ntrees -> ntrees
-      | Err e -> raise (SignatureError (CannotBuildDtree e))
+  | Some(pos,neg)    , None   -> (match pol with P-> pos.trees | N -> neg.trees)
+  | Some(pos,neg), Some f ->
+     let rules = match pol with P -> pos.rules | N -> neg.rules in
+     let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
+     if List.length rules' == List.length rules then
+       match pol with P -> pos.trees | N -> neg.trees
+     else
+       match Dtree.of_rules rules' with
+       | OK ntrees -> ntrees
+       | Err e -> raise (SignatureError (CannotBuildDtree e))
 
 
 (******************************************************************************)
@@ -213,7 +247,7 @@ let add_declaration sg lc v st ty =
   if HId.mem env v then
     raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
   else
-    HId.add env v {stat=st; ty=ty; rule_opt_info=None}
+    HId.add env v {stat=st; ty=ty; rule_opt_info=None; polarized=false}
 
 let add_rules sg lst : unit =
   let rs = map_error_list Rule.to_rule_infos lst in

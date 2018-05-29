@@ -230,15 +230,16 @@ let gamma_rw (sg:Signature.t)
  *)
 
 (* This function reduces a state to a weak-head-normal form.
- * This means that the term [term_of_state (state_whnf sg state)] is a
+ * This means that the term [term_of_state (state_whnf sg state pol)] is a
  * weak-head-normal reduct of [term_of_state state].
+ * [pol] is the polarity of the position at which reduction is performed.
  *
  * Moreover the returned state verifies the following properties:
  * - state.term is not an application
  * - state.term can only be a variable if term.ctx is empty
  *    (and therefore this variable is free in the corresponding term)
  * *)
-let rec state_whnf (sg:Signature.t) (st:state) : state =
+let rec state_whnf (pol:polarity) (sg:Signature.t) (st:state): state =
   match st with
   (* Weak heah beta normal terms *)
   | { term=Type _ }
@@ -248,58 +249,58 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
     if n < LList.len ctx
-    then state_whnf sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
+    then state_whnf pol sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
     else { ctx=LList.nil; term=(mk_DB l x (n-LList.len ctx)); stack }
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
     if not !beta then st
-    else state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    else state_whnf pol sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
     let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
-    state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
+    state_whnf pol sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack } ->
-    let trees = Signature.get_dtree sg !selection l n in
+    let trees = Signature.get_dtree sg !selection l n pol in
     match find_dtree (List.length stack) trees with
     | None -> st
     | Some (ar, tree) ->
       let s1, s2 = split_list ar stack in
-      match gamma_rw sg are_convertible snf state_whnf s1 tree with
+      match gamma_rw sg (are_convertible pol) (snf pol) (state_whnf pol) s1 tree with
       | None -> st
-      | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
+      | Some (ctx,term) -> state_whnf pol sg { ctx; term; stack=s2 }
 
 (* ********************* *)
 
 (* Weak Head Normal Form *)
-and whnf sg term = term_of_state ( state_whnf sg { ctx=LList.nil; term; stack=[] } )
+and whnf pol sg term = term_of_state ( state_whnf pol sg { ctx=LList.nil; term; stack=[] } )
 
 (* Strong Normal Form *)
-and snf sg (t:term) : term =
-  match whnf sg t with
+and snf pol sg (t:term) : term =
+  match whnf pol sg t with
   | Kind | Const _
   | DB _ | Type _ as t' -> t'
-  | App (f,a,lst) -> mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst)
-  | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
-  | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
+  | App (f,a,lst) -> mk_App (snf pol sg f) (snf pol sg a) (List.map (snf pol sg) lst)
+  | Pi (_,x,a,b) -> mk_Pi dloc x (snf (notp pol) sg a) (snf pol sg b)
+  | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf (notp pol) sg) a) (snf pol sg b)
 
-and are_convertible_lst sg : (term*term) list -> bool =
+and are_convertible_lst sg : (term*term*polarity) list -> bool =
   function
   | [] -> true
-  | (t1,t2)::lst ->
+  | (t1,t2,pol)::lst ->
     begin
       match (
         if term_eq t1 t2 then Some lst
         else
-          match whnf sg t1, whnf sg t2 with
+          match whnf pol sg t1, whnf pol sg t2 with
           | Kind, Kind | Type _, Type _ -> Some lst
           | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
           | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
           | App (f,a,args), App (f',a',args') ->
-            add_to_list2 args args' ((f,f')::(a,a')::lst)
-          | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
-          | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
+            add_to_list2_const args args' pol ((f,f',pol)::(a,a',pol)::lst)
+          | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b',pol)::lst)
+          | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a',notp pol)::(b,b',pol)::lst)
           | t1, t2 -> None
       ) with
       | None -> false
@@ -307,13 +308,13 @@ and are_convertible_lst sg : (term*term) list -> bool =
     end
 
 (* Convertibility Test *)
-and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
+and are_convertible pol sg t1 t2 = are_convertible_lst sg [(t1,t2,pol)]
 
 (* Head Normal Form *)
-let rec hnf sg t =
-  match whnf sg t with
+let rec hnf pol sg t =
+  match whnf pol sg t with
   | Kind | Const _ | DB _ | Type _ | Pi (_,_,_,_) | Lam (_,_,_,_) as t' -> t'
-  | App (f,a,lst) -> mk_App (hnf sg f) (hnf sg a) (List.map (hnf sg) lst)
+  | App (f,a,lst) -> mk_App (hnf pol sg f) (hnf pol sg a) (List.map (hnf pol sg) lst)
 
 let reduction = function
   | Hnf  -> hnf
@@ -321,7 +322,7 @@ let reduction = function
   | Whnf -> whnf
 
 (* n-steps reduction on state *)
-let state_nsteps (sg:Signature.t) (strat:red_strategy)
+let state_nsteps pol (sg:Signature.t) (strat:red_strategy)
     (steps:int) (state:state) =
   let rec aux (red,st:(int*state)) : int*state =
     if red <= 0 then (0, st)
@@ -397,28 +398,28 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
         aux (!redc, {ctx; term=f; stack=new_stack })
       (* Potential Gamma redex *)
       | { ctx; term=Const (l,n); stack } ->
-        let trees = Signature.get_dtree sg !selection l n in
+        let trees = Signature.get_dtree sg !selection l n pol in
         match find_dtree (List.length stack) trees with
         | None -> (red,st)
         | Some (ar, tree) ->
           let s1, s2 = split_list ar stack in
-          match gamma_rw sg are_convertible snf state_whnf s1 tree with
+          match gamma_rw sg (are_convertible pol) (snf pol) (state_whnf pol) s1 tree with
           | None -> (red,st)
           | Some (ctx,term) -> aux (red-1, { ctx; term; stack=s2 })
   in
   aux (steps,state)
 
-let reduction_steps n strat sg t =
+let reduction_steps n pol strat sg t =
   let st = { ctx=LList.nil; term=t; stack=[] } in
-  let (_,st') = state_nsteps sg strat n st in
+  let (_,st') = state_nsteps pol sg strat n st in
   term_of_state st'
 
-let reduction strat sg te =
+let reduction strat pol sg te =
   select strat.select strat.beta;
   let te' =
     match strat with
-    | { nb_steps = Some n; _} -> reduction_steps n strat.strategy sg te
-    | _ -> reduction strat.strategy sg te
+    | { nb_steps = Some n; _} -> reduction_steps n pol strat.strategy sg te
+    | _ -> reduction strat.strategy pol sg te
   in
   select default_cfg.select default_cfg.beta;
   te'

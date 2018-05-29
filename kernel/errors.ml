@@ -67,7 +67,7 @@ let fail_typing_error err =
   | CannotSolveConstraints (r,cstr) ->
     fail (get_loc_pat r.pat)
       "Error while typing the rewrite rule\n%a\nCannot solve typing constraints:\n%a"
-      pp_untyped_rule r (pp_list "\n" (fun out (_,t1,t2) -> fprintf out "%a ~~ %a" pp_term t1 pp_term t2)) cstr
+      pp_untyped_rule r (pp_list "\n" (fun out (_,t1,t2,pol) -> fprintf out "%a ~~%a %a" pp_term t1 pp_pol pol pp_term t2)) cstr
   | BracketError1 (te,ctx) ->
     fail (get_loc te) "Error while typing the term { %a }%a.\n\
                        Brackets can only contain variables occuring \

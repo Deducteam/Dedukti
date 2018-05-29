@@ -29,8 +29,8 @@ val get_type    : loc -> name -> (term,signature_error) error
 val is_static   : loc -> name -> bool
 (** [is_static l cst] returns [true] if the symbol is declared as [static], [false] otherwise *)
 
-val get_dtree   : loc -> name -> (Dtree.t, signature_error) error
-(** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
+val get_dtree   : loc -> name -> polarity -> (Dtree.t, signature_error) error
+(** [get_dtree l md id pol] returns the decision/matching tree associated with [md.id], for a position of polarity [pol]. *)
 
 val export      : unit -> bool
 (** [export ()] saves the current environment in a [*.dko] file. *)
@@ -62,8 +62,8 @@ val check : ?ctx:typed_context -> term -> term -> (unit,env_error) error
 (** {2 Safe Reduction/Conversion} *)
 (** terms are typechecked before the reduction/conversion *)
 
-val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> (term,env_error) error
+val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> ?pol:polarity -> term -> (term,env_error) error
 
-val are_convertible : ?ctx:typed_context -> term -> term -> (bool,env_error) error
+val are_convertible : ?ctx:typed_context -> ?pol:polarity -> term -> term -> (bool,env_error) error
 
-val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term
+val unsafe_reduction : ?red:(Reduction.red_cfg) -> ?pol:polarity -> term -> term
