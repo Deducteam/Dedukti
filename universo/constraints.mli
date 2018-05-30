@@ -6,7 +6,7 @@ sig
 
   val mk_constraint : cstr -> unit
 
-  val infos : unit -> string
+  val infos : unit -> unit
 
   val export : unit -> t
 

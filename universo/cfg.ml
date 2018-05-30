@@ -4,11 +4,21 @@ type univ = Var of string | Prop | Type of int | Succ of univ | Max of univ * un
 
 type cstr = univ * univ
 
+let rec pp_univ fmt = function
+  | Var s -> Format.fprintf fmt "!%s" s
+  | Prop -> Format.fprintf fmt "P"
+  | Type i -> Format.fprintf fmt "T%d" i
+  | Succ u -> Format.fprintf fmt "S(%a)" pp_univ u
+  | Max(ul,ur) -> Format.fprintf fmt "M(%a,%a)" pp_univ ul pp_univ ur
+  | Rule(ul,ur) -> Format.fprintf fmt "R(%a,%a)" pp_univ ul pp_univ ur
+
+let pp_cstr fmt (l,r) = Format.fprintf fmt "%a =?= %a" pp_univ l pp_univ r
+
+
 module ConstraintsSet = Set.Make(struct type t = cstr let compare = compare end)
 
 type t =
   {
-    mutable checking:bool;
     mutable solving:bool;
     mutable debug:int;
     mutable sg:Signature.t;
@@ -19,7 +29,7 @@ type t =
     constraints: (name, ConstraintsSet.t) Hashtbl.t
   }
 
-let env = { checking = true;
+let env = {
             solving = true;
             debug = 0;
             sg = Signature.make "noname";
@@ -30,8 +40,6 @@ let env = { checking = true;
             constraints = Hashtbl.create 11;
           }
 
-let set_checking b = env.checking <- b
-
 let set_solving b = env.solving <- b
 
 let set_debug b = env.debug <- b
@@ -40,7 +48,7 @@ let set_signature sg = env.sg <- sg
 
 let get_signature () = env.sg
 
-let get_checking () = env.checking
+let get_solving () = env.solving
 
 let add_name name = env.names <- name::env.names
 

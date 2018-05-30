@@ -2,11 +2,13 @@ type univ = Var of string | Prop | Type of int | Succ of univ | Max of univ * un
 
 type cstr = univ * univ
 
+val pp_univ : Format.formatter -> univ -> unit
+
+val pp_cstr : Format.formatter -> cstr -> unit
+
 module ConstraintsSet : Set.S with type elt = cstr
 
 type t
-
-val set_checking    : bool -> unit
 
 val set_solving     : bool -> unit
 
@@ -16,7 +18,7 @@ val set_signature   : Signature.t -> unit
 
 val get_signature   : unit -> Signature.t
 
-val get_checking    : unit -> bool
+val get_solving     : unit -> bool
 
 val add_name        : Basic.name -> unit
 

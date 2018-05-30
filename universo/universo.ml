@@ -1,5 +1,6 @@
 open Basic
 open Theory
+
 let debug_mode = ref false
 
 module type UNIVERSO =
@@ -92,8 +93,7 @@ struct
   let mk_entry md e =
     let open Format in
     let e' = T.elaboration md e in
-    if Cfg.get_checking () then
-      Checker.check md e';
+    Checker.check md e';
 
     if !debug_mode then
       fprintf (formatter_of_out_channel !elab_oc) "%a@." (print_entry md) e';
@@ -108,7 +108,7 @@ struct
     let open Constraints in
     let module M = (val !s) in
     let i, model = Export.Z3Syn.solve () in
-    Format.eprintf "%s@." (M.infos ());
+    (M.infos ());
     (i, model)
 end
 
@@ -129,29 +129,26 @@ let run_on_file universo output export file =
 
 let print_file theory model (md, fmt, entries) =
   let (module T:THEORY) = theory in
-  List.iter
-    (fun x -> Pp.print_entry fmt (T.reconstruction model x))
-    entries ;
-  Errors.success "File '%a.dk' was fully reconstructed." pp_mident md
+  let reconstruct e =
+    if Cfg.get_solving () then
+        T.reconstruction model e
+    else
+      e
+  in
+  List.iter (fun e -> Pp.print_entry fmt (reconstruct e)) entries;
+  if Cfg.get_solving () then
+    Errors.success "File '%a.dk' was fully reconstructed." pp_mident md
 
 let print_files theory model = List.iter (print_file theory model)
 
-let update_cfg elabonly checkonly =
-  if elabonly && checkonly then
-    begin
-      Printf.eprintf "-elaboration-only and -checking-only are mutually exclusives";
-      exit 4
-    end;
-  if elabonly then
-    Cfg.set_checking false
-  else if checkonly || elabonly then
+let update_cfg checkonly =
+  if checkonly then
     Cfg.set_solving false
 
 let _ =
   let open Export in
   let export = ref false in
   let output_dir = ref "/tmp" in
-  let elaboration_only = ref false in
   let checking_only = ref false in
   let set_output_dir s = output_dir := s in
   let theory  = ref "cic"   in
@@ -167,7 +164,6 @@ let _ =
       ; ( "--output-dir"
         , Arg.String set_output_dir
         , " Directory to print the files by default /tmp is used" )
-      ; ("--elaboration-only", Arg.Set elaboration_only, " (debug) option")
       ; ("--checking-only", Arg.Set checking_only, " (debug) option")
       ; ("--theory", Arg.String set_theory, " Set theory used by dk files.")
       ; ("--solver", Arg.String set_solver, " Set solver")
@@ -182,15 +178,15 @@ let _ =
     List.rev !files
   in
   Rule.allow_non_linear := true ;
-  update_cfg !elaboration_only !checking_only;
+  update_cfg !checking_only;
   try
     let (module T:THEORY) = Theory.to_theory !theory in
     let (module S:SOLVER) = to_solver !solver in
     let (module H:Constraints.S) = Constraints.to_handler (module S:SOLVER) !handler in
     let (module U:UNIVERSO) = (module Make(T)(H)) in
     let fmtentries' = List.map (run_on_file (module U:UNIVERSO) !output_dir !export) files in
-    let _, model = U.solve () in
-    Errors.success "Constraints were successfully solved with %s" !solver ;
+    let i, model = U.solve () in
+    Errors.success "Constraints were successfully solved with %s using %d universes" !solver i;
     print_files (module T:THEORY) model fmtentries'
   with
   | Sys_error err ->

@@ -7,7 +7,7 @@ sig
 
   val mk_constraint : cstr -> unit
 
-  val infos : unit -> string
+  val infos : unit -> unit
 
   val export : unit -> t
 
@@ -69,9 +69,26 @@ struct
     let eleft = of_univ left in
     let eright = of_univ right in
     constraints := ConstraintsSet.add (left, right) !constraints;
-    S.mk_eq  eleft eright
+    S.mk_eq eleft eright
 
-  let infos () = "Infos is not implemented yet"
+  let infos () =
+    let env = Array.init 6 (fun _ -> ref 0) in
+    let rec count = function
+      | Var _ -> incr (env.(0))
+      | Prop -> incr (env.(1))
+      | Type _ -> incr (env.(2))
+      | Succ u -> count u; incr (env.(3))
+      | Max(ul,ur) -> count ur; count ul; incr (env.(4))
+      | Rule(ul,ur) -> count ur; count ul; incr (env.(5))
+    in
+    ConstraintsSet.iter (fun (u,v) -> count u; count v) !constraints;
+    Format.eprintf "Var  : %d@." !(env.(0));
+    Format.eprintf "Prop : %d@." !(env.(1));
+    Format.eprintf "Type : %d@." !(env.(2));
+    Format.eprintf "Succ : %d@." !(env.(3));
+    Format.eprintf "Max  : %d@." !(env.(4));
+    Format.eprintf "Rule : %d@." !(env.(5))
+
 
   let export () = !constraints
 

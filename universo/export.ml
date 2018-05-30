@@ -25,6 +25,8 @@ sig
   val reset   : unit -> unit
 end
 
+module SSet = Set.Make(struct type t = string let compare = compare end)
+
 open Z3
 
 type cfg_item = [`Model of bool | `Proof of bool | `Trace of bool | `TraceFile of string]
@@ -51,6 +53,8 @@ struct
 
   type t = Expr.expr
 
+  let vars = ref SSet.empty
+
   let solver = Solver.mk_simple_solver ctx
 
   let sort      = Sort.mk_uninterpreted_s ctx "Univ"
@@ -75,39 +79,83 @@ struct
   let mk_rule l1 l2 =
    Expr.mk_app ctx mk_rule [l1;l2]
 
-  let mk_axiom_succ i =
-    mk_eq (mk_succ (mk_univ i)) (mk_univ (i+1))
-
-  let mk_axiom_max i j =
-    mk_eq (mk_max (mk_univ i) (mk_univ j)) (mk_univ (max i j))
-
-  let mk_axiom_rule i j =
-    if j = 0 then
-      mk_eq (mk_rule (mk_univ i) (mk_univ 0)) (mk_univ 0)
-    else
-      mk_eq (mk_rule (mk_univ i) (mk_univ j)) (mk_univ (max i j))
-
   let mk_var s =
+    vars := SSet.add s !vars;
     Expr.mk_const_s ctx s sort
 
   let mk_type i = mk_univ (i + 1)
 
   let mk_prop = mk_univ 0
 
-  let add expr = Solver.add solver [expr]
+  let add expr =
+    Solver.add solver [expr]
 
   let mk_eq l r = add (mk_eq l r)
 
-  let register_axioms i =
-    for i = 0 to i
+  let mk_neq l r = add (Boolean.mk_not ctx (Boolean.mk_eq ctx l r))
+
+  let mk_axiom_succ i max =
+    mk_eq (mk_succ (mk_univ i)) (mk_univ (i+1));
+    for j = 0 to max
     do
-      add (mk_axiom_succ i);
-      for j = 0 to i
+      if i+1 <> j then
+        mk_neq (mk_succ (mk_univ i)) (mk_univ j)
+    done
+
+  let mk_axiom_max i j m =
+    mk_eq (mk_max (mk_univ i) (mk_univ j)) (mk_univ (max i j));
+    for k = 0 to m
+    do
+      if k <> max i j then
+        mk_neq (mk_max (mk_univ i) (mk_univ j)) (mk_univ k)
+    done
+
+  let mk_axiom_rule i j m =
+    if j = 0 then
+      begin
+        mk_eq (mk_rule (mk_univ i) (mk_univ 0)) (mk_univ 0);
+        for k = 1 to m
+        do
+          mk_neq (mk_rule (mk_univ i) (mk_univ 0)) (mk_univ k)
+        done
+      end
+    else
+      begin
+        mk_eq (mk_rule (mk_univ i) (mk_univ j)) (mk_univ (max i j));
+        for k = 0 to m
+        do
+          if k <> (max i j) then
+            mk_neq (mk_rule (mk_univ i) (mk_univ j)) (mk_univ k)
+        done
+      end
+
+
+  let register_axioms max =
+    for i = 0 to max
+    do
+      mk_axiom_succ (i-1) max;
+      for j = 0 to max
       do
-        add (mk_axiom_max i j);
-        add (mk_axiom_rule i j);
+        mk_axiom_max i j max;
+        mk_axiom_rule i j max;
+        if i <> j then
+          mk_neq (mk_univ i) (mk_univ j);
       done;
     done
+
+  let rec range i j =
+    if i = j then
+      []
+    else
+      i::(range (i+1) j)
+
+  let register_vars vars i =
+    let register_vars var =
+      let eqs = List.map
+          (fun i -> Boolean.mk_eq  ctx (Expr.mk_const_s ctx var sort) (mk_univ i)) (range 0 (i+1)) in
+      add (Boolean.mk_or ctx eqs)
+    in
+    SSet.iter register_vars vars
 
   let solution_of_var model var =
     let univ_of_int i =
@@ -116,32 +164,37 @@ struct
       else
         Type (i - 1)
     in
+    let rec find_univ e i  =
+      match Model.get_const_interp_e model (mk_univ i) with
+      | None -> assert false
+      | Some u ->
+        if e = u then i else find_univ e (i+1)
+    in
     match Model.get_const_interp_e model (mk_var var) with
-    | None -> failwith "This bug should be reported (var_solution 1)"
-    | Some e ->
-      try
-        let s = Arithmetic.Integer.numeral_to_string e in
-        univ_of_int (int_of_string s)
-      with _ -> failwith "This bug should be reported (var_solution 1)"
+    | None -> assert false
+    | Some e -> univ_of_int (find_univ e 0)
 
-  let reset () = Solver.reset solver
 
-  let rec check constraints i =
-    reset ();
+  let reset () =
+    vars := SSet.empty;
+    Solver.reset solver
+
+  let rec check i =
+    Solver.push solver;
     register_axioms i;
+    register_vars !vars i;
     if i > Cfg.univ_max () then failwith "Probably the Constraints are inconsistent";
     match Solver.check solver [] with
     | Solver.UNSATISFIABLE ->
-      Basic.debug 1 "No solution found with %d universes@." (i + 2);
-      check constraints (i+1)
+      Basic.debug 1 "No solution found with %d universes@." i;
+      Solver.pop solver 1; check (i+1)
     | Solver.UNKNOWN -> failwith "This bug should be reported (check)"
     | Solver.SATISFIABLE ->
       match Solver.get_model solver with
       | None -> assert false
       | Some model ->
+        Format.eprintf "model: %s@." (Model.to_string model);
         let hmodel = Hashtbl.create 10001 in
-        Format.eprintf "%s@." (Solver.to_string solver);
-        Format.eprintf "%s@." (Model.to_string model);
         let find var =
           try
             (solution_of_var model var)
@@ -156,8 +209,7 @@ struct
             Hashtbl.add hmodel var t;
             t
 
-
-  let solve constraints = check constraints 0
+  let solve () = check 1
 end
 
 (*

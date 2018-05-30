@@ -221,30 +221,92 @@ struct
   let mk_sort = mk_Const dloc sort
 end
 
+let name : name ref = ref (mk_name (mk_mident "") (mk_ident ""))
+
+let add_name name =
+  Cfg.add_name name;
+  name
+
+let vars = ref []
+
+let add_vars () =
+  let vars = ISet.of_list !vars in
+  Cfg.add_uvars !name vars
+
+let fresh_uvar sg =
+  let var = Uvar.fresh_uvar sg in
+  let v = Uvar.name_of_uvar var in
+  vars := (id v)::!vars;
+  var
+
+let get_rule_name (r:'a Rule.rule) =
+  let open Rule in
+  match r.name with
+  | Gamma(_,name) -> name
+  | _ -> assert false
+
+
+module ElaborationNaive =
+struct
+
+  let rec elaborate sg (t:Term.term) =
+    if Dk.is_type t then
+      fresh_uvar sg
+    else
+      match t with
+      | Term.Kind
+      | Term.Type _
+      | Term.DB (_,_,_)
+      | Term.Const (_,_) -> t
+      | Term.App (f,a,args) ->
+        mk_App2 (elaborate sg f) (List.map (elaborate sg) (a::args))
+      | Term.Lam (lc,id,Some ty,te) ->
+        mk_Lam lc id (Some (elaborate sg ty)) (elaborate sg te)
+      | Term.Lam (_,_,None,_) -> failwith "Cannot elaborate untyped lambdas"
+      | Term.Pi (lc,id,tya,tyb) ->
+        mk_Pi lc id (elaborate sg tya) (elaborate sg tyb)
+
+  let rule_elaboration sg (r:'a Rule.rule) =
+    let open Rule in
+    name := get_rule_name r;
+    let r = {r with rhs = elaborate sg r.rhs} in
+    add_vars ();
+    r
+
+  let elaboration md e =
+    let open Rule in
+    let open Entry in
+    let sg = Cfg.get_signature () in
+    match e with
+    | Decl(l,id,st,t) ->
+      name := add_name (mk_name md id);
+      let t' = elaborate sg t in
+      add_vars();
+      Decl(l,id,st, t')
+    | Def(l,id,op,pty,te) -> (
+        (*      Format.eprintf "%a@." Pp.print_ident id; *)
+        name := add_name (mk_name md id);
+        match pty with
+        | None ->
+          add_vars ();
+          Def(l,id,op, None, elaborate sg te)
+        | Some ty ->
+          let ty'    = elaborate sg ty in
+          let te' = elaborate sg te in
+          add_vars ();
+          Def(l,id,op, Some ty', te'))
+    | Rules(rs) ->
+      let rs' = List.map (rule_elaboration sg) rs in
+      Rules(rs')
+    | Name (l,id) -> Name(l,id)
+    | _ -> assert false
+end
+
 module Elaboration =
 struct
   open Dk
 
   type binding = { ty : Term.term ; sort : Term.term }
-
-  let name : name ref = ref (mk_name (mk_mident "") (mk_ident ""))
-
-  let add_name name =
-    Cfg.add_name name;
-    name
-
-  let vars = ref []
-
-  let add_vars () =
-    let vars = ISet.of_list !vars in
-    Cfg.add_uvars !name vars
-
-  let fresh_uvar sg =
-    let var = Uvar.fresh_uvar sg in
-    let v = Uvar.name_of_uvar var in
-    vars := (id v)::!vars;
-    var
-
 
   let extract_prod' te =
     let s1,s2,a,t = extract_prod te in
@@ -276,7 +338,8 @@ struct
         extract_cuni (List.assoc id ctx).ty, var
       else
         (List.assoc id ctx).sort, var
-    else assert false
+    else
+      assert false
 
   let if_prop s = if Cic.is_prop s then true else false
 
@@ -361,12 +424,6 @@ struct
     in
     List.fold_left add_binding []  (List.rev ctx)
 
-  let get_rule_name (r:'a Rule.rule) =
-    let open Rule in
-    match r.name with
-    | Gamma(_,name) -> name
-    | _ -> assert false
-
   let rule_elaboration sg (r:Rule.typed_rule) =
     let open Rule in
     name := get_rule_name r;
@@ -401,7 +458,7 @@ struct
           add_vars ();
           Def(l,id,op, Some ty', te'))
     | Rules(rs) ->
-      let rs2 = List.map (Typing.check_rule sg)  rs in
+      let rs2 = List.map (Typing.check_rule sg)rs  in
       let rs' = List.map (rule_elaboration sg) rs2 in
       Rules(rs')
     | Name (l,id) -> Name(l,id)
@@ -427,44 +484,45 @@ struct
   let rec reconstruction model term =
     let open Term in
     let open Constraints in
-    let open Cic in (* TODO: probably there is going to be a bug that can be fixed here
-                       if is_cast term then
-                       let s1, s2, t1,t2, t = extract_cast term in
-                       let s1' = reconstruction model s1 in
-                       let s2' = reconstruction model s2 in
-                       let t1' = reconstruction model t1 in
-                       let t2' = reconstruction model t2 in
-                       let t'  = reconstruction model t  in
-                       mk_cast s1' s2' t1' t2' t'
-                       else *)
-    match term with
-    | Const _ when Uvar.is_uvar term ->
-      let var = Uvar.name_of_uvar term in
-      term_of_univ (model (string_of_ident (id var)))
-    | App (f, a, al) ->
-      let f' = reconstruction model f in
-      let a' = reconstruction model a in
-      let al' = List.map (reconstruction model) al in
-      mk_App f' a' al'
-    | Lam (loc, id, t_opt, t) -> (
-        let t' = reconstruction model t in
-        match t_opt with
-        | None -> mk_Lam loc id t_opt t'
-        | Some x ->
-          let x' = reconstruction model x in
-          mk_Lam loc id (Some x') t' )
-    | Pi (loc, id, ta, tb) ->
-      let ta' = reconstruction model ta in
-      let tb' = reconstruction model tb in
-      mk_Pi loc id ta' tb'
-    | _ -> term
+    let open Cic in (* TODO: probably there is going to be a bug that can be fixed here *)
+    if is_cast term then
+      let s1, s2, t1,t2, t = extract_cast term in
+      let s1' = reconstruction model s1 in
+      let s2' = reconstruction model s2 in
+      let t1' = reconstruction model t1 in
+      let t2' = reconstruction model t2 in
+      let t'  = reconstruction model t  in
+      mk_cast s1' s2' t1' t2' t'
+    else
+      match term with
+      | Const _ when Uvar.is_uvar term ->
+        let var = Uvar.name_of_uvar term in
+        term_of_univ (model (string_of_ident (id var)))
+      | App (f, a, al) ->
+        let f' = reconstruction model f in
+        let a' = reconstruction model a in
+        let al' = List.map (reconstruction model) al in
+        mk_App f' a' al'
+      | Lam (loc, id, t_opt, t) -> (
+          let t' = reconstruction model t in
+          match t_opt with
+          | None -> mk_Lam loc id t_opt t'
+          | Some x ->
+            let x' = reconstruction model x in
+            mk_Lam loc id (Some x') t' )
+      | Pi (loc, id, ta, tb) ->
+        let ta' = reconstruction model ta in
+        let tb' = reconstruction model tb in
+        mk_Pi loc id ta' tb'
+      | _ -> term
 
 
   let reconstruction model entry =
     let open Rule in
     let open Entry in
     match entry with
-    | Decl (l, id, st, t) -> Decl (l, id, st, reconstruction model t)
+    | Decl (l, id, st, t) ->
+      Decl (l, id, st, reconstruction model t)
     | Def (l, id, op, pty, te) ->
       Def
         ( l
@@ -513,7 +571,7 @@ struct
     else
       assert false
 
-  let univ_convertible sg ~term_convertible left right =
+  let rec univ_convertible sg ~term_convertible left right =
     if is_univ left && is_univ right then
       let ul = extract_univ left in
       let ur = extract_univ right in
@@ -521,18 +579,17 @@ struct
     else if Uvar.is_uvar left || is_max left || is_succ left || is_rule left then
       Some(to_univ left, to_univ right)
     else if is_cast left && not (is_cast right) then
-      failwith "todo cast left"
+      let s1,s2,t1,t2,a = extract_cast left in
+      assert (term_convertible t1 t2 = true);
+      assert (term_convertible a right = true);
+      univ_convertible sg term_convertible s1 s2
     else if not (is_cast left) && is_cast right then
-      failwith "todo cast right"
+      univ_convertible sg term_convertible right left
     else
-      begin
-        Format.eprintf "left:%a@." Pp.print_term left;
-        Format.eprintf "right:%a@." Pp.print_term right;
         None
-      end
 end
 
-include Elaboration
+include ElaborationNaive
 
 include Reconstruction
 
