@@ -267,7 +267,7 @@ let rec state_whnf (pol:polarity) (sg:Signature.t) (st:state): state =
     | None -> st
     | Some (ar, tree) ->
       let s1, s2 = split_list ar stack in
-      match gamma_rw sg (are_convertible pol) (snf pol) (state_whnf pol) s1 tree with
+      match gamma_rw sg are_convertible (snf pol) (state_whnf pol) s1 tree with
       | None -> st
       | Some (ctx,term) -> state_whnf pol sg { ctx; term; stack=s2 }
 
@@ -285,22 +285,24 @@ and snf pol sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf (notp pol) sg a) (snf pol sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf (notp pol) sg) a) (snf pol sg b)
 
-and are_convertible_lst sg : (term*term*polarity) list -> bool =
+(* are_convertible sg a b is true iff
+   a -->>- +<<-- b *)
+and are_convertible_lst sg : (term*term) list -> bool =
   function
   | [] -> true
-  | (t1,t2,pol)::lst ->
+  | (t1,t2)::lst ->
     begin
       match (
         if term_eq t1 t2 then Some lst
         else
-          match whnf pol sg t1, whnf pol sg t2 with
+          match whnf N sg t1, whnf P sg t2 with
           | Kind, Kind | Type _, Type _ -> Some lst
           | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
           | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
           | App (f,a,args), App (f',a',args') ->
-            add_to_list2_const args args' pol ((f,f',pol)::(a,a',pol)::lst)
-          | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b',pol)::lst)
-          | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a',notp pol)::(b,b',pol)::lst)
+            add_to_list2 args args' ((f,f')::(a,a')::lst)
+          | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
+          | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a',a)::(b,b')::lst)
           | t1, t2 -> None
       ) with
       | None -> false
@@ -308,7 +310,7 @@ and are_convertible_lst sg : (term*term*polarity) list -> bool =
     end
 
 (* Convertibility Test *)
-and are_convertible pol sg t1 t2 = are_convertible_lst sg [(t1,t2,pol)]
+and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
 
 (* Head Normal Form *)
 let rec hnf pol sg t =
@@ -403,7 +405,7 @@ let state_nsteps pol (sg:Signature.t) (strat:red_strategy)
         | None -> (red,st)
         | Some (ar, tree) ->
           let s1, s2 = split_list ar stack in
-          match gamma_rw sg (are_convertible pol) (snf pol) (state_whnf pol) s1 tree with
+          match gamma_rw sg are_convertible (snf pol) (state_whnf pol) s1 tree with
           | None -> (red,st)
           | Some (ctx,term) -> aux (red-1, { ctx; term; stack=s2 })
   in

@@ -104,22 +104,22 @@ let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
 
 let infer ?ctx:(ctx=[]) te =
   try
-    let ty = infer P !sg ctx te in
-    ignore(infer P !sg ctx ty);
+    let ty = infer !sg ctx te in
+    ignore(infer !sg ctx ty);
     OK ty
   with
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)
 
 let check ?ctx:(ctx=[]) te ty =
-  try OK (ignore(check P !sg ctx te ty))
+  try OK (ignore(check !sg ctx te ty))
   with
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)
 
 let reduction ?ctx:(ctx=[]) ?red:(red=Reduction.default_cfg) ?(pol=P) te =
   try
-    ignore(Typing.infer pol !sg ctx te);
+    ignore(Typing.infer !sg ctx te);
     let te' = Reduction.reduction red pol !sg te in
     OK te'
   with
@@ -130,11 +130,11 @@ let unsafe_reduction ?red:(red=Reduction.default_cfg) ?(pol=P) te =
   let te' = Reduction.reduction red pol !sg te in
   te'
 
-let are_convertible ?ctx:(ctx=[]) ?(pol=P) te1 te2 =
+let are_convertible ?ctx:(ctx=[]) te1 te2 =
   try
-    ignore(Typing.infer pol !sg ctx te1);
-    ignore(Typing.infer pol !sg ctx te2);
-    let b = Reduction.are_convertible pol !sg te1 te2 in
+    ignore(Typing.infer !sg ctx te1);
+    ignore(Typing.infer !sg ctx te2);
+    let b = Reduction.are_convertible !sg te1 te2 in
     OK b
   with
   | SignatureError e -> Err (EnvErrorSignature e)

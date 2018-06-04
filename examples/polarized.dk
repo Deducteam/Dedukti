@@ -1,13 +1,17 @@
 def A : Type.
 B : Type.
 C : Type.
+a : A.
 b : B.
 c : C.
 [] A -->+ B.
 [] A -->- C.
 def f : A -> A.
 [c] f c --> b.
-#CHECK (f c) : A.
+#EVAL A -> A.
+#INFER f a.
+#CHECK (f a) : A.
+#CHECK (f a) : C.
 #CHECKNOT (f b) : A.
 #CHECK (f c) : B.
 #CHECKNOT (f c) : C.

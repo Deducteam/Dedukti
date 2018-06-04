@@ -218,10 +218,10 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
-let rec add_to_list2_const l1 l2 const lst =
+let rec add_to_list2 l1 l2 lst =
   match l1, l2 with
   | [], [] -> Some lst
-  | s1::l1, s2::l2 -> add_to_list2_const l1 l2 const ((s1,s2,const)::lst)
+  | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
   | _,_ -> None
 
 let rec split_list i l =

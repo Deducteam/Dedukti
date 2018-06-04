@@ -30,13 +30,13 @@ type typ = term
 
 (** {2 Type Inference/Checking} *)
 
-val infer       : polarity -> Signature.t -> typed_context -> term -> typ
-(** [infer pol sg ctx te] infers a type for the term [te] in the signature [sg] and context [ctx], at a position of polarity [pol]
+val infer       : Signature.t -> typed_context -> term -> typ
+(** [infer sg ctx te] infers a type for the term [te] in the signature [sg] and context [ctx].
     The context is assumed to be well-formed *)
 
-val check       : polarity -> Signature.t -> typed_context -> term -> typ -> unit
-(** [check pol sg ctx te ty] checks that the term [te] has type [ty]
-    in the signature [sg] and context [ty.ctx], at a position of polarity [pol].
+val check       : Signature.t -> typed_context -> term -> typ -> unit
+(** [check sg ctx te ty] checks that the term [te] has type [ty]
+    in the signature [sg] and context [ty.ctx].
     [ty] is assumed to be well-typed in [ctx]
     and [ctx] is assumed to be well-formed *)
 

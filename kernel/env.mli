@@ -64,6 +64,6 @@ val check : ?ctx:typed_context -> term -> term -> (unit,env_error) error
 
 val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> ?pol:polarity -> term -> (term,env_error) error
 
-val are_convertible : ?ctx:typed_context -> ?pol:polarity -> term -> term -> (bool,env_error) error
+val are_convertible : ?ctx:typed_context -> term -> term -> (bool,env_error) error
 
 val unsafe_reduction : ?red:(Reduction.red_cfg) -> ?pol:polarity -> term -> term
