@@ -36,6 +36,10 @@ val export              : t -> bool
 val import              : t -> loc -> mident -> unit
 (** [import sg md] the module [md] in the signature [sg]. *)
 
+val get_md_deps            : loc -> mident -> mident list
+(** [get_deps lc md] returns the list of direct dependencies of module [md].
+    This function makes the assumption that the file [md.dko] exists. *)
+
 val is_static           : t -> loc -> name -> bool
 (** [is_injective sg l cst] is true when [cst] is a static symbol. *)
 
