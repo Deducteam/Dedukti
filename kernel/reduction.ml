@@ -157,7 +157,7 @@ let rec test (sg: Signature.t) (convertible: convertibility_test) (ctx: env) r
   | (Bracket (i,t))::tl ->
     let t1 = Lazy.force (LList.nth ctx i) in
     let t2 = term_of_state { ctx; term=t; stack=[] } in
-    if convertible sg ism [t1,t2]
+    if convertible sg false [t1,t2]
     then test sg convertible ctx r tl
     else
       (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
@@ -307,8 +307,6 @@ and are_convertible_lst sg ism :  (term * term) list -> bool =
   function
   | [] -> true
   | (t1, t2) :: lst ->
-(*    Format.eprintf "ll:%a@." pp_term t1;
-      Format.eprintf "rr:%a@." pp_term t2; *)
     match
       if term_eq t1 t2 then Some lst
       else
@@ -331,6 +329,11 @@ and are_convertible_lst sg ism :  (term * term) list -> bool =
 
 
 and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
+(*  Format.eprintf "l:%a@." Term.pp_term l;
+  Format.eprintf "r:%a@." Term.pp_term r;
+  let w = (whnf sg r) in
+  Format.eprintf "w:%a@." Term.pp_term w;
+    assert (Term.term_eq w r); *)
   if ism then false
   else
     !univ_convertible sg ~term_convertible:(fun l r -> are_convertible_lst sg false [l,r]) l r
