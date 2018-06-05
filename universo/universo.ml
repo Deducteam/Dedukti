@@ -107,8 +107,8 @@ struct
   let solve () =
     let open Constraints in
     let module M = (val !s) in
-    let i, model = Export.Z3Syn.solve () in
     (M.infos ());
+    let i, model = Export.Z3Syn.solve () in
     (i, model)
 end
 

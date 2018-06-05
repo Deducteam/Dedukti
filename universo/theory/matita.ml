@@ -17,6 +17,8 @@ struct
 
   let cast = mk_name cic (mk_ident "cast")
 
+  let join = mk_name cic (mk_ident "join")
+
   let max = mk_name cic (mk_ident "max")
 
   let rule = mk_name cic (mk_ident "rule")
@@ -80,7 +82,12 @@ struct
 
   let is_cast t =
     match t with
-    | App(c, s1, [s2;t1;t2;a]) when is_const cast c -> true
+    | App(c, s1, s2::t1::t2::a::args) when is_const cast c -> true
+    | _ -> false
+
+  let is_join t =
+    match t with
+    | App(c, s1, [s2;t1;t2]) when is_const join c -> true
     | _ -> false
 
   let is_max t =
@@ -145,7 +152,8 @@ struct
 
   let extract_cast t =
     match t with
-    | App(c,s1,[s2;t1;t2;a]) when is_const cast c -> s1,s2,t1,t2,a
+    | App(c,s1,s2::t1::t2::a::args) when is_const cast c ->
+      s1,s2,t1,t2,mk_App2 a args
     | _ -> failwith "is not a cast"
 
   let extract_max t =
@@ -206,6 +214,9 @@ struct
   let mk_cast s1 s2 t1 t2 a =
     mk_App (mk_Const dloc cast) s1 [s2;t1;t2;a]
 
+  let mk_join s1 s2 t1 t2 =
+    mk_App (mk_Const dloc join) s1 [s2;t1;t2]
+
   let mk_prod s1 s2 a x ty te =
     mk_App (mk_Const dloc prod) s1 [s2;a;(mk_Lam dloc x (Some ty) te)]
 
@@ -259,7 +270,10 @@ struct
       | Term.DB (_,_,_)
       | Term.Const (_,_) -> t
       | Term.App (f,a,args) ->
-        mk_App2 (elaborate sg f) (List.map (elaborate sg) (a::args))
+        if Dk.is_const Dk.succ f then
+          fresh_uvar sg
+        else
+          mk_App2 (elaborate sg f) (List.map (elaborate sg) (a::args))
       | Term.Lam (lc,id,Some ty,te) ->
         mk_Lam lc id (Some (elaborate sg ty)) (elaborate sg te)
       | Term.Lam (_,_,None,_) -> failwith "Cannot elaborate untyped lambdas"
@@ -481,18 +495,18 @@ struct
     | _ -> assert false
 
 
-  let rec reconstruction model term =
+  let rec reconstruction model (term:Term.term) =
     let open Term in
     let open Constraints in
-    let open Cic in (* TODO: probably there is going to be a bug that can be fixed here *)
-    if is_cast term then
-      let s1, s2, t1,t2, t = extract_cast term in
+    (* TODO: probably there is going to be a bug that can be fixed here *)
+    if Dk.is_cast term then
+      let s1, s2, t1,t2, t = Dk.extract_cast term in
       let s1' = reconstruction model s1 in
-      let s2' = reconstruction model s2 in
+      let s2' = reconstruction model (Dk.mk_max s1 s2) in
       let t1' = reconstruction model t1 in
-      let t2' = reconstruction model t2 in
+      let t2' = reconstruction model (Dk.mk_join s1 s2 t1 t2) in
       let t'  = reconstruction model t  in
-      mk_cast s1' s2' t1' t2' t'
+      Dk.mk_cast s1' s2' t1' t2' t'
     else
       match term with
       | Const _ when Uvar.is_uvar term ->
@@ -548,9 +562,9 @@ struct
   let rec int_of_type t =
     let open Cic in
     if is_z t then
-      1
+      0
     else
-      int_of_type (extract_s t)
+      1+ int_of_type (extract_s t)
 
   let rec to_univ t =
     let open Cfg in
@@ -576,17 +590,38 @@ struct
       let ul = extract_univ left in
       let ur = extract_univ right in
       Some(to_univ ul, to_univ ur)
-    else if Uvar.is_uvar left || is_max left || is_succ left || is_rule left then
+    else if Uvar.is_uvar left || is_max left
+            || is_succ left || is_rule left
+            || is_type left || is_prop left then
       Some(to_univ left, to_univ right)
     else if is_cast left && not (is_cast right) then
       let s1,s2,t1,t2,a = extract_cast left in
       assert (term_convertible t1 t2 = true);
-      assert (term_convertible a right = true);
-      univ_convertible sg term_convertible s1 s2
+      Format.eprintf "ll:%a@." Term.pp_term a;
+      Format.eprintf "rr:%a@." Term.pp_term right;
+      if term_convertible a right = true then
+        univ_convertible sg term_convertible s1 s2
+      else
+        begin (*
+            Format.eprintf "ll:%a@." Term.pp_term a;
+            Format.eprintf "rr:%a@." Term.pp_term right; *)
+            assert false
+          end
     else if not (is_cast left) && is_cast right then
       univ_convertible sg term_convertible right left
+    else if is_cast left && is_cast right then
+      let s1,s2,t1,t2,a = extract_cast left in
+      let s1',s2',t1',t2',a' = extract_cast right in
+      assert (term_convertible a a' = true);
+      assert (term_convertible t1 t1' = true);
+      assert (term_convertible t2 t2' = true);
+      assert (term_convertible s2 s2' = true);
+      univ_convertible sg term_convertible s1 s1'
     else
+      begin
+        (* Format.eprintf "nop@."; *)
         None
+      end
 end
 
 include ElaborationNaive

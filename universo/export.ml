@@ -98,7 +98,7 @@ struct
     mk_eq (mk_succ (mk_univ i)) (mk_univ (i+1));
     for j = 0 to max
     do
-      if i+1 <> j then
+      if 1 + i <> j then
         mk_neq (mk_succ (mk_univ i)) (mk_univ j)
     done
 
@@ -133,7 +133,7 @@ struct
   let register_axioms max =
     for i = 0 to max
     do
-      mk_axiom_succ (i-1) max;
+      mk_axiom_succ i max;
       for j = 0 to max
       do
         mk_axiom_max i j max;
@@ -193,7 +193,6 @@ struct
       match Solver.get_model solver with
       | None -> assert false
       | Some model ->
-        Format.eprintf "model: %s@." (Model.to_string model);
         let hmodel = Hashtbl.create 10001 in
         let find var =
           try
