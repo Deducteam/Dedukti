@@ -34,7 +34,8 @@ let select f b : unit =
 
 (* State *)
 
-type env = term Lazy.t LList.t
+type env = clos Lazy.t LList.t
+  and clos = Clos of env * term
 
 (* A state {ctx; term; stack} is the state of an abstract machine that
 represents a term where [ctx] is a ctx that contains the free variables
@@ -46,12 +47,24 @@ type state = {
 }
 and stack = state list
 
-let rec term_of_state {ctx;term;stack} : term =
-  let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
+let rec clos_of_state {ctx;term;stack} : clos =
   match stack with
-  | [] -> t
-  | a::lst -> mk_App t (term_of_state a) (List.map term_of_state lst)
+  | [] -> Clos(ctx,term)
+  | a::lst ->
+     Clos(LList.nil,mk_App (eval_clos (Clos(ctx,term))) (term_of_state a) (List.map term_of_state lst))
 
+and eval_clos (Clos(ctx,term)) : term =
+  if LList.is_empty ctx then term else
+    Subst.psubst_l (LList.map (fun lc -> lazy (eval_clos (Lazy.force lc))) ctx) term
+  
+and term_of_state s : term =
+  eval_clos (clos_of_state s)
+
+let state_of_clos cl stack =
+  let Clos(ctx,term) = cl in
+  { ctx; term; stack }
+
+    
 (* Pretty Printing *)
 
 let pp_state fmt st =
@@ -63,7 +76,7 @@ let pp_stack fmt stck =
   fprintf fmt "]\n"
 
 let pp_env fmt (ctx:env) =
-  let pp_lazy_term out lt = pp_term fmt (Lazy.force lt) in
+  let pp_lazy_term out lt = pp_term fmt (eval_clos (Lazy.force lt)) in
     pp_list ", " pp_lazy_term fmt (LList.lst ctx)
 
 let pp_stack fmt (st:stack) =
@@ -104,18 +117,18 @@ let get_context_syn (sg:Signature.t) (forcing:rw_strategy) (stack:stack) (ord:ar
   try Some (LList.map (
       fun p ->
         if ( p.depth = 0 )
-        then lazy (term_of_state (List.nth stack p.position) )
+        then lazy (clos_of_state (List.nth stack p.position) )
         else
-          Lazy.from_val
-            (unshift sg forcing p.depth (term_of_state (List.nth stack p.position) ))
+          Lazy.from_val (Clos(LList.nil,
+            (unshift sg forcing p.depth (term_of_state (List.nth stack p.position) ))))
     ) ord )
   with Subst.UnshiftExn -> ( None )
 
 let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
                    (pb_lst:abstract_problem LList.t) : env option =
-  let aux ((pos,dbs):abstract_problem) : term Lazy.t =
+  let aux ((pos,dbs):abstract_problem) : clos Lazy.t =
     let res = solve sg forcing pos.depth dbs (term_of_state (List.nth stack pos.position)) in
-    Lazy.from_val (Subst.unshift pos.depth res)
+    Lazy.from_val (Clos(LList.nil,(Subst.unshift pos.depth res)))
   in
   try Some (LList.map aux pb_lst)
   with Matching.NotUnifiable -> None
@@ -133,7 +146,7 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
     then test sg convertible ctx tl
     else false
   | (Bracket (i,t))::tl ->
-    let t1 = Lazy.force (LList.nth ctx i) in
+    let t1 = eval_clos (Lazy.force (LList.nth ctx i)) in
     let t2 = term_of_state { ctx; term=t; stack=[] } in
     if convertible sg t1 t2
     then test sg convertible ctx tl
@@ -248,12 +261,12 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
     if n < LList.len ctx
-    then state_whnf sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
+    then state_whnf sg (state_of_clos (Lazy.force (LList.nth ctx n)) stack)
     else { ctx=LList.nil; term=(mk_DB l x (n-LList.len ctx)); stack }
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
     if not !beta then st
-    else state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    else state_whnf sg { ctx=LList.cons (lazy (clos_of_state p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
@@ -333,14 +346,14 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
       (* Strongly normalizing Pi types *)
       | { ctx=ctx; term=Pi(l,x,a,b) } ->
         let (red, a') = aux (red , {st with term=a} ) in
-        let snf_a = term_of_state a' in
+        let snf_a = clos_of_state a' in
         let state_b = {ctx=LList.cons (lazy snf_a) ctx; term=b; stack=[]} in
         let (red, b') = aux (red, state_b) in
-        (red, {st with term=mk_Pi l x snf_a (term_of_state b') } )
+        (red, {st with term=mk_Pi l x (eval_clos snf_a) (term_of_state b') } )
 
       (* Beta redex *)
       | { ctx; term=Lam (_,_,_,t); stack=p::s } when !beta ->
-        aux (red-1, { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s })
+        aux (red-1, { ctx=LList.cons (lazy (clos_of_state p)) ctx; term=t; stack=s })
       (* Not a beta redex (or beta disabled) *)
       | { term=Lam _ } when strat == Whnf -> (red, st)
       (* Not a beta redex (or beta disabled) but keep looking for normal form *)
@@ -379,7 +392,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
         end
       (* DeBruijn index: environment lookup *)
       | { ctx; term=DB (_,_,n); stack } when n < LList.len ctx ->
-        aux (red, { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack })
+         aux (red, state_of_clos (Lazy.force (LList.nth ctx n)) stack)
       (* DeBruijn index: out of environment *)
       | { term=DB _ } -> (red, st)
       (* Application: arguments go on the stack *)
