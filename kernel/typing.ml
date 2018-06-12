@@ -49,7 +49,8 @@ let extend_ctx a ctx = function
 
 (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
-let rec infer sg (ctx:typed_context) : term -> typ = function
+let rec infer sg (ctx:typed_context) (t:term) : typ =
+  match t with
   | Kind -> raise (TypingError KindIsNotTypable)
   | Type l -> mk_Kind
   | DB (l,x,n) -> get_type ctx l x n

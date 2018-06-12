@@ -586,6 +586,8 @@ struct
       assert false
 
   let rec univ_convertible sg ~term_convertible left right =
+    Format.eprintf "ll:%a@." Term.pp_term left;
+    Format.eprintf "rr:%a@." Term.pp_term right;
     if is_univ left && is_univ right then
       let ul = extract_univ left in
       let ur = extract_univ right in
@@ -597,8 +599,6 @@ struct
     else if is_cast left && not (is_cast right) then
       let s1,s2,t1,t2,a = extract_cast left in
       assert (term_convertible t1 t2 = true);
-      Format.eprintf "ll:%a@." Term.pp_term a;
-      Format.eprintf "rr:%a@." Term.pp_term right;
       if term_convertible a right = true then
         univ_convertible sg term_convertible s1 s2
       else

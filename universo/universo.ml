@@ -161,6 +161,7 @@ let _ =
     Arg.align
       [ ("-d", Arg.Int Basic.set_debug_mode, "N sets the debuging level to N")
       ; ("-e", Arg.Set export, " Generates an object file (\".dko\")")
+      ; ("-errors-in-snf", Arg.Set Errors.errors_in_snf, " Normalize output")
       ; ( "--output-dir"
         , Arg.String set_output_dir
         , " Directory to print the files by default /tmp is used" )

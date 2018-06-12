@@ -21,14 +21,16 @@ let get_rule_name (r:'a Rule.rule) =
 let check md e =
     match e with
       | Decl (lc, id, st, ty) -> (
-      match Env.declare lc id st ty with
-      | OK () -> update_constraints (mk_name md id)
-      | Err e -> Errors.fail_env_error (Env.get_signature ()) e )
-    | Def (lc, id, opaque, ty, te) -> (
-        let define = if opaque then Env.define_op else Env.define in
-        match define lc id te ty with
-        | OK () -> update_constraints (mk_name md id)
-        | Err e -> Errors.fail_env_error (Env.get_signature ()) e )
+          Format.eprintf "[CHECK] %a@." Pp.print_name (mk_name md id);
+          match Env.declare lc id st ty with
+          | OK () -> update_constraints (mk_name md id)
+          | Err e -> Errors.fail_env_error (Env.get_signature ()) e )
+      | Def (lc, id, opaque, ty, te) -> (
+          Format.eprintf "[CHECK] %a@." Pp.print_name (mk_name md id);
+          let define = if opaque then Env.define_op else Env.define in
+          match define lc id te ty with
+          | OK () -> update_constraints (mk_name md id)
+          | Err e -> Errors.fail_env_error (Env.get_signature ()) e )
     | Rules rs -> (
         let open Rule in
         match Env.add_rules rs with

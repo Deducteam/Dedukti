@@ -368,7 +368,8 @@ and are_univ_convertible sg ism (l: Term.term) (r: Term.term) =
     false
 *)
 (* Convertibility Test *)
-and are_convertible sg t1 t2 = are_convertible_lst sg false [(t1, t2)]
+and are_convertible sg t1 t2 =
+  are_convertible_lst sg false [(t1, t2)]
 
 (* Head Normal Form *)
 let rec hnf sg t =
