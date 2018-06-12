@@ -1,0 +1,5 @@
+
+A : Type.
+a : A.
+
+#ASSERTNOT a :: A.

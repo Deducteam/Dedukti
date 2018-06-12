@@ -40,12 +40,16 @@ let mk_DB l x n         = DB (l,x,n)
 let mk_Const l n        = Const (l,n)
 let mk_Lam l x a b      = Lam (l,x,a,b)
 let mk_Pi l x a b       = Pi (l,x,a,b)
-let mk_Arrow l a b      = Pi (l,qmark,a,b)
+let mk_Arrow l a b      = Pi (l,dmark,a,b)
 
 let mk_App f a1 args =
   match f with
     | App (f',a1',args') -> App (f',a1',args'@(a1::args))
     | _ -> App(f,a1,args)
+
+let mk_App2 f = function
+  | [] -> f
+  | hd :: tl -> mk_App f hd tl
 
 let rec term_eq t1 t2 =
   (* t1 == t2 || *)
@@ -64,3 +68,18 @@ let rec term_eq t1 t2 =
 type untyped_context = ( loc * ident ) list
 
 type typed_context = ( loc * ident * term ) list
+
+let rec get_name_from_typed_ctxt ctxt i =
+  try let (_,v,_) = List.nth ctxt i in Some v
+  with Failure _ -> None
+
+let rename_vars_with_typed_context ctxt t =
+  let rec aux d t = match t with
+    | DB(l,v,n) when n > d ->
+      (match get_name_from_typed_ctxt ctxt (n - d) with Some v' -> mk_DB l v' n | None -> t)
+    | App (f,a,args) ->
+      mk_App (aux d f) (aux d a) (List.map (aux d) args)
+    | Lam (l,x,ty,f) -> mk_Lam l x (map_opt (aux d) ty) (aux (d+1) f)
+    | Pi  (l,x,ty,b) -> mk_Pi  l x          (aux d  ty) (aux (d+1) b)
+    | _ -> t in
+  aux 0 t

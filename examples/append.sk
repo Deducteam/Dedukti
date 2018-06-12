@@ -1,5 +1,3 @@
-#NAME append.
-
 A  : Type.
 
 def plus: nat -> nat -> nat.

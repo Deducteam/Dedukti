@@ -1,0 +1,10 @@
+
+Nat : Type.
+Vect : Nat -> Type.
+
+def non_inject : Nat -> Nat.
+
+Cons : n : Nat -> Vect n -> Vect (non_inject n).
+
+def Tail : n : Nat -> Vect (non_inject n) -> Vect n.
+[n, l] Tail n (Cons _ l) --> l.

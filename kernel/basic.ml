@@ -5,31 +5,28 @@
 
 type ident = string
 
-let pp_ident fmt id = Format.fprintf fmt "%s" id
-
-type mident = string
-
-let pp_mident fmt md = Format.fprintf fmt "%s" md
-
-type name = mident * ident
-
-let pp_name fmt (md,id) = Format.fprintf fmt "%s.%s" md id
-
-let md = fst
-
-let id = snd
-
-let mk_name md id = (md,id)
-
 let string_of_ident s = s
-
-let string_of_mident s = s
 
 let ident_eq s1 s2 = s1==s2 || s1=s2
 
+
+type mident = string
+
+let string_of_mident s = s
+
 let mident_eq = ident_eq
 
-let name_eq n n' = ident_eq (md n) (md n') && ident_eq (id n) (id n')
+
+(* TODO: rename ident *)
+type name = mident * ident
+
+let mk_name md id = (md,id)
+
+let name_eq (m,s) (m',s') = mident_eq m m' && ident_eq s s'
+
+let md = fst
+let id = snd
+
 
 
 module WS = Weak.Make(
@@ -39,13 +36,13 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-let shash       = WS.create 251
+let shash        = WS.create 251
 
-let mk_ident    = WS.merge shash
+let mk_ident     = WS.merge shash
 
-let mk_mident   = mk_ident
-
-let qmark       = mk_ident "?"
+let mk_mident md =
+  let base = Filename.basename md in
+  try Filename.chop_extension base with _ -> base
 
 let dmark       = mk_ident "$"
 
@@ -94,7 +91,7 @@ let dloc = (0,0)
 let mk_loc l c = (l,c)
 let of_loc l = l
 
-let pp_loc    fmt (l,c) = Format.fprintf fmt "line:%i column:%i" l c
+let pp_loc fmt (l,c) = Format.fprintf fmt "line:%i column:%i" l c
 
 let path = ref []
 let get_path () = !path
@@ -127,15 +124,78 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
   in
     aux lst
 
-let debug_mode = ref 0
+(** {2 Debugging} *)
 
-let set_debug_mode i = debug_mode := i
+module Debug = struct
+  
+  type flag = int
+  let d_warn         : flag = 0
+  let d_notice       : flag = 1
+  let d_module       : flag = 2
+  let d_confluence   : flag = 3
+  let d_rule         : flag = 4
+  let d_typeChecking : flag = 5
+  let d_reduce       : flag = 6
+  let d_matching     : flag = 7
 
-let debug i fmt = Format.(
-    if !debug_mode >= i then
-      kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
-  else ifprintf err_formatter fmt
-  )
+  let nb_flags = 7
+
+  (* Default mode is to debug only [d_std] messages. *)
+  let default_flags = [d_warn]
+
+  (* Headers for debugging messages *)
+  let headers =
+    [| "Warning"
+     ; "Notice"
+     ; "Module"
+     ; "Confluence"
+     ; "Rule"
+     ; "TypeChecking"
+     ; "Reduce"
+     ; "Matching"
+    |]
+
+  (* Array of activated flags. Initialized with [false]s except at [default_flags] indices. *)
+  let active = Array.init nb_flags (fun f -> List.mem f default_flags)
+
+  let  enable_flag f = active.(f) <- true
+  let disable_flag f = active.(f) <- false
+      
+  exception DebugFlagNotRecognized of char
+      
+  let set_debug_mode =
+    String.iter (function
+        | 'q' -> disable_flag d_warn
+        | 'n' -> enable_flag  d_notice
+        | 'o' -> enable_flag  d_module
+        | 'c' -> enable_flag  d_confluence
+        | 'u' -> enable_flag  d_rule
+        | 't' -> enable_flag  d_typeChecking
+        | 'r' -> enable_flag  d_reduce
+        | 'm' -> enable_flag  d_matching
+        | c -> raise (DebugFlagNotRecognized c)
+      )
+      
+  let do_debug fmt =
+    Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
+      
+  let ignore_debug fmt =
+    Format.(ifprintf err_formatter) fmt
+      
+  let debug f =
+    if active.(f) 
+    then
+      match headers.(f) with
+      | "" -> do_debug
+      | h -> (fun fmt -> do_debug ("[%s] " ^^ fmt) h)
+    else ignore_debug
+  [@@inline]
+
+  let debug_eval f clos = if active.(f) then clos ()
+
+end
+
+(** {2 Misc functions} *)
 
 let bind_opt f = function
   | None -> None
@@ -151,9 +211,35 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
+let rec add_to_list2 l1 l2 lst =
+  match l1, l2 with
+  | [], [] -> Some lst
+  | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
+  | _,_ -> None
+
+let rec split_list i l =
+  if i = 0 then ([],l)
+  else
+    let s1, s2 = split_list (i-1) (List.tl l) in
+    (List.hd l)::s1, s2
+
+
+(** {2 Printing functions} *)
+
+type 'a printer = Format.formatter -> 'a -> unit
+
 let string_of fp = Format.asprintf "%a" fp
 
-let format_of_sep str fmt () : unit =
-  Format.fprintf fmt "%s" str
+let pp_ident  fmt id      = Format.fprintf fmt "%s" id
+let pp_mident fmt md      = Format.fprintf fmt "%s" md
+let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
+let pp_loc    fmt (l,c)   = Format.fprintf fmt "line:%i column:%i" l c
+
+let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 
 let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l
+let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
+
+let pp_option def pp fmt = function
+  | None   -> Format.fprintf fmt "%s" def
+  | Some a -> Format.fprintf fmt "%a" pp a

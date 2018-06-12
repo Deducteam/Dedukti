@@ -1,6 +1,7 @@
 # OCamlbuild files.
 _build/
 *.native
+*.docdir
 
 # Dedukti files.
 *.dko
@@ -13,3 +14,4 @@ kernel/version.ml
 *~
 \#*\#
 .bkp/
+.\#*

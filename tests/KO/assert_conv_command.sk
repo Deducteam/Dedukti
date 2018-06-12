@@ -1,0 +1,5 @@
+
+A : Type.
+B : Type.
+
+#ASSERT A == B.

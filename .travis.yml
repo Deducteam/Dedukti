@@ -24,15 +24,12 @@ before_install:
   - eval `opam config env`
   - opam pin add --no-action dedukti .
   - opam install --deps-only dedukti
-  - opam install dedukti
 install:
+  - make
   - make install
 script:
   - make tests
-  - if [[ "$OCAML_VERSION" == "4.06.0" ]];
-    then chmod u+x tests/external_tests.sh;
-         tests/external_tests.sh;
-    fi
+  - if [[ "$OCAML_VERSION" == "4.06.0" ]]; then make full_tests; fi
 os:
   - linux
 notifications:
@@ -42,5 +39,3 @@ branches:
   only:
     - master
     - develop
-    
-    

@@ -30,7 +30,7 @@ _build/kernel/kernel.cmxa: $(KERNEL_MLI) $(KERNEL_ML)
 
 PARSER_MLI := $(wildcard parser/*.mli)
 PARSER_ML  := $(PARSER_MLI:.mli=.ml)
-PARSER_GEN := parser/parser.mly parser/lexer.mll
+PARSER_GEN := parser/menhir_parser.mly parser/lexer.mll
 
 .PHONY: parser
 parser: kernel _build/parser/parser.cma _build/parser/parser.cmxa
@@ -46,23 +46,29 @@ _build/parser/parser.cmxa: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
 #### Compilation of the dedukti suite ########################################
 
 .PHONY: commands
-commands: skcheck.native skdep.native skindent.native sktop.native
 
-skcheck.native: kernel parser $(wildcard skcheck/*.ml skcheck/*.mli)
-	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind skcheck/skcheck.native
+commands: skcheck.native skdep.native sktop.native
 
-skdep.native: kernel parser $(wildcard skdep/*.ml skdep/*.mli)
+skcheck.native: kernel parser commands/skcheck.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind skdep/skdep.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/skcheck.native
 
-skindent.native: kernel parser $(wildcard skindent/*.ml skindent/*.mli)
+skdep.native: kernel parser commands/skdep.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind skindent/skindent.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/skdep.native
 
-sktop.native: kernel parser $(wildcard sktop/*.ml sktop/*.mli)
+sktop.native: kernel parser commands/sktop.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind sktop/sktop.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/sktop.native
+
+#### Generation of the documentation #########################################
+
+.PHONY: doc
+doc: _build/kernel/kernel.docdir/index.html
+
+_build/kernel/kernel.docdir/index.html: $(KERNEL_MLI) $(KERNEL_ML)
+	@echo "[DOC] $@"
+	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.docdir/index.html
 
 #### Generation of the META file #############################################
 
@@ -100,31 +106,37 @@ uninstall:
 	@ocamlfind remove dedukti
 	@rm -f $(BINDIR)/skcheck
 	@rm -f $(BINDIR)/skdep
-	@rm -f $(BINDIR)/skindent
 	@rm -f $(BINDIR)/sktop
+
 
 .PHONY: install
 install: uninstall all
 	@ocamlfind install dedukti META \
 		$(wildcard _build/kernel/*.mli) $(wildcard _build/kernel/*.cmi) \
-		$(wildcard _build/kernel/*.cmo) $(wildcard _build/kernel/*.cmx) \
-		$(wildcard _build/kernel/*.o) _build/kernel/kernel.cma \
-		_build/kernel/kernel.cmxa _build/kernel/kernel.a \
-		$(wildcard _build/parser/*.mli) $(wildcard _build/parser/*.cmi) \
-		$(wildcard _build/parser/*.cmo) $(wildcard _build/parser/*.cmx) \
-		$(wildcard _build/parser/*.o) _build/parser/parser.cma \
-		_build/parser/parser.cmxa _build/parser/parser.a
+		$(wildcard _build/kernel/*.cmx) $(wildcard _build/kernel/*.o) \
+		_build/parser/parser.mli _build/parser/parser.cmi \
+		$(wildcard _build/parser/*.cmx) $(wildcard _build/parser/*.o) \
+		_build/kernel/kernel.cma _build/parser/parser.cma \
+		_build/kernel/kernel.cmxa _build/parser/parser.cmxa \
+		_build/kernel/kernel.a _build/parser/parser.a
 	install -m 755 -d $(BINDIR)
 	install -m 755 -p skcheck.native  $(BINDIR)/skcheck
 	install -m 755 -p skdep.native    $(BINDIR)/skdep
 	install -m 755 -p skindent.native $(BINDIR)/skindent
 	install -m 755 -p sktop.native    $(BINDIR)/sktop
 
+
 #### Test targets ############################################################
 
 .PHONY: tests
-tests: skcheck.native tests/tests.sh
-	tests/tests.sh
+
+tests: all tests/tests.sh
+	@./tests/tests.sh
+
+.PHONY: full_tests
+full_tests: all tests/external_tests.sh
+	@./tests/external_tests.sh
+
 
 #### Cleaning targets ########################################################
 

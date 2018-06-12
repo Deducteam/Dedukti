@@ -68,7 +68,7 @@ let term_to_char = function
      begin
        try
          char_of_int (term_to_int a)
-       with Invalid_argument "char_of_int" ->
+       with Invalid_argument _ ->
          raise Not_atomic_builtin
      end
   | _ -> raise Not_atomic_builtin

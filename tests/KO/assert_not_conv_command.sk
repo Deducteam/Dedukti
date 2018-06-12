@@ -1,0 +1,5 @@
+
+A : Type.
+def B := A.
+
+#ASSERTNOT B == A.

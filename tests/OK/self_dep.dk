@@ -1,9 +1,0 @@
-#NAME self_dep.
-
-def A : Type.
-U : A -> Type.
-a : A.
-[] A --> U a.
-
-#CHECK a, U a.
-#CHECK U, U a -> Type.

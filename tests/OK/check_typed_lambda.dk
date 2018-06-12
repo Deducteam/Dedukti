@@ -1,9 +1,0 @@
-#NAME check_typed_lambda.
-
-A : Type.
-
-def plus1 : A -> A -> A
-         := x => x => x.
-
-def plus2 : A   -> A -> A
-         := x:A => x => x.

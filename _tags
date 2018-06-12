@@ -5,7 +5,3 @@ true: package(unix)
 
 "kernel"  : include
 "parser"  : include
-"skcheck" : include
-"skdep"   : include
-"skindent": include
-"sktop"   : include

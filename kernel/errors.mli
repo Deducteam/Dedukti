@@ -1,7 +1,8 @@
 val errors_in_snf : bool ref
+(** Flag to enable SNF forms of terms in errors. *)
 
-val color               : bool ref
-(** Colored output. *)
+val color : bool ref
+(** Flag to disable colored output. *)
 
 (** Print an error message and exit. *)
 val fail : Basic.loc -> ('a, Format.formatter, unit, 'b) format4 -> 'a

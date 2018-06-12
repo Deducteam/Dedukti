@@ -53,10 +53,6 @@ The installation provides the following commands:
 
 ### A SMALL EXAMPLE
 
-A `Dedukti` file must begin with the name of the module.
-
-    #NAME my_module.
-
 Then we can declare constants, giving their name and their type.
 `Dedukti` distinguishes two kinds of declarations:
 
@@ -77,7 +73,7 @@ Let's add rewrite rules to compute additions.
     [ n, m ] plus (succ n) m --> succ (plus n m)
     [ n, m ] plus n (succ m) --> succ (plus n m).
 
-When adding rewrite rules, `Dedukti` checks that they preserves typing.
+When adding rewrite rules, `Dedukti` checks that they preserve typing.
 For this, it checks that the left-hand and right-hand sides of the rules have the same type in some context giving types to the free variables
 (in fact, the criterion used is more general, see below), that the free variables occurring in the right-hand side also occur in the left-hand side
 and that the left-hand side is a *higher-order pattern* (see below).
@@ -109,14 +105,28 @@ In `Dedukti` comments are delimited by `(;` and `;)`.
 
 Supported commands are:
 
-    #WHNF t.        (;  display the weak head normal form of term t ;)
-    #HNF t.         (;  diplay the head normal form of t. ;)
-    #SNF t.         (;  display the strong normal form of t. ;)
-    #STEP t.        (;  display a one-step reduce of t. ;)
-    #CONV t1, t2.   (;  display "OK" if t1 and t2 are convertible, "KO" otherwise. ;)
-    #CHECK t1, t2.  (;  display "OK" if t1 has type t2, "KO" otherwise. ;)
-    #INFER t1.      (;  infer the type of t1 and display it. ;)
-    #PRINT s.       (;  print the string s. ;)
+    #EVAL t.             (; evaluate t to its strong normal form and display it. ;)
+    #EVAL[N].            (; same as above, but evaluate in at most N steps. ;)
+    #EVAL[STRAT].        (; evaluate t with the strategy STRAT. :)
+    #EVAL[N,STRAT].      (; same as above, but evaluate in at most N steps. :)
+    #CHECK t1 == t2.     (; display "YES" if t1 and t2 are convertible, "NO" otherwise. ;)
+    #CHECK t1 : t2.      (; display "YES" if t1 has type t2, "NO" otherwise. ;)
+    #CHECKNOT t1 == t2.  (; display "YES" if t1 and t2 are not convertible, "NO" otherwise. ;)
+    #CHECKNOT t1 : t2.   (; display "YES" if t1 does not have type t2, "NO" otherwise. ;)
+    #ASSERT t1 : t2.     (; fail if t1 does not have type t2. ;)
+    #ASSERT t1 == t2.    (; fail if t1 is not convertible with t2. ;)
+    #ASSERTNOT t1 : t2.  (; fail if t1 does have type t2. ;)
+    #ASSERTNOT t1 == t2. (; fail if t1 is convertible with t2. ;)
+    #INFER t1.           (; infer the type of t1 and display it. ;)
+    #PRINT s.            (; print the string s. ;)
+
+The supported evaluation strategies are:
+ - `SNF` (strong normal form),
+ - `HNF` (head normal form),
+ - `WHNF` (weak head normal form).
+
+Note that the `#INFER` command accepts the same form of configuration as
+the `#EVAL` command. When given, it is used to evaluate the obtained type.
 
 #### DEFINITIONS
 
