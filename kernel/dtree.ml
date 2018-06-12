@@ -4,11 +4,40 @@ open Rule
 open Format
 
 type dtree_error =
-  | HeadSymbolMismatch of loc * name * name
-  | ArityMismatch      of loc * name
-  | ArityInnerMismatch of loc * ident * ident
+  | HeadSymbolMismatch  of loc * name * name
+  | ArityInnerMismatch  of loc * ident * ident
 
 exception DtreeExn of dtree_error
+
+type case =
+  | CConst of int * name
+  | CDB    of int * int
+  | CLam
+
+type arg_pos = { position:int; depth:int }
+type abstract_problem = arg_pos * int LList.t
+
+type matching_problem =
+  | Syntactic of arg_pos LList.t
+  | MillerPattern of abstract_problem LList.t
+
+type dtree =
+  | Switch  of int * (case*dtree) list * dtree option
+  | Test    of Rule.rule_name * matching_problem * constr list * term * dtree option
+
+(** Type of decision forests *)
+type t = (int * dtree) list
+
+let empty = []
+
+(** Return first pair (ar,tree) in given list such that ar <= stack_size *)
+let rec find_dtree stack_size = function
+  | [] -> None
+  | hd :: tl -> if fst hd <= stack_size then Some hd
+    else find_dtree stack_size tl
+
+
+(******************************************************************************)
 
 (*
  * there is one matrix per head symbol that represents all the rules associated to that symbol.
@@ -27,19 +56,27 @@ type matrix =
 
 (* mk_matrix lst builds a matrix out of the non-empty list of rules [lst]
 *  It is checked that all rules have the same head symbol and arity.
-* *)
-let mk_matrix : rule_infos list -> matrix = function
-  | [] -> assert false
-  | r1::rs ->
-    let n = Array.length r1.pats in
-    List.iter (
-      fun r2 ->
-        if not (name_eq r1.cst r2.cst)
-        then raise (DtreeExn (HeadSymbolMismatch (r2.l,r2.cst,r1.cst)));
-        if n != Array.length r2.pats
-        then raise (DtreeExn (ArityMismatch (r2.l,r1.cst)))
-      ) rs;
-    { first=r1; others=rs; col_depth=Array.make n 0; }
+*)
+let mk_matrix (arity:int) (ri:rule_infos list) : matrix =
+  let rules = List.filter (fun x -> List.length x.args <= arity) ri in
+  assert (rules <> []); (* At least one rule should correspond to the given arity. *)
+  let f r =
+    let ar = Array.length r.pats in
+    assert (ar <= arity); (* This guaranted in the of_rules function.  *)
+    if ar == arity then r
+    else (* Edit rule r with too low arity : add extra arguments*)
+      let tail = Array.init (arity-ar) (fun i -> LVar(dmark, i + r.esize,[])) in
+      let new_args =
+        List.map (function LVar(x,n,[]) -> mk_DB dloc x n | _ -> assert false)
+          (Array.to_list tail) in
+      {r with
+       esize = r.esize + arity - ar;
+       rhs   = mk_App2 r.rhs new_args;
+       pats  = Array.append r.pats tail
+      }
+  in
+  let rules = List.map f rules in
+  { first=List.hd rules; others=List.tl rules; col_depth=Array.make arity 0; }
 
 (* Remove a line of the matrix [mx] and return None if the new matrix is Empty. *)
 let pop mx =
@@ -61,14 +98,15 @@ let filter_on_lambda c r =
 (* Keeps only the rules with a bound variable of index [n] on column [c] *)
 let filter_on_bound_variable c n r =
   match r.pats.(c) with
-  | LBoundVar (_,m,_) when n==m -> true
+  | LBoundVar (_,m,_) -> n == m
   | LVar _ | LJoker -> true
   | _ -> false
 
-(* Keeps only the rules with a pattern head by [m].[v] on column [c] *)
-let filter_on_pattern c cst r =
+(* Keeps only the rules with a pattern head by [cst]
+   applied to [ar] arguments on column [c] *)
+let filter_on_pattern c cst ar r =
   match r.pats.(c) with
-  | LPattern (cst',_) when name_eq cst cst' -> true
+  | LPattern (cst', args) -> name_eq cst cst' && Array.length args == ar
   | LVar _ | LJoker -> true
   | _ -> false
 
@@ -79,66 +117,6 @@ let filter_default (mx:matrix) (c:int) : matrix option =
       | LVar _ | LJoker -> true
       | LLambda _ | LPattern _ | LBoundVar _ -> false
   ) mx
-
-type case =
-  | CConst of int * name
-  | CDB    of int * int
-  | CLam
-
-type arg_pos = { position:int; depth:int }
-type abstract_problem = arg_pos * int LList.t
-
-
-type matching_problem =
-  | Syntactic of arg_pos LList.t
-  | MillerPattern of abstract_problem LList.t
-
-let pp_matching_problem fmt matching_problem =
-  match matching_problem with
-  | Syntactic _ -> fprintf fmt "Sy"
-  | MillerPattern _ -> fprintf fmt "Mi"
-
-
-type dtree =
-  | Switch  of int * (case*dtree) list * dtree option
-  | Test    of Rule.rule_name * matching_problem * constr list * term * dtree option
-
-
-let rec pp_dtree t fmt dtree =
-  let tab = String.make (t*4) ' ' in
-  match dtree with
-  | Test (name,mp,[],te,None)   -> fprintf fmt "{%a} (%a) %a" pp_rule_name name pp_matching_problem mp pp_term te
-  | Test (name,mp,[],te,def)      ->
-    fprintf fmt "\n%s{%a} if true then (%a) %a\n%selse (%a) %a" tab pp_rule_name name  pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
-  | Test (name,mp,lst,te,def)  ->
-    let aux out = function
-      | Linearity (i,j) -> fprintf out "{%a} %d =l %d" pp_rule_name name i j
-      | Bracket (i,j) -> fprintf out "{%a} %a =b %a" pp_rule_name name pp_term (mk_DB dloc dmark i) pp_term j
-    in
-    fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
-      pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
-  | Switch (i,cases,def)->
-    let pp_case out = function
-      | CConst (_,cst), g ->
-        fprintf out "\n%sif $%i=%a then %a" tab i pp_name cst (pp_dtree (t+1)) g
-      | CLam, g -> fprintf out "\n%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
-      | CDB (_,n), g -> fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (pp_dtree (t+1)) g
-    in
-    fprintf fmt "%a\n%sdefault: %a" (pp_list "" pp_case)
-      cases tab (pp_def (t+1)) def
-
-and pp_def t fmt = function
-  | None   -> fprintf fmt "FAIL"
-  | Some g -> pp_dtree t fmt g
-
-let pp_dtree fmt dtree = pp_dtree 0 fmt dtree
-
-type rw = name * int * dtree
-
-let pp_rw fmt (cst,i,g) =
-  fprintf fmt "GDT for '%a' with %i argument(s): %a"
-    pp_name cst i pp_dtree g
-
 
 (* Specialize the rule [r] on column [c]
  * i.e. replace colum [c] with a joker and append [nargs] new column at the end.
@@ -163,13 +141,10 @@ let specialize_rule (c:int) (nargs:int) (r:rule_infos) : rule_infos =
         pats.( i - size)
       in
       match r.pats.(c) with
-        | LJoker | LVar _ -> LJoker
-        | LPattern (cst,pats2) ->
-          let id = id cst in
-          check_args id pats2
-        | LBoundVar (id,_,pats2) ->
-          check_args id pats2
-        | LLambda (_,p) -> ( assert ( nargs == 1); p )
+      | LJoker | LVar _ -> LJoker
+      | LPattern  (cst , pats2) -> check_args (id cst) pats2
+      | LBoundVar (id,_, pats2) -> check_args id       pats2
+      | LLambda (_,p) -> ( assert ( nargs == 1); p )
   in
   { r with pats = Array.init (size+nargs) aux }
 
@@ -194,44 +169,39 @@ let spec_col_depth_l (c:int) (col_depth: int array) : int array =
 
 (* Specialize the matrix [mx] on column [c] *)
 let specialize mx c case : matrix =
-  let (mx_opt,nargs) = match case with
-    | CLam -> ( filter (filter_on_lambda c) mx , 1 )
-    | CDB (nargs,n) -> ( filter (filter_on_bound_variable c n) mx , nargs )
-    | CConst (nargs,cst) -> ( filter (filter_on_pattern c cst) mx , nargs )
-  in
+  let (mx_filter, nargs) = match case with
+    | CLam               -> (filter_on_lambda c           , 1     )
+    | CDB (nargs,n)      -> (filter_on_bound_variable c n , nargs )
+    | CConst (nargs,cst) -> (filter_on_pattern c cst nargs, nargs ) in
+  let mx_opt = filter mx_filter mx in
   let new_cn = match case with
-    | CLam -> spec_col_depth_l c mx.col_depth
-    | _ ->    spec_col_depth c nargs mx.col_depth
+    | CLam -> spec_col_depth_l c       mx.col_depth
+    | _    -> spec_col_depth   c nargs mx.col_depth
   in
-    match mx_opt with
-    | None -> assert false
-    | Some mx2 ->
-      { first = specialize_rule c nargs mx2.first;
-        others = List.map (specialize_rule c nargs) mx2.others;
-        col_depth = new_cn;
-      }
+  match mx_opt with
+  | None -> assert false
+  | Some mx2 ->
+    { first =            specialize_rule c nargs  mx2.first;
+      others = List.map (specialize_rule c nargs) mx2.others;
+      col_depth = new_cn;
+    }
 
-(* ***************************** *)
 
-let eq a b =
-  match a, b with
-  | CLam, CLam -> true
-  | CDB (_,n), CDB (_,n') when n==n' -> true
-  | CConst (_,cst), CConst (_,cst') when (name_eq cst cst') -> true
-  | _, _ -> false
+(******************************************************************************)
 
 let partition (mx:matrix) (c:int) : case list =
   let aux lst li =
-    let add h = if List.exists (eq h) lst then lst else h::lst in
-      match li.pats.(c) with
-        | LPattern (cst,pats)  -> add (CConst (Array.length pats,cst))
-        | LBoundVar (_,n,pats) -> add (CDB (Array.length pats,n))
-        | LLambda _ -> add CLam
-        | LVar _ | LJoker -> lst
+    let add h = if List.mem h lst then lst else h::lst in
+    match li.pats.(c) with
+    | LPattern (cst,pats)  -> add (CConst (Array.length pats,cst))
+    | LBoundVar (_,n,pats) -> add (CDB (Array.length pats,n))
+    | LLambda _ -> add CLam
+    | LVar _ | LJoker -> lst
   in
-    List.fold_left aux [] (mx.first::mx.others)
+  List.fold_left aux [] (mx.first::mx.others)
 
-(* ***************************** *)
+
+(******************************************************************************)
 
 let array_to_llist arr = LList.of_array arr
 
@@ -270,6 +240,7 @@ let get_first_matching_problem mx =
     then MillerPattern (array_to_llist arr2)
     else Syntactic (array_to_llist arr1)
 
+
 (******************************************************************************)
 
 (* Give the index of the first non variable column *)
@@ -285,22 +256,92 @@ let choose_column mx =
 (* Construct a decision tree out of a matrix *)
 let rec to_dtree (mx:matrix) : dtree =
   match choose_column mx with
-    (* There are only variables on the first line of the matrix *)
+  (* There are only variables on the first line of the matrix *)
   | None   -> Test (mx.first.name,
                     get_first_matching_problem mx,
                     get_first_constraints mx,
                     get_first_term mx,
                     map_opt to_dtree (pop mx) )
-    (* Pattern on the first line at column c *)
-    | Some c ->
-        let cases = partition mx c in
-        let aux ca = ( ca , to_dtree (specialize mx c ca) ) in
-          Switch (c, List.map aux cases, map_opt to_dtree (filter_default mx c) )
+  (* Pattern on the first line at column c *)
+  | Some c ->
+    let cases = partition mx c in
+    let aux ca = ( ca , to_dtree (specialize mx c ca) ) in
+    Switch (c, List.map aux cases, map_opt to_dtree (filter_default mx c) )
+
 
 (******************************************************************************)
 
+(** Adds a new arity to a (reverse) sorted list of distincts arities *)
+let rec add l ar =
+  match l with
+  | [] -> [ar]
+  | hd :: tl ->
+    if ar > hd then ar :: l
+    else if ar == hd then l (* ar is already in l *)
+    else hd :: (add tl ar)
 
-let of_rules (rs:rule_infos list) : (int*dtree,dtree_error) error =
-  try
-    let mx = mk_matrix rs in OK ( Array.length mx.first.pats , to_dtree mx )
-  with DtreeExn e -> Err e
+let of_rules = function
+  | [] -> OK []
+  | r::tl as rs -> 
+    try
+      let name = r.cst in
+      let arities = ref [] in
+      List.iter
+        (fun x ->
+           if not (name_eq x.cst name)
+           then raise (DtreeExn (HeadSymbolMismatch (x.l,x.cst,name)));
+           let arity = List.length x.args in
+           arities := add !arities arity)
+        rs;
+      let sorted_arities = List.fold_left add [] !arities in
+      (* reverse sorted list of all rewrite rules arities. *)
+      let aux ar =
+        let m = mk_matrix ar rs in
+        (ar, to_dtree m) in
+      OK (List.map aux sorted_arities)
+    with DtreeExn e -> Err e
+
+
+(******************************************************************************)
+
+let pp_matching_problem fmt matching_problem =
+  match matching_problem with
+  | Syntactic _ -> fprintf fmt "Sy"
+  | MillerPattern _ -> fprintf fmt "Mi"
+
+let rec pp_dtree t fmt dtree =
+  (* FIXME: Use format boxes here instead of manual tabs. *)
+  let tab = String.init (1 + t*4) (fun i -> if i == 0 then '\n' else ' ') in
+  match dtree with
+  | Test (name,mp,[],te,None)   -> fprintf fmt "{%a} (%a) %a" pp_rule_name name pp_matching_problem mp pp_term te
+  | Test (name,mp,[],te,def)      ->
+    fprintf fmt "\n%s{%a} if true then (%a) %a\n%selse (%a) %a" tab pp_rule_name name  pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
+  | Test (name,mp,lst,te,def)  ->
+    let aux out = function
+      | Linearity (i,j) -> fprintf out "{%a} %d =l %d" pp_rule_name name i j
+      | Bracket (i,j) -> fprintf out "{%a} %a =b %a" pp_rule_name name pp_term (mk_DB dloc dmark i) pp_term j
+    in
+    fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
+      pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
+  | Switch (i,cases,def)->
+    let pp_case out = function
+      | CConst (_,cst), g ->
+        fprintf out "\n%sif $%i=%a then %a" tab i pp_name cst (pp_dtree (t+1)) g
+      | CLam, g -> fprintf out "\n%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
+      | CDB (_,n), g -> fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (pp_dtree (t+1)) g
+    in
+    fprintf fmt "%a\n%sdefault: %a" (pp_list "" pp_case)
+      cases tab (pp_def (t+1)) def
+
+and pp_def t fmt = function
+  | None   -> fprintf fmt "FAIL"
+  | Some g -> pp_dtree t fmt g
+
+let pp_dtree fmt dtree = pp_dtree 0 fmt dtree
+
+let pp_rw fmt (i,g) =
+  fprintf fmt "When applied to %i argument(s): %a" i pp_dtree g
+
+let pp_dforest fmt = function
+  | []    -> fprintf fmt "No GDT.@."
+  | trees -> (pp_list "\n" pp_rw) fmt trees

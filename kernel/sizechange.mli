@@ -42,7 +42,7 @@ type call_graph
 
 val termination_check : bool -> mident -> rule_infos list list ->
   (name * Signature.staticity * term *
-     (rule_infos list*int*Dtree.dtree) option
+     (rule_infos list*Dtree.t) option
   ) list -> bool
 
 val print_res : bool -> bool -> bool -> unit

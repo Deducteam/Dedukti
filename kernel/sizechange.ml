@@ -432,7 +432,6 @@ let get_caller : rule_infos -> index = fun r ->
 let term2rule : rule_infos -> term -> rule_infos = fun r t ->
   {l=r.l;
    name=r.name;
-   ctx=r.ctx;
    cst=r.cst;
    args=r.args;
    rhs=t;
@@ -741,10 +740,9 @@ let print_sig sg=
           Signature.pp_staticity
           pp_term
           (pp_option "None"
-             (pp_triple
+             (pp_couple
                 (pp_list ";" pp_rule_infos)
-                Format.pp_print_int
-                Dtree.pp_dtree
+                Dtree.pp_dforest
              )
           )
        )
@@ -879,13 +877,13 @@ let termination_check vb mod_name ext_ru whole_sig =
       create_symbol fct ar stat;
       match rules_opt with
       | None -> ()
-      | Some (rul,_,_) -> List.iter create_rule rul
+      | Some (rul,_) -> List.iter create_rule rul
     ) whole_sig;
   List.iter
     (fun (fct,_,typ,rules_opt) ->
       match rules_opt with
       | None -> ()
-      | Some (rul,_,_) ->
+      | Some (rul,_) ->
          begin
            add_rules rul;
            match right_most fct typ with

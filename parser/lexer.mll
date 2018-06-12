@@ -8,9 +8,7 @@
 
   let get_loc lexbuf = loc_of_pos lexbuf.lex_start_p
 
-  let prerr_loc lc =
-  let (l,c) = of_loc lc in
-    eprintf "line:%i column:%i " l c
+  let prerr_loc lc = eprintf "%a " pp_loc lc
 
   let fail lc fmt =
     eprintf "%s"  "parsing error: ";
@@ -45,8 +43,8 @@ rule token = parse
   | "Type"      { TYPE       ( get_loc lexbuf ) }
   | "def"       { KW_DEF     ( get_loc lexbuf ) }
   | "thm"       { KW_THM     ( get_loc lexbuf ) }
-  | "#NAME" space+ (mident as md)
-  { NAME (get_loc lexbuf , mk_mident md) }
+  | "#NAME"    space+ (mident as md) { NAME    (get_loc lexbuf , mk_mident md) }
+  | "#REQUIRE" space+ (mident as md) { REQUIRE (get_loc lexbuf , mk_mident md) }
   | "#EVAL"     { EVAL       ( get_loc lexbuf ) }
   | "#INFER"    { INFER      ( get_loc lexbuf ) }
   | "#CHECK"    { CHECK      ( get_loc lexbuf ) }

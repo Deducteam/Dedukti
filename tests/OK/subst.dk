@@ -1,5 +1,7 @@
-#NAME subst.
 
 A : Type.
 x : A.
-t : (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => A) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x.
+t1 : (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A =>
+    (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A =>
+    (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => A) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x.
+t2 : (x:A => x:A => x:A => x:A => x:A => x:A => x:A => A) x x x x x x x.

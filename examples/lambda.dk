@@ -1,5 +1,3 @@
-#NAME stlc.
-
 type:Type.
 o:type.
 arrow: type -> type -> type.

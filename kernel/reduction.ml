@@ -15,12 +15,12 @@ type red_cfg = {
 
 let pp_red_cfg fmt strat =
   match strat with
-  | {strategy=Snf ;nb_steps=None   } -> ()
-  | {strategy=Snf ;nb_steps=Some i } -> Format.fprintf fmt "[%i]" i
+  | {strategy=Snf ;nb_steps=None   } -> Format.fprintf fmt "[SNF]"
+  | {strategy=Snf ;nb_steps=Some i } -> Format.fprintf fmt "[SNF,%i]" i
   | {strategy=Hnf ;nb_steps=None   } -> Format.fprintf fmt "[HNF]"
   | {strategy=Hnf ;nb_steps=Some i } -> Format.fprintf fmt "[HNF,%i]" i
-  | {strategy=Whnf;nb_steps=None   } -> Format.fprintf fmt "[WHNF]"
-  | {strategy=Whnf;nb_steps=Some i } -> Format.fprintf fmt "[WHNF,%i]" i
+  | {strategy=Whnf;nb_steps=None   } -> ()
+  | {strategy=Whnf;nb_steps=Some i } -> Format.fprintf fmt "[%i]" i
 
 let default_cfg = { select = None ; nb_steps = None ; strategy = Snf ; beta = true }
 
@@ -73,45 +73,14 @@ let pp_stack fmt (st:stack) =
     fprintf fmt "[ %a ]\n" (pp_list "\n | " aux) st
 
 let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
-  begin
-    if if_ctx then
-      fprintf fmt "{ctx=[%a];@." pp_env ctx
-    else
-      fprintf fmt "{ctx=[...](%i);@." (LList.len ctx)
-  end;
+  if if_ctx
+  then fprintf fmt "{ctx=[%a];@." pp_env ctx
+  else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx);
   fprintf fmt "term=%a;@." pp_term term;
-  begin
-    if if_stack then
-      fprintf fmt "stack=%a}@." pp_stack stack
-    else
-      fprintf fmt "stack=[...]}@."
-  end;
+  if if_stack
+  then fprintf fmt "stack=%a}@." pp_stack stack
+  else fprintf fmt "stack=[...]}@.";
   fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
-
-(* Misc *)
-(* FIXME: only used once in are_convertible_list, should it be declared at top level? *)
-let rec add_to_list2 l1 l2 lst =
-  match l1, l2 with
-    | [], [] -> Some lst
-    | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
-    | _,_ -> None
-
-let rec split_stack (i:int) : stack -> (stack*stack) option = function
-  | l  when i=0 -> Some ([],l)
-  | []          -> None
-  | x::l        -> map_opt (fun (s1,s2) -> (x::s1,s2) ) (split_stack (i-1) l)
-
-let rec safe_find m v = function
-  | []                  -> None
-  | (_,m',v',tr)::tl       ->
-      if ident_eq v v' && ident_eq m m' then Some tr
-      else safe_find m v tl
-
-let rec add_to_list lst (s:stack) (s':stack) =
-  match s,s' with
-    | [] , []           -> Some lst
-    | x::s1 , y::s2     -> add_to_list ((x,y)::lst) s1 s2
-    | _ ,_              -> None
 
 (* ********************* *)
 
@@ -176,10 +145,10 @@ let rec find_case (st:state) (cases:(case * dtree) list)
                   (default:dtree option) : (dtree*state list) option =
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
-  | { term=Const (_,n); stack } , (CConst (nargs,n'),tr)::tl ->
+  | { term=Const (_,cst); stack } , (CConst (nargs,cst'),tr)::tl ->
      (* The case doesn't match if the identifiers differ or the stack is not
       * of the expected size. *)
-     if name_eq n n' && List.length stack == nargs
+     if name_eq cst cst' && List.length stack == nargs
      then Some (tr,stack)
      else find_case st tl default
   | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
@@ -191,7 +160,7 @@ let rec find_case (st:state) (cases:(case * dtree) list)
       then Some (tr,stack)
       else find_case st tl default
     end
-  | { ctx; term=Lam (_,_,_,_) } , ( CLam , tr )::tl ->
+  | { ctx; term=Lam _; stack } , ( CLam , tr )::tl ->
     begin
       match term_of_state st with (*TODO could be optimized*)
       | Lam (_,_,_,te) ->
@@ -292,21 +261,14 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack } ->
-    begin
-      let dtree = Signature.get_dtree sg !selection l n in
-      match dtree with
+    let trees = Signature.get_dtree sg !selection l n in
+    match find_dtree (List.length stack) trees with
+    | None -> st
+    | Some (ar, tree) ->
+      let s1, s2 = split_list ar stack in
+      match gamma_rw sg are_convertible snf state_whnf s1 tree with
       | None -> st
-      | Some (i,g) ->
-        begin
-          match split_stack i stack with
-          | None -> st
-          | Some (s1,s2) ->
-            ( match gamma_rw sg are_convertible snf state_whnf s1 g with
-              | None -> st
-              | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
-            )
-        end
-    end
+      | Some (ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
 
 (* ********************* *)
 
@@ -322,7 +284,8 @@ and snf sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
-and are_convertible_lst sg : (term*term) list -> bool = function
+and are_convertible_lst sg : (term*term) list -> bool =
+  function
   | [] -> true
   | (t1,t2)::lst ->
     begin
@@ -381,7 +344,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
       (* Not a beta redex (or beta disabled) *)
       | { term=Lam _ } when strat == Whnf -> (red, st)
       (* Not a beta redex (or beta disabled) but keep looking for normal form *)
-      | { ctx; term=Lam(l,x,ty_opt,t); stack } ->
+      | { ctx; term=Lam(l,x,ty_opt,t); stack=[] } ->
         begin
           match term_of_state st with
           | Lam(_,_,_,t') ->
@@ -396,13 +359,29 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
             end
           | _ -> assert false
         end
-
+      | { ctx; term=Lam(l,x,ty_opt,t); stack=a::args } ->
+        begin
+          match term_of_state st with
+          | App(Lam(_,_,_,t'),_,_) ->
+            let (red, st_t) = aux (red, {ctx=LList.nil; term=t'; stack=[]}) in
+            let t' = term_of_state st_t in
+            begin
+              match strat with
+              | Snf ->
+                let red, args = List.fold_right (fun a (red,args) ->
+                  let red, a' = aux (red,a) in
+                  red,a::args) (a::args)  (red,[])
+                in
+                (red, {ctx; term = mk_Lam l x ty_opt t'; stack= args})
+              | _ -> (red, {ctx; term = mk_Lam l x ty_opt t'; stack= a::args})
+            end
+          | _ -> assert false
+        end
       (* DeBruijn index: environment lookup *)
       | { ctx; term=DB (_,_,n); stack } when n < LList.len ctx ->
         aux (red, { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack })
       (* DeBruijn index: out of environment *)
       | { term=DB _ } -> (red, st)
-
       (* Application: arguments go on the stack *)
       | { ctx; term=App (f,a,lst); stack=s } when strat <> Snf ->
         let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
@@ -416,29 +395,22 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
           st in
         let new_stack = List.rev_append (List.rev_map reduce (a::lst)) s in
         aux (!redc, {ctx; term=f; stack=new_stack })
-
       (* Potential Gamma redex *)
       | { ctx; term=Const (l,n); stack } ->
-        begin
-          match Signature.get_dtree sg !selection l n with
-          | None -> (red, st)
-          | Some (i,g) ->
-            begin
-              match split_stack i stack with
-              | None -> (red, st)
-              | Some (s1,s2) ->
-                ( match gamma_rw sg are_convertible snf state_whnf s1 g with
-                  | None -> (red, st)
-                  | Some (ctx,term) -> aux (red-1, { ctx; term; stack=s2 })
-                )
-            end
-        end
+        let trees = Signature.get_dtree sg !selection l n in
+        match find_dtree (List.length stack) trees with
+        | None -> (red,st)
+        | Some (ar, tree) ->
+          let s1, s2 = split_list ar stack in
+          match gamma_rw sg are_convertible snf state_whnf s1 tree with
+          | None -> (red,st)
+          | Some (ctx,term) -> aux (red-1, { ctx; term; stack=s2 })
   in
   aux (steps,state)
 
 let reduction_steps n strat sg t =
   let st = { ctx=LList.nil; term=t; stack=[] } in
-  let (n',st') = state_nsteps sg strat n st in
+  let (_,st') = state_nsteps sg strat n st in
   term_of_state st'
 
 let reduction strat sg te =

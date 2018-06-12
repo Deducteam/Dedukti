@@ -1,5 +1,3 @@
-#NAME FO_theorems.
-
 (;  Imports from FO theory  ;)
 def Prop  := FO.Prop.
 def prf   := FO.prf.
