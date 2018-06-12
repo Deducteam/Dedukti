@@ -37,6 +37,10 @@ val export              : t -> bool
 
 val get_id_comparator   : t -> ident_comparator
 
+val get_md_deps            : loc -> mident -> mident list
+(** [get_deps lc md] returns the list of direct dependencies of module [md].
+    This function makes the assumption that the file [md.dko] exists. *)
+
 val is_static           : t -> loc -> name -> bool
 (** [is_injective sg l cst] is true when [cst] is a static symbol. *)
 

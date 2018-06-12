@@ -251,6 +251,10 @@ and is_AC sg lc name = (get_algebra sg lc name) <> Free
 
 (******************************************************************************)
 
+let get_md_deps (lc:loc) (md:mident) =
+  let (deps,_,_) = unmarshal lc (string_of_mident md) in
+  List.map mk_mident deps
+
 let get_deps sg : string list = (*only direct dependencies*)
   HMd.fold (
     fun md _ lst ->
