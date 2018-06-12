@@ -380,14 +380,15 @@ let rec comparison :  int -> term -> pattern -> cmp =
 	  Infi
     in
     match p,t with
-    | Var (_,_,n,[]), DB (_,_,m) -> if n+nb=m then Zero else Infi
-    | Var (_,_,n,[]), App(DB(_,_,m),_,_) -> if n+nb=m then Zero else Infi
+    | Var (_,_,n,_), DB (_,_,m) -> if n+nb=m then Zero else Infi
+    | Var (_,_,n,_), App(DB(_,_,m),_,_) -> if n+nb=m then Zero else Infi
     | Lambda(_,_,Var(_,_,n,_)), App(DB(_,_,m),_,_) -> if n+nb=m+1 then Zero else Infi
     | Pattern (_,f,lp), App(Const(_,g),t1,lt) when (name_eq f g) ->
        begin
 	 comp_list Zero lp (t1::lt)
        end
     | Pattern (_,_,l),t -> minus1 (mini Infi (List.map (comparison nb t) l))
+    | Lambda(_,_,pp),Lam(_,_,_,tt) -> comparison nb tt pp
     | _ -> Infi
 
 (** [matrix_of_lists m lp n lt n] compare each term of a list [lt] with a list of pattern [lp] considering that we are under [nb] lambdas and add some Infi to respect the arities of the caller and called functions *)
