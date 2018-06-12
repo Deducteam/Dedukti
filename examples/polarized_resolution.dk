@@ -1,0 +1,93 @@
+(; Constructive predicate logic ;)
+o : Type.
+def eps : o -> Type.
+i : Type.
+top : o.
+[ ] eps top --> z:o -> (eps z) -> (eps z).
+
+bot : o.
+[ ] eps bot --> z:o -> (eps z).
+
+imp : o -> o -> o.
+[a, b] eps (imp a b) --> eps a -> eps b.
+
+def not : o -> o := x:o => imp x bot.
+
+or : o -> o -> o.
+[x, y] eps (or x y) 
+        --> (eps x -> eps bot) -> (eps y -> eps bot) -> eps bot.
+
+fa_i : (i -> o) -> o.
+[y] eps (fa_i y) --> x:i -> eps (y x).
+
+ex_i : (i -> o) -> o.
+[y] eps (ex_i y) --> z:o -> (x:i -> eps (y x) -> (eps z)) -> eps z.
+const : i.
+
+(; Clauses as list of literals ;)
+clause : Type.
+add : o -> clause -> clause.
+empty : clause.
+
+def lit : o -> Type := p => eps p -> eps bot.
+
+def embed : clause -> Type.
+[] embed empty --> eps bot.
+[l, c] embed (add l c) --> lit l -> embed c.
+
+(; polarized rewriting of clauses ;)
+def A : o.
+B : o.
+C : o.
+D : o.
+
+[] A -->- B.
+
+clause1: embed (add A (add C (add D empty))).
+
+def clause2: embed (add B (add C (add D empty))) :=
+clause1.
+
+
+def E : o.
+F : o.
+G : o.
+H : o.
+I : o.
+
+[] E -->- or F G.
+
+clause3 : embed (add E (add H (add I empty))).
+
+def clause4 : embed (add F (add G (add H (add I empty)))) :=
+f => g => h => i =>
+clause3 (elimfg => elimfg f g) h i.
+
+
+def J : o.
+K : o.
+L : o.
+M : o.
+
+[] J -->+ K.
+
+clause5 : embed (add (not J) (add L (add M empty))).
+
+def clause6 : embed (add (not K) (add L (add M empty))) :=
+clause5.
+
+
+def N : o.
+O : o.
+P : o.
+Q : o.
+R : o.
+
+[] N -->+ not (or O P).
+
+clause7 : embed (add (not N) (add Q (add R empty))).
+
+def clause8 : embed (add O (add P (add Q (add R empty)))) :=
+no => np => q => r =>
+clause7 (h => h (elimop => elimop no np)) q r.
+

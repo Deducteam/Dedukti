@@ -1,0 +1,34 @@
+def A : Type.
+def B : Type.
+def C : Type.
+def A' : Type.
+def A'' : Type.
+def C' : Type.
+def C'' : Type.
+
+u : A'.
+t : C'.
+
+[] C -->+ C''.
+[] C -->- A -> B.
+[] C' -->- C''.
+[] A -->+ A''.
+[] A' -->- A''.
+
+(; non-commuting systems do not enjoy subject reduction ;)
+#CHECK ((x : C => x) t) u : B.
+#CHECKNOT t u : B.
+
+(; complete the system to make it commute ;)
+def A3 : Type.
+A4 : Type.
+def B3 : Type.
+B4 : Type.
+
+[] C'' -->- A3 -> B3.
+[] A3 -->+ A4.
+[] B3 -->- B4.
+[] A'' -->- A4.
+[] B -->+ B4.
+
+#CHECK t u : B.
