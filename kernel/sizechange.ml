@@ -381,7 +381,9 @@ let rec comparison :  int -> term -> pattern -> cmp =
     in
     match p,t with
     | Var (_,_,n,[]), DB (_,_,m) -> if n+nb=m then Zero else Infi
-    | Pattern (_,n,lp), App(Const(_,g),t1,lt) when (name_eq n g) ->
+    | Var (_,_,n,[]), App(DB(_,_,m),_,_) -> if n+nb=m then Zero else Infi
+    | Lambda(_,_,Var(_,_,n,_)), App(DB(_,_,m),_,_) -> if n+nb=m+1 then Zero else Infi
+    | Pattern (_,f,lp), App(Const(_,g),t1,lt) when (name_eq f g) ->
        begin
 	 comp_list Zero lp (t1::lt)
        end
