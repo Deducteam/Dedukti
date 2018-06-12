@@ -277,16 +277,16 @@ let unshift_n pol sg n te =
   try Subst.unshift n te
   with Subst.UnshiftExn -> Subst.unshift n (snf pol sg te)
 
-let rec infer_pattern pol sg (delta:partial_context) (sigma:context2)
+let rec infer_pattern sg (delta:partial_context) (sigma:context2)
     (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
   match pat with
   | Pattern (l,cst,args) ->
-    let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux pol sg sigma)
+    let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
         ( mk_Const l cst , Signature.get_type sg l cst , delta , lst ) args
     in (ty,delta2,lst2)
   | Var (l,x,n,args) ->
     if n < (LList.len sigma) then
-      let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux pol sg sigma)
+      let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
           ( mk_DB l x n, get_type (LList.lst sigma) l x n , delta , lst ) args
       in (ty,delta2,lst2)
     else
@@ -299,26 +299,26 @@ let rec infer_pattern pol sg (delta:partial_context) (sigma:context2)
     let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
     raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
 
-and infer_pattern_aux pol sg (sigma:context2)
+and infer_pattern_aux sg (sigma:context2)
     (f,ty_f,delta,lst:term*typ*partial_context*constraints)
     (arg:pattern) : term * typ * partial_context * constraints =
-  match whnf pol sg ty_f with
+  match whnf P sg ty_f with
     | Pi (_,_,a,b) ->
-        let (delta2,lst2) = check_pattern pol sg delta sigma a lst arg in
+        let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
         let arg' = pattern_to_term arg in
         ( Term.mk_App f arg' [], Subst.subst b arg', delta2 , lst2 )
     | ty_f ->
       let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
       raise (TypingError (ProductExpected (f,ctx,ty_f)))
 
-and check_pattern pol sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
+and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     (lst:constraints) (pat:pattern) : partial_context * constraints =
   Debug.(debug d_rule "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty);
   match pat with
   | Lambda (l,x,p) ->
     begin
-      match whnf pol sg exp_ty with
-      | Pi (l,x,a,b) -> check_pattern pol sg delta (LList.cons (l,x,a) sigma) b lst p
+      match whnf P sg exp_ty with
+      | Pi (l,x,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
       | exp_ty ->
         let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
         raise (TypingError ( ProductExpected (pattern_to_term pat,ctx,exp_ty)))
@@ -331,7 +331,7 @@ and check_pattern pol sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
         raise (TypingError (BracketError1 (te,ctx)))
     in
     let ty2 =
-      try unshift_n pol sg (delta.padding + LList.len sigma) exp_ty
+      try unshift_n P sg (delta.padding + LList.len sigma) exp_ty
       with Subst.UnshiftExn ->
         let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
         raise (TypingError (BracketError2 (te,ctx,exp_ty)))
@@ -344,20 +344,20 @@ and check_pattern pol sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
 
       match pc_get delta (n-k) with
       | None ->
-        ( try ( pc_add delta (n-k) l x (unshift_n pol sg k exp_ty), lst )
+        ( try ( pc_add delta (n-k) l x (unshift_n P sg k exp_ty), lst )
           with Subst.UnshiftExn ->
             let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
             raise (TypingError (FreeVariableDependsOnBoundVariable (l,x,n,ctx,exp_ty))) )
       | Some ty ->
         let inf_ty = Subst.shift k ty in
-        ( delta, (k,inf_ty,exp_ty,pol)::lst )
+        ( delta, (k,inf_ty,exp_ty,P)::lst )
     end
   | Var (l,x,n,args) when (n>=LList.len sigma) ->
     begin
       let (args2,last) = get_last args in
       match last with
       | Var (l2,x2,n2,[]) ->
-        check_pattern pol sg delta sigma
+        check_pattern sg delta sigma
           (mk_Pi l2 x2 (get_type (LList.lst sigma) l2 x2 n2) (Subst.subst_n n2 x2 exp_ty) )
           lst (Var(l,x,n,args2))
       | _ ->
@@ -366,9 +366,9 @@ and check_pattern pol sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     end
   | _ ->
     begin
-      let (inf_ty,delta2,lst2) = infer_pattern pol sg delta sigma lst pat in
+      let (inf_ty,delta2,lst2) = infer_pattern sg delta sigma lst pat in
       let q = LList.len sigma in
-      ( delta2 , (q,inf_ty,exp_ty,pol)::lst2 )
+      ( delta2 , (q,inf_ty,exp_ty,P)::lst2 )
     end
 
 (* ************************************************************************** *)
@@ -404,7 +404,7 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context option =
 let check_rule sg (rule:untyped_rule) : typed_rule =
   (*  let ctx0,le,ri = rule.rule in *)
   let delta = pc_make rule.ctx in
-  let (ty_le,delta,lst) = infer_pattern P sg delta LList.nil [] rule.pat in
+  let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
   assert ( delta.padding == 0 );
   let sub = match pseudo_u sg SS.identity lst with
     | None -> raise (TypingError (CannotSolveConstraints (rule,lst)))
