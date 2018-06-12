@@ -329,8 +329,7 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
       | _ -> assert false
     end
   | Switch (i,cases,def) ->
-    let arg_i = List.nth stack i in
-    let arg_i = strategy sg arg_i in
+    let arg_i = strategy sg (List.nth stack i) in
     let new_cases =
       List.map
         (fun (g,l) -> ( (match l with |[] -> stack | s -> stack@s), g))
