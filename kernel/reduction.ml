@@ -34,10 +34,10 @@ let select f b : unit =
 
 exception NotConvertible
 
-let rec add_to_list2 l1 l2 lst =
+let rec zip_lists l1 l2 lst =
   match l1, l2 with
   | [], [] -> lst
-  | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
+  | s1::l1, s2::l2 -> zip_lists l1 l2 ((s1,s2)::lst)
   | _,_ -> raise NotConvertible
 
 (* State *)
@@ -291,7 +291,6 @@ and snf sg (t:term) : term =
   | App (f,a,lst) -> mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst)
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
-
 
 and are_convertible_lst sg : (term*term) list -> bool =
   function
