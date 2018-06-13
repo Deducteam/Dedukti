@@ -32,6 +32,14 @@ let select f b : unit =
   selection := f;
   beta := b
 
+exception NotConvertible
+
+let rec add_to_list2 l1 l2 lst =
+  match l1, l2 with
+  | [], [] -> lst
+  | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
+  | _,_ -> raise NotConvertible
+
 (* State *)
 
 type env = term Lazy.t LList.t
@@ -284,30 +292,28 @@ and snf sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
+
 and are_convertible_lst sg : (term*term) list -> bool =
   function
   | [] -> true
   | (t1,t2)::lst ->
-    begin
-      match (
-        if term_eq t1 t2 then Some lst
+    are_convertible_lst sg
+      ( if term_eq t1 t2 then lst
         else
           match whnf sg t1, whnf sg t2 with
-          | Kind, Kind | Type _, Type _ -> Some lst
-          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
-          | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
+          | Kind, Kind | Type _, Type _                     -> lst
+          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> lst
+          | DB (_,_,n) , DB (_,_,n')  when ( n==n' )        -> lst
           | App (f,a,args), App (f',a',args') ->
-            add_to_list2 args args' ((f,f')::(a,a')::lst)
-          | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
-          | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
-          | t1, t2 -> None
-      ) with
-      | None -> false
-      | Some lst2 -> are_convertible_lst sg lst2
-    end
+            (f,f') :: (a,a') :: (add_to_list2 args args' lst)
+          | Lam (_,_,_,b), Lam (_,_,_,b') -> (b,b') :: lst
+          | Pi (_,_,a,b) , Pi (_,_,a',b') -> (a,a') :: (b,b') :: lst
+          | t1, t2 -> raise NotConvertible)
 
 (* Convertibility Test *)
-and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
+and are_convertible sg t1 t2 =
+  try are_convertible_lst sg [(t1,t2)]
+  with NotConvertible -> false
 
 (* Head Normal Form *)
 let rec hnf sg t =
