@@ -7,11 +7,15 @@ c : C.
 [] A -->+ B.
 [] A -->- C.
 def f : A -> A.
-[c] f c --> b.
+
 #EVAL A -> A.
 #INFER f a.
 #CHECK (f a) : A.
+#CHECKNOT (f a) : B.
 #CHECK (f a) : C.
-#CHECKNOT (f b) : A.
-#CHECK (f c) : B.
+#CHECK (f b) : A.
+#CHECKNOT (f b) : B.
+#CHECK (f b) : C.
+#CHECKNOT (f c) : A.
+#CHECKNOT (f c) : B.
 #CHECKNOT (f c) : C.
