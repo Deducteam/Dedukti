@@ -31,5 +31,5 @@ val reduction : red_cfg -> polarity -> Signature.t -> term -> term
     and using the signature [sg], at a position of polarity [pol]. *)
 
 val are_convertible : Signature.t -> term -> term -> bool
-(** [are_convertible pol sg t1 t2] checks whether [t1] and [t2] are convertible
+(** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
     or not in the signature [sg], i.e. [t1] -->-* *+<-- [t2] *)

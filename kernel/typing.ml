@@ -66,9 +66,8 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
         | _ -> raise (TypingError (SortExpected (b, ctx2, ty_b))) )
   | Lam  (l,x,Some a,b) ->
      let ty_a = infer sg ctx a in
-      (* the type of A is infered at a positive position *)
-      let ctx2 = extend_ctx (l,x,a) ctx ty_a in
-      let ty_b = infer sg ctx2 b in
+     let ctx2 = extend_ctx (l,x,a) ctx ty_a in
+     let ty_b = infer sg ctx2 b in
         ( match ty_b with
             | Kind -> raise (TypingError (InexpectedKind (b, ctx2)))
             | _ -> mk_Pi l x a ty_b )
