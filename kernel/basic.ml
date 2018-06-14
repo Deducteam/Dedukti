@@ -136,8 +136,9 @@ module Debug = struct
   let d_typeChecking : flag = 5
   let d_reduce       : flag = 6
   let d_matching     : flag = 7
+  let d_sizechange   : flag = 8
 
-  let nb_flags = 7
+  let nb_flags = 8
 
   (* Default mode is to debug only [d_std] messages. *)
   let default_flags = [d_warn]
@@ -152,6 +153,7 @@ module Debug = struct
      ; "TypeChecking"
      ; "Reduce"
      ; "Matching"
+     ; "Sizechange"
     |]
 
   (* Array of activated flags. Initialized with [false]s except at [default_flags] indices. *)
@@ -172,6 +174,7 @@ module Debug = struct
         | 't' -> enable_flag  d_typeChecking
         | 'r' -> enable_flag  d_reduce
         | 'm' -> enable_flag  d_matching
+        | 'z' -> enable_flag  d_sizechange
         | c -> raise (DebugFlagNotRecognized c)
       )
       

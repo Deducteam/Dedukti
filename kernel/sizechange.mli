@@ -40,7 +40,7 @@ type call =
 (** The representation of the call graph. *)
 type call_graph
 
-val termination_check : bool -> mident -> rule_infos list list ->
+val termination_check : mident -> rule_infos list list ->
   (name * Signature.staticity * term *
      (rule_infos list*Dtree.t) option
   ) list -> bool

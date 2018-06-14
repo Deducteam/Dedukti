@@ -111,6 +111,7 @@ module Debug : sig
   val d_typeChecking : flag (** Type checking *)
   val d_reduce       : flag (** Reduction *)
   val d_matching     : flag (** Pattern matching *)
+  val d_sizechange   : flag (** Sizechange *)
 
   val  enable_flag : flag -> unit (** Activates given flag's debugging *)
   val disable_flag : flag -> unit (** Deactivates given flag's debugging *)
