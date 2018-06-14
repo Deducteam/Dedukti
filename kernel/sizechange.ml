@@ -154,10 +154,7 @@ module IMap =
 
 (** A call [{callee; caller; matrix; is_rec}] represents a call to the function symbol with key [callee] by the function symbole with the key [caller].
     The [matrix] gives the relation between the parameters of the caller and the callee.
-    The coefficient [matrix.(a).(b)] give the relation between the [a]-th parameter of the caller and the [b]-th argument of the callee.
-    The boolean [is_rec] is true when the call is a reccursive call (i.e. a call to a generalised hypothesis lower in the tree.
-    It is [false] for every call to subtyping in the typing algorithm and the same goes for rules introducing a new induction hypothesis.
-    Every other call refers to a previously introduced induction hypothesis and its boolean is [true]. *)
+    The coefficient [matrix.(a).(b)] give the relation between the [a]-th parameter of the caller and the [b]-th argument of the callee. *)
 type call =
   { callee      : index      ; (** Key of the function symbol being called. *)
     caller      : index      ; (** Key of the calling function symbol. *)
@@ -836,7 +833,45 @@ let rec cp_at_root : rule_infos list -> (rule_infos * rule_infos) option =
        Some (a, List.find (fun r -> unifiable a.cst a.args r.args) l)
      with
        Not_found -> cp_at_root l
-    
+
+
+type global_result=Terminating | G_SelfLooping
+                  | G_UsingBrackets | G_NonPositive | G_CriticalPair
+                  | G_NotHandledRewritingTypeLevel
+
+let corresp_loc_glob = function
+  | UsingBrackets -> G_UsingBrackets
+  | NonPositive -> G_NonPositive
+  | CriticalPair -> G_CriticalPair
+  | NotHandledRewritingTypeLevel -> G_NotHandledRewritingTypeLevel
+  | _ -> assert false
+
+let table_result= Hashtbl.create 6
+let list_SelfLooping = ref []
+
+let analyse_result : unit -> unit =
+  fun () ->
+    let tbl= !(!graph.symbols) in
+    let rec fill_res_HT b id =
+      let modify_ht x tl=
+        updateHT table_result (corresp_loc_glob x) id;
+        fill_res_HT false id tl
+      in
+      function
+      | []                 -> if b then updateHT table_result Terminating id
+      | SelfLooping(l)::tl ->
+        begin
+          list_SelfLooping := (id,l):: !list_SelfLooping;
+          fill_res_HT false id tl
+        end
+      | x ::tl -> modify_ht x tl
+    in
+    IMap.iter
+      (fun _ s -> fill_res_HT (s.status = Def_function || s.status = Def_type)
+          s.identifier s.result
+      ) tbl
+
+
 (** Initialize the SCT-checker *)	
 let termination_check mod_name ext_ru whole_sig =
   initialize mod_name;
@@ -885,96 +920,20 @@ let termination_check mod_name ext_ru whole_sig =
    Debug.(debug d_sizechange "%a" pp_after ());
    Debug.(debug d_sizechange "%a" (pp_list ";" (pp_list "," pp_name)) (tarjan after));
   sct_only ();
+  analyse_result ();
   let tbl= !(!graph.symbols) in
   IMap.for_all
     (fun _ s-> s.result = []) tbl
 
-type global_result=Terminating | G_SelfLooping
-                  | G_UsingBrackets | G_NonPositive | G_CriticalPair
-                  | G_NotHandledRewritingTypeLevel
-
-let corresp_loc_glob = function
-  | UsingBrackets -> G_UsingBrackets
-  | NonPositive -> G_NonPositive
-  | CriticalPair -> G_CriticalPair
-  | NotHandledRewritingTypeLevel -> G_NotHandledRewritingTypeLevel
-  | _ -> assert false
-
-let print_res : bool -> bool -> bool -> unit =
-  fun color st res ->
-  let tbl= !(!graph.symbols) in
-  let ht= Hashtbl.create 5 in
-  let list_SL=ref [] in
-  let rec fill_res_HT b id =
-    let modify_ht x tl=
-      updateHT ht (corresp_loc_glob x) id;
-      fill_res_HT false id tl
-    in
-    function
-    | []                 -> if b then updateHT ht Terminating id
-    | SelfLooping(l)::tl ->
-       begin
-         list_SL:= (id,l):: !list_SL;
-         fill_res_HT false id tl
-       end
-    | x ::tl -> modify_ht x tl
-  in
-  IMap.iter
-    (fun _ s -> fill_res_HT (s.status = Def_function || s.status = Def_type)
-                  s.identifier s.result
-    ) tbl;
-  let good_module=fun n -> md n = !mod_name in
-  begin
-    try
-      if st
-      then Format.eprintf "\027[32m Respect SCP\027[m %a@."
-        (pp_list " , " pp_name)
-        (List.filter good_module (Hashtbl.find ht Terminating))
-    with Not_found -> ()
-  end;
-  begin
-    if !list_SL = [] then ()
-    else
-      let pp_local= fun fmt (x,y) ->
-        Format.fprintf fmt "%a\n%a" pp_name x
-          (pp_list "\n"
-             (fun fmt ind ->
-                let r=IMap.find ind !(!graph.all_rules) in
-                Format.fprintf fmt "{%a} %a %a --> %a"
-                  pp_rule_name r.name
-                  pp_name r.cst
-                  (pp_list " " pp_pattern) r.args
-                  pp_term r.rhs
-             )
-          ) y
-      in
-      Format.eprintf "\027[31m Is self-looping according to SCP\027[m@. - %a@."
-        (pp_list "\n - " pp_local)
-        (if st
-         then (List.filter (fun (n,ll) -> md n= !mod_name) !list_SL)
-         else !list_SL
-        )
-  end;
-  let rep g_res s=
-    try
-      let l=Hashtbl.find ht g_res
-      in
-      Format.eprintf "%s %a@." s
-        (pp_list " , " pp_name)
-        (if st then (List.filter (fun n -> md n= !mod_name) l) else l)
-    with Not_found -> ()
-  in
-  let colored n s =
-    if color then "\027[3" ^ string_of_int n ^ "m" ^ s ^ "\027[m" else s
-  in
-  rep G_UsingBrackets (colored 1 " Use brackets");
-  rep G_NonPositive (colored 1 " Not strictly positive");
-  rep G_CriticalPair (colored 1 " Critical pair");
-  rep G_NotHandledRewritingTypeLevel (colored 1 " Not handled rewriting at type level");
-  if res
-  then
-    Format.eprintf "%s The file %a was proved terminating using SCP@."
-      (colored 2 "TERMINATING") pp_mident !mod_name
-  else
-    Format.eprintf "%s The file %a was not proved terminating@."
-      (colored 1 "TERMINATION ERROR") pp_mident !mod_name
+let pp_list_of_self_looping_rules= fun fmt (x,y) ->
+  Format.fprintf fmt "%a\n%a" pp_name x
+    (pp_list "\n"
+       (fun fmt ind ->
+          let r=IMap.find ind !(!graph.all_rules) in
+          Format.fprintf fmt "{%a} %a %a --> %a"
+            pp_rule_name r.name
+            pp_name r.cst
+            (pp_list " " pp_pattern) r.args
+            pp_term r.rhs
+       )
+    ) y

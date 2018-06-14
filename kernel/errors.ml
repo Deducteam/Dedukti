@@ -179,3 +179,56 @@ let fail_env_error = function
   | Env.EnvErrorType e -> fail_typing_error e
   | Env.KindLevelDefinition (lc,id) ->
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
+
+let print_sz : bool -> unit =
+  fun res ->
+    let mod_n = Env.get_name () in
+    let good_module = fun n -> md n = mod_n in
+    Debug.(debug_eval d_termination_stat)
+      (fun () ->
+         begin
+           try
+             Format.eprintf "%s %a@."
+               (green " Respect SCP")
+               (pp_list " , " pp_name)
+               (List.filter
+                  good_module
+                  (Hashtbl.find Sizechange.table_result Sizechange.Terminating)
+               )
+        with Not_found -> ()
+      end
+      );
+    if !(Sizechange.list_SelfLooping) = [] then ()
+    else
+      begin
+        Debug.(debug_eval d_termination_stat)
+          (fun () -> Sizechange.list_SelfLooping :=
+              List.filter
+                (fun (n,ll) -> md n = Env.get_name ())
+                !(Sizechange.list_SelfLooping)
+          );
+        Format.eprintf "%s@. - %a@."
+          (red " Is self-looping according to SCP")
+          (pp_list "\n - " Sizechange.pp_list_of_self_looping_rules)
+          !(Sizechange.list_SelfLooping)
+      end;
+  let rep g_res s=
+    try
+      let l=ref (Hashtbl.find Sizechange.table_result g_res) in
+      Debug.(debug_eval d_termination_stat
+               (fun () -> l := List.filter good_module !l));
+      Format.eprintf "%s %a@." (red s)
+        (pp_list " , " pp_name) !l
+    with Not_found -> ()
+  in
+  rep G_UsingBrackets " Use brackets";
+  rep G_NonPositive " Not strictly positive";
+  rep G_CriticalPair " Critical pair";
+  rep G_NotHandledRewritingTypeLevel " Not handled rewriting at type level";
+  if res
+  then
+    Format.eprintf "%s The file %a was proved terminating using SCP@."
+      (colored 2 "TERMINATING") pp_mident (Env.get_name ())
+  else
+    Format.eprintf "%s The file %a was not proved terminating@."
+      (colored 1 "TERMINATION ERROR") pp_mident (Env.get_name ())

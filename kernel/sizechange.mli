@@ -24,20 +24,14 @@ val int_of_index : index -> int
     key [caller]. The [matrix] gives the relation between the parameters
     of the caller and the callee. The coefficient [matrix.(a).(b)] give
     the relation between the [a]-th parameter of the caller and the
-    [b]-th argument of the callee. The boolean [is_rec] is true when the
-    call is a reccursive call (i.e. a call to a generalised hypothesis
-    lower in the tree. It is [false] for every call to subtyping in the
-    typing algorithm and the same goes for rules introducing a new
-    induction hypothesis. Every other call refers to a previously
-    introduced induction hypothesis and its boolean is [true]. *)
+    [b]-th argument of the callee. *)
 type call =
   { callee : index           ; (** Key of the function symbol being called. *)
     caller : index           ; (** Key of the calling function symbol. *)
     matrix : matrix          ; (** Size change matrix of the call. *)
-    rules  : index list   (** The list of rules leading to this call *)
+    rules  : index list        (** The list of rules leading to this call *)
   }
 
-(** The representation of the call graph. *)
 type call_graph
 
 val termination_check : mident -> rule_infos list list ->
@@ -45,4 +39,11 @@ val termination_check : mident -> rule_infos list list ->
      (rule_infos list*Dtree.t) option
   ) list -> bool
 
-val print_res : bool -> bool -> bool -> unit
+type global_result=Terminating | G_SelfLooping
+                  | G_UsingBrackets | G_NonPositive | G_CriticalPair
+                  | G_NotHandledRewritingTypeLevel
+
+val table_result : (global_result, Basic.name list) Hashtbl.t
+val list_SelfLooping : (Basic.name * index list) list ref
+
+val pp_list_of_self_looping_rules : (Basic.name * index list) printer

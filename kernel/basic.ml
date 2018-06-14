@@ -128,17 +128,18 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
 module Debug = struct
   
   type flag = int
-  let d_warn         : flag = 0
-  let d_notice       : flag = 1
-  let d_module       : flag = 2
-  let d_confluence   : flag = 3
-  let d_rule         : flag = 4
-  let d_typeChecking : flag = 5
-  let d_reduce       : flag = 6
-  let d_matching     : flag = 7
-  let d_sizechange   : flag = 8
+  let d_warn             : flag = 0
+  let d_notice           : flag = 1
+  let d_module           : flag = 2
+  let d_confluence       : flag = 3
+  let d_rule             : flag = 4
+  let d_typeChecking     : flag = 5
+  let d_reduce           : flag = 6
+  let d_matching         : flag = 7
+  let d_sizechange       : flag = 8
+  let d_termination_stat : flag = 9
 
-  let nb_flags = 9
+  let nb_flags = 10
 
   (* Default mode is to debug only [d_std] messages. *)
   let default_flags = [d_warn]
@@ -154,6 +155,7 @@ module Debug = struct
      ; "Reduce"
      ; "Matching"
      ; "Sizechange"
+     ; "Termination stat"
     |]
 
   (* Array of activated flags. Initialized with [false]s except at [default_flags] indices. *)
@@ -175,6 +177,7 @@ module Debug = struct
         | 'r' -> enable_flag  d_reduce
         | 'm' -> enable_flag  d_matching
         | 'z' -> enable_flag  d_sizechange
+        | 's' -> enable_flag  d_termination_stat
         | c -> raise (DebugFlagNotRecognized c)
       )
       

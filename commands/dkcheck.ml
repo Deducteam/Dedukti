@@ -109,7 +109,7 @@ let run_on_file beautify export sizechange szstat file =
   Confluence.finalize ();
   if (sizechange|| szstat)
   then
-   Sizechange.print_res !(Errors.color) szstat (Env.sizechange ());
+   Errors.print_sz (Env.sizechange ());
   close_in input
 
 

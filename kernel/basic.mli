@@ -103,15 +103,16 @@ val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 module Debug : sig
   
   type flag
-  val d_warn         : flag (** Warnings *)
-  val d_notice       : flag (** Notices *)
-  val d_module       : flag (** Modules *)
-  val d_confluence   : flag (** Confluence *)
-  val d_rule         : flag (** Rule type checking *)
-  val d_typeChecking : flag (** Type checking *)
-  val d_reduce       : flag (** Reduction *)
-  val d_matching     : flag (** Pattern matching *)
-  val d_sizechange   : flag (** Sizechange *)
+  val d_warn             : flag (** Warnings *)
+  val d_notice           : flag (** Notices *)
+  val d_module           : flag (** Modules *)
+  val d_confluence       : flag (** Confluence *)
+  val d_rule             : flag (** Rule type checking *)
+  val d_typeChecking     : flag (** Type checking *)
+  val d_reduce           : flag (** Reduction *)
+  val d_matching         : flag (** Pattern matching *)
+  val d_sizechange       : flag (** Sizechange *)
+  val d_termination_stat : flag (** Statistics about the number of functions proved terminating *)
 
   val  enable_flag : flag -> unit (** Activates given flag's debugging *)
   val disable_flag : flag -> unit (** Deactivates given flag's debugging *)
@@ -125,6 +126,8 @@ module Debug : sig
       t : enables  d_TypeChecking
       r : enables  d_Reduce
       m : enables  d_Matching
+      z : enables  d_sizechange
+      s : enables  d_termination_stat
   *)
   val set_debug_mode : string -> unit
 
