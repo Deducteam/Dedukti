@@ -86,13 +86,3 @@ def eq_sym: prf( forall (x:Term => forall (y:Term => (imp (equals x y) (equals y
 def eq_trans: prf ( forall (x:Term => forall (y:Term => (forall (z:Term => imp (and (equals x y) (equals y z)) (equals x z))))) )
 := x:Term => y:Term => z:Term => p:prf (and (equals x y) (equals y z)) => P:(Term -> Prop) => q:prf (P x) =>
 	and_elim_2 (equals x y) (equals y z) p P (and_elim_1 (equals x y) (equals y z) p P q).
-
-(; *** Classical logic ;)
-
-lem: A:Prop -> prf (or A (not A)).
-
-def double_neg_elim : A:Prop -> prf (not (not A)) -> prf A
-:= A:Prop => p:prf (not (not A)) => or_elim A (not A) (lem A) A (imp_intro A A (a:prf A => a)) (imp_intro (not A) A (q:prf (not A) => (imp_elim (not A) false p q) A)).
-
-def Pierce_law : A:Prop -> B:Prop -> prf (imp (imp (imp A B) A) A)
-:= A:Prop => B:Prop => (p:prf (imp (imp A B) A) => or_elim A (not A) (lem A) A (imp_intro A A (a:prf A => a)) (imp_intro (not A) A (q:prf (not A) => p (imp_intro A B (a:prf A =>(q a) B))))).

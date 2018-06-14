@@ -1,5 +1,3 @@
-#NAME lambdaCalcul.
-
 lamt : Type.
 
 Lam : (lamt -> lamt)-> lamt.
@@ -8,5 +6,4 @@ def App : lamt -> lamt -> lamt.
 [f, u] App (Lam f) u --> f u.
 
 def delta : lamt := Lam (x=> App x x).
-
-#STEP ((x:lamt=> App x x) delta).
+def omega : lamt := App delta delta.

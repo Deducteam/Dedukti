@@ -139,5 +139,6 @@ clean:
 
 distclean: clean
 	$(Q)find -name "*~" -exec rm {} \;
+	$(Q)find -name "*.dko" -exec rm {} \;
 	$(Q)rm -f kernel/version.ml
 	$(Q)rm -f META

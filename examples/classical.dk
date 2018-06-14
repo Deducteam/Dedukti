@@ -1,0 +1,35 @@
+#REQUIRE FO.
+
+excl_mid : (A : FO.Prop) -> FO.prf (FO.or A (FO.not A)).
+
+def double_neg_elim : (A : FO.Prop) -> FO.prf (FO.not (FO.not A)) -> FO.prf A :=
+  A : FO.Prop =>
+  p : FO.prf (FO.not (FO.not A)) =>
+  FO.or_elim
+    A
+    (FO.not A)
+    (excl_mid A)
+    A
+    (FO.imp_intro A A (a : FO.prf A => a))
+    (FO.imp_intro
+      (FO.not A)
+      A
+      (q : FO.prf (FO.not A) => (FO.imp_elim (FO.not A) FO.false p q) A)
+    ).
+
+def Pierce_law : (A : FO.Prop) -> (B : FO.Prop) ->
+		 FO.prf (FO.imp (FO.imp (FO.imp A B) A) A) :=
+  A : FO.Prop =>
+  B : FO.Prop =>
+  (p : FO.prf (FO.imp (FO.imp A B) A) =>
+  FO.or_elim
+    A
+    (FO.not A)
+    (excl_mid A)
+    A
+    (FO.imp_intro A A (a : FO.prf A => a))
+    (FO.imp_intro
+      (FO.not A)
+      A
+      (q : FO.prf (FO.not A) => p (FO.imp_intro A B (a : FO.prf A =>(q a) B))))
+    ).

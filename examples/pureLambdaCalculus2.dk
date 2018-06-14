@@ -1,5 +1,3 @@
-#NAME lambdaCalculi.
-
 def lamt : Type.
 [] lamt --> lamt -> lamt.
 
