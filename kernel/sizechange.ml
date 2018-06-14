@@ -195,9 +195,6 @@ let must_be_str_after : (name, (name * name) list) Hashtbl.t  =
 let after : (name, name list) Hashtbl.t =
   Hashtbl.create 5
 (* Here again 5 is arbitrary *)
-
-(** The name of the module we are studying *)
-let mod_name = ref (mk_mident "")
   
 (** This function clean all the global variables, in order to study another file *)
 let initialize : mident -> unit =
@@ -207,8 +204,7 @@ let initialize : mident -> unit =
   graph:={ next_index = ref 0 ; next_rule_index = ref 0; symbols = ref syms ;
            all_rules = ref ruls ; calls = ref [] };
   Hashtbl.clear must_be_str_after;
-  Hashtbl.clear after;
-  mod_name := mod_n
+  Hashtbl.clear after
     
 let pp_call fmt c =
   let tbl= !(!graph.symbols) in
