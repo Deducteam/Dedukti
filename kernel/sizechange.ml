@@ -175,6 +175,9 @@ type call_graph =
   }
 
 
+type global_result=Terminating | G_SelfLooping
+                  | G_UsingBrackets | G_NonPositive | G_CriticalPair
+                  | G_NotHandledRewritingTypeLevel
 
 (* Global variables *)
 
@@ -195,16 +198,28 @@ let must_be_str_after : (name, (name * name) list) Hashtbl.t  =
 let after : (name, name list) Hashtbl.t =
   Hashtbl.create 5
 (* Here again 5 is arbitrary *)
-  
+
+(** This table contains the name of functions corresponding to each potential global_result *)
+let table_result : (global_result, name list) Hashtbl.t =
+  Hashtbl.create 6
+(* Here 6 is not arbitrary since there is 6 global result *)
+
+(** This list contains for each looping symbol one list of rules causing this loop *)
+let list_SelfLooping : (name * index list) list ref
+  = ref []
+
 (** This function clean all the global variables, in order to study another file *)
-let initialize : mident -> unit =
-  fun mod_n->
+let initialize : unit -> unit =
+  fun ()->
   let syms = IMap.empty in
   let ruls = IMap.empty in
   graph:={ next_index = ref 0 ; next_rule_index = ref 0; symbols = ref syms ;
            all_rules = ref ruls ; calls = ref [] };
   Hashtbl.clear must_be_str_after;
-  Hashtbl.clear after
+  Hashtbl.clear after;
+  Hashtbl.clear table_result;
+  list_SelfLooping := []
+  
     
 let pp_call fmt c =
   let tbl= !(!graph.symbols) in
@@ -831,9 +846,6 @@ let rec cp_at_root : rule_infos list -> (rule_infos * rule_infos) option =
        Not_found -> cp_at_root l
 
 
-type global_result=Terminating | G_SelfLooping
-                  | G_UsingBrackets | G_NonPositive | G_CriticalPair
-                  | G_NotHandledRewritingTypeLevel
 
 let corresp_loc_glob = function
   | UsingBrackets -> G_UsingBrackets
@@ -841,9 +853,6 @@ let corresp_loc_glob = function
   | CriticalPair -> G_CriticalPair
   | NotHandledRewritingTypeLevel -> G_NotHandledRewritingTypeLevel
   | _ -> assert false
-
-let table_result= Hashtbl.create 6
-let list_SelfLooping = ref []
 
 let analyse_result : unit -> unit =
   fun () ->
@@ -869,8 +878,8 @@ let analyse_result : unit -> unit =
 
 
 (** Initialize the SCT-checker *)	
-let termination_check mod_name ext_ru whole_sig =
-  initialize mod_name;
+let termination_check ext_ru whole_sig =
+  initialize ();
   Debug.(debug d_sizechange "%a%a" pp_sig whole_sig pp_ext_ru ext_ru);
   List.iter
     (fun (fct,stat,typ,rules_opt) ->

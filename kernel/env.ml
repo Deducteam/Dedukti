@@ -140,5 +140,4 @@ let are_convertible ?ctx:(ctx=[]) te1 te2 =
   | TypingError e    -> Err (EnvErrorType e)
 
 let sizechange () =
-  Sizechange.termination_check (Signature.get_name !sg)
-    (get_external_rules !sg) (get_tables !sg)
+  Sizechange.termination_check (get_external_rules !sg) (get_tables !sg)

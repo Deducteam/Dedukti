@@ -34,7 +34,7 @@ type call =
 
 type call_graph
 
-val termination_check : mident -> rule_infos list list ->
+val termination_check : rule_infos list list ->
   (name * Signature.staticity * term *
      (rule_infos list*Dtree.t) option
   ) list -> bool
@@ -43,7 +43,7 @@ type global_result=Terminating | G_SelfLooping
                   | G_UsingBrackets | G_NonPositive | G_CriticalPair
                   | G_NotHandledRewritingTypeLevel
 
-val table_result : (global_result, Basic.name list) Hashtbl.t
-val list_SelfLooping : (Basic.name * index list) list ref
+val table_result : (global_result, name list) Hashtbl.t
+val list_SelfLooping : (name * index list) list ref
 
-val pp_list_of_self_looping_rules : (Basic.name * index list) printer
+val pp_list_of_self_looping_rules : (name * index list) printer
