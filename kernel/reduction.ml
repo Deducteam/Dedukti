@@ -304,7 +304,7 @@ and are_convertible_lst sg : (term*term) list -> bool =
           | Const (_,n), Const (_,n') when ( name_eq n n' ) -> lst
           | DB (_,_,n) , DB (_,_,n')  when ( n==n' )        -> lst
           | App (f,a,args), App (f',a',args') ->
-            (f,f') :: (a,a') :: (add_to_list2 args args' lst)
+            (f,f') :: (a,a') :: (zip_lists args args' lst)
           | Lam (_,_,_,b), Lam (_,_,_,b') -> (b,b') :: lst
           | Pi (_,_,a,b) , Pi (_,_,a',b') -> (a,a') :: (b,b') :: lst
           | t1, t2 -> raise NotConvertible)
