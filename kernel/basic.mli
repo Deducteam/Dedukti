@@ -169,7 +169,7 @@ val pp_arr    : string -> 'a printer -> 'a array printer
 val pp_option : string -> 'a printer -> 'a option printer
 
 (** Printing couples *)
-val pp_couple : 'a printer -> 'b printer -> ('a * 'b) printer
+val pp_pair : 'a printer -> 'b printer -> ('a * 'b) printer
 
 (** Printing triples *)
 val pp_triple : 'a printer -> 'b printer -> 'c printer -> ('a * 'b * 'c) printer

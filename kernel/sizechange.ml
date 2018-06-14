@@ -487,8 +487,8 @@ and rule_to_call : int -> rule_infos -> call list = fun nb r ->
   then
     Format.printf "We are studying %a@.The caller is %a@.The callee is %a@."
       pp_rule_infos r
-      (pp_couple (pp_list "," pp_pattern) pp_index) (lp, get_caller r)
-      (pp_option "None" (pp_couple (pp_list "," pp_term) pp_index))
+      (pp_pair (pp_list "," pp_pattern) pp_index) (lp, get_caller r)
+      (pp_option "None" (pp_pair (pp_list "," pp_term) pp_index))
         (get_callee nb r);
    match get_caller r, get_callee nb r with
    | _, None        -> []
@@ -740,7 +740,7 @@ let print_sig sg=
           Signature.pp_staticity
           pp_term
           (pp_option "None"
-             (pp_couple
+             (pp_pair
                 (pp_list ";" pp_rule_infos)
                 Dtree.pp_dforest
              )

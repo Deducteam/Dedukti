@@ -243,7 +243,7 @@ let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def
   | Some a -> Format.fprintf fmt "%a" pp a
 
-let pp_couple pp_fst pp_snd fmt x =
+let pp_pair pp_fst pp_snd fmt x =
   Format.fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd (snd x)
 
 let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) =
