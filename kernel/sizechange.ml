@@ -285,9 +285,9 @@ let find_stat : name -> symb_status = fun f ->
 	fun _ x ->
           if name_eq x.identifier f
           then raise (Success_status x.status)
-      ) !(!(graph).symbols);
+      ) !(!graph.symbols);
     raise Not_found
-with Success_status s -> s
+  with Success_status s -> s
 
 (** Those functions modify the mutable fields in the symbol records *)
 let update_result : index -> local_result -> unit = fun i res ->
