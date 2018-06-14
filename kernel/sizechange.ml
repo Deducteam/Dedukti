@@ -57,7 +57,7 @@ type matrix =
 
 (** The pretty printer for the type [matrix] *)
 let pp_matrix fmt m=
-  Format.fprintf fmt "w=%i, h=%i@.tab=[[%a]]@." m.w m.h
+  Format.fprintf fmt "w=%i, h=%i@.tab=[[%a]]" m.w m.h
     (pp_arr "]@.     [" (pp_arr "," pp_cmp)) m.tab
     
 (** Matrix product. *)
@@ -311,7 +311,7 @@ let create_symbol : name -> int -> symb_status -> unit =
   fun identifier arity status ->
     let g= !graph in
     let index = !(g.next_index) in
-    Debug.(debug d_sizechange "Adding the %a symbol %a of arity %i at index %a@."
+    Debug.(debug d_sizechange "Adding the %a symbol %a of arity %i at index %a"
         pp_status status pp_name identifier arity pp_index index);
     let sym = {identifier ; arity ; status; result=[]} in
     g.symbols := IMap.add index sym !(g.symbols);
@@ -321,7 +321,7 @@ let create_symbol : name -> int -> symb_status -> unit =
 let create_rule : rule_infos -> unit =
   fun r ->
     let g= !graph in
-    Debug.(debug d_sizechange "Adding the rule %a@."
+    Debug.(debug d_sizechange "Adding the rule %a"
         pp_rule_infos r); 
     let index = !(g.next_rule_index) in
     g.all_rules := IMap.add index r !(g.all_rules);
@@ -331,7 +331,7 @@ let create_rule : rule_infos -> unit =
 let add_call : call-> unit =
   fun cc ->
     let gr= !graph in
-    Debug.(debug d_sizechange "%a@." pp_call cc);
+    Debug.(debug d_sizechange "%a" pp_call cc);
     gr.calls := cc :: !(gr.calls)
 
 (** Compare a term and a pattern, using an int indicating under how many lambdas the comparison occurs *)
@@ -475,7 +475,7 @@ and rule_to_call : int -> rule_infos -> call list = fun nb r ->
   let gr = !graph in
   let lp = r.args in
   List.iter (study_pm r.cst) lp;
-   Debug.(debug d_sizechange "We are studying %a@.The caller is %a@.The callee is %a@."
+   Debug.(debug d_sizechange "We are studying %a@.The caller is %a@.The callee is %a"
       pp_rule_infos r
       (pp_pair (pp_list "," pp_pattern) pp_index) (lp, get_caller r)
       (pp_option "None" (pp_pair (pp_list "," pp_term) pp_index))
@@ -496,10 +496,10 @@ and rule_to_call : int -> rule_infos -> call list = fun nb r ->
 (** Take all the rules headed by a symbol and add them to the call graph *)
 let add_rules : rule_infos list -> unit =
   fun l ->
-     Debug.(debug d_sizechange "Ajout des règles : @. - %a@."
+     Debug.(debug d_sizechange "Ajout des règles : @. - %a"
         (pp_list "\n - " pp_rule_infos) l);
     let ll=List.flatten (List.map (rule_to_call 0) l) in
-    if ll=[] then Debug.(debug d_sizechange "Liste de call vide générée@.");
+    if ll=[] then Debug.(debug d_sizechange "Liste de call vide générée");
     ignore (List.map add_call ll)
     
 let tarjan graph=
@@ -543,10 +543,10 @@ let are_equiv : name -> name -> name list list -> bool = fun a b l ->
   List.exists (fun x -> (List.mem a x) && (List.mem b x)) l
 
 let pp_HT pp_key pp_elt fmt ht=
-  Hashtbl.iter (fun a b -> Format.fprintf fmt "%a : %a@." pp_key a pp_elt b) ht
+  Hashtbl.iter (fun a b -> Format.fprintf fmt " - %a : %a@." pp_key a pp_elt b) ht
                 
 let pp_after fmt ()=
-  Format.fprintf fmt "@.After :@.%a@.@;" (pp_HT pp_name (pp_list "," pp_name)) after
+  Format.fprintf fmt "@.After :@.%a" (pp_HT pp_name (pp_list "," pp_name)) after
     
 let str_positive :
   name list list -> (name, (name * name) list) Hashtbl.t -> unit =
@@ -596,13 +596,13 @@ let sct_only : unit -> unit =
     (* Test positivity of the signature *)
     str_positive (tarjan after) must_be_str_after;
     (* adding initial edges *)
-    Debug.(debug d_sizechange "initial edges to be added:\n%!");
+    Debug.(debug d_sizechange "initial edges to be added:");
     List.iter
-      (fun c -> Debug.(debug d_sizechange "\t%a\n%!" print_call c))
+      (fun c -> Debug.(debug d_sizechange "  %a" print_call c))
       !(ftbl.calls);
     let new_edges = ref !(ftbl.calls) in
     (* compute the transitive closure of the call graph *)
-    Debug.(debug d_sizechange "start completion\n%!");
+    Debug.(debug d_sizechange "start completion");
     let rec fn () =
       match !new_edges with
       | [] -> ()
@@ -611,7 +611,7 @@ let sct_only : unit -> unit =
         if add_edge i j m r
         then
           begin
-            Debug.(debug d_sizechange "\tedge %a added\n%!" print_call c);
+            Debug.(debug d_sizechange "  edge %a added" print_call c);
             incr added;
             let t' = tbl.(j) in
             Array.iteri
@@ -620,7 +620,7 @@ let sct_only : unit -> unit =
                    (fun (m',r') ->
                       let c' = {callee = j; caller = k; matrix = m'; rules=r'}
                       in
-                      Debug.(debug d_sizechange "\tcompose: %a * %a = %!"
+                      Debug.(debug d_sizechange "  compose: %a * %a = "
                           print_call c
                           print_call c');
                       let m'' = prod m m' in
@@ -630,15 +630,15 @@ let sct_only : unit -> unit =
                         {callee = i; caller = k; matrix = m''; rules = r''}
                       in
                       new_edges := c'' :: !new_edges;
-                       Debug.(debug d_sizechange "%a\n%!" print_call c'');
+                       Debug.(debug d_sizechange "%a" print_call c'');
                    ) t
               ) t'
         end else
-        Debug.(debug d_sizechange "\tedge %a is old\n%!" print_call c);
+        Debug.(debug d_sizechange "  edge %a is old" print_call c);
         fn ()
     in
     fn ();
-     Debug.(debug d_sizechange "SCT passed (%5d edges added, %6d composed)\n%!"
+     Debug.(debug d_sizechange "SCT passed (%5d edges added, %6d composed)"
         !added !composed)
 
 type position =  Global | Argument | Negative
@@ -709,7 +709,7 @@ let pp_quat pp1 pp2 pp3 pp4 fmt (a,b,c,d) =
   Format.fprintf fmt "%a,%a,%a,%a" pp1 a pp2 b pp3 c pp4 d
           
 let pp_sig fmt sg =
-  Format.fprintf fmt "The signature is:@. * %a@."
+  Format.fprintf fmt "The signature is:@. * %a"
     (pp_list "\n * "
        (pp_quat
           pp_name
@@ -728,7 +728,7 @@ let pp_ext_ru fmt er =
   if er=[]
   then ()
   else
-    Format.fprintf fmt "Ext_ru contains:@. + %a@."
+    Format.fprintf fmt "Ext_ru contains:@. + %a"
       (pp_list "\n + " (pp_list " ; " pp_rule_infos)) er
 
 let rec name_var : name -> int -> int -> pattern -> pattern =
@@ -883,7 +883,7 @@ let termination_check mod_name ext_ru whole_sig =
        then constructors_infos Global fct typ (right_most fct typ)
     ) whole_sig;
    Debug.(debug d_sizechange "%a" pp_after ());
-   Debug.(debug d_sizechange "%a@." (pp_list ";" (pp_list "," pp_name)) (tarjan after));
+   Debug.(debug d_sizechange "%a" (pp_list ";" (pp_list "," pp_name)) (tarjan after));
   sct_only ();
   let tbl= !(!graph.symbols) in
   IMap.for_all

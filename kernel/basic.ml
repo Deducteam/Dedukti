@@ -138,7 +138,7 @@ module Debug = struct
   let d_matching     : flag = 7
   let d_sizechange   : flag = 8
 
-  let nb_flags = 8
+  let nb_flags = 9
 
   (* Default mode is to debug only [d_std] messages. *)
   let default_flags = [d_warn]
