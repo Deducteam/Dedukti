@@ -96,7 +96,7 @@ let mk_entry beautify md =
   else mk_entry md
 
 
-let run_on_file beautify export sizechange szstat file =
+let run_on_file beautify export sizechange file =
   let input = open_in file in
   Debug.(debug d_module "Processing file '%s'..." file);
   let md = Env.init file in
@@ -107,7 +107,7 @@ let run_on_file beautify export sizechange szstat file =
   if export && not (Env.export ()) then
     Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ());
   Confluence.finalize ();
-  if (sizechange|| szstat)
+  if sizechange
   then
    Errors.print_sz (Env.sizechange ());
   close_in input
@@ -118,7 +118,6 @@ let _ =
   let export       = ref false in
   let beautify     = ref false in
   let sizechange   = ref false in
-  let szstat       = ref false in
   let options = Arg.align
     [ ( "-d"
       , Arg.String Debug.set_debug_mode
@@ -132,9 +131,6 @@ let _ =
     ; ("-sz"
       , Arg.Set sizechange
       , "Apply Size Change Principle" )
-    ; ("-szst"
-      , Arg.Set szstat
-      , "Apply Size Change Principle and print results useful for stats" )
     ; ( "-e"
       , Arg.Set export
       , " Generates an object file (\".dko\")" )
@@ -179,7 +175,7 @@ let _ =
       exit 2
     end;
   try
-    List.iter (run_on_file !beautify !export !sizechange !szstat) files;
+    List.iter (run_on_file !beautify !export !sizechange) files;
     match !run_on_stdin with
     | None   -> ()
     | Some m ->
