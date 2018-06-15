@@ -186,7 +186,7 @@ module Debug = struct
     Format.(ifprintf err_formatter) fmt
       
   let debug f =
-    if active.(f)
+    if active.(f) 
     then
       match headers.(f) with
       | "" -> do_debug
@@ -247,9 +247,6 @@ let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 
 let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l
 let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
-let pp_opt  pp fmt = function
-  | None -> Format.fprintf fmt "None"
-  | Some a -> Format.fprintf fmt "%a" pp a
 
 let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def
