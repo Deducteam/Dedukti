@@ -124,14 +124,17 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
 
 let termination_on_import : mident -> rw_infos HId.t -> unit =
   fun md ctx ->
-    let aux id infos =
+    let symb id infos =
       let cst = mk_name md id in
       Termination.add_constant cst infos.stat infos.ty;
+    in
+    let rul id infos =
       match infos.rule_opt_info with
       | None -> ()
       | Some (rs,_) -> Termination.add_rules rs
     in
-    HId.iter aux ctx
+    HId.iter symb ctx;
+    HId.iter rul ctx
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =

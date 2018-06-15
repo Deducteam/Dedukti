@@ -76,13 +76,11 @@ let under : position -> position =
   | Global -> Argument
   | _ -> Negative
 
-let rec right_most : name -> term -> term = fun f ->
-  function
+let rec right_most : term -> term = function
   | Kind                 -> assert false
-  | Pi(_,_,_,a)          -> right_most f a
-  | App(Lam(_),_,_) as t ->
-    update_result (find_key f) NotHandledRewritingTypeLevel; t
-  | App(a,_,_)           -> right_most f a
+  | Pi(_,_,_,a)          -> right_most a
+  | App(Lam(_),_,_) as t -> t
+  | App(a,_,_)           -> right_most a
   | Lam(_,_,_,a)         -> assert false
   | DB(_)                -> assert false
   | t                    -> t

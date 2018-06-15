@@ -97,15 +97,19 @@ let analyse_result : unit -> unit =
       ) tbl
 
 let add_constant fct stat typ =
+  let rm = right_most typ in
   let status =
     (
-      match (right_most fct typ),stat with
+      match rm,stat with
       | Type _, Definable -> Def_type
       | Type _, Static    -> Set_constructor
-      | _     , _                   -> Def_function
+      | _     , _         -> Def_function
     )
   in
-  create_symbol fct (infer_arity_from_type typ) status typ
+  create_symbol fct (infer_arity_from_type typ) status typ;
+  match rm with
+  | App(Lam(_),_,_) -> update_result (find_key fct) NotHandledRewritingTypeLevel
+  | _ -> ()
 
 (** Initialize the SCT-checker *)	
 let termination_check whole_sig =
@@ -113,7 +117,7 @@ let termination_check whole_sig =
   IMap.iter
     (fun _ sym ->
        let fct = sym.identifier and tt = sym.typ in
-       constructors_infos Global fct tt (right_most fct tt)
+       constructors_infos Global fct tt (right_most tt)
     )
     (
       IMap.filter
