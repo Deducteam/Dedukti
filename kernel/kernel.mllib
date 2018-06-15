@@ -9,6 +9,8 @@ Pp
 Reduction
 Rule
 Signature
+Sizechange
+Sizematrix
 Subst
 Term
 Typing

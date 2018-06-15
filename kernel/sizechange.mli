@@ -1,17 +1,8 @@
 open Basic
 open Term
 open Rule
+open Sizematrix
 open Format
-
-(** Representation of the set {-1, 0, ∞} *)
-type cmp = Min1 | Zero | Infi
-
-(** [cmp_to_string c] returns a string representation of the given [cmp]
-    element on one character. *)
-val cmp_to_string : cmp -> string
-
-(** Size change matrix. *)
-type matrix = { w : int ; h : int ; tab : cmp array array }
 
 (** Abstract type used to refer to function symbols. *)
 type index
