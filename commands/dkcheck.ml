@@ -123,7 +123,7 @@ let _ =
       , Arg.String Debug.set_debug_mode
       , "flags enables debugging for all given flags" )
     ; ( "-v"
-      , Arg.Unit (fun () -> Debug.set_debug_mode "w")
+      , Arg.Unit (fun () -> Debug.set_debug_mode "noutrm")
       , " Verbose mode (equivalent to -d 'w')" )
     ; ( "-q"
       , Arg.Unit (fun () -> Debug.set_debug_mode "q")

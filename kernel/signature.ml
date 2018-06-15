@@ -34,12 +34,6 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-type staticity = Static | Definable
-
-(** The pretty printer for the type [staticity] *)
-let pp_staticity fmt s =
-  Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable")
-                            
 type rw_infos =
   {
     stat: staticity;
@@ -59,18 +53,6 @@ let make file =
   { name; file; tables; external_rules=[]; }
 
 let get_name sg = sg.name
-
-let get_external_rules sg = sg.external_rules
-
-let get_tables sg=
-  let res=ref [] in
-  HMd.iter (fun a tb ->
-    HId.iter (fun b x ->
-      if not (List.exists (fun (n,_,_,_) -> name_eq n (mk_name a b)) !res)
-      then res:=(mk_name a b,x.stat,x.ty,x.rule_opt_info)::(!res)
-    ) tb
-  ) sg.tables;
-  !res
 
 (******************************************************************************)
 
@@ -140,6 +122,17 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
   | OK () -> ()
   | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
 
+let termination_on_import : mident -> rw_infos HId.t -> unit =
+  fun md ctx ->
+    let aux id infos =
+      let cst = mk_name md id in
+      Termination.add_constant cst infos.stat infos.ty;
+      match infos.rule_opt_info with
+      | None -> ()
+      | Some (rs,_) -> Termination.add_rules rs
+    in
+    HId.iter aux ctx
+
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   if HMd.mem sg.tables m
@@ -153,7 +146,8 @@ let rec import sg lc m =
       ) deps ;
     Debug.(debug d_module "Loading module '%a'..." pp_mident m);
     List.iter (fun rs -> add_rule_infos sg rs) ext;
-    check_confluence_on_import lc m ctx
+    check_confluence_on_import lc m ctx;
+    termination_on_import m ctx
 
 and add_rule_infos sg (lst:rule_infos list) : unit =
   match lst with
@@ -231,6 +225,7 @@ let get_dtree sg rule_filter l cst =
 let add_declaration sg lc v st ty =
   let cst = mk_name sg.name v in
   Confluence.add_constant cst;
+  Termination.add_constant cst st ty;
   let env = HMd.find sg.tables sg.name in
   if HId.mem env v then
     raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
@@ -248,6 +243,7 @@ let add_rules sg lst : unit =
       if not (mident_eq sg.name (md r.cst)) then
         sg.external_rules <- rs::sg.external_rules;
       Confluence.add_rules rs;
+      Termination.add_rules rs;
       Debug.(debug d_confluence
                "Checking confluence after adding rewrite rules on symbol '%a'"
                pp_name r.cst);

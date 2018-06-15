@@ -255,3 +255,9 @@ let pp_pair pp_fst pp_snd fmt x =
 let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) =
   Format.fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z
  
+
+type staticity = Static | Definable
+
+(** The pretty printer for the type [staticity] *)
+let pp_staticity fmt s =
+  Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable")

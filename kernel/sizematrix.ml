@@ -3,7 +3,6 @@
 open Basic
 open Term
 open Rule
-open Format
 
 (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
@@ -144,3 +143,15 @@ let matrix_of_lists : int -> pattern list -> int -> term list -> int -> matrix =
       done;
     done;
     {h=m ; w=n ; tab}
+
+	
+(** Replace the right hand side of a rule with the term chosen *)
+let term2rule : rule_infos -> term -> rule_infos = fun r t ->
+  {l=r.l;
+   name=r.name;
+   cst=r.cst;
+   args=r.args;
+   rhs=t;
+   esize=r.esize;
+   pats=r.pats;
+   constraints=[]}

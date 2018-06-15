@@ -1,4 +1,5 @@
 Basic
+Callgraph
 Confluence
 Dtree
 Env
@@ -14,5 +15,6 @@ Sizechange
 Sizematrix
 Subst
 Term
+Termination
 Typing
 Version

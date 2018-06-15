@@ -53,7 +53,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   match ty with
   | Kind -> raise (DefineExn (l,id))
   | _ ->
-    _declare l id Signature.Definable ty;
+    _declare l id Definable ty;
     let cst = mk_name (get_name ()) id in
     let rule =
       { name= Delta(cst) ;
@@ -70,7 +70,7 @@ let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   in
   match ty with
   | Kind -> raise (DefineExn (l,id))
-  | _ -> Signature.add_declaration !sg l id Signature.Static ty
+  | _ -> Signature.add_declaration !sg l id Static ty
 
 let declare l id st ty : (unit,env_error) error =
   try OK ( _declare l id st ty )
@@ -140,4 +140,4 @@ let are_convertible ?ctx:(ctx=[]) te1 te2 =
   | TypingError e    -> Err (EnvErrorType e)
 
 let sizechange () =
-  Sizechange.termination_check (get_external_rules !sg) (get_tables !sg)
+  Termination.termination_check ()

@@ -16,7 +16,7 @@ type test =
 (** Single source file entry. *)
 type entry =
   (** Symbol declaration. *)
-  | Decl  of loc * ident * Signature.staticity * term
+  | Decl  of loc * ident * staticity * term
   (** Definition (possibly opaque). *)
   | Def   of loc * ident * is_opaque * term option * term
   (** Reduction rules declaration. *)

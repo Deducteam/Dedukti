@@ -19,18 +19,12 @@ type signature_error =
   | GuardNotSatisfied     of loc * term * term
 
 exception SignatureError of signature_error
-
-type staticity = Static | Definable
-
-val pp_staticity        : Format.formatter -> staticity -> unit
-                            
+                         
 type t
 
 val make                : string -> t
 (** [make file] creates a new signature corresponding to the file [file]. *)
 
-val get_external_rules  : t -> rule_infos list list
-val get_tables          : t -> (name * staticity * term * (rule_infos list*Dtree.t) option) list
 val get_name            : t -> mident
 (** [get_name sg] returns the name of the signature [sg]. *)
 

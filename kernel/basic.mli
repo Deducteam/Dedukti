@@ -177,3 +177,8 @@ val pp_pair : 'a printer -> 'b printer -> ('a * 'b) printer
 
 (** Printing triples *)
 val pp_triple : 'a printer -> 'b printer -> 'c printer -> ('a * 'b * 'c) printer
+
+type staticity = Static | Definable
+
+val pp_staticity        : Format.formatter -> staticity -> unit
+   

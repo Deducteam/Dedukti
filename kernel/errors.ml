@@ -193,28 +193,28 @@ let print_sz : bool -> unit =
                (pp_list " , " pp_name)
                (List.filter
                   good_module
-                  (Hashtbl.find Sizechange.table_result Sizechange.Terminating)
+                  (Hashtbl.find Termination.table_result Termination.Terminating)
                )
         with Not_found -> ()
       end
       );
-    if !(Sizechange.list_SelfLooping) = [] then ()
+    if !(Termination.list_SelfLooping) = [] then ()
     else
       begin
         Debug.(debug_eval d_termination_stat)
-          (fun () -> Sizechange.list_SelfLooping :=
+          (fun () -> Termination.list_SelfLooping :=
               List.filter
                 (fun (n,ll) -> md n = Env.get_name ())
-                !(Sizechange.list_SelfLooping)
+                !(Termination.list_SelfLooping)
           );
         Format.eprintf "%s@. - %a@."
           (red " Is self-looping according to SCP")
-          (pp_list "\n - " Sizechange.pp_list_of_self_looping_rules)
-          !(Sizechange.list_SelfLooping)
+          (pp_list "\n - " Termination.pp_list_of_self_looping_rules)
+          !(Termination.list_SelfLooping)
       end;
   let rep g_res s=
     try
-      let l=ref (Hashtbl.find Sizechange.table_result g_res) in
+      let l=ref (Hashtbl.find Termination.table_result g_res) in
       Debug.(debug_eval d_termination_stat
                (fun () -> l := List.filter good_module !l));
       Format.eprintf "%s %a@." (red s)
