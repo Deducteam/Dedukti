@@ -161,7 +161,7 @@ let find_rule_key : rule_infos ->  index = fun r ->
 	fun k x -> if rule_name_eq x.name r.name then raise (Success_index k)
       ) !(!graph.all_rules);
     raise Not_found
-  with Success_index k -> k
+     with Success_index k -> k
 
 (** [find_stat f] will return the status [s] of the symbol named [f] *)
 let find_stat : name -> symb_status = fun f ->
@@ -246,12 +246,13 @@ and rule_to_call : int -> rule_infos -> call list = fun nb r ->
   let gr = !graph in
   let lp = r.args in
   List.iter (study_pm r.cst) lp;
+  let callee = get_callee nb r in
    Debug.(debug d_sizechange "We are studying %a@.The caller is %a@.The callee is %a"
       pp_rule_infos r
       (pp_pair (pp_list "," pp_pattern) pp_name) (lp, r.cst)
       (pp_option "None" (pp_pair (pp_list "," pp_term) pp_name))
-        (get_callee nb r));
-   match r.cst, get_callee nb r with
+        callee);
+   match r.cst, callee with
    | _, None        -> []
    | a, Some (lt,b) ->
      begin
