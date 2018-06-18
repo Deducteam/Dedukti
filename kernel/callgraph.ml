@@ -27,13 +27,24 @@ let pp_status fmt s =
       then "Static"
       else "Definable"
     )
-
+    
 
 
 (** The local result express the result of the termination checker for this symbol *)
-type local_result = SelfLooping of (index list) | CriticalPair
+type local_result = SelfLooping of (index list)
                   | UsingBrackets | NonPositive | NotHandledRewritingTypeLevel
 
+let pp_local_result : local_result printer =
+  fun fmt lr ->
+    let st =
+      match lr with
+      | SelfLooping _ -> "Self Looping"
+      | UsingBrackets -> "Using Brackets"
+      | NonPositive -> "Non positive type"
+      | NotHandledRewritingTypeLevel -> "Rewriting at type level"
+    in
+    Format.fprintf fmt "%s" st
+  
 
 
 (** Representation of a function symbol. *)

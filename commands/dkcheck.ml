@@ -101,6 +101,7 @@ let run_on_file beautify export sizechange file =
   Debug.(debug d_module "Processing file '%s'..." file);
   let md = Env.init file in
   Confluence.initialize ();
+  Termination.initialize ();
   Parser.handle_channel md (mk_entry beautify md) input;
   if not beautify then
     Errors.success "File '%s' was successfully checked." file;
@@ -109,7 +110,8 @@ let run_on_file beautify export sizechange file =
   Confluence.finalize ();
   if sizechange
   then
-   Errors.print_sz (Env.sizechange ());
+    let b = Env.sizechange () in
+    Errors.print_sz b;
   close_in input
 
 

@@ -8,9 +8,20 @@ open Positivity
 
 
 type global_result=Terminating | G_SelfLooping
-                  | G_UsingBrackets | G_NonPositive | G_CriticalPair
+                  | G_UsingBrackets | G_NonPositive 
                   | G_NotHandledRewritingTypeLevel
 
+
+let pp_global_result : global_result printer =
+  fun fmt gr ->
+    let st =
+      match gr with
+          | Terminating -> "Terminating"
+          | G_SelfLooping -> "Self Looping"
+          | G_UsingBrackets -> "Using Brackets"
+          | G_NonPositive -> "Non positive"
+          | G_NotHandledRewritingTypeLevel -> "Not Handled Rewriting"
+    in Format.fprintf fmt "%s" st
 
 (** This table contains the name of functions corresponding to each potential global_result *)
 let table_result : (global_result, name list) Hashtbl.t =
@@ -65,12 +76,11 @@ let add_rules : rule_infos list -> unit =
     let ll=List.flatten (List.map (rule_to_call 0) l) in
     if ll=[] then Debug.(debug d_sizechange "Liste de call vide générée");
     List.iter add_call ll
-    
+
 
 let corresp_loc_glob = function
   | UsingBrackets -> G_UsingBrackets
   | NonPositive -> G_NonPositive
-  | CriticalPair -> G_CriticalPair
   | NotHandledRewritingTypeLevel -> G_NotHandledRewritingTypeLevel
   | _ -> assert false
 
@@ -92,7 +102,7 @@ let analyse_result : unit -> unit =
       | x ::tl -> modify_ht x tl
     in
     IMap.iter
-      (fun _ s -> fill_res_HT (s.status = Def_function || s.status = Def_type)
+      (fun _ s -> fill_res_HT (s.status != Set_constructor)
           s.identifier s.result
       ) tbl
 
@@ -111,9 +121,8 @@ let add_constant fct stat typ =
   | App(Lam(_),_,_) -> update_result (find_key fct) NotHandledRewritingTypeLevel
   | _ -> ()
 
-(** Initialize the SCT-checker *)	
+(** Do the SCT-checking *)	
 let termination_check () =
-  initialize ();
   IMap.iter
     (fun _ sym ->
        let fct = sym.identifier and tt = sym.typ in
@@ -129,9 +138,9 @@ let termination_check () =
    Debug.(debug d_sizechange "After :@.%a" (pp_HT pp_name (pp_list "," pp_name)) after);
    Debug.(debug d_sizechange "%a" (pp_list ";" (pp_list "," pp_name)) (tarjan after));
   sct_only ();
-  analyse_result ();
   (* Test positivity of the signature *)
   str_positive (tarjan after) must_be_str_after;
+  analyse_result ();
   let tbl= !(!graph.symbols) in
   IMap.for_all
     (fun _ s-> s.result = []) tbl

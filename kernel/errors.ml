@@ -198,7 +198,8 @@ let print_sz : bool -> unit =
         with Not_found -> ()
       end
       );
-    if !(Termination.list_SelfLooping) = [] then ()
+    if !(Termination.list_SelfLooping) = []
+    then ()
     else
       begin
         Debug.(debug_eval d_termination_stat)
@@ -223,7 +224,6 @@ let print_sz : bool -> unit =
   in
   rep G_UsingBrackets " Use brackets";
   rep G_NonPositive " Not strictly positive";
-  rep G_CriticalPair " Critical pair";
   rep G_NotHandledRewritingTypeLevel " Not handled rewriting at type level";
   if res
   then
