@@ -110,8 +110,7 @@ let run_on_file beautify export sizechange file =
   Confluence.finalize ();
   if sizechange
   then
-    let b = Env.sizechange () in
-    Errors.print_sz b;
+    Errors.print_sz (Env.sizechange ());
   close_in input
 
 
