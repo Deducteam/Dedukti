@@ -112,7 +112,7 @@ let add_constant fct stat typ =
   | _ -> ()
 
 (** Initialize the SCT-checker *)	
-let termination_check whole_sig =
+let termination_check () =
   initialize ();
   IMap.iter
     (fun _ sym ->
