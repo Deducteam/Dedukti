@@ -129,7 +129,7 @@ let rec constructors_infos : position -> name -> term -> term -> unit =
             (* TODO : Understand when this case can occur *)
 	    | _ -> assert false
 	  end
-        | _ -> if posit= Negative then update_result (find_key f) NonPositive 
+        | _ -> if posit= Negative then update_result f NonPositive 
       end
 
 
@@ -142,7 +142,7 @@ let str_positive :
         List.iter (
           fun (x,y) ->
             if (are_equiv a x l)
-            then update_result (find_key y) NonPositive) b
+            then update_result y NonPositive) b
     ) ht
 	
 
@@ -172,7 +172,7 @@ let rec name_var : name -> int -> int -> pattern -> pattern =
     | Brackets(DB(loc, _, k))           ->
       Var(loc, mk_ident "bound", k, [])
     | Brackets(_)                       ->
-      update_result (find_key f) UsingBrackets; raise Exit
+      update_result f UsingBrackets; raise Exit
 
 let rec occurs : ident -> pattern -> bool =
   fun nk ->
@@ -207,9 +207,9 @@ let rec solve : name -> (pattern * pattern * int) list -> bool =
     | (Lambda(_, _, t1) , Lambda(_, _, t2) , n)::tl                      ->
       solve f ((t1, t2, n+1)::tl)
     | (Var(loc, _, k, ll), t2             , n)::tl when ll!= []          ->
-      update_result (find_key f) NotHandledRewritingTypeLevel; true
+      update_result f NotHandledRewritingTypeLevel; true
     | (t1             , Var(loc, _, k, ll), n)::tl when ll!= []          ->
-      update_result (find_key f) NotHandledRewritingTypeLevel; true
+      update_result f NotHandledRewritingTypeLevel; true
     | _ -> false
 and elim : name -> ident -> pattern -> (pattern * pattern * int) list ->
   int -> bool

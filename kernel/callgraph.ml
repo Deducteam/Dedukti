@@ -50,7 +50,7 @@ let pp_local_result : local_result printer =
 (** Representation of a function symbol. *)
 type symbol =
   {
-    identifier     : name              ; (** Name of the symbol. *)
+    ind            : index             ; (** The index of the symbol *)
     arity          : int               ; (** Arity of the symbol (number of args). *)
     typ            : term              ; (** Type of the symbol *)
     mutable status : symb_status       ; (** The status of the symbol *)
@@ -73,14 +73,27 @@ module IMap =
       with Not_found -> assert false
   end
 
-
+module NMap =
+  struct
+    include Map.Make(
+      struct
+        type t = name
+        let compare = compare
+      end)
+      
+    (** [find k m] will not raise [Not_found] because it will always be used
+        when we are sure that the given key [k] is mapped in [m]. *)
+    let find : key -> 'a t -> 'a = fun k m ->
+      try find k m
+      with Not_found -> assert false
+  end
 
 (** A call [{callee; caller; matrix; is_rec}] represents a call to the function symbol with key [callee] by the function symbole with the key [caller].
     The [matrix] gives the relation between the parameters of the caller and the callee.
     The coefficient [matrix.(a).(b)] give the relation between the [a]-th parameter of the caller and the [b]-th argument of the callee. *)
 type call =
-  { callee      : index      ; (** Key of the function symbol being called. *)
-    caller      : index      ; (** Key of the calling function symbol. *)
+  { callee      : name      ; (** Key of the function symbol being called. *)
+    caller      : name      ; (** Key of the calling function symbol. *)
     matrix      : matrix     ; (** Size change matrix of the call. *)
     rules       : index list ; (** The list of rules leading to this call *)
   }
@@ -90,9 +103,9 @@ type call =
 (** Internal state of the SCT, including the representation of symbols and the call graph. *)
 type call_graph =
   {
-    next_index      : index ref             ; (** Just an index not mapped to any symbol yet, in order to easily add a new symbol *)
+    next_index      : index ref             ; (** The index of the next function symbol to be added *)
     next_rule_index : index ref             ; (** Same here *)
-    symbols         : symbol IMap.t ref     ; (** A map containing every symbols studied *)
+    symbols         : symbol NMap.t ref     ; (** A map containing every symbols studied *)
     all_rules       : rule_infos IMap.t ref ; (** A map containing every rules, in order to trace the succession of rule leading to non-termination *)
     calls           : call list ref         ; (** The list of every call *)
   }
@@ -100,24 +113,23 @@ type call_graph =
 
 (** The call graph which will be studied *)
 let graph : call_graph ref =
-  let syms = IMap.empty in
+  let syms = NMap.empty in
   let ruls = IMap.empty in
-  ref { next_index = ref 0 ; next_rule_index = ref 0; symbols = ref syms ;
+  ref { next_index = ref 0; next_rule_index = ref 0; symbols = ref syms ;
         all_rules = ref ruls ; calls = ref []
       }
 
 
 let pp_call fmt c =
   let tbl= !(!graph.symbols) in
-  let caller_sym = IMap.find c.caller tbl in
-  let callee_sym = IMap.find c.callee tbl in
+  let caller_sym = NMap.find c.caller tbl in
   let res=ref "" in
   for i=0 to caller_sym.arity -1 do
     res:=!res^"x"^(string_of_int i)^" "
   done;
-  Format.fprintf fmt "%a%d(%s%!) <- %a%d%!("
-    pp_name caller_sym.identifier c.caller
-    !res pp_name callee_sym.identifier c.callee;
+  Format.fprintf fmt "%a(%s%!) <- %a%!("
+    pp_name c.caller 
+    !res pp_name c.callee;
   let jj=Array.length c.matrix.tab in
   if jj>0 then
     let ii=Array.length c.matrix.tab.(0) in
@@ -141,16 +153,6 @@ let pp_call fmt c =
 exception Success_index  of index
 exception Success_status of symb_status
 
-(** [find_key f] will return the key [k] which is mapped to the symbol named [f] *)
-let find_key : name ->  index = fun f ->
-  try
-    IMap.iter
-      (
-	fun k x -> if name_eq x.identifier f then raise (Success_index k)
-      ) !(!graph.symbols);
-    raise Not_found
-  with Success_index k -> k
-
 (** [find_rule_key r] will return the key [k] which is mapped to the rule [r] *)
 let find_rule_key : rule_infos ->  index = fun r ->
   try
@@ -163,25 +165,17 @@ let find_rule_key : rule_infos ->  index = fun r ->
 
 (** [find_stat f] will return the status [s] of the symbol named [f] *)
 let find_stat : name -> symb_status = fun f ->
-  try
-    IMap.iter
-      (
-	fun _ x ->
-          if name_eq x.identifier f
-          then raise (Success_status x.status)
-      ) !(!graph.symbols);
-    raise Not_found
-  with Success_status s -> s
+  (NMap.find f !(!graph.symbols)).status
 
 (** Those functions modify the mutable fields in the symbol records *)
-let update_result : index -> local_result -> unit = fun i res ->
+let update_result : name -> local_result -> unit = fun i res ->
   let tbl= !(!graph.symbols) in
-  let sy=(IMap.find i tbl) in
+  let sy=(NMap.find i tbl) in
   sy.result <- res::sy.result
 
-let update_status : index -> symb_status -> unit = fun i res ->
+let update_status : name -> symb_status -> unit = fun i res ->
   let tbl= !(!graph.symbols) in
-  let sy=(IMap.find i tbl) in
+  let sy=(NMap.find i tbl) in
   sy.status <- res
 
 (** Add a new call to the call graph. *)
@@ -201,7 +195,7 @@ let rec study_pm : name -> pattern -> unit =
       begin
         let stat= find_stat n in
         if stat=Def_function
-        then update_status (find_key n) Elt_constructor;
+        then update_status n Elt_constructor;
         if stat=Def_type
         then assert false;
         List.iter (study_pm f) ar
@@ -209,20 +203,15 @@ let rec study_pm : name -> pattern -> unit =
     | Var      (_,_,_,l) -> List.iter (study_pm f) l
     | Lambda   (_,_,p)   -> study_pm f p
     | Brackets (DB(_))   -> ()
-    | Brackets (_)       -> update_result (find_key f) UsingBrackets
-
-
-(** Find the index of the caller of a rule *)
-let get_caller : rule_infos -> index = fun r ->
-  find_key r.cst
+    | Brackets (_)       -> update_result f UsingBrackets
 
 (** Find the index of the callee of a rule and the list of its arguments *)
-let rec get_callee : int -> rule_infos -> (term list * index) option =
+let rec get_callee : int -> rule_infos -> (term list * name) option =
   fun nb r ->
     match r.rhs with
     | DB (_,_,_) | Kind | Type(_) -> None
-    | Const (_,f) -> Some ([], find_key f)
-    | App (Const(l,f),t1,lt) -> Some (t1::lt, find_key f)
+    | Const (_,f) -> Some ([], f)
+    | App (Const(l,f),t1,lt) -> Some (t1::lt, f)
     | App (t1,t2,lt) ->
       begin
           List.iter
@@ -259,15 +248,15 @@ and rule_to_call : int -> rule_infos -> call list = fun nb r ->
   List.iter (study_pm r.cst) lp;
    Debug.(debug d_sizechange "We are studying %a@.The caller is %a@.The callee is %a"
       pp_rule_infos r
-      (pp_pair (pp_list "," pp_pattern) pp_index) (lp, get_caller r)
-      (pp_option "None" (pp_pair (pp_list "," pp_term) pp_index))
+      (pp_pair (pp_list "," pp_pattern) pp_name) (lp, r.cst)
+      (pp_option "None" (pp_pair (pp_list "," pp_term) pp_name))
         (get_callee nb r));
-   match get_caller r, get_callee nb r with
+   match r.cst, get_callee nb r with
    | _, None        -> []
    | a, Some (lt,b) ->
      begin
-       let m= (IMap.find a !(gr.symbols)).arity in
-       let n= (IMap.find b !(gr.symbols)).arity in
+       let m= (NMap.find a !(gr.symbols)).arity in
+       let n= (NMap.find b !(gr.symbols)).arity in
        {
          callee=a ; caller = b ;
          matrix=matrix_of_lists m lp n lt nb; rules=[find_rule_key r]

@@ -13,7 +13,10 @@ open Callgraph
 let sct_only : unit -> unit =
   fun ()->
     let ftbl= !graph in
-    let num_fun = !(ftbl.next_index) in
+    let symbs = !(ftbl.symbols) in
+    let num_fun = NMap.cardinal symbs in
+    let id_to_name = Array.init num_fun (fun _ -> dname) in
+    NMap.iter (fun k s -> id_to_name.(s.ind) <- k) symbs;
     (* tbl is a num_fun x num_fun Array in which each element is the list of all matrices between the two symbols with the rules which generated this matrix *)
     let tbl = Array.init num_fun (fun _ -> Array.make num_fun []) in
     let print_call ff= pp_call ff in 
@@ -21,7 +24,9 @@ let sct_only : unit -> unit =
     let added = ref 0 and composed = ref 0 in
   (* function adding an edge, return a boolean indicating
      if the edge is new or not *)
-    let add_edge i j m r =
+    let add_edge f g m r =
+      let i = (NMap.find f symbs).ind in
+      let j = (NMap.find g symbs).ind in
       let ti = tbl.(i) in
       let ms = ti.(j) in
       if List.exists (fun m' -> subsumes (fst m') m) ms
@@ -33,8 +38,8 @@ let sct_only : unit -> unit =
           if i = j && prod m m = m && not (decreasing m) then
             begin
 	    Debug.(debug d_sizechange "edge %a idempotent and looping\n%!" print_call
-                  {callee = i; caller = j; matrix = m; rules = r});
-              update_result i (SelfLooping r)
+                  {callee = f; caller = g; matrix = m; rules = r});
+              update_result f (SelfLooping r)
 	    end;
 	  let ms = (m, r) ::
             List.filter (fun m' -> not (subsumes m (fst m'))) ms in
@@ -53,9 +58,10 @@ let sct_only : unit -> unit =
     let rec fn () =
       match !new_edges with
       | [] -> ()
-      | ({callee = i; caller = j; matrix = m; rules=r} as c)::l ->
+      | ({callee = f; caller = g; matrix = m; rules=r} as c)::l ->
+        let j = (NMap.find g symbs).ind in
         new_edges := l;
-        if add_edge i j m r
+        if add_edge f g m r
         then
           begin
             Debug.(debug d_sizechange "  edge %a added" print_call c);
@@ -65,7 +71,7 @@ let sct_only : unit -> unit =
               (fun k t ->
                  List.iter
                    (fun (m',r') ->
-                      let c' = {callee = j; caller = k; matrix = m'; rules=r'}
+                      let c' = {callee = g; caller = id_to_name.(k); matrix = m'; rules=r'}
                       in
                       Debug.(debug d_sizechange "  compose: %a * %a = "
                           print_call c
@@ -74,18 +80,19 @@ let sct_only : unit -> unit =
                       let r'' = r @ r' in
                       incr composed;
                       let c'' =
-                        {callee = i; caller = k; matrix = m''; rules = r''}
+                        {callee = f; caller = id_to_name.(k); matrix = m''; rules = r''}
                       in
                       new_edges := c'' :: !new_edges;
                        Debug.(debug d_sizechange "%a" print_call c'');
                    ) t
               ) t'
-        end else
-        Debug.(debug d_sizechange "  edge %a is old" print_call c);
+          end
+        else
+          Debug.(debug d_sizechange "  edge %a is old" print_call c);
         fn ()
     in
     fn ();
-     Debug.(debug d_sizechange "SCT passed (%5d edges added, %6d composed)"
-        !added !composed)
+    Debug.(debug d_sizechange "SCT passed (%5d edges added, %6d composed)"
+             !added !composed)
 
 

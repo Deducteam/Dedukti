@@ -35,7 +35,7 @@ let list_SelfLooping : (name * index list) list ref
 (** This function clean all the global variables, in order to study another file *)
 let initialize : unit -> unit =
   fun ()->
-  let syms = IMap.empty in
+  let syms = NMap.empty in
   let ruls = IMap.empty in
   graph:={ next_index = ref 0 ; next_rule_index = ref 0; symbols = ref syms ;
            all_rules = ref ruls ; calls = ref [] };
@@ -49,11 +49,11 @@ let initialize : unit -> unit =
 let create_symbol : name -> int -> symb_status -> term -> unit =
   fun identifier arity status typ->
     let g= !graph in
-    let index = !(g.next_index) in
+    let ind = !(g.next_index) in
     Debug.(debug d_sizechange "Adding the %a symbol %a of arity %i at index %a"
-        pp_status status pp_name identifier arity pp_index index);
-    let sym = {identifier ; arity ; typ; status; result=[]} in
-    g.symbols := IMap.add index sym !(g.symbols);
+        pp_status status pp_name identifier arity pp_index ind);
+    let sym = {ind ; arity ; typ; status; result=[]} in
+    g.symbols := NMap.add identifier sym !(g.symbols);
     incr g.next_index
 
 (** Creation of a new rule.  *)
@@ -101,9 +101,9 @@ let analyse_result : unit -> unit =
         end
       | x ::tl -> modify_ht x tl
     in
-    IMap.iter
-      (fun _ s -> fill_res_HT (s.status != Set_constructor)
-          s.identifier s.result
+    NMap.iter
+      (fun k s -> fill_res_HT (s.status != Set_constructor)
+          k s.result
       ) tbl
 
 let add_constant fct stat typ =
@@ -118,18 +118,18 @@ let add_constant fct stat typ =
   in
   create_symbol fct (infer_arity_from_type typ) status typ;
   match rm with
-  | App(Lam(_),_,_) -> update_result (find_key fct) NotHandledRewritingTypeLevel
+  | App(Lam(_),_,_) -> update_result fct NotHandledRewritingTypeLevel
   | _ -> ()
 
 (** Do the SCT-checking *)	
 let termination_check () =
-  IMap.iter
-    (fun _ sym ->
-       let fct = sym.identifier and tt = sym.typ in
+  NMap.iter
+    (fun fct sym ->
+       let tt = sym.typ in
        constructors_infos Global fct tt (right_most tt)
     )
     (
-      IMap.filter
+      NMap.filter
         (fun _ symb ->
            List.mem symb.status [Elt_constructor; Set_constructor]
         )
@@ -142,7 +142,7 @@ let termination_check () =
   str_positive (tarjan after) must_be_str_after;
   analyse_result ();
   let tbl= !(!graph.symbols) in
-  IMap.for_all
+  NMap.for_all
     (fun _ s-> s.result = []) tbl
 
 let pp_list_of_self_looping_rules= fun fmt (x,y) ->
