@@ -222,9 +222,9 @@ let print_sz : bool -> unit =
         (pp_list " , " pp_name) !l
     with Not_found -> ()
   in
-  rep G_UsingBrackets " Use brackets";
-  rep G_NonPositive " Not strictly positive";
-  rep G_NotHandledRewritingTypeLevel " Not handled rewriting at type level";
+  rep Termination.G_UsingBrackets " Use brackets";
+  rep Termination.G_NonPositive " Not strictly positive";
+  rep Termination.G_NotHandledRewritingTypeLevel " Not handled rewriting at type level";
   if res
   then
     Format.eprintf "%s The file %a was proved terminating using SCP@."
