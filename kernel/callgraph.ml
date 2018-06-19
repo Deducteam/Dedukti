@@ -31,7 +31,7 @@ let pp_status fmt s =
 
 
 (** The local result express the result of the termination checker for this symbol *)
-type local_result = SelfLooping of (index list)
+type local_result = SelfLooping of (index list) | CocOption
                   | UsingBrackets | NonPositive | NotHandledRewritingTypeLevel
 
 let pp_local_result : local_result printer =
@@ -42,6 +42,7 @@ let pp_local_result : local_result printer =
       | UsingBrackets -> "Using Brackets"
       | NonPositive -> "Non positive type"
       | NotHandledRewritingTypeLevel -> "Rewriting at type level"
+      | CocOption -> "Coc option is uncompatible with sz"
     in
     Format.fprintf fmt "%s" st
   

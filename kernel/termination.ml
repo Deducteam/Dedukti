@@ -10,6 +10,7 @@ open Positivity
 type global_result=Terminating | G_SelfLooping
                   | G_UsingBrackets | G_NonPositive 
                   | G_NotHandledRewritingTypeLevel
+                  | G_Coc
 
 
 let pp_global_result : global_result printer =
@@ -21,6 +22,7 @@ let pp_global_result : global_result printer =
           | G_UsingBrackets -> "Using Brackets"
           | G_NonPositive -> "Non positive"
           | G_NotHandledRewritingTypeLevel -> "Not Handled Rewriting"
+          | G_Coc -> "Coc option is uncompatible with sz"
     in Format.fprintf fmt "%s" st
 
 (** This table contains the name of functions corresponding to each potential global_result *)
@@ -82,6 +84,7 @@ let corresp_loc_glob = function
   | UsingBrackets -> G_UsingBrackets
   | NonPositive -> G_NonPositive
   | NotHandledRewritingTypeLevel -> G_NotHandledRewritingTypeLevel
+  | CocOption -> G_Coc
   | _ -> assert false
 
 let analyse_result : unit -> unit =
@@ -107,20 +110,26 @@ let analyse_result : unit -> unit =
       ) tbl
 
 let add_constant fct stat typ =
-  let rm = right_most typ in
-  let status =
-    (
-      match rm,stat with
-      | Type _, Definable -> Def_type
-      | Type _, Static    -> Set_constructor
-      | _     , _         -> Def_function
-    )
-  in
-  create_symbol fct (infer_arity_from_type typ) status typ;
-  match rm with
-  | App(Lam(_),_,_) -> update_result fct NotHandledRewritingTypeLevel
-  | _ -> ()
-
+  try
+    let rm = right_most typ in
+    let status =
+      (
+        match rm,stat with
+        | Type _, Definable -> Def_type
+        | Type _, Static    -> Set_constructor
+        | _     , _         -> Def_function
+      )
+    in
+    create_symbol fct (infer_arity_from_type typ) status typ;
+    match rm with
+    | App(Lam(_),_,_) -> update_result fct NotHandledRewritingTypeLevel
+    | _ -> ()
+  with Coc ->
+    begin
+      create_symbol fct 0 Def_function typ;
+      update_result fct CocOption
+    end
+    
 (** Do the SCT-checking *)	
 let termination_check () =
   NMap.iter

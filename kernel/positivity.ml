@@ -4,6 +4,8 @@ open Rule
 open Sizematrix
 open Callgraph
 
+exception Coc
+
 (** A table linking each symbol with the list of symbols which must be strictly after *)
 let must_be_str_after : (name, (name * name) list) Hashtbl.t  =
   Hashtbl.create 5
@@ -76,13 +78,14 @@ let under : position -> position =
   | Global -> Argument
   | _ -> Negative
 
-let rec right_most : term -> term = function
+let rec right_most : term -> term =
+  function
   | Kind                 -> assert false
   | Pi(_,_,_,a)          -> right_most a
   | App(Lam(_),_,_) as t -> t
   | App(a,_,_)           -> right_most a
   | Lam(_,_,_,a)         -> assert false
-  | DB(_)                -> assert false
+  | DB(_)                -> raise Coc
   | t                    -> t
 
 
