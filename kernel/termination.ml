@@ -109,26 +109,27 @@ let analyse_result : unit -> unit =
           k s.result
       ) tbl
 
-let add_constant fct stat typ =
-  try
-    let rm = right_most typ in
-    let status =
-      (
-        match rm,stat with
-        | Type _, Definable -> Def_type
-        | Type _, Static    -> Set_constructor
-        | _     , _         -> Def_function
-      )
-    in
-    create_symbol fct (infer_arity_from_type typ) status typ;
-    match rm with
-    | App(Lam(_),_,_) -> update_result fct NotHandledRewritingTypeLevel
-    | _ -> ()
-  with Coc ->
-    begin
-      create_symbol fct 0 Def_function typ;
-      update_result fct CocOption
-    end
+let add_constant : name -> staticity -> term -> unit
+  = fun fct stat typ ->
+    try
+      let rm = right_most typ in
+      let status =
+        (
+          match rm,stat with
+          | Type _, Definable -> Def_type
+          | Type _, Static    -> Set_constructor
+          | _     , _         -> Def_function
+        )
+      in
+      create_symbol fct (infer_arity_from_type typ) status typ;
+      match rm with
+      | App(Lam(_),_,_) -> update_result fct NotHandledRewritingTypeLevel
+      | _ -> ()
+    with Coc ->
+      begin
+        create_symbol fct 0 Def_function typ;
+        update_result fct CocOption
+      end
     
 (** Do the SCT-checking *)	
 let termination_check () =
@@ -144,25 +145,27 @@ let termination_check () =
         )
         !(!graph.symbols)
     );
+  let tarj = tarjan after in
    Debug.(debug d_sizechange "After :@.%a" (pp_HT pp_name (pp_list "," pp_name)) after);
-   Debug.(debug d_sizechange "%a" (pp_list ";" (pp_list "," pp_name)) (tarjan after));
+   Debug.(debug d_sizechange "%a" (pp_list ";" (pp_list "," pp_name)) tarj);
   sct_only ();
   (* Test positivity of the signature *)
-  str_positive (tarjan after) must_be_str_after;
+  str_positive tarj must_be_str_after;
   analyse_result ();
   let tbl= !(!graph.symbols) in
   NMap.for_all
     (fun _ s-> s.result = []) tbl
 
-let pp_list_of_self_looping_rules= fun fmt (x,y) ->
-  Format.fprintf fmt "%a\n%a" pp_name x
-    (pp_list "\n"
-       (fun fmt ind ->
-          let r=IMap.find ind !(!graph.all_rules) in
-          Format.fprintf fmt "{%a} %a %a --> %a"
-            pp_rule_name r.name
-            pp_name r.cst
-            (pp_list " " pp_pattern) r.args
-            pp_term r.rhs
-       )
-    ) y
+let pp_list_of_self_looping_rules : (name *index list) printer =
+  fun fmt (x,y) ->
+    Format.fprintf fmt "%a\n%a" pp_name x
+      (pp_list "\n"
+         (fun fmt ind ->
+            let r=IMap.find ind !(!graph.all_rules) in
+            Format.fprintf fmt "{%a} %a %a --> %a"
+              pp_rule_name r.name
+              pp_name r.cst
+              (pp_list " " pp_pattern) r.args
+              pp_term r.rhs
+         )
+      ) y
