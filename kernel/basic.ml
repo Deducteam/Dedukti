@@ -225,11 +225,12 @@ let rec add_to_list2 l1 l2 lst =
   | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
   | _,_ -> None
 
-let rec split_list i l =
-  if i = 0 then ([],l)
-  else
-    let s1, s2 = split_list (i-1) (List.tl l) in
-    (List.hd l)::s1, s2
+let split_list i =
+  let rec aux acc i = function
+    | l when i = 0 -> (List.rev acc, l)
+    | x :: l -> aux (x::acc) (i-1) l
+    | _ -> assert false
+  in aux [] i
 
 
 (** {2 Printing functions} *)
