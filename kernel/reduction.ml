@@ -52,8 +52,7 @@ type state =
     term  : term;   (* term to reduce *)
     stack : stack;  (* stack *)
     reduc : (bool * state) ref;
-    (* Pointer to a state in a more reduced form representing the same term.
-       [None] means the term is already in normal form.  *)
+    (* Pointer to a state in a more reduced form representing the same term. *)
   }
 and stack = state list
 
@@ -61,8 +60,6 @@ let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
   mk_App2 t (List.map term_of_state stack)
 
-
-let st_cnt = ref 0
 
 (** Creates a fresh state with reduc pointing to itself. *)
 let mk_state ctx term stack =
@@ -571,7 +568,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy) (steps:int) (state:state)
           redc := new_redc;
           st in
         let new_stack = List.rev_append (List.rev_map reduce (a::lst)) s in
-        (!redc, mk_reduc_state st ctx f new_stack)
+        aux (!redc, mk_reduc_state st ctx f new_stack)
       (* Potential Gamma redex *)
       | { ctx; term=Const(l, cst); stack } ->
         let trees = Signature.get_dtree sg !selection l cst in
