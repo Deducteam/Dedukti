@@ -4,7 +4,7 @@ open Rule
 open Sizematrix
 
 
-(** Index of a function symbol. *)
+(** Index of a rule. *)
 type index = int
 
 (** Conversion to int. *)
@@ -34,6 +34,7 @@ let pp_status fmt s =
 type local_result = SelfLooping of (index list) | CocOption
                   | UsingBrackets | NonPositive | NotHandledRewritingTypeLevel
 
+(** The pretty printer for the type [local_result] *)
 let pp_local_result : local_result printer =
   fun fmt lr ->
     let st =
@@ -46,8 +47,6 @@ let pp_local_result : local_result printer =
     in
     Format.fprintf fmt "%s" st
   
-
-
 (** Representation of a function symbol. *)
 type symbol =
   {
@@ -74,6 +73,7 @@ module IMap =
       with Not_found -> assert false
   end
 
+(** Map with [Basic.name] as keys *)
 module NMap =
   struct
     include Map.Make(
@@ -82,7 +82,7 @@ module NMap =
         let compare = compare
       end)
       
-    (** [find k m] will not raise [Not_found] because it will always be used
+    (* [find k m] will not raise [Not_found] because it will always be used
         when we are sure that the given key [k] is mapped in [m]. *)
     let find : key -> 'a t -> 'a = fun k m ->
       try find k m
@@ -91,7 +91,8 @@ module NMap =
 
 (** A call [{callee; caller; matrix; is_rec}] represents a call to the function symbol with key [callee] by the function symbole with the key [caller].
     The [matrix] gives the relation between the parameters of the caller and the callee.
-    The coefficient [matrix.(a).(b)] give the relation between the [a]-th parameter of the caller and the [b]-th argument of the callee. *)
+    The coefficient [matrix.(a).(b)] give the relation between the [a]-th parameter of the caller and the [b]-th argument of the callee.
+    [rules] is the list of indexes of rules which lead to this call-matrix in the graph. *)
 type call =
   { callee      : name      ; (** Key of the function symbol being called. *)
     caller      : name      ; (** Key of the calling function symbol. *)
@@ -100,32 +101,10 @@ type call =
   }
 
 
-
-(** Internal state of the SCT, including the representation of symbols and the call graph. *)
-type call_graph =
-  {
-    next_index      : index ref             ; (** The index of the next function symbol to be added *)
-    next_rule_index : index ref             ; (** Same here *)
-    symbols         : symbol NMap.t ref     ; (** A map containing every symbols studied *)
-    all_rules       : rule_infos IMap.t ref ; (** A map containing every rules, in order to trace the succession of rule leading to non-termination *)
-    calls           : call list ref         ; (** The list of every call *)
-  }
-
-
-(** The call graph which will be studied *)
-let graph : call_graph ref =
-  let syms = NMap.empty in
-  let ruls = IMap.empty in
-  ref { next_index = ref 0; next_rule_index = ref 0; symbols = ref syms ;
-        all_rules = ref ruls ; calls = ref []
-      }
-
-
+(** The pretty printer for the type [call]. *)
 let pp_call fmt c =
-  let tbl= !(!graph.symbols) in
-  let caller_sym = NMap.find c.caller tbl in
   let res=ref "" in
-  for i=0 to caller_sym.arity -1 do
+  for i=0 to c.matrix.h -1 do
     res:=!res^"x"^(string_of_int i)^" "
   done;
   Format.fprintf fmt "%a(%s%!) <- %a%!("
@@ -148,6 +127,26 @@ let pp_call fmt c =
       done
     done;
     Format.fprintf fmt ")%!";
+
+
+(** Internal state of the SCT, including the representation of symbols and the call graph. *)
+type call_graph =
+  {
+    next_index      : index ref             ; (** The index of the next function symbol to be added *)
+    next_rule_index : index ref             ; (** Same here *)
+    symbols         : symbol NMap.t ref     ; (** A map containing every symbols studied *)
+    all_rules       : rule_infos IMap.t ref ; (** A map containing every rules, in order to trace the succession of rule leading to non-termination *)
+    calls           : call list ref         ; (** The list of every call *)
+  }
+
+
+(** The call graph which will be studied *)
+let graph : call_graph ref =
+  let syms = NMap.empty in
+  let ruls = IMap.empty in
+  ref { next_index = ref 0; next_rule_index = ref 0; symbols = ref syms ;
+        all_rules = ref ruls ; calls = ref []
+      }
      
 
 (* These exceptions do not have any meaning, but is used to interrupt the iteration on maps *)
@@ -164,7 +163,7 @@ let find_rule_key : rule_infos ->  index = fun r ->
     raise Not_found
      with Success_index k -> k
 
-(** [find_stat f] will return the status [s] of the symbol named [f] *)
+(** [find_stat f] will return the status [s] of the symbol named [f] as stated in the call graph. *)
 let find_stat : name -> symb_status = fun f ->
   (NMap.find f !(!graph.symbols)).status
 

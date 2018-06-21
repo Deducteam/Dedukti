@@ -51,12 +51,15 @@ let initialize : unit -> unit =
 let create_symbol : name -> int -> symb_status -> term -> unit =
   fun identifier arity status typ->
     let g= !graph in
-    let ind = !(g.next_index) in
-    Debug.(debug d_sizechange "Adding the %a symbol %a of arity %i at index %a"
+    if NMap.mem identifier !(g.symbols)
+    then ()
+    else
+      let ind = !(g.next_index) in
+      Debug.(debug d_sizechange "Adding the %a symbol %a of arity %i at index %a"
         pp_status status pp_name identifier arity pp_index ind);
-    let sym = {ind ; arity ; typ; status; result=[]} in
-    g.symbols := NMap.add identifier sym !(g.symbols);
-    incr g.next_index
+      let sym = {ind ; arity ; typ; status; result=[]} in
+      g.symbols := NMap.add identifier sym !(g.symbols);
+      incr g.next_index
 
 (** Creation of a new rule.  *)
 let create_rule : rule_infos -> unit =
