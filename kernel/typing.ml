@@ -312,13 +312,13 @@ and infer_pattern_aux sg (sigma:context2)
     (f,ty_f,delta,lst:term*typ*partial_context*constraints)
     (arg:pattern) : term * typ * partial_context * constraints =
   match whnf sg ty_f with
-    | Pi (_,_,a,b) ->
-        let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
-        let arg' = pattern_to_term arg in
-        ( Term.mk_App f arg' [], Subst.subst b arg', delta2 , lst2 )
-    | ty_f ->
-      let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-      raise (TypingError (ProductExpected (f,ctx,ty_f)))
+  | Pi (_,_,a,b) ->
+    let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
+    let arg' = pattern_to_term arg in
+    ( Term.mk_App f arg' [], Subst.subst b arg', delta2 , lst2 )
+  | ty_f ->
+    let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
+    raise (TypingError (ProductExpected (f,ctx,ty_f)))
 
 and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     (lst:constraints) (pat:pattern) : partial_context * constraints =
@@ -330,7 +330,11 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
       | Pi (l,x,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
       | exp_ty ->
         let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-        raise (TypingError ( ProductExpected (pattern_to_term pat,ctx,exp_ty)))
+        let te = pattern_to_term pat in
+        Debug.warn (TypingError ( ProductExpected (te,ctx,exp_ty)))
+          "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
+          pp_term te pp_typed_context ctx pp_term exp_ty;
+        ( delta, lst )
     end
   | Brackets te ->
     let te2 =
