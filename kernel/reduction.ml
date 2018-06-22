@@ -141,12 +141,11 @@ let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (t
 let rec unshift_st (sg:Signature.t) (reduce:rw_strategy) (q:int) (st:state) =
   let st' = snd !(st.reduc) in
   if st' != st  then unshift_st sg reduce q st'
-  else if q = 0 then st
-  else
-    let t = 
-      try  Subst.unshift q (term_of_state st)
-      with Subst.UnshiftExn -> Subst.unshift q (reduce sg (term_of_state st))
-    in mk_state LList.nil t []
+  else if q = 0 then st'
+  else let t =
+         try  Subst.unshift q (term_of_state st)
+         with Subst.UnshiftExn -> Subst.unshift q (reduce sg (term_of_state st))
+    in state_of_term t
 
 let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
   try Subst.unshift q te
@@ -289,11 +288,7 @@ let gamma_rw (sg:Signature.t)
 let rec state_whnf (sg:Signature.t) (st:state) : state =
   match !(st.reduc) with
   | (true, st') -> st'
-  | (false, st') when st' != st ->
-    begin
-      Debug.(debug d_reduce "Jumping %a ---> %a" simpl_pp_state st simpl_pp_state st');
-      state_whnf sg st'
-    end
+  | (false, st') when st' != st -> state_whnf sg st'
   | _ ->
     let _ = Debug.(debug d_reduce "Reducing %a" simpl_pp_state st) in
     let rec_call c t s = state_whnf sg (mk_reduc_state st c t s) in
@@ -353,26 +348,40 @@ and check_convertible_lst_st sg : (state * state) list -> unit = function
   | (st1, st2)::lst ->
     check_convertible_lst_st sg
       begin
-        let {ctx=ctx1; term=t1; stack=s1} = state_whnf sg st1 in
-        let {ctx=ctx2; term=t2; stack=s2} = state_whnf sg st2 in
+        let {ctx=ctx1; term=t1; stack=s1} as st1 = state_whnf sg st1 in
+        let {ctx=ctx2; term=t2; stack=s2} as st2 = state_whnf sg st2 in
         match t1, t2 with
         | Kind, Kind | Type _, Type _ ->
           assert (s1 = []);
           assert (s2 = []);
           lst
-        | Const (_,n), Const (_,n') when name_eq n n' ->
-          zip_lists s1 s2 lst
-        | DB (_,_,n), DB (_,_,n') when n == n' ->
-          zip_lists s1 s2 lst
-        | Lam (_,_,_,b), Lam (_,_,_,b') ->
+        | Const(_,n1), Const(_,n2) ->
+          if name_eq n1 n2 then zip_lists s1 s2 lst
+          else raise NotConvertible
+        | DB (_,_,n1), DB (_,_,n2) ->
+          assert (LList.is_empty ctx1);
+          assert (LList.is_empty ctx2);
+          if n1 == n2 then zip_lists s1 s2 lst
+          else raise NotConvertible
+        | Lam _, Lam _ ->
           assert (s1 = []);
           assert (s2 = []);
-          (state_of_term b, state_of_term b')::lst
-        | Pi (_,_,a,b), Pi (_,_,a',b') ->
+          begin
+            match (term_of_state st1, term_of_state st2) with
+            | Lam (_,_,_,b1), Lam (_,_,_,b2) ->
+              (state_of_term b1, state_of_term b2)::lst
+            | _ -> assert false
+          end
+        | Pi _, Pi _ ->
           assert (s1 = []);
           assert (s2 = []);
-          (state_of_term a, state_of_term a')::
-          (state_of_term b, state_of_term b')::lst
+          begin
+            match (term_of_state st1, term_of_state st2) with
+            | Pi (_,_,a,b), Pi (_,_,a',b') ->
+              (state_of_term a, state_of_term a')::
+              (state_of_term b, state_of_term b')::lst
+            | _ -> assert false
+          end
         | t1, t2 -> raise NotConvertible
       end
 
@@ -386,7 +395,7 @@ and check_convertible_lst sg : (term*term) list -> unit = function
           match whnf sg t1, whnf sg t2 with
           | Kind, Kind | Type _, Type _                     -> lst
           | Const (_,n), Const (_,n') when ( name_eq n n' ) -> lst
-          | DB (_,_,n) , DB (_,_,n')  when ( n==n' )        -> lst
+          | DB (_,_,n) , DB (_,_,n')  when ( n == n' )        -> lst
           | App (f,a,args), App (f',a',args') ->
             (f,f') :: (a,a') :: (zip_lists args args' lst)
           | Lam (_,_,_,b), Lam (_,_,_,b') -> (b,b') :: lst
@@ -395,13 +404,14 @@ and check_convertible_lst sg : (term*term) list -> unit = function
       )
 
 (* Convertibility tests *)
-and are_convertible sg (t1:Term.term) t2 =
-  try check_convertible_lst sg [(t1,t2)]; true
-  with NotConvertible -> false
 
 and are_convertible_st sg st1 st2 =
   try check_convertible_lst_st sg [(st1,st2)]; true
   with NotConvertible -> false
+
+
+let are_convertible sg t1 t2 =
+  are_convertible_st sg (state_of_term t1) (state_of_term t2)
 
 (* Head Normal Form *)
 let rec hnf sg t =
