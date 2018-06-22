@@ -82,8 +82,6 @@ let rec set_final st =
 let as_final st = set_final st; st
 
 
-
-
 let rec term_of_state {ctx;term;stack} : term =
   let t =
     if LList.is_empty ctx then term
@@ -166,8 +164,8 @@ let get_context_syn (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
 let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
                    (pb_lst:abstract_problem LList.t) : env option =
   let aux ((pos,dbs):abstract_problem) : state =
-    let res = solve sg forcing pos.depth dbs (term_of_state (List.nth stack pos.position)) in
-    mk_state LList.nil (Subst.unshift pos.depth res) []
+    let t = term_of_state (List.nth stack pos.position) in
+    state_of_term (solve sg forcing pos.depth dbs t)
   in
   try Some (LList.map aux pb_lst)
   with Matching.NotUnifiable -> None
@@ -178,11 +176,8 @@ let rec test (sg:Signature.t) (convertible:st_convertibility_test)
   match constrs with
   | [] -> true
   | (Linearity (i,j))::tl ->
-    let t1 = mk_DB dloc dmark i in
-    let t2 = mk_DB dloc dmark j in
-    if convertible sg (mk_state ctx t1[]) (mk_state ctx t2 [])
-    then test sg convertible ctx tl
-    else false
+    convertible sg (LList.nth ctx i) (LList.nth ctx j)
+    && test sg convertible ctx tl
   | (Bracket (i,t))::tl ->
     let t1 = LList.nth ctx i in
     let t2 = mk_state ctx t [] in

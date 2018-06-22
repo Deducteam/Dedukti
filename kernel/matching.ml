@@ -28,5 +28,7 @@ let rec add_n_lam n te =
   if n = 0 then te
   else add_n_lam (n-1) (mk_Lam dloc dmark None te)
 
-let solve (n:int) (k_lst:int LList.t) (te:term) : term =
-  add_n_lam (LList.len k_lst) (update_dbs n k_lst te)
+let solve (depth:int) (k_lst:int LList.t) (te:term) : term =
+  let sol = update_dbs depth k_lst te in
+  let res = add_n_lam (LList.len k_lst) sol in
+  Subst.unshift depth res
