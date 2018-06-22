@@ -238,7 +238,9 @@ let pp_loc    fmt (l,c)   = Format.fprintf fmt "line:%i column:%i" l c
 let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 
 let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l
+let pp_llist sep pp fmt l = pp_list sep pp fmt (LList.lst l)
 let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
+let pp_lazy pp fmt l = Format.fprintf fmt "%a" pp (Lazy.force l)
 
 let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def

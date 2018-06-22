@@ -4,6 +4,12 @@ open Term
 
 exception UnshiftExn
 
+(** [shift_rec d k t] shifts every De Bruijn indices in [t] by [d].
+    Indices less than [k] are ignored.
+    Raises [UnshiftExn] when [t] contains De Bruijn variables of indices [k]{i < n < }[k-d+1].
+*)
+val shift_rec : int -> int -> term -> term
+
 (** [shift i t] shifts every De Bruijn indices in [t] by [i]. *)
 val shift : int -> term -> term
 

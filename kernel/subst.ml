@@ -4,29 +4,21 @@ open Term
 
 exception UnshiftExn
 
-let rec shift_rec (r:int) (k:int) : term -> term = function
-  | DB (_,x,n) as t -> if n<k then t else mk_DB dloc x (n+r)
-  | App (f,a,args) ->
-      mk_App (shift_rec r k f) (shift_rec r k a) (List.map (shift_rec r k) args )
-  | Lam (_,x,a,f) -> mk_Lam dloc x (map_opt (shift_rec r k) a) (shift_rec r (k+1) f)
-  | Pi  (_,x,a,b) -> mk_Pi dloc x (shift_rec r k a) (shift_rec r (k+1) b)
-  | t -> t
-
-let shift r t = if r = 0 then t else shift_rec r 0 t
-
-let unshift q te =
+let shift_rec (r:int) : int -> term -> term =
   let rec aux k = function
-  | DB (_,_,n) as t when n<k -> t
-  | DB (l,x,n) ->
-    if (n-k) < q then raise UnshiftExn
-    else mk_DB l x (n-q)
-  | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
-  | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
-  | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
-  | Pi  (l,x,a,b) -> mk_Pi l x (aux k a) (aux (k+1) b)
-  | Type _ | Kind | Const _ as t -> t
-  in
-  aux 0 te
+    | DB (l,x,n) as t ->
+      if n < k then t
+      else if n + r < k then raise UnshiftExn
+      else mk_DB l x (n+r)
+    | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args )
+    | Lam (_,x,a,f) -> mk_Lam dloc x (map_opt (aux k) a) (aux (k+1) f)
+    | Pi  (_,x,a,b) -> mk_Pi dloc x (aux k a) (aux (k+1) b)
+    | Type _ | Kind | Const _ as t -> t
+  in aux
+
+let shift   q te = if q = 0 then te else shift_rec q 0 te
+
+let unshift q = shift (-q)
 
 let psubst_l (args:(term Lazy.t) LList.t) (te:term) : term =
   let nargs = args.LList.len in

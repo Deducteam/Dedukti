@@ -34,14 +34,13 @@ let select f b : unit =
 
 (* State *)
 
-type env = term Lazy.t LList.t
 
 (* A state {ctx; term; stack} is the state of an abstract machine that
 represents a term where [ctx] is a ctx that contains the free variables
 of [term] and [stack] represents the terms that [term] is applied to. *)
 type state = {
-  ctx:env;        (*context*)
-  term : term;    (*term to reduce*)
+  ctx   : env;        (*context*)
+  term  : term;    (*term to reduce*)
   stack : stack;  (*stack*)
   reduc : (bool * state) ref;
   (* Pointer to a state in a more reduced form representing an equivalent term.
@@ -50,6 +49,7 @@ type state = {
   *)
 }
 and stack = state list
+and env = state LList.t
 
 (** Creates a fresh state with reduc pointing to itself. *)
 let mk_state ctx term stack =
@@ -75,7 +75,10 @@ let as_final st = set_final st; st
 
 
 let rec term_of_state {ctx;term;stack} : term =
-  let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
+  let t =
+    if LList.is_empty ctx then term
+    else Subst.psubst_l (LList.map (fun x -> lazy (term_of_state x)) ctx) term
+  in
   match stack with
   | [] -> t
   | a::lst -> mk_App t (term_of_state a) (List.map term_of_state lst)
@@ -85,20 +88,19 @@ let rec term_of_state {ctx;term;stack} : term =
 let pp_state fmt st =
   fprintf fmt "{ctx} {%a} {stack[%i]}\n" pp_term st.term (List.length st.stack)
 
+let pp_state2 fmt st = pp_term fmt (term_of_state st)
+
 let pp_stack fmt stck =
   fprintf fmt "[\n";
   List.iter (pp_state fmt) stck;
   fprintf fmt "]\n"
 
 let pp_env fmt (ctx:env) =
-  let pp_lazy_term out lt = pp_term fmt (Lazy.force lt) in
-    pp_list ", " pp_lazy_term fmt (LList.lst ctx)
+  pp_list ", " pp_state2 fmt (LList.lst ctx)
 
 let pp_stack fmt (st:stack) =
-  let aux fmt state =
-    pp_term fmt (term_of_state state)
-  in
-    fprintf fmt "[ %a ]\n" (pp_list "\n | " aux) st
+  let aux fmt state = pp_term fmt (term_of_state state) in
+  fprintf fmt "[ %a ]\n" (pp_list "\n | " aux) st
 
 let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
   if if_ctx
@@ -120,32 +122,41 @@ type rw_state_strategy = Signature.t -> state -> state
 
 type convertibility_test = Signature.t -> term -> term -> bool
 
+
+
 let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (te:term) : term =
   try Matching.solve depth pbs te
   with Matching.NotUnifiable ->
     Matching.solve depth pbs (reduce sg te)
 
+let rec unshift_st (sg:Signature.t) (reduce:rw_state_strategy) (q:int) (st:state) =
+  let st' = snd !(st.reduc) in
+  if st' != st  then unshift_st sg reduce q st'
+  else if q = 0 then st
+  else
+    let t = 
+      try  Subst.unshift q (term_of_state st)
+      with Subst.UnshiftExn -> Subst.unshift q (term_of_state (reduce sg st))
+    in mk_state LList.nil t []
+
 let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
   try Subst.unshift q te
-  with Subst.UnshiftExn ->
-    Subst.unshift q (reduce sg te)
+  with Subst.UnshiftExn -> Subst.unshift q (reduce sg te)
 
-let get_context_syn (sg:Signature.t) (forcing:rw_strategy) (stack:stack) (ord:arg_pos LList.t) : env option =
-  try Some (LList.map (
-      fun p ->
-        if ( p.depth = 0 )
-        then lazy (term_of_state (List.nth stack p.position) )
-        else
-          Lazy.from_val
-            (unshift sg forcing p.depth (term_of_state (List.nth stack p.position) ))
-    ) ord )
-  with Subst.UnshiftExn -> ( None )
+let get_context_syn (sg:Signature.t) (forcing:rw_state_strategy) (stack:stack)
+    (ord:arg_pos LList.t) : env option =
+  let solve p =
+    let st = List.nth stack p.position in
+    if p.depth = 0 then st
+    else unshift_st sg forcing p.depth st in
+  try Some (LList.map solve ord)
+  with Subst.UnshiftExn -> None
 
 let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
                    (pb_lst:abstract_problem LList.t) : env option =
-  let aux ((pos,dbs):abstract_problem) : term Lazy.t =
+  let aux ((pos,dbs):abstract_problem) : state =
     let res = solve sg forcing pos.depth dbs (term_of_state (List.nth stack pos.position)) in
-    Lazy.from_val (Subst.unshift pos.depth res)
+    mk_state LList.nil (Subst.unshift pos.depth res) []
   in
   try Some (LList.map aux pb_lst)
   with Matching.NotUnifiable -> None
@@ -163,9 +174,9 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
     then test sg convertible ctx tl
     else false
   | (Bracket (i,t))::tl ->
-    let t1 = Lazy.force (LList.nth ctx i) in
+    let t1 = LList.nth ctx i in
     let t2 = term_of_state (mk_state ctx t []) in
-    if convertible sg t1 t2
+    if convertible_state sg t1 t2
     then test sg convertible ctx tl
     else
       (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
@@ -325,6 +336,33 @@ and snf sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
+and are_convertible_lst_st sg : (state * state) list -> bool =
+  let rec aux = function
+  | [] -> true
+  | (st1, st2)::lst ->
+    begin
+      let {ctx=ctx1; term=t1; stack=s1} = state_whnf sg st1 in
+      let {ctx=ctx2; term=t2; stack=s2} = state_whnf sg st2 in
+      match t1, t2 with
+      | Kind, Kind | Type _, Type _ ->
+        assert (s1 = []);
+        assert (s2 = []);
+        aux lst
+      | Const (_,n), Const (_,n') when name_eq n n' ->
+          ( match add_to_list2 s1 s2 lst with
+            | None -> false
+            | Some lst -> aux lst )
+      | DB (_,_,n), DB (_,_,n') when n == n' ->
+        aux lst
+      | Lam (_,_,_,b), Lam (_,_,_,b') ->
+        assert (s1 = []);
+        assert (s2 = []);
+        aux ((state_of_term b, state_of_term b')::lst)
+      | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
+      | t1, t2 -> None
+    end in aux
+
+
 and are_convertible_lst sg : (term*term) list -> bool =
   function
   | [] -> true
@@ -347,8 +385,10 @@ and are_convertible_lst sg : (term*term) list -> bool =
       | Some lst2 -> are_convertible_lst sg lst2
     end
 
-(* Convertibility Test *)
-and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
+(* Convertibility tests *)
+
+and are_convertible_st sg st1 st2 = are_convertible_lst_st sg [(st1,st2)]
+and are_convertible    sg t1 t2   = are_convertible_lst    sg [( t1, t2)]
 
 (* Head Normal Form *)
 let rec hnf sg t =
@@ -378,15 +418,13 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
       | { term=Pi _ } when strat <> Snf  -> (red, st)
       (* Strongly normalizing Pi types *)
       | { ctx=ctx; term=Pi(l,x,a,b) } ->
-        let (red, a') = aux (red, mk_state ctx a []) in
-        let snf_a = term_of_state a' in
-        let state_b = mk_state (LList.cons (lazy snf_a) ctx) b [] in
-        let (red, b') = aux (red, state_b) in
-        (red, mk_reduc_state st ctx (mk_Pi l x snf_a (term_of_state b')) [])
+        let (red, a') = aux (red, mk_state ctx                 a []) in
+        let (red, b') = aux (red, mk_state (LList.cons a' ctx) b []) in
+        (red, mk_reduc_state st ctx (mk_Pi l x (term_of_state a') (term_of_state b')) [])
 
       (* Beta redex *)
       | { ctx; term=Lam (_,_,_,t); stack=p::s } when !beta ->
-        aux (red-1, mk_reduc_state st (LList.cons (lazy (term_of_state p)) ctx) t s)
+        aux (red-1, mk_reduc_state st (LList.cons p ctx) t s)
       (* Not a beta redex (or beta disabled) *)
       | { term=Lam _ } when strat == Whnf -> (red, st)
       (* Not a beta redex (or beta disabled) but keep looking for normal form *)
@@ -425,7 +463,11 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
         end
       (* DeBruijn index: environment lookup *)
       | { ctx; term=DB (_,_,n); stack } when n < LList.len ctx ->
-        aux (red, mk_reduc_state st LList.nil (Lazy.force (LList.nth ctx n)) stack)
+        let ctx_st = LList.nth ctx n in
+        let nst =
+          if stack == [] then ( st.reduc := !(ctx_st.reduc); ctx_st)
+          else mk_reduc_state st ctx_st.ctx ctx_st.term (ctx_st.stack @ stack)
+        in aux (red, nst)
       (* DeBruijn index: out of environment *)
       | { term=DB _ } -> (red, st)
       (* Application: arguments go on the stack *)
