@@ -72,6 +72,8 @@ let mk_reduc_state st ctx term stack =
   st.reduc := (false, st');
   st'
 
+let as_reduc_state st st' =  st.reduc := !(st.reduc); st'
+
 (** Creates a (fresh) final state from given state and redirect pointer to it. *)
 let rec set_final st =
   assert (snd !(st.reduc) == st);
@@ -129,6 +131,7 @@ type rw_strategy = Signature.t -> term -> term
 type rw_state_strategy = Signature.t -> state -> state
 
 type convertibility_test = Signature.t -> term -> term -> bool
+type st_convertibility_test = Signature.t -> state -> state -> bool
 
 
 
@@ -137,21 +140,21 @@ let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (t
   with Matching.NotUnifiable ->
     Matching.solve depth pbs (reduce sg te)
 
-let rec unshift_st (sg:Signature.t) (reduce:rw_state_strategy) (q:int) (st:state) =
+let rec unshift_st (sg:Signature.t) (reduce:rw_strategy) (q:int) (st:state) =
   let st' = snd !(st.reduc) in
   if st' != st  then unshift_st sg reduce q st'
   else if q = 0 then st
   else
     let t = 
       try  Subst.unshift q (term_of_state st)
-      with Subst.UnshiftExn -> Subst.unshift q (term_of_state (reduce sg st))
+      with Subst.UnshiftExn -> Subst.unshift q (reduce sg (term_of_state st))
     in mk_state LList.nil t []
 
 let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
   try Subst.unshift q te
   with Subst.UnshiftExn -> Subst.unshift q (reduce sg te)
 
-let get_context_syn (sg:Signature.t) (forcing:rw_state_strategy) (stack:stack)
+let get_context_syn (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
     (ord:arg_pos LList.t) : env option =
   let solve p =
     let st = List.nth stack p.position in
@@ -170,25 +173,26 @@ let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
   with Matching.NotUnifiable -> None
      | Subst.UnshiftExn -> assert false
 
-let rec test (sg:Signature.t) (convertible:convertibility_test)
+let rec test (sg:Signature.t) (convertible:st_convertibility_test)
              (ctx:env) (constrs: constr list) : bool  =
   match constrs with
   | [] -> true
   | (Linearity (i,j))::tl ->
     let t1 = mk_DB dloc dmark i in
     let t2 = mk_DB dloc dmark j in
-    if convertible sg (term_of_state (mk_state ctx t1[]))
-                      (term_of_state (mk_state ctx t2 []))
+    if convertible sg (mk_state ctx t1[]) (mk_state ctx t2 [])
     then test sg convertible ctx tl
     else false
   | (Bracket (i,t))::tl ->
     let t1 = LList.nth ctx i in
-    let t2 = term_of_state (mk_state ctx t []) in
-    if convertible_state sg t1 t2
+    let t2 = mk_state ctx t [] in
+    if convertible sg t1 t2
     then test sg convertible ctx tl
     else
-      (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
-      raise (Signature.SignatureError( Signature.GuardNotSatisfied(get_loc t1, t1, t2) ))
+      (*FIXME: if a guard is not satisfied should we fail or simply warn the user? *)
+      raise (Signature.SignatureError
+               (Signature.GuardNotSatisfied
+                  (get_loc t1.term, term_of_state t1, term_of_state t2)))
 
 let rec find_case (st:state) (cases:(case * dtree) list)
                   (default:dtree option) : (dtree*state list) option =
@@ -221,7 +225,7 @@ let rec find_case (st:state) (cases:(case * dtree) list)
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
 let gamma_rw (sg:Signature.t)
-             (convertible:convertibility_test)
+             (convertible:st_convertibility_test)
              (forcing:rw_strategy)
              (strategy:rw_state_strategy) : stack -> dtree -> (env*term) option =
   let rec rw stack = function
@@ -308,12 +312,17 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   | { ctx; term=DB (l,x,n); stack } ->
     if LList.is_empty ctx then as_final st
     else if n < LList.len ctx
-    then rec_call LList.nil (Lazy.force (LList.nth ctx n)) stack
+    then
+      let ctx_st = LList.nth ctx n in
+      let nst =
+        if stack == [] then as_reduc_state st ctx_st
+        else mk_reduc_state st ctx_st.ctx ctx_st.term (ctx_st.stack @ stack) in
+      state_whnf sg nst
     else as_final (mk_reduc_state st LList.nil (mk_DB l x (n-LList.len ctx)) stack)
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
     if not !beta then as_final st
-    else rec_call (LList.cons (lazy (term_of_state p)) ctx) t s
+    else rec_call (LList.cons p ctx) t s
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
@@ -326,7 +335,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     | None -> as_final st
     | Some (ar, tree) ->
       let s1, s2 = split_list ar stack in
-      match gamma_rw sg are_convertible snf state_whnf s1 tree with
+      match gamma_rw sg are_convertible_st snf state_whnf s1 tree with
       | None -> as_final st
       | Some (ctx,term) -> rec_call ctx term s2
 
@@ -387,10 +396,11 @@ and check_convertible_lst sg : (term*term) list -> unit = function
             (f,f') :: (a,a') :: (zip_lists args args' lst)
           | Lam (_,_,_,b), Lam (_,_,_,b') -> (b,b') :: lst
           | Pi (_,_,a,b) , Pi (_,_,a',b') -> (a,a') :: (b,b') :: lst
-          | t1, t2 -> raise NotConvertible)
+          | t1, t2 -> raise NotConvertible
+      )
 
 (* Convertibility tests *)
-and are_convertible sg t1 t2 =
+and are_convertible sg (t1:Term.term) t2 =
   try check_convertible_lst sg [(t1,t2)]; true
   with NotConvertible -> false
 
@@ -473,7 +483,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
       | { ctx; term=DB (_,_,n); stack } when n < LList.len ctx ->
         let ctx_st = LList.nth ctx n in
         let nst =
-          if stack == [] then ( st.reduc := !(ctx_st.reduc); ctx_st)
+          if stack == [] then as_reduc_state st ctx_st
           else mk_reduc_state st ctx_st.ctx ctx_st.term (ctx_st.stack @ stack)
         in aux (red, nst)
       (* DeBruijn index: out of environment *)
@@ -498,7 +508,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
         | None -> (red,st)
         | Some (ar, tree) ->
           let s1, s2 = split_list ar stack in
-          match gamma_rw sg are_convertible snf state_whnf s1 tree with
+          match gamma_rw sg are_convertible_st snf state_whnf s1 tree with
           | None -> (red,st)
           | Some (ctx,term) -> aux (red-1, mk_reduc_state st ctx term s2)
   in
