@@ -32,6 +32,14 @@ let select f b : unit =
   selection := f;
   beta := b
 
+exception NotConvertible
+
+let rec zip_lists l1 l2 lst =
+  match l1, l2 with
+  | [], [] -> lst
+  | s1::l1, s2::l2 -> zip_lists l1 l2 ((s1,s2)::lst)
+  | _,_ -> raise NotConvertible
+
 (* State *)
 
 
@@ -336,59 +344,59 @@ and snf sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
-and are_convertible_lst_st sg : (state * state) list -> bool =
-  let rec aux = function
-  | [] -> true
+and check_convertible_lst_st sg : (state * state) list -> unit = function
+  | [] -> ()
   | (st1, st2)::lst ->
-    begin
-      let {ctx=ctx1; term=t1; stack=s1} = state_whnf sg st1 in
-      let {ctx=ctx2; term=t2; stack=s2} = state_whnf sg st2 in
-      match t1, t2 with
-      | Kind, Kind | Type _, Type _ ->
-        assert (s1 = []);
-        assert (s2 = []);
-        aux lst
-      | Const (_,n), Const (_,n') when name_eq n n' ->
-          ( match add_to_list2 s1 s2 lst with
-            | None -> false
-            | Some lst -> aux lst )
-      | DB (_,_,n), DB (_,_,n') when n == n' ->
-        aux lst
-      | Lam (_,_,_,b), Lam (_,_,_,b') ->
-        assert (s1 = []);
-        assert (s2 = []);
-        aux ((state_of_term b, state_of_term b')::lst)
-      | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
-      | t1, t2 -> None
-    end in aux
+    check_convertible_lst_st sg
+      begin
+        let {ctx=ctx1; term=t1; stack=s1} = state_whnf sg st1 in
+        let {ctx=ctx2; term=t2; stack=s2} = state_whnf sg st2 in
+        match t1, t2 with
+        | Kind, Kind | Type _, Type _ ->
+          assert (s1 = []);
+          assert (s2 = []);
+          lst
+        | Const (_,n), Const (_,n') when name_eq n n' ->
+          zip_lists s1 s2 lst
+        | DB (_,_,n), DB (_,_,n') when n == n' ->
+          zip_lists s1 s2 lst
+        | Lam (_,_,_,b), Lam (_,_,_,b') ->
+          assert (s1 = []);
+          assert (s2 = []);
+          (state_of_term b, state_of_term b')::lst
+        | Pi (_,_,a,b), Pi (_,_,a',b') ->
+          assert (s1 = []);
+          assert (s2 = []);
+          (state_of_term a, state_of_term a')::
+          (state_of_term b, state_of_term b')::lst
+        | t1, t2 -> raise NotConvertible
+      end
 
 
-and are_convertible_lst sg : (term*term) list -> bool =
-  function
-  | [] -> true
+and check_convertible_lst sg : (term*term) list -> unit = function
+  | [] -> ()
   | (t1,t2)::lst ->
-    begin
-      match (
-        if term_eq t1 t2 then Some lst
+    check_convertible_lst sg
+      ( if term_eq t1 t2 then lst
         else
           match whnf sg t1, whnf sg t2 with
-          | Kind, Kind | Type _, Type _ -> Some lst
-          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
-          | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
+          | Kind, Kind | Type _, Type _                     -> lst
+          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> lst
+          | DB (_,_,n) , DB (_,_,n')  when ( n==n' )        -> lst
           | App (f,a,args), App (f',a',args') ->
-            add_to_list2 args args' ((f,f')::(a,a')::lst)
-          | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
-          | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
-          | t1, t2 -> None
-      ) with
-      | None -> false
-      | Some lst2 -> are_convertible_lst sg lst2
-    end
+            (f,f') :: (a,a') :: (zip_lists args args' lst)
+          | Lam (_,_,_,b), Lam (_,_,_,b') -> (b,b') :: lst
+          | Pi (_,_,a,b) , Pi (_,_,a',b') -> (a,a') :: (b,b') :: lst
+          | t1, t2 -> raise NotConvertible)
 
 (* Convertibility tests *)
+and are_convertible sg t1 t2 =
+  try check_convertible_lst sg [(t1,t2)]; true
+  with NotConvertible -> false
 
-and are_convertible_st sg st1 st2 = are_convertible_lst_st sg [(st1,st2)]
-and are_convertible    sg t1 t2   = are_convertible_lst    sg [( t1, t2)]
+and are_convertible_st sg st1 st2 =
+  try check_convertible_lst_st sg [(st1,st2)]; true
+  with NotConvertible -> false
 
 (* Head Normal Form *)
 let rec hnf sg t =
