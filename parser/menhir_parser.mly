@@ -68,7 +68,7 @@ let mk_config loc id1 id2_opt =
 %token <Basic.loc> KW_THM
 %token <Basic.loc*Basic.ident> ID
 %token <Basic.loc*Basic.mident*Basic.ident> QID
-%token <string> STRING
+%token <Basic.loc*string> STRING
 
 %start line
 %type <Basic.mident -> Entry.entry> line
@@ -135,7 +135,7 @@ line:
   | ASSERTNOT t1=aterm EQUAL t2=term DOT
       {fun md -> Check($1, true , true , Convert(scope_term md [] t1, scope_term md [] t2))}
 
-  | PRINT STRING DOT {fun _ -> Print($1, $2)}
+  | PRINT STRING DOT {fun _ -> Print($1, snd $2)}
   | GDT   ID     DOT {fun _ -> DTree($1, None, snd $2)}
   | GDT   QID    DOT {fun _ -> let (_,m,v) = $2 in DTree($1, Some m, v)}
   | n=NAME       DOT {fun _ -> Name(fst n, snd n)}

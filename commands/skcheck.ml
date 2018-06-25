@@ -151,6 +151,9 @@ let _ =
     ; ( "-nl"
       , Arg.Set Rule.allow_non_linear
       , " Allow non left-linear rewriting rules" )
+    ; ("-nk"
+      , Arg.Set    Lexer.no_keyword
+      , "Disable Sukerujo keywords")
     ; ( "--beautify"
       , Arg.Set beautify
       , " Pretty printer. Print on the standard output" )]
