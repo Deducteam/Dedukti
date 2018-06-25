@@ -1,0 +1,52 @@
+#NAME records.
+
+(; This file shows the syntax for dependent records in Sukerujo ;)
+
+(; A setoid is a type with an equivalence relation ;)
+Record setoid := mk_setoid {
+  A : Type,
+  eq : A -> A -> Type,
+  refl : a : A -> eq a a,
+  sym : a : A -> b : A -> eq a b -> eq b a,
+  trans : a : A -> b : A -> c : A -> eq a b -> eq b c -> eq a c}.
+
+(; "Record" is a keyword, projections are written proj_A, proj_eq,
+proj_refl, etc... this Record declaration is equivalent to:
+
+setoid : Type.
+
+mk_setoid :
+  A:Type ->
+  eq:(A -> A -> Type) ->
+  refl:(a:A -> eq a a) ->
+  sym:(a:A -> b:A -> (eq a b) -> eq b a) ->
+  trans:(a:A -> b:A -> c:A -> (eq a b) -> (eq b c) -> eq a c) -> setoid.
+
+def proj_A : record:setoid -> Type.
+[A] proj_A (mk_setoid A _ _ _ _) --> A.
+
+def proj_eq : record:setoid -> (proj_A record) -> (proj_A record) -> Type.
+[eq] proj_eq (mk_setoid _ eq _ _ _) --> eq.
+
+etc... ;)
+
+(; If A is a setoid and B a is setoid for each a : A, then pointwise
+equality on (a : A -> B a) is an equivalence relation ;)
+def setoid_pi (SA : setoid) (SB : proj_A SA -> setoid) : setoid :=
+  mk_setoid
+    (x : proj_A SA -> proj_A (SB x))
+    (f => g => x : proj_A SA -> proj_eq (SB x) (f x) (g x))
+    (f => x => proj_refl (SB x) (f x))
+    (f => g => h => x => proj_sym (SB x) (f x) (g x) (h x))
+    (f => g => h => i => j => x => proj_trans (SB x) (f x) (g x) (h x) (i x) (j x)).
+
+(; Records declarations can also be parameterized ;)
+
+Record morphism (A : setoid) (B : setoid) := mk_morphism {
+  f : proj_A A -> proj_A B,
+  fmorph : x : proj_A A -> y : proj_A A -> proj_eq A x y -> proj_eq B (f x) (f y)}.
+
+def id_morphism (A : setoid) : morphism A A :=
+  mk_morphism A A
+    (x => x)
+    (x => y => h => h).

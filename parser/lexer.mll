@@ -10,17 +10,6 @@
 
   let builtins = Builtins.modname
 
-  let list_of_modules c s =
-      let rec aux s l =
-      	  try
-		let i = String.index s c in
-		let md = String.sub s 0 i in
-		let s' = String.sub s (i+1) ((String.length s)-(String.length md)-1) in
-		aux s' (mk_mident md::l)
-	  with Not_found -> l
-      in
-      List.rev (aux s [])
-
   let prerr_loc lc = eprintf "%a " pp_loc lc
 
   let fail lc fmt =
@@ -82,7 +71,7 @@ rule token = parse
   { QID (get_loc lexbuf , mk_mident md, mk_ident id) }
   | non_neg_num as s
   { if !no_keyword then ID (get_loc lexbuf, mk_ident s) else
-    NUM (get_loc lexbuf, s)}
+    NUM (get_loc lexbuf, s) }
   | const  as id
   { if !no_keyword then ID (get_loc lexbuf, mk_ident id) else
     QID (get_loc lexbuf , builtins, mk_ident id) }
