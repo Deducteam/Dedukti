@@ -122,7 +122,6 @@ install: uninstall all
 	install -m 755 -d $(BINDIR)
 	install -m 755 -p skcheck.native  $(BINDIR)/skcheck
 	install -m 755 -p skdep.native    $(BINDIR)/skdep
-	install -m 755 -p skindent.native $(BINDIR)/skindent
 	install -m 755 -p sktop.native    $(BINDIR)/sktop
 
 
