@@ -316,7 +316,10 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
-    let tl' = List.rev_map (fun t -> mk_state ctx t []) (a::lst) in
+    let aux = function
+      | DB(l,x,n) when n < LList.len ctx -> LList.nth ctx n
+      | t -> mk_state ctx t [] in
+    let tl' = List.rev_map aux (a::lst) in
     rec_call ctx f (List.rev_append tl' s)
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack } ->
@@ -495,7 +498,10 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
       | { term=DB _ } -> (red, st)
       (* Application: arguments go on the stack *)
       | { ctx; term=App (f,a,lst); stack=s } when strat <> Snf ->
-        let tl' = List.rev_map ( fun t -> mk_state ctx t [] ) (a::lst) in
+        let aux' = function
+          | DB(l,x,n) when n < LList.len ctx -> LList.nth ctx n
+          | t -> mk_state ctx t [] in
+        let tl' = List.rev_map aux' (a::lst) in
         aux (red, mk_reduc_state st ctx f (List.rev_append tl' s) )
       (* Application: arguments are reduced then go on the stack *)
       | { ctx; term=App (f,a,lst); stack=s } ->
