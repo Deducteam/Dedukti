@@ -80,7 +80,7 @@ let handle_entry e =
 let  _ =
   let md = Env.init "<toplevel>" in
   let str = from_channel md stdin in
-  Format.printf "\tDedukti (%s)@.@." Version.version;
+  Format.printf "\tSukerujo (%s)@.@." Version.version;
   while true do
     Format.printf ">> ";
     try handle_entry (read str) with

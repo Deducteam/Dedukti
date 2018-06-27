@@ -134,7 +134,7 @@ let _ =
       , Arg.String (fun n -> run_on_stdin := Some(n))
       , "MOD Parses standard input using module name MOD" )
     ; ( "-version"
-      , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
+      , Arg.Unit (fun () -> Format.printf "Sukerujo %s@." Version.version)
       , " Print the version number" )
     ; ( "-coc"
       , Arg.Set Typing.coc
