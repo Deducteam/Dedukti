@@ -353,6 +353,9 @@ and check_convertible_lst_st sg : (state * state) list -> unit = function
       begin
         let {ctx=ctx1; term=t1; stack=s1} as st1 = state_whnf sg st1 in
         let {ctx=ctx2; term=t2; stack=s2} as st2 = state_whnf sg st2 in
+        if term_eq t1 t2 && term_eq (term_of_state st1) (term_of_state st2)
+        then lst
+        else
         match t1, t2 with
         | Kind, Kind | Type _, Type _ ->
           assert (s1 = []);
@@ -387,24 +390,6 @@ and check_convertible_lst_st sg : (state * state) list -> unit = function
           end
         | t1, t2 -> raise NotConvertible
       end
-
-
-and check_convertible_lst sg : (term*term) list -> unit = function
-  | [] -> ()
-  | (t1,t2)::lst ->
-    check_convertible_lst sg
-      ( if term_eq t1 t2 then lst
-        else
-          match whnf sg t1, whnf sg t2 with
-          | Kind, Kind | Type _, Type _                     -> lst
-          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> lst
-          | DB (_,_,n) , DB (_,_,n')  when ( n == n' )        -> lst
-          | App (f,a,args), App (f',a',args') ->
-            (f,f') :: (a,a') :: (zip_lists args args' lst)
-          | Lam (_,_,_,b), Lam (_,_,_,b') -> (b,b') :: lst
-          | Pi (_,_,a,b) , Pi (_,_,a',b') -> (a,a') :: (b,b') :: lst
-          | t1, t2 -> raise NotConvertible
-      )
 
 (* Convertibility tests *)
 
