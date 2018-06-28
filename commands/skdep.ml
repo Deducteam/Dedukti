@@ -22,21 +22,21 @@ let add_dep : mident -> path option -> unit = fun name file ->
   | Some file ->
     current_deps := List.sort cmp ((name, file) :: !current_deps)
 
-(** [find_dk md path] looks for the ".dk" file corresponding to the module
+(** [find_dk md path] looks for the ".dk" or ".sk" file corresponding to the module
     named [name] in the directories of [path]. If no corresponding file is
     found, or if there are several possibilities, the program fails with a
     graceful error message. *)
 let find_dk : mident -> path list -> path option = fun md path ->
   let name = string_of_mident md in
-  let file_name = name ^ ".dk" in
   let path = Filename.current_dir_name :: path in
   let path = List.sort_uniq String.compare path in
-  let add_dir dir =
-    if dir = Filename.current_dir_name then file_name
-    else Filename.concat dir file_name
+  let add_dir ext dir =
+    if dir = Filename.current_dir_name then (name ^ ext)
+    else Filename.concat dir (name ^ ext)
   in
-  let files = List.map add_dir path in
-  match List.filter Sys.file_exists files with
+  let files1 = List.map (add_dir ".dk") path in
+  let files2 = List.map (add_dir ".sk") path in
+  match List.filter Sys.file_exists (files1 @ files2) with
   | []  ->
     if !ignore then None
     else
