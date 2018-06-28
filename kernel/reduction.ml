@@ -346,16 +346,16 @@ and snf sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
-and check_convertible_lst_st sg : (state * state) list -> unit = function
+and check_convertible_lst sg : (state * state) list -> unit = function
   | [] -> ()
   | (st1, st2)::lst ->
-    check_convertible_lst_st sg
-      begin
+    check_convertible_lst sg
+      (
+      if st1 == st2 || (term_eq st1.term st2.term && term_eq (term_of_state st1) (term_of_state st2))
+      then lst
+      else
         let {ctx=ctx1; term=t1; stack=s1} as st1 = state_whnf sg st1 in
         let {ctx=ctx2; term=t2; stack=s2} as st2 = state_whnf sg st2 in
-        if term_eq t1 t2 && term_eq (term_of_state st1) (term_of_state st2)
-        then lst
-        else
         match t1, t2 with
         | Kind, Kind | Type _, Type _ ->
           assert (s1 = []);
@@ -389,12 +389,13 @@ and check_convertible_lst_st sg : (state * state) list -> unit = function
             | _ -> assert false
           end
         | t1, t2 -> raise NotConvertible
-      end
+    )
+    
 
 (* Convertibility tests *)
 
 and are_convertible_st sg st1 st2 =
-  try check_convertible_lst_st sg [(st1,st2)]; true
+  try check_convertible_lst sg [(st1,st2)]; true
   with NotConvertible -> false
 
 
