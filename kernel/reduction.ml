@@ -47,10 +47,10 @@ let rec zip_lists l1 l2 lst =
 represents a term where [ctx] is a ctx that contains the free variables
 of [term] and [stack] represents the terms that [term] is applied to. *)
 type state = {
-  ctx   : env;        (*context*)
-  term  : term;    (*term to reduce*)
+  ctx   : env;    (*context*)
+  term  : term;   (*term to reduce*)
   stack : stack;  (*stack*)
-  reduc : (bool * state) ref;
+  mutable reduc : reduct;
   (* Pointer to a state in a more reduced form representing an equivalent term.
      - Self reference means the state has not been reduced yet.
      - Boolean = true means the reduced state is the WHNF.
@@ -58,41 +58,53 @@ type state = {
 }
 and stack = state list
 and env = state LList.t
+and reduct = Final | Unknown | Next of state | Uniq of int
+
+let reduc_counter = ref 0
+let fresh_state () =
+  incr reduc_counter;
+  {ctx=LList.nil; term=mk_Kind; stack=[]; reduc=Uniq !reduc_counter }
 
 (** Creates a fresh state with reduc pointing to itself. *)
 let mk_state ctx term stack =
-  let rec t = { ctx; term; stack; reduc = ref (false, t) } in t
+  let rec t = { ctx; term; stack; reduc = Unknown } in t
 
 let state_of_term t = mk_state LList.nil t []
 
 (** Creates a fresh state using the same reduc pointer as [st].
     This pointer now points to the fresh state. *)
 let mk_reduc_state st ctx term stack =
-  let st' = { ctx; term; stack; reduc = st.reduc } in
-  st.reduc := (false, st');
+  let st' = mk_state ctx term stack in
+  st.reduc <- Next st';
   st'
 
-let as_reduc_state st st' =  st.reduc := !(st.reduc); st'
+let rec as_reduc_state st st' =
+  match st'.reduc with
+  | Next st'' -> st.reduc <- Next st''; as_reduc_state st' st''
+  | _         -> st.reduc <- Next st' ; st'
+
+
 
 (** Creates a (fresh) final state from given state and redirect pointer to it. *)
 let rec set_final st =
-  assert (snd !(st.reduc) == st);
-  st.reduc := (true, st)
+  assert (st.reduc == Unknown);
+  st.reduc <- Final
 
 let as_final st = set_final st; st
 
-let rec get_reduct st =
-  let (final, r) as p = !(st.reduc) in
-  if r == st then p
-  else
-    let _  , r' as p' = !( r.reduc) in
-    if final then assert (r' == r);
-    if r' == r then p
-    else
-      (
-        st.reduc := p';  (* Path compression *)
-        get_reduct r
-      )
+let rec get_reduct_aux st1 st2 =
+  match st2.reduc with
+  | Unknown        -> (false, st2)
+  | Final | Uniq _ -> (true , st2)
+  | Next st3 as st2r ->
+    st1.reduc <- st2r; (* Path halfing *)
+    get_reduct_aux st2 st3
+
+let get_reduct st =
+  match st.reduc with
+  | Unknown        -> (false, st)
+  | Final | Uniq _ -> (true , st)
+  | Next st' -> get_reduct_aux st st'
 
 
 let rec term_of_state {ctx;term;stack} : term =
@@ -152,13 +164,15 @@ let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (t
     Matching.solve depth pbs (reduce sg te)
 
 let rec unshift_st (sg:Signature.t) (reduce:rw_strategy) (q:int) (st:state) =
-  let st' = snd !(st.reduc) in
-  if st' != st  then unshift_st sg reduce q st'
-  else if q = 0 then st'
-  else let t =
-         try  Subst.unshift q (term_of_state st)
-         with Subst.UnshiftExn -> Subst.unshift q (reduce sg (term_of_state st))
-    in state_of_term t
+  match st.reduc with
+  | Next st' -> unshift_st sg reduce q st'
+  | Uniq i -> st
+  | Unknown | Final ->
+    if q = 0 then st
+    else let t =
+           try  Subst.unshift q (term_of_state st)
+           with Subst.UnshiftExn -> Subst.unshift q (reduce sg (term_of_state st))
+      in state_of_term t
 
 let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
   try Subst.unshift q te
@@ -364,45 +378,52 @@ and check_convertible_lst sg : (state * state) list -> unit = function
     check_convertible_lst sg
       (
         if st1 == st2 then lst
-        else if snd !(st1.reduc) != st1 then (snd !(st1.reduc), st2)::lst
-        else if snd !(st2.reduc) != st2 then (st1, snd !(st2.reduc))::lst
-        else if term_eq st1.term st2.term && term_eq (term_of_state st1) (term_of_state st2)
-        then lst
         else
-        let {ctx=ctx1; term=t1; stack=s1} as st1 = state_whnf sg st1 in
-        let {ctx=ctx2; term=t2; stack=s2} as st2 = state_whnf sg st2 in
-        match t1, t2 with
-        | Kind, Kind | Type _, Type _ -> assert (s1 = [] && s2 = []); lst
-        | Const(_,n1), Const(_,n2) ->
-          if name_eq n1 n2 then zip_lists s1 s2 lst
-          else raise NotConvertible
-        | DB (_,_,n1), DB (_,_,n2) ->
-          assert (LList.is_empty ctx1);
-          assert (LList.is_empty ctx2);
-          if n1 == n2 then zip_lists s1 s2 lst
-          else raise NotConvertible
-        | Lam _, Lam _ ->
-          assert (s1 = []);
-          assert (s2 = []);
-          begin
-            match (term_of_state st1, term_of_state st2) with
-            | Lam (_,_,_,b1), Lam (_,_,_,b2) ->
-              (state_of_term b1, state_of_term b2)::lst
-            | _ -> assert false
-          end
-        | Pi _, Pi _ ->
-          assert (s1 = []);
-          assert (s2 = []);
-          begin
-            match (term_of_state st1, term_of_state st2) with
-            | Pi (_,_,a,b), Pi (_,_,a',b') ->
-              (state_of_term a, state_of_term a')::
-              (state_of_term b, state_of_term b')::lst
-            | _ -> assert false
-          end
-        | t1, t2 -> raise NotConvertible
-    )
-    
+          match st1.reduc, st2.reduc with
+          | Next st1', Next st2' -> (st1',st2') :: lst
+          | Next st1', _         -> (st1',st2 ) :: lst
+          | _        , Next st2' -> (st1 ,st2') :: lst
+          | Uniq i, Uniq j -> if i = j then lst else raise NotConvertible
+          | Uniq _, _      -> raise NotConvertible
+          | _     , Uniq _ -> raise NotConvertible
+          | _ ->
+            if term_eq st1.term st2.term && term_eq (term_of_state st1) (term_of_state st2)
+            then lst
+            else
+              let {ctx=ctx1; term=t1; stack=s1} as st1 = state_whnf sg st1 in
+              let {ctx=ctx2; term=t2; stack=s2} as st2 = state_whnf sg st2 in
+              match t1, t2 with
+              | Kind, Kind | Type _, Type _ -> assert (s1 = [] && s2 = []); lst
+              | Const(_,n1), Const(_,n2) ->
+                if name_eq n1 n2 then zip_lists s1 s2 lst
+                else raise NotConvertible
+              | DB (_,_,n1), DB (_,_,n2) ->
+                assert (LList.is_empty ctx1);
+                assert (LList.is_empty ctx2);
+                if n1 == n2 then zip_lists s1 s2 lst
+                else raise NotConvertible
+              | Lam _, Lam _ ->
+                assert (s1 = []);
+                assert (s2 = []);
+                begin
+                  match (term_of_state st1, term_of_state st2) with
+                  | Lam (_,_,_,b1), Lam (_,_,_,b2) ->
+                    (state_of_term b1, state_of_term b2)::lst
+                  | _ -> assert false
+                end
+              | Pi _, Pi _ ->
+                assert (s1 = []);
+                assert (s2 = []);
+                begin
+                  match (term_of_state st1, term_of_state st2) with
+                  | Pi (_,_,a,b), Pi (_,_,a',b') ->
+                    (state_of_term a, state_of_term a')::
+                    (state_of_term b, state_of_term b')::lst
+                  | _ -> assert false
+                end
+              | t1, t2 -> raise NotConvertible
+      )
+
 
 (* Convertibility tests *)
 
