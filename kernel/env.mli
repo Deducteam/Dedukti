@@ -38,7 +38,7 @@ val export      : unit -> bool
 val import      : loc -> mident -> (unit, signature_error) error
 (** [import lc md] the module [md] in the current environment. *)
 
-val declare : loc -> ident -> Signature.staticity -> term -> (unit,env_error) error
+val declare : loc -> ident -> staticity -> term -> (unit,env_error) error
 (** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
    staticity [st]. *)
 
@@ -66,4 +66,6 @@ val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> (term,
 
 val are_convertible : ?ctx:typed_context -> term -> term -> (bool,env_error) error
 
+val sizechange : unit -> bool
+  
 val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term

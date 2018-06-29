@@ -19,9 +19,7 @@ type signature_error =
   | GuardNotSatisfied     of loc * term * term
 
 exception SignatureError of signature_error
-
-type staticity = Static | Definable
-
+                         
 type t
 
 val make                : string -> t

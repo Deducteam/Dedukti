@@ -42,8 +42,11 @@ val mk_name : mident -> ident -> name
 (** [name_eq n n'] checks if the two names [n] and [n'] are equals *)
 val name_eq : name -> name -> bool
 
-(** qmark is a special identifier for unification variables *)
+(** dmark is a special identifier for unification variables *)
 val dmark : ident
+
+(** A default name used to initialize name vectors *)
+val dname : name
 
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
 
@@ -103,14 +106,16 @@ val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 module Debug : sig
   
   type flag
-  val d_warn         : flag (** Warnings *)
-  val d_notice       : flag (** Notices *)
-  val d_module       : flag (** Modules *)
-  val d_confluence   : flag (** Confluence *)
-  val d_rule         : flag (** Rule type checking *)
-  val d_typeChecking : flag (** Type checking *)
-  val d_reduce       : flag (** Reduction *)
-  val d_matching     : flag (** Pattern matching *)
+  val d_warn             : flag (** Warnings *)
+  val d_notice           : flag (** Notices *)
+  val d_module           : flag (** Modules *)
+  val d_confluence       : flag (** Confluence *)
+  val d_rule             : flag (** Rule type checking *)
+  val d_typeChecking     : flag (** Type checking *)
+  val d_reduce           : flag (** Reduction *)
+  val d_matching         : flag (** Pattern matching *)
+  val d_sizechange       : flag (** Sizechange *)
+  val d_termination_stat : flag (** Statistics about the number of functions proved terminating *)
 
   val  enable_flag : flag -> unit (** Activates given flag's debugging *)
   val disable_flag : flag -> unit (** Deactivates given flag's debugging *)
@@ -124,6 +129,8 @@ module Debug : sig
       t : enables  d_TypeChecking
       r : enables  d_Reduce
       m : enables  d_Matching
+      z : enables  d_sizechange
+      s : enables  d_termination_stat
   *)
   val set_debug_mode : string -> unit
 
@@ -165,3 +172,14 @@ val pp_arr    : string -> 'a printer -> 'a array printer
 
 (** Printing object with printer or default string when None. *)
 val pp_option : string -> 'a printer -> 'a option printer
+
+(** Printing couples *)
+val pp_pair : 'a printer -> 'b printer -> ('a * 'b) printer
+
+(** Printing triples *)
+val pp_triple : 'a printer -> 'b printer -> 'c printer -> ('a * 'b * 'c) printer
+
+type staticity = Static | Definable
+
+val pp_staticity        : Format.formatter -> staticity -> unit
+   

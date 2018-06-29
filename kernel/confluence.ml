@@ -233,7 +233,7 @@ let finalize () =
   | Some (file, fmt) ->
     begin
       close_out fmt;
-      ( if !do_not_erase_confluence_file then ()
-        else Sys.remove file );
-
+      if !do_not_erase_confluence_file
+      then ()
+      else Sys.remove file
     end

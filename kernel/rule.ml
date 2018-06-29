@@ -17,6 +17,12 @@ type wf_pattern =
 
 type rule_name = Delta of name | Gamma of bool * name
 
+let rule_name_eq : rule_name -> rule_name -> bool = fun n1 n2 ->
+  match n1,n2 with
+  | Delta x    , Delta y       -> name_eq x y
+  | Gamma (b1,x), Gamma (b2,y) -> b1=b2 && name_eq x y
+  | _,_                        -> false
+
 type 'a rule =
   {
     name: rule_name;

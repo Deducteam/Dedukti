@@ -2,7 +2,7 @@
 
 open Basic
 open Rule
-
+       
 type confluence_error =
   | NotConfluent of string
   | MaybeConfluent of string

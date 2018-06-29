@@ -96,17 +96,21 @@ let mk_entry beautify md =
   else mk_entry md
 
 
-let run_on_file beautify export file =
+let run_on_file beautify export sizechange file =
   let input = open_in file in
   Debug.(debug d_module "Processing file '%s'..." file);
   let md = Env.init file in
   Confluence.initialize ();
+  Termination.initialize ();
   Parser.handle_channel md (mk_entry beautify md) input;
   if not beautify then
     Errors.success "File '%s' was successfully checked." file;
   if export && not (Env.export ()) then
     Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ());
   Confluence.finalize ();
+  if sizechange
+  then
+    Errors.print_sz (Env.sizechange ());
   close_in input
 
 
@@ -114,16 +118,20 @@ let _ =
   let run_on_stdin = ref None  in
   let export       = ref false in
   let beautify     = ref false in
+  let sizechange   = ref false in
   let options = Arg.align
     [ ( "-d"
       , Arg.String Debug.set_debug_mode
       , "flags enables debugging for all given flags" )
     ; ( "-v"
-      , Arg.Unit (fun () -> Debug.set_debug_mode "w")
+      , Arg.Unit (fun () -> Debug.set_debug_mode "montru")
       , " Verbose mode (equivalent to -d 'w')" )
     ; ( "-q"
       , Arg.Unit (fun () -> Debug.set_debug_mode "q")
       , " Quiet mode (equivalent to -d 'q'" )
+    ; ("-sz"
+      , Arg.Set sizechange
+      , "Apply Size Change Principle" )
     ; ( "-e"
       , Arg.Set export
       , " Generates an object file (\".dko\")" )
@@ -168,7 +176,7 @@ let _ =
       exit 2
     end;
   try
-    List.iter (run_on_file !beautify !export) files;
+    List.iter (run_on_file !beautify !export !sizechange) files;
     match !run_on_stdin with
     | None   -> ()
     | Some m ->

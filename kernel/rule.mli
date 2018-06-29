@@ -43,6 +43,9 @@ type rule_name =
   (** Rules of lambda pi modulo. The first parameter indicates whether
       the name of the rule has been given by the user. *)
 
+val rule_name_eq : rule_name -> rule_name -> bool
+
+val pp_rule_name : rule_name printer
 
 type 'a rule =
   {

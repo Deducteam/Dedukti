@@ -28,7 +28,6 @@ let md = fst
 let id = snd
 
 
-
 module WS = Weak.Make(
 struct
   type t        = ident
@@ -45,6 +44,8 @@ let mk_mident md =
   try Filename.chop_extension base with _ -> base
 
 let dmark       = mk_ident "$"
+
+let dname = mk_name (mk_mident "") (mk_ident "")
 
 (** {2 Lists with Length} *)
 
@@ -129,16 +130,18 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
 module Debug = struct
   
   type flag = int
-  let d_warn         : flag = 0
-  let d_notice       : flag = 1
-  let d_module       : flag = 2
-  let d_confluence   : flag = 3
-  let d_rule         : flag = 4
-  let d_typeChecking : flag = 5
-  let d_reduce       : flag = 6
-  let d_matching     : flag = 7
+  let d_warn             : flag = 0
+  let d_notice           : flag = 1
+  let d_module           : flag = 2
+  let d_confluence       : flag = 3
+  let d_rule             : flag = 4
+  let d_typeChecking     : flag = 5
+  let d_reduce           : flag = 6
+  let d_matching         : flag = 7
+  let d_sizechange       : flag = 8
+  let d_termination_stat : flag = 9
 
-  let nb_flags = 7
+  let nb_flags = 10
 
   (* Default mode is to debug only [d_std] messages. *)
   let default_flags = [d_warn]
@@ -153,6 +156,8 @@ module Debug = struct
      ; "TypeChecking"
      ; "Reduce"
      ; "Matching"
+     ; "Sizechange"
+     ; "Termination stat"
     |]
 
   (* Array of activated flags. Initialized with [false]s except at [default_flags] indices. *)
@@ -173,6 +178,8 @@ module Debug = struct
         | 't' -> enable_flag  d_typeChecking
         | 'r' -> enable_flag  d_reduce
         | 'm' -> enable_flag  d_matching
+        | 'z' -> enable_flag  d_sizechange
+        | 's' -> enable_flag  d_termination_stat
         | c -> raise (DebugFlagNotRecognized c)
       )
       
@@ -237,3 +244,16 @@ let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
 let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def
   | Some a -> Format.fprintf fmt "%a" pp a
+
+let pp_pair pp_fst pp_snd fmt x =
+  Format.fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd (snd x)
+
+let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) =
+  Format.fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z
+ 
+
+type staticity = Static | Definable
+
+(** The pretty printer for the type [staticity] *)
+let pp_staticity fmt s =
+  Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable")

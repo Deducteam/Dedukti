@@ -3,6 +3,7 @@ open Term
 open Rule
 open Typing
 open Signature
+open Format
 
 type env_error =
   | EnvErrorType of typing_error
@@ -52,7 +53,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   match ty with
   | Kind -> raise (DefineExn (l,id))
   | _ ->
-    _declare l id Signature.Definable ty;
+    _declare l id Definable ty;
     let cst = mk_name (get_name ()) id in
     let rule =
       { name= Delta(cst) ;
@@ -60,8 +61,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
         pat = Pattern(l, cst, []);
         rhs = te ;
       }
-    in
-    Signature.add_rules !sg [rule]
+    in Signature.add_rules !sg [rule]
 
 let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
@@ -70,7 +70,7 @@ let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   in
   match ty with
   | Kind -> raise (DefineExn (l,id))
-  | _ -> Signature.add_declaration !sg l id Signature.Static ty
+  | _ -> Signature.add_declaration !sg l id Static ty
 
 let declare l id st ty : (unit,env_error) error =
   try OK ( _declare l id st ty )
@@ -137,4 +137,7 @@ let are_convertible ?ctx:(ctx=[]) te1 te2 =
     OK b
   with
   | SignatureError e -> Err (EnvErrorSignature e)
-  | TypingError    e -> Err (EnvErrorType e)
+  | TypingError e    -> Err (EnvErrorType e)
+
+let sizechange () =
+  Termination.termination_check ()
