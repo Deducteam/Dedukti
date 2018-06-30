@@ -1,30 +1,10 @@
-# Current version number of Dedukti.
-VERSION = devel
+# Current version number of Sukerujo (must be the same as the Dedukti kernel lib).
+VERSION = master
 
 # Compile with "make Q=" to display the commands that are run.
 Q = @
 
-all: kernel parser commands META
-
-#### Compilation of the kernel library #######################################
-
-KERNEL_MLI := $(wildcard kernel/*.mli)
-KERNEL_ML  := $(KERNEL_MLI:.mli=.ml)
-
-.PHONY: kernel
-kernel: _build/kernel/kernel.cma _build/kernel/kernel.cmxa
-
-kernel/version.ml: GNUmakefile
-	@echo "[GEN] $@ ($(VERSION))"
-	$(Q)echo 'let version = "$(VERSION)"' > $@
-
-_build/kernel/kernel.cma: $(KERNEL_MLI) $(KERNEL_ML)
-	@echo "[BYT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.cma
-
-_build/kernel/kernel.cmxa: $(KERNEL_MLI) $(KERNEL_ML)
-	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.cmxa
+all: parser commands META
 
 #### Compilation of the parser library #######################################
 
@@ -33,65 +13,48 @@ PARSER_ML  := $(PARSER_MLI:.mli=.ml)
 PARSER_GEN := parser/menhir_parser.mly parser/lexer.mll
 
 .PHONY: parser
-parser: kernel _build/parser/parser.cma _build/parser/parser.cmxa
+parser: _build/parser/parser.cma _build/parser/parser.cmxa
 
 _build/parser/parser.cma: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
 	@echo "[BYT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind parser/parser.cma
+	$(Q)ocamlbuild -quiet -use-ocamlfind -package dedukti.kernel parser/parser.cma
 
 _build/parser/parser.cmxa: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind parser/parser.cmxa
+	$(Q)ocamlbuild -quiet -use-ocamlfind -package dedukti.kernel parser/parser.cmxa
 
-#### Compilation of the dedukti suite ########################################
+#### Compilation of the Sukerujo suite ########################################
 
 .PHONY: commands
 
 commands: skcheck.native skdep.native sktop.native
 
-skcheck.native: kernel parser commands/skcheck.ml
+skcheck.native: parser commands/skcheck.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind commands/skcheck.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind -package dedukti.kernel commands/skcheck.native
 
-skdep.native: kernel parser commands/skdep.ml
+skdep.native: parser commands/skdep.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind commands/skdep.native
+	$(Q)ocamlbuild -quiet -use-ocamlfind -package dedukti.kernel commands/skdep.native
 
-sktop.native: kernel parser commands/sktop.ml
+sktop.native: parser commands/sktop.ml
 	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind commands/sktop.native
-
-#### Generation of the documentation #########################################
-
-.PHONY: doc
-doc: _build/kernel/kernel.docdir/index.html
-
-_build/kernel/kernel.docdir/index.html: $(KERNEL_MLI) $(KERNEL_ML)
-	@echo "[DOC] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.docdir/index.html
+	$(Q)ocamlbuild -quiet -use-ocamlfind -package dedukti.kernel commands/sktop.native
 
 #### Generation of the META file #############################################
 
 META: GNUmakefile
 	@echo "[GEN] $@"
-	@echo 'name = "dedukti"'                                             > META
+	@echo 'name = "sukerujo"'                                           > META
 	@echo 'version = "$(VERSION)"'                                      >> META
-	@echo 'description = "Dedukti library - λΠ-calculus modulo theory"' >> META
+	@echo 'description = "Sukerujo library - syntactic sugar for Dedukti"' >> META
 	@echo 'requires = "unix"'                                           >> META
-	@echo 'archive(byte) = "kernel.cma, parser.cma"'                    >> META
-	@echo 'archive(native) = "kernel.cmxa, parser.cmxa"'                >> META
-	@echo                                                               >> META
-	@echo 'package "kernel" ('                                          >> META
-	@echo '  version = "$(VERSION)"'                                    >> META
-	@echo '  description = "Dedukti kernel"'                            >> META
-	@echo '  requires = "unix"'                                         >> META
-	@echo '  archive(byte) = "kernel.cma"'                              >> META
-	@echo '  archive(native) = "kernel.cmxa"'                           >> META
-	@echo ')'                                                           >> META
+	@echo 'archive(byte) = "parser.cma"'                                >> META
+	@echo 'archive(native) = "parser.cmxa"'                             >> META
 	@echo                                                               >> META
 	@echo 'package "parser" ('                                          >> META
 	@echo '  version = "$(VERSION)"'                                    >> META
-	@echo '  description = "Dedukti parser"'                            >> META
+	@echo '  description = "Sukerujo parser"'                           >> META
 	@echo '  requires = "unix, dedukti.kernel"'                         >> META
 	@echo '  archive(byte) = "parser.cma"'                              >> META
 	@echo '  archive(native) = "parser.cmxa"'                           >> META
@@ -103,7 +66,7 @@ BINDIR = $(dir $(shell which ocaml))
 
 .PHONY: uninstall
 uninstall:
-	@ocamlfind remove dedukti
+	@ocamlfind remove sukerujo
 	@rm -f $(BINDIR)/skcheck
 	@rm -f $(BINDIR)/skdep
 	@rm -f $(BINDIR)/sktop
@@ -111,14 +74,12 @@ uninstall:
 
 .PHONY: install
 install: uninstall all
-	@ocamlfind install dedukti META \
-		$(wildcard _build/kernel/*.mli) $(wildcard _build/kernel/*.cmi) \
-		$(wildcard _build/kernel/*.cmx) $(wildcard _build/kernel/*.o) \
+	@ocamlfind install sukerujo META \
 		_build/parser/parser.mli _build/parser/parser.cmi \
 		$(wildcard _build/parser/*.cmx) $(wildcard _build/parser/*.o) \
-		_build/kernel/kernel.cma _build/parser/parser.cma \
-		_build/kernel/kernel.cmxa _build/parser/parser.cmxa \
-		_build/kernel/kernel.a _build/parser/parser.a
+	        _build/parser/parser.cma \
+		_build/parser/parser.cmxa \
+		_build/parser/parser.a
 	install -m 755 -d $(BINDIR)
 	install -m 755 -p skcheck.native  $(BINDIR)/skcheck
 	install -m 755 -p skdep.native    $(BINDIR)/skdep
@@ -144,5 +105,4 @@ clean:
 
 distclean: clean
 	$(Q)find -name "*~" -exec rm {} \;
-	$(Q)rm -f kernel/version.ml
 	$(Q)rm -f META

@@ -158,13 +158,13 @@ let _ =
   let sorted  = ref false  in
   let args = Arg.align
       [ ( "-d"
-        , Arg.String Debug.set_debug_mode
+        , Arg.String (fun _ -> ())
         , "flags enables debugging for all given flags" )
       ; ( "-v"
-        , Arg.Unit (fun () -> Debug.set_debug_mode "w")
+        , Arg.Unit (fun () -> ())
         , " Verbose mode (equivalent to -d 'w')" )
       ; ( "-q"
-        , Arg.Unit (fun () -> Debug.set_debug_mode "q")
+        , Arg.Unit (fun () -> ())
       , " Quiet mode (equivalent to -d 'q'" )
       ; ( "-o"
         , Arg.String (fun n -> output := open_out n)

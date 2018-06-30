@@ -4,7 +4,7 @@ open Parser
 open Entry
 
 let eprint lc fmt =
-  Debug.(debug d_notice ("%a " ^^ fmt) pp_loc lc)
+  Format.eprintf fmt
 
 let mk_entry md e =
   match e with
@@ -71,19 +71,9 @@ let mk_entry md e =
       | Err _ when assrt   -> failwith (Format.sprintf "At line %d: Assertion failed." (fst (of_loc l)))
       | _                  -> Format.printf "NO@."
     end
-  | DTree(lc,m,v) ->
-    begin
-      let m = match m with None -> Env.get_name () | Some m -> m in
-      let cst = mk_name m v in
-      match Env.get_dtree lc cst with
-      | OK forest ->
-        Format.printf "GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
-      | Err e -> Errors.fail_signature_error e
-    end
+  | DTree(lc,m,v) -> ()
   | Print(_,s) -> Format.printf "%s@." s
-  | Name(_,n) ->
-    if not (mident_eq n md)
-    then Debug.(debug d_warn "Invalid #NAME directive ignored.@.")
+  | Name(_,n) -> ()
   | Require(lc,md) ->
     begin
       match Env.import lc md with
@@ -98,7 +88,6 @@ let mk_entry beautify md =
 
 let run_on_file beautify export file =
   let input = open_in file in
-  Debug.(debug d_module "Processing file '%s'..." file);
   let md = Env.init file in
   Confluence.initialize ();
   Parser.handle_channel md (mk_entry beautify md) input;
@@ -116,13 +105,13 @@ let _ =
   let beautify     = ref false in
   let options = Arg.align
     [ ( "-d"
-      , Arg.String Debug.set_debug_mode
+      , Arg.String (fun _ -> ())
       , "flags enables debugging for all given flags" )
     ; ( "-v"
-      , Arg.Unit (fun () -> Debug.set_debug_mode "w")
+      , Arg.Unit (fun () -> ())
       , " Verbose mode (equivalent to -d 'w')" )
     ; ( "-q"
-      , Arg.Unit (fun () -> Debug.set_debug_mode "q")
+      , Arg.Unit (fun () -> ())
       , " Quiet mode (equivalent to -d 'q'" )
     ; ( "-e"
       , Arg.Set export
