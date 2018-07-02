@@ -7,15 +7,134 @@ open Reduction
 open Signature
 open Entry
 
-let rec mk_lam : preterm -> (loc*ident*preterm) list -> preterm = fun te ps ->
-  match ps with
-  | []           -> te
-  | (l,x,ty)::ps -> PreLam(l, x, Some ty, mk_lam te ps)
 
-let rec mk_pi  : preterm -> (loc*ident*preterm) list -> preterm = fun ty ps ->
-  match ps with
-  | []           -> ty
-  | (l,x,aa)::ps -> PrePi(l, Some x, aa, mk_pi ty ps)
+    let fresh_var var_list var =
+      if List.mem var var_list then
+        (* Split the variable name in a string part and a number part *)
+        let s = string_of_ident var in
+        let number_part = ref "" in
+        let i = ref (String.length s - 1) in
+        while s.[!i] >= '0' && s.[!i] <= '9' do
+          number_part := Printf.sprintf "%c%s" s.[!i] !number_part;
+          i := !i - 1
+        done;
+        let name_part = String.sub s 0 (!i+1) in
+        assert (s = name_part ^ !number_part);
+        let int_part =
+          ref (try
+                  int_of_string !number_part
+                with Failure _ -> 0)
+        in
+        while List.mem (mk_ident (Printf.sprintf "%s%d" name_part !int_part)) var_list do
+          int_part := !int_part + 1
+        done;
+        mk_ident (Printf.sprintf "%s%d" name_part !int_part)
+      else
+        var
+
+    let rec pre_subst map = function
+      | PreId (_, x) as t -> (try List.assoc x map with Not_found -> t)
+      | PreQId _
+      | PreType _ as t -> t
+      | PreApp (f, a, l) -> PreApp (pre_subst map f,
+                                   pre_subst map a,
+                                   List.map (pre_subst map) l)
+      | PrePi (l, None, ty, body) ->
+         PrePi (l, None, pre_subst map ty, pre_subst map body)
+      | PreLam (l, x, ty, body) ->
+         let x' = fresh_var (List.map fst map) x in
+         let map' = (x, PreId (l, x')) :: map in
+         let ty' =
+           match ty with
+           | None -> None
+           | Some ty -> Some (pre_subst map' ty)
+         in
+         PreLam (l, x', ty', pre_subst map' body)
+      | PrePi (l, Some x, ty, body) ->
+         let x' = fresh_var (List.map fst map) x in
+         let map' = (x, PreId (l, x')) :: map in
+         PrePi (l, Some x', pre_subst map' ty, pre_subst map' body)
+      | TypeOf(l,a) -> TypeOf(l, pre_subst map a)
+
+    let mk_let var term body = pre_subst [(var, term)] body
+
+    let rec mk_lam (te:preterm) : param list -> preterm = function
+        | [] -> te
+        | PDecl(l,x,ty)::tl -> PreLam (l,x,Some ty,mk_lam te tl)
+        | PDef(l,x,t)::tl -> mk_let x t (mk_lam te tl)
+
+    let rec mk_pi (te:preterm) : param list -> preterm = function
+        | [] -> te
+        | PDecl(l,x,ty)::tl -> PrePi(l,Some x,ty,mk_pi te tl)
+        | PDef(l,x,t)::tl -> mk_let x t (mk_pi te tl)
+
+    let rec preterm_loc = function
+        | PreType l | PreId (l,_) | PreQId (l,_) | PreLam  (l,_,_,_) | TypeOf(l,_)
+        | PrePi   (l,_,_,_) -> l
+        | PreApp (f,_,_) -> preterm_loc f
+
+    let mk_pre_from_list = function
+        | [] -> assert false
+        | [t] -> t
+        | f::a1::args -> PreApp (f,a1,args)
+
+    let rec filter_map f = function
+      | [] -> []
+      | a :: l ->
+         (match f a with
+          | None -> filter_map f l
+          | Some b -> b :: filter_map f l)
+
+    let mk_record_type md (lt, ty_name) (params : param list) (lc, constr) (fields : pfield list) =
+      (* Convert params and fields to decls, patterns and terms *)
+      let preid (l, x) = PreId (l, x) in
+      let pdecl (l,x,ty) = PDecl(l,x,ty) in
+      let p_as_decl = function PDecl (l,x,_) -> Some (l,x) | PDef _ -> None in
+      let p_as_pattern (l, _) = PJoker l in
+      let f_as_pattern f (l, x, _) = if x == f then PPattern (l,None,x,[]) else PJoker l in
+      let params_as_decls = filter_map p_as_decl params in
+      let params_as_patterns = List.map p_as_pattern params_as_decls in
+      let fields_as_patterns f = List.map (f_as_pattern f) fields in
+      let params_as_terms = List.map preid params_as_decls in
+
+      let params_and_fields = params @ List.map pdecl fields in
+
+      let rec_type = mk_pre_from_list (PreId (lt, ty_name) :: params_as_terms) in
+      let rec_name = mk_ident "record" in
+      let field_proj_id n = let s = string_of_ident n in mk_ident ("proj_" ^ s) in
+      let field_proj_preterm (l, n, t) =
+        mk_pre_from_list (PreId(l, field_proj_id n) :: params_as_terms @ [PreId(lt, rec_name)])
+      in
+      let field_proj_subst (l, n, t) = (n, field_proj_preterm (l, n, t)) in
+      let param_and_field_patterns f = params_as_patterns @ fields_as_patterns f in
+      (* Declare the record type *)
+      ignore(Env.declare lt ty_name Signature.Static (scope_term md [] (mk_pi (PreType lt) params)));
+      (* Declare the constructor *)
+      ignore(Env.declare lc constr Signature.Static (scope_term md [] (mk_pi rec_type (params_and_fields))));
+      List.iter
+        (fun (lf, field_name, field_type) ->
+          let proj_id = field_proj_id field_name in
+          (* Declare the projection as definable *)
+          ignore(Env.declare lf proj_id Signature.Definable
+            (scope_term md []
+               (mk_pi
+                  (pre_subst (List.map field_proj_subst fields) field_type)
+                  (params @ [PDecl(lf, rec_name, rec_type)]))));
+          (* Define the projection *)
+          ignore(Env.add_rules [
+            scope_rule md (
+              lf,
+              None,
+              [(lf,field_name)],
+              None,
+              proj_id,
+              params_as_patterns @
+                [PPattern (lf,
+                           None,
+                           constr,
+                           param_and_field_patterns field_name)],
+              PreId (lf, field_name))]))
+        fields
 
 let mk_config loc id1 id2_opt =
   try
@@ -52,6 +171,8 @@ let mk_config loc id1 id2_opt =
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
+%token RECORD
+%token TYPEOF
 %token <Basic.loc> EVAL
 %token <Basic.loc> INFER
 %token <Basic.loc> CHECK
@@ -69,70 +190,71 @@ let mk_config loc id1 id2_opt =
 %token <Basic.loc*Basic.ident> ID
 %token <Basic.loc*Basic.mident*Basic.ident> QID
 %token <Basic.loc*string> STRING
+%token <Basic.loc*string> NUM
+%token <Basic.loc*char> CHAR
 
 %start line
 %type <Basic.mident -> Entry.entry> line
 %type <Preterm.prule> rule
 %type <Preterm.pdecl> decl
-%type <Basic.loc*Basic.ident*Preterm.preterm> param
+%type <Preterm.param> param
 %type <Preterm.pdecl list> context
 %type <Basic.loc*Basic.mident option*Basic.ident*Preterm.prepattern list> top_pattern
 %type <Preterm.prepattern> pattern
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm
-%type <Preterm.preterm> term
 
 %right ARROW FATARROW
 
 %%
 
 line:
-  | id=ID ps=param* COLON ty=term DOT
+  | id=ID ps=param* COLON ty=letterm DOT
       {fun md -> Decl(fst id, snd id, Static, scope_term md [] (mk_pi ty ps))}
-  | KW_DEF id=ID COLON ty=term DOT
+  | KW_DEF id=ID COLON ty=arrterm DOT
       {fun md -> Decl(fst id, snd id, Definable, scope_term md [] ty)}
-  | KW_DEF id=ID COLON ty=term DEF te=term DOT
+  | KW_DEF id=ID COLON ty=arrterm DEF te=letterm DOT
       {fun md -> Def(fst id, snd id, false, Some(scope_term md [] ty), scope_term md [] te)}
-  | KW_DEF id=ID DEF te=term DOT
+  | KW_DEF id=ID DEF te=letterm DOT
       {fun md -> Def(fst id, snd id, false, None, scope_term md [] te)}
-  | KW_DEF id=ID ps=param+ COLON ty=term DEF te=term DOT
+  | KW_DEF id=ID ps=param+ COLON ty=arrterm DEF te=letterm DOT
       {fun md -> Def(fst id, snd id, false, Some(scope_term md [] (mk_pi ty ps)),
                      scope_term md [] (mk_lam te ps))}
-  | KW_DEF id=ID ps=param+ DEF te=term DOT
+  | KW_DEF id=ID ps=param+ DEF te=letterm DOT
       {fun md -> Def(fst id, snd id, false, None, scope_term md [] (mk_lam te ps))}
-  | KW_THM id=ID COLON ty=term DEF te=term DOT
+  | KW_THM id=ID COLON ty=arrterm DEF te=letterm DOT
       {fun md -> Def(fst id, snd id, true, Some(scope_term md [] ty), scope_term md [] te)}
-  | KW_THM id=ID ps=param+ COLON ty=term DEF te=term DOT
+  | KW_THM id=ID ps=param+ COLON ty=arrterm DEF te=letterm DOT
       {fun md -> Def(fst id, snd id, true, Some(scope_term md [] (mk_pi ty ps)),
                      scope_term md [] (mk_lam te ps))}
   | rs=rule+ DOT
       {fun md -> Rules(List.map (scope_rule md) rs)}
 
-  | EVAL te=term DOT
+  | EVAL te=letterm DOT
       {fun md -> Eval($1, default_cfg, scope_term md [] te)}
-  | EVAL cfg=eval_config te=term DOT
+  | EVAL cfg=eval_config te=letterm DOT
       {fun md -> Eval($1, cfg, scope_term md [] te)}
-  | INFER te=term DOT
+  | INFER te=letterm DOT
       {fun md -> Infer($1, default_cfg, scope_term md [] te)}
-  | INFER cfg=eval_config te=term DOT
+  | INFER cfg=eval_config te=letterm DOT
       {fun md -> Infer($1, cfg, scope_term md [] te)}
 
-  | CHECK te=aterm COLON ty=term DOT
+  | CHECK te=aterm COLON ty=letterm DOT
       {fun md -> Check($1, false, false, HasType(scope_term md [] te, scope_term md [] ty))}
-  | CHECKNOT te=aterm COLON ty=term DOT
+  | CHECKNOT te=aterm COLON ty=letterm DOT
       {fun md -> Check($1, false, true , HasType(scope_term md [] te, scope_term md [] ty))}
-  | ASSERT te=aterm COLON ty=term DOT
+  | ASSERT te=aterm COLON ty=letterm DOT
       {fun md -> Check($1, true , false, HasType(scope_term md [] te, scope_term md [] ty))}
-  | ASSERTNOT te=aterm COLON ty=term DOT
+  | ASSERTNOT te=aterm COLON ty=letterm DOT
       {fun md -> Check($1, true , true , HasType(scope_term md [] te, scope_term md [] ty))}
 
-  | CHECK t1=aterm EQUAL t2=term DOT
+  | CHECK t1=aterm EQUAL t2=letterm DOT
       {fun md -> Check($1, false, false, Convert(scope_term md [] t1, scope_term md [] t2))}
-  | CHECKNOT t1=aterm EQUAL t2=term DOT
+  | CHECKNOT t1=aterm EQUAL t2=letterm DOT
       {fun md -> Check($1, false, true , Convert(scope_term md [] t1, scope_term md [] t2))}
-  | ASSERT t1=aterm EQUAL t2=term DOT
+  | ASSERT t1=aterm EQUAL t2=letterm DOT
       {fun md -> Check($1, true , false, Convert(scope_term md [] t1, scope_term md [] t2))}
-  | ASSERTNOT t1=aterm EQUAL t2=term DOT
+  | ASSERTNOT t1=aterm EQUAL t2=letterm DOT
       {fun md -> Check($1, true , true , Convert(scope_term md [] t1, scope_term md [] t2))}
 
   | PRINT STRING DOT {fun _ -> Print($1, snd $2)}
@@ -149,29 +271,32 @@ eval_config:
       {mk_config (Lexer.loc_of_pos $startpos) (string_of_ident (snd id1))
         (Some(string_of_ident (snd id2)))}
 
-param:
-  | LEFTPAR id=ID COLON te=term RIGHTPAR
-      {(fst id, snd id, te)}
+param           : LEFTPAR ID COLON arrterm RIGHTPAR        { PDecl (fst $2,snd $2,$4) }
+                | LEFTPAR ID DEF arrterm RIGHTPAR          { PDef  (fst $2,snd $2,$4) }
 
 rule:
-  | LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+  | LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
       { let (l,md_opt,id,args) = $4 in
         ( l , None, $2 , md_opt, id , args , $6) }
-  | LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+  | LEFTBRA ID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
       { let (l,md_opt,id,args) = $7 in
         ( l , Some (None,snd $2), $5 , md_opt, id , args , $9)}
-  | LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW term
+  | LEFTBRA QID RIGHTBRA LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
       { let (l,md_opt,id,args) = $7 in
         let (_,m,v) = $2 in
         ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 decl:
-  | ID COLON term { Debug.(debug d_warn "Ignoring type declaration in rule context."); $1 }
+  | ID COLON aterm { Debug.(debug d_warn "Ignoring type declaration in rule context."); $1 }
   | ID            { $1 }
 
-context:
-  | /* empty */                          { [] }
-  | separated_nonempty_list(COMMA, decl) { $1 }
+def_decl        : ID COLON arrterm         { (fst $1, snd $1,$3) }
+
+context         : /* empty */          { [] }
+                | separated_nonempty_list(COMMA, decl) { $1 }
+
+def_context     : /* empty */          { [] }
+                | separated_nonempty_list(COMMA, def_decl) { $1 }
 
 top_pattern:
   | ID  pattern_wp* { (fst $1,None,snd $1,$2) }
@@ -185,7 +310,7 @@ pattern_wp:
   | ID                       { PPattern (fst $1,None,snd $1,[]) }
   | QID                      { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
   | UNDERSCORE               { PJoker $1 }
-  | LEFTBRA term RIGHTBRA    { PCondition $2 }
+  | LEFTBRA aterm RIGHTBRA    { PCondition $2 }
   | LEFTPAR pattern RIGHTPAR { $2 }
 
 pattern:
@@ -197,24 +322,36 @@ pattern:
 sterm:
   | QID                      { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
   | pid                      { PreId (fst $1,snd $1) }
-  | LEFTPAR term RIGHTPAR    { $2 }
+  | LEFTPAR letterm RIGHTPAR    { $2 }
   | TYPE                     { PreType $1 }
+  | TYPEOF letterm           { TypeOf (preterm_loc $2, $2) }
+  | NUM                      { Builtins.mk_num $1 }
+  | CHAR                     { Builtins.mk_char $1 }
+  | STRING                   { Builtins.mk_string $1 }
 
 aterm:
   | te=sterm ts=sterm*
       {match ts with [] -> te | a::args -> PreApp(te,a,args)}
 
-term:
-  | t=aterm
-      { t }
-  | pid COLON aterm ARROW term
-      { PrePi (fst $1,Some (snd $1), $3, $5) }
-  | LEFTPAR ID COLON aterm RIGHTPAR ARROW term
-      { PrePi (fst $2,Some (snd $2), $4 ,$7) }
-  | term ARROW term
-      { PrePi (Lexer.loc_of_pos $startpos,None,$1,$3) }
-  | pid FATARROW term
-      {PreLam (fst $1, snd $1, None, $3)}
-  | pid COLON aterm FATARROW term
-      {PreLam (fst $1, snd $1, Some $3, $5)}
+letterm         : aterm
+                { $1 }
+                | pid DEF aterm FATARROW letterm
+                { mk_let (snd $1) $3 $5 }
+                | pid COLON aterm ARROW letterm
+                { PrePi (fst $1,Some (snd $1),$3,$5) }
+                | aterm ARROW letterm
+                { PrePi (preterm_loc $1,None,$1,$3) }
+                | pid COLON UNDERSCORE FATARROW letterm
+                { PreLam (fst $1,snd $1,None,$5) }
+                | pid COLON aterm FATARROW letterm
+                { PreLam (fst $1,snd $1,Some($3),$5) }
+                | pid FATARROW letterm
+                { PreLam (fst $1,snd $1,None,$3) }
+
+arrterm         : aterm
+                { $1 }
+                | pid COLON aterm ARROW arrterm
+                { PrePi (fst $1,Some (snd $1),$3,$5) }
+                | aterm ARROW arrterm
+                { PrePi (preterm_loc $1,None,$1,$3) }
 %%
