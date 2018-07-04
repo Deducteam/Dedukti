@@ -36,7 +36,9 @@ let mk_entry md e =
       let (l,cst) = get_infos r.pat in
       eprint l "Adding rewrite rules for '%a'" pp_name cst;
       match Env.add_rules rs with
-      | OK rs -> List.iter (eprint (get_loc_pat r.pat) "%a" pp_typed_rule) rs
+      | OK rs -> List.iter (fun (s,r) ->
+          eprint (get_loc_pat r.pat) "%a@.with the following constraints: %a"
+            pp_typed_rule r Subst.Subst.pp s) rs
       | Err e -> Errors.fail_env_error e
     end
   | Eval(_,red,te) ->
@@ -117,10 +119,7 @@ let _ =
   let options = Arg.align
     [ ( "-d"
       , Arg.String Debug.set_debug_mode
-      , " flags enables debugging for all given flags" )
-    ; ( "-v"
-      , Arg.Unit (fun () -> Debug.set_debug_mode "w")
-      , " Verbose mode (equivalent to -d 'w')" )
+      , " flags enables debugging for all given flags [qnocutrm]" )
     ; ( "-q"
       , Arg.Unit (fun () -> Debug.set_debug_mode "q")
       , " Quiet mode (equivalent to -d 'q'" )
