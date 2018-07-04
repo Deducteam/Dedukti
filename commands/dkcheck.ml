@@ -117,7 +117,7 @@ let _ =
   let options = Arg.align
     [ ( "-d"
       , Arg.String Debug.set_debug_mode
-      , "flags enables debugging for all given flags" )
+      , " flags enables debugging for all given flags" )
     ; ( "-v"
       , Arg.Unit (fun () -> Debug.set_debug_mode "w")
       , " Verbose mode (equivalent to -d 'w')" )
@@ -132,7 +132,7 @@ let _ =
       , " Disable colors in the output" )
     ; ( "-stdin"
       , Arg.String (fun n -> run_on_stdin := Some(n))
-      , "MOD Parses standard input using module name MOD" )
+      , " MOD Parses standard input using module name MOD" )
     ; ( "-version"
       , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
       , " Print the version number" )
@@ -141,13 +141,13 @@ let _ =
       , " Typecheck the Calculus of Construction" )
     ; ( "-I"
       , Arg.String Basic.add_path
-      , "DIR Add the directory DIR to the load path" )
+      , " DIR Add the directory DIR to the load path" )
     ; ( "-errors-in-snf"
       , Arg.Set Errors.errors_in_snf
       , " Normalize the types in error messages" )
     ; ( "-cc"
       , Arg.String Confluence.set_cmd
-      , "CMD Set the external confluence checker command to CMD" )
+      , " CMD Set the external confluence checker command to CMD" )
     ; ( "-nl"
       , Arg.Set Rule.allow_non_linear
       , " Allow non left-linear rewriting rules" )
