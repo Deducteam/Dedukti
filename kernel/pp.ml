@@ -109,13 +109,14 @@ let print_bv out (_,id,i) = print_db out (id,i)
 
 let rec print_pattern out = function
   | Var (_,id,i,[]) -> print_db_or_underscore out (id,i)
-  | Var (_,id,i,lst)     -> Format.fprintf out "(%a %a)" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
+  | Var (_,id,i,lst)     -> Format.fprintf out "%a %a" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | Brackets t           -> Format.fprintf out "{ %a }" print_term t
   | Pattern (_,cst,[])   -> Format.fprintf out "%a" print_const cst
   | Pattern (_,cst,pats) -> Format.fprintf out "%a %a" print_const cst (print_list " " print_pattern_wp) pats
   | Lambda (_,x,p)       -> Format.fprintf out "@[%a => %a@]" print_ident x print_pattern p
 and print_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> Format.fprintf out "(%a)" print_pattern p
+  | Var (_,id,i,(_::_ as lst))     -> Format.fprintf out "(%a %a)" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | p -> print_pattern out p
 
 let print_typed_context fmt ctx =
