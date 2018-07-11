@@ -254,35 +254,35 @@ command         : EVAL te=letterm
                   {fun md -> Infer($1, default_cfg, scope_term md [] te)}
                 | INFER cfg=eval_config te=letterm
                   {fun md -> Infer($1, cfg, scope_term md [] te)}
-                | CHECK te=letterm COLON ty=letterm
+                | CHECK te=term COLON ty=letterm
                   {fun md ->
                    Check($1, false, false,
                          HasType(scope_term md [] te, scope_term md [] ty))}
-                | CHECKNOT te=letterm COLON ty=letterm
+                | CHECKNOT te=term COLON ty=letterm
                   {fun md ->
                    Check($1, false, true,
                          HasType(scope_term md [] te, scope_term md [] ty))}
-                | ASSERT te=letterm COLON ty=letterm
+                | ASSERT te=term COLON ty=letterm
                   {fun md ->
                    Check($1, true, false,
                          HasType(scope_term md [] te, scope_term md [] ty))}
-                | ASSERTNOT te=letterm COLON ty=letterm
+                | ASSERTNOT te=term COLON ty=letterm
                   {fun md ->
                    Check($1, true, true,
                          HasType(scope_term md [] te, scope_term md [] ty))}
-                | CHECK t1=letterm EQUAL t2=letterm
+                | CHECK t1=term EQUAL t2=letterm
                   {fun md ->
                    Check($1, false, false,
                          Convert(scope_term md [] t1, scope_term md [] t2))}
-                | CHECKNOT t1=letterm EQUAL t2=letterm
+                | CHECKNOT t1=term EQUAL t2=letterm
                   {fun md ->
                    Check($1, false, true,
                          Convert(scope_term md [] t1, scope_term md [] t2))}
-                | ASSERT t1=letterm EQUAL t2=letterm
+                | ASSERT t1=term EQUAL t2=letterm
                   {fun md ->
                    Check($1, true, false,
                          Convert(scope_term md [] t1, scope_term md [] t2))}
-                | ASSERTNOT t1=letterm EQUAL t2=letterm
+                | ASSERTNOT t1=term EQUAL t2=letterm
                   {fun md ->
                    Check($1, true, true,
                          Convert(scope_term md [] t1, scope_term md [] t2))}
@@ -357,8 +357,6 @@ sterm           : QID
                 { $2 }
                 | TYPE
                 { PreType $1 }
-                | TYPEOF letterm
-                { TypeOf (preterm_loc $2, $2) }
                 | NUM
                 { Builtins.mk_num $1 }
                 | CHAR
@@ -383,6 +381,8 @@ letterm         : term
                 { PreLam (fst $1,snd $1,Some($3),$5) }
                 | ID FATARROW letterm
                 { PreLam (fst $1,snd $1,None,$3) }
+                | TYPEOF letterm
+                { TypeOf (preterm_loc $2, $2) }
 
 arrterm         : term
                 { $1 }
