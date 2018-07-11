@@ -23,6 +23,9 @@ type typing_error =
   | Unconvertible of loc*term*term
   | Convertible of loc*term*term
   | Inhabit of loc*term*term
+  | NonLinearNonEqArguments        of loc * ident
+  (* FIXME: the reason for this exception should be formalized on paper ! *)
+  | NotEnoughArguments             of loc * ident * int * int * int
 
 exception TypingError of typing_error
 

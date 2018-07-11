@@ -27,6 +27,10 @@ type typing_error =
   | Unconvertible of loc*term*term
   | Convertible of loc*term*term
   | Inhabit of loc*term*term
+  | NonLinearNonEqArguments        of loc * ident
+  (* FIXME: the reason for this exception should be formalized on paper ! *)
+  | NotEnoughArguments             of loc * ident * int * int * int
+
 
 exception TypingError of typing_error
 
@@ -399,6 +403,45 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context option =
   with
   | Subst.UnshiftExn -> None
 
+let check_arity (rule:typed_rule) : unit =
+  let size = List.length rule.ctx in
+  let arities = Array.init size (fun _ -> -1) in
+  let check_var_arity lc id x arr =
+    if arities.(x) > -1 && arities.(x) != arr then
+      raise (TypingError (NonLinearNonEqArguments(lc,id)))
+    else
+      arities.(x) <- arr
+  in
+  let rec check_pattern k p =
+    match p with
+    | Rule.Var (_,x,n,_) when n < k -> ()
+    | Rule.Var (lc,id,n,ps) ->
+      check_var_arity lc id (n-k) (List.length ps);
+      List.iter (check_pattern k) ps
+    | Rule.Pattern (_,_,ps) ->
+      List.iter (check_pattern k) ps
+    | Rule.Lambda (_,_,te) -> check_pattern (k+1) te
+    | Rule.Brackets _ -> ()
+  in
+  let check_rhs_arity lc id x arr =
+    assert (arities.(x) > -1);
+    if arr < arities.(x) then
+      raise (TypingError (NotEnoughArguments (lc,id,x,arr,arities.(x))))
+  in
+  let rec check_rhs k = function
+    | Kind | Type _ | Const _ -> ()
+    | DB (l,id,n) ->
+      if n >= k then check_rhs_arity l id (n-k) 0
+    | App(DB(l,id,n),a1,args) when n>=k ->
+      check_rhs_arity l id (n-k) (List.length args + 1);
+      List.iter (check_rhs k) (a1::args)
+    | App (f,a1,args) -> List.iter (check_rhs k) (f::a1::args)
+    | Lam (_,_,None,b) -> check_rhs (k+1) b
+    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (check_rhs k a;  check_rhs (k+1) b)
+  in
+  check_pattern 0 rule.pat;
+  check_rhs 0 rule.rhs
+
 let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   (*  let ctx0,le,ri = rule.rule in *)
   let delta = pc_make rule.ctx in
@@ -430,11 +473,13 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
       end
   in
   check sg ctx2 ri2 ty_le2;
-  Debug.(debug d_rule "[ %a ] %a --> %a"
-           pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
-  sub,
-  { name = rule.name;
+  let rule =   { name = rule.name;
     ctx = ctx2;
     pat = rule.pat;
     rhs = rule.rhs
-  }
+               }
+  in
+  check_arity rule;
+  Debug.(debug d_rule "[ %a ] %a --> %a"
+           pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
+  sub, rule
