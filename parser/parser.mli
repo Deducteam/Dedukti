@@ -14,7 +14,7 @@ val from_channel : mident -> in_channel -> stream
 
 (** [read str] reads a single entry from the parser stream [str]. When no more
     [entry] is available, the [End_of_file] exception is raised. *)
-val read : stream -> entry
+val read : stream -> entry list
 
 (** [handle_channel mod f ic] parses the channel [ic] for module [mod],  using
     the action [f] on each entry. Note that the channel is parsed lazily. This

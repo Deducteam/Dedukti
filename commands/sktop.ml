@@ -82,7 +82,7 @@ let  _ =
   Format.printf "\tSukerujo (%s)@.@." Version.version;
   while true do
     Format.printf ">> ";
-    try handle_entry (read str) with
+    try List.iter handle_entry (read str) with
     | End_of_file      -> exit 0
     | Parse_error(_,s) -> Format.eprintf "Parse error: %s@." s
     | e                ->

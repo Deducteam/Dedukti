@@ -18,7 +18,7 @@ let read str =
 
 let handle_channel md f ic =
   let s = from_channel md ic in
-  try while true do f (read s) done with End_of_file -> ()
+  try while true do List.iter f (read s) done with End_of_file -> ()
 
 let parse_channel md ic =
   let l = ref [] in

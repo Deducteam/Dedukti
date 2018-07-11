@@ -85,7 +85,7 @@ open Entry
           | None -> filter_map f l
           | Some b -> b :: filter_map f l)
 
-    let mk_record_type md (lt, ty_name) (params : param list) (lc, constr) (fields : pfield list) =
+    let mk_record_type md (lt, ty_name) (params : param list) (lc, constr) (fields : pfield list) : entry list =
       (* Convert params and fields to decls, patterns and terms *)
       let preid (l, x) = PreId (l, x) in
       let pdecl (l,x,ty) = PDecl(l,x,ty) in
@@ -108,20 +108,20 @@ open Entry
       let field_proj_subst (l, n, t) = (n, field_proj_preterm (l, n, t)) in
       let param_and_field_patterns f = params_as_patterns @ fields_as_patterns f in
       (* Declare the record type *)
-      ignore(Env.declare lt ty_name Signature.Static (scope_term md [] (mk_pi (PreType lt) params)));
+      Entry.Decl (lt, ty_name, Signature.Static, scope_term md [] (mk_pi (PreType lt) params)) ::
       (* Declare the constructor *)
-      ignore(Env.declare lc constr Signature.Static (scope_term md [] (mk_pi rec_type (params_and_fields))));
-      List.iter
+      Entry.Decl (lc, constr, Signature.Static, scope_term md [] (mk_pi rec_type (params_and_fields))) ::
+      List.flatten (List.map
         (fun (lf, field_name, field_type) ->
           let proj_id = field_proj_id field_name in
           (* Declare the projection as definable *)
-          ignore(Env.declare lf proj_id Signature.Definable
+          [ Entry.Decl (lf, proj_id, Signature.Definable,
             (scope_term md []
                (mk_pi
                   (pre_subst (List.map field_proj_subst fields) field_type)
                   (params @ [PDecl(lf, rec_name, rec_type)]))));
           (* Define the projection *)
-          ignore(Env.add_rules [
+          Entry.Rules [
             scope_rule md (
               lf,
               None,
@@ -133,8 +133,8 @@ open Entry
                            None,
                            constr,
                            param_and_field_patterns field_name)],
-              PreId (lf, field_name))]))
-        fields
+              PreId (lf, field_name))]])
+        fields)
 
 let mk_config loc id1 id2_opt =
   try
@@ -154,6 +154,9 @@ let mk_config loc id1 id2_opt =
     | (i     , None       ) -> {default_cfg with nb_steps = some i}
     | (_     , _          ) -> raise Exit (* captured bellow *)
   with _ -> raise (Parse_error(loc, "invalid command configuration"))
+
+let mk_lst f md = [f md]
+
 %}
 
 %token EOF
@@ -194,7 +197,7 @@ let mk_config loc id1 id2_opt =
 %token <Basic.loc*char> CHAR
 
 %start line
-%type <Basic.mident -> Entry.entry> line
+%type <Basic.mident -> Entry.entry list> line
 %type <Preterm.prule> rule
 %type <Preterm.pdecl> decl
 %type <Preterm.param> param
@@ -203,66 +206,91 @@ let mk_config loc id1 id2_opt =
 %type <Preterm.prepattern> pattern
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm
-
-%right ARROW FATARROW
+%type <Preterm.preterm> term
 
 %%
 
-line:
-  | id=ID ps=param* COLON ty=letterm DOT
-      {fun md -> Decl(fst id, snd id, Static, scope_term md [] (mk_pi ty ps))}
-  | KW_DEF id=ID COLON ty=arrterm DOT
-      {fun md -> Decl(fst id, snd id, Definable, scope_term md [] ty)}
-  | KW_DEF id=ID COLON ty=arrterm DEF te=letterm DOT
-      {fun md -> Def(fst id, snd id, false, Some(scope_term md [] ty), scope_term md [] te)}
-  | KW_DEF id=ID DEF te=letterm DOT
-      {fun md -> Def(fst id, snd id, false, None, scope_term md [] te)}
-  | KW_DEF id=ID ps=param+ COLON ty=arrterm DEF te=letterm DOT
-      {fun md -> Def(fst id, snd id, false, Some(scope_term md [] (mk_pi ty ps)),
-                     scope_term md [] (mk_lam te ps))}
-  | KW_DEF id=ID ps=param+ DEF te=letterm DOT
-      {fun md -> Def(fst id, snd id, false, None, scope_term md [] (mk_lam te ps))}
-  | KW_THM id=ID COLON ty=arrterm DEF te=letterm DOT
-      {fun md -> Def(fst id, snd id, true, Some(scope_term md [] ty), scope_term md [] te)}
-  | KW_THM id=ID ps=param+ COLON ty=arrterm DEF te=letterm DOT
-      {fun md -> Def(fst id, snd id, true, Some(scope_term md [] (mk_pi ty ps)),
-                     scope_term md [] (mk_lam te ps))}
-  | rs=rule+ DOT
-      {fun md -> Rules(List.map (scope_rule md) rs)}
+/* prelude         : NAME DOT      { let (lc,name) = $1 in */
+/*                                         Pp.name := name; */
+/*                                         Scoping.name := name; */
+/*                                         mk_prelude lc name } */
 
-  | EVAL te=letterm DOT
-      {fun md -> Eval($1, default_cfg, scope_term md [] te)}
-  | EVAL cfg=eval_config te=letterm DOT
-      {fun md -> Eval($1, cfg, scope_term md [] te)}
-  | INFER te=letterm DOT
-      {fun md -> Infer($1, default_cfg, scope_term md [] te)}
-  | INFER cfg=eval_config te=letterm DOT
-      {fun md -> Infer($1, cfg, scope_term md [] te)}
+line            : ID COLON letterm DOT
+                { mk_lst (fun md -> Decl (fst $1, snd $1, Static, scope_term md [] $3)) }
+                | ID param+ COLON letterm DOT
+                { mk_lst (fun md -> Decl (fst $1, snd $1, Definable, scope_term md [] (mk_pi $4 $2))) }
+                | KW_DEF ID COLON arrterm DOT
+                { mk_lst (fun md -> Decl (fst $2, snd $2, Definable, scope_term md [] $4)) }
+                | KW_DEF ID COLON arrterm DEF letterm DOT
+                { mk_lst (fun md -> Def (fst $2, snd $2, false, Some (scope_term md [] $4), scope_term md [] $6)) }
+                | KW_DEF ID DEF letterm DOT
+                { mk_lst (fun md -> Def (fst $2, snd $2, false, None, scope_term md [] $4)) }
+                | KW_DEF ID param+ COLON arrterm DEF letterm DOT
+                { mk_lst (fun md -> Def (fst $2, snd $2, false, Some (scope_term md [] (mk_pi $5 $3)), scope_term md [] (mk_lam $7 $3))) }
+                | KW_DEF ID param+ DEF letterm DOT
+                { mk_lst (fun md -> Def (fst $2, snd $2, false, None, scope_term md [] (mk_lam $5 $3))) }
+                | KW_THM ID COLON arrterm DEF letterm DOT
+                { mk_lst (fun md -> Def (fst $2, snd $2, true, Some (scope_term md [] $4), scope_term md [] $6)) }
+                | KW_THM ID DEF letterm DOT
+                { mk_lst (fun md -> Def (fst $2, snd $2, true, None, scope_term md [] $4)) }
+                | KW_THM ID param+ COLON arrterm DEF letterm DOT
+                { mk_lst (fun md -> Def (fst $2, snd $2, true, Some (scope_term md [] (mk_pi $5 $3)), scope_term md [] (mk_lam $7 $3))) }
+                | KW_THM ID param+ DEF letterm DOT
+                { mk_lst (fun md -> Def (fst $2, snd $2, true, None, scope_term md [] (mk_lam $5 $3))) }
+                | rule+ DOT
+                { mk_lst (fun md -> Rules (List.map (scope_rule md) $1)) }
+                | RECORD ID DEF ID LEFTBRA def_context RIGHTBRA DOT
+                { fun md -> mk_record_type md $2 [] $4 $6 }
+                | RECORD ID param+ DEF ID LEFTBRA def_context RIGHTBRA DOT
+                { fun md -> mk_record_type md $2 $3 $5 $7 }
+                | command DOT { mk_lst $1 }
+                | EOF {raise End_of_file}
 
-  | CHECK te=aterm COLON ty=letterm DOT
-      {fun md -> Check($1, false, false, HasType(scope_term md [] te, scope_term md [] ty))}
-  | CHECKNOT te=aterm COLON ty=letterm DOT
-      {fun md -> Check($1, false, true , HasType(scope_term md [] te, scope_term md [] ty))}
-  | ASSERT te=aterm COLON ty=letterm DOT
-      {fun md -> Check($1, true , false, HasType(scope_term md [] te, scope_term md [] ty))}
-  | ASSERTNOT te=aterm COLON ty=letterm DOT
-      {fun md -> Check($1, true , true , HasType(scope_term md [] te, scope_term md [] ty))}
-
-  | CHECK t1=aterm EQUAL t2=letterm DOT
-      {fun md -> Check($1, false, false, Convert(scope_term md [] t1, scope_term md [] t2))}
-  | CHECKNOT t1=aterm EQUAL t2=letterm DOT
-      {fun md -> Check($1, false, true , Convert(scope_term md [] t1, scope_term md [] t2))}
-  | ASSERT t1=aterm EQUAL t2=letterm DOT
-      {fun md -> Check($1, true , false, Convert(scope_term md [] t1, scope_term md [] t2))}
-  | ASSERTNOT t1=aterm EQUAL t2=letterm DOT
-      {fun md -> Check($1, true , true , Convert(scope_term md [] t1, scope_term md [] t2))}
-
-  | PRINT STRING DOT {fun _ -> Print($1, snd $2)}
-  | GDT   ID     DOT {fun _ -> DTree($1, None, snd $2)}
-  | GDT   QID    DOT {fun _ -> let (_,m,v) = $2 in DTree($1, Some m, v)}
-  | n=NAME       DOT {fun _ -> Name(fst n, snd n)}
-  | r=REQUIRE    DOT {fun _ -> Require(fst r,snd r)}
-  | EOF              {raise End_of_file}
+command         : EVAL te=letterm
+                  {fun md -> Eval($1, default_cfg, scope_term md [] te)}
+                | EVAL cfg=eval_config te=letterm
+                  {fun md -> Eval($1, cfg, scope_term md [] te)}
+                | INFER te=letterm
+                  {fun md -> Infer($1, default_cfg, scope_term md [] te)}
+                | INFER cfg=eval_config te=letterm
+                  {fun md -> Infer($1, cfg, scope_term md [] te)}
+                | CHECK te=letterm COLON ty=letterm
+                  {fun md ->
+                   Check($1, false, false,
+                         HasType(scope_term md [] te, scope_term md [] ty))}
+                | CHECKNOT te=letterm COLON ty=letterm
+                  {fun md ->
+                   Check($1, false, true,
+                         HasType(scope_term md [] te, scope_term md [] ty))}
+                | ASSERT te=letterm COLON ty=letterm
+                  {fun md ->
+                   Check($1, true, false,
+                         HasType(scope_term md [] te, scope_term md [] ty))}
+                | ASSERTNOT te=letterm COLON ty=letterm
+                  {fun md ->
+                   Check($1, true, true,
+                         HasType(scope_term md [] te, scope_term md [] ty))}
+                | CHECK t1=letterm EQUAL t2=letterm
+                  {fun md ->
+                   Check($1, false, false,
+                         Convert(scope_term md [] t1, scope_term md [] t2))}
+                | CHECKNOT t1=letterm EQUAL t2=letterm
+                  {fun md ->
+                   Check($1, false, true,
+                         Convert(scope_term md [] t1, scope_term md [] t2))}
+                | ASSERT t1=letterm EQUAL t2=letterm
+                  {fun md ->
+                   Check($1, true, false,
+                         Convert(scope_term md [] t1, scope_term md [] t2))}
+                | ASSERTNOT t1=letterm EQUAL t2=letterm
+                  {fun md ->
+                   Check($1, true, true,
+                         Convert(scope_term md [] t1, scope_term md [] t2))}
+                | PRINT STRING {fun _ -> Print($1, snd $2)}
+                | GDT ID {fun _ -> DTree($1, None, snd $2)}
+                | GDT QID {fun _ -> let (_,m,v) = $2 in DTree($1, Some m, v)}
+                | n=NAME {fun _ -> Name(fst n, snd n)}
+                | r=REQUIRE {fun _ -> Require(fst r,snd r)}
 
 eval_config:
   | LEFTSQU id=ID RIGHTSQU
@@ -271,8 +299,8 @@ eval_config:
       {mk_config (Lexer.loc_of_pos $startpos) (string_of_ident (snd id1))
         (Some(string_of_ident (snd id2)))}
 
-param           : LEFTPAR ID COLON arrterm RIGHTPAR        { PDecl (fst $2,snd $2,$4) }
-                | LEFTPAR ID DEF arrterm RIGHTPAR          { PDef  (fst $2,snd $2,$4) }
+param           : LEFTPAR ID COLON arrterm RIGHTPAR        { PDecl (fst $2, snd $2,$4) }
+                | LEFTPAR ID DEF arrterm RIGHTPAR          { PDef  (fst $2, snd $2,$4) }
 
 rule:
   | LEFTSQU context RIGHTSQU top_pattern LONGARROW letterm
@@ -286,11 +314,10 @@ rule:
         let (_,m,v) = $2 in
         ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
-decl:
-  | ID COLON aterm { $1 }
-  | ID            { $1 }
+decl            : ID COLON term         { $1 }
+                | ID                    { $1 }
 
-def_decl        : ID COLON arrterm         { (fst $1, snd $1,$3) }
+def_decl        : ID COLON arrterm         { (fst $1,snd $1,$3) }
 
 context         : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, decl) { $1 }
@@ -298,60 +325,70 @@ context         : /* empty */          { [] }
 def_context     : /* empty */          { [] }
                 | separated_nonempty_list(COMMA, def_decl) { $1 }
 
-top_pattern:
-  | ID  pattern_wp* { (fst $1,None,snd $1,$2) }
-  | QID pattern_wp* { let (l,md,id)=$1 in (l,Some md,id,$2) }
+top_pattern     : ID pattern_wp*        { (fst $1,None, snd $1,$2) }
+                | QID pattern_wp*       { let (l,md,id) = $1 in (l,Some md,id,$2) }
 
-%inline pid:
-  | UNDERSCORE { ($1, mk_ident "_") }
-  | ID { $1 }
 
-pattern_wp:
-  | ID                       { PPattern (fst $1,None,snd $1,[]) }
-  | QID                      { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
-  | UNDERSCORE               { PJoker $1 }
-  | LEFTBRA aterm RIGHTBRA    { PCondition $2 }
-  | LEFTPAR pattern RIGHTPAR { $2 }
+pattern_wp      : ID
+                        { PPattern (fst $1,None, snd $1,[]) }
+                | QID
+                        { let (l,md,id) = $1 in PPattern (l,Some md,id,[]) }
+                | UNDERSCORE
+                        { PJoker $1 }
+                | LEFTBRA term RIGHTBRA
+                        { PCondition $2 }
+                | LEFTPAR pattern RIGHTPAR
+                        { $2 }
 
-pattern:
-  | ID  pattern_wp+          { PPattern (fst $1,None,snd $1,$2) }
-  | QID pattern_wp+          { let (l,md,id)=$1 in PPattern (l,Some md,id,$2) }
-  | ID  FATARROW pattern     { PLambda (fst $1,snd $1,$3) }
-  | pattern_wp               { $1 }
+pattern         : ID  pattern_wp+
+                        { PPattern (fst $1,None, snd $1, $2) }
+                | QID pattern_wp+
+                        { let (l,md,id) = $1 in PPattern (l,Some md,id,$2) }
+                | ID FATARROW pattern
+                        { PLambda (fst $1,snd $1,$3) }
+                | pattern_wp
+                        { $1 }
 
-sterm:
-  | QID                      { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
-  | pid                      { PreId (fst $1,snd $1) }
-  | LEFTPAR letterm RIGHTPAR    { $2 }
-  | TYPE                     { PreType $1 }
-  | TYPEOF letterm           { TypeOf (preterm_loc $2, $2) }
-  | NUM                      { Builtins.mk_num $1 }
-  | CHAR                     { Builtins.mk_char $1 }
-  | STRING                   { Builtins.mk_string $1 }
+sterm           : QID
+                { let (l,md,id) = $1 in PreQId(l, mk_name md id) }
+                | ID
+                { PreId (fst $1, snd $1) }
+                | LEFTPAR letterm RIGHTPAR
+                { $2 }
+                | TYPE
+                { PreType $1 }
+                | TYPEOF letterm
+                { TypeOf (preterm_loc $2, $2) }
+                | NUM
+                { Builtins.mk_num $1 }
+                | CHAR
+                { Builtins.mk_char $1 }
+                | STRING
+                { Builtins.mk_string $1 }
 
-aterm:
-  | te=sterm ts=sterm*
-      {match ts with [] -> te | a::args -> PreApp(te,a,args)}
+term            : sterm+
+                { mk_pre_from_list $1 }
 
-letterm         : aterm
+letterm         : term
                 { $1 }
-                | pid DEF aterm FATARROW letterm
+                | ID DEF term FATARROW letterm
                 { mk_let (snd $1) $3 $5 }
-                | pid COLON aterm ARROW letterm
+                | ID COLON term ARROW letterm
                 { PrePi (fst $1,Some (snd $1),$3,$5) }
-                | aterm ARROW letterm
+                | term ARROW letterm
                 { PrePi (preterm_loc $1,None,$1,$3) }
-                | pid COLON UNDERSCORE FATARROW letterm
+                | ID COLON UNDERSCORE FATARROW letterm
                 { PreLam (fst $1,snd $1,None,$5) }
-                | pid COLON aterm FATARROW letterm
+                | ID COLON term FATARROW letterm
                 { PreLam (fst $1,snd $1,Some($3),$5) }
-                | pid FATARROW letterm
+                | ID FATARROW letterm
                 { PreLam (fst $1,snd $1,None,$3) }
 
-arrterm         : aterm
+arrterm         : term
                 { $1 }
-                | pid COLON aterm ARROW arrterm
+                | ID COLON term ARROW arrterm
                 { PrePi (fst $1,Some (snd $1),$3,$5) }
-                | aterm ARROW arrterm
+                | term ARROW arrterm
                 { PrePi (preterm_loc $1,None,$1,$3) }
+
 %%
