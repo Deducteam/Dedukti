@@ -11,11 +11,11 @@ let update_dbs (depth:int) (dbs:int LList.t) (te:term) : term =
   let rec aux k = function
     | Type _ | Kind | Const _ as t -> t
     | DB (l,x,n) as t ->
-      if n < k (* var bound in te *) then t
-      else if n >= k+depth (* var free in te *)
-      then mk_DB l x (n+size)
-      else
-        ( match arr.(n-k) with
+        if n < k (* var bound in te *) then t
+        else if n >= k+depth (* var free in te *)
+        then mk_DB l x (n+size)
+        else
+          ( match arr.(n-k) with
             | None -> raise NotUnifiable
             | Some n' -> mk_DB dloc x (n'+k) )
     | Lam (l,x,a,b) -> mk_Lam dloc x (map_opt (aux k) a) (aux (k+1) b)
