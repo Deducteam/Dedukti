@@ -37,7 +37,7 @@ exception NotConvertible
 let rec zip_lists l1 l2 lst =
   match l1, l2 with
   | [], [] -> lst
-  | s1::l1, s2::l2 -> zip_lists l1 l2 ((s1,s2)::lst)
+  | s1::l1, s2::l2 -> zip_lists l1 l2 ((false,s1,s2)::lst)
   | _,_ -> raise NotConvertible
 
 (* State *)
@@ -352,59 +352,63 @@ and snf sg (t:term) : term =
 (* TODO: When checking st1 ~ st2: st1's WHNF could be set to st2 (even though
    it's already a WHNF) so that later converitiblity check between these
    states is a simple physical equality check.  *)
-and check_convertible_lst sg : (state * state) list -> unit = function
+and check_convertible_lst sg : (bool * state * state) list -> unit = function
   | [] -> ()
-  | (st1, st2)::lst ->
+  | (flag, st1, st2)::lst ->
     check_convertible_lst sg
       (
-        if st1 == st2 then lst else
+        if flag then (set_reduct st1 st2; lst)
+        else if st1 == st2 then lst else
         let st1f, st1 = find_reduct st1 in
         let st2f, st2 = find_reduct st2 in
-        if st1 == st2 then lst else
-          match st1f, st2f with
-          | false, false -> (state_whnf sg st1, state_whnf sg st2) :: lst
-          | false, true  -> (state_whnf sg st1,               st2) :: lst
-          | true , false -> (              st1, state_whnf sg st2) :: lst
-          | true , true ->
-            let {ctx=ctx1; term=t1; stack=s1} = st1 in
-            let {ctx=ctx2; term=t2; stack=s2} = st2 in
-            if term_eq t1 t2 && term_eq (term_of_state st1) (term_of_state st2)
-            then lst else
-              match t1, t2 with
-              | Kind, Kind | Type _, Type _ -> assert (s1 = [] && s2 = []); lst
-              | Const(_,n1), Const(_,n2) ->
-                if name_eq n1 n2 then zip_lists s1 s2 lst
-                else raise NotConvertible
-              | DB (_,_,n1), DB (_,_,n2) ->
-                assert (LList.is_empty ctx1);
-                assert (LList.is_empty ctx2);
-                if n1 == n2 then zip_lists s1 s2 lst
-                else raise NotConvertible
-              | Lam _, Lam _ ->
-                assert (s1 = [] && s2 = []);
-                begin
-                  match (term_of_state st1, term_of_state st2) with
-                  | Lam (_,_,_,b1), Lam (_,_,_,b2) ->
-                    (state_of_term b1, state_of_term b2)::lst
-                  | _ -> assert false
-                end
-              | Pi _, Pi _ ->
-                assert (s1 = [] && s2 = []);
-                begin
-                  match (term_of_state st1, term_of_state st2) with
-                  | Pi (_,_,a,b), Pi (_,_,a',b') ->
-                    (state_of_term a, state_of_term a')::
-                    (state_of_term b, state_of_term b')::lst
-                  | _ -> assert false
-                end
-              | t1, t2 -> raise NotConvertible
+        if st1 == st2 then lst
+        else
+        let lst' = (true, st1, st2)::lst in
+        if not (st1f && st2f) then
+          if term_eq st1.term st2.term && term_eq (term_of_state st1) (term_of_state st2)
+          then lst
+          else
+            (false,
+             (if st1f then st1 else state_whnf sg st1),
+             (if st2f then st1 else state_whnf sg st2)) :: lst
+        else
+          let {ctx=ctx1; term=t1; stack=s1} = st1 in
+          let {ctx=ctx2; term=t2; stack=s2} = st2 in
+          match t1, t2 with
+          | Kind, Kind | Type _, Type _ -> assert (s1 = [] && s2 = []); lst'
+          | Const(_,n1), Const(_,n2) ->
+            if name_eq n1 n2 then zip_lists s1 s2 lst'
+            else raise NotConvertible
+          | DB (_,_,n1), DB (_,_,n2) ->
+            assert (LList.is_empty ctx1);
+            assert (LList.is_empty ctx2);
+            if n1 == n2 then zip_lists s1 s2 lst'
+            else raise NotConvertible
+          | Lam _, Lam _ ->
+            assert (s1 = [] && s2 = []);
+            begin
+              match (term_of_state st1, term_of_state st2) with
+              | Lam (_,_,_,b1), Lam (_,_,_,b2) ->
+                (false, state_of_term b1, state_of_term b2)::lst'
+              | _ -> assert false
+            end
+          | Pi _, Pi _ ->
+            assert (s1 = [] && s2 = []);
+            begin
+              match (term_of_state st1, term_of_state st2) with
+              | Pi (_,_,a,b), Pi (_,_,a',b') ->
+                (false, state_of_term a, state_of_term a')::
+                (false, state_of_term b, state_of_term b')::lst'
+              | _ -> assert false
+            end
+          | t1, t2 -> raise NotConvertible
       )
       
 
 (* Convertibility tests *)
 
 and are_convertible_st sg st1 st2 =
-  try check_convertible_lst sg [(st1,st2)]; true
+  try check_convertible_lst sg [(false,st1,st2)]; true
   with NotConvertible -> false
 
 
