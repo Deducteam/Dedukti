@@ -55,21 +55,20 @@ type state = {
 and stack = state list
 and env = state LList.t
 and reduct = WHNF | Unknown | Reduct of state
-(* whenever st.reduc = Reduct whnf then whnf.reduc = WHNF *)
-
-let set_reduct st red =
-  assert ( st.reduc = Unknown);
-  assert (red.reduc = WHNF);
-  st.reduc <- Reduct red
+(* whenever st.reduc = Reduct whnf then whnf.reduc <> Unknown *)
 
 let mk_state      ctx term stack = { ctx; term; stack; reduc=Unknown}
 let mk_whnf_state ctx term stack = { ctx; term; stack; reduc=WHNF   }
 
 let state_of_term t = mk_state LList.nil t []
 
-let as_whnf st =
-  assert (st.reduc = Unknown);
-  mk_whnf_state st.ctx st.term st.stack
+let rec find_reduct st = match st.reduc with
+  | Unknown -> (false, st)
+  | WHNF    -> (true , st)
+  | Reduct red -> match red.reduc with
+  | Unknown -> (false, red)
+  | WHNF    -> (true , red)
+    | Reduct red' as r -> st.reduc <- r; find_reduct red
 
 let rec term_of_state {ctx;term;stack} : term =
   let t =
@@ -111,6 +110,21 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
 
 let simpl_pp_state = pp_state ~if_ctx:true ~if_stack:true
 
+
+let rec set_reduct st red =
+  assert (red.reduc = WHNF);
+  match st.reduc with
+  | Reduct stred -> (
+      assert (stred != st);
+      set_reduct stred red)
+  | _ -> if red != st then st.reduc <- Reduct red
+
+let as_whnf st r =
+  let whnf = match find_reduct r with
+    | false, red -> mk_whnf_state red.ctx red.term red.stack
+    | true , red -> red in
+  set_reduct st whnf; whnf
+
 (* ********************* *)
 
 type rw_strategy = Signature.t -> term -> term
@@ -127,14 +141,12 @@ let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (t
     Matching.solve depth pbs (reduce sg te)
 
 let rec unshift_st (sg:Signature.t) (reduce:rw_strategy) (q:int) (st:state) =
-  match st.reduc with
-  | Reduct red -> unshift_st sg reduce q red
-  | _ ->
-    if q = 0 then st
-    else let t =
-           try  Subst.unshift q (term_of_state st)
-           with Subst.UnshiftExn -> Subst.unshift q (reduce sg (term_of_state st))
-      in state_of_term t
+  let _, st = find_reduct st in
+  if q = 0 then st
+  else let t =
+         try  Subst.unshift q (term_of_state st)
+         with Subst.UnshiftExn -> Subst.unshift q (reduce sg (term_of_state st))
+    in state_of_term t
 
 let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
   try Subst.unshift q te
@@ -277,20 +289,13 @@ let gamma_rw (sg:Signature.t)
 let rec state_whnf (sg:Signature.t) (st:state) : state =
   state_whnf_aux sg st st
 
-and state_whnf_aux (sg:Signature.t) (root:state) (st:state) : state =
-  match st.reduc with
-  | WHNF -> st
-  | Reduct red -> red
-  | Unknown ->
+and state_whnf_aux (sg:Signature.t) (root:state) (state:state) : state =
+  let rec_call c t s = state_whnf_aux sg root (mk_state c t s) in
+  let return red = as_whnf root red in
+  match find_reduct state with
+  | (true, whnf) -> return whnf
+  | (false, st) ->
     let _ = Debug.(debug d_reduce "Reducing %a" simpl_pp_state st) in
-    let rec_call c t s = state_whnf_aux sg root (mk_state c t s) in
-    let return red =
-      let red = match red.reduc with
-        | Unknown -> as_whnf red
-        | WHNF -> red
-        | Reduct _ -> assert false in
-      set_reduct root red;
-      red in
   match st with
   (* Weak heah beta normal terms *)
   | { term=Type _ }
@@ -343,21 +348,24 @@ and snf sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
+
+(* TODO: When checking st1 ~ st2: st1's WHNF could be set to st2 (even though
+   it's already a WHNF) so that later converitiblity check between these
+   states is a simple physical equality check.  *)
 and check_convertible_lst sg : (state * state) list -> unit = function
   | [] -> ()
   | (st1, st2)::lst ->
     check_convertible_lst sg
       (
-        if st1 == st2 then lst
-        else
-          match st1.reduc, st2.reduc with
-          | Reduct st1r, Reduct st2r -> (st1r, st2r) :: lst
-          | Reduct st1r, _           -> (st1r, st2 ) :: lst
-          | _          , Reduct st2r -> (st1 , st2r) :: lst
-          | Unknown, Unknown -> (state_whnf sg st1, state_whnf sg st2) :: lst
-          | Unknown, WHNF    -> (state_whnf sg st1,               st2) :: lst
-          | WHNF   , Unknown -> (              st1, state_whnf sg st2) :: lst
-          | WHNF, WHNF ->
+        if st1 == st2 then lst else
+        let st1f, st1 = find_reduct st1 in
+        let st2f, st2 = find_reduct st2 in
+        if st1 == st2 then lst else
+          match st1f, st2f with
+          | false, false -> (state_whnf sg st1, state_whnf sg st2) :: lst
+          | false, true  -> (state_whnf sg st1,               st2) :: lst
+          | true , false -> (              st1, state_whnf sg st2) :: lst
+          | true , true ->
             let {ctx=ctx1; term=t1; stack=s1} = st1 in
             let {ctx=ctx2; term=t2; stack=s2} = st2 in
             if term_eq t1 t2 && term_eq (term_of_state st1) (term_of_state st2)
@@ -420,10 +428,9 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
   let rec aux (nred,st:(int*state)) : int*state =
     if nred <= 0 then (0, st)
     else
-      match st.reduc with
-      | WHNF       -> (nred, st)
-      | Reduct red -> (nred, red)
-      | Unknown -> match st with
+      match find_reduct st with
+      | (true, whnf) -> (nred, whnf)
+      | (false,st) -> match st with
       (* Normal terms *)
       | { term=Type _ }  | { term=Kind } -> (nred, st)
       (* Pi types are head normal terms *)
