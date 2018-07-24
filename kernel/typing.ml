@@ -403,7 +403,7 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context option =
   with
   | Subst.UnshiftExn -> None
 
-let check_rule sg (rule:untyped_rule) : typed_rule =
+let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   (*  let ctx0,le,ri = rule.rule in *)
   let delta = pc_make rule.ctx in
   let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
@@ -436,6 +436,7 @@ let check_rule sg (rule:untyped_rule) : typed_rule =
   check sg ctx2 ri2 ty_le2;
   Debug.(debug d_rule "[ %a ] %a --> %a"
            pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
+  sub,
   { name = rule.name;
     ctx = ctx2;
     pat = rule.pat;

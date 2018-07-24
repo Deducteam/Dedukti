@@ -36,7 +36,9 @@ let mk_entry md e =
       let (l,cst) = get_infos r.pat in
       eprint l "Adding rewrite rules for '%a'" pp_name cst;
       match Env.add_rules rs with
-      | OK rs -> List.iter (eprint (get_loc_pat r.pat) "%a" pp_typed_rule) rs
+      | OK rs -> List.iter (fun (s,r) ->
+          eprint (get_loc_pat r.pat) "%a@.with the following constraints: %a"
+            pp_typed_rule r Subst.Subst.pp s) rs
       | Err e -> Errors.fail_env_error e
     end
   | Eval(_,red,te) ->
@@ -117,10 +119,7 @@ let _ =
   let options = Arg.align
     [ ( "-d"
       , Arg.String Debug.set_debug_mode
-      , "flags enables debugging for all given flags" )
-    ; ( "-v"
-      , Arg.Unit (fun () -> Debug.set_debug_mode "w")
-      , " Verbose mode (equivalent to -d 'w')" )
+      , " flags enables debugging for all given flags [qnocutrm]" )
     ; ( "-q"
       , Arg.Unit (fun () -> Debug.set_debug_mode "q")
       , " Quiet mode (equivalent to -d 'q'" )
@@ -132,7 +131,7 @@ let _ =
       , " Disable colors in the output" )
     ; ( "-stdin"
       , Arg.String (fun n -> run_on_stdin := Some(n))
-      , "MOD Parses standard input using module name MOD" )
+      , " MOD Parses standard input using module name MOD" )
     ; ( "-version"
       , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
       , " Print the version number" )
@@ -141,13 +140,13 @@ let _ =
       , " Typecheck the Calculus of Construction" )
     ; ( "-I"
       , Arg.String Basic.add_path
-      , "DIR Add the directory DIR to the load path" )
+      , " DIR Add the directory DIR to the load path" )
     ; ( "-errors-in-snf"
       , Arg.Set Errors.errors_in_snf
       , " Normalize the types in error messages" )
     ; ( "-cc"
       , Arg.String Confluence.set_cmd
-      , "CMD Set the external confluence checker command to CMD" )
+      , " CMD Set the external confluence checker command to CMD" )
     ; ( "-nl"
       , Arg.Set Rule.allow_non_linear
       , " Allow non left-linear rewriting rules" )
