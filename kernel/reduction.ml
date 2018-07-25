@@ -66,8 +66,8 @@ let rec find_reduct st = match st.reduc with
   | Unknown -> (false, st)
   | WHNF    -> (true , st)
   | Reduct red -> match red.reduc with
-  | Unknown -> (false, red)
-  | WHNF    -> (true , red)
+    | Unknown -> (false, red)
+    | WHNF    -> (true , red)
     | Reduct red' as r -> st.reduc <- r; find_reduct red
 
 let rec term_of_state {ctx;term;stack} : term =
@@ -295,7 +295,6 @@ and state_whnf_aux (sg:Signature.t) (root:state) (state:state) : state =
   match find_reduct state with
   | (true, whnf) -> return whnf
   | (false, st) ->
-    let _ = Debug.(debug d_reduce "Reducing %a" simpl_pp_state st) in
   match st with
   (* Weak heah beta normal terms *)
   | { term=Type _ }
@@ -363,15 +362,12 @@ and check_convertible_lst sg : (bool * state * state) list -> unit = function
         let st2f, st2 = find_reduct st2 in
         if st1 == st2 then lst
         else
-        let lst' = (true, st1, st2)::lst in
         if not (st1f && st2f) then
-          if term_eq st1.term st2.term && term_eq (term_of_state st1) (term_of_state st2)
-          then lst
-          else
-            (false,
-             (if st1f then st1 else state_whnf sg st1),
-             (if st2f then st1 else state_whnf sg st2)) :: lst
+          (false,
+           (if st1f then st1 else state_whnf sg st1),
+           (if st2f then st2 else state_whnf sg st2)) :: lst
         else
+          let lst' = (true, st1, st2)::lst in
           let {ctx=ctx1; term=t1; stack=s1} = st1 in
           let {ctx=ctx2; term=t2; stack=s2} = st2 in
           match t1, t2 with
