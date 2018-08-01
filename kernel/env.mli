@@ -26,7 +26,7 @@ val get_name    : unit -> mident
 val get_type    : loc -> name -> (term,signature_error) error
 (** [get_type l md id] returns the type of the constant [md.id]. *)
 
-val is_static   : loc -> name -> bool
+val is_injective: loc -> name -> bool
 (** [is_static l cst] returns [true] if the symbol is declared as [static], [false] otherwise *)
 
 val get_dtree   : loc -> name -> (Dtree.t, signature_error) error

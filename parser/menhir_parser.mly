@@ -66,6 +66,7 @@ let mk_config loc id1 id2_opt =
 %token <Basic.loc> TYPE
 %token <Basic.loc> KW_DEF
 %token <Basic.loc> KW_THM
+%token <Basic.loc> KW_INJ
 %token <Basic.loc*Basic.ident> ID
 %token <Basic.loc*Basic.mident*Basic.ident> QID
 %token <string> STRING
@@ -91,6 +92,8 @@ line:
       {fun md -> Decl(fst id, snd id, Static, scope_term md [] (mk_pi ty ps))}
   | KW_DEF id=ID COLON ty=term DOT
       {fun md -> Decl(fst id, snd id, Definable, scope_term md [] ty)}
+  | KW_INJ id=ID COLON ty=term DOT
+      {fun md -> Decl(fst id, snd id, Injective, scope_term md [] ty)}
   | KW_DEF id=ID COLON ty=term DEF te=term DOT
       {fun md -> Def(fst id, snd id, false, Some(scope_term md [] ty), scope_term md [] te)}
   | KW_DEF id=ID DEF te=term DOT

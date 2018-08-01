@@ -20,7 +20,7 @@ type signature_error =
 
 exception SignatureError of signature_error
 
-type staticity = Static | Definable
+type staticity = Static | Definable | Injective
 
 type t
 
@@ -36,11 +36,11 @@ val export              : t -> bool
 val import              : t -> loc -> mident -> unit
 (** [import sg md] the module [md] in the signature [sg]. *)
 
-val get_md_deps            : loc -> mident -> mident list
+val get_md_deps         : loc -> mident -> mident list
 (** [get_deps lc md] returns the list of direct dependencies of module [md].
     This function makes the assumption that the file [md.dko] exists. *)
 
-val is_static           : t -> loc -> name -> bool
+val is_injective        : t -> loc -> name -> bool
 (** [is_injective sg l cst] is true when [cst] is a static symbol. *)
 
 val get_type            : t -> loc -> name -> term

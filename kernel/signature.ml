@@ -34,7 +34,7 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-type staticity = Static | Definable
+type staticity = Static | Definable | Injective
 
 type rw_infos =
   {
@@ -188,9 +188,10 @@ let get_infos sg lc cst =
     try ( HId.find env (id cst))
     with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))
 
-let is_static sg lc cst =
+let is_injective sg lc cst =
   match (get_infos sg lc cst).stat with
-  | Static      -> true
+  | Static
+  | Injective   -> true
   | Definable   -> false
 
 let get_type sg lc cst = (get_infos sg lc cst).ty

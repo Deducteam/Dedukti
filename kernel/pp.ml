@@ -187,6 +187,8 @@ let print_entry fmt e =
     fprintf fmt "@[<2>%a :@ %a.@]@.@." print_ident id print_term ty
   | Decl(_,id,Signature.Definable,ty) ->
     fprintf fmt "@[<2>def %a :@ %a.@]@.@." print_ident id print_term ty
+  | Decl(_,id,Signature.Injective,ty) ->
+    fprintf fmt "@[<2>inj %a :@ %a.@]@.@." print_ident id print_term ty
   | Def(_,id,opaque,ty,te) ->
     let key = if opaque then "thm" else "def" in
     begin

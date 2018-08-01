@@ -42,7 +42,7 @@ let _declare (l:loc) (id:ident) st ty : unit =
 
 exception DefineExn of loc*ident
 
-let is_static lc cst = Signature.is_static !sg lc cst
+let is_injective lc cst = Signature.is_injective !sg lc cst
 
 let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
@@ -52,7 +52,7 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   match ty with
   | Kind -> raise (DefineExn (l,id))
   | _ ->
-    _declare l id Signature.Definable ty;
+    _declare l id Signature.Injective ty;
     let cst = mk_name (get_name ()) id in
     let rule =
       { name= Delta(cst) ;
