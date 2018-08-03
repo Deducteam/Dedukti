@@ -17,7 +17,9 @@ let sct_only : unit -> unit =
     let num_fun = NMap.cardinal symbs in
     let id_to_name = Array.init num_fun (fun _ -> dname) in
     NMap.iter (fun k s -> id_to_name.(s.ind) <- k) symbs;
-    (* tbl is a num_fun x num_fun Array in which each element is the list of all matrices between the two symbols with the rules which generated this matrix *)
+    (* tbl is a num_fun x num_fun Array in which each element is the list
+      of all matrices between the two symbols with the rules
+      which generated this matrix *)
     let tbl = Array.init num_fun (fun _ -> Array.make num_fun []) in
     let print_call ff= pp_call ff in 
   (* counters to count added and composed edges *)

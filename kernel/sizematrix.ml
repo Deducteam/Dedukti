@@ -4,26 +4,127 @@ open Basic
 open Term
 open Rule
 
-(** Representation of the set {-1, 0, ∞} *)
-type cmp = Min1 | Zero | Infi
-
+exception NormalizationError
+exception OverTruncation
+       
+let weights = ref 5
+let depth   = ref 5
+                  
+(** The type [cmp] is the type of terms described in Hyvernat's paper (2013) *)
+type cmp = Var | Constr of string*cmp | Destr of string*cmp | Tuple of int*cmp
+           | Proj of int*cmp | Weight of int*cmp
+                      
 (** String representation. *)
-let cmp_to_string : cmp -> string =
-  function
-  | Min1 -> "<"
-  | Zero -> "="
-  | Infi -> "?"
+let rec cmp_to_string : cmp -> string = function
+  | Var         -> ""
+  | Constr(s,c) -> s^(cmp_to_string c)
+  | Destr(s,c)  -> s^"-"^(cmp_to_string c)
+  | Tuple(i,c)  -> "T"^(string_of_int i)^(cmp_to_string c)
+  | Proj(i,c)   -> "P"^(string_of_int i)^(cmp_to_string c)
+  | Weight(i,c) -> "<"^(string_of_int i)^">"^(cmp_to_string c)
 
 (** The pretty printer for the type [cmp] *)
 let pp_cmp fmt c=
   Format.fprintf fmt "%s" (cmp_to_string c)
 
+(** [normalize] ensures that all [cmp] terms are of the form constructors followed by weights followed by destructors *) 
+let rec normalize : cmp -> cmp =
+  let rec fetch_const_dest : cmp -> cmp = function
+    | Destr(s1,Constr(s2,c)) ->
+       begin
+         if s1=s2
+         then fetch_const_dest c
+         else raise NormalizationError
+       end
+    | Destr(s1,Tuple(j,c))   -> raise NormalizationError
+    | Destr(s1,Weight(j,c))  -> fetch_const_dest (Weight(j-1,c))
+    | Proj(i,Constr(s2,c))   -> raise NormalizationError
+    | Proj(i,Tuple(j,c))     ->
+       begin
+         if i=j
+         then fetch_const_dest c
+         else raise NormalizationError
+       end
+    | Proj(i,Weight(j,c))    -> fetch_const_dest (Weight(j-1,c))
+    | Weight(i,Constr(s2,c)) -> fetch_const_dest (Weight(i+1,c))
+    | Weight(i,Tuple(j,c))   -> fetch_const_dest (Weight(i+1,c))
+    | Weight(i,Weight(j,c))  -> fetch_const_dest (Weight(i+j,c))
+    | t -> t
+  in function
+  | Var          -> Var
+  | Constr(s1,c) -> Constr(s1,normalize c)
+  | Destr(s1,c)  -> fetch_const_dest (Destr(s1,normalize c))
+  | Tuple(i,c)   -> Tuple(i,normalize c)
+  | Proj(i,c)    -> fetch_const_dest (Proj(i,normalize c))
+  | Weight(i,c)  -> fetch_const_dest (Weight(i,normalize c))
+
+(** [approximates ensures that the depth is smaller than the global reference [depth]. It assumes that is argument has been normalized before. *)
+let approximate : cmp -> cmp =
+  (** [size_dest] counts the number of destructors in the right part of the argument *)
+  let size_dest : cmp -> int =
+    let rec size_dest_bis : int -> cmp -> int = fun acc ->
+      function
+      | Var         -> acc
+      | Destr(_,c)  -> size_dest_bis (acc+1) c
+      | Proj(_,c)   -> size_dest_bis (acc+1) c
+      | Weight(_,c) -> size_dest_bis acc c
+      | _           -> assert false (* The [cmp] is supposed to be in normal form *)
+    in fun c -> size_dest_bis 0 c
+  in
+  (** [approx_dest c i] cut the [i] first destructors of [c] *)
+  let rec approx_dest : int -> cmp -> cmp = fun acc c ->
+    if acc<=0
+    then c
+    else
+      match c with
+      | Weight(i,d) -> Weight(i,approx_dest acc d)
+      | Destr(_,d)  -> Weight(-1,approx_dest (acc-1) d)
+      | Proj(_,d)   -> Weight(-1,approx_dest (acc-1) d)
+      | _           -> assert false (* The [cmp] is supposed to be in normal form and [c] its right part *)
+  in
+  let rec approx_constr : int -> cmp -> cmp = fun acc c ->
+    if acc=0
+    then
+      let norm=normalize (Weight(0,c))
+      in normalize (approx_dest (!depth - (size_dest norm)) (norm))
+    else
+      match c with
+      | Constr(s1,d) -> Constr(s1,approx_constr (acc-1) d)
+      | Tuple (i,d)  -> Tuple (i,approx_constr (acc-1) d)
+      | c            -> approx_constr 0 c
+  in fun c -> approx_constr !depth c
+
+(** [truncate] ensures that the weights between constructors and destructors are between -(!weights) and (!weights)-1. It assume that its argument has been normalized before. *)
+let rec truncate : cmp -> cmp = function
+  | Weight(i,c) ->
+     begin
+       if i< -(!weights)
+       then Weight(-(!weights),c)
+       else if i>= !weights
+       then raise OverTruncation
+       else Weight(i,c)
+     end
+  | Constr(s,c) -> Constr(s,truncate c)
+  | Tuple(i,c)  -> Tuple(i,truncate c)
+  | c           -> c
+                            
+let usable_form : cmp -> cmp =
+  fun c -> truncate (approximate (normalize c))
+
+(** [paste c1 c2] return the [cmp] where [c2] is nested in [c1] instead of the [Var] *)
+let rec paste : cmp -> cmp -> cmp = fun c1 c2 ->
+  match c1 with
+  | Var         -> c2
+  | Constr(s,c) -> Constr(s,paste c c2)
+  | Destr(s,c)  -> Destr(s,paste c c2)
+  | Tuple(i,c)  -> Tuple(i,paste c c2)
+  | Proj(i,c)   -> Proj(i,paste c c2)
+  | Weight(i,c) -> Weight(i,paste c c2)
+                    
 (** Addition operation (minimum) *)
-let (<+>) : cmp -> cmp -> cmp = fun e1 e2 ->
-  match (e1, e2) with
-  | (Min1, _   ) | (_, Min1) -> Min1
-  | (Zero, _   ) | (_, Zero) -> Zero
-  | (Infi, Infi)             -> Infi
+let (<+>) : cmp list -> cmp list -> cmp list = fun l1 l2 ->
+  
+                                                    
 
 (** Multiplication operation. *)
 let (<*>) : cmp -> cmp -> cmp = fun e1 e2 ->
