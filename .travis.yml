@@ -39,5 +39,3 @@ branches:
   only:
     - master
     - develop
-    
-    

@@ -11,11 +11,15 @@ type env_error =
 
 (* Wrapper around Signature *)
 
-let sg = ref (Signature.make (mk_mident "noname"))
+let sg = ref (Signature.make "noname")
 
-let init name = sg := Signature.make name
+let init file =
+  sg := Signature.make file;
+  Signature.get_name !sg
 
 let get_name () = Signature.get_name !sg
+
+let get_signature () = !sg
 
 let get_type l cst =
   try OK (Signature.get_type !sg l cst)
@@ -37,6 +41,8 @@ let _declare (l:loc) (id:ident) st ty : unit =
   | s -> raise (TypingError (SortExpected (ty,[],s)))
 
 exception DefineExn of loc*ident
+
+let is_static lc cst = Signature.is_static !sg lc cst
 
 let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
@@ -86,10 +92,10 @@ let define_op l id te ty_opt =
   | TypingError    e -> Err (EnvErrorType e)
   | DefineExn (l,id) -> Err (KindLevelDefinition (l,id))
 
-let add_rules (rules: untyped_rule list) : (typed_rule list,env_error) error =
+let add_rules (rules: untyped_rule list) : ((Subst.Subst.t * typed_rule) list,env_error) error =
   try
     let rs2 = List.map (check_rule !sg) rules in
-    Signature.add_rules !sg rs2;
+    Signature.add_rules !sg rules;
     OK rs2
   with
   | SignatureError e -> Err (EnvErrorSignature e)

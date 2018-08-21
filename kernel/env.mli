@@ -11,9 +11,14 @@ type env_error =
 
 (** {2 The Global Environment} *)
 
-val init        : mident -> unit
-(** [init name] initializes a new global environement giving it the name [name].
-    Every top level declaration will be qualified be this name. *)
+val init        : string -> mident
+(** [init name] initializes a new global environement giving it the name of
+    the corresponding source file. The function returns the module identifier
+    corresponding to this file, built from its basename. Every toplevel
+    declaration will be qualified be this name. *)
+
+val get_signature : unit -> Signature.t
+(** [get_signature ()] returns the signature used by this module *)
 
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)
@@ -21,7 +26,10 @@ val get_name    : unit -> mident
 val get_type    : loc -> name -> (term,signature_error) error
 (** [get_type l md id] returns the type of the constant [md.id]. *)
 
-val get_dtree   : loc -> name -> ((int*Dtree.dtree) option,signature_error) error
+val is_static   : loc -> name -> bool
+(** [is_static l cst] returns [true] if the symbol is declared as [static], [false] otherwise *)
+
+val get_dtree   : loc -> name -> (Dtree.t, signature_error) error
 (** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
 
 val export      : unit -> bool
@@ -41,7 +49,7 @@ val define_op   : loc -> ident -> term -> term option -> (unit,env_error) error
 (** [define_op l id body ty] declares the symbol [id] of type [ty] and checks
     that [body] has this type (but forget it after). *)
 
-val add_rules   : Rule.untyped_rule list -> (Rule.typed_rule list,env_error) error
+val add_rules   : Rule.untyped_rule list -> ((Subst.Subst.t * Rule.typed_rule) list ,env_error) error
 (** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the
     same symbol. *)
 

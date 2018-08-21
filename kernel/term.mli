@@ -24,6 +24,7 @@ val mk_DB       : loc -> ident -> int -> term
 val mk_Const    : loc -> name  -> term
 val mk_Lam      : loc -> ident -> term option -> term -> term
 val mk_App      : term -> term -> term list -> term
+val mk_App2     : term -> term list -> term
 val mk_Pi       : loc -> ident -> term -> term -> term
 val mk_Arrow    : loc -> term -> term -> term
 
@@ -37,3 +38,5 @@ type untyped_context = (loc * ident) list
 
 (** type checking rules implies to give a type to the variables of the context *)
 type typed_context = ( loc * ident * term ) list
+
+val rename_vars_with_typed_context : typed_context -> term -> term

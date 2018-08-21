@@ -1,4 +1,3 @@
-#NAME domainfree.
 
 A:Type.
 F:(A->A)->A.

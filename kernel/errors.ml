@@ -24,9 +24,7 @@ let success fmt =
   kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter fmt
 
 
-let prerr_loc lc =
-  let (l,c) = of_loc lc in
-    eprintf "line:%i column:%i " l c
+let prerr_loc lc = eprintf "%a " pp_loc lc
 
 let fail lc fmt =
   eprintf "%s" (red "ERROR ") ;
@@ -140,6 +138,9 @@ let fail_rule_error err =
     fail (Rule.get_loc_pat r.pat) "@[Non left-linear rewrite rule:@.%a.@.\
                                Maybe you forgot to pass the -nl option.@]"
       Pp.print_typed_rule r
+  | NonLinearNonEqArguments(lc,arg) ->
+    fail lc "For each occurence of the free variable %a, the symbol should be applied to the same number of arguments" Pp.print_ident arg
+
 
 let pp_cerr out err =
   let open Confluence in
