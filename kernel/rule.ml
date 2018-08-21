@@ -177,14 +177,6 @@ let rec all_distinct = function
   | [] -> true
   | hd::tl -> if List.mem hd tl then false else all_distinct tl
 
-module IntHashtbl =
-  Hashtbl.Make(struct
-    type t = int
-    let equal i j = i=j
-    let hash i = i land max_int
-  end
-  )
-
 (* TODO : cut this function in smaller ones *)
 (** [check_patterns size pats] checks that the given pattern is a well formed
 Miller pattern in a context of size [size] and linearizes it.
