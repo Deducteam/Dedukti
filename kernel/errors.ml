@@ -92,6 +92,11 @@ let fail_typing_error err =
     fail l "Assertion error. '%a' is of type '%a'"
       pp_term t1 pp_term t2
   | NotImplementedFeature l -> fail l "Feature not implemented."
+  | NonLinearNonEqArguments(lc,arg) ->
+    fail lc "For each occurence of the free variable %a, the symbol should be applied to the same number of arguments" pp_ident arg
+  | NotEnoughArguments (lc,id,n,nb_args,exp_nb_args) ->
+    fail lc "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
+      pp_ident id nb_args exp_nb_args
 
 let fail_dtree_error err =
   let open Dtree in
@@ -122,15 +127,10 @@ let fail_rule_error err =
       pp_ident x pp_pattern pat
   | AVariableIsNotAPattern (lc,id) ->
     fail lc "A variable is not a valid pattern."
-  | NotEnoughArguments (lc,id,n,nb_args,exp_nb_args) ->
-    fail lc "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
-      pp_ident id nb_args exp_nb_args
   | NonLinearRule r ->
     fail (Rule.get_loc_pat r.pat) "Non left-linear rewrite rule:\n%a.\n\
                                Maybe you forgot to pass the -nl option."
       pp_untyped_rule r
-  | NonLinearNonEqArguments(lc,arg) ->
-    fail lc "For each occurence of the free variable %a, the symbol should be applied to the same number of arguments" pp_ident arg
 
 let pp_cerr out err =
   let open Confluence in

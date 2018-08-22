@@ -127,7 +127,7 @@ let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
 (** {2 Debugging} *)
 
 module Debug = struct
-  
+
   type flag = int
   let d_warn         : flag = 0
   let d_notice       : flag = 1
@@ -160,9 +160,9 @@ module Debug = struct
 
   let  enable_flag f = active.(f) <- true
   let disable_flag f = active.(f) <- false
-      
+
   exception DebugFlagNotRecognized of char
-      
+
   let set_debug_mode =
     String.iter (function
         | 'q' -> disable_flag d_warn
@@ -175,15 +175,15 @@ module Debug = struct
         | 'm' -> enable_flag  d_matching
         | c -> raise (DebugFlagNotRecognized c)
       )
-      
+
   let do_debug fmt =
     Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
-      
+
   let ignore_debug fmt =
     Format.(ifprintf err_formatter) fmt
-      
+
   let debug f =
-    if active.(f) 
+    if active.(f)
     then
       match headers.(f) with
       | "" -> do_debug
@@ -194,6 +194,17 @@ module Debug = struct
   let debug_eval f clos = if active.(f) then clos ()
 
 end
+
+(** {2 Misc modules} *)
+
+module IntHashtbl =
+  Hashtbl.Make(struct
+    type t = int
+    let equal i j = i=j
+    let hash i = i land max_int
+  end
+  )
+
 
 (** {2 Misc functions} *)
 

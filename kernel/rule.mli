@@ -65,8 +65,6 @@ type rule_error =
   | UnboundVariable                of loc * ident * pattern
   | AVariableIsNotAPattern         of loc * ident
   | NonLinearRule                  of untyped_rule
-  | NotEnoughArguments             of loc * ident * int * int * int
-  | NonLinearNonEqArguments        of loc * ident
 
 (** {2 Rule infos} *)
 

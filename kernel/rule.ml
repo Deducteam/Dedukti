@@ -68,9 +68,7 @@ type rule_error =
   (* FIXME : this exception seems never to be raised *)
   | AVariableIsNotAPattern         of loc * ident
   | NonLinearRule                  of untyped_rule
-  | NotEnoughArguments             of loc * ident * int * int * int
-  | NonLinearNonEqArguments        of loc * ident
-  (* FIXME: the reason for this exception should be formalized on paper ! *)
+
 
 exception RuleExn of rule_error
 
@@ -149,7 +147,7 @@ let pp_rule_infos out r =
       pat = pattern_of_rule_infos r;
       rhs = r.rhs
     }
-    
+
 let pattern_to_term p =
   let rec aux k = function
     | Brackets t         -> t
@@ -178,14 +176,6 @@ let bracket_ident = mk_ident "{_}"  (* FIXME: can this be replaced by dmark? *)
 let rec all_distinct = function
   | [] -> true
   | hd::tl -> if List.mem hd tl then false else all_distinct tl
-
-module IntHashtbl =
-  Hashtbl.Make(struct
-    type t = int
-    let equal i j = i=j
-    let hash i = i land max_int
-  end
-  )
 
 (* TODO : cut this function in smaller ones *)
 (** [check_patterns size pats] checks that the given pattern is a well formed
@@ -226,13 +216,10 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       if not (all_distinct args')
       then raise (RuleExn (DistinctBoundVariablesExpected (l,x)));
       let nb_args' = List.length args' in
-      if IntHashtbl.mem arity (n-k)
-      then if nb_args' <> IntHashtbl.find arity (n-k)
-        then raise (RuleExn (NonLinearNonEqArguments(l,x)))
-        else
-          let nvar = fresh_var nb_args' in 
-          constraints := Linearity(nvar, n-k) :: !constraints;
-          LVar(x, nvar + k, args')
+      if IntHashtbl.mem arity (n-k) then
+        let nvar = fresh_var nb_args' in
+        constraints := Linearity(nvar, n-k) :: !constraints;
+        LVar(x, nvar + k, args')
       else
         let _ = IntHashtbl.add arity (n-k) nb_args' in
         LVar(x,n,args')
@@ -253,25 +240,6 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       arity = Array.init !context_size (fun i -> IntHashtbl.find arity i)
     } )
 
-(* Checks that the lhs variables are applied to enough arguments *)
-let check_nb_args (arity:int array) (rhs:term) : unit =
-  let check l id n k nargs =
-    let expected_args = arity.(n-k) in
-    if nargs < expected_args
-    then raise (RuleExn (NotEnoughArguments (l,id,n,nargs,expected_args))) in
-  let rec aux k = function
-    | Kind | Type _ | Const _ -> ()
-    | DB (l,id,n) ->
-      if n >= k then check l id n k 0
-    | App(DB(l,id,n),a1,args) when n>=k ->
-      check l id n k (List.length args + 1);
-      List.iter (aux k) (a1::args)
-    | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
-    | Lam (_,_,None,b) -> aux (k+1) b
-    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
-  in
-  aux 0 rhs
-
 let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
   let is_linear = List.for_all (function Linearity _ -> false | _ -> true) in
   try
@@ -282,17 +250,14 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
       | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
     in
     let (pats2,infos) = check_patterns esize args in
-    
-    (* Checking that Miller variable are correctly applied in lhs *)
-    check_nb_args infos.arity r.rhs;
-    
+
     (* Checking if pattern has linearity constraints *)
     if not (is_linear infos.constraints)
     then
       if !allow_non_linear
       then Debug.(debug d_rule "Non-linear Rewrite Rule detected")
       else raise (RuleExn (NonLinearRule r));
-    
+
     OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;
          esize = infos.context_size ;
          pats = Array.of_list pats2 ;
