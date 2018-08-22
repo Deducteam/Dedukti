@@ -67,7 +67,6 @@ type rule_error =
   | UnboundVariable                of loc * ident * pattern
   (* FIXME : this exception seems never to be raised *)
   | AVariableIsNotAPattern         of loc * ident
-  | NonLinearRule                  of untyped_rule
   | NotEnoughArguments             of loc * ident * int * int * int
   | NonLinearNonEqArguments        of loc * ident
   (* FIXME: the reason for this exception should be formalized on paper ! *)
@@ -171,8 +170,6 @@ type pattern_info =
 
 (* ************************************************************************** *)
 
-let allow_non_linear = ref true
-
 let bracket_ident = mk_ident "{_}"  (* FIXME: can this be replaced by dmark? *)
 
 let rec all_distinct = function
@@ -273,7 +270,6 @@ let check_nb_args (arity:int array) (rhs:term) : unit =
   aux 0 rhs
 
 let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
-  let is_linear = List.for_all (function Linearity _ -> false | _ -> true) in
   try
     let esize = List.length r.ctx in
     let (l,cst,args) = match r.pat with
@@ -285,14 +281,6 @@ let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
 
     (* Checking that Miller variable are correctly applied in lhs *)
     check_nb_args infos.arity r.rhs;
-
-    (* Checking if pattern has linearity constraints *)
-    if not (is_linear infos.constraints)
-    then
-      if !allow_non_linear
-      then Debug.(debug d_rule "Non-linear Rewrite Rule detected")
-      else raise (RuleExn (NonLinearRule r));
-
     OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;
          esize = infos.context_size ;
          pats = Array.of_list pats2 ;
