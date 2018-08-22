@@ -25,7 +25,7 @@ val get_signature : unit -> Signature.t
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)
 
-val get_type    : loc -> name -> term err
+val get_type    : ?loc:loc -> name -> term err
 (** [get_type l md id] returns the type of the constant [md.id]. *)
 
 val is_static   : loc -> name -> bool
@@ -44,12 +44,8 @@ val declare : loc -> ident -> Signature.staticity -> term -> unit err
 (** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
    staticity [st]. *)
 
-val define      : loc -> ident -> term -> term option -> unit err
+val define      : ?loc:loc -> ident -> bool -> term -> term option -> unit err
 (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
-
-val define_op   : loc -> ident -> term -> term option -> unit err
-(** [define_op l id body ty] declares the symbol [id] of type [ty] and checks
-    that [body] has this type (but forget it after). *)
 
 val add_rules   : Rule.untyped_rule list -> (Subst.Subst.t * Rule.typed_rule) list err
 (** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the

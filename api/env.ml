@@ -23,8 +23,8 @@ let get_name () = Signature.get_name !sg
 
 let get_signature () = !sg
 
-let get_type l cst =
-  try OK (Signature.get_type !sg l cst)
+let get_type ?(loc=dloc) cst =
+  try OK (Signature.get_type !sg loc cst)
   with SignatureError e -> Err (EnvErrorSignature e)
 
 let get_dtree l cst =
@@ -48,7 +48,7 @@ exception DefineExn of loc*ident
 
 let is_static lc cst = Signature.is_static !sg lc cst
 
-let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
+let _define (l:loc) (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
     | None -> inference !sg te
     | Some ty -> ( checking !sg te ty; ty )
@@ -56,25 +56,19 @@ let _define (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
   match ty with
   | Kind -> raise (DefineExn (l,id))
   | _ ->
-    _declare l id Signature.Definable ty;
-    let cst = mk_name (get_name ()) id in
-    let rule =
-      { name= Delta(cst) ;
-        ctx = [] ;
-        pat = Pattern(l, cst, []);
-        rhs = te ;
-      }
-    in
-    Signature.add_rules !sg [rule]
-
-let _define_op (l:loc) (id:ident) (te:term) (ty_opt:typ option) : unit =
-  let ty = match ty_opt with
-    | None -> inference !sg te
-    | Some ty -> ( checking !sg te ty; ty )
-  in
-  match ty with
-  | Kind -> raise (DefineExn (l,id))
-  | _ -> Signature.add_declaration !sg l id Signature.Static ty
+    if opaque then
+      Signature.add_declaration !sg l id Signature.Static ty
+    else
+      let _ = Signature.add_declaration !sg l id Signature.Definable ty in
+      let cst = mk_name (get_name ()) id in
+      let rule =
+        { name= Delta(cst) ;
+          ctx = [] ;
+          pat = Pattern(l, cst, []);
+          rhs = te ;
+        }
+      in
+      Signature.add_rules !sg [rule]
 
 let declare l id st ty : (unit,env_error) error =
   try OK ( _declare l id st ty )
@@ -82,15 +76,8 @@ let declare l id st ty : (unit,env_error) error =
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)
 
-let define l id te ty_opt : (unit,env_error) error =
-  try OK ( _define l id te ty_opt )
-  with
-  | SignatureError e -> Err (EnvErrorSignature e)
-  | TypingError    e -> Err (EnvErrorType e)
-  | DefineExn (l,id) -> Err (KindLevelDefinition (l,id))
-
-let define_op l id te ty_opt =
-  try OK ( _define_op l id te ty_opt )
+let define ?(loc=dloc) id op te ty_opt : (unit,env_error) error =
+  try OK ( _define loc id op te ty_opt )
   with
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError    e -> Err (EnvErrorType e)

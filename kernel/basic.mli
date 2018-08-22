@@ -83,7 +83,7 @@ val dloc : loc
 (** [mk_loc l c] builds the location where [l] is the line and [c] the column *)
 val mk_loc : int -> int -> loc
 
-val of_loc : loc -> (int*int)
+val of_loc : loc -> int * int
 
 val add_path : string -> unit
 val get_path : unit -> string list

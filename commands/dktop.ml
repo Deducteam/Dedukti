@@ -10,9 +10,8 @@ let handle_entry e =
   | Decl(lc,id,st,ty) ->
     Errors.fail_if_err (Env.declare lc id st ty);
     Format.printf "%a is declared.@." pp_ident id
-  | Def(lc,id,op,ty,te)     ->
-    let define = if op then Env.define_op else Env.define in
-    Errors.fail_if_err (define lc id te ty);
+  | Def(lc,id,op,ty,te) ->
+    Errors.fail_if_err (Env.define ~loc:lc id op te ty);
     Format.printf "%a is defined.@." pp_ident id
   | Rules(rs) ->
     let _ = Errors.fail_if_err (Env.add_rules rs) in

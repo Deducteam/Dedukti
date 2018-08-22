@@ -11,11 +11,10 @@ let mk_entry md e =
   | Decl(lc,id,st,ty) ->
     eprint lc "Declaration of constant '%a'." pp_ident id;
     Errors.fail_if_err (Env.declare lc id st ty)
-  | Def(lc,id,opaque,ty,te) ->
+  | Def(loc,id,opaque,ty,te) ->
     let opaque_str = if opaque then " (opaque)" else "" in
-    eprint lc "Definition of symbol '%a'%s." pp_ident id opaque_str;
-    let define = if opaque then Env.define_op else Env.define in
-    Errors.fail_if_err (define lc id te ty)
+    eprint loc "Definition of symbol '%a'%s." pp_ident id opaque_str;
+    Errors.fail_if_err (Env.define ~loc:loc id opaque te ty)
   | Rules(rs) ->
     let open Rule in
     let get_infos p =

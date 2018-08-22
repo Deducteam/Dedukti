@@ -2,8 +2,8 @@ open Basic
 open Term
 open Rule
 open Printf
-open Env
 open Entry
+open Env
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
 
 (* TODO: make that debuging functions returns a string *)
