@@ -5,9 +5,11 @@ open Term
 open Signature
 
 type env_error =
-  | EnvErrorType of Typing.typing_error
-  | EnvErrorSignature of signature_error
-  | KindLevelDefinition of loc*ident
+  | EnvErrorType        of Typing.typing_error
+  | EnvErrorSignature   of signature_error
+  | KindLevelDefinition of loc * ident
+
+type 'a err = ('a, env_error) error
 
 (** {2 The Global Environment} *)
 
@@ -23,47 +25,47 @@ val get_signature : unit -> Signature.t
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)
 
-val get_type    : loc -> name -> (term,signature_error) error
+val get_type    : loc -> name -> term err
 (** [get_type l md id] returns the type of the constant [md.id]. *)
 
 val is_static   : loc -> name -> bool
 (** [is_static l cst] returns [true] if the symbol is declared as [static], [false] otherwise *)
 
-val get_dtree   : loc -> name -> (Dtree.t, signature_error) error
+val get_dtree   : loc -> name -> Dtree.t err
 (** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
 
-val export      : unit -> bool
+val export      : unit -> unit err
 (** [export ()] saves the current environment in a [*.dko] file. *)
 
-val import      : loc -> mident -> (unit, signature_error) error
+val import      : loc -> mident -> unit err
 (** [import lc md] the module [md] in the current environment. *)
 
-val declare : loc -> ident -> Signature.staticity -> term -> (unit,env_error) error
+val declare : loc -> ident -> Signature.staticity -> term -> unit err
 (** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
    staticity [st]. *)
 
-val define      : loc -> ident -> term -> term option -> (unit,env_error) error
+val define      : loc -> ident -> term -> term option -> unit err
 (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
 
-val define_op   : loc -> ident -> term -> term option -> (unit,env_error) error
+val define_op   : loc -> ident -> term -> term option -> unit err
 (** [define_op l id body ty] declares the symbol [id] of type [ty] and checks
     that [body] has this type (but forget it after). *)
 
-val add_rules   : Rule.untyped_rule list -> ((Subst.Subst.t * Rule.typed_rule) list ,env_error) error
+val add_rules   : Rule.untyped_rule list -> (Subst.Subst.t * Rule.typed_rule) list err
 (** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the
     same symbol. *)
 
 (** {2 Type checking/inference} *)
 
-val infer : ?ctx:typed_context -> term         -> (term,env_error) error
+val infer : ?ctx:typed_context -> term         -> term err
 
-val check : ?ctx:typed_context -> term -> term -> (unit,env_error) error
+val check : ?ctx:typed_context -> term -> term -> unit err
 
 (** {2 Safe Reduction/Conversion} *)
 (** terms are typechecked before the reduction/conversion *)
 
-val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> (term,env_error) error
+val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> term err
 
-val are_convertible : ?ctx:typed_context -> term -> term -> (bool,env_error) error
+val are_convertible : ?ctx:typed_context -> term -> term -> bool err
 
 val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term

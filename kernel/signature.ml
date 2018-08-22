@@ -17,6 +17,7 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
+  | CouldNotExportModule  of string
 
 exception SignatureError of signature_error
 
@@ -175,7 +176,9 @@ let get_deps sg : string list = (*only direct dependencies*)
     ) sg.tables []
 
 let export sg =
-  marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
+  if marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
+  then ()
+  else raise (SignatureError (CouldNotExportModule sg.file))
 
 (******************************************************************************)
 

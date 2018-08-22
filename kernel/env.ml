@@ -5,9 +5,11 @@ open Typing
 open Signature
 
 type env_error =
-  | EnvErrorType of typing_error
-  | EnvErrorSignature of signature_error
-  | KindLevelDefinition of loc*ident
+  | EnvErrorType        of typing_error
+  | EnvErrorSignature   of signature_error
+  | KindLevelDefinition of loc * ident
+
+type 'a err = ('a, env_error) error
 
 (* Wrapper around Signature *)
 
@@ -23,17 +25,19 @@ let get_signature () = !sg
 
 let get_type l cst =
   try OK (Signature.get_type !sg l cst)
-  with SignatureError e -> Err e
+  with SignatureError e -> Err (EnvErrorSignature e)
 
 let get_dtree l cst =
   try OK (Signature.get_dtree !sg None l cst)
-  with SignatureError e -> Err e
+  with SignatureError e -> Err (EnvErrorSignature e)
 
-let export () : bool = Signature.export !sg
+let export () =
+  try OK (Signature.export !sg)
+  with SignatureError e -> Err (EnvErrorSignature e)
 
 let import lc md =
   try OK(Signature.import !sg lc md)
-  with SignatureError e -> Err e
+  with SignatureError e -> Err (EnvErrorSignature e)
 
 let _declare (l:loc) (id:ident) st ty : unit =
   match inference !sg ty with
