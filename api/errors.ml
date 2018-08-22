@@ -25,11 +25,10 @@ let success fmt =
 
 let prerr_loc lc = eprintf "%a " pp_loc lc
 
-(** Print an error message with given code and and exit. *)
 let fail code lc fmt =
     eprintf "%s" (red "[ERROR:" ^ string_of_int code ^ "] ") ;
     prerr_loc lc;
-    kfprintf (fun _ -> pp_print_newline err_formatter () ; raise Exit) err_formatter fmt
+    kfprintf (fun _ -> pp_print_newline err_formatter () ; exit 3) err_formatter fmt
 
 let pp_typed_context out = function
   | [] -> ()
@@ -205,13 +204,17 @@ let fail_signature_error err =
       "Fail to export module '%a' to file %s."
       pp_mident (Env.get_name ()) file
 
-
 let fail_env_error = function
   | Env.EnvErrorSignature e -> fail_signature_error e
   | Env.EnvErrorType      e -> fail_typing_error e
   | Env.KindLevelDefinition (lc,id) ->
     fail 5 lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
+  | Env.ParseError (lc,s) ->
+    fail 1 lc "Parse error: %s@." s
+  | Env.AssertError lc -> 
+    fail 6 lc "Assertion failed."
 
-let fail_if_err = function
-  | OK x -> x
-  | Err e -> fail_env_error e
+let fail_sys_error msg =
+  eprintf "%s" (red "[ERROR:SYSTEM] ");
+  eprintf "%s" msg;
+  exit 1

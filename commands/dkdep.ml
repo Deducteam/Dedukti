@@ -109,9 +109,8 @@ let handle_file : string -> dep_data = fun file ->
     close_in input;
     (md, (file, !current_deps))
   with
-  | Parse_error(loc,msg) -> Format.eprintf "Parse error in %a...@." pp_loc loc; exit 1
-  | Sys_error err        -> Format.eprintf "ERROR %s.@." err; exit 1
-  | Exit                 -> exit 3
+  | Env.EnvError e       -> Errors.fail_env_error e
+  | Sys_error err        -> Errors.fail_sys_error err
 
 (** Output main program. *)
 

@@ -95,33 +95,6 @@ let path = ref []
 let get_path () = !path
 let add_path s = path := s :: !path
 
-(** {2 Errors} *)
-
-type ('a,'b) error =
-  | OK of 'a
-  | Err of 'b
-
-let map_error f = function
-  | Err c -> Err c
-  | OK a -> OK (f a)
-
-let bind_error f = function
-  | Err c -> Err c
-  | OK a -> f a
-
-let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
-  let rec aux = function
-    | [] -> OK []
-    | hd::lst ->
-        ( match f hd with
-            | Err c -> Err c
-            | OK hd -> ( match aux lst with
-                           | Err c -> Err c
-                           | OK lst -> OK (hd::lst) )
-        )
-  in
-    aux lst
-
 (** {2 Debugging} *)
 
 module Debug = struct
@@ -226,7 +199,7 @@ let pp_ident  fmt id      = Format.fprintf fmt "%s" id
 let pp_mident fmt md      = Format.fprintf fmt "%s" md
 let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
 let pp_loc    fmt = function
-  | (-1,-1) -> Format.fprintf fmt "at unspecified location"
+  | (-1,-1) -> Format.fprintf fmt "unspecified location"
   | (c ,l ) -> Format.fprintf fmt "line:%i column:%i" l c
 
 let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str

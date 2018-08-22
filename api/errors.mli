@@ -9,9 +9,11 @@ val color : bool ref
 (** Print a success message. *)
 val success : ('a, Format.formatter, unit) format -> 'a
 
-(** Prints a message explaining the env_error then fails. *)
+(** Print an error message with given code and and exit. *)
+val fail : int -> loc -> ('a, Format.formatter, unit) format -> 'a
+
+(** Prints a message explaining the env_error then exits with code 3. *)
 val fail_env_error : Env.env_error -> 'a
 
-(** Either returns the encapsulated Env.err value or fails printing an error
-    message. *)
-val fail_if_err : 'a Env.err -> 'a
+(** Print a system error message then exits with code 1. *)
+val fail_sys_error : string -> 'a

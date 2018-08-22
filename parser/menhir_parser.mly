@@ -1,7 +1,6 @@
 %{
 open Basic
 open Preterm
-open Internals
 open Scoping
 open Reduction
 open Signature
@@ -33,8 +32,8 @@ let mk_config loc id1 id2_opt =
     | (i     , Some "HNF" ) -> config (some i) Hnf
     | (i     , Some "WHNF") -> config (some i) Whnf
     | (i     , None       ) -> {default_cfg with nb_steps = some i}
-    | (_     , _          ) -> raise Exit (* captured bellow *)
-  with _ -> raise (Parse_error(loc, "invalid command configuration"))
+    | (_     , _          ) -> raise Exit (* captured below *)
+  with _ -> raise (Env.EnvError (Env.ParseError (loc, "invalid command configuration")))
 %}
 
 %token EOF

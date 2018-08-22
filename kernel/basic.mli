@@ -88,16 +88,6 @@ val of_loc : loc -> int * int
 val add_path : string -> unit
 val get_path : unit -> string list
 
-(** {2 Error Datatype} *)
-
-type ('a,'b) error =
-  | OK of 'a
-  | Err of 'b
-
-val map_error : ('a -> 'b) -> ('a,'c) error -> ('b,'c) error
-val bind_error : ('a -> ('b,'c) error) -> ('a,'c) error -> ('b,'c) error
-val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
-
 (** {2 Debug} *)
 
 module Debug : sig

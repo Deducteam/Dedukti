@@ -68,6 +68,8 @@ type rule_error =
   | NotEnoughArguments             of loc * ident * int * int * int
   | NonLinearNonEqArguments        of loc * ident
 
+exception RuleError of rule_error
+
 (** {2 Rule infos} *)
 
 type rule_infos = {
@@ -84,7 +86,7 @@ type rule_infos = {
 
 val pattern_of_rule_infos : rule_infos -> pattern
 
-val to_rule_infos : untyped_rule -> (rule_infos, rule_error) error
+val to_rule_infos : untyped_rule -> rule_infos
 
 (** {2 Printing} *)
 

@@ -1,3 +1,4 @@
+
 open Basic
 open Format
 open Term
@@ -72,7 +73,7 @@ type rule_error =
   | NonLinearNonEqArguments        of loc * ident
   (* FIXME: the reason for this exception should be formalized on paper ! *)
 
-exception RuleExn of rule_error
+exception RuleError of rule_error
 
 let rec pp_pattern out pattern =
   match pattern with
@@ -212,7 +213,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
   let extract_db k pat =
     match pat with
     | Var (_,_,n,[]) when n<k -> n
-    | p -> raise (RuleExn (BoundVariableExpected p))
+    | p -> raise (RuleError (BoundVariableExpected p))
   in
   let rec aux (k:int) (pat:pattern) : wf_pattern =
     match pat with
@@ -224,11 +225,11 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       let args' = List.map (extract_db k) args in
       (* Miller variables should be applied to distinct variables *)
       if not (all_distinct args')
-      then raise (RuleExn (DistinctBoundVariablesExpected (l,x)));
+      then raise (RuleError (DistinctBoundVariablesExpected (l,x)));
       let nb_args' = List.length args' in
       if IntHashtbl.mem arity (n-k)
       then if nb_args' <> IntHashtbl.find arity (n-k)
-        then raise (RuleExn (NonLinearNonEqArguments(l,x)))
+        then raise (RuleError (NonLinearNonEqArguments(l,x)))
         else
           let nvar = fresh_var nb_args' in 
           constraints := Linearity(nvar, n-k) :: !constraints;
@@ -239,7 +240,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
     | Brackets t ->
       let unshifted =
         try Subst.unshift k t
-        with Subst.UnshiftExn -> raise (RuleExn (VariableBoundOutsideTheGuard t))
+        with Subst.UnshiftExn -> raise (RuleError (VariableBoundOutsideTheGuard t))
       in
       let nvar = fresh_var 0 in
       constraints := Bracket (nvar, unshifted) :: !constraints;
@@ -258,7 +259,7 @@ let check_nb_args (arity:int array) (rhs:term) : unit =
   let check l id n k nargs =
     let expected_args = arity.(n-k) in
     if nargs < expected_args
-    then raise (RuleExn (NotEnoughArguments (l,id,n,nargs,expected_args))) in
+    then raise (RuleError (NotEnoughArguments (l,id,n,nargs,expected_args))) in
   let rec aux k = function
     | Kind | Type _ | Const _ -> ()
     | DB (l,id,n) ->
@@ -272,30 +273,31 @@ let check_nb_args (arity:int array) (rhs:term) : unit =
   in
   aux 0 rhs
 
-let to_rule_infos (r:untyped_rule) : (rule_infos,rule_error) error =
+let to_rule_infos (r:untyped_rule) : rule_infos =
   let is_linear = List.for_all (function Linearity _ -> false | _ -> true) in
-  try
-    let esize = List.length r.ctx in
-    let (l,cst,args) = match r.pat with
-      | Pattern (l,cst,args) -> (l, cst, args)
-      | Var (l,x,_,_) -> raise (RuleExn (AVariableIsNotAPattern (l,x)))
-      | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
-    in
-    let (pats2,infos) = check_patterns esize args in
-    
-    (* Checking that Miller variable are correctly applied in lhs *)
-    check_nb_args infos.arity r.rhs;
-    
-    (* Checking if pattern has linearity constraints *)
-    if not (is_linear infos.constraints)
-    then
-      if !allow_non_linear
-      then Debug.(debug d_rule "Non-linear Rewrite Rule detected")
-      else raise (RuleExn (NonLinearRule r));
-    
-    OK { l ; name = r.name ; cst ; args ; rhs = r.rhs ;
-         esize = infos.context_size ;
-         pats = Array.of_list pats2 ;
-         constraints = infos.constraints ; }
-  with
-    RuleExn e -> Err e
+  let esize = List.length r.ctx in
+  let (l,cst,args) = match r.pat with
+    | Pattern (l,cst,args) -> (l, cst, args)
+    | Var (l,x,_,_) -> raise (RuleError (AVariableIsNotAPattern (l,x)))
+    | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
+  in
+  let (pats2,infos) = check_patterns esize args in
+  
+  (* Checking that Miller variable are correctly applied in lhs *)
+  check_nb_args infos.arity r.rhs;
+  
+  (* Checking if pattern has linearity constraints *)
+  if not (is_linear infos.constraints)
+  then
+    if !allow_non_linear
+    then Debug.(debug d_rule "Non-linear Rewrite Rule detected")
+    else raise (RuleError (NonLinearRule r));
+  
+  { l ;
+    name = r.name ;
+    cst ; args ; rhs = r.rhs ;
+    esize = infos.context_size ;
+    pats = Array.of_list pats2 ;
+    constraints = infos.constraints
+  }
+  

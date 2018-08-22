@@ -140,9 +140,9 @@ install: uninstall all
 		$(wildcard _build/api/*.cmx) $(wildcard _build/api/*.o) \
 		_build/parser/parser.mli _build/parser/parser.cmi \
 		$(wildcard _build/parser/*.cmx) $(wildcard _build/parser/*.o) \
-		_build/kernel/kernel.cma  _build/kernel/api.cma  _build/parser/parser.cma \
-		_build/kernel/kernel.cmxa _build/kernel/api.cmxa _build/parser/parser.cmxa \
-		_build/kernel/kernel.a    _build/kernel/api.a    _build/parser/parser.a
+		_build/kernel/kernel.cma  _build/api/api.cma  _build/parser/parser.cma \
+		_build/kernel/kernel.cmxa _build/api/api.cmxa _build/parser/parser.cmxa \
+		_build/kernel/kernel.a    _build/api/api.a    _build/parser/parser.a
 	install -m 755 -d $(BINDIR)
 	install -m 755 -p dkcheck.native  $(BINDIR)/dkcheck
 	install -m 755 -p dkdep.native    $(BINDIR)/dkdep
