@@ -131,9 +131,9 @@ module Debug = struct
 
   let  enable_flag f = active.(f) <- true
   let disable_flag f = active.(f) <- false
-      
+
   exception DebugFlagNotRecognized of char
-      
+
   let set_debug_mode =
     String.iter (function
         | 'q' -> disable_flag d_warn
@@ -146,13 +146,13 @@ module Debug = struct
         | 'm' -> enable_flag  d_matching
         | c -> raise (DebugFlagNotRecognized c)
       )
-      
+
   let do_debug fmt =
     Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
-      
+
   let ignore_debug fmt =
     Format.(ifprintf err_formatter) fmt
-      
+
   let debug f =
     if active.(f) 
     then

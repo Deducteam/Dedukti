@@ -1,6 +1,6 @@
+
 open Basic
 open Format
-open Rule
 open Term
 open Reduction
 
@@ -38,7 +38,7 @@ let fail_exit code lc fmt =
 
 let pp_typed_context out = function
   | [] -> ()
-  | _::_ as ctx -> fprintf out " in context:\n%a" pp_typed_context ctx
+  | _::_ as ctx -> fprintf out " in context:\n%a" Rule.pp_typed_context ctx
 
 let fail_typing_error err =
   let open Typing in
@@ -69,13 +69,13 @@ let fail_typing_error err =
   | DomainFreeLambda lc ->
     fail lc "Cannot infer the type of domain-free lambda."
   | CannotInferTypeOfPattern (p,ctx) ->
-    fail (get_loc_pat p)
+    fail (Rule.get_loc_pat p)
       "Error while typing '%a'%a.\nThe type could not be infered."
-      pp_pattern p pp_typed_context ctx
+      Rule.pp_pattern p pp_typed_context ctx
   | CannotSolveConstraints (r,cstr) ->
-    fail (get_loc_pat r.pat)
+    fail (Rule.get_loc_rule r)
       "Error while typing the rewrite rule\n%a\nCannot solve typing constraints:\n%a"
-      pp_untyped_rule r (pp_list "\n" (fun out (_,t1,t2) -> fprintf out "%a ~~ %a" pp_term t1 pp_term t2)) cstr
+      Rule.pp_untyped_rule r (pp_list "\n" (fun out (_,t1,t2) -> fprintf out "%a ~~ %a" pp_term t1 pp_term t2)) cstr
   | BracketError1 (te,ctx) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.\n\
@@ -148,7 +148,7 @@ let fail_rule_error err =
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
       pp_ident id nb_args exp_nb_args
   | NonLinearRule r ->
-    fail (Rule.get_loc_pat r.pat)
+    fail (Rule.get_loc_rule r)
       "Non left-linear rewrite rule:\n%a.\n\
        Maybe you forgot to pass the -nl option."
       pp_untyped_rule r
@@ -189,7 +189,7 @@ let fail_signature_error err =
   | ConfluenceErrorRules (lc,rs,cerr) ->
     fail lc
       "Confluence checking failed when adding the rewrite rules below.\n%a\n%a"
-      pp_cerr cerr (pp_list "\n" pp_rule_infos) rs
+      pp_cerr cerr (pp_list "\n" Rule.pp_rule_infos) rs
   | ConfluenceErrorImport (lc,md,cerr) ->
     fail lc
       "Confluence checking failed when importing the module '%a'.\n%a"
@@ -209,10 +209,50 @@ let code err =
   let open Env in
   match err with
   | ParseError          _ -> 1
-  | EnvErrorType        _ -> 2
-  | EnvErrorSignature (Signature.CannotBuildDtree    _) -> 4
-  | EnvErrorSignature (Signature.CannotMakeRuleInfos _) -> 3
-  | EnvErrorSignature   _ -> 5
+  | EnvErrorType        e -> begin match e with
+      | Typing.KindIsNotTypable
+      | Typing.ConvertibilityError _
+      | Typing.VariableNotFound _
+      | Typing.SortExpected _
+      | Typing.ProductExpected _
+      | Typing.InexpectedKind _
+      | Typing.DomainFreeLambda _
+      | Typing.CannotInferTypeOfPattern _
+      | Typing.CannotSolveConstraints _
+      | Typing.BracketError1 _
+      | Typing.BracketError2 _
+      | Typing.FreeVariableDependsOnBoundVariable _
+      | Typing.Unconvertible _
+      | Typing.Convertible _
+      | Typing.Inhabit _
+      | Typing.NotImplementedFeature _ -> 2
+    end
+  | EnvErrorSignature e -> begin match e with
+      | Signature.CannotBuildDtree e -> begin match e with
+          | Dtree.HeadSymbolMismatch _
+          | Dtree.ArityInnerMismatch _ -> 4
+        end
+      | Signature.CannotMakeRuleInfos e -> begin match e with
+          | Rule.BoundVariableExpected _
+          | Rule.VariableBoundOutsideTheGuard _
+          | Rule.DistinctBoundVariablesExpected _
+          | Rule.UnboundVariable _
+          | Rule.AVariableIsNotAPattern _
+          | Rule.NotEnoughArguments _
+          | Rule.NonLinearRule _
+          | Rule.NonLinearNonEqArguments _ -> 3
+        end
+      | Signature.UnmarshalBadVersionNumber _
+      | Signature.UnmarshalSysError _
+      | Signature.UnmarshalUnknown _
+      | Signature.SymbolNotFound _
+      | Signature.AlreadyDefinedSymbol _
+      | Signature.CannotAddRewriteRules _
+      | Signature.ConfluenceErrorRules _
+      | Signature.ConfluenceErrorImport _
+      | Signature.GuardNotSatisfied _
+      | Signature.CouldNotExportModule _ -> 5
+    end
   | KindLevelDefinition _ -> 6
   | AssertError         _ -> 7
 

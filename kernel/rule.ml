@@ -114,6 +114,8 @@ let get_loc_pat = function
   | Lambda (l,_,_) -> l
   | Brackets t -> get_loc t
 
+let get_loc_rule r = get_loc_pat r.pat
+
 let pp_idents fmt l = fprintf fmt "[%a]" (pp_list ", " pp_ident) (List.rev l)
 let pp_untyped_context fmt ctx = pp_idents fmt (List.map snd                ctx)
 let pp_typed_context   fmt ctx = pp_idents fmt (List.map (fun (_,a,_) -> a) ctx)

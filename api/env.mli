@@ -2,13 +2,12 @@
     This is essentialy a wrapper around Signature, Typing and Reduction *)
 open Basic
 open Term
-open Signature
 
 (** {2 Error Datatype} *)
 
 type env_error =
   | EnvErrorType        of Typing.typing_error
-  | EnvErrorSignature   of signature_error
+  | EnvErrorSignature   of Signature.signature_error
   | KindLevelDefinition of loc * ident
   | ParseError          of loc * string
   | AssertError         of loc

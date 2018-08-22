@@ -52,6 +52,8 @@ type 'a rule =
     rhs : term
   }
 
+val get_loc_rule : 'a rule -> loc
+
 type untyped_rule = untyped_context rule
 
 type typed_rule = typed_context rule
