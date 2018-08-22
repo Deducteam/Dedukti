@@ -15,7 +15,7 @@ let handle_entry e =
   | Def(lc,id,op,ty,te) ->
     Env.define ~loc:lc id op te ty;
     Format.printf "%a is defined.@." pp_ident id
-  | Rules(rs) ->
+  | Rules(_,rs) ->
     let _ = Env.add_rules rs in
     List.iter (fun r -> print "%a" Rule.pp_untyped_rule r) rs
   | Eval(lc,red,te) ->

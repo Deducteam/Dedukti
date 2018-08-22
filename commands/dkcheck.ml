@@ -15,16 +15,9 @@ let mk_entry md e =
     let opaque_str = if opaque then " (opaque)" else "" in
     eprint lc "Definition of symbol '%a'%s." pp_ident id opaque_str;
     Env.define ~loc:lc id opaque te ty
-  | Rules(rs) ->
+  | Rules(l,rs) ->
     let open Rule in
-    let get_infos p =
-      match p with
-      | Pattern(l,cst,_) -> (l,cst)
-      | _                -> (dloc,mk_name (mk_mident "") dmark)
-    in
-    let r = List.hd rs in (* cannot fail. *)
-    let (l,cst) = get_infos r.pat in
-    eprint l "Adding rewrite rules for '%a'" pp_name cst;
+    List.iter (fun (r:untyped_rule) -> eprint l "Adding rewrite rules: '%a'" Pp.print_rule_name r.name) rs;
     let rs = Env.add_rules rs in
     List.iter (fun (s,r) ->
         eprint (get_loc_pat r.pat) "%a@.with the following constraints: %a"

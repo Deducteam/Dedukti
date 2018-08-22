@@ -196,7 +196,7 @@ let print_entry fmt e =
       | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
                      print_ident id print_term ty print_term te
     end
-  | Rules(rs)               ->
+  | Rules(_,rs)               ->
     fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) rs
   | Eval(_,cfg,te)          ->
     fprintf fmt "#EVAL%a %a.@." print_red_cfg cfg print_term te
