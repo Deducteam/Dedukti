@@ -13,12 +13,9 @@ type env_error =
 
 exception EnvError of env_error
 
-exception DefineExn of loc*ident
-
 let raise_as_env = function
   | SignatureError e -> raise (EnvError (EnvErrorSignature e) )
   | TypingError    e -> raise (EnvError (EnvErrorType      e) )
-  | DefineExn (l,id) -> raise (EnvError (KindLevelDefinition (l,id)))
   | ex -> raise ex
 
 
@@ -63,7 +60,7 @@ let _define (l:loc) (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : uni
     | Some ty -> ( checking !sg te ty; ty )
   in
   match ty with
-  | Kind -> raise (DefineExn (l,id))
+  | Kind -> raise (EnvError (KindLevelDefinition (l,id)))
   | _ ->
     if opaque then
       Signature.add_declaration !sg l id Signature.Static ty
