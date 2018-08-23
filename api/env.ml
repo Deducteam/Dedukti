@@ -23,6 +23,9 @@ let raise_as_env = function
 
 let sg = ref (Signature.make "noname")
 
+let check_linearity = ref false
+let check_arity     = ref true
+
 let init file =
   sg := Signature.make file;
   Signature.get_name !sg
@@ -54,6 +57,13 @@ let _declare (l:loc) (id:ident) st ty : unit =
 
 let is_static lc cst = Signature.is_static !sg lc cst
 
+let _add_rules rs =
+  let ris = List.map Rule.to_rule_infos rs in
+  if !check_linearity then List.iter Rule.check_linearity ris;
+  if !check_arity     then List.iter Rule.check_arity     ris;
+  Signature.add_rules !sg ris
+  
+
 let _define (l:loc) (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
     | None -> inference !sg te
@@ -74,7 +84,7 @@ let _define (l:loc) (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : uni
           rhs = te ;
         }
       in
-      Signature.add_rules !sg [rule]
+      _add_rules [rule]
 
 let declare l id st ty : unit =
   try _declare l id st ty
@@ -87,7 +97,7 @@ let define ?(loc=dloc) id op te ty_opt : unit =
 let add_rules (rules: untyped_rule list) : (Subst.Subst.t * typed_rule) list =
   try
     let rs2 = List.map (check_rule !sg) rules in
-    Signature.add_rules !sg rules;
+    _add_rules rules;
     rs2
   with e -> raise_as_env e
 

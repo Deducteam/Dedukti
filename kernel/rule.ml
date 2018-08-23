@@ -43,6 +43,7 @@ type rule_infos = {
   rhs         : term;
   esize       : int;
   pats        : wf_pattern array;
+  arity       : int array;
   constraints : constr list;
 }
 
@@ -68,7 +69,7 @@ type rule_error =
   | UnboundVariable                of loc * ident * pattern
   (* FIXME : this exception seems never to be raised *)
   | AVariableIsNotAPattern         of loc * ident
-  | NonLinearRule                  of untyped_rule
+  | NonLinearRule                  of loc * name
   | NotEnoughArguments             of loc * ident * int * int * int
   | NonLinearNonEqArguments        of loc * ident
   (* FIXME: the reason for this exception should be formalized on paper ! *)
@@ -174,8 +175,6 @@ type pattern_info =
 
 (* ************************************************************************** *)
 
-let allow_non_linear = ref false
-
 let bracket_ident = mk_ident "{_}"  (* FIXME: can this be replaced by dmark? *)
 
 let rec all_distinct = function
@@ -256,10 +255,32 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       arity = Array.init !context_size (fun i -> IntHashtbl.find arity i)
     } )
 
-(* Checks that the lhs variables are applied to enough arguments *)
-let check_nb_args (arity:int array) (rhs:term) : unit =
+let to_rule_infos (r:untyped_rule) : rule_infos =
+  let esize = List.length r.ctx in
+  let (l,cst,args) = match r.pat with
+    | Pattern (l,cst,args) -> (l, cst, args)
+    | Var (l,x,_,_) -> raise (RuleError (AVariableIsNotAPattern (l,x)))
+    | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
+  in
+  let (pats2,infos) = check_patterns esize args in
+  { l ;
+    name = r.name ;
+    cst ; args ; rhs = r.rhs ;
+    esize = infos.context_size ;
+    pats = Array.of_list pats2 ;
+    arity = infos.arity ;
+    constraints = infos.constraints
+  }
+
+let check_linearity (r:rule_infos) : unit =
+  let check_constraint = function
+    | Linearity (i,j) -> raise (RuleError (NonLinearRule (r.l, r.cst)))
+    | _ -> () in
+  List.iter check_constraint r.constraints
+
+let check_arity (r:rule_infos) : unit =
   let check l id n k nargs =
-    let expected_args = arity.(n-k) in
+    let expected_args = r.arity.(n-k) in
     if nargs < expected_args
     then raise (RuleError (NotEnoughArguments (l,id,n,nargs,expected_args))) in
   let rec aux k = function
@@ -273,33 +294,4 @@ let check_nb_args (arity:int array) (rhs:term) : unit =
     | Lam (_,_,None,b) -> aux (k+1) b
     | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
   in
-  aux 0 rhs
-
-let to_rule_infos (r:untyped_rule) : rule_infos =
-  let is_linear = List.for_all (function Linearity _ -> false | _ -> true) in
-  let esize = List.length r.ctx in
-  let (l,cst,args) = match r.pat with
-    | Pattern (l,cst,args) -> (l, cst, args)
-    | Var (l,x,_,_) -> raise (RuleError (AVariableIsNotAPattern (l,x)))
-    | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
-  in
-  let (pats2,infos) = check_patterns esize args in
-  
-  (* Checking that Miller variable are correctly applied in lhs *)
-  check_nb_args infos.arity r.rhs;
-  
-  (* Checking if pattern has linearity constraints *)
-  if not (is_linear infos.constraints)
-  then
-    if !allow_non_linear
-    then Debug.(debug d_rule "Non-linear Rewrite Rule detected")
-    else raise (RuleError (NonLinearRule r));
-  
-  { l ;
-    name = r.name ;
-    cst ; args ; rhs = r.rhs ;
-    esize = infos.context_size ;
-    pats = Array.of_list pats2 ;
-    constraints = infos.constraints
-  }
-  
+  aux 0 r.rhs
