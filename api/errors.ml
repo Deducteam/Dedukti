@@ -210,51 +210,51 @@ let code err =
   match err with
   | ParseError          _ -> 1
   | EnvErrorType        e -> begin match e with
-      | Typing.KindIsNotTypable
-      | Typing.ConvertibilityError _
-      | Typing.VariableNotFound _
-      | Typing.SortExpected _
-      | Typing.ProductExpected _
-      | Typing.InexpectedKind _
-      | Typing.DomainFreeLambda _
-      | Typing.CannotInferTypeOfPattern _
-      | Typing.CannotSolveConstraints _
-      | Typing.BracketError1 _
-      | Typing.BracketError2 _
-      | Typing.FreeVariableDependsOnBoundVariable _
-      | Typing.Unconvertible _
-      | Typing.Convertible _
-      | Typing.Inhabit _
-      | Typing.NotImplementedFeature _ -> 2
+      | Typing.KindIsNotTypable -> 2
+      | Typing.ConvertibilityError _ -> 3
+      | Typing.VariableNotFound _ -> 4
+      | Typing.SortExpected _ -> 5
+      | Typing.ProductExpected _ -> 6
+      | Typing.InexpectedKind _ -> 7
+      | Typing.DomainFreeLambda _ -> 8
+      | Typing.CannotInferTypeOfPattern _ -> 9
+      | Typing.CannotSolveConstraints _ -> 10
+      | Typing.BracketError1 _ -> 11
+      | Typing.BracketError2 _ -> 12
+      | Typing.FreeVariableDependsOnBoundVariable _ -> 13
+      | Typing.Unconvertible _ -> 14
+      | Typing.Convertible _ -> 15
+      | Typing.Inhabit _ -> 16
+      | Typing.NotImplementedFeature _ -> 17
     end
   | EnvErrorSignature e -> begin match e with
       | Signature.CannotBuildDtree e -> begin match e with
-          | Dtree.HeadSymbolMismatch _
-          | Dtree.ArityInnerMismatch _ -> 4
+          | Dtree.HeadSymbolMismatch _ -> 18
+          | Dtree.ArityInnerMismatch _ -> 19
         end
       | Signature.CannotMakeRuleInfos e -> begin match e with
-          | Rule.BoundVariableExpected _
-          | Rule.VariableBoundOutsideTheGuard _
-          | Rule.DistinctBoundVariablesExpected _
-          | Rule.UnboundVariable _
-          | Rule.AVariableIsNotAPattern _
-          | Rule.NotEnoughArguments _
-          | Rule.NonLinearRule _
-          | Rule.NonLinearNonEqArguments _ -> 3
+          | Rule.BoundVariableExpected _ -> 20
+          | Rule.VariableBoundOutsideTheGuard _ -> 21
+          | Rule.DistinctBoundVariablesExpected _ -> 22
+          | Rule.UnboundVariable _ -> 23
+          | Rule.AVariableIsNotAPattern _ -> 24
+          | Rule.NotEnoughArguments _ -> 25
+          | Rule.NonLinearRule _ -> 26
+          | Rule.NonLinearNonEqArguments _ -> 27
         end
-      | Signature.UnmarshalBadVersionNumber _
-      | Signature.UnmarshalSysError _
-      | Signature.UnmarshalUnknown _
-      | Signature.SymbolNotFound _
-      | Signature.AlreadyDefinedSymbol _
-      | Signature.CannotAddRewriteRules _
-      | Signature.ConfluenceErrorRules _
-      | Signature.ConfluenceErrorImport _
-      | Signature.GuardNotSatisfied _
-      | Signature.CouldNotExportModule _ -> 5
+      | Signature.UnmarshalBadVersionNumber _ -> 28
+      | Signature.UnmarshalSysError _ -> 29
+      | Signature.UnmarshalUnknown _ -> 30
+      | Signature.SymbolNotFound _ -> 31
+      | Signature.AlreadyDefinedSymbol _ -> 32
+      | Signature.CannotAddRewriteRules _ -> 33
+      | Signature.ConfluenceErrorRules _ -> 34
+      | Signature.ConfluenceErrorImport _ -> 35
+      | Signature.GuardNotSatisfied _ -> 36
+      | Signature.CouldNotExportModule _ -> 37
     end
-  | KindLevelDefinition _ -> 6
-  | AssertError         _ -> 7
+  | KindLevelDefinition _ -> 38
+  | AssertError         _ -> 39
 
 let fail_env_error err =
   print_error_code (code err);
@@ -265,7 +265,7 @@ let fail_env_error err =
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
   | Env.ParseError (lc,s) ->
     fail lc "Parse error: %s@." s
-  | Env.AssertError lc -> 
+  | Env.AssertError lc ->
     fail lc "Assertion failed."
 
 let fail_sys_error msg =
