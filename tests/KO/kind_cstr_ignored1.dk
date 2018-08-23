@@ -1,4 +1,4 @@
-(; KO 10 -fail-on-warning ;)
+(; KO 10 -ccs ;)
 
 A : Type.
 def B : Type.
