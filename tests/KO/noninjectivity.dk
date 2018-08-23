@@ -1,4 +1,4 @@
-(; KO ;)
+(; KO 3 ;)
 
 Nat : Type.
 Vect : Nat -> Type.

@@ -5,9 +5,6 @@ open Entry
 (** Abstract parser stream representation. *)
 type stream
 
-(** Exception that can be raised by any of the following functions. *)
-exception Parse_error of loc * string
-
 (** [from_channel mod ic] creates a parser [stream] for the module named [mod]
     given the channel [ic]. *)
 val from_channel : mident -> in_channel -> stream

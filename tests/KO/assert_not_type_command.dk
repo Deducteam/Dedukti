@@ -1,6 +1,6 @@
-(; KO ;)
+(; KO 39 ;)
 
 A : Type.
 a : A.
 
-#ASSERTNOT a :: A.
+#ASSERTNOT a : A.

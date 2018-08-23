@@ -1,9 +1,9 @@
-(; KO ;)
+(; KO 3 ;)
 
 type : Type.
 arr : type -> type -> type.
 def e : type -> Type.
-[a : type, b : type] e (arr a b) --> e a -> e b.
+[a, b] e (arr a b) --> e a -> e b.
 
 def numeral : Type := A : type -> (e A -> e A) -> (e A -> e A).
 

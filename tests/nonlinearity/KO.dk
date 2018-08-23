@@ -1,4 +1,4 @@
-(; KO ;)
+(; KO 26 ;)
 A : Type.
 
 def f : A -> A -> A.

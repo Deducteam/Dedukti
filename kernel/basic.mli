@@ -83,36 +83,49 @@ val dloc : loc
 (** [mk_loc l c] builds the location where [l] is the line and [c] the column *)
 val mk_loc : int -> int -> loc
 
-val of_loc : loc -> (int*int)
+val of_loc : loc -> int * int
 
 val add_path : string -> unit
 val get_path : unit -> string list
 
-(** {2 Error Datatype} *)
-
-type ('a,'b) error =
-  | OK of 'a
-  | Err of 'b
-
-val map_error : ('a -> 'b) -> ('a,'c) error -> ('b,'c) error
-val bind_error : ('a -> ('b,'c) error) -> ('a,'c) error -> ('b,'c) error
-val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
-
 (** {2 Debug} *)
 
-(** Sets the level of information printing on the standard error channel
-   <0 is quiet mode (no printing)
-   0 is warning level (default)
-   1 is verbose mode
-   >1 is debugging mode  *)
-val set_debug_mode : int -> unit
+module Debug : sig
+  
+  type flag
+  val d_warn         : flag (** Warnings *)
+  val d_notice       : flag (** Notices *)
+  val d_module       : flag (** Modules *)
+  val d_confluence   : flag (** Confluence *)
+  val d_rule         : flag (** Rule type checking *)
+  val d_typeChecking : flag (** Type checking *)
+  val d_reduce       : flag (** Reduction *)
+  val d_matching     : flag (** Pattern matching *)
 
-(** [debug i] prints information on the standard error channel
-    if the selected debugging level is at least [i]. *)
-val debug : int -> ('a, Format.formatter, unit, unit) format4 -> 'a
+  val  enable_flag : flag -> unit (** Activates given flag's debugging *)
+  val disable_flag : flag -> unit (** Deactivates given flag's debugging *)
 
-(** Prints a warning when debugging level is at least 0. *)
-val warn : ('a, Format.formatter, unit, unit) format4 -> 'a
+  (** Sets multiple debugging flags from a string: 
+      q : disables d_Warn
+      n : enables  d_Notice
+      o : enables  d_Module
+      c : enables  d_Confluence
+      u : enables  d_Rule
+      t : enables  d_TypeChecking
+      r : enables  d_Reduce
+      m : enables  d_Matching
+  *)
+  val set_debug_mode : string -> unit
+
+  (** [debug f] prints information on the standard error channel
+      if the given flag [f] is currently active. *)
+  val debug : flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
+    
+  (** [debug_eval f (fun () -> body] evaluates [body]
+      if the given flag [f] is currently active. *)
+  val debug_eval : flag -> (unit -> unit) -> unit
+end
+
 
 (** {2 Misc} *)
 
@@ -123,8 +136,6 @@ val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
 val split_list : int -> 'a list -> 'a list * 'a list
-
-val add_to_list2 : 'a list -> 'b list -> ('a * 'b) list -> ('a * 'b) list option
 
 (** Functions printing objects on the given formatter. *)
 type 'a printer = Format.formatter -> 'a -> unit
@@ -140,7 +151,9 @@ val pp_loc    : loc    printer
 
 (** Printing each elements of arrays / lists using the separator [sep] between elements. *)
 val pp_list   : string -> 'a printer -> 'a list printer
+val pp_llist  : string -> 'a printer -> 'a LList.t printer
 val pp_arr    : string -> 'a printer -> 'a array printer
+val pp_lazy   : 'a printer -> 'a Lazy.t printer
 
 (** Printing object with printer or default string when None. *)
 val pp_option : string -> 'a printer -> 'a option printer

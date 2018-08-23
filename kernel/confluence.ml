@@ -7,16 +7,18 @@ let pp_name fmt cst =
   fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
 
 type confluence_error =
-  | NotConfluent of string
+  | NotConfluent   of string
   | MaybeConfluent of string
-  | CCFailure of string
+  | CCFailure      of string
+
+exception ConfluenceError of confluence_error
 
 module IdMap = Map.Make(
-    struct
-      type t = ident
-      let compare x y = String.compare (string_of_ident x) (string_of_ident y)
-    end
-    )
+  struct
+    type t = ident
+    let compare x y = String.compare (string_of_ident x) (string_of_ident y)
+  end
+  )
 
 let confluence_command = ref ""
 let file_out = ref None
@@ -34,7 +36,7 @@ let initialize () =
     begin
       let (file,out) = Filename.open_temp_file "dkcheck" ".trs" in
       let fmt = formatter_of_out_channel out in
-      debug 1 "Confluence temporary file:%s" file;
+      Debug.(debug d_confluence "Temporary file:%s" file);
       file_out := (Some (file,out));
       fprintf fmt "\
 (FUN
@@ -189,29 +191,30 @@ let pp_rule fmt (r:rule_infos) =
   (* Rule *)
   fprintf fmt "(RULES %a -> %a )@.@." (pp_pattern arities) pat (pp_term arities 0) r.rhs
 
-let check () : (unit,confluence_error) error =
+let check () =
   match !file_out with
-  | None -> OK ()
+  | None -> ()
   | Some (file,out) ->
-    begin
-      flush out;
-      let cmd = !confluence_command ^ " -p " ^ file in
-      debug 1 "Checking confluence : %s" cmd;
-      let input = Unix.open_process_in cmd in
-      try (
+    flush out;
+    let cmd = !confluence_command ^ " -p " ^ file in
+    Debug.(debug d_confluence "Checking confluence : %s" cmd);
+    let input = Unix.open_process_in cmd in
+    let answer =
+      try
         let answer = input_line input in
         let _ = Unix.close_process_in input in
-        if ( String.compare answer "YES" == 0 ) then OK ()
-        else (
-          do_not_erase_confluence_file := true;
-          if ( String.compare answer "NO" == 0 ) then
-            Err (NotConfluent cmd)
-          else if ( String.compare answer "MAYBE" == 0 ) then
-            Err (MaybeConfluent cmd)
-          else Err (CCFailure cmd)
-        ) )
-      with End_of_file -> Err (CCFailure cmd)
-    end
+        answer
+      with End_of_file -> raise (ConfluenceError (CCFailure cmd))
+    in
+    if String.compare answer "YES" != 0
+    then (
+      do_not_erase_confluence_file := true;
+      let error =
+        if      String.compare answer "NO"    == 0 then NotConfluent   cmd
+        else if String.compare answer "MAYBE" == 0 then MaybeConfluent cmd
+        else                                            CCFailure      cmd
+      in raise (ConfluenceError error)
+    )
 
 let add_constant cst =
   match !file_out with

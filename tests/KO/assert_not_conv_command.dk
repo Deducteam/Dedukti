@@ -1,4 +1,4 @@
-(; KO ;)
+(; KO 39 ;)
 
 A : Type.
 def B := A.

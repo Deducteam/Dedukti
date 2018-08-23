@@ -1,5 +1,7 @@
-(; KO ;)
+(; KO 3 ;)
+
 type : Type.
+
 def term : type -> Type.
 
 pi : A : type -> (term A -> type) -> type.

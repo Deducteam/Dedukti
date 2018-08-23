@@ -32,6 +32,14 @@ let select f b : unit =
   selection := f;
   beta := b
 
+exception NotConvertible
+
+let rec zip_lists l1 l2 lst =
+  match l1, l2 with
+  | [], [] -> lst
+  | s1::l1, s2::l2 -> zip_lists l1 l2 ((s1,s2)::lst)
+  | _,_ -> raise NotConvertible
+
 (* State *)
 
 type env = term Lazy.t LList.t
@@ -288,26 +296,23 @@ and are_convertible_lst sg : (term*term) list -> bool =
   function
   | [] -> true
   | (t1,t2)::lst ->
-    begin
-      match (
-        if term_eq t1 t2 then Some lst
+    are_convertible_lst sg
+      ( if term_eq t1 t2 then lst
         else
           match whnf sg t1, whnf sg t2 with
-          | Kind, Kind | Type _, Type _ -> Some lst
-          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> Some lst
-          | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> Some lst
+          | Kind, Kind | Type _, Type _                     -> lst
+          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> lst
+          | DB (_,_,n) , DB (_,_,n')  when ( n==n' )        -> lst
           | App (f,a,args), App (f',a',args') ->
-            add_to_list2 args args' ((f,f')::(a,a')::lst)
-          | Lam (_,_,_,b), Lam (_,_,_,b') -> Some ((b,b')::lst)
-          | Pi (_,_,a,b), Pi (_,_,a',b') -> Some ((a,a')::(b,b')::lst)
-          | t1, t2 -> None
-      ) with
-      | None -> false
-      | Some lst2 -> are_convertible_lst sg lst2
-    end
+            (f,f') :: (a,a') :: (zip_lists args args' lst)
+          | Lam (_,_,_,b), Lam (_,_,_,b') -> (b,b') :: lst
+          | Pi (_,_,a,b) , Pi (_,_,a',b') -> (a,a') :: (b,b') :: lst
+          | t1, t2 -> raise NotConvertible)
 
 (* Convertibility Test *)
-and are_convertible sg t1 t2 = are_convertible_lst sg [(t1,t2)]
+and are_convertible sg t1 t2 =
+  try are_convertible_lst sg [(t1,t2)]
+  with NotConvertible -> false
 
 (* Head Normal Form *)
 let rec hnf sg t =
@@ -344,7 +349,7 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
       (* Not a beta redex (or beta disabled) *)
       | { term=Lam _ } when strat == Whnf -> (red, st)
       (* Not a beta redex (or beta disabled) but keep looking for normal form *)
-      | { ctx; term=Lam(l,x,ty_opt,t); stack } ->
+      | { ctx; term=Lam(l,x,ty_opt,t); stack=[] } ->
         begin
           match term_of_state st with
           | Lam(_,_,_,t') ->
@@ -359,13 +364,29 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
             end
           | _ -> assert false
         end
-
+      | { ctx; term=Lam(l,x,ty_opt,t); stack=a::args } ->
+        begin
+          match term_of_state st with
+          | App(Lam(_,_,_,t'),_,_) ->
+            let (red, st_t) = aux (red, {ctx=LList.nil; term=t'; stack=[]}) in
+            let t' = term_of_state st_t in
+            begin
+              match strat with
+              | Snf ->
+                let red, args = List.fold_right (fun a (red,args) ->
+                  let red, a' = aux (red,a) in
+                  red,a::args) (a::args)  (red,[])
+                in
+                (red, {ctx; term = mk_Lam l x ty_opt t'; stack= args})
+              | _ -> (red, {ctx; term = mk_Lam l x ty_opt t'; stack= a::args})
+            end
+          | _ -> assert false
+        end
       (* DeBruijn index: environment lookup *)
       | { ctx; term=DB (_,_,n); stack } when n < LList.len ctx ->
         aux (red, { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack })
       (* DeBruijn index: out of environment *)
       | { term=DB _ } -> (red, st)
-
       (* Application: arguments go on the stack *)
       | { ctx; term=App (f,a,lst); stack=s } when strat <> Snf ->
         let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
@@ -379,7 +400,6 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
           st in
         let new_stack = List.rev_append (List.rev_map reduce (a::lst)) s in
         aux (!redc, {ctx; term=f; stack=new_stack })
-
       (* Potential Gamma redex *)
       | { ctx; term=Const (l,n); stack } ->
         let trees = Signature.get_dtree sg !selection l n in

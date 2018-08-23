@@ -1,9 +1,9 @@
-(; KO ;)
-A:Type.
-y:A.
-P:A->Type.
-p:P y.
-id: x:A -> P x -> P x.
-def T: P y.
-(; [ ] T --> (z => id z p) y. ;)
+(; KO 3 ;)
+
+A : Type.
+y : A.
+P : A->Type.
+p : P y.
+id : x:A -> P x -> P x.
+def T : P y.
 [ ] T --> (z:A => id z p) y.

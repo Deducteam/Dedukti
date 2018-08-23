@@ -1,4 +1,5 @@
-(; KO ;)
-T:Type.
-x:T.
-f:x->Type.
+(; KO 3 ;)
+
+T : Type.
+x : T.
+f : x -> Type.

@@ -1,4 +1,4 @@
-(; KO ;)
+(; KO 36 ;)
 
 A :Type.
 
@@ -8,4 +8,4 @@ g : A -> A.
 def ff : A -> (A -> A) -> A.
 [x] ff x (y => {g x}) --> a.
 
-#EVAL[WHNF] (ff a (y => a)), a.
+#CHECK (ff a (y => a)) == a.

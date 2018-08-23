@@ -1,6 +1,6 @@
-(; KO ;)
+(; KO 36 ;)
 
-A :Type.
+A : Type.
 
 a : A.
 g : A -> A.

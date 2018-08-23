@@ -86,57 +86,85 @@ end
 
 (** {2 Localization} *)
 
-type loc = int*int
-let dloc = (0,0)
+type loc = int * int
+let dloc = (-1,-1)
 let mk_loc l c = (l,c)
 let of_loc l = l
-
-let pp_loc    fmt (l,c) = Format.fprintf fmt "line:%i column:%i" l c
 
 let path = ref []
 let get_path () = !path
 let add_path s = path := s :: !path
 
-(** {2 Errors} *)
-
-type ('a,'b) error =
-  | OK of 'a
-  | Err of 'b
-
-let map_error f = function
-  | Err c -> Err c
-  | OK a -> OK (f a)
-
-let bind_error f = function
-  | Err c -> Err c
-  | OK a -> f a
-
-let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
-  let rec aux = function
-    | [] -> OK []
-    | hd::lst ->
-        ( match f hd with
-            | Err c -> Err c
-            | OK hd -> ( match aux lst with
-                           | Err c -> Err c
-                           | OK lst -> OK (hd::lst) )
-        )
-  in
-    aux lst
-
 (** {2 Debugging} *)
 
-let debug_mode = ref 0
+module Debug = struct
+  
+  type flag = int
+  let d_warn         : flag = 0
+  let d_notice       : flag = 1
+  let d_module       : flag = 2
+  let d_confluence   : flag = 3
+  let d_rule         : flag = 4
+  let d_typeChecking : flag = 5
+  let d_reduce       : flag = 6
+  let d_matching     : flag = 7
 
-let set_debug_mode i = debug_mode := i
+  let nb_flags = 8
 
-let debug i fmt = Format.(
-    if !debug_mode >= i
-    then kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt
-    else ifprintf err_formatter fmt
-  )
+  (* Default mode is to debug only [d_std] messages. *)
+  let default_flags = [d_warn]
 
-let warn fmt = debug 0 ("[Warning] " ^^ fmt)
+  (* Headers for debugging messages *)
+  let headers =
+    [| "Warning"
+     ; "Notice"
+     ; "Module"
+     ; "Confluence"
+     ; "Rule"
+     ; "TypeChecking"
+     ; "Reduce"
+     ; "Matching"
+    |]
+
+  (* Array of activated flags. Initialized with [false]s except at [default_flags] indices. *)
+  let active = Array.init nb_flags (fun f -> List.mem f default_flags)
+
+  let  enable_flag f = active.(f) <- true
+  let disable_flag f = active.(f) <- false
+
+  exception DebugFlagNotRecognized of char
+
+  let set_debug_mode =
+    String.iter (function
+        | 'q' -> disable_flag d_warn
+        | 'n' -> enable_flag  d_notice
+        | 'o' -> enable_flag  d_module
+        | 'c' -> enable_flag  d_confluence
+        | 'u' -> enable_flag  d_rule
+        | 't' -> enable_flag  d_typeChecking
+        | 'r' -> enable_flag  d_reduce
+        | 'm' -> enable_flag  d_matching
+        | c -> raise (DebugFlagNotRecognized c)
+      )
+
+  let do_debug fmt =
+    Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
+
+  let ignore_debug fmt =
+    Format.(ifprintf err_formatter) fmt
+
+  let debug f =
+    if active.(f) 
+    then
+      match headers.(f) with
+      | "" -> do_debug
+      | h -> (fun fmt -> do_debug ("[%s] " ^^ fmt) h)
+    else ignore_debug
+  [@@inline]
+
+  let debug_eval f clos = if active.(f) then clos ()
+
+end
 
 (** {2 Misc functions} *)
 
@@ -154,12 +182,6 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
-let rec add_to_list2 l1 l2 lst =
-  match l1, l2 with
-  | [], [] -> Some lst
-  | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
-  | _,_ -> None
-
 let rec split_list i l =
   if i = 0 then ([],l)
   else
@@ -176,12 +198,16 @@ let string_of fp = Format.asprintf "%a" fp
 let pp_ident  fmt id      = Format.fprintf fmt "%s" id
 let pp_mident fmt md      = Format.fprintf fmt "%s" md
 let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
-let pp_loc    fmt (l,c)   = Format.fprintf fmt "line:%i column:%i" l c
+let pp_loc    fmt = function
+  | (-1,-1) -> Format.fprintf fmt "unspecified location"
+  | (c ,l ) -> Format.fprintf fmt "line:%i column:%i" l c
 
 let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 
 let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l
+let pp_llist sep pp fmt l = pp_list sep pp fmt (LList.lst l)
 let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
+let pp_lazy pp fmt l = Format.fprintf fmt "%a" pp (Lazy.force l)
 
 let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def
