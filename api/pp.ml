@@ -135,9 +135,9 @@ let print_rule_name fmt rule =
     else
       Format.fprintf fmt ""
   in
-    match rule with
-      | Delta(cst) -> aux true cst (* not printed *)
-    | Gamma(b,cst) -> aux b cst
+  match rule with
+  | Delta(cst) -> aux true cst (* not printed *)
+  | Gamma(b,cst) -> aux b cst
 
 let print_untyped_rule fmt (rule:untyped_rule) =
   let print_decl out (_,id) =
