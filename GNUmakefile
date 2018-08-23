@@ -151,8 +151,8 @@ install: uninstall all
 #### Test targets ############################################################
 
 .PHONY: tests
-tests: all tests/scripts/tests.sh
-	@./tests/scripts/tests.sh
+tests: all tests/tests.sh
+	@./tests/tests.sh
 
 #### Library tests ###########################################################
 
@@ -207,7 +207,6 @@ light_tests: all matita-light dklib plein_de_dks
 
 .PHONY: full_tests
 full_tests: ligh_tests iprover holide focalide verine zenon_modulo
-
 
 
 #### Cleaning targets ########################################################
