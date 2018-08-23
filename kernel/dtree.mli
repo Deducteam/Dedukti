@@ -7,6 +7,8 @@ type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
 
+exception DtreeError of dtree_error
+
 (** {2 Decision Trees} *)
 
 (** Arguments of a pattern may be the following:
@@ -70,10 +72,10 @@ val pp_dtree : dtree printer
 val pp_dforest : t printer
 (** Printer for forests of decision trees. *)
 
-
-val of_rules : rule_infos list -> (t, dtree_error) error
+val of_rules : rule_infos list -> t
 (** Compilation of rewrite rules into decision trees.
 Returns a list of arities and corresponding decision trees.
 Invariant : arities must be sorted in decreasing order.
 (see use case in [state_whnf] in [reduction.ml])
+May raise DtreeError.
 *)

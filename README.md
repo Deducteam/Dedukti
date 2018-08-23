@@ -12,7 +12,7 @@ To compile (and optionally install) `Dedukti` you will need:
 #### INSTALLATION WITH OPAM
 
 ```bash
-opam pin add dedukti https://github.com/Deducteam/Dedukti.git
+opam install dedukti
 ```
 
 #### INSTALLATION FROM SOURCE

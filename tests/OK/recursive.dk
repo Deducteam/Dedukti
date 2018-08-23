@@ -1,0 +1,15 @@
+
+N : Type.
+1 : N.
+plus : N -> N -> N.
+
+def 2pow1  (x:N) := plus x x.
+def 2pow2  (x:N) := 2pow1 (2pow1 x).
+def 2pow4  (x:N) := 2pow2 (2pow2 x).
+def 2pow8  (x:N) := 2pow4 (2pow4 x).
+def 2pow16 (x:N) := 2pow8 (2pow8 x).
+
+def a := 1.
+
+#ASSERT 2pow16 (2pow4 1) == 2pow16 (2pow4 a).
+

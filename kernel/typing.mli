@@ -48,5 +48,5 @@ val checking    : Signature.t -> term -> term -> unit
 val inference   : Signature.t -> term -> typ
 (** [inference sg ctx te] infers a type for the term [te] in empty context. *)
 
-val check_rule  : Signature.t -> untyped_rule -> typed_rule
+val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
 (** [check_rule sg ru] checks that a rule is well-typed. *)

@@ -26,7 +26,6 @@
 #
 # Tests failing with an internal error (segfault) will break the test script.
 
-
 all_tests=$(find tests -name "*.dk")
 total=$(wc -w <<< "$all_tests")
 

@@ -83,20 +83,10 @@ val dloc : loc
 (** [mk_loc l c] builds the location where [l] is the line and [c] the column *)
 val mk_loc : int -> int -> loc
 
-val of_loc : loc -> (int*int)
+val of_loc : loc -> int * int
 
 val add_path : string -> unit
 val get_path : unit -> string list
-
-(** {2 Error Datatype} *)
-
-type ('a,'b) error =
-  | OK of 'a
-  | Err of 'b
-
-val map_error : ('a -> 'b) -> ('a,'c) error -> ('b,'c) error
-val bind_error : ('a -> ('b,'c) error) -> ('a,'c) error -> ('b,'c) error
-val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
 
 (** {2 Debug} *)
 
@@ -153,8 +143,6 @@ val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
 val split_list : int -> 'a list -> 'a list * 'a list
 
-val add_to_list2 : 'a list -> 'b list -> ('a * 'b) list -> ('a * 'b) list option
-
 (** Functions printing objects on the given formatter. *)
 type 'a printer = Format.formatter -> 'a -> unit
 
@@ -169,7 +157,9 @@ val pp_loc    : loc    printer
 
 (** Printing each elements of arrays / lists using the separator [sep] between elements. *)
 val pp_list   : string -> 'a printer -> 'a list printer
+val pp_llist  : string -> 'a printer -> 'a LList.t printer
 val pp_arr    : string -> 'a printer -> 'a array printer
+val pp_lazy   : 'a printer -> 'a Lazy.t printer
 
 (** Printing object with printer or default string when None. *)
 val pp_option : string -> 'a printer -> 'a option printer

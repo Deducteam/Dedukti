@@ -86,43 +86,14 @@ end
 
 (** {2 Localization} *)
 
-type loc = int*int
-let dloc = (0,0)
+type loc = int * int
+let dloc = (-1,-1)
 let mk_loc l c = (l,c)
 let of_loc l = l
-
-let pp_loc fmt (l,c) = Format.fprintf fmt "line:%i column:%i" l c
 
 let path = ref []
 let get_path () = !path
 let add_path s = path := s :: !path
-
-(** {2 Errors} *)
-
-type ('a,'b) error =
-  | OK of 'a
-  | Err of 'b
-
-let map_error f = function
-  | Err c -> Err c
-  | OK a -> OK (f a)
-
-let bind_error f = function
-  | Err c -> Err c
-  | OK a -> f a
-
-let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
-  let rec aux = function
-    | [] -> OK []
-    | hd::lst ->
-        ( match f hd with
-            | Err c -> Err c
-            | OK hd -> ( match aux lst with
-                           | Err c -> Err c
-                           | OK lst -> OK (hd::lst) )
-        )
-  in
-    aux lst
 
 (** {2 Debugging} *)
 
@@ -138,7 +109,7 @@ module Debug = struct
   let d_reduce       : flag = 6
   let d_matching     : flag = 7
 
-  let nb_flags = 7
+  let nb_flags = 8
 
   (* Default mode is to debug only [d_std] messages. *)
   let default_flags = [d_warn]
@@ -218,12 +189,6 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
-let rec add_to_list2 l1 l2 lst =
-  match l1, l2 with
-  | [], [] -> Some lst
-  | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
-  | _,_ -> None
-
 let rec split_list i l =
   if i = 0 then ([],l)
   else
@@ -240,12 +205,16 @@ let string_of fp = Format.asprintf "%a" fp
 let pp_ident  fmt id      = Format.fprintf fmt "%s" id
 let pp_mident fmt md      = Format.fprintf fmt "%s" md
 let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
-let pp_loc    fmt (l,c)   = Format.fprintf fmt "line:%i column:%i" l c
+let pp_loc    fmt = function
+  | (-1,-1) -> Format.fprintf fmt "unspecified location"
+  | (c ,l ) -> Format.fprintf fmt "line:%i column:%i" l c
 
 let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 
 let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l
+let pp_llist sep pp fmt l = pp_list sep pp fmt (LList.lst l)
 let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
+let pp_lazy pp fmt l = Format.fprintf fmt "%a" pp (Lazy.force l)
 
 let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def

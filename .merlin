@@ -1,4 +1,5 @@
 S kernel
+S api
 S parser
 S dkcheck
 S dktop
@@ -7,6 +8,7 @@ S dkrule
 S dkindent
 
 B _build/kernel
+B _build/api
 B _build/parser
 B _build/dkcheck
 B _build/dkdep
