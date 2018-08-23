@@ -6,9 +6,11 @@ open Reduction
 
 let errors_in_snf = ref false
 
-let snf_config = {default_cfg with strategy = Snf}
 
-let snf t = if !errors_in_snf then Env.unsafe_reduction ~red:snf_config t else t
+
+let snf t =
+  let snf_config = {default_cfg with strategy = Snf} in
+  if !errors_in_snf then Env.unsafe_reduction ~red:snf_config t else t
 
 let color = ref true
 

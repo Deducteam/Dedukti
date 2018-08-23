@@ -21,7 +21,7 @@ val init        : string -> mident
 (** [init name] initializes a new global environement giving it the name of
     the corresponding source file. The function returns the module identifier
     corresponding to this file, built from its basename. Every toplevel
-    declaration will be qualified be this name. *)
+    declaration will be qualified by this name. *)
 
 val get_signature : unit -> Signature.t
 (** [get_signature ()] returns the signature used by this module *)
@@ -58,14 +58,21 @@ val add_rules   : Rule.untyped_rule list -> (Subst.Subst.t * Rule.typed_rule) li
 (** {2 Type checking/inference} *)
 
 val infer : ?ctx:typed_context -> term         -> term
+(** [infer ctx term] infers the type of [term] given the typed context [ctx] *)
 
 val check : ?ctx:typed_context -> term -> term -> unit
+(** [infer ctx te ty] checks that [te] is of type [ty] given the typed context [ctx] *)
 
 (** {2 Safe Reduction/Conversion} *)
 (** terms are typechecked before the reduction/conversion *)
 
 val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> term
+(** [reduction ctx red te] checks first that [te] is well-typed then reduces it
+    according to the reduction configuration [red] *)
 
 val are_convertible : ?ctx:typed_context -> term -> term -> bool
+(** [are_convertible ctx tl tr] checks first that [tl] [tr] have the same type,
+    and then that they are convertible *)
 
 val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term
+(** [unsafe_reduction red te] reduces [te] according to the reduction configuration [red] *)
