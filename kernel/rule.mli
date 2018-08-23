@@ -93,7 +93,7 @@ val to_rule_infos : untyped_rule -> rule_infos
 val check_linearity : rule_infos -> unit
 (** Checks that every variable occur only once in the left hand side of the rule. *)
 
-val check_arity     : rule_infos -> unit
+val check_arity : rule_infos -> unit
 (** Checks that all Miller variables are applied to the same number of
     distinct free variable on the left hand side.
     Checks that they are applied to at least as many arguments on the rhs.  *)

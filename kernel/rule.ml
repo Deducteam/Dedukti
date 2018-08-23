@@ -153,7 +153,7 @@ let pp_rule_infos out r =
       pat = pattern_of_rule_infos r;
       rhs = r.rhs
     }
-    
+
 let pattern_to_term p =
   let rec aux k = function
     | Brackets t         -> t
@@ -232,7 +232,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       then if nb_args' <> IntHashtbl.find arity (n-k)
         then raise (RuleError (NonLinearNonEqArguments(l,x)))
         else
-          let nvar = fresh_var nb_args' in 
+          let nvar = fresh_var nb_args' in
           constraints := Linearity(nvar, n-k) :: !constraints;
           LVar(x, nvar + k, args')
       else
@@ -273,10 +273,8 @@ let to_rule_infos (r:untyped_rule) : rule_infos =
   }
 
 let check_linearity (r:rule_infos) : unit =
-  let check_constraint = function
-    | Linearity (i,j) -> raise (RuleError (NonLinearRule (r.l, r.cst)))
-    | _ -> () in
-  List.iter check_constraint r.constraints
+  if List.exists (function Linearity _ -> true  | _ -> false) r.constraints
+  then raise (RuleError (NonLinearRule (r.l, r.cst)))
 
 let check_arity (r:rule_infos) : unit =
   let check l id n k nargs =

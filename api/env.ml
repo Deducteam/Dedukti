@@ -62,7 +62,6 @@ let _add_rules rs =
   if !check_linearity then List.iter Rule.check_linearity ris;
   if !check_arity     then List.iter Rule.check_arity     ris;
   Signature.add_rules !sg ris
-  
 
 let _define (l:loc) (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
@@ -120,7 +119,7 @@ let _reduction ctx red te =
   _unsafe_reduction red te
 
 let reduction ?ctx:(ctx=[]) ?red:(red=Reduction.default_cfg) te =
-  try  _reduction ctx red te 
+  try  _reduction ctx red te
   with e -> raise_as_env e
 
 let unsafe_reduction ?red:(red=Reduction.default_cfg) te =

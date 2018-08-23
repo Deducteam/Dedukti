@@ -98,7 +98,7 @@ let add_path s = path := s :: !path
 (** {2 Debugging} *)
 
 module Debug = struct
-  
+
   type flag = int
   let d_warn         : flag = 0
   let d_notice       : flag = 1
@@ -154,7 +154,7 @@ module Debug = struct
     Format.(ifprintf err_formatter) fmt
 
   let debug f =
-    if active.(f) 
+    if active.(f)
     then
       match headers.(f) with
       | "" -> do_debug
