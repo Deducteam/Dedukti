@@ -154,9 +154,61 @@ install: uninstall all
 tests: all tests/scripts/tests.sh
 	@./tests/scripts/tests.sh
 
+#### Library tests ###########################################################
+
+.PHONY: matita
+matita: all
+	@echo "## Compiling the Matita's arithmetic library ##"
+	@cd tests/libraries && ./matita.sh
+
+.PHONY: matita-light
+matita-light: all
+	@echo "## Compiling the Matita's arithmetic library (light) ##"
+	@cd tests/libraries && ./matita-light.sh
+
+.PHONY: plein_de_dks
+plein_de_dks: all
+	@echo "## Compiling “plein de dks” ##"
+	@cd tests/libraries && ./plein_de_dks.sh
+
+.PHONY: focalide
+focalide: all
+	@echo "## Compiling focalide library ##"
+	@cd tests/libraries && ./focalide.sh
+
+.PHONY: holide
+holide: all
+	@echo "## Compiling holide library ##"
+	@cd tests/libraries && ./holide.sh
+
+.PHONY: verine
+verine: all
+	@echo "## Compiling verine library ##"
+	@cd tests/libraries && ./verine.sh
+
+.PHONY: iprover
+iprover: all
+	@echo "## Compiling iProverModulo library ##"
+	@cd tests/libraries && ./iprover.sh
+
+.PHONY: dklib
+dklib: all
+	@echo "## Compiling the dklib library ##"
+	@cd tests/libraries && ./dklib.sh
+
+.PHONY: zenon_modulo
+zenon_modulo: all
+	@echo "## Compiling the zenon library ##"
+	@cd tests/tests/libraries && ./zenon_modulo.sh
+
+
+.PHONY: light_tests
+light_tests: all matita-light dklib plein_de_dks
+
 .PHONY: full_tests
-full_tests: all tests/scripts/external_tests.sh
-	@./tests/scripts/external_tests.sh
+full_tests: ligh_tests iprover holide focalide verine zenon_modulo
+
+
 
 #### Cleaning targets ########################################################
 
@@ -164,6 +216,27 @@ clean:
 	$(Q)ocamlbuild -quiet -clean
 
 distclean: clean
+	@cd tests/libraries && ./matita.sh clean
+	@cd tests/libraries && ./matita-light.sh clean
+	@cd tests/libraries && ./plein_de_dks.sh clean
+	@cd tests/libraries && ./focalide.sh clean
+	@cd tests/libraries && ./holide.sh clean
+	@cd tests/libraries && ./verine.sh clean
+	@cd tests/libraries && ./iprover.sh clean
+	@cd tests/libraries && ./dklib.sh clean
+	@cd tests/libraries && ./zenon_modulo.sh clean
 	$(Q)find -name "*~" -exec rm {} \;
 	$(Q)rm -f kernel/version.ml
 	$(Q)rm -f META
+
+.PHONY: fullclean
+fullclean: distclean
+	@cd tests/libraries && ./matita.sh fullclean
+	@cd tests/libraries && ./matita-light.sh fullclean
+	@cd tests/libraries && ./plein_de_dks.sh fullclean
+	@cd tests/libraries && ./focalide.sh fullclean
+	@cd tests/libraries && ./holide.sh fullclean
+	@cd tests/libraries && ./verine.sh fullclean
+	@cd tests/libraries && ./iprover.sh fullclean
+	@cd tests/libraries && ./dklib.sh fullclean
+	@cd tests/libraries && ./zenon_modulo.sh fullclean
