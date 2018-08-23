@@ -206,7 +206,7 @@ zenon_modulo: all
 light_tests: all matita-light dklib plein_de_dks
 
 .PHONY: full_tests
-full_tests: ligh_tests iprover holide focalide verine zenon_modulo
+full_tests: light_tests iprover holide focalide verine zenon_modulo
 
 
 #### Cleaning targets ########################################################
