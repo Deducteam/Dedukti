@@ -24,7 +24,7 @@ val init        : string -> mident
     declaration will be qualified by this name. *)
 
 val get_signature : unit -> Signature.t
-(** [get_signature ()] returns the signature used by this module *)
+(** [get_signature ()] returns the signature used by this module. *)
 
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)

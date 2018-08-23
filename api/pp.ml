@@ -8,7 +8,7 @@ open Env
 
 (* TODO: make that debuging functions returns a string *)
 let print_db_enabled = ref false
-let print_default = ref false
+let print_default_name = ref false
 
 let cur_md = ref None
 let get_module () =
@@ -127,7 +127,7 @@ let print_typed_context fmt ctx =
 
 let print_rule_name fmt rule =
   let aux b cst =
-    if b || !print_default then
+    if b || !print_default_name then
       if mident_eq (md cst) (get_name ()) then
         Format.fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
       else
