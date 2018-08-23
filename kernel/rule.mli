@@ -52,6 +52,8 @@ type 'a rule =
     rhs : term
   }
 
+val get_loc_rule : 'a rule -> loc
+
 type untyped_rule = untyped_context rule
 
 type typed_rule = typed_context rule
@@ -67,6 +69,8 @@ type rule_error =
   | NonLinearRule                  of untyped_rule
   | NotEnoughArguments             of loc * ident * int * int * int
   | NonLinearNonEqArguments        of loc * ident
+
+exception RuleError of rule_error
 
 (** {2 Rule infos} *)
 
@@ -84,7 +88,7 @@ type rule_infos = {
 
 val pattern_of_rule_infos : rule_infos -> pattern
 
-val to_rule_infos : untyped_rule -> (rule_infos, rule_error) error
+val to_rule_infos : untyped_rule -> rule_infos
 
 (** {2 Printing} *)
 

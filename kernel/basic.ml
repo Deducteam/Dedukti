@@ -86,43 +86,14 @@ end
 
 (** {2 Localization} *)
 
-type loc = int*int
-let dloc = (0,0)
+type loc = int * int
+let dloc = (-1,-1)
 let mk_loc l c = (l,c)
 let of_loc l = l
-
-let pp_loc fmt (l,c) = Format.fprintf fmt "line:%i column:%i" l c
 
 let path = ref []
 let get_path () = !path
 let add_path s = path := s :: !path
-
-(** {2 Errors} *)
-
-type ('a,'b) error =
-  | OK of 'a
-  | Err of 'b
-
-let map_error f = function
-  | Err c -> Err c
-  | OK a -> OK (f a)
-
-let bind_error f = function
-  | Err c -> Err c
-  | OK a -> f a
-
-let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
-  let rec aux = function
-    | [] -> OK []
-    | hd::lst ->
-        ( match f hd with
-            | Err c -> Err c
-            | OK hd -> ( match aux lst with
-                           | Err c -> Err c
-                           | OK lst -> OK (hd::lst) )
-        )
-  in
-    aux lst
 
 (** {2 Debugging} *)
 
@@ -160,9 +131,9 @@ module Debug = struct
 
   let  enable_flag f = active.(f) <- true
   let disable_flag f = active.(f) <- false
-      
+
   exception DebugFlagNotRecognized of char
-      
+
   let set_debug_mode =
     String.iter (function
         | 'q' -> disable_flag d_warn
@@ -175,13 +146,13 @@ module Debug = struct
         | 'm' -> enable_flag  d_matching
         | c -> raise (DebugFlagNotRecognized c)
       )
-      
+
   let do_debug fmt =
     Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
-      
+
   let ignore_debug fmt =
     Format.(ifprintf err_formatter) fmt
-      
+
   let debug f =
     if active.(f) 
     then
@@ -227,7 +198,9 @@ let string_of fp = Format.asprintf "%a" fp
 let pp_ident  fmt id      = Format.fprintf fmt "%s" id
 let pp_mident fmt md      = Format.fprintf fmt "%s" md
 let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
-let pp_loc    fmt (l,c)   = Format.fprintf fmt "line:%i column:%i" l c
+let pp_loc    fmt = function
+  | (-1,-1) -> Format.fprintf fmt "unspecified location"
+  | (c ,l ) -> Format.fprintf fmt "line:%i column:%i" l c
 
 let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 
