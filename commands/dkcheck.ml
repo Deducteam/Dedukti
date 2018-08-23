@@ -144,6 +144,9 @@ let _ =
     ; ( "-errors-in-snf"
       , Arg.Set Errors.errors_in_snf
       , " Normalize the types in error messages" )
+    ; ( "-nl"
+      , Arg.Set Errors.errors_in_snf
+      , " [DEPRECATED] Allow non left-linear rewriting rules (default behavior now)" )
     ; ( "-cc"
       , Arg.String Confluence.set_cmd
       , " CMD Set the external confluence checker command to CMD" )
