@@ -1,0 +1,10 @@
+(; KO 10 -fail-on-warning ;)
+
+A : Type.
+def a : A.
+
+T : (A -> A) -> Type.
+t : f : (A -> A) -> T f.
+
+def g : T (x => x) -> Type.
+[] g (t (x => a)) --> A.
