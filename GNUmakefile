@@ -151,12 +151,12 @@ install: uninstall all
 #### Test targets ############################################################
 
 .PHONY: tests
-tests: all tests/tests.sh
-	@./tests/tests.sh
+tests: all tests/scripts/tests.sh
+	@./tests/scripts/tests.sh
 
 .PHONY: full_tests
-full_tests: all tests/external_tests.sh
-	@./tests/external_tests.sh
+full_tests: all tests/scripts/external_tests.sh
+	@./tests/scripts/external_tests.sh
 
 #### Cleaning targets ########################################################
 

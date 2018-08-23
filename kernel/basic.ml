@@ -132,6 +132,9 @@ module Debug = struct
   let  enable_flag f = active.(f) <- true
   let disable_flag f = active.(f) <- false
 
+  let fail_on_warning = ref false
+
+  exception FailedOnWarning
   exception DebugFlagNotRecognized of char
 
   let set_debug_mode =
@@ -150,17 +153,21 @@ module Debug = struct
   let do_debug fmt =
     Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
 
+  let do_debug_with_header = function
+    | "" -> do_debug
+    | header -> fun fmt -> do_debug ("[%s] " ^^ fmt) header
+  
   let ignore_debug fmt =
     Format.(ifprintf err_formatter) fmt
 
   let debug f =
-    if active.(f) 
-    then
-      match headers.(f) with
-      | "" -> do_debug
-      | h -> (fun fmt -> do_debug ("[%s] " ^^ fmt) h)
+    if active.(f)
+    then do_debug_with_header headers.(f)
     else ignore_debug
   [@@inline]
+
+  let warn (e:exn) fmt =
+    if !fail_on_warning then raise e else debug d_warn fmt
 
   let debug_eval f clos = if active.(f) then clos ()
 

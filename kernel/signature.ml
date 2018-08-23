@@ -17,6 +17,7 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
+  | AlreadyImportedModule of loc * mident
   | CouldNotExportModule  of string
 
 exception SignatureError of signature_error
@@ -125,7 +126,8 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   if HMd.mem sg.tables m
-  then Debug.(debug d_warn "Trying to import the already loaded module %s." (string_of_mident m))
+  then Debug.warn (SignatureError (AlreadyImportedModule(lc,m)))
+      "Trying to import the already loaded module %s." (string_of_mident m)
   else
     let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
     HMd.add sg.tables m ctx;

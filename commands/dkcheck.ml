@@ -49,7 +49,7 @@ let mk_entry md e =
     let forest = Env.get_dtree lc cst in
     Format.printf "GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
   | Print(_,s) -> Format.printf "%s@." s
-  | Name(_,n) ->
+  | Name(l,n) ->
     if not (mident_eq n md)
     then Debug.(debug d_warn "Invalid #NAME directive ignored.@.")
   | Require(lc,md) -> Env.import lc md
@@ -83,6 +83,9 @@ let _ =
     ; ( "-q"
       , Arg.Unit (fun () -> Debug.set_debug_mode "q")
       , " Quiet mode (equivalent to -d 'q'" )
+    ; ( "-fail-on-warning"
+      , Arg.Set Debug.fail_on_warning
+      , " Normalize the types in error messages" )
     ; ( "-e"
       , Arg.Set export
       , " Generates an object file (\".dko\")" )

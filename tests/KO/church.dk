@@ -1,3 +1,4 @@
+(; KO ;)
 
 type : Type.
 arr : type -> type -> type.

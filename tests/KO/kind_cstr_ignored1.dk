@@ -1,0 +1,7 @@
+(; KO -fail-on-warning ;)
+
+A : Type.
+def B : Type.
+
+def f : B -> Type.
+[] f A --> A.
