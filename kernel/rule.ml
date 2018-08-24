@@ -69,8 +69,6 @@ type rule_error =
   | UnboundVariable                of loc * ident * pattern
   (* FIXME : this exception seems never to be raised *)
   | AVariableIsNotAPattern         of loc * ident
-  | NonLinearRule                  of loc * name
-  | NotEnoughArguments             of loc * ident * int * int * int
   | NonLinearNonEqArguments        of loc * ident
   (* FIXME: the reason for this exception should be formalized on paper ! *)
 
@@ -271,25 +269,3 @@ let to_rule_infos (r:untyped_rule) : rule_infos =
     arity = infos.arity ;
     constraints = infos.constraints
   }
-
-let check_linearity (r:rule_infos) : unit =
-  if List.exists (function Linearity _ -> true  | _ -> false) r.constraints
-  then raise (RuleError (NonLinearRule (r.l, r.cst)))
-
-let check_arity (r:rule_infos) : unit =
-  let check l id n k nargs =
-    let expected_args = r.arity.(n-k) in
-    if nargs < expected_args
-    then raise (RuleError (NotEnoughArguments (l,id,n,nargs,expected_args))) in
-  let rec aux k = function
-    | Kind | Type _ | Const _ -> ()
-    | DB (l,id,n) ->
-      if n >= k then check l id n k 0
-    | App(DB(l,id,n),a1,args) when n>=k ->
-      check l id n k (List.length args + 1);
-      List.iter (aux k) (a1::args)
-    | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
-    | Lam (_,_,None,b) -> aux (k+1) b
-    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
-  in
-  aux 0 r.rhs

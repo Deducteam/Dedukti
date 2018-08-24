@@ -7,9 +7,12 @@ open Signature
 type env_error =
   | EnvErrorType        of typing_error
   | EnvErrorSignature   of signature_error
+  | NonLinearRule       of name
+  | NotEnoughArguments  of ident * int * int * int
   | KindLevelDefinition of ident
   | ParseError          of string
   | AssertError
+
 
 exception EnvError of loc * env_error
 
@@ -57,10 +60,39 @@ let _declare lc (id:ident) st ty : unit =
 
 let is_static lc cst = Signature.is_static !sg lc cst
 
+
+(*         Rule checking       *)
+
+(** Checks that every variable occur only once in the left hand side of the rule. *)
+let _check_linearity (r:rule_infos) : unit =
+  if List.exists (function Rule.Linearity _ -> true  | _ -> false) r.constraints
+  then raise (EnvError (r.l, NonLinearRule r.cst))
+
+(** Checks that all Miller variables are applied to the same number of
+    distinct free variable on the left hand side.
+    Checks that they are applied to at least as many arguments on the rhs.  *)
+let _check_arity (r:rule_infos) : unit =
+  let check l id n k nargs =
+    let expected_args = r.arity.(n-k) in
+    if nargs < expected_args
+    then raise (EnvError (l, NotEnoughArguments (id,n,nargs,expected_args))) in
+  let rec aux k = function
+    | Kind | Type _ | Const _ -> ()
+    | DB (l,id,n) ->
+      if n >= k then check l id n k 0
+    | App(DB(l,id,n),a1,args) when n>=k ->
+      check l id n k (List.length args + 1);
+      List.iter (aux k) (a1::args)
+    | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
+    | Lam (_,_,None,b) -> aux (k+1) b
+    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
+  in
+  aux 0 r.rhs
+
 let _add_rules rs =
   let ris = List.map Rule.to_rule_infos rs in
-  if !check_linearity then List.iter Rule.check_linearity ris;
-  if !check_arity     then List.iter Rule.check_arity     ris;
+  if !check_linearity then List.iter _check_linearity ris;
+  if !check_arity     then List.iter _check_arity     ris;
   Signature.add_rules !sg ris
 
 let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =

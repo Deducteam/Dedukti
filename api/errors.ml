@@ -142,12 +142,6 @@ let fail_rule_error err =
   | AVariableIsNotAPattern (lc,id) ->
     fail lc
       "A variable is not a valid pattern."
-  | NotEnoughArguments (lc,id,n,nb_args,exp_nb_args) ->
-    fail lc
-      "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
-      pp_ident id nb_args exp_nb_args
-  | NonLinearRule (l,symb) ->
-    fail l "Non left-linear rewrite rule for symbol '%a'." pp_name symb
   | NonLinearNonEqArguments(lc,arg) ->
     fail lc
       "For each occurence of the free variable %a, the symbol should be applied to the same number of arguments"
@@ -234,8 +228,6 @@ let code err =
           | Rule.DistinctBoundVariablesExpected _ -> 22
           | Rule.UnboundVariable _ -> 23
           | Rule.AVariableIsNotAPattern _ -> 24
-          | Rule.NotEnoughArguments _ -> 25
-          | Rule.NonLinearRule _ -> 26
           | Rule.NonLinearNonEqArguments _ -> 27
         end
       | Signature.UnmarshalBadVersionNumber _ -> 28
@@ -249,6 +241,8 @@ let code err =
       | Signature.GuardNotSatisfied _ -> 36
       | Signature.CouldNotExportModule _ -> 37
     end
+  | NotEnoughArguments _  -> 25
+  | NonLinearRule _       -> 26
   | KindLevelDefinition _ -> 38
   | AssertError           -> 39
 
@@ -257,6 +251,13 @@ let fail_env_error lc err =
   match err with
   | Env.EnvErrorSignature e -> fail_signature_error lc e
   | Env.EnvErrorType      e -> fail_typing_error    lc e
+  | Env.NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
+    fail lc
+      "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
+      pp_ident id nb_args exp_nb_args
+    fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
+  | Env.NonLinearRule (symb) ->
+    fail lc "Non left-linear rewrite rule for symbol '%a'." pp_name symb
   | Env.KindLevelDefinition id ->
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
   | Env.ParseError s ->
