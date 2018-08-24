@@ -104,12 +104,12 @@ let _ =
     ; ( "-errors-in-snf"
       , Arg.Set Errors.errors_in_snf
       , " Normalize the types in error messages" )
-    ; ( "-nl"
-      , Arg.Unit (fun _ -> ())
-      , " [DEPRECATED] Allow non left-linear rewriting rules (default behavior now)" )
     ; ( "-cc"
       , Arg.String Confluence.set_cmd
       , " CMD Set the external confluence checker command to CMD" )
+    ; ( "-nl"
+      , Arg.Unit (fun _ -> ())
+      , " [DEPRECATED] Allow non left-linear rewriting rules (default behavior now)" )
     ; ( "--beautify"
       , Arg.Set beautify
       , " Pretty printer. Print on the standard output" )]
