@@ -91,7 +91,7 @@ val get_path : unit -> string list
 (** {2 Debug} *)
 
 module Debug : sig
-  
+
   type flag
   val d_warn         : flag (** Warnings *)
   val d_notice       : flag (** Notices *)
@@ -105,7 +105,7 @@ module Debug : sig
   val  enable_flag : flag -> unit (** Activates given flag's debugging *)
   val disable_flag : flag -> unit (** Deactivates given flag's debugging *)
 
-  (** Sets multiple debugging flags from a string: 
+  (** Sets multiple debugging flags from a string:
       q : disables d_Warn
       n : enables  d_Notice
       o : enables  d_Module
@@ -120,7 +120,7 @@ module Debug : sig
   (** [debug f] prints information on the standard error channel
       if the given flag [f] is currently active. *)
   val debug : flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
-    
+
   (** [debug_eval f (fun () -> body] evaluates [body]
       if the given flag [f] is currently active. *)
   val debug_eval : flag -> (unit -> unit) -> unit

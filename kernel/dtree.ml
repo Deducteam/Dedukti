@@ -282,7 +282,7 @@ let rec add l ar =
 
 let of_rules = function
   | [] -> []
-  | r::tl as rs -> 
+  | r::tl as rs ->
     let name = r.cst in
     let arities = ref [] in
     List.iter

@@ -220,22 +220,19 @@ let add_declaration sg lc v st ty =
   else
     HId.add env v {stat=st; ty=ty; rule_opt_info=None}
 
-let add_rules sg lst : unit =
-  try
-    match List.map Rule.to_rule_infos lst with
-    | [] -> ()
-    | r :: _ as rs ->
-      begin
-        add_rule_infos sg rs;
-        if not (mident_eq sg.name (md r.cst)) then
-          sg.external_rules <- rs::sg.external_rules;
-        let open Confluence in
-        add_rules rs;
-        Debug.(debug d_confluence
-                 "Checking confluence after adding rewrite rules on symbol '%a'"
-                 pp_name r.cst);
-        try check () with
-        | ConfluenceError err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))
-      end
-  with
-  | RuleError e -> raise (SignatureError (CannotMakeRuleInfos e))
+let add_rules sg = function
+  | [] -> ()
+  | r :: _ as rs ->
+    try
+      add_rule_infos sg rs;
+      if not (mident_eq sg.name (md r.cst)) then
+        sg.external_rules <- rs::sg.external_rules;
+      let open Confluence in
+      add_rules rs;
+      Debug.(debug d_confluence
+               "Checking confluence after adding rewrite rules on symbol '%a'"
+               pp_name r.cst);
+      try check () with
+      | ConfluenceError err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))
+    with
+    | RuleError e -> raise (SignatureError (CannotMakeRuleInfos e))
