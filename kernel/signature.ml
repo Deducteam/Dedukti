@@ -17,6 +17,7 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
+  | CouldNotExportModule  of string
 
 exception SignatureError of signature_error
 
@@ -118,9 +119,8 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
   in
   HId.iter aux ctx;
   Debug.(debug d_confluence "Checking confluence after loading module '%a'..." pp_mident md);
-  match Confluence.check () with
-  | OK () -> ()
-  | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
+  try Confluence.check () with
+  | Confluence.ConfluenceError err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
@@ -155,11 +155,11 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       | None -> rs
       | Some(mx,_) -> mx@rs
     in
-    match Dtree.of_rules rules with
-    | OK trees ->
-       HId.add env (id r.cst)
-         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
-    | Err e -> raise (SignatureError (CannotBuildDtree e))
+    let trees =
+      try Dtree.of_rules rules
+      with DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+    in
+    HId.add env (id r.cst) {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
 
 (******************************************************************************)
 
@@ -175,7 +175,9 @@ let get_deps sg : string list = (*only direct dependencies*)
     ) sg.tables []
 
 let export sg =
-  marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
+  if marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
+  then ()
+  else raise (SignatureError (CouldNotExportModule sg.file))
 
 (******************************************************************************)
 
@@ -203,9 +205,8 @@ let get_dtree sg rule_filter l cst =
     let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
     if List.length rules' == List.length rules then trees
     else
-      match Dtree.of_rules rules' with
-      | OK ntrees -> ntrees
-      | Err e -> raise (SignatureError (CannotBuildDtree e))
+      try Dtree.of_rules rules' with
+      | DtreeError e -> raise (SignatureError (CannotBuildDtree e))
 
 
 (******************************************************************************)
@@ -219,21 +220,19 @@ let add_declaration sg lc v st ty =
   else
     HId.add env v {stat=st; ty=ty; rule_opt_info=None}
 
-let add_rules sg lst : unit =
-  let rs = map_error_list Rule.to_rule_infos lst in
-  match rs with
-  | Err e -> raise (SignatureError (CannotMakeRuleInfos e))
-  | OK [] -> ()
-  | OK (r::_ as rs) ->
-    begin
+let add_rules sg = function
+  | [] -> ()
+  | r :: _ as rs ->
+    try
       add_rule_infos sg rs;
       if not (mident_eq sg.name (md r.cst)) then
         sg.external_rules <- rs::sg.external_rules;
-      Confluence.add_rules rs;
+      let open Confluence in
+      add_rules rs;
       Debug.(debug d_confluence
                "Checking confluence after adding rewrite rules on symbol '%a'"
                pp_name r.cst);
-      match Confluence.check () with
-      | OK () -> ()
-      | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))
-    end
+      try check () with
+      | ConfluenceError err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))
+    with
+    | RuleError e -> raise (SignatureError (CannotMakeRuleInfos e))

@@ -86,7 +86,7 @@ let handle_entry e =
   | Decl(_,_,_,te)              -> mk_term te
   | Def(_,_,_,None,te)          -> mk_term te
   | Def(_,_,_,Some(ty),te)      -> mk_term ty; mk_term te
-  | Rules(rs)                   -> List.iter mk_rule rs
+  | Rules(_,rs)                 -> List.iter mk_rule rs
   | Eval(_,_,te)                -> mk_term te
   | Infer (_,_,te)              -> mk_term te
   | Check(_,_,_,Convert(t1,t2)) -> mk_term t1; mk_term t2
@@ -109,9 +109,8 @@ let handle_file : string -> dep_data = fun file ->
     close_in input;
     (md, (file, !current_deps))
   with
-  | Parse_error(loc,msg) -> Format.eprintf "Parse error in %a...@." pp_loc loc; exit 1
-  | Sys_error err        -> Format.eprintf "ERROR %s.@." err; exit 1
-  | Exit                 -> exit 3
+  | Env.EnvError e       -> Errors.fail_env_error e
+  | Sys_error err        -> Errors.fail_sys_error err
 
 (** Output main program. *)
 

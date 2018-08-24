@@ -2,13 +2,13 @@ open Basic
 open Term
 open Rule
 open Printf
-open Env
 open Entry
+open Env
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
 
 (* TODO: make that debuging functions returns a string *)
 let print_db_enabled = ref false
-let print_default = ref false
+let print_default_name = ref false
 
 let cur_md = ref None
 let get_module () =
@@ -127,7 +127,7 @@ let print_typed_context fmt ctx =
 
 let print_rule_name fmt rule =
   let aux b cst =
-    if b || !print_default then
+    if b || !print_default_name then
       if mident_eq (md cst) (get_name ()) then
         Format.fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
       else
@@ -135,9 +135,9 @@ let print_rule_name fmt rule =
     else
       Format.fprintf fmt ""
   in
-    match rule with
-      | Delta(cst) -> aux true cst (* not printed *)
-    | Gamma(b,cst) -> aux b cst
+  match rule with
+  | Delta(cst) -> aux true cst (* not printed *)
+  | Gamma(b,cst) -> aux b cst
 
 let print_untyped_rule fmt (rule:untyped_rule) =
   let print_decl out (_,id) =
@@ -196,7 +196,7 @@ let print_entry fmt e =
       | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
                      print_ident id print_term ty print_term te
     end
-  | Rules(rs)               ->
+  | Rules(_,rs)               ->
     fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) rs
   | Eval(_,cfg,te)          ->
     fprintf fmt "#EVAL%a %a.@." print_red_cfg cfg print_term te

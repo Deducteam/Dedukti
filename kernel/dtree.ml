@@ -7,7 +7,7 @@ type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
 
-exception DtreeExn of dtree_error
+exception DtreeError of dtree_error
 
 type case =
   | CConst of int * name
@@ -137,7 +137,7 @@ let specialize_rule (c:int) (nargs:int) (r:rule_infos) : rule_infos =
     else (* size <= i < size+nargs *)
       let check_args id pats =
         if ( Array.length pats != nargs ) then
-          raise (DtreeExn(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
+          raise (DtreeError(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
         pats.( i - size)
       in
       match r.pats.(c) with
@@ -281,25 +281,23 @@ let rec add l ar =
     else hd :: (add tl ar)
 
 let of_rules = function
-  | [] -> OK []
-  | r::tl as rs -> 
-    try
-      let name = r.cst in
-      let arities = ref [] in
-      List.iter
-        (fun x ->
-           if not (name_eq x.cst name)
-           then raise (DtreeExn (HeadSymbolMismatch (x.l,x.cst,name)));
-           let arity = List.length x.args in
-           arities := add !arities arity)
-        rs;
-      let sorted_arities = List.fold_left add [] !arities in
-      (* reverse sorted list of all rewrite rules arities. *)
-      let aux ar =
-        let m = mk_matrix ar rs in
-        (ar, to_dtree m) in
-      OK (List.map aux sorted_arities)
-    with DtreeExn e -> Err e
+  | [] -> []
+  | r::tl as rs ->
+    let name = r.cst in
+    let arities = ref [] in
+    List.iter
+      (fun x ->
+         if not (name_eq x.cst name)
+         then raise (DtreeError (HeadSymbolMismatch (x.l,x.cst,name)));
+         let arity = List.length x.args in
+         arities := add !arities arity)
+      rs;
+    let sorted_arities = List.fold_left add [] !arities in
+    (* reverse sorted list of all rewrite rules arities. *)
+    let aux ar =
+      let m = mk_matrix ar rs in
+      (ar, to_dtree m) in
+    List.map aux sorted_arities
 
 
 (******************************************************************************)

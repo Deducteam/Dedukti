@@ -17,6 +17,7 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
+  | CouldNotExportModule  of string
 
 exception SignatureError of signature_error
 
@@ -30,7 +31,7 @@ val make                : string -> t
 val get_name            : t -> mident
 (** [get_name sg] returns the name of the signature [sg]. *)
 
-val export              : t -> bool
+val export              : t -> unit
 (** [export ()] saves the current environment in a [*.dko] file.*)
 
 val import              : t -> loc -> mident -> unit
@@ -56,6 +57,6 @@ val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
 
-val add_rules           : t -> Rule.untyped_rule list -> unit
+val add_rules           : t -> Rule.rule_infos list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)

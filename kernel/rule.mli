@@ -50,6 +50,8 @@ type 'a rule =
     rhs : term
   }
 
+val get_loc_rule : 'a rule -> loc
+
 type untyped_rule = untyped_context rule
 
 type typed_rule = typed_context rule
@@ -65,6 +67,8 @@ type rule_error =
   | NotEnoughArguments             of loc * ident * int * int * int
   | NonLinearNonEqArguments        of loc * ident
 
+exception RuleError of rule_error
+
 (** {2 Rule infos} *)
 
 type rule_infos = {
@@ -74,14 +78,21 @@ type rule_infos = {
   args        : pattern list;     (** arguments list of the pattern constant *)
   rhs         : term;             (** right hand side of the rule *)
   esize       : int;              (** size of the context *)
-  pats        : wf_pattern array; (** free pattern without constraint *)
+  pats        : wf_pattern array; (** free patterns without constraint *)
+  arity       : int array;        (** arities of context variables *)
   constraints : constr list;
   (** constraints generated from the pattern to the free pattern *)
 }
 
 val pattern_of_rule_infos : rule_infos -> pattern
 
-val to_rule_infos : untyped_rule -> (rule_infos, rule_error) error
+val to_rule_infos : untyped_rule -> rule_infos
+(** Converts untyped_rule to rule_infos *)
+
+val check_arity : rule_infos -> unit
+(** Checks that all Miller variables are applied to the same number of
+    distinct free variable on the left hand side.
+    Checks that they are applied to at least as many arguments on the rhs.  *)
 
 (** {2 Printing} *)
 
