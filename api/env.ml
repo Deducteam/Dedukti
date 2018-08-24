@@ -26,7 +26,6 @@ let raise_as_env lc = function
 
 let sg = ref (Signature.make "noname")
 
-let check_linearity = ref false
 let check_arity     = ref true
 
 let init file =
