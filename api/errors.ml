@@ -21,7 +21,7 @@ let success fmt =
   eprintf "%s" (green "[SUCCESS] ");
   kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter fmt
 
-let prerr_loc lc = eprintf "At %a: " pp_loc lc
+let prerr_loc lc = if lc <> dloc then eprintf "At %a: " pp_loc lc
 
 let print_error_code code =
   eprintf "%s" (red ("[ERROR:" ^ string_of_int code ^ "] "))
@@ -38,11 +38,11 @@ let pp_typed_context out = function
   | [] -> ()
   | _::_ as ctx -> fprintf out " in context:\n%a" Rule.pp_typed_context ctx
 
-let fail_typing_error ~dloc err =
+let fail_typing_error def_loc err =
   let open Typing in
   match err with
   | KindIsNotTypable ->
-    fail dloc
+    fail def_loc
       "Kind is not typable."
   | ConvertibilityError (te,ctx,exp,inf) ->
     fail (get_loc te)
@@ -164,7 +164,7 @@ let pp_cerr out err =
     | CCFailure      cmd -> cmd, "ERROR" in
   fprintf out "Checker's answer: %s.\nCommand: %s" ans cmd
 
-let fail_signature_error ~dloc err =
+let fail_signature_error def_loc err =
   let open Signature in
   match err with
   | UnmarshalBadVersionNumber (lc,md) ->
@@ -199,7 +199,7 @@ let fail_signature_error ~dloc err =
        Found: %a"
       pp_term t1 pp_term t2
   | CouldNotExportModule file ->
-    fail dloc
+    fail def_loc
       "Fail to export module '%a' to file %s."
       pp_mident (Env.get_name ()) file
 
@@ -207,7 +207,7 @@ let code err =
   let open Env in
   match err with
   | ParseError _      -> 1
-  | EnvErrorType(_,e) -> begin match e with
+  | EnvErrorType e -> begin match e with
       | Typing.KindIsNotTypable -> 2
       | Typing.ConvertibilityError _ -> 3
       | Typing.VariableNotFound _ -> 4
@@ -225,7 +225,7 @@ let code err =
       | Typing.Inhabit _ -> 16
       | Typing.NotImplementedFeature _ -> 17
     end
-  | EnvErrorSignature(_,e) -> begin match e with
+  | EnvErrorSignature e -> begin match e with
       | Signature.CannotBuildDtree e -> begin match e with
           | Dtree.HeadSymbolMismatch _ -> 18
           | Dtree.ArityInnerMismatch _ -> 19
@@ -252,18 +252,18 @@ let code err =
       | Signature.CouldNotExportModule _ -> 37
     end
   | KindLevelDefinition _ -> 38
-  | AssertError         _ -> 39
+  | AssertError           -> 39
 
-let fail_env_error err =
+let fail_env_error lc err =
   print_error_code (code err);
   match err with
-  | Env.EnvErrorSignature(dloc,e) -> fail_signature_error ~dloc e
-  | Env.EnvErrorType     (dloc,e) -> fail_typing_error ~dloc e
-  | Env.KindLevelDefinition (lc,id) ->
+  | Env.EnvErrorSignature e -> fail_signature_error lc e
+  | Env.EnvErrorType      e -> fail_typing_error    lc e
+  | Env.KindLevelDefinition id ->
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
-  | Env.ParseError (lc,s) ->
+  | Env.ParseError s ->
     fail lc "Parse error: %s@." s
-  | Env.AssertError lc ->
+  | Env.AssertError ->
     fail lc "Assertion failed."
 
 let fail_sys_error msg =
