@@ -109,7 +109,7 @@ let handle_file : string -> dep_data = fun file ->
     close_in input;
     (md, (file, !current_deps))
   with
-  | Env.EnvError e       -> Errors.fail_env_error e
+  | Env.EnvError (l,e)   -> Errors.fail_env_error l e
   | Sys_error err        -> Errors.fail_sys_error err
 
 (** Output main program. *)

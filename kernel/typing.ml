@@ -222,14 +222,14 @@ let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = functio
 
 (* **** TYPE CHECKING/INFERENCE FOR PATTERNS ******************************** *)
 
-type constraints = (int*term*term) list
-type context2 = (loc*ident*typ) LList.t
+type constraints = (int * term * term) list
+type context2    = (loc * ident * typ) LList.t
 
 (* Partial Context *)
 
 type partial_context =
-  { padding:int; (* expected size*)
-    pctx:context2 (*partial context*)
+  { padding : int;     (* expected size   *)
+    pctx    : context2 (* partial context *)
   }
 
 let pc_make (ctx:(loc*ident) list) : partial_context =
@@ -252,12 +252,9 @@ let pc_add (delta:partial_context) (n:int) (l:loc) (id:ident) (ty0:typ) : partia
 let pc_to_context (delta:partial_context) : typed_context = LList.lst delta.pctx
 
 let pc_to_context_wp (delta:partial_context) : typed_context =
-  let dummy = mk_DB dloc dmark 0 in
-  let rec aux lst n =
-    if n <= 0 then lst
-    else aux ((dloc,dmark,dummy)::lst) (n-1)
-  in
-  aux (LList.lst delta.pctx) delta.padding
+  let dummy = (dloc, dmark, mk_DB dloc dmark (-1)) in
+  let rec aux lst = function 0 -> lst | n -> aux (dummy::lst) (n-1) in
+  aux (pc_to_context delta) delta.padding
 
 let pp_pcontext fmt delta =
   let lst = List.rev (LList.lst delta.pctx) in
@@ -286,18 +283,11 @@ let rec infer_pattern sg (delta:partial_context) (sigma:context2)
     let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
         ( mk_Const l cst , Signature.get_type sg l cst , delta , lst ) args
     in (ty,delta2,lst2)
-  | Var (l,x,n,args) ->
-    if n < (LList.len sigma) then
-      let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
-          ( mk_DB l x n, get_type (LList.lst sigma) l x n , delta , lst ) args
-      in (ty,delta2,lst2)
-    else
-      let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-      raise (TypingError (CannotInferTypeOfPattern (pat,ctx))) (* not a pattern *)
-  | Brackets _ ->
-    let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-    raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
-  | Lambda _ ->
+  | Var (l,x,n,args) when n < LList.len sigma ->
+    let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
+        ( mk_DB l x n, get_type (LList.lst sigma) l x n , delta , lst ) args
+    in (ty,delta2,lst2)
+  | Var _ | Brackets _ | Lambda _ ->
     let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
     raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
 
@@ -320,7 +310,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
   | Lambda (l,x,p) ->
     begin
       match whnf sg exp_ty with
-      | Pi (l,x,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
+      | Pi (_,_,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
       | exp_ty ->
         let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
         raise (TypingError ( ProductExpected (pattern_to_term pat,ctx,exp_ty)))
@@ -404,7 +394,6 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context option =
   | Subst.UnshiftExn -> None
 
 let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
-  (*  let ctx0,le,ri = rule.rule in *)
   let delta = pc_make rule.ctx in
   let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
   assert ( delta.padding == 0 );

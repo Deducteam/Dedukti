@@ -21,7 +21,7 @@ let success fmt =
   eprintf "%s" (green "[SUCCESS] ");
   kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter fmt
 
-let prerr_loc lc = eprintf "%a " pp_loc lc
+let prerr_loc lc = if lc <> dloc then eprintf "At %a: " pp_loc lc
 
 let print_error_code code =
   eprintf "%s" (red ("[ERROR:" ^ string_of_int code ^ "] "))
@@ -38,11 +38,11 @@ let pp_typed_context out = function
   | [] -> ()
   | _::_ as ctx -> fprintf out " in context:\n%a" Rule.pp_typed_context ctx
 
-let fail_typing_error err =
+let fail_typing_error def_loc err =
   let open Typing in
   match err with
   | KindIsNotTypable ->
-    fail dloc
+    fail def_loc
       "Kind is not typable."
   | ConvertibilityError (te,ctx,exp,inf) ->
     fail (get_loc te)
@@ -68,7 +68,8 @@ let fail_typing_error err =
     fail lc "Cannot infer the type of domain-free lambda."
   | CannotInferTypeOfPattern (p,ctx) ->
     fail (Rule.get_loc_pat p)
-      "Error while typing '%a'%a.\nThe type could not be infered."
+      "Error while typing '%a'%a.\nThe type could not be infered: \
+       Probably it is not a Miller's pattern."
       Rule.pp_pattern p pp_typed_context ctx
   | CannotSolveConstraints (r,cstr) ->
     fail (Rule.get_loc_rule r)
@@ -141,12 +142,6 @@ let fail_rule_error err =
   | AVariableIsNotAPattern (lc,id) ->
     fail lc
       "A variable is not a valid pattern."
-  | NotEnoughArguments (lc,id,n,nb_args,exp_nb_args) ->
-    fail lc
-      "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
-      pp_ident id nb_args exp_nb_args
-  | NonLinearRule (l,symb) ->
-    fail l "Non left-linear rewrite rule for symbol '%a'." pp_name symb
   | NonLinearNonEqArguments(lc,arg) ->
     fail lc
       "For each occurence of the free variable %a, the symbol should be applied to the same number of arguments"
@@ -161,7 +156,7 @@ let pp_cerr out err =
     | CCFailure      cmd -> cmd, "ERROR" in
   fprintf out "Checker's answer: %s.\nCommand: %s" ans cmd
 
-let fail_signature_error err =
+let fail_signature_error def_loc err =
   let open Signature in
   match err with
   | UnmarshalBadVersionNumber (lc,md) ->
@@ -196,15 +191,15 @@ let fail_signature_error err =
        Found: %a"
       pp_term t1 pp_term t2
   | CouldNotExportModule file ->
-    fail dloc
+    fail def_loc
       "Fail to export module '%a' to file %s."
       pp_mident (Env.get_name ()) file
 
 let code err =
   let open Env in
   match err with
-  | ParseError          _ -> 1
-  | EnvErrorType        e -> begin match e with
+  | ParseError _      -> 1
+  | EnvErrorType e -> begin match e with
       | Typing.KindIsNotTypable -> 2
       | Typing.ConvertibilityError _ -> 3
       | Typing.VariableNotFound _ -> 4
@@ -233,8 +228,6 @@ let code err =
           | Rule.DistinctBoundVariablesExpected _ -> 22
           | Rule.UnboundVariable _ -> 23
           | Rule.AVariableIsNotAPattern _ -> 24
-          | Rule.NotEnoughArguments _ -> 25
-          | Rule.NonLinearRule _ -> 26
           | Rule.NonLinearNonEqArguments _ -> 27
         end
       | Signature.UnmarshalBadVersionNumber _ -> 28
@@ -248,19 +241,28 @@ let code err =
       | Signature.GuardNotSatisfied _ -> 36
       | Signature.CouldNotExportModule _ -> 37
     end
+  | NotEnoughArguments _  -> 25
+  | NonLinearRule _       -> 26
   | KindLevelDefinition _ -> 38
-  | AssertError         _ -> 39
+  | AssertError           -> 39
 
-let fail_env_error err =
+let fail_env_error lc err =
   print_error_code (code err);
   match err with
-  | Env.EnvErrorSignature e -> fail_signature_error e
-  | Env.EnvErrorType      e -> fail_typing_error e
-  | Env.KindLevelDefinition (lc,id) ->
+  | Env.EnvErrorSignature e -> fail_signature_error lc e
+  | Env.EnvErrorType      e -> fail_typing_error    lc e
+  | Env.NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
+    fail lc
+      "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
+      pp_ident id nb_args exp_nb_args
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
-  | Env.ParseError (lc,s) ->
+  | Env.NonLinearRule (symb) ->
+    fail lc "Non left-linear rewrite rule for symbol '%a'." pp_name symb
+  | Env.KindLevelDefinition id ->
+    fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
+  | Env.ParseError s ->
     fail lc "Parse error: %s@." s
-  | Env.AssertError lc ->
+  | Env.AssertError ->
     fail lc "Assertion failed."
 
 let fail_sys_error msg =
