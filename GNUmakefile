@@ -210,10 +210,11 @@ full_tests: light_tests iprover holide focalide verine zenon_modulo
 
 
 #### Cleaning targets ########################################################
-
+.PHONY: clean
 clean:
 	$(Q)ocamlbuild -quiet -clean
 
+.PHONY: distclean
 distclean: clean
 	@cd tests/libraries && ./matita.sh clean
 	@cd tests/libraries && ./matita-light.sh clean
