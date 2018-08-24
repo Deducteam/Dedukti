@@ -8,12 +8,19 @@ open Term
 type env_error =
   | EnvErrorType        of Typing.typing_error
   | EnvErrorSignature   of Signature.signature_error
-  | KindLevelDefinition of loc * ident
-  | ParseError          of loc * string
-  | AssertError         of loc
+  | NonLinearRule       of name
+  | NotEnoughArguments  of ident * int * int * int
+  | KindLevelDefinition of ident
+  | ParseError          of string
+  | AssertError
 
-exception EnvError of env_error
+exception EnvError of loc * env_error
 
+val check_linearity : bool ref
+(** Flag to check for pattern linearity. Default is false. *)
+
+val check_arity     : bool ref
+(** Flag to check for variables arity. Default is true. *)
 
 (** {2 The Global Environment} *)
 
@@ -29,7 +36,7 @@ val get_signature : unit -> Signature.t
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)
 
-val get_type    : ?loc:loc -> name -> term
+val get_type    : loc -> name -> term
 (** [get_type l md id] returns the type of the constant [md.id]. *)
 
 val is_static   : loc -> name -> bool
@@ -44,11 +51,11 @@ val export      : unit -> unit
 val import      : loc -> mident -> unit
 (** [import lc md] the module [md] in the current environment. *)
 
-val declare : loc -> ident -> Signature.staticity -> term -> unit
+val declare     : loc -> ident -> Signature.staticity -> term -> unit
 (** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
    staticity [st]. *)
 
-val define      : ?loc:loc -> ident -> bool -> term -> term option -> unit
+val define      : loc -> ident -> bool -> term -> term option -> unit
 (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
 
 val add_rules   : Rule.untyped_rule list -> (Subst.Subst.t * Rule.typed_rule) list

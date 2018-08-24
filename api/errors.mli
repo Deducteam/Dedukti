@@ -12,7 +12,7 @@ val success : ('a, Format.formatter, unit) format -> 'a
 val fail_exit : int -> loc -> ('a, Format.formatter, unit) format -> 'a
 (** Print an error message with given code and and exit. *)
 
-val fail_env_error : Env.env_error -> 'a
+val fail_env_error : loc -> Env.env_error -> 'a
 (** Prints a message explaining the env_error then exits with code 3. *)
 
 val fail_sys_error : string -> 'a

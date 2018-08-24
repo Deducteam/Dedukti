@@ -1,3 +1,4 @@
+(; OK ;)
 
 N : Type.
 1 : N.
@@ -11,5 +12,4 @@ def 2pow16 (x:N) := 2pow8 (2pow8 x).
 
 def a := 1.
 
-#ASSERT 2pow16 (2pow4 1) == 2pow16 (2pow4 a).
-
+#ASSERT 2pow8 (2pow4 1) == 2pow8 (2pow4 a).

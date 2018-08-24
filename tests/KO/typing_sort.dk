@@ -1,3 +1,5 @@
+(; KO 5 ;)
+
 nat : Type.
 
 x : nat.

@@ -1,3 +1,5 @@
-A:Type.
-a:A.
-[x:A] x --> a.
+(; KO 9 ;)
+
+A : Type.
+a : A.
+[x] x --> a.

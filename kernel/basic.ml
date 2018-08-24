@@ -98,7 +98,7 @@ let add_path s = path := s :: !path
 (** {2 Debugging} *)
 
 module Debug = struct
-  
+
   type flag = int
   let d_warn         : flag = 0
   let d_notice       : flag = 1
@@ -154,7 +154,7 @@ module Debug = struct
     Format.(ifprintf err_formatter) fmt
 
   let debug f =
-    if active.(f) 
+    if active.(f)
     then
       match headers.(f) with
       | "" -> do_debug
@@ -200,7 +200,8 @@ let pp_mident fmt md      = Format.fprintf fmt "%s" md
 let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
 let pp_loc    fmt = function
   | (-1,-1) -> Format.fprintf fmt "unspecified location"
-  | (c ,l ) -> Format.fprintf fmt "line:%i column:%i" l c
+  | (l ,-1) -> Format.fprintf fmt "line:%i" l
+  | (l , c) -> Format.fprintf fmt "line:%i column:%i" l c
 
 let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 

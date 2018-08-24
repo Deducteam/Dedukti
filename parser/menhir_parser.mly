@@ -33,7 +33,7 @@ let mk_config loc id1 id2_opt =
     | (i     , Some "WHNF") -> config (some i) Whnf
     | (i     , None       ) -> {default_cfg with nb_steps = some i}
     | (_     , _          ) -> raise Exit (* captured below *)
-  with _ -> raise (Env.EnvError (Env.ParseError (loc, "invalid command configuration")))
+  with _ -> raise (Env.EnvError (loc, Env.ParseError "invalid command configuration"))
 
 let loc_of_rs = function
   | [] -> assert false
