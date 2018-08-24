@@ -14,7 +14,7 @@ let mk_entry md e =
   | Def(lc,id,opaque,ty,te) ->
     let opaque_str = if opaque then " (opaque)" else "" in
     eprint lc "Definition of symbol '%a'%s." pp_ident id opaque_str;
-    Env.define ~loc:lc id opaque te ty
+    Env.define lc id opaque te ty
   | Rules(l,rs) ->
     let open Rule in
     List.iter (fun (r:untyped_rule) -> eprint l "Adding rewrite rules: '%a'" Pp.print_rule_name r.name) rs;
@@ -35,14 +35,14 @@ let mk_entry md e =
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (Env.AssertError l)) )
+      | false, true  -> raise (Env.EnvError (l,Env.AssertError)) )
   | Check(l, assrt, neg, HasType(te,ty)) ->
     let succ = try Env.check te ty; not neg with _ -> neg in
     ( match succ, assrt with
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (Env.AssertError l)) )
+      | false, true  -> raise (Env.EnvError (l, Env.AssertError)) )
   | DTree(lc,m,v) ->
     let m = match m with None -> Env.get_name () | Some m -> m in
     let cst = mk_name m v in
@@ -136,5 +136,5 @@ let _ =
       if not !beautify
       then Errors.success "Standard input was successfully checked.\n"
   with
-  | Env.EnvError e       -> Errors.fail_env_error e
-  | Sys_error err        -> Errors.fail_sys_error err
+  | Env.EnvError (l,e) -> Errors.fail_env_error l e
+  | Sys_error err  -> Errors.fail_sys_error err

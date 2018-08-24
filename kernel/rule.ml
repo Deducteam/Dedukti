@@ -69,7 +69,6 @@ type rule_error =
   | UnboundVariable                of loc * ident * pattern
   (* FIXME : this exception seems never to be raised *)
   | AVariableIsNotAPattern         of loc * ident
-  | NotEnoughArguments             of loc * ident * int * int * int
   | NonLinearNonEqArguments        of loc * ident
   (* FIXME: the reason for this exception should be formalized on paper ! *)
 
@@ -116,9 +115,14 @@ let get_loc_pat = function
 
 let get_loc_rule r = get_loc_pat r.pat
 
-let pp_idents fmt l = fprintf fmt "[%a]" (pp_list ", " pp_ident) (List.rev l)
-let pp_untyped_context fmt ctx = pp_idents fmt (List.map snd                ctx)
-let pp_typed_context   fmt ctx = pp_idents fmt (List.map (fun (_,a,_) -> a) ctx)
+let pp_typed_ident fmt (id,ty) = Format.fprintf fmt "%a:%a" pp_ident id pp_term ty
+
+let pp_context pp_i fmt l = fprintf fmt "[%a]" (pp_list ", " pp_i) (List.rev l)
+
+let pp_untyped_context fmt ctx =
+  pp_context pp_ident       fmt (List.map snd                      ctx)
+let pp_typed_context   fmt ctx =
+  pp_context pp_typed_ident fmt (List.map (fun (_,a,ty) -> (a,ty)) ctx)
 
 let pp_rule_name fmt rule_name =
   let sort,n =
@@ -129,20 +133,15 @@ let pp_rule_name fmt rule_name =
   in
   fprintf fmt "%s: %a" sort pp_name n
 
-(* FIXME: factorize this function with the follozing one *)
-let pp_untyped_rule fmt (rule:untyped_rule) =
+let pp_rule pp_ctxt fmt (rule:'a rule) =
   fprintf fmt " {%a} [%a] %a --> %a"
     pp_rule_name rule.name
-    pp_untyped_context rule.ctx
+    pp_ctxt rule.ctx
     pp_pattern rule.pat
     pp_term rule.rhs
 
-let pp_typed_rule fmt (rule:typed_rule) =
-  fprintf fmt " {%a} [%a] %a --> %a"
-    pp_rule_name rule.name
-    pp_typed_context rule.ctx
-    pp_pattern rule.pat
-    pp_term rule.rhs
+let pp_untyped_rule = pp_rule pp_untyped_context
+let pp_typed_rule   = pp_rule pp_typed_context
 
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
@@ -270,21 +269,3 @@ let to_rule_infos (r:untyped_rule) : rule_infos =
     arity = infos.arity ;
     constraints = infos.constraints
   }
-
-let check_arity (r:rule_infos) : unit =
-  let check l id n k nargs =
-    let expected_args = r.arity.(n-k) in
-    if nargs < expected_args
-    then raise (RuleError (NotEnoughArguments (l,id,n,nargs,expected_args))) in
-  let rec aux k = function
-    | Kind | Type _ | Const _ -> ()
-    | DB (l,id,n) ->
-      if n >= k then check l id n k 0
-    | App(DB(l,id,n),a1,args) when n>=k ->
-      check l id n k (List.length args + 1);
-      List.iter (aux k) (a1::args)
-    | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
-    | Lam (_,_,None,b) -> aux (k+1) b
-    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
-  in
-  aux 0 r.rhs
