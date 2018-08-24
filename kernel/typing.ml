@@ -149,8 +149,13 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
         match t1', t2' with
         | Kind, Kind | Type _, Type _       -> assert false (* Equal terms *)
         | DB (_,_,n), DB (_,_,n') when n=n' -> assert false (* Equal terms *)
-        | Const (_,cst), Const (_,cst') when name_eq cst cst' ->
-          keepon ()
+        | _, Kind | Kind, _ |_, Type _ | Type _, _ -> warn ()
+
+        | Const (_,c), Const (_,c') when name_eq c c' -> keepon ()
+        | Const (l,cst), t when not (Signature.is_static sg l cst) ->
+          ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
+        | t, Const (l,cst) when not (Signature.is_static sg l cst) ->
+          ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
 
         | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
           begin
@@ -191,32 +196,20 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
         | Lam (_,_,_,b), Lam (_,_,_,b') ->
           pseudo_u sg fail sigma ((q+1,b,b')::lst)
 
-        | App (DB (_,_,n),_,_), _  when ( n >= q ) ->
-          if Reduction.are_convertible sg t1' t2' then
-            ( Debug.(debug d_rule "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2');
-              keepon () )
-          else warn ()
-        | _, App (DB (_,_,n),_,_) when ( n >= q ) ->
-          if Reduction.are_convertible sg t1' t2' then
-            ( Debug.(debug d_rule "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2');
-              keepon () )
-          else warn ()
+        | App (DB (_,_,n),_,_), _  when n >= q ->
+          if Reduction.are_convertible sg t1' t2' then keepon () else warn ()
+        | _ , App (DB (_,_,n),_,_) when n >= q ->
+          if Reduction.are_convertible sg t1' t2' then keepon () else warn ()
 
-        | App (Const (l,cst),_,_), _ when (not (Signature.is_static sg l cst)) ->
-          ( Debug.(debug d_rule "Ignoring non injective constraint: %a ~ %a"
-              pp_term t1' pp_term t2');
-            keepon () )
-        | _, App (Const (l,cst),_,_) when (not (Signature.is_static sg l cst)) ->
-          ( Debug.(debug d_rule "Ignoring non injective constraint: %a ~ %a"
-              pp_term t1' pp_term t2');
-            keepon () )
+        | App (Const (l,cst),_,_), _ when not (Signature.is_static sg l cst) -> keepon ()
+        | _, App (Const (l,cst),_,_) when not (Signature.is_static sg l cst) -> keepon ()
 
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
-           * | Const name when (is_injective name) *)
+           * | Const name when (is_static name) *)
           begin
             match safe_add_to_list q lst args args' with
-            | None -> warn ()
+            | None -> warn () (* Different number of arguments. *)
             | Some lst2 -> pseudo_u sg fail sigma ((q,f,f')::(q,a,a')::lst2)
           end
 
