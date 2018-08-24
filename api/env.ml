@@ -5,17 +5,17 @@ open Typing
 open Signature
 
 type env_error =
-  | EnvErrorType        of typing_error
-  | EnvErrorSignature   of signature_error
+  | EnvErrorType        of loc * typing_error
+  | EnvErrorSignature   of loc * signature_error
   | KindLevelDefinition of loc * ident
   | ParseError          of loc * string
   | AssertError         of loc
 
 exception EnvError of env_error
 
-let raise_as_env = function
-  | SignatureError e -> raise (EnvError (EnvErrorSignature e) )
-  | TypingError    e -> raise (EnvError (EnvErrorType      e) )
+let raise_as_env ~dloc = function
+  | SignatureError e -> raise (EnvError (EnvErrorSignature(dloc,e)))
+  | TypingError    e -> raise (EnvError (EnvErrorType(dloc,e)))
   | ex -> raise ex
 
 
@@ -33,19 +33,19 @@ let get_signature () = !sg
 
 let get_type ?(loc=dloc) cst =
   try Signature.get_type !sg loc cst
-  with e -> raise_as_env e
+  with e -> raise_as_env ~dloc:loc e
 
-let get_dtree l cst =
-  try Signature.get_dtree !sg None l cst
-  with e -> raise_as_env e
+let get_dtree lc cst =
+  try Signature.get_dtree !sg None lc cst
+  with e -> raise_as_env ~dloc:lc e
 
 let export () =
   try Signature.export !sg
-  with e -> raise_as_env e
+  with e -> raise_as_env ~dloc e
 
 let import lc md =
   try Signature.import !sg lc md
-  with e -> raise_as_env e
+  with e -> raise_as_env ~dloc:lc e
 
 let _declare (l:loc) (id:ident) st ty : unit =
   match inference !sg ty with
@@ -76,31 +76,31 @@ let _define (l:loc) (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : uni
       in
       Signature.add_rules !sg [rule]
 
-let declare l id st ty : unit =
-  try _declare l id st ty
-  with e -> raise_as_env e
+let declare lc id st ty : unit =
+  try _declare lc id st ty
+  with e -> raise_as_env ~dloc:lc e
 
 let define ?(loc=dloc) id op te ty_opt : unit =
   try _define loc id op te ty_opt
-  with e -> raise_as_env e
+  with e -> raise_as_env ~dloc:loc e
 
 let add_rules (rules: untyped_rule list) : (Subst.Subst.t * typed_rule) list =
   try
     let rs2 = List.map (check_rule !sg) rules in
     Signature.add_rules !sg rules;
     rs2
-  with e -> raise_as_env e
+  with e -> raise_as_env ~dloc:(get_loc_rule (List.hd rules)) e
 
 let infer ?ctx:(ctx=[]) te =
   try
     let ty = infer !sg ctx te in
     ignore(infer !sg ctx ty);
     ty
-  with e -> raise_as_env e
+  with e -> raise_as_env ~dloc:(get_loc te) e
 
 let check ?ctx:(ctx=[]) te ty =
   try check !sg ctx te ty
-  with e -> raise_as_env e
+  with e -> raise_as_env ~dloc:(get_loc te) e
 
 let _unsafe_reduction red te =
   Reduction.reduction red !sg te
@@ -110,16 +110,16 @@ let _reduction ctx red te =
   _unsafe_reduction red te
 
 let reduction ?ctx:(ctx=[]) ?red:(red=Reduction.default_cfg) te =
-  try  _reduction ctx red te 
-  with e -> raise_as_env e
+  try  _reduction ctx red te
+  with e -> raise_as_env ~dloc:(get_loc te) e
 
 let unsafe_reduction ?red:(red=Reduction.default_cfg) te =
   try _unsafe_reduction red te
-  with e -> raise_as_env e
+  with e -> raise_as_env ~dloc:(get_loc te) e
 
 let are_convertible ?ctx:(ctx=[]) te1 te2 =
   try
     ignore(Typing.infer !sg ctx te1);
     ignore(Typing.infer !sg ctx te2);
     Reduction.are_convertible !sg te1 te2
-  with e -> raise_as_env e
+  with e -> raise_as_env ~dloc:(get_loc te1) e

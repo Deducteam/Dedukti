@@ -21,7 +21,7 @@ let success fmt =
   eprintf "%s" (green "[SUCCESS] ");
   kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter fmt
 
-let prerr_loc lc = eprintf "%a " pp_loc lc
+let prerr_loc lc = eprintf "At %a: " pp_loc lc
 
 let print_error_code code =
   eprintf "%s" (red ("[ERROR:" ^ string_of_int code ^ "] "))
@@ -38,7 +38,7 @@ let pp_typed_context out = function
   | [] -> ()
   | _::_ as ctx -> fprintf out " in context:\n%a" Rule.pp_typed_context ctx
 
-let fail_typing_error err =
+let fail_typing_error ~dloc err =
   let open Typing in
   match err with
   | KindIsNotTypable ->
@@ -164,7 +164,7 @@ let pp_cerr out err =
     | CCFailure      cmd -> cmd, "ERROR" in
   fprintf out "Checker's answer: %s.\nCommand: %s" ans cmd
 
-let fail_signature_error err =
+let fail_signature_error ~dloc err =
   let open Signature in
   match err with
   | UnmarshalBadVersionNumber (lc,md) ->
@@ -206,8 +206,8 @@ let fail_signature_error err =
 let code err =
   let open Env in
   match err with
-  | ParseError          _ -> 1
-  | EnvErrorType        e -> begin match e with
+  | ParseError _      -> 1
+  | EnvErrorType(_,e) -> begin match e with
       | Typing.KindIsNotTypable -> 2
       | Typing.ConvertibilityError _ -> 3
       | Typing.VariableNotFound _ -> 4
@@ -225,7 +225,7 @@ let code err =
       | Typing.Inhabit _ -> 16
       | Typing.NotImplementedFeature _ -> 17
     end
-  | EnvErrorSignature e -> begin match e with
+  | EnvErrorSignature(_,e) -> begin match e with
       | Signature.CannotBuildDtree e -> begin match e with
           | Dtree.HeadSymbolMismatch _ -> 18
           | Dtree.ArityInnerMismatch _ -> 19
@@ -257,8 +257,8 @@ let code err =
 let fail_env_error err =
   print_error_code (code err);
   match err with
-  | Env.EnvErrorSignature e -> fail_signature_error e
-  | Env.EnvErrorType      e -> fail_typing_error e
+  | Env.EnvErrorSignature(dloc,e) -> fail_signature_error ~dloc e
+  | Env.EnvErrorType     (dloc,e) -> fail_typing_error ~dloc e
   | Env.KindLevelDefinition (lc,id) ->
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
   | Env.ParseError (lc,s) ->

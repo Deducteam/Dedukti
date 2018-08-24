@@ -6,8 +6,8 @@ open Term
 (** {2 Error Datatype} *)
 
 type env_error =
-  | EnvErrorType        of Typing.typing_error
-  | EnvErrorSignature   of Signature.signature_error
+  | EnvErrorType        of loc * Typing.typing_error
+  | EnvErrorSignature   of loc * Signature.signature_error
   | KindLevelDefinition of loc * ident
   | ParseError          of loc * string
   | AssertError         of loc
