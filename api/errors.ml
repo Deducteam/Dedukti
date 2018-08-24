@@ -68,7 +68,8 @@ let fail_typing_error def_loc err =
     fail lc "Cannot infer the type of domain-free lambda."
   | CannotInferTypeOfPattern (p,ctx) ->
     fail (Rule.get_loc_pat p)
-      "Error while typing '%a'%a.\nThe type could not be infered."
+      "Error while typing '%a'%a.\nThe type could not be infered: \
+       Probably it is not a Miller's pattern."
       Rule.pp_pattern p pp_typed_context ctx
   | CannotSolveConstraints (r,cstr) ->
     fail (Rule.get_loc_rule r)
