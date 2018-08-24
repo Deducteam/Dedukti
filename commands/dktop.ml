@@ -13,7 +13,7 @@ let handle_entry e =
     Env.declare lc id st ty;
     Format.printf "%a is declared.@." pp_ident id
   | Def(lc,id,op,ty,te) ->
-    Env.define ~loc:lc id op te ty;
+    Env.define lc id op te ty;
     Format.printf "%a is defined.@." pp_ident id
   | Rules(_,rs) ->
     let _ = Env.add_rules rs in
@@ -31,22 +31,22 @@ let handle_entry e =
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (Env.AssertError l)) )
+      | false, true  -> raise (Env.EnvError (l, Env.AssertError)) )
   | Check(l, assrt, neg, HasType(te,ty)) ->
     let succ = try Env.check te ty; not neg with _ -> neg in
     ( match succ, assrt with
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (Env.AssertError l)) )
+      | false, true  -> raise (Env.EnvError (l, Env.AssertError)) )
   | DTree(lc,m,v) ->
     let m = match m with None -> Env.get_name () | Some m -> m in
     let cst = mk_name m v in
     let forest = Env.get_dtree lc cst in
     Format.printf "GDTs for symbol %a:\n%a" pp_name cst Dtree.pp_dforest forest
-  | Print(_,s)   -> Format.printf "%s@." s
-  | Name(_,_)    -> Format.printf "\"#NAME\" directive ignored.@."
-  | Require(_,_) -> Format.printf "\"#REQUIRE\" directive ignored.@."
+  | Print(_,s) -> Format.printf "%s@." s
+  | Name _     -> Format.printf "\"#NAME\" directive ignored.@."
+  | Require _  -> Format.printf "\"#REQUIRE\" directive ignored.@."
 
 let  _ =
   let md = Env.init "<toplevel>" in
@@ -56,7 +56,7 @@ let  _ =
     Format.printf ">> ";
     try handle_entry (read str) with
     | End_of_file -> exit 0
-    | Env.EnvError (Env.ParseError (_,s)) -> Format.eprintf "Parse error: %s@." s
+    | Env.EnvError (l, Env.ParseError s) -> Errors.fail_env_error l (Env.ParseError s)
     | e ->
       Format.eprintf "Uncaught exception %S@." (Printexc.to_string e)
   done
