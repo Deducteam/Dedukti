@@ -116,11 +116,14 @@ let get_loc_pat = function
 
 let get_loc_rule r = get_loc_pat r.pat
 
-let pp_idents fmt l = fprintf fmt "[%a]" (pp_list ", " pp_ident) (List.rev l)
-let pp_untyped_context fmt ctx = pp_idents fmt (List.map snd                ctx)
 let pp_typed_ident fmt (id,ty) = Format.fprintf fmt "%a:%a" pp_ident id pp_term ty
-let pp_typed_idents fmt l = fprintf fmt "[%a]" (pp_list ", " pp_typed_ident) (List.rev l)
-let pp_typed_context   fmt ctx = pp_typed_idents fmt (List.map (fun (_,a,ty) -> (a,ty)) ctx)
+
+let pp_context pp_i fmt l = fprintf fmt "[%a]" (pp_list ", " pp_i) (List.rev l)
+
+let pp_untyped_context fmt ctx =
+  pp_context pp_ident       fmt (List.map snd                      ctx)
+let pp_typed_context   fmt ctx =
+  pp_context pp_typed_ident fmt (List.map (fun (_,a,ty) -> (a,ty)) ctx)
 
 let pp_rule_name fmt rule_name =
   let sort,n =
