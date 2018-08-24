@@ -134,20 +134,15 @@ let pp_rule_name fmt rule_name =
   in
   fprintf fmt "%s: %a" sort pp_name n
 
-(* FIXME: factorize this function with the follozing one *)
-let pp_untyped_rule fmt (rule:untyped_rule) =
+let pp_rule pp_ctxt fmt (rule:'a rule) =
   fprintf fmt " {%a} [%a] %a --> %a"
     pp_rule_name rule.name
-    pp_untyped_context rule.ctx
+    pp_ctxt rule.ctx
     pp_pattern rule.pat
     pp_term rule.rhs
 
-let pp_typed_rule fmt (rule:typed_rule) =
-  fprintf fmt " {%a} [%a] %a --> %a"
-    pp_rule_name rule.name
-    pp_typed_context rule.ctx
-    pp_pattern rule.pat
-    pp_term rule.rhs
+let pp_untyped_rule = pp_rule pp_untyped_context
+let pp_typed_rule   = pp_rule pp_typed_context
 
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
