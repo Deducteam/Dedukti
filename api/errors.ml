@@ -146,11 +146,8 @@ let fail_rule_error err =
     fail lc
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
       pp_ident id nb_args exp_nb_args
-  | NonLinearRule r ->
-    fail (Rule.get_loc_rule r)
-      "Non left-linear rewrite rule:\n%a.\n\
-       Maybe you forgot to pass the -nl option."
-      pp_untyped_rule r
+  | NonLinearRule (l,symb) ->
+    fail l "Non left-linear rewrite rule for symbol '%a'." pp_name symb
   | NonLinearNonEqArguments(lc,arg) ->
     fail lc
       "For each occurence of the free variable %a, the symbol should be applied to the same number of arguments"
