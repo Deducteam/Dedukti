@@ -118,7 +118,9 @@ let get_loc_rule r = get_loc_pat r.pat
 
 let pp_idents fmt l = fprintf fmt "[%a]" (pp_list ", " pp_ident) (List.rev l)
 let pp_untyped_context fmt ctx = pp_idents fmt (List.map snd                ctx)
-let pp_typed_context   fmt ctx = pp_idents fmt (List.map (fun (_,a,_) -> a) ctx)
+let pp_typed_ident fmt (id,ty) = Format.fprintf fmt "%a:%a" pp_ident id pp_term ty
+let pp_typed_idents fmt l = fprintf fmt "[%a]" (pp_list ", " pp_typed_ident) (List.rev l)
+let pp_typed_context   fmt ctx = pp_typed_idents fmt (List.map (fun (_,a,ty) -> (a,ty)) ctx)
 
 let pp_rule_name fmt rule_name =
   let sort,n =
@@ -152,7 +154,7 @@ let pp_rule_infos out r =
       pat = pattern_of_rule_infos r;
       rhs = r.rhs
     }
-    
+
 let pattern_to_term p =
   let rec aux k = function
     | Brackets t         -> t
@@ -233,7 +235,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       then if nb_args' <> IntHashtbl.find arity (n-k)
         then raise (RuleError (NonLinearNonEqArguments(l,x)))
         else
-          let nvar = fresh_var nb_args' in 
+          let nvar = fresh_var nb_args' in
           constraints := Linearity(nvar, n-k) :: !constraints;
           LVar(x, nvar + k, args')
       else
@@ -284,17 +286,17 @@ let to_rule_infos (r:untyped_rule) : rule_infos =
     | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
   in
   let (pats2,infos) = check_patterns esize args in
-  
+
   (* Checking that Miller variable are correctly applied in lhs *)
   check_nb_args infos.arity r.rhs;
-  
+
   (* Checking if pattern has linearity constraints *)
   if not (is_linear infos.constraints)
   then
     if !allow_non_linear
     then Debug.(debug d_rule "Non-linear Rewrite Rule detected")
     else raise (RuleError (NonLinearRule r));
-  
+
   { l ;
     name = r.name ;
     cst ; args ; rhs = r.rhs ;
@@ -302,4 +304,3 @@ let to_rule_infos (r:untyped_rule) : rule_infos =
     pats = Array.of_list pats2 ;
     constraints = infos.constraints
   }
-  
