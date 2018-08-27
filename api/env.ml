@@ -153,7 +153,8 @@ let unsafe_reduction ?red:(red=Reduction.default_cfg) te =
 
 let are_convertible ?ctx:(ctx=[]) te1 te2 =
   try
-    ignore(Typing.infer !sg ctx te1);
-    ignore(Typing.infer !sg ctx te2);
+    let ty1 = Typing.infer !sg ctx te1 in
+    let ty2 = Typing.infer !sg ctx te2 in
+    Reduction.are_convertible !sg ty1 ty2 &&
     Reduction.are_convertible !sg te1 te2
   with e -> raise_as_env (get_loc te1) e
