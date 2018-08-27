@@ -16,9 +16,6 @@ type env_error =
 
 exception EnvError of loc * env_error
 
-val check_linearity : bool ref
-(** Flag to check for pattern linearity. Default is false. *)
-
 val check_arity     : bool ref
 (** Flag to check for variables arity. Default is true. *)
 

@@ -107,12 +107,9 @@ let _ =
     ; ( "-cc"
       , Arg.String Confluence.set_cmd
       , " CMD Set the external confluence checker command to CMD" )
-    ; ( "-cl"
-      , Arg.Set Env.check_linearity
-      , " Allow non left-linear rewriting rules" )
     ; ( "-nl"
-      , Arg.Clear Env.check_linearity
-      , " Allow non left-linear rewriting rules" )
+      , Arg.Unit (fun _ -> ())
+      , " [DEPRECATED] Allow non left-linear rewriting rules (default behavior now)" )
     ; ( "--beautify"
       , Arg.Set beautify
       , " Pretty printer. Print on the standard output" )]
