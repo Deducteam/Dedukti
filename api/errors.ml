@@ -71,10 +71,12 @@ let fail_typing_error def_loc err =
       "Error while typing '%a'%a.\nThe type could not be infered: \
        Probably it is not a Miller's pattern."
       Rule.pp_pattern p pp_typed_context ctx
-  | CannotSolveConstraints (r,cstr) ->
+  | UnsatisfiableConstraints (r,(q,t1,t2)) ->
     fail (Rule.get_loc_rule r)
-      "Error while typing the rewrite rule\n%a\nCannot solve typing constraints:\n%a"
-      Rule.pp_untyped_rule r (pp_list "\n" (fun out (_,t1,t2) -> fprintf out "%a ~~ %a" pp_term t1 pp_term t2)) cstr
+      "Error while typing rewrite rule.\n\
+       Cannot solve typing constraints: %a ~ %a%s"
+      pp_term t1 pp_term t2
+      (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")
   | BracketError1 (te,ctx) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.\n\
@@ -208,7 +210,7 @@ let code err =
       | Typing.InexpectedKind _ -> 7
       | Typing.DomainFreeLambda _ -> 8
       | Typing.CannotInferTypeOfPattern _ -> 9
-      | Typing.CannotSolveConstraints _ -> 10
+      | Typing.UnsatisfiableConstraints _ -> 10
       | Typing.BracketError1 _ -> 11
       | Typing.BracketError2 _ -> 12
       | Typing.FreeVariableDependsOnBoundVariable _ -> 13
