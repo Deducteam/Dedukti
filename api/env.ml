@@ -26,7 +26,6 @@ let raise_as_env lc = function
 
 let sg = ref (Signature.make "noname")
 
-let check_linearity = ref false
 let check_arity     = ref true
 
 let init file =
@@ -63,11 +62,6 @@ let is_static lc cst = Signature.is_static !sg lc cst
 
 (*         Rule checking       *)
 
-(** Checks that every variable occur only once in the left hand side of the rule. *)
-let _check_linearity (r:rule_infos) : unit =
-  if List.exists (function Rule.Linearity _ -> true  | _ -> false) r.constraints
-  then raise (EnvError (r.l, NonLinearRule r.cst))
-
 (** Checks that all Miller variables are applied to the same number of
     distinct free variable on the left hand side.
     Checks that they are applied to at least as many arguments on the rhs.  *)
@@ -91,8 +85,7 @@ let _check_arity (r:rule_infos) : unit =
 
 let _add_rules rs =
   let ris = List.map Rule.to_rule_infos rs in
-  if !check_linearity then List.iter _check_linearity ris;
-  if !check_arity     then List.iter _check_arity     ris;
+  if !check_arity then List.iter _check_arity ris;
   Signature.add_rules !sg ris
 
 let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
@@ -160,7 +153,8 @@ let unsafe_reduction ?red:(red=Reduction.default_cfg) te =
 
 let are_convertible ?ctx:(ctx=[]) te1 te2 =
   try
-    ignore(Typing.infer !sg ctx te1);
-    ignore(Typing.infer !sg ctx te2);
+    let ty1 = Typing.infer !sg ctx te1 in
+    let ty2 = Typing.infer !sg ctx te2 in
+    Reduction.are_convertible !sg ty1 ty2 &&
     Reduction.are_convertible !sg te1 te2
   with e -> raise_as_env (get_loc te1) e

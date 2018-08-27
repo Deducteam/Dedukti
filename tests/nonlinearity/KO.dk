@@ -1,5 +1,0 @@
-(; KO 26 -cl ;)
-A : Type.
-
-def f : A -> A -> A.
-[x] f x x --> x.

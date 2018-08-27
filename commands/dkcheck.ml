@@ -101,18 +101,18 @@ let _ =
     ; ( "-I"
       , Arg.String Basic.add_path
       , " DIR Add the directory DIR to the load path" )
+    ; ( "-ccs"
+      , Arg.Set Typing.fail_on_unsatisfiable_constraints
+      , " Forbids rules with unsatisfiable constraints." )
     ; ( "-errors-in-snf"
       , Arg.Set Errors.errors_in_snf
       , " Normalize the types in error messages" )
     ; ( "-cc"
       , Arg.String Confluence.set_cmd
       , " CMD Set the external confluence checker command to CMD" )
-    ; ( "-cl"
-      , Arg.Set Env.check_linearity
-      , " Allow non left-linear rewriting rules" )
     ; ( "-nl"
-      , Arg.Clear Env.check_linearity
-      , " Allow non left-linear rewriting rules" )
+      , Arg.Unit (fun _ -> ())
+      , " [DEPRECATED] Allow non left-linear rewriting rules (default behavior now)" )
     ; ( "--beautify"
       , Arg.Set beautify
       , " Pretty printer. Print on the standard output" )]

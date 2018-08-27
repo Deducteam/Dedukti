@@ -1,0 +1,10 @@
+(; KO 10 -ccs ;)
+B : Type.
+
+T : B.
+
+def A : B -> Type.
+
+def f : A T -> Type.
+
+[] f B --> B.

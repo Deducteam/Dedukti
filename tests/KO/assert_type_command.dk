@@ -1,7 +1,7 @@
-(; KO 1 ;)
+(; KO 39 ;)
 
 A : Type.
 B : Type.
 a : A.
 
-#ASSERT a :: B.
+#ASSERT a : B.
