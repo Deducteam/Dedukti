@@ -199,7 +199,7 @@ dklib: all
 .PHONY: zenon_modulo
 zenon_modulo: all
 	@echo "## Compiling the zenon library ##"
-	@cd tests/tests/libraries && ./zenon_modulo.sh
+	@cd tests/libraries && ./zenon_modulo.sh
 
 
 .PHONY: light_tests

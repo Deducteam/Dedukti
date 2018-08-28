@@ -65,13 +65,13 @@ BIN="../../../../dkcheck.native -q"
 
 # Compiling the theory files.
 echo "Compiling the theory files..."
-$BIN -e cc.dk
-$BIN -e dk_bool.dk
-$BIN -e dk_logic.dk
-$BIN -e dk_tuple.dk
-$BIN -e basics.dk
-$BIN -e zen.dk
-$BIN -e zen_focal.dk
+$BIN -q -e cc.dk 2> /dev/null
+$BIN -q -e dk_bool.dk 2> /dev/null
+$BIN -q -e dk_logic.dk 2> /dev/null
+$BIN -q -e dk_tuple.dk 2> /dev/null
+$BIN -q -e basics.dk 2> /dev/null
+$BIN -q -e zen.dk 2> /dev/null
+$BIN -q -e zen_focal.dk 2> /dev/null
 
 # Compilation function.
 export readonly BIN=${BIN}
@@ -82,12 +82,12 @@ function test_gz() {
   FILE_DK="$(basename $FILE_GZ .gz)"
   cp ${LIBFILE} ${FILE_GZ}
   gzip -d ${FILE_GZ}
-  ${BIN} -nl ${FILE_DK}
+  ${BIN} -q -nl ${FILE_DK} 2> /dev/null
   if [ $? -ne 0 ]; then
-    echo -e "\033[0;31mKO\033[0m ${MODNAME}"
+    echo -e "\033[0;31mKO\033[0m ${FILE_GZ}"
     echo "FAILED ${FILE_GZ}" >> error.log
   else
-    echo -e "\033[0;32mOK\033[0m ${MODNAME}"
+    echo -e "\033[0;32mOK\033[0m ${FILE_GZ}"
   fi
   rm -f ${FILE_dk}
 }
