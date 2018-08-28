@@ -269,7 +269,10 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack } ->
-    let trees = Signature.get_dtree sg !selection l n in
+    let trees =
+    try
+      Signature.get_dtree sg !selection l n
+    with Signature.SignatureError _ -> Dtree.empty in
     match find_dtree (List.length stack) trees with
     | None -> st
     | Some (ar, tree) ->
