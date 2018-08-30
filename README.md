@@ -115,7 +115,7 @@ Supported commands are:
 The supported evaluation strategies are:
  - `SNF` (strong normal form: a term `t` is in `SNF` if no reduction can occur in `t`),
  - `HNF` (head normal form),
- - `WHNF` (weak head normal form, a term `t` is said in `WHNF` if there is a finite sequence `t=t0`, `t2`, ..., `tn` such that `tn` is in normal form, for all `i`, `ti` reduces to `t(i+1)` and no reduction occurs at the head).
+ - `WHNF` (weak head normal form: a term `t` is said in `WHNF` if there is a finite sequence `t=t0`, `t2`, ..., `tn` such that `tn` is in normal form and for all `i`, `ti` reduces to `t(i+1)` and this reduction does not occur at the head).
 
 Note that the `#INFER` command accepts the same form of configuration as
 the `#EVAL` command. When given, it is used to evaluate the obtained type.
