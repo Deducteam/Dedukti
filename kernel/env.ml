@@ -138,6 +138,3 @@ let are_convertible ?ctx:(ctx=[]) te1 te2 =
   with
   | SignatureError e -> Err (EnvErrorSignature e)
   | TypingError e    -> Err (EnvErrorType e)
-
-let sizechange () =
-  Termination.termination_check ()

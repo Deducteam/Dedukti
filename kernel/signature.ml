@@ -106,6 +106,18 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos li
     | SignatureError s -> raise (SignatureError s)
     | _ -> raise (SignatureError (UnmarshalUnknown (lc,m)))
 
+let read_dko lc m =
+  let deps,ctx,ext = unmarshal lc m in
+  let mod_sig = ref [] in
+  let treat_unmarshaled id infos =
+    match infos.rule_opt_info with
+    | None        -> mod_sig := (id,infos.stat,infos.ty,[]):: !mod_sig
+    | Some (rs,_) -> mod_sig := (id,infos.stat,infos.ty,rs):: !mod_sig
+  in
+  HId.iter treat_unmarshaled ctx;
+  deps,!mod_sig,ext
+  
+
 (******************************************************************************)
 
 let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
@@ -122,20 +134,6 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
   | OK () -> ()
   | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
 
-let termination_on_import : mident -> rw_infos HId.t -> unit =
-  fun md ctx ->
-    let symb id infos =
-      let cst = mk_name md id in
-      Termination.add_constant cst infos.stat infos.ty;
-    in
-    let rul id infos =
-      match infos.rule_opt_info with
-      | None -> ()
-      | Some (rs,_) -> Termination.add_rules rs
-    in
-    HId.iter symb ctx;
-    HId.iter rul ctx
-
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   if HMd.mem sg.tables m
@@ -149,8 +147,7 @@ let rec import sg lc m =
       ) deps ;
     Debug.(debug d_module "Loading module '%a'..." pp_mident m);
     List.iter (fun rs -> add_rule_infos sg rs) ext;
-    check_confluence_on_import lc m ctx;
-    termination_on_import m ctx
+    check_confluence_on_import lc m ctx
 
 and add_rule_infos sg (lst:rule_infos list) : unit =
   match lst with
@@ -228,7 +225,6 @@ let get_dtree sg rule_filter l cst =
 let add_declaration sg lc v st ty =
   let cst = mk_name sg.name v in
   Confluence.add_constant cst;
-  Termination.add_constant cst st ty;
   let env = HMd.find sg.tables sg.name in
   if HId.mem env v then
     raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
@@ -246,7 +242,6 @@ let add_rules sg lst : unit =
       if not (mident_eq sg.name (md r.cst)) then
         sg.external_rules <- rs::sg.external_rules;
       Confluence.add_rules rs;
-      Termination.add_rules rs;
       Debug.(debug d_confluence
                "Checking confluence after adding rewrite rules on symbol '%a'"
                pp_name r.cst);

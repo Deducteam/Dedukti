@@ -65,7 +65,5 @@ val check : ?ctx:typed_context -> term -> term -> (unit,env_error) error
 val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> (term,env_error) error
 
 val are_convertible : ?ctx:typed_context -> term -> term -> (bool,env_error) error
-
-val sizechange : unit -> bool
   
 val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term
