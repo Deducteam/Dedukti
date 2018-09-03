@@ -123,37 +123,46 @@ let rec paste : cmp -> cmp -> cmp = fun c1 c2 ->
                     
 (** Addition operation (minimum) *)
 let (<+>) : cmp list -> cmp list -> cmp list = fun l1 l2 ->
-  
-                                                    
+  let rec remove_duplicate : 'a list -> 'a list = function
+    | []   -> []
+    | a::l -> let ll=remove_duplicate l in if List.mem a l then ll else a::ll
+  in remove_duplicate (l1 @ l2)
 
 (** Multiplication operation. *)
-let (<*>) : cmp -> cmp -> cmp = fun e1 e2 ->
-  match (e1, e2) with
-  | (Infi, _   ) | (_, Infi) -> Infi
-  | (Min1, _   ) | (_, Min1) -> Min1
-  | (Zero, Zero)             -> Zero
+let (<*>) : cmp list -> cmp list -> cmp list = fun l1 l2 ->
+  let intermediate= List.map (fun x -> List.map (fun y -> paste x y) l1) l2
+  in let res = ref [] in
+     List.iter
+       (fun l ->
+         List.iter
+           (fun x ->
+             try res:=(usable_form x)::(!res)
+             with | OverTruncation | NormalizationError -> ())
+           l)
+       intermediate;
+     !res
 
 (** Reduce by 1 a cmp *)
-let minus1 : cmp -> cmp =
+(* let minus1 : cmp -> cmp =
   function
   | Zero -> Min1
-  | n -> n
+  | n -> n *)
 
 (** Compute the minimum of a list *)
-let mini : cmp list -> cmp = fun l ->
-  List.fold_left (<+>) Infi l
+(* let mini : cmp list -> cmp = fun l ->
+  List.fold_left (<+>) Infi l *)
 
 (** Type of a size change matrix. *)
 type matrix =
   { w   : int             ; (* Number of argument of callee *)
     h   : int             ; (* Number of argument of caller *)
-    tab : cmp array array   (* The matrix of size h*w *)
+    tab : cmp list array array   (* The matrix of size h*w *)
   }
 
 (** The pretty printer for the type [matrix] *)
 let pp_matrix fmt m=
   Format.fprintf fmt "w=%i, h=%i@.tab=[[%a]]" m.w m.h
-    (pp_arr "]@.     [" (pp_arr "," pp_cmp)) m.tab
+    (pp_arr "]@.     [" (pp_arr "," (pp_list "," pp_cmp))) m.tab
     
 (** Matrix product. *)
 let prod : matrix -> matrix -> matrix =
@@ -164,7 +173,7 @@ let prod : matrix -> matrix -> matrix =
         (fun y ->
 	   Array.init m2.w
              (fun x ->
-                let r = ref Infi in
+                let r = ref [] in
                 for k = 0 to m1.w - 1 do
 	          r := !r <+> (m1.tab.(y).(k) <*> m2.tab.(k).(x))
                 done; !r
@@ -172,13 +181,22 @@ let prod : matrix -> matrix -> matrix =
         )
     in
     { w = m2.w ; h = m1.h ; tab }
-      
+
+let rec size : cmp -> int = function
+  | Var -> 0
+  | Constr(_,c) -> (size c) +1
+  | Destr(_,c) -> (size c) - 1
+  | Tuple(_,c) -> (size c) + 1
+  | Proj(_,c) -> (size c) - 1
+  | Weight(n,c) -> (size c) + n
+     
 (** Check if a matrix corresponds to a decreasing idempotent call. *)
 let decreasing : matrix -> bool = fun m ->
   assert (m.w = m.h); (* Only square matrices labeling a self-looping arrow need to be study *)
+  let is_negative c = size c < 0 in
   try
     for k = 0 to m.w - 1 do
-      if m.tab.(k).(k) = Min1
+      if List.fold_left (fun b x -> b || is_negative x) false (m.tab.(k).(k))
       then raise Exit
     done;
     false
