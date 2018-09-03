@@ -365,21 +365,17 @@ let state_nsteps (sg:Signature.t) (strat:red_strategy)
         end
       | { ctx; term=Lam(l,x,ty_opt,t); stack=a::args } ->
         begin
-          match term_of_state st with
-          | App(Lam(_,_,_,t'),_,_) ->
-            let (red, st_t) = aux (red, {ctx=LList.nil; term=t'; stack=[]}) in
-            let t' = term_of_state st_t in
-            begin
-              match strat with
-              | Snf ->
-                let f a (red,args) =
-                  let red', a' = aux (red, a) in (red', a'::args) in
-                let red', args' = List.fold_right f (a::args) (red,[])
-                in
-                (red', {ctx; term = mk_Lam l x ty_opt t'; stack=args'})
-              | _ -> (red, {ctx; term = mk_Lam l x ty_opt t'; stack= a::args})
-            end
-          | _ -> assert false
+          let t' = term_of_state {ctx; term=t; stack=[]} in
+          let (red, st_t) = aux (red, {ctx=LList.nil; term=t'; stack=[]}) in
+          let t' = term_of_state st_t in
+          match strat with
+          | Snf ->
+            let f a (red,args) =
+              let red', a' = aux (red, a) in (red', a'::args) in
+            let red', args' = List.fold_right f (a::args) (red,[])
+            in
+            (red', {ctx; term = mk_Lam l x ty_opt t'; stack=args'})
+          | _ -> (red, {ctx; term = mk_Lam l x ty_opt t'; stack= a::args})
         end
       (* DeBruijn index: environment lookup *)
       | { ctx; term=DB (_,_,n); stack } when n < LList.len ctx ->
