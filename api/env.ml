@@ -13,7 +13,6 @@ type env_error =
   | ParseError          of string
   | AssertError
 
-
 exception EnvError of loc * env_error
 
 let raise_as_env lc = function
@@ -96,8 +95,7 @@ let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
   match ty with
   | Kind -> raise (EnvError (lc, KindLevelDefinition id))
   | _ ->
-    if opaque then
-      Signature.add_declaration !sg lc id Signature.Static ty
+    if opaque then Signature.add_declaration !sg lc id Signature.Static ty
     else
       let _ = Signature.add_declaration !sg lc id Signature.Definable ty in
       let cst = mk_name (get_name ()) id in
@@ -144,7 +142,7 @@ let _reduction ctx red te =
   _unsafe_reduction red te
 
 let reduction ?ctx:(ctx=[]) ?red:(red=Reduction.default_cfg) te =
-  try  _reduction ctx red te
+  try _reduction ctx red te
   with e -> raise_as_env (get_loc te) e
 
 let unsafe_reduction ?red:(red=Reduction.default_cfg) te =
