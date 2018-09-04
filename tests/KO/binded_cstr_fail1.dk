@@ -1,4 +1,4 @@
-(; KO 10 -ccs ;)
+(; KO 10 --ccs ;)
 
 A : Type.
 def a : A.

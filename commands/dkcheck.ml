@@ -86,31 +86,31 @@ let _ =
     ; ( "-e"
       , Arg.Set export
       , " Generates an object file (\".dko\")" )
-    ; ( "-nc"
+    ; ( "--nc"
       , Arg.Clear Errors.color
       , " Disable colors in the output" )
-    ; ( "-stdin"
+    ; ( "--stdin"
       , Arg.String (fun n -> run_on_stdin := Some(n))
       , " MOD Parses standard input using module name MOD" )
-    ; ( "-version"
+    ; ( "--version"
       , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
       , " Print the version number" )
-    ; ( "-coc"
+    ; ( "--coc"
       , Arg.Set Typing.coc
       , " Typecheck the Calculus of Construction" )
     ; ( "-I"
       , Arg.String Basic.add_path
       , " DIR Add the directory DIR to the load path" )
-    ; ( "-ccs"
+    ; ( "--ccs"
       , Arg.Set Typing.fail_on_unsatisfiable_constraints
       , " Forbids rules with unsatisfiable constraints." )
-    ; ( "-errors-in-snf"
+    ; ( "--errors-in-snf"
       , Arg.Set Errors.errors_in_snf
       , " Normalize the types in error messages" )
-    ; ( "-cc"
+    ; ( "--cc"
       , Arg.String Confluence.set_cmd
       , " CMD Set the external confluence checker command to CMD" )
-    ; ( "-nl"
+    ; ( "--nl"
       , Arg.Unit (fun _ -> ())
       , " [DEPRECATED] Allow non left-linear rewriting rules (default behavior now)" )
     ; ( "--beautify"
