@@ -27,16 +27,3 @@ def a := plus 2 3.
 
 #EVAL[WHNF,4] a.
 #EVAL[WHNF,5] plus 2 3.
-
-
-#EVAL[HNF,1] a.
-#EVAL[0] plus 2 3.
-
-#EVAL[HNF,2] a.
-#EVAL[0] plus 1 (S (S 2)).
-
-#EVAL[HNF,3] a.
-#EVAL[0] plus 0 (S (S (S 2))).
-
-#EVAL[HNF,4] a.
-#EVAL[HNF,5] plus 2 3.

@@ -16,7 +16,7 @@ type wf_pattern =
   | LPattern  of name * wf_pattern array
   | LBoundVar of ident * int * wf_pattern array
 
-type rule_name = Delta of name | Gamma of bool * name
+type rule_name = Beta | Delta of name | Gamma of bool * name
 
 type 'a rule =
   {
@@ -124,14 +124,11 @@ let pp_untyped_context fmt ctx =
 let pp_typed_context   fmt ctx =
   pp_context pp_typed_ident fmt (List.map (fun (_,a,ty) -> (a,ty)) ctx)
 
-let pp_rule_name fmt rule_name =
-  let sort,n =
-    match rule_name with
-    | Delta(n)        -> "Delta"          , n
-    | Gamma(true , n) -> "Gamma"          , n
-    | Gamma(false, n) -> "Gamma (default)", n
-  in
-  fprintf fmt "%s: %a" sort pp_name n
+let pp_rule_name fmt = function
+    | Beta            -> fprintf fmt "Beta"
+    | Delta(n)        -> fprintf fmt "Delta: %a"           pp_name n
+    | Gamma(true , n) -> fprintf fmt "Gamma: %a"           pp_name n
+    | Gamma(false, n) -> fprintf fmt "Gamma (default): %a" pp_name n
 
 let pp_rule pp_ctxt fmt (rule:'a rule) =
   fprintf fmt " {%a} [%a] %a --> %a"

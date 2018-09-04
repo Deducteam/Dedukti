@@ -24,7 +24,3 @@ def P : Bool -> Bool.
 
 #EVAL[1,WHNF] P b.
 #EVAL[0] T.
-
-
-#EVAL[HNF,1] P b.
-#EVAL[0] T.

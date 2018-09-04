@@ -23,13 +23,10 @@ let mk_config loc id1 id2_opt =
     let config nb_steps strategy = {default_cfg with nb_steps; strategy} in
     match (id1, id2_opt) with
     | ("SNF" , None       ) -> config None     Snf
-    | ("HNF" , None       ) -> config None     Hnf
     | ("WHNF", None       ) -> config None     Whnf
     | ("SNF" , Some i     ) -> config (some i) Snf
-    | ("HNF" , Some i     ) -> config (some i) Hnf
     | ("WHNF", Some i     ) -> config (some i) Whnf
     | (i     , Some "SNF" ) -> config (some i) Snf
-    | (i     , Some "HNF" ) -> config (some i) Hnf
     | (i     , Some "WHNF") -> config (some i) Whnf
     | (i     , None       ) -> {default_cfg with nb_steps = some i}
     | (_     , _          ) -> raise Exit (* captured below *)

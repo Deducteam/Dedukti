@@ -114,7 +114,6 @@ Supported commands are:
 
 The supported evaluation strategies are:
  - `SNF` (strong normal form),
- - `HNF` (head normal form),
  - `WHNF` (weak head normal form).
 
 Note that the `#INFER` command accepts the same form of configuration as

@@ -1,22 +1,23 @@
 (** Term reduction and conversion test. *)
-
 open Basic
 open Term
 
-type red_strategy = Hnf | Snf | Whnf
+type red_target   = Snf | Whnf
+type red_strategy = ByName | ByValue | ByStrongValue
 
 type red_cfg = {
-  select : (Rule.rule_name -> bool) option;
+  select   : (Rule.rule_name -> bool) option;
   nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
-  strategy : red_strategy;
-  beta : bool
+  target   : red_target;
+  strat    : red_strategy;
+  beta     : bool;
+  logger   : position -> Rule.rule_name -> term Lazy.t -> unit
 }
-
-val pp_red_cfg : red_cfg printer
-
 (** [beta] flag enables/disables beta reductions.
     [select] = [Some f] restreins rules according to the given filter on names.
     [select] = [None] is the default behaviour (all rules allowed). *)
+
+val pp_red_cfg : red_cfg printer
 
 val default_cfg : red_cfg
 (** default configuration where:

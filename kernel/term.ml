@@ -64,6 +64,21 @@ let rec term_eq t1 t2 =
     | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false
 
+type position = int list
+
+exception InvalidSubterm of term * int
+
+let subterm t i = match t with
+  | App (f,_,_   )     when i = 0 -> f
+  | App (_,a,_   )     when i = 1 -> a
+  | App (_,_,args)                -> List.nth args (i-2)
+  | Lam (_,_,_     ,f) when i = 1 -> f
+  | Lam (_,_,Some a,f) when i = 0 -> a
+  | Pi  (_,_,a,_)      when i = 0 -> a
+  | Pi  (_,_,_,b)      when i = 1 -> b
+  | _ -> raise (InvalidSubterm (t,i))
+
+let subterm = List.fold_left subterm
 
 type untyped_context = ( loc * ident ) list
 
