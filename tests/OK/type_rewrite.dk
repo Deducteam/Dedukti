@@ -1,3 +1,4 @@
+(; OK ;)
 
 def A : Type.
 B : Type.

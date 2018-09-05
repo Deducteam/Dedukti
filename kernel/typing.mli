@@ -6,6 +6,8 @@ open Basic
 
 val coc : bool ref
 
+val fail_on_unsatisfiable_constraints : bool ref
+
 type typing_error =
   | KindIsNotTypable
   | ConvertibilityError of term * typed_context * term * term
@@ -15,7 +17,7 @@ type typing_error =
   | InexpectedKind of term * typed_context
   | DomainFreeLambda of loc
   | CannotInferTypeOfPattern of pattern * typed_context
-  | CannotSolveConstraints of untyped_rule * (int * term * term) list
+  | UnsatisfiableConstraints of untyped_rule * (int * term * term)
   | BracketError1 of term * typed_context
   | BracketError2 of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
@@ -47,5 +49,5 @@ val checking    : Signature.t -> term -> term -> unit
 val inference   : Signature.t -> term -> typ
 (** [inference sg ctx te] infers a type for the term [te] in empty context. *)
 
-val check_rule  : Signature.t -> untyped_rule -> typed_rule
+val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
 (** [check_rule sg ru] checks that a rule is well-typed. *)

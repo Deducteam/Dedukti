@@ -1,7 +1,6 @@
 %{
 open Basic
 open Preterm
-open Internals
 open Scoping
 open Reduction
 open Signature
@@ -33,8 +32,12 @@ let mk_config loc id1 id2_opt =
     | (i     , Some "HNF" ) -> config (some i) Hnf
     | (i     , Some "WHNF") -> config (some i) Whnf
     | (i     , None       ) -> {default_cfg with nb_steps = some i}
-    | (_     , _          ) -> raise Exit (* captured bellow *)
-  with _ -> raise (Parse_error(loc, "invalid command configuration"))
+    | (_     , _          ) -> raise Exit (* captured below *)
+  with _ -> raise (Env.EnvError (loc, Env.ParseError "invalid command configuration"))
+
+let loc_of_rs = function
+  | [] -> assert false
+  | (l,_,_,_,_,_,_) :: _ -> l
 %}
 
 %token EOF
@@ -106,7 +109,7 @@ line:
       {fun md -> Def(fst id, snd id, true, Some(scope_term md [] (mk_pi ty ps)),
                      scope_term md [] (mk_lam te ps))}
   | rs=rule+ DOT
-      {fun md -> Rules(List.map (scope_rule md) rs)}
+      {fun md -> Rules(loc_of_rs rs,(List.map (scope_rule md) rs))}
 
   | EVAL te=term DOT
       {fun md -> Eval($1, default_cfg, scope_term md [] te)}
