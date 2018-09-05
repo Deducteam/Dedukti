@@ -48,7 +48,7 @@ val export      : unit -> unit
 val import      : loc -> mident -> unit
 (** [import lc md] the module [md] in the current environment. *)
 
-val declare     : loc -> ident -> Signature.staticity -> term -> unit
+val declare     : loc -> ident -> staticity -> term -> unit
 (** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
    staticity [st]. *)
 

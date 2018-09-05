@@ -112,7 +112,7 @@ module Debug = struct
 
   let nb_flags = 8
 
-  (* Default mode is to debug only [d_std] messages. *)
+  (* Default mode is to debug only [d_warn] messages. *)
   let default_flags = [d_warn]
 
   (* Headers for debugging messages *)
@@ -125,8 +125,6 @@ module Debug = struct
      ; "TypeChecking"
      ; "Reduce"
      ; "Matching"
-     ; "Sizechange"
-     ; "Termination stat"
     |]
 
   (* Array of activated flags. Initialized with [false]s except at [default_flags] indices. *)
