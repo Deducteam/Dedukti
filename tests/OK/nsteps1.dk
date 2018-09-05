@@ -3,12 +3,28 @@
 def A : Type.
 [] A --> A -> A.
 
-#EVAL[1] A.
+#EVAL[1,CBV]  A.
+#EVAL[1,CBN]  A.
+#EVAL[1,CBSV] A.
 #EVAL[0] A -> A.
 
-#EVAL[2] A.
+
+#EVAL[2,CBN] A.
 #EVAL[0] A -> A -> A.
 
-#EVAL[3] A.
+#EVAL[3,CBN] A.
 #EVAL[0] A -> A -> A -> A.
 
+
+#EVAL[2,CBV] A.
+#EVAL[0] A -> A -> A.
+
+#EVAL[3,CBV] A.
+#EVAL[0] A -> A -> A -> A.
+
+
+#EVAL[2,CBSV] A.
+#EVAL[0] (A -> A) -> A.
+
+#EVAL[3,CBSV] A.
+#EVAL[0] ((A -> A) -> A) -> A.

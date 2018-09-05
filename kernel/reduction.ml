@@ -269,8 +269,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
     if not !beta then st
-    else
-      state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    else state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
@@ -285,7 +284,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
       let s1, s2 = split_list ar stack in
       match gamma_rw sg are_convertible snf state_whnf s1 tree with
       | None -> st
-      | Some (rn,ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
+      | Some (_,ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
 
 (* ********************* *)
 
@@ -326,18 +325,10 @@ let quick_reduction = function
   | Whnf -> whnf
 
 
-
-(**      *)
-
-
-
-
 let default_logger = fun _ _ _ -> ()
 let default_stop   = fun ()  -> false
 
-let logged_state_whnf
-    ?log:(log=default_logger)
-    ?stop:(stop=default_stop)
+let logged_state_whnf ?log:(log=default_logger) ?stop:(stop=default_stop)
     (strat:red_strategy) (sg:Signature.t) =
   let rec aux (pos:Term.position) (st:state) : state =
     if stop () then st else
@@ -403,20 +394,22 @@ let logged_state_whnf
           | None -> st
           | Some (rn,ctx,term) ->
             let st' = { ctx; term; stack=s2 } in
-            let _ = log pos rn st' in
+            log pos rn st';
             aux pos st'
   in aux
 
 
-let t_whnf whnf t = term_of_state (whnf { ctx=LList.nil; term=t; stack=[] } )
+let term_whnf st_whnf pos t = term_of_state (st_whnf pos { ctx=LList.nil; term=t; stack=[] } )
 
-let t_snf whnf =
-  let rec aux t =
-    match t_whnf whnf t with
+let term_snf st_whnf =
+  let rec aux pos t =
+    match term_whnf st_whnf pos t with
     | Kind | Const _ | DB _ | Type _ as t' -> t'
-    | App (f,a,lst) -> mk_App (aux f) (aux a) (List.map (aux) lst)
-    | Pi  (_,x,a,b) -> mk_Pi dloc x (aux a) (aux b)
-    | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (aux) a) (aux b)
+    | App (f,a,lst) ->
+      mk_App (aux (0::pos) f) (aux (1::pos) a)
+        (List.mapi (fun p arg -> aux (p::pos) arg) lst)
+    | Pi  (_,x,a,b) -> mk_Pi dloc x (aux (0::pos) a) (aux (1::pos) b)
+    | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (aux (0::pos)) a) (aux (1::pos) b)
   in aux
 
 let reduction cfg sg te =
@@ -429,9 +422,8 @@ let reduction cfg sg te =
       (fun p rn st  -> cfg.logger p rn (lazy (term_of_state st)); decr aux),
       (fun () -> !aux <= 0)
   in
-  let loc_whnf = logged_state_whnf ~log:log ~stop:stop cfg.strat sg [] in
-  let te' = match cfg.target with
-    |  Snf -> t_snf  loc_whnf te
-    | Whnf -> t_whnf loc_whnf te in
+  let st_whnf = logged_state_whnf ~log:log ~stop:stop cfg.strat sg in
+  let algo_red = match cfg.target with Snf -> term_snf | Whnf -> term_whnf in
+  let te' = algo_red st_whnf [] te in
   select default_cfg.select default_cfg.beta;
   te'

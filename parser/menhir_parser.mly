@@ -37,7 +37,6 @@ let mk_config loc lid =
       strat    = (match !strat  with None -> default_cfg.strat  | Some s -> s) }
   with _ -> raise (Env.EnvError (loc, Env.ParseError "invalid command configuration"))
 
-
 let loc_of_rs = function
   | [] -> assert false
   | (l,_,_,_,_,_,_) :: _ -> l

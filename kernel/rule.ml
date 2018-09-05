@@ -125,10 +125,10 @@ let pp_typed_context   fmt ctx =
   pp_context pp_typed_ident fmt (List.map (fun (_,a,ty) -> (a,ty)) ctx)
 
 let pp_rule_name fmt = function
-    | Beta            -> fprintf fmt "Beta"
-    | Delta(n)        -> fprintf fmt "Delta: %a"           pp_name n
-    | Gamma(true , n) -> fprintf fmt "Gamma: %a"           pp_name n
-    | Gamma(false, n) -> fprintf fmt "Gamma (default): %a" pp_name n
+  | Beta            -> fprintf fmt "Beta"
+  | Delta(n)        -> fprintf fmt "Delta: %a"           pp_name n
+  | Gamma(true , n) -> fprintf fmt "Gamma: %a"           pp_name n
+  | Gamma(false, n) -> fprintf fmt "Gamma (default): %a" pp_name n
 
 let pp_rule pp_ctxt fmt (rule:'a rule) =
   fprintf fmt " {%a} [%a] %a --> %a"

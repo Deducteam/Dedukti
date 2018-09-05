@@ -71,7 +71,8 @@ exception InvalidSubterm of term * int
 let subterm t i = match t with
   | App (f,_,_   )     when i = 0 -> f
   | App (_,a,_   )     when i = 1 -> a
-  | App (_,_,args)                -> List.nth args (i-2)
+  | App (_,_,args)                ->
+    ( try List.nth args (i-2) with _ -> raise (InvalidSubterm (t,i)) )
   | Lam (_,_,_     ,f) when i = 1 -> f
   | Lam (_,_,Some a,f) when i = 0 -> a
   | Pi  (_,_,a,_)      when i = 0 -> a
