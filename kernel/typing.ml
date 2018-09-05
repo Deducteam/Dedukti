@@ -34,9 +34,8 @@ exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let snf = reduction default_cfg
-
-let whnf = reduction {default_cfg with strategy = Whnf}
+let  snf = quick_reduction  Snf
+let whnf = quick_reduction Whnf
 
 let get_type ctx l x n =
   try let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
@@ -99,16 +98,15 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     let ty_inf = infer sg ctx te in
     Debug.(debug d_typeChecking "Checking convertibility: %a ~ %a"
              pp_term ty_inf pp_term ty_exp);
-    if Reduction.are_convertible sg ty_inf ty_exp then ()
-    else
+    if not (Reduction.are_convertible sg ty_inf ty_exp) then
       let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
       raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
 
 and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
   match whnf sg ty_f with
-    | Pi (_,_,a,b) ->
-      let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
-    | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
+  | Pi (_,_,a,b) ->
+    let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
+  | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
 
 let inference sg (te:term) : typ = infer sg [] te
 

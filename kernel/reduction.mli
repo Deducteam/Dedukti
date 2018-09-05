@@ -13,9 +13,16 @@ type red_cfg = {
   beta     : bool;
   logger   : position -> Rule.rule_name -> term Lazy.t -> unit
 }
-(** [beta] flag enables/disables beta reductions.
+(** Configuration for reduction.
     [select] = [Some f] restreins rules according to the given filter on names.
-    [select] = [None] is the default behaviour (all rules allowed). *)
+    [select] = [None] is the default behaviour (all rules allowed).
+    [nb_steps] = [Some n] Allows only [n] reduction steps.
+    [nb_steps] = [None] is the default behaviour.
+    [target] is the normal form to compute.
+    [strat] is the reduction strategy.
+    [beta] flag enables/disables beta reductions.
+    [logger] is the function to call upon applying a reduction rule.
+*)
 
 val pp_red_cfg : red_cfg printer
 
@@ -28,7 +35,11 @@ val default_cfg : red_cfg
 *)
 
 val reduction : red_cfg -> Signature.t -> term -> term
-(** [reduction sg red te] reduces the term [te] following the strategy [red]
+(** [reduction cfg sg te] reduces the term [te] following the configuration [cfg]
+    and using the signature [sg]. *)
+
+val quick_reduction : red_target -> Signature.t -> term -> term
+(** [quick_reduction tar sg te] reduces the term [te] to the [tar] normal form
     and using the signature [sg]. *)
 
 val are_convertible : Signature.t -> term -> term -> bool

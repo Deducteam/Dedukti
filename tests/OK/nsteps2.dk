@@ -12,14 +12,14 @@ def P : Bool -> Bool.
 [x] P x --> F.
 
 
-#EVAL[1] P b.
-#EVAL[0] P a.
+#EVAL[1,CBV] P b.
+#EVAL[0,CBV] P a.
 
-#EVAL[2] P b.
-#EVAL[0] P T.
+#EVAL[2,CBV] P b.
+#EVAL[0,CBV] P T.
 
-#EVAL[3] P b.
-#EVAL[0] T.
+#EVAL[3,CBV] P b.
+#EVAL[0,CBV] T.
 
 
 #EVAL[1,WHNF] P b.

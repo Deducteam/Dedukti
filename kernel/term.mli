@@ -36,8 +36,9 @@ type position = int list
 
 exception InvalidSubterm of term * int
 
-val subterm : term -> position -> term option
-(** [subterm t p] returns the subterm of [t] at position [p]. *)
+val subterm : term -> position -> term
+(** [subterm t p] returns the subterm of [t] at position [p].
+    Raises InvalidSubterm in case of invalid position in given term. *)
 
 (** {2 Contexts} *)
 

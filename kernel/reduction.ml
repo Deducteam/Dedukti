@@ -321,6 +321,10 @@ and are_convertible sg t1 t2 =
   try are_convertible_lst sg [(t1,t2)]
   with NotConvertible -> false
 
+let quick_reduction = function
+  | Snf -> snf
+  | Whnf -> whnf
+
 
 
 (**      *)
@@ -403,21 +407,31 @@ let logged_state_whnf
             aux pos st'
   in aux
 
-let reduction_steps n strat sg t =
-  let st = { ctx=LList.nil; term=t; stack=[] } in
-  let (_,st') = state_nsteps sg strat n st in
-  term_of_state st'
 
-let reduction strat sg te =
-  select strat.select strat.beta;
-  let te' =
-    match strat.nb_steps, strat.strategy with
-    | Some n, Whnf -> reduction_steps n strat.strategy sg te
-    | Some n, Snf  -> reduction_steps n strat.strategy sg te
-    | None  , Whnf ->
-      let st = { ctx=LList.nil; term=te; stack=[] } in
-      term_of_state (state_whnf sg st)
-    | None  , Snf  ->  snf sg te
+let t_whnf whnf t = term_of_state (whnf { ctx=LList.nil; term=t; stack=[] } )
+
+let t_snf whnf =
+  let rec aux t =
+    match t_whnf whnf t with
+    | Kind | Const _ | DB _ | Type _ as t' -> t'
+    | App (f,a,lst) -> mk_App (aux f) (aux a) (List.map (aux) lst)
+    | Pi  (_,x,a,b) -> mk_Pi dloc x (aux a) (aux b)
+    | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (aux) a) (aux b)
+  in aux
+
+let reduction cfg sg te =
+  select cfg.select cfg.beta;
+  let log, stop =
+    match cfg.nb_steps with
+    | None   -> default_logger, default_stop
+    | Some n ->
+      let aux = ref n in
+      (fun p rn st  -> cfg.logger p rn (lazy (term_of_state st)); decr aux),
+      (fun () -> !aux <= 0)
   in
+  let loc_whnf = logged_state_whnf ~log:log ~stop:stop cfg.strat sg [] in
+  let te' = match cfg.target with
+    |  Snf -> t_snf  loc_whnf te
+    | Whnf -> t_whnf loc_whnf te in
   select default_cfg.select default_cfg.beta;
   te'

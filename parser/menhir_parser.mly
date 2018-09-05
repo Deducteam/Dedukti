@@ -16,21 +16,27 @@ let rec mk_pi  : preterm -> (loc*ident*preterm) list -> preterm = fun ty ps ->
   | []           -> ty
   | (l,x,aa)::ps -> PrePi(l, Some x, aa, mk_pi ty ps)
 
-let mk_config loc id1 id2_opt =
+let mk_config loc lid =
+  let open Env in
+  let strat    = ref None in
+  let target   = ref None in
+  let nb_steps = ref None in
+  let proc = function
+    | "SNF"  when !target   = None -> target   := Some Snf
+    | "WHNF" when !target   = None -> target   := Some Whnf
+    | "CBN"  when !strat    = None -> strat    := Some ByName
+    | "CBV"  when !strat    = None -> strat    := Some ByValue
+    | "CBSV" when !strat    = None -> strat    := Some ByStrongValue
+    | i      when !nb_steps = None -> nb_steps := Some (int_of_string i)
+    | _ -> raise Exit in
   try
-    let open Env in
-    let some i = Some(int_of_string i) in
-    let config nb_steps strategy = {default_cfg with nb_steps; strategy} in
-    match (id1, id2_opt) with
-    | ("SNF" , None       ) -> config None     Snf
-    | ("WHNF", None       ) -> config None     Whnf
-    | ("SNF" , Some i     ) -> config (some i) Snf
-    | ("WHNF", Some i     ) -> config (some i) Whnf
-    | (i     , Some "SNF" ) -> config (some i) Snf
-    | (i     , Some "WHNF") -> config (some i) Whnf
-    | (i     , None       ) -> {default_cfg with nb_steps = some i}
-    | (_     , _          ) -> raise Exit (* captured below *)
+    List.iter proc lid;
+    { default_cfg with
+      nb_steps = (!nb_steps);
+      target   = (match !target with None -> default_cfg.target | Some t -> t);
+      strat    = (match !strat  with None -> default_cfg.strat  | Some s -> s) }
   with _ -> raise (Env.EnvError (loc, Env.ParseError "invalid command configuration"))
+
 
 let loc_of_rs = function
   | [] -> assert false
@@ -143,11 +149,8 @@ line:
   | EOF              {raise End_of_file}
 
 eval_config:
-  | LEFTSQU id=ID RIGHTSQU
-      {mk_config (Lexer.loc_of_pos $startpos) (string_of_ident (snd id)) None}
-  | LEFTSQU id1=ID COMMA id2=ID RIGHTSQU
-      {mk_config (Lexer.loc_of_pos $startpos) (string_of_ident (snd id1))
-        (Some(string_of_ident (snd id2)))}
+  | LEFTSQU l=separated_nonempty_list(COMMA, ID) RIGHTSQU
+  {mk_config (Lexer.loc_of_pos $startpos) (List.map (fun x -> string_of_ident (snd x)) l) }
 
 param:
   | LEFTPAR id=ID COLON te=term RIGHTPAR

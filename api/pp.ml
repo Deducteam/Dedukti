@@ -169,13 +169,9 @@ let print_rule_infos out ri =
   in
   print_untyped_rule out rule
 
-let print_red_cfg fmt strat =
+let print_red_cfg fmt cfg =
   let open Reduction in
-  match strat with
-  | {strategy=Reduction.Snf ;nb_steps=None   } -> ()
-  | {strategy=Reduction.Snf ;nb_steps=Some i } -> Format.fprintf fmt "[%i]" i
-  | {strategy=Reduction.Whnf;nb_steps=None   } -> Format.fprintf fmt "[WHNF]"
-  | {strategy=Reduction.Whnf;nb_steps=Some i } -> Format.fprintf fmt "[WHNF,%i]" i
+  Format.fprintf fmt "%a" pp_red_cfg  cfg
 
 let print_entry fmt e =
   let open Format in
