@@ -22,31 +22,31 @@ type signature_error =
 exception SignatureError of signature_error
 
 module HMd = Hashtbl.Make(
-struct
-  type t        = mident
-  let equal     = mident_eq
-  let hash      = Hashtbl.hash
-end )
+  struct
+    type t    = mident
+    let equal = mident_eq
+    let hash  = Hashtbl.hash
+  end )
 
 module HId = Hashtbl.Make(
-struct
-  type t        = ident
-  let equal     = ident_eq
-  let hash      = Hashtbl.hash
-end )
+  struct
+    type t    = ident
+    let equal = ident_eq
+    let hash  = Hashtbl.hash
+  end )
 
 type staticity = Static | Definable
 
 type rw_infos =
   {
-    stat: staticity;
-    ty: term;
-    rule_opt_info: (rule_infos list* Dtree.t) option
+    stat          : staticity;
+    ty            : term;
+    rule_opt_info : (rule_infos list* Dtree.t) option
   }
 
-type t = { name:mident;
-           file:string;
-           tables:(rw_infos HId.t) HMd.t;
+type t = { name   : mident;
+           file   : string;
+           tables : (rw_infos HId.t) HMd.t;
            mutable external_rules:rule_infos list list; }
 
 let make file =
@@ -74,19 +74,16 @@ let rec find_dko_in_path name = function
   | [] -> failwith "find_dko"  (* Captured by the unmarshal function *)
   | dir :: path ->
       let filename = dir ^ "/" ^ name ^ ".dko" in
-        if file_exists filename then
-          open_in filename
-        else
-          find_dko_in_path name path
+      if file_exists filename
+      then open_in filename
+      else find_dko_in_path name path
 
 let find_dko name =
-  (* First check in the current directory *)
   let filename = name ^ ".dko" in
-    if file_exists filename then
-      open_in filename
-    else
-      (* If not found in the current directory, search in load-path *)
-      find_dko_in_path name (get_path())
+  if file_exists filename (* First check in the current directory *)
+  then open_in filename
+  else find_dko_in_path name (get_path())
+  (* If not found in the current directory, search in load-path *)
 
 let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos list list =
   try
@@ -175,25 +172,24 @@ let get_deps sg : string list = (*only direct dependencies*)
     ) sg.tables []
 
 let export sg =
-  if marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
-  then ()
-  else raise (SignatureError (CouldNotExportModule sg.file))
+  if not (marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules)
+  then raise (SignatureError (CouldNotExportModule sg.file))
 
 (******************************************************************************)
 
-let get_infos sg lc cst =
+let get_env sg lc cst =
   let md = md cst in
-  let env =
-    try HMd.find sg.tables md
-    with Not_found -> import sg lc md; HMd.find sg.tables md
-  in
-    try ( HId.find env (id cst))
-    with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))
+  try HMd.find sg.tables md
+  with Not_found -> import sg lc md; HMd.find sg.tables md
+
+let get_infos sg lc cst =
+  try HId.find (get_env sg lc cst) (id cst)
+  with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))
 
 let is_static sg lc cst =
   match (get_infos sg lc cst).stat with
-  | Static      -> true
-  | Definable   -> false
+  | Static    -> true
+  | Definable -> false
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
@@ -215,10 +211,9 @@ let add_declaration sg lc v st ty =
   let cst = mk_name sg.name v in
   Confluence.add_constant cst;
   let env = HMd.find sg.tables sg.name in
-  if HId.mem env v then
-    raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
-  else
-    HId.add env v {stat=st; ty=ty; rule_opt_info=None}
+  if HId.mem env v
+  then raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
+  else HId.add env v {stat=st; ty=ty; rule_opt_info=None}
 
 let add_rules sg = function
   | [] -> ()
