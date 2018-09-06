@@ -45,8 +45,6 @@ let mk_mident md =
 
 let dmark       = mk_ident "$"
 
-let dname = mk_name (mk_mident "") (mk_ident "")
-
 (** {2 Lists with Length} *)
 
 module LList = struct

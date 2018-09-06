@@ -45,9 +45,6 @@ val name_eq : name -> name -> bool
 (** dmark is a special identifier for unification variables *)
 val dmark : ident
 
-(** A default name used to initialize name vectors *)
-val dname : name
-
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
 
 
