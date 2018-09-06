@@ -100,47 +100,28 @@ let add_path s = path := s :: !path
 module Debug = struct
 
   type flag  = ..
-  type flag += D_warn | D_notice | D_module | D_typeChecking
-            | D_rule | D_reduce | D_matching
+  type flag += D_warn | D_notice
+
+  let flag_message : (flag, string * bool) Hashtbl.t = Hashtbl.create 8
+
+  let set = Hashtbl.replace flag_message
 
   exception DebugMessageNotSet of flag
 
-  let flag_message : (flag, string * bool) Hashtbl.t =
-    Hashtbl.create 8
-    
+  let get (fl:flag ) : (string*bool) =
+    try Hashtbl.find flag_message fl
+    with Not_found -> raise (DebugMessageNotSet fl)
+
+  let message   (fl : flag ) : string = fst (get fl)
+  let is_active (fl : flag ) : bool   = snd (get fl)
+
+  let register_flag fl m = set fl (m         , false)
+  let  enable_flag  fl   = set fl (message fl, true )
+  let disable_flag  fl   = set fl (message fl, false)
+
   let _ =
-    Hashtbl.add flag_message D_warn         ("Warning"     , true);
-    Hashtbl.add flag_message D_notice       ("Notice"      , false);
-    Hashtbl.add flag_message D_module       ("Module"      , false);
-    Hashtbl.add flag_message D_rule         ("Rule"        , false);
-    Hashtbl.add flag_message D_typeChecking ("TypeChecking", false);
-    Hashtbl.add flag_message D_reduce       ("Reduce"      , false);
-    Hashtbl.add flag_message D_matching     ("Matching"    , false)
-
-  let register_flag fl m =
-    Hashtbl.replace flag_message fl (m,false)
-
-  let is_active (fl : flag ) : bool =
-    try
-      snd (Hashtbl.find flag_message fl)
-    with Not_found -> raise (DebugMessageNotSet fl)
-
-  let message (fl : flag ) : string =
-    try
-      fst (Hashtbl.find flag_message fl)
-    with Not_found -> raise (DebugMessageNotSet fl)
-      
-  let enable_flag fl =
-    try
-      let (s,_) = Hashtbl.find flag_message fl in
-      Hashtbl.replace flag_message fl (s,true)
-    with Not_found -> raise (DebugMessageNotSet fl)
-    
-  let disable_flag fl =
-    try
-      let (s,_) = Hashtbl.find flag_message fl in
-      Hashtbl.replace flag_message fl (s,false)
-    with Not_found -> raise (DebugMessageNotSet fl)
+    set D_warn   ("Warning", true );
+    set D_notice ("Notice" , false)
 
   let do_debug fmt =
     Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
@@ -150,8 +131,7 @@ module Debug = struct
 
   let debug f =
     if is_active f
-    then
-      fun fmt -> do_debug ("[%s] " ^^ fmt) (message f)
+    then fun fmt -> do_debug ("[%s] " ^^ fmt) (message f)
     else ignore_debug
   [@@inline]
 

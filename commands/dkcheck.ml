@@ -61,7 +61,7 @@ let mk_entry beautify md =
 
 let run_on_file beautify export file =
   let input = open_in file in
-  Debug.(debug D_module "Processing file '%s'..." file);
+  Debug.(debug Signature.D_module "Processing file '%s'..." file);
   let md = Env.init file in
   Confluence.initialize ();
   Parser.handle_channel md (mk_entry beautify md) input;

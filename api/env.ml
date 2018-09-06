@@ -10,12 +10,12 @@ let set_debug_mode =
   String.iter (function
       | 'q' -> Debug.disable_flag Debug.D_warn
       | 'n' -> Debug.enable_flag  Debug.D_notice
-      | 'o' -> Debug.enable_flag  Debug.D_module
+      | 'o' -> Debug.enable_flag  Signature.D_module
       | 'c' -> Debug.enable_flag  Confluence.D_confluence
-      | 'u' -> Debug.enable_flag  Debug.D_rule
-      | 't' -> Debug.enable_flag  Debug.D_typeChecking
-      | 'r' -> Debug.enable_flag  Debug.D_reduce
-      | 'm' -> Debug.enable_flag  Debug.D_matching
+      | 'u' -> Debug.enable_flag  Typing.D_rule
+      | 't' -> Debug.enable_flag  Typing.D_typeChecking
+      | 'r' -> Debug.enable_flag  Reduction.D_reduce
+      | 'm' -> Debug.enable_flag  Dtree.D_matching
       | c -> raise (DebugFlagNotRecognized c)
     )
 

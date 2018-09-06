@@ -4,6 +4,9 @@ open Rule
 open Term
 open Dtree
 
+type Debug.flag += D_reduce
+let _ = Debug.register_flag D_reduce "Reduce"
+
 type red_strategy = Hnf | Snf | Whnf
 
 type red_cfg = {

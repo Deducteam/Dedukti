@@ -93,8 +93,7 @@ val get_path : unit -> string list
 module Debug : sig
 
   type flag  = ..
-  type flag += D_warn | D_notice | D_module | D_typeChecking
-            | D_rule | D_reduce | D_matching
+  type flag += D_warn | D_notice
 
   (** [register_flag fl m] set the header of error messages tagged by [f] to be [m] *)
   val register_flag : flag -> string -> unit
