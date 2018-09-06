@@ -30,7 +30,7 @@ let selection  = ref None
 
 let beta = ref true
 
-let select f b =
+let select f b : unit =
   selection := f;
   beta := b
 
@@ -321,7 +321,7 @@ and are_convertible sg t1 t2 =
   with NotConvertible -> false
 
 let quick_reduction = function
-  | Snf -> snf
+  | Snf  -> snf
   | Whnf -> whnf
 
 
