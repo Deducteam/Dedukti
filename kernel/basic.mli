@@ -161,7 +161,7 @@ val pp_lazy   : 'a printer -> 'a Lazy.t printer
 (** Printing object with printer or default string when None. *)
 val pp_option : string -> 'a printer -> 'a option printer
 
-(** Printing couples *)
+(** Printing pairs *)
 val pp_pair : 'a printer -> 'b printer -> ('a * 'b) printer
 
 (** Printing triples *)
