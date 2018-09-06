@@ -95,8 +95,6 @@ val get_path : unit -> string list
 
 module Debug : sig
 
-  exception DebugFlagNotRecognized of char
-
   type flag  = ..
   type flag += D_warn | D_notice
 
