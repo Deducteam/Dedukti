@@ -92,18 +92,9 @@ val get_path : unit -> string list
 
 module Debug : sig
 
-  type flag
-  val d_warn         : flag (** Warnings *)
-  val d_notice       : flag (** Notices *)
-  val d_module       : flag (** Modules *)
-  val d_confluence   : flag (** Confluence *)
-  val d_rule         : flag (** Rule type checking *)
-  val d_typeChecking : flag (** Type checking *)
-  val d_reduce       : flag (** Reduction *)
-  val d_matching     : flag (** Pattern matching *)
-
-  val  enable_flag : flag -> unit (** Activates given flag's debugging *)
-  val disable_flag : flag -> unit (** Deactivates given flag's debugging *)
+  type flag  = ..
+  type flag += D_warn | D_notice | D_module | D_confluence | D_typeChecking
+            | D_rule | D_reduce | D_matching
 
   (** Sets multiple debugging flags from a string:
       q : disables d_Warn
@@ -117,6 +108,15 @@ module Debug : sig
   *)
   val set_debug_mode : string -> unit
 
+  (** [register_flag fl m] set the header of error messages tagged by [f] to be [m] *)
+  val register_flag : flag -> string -> unit
+
+  (** Activates error messages associated to a flag *)
+  val enable_flag : flag -> unit
+
+  (** Desactivates error messages associated to a flag *)
+  val disable_flag : flag -> unit
+      
   (** [debug f] prints information on the standard error channel
       if the given flag [f] is currently active. *)
   val debug : flag -> ('a, Format.formatter, unit, unit) format4 -> 'a

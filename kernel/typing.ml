@@ -52,7 +52,7 @@ let extend_ctx a ctx = function
 (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
 let rec infer sg (ctx:typed_context) (te:term) : typ =
-  Debug.(debug d_typeChecking "Inferring: %a" pp_term te);
+  Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
   match te with
   | Kind -> raise (TypingError KindIsNotTypable)
   | Type l -> mk_Kind
@@ -77,7 +77,7 @@ let rec infer sg (ctx:typed_context) (te:term) : typ =
   | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
 and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
-  Debug.(debug d_typeChecking "Checking: %a : %a" pp_term te pp_term ty_exp);
+  Debug.(debug D_typeChecking "Checking: %a : %a" pp_term te pp_term ty_exp);
   match te with
   | Lam (l,x,None,b) ->
     begin
@@ -97,7 +97,7 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     end
   | _ ->
     let ty_inf = infer sg ctx te in
-    Debug.(debug d_typeChecking "Checking convertibility: %a ~ %a"
+    Debug.(debug D_typeChecking "Checking convertibility: %a ~ %a"
              pp_term ty_inf pp_term ty_exp);
     if Reduction.are_convertible sg ty_inf ty_exp then ()
     else
@@ -301,7 +301,7 @@ and infer_pattern_aux sg (sigma:context2)
 
 and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     (lst:constraints) (pat:pattern) : partial_context * constraints =
-  Debug.(debug d_rule "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty);
+  Debug.(debug D_rule "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty);
   match pat with
   | Lambda (l,x,p) ->
     begin
@@ -396,7 +396,7 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   let fail = if !fail_on_unsatisfiable_constraints
     then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))
     else (fun (q,t1,t2) ->
-        Debug.(debug d_warn "Unsatisfiable constraint: %a ~ %a%s"
+        Debug.(debug D_warn "Unsatisfiable constraint: %a ~ %a%s"
                  pp_term t1 pp_term t2
                  (if q > 0 then Format.sprintf " (under %i abstractions)" q else ""))) in
   let sub = SS.mk_idempotent (pseudo_u sg fail SS.identity lst) in
@@ -409,10 +409,10 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
         | None ->
           begin
             (*TODO make Dedukti handle this case*)
-            Debug.(debug_eval d_rule (fun () ->
-                debug d_rule "Failed to infer a typing context for the rule:\n%a."
+            Debug.(debug_eval D_rule (fun () ->
+                debug D_rule "Failed to infer a typing context for the rule:\n%a."
                   pp_untyped_rule rule;
-                let aux i (id,te) = debug d_rule "Try replacing '%a[%i]' by '%a'"
+                let aux i (id,te) = debug D_rule "Try replacing '%a[%i]' by '%a'"
                     pp_ident id i (pp_term_j 0) te in
                 SS.iter aux sub
               ));
@@ -421,7 +421,7 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
       end
   in
   check sg ctx2 ri2 ty_le2;
-  Debug.(debug d_rule "[ %a ] %a --> %a"
+  Debug.(debug D_rule "[ %a ] %a --> %a"
            pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
   sub,
   { name = rule.name;
