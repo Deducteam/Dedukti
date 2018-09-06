@@ -35,6 +35,12 @@ module HId = Hashtbl.Make(
     let hash  = Hashtbl.hash
   end )
 
+type staticity = Static | Definable
+
+(** The pretty printer for the type [staticity] *)
+let pp_staticity fmt s =
+  Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable")
+
 type rw_infos =
   {
     stat          : staticity;

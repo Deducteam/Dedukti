@@ -20,7 +20,11 @@ type signature_error =
   | CouldNotExportModule  of string
 
 exception SignatureError of signature_error
-                         
+
+type staticity = Static | Definable
+
+val pp_staticity : staticity printer
+
 type t
 
 val make                : string -> t

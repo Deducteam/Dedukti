@@ -59,7 +59,7 @@ let mk_entry beautify md =
   else mk_entry md
 
 
-let run_on_file beautify export sizechange file =
+let run_on_file beautify export file =
   let input = open_in file in
   Debug.(debug D_module "Processing file '%s'..." file);
   let md = Env.init file in
@@ -76,7 +76,6 @@ let _ =
   let run_on_stdin = ref None  in
   let export       = ref false in
   let beautify     = ref false in
-  let sizechange   = ref false in
   let options = Arg.align
     [ ( "-d"
       , Arg.String Debug.set_debug_mode
@@ -134,7 +133,7 @@ let _ =
       exit 2
     end;
   try
-    List.iter (run_on_file !beautify !export !sizechange) files;
+    List.iter (run_on_file !beautify !export) files;
     match !run_on_stdin with
     | None   -> ()
     | Some m ->

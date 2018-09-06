@@ -10,7 +10,7 @@ type test =
   | HasType of term * term
 
 type entry =
-  | Decl  of loc * ident * staticity * term
+  | Decl  of loc * ident * Signature.staticity * term
   | Def   of loc * ident * is_opaque * term option * term
   | Rules of loc * Rule.untyped_rule list
   | Eval  of loc * Reduction.red_cfg * term
@@ -24,9 +24,9 @@ type entry =
 let pp_entry fmt e =
   let open Format in
   match e with
-  | Decl(_,id,Static,ty) ->
+  | Decl(_,id,Signature.Static,ty) ->
     fprintf fmt "@[<2>%a :@ %a.@]@.@." pp_ident id pp_term ty
-  | Decl(_,id,Definable,ty) ->
+  | Decl(_,id,Signature.Definable,ty) ->
     fprintf fmt "@[<2>def %a :@ %a.@]@.@." pp_ident id pp_term ty
   | Def(_,id,opaque,ty,te)  ->
     let key = if opaque then "thm" else "def" in
