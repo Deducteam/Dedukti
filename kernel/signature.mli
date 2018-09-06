@@ -23,8 +23,6 @@ exception SignatureError of signature_error
 
 type staticity = Static | Definable
 
-val pp_staticity : staticity printer
-
 type t
 
 val make                : string -> t
