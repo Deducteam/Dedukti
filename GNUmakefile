@@ -94,7 +94,7 @@ META: GNUmakefile
 	@echo 'description = "Dedukti library - λΠ-calculus modulo theory"' >> META
 	@echo 'requires = "unix"'                                           >> META
 	@echo 'archive(byte) = "kernel.cma, api.cma, parser.cma"'           >> META
-	@echo 'archive(native) = "kernel.cmxa, api.cma, parser.cmxa"'       >> META
+	@echo 'archive(native) = "kernel.cmxa, api.cmxa, parser.cmxa"'      >> META
 	@echo                                                               >> META
 	@echo 'package "kernel" ('                                          >> META
 	@echo '  version = "$(VERSION)"'                                    >> META

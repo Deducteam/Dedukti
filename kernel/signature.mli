@@ -5,6 +5,8 @@ open Term
 open Rule
 open Dtree
 
+type Debug.flag += D_module
+
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError     of loc * string * string

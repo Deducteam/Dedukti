@@ -3,6 +3,9 @@ open Term
 open Rule
 open Format
 
+type Debug.flag += D_matching
+let _ = Debug.register_flag D_matching "Matching"
+
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident

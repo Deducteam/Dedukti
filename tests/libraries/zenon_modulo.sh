@@ -73,29 +73,38 @@ $BIN -q -e basics.dk 2> /dev/null
 $BIN -q -e zen.dk 2> /dev/null
 $BIN -q -e zen_focal.dk 2> /dev/null
 
-# Compilation function.
-export readonly BIN=${BIN}
+# Checking function.
+function check() {
+  # Single file checking.
+  function check_gz() {
+    LIBFILE="$1"
+    FILE_GZ="$(basename $1)"
+    FILE_DK="$(basename $FILE_GZ .gz)"
+    cp ${LIBFILE} ${FILE_GZ}
+    gzip -d ${FILE_GZ}
+    ${BIN} -q -nl ${FILE_DK} 2> /dev/null
+    if [ $? -ne 0 ]; then
+      echo -e "\033[0;31mKO\033[0m ${FILE_GZ}"
+      echo "FAILED ${FILE_GZ}" >> error.log
+    else
+      echo -e "\033[0;32mOK\033[0m ${FILE_GZ}"
+    fi
+    rm -f ${FILE_dk}
+  }
 
-function test_gz() {
-  LIBFILE="$1"
-  FILE_GZ="$(basename $1)"
-  FILE_DK="$(basename $FILE_GZ .gz)"
-  cp ${LIBFILE} ${FILE_GZ}
-  gzip -d ${FILE_GZ}
-  ${BIN} -q -nl ${FILE_DK} 2> /dev/null
-  if [ $? -ne 0 ]; then
-    echo -e "\033[0;31mKO\033[0m ${FILE_GZ}"
-    echo "FAILED ${FILE_GZ}" >> error.log
-  else
-    echo -e "\033[0;32mOK\033[0m ${FILE_GZ}"
-  fi
-  rm -f ${FILE_dk}
+  export -f check_gz
+  export readonly BIN=${BIN}
+
+  echo "Compiling the library files with ${NBWORKERS} processes..."
+  find ../files -type f \
+    | xargs -P ${NBWORKERS} -n 1 -I{} bash -c "check_gz {}"
 }
 
-export -f test_gz
+# Exporting necessary things.
+export readonly BIN=${BIN}
+export readonly NBWORKERS=${NBWORKERS}
+export -f check
 
 # Compiling the library files.
-echo "Compiling the library files with ${NBWORKERS} processes..."
-find ../files -type f | xargs -P ${NBWORKERS} -n 1 -I{} bash -c "test_gz {}"
-
+\time -f "Finished in %E at %P with %MKb of RAM" bash -c "check"
 echo "DONE."

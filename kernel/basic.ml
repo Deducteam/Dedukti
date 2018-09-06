@@ -99,53 +99,29 @@ let add_path s = path := s :: !path
 
 module Debug = struct
 
-  type flag = int
-  let d_warn         : flag = 0
-  let d_notice       : flag = 1
-  let d_module       : flag = 2
-  let d_confluence   : flag = 3
-  let d_rule         : flag = 4
-  let d_typeChecking : flag = 5
-  let d_reduce       : flag = 6
-  let d_matching     : flag = 7
+  type flag  = ..
+  type flag += D_warn | D_notice
 
-  let nb_flags = 8
+  let flag_message : (flag, string * bool) Hashtbl.t = Hashtbl.create 8
 
-  (* Default mode is to debug only [d_std] messages. *)
-  let default_flags = [d_warn]
+  let set = Hashtbl.replace flag_message
 
-  (* Headers for debugging messages *)
-  let headers =
-    [| "Warning"
-     ; "Notice"
-     ; "Module"
-     ; "Confluence"
-     ; "Rule"
-     ; "TypeChecking"
-     ; "Reduce"
-     ; "Matching"
-    |]
+  exception DebugMessageNotSet of flag
 
-  (* Array of activated flags. Initialized with [false]s except at [default_flags] indices. *)
-  let active = Array.init nb_flags (fun f -> List.mem f default_flags)
+  let get (fl:flag ) : (string*bool) =
+    try Hashtbl.find flag_message fl
+    with Not_found -> raise (DebugMessageNotSet fl)
 
-  let  enable_flag f = active.(f) <- true
-  let disable_flag f = active.(f) <- false
+  let message   (fl : flag ) : string = fst (get fl)
+  let is_active (fl : flag ) : bool   = snd (get fl)
 
-  exception DebugFlagNotRecognized of char
+  let register_flag fl m = set fl (m         , false)
+  let  enable_flag  fl   = set fl (message fl, true )
+  let disable_flag  fl   = set fl (message fl, false)
 
-  let set_debug_mode =
-    String.iter (function
-        | 'q' -> disable_flag d_warn
-        | 'n' -> enable_flag  d_notice
-        | 'o' -> enable_flag  d_module
-        | 'c' -> enable_flag  d_confluence
-        | 'u' -> enable_flag  d_rule
-        | 't' -> enable_flag  d_typeChecking
-        | 'r' -> enable_flag  d_reduce
-        | 'm' -> enable_flag  d_matching
-        | c -> raise (DebugFlagNotRecognized c)
-      )
+  let _ =
+    set D_warn   ("Warning", true );
+    set D_notice ("Notice" , false)
 
   let do_debug fmt =
     Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
@@ -154,15 +130,12 @@ module Debug = struct
     Format.(ifprintf err_formatter) fmt
 
   let debug f =
-    if active.(f)
-    then
-      match headers.(f) with
-      | "" -> do_debug
-      | h -> (fun fmt -> do_debug ("[%s] " ^^ fmt) h)
+    if is_active f
+    then fun fmt -> do_debug ("[%s] " ^^ fmt) (message f)
     else ignore_debug
   [@@inline]
 
-  let debug_eval f clos = if active.(f) then clos ()
+  let debug_eval f clos = if is_active f then clos ()
 
 end
 

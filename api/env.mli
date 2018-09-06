@@ -16,7 +16,24 @@ type env_error =
 
 exception EnvError of loc * env_error
 
-val check_arity     : bool ref
+(** {2 Debugging} *)
+
+exception DebugFlagNotRecognized of char
+
+val set_debug_mode : string -> unit
+(** Sets multiple debugging flags from a string:
+      q : disables d_Warn
+      n : enables  d_Notice
+      o : enables  d_Module
+      c : enables  d_Confluence
+      u : enables  d_Rule
+      t : enables  d_TypeChecking
+      r : enables  d_Reduce
+      m : enables  d_Matching
+    May raise DebugFlagNotRecognized.
+*)
+
+val check_arity : bool ref
 (** Flag to check for variables arity. Default is true. *)
 
 (** {2 The Global Environment} *)
