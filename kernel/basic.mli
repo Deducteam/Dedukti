@@ -98,20 +98,7 @@ module Debug : sig
   exception DebugFlagNotRecognized of char
 
   type flag  = ..
-  type flag += D_warn | D_notice | D_module | D_confluence | D_typeChecking
-            | D_rule | D_reduce | D_matching
-
-  (** Sets multiple debugging flags from a string:
-      q : disables d_Warn
-      n : enables  d_Notice
-      o : enables  d_Module
-      c : enables  d_Confluence
-      u : enables  d_Rule
-      t : enables  d_TypeChecking
-      r : enables  d_Reduce
-      m : enables  d_Matching
-  *)
-  val set_debug_mode : string -> unit
+  type flag += D_warn | D_notice
 
   (** [register_flag fl m] set the header of error messages tagged by [f] to be [m] *)
   val register_flag : flag -> string -> unit

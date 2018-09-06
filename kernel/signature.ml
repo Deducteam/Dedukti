@@ -5,6 +5,9 @@ open Term
 open Rule
 open Dtree
 
+type Debug.flag += D_module
+let _ = Debug.register_flag D_module "Module"
+
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError     of loc * string * string
@@ -133,7 +136,8 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
     | Some (rs,_) -> Confluence.add_rules rs
   in
   HId.iter aux ctx;
-  Debug.(debug D_confluence "Checking confluence after loading module '%a'..." pp_mident md);
+  Debug.debug Confluence.D_confluence
+    "Checking confluence after loading module '%a'..." pp_mident md;
   try Confluence.check () with
   | Confluence.ConfluenceError err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
 

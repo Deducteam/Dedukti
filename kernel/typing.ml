@@ -4,6 +4,10 @@ open Rule
 open Term
 open Reduction
 
+type Debug.flag += D_typeChecking | D_rule
+let _ = Debug.register_flag D_typeChecking "TypeChecking"
+let _ = Debug.register_flag D_rule         "Rule"
+
 let coc = ref false
 
 let fail_on_unsatisfiable_constraints = ref false
