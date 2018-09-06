@@ -4,7 +4,7 @@ open Parser
 open Entry
 
 let eprint lc fmt =
-  Debug.(debug d_notice ("%a " ^^ fmt) pp_loc lc)
+  Debug.(debug D_notice ("%a " ^^ fmt) pp_loc lc)
 
 let mk_entry md e =
   match e with
@@ -51,7 +51,7 @@ let mk_entry md e =
   | Print(_,s) -> Format.printf "%s@." s
   | Name(_,n) ->
     if not (mident_eq n md)
-    then Debug.(debug d_warn "Invalid #NAME directive ignored.@.")
+    then Debug.(debug D_warn "Invalid #NAME directive ignored.@.")
   | Require(lc,md) -> Env.import lc md
 
 let mk_entry beautify md =
@@ -61,7 +61,7 @@ let mk_entry beautify md =
 
 let run_on_file beautify export file =
   let input = open_in file in
-  Debug.(debug d_module "Processing file '%s'..." file);
+  Debug.(debug Signature.D_module "Processing file '%s'..." file);
   let md = Env.init file in
   Confluence.initialize ();
   Parser.handle_channel md (mk_entry beautify md) input;
@@ -78,10 +78,10 @@ let _ =
   let beautify     = ref false in
   let options = Arg.align
     [ ( "-d"
-      , Arg.String Debug.set_debug_mode
+      , Arg.String Env.set_debug_mode
       , " flags enables debugging for all given flags [qnocutrm]" )
     ; ( "-q"
-      , Arg.Unit (fun () -> Debug.set_debug_mode "q")
+      , Arg.Unit (fun () -> Env.set_debug_mode "q")
       , " Quiet mode (equivalent to -d 'q'" )
     ; ( "-e"
       , Arg.Set export

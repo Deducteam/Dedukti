@@ -1,6 +1,8 @@
 open Basic
 open Rule
 
+type Debug.flag += D_matching
+
 (** {2 Error} *)
 
 type dtree_error =

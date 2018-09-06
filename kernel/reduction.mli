@@ -3,6 +3,8 @@
 open Basic
 open Term
 
+type Debug.flag += D_reduce
+
 type red_strategy = Hnf | Snf | Whnf
 
 type red_cfg = {

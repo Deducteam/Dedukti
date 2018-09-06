@@ -4,6 +4,8 @@ open Basic
 
 (** Type checking/inference *)
 
+type Debug.flag += D_typeChecking | D_rule
+
 val coc : bool ref
 
 val fail_on_unsatisfiable_constraints : bool ref
