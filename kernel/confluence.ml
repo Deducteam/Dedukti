@@ -3,9 +3,7 @@ open Basic
 open Term
 open Rule
 
-
 type Debug.flag += D_confluence
-
 let _ = Debug.register_flag D_confluence "Confluence"
 
 let pp_name fmt cst =

@@ -16,7 +16,6 @@ type env_error =
 
 exception EnvError of loc * env_error
 
-
 (** {2 Debugging} *)
 
 exception DebugFlagNotRecognized of char
@@ -36,7 +35,6 @@ val set_debug_mode : string -> unit
 
 val check_arity : bool ref
 (** Flag to check for variables arity. Default is true. *)
-
 
 (** {2 The Global Environment} *)
 

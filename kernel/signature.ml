@@ -6,7 +6,6 @@ open Rule
 open Dtree
 
 type Debug.flag += D_module
-
 let _ = Debug.register_flag D_module "Module"
 
 type signature_error =
