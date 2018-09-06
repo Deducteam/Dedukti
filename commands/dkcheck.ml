@@ -78,10 +78,10 @@ let _ =
   let beautify     = ref false in
   let options = Arg.align
     [ ( "-d"
-      , Arg.String Debug.set_debug_mode
+      , Arg.String Env.set_debug_mode
       , " flags enables debugging for all given flags [qnocutrm]" )
     ; ( "-q"
-      , Arg.Unit (fun () -> Debug.set_debug_mode "q")
+      , Arg.Unit (fun () -> Env.set_debug_mode "q")
       , " Quiet mode (equivalent to -d 'q'" )
     ; ( "-e"
       , Arg.Set export

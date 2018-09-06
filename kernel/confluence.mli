@@ -3,6 +3,8 @@
 open Basic
 open Rule
 
+type Debug.flag += D_confluence
+
 type confluence_error =
   | NotConfluent   of string
   | MaybeConfluent of string

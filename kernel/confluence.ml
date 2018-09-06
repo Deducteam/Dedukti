@@ -3,6 +3,11 @@ open Basic
 open Term
 open Rule
 
+
+type Debug.flag += D_confluence
+
+let _ = Debug.register_flag D_confluence "Confluence"
+
 let pp_name fmt cst =
   fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
 

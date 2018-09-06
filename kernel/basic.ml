@@ -100,7 +100,7 @@ let add_path s = path := s :: !path
 module Debug = struct
 
   type flag  = ..
-  type flag += D_warn | D_notice | D_module | D_confluence | D_typeChecking
+  type flag += D_warn | D_notice | D_module | D_typeChecking
             | D_rule | D_reduce | D_matching
 
   exception DebugMessageNotSet of flag
@@ -112,7 +112,6 @@ module Debug = struct
     Hashtbl.add flag_message D_warn         ("Warning"     , true);
     Hashtbl.add flag_message D_notice       ("Notice"      , false);
     Hashtbl.add flag_message D_module       ("Module"      , false);
-    Hashtbl.add flag_message D_confluence   ("Confluence"  , false);
     Hashtbl.add flag_message D_rule         ("Rule"        , false);
     Hashtbl.add flag_message D_typeChecking ("TypeChecking", false);
     Hashtbl.add flag_message D_reduce       ("Reduce"      , false);
@@ -142,21 +141,6 @@ module Debug = struct
       let (s,_) = Hashtbl.find flag_message fl in
       Hashtbl.replace flag_message fl (s,false)
     with Not_found -> raise (DebugMessageNotSet fl)
-
-  exception DebugFlagNotRecognized of char
-
-  let set_debug_mode =
-    String.iter (function
-        | 'q' -> disable_flag D_warn
-        | 'n' -> enable_flag  D_notice
-        | 'o' -> enable_flag  D_module
-        | 'c' -> enable_flag  D_confluence
-        | 'u' -> enable_flag  D_rule
-        | 't' -> enable_flag  D_typeChecking
-        | 'r' -> enable_flag  D_reduce
-        | 'm' -> enable_flag  D_matching
-        | c -> raise (DebugFlagNotRecognized c)
-      )
 
   let do_debug fmt =
     Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)

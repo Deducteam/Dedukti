@@ -4,6 +4,21 @@ open Rule
 open Typing
 open Signature
 
+exception DebugFlagNotRecognized of char
+
+let set_debug_mode =
+  String.iter (function
+      | 'q' -> Debug.disable_flag Debug.D_warn
+      | 'n' -> Debug.enable_flag  Debug.D_notice
+      | 'o' -> Debug.enable_flag  Debug.D_module
+      | 'c' -> Debug.enable_flag  Confluence.D_confluence
+      | 'u' -> Debug.enable_flag  Debug.D_rule
+      | 't' -> Debug.enable_flag  Debug.D_typeChecking
+      | 'r' -> Debug.enable_flag  Debug.D_reduce
+      | 'm' -> Debug.enable_flag  Debug.D_matching
+      | c -> raise (DebugFlagNotRecognized c)
+    )
+
 type env_error =
   | EnvErrorType        of typing_error
   | EnvErrorSignature   of signature_error
