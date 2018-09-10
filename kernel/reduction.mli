@@ -40,9 +40,9 @@ val reduction : red_cfg -> Signature.t -> term -> term
 (** [reduction cfg sg te] reduces the term [te] following the configuration [cfg]
     and using the signature [sg]. *)
 
-val quick_reduction : red_target -> Signature.t -> term -> term
-(** [quick_reduction tar sg te] reduces the term [te] to the [tar] normal form
-    and using the signature [sg]. *)
+val default_reduction : red_target -> Signature.t -> term -> term
+(** [default_reduction tar sg te] reduces the term [te] to its [tar] normal form
+    using the signature [sg]. This is the fastest implementation used for typing. *)
 
 val are_convertible : Signature.t -> term -> term -> bool
 (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible

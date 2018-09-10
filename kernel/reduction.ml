@@ -289,7 +289,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
       | None -> st
       | Some (_,ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
 
-(* ********************* *)
+(* ************************************************************** *)
 
 (* Weak Head Normal Form *)
 and whnf sg term = term_of_state ( state_whnf sg { ctx=LList.nil; term; stack=[] } )
@@ -323,17 +323,15 @@ and are_convertible sg t1 t2 =
   try are_convertible_lst sg [(t1,t2)]
   with NotConvertible -> false
 
-let quick_reduction = function
-  | Snf  -> snf
-  | Whnf -> whnf
+let default_reduction = function Snf  -> snf | Whnf -> whnf
 
+(* ************************************************************** *)
 
-let default_logger = fun _ _ _ -> ()
-let default_stop   = fun ()  -> false
+type state_reducer = position -> state -> state
+type  term_reducer = position -> term  -> term
 
-let logged_state_whnf ?log:(log=default_logger) ?stop:(stop=default_stop)
-    (strat:red_strategy) (sg:Signature.t) =
-  let rec aux (pos:Term.position) (st:state) : state =
+let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_reducer =
+  let rec aux : state_reducer = fun (pos:position) (st:state) ->
     if stop () then st else
       match st, strat with
       (* Weak heah beta normal terms *)
@@ -401,12 +399,12 @@ let logged_state_whnf ?log:(log=default_logger) ?stop:(stop=default_stop)
             aux pos st'
   in aux
 
+let term_whnf (st_reducer:state_reducer) : term_reducer =
+  fun pos t -> term_of_state (st_reducer pos { ctx=LList.nil; term=t; stack=[] } )
 
-let term_whnf st_whnf pos t = term_of_state (st_whnf pos { ctx=LList.nil; term=t; stack=[] } )
-
-let term_snf st_whnf =
+let term_snf (st_reducer:state_reducer) : term_reducer =
   let rec aux pos t =
-    match term_whnf st_whnf pos t with
+    match term_whnf st_reducer pos t with
     | Kind | Const _ | DB _ | Type _ as t' -> t'
     | App (f,a,lst) ->
       mk_App (aux (0::pos) f) (aux (1::pos) a)
@@ -416,17 +414,17 @@ let term_snf st_whnf =
   in aux
 
 let reduction cfg sg te =
-  select cfg.select cfg.beta;
   let log, stop =
     match cfg.nb_steps with
-    | None   -> default_logger, default_stop
+    | None   -> (fun _ _ _ -> ()), (fun () -> false)
     | Some n ->
       let aux = ref n in
-      (fun p rn st  -> cfg.logger p rn (lazy (term_of_state st)); decr aux),
-      (fun () -> !aux <= 0)
+      (fun _ _ _ -> decr aux), (fun () -> !aux <= 0)
   in
-  let st_whnf = logged_state_whnf ~log:log ~stop:stop cfg.strat sg in
-  let algo_red = match cfg.target with Snf -> term_snf | Whnf -> term_whnf in
-  let te' = algo_red st_whnf [] te in
+  let st_logger = fun p rn st -> log p rn st; cfg.logger p rn (lazy (term_of_state st)) in
+  let st_red = logged_state_whnf st_logger stop cfg.strat sg in
+  let term_red = match cfg.target with Snf -> term_snf | Whnf -> term_whnf in
+  select cfg.select cfg.beta;
+  let te' = term_red st_red [] te in
   select default_cfg.select default_cfg.beta;
   te'

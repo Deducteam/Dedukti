@@ -38,8 +38,8 @@ exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let  snf = quick_reduction  Snf
-let whnf = quick_reduction Whnf
+let  snf = default_reduction  Snf
+let whnf = default_reduction Whnf
 
 let get_type ctx l x n =
   try let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
