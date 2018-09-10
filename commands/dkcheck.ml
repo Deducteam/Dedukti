@@ -80,6 +80,9 @@ let _ =
     [ ( "-d"
       , Arg.String Env.set_debug_mode
       , " flags enables debugging for all given flags [qnocutrm]" )
+    ; ( "-v"
+      , Arg.Unit (fun () -> Env.set_debug_mode "montru")
+      , " Verbose mode (equivalent to -d 'montru')" )
     ; ( "-q"
       , Arg.Unit (fun () -> Env.set_debug_mode "q")
       , " Quiet mode (equivalent to -d 'q'" )

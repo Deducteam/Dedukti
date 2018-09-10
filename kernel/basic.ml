@@ -28,7 +28,6 @@ let md = fst
 let id = snd
 
 
-
 module WS = Weak.Make(
 struct
   type t        = ident
@@ -155,11 +154,11 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
-let rec split_list i l =
-  if i = 0 then ([],l)
-  else
-    let s1, s2 = split_list (i-1) (List.tl l) in
-    (List.hd l)::s1, s2
+let split x =
+  let rec aux acc n l =
+    if n <= 0 then (List.rev acc, l)
+    else aux ((List.hd l) :: acc) (n-1) (List.tl l) in
+  aux [] x
 
 
 (** {2 Printing functions} *)
@@ -186,3 +185,9 @@ let pp_lazy pp fmt l = Format.fprintf fmt "%a" pp (Lazy.force l)
 let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def
   | Some a -> Format.fprintf fmt "%a" pp a
+
+let pp_pair pp_fst pp_snd fmt x =
+  Format.fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd (snd x)
+
+let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) =
+  Format.fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z

@@ -38,4 +38,3 @@ notifications:
 branches:
   only:
     - master
-    - develop
