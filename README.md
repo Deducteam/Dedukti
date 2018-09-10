@@ -66,7 +66,8 @@ The installation provides the following commands:
  - `-errors-in-snf` Normalizes the types in error messages;
  - `-cc CMD` Sets the external confluence checker command to `CMD`
  - `-nl` Allows non left-linear rewriting rules ([DEPRECATED] default behavior now);
- - `--beautify` Pretty printer. Prints on the standard output.
+ - `--beautify` Pretty printer. Prints on the standard output;
+ - `--help` Prints the list of available options.
 
 ### A SMALL EXAMPLE
 
