@@ -42,7 +42,7 @@ val mk_name : mident -> ident -> name
 (** [name_eq n n'] checks if the two names [n] and [n'] are equals *)
 val name_eq : name -> name -> bool
 
-(** dmark is a special identifier for unification variables *)
+(** [dmark] is a special identifier for unification variables *)
 val dmark : ident
 
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
