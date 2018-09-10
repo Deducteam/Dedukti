@@ -154,11 +154,11 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
-let rec split_list i l =
-  if i = 0 then ([],l)
-  else
-    let s1, s2 = split_list (i-1) (List.tl l) in
-    (List.hd l)::s1, s2
+let split x =
+  let rec aux acc n l =
+    if n <= 0 then (List.rev acc, l)
+    else aux ((List.hd l) :: acc) (n-1) (List.tl l) in
+  aux [] x
 
 
 (** {2 Printing functions} *)

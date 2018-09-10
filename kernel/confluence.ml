@@ -24,13 +24,14 @@ module IdMap = Map.Make(
   )
 
 let confluence_command = ref ""
-let file_out = ref None
 let do_not_erase_confluence_file = ref false
+let file_out = ref None
+let try_out f = match !file_out with None -> () | Some x -> f x
 
 let set_cmd cmd =
-  ( if not (Sys.file_exists cmd) then
-      raise (Sys_error ("'" ^ cmd ^ "' does not exist")));
-  confluence_command := cmd
+  if not (Sys.file_exists cmd)
+  then raise (Sys_error ("'" ^ cmd ^ "' does not exist"))
+  else confluence_command := cmd
 
 let initialize () =
   do_not_erase_confluence_file := false;
@@ -60,15 +61,6 @@ let initialize () =
   app( lam(m_typ,\\v_x. m_F v_x), m_B) -> m_F(m_B)
 )@.";
     end
-
-
-let rec split n lst =
-  let rec aux n acc lst =
-    if n <= 0 then (List.rev acc, lst)
-    else match lst with
-      | [] -> assert false
-      | hd::tl -> aux (n-1) (hd :: acc) tl in
-  aux n [] lst
 
 let print_name fmt cst = fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
 
@@ -212,34 +204,21 @@ let check () =
     if String.compare answer "YES" != 0
     then (
       do_not_erase_confluence_file := true;
-      let error =
-        if      String.compare answer "NO"    == 0 then NotConfluent   cmd
-        else if String.compare answer "MAYBE" == 0 then MaybeConfluent cmd
-        else                                            CCFailure      cmd
-      in raise (ConfluenceError error)
+      let error = match answer with
+        | "NO"    -> NotConfluent   cmd
+        | "MAYBE" -> MaybeConfluent cmd
+        | _       -> CCFailure      cmd in
+      raise (ConfluenceError error)
     )
 
-let add_constant cst =
-  match !file_out with
-  | None -> ()
-  | Some (file,out) ->
+let add_constant cst = try_out (fun (file,out) ->
     let fmt = formatter_of_out_channel out in
-    fprintf fmt "(FUN c_%a : term)@." pp_name cst
+    fprintf fmt "(FUN c_%a : term)@." pp_name cst)
 
-let add_rules lst =
-  match !file_out with
-  | None -> ()
-  | Some (file,out) ->
+let add_rules lst = try_out (fun (file,out) ->
     let fmt = formatter_of_out_channel out in
-    List.iter (pp_rule fmt) lst
+    List.iter (pp_rule fmt) lst)
 
-let finalize () =
-  match !file_out with
-  | None -> ()
-  | Some (file, fmt) ->
-    begin
-      close_out fmt;
-      if !do_not_erase_confluence_file
-      then ()
-      else Sys.remove file
-    end
+let finalize () = try_out (fun (file,out) ->
+    close_out out;
+    if not !do_not_erase_confluence_file then Sys.remove file)
