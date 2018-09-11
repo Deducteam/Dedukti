@@ -217,3 +217,8 @@ let print_entry fmt e =
     ()
   | Require(_, md) ->
     fprintf fmt "#REQUIRE %a.@." print_mident md
+
+(** The pretty printer for the type [Signature.staticity] *)
+let print_staticity fmt s =
+  Format.fprintf fmt "%s"
+    (if s=Signature.Static then "Static" else "Definable")

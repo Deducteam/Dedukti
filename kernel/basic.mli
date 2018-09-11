@@ -42,7 +42,7 @@ val mk_name : mident -> ident -> name
 (** [name_eq n n'] checks if the two names [n] and [n'] are equals *)
 val name_eq : name -> name -> bool
 
-(** qmark is a special identifier for unification variables *)
+(** [dmark] is a special identifier for unification variables *)
 val dmark : ident
 
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
@@ -122,27 +122,31 @@ val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 
 val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
-val split_list : int -> 'a list -> 'a list * 'a list
+val split : int -> 'a list -> 'a list * 'a list
 
 val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
 
-(** Functions printing objects on the given formatter. *)
 type 'a printer = Format.formatter -> 'a -> unit
+(** Functions printing objects on the given formatter. *)
 
-(** Prints to a string *)
 val string_of : 'a printer -> 'a -> string
+(** Prints to a string *)
 
-(** Printing identifiers and names *)
+(* Printing identifiers and names *)
 val pp_ident  : ident  printer
 val pp_mident : mident printer
 val pp_name   : name   printer
 val pp_loc    : loc    printer
 
-(** Printing each elements of arrays / lists using the separator [sep] between elements. *)
+(* Printing each elements of arrays / lists using the separator [sep] between elements. *)
 val pp_list   : string -> 'a printer -> 'a list printer
 val pp_llist  : string -> 'a printer -> 'a LList.t printer
 val pp_arr    : string -> 'a printer -> 'a array printer
-val pp_lazy   : 'a printer -> 'a Lazy.t printer
 
-(** Printing object with printer or default string when None. *)
 val pp_option : string -> 'a printer -> 'a option printer
+(** Printing object with printer or default string when None. *)
+
+(* Printing basic structures *)
+val pp_lazy   : 'a printer -> 'a Lazy.t printer
+val pp_pair   : 'a printer -> 'b printer -> ('a * 'b) printer
+val pp_triple : 'a printer -> 'b printer -> 'c printer -> ('a * 'b * 'c) printer

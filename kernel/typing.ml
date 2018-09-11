@@ -80,7 +80,7 @@ let rec infer sg (ctx:typed_context) (te:term) : typ =
   | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
 and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
-  Debug.(debug D_typeChecking "Checking: %a : %a" pp_term te pp_term ty_exp);
+  Debug.(debug D_typeChecking "Checking (%a): %a : %a" pp_loc (get_loc te) pp_term te pp_term ty_exp);
   match te with
   | Lam (l,x,None,b) ->
     begin

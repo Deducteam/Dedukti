@@ -277,7 +277,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     match find_dtree (List.length stack) trees with
     | None -> st
     | Some (ar, tree) ->
-      let s1, s2 = split_list ar stack in
+      let s1, s2 = split ar stack in
       match gamma_rw sg are_convertible snf state_whnf s1 tree with
       | None -> st
       | Some (_,ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
@@ -383,7 +383,7 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
         match find_dtree (List.length stack) trees with
         | None -> st
         | Some (ar, tree) ->
-          let s1, s2 = split_list ar stack in
+          let s1, s2 = split ar stack in
           match gamma_rw sg are_convertible snf state_whnf s1 tree with
           | None -> st
           | Some (rn,ctx,term) ->
