@@ -39,13 +39,6 @@ let select f b : unit =
 
 exception NotConvertible
 
-let rev_mapi f l =
-  let rec rmap_f i accu = function
-    | [] -> accu
-    | a::l -> rmap_f (i+1) (f i a :: accu) l
-  in
-  rmap_f 0 [] l
-
 let rec zip_lists l1 l2 lst =
   match l1, l2 with
   | [], [] -> lst

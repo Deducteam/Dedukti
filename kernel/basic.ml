@@ -161,6 +161,13 @@ let rec split_list i l =
     let s1, s2 = split_list (i-1) (List.tl l) in
     (List.hd l)::s1, s2
 
+let rev_mapi f l =
+  let rec rmap_f i accu = function
+    | [] -> accu
+    | a::l -> rmap_f (i+1) (f i a :: accu) l
+  in
+  rmap_f 0 [] l
+
 
 (** {2 Printing functions} *)
 
