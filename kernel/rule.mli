@@ -35,6 +35,7 @@ type constr =
 (** {2 Rewrite Rules} *)
 
 type rule_name =
+  | Beta
   | Delta of name
   (** Rules associated to the definition of a constant *)
   | Gamma of bool * name

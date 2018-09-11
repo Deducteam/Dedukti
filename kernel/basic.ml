@@ -160,6 +160,13 @@ let split x =
     else aux ((List.hd l) :: acc) (n-1) (List.tl l) in
   aux [] x
 
+let rev_mapi f l =
+  let rec rmap_f i accu = function
+    | [] -> accu
+    | a::l -> rmap_f (i+1) (f i a :: accu) l
+  in
+  rmap_f 0 [] l
+
 
 (** {2 Printing functions} *)
 

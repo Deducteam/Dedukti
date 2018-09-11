@@ -124,6 +124,8 @@ val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
 val split : int -> 'a list -> 'a list * 'a list
 
+val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
+
 type 'a printer = Format.formatter -> 'a -> unit
 (** Functions printing objects on the given formatter. *)
 

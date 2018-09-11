@@ -127,17 +127,16 @@ let print_typed_context fmt ctx =
 
 let print_rule_name fmt rule =
   let aux b cst =
-    if b || !print_default_name then
-      if mident_eq (md cst) (get_name ()) then
-        Format.fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
-      else
-      Format.fprintf fmt "@[<h>{%a}@] " print_name cst
-    else
-      Format.fprintf fmt ""
+    if b || !print_default_name
+    then
+      if mident_eq (md cst) (get_name ())
+      then Format.fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
+      else Format.fprintf fmt "@[<h>{%a}@] " print_name cst
   in
   match rule with
-  | Delta(cst) -> aux true cst (* not printed *)
-  | Gamma(b,cst) -> aux b cst
+  | Beta         -> ()
+  | Delta(cst)   -> aux true cst (* not printed *)
+  | Gamma(b,cst) -> aux b    cst
 
 let print_untyped_rule fmt (rule:untyped_rule) =
   let print_decl out (_,id) =
@@ -170,15 +169,9 @@ let print_rule_infos out ri =
   in
   print_untyped_rule out rule
 
-let print_red_cfg fmt strat =
+let print_red_cfg fmt cfg =
   let open Reduction in
-  match strat with
-  | {strategy=Reduction.Snf ;nb_steps=None   } -> ()
-  | {strategy=Reduction.Snf ;nb_steps=Some i } -> Format.fprintf fmt "[%i]" i
-  | {strategy=Reduction.Hnf ;nb_steps=None   } -> Format.fprintf fmt "[HNF]"
-  | {strategy=Reduction.Hnf ;nb_steps=Some i } -> Format.fprintf fmt "[HNF,%i]" i
-  | {strategy=Reduction.Whnf;nb_steps=None   } -> Format.fprintf fmt "[WHNF]"
-  | {strategy=Reduction.Whnf;nb_steps=Some i } -> Format.fprintf fmt "[WHNF,%i]" i
+  Format.fprintf fmt "%a" pp_red_cfg  cfg
 
 let print_entry fmt e =
   let open Format in
