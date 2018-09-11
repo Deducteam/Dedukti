@@ -337,12 +337,12 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
       (* Weak heah beta normal terms *)
       | { term=Type _ }, _
       | { term=Kind   }, _ -> st
-        
+
       | { term=Pi _ }  , ByName
       | { term=Pi _ }  , ByValue -> st
       | { ctx=ctx; term=Pi(l,x,a,b) }, ByStrongValue ->
         let a' = term_of_state (aux (0::pos) {ctx=ctx; term=a; stack=[]}) in
-        (** Should we also reduce b ? *)
+        (* Should we also reduce b ? *)
         {st with term=mk_Pi l x a' b }
 
       (* Reducing type annotation *)
