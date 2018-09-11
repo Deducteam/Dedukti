@@ -8,12 +8,12 @@ type red_target   = Snf | Whnf
 type red_strategy = ByName | ByValue | ByStrongValue
 
 type red_cfg = {
-  select   : (Rule.rule_name -> bool) option;
-  nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
-  target   : red_target;
-  strat    : red_strategy;
-  beta     : bool;
-  logger   : position -> Rule.rule_name -> term Lazy.t -> unit
+  select       : (Rule.rule_name -> bool) option;
+  nb_steps     : int option; (* [Some 0] for no evaluation, [None] for no bound *)
+  target       : red_target;
+  strat        : red_strategy;
+  beta         : bool;
+  logger       : position -> Rule.rule_name -> term Lazy.t -> unit
 }
 (** Configuration for reduction.
     [select] = [Some f] restreins rules according to the given filter on names.
@@ -46,6 +46,6 @@ val default_reduction : red_target -> Signature.t -> term -> term
 (** [default_reduction tar sg te] reduces the term [te] to its [tar] normal form
     using the signature [sg]. This is the fastest implementation used for typing. *)
 
-val are_convertible : Signature.t -> term -> term -> bool
+val are_convertible : ?logger:(term -> term -> bool) -> Signature.t -> term -> term -> bool
 (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
     or not in the signature [sg]. *)
