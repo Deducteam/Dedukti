@@ -30,10 +30,12 @@ val pp_red_cfg : red_cfg printer
 
 val default_cfg : red_cfg
 (** default configuration where:
-    [select] = [None] ;
-    [nb_steps] = [None] ;
-    [strategy] = [Snf] ;
-    [beta] = [true] ;
+    - [select]   = [None]
+    - [nb_steps] = [None]
+    - [strategy] = [ByName]
+    - [target]   = [Snf]
+    - [beta]     = [true]
+    - [logger]   = [fun _ _ _ -> ()]
 *)
 
 val reduction : red_cfg -> Signature.t -> term -> term

@@ -39,13 +39,6 @@ let select f b : unit =
 
 exception NotConvertible
 
-let rev_mapi f l =
-  let rec rmap_f i accu = function
-    | [] -> accu
-    | a::l -> rmap_f (i+1) (f i a :: accu) l
-  in
-  rmap_f 0 [] l
-
 let rec zip_lists l1 l2 lst =
   match l1, l2 with
   | [], [] -> lst
@@ -284,7 +277,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     match find_dtree (List.length stack) trees with
     | None -> st
     | Some (ar, tree) ->
-      let s1, s2 = split_list ar stack in
+      let s1, s2 = split ar stack in
       match gamma_rw sg are_convertible snf state_whnf s1 tree with
       | None -> st
       | Some (_,ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
@@ -390,7 +383,7 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
         match find_dtree (List.length stack) trees with
         | None -> st
         | Some (ar, tree) ->
-          let s1, s2 = split_list ar stack in
+          let s1, s2 = split ar stack in
           match gamma_rw sg are_convertible snf state_whnf s1 tree with
           | None -> st
           | Some (rn,ctx,term) ->

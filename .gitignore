@@ -5,6 +5,7 @@ _build/
 
 # Dedukti files.
 *.dko
+*.depend
 tests/libraries/**/*.dk
 tests/libraries/**
 # archives

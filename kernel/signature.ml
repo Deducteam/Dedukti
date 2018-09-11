@@ -40,6 +40,10 @@ module HId = Hashtbl.Make(
 
 type staticity = Static | Definable
 
+(** The pretty printer for the type [staticity] *)
+let pp_staticity fmt s =
+  Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable")
+
 type rw_infos =
   {
     stat          : staticity;
@@ -59,6 +63,8 @@ let make file =
   { name; file; tables; external_rules=[]; }
 
 let get_name sg = sg.name
+
+(******************************************************************************)
 
 let marshal (file:string) (deps:string list) (env:rw_infos HId.t) (ext:rule_infos list list) : bool =
   try
@@ -106,6 +112,18 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos li
     | Sys_error s -> raise (SignatureError (UnmarshalSysError (lc,m,s)))
     | SignatureError s -> raise (SignatureError s)
     | _ -> raise (SignatureError (UnmarshalUnknown (lc,m)))
+
+let read_dko lc m =
+  let deps,ctx,ext = unmarshal lc m in
+  let mod_sig = ref [] in
+  let treat_unmarshaled id infos =
+    match infos.rule_opt_info with
+    | None        -> mod_sig := (id,infos.stat,infos.ty,[]):: !mod_sig
+    | Some (rs,_) -> mod_sig := (id,infos.stat,infos.ty,rs):: !mod_sig
+  in
+  HId.iter treat_unmarshaled ctx;
+  deps,!mod_sig,ext
+  
 
 (******************************************************************************)
 

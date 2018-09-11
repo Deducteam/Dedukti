@@ -226,6 +226,7 @@ distclean: clean
 	@cd tests/libraries && ./dklib.sh clean
 	@cd tests/libraries && ./zenon_modulo.sh clean
 	$(Q)find -name "*~" -exec rm {} \;
+	$(Q)find -name "*.dko" -exec rm {} \;
 	$(Q)rm -f kernel/version.ml
 	$(Q)rm -f META
 
