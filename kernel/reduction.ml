@@ -299,52 +299,29 @@ and snf sg (t:term) : term =
   | Pi  (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
+and conversion_step : (term * term) -> (term * term) list -> (term * term) list = fun (l,r) lst ->
+  match l,r with
+  | Kind, Kind | Type _, Type _                 -> lst
+  | Const (_,n), Const (_,n') when name_eq n n' -> lst
+  | DB (_,_,n) , DB (_,_,n')  when n == n'      -> lst
+  | App (f,a,args), App (f',a',args') ->
+     (f,f') :: (a,a') :: (zip_lists args args' lst)
+  | Lam (_,_,_,b), Lam (_,_,_ ,b') -> (b,b')::lst
+  | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
+  | _ -> raise NotConvertible
+
 and are_convertible_lst sg : (term*term) list -> bool = function
   | [] -> true
   | (t1,t2)::lst ->
-    are_convertible_lst sg
-      ( if term_eq t1 t2 then lst
-        else
-          match whnf sg t1, whnf sg t2 with
-          | Kind, Kind | Type _, Type _                 -> lst
-          | Const (_,n), Const (_,n') when name_eq n n' -> lst
-          | DB (_,_,n) , DB (_,_,n')  when n == n'      -> lst
-          | App (f,a,args), App (f',a',args') ->
-            (f,f') :: (a,a') :: (zip_lists args args' lst)
-          | Lam (_,_,_,b), Lam (_,_,_ ,b') -> (b,b') :: lst
-          | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
-          | _ -> raise NotConvertible)
-
-and logged_are_convertible_lst sg log : (term * term) list -> bool = function
-  | [] -> true
-  | (t1,t2)::lst ->
-     if not (log  t1 t2) then
-       logged_are_convertible_lst sg log
-         ( if term_eq t1 t2 then lst
-           else
-             match whnf sg t1, whnf sg t2 with
-             | Kind, Kind | Type _, Type _                 -> lst
-             | Const (_,n), Const (_,n') when name_eq n n' -> lst
-             | DB (_,_,n) , DB (_,_,n')  when n == n'      -> lst
-             | App (f,a,args), App (f',a',args') ->
-                (f,f') :: (a,a') :: (zip_lists args args' lst)
-             | Lam (_,_,_,b), Lam (_,_,_ ,b') -> (b,b') :: lst
-             | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
-             | _ -> raise NotConvertible)
+     if term_eq t1 t2 then
+       are_convertible_lst sg lst
      else
-       true
+       are_convertible_lst sg (conversion_step (whnf sg t1, whnf sg t2) lst)
 
 (* Convertibility Test *)
-and are_convertible ?(logger=default_conv_logger) sg t1 t2 =
+and are_convertible sg t1 t2 =
   try
-    if logger == default_conv_logger then
-      are_convertible_lst sg [(t1,t2)]
-    else
-      logged_are_convertible_lst sg logger [(t1,t2)]
-  with NotConvertible -> false
-
-and logged_are_convertible sg log t1 t2 =
-  try logged_are_convertible_lst sg log [(t1,t2)]
+    are_convertible_lst sg [(t1,t2)]
   with NotConvertible -> false
 
 

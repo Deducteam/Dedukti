@@ -46,6 +46,14 @@ val default_reduction : red_target -> Signature.t -> term -> term
 (** [default_reduction tar sg te] reduces the term [te] to its [tar] normal form
     using the signature [sg]. This is the fastest implementation used for typing. *)
 
-val are_convertible : ?logger:(term -> term -> bool) -> Signature.t -> term -> term -> bool
+exception NotConvertible
+
+val conversion_step : term * term -> (term * term) list -> (term * term) list
+(** [conversion_step (l,r) lst] returns a list [lst'] containing new conversion obligations.
+    Raise [NotConvertible] if the two terms cannot be convertible.
+ *)
+
+
+val are_convertible : Signature.t -> term -> term -> bool
 (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
     or not in the signature [sg]. *)
