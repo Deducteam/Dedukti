@@ -67,7 +67,8 @@ let run_on_file beautify export file =
   Parser.handle_channel md (mk_entry beautify md) input;
   if not beautify then
     Errors.success "File '%s' was successfully checked." file;
-  Env.export ();
+  if export then
+    Env.export ();
   Confluence.finalize ();
   close_in input
 
