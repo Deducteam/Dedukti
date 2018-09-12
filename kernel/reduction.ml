@@ -419,3 +419,17 @@ let reduction cfg sg te =
   let te' = term_red st_red [] te in
   select default_cfg.select default_cfg.beta;
   te'
+
+module type RE = sig
+
+  val whnf            : Signature.t -> term -> term
+  val snf             : Signature.t -> term -> term
+  val are_convertible : Signature.t -> term -> term -> bool
+end
+
+module REDefault : RE =
+struct
+  let whnf = default_reduction Whnf
+  let snf  = default_reduction Snf
+  let are_convertible = are_convertible
+end

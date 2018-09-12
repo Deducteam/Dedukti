@@ -55,3 +55,12 @@ val conversion_step : term * term -> (term * term) list -> (term * term) list
 val are_convertible : Signature.t -> term -> term -> bool
 (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
     or not in the signature [sg]. *)
+
+module type RE = sig
+
+  val whnf            : Signature.t -> term -> term
+  val snf             : Signature.t -> term -> term
+  val are_convertible : Signature.t -> term -> term -> bool
+end
+
+module REDefault : RE
