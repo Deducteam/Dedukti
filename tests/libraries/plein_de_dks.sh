@@ -57,7 +57,11 @@ fi
 # Checking function.
 function check_plein_de_dks() {
   for FILE in `ls *.dk`; do
-    ${BIN} -nl ${FILE}
+	${BIN} -nl ${FILE}
+	if [ $? -ne 0 ]; then
+	  echo "File ${FILE} failed !"
+	  exit 1
+	fi
   done
 }
 
