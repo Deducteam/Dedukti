@@ -16,7 +16,7 @@ type red_cfg = {
   target   : red_target;
   strat    : red_strategy;
   beta     : bool;
-  logger   : position -> Rule.rule_name -> term Lazy.t -> unit
+  logger   : position -> Rule.rule_name -> term Lazy.t -> unit;
 }
 
 let pp_red_cfg fmt cfg =
@@ -138,21 +138,18 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
              (ctx:env) (constrs: constr list) : bool  =
   match constrs with
   | [] -> true
-  | (Linearity (i,j))::tl ->
-    let t1 = mk_DB dloc dmark i in
-    let t2 = mk_DB dloc dmark j in
-    if convertible sg (term_of_state { ctx; term=t1; stack=[] })
-                      (term_of_state { ctx; term=t2; stack=[] })
-    then test sg convertible ctx tl
-    else false
-  | (Bracket (i,t))::tl ->
-    let t1 = Lazy.force (LList.nth ctx i) in
-    let t2 = term_of_state { ctx; term=t; stack=[] } in
-    if convertible sg t1 t2
-    then test sg convertible ctx tl
-    else
-      (*FIXME: if a guard is not satisfied should we fail or only warn the user? *)
-      raise (Signature.SignatureError( Signature.GuardNotSatisfied(get_loc t1, t1, t2) ))
+  | Linearity (i,j)::tl ->
+     let t1 = mk_DB dloc dmark i in
+     let t2 = mk_DB dloc dmark j in
+     if convertible sg (term_of_state { ctx; term=t1; stack=[] })
+                       (term_of_state { ctx; term=t2; stack=[] })
+     then test sg convertible ctx tl
+     else false
+  | Bracket (i,t)::tl ->
+     let t1 = Lazy.force (LList.nth ctx i) in
+     let t2 = term_of_state { ctx; term=t; stack=[] } in
+     if convertible sg t1 t2 then test sg convertible ctx tl
+     else raise (Signature.SignatureError(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
 
 let rec find_case (st:state) (cases:(case * dtree) list)
                   (default:dtree option) : (dtree*state list) option =
@@ -295,21 +292,22 @@ and snf sg (t:term) : term =
   | Pi  (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
+and conversion_step : (term * term) -> (term * term) list -> (term * term) list = fun (l,r) lst ->
+  match l,r with
+  | Kind, Kind | Type _, Type _                 -> lst
+  | Const (_,n), Const (_,n') when name_eq n n' -> lst
+  | DB (_,_,n) , DB (_,_,n')  when n == n'      -> lst
+  | App (f,a,args), App (f',a',args') ->
+     (f,f') :: (a,a') :: (zip_lists args args' lst)
+  | Lam (_,_,_,b), Lam (_,_,_ ,b') -> (b,b')::lst
+  | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
+  | _ -> raise NotConvertible
+
 and are_convertible_lst sg : (term*term) list -> bool = function
   | [] -> true
   | (t1,t2)::lst ->
-    are_convertible_lst sg
-      ( if term_eq t1 t2 then lst
-        else
-          match whnf sg t1, whnf sg t2 with
-          | Kind, Kind | Type _, Type _                 -> lst
-          | Const (_,n), Const (_,n') when name_eq n n' -> lst
-          | DB (_,_,n) , DB (_,_,n')  when n == n'      -> lst
-          | App (f,a,args), App (f',a',args') ->
-            (f,f') :: (a,a') :: (zip_lists args args' lst)
-          | Lam (_,_,_,b), Lam (_,_,_ ,b') -> (b,b') :: lst
-          | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
-          | _ -> raise NotConvertible)
+     if term_eq t1 t2 then are_convertible_lst sg lst
+     else are_convertible_lst sg (conversion_step (whnf sg t1, whnf sg t2) lst)
 
 (* Convertibility Test *)
 and are_convertible sg t1 t2 =
