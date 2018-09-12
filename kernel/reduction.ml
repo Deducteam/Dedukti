@@ -142,9 +142,8 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
      let t1 = mk_DB dloc dmark i in
      let t2 = mk_DB dloc dmark j in
      if convertible sg (term_of_state { ctx; term=t1; stack=[] })
-          (term_of_state { ctx; term=t2; stack=[] })
-     then
-       test sg convertible ctx tl
+                       (term_of_state { ctx; term=t2; stack=[] })
+     then test sg convertible ctx tl
      else false
   | Bracket (i,t)::tl ->
      let t1 = Lazy.force (LList.nth ctx i) in
