@@ -314,7 +314,6 @@ and are_convertible sg t1 t2 =
   try are_convertible_lst sg [(t1,t2)]
   with NotConvertible -> false
 
-
 let default_reduction = function Snf  -> snf | Whnf -> whnf
 
 (* ************************************************************** *)

@@ -8,12 +8,12 @@ type red_target   = Snf | Whnf
 type red_strategy = ByName | ByValue | ByStrongValue
 
 type red_cfg = {
-  select       : (Rule.rule_name -> bool) option;
-  nb_steps     : int option; (* [Some 0] for no evaluation, [None] for no bound *)
-  target       : red_target;
-  strat        : red_strategy;
-  beta         : bool;
-  logger       : position -> Rule.rule_name -> term Lazy.t -> unit
+  select   : (Rule.rule_name -> bool) option;
+  nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
+  target   : red_target;
+  strat    : red_strategy;
+  beta     : bool;
+  logger   : position -> Rule.rule_name -> term Lazy.t -> unit
 }
 (** Configuration for reduction.
     [select] = [Some f] restreins rules according to the given filter on names.
