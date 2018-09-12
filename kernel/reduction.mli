@@ -49,7 +49,7 @@ val default_reduction : red_target -> Signature.t -> term -> term
 exception NotConvertible
 
 val conversion_step : term * term -> (term * term) list -> (term * term) list
-(** [conversion_step (l,r) lst] returns a list [lst'] containing new conversion obligations.
+(** [conversion_step (l,r) lst] returns a list [lst'] containing new convertibility obligations.
     Raise [NotConvertible] if the two terms cannot be convertible. *)
 
 val are_convertible : Signature.t -> term -> term -> bool
