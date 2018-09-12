@@ -50,9 +50,7 @@ exception NotConvertible
 
 val conversion_step : term * term -> (term * term) list -> (term * term) list
 (** [conversion_step (l,r) lst] returns a list [lst'] containing new conversion obligations.
-    Raise [NotConvertible] if the two terms cannot be convertible.
- *)
-
+    Raise [NotConvertible] if the two terms cannot be convertible. *)
 
 val are_convertible : Signature.t -> term -> term -> bool
 (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
