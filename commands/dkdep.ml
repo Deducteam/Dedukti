@@ -86,7 +86,7 @@ let handle_entry e =
   | Decl(_,_,_,te)              -> mk_term te
   | Def(_,_,_,None,te)          -> mk_term te
   | Def(_,_,_,Some(ty),te)      -> mk_term ty; mk_term te
-  | Rules(rs)                   -> List.iter mk_rule rs
+  | Rules(_,rs)                 -> List.iter mk_rule rs
   | Eval(_,_,te)                -> mk_term te
   | Infer (_,_,te)              -> mk_term te
   | Check(_,_,_,Convert(t1,t2)) -> mk_term t1; mk_term t2
@@ -109,9 +109,8 @@ let handle_file : string -> dep_data = fun file ->
     close_in input;
     (md, (file, !current_deps))
   with
-  | Parse_error(loc,msg) -> Format.eprintf "Parse error in %a...@." pp_loc loc; exit 1
-  | Sys_error err        -> Format.eprintf "ERROR %s.@." err; exit 1
-  | Exit                 -> exit 3
+  | Env.EnvError (l,e)   -> Errors.fail_env_error l e
+  | Sys_error err        -> Errors.fail_sys_error err
 
 (** Output main program. *)
 
@@ -158,13 +157,10 @@ let _ =
   let sorted  = ref false  in
   let args = Arg.align
       [ ( "-d"
-        , Arg.String Debug.set_debug_mode
+        , Arg.String Env.set_debug_mode
         , "flags enables debugging for all given flags" )
-      ; ( "-v"
-        , Arg.Unit (fun () -> Debug.set_debug_mode "w")
-        , " Verbose mode (equivalent to -d 'w')" )
       ; ( "-q"
-        , Arg.Unit (fun () -> Debug.set_debug_mode "q")
+        , Arg.Unit (fun () -> Env.set_debug_mode "q")
       , " Quiet mode (equivalent to -d 'q'" )
       ; ( "-o"
         , Arg.String (fun n -> output := open_out n)

@@ -5,6 +5,9 @@ open Term
 open Rule
 open Dtree
 
+type Debug.flag += D_module
+let _ = Debug.register_flag D_module "Module"
+
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError     of loc * string * string
@@ -17,35 +20,36 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
+  | CouldNotExportModule  of string
 
 exception SignatureError of signature_error
 
 module HMd = Hashtbl.Make(
-struct
-  type t        = mident
-  let equal     = mident_eq
-  let hash      = Hashtbl.hash
-end )
+  struct
+    type t    = mident
+    let equal = mident_eq
+    let hash  = Hashtbl.hash
+  end )
 
 module HId = Hashtbl.Make(
-struct
-  type t        = ident
-  let equal     = ident_eq
-  let hash      = Hashtbl.hash
-end )
+  struct
+    type t    = ident
+    let equal = ident_eq
+    let hash  = Hashtbl.hash
+  end )
 
 type staticity = Static | Definable | Injective
 
 type rw_infos =
   {
-    stat: staticity;
-    ty: term;
-    rule_opt_info: (rule_infos list* Dtree.t) option
+    stat          : staticity;
+    ty            : term;
+    rule_opt_info : (rule_infos list* Dtree.t) option
   }
 
-type t = { name:mident;
-           file:string;
-           tables:(rw_infos HId.t) HMd.t;
+type t = { name   : mident;
+           file   : string;
+           tables : (rw_infos HId.t) HMd.t;
            mutable external_rules:rule_infos list list; }
 
 let make file =
@@ -73,19 +77,16 @@ let rec find_dko_in_path name = function
   | [] -> failwith "find_dko"  (* Captured by the unmarshal function *)
   | dir :: path ->
       let filename = dir ^ "/" ^ name ^ ".dko" in
-        if file_exists filename then
-          open_in filename
-        else
-          find_dko_in_path name path
+      if file_exists filename
+      then open_in filename
+      else find_dko_in_path name path
 
 let find_dko name =
-  (* First check in the current directory *)
   let filename = name ^ ".dko" in
-    if file_exists filename then
-      open_in filename
-    else
-      (* If not found in the current directory, search in load-path *)
-      find_dko_in_path name (get_path())
+  if file_exists filename (* First check in the current directory *)
+  then open_in filename
+  else find_dko_in_path name (get_path())
+  (* If not found in the current directory, search in load-path *)
 
 let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos list list =
   try
@@ -117,15 +118,15 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
     | Some (rs,_) -> Confluence.add_rules rs
   in
   HId.iter aux ctx;
-  Debug.(debug d_confluence "Checking confluence after loading module '%a'..." pp_mident md);
-  match Confluence.check () with
-  | OK () -> ()
-  | Err err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
+  Debug.debug Confluence.D_confluence
+    "Checking confluence after loading module '%a'..." pp_mident md;
+  try Confluence.check () with
+  | Confluence.ConfluenceError err -> raise (SignatureError (ConfluenceErrorImport (lc,md,err)))
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   if HMd.mem sg.tables m
-  then Debug.(debug d_warn "Trying to import the already loaded module %s." (string_of_mident m))
+  then Debug.(debug D_warn "Trying to import the already loaded module %s." (string_of_mident m))
   else
     let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
     HMd.add sg.tables m ctx;
@@ -133,7 +134,7 @@ let rec import sg lc m =
         let dep = mk_mident dep0 in
         if not (HMd.mem sg.tables dep) then import sg lc dep
       ) deps ;
-    Debug.(debug d_module "Loading module '%a'..." pp_mident m);
+    Debug.(debug D_module "Loading module '%a'..." pp_mident m);
     List.iter (fun rs -> add_rule_infos sg rs) ext;
     check_confluence_on_import lc m ctx
 
@@ -155,11 +156,11 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       | None -> rs
       | Some(mx,_) -> mx@rs
     in
-    match Dtree.of_rules rules with
-    | OK trees ->
-       HId.add env (id r.cst)
-         {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
-    | Err e -> raise (SignatureError (CannotBuildDtree e))
+    let trees =
+      try Dtree.of_rules rules
+      with DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+    in
+    HId.add env (id r.cst) {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
 
 (******************************************************************************)
 
@@ -175,18 +176,19 @@ let get_deps sg : string list = (*only direct dependencies*)
     ) sg.tables []
 
 let export sg =
-  marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules
+  if not (marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules)
+  then raise (SignatureError (CouldNotExportModule sg.file))
 
 (******************************************************************************)
 
-let get_infos sg lc cst =
+let get_env sg lc cst =
   let md = md cst in
-  let env =
-    try HMd.find sg.tables md
-    with Not_found -> import sg lc md; HMd.find sg.tables md
-  in
-    try ( HId.find env (id cst))
-    with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))
+  try HMd.find sg.tables md
+  with Not_found -> import sg lc md; HMd.find sg.tables md
+
+let get_infos sg lc cst =
+  try HId.find (get_env sg lc cst) (id cst)
+  with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))
 
 let is_injective sg lc cst =
   match (get_infos sg lc cst).stat with
@@ -204,9 +206,8 @@ let get_dtree sg rule_filter l cst =
     let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
     if List.length rules' == List.length rules then trees
     else
-      match Dtree.of_rules rules' with
-      | OK ntrees -> ntrees
-      | Err e -> raise (SignatureError (CannotBuildDtree e))
+      try Dtree.of_rules rules' with
+      | DtreeError e -> raise (SignatureError (CannotBuildDtree e))
 
 
 (******************************************************************************)
@@ -215,26 +216,23 @@ let add_declaration sg lc v st ty =
   let cst = mk_name sg.name v in
   Confluence.add_constant cst;
   let env = HMd.find sg.tables sg.name in
-  if HId.mem env v then
-    raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
-  else
-    HId.add env v {stat=st; ty=ty; rule_opt_info=None}
+  if HId.mem env v
+  then raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
+  else HId.add env v {stat=st; ty=ty; rule_opt_info=None}
 
-let add_rules sg lst : unit =
-  let rs = map_error_list Rule.to_rule_infos lst in
-  match rs with
-  | Err e -> raise (SignatureError (CannotMakeRuleInfos e))
-  | OK [] -> ()
-  | OK (r::_ as rs) ->
-    begin
+let add_rules sg = function
+  | [] -> ()
+  | r :: _ as rs ->
+    try
       add_rule_infos sg rs;
       if not (mident_eq sg.name (md r.cst)) then
         sg.external_rules <- rs::sg.external_rules;
-      Confluence.add_rules rs;
-      Debug.(debug d_confluence
+      let open Confluence in
+      add_rules rs;
+      Debug.(debug D_confluence
                "Checking confluence after adding rewrite rules on symbol '%a'"
                pp_name r.cst);
-      match Confluence.check () with
-      | OK () -> ()
-      | Err err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))
-    end
+      try check () with
+      | ConfluenceError err -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,err)))
+    with
+    | RuleError e -> raise (SignatureError (CannotMakeRuleInfos e))

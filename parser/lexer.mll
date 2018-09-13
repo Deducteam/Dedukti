@@ -10,10 +10,8 @@
 
   let prerr_loc lc = eprintf "%a " pp_loc lc
 
-  let fail lc fmt =
-    eprintf "%s"  "parsing error: ";
-    prerr_loc lc;
-    kfprintf (fun _ -> pp_print_newline err_formatter () ; raise Exit) err_formatter fmt
+  let fail lc msg =
+    raise (Env.EnvError (lc, Env.ParseError msg))
 }
 
 let space   = [' ' '\t' '\r']
@@ -60,7 +58,8 @@ rule token = parse
   { ID  ( get_loc lexbuf , mk_ident id ) }
   | '"' { string (Buffer.create 42) lexbuf }
   | _   as s
-  { fail (get_loc lexbuf) "Unexpected characters '%s'." (String.make 1 s) }
+  { let msg = sprintf "Unexpected characters '%s'." (String.make 1 s) in
+    fail (get_loc lexbuf) msg }
   | eof { EOF }
 
 and comment = parse

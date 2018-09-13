@@ -4,7 +4,11 @@ open Basic
 
 (** Type checking/inference *)
 
+type Debug.flag += D_typeChecking | D_rule
+
 val coc : bool ref
+
+val fail_on_unsatisfiable_constraints : bool ref
 
 type typing_error =
   | KindIsNotTypable
@@ -15,7 +19,7 @@ type typing_error =
   | InexpectedKind of term * typed_context
   | DomainFreeLambda of loc
   | CannotInferTypeOfPattern of pattern * typed_context
-  | CannotSolveConstraints of untyped_rule * (int * term * term) list
+  | UnsatisfiableConstraints of untyped_rule * (int * term * term)
   | BracketError1 of term * typed_context
   | BracketError2 of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
