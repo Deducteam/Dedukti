@@ -421,7 +421,6 @@ let reduction cfg sg te =
   te'
 
 module type RE = sig
-
   val whnf            : Signature.t -> term -> term
   val snf             : Signature.t -> term -> term
   val are_convertible : Signature.t -> term -> term -> bool
