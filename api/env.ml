@@ -71,7 +71,7 @@ let _declare lc (id:ident) st ty : unit =
   | Kind | Type _ -> Signature.add_declaration !sg lc id st ty
   | s -> raise (TypingError (SortExpected (ty,[],s)))
 
-let is_static lc cst = Signature.is_static !sg lc cst
+let is_injective lc cst = Signature.is_injective !sg lc cst
 
 
 (*         Rule checking       *)

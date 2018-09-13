@@ -156,9 +156,9 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
         | _, Kind | Kind, _ |_, Type _ | Type _, _ -> warn ()
 
         | Const (_,c), Const (_,c') when name_eq c c' -> keepon ()
-        | Const (l,cst), t when not (Signature.is_static sg l cst) ->
+        | Const (l,cst), t when not (Signature.is_injective sg l cst) ->
           ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
-        | t, Const (l,cst) when not (Signature.is_static sg l cst) ->
+        | t, Const (l,cst) when not (Signature.is_injective sg l cst) ->
           ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
 
         | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
@@ -205,8 +205,8 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
         | _ , App (DB (_,_,n),_,_) when n >= q ->
           if Reduction.are_convertible sg t1' t2' then keepon () else warn ()
 
-        | App (Const (l,cst),_,_), _ when not (Signature.is_static sg l cst) -> keepon ()
-        | _, App (Const (l,cst),_,_) when not (Signature.is_static sg l cst) -> keepon ()
+        | App (Const (l,cst),_,_), _ when not (Signature.is_injective sg l cst) -> keepon ()
+        | _, App (Const (l,cst),_,_) when not (Signature.is_injective sg l cst) -> keepon ()
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
            * | Const name when (is_static name) *)
