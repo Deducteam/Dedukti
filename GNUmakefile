@@ -181,6 +181,11 @@ holide: all
 	@echo "## Compiling holide library ##"
 	@cd tests/libraries && ./holide.sh
 
+.PHONY: dedukti-libraries
+dedukti-libraries: all
+	@echo "## Compiling the Dedukti Libraries folder ##"
+	@cd tests/libraries && ./dedukti-libraries.sh
+
 .PHONY: verine
 verine: all
 	@echo "## Compiling verine library ##"
@@ -203,10 +208,10 @@ zenon_modulo: all
 
 
 .PHONY: light_tests
-light_tests: all matita-light dklib plein_de_dks
+light_tests: all matita-light dklib holide
 
 .PHONY: full_tests
-full_tests: light_tests iprover holide focalide verine zenon_modulo
+full_tests: light_tests iprover focalide dedukti-libraries verine zenon_modulo
 
 
 #### Cleaning targets ########################################################
@@ -225,6 +230,7 @@ distclean: clean
 	@cd tests/libraries && ./iprover.sh clean
 	@cd tests/libraries && ./dklib.sh clean
 	@cd tests/libraries && ./zenon_modulo.sh clean
+	@cd tests/libraries && ./dedukti-libraries.sh clean
 	$(Q)find -name "*~" -exec rm {} \;
 	$(Q)find -name "*.dko" -exec rm {} \;
 	$(Q)rm -f kernel/version.ml
@@ -241,3 +247,17 @@ fullclean: distclean
 	@cd tests/libraries && ./iprover.sh fullclean
 	@cd tests/libraries && ./dklib.sh fullclean
 	@cd tests/libraries && ./zenon_modulo.sh fullclean
+	@cd tests/libraries && ./dedukti-libraries.sh fullclean
+
+.PHONY: cleanlibs
+cleanlibs: 
+	@cd tests/libraries && ./matita.sh fullclean
+	@cd tests/libraries && ./matita-light.sh fullclean
+	@cd tests/libraries && ./plein_de_dks.sh fullclean
+	@cd tests/libraries && ./focalide.sh fullclean
+	@cd tests/libraries && ./holide.sh fullclean
+	@cd tests/libraries && ./verine.sh fullclean
+	@cd tests/libraries && ./iprover.sh fullclean
+	@cd tests/libraries && ./dklib.sh fullclean
+	@cd tests/libraries && ./zenon_modulo.sh fullclean
+	@cd tests/libraries && ./dedukti-libraries.sh fullclean

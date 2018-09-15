@@ -89,7 +89,7 @@ function check() {
     else
       echo -e "\033[0;32mOK\033[0m ${FILE_GZ}"
     fi
-    rm -f ${FILE_dk}
+    rm -f ${FILE_DK}
   }
 
   export -f check_gz
