@@ -123,7 +123,7 @@ let read_dko lc m =
   in
   HId.iter treat_unmarshaled ctx;
   deps,!mod_sig,ext
-  
+
 
 (******************************************************************************)
 
@@ -216,15 +216,17 @@ let is_static sg lc cst =
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
 let get_dtree sg rule_filter l cst =
-  match (get_infos sg l cst).rule_opt_info, rule_filter with
-  | None             , _      -> Dtree.empty
-  | Some(_,trees)    , None   -> trees
-  | Some(rules,trees), Some f ->
-    let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
-    if List.length rules' == List.length rules then trees
-    else
-      try Dtree.of_rules rules' with
-      | DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+  try
+    match (get_infos sg l cst).rule_opt_info, rule_filter with
+    | None             , _      -> Dtree.empty
+    | Some(_,trees)    , None   -> trees
+    | Some(rules,trees), Some f ->
+      let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
+      if List.length rules' == List.length rules then trees
+      else
+        try Dtree.of_rules rules' with
+        | DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+  with SignatureError _ -> Dtree.empty
 
 
 (******************************************************************************)
