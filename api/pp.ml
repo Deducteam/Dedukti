@@ -3,8 +3,6 @@ open Term
 open Rule
 open Printf
 open Entry
-open Env
-(* FIXME: this module is highly redondant with printing functions insides kernel modules *)
 
 (* TODO: make that debuging functions returns a string *)
 let print_db_enabled = ref false
@@ -13,11 +11,12 @@ let print_default_name = ref false
 let cur_md = ref None
 let get_module () =
   match !cur_md with
-  | None -> get_name ()
+  | None -> mk_mident "" (* Modules will always be printed *)
   | Some md -> md
 
 let set_module md =
   cur_md := Some md
+
 let rec print_list = pp_list
 
 let print_ident = pp_ident
@@ -129,7 +128,7 @@ let print_rule_name fmt rule =
   let aux b cst =
     if b || !print_default_name
     then
-      if mident_eq (md cst) (get_name ())
+      if mident_eq (md cst) (get_module ())
       then Format.fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
       else Format.fprintf fmt "@[<h>{%a}@] " print_name cst
   in

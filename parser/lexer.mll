@@ -11,7 +11,7 @@
   let prerr_loc lc = eprintf "%a " pp_loc lc
 
   let fail lc msg =
-    raise (Env.EnvError (lc, Env.ParseError msg))
+    raise (Env.EnvError (Env.init "", lc, Env.ParseError msg))
 }
 
 let space   = [' ' '\t' '\r']

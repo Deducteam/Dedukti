@@ -117,7 +117,7 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   let name =
     let md = match pname with
       | Some (Some md, _) -> md
-      | _ -> Env.get_name ()
+      | _ -> Pp.get_module ()
     in
     Gamma(b,mk_name md id)
   in

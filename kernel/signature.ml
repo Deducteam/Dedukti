@@ -62,7 +62,7 @@ let make file =
   HMd.add tables name (HId.create 251);
   { name; file; tables; external_rules=[]; }
 
-let get_name sg = sg.name
+let get_md sg = sg.name
 
 (******************************************************************************)
 
@@ -123,7 +123,7 @@ let read_dko lc m =
   in
   HId.iter treat_unmarshaled ctx;
   deps,!mod_sig,ext
-  
+
 
 (******************************************************************************)
 

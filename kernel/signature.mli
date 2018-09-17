@@ -30,7 +30,7 @@ type t
 val make                : string -> t
 (** [make file] creates a new signature corresponding to the file [file]. *)
 
-val get_name            : t -> mident
+val get_md              : t -> mident
 (** [get_name sg] returns the name of the signature [sg]. *)
 
 val export              : t -> unit

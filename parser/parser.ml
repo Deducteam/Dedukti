@@ -12,7 +12,7 @@ let read str =
     let loc = Lexer.get_loc str.lexbuf in
     let lex = Lexing.lexeme str.lexbuf in
     let msg = Format.sprintf "Unexpected token '%s'." lex in
-    raise (Env.EnvError (loc, Env.ParseError msg))
+    raise (Env.EnvError (Env.init "", loc, Env.ParseError msg))
 
 let handle_channel md f ic =
   let s = from_channel md ic in

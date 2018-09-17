@@ -6,7 +6,7 @@ open Reduction
 
 let errors_in_snf = ref false
 
-let snf t = if !errors_in_snf then Env.unsafe_reduction t else t
+let snf sg t = if !errors_in_snf then Env.unsafe_reduction sg t else t
 
 let color = ref true
 
@@ -38,7 +38,7 @@ let pp_typed_context out = function
   | [] -> ()
   | _::_ as ctx -> fprintf out " in context:\n%a" Rule.pp_typed_context ctx
 
-let fail_typing_error def_loc err =
+let fail_typing_error sg def_loc err =
   let open Typing in
   match err with
   | KindIsNotTypable ->
@@ -47,7 +47,7 @@ let fail_typing_error def_loc err =
   | ConvertibilityError (te,ctx,exp,inf) ->
     fail (get_loc te)
       "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
-      pp_term te pp_typed_context ctx pp_term (snf exp) pp_term (snf inf)
+      pp_term te pp_typed_context ctx pp_term (snf sg exp) pp_term (snf sg inf)
   | VariableNotFound (lc,x,n,ctx) ->
     fail lc
       "The variable '%a' was not found in context:\n"
@@ -55,11 +55,11 @@ let fail_typing_error def_loc err =
   | SortExpected (te,ctx,inf) ->
     fail (Term.get_loc te)
       "Error while typing '%a'%a.\nExpected: a sort.\nInferred: %a."
-      pp_term te pp_typed_context ctx pp_term (snf inf)
+      pp_term te pp_typed_context ctx pp_term (snf sg inf)
   | ProductExpected (te,ctx,inf) ->
     fail (get_loc te)
       "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
-      pp_term te pp_typed_context ctx pp_term (snf inf)
+      pp_term te pp_typed_context ctx pp_term (snf sg inf)
   | InexpectedKind (te,ctx) ->
     fail (get_loc te)
       "Error while typing '%a'%a.\nExpected: anything but Kind.\nInferred: Kind."
@@ -158,7 +158,7 @@ let pp_cerr out err =
     | CCFailure      cmd -> cmd, "ERROR" in
   fprintf out "Checker's answer: %s.\nCommand: %s" ans cmd
 
-let fail_signature_error def_loc err =
+let fail_signature_error sg def_loc err =
   let open Signature in
   match err with
   | UnmarshalBadVersionNumber (lc,md) ->
@@ -195,7 +195,7 @@ let fail_signature_error def_loc err =
   | CouldNotExportModule file ->
     fail def_loc
       "Fail to export module '%a' to file %s."
-      pp_mident (Env.get_name ()) file
+      pp_mident (Signature.get_md sg) file
 
 let code err =
   let open Env in
@@ -248,11 +248,12 @@ let code err =
   | KindLevelDefinition _ -> 38
   | AssertError           -> 39
 
-let fail_env_error lc err =
+let fail_env_error env lc err =
+  let sg = Env.get_signature env in
   print_error_code (code err);
   match err with
-  | Env.EnvErrorSignature e -> fail_signature_error lc e
-  | Env.EnvErrorType      e -> fail_typing_error    lc e
+  | Env.EnvErrorSignature e -> fail_signature_error sg lc e
+  | Env.EnvErrorType      e -> fail_typing_error sg lc e
   | Env.NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
     fail lc
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
