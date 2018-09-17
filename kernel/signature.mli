@@ -37,7 +37,10 @@ val export              : t -> unit
 (** [export ()] saves the current environment in a [*.dko] file.*)
 
 val import              : t -> loc -> mident -> unit
-(** [import sg md] the module [md] in the signature [sg]. *)
+(** [import sg md] impots the module [md] in the signature [sg]. *)
+
+val import_signature    : t -> t -> unit
+(** [import sg sg_ext] imports the signature [sg_ext] into the signature [sg]. *)
 
 val get_md_deps            : loc -> mident -> mident list
 (** [get_deps lc md] returns the list of direct dependencies of module [md].
