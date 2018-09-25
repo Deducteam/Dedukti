@@ -197,7 +197,7 @@ let get_deps sg : string list = (*only direct dependencies*)
 let rec import_signature sg sg_ext =
   HMd.iter (fun m hid ->
       if not (HMd.mem sg.tables m) then
-        HMd.add sg.tables m hid) sg_ext.tables;
+        HMd.add sg.tables m (HId.copy hid)) sg_ext.tables;
   List.iter (fun rs -> add_rule_infos sg rs) sg_ext.external_rules
 
 let export sg =
