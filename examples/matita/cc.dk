@@ -1,0 +1,157 @@
+(; plus_AC, lift_1
+
+System derived from original.
+This variant implements :
+- Use of  AC+ 0-elimination  (instead of ACU)
+;)
+
+(;-------------------------------;)
+(; Arithmetic on universes sorts ;)
+(;-------------------------------;)
+
+Sort : Type.
+
+0 : Sort.
+1 : Sort.
+
+defac plus [Sort].
+[i] plus i 0 --> i.
+
+def max : Sort -> Sort -> Sort.
+[i,j] max i (plus i j) --> plus i j
+[i,j] max (plus i j) i --> plus i j
+[i  ] max i i --> i   (; Derived from previous ;)
+[i  ] max 0 i --> i   (; Derived from previous ;)
+[i  ] max i 0 --> i.  (; Derived from previous ;)
+
+[i,j,k] plus i (max j k) --> max (plus i j) (plus i k).
+
+def rule : Sort -> Sort -> Sort.
+[i  ] rule i 0          --> 0
+[i,j] rule i (plus j 1) --> max i (plus j 1)
+[i  ] rule i 1          --> max i 1.  (; Derived from previous ;)
+
+[i,j] rule i (plus i j) --> plus i j
+[j  ] rule 0 j --> j   (; Derived from previous ;)
+[i  ] rule i i --> i.  (; Derived from previous ;)
+
+
+(;-------------------------------;)
+(;        Terms encoding         ;)
+(;-------------------------------;)
+
+(; Symbols declarations ;)
+
+U : Sort -> Type.
+def T : i : Sort -> a : U i -> Type.
+u : i : Sort -> U (plus i 1).
+
+lift : i : Sort -> a : U i -> U (plus i 1).
+
+
+def prod :
+  i : Sort ->
+  j : Sort ->
+  a : U i ->
+  b : (x : T i a -> U j) ->
+  U (rule i j).
+
+(; Rewriting rules ;)
+
+
+def liftnk  : i : Sort -> j : Sort -> a : U i -> U (plus i j).
+
+def liftn : i : Sort -> a : U 0 -> U i := liftnk 0.
+
+[i,  a] liftnk i 0          a --> a
+[i,j,a] liftnk i (plus j 1) a --> lift (plus i j) (liftnk i j a)
+[i,  a] liftnk i 1          a --> lift i a.    (; Derived from previous ;)
+
+
+[i  ] T (plus i 1) (u i)       --> U i
+[   ] T 1          (u 0)       --> U 0    (; Derived from previous ;)
+[i,a] T (plus i 1) (lift i a)  --> T i a
+[  a] T 1          (lift 0 a)  --> T 0 a  (; Derived from previous ;)
+[i,a] T i          (liftn i a) --> T 0 a
+
+[i,a,b] T 0 (prod i 0 a b) --> x : T i a -> T 0 (b x)
+
+[i,j,a,b] T (plus i j) (prod i (plus i j) a b)
+      --> x: T i a -> T (plus i j) (b x)
+(; Derived from previous ;)
+[j,a,b] T j (prod 0 j a b)
+    --> x: T 0 a -> T j (b x)
+(; Derived from previous ;)
+[i,a,b] T i (prod i i a b)
+    --> x: T i a -> T i (b x)
+
+[i,j,a,b] T (plus (plus i j) 1) (prod (plus (plus i j) 1) (plus j 1) a b)
+     --> x : T (plus (plus i j) 1) a -> T (plus j 1) (b x)
+(; Derived from previous ;)
+[i,a,b] T (plus i 1) (prod (plus i 1) 1 a b)
+    --> x : T (plus i 1) a -> T 1 (b x)
+(; Derived from previous ;)
+[a,b] T 1 (prod 1 1 a b) --> x : T 1 a -> T 1 (b x).
+
+[i,j,a,b] prod (plus i 1) (plus (plus i j) 1) (lift i a) b
+      --> prod i          (plus (plus i j) 1) a          b
+(; Derived from previous ;)
+[j,a,b] prod 1 (plus j 1) (lift 0 a) b
+    --> prod 0 (plus j 1) a          b
+(; Derived from previous ;)
+[i,a,b] prod (plus i 1) (plus i 1) (lift i a) b
+    --> prod i          (plus i 1) a          b
+(; Derived from previous ;)
+[a,b] prod 1 1 (lift 0 a) b --> prod 0 1 a b
+
+[i,j,a,b] prod (plus (plus i j) (plus 1 1)) (plus j 1) (lift (plus (plus i j) 1) a) b
+      --> lift (plus (plus i j) 1)
+               (prod (plus (plus i j) 1) (plus j 1) a b)
+(; Derived from previous ;)
+[j,a,b] prod (plus j (plus 1 1)) (plus j 1) (lift (plus j 1) a) b
+    --> lift (plus j 1) (prod (plus j 1) (plus j 1) a b)
+(; Derived from previous ;)
+[i,a,b] prod (plus i (plus 1 1)) 1 (lift (plus i 1) a) b
+      --> lift (plus i 1) (prod (plus i 1) 1 a b)
+(; Derived from previous ;)
+[a,b] prod (plus 1 1) 1 (lift 1 a) b --> lift 1 (prod 1 1 a b)
+
+
+[i,j,a,b] prod (plus (plus i j) (plus 1 1)) (plus j (plus 1 1)) a (x => lift (plus j 1) (b x))
+      --> prod (plus (plus i j) (plus 1 1)) (plus j 1) a (x => b x)
+(; Derived from previous ;)
+[j,a,b] prod (plus j (plus 1 1)) (plus j (plus 1 1)) a (x => lift (plus j 1) (b x))
+    --> prod (plus j (plus 1 1)) (plus j 1) a (x => b x)
+(; Derived from previous ;)
+[i,a,b] prod (plus i (plus 1 1)) (plus 1 1) a (x => lift 1 (b x))
+    --> prod (plus i (plus 1 1)) 1 a (x => b x)
+(; Derived from previous ;)
+[a,b] prod (plus 1 1) (plus 1 1) a (x => lift 1 (b x))
+  --> prod (plus 1 1) 1 a (x => b x)
+
+(;   This rule fails when omitting the added rewrite rule for the "rule" symbol. ;)
+(;   ( [i+j]  should be convertible with  [rule i (i+j)]                         ;)
+[i,j,a,b] prod i (plus (plus i j) 1) a (x => lift (plus i j) (b x))
+      --> lift (plus i j) (prod i (plus i j) a (x => b x))
+(; Derived from previous ;)
+[j,a,b] prod 0 (plus j 1) a (x => lift j (b x))
+    --> lift j (prod 0 j a (x => b x))
+(; Derived from previous ;)
+[i,a,b] prod i (plus i 1) a (x => lift i (b x))
+    --> lift i (prod i i a (x => b x))
+
+[a,b] prod 0 1 a (x => lift 0 (b x))
+  --> lift 0 (prod 0 0 a (x => b x))
+
+[i,a,b] prod (plus i 1) 1 a (x => lift 0 (b x))
+    --> liftn (plus i 1) (prod (plus i 1) 0 a (x => b x))
+(; Derived from previous ;)
+[a,b] prod 1 1 a (x => lift 0 (b x))
+  --> liftn 1 (prod 1 0 a (x => b x))
+
+[i,a,b] prod (plus i 1) 0 (lift i a) b
+    --> prod i 0 a b
+(; Derived from previous ;)
+[a,b] prod 1 0 (lift 0 a) b
+  --> prod 0 0 a b.
+
