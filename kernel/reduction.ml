@@ -116,9 +116,9 @@ exception Not_convertible
 
 (* ********************* *)
 
-type rw_strategy         = Signature.t -> term -> term
+type rw_strategy = Signature.t -> term -> term
   
-type rw_state_strategy   = Signature.t -> state -> state
+type rw_state_strategy = Signature.t -> state -> state
   
 type convertibility_test = Signature.t -> term -> term -> bool
 
