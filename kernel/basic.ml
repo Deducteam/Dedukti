@@ -97,6 +97,7 @@ let add_path s = path := s :: !path
 (** {2 Debugging} *)
 
 module Debug = struct
+
   type flag  = ..
   type flag += D_warn | D_notice
 

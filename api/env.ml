@@ -132,7 +132,7 @@ let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
       _add_rules [rule]
 
 let declare lc id st ty : unit =
-  try let sort = inference !sg ty in _declare lc id st ty sort
+  try _declare lc id st ty (inference !sg ty)
   with e -> raise_as_env lc e
 
 let define lc id op te ty_opt : unit =
