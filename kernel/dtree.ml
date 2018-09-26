@@ -4,6 +4,9 @@ open Rule
 open Format
 open Matching
 
+type Debug.flag += D_matching
+let _ = Debug.register_flag D_matching "Matching"
+
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
@@ -11,7 +14,7 @@ type dtree_error =
   | AritySymbolMismatch of loc * name * name
   | ACSymbolRewritten   of loc * name * int
 
-exception DtreeExn of dtree_error
+exception DtreeError of dtree_error
 
 type case =
   | CConst of int * name * bool
@@ -298,7 +301,7 @@ let specialize_rule case (c:int) (nargs:int) (r:rule_infos) : rule_infos =
     else (* size <= i < size+nargs *)
       let check_args id pats =
         if ( Array.length pats != nargs ) then
-          raise (DtreeExn(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
+          raise (DtreeError(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
         pats.( i - size)
       in
       match r.pats.(c) with
@@ -411,10 +414,10 @@ let partition (ignore_arity:bool) (is_AC:name->bool) (mx:matrix) (c:int) : case 
       else fun c1 c2 ->
            match c1, c2 with
            | CDB(ar,n), CDB(ar',n') when n == n' && ar != ar' ->
-              raise (DtreeExn (ArityDBMismatch(li.l, li.cst, n)))
+              raise (DtreeError (ArityDBMismatch(li.l, li.cst, n)))
            | CConst(ar,cst,ac), CConst(ar',cst',ac')
                 when name_eq cst cst' && (ar != ar' || ac != ac') ->
-              raise (DtreeExn (AritySymbolMismatch(li.l, li.cst, cst)))
+              raise (DtreeError (AritySymbolMismatch(li.l, li.cst, cst)))
            | _ -> eq c1 c2
     in
     match case_of_pattern is_AC li.pats.(c) with
@@ -532,30 +535,28 @@ let rec add l ar =
     else hd :: (add tl ar)
 
 let of_rules get_algebra = function
-  | [] -> OK []
-  | r::tl as rs -> 
-    try
-      let name = r.cst in
-      let ac = is_AC (get_algebra name) in
-      let arities = ref [] in
-      List.iter
-        (fun x ->
-           if not (name_eq x.cst name)
-           then raise (DtreeExn (HeadSymbolMismatch (x.l,x.cst,name)));
-           let arity = List.length x.args in
-           if ac && arity == 0
-           then raise (DtreeExn (ACSymbolRewritten(x.l,x.cst,arity)));
-           if ac && arity == 1
-           then arities := add !arities 2; (* Also add a rule of arity 2. *)
-           arities := add !arities arity)
-        rs;
-      let sorted_arities = List.fold_left add [] !arities in
-      (* reverse sorted list of all rewrite rules arities. *)
-      let aux ar =
-        let m = mk_matrix ac ar rs in
-        (ar, to_dtree get_algebra m) in
-      OK (List.map aux sorted_arities)
-    with DtreeExn e -> Err e
+  | [] -> []
+  | r::tl as rs ->
+    let name = r.cst in
+    let ac = is_AC (get_algebra name) in
+    let arities = ref [] in
+    List.iter
+      (fun x ->
+         if not (name_eq x.cst name)
+         then raise (DtreeError (HeadSymbolMismatch (x.l,x.cst,name)));
+         let arity = List.length x.args in
+         if ac && arity == 0
+         then raise (DtreeError (ACSymbolRewritten(x.l,x.cst,arity)));
+         if ac && arity == 1
+         then arities := add !arities 2; (* Also add a rule of arity 2. *)
+         arities := add !arities arity)
+      rs;
+    let sorted_arities = List.fold_left add [] !arities in
+    (* reverse sorted list of all rewrite rules arities. *)
+    let aux ar =
+      let m = mk_matrix ac ar rs in
+      (ar, to_dtree get_algebra m) in
+    List.map aux sorted_arities
 
 
 (******************************************************************************)

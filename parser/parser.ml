@@ -1,8 +1,6 @@
 open Basic
 open Term
 
-include Internals
-
 type stream = {mod_name : Basic.mident; lexbuf : Lexing.lexbuf}
 
 let from_channel mod_name ic =
@@ -14,7 +12,7 @@ let read str =
     let loc = Lexer.get_loc str.lexbuf in
     let lex = Lexing.lexeme str.lexbuf in
     let msg = Format.sprintf "Unexpected token '%s'." lex in
-    raise (Parse_error(loc, msg))
+    raise (Env.EnvError (loc, Env.ParseError msg))
 
 let handle_channel md f ic =
   let s = from_channel md ic in

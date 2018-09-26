@@ -4,6 +4,9 @@ open Term
 open Rule
 open Ac
 
+type Debug.flag += D_matching
+let _ = Debug.register_flag D_matching "Matching"
+
 exception NotUnifiable
 
 type var_p = int * int LList.t
@@ -98,9 +101,9 @@ let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
   let rec aux k = function
     | Type _ | Kind | Const _ as t -> t
     | DB (l,x,n) as t ->
-       if n < k            (* var bound in te *) then t
-       else if n >= k+depth (* var free in te *) then mk_DB l x (n-depth+size)
-       else mk_DB l x (match arr.(n-k) with None -> raise NotUnifiable | Some n' ->  n'+k)
+      if n < k             (* var bound in te *) then t
+      else if n >= k+depth (* var free  in te *) then mk_DB l x (n-depth+size)
+      else mk_DB l x (match arr.(n-k) with None -> raise NotUnifiable | Some n' -> n'+k)
     | Lam (l,x,a,b) -> mk_Lam l x (map_opt (aux k) a) (aux (k+1) b)
     | Pi  (l,x,a,b) -> mk_Pi  l x (aux k a) (aux (k+1) b)
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
@@ -362,7 +365,7 @@ let solve_problem reduce convertible whnf pb =
   let problems = first_rearrange pb.problems in
   let rec solve_next pb =
     if pb.problems <> []
-    then Debug.(debug d_matching "Problem: %a" (pp_matching_problem "    ") pb);
+    then Debug.(debug D_matching "Problem: %a" (pp_matching_problem "    ") pb);
     let try_solve_next pb = bind_opt solve_next pb in
     match fetch_next_problem pb with
     | None -> get_subst pb (* If no problem left, compute substitution and return (success !) *)

@@ -12,7 +12,7 @@ To compile (and optionally install) `Dedukti` you will need:
 #### INSTALLATION WITH OPAM
 
 ```bash
-opam pin add dedukti https://github.com/Deducteam/Dedukti.git
+opam install dedukti
 ```
 
 #### INSTALLATION FROM SOURCE
@@ -42,6 +42,32 @@ The installation provides the following commands:
  - `dktop` is an interactive wrapper around the type-checker,
  - `dkdep` is a dependency generator for `Dedukti` files,
  - `dkindent` is a program to indent `Dedukti` files.
+
+### OPTIONS
+
+`dkcheck` provides the following options:
+ - `-d FLAGS` enables debugging for all given flags:
+   * `q` (*q*uiet) disables all warnings,
+   * `n` (*n*otice) notifies about which symbol or rule is currently treated,
+   * `o` (m*o*dule) notifies about loading of an external module (associated to the command `#REQUIRE`),
+   * `c` (*c*onfluence) notifies about information provided to the confluence checker (when option `-cc` used),
+   * `u` (r*u*le) provides information about type checking of rules,
+   * `t` (*t*yping) provides information about type-checking of terms,
+   * `r` (*r*educe) provides information about reduction performed in terms,
+   * `m` (*m*atching) provides information about pattern matching;
+ - `-q` Quiet mode (equivalent to `-d q`;
+ - `-e` Generates an object file `.dko`;
+ - `-nc` Disables colors in the output;
+ - `-stdin MOD` Parses standard input using module name `MOD`;
+ - `-version` Prints the version number;
+ - `-coc` Allows to declare a symbol whose type contains `Type` in the left-hand side of a product (useful for the Calculus of Construction);
+ - `-I DIR` Adds the directory `DIR` to the load path;
+ - `-ccs` Forbids rules with unsatisfiable constraints;
+ - `-errors-in-snf` Normalizes the types in error messages;
+ - `-cc CMD` Sets the external confluence checker command to `CMD`
+ - `-nl` Allows non left-linear rewriting rules ([DEPRECATED] default behavior now);
+ - `--beautify` Pretty printer. Prints on the standard output;
+ - `--help` Prints the list of available options.
 
 ### A SMALL EXAMPLE
 
@@ -114,7 +140,6 @@ Supported commands are:
 
 The supported evaluation strategies are:
  - `SNF` (strong normal form),
- - `HNF` (head normal form),
  - `WHNF` (weak head normal form).
 
 Note that the `#INFER` command accepts the same form of configuration as

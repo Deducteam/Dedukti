@@ -1,0 +1,4 @@
+(; KO 39 ;)
+A : Type.
+B : Type.
+#ASSERT (x : A => x) == (x : B => x).

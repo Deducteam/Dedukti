@@ -5,6 +5,8 @@ open Term
 open Rule
 open Dtree
 
+type Debug.flag += D_module
+
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError     of loc * string * string
@@ -19,6 +21,7 @@ type signature_error =
   | GuardNotSatisfied     of loc * term * term
   | FailToCompileModule   of loc * mident
   | ExpectedACUSymbol     of loc * name
+  | CouldNotExportModule  of string
 
 exception SignatureError of signature_error
 
@@ -32,7 +35,7 @@ val make                : string -> t
 val get_name            : t -> mident
 (** [get_name sg] returns the name of the signature [sg]. *)
 
-val export              : t -> bool
+val export              : t -> unit
 (** [export ()] saves the current environment in a [*.dko] file.*)
 
 val get_id_comparator   : t -> ident_comparator
@@ -76,6 +79,12 @@ val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
 
-val add_rules           : t -> Rule.untyped_rule list -> unit
+val add_rules           : t -> Rule.rule_infos list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)
+
+val read_dko : loc -> string -> string list * (ident * staticity * term * rule_infos list) list * rule_infos list list
+(** [read_dko lc md] returns a triple containing all the informations of the [md.dko] file:
+ - The list of modules on which md depends,
+ - The list of symbols and rules declared in this module,
+ - The list of rules declared on this module and defining symbols declared in another module. *)

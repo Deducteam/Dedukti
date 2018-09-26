@@ -1,0 +1,7 @@
+(; KO 6 ;)
+
+A : Type.
+
+f : A.
+
+#INFER (x : A => f x).

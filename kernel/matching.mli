@@ -4,6 +4,8 @@ open Basic
 open Term
 open Ac
 
+type Debug.flag += D_matching
+
 (** ([n], [vars]) represents the [n]-th variable applied to the [vars] bound variables. *)
 type var_p = int * int LList.t
 
@@ -59,3 +61,5 @@ val solve_problem : (term -> term) ->
                     (term -> term -> bool) ->
                     (term -> term) ->
                     matching_problem -> te option array option
+
+exception NotUnifiable

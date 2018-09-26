@@ -2,13 +2,13 @@ open Basic
 open Term
 open Rule
 open Printf
-open Env
 open Entry
+open Env
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
 
 (* TODO: make that debuging functions returns a string *)
 let print_db_enabled = ref false
-let print_default = ref false
+let print_default_name = ref false
 
 let cur_md = ref None
 let get_module () =
@@ -116,6 +116,7 @@ let rec print_pattern out = function
   | Lambda (_,x,p)       -> Format.fprintf out "@[%a => %a@]" print_ident x print_pattern p
 and print_pattern_wp out = function
   | Pattern _ | Lambda _ as p -> Format.fprintf out "(%a)" print_pattern p
+  | Var (_,id,i,(_::_ as lst))     -> Format.fprintf out "(%a %a)" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | p -> print_pattern out p
 
 let print_typed_context fmt ctx =
@@ -126,17 +127,16 @@ let print_typed_context fmt ctx =
 
 let print_rule_name fmt rule =
   let aux b cst =
-    if b || !print_default then
-      if mident_eq (md cst) (get_name ()) then
-        Format.fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
-      else
-      Format.fprintf fmt "@[<h>{%a}@] " print_name cst
-    else
-      Format.fprintf fmt ""
+    if b || !print_default_name
+    then
+      if mident_eq (md cst) (get_name ())
+      then Format.fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
+      else Format.fprintf fmt "@[<h>{%a}@] " print_name cst
   in
-    match rule with
-      | Delta(cst) -> aux true cst (* not printed *)
-    | Gamma(b,cst) -> aux b cst
+  match rule with
+  | Beta         -> ()
+  | Delta(cst)   -> aux true cst (* not printed *)
+  | Gamma(b,cst) -> aux b    cst
 
 let print_untyped_rule fmt (rule:untyped_rule) =
   let print_decl out (_,id) =
@@ -169,15 +169,9 @@ let print_rule_infos out ri =
   in
   print_untyped_rule out rule
 
-let print_red_cfg fmt strat =
+let print_red_cfg fmt cfg =
   let open Reduction in
-  match strat with
-  | {strategy=Reduction.Snf ;nb_steps=None   } -> ()
-  | {strategy=Reduction.Snf ;nb_steps=Some i } -> Format.fprintf fmt "[%i]" i
-  | {strategy=Reduction.Hnf ;nb_steps=None   } -> Format.fprintf fmt "[HNF]"
-  | {strategy=Reduction.Hnf ;nb_steps=Some i } -> Format.fprintf fmt "[HNF,%i]" i
-  | {strategy=Reduction.Whnf;nb_steps=None   } -> Format.fprintf fmt "[WHNF]"
-  | {strategy=Reduction.Whnf;nb_steps=Some i } -> Format.fprintf fmt "[WHNF,%i]" i
+  Format.fprintf fmt "%a" pp_red_cfg  cfg
 
 let print_entry fmt e =
   let open Format in
@@ -199,7 +193,7 @@ let print_entry fmt e =
       | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
                      print_ident id print_term ty print_term te
     end
-  | Rules(rs)               ->
+  | Rules(_,rs)               ->
     fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) rs
   | Eval(_,cfg,te)          ->
     fprintf fmt "#EVAL%a %a.@." print_red_cfg cfg print_term te
@@ -227,3 +221,8 @@ let print_entry fmt e =
     ()
   | Require(_, md) ->
     fprintf fmt "#REQUIRE %a.@." print_mident md
+
+(** The pretty printer for the type [Signature.staticity] *)
+let print_staticity fmt s =
+  Format.fprintf fmt "%s"
+    (if s=Signature.Static then "Static" else "Definable")
