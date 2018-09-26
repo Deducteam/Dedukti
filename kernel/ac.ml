@@ -5,6 +5,8 @@ open Term
 
 type ac_ident = name * algebra
 
+let is_acu = function _,ACU _ -> true | _ -> false
+
 let ac_ident_eq (name,ac) (name',ac') = name_eq name name'
 
 let pp_ac_ident fmt (name,_) = Format.fprintf fmt "%a" pp_name name
@@ -48,8 +50,3 @@ let rec unflatten_AC (name,alg) = function
   | [t] -> t
   | t1 :: t2 :: tl ->
      unflatten_AC (name,alg) ((mk_App (mk_Const dloc name) t1 [t2]) :: tl)
-
-
-(* ACU functions *)
-
-let is_acu (_,alg) = match alg with | ACU _ -> true | _ -> false
