@@ -51,10 +51,6 @@ let rec zip_lists l1 l2 lst =
 
 type env = term Lazy.t LList.t
 
-let pp_env fmt (ctx:env) =
-  pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst ctx))
-
-
 (* A state {ctx; term; stack} is the state of an abstract machine that
 represents a term where [ctx] is a ctx that contains the free variables
 of [term] and [stack] represents the terms that [term] is applied to. *)
@@ -80,6 +76,8 @@ let mk_state ctx term stack =
 let state_of_term t = mk_state LList.nil t []
 
 (* Pretty Printing *)
+
+let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
 
 let pp_stack fmt (st:stack) =
   fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state st)
@@ -114,14 +112,14 @@ let rec set_final st =
 
 let as_final st = set_final st; st
 
-
 exception Not_convertible
-
 
 (* ********************* *)
 
 type rw_strategy         = Signature.t -> term -> term
+  
 type rw_state_strategy   = Signature.t -> state -> state
+  
 type convertibility_test = Signature.t -> term -> term -> bool
 
 
@@ -384,10 +382,8 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
   match !(st.reduc) with
   | (true, st') -> st'
   | (false, st') when st' != st ->
-    begin
-      Debug.(debug D_reduce "Jumping %a ---> %a" simpl_pp_state st simpl_pp_state st');
-      state_whnf sg st'
-    end
+    let _ = Debug.(debug D_reduce "Jumping %a ---> %a" simpl_pp_state st simpl_pp_state st') in
+    state_whnf sg st'
   | _ ->
     let _ = Debug.(debug D_reduce "Reducing %a" simpl_pp_state st) in
     let rec_call c t s = state_whnf sg (mk_reduc_state st c t s) in

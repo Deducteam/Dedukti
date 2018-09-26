@@ -69,9 +69,8 @@ let pp_indexed_status fmt (i,st) = match st with
 
 let pp_mp_status sep fmt mp_s =
   let stl = Array.to_list (Array.mapi (fun i st -> (i,st)) mp_s) in
-  if List.for_all (function (i,Unsolved) -> true | _ -> false) stl
-  then ()
-  else fprintf fmt "%swith [ %a ]" sep (pp_list " and " pp_indexed_status) stl
+  if List.exists (function (i,Unsolved) -> false | _ -> true) stl
+  then fprintf fmt "%swith [ %a ]" sep (pp_list " and " pp_indexed_status) stl
 
 let pp_pre_matching_problem sep fmt mp = pp_mp_problems sep pp_pos fmt mp.pm_problems
 

@@ -4,6 +4,8 @@ open Basic
 open Term
 open Ac
 
+exception NotUnifiable
+
 type Debug.flag += D_matching
 
 (** ([n], [vars]) represents the [n]-th variable applied to the [vars] bound variables. *)
@@ -61,5 +63,3 @@ val solve_problem : (term -> term) ->
                     (term -> term -> bool) ->
                     (term -> term) ->
                     matching_problem -> te option array option
-
-exception NotUnifiable
