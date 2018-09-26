@@ -443,51 +443,37 @@ and snf sg (t:term) : term =
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
-and conversion_step : (term * term) -> (term * term) list -> (term * term) list = fun (l,r) lst ->
+and conversion_step sg : (term * term) -> (term * term) list -> (term * term) list = fun (l,r) lst ->
   match l,r with
   | Kind, Kind | Type _, Type _                 -> lst
   | Const (_,n), Const (_,n') when name_eq n n' -> lst
   | DB (_,_,n) , DB (_,_,n')  when n == n'      -> lst
+  | App (Const(lc,cst), _, _), App (Const(lc',cst'), _, _)
+    when Signature.is_AC sg lc cst && name_eq cst cst' ->
+    begin
+      (* TODO: Replace this with less hardcore criteria: put all terms in whnf
+               * then look at the heads to match arguments with one another. *)
+      match snf sg l, snf sg r with
+      | App (Const(l ,cst2 ), a , args ),
+        App (Const(l',cst2'), a', args')
+        when name_eq cst2 cst  && name_eq cst2' cst &&
+             name_eq cst2 cst' && name_eq cst2' cst' ->
+        (a,a') :: (zip_lists args args' lst)
+      | p -> p :: lst
+    end
   | App (f,a,args), App (f',a',args') ->
      (f,f') :: (a,a') :: (zip_lists args args' lst)
   | Lam (_,_,_,b), Lam (_,_,_ ,b') -> (b,b')::lst
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
-  | _ -> raise NotConvertible
+  | t1, t2 -> begin
+      Debug.(debug D_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
+      raise Not_convertible end
 
 and are_convertible_lst sg : (term*term) list -> bool = function
   | [] -> true
   | (t1,t2)::lst ->
-    are_convertible_lst sg
-      begin
-        if term_eq t1 t2 then lst
-        else
-          let t1 = whnf sg t1 in
-          let t2 = whnf sg t2 in
-          match t1, t2 with
-          | Kind, Kind | Type _, Type _ -> lst
-          | Const (_,n), Const (_,n') when ( name_eq n n' ) -> lst
-          | DB (_,_,n), DB (_,_,n') when ( n==n' ) -> lst
-          | App (Const(l,cst), _, _), App (Const(l',cst'), _, _)
-            when Signature.is_AC sg l cst && name_eq cst cst' ->
-            begin
-              (* TODO: Replace this with less hardcore criteria: put all terms in whnf
-               * then look at the heads to match arguments with one another. *)
-              match snf sg t1, snf sg t2 with
-               | App (Const(l ,cst2 ), a , args ),
-                 App (Const(l',cst2'), a', args')
-                 when name_eq cst2 cst && name_eq cst2' cst &&
-                      name_eq cst2 cst' && name_eq cst2' cst' ->
-                 List.fold_left2 (fun l a b -> (a,b)::l) ((a,a')::lst) args args'
-               | t1', t2' -> (t1',t2') :: lst
-            end
-          | App (f,a,args), App (f',a',args') ->
-            List.fold_left2 (fun l a b -> (a,b)::l) ((f,f')::(a,a')::lst) args args'
-          | Lam (_,_,_,b), Lam (_,_,_,b') -> ((b,b')::lst)
-          | Pi (_,_,a,b), Pi (_,_,a',b') -> ((a,a')::(b,b')::lst)
-          | t1, t2 -> begin
-              Debug.(debug D_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
-              raise Not_convertible end
-    end
+     if term_eq t1 t2 then are_convertible_lst sg lst
+     else are_convertible_lst sg (conversion_step sg (whnf sg t1, whnf sg t2) lst)
 
 (* Convertibility Test *)
 and are_convertible sg t1 t2 =
