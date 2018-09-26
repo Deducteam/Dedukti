@@ -97,10 +97,8 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
 
 (* ********************* *)
 
-type rw_strategy = Signature.t -> term -> term
-
-type rw_state_strategy = Signature.t -> state -> state
-
+type rw_strategy         = Signature.t -> term -> term
+type rw_state_strategy   = Signature.t -> state -> state
 type convertibility_test = Signature.t -> term -> term -> bool
 
 let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (te:term) : term =
