@@ -162,14 +162,12 @@ let rec find_case (st:state) (cases:(case * dtree) list)
      then Some (tr,stack)
      else find_case st tl default
   | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
-    begin
-      assert ( ctx = LList.nil ); (* no beta in patterns *)
-     (* The case doesn't match if the DB indices differ or the stack is not
+    assert ( ctx = LList.nil ); (* no beta in patterns *)
+    (* The case doesn't match if the DB indices differ or the stack is not
       * of the expected size. *)
-      if n == n' && List.length stack == nargs
-      then Some (tr,stack)
-      else find_case st tl default
-    end
+    if n == n' && List.length stack == nargs
+    then Some (tr,stack)
+    else find_case st tl default
   | { ctx; term=Lam _; stack } , ( CLam , tr )::tl ->
     begin
       match term_of_state st with (*TODO could be optimized*)
