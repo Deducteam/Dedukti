@@ -3,9 +3,6 @@ open Term
 
 type stream = {mod_name : Basic.mident; lexbuf : Lexing.lexbuf}
 
-let from_channel mod_name ic =
-  {mod_name; lexbuf = Lexing.from_channel ic}
-
 let read str =
   try Menhir_parser.line Lexer.token str.lexbuf str.mod_name
   with Menhir_parser.Error ->
@@ -13,12 +10,38 @@ let read str =
     let lex = Lexing.lexeme str.lexbuf in
     let msg = Format.sprintf "Unexpected token '%s'." lex in
     raise (Env.EnvError (loc, Env.ParseError msg))
+            
+module type To_parse = sig
+  type t
 
-let handle_channel md f ic =
-  let s = from_channel md ic in
-  try while true do f (read s) done with End_of_file -> ()
+  val lexing_from : t -> Lexing.lexbuf
+end
+                
+module Parser = functor (Tp : To_parse) -> struct
+  let from mod_name ic =
+    {mod_name; lexbuf = Tp.lexing_from ic}
 
-let parse_channel md ic =
-  let l = ref [] in
-  handle_channel md (fun e -> l := e::!l) ic;
-  List.rev !l
+  let handle md f ic =
+    let s = from md ic in
+    try while true do f (read s) done with End_of_file -> ()
+
+  let parse md ic =
+    let l = ref [] in
+    handle md (fun e -> l := e::!l) ic;
+    List.rev !l
+
+end
+
+module Parse_channel =
+  Parser(struct
+      type t = in_channel
+
+      let lexing_from = Lexing.from_channel
+    end)
+
+module Parse_string =
+  Parser(struct
+      type t = string
+
+      let lexing_from = Lexing.from_string
+    end)

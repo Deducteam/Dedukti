@@ -50,7 +50,7 @@ let handle_entry e =
 
 let  _ =
   let md = Env.init "<toplevel>" in
-  let str = from_channel md stdin in
+  let str = Parse_channel.from md stdin in
   Format.printf "\tDedukti (%s)@.@." Version.version;
   while true do
     Format.printf ">> ";
