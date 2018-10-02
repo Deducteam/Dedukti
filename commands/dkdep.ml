@@ -105,7 +105,7 @@ let handle_file : string -> dep_data = fun file ->
     current_mod := md; current_deps := [];
     (* Actully parsing and gathering data. *)
     let input = open_in file in
-    Parser.handle_channel md handle_entry input;
+    Parse_channel.handle md handle_entry input;
     close_in input;
     (md, (file, !current_deps))
   with
