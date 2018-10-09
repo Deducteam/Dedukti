@@ -97,10 +97,8 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
 
 (* ********************* *)
 
-type rw_strategy = Signature.t -> term -> term
-
-type rw_state_strategy = Signature.t -> state -> state
-
+type rw_strategy         = Signature.t -> term -> term
+type rw_state_strategy   = Signature.t -> state -> state
 type convertibility_test = Signature.t -> term -> term -> bool
 
 let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (te:term) : term =
@@ -139,16 +137,16 @@ let rec test (sg:Signature.t) (convertible:convertibility_test)
   match constrs with
   | [] -> true
   | Linearity (i,j)::tl ->
-     let t1 = mk_DB dloc dmark i in
-     let t2 = mk_DB dloc dmark j in
-     if convertible sg (term_of_state { ctx; term=t1; stack=[] })
-                       (term_of_state { ctx; term=t2; stack=[] })
+     let t1 = Lazy.force (LList.nth ctx i) in
+     let t2 = Lazy.force (LList.nth ctx j) in
+     if convertible sg t1 t2
      then test sg convertible ctx tl
      else false
   | Bracket (i,t)::tl ->
      let t1 = Lazy.force (LList.nth ctx i) in
      let t2 = term_of_state { ctx; term=t; stack=[] } in
-     if convertible sg t1 t2 then test sg convertible ctx tl
+     if convertible sg t1 t2
+     then test sg convertible ctx tl
      else raise (Signature.SignatureError(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
 
 let rec find_case (st:state) (cases:(case * dtree) list)
@@ -162,14 +160,12 @@ let rec find_case (st:state) (cases:(case * dtree) list)
      then Some (tr,stack)
      else find_case st tl default
   | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
-    begin
-      assert ( ctx = LList.nil ); (* no beta in patterns *)
-     (* The case doesn't match if the DB indices differ or the stack is not
+    assert ( ctx = LList.nil ); (* no beta in patterns *)
+    (* The case doesn't match if the DB indices differ or the stack is not
       * of the expected size. *)
-      if n == n' && List.length stack == nargs
-      then Some (tr,stack)
-      else find_case st tl default
-    end
+    if n == n' && List.length stack == nargs
+    then Some (tr,stack)
+    else find_case st tl default
   | { ctx; term=Lam _; stack } , ( CLam , tr )::tl ->
     begin
       match term_of_state st with (*TODO could be optimized*)
