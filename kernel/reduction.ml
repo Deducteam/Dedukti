@@ -356,7 +356,7 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
  *  | Lam _ -> Lam
  *  | DB (_,_,n) -> DB n
  *  | Const (_,m,v) -> Const m v
- *  | App(f,a0,args) -> App (shape f,List.lenght (a0::args))
+ *  | App(f,a0,args) -> App (shape f,List.length (a0::args))
 
  * Property:
  * A (strongly normalizing) non weak-head-normal term can only have the form:
@@ -387,10 +387,8 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     let rec_call c t s = state_whnf sg (mk_reduc_state st c t s) in
   match st with
   (* Weak heah beta normal terms *)
-  | { term=Type _ }
-  | { term=Kind }
-  | { term=Pi _ }
-  | { term=Lam _; stack=[] } -> as_final st
+  | { term=Type _ } | { term=Kind }
+  | { term=Pi _   } | { term=Lam _; stack=[] } -> as_final st
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
     if LList.is_empty ctx then as_final st
@@ -469,17 +467,15 @@ and conversion_step sg : (term * term) -> (term * term) list -> (term * term) li
 
 and are_convertible_lst sg : (term*term) list -> bool = function
   | [] -> true
-  | (t1,t2)::lst ->
-     if term_eq t1 t2 then are_convertible_lst sg lst
-     else are_convertible_lst sg (conversion_step sg (whnf sg t1, whnf sg t2) lst)
+  | (t1,t2)::lst -> are_convertible_lst sg
+    (if term_eq t1 t2 then lst else conversion_step sg (whnf sg t1, whnf sg t2) lst)
 
 (* Convertibility Test *)
 and are_convertible sg t1 t2 =
   try are_convertible_lst sg [(t1,t2)]
-  with Not_convertible -> false
-     | Invalid_argument _ -> false
+  with Not_convertible | Invalid_argument _ -> false
 
-let default_reduction = function Snf  -> snf | Whnf -> whnf
+let default_reduction = function Snf -> snf | Whnf -> whnf
 
 (* ************************************************************** *)
 

@@ -64,7 +64,7 @@ let run_on_file beautify export file =
   Debug.(debug Signature.D_module "Processing file '%s'..." file);
   let md = Env.init file in
   Confluence.initialize ();
-  Parser.handle_channel md (mk_entry beautify md) input;
+  Parse_channel.handle md (mk_entry beautify md) input;
   if not beautify then
     Errors.success "File '%s' was successfully checked." file;
   if export then
@@ -139,7 +139,7 @@ let _ =
     | None   -> ()
     | Some m ->
       let md = Env.init m in
-      Parser.handle_channel md (mk_entry !beautify md) stdin;
+      Parse_channel.handle md (mk_entry !beautify md) stdin;
       if not !beautify
       then Errors.success "Standard input was successfully checked.\n"
   with

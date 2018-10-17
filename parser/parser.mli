@@ -1,23 +1,40 @@
 open Basic
-open Term
-open Entry
 
 (** Abstract parser stream representation. *)
 type stream
 
-(** [from_channel mod ic] creates a parser [stream] for the module named [mod]
-    given the channel [ic]. *)
-val from_channel : mident -> in_channel -> stream
-
 (** [read str] reads a single entry from the parser stream [str]. When no more
     [entry] is available, the [End_of_file] exception is raised. *)
-val read : stream -> entry
+val read : stream -> Entry.entry
 
-(** [handle_channel mod f ic] parses the channel [ic] for module [mod],  using
-    the action [f] on each entry. Note that the channel is parsed lazily. This
-    function can thus be applied to [stdin]. *)
-val handle_channel : mident -> (entry -> unit) -> in_channel -> unit
+module type CHANNEL = sig
+  type t
 
-(** [parse_channel mod ic] completely parses the channel [ic] for module [mod]
-    and returns the corresponding list of entries. *)
-val parse_channel : mident -> in_channel -> entry list
+  val lexing_from : t -> Lexing.lexbuf
+end
+
+module type S =
+sig
+
+  type input
+
+  (** [from_channel mod ic] creates a parser [stream] for the module named
+      [mod] given the input [ic]. *)
+  val from : mident -> input -> stream
+
+  (** [handle mod f ic] parses the input [ic] for module [mod],  using
+      the action [f] on each entry. Note that the input is parsed lazily. This
+      function can thus be applied to [stdin]. *)
+  val handle : mident -> (Entry.entry -> unit) -> input -> unit
+
+  (** [parse mod ic] completely parses the input [ic] for module [mod]
+      and returns the corresponding list of entries. *)
+  val parse : mident -> input -> Entry.entry list
+
+end
+
+module Make : functor (C : CHANNEL) -> S with type input = C.t
+
+module Parse_channel : S with type input = in_channel
+
+module Parse_string : S with type input = string
