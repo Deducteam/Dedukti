@@ -78,10 +78,10 @@ let subst_n n y t =
   in aux 0 t
 
 module IntMap = Map.Make(
-struct
-  type t = int
-  let compare = compare
-end)
+  struct
+    type t = int
+    let compare = compare
+  end)
 
 
 (* Subst is only used inside the typing modules. I think it is only used to apply
@@ -96,36 +96,29 @@ struct
   let apply (sigma:t) (te:term) (q:int) : term =
     let rec aux q = function
       | Kind | Type _ | Const _ as t -> t
-      | DB (_,_,k) as t when k<q -> t
-      | DB (_,_,k) as t (*when k>=q*) ->
-          begin
-            try shift q (snd (IntMap.find (k-q) sigma))
-            with Not_found -> t
-          end
+      | DB (_,_,k) as t    when k <  q    -> t
+      | DB (_,_,k) as t (* when k >= q *) ->
+        begin
+          try shift q (snd (IntMap.find (k-q) sigma))
+          with Not_found -> t
+        end
       | App (f,a,args) -> mk_App (aux q f) (aux q a) (List.map (aux q) args)
       | Lam (l,x,Some ty,te) -> mk_Lam l x (Some (aux q ty)) (aux (q+1) te)
-      | Lam (l,x,None,te) -> mk_Lam l x None (aux (q+1) te)
+      | Lam (l,x,None   ,te) -> mk_Lam l x None              (aux (q+1) te)
       | Pi (l,x,a,b) -> mk_Pi l x (aux q a) (aux (q+1) b)
-    in
-      aux q te
+    in aux q te
 
   let occurs (n:int) (te:term) : bool =
-    let rec aux q = function
+    let rec aux depth = function
       | Kind | Type _ | Const _ -> false
-      | DB (_,_,k) when k<q -> false
-      | DB (_,_,k) (*when k>=q*) -> ( k-q == n )
-      | App (f,a,args) -> List.exists (aux q) (f::a::args)
-      | Lam (_,_,None,te) -> aux (q+1) te
-      | Lam (_,_,Some ty,te) -> aux q ty || aux (q+1) te
-      | Pi (_,_,a,b) -> aux q a || aux (q+1) b
+      | DB (_,_,k) -> k = n + depth
+      | App (f,a,args) -> List.exists (aux depth) (f::a::args)
+      | Lam (_,_,None,te) -> aux (depth+1) te
+      | Lam (_,_,Some ty,te) -> aux depth ty || aux (depth+1) te
+      | Pi (_,_,a,b) -> aux depth a || aux (depth+1) b
     in aux 0 te
 
   let is_identity = IntMap.is_empty
-  (* TODO: put this inside pp *)
-  let pp (fmt:formatter) (sigma:t) : unit =
-    IntMap.iter (fun i (x,t) ->
-        fprintf fmt "( %a[%i] = %a )" pp_ident x i pp_term t
-      ) sigma
 
   let add (sigma:t) (x:ident) (n:int) (t:term) : t option =
     assert ( not ( IntMap.mem n sigma ) );
@@ -137,7 +130,8 @@ struct
     if IntMap.equal (fun a b -> term_eq (snd a) (snd b)) sigma sigma2 then sigma
     else mk_idempotent sigma2
 
-  let fold = IntMap.fold
-  let iter = IntMap.iter
+  let pp (fmt:formatter) (sigma:t) : unit =
+    let pp_aux i (x,t) = fprintf fmt "\n  %a[%i] -> %a" pp_ident x i pp_term t in
+    IntMap.iter pp_aux sigma
 
 end

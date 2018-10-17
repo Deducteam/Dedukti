@@ -42,10 +42,9 @@ let mk_Lam l x a b      = Lam (l,x,a,b)
 let mk_Pi l x a b       = Pi (l,x,a,b)
 let mk_Arrow l a b      = Pi (l,dmark,a,b)
 
-let mk_App f a1 args =
-  match f with
-    | App (f',a1',args') -> App (f',a1',args'@(a1::args))
-    | _ -> App(f,a1,args)
+let mk_App f a1 args = match f with
+  | App (f',a1',args') -> App (f',a1',args'@(a1::args))
+  | _                  -> App (f ,a1 ,args)
 
 let mk_App2 f = function
   | [] -> f

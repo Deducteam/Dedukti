@@ -61,9 +61,7 @@ and stack = state list
 
 let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
-  match stack with
-  | [] -> t
-  | a::lst -> mk_App t (term_of_state a) (List.map term_of_state lst)
+  mk_App2 t (List.map term_of_state stack)
 
 (* Pretty Printing *)
 
