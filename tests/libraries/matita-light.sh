@@ -35,18 +35,21 @@ if [[ ! -d ${DIR} ]]; then
   echo -n "  - extracting...       "
   tar xf matita.tar.gz
   mv matita $DIR
-  rm $DIR/matita_arithmetics_factorial.dk
-  rm $DIR/matita_arithmetics_binomial.dk
-  rm $DIR/matita_arithmetics_chebyshev_*.dk
-  rm $DIR/matita_arithmetics_chinese_reminder.dk
-  rm $DIR/matita_arithmetics_congruence.dk
-  rm $DIR/matita_arithmetics_fermat_little_theorem.dk
-  rm $DIR/matita_arithmetics_gcd.dk
-  rm $DIR/matita_arithmetics_ord.dk
-  rm $DIR/matita_arithmetics_primes.dk
+  # Editing factorial file : turning le_fact_10 into an axiom
+  sed -i '30816,33252d'                      $DIR/matita_arithmetics_factorial.dk
+  sed -i '30815s/.*/\./'                     $DIR/matita_arithmetics_factorial.dk
+  sed -i 's/def le_fact_10 :/le_fact_10 :/'  $DIR/matita_arithmetics_factorial.dk
   echo "OK"
 fi
 
-# Checking the files.
+# Run the actual checks.
 cd ${DIR}
-\time -f "Finished in %E at %P with %MKb of RAM" make "DKCHECK=$BIN"
+if [[ $TIME = "" ]]; then
+	export TIME="Finished in %E at %P with %MKb of RAM"
+fi
+
+if [[ $OUT = "" ]]; then
+	\time make "DKCHECK=$BIN"
+else
+	\time -a -o $OUT make "DKCHECK=$BIN"
+fi

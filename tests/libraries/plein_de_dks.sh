@@ -71,4 +71,12 @@ export -f check_plein_de_dks
 
 # Run the actual checks.
 cd ${DIR}
-\time -f "Finished in %E at %P with %MKb of RAM" bash -c "check_plein_de_dks"
+if [[ $TIME = "" ]]; then
+	export TIME="Finished in %E at %P with %MKb of RAM"
+fi
+
+if [[ $OUT = "" ]]; then
+	\time bash -c "check_plein_de_dks"
+else
+	\time -a -o $OUT bash -c "check_plein_de_dks"
+fi

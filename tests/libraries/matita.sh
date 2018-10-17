@@ -37,6 +37,14 @@ if [[ ! -d ${DIR} ]]; then
   echo "OK"
 fi
 
-# Checking the files.
+# Run the actual checks.
 cd ${DIR}
-\time -f "Finished in %E at %P with %MKb of RAM" make "DKCHECK=$BIN"
+if [[ $TIME = "" ]]; then
+	export TIME="Finished in %E at %P with %MKb of RAM"
+fi
+
+if [[ $OUT = "" ]]; then
+	\time make "DKCHECK=$BIN"
+else
+	\time -a -o $OUT make "DKCHECK=$BIN"
+fi
