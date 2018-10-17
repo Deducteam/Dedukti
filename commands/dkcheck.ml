@@ -80,40 +80,51 @@ let _ =
   let options = Arg.align
     [ ( "-d"
       , Arg.String Env.set_debug_mode
-      , " flags enables debugging for all given flags [qnocutrm]" )
+      , "FLAGS enables debugging for all given flags:
+      q : (quiet)    disables all warnings
+      n : (notice)   notifies about which symbol or rule is currently treated
+      o : (module)   notifies about loading of an external module (associated
+                     to the command #REQUIRE)
+      c : (confluence) notifies about information provided to the confluence
+                     checker (when option -cc used)
+      u : (rule)     provides information about type checking of rules
+      t : (typing)   provides information about type-checking of terms
+      r : (reduce)   provides information about reduction performed in terms
+      m : (matching) provides information about pattern matching" )
     ; ( "-v"
       , Arg.Unit (fun () -> Env.set_debug_mode "montru")
       , " Verbose mode (equivalent to -d 'montru')" )
     ; ( "-q"
       , Arg.Unit (fun () -> Env.set_debug_mode "q")
-      , " Quiet mode (equivalent to -d 'q'" )
+      , " Quiet mode (equivalent to -d 'q')" )
     ; ( "-e"
       , Arg.Set export
       , " Generates an object file (\".dko\")" )
     ; ( "-nc"
       , Arg.Clear Errors.color
-      , " Disable colors in the output" )
+      , " Disables colors in the output" )
     ; ( "-stdin"
       , Arg.String (fun n -> run_on_stdin := Some(n))
-      , " MOD Parses standard input using module name MOD" )
+      , "MOD Parses standard input using module name MOD" )
     ; ( "-version"
       , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
-      , " Print the version number" )
+      , " Prints the version number" )
     ; ( "-coc"
       , Arg.Set Typing.coc
-      , " Typecheck the Calculus of Construction" )
+      , " Allows to declare a symbol whose type contains Type in the
+          left-hand side of a product (useful for the Calculus of Construction)" )
     ; ( "-I"
       , Arg.String Basic.add_path
-      , " DIR Add the directory DIR to the load path" )
+      , "DIR Adds the directory DIR to the load path" )
     ; ( "-ccs"
       , Arg.Set Typing.fail_on_unsatisfiable_constraints
-      , " Forbids rules with unsatisfiable constraints." )
+      , " Forbids rules with unsatisfiable constraints" )
     ; ( "-errors-in-snf"
       , Arg.Set Errors.errors_in_snf
-      , " Normalize the types in error messages" )
+      , " Normalizes all terms printed in error messages" )
     ; ( "-cc"
       , Arg.String Confluence.set_cmd
-      , " CMD Set the external confluence checker command to CMD" )
+      , "CMD Set the external confluence checker command to CMD" )
     ; ( "-nl"
       , Arg.Unit (fun _ -> ())
       , " [DEPRECATED] Allow non left-linear rewriting rules (default behavior now)" )
@@ -121,8 +132,10 @@ let _ =
       , Arg.Set beautify
       , " Pretty printer. Print on the standard output" )]
   in
-  let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...\n" in
-  let usage = usage ^ "Available options:" in
+  let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...
+Type checks the given Dedukti FILE(s).
+For more information see https://github.com/Deducteam/Dedukti.
+Available options:" Sys.argv.(0) in
   let files =
     let files = ref [] in
     Arg.parse options (fun f -> files := f :: !files) usage;
