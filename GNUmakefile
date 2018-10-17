@@ -211,7 +211,7 @@ zenon_modulo: all
 light_tests: all matita-light dklib holide
 
 .PHONY: full_tests
-full_tests: light_tests iprover focalide dedukti-libraries verine zenon_modulo
+full_tests: light_tests iprover focalide dedukti-libraries verine # zenon_modulo
 
 
 #### Cleaning targets ########################################################
