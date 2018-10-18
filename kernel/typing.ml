@@ -142,8 +142,8 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
   | [] -> sigma
   | (q,t1,t2)::lst ->
     begin
-      let t1' = whnf sg (SS.apply sigma t1 q) in
-      let t2' = whnf sg (SS.apply sigma t2 q) in
+      let t1' = whnf sg (SS.apply sigma q t1) in
+      let t2' = whnf sg (SS.apply sigma q t2) in
       let keepon () = pseudo_u sg fail sigma lst in
       if term_eq t1' t2' then keepon ()
       else
@@ -160,37 +160,29 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
           ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
 
         | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
+           let (n,t) = if n1<n2
+                       then (n1,mk_DB l2 x2 (n2-q))
+                       else (n2,mk_DB l1 x1 (n1-q)) in
+           pseudo_u sg fail (SS.add sigma (n-q) t) lst
+        | DB (_,_,n), t when n>=q ->
           begin
-            let (x,n,t) = if n1<n2
-              then (x1,n1,mk_DB l2 x2 (n2-q))
-              else (x2,n2,mk_DB l1 x1 (n1-q)) in
-            match SS.add sigma x (n-q) t with
-            | None -> assert false
-            | Some sigma2 -> pseudo_u sg fail sigma2 lst
-          end
-        | DB (_,x,n), t when n>=q ->
-          begin
+            let n' = n-q in
             match unshift_reduce sg q t with
             | None -> warn ()
-            | Some t' ->
-              ( match SS.add sigma x (n-q) t' with
-                | None ->
-                  ( match SS.add sigma x (n-q) (snf sg t') with
-                    | None -> warn ()
-                    | Some sigma2 -> pseudo_u sg fail sigma2 lst )
-                | Some sigma2 -> pseudo_u sg fail sigma2 lst )
+            | Some ut ->
+               let t' = if Subst.occurs n' ut then ut else snf sg ut in
+               if Subst.occurs n' t' then warn ()
+               else pseudo_u sg fail (SS.add sigma n' t') lst
           end
-        | t, DB (_,x,n) when n>=q ->
+        | t, DB (_,_,n) when n>=q ->
           begin
+            let n' = n-q in
             match unshift_reduce sg q t with
             | None -> warn ()
-            | Some t' ->
-              ( match SS.add sigma x (n-q) t' with
-                | None ->
-                  ( match SS.add sigma x (n-q) (snf sg t') with
-                    | None -> warn ()
-                    | Some sigma2 -> pseudo_u sg fail sigma2 lst )
-                | Some sigma2 -> pseudo_u sg fail sigma2 lst )
+            | Some ut ->
+               let t' = if Subst.occurs n' ut then ut else snf sg ut in
+               if Subst.occurs n' t' then warn ()
+               else pseudo_u sg fail (SS.add sigma n' t') lst
           end
 
         | Pi (_,_,a,b), Pi (_,_,a',b') ->
@@ -369,39 +361,35 @@ let pp_context_inline fmt ctx =
     fmt (List.rev ctx)
 
 (* TODO the term is traversed three times, this could be optimized. *)
-let subst_context (sub:SS.t) (ctx:typed_context) : typed_context option =
-  try Some ( List.mapi ( fun i (l,x,ty) ->
-      (l,x, Subst.unshift (i+1) (SS.apply sub (Subst.shift (i+1) ty) 0) )
-    ) ctx )
-  with Subst.UnshiftExn -> None
+let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
+  List.mapi ( fun i (l,x,ty) ->
+              (l,x, Subst.unshift (i+1) (SS.apply sub 0 (Subst.shift (i+1) ty)) )
+    ) ctx
 
 let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
-  let delta = pc_make rule.ctx in
-  let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
-  assert ( delta.padding == 0 );
   let fail = if !fail_on_unsatisfiable_constraints
     then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))
     else (fun (q,t1,t2) ->
         Debug.(debug D_warn "Unsatisfiable constraint: %a ~ %a%s"
                  pp_term t1 pp_term t2
                  (if q > 0 then Format.sprintf " (under %i abstractions)" q else ""))) in
+  let delta = pc_make rule.ctx in
+  let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
+  assert ( delta.padding == 0 );
   let sub = SS.mk_idempotent (pseudo_u sg fail SS.identity lst) in
-  let (ri2,ty_le2,ctx2) =
-    if SS.is_identity sub then (rule.rhs,ty_le,LList.lst delta.pctx)
-    else
-      begin
-        match subst_context sub (LList.lst delta.pctx) with
-        | Some ctx2 -> ( SS.apply sub rule.rhs 0, SS.apply sub ty_le 0, ctx2 )
-        | None ->
-          begin
-            Debug.(
-              debug D_rule "Failed to infer a typing context for the rule:\n%a."
-                pp_untyped_rule rule;
-              debug D_rule "Tried inferred typing substitution: %a" SS.pp sub);
-            (*TODO make Dedukti handle this case*)
-            raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
-          end
-      end
+  let ri2    = SS.apply sub 0 rule.rhs in
+  let ty_le2 = SS.apply sub 0 ty_le    in
+  let ctx = LList.lst delta.pctx in
+  let ctx2 =
+    if SS.is_identity sub then ctx
+    else try subst_context sub ctx
+         with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
+           Debug.(
+                debug D_rule "Failed to infer a typing context for the rule:\n%a"
+                  pp_untyped_rule rule;
+                let ctx_name n = let _,name,_ = List.nth ctx n in name in
+                debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
+        raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
   in
   check sg ctx2 ri2 ty_le2;
   Debug.(debug D_rule "[ %a ] %a --> %a"
