@@ -25,17 +25,14 @@ val subst : term -> term -> term
     All others free variables are shifted by one preventing index collision. *)
 val subst_n : int -> Basic.ident -> term -> term
 
-
+(* TODO: document this module and its use. *)
 module Subst :
 sig
   type t
   val identity      : t
   val add           : t -> Basic.ident -> int -> term -> t option
   val apply         : t -> term -> int -> term
-(*val merge         : t -> t -> t *)
   val is_identity   : t -> bool
   val mk_idempotent : t -> t
   val pp            : t Basic.printer
-  val fold          : (int -> (Basic.ident*term) -> 'b -> 'b) -> t -> 'b -> 'b
-  val iter          : (int -> (Basic.ident*term) -> unit) -> t -> unit
 end

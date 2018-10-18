@@ -368,28 +368,12 @@ let pp_context_inline fmt ctx =
     (fun fmt (_,x,ty) -> fprintf fmt "%a: %a" pp_ident x pp_term ty )
     fmt (List.rev ctx)
 
-let rec pp_term_j k fmt = function
-  | Kind               -> Format.fprintf fmt "Kind"
-  | Type _             -> Format.fprintf fmt "Type"
-  | DB  (_,x,n) when n<k -> fprintf fmt "%a[%i]" pp_ident x n
-  | DB  (_,x,n)        -> fprintf fmt "_"
-  | Const (_,cst)      -> fprintf fmt "%a" pp_name cst
-  | App (f,a,args)     -> pp_list " " (pp_term_wp_j k) fmt (f::a::args)
-  | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
-  | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term f
-  | Pi  (_,x,a,b)      -> fprintf fmt "%a:%a -> %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term b
-
-and pp_term_wp_j k fmt = function
-  | Kind | Type _ | DB _ | Const _ as t -> pp_term_j k fmt t
-  | t       -> fprintf fmt "(%a)" (pp_term_j k) t
-
 (* TODO the term is traversed three times, this could be optimized. *)
 let subst_context (sub:SS.t) (ctx:typed_context) : typed_context option =
   try Some ( List.mapi ( fun i (l,x,ty) ->
       (l,x, Subst.unshift (i+1) (SS.apply sub (Subst.shift (i+1) ty) 0) )
     ) ctx )
-  with
-  | Subst.UnshiftExn -> None
+  with Subst.UnshiftExn -> None
 
 let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   let delta = pc_make rule.ctx in
@@ -410,14 +394,11 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
         | Some ctx2 -> ( SS.apply sub rule.rhs 0, SS.apply sub ty_le 0, ctx2 )
         | None ->
           begin
+            Debug.(
+              debug D_rule "Failed to infer a typing context for the rule:\n%a."
+                pp_untyped_rule rule;
+              debug D_rule "Tried inferred typing substitution: %a" SS.pp sub);
             (*TODO make Dedukti handle this case*)
-            Debug.(debug_eval D_rule (fun () ->
-                debug D_rule "Failed to infer a typing context for the rule:\n%a."
-                  pp_untyped_rule rule;
-                let aux i (id,te) = debug D_rule "Try replacing '%a[%i]' by '%a'"
-                    pp_ident id i (pp_term_j 0) te in
-                SS.iter aux sub
-              ));
             raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
           end
       end
