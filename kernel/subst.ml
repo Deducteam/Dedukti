@@ -4,22 +4,31 @@ open Term
 
 exception UnshiftExn
 
-let replace_free replacer =
-  let rec aux k = function
-    | DB (l,x,n) when n >= k -> replacer l x n k
-    | Type _ | Kind | Const _ | DB _ as t -> t
+type substitution = loc -> ident -> int -> int -> term
+
+(* This could be optimized by recognizing uneffectful recursive calls avoid rebuilding
+   identical terms from identical subterms when not necessary.
+
+   One way to do this would be to have a global reference counting actual substitutions.
+   If the variable is untouched after recursive calls, then ignore their results and return t.
+*)
+let apply_subst (subst:substitution) : int -> term -> term =
+  let rec aux k t = match t with  (* k counts the number of local lambda abstractions *)
+    | DB (l,x,n) when n >= k ->  (* a free variable *)
+       ( try subst l x n k with Not_found -> t)
+    | Type _ | Kind | Const _ | DB _ -> t
     | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
     | Lam (l,x,a,f)  -> mk_Lam l x (map_opt (aux k) a) (aux (k+1) f)
     | Pi  (l,x,a,b)  -> mk_Pi  l x (aux k a) (aux (k+1) b)
   in aux
 
-let rec shift_rec (r:int) (k:int) : term -> term = replace_free (fun _ x n _ -> mk_DB dloc x (n+r)) 0
+let rec shift_rec (r:int) (k:int) : term -> term = apply_subst (fun _ x n _ -> mk_DB dloc x (n+r)) 0
 
 let shift r t = if r = 0 then t else shift_rec r 0 t
 
 (* All free variables are shifted down by [q]. If their index is less than [q], raises UnshiftExn. *)
 let unshift q =
-  replace_free (fun l x n k -> if (n-k) < q then raise UnshiftExn else mk_DB l x (n-q)) 0
+  apply_subst (fun l x n k -> if (n-k) < q then raise UnshiftExn else mk_DB l x (n-q)) 0
 
 let psubst_l (args:(term Lazy.t) LList.t) : term -> term =
   let nargs = args.LList.len in
@@ -38,13 +47,13 @@ let psubst_l (args:(term Lazy.t) LList.t) : term -> term =
     if n >= k + nargs then mk_DB l x (n-nargs)
     else get (n-k) k
   in
-  replace_free replacer 0
+  apply_subst replacer 0
 
 let subst (te:term) (u:term) =
-  replace_free (fun l x n k -> if n = k then shift k u else mk_DB l x (n-1)) 0 te
+  apply_subst (fun l x n k -> if n = k then shift k u else mk_DB l x (n-1)) 0 te
 
 let subst_n m y =
-  replace_free (fun l x n k -> if n-k = m then mk_DB l y k else mk_DB l x (n+1)) 0
+  apply_subst (fun l x n k -> if n-k = m then mk_DB l y k else mk_DB l x (n+1)) 0
 
 module IntMap = Map.Make(
   struct
@@ -70,9 +79,11 @@ struct
 
   let is_identity = IntMap.is_empty
 
+  let subst (sigma:t) = fun _ _ n k -> shift k (IntMap.find (n-k) sigma)
+  let subst2 (sigma:t) (i:int) = fun _ _ n k -> shift k (unshift (i+1) (IntMap.find (n+i+1-k) sigma))
+
   let apply (sigma:t) : int -> term -> term =
-    if is_identity sigma then (fun _ t -> t) else
-    replace_free (fun l x n k -> try shift k (IntMap.find (n-k) sigma) with Not_found -> mk_DB l x n)
+    if is_identity sigma then (fun _ t -> t) else apply_subst (subst sigma)
 
   let add (sigma:t) (n:int) (t:term) : t =
     assert ( not (IntMap.mem n sigma) );

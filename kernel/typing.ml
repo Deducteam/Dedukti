@@ -360,11 +360,9 @@ let pp_context_inline fmt ctx =
     (fun fmt (_,x,ty) -> fprintf fmt "%a: %a" pp_ident x pp_term ty )
     fmt (List.rev ctx)
 
-(* TODO the term is traversed three times, this could be optimized. *)
 let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
-  List.mapi ( fun i (l,x,ty) ->
-              (l,x, Subst.unshift (i+1) (SS.apply sub 0 (Subst.shift (i+1) ty)) )
-    ) ctx
+  let apply_subst i (l,x,ty) = (l,x,Subst.apply_subst (SS.subst2 sub i) 0 ty) in
+  List.mapi apply_subst ctx
 
 let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   let fail = if !fail_on_unsatisfiable_constraints
