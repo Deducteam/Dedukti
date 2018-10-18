@@ -43,11 +43,11 @@ let psubst_l (args:(term Lazy.t) LList.t) : term -> term =
         tab.(i) <- (k,res) :: l;
         res
   in
-  let replacer l x n k =
+  let subst l x n k =
     if n >= k + nargs then mk_DB l x (n-nargs)
     else get (n-k) k
   in
-  apply_subst replacer 0
+  apply_subst subst 0
 
 let subst (te:term) (u:term) =
   apply_subst (fun l x n k -> if n = k then shift k u else mk_DB l x (n-1)) 0 te
