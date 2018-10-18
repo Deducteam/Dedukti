@@ -4,31 +4,24 @@ open Term
 
 exception UnshiftExn
 
-let rec shift_rec (r:int) (k:int) : term -> term = function
-  | DB (_,x,n) as t -> if n<k then t else mk_DB dloc x (n+r)
-  | App (f,a,args) ->
-      mk_App (shift_rec r k f) (shift_rec r k a) (List.map (shift_rec r k) args )
-  | Lam (_,x,a,f) -> mk_Lam dloc x (map_opt (shift_rec r k) a) (shift_rec r (k+1) f)
-  | Pi  (_,x,a,b) -> mk_Pi dloc x (shift_rec r k a) (shift_rec r (k+1) b)
-  | t -> t
+let replace_free replacer =
+  let rec aux k = function
+    | DB (l,x,n) when n >= k -> replacer l x n k
+    | Type _ | Kind | Const _ | DB _ as t -> t
+    | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
+    | Lam (l,x,a,f)  -> mk_Lam l x (map_opt (aux k) a) (aux (k+1) f)
+    | Pi  (l,x,a,b)  -> mk_Pi  l x (aux k a) (aux (k+1) b)
+  in aux
+
+let rec shift_rec (r:int) (k:int) : term -> term = replace_free (fun _ x n _ -> mk_DB dloc x (n+r)) 0
 
 let shift r t = if r = 0 then t else shift_rec r 0 t
 
-let unshift q te =
-  let rec aux k = function
-  | DB (_,_,n) as t when n<k -> t
-  | DB (l,x,n) ->
-    if (n-k) < q then raise UnshiftExn
-    else mk_DB l x (n-q)
-  | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
-  | Lam (l,x,None,f) -> mk_Lam l x None (aux (k+1) f)
-  | Lam (l,x,Some a,f) -> mk_Lam l x (Some (aux k a)) (aux (k+1) f)
-  | Pi  (l,x,a,b) -> mk_Pi l x (aux k a) (aux (k+1) b)
-  | Type _ | Kind | Const _ as t -> t
-  in
-  aux 0 te
+(* All free variables are shifted down by [q]. If their index is less than [q], raises UnshiftExn. *)
+let unshift q =
+  replace_free (fun l x n k -> if (n-k) < q then raise UnshiftExn else mk_DB l x (n-q)) 0
 
-let psubst_l (args:(term Lazy.t) LList.t) (te:term) : term =
+let psubst_l (args:(term Lazy.t) LList.t) : term -> term =
   let nargs = args.LList.len in
   let tab = Array.make nargs [] in
   let rec get i k =
@@ -41,41 +34,17 @@ let psubst_l (args:(term Lazy.t) LList.t) (te:term) : term =
         tab.(i) <- (k,res) :: l;
         res
   in
-  let rec aux k t = match t with
-    | Type _ | Kind | Const _ -> t
-    | DB (_,x,n) when n >= (k+nargs) -> mk_DB dloc x (n-nargs)
-    | DB (_,_,n) when n < k          -> t
-    | DB (_,_,n) (* k<=n<k+nargs *)  -> get (n-k) k
-    | Lam (_,x,a,b)                  ->
-        mk_Lam dloc x (map_opt (aux k) a) (aux (k+1) b)
-    | Pi  (_,x,a,b)                  ->
-        mk_Pi dloc x (aux k a) (aux (k+1) b)
-    | App (f,a,lst)                  ->
-        mk_App (aux k f) (aux k a) (List.map (aux k) lst)
-  in aux 0 te
+  let replacer l x n k =
+    if n >= k + nargs then mk_DB l x (n-nargs)
+    else get (n-k) k
+  in
+  replace_free replacer 0
 
 let subst (te:term) (u:term) =
-  let rec  aux k = function
-    | DB (l,x,n) as t ->
-        if n = k then shift k u
-        else if n>k then mk_DB l x (n-1)
-        else (*n<k*) t
-    | Type _ | Kind | Const _ as t -> t
-    | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (aux k) a) (aux (k+1) b)
-    | Pi  (_,x,a,b) -> mk_Pi dloc  x (aux k a) (aux(k+1) b)
-    | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
-  in aux 0 te
+  replace_free (fun l x n k -> if n = k then shift k u else mk_DB l x (n-1)) 0 te
 
-let subst_n n y t =
-  let rec aux k t =  match t with
-    | Type _ | Kind | Const _ -> t
-    | DB (_,_,m) when (m < k) -> t
-    | DB (l,x,m) when (m == (n+k)) -> mk_DB l y k
-    | DB (l,x,m) (* ( k <= m ) && m != n+k) *) -> mk_DB l x (m+1)
-    | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (aux k) a) (aux (k+1) b)
-    | Pi  (_,x,a,b) -> mk_Pi dloc x (aux k a) (aux (k+1) b)
-    | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
-  in aux 0 t
+let subst_n m y =
+  replace_free (fun l x n k -> if n-k = m then mk_DB l y k else mk_DB l x (n+1)) 0
 
 module IntMap = Map.Make(
   struct
@@ -101,18 +70,9 @@ struct
 
   let is_identity = IntMap.is_empty
 
-  let apply (sigma:t) (q:int) (te:term) : term =
-    if is_identity sigma then te else
-      let rec aux q t = match t with
-        | Kind | Type _ | Const _ -> t
-        | DB (_,_,k)    when k <  q    -> t
-        | DB (_,_,k) (* when k >= q *) ->
-           (try shift q (IntMap.find (k-q) sigma) with Not_found -> t)
-        | App (f,a,args)       -> mk_App (aux q f) (aux q a) (List.map (aux q) args)
-        | Lam (l,x,Some ty,te) -> mk_Lam l x (Some (aux q ty)) (aux (q+1) te)
-        | Lam (l,x,None   ,te) -> mk_Lam l x None              (aux (q+1) te)
-        | Pi  (l,x,a      ,b ) -> mk_Pi  l x (aux q a) (aux (q+1) b)
-      in aux q te
+  let apply (sigma:t) : int -> term -> term =
+    if is_identity sigma then (fun _ t -> t) else
+    replace_free (fun l x n k -> try shift k (IntMap.find (n-k) sigma) with Not_found -> mk_DB l x n)
 
   let add (sigma:t) (n:int) (t:term) : t =
     assert ( not (IntMap.mem n sigma) );
