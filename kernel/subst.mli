@@ -25,14 +25,35 @@ val subst : term -> term -> term
     All others free variables are shifted by one preventing index collision. *)
 val subst_n : int -> Basic.ident -> term -> term
 
-(* TODO: document this module and its use. *)
+(** [occurs n t] returns true if [t] contains the variable [n]. *)
+val occurs : int -> term -> bool
+
+(** This modules implements substitution of DB variables in a term.
+    This is typically used to:
+    1) infer a "most general" typing substitution from constraints gathered while
+       inferring the type of the LHS of a rule.
+    2) apply the substitution to the RHS of the rule before typechecking it.
+*)
 module Subst :
 sig
   type t
-  val identity      : t
-  val add           : t -> Basic.ident -> int -> term -> t option
-  val apply         : t -> term -> int -> term
-  val is_identity   : t -> bool
+
+  val identity : t (** Empty substitution *)
+
+  val is_identity : t -> bool (** Checks emptyness *)
+
+  val add : t -> int -> term -> t
+  (** [add sigma n t] returns the substitution [sigma] with the extra mapping [n] -> [t]. *)
+
+  val apply : t -> int -> term -> term
+  (** [apply sigma n t] applies the subsitution [sigma] to [t] considered under [n] lambda abstractions.
+      - Variables with DB index [k] <  [n] are considered "locally bound" and are never substituted.
+      - Variables with DB index [k] >= [n] may be substituted if [k-n] is mapped in [sigma].
+   *)
+
   val mk_idempotent : t -> t
-  val pp            : t Basic.printer
+  (** [mk_idempotent sigma] successively applies sigma to its mapped terms until this operation
+      has no effect anymore. *)
+
+  val pp : (int->Basic.ident) -> t Basic.printer (** Prints the substitution using given naming function *)
 end

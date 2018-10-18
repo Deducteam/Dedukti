@@ -84,54 +84,47 @@ module IntMap = Map.Make(
   end)
 
 
-(* Subst is only used inside the typing modules. I think it is only used to apply
- * substituion on Miller patterns *)
+let occurs (n:int) (te:term) : bool =
+  let rec aux depth = function
+    | Kind | Type _ | Const _ -> false
+    | DB (_,_,k) -> k = n + depth
+    | App (f,a,args) -> List.exists (aux depth) (f::a::args)
+    | Lam (_,_,None,te) -> aux (depth+1) te
+    | Lam (_,_,Some ty,te) -> aux depth ty || aux (depth+1) te
+    | Pi (_,_,a,b) -> aux depth a || aux (depth+1) b
+  in aux 0 te
+
 module Subst =
 struct
-  (* FIXME: why do we need a (ident * term) IntMap.t and not just a term IntMap.t, for debug? *)
-  type t = (ident*term) IntMap.t
+  type t = term IntMap.t
   let identity = IntMap.empty
-
-  (* q is a free index that corresponds to the order of the free variable inside the context of a rule *)
-  let apply (sigma:t) (te:term) (q:int) : term =
-    let rec aux q = function
-      | Kind | Type _ | Const _ as t -> t
-      | DB (_,_,k) as t    when k <  q    -> t
-      | DB (_,_,k) as t (* when k >= q *) ->
-        begin
-          try shift q (snd (IntMap.find (k-q) sigma))
-          with Not_found -> t
-        end
-      | App (f,a,args) -> mk_App (aux q f) (aux q a) (List.map (aux q) args)
-      | Lam (l,x,Some ty,te) -> mk_Lam l x (Some (aux q ty)) (aux (q+1) te)
-      | Lam (l,x,None   ,te) -> mk_Lam l x None              (aux (q+1) te)
-      | Pi (l,x,a,b) -> mk_Pi l x (aux q a) (aux (q+1) b)
-    in aux q te
-
-  let occurs (n:int) (te:term) : bool =
-    let rec aux depth = function
-      | Kind | Type _ | Const _ -> false
-      | DB (_,_,k) -> k = n + depth
-      | App (f,a,args) -> List.exists (aux depth) (f::a::args)
-      | Lam (_,_,None,te) -> aux (depth+1) te
-      | Lam (_,_,Some ty,te) -> aux depth ty || aux (depth+1) te
-      | Pi (_,_,a,b) -> aux depth a || aux (depth+1) b
-    in aux 0 te
 
   let is_identity = IntMap.is_empty
 
-  let add (sigma:t) (x:ident) (n:int) (t:term) : t option =
-    assert ( not ( IntMap.mem n sigma ) );
-    if occurs n t then None
-    else Some ( IntMap.add n (x,t) sigma )
+  let apply (sigma:t) (q:int) (te:term) : term =
+    if is_identity sigma then te else
+      let rec aux q t = match t with
+        | Kind | Type _ | Const _ -> t
+        | DB (_,_,k)    when k <  q    -> t
+        | DB (_,_,k) (* when k >= q *) ->
+           (try shift q (IntMap.find (k-q) sigma) with Not_found -> t)
+        | App (f,a,args)       -> mk_App (aux q f) (aux q a) (List.map (aux q) args)
+        | Lam (l,x,Some ty,te) -> mk_Lam l x (Some (aux q ty)) (aux (q+1) te)
+        | Lam (l,x,None   ,te) -> mk_Lam l x None              (aux (q+1) te)
+        | Pi  (l,x,a      ,b ) -> mk_Pi  l x (aux q a) (aux (q+1) b)
+      in aux q te
+
+  let add (sigma:t) (n:int) (t:term) : t =
+    assert ( not (IntMap.mem n sigma) );
+    IntMap.add n t sigma
 
   let rec mk_idempotent (sigma:t) : t =
-    let sigma2:t = IntMap.map (fun (x,te) -> (x,apply sigma te 0)) sigma in
-    if IntMap.equal (fun a b -> term_eq (snd a) (snd b)) sigma sigma2 then sigma
+    let sigma2:t = IntMap.map (apply sigma 0) sigma in
+    if IntMap.equal term_eq sigma sigma2 then sigma
     else mk_idempotent sigma2
 
-  let pp (fmt:formatter) (sigma:t) : unit =
-    let pp_aux i (x,t) = fprintf fmt "\n  %a[%i] -> %a" pp_ident x i pp_term t in
+  let pp (name:(int->ident)) (fmt:formatter) (sigma:t) : unit =
+    let pp_aux i t = fprintf fmt "  %a[%i] -> %a\n" pp_ident (name i) i pp_term t in
     IntMap.iter pp_aux sigma
 
 end
