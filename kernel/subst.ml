@@ -6,20 +6,24 @@ exception UnshiftExn
 
 type substitution = loc -> ident -> int -> int -> term
 
-(* This could be optimized by recognizing uneffectful recursive calls avoid rebuilding
-   identical terms from identical subterms when not necessary.
-
-   One way to do this would be to have a global reference counting actual substitutions.
-   If the variable is untouched after recursive calls, then ignore their results and return t.
-*)
 let apply_subst (subst:substitution) : int -> term -> term =
+  let ct = ref 0 in
   let rec aux k t = match t with  (* k counts the number of local lambda abstractions *)
     | DB (l,x,n) when n >= k ->  (* a free variable *)
-       ( try subst l x n k with Not_found -> t)
-    | Type _ | Kind | Const _ | DB _ -> t
-    | App (f,a,args) -> mk_App (aux k f) (aux k a) (List.map (aux k) args)
-    | Lam (l,x,a,f)  -> mk_Lam l x (map_opt (aux k) a) (aux (k+1) f)
-    | Pi  (l,x,a,b)  -> mk_Pi  l x (aux k a) (aux (k+1) b)
+       ( try incr ct; subst l x n k with Not_found -> t)
+    | App (f,a,args) ->
+      let ct' = !ct in
+      let f',a',args' = aux k f, aux k a, List.map (aux k) args in
+      if !ct = ct' then t else mk_App f' a' args'
+    | Lam (l,x,a,f)  ->
+      let ct' = !ct in
+      let a',f' = map_opt (aux k) a, aux (k+1) f in
+      if !ct = ct' then t else mk_Lam l x a' f'
+    | Pi  (l,x,a,b)  -> 
+      let ct' = !ct in
+      let a',b' = aux k a, aux (k+1) b in
+      if !ct = ct' then t else mk_Pi  l x a' b'
+    | _ -> t
   in aux
 
 let rec shift_rec (r:int) (k:int) : term -> term = apply_subst (fun _ x n _ -> mk_DB dloc x (n+r)) 0
