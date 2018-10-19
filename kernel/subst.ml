@@ -10,7 +10,7 @@ let apply_subst (subst:substitution) : int -> term -> term =
   let ct = ref 0 in
   let rec aux k t = match t with  (* k counts the number of local lambda abstractions *)
     | DB (l,x,n) when n >= k ->  (* a free variable *)
-       ( try incr ct; subst l x n k with Not_found -> t)
+       ( try let res = subst l x n k in incr ct; res with Not_found -> t)
     | App (f,a,args) ->
       let ct' = !ct in
       let f',a',args' = aux k f, aux k a, List.map (aux k) args in
@@ -19,14 +19,15 @@ let apply_subst (subst:substitution) : int -> term -> term =
       let ct' = !ct in
       let a',f' = map_opt (aux k) a, aux (k+1) f in
       if !ct = ct' then t else mk_Lam l x a' f'
-    | Pi  (l,x,a,b)  -> 
+    | Pi  (l,x,a,b)  ->
       let ct' = !ct in
       let a',b' = aux k a, aux (k+1) b in
       if !ct = ct' then t else mk_Pi  l x a' b'
     | _ -> t
   in aux
 
-let rec shift_rec (r:int) (k:int) : term -> term = apply_subst (fun _ x n _ -> mk_DB dloc x (n+r)) 0
+let rec shift_rec (r:int) (k:int) : term -> term =
+  apply_subst (fun l x n _ -> mk_DB l x (n+r)) 0
 
 let shift r t = if r = 0 then t else shift_rec r 0 t
 
