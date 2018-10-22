@@ -61,9 +61,7 @@ and stack = state list
 
 let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
-  match stack with
-  | [] -> t
-  | a::lst -> mk_App t (term_of_state a) (List.map term_of_state lst)
+  mk_App2 t (List.map term_of_state stack)
 
 (* Pretty Printing *)
 
@@ -103,24 +101,19 @@ type convertibility_test = Signature.t -> term -> term -> bool
 
 let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (te:term) : term =
   try Matching.solve depth pbs te
-  with Matching.NotUnifiable ->
-    Matching.solve depth pbs (reduce sg te)
+  with Matching.NotUnifiable -> Matching.solve depth pbs (reduce sg te)
 
 let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
   try Subst.unshift q te
-  with Subst.UnshiftExn ->
-    Subst.unshift q (reduce sg te)
+  with Subst.UnshiftExn -> Subst.unshift q (reduce sg te)
 
 let get_context_syn (sg:Signature.t) (forcing:rw_strategy) (stack:stack) (ord:arg_pos LList.t) : env option =
-  try Some (LList.map (
-      fun p ->
-        if ( p.depth = 0 )
-        then lazy (term_of_state (List.nth stack p.position) )
-        else
-          Lazy.from_val
-            (unshift sg forcing p.depth (term_of_state (List.nth stack p.position) ))
-    ) ord )
-  with Subst.UnshiftExn -> ( None )
+  let aux (p:arg_pos) =
+    let t = List.nth stack p.position in
+    if p.depth = 0 then lazy (term_of_state t)
+    else Lazy.from_val (unshift sg forcing p.depth (term_of_state t)) in
+  try Some (LList.map aux ord)
+  with Subst.UnshiftExn -> None
 
 let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
                    (pb_lst:abstract_problem LList.t) : env option =
@@ -225,7 +218,7 @@ let gamma_rw (sg:Signature.t)
  *  | Lam _ -> Lam
  *  | DB (_,_,n) -> DB n
  *  | Const (_,m,v) -> Const m v
- *  | App(f,a0,args) -> App (shape f,List.lenght (a0::args))
+ *  | App(f,a0,args) -> App (shape f,List.length (a0::args))
 
  * Property:
  * A (strongly normalizing) non weak-head-normal term can only have the form:
@@ -246,10 +239,8 @@ let gamma_rw (sg:Signature.t)
 let rec state_whnf (sg:Signature.t) (st:state) : state =
   match st with
   (* Weak heah beta normal terms *)
-  | { term=Type _ }
-  | { term=Kind }
-  | { term=Pi _ }
-  | { term=Lam _; stack=[] } -> st
+  | { term=Type _ } | { term=Kind }
+  | { term=Pi _   } | { term=Lam _; stack=[] } -> st
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
     if n < LList.len ctx
@@ -301,16 +292,15 @@ and conversion_step : (term * term) -> (term * term) list -> (term * term) list 
 
 and are_convertible_lst sg : (term*term) list -> bool = function
   | [] -> true
-  | (t1,t2)::lst ->
-     if term_eq t1 t2 then are_convertible_lst sg lst
-     else are_convertible_lst sg (conversion_step (whnf sg t1, whnf sg t2) lst)
+  | (t1,t2)::lst -> are_convertible_lst sg
+    (if term_eq t1 t2 then lst else conversion_step (whnf sg t1, whnf sg t2) lst)
 
 (* Convertibility Test *)
 and are_convertible sg t1 t2 =
   try are_convertible_lst sg [(t1,t2)]
   with NotConvertible -> false
 
-let default_reduction = function Snf  -> snf | Whnf -> whnf
+let default_reduction = function Snf -> snf | Whnf -> whnf
 
 (* ************************************************************** *)
 

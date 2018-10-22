@@ -156,27 +156,42 @@ let _ =
   let output  = ref stdout in
   let sorted  = ref false  in
   let args = Arg.align
-      [ ( "-d"
-        , Arg.String Env.set_debug_mode
-        , "flags enables debugging for all given flags" )
-      ; ( "-q"
-        , Arg.Unit (fun () -> Env.set_debug_mode "q")
-      , " Quiet mode (equivalent to -d 'q'" )
-      ; ( "-o"
-        , Arg.String (fun n -> output := open_out n)
-        , "FILE Outputs to file FILE" )
-      ; ( "-s"
-        , Arg.Set sorted
-        , " Sort the source files according to their dependencies" )
-      ; ( "--ignore"
-        , Arg.Set ignore
-        , " If some dependencies are not found, ignore them" )
-      ; ( "-I"
-        , Arg.String add_path
-        , "DIR Add the directory DIR to the load path" ) ]
+    [ ( "-d"
+      , Arg.String Env.set_debug_mode
+      , "FLAGS enables debugging for all given flags:
+      q : (quiet)    disables all warnings
+      n : (notice)   notifies about which symbol or rule is currently treated
+      o : (module)   notifies about loading of an external module (associated
+                     to the command #REQUIRE)
+      c : (confluence) notifies about information provided to the confluence
+                     checker (when option -cc used)
+      u : (rule)     provides information about type checking of rules
+      t : (typing)   provides information about type-checking of terms
+      r : (reduce)   provides information about reduction performed in terms
+      m : (matching) provides information about pattern matching" )
+    ; ( "-v"
+      , Arg.Unit (fun () -> Env.set_debug_mode "montru")
+      , " Verbose mode (equivalent to -d 'montru')" )
+    ; ( "-q"
+      , Arg.Unit (fun () -> Env.set_debug_mode "q")
+      , " Quiet mode (equivalent to -d 'q')" )
+    ; ( "-o"
+      , Arg.String (fun n -> output := open_out n)
+      , "FILE Outputs to file FILE" )
+    ; ( "-s"
+      , Arg.Set sorted
+      , " Sort the source files according to their dependencies" )
+    ; ( "--ignore"
+      , Arg.Set ignore
+      , " If some dependencies are not found, ignore them" )
+    ; ( "-I"
+      , Arg.String add_path
+      , "DIR Add the directory DIR to the load path" ) ]
   in
-  let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...@." in
-  let usage = usage ^ "Available options:" in
+  let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...
+Compute the dependencies of the given Dedukti FILE(s).
+For more information see https://github.com/Deducteam/Dedukti.
+Available options:" Sys.argv.(0) in
   let files =
     let files = ref [] in
     Arg.parse args (fun f -> files := f :: !files) usage;

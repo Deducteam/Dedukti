@@ -105,6 +105,14 @@ export readonly BIN=${BIN}
 export readonly NBWORKERS=${NBWORKERS}
 export -f check
 
-# Compiling the library files.
-\time -f "Finished in %E at %P with %MKb of RAM" bash -c "check"
-echo "DONE."
+# Run the actual checks.
+cd ${DIR}
+if [[ $TIME = "" ]]; then
+	export TIME="Finished in %E at %P with %MKb of RAM"
+fi
+
+if [[ $OUT = "" ]]; then
+	\time bash -c "check"
+else
+	\time -a -o $OUT bash -c "check"
+fi
