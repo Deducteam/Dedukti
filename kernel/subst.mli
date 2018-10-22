@@ -7,12 +7,12 @@ exception UnshiftExn
 (** A substitution is a function mapping a variable (location, identifier and DB index) under 
     a given number of lambda abstractions to a term.
     A substitution raises Not_found to mean that the variable is not subsituted. *)
-type substitution = Basic.loc -> Basic.ident -> int -> int -> term
+type 'a substitution = 'a -> Basic.loc -> Basic.ident -> int -> int -> term
 
 (** [apply_subst subst n t] applies [subst] to [t] under [n] lambda abstractions.
       - Variables with DB index [k] <  [n] are considered "locally bound" and are never substituted.
       - Variables with DB index [k] >= [n] may be substituted if [k-n] is mapped in [sigma]. *)
-val apply_subst : substitution -> int -> term -> term
+val apply_subst : 'a substitution -> 'a -> int -> term -> term
 
 (** [shift i t] shifts every De Bruijn indices in [t] by [i]. *)
 val shift : int -> term -> term
@@ -55,8 +55,8 @@ sig
   val add : t -> int -> term -> t
   (** [add sigma n t] returns the substitution [sigma] with the extra mapping [n] -> [t]. *)
 
-  val subst : t -> substitution (** Provides substitution from Subst instance. *)
-  val subst2 : t -> int -> substitution (** Provides special substitution from Subst instance. *)
+  val subst : t substitution (** Provides substitution from Subst instance. *)
+  val subst2 : (t *int) substitution (** Provides special substitution from Subst instance. *)
 
   val apply : t -> int -> term -> term
   (** [apply sigma n t] applies the subsitution [sigma] to [t] considered under [n] lambda abstractions. *)

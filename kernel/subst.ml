@@ -4,37 +4,45 @@ open Term
 
 exception UnshiftExn
 
-type substitution = loc -> ident -> int -> int -> term
+type 'a substitution = 'a -> loc -> ident -> int -> int -> term
 
-let apply_subst (subst:substitution) : int -> term -> term =
+let apply_subst (subst:'a substitution) : 'a -> int -> term -> term =
   let ct = ref 0 in
-  let rec aux k t = match t with  (* k counts the number of local lambda abstractions *)
+  let rec aux arg k t = match t with  (* k counts the number of local lambda abstractions *)
     | DB (l,x,n) when n >= k ->  (* a free variable *)
-       ( try let res = subst l x n k in incr ct; res with Not_found -> t)
+       ( try let res = subst arg l x n k in incr ct; res with Not_found -> t)
     | App (f,a,args) ->
       let ct' = !ct in
-      let f',a',args' = aux k f, aux k a, List.map (aux k) args in
+      let f',a',args' = aux arg k f, aux arg k a, List.map (aux arg k) args in
       if !ct = ct' then t else mk_App f' a' args'
     | Lam (l,x,a,f)  ->
       let ct' = !ct in
-      let a',f' = map_opt (aux k) a, aux (k+1) f in
+      let a',f' = map_opt (aux arg k) a, aux arg (k+1) f in
       if !ct = ct' then t else mk_Lam l x a' f'
     | Pi  (l,x,a,b)  ->
       let ct' = !ct in
-      let a',b' = aux k a, aux (k+1) b in
-      if !ct = ct' then t else mk_Pi  l x a' b'
+      let a',b' = aux arg k a, aux arg (k+1) b in
+      if !ct = ct' then t else mk_Pi l x a' b'
     | _ -> t
   in aux
+[@@inline]
 
-let rec shift_rec (r:int) (k:int) : term -> term =
-  apply_subst (fun l x n _ -> mk_DB l x (n+r)) 0
+let shift_rec : int -> int -> term -> term =
+  let subst r l x n _ = mk_DB l x (n+r) in
+  apply_subst subst
 
 let shift r t = if r = 0 then t else shift_rec r 0 t
 
-(* All free variables are shifted down by [q]. If their index is less than [q], raises UnshiftExn. *)
-let unshift q =
-  apply_subst (fun l x n k -> if (n-k) < q then raise UnshiftExn else mk_DB l x (n-q)) 0
+(* All free variables are shifted down by [q].
+   If their index is less than [q], raises UnshiftExn. *)
+let unshift : int -> term -> term =
+  let subst q l x n k = if (n-k) < q then raise UnshiftExn else mk_DB l x (n-q) in
+  fun k -> apply_subst subst k 0
 
+let psubst_l_ (nargs,get) l x n k =
+  if n >= k + nargs then mk_DB l x (n-nargs)
+  else get (n-k) k
+let psubst_l__ = apply_subst psubst_l_
 let psubst_l (args:(term Lazy.t) LList.t) : term -> term =
   let nargs = args.LList.len in
   let tab = Array.make nargs [] in
@@ -47,24 +55,17 @@ let psubst_l (args:(term Lazy.t) LList.t) : term -> term =
         let res = shift k (get i 0) in
         tab.(i) <- (k,res) :: l;
         res
-  in
-  let subst l x n k =
-    if n >= k + nargs then mk_DB l x (n-nargs)
-    else get (n-k) k
-  in
-  apply_subst subst 0
+  in psubst_l__ (nargs,get) 0
 
-let subst (te:term) (u:term) =
-  apply_subst (fun l x n k -> if n = k then shift k u else mk_DB l x (n-1)) 0 te
+let subst : term -> term -> term =
+  let subst u l x n k = if n = k then shift k u else mk_DB l x (n-1) in
+  let aux = apply_subst subst in
+  fun te u -> aux u 0 te
 
-let subst_n m y =
-  apply_subst (fun l x n k -> if n-k = m then mk_DB l y k else mk_DB l x (n+1)) 0
-
-module IntMap = Map.Make(
-  struct
-    type t = int
-    let compare = compare
-  end)
+let subst_n : int -> ident -> term -> term =
+  let subst (m,y) l x n k = if n-k = m then mk_DB l y k else mk_DB l x (n+1) in
+  let aux = apply_subst subst in
+  fun m y -> aux (m,y) 0
 
 
 let occurs (n:int) (te:term) : bool =
@@ -77,6 +78,12 @@ let occurs (n:int) (te:term) : bool =
     | Pi (_,_,a,b) -> aux depth a || aux (depth+1) b
   in aux 0 te
 
+module IntMap = Map.Make(
+  struct
+    type t = int
+    let compare = compare
+  end)
+
 module Subst =
 struct
   type t = term IntMap.t
@@ -84,11 +91,12 @@ struct
 
   let is_identity = IntMap.is_empty
 
-  let subst (sigma:t) = fun _ _ n k -> shift k (IntMap.find (n-k) sigma)
-  let subst2 (sigma:t) (i:int) = fun _ _ n k -> shift k (unshift (i+1) (IntMap.find (n+i+1-k) sigma))
+  let subst  sigma     _ _ n k = shift k (IntMap.find (n-k) sigma)
+  let subst2 (sigma,i) _ _ n k = shift k (unshift (i+1) (IntMap.find (n+i+1-k) sigma))
 
-  let apply (sigma:t) : int -> term -> term =
-    if is_identity sigma then (fun _ t -> t) else apply_subst (subst sigma)
+  let apply_ = apply_subst subst
+  let apply : t -> int -> term -> term =
+    fun sigma ->  if is_identity sigma then (fun _ t -> t) else apply_ sigma
 
   let add (sigma:t) (n:int) (t:term) : t =
     assert ( not (IntMap.mem n sigma) );

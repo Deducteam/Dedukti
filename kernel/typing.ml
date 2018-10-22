@@ -361,8 +361,8 @@ let pp_context_inline fmt ctx =
     fmt (List.rev ctx)
 
 let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
-  let apply_subst i (l,x,ty) = (l,x,Subst.apply_subst (SS.subst2 sub i) 0 ty) in
-  List.mapi apply_subst ctx
+  let aux = Subst.apply_subst SS.subst2 in
+  List.mapi (fun i (l,x,ty) -> (l,x,aux (sub,i) 0 ty)) ctx
 
 let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   let fail = if !fail_on_unsatisfiable_constraints
