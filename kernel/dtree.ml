@@ -206,9 +206,7 @@ let partition (mx:matrix) (c:int) : case list =
 
 (******************************************************************************)
 
-let array_to_llist arr = LList.of_array arr
-
-let get_first_term mx = mx.first.rhs
+let get_first_term mx        = mx.first.rhs
 let get_first_constraints mx = mx.first.constraints
 
 (* Extracts the matching_problem from the first line. *)
@@ -240,8 +238,8 @@ let get_first_matching_problem mx =
       ) mx.first.pats ;
     ( Array.iter ( fun r -> assert (r.position >= 0 ) ) arr1 );
     if !mp
-    then MillerPattern (array_to_llist arr2)
-    else Syntactic (array_to_llist arr1)
+    then MillerPattern (LList.of_array arr2)
+    else Syntactic     (LList.of_array arr1)
 
 
 (******************************************************************************)

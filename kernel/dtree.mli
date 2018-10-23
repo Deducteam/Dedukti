@@ -76,8 +76,8 @@ val pp_dforest : t printer
 
 val of_rules : rule_infos list -> t
 (** Compilation of rewrite rules into decision trees.
-Returns a list of arities and corresponding decision trees.
-Invariant : arities must be sorted in decreasing order.
-(see use case in [state_whnf] in [reduction.ml])
-May raise DtreeError.
+    Returns a list of arities and corresponding decision trees.
+    Invariant : arities must be sorted in decreasing order.
+    (see use case in [state_whnf] in [reduction.ml])
+    May raise DtreeError.
 *)
