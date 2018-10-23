@@ -25,19 +25,8 @@ type case =
       bounded variable [i] *)
   | CLam (** A lambda term *)
 
-
-(** An atomic matching problem.
-     stack.(pos) ~? X[ DB(args_0), ..., DB(args_n)]
-  where X is the variable and the problem is considered under depth abstractions.*)
-type atomic_problem =
-  {
-    pos     : int; (** position of the term to match in the stack. *)
-    depth   : int; (** depth of the argument regarding absractions *)
-    args_db : int LList.t (** Arguments DB indices (distinct bound variables) *)
-  }
-
-(** A matching problem to build a solution context from the stack *)
-type matching_problem = atomic_problem LList.t
+(** Compiled matching problem. Output of a decision tree. *)
+type matching_problem
 
 (** Type of decision trees *)
 type dtree =
@@ -69,8 +58,22 @@ val pp_dforest : t printer
 
 val of_rules : rule_infos list -> t
 (** Compilation of rewrite rules into decision trees.
-Returns a list of arities and corresponding decision trees.
-Invariant : arities must be sorted in decreasing order.
-(see use case in [state_whnf] in [reduction.ml])
-May raise DtreeError.
+    Returns a list of arities and corresponding decision trees.
+    Invariant : arities must be sorted in decreasing order.
+    (see use case in [state_whnf] in [reduction.ml])
+    May raise DtreeError.
+*)
+
+
+
+type 'a atomic_problem = 'a * int * int LList.t
+(** An atomic matching problem of a variable applied to distinct locally bound
+    variables against a term in the stack:
+       [(t,depth,args)]  <-->   t ~? X[ DB(args_0), ..., DB(args_n)]
+    where X is the variable and the problem is considered under [depth] abstractions.
+*)
+
+val process_matching_problem : matching_problem -> 'a list -> 'a atomic_problem LList.t
+(** From a matching_problem, transforms a stack into the list of atomic_problems
+    that remains to be solved for each of the context variables.
 *)

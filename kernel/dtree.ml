@@ -17,8 +17,8 @@ type case =
   | CDB    of int * int
   | CLam
 
-type atomic_problem = { pos:int; depth:int; args_db:int LList.t }
-type matching_problem = atomic_problem LList.t
+type matching_problem =
+  { assoc : (int*int) list; depths : int array; args_db : int LList.t array }
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
@@ -202,29 +202,45 @@ let partition (mx:matrix) (c:int) : case list =
 
 (******************************************************************************)
 
-let array_to_llist arr = LList.of_array arr
-
-let get_first_term mx = mx.first.rhs
+let get_first_term        mx = mx.first.rhs
 let get_first_constraints mx = mx.first.constraints
 
 (* Extracts the matching_problem from the first line. *)
 let get_first_matching_problem mx =
   let esize = mx.first.esize in
-  let dummy = { pos=(-1); depth=0; args_db=LList.nil } in
-  let arr = Array.make esize dummy in
+  let depths  = Array.make esize (-1) in
+  let args_db = Array.make esize LList.nil in
+  let assoc = ref [] in
   let process i = function
     | LJoker -> ()
     | LVar (_,n,lst) ->
       begin
         let k = mx.col_depth.(i) in
-        assert(0 <= n-k);
-        assert(n-k < esize );
-        arr.(n-k) <- { pos=i; depth=k; args_db=LList.of_list lst }
+        let v = n-k in
+        depths.(v) <- k;
+        args_db.(v) <- LList.of_list lst;
+        assoc := (i, v) :: !assoc
       end
     | _ -> assert false in
-    Array.iteri process mx.first.pats;
-    Array.iter (fun r -> assert (r.pos >= 0 )) arr;
-    array_to_llist arr
+  Array.iteri process mx.first.pats;
+  assert (Array.for_all (fun r -> r >= 0) depths);
+  { assoc = List.rev !assoc; depths=depths; args_db=args_db }
+
+type 'a atomic_problem = 'a * int * int LList.t
+
+let process_matching_problem (mp:matching_problem) (stack:'a list) : 'a atomic_problem LList.t =
+  let res = Array.make (Array.length mp.depths) None in
+  let rec aux pos assoc stack = match assoc, stack with
+    | [],_ -> ()
+    | (i,v)::ass, t::st ->
+      if i > pos
+      then                      aux (pos+1) assoc st
+      else ( res.(v) <- Some (t, mp.depths.(v), mp.args_db.(v));
+             aux (pos+1) ass   st )
+    | _ -> assert false
+  in
+  aux 0 mp.assoc stack;
+  LList.of_array (Array.map (function None -> assert false | Some v -> v) res)
 
 
 (******************************************************************************)
