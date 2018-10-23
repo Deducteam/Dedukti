@@ -113,7 +113,6 @@ module Debug : sig
   val debug_eval : flag -> (unit -> unit) -> unit
 end
 
-
 (** {2 Misc} *)
 
 val fold_map : ('b->'a-> ('c*'b)) -> 'b -> 'a list -> ('c list*'b)
@@ -125,6 +124,8 @@ val map_opt : ('a -> 'b) -> 'a option -> 'b option
 val split : int -> 'a list -> 'a list * 'a list
 
 val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
+
+(** {2 Printing functions} *)
 
 type 'a printer = Format.formatter -> 'a -> unit
 (** Functions printing objects on the given formatter. *)
