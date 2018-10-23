@@ -1,4 +1,3 @@
-
 open Basic
 open Format
 open Term
