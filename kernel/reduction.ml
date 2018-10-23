@@ -97,6 +97,8 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
 
 type rw_strategy         = Signature.t -> term -> term
 type rw_state_strategy   = Signature.t -> state -> state
+
+type matching_test = Rule.rule_name -> Signature.t -> term -> term -> bool
 type convertibility_test = Signature.t -> term -> term -> bool
 
 let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (te:term) : term =
@@ -125,21 +127,21 @@ let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
   with Matching.NotUnifiable -> None
      | Subst.UnshiftExn -> assert false
 
-let rec test (sg:Signature.t) (convertible:convertibility_test)
+let rec test (rn:Rule.rule_name) (sg:Signature.t) (convertible:matching_test)
              (ctx:env) (constrs: constr list) : bool  =
   match constrs with
   | [] -> true
   | Linearity (i,j)::tl ->
      let t1 = Lazy.force (LList.nth ctx i) in
      let t2 = Lazy.force (LList.nth ctx j) in
-     if convertible sg t1 t2
-     then test sg convertible ctx tl
+     if convertible rn sg t1 t2
+     then test rn sg convertible ctx tl
      else false
   | Bracket (i,t)::tl ->
      let t1 = Lazy.force (LList.nth ctx i) in
      let t2 = term_of_state { ctx; term=t; stack=[] } in
-     if convertible sg t1 t2
-     then test sg convertible ctx tl
+     if convertible rn sg t1 t2
+     then test rn sg convertible ctx tl
      else raise (Signature.SignatureError(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
 
 let rec find_case (st:state) (cases:(case * dtree) list)
@@ -171,7 +173,7 @@ let rec find_case (st:state) (cases:(case * dtree) list)
 
 (*TODO implement the stack as an array ? (the size is known in advance).*)
 let gamma_rw (sg:Signature.t)
-             (convertible:convertibility_test)
+             (convertible:matching_test)
              (forcing:rw_strategy)
              (strategy:rw_state_strategy) : stack -> dtree -> (rule_name*env*term) option =
   let rec rw stack = function
@@ -191,7 +193,7 @@ let gamma_rw (sg:Signature.t)
         match get_context_syn sg forcing stack ord with
         | None -> bind_opt (rw stack) def
         | Some ctx ->
-          if test sg convertible ctx eqs then Some (rn, ctx, right)
+          if test rn sg convertible ctx eqs then Some (rn, ctx, right)
           else bind_opt (rw stack) def
       end
     | Test (rn,MillerPattern lst, eqs, right, def) ->
@@ -199,7 +201,7 @@ let gamma_rw (sg:Signature.t)
         match get_context_mp sg forcing stack lst with
         | None -> bind_opt (rw stack) def
         | Some ctx ->
-          if test sg convertible ctx eqs then Some (rn, ctx, right)
+          if test rn sg convertible ctx eqs then Some (rn, ctx, right)
           else bind_opt (rw stack) def
       end
   in
@@ -236,7 +238,7 @@ let gamma_rw (sg:Signature.t)
  * - state.term can only be a variable if term.ctx is empty
  *    (and therefore this variable is free in the corresponding term)
  * *)
-let rec state_whnf conv_test (sg:Signature.t) (st:state) : state =
+let rec state_whnf conv_test matching_test (sg:Signature.t) (st:state) : state =
   match st with
   (* Weak heah beta normal terms *)
   | { term=Type _ } | { term=Kind }
@@ -244,17 +246,17 @@ let rec state_whnf conv_test (sg:Signature.t) (st:state) : state =
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
     if n < LList.len ctx
-    then state_whnf conv_test sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
+    then state_whnf conv_test matching_test sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
     else { ctx=LList.nil; term=(mk_DB l x (n-LList.len ctx)); stack }
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
     if not !beta then st
-    else state_whnf conv_test sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    else state_whnf conv_test matching_test sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
     let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
-    state_whnf conv_test sg { ctx; term=f; stack=List.rev_append tl' s }
+    state_whnf conv_test matching_test sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack } ->
     let trees = Signature.get_dtree sg !selection l n in
@@ -262,19 +264,19 @@ let rec state_whnf conv_test (sg:Signature.t) (st:state) : state =
     | None -> st
     | Some (ar, tree) ->
       let s1, s2 = split ar stack in
-      match gamma_rw sg conv_test (snf conv_test) (state_whnf conv_test) s1 tree with
+      match gamma_rw sg matching_test (snf conv_test matching_test) (state_whnf conv_test matching_test) s1 tree with
       | None -> st
-      | Some (_,ctx,term) -> state_whnf conv_test sg { ctx; term; stack=s2 }
+      | Some (_,ctx,term) -> state_whnf conv_test matching_test sg { ctx; term; stack=s2 }
 
 (* ************************************************************** *)
 
 (* Weak Head Normal Form *)
-and whnf conv_test sg term = term_of_state ( state_whnf conv_test sg { ctx=LList.nil; term; stack=[] } )
+and whnf conv_test matching_test sg term = term_of_state ( state_whnf conv_test matching_test sg { ctx=LList.nil; term; stack=[] } )
 
 (* Strong Normal Form *)
-and snf conv_test sg (t:term) : term =
-  let snf = snf conv_test in
-  match whnf conv_test sg t with
+and snf conv_test matching_test sg (t:term) : term =
+  let snf = snf conv_test matching_test in
+  match whnf conv_test matching_test sg t with
   | Kind | Const _ | DB _ | Type _ as t' -> t'
   | App (f,a,lst) -> mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst)
   | Pi  (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
@@ -291,20 +293,24 @@ let rec conversion_step : (term * term) -> (term * term) list -> (term * term) l
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
   | _ -> raise NotConvertible
 
-and are_convertible_lst sg : (term*term) list -> bool = function
+and are_convertible_lst sg : (term*term) list -> bool =
+  let match_convertible _ = are_convertible in
+  function
   | [] -> true
   | (t1,t2)::lst -> are_convertible_lst sg
     (if term_eq t1 t2 then lst
-     else conversion_step (whnf are_convertible sg t1, whnf are_convertible sg t2) lst)
+     else conversion_step (whnf are_convertible match_convertible sg t1, whnf are_convertible match_convertible sg t2) lst)
 
 (* Convertibility Test *)
 and are_convertible sg t1 t2 =
   try are_convertible_lst sg [(t1,t2)]
   with NotConvertible -> false
 
-let default_reduction ?(conv_test=are_convertible) = function
-  | Snf -> snf conv_test
-  | Whnf -> whnf conv_test
+let matching_test _ = are_convertible
+
+let default_reduction ?(conv_test=are_convertible) ?(match_test=matching_test) = function
+  | Snf -> snf conv_test match_test
+  | Whnf -> whnf conv_test match_test
 
 (* ************************************************************** *)
 
@@ -371,13 +377,13 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
         match find_dtree (List.length stack) trees with
         | None -> st
         | Some (ar, tree) ->
-          let s1, s2 = split ar stack in
-          match gamma_rw sg are_convertible (snf are_convertible) (state_whnf are_convertible) s1 tree with
-          | None -> st
-          | Some (rn,ctx,term) ->
-            let st' = { ctx; term; stack=s2 } in
-            log pos rn st';
-            aux pos st'
+           let s1, s2 = split ar stack in
+           match gamma_rw sg matching_test (snf are_convertible matching_test) (state_whnf are_convertible matching_test) s1 tree with
+           | None -> st
+           | Some (rn,ctx,term) ->
+              let st' = { ctx; term; stack=s2 } in
+              log pos rn st';
+              aux pos st'
   in aux
 
 let term_whnf (st_reducer:state_reducer) : term_reducer =
@@ -414,6 +420,7 @@ module type RE = sig
   val whnf            : Signature.t -> term -> term
   val snf             : Signature.t -> term -> term
   val are_convertible : Signature.t -> term -> term -> bool
+  val matching_test   : Rule.rule_name -> Signature.t -> term -> term -> bool
 end
 
 module REDefault : RE =
@@ -421,4 +428,5 @@ struct
   let whnf = default_reduction ~conv_test:are_convertible Whnf
   let snf  = default_reduction ~conv_test:are_convertible Snf
   let are_convertible = are_convertible
+  let matching_test _ = are_convertible
 end
