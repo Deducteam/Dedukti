@@ -1,14 +1,15 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
-SRC="https://deducteam.github.io/data/libraries/holide.tar.gz"
-DIR="holide"
+BIN="$(pwd)/../dkcheck.native -q"
+SRC="https://github.com/rafoo/dklib/archive/v2.6.zip"
+DIR="dklib"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
+  rm -rf dklib-2.6
   if [[ "$1" = "fullclean" ]]; then
-    rm -f holide.tar.gz
+    rm -f dklib.zip
   fi
   exit 0
 fi
@@ -25,45 +26,27 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f holide.tar.gz ]]; then
+  if [[ ! -f dklib.zip ]]; then
     echo -n "  - downloading...      "
-    wget -q ${SRC}
+    wget -q ${SRC} -O dklib.zip
     echo "OK"
   fi
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  tar xf holide.tar.gz
+  unzip -qq dklib.zip
+  mv dklib-2.6 ${DIR}
   echo "OK"
 
-  # Applying the changes (add "#REQUIRE hol" and fix obsolete syntax).
-  echo -n "  - applying changes... "
-  for FILE in `find ${DIR} -type f -name "*.dk"`; do
-    if [ ${FILE} != "${DIR}/hol.dk" ]; then
-      sed -i 's/^[{]\([a-zA-Z0-9_-]*\)[}]/thm \1/g' ${FILE}
-    fi
-  done
+  # Cleaning up.
+  echo -n "  - cleaning up...      "
+  rm ${DIR}/.gitignore ${DIR}/README.org
   echo "OK"
 
   # All done.
   echo "Ready."
   echo ""
 fi
-
-# Checking function.
-function check_holide() {
-  rm -f hol.dko
-  ${BIN} --gen-obj hol.dk
-  for FILE in `ls *.dk`; do
-    if [ ${FILE} != "hol.dk" ]; then
-      ${BIN} ${FILE}
-    fi
-  done
-}
-
-# Export stuff for the checking function.
-export readonly BIN=${BIN}
-export -f check_holide
 
 # Run the actual checks.
 cd ${DIR}
