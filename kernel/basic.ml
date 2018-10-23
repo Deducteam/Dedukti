@@ -167,9 +167,6 @@ let rev_mapi f l =
   in
   rmap_f 0 [] l
 
-let rec foldi i f acc =
-    if i <= 0 then acc else foldi (pred i) f (f acc)
-
 (** {2 Printing functions} *)
 
 type 'a printer = Format.formatter -> 'a -> unit

@@ -126,8 +126,6 @@ val split : int -> 'a list -> 'a list * 'a list
 
 val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
 
-val foldi : int -> ('a -> 'a) -> 'a -> 'a
-
 (** {2 Printing functions} *)
 
 type 'a printer = Format.formatter -> 'a -> unit
