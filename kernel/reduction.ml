@@ -113,7 +113,7 @@ let get_context (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
     let t = List.nth stack pos in
     if LList.is_empty args_db (* Syntactic match, no bound arguments. *)
     then 
-      if depth = 0 then lazy (term_of_state t)
+      if depth = 0 then Lazy.from_val (term_of_state t)
       else Lazy.from_val (unshift sg forcing depth (term_of_state t))
     else
       let res = solve sg forcing depth args_db (term_of_state t) in
