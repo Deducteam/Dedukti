@@ -202,9 +202,7 @@ let partition (mx:matrix) (c:int) : case list =
 
 (******************************************************************************)
 
-let array_to_llist arr = LList.of_array arr
-
-let get_first_term mx = mx.first.rhs
+let get_first_term        mx = mx.first.rhs
 let get_first_constraints mx = mx.first.constraints
 
 (* Extracts the matching_problem from the first line. *)
@@ -224,7 +222,7 @@ let get_first_matching_problem mx =
     | _ -> assert false in
     Array.iteri process mx.first.pats;
     Array.iter (fun r -> assert (r.pos >= 0 )) arr;
-    array_to_llist arr
+    LList.of_array arr
 
 
 (******************************************************************************)
