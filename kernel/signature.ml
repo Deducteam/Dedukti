@@ -3,7 +3,6 @@
 open Basic
 open Term
 open Rule
-open Dtree
 
 type Debug.flag += D_module
 let _ = Debug.register_flag D_module "Module"
@@ -167,7 +166,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     in
     let trees =
       try Dtree.of_rules rules
-      with DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+      with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
     in
     HId.add env (id r.cst) {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
 
@@ -216,8 +215,8 @@ let get_dtree sg rule_filter l cst =
     let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
     if List.length rules' == List.length rules then trees
     else
-      try Dtree.of_rules rules' with
-      | DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+      try Dtree.of_rules rules'
+      with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
 
 
 (******************************************************************************)
