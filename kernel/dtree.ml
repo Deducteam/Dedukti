@@ -202,7 +202,7 @@ let partition (mx:matrix) (c:int) : case list =
 
 (******************************************************************************)
 
-let get_first_term mx        = mx.first.rhs
+let get_first_term        mx = mx.first.rhs
 let get_first_constraints mx = mx.first.constraints
 
 (* Extracts the matching_problem from the first line. *)
