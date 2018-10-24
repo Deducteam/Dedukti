@@ -48,39 +48,18 @@ let dmark       = mk_ident "$"
 (** {2 Lists with Length} *)
 
 module LList = struct
-  type 'a t= {
-    len : int;
-    lst : 'a list;
-  }
+  type 'a t = { len : int; lst : 'a list }
 
+  let nil = {len=0;lst=[]}
   let cons x {len;lst} = {len=len+1; lst=x::lst}
-  let nil = {len=0;lst=[];}
-
-  let make ~len lst =
-    assert (List.length lst = len);
-    {lst;len}
-
-  let make_unsafe ~len lst = {len;lst}
-  (** make_unsafe [n] [l] is as make [n] [l] without checking that the length of [l] is [n] *)
-
-  let of_list  lst = {len=List.length lst ; lst}
-  let of_array arr = {len=Array.length arr; lst=Array.to_list arr}
 
   let len x = x.len
   let lst x = x.lst
   let is_empty x = x.len = 0
-
+  let of_list  lst = {len=List.length lst ; lst}
+  let of_array arr = {len=Array.length arr; lst=Array.to_list arr}
   let map f {len;lst} = {len; lst=List.map f lst}
-  let append_l {len;lst} l = {len=len+List.length l; lst=lst@l}
-
   let nth l i = assert (i<l.len); List.nth l.lst i
-
-  let remove i {len;lst} =
-    let rec aux c lst = match lst with
-      | []        -> assert false
-      | x::lst'   -> if c==0 then lst' else x::(aux (c-1) lst')
-    in
-    {len=len-1; lst=aux i lst}
 end
 
 (** {2 Localization} *)
