@@ -29,7 +29,7 @@ let unshift q te =
   aux 0 te
 
 let psubst_l (args:(term Lazy.t) LList.t) (te:term) : term =
-  let nargs = args.LList.len in
+  let nargs = LList.len args in
   let tab = Array.make nargs [] in
   let rec get i k =
     let l = tab.(i) in
