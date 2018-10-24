@@ -2,6 +2,7 @@
 
 NBWORKERS="4"
 
+BIN="$(pwd)/../dkcheck.native -q"
 SRC="http://deducteam.gforge.inria.fr/lib/zenon_modulo.tar"
 DIR="zenon_modulo"
 
@@ -61,7 +62,6 @@ done
 
 # Moving to the working directory.
 cd ${DIR}/workdir
-BIN="../../../../dkcheck.native -q"
 
 # Compiling the theory files.
 echo "Compiling the theory files..."

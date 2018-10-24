@@ -1,14 +1,14 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
-SRC="https://deducteam.github.io/data/libraries/focalide.tar.gz"
-DIR="focalide"
+BIN="$(pwd)/../dkcheck.native -q"
+SRC="https://deducteam.github.io/data/libraries/matita.tar.gz"
+DIR="matita"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
   if [[ "$1" = "fullclean" ]]; then
-    rm -f focalide.tar.gz
+    rm -f matita.tar.gz
   fi
   exit 0
 fi
@@ -25,7 +25,7 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f focalide.tar.gz ]]; then
+  if [[ ! -f matita.tar.gz ]]; then
     echo -n "  - downloading...      "
     wget -q ${SRC}
     echo "OK"
@@ -33,18 +33,8 @@ if [[ ! -d ${DIR} ]]; then
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  tar xf focalide.tar.gz
-  mv focalide_dks focalide
+  tar xf matita.tar.gz
   echo "OK"
-
-  # Applying the changes (add "#REQUIRE" and create "focalide.dk").
-  echo -n "  - applying changes... "
-  mv ${DIR}/modulogic.dk ${DIR}/zen.dk
-  echo "OK"
-
-  # All done.
-  echo "Ready."
-  echo ""
 fi
 
 # Run the actual checks.

@@ -1,14 +1,16 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
-SRC="https://deducteam.github.io/data/libraries/verine.tar.gz"
-DIR="verine"
+BIN="$(pwd)/../dkcheck.native -q"
+SRC="https://deducteam.github.io/data/libraries/iProverModulo_dk.tar.gz"
+DIR="iprover"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
+  rm -rf iProverModulo_dk
+  rm -f iProverModulo_dk.tar.gz
   if [[ "$1" = "fullclean" ]]; then
-    rm -f verine.tar.gz
+    rm -f iprover.tar.gz
   fi
   exit 0
 fi
@@ -25,15 +27,16 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f verine.tar.gz ]]; then
+  if [[ ! -f iprover.tar.gz ]]; then
     echo -n "  - downloading...      "
-    wget -q ${SRC}
+    wget -q ${SRC} -O iprover.tar.gz
     echo "OK"
   fi
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  tar xf verine.tar.gz
+  tar xf iprover.tar.gz
+  mv iProverModulo_dk ${DIR}
   echo "OK"
 
   # All done.
@@ -42,17 +45,17 @@ if [[ ! -d ${DIR} ]]; then
 fi
 
 # Checking function.
-function check_verine() {
-  rm -f logic.dko
-  ${BIN} --gen-obj logic.dk
-  for FILE in `ls SEQ*.dk`; do
-    ${BIN} ${FILE}
+function check_iprover() {
+  rm -f FOL.dko
+  ${BIN} --gen-obj FOL.dk
+  for PRF in `ls *_prf.dk`; do
+    ${BIN} ${PRF}
   done
 }
 
 # Export stuff for the checking function.
 export readonly BIN=${BIN}
-export -f check_verine
+export -f check_iprover
 
 # Run the actual checks.
 cd ${DIR}
