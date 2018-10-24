@@ -3,10 +3,20 @@ open Term
 
 exception NotUnifiable
 
-(* TODO: document this function *)
-let update_dbs nb_args (args_db:int option array) (te:term) : term =
+(* [update_dbs nb_args args_db te] returns the term [te].sigma
+   for sigma a permutation of variables defined by
+      sigma(i) = i + [nb_args] if i >= depth
+      sigma(i) = j             if i <  depth and [args_db.(j)] = [Some i]
+      sigma(i) undefined otherwise.
+   where depth is the length of [args_db].
+   Raises NotUnifiable if variable where sigma is undefined occur in [te].
+   Note: sigma maps:
+   - variables from the range  (0;depth(  to the range  (0;[nb_args](
+   - variables greater than depth to variables greater than depth+[nb_args]
+   - locally bound variable to themselves
+ *)
+let update_dbs (nb_args:int) (args_db:int option array) (te:term) : term =
   let depth = Array.length args_db in
-  (* TODO: This could be computed once for all at compile time *)
   let rec aux k = function
     | Type _ | Kind | Const _ as t -> t
     | DB (l,x,n) as t ->

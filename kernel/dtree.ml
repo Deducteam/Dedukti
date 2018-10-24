@@ -17,7 +17,7 @@ type case =
   | CDB    of int * int
   | CLam
 
-type atomic_problem = { pos:int; nb_args:int; args_db:int option array }
+type atomic_problem = { pos:int; args_db:int option array; nb_args:int }
 type matching_problem = atomic_problem LList.t
 
 type dtree =
@@ -207,17 +207,16 @@ let get_first_constraints mx = mx.first.constraints
 
 (* Extracts the matching_problem from the first line. *)
 let get_first_matching_problem mx =
-  let esize = mx.first.esize in
   let dummy = { pos=(-1); nb_args=(-1); args_db=[| |] } in
-  let arr = Array.make esize dummy in
-  let process i = function
+  let arr = Array.make mx.first.esize dummy in
+  let process pos = function
     | LJoker -> ()
-    | LVar (_,n,lst) ->
-      let k = mx.col_depth.(i) in
-      let args_db = Array.make k None in
-      let nb_args = List.length lst in
-      List.iteri (fun i n -> args_db.(n) <- Some (nb_args-i-1) ) lst;
-      arr.(n-k) <- { pos=i; nb_args=nb_args; args_db=args_db }
+    | LVar (_,n,args) -> (* Miller variable (n-depth) applied to the args bound variables. *)
+      let depth = mx.col_depth.(pos) in
+      let args_db = Array.make depth None in
+      let nb_args = List.length args in
+      List.iteri (fun arg_pos bv -> args_db.(bv) <- Some (nb_args-arg_pos-1) ) args;
+      arr.(n-depth) <- { pos; args_db; nb_args }
     | _ -> assert false in
     Array.iteri process mx.first.pats;
     Array.iter (fun r -> assert (r.pos >= 0)) arr;

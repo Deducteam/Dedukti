@@ -26,15 +26,19 @@ type case =
   | CLam (** A lambda term *)
 
 
-(** An atomic matching problem.
-     stack.(pos) ~? X[ DB(args_0), ..., DB(args_n)]
-  where X is the variable and the problem is considered under depth abstractions.*)
+(** Representation of an atomic matching problem
+       t ~? X[ DB(args_0), ..., DB(args_n)]
+  where X is the variable and the problem is considered under some abstractions.*)
 type atomic_problem =
   {
     pos     : int; (** position of the term to match in the stack. *)
-    nb_args : int; (** depth of the argument regarding absractions *)
-    args_db : int option array
-    (** Arguments DB indices (distinct bound variables) *)
+    args_db : int option array;
+    (** Maps locally bounded variable indices i to
+        - None    if X is not aplied to it
+        - Some k  if DB_i is the k's argument of X *)
+    nb_args : int
+    (** Number of variable the solution may depend on.
+        Invariant: [args_db] contains [nb_args] entries different from None. *)
   }
 
 (** A matching problem to build a solution context from the stack *)
