@@ -99,27 +99,19 @@ type rw_strategy         = Signature.t -> term -> term
 type rw_state_strategy   = Signature.t -> state -> state
 type convertibility_test = Signature.t -> term -> term -> bool
 
-let solve (sg:Signature.t) (reduce:rw_strategy) (depth:int) (pbs:int LList.t) (te:term) : term =
-  try Matching.solve depth pbs te
-  with Matching.NotUnifiable -> Matching.solve depth pbs (reduce sg te)
-
-let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
-  try Subst.unshift q te
-  with Subst.UnshiftExn -> Subst.unshift q (reduce sg te)
-
 let get_context (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
-                   (pb_lst:matching_problem) : env option =
+                (mp:matching_problem) : env option =
   let aux ({pos;depth;args_db}:atomic_problem) : term Lazy.t =
-    let t = List.nth stack pos in
-    if LList.is_empty args_db (* Syntactic match, no bound arguments. *)
-    then 
-      if depth = 0 then lazy (term_of_state t)
-      else Lazy.from_val (unshift sg forcing depth (term_of_state t))
+    let st = List.nth stack pos in
+    if depth = 0 then lazy (term_of_state st) (* First order matching *)
     else
-      let res = solve sg forcing depth args_db (term_of_state t) in
-      Lazy.from_val (Subst.unshift depth res)
+      let te = term_of_state st in
+      Lazy.from_val
+        (try Matching.solve depth args_db te
+         with Matching.NotUnifiable | Subst.UnshiftExn ->
+             Matching.solve depth args_db (forcing sg te))
   in
-  try Some (LList.map aux pb_lst)
+  try Some (LList.map aux mp)
   with Matching.NotUnifiable | Subst.UnshiftExn -> None
 
 let rec test (sg:Signature.t) (convertible:convertibility_test)
