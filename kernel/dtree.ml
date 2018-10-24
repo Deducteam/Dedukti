@@ -213,12 +213,8 @@ let get_first_matching_problem mx =
   let process i = function
     | LJoker -> ()
     | LVar (_,n,lst) ->
-      begin
-        let k = mx.col_depth.(i) in
-        assert(0 <= n-k);
-        assert(n-k < esize );
-        arr.(n-k) <- { pos=i; depth=k; args_db=LList.of_list lst }
-      end
+      let k = mx.col_depth.(i) in
+      arr.(n-k) <- { pos=i; depth=k; args_db=LList.of_list lst }
     | _ -> assert false in
     Array.iteri process mx.first.pats;
     Array.iter (fun r -> assert (r.pos >= 0 )) arr;
