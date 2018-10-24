@@ -107,20 +107,23 @@ let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
   try Subst.unshift q te
   with Subst.UnshiftExn -> Subst.unshift q (reduce sg te)
 
-let get_context (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
-                   (pb_lst:matching_problem) : env option =
-  let aux ({pos;depth;args_db}:atomic_problem) : term Lazy.t =
-    let t = List.nth stack pos in
-    if LList.is_empty args_db (* Syntactic match, no bound arguments. *)
-    then 
-      if depth = 0 then lazy (term_of_state t)
-      else Lazy.from_val (unshift sg forcing depth (term_of_state t))
-    else
-      let res = solve sg forcing depth args_db (term_of_state t) in
-      Lazy.from_val (Subst.unshift depth res)
+let get_context_syn (sg:Signature.t) (forcing:rw_strategy) (stack:stack) (ord:arg_pos LList.t) : env option =
+  let aux (p:arg_pos) =
+    let t = List.nth stack p.position in
+    if p.depth = 0 then lazy (term_of_state t)
+    else Lazy.from_val (unshift sg forcing p.depth (term_of_state t)) in
+  try Some (LList.map aux ord)
+  with Subst.UnshiftExn -> None
+
+let get_context_mp (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
+                   (pb_lst:abstract_problem LList.t) : env option =
+  let aux ((pos,dbs):abstract_problem) : term Lazy.t =
+    let res = solve sg forcing pos.depth dbs (term_of_state (List.nth stack pos.position)) in
+    Lazy.from_val (Subst.unshift pos.depth res)
   in
   try Some (LList.map aux pb_lst)
-  with Matching.NotUnifiable | Subst.UnshiftExn -> None
+  with Matching.NotUnifiable -> None
+     | Subst.UnshiftExn -> assert false
 
 let rec test (sg:Signature.t) (convertible:convertibility_test)
              (ctx:env) (constrs: constr list) : bool  =
@@ -183,12 +186,22 @@ let gamma_rw (sg:Signature.t)
          This is the reason why s is added at the end. *)
          | None -> None
        end
-    | Test (rn, matching_pb, eqs, right, def) ->
-      match get_context sg forcing stack matching_pb with
-      | None -> bind_opt (rw stack) def
-      | Some ctx ->
-        if test sg convertible ctx eqs then Some (rn, ctx, right)
-        else bind_opt (rw stack) def
+    | Test (rn,Syntactic ord, eqs, right, def) ->
+      begin
+        match get_context_syn sg forcing stack ord with
+        | None -> bind_opt (rw stack) def
+        | Some ctx ->
+          if test sg convertible ctx eqs then Some (rn, ctx, right)
+          else bind_opt (rw stack) def
+      end
+    | Test (rn,MillerPattern lst, eqs, right, def) ->
+      begin
+        match get_context_mp sg forcing stack lst with
+        | None -> bind_opt (rw stack) def
+        | Some ctx ->
+          if test sg convertible ctx eqs then Some (rn, ctx, right)
+          else bind_opt (rw stack) def
+      end
   in
   rw
 
