@@ -17,7 +17,7 @@ type case =
   | CDB    of int * int
   | CLam
 
-type atomic_problem = { pos:int; depth:int; args_db:int LList.t }
+type atomic_problem = { pos:int; nb_args:int; args_db:int option array }
 type matching_problem = atomic_problem LList.t
 
 type dtree =
@@ -208,16 +208,19 @@ let get_first_constraints mx = mx.first.constraints
 (* Extracts the matching_problem from the first line. *)
 let get_first_matching_problem mx =
   let esize = mx.first.esize in
-  let dummy = { pos=(-1); depth=0; args_db=LList.nil } in
+  let dummy = { pos=(-1); nb_args=(-1); args_db=[| |] } in
   let arr = Array.make esize dummy in
   let process i = function
     | LJoker -> ()
     | LVar (_,n,lst) ->
       let k = mx.col_depth.(i) in
-      arr.(n-k) <- { pos=i; depth=k; args_db=LList.of_list lst }
+      let args_db = Array.make k None in
+      let nb_args = List.length lst in
+      List.iteri (fun i n -> args_db.(n) <- Some (nb_args-i-1) ) lst;
+      arr.(n-k) <- { pos=i; nb_args=nb_args; args_db=args_db }
     | _ -> assert false in
     Array.iteri process mx.first.pats;
-    Array.iter (fun r -> assert (r.pos >= 0 )) arr;
+    Array.iter (fun r -> assert (r.pos >= 0)) arr;
     LList.of_array arr
 
 

@@ -12,7 +12,7 @@ exception NotUnifiable
     x{_1} => x{_2} => ... x{_[n]} => [te]
     
     where X is the unknown, x{_i{_1}}, ..., x{_i{_m}} are distinct bound variables. *)
-val solve : int -> int LList.t -> term -> term
+val solve : int -> int option array -> term -> term
 (**
    If the free variables of [te] that are in x{_1}, ..., x{_[n]} are also in
    x{_i{_1}}, ..., x{_i{_m}} then the problem has a unique solution modulo beta that is

@@ -32,8 +32,9 @@ type case =
 type atomic_problem =
   {
     pos     : int; (** position of the term to match in the stack. *)
-    depth   : int; (** depth of the argument regarding absractions *)
-    args_db : int LList.t (** Arguments DB indices (distinct bound variables) *)
+    nb_args : int; (** depth of the argument regarding absractions *)
+    args_db : int option array
+    (** Arguments DB indices (distinct bound variables) *)
   }
 
 (** A matching problem to build a solution context from the stack *)

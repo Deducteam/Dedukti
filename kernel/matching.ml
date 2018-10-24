@@ -4,19 +4,17 @@ open Term
 exception NotUnifiable
 
 (* TODO: document this function *)
-let update_dbs (depth:int) (dbs:int LList.t) (te:term) : term =
-  let size = LList.len dbs in
-  let arr = Array.make depth None in
-  List.iteri ( fun i n -> arr.(n) <- Some (size-i-1) ) (LList.lst dbs);
+let update_dbs nb_args (args_db:int option array) (te:term) : term =
+  let depth = Array.length args_db in
   (* TODO: This could be computed once for all at compile time *)
   let rec aux k = function
     | Type _ | Kind | Const _ as t -> t
     | DB (l,x,n) as t ->
         if n < k (* var bound in te *) then t
         else if n >= k+depth (* var free in te *)
-        then mk_DB l x (n+size)
+        then mk_DB l x (n+nb_args)
         else
-          ( match arr.(n-k) with
+          ( match args_db.(n-k) with
             | None -> raise NotUnifiable
             | Some n' -> mk_DB dloc x (n'+k) )
     | Lam (l,x,a,b) -> mk_Lam dloc x (map_opt (aux k) a) (aux (k+1) b)
@@ -27,16 +25,16 @@ let update_dbs (depth:int) (dbs:int LList.t) (te:term) : term =
 
 let rec add_n_lam te n = if n = 0 then te else add_n_lam (mk_Lam dloc dmark None te) (n-1)
 
-let solve (n:int) (k_lst:int LList.t) (te:term) : term =
-  Subst.unshift n
-    ( if LList.is_empty k_lst then te
-      else add_n_lam (update_dbs n k_lst te) (LList.len k_lst) )
+let solve (nb_args:int) (args_db:int option array) (te:term) : term =
+  Subst.unshift (Array.length args_db)
+    ( if nb_args = 0 then te (* Unapplied Miller pattern. *)
+      else add_n_lam (update_dbs nb_args args_db te) nb_args)
 (* This could be optimized by doing the unshifting directly in update_dbs.
 I suspect the following would work:
 
 -        else if n >= k+depth (* var free in te *)
--        then mk_DB l x (n+size)
+-        then mk_DB l x (n+nb_args)
 +        else if n >= k+depth (* var free in te *)
-+        then mk_DB l x (n+size-depth)
++        then mk_DB l x (n+nb_args-depth)
 
  *)

@@ -101,15 +101,15 @@ type convertibility_test = Signature.t -> term -> term -> bool
 
 let get_context (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
                 (mp:matching_problem) : env option =
-  let aux ({pos;depth;args_db}:atomic_problem) : term Lazy.t =
+  let aux ({pos;nb_args;args_db}:atomic_problem) : term Lazy.t =
     let st = List.nth stack pos in
-    if depth = 0 then lazy (term_of_state st) (* First order matching *)
+    if Array.length args_db = 0 then lazy (term_of_state st) (* First order matching *)
     else
       let te = term_of_state st in
       Lazy.from_val
-        (try Matching.solve depth args_db te
+        (try Matching.solve nb_args args_db te
          with Matching.NotUnifiable | Subst.UnshiftExn ->
-             Matching.solve depth args_db (forcing sg te))
+             Matching.solve nb_args args_db (forcing sg te))
   in
   try Some (LList.map aux mp)
   with Matching.NotUnifiable | Subst.UnshiftExn -> None
