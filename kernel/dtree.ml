@@ -17,12 +17,8 @@ type case =
   | CDB    of int * int
   | CLam
 
-type arg_pos = { position:int; depth:int }
-type abstract_problem = arg_pos * int LList.t
-
-type matching_problem =
-  | Syntactic of arg_pos LList.t
-  | MillerPattern of abstract_problem LList.t
+type atomic_problem = { pos:int; depth:int; args_db:int LList.t }
+type matching_problem = atomic_problem LList.t
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
@@ -212,34 +208,17 @@ let get_first_constraints mx = mx.first.constraints
 (* Extracts the matching_problem from the first line. *)
 let get_first_matching_problem mx =
   let esize = mx.first.esize in
-  let dummy = { position=(-1); depth=0; } in
-  let dummy2 = dummy, LList.nil in
-  let arr1 = Array.make esize dummy in
-  let arr2 = Array.make esize dummy2 in
-  let mp = ref false in
-    Array.iteri
-      (fun i p -> match p with
-         | LJoker -> ()
-         | LVar (_,n,lst) ->
-             begin
-               let k = mx.col_depth.(i) in
-               assert( 0 <= n-k );
-               assert(n-k < esize );
-               let pos = { position=i; depth = mx.col_depth.(i) } in
-               arr1.(n-k) <- pos;
-               if lst=[] then
-                   arr2.(n-k) <- pos, LList.nil
-               else (
-                 mp := true ;
-                 arr2.(n-k) <- pos,LList.of_list lst
-               )
-             end
-         | _ -> assert false
-      ) mx.first.pats ;
-    ( Array.iter ( fun r -> assert (r.position >= 0 ) ) arr1 );
-    if !mp
-    then MillerPattern (LList.of_array arr2)
-    else Syntactic     (LList.of_array arr1)
+  let dummy = { pos=(-1); depth=0; args_db=LList.nil } in
+  let arr = Array.make esize dummy in
+  let process i = function
+    | LJoker -> ()
+    | LVar (_,n,lst) ->
+      let k = mx.col_depth.(i) in
+      arr.(n-k) <- { pos=i; depth=k; args_db=LList.of_list lst }
+    | _ -> assert false in
+    Array.iteri process mx.first.pats;
+    Array.iter (fun r -> assert (r.pos >= 0 )) arr;
+    LList.of_array arr
 
 
 (******************************************************************************)
@@ -303,23 +282,22 @@ let of_rules = function
 
 (******************************************************************************)
 
-let pp_matching_problem fmt matching_problem =
-  match matching_problem with
-  | Syntactic _ -> fprintf fmt "Sy"
-  | MillerPattern _ -> fprintf fmt "Mi"
+let pp_matching_problem fmt matching_problem = fprintf fmt "Mi"
 
 let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
   let tab = String.init (1 + t*4) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
-  | Test (name,mp,[],te,None)   -> fprintf fmt "{%a} (%a) %a" pp_rule_name name pp_matching_problem mp pp_term te
-  | Test (name,mp,[],te,def)      ->
-    fprintf fmt "\n%s{%a} if true then (%a) %a\n%selse (%a) %a" tab pp_rule_name name  pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
-  | Test (name,mp,lst,te,def)  ->
+  | Test (name,mp,[],te,None) ->
+    fprintf fmt "{%a} (%a) %a" pp_rule_name name pp_matching_problem mp pp_term te
+  | Test (name,mp,[],te,def)  ->
+    fprintf fmt "\n%s{%a} if true then (%a) %a\n%selse (%a) %a" tab pp_rule_name name
+      pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
+  | Test (name,mp,lst,te,def) ->
     let aux out = function
       | Linearity (i,j) -> fprintf out "{%a} %d =l %d" pp_rule_name name i j
-      | Bracket (i,j) -> fprintf out "{%a} %a =b %a" pp_rule_name name pp_term (mk_DB dloc dmark i) pp_term j
-    in
+      | Bracket   (i,j) -> fprintf out "{%a} %a =b %a" pp_rule_name name
+                             pp_term (mk_DB dloc dmark i) pp_term j in
     fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
       pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
   | Switch (i,cases,def)->
