@@ -1,16 +1,14 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
-SRC="https://deducteam.github.io/data/libraries/iProverModulo_dk.tar.gz"
-DIR="iprover"
+BIN="$(pwd)/../dkcheck.native -q"
+SRC="https://deducteam.github.io/data/libraries/focalide.tar.gz"
+DIR="focalide"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
-  rm -rf iProverModulo_dk
-  rm -f iProverModulo_dk.tar.gz
   if [[ "$1" = "fullclean" ]]; then
-    rm -f iprover.tar.gz
+    rm -f focalide.tar.gz
   fi
   exit 0
 fi
@@ -27,35 +25,27 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f iprover.tar.gz ]]; then
+  if [[ ! -f focalide.tar.gz ]]; then
     echo -n "  - downloading...      "
-    wget -q ${SRC} -O iprover.tar.gz
+    wget -q ${SRC}
     echo "OK"
   fi
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  tar xf iprover.tar.gz
-  mv iProverModulo_dk ${DIR}
+  tar xf focalide.tar.gz
+  mv focalide_dks focalide
+  echo "OK"
+
+  # Applying the changes (add "#REQUIRE" and create "focalide.dk").
+  echo -n "  - applying changes... "
+  mv ${DIR}/modulogic.dk ${DIR}/zen.dk
   echo "OK"
 
   # All done.
   echo "Ready."
   echo ""
 fi
-
-# Checking function.
-function check_iprover() {
-  rm -f FOL.dko
-  ${BIN} --gen-obj FOL.dk
-  for PRF in `ls *_prf.dk`; do
-    ${BIN} ${PRF}
-  done
-}
-
-# Export stuff for the checking function.
-export readonly BIN=${BIN}
-export -f check_iprover
 
 # Run the actual checks.
 cd ${DIR}

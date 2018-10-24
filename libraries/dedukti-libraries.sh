@@ -1,14 +1,15 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
-SRC="https://deducteam.github.io/data/libraries/matita.tar.gz"
-DIR="matita"
+
+BIN="$(pwd)/../dkcheck.native -q"
+SRC="https://github.com/Deducteam/Libraries/archive/master.zip"
+DIR="Libraries-master"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
   if [[ "$1" = "fullclean" ]]; then
-    rm -f matita.tar.gz
+    rm -f Libraries-master.zip
   fi
   exit 0
 fi
@@ -25,16 +26,21 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f matita.tar.gz ]]; then
+  if [[ ! -f Libraries-master.zip ]]; then
     echo -n "  - downloading...      "
     wget -q ${SRC}
+    mv master.zip Libraries-master.zip
     echo "OK"
   fi
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  tar xf matita.tar.gz
+  unzip Libraries-master.zip
   echo "OK"
+
+  # All done.
+  echo "Ready."
+  echo ""
 fi
 
 # Run the actual checks.

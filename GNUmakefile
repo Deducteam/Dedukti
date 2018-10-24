@@ -156,7 +156,7 @@ tests: all tests/tests.sh
 
 #### Library tests ###########################################################
 
-TEST_LIBS=tests/libraries
+TEST_LIBS=libraries
 
 .PHONY: matita
 matita: all

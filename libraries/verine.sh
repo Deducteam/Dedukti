@@ -1,14 +1,14 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
-SRC="https://deducteam.github.io/data/libraries/matita.tar.gz"
-DIR="matita-light"
+BIN="$(pwd)/../dkcheck.native -q"
+SRC="https://deducteam.github.io/data/libraries/verine.tar.gz"
+DIR="verine"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
   if [[ "$1" = "fullclean" ]]; then
-    rm -f matita.tar.gz
+    rm -f verine.tar.gz
   fi
   exit 0
 fi
@@ -25,7 +25,7 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f matita.tar.gz ]]; then
+  if [[ ! -f verine.tar.gz ]]; then
     echo -n "  - downloading...      "
     wget -q ${SRC}
     echo "OK"
@@ -33,14 +33,26 @@ if [[ ! -d ${DIR} ]]; then
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  tar xf matita.tar.gz
-  mv matita $DIR
-  # Editing factorial file : turning le_fact_10 into an axiom
-  sed -i '30816,33252d'                      $DIR/matita_arithmetics_factorial.dk
-  sed -i '30815s/.*/\./'                     $DIR/matita_arithmetics_factorial.dk
-  sed -i 's/def le_fact_10 :/le_fact_10 :/'  $DIR/matita_arithmetics_factorial.dk
+  tar xf verine.tar.gz
   echo "OK"
+
+  # All done.
+  echo "Ready."
+  echo ""
 fi
+
+# Checking function.
+function check_verine() {
+  rm -f logic.dko
+  ${BIN} --gen-obj logic.dk
+  for FILE in `ls SEQ*.dk`; do
+    ${BIN} ${FILE}
+  done
+}
+
+# Export stuff for the checking function.
+export readonly BIN=${BIN}
+export -f check_verine
 
 # Run the actual checks.
 cd ${DIR}
