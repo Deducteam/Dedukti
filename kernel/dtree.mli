@@ -69,7 +69,7 @@ val of_rules : rule_infos list -> t
 type 'a atomic_problem = 'a * int * int LList.t
 (** An atomic matching problem of a variable applied to distinct locally bound
     variables against a term in the stack:
-       [(t,depth,args)]  <-->   t ~? X[ DB(args_0), ..., DB(args_n)]
+       [(t,depth,args)]   <-->   t ~? X[ DB(args_0), ..., DB(args_n)]
     where X is the variable and the problem is considered under [depth] abstractions.
 *)
 
