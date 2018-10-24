@@ -99,27 +99,19 @@ type rw_strategy         = Signature.t -> term -> term
 type rw_state_strategy   = Signature.t -> state -> state
 type convertibility_test = Signature.t -> term -> term -> bool
 
-let unshift (sg:Signature.t) (reduce:rw_strategy) (q:int) (te:term) =
-  try Subst.unshift q te
-  with Subst.UnshiftExn -> Subst.unshift q (reduce sg te)
-
-let solve (sg:Signature.t) (reduce:rw_strategy)
-    ((st,depth,args_db):'a atomic_problem) : term Lazy.t =
-  if LList.is_empty args_db (* Syntactic match, no bound arguments. *)
-  then if depth = 0
-    then lazy (term_of_state st)
-    else Lazy.from_val (unshift sg reduce depth (term_of_state st))
-  else
-    let t = term_of_state st in
-    let res =
-      try Matching.solve depth args_db t
-      with Matching.NotUnifiable -> Matching.solve depth args_db (reduce sg t) in
-    Lazy.from_val (Subst.unshift depth res)
-
 let get_context (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
-    (mp:matching_problem) : env option =
+                (mp:matching_problem) : env option =
+  let aux ((st,depth,args_db):'a atomic_problem) : term Lazy.t =
+    if depth = 0 then lazy (term_of_state st) (* First order matching *)
+    else
+      let te = term_of_state st in
+      Lazy.from_val
+        (try Matching.solve depth args_db te
+         with Matching.NotUnifiable | Subst.UnshiftExn ->
+             Matching.solve depth args_db (forcing sg te))
+  in
   let ctx = process_matching_problem mp stack in
-  try Some (LList.map (solve sg forcing) ctx)
+  try Some (LList.map aux ctx)
   with Matching.NotUnifiable | Subst.UnshiftExn -> None
 
 let rec test (sg:Signature.t) (convertible:convertibility_test)
