@@ -8,9 +8,9 @@ let eprint lc fmt =
 
 let mk_entry md e =
   match e with
-  | Decl(lc,id,pb, st,ty) ->
+  | Decl(lc,id, scope, st,ty) ->
     eprint lc "Declaration of constant '%a'." pp_ident id;
-    Env.declare lc id pb st ty
+    Env.declare lc id scope st ty
   | Def(lc,id,opaque,ty,te) ->
     let opaque_str = if opaque then " (opaque)" else "" in
     eprint lc "Definition of symbol '%a'%s." pp_ident id opaque_str;
