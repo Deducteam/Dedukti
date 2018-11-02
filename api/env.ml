@@ -112,16 +112,18 @@ let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
   | _ ->
     if opaque then Signature.add_declaration !sg lc id Signature.Public Signature.Static ty
     else
-      Signature.add_declaration !sg lc id Signature.Public Signature.Definable ty;
-      let cst = mk_name (get_name ()) id in
-      let rule =
-        { name= Delta(cst) ;
-          ctx = [] ;
-          pat = Pattern(lc, cst, []);
-          rhs = te ;
-        }
-      in
-      _add_rules [rule]
+      begin
+        Signature.add_declaration !sg lc id Signature.Public Signature.Definable ty;
+        let cst = mk_name (get_name ()) id in
+        let rule =
+          { name= Delta(cst) ;
+            ctx = [] ;
+            pat = Pattern(lc, cst, []);
+            rhs = te ;
+          }
+        in
+        _add_rules [rule]
+      end
 
 let declare lc id scope st ty : unit =
   try _declare lc id scope st ty
