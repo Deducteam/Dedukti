@@ -95,12 +95,12 @@ let loc_of_rs = function
 line:
   | id=ID ps=param* COLON ty=term DOT
     {fun md -> Decl(fst id, snd id, Public, Static, scope_term md [] (mk_pi ty ps))}
+  | KW_PRV KW_DEF id=ID COLON ty=term DOT
+    {fun md -> Decl(fst id, snd id, Private, Definable, scope_term md [] ty)}
   | KW_PRV id=ID ps=param* COLON ty=term DOT
-      {fun md -> Decl(fst id, snd id, Private, Static, scope_term md [] (mk_pi ty ps))}
+    {fun md -> Decl(fst id, snd id, Private, Static, scope_term md [] (mk_pi ty ps))}
   | KW_DEF id=ID COLON ty=term DOT
     {fun md -> Decl(fst id, snd id, Public, Definable, scope_term md [] ty)}
-  | KW_PRV KW_DEF id=ID COLON ty=term DOT
-      {fun md -> Decl(fst id, snd id, Private, Definable, scope_term md [] ty)}
   | KW_DEF id=ID COLON ty=term DEF te=term DOT
       {fun md -> Def(fst id, snd id, false, Some(scope_term md [] ty), scope_term md [] te)}
   | KW_DEF id=ID DEF te=term DOT
