@@ -12,10 +12,10 @@ type signature_error =
   | UnmarshalSysError     of loc * string * string
   | UnmarshalUnknown      of loc * string
   | SymbolNotFound        of loc * name
-  | AlreadyDefinedSymbol  of loc * ident
+  | AlreadyDefinedSymbol  of loc * name
   | CannotMakeRuleInfos   of Rule.rule_error
   | CannotBuildDtree      of Dtree.dtree_error
-  | CannotAddRewriteRules of loc * ident
+  | CannotAddRewriteRules of loc * name
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
@@ -59,6 +59,10 @@ val get_dtree           : t -> (Rule.rule_name -> bool) option -> loc -> name ->
     to select only the corresponding set of rules  *)
 
 val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
+(** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
+    and staticity [st] in the environment [sg]. *)
+
+val add_external_declaration : t -> loc -> name -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
 

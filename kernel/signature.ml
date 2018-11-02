@@ -13,10 +13,10 @@ type signature_error =
   | UnmarshalSysError     of loc * string * string
   | UnmarshalUnknown      of loc * string
   | SymbolNotFound        of loc * name
-  | AlreadyDefinedSymbol  of loc * ident
+  | AlreadyDefinedSymbol  of loc * name
   | CannotMakeRuleInfos   of Rule.rule_error
   | CannotBuildDtree      of Dtree.dtree_error
-  | CannotAddRewriteRules of loc * ident
+  | CannotAddRewriteRules of loc * name
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
@@ -169,7 +169,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       with Not_found -> raise (SignatureError (SymbolNotFound(r.l, r.cst))) in
     let ty = infos.ty in
     if infos.stat = Static
-    then raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
+    then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
     let rules = match infos.rule_opt_info with
       | None -> rs
       | Some(mx,_) -> mx@rs
@@ -243,8 +243,19 @@ let add_declaration sg lc v st ty =
   Confluence.add_constant cst;
   let env = HMd.find sg.tables sg.name in
   if HId.mem env v
-  then raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
+  then raise (SignatureError (AlreadyDefinedSymbol (lc,cst)))
   else HId.add env v {stat=st; ty=ty; rule_opt_info=None}
+
+let add_external_declaration sg lc cst st ty =
+  try
+    let env = HMd.find sg.tables (md cst) in
+    if HId.mem env (id cst)
+    then raise (SignatureError (AlreadyDefinedSymbol (lc, cst)))
+    else HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
+  with Not_found ->
+    HMd.add sg.tables (md cst) (HId.create 11);
+    let env = HMd.find sg.tables (md cst) in
+    HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
 
 let add_rules sg = function
   | [] -> ()
