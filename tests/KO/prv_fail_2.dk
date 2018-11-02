@@ -1,0 +1,5 @@
+(; KO 40 ;)
+
+def foo : prv_base.A -> prv_base.A.
+
+[] foo (prv_base.f' prv_base.a) --> prv_base.a.
