@@ -65,9 +65,9 @@ val export      : unit -> unit
 val import      : loc -> mident -> unit
 (** [import lc md] the module [md] in the current environment. *)
 
-val declare     : loc -> ident -> Signature.staticity -> term -> unit
-(** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
-   staticity [st]. *)
+val declare     : loc -> ident -> Signature.scope -> Signature.staticity -> term -> unit
+(** [declare_constant l id pb st ty] declares the symbol [id] of type [ty] and
+   staticity [st]. If [pb] is true, then the symbol can be used by other modules. *)
 
 val define      : loc -> ident -> bool -> term -> term option -> unit
 (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)

@@ -196,6 +196,9 @@ let fail_signature_error def_loc err =
     fail def_loc
       "Fail to export module '%a' to file %s."
       pp_mident (Env.get_name ()) file
+  | Private (lc,cst) ->
+    fail lc
+      "The symbol '%a' is private." Pp.print_name cst
 
 let code err =
   let open Env in
@@ -242,6 +245,7 @@ let code err =
       | Signature.ConfluenceErrorImport _ -> 35
       | Signature.GuardNotSatisfied _ -> 36
       | Signature.CouldNotExportModule _ -> 37
+      | Signature.Private               _ -> 40
     end
   | NotEnoughArguments _  -> 25
   | NonLinearRule _       -> 26

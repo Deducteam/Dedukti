@@ -83,7 +83,7 @@ let mk_rule r =
 
 let handle_entry e =
   match e with
-  | Decl(_,_,_,te)              -> mk_term te
+  | Decl(_,_,_,_,te)              -> mk_term te
   | Def(_,_,_,None,te)          -> mk_term te
   | Def(_,_,_,Some(ty),te)      -> mk_term ty; mk_term te
   | Rules(_,rs)                 -> List.iter mk_rule rs

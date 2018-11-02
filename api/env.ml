@@ -66,9 +66,9 @@ let import lc md =
   try Signature.import !sg lc md
   with e -> raise_as_env lc e
 
-let _declare lc (id:ident) st ty : unit =
+let _declare lc (id:ident) scope st ty : unit =
   match inference !sg ty with
-  | Kind | Type _ -> Signature.add_declaration !sg lc id st ty
+  | Kind | Type _ -> Signature.add_declaration !sg lc id scope st ty
   | s -> raise (TypingError (SortExpected (ty,[],s)))
 
 let is_static lc cst = Signature.is_static !sg lc cst
@@ -110,9 +110,9 @@ let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
   match ty with
   | Kind -> raise (EnvError (lc, KindLevelDefinition id))
   | _ ->
-    if opaque then Signature.add_declaration !sg lc id Signature.Static ty
+    if opaque then Signature.add_declaration !sg lc id Signature.Public Signature.Static ty
     else
-      let _ = Signature.add_declaration !sg lc id Signature.Definable ty in
+      Signature.add_declaration !sg lc id Signature.Public Signature.Definable ty;
       let cst = mk_name (get_name ()) id in
       let rule =
         { name= Delta(cst) ;
@@ -123,8 +123,8 @@ let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
       in
       _add_rules [rule]
 
-let declare lc id st ty : unit =
-  try _declare lc id st ty
+let declare lc id scope st ty : unit =
+  try _declare lc id scope st ty
   with e -> raise_as_env lc e
 
 let define lc id op te ty_opt : unit =

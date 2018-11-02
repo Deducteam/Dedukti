@@ -9,8 +9,8 @@ let print fmt =
 
 let handle_entry e =
   match e with
-  | Decl(lc,id,st,ty) ->
-    Env.declare lc id st ty;
+  | Decl(lc,id,pb,st,ty) ->
+    Env.declare lc id pb st ty;
     Format.printf "%a is declared.@." pp_ident id
   | Def(lc,id,op,ty,te) ->
     Env.define lc id op te ty;

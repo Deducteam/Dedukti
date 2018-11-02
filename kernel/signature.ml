@@ -9,17 +9,18 @@ let _ = Debug.register_flag D_module "Module"
 
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
-  | UnmarshalSysError     of loc * string * string
-  | UnmarshalUnknown      of loc * string
-  | SymbolNotFound        of loc * name
-  | AlreadyDefinedSymbol  of loc * ident
-  | CannotMakeRuleInfos   of Rule.rule_error
-  | CannotBuildDtree      of Dtree.dtree_error
-  | CannotAddRewriteRules of loc * ident
-  | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
-  | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
-  | GuardNotSatisfied     of loc * term * term
-  | CouldNotExportModule  of string
+  | UnmarshalSysError         of loc * string * string
+  | UnmarshalUnknown          of loc * string
+  | SymbolNotFound            of loc * name
+  | AlreadyDefinedSymbol      of loc * ident
+  | CannotMakeRuleInfos       of Rule.rule_error
+  | CannotBuildDtree          of Dtree.dtree_error
+  | CannotAddRewriteRules     of loc * ident
+  | ConfluenceErrorImport     of loc * mident * Confluence.confluence_error
+  | ConfluenceErrorRules      of loc * rule_infos list * Confluence.confluence_error
+  | GuardNotSatisfied         of loc * term * term
+  | CouldNotExportModule      of string
+  | Private                   of loc * name
 
 exception SignatureError of signature_error
 
@@ -38,6 +39,7 @@ module HId = Hashtbl.Make(
   end )
 
 type staticity = Static | Definable
+type scope     = Public | Private
 
 (** The pretty printer for the type [staticity] *)
 let pp_staticity fmt s =
@@ -46,6 +48,7 @@ let pp_staticity fmt s =
 type rw_infos =
   {
     stat          : staticity;
+    scope         : scope;
     ty            : term;
     rule_opt_info : (rule_infos list* Dtree.t) option
   }
@@ -157,7 +160,6 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   | (r::_ as rs) ->
     let env = get_env sg r.l r.cst in
     let infos = get_info_env r.l env r.cst in
-    let ty = infos.ty in
     if infos.stat = Static
     then raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
     let rules = match infos.rule_opt_info with
@@ -168,7 +170,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       try Dtree.of_rules rules
       with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
     in
-    HId.add env (id r.cst) {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
+    HId.add env (id r.cst) {infos with rule_opt_info = Some(rules,trees)}
 
 and get_env sg lc cst =
   let md = md cst in
@@ -205,7 +207,12 @@ let is_static sg lc cst =
   | Static    -> true
   | Definable -> false
 
-let get_type sg lc cst = (get_infos sg lc cst).ty
+let get_type sg lc cst =
+  let infos = get_infos sg lc cst in
+  if infos.scope = Public || md cst = sg.name then
+    infos.ty
+  else
+    raise (SignatureError (Private(lc,cst)))
 
 let get_dtree sg rule_filter l cst =
   match (get_infos sg l cst).rule_opt_info, rule_filter with
@@ -221,13 +228,13 @@ let get_dtree sg rule_filter l cst =
 
 (******************************************************************************)
 
-let add_declaration sg lc v st ty =
+let add_declaration sg lc v scope stat ty =
   let cst = mk_name sg.name v in
   Confluence.add_constant cst;
   let env = HMd.find sg.tables sg.name in
   if HId.mem env v
   then raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
-  else HId.add env v {stat=st; ty=ty; rule_opt_info=None}
+  else HId.add env v {stat; scope; ty; rule_opt_info=None}
 
 let add_rules sg = function
   | [] -> ()
