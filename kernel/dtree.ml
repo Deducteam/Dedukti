@@ -18,7 +18,7 @@ type case =
   | CLam
 
 type matching_problem =
-  { vars : int option list; depths : int array; args_db : int LList.t array }
+  { vars : int list; depths : int array; args_db : int LList.t array }
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
@@ -211,14 +211,16 @@ let get_first_matching_problem mx =
   let depths  = Array.make esize (-1) in
   let args_db = Array.make esize LList.nil in
   let process i = function
-    | LJoker -> None
+    | LJoker -> -1
     | LVar (_,n,lst) ->
       let k = mx.col_depth.(i) in
       let v = n-k in
       begin
+        assert (v >= 0);
+        assert (depths.(v) < 0);
         depths.(v) <- k;
         args_db.(v) <- LList.of_list lst;
-        Some v
+        v
       end
     | _ -> assert false in
   let vars = Array.mapi process mx.first.pats in
@@ -227,13 +229,16 @@ let get_first_matching_problem mx =
 
 type 'a atomic_problem = 'a * int * int LList.t
 
-let process_matching_problem (mp:matching_problem) (stack:'a list) : 'a atomic_problem LList.t =
-  let res = Array.make (Array.length mp.depths) None in
-  let rec aux t = function
-    | None -> ()
-    | Some v -> res.(v) <- Some (t, mp.depths.(v), mp.args_db.(v)) in
-  List.iter2 aux stack mp.vars;
-  LList.of_array (Array.map (function None -> assert false | Some v -> v) res)
+let process_matching_problem (mp:matching_problem) stack = match stack with
+  | [] -> LList.nil
+  | e::_ ->
+    let dummy = (e,-1,LList.nil) in
+    let res = Array.make (Array.length mp.depths) dummy in
+    let rec aux t v =
+    if v >= 0 then res.(v) <- (t, mp.depths.(v), mp.args_db.(v)) in
+    List.iter2 aux stack mp.vars;
+    Array.iter (fun (_,d,_) -> assert (d >= 0)) res;
+    LList.of_array res
 
 
 (******************************************************************************)
