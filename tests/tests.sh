@@ -33,7 +33,7 @@
 #
 ############################################################################################
 
-all_tests=$(find tests -name "*.dk" | sort)
+all_tests=$(find tests -name "*.dk")
 total=$(wc -w <<< "$all_tests")
 
 echo ""

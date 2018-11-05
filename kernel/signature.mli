@@ -19,7 +19,7 @@ type signature_error =
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
   | CouldNotExportModule  of string
-  | Private                   of loc * name
+  | Private               of loc * name
 
 exception SignatureError of signature_error
 
@@ -59,7 +59,8 @@ val get_dtree           : t -> (Rule.rule_name -> bool) option -> loc -> name ->
 
 val add_declaration     : t -> loc -> ident -> scope -> staticity -> term -> unit
 (** [add_declaration sg l id sc st ty] declares the symbol [id] of type [ty]
-    and staticity [st] in the environment [sg]. If [sc] is [Private] then the symbol cannot be used in other modules *)
+    and staticity [st] in the environment [sg].
+    If [sc] is [Private] then the symbol cannot be used in other modules *)
 
 val add_rules           : t -> Rule.rule_infos list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
