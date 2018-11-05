@@ -26,25 +26,18 @@ type case =
   | CLam (** A lambda term *)
 
 
-(** Represent the position of an argument in a pattern *)
-type arg_pos =
+(** An atomic matching problem.
+     stack.(pos) ~? X[ DB(args_0), ..., DB(args_n)]
+  where X is the variable and the problem is considered under depth abstractions.*)
+type atomic_problem =
   {
-    position:int; (** position of the argument from left to right of the pattern *)
-    depth:int (** depth of the argument regarding absractions *)
+    pos     : int; (** position of the term to match in the stack. *)
+    depth   : int; (** depth of the argument regarding absractions *)
+    args_db : int LList.t (** Arguments DB indices (distinct bound variables) *)
   }
 
-(** An abstract problem [arg, \[k_0 ; ... ; k_n \]] corresponds to the following matching problem (modulo beta):
-     stck.(arg.position) ~? F( (DB k_0) ... (DB k_n)
-     where F is the variable *)
-type abstract_problem = arg_pos * int LList.t
-
-(** Infos to build the context from the stack *)
-type matching_problem =
-  (* FIXME: MillerPattern is stricly more general than Syntactic, are we loosing efficency by removing the Syntactic constructor ? *)
-  | Syntactic of arg_pos LList.t
-  (** the list of positions in the stack corresponding to the context. *)
-  | MillerPattern of abstract_problem LList.t
-  (** the list of abstract problem which list of solutions gives the context. *)
+(** A matching problem to build a solution context from the stack *)
+type matching_problem = atomic_problem LList.t
 
 (** Type of decision trees *)
 type dtree =
@@ -76,8 +69,8 @@ val pp_dforest : t printer
 
 val of_rules : rule_infos list -> t
 (** Compilation of rewrite rules into decision trees.
-Returns a list of arities and corresponding decision trees.
-Invariant : arities must be sorted in decreasing order.
-(see use case in [state_whnf] in [reduction.ml])
-May raise DtreeError.
+    Returns a list of arities and corresponding decision trees.
+    Invariant : arities must be sorted in decreasing order.
+    (see use case in [state_whnf] in [reduction.ml])
+    May raise DtreeError.
 *)

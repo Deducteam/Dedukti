@@ -44,7 +44,7 @@ let psubst_l_ (nargs,get) l x n k =
   else get (n-k) k
 let psubst_l__ = apply_subst psubst_l_
 let psubst_l (args:(term Lazy.t) LList.t) : term -> term =
-  let nargs = args.LList.len in
+  let nargs = LList.len args in
   let tab = Array.make nargs [] in
   let rec get i k =
     let l = tab.(i) in

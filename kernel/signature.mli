@@ -3,7 +3,6 @@
 open Basic
 open Term
 open Rule
-open Dtree
 
 type Debug.flag += D_module
 

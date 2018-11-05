@@ -5,7 +5,6 @@ open Term
 
 exception NotUnifiable
 
-
 (** [solve n k_lst te] solves following the higher-order unification problem (modulo beta):
     
     x{_1} => x{_2} => ... x{_[n]} => X x{_i{_1}} .. x{_i{_m}}
