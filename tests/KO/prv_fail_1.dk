@@ -1,3 +1,3 @@
-(; KO 40 -e tests/KO/prv_base.dk ;)
+(; KO 40 -I tests/LIB -e tests/LIB/prv.dk ;)
 
-def foo : prv_base.A := prv_base.f' prv_base.A.
+def foo : prv.A := prv.f' prv.A.

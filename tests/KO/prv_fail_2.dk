@@ -1,5 +1,5 @@
-(; KO 40 -e tests/KO/prv_base.dk ;)
+(; KO 40  -I tests/LIB -e tests/LIB/prv.dk ;)
 
-def foo : prv_base.A -> prv_base.A.
+def foo : prv.A -> prv.A.
 
-[] foo (prv_base.f' prv_base.a) --> prv_base.a.
+[] foo (prv.f' prv.a) --> prv.a.
