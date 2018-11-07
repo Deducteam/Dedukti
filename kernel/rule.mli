@@ -13,6 +13,7 @@ type pattern =
   | Brackets of term                             (** Bracket of a term   *)
 
 val get_loc_pat : pattern -> loc
+(** Retrieve location of pattern's head symbol. *)
 
 val pattern_to_term : pattern -> term
 
@@ -55,6 +56,7 @@ type 'a rule =
   }
 
 val get_loc_rule : 'a rule -> loc
+(** Retrieve location of a rule's pattern's head symbol. *)
 
 type untyped_rule = untyped_context rule
 
@@ -88,6 +90,7 @@ type rule_infos = {
 }
 
 val pattern_of_rule_infos : rule_infos -> pattern
+(** Recreate the head pattern corresponding to the given rule_infos. *)
 
 val to_rule_infos : untyped_rule -> rule_infos
 (** Converts untyped_rule to rule_infos *)
