@@ -55,5 +55,6 @@ sig
   (** [mk_idempotent sigma] successively applies sigma to its mapped terms until this operation
       has no effect anymore. *)
 
-  val pp : (int->Basic.ident) -> t Basic.printer (** Prints the substitution using given naming function *)
+  val pp : (int->Basic.ident) -> t Basic.printer
+  (** Prints the substitution using given naming function *)
 end

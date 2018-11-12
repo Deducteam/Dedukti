@@ -237,11 +237,11 @@ struct
     assert ( size >= 0 );
     { padding=size; pctx=LList.nil }
 
-  let pc_get (delta:partial_context) (n:int) : term option =
-    if n < delta.padding then None
-    else
-      let (_,_,ty) = List.nth (LList.lst delta.pctx) (n-delta.padding)
-      in Some (Subst.shift (n+1) ty)
+  let pc_in (delta:partial_context) (n:int) : bool = n >= delta.padding
+
+  let pc_get (delta:partial_context) (n:int) : term =
+    let (_,_,ty) = LList.nth delta.pctx (n-delta.padding)
+    in Subst.shift (n+1) ty
 
   let pc_add (delta:partial_context) (n:int) (l:loc) (id:ident) (ty0:typ) : partial_context =
     assert ( n == delta.padding-1 && n >= 0 );
@@ -330,23 +330,22 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     in
     check sg (pc_to_context delta) te2 ty2;
     ( delta, lst )
-  | Var (l,x,n,[]) when ( n >= LList.len sigma ) ->
+  | Var (l,x,n,[]) when n >= LList.len sigma ->
     begin
       let k = LList.len sigma in
-
-      match pc_get delta (n-k) with
-      | None ->
+      if pc_in delta (n-k)
+      then
+        let inf_ty = Subst.shift k (pc_get delta (n-k)) in
+        ( delta, (k,inf_ty,exp_ty)::lst )
+      else
         ( try ( pc_add delta (n-k) l x (unshift_n sg k exp_ty), lst )
           with Subst.UnshiftExn ->
             let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
             raise (TypingError (FreeVariableDependsOnBoundVariable (l,x,n,ctx,exp_ty))) )
-      | Some ty ->
-        let inf_ty = Subst.shift k ty in
-        ( delta, (k,inf_ty,exp_ty)::lst )
     end
-  | Var (l,x,n,args) when (n>=LList.len sigma) ->
+  | Var (l,x,n,args) when n >= LList.len sigma ->
     begin
-      let (args2,last) = get_last args in
+      let (args2, last) = get_last args in
       match last with
       | Var (l2,x2,n2,[]) ->
         check_pattern sg delta sigma

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
+BIN="$(pwd)/../dkcheck.native -q"
 SRC="https://git.lsv.fr/genestier/PleinDeDk/repository/master/archive.tar.gz"
 DIR="plein_de_dks"
 
