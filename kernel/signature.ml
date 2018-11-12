@@ -8,6 +8,8 @@ open Dtree
 type Debug.flag += D_module
 let _ = Debug.register_flag D_module "Module"
 
+let unsafe = ref false
+
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError     of loc * string * string
@@ -168,7 +170,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     let infos = try ( HId.find env (id r.cst) )
       with Not_found -> raise (SignatureError (SymbolNotFound(r.l, r.cst))) in
     let ty = infos.ty in
-    if infos.stat = Static
+    if infos.stat = Static && not (!unsafe)
     then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
     let rules = match infos.rule_opt_info with
       | None -> rs

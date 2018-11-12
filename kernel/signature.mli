@@ -75,3 +75,6 @@ val read_dko : loc -> string -> string list * (ident * staticity * term * rule_i
  - The list of modules on which md depends,
  - The list of symbols and rules declared in this module,
  - The list of rules declared on this module and defining symbols declared in another module. *)
+
+val unsafe : bool ref
+(** If [true] then the type checker cannot be trusted anymore *)
