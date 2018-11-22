@@ -44,7 +44,7 @@ let fail_typing_error def_loc err =
   | ConvertibilityError (te,ctx,exp,inf) ->
     fail (get_loc te)
       "Error while typing '%a'%a.@.---- Expected:@.%a@.---- Inferred:@.%a@."
-      pp_term te print_err_ctxt ctx print_term (snf exp) print_term (snf inf)
+      print_term te print_err_ctxt ctx print_term (snf exp) print_term (snf inf)
   | VariableNotFound (lc,x,n,ctx) ->
     fail lc
       "The variable '%a' was not found in context:\n"
