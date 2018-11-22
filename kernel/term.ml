@@ -26,7 +26,7 @@ let rec pp_term fmt te =
 and pp_term_wp fmt te =
   match te with
   | Kind | Type _ | DB _ | Const _ as t -> pp_term fmt t
-  | t                                  -> fprintf fmt "(%a)" pp_term t
+  | t                                   -> fprintf fmt "(%a)" pp_term t
 
 let rec get_loc (te:term) : loc =
   match te with

@@ -80,28 +80,50 @@ let rec subst ctx = function
     let x' = if is_dummy_ident x then x else fresh_name ctx x in
     mk_Pi l x' (subst ctx a) (subst (x' :: ctx) b)
 
-let rec print_term out = function
-  | Kind               -> Format.pp_print_string out "Kind"
-  | Type _             -> Format.pp_print_string out "Type"
-  | DB  (_,x,n)        -> print_db out (x,n)
-  | Const (_,cst)      -> print_const out cst
-  | App (f,a,args)     ->
-      Format.fprintf out "@[<hov2>%a@]" (print_list " " print_term_wp) (f::a::args)
-  | Lam (_,x,None,f)   -> Format.fprintf out "@[%a =>@ @[%a@]@]" print_ident x print_term f
-  | Lam (_,x,Some a,f) ->
-      Format.fprintf out "@[%a:@,%a =>@ @[%a@]@]" print_ident x print_term_wp a print_term f
-  | Pi  (_,x,a,b) when ident_eq x dmark  ->
-      (* arrow, no pi *)
-      Format.fprintf out "@[%a ->@ @[%a@]@]" print_term_wp a print_term b
-  | Pi  (_,x,a,b)      ->
-      Format.fprintf out "@[%a:%a ->@ @[%a@]@]" print_ident x print_term_wp a print_term b
 
-and print_term_wp out = function
-  | Kind | Type _ | DB _ | Const _ as t -> print_term out t
-  | t                                  -> Format.fprintf out "(%a)" print_term t
+let rec term_one_liner t =
+  let res = Format.asprintf "%a" Term.pp_term t in
+  (String.length res, res)
+
+
+let rec print_term m out t =
+  let (l,s) = term_one_liner t in
+  if l <= m then Format.fprintf out "%s" s
+  else
+    match t with
+    | Kind               -> Format.pp_print_string out "Kind"
+    | Type _             -> Format.pp_print_string out "Type"
+    | DB  (_,x,n)        -> print_db out (x,n)
+    | Const (_,cst)      -> print_const out cst
+    | App (f,a,args)     ->
+      Format.fprintf out "@[<v2>%a@]"
+        (Format.pp_print_list (print_term_wp (m-2))) (f::a::args)
+    | Lam (_,x,None,f)   ->
+      Format.fprintf out "@[%a =>@ @[%a@]@]"
+        print_ident x (print_term m) f
+    | Lam (_,x,Some a,f) ->
+      Format.fprintf out "@[<v>%a:%a =>@ @[%a@]@]"
+        print_ident x (print_term_wp (m - (String.length (string_of_ident x)) - 3)) a
+        (print_term m) f
+    | Pi  (_,x,a,b) when ident_eq x dmark  ->
+      (* arrow, no pi *)
+      Format.fprintf out "@[<v>%a ->@ @[%a@]@]"
+        (print_term_wp (m-3)) a (print_term m) b
+    | Pi  (_,x,a,b)      ->
+      Format.fprintf out "@[<v>%a:%a ->@ @[%a@]@]"
+        print_ident x (print_term_wp m) a (print_term m) b
+
+and print_term_wp m out = function
+  | Kind | Type _ | DB _ | Const _ as t -> print_term m out t
+  | t                                  -> Format.fprintf out "(%a)" (print_term (m-2)) t
 
 (* Overwrite print_term by a name-clash avoiding version *)
-let print_term out t = print_term out (subst [] t)
+let n_print_term n out t = print_term n out (subst [] t)
+
+let line_length = 100
+
+(* Printing on default line length *)
+let print_term out t = n_print_term line_length out (subst [] t)
 
 let print_bv out (_,id,i) = print_db out (id,i)
 
@@ -118,13 +140,15 @@ and print_pattern_wp out = function
   | p -> print_pattern out p
 
 let print_decl fmt (_,x,ty) =
-  Format.fprintf fmt "@[<hv2>%a : %a@]" print_ident x print_term ty
+  Format.fprintf fmt "@[<v>%a : %a@]"
+    print_ident x (n_print_term (line_length - 5 - String.length (string_of_ident x))) ty
 
 let rec print_typed_context fmt = function
   | [] -> ()
   | (_,x,ty) :: decls ->
-    Format.fprintf fmt "  @[<hv2>%a : %a@]%s@."
-      print_ident x print_term ty (match decls with [] -> "" | _ -> ",");
+    Format.fprintf fmt "  @[<hv2>%a : %a@]"
+      print_ident x print_term ty;
+    (match decls with | [] -> () | _ -> Format.fprintf fmt ",@.");
      print_typed_context fmt decls
 
 let print_err_ctxt fmt = function
