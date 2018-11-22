@@ -1,7 +1,6 @@
 open Basic
 open Term
 open Rule
-open Printf
 open Entry
 open Env
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
@@ -16,9 +15,9 @@ let get_module () =
   | None -> get_name ()
   | Some md -> md
 
-let set_module md =
-  cur_md := Some md
-let rec print_list = pp_list
+let set_module md = cur_md := Some md
+
+let print_list = pp_list
 
 let print_ident = pp_ident
 
@@ -81,7 +80,6 @@ let rec subst ctx = function
     let x' = if is_dummy_ident x then x else fresh_name ctx x in
     mk_Pi l x' (subst ctx a) (subst (x' :: ctx) b)
 
-
 let rec print_term out = function
   | Kind               -> Format.pp_print_string out "Kind"
   | Type _             -> Format.pp_print_string out "Type"
@@ -119,11 +117,19 @@ and print_pattern_wp out = function
   | Var (_,id,i,(_::_ as lst))     -> Format.fprintf out "(%a %a)" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | p -> print_pattern out p
 
-let print_typed_context fmt ctx =
-  print_list ".\n"
-    (fun out (_,x,ty) ->
-      Format.fprintf fmt "@[<hv>%a:@ %a@]" print_ident x print_term ty
-    ) fmt (List.rev ctx)
+let print_decl fmt (_,x,ty) =
+  Format.fprintf fmt "@[<hv2>%a : %a@]" print_ident x print_term ty
+
+let rec print_typed_context fmt = function
+  | [] -> ()
+  | (_,x,ty) :: decls ->
+    Format.fprintf fmt "  @[<hv2>%a : %a@]%s@."
+      print_ident x print_term ty (match decls with [] -> "" | _ -> ",");
+     print_typed_context fmt decls
+
+let print_err_ctxt fmt = function
+  | [] -> ()
+  | ctx -> Format.fprintf fmt " in context:@.[\n%a@.]" print_typed_context (List.rev ctx)
 
 let print_rule_name fmt rule =
   let aux b cst =
