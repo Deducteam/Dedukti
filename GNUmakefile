@@ -127,9 +127,9 @@ BINDIR = $(dir $(shell which ocaml))
 .PHONY: uninstall
 uninstall:
 	@ocamlfind remove dedukti
-	@rm -f $(BINDIR)/dkcheck
-	@rm -f $(BINDIR)/dkdep
-	@rm -f $(BINDIR)/dktop
+	@rm -f $(BINDIR)dkcheck
+	@rm -f $(BINDIR)dkdep
+	@rm -f $(BINDIR)dktop
 
 .PHONY: install
 install: uninstall all
@@ -144,9 +144,9 @@ install: uninstall all
 		_build/kernel/kernel.cmxa _build/api/api.cmxa _build/parser/parser.cmxa \
 		_build/kernel/kernel.a    _build/api/api.a    _build/parser/parser.a
 	install -m 755 -d $(BINDIR)
-	install -m 755 -p dkcheck.native  $(BINDIR)/dkcheck
-	install -m 755 -p dkdep.native    $(BINDIR)/dkdep
-	install -m 755 -p dktop.native    $(BINDIR)/dktop
+	install -m 755 -p dkcheck.native  $(BINDIR)dkcheck
+	install -m 755 -p dkdep.native    $(BINDIR)dkdep
+	install -m 755 -p dktop.native    $(BINDIR)dktop
 
 #### Test targets ############################################################
 
@@ -216,7 +216,7 @@ light_tests: all matita-light dklib holide
 full_tests: light_tests iprover focalide dedukti-libraries verine # zenon_modulo
 
 .PHONY: cleanlibs
-cleanlibs: 
+cleanlibs:
 	@cd $(TEST_LIBS) && ./matita.sh            clean
 	@cd $(TEST_LIBS) && ./matita-light.sh      clean
 	@cd $(TEST_LIBS) && ./plein_de_dks.sh      clean
@@ -229,7 +229,7 @@ cleanlibs:
 	@cd $(TEST_LIBS) && ./dedukti-libraries.sh clean
 
 .PHONY: fullcleanlibs
-fullcleanlibs: 
+fullcleanlibs:
 	@cd $(TEST_LIBS) && ./matita.sh            fullclean
 	@cd $(TEST_LIBS) && ./matita-light.sh      fullclean
 	@cd $(TEST_LIBS) && ./plein_de_dks.sh      fullclean

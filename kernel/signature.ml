@@ -138,6 +138,17 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
   try Confluence.check () with
   | Confluence.ConfluenceError e -> raise (SignatureError (ConfluenceErrorImport (lc,md,e)))
 
+let add_external_declaration sg lc cst st ty =
+  try
+    let env = HMd.find sg.tables (md cst) in
+    if HId.mem env (id cst)
+    then raise (SignatureError (AlreadyDefinedSymbol (lc, cst)))
+    else HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
+  with Not_found ->
+    HMd.add sg.tables (md cst) (HId.create 11);
+    let env = HMd.find sg.tables (md cst) in
+    HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
+
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   if HMd.mem sg.tables m
@@ -157,20 +168,37 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   match lst with
   | [] -> ()
   | (r::_ as rs) ->
-    let env = get_env sg r.l r.cst in
-    let infos = get_info_env r.l env r.cst in
-    let ty = infos.ty in
-    if infos.stat = Static && not (!unsafe)
-    then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
-    let rules = match infos.rule_opt_info with
-      | None -> rs
-      | Some(mx,_) -> mx@rs
-    in
-    let trees =
-      try Dtree.of_rules rules
-      with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
-    in
-    HId.add env (id r.cst) {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
+    try
+      let env = get_env sg r.l r.cst in
+      let infos = get_info_env r.l env r.cst in
+      let ty = infos.ty in
+      if infos.stat = Static && not (!unsafe)
+      then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
+      let rules = match infos.rule_opt_info with
+        | None -> rs
+        | Some(mx,_) -> mx@rs
+      in
+      let trees =
+        try Dtree.of_rules rules
+        with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+      in
+      HId.add env (id r.cst) {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
+    with SignatureError _ as e ->
+      (* The symbol cst is not in the signature *)
+      if !unsafe then
+        begin
+          add_external_declaration sg r.l r.cst Definable (mk_Kind);
+          let env = get_env sg r.l r.cst in
+          let rules = lst in
+          let trees =
+            try Dtree.of_rules rules
+            with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+          in
+            HId.add env (id r.cst) {stat = Definable; ty= mk_Kind; rule_opt_info = Some (rules,trees)}
+        end
+      else
+        raise e
+
 
 and get_env sg lc cst =
   let md = md cst in
@@ -217,15 +245,21 @@ let is_static sg lc cst =
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
 let get_dtree sg rule_filter l cst =
-  match (get_infos sg l cst).rule_opt_info, rule_filter with
-  | None             , _      -> Dtree.empty
-  | Some(_,trees)    , None   -> trees
-  | Some(rules,trees), Some f ->
-    let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
-    if List.length rules' == List.length rules then trees
+  try
+    if !unsafe && not (HMd.mem sg.tables (md cst)) then
+      Dtree.empty
     else
-      try Dtree.of_rules rules'
-      with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+      match (get_infos sg l cst).rule_opt_info, rule_filter with
+      | None             , _      -> Dtree.empty
+      | Some(_,trees)    , None   -> trees
+      | Some(rules,trees), Some f ->
+        let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
+        if List.length rules' == List.length rules then trees
+        else
+          try Dtree.of_rules rules'
+          with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+  with e ->
+    if !unsafe then Dtree.empty else raise e
 
 
 
@@ -239,17 +273,6 @@ let add_declaration sg lc v st ty =
   then raise (SignatureError (AlreadyDefinedSymbol (lc,cst)))
   else HId.add env v {stat=st; ty=ty; rule_opt_info=None}
 
-let add_external_declaration sg lc cst st ty =
-  try
-    let env = HMd.find sg.tables (md cst) in
-    if HId.mem env (id cst)
-    then raise (SignatureError (AlreadyDefinedSymbol (lc, cst)))
-    else HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
-  with Not_found ->
-    HMd.add sg.tables (md cst) (HId.create 11);
-    let env = HMd.find sg.tables (md cst) in
-    HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
-
 let add_rules sg = function
   | [] -> ()
   | r :: _ as rs ->
@@ -257,11 +280,10 @@ let add_rules sg = function
       add_rule_infos sg rs;
       if not (mident_eq sg.name (md r.cst)) then
         sg.external_rules <- rs::sg.external_rules;
-      let open Confluence in
-      add_rules rs;
-      Debug.(debug D_confluence
+      Confluence.add_rules rs;
+      Debug.(debug Confluence.D_confluence
                "Checking confluence after adding rewrite rules on symbol '%a'"
                pp_name r.cst);
-      try check ()
-      with ConfluenceError e -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,e)))
+      try Confluence.check ()
+      with Confluence.ConfluenceError e -> raise (SignatureError (ConfluenceErrorRules (r.l,rs,e)))
     with RuleError e -> raise (SignatureError (CannotMakeRuleInfos e))

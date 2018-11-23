@@ -102,7 +102,7 @@ module Debug = struct
     set D_notice ("Notice" , false)
 
   let do_debug fmt =
-    Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
+    Format.(kfprintf (fun _ -> pp_print_newline err_formatter (); pp_print_flush err_formatter ()) err_formatter fmt)
 
   let ignore_debug fmt =
     Format.(ifprintf err_formatter) fmt

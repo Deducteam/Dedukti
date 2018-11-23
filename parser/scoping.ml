@@ -114,11 +114,6 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
       (false,(mk_ident id))
     | Some (_, id) -> (true,id)
   in
-  let name =
-    let md = match pname with
-      | Some (Some md, _) -> md
-      | _ -> Env.get_name ()
-    in
-    Gamma(b,mk_name md id)
+  let name = Gamma(b,mk_name md id)
   in
   { name ; ctx= ctx; pat = p_of_pp md idents top; rhs = t_of_pt md idents pri }
