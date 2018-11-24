@@ -24,7 +24,7 @@ let success fmt =
 let prerr_loc lc = if lc <> dloc then eprintf "At %a: " pp_loc lc
 
 let print_error_code code =
-  eprintf "%s" (red ("[ERROR:" ^ string_of_int code ^ "] "))
+  eprintf "%s" (red ("[ERROR/"^(string_of_mident (Env.get_name ())^":" ^ string_of_int code ^ "] ")))
 
 let fail lc fmt =
     prerr_loc lc;
