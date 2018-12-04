@@ -168,7 +168,7 @@ rule:
         ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 decl:
-  | ID COLON term { Debug.(debug D_warn "Ignoring type declaration in rule context."); $1 }
+  | ID COLON term { Debug.(debug D_warn "At %a: ignoring type declaration in rule context." pp_loc (fst $1)); $1 }
   | ID            { $1 }
 
 context:

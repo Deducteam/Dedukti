@@ -133,13 +133,14 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
   HId.iter aux ctx;
   Debug.debug Confluence.D_confluence
     "Checking confluence after loading module '%a'..." pp_mident md;
-  try Confluence.check () with
-  | Confluence.ConfluenceError e -> raise (SignatureError (ConfluenceErrorImport (lc,md,e)))
+  try Confluence.check ()
+  with Confluence.ConfluenceError e -> raise (SignatureError (ConfluenceErrorImport (lc,md,e)))
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   if HMd.mem sg.tables m
-  then Debug.(debug D_warn "Trying to import the already loaded module %s." (string_of_mident m))
+  then Debug.(debug D_warn "At %a: trying to import the already loaded module %s."
+                pp_loc lc (string_of_mident m))
   else
     let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
     HMd.add sg.tables m ctx;

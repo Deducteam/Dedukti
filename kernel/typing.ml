@@ -369,12 +369,12 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   let fail = if !fail_on_unsatisfiable_constraints
     then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))
     else (fun (q,t1,t2) ->
-        Debug.(debug D_warn "Unsatisfiable constraint: %a ~ %a%s"
-                 pp_term t1 pp_term t2
+        Debug.(debug D_warn "At %a: unsatisfiable constraint: %a ~ %a%s"
+                 pp_loc (get_loc_rule rule) pp_term t1 pp_term t2
                  (if q > 0 then Format.sprintf " (under %i abstractions)" q else ""))) in
   let delta = pc_make rule.ctx in
   let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
-  assert ( delta.padding == 0 );
+  assert (delta.padding = 0);
   let sub = SS.mk_idempotent (pseudo_u sg fail SS.identity lst) in
   let ri2    = SS.apply sub 0 rule.rhs in
   let ty_le2 = SS.apply sub 0 ty_le    in
@@ -383,12 +383,12 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
     if SS.is_identity sub then ctx
     else try subst_context sub ctx
          with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
-           Debug.(
-                debug D_rule "Failed to infer a typing context for the rule:\n%a"
-                  pp_untyped_rule rule;
-                let ctx_name n = let _,name,_ = List.nth ctx n in name in
-                debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
-        raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
+          Debug.(
+            debug D_rule "Failed to infer a typing context for the rule:\n%a"
+              pp_untyped_rule rule;
+            let ctx_name n = let _,name,_ = List.nth ctx n in name in
+            debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
+          raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
   in
   check sg ctx2 ri2 ty_le2;
   Debug.(debug D_rule "[ %a ] %a --> %a"

@@ -29,29 +29,29 @@ let mk_entry md e =
     let  ty = Env.infer te in
     let rty = Env.reduction ~red ty in
     Format.printf "%a@." Pp.print_term rty
-  | Check(l, assrt, neg, Convert(t1,t2)) ->
+  | Check(lc, assrt, neg, Convert(t1,t2)) ->
     let succ = (Env.are_convertible t1 t2) <> neg in
     ( match succ, assrt with
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (l,Env.AssertError)) )
-  | Check(l, assrt, neg, HasType(te,ty)) ->
+      | false, true  -> raise (Env.EnvError (lc,Env.AssertError)) )
+  | Check(lc, assrt, neg, HasType(te,ty)) ->
     let succ = try Env.check te ty; not neg with _ -> neg in
     ( match succ, assrt with
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (l, Env.AssertError)) )
+      | false, true  -> raise (Env.EnvError (lc, Env.AssertError)) )
   | DTree(lc,m,v) ->
     let m = match m with None -> Env.get_name () | Some m -> m in
     let cst = mk_name m v in
     let forest = Env.get_dtree lc cst in
     Format.printf "GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
   | Print(_,s) -> Format.printf "%s@." s
-  | Name(_,n) ->
+  | Name(lc,n) ->
     if not (mident_eq n md)
-    then Debug.(debug D_warn "Invalid #NAME directive ignored.@.")
+    then Debug.(debug D_warn "At %a: invalid #NAME directive ignored.@." pp_loc lc)
   | Require(lc,md) -> Env.import lc md
 
 let mk_entry beautify md =
@@ -156,5 +156,5 @@ Available options:" Sys.argv.(0) in
       if not !beautify
       then Errors.success "Standard input was successfully checked.\n"
   with
-  | Env.EnvError (l,e) -> Errors.fail_env_error l e
+  | Env.EnvError (lc,e) -> Errors.fail_env_error lc e
   | Sys_error err  -> Errors.fail_sys_error err
