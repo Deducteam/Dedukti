@@ -6,8 +6,8 @@ type Debug.flag += D_matching
 (** {2 Error} *)
 
 type dtree_error =
-  | HeadSymbolMismatch  of loc * name * name
-  | ArityInnerMismatch  of loc * ident * ident
+  | HeadSymbolMismatch of loc * name * name
+  | ArityInnerMismatch of loc * ident * ident
 
 exception DtreeError of dtree_error
 
@@ -65,15 +65,16 @@ val of_rules : rule_infos list -> t
 *)
 
 
-
-type 'a atomic_problem = 'a * int * int LList.t
-(** An atomic matching problem of a variable applied to distinct locally bound
+(* TODO: better comment this *)
+type ('a, 'b) atomic_problem_solver = 'a -> int -> int LList.t -> 'b Lazy.t
+(** An atomic matching problem solver of a variable applied to distinct locally bound
     variables against a term in the stack:
        [(t,depth,args)]   <-->   t ~? X[ DB(args_0), ..., DB(args_n)]
     where X is the variable and the problem is considered under [depth] abstractions.
 *)
 
-val process_matching_problem : matching_problem -> 'a list -> 'a atomic_problem LList.t
+val process_matching_problem :
+  ('a, 'b) atomic_problem_solver -> matching_problem -> 'a list -> 'b Lazy.t LList.t
 (** From a matching_problem, transforms a stack into the list of atomic_problems
     that remains to be solved for each of the context variables.
 *)

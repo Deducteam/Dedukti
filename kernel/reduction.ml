@@ -99,20 +99,23 @@ type rw_strategy         = Signature.t -> term -> term
 type rw_state_strategy   = Signature.t -> state -> state
 type convertibility_test = Signature.t -> term -> term -> bool
 
-let get_context (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
-                (mp:matching_problem) : env option =
-  let aux ((st,depth,args_db):'a atomic_problem) : term Lazy.t =
-    if depth = 0 then lazy (term_of_state st) (* First order matching *)
-    else
-      let te = term_of_state st in
-      Lazy.from_val
-        (try Matching.solve depth args_db te
-         with Matching.NotUnifiable | Subst.UnshiftExn ->
+
+let get_context (sg:Signature.t) (forcing:rw_strategy)
+  : stack -> matching_problem -> env option =
+  let problem_solver : (state, Term.term) atomic_problem_solver =
+    fun st depth args_db ->
+      if depth = 0 then lazy (term_of_state st) (* First order matching *)
+      else
+        let te = term_of_state st in
+        Lazy.from_val
+          (try Matching.solve depth args_db te
+           with Matching.NotUnifiable | Subst.UnshiftExn ->
              Matching.solve depth args_db (forcing sg te))
   in
-  let ctx = process_matching_problem mp stack in
-  try Some (LList.map aux ctx)
-  with Matching.NotUnifiable | Subst.UnshiftExn -> None
+  let process = process_matching_problem problem_solver in
+  fun stack mp ->
+    try Some (process mp stack)
+    with Matching.NotUnifiable | Subst.UnshiftExn -> None
 
 let rec test (sg:Signature.t) (convertible:convertibility_test)
              (ctx:env) (constrs: constr list) : bool  =
