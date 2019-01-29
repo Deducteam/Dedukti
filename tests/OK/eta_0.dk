@@ -1,4 +1,4 @@
-(; OK ;)
+(; OK -eta ;)
 
 A : Type.
 x : A -> A.

@@ -1,4 +1,4 @@
-(; OK ;)
+(; OK -eta ;)
 
 A : Type.
 def B := A -> A -> A.
