@@ -64,6 +64,7 @@ rule token = parse
 and comment i = parse
   | ";)" { if (i=0) then token lexbuf else comment (i-1) lexbuf }
   | '\n' { new_line lexbuf ; comment i lexbuf }
+  | "(;" { comment (i+1) lexbuf }
   | _    { comment i lexbuf }
   | eof  { fail (get_loc lexbuf) "Unexpected end of file."  }
 
