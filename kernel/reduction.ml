@@ -266,6 +266,13 @@ and conversion_step : (term * term) -> (term * term) list -> (term * term) list 
   | App (f,a,args), App (f',a',args') ->
      (f,f') :: (a,a') :: (zip_lists args args' lst)
   | Lam (_,_,_,b), Lam (_,_,_ ,b') -> (b,b')::lst
+  (* Potentially eta-equivalent terms *)
+  | Lam (_,i,_,b), a ->
+    let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+    (b,b')::lst
+  | a, Lam (_,i,_ ,b) ->
+    let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+    (b,b')::lst
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
   | _ -> raise NotConvertible
 

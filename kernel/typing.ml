@@ -153,6 +153,19 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
         | DB (_,_,n), DB (_,_,n') when n=n' -> assert false (* Equal terms *)
         | _, Kind | Kind, _ |_, Type _ | Type _, _ -> warn ()
 
+        | Pi (_,_,a,b), Pi (_,_,a',b') ->
+          pseudo_u sg fail sigma ((q,a,a')::(q+1,b,b')::lst)
+        | Lam (_,_,_,b), Lam (_,_,_,b') ->
+          pseudo_u sg fail sigma ((q+1,b,b')::lst)
+
+        (* Potentially eta-equivalent terms *)
+        | Lam (_,i,_,b), a ->
+          let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+          pseudo_u sg fail sigma ((q+1,b,b')::lst)
+        | a, Lam (_,i,_,b) ->
+          let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+          pseudo_u sg fail sigma ((q+1,b,b')::lst)
+
         | Const (_,c), Const (_,c') when name_eq c c' -> keepon ()
         | Const (l,cst), t when not (Signature.is_static sg l cst) ->
           ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
@@ -184,11 +197,6 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
                if Subst.occurs n' t' then warn ()
                else pseudo_u sg fail (SS.add sigma n' t') lst
           end
-
-        | Pi (_,_,a,b), Pi (_,_,a',b') ->
-          pseudo_u sg fail sigma ((q,a,a')::(q+1,b,b')::lst)
-        | Lam (_,_,_,b), Lam (_,_,_,b') ->
-          pseudo_u sg fail sigma ((q+1,b,b')::lst)
 
         | App (DB (_,_,n),_,_), _  when n >= q ->
           if Reduction.are_convertible sg t1' t2' then keepon () else warn ()
