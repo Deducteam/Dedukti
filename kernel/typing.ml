@@ -159,10 +159,10 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
           pseudo_u sg fail sigma ((q+1,b,b')::lst)
 
         (* Potentially eta-equivalent terms *)
-        | Lam (_,i,_,b), a ->
+        | Lam (_,i,_,b), a when !Reduction.eta ->
           let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
           pseudo_u sg fail sigma ((q+1,b,b')::lst)
-        | a, Lam (_,i,_,b) ->
+        | a, Lam (_,i,_,b) when !Reduction.eta ->
           let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
           pseudo_u sg fail sigma ((q+1,b,b')::lst)
 

@@ -4,6 +4,8 @@ open Rule
 open Term
 open Dtree
 
+let eta = ref false
+
 type Debug.flag += D_reduce
 let _ = Debug.register_flag D_reduce "Reduce"
 
@@ -267,10 +269,10 @@ and conversion_step : (term * term) -> (term * term) list -> (term * term) list 
      (f,f') :: (a,a') :: (zip_lists args args' lst)
   | Lam (_,_,_,b), Lam (_,_,_ ,b') -> (b,b')::lst
   (* Potentially eta-equivalent terms *)
-  | Lam (_,i,_,b), a ->
+  | Lam (_,i,_,b), a when !eta ->
     let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
     (b,b')::lst
-  | a, Lam (_,i,_ ,b) ->
+  | a, Lam (_,i,_,b) when !eta ->
     let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
     (b,b')::lst
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
