@@ -65,3 +65,27 @@ let pp_entry fmt e =
     ()
   | Require(_,m)            ->
     fprintf fmt "#REQUIRE %a.@." pp_mident m
+
+
+let to_signature : string -> ?sg:Signature.t -> entry list -> Signature.t =
+  fun path ?(sg=Signature.make path) entries ->
+    (* FIXME: so hackish *)
+    let md = Signature.get_name (Signature.make path) in
+    let mk_entry = function
+      | Decl(lc,id,st,ty) ->
+        Signature.add_external_declaration sg lc (Basic.mk_name md id) st ty
+      | Def(lc,id,op,Some ty,te) ->
+        let open Rule in
+        Signature.add_external_declaration sg lc (Basic.mk_name md id) Signature.Definable ty;
+        let cst = Basic.mk_name md id in
+        let rule = { name= Delta(cst) ; ctx = [] ; pat = Pattern(lc, cst, []); rhs = te ; } in
+        Signature.add_rules sg [Rule.to_rule_infos rule]
+      | Def(lc,id,op, None,te) ->
+        Errors.fail_exit (-1) Basic.dloc "All the types should be given"
+      | Rules(lc,rs) ->
+        Signature.add_rules sg (List.map Rule.to_rule_infos rs)
+      | Require(lc,md) -> Signature.import sg lc md
+      | _ -> ()
+    in
+    List.iter mk_entry entries;
+    sg

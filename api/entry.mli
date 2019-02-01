@@ -37,3 +37,5 @@ type entry =
   | Require  of loc * mident
 
 val pp_entry : entry printer
+
+val to_signature : string -> ?sg:Signature.t -> entry list -> Signature.t
