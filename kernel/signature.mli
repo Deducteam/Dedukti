@@ -54,6 +54,9 @@ val get_dtree           : t -> (Rule.rule_name -> bool) option -> loc -> name ->
     with [cst] inside the environment [sg]. When filter is specified, it is used
     to select only the corresponding set of rules  *)
 
+val get_rules           : t -> loc -> name -> rule_infos list
+(** [get_rules sg lc cst] returns a list of rules that defines the symbol. *)
+
 val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)

@@ -218,6 +218,10 @@ let get_dtree sg rule_filter l cst =
       try Dtree.of_rules rules'
       with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
 
+let get_rules sg lc cst =
+  match (get_infos sg lc cst).rule_opt_info with
+  | None -> []
+  | Some (rs,_) -> rs
 
 (******************************************************************************)
 
