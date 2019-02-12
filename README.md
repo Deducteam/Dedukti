@@ -229,11 +229,24 @@ side of the rewrite rules that are constrained by typing.
     [ n, v1, m, e, v2 ] append (succ n) (cons {n} e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
 
 The information between brackets will be used when typing the rule but they will not be match against when
-using the rule (as if they were replaced by fresh variables).
+using the rule (as if they were replaced by unapplied fresh variables).
 
-**Remark:** in order to make this feature type-safe, `Dedukti` checks that the typing constraint is verified when using the rule and fails otherwise.
+**Remarks:**
+- in order to make this feature type-safe, `Dedukti` checks at runtime that the bracket constraint is verified
+whenever the rule may be used and fails otherwise.
+- This feature is not conditional rewriting. When a constraints is not satisfied, Dedukti doesn't just ignore
+the rule and proceed, it actually raises an error.
+- because they are replaced with *unapplied* fresh variables, bracket expressions may not contain variables
+locally bounded previously in the pattern.
+- since they are not used during matching, bracket expressions may not "introduce" variables. All rule variables
+occuring in bracket expression need to also occur in an other part of the pattern, outside a bracket. 
+- bracket expressions and their type may contain variables occuring "before" (to the left of) the pattern.
+- the type of a bracket expression may not contain variables occuring for the first time "after" (to the right of)
+the bracket.
+- the bracket expression may contain variable occuring for the first time "after" (to the right of) the bracket on
+the condition that the inferred types for these variables do not depend on the bracket's fresh variable (no circularity).
 
-**Remark:** a variable can occur inside brackets only if it also occurs outside brackets and on the left of the brackets.
+
 
 #### NON-LEFT-LINEAR REWRITE RULES
 
