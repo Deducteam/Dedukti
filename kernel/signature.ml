@@ -50,6 +50,14 @@ type rw_infos =
     rule_opt_info : (rule_infos list* Dtree.t) option
   }
 
+type symbol_infos =
+  {
+    name  : name;
+    stat  : staticity;
+    ty    : term;
+    mutable rules : rule_infos list
+  }
+
 type t = { name   : mident;
            file   : string;
            tables : (rw_infos HId.t) HMd.t;
@@ -111,14 +119,45 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos li
 let get_rule_infos infos =
   match infos.rule_opt_info with None -> [] | Some (rs,_) -> rs
 
+let access_signature sg =
+  let default_first a =
+    function
+    | None      -> a
+    | Some(x,_) -> x
+  in
+  let rec add_in_symbol_infos : name -> rule_infos -> symbol_infos list -> unit =
+    fun f r ->
+    function
+    | []    -> assert false
+    | s::tl ->
+       if s.name = f
+       then s.rules <- r::s.rules
+       else add_in_symbol_infos f r tl
+  in
+  let symbol_infos_crafting : mident -> ident -> rw_infos -> symbol_infos =
+    fun md id r ->
+    { name  = mk_name md id
+    ; ty    = r.ty
+    ; rules = default_first [] r.rule_opt_info
+    ; stat  = r.stat}
+  in
+  let res = ref [] in
+  HMd.iter
+    (fun md t ->
+      HId.iter
+        (fun id r ->
+          res:=(symbol_infos_crafting md id r)::!res
+        ) t
+    ) sg.tables;
+  List.iter
+    (fun l ->
+      List.iter
+        (fun r -> add_in_symbol_infos r.cst r !res
+        ) l
+    ) sg.external_rules;
+  !res
 
-let read_dko lc m =
-  let deps,ctx,ext = unmarshal lc m in
-  let mod_sig = ref [] in
-  let treat_unmarshaled id infos =
-    mod_sig := (id,infos.stat,infos.ty,get_rule_infos infos):: !mod_sig in
-  HId.iter treat_unmarshaled ctx;
-  (deps, !mod_sig, ext)
+
 
 (******************************************************************************)
 
