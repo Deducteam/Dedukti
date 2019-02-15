@@ -52,10 +52,10 @@ type rw_infos =
 
 type symbol_infos =
   {
-    name  : name;
+    ident : name;
     stat  : staticity;
     ty    : term;
-    mutable rules : rule_infos list
+    rules : rule_infos list
   }
 
 type t = { name   : mident;
@@ -125,18 +125,19 @@ let access_signature sg =
     | None      -> a
     | Some(x,_) -> x
   in
-  let rec add_in_symbol_infos : name -> rule_infos -> symbol_infos list -> unit =
-    fun f r ->
-    function
-    | []    -> assert false
-    | s::tl ->
-       if s.name = f
-       then s.rules <- r::s.rules
-       else add_in_symbol_infos f r tl
+  let add_in_symbol_infos (f : name) (r : rule_infos) =
+    let rec aux (acc : symbol_infos list) =
+      function
+      | []    -> assert false
+      | s::tl ->
+         if s.ident = f
+         then {s with rules = r::s.rules}::(acc@tl)
+         else aux (s::acc) tl
+    in aux []
   in
   let symbol_infos_crafting : mident -> ident -> rw_infos -> symbol_infos =
     fun md id r ->
-    { name  = mk_name md id
+    { ident  = mk_name md id
     ; ty    = r.ty
     ; rules = default_first [] r.rule_opt_info
     ; stat  = r.stat}
@@ -152,7 +153,7 @@ let access_signature sg =
   List.iter
     (fun l ->
       List.iter
-        (fun r -> add_in_symbol_infos r.cst r !res
+        (fun r -> res := add_in_symbol_infos r.cst r !res
         ) l
     ) sg.external_rules;
   !res
@@ -195,7 +196,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   | [] -> ()
   | (r::_ as rs) ->
     let env = get_env sg r.l r.cst in
-    let infos = get_info_env r.l env r.cst in
+    let infos : rw_infos = get_info_env r.l env r.cst in
     let ty = infos.ty in
     if infos.stat = Static
     then raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));

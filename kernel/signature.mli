@@ -26,7 +26,7 @@ type staticity = Static | Definable
 
 type symbol_infos =
   {
-    name  : name;
+    ident : name;
     stat  : staticity;
     ty    : term;
     rules : rule_infos list
