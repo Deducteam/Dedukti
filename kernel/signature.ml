@@ -135,8 +135,7 @@ let access_signature sg =
          else aux (s::acc) tl
     in aux []
   in
-  let symbol_infos_crafting : mident -> ident -> rw_infos -> symbol_infos =
-    fun md id r ->
+  let symbol_infos_crafting (md : mident) (id : ident) (r : rw_infos) =
     { ident  = mk_name md id
     ; ty    = r.ty
     ; rules = default_first [] r.rule_opt_info
