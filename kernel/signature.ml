@@ -12,7 +12,7 @@ type signature_error =
   | UnmarshalSysError     of loc * string * string
   | UnmarshalUnknown      of loc * string
   | SymbolNotFound        of loc * name
-  | AlreadyDefinedSymbol  of loc * ident
+  | AlreadyDefinedSymbol  of loc * name
   | CannotMakeRuleInfos   of Rule.rule_error
   | CannotBuildDtree      of Dtree.dtree_error
   | CannotAddRewriteRules of loc * ident
@@ -264,13 +264,21 @@ let get_rules sg lc cst =
 
 (******************************************************************************)
 
+let add_external_declaration sg lc cst st ty =
+  try
+    Confluence.add_constant cst;
+    let env = HMd.find sg.tables (md cst) in
+    if HId.mem env (id cst)
+    then raise (SignatureError (AlreadyDefinedSymbol (lc, cst)))
+    else HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
+  with Not_found ->
+    HMd.add sg.tables (md cst) (HId.create 11);
+    let env = HMd.find sg.tables (md cst) in
+    HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
+
 let add_declaration sg lc v st ty =
   let cst = mk_name sg.name v in
-  Confluence.add_constant cst;
-  let env = HMd.find sg.tables sg.name in
-  if HId.mem env v
-  then raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
-  else HId.add env v {stat=st; ty=ty; rule_opt_info=None}
+  add_external_declaration sg lc cst st ty
 
 let add_rules sg = function
   | [] -> ()
