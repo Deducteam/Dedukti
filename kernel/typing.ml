@@ -400,10 +400,10 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
     rhs = rule.rhs
   }
 
-let typed_rule_of_ri s ri =
+let typed_rule_of_rule_infos s ri =
   let ur =
     { name = ri.name
     ; ctx  = infer_rule_context ri
     ; pat  = pattern_of_rule_infos ri
     ; rhs  = ri.rhs} in
-  snd (check_rule s ur)
+  check_rule s ur
