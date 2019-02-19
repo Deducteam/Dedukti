@@ -12,7 +12,7 @@ type signature_error =
   | UnmarshalSysError     of loc * string * string
   | UnmarshalUnknown      of loc * string
   | SymbolNotFound        of loc * name
-  | AlreadyDefinedSymbol  of loc * ident
+  | AlreadyDefinedSymbol  of loc * name
   | CannotMakeRuleInfos   of Rule.rule_error
   | CannotBuildDtree      of Dtree.dtree_error
   | CannotAddRewriteRules of loc * ident
@@ -48,6 +48,14 @@ type rw_infos =
     stat          : staticity;
     ty            : term;
     rule_opt_info : (rule_infos list* Dtree.t) option
+  }
+
+type symbol_infos =
+  {
+    ident : name;
+    stat  : staticity;
+    ty    : term;
+    rules : rule_infos list
   }
 
 type t = { name   : mident;
@@ -111,14 +119,45 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos li
 let get_rule_infos infos =
   match infos.rule_opt_info with None -> [] | Some (rs,_) -> rs
 
+let access_signature sg =
+  let default_first a =
+    function
+    | None      -> a
+    | Some(x,_) -> x
+  in
+  let add_in_symbol_infos (f : name) (r : rule_infos) =
+    let rec aux (acc : symbol_infos list) =
+      function
+      | []    -> assert false
+      | s::tl ->
+         if s.ident = f
+         then {s with rules = r::s.rules}::(acc@tl)
+         else aux (s::acc) tl
+    in aux []
+  in
+  let symbol_infos_crafting (md : mident) (id : ident) (r : rw_infos) =
+    { ident  = mk_name md id
+    ; ty    = r.ty
+    ; rules = default_first [] r.rule_opt_info
+    ; stat  = r.stat}
+  in
+  let res = ref [] in
+  HMd.iter
+    (fun md t ->
+      HId.iter
+        (fun id r ->
+          res:=(symbol_infos_crafting md id r)::!res
+        ) t
+    ) sg.tables;
+  List.iter
+    (fun l ->
+      List.iter
+        (fun r -> res := add_in_symbol_infos r.cst r !res
+        ) l
+    ) sg.external_rules;
+  !res
 
-let read_dko lc m =
-  let deps,ctx,ext = unmarshal lc m in
-  let mod_sig = ref [] in
-  let treat_unmarshaled id infos =
-    mod_sig := (id,infos.stat,infos.ty,get_rule_infos infos):: !mod_sig in
-  HId.iter treat_unmarshaled ctx;
-  (deps, !mod_sig, ext)
+
 
 (******************************************************************************)
 
@@ -156,7 +195,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   | [] -> ()
   | (r::_ as rs) ->
     let env = get_env sg r.l r.cst in
-    let infos = get_info_env r.l env r.cst in
+    let infos : rw_infos = get_info_env r.l env r.cst in
     let ty = infos.ty in
     if infos.stat = Static
     then raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
@@ -225,13 +264,21 @@ let get_rules sg lc cst =
 
 (******************************************************************************)
 
+let add_external_declaration sg lc cst st ty =
+  try
+    Confluence.add_constant cst;
+    let env = HMd.find sg.tables (md cst) in
+    if HId.mem env (id cst)
+    then raise (SignatureError (AlreadyDefinedSymbol (lc, cst)))
+    else HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
+  with Not_found ->
+    HMd.add sg.tables (md cst) (HId.create 11);
+    let env = HMd.find sg.tables (md cst) in
+    HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
+
 let add_declaration sg lc v st ty =
   let cst = mk_name sg.name v in
-  Confluence.add_constant cst;
-  let env = HMd.find sg.tables sg.name in
-  if HId.mem env v
-  then raise (SignatureError (AlreadyDefinedSymbol (lc,v)))
-  else HId.add env v {stat=st; ty=ty; rule_opt_info=None}
+  add_external_declaration sg lc cst st ty
 
 let add_rules sg = function
   | [] -> ()
