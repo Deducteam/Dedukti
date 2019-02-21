@@ -146,7 +146,8 @@ let access_signature sg =
     (fun md t ->
       HId.iter
         (fun id r ->
-          res:=(symbol_infos_crafting md id r)::!res
+          if HId.find t id =r
+          then res:=(symbol_infos_crafting md id r)::!res
         ) t
     ) sg.tables;
   List.iter
@@ -283,7 +284,7 @@ let add_declaration sg lc v st ty =
 let add_rules sg = function
   | [] -> ()
   | r :: _ as rs ->
-    try
+     try
       add_rule_infos sg rs;
       if not (mident_eq sg.name (md r.cst)) then
         sg.external_rules <- rs::sg.external_rules;
