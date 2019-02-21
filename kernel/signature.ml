@@ -146,7 +146,10 @@ let access_signature sg =
     (fun md t ->
       HId.iter
         (fun id r ->
-          res:=(symbol_infos_crafting md id r)::!res
+          (* We don't want to export several time the same symbol, but only the
+             most recent version stored in [t] *)
+          if HId.find t id =r
+          then res:=(symbol_infos_crafting md id r)::!res
         ) t
     ) sg.tables;
   List.iter
