@@ -14,6 +14,8 @@ type pattern =
 
 val get_loc_pat : pattern -> loc
 
+val pattern_to_term : pattern -> term
+
 (** Efficient representation for well-formed linear Miller pattern *)
 type wf_pattern =
   | LJoker

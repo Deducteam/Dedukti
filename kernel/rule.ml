@@ -154,6 +154,15 @@ let pp_rule_infos out r =
       rhs = r.rhs
     }
 
+let pattern_to_term p =
+  let rec aux k = function
+    | Brackets t         -> t
+    | Pattern (l,n,args) -> mk_App2 (mk_Const l n) (List.map (aux k) args)
+    | Var (l,x,n,args)   -> mk_App2 (mk_DB  l x n) (List.map (aux k) args)
+    | Lambda (l,x,pat)   -> mk_Lam l x None (aux (k+1) pat)
+  in
+  aux 0 p
+
 type pattern_info =
   {
     constraints  : constr list;
