@@ -26,8 +26,9 @@ type typing_error =
   | DomainFreeLambda of loc
   | CannotInferTypeOfPattern of pattern * typed_context
   | UnsatisfiableConstraints of untyped_rule * (int * term * term)
-  | BracketError1 of term * typed_context
-  | BracketError2 of term * typed_context*term
+  | BracketExprBoundVar of term * typed_context
+  | BracketExpectedTypeBoundVar of term * typed_context*term
+  | BracketExpectedTypeRightVar of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
   | Unconvertible of loc*term*term
@@ -295,41 +296,41 @@ and infer_pattern_aux sg (sigma:context2)
     (f,ty_f,delta,lst:term*typ*partial_context*constraints)
     (arg:pattern) : term * typ * partial_context * constraints =
   match whnf sg ty_f with
-    | Pi (_,_,a,b) ->
-        let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
-        let arg' = pattern_to_term arg in
-        ( Term.mk_App f arg' [], Subst.subst b arg', delta2 , lst2 )
-    | ty_f ->
-      let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-      raise (TypingError (ProductExpected (f,ctx,ty_f)))
+  | Pi (_,_,a,b) ->
+    let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
+    let arg' = pattern_to_term arg in
+    ( Term.mk_App f arg' [], Subst.subst b arg', delta2 , lst2 )
+  | ty_f ->
+    let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
+    raise (TypingError (ProductExpected (f,ctx,ty_f)))
 
 and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     (lst:constraints) (pat:pattern) : partial_context * constraints =
   Debug.(debug D_rule "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty);
+  let ctx () = (LList.lst sigma)@(pc_to_context_wp delta) in
   match pat with
   | Lambda (l,x,p) ->
     begin
       match whnf sg exp_ty with
       | Pi (_,_,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
-      | exp_ty ->
-        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-        raise (TypingError ( ProductExpected (pattern_to_term pat,ctx,exp_ty)))
+      | exp_ty -> raise (TypingError ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
     end
   | Brackets te ->
-    let te2 =
-      try Subst.unshift (delta.padding + LList.len sigma) te
-      with Subst.UnshiftExn ->
-        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-        raise (TypingError (BracketError1 (te,ctx)))
+    let _ =
+      try Subst.unshift (LList.len sigma) te
+      with Subst.UnshiftExn -> raise (TypingError (BracketExprBoundVar (te,ctx())))
     in
-    let ty2 =
-      try unshift_n sg (delta.padding + LList.len sigma) exp_ty
+    let exp_ty2 =
+      try unshift_n sg (LList.len sigma) exp_ty
       with Subst.UnshiftExn ->
-        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-        raise (TypingError (BracketError2 (te,ctx,exp_ty)))
+        raise (TypingError (BracketExpectedTypeBoundVar (te,ctx(),exp_ty)))
     in
-    check sg (pc_to_context delta) te2 ty2;
-    ( delta, lst )
+    let _ =
+      try unshift_n sg delta.padding exp_ty2
+      with Subst.UnshiftExn ->
+        raise (TypingError (BracketExpectedTypeRightVar (te,ctx(),exp_ty)))
+    in
+    ( delta, lst)
   | Var (l,x,n,[]) when n >= LList.len sigma ->
     begin
       let k = LList.len sigma in
@@ -340,8 +341,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
       else
         ( try ( pc_add delta (n-k) l x (unshift_n sg k exp_ty), lst )
           with Subst.UnshiftExn ->
-            let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-            raise (TypingError (FreeVariableDependsOnBoundVariable (l,x,n,ctx,exp_ty))) )
+            raise (TypingError (FreeVariableDependsOnBoundVariable (l,x,n,ctx(),exp_ty))) )
     end
   | Var (l,x,n,args) when n >= LList.len sigma ->
     begin
@@ -351,9 +351,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
         check_pattern sg delta sigma
           (mk_Pi l2 x2 (get_type (LList.lst sigma) l2 x2 n2) (Subst.subst_n n2 x2 exp_ty) )
           lst (Var(l,x,n,args2))
-      | _ ->
-        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-        raise (TypingError (CannotInferTypeOfPattern (pat,ctx))) (* not a pattern *)
+      | _ -> raise (TypingError (CannotInferTypeOfPattern (pat,ctx ()))) (* not a pattern *)
     end
   | _ ->
     begin

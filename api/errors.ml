@@ -77,17 +77,21 @@ let fail_typing_error def_loc err =
        Cannot solve typing constraints: %a ~ %a%s"
       pp_term t1 pp_term t2
       (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")
-  | BracketError1 (te,ctx) ->
+  | BracketExprBoundVar (te,ctx) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.\n\
-       Brackets can only contain variables occuring \
-       on their left and cannot contain bound variables."
+       Brackets cannot contain bound variables."
       pp_term te pp_typed_context ctx
-  | BracketError2 (te,ctx,ty) ->
+  | BracketExpectedTypeBoundVar (te,ctx,ty) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.\n\
-       The type of brackets can only contain variables occuring\
-       on their left and cannot contains bound variables."
+       The expected type of brackets cannot contains bound variables."
+      pp_term te pp_typed_context ctx
+  | BracketExpectedTypeRightVar (te,ctx,ty) ->
+    fail (get_loc te)
+      "Error while typing the term { %a }%a.\n\
+       The expected type of brackets can only contain variables occuring\
+       to their left."
       pp_term te pp_typed_context ctx
   | FreeVariableDependsOnBoundVariable (l,x,n,ctx,ty) ->
     fail l
@@ -211,8 +215,10 @@ let code err =
       | Typing.DomainFreeLambda _ -> 8
       | Typing.CannotInferTypeOfPattern _ -> 9
       | Typing.UnsatisfiableConstraints _ -> 10
-      | Typing.BracketError1 _ -> 11
-      | Typing.BracketError2 _ -> 12
+      | Typing.BracketExprBoundVar _ -> 11
+      | Typing.BracketExpectedTypeBoundVar _ -> 12
+      | Typing.BracketExpectedTypeRightVar _ -> 12
+      (* TODO offset everything to have a fresh code here. *)
       | Typing.FreeVariableDependsOnBoundVariable _ -> 13
       | Typing.Unconvertible _ -> 14
       | Typing.Convertible _ -> 15

@@ -135,6 +135,7 @@ let add_rules (rules: untyped_rule list) : (Subst.Subst.t * typed_rule) list =
   try
     let rs2 = List.map (check_rule !sg) rules in
     _add_rules rules;
+    List.iter (fun (_,r) -> Rule.check_brackets r) rs2;
     rs2
   with e -> raise_as_env (get_loc_rule (List.hd rules)) e
 

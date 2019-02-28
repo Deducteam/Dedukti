@@ -87,8 +87,11 @@ type rule_infos = {
 
 val pattern_of_rule_infos : rule_infos -> pattern
 
-val to_rule_infos : untyped_rule -> rule_infos
-(** Converts untyped_rule to rule_infos *)
+val to_rule_infos : 'a context rule -> rule_infos
+(** Converts any rule (typed of untyped) to rule_infos *)
+
+val check_brackets : typed_rule -> unit
+(** Check racket circularity of typed rule *)
 
 (** {2 Printing} *)
 

@@ -20,8 +20,9 @@ type typing_error =
   | DomainFreeLambda of loc
   | CannotInferTypeOfPattern of pattern * typed_context
   | UnsatisfiableConstraints of untyped_rule * (int * term * term)
-  | BracketError1 of term * typed_context
-  | BracketError2 of term * typed_context*term
+  | BracketExprBoundVar of term * typed_context
+  | BracketExpectedTypeBoundVar of term * typed_context*term
+  | BracketExpectedTypeRightVar of term * typed_context*term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature of loc
   | Unconvertible of loc*term*term
