@@ -267,16 +267,6 @@ let unshift_n sg n te =
   try Subst.unshift n te
   with Subst.UnshiftExn -> Subst.unshift n (snf sg te)
 
-(* Extracts term from pattern. Brackets are extracted as their expressions. *)
-let pattern_to_term p =
-  let rec aux k = function
-    | Brackets t         -> t
-    | Pattern (l,n,args) -> mk_App2 (mk_Const l n) (List.map (aux k) args)
-    | Var (l,x,n,args)   -> mk_App2 (mk_DB  l x n) (List.map (aux k) args)
-    | Lambda (l,x,pat)   -> mk_Lam l x None (aux (k+1) pat)
-  in
-  aux 0 p
-
 let rec infer_pattern sg (delta:partial_context) (sigma:context2)
     (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
   match pat with
