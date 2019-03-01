@@ -1,0 +1,14 @@
+(; KO 12 ;)
+
+A : Type.
+a : A
+
+def U : A -> Type.
+
+def s : U a -> A.
+
+[X] U (s X) --> A.
+
+
+def f : x : A -> U x -> U x.
+[X] f {s X} X --> X.
