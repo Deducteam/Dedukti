@@ -57,7 +57,7 @@ let infer_rule_context ri =
   let res = Array.make ri.ctx_size (mk_ident "_") in
   let rec aux k = function
     (* Since we have the garantee that every lhs is a Miller pattern, we don't have to study args *)
-    | Var (_,name,n,args)  -> res.(n-k) <- name
+    | Var (_,name,n,args)  -> if n>=k then res.(n-k) <- name
     | Lambda (_,_,body)    -> aux (k+1) body
     | Pattern (_,_,args)   -> List.iter (aux k) args
     | Brackets(_)          -> ()
