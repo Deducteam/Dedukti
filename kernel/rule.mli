@@ -74,18 +74,28 @@ exception RuleError of rule_error
 
 (** {2 Rule infos} *)
 
-type rule_infos = {
-  l           : loc;              (** location of the rule *)
-  name        : rule_name;        (** name of the rule *)
-  cst         : name;             (** name of the pattern constant *)
-  args        : pattern list;     (** arguments list of the pattern constant *)
-  rhs         : term;             (** right hand side of the rule *)
-  esize       : int;              (** size of the context *)
-  pats        : wf_pattern array; (** free patterns without constraint *)
-  arity       : int array;        (** arities of context variables *)
-  constraints : constr list;
-  (** constraints generated from the pattern to the free pattern *)
-  }
+type rule_infos =
+  { (** location of the rule *)
+    l           : loc
+  ; (** name of the rule *)
+    name        : rule_name
+  ; (** name of the pattern constant *)
+    cst         : name
+  ; (** arguments list of the pattern constant *)
+    args        : pattern list
+  ; (** right hand side of the rule *)
+    rhs         : term
+  ; (** size of the context of the non-linear version of the rule *)
+    ctx_size    : int
+  ; (** size of the context of the linearized, bracket free version of the rule *)
+    esize       : int
+  ; (** free patterns without constraint *)
+    pats        : wf_pattern array
+  ; (** arities of context variables *)
+    arity       : int array
+  ; (** constraints generated from the pattern to the free pattern *)
+  constraints : constr list
+}
 
 val infer_rule_context : rule_infos -> untyped_context
 val pattern_of_rule_infos : rule_infos -> pattern
