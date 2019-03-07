@@ -141,7 +141,11 @@ let add_rules (rules: untyped_rule list) : (Subst.Subst.t * typed_rule) list =
 let infer ?ctx:(ctx=[]) te =
   try
     let ty = infer !sg ctx te in
-    ignore(infer !sg ctx ty);
+    (* We only verify that [ty] itself has a type (that we immediately
+       throw away) if [ty] is not [Kind], because [Kind] does not have a
+       type, but we still want [infer ctx Type] to produce [Kind] *)
+    if ty <> mk_Kind then
+      ignore(infer !sg ctx ty);
     ty
   with e -> raise_as_env (get_loc te) e
 
@@ -153,7 +157,12 @@ let _unsafe_reduction red te =
   Reduction.reduction red !sg te
 
 let _reduction ctx red te =
-  ignore(Typing.infer !sg ctx te);
+  (* This is a safe reduction, so we check that [te] has a type
+     before attempting to normalize it, but we only do so if [te]
+     is not [Kind], because [Kind] does not have a type, but we
+     still want to be able to reduce it *)
+  if te <> mk_Kind then
+    ignore(Typing.infer !sg ctx te);
   _unsafe_reduction red te
 
 let reduction ?ctx:(ctx=[]) ?red:(red=Reduction.default_cfg) te =
