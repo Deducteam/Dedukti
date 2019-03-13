@@ -342,6 +342,10 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     end
   | Var (l,x,n,args) when n >= LList.len sigma ->
     begin
+      let k = LList.len sigma in
+      (* Bracket may introduce circularity (variable's expected type depending on itself *)
+      if delta.bracket && Subst.occurs (n-k) exp_ty
+      then raise (TypingError (TypingCircularity(l,x,n,ctx(),exp_ty)));
       let (args2, last) = get_last args in
       match last with
       | Var (l2,x2,n2,[]) ->
