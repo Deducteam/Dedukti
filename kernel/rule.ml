@@ -256,11 +256,6 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       arity = Array.init !context_size (fun i -> IntHashtbl.find arity i)
     } )
 
-let check_brackets (rule:typed_rule) : unit =
-  let ctxt = rule.ctx in
-  let pats = rule.pat in
-  ()
-
 let to_rule_infos (r:'a context rule) : rule_infos =
   let esize = List.length r.ctx in
   let (l,cst,args) = match r.pat with
