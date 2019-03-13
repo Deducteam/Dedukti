@@ -29,6 +29,7 @@ type typing_error =
   | BracketExprBoundVar                of term * typed_context
   | BracketExpectedTypeBoundVar        of term * typed_context * term
   | BracketExpectedTypeRightVar        of term * typed_context * term
+  | TypingCircularity                  of loc * ident * int * typed_context * term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature              of loc
   | Unconvertible                      of loc * term * term
@@ -323,10 +324,13 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
       with Subst.UnshiftExn ->
         raise (TypingError (BracketExpectedTypeRightVar (te,ctx(),exp_ty)))
     in
-    ( delta, lst)
+    ( {delta with bracket = true}, lst)
   | Var (l,x,n,[]) when n >= LList.len sigma ->
     begin
       let k = LList.len sigma in
+      (* Bracket may introduce circularity (variable's expected type depending on itself *)
+      if delta.bracket && Subst.occurs (n-k) exp_ty
+      then raise (TypingError (TypingCircularity(l,x,n,ctx(),exp_ty)));
       if pc_in delta (n-k)
       then
         let inf_ty = Subst.shift k (pc_get delta (n-k)) in

@@ -93,6 +93,12 @@ let fail_typing_error def_loc err =
        The expected type of brackets can only contain variables occuring\
        to their left."
       pp_term te pp_typed_context ctx
+  | TypingCircularity (l,x,n,ctx,ty) ->
+    fail l
+      "Typing circularity found while typing variable '%a[%i]'%a.\n\
+       The expected type of variable is not allowed to refer to itself.\n\
+       This is due to bracket expressions refering to this variable.\n\
+       Expected type:%a." pp_ident x n pp_typed_context ctx pp_term ty
   | FreeVariableDependsOnBoundVariable (l,x,n,ctx,ty) ->
     fail l
       "Error while typing '%a[%i]'%a.\n\
@@ -218,6 +224,7 @@ let code err =
       | Typing.BracketExprBoundVar _ -> 11
       | Typing.BracketExpectedTypeBoundVar _ -> 12
       | Typing.BracketExpectedTypeRightVar _ -> 12
+      | Typing.TypingCircularity _ -> 12
       (* TODO offset everything to have a fresh code here. *)
       | Typing.FreeVariableDependsOnBoundVariable _ -> 13
       | Typing.Unconvertible _ -> 14

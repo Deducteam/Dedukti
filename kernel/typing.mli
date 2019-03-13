@@ -23,6 +23,7 @@ type typing_error =
   | BracketExprBoundVar                of term * typed_context
   | BracketExpectedTypeBoundVar        of term * typed_context * term
   | BracketExpectedTypeRightVar        of term * typed_context * term
+  | TypingCircularity                  of loc * ident * int * typed_context * term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
   | NotImplementedFeature              of loc
   | Unconvertible                      of loc * term * term
