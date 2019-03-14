@@ -41,7 +41,13 @@ let mk_ident     = WS.merge shash
 
 let mk_mident md =
   let base = Filename.basename md in
-  try Filename.chop_extension base with _ -> base
+  let le = String.length base in
+  if le > 3 &&
+     String.get base (le-3) = '.' &&
+     String.get base (le-2) = 'd' &&
+     String.get base (le-1) = 'k'
+  then String.sub base 0 (le-3)
+  else base
 
 let dmark       = mk_ident "$"
 
