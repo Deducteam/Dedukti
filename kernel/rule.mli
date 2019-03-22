@@ -95,8 +95,9 @@ type rule_infos =
     arity       : int array;
     (** constraints generated from the pattern to the free pattern *)
     constraints : constr list
-}
+  }
 
+val infer_rule_context : rule_infos -> untyped_context
 val pattern_of_rule_infos : rule_infos -> pattern
 
 val to_rule_infos : untyped_rule -> rule_infos
