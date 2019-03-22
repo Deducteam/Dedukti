@@ -47,16 +47,11 @@ type rw_infos =
   {
     stat          : staticity;
     ty            : term;
-    rule_opt_info : (rule_infos list* Dtree.t) option
+    rules         : rule_infos list;
+    decision_tree : Dtree.t option
   }
 
-type symbol_infos =
-  {
-    ident : name;
-    stat  : staticity;
-    ty    : term;
-    rules : rule_infos list
-  }
+type symbol_infos = name * rw_infos
 
 type t = { name   : mident;
            file   : string;
@@ -116,30 +111,16 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos li
   | SignatureError s -> raise (SignatureError s)
   | _ -> raise (SignatureError (UnmarshalUnknown (lc,m)))
 
-let get_rule_infos infos =
-  match infos.rule_opt_info with None -> [] | Some (rs,_) -> rs
-
 let access_signature sg =
-  let default_first a =
-    function
-    | None      -> a
-    | Some(x,_) -> x
-  in
   let add_in_symbol_infos (f : name) (r : rule_infos) =
     let rec aux (acc : symbol_infos list) =
       function
       | []    -> assert false
-      | s::tl ->
-         if s.ident = f
-         then {s with rules = r::s.rules}::(acc@tl)
-         else aux (s::acc) tl
+      | (n,rw)::tl ->
+         if n = f
+         then (n,{rw with rules = r::rw.rules})::(acc@tl)
+         else aux ((n,rw)::acc) tl
     in aux []
-  in
-  let symbol_infos_crafting (md : mident) (id : ident) (r : rw_infos) =
-    { ident  = mk_name md id
-    ; ty    = r.ty
-    ; rules = default_first [] r.rule_opt_info
-    ; stat  = r.stat}
   in
   let res = ref [] in
   HMd.iter
@@ -149,7 +130,7 @@ let access_signature sg =
           (* We don't want to export several time the same symbol, but only the
              most recent version stored in [t] *)
           if HId.find t id =r
-          then res:=(symbol_infos_crafting md id r)::!res
+          then res:=(mk_name md id, r)::!res
         ) t
     ) sg.tables;
   List.iter
@@ -168,9 +149,7 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
   let aux id infos =
     let cst = mk_name md id in
     Confluence.add_constant cst;
-    match infos.rule_opt_info with
-    | None -> ()
-    | Some (rs,_) -> Confluence.add_rules rs
+    Confluence.add_rules infos.rules
   in
   HId.iter aux ctx;
   Debug.debug Confluence.D_confluence
@@ -202,15 +181,13 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     let ty = infos.ty in
     if infos.stat = Static
     then raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
-    let rules = match infos.rule_opt_info with
-      | None -> rs
-      | Some(mx,_) -> mx@rs
-    in
+    let rules = (infos.rules @ rs) in
     let trees =
       try Dtree.of_rules rules
       with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
     in
-    HId.add env (id r.cst) {stat = infos.stat; ty=ty; rule_opt_info = Some(rules,trees)}
+    HId.add env (id r.cst)
+      {stat = infos.stat; ty=ty; rules = rules; decision_tree=Some(trees)}
 
 and get_env sg lc cst =
   let md = md cst in
@@ -250,34 +227,34 @@ let is_static sg lc cst =
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
 let get_dtree sg rule_filter l cst =
-  match (get_infos sg l cst).rule_opt_info, rule_filter with
-  | None             , _      -> Dtree.empty
-  | Some(_,trees)    , None   -> trees
-  | Some(rules,trees), Some f ->
-    let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
-    if List.length rules' == List.length rules then trees
-    else
-      try Dtree.of_rules rules'
-      with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+  let infos = get_infos sg l cst in
+  match infos.decision_tree, rule_filter with
+  | None       , _      -> Dtree.empty
+  | Some(trees), None   -> trees
+  | Some(trees), Some f ->
+     let rules = infos.rules in
+     let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
+     if List.length rules' == List.length rules then trees
+     else
+       try Dtree.of_rules rules'
+       with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
 
 let get_rules sg lc cst =
-  match (get_infos sg lc cst).rule_opt_info with
-  | None -> []
-  | Some (rs,_) -> rs
+  (get_infos sg lc cst).rules
 
 (******************************************************************************)
 
-let add_external_declaration sg lc cst st ty =
+let add_external_declaration sg lc cst stat ty =
   try
     Confluence.add_constant cst;
     let env = HMd.find sg.tables (md cst) in
     if HId.mem env (id cst)
     then raise (SignatureError (AlreadyDefinedSymbol (lc, cst)))
-    else HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
+    else HId.add env (id cst) {stat; ty; rules=[]; decision_tree=None}
   with Not_found ->
     HMd.add sg.tables (md cst) (HId.create 11);
     let env = HMd.find sg.tables (md cst) in
-    HId.add env (id cst) {stat=st; ty=ty; rule_opt_info=None}
+    HId.add env (id cst) {stat; ty; rules=[]; decision_tree=None}
 
 let add_declaration sg lc v st ty =
   let cst = mk_name sg.name v in

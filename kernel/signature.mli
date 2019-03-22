@@ -24,13 +24,15 @@ exception SignatureError of signature_error
 
 type staticity = Static | Definable
 
-type symbol_infos =
+type rw_infos =
   {
-    ident : name;
-    stat  : staticity;
-    ty    : term;
-    rules : rule_infos list
+    stat          : staticity;
+    ty            : term;
+    rules         : rule_infos list;
+    decision_tree : Dtree.t option
   }
+
+type symbol_infos = name * rw_infos
 
 type t
 
