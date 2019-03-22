@@ -4,7 +4,7 @@ VERSION = devel
 # Compile with "make Q=" to display the commands that are run.
 Q = @
 
-all: kernel parser commands META
+all: kernel api parser commands META
 
 #### Compilation of the kernel library #######################################
 
@@ -25,6 +25,22 @@ _build/kernel/kernel.cma: $(KERNEL_MLI) $(KERNEL_ML)
 _build/kernel/kernel.cmxa: $(KERNEL_MLI) $(KERNEL_ML)
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.cmxa
+
+#### Compilation of the API library #######################################
+
+API_MLI := $(wildcard api/*.mli)
+API_ML  := $(API_MLI:.mli=.ml)
+
+.PHONY: api
+api: kernel _build/api/api.cma _build/api/api.cmxa
+
+_build/api/api.cma: $(API_MLI) $(API_ML)
+	@echo "[BYT] $@"
+	$(Q)ocamlbuild -quiet -use-ocamlfind api/api.cma
+
+_build/api/api.cmxa: $(API_MLI) $(API_ML)
+	@echo "[OPT] $@"
+	$(Q)ocamlbuild -quiet -use-ocamlfind api/api.cmxa
 
 #### Compilation of the parser library #######################################
 
@@ -48,15 +64,15 @@ _build/parser/parser.cmxa: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
 .PHONY: commands
 commands: dkcheck.native dkdep.native dktop.native
 
-dkcheck.native: kernel parser commands/dkcheck.ml
+dkcheck.native: kernel api parser commands/dkcheck.ml
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkcheck.native
 
-dkdep.native: kernel parser commands/dkdep.ml
+dkdep.native: kernel api parser commands/dkdep.ml
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkdep.native
 
-dktop.native: kernel parser commands/dktop.ml
+dktop.native: kernel api parser commands/dktop.ml
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dktop.native
 
@@ -77,8 +93,8 @@ META: GNUmakefile
 	@echo 'version = "$(VERSION)"'                                      >> META
 	@echo 'description = "Dedukti library - λΠ-calculus modulo theory"' >> META
 	@echo 'requires = "unix"'                                           >> META
-	@echo 'archive(byte) = "kernel.cma, parser.cma"'                    >> META
-	@echo 'archive(native) = "kernel.cmxa, parser.cmxa"'                >> META
+	@echo 'archive(byte) = "kernel.cma, api.cma, parser.cma"'           >> META
+	@echo 'archive(native) = "kernel.cmxa, api.cmxa, parser.cmxa"'      >> META
 	@echo                                                               >> META
 	@echo 'package "kernel" ('                                          >> META
 	@echo '  version = "$(VERSION)"'                                    >> META
@@ -88,10 +104,18 @@ META: GNUmakefile
 	@echo '  archive(native) = "kernel.cmxa"'                           >> META
 	@echo ')'                                                           >> META
 	@echo                                                               >> META
+	@echo 'package "api" ('                                             >> META
+	@echo '  version = "$(VERSION)"'                                    >> META
+	@echo '  description = "Dedukti API"'                               >> META
+	@echo '  requires = "unix, dedukti.kernel"'                         >> META
+	@echo '  archive(byte) = "api.cma"'                                 >> META
+	@echo '  archive(native) = "api.cmxa"'                              >> META
+	@echo ')'                                                           >> META
+	@echo                                                               >> META
 	@echo 'package "parser" ('                                          >> META
 	@echo '  version = "$(VERSION)"'                                    >> META
 	@echo '  description = "Dedukti parser"'                            >> META
-	@echo '  requires = "unix, dedukti.kernel"'                         >> META
+	@echo '  requires = "unix, dedukti.kernel, dedukti.api"'            >> META
 	@echo '  archive(byte) = "parser.cma"'                              >> META
 	@echo '  archive(native) = "parser.cmxa"'                           >> META
 	@echo ')'                                                           >> META
@@ -112,11 +136,13 @@ install: uninstall all
 	@ocamlfind install dedukti META \
 		$(wildcard _build/kernel/*.mli) $(wildcard _build/kernel/*.cmi) \
 		$(wildcard _build/kernel/*.cmx) $(wildcard _build/kernel/*.o) \
+		$(wildcard _build/api/*.mli)    $(wildcard _build/api/*.cmi) \
+		$(wildcard _build/api/*.cmx)    $(wildcard _build/api/*.o) \
 		_build/parser/parser.mli _build/parser/parser.cmi \
 		$(wildcard _build/parser/*.cmx) $(wildcard _build/parser/*.o) \
-		_build/kernel/kernel.cma _build/parser/parser.cma \
-		_build/kernel/kernel.cmxa _build/parser/parser.cmxa \
-		_build/kernel/kernel.a _build/parser/parser.a
+		_build/kernel/kernel.cma  _build/api/api.cma  _build/parser/parser.cma \
+		_build/kernel/kernel.cmxa _build/api/api.cmxa _build/parser/parser.cmxa \
+		_build/kernel/kernel.a    _build/api/api.a    _build/parser/parser.a
 	install -m 755 -d $(BINDIR)
 	install -m 755 -p dkcheck.native  $(BINDIR)/dkcheck
 	install -m 755 -p dkdep.native    $(BINDIR)/dkdep
@@ -128,16 +154,104 @@ install: uninstall all
 tests: all tests/tests.sh
 	@./tests/tests.sh
 
+#### Library tests ###########################################################
+
+TEST_LIBS=libraries
+
+.PHONY: matita
+matita: all
+	@echo "## Compiling the Matita's arithmetic library ##"
+	@cd $(TEST_LIBS) && ./matita.sh
+
+.PHONY: matita-light
+matita-light: all
+	@echo "## Compiling the Matita's arithmetic library (light) ##"
+	@cd $(TEST_LIBS) && ./matita-light.sh
+
+.PHONY: plein_de_dks
+plein_de_dks: all
+	@echo "## Compiling “plein de dks” ##"
+	@cd $(TEST_LIBS) && ./plein_de_dks.sh
+
+.PHONY: focalide
+focalide: all
+	@echo "## Compiling focalide library ##"
+	@cd $(TEST_LIBS) && ./focalide.sh
+
+.PHONY: holide
+holide: all
+	@echo "## Compiling holide library ##"
+	@cd $(TEST_LIBS) && ./holide.sh
+
+.PHONY: dedukti-libraries
+dedukti-libraries: all
+	@echo "## Compiling the Dedukti Libraries folder ##"
+	@cd $(TEST_LIBS) && ./dedukti-libraries.sh
+
+.PHONY: verine
+verine: all
+	@echo "## Compiling verine library ##"
+	@cd $(TEST_LIBS) && ./verine.sh
+
+.PHONY: iprover
+iprover: all
+	@echo "## Compiling iProverModulo library ##"
+	@cd $(TEST_LIBS) && ./iprover.sh
+
+.PHONY: dklib
+dklib: all
+	@echo "## Compiling the dklib library ##"
+	@cd $(TEST_LIBS) && ./dklib.sh
+
+.PHONY: zenon_modulo
+zenon_modulo: all
+	@echo "## Compiling the zenon library ##"
+	@cd $(TEST_LIBS) && ./zenon_modulo.sh
+
+
+.PHONY: light_tests
+light_tests: all matita-light dklib holide
+
 .PHONY: full_tests
-full_tests: all tests/external_tests.sh
-	@./tests/external_tests.sh
+full_tests: light_tests iprover focalide dedukti-libraries verine # zenon_modulo
+
+.PHONY: cleanlibs
+cleanlibs: 
+	@cd $(TEST_LIBS) && ./matita.sh            clean
+	@cd $(TEST_LIBS) && ./matita-light.sh      clean
+	@cd $(TEST_LIBS) && ./plein_de_dks.sh      clean
+	@cd $(TEST_LIBS) && ./focalide.sh          clean
+	@cd $(TEST_LIBS) && ./holide.sh            clean
+	@cd $(TEST_LIBS) && ./verine.sh            clean
+	@cd $(TEST_LIBS) && ./iprover.sh           clean
+	@cd $(TEST_LIBS) && ./dklib.sh             clean
+	@cd $(TEST_LIBS) && ./zenon_modulo.sh      clean
+	@cd $(TEST_LIBS) && ./dedukti-libraries.sh clean
+
+.PHONY: fullcleanlibs
+fullcleanlibs: 
+	@cd $(TEST_LIBS) && ./matita.sh            fullclean
+	@cd $(TEST_LIBS) && ./matita-light.sh      fullclean
+	@cd $(TEST_LIBS) && ./plein_de_dks.sh      fullclean
+	@cd $(TEST_LIBS) && ./focalide.sh          fullclean
+	@cd $(TEST_LIBS) && ./holide.sh            fullclean
+	@cd $(TEST_LIBS) && ./verine.sh            fullclean
+	@cd $(TEST_LIBS) && ./iprover.sh           fullclean
+	@cd $(TEST_LIBS) && ./dklib.sh             fullclean
+	@cd $(TEST_LIBS) && ./zenon_modulo.sh      fullclean
+	@cd $(TEST_LIBS) && ./dedukti-libraries.sh fullclean
 
 #### Cleaning targets ########################################################
-
+.PHONY: clean
 clean:
 	$(Q)ocamlbuild -quiet -clean
 
-distclean: clean
+.PHONY: distclean
+distclean: clean cleanlibs
 	$(Q)find -name "*~" -exec rm {} \;
+	$(Q)find -name "*.dko" -exec rm {} \;
 	$(Q)rm -f kernel/version.ml
 	$(Q)rm -f META
+
+.PHONY: fullclean
+fullclean: distclean fullcleanlibs

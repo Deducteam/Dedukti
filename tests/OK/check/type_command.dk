@@ -1,0 +1,17 @@
+(; OK ;)
+
+A : Type.
+B : Type.
+a : A.
+
+#CHECK a : A.
+#PRINT "YES".
+
+#CHECKNOT a : B.
+#PRINT "YES".
+
+#CHECKNOT a : A.
+#PRINT "NO".
+
+#CHECK a : B.
+#PRINT "NO".

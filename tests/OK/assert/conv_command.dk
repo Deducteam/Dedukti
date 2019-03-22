@@ -1,0 +1,10 @@
+(; OK ;)
+
+A : Type.
+def B := A.
+def C := A.
+D : Type.
+
+#ASSERT    B == A.
+#ASSERT    B == C.
+#ASSERTNOT A == D.

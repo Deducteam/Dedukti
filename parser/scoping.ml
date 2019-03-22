@@ -39,8 +39,9 @@ let scope_term md ctx (pte:preterm) : term =
 (* [get_vars_order vars p] traverses the pattern [p] from left to right and
  * builds the list of variables, turning jokers into unapplied fresh variables.
  * Return false as second argument if some variables never occur (warning needed). *)
-let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context*bool =
+let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context*bool*bool =
   let nb_jokers = ref 0 in
+  let has_brackets = ref false in
   let get_fresh_name () =
     incr nb_jokers;
     mk_ident ("?_" ^ string_of_int !nb_jokers)
@@ -66,11 +67,11 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context*bool =
         List.fold_left (aux bvar) ctx pargs
     | PPattern (l,Some md,id,pargs) -> List.fold_left (aux bvar) ctx pargs
     | PLambda (l,x,pp) -> aux (x::bvar) ctx pp
-    | PCondition _ -> ctx
+    | PCondition _ -> has_brackets := true; ctx
     | PJoker l -> (l, get_fresh_name ()) :: ctx
   in
   let ordered_ctx = aux [] [] ppat in
-  ( ordered_ctx , List.length ordered_ctx <> List.length vars + !nb_jokers )
+  ( ordered_ctx , List.length ordered_ctx <> List.length vars + !nb_jokers, !has_brackets )
 
 let p_of_pp md (ctx:ident list) (ppat:prepattern) : pattern =
   let nb_jokers = ref 0 in
@@ -102,10 +103,14 @@ let p_of_pp md (ctx:ident list) (ppat:prepattern) : pattern =
 
 let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   let top = PPattern(l,md_opt,id,pargs) in
-  let ctx, unused_vars = get_vars_order pctx top in
+  let ctx, unused_vars, has_brackets = get_vars_order pctx top in
   if unused_vars
-  then Debug.(debug d_warn "Local variables in the rule %a are not used (%a)")
-      pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
+  then
+    begin
+      Debug.(debug D_warn "Local variables in the rule %a are not used (%a)")
+        pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
+      if has_brackets then raise (Env.EnvError (l,Env.BracketScopingError))
+    end;
   let idents = List.map snd ctx in
   let b,id =
     match pname with

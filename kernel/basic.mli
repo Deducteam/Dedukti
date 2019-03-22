@@ -42,7 +42,7 @@ val mk_name : mident -> ident -> name
 (** [name_eq n n'] checks if the two names [n] and [n'] are equals *)
 val name_eq : name -> name -> bool
 
-(** qmark is a special identifier for unification variables *)
+(** [dmark] is a special identifier for unification variables *)
 val dmark : ident
 
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
@@ -51,25 +51,17 @@ val dmark : ident
 (** {2 Lists with Length} *)
 
 module LList : sig
-  type +'a t = private {
-    len : int;
-    lst : 'a list;
-  }
-
-  val cons : 'a -> 'a t -> 'a t
+  type 'a t
   val nil : 'a t
-  val make : len:int -> 'a list -> 'a t
-  val of_list : 'a list -> 'a t
-  val of_array : 'a array -> 'a t
+  val cons : 'a -> 'a t -> 'a t
 
-  val is_empty : _ t -> bool
   val len : _ t -> int
   val lst : 'a t -> 'a list
-
+  val is_empty : _ t -> bool
+  val of_list  : 'a list  -> 'a t
+  val of_array : 'a array -> 'a t
   val map : ('a -> 'b) -> 'a t -> 'b t
-  val append_l : 'a t -> 'a list -> 'a t
   val nth : 'a t -> int -> 'a
-  val remove : int -> 'a t -> 'a t
 end
 
 (** {2 Localization} *)
@@ -83,59 +75,35 @@ val dloc : loc
 (** [mk_loc l c] builds the location where [l] is the line and [c] the column *)
 val mk_loc : int -> int -> loc
 
-val of_loc : loc -> (int*int)
+val of_loc : loc -> int * int
 
 val add_path : string -> unit
 val get_path : unit -> string list
 
-(** {2 Error Datatype} *)
-
-type ('a,'b) error =
-  | OK of 'a
-  | Err of 'b
-
-val map_error : ('a -> 'b) -> ('a,'c) error -> ('b,'c) error
-val bind_error : ('a -> ('b,'c) error) -> ('a,'c) error -> ('b,'c) error
-val map_error_list : ('a -> ('b,'c) error) -> 'a list -> ('b list,'c) error
-
 (** {2 Debug} *)
 
 module Debug : sig
-  
-  type flag
-  val d_warn         : flag (** Warnings *)
-  val d_notice       : flag (** Notices *)
-  val d_module       : flag (** Modules *)
-  val d_confluence   : flag (** Confluence *)
-  val d_rule         : flag (** Rule type checking *)
-  val d_typeChecking : flag (** Type checking *)
-  val d_reduce       : flag (** Reduction *)
-  val d_matching     : flag (** Pattern matching *)
 
-  val  enable_flag : flag -> unit (** Activates given flag's debugging *)
-  val disable_flag : flag -> unit (** Deactivates given flag's debugging *)
+  type flag  = ..
+  type flag += D_warn | D_notice
 
-  (** Sets multiple debugging flags from a string: 
-      q : disables d_Warn
-      n : enables  d_Notice
-      o : enables  d_Module
-      c : enables  d_Confluence
-      u : enables  d_Rule
-      t : enables  d_TypeChecking
-      r : enables  d_Reduce
-      m : enables  d_Matching
-  *)
-  val set_debug_mode : string -> unit
+  (** [register_flag fl m] set the header of error messages tagged by [f] to be [m] *)
+  val register_flag : flag -> string -> unit
 
+  (** Activates error messages associated to a flag *)
+  val enable_flag : flag -> unit
+
+  (** Desactivates error messages associated to a flag *)
+  val disable_flag : flag -> unit
+      
   (** [debug f] prints information on the standard error channel
       if the given flag [f] is currently active. *)
   val debug : flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
-    
+
   (** [debug_eval f (fun () -> body] evaluates [body]
       if the given flag [f] is currently active. *)
   val debug_eval : flag -> (unit -> unit) -> unit
 end
-
 
 (** {2 Misc} *)
 
@@ -145,25 +113,33 @@ val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 
 val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
-val split_list : int -> 'a list -> 'a list * 'a list
+val split : int -> 'a list -> 'a list * 'a list
 
-val add_to_list2 : 'a list -> 'b list -> ('a * 'b) list -> ('a * 'b) list option
+val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
 
-(** Functions printing objects on the given formatter. *)
+(** {2 Printing functions} *)
+
 type 'a printer = Format.formatter -> 'a -> unit
+(** Functions printing objects on the given formatter. *)
 
-(** Prints to a string *)
 val string_of : 'a printer -> 'a -> string
+(** Prints to a string *)
 
-(** Printing identifiers and names *)
+(* Printing identifiers and names *)
 val pp_ident  : ident  printer
 val pp_mident : mident printer
 val pp_name   : name   printer
 val pp_loc    : loc    printer
 
-(** Printing each elements of arrays / lists using the separator [sep] between elements. *)
+(* Printing each elements of arrays / lists using the separator [sep] between elements. *)
 val pp_list   : string -> 'a printer -> 'a list printer
+val pp_llist  : string -> 'a printer -> 'a LList.t printer
 val pp_arr    : string -> 'a printer -> 'a array printer
 
-(** Printing object with printer or default string when None. *)
 val pp_option : string -> 'a printer -> 'a option printer
+(** Printing object with printer or default string when None. *)
+
+(* Printing basic structures *)
+val pp_lazy   : 'a printer -> 'a Lazy.t printer
+val pp_pair   : 'a printer -> 'b printer -> ('a * 'b) printer
+val pp_triple : 'a printer -> 'b printer -> 'c printer -> ('a * 'b * 'c) printer

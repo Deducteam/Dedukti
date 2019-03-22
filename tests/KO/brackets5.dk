@@ -1,0 +1,21 @@
+(; KO 36 ;)
+
+A : Type.
+
+a : A.
+
+V : A -> A.
+
+eta : A -> Type.
+
+N : eta (V a).
+
+C : eta (V a).
+
+def f : eta (V a) -> eta (V a).
+
+def g : x : A -> eta (V a) -> eta (V a) -> eta (V a).
+
+[x,N] g x N {N} --> g x N N.
+
+#EVAL[WHNF,1] (g a N C).

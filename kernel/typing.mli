@@ -4,25 +4,31 @@ open Basic
 
 (** Type checking/inference *)
 
+type Debug.flag += D_typeChecking | D_rule
+
 val coc : bool ref
+
+val fail_on_unsatisfiable_constraints : bool ref
 
 type typing_error =
   | KindIsNotTypable
-  | ConvertibilityError of term * typed_context * term * term
-  | VariableNotFound of loc * ident * int * typed_context
-  | SortExpected of term * typed_context * term
-  | ProductExpected of term * typed_context * term
-  | InexpectedKind of term * typed_context
-  | DomainFreeLambda of loc
-  | CannotInferTypeOfPattern of pattern * typed_context
-  | CannotSolveConstraints of untyped_rule * (int * term * term) list
-  | BracketError1 of term * typed_context
-  | BracketError2 of term * typed_context*term
+  | ConvertibilityError                of term * typed_context * term * term
+  | VariableNotFound                   of loc * ident * int * typed_context
+  | SortExpected                       of term * typed_context * term
+  | ProductExpected                    of term * typed_context * term
+  | InexpectedKind                     of term * typed_context
+  | DomainFreeLambda                   of loc
+  | CannotInferTypeOfPattern           of pattern * typed_context
+  | UnsatisfiableConstraints           of untyped_rule * (int * term * term)
+  | BracketExprBoundVar                of term * typed_context
+  | BracketExpectedTypeBoundVar        of term * typed_context * term
+  | BracketExpectedTypeRightVar        of term * typed_context * term
+  | TypingCircularity                  of loc * ident * int * typed_context * term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
-  | NotImplementedFeature of loc
-  | Unconvertible of loc*term*term
-  | Convertible of loc*term*term
-  | Inhabit of loc*term*term
+  | NotImplementedFeature              of loc
+  | Unconvertible                      of loc * term * term
+  | Convertible                        of loc * term * term
+  | Inhabit                            of loc * term * term
 
 exception TypingError of typing_error
 
@@ -47,5 +53,7 @@ val checking    : Signature.t -> term -> term -> unit
 val inference   : Signature.t -> term -> typ
 (** [inference sg ctx te] infers a type for the term [te] in empty context. *)
 
-val check_rule  : Signature.t -> untyped_rule -> typed_rule
+val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
 (** [check_rule sg ru] checks that a rule is well-typed. *)
+
+val typed_rule_of_rule_infos : Signature.t -> rule_infos -> Subst.Subst.t * typed_rule

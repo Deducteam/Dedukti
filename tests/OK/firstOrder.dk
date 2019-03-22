@@ -1,3 +1,4 @@
+(; OK ;)
 
 Prop : Type.
 prf  : Prop -> Type.

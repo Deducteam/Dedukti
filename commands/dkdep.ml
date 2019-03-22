@@ -86,7 +86,7 @@ let handle_entry e =
   | Decl(_,_,_,te)              -> mk_term te
   | Def(_,_,_,None,te)          -> mk_term te
   | Def(_,_,_,Some(ty),te)      -> mk_term ty; mk_term te
-  | Rules(rs)                   -> List.iter mk_rule rs
+  | Rules(_,rs)                 -> List.iter mk_rule rs
   | Eval(_,_,te)                -> mk_term te
   | Infer (_,_,te)              -> mk_term te
   | Check(_,_,_,Convert(t1,t2)) -> mk_term t1; mk_term t2
@@ -105,13 +105,12 @@ let handle_file : string -> dep_data = fun file ->
     current_mod := md; current_deps := [];
     (* Actully parsing and gathering data. *)
     let input = open_in file in
-    Parser.handle_channel md handle_entry input;
+    Parse_channel.handle md handle_entry input;
     close_in input;
     (md, (file, !current_deps))
   with
-  | Parse_error(loc,msg) -> Format.eprintf "Parse error in %a...@." pp_loc loc; exit 1
-  | Sys_error err        -> Format.eprintf "ERROR %s.@." err; exit 1
-  | Exit                 -> exit 3
+  | Env.EnvError (l,e)   -> Errors.fail_env_error l e
+  | Sys_error err        -> Errors.fail_sys_error err
 
 (** Output main program. *)
 
@@ -157,30 +156,42 @@ let _ =
   let output  = ref stdout in
   let sorted  = ref false  in
   let args = Arg.align
-      [ ( "-d"
-        , Arg.String Debug.set_debug_mode
-        , "flags enables debugging for all given flags" )
-      ; ( "-v"
-        , Arg.Unit (fun () -> Debug.set_debug_mode "w")
-        , " Verbose mode (equivalent to -d 'w')" )
-      ; ( "-q"
-        , Arg.Unit (fun () -> Debug.set_debug_mode "q")
-      , " Quiet mode (equivalent to -d 'q'" )
-      ; ( "-o"
-        , Arg.String (fun n -> output := open_out n)
-        , "FILE Outputs to file FILE" )
-      ; ( "-s"
-        , Arg.Set sorted
-        , " Sort the source files according to their dependencies" )
-      ; ( "--ignore"
-        , Arg.Set ignore
-        , " If some dependencies are not found, ignore them" )
-      ; ( "-I"
-        , Arg.String add_path
-        , "DIR Add the directory DIR to the load path" ) ]
+    [ ( "-d"
+      , Arg.String Env.set_debug_mode
+      , "FLAGS enables debugging for all given flags:
+      q : (quiet)    disables all warnings
+      n : (notice)   notifies about which symbol or rule is currently treated
+      o : (module)   notifies about loading of an external module (associated
+                     to the command #REQUIRE)
+      c : (confluence) notifies about information provided to the confluence
+                     checker (when option -cc used)
+      u : (rule)     provides information about type checking of rules
+      t : (typing)   provides information about type-checking of terms
+      r : (reduce)   provides information about reduction performed in terms
+      m : (matching) provides information about pattern matching" )
+    ; ( "-v"
+      , Arg.Unit (fun () -> Env.set_debug_mode "montru")
+      , " Verbose mode (equivalent to -d 'montru')" )
+    ; ( "-q"
+      , Arg.Unit (fun () -> Env.set_debug_mode "q")
+      , " Quiet mode (equivalent to -d 'q')" )
+    ; ( "-o"
+      , Arg.String (fun n -> output := open_out n)
+      , "FILE Outputs to file FILE" )
+    ; ( "-s"
+      , Arg.Set sorted
+      , " Sort the source files according to their dependencies" )
+    ; ( "--ignore"
+      , Arg.Set ignore
+      , " If some dependencies are not found, ignore them" )
+    ; ( "-I"
+      , Arg.String add_path
+      , "DIR Add the directory DIR to the load path" ) ]
   in
-  let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...@." in
-  let usage = usage ^ "Available options:" in
+  let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...
+Compute the dependencies of the given Dedukti FILE(s).
+For more information see https://github.com/Deducteam/Dedukti.
+Available options:" Sys.argv.(0) in
   let files =
     let files = ref [] in
     Arg.parse args (fun f -> files := f :: !files) usage;

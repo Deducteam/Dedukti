@@ -5,14 +5,13 @@ open Term
 
 exception NotUnifiable
 
-
 (** [solve n k_lst te] solves following the higher-order unification problem (modulo beta):
     
     x{_1} => x{_2} => ... x{_[n]} => X x{_i{_1}} .. x{_i{_m}}
     {b =}
     x{_1} => x{_2} => ... x{_[n]} => [te]
     
-      where X is the unknown, x{_i{_1}}, ..., x{_i{_m}} are distinct bound variables. *)
+    where X is the unknown, x{_i{_1}}, ..., x{_i{_m}} are distinct bound variables. *)
 val solve : int -> int LList.t -> term -> term
 (**
    If the free variables of [te] that are in x{_1}, ..., x{_[n]} are also in

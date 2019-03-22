@@ -3,23 +3,22 @@ open Term
 open Rule
 open Format
 
+type Debug.flag += D_matching
+let _ = Debug.register_flag D_matching "Matching"
+
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
 
-exception DtreeExn of dtree_error
+exception DtreeError of dtree_error
 
 type case =
   | CConst of int * name
   | CDB    of int * int
   | CLam
 
-type arg_pos = { position:int; depth:int }
-type abstract_problem = arg_pos * int LList.t
-
-type matching_problem =
-  | Syntactic of arg_pos LList.t
-  | MillerPattern of abstract_problem LList.t
+type atomic_problem = { pos:int; depth:int; args_db:int LList.t }
+type matching_problem = atomic_problem LList.t
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
@@ -137,7 +136,7 @@ let specialize_rule (c:int) (nargs:int) (r:rule_infos) : rule_infos =
     else (* size <= i < size+nargs *)
       let check_args id pats =
         if ( Array.length pats != nargs ) then
-          raise (DtreeExn(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
+          raise (DtreeError(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
         pats.( i - size)
       in
       match r.pats.(c) with
@@ -203,42 +202,23 @@ let partition (mx:matrix) (c:int) : case list =
 
 (******************************************************************************)
 
-let array_to_llist arr = LList.of_array arr
-
-let get_first_term mx = mx.first.rhs
+let get_first_term        mx = mx.first.rhs
 let get_first_constraints mx = mx.first.constraints
 
 (* Extracts the matching_problem from the first line. *)
 let get_first_matching_problem mx =
   let esize = mx.first.esize in
-  let dummy = { position=(-1); depth=0; } in
-  let dummy2 = dummy, LList.nil in
-  let arr1 = Array.make esize dummy in
-  let arr2 = Array.make esize dummy2 in
-  let mp = ref false in
-    Array.iteri
-      (fun i p -> match p with
-         | LJoker -> ()
-         | LVar (_,n,lst) ->
-             begin
-               let k = mx.col_depth.(i) in
-               assert( 0 <= n-k );
-               assert(n-k < esize );
-               let pos = { position=i; depth = mx.col_depth.(i) } in
-               arr1.(n-k) <- pos;
-               if lst=[] then
-                   arr2.(n-k) <- pos, LList.nil
-               else (
-                 mp := true ;
-                 arr2.(n-k) <- pos,LList.of_list lst
-               )
-             end
-         | _ -> assert false
-      ) mx.first.pats ;
-    ( Array.iter ( fun r -> assert (r.position >= 0 ) ) arr1 );
-    if !mp
-    then MillerPattern (array_to_llist arr2)
-    else Syntactic (array_to_llist arr1)
+  let dummy = { pos=(-1); depth=0; args_db=LList.nil } in
+  let arr = Array.make esize dummy in
+  let process i = function
+    | LJoker -> ()
+    | LVar (_,n,lst) ->
+      let k = mx.col_depth.(i) in
+      arr.(n-k) <- { pos=i; depth=k; args_db=LList.of_list lst }
+    | _ -> assert false in
+    Array.iteri process mx.first.pats;
+    Array.iter (fun r -> assert (r.pos >= 0 )) arr;
+    LList.of_array arr
 
 
 (******************************************************************************)
@@ -281,46 +261,43 @@ let rec add l ar =
     else hd :: (add tl ar)
 
 let of_rules = function
-  | [] -> OK []
-  | r::tl as rs -> 
-    try
-      let name = r.cst in
-      let arities = ref [] in
-      List.iter
-        (fun x ->
-           if not (name_eq x.cst name)
-           then raise (DtreeExn (HeadSymbolMismatch (x.l,x.cst,name)));
-           let arity = List.length x.args in
-           arities := add !arities arity)
-        rs;
-      let sorted_arities = List.fold_left add [] !arities in
-      (* reverse sorted list of all rewrite rules arities. *)
-      let aux ar =
-        let m = mk_matrix ar rs in
-        (ar, to_dtree m) in
-      OK (List.map aux sorted_arities)
-    with DtreeExn e -> Err e
+  | [] -> []
+  | r::tl as rs ->
+    let name = r.cst in
+    let arities = ref [] in
+    List.iter
+      (fun x ->
+         if not (name_eq x.cst name)
+         then raise (DtreeError (HeadSymbolMismatch (x.l,x.cst,name)));
+         let arity = List.length x.args in
+         arities := add !arities arity)
+      rs;
+    let sorted_arities = List.fold_left add [] !arities in
+    (* reverse sorted list of all rewrite rules arities. *)
+    let aux ar =
+      let m = mk_matrix ar rs in
+      (ar, to_dtree m) in
+    List.map aux sorted_arities
 
 
 (******************************************************************************)
 
-let pp_matching_problem fmt matching_problem =
-  match matching_problem with
-  | Syntactic _ -> fprintf fmt "Sy"
-  | MillerPattern _ -> fprintf fmt "Mi"
+let pp_matching_problem fmt matching_problem = fprintf fmt "Mi"
 
 let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
   let tab = String.init (1 + t*4) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
-  | Test (name,mp,[],te,None)   -> fprintf fmt "{%a} (%a) %a" pp_rule_name name pp_matching_problem mp pp_term te
-  | Test (name,mp,[],te,def)      ->
-    fprintf fmt "\n%s{%a} if true then (%a) %a\n%selse (%a) %a" tab pp_rule_name name  pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
-  | Test (name,mp,lst,te,def)  ->
+  | Test (name,mp,[],te,None) ->
+    fprintf fmt "{%a} (%a) %a" pp_rule_name name pp_matching_problem mp pp_term te
+  | Test (name,mp,[],te,def)  ->
+    fprintf fmt "\n%s{%a} if true then (%a) %a\n%selse (%a) %a" tab pp_rule_name name
+      pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
+  | Test (name,mp,lst,te,def) ->
     let aux out = function
       | Linearity (i,j) -> fprintf out "{%a} %d =l %d" pp_rule_name name i j
-      | Bracket (i,j) -> fprintf out "{%a} %a =b %a" pp_rule_name name pp_term (mk_DB dloc dmark i) pp_term j
-    in
+      | Bracket   (i,j) -> fprintf out "{%a} %a =b %a" pp_rule_name name
+                             pp_term (mk_DB dloc dmark i) pp_term j in
     fprintf fmt "\n%sif %a then (%a) %a\n%selse (%a) %a" tab (pp_list " and " aux) lst
       pp_matching_problem mp pp_term te tab pp_matching_problem mp (pp_def (t+1)) def
   | Switch (i,cases,def)->

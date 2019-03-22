@@ -3,5 +3,4 @@ Parser
 Preterm
 Scoping
 Tokens
-Internals
 Menhir_parser

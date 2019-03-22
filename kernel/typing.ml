@@ -4,7 +4,13 @@ open Rule
 open Term
 open Reduction
 
+type Debug.flag += D_typeChecking | D_rule
+let _ = Debug.register_flag D_typeChecking "TypeChecking"
+let _ = Debug.register_flag D_rule         "Rule"
+
 let coc = ref false
+
+let fail_on_unsatisfiable_constraints = ref false
 
 type typ = term
 
@@ -12,29 +18,30 @@ type typ = term
 
 type typing_error =
   | KindIsNotTypable
-  | ConvertibilityError of term * typed_context * term * term
-  | VariableNotFound of loc * ident * int * typed_context
-  | SortExpected of term * typed_context * term
-  | ProductExpected of term * typed_context * term
-  | InexpectedKind of term * typed_context
-  | DomainFreeLambda of loc
-  | CannotInferTypeOfPattern of pattern * typed_context
-  | CannotSolveConstraints of untyped_rule * (int * term * term) list
-  | BracketError1 of term * typed_context
-  | BracketError2 of term * typed_context*term
+  | ConvertibilityError                of term * typed_context * term * term
+  | VariableNotFound                   of loc * ident * int * typed_context
+  | SortExpected                       of term * typed_context * term
+  | ProductExpected                    of term * typed_context * term
+  | InexpectedKind                     of term * typed_context
+  | DomainFreeLambda                   of loc
+  | CannotInferTypeOfPattern           of pattern * typed_context
+  | UnsatisfiableConstraints           of untyped_rule * (int * term * term)
+  | BracketExprBoundVar                of term * typed_context
+  | BracketExpectedTypeBoundVar        of term * typed_context * term
+  | BracketExpectedTypeRightVar        of term * typed_context * term
+  | TypingCircularity                  of loc * ident * int * typed_context * term
   | FreeVariableDependsOnBoundVariable of loc * ident * int * typed_context * term
-  | NotImplementedFeature of loc
-  | Unconvertible of loc*term*term
-  | Convertible of loc*term*term
-  | Inhabit of loc*term*term
+  | NotImplementedFeature              of loc
+  | Unconvertible                      of loc * term * term
+  | Convertible                        of loc * term * term
+  | Inhabit                            of loc * term * term
 
 exception TypingError of typing_error
 
 (* ********************** CONTEXT *)
 
-let snf = reduction default_cfg
-
-let whnf = reduction {default_cfg with strategy = Whnf}
+let  snf = default_reduction  Snf
+let whnf = default_reduction Whnf
 
 let get_type ctx l x n =
   try let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
@@ -49,7 +56,9 @@ let extend_ctx a ctx = function
 
 (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
-let rec infer sg (ctx:typed_context) : term -> typ = function
+let rec infer sg (ctx:typed_context) (te:term) : typ =
+  Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
+  match te with
   | Kind -> raise (TypingError KindIsNotTypable)
   | Type l -> mk_Kind
   | DB (l,x,n) -> get_type ctx l x n
@@ -73,7 +82,7 @@ let rec infer sg (ctx:typed_context) : term -> typ = function
   | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
 and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
-  Debug.(debug d_typeChecking "Checking: %a : %a" pp_term te pp_term ty_exp);
+  Debug.(debug D_typeChecking "Checking (%a): %a : %a" pp_loc (get_loc te) pp_term te pp_term ty_exp);
   match te with
   | Lam (l,x,None,b) ->
     begin
@@ -93,16 +102,17 @@ and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     end
   | _ ->
     let ty_inf = infer sg ctx te in
-    if Reduction.are_convertible sg ty_inf ty_exp then ()
-    else
+    Debug.(debug D_typeChecking "Checking convertibility: %a ~ %a"
+             pp_term ty_inf pp_term ty_exp);
+    if not (Reduction.are_convertible sg ty_inf ty_exp) then
       let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
       raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
 
 and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
   match whnf sg ty_f with
-    | Pi (_,_,a,b) ->
-      let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
-    | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
+  | Pi (_,_,a,b) ->
+    let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
+  | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
 
 let inference sg (te:term) : typ = infer sg [] te
 
@@ -130,130 +140,124 @@ let unshift_reduce sg q t =
     ( try Some (Subst.unshift q (snf sg t))
       with Subst.UnshiftExn -> None )
 
-let rec pseudo_u sg (sigma:SS.t) : (int*term*term) list -> SS.t option = function
-  | [] -> Some sigma
+let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) list -> SS.t = function
+  | [] -> sigma
   | (q,t1,t2)::lst ->
     begin
-      let t1' = whnf sg (SS.apply sigma t1 q) in
-      let t2' = whnf sg (SS.apply sigma t2 q) in
-      if term_eq t1' t2' then pseudo_u sg sigma lst
+      let t1' = whnf sg (SS.apply sigma q t1) in
+      let t2' = whnf sg (SS.apply sigma q t2) in
+      let keepon () = pseudo_u sg fail sigma lst in
+      if term_eq t1' t2' then keepon ()
       else
+        let warn () = fail (q,t1,t2); keepon () in
         match t1', t2' with
-        | Kind, Kind | Type _, Type _ -> pseudo_u sg sigma lst
-        | DB (_,_,n), DB (_,_,n') when n=n' -> pseudo_u sg sigma lst
-        | Const (_,cst), Const (_,cst') when
-            ( name_eq cst cst' ) ->
-          pseudo_u sg sigma lst
-
-        | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
-          begin
-            let (x,n,t) = if n1<n2
-              then (x1,n1,mk_DB l2 x2 (n2-q))
-              else (x2,n2,mk_DB l1 x1 (n1-q)) in
-            match SS.add sigma x (n-q) t with
-            | None -> assert false
-            | Some sigma2 -> pseudo_u sg sigma2 lst
-          end
-        | DB (_,x,n), t when n>=q ->
-          begin
-            match unshift_reduce sg q t with
-            | None -> None
-            | Some t' ->
-              ( match SS.add sigma x (n-q) t' with
-                | None ->
-                  ( match SS.add sigma x (n-q) (snf sg t') with
-                    | None -> None
-                    | Some sigma2 -> pseudo_u sg sigma2 lst )
-                | Some sigma2 -> pseudo_u sg sigma2 lst )
-          end
-        | t, DB (_,x,n) when n>=q ->
-          begin
-            match unshift_reduce sg q t with
-            | None -> None
-            | Some t' ->
-              ( match SS.add sigma x (n-q) t' with
-                | None ->
-                  ( match SS.add sigma x (n-q) (snf sg t') with
-                    | None -> None
-                    | Some sigma2 -> pseudo_u sg sigma2 lst )
-                | Some sigma2 -> pseudo_u sg sigma2 lst )
-          end
+        | Kind, Kind | Type _, Type _       -> assert false (* Equal terms *)
+        | DB (_,_,n), DB (_,_,n') when n=n' -> assert false (* Equal terms *)
+        | _, Kind | Kind, _ |_, Type _ | Type _, _ -> warn ()
 
         | Pi (_,_,a,b), Pi (_,_,a',b') ->
-          pseudo_u sg sigma ((q,a,a')::(q+1,b,b')::lst)
+          pseudo_u sg fail sigma ((q,a,a')::(q+1,b,b')::lst)
         | Lam (_,_,_,b), Lam (_,_,_,b') ->
-          pseudo_u sg sigma ((q+1,b,b')::lst)
+          pseudo_u sg fail sigma ((q+1,b,b')::lst)
 
-        | App (DB (_,_,n),_,_), _  when ( n >= q ) ->
-          if Reduction.are_convertible sg t1' t2' then
-            ( Debug.(debug d_rule "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2');
-              pseudo_u sg sigma lst )
-          else None
-        | _, App (DB (_,_,n),_,_) when ( n >= q ) ->
-          if Reduction.are_convertible sg t1' t2' then
-            ( Debug.(debug d_rule "Ignoring constraint: %a ~ %a" pp_term t1' pp_term t2');
-              pseudo_u sg sigma lst )
-          else None
+        (* Potentially eta-equivalent terms *)
+        | Lam (_,i,_,b), a when !Reduction.eta ->
+          let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+          pseudo_u sg fail sigma ((q+1,b,b')::lst)
+        | a, Lam (_,i,_,b) when !Reduction.eta ->
+          let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+          pseudo_u sg fail sigma ((q+1,b,b')::lst)
 
-        | App (Const (l,cst),_,_), _ when (not (Signature.is_static sg l cst)) ->
-          ( Debug.(debug d_rule "Ignoring non injective constraint: %a ~ %a"
-              pp_term t1' pp_term t2');
-            pseudo_u sg sigma lst )
-        | _, App (Const (l,cst),_,_) when (not (Signature.is_static sg l cst)) ->
-          ( Debug.(debug d_rule "Ignoring non injective constraint: %a ~ %a"
-              pp_term t1' pp_term t2');
-            pseudo_u sg sigma lst )
+        | Const (_,c), Const (_,c') when name_eq c c' -> keepon ()
+        | Const (l,cst), t when not (Signature.is_static sg l cst) ->
+          ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
+        | t, Const (l,cst) when not (Signature.is_static sg l cst) ->
+          ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
+
+        | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
+           let (n,t) = if n1<n2
+                       then (n1,mk_DB l2 x2 (n2-q))
+                       else (n2,mk_DB l1 x1 (n1-q)) in
+           pseudo_u sg fail (SS.add sigma (n-q) t) lst
+        | DB (_,_,n), t when n>=q ->
+          begin
+            let n' = n-q in
+            match unshift_reduce sg q t with
+            | None -> warn ()
+            | Some ut ->
+               let t' = if Subst.occurs n' ut then ut else snf sg ut in
+               if Subst.occurs n' t' then warn ()
+               else pseudo_u sg fail (SS.add sigma n' t') lst
+          end
+        | t, DB (_,_,n) when n>=q ->
+          begin
+            let n' = n-q in
+            match unshift_reduce sg q t with
+            | None -> warn ()
+            | Some ut ->
+               let t' = if Subst.occurs n' ut then ut else snf sg ut in
+               if Subst.occurs n' t' then warn ()
+               else pseudo_u sg fail (SS.add sigma n' t') lst
+          end
+
+        | App (DB (_,_,n),_,_), _  when n >= q ->
+          if Reduction.are_convertible sg t1' t2' then keepon () else warn ()
+        | _ , App (DB (_,_,n),_,_) when n >= q ->
+          if Reduction.are_convertible sg t1' t2' then keepon () else warn ()
+
+        | App (Const (l,cst),_,_), _ when not (Signature.is_static sg l cst) -> keepon ()
+        | _, App (Const (l,cst),_,_) when not (Signature.is_static sg l cst) -> keepon ()
 
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
-           * | Const name when (is_injective name) *)
+           * | Const name when (is_static name) *)
           begin
             match safe_add_to_list q lst args args' with
-            | None -> None
-            | Some lst2 -> pseudo_u sg sigma ((q,f,f')::(q,a,a')::lst2)
+            | None -> warn () (* Different number of arguments. *)
+            | Some lst2 -> pseudo_u sg fail sigma ((q,f,f')::(q,a,a')::lst2)
           end
 
-        | _, _ -> None
+        | _, _ -> warn ()
     end
 
 (* **** TYPE CHECKING/INFERENCE FOR PATTERNS ******************************** *)
 
-type constraints = (int*term*term) list
-type context2 = (loc*ident*typ) LList.t
+type constraints = (int * term * term) list
+type context2    = (loc * ident * typ) LList.t
 
 (* Partial Context *)
 
 type partial_context =
-  { padding:int; (* expected size*)
-    pctx:context2 (*partial context*)
+  {
+    padding : int;     (* expected size   *)
+    pctx    : context2; (* partial context *)
+    bracket : bool
   }
 
 let pc_make (ctx:(loc*ident) list) : partial_context =
   let size = List.length ctx in
   assert ( size >= 0 );
-  { padding=size; pctx=LList.nil }
+  { padding=size; pctx=LList.nil; bracket=false }
 
-let pc_get (delta:partial_context) (n:int) : term option =
-  if n < delta.padding then None
-  else
-    let (_,_,ty) = List.nth (LList.lst delta.pctx) (n-delta.padding)
-    in Some (Subst.shift (n+1) ty)
+let pc_in (delta:partial_context) (n:int) : bool = n >= delta.padding
+
+let pc_get (delta:partial_context) (n:int) : term =
+  let (_,_,ty) = LList.nth delta.pctx (n-delta.padding)
+  in Subst.shift (n+1) ty
 
 let pc_add (delta:partial_context) (n:int) (l:loc) (id:ident) (ty0:typ) : partial_context =
   assert ( n == delta.padding-1 && n >= 0 );
   let ty = Subst.unshift (n+1) ty0 in
   { padding = delta.padding - 1;
-    pctx = LList.cons (l,id,ty) delta.pctx }
+    pctx = LList.cons (l,id,ty) delta.pctx;
+    bracket = false }
 
 let pc_to_context (delta:partial_context) : typed_context = LList.lst delta.pctx
 
 let pc_to_context_wp (delta:partial_context) : typed_context =
-  let dummy = mk_DB dloc dmark 0 in
-  let rec aux lst n =
-    if n <= 0 then lst
-    else aux ((dloc,dmark,dummy)::lst) (n-1)
-  in
-  aux (LList.lst delta.pctx) delta.padding
+  let dummy = (dloc, dmark, mk_DB dloc dmark (-1)) in
+  let rec aux lst = function 0 -> lst | n -> aux (dummy::lst) (n-1) in
+  aux (pc_to_context delta) delta.padding
 
 let pp_pcontext fmt delta =
   let lst = List.rev (LList.lst delta.pctx) in
@@ -279,88 +283,84 @@ let rec infer_pattern sg (delta:partial_context) (sigma:context2)
     (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
   match pat with
   | Pattern (l,cst,args) ->
-    let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
-        ( mk_Const l cst , Signature.get_type sg l cst , delta , lst ) args
+    let (sigma,_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg)
+        ( sigma, mk_Const l cst , Signature.get_type sg l cst , delta , lst ) args
     in (ty,delta2,lst2)
-  | Var (l,x,n,args) ->
-    if n < (LList.len sigma) then
-      let (_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg sigma)
-          ( mk_DB l x n, get_type (LList.lst sigma) l x n , delta , lst ) args
-      in (ty,delta2,lst2)
-    else
-      let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-      raise (TypingError (CannotInferTypeOfPattern (pat,ctx))) (* not a pattern *)
-  | Brackets _ ->
-    let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-    raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
-  | Lambda _ ->
+  | Var (l,x,n,args) when n < LList.len sigma ->
+    let (sigma,_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg)
+        ( sigma, mk_DB l x n, get_type (LList.lst sigma) l x n , delta , lst ) args
+    in (ty,delta2,lst2)
+  | Var _ | Brackets _ | Lambda _ ->
     let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
     raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
 
-and infer_pattern_aux sg (sigma:context2)
-    (f,ty_f,delta,lst:term*typ*partial_context*constraints)
-    (arg:pattern) : term * typ * partial_context * constraints =
+and infer_pattern_aux sg
+    (sigma,f,ty_f,delta,lst : context2*term*typ*partial_context*constraints)
+    (arg:pattern)           : context2*term*typ*partial_context*constraints =
   match whnf sg ty_f with
-    | Pi (_,_,a,b) ->
-        let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
-        let arg' = pattern_to_term arg in
-        ( Term.mk_App f arg' [], Subst.subst b arg', delta2 , lst2 )
-    | ty_f ->
-      let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-      raise (TypingError (ProductExpected (f,ctx,ty_f)))
+  | Pi (_,_,a,b) ->
+    let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
+    let arg' = pattern_to_term arg in
+    ( sigma, Term.mk_App f arg' [], Subst.subst b arg', delta2 , lst2 )
+  | ty_f ->
+    let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
+    raise (TypingError (ProductExpected (f,ctx,ty_f)))
 
 and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     (lst:constraints) (pat:pattern) : partial_context * constraints =
-  Debug.(debug d_rule "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty);
+  Debug.(debug D_rule "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty);
+  let ctx () = (LList.lst sigma)@(pc_to_context_wp delta) in
   match pat with
   | Lambda (l,x,p) ->
     begin
       match whnf sg exp_ty with
-      | Pi (l,x,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
-      | exp_ty ->
-        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-        raise (TypingError ( ProductExpected (pattern_to_term pat,ctx,exp_ty)))
+      | Pi (_,_,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
+      | exp_ty -> raise (TypingError ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
     end
   | Brackets te ->
-    let te2 =
-      try Subst.unshift (delta.padding + LList.len sigma) te
-      with Subst.UnshiftExn ->
-        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-        raise (TypingError (BracketError1 (te,ctx)))
+    let _ =
+      try Subst.unshift (LList.len sigma) te
+      with Subst.UnshiftExn -> raise (TypingError (BracketExprBoundVar (te,ctx())))
     in
-    let ty2 =
-      try unshift_n sg (delta.padding + LList.len sigma) exp_ty
+    let exp_ty2 =
+      try unshift_n sg (LList.len sigma) exp_ty
       with Subst.UnshiftExn ->
-        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-        raise (TypingError (BracketError2 (te,ctx,exp_ty)))
+        raise (TypingError (BracketExpectedTypeBoundVar (te,ctx(),exp_ty)))
     in
-    check sg (pc_to_context delta) te2 ty2;
-    ( delta, lst )
-  | Var (l,x,n,[]) when ( n >= LList.len sigma ) ->
+    let _ =
+      try unshift_n sg delta.padding exp_ty2
+      with Subst.UnshiftExn ->
+        raise (TypingError (BracketExpectedTypeRightVar (te,ctx(),exp_ty)))
+    in
+    ( {delta with bracket = true}, lst)
+  | Var (l,x,n,[]) when n >= LList.len sigma ->
     begin
       let k = LList.len sigma in
-
-      match pc_get delta (n-k) with
-      | None ->
+      (* Bracket may introduce circularity (variable's expected type depending on itself *)
+      if delta.bracket && Subst.occurs (n-k) exp_ty
+      then raise (TypingError (TypingCircularity(l,x,n,ctx(),exp_ty)));
+      if pc_in delta (n-k)
+      then
+        let inf_ty = Subst.shift k (pc_get delta (n-k)) in
+        ( delta, (k,inf_ty,exp_ty)::lst )
+      else
         ( try ( pc_add delta (n-k) l x (unshift_n sg k exp_ty), lst )
           with Subst.UnshiftExn ->
-            let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-            raise (TypingError (FreeVariableDependsOnBoundVariable (l,x,n,ctx,exp_ty))) )
-      | Some ty ->
-        let inf_ty = Subst.shift k ty in
-        ( delta, (k,inf_ty,exp_ty)::lst )
+            raise (TypingError (FreeVariableDependsOnBoundVariable (l,x,n,ctx(),exp_ty))) )
     end
-  | Var (l,x,n,args) when (n>=LList.len sigma) ->
+  | Var (l,x,n,args) when n >= LList.len sigma ->
     begin
-      let (args2,last) = get_last args in
+      let k = LList.len sigma in
+      (* Bracket may introduce circularity (variable's expected type depending on itself *)
+      if delta.bracket && Subst.occurs (n-k) exp_ty
+      then raise (TypingError (TypingCircularity(l,x,n,ctx(),exp_ty)));
+      let (args2, last) = get_last args in
       match last with
       | Var (l2,x2,n2,[]) ->
         check_pattern sg delta sigma
           (mk_Pi l2 x2 (get_type (LList.lst sigma) l2 x2 n2) (Subst.subst_n n2 x2 exp_ty) )
           lst (Var(l,x,n,args2))
-      | _ ->
-        let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-        raise (TypingError (CannotInferTypeOfPattern (pat,ctx))) (* not a pattern *)
+      | _ -> raise (TypingError (CannotInferTypeOfPattern (pat,ctx ()))) (* not a pattern *)
     end
   | _ ->
     begin
@@ -376,64 +376,51 @@ let pp_context_inline fmt ctx =
     (fun fmt (_,x,ty) -> fprintf fmt "%a: %a" pp_ident x pp_term ty )
     fmt (List.rev ctx)
 
-let rec pp_term_j k fmt = function
-  | Kind               -> Format.fprintf fmt "Kind"
-  | Type _             -> Format.fprintf fmt "Type"
-  | DB  (_,x,n) when n<k -> fprintf fmt "%a[%i]" pp_ident x n
-  | DB  (_,x,n)        -> fprintf fmt "_"
-  | Const (_,cst)      -> fprintf fmt "%a" pp_name cst
-  | App (f,a,args)     -> pp_list " " (pp_term_wp_j k) fmt (f::a::args)
-  | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
-  | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term f
-  | Pi  (_,x,a,b)      -> fprintf fmt "%a:%a -> %a" pp_ident x (pp_term_wp_j (k+1)) a pp_term b
-
-and pp_term_wp_j k fmt = function
-  | Kind | Type _ | DB _ | Const _ as t -> pp_term_j k fmt t
-  | t       -> fprintf fmt "(%a)" (pp_term_j k) t
-
 (* TODO the term is traversed three times, this could be optimized. *)
-let subst_context (sub:SS.t) (ctx:typed_context) : typed_context option =
-  try Some ( List.mapi ( fun i (l,x,ty) ->
-      (l,x, Subst.unshift (i+1) (SS.apply sub (Subst.shift (i+1) ty) 0) )
-    ) ctx )
-  with
-  | Subst.UnshiftExn -> None
+let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
+  List.mapi ( fun i (l,x,ty) ->
+              (l,x, Subst.unshift (i+1) (SS.apply sub 0 (Subst.shift (i+1) ty)) )
+    ) ctx
 
-let check_rule sg (rule:untyped_rule) : typed_rule =
-  (*  let ctx0,le,ri = rule.rule in *)
+let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
+  let fail = if !fail_on_unsatisfiable_constraints
+    then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))
+    else (fun (q,t1,t2) ->
+        Debug.(debug D_warn "Unsatisfiable constraint: %a ~ %a%s"
+                 pp_term t1 pp_term t2
+                 (if q > 0 then Format.sprintf " (under %i abstractions)" q else ""))) in
   let delta = pc_make rule.ctx in
   let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
   assert ( delta.padding == 0 );
-  let sub = match pseudo_u sg SS.identity lst with
-    | None -> raise (TypingError (CannotSolveConstraints (rule,lst)))
-    | Some s -> s
-  in
-  let sub = SS.mk_idempotent sub in
-  let (ri2,ty_le2,ctx2) =
-    if SS.is_identity sub then (rule.rhs,ty_le,LList.lst delta.pctx)
-    else
-      begin
-        match subst_context sub (LList.lst delta.pctx) with
-        | Some ctx2 -> ( SS.apply sub rule.rhs 0, SS.apply sub ty_le 0, ctx2 )
-        | None ->
-          begin
-            (*TODO make Dedukti handle this case*)
-            Debug.(debug_eval d_rule (fun () ->
-                debug d_rule "Failed to infer a typing context for the rule:\n%a."
+  let sub = SS.mk_idempotent (pseudo_u sg fail SS.identity lst) in
+  let ri2    = SS.apply sub 0 rule.rhs in
+  let ty_le2 = SS.apply sub 0 ty_le    in
+  let ctx = LList.lst delta.pctx in
+  let ctx2 =
+    if SS.is_identity sub then ctx
+    else try subst_context sub ctx
+         with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
+           Debug.(
+                debug D_rule "Failed to infer a typing context for the rule:\n%a"
                   pp_untyped_rule rule;
-                let aux i (id,te) = debug d_rule "Try replacing '%a[%i]' by '%a'"
-                    pp_ident id i (pp_term_j 0) te in
-                SS.iter aux sub
-              ));
-            raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
-          end
-      end
+                let ctx_name n = let _,name,_ = List.nth ctx n in name in
+                debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
+        raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
   in
   check sg ctx2 ri2 ty_le2;
-  Debug.(debug d_rule "[ %a ] %a --> %a"
+  Debug.(debug D_rule "[ %a ] %a --> %a"
            pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
+  sub,
   { name = rule.name;
     ctx = ctx2;
     pat = rule.pat;
     rhs = rule.rhs
   }
+
+let typed_rule_of_rule_infos s ri =
+  let ur =
+    { name = ri.name
+    ; ctx  = infer_rule_context ri
+    ; pat  = pattern_of_rule_infos ri
+    ; rhs  = ri.rhs} in
+  check_rule s ur

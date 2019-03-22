@@ -4,92 +4,55 @@ open Parser
 open Entry
 
 let eprint lc fmt =
-  Debug.(debug d_notice ("%a " ^^ fmt) pp_loc lc)
+  Debug.(debug D_notice ("%a " ^^ fmt) pp_loc lc)
 
 let mk_entry md e =
   match e with
   | Decl(lc,id,st,ty) ->
-    begin
-      eprint lc "Declaration of constant '%a'." pp_ident id;
-      match Env.declare lc id st ty with
-      | OK () -> ()
-      | Err e -> Errors.fail_env_error e
-    end
+    eprint lc "Declaration of constant '%a'." pp_ident id;
+    Env.declare lc id st ty
   | Def(lc,id,opaque,ty,te) ->
-    begin
-      let opaque_str = if opaque then " (opaque)" else "" in
-      eprint lc "Definition of symbol '%a'%s." pp_ident id opaque_str;
-      let define = if opaque then Env.define_op else Env.define in
-      match define lc id te ty with
-      | OK () -> ()
-      | Err e -> Errors.fail_env_error e
-      end
-  | Rules(rs) ->
-    begin
-      let open Rule in
-      let get_infos p =
-        match p with
-        | Pattern(l,cst,_) -> (l,cst)
-        | _                -> (dloc,mk_name (mk_mident "") dmark)
-      in
-      let r = List.hd rs in (* cannot fail. *)
-      let (l,cst) = get_infos r.pat in
-      eprint l "Adding rewrite rules for '%a'" pp_name cst;
-      match Env.add_rules rs with
-      | OK rs -> List.iter (eprint (get_loc_pat r.pat) "%a" pp_typed_rule) rs
-      | Err e -> Errors.fail_env_error e
-    end
+    let opaque_str = if opaque then " (opaque)" else "" in
+    eprint lc "Definition of symbol '%a'%s." pp_ident id opaque_str;
+    Env.define lc id opaque te ty
+  | Rules(l,rs) ->
+    let open Rule in
+    List.iter (fun (r:untyped_rule) -> eprint l "Adding rewrite rules: '%a'" Pp.print_rule_name r.name) rs;
+    let rs = Env.add_rules rs in
+    List.iter (fun (s,r) ->
+        eprint (get_loc_pat r.pat) "%a@.with the following constraints: %a"
+          pp_typed_rule r (Subst.Subst.pp (fun n -> let _,n,_ = List.nth r.ctx n in n)) s) rs
   | Eval(_,red,te) ->
-    begin
-      match Env.reduction ~red te with
-      | OK te -> Format.printf "%a@." Pp.print_term te
-      | Err e -> Errors.fail_env_error e
-    end
+    let te = Env.reduction ~red te in
+    Format.printf "%a@." Pp.print_term te
   | Infer(_,red,te) ->
-    begin
-      match Env.infer te with
-      | Err e -> Errors.fail_env_error e
-      | OK ty ->
-        match Env.reduction ~red ty with
-        | OK ty -> Format.printf "%a@." Pp.print_term ty
-        | Err e -> Errors.fail_env_error e
-    end
+    let  ty = Env.infer te in
+    let rty = Env.reduction ~red ty in
+    Format.printf "%a@." Pp.print_term rty
   | Check(l, assrt, neg, Convert(t1,t2)) ->
-    begin
-      match Env.are_convertible t1 t2 with
-      | OK ok when ok = not neg -> if not assrt then Format.printf "YES@."
-      | OK _  when assrt        -> failwith (Format.sprintf "At line %d: Assertion failed." (fst (of_loc l)))
-      | OK _                    -> Format.printf "NO@."
-      | Err e                   -> Errors.fail_env_error e
-    end
+    let succ = (Env.are_convertible t1 t2) <> neg in
+    ( match succ, assrt with
+      | true , false -> Format.printf "YES@."
+      | true , true  -> ()
+      | false, false -> Format.printf "NO@."
+      | false, true  -> raise (Env.EnvError (l,Env.AssertError)) )
   | Check(l, assrt, neg, HasType(te,ty)) ->
-    begin
-      match Env.check te ty with
-      | OK () when not neg -> if not assrt then Format.printf "YES@."
-      | Err _ when neg     -> if not assrt then Format.printf "YES@."
-      | OK () when assrt   -> failwith (Format.sprintf "At line %d: Assertion failed." (fst (of_loc l)))
-      | Err _ when assrt   -> failwith (Format.sprintf "At line %d: Assertion failed." (fst (of_loc l)))
-      | _                  -> Format.printf "NO@."
-    end
+    let succ = try Env.check te ty; not neg with _ -> neg in
+    ( match succ, assrt with
+      | true , false -> Format.printf "YES@."
+      | true , true  -> ()
+      | false, false -> Format.printf "NO@."
+      | false, true  -> raise (Env.EnvError (l, Env.AssertError)) )
   | DTree(lc,m,v) ->
-    begin
-      let m = match m with None -> Env.get_name () | Some m -> m in
-      let cst = mk_name m v in
-      match Env.get_dtree lc cst with
-      | OK forest ->
-        Format.printf "GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
-      | Err e -> Errors.fail_signature_error e
-    end
+    let m = match m with None -> Env.get_name () | Some m -> m in
+    let cst = mk_name m v in
+    let forest = Env.get_dtree lc cst in
+    Format.printf "GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
   | Print(_,s) -> Format.printf "%s@." s
   | Name(_,n) ->
     if not (mident_eq n md)
-    then Debug.(debug d_warn "Invalid #NAME directive ignored.@.")
-  | Require(lc,md) ->
-    begin
-      match Env.import lc md with
-      | OK () -> ()
-      | Err e -> Errors.fail_signature_error e
-    end
+    then Debug.(debug D_warn "Invalid #NAME directive ignored.@.")
+  | Require(lc,md) -> Env.import lc md
 
 let mk_entry beautify md =
   if beautify then Pp.print_entry Format.std_formatter
@@ -98,14 +61,14 @@ let mk_entry beautify md =
 
 let run_on_file beautify export file =
   let input = open_in file in
-  Debug.(debug d_module "Processing file '%s'..." file);
+  Debug.(debug Signature.D_module "Processing file '%s'..." file);
   let md = Env.init file in
   Confluence.initialize ();
-  Parser.handle_channel md (mk_entry beautify md) input;
+  Parse_channel.handle md (mk_entry beautify md) input;
   if not beautify then
     Errors.success "File '%s' was successfully checked." file;
-  if export && not (Env.export ()) then
-    Errors.fail dloc "Fail to export module '%a'." pp_mident (Env.get_name ());
+  if export then
+    Env.export ();
   Confluence.finalize ();
   close_in input
 
@@ -116,47 +79,66 @@ let _ =
   let beautify     = ref false in
   let options = Arg.align
     [ ( "-d"
-      , Arg.String Debug.set_debug_mode
-      , "flags enables debugging for all given flags" )
+      , Arg.String Env.set_debug_mode
+      , "FLAGS enables debugging for all given flags:
+      q : (quiet)    disables all warnings
+      n : (notice)   notifies about which symbol or rule is currently treated
+      o : (module)   notifies about loading of an external module (associated
+                     to the command #REQUIRE)
+      c : (confluence) notifies about information provided to the confluence
+                     checker (when option -cc used)
+      u : (rule)     provides information about type checking of rules
+      t : (typing)   provides information about type-checking of terms
+      r : (reduce)   provides information about reduction performed in terms
+      m : (matching) provides information about pattern matching" )
     ; ( "-v"
-      , Arg.Unit (fun () -> Debug.set_debug_mode "w")
-      , " Verbose mode (equivalent to -d 'w')" )
+      , Arg.Unit (fun () -> Env.set_debug_mode "montru")
+      , " Verbose mode (equivalent to -d 'montru')" )
     ; ( "-q"
-      , Arg.Unit (fun () -> Debug.set_debug_mode "q")
-      , " Quiet mode (equivalent to -d 'q'" )
+      , Arg.Unit (fun () -> Env.set_debug_mode "q")
+      , " Quiet mode (equivalent to -d 'q')" )
     ; ( "-e"
       , Arg.Set export
       , " Generates an object file (\".dko\")" )
     ; ( "-nc"
       , Arg.Clear Errors.color
-      , " Disable colors in the output" )
+      , " Disables colors in the output" )
     ; ( "-stdin"
       , Arg.String (fun n -> run_on_stdin := Some(n))
       , "MOD Parses standard input using module name MOD" )
     ; ( "-version"
       , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
-      , " Print the version number" )
+      , " Prints the version number" )
     ; ( "-coc"
       , Arg.Set Typing.coc
-      , " Typecheck the Calculus of Construction" )
+      , " Allows to declare a symbol whose type contains Type in the
+          left-hand side of a product (useful for the Calculus of Construction)" )
+    ; ( "-eta"
+      , Arg.Set Reduction.eta
+      , " Allows the conversion test to use eta." )
     ; ( "-I"
       , Arg.String Basic.add_path
-      , "DIR Add the directory DIR to the load path" )
+      , "DIR Adds the directory DIR to the load path" )
+    ; ( "-ccs"
+      , Arg.Set Typing.fail_on_unsatisfiable_constraints
+      , " Forbids rules with unsatisfiable constraints" )
     ; ( "-errors-in-snf"
       , Arg.Set Errors.errors_in_snf
-      , " Normalize the types in error messages" )
+      , " Normalizes all terms printed in error messages" )
     ; ( "-cc"
       , Arg.String Confluence.set_cmd
       , "CMD Set the external confluence checker command to CMD" )
     ; ( "-nl"
-      , Arg.Set Rule.allow_non_linear
-      , " Allow non left-linear rewriting rules" )
+      , Arg.Unit (fun _ -> ())
+      , " [DEPRECATED] Allow non left-linear rewriting rules (default behavior now)" )
     ; ( "--beautify"
       , Arg.Set beautify
       , " Pretty printer. Print on the standard output" )]
   in
-  let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...\n" in
-  let usage = usage ^ "Available options:" in
+  let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...
+Type checks the given Dedukti FILE(s).
+For more information see https://github.com/Deducteam/Dedukti.
+Available options:" Sys.argv.(0) in
   let files =
     let files = ref [] in
     Arg.parse options (fun f -> files := f :: !files) usage;
@@ -173,10 +155,9 @@ let _ =
     | None   -> ()
     | Some m ->
       let md = Env.init m in
-      Parser.handle_channel md (mk_entry !beautify md) stdin;
+      Parse_channel.handle md (mk_entry !beautify md) stdin;
       if not !beautify
       then Errors.success "Standard input was successfully checked.\n"
   with
-  | Parse_error(loc,msg) -> Format.eprintf "Parse error at (%a): %s@." pp_loc loc msg; exit 1
-  | Sys_error err        -> Format.eprintf "ERROR %s.@." err; exit 1
-  | Exit                 -> exit 3
+  | Env.EnvError (l,e) -> Errors.fail_env_error l e
+  | Sys_error err  -> Errors.fail_sys_error err

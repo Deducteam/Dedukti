@@ -1,0 +1,5 @@
+(; KO 7 ;)
+
+A : Type.
+
+def t := x : A => Type.

@@ -3,29 +3,35 @@ open Basic
 open Term
 open Rule
 
+type Debug.flag += D_confluence
+let _ = Debug.register_flag D_confluence "Confluence"
+
 let pp_name fmt cst =
   fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
 
 type confluence_error =
-  | NotConfluent of string
+  | NotConfluent   of string
   | MaybeConfluent of string
-  | CCFailure of string
+  | CCFailure      of string
+
+exception ConfluenceError of confluence_error
 
 module IdMap = Map.Make(
-    struct
-      type t = ident
-      let compare x y = String.compare (string_of_ident x) (string_of_ident y)
-    end
-    )
+  struct
+    type t = ident
+    let compare x y = String.compare (string_of_ident x) (string_of_ident y)
+  end
+  )
 
 let confluence_command = ref ""
-let file_out = ref None
 let do_not_erase_confluence_file = ref false
+let file_out = ref None
+let try_out f = match !file_out with None -> () | Some x -> f x
 
 let set_cmd cmd =
-  ( if not (Sys.file_exists cmd) then
-      raise (Sys_error ("'" ^ cmd ^ "' does not exist")));
-  confluence_command := cmd
+  if not (Sys.file_exists cmd)
+  then raise (Sys_error ("'" ^ cmd ^ "' does not exist"))
+  else confluence_command := cmd
 
 let initialize () =
   do_not_erase_confluence_file := false;
@@ -34,7 +40,7 @@ let initialize () =
     begin
       let (file,out) = Filename.open_temp_file "dkcheck" ".trs" in
       let fmt = formatter_of_out_channel out in
-      Debug.(debug d_confluence "Temporary file:%s" file);
+      Debug.(debug D_confluence "Temporary file:%s" file);
       file_out := (Some (file,out));
       fprintf fmt "\
 (FUN
@@ -55,15 +61,6 @@ let initialize () =
   app( lam(m_typ,\\v_x. m_F v_x), m_B) -> m_F(m_B)
 )@.";
     end
-
-
-let rec split n lst =
-  let rec aux n acc lst =
-    if n <= 0 then (List.rev acc, lst)
-    else match lst with
-      | [] -> assert false
-      | hd::tl -> aux (n-1) (hd :: acc) tl in
-  aux n [] lst
 
 let print_name fmt cst = fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
 
@@ -189,51 +186,39 @@ let pp_rule fmt (r:rule_infos) =
   (* Rule *)
   fprintf fmt "(RULES %a -> %a )@.@." (pp_pattern arities) pat (pp_term arities 0) r.rhs
 
-let check () : (unit,confluence_error) error =
+let check () =
   match !file_out with
-  | None -> OK ()
+  | None -> ()
   | Some (file,out) ->
-    begin
-      flush out;
-      let cmd = !confluence_command ^ " -p " ^ file in
-      Debug.(debug d_confluence "Checking confluence : %s" cmd);
-      let input = Unix.open_process_in cmd in
-      try (
+    flush out;
+    let cmd = !confluence_command ^ " -p " ^ file in
+    Debug.(debug D_confluence "Checking confluence : %s" cmd);
+    let input = Unix.open_process_in cmd in
+    let answer =
+      try
         let answer = input_line input in
         let _ = Unix.close_process_in input in
-        if ( String.compare answer "YES" == 0 ) then OK ()
-        else (
-          do_not_erase_confluence_file := true;
-          if ( String.compare answer "NO" == 0 ) then
-            Err (NotConfluent cmd)
-          else if ( String.compare answer "MAYBE" == 0 ) then
-            Err (MaybeConfluent cmd)
-          else Err (CCFailure cmd)
-        ) )
-      with End_of_file -> Err (CCFailure cmd)
-    end
+        answer
+      with End_of_file -> raise (ConfluenceError (CCFailure cmd))
+    in
+    if String.compare answer "YES" != 0
+    then (
+      do_not_erase_confluence_file := true;
+      let error = match answer with
+        | "NO"    -> NotConfluent   cmd
+        | "MAYBE" -> MaybeConfluent cmd
+        | _       -> CCFailure      cmd in
+      raise (ConfluenceError error)
+    )
 
-let add_constant cst =
-  match !file_out with
-  | None -> ()
-  | Some (file,out) ->
+let add_constant cst = try_out (fun (file,out) ->
     let fmt = formatter_of_out_channel out in
-    fprintf fmt "(FUN c_%a : term)@." pp_name cst
+    fprintf fmt "(FUN c_%a : term)@." pp_name cst)
 
-let add_rules lst =
-  match !file_out with
-  | None -> ()
-  | Some (file,out) ->
+let add_rules lst = try_out (fun (file,out) ->
     let fmt = formatter_of_out_channel out in
-    List.iter (pp_rule fmt) lst
+    List.iter (pp_rule fmt) lst)
 
-let finalize () =
-  match !file_out with
-  | None -> ()
-  | Some (file, fmt) ->
-    begin
-      close_out fmt;
-      ( if !do_not_erase_confluence_file then ()
-        else Sys.remove file );
-
-    end
+let finalize () = try_out (fun (file,out) ->
+    close_out out;
+    if not !do_not_erase_confluence_file then Sys.remove file)

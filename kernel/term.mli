@@ -28,15 +28,27 @@ val mk_App2     : term -> term list -> term
 val mk_Pi       : loc -> ident -> term -> term -> term
 val mk_Arrow    : loc -> term -> term -> term
 
-(** [term_eq t t'] is [true] if [t] = [t'] (up to alpha equivalence) *)
 val term_eq : term -> term -> bool
+(** [term_eq t t'] is [true] if [t] = [t'] (up to alpha equivalence) *)
+
+type position = int list
+(** Position in a term *)
+
+exception InvalidSubterm of term * int
+
+val subterm : term -> position -> term
+(** [subterm t p] returns the subterm of [t] at position [p].
+    Raises InvalidSubterm in case of invalid position in given term. *)
 
 (** {2 Contexts} *)
 
+(** Abstract context *)
+type 'a context = 'a list
+
 (** context of rules after they have been parsed *)
-type untyped_context = (loc * ident) list
+type untyped_context = (loc * ident) context
 
 (** type checking rules implies to give a type to the variables of the context *)
-type typed_context = ( loc * ident * term ) list
+type typed_context = ( loc * ident * term ) context
 
 val rename_vars_with_typed_context : typed_context -> term -> term

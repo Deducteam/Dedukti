@@ -1,0 +1,10 @@
+(; KO 10 -ccs ;)
+def A : Type.
+eA : A -> Type.
+a : A.
+[] A --> eA a.
+
+B : Type.
+def eB : B -> Type.
+
+[] eB a --> eA a.

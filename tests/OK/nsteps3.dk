@@ -1,3 +1,4 @@
+(; OK ;)
 
 N : Type.
 0 : N.
@@ -15,27 +16,47 @@ def plus : N -> N -> N.
 def a := plus 2 3.
 
 
-#EVAL[WHNF,1] a.
+#EVAL[WHNF,1,CBN] a.
 #EVAL[0] plus 2 3.
 
-#EVAL[WHNF,2] a.
+#EVAL[WHNF,2,CBN] a.
 #EVAL[0] plus 1 (S (S 2)).
 
-#EVAL[WHNF,3] a.
+#EVAL[WHNF,3,CBN] a.
 #EVAL[0] plus 0 (S (S (S 2))).
 
-#EVAL[WHNF,4] a.
-#EVAL[WHNF,5] plus 2 3.
+#EVAL[WHNF,4,CBN] a.
+#EVAL[WHNF,CBN] plus 2 3.
+
+#EVAL[SNF,6,CBN] a.
+#EVAL[SNF,CBN]   a.
 
 
-#EVAL[HNF,1] a.
+
+#EVAL[1,CBV] a.
 #EVAL[0] plus 2 3.
 
-#EVAL[HNF,2] a.
-#EVAL[0] plus 1 (S (S 2)).
+#EVAL[2,CBV] a.
+#EVAL[0] plus (S 1) 3.
 
-#EVAL[HNF,3] a.
-#EVAL[0] plus 0 (S (S (S 2))).
+#EVAL[3,CBV] a.
+#EVAL[0] plus (S (S 0)) 3.
 
-#EVAL[HNF,4] a.
-#EVAL[HNF,5] plus 2 3.
+#EVAL[4,CBV] a.
+#EVAL[0] plus (S (S 0)) (S 2).
+
+#EVAL[5,CBV] a.
+#EVAL[0] plus (S (S 0)) (S (S 1)).
+
+#EVAL[6,CBV] a.
+#EVAL[0] plus (S (S 0)) (S (S (S 0))).
+
+#EVAL[7,CBV] a.
+#EVAL[0] plus (S 0) (S (S (S (S 0)))).
+
+#EVAL[8,CBV] a.
+#EVAL[0] plus 0 (S (S (S (S (S 0))))).
+
+
+#EVAL[9,CBV] a.
+#EVAL[CBV] a.

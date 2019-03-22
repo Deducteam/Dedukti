@@ -28,7 +28,6 @@ let md = fst
 let id = snd
 
 
-
 module WS = Weak.Make(
 struct
   type t        = ident
@@ -42,156 +41,81 @@ let mk_ident     = WS.merge shash
 
 let mk_mident md =
   let base = Filename.basename md in
-  try Filename.chop_extension base with _ -> base
+  if Filename.check_suffix base ".dk"
+  then Filename.chop_suffix base ".dk"
+  else base
 
 let dmark       = mk_ident "$"
 
 (** {2 Lists with Length} *)
 
 module LList = struct
-  type 'a t= {
-    len : int;
-    lst : 'a list;
-  }
+  type 'a t = { len : int; lst : 'a list }
 
+  let nil = {len=0;lst=[]}
   let cons x {len;lst} = {len=len+1; lst=x::lst}
-  let nil = {len=0;lst=[];}
-
-  let make ~len lst =
-    assert (List.length lst = len);
-    {lst;len}
-
-  let make_unsafe ~len lst = {len;lst}
-  (** make_unsafe [n] [l] is as make [n] [l] without checking that the length of [l] is [n] *)
-
-  let of_list  lst = {len=List.length lst ; lst}
-  let of_array arr = {len=Array.length arr; lst=Array.to_list arr}
 
   let len x = x.len
   let lst x = x.lst
   let is_empty x = x.len = 0
-
+  let of_list  lst = {len=List.length lst ; lst}
+  let of_array arr = {len=Array.length arr; lst=Array.to_list arr}
   let map f {len;lst} = {len; lst=List.map f lst}
-  let append_l {len;lst} l = {len=len+List.length l; lst=lst@l}
-
   let nth l i = assert (i<l.len); List.nth l.lst i
-
-  let remove i {len;lst} =
-    let rec aux c lst = match lst with
-      | []        -> assert false
-      | x::lst'   -> if c==0 then lst' else x::(aux (c-1) lst')
-    in
-    {len=len-1; lst=aux i lst}
 end
 
 (** {2 Localization} *)
 
-type loc = int*int
-let dloc = (0,0)
+type loc = int * int
+let dloc = (-1,-1)
 let mk_loc l c = (l,c)
 let of_loc l = l
-
-let pp_loc fmt (l,c) = Format.fprintf fmt "line:%i column:%i" l c
 
 let path = ref []
 let get_path () = !path
 let add_path s = path := s :: !path
 
-(** {2 Errors} *)
-
-type ('a,'b) error =
-  | OK of 'a
-  | Err of 'b
-
-let map_error f = function
-  | Err c -> Err c
-  | OK a -> OK (f a)
-
-let bind_error f = function
-  | Err c -> Err c
-  | OK a -> f a
-
-let map_error_list (f:'a -> ('b,'c) error) (lst:'a list) : ('b list,'c) error =
-  let rec aux = function
-    | [] -> OK []
-    | hd::lst ->
-        ( match f hd with
-            | Err c -> Err c
-            | OK hd -> ( match aux lst with
-                           | Err c -> Err c
-                           | OK lst -> OK (hd::lst) )
-        )
-  in
-    aux lst
-
 (** {2 Debugging} *)
 
 module Debug = struct
-  
-  type flag = int
-  let d_warn         : flag = 0
-  let d_notice       : flag = 1
-  let d_module       : flag = 2
-  let d_confluence   : flag = 3
-  let d_rule         : flag = 4
-  let d_typeChecking : flag = 5
-  let d_reduce       : flag = 6
-  let d_matching     : flag = 7
 
-  let nb_flags = 7
+  type flag  = ..
+  type flag += D_warn | D_notice
 
-  (* Default mode is to debug only [d_std] messages. *)
-  let default_flags = [d_warn]
+  let flag_message : (flag, string * bool) Hashtbl.t = Hashtbl.create 8
 
-  (* Headers for debugging messages *)
-  let headers =
-    [| "Warning"
-     ; "Notice"
-     ; "Module"
-     ; "Confluence"
-     ; "Rule"
-     ; "TypeChecking"
-     ; "Reduce"
-     ; "Matching"
-    |]
+  let set = Hashtbl.replace flag_message
 
-  (* Array of activated flags. Initialized with [false]s except at [default_flags] indices. *)
-  let active = Array.init nb_flags (fun f -> List.mem f default_flags)
+  exception DebugMessageNotSet of flag
 
-  let  enable_flag f = active.(f) <- true
-  let disable_flag f = active.(f) <- false
-      
-  exception DebugFlagNotRecognized of char
-      
-  let set_debug_mode =
-    String.iter (function
-        | 'q' -> disable_flag d_warn
-        | 'n' -> enable_flag  d_notice
-        | 'o' -> enable_flag  d_module
-        | 'c' -> enable_flag  d_confluence
-        | 'u' -> enable_flag  d_rule
-        | 't' -> enable_flag  d_typeChecking
-        | 'r' -> enable_flag  d_reduce
-        | 'm' -> enable_flag  d_matching
-        | c -> raise (DebugFlagNotRecognized c)
-      )
-      
+  let get (fl:flag ) : (string*bool) =
+    try Hashtbl.find flag_message fl
+    with Not_found -> raise (DebugMessageNotSet fl)
+
+  let message   (fl : flag ) : string = fst (get fl)
+  let is_active (fl : flag ) : bool   = snd (get fl)
+
+  let register_flag fl m = set fl (m         , false)
+  let  enable_flag  fl   = set fl (message fl, true )
+  let disable_flag  fl   = set fl (message fl, false)
+
+  let _ =
+    set D_warn   ("Warning", true );
+    set D_notice ("Notice" , false)
+
   let do_debug fmt =
     Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
-      
+
   let ignore_debug fmt =
     Format.(ifprintf err_formatter) fmt
-      
+
   let debug f =
-    if active.(f) 
-    then
-      match headers.(f) with
-      | "" -> do_debug
-      | h -> (fun fmt -> do_debug ("[%s] " ^^ fmt) h)
+    if is_active f
+    then fun fmt -> do_debug ("[%s] " ^^ fmt) (message f)
     else ignore_debug
   [@@inline]
 
-  let debug_eval f clos = if active.(f) then clos ()
+  let debug_eval f clos = if is_active f then clos ()
 
 end
 
@@ -211,17 +135,18 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
-let rec add_to_list2 l1 l2 lst =
-  match l1, l2 with
-  | [], [] -> Some lst
-  | s1::l1, s2::l2 -> add_to_list2 l1 l2 ((s1,s2)::lst)
-  | _,_ -> None
+let split x =
+  let rec aux acc n l =
+    if n <= 0 then (List.rev acc, l)
+    else aux ((List.hd l) :: acc) (n-1) (List.tl l) in
+  aux [] x
 
-let rec split_list i l =
-  if i = 0 then ([],l)
-  else
-    let s1, s2 = split_list (i-1) (List.tl l) in
-    (List.hd l)::s1, s2
+let rev_mapi f l =
+  let rec rmap_f i accu = function
+    | [] -> accu
+    | a::l -> rmap_f (i+1) (f i a :: accu) l
+  in
+  rmap_f 0 [] l
 
 
 (** {2 Printing functions} *)
@@ -233,13 +158,24 @@ let string_of fp = Format.asprintf "%a" fp
 let pp_ident  fmt id      = Format.fprintf fmt "%s" id
 let pp_mident fmt md      = Format.fprintf fmt "%s" md
 let pp_name   fmt (md,id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
-let pp_loc    fmt (l,c)   = Format.fprintf fmt "line:%i column:%i" l c
+let pp_loc    fmt = function
+  | (-1,-1) -> Format.fprintf fmt "unspecified location"
+  | (l ,-1) -> Format.fprintf fmt "line:%i" l
+  | (l , c) -> Format.fprintf fmt "line:%i column:%i" l c
 
 let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 
 let pp_list sep pp fmt l = Format.pp_print_list ~pp_sep:(format_of_sep sep) pp fmt l
+let pp_llist sep pp fmt l = pp_list sep pp fmt (LList.lst l)
 let pp_arr  sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
+let pp_lazy pp fmt l = Format.fprintf fmt "%a" pp (Lazy.force l)
 
 let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def
   | Some a -> Format.fprintf fmt "%a" pp a
+
+let pp_pair pp_fst pp_snd fmt x =
+  Format.fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd (snd x)
+
+let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) =
+  Format.fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z

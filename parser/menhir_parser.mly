@@ -1,7 +1,6 @@
 %{
 open Basic
 open Preterm
-open Internals
 open Scoping
 open Reduction
 open Signature
@@ -17,24 +16,30 @@ let rec mk_pi  : preterm -> (loc*ident*preterm) list -> preterm = fun ty ps ->
   | []           -> ty
   | (l,x,aa)::ps -> PrePi(l, Some x, aa, mk_pi ty ps)
 
-let mk_config loc id1 id2_opt =
+let mk_config loc lid =
+  let open Env in
+  let strat    = ref None in
+  let target   = ref None in
+  let nb_steps = ref None in
+  let proc = function
+    | "SNF"  when !target   = None -> target   := Some Snf
+    | "WHNF" when !target   = None -> target   := Some Whnf
+    | "CBN"  when !strat    = None -> strat    := Some ByName
+    | "CBV"  when !strat    = None -> strat    := Some ByValue
+    | "CBSV" when !strat    = None -> strat    := Some ByStrongValue
+    | i      when !nb_steps = None -> nb_steps := Some (int_of_string i)
+    | _ -> raise Exit in
   try
-    let open Env in
-    let some i = Some(int_of_string i) in
-    let config nb_steps strategy = {default_cfg with nb_steps; strategy} in
-    match (id1, id2_opt) with
-    | ("SNF" , None       ) -> config None     Snf
-    | ("HNF" , None       ) -> config None     Hnf
-    | ("WHNF", None       ) -> config None     Whnf
-    | ("SNF" , Some i     ) -> config (some i) Snf
-    | ("HNF" , Some i     ) -> config (some i) Hnf
-    | ("WHNF", Some i     ) -> config (some i) Whnf
-    | (i     , Some "SNF" ) -> config (some i) Snf
-    | (i     , Some "HNF" ) -> config (some i) Hnf
-    | (i     , Some "WHNF") -> config (some i) Whnf
-    | (i     , None       ) -> {default_cfg with nb_steps = some i}
-    | (_     , _          ) -> raise Exit (* captured bellow *)
-  with _ -> raise (Parse_error(loc, "invalid command configuration"))
+    List.iter proc lid;
+    { default_cfg with
+      nb_steps = (!nb_steps);
+      target   = (match !target with None -> default_cfg.target | Some t -> t);
+      strat    = (match !strat  with None -> default_cfg.strat  | Some s -> s) }
+  with _ -> raise (Env.EnvError (loc, Env.ParseError "invalid command configuration"))
+
+let loc_of_rs = function
+  | [] -> assert false
+  | (l,_,_,_,_,_,_) :: _ -> l
 %}
 
 %token EOF
@@ -106,7 +111,7 @@ line:
       {fun md -> Def(fst id, snd id, true, Some(scope_term md [] (mk_pi ty ps)),
                      scope_term md [] (mk_lam te ps))}
   | rs=rule+ DOT
-      {fun md -> Rules(List.map (scope_rule md) rs)}
+      {fun md -> Rules(loc_of_rs rs,(List.map (scope_rule md) rs))}
 
   | EVAL te=term DOT
       {fun md -> Eval($1, default_cfg, scope_term md [] te)}
@@ -143,11 +148,8 @@ line:
   | EOF              {raise End_of_file}
 
 eval_config:
-  | LEFTSQU id=ID RIGHTSQU
-      {mk_config (Lexer.loc_of_pos $startpos) (string_of_ident (snd id)) None}
-  | LEFTSQU id1=ID COMMA id2=ID RIGHTSQU
-      {mk_config (Lexer.loc_of_pos $startpos) (string_of_ident (snd id1))
-        (Some(string_of_ident (snd id2)))}
+  | LEFTSQU l=separated_nonempty_list(COMMA, ID) RIGHTSQU
+  {mk_config (Lexer.loc_of_pos $startpos) (List.map (fun x -> string_of_ident (snd x)) l) }
 
 param:
   | LEFTPAR id=ID COLON te=term RIGHTPAR
@@ -166,7 +168,7 @@ rule:
         ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 decl:
-  | ID COLON term { Debug.(debug d_warn "Ignoring type declaration in rule context."); $1 }
+  | ID COLON term { Debug.(debug D_warn "Ignoring type declaration in rule context."); $1 }
   | ID            { $1 }
 
 context:
@@ -217,4 +219,6 @@ term:
       {PreLam (fst $1, snd $1, None, $3)}
   | pid COLON aterm FATARROW term
       {PreLam (fst $1, snd $1, Some $3, $5)}
+  | LEFTPAR pid COLON aterm DEF aterm RIGHTPAR FATARROW term
+      { PreApp (PreLam (fst $2, snd $2, Some $4, $9), $6, []) }
 %%

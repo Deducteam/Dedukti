@@ -12,7 +12,7 @@ To compile (and optionally install) `Dedukti` you will need:
 #### INSTALLATION WITH OPAM
 
 ```bash
-opam pin add dedukti https://github.com/Deducteam/Dedukti.git
+opam install dedukti
 ```
 
 #### INSTALLATION FROM SOURCE
@@ -42,6 +42,32 @@ The installation provides the following commands:
  - `dktop` is an interactive wrapper around the type-checker,
  - `dkdep` is a dependency generator for `Dedukti` files,
  - `dkindent` is a program to indent `Dedukti` files.
+
+### OPTIONS
+
+`dkcheck` provides the following options:
+ - `-d FLAGS` enables debugging for all given flags:
+   * `q` (*q*uiet) disables all warnings,
+   * `n` (*n*otice) notifies about which symbol or rule is currently treated,
+   * `o` (m*o*dule) notifies about loading of an external module (associated to the command `#REQUIRE`),
+   * `c` (*c*onfluence) notifies about information provided to the confluence checker (when option `-cc` used),
+   * `u` (r*u*le) provides information about type checking of rules,
+   * `t` (*t*yping) provides information about type-checking of terms,
+   * `r` (*r*educe) provides information about reduction performed in terms,
+   * `m` (*m*atching) provides information about pattern matching;
+ - `-q` Quiet mode (equivalent to `-d q`;
+ - `-e` Generates an object file `.dko`;
+ - `-nc` Disables colors in the output;
+ - `-stdin MOD` Parses standard input using module name `MOD`;
+ - `-version` Prints the version number;
+ - `-coc` Allows to declare a symbol whose type contains `Type` in the left-hand side of a product (useful for the Calculus of Construction);
+ - `-I DIR` Adds the directory `DIR` to the load path;
+ - `-ccs` Forbids rules with unsatisfiable constraints;
+ - `-errors-in-snf` Normalizes the types in error messages;
+ - `-cc CMD` Sets the external confluence checker command to `CMD`
+ - `-nl` Allows non left-linear rewriting rules ([DEPRECATED] default behavior now);
+ - `--beautify` Pretty printer. Prints on the standard output;
+ - `--help` Prints the list of available options.
 
 ### A SMALL EXAMPLE
 
@@ -114,7 +140,6 @@ Supported commands are:
 
 The supported evaluation strategies are:
  - `SNF` (strong normal form: a term `t` is in `SNF` if no reduction can occur in `t`),
- - `HNF` (head normal form),
  - `WHNF` (weak head normal form: a term `t` is said in `WHNF` if there is a finite sequence `t=t0`, `t2`, ..., `tn` such that `tn` is in normal form and for all `i`, `ti` reduces to `t(i+1)` and this reduction does not occur at the head).
 
 Note that the `#INFER` command accepts the same form of configuration as
@@ -204,11 +229,24 @@ side of the rewrite rules that are constrained by typing.
     [ n, v1, m, e, v2 ] append (succ n) (cons {n} e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
 
 The information between brackets will be used when typing the rule but they will not be match against when
-using the rule (as if they were replaced by fresh variables).
+using the rule (as if they were replaced by unapplied fresh variables).
 
-**Remark:** in order to make this feature type-safe, `Dedukti` checks that the typing constraint is verified when using the rule and fails otherwise.
+**Remarks:**
+- in order to make this feature type-safe, `Dedukti` checks at runtime that the bracket constraint is verified
+whenever the rule may be used and fails otherwise.
+- This feature is not conditional rewriting. When a constraints is not satisfied, Dedukti doesn't just ignore
+the rule and proceed, it actually raises an error.
+- because they are replaced with *unapplied* fresh variables, bracket expressions may not contain variables
+locally bounded previously in the pattern.
+- since they are not used during matching, bracket expressions may not "introduce" variables. All rule variables
+occuring in bracket expression need to also occur in an other part of the pattern, outside a bracket. 
+- bracket expressions and their type may contain variables occuring "before" (to the left of) the pattern.
+- the type of a bracket expression may not contain variables occuring for the first time "after" (to the right of)
+the bracket.
+- the bracket expression may contain variable occuring for the first time "after" (to the right of) the bracket on
+the condition that the inferred types for these variables do not depend on the bracket's fresh variable (no circularity).
 
-**Remark:** a variable can occur inside brackets only if it also occurs outside brackets and on the left of the brackets.
+
 
 #### NON-LEFT-LINEAR REWRITE RULES
 

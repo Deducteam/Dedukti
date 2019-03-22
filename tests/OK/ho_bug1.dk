@@ -1,3 +1,4 @@
+(; OK ;)
 
 A : Type.
 
@@ -15,7 +16,7 @@ def e3 : A -> A.
 [a,b] e1 (i1 a) b --> a b.
 [a,b] e2 (e0 a) b --> e0 a
 [a,b] e2 (i2 a) b --> a b.
-[b] e3 (i1 (a => e1 a b)) --> b.
+[b] e3 (i1 (x => e1 x b)) --> b.
 
 b : A.
 
