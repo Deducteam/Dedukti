@@ -75,8 +75,8 @@ exception RuleError of rule_error
 (** {2 Rule infos} *)
 
 type rule_infos =
-  { (** location of the rule *);
-    l           : loc
+  { (** location of the rule *)
+    l           : loc;
     (** name of the rule *)
     name        : rule_name;
     (** name of the pattern constant *)
