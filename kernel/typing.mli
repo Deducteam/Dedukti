@@ -55,3 +55,5 @@ val inference   : Signature.t -> term -> typ
 
 val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
 (** [check_rule sg ru] checks that a rule is well-typed. *)
+
+val typed_rule_of_rule_infos : Signature.t -> rule_infos -> Subst.Subst.t * typed_rule

@@ -179,8 +179,8 @@ let fail_signature_error def_loc err =
     fail lc "Fail to open module '%s'." md
   | SymbolNotFound (lc,cst) ->
     fail lc "Cannot find symbol '%a'." pp_name cst
-  | AlreadyDefinedSymbol (lc,id) ->
-    fail lc "Already declared symbol '%a'." pp_ident id
+  | AlreadyDefinedSymbol (lc,n) ->
+    fail lc "Already declared symbol '%a'." pp_name n
   | CannotBuildDtree err -> fail_dtree_error err
   | CannotMakeRuleInfos err -> fail_rule_error err
   | CannotAddRewriteRules (lc,id) ->
@@ -257,6 +257,14 @@ let code err =
       | Signature.GuardNotSatisfied _ -> 36
       | Signature.CouldNotExportModule _ -> 37
     end
+  | EnvErrorRule e -> begin match e with
+      | Rule.BoundVariableExpected _ -> 40
+      | Rule.DistinctBoundVariablesExpected (_,_) -> 41
+      | Rule.VariableBoundOutsideTheGuard _ -> 42
+      | Rule.UnboundVariable (_,_,_) -> 43
+      | Rule.AVariableIsNotAPattern (_,_) -> 44
+      | Rule.NonLinearNonEqArguments (_,_) -> 45
+    end
   | NotEnoughArguments _  -> 25
   | NonLinearRule _       -> 26
   | KindLevelDefinition _ -> 38
@@ -267,6 +275,7 @@ let fail_env_error lc err =
   match err with
   | Env.EnvErrorSignature e -> fail_signature_error lc e
   | Env.EnvErrorType      e -> fail_typing_error    lc e
+  | Env.EnvErrorRule      e -> fail_rule_error    e
   | Env.NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
     fail lc
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."

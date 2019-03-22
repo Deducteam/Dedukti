@@ -22,6 +22,7 @@ let set_debug_mode =
 type env_error =
   | EnvErrorType        of typing_error
   | EnvErrorSignature   of signature_error
+  | EnvErrorRule        of rule_error
   | NonLinearRule       of name
   | NotEnoughArguments  of ident * int * int * int
   | KindLevelDefinition of ident
@@ -34,6 +35,7 @@ exception EnvError of loc * env_error
 let raise_as_env lc = function
   | SignatureError e -> raise (EnvError (lc, (EnvErrorSignature e)))
   | TypingError    e -> raise (EnvError (lc, (EnvErrorType      e)))
+  | RuleError      e -> raise (EnvError (lc, (EnvErrorRule      e)))
   | ex -> raise ex
 
 
@@ -142,7 +144,11 @@ let add_rules (rules: untyped_rule list) : (Subst.Subst.t * typed_rule) list =
 let infer ?ctx:(ctx=[]) te =
   try
     let ty = infer !sg ctx te in
-    ignore(infer !sg ctx ty);
+    (* We only verify that [ty] itself has a type (that we immediately
+       throw away) if [ty] is not [Kind], because [Kind] does not have a
+       type, but we still want [infer ctx Type] to produce [Kind] *)
+    if ty <> mk_Kind then
+      ignore(infer !sg ctx ty);
     ty
   with e -> raise_as_env (get_loc te) e
 
@@ -154,7 +160,12 @@ let _unsafe_reduction red te =
   Reduction.reduction red !sg te
 
 let _reduction ctx red te =
-  ignore(Typing.infer !sg ctx te);
+  (* This is a safe reduction, so we check that [te] has a type
+     before attempting to normalize it, but we only do so if [te]
+     is not [Kind], because [Kind] does not have a type, but we
+     still want to be able to reduce it *)
+  if te <> mk_Kind then
+    ignore(Typing.infer !sg ctx te);
   _unsafe_reduction red te
 
 let reduction ?ctx:(ctx=[]) ?red:(red=Reduction.default_cfg) te =
