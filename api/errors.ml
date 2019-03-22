@@ -199,8 +199,8 @@ let fail_signature_error def_loc err =
   | GuardNotSatisfied(lc, t1, t2) ->
     fail lc
       "Error while reducing a term: a guard was not satisfied.\n\
-       Expected: %a.\n\
-       Found: %a"
+       Found: %a.\n\
+       Expected: %a"
       pp_term t1 pp_term t2
   | CouldNotExportModule file ->
     fail def_loc
@@ -211,6 +211,7 @@ let code err =
   let open Env in
   match err with
   | ParseError _      -> 1
+  | BracketScopingError -> 42
   | EnvErrorType e -> begin match e with
       | Typing.KindIsNotTypable -> 2
       | Typing.ConvertibilityError _ -> 3
@@ -277,6 +278,8 @@ let fail_env_error lc err =
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
   | Env.ParseError s ->
     fail lc "Parse error: %s@." s
+  | Env.BracketScopingError ->
+    fail lc "Unused variables in context may create scoping ambiguity in bracket.@."
   | Env.AssertError ->
     fail lc "Assertion failed."
 

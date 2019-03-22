@@ -12,6 +12,7 @@ type env_error =
   | NotEnoughArguments  of ident * int * int * int
   | KindLevelDefinition of ident
   | ParseError          of string
+  | BracketScopingError
   | AssertError
 
 exception EnvError of loc * env_error
