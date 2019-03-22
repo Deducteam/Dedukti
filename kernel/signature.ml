@@ -111,7 +111,7 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos li
   | SignatureError s -> raise (SignatureError s)
   | _ -> raise (SignatureError (UnmarshalUnknown (lc,m)))
 
-let access_signature sg =
+let symbols_of sg =
   let add_in_symbol_infos (f : name) (r : rule_infos) =
     let rec aux (acc : symbol_infos list) =
       function
@@ -178,7 +178,6 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   | (r::_ as rs) ->
     let env = get_env sg r.l r.cst in
     let infos : rw_infos = get_info_env r.l env r.cst in
-    let ty = infos.ty in
     if infos.stat = Static
     then raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
     let rules = (infos.rules @ rs) in
@@ -187,7 +186,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
     in
     HId.add env (id r.cst)
-      {stat = infos.stat; ty=ty; rules = rules; decision_tree=Some(trees)}
+      {infos with rules = rules; decision_tree=Some(trees)}
 
 and get_env sg lc cst =
   let md = md cst in

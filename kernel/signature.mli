@@ -79,5 +79,5 @@ val add_rules           : t -> Rule.rule_infos list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)
 
-val access_signature : t ->  symbol_infos list
+val symbols_of : t ->  symbol_infos list
 (** [access_signature sg] returns the content of the signature [sg]. *)
