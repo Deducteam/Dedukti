@@ -244,6 +244,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       let unshifted =
         try Subst.unshift k t
         with Subst.UnshiftExn -> raise (RuleError (VariableBoundOutsideTheGuard t))
+        (* Note: A different exception is previously raised at rule type-checking for this. *)
       in
       let nvar = fresh_var 0 in
       constraints := Bracket (nvar, unshifted) :: !constraints;
@@ -257,7 +258,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       arity = Array.init !context_size (fun i -> IntHashtbl.find arity i)
     } )
 
-let to_rule_infos (r:untyped_rule) : rule_infos =
+let to_rule_infos (r:'a context rule) : rule_infos =
   let ctx_size = List.length r.ctx in
   let (l,cst,args) = match r.pat with
     | Pattern (l,cst,args) -> (l, cst, args)

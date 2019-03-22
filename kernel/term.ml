@@ -80,9 +80,11 @@ let subterm t i = match t with
 
 let subterm = List.fold_left subterm
 
-type untyped_context = ( loc * ident ) list
+type 'a context = 'a list
 
-type typed_context = ( loc * ident * term ) list
+type untyped_context = (loc * ident) context
+
+type typed_context = (loc * ident * term) context
 
 let rec get_name_from_typed_ctxt ctxt i =
   try let (_,v,_) = List.nth ctxt i in Some v
