@@ -201,7 +201,7 @@ let fail_signature_error def_loc err =
       "Error while reducing a term: a guard was not satisfied.\n\
        Found: %a.\n\
        Expected: %a"
-      pp_term t1 pp_term t2
+      pp_term (snf t1) pp_term (snf t2)
   | CouldNotExportModule file ->
     fail def_loc
       "Fail to export module '%a' to file %s."
