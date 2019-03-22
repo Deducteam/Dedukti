@@ -22,6 +22,7 @@ let set_debug_mode =
 type env_error =
   | EnvErrorType        of typing_error
   | EnvErrorSignature   of signature_error
+  | EnvErrorRule        of rule_error
   | NonLinearRule       of name
   | NotEnoughArguments  of ident * int * int * int
   | KindLevelDefinition of ident
@@ -33,6 +34,7 @@ exception EnvError of loc * env_error
 let raise_as_env lc = function
   | SignatureError e -> raise (EnvError (lc, (EnvErrorSignature e)))
   | TypingError    e -> raise (EnvError (lc, (EnvErrorType      e)))
+  | RuleError      e -> raise (EnvError (lc, (EnvErrorRule      e)))
   | ex -> raise ex
 
 

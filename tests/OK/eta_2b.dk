@@ -1,0 +1,17 @@
+(; OK ;)
+
+type : Type.
+def T : type -> Type.
+
+a : type.
+paa : type.
+[] T paa --> T a -> T a.
+
+g : t : type -> T t -> T a.
+
+foo : T paa.
+def l := (X:type => x:(T X) => g X x) paa foo.
+
+def r := (f:(T paa) => g paa (x:T a => f x)) foo.
+
+#ASSERTNOT l == r.
