@@ -1,0 +1,8 @@
+(; OK ;)
+
+A : Type.
+#INFER A -> Type.
+#PRINT "Kind".
+
+#INFER (A -> A) -> A -> Type.
+#PRINT "Kind".

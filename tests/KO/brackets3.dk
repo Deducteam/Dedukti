@@ -1,8 +1,9 @@
-(; KO 11 ;)
+(; KO 12 ;)
 
 A : Type.
 a : A.
 
-def f : (A -> A) -> A -> A.
+def U : A -> Type.
 
-[t] f (x => {t}) t --> a.
+def f : x : A -> U x -> U x.
+[X] f {X} X --> X.

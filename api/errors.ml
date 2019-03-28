@@ -74,18 +74,28 @@ let fail_typing_error def_loc err =
        Cannot solve typing constraints: %a ~ %a%s"
       pp_term t1 pp_term t2
       (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")
-  | BracketError1 (te,ctx) ->
+  | BracketExprBoundVar (te,ctx) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.\n\
-       Brackets can only contain variables occuring \
-       on their left and cannot contain bound variables."
-      pp_term te print_err_ctxt ctx
-  | BracketError2 (te,ctx,ty) ->
+       Brackets cannot contain bound variables."
+      pp_term te print_typed_context ctx
+  | BracketExpectedTypeBoundVar (te,ctx,ty) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.\n\
-       The type of brackets can only contain variables occuring\
-       on their left and cannot contains bound variables."
-      pp_term te print_err_ctxt ctx
+       The expected type of brackets cannot contains bound variables."
+      pp_term te print_typed_context ctx
+  | BracketExpectedTypeRightVar (te,ctx,ty) ->
+    fail (get_loc te)
+      "Error while typing the term { %a }%a.\n\
+       The expected type of brackets can only contain variables occuring\
+       to their left."
+      pp_term te print_typed_context ctx
+  | TypingCircularity (l,x,n,ctx,ty) ->
+    fail l
+      "Typing circularity found while typing variable '%a[%i]'%a.\n\
+       The expected type of variable is not allowed to refer to itself.\n\
+       This is due to bracket expressions refering to this variable.\n\
+       Expected type:%a." pp_ident x n print_typed_context ctx pp_term ty
   | FreeVariableDependsOnBoundVariable (l,x,n,ctx,ty) ->
     fail l
       "Error while typing '%a[%i]'%a.\n\
@@ -166,8 +176,8 @@ let fail_signature_error def_loc err =
     fail lc "Fail to open module '%s'." md
   | SymbolNotFound (lc,cst) ->
     fail lc "Cannot find symbol '%a'." pp_name cst
-  | AlreadyDefinedSymbol (lc,id) ->
-    fail lc "Already declared symbol '%a'." pp_ident id
+  | AlreadyDefinedSymbol (lc,n) ->
+    fail lc "Already declared symbol '%a'." pp_name n
   | CannotBuildDtree err -> fail_dtree_error err
   | CannotMakeRuleInfos err -> fail_rule_error err
   | CannotAddRewriteRules (lc,id) ->
@@ -186,9 +196,9 @@ let fail_signature_error def_loc err =
   | GuardNotSatisfied(lc, t1, t2) ->
     fail lc
       "Error while reducing a term: a guard was not satisfied.\n\
-       Expected: %a.\n\
-       Found: %a"
-      pp_term t1 pp_term t2
+       Found: %a.\n\
+       Expected: %a"
+      pp_term (snf t1) pp_term (snf t2)
   | CouldNotExportModule file ->
     fail def_loc
       "Fail to export module '%a' to file %s."
@@ -198,6 +208,7 @@ let code err =
   let open Env in
   match err with
   | ParseError _      -> 1
+  | BracketScopingError -> 42
   | EnvErrorType e -> begin match e with
       | Typing.KindIsNotTypable -> 2
       | Typing.ConvertibilityError _ -> 3
@@ -208,8 +219,11 @@ let code err =
       | Typing.DomainFreeLambda _ -> 8
       | Typing.CannotInferTypeOfPattern _ -> 9
       | Typing.UnsatisfiableConstraints _ -> 10
-      | Typing.BracketError1 _ -> 11
-      | Typing.BracketError2 _ -> 12
+      | Typing.BracketExprBoundVar _ -> 11
+      | Typing.BracketExpectedTypeBoundVar _ -> 12
+      | Typing.BracketExpectedTypeRightVar _ -> 12
+      | Typing.TypingCircularity _ -> 12
+      (* TODO offset everything to have a fresh code here. *)
       | Typing.FreeVariableDependsOnBoundVariable _ -> 13
       | Typing.Unconvertible _ -> 14
       | Typing.Convertible _ -> 15
@@ -240,6 +254,14 @@ let code err =
       | Signature.GuardNotSatisfied _ -> 36
       | Signature.CouldNotExportModule _ -> 37
     end
+  | EnvErrorRule e -> begin match e with
+      | Rule.BoundVariableExpected _ -> 40
+      | Rule.DistinctBoundVariablesExpected (_,_) -> 41
+      | Rule.VariableBoundOutsideTheGuard _ -> 42
+      | Rule.UnboundVariable (_,_,_) -> 43
+      | Rule.AVariableIsNotAPattern (_,_) -> 44
+      | Rule.NonLinearNonEqArguments (_,_) -> 45
+    end
   | NotEnoughArguments _  -> 25
   | NonLinearRule _       -> 26
   | KindLevelDefinition _ -> 38
@@ -250,6 +272,7 @@ let fail_env_error lc err =
   match err with
   | Env.EnvErrorSignature e -> fail_signature_error lc e
   | Env.EnvErrorType      e -> fail_typing_error    lc e
+  | Env.EnvErrorRule      e -> fail_rule_error    e
   | Env.NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
     fail lc
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
@@ -261,6 +284,8 @@ let fail_env_error lc err =
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
   | Env.ParseError s ->
     fail lc "Parse error: %s@." s
+  | Env.BracketScopingError ->
+    fail lc "Unused variables in context may create scoping ambiguity in bracket.@."
   | Env.AssertError ->
     fail lc "Assertion failed."
 

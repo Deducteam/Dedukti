@@ -41,7 +41,9 @@ let mk_ident     = WS.merge shash
 
 let mk_mident md =
   let base = Filename.basename md in
-  try Filename.chop_extension base with _ -> base
+  if Filename.check_suffix base ".dk"
+  then Filename.chop_suffix base ".dk"
+  else base
 
 let dmark       = mk_ident "$"
 
