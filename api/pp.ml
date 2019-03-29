@@ -1,9 +1,10 @@
 open Basic
 open Term
 open Rule
-open Printf
 open Entry
 open Env
+open Format
+
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
 
 (* TODO: make that debuging functions returns a string *)
@@ -16,9 +17,9 @@ let get_module () =
   | None -> get_name ()
   | Some md -> md
 
-let set_module md =
-  cur_md := Some md
-let rec print_list = pp_list
+let set_module md = cur_md := Some md
+
+let print_list = pp_list
 
 let print_ident = pp_ident
 
@@ -29,7 +30,7 @@ let print_name = pp_name
 let print_const out cst =
   let md = md cst in
   if mident_eq md (get_module ()) then print_ident out (id cst)
-  else Format.fprintf out "%a" pp_name cst
+  else fprintf out "%a" pp_name cst
 
 (* Idents generated from underscores by the parser start with a question mark.
    We have sometimes to avoid to print them because they are not valid tokens. *)
@@ -37,11 +38,11 @@ let is_dummy_ident i = (string_of_ident i).[0] = '$'
 let is_regular_ident i = (string_of_ident i).[0] <> '$'
 
 let print_db out (x,n) =
-  if !print_db_enabled then Format.fprintf out "%a[%i]" print_ident x n
+  if !print_db_enabled then fprintf out "%a[%i]" print_ident x n
   else print_ident out x
 
 let print_db_or_underscore out (x,n) =
-  if is_dummy_ident x then Format.fprintf out "_"
+  if is_dummy_ident x then fprintf out "_"
   else print_ident out x
 
 let fresh_name names base =
@@ -81,57 +82,99 @@ let rec subst ctx = function
     let x' = if is_dummy_ident x then x else fresh_name ctx x in
     mk_Pi l x' (subst ctx a) (subst (x' :: ctx) b)
 
+(* This overrides Term.pp_term with above aoptimizations *)
+let rec pp_term fmt te =
+  match te with
+  | Kind               -> fprintf fmt "Kind"
+  | Type _             -> fprintf fmt "Type"
+  | DB  (_,x,n)        -> fprintf fmt "%a[%i]" pp_ident x n
+  | Const (_,n)        -> fprintf fmt "%a" print_const n
+  | App (f,a,args)     -> pp_list " " pp_term_wp fmt (f::a::args)
+  | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
+  | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
+  | Pi  (_,x,a,b)      -> fprintf fmt "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
 
-let rec print_term out = function
-  | Kind               -> Format.pp_print_string out "Kind"
-  | Type _             -> Format.pp_print_string out "Type"
-  | DB  (_,x,n)        -> print_db out (x,n)
-  | Const (_,cst)      -> print_const out cst
-  | App (f,a,args)     ->
-      Format.fprintf out "@[<hov2>%a@]" (print_list " " print_term_wp) (f::a::args)
-  | Lam (_,x,None,f)   -> Format.fprintf out "@[%a =>@ @[%a@]@]" print_ident x print_term f
-  | Lam (_,x,Some a,f) ->
-      Format.fprintf out "@[%a:@,%a =>@ @[%a@]@]" print_ident x print_term_wp a print_term f
-  | Pi  (_,x,a,b) when ident_eq x dmark  ->
+and pp_term_wp fmt te =
+  match te with
+  | Kind | Type _ | DB _ | Const _ as t -> pp_term fmt t
+  | t                                   -> fprintf fmt "(%a)" pp_term t
+
+let rec print_term m out t =
+  let one_liner = asprintf "%a" pp_term t in
+  if String.length one_liner <= m then fprintf out "%s" one_liner
+  else
+    match t with
+    | Kind               -> pp_print_string out "Kind"
+    | Type _             -> pp_print_string out "Type"
+    | DB  (_,x,n)        -> print_db out (x,n)
+    | Const (_,cst)      -> print_const out cst
+    | App (f,a,args)     ->
+      fprintf out "@[<v2>%a@]"
+        (pp_print_list (print_term_wp (m-2))) (f::a::args)
+    | Lam (_,x,None,f)   ->
+      fprintf out "@[%a =>@ @[%a@]@]"
+        print_ident x (print_term m) f
+    | Lam (_,x,Some a,f) ->
+      fprintf out "@[<v>%a:%a =>@ @[%a@]@]"
+        print_ident x (print_term_wp (m - (String.length (string_of_ident x)) - 3)) a
+        (print_term m) f
+    | Pi  (_,x,a,b) when ident_eq x dmark  ->
       (* arrow, no pi *)
-      Format.fprintf out "@[%a ->@ @[%a@]@]" print_term_wp a print_term b
-  | Pi  (_,x,a,b)      ->
-      Format.fprintf out "@[%a:%a ->@ @[%a@]@]" print_ident x print_term_wp a print_term b
+      fprintf out "@[<v>%a ->@ @[%a@]@]"
+        (print_term_wp (m-3)) a (print_term m) b
+    | Pi  (_,x,a,b)      ->
+      fprintf out "@[<v>%a:%a ->@ @[%a@]@]"
+        print_ident x (print_term_wp m) a (print_term m) b
 
-and print_term_wp out = function
-  | Kind | Type _ | DB _ | Const _ as t -> print_term out t
-  | t                                  -> Format.fprintf out "(%a)" print_term t
+and print_term_wp m out = function
+  | Kind | Type _ | DB _ | Const _ as t -> print_term m out t
+  | t                                   -> fprintf out "(%a)" (print_term (m-2)) t
 
 (* Overwrite print_term by a name-clash avoiding version *)
-let print_term out t = print_term out (subst [] t)
+let n_print_term n out t = print_term n out (subst [] t)
+
+let line_length = 100
+
+(* Printing on default line length *)
+let print_term out t = n_print_term line_length out (subst [] t)
 
 let print_bv out (_,id,i) = print_db out (id,i)
 
 let rec print_pattern out = function
   | Var (_,id,i,[]) -> print_db_or_underscore out (id,i)
-  | Var (_,id,i,lst)     -> Format.fprintf out "%a %a" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
-  | Brackets t           -> Format.fprintf out "{ %a }" print_term t
-  | Pattern (_,cst,[])   -> Format.fprintf out "%a" print_const cst
-  | Pattern (_,cst,pats) -> Format.fprintf out "%a %a" print_const cst (print_list " " print_pattern_wp) pats
-  | Lambda (_,x,p)       -> Format.fprintf out "@[%a => %a@]" print_ident x print_pattern p
+  | Var (_,id,i,lst)     -> fprintf out "%a %a" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
+  | Brackets t           -> fprintf out "{ %a }" print_term t
+  | Pattern (_,cst,[])   -> fprintf out "%a" print_const cst
+  | Pattern (_,cst,pats) -> fprintf out "%a %a" print_const cst (print_list " " print_pattern_wp) pats
+  | Lambda (_,x,p)       -> fprintf out "@[%a => %a@]" print_ident x print_pattern p
 and print_pattern_wp out = function
-  | Pattern _ | Lambda _ as p -> Format.fprintf out "(%a)" print_pattern p
-  | Var (_,id,i,(_::_ as lst))     -> Format.fprintf out "(%a %a)" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
+  | Pattern _ | Lambda _ as p -> fprintf out "(%a)" print_pattern p
+  | Var (_,id,i,(_::_ as lst))     -> fprintf out "(%a %a)" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | p -> print_pattern out p
 
-let print_typed_context fmt ctx =
-  print_list ".\n"
-    (fun out (_,x,ty) ->
-      Format.fprintf fmt "@[<hv>%a:@ %a@]" print_ident x print_term ty
-    ) fmt (List.rev ctx)
+let print_decl fmt (_,x,ty) =
+  fprintf fmt "@[<v>%a : %a@]"
+    print_ident x (n_print_term (line_length - 5 - String.length (string_of_ident x))) ty
+
+let rec print_typed_context fmt = function
+  | [] -> ()
+  | (_,x,ty) :: decls ->
+    fprintf fmt "  @[<hv2>%a : %a@]"
+      print_ident x print_term ty;
+    (match decls with | [] -> () | _ -> fprintf fmt ",@.");
+     print_typed_context fmt decls
+
+let print_err_ctxt fmt = function
+  | [] -> ()
+  | ctx -> fprintf fmt " in context:@.[\n%a@.]" print_typed_context (List.rev ctx)
 
 let print_rule_name fmt rule =
   let aux b cst =
     if b || !print_default_name
     then
       if mident_eq (md cst) (get_name ())
-      then Format.fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
-      else Format.fprintf fmt "@[<h>{%a}@] " print_name cst
+      then fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
+      else fprintf fmt "@[<h>{%a}@] " print_name cst
   in
   match rule with
   | Beta         -> ()
@@ -140,9 +183,9 @@ let print_rule_name fmt rule =
 
 let print_untyped_rule fmt (rule:untyped_rule) =
   let print_decl out (_,id) =
-    Format.fprintf out "@[<hv>%a@]" print_ident id
+    fprintf out "@[<hv>%a@]" print_ident id
   in
-  Format.fprintf fmt
+  fprintf fmt
     "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
     print_rule_name rule.name
     (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) rule.ctx)
@@ -151,9 +194,9 @@ let print_untyped_rule fmt (rule:untyped_rule) =
 
 let print_typed_rule out (rule:typed_rule) =
   let print_decl out (_,id,ty) =
-    Format.fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
+    fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
   in
-  Format.fprintf out
+  fprintf out
     "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
     (print_list ", " print_decl) rule.ctx
     print_pattern rule.pat
@@ -171,7 +214,7 @@ let print_rule_infos out ri =
 
 let print_red_cfg fmt cfg =
   let open Reduction in
-  Format.fprintf fmt "%a" pp_red_cfg  cfg
+  fprintf fmt "%a" pp_red_cfg  cfg
 
 let print_entry fmt e =
   let open Format in
@@ -220,5 +263,5 @@ let print_entry fmt e =
 
 (** The pretty printer for the type [Signature.staticity] *)
 let print_staticity fmt s =
-  Format.fprintf fmt "%s"
+  fprintf fmt "%s"
     (if s=Signature.Static then "Static" else "Definable")
