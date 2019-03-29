@@ -86,7 +86,7 @@ let _ =
       , "DIR Adds the directory DIR to the load path" )
     ; ( "-d"
       , Arg.String Env.set_debug_mode
-      , "FLAGS enables debugging for the given flags.
+      , "FLAGS Enables debugging for the given flags.
     Available flags:
       q : (quiet)    disables all warnings
       n : (notice)   notifies about which symbol or rule is currently treated
