@@ -128,7 +128,7 @@ let rec print_term m out t =
 
 and print_term_wp m out = function
   | Kind | Type _ | DB _ | Const _ as t -> print_term m out t
-  | t                                  -> fprintf out "(%a)" (print_term (m-2)) t
+  | t                                   -> fprintf out "(%a)" (print_term (m-2)) t
 
 (* Overwrite print_term by a name-clash avoiding version *)
 let n_print_term n out t = print_term n out (subst [] t)
