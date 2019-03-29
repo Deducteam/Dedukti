@@ -4,6 +4,8 @@ open Rule
 open Term
 open Dtree
 
+let eta = ref false
+
 type Debug.flag += D_reduce
 let _ = Debug.register_flag D_reduce "Reduce"
 
@@ -133,8 +135,8 @@ let rec test (rn:Rule.rule_name) (sg:Signature.t) (convertible:matching_test)
      then test rn sg convertible ctx tl
      else raise (Signature.SignatureError(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
 
-let rec find_case (st:state) (cases:(case * dtree) list)
-                  (default:dtree option) : (dtree*state list) option =
+let rec find_case (st:state) (cases:(case*dtree) list)
+                  (default:dtree option) : (dtree * state list) option =
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
   | { term=Const (_,cst); stack } , (CConst (nargs,cst'),tr)::tl ->
@@ -146,7 +148,7 @@ let rec find_case (st:state) (cases:(case * dtree) list)
   | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
     assert ( ctx = LList.nil ); (* no beta in patterns *)
     (* The case doesn't match if the DB indices differ or the stack is not
-      * of the expected size. *)
+     * of the expected size. *)
     if n == n' && List.length stack == nargs
     then Some (tr,stack)
     else find_case st tl default
@@ -160,7 +162,7 @@ let rec find_case (st:state) (cases:(case * dtree) list)
   | _, _::tl -> find_case st tl default
 
 
-(*TODO implement the stack as an array ? (the size is known in advance).*)
+(* TODO: implement the stack as an array ? (the size is known in advance).*)
 let gamma_rw (sg:Signature.t)
              (convertible:matching_test)
              (forcing:rw_strategy)
@@ -173,8 +175,8 @@ let gamma_rw (sg:Signature.t)
          | Some (g,[]) -> rw stack g
          | Some (g,s ) -> rw (stack@s) g
          (* This line highly depends on how the module dtree works.
-         When a column is specialized, new columns are added at the end
-         This is the reason why s is added at the end. *)
+          * When a column is specialized, new columns are added at the end
+          * This is the reason why s is added at the end. *)
          | None -> None
        end
     | Test (rn, matching_pb, eqs, right, def) ->
@@ -269,6 +271,13 @@ let rec conversion_step : (term * term) -> (term * term) list -> (term * term) l
   | App (f,a,args), App (f',a',args') ->
      (f,f') :: (a,a') :: (zip_lists args args' lst)
   | Lam (_,_,_,b), Lam (_,_,_ ,b') -> (b,b')::lst
+  (* Potentially eta-equivalent terms *)
+  | Lam (_,i,_,b), a when !eta ->
+    let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+    (b,b')::lst
+  | a, Lam (_,i,_,b) when !eta ->
+    let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+    (b,b')::lst
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
   | _ -> raise NotConvertible
 

@@ -8,10 +8,12 @@ open Term
 type env_error =
   | EnvErrorType        of Typing.typing_error
   | EnvErrorSignature   of Signature.signature_error
+  | EnvErrorRule        of Rule.rule_error
   | NonLinearRule       of name
   | NotEnoughArguments  of ident * int * int * int
   | KindLevelDefinition of ident
   | ParseError          of string
+  | BracketScopingError
   | AssertError
 
 exception EnvError of loc * env_error
