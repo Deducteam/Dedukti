@@ -78,9 +78,16 @@ let _ =
   let export       = ref false in
   let beautify     = ref false in
   let options = Arg.align
-    [ ( "-d"
+    [ ( "-e"
+      , Arg.Set export
+      , " Generates an object file (\".dko\")" )
+    ; ( "-I"
+      , Arg.String Basic.add_path
+      , "DIR Adds the directory DIR to the load path" )
+    ; ( "-d"
       , Arg.String Env.set_debug_mode
-      , "FLAGS enables debugging for all given flags:
+      , "FLAGS enables debugging for the given flags.
+    Available flags:
       q : (quiet)    disables all warnings
       n : (notice)   notifies about which symbol or rule is currently treated
       o : (module)   notifies about loading of an external module (associated
@@ -97,43 +104,42 @@ let _ =
     ; ( "-q"
       , Arg.Unit (fun () -> Env.set_debug_mode "q")
       , " Quiet mode (equivalent to -d 'q')" )
-    ; ( "-e"
-      , Arg.Set export
-      , " Generates an object file (\".dko\")" )
-    ; ( "-nc"
+    ; ( "--no-color"
       , Arg.Clear Errors.color
       , " Disables colors in the output" )
-    ; ( "-stdin"
+    ; ( "-nc"
+      , Arg.Clear Errors.color
+      , "" )
+    ; ( "--stdin"
       , Arg.String (fun n -> run_on_stdin := Some(n))
       , "MOD Parses standard input using module name MOD" )
-    ; ( "-version"
-      , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
-      , " Prints the version number" )
-    ; ( "-coc"
+    ; ( "--coc"
       , Arg.Set Typing.coc
-      , " Allows to declare a symbol whose type contains Type in the
-          left-hand side of a product (useful for the Calculus of Construction)" )
-    ; ( "-eta"
+      , " [EXPERIMENTAL] Allows the declaration of symbols whose type
+                   contains Type in the left-hand side of a product
+                   (Similar to the logic of the Calculus of Constructions)" )
+    ; ( "--eta"
       , Arg.Set Reduction.eta
       , " Allows the conversion test to use eta." )
-    ; ( "-I"
-      , Arg.String Basic.add_path
-      , "DIR Adds the directory DIR to the load path" )
-    ; ( "-ccs"
+    ; ( "--type-lhs"
       , Arg.Set Typing.fail_on_unsatisfiable_constraints
-      , " Forbids rules with unsatisfiable constraints" )
-    ; ( "-errors-in-snf"
+      , " Forbids rules with untypable left-hand side" )
+    ; ( "--snf"
       , Arg.Set Errors.errors_in_snf
       , " Normalizes all terms printed in error messages" )
-    ; ( "-cc"
+    ; ( "--confluence"
       , Arg.String Confluence.set_cmd
       , "CMD Set the external confluence checker command to CMD" )
     ; ( "-nl"
       , Arg.Unit (fun _ -> ())
-      , " [DEPRECATED] Allow non left-linear rewriting rules (default behavior now)" )
+      , "" )
     ; ( "--beautify"
       , Arg.Set beautify
-      , " Pretty printer. Print on the standard output" )]
+      , " Pretty printer. Print on the standard output" )
+    ; ( "--version"
+      , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
+      , " Prints the version number" )
+    ]
   in
   let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...
 Type checks the given Dedukti FILE(s).
