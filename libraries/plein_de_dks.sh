@@ -1,6 +1,9 @@
 #!/bin/bash
 
-BIN="$(pwd)/../dkcheck.native -q"
+DKCHECK="$(pwd)/../dkcheck.native"
+DKDEP="$(pwd)/../dkdep.native"
+DKFLAGS="-q"
+
 SRC="https://git.lsv.fr/genestier/PleinDeDk/repository/master/archive.tar.gz"
 DIR="plein_de_dks"
 
@@ -34,17 +37,11 @@ if [[ ! -d ${DIR} ]]; then
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  tar xf ${DIR}.tar.gz
-  mv PleinDeDk-* ${DIR}
+  tar xf ${DIR}.tar.gz/Miscellaneous ${DIR}
   echo "OK"
 
   # Cleaning up.
   echo -n "  - cleaning up...      "
-  rm ${DIR}/.gitignore ${DIR}/removeConneries.py ${DIR}/removeTypeCtx.py
-  rm -r ${DIR}/CoqModels ${DIR}/Paradoxes ${DIR}/Sudoku
-  rm -r ${DIR}/TermChecker ${DIR}/Theories
-  mv ${DIR}/Miscellaneous/*.dk ${DIR}
-  rm -r ${DIR}/Miscellaneous
   rm ${DIR}/intBinaire.dk
   rm ${DIR}/numberBases.dk
   echo "OK"
@@ -54,29 +51,14 @@ if [[ ! -d ${DIR} ]]; then
   echo ""
 fi
 
-# Checking function.
-function check_plein_de_dks() {
-  for FILE in `ls *.dk`; do
-	${BIN} -nl ${FILE}
-	if [ $? -ne 0 ]; then
-	  echo "File ${FILE} failed !"
-	  exit 1
-	fi
-  done
-}
-
-# Export stuff for the checking function.
-export readonly BIN=${BIN}
-export -f check_plein_de_dks
-
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time bash -c "check_plein_de_dks"
+	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 else
-	\time -a -o $OUT bash -c "check_plein_de_dks"
+	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 fi
