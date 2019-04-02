@@ -50,27 +50,12 @@ if [[ ! -d ${DIR} ]]; then
   echo ""
 fi
 
-# Checking function.
-function check_holide() {
-  rm -f hol.dko
-  ${BIN} --gen-obj hol.dk
-  for FILE in `ls *.dk`; do
-    if [ ${FILE} != "hol.dk" ]; then
-      ${BIN} ${FILE}
-    fi
-  done
-}
-
-# Export stuff for the checking function.
-export readonly BIN=${BIN}
-export -f check_holide
-
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
 	\time make "DKCHECK=$BIN"
 else

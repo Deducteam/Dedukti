@@ -43,12 +43,12 @@ if [[ ! -d ${DIR} ]]; then
   echo ""
 fi
 
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
 	\time make "DKCHECK=$BIN"
 else
