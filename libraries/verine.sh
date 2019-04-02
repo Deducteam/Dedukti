@@ -1,6 +1,9 @@
 #!/bin/bash
 
-BIN="$(pwd)/../dkcheck.native -q"
+DKCHECK="$(pwd)/../dkcheck.native"
+DKDEP="$(pwd)/../dkdep.native"
+DKFLAGS="-q"
+
 SRC="https://deducteam.github.io/data/libraries/verine.tar.gz"
 DIR="verine"
 
@@ -41,27 +44,14 @@ if [[ ! -d ${DIR} ]]; then
   echo ""
 fi
 
-# Checking function.
-function check_verine() {
-  rm -f logic.dko
-  ${BIN} --gen-obj logic.dk
-  for FILE in `ls SEQ*.dk`; do
-    ${BIN} ${FILE}
-  done
-}
-
-# Export stuff for the checking function.
-export readonly BIN=${BIN}
-export -f check_verine
-
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make "DKCHECK=$BIN"
+	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 else
-	\time -a -o $OUT make "DKCHECK=$BIN"
+	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 fi

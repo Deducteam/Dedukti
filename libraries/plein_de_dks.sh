@@ -10,7 +10,6 @@ DIR="plein_de_dks"
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
-  rm -rf PleinDeDk-*
   if [[ "$1" = "fullclean" ]]; then
     rm -f ${DIR}.tar.gz
   fi
