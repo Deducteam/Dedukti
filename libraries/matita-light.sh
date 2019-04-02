@@ -1,6 +1,9 @@
 #!/bin/bash
 
-BIN="$(pwd)/../dkcheck.native -q"
+DKCHECK="$(pwd)/../dkcheck.native"
+DKDEP="$(pwd)/../dkdep.native"
+DKFLAGS="-q"
+
 SRC="https://deducteam.github.io/data/libraries/matita.tar.gz"
 DIR="matita-light"
 
@@ -49,7 +52,7 @@ fi
 
 # Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make "DKCHECK=$BIN"
+	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 else
-	\time -a -o $OUT make "DKCHECK=$BIN"
+	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 fi
