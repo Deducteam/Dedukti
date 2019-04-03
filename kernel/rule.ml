@@ -40,18 +40,19 @@ type constr =
   | Linearity of int * int
   | Bracket   of int * term
 
-type rule_infos = {
-  l           : loc;
-  name        : rule_name;
-  cst         : name;
-  args        : pattern list;
-  rhs         : term;
-  ctx_size    : int;
-  esize       : int;
-  pats        : wf_pattern array;
-  arity       : int array;
-  constraints : constr list;
-}
+type rule_infos =
+  {
+    l           : loc;
+    name        : rule_name;
+    cst         : name;
+    args        : pattern list;
+    rhs         : term;
+    ctx_size    : int;
+    esize       : int;
+    pats        : wf_pattern array;
+    arity       : int array;
+    constraints : constr list;
+  }
 
 let infer_rule_context ri =
   let res = Array.make ri.ctx_size (mk_ident "_") in

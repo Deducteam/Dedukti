@@ -63,7 +63,12 @@ type t =
   {
     name   : mident;
     file   : string;
+    (** [tables] maps module ident to the hastable of their symbols.
+        It should only contain a single entry for each module.
+        Each module's hashtable should only contain a single entry
+        for each of its symbols. *)
     tables : (rw_infos HId.t) HMd.t;
+    
     mutable external_rules:rule_infos list list;
   }
 
@@ -127,7 +132,7 @@ let symbols_of sg =
             { name  = mk_name md id;
               stat  = r.stat;
               ty    = r.ty;
-              rules =r.rules}))
+              rules = r.rules}))
     sg.tables []
 
 
