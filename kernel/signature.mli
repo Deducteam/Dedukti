@@ -71,11 +71,12 @@ val add_rules           : t -> Rule.rule_infos list -> unit
 
 type symbol_infos =
   {
-    name  : name;
     stat  : staticity;
     ty    : term;
     rules : rule_infos list;
   }
 
-val symbols_of : t ->  symbol_infos list
+module HName : Hashtbl.S
+
+val symbols_of : t ->  symbol_infos HName.t
 (** [access_signature sg] returns the content of the signature [sg]. *)
