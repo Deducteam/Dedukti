@@ -212,7 +212,14 @@ let get_deps sg : string list = (*only direct dependencies*)
     ) sg.tables []
 
 let export sg =
-  if not (marshal sg.file (get_deps sg) (HMd.find sg.tables sg.name) sg.external_rules)
+  let mod_table = HMd.find sg.tables sg.name in
+  (* Making sure all decision trees are computed before exporting. *)
+  HId.iter
+    (fun id t ->
+       if not (snd t.decision_tree)
+       then ignore(compute_dtree sg dloc (mk_name sg.name id)))
+    mod_table;
+  if not (marshal sg.file (get_deps sg) mod_table sg.external_rules)
   then raise (SignatureError (CouldNotExportModule sg.file))
 
 (******************************************************************************)
