@@ -4,7 +4,6 @@ open Basic
 open Term
 open Rule
 
-
 type Debug.flag += D_module
 let _ = Debug.register_flag D_module "Module"
 
