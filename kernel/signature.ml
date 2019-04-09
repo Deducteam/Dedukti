@@ -62,7 +62,7 @@ type rw_infos =
     stat          : staticity;
     ty            : term;
     rules         : rule_infos list;
-    decision_tree : Dtree.t option * bool
+    decision_tree : Dtree.t option
   }
 
 type t =
@@ -138,7 +138,7 @@ let symbols_of sg =
           HName.add table (mk_name md id)
             { stat  = r.stat;
               ty    = r.ty;
-              rules =r.rules}))
+              rules = r.rules}))
     sg.tables; table
 
 
@@ -176,37 +176,35 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   match lst with
   | [] -> ()
   | (r::_ as rs) ->
-    let env = get_env sg r.l r.cst in
-    let infos : rw_infos = get_info_env r.l env r.cst in
+    let infos, env = get_info_env sg r.l r.cst in
     if infos.stat = Static
     then raise (SignatureError (CannotAddRewriteRules (r.l,(id r.cst))));
     HId.replace env (id r.cst)
-      {infos with rules = infos.rules @ rs; decision_tree=(fst infos.decision_tree, false)}
+      {infos with rules = infos.rules @ rs; decision_tree=None}
 
 and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
-  let env = get_env sg lc cst in
-  let infos = get_info_env lc env cst in
-  match infos.decision_tree with
-  | t, true  -> t
-  | _, false ->
+  let infos, env = get_info_env sg lc cst in
+  match infos.decision_tree, infos.rules with
+  (* Non-empty set of rule but decision trees not computed *)
+  | None, (_::_ as rules) ->
     let trees =
-      try Dtree.of_rules infos.rules
+      try Dtree.of_rules rules
       with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
     in
-    HId.replace env (id cst)
-      {infos with decision_tree=(Some trees, true)};
+    HId.replace env (id cst) {infos with decision_tree=Some trees};
     Some trees
+  | t, _  -> t
 
-and get_env sg lc cst =
+and get_info_env sg lc cst =
   let md = md cst in
-  try HMd.find sg.tables md
-  with Not_found -> import sg lc md; HMd.find sg.tables md
-
-and get_info_env lc env cst =
-  try HId.find env (id cst)
+  let env =  (* Fetch module, import it if it's missing *)
+    try HMd.find sg.tables md
+    with Not_found -> import sg lc md; HMd.find sg.tables md
+  in
+  try (HId.find env (id cst), env)
   with Not_found -> raise (SignatureError (SymbolNotFound (lc,cst)))
 
-and get_infos sg lc cst = get_info_env lc (get_env sg lc cst) cst
+and get_infos sg lc cst = fst (get_info_env sg lc cst)
 
 (******************************************************************************)
 
@@ -225,9 +223,7 @@ let export sg =
   let mod_table = HMd.find sg.tables sg.name in
   (* Making sure all decision trees are computed before exporting. *)
   HId.iter
-    (fun id t ->
-       if not (snd t.decision_tree)
-       then ignore(compute_dtree sg dloc (mk_name sg.name id)))
+    (fun id t -> ignore(compute_dtree sg dloc (mk_name sg.name id)))
     mod_table;
   if not (marshal sg.file (get_deps sg) mod_table sg.external_rules)
   then raise (SignatureError (CouldNotExportModule sg.file))
@@ -253,8 +249,7 @@ let get_dtree sg rule_filter l cst =
        try Dtree.of_rules rules'
        with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
 
-let get_rules sg lc cst =
-  (get_infos sg lc cst).rules
+let get_rules sg lc cst = (get_infos sg lc cst).rules
 
 (******************************************************************************)
 
@@ -264,11 +259,11 @@ let add_external_declaration sg lc cst stat ty =
     let env = HMd.find sg.tables (md cst) in
     if HId.mem env (id cst)
     then raise (SignatureError (AlreadyDefinedSymbol (lc, cst)))
-    else HId.replace env (id cst) {stat; ty; rules=[]; decision_tree=(None,true)}
+    else HId.replace env (id cst) {stat; ty; rules=[]; decision_tree=None}
   with Not_found ->
     HMd.replace sg.tables (md cst) (HId.create 11);
     let env = HMd.find sg.tables (md cst) in
-    HId.replace env (id cst) {stat; ty; rules=[]; decision_tree=(None,true)}
+    HId.replace env (id cst) {stat; ty; rules=[]; decision_tree=None}
 
 let add_declaration sg lc v st ty =
   let cst = mk_name sg.name v in
