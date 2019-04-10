@@ -237,19 +237,19 @@ let is_static sg lc cst =
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
+let get_rules sg lc cst = (get_infos sg lc cst).rules
+
 let get_dtree sg rule_filter l cst =
   match compute_dtree sg l cst, rule_filter with
-  | None       , _      -> Dtree.empty
-  | Some(trees), None   -> trees
-  | Some(trees), Some f ->
-     let rules = (get_infos sg l cst).rules in
+  | None      , _      -> Dtree.empty
+  | Some trees, None   -> trees
+  | Some trees, Some f ->
+     let rules = get_rules sg l cst in
      let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
      if List.length rules' == List.length rules then trees
      else
        try Dtree.of_rules rules'
        with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
-
-let get_rules sg lc cst = (get_infos sg lc cst).rules
 
 (******************************************************************************)
 
