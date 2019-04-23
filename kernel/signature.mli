@@ -24,16 +24,6 @@ exception SignatureError of signature_error
 
 type staticity = Static | Definable
 
-type rw_infos =
-  {
-    stat          : staticity;
-    ty            : term;
-    rules         : rule_infos list;
-    decision_tree : Dtree.t option
-  }
-
-type symbol_infos = name * rw_infos
-
 type t
 
 val make                : string -> t
@@ -79,5 +69,14 @@ val add_rules           : t -> Rule.rule_infos list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)
 
-val symbols_of : t ->  symbol_infos list
+type symbol_infos =
+  {
+    stat  : staticity;
+    ty    : term;
+    rules : rule_infos list;
+  }
+
+module HName : Hashtbl.S
+
+val symbols_of : t ->  symbol_infos HName.t
 (** [access_signature sg] returns the content of the signature [sg]. *)

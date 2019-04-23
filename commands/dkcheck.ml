@@ -119,7 +119,7 @@ let _ =
                    contains Type in the left-hand side of a product
                    (Similar to the logic of the Calculus of Constructions)" )
     ; ( "--eta"
-      , Arg.Set Reduction.eta
+      , Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity]
       , " Allows the conversion test to use eta." )
     ; ( "--type-lhs"
       , Arg.Set Typing.fail_on_unsatisfiable_constraints

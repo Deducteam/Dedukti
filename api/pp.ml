@@ -109,7 +109,7 @@ let rec print_term m out t =
     | DB  (_,x,n)        -> print_db out (x,n)
     | Const (_,cst)      -> print_const out cst
     | App (f,a,args)     ->
-      fprintf out "@[<v2>%a@]"
+      fprintf out "@[<v 2>%a@]"
         (pp_print_list (print_term_wp (m-2))) (f::a::args)
     | Lam (_,x,None,f)   ->
       fprintf out "@[%a =>@ @[%a@]@]"

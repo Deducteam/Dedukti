@@ -107,7 +107,7 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   if unused_vars
   then
     begin
-      Debug.(debug D_warn "Local variables in the rule %a are not used (%a)")
+      Debug.(debug D_warn "Local variables in the rule:\n%a\nare not used (%a)")
         pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
       if has_brackets then raise (Env.EnvError (l,Env.BracketScopingError))
     end;
