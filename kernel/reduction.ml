@@ -18,7 +18,7 @@ type red_cfg = {
   target   : red_target;
   strat    : red_strategy;
   beta     : bool;
-  logger   : position -> Rule.rule_name -> term Lazy.t -> unit;
+  logger   : position -> Rule.rule_name -> term Lazy.t -> term Lazy.t -> unit;
 }
 
 let pp_red_cfg fmt cfg =
@@ -29,7 +29,7 @@ let pp_red_cfg fmt cfg =
   Format.fprintf fmt "[%a]" (pp_list "," Format.pp_print_string) args
 
 let default_cfg =
-  {select=None; nb_steps=None; target=Snf; strat=ByName; beta=true; logger=fun _ _ _  -> () }
+  {select=None; nb_steps=None; target=Snf; strat=ByName; beta=true; logger=fun _ _ _ _ -> () }
 
 let selection  = ref None
 
@@ -332,14 +332,14 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
         if stop () || not !beta then {st with term=mk_Lam l x (Some ty') t}
         else
           let st' = { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s } in
-          let _ = log pos Rule.Beta st' in
+          let _ = log pos Rule.Beta st st' in
           aux pos st'
       (* Beta redex *)
       | { ctx; term=Lam (_,_,_,t); stack=p::s }, _ ->
         if not !beta then st
         else
           let st' = { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s } in
-          let _ = log pos Rule.Beta st' in
+          let _ = log pos Rule.Beta st st' in
           aux pos st'
 
       (* DeBruijn index: environment lookup *)
@@ -370,7 +370,7 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
            | None -> st
            | Some (rn,ctx,term) ->
               let st' = { ctx; term; stack=s2 } in
-              log pos rn st';
+              log pos rn st st';
               aux pos st'
   in aux
 
@@ -391,12 +391,13 @@ let term_snf (st_reducer:state_reducer) : term_reducer =
 let reduction cfg sg te =
   let log, stop =
     match cfg.nb_steps with
-    | None   -> (fun _ _ _ -> ()), (fun () -> false)
+    | None   -> (fun _ _ _ _ -> ()), (fun () -> false)
     | Some n ->
       let aux = ref n in
-      (fun _ _ _ -> decr aux), (fun () -> !aux <= 0)
+      (fun _ _ _ _-> decr aux), (fun () -> !aux <= 0)
   in
-  let st_logger = fun p rn st -> log p rn st; cfg.logger p rn (lazy (term_of_state st)) in
+  let st_logger = fun p rn stb sta -> log p rn stb sta;
+    cfg.logger p rn (lazy (term_of_state stb)) (lazy (term_of_state sta)) in
   let st_red = logged_state_whnf st_logger stop cfg.strat sg in
   let term_red = match cfg.target with Snf -> term_snf | Whnf -> term_whnf in
   select cfg.select cfg.beta;

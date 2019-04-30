@@ -201,7 +201,8 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
         with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
       in
       HId.add env (id r.cst) {stat = infos.stat; ty=ty; rules; decision_tree = Some(trees)}
-    with SignatureError (SymbolNotFound _) as e ->
+    with SignatureError (SymbolNotFound _)
+       | SignatureError (UnmarshalUnknown _) as e ->
       (* The symbol cst is not in the signature *)
       if !unsafe then
         begin

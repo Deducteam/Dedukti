@@ -15,7 +15,7 @@ type red_cfg = {
   target   : red_target;
   strat    : red_strategy;
   beta     : bool;
-  logger   : position -> Rule.rule_name -> term Lazy.t -> unit
+  logger   : position -> Rule.rule_name -> term Lazy.t -> term Lazy.t -> unit
 }
 (** Configuration for reduction.
     [select] = [Some f] restreins rules according to the given filter on names.
