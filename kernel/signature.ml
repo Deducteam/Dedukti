@@ -193,7 +193,11 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       let infos, env = get_info_env sg r.l r.cst in
       if infos.stat = Static && not (!unsafe)
       then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
-      HId.replace env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree=None};
+      let tree =
+        try Dtree.of_rules lst
+        with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+      in
+      HId.add env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= Some tree};
     with SignatureError (SymbolNotFound _)
        | SignatureError (UnmarshalUnknown _) as e ->
       (* The symbol cst is not in the signature *)
@@ -202,23 +206,27 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
           add_external_declaration sg r.l r.cst Definable (mk_Kind);
           let _,env = get_info_env sg r.l r.cst in
           let rules = lst in
-          HId.replace env (id r.cst)
-            {stat = Definable; ty= mk_Kind; rules; decision_tree = None}
+          let tree =
+            try Dtree.of_rules lst
+            with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+          in
+          HId.add env (id r.cst)
+            {stat = Definable; ty= mk_Kind; rules; decision_tree = Some tree}
         end
       else
         raise e
 
-and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
+and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) filter : Dtree.t option =
   let infos, env = get_info_env sg lc cst in
-  match infos.decision_tree, infos.rules with
+  match infos.decision_tree, filter with
   (* Non-empty set of rule but decision trees not computed *)
-  | None, (_::_ as rules) ->
+  | None, _ -> assert false; (*
     let trees =
       try Dtree.of_rules rules
       with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
     in
-    HId.replace env (id cst) {infos with decision_tree=Some trees};
-    Some trees
+    HId.add env (id cst) {infos with decision_tree=Some trees};
+    Some trees *)
   | t, _  -> t
 
 and get_info_env sg lc cst =
@@ -256,7 +264,7 @@ let export sg =
   let mod_table = HMd.find sg.tables sg.name in
   (* Making sure all decision trees are computed before exporting. *)
   HId.iter
-    (fun id t -> ignore(compute_dtree sg dloc (mk_name sg.name id)))
+    (fun id t -> ignore(compute_dtree sg dloc (mk_name sg.name id) None))
     mod_table;
   if not (marshal sg.file (get_deps sg) mod_table sg.external_rules)
   then raise (SignatureError (CouldNotExportModule sg.file))
@@ -272,18 +280,26 @@ let get_type sg lc cst = (get_infos sg lc cst).ty
 
 let get_rules sg lc cst = (get_infos sg lc cst).rules
 
-let get_dtree sg rule_filter l cst =
+let get_dtree sg rule_filter lc cst =
+  let dtree_of_rules = function
+    | [] -> Dtree.empty
+    | _ as rs -> Dtree.of_rules rs
+  in
   try
-  match compute_dtree sg l cst, rule_filter with
-  | None      , _      -> Dtree.empty
-  | Some trees, None   -> trees
-  | Some trees, Some f ->
-     let rules = get_rules sg l cst in
-     let rules' = List.filter (fun (r:Rule.rule_infos) -> f r.name) rules in
-     if List.length rules' == List.length rules then trees
-     else
-       try Dtree.of_rules rules'
-       with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
+    let infos,env = get_info_env sg lc cst in
+    match infos.decision_tree with
+    | None ->
+      begin
+        match rule_filter with
+        | None ->
+          let trees = dtree_of_rules infos.rules in
+          HId.add env (id cst) {infos with decision_tree=Some trees};
+          trees
+        | Some f ->
+          let rules = List.filter (fun (r:Rule.rule_infos) -> f r.name) infos.rules in
+          dtree_of_rules rules
+      end
+    | Some t -> t
   with e ->
     if !unsafe then Dtree.empty else raise e
 
