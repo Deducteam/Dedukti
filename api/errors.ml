@@ -3,6 +3,7 @@ open Basic
 open Format
 open Term
 open Reduction
+open Pp
 
 let errors_in_snf = ref false
 
@@ -34,9 +35,12 @@ let fail_exit code lc fmt =
   print_error_code code;
   fail lc fmt
 
-let pp_typed_context out = function
-  | [] -> ()
-  | _::_ as ctx -> fprintf out " in context:\n%a" Rule.pp_typed_context ctx
+let try_print_oneliner fmt (te,ctxt) =
+  let one_liner = asprintf "%a" pp_term te in
+  if String.length one_liner < 60
+  then Format.fprintf fmt "'%s'%a." one_liner print_err_ctxt ctxt
+  else if ctxt = [] then Format.fprintf fmt "@.%a@." print_term te
+  else Format.fprintf fmt "@.%a@.----%a" print_term te print_err_ctxt ctxt
 
 let fail_typing_error def_loc err =
   let open Typing in
@@ -46,64 +50,64 @@ let fail_typing_error def_loc err =
       "Kind is not typable."
   | ConvertibilityError (te,ctx,exp,inf) ->
     fail (get_loc te)
-      "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
-      pp_term te pp_typed_context ctx pp_term (snf exp) pp_term (snf inf)
+      "Error while typing %a@.---- Expected:@.%a@.---- Inferred:@.%a@."
+      try_print_oneliner (te,ctx) print_term (snf exp) print_term (snf inf)
   | VariableNotFound (lc,x,n,ctx) ->
     fail lc
-      "The variable '%a' was not found in context:\n"
-      pp_term (mk_DB lc x n) pp_typed_context ctx
+      "The variable '%a' was not found in context:@."
+      pp_term (mk_DB lc x n) print_err_ctxt ctx
   | SortExpected (te,ctx,inf) ->
     fail (Term.get_loc te)
-      "Error while typing '%a'%a.\nExpected: a sort.\nInferred: %a."
-      pp_term te pp_typed_context ctx pp_term (snf inf)
+      "Error while typing %a@.---- Expected: a sort.@.---- Inferred: %a."
+      try_print_oneliner (te,ctx) pp_term (snf inf)
   | ProductExpected (te,ctx,inf) ->
     fail (get_loc te)
-      "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
-      pp_term te pp_typed_context ctx pp_term (snf inf)
+      "Error while typing %a@.---- Expected: a product type.@.---- Inferred: %a."
+      try_print_oneliner (te,ctx) print_err_ctxt ctx pp_term (snf inf)
   | InexpectedKind (te,ctx) ->
     fail (get_loc te)
-      "Error while typing '%a'%a.\nExpected: anything but Kind.\nInferred: Kind."
-      pp_term te pp_typed_context ctx
+      "Error while typing '%a'%a.@.---- Expected: anything but Kind.@.---- Inferred: Kind."
+      pp_term te print_err_ctxt ctx
   | DomainFreeLambda lc ->
     fail lc "Cannot infer the type of domain-free lambda."
   | CannotInferTypeOfPattern (p,ctx) ->
     fail (Rule.get_loc_pat p)
-      "Error while typing '%a'%a.\nThe type could not be infered: \
+      "Error while typing '%a'%a.@.The type could not be infered: \
        Probably it is not a Miller's pattern."
-      Rule.pp_pattern p pp_typed_context ctx
+      Rule.pp_pattern p print_err_ctxt ctx
   | UnsatisfiableConstraints (r,(q,t1,t2)) ->
     fail (Rule.get_loc_rule r)
-      "Error while typing rewrite rule.\n\
+      "Error while typing rewrite rule.@.\
        Cannot solve typing constraints: %a ~ %a%s"
       pp_term t1 pp_term t2
       (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")
   | BracketExprBoundVar (te,ctx) ->
     fail (get_loc te)
-      "Error while typing the term { %a }%a.\n\
+      "Error while typing the term { %a }%a.@.\
        Brackets cannot contain bound variables."
-      pp_term te pp_typed_context ctx
+      pp_term te print_typed_context ctx
   | BracketExpectedTypeBoundVar (te,ctx,ty) ->
     fail (get_loc te)
-      "Error while typing the term { %a }%a.\n\
+      "Error while typing the term { %a }%a.@.\
        The expected type of brackets cannot contains bound variables."
-      pp_term te pp_typed_context ctx
+      pp_term te print_typed_context ctx
   | BracketExpectedTypeRightVar (te,ctx,ty) ->
     fail (get_loc te)
-      "Error while typing the term { %a }%a.\n\
+      "Error while typing the term { %a }%a.@.\
        The expected type of brackets can only contain variables occuring\
        to their left."
-      pp_term te pp_typed_context ctx
+      pp_term te print_typed_context ctx
   | TypingCircularity (l,x,n,ctx,ty) ->
     fail l
-      "Typing circularity found while typing variable '%a[%i]'%a.\n\
-       The expected type of variable is not allowed to refer to itself.\n\
-       This is due to bracket expressions refering to this variable.\n\
-       Expected type:%a." pp_ident x n pp_typed_context ctx pp_term ty
+      "Typing circularity found while typing variable '%a[%i]'%a.@.\
+       The expected type of variable is not allowed to refer to itself.@.\
+       This is due to bracket expressions refering to this variable.@.\
+       Expected type:%a." pp_ident x n print_typed_context ctx pp_term ty
   | FreeVariableDependsOnBoundVariable (l,x,n,ctx,ty) ->
     fail l
-      "Error while typing '%a[%i]'%a.\n\
-       The type is not allowed to refer to bound variables.\n\
-       Infered type:%a." pp_ident x n pp_typed_context ctx pp_term ty
+      "Error while typing '%a[%i]'%a.@.\
+       The type is not allowed to refer to bound variables.@.\
+       Infered type:%a." pp_ident x n print_err_ctxt ctx pp_term ty
   | Unconvertible (l,t1,t2) ->
     fail l
       "Assertion error. Given terms are not convertible: '%a' and '%a'"
@@ -166,7 +170,7 @@ let pp_cerr out err =
     | NotConfluent   cmd -> cmd, "NO"
     | MaybeConfluent cmd -> cmd, "MAYBE"
     | CCFailure      cmd -> cmd, "ERROR" in
-  fprintf out "Checker's answer: %s.\nCommand: %s" ans cmd
+  fprintf out "Checker's answer: %s.@.Command: %s" ans cmd
 
 let fail_signature_error def_loc err =
   let open Signature in
@@ -190,16 +194,16 @@ let fail_signature_error def_loc err =
       pp_name cst pp_name cst
   | ConfluenceErrorRules (lc,rs,cerr) ->
     fail lc
-      "Confluence checking failed when adding the rewrite rules below.\n%a\n%a"
+      "Confluence checking failed when adding the rewrite rules below.@.%a@.%a"
       pp_cerr cerr (pp_list "\n" Rule.pp_rule_infos) rs
   | ConfluenceErrorImport (lc,md,cerr) ->
     fail lc
-      "Confluence checking failed when importing the module '%a'.\n%a"
+      "Confluence checking failed when importing the module '%a'.@.%a"
       pp_mident md pp_cerr cerr
   | GuardNotSatisfied(lc, t1, t2) ->
     fail lc
-      "Error while reducing a term: a guard was not satisfied.\n\
-       Found: %a.\n\
+      "Error while reducing a term: a guard was not satisfied.@.\
+       Found: %a.@.\
        Expected: %a"
       pp_term (snf t1) pp_term (snf t2)
   | CouldNotExportModule file ->

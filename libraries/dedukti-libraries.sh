@@ -1,7 +1,9 @@
 #!/bin/bash
 
+DKCHECK="$(pwd)/../dkcheck.native"
+DKDEP="$(pwd)/../dkdep.native"
+DKFLAGS="-q"
 
-BIN="$(pwd)/../dkcheck.native -q"
 SRC="https://github.com/Deducteam/Libraries/archive/master.zip"
 DIR="Libraries-master"
 
@@ -28,8 +30,7 @@ if [[ ! -d ${DIR} ]]; then
   # Download the library if necessary.
   if [[ ! -f Libraries-master.zip ]]; then
     echo -n "  - downloading...      "
-    wget -q ${SRC}
-    mv master.zip Libraries-master.zip
+    wget -q ${SRC} -O ${DIR}.zip
     echo "OK"
   fi
 
@@ -43,14 +44,14 @@ if [[ ! -d ${DIR} ]]; then
   echo ""
 fi
 
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make "DKCHECK=$BIN"
+	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 else
-	\time -a -o $OUT make "DKCHECK=$BIN"
+	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 fi

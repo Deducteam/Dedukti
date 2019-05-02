@@ -45,7 +45,7 @@ let raise_as_env lc = function
 
 let sg = ref (Signature.make "noname")
 
-let check_arity     = ref true
+let check_arity = ref true
 
 let init file =
   sg := Signature.make file;
@@ -81,9 +81,8 @@ let is_static lc cst = Signature.is_static !sg lc cst
 
 (*         Rule checking       *)
 
-(** Checks that all Miller variables are applied to the same number of
-    distinct free variable on the left hand side.
-    Checks that they are applied to at least as many arguments on the rhs.  *)
+(** Checks that all Miller variables are applied to at least
+    as many arguments on the rhs as they are on the lhs (their arity). *)
 let _check_arity (r:rule_infos) : unit =
   let check l id n k nargs =
     let expected_args = r.arity.(n-k) in

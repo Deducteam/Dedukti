@@ -114,7 +114,7 @@ let _ =
       , " Allows to declare a symbol whose type contains Type in the
           left-hand side of a product (useful for the Calculus of Construction)" )
     ; ( "-eta"
-      , Arg.Set Reduction.eta
+      , Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity]
       , " Allows the conversion test to use eta." )
     ; ( "-I"
       , Arg.String Basic.add_path

@@ -80,8 +80,7 @@ let to_signature : string -> ?sg:Signature.t -> entry list -> Signature.t =
         let cst = Basic.mk_name md id in
         let rule = { name= Delta(cst) ; ctx = [] ; pat = Pattern(lc, cst, []); rhs = te ; } in
         Signature.add_rules sg [Rule.to_rule_infos rule]
-      | Def(lc,id,op, None,te) ->
-        Errors.fail_exit (-1) Basic.dloc "All the types should be given"
+      | Def(lc,id,op, None,te) -> assert false (*FIXME *)
       | Rules(lc,rs) ->
         Signature.add_rules sg (List.map Rule.to_rule_infos rs)
       | Require(lc,md) -> Signature.import sg lc md
