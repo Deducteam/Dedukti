@@ -45,7 +45,7 @@ val reduction : red_cfg -> Signature.t -> term -> term
     and using the signature [sg]. *)
 
 type convertibility_test = Signature.t -> term -> term -> bool
-type matching_test = Rule.rule_name -> Signature.t -> term -> term -> bool
+type matching_test = Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 
 val default_reduction : ?conv_test:convertibility_test -> ?match_test:matching_test -> red_target -> Signature.t -> term -> term
 (** [default_reduction tar sg te] reduces the term [te] to its [tar] normal form

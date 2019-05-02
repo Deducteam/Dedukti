@@ -100,7 +100,7 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
 type rw_strategy         = Signature.t -> term -> term
 type rw_state_strategy   = Signature.t -> state -> state
 
-type matching_test = Rule.rule_name -> Signature.t -> term -> term -> bool
+type matching_test = Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 type convertibility_test = Signature.t -> term -> term -> bool
 
 let get_context (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
@@ -125,13 +125,13 @@ let rec test (rn:Rule.rule_name) (sg:Signature.t) (convertible:matching_test)
   | Linearity (i,j)::tl ->
      let t1 = Lazy.force (LList.nth ctx i) in
      let t2 = Lazy.force (LList.nth ctx j) in
-     if convertible rn sg t1 t2
+     if convertible (Linearity (i,j)) rn sg t1 t2
      then test rn sg convertible ctx tl
      else false
   | Bracket (i,t)::tl ->
      let t1 = Lazy.force (LList.nth ctx i) in
      let t2 = term_of_state { ctx; term=t; stack=[] } in
-     if convertible rn sg t1 t2
+     if convertible (Bracket (i,t)) rn sg t1 t2
      then test rn sg convertible ctx tl
      else raise (Signature.SignatureError(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
 
@@ -282,7 +282,7 @@ let rec conversion_step : (term * term) -> (term * term) list -> (term * term) l
   | _ -> raise NotConvertible
 
 and are_convertible_lst sg : (term*term) list -> bool =
-  let match_convertible _ = are_convertible in
+  let match_convertible _ _ = are_convertible in
   function
   | [] -> true
   | (t1,t2)::lst -> are_convertible_lst sg
@@ -294,7 +294,7 @@ and are_convertible sg t1 t2 =
   try are_convertible_lst sg [(t1,t2)]
   with NotConvertible -> false
 
-let matching_test _ = are_convertible
+let matching_test _ _ = are_convertible
 
 let default_reduction ?(conv_test=are_convertible) ?(match_test=matching_test) = function
   | Snf -> snf conv_test match_test
@@ -409,7 +409,7 @@ module type RE = sig
   val whnf            : Signature.t -> term -> term
   val snf             : Signature.t -> term -> term
   val are_convertible : Signature.t -> term -> term -> bool
-  val matching_test   : Rule.rule_name -> Signature.t -> term -> term -> bool
+  val matching_test   : matching_test
 end
 
 module REDefault : RE =
@@ -417,5 +417,5 @@ struct
   let whnf = default_reduction ~conv_test:are_convertible Whnf
   let snf  = default_reduction ~conv_test:are_convertible Snf
   let are_convertible = are_convertible
-  let matching_test _ = are_convertible
+  let matching_test _ _ = are_convertible
 end
