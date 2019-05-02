@@ -193,41 +193,20 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       let infos, env = get_info_env sg r.l r.cst in
       if infos.stat = Static && not (!unsafe)
       then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
-      let tree =
-        try Dtree.of_rules lst
-        with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
-      in
-      HId.add env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= Some tree};
+      HId.add env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None};
     with SignatureError (SymbolNotFound _)
        | SignatureError (UnmarshalUnknown _) as e ->
       (* The symbol cst is not in the signature *)
       if !unsafe then
         begin
           add_external_declaration sg r.l r.cst Definable (mk_Kind);
-          let _,env = get_info_env sg r.l r.cst in
+          let infos,env = get_info_env sg r.l r.cst in
           let rules = lst in
-          let tree =
-            try Dtree.of_rules lst
-            with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
-          in
           HId.add env (id r.cst)
-            {stat = Definable; ty= mk_Kind; rules; decision_tree = Some tree}
+            {stat = Definable; ty= mk_Kind; rules; decision_tree = None}
         end
       else
         raise e
-
-and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) filter : Dtree.t option =
-  let infos, env = get_info_env sg lc cst in
-  match infos.decision_tree, filter with
-  (* Non-empty set of rule but decision trees not computed *)
-  | None, _ -> assert false; (*
-    let trees =
-      try Dtree.of_rules rules
-      with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
-    in
-    HId.add env (id cst) {infos with decision_tree=Some trees};
-    Some trees *)
-  | t, _  -> t
 
 and get_info_env sg lc cst =
   let md = md cst in
@@ -240,34 +219,6 @@ and get_info_env sg lc cst =
 
 and get_infos sg lc cst = fst (get_info_env sg lc cst)
 
-(******************************************************************************)
-
-let get_md_deps (lc:loc) (md:mident) =
-  let (deps,_,_) = unmarshal lc (string_of_mident md) in
-  List.map mk_mident deps
-
-let get_deps sg : string list = (*only direct dependencies*)
-  HMd.fold (
-    fun md _ lst ->
-      if mident_eq md sg.name then lst
-      else (string_of_mident md)::lst
-    ) sg.tables []
-
-
-let rec import_signature sg sg_ext =
-  HMd.iter (fun m hid ->
-      if not (HMd.mem sg.tables m) then
-        HMd.add sg.tables m (HId.copy hid)) sg_ext.tables;
-  List.iter (fun rs -> add_rule_infos sg rs) sg_ext.external_rules
-
-let export sg =
-  let mod_table = HMd.find sg.tables sg.name in
-  (* Making sure all decision trees are computed before exporting. *)
-  HId.iter
-    (fun id t -> ignore(compute_dtree sg dloc (mk_name sg.name id) None))
-    mod_table;
-  if not (marshal sg.file (get_deps sg) mod_table sg.external_rules)
-  then raise (SignatureError (CouldNotExportModule sg.file))
 
 (******************************************************************************)
 
@@ -297,11 +248,51 @@ let get_dtree sg rule_filter lc cst =
           trees
         | Some f ->
           let rules = List.filter (fun (r:Rule.rule_infos) -> f r.name) infos.rules in
-          dtree_of_rules rules
+          let trees = dtree_of_rules rules in
+          HId.add env (id cst) {infos with decision_tree=Some trees};
+          trees
       end
-    | Some t -> t
+    | Some t ->
+      match rule_filter with
+      | Some f ->
+        let rules = List.filter (fun (r:Rule.rule_infos) -> f r.name) infos.rules in
+        if List.length rules = List.length infos.rules then
+          t
+        else
+          dtree_of_rules rules
+      | None -> t
   with e ->
     if !unsafe then Dtree.empty else raise e
+
+(******************************************************************************)
+
+let get_md_deps (lc:loc) (md:mident) =
+  let (deps,_,_) = unmarshal lc (string_of_mident md) in
+  List.map mk_mident deps
+
+let get_deps sg : string list = (*only direct dependencies*)
+  HMd.fold (
+    fun md _ lst ->
+      if mident_eq md sg.name then lst
+      else (string_of_mident md)::lst
+    ) sg.tables []
+
+
+let rec import_signature sg sg_ext =
+  HMd.iter (fun m hid ->
+      if not (HMd.mem sg.tables m) then
+        HMd.add sg.tables m (HId.copy hid)) sg_ext.tables;
+  List.iter (fun rs -> add_rule_infos sg rs) sg_ext.external_rules
+
+let export sg =
+  let mod_table = HMd.find sg.tables sg.name in
+  (* Making sure all decision trees are computed before exporting. *)
+  HId.iter
+    (fun id t -> ignore(get_dtree sg None dloc (mk_name sg.name id)))
+    mod_table;
+  if not (marshal sg.file (get_deps sg) mod_table sg.external_rules)
+  then raise (SignatureError (CouldNotExportModule sg.file))
+
 
 (******************************************************************************)
 
