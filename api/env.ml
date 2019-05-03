@@ -60,7 +60,7 @@ let get_type lc cst =
   with e -> raise_as_env lc e
 
 let get_dtree lc cst =
-  try Signature.get_dtree !sg None lc cst
+  try Signature.get_dtree !sg lc cst
   with e -> raise_as_env lc e
 
 let export () =

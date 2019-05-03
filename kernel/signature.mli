@@ -52,10 +52,9 @@ val get_type            : t -> loc -> name -> term
 (** [get_type sg l md id] returns the type of the constant [md.id] inside the
     environement [sg]. *)
 
-val get_dtree           : t -> (Rule.rule_name -> bool) option -> loc -> name -> Dtree.t
+val get_dtree           : t -> loc -> name -> Dtree.t
 (** [get_dtree sg filter l cst] returns the decision/matching tree associated
-    with [cst] inside the environment [sg]. When filter is specified, it is used
-    to select only the corresponding set of rules  *)
+    with [cst] inside the environment [sg]. *)
 
 val get_rules           : t -> loc -> name -> rule_infos list
 (** [get_rules sg lc cst] returns a list of rules that defines the symbol. *)

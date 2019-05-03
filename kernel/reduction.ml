@@ -166,7 +166,9 @@ let rec find_case (st:state) (cases:(case*dtree) list)
 let gamma_rw (sg:Signature.t)
              (convertible:matching_test)
              (forcing:rw_strategy)
-             (strategy:rw_state_strategy) : stack -> dtree -> (rule_name*env*term) option =
+             (strategy:rw_state_strategy)
+             (filter:(Rule.rule_name -> bool) option)
+  : stack -> dtree -> (rule_name*env*term) option =
   let rec rw stack = function
     | Switch (i,cases,def) ->
        begin
@@ -180,11 +182,19 @@ let gamma_rw (sg:Signature.t)
          | None -> None
        end
     | Test (rn, matching_pb, eqs, right, def) ->
-      match get_context sg forcing stack matching_pb with
-      | None -> bind_opt (rw stack) def
-      | Some ctx ->
-        if test rn sg convertible ctx eqs then Some (rn, ctx, right)
-        else bind_opt (rw stack) def
+      let b =
+        match filter with
+        | None -> true
+        | Some f -> f rn
+      in
+      if b then
+        match get_context sg forcing stack matching_pb with
+        | None -> bind_opt (rw stack) def
+        | Some ctx ->
+          if test rn sg convertible ctx eqs then Some (rn, ctx, right)
+          else bind_opt (rw stack) def
+      else
+        bind_opt (rw stack) def
   in
   rw
 
@@ -240,12 +250,12 @@ let rec state_whnf conv_test matching_test (sg:Signature.t) (st:state) : state =
     state_whnf conv_test matching_test sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack } ->
-    let trees = Signature.get_dtree sg !selection l n in
+    let trees = Signature.get_dtree sg l n in
     match find_dtree (List.length stack) trees with
     | None -> st
     | Some (ar, tree) ->
       let s1, s2 = split ar stack in
-      match gamma_rw sg matching_test (snf conv_test matching_test) (state_whnf conv_test matching_test) s1 tree with
+      match gamma_rw sg matching_test (snf conv_test matching_test) (state_whnf conv_test matching_test)  !selection s1 tree with
       | None -> st
       | Some (_,ctx,term) -> state_whnf conv_test matching_test sg { ctx; term; stack=s2 }
 
@@ -361,12 +371,12 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
 
       (* Potential Gamma redex *)
       | { ctx; term=Const (l,n); stack }, _ ->
-        let trees = Signature.get_dtree sg !selection l n in
+        let trees = Signature.get_dtree sg l n in
         match find_dtree (List.length stack) trees with
         | None -> st
         | Some (ar, tree) ->
            let s1, s2 = split ar stack in
-           match gamma_rw sg matching_test (snf are_convertible matching_test) (state_whnf are_convertible matching_test) s1 tree with
+           match gamma_rw sg matching_test (snf are_convertible matching_test) (state_whnf are_convertible matching_test)  !selection s1 tree with
            | None -> st
            | Some (rn,ctx,term) ->
               let st' = { ctx; term; stack=s2 } in

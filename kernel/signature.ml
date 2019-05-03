@@ -193,11 +193,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       let infos, env = get_info_env sg r.l r.cst in
       if infos.stat = Static && not (!unsafe)
       then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
-      let tree =
-        try Dtree.of_rules lst
-        with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
-      in
-      HId.add env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= Some tree};
+      HId.add env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None};
     with SignatureError (SymbolNotFound _)
        | SignatureError (UnmarshalUnknown _) as e ->
       (* The symbol cst is not in the signature *)
@@ -206,28 +202,24 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
           add_external_declaration sg r.l r.cst Definable (mk_Kind);
           let _,env = get_info_env sg r.l r.cst in
           let rules = lst in
-          let tree =
-            try Dtree.of_rules lst
-            with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
-          in
           HId.add env (id r.cst)
-            {stat = Definable; ty= mk_Kind; rules; decision_tree = Some tree}
+            {stat = Definable; ty= mk_Kind; rules; decision_tree = None}
         end
       else
         raise e
 
-and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) filter : Dtree.t option =
+and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
   let infos, env = get_info_env sg lc cst in
-  match infos.decision_tree, filter with
+  match infos.decision_tree, infos.rules with
   (* Non-empty set of rule but decision trees not computed *)
-  | None, _ -> assert false; (*
+  | None, (_::_ as rules) ->
     let trees =
       try Dtree.of_rules rules
       with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
     in
-    HId.add env (id cst) {infos with decision_tree=Some trees};
-    Some trees *)
-  | t, _  -> t
+    HId.replace env (id cst) {infos with decision_tree=Some trees};
+    Some trees
+| t, _ -> t
 
 and get_info_env sg lc cst =
   let md = md cst in
@@ -262,10 +254,6 @@ let rec import_signature sg sg_ext =
 
 let export sg =
   let mod_table = HMd.find sg.tables sg.name in
-  (* Making sure all decision trees are computed before exporting. *)
-  HId.iter
-    (fun id t -> ignore(compute_dtree sg dloc (mk_name sg.name id) None))
-    mod_table;
   if not (marshal sg.file (get_deps sg) mod_table sg.external_rules)
   then raise (SignatureError (CouldNotExportModule sg.file))
 
@@ -280,42 +268,15 @@ let get_type sg lc cst = (get_infos sg lc cst).ty
 
 let get_rules sg lc cst = (get_infos sg lc cst).rules
 
-let get_dtree sg rule_filter lc cst =
-  let dtree_of_rules = function
-    | [] -> Dtree.empty
-    | _ as rs -> Dtree.of_rules rs
-  in
+let get_dtree sg lc cst =
   try
-    let infos,env = get_info_env sg lc cst in
-    match infos.decision_tree with
-    | None ->
-      begin
-        match rule_filter with
-        | None ->
-          let trees = dtree_of_rules infos.rules in
-          HId.add env (id cst) {infos with decision_tree=Some trees};
-          trees
-        | Some f ->
-          let rules = List.filter (fun (r:Rule.rule_infos) -> f r.name) infos.rules in
-          dtree_of_rules rules
-      end
-    | Some t -> t
+    match compute_dtree sg lc cst with
+    | None -> Dtree.empty
+    | Some trees -> trees
   with e ->
     if !unsafe then Dtree.empty else raise e
 
 (******************************************************************************)
-
-let add_external_declaration sg lc cst stat ty =
-  try
-    Confluence.add_constant cst;
-    let env = HMd.find sg.tables (md cst) in
-    if HId.mem env (id cst)
-    then raise (SignatureError (AlreadyDefinedSymbol (lc, cst)))
-    else HId.replace env (id cst) {stat; ty; rules=[]; decision_tree=None}
-  with Not_found ->
-    HMd.replace sg.tables (md cst) (HId.create 11);
-    let env = HMd.find sg.tables (md cst) in
-    HId.replace env (id cst) {stat; ty; rules=[]; decision_tree=None}
 
 let add_declaration sg lc v st ty =
   let cst = mk_name sg.name v in
