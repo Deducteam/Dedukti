@@ -22,6 +22,7 @@ type env_error =
   | EnvErrorType        of Typing.typing_error
   | EnvErrorSignature   of signature_error
   | EnvErrorRule        of rule_error
+  | EnvErrorDep         of Dep.dep_error
   | NonLinearRule       of name
   | NotEnoughArguments  of ident * int * int * int
   | KindLevelDefinition of ident

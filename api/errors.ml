@@ -213,6 +213,17 @@ let fail_signature_error def_loc err =
       "Fail to export module '%a' to file %s."
       pp_mident (E.get_name ()) file
 
+let fail_dep_error err =
+  match err with
+  | Dep.ModuleNotFound s ->
+    fail dloc "No file for module %S in path...@." s
+  | Dep.MultipleModules (s,ss) ->
+    fail dloc "Several files correspond to module %S...@. %a" s
+      (pp_list "@." (fun fmt s -> Format.fprintf fmt " - %s" s)) ss
+  | Dep.CircularDependencies (s,ss) ->
+    fail dloc "Circular Dependency dectected for module %S...%a" s
+      (pp_list "@." (fun fmt s -> Format.fprintf fmt " -> %s" s)) ss
+
 let code err =
   let open Env in
   match err with
@@ -271,6 +282,11 @@ let code err =
       | Rule.AVariableIsNotAPattern (_,_) -> 44
       | Rule.NonLinearNonEqArguments (_,_) -> 45
     end
+  | EnvErrorDep e -> begin match e with
+      | Dep.ModuleNotFound _ -> 46
+      | Dep.MultipleModules _ -> 47
+      | Dep.CircularDependencies _ -> 48
+    end
   | NotEnoughArguments _  -> 25
   | NonLinearRule _       -> 26
   | KindLevelDefinition _ -> 38
@@ -281,7 +297,8 @@ let fail_env_error lc err =
   match err with
   | Env.EnvErrorSignature e -> fail_signature_error lc e
   | Env.EnvErrorType      e -> fail_typing_error    lc e
-  | Env.EnvErrorRule      e -> fail_rule_error    e
+  | Env.EnvErrorRule      e -> fail_rule_error         e
+  | Env.EnvErrorDep       e -> fail_dep_error          e
   | Env.NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
     fail lc
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
