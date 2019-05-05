@@ -37,7 +37,7 @@ type typing_error =
 
 exception TypingError of typing_error
 
-module type Typer = sig
+module type S = sig
   val infer       : Signature.t -> typed_context -> term -> typ
 
   val check       : Signature.t -> typed_context -> term -> typ -> unit
@@ -52,7 +52,7 @@ module type Typer = sig
 end
 
 (* ********************** CONTEXT *)
-module Make(R:Reduction.RE) =
+module Make(R:Reduction.S) =
 struct
 
   let get_type ctx l x n =
@@ -439,4 +439,4 @@ let typed_rule_of_rule_infos s ri =
 
 end
 
-module TypingDefault = Make(Reduction.REDefault)
+module Default = Make(Reduction.Default)

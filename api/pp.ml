@@ -2,7 +2,6 @@ open Basic
 open Term
 open Rule
 open Entry
-open Env
 open Format
 
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
@@ -11,13 +10,10 @@ open Format
 let print_db_enabled = ref false
 let print_default_name = ref false
 
-let cur_md = ref None
-let get_module () =
-  match !cur_md with
-  | None -> get_name ()
-  | Some md -> md
+let cur_md = ref (mk_mident "")
+let get_module () = !cur_md
 
-let set_module md = cur_md := Some md
+let set_module md = cur_md := md
 
 let print_list = pp_list
 
@@ -172,7 +168,7 @@ let print_rule_name fmt rule =
   let aux b cst =
     if b || !print_default_name
     then
-      if mident_eq (md cst) (get_name ())
+      if mident_eq (md cst) (get_module ())
       then fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
       else fprintf fmt "@[<h>{%a}@] " print_name cst
   in

@@ -37,7 +37,7 @@ type typ = term
 
 
 (** {2 Type Inference/Checking} *)
-module type Typer = sig
+module type S = sig
   val infer       : Signature.t -> typed_context -> term -> typ
   (** [infer sg ctx te] infers a type for the term [te] in the signature [sg] and context [ctx]
       The context is assumed to be well-formed *)
@@ -61,6 +61,6 @@ module type Typer = sig
   val typed_rule_of_rule_infos : Signature.t -> rule_infos -> Subst.Subst.t * typed_rule
 end
 
-module Make(R:Reduction.RE) : Typer
+module Make(R:Reduction.S) : S
 
-module TypingDefault : Typer
+module Default : S

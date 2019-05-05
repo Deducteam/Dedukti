@@ -61,11 +61,11 @@ val are_convertible : Signature.t -> term -> term -> bool
 (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
     or not in the signature [sg]. *)
 
-module type RE = sig
+module type S = sig
   val whnf             : Signature.t -> term -> term
   val snf              : Signature.t -> term -> term
   val are_convertible  : convertibility_test
   val matching_test    : matching_test
 end
 
-module REDefault : RE
+module Default : S

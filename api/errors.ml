@@ -5,9 +5,11 @@ open Term
 open Reduction
 open Pp
 
+module E = Env.Default
+
 let errors_in_snf = ref false
 
-let snf t = if !errors_in_snf then Env.unsafe_reduction t else t
+let snf t = if !errors_in_snf then E.unsafe_reduction t else t
 
 let color = ref true
 
@@ -25,7 +27,7 @@ let success fmt =
 let prerr_loc lc = if lc <> dloc then eprintf "At %a: " pp_loc lc
 
 let print_error_code code =
-  eprintf "%s" (red ("[ERROR/"^(string_of_mident (Env.get_name ())^":" ^ string_of_int code ^ "] ")))
+  eprintf "%s" (red ("[ERROR/"^(string_of_mident (E.get_name ()))^":" ^ string_of_int code ^ "] "))
 
 let fail lc fmt =
     prerr_loc lc;
@@ -209,7 +211,7 @@ let fail_signature_error def_loc err =
   | CouldNotExportModule file ->
     fail def_loc
       "Fail to export module '%a' to file %s."
-      pp_mident (Env.get_name ()) file
+      pp_mident (E.get_name ()) file
 
 let code err =
   let open Env in

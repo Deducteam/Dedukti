@@ -415,14 +415,14 @@ let reduction cfg sg te =
   select default_cfg.select default_cfg.beta;
   te'
 
-module type RE = sig
+module type S = sig
   val whnf            : Signature.t -> term -> term
   val snf             : Signature.t -> term -> term
   val are_convertible : Signature.t -> term -> term -> bool
   val matching_test   : matching_test
 end
 
-module REDefault : RE =
+module Default : S =
 struct
   let whnf = default_reduction ~conv_test:are_convertible Whnf
   let snf  = default_reduction ~conv_test:are_convertible Snf
