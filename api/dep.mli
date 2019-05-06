@@ -11,12 +11,16 @@ type path = string
 
 type data = mident * path
 
-type dep_data =  data * data list
+type mdep_data =  data * data list
 
 val ignore : bool ref
 
-val make : data -> Entry.entry list -> dep_data
+val make : data -> Entry.entry list -> mdep_data
+(** [make (md,file) es] computes dependencies for the entries [es] in [file] *)
 
-val handle : data -> ((Entry.entry -> unit) -> unit) -> dep_data
 
-val topological_sort : (string * string list) list -> string list
+val handle : data -> ((Entry.entry -> unit) -> unit) -> mdep_data
+(** [handle (md,file) f] computes dependencies on the fly for the entries in [file] *)
+
+val topological_sort : mdep_data list -> string list
+(** [topological_sort f] returns a list of files sorted by their dependencies *)

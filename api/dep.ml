@@ -4,7 +4,7 @@ type path = string
 
 type data = mident * path
 
-type dep_data =  data * data list
+type mdep_data =  data * data list
 
 (** [deps] contains the dependencies found so far, reset before each file. *)
 let current_mod  : mident                 ref = ref (mk_mident "<not initialised>")
@@ -111,7 +111,8 @@ let handle ((md,file) as data) process =
   process handle_entry;
   data, !current_deps
 
-let topological_sort graph =
+let topological_sort dep_data =
+  let graph = List.map (fun ((_,f),deps) -> (f, List.map snd deps)) dep_data in
   let rec explore path visited node =
     if List.mem node path then
       raise @@ Dep_error (CircularDependencies(node,path));

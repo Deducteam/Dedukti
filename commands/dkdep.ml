@@ -4,7 +4,7 @@ open Rule
 open Parser
 open Entry
 
-let handle_file : string -> Dep.dep_data = fun file ->
+let handle_file : string -> Dep.mdep_data = fun file ->
     (* Initialisation. *)
     let md = mk_mident file in
     (* Actully parsing and gathering data. *)
@@ -13,21 +13,19 @@ let handle_file : string -> Dep.dep_data = fun file ->
     close_in input;
     dep_data
 
-
 (** Output main program. *)
 
-let output_deps : Format.formatter -> Dep.dep_data list -> unit = fun oc data ->
+let output_deps : Format.formatter -> Dep.mdep_data list -> unit = fun oc data ->
   let objfile src = Filename.chop_extension src ^ ".dko" in
-  let output_line : Dep.dep_data -> unit = fun ((name, file), deps) ->
+  let output_line : Dep.mdep_data -> unit = fun ((name, file), deps) ->
     let deps = List.map (fun (_,src) -> objfile src) deps in
     let deps = String.concat " " deps in
     Format.fprintf oc "%s : %s %s@." (objfile file) file deps
   in
   List.iter output_line data
 
-let output_sorted : Format.formatter -> Dep.dep_data list -> unit = fun oc data ->
-  let deps = List.map (fun ((_,f),deps) -> (f, List.map snd deps)) data in
-  let deps = List.rev (Dep.topological_sort deps) in
+let output_sorted : Format.formatter -> Dep.mdep_data list -> unit = fun oc data ->
+  let deps = Dep.topological_sort data in
   Format.printf "%s@." (String.concat " " deps)
 
 let _ =
