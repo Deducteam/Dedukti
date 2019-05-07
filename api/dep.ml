@@ -114,7 +114,7 @@ let update_ideps item dep =
 
 
 let add_idep : name -> unit = fun dep_name ->
-  if not @@ Basic.name_eq !current_name dep_name then
+  if not @@ Basic.name_eq dep_name !current_name then
     update_ideps !current_name dep_name
 
 (** Term / pattern / entry traversal commands. *)
@@ -214,20 +214,36 @@ let get_data : Basic.name -> data = fun name ->
   with Not_found ->
     raise @@ Dep_error(NameNotFound name)
 
-let rec transitive_closure =
+let rec transitive_closure_down =
   let computed = ref NameSet.empty in
   fun name ->
-    if not @@ NameSet.mem name !computed then
+    if not (NameSet.mem name !computed) then
       let md = Basic.md name in
       let id = Basic.id name in
-      computed := NameSet.add name !computed;
       let ideps = get_data name in
-      NameSet.iter transitive_closure ideps.up;
-      NameSet.iter transitive_closure ideps.down;
-      let up = NameSet.fold
-          (fun name_dep up -> NameSet.union up (get_data name_dep).up) ideps.up ideps.up in
+      computed := NameSet.add name !computed;
+      NameSet.iter transitive_closure_down ideps.down;
       let down = NameSet.fold
           (fun name_dep down -> NameSet.union down (get_data name_dep).down) ideps.down ideps.down in
-      let ideps' = {up;down} in
+      let ideps' = {ideps with down} in
       let md_deps = Hashtbl.find deps md in
       Hashtbl.replace md_deps.ideps id ideps'
+
+let rec transitive_closure_up =
+  let computed = ref NameSet.empty in
+  fun name ->
+    if not (NameSet.mem name !computed) then
+      let md = Basic.md name in
+      let id = Basic.id name in
+      let ideps = get_data name in
+      computed := NameSet.add name !computed;
+      NameSet.iter transitive_closure_up ideps.up;
+      let up = NameSet.fold
+          (fun name_dep up -> NameSet.union up (get_data name_dep).down) ideps.up ideps.up in
+      let ideps' = {ideps with up} in
+      let md_deps = Hashtbl.find deps md in
+      Hashtbl.replace md_deps.ideps id ideps'
+
+let transitive_closure : Basic.name -> unit = fun name ->
+  transitive_closure_down name;
+  transitive_closure_up name
