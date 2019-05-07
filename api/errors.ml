@@ -215,14 +215,16 @@ let fail_signature_error def_loc err =
 
 let fail_dep_error err =
   match err with
-  | Dep.ModuleNotFound s ->
-    fail dloc "No file for module %S in path...@." s
+  | Dep.ModuleNotFound md ->
+    fail dloc "No file for module %a in path...@." pp_mident md
   | Dep.MultipleModules (s,ss) ->
     fail dloc "Several files correspond to module %S...@. %a" s
       (pp_list "@." (fun fmt s -> Format.fprintf fmt " - %s" s)) ss
   | Dep.CircularDependencies (s,ss) ->
     fail dloc "Circular Dependency dectected for module %S...%a" s
       (pp_list "@." (fun fmt s -> Format.fprintf fmt " -> %s" s)) ss
+  | Dep.NameNotFound md ->
+    fail dloc "No dependencies computed for name %a...@." pp_name md
 
 let code err =
   let open Env in
@@ -286,6 +288,7 @@ let code err =
       | Dep.ModuleNotFound _ -> 46
       | Dep.MultipleModules _ -> 47
       | Dep.CircularDependencies _ -> 48
+      | Dep.NameNotFound _ -> 49
     end
   | NotEnoughArguments _  -> 25
   | NonLinearRule _       -> 26

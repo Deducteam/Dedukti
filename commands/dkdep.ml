@@ -9,7 +9,7 @@ let handle_file : string -> unit = fun file ->
     let md = mk_mident file in
     (* Actully parsing and gathering data. *)
     let input = open_in file in
-    Dep.handle md file (fun f -> Parser.Parse_channel.handle md f input);
+    Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
     close_in input
 
 (** Output main program. *)

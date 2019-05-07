@@ -36,9 +36,10 @@ let ignore        : bool      ref = ref false
 let process_items : bool      ref = ref false
 
 type dep_error =
-  | ModuleNotFound of string
+  | ModuleNotFound of mident
   | MultipleModules of string * string list
   | CircularDependencies of string * string list
+  | NameNotFound of name
 
 exception Dep_error of dep_error
 
@@ -60,10 +61,15 @@ let find_dk : mident -> path list -> path option = fun md path ->
   | []  ->
     if !ignore then None
     else
-      raise @@ Dep_error(ModuleNotFound name)
+      raise @@ Dep_error(ModuleNotFound md)
   | [f] -> Some f
   | fs  ->
     raise @@ Dep_error(MultipleModules(name,fs))
+
+let get_file md =
+  match find_dk md (get_path ()) with
+  | None -> raise @@ Dep_error(ModuleNotFound md)
+  | Some f -> f
 
 (** [add_dep md] adds the module [md] to the list of dependencies if
     no corresponding ".dko" file is found in the load path. The dependency is
@@ -108,7 +114,8 @@ let update_ideps item dep =
 
 
 let add_idep : name -> unit = fun dep_name ->
-  update_ideps !current_name dep_name
+  if not @@ Basic.name_eq !current_name dep_name then
+    update_ideps !current_name dep_name
 
 (** Term / pattern / entry traversal commands. *)
 
@@ -139,13 +146,21 @@ let mk_rule r =
   let open Rule in
   mk_pattern r.pat; mk_term r.rhs
 
+let find_rule_name r =
+  let open Rule in
+  match r.pat with
+  | Pattern(_,n,_) -> n
+| _ -> assert false
+
 let handle_entry e =
   let open Entry in
+  let name_of_id id = Basic.mk_name !current_mod id in
   match e with
-  | Decl(_,_,_,te)              -> mk_term te
-  | Def(_,_,_,None,te)          -> mk_term te
-  | Def(_,_,_,Some(ty),te)      -> mk_term ty; mk_term te
-  | Rules(_,rs)                 -> List.iter mk_rule rs
+  | Decl(_,id,_,te)             -> current_name := name_of_id id; mk_term te
+  | Def(_,id,_,None,te)         -> current_name := name_of_id id; mk_term te
+  | Def(_,id,_,Some(ty),te)     -> current_name := name_of_id id; mk_term ty; mk_term te
+  | Rules(_,[])                 -> ()
+  | Rules(_,(r::_ as rs))       -> current_name := find_rule_name r; List.iter mk_rule rs
   | Eval(_,_,te)                -> mk_term te
   | Infer (_,_,te)              -> mk_term te
   | Check(_,_,_,Convert(t1,t2)) -> mk_term t1; mk_term t2
@@ -160,12 +175,14 @@ let initialize : mident -> path -> unit = fun md file ->
   current_deps := find deps md;
   current_deps := {!current_deps with file}
 
-let make : mident -> path -> Entry.entry list -> unit = fun md file entries ->
+let make : mident -> Entry.entry list -> unit = fun md entries ->
+  let file = get_file md in
   initialize md file;
   List.iter handle_entry entries;
   Hashtbl.replace deps md !current_deps
 
-let handle : mident -> path -> ((Entry.entry -> unit) -> unit) -> unit = fun md file process ->
+let handle : mident -> ((Entry.entry -> unit) -> unit) -> unit = fun md process ->
+  let file = get_file md in
   initialize md file;
   process handle_entry;
   Hashtbl.replace deps md !current_deps
@@ -183,8 +200,34 @@ let topological_sort deps =
         try List.assoc node graph with Not_found ->
           if !ignore then []
           else
-            raise @@ Dep_error (ModuleNotFound node)
+            raise @@ Dep_error (ModuleNotFound (mk_mident node))
       in
       node :: List.fold_left (explore (node :: path)) visited (List.map snd edges)
   in
   List.rev @@ List.fold_left (fun visited (n,_) -> explore [] visited n) [] graph
+
+let get_data : Basic.name -> data = fun name ->
+  try
+    let md = Basic.md name in
+    let id = Basic.id name in
+    Hashtbl.find (Hashtbl.find deps md).ideps id
+  with Not_found ->
+    raise @@ Dep_error(NameNotFound name)
+
+let rec transitive_closure =
+  let computed = ref NameSet.empty in
+  fun name ->
+    if not @@ NameSet.mem name !computed then
+      let md = Basic.md name in
+      let id = Basic.id name in
+      computed := NameSet.add name !computed;
+      let ideps = get_data name in
+      NameSet.iter transitive_closure ideps.up;
+      NameSet.iter transitive_closure ideps.down;
+      let up = NameSet.fold
+          (fun name_dep up -> NameSet.union up (get_data name_dep).up) ideps.up ideps.up in
+      let down = NameSet.fold
+          (fun name_dep down -> NameSet.union down (get_data name_dep).down) ideps.down ideps.down in
+      let ideps' = {up;down} in
+      let md_deps = Hashtbl.find deps md in
+      Hashtbl.replace md_deps.ideps id ideps'
