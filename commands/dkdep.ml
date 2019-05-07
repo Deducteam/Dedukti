@@ -4,27 +4,31 @@ open Rule
 open Parser
 open Entry
 
-let handle_file : string -> Dep.mdep_data = fun file ->
+let handle_file : string -> unit = fun file ->
     (* Initialisation. *)
     let md = mk_mident file in
     (* Actully parsing and gathering data. *)
     let input = open_in file in
-    let dep_data = Dep.handle (md,file) (fun f -> Parser.Parse_channel.handle md f input) in
-    close_in input;
-    dep_data
+    Dep.handle md file (fun f -> Parser.Parse_channel.handle md f input);
+    close_in input
 
 (** Output main program. *)
 
-let output_deps : Format.formatter -> Dep.mdep_data list -> unit = fun oc data ->
+let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
+  let open Dep in
   let objfile src = Filename.chop_extension src ^ ".dko" in
-  let output_line : Dep.mdep_data -> unit = fun ((name, file), deps) ->
-    let deps = List.map (fun (_,src) -> objfile src) deps in
-    let deps = String.concat " " deps in
-    Format.fprintf oc "%s : %s %s@." (objfile file) file deps
+  let output_line : mident -> deps -> unit =
+    fun md deps ->
+       let file = deps.file in
+       let deps = List.map (fun (_,src) -> objfile src) (MDepSet.elements deps.deps) in
+       let deps = String.concat " " deps in
+       try
+         Format.fprintf oc "%s : %s %s@." (objfile file) file deps
+       with _ -> () (* Dependency is missing *)
   in
-  List.iter output_line data
+  Hashtbl.iter output_line data
 
-let output_sorted : Format.formatter -> Dep.mdep_data list -> unit = fun oc data ->
+let output_sorted : Format.formatter -> Dep.t -> unit = fun oc data ->
   let deps = Dep.topological_sort data in
   Format.printf "%s@." (String.concat " " deps)
 
@@ -76,10 +80,10 @@ Available options:" Sys.argv.(0) in
   in
   (* Actual work. *)
   try
-    let dep_data = List.map handle_file files in
+    List.iter handle_file files;
     let formatter = Format.formatter_of_out_channel !output in
     let output_fun = if !sorted then output_sorted else output_deps in
-    output_fun formatter dep_data;
+    output_fun formatter Dep.deps;
     Format.pp_print_flush formatter ();
     close_out !output
   with

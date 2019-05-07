@@ -2,14 +2,38 @@ open Basic
 
 type path = string
 
-type data = mident * path
+module MDepSet = Set.Make(struct type t = Basic.mident * path let compare = compare end)
 
-type mdep_data =  data * data list
+module NameSet = Set.Make(struct type t = Basic.name let compare = compare end)
+
+type data = {up: NameSet.t ; down: NameSet.t}
+(** up dependencies are the name that requires the current item.
+    down dependencies are the name that are required by the current item. *)
+
+type ideps = (ident, data) Hashtbl.t
+
+type deps =
+  {
+    file:path; (** path associated to the module *)
+    deps: MDepSet.t; (** pairs of module and its associated path *)
+    ideps: ideps; (** up/down item dependencies *)
+}
+
+type t = (mident, deps) Hashtbl.t
+
+let compute_ideps = ref false
+
+let empty_deps () = {file="<not initialized>"; deps = MDepSet.empty; ideps=Hashtbl.create 81}
+
+let deps = Hashtbl.create 11
+
 
 (** [deps] contains the dependencies found so far, reset before each file. *)
-let current_mod  : mident                 ref = ref (mk_mident "<not initialised>")
-let current_deps : (mident * path) list   ref = ref []
-let ignore       : bool                   ref = ref false
+let current_mod   : mident    ref = ref (mk_mident "<not initialised>")
+let current_name  : name      ref = ref (mk_name (!current_mod) (mk_ident  "<not initialised>"))
+let current_deps  : deps      ref = ref (empty_deps ())
+let ignore        : bool      ref = ref false
+let process_items : bool      ref = ref false
 
 type dep_error =
   | ModuleNotFound of string
@@ -17,16 +41,6 @@ type dep_error =
   | CircularDependencies of string * string list
 
 exception Dep_error of dep_error
-
-let in_deps : mident -> bool = fun n ->
-  List.mem_assoc n !current_deps
-
-let add_dep : mident -> path option -> unit = fun name file ->
-  let cmp (s1,_) (s2,_) = compare s1 s2 in
-  match file with
-  | None -> ()
-  | Some file ->
-    current_deps := List.sort cmp ((name, file) :: !current_deps)
 
 (** [find_dk md path] looks for the ".dk" file corresponding to the module
     named [name] in the directories of [path]. If no corresponding file is
@@ -51,17 +65,57 @@ let find_dk : mident -> path list -> path option = fun md path ->
   | fs  ->
     raise @@ Dep_error(MultipleModules(name,fs))
 
-(** [add_dep name] adds the module named [name] to the list of dependencies if
+(** [add_dep md] adds the module [md] to the list of dependencies if
     no corresponding ".dko" file is found in the load path. The dependency is
     not added either if it is already present. *)
-let add_dep : mident -> unit = fun md ->
-  if md <> !current_mod && not (in_deps md)
-  then add_dep md (find_dk md (get_path ()))
+let add_mdep : mident -> unit = fun md ->
+  if mident_eq md !current_mod then () else
+    match (find_dk md (get_path ())) with
+    | None -> ()
+    | Some file ->
+      current_deps :=
+        {!current_deps with deps = MDepSet.add (md, file) !current_deps.deps}
+
+let update_up ideps item up =
+  if Hashtbl.mem ideps item then
+    let idep = Hashtbl.find ideps item in
+    Hashtbl.replace ideps item {idep with up=NameSet.add up idep.up}
+  else
+    Hashtbl.add ideps item {up=NameSet.singleton up;down=NameSet.empty}
+
+let update_down ideps item down =
+  if Hashtbl.mem ideps item then
+    let idep = Hashtbl.find ideps item in
+    Hashtbl.replace ideps item {idep with down=NameSet.add down idep.down}
+  else
+    Hashtbl.add ideps item {down=NameSet.singleton down;up=NameSet.empty}
+
+let find deps md =
+  if Hashtbl.mem deps md then
+    Hashtbl.find deps md
+  else
+    begin
+      Hashtbl.add deps md (empty_deps ());
+      Hashtbl.find deps md
+    end
+
+
+let update_ideps item dep =
+  let ideps = (find deps (md item)).ideps in
+  update_down ideps (id item) dep;
+  let ideps = (find deps (md dep)).ideps in
+  update_up ideps (id dep) item
+
+
+let add_idep : name -> unit = fun dep_name ->
+  update_ideps !current_name dep_name
 
 (** Term / pattern / entry traversal commands. *)
 
 let mk_name c =
-  add_dep (md c)
+  add_mdep (md c);
+  if !compute_ideps then
+    add_idep c
 
 let rec mk_term t =
   let open Term in
@@ -99,32 +153,38 @@ let handle_entry e =
   | DTree(_,_,_)                -> ()
   | Print(_,_)                  -> ()
   | Name(_,_)                   -> ()
-  | Require(_,md)               -> add_dep md
+  | Require(_,md)               -> add_mdep md
 
-let make ((md,file) as data) entries =
-  current_mod :=md; current_deps := [];
+let initialize : mident -> path -> unit = fun md file ->
+  current_mod :=md;
+  current_deps := find deps md;
+  current_deps := {!current_deps with file}
+
+let make : mident -> path -> Entry.entry list -> unit = fun md file entries ->
+  initialize md file;
   List.iter handle_entry entries;
-  data, !current_deps
+  Hashtbl.replace deps md !current_deps
 
-let handle ((md,file) as data) process =
-  current_mod := md; current_deps := [];
+let handle : mident -> path -> ((Entry.entry -> unit) -> unit) -> unit = fun md file process ->
+  initialize md file;
   process handle_entry;
-  data, !current_deps
+  Hashtbl.replace deps md !current_deps
 
-let topological_sort dep_data =
-  let graph = List.map (fun ((_,f),deps) -> (f, List.map snd deps)) dep_data in
+let topological_sort deps =
+  let to_graph _ deps graph =
+    (deps.file, MDepSet.elements deps.deps)::graph
+  in
+  let graph = Hashtbl.fold to_graph deps [] in
   let rec explore path visited node =
     if List.mem node path then
       raise @@ Dep_error (CircularDependencies(node,path));
     if List.mem node visited then visited else
       let edges =
-        try List.assoc node graph
-        with Not_found ->
-          if !ignore
-          then []
+        try List.assoc node graph with Not_found ->
+          if !ignore then []
           else
             raise @@ Dep_error (ModuleNotFound node)
       in
-      node :: List.fold_left (explore (node :: path)) visited edges
+      node :: List.fold_left (explore (node :: path)) visited (List.map snd edges)
   in
   List.rev @@ List.fold_left (fun visited (n,_) -> explore [] visited n) [] graph
