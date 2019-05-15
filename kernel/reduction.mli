@@ -62,8 +62,6 @@ module type S = sig
       and using the signature [sg]. *)
 
   val default_reduction :
-    ?conv_test:convertibility_test ->
-    ?match_test:matching_test ->
     red_target -> Signature.t -> term -> term
   (** [default_reduction tar sg te] reduces the term [te] to its [tar] normal form
       using the signature [sg]. This is the fastest implementation used for typing. *)
