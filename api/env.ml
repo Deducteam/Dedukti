@@ -186,7 +186,7 @@ struct
     with e -> raise_as_env (get_loc te) e
 
   let _unsafe_reduction red te =
-    Reduction.reduction red !sg te
+    R.reduction red !sg te
 
   let _reduction ctx red te =
     (* This is a safe reduction, so we check that [te] has a type
@@ -209,8 +209,8 @@ struct
     try
       let ty1 = T.infer !sg ctx te1 in
       let ty2 = T.infer !sg ctx te2 in
-      Reduction.are_convertible !sg ty1 ty2 &&
-      Reduction.are_convertible !sg te1 te2
+      R.are_convertible !sg ty1 ty2 &&
+      R.are_convertible !sg te1 te2
     with e -> raise_as_env (get_loc te1) e
 
   let mk_entry md e =

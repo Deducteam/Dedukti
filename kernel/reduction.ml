@@ -103,6 +103,28 @@ type rw_state_strategy   = Signature.t -> state -> state
 type matching_test = Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 type convertibility_test = Signature.t -> term -> term -> bool
 
+
+module type ConvChecker = sig
+  val are_convertible : convertibility_test
+  val matching_test   : matching_test
+end
+
+module type S = sig
+  include ConvChecker
+
+  val reduction : red_cfg -> Signature.t -> term -> term
+  val default_reduction : ?conv_test:convertibility_test ->
+    ?match_test:matching_test ->
+    red_target -> Signature.t -> term -> term
+  val conversion_step : term * term -> (term * term) list -> (term * term) list
+  val whnf            : Signature.t -> term -> term
+  val snf             : Signature.t -> term -> term
+end
+
+
+module Make(C : ConvChecker) : S =
+struct
+
 let get_context (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
                 (mp:matching_problem) : env option =
   let aux ({pos;depth;args_db}:atomic_problem) : term Lazy.t =
@@ -415,17 +437,10 @@ let reduction cfg sg te =
   select default_cfg.select default_cfg.beta;
   te'
 
-module type S = sig
-  val whnf            : Signature.t -> term -> term
-  val snf             : Signature.t -> term -> term
-  val are_convertible : Signature.t -> term -> term -> bool
-  val matching_test   : matching_test
-end
-
-module Default : S =
-struct
   let whnf = default_reduction ~conv_test:are_convertible Whnf
   let snf  = default_reduction ~conv_test:are_convertible Snf
   let are_convertible = are_convertible
   let matching_test _ _ = are_convertible
 end
+
+module rec Default : S = Make(Default)

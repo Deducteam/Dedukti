@@ -213,9 +213,9 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
           end
 
         | App (DB (_,_,n),_,_), _  when n >= q ->
-          if Reduction.are_convertible sg t1' t2' then keepon () else warn ()
+          if R.are_convertible sg t1' t2' then keepon () else warn ()
         | _ , App (DB (_,_,n),_,_) when n >= q ->
-          if Reduction.are_convertible sg t1' t2' then keepon () else warn ()
+          if R.are_convertible sg t1' t2' then keepon () else warn ()
 
         | App (Const (l,cst),_,_), _ when not (Signature.is_static sg l cst) -> keepon ()
         | _, App (Const (l,cst),_,_) when not (Signature.is_static sg l cst) -> keepon ()

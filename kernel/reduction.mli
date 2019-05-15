@@ -40,32 +40,43 @@ val default_cfg : red_cfg
     - [logger]   = [fun _ _ _ -> ()]
 *)
 
-val reduction : red_cfg -> Signature.t -> term -> term
-(** [reduction cfg sg te] reduces the term [te] following the configuration [cfg]
-    and using the signature [sg]. *)
-
 type convertibility_test = Signature.t -> term -> term -> bool
 type matching_test = Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 
-val default_reduction : ?conv_test:convertibility_test -> ?match_test:matching_test -> red_target -> Signature.t -> term -> term
-(** [default_reduction tar sg te] reduces the term [te] to its [tar] normal form
-    using the signature [sg]. This is the fastest implementation used for typing. *)
-
 exception NotConvertible
 
-val conversion_step : term * term -> (term * term) list -> (term * term) list
-(** [conversion_step (l,r) lst] returns a list [lst'] containing new convertibility obligations.
-    Raise [NotConvertible] if the two terms cannot be convertible. *)
 
-val are_convertible : Signature.t -> term -> term -> bool
-(** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
-    or not in the signature [sg]. *)
+module type ConvChecker = sig
+  val are_convertible  : convertibility_test
+  (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
+      or not in the signature [sg]. *)
+
+  val matching_test : matching_test
+end
 
 module type S = sig
+  include ConvChecker
+
+  val reduction : red_cfg -> Signature.t -> term -> term
+  (** [reduction cfg sg te] reduces the term [te] following the configuration [cfg]
+      and using the signature [sg]. *)
+
+  val default_reduction :
+    ?conv_test:convertibility_test ->
+    ?match_test:matching_test ->
+    red_target -> Signature.t -> term -> term
+  (** [default_reduction tar sg te] reduces the term [te] to its [tar] normal form
+      using the signature [sg]. This is the fastest implementation used for typing. *)
+
+  val conversion_step : term * term -> (term * term) list -> (term * term) list
+  (** [conversion_step (l,r) lst] returns a list [lst'] containing
+      new convertibility obligations.
+      Raise [NotConvertible] if the two terms cannot be convertible. *)
+
   val whnf             : Signature.t -> term -> term
   val snf              : Signature.t -> term -> term
-  val are_convertible  : convertibility_test
-  val matching_test    : matching_test
 end
+
+module Make(C : ConvChecker) : S
 
 module Default : S
