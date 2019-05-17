@@ -11,7 +11,7 @@ type signature_error =
   | UnmarshalSysError     of loc * string * string
   | UnmarshalUnknown      of loc * string
   | SymbolNotFound        of loc * name
-  | AlreadyDefinedSymbol  of loc * ident
+  | AlreadyDefinedSymbol  of loc * name
   | CannotMakeRuleInfos   of Rule.rule_error
   | CannotBuildDtree      of Dtree.dtree_error
   | CannotAddRewriteRules of loc * ident
@@ -54,6 +54,13 @@ val get_dtree           : t -> (Rule.rule_name -> bool) option -> loc -> name ->
     with [cst] inside the environment [sg]. When filter is specified, it is used
     to select only the corresponding set of rules  *)
 
+val get_rules           : t -> loc -> name -> rule_infos list
+(** [get_rules sg lc cst] returns a list of rules that defines the symbol. *)
+
+val add_external_declaration     : t -> loc -> name -> staticity -> term -> unit
+(** [add_external_declaration sg l cst st ty] declares the symbol [id] of type
+    [ty] and staticity [st] in the environment [sg]. *)
+
 val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
@@ -62,8 +69,14 @@ val add_rules           : t -> Rule.rule_infos list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)
 
-val read_dko : loc -> string -> string list * (ident * staticity * term * rule_infos list) list * rule_infos list list
-(** [read_dko lc md] returns a triple containing all the informations of the [md.dko] file:
- - The list of modules on which md depends,
- - The list of symbols and rules declared in this module,
- - The list of rules declared on this module and defining symbols declared in another module. *)
+type symbol_infos =
+  {
+    stat  : staticity;
+    ty    : term;
+    rules : rule_infos list;
+  }
+
+module HName : Hashtbl.S
+
+val symbols_of : t ->  symbol_infos HName.t
+(** [access_signature sg] returns the content of the signature [sg]. *)

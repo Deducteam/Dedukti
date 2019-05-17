@@ -73,8 +73,10 @@ let pp_prule fmt ((_, pname, pdecl, pid, id, prepatterns, prete):prule) : unit  
   match pid with
   | Some m ->
     let cst = mk_name m id in
-    fprintf fmt "[%a] %a %a --> %a %s" (pp_list "," pp_pdecl) pdecl pp_name cst
+    fprintf fmt "[%a]\n  %a %a\n-->\n  %a %s"
+      (pp_list ", " pp_pdecl) pdecl pp_name cst
       (pp_list " " pp_prepattern) prepatterns pp_preterm prete name
   | None ->
-    fprintf fmt "[%a] %a %a --> %a %s" (pp_list "," pp_pdecl) pdecl pp_ident id
+    fprintf fmt "[%a]\n  %a %a\n-->\n  %a %s"
+      (pp_list ", " pp_pdecl) pdecl pp_ident id
       (pp_list " " pp_prepattern) prepatterns pp_preterm prete name

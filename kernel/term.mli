@@ -42,10 +42,13 @@ val subterm : term -> position -> term
 
 (** {2 Contexts} *)
 
+(** Abstract context *)
+type 'a context = 'a list
+
 (** context of rules after they have been parsed *)
-type untyped_context = (loc * ident) list
+type untyped_context = (loc * ident) context
 
 (** type checking rules implies to give a type to the variables of the context *)
-type typed_context = ( loc * ident * term ) list
+type typed_context = ( loc * ident * term ) context
 
 val rename_vars_with_typed_context : typed_context -> term -> term

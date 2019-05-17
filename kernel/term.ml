@@ -26,7 +26,7 @@ let rec pp_term fmt te =
 and pp_term_wp fmt te =
   match te with
   | Kind | Type _ | DB _ | Const _ as t -> pp_term fmt t
-  | t                                  -> fprintf fmt "(%a)" pp_term t
+  | t                                   -> fprintf fmt "(%a)" pp_term t
 
 let rec get_loc (te:term) : loc =
   match te with
@@ -80,9 +80,11 @@ let subterm t i = match t with
 
 let subterm = List.fold_left subterm
 
-type untyped_context = ( loc * ident ) list
+type 'a context = 'a list
 
-type typed_context = ( loc * ident * term ) list
+type untyped_context = (loc * ident) context
+
+type typed_context = (loc * ident * term) context
 
 let rec get_name_from_typed_ctxt ctxt i =
   try let (_,v,_) = List.nth ctxt i in Some v

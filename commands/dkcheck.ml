@@ -113,6 +113,9 @@ let _ =
       , Arg.Set Typing.coc
       , " Allows to declare a symbol whose type contains Type in the
           left-hand side of a product (useful for the Calculus of Construction)" )
+    ; ( "-eta"
+      , Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity]
+      , " Allows the conversion test to use eta." )
     ; ( "-I"
       , Arg.String Basic.add_path
       , "DIR Adds the directory DIR to the load path" )

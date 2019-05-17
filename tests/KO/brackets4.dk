@@ -1,0 +1,14 @@
+(; KO 42 ;)
+
+A : Type.
+
+a : A.
+
+V : A -> Type.
+
+N : A.
+C : A.
+
+def g : A -> A -> A.
+
+[N] g a {N} --> a.
