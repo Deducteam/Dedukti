@@ -1,16 +1,17 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
-SRC="https://deducteam.github.io/data/libraries/iProverModulo_dk.tar.gz"
-DIR="iprover"
+DKCHECK="$(pwd)/../dkcheck.native"
+DKDEP="$(pwd)/../dkdep.native"
+DKFLAGS="-q"
+
+SRC="https://deducteam.github.io/data/libraries/matita.tar.gz"
+DIR="matita-light"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
-  rm -rf iProverModulo_dk
-  rm -f iProverModulo_dk.tar.gz
   if [[ "$1" = "fullclean" ]]; then
-    rm -f iprover.tar.gz
+    rm -f matita.tar.gz
   fi
   exit 0
 fi
@@ -27,44 +28,31 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f iprover.tar.gz ]]; then
+  if [[ ! -f matita.tar.gz ]]; then
     echo -n "  - downloading...      "
-    wget -q ${SRC} -O iprover.tar.gz
+    wget -q ${SRC}
     echo "OK"
   fi
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  tar xf iprover.tar.gz
-  mv iProverModulo_dk ${DIR}
+  tar xf matita.tar.gz
+  mv matita $DIR
+  # Editing factorial file : turning le_fact_10 into an axiom
+  sed -i '30816,33252d'                      $DIR/matita_arithmetics_factorial.dk
+  sed -i '30815s/.*/\./'                     $DIR/matita_arithmetics_factorial.dk
+  sed -i 's/def le_fact_10 :/le_fact_10 :/'  $DIR/matita_arithmetics_factorial.dk
   echo "OK"
-
-  # All done.
-  echo "Ready."
-  echo ""
 fi
 
-# Checking function.
-function check_iprover() {
-  rm -f FOL.dko
-  ${BIN} --gen-obj FOL.dk
-  for PRF in `ls *_prf.dk`; do
-    ${BIN} ${PRF}
-  done
-}
-
-# Export stuff for the checking function.
-export readonly BIN=${BIN}
-export -f check_iprover
-
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make "DKCHECK=$BIN"
+	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 else
-	\time -a -o $OUT make "DKCHECK=$BIN"
+	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 fi

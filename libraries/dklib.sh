@@ -1,14 +1,18 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
-SRC="https://deducteam.github.io/data/libraries/matita.tar.gz"
-DIR="matita"
+DKCHECK="$(pwd)/../dkcheck.native"
+DKDEP="$(pwd)/../dkdep.native"
+DKFLAGS="-q"
+
+SRC="https://github.com/rafoo/dklib/archive/v2.6.zip"
+DIR="dklib"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
+  rm -rf dklib-2.6
   if [[ "$1" = "fullclean" ]]; then
-    rm -f matita.tar.gz
+    rm -f dklib.zip
   fi
   exit 0
 fi
@@ -25,26 +29,36 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f matita.tar.gz ]]; then
+  if [[ ! -f dklib.zip ]]; then
     echo -n "  - downloading...      "
-    wget -q ${SRC}
+    wget -q ${SRC} -O dklib.zip
     echo "OK"
   fi
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  tar xf matita.tar.gz
+  unzip -qq dklib.zip
+  mv dklib-2.6 ${DIR}
   echo "OK"
+
+  # Cleaning up.
+  echo -n "  - cleaning up...      "
+  rm ${DIR}/.gitignore ${DIR}/README.org
+  echo "OK"
+
+  # All done.
+  echo "Ready."
+  echo ""
 fi
 
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make "DKCHECK=$BIN"
+	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 else
-	\time -a -o $OUT make "DKCHECK=$BIN"
+	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 fi

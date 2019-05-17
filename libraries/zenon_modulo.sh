@@ -2,6 +2,10 @@
 
 NBWORKERS="4"
 
+DKCHECK="$(pwd)/../dkcheck.native"
+DKDEP="$(pwd)/../dkdep.native"
+DKFLAGS="-q"
+
 SRC="http://deducteam.gforge.inria.fr/lib/zenon_modulo.tar"
 DIR="zenon_modulo"
 
@@ -61,17 +65,16 @@ done
 
 # Moving to the working directory.
 cd ${DIR}/workdir
-BIN="../../../../dkcheck.native -q"
 
 # Compiling the theory files.
 echo "Compiling the theory files..."
-$BIN -q -e cc.dk 2> /dev/null
-$BIN -q -e dk_bool.dk 2> /dev/null
-$BIN -q -e dk_logic.dk 2> /dev/null
-$BIN -q -e dk_tuple.dk 2> /dev/null
-$BIN -q -e basics.dk 2> /dev/null
-$BIN -q -e zen.dk 2> /dev/null
-$BIN -q -e zen_focal.dk 2> /dev/null
+$DKCHECK $DKFLAGS -e cc.dk        2> /dev/null
+$DKCHECK $DKFLAGS -e dk_bool.dk   2> /dev/null
+$DKCHECK $DKFLAGS -e dk_logic.dk  2> /dev/null
+$DKCHECK $DKFLAGS -e dk_tuple.dk  2> /dev/null
+$DKCHECK $DKFLAGS -e basics.dk    2> /dev/null
+$DKCHECK $DKFLAGS -e zen.dk       2> /dev/null
+$DKCHECK $DKFLAGS -e zen_focal.dk 2> /dev/null
 
 # Checking function.
 function check() {
@@ -82,7 +85,7 @@ function check() {
     FILE_DK="$(basename $FILE_GZ .gz)"
     cp ${LIBFILE} ${FILE_GZ}
     gzip -d ${FILE_GZ}
-    ${BIN} -q -nl ${FILE_DK} 2> /dev/null
+    ${DKCHECK} ${DKFLAGS} ${FILE_DK} 2> /dev/null
     if [ $? -ne 0 ]; then
       echo -e "\033[0;31mKO\033[0m ${FILE_GZ}"
       echo "FAILED ${FILE_GZ}" >> error.log
@@ -93,24 +96,26 @@ function check() {
   }
 
   export -f check_gz
-  export readonly BIN=${BIN}
+  export readonly DKCHECK=${DKCHECK}
+  export readonly DKFLAGS=${DKFLAGS}
 
   echo "Compiling the library files with ${NBWORKERS} processes..."
   find ../files -type f \
-    | xargs -P ${NBWORKERS} -n 1 -I{} bash -c "check_gz {}"
+      | xargs -P ${NBWORKERS} -n 1 -I{} bash -c "check_gz {}"
 }
 
 # Exporting necessary things.
-export readonly BIN=${BIN}
+export readonly DKCHECK=${DKCHECK}
+export readonly DKFLAGS=${DKFLAGS}
 export readonly NBWORKERS=${NBWORKERS}
 export -f check
 
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
 	\time bash -c "check"
 else

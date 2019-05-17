@@ -36,7 +36,7 @@ let unshift q =
   apply_subst (fun l x n k -> if (n-k) < q then raise UnshiftExn else mk_DB l x (n-q)) 0
 
 let psubst_l (args:(term Lazy.t) LList.t) : term -> term =
-  let nargs = args.LList.len in
+  let nargs = LList.len args in
   let tab = Array.make nargs [] in
   let rec get i k =
     let l = tab.(i) in
