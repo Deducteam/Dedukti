@@ -76,7 +76,7 @@ type symbol_infos =
     rules : rule_infos list;
   }
 
-module HName : Hashtbl.S
+module HName : Hashtbl.S with type key = name
 
 val symbols_of : t ->  symbol_infos HName.t
 (** [access_signature sg] returns the content of the signature [sg]. *)
