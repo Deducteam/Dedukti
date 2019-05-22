@@ -31,7 +31,7 @@ let print_error_code code =
 
 let fail lc fmt =
     prerr_loc lc;
-    kfprintf (fun _ -> pp_print_newline err_formatter () ; exit 3) err_formatter fmt
+    kfprintf (fun _ -> pp_print_newline err_formatter () ; ignore(exit 3)) err_formatter fmt
 
 let fail_exit code lc fmt =
   print_error_code code;
@@ -56,7 +56,7 @@ let fail_typing_error def_loc err =
       try_print_oneliner (te,ctx) print_term (snf exp) print_term (snf inf)
   | VariableNotFound (lc,x,n,ctx) ->
     fail lc
-      "The variable '%a' was not found in context:@."
+      "The variable '%a' was not found in context: %a@."
       pp_term (mk_DB lc x n) print_err_ctxt ctx
   | SortExpected (te,ctx,inf) ->
     fail (Term.get_loc te)
@@ -65,7 +65,7 @@ let fail_typing_error def_loc err =
   | ProductExpected (te,ctx,inf) ->
     fail (get_loc te)
       "Error while typing %a@.---- Expected: a product type.@.---- Inferred: %a."
-      try_print_oneliner (te,ctx) print_err_ctxt ctx pp_term (snf inf)
+      try_print_oneliner (te,ctx) pp_term (snf inf)
   | InexpectedKind (te,ctx) ->
     fail (get_loc te)
       "Error while typing '%a'%a.@.---- Expected: anything but Kind.@.---- Inferred: Kind."
@@ -223,8 +223,10 @@ let fail_dep_error err =
   | Dep.CircularDependencies (s,ss) ->
     fail dloc "Circular Dependency dectected for module %S...%a" s
       (pp_list "@." (fun fmt s -> Format.fprintf fmt " -> %s" s)) ss
-  | Dep.NameNotFound md ->
-    fail dloc "No dependencies computed for name %a...@." pp_name md
+  | Dep.NameNotFound n ->
+    fail dloc "No dependencies computed for name %a...@." pp_name n
+  | Dep.NoDep md ->
+    fail dloc "No dependencies computed for module %a...@." pp_mident md
 
 let code err =
   let open Env in
@@ -289,6 +291,7 @@ let code err =
       | Dep.MultipleModules _ -> 47
       | Dep.CircularDependencies _ -> 48
       | Dep.NameNotFound _ -> 49
+      | Dep.NoDep _ -> 50
     end
   | NotEnoughArguments _  -> 25
   | NonLinearRule _       -> 26
@@ -306,7 +309,6 @@ let fail_env_error lc err =
     fail lc
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
       pp_ident id nb_args exp_nb_args
-    fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
   | Env.NonLinearRule (symb) ->
     fail lc "Non left-linear rewrite rule for symbol '%a'." pp_name symb
   | Env.KindLevelDefinition id ->

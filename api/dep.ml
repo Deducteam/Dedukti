@@ -40,6 +40,7 @@ type dep_error =
   | MultipleModules of string * string list
   | CircularDependencies of string * string list
   | NameNotFound of name
+  | NoDep of mident
 
 exception Dep_error of dep_error
 
@@ -200,7 +201,7 @@ let topological_sort deps =
         try List.assoc node graph with Not_found ->
           if !ignore then []
           else
-            raise @@ Dep_error (ModuleNotFound (mk_mident node))
+            raise @@ Dep_error (NoDep (mk_mident node))
       in
       node :: List.fold_left (explore (node :: path)) visited (List.map snd edges)
   in

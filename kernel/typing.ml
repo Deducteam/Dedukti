@@ -327,7 +327,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     begin
       match R.whnf sg exp_ty with
       | Pi (_,_,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
-      | exp_ty -> raise (TypingError ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
+      | exp_ty2 -> raise (TypingError ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
     end
   | Brackets te ->
     let _ =
