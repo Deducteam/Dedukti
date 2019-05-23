@@ -88,6 +88,7 @@ let rec pp_term fmt te =
   | App (f,a,args)     -> pp_list " " pp_term_wp fmt (f::a::args)
   | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
   | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
+  | Pi  (_,x,a,b) when ident_eq x dmark  -> fprintf fmt "%a -> %a" pp_term_wp a pp_term b
   | Pi  (_,x,a,b)      -> fprintf fmt "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
 
 and pp_term_wp fmt te =
