@@ -6,7 +6,7 @@ open Entry
 
 let handle_file : string -> unit = fun file ->
     (* Initialisation. *)
-    let md = mk_mident file in
+    let md = Env.Default.init file in
     (* Actully parsing and gathering data. *)
     let input = open_in file in
     Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
