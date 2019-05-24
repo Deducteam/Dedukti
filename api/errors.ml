@@ -24,10 +24,13 @@ let success fmt =
   eprintf "%s" (green "[SUCCESS] ");
   kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter fmt
 
-let prerr_loc lc = if lc <> dloc then eprintf "At %a: " pp_loc lc
+let prerr_loc lc =
+  eprintf "In module %s, " (string_of_mident (E.get_name ()));
+  if lc <> dloc then eprintf "at %a: " pp_loc lc;
+  eprintf "@."
 
 let print_error_code code =
-  eprintf "%s" (red ("[ERROR/"^(string_of_mident (E.get_name ()))^":" ^ string_of_int code ^ "] "))
+  eprintf "%s"(red ("[ERROR:" ^ string_of_int code ^ "] "))
 
 let fail lc fmt =
     prerr_loc lc;
