@@ -277,3 +277,9 @@ let to_rule_infos (r:'a context rule) : rule_infos =
     arity = infos.arity ;
     constraints = infos.constraints
   }
+
+let untyped_rule_of_rule_infos ri =
+  { name = ri.name
+  ; ctx  = infer_rule_context ri
+  ; pat  = pattern_of_rule_infos ri
+  ; rhs  = ri.rhs}

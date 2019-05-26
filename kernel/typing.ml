@@ -47,8 +47,6 @@ module type S = sig
   val inference   : Signature.t -> term -> typ
 
   val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
-
-  val typed_rule_of_rule_infos : Signature.t -> rule_infos -> Subst.Subst.t * typed_rule
 end
 
 (* ********************** CONTEXT *)
@@ -428,14 +426,6 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
     pat = rule.pat;
     rhs = rule.rhs
   }
-
-let typed_rule_of_rule_infos s ri =
-  let ur =
-    { name = ri.name
-    ; ctx  = infer_rule_context ri
-    ; pat  = pattern_of_rule_infos ri
-    ; rhs  = ri.rhs} in
-  check_rule s ur
 
 end
 
