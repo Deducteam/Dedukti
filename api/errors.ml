@@ -187,11 +187,11 @@ let fail_signature_error def_loc err =
     fail lc "Already declared symbol '%a'." pp_name n
   | CannotBuildDtree err -> fail_dtree_error err
   | CannotMakeRuleInfos err -> fail_rule_error err
-  | CannotAddRewriteRules (lc,id) ->
+  | CannotAddRewriteRules (lc,cst) ->
     fail lc
       "Cannot add rewrite\ rules for the static symbol '%a'.\
        Add the keyword 'def' to its declaration to make the symbol '%a' definable."
-      pp_ident id pp_ident id
+      pp_name cst pp_name cst
   | ConfluenceErrorRules (lc,rs,cerr) ->
     fail lc
       "Confluence checking failed when adding the rewrite rules below.@.%a@.%a"
