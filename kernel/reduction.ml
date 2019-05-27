@@ -6,6 +6,8 @@ open Dtree
 open Matching
 open Ac
 
+let eta = ref false
+
 type Debug.flag += D_reduce
 let _ = Debug.register_flag D_reduce "Reduce"
 
@@ -329,7 +331,7 @@ and gamma_rw (sg:Signature.t) (convertible:convertibility_test)
         begin
           let aux e acc = match e with None -> assert false | Some e -> e :: acc in
           let ctx_list = Array.fold_right aux subst [] in
-          let ctx = LList.make ~len:(Array.length subst) ctx_list in
+          let ctx = LList.of_list ctx_list in
           List.iter
             (fun (i,t2) ->
                let t1 = Lazy.force (LList.nth ctx i) in
@@ -460,6 +462,13 @@ and conversion_step sg : (term * term) -> (term * term) list -> (term * term) li
   | App (f,a,args), App (f',a',args') ->
      (f,f') :: (a,a') :: (zip_lists args args' lst)
   | Lam (_,_,_,b), Lam (_,_,_ ,b') -> (b,b')::lst
+  (* Potentially eta-equivalent terms *)
+  | Lam (_,i,_,b), a when !eta ->
+    let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+    (b,b')::lst
+  | a, Lam (_,i,_,b) when !eta ->
+    let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+    (b,b')::lst
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
   | t1, t2 -> begin
       Debug.(debug D_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );

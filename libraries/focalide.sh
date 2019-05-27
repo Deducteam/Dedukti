@@ -1,14 +1,17 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
-SRC="https://deducteam.github.io/data/libraries/holide.tar.gz"
-DIR="holide"
+DKCHECK="$(pwd)/../dkcheck.native"
+DKDEP="$(pwd)/../dkdep.native"
+DKFLAGS="-q"
+
+SRC="https://deducteam.github.io/data/libraries/focalide.tar.gz"
+DIR="focalide"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
   if [[ "$1" = "fullclean" ]]; then
-    rm -f holide.tar.gz
+    rm -f focalide.tar.gz
   fi
   exit 0
 fi
@@ -25,7 +28,7 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f holide.tar.gz ]]; then
+  if [[ ! -f focalide.tar.gz ]]; then
     echo -n "  - downloading...      "
     wget -q ${SRC}
     echo "OK"
@@ -33,16 +36,13 @@ if [[ ! -d ${DIR} ]]; then
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  tar xf holide.tar.gz
+  tar xf focalide.tar.gz
+  mv focalide_dks focalide
   echo "OK"
 
-  # Applying the changes (add "#REQUIRE hol" and fix obsolete syntax).
+  # Applying the changes (add "#REQUIRE" and create "focalide.dk").
   echo -n "  - applying changes... "
-  for FILE in `find ${DIR} -type f -name "*.dk"`; do
-    if [ ${FILE} != "${DIR}/hol.dk" ]; then
-      sed -i 's/^[{]\([a-zA-Z0-9_-]*\)[}]/thm \1/g' ${FILE}
-    fi
-  done
+  mv ${DIR}/modulogic.dk ${DIR}/zen.dk
   echo "OK"
 
   # All done.
@@ -50,29 +50,14 @@ if [[ ! -d ${DIR} ]]; then
   echo ""
 fi
 
-# Checking function.
-function check_holide() {
-  rm -f hol.dko
-  ${BIN} --gen-obj hol.dk
-  for FILE in `ls *.dk`; do
-    if [ ${FILE} != "hol.dk" ]; then
-      ${BIN} ${FILE}
-    fi
-  done
-}
-
-# Export stuff for the checking function.
-export readonly BIN=${BIN}
-export -f check_holide
-
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make "DKCHECK=$BIN"
+	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 else
-	\time -a -o $OUT make "DKCHECK=$BIN"
+	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 fi

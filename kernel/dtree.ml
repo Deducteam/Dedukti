@@ -21,12 +21,8 @@ type case =
   | CDB    of int * int
   | CLam
 
-type arg_pos = { position:int; depth:int }
-type abstract_problem = arg_pos * int LList.t
-
-type matching_problem =
-  | Syntactic of arg_pos LList.t
-  | MillerPattern of abstract_problem LList.t
+type atomic_problem = { pos:int; depth:int; args_db:int LList.t }
+type matching_problem = atomic_problem LList.t
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
@@ -448,7 +444,7 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
            let n = n - depth in
            let len = List.length lst in
            if miller.(n) == -1 then miller.(n) <- len else assert(miller.(n) == len);
-           pbs := (depth, Eq( (n, LList.make len lst), i)) :: !pbs
+           pbs := (depth, Eq( (n, LList.of_list lst), i)) :: !pbs
          end
       | LACSet (cst,patl) ->
          begin
@@ -462,7 +458,7 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
                    if miller.(n) == -1
                    then miller.(n) <- len
                    else assert(miller.(n) == len);
-                   let nvars = (n, LList.make len lst) :: vars in
+                   let nvars = (n, LList.of_list lst) :: vars in
                    (joks,nvars)
                  end
               | _ -> assert false in
@@ -566,6 +562,7 @@ let pp_AC_args fmt i =
   else if i == 2 then fprintf fmt "AC args"
   else fprintf fmt "AC args, %i args" (i-2)
 
+let pp_matching_problem fmt matching_problem = fprintf fmt "Mi"
 
 let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
@@ -580,6 +577,20 @@ let rec pp_dtree t fmt dtree =
      fprintf fmt "%stry %a%sunder constraints %a%sthen %a%selse %a"
              tab (pp_pre_matching_problem (tab^"      ")) mp tab (pp_list ", " pp_constr) cstr
              tab pp_term te tab (pp_def (t+1)) def
+  | Switch (i,cases,def) ->
+     let pp_case out = function
+       | CConst (nargs,name,false), g ->
+          fprintf out "%sif $%i = %a (%i args) then %a"
+                  tab i pp_name name nargs (pp_dtree (t+1)) g
+       | CConst (nargs,name,true), g ->
+          fprintf out "%sif $%i = %a (%a) then %a"
+                  tab i pp_name name pp_AC_args nargs (pp_dtree (t+1)) g
+       | CDB (nargs,n), g ->
+          fprintf out "%sif $%i = DB[%i] (%i args) then %a"
+                  tab i n nargs (pp_dtree (t+1)) g
+       | CLam, g -> fprintf out "%sif $%i = Lambda then %a" tab i (pp_dtree (t+1)) g
+     in
+     fprintf fmt "%a%sdefault: %a" (pp_list "" pp_case) cases tab (pp_def (t+1)) def
   | ACEmpty (i,tree_suc,tree_def) ->
      fprintf fmt "%sif $%i (AC flattened) is empty then %a%selse %a"
              tab i (pp_dtree (t+1)) tree_suc tab (pp_def (t+1)) tree_def
@@ -596,20 +607,6 @@ let rec pp_dtree t fmt dtree =
                   tab i n nargs
        | CLam -> fprintf fmt "%sif $%i is AC applied to Lambda then %a%selse %a" tab i
      ) (pp_dtree (t+1)) tree_suc tab (pp_def (t+1)) tree_def
-  | Switch (i,cases,def) ->
-     let pp_case out = function
-       | CConst (nargs,name,false), g ->
-          fprintf out "%sif $%i = %a (%i args) then %a"
-                  tab i pp_name name nargs (pp_dtree (t+1)) g
-       | CConst (nargs,name,true), g ->
-          fprintf out "%sif $%i = %a (%a) then %a"
-                  tab i pp_name name pp_AC_args nargs (pp_dtree (t+1)) g
-       | CDB (nargs,n), g ->
-          fprintf out "%sif $%i = DB[%i] (%i args) then %a"
-                  tab i n nargs (pp_dtree (t+1)) g
-       | CLam, g -> fprintf out "%sif $%i = Lambda then %a" tab i (pp_dtree (t+1)) g
-     in
-     fprintf fmt "%a%sdefault: %a" (pp_list "" pp_case) cases tab (pp_def (t+1)) def
 
 and pp_case fmt = function
   | CConst (nargs,cst,false) ->

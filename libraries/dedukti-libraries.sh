@@ -1,14 +1,17 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
-SRC="https://deducteam.github.io/data/libraries/matita.tar.gz"
-DIR="matita-light"
+DKCHECK="$(pwd)/../dkcheck.native"
+DKDEP="$(pwd)/../dkdep.native"
+DKFLAGS="-q"
+
+SRC="https://github.com/Deducteam/Libraries/archive/master.zip"
+DIR="Libraries-master"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
   if [[ "$1" = "fullclean" ]]; then
-    rm -f matita.tar.gz
+    rm -f Libraries-master.zip
   fi
   exit 0
 fi
@@ -25,31 +28,30 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f matita.tar.gz ]]; then
+  if [[ ! -f Libraries-master.zip ]]; then
     echo -n "  - downloading...      "
-    wget -q ${SRC}
+    wget -q ${SRC} -O ${DIR}.zip
     echo "OK"
   fi
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  tar xf matita.tar.gz
-  mv matita $DIR
-  # Editing factorial file : turning le_fact_10 into an axiom
-  sed -i '30816,33252d'                      $DIR/matita_arithmetics_factorial.dk
-  sed -i '30815s/.*/\./'                     $DIR/matita_arithmetics_factorial.dk
-  sed -i 's/def le_fact_10 :/le_fact_10 :/'  $DIR/matita_arithmetics_factorial.dk
+  unzip Libraries-master.zip
   echo "OK"
+
+  # All done.
+  echo "Ready."
+  echo ""
 fi
 
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make "DKCHECK=$BIN"
+	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 else
-	\time -a -o $OUT make "DKCHECK=$BIN"
+	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 fi

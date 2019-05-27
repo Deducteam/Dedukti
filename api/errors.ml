@@ -3,6 +3,7 @@ open Basic
 open Format
 open Term
 open Reduction
+open Pp
 
 let errors_in_snf = ref false
 
@@ -34,9 +35,12 @@ let fail_exit code lc fmt =
   print_error_code code;
   fail lc fmt
 
-let pp_typed_context out = function
-  | [] -> ()
-  | _::_ as ctx -> fprintf out " in context:\n%a" Rule.pp_typed_context ctx
+let try_print_oneliner fmt (te,ctxt) =
+  let one_liner = asprintf "%a" pp_term te in
+  if String.length one_liner < 60
+  then Format.fprintf fmt "'%s'%a." one_liner print_err_ctxt ctxt
+  else if ctxt = [] then Format.fprintf fmt "@.%a@." print_term te
+  else Format.fprintf fmt "@.%a@.----%a" print_term te print_err_ctxt ctxt
 
 let fail_typing_error def_loc err =
   let open Typing in
@@ -46,54 +50,64 @@ let fail_typing_error def_loc err =
       "Kind is not typable."
   | ConvertibilityError (te,ctx,exp,inf) ->
     fail (get_loc te)
-      "Error while typing '%a'%a.\nExpected: %a\nInferred: %a."
-      pp_term te pp_typed_context ctx pp_term (snf exp) pp_term (snf inf)
+      "Error while typing %a@.---- Expected:@.%a@.---- Inferred:@.%a@."
+      try_print_oneliner (te,ctx) print_term (snf exp) print_term (snf inf)
   | VariableNotFound (lc,x,n,ctx) ->
     fail lc
-      "The variable '%a' was not found in context:\n"
-      pp_term (mk_DB lc x n) pp_typed_context ctx
+      "The variable '%a' was not found in context:@."
+      pp_term (mk_DB lc x n) print_err_ctxt ctx
   | SortExpected (te,ctx,inf) ->
     fail (Term.get_loc te)
-      "Error while typing '%a'%a.\nExpected: a sort.\nInferred: %a."
-      pp_term te pp_typed_context ctx pp_term (snf inf)
+      "Error while typing %a@.---- Expected: a sort.@.---- Inferred: %a."
+      try_print_oneliner (te,ctx) pp_term (snf inf)
   | ProductExpected (te,ctx,inf) ->
     fail (get_loc te)
-      "Error while typing '%a'%a.\nExpected: a product type.\nInferred: %a."
-      pp_term te pp_typed_context ctx pp_term (snf inf)
+      "Error while typing %a@.---- Expected: a product type.@.---- Inferred: %a."
+      try_print_oneliner (te,ctx) print_err_ctxt ctx pp_term (snf inf)
   | InexpectedKind (te,ctx) ->
     fail (get_loc te)
-      "Error while typing '%a'%a.\nExpected: anything but Kind.\nInferred: Kind."
-      pp_term te pp_typed_context ctx
+      "Error while typing '%a'%a.@.---- Expected: anything but Kind.@.---- Inferred: Kind."
+      pp_term te print_err_ctxt ctx
   | DomainFreeLambda lc ->
     fail lc "Cannot infer the type of domain-free lambda."
   | CannotInferTypeOfPattern (p,ctx) ->
     fail (Rule.get_loc_pat p)
-      "Error while typing '%a'%a.\nThe type could not be infered: \
+      "Error while typing '%a'%a.@.The type could not be infered: \
        Probably it is not a Miller's pattern."
-      Rule.pp_pattern p pp_typed_context ctx
+      Rule.pp_pattern p print_err_ctxt ctx
   | UnsatisfiableConstraints (r,(q,t1,t2)) ->
     fail (Rule.get_loc_rule r)
-      "Error while typing rewrite rule.\n\
+      "Error while typing rewrite rule.@.\
        Cannot solve typing constraints: %a ~ %a%s"
       pp_term t1 pp_term t2
       (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")
-  | BracketError1 (te,ctx) ->
+  | BracketExprBoundVar (te,ctx) ->
     fail (get_loc te)
-      "Error while typing the term { %a }%a.\n\
-       Brackets can only contain variables occuring \
-       on their left and cannot contain bound variables."
-      pp_term te pp_typed_context ctx
-  | BracketError2 (te,ctx,ty) ->
+      "Error while typing the term { %a }%a.@.\
+       Brackets cannot contain bound variables."
+      pp_term te print_typed_context ctx
+  | BracketExpectedTypeBoundVar (te,ctx,ty) ->
     fail (get_loc te)
-      "Error while typing the term { %a }%a.\n\
-       The type of brackets can only contain variables occuring\
-       on their left and cannot contains bound variables."
-      pp_term te pp_typed_context ctx
+      "Error while typing the term { %a }%a.@.\
+       The expected type of brackets cannot contains bound variables."
+      pp_term te print_typed_context ctx
+  | BracketExpectedTypeRightVar (te,ctx,ty) ->
+    fail (get_loc te)
+      "Error while typing the term { %a }%a.@.\
+       The expected type of brackets can only contain variables occuring\
+       to their left."
+      pp_term te print_typed_context ctx
+  | TypingCircularity (l,x,n,ctx,ty) ->
+    fail l
+      "Typing circularity found while typing variable '%a[%i]'%a.@.\
+       The expected type of variable is not allowed to refer to itself.@.\
+       This is due to bracket expressions refering to this variable.@.\
+       Expected type:%a." pp_ident x n print_typed_context ctx pp_term ty
   | FreeVariableDependsOnBoundVariable (l,x,n,ctx,ty) ->
     fail l
-      "Error while typing '%a[%i]'%a.\n\
-       The type is not allowed to refer to bound variables.\n\
-       Infered type:%a." pp_ident x n pp_typed_context ctx pp_term ty
+      "Error while typing '%a[%i]'%a.@.\
+       The type is not allowed to refer to bound variables.@.\
+       Infered type:%a." pp_ident x n print_err_ctxt ctx pp_term ty
   | Unconvertible (l,t1,t2) ->
     fail l
       "Assertion error. Given terms are not convertible: '%a' and '%a'"
@@ -168,7 +182,7 @@ let pp_cerr out err =
     | NotConfluent   cmd -> cmd, "NO"
     | MaybeConfluent cmd -> cmd, "MAYBE"
     | CCFailure      cmd -> cmd, "ERROR" in
-  fprintf out "Checker's answer: %s.\nCommand: %s" ans cmd
+  fprintf out "Checker's answer: %s.@.Command: %s" ans cmd
 
 let fail_signature_error def_loc err =
   let open Signature in
@@ -184,10 +198,10 @@ let fail_signature_error def_loc err =
     fail lc "Fail to open module '%s'." md
   | SymbolNotFound (lc,cst) ->
     fail lc "Cannot find symbol '%a'." pp_name cst
-  | AlreadyDefinedSymbol (lc,id) ->
-    fail lc "Already declared symbol '%a'." pp_ident id
   | ExpectedACUSymbol (lc,cst) ->
     fail lc "Expected ACU symbol '%a'." pp_name cst
+  | AlreadyDefinedSymbol (lc,n) ->
+    fail lc "Already declared symbol '%a'." pp_name n
   | CannotBuildDtree err -> fail_dtree_error err
   | CannotMakeRuleInfos err -> fail_rule_error err
   | CannotAddRewriteRules (lc,id) ->
@@ -197,18 +211,18 @@ let fail_signature_error def_loc err =
       pp_ident id pp_ident id
   | ConfluenceErrorRules (lc,rs,cerr) ->
     fail lc
-      "Confluence checking failed when adding the rewrite rules below.\n%a\n%a"
+      "Confluence checking failed when adding the rewrite rules below.@.%a@.%a"
       pp_cerr cerr (pp_list "\n" Rule.pp_rule_infos) rs
   | ConfluenceErrorImport (lc,md,cerr) ->
     fail lc
-      "Confluence checking failed when importing the module '%a'.\n%a"
+      "Confluence checking failed when importing the module '%a'.@.%a"
       pp_mident md pp_cerr cerr
   | GuardNotSatisfied(lc, t1, t2) ->
     fail lc
-      "Error while reducing a term: a guard was not satisfied.\n\
-       Expected: %a.\n\
-       Found: %a"
-      pp_term t1 pp_term t2
+      "Error while reducing a term: a guard was not satisfied.@.\
+       Found: %a.@.\
+       Expected: %a"
+      pp_term (snf t1) pp_term (snf t2)
   | CouldNotExportModule file ->
     fail def_loc
       "Fail to export module '%a' to file %s."
@@ -218,6 +232,7 @@ let code err =
   let open Env in
   match err with
   | ParseError _      -> 1
+  | BracketScopingError -> 42
   | EnvErrorType e -> begin match e with
       | Typing.KindIsNotTypable -> 2
       | Typing.ConvertibilityError _ -> 3
@@ -228,8 +243,11 @@ let code err =
       | Typing.DomainFreeLambda _ -> 8
       | Typing.CannotInferTypeOfPattern _ -> 9
       | Typing.UnsatisfiableConstraints _ -> 10
-      | Typing.BracketError1 _ -> 11
-      | Typing.BracketError2 _ -> 12
+      | Typing.BracketExprBoundVar _ -> 11
+      | Typing.BracketExpectedTypeBoundVar _ -> 12
+      | Typing.BracketExpectedTypeRightVar _ -> 12
+      | Typing.TypingCircularity _ -> 12
+      (* TODO offset everything to have a fresh code here. *)
       | Typing.FreeVariableDependsOnBoundVariable _ -> 13
       | Typing.Unconvertible _ -> 14
       | Typing.Convertible _ -> 15
@@ -265,6 +283,14 @@ let code err =
       | Signature.ExpectedACUSymbol   _ -> 44
       | Signature.CouldNotExportModule _ -> 37
     end
+  | EnvErrorRule e -> begin match e with
+      | Rule.BoundVariableExpected _ -> 40
+      | Rule.DistinctBoundVariablesExpected (_,_) -> 41
+      | Rule.VariableBoundOutsideTheGuard _ -> 42
+      | Rule.UnboundVariable (_,_,_) -> 43
+      | Rule.AVariableIsNotAPattern (_,_) -> 44
+      | Rule.NonLinearNonEqArguments (_,_) -> 45
+    end
   | NotEnoughArguments _  -> 25
   | NonLinearRule _       -> 26
   | KindLevelDefinition _ -> 38
@@ -275,6 +301,7 @@ let fail_env_error lc err =
   match err with
   | Env.EnvErrorSignature e -> fail_signature_error lc e
   | Env.EnvErrorType      e -> fail_typing_error    lc e
+  | Env.EnvErrorRule      e -> fail_rule_error    e
   | Env.NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
     fail lc
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
@@ -286,6 +313,8 @@ let fail_env_error lc err =
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
   | Env.ParseError s ->
     fail lc "Parse error: %s@." s
+  | Env.BracketScopingError ->
+    fail lc "Unused variables in context may create scoping ambiguity in bracket.@."
   | Env.AssertError ->
     fail lc "Assertion failed."
 

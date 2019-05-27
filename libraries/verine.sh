@@ -1,15 +1,17 @@
 #!/bin/bash
 
-BIN="../../../dkcheck.native -q"
-SRC="https://github.com/rafoo/dklib/archive/v2.6.zip"
-DIR="dklib"
+DKCHECK="$(pwd)/../dkcheck.native"
+DKDEP="$(pwd)/../dkdep.native"
+DKFLAGS="-q"
+
+SRC="https://deducteam.github.io/data/libraries/verine.tar.gz"
+DIR="verine"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
-  rm -rf dklib-2.6
   if [[ "$1" = "fullclean" ]]; then
-    rm -f dklib.zip
+    rm -f verine.tar.gz
   fi
   exit 0
 fi
@@ -26,21 +28,15 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f dklib.zip ]]; then
+  if [[ ! -f verine.tar.gz ]]; then
     echo -n "  - downloading...      "
-    wget -q ${SRC} -O dklib.zip
+    wget -q ${SRC}
     echo "OK"
   fi
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  unzip -qq dklib.zip
-  mv dklib-2.6 ${DIR}
-  echo "OK"
-
-  # Cleaning up.
-  echo -n "  - cleaning up...      "
-  rm ${DIR}/.gitignore ${DIR}/README.org
+  tar xf verine.tar.gz
   echo "OK"
 
   # All done.
@@ -48,14 +44,14 @@ if [[ ! -d ${DIR} ]]; then
   echo ""
 fi
 
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make "DKCHECK=$BIN"
+	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 else
-	\time -a -o $OUT make "DKCHECK=$BIN"
+	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 fi

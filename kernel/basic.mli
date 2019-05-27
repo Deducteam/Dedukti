@@ -51,25 +51,17 @@ val dmark : ident
 (** {2 Lists with Length} *)
 
 module LList : sig
-  type +'a t = private {
-    len : int;
-    lst : 'a list;
-  }
-
-  val cons : 'a -> 'a t -> 'a t
+  type 'a t
   val nil : 'a t
-  val make : len:int -> 'a list -> 'a t
-  val of_list : 'a list -> 'a t
-  val of_array : 'a array -> 'a t
+  val cons : 'a -> 'a t -> 'a t
 
-  val is_empty : _ t -> bool
   val len : _ t -> int
   val lst : 'a t -> 'a list
-
+  val is_empty : _ t -> bool
+  val of_list  : 'a list  -> 'a t
+  val of_array : 'a array -> 'a t
   val map : ('a -> 'b) -> 'a t -> 'b t
-  val append_l : 'a t -> 'a list -> 'a t
   val nth : 'a t -> int -> 'a
-  val remove : int -> 'a t -> 'a t
 end
 
 (** {2 Localization} *)
@@ -113,7 +105,6 @@ module Debug : sig
   val debug_eval : flag -> (unit -> unit) -> unit
 end
 
-
 (** {2 Misc} *)
 
 val fold_map : ('b->'a-> ('c*'b)) -> 'b -> 'a list -> ('c list*'b)
@@ -127,6 +118,8 @@ val array_for_all : ('a -> bool) -> 'a array -> bool
 val split : int -> 'a list -> 'a list * 'a list
 
 val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
+
+(** {2 Printing functions} *)
 
 type 'a printer = Format.formatter -> 'a -> unit
 (** Functions printing objects on the given formatter. *)

@@ -21,7 +21,7 @@ let mk_entry md e =
     let rs = Env.add_rules rs in
     List.iter (fun (s,r) ->
         eprint (get_loc_pat r.pat) "%a@.with the following constraints: %a"
-          pp_typed_rule r Subst.Subst.pp s) rs
+          pp_typed_rule r (Subst.Subst.pp (fun n -> let _,n,_ = List.nth r.ctx n in n)) s) rs
   | Eval(_,red,te) ->
     let te = Env.reduction ~red te in
     Format.printf "%a@." Pp.print_term te
@@ -113,6 +113,9 @@ let _ =
       , Arg.Set Typing.coc
       , " Allows to declare a symbol whose type contains Type in the
           left-hand side of a product (useful for the Calculus of Construction)" )
+    ; ( "-eta"
+      , Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity]
+      , " Allows the conversion test to use eta." )
     ; ( "-I"
       , Arg.String Basic.add_path
       , "DIR Adds the directory DIR to the load path" )

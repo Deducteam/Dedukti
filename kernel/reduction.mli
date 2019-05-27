@@ -7,6 +7,8 @@ type Debug.flag += D_reduce
 type red_target   = Snf | Whnf
 type red_strategy = ByName | ByValue | ByStrongValue
 
+val eta : bool ref
+
 type red_cfg = {
   select   : (Rule.rule_name -> bool) option;
   nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)

@@ -1,15 +1,17 @@
 #!/bin/bash
 
+DKCHECK="$(pwd)/../dkcheck.native"
+DKDEP="$(pwd)/../dkdep.native"
+DKFLAGS="-q"
 
-BIN="$(pwd)/../../dkcheck.native -q"
-SRC="https://github.com/Deducteam/Libraries/archive/master.zip"
-DIR="Libraries-master"
+SRC="https://deducteam.github.io/data/libraries/holide.tar.gz"
+DIR="holide"
 
 # Cleaning command (clean and exit).
 if [[ "$#" -eq 1 && ("$1" = "clean" || "$1" = "fullclean") ]]; then
   rm -rf ${DIR}
   if [[ "$1" = "fullclean" ]]; then
-    rm -f Libraries-master.zip
+    rm -f holide.tar.gz
   fi
   exit 0
 fi
@@ -26,16 +28,24 @@ if [[ ! -d ${DIR} ]]; then
   echo "Preparing the library:"
 
   # Download the library if necessary.
-  if [[ ! -f Libraries-master.zip ]]; then
+  if [[ ! -f holide.tar.gz ]]; then
     echo -n "  - downloading...      "
     wget -q ${SRC}
-    mv master.zip Libraries-master.zip
     echo "OK"
   fi
 
   # Extracting the source files.
   echo -n "  - extracting...       "
-  unzip Libraries-master.zip
+  tar xf holide.tar.gz
+  echo "OK"
+
+  # Applying the changes (add "#REQUIRE hol" and fix obsolete syntax).
+  echo -n "  - applying changes... "
+  for FILE in `find ${DIR} -type f -name "*.dk"`; do
+    if [ ${FILE} != "${DIR}/hol.dk" ]; then
+      sed -i 's/^[{]\([a-zA-Z0-9_-]*\)[}]/thm \1/g' ${FILE}
+    fi
+  done
   echo "OK"
 
   # All done.
@@ -43,14 +53,14 @@ if [[ ! -d ${DIR} ]]; then
   echo ""
 fi
 
-# Run the actual checks.
 cd ${DIR}
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
+# Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make "DKCHECK=$BIN"
+	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 else
-	\time -a -o $OUT make "DKCHECK=$BIN"
+	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
 fi

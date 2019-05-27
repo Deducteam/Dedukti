@@ -1,4 +1,3 @@
-
 open Basic
 open Format
 open Term
@@ -41,24 +40,26 @@ type constr = int * term
 
 let pp_constr fmt (i,t) = fprintf fmt "%i =b %a" i pp_term t
 
-type rule_infos = {
-  l           : loc;
-  name        : rule_name;
-  linear      : bool;
-  cst         : name;
-  args        : pattern list;
-  rhs         : term;
-  esize       : int;
-  pats        : wf_pattern array;
-  arity       : int array;
-  constraints : constr list;
-}
+type rule_infos =
+  {
+    l           : loc;
+    name        : rule_name;
+    linear      : bool;
+    cst         : name;
+    args        : pattern list;
+    rhs         : term;
+    ctx_size    : int;
+    esize       : int;
+    pats        : wf_pattern array;
+    arity       : int array;
+    constraints : constr list;
+  }
 
 let infer_rule_context ri =
-  let res = Array.make ri.esize (mk_ident "_") in
+  let res = Array.make ri.ctx_size (mk_ident "_") in
   let rec aux k = function
     | LJoker -> ()
-    | LVar (name,n,args) -> res.(n-k) <- name
+    | LVar (name,n,args) -> if n>=k then res.(n-k) <- name
     | LLambda (_,body) -> aux (k+1) body
     | LPattern  (_  ,args) -> Array.iter (aux k) args
     | LBoundVar (_,_,args) -> Array.iter (aux k) args
@@ -241,6 +242,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       let unshifted =
         try Subst.unshift k t
         with Subst.UnshiftExn -> raise (RuleError (VariableBoundOutsideTheGuard t))
+        (* Note: A different exception is previously raised at rule type-checking for this. *)
       in
       IntHashtbl.add arity !context_size 0;  (* Brackets are variable with arity 0 *)
       incr context_size;
@@ -257,17 +259,20 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       linear = !linear
     } )
 
-let to_rule_infos (r:untyped_rule) : rule_infos =
-  let esize = List.length r.ctx in
+let to_rule_infos (r:'a context rule) : rule_infos =
+  let ctx_size = List.length r.ctx in
   let (l,cst,args) = match r.pat with
     | Pattern (l,cst,args) -> (l, cst, args)
     | Var (l,x,_,_) -> raise (RuleError (AVariableIsNotAPattern (l,x)))
     | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
   in
-  let (pats2,infos) = check_patterns esize args in
+  let (pats2,infos) = check_patterns ctx_size args in
   { l ;
-    name = r.name ; linear = infos.linear;
-    cst ; args ; rhs = r.rhs ;
+    name = r.name ;
+    linear = infos.linear;
+    cst ; args ;
+    rhs = r.rhs ;
+    ctx_size ;
     esize = infos.context_size ;
     pats = Array.of_list pats2 ;
     arity = infos.arity ;
