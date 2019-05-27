@@ -77,6 +77,7 @@ let _ =
   let run_on_stdin = ref None  in
   let export       = ref false in
   let beautify     = ref false in
+  
   let options = Arg.align
     [ ( "-e"
       , Arg.Set export
@@ -93,7 +94,7 @@ let _ =
       o : (module)   notifies about loading of an external module (associated
                      to the command #REQUIRE)
       c : (confluence) notifies about information provided to the confluence
-                     checker (when option -cc used)
+                     checker (when option --confluence used)
       u : (rule)     provides information about type checking of rules
       t : (typing)   provides information about type-checking of terms
       r : (reduce)   provides information about reduction performed in terms
@@ -130,17 +131,22 @@ let _ =
     ; ( "--confluence"
       , Arg.String Confluence.set_cmd
       , "CMD Set the external confluence checker command to CMD" )
-    ; ( "-nl"
-      , Arg.Unit (fun _ -> ())
-      , "" )
     ; ( "--beautify"
       , Arg.Set beautify
       , " Pretty printer. Print on the standard output" )
     ; ( "--version"
       , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
       , " Prints the version number" )
+    (* Deprecated flags. TODO: Remove them from the argument parsing. *)
+    ; ( "-errors-in-snf", Arg.Set Errors.errors_in_snf, "" )
+    ; ( "-cc", Arg.String Confluence.set_cmd, "" )
+    ; ( "-eta"    , Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity], "" )
+    ; ( "-coc"    , Arg.Set Typing.coc, "" )
+    ; ( "-nl"     , Arg.Unit (fun _ -> ()), "" )
+    ; ( "-version", Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version), "" )
     ]
   in
+  
   let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...
 Type checks the given Dedukti FILE(s).
 For more information see https://github.com/Deducteam/Dedukti.
