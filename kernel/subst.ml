@@ -60,8 +60,9 @@ let subst (te:term) (u:term) =
 let subst_n m y =
   apply_subst (fun l x n k -> if n-k = m then mk_DB l y k else mk_DB l x (n+1)) 0
 
+exception Occurs
+
 let occurs (n:int) (te:term) : bool =
-  let exception Occurs in
   let check _ _ db depth = if db = n + depth then raise Occurs else raise Not_found in
   try ignore(apply_subst check 0 te); false with Occurs -> true
 
