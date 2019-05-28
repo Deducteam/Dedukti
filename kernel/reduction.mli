@@ -56,7 +56,7 @@ module type ConvChecker = sig
   val conversion_step : term * term -> (term * term) list -> (term * term) list
   (** [conversion_step (l,r) lst] returns a list [lst'] containing
       new convertibility obligations.
-      Raise [NotConvertible] if the two terms cannot be convertible. *)
+      Raise [NotConvertible] if the two terms are not convertible. *)
 end
 
 module type S = sig
