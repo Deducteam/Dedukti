@@ -4,9 +4,9 @@ open Term
 
 exception UnshiftExn
 
-(** A substitution is a function mapping a variable (location, identifier and DB index) under 
+(** A substitution is a function mapping a variable (location, identifier and DB index) under
     a given number of lambda abstractions to a term.
-    A substitution raises Not_found to mean that the variable is not subsituted. *)
+    A substitution raises Not_found meaning that the variable is not subsituted. *)
 type substitution = Basic.loc -> Basic.ident -> int -> int -> term
 
 (** [apply_subst subst n t] applies [subst] to [t] under [n] lambda abstractions.
