@@ -7,8 +7,6 @@ type Debug.flag += D_reduce
 type red_target   = Snf | Whnf
 type red_strategy = ByName | ByValue | ByStrongValue
 
-val eta : bool ref
-
 type red_cfg = {
   select   : (Rule.rule_name -> bool) option;
   nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
@@ -41,10 +39,12 @@ val default_cfg : red_cfg
 *)
 
 type convertibility_test = Signature.t -> term -> term -> bool
-type matching_test = Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
+type matching_test = Rule.constr -> Rule.rule_name -> convertibility_test
 
 exception NotConvertible
 
+val eta : bool ref
+(** Set to [true] to allow eta expansion at conversion check *)
 
 module type ConvChecker = sig
   val are_convertible  : convertibility_test
@@ -52,6 +52,11 @@ module type ConvChecker = sig
       or not in the signature [sg]. *)
 
   val matching_test : matching_test
+
+  val conversion_step : term * term -> (term * term) list -> (term * term) list
+  (** [conversion_step (l,r) lst] returns a list [lst'] containing
+      new convertibility obligations.
+      Raise [NotConvertible] if the two terms cannot be convertible. *)
 end
 
 module type S = sig
@@ -60,11 +65,6 @@ module type S = sig
   val reduction : red_cfg -> Signature.t -> term -> term
   (** [reduction cfg sg te] reduces the term [te] following the configuration [cfg]
       and using the signature [sg]. *)
-
-  val conversion_step : term * term -> (term * term) list -> (term * term) list
-  (** [conversion_step (l,r) lst] returns a list [lst'] containing
-      new convertibility obligations.
-      Raise [NotConvertible] if the two terms cannot be convertible. *)
 
   val whnf : Signature.t -> term -> term
   (** [whnf sg t] returns the Weak Head Normal Form of [t].
