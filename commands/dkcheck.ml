@@ -77,9 +77,6 @@ let _ =
     ; ( "-errors-in-snf"
       , Arg.Set Errors.errors_in_snf
       , " Normalizes all terms printed in error messages" )
-    ; ( "-unsafe"
-      , Arg.Set Signature.unsafe
-      , " Deactive sanity checks" )
     ; ( "-cc"
       , Arg.String Confluence.set_cmd
       , "CMD Set the external confluence checker command to CMD" )

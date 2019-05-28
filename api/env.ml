@@ -3,6 +3,9 @@ open Term
 open Rule
 open Signature
 
+module T = Typing.Default
+module R = Reduction.Default
+
 exception DebugFlagNotRecognized of char
 
 let set_debug_mode =
