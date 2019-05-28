@@ -6,8 +6,6 @@ open Entry
 let eprint lc fmt =
   Debug.(debug D_notice ("%a " ^^ fmt) pp_loc lc)
 
-let warn = Debug.(debug D_warn)
-
 let mk_entry md e =
   match e with
   | Decl(lc,id,st,ty) ->
@@ -53,7 +51,7 @@ let mk_entry md e =
   | Print(_,s) -> Format.printf "%s@." s
   | Name(_,n) ->
     if not (mident_eq n md)
-    then Debug.(debug D_warn "Invalid #NAME directive ignored.@.")
+    then Debug.(debug D_warn) "Invalid #NAME directive ignored.@."
   | Require(lc,md) -> Env.import lc md
 
 let mk_entry beautify md =
@@ -81,8 +79,9 @@ let _ =
   let beautify     = ref false in
   let deprecated old_flag new_flag spec =
     let warning () =
-      warn "[DEPRECATED] Flag %s is deprecated ! Use %s instead." old_flag new_flag in
-    (old_flag,Arg.Tuple [Arg.Unit warning;Arg.Set Reduction.eta; spec], "")
+      Debug.(debug D_warn "[DEPRECATED] Flag %s is deprecated ! Use %s instead.@.")
+        old_flag new_flag in
+    (old_flag,Arg.Tuple [Arg.Unit warning; spec], "")
   in
   let options = Arg.align
     [ ( "-e"

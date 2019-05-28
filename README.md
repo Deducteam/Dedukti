@@ -64,7 +64,7 @@ The installation provides the following commands:
  - `--coc` [Experimental] Allows to declare a symbol whose type contains `Type` in the left-hand side of a product (useful for the Calculus of Construction);
  - `--type-lhs` Forbids rules with untypable left-hand side;
  - `--snf` Normalizes the types in error messages;
- - `--confluence CMD` Sets the external confluence checker command to `CMD`
+ - `--confluence CMD` Sets the external confluence checker command to `CMD`;
  - `--beautify` Pretty printer. Prints on the standard output;
  - `--version` Prints the version number;
  - `--help` Prints the list of available options.
@@ -239,7 +239,7 @@ the rule and proceed, it actually raises an error.
 - because they are replaced with *unapplied* fresh variables, bracket expressions may not contain variables
 locally bounded previously in the pattern.
 - since they are not used during matching, bracket expressions may not "introduce" variables. All rule variables
-occuring in bracket expression need to also occur in an other part of the pattern, outside a bracket. 
+occuring in bracket expression need to also occur in an other part of the pattern, outside a bracket.
 - bracket expressions and their type may contain variables occuring "before" (to the left of) the pattern.
 - the type of a bracket expression may not contain variables occuring for the first time "after" (to the right of)
 the bracket.
