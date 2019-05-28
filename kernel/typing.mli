@@ -34,26 +34,31 @@ exception TypingError of typing_error
 
 type typ = term
 
+
+
 (** {2 Type Inference/Checking} *)
+module type S = sig
+  val infer       : Signature.t -> typed_context -> term -> typ
+  (** [infer sg ctx te] infers a type for the term [te] in the signature [sg] and context [ctx]
+      The context is assumed to be well-formed *)
 
-val infer       : Signature.t -> typed_context -> term -> typ
-(** [infer sg ctx te] infers a type for the term [te] in the signature [sg] and context [ctx]
-    The context is assumed to be well-formed *)
+  val check       : Signature.t -> typed_context -> term -> typ -> unit
+  (** [check sg ctx te ty] checks that the term [te] has type [ty]
+      in the signature [sg] and context [ty.ctx].
+      [ty] is assumed to be well-typed in [ctx]
+      and [ctx] is assumed to be well-formed *)
 
-val check       : Signature.t -> typed_context -> term -> typ -> unit
-(** [check sg ctx te ty] checks that the term [te] has type [ty]
-    in the signature [sg] and context [ty.ctx].
-    [ty] is assumed to be well-typed in [ctx]
-    and [ctx] is assumed to be well-formed *)
+  val checking    : Signature.t -> term -> term -> unit
+  (** [checking sg te ty] checks that [te] has type [ty] in the empty context.
+      [ty] is typechecked first. *)
 
-val checking    : Signature.t -> term -> term -> unit
-(** [checking sg te ty] checks that [te] has type [ty] in the empty context.
-    [ty] is typechecked first. *)
+  val inference   : Signature.t -> term -> typ
+  (** [inference sg ctx te] infers a type for the term [te] in empty context. *)
 
-val inference   : Signature.t -> term -> typ
-(** [inference sg ctx te] infers a type for the term [te] in empty context. *)
+  val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
+  (** [check_rule sg ru] checks that a rule is well-typed. *)
+end
 
-val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
-(** [check_rule sg ru] checks that a rule is well-typed. *)
+module Make(R:Reduction.S) : S
 
-val untyped_rule_of_rule_infos : Signature.t -> rule_infos -> untyped_rule
+module Default : S
