@@ -6,6 +6,8 @@ open Entry
 let eprint lc fmt =
   Debug.(debug D_notice ("%a " ^^ fmt) pp_loc lc)
 
+let warn = Debug.(debug D_warn)
+
 let mk_entry md e =
   match e with
   | Decl(lc,id,st,ty) ->
@@ -77,7 +79,11 @@ let _ =
   let run_on_stdin = ref None  in
   let export       = ref false in
   let beautify     = ref false in
-  
+  let deprecated old_flag new_flag spec =
+    let warning () =
+      warn "[DEPRECATED] Flag %s is deprecated ! Use %s instead." old_flag new_flag in
+    (old_flag,Arg.Tuple [Arg.Unit warning;Arg.Set Reduction.eta; spec], "")
+  in
   let options = Arg.align
     [ ( "-e"
       , Arg.Set export
@@ -138,15 +144,15 @@ let _ =
       , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
       , " Prints the version number" )
     (* Deprecated flags. TODO: Remove them from the argument parsing. *)
-    ; ( "-errors-in-snf", Arg.Set Errors.errors_in_snf, "" )
-    ; ( "-cc", Arg.String Confluence.set_cmd, "" )
-    ; ( "-eta"    , Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity], "" )
-    ; ( "-coc"    , Arg.Set Typing.coc, "" )
-    ; ( "-nl"     , Arg.Unit (fun _ -> ()), "" )
-    ; ( "-version", Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version), "" )
+    ; deprecated "-errors-in-snf" "--snf" (Arg.Set Errors.errors_in_snf)
+    ; deprecated "-cc" "--confluence" (Arg.String Confluence.set_cmd)
+    ; deprecated "-eta" "--eta" (Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity])
+    ; deprecated "-coc" "--coc" (Arg.Set Typing.coc)
+    ; deprecated "-nl" "no flag" (Arg.Unit ignore)
+    ; deprecated "-version" "--version" (Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version))
     ]
   in
-  
+
   let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...
 Type checks the given Dedukti FILE(s).
 For more information see https://github.com/Deducteam/Dedukti.
