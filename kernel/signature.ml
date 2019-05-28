@@ -7,7 +7,7 @@ open Rule
 type Debug.flag += D_module
 let _ = Debug.register_flag D_module "Module"
 
-let unsafe = ref false
+let fail_on_symbol_not_found = ref true
 
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
@@ -191,13 +191,13 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   | (r::_ as rs) ->
     try
       let infos, env = get_info_env sg r.l r.cst in
-      if infos.stat = Static && not (!unsafe)
+      if infos.stat = Static && !fail_on_symbol_not_found
       then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
       HId.add env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None};
     with SignatureError (SymbolNotFound _)
        | SignatureError (UnmarshalUnknown _) as e ->
       (* The symbol cst is not in the signature *)
-      if !unsafe then
+      if not !fail_on_symbol_not_found then
         begin
           add_external_declaration sg r.l r.cst Definable (mk_Kind);
           let _,env = get_info_env sg r.l r.cst in
@@ -274,7 +274,7 @@ let get_dtree sg lc cst =
     | None -> Dtree.empty
     | Some trees -> trees
   with e ->
-    if !unsafe then Dtree.empty else raise e
+    if not !fail_on_symbol_not_found then Dtree.empty else raise e
 
 (******************************************************************************)
 
