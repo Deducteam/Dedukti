@@ -60,24 +60,16 @@ let subst (te:term) (u:term) =
 let subst_n m y =
   apply_subst (fun l x n k -> if n-k = m then mk_DB l y k else mk_DB l x (n+1)) 0
 
+let occurs (n:int) (te:term) : bool =
+  let exception Occurs in
+  let check _ _ db depth = if db = n + depth then raise Occurs else raise Not_found in
+  try ignore(apply_subst check 0 te); false with Occurs -> true
+
 module IntMap = Map.Make(
   struct
     type t = int
     let compare = compare
   end)
-
-
-let occurs (n:int) (te:term) : bool =
-  let exception Occurs in
-  let rec aux depth = function
-    | Kind | Type _ | Const _ -> ()
-    | DB (_,_,k) -> if k = n + depth then raise Occurs else ()
-    | App (f,a,args) -> List.iter (aux depth) (f::a::args)
-    | Lam (_,_,None,te) -> aux (depth+1) te
-    | Lam (_,_,Some ty,te) -> aux depth ty; aux (depth+1) te
-    | Pi (_,_,a,b) -> aux depth a; aux (depth+1) b
-  in
-  try aux 0 te; false with Occurs -> true
 
 module Subst =
 struct
