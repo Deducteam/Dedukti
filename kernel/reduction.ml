@@ -4,7 +4,6 @@ open Rule
 open Term
 open Dtree
 
-let eta = ref false
 
 type Debug.flag += D_reduce
 let _ = Debug.register_flag D_reduce "Reduce"
@@ -30,14 +29,6 @@ let pp_red_cfg fmt cfg =
 
 let default_cfg =
   {select=None; nb_steps=None; target=Snf; strat=ByName; beta=true; logger=fun _ _ _ _ -> () }
-
-let selection  = ref None
-
-let beta = ref true
-
-let select f b : unit =
-  selection := f;
-  beta := b
 
 exception NotConvertible
 
@@ -107,24 +98,31 @@ type convertibility_test = Signature.t -> term -> term -> bool
 module type ConvChecker = sig
   val are_convertible : convertibility_test
   val matching_test   : matching_test
+  val conversion_step : term * term -> (term * term) list -> (term * term) list
 end
 
 module type S = sig
   include ConvChecker
-
-  val reduction : red_cfg -> Signature.t -> term -> term
-  val default_reduction : red_target -> Signature.t -> term -> term
-  val conversion_step : term * term -> (term * term) list -> (term * term) list
+  val reduction       : red_cfg -> Signature.t -> term -> term
   val whnf            : Signature.t -> term -> term
   val snf             : Signature.t -> term -> term
 end
 
 
+(* Should eta expansion be allowed at conversion check ? *)
+let eta = ref false
+
+(* Should beta steps be allowed at reduction ? *)
+let beta = ref true
+
+(* Rule filter *)
+let selection  = ref None
+
 module Make(C : ConvChecker) : S =
 struct
 
-let get_context (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
-                (mp:matching_problem) : env option =
+let rec get_context (sg:Signature.t) (stack:stack)
+                    (mp:matching_problem) : env option =
   let aux ({pos;depth;args_db}:atomic_problem) : term Lazy.t =
     let st = List.nth stack pos in
     if depth = 0 then lazy (term_of_state st) (* First order matching *)
@@ -133,12 +131,12 @@ let get_context (sg:Signature.t) (forcing:rw_strategy) (stack:stack)
       Lazy.from_val
         (try Matching.solve depth args_db te
          with Matching.NotUnifiable | Subst.UnshiftExn ->
-             Matching.solve depth args_db (forcing sg te))
+             Matching.solve depth args_db (snf sg te))
   in
   try Some (LList.map aux mp)
   with Matching.NotUnifiable | Subst.UnshiftExn -> None
 
-let rec test (rn:Rule.rule_name) (sg:Signature.t)
+and test (rn:Rule.rule_name) (sg:Signature.t)
              (ctx:env) (constrs: constr list) : bool  =
   match constrs with
   | [] -> true
@@ -155,7 +153,7 @@ let rec test (rn:Rule.rule_name) (sg:Signature.t)
      then test rn sg ctx tl
      else raise (Signature.SignatureError(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
 
-let rec find_case (st:state) (cases:(case*dtree) list)
+and find_case (st:state) (cases:(case*dtree) list)
                   (default:dtree option) : (dtree * state list) option =
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
@@ -183,21 +181,19 @@ let rec find_case (st:state) (cases:(case*dtree) list)
 
 
 (* TODO: implement the stack as an array ? (the size is known in advance).*)
-let gamma_rw (sg:Signature.t)
-             (forcing:rw_strategy)
-             (strategy:rw_state_strategy)
-             (filter:(Rule.rule_name -> bool) option)
-  : stack -> dtree -> (rule_name*env*term) option =
+and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
+                  : stack -> dtree -> (rule_name*env*term) option =
   let rec rw stack = function
     | Switch (i,cases,def) ->
        begin
-         let arg_i = strategy sg (List.nth stack i) in
+         let arg_i = state_whnf sg (List.nth stack i) in
          match find_case arg_i cases def with
          | Some (g,[]) -> rw stack g
          | Some (g,s ) -> rw (stack@s) g
          (* This line highly depends on how the module dtree works.
-          * When a column is specialized, new columns are added at the end
-          * This is the reason why s is added at the end. *)
+          * When a column is specialized, the dtree make the assumption
+          * that new columns are pushed at the end of the stack
+          * which is why s is added at the end. *)
          | None -> None
        end
     | Test (rn, matching_pb, eqs, right, def) ->
@@ -207,7 +203,7 @@ let gamma_rw (sg:Signature.t)
         | Some f -> f rn
       in
       if b then
-        match get_context sg forcing stack matching_pb with
+        match get_context sg stack matching_pb with
         | None -> bind_opt (rw stack) def
         | Some ctx ->
           if test rn sg ctx eqs then Some (rn, ctx, right)
@@ -217,27 +213,7 @@ let gamma_rw (sg:Signature.t)
   in
   rw
 
-(* ********************* *)
-
-(* Definition: a term is in weak-head-normal form if all its reducts
- * (including itself) have same 'shape' at the root.
- * The shape of a term could be computed like this:
- *
- * let rec shape = function
- *  | Type -> Type
- *  | Kind -> Kind
- *  | Pi _ -> Pi
- *  | Lam _ -> Lam
- *  | DB (_,_,n) -> DB n
- *  | Const (_,m,v) -> Const m v
- *  | App(f,a0,args) -> App (shape f,List.length (a0::args))
-
- * Property:
- * A (strongly normalizing) non weak-head-normal term can only have the form:
- * - (x:A => b) a c_1..c_n, this is a beta-redex potentially with extra arguments.
- * - or c a_1 .. a_n b_1 ..b_n with c a constant and c a'_1 .. a'_n is a gamma-redex
- *   where the (a'_i)s are reducts of (a_i)s.
- *)
+(* ************************************************************** *)
 
 (* This function reduces a state to a weak-head-normal form.
  * This means that the term [term_of_state (state_whnf sg state)] is a
@@ -247,8 +223,8 @@ let gamma_rw (sg:Signature.t)
  * - state.term is not an application
  * - state.term can only be a variable if term.ctx is empty
  *    (and therefore this variable is free in the corresponding term)
- * *)
-let rec state_whnf (sg:Signature.t) (st:state) : state =
+ *)
+and state_whnf (sg:Signature.t) (st:state) : state =
   match st with
   (* Weak heah beta normal terms *)
   | { term=Type _ } | { term=Kind }
@@ -274,7 +250,7 @@ let rec state_whnf (sg:Signature.t) (st:state) : state =
     | None -> st
     | Some (ar, tree) ->
       let s1, s2 = split ar stack in
-      match gamma_rw sg snf state_whnf !selection s1 tree with
+      match gamma_rw sg !selection s1 tree with
       | None -> st
       | Some (_,ctx,term) -> state_whnf sg { ctx; term; stack=s2 }
 
@@ -322,10 +298,6 @@ let are_convertible sg t1 t2 =
   with NotConvertible -> false
 
 let matching_test _ _ = are_convertible
-
-let default_reduction = function
-  | Snf -> snf
-  | Whnf -> whnf
 
 (* ************************************************************** *)
 
@@ -393,7 +365,7 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
         | None -> st
         | Some (ar, tree) ->
            let s1, s2 = split ar stack in
-           match gamma_rw sg snf state_whnf !selection s1 tree with
+           match gamma_rw sg !selection s1 tree with
            | None -> st
            | Some (rn,ctx,term) ->
               let st' = { ctx; term; stack=s2 } in
@@ -427,13 +399,13 @@ let reduction cfg sg te =
     cfg.logger p rn (lazy (term_of_state stb)) (lazy (term_of_state sta)) in
   let st_red = logged_state_whnf st_logger stop cfg.strat sg in
   let term_red = match cfg.target with Snf -> term_snf | Whnf -> term_whnf in
-  select cfg.select cfg.beta;
+  selection := cfg.select;
+  beta      := cfg.beta;
   let te' = term_red st_red [] te in
-  select default_cfg.select default_cfg.beta;
+  selection := default_cfg.select;
+  beta      := default_cfg.beta;
   te'
 
-  let whnf = default_reduction Whnf
-  let snf  = default_reduction Snf
   let are_convertible = are_convertible
   let matching_test _ _ = are_convertible
 end

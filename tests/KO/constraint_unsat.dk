@@ -1,4 +1,5 @@
-(; KO 10 -ccs ;)
+(; KO 10 --type-lhs ;)
+
 def A : Type.
 eA : A -> Type.
 a : A.
