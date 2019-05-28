@@ -46,6 +46,8 @@ The installation provides the following commands:
 ### OPTIONS
 
 `dkcheck` provides the following options:
+ - `-e` Generates an object file `.dko`;
+ - `-I DIR` Adds the directory `DIR` to the load path;
  - `-d FLAGS` enables debugging for all given flags:
    * `q` (*q*uiet) disables all warnings,
    * `n` (*n*otice) notifies about which symbol or rule is currently treated,
@@ -55,18 +57,16 @@ The installation provides the following commands:
    * `t` (*t*yping) provides information about type-checking of terms,
    * `r` (*r*educe) provides information about reduction performed in terms,
    * `m` (*m*atching) provides information about pattern matching;
+ - `-v` Verbose mode (equivalent to `-d montru`;
  - `-q` Quiet mode (equivalent to `-d q`;
- - `-e` Generates an object file `.dko`;
- - `-nc` Disables colors in the output;
- - `-stdin MOD` Parses standard input using module name `MOD`;
- - `-version` Prints the version number;
- - `-coc` Allows to declare a symbol whose type contains `Type` in the left-hand side of a product (useful for the Calculus of Construction);
- - `-I DIR` Adds the directory `DIR` to the load path;
- - `-ccs` Forbids rules with unsatisfiable constraints;
- - `-errors-in-snf` Normalizes the types in error messages;
- - `-cc CMD` Sets the external confluence checker command to `CMD`
- - `-nl` Allows non left-linear rewriting rules ([DEPRECATED] default behavior now);
+ - `--no-color` Disables colors in the output;
+ - `--stdin MOD` Parses standard input using module name `MOD`;
+ - `--coc` [Experimental] Allows to declare a symbol whose type contains `Type` in the left-hand side of a product (useful for the Calculus of Construction);
+ - `--type-lhs` Forbids rules with untypable left-hand side;
+ - `--snf` Normalizes the types in error messages;
+ - `--confluence CMD` Sets the external confluence checker command to `CMD`;
  - `--beautify` Pretty printer. Prints on the standard output;
+ - `--version` Prints the version number;
  - `--help` Prints the list of available options.
 
 ### A SMALL EXAMPLE
@@ -239,7 +239,7 @@ the rule and proceed, it actually raises an error.
 - because they are replaced with *unapplied* fresh variables, bracket expressions may not contain variables
 locally bounded previously in the pattern.
 - since they are not used during matching, bracket expressions may not "introduce" variables. All rule variables
-occuring in bracket expression need to also occur in an other part of the pattern, outside a bracket. 
+occuring in bracket expression need to also occur in an other part of the pattern, outside a bracket.
 - bracket expressions and their type may contain variables occuring "before" (to the left of) the pattern.
 - the type of a bracket expression may not contain variables occuring for the first time "after" (to the right of)
 the bracket.
