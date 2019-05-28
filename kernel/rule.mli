@@ -113,3 +113,5 @@ val pp_wf_pattern      : wf_pattern      printer
 val pp_untyped_context : untyped_context printer
 val pp_typed_context   : typed_context   printer
 val pp_rule_infos      : rule_infos      printer
+
+val untyped_rule_of_rule_infos : rule_infos -> untyped_rule

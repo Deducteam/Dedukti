@@ -1,4 +1,4 @@
-(; OK -eta ;)
+(; OK --eta ;)
 
 A : Type.
 

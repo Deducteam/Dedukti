@@ -263,7 +263,7 @@ let to_rule_infos (r:'a context rule) : rule_infos =
   let ctx_size = List.length r.ctx in
   let (l,cst,args) = match r.pat with
     | Pattern (l,cst,args) -> (l, cst, args)
-    | Var (l,x,_,_) -> raise (RuleError (AVariableIsNotAPattern (l,x)))
+    | Var (l,x,_,_) ->  raise (RuleError (AVariableIsNotAPattern (l,x)))
     | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
   in
   let (pats2,infos) = check_patterns ctx_size args in
@@ -277,3 +277,9 @@ let to_rule_infos (r:'a context rule) : rule_infos =
     arity = infos.arity ;
     constraints = infos.constraints
   }
+
+let untyped_rule_of_rule_infos ri =
+  { name = ri.name
+  ; ctx  = infer_rule_context ri
+  ; pat  = pattern_of_rule_infos ri
+  ; rhs  = ri.rhs}

@@ -4,6 +4,9 @@ open Rule
 open Typing
 open Signature
 
+module T = Typing.Default
+module R = Reduction.Default
+
 exception DebugFlagNotRecognized of char
 
 let set_debug_mode =
@@ -58,7 +61,7 @@ let get_type lc cst =
   with e -> raise_as_env lc e
 
 let get_dtree lc cst =
-  try Signature.get_dtree !sg None lc cst
+  try Signature.get_dtree !sg lc cst
   with e -> raise_as_env lc e
 
 let export () =
@@ -70,7 +73,7 @@ let import lc md =
   with e -> raise_as_env lc e
 
 let _declare lc (id:ident) st ty : unit =
-  match inference !sg ty with
+  match T.inference !sg ty with
   | Kind | Type _ -> Signature.add_declaration !sg lc id st ty
   | s -> raise (TypingError (SortExpected (ty,[],s)))
 
@@ -106,8 +109,8 @@ let _add_rules rs =
 
 let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
-    | None -> inference !sg te
-    | Some ty -> ( checking !sg te ty; ty )
+    | None -> T.inference !sg te
+    | Some ty -> T.checking !sg te ty; ty
   in
   match ty with
   | Kind -> raise (EnvError (lc, KindLevelDefinition id))
@@ -135,28 +138,28 @@ let define lc id op te ty_opt : unit =
 
 let add_rules (rules: untyped_rule list) : (Subst.Subst.t * typed_rule) list =
   try
-    let rs2 = List.map (check_rule !sg) rules in
+    let rs2 = List.map (T.check_rule !sg) rules in
     _add_rules rules;
     rs2
   with e -> raise_as_env (get_loc_rule (List.hd rules)) e
 
 let infer ?ctx:(ctx=[]) te =
   try
-    let ty = infer !sg ctx te in
+    let ty = T.infer !sg ctx te in
     (* We only verify that [ty] itself has a type (that we immediately
        throw away) if [ty] is not [Kind], because [Kind] does not have a
        type, but we still want [infer ctx Type] to produce [Kind] *)
     if ty <> mk_Kind then
-      ignore(infer !sg ctx ty);
+      ignore(T.infer !sg ctx ty);
     ty
   with e -> raise_as_env (get_loc te) e
 
 let check ?ctx:(ctx=[]) te ty =
-  try check !sg ctx te ty
+  try T.check !sg ctx te ty
   with e -> raise_as_env (get_loc te) e
 
 let _unsafe_reduction red te =
-  Reduction.reduction red !sg te
+  R.reduction red !sg te
 
 let _reduction ctx red te =
   (* This is a safe reduction, so we check that [te] has a type
@@ -164,7 +167,7 @@ let _reduction ctx red te =
      is not [Kind], because [Kind] does not have a type, but we
      still want to be able to reduce it *)
   if te <> mk_Kind then
-    ignore(Typing.infer !sg ctx te);
+    ignore(T.infer !sg ctx te);
   _unsafe_reduction red te
 
 let reduction ?ctx:(ctx=[]) ?red:(red=Reduction.default_cfg) te =
@@ -177,8 +180,8 @@ let unsafe_reduction ?red:(red=Reduction.default_cfg) te =
 
 let are_convertible ?ctx:(ctx=[]) te1 te2 =
   try
-    let ty1 = Typing.infer !sg ctx te1 in
-    let ty2 = Typing.infer !sg ctx te2 in
-    Reduction.are_convertible !sg ty1 ty2 &&
-    Reduction.are_convertible !sg te1 te2
+    let ty1 = T.infer !sg ctx te1 in
+    let ty2 = T.infer !sg ctx te2 in
+    R.are_convertible !sg ty1 ty2 &&
+    R.are_convertible !sg te1 te2
   with e -> raise_as_env (get_loc te1) e
