@@ -111,9 +111,7 @@ end
 
 module type S = sig
   include ConvChecker
-
   val reduction : red_cfg -> Signature.t -> term -> term
-  val default_reduction : red_target -> Signature.t -> term -> term
   val conversion_step : term * term -> (term * term) list -> (term * term) list
   val whnf            : Signature.t -> term -> term
   val snf             : Signature.t -> term -> term
@@ -196,8 +194,9 @@ let gamma_rw (sg:Signature.t)
          | Some (g,[]) -> rw stack g
          | Some (g,s ) -> rw (stack@s) g
          (* This line highly depends on how the module dtree works.
-          * When a column is specialized, new columns are added at the end
-          * This is the reason why s is added at the end. *)
+          * When a column is specialized, the dtree make the assumption
+          * that new columns are pushed at the end of the stack
+          * which is why s is added at the end. *)
          | None -> None
        end
     | Test (rn, matching_pb, eqs, right, def) ->
@@ -217,27 +216,7 @@ let gamma_rw (sg:Signature.t)
   in
   rw
 
-(* ********************* *)
-
-(* Definition: a term is in weak-head-normal form if all its reducts
- * (including itself) have same 'shape' at the root.
- * The shape of a term could be computed like this:
- *
- * let rec shape = function
- *  | Type -> Type
- *  | Kind -> Kind
- *  | Pi _ -> Pi
- *  | Lam _ -> Lam
- *  | DB (_,_,n) -> DB n
- *  | Const (_,m,v) -> Const m v
- *  | App(f,a0,args) -> App (shape f,List.length (a0::args))
-
- * Property:
- * A (strongly normalizing) non weak-head-normal term can only have the form:
- * - (x:A => b) a c_1..c_n, this is a beta-redex potentially with extra arguments.
- * - or c a_1 .. a_n b_1 ..b_n with c a constant and c a'_1 .. a'_n is a gamma-redex
- *   where the (a'_i)s are reducts of (a_i)s.
- *)
+(* ************************************************************** *)
 
 (* This function reduces a state to a weak-head-normal form.
  * This means that the term [term_of_state (state_whnf sg state)] is a
@@ -247,7 +226,7 @@ let gamma_rw (sg:Signature.t)
  * - state.term is not an application
  * - state.term can only be a variable if term.ctx is empty
  *    (and therefore this variable is free in the corresponding term)
- * *)
+ *)
 let rec state_whnf (sg:Signature.t) (st:state) : state =
   match st with
   (* Weak heah beta normal terms *)
@@ -322,10 +301,6 @@ let are_convertible sg t1 t2 =
   with NotConvertible -> false
 
 let matching_test _ _ = are_convertible
-
-let default_reduction = function
-  | Snf -> snf
-  | Whnf -> whnf
 
 (* ************************************************************** *)
 
@@ -432,8 +407,6 @@ let reduction cfg sg te =
   select default_cfg.select default_cfg.beta;
   te'
 
-  let whnf = default_reduction Whnf
-  let snf  = default_reduction Snf
   let are_convertible = are_convertible
   let matching_test _ _ = are_convertible
 end
