@@ -324,5 +324,5 @@ let fail_env_error lc err =
     fail lc "Assertion failed."
 
 let fail_sys_error msg =
-  eprintf "%s%s" (red "[ERROR:SYSTEM] ") msg;
+  eprintf "%s%s@." (red "[ERROR:SYSTEM] ") msg;
   exit 1
