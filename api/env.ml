@@ -4,9 +4,6 @@ open Rule
 open Typing
 open Signature
 
-module T = Typing.Default
-module R = Reduction.Default
-
 exception DebugFlagNotRecognized of char
 
 let set_debug_mode =
