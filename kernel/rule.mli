@@ -56,7 +56,6 @@ type 'a rule =
 
 val get_loc_rule : 'a rule -> loc
 
-type untyped_rule    = unit rule
 type part_typed_rule = term option rule
 type typed_rule      = term rule
 
