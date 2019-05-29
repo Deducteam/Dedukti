@@ -83,7 +83,6 @@ val fail_on_symbol_not_found : bool ref
     This flag is intented to facilitate the use of the module Reduction
     when it is used without the module Typing such as in dkmeta. *)
 
-
 type symbol_infos =
   {
     stat  : staticity;
