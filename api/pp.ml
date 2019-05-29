@@ -176,9 +176,9 @@ let print_red_cfg fmt cfg =
 let print_entry fmt e =
   let open Format in
   match e with
-  | Decl(_,id,pb,Signature.Static,ty) ->
+  | Decl(_,id,scope,Signature.Static,ty) ->
     fprintf fmt "@[<2>%a :@ %a.@]@.@." print_ident id print_term ty
-  | Decl(_,id,pb,Signature.Definable,ty) ->
+  | Decl(_,id,scope,Signature.Definable,ty) ->
     fprintf fmt "@[<2>def %a :@ %a.@]@.@." print_ident id print_term ty
   | Def(_,id,opaque,ty,te) ->
     let key = if opaque then "thm" else "def" in
