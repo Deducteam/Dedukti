@@ -17,7 +17,7 @@ let mk_entry md e =
     Env.define lc id opaque te ty
   | Rules(l,rs) ->
     let open Rule in
-    List.iter (fun (r:untyped_rule) -> eprint l "Adding rewrite rules: '%a'" Pp.print_rule_name r.name) rs;
+    List.iter (fun (r:part_typed_rule) -> eprint l "Adding rewrite rules: '%a'" Pp.print_rule_name r.name) rs;
     let rs = Env.add_rules rs in
     List.iter (fun (s,r) ->
         eprint (get_loc_pat r.pat) "%a@.with the following constraints: %a"

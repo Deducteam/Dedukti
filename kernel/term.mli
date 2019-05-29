@@ -42,13 +42,18 @@ val subterm : term -> position -> term
 
 (** {2 Contexts} *)
 
+type 'a context = (loc * ident * 'a) list
 (** Abstract context *)
-type 'a context = 'a list
 
-(** context of rules after they have been parsed *)
-type untyped_context = (loc * ident) context
+type part_typed_context = term option context
+(** Rule context after they have been parsed *)
 
-(** type checking rules implies to give a type to the variables of the context *)
-type typed_context = ( loc * ident * term ) context
+type typed_context = term context
+(** Rule context after type checking assigns a type to the variables *)
+
+val pp_untyped_context    : 'a context         printer
+val pp_typed_context      : typed_context      printer
+val pp_part_typed_context : part_typed_context printer
+
 
 val rename_vars_with_typed_context : typed_context -> term -> term

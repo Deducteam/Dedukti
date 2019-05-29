@@ -19,7 +19,7 @@ type typing_error =
   | InexpectedKind                     of term * typed_context
   | DomainFreeLambda                   of loc
   | CannotInferTypeOfPattern           of pattern * typed_context
-  | UnsatisfiableConstraints           of untyped_rule * (int * term * term)
+  | UnsatisfiableConstraints           of part_typed_rule * (int * term * term)
   | BracketExprBoundVar                of term * typed_context
   | BracketExpectedTypeBoundVar        of term * typed_context * term
   | BracketExpectedTypeRightVar        of term * typed_context * term
@@ -55,7 +55,7 @@ module type S = sig
   val inference   : Signature.t -> term -> typ
   (** [inference sg ctx te] infers a type for the term [te] in empty context. *)
 
-  val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
+  val check_rule  : Signature.t -> part_typed_rule -> Subst.Subst.t * typed_rule
   (** [check_rule sg ru] checks that a rule is well-typed. *)
 end
 

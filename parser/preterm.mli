@@ -2,8 +2,8 @@ open Basic
 open Format
 
 (** {2 PreTerms} *)
-(** This module regroup types before the scoping. That is to say before variables are scoped with De Bruijn indices *)
-
+(** This module regroup types before the scoping.
+    That is to say before variables are scoped with De Bruijn indices *)
 
 type preterm =
   | PreType of loc
@@ -23,7 +23,7 @@ type prepattern =
 
 val pp_prepattern : formatter -> prepattern -> unit
 
-type pdecl      = loc * ident
+type pdecl      = (loc * ident) * preterm option
 
 val pp_pdecl : formatter -> pdecl -> unit
 

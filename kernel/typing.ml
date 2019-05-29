@@ -24,7 +24,7 @@ type typing_error =
   | InexpectedKind                     of term * typed_context
   | DomainFreeLambda                   of loc
   | CannotInferTypeOfPattern           of pattern * typed_context
-  | UnsatisfiableConstraints           of untyped_rule * (int * term * term)
+  | UnsatisfiableConstraints           of part_typed_rule * (int * term * term)
   | BracketExprBoundVar                of term * typed_context
   | BracketExpectedTypeBoundVar        of term * typed_context * term
   | BracketExpectedTypeRightVar        of term * typed_context * term
@@ -46,7 +46,7 @@ module type S = sig
 
   val inference   : Signature.t -> term -> typ
 
-  val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
+  val check_rule  : Signature.t -> part_typed_rule -> Subst.Subst.t * typed_rule
 end
 
 (* ********************** CONTEXT *)
@@ -244,7 +244,7 @@ type partial_context =
     bracket : bool
   }
 
-let pc_make (ctx:(loc*ident) list) : partial_context =
+let pc_make (ctx:part_typed_context) : partial_context =
   let size = List.length ctx in
   assert ( size >= 0 );
   { padding=size; pctx=LList.nil; bracket=false }
@@ -392,7 +392,7 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
               (l,x, Subst.unshift (i+1) (SS.apply sub 0 (Subst.shift (i+1) ty)) )
     ) ctx
 
-let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
+let check_rule sg (rule:part_typed_rule) : SS.t * typed_rule =
   let fail = if !fail_on_unsatisfiable_constraints
     then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))
     else (fun (q,t1,t2) ->
@@ -409,12 +409,12 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   let ctx2 =
     if SS.is_identity sub then ctx
     else try subst_context sub ctx
-         with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
-           Debug.(
-                debug D_rule "Failed to infer a typing context for the rule:\n%a"
-                  pp_untyped_rule rule;
-                let ctx_name n = let _,name,_ = List.nth ctx n in name in
-                debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
+      with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
+        Debug.(
+          debug D_rule "Failed to infer a typing context for the rule:\n%a"
+            pp_part_typed_rule rule;
+          let ctx_name n = let _,name,_ = List.nth ctx n in name in
+          debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
         raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
   in
   check sg ctx2 ri2 ty_le2;

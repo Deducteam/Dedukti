@@ -74,7 +74,7 @@ val declare     : loc -> ident -> Signature.staticity -> term -> unit
 val define      : loc -> ident -> bool -> term -> term option -> unit
 (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
 
-val add_rules   : Rule.untyped_rule list -> (Subst.Subst.t * Rule.typed_rule) list
+val add_rules   : Rule.part_typed_rule list -> (Subst.Subst.t * Rule.typed_rule) list
 (** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the
     same symbol. *)
 

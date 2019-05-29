@@ -168,12 +168,10 @@ rule:
         ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 decl:
-  | ID COLON term { Debug.(debug D_warn "Ignoring type declaration in rule context."); $1 }
-  | ID            { $1 }
+  | ID COLON term { ($1, Some $3) }
+  | ID            { ($1, None   ) }
 
-context:
-  | /* empty */                          { [] }
-  | separated_nonempty_list(COMMA, decl) { $1 }
+context: separated_list(COMMA, decl) { $1 }
 
 top_pattern:
   | ID  pattern_wp* { (fst $1,None,snd $1,$2) }

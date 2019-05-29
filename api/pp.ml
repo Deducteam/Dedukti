@@ -184,24 +184,33 @@ let print_rule_name fmt rule =
   | Delta(cst)   -> aux true cst (* not printed *)
   | Gamma(b,cst) -> aux b    cst
 
+let print_decl fmt (_,id,_) =
+  fprintf fmt "@[<hv>%a@]" print_ident id
+let print_typed_decl fmt (_,id,ty) =
+  fprintf fmt "@[<hv>%a:@,%a@]" print_ident id print_term ty
+let print_part_typed_decl fmt (l,id,ty) = match ty with
+  | None    -> print_decl       fmt (l,id,())
+  | Some ty -> print_typed_decl fmt (l,id,ty)
+
 let print_untyped_rule fmt (rule:untyped_rule) =
-  let print_decl out (_,id) =
-    fprintf out "@[<hv>%a@]" print_ident id
-  in
   fprintf fmt
     "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
     print_rule_name rule.name
-    (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) rule.ctx)
+    (print_list ", " print_decl) (List.filter (fun (_,id,_) -> is_regular_ident id) rule.ctx)
     print_pattern rule.pat
     print_term rule.rhs
 
-let print_typed_rule out (rule:typed_rule) =
-  let print_decl out (_,id,ty) =
-    fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
-  in
-  fprintf out
+let print_typed_rule fmt (rule:typed_rule) =
+  fprintf fmt
     "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_list ", " print_decl) rule.ctx
+    (print_list ", " print_typed_decl) rule.ctx
+    print_pattern rule.pat
+    print_term rule.rhs
+
+let print_part_typed_rule fmt (rule:part_typed_rule) =
+  fprintf fmt
+    "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
+    (print_list ", " print_part_typed_decl) rule.ctx
     print_pattern rule.pat
     print_term rule.rhs
 
@@ -236,7 +245,7 @@ let print_entry fmt e =
                      print_ident id print_term ty print_term te
     end
   | Rules(_,rs)               ->
-    fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) rs
+    fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_part_typed_rule) rs
   | Eval(_,cfg,te)          ->
     fprintf fmt "#EVAL%a %a.@." print_red_cfg cfg print_term te
   | Infer(_,cfg,te)         ->

@@ -17,7 +17,7 @@ let handle_entry e =
     Format.printf "%a is defined.@." pp_ident id
   | Rules(_,rs) ->
     let _ = Env.add_rules rs in
-    List.iter (fun r -> print "%a" Rule.pp_untyped_rule r) rs
+    List.iter (fun r -> print "%a" Rule.pp_part_typed_rule r) rs
   | Eval(lc,red,te) ->
     let te = Env.reduction ~red te in
     Format.printf "%a@." Pp.print_term te
