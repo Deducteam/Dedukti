@@ -102,7 +102,7 @@ let _add_rules rs =
   if !check_arity then List.iter _check_arity ris;
   Signature.add_rules !sg ris
 
-let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
+let _define lc (id:ident) (scope : scope) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
   let ty = match ty_opt with
     | None -> inference !sg te
     | Some ty -> ( checking !sg te ty; ty )
@@ -110,27 +110,28 @@ let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
   match ty with
   | Kind -> raise (EnvError (lc, KindLevelDefinition id))
   | _ ->
-    if opaque then Signature.add_declaration !sg lc id Signature.Public Signature.Static ty
-    else
-      begin
-        Signature.add_declaration !sg lc id Signature.Public Signature.Definable ty;
-        let cst = mk_name (get_name ()) id in
-        let rule =
-          { name= Delta(cst) ;
-            ctx = [] ;
-            pat = Pattern(lc, cst, []);
-            rhs = te ;
-          }
-        in
-        _add_rules [rule]
-      end
+     if opaque
+     then Signature.add_declaration !sg lc id scope Signature.Static ty
+     else
+       begin
+         Signature.add_declaration !sg lc id scope Signature.Definable ty;
+         let cst = mk_name (get_name ()) id in
+         let rule =
+           { name= Delta(cst) ;
+             ctx = [] ;
+             pat = Pattern(lc, cst, []);
+             rhs = te ;
+           }
+         in
+         _add_rules [rule]
+       end
 
 let declare lc id scope st ty : unit =
   try _declare lc id scope st ty
   with e -> raise_as_env lc e
 
-let define lc id op te ty_opt : unit =
-  try _define lc id op te ty_opt
+let define lc id scope op te ty_opt : unit =
+  try _define lc id scope op te ty_opt
   with e -> raise_as_env lc e
 
 let add_rules (rules: untyped_rule list) : (Subst.Subst.t * typed_rule) list =

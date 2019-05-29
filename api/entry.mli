@@ -18,7 +18,7 @@ type entry =
   (** Symbol declaration. *)
   | Decl  of loc * ident * Signature.scope * Signature.staticity * term
   (** Definition (possibly opaque). *)
-  | Def   of loc * ident * is_opaque * term option * term
+  | Def   of loc * ident * Signature.scope * is_opaque * term option * term
   (** Reduction rules declaration. *)
   | Rules of loc * Rule.untyped_rule list
   (** Evaluation command. *)

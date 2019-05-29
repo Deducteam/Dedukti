@@ -11,7 +11,7 @@ type test =
 
 type entry =
   | Decl  of loc * ident * Signature.scope * Signature.staticity * term
-  | Def   of loc * ident * is_opaque * term option * term
+  | Def   of loc * ident * Signature.scope * is_opaque * term option * term
   | Rules of loc * Rule.untyped_rule list
   | Eval  of loc * Reduction.red_cfg * term
   | Check of loc * is_assertion * should_fail * test

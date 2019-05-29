@@ -12,8 +12,8 @@ let handle_entry e =
   | Decl(lc,id,scope,st,ty) ->
     Env.declare lc id scope st ty;
     Format.printf "%a is declared.@." pp_ident id
-  | Def(lc,id,op,ty,te) ->
-    Env.define lc id op te ty;
+  | Def(lc,id, scope, op,ty,te) ->
+    Env.define lc id scope op te ty;
     Format.printf "%a is defined.@." pp_ident id
   | Rules(_,rs) ->
     let _ = Env.add_rules rs in

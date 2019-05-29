@@ -11,10 +11,10 @@ let mk_entry md e =
   | Decl(lc,id, scope, st,ty) ->
     eprint lc "Declaration of constant '%a'." pp_ident id;
     Env.declare lc id scope st ty
-  | Def(lc,id,opaque,ty,te) ->
+  | Def(lc,id, scope, opaque,ty,te) ->
     let opaque_str = if opaque then " (opaque)" else "" in
     eprint lc "Definition of symbol '%a'%s." pp_ident id opaque_str;
-    Env.define lc id opaque te ty
+    Env.define lc id scope opaque te ty
   | Rules(l,rs) ->
     let open Rule in
     List.iter (fun (r:untyped_rule) -> eprint l "Adding rewrite rules: '%a'" Pp.print_rule_name r.name) rs;

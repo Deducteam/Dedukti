@@ -176,17 +176,30 @@ let print_red_cfg fmt cfg =
 let print_entry fmt e =
   let open Format in
   match e with
-  | Decl(_,id,scope,Signature.Static,ty) ->
+  | Decl(_,id,Signature.Public,Signature.Static,ty) ->
     fprintf fmt "@[<2>%a :@ %a.@]@.@." print_ident id print_term ty
-  | Decl(_,id,scope,Signature.Definable,ty) ->
+  | Decl(_,id,Signature.Public,Signature.Definable,ty) ->
     fprintf fmt "@[<2>def %a :@ %a.@]@.@." print_ident id print_term ty
-  | Def(_,id,opaque,ty,te) ->
+  | Decl(_,id,Signature.Private,Signature.Static,ty) ->
+    fprintf fmt "@[<2>private %a :@ %a.@]@.@." print_ident id print_term ty
+  | Decl(_,id,Signature.Private,Signature.Definable,ty) ->
+    fprintf fmt "@[<2>private def %a :@ %a.@]@.@." print_ident id print_term ty
+  | Def(_,id,Signature.Public,opaque,ty,te) ->
     let key = if opaque then "thm" else "def" in
     begin
       match ty with
       | None    -> fprintf fmt "@[<hv2>%s %a@ :=@ %a.@]@.@." key
                      print_ident id print_term te
       | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
+                     print_ident id print_term ty print_term te
+    end
+  | Def(_,id,Signature.Private,opaque,ty,te) ->
+    let key = if opaque then "thm" else "def" in
+    begin
+      match ty with
+      | None    -> fprintf fmt "@[<hv2>private %s %a@ :=@ %a.@]@.@." key
+                     print_ident id print_term te
+      | Some ty -> fprintf fmt "@[<hv2>private %s %a :@ %a@ :=@ %a.@]@.@." key
                      print_ident id print_term ty print_term te
     end
   | Rules(_,rs)               ->
