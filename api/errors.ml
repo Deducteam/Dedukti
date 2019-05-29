@@ -1,4 +1,3 @@
-
 open Basic
 open Format
 open Term
@@ -33,8 +32,8 @@ let print_error_code code =
   eprintf "%s" (red ("[ERROR:" ^ string_of_int code ^ "] "))
 
 let fail lc fmt =
-    prerr_loc lc;
-    kfprintf (fun _ -> pp_print_newline err_formatter () ; ignore(exit 3)) err_formatter fmt
+  prerr_loc lc;
+  kfprintf (fun _ -> pp_print_newline err_formatter () ; ignore(exit 3)) err_formatter fmt
 
 let fail_exit code lc fmt =
   print_error_code code;
@@ -59,7 +58,7 @@ let fail_typing_error def_loc err =
       try_print_oneliner (te,ctx) print_term (snf exp) print_term (snf inf)
   | VariableNotFound (lc,x,n,ctx) ->
     fail lc
-      "The variable '%a' was not found in context: %a@."
+      "The variable '%a' was not found in context:%a@."
       pp_term (mk_DB lc x n) print_err_ctxt ctx
   | SortExpected (te,ctx,inf) ->
     fail (Term.get_loc te)
