@@ -41,6 +41,9 @@ let raise_as_env lc = function
 
 (* Wrapper around Signature *)
 
+module T = Typing.Default
+module R = Reduction.Default
+
 let sg = ref (Signature.make "noname")
 
 let check_arity = ref true
