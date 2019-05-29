@@ -216,7 +216,7 @@ light_tests: all matita-light dklib holide
 full_tests: light_tests iprover focalide dedukti-libraries verine # zenon_modulo
 
 .PHONY: cleanlibs
-cleanlibs: 
+cleanlibs:
 	@cd $(TEST_LIBS) && ./matita.sh            clean
 	@cd $(TEST_LIBS) && ./matita-light.sh      clean
 	@cd $(TEST_LIBS) && ./plein_de_dks.sh      clean
@@ -229,7 +229,7 @@ cleanlibs:
 	@cd $(TEST_LIBS) && ./dedukti-libraries.sh clean
 
 .PHONY: fullcleanlibs
-fullcleanlibs: 
+fullcleanlibs:
 	@cd $(TEST_LIBS) && ./matita.sh            fullclean
 	@cd $(TEST_LIBS) && ./matita-light.sh      fullclean
 	@cd $(TEST_LIBS) && ./plein_de_dks.sh      fullclean

@@ -39,7 +39,7 @@ let raise_as_env lc = function
   | SignatureError e -> raise (EnvError (lc, (EnvErrorSignature e)))
   | TypingError    e -> raise (EnvError (lc, (EnvErrorType      e)))
   | RuleError      e -> raise (EnvError (lc, (EnvErrorRule      e)))
-  | ex -> raise ex
+  | ex               -> raise ex
 
 
 (* Wrapper around Signature *)
