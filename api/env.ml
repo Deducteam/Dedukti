@@ -1,10 +1,8 @@
 open Basic
 open Term
 open Rule
+open Typing
 open Signature
-
-module T = Typing.Default
-module R = Reduction.Default
 
 exception DebugFlagNotRecognized of char
 
@@ -22,7 +20,7 @@ let set_debug_mode =
     )
 
 type env_error =
-  | EnvErrorType        of Typing.typing_error
+  | EnvErrorType        of typing_error
   | EnvErrorSignature   of signature_error
   | EnvErrorRule        of rule_error
   | EnvErrorDep         of Dep.dep_error
@@ -36,9 +34,9 @@ type env_error =
 exception EnvError of loc * env_error
 
 let raise_as_env lc = function
-  | SignatureError        e -> raise (EnvError (lc, (EnvErrorSignature e)))
-  | Typing.TypingError    e -> raise (EnvError (lc, (EnvErrorType      e)))
-  | RuleError             e -> raise (EnvError (lc, (EnvErrorRule      e)))
+  | SignatureError e -> raise (EnvError (lc, (EnvErrorSignature e)))
+  | TypingError    e -> raise (EnvError (lc, (EnvErrorType      e)))
+  | RuleError      e -> raise (EnvError (lc, (EnvErrorRule      e)))
   | ex -> raise ex
 
 let check_arity = ref true
@@ -67,16 +65,13 @@ sig
 
 end
 
+(* Wrapper around Signature *)
 module Make(R:Reduction.S) =
 struct
 
   module T = Typing.Make(R)
 
-  (* Wrapper around Signature *)
-
   let sg = ref (Signature.make "noname")
-
-
 
   let init file =
     sg := Signature.make file;
@@ -109,11 +104,10 @@ struct
 
   let is_static lc cst = Signature.is_static !sg lc cst
 
-
   (*         Rule checking       *)
 
-  (** Checks that all Miller variables are applied to at least
-      as many arguments on the rhs as they are on the lhs (their arity). *)
+  (* Checks that all Miller variables are applied to at least
+     as many arguments on the rhs as they are on the lhs (their arity). *)
   let _check_arity (r:rule_infos) : unit =
     let check l id n k nargs =
       let expected_args = r.arity.(n-k) in

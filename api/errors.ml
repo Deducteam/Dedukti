@@ -30,7 +30,7 @@ let prerr_loc lc =
   eprintf "@."
 
 let print_error_code code =
-  eprintf "%s"(red ("[ERROR:" ^ string_of_int code ^ "] "))
+  eprintf "%s" (red ("[ERROR:" ^ string_of_int code ^ "] "))
 
 let fail lc fmt =
     prerr_loc lc;
