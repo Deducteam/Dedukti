@@ -21,7 +21,7 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
-  | CouldNotExportModule  of string
+  | CouldNotExportModule  of mident * string
 
 exception SignatureError of signature_error
 
@@ -255,7 +255,7 @@ let rec import_signature sg sg_ext =
 let export sg =
   let mod_table = HMd.find sg.tables sg.name in
   if not (marshal sg.file (get_deps sg) mod_table sg.external_rules)
-  then raise (SignatureError (CouldNotExportModule sg.file))
+  then raise (SignatureError (CouldNotExportModule (sg.name, sg.file)))
 
 (******************************************************************************)
 

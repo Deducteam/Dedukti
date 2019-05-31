@@ -125,5 +125,5 @@ Available options:" Sys.argv.(0) in
       if not !beautify
       then ErrorHandler.success "Standard input was successfully checked.\n"
   with
-  | Env.EnvError (l,e) -> ErrorHandler.fail_env_error l e
-  | Sys_error err  -> ErrorHandler.fail_sys_error err
+  | Env.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
+  | Sys_error    err -> ErrorHandler.fail_sys_error err

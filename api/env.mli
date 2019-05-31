@@ -17,7 +17,7 @@ type env_error =
   | BracketScopingError
   | AssertError
 
-exception EnvError of loc * env_error
+exception EnvError of mident option * loc * env_error
 
 (** {2 Debugging} *)
 

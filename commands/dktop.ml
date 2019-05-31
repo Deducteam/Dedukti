@@ -9,7 +9,7 @@ module ErrorHandler = Errors.Make(E)
 let print fmt =
   Format.kfprintf (fun _ -> print_newline () ) Format.std_formatter fmt
 
-let handle_entry e =
+let handle_entry md e =
   match e with
   | Decl(lc,id,st,ty) ->
     E.declare lc id st ty;
@@ -33,14 +33,14 @@ let handle_entry e =
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (l, Env.AssertError)) )
+      | false, true  -> raise (Env.EnvError (Some md,l,Env.AssertError)) )
   | Check(l, assrt, neg, HasType(te,ty)) ->
     let succ = try E.check te ty; not neg with _ -> neg in
     ( match succ, assrt with
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (l, Env.AssertError)) )
+      | false, true  -> raise (Env.EnvError (Some md,l,Env.AssertError)) )
   | DTree(lc,m,v) ->
     let m = match m with None -> E.get_name () | Some m -> m in
     let cst = mk_name m v in
@@ -56,9 +56,9 @@ let  _ =
   Format.printf "\tDedukti (%s)@.@." Version.version;
   while true do
     Format.printf ">> ";
-    try handle_entry (read str) with
+    try handle_entry md (read str) with
     | End_of_file -> exit 0
-    | Env.EnvError (l, Env.ParseError s) -> ErrorHandler.fail_env_error l (Env.ParseError s)
-    | e ->
-      Format.eprintf "Uncaught exception %S@." (Printexc.to_string e)
+    | Env.EnvError (md,l,Env.ParseError s)->
+      ErrorHandler.fail_env_error (md,l,Env.ParseError s)
+    | e -> Format.eprintf "Uncaught exception %S@." (Printexc.to_string e)
   done

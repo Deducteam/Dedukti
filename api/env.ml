@@ -31,12 +31,12 @@ type env_error =
   | BracketScopingError
   | AssertError
 
-exception EnvError of loc * env_error
+exception EnvError of mident option * loc * env_error
 
-let raise_as_env lc = function
-  | SignatureError e -> raise (EnvError (lc, (EnvErrorSignature e)))
-  | TypingError    e -> raise (EnvError (lc, (EnvErrorType      e)))
-  | RuleError      e -> raise (EnvError (lc, (EnvErrorRule      e)))
+let raise_as_env md lc = function
+  | SignatureError e -> raise (EnvError (Some md, lc, (EnvErrorSignature e)))
+  | TypingError    e -> raise (EnvError (Some md, lc, (EnvErrorType      e)))
+  | RuleError      e -> raise (EnvError (Some md, lc, (EnvErrorRule      e)))
   | ex               -> raise ex
 
 let check_arity = ref true
@@ -81,6 +81,9 @@ struct
 
   let get_signature () = !sg
 
+  let raise_as_env x = raise_as_env (get_name()) x
+  let raise_env lc err = raise (EnvError (Some (get_name()), lc, err))
+
   module Pp = Pp.Make(struct let get_name = get_name end)
 
   let get_type lc cst =
@@ -114,7 +117,7 @@ struct
     let check l id n k nargs =
       let expected_args = r.arity.(n-k) in
       if nargs < expected_args
-      then raise (EnvError (l, NotEnoughArguments (id,n,nargs,expected_args))) in
+      then raise_env l (NotEnoughArguments (id,n,nargs,expected_args)) in
     let rec aux k = function
       | Kind | Type _ | Const _ -> ()
       | DB (l,id,n) ->
@@ -139,7 +142,7 @@ struct
       | Some ty -> T.checking !sg te ty; ty
     in
     match ty with
-    | Kind -> raise (EnvError (lc, KindLevelDefinition id))
+    | Kind -> raise_env lc (KindLevelDefinition id)
     | _ ->
       if opaque then Signature.add_declaration !sg lc id Signature.Static ty
       else
@@ -244,14 +247,14 @@ struct
         | true , false -> Format.printf "YES@."
         | true , true  -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise (EnvError (l,AssertError)) )
+        | false, true  -> raise_env l AssertError )
     | Check(l, assrt, neg, HasType(te,ty)) ->
       let succ = try check te ty; not neg with _ -> neg in
       ( match succ, assrt with
         | true , false -> Format.printf "YES@."
         | true , true  -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise (EnvError (l, AssertError)) )
+        | false, true  -> raise_env l AssertError )
     | DTree(lc,m,v) ->
       let m = match m with None -> get_name () | Some m -> m in
       let cst = mk_name m v in
@@ -262,6 +265,7 @@ struct
       if not (mident_eq n md)
       then Debug.(debug D_warn "Invalid #NAME directive ignored.@.")
     | Require(lc,md) -> import lc md
+
 end
 
 module Default = Make(Reduction.Default)
