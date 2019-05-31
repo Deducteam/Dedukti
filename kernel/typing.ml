@@ -389,7 +389,7 @@ let pp_context_inline fmt ctx =
 (* TODO the term is traversed three times, this could be optimized. *)
 let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
   List.mapi ( fun i (l,x,ty) ->
-              (l,x, Subst.unshift (i+1) (SS.apply sub 0 (Subst.shift (i+1) ty)) )
+      (l,x, Subst.unshift (i+1) (SS.apply sub 0 (Subst.shift (i+1) ty)) )
     ) ctx
 
 let check_rule sg (rule:part_typed_rule) : SS.t * typed_rule =
@@ -420,6 +420,7 @@ let check_rule sg (rule:part_typed_rule) : SS.t * typed_rule =
   check sg ctx2 ri2 ty_le2;
   Debug.(debug D_rule "[ %a ] %a --> %a"
            pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
+
   sub,
   { name = rule.name;
     ctx = ctx2;
