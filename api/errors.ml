@@ -4,11 +4,8 @@ open Term
 open Reduction
 open Pp
 
-module E = Env.Default
 
 let errors_in_snf = ref false
-
-let snf t = if !errors_in_snf then E.unsafe_reduction t else t
 
 let color = ref true
 
@@ -18,6 +15,21 @@ let colored n s =
 let green  = colored 2
 let orange = colored 3
 let red    = colored 1
+
+module type ErrorHandler =
+sig
+  val success : ('a, Format.formatter, unit) format -> 'a
+  val fail_exit : int -> loc -> ('a, Format.formatter, unit) format -> 'a
+  val fail_env_error : loc -> Env.env_error -> unit
+  val fail_sys_error : string -> 'a
+end
+
+module Make (E:Env.S) : ErrorHandler =
+struct
+module Pp = E.Pp
+open Pp
+
+let snf t = if !errors_in_snf then E.unsafe_reduction t else t
 
 let success fmt =
   eprintf "%s" (green "[SUCCESS] ");
@@ -325,3 +337,7 @@ let fail_env_error lc err =
 let fail_sys_error msg =
   eprintf "%s%s@." (red "[ERROR:SYSTEM] ") msg;
   exit 1
+
+end
+
+module Default : ErrorHandler = Make(Env.Default)

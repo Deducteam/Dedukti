@@ -1,29 +1,26 @@
 open Term
 open Basic
 open Parser
-open Entry
 
 module E = Env.Default
+module Pp = E.Pp
+module ErrorHandler = Errors.Make(E)
 
 let mk_entry beautify md =
   if beautify then Pp.print_entry Format.std_formatter
   else E.mk_entry md
-
 
 let run_on_file beautify export file =
   let input = open_in file in
   Debug.(debug Signature.D_module "Processing file '%s'..." file);
   let md = E.init file in
   Confluence.initialize ();
-  Pp.set_module md;
   Parse_channel.handle md (mk_entry beautify md) input;
   if not beautify then
-    Errors.success "File '%s' was successfully checked." file;
-  if export then
-    E.export ();
+    ErrorHandler.success "File '%s' was successfully checked." file;
+  if export then E.export ();
   Confluence.finalize ();
   close_in input
-
 
 let _ =
   let run_on_stdin = ref None  in
@@ -126,7 +123,7 @@ Available options:" Sys.argv.(0) in
       let md = E.init m in
       Parse_channel.handle md (mk_entry !beautify md) stdin;
       if not !beautify
-      then Errors.success "Standard input was successfully checked.\n"
+      then ErrorHandler.success "Standard input was successfully checked.\n"
   with
-  | Env.EnvError (l,e) -> Errors.fail_env_error l e
-  | Sys_error err  -> Errors.fail_sys_error err
+  | Env.EnvError (l,e) -> ErrorHandler.fail_env_error l e
+  | Sys_error err  -> ErrorHandler.fail_sys_error err

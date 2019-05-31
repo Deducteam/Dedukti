@@ -43,6 +43,7 @@ let check_arity = ref true
 
 module type S =
 sig
+  module Pp : Pp.Printer
   val init        : string -> mident
 
   val get_signature : unit -> Signature.t
@@ -68,7 +69,6 @@ end
 (* Wrapper around Signature *)
 module Make(R:Reduction.S) =
 struct
-
   module T = Typing.Make(R)
 
   let sg = ref (Signature.make "noname")
@@ -80,6 +80,8 @@ struct
   let get_name () = Signature.get_name !sg
 
   let get_signature () = !sg
+
+  module Pp = Pp.Make(struct let get_name = get_name end)
 
   let get_type lc cst =
     try Signature.get_type !sg lc cst

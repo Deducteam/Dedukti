@@ -1,10 +1,11 @@
 open Basic
 open Parser
 open Entry
-open Env
-open Errors
 
 module E = Env.Default
+module Pp = E.Pp
+module ErrorHandler = Errors.Make(E)
+
 let print fmt =
   Format.kfprintf (fun _ -> print_newline () ) Format.std_formatter fmt
 
@@ -57,7 +58,7 @@ let  _ =
     Format.printf ">> ";
     try handle_entry (read str) with
     | End_of_file -> exit 0
-    | Env.EnvError (l, Env.ParseError s) -> Errors.fail_env_error l (Env.ParseError s)
+    | Env.EnvError (l, Env.ParseError s) -> ErrorHandler.fail_env_error l (Env.ParseError s)
     | e ->
       Format.eprintf "Uncaught exception %S@." (Printexc.to_string e)
   done

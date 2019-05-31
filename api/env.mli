@@ -42,6 +42,8 @@ val check_arity : bool ref
 (** {2 The Global Environment} *)
 module type S =
 sig
+  module Pp : Pp.Printer
+
   val init        : string -> mident
   (** [init name] initializes a new global environement giving it the name of
       the corresponding source file. The function returns the module identifier
@@ -102,7 +104,7 @@ sig
       and then that they are convertible *)
 
   val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term
-(** [unsafe_reduction red te] reduces [te] according to the reduction configuration [red] *)
+  (** [unsafe_reduction red te] reduces [te] according to the reduction configuration [red] *)
 
 end
 

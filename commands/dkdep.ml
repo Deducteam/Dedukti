@@ -2,7 +2,8 @@ open Basic
 open Term
 open Rule
 open Parser
-open Entry
+
+module ErrorHandler = Errors.Make(Env.Default)
 
 let handle_file : string -> unit = fun file ->
     (* Initialisation. *)
@@ -87,6 +88,6 @@ Available options:" Sys.argv.(0) in
     Format.pp_print_flush formatter ();
     close_out !output
   with
-  | Env.EnvError(l,e) -> Errors.fail_env_error l e
-  | Dep.Dep_error dep -> Errors.fail_env_error dloc (Env.EnvErrorDep dep)
-  | Sys_error err     -> Errors.fail_sys_error err
+  | Env.EnvError(l,e) -> ErrorHandler.fail_env_error l e
+  | Dep.Dep_error dep -> ErrorHandler.fail_env_error dloc (Env.EnvErrorDep dep)
+  | Sys_error err     -> ErrorHandler.fail_sys_error err
