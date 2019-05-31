@@ -44,6 +44,8 @@ let check_arity = ref true
 module type S =
 sig
   module Pp : Pp.Printer
+  val raise_env : loc -> env_error -> 'a
+
   val init        : string -> mident
 
   val get_signature : unit -> Signature.t
@@ -56,7 +58,6 @@ sig
   val declare     : loc -> ident -> Signature.staticity -> term -> unit
   val define      : loc -> ident -> bool -> term -> term option -> unit
   val add_rules   : Rule.untyped_rule list -> (Subst.Subst.t * Rule.typed_rule) list
-  val mk_entry    : Basic.mident -> Entry.entry -> unit
 
   val infer            : ?ctx:typed_context -> term         -> term
   val check            : ?ctx:typed_context -> term -> term -> unit
@@ -214,57 +215,6 @@ struct
       R.are_convertible !sg ty1 ty2 &&
       R.are_convertible !sg te1 te2
     with e -> raise_as_env (get_loc te1) e
-
-  let mk_entry md e =
-    let open Entry in
-    let open Debug in
-    match e with
-    | Decl(lc,id,st,ty) ->
-      debug D_notice "Declaration of constant '%a'." pp_ident id;
-      declare lc id st ty
-    | Def(lc,id,opaque,ty,te) ->
-      let opaque_str = if opaque then " (opaque)" else "" in
-      debug D_notice "Definition of symbol '%a'%s." pp_ident id opaque_str;
-      define lc id opaque te ty
-    | Rules(l,rs) ->
-      let open Rule in
-      List.iter (fun (r:untyped_rule) ->
-          Debug.(debug D_notice "Adding rewrite rules: '%a'" Pp.print_rule_name r.name)) rs;
-      let rs = add_rules rs in
-      List.iter (fun (s,r) ->
-          Debug.debug Debug.D_notice "%a@.with the following constraints: %a"
-            pp_typed_rule r (Subst.Subst.pp (fun n -> let _,n,_ = List.nth r.ctx n in n)) s) rs
-    | Eval(_,red,te) ->
-      let te = reduction ~red te in
-      Format.printf "%a@." Pp.print_term te
-    | Infer(_,red,te) ->
-      let  ty = infer te in
-      let rty = reduction ~red ty in
-      Format.printf "%a@." Pp.print_term rty
-    | Check(l, assrt, neg, Convert(t1,t2)) ->
-      let succ = (are_convertible t1 t2) <> neg in
-      ( match succ, assrt with
-        | true , false -> Format.printf "YES@."
-        | true , true  -> ()
-        | false, false -> Format.printf "NO@."
-        | false, true  -> raise_env l AssertError )
-    | Check(l, assrt, neg, HasType(te,ty)) ->
-      let succ = try check te ty; not neg with _ -> neg in
-      ( match succ, assrt with
-        | true , false -> Format.printf "YES@."
-        | true , true  -> ()
-        | false, false -> Format.printf "NO@."
-        | false, true  -> raise_env l AssertError )
-    | DTree(lc,m,v) ->
-      let m = match m with None -> get_name () | Some m -> m in
-      let cst = mk_name m v in
-      let forest = get_dtree lc cst in
-      Format.printf "GDTs for symbol %a:@.%a" pp_name cst Dtree.pp_dforest forest
-    | Print(_,s) -> Format.printf "%s@." s
-    | Name(_,n) ->
-      if not (mident_eq n md)
-      then Debug.(debug D_warn "Invalid #NAME directive ignored.@.")
-    | Require(lc,md) -> import lc md
 
 end
 

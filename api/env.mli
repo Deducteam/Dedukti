@@ -43,6 +43,7 @@ val check_arity : bool ref
 module type S =
 sig
   module Pp : Pp.Printer
+  val raise_env : loc -> env_error -> 'a
 
   val init        : string -> mident
   (** [init name] initializes a new global environement giving it the name of
@@ -82,8 +83,6 @@ sig
   (** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the
       same symbol. *)
 
-  val mk_entry : Basic.mident -> Entry.entry -> unit
-
   (** {2 Type checking/inference} *)
 
   val infer : ?ctx:typed_context -> term         -> term
@@ -108,6 +107,6 @@ sig
 
 end
 
-module Make(R:Reduction.S) : S
+module Make (R:Reduction.S) : S
 
 module Default : S

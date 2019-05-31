@@ -3,12 +3,16 @@ open Basic
 open Parser
 
 module E = Env.Default
-module Pp = E.Pp
-module ErrorHandler = Errors.Make(E)
+module TC = Processor.TypeChecker(E)
+module Printer = TC.Printer
+module ErrorHandler = TC.ErrorHandler
+
+module B = Processor.EntryPrinter
 
 let mk_entry beautify md =
-  if beautify then Pp.print_entry Format.std_formatter
-  else E.mk_entry md
+  if beautify
+  then B.handle_entry
+  else TC.handle_entry
 
 let run_on_file beautify export file =
   let input = open_in file in
