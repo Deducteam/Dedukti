@@ -78,7 +78,6 @@ let loc_of_rs = function
 %start line
 %type <Basic.mident -> Entry.entry> line
 %type <Preterm.prule> rule
-%type <Preterm.pdecl> decl
 %type <Basic.loc*Basic.ident*Preterm.preterm> param
 %type <Preterm.pdecl list> context
 %type <Basic.loc*Basic.mident option*Basic.ident*Preterm.prepattern list> top_pattern
@@ -167,13 +166,7 @@ rule:
         let (_,m,v) = $2 in
         ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
-decl:
-  | ID COLON term { Debug.(debug D_warn "Ignoring type declaration in rule context."); $1 }
-  | ID            { $1 }
-
-context:
-  | /* empty */                          { [] }
-  | separated_nonempty_list(COMMA, decl) { $1 }
+context: separated_list(COMMA, ID) { $1 }
 
 top_pattern:
   | ID  pattern_wp* { (fst $1,None,snd $1,$2) }
