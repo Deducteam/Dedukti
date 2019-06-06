@@ -394,7 +394,8 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   let fail = if !fail_on_unsatisfiable_constraints
     then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))
     else (fun (q,t1,t2) ->
-        Debug.(debug D_warn "Unsatisfiable constraint: %a ~ %a%s"
+        Debug.(debug D_warn "At %a: unsatisfiable constraint: %a ~ %a%s"
+                 pp_loc (get_loc_rule rule)
                  pp_term t1 pp_term t2
                  (if q > 0 then Format.sprintf " (under %i abstractions)" q else ""))) in
   let delta = pc_make rule.ctx in
