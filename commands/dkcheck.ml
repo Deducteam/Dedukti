@@ -2,17 +2,16 @@ open Term
 open Basic
 open Parser
 
-module E = Env.Default
-module TC = Processor.TypeChecker(E)
-module Printer = TC.Printer
-module ErrorHandler = TC.ErrorHandler
-
-module B = Processor.EntryPrinter
+module E = Env.Make(Reduction.Default)
+module TypeChecker = Processor.TypeChecker(E)
+module Printer = E.Printer
+module ErrorHandler = Errors.Make(E)
+module Beautifier = Processor.EntryPrinter(E)
 
 let mk_entry beautify md =
   if beautify
-  then B.handle_entry
-  else TC.handle_entry
+  then Beautifier.handle_entry
+  else TypeChecker.handle_entry
 
 let run_on_file beautify export file =
   let input = open_in file in

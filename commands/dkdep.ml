@@ -2,11 +2,12 @@ open Basic
 open Term
 open Rule
 
-module ErrorHandler = Errors.Make(Env.Default)
+module E            = Env.Make(Reduction.Default)
+module ErrorHandler = Errors.Make(E)
 
 let handle_file : string -> unit = fun file ->
     (* Initialisation. *)
-    let md = Env.Default.init file in
+    let md = E.init file in
     (* Actully parsing and gathering data. *)
     let input = open_in file in
     Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);

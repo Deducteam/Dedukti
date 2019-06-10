@@ -2,8 +2,8 @@ open Basic
 open Parser
 open Entry
 
-module E = Env.Default
-module Pp = E.Pp
+module E = Env.Make(Reduction.Default)
+module Printer = E.Printer
 module ErrorHandler = Errors.Make(E)
 
 let print fmt =
@@ -22,11 +22,11 @@ let handle_entry md e =
     List.iter (fun r -> print "%a" Rule.pp_untyped_rule r) rs
   | Eval(lc,red,te) ->
     let te = E.reduction ~red te in
-    Format.printf "%a@." Pp.print_term te
+    Format.printf "%a@." Printer.print_term te
   | Infer(_,red,te) ->
     let  ty = E.infer te in
     let rty = E.reduction ~red ty in
-    Format.printf "%a@." Pp.print_term rty
+    Format.printf "%a@." Printer.print_term rty
   | Check(l, assrt, neg, Convert(t1,t2)) ->
     let succ = (E.are_convertible t1 t2) <> neg in
     ( match succ, assrt with

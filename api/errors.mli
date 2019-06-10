@@ -29,5 +29,3 @@ val fail_sys_error : string -> 'a
 end
 
 module Make (E:Env.S) : ErrorHandler
-
-module Default : ErrorHandler

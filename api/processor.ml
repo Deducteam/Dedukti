@@ -1,10 +1,7 @@
 open Basic
 
-module type Processor =
+module type S =
 sig
-  module Printer : Pp.Printer
-  module ErrorHandler : Errors.ErrorHandler
-
   type t
 
   val handle_entry : Entry.entry -> unit
@@ -12,10 +9,9 @@ sig
   val get_data : unit -> t
 end
 
-module TypeChecker (E:Env.S) : Processor =
+module TypeChecker (E:Env.S) : S with type t = unit =
 struct
-  module Printer = E.Pp
-  module ErrorHandler = Errors.Make(E)
+  module Printer = E.Printer
 
   open Debug
 
@@ -75,14 +71,8 @@ struct
 
 end
 
-module DefaultTypeChecker : Processor = TypeChecker(Env.Default)
-
-module SignatureBuilder (E:Env.S) : Processor with type t = Signature.t =
+module SignatureBuilder (E:Env.S) : S with type t = Signature.t =
 struct
-  module Printer      = E.Pp
-  module ErrorHandler = Errors.Make(E)
-  open E
-
   type t = Signature.t
 
   let handle_entry e =
@@ -109,10 +99,9 @@ struct
 
 end
 
-module EntryPrinter : Processor =
+module EntryPrinter (E:Env.S) : S with type t = unit =
 struct
-  module Printer      = Env.Default.Pp
-  module ErrorHandler = Errors.Default
+  module Printer      = E.Printer
 
   type t = unit
 
@@ -120,4 +109,13 @@ struct
 
   let get_data () = ()
 
+end
+
+module Dependencies (E:Env.S) : S with type t = Dep.t =
+struct
+  type t = Dep.t
+
+  let handle_entry e = Dep.handle (E.get_name ()) (fun f -> f e)
+
+  let get_data () = Dep.deps
 end

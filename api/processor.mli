@@ -1,12 +1,6 @@
-(** High level entry processors.
-    Use these to quickly implement a Dedukti type checker.
-*)
-
-module type Processor =
+(** A process module processes entries. It is parameterized by an environment. *)
+module type S =
 sig
-  module Printer      : Pp.Printer
-  module ErrorHandler : Errors.ErrorHandler
-
   type t
 
   val handle_entry : Entry.entry -> unit
@@ -14,10 +8,15 @@ sig
   val get_data : unit -> t
 end
 
-module TypeChecker (E:Env.S) : Processor
 
-module DefaultTypeChecker : Processor
+(** Provide a type checker for entries *)
+module TypeChecker (E:Env.S)      : S with type t = unit
 
-module SignatureBuilder (E:Env.S) : Processor with type t = Signature.t
+(** Only build a signature without type checking the entries *)
+module SignatureBuilder (E:Env.S) : S with type t = Signature.t
 
-module EntryPrinter : Processor
+(** Pretty prints entries *)
+module EntryPrinter (E:Env.S)     : S with type t = unit
+
+(** Computes dependencies *)
+module Dependencies (E:Env.S)     : S with type t = Dep.t

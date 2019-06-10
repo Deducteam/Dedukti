@@ -25,8 +25,8 @@ end
 
 module Make (E:Env.S) : ErrorHandler =
 struct
-module Pp = E.Pp
-open Pp
+module Printer = E.Printer
+open Printer
 
 let snf t = if !errors_in_snf then E.unsafe_reduction t else t
 
@@ -336,5 +336,3 @@ let fail_env_error (md,lc,err) =
 let fail_sys_error msg = fail_exit 1 "SYSTEM" None None "%s@." msg
 
 end
-
-module Default : ErrorHandler = Make(Env.Default)

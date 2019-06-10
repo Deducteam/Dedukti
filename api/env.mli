@@ -42,7 +42,7 @@ val check_arity : bool ref
 (** {2 The Global Environment} *)
 module type S =
 sig
-  module Pp : Pp.Printer
+  module Printer : Pp.Printer
   val raise_env : loc -> env_error -> 'a
 
   val init        : string -> mident
@@ -108,5 +108,3 @@ sig
 end
 
 module Make (R:Reduction.S) : S
-
-module Default : S

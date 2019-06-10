@@ -43,7 +43,7 @@ let check_arity = ref true
 
 module type S =
 sig
-  module Pp : Pp.Printer
+  module Printer : Pp.Printer
   val raise_env : loc -> env_error -> 'a
 
   val init        : string -> mident
@@ -85,7 +85,7 @@ struct
   let raise_as_env x = raise_as_env (get_name()) x
   let raise_env lc err = raise (EnvError (Some (get_name()), lc, err))
 
-  module Pp = Pp.Make(struct let get_name = get_name end)
+  module Printer = Pp.Make(struct let get_name = get_name end)
 
   let get_type lc cst =
     try Signature.get_type !sg lc cst
