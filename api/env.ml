@@ -56,6 +56,18 @@ let get_name () = Signature.get_name !sg
 
 let get_signature () = !sg
 
+module HName = Hashtbl.Make(
+  struct
+    type t    = name
+    let equal = name_eq
+    let hash  = Hashtbl.hash
+  end )
+
+let get_symbols () =
+  let table = HName.create 11 in
+  Signature.iter_symbols (fun md id -> HName.add table (mk_name md id)) !sg;
+  table
+
 let get_type lc cst =
   try Signature.get_type !sg lc cst
   with e -> raise_as_env lc e

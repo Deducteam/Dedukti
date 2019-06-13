@@ -83,22 +83,18 @@ val fail_on_symbol_not_found : bool ref
     This flag is intented to facilitate the use of the module Reduction
     when it is used without the module Typing such as in dkmeta. *)
 
-type symbol_infos =
+
+type rw_infos =
   {
-    stat  : staticity;
-    ty    : term;
-    rules : rule_infos list;
+    stat          : staticity;
+    ty            : term;
+    rules         : rule_infos list;
+    decision_tree : Dtree.t option
   }
 
-module HName : Hashtbl.S with type key = name
-
-
-val fold_symbols : (mident -> ident -> symbol_infos -> 'a -> 'a) -> t -> 'a -> 'a
+val fold_symbols : (mident -> ident -> rw_infos -> 'a -> 'a) -> t -> 'a -> 'a
 (** [fold_symbols f sg t] folds the function [f] on all symbol_infos in the signature
     starting from [t]. *)
 
-val iter_symbols : (mident -> ident -> symbol_infos -> unit) -> t -> unit
+val iter_symbols : (mident -> ident -> rw_infos -> unit) -> t -> unit
 (** [iter_symbols f sg] iters the function [f] on all symbol_infos in the signature. *)
-
-val symbols_of : t ->  symbol_infos HName.t
-(** [access_signature sg] returns the content of the signature [sg]. *)

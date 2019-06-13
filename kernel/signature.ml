@@ -39,25 +39,11 @@ module HId = Hashtbl.Make(
     let hash  = Hashtbl.hash
   end )
 
-module HName = Hashtbl.Make(
-  struct
-    type t    = name
-    let equal = name_eq
-    let hash  = Hashtbl.hash
-  end )
-
 type staticity = Static | Definable
 
 (** The pretty printer for the type [staticity] *)
 let pp_staticity fmt s =
   Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable")
-
-type symbol_infos =
-  {
-    stat  : staticity;
-    ty    : term;
-    rules : rule_infos list;
-  }
 
 type rw_infos =
   {
@@ -134,35 +120,12 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos li
   | _ -> raise (SignatureError (UnmarshalUnknown (lc,m)))
 
 
-let to_symbols_info r = { stat = r.stat; ty = r.ty; rules = r.rules }
-
 let fold_symbols f sg =
-  let g md id r = f md id (to_symbols_info r) in
-  HMd.fold (fun md table t -> HId.fold (g md) table t) sg.tables
+  HMd.fold (fun md table t -> HId.fold (f md) table t) sg.tables
 
 let iter_symbols f sg =
   fold_symbols (fun md id rw () -> f md id rw) sg ()
 
-let symbols_of sg =
-  let table = HName.create 11 in
-  iter_symbols (fun md id -> HName.add table (mk_name md id)) sg;
-  table
-
-(* Alternative:
-
-val fold_symbols : (mident -> ident -> staticity -> term -> rule_infos list -> 'a -> 'a)
-  -> t -> 'a -> 'a
-
-val iter_symbols : (mident -> ident -> staticity -> term -> rule_infos list -> unit)
-  -> t -> unit
-
-let fold_symbols f sg =
-  HMd.fold (fun md table t ->
-      HId.fold (fun id r t -> f md id r.stat r.ty r.rules t) table t) sg.tables
-
-let iter_symbols f sg =
-  fold_symbols (fun md id s ty r () -> f md id s ty r) sg ()
-*)
 
 
 (******************************************************************************)
