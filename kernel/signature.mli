@@ -92,5 +92,13 @@ type symbol_infos =
 
 module HName : Hashtbl.S with type key = name
 
+
+val fold_symbols : (mident -> ident -> symbol_infos -> 'a -> 'a) -> t -> 'a -> 'a
+(** [fold_symbols f sg t] folds the function [f] on all symbol_infos in the signature
+    starting from [t]. *)
+
+val iter_symbols : (mident -> ident -> symbol_infos -> unit) -> t -> unit
+(** [iter_symbols f sg] iters the function [f] on all symbol_infos in the signature. *)
+
 val symbols_of : t ->  symbol_infos HName.t
 (** [access_signature sg] returns the content of the signature [sg]. *)
