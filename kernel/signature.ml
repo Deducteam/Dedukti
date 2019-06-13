@@ -39,25 +39,11 @@ module HId = Hashtbl.Make(
     let hash  = Hashtbl.hash
   end )
 
-module HName = Hashtbl.Make(
-  struct
-    type t    = name
-    let equal = name_eq
-    let hash  = Hashtbl.hash
-  end )
-
 type staticity = Static | Definable
 
 (** The pretty printer for the type [staticity] *)
 let pp_staticity fmt s =
   Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable")
-
-type symbol_infos =
-  {
-    stat  : staticity;
-    ty    : term;
-    rules : rule_infos list;
-  }
 
 type rw_infos =
   {
@@ -133,15 +119,12 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos li
   | SignatureError s -> raise (SignatureError s)
   | _ -> raise (SignatureError (UnmarshalUnknown (lc,m)))
 
-let symbols_of sg =
-  let table = HName.create 11 in
-  HMd.iter (fun md ->
-      HId.iter (fun id (r:rw_infos) ->
-          HName.add table (mk_name md id)
-            { stat  = r.stat;
-              ty    = r.ty;
-              rules = r.rules}))
-    sg.tables; table
+
+let fold_symbols f sg =
+  HMd.fold (fun md table t -> HId.fold (f md) table t) sg.tables
+
+let iter_symbols f sg =
+  fold_symbols (fun md id rw () -> f md id rw) sg ()
 
 
 
