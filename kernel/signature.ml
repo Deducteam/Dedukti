@@ -147,11 +147,11 @@ let add_external_declaration sg lc cst st ty =
     let env = HMd.find sg.tables (md cst) in
     if HId.mem env (id cst)
     then raise (SignatureError (AlreadyDefinedSymbol (lc, cst)))
-    else HId.add env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
+    else HId.replace env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
   with Not_found ->
-    HMd.add sg.tables (md cst) (HId.create 11);
+    HMd.replace sg.tables (md cst) (HId.create 11);
     let env = HMd.find sg.tables (md cst) in
-    HId.add env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
+    HId.replace env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
@@ -176,7 +176,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       let infos, env = get_info_env sg r.l r.cst in
       if infos.stat = Static && !fail_on_symbol_not_found
       then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
-      HId.add env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None};
+      HId.replace env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None};
     with SignatureError (SymbolNotFound _)
        | SignatureError (UnmarshalUnknown _) as e ->
       (* The symbol cst is not in the signature *)
@@ -185,7 +185,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
           add_external_declaration sg r.l r.cst Definable (mk_Kind);
           let _,env = get_info_env sg r.l r.cst in
           let rules = lst in
-          HId.add env (id r.cst)
+          HId.replace env (id r.cst)
             {stat = Definable; ty= mk_Kind; rules; decision_tree = None}
         end
       else
@@ -232,7 +232,7 @@ let get_deps sg : string list = (*only direct dependencies*)
 let rec import_signature sg sg_ext =
   HMd.iter (fun m hid ->
       if not (HMd.mem sg.tables m) then
-        HMd.add sg.tables m (HId.copy hid)) sg_ext.tables;
+        HMd.replace sg.tables m (HId.copy hid)) sg_ext.tables;
   List.iter (fun rs -> add_rule_infos sg rs) sg_ext.external_rules
 
 let export sg =

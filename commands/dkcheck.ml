@@ -177,4 +177,4 @@ Available options:" Sys.argv.(0) in
       then Errors.success "Standard input was successfully checked.\n"
   with
   | Env.EnvError (l,e) -> Errors.fail_env_error l e
-  | Sys_error err  -> Errors.fail_sys_error err
+  | Sys_error err      -> Errors.fail_sys_error err
