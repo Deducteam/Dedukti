@@ -292,3 +292,5 @@ let print_staticity fmt s =
     (if s=Signature.Static then "Static" else "Definable")
 
 end
+
+module Default = Make(struct let get_name () = Basic.mk_mident "" end)

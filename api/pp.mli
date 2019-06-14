@@ -38,3 +38,5 @@ sig
 end
 
 module Make(S:Sig) : Printer
+
+module Default : Printer
