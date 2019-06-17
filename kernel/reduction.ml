@@ -45,36 +45,28 @@ type env = term Lazy.t LList.t
 (* A state {ctx; term; stack} is the state of an abstract machine that
 represents a term where [ctx] is a ctx that contains the free variables
 of [term] and [stack] represents the terms that [term] is applied to. *)
-type state = {
-  ctx:env;        (*context*)
-  term : term;    (*term to reduce*)
-  stack : stack;  (*stack*)
-}
+type state =
+  {
+    ctx   : env;    (* context *)
+    term  : term;   (* term to reduce *)
+    stack : stack;  (* stack *)
+  }
 and stack = state list
 
 let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
   mk_App2 t (List.map term_of_state stack)
 
-(* Pretty Printing *)
 
-let pp_state fmt st =
-  fprintf fmt "{ctx} {%a} {stack[%i]}\n" pp_term st.term (List.length st.stack)
+(**************** Pretty Printing ****************)
 
-let pp_stack fmt stck =
-  fprintf fmt "[\n";
-  List.iter (pp_state fmt) stck;
-  fprintf fmt "]\n"
-
-let pp_env fmt (ctx:env) =
-  let pp_lazy_term out lt = pp_term fmt (Lazy.force lt) in
-    pp_list ", " pp_lazy_term fmt (LList.lst ctx)
+let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
 
 let pp_stack fmt (st:stack) =
-  let aux fmt state =
-    pp_term fmt (term_of_state state)
-  in
-    fprintf fmt "[ %a ]\n" (pp_list "\n | " aux) st
+  fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state st)
+
+let pp_stack_oneline fmt (st:stack) =
+  fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state st)
 
 let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
   if if_ctx
@@ -83,8 +75,11 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
   fprintf fmt "term=%a;@." pp_term term;
   if if_stack
   then fprintf fmt "stack=%a}@." pp_stack stack
-  else fprintf fmt "stack=[...]}@.";
+  else fprintf fmt "stack=[...](%i)}@." (List.length stack);
   fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
+
+let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true
+
 
 (* ********************* *)
 
