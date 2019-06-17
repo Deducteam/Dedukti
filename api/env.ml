@@ -84,7 +84,7 @@ let import lc md =
   try Signature.import !sg lc md
   with e -> raise_as_env lc e
 
-let _declare lc (id:ident) st ty : unit =
+let _declare lc (id:ident) (st:Signature.staticity) (ty:Term.term) : unit =
   match T.inference !sg ty with
   | Kind | Type _ -> Signature.add_declaration !sg lc id st ty
   | s -> raise (TypingError (SortExpected (ty,[],s)))
