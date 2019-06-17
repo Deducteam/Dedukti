@@ -63,7 +63,7 @@ let rec term_eq t1 t2 =
     | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false
 
-type 'a ident_comparator = 'a -> 'a -> int
+type 'a comparator = 'a -> 'a -> int
 
 let rec compare_term id_comp t1 t2 =
   match t1, t2 with

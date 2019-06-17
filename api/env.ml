@@ -84,17 +84,17 @@ let import lc md =
   try Signature.import !sg lc md
   with e -> raise_as_env lc e
 
-let _declare lc (id:ident) (st:Signature.staticity) (ty:Term.term) (sort:Term.term) : unit =
+let _declare lc (id:ident) (st:Signature.staticity) (ty:Term.term) : unit =
   Signature.add_declaration !sg lc id st
     (
-      match sort, st with
+      match T.inference !sg ty, st with
       | Kind  , Definable AC
-      | Kind  , Definable (ACU _)   -> raise (TypingError (SortExpected (ty,[],sort) ))
+      | Kind  , Definable (ACU _)   -> raise (TypingError (SortExpected (ty,[],mk_Kind) ))
       | Type _, Definable AC        -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
-      | Type _, Definable (ACU neu) -> ignore(check !sg [] neu ty);
+      | Type _, Definable (ACU neu) -> ignore(T.checking !sg neu ty);
                                        mk_Arrow dloc ty (mk_Arrow dloc ty ty)
       | Kind, _ | Type _, _ -> ty
-      | _ -> raise (TypingError (SortExpected (ty,[],sort)))
+      | s, _ -> raise (TypingError (SortExpected (ty,[],s)))
     )
 
 let is_static lc cst = Signature.is_static !sg lc cst
@@ -149,7 +149,7 @@ let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
       _add_rules [rule]
 
 let declare lc id st ty : unit =
-  try _declare lc id st ty (T.inference !sg ty)
+  try _declare lc id st ty
   with e -> raise_as_env lc e
 
 let define lc id op te ty_opt : unit =
