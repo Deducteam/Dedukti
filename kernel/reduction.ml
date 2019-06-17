@@ -85,6 +85,7 @@ let as_final st = set_final st; st
 exception Not_convertible
 
 
+
 (**************** Pretty Printing ****************)
 
 let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
@@ -103,7 +104,6 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
   if if_stack
   then fprintf fmt "stack=%a}@." pp_stack stack
   else fprintf fmt "stack=[...](%i)}@." (List.length stack)
-
 
 let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true
 
