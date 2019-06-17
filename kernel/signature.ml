@@ -172,24 +172,17 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   match lst with
   | [] -> ()
   | (r::_ as rs) ->
-    try
-      let infos, env = get_info_env sg r.l r.cst in
-      if infos.stat = Static && !fail_on_symbol_not_found
-      then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
-      HId.replace env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None};
-    with SignatureError (SymbolNotFound _)
-       | SignatureError (UnmarshalUnknown _) as e ->
-      (* The symbol cst is not in the signature *)
-      if not !fail_on_symbol_not_found then
-        begin
-          add_external_declaration sg r.l r.cst Definable (mk_Kind);
-          let _,env = get_info_env sg r.l r.cst in
-          let rules = lst in
-          HId.replace env (id r.cst)
-            {stat = Definable; ty= mk_Kind; rules; decision_tree = None}
-        end
-      else
-        raise e
+    let infos, env =
+      try get_info_env sg r.l r.cst
+      with
+      | SignatureError (SymbolNotFound _)
+      | SignatureError (UnmarshalUnknown _) when not !fail_on_symbol_not_found ->
+        add_external_declaration sg r.l r.cst Definable (mk_Kind);
+        get_info_env sg r.l r.cst
+    in
+    if infos.stat = Static && !fail_on_symbol_not_found
+    then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
+    HId.replace env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None}
 
 and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
   let infos, env = get_info_env sg lc cst in
