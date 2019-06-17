@@ -10,8 +10,6 @@ let _ = Debug.register_flag D_matching "Matching"
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
-  | ArityDBMismatch     of loc * name * int
-  | AritySymbolMismatch of loc * name * name
   | ACSymbolRewritten   of loc * name * int
 
 exception DtreeError of dtree_error
@@ -405,19 +403,8 @@ let rec partition_AC (is_AC:name->bool) : wf_pattern list -> case = function
 
 let partition (ignore_arity:bool) (is_AC:name->bool) (mx:matrix) (c:int) : case list =
   let aux lst li =
-    let compare_case =
-      if ignore_arity then eq
-      else fun c1 c2 ->
-           match c1, c2 with
-           | CDB(ar,n), CDB(ar',n') when n == n' && ar != ar' ->
-              raise (DtreeError (ArityDBMismatch(li.l, li.cst, n)))
-           | CConst(ar,cst,ac), CConst(ar',cst',ac')
-                when name_eq cst cst' && (ar != ar' || ac != ac') ->
-              raise (DtreeError (AritySymbolMismatch(li.l, li.cst, cst)))
-           | _ -> eq c1 c2
-    in
     match case_of_pattern is_AC li.pats.(c) with
-    | Some c -> if List.exists (compare_case c) lst then lst else c::lst
+    | Some c -> if List.exists (eq c) lst then lst else c::lst
     | None   -> lst
   in
   List.fold_left aux [] (mx.first::mx.others)
@@ -517,7 +504,7 @@ let rec to_dtree get_algebra (mx:matrix) : dtree =
       let cases = partition true is_AC mx c in
       let aux ca = ( ca , to_dtree get_algebra (specialize mx c ca) ) in
       Switch (c, List.map aux cases, map_opt (to_dtree get_algebra) (filter_default mx c) )
-        
+
 
 (******************************************************************************)
 

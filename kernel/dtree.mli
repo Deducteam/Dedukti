@@ -10,8 +10,6 @@ type Debug.flag += D_matching
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
-  | ArityDBMismatch     of loc * name * int
-  | AritySymbolMismatch of loc * name * name
   | ACSymbolRewritten   of loc * name * int
 
 exception DtreeError of dtree_error

@@ -131,14 +131,6 @@ let fail_dtree_error err =
     fail lc
       "Unexpected head symbol '%a' \ (expected '%a')."
       pp_name cst1 pp_name cst2
-  | ArityDBMismatch (lc,cst,dbi) ->
-    fail lc
-      "Arity mismatch for DB variable %i in rewrite rules for the symbol '%a'."
-      dbi pp_name cst
-  | AritySymbolMismatch (lc,cst,symb) ->
-    fail lc
-      "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
-      pp_name symb pp_name cst
   | ArityInnerMismatch (lc, rid, id) ->
     fail lc
       "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
@@ -258,8 +250,6 @@ let code err =
       | Signature.CannotBuildDtree e -> begin match e with
           | Dtree.HeadSymbolMismatch  _ -> 18
           | Dtree.ArityInnerMismatch  _ -> 19
-          | Dtree.ArityDBMismatch     _ -> 40
-          | Dtree.AritySymbolMismatch _ -> 41
           | Dtree.ACSymbolRewritten   _ -> 42
         end
       | Signature.CannotMakeRuleInfos e -> begin match e with
