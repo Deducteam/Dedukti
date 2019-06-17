@@ -376,7 +376,7 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
  *    (and therefore this variable is free in the corresponding term)
  * - when state.term is an AC constant, then state.stack contains no application
  *     of that same constant
- * *)
+ *)
 and state_whnf (sg:Signature.t) (st:state) : state =
   match !(st.reduc) with
   | (true, st') -> st'
