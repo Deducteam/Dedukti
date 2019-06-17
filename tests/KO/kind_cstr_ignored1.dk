@@ -1,4 +1,4 @@
-(; KO 10 -ccs ;)
+(; KO 10 --type-lhs ;)
 
 A : Type.
 def B : Type.

@@ -87,12 +87,15 @@ let rec pp_term fmt te =
   match te with
   | Kind               -> fprintf fmt "Kind"
   | Type _             -> fprintf fmt "Type"
-  | DB  (_,x,n)        -> fprintf fmt "%a[%i]" pp_ident x n
+  | DB  (_,x,n)        -> fprintf fmt "%a" print_db (x,n)
   | Const (_,n)        -> fprintf fmt "%a" print_const n
   | App (f,a,args)     -> pp_list " " pp_term_wp fmt (f::a::args)
   | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
   | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
-  | Pi  (_,x,a,b)      -> fprintf fmt "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
+  | Pi  (_,x,a,b)      ->
+    if ident_eq x dmark
+    then fprintf fmt "%a -> %a" pp_term_wp a pp_term b
+    else fprintf fmt "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
 
 and pp_term_wp fmt te =
   match te with

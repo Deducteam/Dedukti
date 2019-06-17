@@ -1,4 +1,3 @@
-
 open Basic
 open Format
 open Term
@@ -22,14 +21,17 @@ let success fmt =
   eprintf "%s" (green "[SUCCESS] ");
   kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter fmt
 
-let prerr_loc lc = if lc <> dloc then eprintf "At %a: " pp_loc lc
+let prerr_loc lc =
+  eprintf "In module %s, " (string_of_mident (Env.get_name ()));
+  if lc <> dloc then eprintf "at %a: " pp_loc lc;
+  eprintf "@."
 
 let print_error_code code =
   eprintf "%s" (red ("[ERROR:" ^ string_of_int code ^ "] "))
 
 let fail lc fmt =
-    prerr_loc lc;
-    kfprintf (fun _ -> pp_print_newline err_formatter () ; exit 3) err_formatter fmt
+  prerr_loc lc;
+  kfprintf (fun _ -> pp_print_newline err_formatter (); exit 3) err_formatter fmt
 
 let fail_exit code lc fmt =
   print_error_code code;
@@ -54,7 +56,7 @@ let fail_typing_error def_loc err =
       try_print_oneliner (te,ctx) print_term (snf exp) print_term (snf inf)
   | VariableNotFound (lc,x,n,ctx) ->
     fail lc
-      "The variable '%a' was not found in context:@."
+      "The variable '%a' was not found in context:%a@."
       pp_term (mk_DB lc x n) print_err_ctxt ctx
   | SortExpected (te,ctx,inf) ->
     fail (Term.get_loc te)
@@ -63,7 +65,7 @@ let fail_typing_error def_loc err =
   | ProductExpected (te,ctx,inf) ->
     fail (get_loc te)
       "Error while typing %a@.---- Expected: a product type.@.---- Inferred: %a."
-      try_print_oneliner (te,ctx) print_err_ctxt ctx pp_term (snf inf)
+      try_print_oneliner (te,ctx) pp_term (snf inf)
   | InexpectedKind (te,ctx) ->
     fail (get_loc te)
       "Error while typing '%a'%a.@.---- Expected: anything but Kind.@.---- Inferred: Kind."
@@ -196,11 +198,11 @@ let fail_signature_error def_loc err =
     fail lc "Already declared symbol '%a'." pp_name n
   | CannotBuildDtree err -> fail_dtree_error err
   | CannotMakeRuleInfos err -> fail_rule_error err
-  | CannotAddRewriteRules (lc,id) ->
+  | CannotAddRewriteRules (lc,cst) ->
     fail lc
       "Cannot add rewrite\ rules for the static symbol '%a'.\
        Add the keyword 'def' to its declaration to make the symbol '%a' definable."
-      pp_ident id pp_ident id
+      pp_name cst pp_name cst
   | ConfluenceErrorRules (lc,rs,cerr) ->
     fail lc
       "Confluence checking failed when adding the rewrite rules below.@.%a@.%a"
@@ -291,12 +293,11 @@ let fail_env_error lc err =
   match err with
   | Env.EnvErrorSignature e -> fail_signature_error lc e
   | Env.EnvErrorType      e -> fail_typing_error    lc e
-  | Env.EnvErrorRule      e -> fail_rule_error    e
+  | Env.EnvErrorRule      e -> fail_rule_error         e
   | Env.NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
     fail lc
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
       pp_ident id nb_args exp_nb_args
-    fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
   | Env.NonLinearRule (symb) ->
     fail lc "Non left-linear rewrite rule for symbol '%a'." pp_name symb
   | Env.KindLevelDefinition id ->
@@ -309,5 +310,5 @@ let fail_env_error lc err =
     fail lc "Assertion failed."
 
 let fail_sys_error msg =
-  eprintf "%s%s" (red "[ERROR:SYSTEM] ") msg;
+  eprintf "%s%s@." (red "[ERROR:SYSTEM] ") msg;
   exit 1

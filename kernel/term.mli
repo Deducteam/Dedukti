@@ -40,13 +40,10 @@ val subterm : term -> position -> term
 (** [subterm t p] returns the subterm of [t] at position [p].
     Raises InvalidSubterm in case of invalid position in given term. *)
 
-type ident_comparator = name -> name -> int
-(** Type of ident comparison functions *)
+type 'a comparator = 'a -> 'a -> int
+(** Type for comparison functions *)
 
-type term_comparator = term -> term -> int
-(** Type of term comparison functions *)
-
-val compare_term : ident_comparator -> term_comparator
+val compare_term : name comparator -> term comparator
 (** compare_term [id_comp] [t] [t'] compares both terms (up to alpha equivalence).
  * The order relation goes :
  * Kind < Type < Const < DB < App < Lam < Pi

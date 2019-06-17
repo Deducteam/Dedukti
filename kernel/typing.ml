@@ -2,7 +2,6 @@ open Basic
 open Format
 open Rule
 open Term
-open Reduction
 
 type Debug.flag += D_typeChecking | D_rule
 let _ = Debug.register_flag D_typeChecking "TypeChecking"
@@ -38,93 +37,105 @@ type typing_error =
 
 exception TypingError of typing_error
 
+module type S = sig
+  val infer       : Signature.t -> typed_context -> term -> typ
+
+  val check       : Signature.t -> typed_context -> term -> typ -> unit
+
+  val checking    : Signature.t -> term -> term -> unit
+
+  val inference   : Signature.t -> term -> typ
+
+  val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
+end
+
 (* ********************** CONTEXT *)
+module Make(R:Reduction.S) =
+struct
 
-let  snf = default_reduction  Snf
-let whnf = default_reduction Whnf
+  let get_type ctx l x n =
+    try let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
+    with Failure _ -> raise (TypingError (VariableNotFound (l,x,n,ctx)))
 
-let get_type ctx l x n =
-  try let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
-  with Failure _ -> raise (TypingError (VariableNotFound (l,x,n,ctx)))
+  let extend_ctx a ctx = function
+    | Type _ -> a::ctx
+    | Kind when !coc -> a::ctx
+    | ty_a ->
+      let (_,_,te) = a in
+      raise (TypingError (ConvertibilityError (te, ctx, mk_Type dloc, ty_a)))
 
-let extend_ctx a ctx = function
-  | Type _ -> a::ctx
-  | Kind when !coc -> a::ctx
-  | ty_a ->
-    let (_,_,te) = a in
-    raise (TypingError (ConvertibilityError (te, ctx, mk_Type dloc, ty_a)))
+  (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
-(* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
-
-let rec infer sg (ctx:typed_context) (te:term) : typ =
-  Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
-  match te with
-  | Kind -> raise (TypingError KindIsNotTypable)
-  | Type l -> mk_Kind
-  | DB (l,x,n) -> get_type ctx l x n
-  | Const (l,cst) -> Signature.get_type sg l cst
-  | App (f,a,args) ->
-    snd (List.fold_left (check_app sg ctx) (f,infer sg ctx f) (a::args))
-  | Pi (l,x,a,b) ->
+  let rec infer sg (ctx:typed_context) (te:term) : typ =
+    Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
+    match te with
+    | Kind -> raise (TypingError KindIsNotTypable)
+    | Type l -> mk_Kind
+    | DB (l,x,n) -> get_type ctx l x n
+    | Const (l,cst) -> Signature.get_type sg l cst
+    | App (f,a,args) ->
+      snd (List.fold_left (check_app sg ctx) (f,infer sg ctx f) (a::args))
+    | Pi (l,x,a,b) ->
       let ty_a = infer sg ctx a in
       let ctx2 = extend_ctx (l,x,a) ctx ty_a in
       let ty_b = infer sg ctx2 b in
       ( match ty_b with
         | Kind | Type _ -> ty_b
         | _ -> raise (TypingError (SortExpected (b, ctx2, ty_b))) )
-  | Lam  (l,x,Some a,b) ->
+    | Lam  (l,x,Some a,b) ->
       let ty_a = infer sg ctx a in
       let ctx2 = extend_ctx (l,x,a) ctx ty_a in
       let ty_b = infer sg ctx2 b in
-        ( match ty_b with
-            | Kind -> raise (TypingError (InexpectedKind (b, ctx2)))
-            | _ -> mk_Pi l x a ty_b )
-  | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
+      ( match ty_b with
+        | Kind -> raise (TypingError (InexpectedKind (b, ctx2)))
+        | _ -> mk_Pi l x a ty_b )
+    | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
-and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
-  Debug.(debug D_typeChecking "Checking (%a) [%a]: %a : %a"
-           pp_loc (get_loc te)
-           pp_typed_context ctx
-           pp_term te pp_term ty_exp);
-  match te with
-  | Lam (l,x,None,b) ->
-    begin
-      match whnf sg ty_exp with
-      | Pi (_,_,a,ty_b) -> check sg ((l,x,a)::ctx) b ty_b
-      | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
-    end
-  | Lam (l,x,Some a,b) ->
-    begin
-      match whnf sg ty_exp with
-      | Pi (_,_,a',ty_b) ->
-        ignore(infer sg ctx a);
-        if Reduction.are_convertible sg a a'
-        then check sg ((l,x,a)::ctx) b ty_b
-        else raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a',a)))
-      | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
-    end
-  | _ ->
-    let ty_inf = infer sg ctx te in
-    Debug.(debug D_typeChecking "Checking convertibility: %a ~ %a"
-             pp_term ty_inf pp_term ty_exp);
-    if not (Reduction.are_convertible sg ty_inf ty_exp) then
-      let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
-      raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
+  and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
+    Debug.(debug D_typeChecking "Checking (%a) [%a]: %a : %a"
+             pp_loc (get_loc te)
+             pp_typed_context ctx
+             pp_term te pp_term ty_exp);
+    match te with
+    | Lam (l,x,None,b) ->
+      begin
+        match R.whnf sg ty_exp with
+        | Pi (_,_,a,ty_b) -> check sg ((l,x,a)::ctx) b ty_b
+        | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
+      end
+    | Lam (l,x,Some a,b) ->
+      begin
+        match R.whnf sg ty_exp with
+        | Pi (_,_,a',ty_b) ->
+          ignore(infer sg ctx a);
+          if R.are_convertible sg a a'
+          then check sg ((l,x,a)::ctx) b ty_b
+          else raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a',a)))
+        | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
+      end
+    | _ ->
+      let ty_inf = infer sg ctx te in
+      Debug.(debug D_typeChecking "Checking convertibility: %a ~ %a"
+               pp_term ty_inf pp_term ty_exp);
+      if not (R.are_convertible sg ty_inf ty_exp) then
+        let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
+        raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
 
-and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
-  Debug.(debug D_typeChecking "Reducing %a" pp_term ty_f);
-  let t = whnf sg ty_f in
-  Debug.(debug D_typeChecking "Reduced %a" pp_term t);
-  match t with
-  | Pi (_,_,a,b) ->
-    let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
-  | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
+  and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
+    Debug.(debug D_typeChecking "Reducing %a" pp_term ty_f);
+    let t = R.whnf sg ty_f in
+    Debug.(debug D_typeChecking "Reduced %a" pp_term t);
+    match t with
+    | Pi (_,_,a,b) ->
+      let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
+    | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
 
-let inference sg (te:term) : typ = infer sg [] te
+  let inference sg (te:term) : typ = infer sg [] te
 
-let checking sg (te:term) (ty:term) : unit =
-  let _ = infer sg [] ty in
-  check sg [] te ty
+  let checking sg (te:term) (ty:term) : unit =
+    let _ = infer sg [] ty in
+    check sg [] te ty
+
 
 (* **** PSEUDO UNIFICATION ********************** *)
 
@@ -143,15 +154,15 @@ module SS = Subst.Subst
 let unshift_reduce sg q t =
   try Some (Subst.unshift q t)
   with Subst.UnshiftExn ->
-    ( try Some (Subst.unshift q (snf sg t))
+    ( try Some (Subst.unshift q (R.snf sg t))
       with Subst.UnshiftExn -> None )
 
 let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) list -> SS.t = function
   | [] -> sigma
   | (q,t1,t2)::lst ->
     begin
-      let t1' = whnf sg (SS.apply sigma q t1) in
-      let t2' = whnf sg (SS.apply sigma q t2) in
+      let t1' = R.whnf sg (SS.apply sigma q t1) in
+      let t2' = R.whnf sg (SS.apply sigma q t2) in
       let keepon () = pseudo_u sg fail sigma lst in
       if term_eq t1' t2' then keepon ()
       else
@@ -191,7 +202,7 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
             match unshift_reduce sg q t with
             | None -> warn ()
             | Some ut ->
-               let t' = if Subst.occurs n' ut then ut else snf sg ut in
+               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
                if Subst.occurs n' t' then warn ()
                else pseudo_u sg fail (SS.add sigma n' t') lst
           end
@@ -201,15 +212,15 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
             match unshift_reduce sg q t with
             | None -> warn ()
             | Some ut ->
-               let t' = if Subst.occurs n' ut then ut else snf sg ut in
+               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
                if Subst.occurs n' t' then warn ()
                else pseudo_u sg fail (SS.add sigma n' t') lst
           end
 
         | App (DB (_,_,n),_,_), _  when n >= q ->
-          if Reduction.are_convertible sg t1' t2' then keepon () else warn ()
+          if R.are_convertible sg t1' t2' then keepon () else warn ()
         | _ , App (DB (_,_,n),_,_) when n >= q ->
-          if Reduction.are_convertible sg t1' t2' then keepon () else warn ()
+          if R.are_convertible sg t1' t2' then keepon () else warn ()
 
         | App (Const (l,cst),_,_), _ when not (Signature.is_static sg l cst) -> keepon ()
         | _, App (Const (l,cst),_,_) when not (Signature.is_static sg l cst) -> keepon ()
@@ -283,7 +294,7 @@ let get_last =
 
 let unshift_n sg n te =
   try Subst.unshift n te
-  with Subst.UnshiftExn -> Subst.unshift n (snf sg te)
+  with Subst.UnshiftExn -> Subst.unshift n (R.snf sg te)
 
 let rec infer_pattern sg (delta:partial_context) (sigma:context2)
     (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
@@ -305,7 +316,7 @@ and infer_pattern_aux sg
     (sigma,f,ty_f,delta,lst : context2*term*typ*partial_context*constraints)
     (arg:pattern)           : context2*term*typ*partial_context*constraints =
   Debug.(debug D_rule "Infer-reduce : %a" pp_term ty_f);
-  match whnf sg ty_f with
+  match R.whnf sg ty_f with
   | Pi (_,_,a,b) ->
     Debug.(debug D_rule "Test");
     let (delta2,lst2) = check_pattern sg delta sigma a lst arg in
@@ -323,9 +334,9 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
   match pat with
   | Lambda (l,x,p) ->
     begin
-      match whnf sg exp_ty with
+      match R.whnf sg exp_ty with
       | Pi (_,_,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
-      | exp_ty -> raise (TypingError ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
+      | exp_ty2 -> raise (TypingError ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
     end
   | Brackets te ->
     let _ =
@@ -386,11 +397,9 @@ let pp_context_inline fmt ctx =
     (fun fmt (_,x,ty) -> fprintf fmt "%a: %a" pp_ident x pp_term ty )
     fmt (List.rev ctx)
 
-(* TODO the term is traversed three times, this could be optimized. *)
 let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
-  List.mapi ( fun i (l,x,ty) ->
-              (l,x, Subst.unshift (i+1) (SS.apply sub 0 (Subst.shift (i+1) ty)) )
-    ) ctx
+  let apply_subst i (l,x,ty) = (l,x,Subst.apply_subst (SS.subst2 sub i) 0 ty) in
+  List.mapi apply_subst ctx
 
 let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   Debug.(debug D_rule "Typechecking rule: %a" pp_untyped_rule rule);
@@ -400,7 +409,8 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   let fail = if !fail_on_unsatisfiable_constraints
     then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))
     else (fun (q,t1,t2) ->
-        Debug.(debug D_warn "Unsatisfiable constraint: %a ~ %a%s"
+        Debug.(debug D_warn "At %a: unsatisfiable constraint: %a ~ %a%s"
+                 pp_loc (get_loc_rule rule)
                  pp_term t1 pp_term t2
                  (if q > 0 then Format.sprintf " (under %i abstractions)" q else ""))) in
   let delta = pc_make rule.ctx in
@@ -431,8 +441,6 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
     rhs = rule.rhs
   }
 
-let untyped_rule_of_rule_infos s ri =
-  { name = ri.name
-  ; ctx  = infer_rule_context ri
-  ; pat  = pattern_of_rule_infos ri
-  ; rhs  = ri.rhs}
+end
+
+module Default = Make(Reduction.Default)
