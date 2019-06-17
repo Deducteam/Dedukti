@@ -47,13 +47,14 @@ type env = term Lazy.t LList.t
 (* A state {ctx; term; stack} is the state of an abstract machine that
 represents a term where [ctx] is a ctx that contains the free variables
 of [term] and [stack] represents the terms that [term] is applied to. *)
-type state = {
-  ctx   : env;    (* context *)
-  term  : term;   (* term to reduce *)
-  stack : stack;  (* stack *)
-  reduc : (bool * state) ref;
-  (* Pointer to a state in a more reduced form representing the same term. *)
-}
+type state =
+  {
+    ctx   : env;    (* context *)
+    term  : term;   (* term to reduce *)
+    stack : stack;  (* stack *)
+    reduc : (bool * state) ref;
+    (* Pointer to a state in a more reduced form representing the same term. *)
+  }
 and stack = state list
 
 let rec term_of_state {ctx;term;stack} : term =
@@ -66,29 +67,6 @@ let mk_state ctx term stack =
   let rec t = { ctx; term; stack; reduc = ref (false, t) } in t
 
 let state_of_term t = mk_state LList.nil t []
-
-(* Pretty Printing *)
-
-let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
-
-let pp_stack fmt (st:stack) =
-  fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state st)
-
-let pp_stack_no_endline fmt (st:stack) =
-  fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state st)
-
-let pp_state ?(if_ctx=true) ?(if_stack=true) fmt st =
-  let { ctx; term; stack; reduc } = st in
-  if if_ctx
-  then fprintf fmt "{ctx=[%a]; " pp_env ctx
-  else fprintf fmt "{ctx=[...](%i);@ " (LList.len ctx);
-  fprintf fmt "term=%a; " pp_term term;
-  if if_stack
-  then fprintf fmt "stack=%a}" pp_stack_no_endline stack
-  else fprintf fmt "stack=[...]}"
-
-let simpl_pp_state = pp_state ~if_ctx:true ~if_stack:true
-
 
 (** Creates a fresh state using the same reduc pointer as [st].
     This pointer now points to the fresh state. *)
@@ -105,6 +83,30 @@ let rec set_final st =
 let as_final st = set_final st; st
 
 exception Not_convertible
+
+
+(**************** Pretty Printing ****************)
+
+let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
+
+let pp_stack fmt (st:stack) =
+  fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state st)
+
+let pp_stack_oneline fmt (st:stack) =
+  fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state st)
+
+let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
+  if if_ctx
+  then fprintf fmt "{ctx=[%a];@." pp_env ctx
+  else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx);
+  fprintf fmt "term=%a;@." pp_term term;
+  if if_stack
+  then fprintf fmt "stack=%a}@." pp_stack stack
+  else fprintf fmt "stack=[...](%i)}@." (List.length stack)
+
+
+let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true
+
 
 (* ********************* *)
 
@@ -379,10 +381,10 @@ and state_whnf (sg:Signature.t) (st:state) : state =
   match !(st.reduc) with
   | (true, st') -> st'
   | (false, st') when st' != st ->
-    let _ = Debug.(debug D_reduce "Jumping %a ---> %a" simpl_pp_state st simpl_pp_state st') in
+    let _ = Debug.(debug D_reduce "Jumping %a ---> %a" pp_state_oneline st pp_state_oneline st') in
     state_whnf sg st'
   | _ ->
-    let _ = Debug.(debug D_reduce "Reducing %a" simpl_pp_state st) in
+    let _ = Debug.(debug D_reduce "Reducing %a" pp_state_oneline st) in
     let rec_call c t s = state_whnf sg (mk_reduc_state st c t s) in
   match st with
   (* Weak heah beta normal terms *)

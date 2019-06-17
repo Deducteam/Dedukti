@@ -250,9 +250,9 @@ let code err =
     end
   | EnvErrorSignature e -> begin match e with
       | Signature.CannotBuildDtree e -> begin match e with
-          | Dtree.HeadSymbolMismatch  _ -> 18
-          | Dtree.ArityInnerMismatch  _ -> 19
-          | Dtree.ACSymbolRewritten   _ -> 42
+          | Dtree.HeadSymbolMismatch _ -> 18
+          | Dtree.ArityInnerMismatch _ -> 19
+          | Dtree.ACSymbolRewritten  _ -> 42
         end
       | Signature.CannotMakeRuleInfos e -> begin match e with
           | Rule.BoundVariableExpected _ -> 20
