@@ -153,7 +153,7 @@ let replace f =
     | []   -> failwith "replace"
     | h::t ->
       if i = 0
-      then (f h, List.rev_append acc ((f h)::t))
+      then let fh = f h in (fh, List.rev_append acc (fh::t))
       else aux (h::acc) (i-1) t in
   aux []
 
