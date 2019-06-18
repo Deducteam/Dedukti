@@ -174,14 +174,13 @@ and find_case (st:state) (cases:(case*dtree) list)
     end
   | _, _::tl -> find_case st tl default
 
-
 (* TODO: implement the stack as an array ? (the size is known in advance).*)
 and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
                   : stack -> dtree -> (rule_name*env*term) option =
   let rec rw stack = function
     | Switch (i,cases,def) ->
        begin
-         let arg_i = state_whnf sg (List.nth stack i) in
+         let (arg_i, stack) = replace (state_whnf sg) i stack in
          match find_case arg_i cases def with
          | Some (g,[]) -> rw stack g
          | Some (g,s ) -> rw (stack@s) g
