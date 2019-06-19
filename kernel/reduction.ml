@@ -51,33 +51,13 @@ type state =
     term  : term;   (* term to reduce *)
     stack : stack;  (* stack *)
   }
-and stack = state list
-
-module IntHash =
-struct
-  type t = int
-  let equal i j = i=j
-  let hash i = i
-end
-
-module UStack = Hashtbl.Make(IntHash)
-
-type ustack = state UStack.t
-
-let split ar stack =
-  let res = UStack.create (2 * ar) in
-  let rec aux i = function
-    | h::t when i < ar -> UStack.replace res i h; aux (i+1) t
-    | l -> (res,l) in
-  aux 0 stack
-
-let concat : ustack -> stack -> unit = fun ustack ->
-  let size = UStack.length ustack in
-  List.iteri (fun i a -> UStack.replace ustack (size +i) a)
+and stack = state ref list
 
 let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
-  mk_App2 t (List.map term_of_state stack)
+  mk_App2 t (List.map term_of_state_ref stack)
+
+and term_of_state_ref r = term_of_state !r
 
 
 (**************** Pretty Printing ****************)
@@ -85,10 +65,10 @@ let rec term_of_state {ctx;term;stack} : term =
 let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
 
 let pp_stack fmt (st:stack) =
-  fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state st)
+  fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state_ref st)
 
 let pp_stack_oneline fmt (st:stack) =
-  fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state st)
+  fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state_ref st)
 
 let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
   if if_ctx
@@ -138,10 +118,10 @@ let selection  = ref None
 module Make(C : ConvChecker) : S =
 struct
 
-let rec get_context (sg:Signature.t) (stack:ustack)
+let rec get_context (sg:Signature.t) (stack:stack)
                     (mp:matching_problem) : env option =
   let aux ({pos;depth;args_db}:atomic_problem) : term Lazy.t =
-    let st = UStack.find stack pos in
+    let st = !(List.nth stack pos) in
     if depth = 0 then lazy (term_of_state st) (* First order matching *)
     else
       let te = term_of_state st in
@@ -170,42 +150,42 @@ and test (rn:Rule.rule_name) (sg:Signature.t)
      then test rn sg ctx tl
      else raise (Signature.SignatureError(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
 
-and find_case (ustack:ustack) (i:int) (st:state)
-    (cases:(case*dtree) list) (default:dtree option) : dtree option =
-  match st, cases with
-  | _, [] -> map_opt (fun g -> g) default
+and find_case (st:state ref) (cases:(case*dtree) list)
+    (default:dtree option) : (dtree * stack) option =
+  match !st, cases with
+  | _, [] -> map_opt (fun g -> (g,[])) default
   | { term=Const (_,cst); stack } , (CConst (nargs,cst'),tr)::tl ->
      (* The case doesn't match if the identifiers differ or the stack is not
       * of the expected size. *)
      if name_eq cst cst' && List.length stack == nargs
-     then (concat ustack stack;  Some tr)
-     else find_case ustack i st tl default
+     then Some (tr,stack)
+     else find_case st tl default
   | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
     assert ( ctx = LList.nil ); (* no beta in patterns *)
     (* The case doesn't match if the DB indices differ or the stack is not
      * of the expected size. *)
     if n == n' && List.length stack == nargs
-    then (concat ustack stack; Some tr)
-    else find_case ustack i st tl default
+    then Some (tr,stack)
+    else find_case st tl default
   | { ctx; term=Lam _; stack } , ( CLam , tr )::tl ->
     begin
-      match term_of_state st with (*TODO could be optimized*)
+      match term_of_state !st with (*TODO could be optimized*)
       | Lam (_,_,_,te) ->
-        (concat ustack [{ ctx=LList.nil; term=te; stack=[] }] ; Some tr)
+        Some ( tr , [ ref { ctx=LList.nil; term=te; stack=[] }] )
       | _ -> assert false
     end
-  | _, _::tl -> find_case ustack i st tl default
+  | _, _::tl -> find_case st tl default
 
 
 
 (* TODO: implement the stack as an array ? (the size is known in advance).*)
 and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
-                  : ustack -> dtree -> (rule_name*env*term) option =
+                  : stack -> dtree -> (rule_name*env*term) option =
   let rec rw stack = function
     | Switch (i,cases,def) ->
-      let arg_i = state_whnf sg (UStack.find stack i) in
-      UStack.replace stack i arg_i;
-      bind_opt (rw stack) (find_case stack i arg_i cases def)
+      let arg_i = List.nth stack i in
+      arg_i := state_whnf sg !arg_i;
+      bind_opt (fun (g,s) -> rw (concat stack s) g) (find_case arg_i cases def)
       (* This line highly depends on how the module dtree works.
        * When a column is specialized, the dtree makes the assumption
        * that new columns are pushed at the end of the stack
@@ -251,11 +231,11 @@ and state_whnf (sg:Signature.t) (st:state) : state =
   (* Beta redex *)
   | { ctx; term=Lam (_,_,_,t); stack=p::s } ->
     if not !beta then st
-    else state_whnf sg { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s }
+    else state_whnf sg { ctx=LList.cons (lazy (term_of_state_ref p)) ctx; term=t; stack=s }
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
-    let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
+    let tl' = List.rev_map ( fun t -> ref {ctx;term=t;stack=[]} ) (a::lst) in
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack } ->
@@ -344,14 +324,14 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
         let ty' = term_of_state (aux (0::pos) {ctx=ctx; term=ty; stack=[]}) in
         if stop () || not !beta then {st with term=mk_Lam l x (Some ty') t}
         else
-          let st' = { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s } in
+          let st' = { ctx=LList.cons (lazy (term_of_state_ref p)) ctx; term=t; stack=s } in
           let _ = log pos Rule.Beta st st' in
           aux pos st'
       (* Beta redex *)
       | { ctx; term=Lam (_,_,_,t); stack=p::s }, _ ->
         if not !beta then st
         else
-          let st' = { ctx=LList.cons (lazy (term_of_state p)) ctx; term=t; stack=s } in
+          let st' = { ctx=LList.cons (lazy (term_of_state_ref p)) ctx; term=t; stack=s } in
           let _ = log pos Rule.Beta st st' in
           aux pos st'
 
@@ -364,12 +344,12 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
       (* Application: arguments go on the stack *)
       | { ctx; term=App (f,a,lst); stack=s }, ByName ->
         (* rev_map + rev_append to avoid map + append *)
-        let tl' = List.rev_map ( fun t -> {ctx;term=t;stack=[]} ) (a::lst) in
+        let tl' = List.rev_map ( fun t -> ref {ctx;term=t;stack=[]} ) (a::lst) in
         aux pos { ctx; term=f; stack=List.rev_append tl' s }
 
       (* Application: arguments are reduced to values then go on the stack *)
       | { ctx; term=App (f,a,lst); stack=s }, _ ->
-        let tl' = rev_mapi ( fun i t -> aux (i::pos) {ctx;term=t;stack=[]} ) (a::lst) in
+        let tl' = rev_mapi ( fun i t -> ref (aux (i::pos) {ctx;term=t;stack=[]}) ) (a::lst) in
         aux pos { ctx; term=f; stack=List.rev_append tl' s }
 
       (* Potential Gamma redex *)
