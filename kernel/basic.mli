@@ -121,6 +121,8 @@ val replace : ('a -> 'a) -> int -> 'a list -> 'a * 'a list
 (** [replace f l n] returns the list [l] where the [n]-th element, [e],
     is replaced with [f e] together with [f e] itself. *)
 
+val concat : 'a list -> 'a list -> 'a list
+
 (** {2 Printing functions} *)
 
 type 'a printer = Format.formatter -> 'a -> unit

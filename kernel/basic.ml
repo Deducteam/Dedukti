@@ -157,6 +157,8 @@ let replace f =
       else aux (h::acc) (i-1) t in
   aux []
 
+let concat l1 = function [] -> l1 | l2 -> l1@l2
+
 (** {2 Printing functions} *)
 
 type 'a printer = Format.formatter -> 'a -> unit
