@@ -1,0 +1,76 @@
+<line> ::= ID <param>* COLON <term> DOT
+         | KW_DEF ID COLON <term> DOT
+         | KW_DEF ID COLON <term> DEF <term> DOT
+         | KW_DEF ID DEF <term> DOT
+         | KW_DEF ID <param>+ COLON <term> DEF <term> DOT
+         | KW_DEF ID <param>+ DEF <term> DOT
+         | KW_THM ID COLON <term> DEF <term> DOT
+         | KW_THM ID <param>+ COLON <term> DEF <term> DOT
+         | <rule>+ DOT
+         | EVAL <term> DOT
+         | EVAL <eval_config> <term> DOT
+         | INFER <term> DOT
+         | INFER <eval_config> <term> DOT
+         | CHECK <aterm> COLON <term> DOT
+         | CHECKNOT <aterm> COLON <term> DOT
+         | ASSERT <aterm> COLON <term> DOT
+         | ASSERTNOT <aterm> COLON <term> DOT
+         | CHECK <aterm> EQUAL <term> DOT
+         | CHECKNOT <aterm> EQUAL <term> DOT
+         | ASSERT <aterm> EQUAL <term> DOT
+         | ASSERTNOT <aterm> EQUAL <term> DOT
+         | PRINT STRING DOT
+         | GDT ID DOT
+         | GDT QID DOT
+         | NAME DOT
+         | REQUIRE DOT
+         | EOF
+
+<eval_config> ::= LEFTSQU ID (COMMA ID)* RIGHTSQU
+
+<param> ::= LEFTPAR ID COLON <term> RIGHTPAR
+
+<rule> ::= LEFTSQU <context> RIGHTSQU <top_pattern> LONGARROW <term>
+         | LEFTBRA ID RIGHTBRA LEFTSQU <context> RIGHTSQU <top_pattern>
+           LONGARROW <term>
+         | LEFTBRA QID RIGHTBRA LEFTSQU <context> RIGHTSQU <top_pattern>
+           LONGARROW <term>
+
+<decl> ::= ID COLON <term>
+         | ID
+
+<context> ::= [<decl> (COMMA <decl>)*]
+
+<top_pattern> ::= ID <pattern_wp>*
+                | QID <pattern_wp>*
+
+<pid> ::= UNDERSCORE
+        | ID
+
+<pattern_wp> ::= ID
+               | QID
+               | UNDERSCORE
+               | LEFTBRA <term> RIGHTBRA
+               | LEFTPAR <pattern> RIGHTPAR
+
+<pattern> ::= ID <pattern_wp>+
+            | QID <pattern_wp>+
+            | ID FATARROW <pattern>
+            | <pattern_wp>
+
+<sterm> ::= QID
+          | <pid>
+          | LEFTPAR <term> RIGHTPAR
+          | TYPE
+
+<aterm> ::= <sterm> <sterm>*
+
+<term> ::= <aterm>
+         | <pid> COLON <aterm> ARROW <term>
+         | LEFTPAR ID COLON <aterm> RIGHTPAR ARROW <term>
+         | <term> ARROW <term>
+         | <pid> FATARROW <term>
+         | <pid> COLON <aterm> FATARROW <term>
+         | LEFTPAR <pid> COLON <aterm> DEF <aterm> RIGHTPAR FATARROW <term>
+
+
