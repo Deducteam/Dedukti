@@ -148,15 +148,6 @@ let rev_mapi f l =
   in
   rmap_f 0 [] l
 
-let replace f =
-  let rec aux acc i = function
-    | []   -> failwith "replace"
-    | h::t ->
-      if i = 0
-      then let fh = f h in (fh, List.rev_append acc (fh::t))
-      else aux (h::acc) (i-1) t in
-  aux []
-
 let concat l1 = function [] -> l1 | l2 -> l1@l2
 
 (** {2 Printing functions} *)
