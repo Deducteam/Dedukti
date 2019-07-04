@@ -19,7 +19,7 @@ module type ErrorHandler =
 sig
   val success : ('a, Format.formatter, unit) format -> 'a
   val fail_exit : int -> string -> mident option -> loc option -> ('a, Format.formatter, unit) format -> 'a
-  val fail_env_error : (mident option * loc * Env.env_error) -> unit
+  val fail_env_error : (mident option * loc * Env.env_error) -> 'a
   val fail_sys_error : string -> 'a
 end
 
