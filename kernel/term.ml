@@ -107,7 +107,7 @@ and compare_term_list id_comp a b =
 
 type algebra = Free | AC | ACU of term
 
-let is_AC alg = alg <> Free
+let is_AC = function AC -> true | ACU _ -> true | Free -> false
 
 type position = int list
 

@@ -82,8 +82,6 @@ let rec set_final st =
 
 let as_final st = set_final st; st
 
-exception Not_convertible
-
 
 
 (**************** Pretty Printing ****************)
@@ -338,7 +336,7 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
     let arg_i = state_whnf sg (List.nth stack i) in
     let new_cases =
       List.map
-        (fun (g,l) -> ( (match l with |[] -> stack | s -> stack@s), g))
+        (fun (g,l) -> ( (match l with | [] -> stack | s -> stack@s), g))
         (find_cases (flatten_AC_stack sg state_whnf) arg_i cases def) in
     gamma_rw_list sg filter new_cases
   | Test (rule_name, problem, cstr, right, def) ->
@@ -448,8 +446,13 @@ and conversion_step sg : (term * term) -> (term * term) list -> (term * term) li
   | App (Const(lc,cst), _, _), App (Const(lc',cst'), _, _)
     when Signature.is_AC sg lc cst && name_eq cst cst' ->
     begin
-      (* TODO: Replace this with less hardcore criteria: put all terms in whnf
-               * then look at the heads to match arguments with one another. *)
+      (* TODO: Eventually replace this with less hardcore criteria: put all terms in whnf
+       * then look at the heads to match arguments with one another.
+       * Careful, this is tricky:
+       * The whnf would need here to make sure that no reduction may occur at the AC-head.
+       * Whenever  max n n --> n,   the whnf of "max a (max a b)" should be "max a b"
+       * If not all head reduction are exhausted, then comparing AC argument sets is not enough
+       *)
       match snf sg l, snf sg r with
       | App (Const(l ,cst2 ), a , args ),
         App (Const(l',cst2'), a', args')
@@ -471,7 +474,7 @@ and conversion_step sg : (term * term) -> (term * term) list -> (term * term) li
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
   | t1, t2 -> begin
       Debug.(debug D_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
-      raise Not_convertible end
+      raise NotConvertible end
 
 let rec are_convertible_lst sg : (term*term) list -> bool =
   function
@@ -483,7 +486,7 @@ let rec are_convertible_lst sg : (term*term) list -> bool =
 (* Convertibility Test *)
 let are_convertible sg t1 t2 =
   try are_convertible_lst sg [(t1,t2)]
-  with Not_convertible | Invalid_argument _ -> false
+  with NotConvertible | Invalid_argument _ -> false
 
 let matching_test _ _ = are_convertible
 
@@ -550,11 +553,20 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
       | { ctx; term=Const (l,n); stack }, _ ->
         let trees = Signature.get_dtree sg l n in
         match find_dtree (List.length stack) trees with
-        | None -> st
+        | None -> as_final (comb_state_shape_if_AC sg state_whnf st)
         | Some (ar, tree) ->
           let s1, s2 = split ar stack in
+          let s1 =
+            if Signature.is_AC sg l n && ar > 1
+            then
+              match s1 with
+              | t1 :: t2 :: tl ->
+                let flat = flatten_AC_stack sg state_whnf l n [t1;t2] in
+                (mk_state ctx (mk_Const l n) flat):: tl
+              | _ -> assert false
+            else s1 in
           match gamma_rw sg !selection s1 tree with
-          | None -> st
+          | None -> as_final (comb_state_shape_if_AC sg state_whnf st)
           | Some (rn,ctx,term) ->
             let st' = mk_state ctx term s2 in
             log pos rn st st';

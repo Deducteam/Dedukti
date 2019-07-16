@@ -287,7 +287,7 @@ and get_algebra sg lc name =
   match get_staticity sg lc name with
   | Definable a -> a | Static -> Free
 
-and is_AC sg lc name = (get_algebra sg lc name) <> Free
+and is_AC sg lc name = Term.is_AC (get_algebra sg lc name)
 
 (******************************************************************************)
 
