@@ -52,6 +52,7 @@ type state =
     stack : stack;  (* stack *)
   }
 and stack = state ref list
+(* TODO: implement  constant time random access / in place mutable value.  *)
 
 let rec term_of_state {ctx;term;stack} : term =
   let t = ( if LList.is_empty ctx then term else Subst.psubst_l ctx term ) in
@@ -150,9 +151,9 @@ and test (rn:Rule.rule_name) (sg:Signature.t)
      then test rn sg ctx tl
      else raise (Signature.SignatureError(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
 
-and find_case (st:state ref) (cases:(case*dtree) list)
+and find_case (st:state) (cases:(case*dtree) list)
     (default:dtree option) : (dtree * stack) option =
-  match !st, cases with
+  match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
   | { term=Const (_,cst); stack } , (CConst (nargs,cst'),tr)::tl ->
      (* The case doesn't match if the identifiers differ or the stack is not
@@ -169,7 +170,7 @@ and find_case (st:state ref) (cases:(case*dtree) list)
     else find_case st tl default
   | { ctx; term=Lam _; stack } , ( CLam , tr )::tl ->
     begin
-      match term_of_state !st with (*TODO could be optimized*)
+      match term_of_state st with (*TODO could be optimized*)
       | Lam (_,_,_,te) ->
         Some ( tr , [ ref { ctx=LList.nil; term=te; stack=[] }] )
       | _ -> assert false
@@ -185,7 +186,7 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
     | Switch (i,cases,def) ->
       let arg_i = List.nth stack i in
       arg_i := state_whnf sg !arg_i;
-      bind_opt (fun (g,s) -> rw (concat stack s) g) (find_case arg_i cases def)
+      bind_opt (fun (g,s) -> rw (concat stack s) g) (find_case !arg_i cases def)
       (* This line highly depends on how the module dtree works.
        * When a column is specialized, the dtree makes the assumption
        * that new columns are pushed at the end of the stack
