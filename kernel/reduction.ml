@@ -122,10 +122,10 @@ struct
 let rec get_context (sg:Signature.t) (stack:stack)
                     (mp:matching_problem) : env option =
   let aux ({pos;depth;args_db}:atomic_problem) : term Lazy.t =
-    let st = !(List.nth stack pos) in
-    if depth = 0 then lazy (term_of_state st) (* First order matching *)
+    let st = List.nth stack pos in
+    if depth = 0 then lazy (term_of_state_ref st) (* First order matching *)
     else
-      let te = term_of_state st in
+      let te = term_of_state_ref st in
       Lazy.from_val
         (try Matching.solve depth args_db te
          with Matching.NotUnifiable | Subst.UnshiftExn ->
@@ -135,7 +135,7 @@ let rec get_context (sg:Signature.t) (stack:stack)
   with Matching.NotUnifiable | Subst.UnshiftExn -> None
 
 and test (rn:Rule.rule_name) (sg:Signature.t)
-             (ctx:env) (constrs: constr list) : bool  =
+         (ctx:env) (constrs: constr list) : bool  =
   match constrs with
   | [] -> true
   | Linearity (i,j)::tl ->
