@@ -45,7 +45,7 @@ let mk_mident md =
   then Filename.chop_suffix base ".dk"
   else base
 
-let dmark       = mk_ident "$"
+let dmark       = mk_ident "@"
 
 (** {2 Lists with Length} *)
 
