@@ -386,17 +386,16 @@ let pp_context_inline fmt ctx =
     (fun fmt (_,x,ty) -> fprintf fmt "%a: %a" pp_ident x pp_term ty )
     fmt (List.rev ctx)
 
-(* TODO the term is traversed three times, this could be optimized. *)
 let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
-  List.mapi ( fun i (l,x,ty) ->
-              (l,x, Subst.unshift (i+1) (SS.apply sub 0 (Subst.shift (i+1) ty)) )
-    ) ctx
+  let apply_subst i (l,x,ty) = (l,x,Subst.apply_subst (SS.subst2 sub i) 0 ty) in
+  List.mapi apply_subst ctx
 
 let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   let fail = if !fail_on_unsatisfiable_constraints
     then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))
     else (fun (q,t1,t2) ->
-        Debug.(debug D_warn "Unsatisfiable constraint: %a ~ %a%s"
+        Debug.(debug D_warn "At %a: unsatisfiable constraint: %a ~ %a%s"
+                 pp_loc (get_loc_rule rule)
                  pp_term t1 pp_term t2
                  (if q > 0 then Format.sprintf " (under %i abstractions)" q else ""))) in
   let delta = pc_make rule.ctx in

@@ -57,6 +57,11 @@ sig
   val get_name    : unit -> mident
   (** [get_name ()] returns the name of the module. *)
 
+  module HName : Hashtbl.S with type key = name
+
+  val get_symbols : unit -> Signature.rw_infos HName.t
+  (** [get_symbols ()] returns the content of the signature [sg]. *)
+
   val get_type    : loc -> name -> term
   (** [get_type l md id] returns the type of the constant [md.id]. *)
 

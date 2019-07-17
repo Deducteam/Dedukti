@@ -1,0 +1,82 @@
+<ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*
+
+<mident> ::= [a-zA-Z0-9_]*
+
+<qident> ::= <mident> '.' <ident>
+
+<line> ::= <ident> <param>* ':' <term> '.'
+         | 'def' <ident> ':' <term> '.'
+         | 'def' <ident> ':' <term> ':=' <term> '.'
+         | 'def' <ident> ':=' <term> '.'
+         | 'def' <ident> <param>+ ':' <term> ':=' <term> '.'
+         | 'def' <ident> <param>+ ':=' <term> '.'
+         | 'thm' <ident> ':' <term> ':=' <term> '.'
+         | 'thm' <ident> <param>+ ':' <term> ':=' <term> '.'
+         | <rule>+ '.'
+         | '#EVAL' <term> '.'
+         | '#EVAL' <eval_config> <term> '.'
+         | '#INFER' <term> '.'
+         | '#INFER' <eval_config> <term> '.'
+         | '#CHECK' <aterm> ':' <term> '.'
+         | '#CHECKNOT' <aterm> ':' <term> '.'
+         | '#ASSERT' <aterm> ':' <term> '.'
+         | '#ASSERTNOT' <aterm> ':' <term> '.'
+         | '#CHECK' <aterm> '=' <term> '.'
+         | '#CHECKNOT' <aterm> '=' <term> '.'
+         | '#ASSERT' <aterm> '=' <term> '.'
+         | '#ASSERTNOT' <aterm> '=' <term> '.'
+         | '#PRINT' <string> '.'
+         | '#GDT' <ident> '.'
+         | '#GDT' <qident> '.'
+         | '#NAME' '.'
+         | '#REQUIRE' '.'
+         | EOF
+
+<eval_config> ::= '[' <ident> (',' <ident>)* ']'
+
+<param> ::= '(' <ident> ':' <term> ')'
+
+<rule> ::= '[' <context> ']' <top_pattern> '-->' <term>
+         | '{' <ident> '}'  '[' <context> ']' <top_pattern>
+           '-->' <term>
+         | '{' <qident> '}'  '[' <context> ']' <top_pattern>
+           '-->' <term>
+
+<decl> ::= <ident> ':' <term>
+         | <ident>
+
+<context> ::= [<decl> (',' <decl>)*]
+
+<top_pattern> ::= <ident> <pattern_wp>*
+                | <qident> <pattern_wp>*
+
+<pid> ::= '_'
+        | <ident>
+
+<pattern_wp> ::= <ident>
+               | <qident>
+               | '_'
+               | '{' <term> '}' 
+               | '(' <pattern> ')'
+
+<pattern> ::= <ident> <pattern_wp>+
+            | <qident> <pattern_wp>+
+            | <ident> '=>' <pattern>
+            | <pattern_wp>
+
+<sterm> ::= <qident>
+          | <pid>
+          | '(' <term> ')'
+          | 'Type'
+
+<aterm> ::= <sterm> <sterm>*
+
+<term> ::= <aterm>
+         | <pid> ':' <aterm> '->' <term>
+         | '(' <ident> ':' <aterm> ')' '->' <term>
+         | <term> '->' <term>
+         | <pid> '=>' <term>
+         | <pid> ':' <aterm> '=>' <term>
+         | '(' <pid> ':' <aterm> ':=' <aterm> ')' '=>' <term>
+
+

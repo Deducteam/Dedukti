@@ -50,6 +50,8 @@ sig
 
   val get_signature : unit -> Signature.t
   val get_name    : unit -> mident
+  module HName : Hashtbl.S with type key = name
+  val get_symbols : unit -> Signature.rw_infos HName.t
   val get_type    : loc -> name -> term
   val is_static   : loc -> name -> bool
   val get_dtree   : loc -> name -> Dtree.t
@@ -86,6 +88,18 @@ struct
   let raise_env lc err = raise (EnvError (Some (get_name()), lc, err))
 
   module Printer = Pp.Make(struct let get_name = get_name end)
+
+  module HName = Hashtbl.Make(
+    struct
+      type t    = name
+      let equal = name_eq
+      let hash  = Hashtbl.hash
+    end )
+
+  let get_symbols () =
+    let table = HName.create 11 in
+    Signature.iter_symbols (fun md id -> HName.add table (mk_name md id)) !sg;
+    table
 
   let get_type lc cst =
     try Signature.get_type !sg lc cst
