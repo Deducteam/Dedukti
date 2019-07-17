@@ -49,6 +49,11 @@ val init        : string -> mident
 val get_signature : unit -> Signature.t
 (** [get_signature ()] returns the signature used by this module. *)
 
+module HName : Hashtbl.S with type key = name
+
+val get_symbols : unit -> Signature.rw_infos HName.t
+(** [get_symbols ()] returns the content of the signature [sg]. *)
+
 val get_name    : unit -> mident
 (** [get_name ()] returns the name of the module. *)
 
@@ -72,7 +77,7 @@ val declare     : loc -> ident -> Signature.staticity -> term -> unit
    staticity [st]. *)
 
 val define      : loc -> ident -> bool -> term -> term option -> unit
-(** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
+(** [define l id opaque body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
 
 val add_rules   : Rule.part_typed_rule list -> (Subst.Subst.t * Rule.typed_rule) list
 (** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the

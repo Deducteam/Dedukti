@@ -39,25 +39,11 @@ module HId = Hashtbl.Make(
     let hash  = Hashtbl.hash
   end )
 
-module HName = Hashtbl.Make(
-  struct
-    type t    = name
-    let equal = name_eq
-    let hash  = Hashtbl.hash
-  end )
-
 type staticity = Static | Definable
 
 (** The pretty printer for the type [staticity] *)
 let pp_staticity fmt s =
   Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable")
-
-type symbol_infos =
-  {
-    stat  : staticity;
-    ty    : term;
-    rules : rule_infos list;
-  }
 
 type rw_infos =
   {
@@ -133,15 +119,12 @@ let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos li
   | SignatureError s -> raise (SignatureError s)
   | _ -> raise (SignatureError (UnmarshalUnknown (lc,m)))
 
-let symbols_of sg =
-  let table = HName.create 11 in
-  HMd.iter (fun md ->
-      HId.iter (fun id (r:rw_infos) ->
-          HName.add table (mk_name md id)
-            { stat  = r.stat;
-              ty    = r.ty;
-              rules = r.rules}))
-    sg.tables; table
+
+let fold_symbols f sg =
+  HMd.fold (fun md table t -> HId.fold (f md) table t) sg.tables
+
+let iter_symbols f sg =
+  fold_symbols (fun md id rw () -> f md id rw) sg ()
 
 
 
@@ -164,11 +147,11 @@ let add_external_declaration sg lc cst st ty =
     let env = HMd.find sg.tables (md cst) in
     if HId.mem env (id cst)
     then raise (SignatureError (AlreadyDefinedSymbol (lc, cst)))
-    else HId.add env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
+    else HId.replace env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
   with Not_found ->
-    HMd.add sg.tables (md cst) (HId.create 11);
+    HMd.replace sg.tables (md cst) (HId.create 11);
     let env = HMd.find sg.tables (md cst) in
-    HId.add env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
+    HId.replace env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
@@ -189,24 +172,17 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   match lst with
   | [] -> ()
   | (r::_ as rs) ->
-    try
-      let infos, env = get_info_env sg r.l r.cst in
-      if infos.stat = Static && !fail_on_symbol_not_found
-      then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
-      HId.add env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None};
-    with SignatureError (SymbolNotFound _)
-       | SignatureError (UnmarshalUnknown _) as e ->
-      (* The symbol cst is not in the signature *)
-      if not !fail_on_symbol_not_found then
-        begin
-          add_external_declaration sg r.l r.cst Definable (mk_Kind);
-          let _,env = get_info_env sg r.l r.cst in
-          let rules = lst in
-          HId.add env (id r.cst)
-            {stat = Definable; ty= mk_Kind; rules; decision_tree = None}
-        end
-      else
-        raise e
+    let infos, env =
+      try get_info_env sg r.l r.cst
+      with
+      | SignatureError (SymbolNotFound _)
+      | SignatureError (UnmarshalUnknown _) when not !fail_on_symbol_not_found ->
+        add_external_declaration sg r.l r.cst Definable (mk_Kind);
+        get_info_env sg r.l r.cst
+    in
+    if infos.stat = Static && !fail_on_symbol_not_found
+    then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
+    HId.replace env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None}
 
 and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
   let infos, env = get_info_env sg lc cst in
@@ -249,7 +225,7 @@ let get_deps sg : string list = (*only direct dependencies*)
 let rec import_signature sg sg_ext =
   HMd.iter (fun m hid ->
       if not (HMd.mem sg.tables m) then
-        HMd.add sg.tables m (HId.copy hid)) sg_ext.tables;
+        HMd.replace sg.tables m (HId.copy hid)) sg_ext.tables;
   List.iter (fun rs -> add_rule_infos sg rs) sg_ext.external_rules
 
 let export sg =

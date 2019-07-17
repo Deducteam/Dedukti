@@ -101,7 +101,7 @@ type dep_data = mident * (path * (mident * path) list)
 let handle_file : string -> dep_data = fun file ->
   try
     (* Initialisation. *)
-    let md = mk_mident file in
+    let md = Env.init file in
     current_mod := md; current_deps := [];
     (* Actully parsing and gathering data. *)
     let input = open_in file in
