@@ -221,6 +221,19 @@ Using underscores, we can write:
     [ v ] append _ nil _ v --> v
     [ n, v1, m, e, v2 ] append _ (cons n e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
 
+#### TYPE ANNOTATIONS
+
+Variables in the context of a rule may be annotated with their expected type.
+It is checked that the inferred type for annotated rule variables are convertible
+with the provided annotation.
+
+    [ n : Nat
+    , v1 : Vector n
+    , m : Nat
+    , e : Elt
+    , v2  : Vector m ]
+      append _ (cons n e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
+
 #### BRACKET PATTERNS
 
 A different solution to the same problem is to mark with brackets the parts of the left-hand
