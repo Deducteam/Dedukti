@@ -133,6 +133,9 @@ let _ =
     ; ( "--snf"
       , Arg.Set Errors.errors_in_snf
       , " Normalizes all terms printed in error messages" )
+    ; ( "--db"
+      , Arg.Set Pp.print_db_enabled
+      , " Prints De Bruijn indices in error messages" )
     ; ( "--confluence"
       , Arg.String Confluence.set_cmd
       , "CMD Set the external confluence checker command to CMD" )

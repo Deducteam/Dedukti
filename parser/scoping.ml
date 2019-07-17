@@ -129,10 +129,17 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : part_typed_rule =
     in
     Gamma(b,mk_name md id)
   in
-  let decl_of_pdecl (l,id,ty) = (l,id,map_opt (t_of_pt md idents) ty) in
+  let rec ctx_of_pctx ctx acc = function
+    | [] -> acc
+    | (l,x,ty)::tl ->
+      ctx_of_pctx
+        (x::ctx)
+        ( (l,x,map_opt (t_of_pt md ctx) ty) :: acc )
+        tl
+  in
   {
     name = name ;
-    ctx  = List.map decl_of_pdecl ctx;
+    ctx  = ctx_of_pctx [] [] (List.rev ctx);
     pat  = p_of_pp md idents top;
     rhs  = t_of_pt md idents pri
   }

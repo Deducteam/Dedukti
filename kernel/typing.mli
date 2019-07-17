@@ -13,6 +13,7 @@ val fail_on_unsatisfiable_constraints : bool ref
 type typing_error =
   | KindIsNotTypable
   | ConvertibilityError                of term * typed_context * term * term
+  | AnnotConvertibilityError           of loc * ident * typed_context * term * term
   | VariableNotFound                   of loc * ident * int * typed_context
   | SortExpected                       of term * typed_context * term
   | ProductExpected                    of term * typed_context * term

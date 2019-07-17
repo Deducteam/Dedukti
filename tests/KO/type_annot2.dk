@@ -1,0 +1,10 @@
+(; KO 50 ;)
+
+A : Type.
+
+B : A -> Type.
+C : A -> Type.
+
+def f : x : A -> C x -> Type.
+
+[x:A,y:B x] f x y --> A.
