@@ -113,3 +113,5 @@ sig
 end
 
 module Make (R:Reduction.S) : S
+
+module Default : S
