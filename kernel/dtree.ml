@@ -334,7 +334,7 @@ let spec_col_depth_l (c:int) (col_depth: int array) : int array =
   in
     Array.init (size+1) aux
 
-(* Specialize the matrix [mx] on column [c] *)
+(* Specialize the matrix [mx] on AC-empty column [c] *)
 let specialize_ACEmpty (mx:matrix) (c:int) : matrix * matrix option =
   let (rules_suc, rules_def) =
     List.partition (get_rule_filter filter_AC_on_empty_set c) (mx.first::mx.others) in
@@ -553,16 +553,18 @@ let pp_matching_problem fmt matching_problem = fprintf fmt "Mi"
 
 let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
-  let tab = String.init (1 + t*4) (fun i -> if i == 0 then '\n' else ' ') in
+  let tab = String.init (1 + t*2) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
   | Test (name,mp,[],te,def) when List.length mp.pm_problems == 0 ->
     fprintf fmt "%s%a" tab pp_term te
   | Test (name,mp,[],te,def) ->
-     fprintf fmt "%stry %a%sthen %a%selse %a"
-             tab (pp_pre_matching_problem (tab^"      ")) mp tab pp_term te tab (pp_def (t+1)) def
+     fprintf fmt "%stry %a :%s    %a%sthen %a%selse %a"
+       tab pp_rule_name name tab
+       (pp_pre_matching_problem (tab^"      ")) mp tab pp_term te tab (pp_def (t+1)) def
   | Test (name,mp,cstr,te,def)  ->
-     fprintf fmt "%stry %a%sunder constraints %a%sthen %a%selse %a"
-             tab (pp_pre_matching_problem (tab^"      ")) mp tab (pp_list ", " pp_constr) cstr
+     fprintf fmt "%stry %a :%s    %a%sunder constraints %a%sthen %a%selse %a"
+       tab pp_rule_name name tab
+       (pp_pre_matching_problem (tab^"      ")) mp tab (pp_list ", " pp_constr) cstr
              tab pp_term te tab (pp_def (t+1)) def
   | Switch (i,cases,def) ->
      let pp_case out = function
@@ -614,4 +616,4 @@ let pp_rw fmt (i,g) =
 
 let pp_dforest fmt = function
   | []    -> fprintf fmt "No GDT.@."
-  | trees -> (pp_list "\n" pp_rw) fmt trees
+  | trees -> fprintf fmt "%a@." (pp_list "\n" pp_rw) trees

@@ -112,7 +112,7 @@ let rec pp_wf_pattern fmt wf_pattern =
   | LBoundVar(x,n, pats) ->
     fprintf fmt "%a[%i] %a" pp_ident x n (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
   | LACSet(cst,l) ->
-     fprintf fmt "%a{%a}" pp_name cst (pp_list "; " pp_wf_pattern_wp) l
+    fprintf fmt "%a{%a}" pp_name cst (pp_list "; " pp_wf_pattern_wp) l
 
 and pp_wf_pattern_wp fmt wf_pattern =
   match wf_pattern with

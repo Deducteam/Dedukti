@@ -36,7 +36,7 @@ type matching_problem = {
 
 (**     Printing functions       **)
 
-let pp_pos = pp_print_int
+let pp_pos fmt p = fprintf fmt "stack.%a" pp_print_int p
 let pp_te fmt t = fprintf fmt "%a" pp_term (Lazy.force t)
 
 let pp_depthed pp_a fmt (d,a) = fprintf fmt "%a" pp_a a
@@ -52,9 +52,9 @@ let pp_problem pp_a fmt = function
   | Eq(vp,t) -> fprintf fmt "%a = %a" pp_var_type vp pp_a t
   | AC(aci,joks,vars,terms) ->
      fprintf fmt "{ %a%a } =(%a) { %a }"
-             (pp_list " + " pp_var_type) vars
+             (pp_list " , " pp_var_type) vars
              pp_njoks joks pp_ac_ident aci
-             (pp_list " + " pp_a) terms
+             (pp_list " , " pp_a) terms
 
 let pp_mp_problems sep pp_a fmt mp_p =
   fprintf fmt "[ %a ]" (pp_list sep (pp_depthed (pp_problem pp_a))) mp_p
@@ -111,23 +111,23 @@ let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
 
 (** [solve n k_lst te] solves the following higher-order unification problem:
     (unification modulo beta)
-    
+
     x{_1} => x{_2} => ... x{_[n]} => X x{_i{_1}} .. x{_i{_m}}
     {b =}
     x{_1} => x{_2} => ... x{_[n]} => [te]
-    
+
     where X is the unknown, x{_i{_1}}, ..., x{_i{_m}} are distinct bound variables
     in the local context and [te] is a term.
-  
+
    If the free variables of [te] that are in x{_1}, ..., x{_[n]} are also in
    x{_i{_1}}, ..., x{_i{_m}} then the problem has a unique solution modulo beta that is
    x{_i{_1}} => .. => x{_i{_m}} => [te].
    Otherwise this problem has no solution and the function raises [NotUnifiable].
-   
+
    Since we use deBruijn indexes, the problem is given as the equation
-   
+
    x{_1} => ... => x{_[n]} => X DB(k{_0}) ... DB(k{_m}) =~ x{_1} => ... => x{_[n]} => [te]
-   
+
    and where [k_lst] = [\[]k{_0}[; ]k{_1}[; ]...[; ]k{_m}[\]].
 *)
 let solve d args t =
@@ -213,7 +213,7 @@ let update_problems f pb =
   update [] pb.problems
 
 let update_status i s pb =
-  let nstat = Array.copy pb.status in 
+  let nstat = Array.copy pb.status in
   nstat.(i) <- s;
   {pb with status = nstat}
 
@@ -300,7 +300,7 @@ let add_partly convertible pb i sol =
           end
        | p -> Keep p
      in
-     map_opt 
+     map_opt
        (update_status i (Partly(aci,sol :: terms)))  (* Update status [i] *)
        (update_problems filter pb)                   (* If update was a success. *)
   | _ -> assert false
