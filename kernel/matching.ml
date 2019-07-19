@@ -130,10 +130,10 @@ let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
 
    and where [k_lst] = [\[]k{_0}[; ]k{_1}[; ]...[; ]k{_m}[\]].
 *)
-let solve d args t =
+let solve (depth:int) (args:int LList.t) (te:term) : term =
   if LList.is_empty args
-  then try Subst.unshift d t with Subst.UnshiftExn -> raise NotUnifiable
-  else solve_miller d args t
+  then try Subst.unshift depth te with Subst.UnshiftExn -> raise NotUnifiable
+  else solve_miller depth args te
 
 let force_solve reduce d i args t =
   if d == 0 then (assert(LList.is_empty args); t)
