@@ -551,6 +551,8 @@ let pp_AC_args fmt i =
 
 let pp_matching_problem fmt matching_problem = fprintf fmt "Mi"
 
+let pp_var : int printer = fun fmt -> fprintf fmt "Var[%i]"
+
 let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
   let tab = String.init (1 + t*2) (fun i -> if i == 0 then '\n' else ' ') in
