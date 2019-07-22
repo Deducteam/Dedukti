@@ -17,8 +17,8 @@ let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
       if n < k             (* var bound in te *) then t
       else if n >= k+depth (* var free  in te *) then mk_DB l x (n-depth+size)
       else mk_DB l x (match arr.(n-k) with None -> raise NotUnifiable | Some n' -> n'+k)
-    | Lam (l,x,a,b) -> mk_Lam dloc x (map_opt (aux k) a) (aux (k+1) b)
-    | Pi  (_,x,a,b) -> mk_Pi  dloc x (aux k a) (aux (k+1) b)
+    | Lam (l,x,a,b) -> mk_Lam l x (map_opt (aux k) a) (aux (k+1) b)
+    | Pi  (l,x,a,b) -> mk_Pi  l x (aux k a) (aux (k+1) b)
     | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
   in
   aux 0 te
