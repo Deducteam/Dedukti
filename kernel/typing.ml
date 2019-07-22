@@ -93,7 +93,8 @@ struct
     | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
 
   and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
-    Debug.(debug D_typeChecking "Checking (%a): %a : %a" pp_loc (get_loc te) pp_term te pp_term ty_exp);
+    Debug.(debug D_typeChecking "Checking (%a): %a : %a"
+             pp_loc (get_loc te) pp_term te pp_term ty_exp);
     match te with
     | Lam (l,x,None,b) ->
       begin
@@ -391,21 +392,27 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
   let apply_subst i (l,x,ty) = (l,x,Subst.apply_subst (SS.subst2 sub i) 0 ty) in
   List.mapi apply_subst ctx
 
-let check_type_annotations sg (pctx:(loc * ident * typ) list) (annot:term option context) =
-  let rec aux ctx ctx1 ctx2 =
+let check_type_annotations sg (sub:SS.t) (pctx:(loc * ident * typ) list) (annot:term option context) =
+  let rec aux ctx depth ctx1 ctx2 =
     match ctx1, ctx2 with
     | (l,x,ty)::ctx1' , (l',x',ty')::ctx2' ->
       begin
         match ty' with
         | None -> ()
         | Some ty' ->
+          Debug.(debug D_typeChecking "Checking type annotation (%a): %a ~ %a"
+                   pp_loc l pp_term ty pp_term ty');
           if not (R.are_convertible sg ty ty')
-          then raise (TypingError (AnnotConvertibilityError (l,x,ctx,ty',ty)))
+          then
+            let ty2  = SS.apply sub 0 (Subst.shift depth ty ) in
+            let ty2' = SS.apply sub 0 (Subst.shift depth ty') in
+            if not (R.are_convertible sg ty2 ty2')
+            then raise (TypingError (AnnotConvertibilityError (l,x,ctx,ty',ty)))
       end;
-      aux ((l,x,ty)::ctx) ctx1' ctx2'
+      aux ((l,x,ty)::ctx) (depth+1) ctx1' ctx2'
     | [], [] -> ()
     | _ -> assert false
-  in aux [] pctx annot
+  in aux [] 1 pctx annot
 
 
 let check_rule sg (rule:part_typed_rule) : SS.t * typed_rule =
@@ -438,7 +445,7 @@ let check_rule sg (rule:part_typed_rule) : SS.t * typed_rule =
   Debug.(debug D_rule "Typechecking rule");
   check sg ctx2 ri2 ty_le2;
   Debug.(debug D_rule "Typechecking type annotations");
-  check_type_annotations sg ctx rule.ctx;
+  check_type_annotations sg sub ctx rule.ctx;
   Debug.(debug D_rule "Fully checked rule:@.[ %a ] %a --> %a"
            pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
 
