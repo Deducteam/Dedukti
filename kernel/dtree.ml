@@ -133,7 +133,7 @@ let mk_matrix (ac:bool) (arity:int) (ri:rule_infos list) : matrix =
 let pop mx =
   match mx.others with
   | [] -> None
-    | f::o -> Some { mx with first=f; others=o; }
+  | f::o -> Some { mx with first=f; others=o; }
 
 let split_mx (f:rule_infos -> bool) (mx:matrix) : matrix option * matrix option =
   let (l1,l2) = List.partition f (mx.first::mx.others) in

@@ -23,7 +23,7 @@ type env_error =
   | EnvErrorType        of typing_error
   | EnvErrorSignature   of signature_error
   | EnvErrorRule        of rule_error
-  | NonLinearRule       of name
+  | NonLinearRule       of rule_name
   | NotEnoughArguments  of ident * int * int * int
   | KindLevelDefinition of ident
   | ParseError          of string
@@ -47,6 +47,8 @@ module R = Reduction.Default
 let sg = ref (Signature.make "noname")
 
 let check_arity = ref true
+
+let check_ll = ref false
 
 let init file =
   sg := Signature.make file;
@@ -122,9 +124,14 @@ let _check_arity (r:rule_infos) : unit =
   in
   aux 0 r.rhs
 
+(** Checks that all rule are left-linear. *)
+let _check_ll (r:rule_infos) : unit =
+  if not r.linear then raise (EnvError (r.l, NonLinearRule r.name))
+
 let _add_rules rs =
   let ris = List.map Rule.to_rule_infos rs in
   if !check_arity then List.iter _check_arity ris;
+  if !check_ll    then List.iter _check_ll    ris;
   Signature.add_rules !sg ris
 
 let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
