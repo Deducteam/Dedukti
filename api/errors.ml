@@ -291,8 +291,8 @@ let fail_env_error lc err =
     fail lc
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
       pp_ident id nb_args exp_nb_args
-  | Env.NonLinearRule (symb) ->
-    fail lc "Non left-linear rewrite rule for symbol '%a'." pp_name symb
+  | Env.NonLinearRule rule_name ->
+    fail lc "Non left-linear rewrite rule for symbol '%a'." Rule.pp_rule_name rule_name
   | Env.KindLevelDefinition id ->
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
   | Env.ParseError s ->

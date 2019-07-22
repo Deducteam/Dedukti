@@ -199,7 +199,9 @@ and a typical operation on vectors is concatenation:
 
 These rules verify the typing constraint given above: both left-hand and right-hand sides have the same type.
 
-Also, the second rule is non-left-linear; this is usually an issue because non-left-linear rewrite rules usually generate
+Also, the second rule is non-left-linear;
+this is usually an issue because in an untyped setting,
+non-left-linear rewrite rules usually generate
 a non-confluent rewrite system when combined with beta-reduction.
 
 However, because we only intend to rewrite *well-typed* terms, the rule above is computationally equivalent to the following left-linear rule:
@@ -263,11 +265,15 @@ the condition that the inferred types for these variables do not depend on the b
 
 #### NON-LEFT-LINEAR REWRITE RULES
 
-By default, `Dedukti` rejects non-left-linear rewrite rules because they usually generated non confluent rewrite systems
-when combined with beta-reduction. This behaviour can be changed by invoking `dkcheck` with the option `-nl`.
+By default, `Dedukti` accepts non-left-linear rewrite rules
+even though they usually generated non confluent rewrite systems
+when combined with beta-reduction.
 
     eq: Nat -> Nat -> Bool.
     [ n ] eq n n --> true.
+
+This behaviour can be changed by invoking `dkcheck` with the option `--ll` (left-linear)
+to guarantee that non-left-linear rewrite rules are never added to the system.
 
 #### HIGHER-ORDER REWRITE RULES
 

@@ -1,4 +1,5 @@
 <ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*
+          | '{|' <string> '|}'
 
 <mident> ::= [a-zA-Z0-9_]*
 
@@ -25,7 +26,7 @@
          | '#CHECKNOT' <aterm> '=' <term> '.'
          | '#ASSERT' <aterm> '=' <term> '.'
          | '#ASSERTNOT' <aterm> '=' <term> '.'
-         | '#PRINT' <string> '.'
+         | '#PRINT' '"' <string> '"' '.'
          | '#GDT' <ident> '.'
          | '#GDT' <qident> '.'
          | '#NAME' '.'
