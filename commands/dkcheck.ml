@@ -124,6 +124,9 @@ let _ =
       , " [EXPERIMENTAL] Allows the declaration of symbols whose type
                    contains Type in the left-hand side of a product
                    (Similar to the logic of the Calculus of Constructions)" )
+    ; ( "--ll"
+      , Arg.Set Env.check_ll
+      , " Checks left linearity of rules." )
     ; ( "--eta"
       , Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity]
       , " Allows the conversion test to use eta." )
