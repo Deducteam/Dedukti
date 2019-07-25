@@ -408,12 +408,12 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   let ctx2 =
     if SS.is_identity sub then ctx
     else try subst_context sub ctx
-         with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
-           Debug.(
-                debug D_rule "Failed to infer a typing context for the rule:\n%a"
-                  pp_untyped_rule rule;
-                let ctx_name n = let _,name,_ = List.nth ctx n in name in
-                debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
+      with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
+        Debug.(
+          debug D_rule "Failed to infer a typing context for the rule:\n%a"
+            pp_untyped_rule rule;
+          let ctx_name n = let _,name,_ = List.nth ctx n in name in
+          debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
         raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
   in
   check sg ctx2 ri2 ty_le2;
