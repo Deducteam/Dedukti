@@ -160,6 +160,39 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
       if term_eq t1' t2' then keepon ()
       else
         let warn () = fail (q,t1,t2); keepon () in
+        let applyDBCase t n x l q =
+          (* [lambdaLift [x1,...,xn] q t] generates x1 => ... => xn => t
+             if all the [xi]s are variables of De Bruijn index below [q] and
+             [t] does not contain any other variable which has a De Bruijn below
+             [q] *)
+          let lambdaLift (l : term list) (q : int) (t : term) : term =
+            (* If [l] is a list of distinct variables with an index smaller
+               than [q], [allDistinctBounds q [] l] returns the list of the
+               De Bruijn indices. Otherwise raises [Not_found].
+             *)
+            let rec allDistinctBounds q acc = function
+              | []             -> acc
+              | DB (_,_,i)::tl ->
+                 if i <q && not (List.mem i acc)
+                 then allDistinctBounds q (i::acc) tl
+                 else raise Not_found
+              | _              -> raise Not_found
+            in
+            let l_DBInd = allDistinctBounds q [] l in
+            let r = List.length l in
+            let sub lc id i k =
+              if i-k < q
+              then mk_DB lc id ((index (i-k) l_DBInd) + k)
+              else mk_DB lc id (i+r-q)
+            in
+            apply_n_times r (mk_Lam dloc dmark None) (Subst.apply_subst sub 0 t)
+          in
+          try (* Because of the [index] and [allDistinctBounds],
+                 [lambdaLift] can raise [Not_found] *)
+            let t' = lambdaLift (x::l) q t in
+            pseudo_u sg fail (SS.add sigma (n-q) t') lst
+          with Not_found -> keepon ()
+        in
         match t1', t2' with
         | Kind, Kind | Type _, Type _       -> assert false (* Equal terms *)
         | DB (_,_,n), DB (_,_,n') when n=n' -> assert false (* Equal terms *)
@@ -183,7 +216,6 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
           ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
         | t, Const (l,cst) when not (Signature.is_static sg l cst) ->
           ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
-
         | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
            let (n,t) = if n1<n2
                        then (n1,mk_DB l2 x2 (n2-q))
@@ -209,12 +241,8 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
                if Subst.occurs n' t' then warn ()
                else pseudo_u sg fail (SS.add sigma n' t') lst
           end
-
-        | App (DB (_,_,n),_,_), _  when n >= q ->
-          if R.are_convertible sg t1' t2' then keepon () else warn ()
-        | _ , App (DB (_,_,n),_,_) when n >= q ->
-          if R.are_convertible sg t1' t2' then keepon () else warn ()
-
+        | App (DB (_,_,n),x,l), t when n >= q -> applyDBCase t n x l q
+        | t, App (DB (_,_,n),x,l) when n >= q -> applyDBCase t n x l q
         | App (Const (l,cst),_,_), _ when not (Signature.is_static sg l cst) -> keepon ()
         | _, App (Const (l,cst),_,_) when not (Signature.is_static sg l cst) -> keepon ()
 
