@@ -160,7 +160,16 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
       if term_eq t1' t2' then keepon ()
       else
         let warn () = fail (q,t1,t2); keepon () in
-        let applyDBCase t n x l q =
+        let varCase def n t =
+          let n' = n-q in
+          match unshift_reduce sg q t with
+          | None -> def
+          | Some ut ->
+             let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
+             if Subst.occurs n' t' then warn ()
+             else pseudo_u sg fail (SS.add sigma n' t') lst
+        in
+        let applyDBCase t n x l =
           (* [lambdaLift [x1,...,xn] q t] generates x1 => ... => xn => t
              if all the [xi]s are variables of De Bruijn index below [q] and
              [t] does not contain any other variable which has a De Bruijn below
@@ -221,28 +230,16 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
                        then (n1,mk_DB l2 x2 (n2-q))
                        else (n2,mk_DB l1 x1 (n1-q)) in
            pseudo_u sg fail (SS.add sigma (n-q) t) lst
+        | DB (l1,x1,n), App(DB(_,_,m),x,l) when n>=q && m >=q ->
+           varCase (applyDBCase t1' m x l) n t2'
         | DB (_,_,n), t when n>=q ->
-          begin
-            let n' = n-q in
-            match unshift_reduce sg q t with
-            | None -> warn ()
-            | Some ut ->
-               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-               if Subst.occurs n' t' then warn ()
-               else pseudo_u sg fail (SS.add sigma n' t') lst
-          end
+           varCase (keepon ()) n t
+        | App(DB(_,_,m),x,l), DB (l1,x1,n) when n>=q && m >=q ->
+           varCase (applyDBCase t2' m x l) n t1'
         | t, DB (_,_,n) when n>=q ->
-          begin
-            let n' = n-q in
-            match unshift_reduce sg q t with
-            | None -> warn ()
-            | Some ut ->
-               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-               if Subst.occurs n' t' then warn ()
-               else pseudo_u sg fail (SS.add sigma n' t') lst
-          end
-        | App (DB (_,_,n),x,l), t when n >= q -> applyDBCase t n x l q
-        | t, App (DB (_,_,n),x,l) when n >= q -> applyDBCase t n x l q
+           varCase (keepon ()) n t
+        | App (DB (_,_,n),x,l), t when n >= q -> applyDBCase t n x l
+        | t, App (DB (_,_,n),x,l) when n >= q -> applyDBCase t n x l
         | App (Const (l,cst),_,_), _ when not (Signature.is_static sg l cst) -> keepon ()
         | _, App (Const (l,cst),_,_) when not (Signature.is_static sg l cst) -> keepon ()
 
