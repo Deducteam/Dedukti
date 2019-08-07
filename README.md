@@ -41,7 +41,7 @@ The installation provides the following commands:
  - `dkcheck` is the type-checker for `Dedukti`,
  - `dktop` is an interactive wrapper around the type-checker,
  - `dkdep` is a dependency generator for `Dedukti` files,
- - `dkindent` is a program to indent `Dedukti` files.
+ - `dkprune` is a program to re-print only the strictly required subset of `Dedukti` files.
 
 ### OPTIONS
 
