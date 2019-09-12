@@ -24,7 +24,7 @@ type env_error =
   | EnvErrorSignature   of signature_error
   | EnvErrorRule        of rule_error
   | EnvErrorDep         of Dep.dep_error
-  | NonLinearRule       of name
+  | NonLinearRule       of rule_name
   | NotEnoughArguments  of ident * int * int * int
   | KindLevelDefinition of ident
   | ParseError          of string
@@ -40,6 +40,8 @@ let raise_as_env md lc = function
   | ex               -> raise ex
 
 let check_arity = ref true
+
+let check_ll = ref false
 
 module type S =
 sig
@@ -146,9 +148,16 @@ struct
     in
     aux 0 r.rhs
 
+  (** Checks that all rule are left-linear. *)
+  let _check_ll (r:rule_infos) : unit =
+    List.iter
+      (function Linearity _ -> raise (EnvError (Some (get_name()), r.l, NonLinearRule r.name)) | _ -> ())
+      r.constraints
+
   let _add_rules rs =
     let ris = List.map Rule.to_rule_infos rs in
     if !check_arity then List.iter _check_arity ris;
+    if !check_ll    then List.iter _check_ll    ris;
     Signature.add_rules !sg ris
 
   let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:Typing.typ option) : unit =

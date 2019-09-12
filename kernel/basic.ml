@@ -148,6 +148,7 @@ let rev_mapi f l =
   in
   rmap_f 0 [] l
 
+let concat l1 = function [] -> l1 | l2 -> l1@l2
 
 (** {2 Printing functions} *)
 

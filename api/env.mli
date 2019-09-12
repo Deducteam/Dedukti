@@ -10,7 +10,7 @@ type env_error =
   | EnvErrorSignature   of Signature.signature_error
   | EnvErrorRule        of Rule.rule_error
   | EnvErrorDep         of Dep.dep_error
-  | NonLinearRule       of name
+  | NonLinearRule       of Rule.rule_name
   | NotEnoughArguments  of ident * int * int * int
   | KindLevelDefinition of ident
   | ParseError          of string
@@ -38,6 +38,9 @@ val set_debug_mode : string -> unit
 
 val check_arity : bool ref
 (** Flag to check for variables arity. Default is true. *)
+
+val check_ll : bool ref
+(** Flag to check for rules left linearity. Default is false. *)
 
 (** {2 The Global Environment} *)
 module type S =

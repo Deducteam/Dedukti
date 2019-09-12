@@ -95,7 +95,7 @@ module Debug : sig
 
   (** Desactivates error messages associated to a flag *)
   val disable_flag : flag -> unit
-      
+
   (** [debug f] prints information on the standard error channel
       if the given flag [f] is currently active. *)
   val debug : flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
@@ -116,6 +116,9 @@ val map_opt : ('a -> 'b) -> 'a option -> 'b option
 val split : int -> 'a list -> 'a list * 'a list
 
 val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
+
+val concat : 'a list -> 'a list -> 'a list
+(** [concat l1 l2] returns [l1 @ l2] (testing on l2 empty first) *)
 
 (** {2 Printing functions} *)
 
