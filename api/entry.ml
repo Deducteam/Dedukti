@@ -37,7 +37,7 @@ let pp_entry fmt e =
       | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
                      pp_ident id pp_term ty pp_term te
     end
-  | Rules(_,rs)               ->
+  | Rules(_,rs)             ->
     fprintf fmt "@[<v0>%a@].@.@." (pp_list "" Rule.pp_untyped_rule) rs
   | Eval(_,cfg,te)          ->
     fprintf fmt "#EVAL%a %a.@." Reduction.pp_red_cfg cfg pp_term te

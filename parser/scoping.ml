@@ -109,7 +109,7 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
     begin
       Debug.(debug D_warn "Local variables in the rule:\n%a\nare not used (%a)")
         pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
-      if has_brackets then raise (Env.EnvError (l,Env.BracketScopingError))
+      if has_brackets then raise (Env.EnvError (Some md,l,Env.BracketScopingError))
     end;
   let idents = List.map snd ctx in
   let b,id =
@@ -119,11 +119,6 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
       (false,(mk_ident id))
     | Some (_, id) -> (true,id)
   in
-  let name =
-    let md = match pname with
-      | Some (Some md, _) -> md
-      | _ -> Env.get_name ()
-    in
-    Gamma(b,mk_name md id)
+  let name = Gamma(b,mk_name md id)
   in
   { name ; ctx= ctx; pat = p_of_pp md idents top; rhs = t_of_pt md idents pri }
