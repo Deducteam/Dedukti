@@ -62,7 +62,7 @@ _build/parser/parser.cmxa: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
 #### Compilation of the dedukti suite ########################################
 
 .PHONY: commands
-commands: dkcheck.native dkdep.native dktop.native
+commands: dkcheck.native dkdep.native dktop.native dkprune.native
 
 dkcheck.native: kernel api parser commands/dkcheck.ml
 	@echo "[OPT] $@"
@@ -75,6 +75,10 @@ dkdep.native: kernel api parser commands/dkdep.ml
 dktop.native: kernel api parser commands/dktop.ml
 	@echo "[OPT] $@"
 	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dktop.native
+
+dkprune.native: kernel api parser commands/dkprune.ml
+	@echo "[OPT] $@"
+	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkprune.native
 
 #### Generation of the documentation #########################################
 
@@ -130,6 +134,7 @@ uninstall:
 	@rm -f $(BINDIR)/dkcheck
 	@rm -f $(BINDIR)/dkdep
 	@rm -f $(BINDIR)/dktop
+	@rm -f $(BINDIR)/dkprune
 
 .PHONY: install
 install: uninstall all
@@ -147,6 +152,7 @@ install: uninstall all
 	install -m 755 -p dkcheck.native  $(BINDIR)/dkcheck
 	install -m 755 -p dkdep.native    $(BINDIR)/dkdep
 	install -m 755 -p dktop.native    $(BINDIR)/dktop
+	install -m 755 -p dkprune.native  $(BINDIR)/dkprune
 
 #### Test targets ############################################################
 
