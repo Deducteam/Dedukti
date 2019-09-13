@@ -81,7 +81,7 @@ let mk_matrix (arity:int) (ri:rule_infos list) : matrix =
 let pop mx =
   match mx.others with
   | [] -> None
-    | f::o -> Some { mx with first=f; others=o; }
+  | f::o -> Some { mx with first=f; others=o; }
 
 let filter (f:rule_infos -> bool) (mx:matrix) : matrix option =
   match List.filter f (mx.first::mx.others) with
@@ -143,7 +143,7 @@ let specialize_rule (c:int) (nargs:int) (r:rule_infos) : rule_infos =
       | LJoker | LVar _ -> LJoker
       | LPattern  (cst , pats2) -> check_args (id cst) pats2
       | LBoundVar (id,_, pats2) -> check_args id       pats2
-      | LLambda (_,p) -> ( assert ( nargs == 1); p )
+      | LLambda (_,p) -> ( assert (nargs == 1); p )
   in
   { r with pats = Array.init (size+nargs) aux }
 
@@ -284,6 +284,8 @@ let of_rules = function
 
 let pp_matching_problem fmt matching_problem = fprintf fmt "Mi"
 
+let pp_var : int printer = fun fmt -> fprintf fmt "Var[%i]"
+
 let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
   let tab = String.init (1 + t*4) (fun i -> if i == 0 then '\n' else ' ') in
@@ -303,9 +305,11 @@ let rec pp_dtree t fmt dtree =
   | Switch (i,cases,def)->
     let pp_case out = function
       | CConst (_,cst), g ->
-        fprintf out "\n%sif $%i=%a then %a" tab i pp_name cst (pp_dtree (t+1)) g
-      | CLam, g -> fprintf out "\n%sif $%i=Lambda then %a" tab i (pp_dtree (t+1)) g
-      | CDB (_,n), g -> fprintf out "\n%sif $%i=DB[%i] then %a" tab i n (pp_dtree (t+1)) g
+        fprintf out "\n%sif %a=%a then %a"     tab pp_var i pp_name cst (pp_dtree (t+1)) g
+      | CLam, g ->
+        fprintf out "\n%sif %a=Lambda then %a" tab pp_var i             (pp_dtree (t+1)) g
+      | CDB (_,n), g ->
+        fprintf out "\n%sif %a=DB[%i] then %a" tab pp_var i n           (pp_dtree (t+1)) g
     in
     fprintf fmt "%a\n%sdefault: %a" (pp_list "" pp_case)
       cases tab (pp_def (t+1)) def

@@ -1,0 +1,5 @@
+(; KO 26 --ll ;)
+
+A : Type.
+eq : A -> A -> Type.
+[x] eq x x --> A.
