@@ -23,6 +23,7 @@ type env_error =
   | EnvErrorType        of typing_error
   | EnvErrorSignature   of signature_error
   | EnvErrorRule        of rule_error
+  | EnvErrorDep         of Dep.dep_error
   | NonLinearRule       of rule_name
   | NotEnoughArguments  of ident * int * int * int
   | KindLevelDefinition of ident
@@ -30,185 +31,221 @@ type env_error =
   | BracketScopingError
   | AssertError
 
-exception EnvError of loc * env_error
+exception EnvError of mident option * loc * env_error
 
-let raise_as_env lc = function
-  | SignatureError e -> raise (EnvError (lc, (EnvErrorSignature e)))
-  | TypingError    e -> raise (EnvError (lc, (EnvErrorType      e)))
-  | RuleError      e -> raise (EnvError (lc, (EnvErrorRule      e)))
+let raise_as_env md lc = function
+  | SignatureError e -> raise (EnvError (Some md, lc, (EnvErrorSignature e)))
+  | TypingError    e -> raise (EnvError (Some md, lc, (EnvErrorType      e)))
+  | RuleError      e -> raise (EnvError (Some md, lc, (EnvErrorRule      e)))
   | ex               -> raise ex
-
-
-(* Wrapper around Signature *)
-
-module T = Typing.Default
-module R = Reduction.Default
-
-let sg = ref (Signature.make "noname")
 
 let check_arity = ref true
 
 let check_ll = ref false
 
-let init file =
-  sg := Signature.make file;
-  Signature.get_name !sg
+module type S =
+sig
+  module Printer : Pp.Printer
+  val raise_env : loc -> env_error -> 'a
 
-let get_name () = Signature.get_name !sg
+  val init        : string -> mident
 
-let get_signature () = !sg
+  val get_signature : unit -> Signature.t
+  val get_name    : unit -> mident
+  module HName : Hashtbl.S with type key = name
+  val get_symbols : unit -> Signature.rw_infos HName.t
+  val get_type    : loc -> name -> term
+  val is_static   : loc -> name -> bool
+  val get_dtree   : loc -> name -> Dtree.t
+  val export      : unit -> unit
+  val import      : loc -> mident -> unit
+  val declare     : loc -> ident -> Signature.staticity -> term -> unit
+  val define      : loc -> ident -> bool -> term -> term option -> unit
+  val add_rules   : Rule.untyped_rule list -> (Subst.Subst.t * Rule.typed_rule) list
 
-module HName = Hashtbl.Make(
-  struct
-    type t    = name
-    let equal = name_eq
-    let hash  = Hashtbl.hash
-  end )
+  val infer            : ?ctx:typed_context -> term         -> term
+  val check            : ?ctx:typed_context -> term -> term -> unit
+  val reduction        : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> term
+  val are_convertible  : ?ctx:typed_context -> term -> term -> bool
+  val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term
 
-let get_symbols () =
-  let table = HName.create 11 in
-  Signature.iter_symbols (fun md id -> HName.add table (mk_name md id)) !sg;
-  table
+end
 
-let get_type lc cst =
-  try Signature.get_type !sg lc cst
-  with e -> raise_as_env lc e
+(* Wrapper around Signature *)
+module Make(R:Reduction.S) =
+struct
+  module T = Typing.Make(R)
 
-let get_dtree lc cst =
-  try Signature.get_dtree !sg lc cst
-  with e -> raise_as_env lc e
+  let sg = ref (Signature.make "noname")
 
-let export () =
-  try Signature.export !sg
-  with e -> raise_as_env dloc e
+  let init file =
+    sg := Signature.make file;
+    Signature.get_name !sg
 
-let import lc md =
-  try Signature.import !sg lc md
-  with e -> raise_as_env lc e
+  let get_name () = Signature.get_name !sg
 
-let _declare lc (id:ident) (st:Signature.staticity) (ty:Term.term) : unit =
-  Signature.add_declaration !sg lc id st
-    (
-      match T.inference !sg ty, st with
-      | Kind  , Definable AC
-      | Kind  , Definable (ACU _)   -> raise (TypingError (SortExpected (ty,[],mk_Kind) ))
-      | Type _, Definable AC        -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
-      | Type _, Definable (ACU neu) -> ignore(T.checking !sg neu ty);
-                                       mk_Arrow dloc ty (mk_Arrow dloc ty ty)
-      | Kind, _ | Type _, _ -> ty
-      | s, _ -> raise (TypingError (SortExpected (ty,[],s)))
-    )
+  let get_signature () = !sg
 
-let is_static lc cst = Signature.is_static !sg lc cst
+  let raise_as_env x = raise_as_env (get_name()) x
+  let raise_env lc err = raise (EnvError (Some (get_name()), lc, err))
 
+  module Printer = Pp.Make(struct let get_name = get_name end)
 
-(*         Rule checking       *)
+  module HName = Hashtbl.Make(
+    struct
+      type t    = name
+      let equal = name_eq
+      let hash  = Hashtbl.hash
+    end )
 
-(** Checks that all Miller variables are applied to at least
-    as many arguments on the rhs as they are on the lhs (their arity). *)
-let _check_arity (r:rule_infos) : unit =
-  let check l id n k nargs =
-    let expected_args = r.arity.(n-k) in
-    if nargs < expected_args
-    then raise (EnvError (l, NotEnoughArguments (id,n,nargs,expected_args))) in
-  let rec aux k = function
-    | Kind | Type _ | Const _ -> ()
-    | DB (l,id,n) ->
-      if n >= k then check l id n k 0
-    | App(DB(l,id,n),a1,args) when n>=k ->
-      check l id n k (List.length args + 1);
-      List.iter (aux k) (a1::args)
-    | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
-    | Lam (_,_,None,b) -> aux (k+1) b
-    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
-  in
-  aux 0 r.rhs
+  let get_symbols () =
+    let table = HName.create 11 in
+    Signature.iter_symbols (fun md id -> HName.add table (mk_name md id)) !sg;
+    table
 
-(** Checks that all rule are left-linear. *)
-let _check_ll (r:rule_infos) : unit =
-  if not r.linear then raise (EnvError (r.l, NonLinearRule r.name))
+  let get_type lc cst =
+    try Signature.get_type !sg lc cst
+    with e -> raise_as_env lc e
 
-let _add_rules rs =
-  let ris = List.map Rule.to_rule_infos rs in
-  if !check_arity then List.iter _check_arity ris;
-  if !check_ll    then List.iter _check_ll    ris;
-  Signature.add_rules !sg ris
+  let get_dtree lc cst =
+    try Signature.get_dtree !sg lc cst
+    with e -> raise_as_env lc e
 
-let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:typ option) : unit =
-  let ty = match ty_opt with
-    | None -> T.inference !sg te
-    | Some ty -> T.checking !sg te ty; ty
-  in
-  match ty with
-  | Kind -> raise (EnvError (lc, KindLevelDefinition id))
-  | _ ->
-    if opaque then Signature.add_declaration !sg lc id Signature.Static ty
-    else
-      let _ = Signature.add_declaration !sg lc id (Signature.Definable Free) ty in
-      let cst = mk_name (get_name ()) id in
-      let rule =
-        { name= Delta(cst) ;
-          ctx = [] ;
-          pat = Pattern(lc, cst, []);
-          rhs = te ;
-        }
-      in
-      _add_rules [rule]
+  let export () =
+    try Signature.export !sg
+    with e -> raise_as_env dloc e
 
-let declare lc id st ty : unit =
-  try _declare lc id st ty
-  with e -> raise_as_env lc e
+  let import lc md =
+    try Signature.import !sg lc md
+    with e -> raise_as_env lc e
 
-let define lc id op te ty_opt : unit =
-  try _define lc id op te ty_opt
-  with e -> raise_as_env lc e
+  let _declare lc (id:ident) st ty : unit =
+    Signature.add_declaration !sg lc id st
+      (
+        match T.inference !sg ty, st with
+        | Kind  , Definable AC
+        | Kind  , Definable (ACU _)   -> raise (TypingError (SortExpected (ty,[],mk_Kind) ))
+        | Type _, Definable AC        -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
+        | Type _, Definable (ACU neu) -> ignore(T.checking !sg neu ty);
+          mk_Arrow dloc ty (mk_Arrow dloc ty ty)
+        | Kind, _ | Type _, _ -> ty
+        | s, _ -> raise (TypingError (SortExpected (ty,[],s)))
+      )
 
-let add_rules (rules: untyped_rule list) : (Subst.Subst.t * typed_rule) list =
-  try
-    let rs2 = List.map (T.check_rule !sg) rules in
-    _add_rules rules;
-    rs2
-  with e -> raise_as_env (get_loc_rule (List.hd rules)) e
+  let is_static lc cst = Signature.is_static !sg lc cst
 
-let infer ?ctx:(ctx=[]) te =
-  try
-    let ty = T.infer !sg ctx te in
-    (* We only verify that [ty] itself has a type (that we immediately
-       throw away) if [ty] is not [Kind], because [Kind] does not have a
-       type, but we still want [infer ctx Type] to produce [Kind] *)
-    if ty <> mk_Kind then
-      ignore(T.infer !sg ctx ty);
-    ty
-  with e -> raise_as_env (get_loc te) e
+  (*         Rule checking       *)
 
-let check ?ctx:(ctx=[]) te ty =
-  try T.check !sg ctx te ty
-  with e -> raise_as_env (get_loc te) e
+  (* Checks that all Miller variables are applied to at least
+     as many arguments on the rhs as they are on the lhs (their arity). *)
+  let _check_arity (r:rule_infos) : unit =
+    let check l id n k nargs =
+      let expected_args = r.arity.(n-k) in
+      if nargs < expected_args
+      then raise_env l (NotEnoughArguments (id,n,nargs,expected_args)) in
+    let rec aux k = function
+      | Kind | Type _ | Const _ -> ()
+      | DB (l,id,n) ->
+        if n >= k then check l id n k 0
+      | App(DB(l,id,n),a1,args) when n>=k ->
+        check l id n k (List.length args + 1);
+        List.iter (aux k) (a1::args)
+      | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
+      | Lam (_,_,None,b) -> aux (k+1) b
+      | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
+    in
+    aux 0 r.rhs
 
-let _unsafe_reduction red te =
-  R.reduction red !sg te
+  (** Checks that all rule are left-linear. *)
+  let _check_ll (r:rule_infos) : unit =
+    if not r.linear
+    then raise (EnvError (Some (get_name()), r.l, NonLinearRule r.name))
 
-let _reduction ctx red te =
-  (* This is a safe reduction, so we check that [te] has a type
-     before attempting to normalize it, but we only do so if [te]
-     is not [Kind], because [Kind] does not have a type, but we
-     still want to be able to reduce it *)
-  if te <> mk_Kind then
-    ignore(T.infer !sg ctx te);
-  _unsafe_reduction red te
+  let _add_rules rs =
+    let ris = List.map Rule.to_rule_infos rs in
+    if !check_arity then List.iter _check_arity ris;
+    if !check_ll    then List.iter _check_ll    ris;
+    Signature.add_rules !sg ris
 
-let reduction ?ctx:(ctx=[]) ?red:(red=Reduction.default_cfg) te =
-  try _reduction ctx red te
-  with e -> raise_as_env (get_loc te) e
+  let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:Typing.typ option) : unit =
+    let ty = match ty_opt with
+      | None -> T.inference !sg te
+      | Some ty -> T.checking !sg te ty; ty
+    in
+    match ty with
+    | Kind -> raise_env lc (KindLevelDefinition id)
+    | _ ->
+      if opaque then Signature.add_declaration !sg lc id Signature.Static ty
+      else
+        let _ = Signature.add_declaration !sg lc id (Signature.Definable Free) ty in
+        let cst = mk_name (get_name ()) id in
+        let rule =
+          { name= Delta(cst) ;
+            ctx = [] ;
+            pat = Pattern(lc, cst, []);
+            rhs = te ;
+          }
+        in
+        _add_rules [rule]
 
-let unsafe_reduction ?red:(red=Reduction.default_cfg) te =
-  try _unsafe_reduction red te
-  with e -> raise_as_env (get_loc te) e
+  let declare lc id st ty : unit =
+    try _declare lc id st ty
+    with e -> raise_as_env lc e
 
-let are_convertible ?ctx:(ctx=[]) te1 te2 =
-  try
-    let ty1 = T.infer !sg ctx te1 in
-    let ty2 = T.infer !sg ctx te2 in
-    R.are_convertible !sg ty1 ty2 &&
-    R.are_convertible !sg te1 te2
-  with e -> raise_as_env (get_loc te1) e
+  let define lc id op te ty_opt : unit =
+    try _define lc id op te ty_opt
+    with e -> raise_as_env lc e
+
+  let add_rules (rules: untyped_rule list) : (Subst.Subst.t * typed_rule) list =
+    try
+      let rs2 = List.map (T.check_rule !sg) rules in
+      _add_rules rules;
+      rs2
+    with e -> raise_as_env (get_loc_rule (List.hd rules)) e
+
+  let infer ?ctx:(ctx=[]) te =
+    try
+      let ty = T.infer !sg ctx te in
+      (* We only verify that [ty] itself has a type (that we immediately
+         throw away) if [ty] is not [Kind], because [Kind] does not have a
+         type, but we still want [infer ctx Type] to produce [Kind] *)
+      if ty <> mk_Kind then
+        ignore(T.infer !sg ctx ty);
+      ty
+    with e -> raise_as_env (get_loc te) e
+
+  let check ?ctx:(ctx=[]) te ty =
+    try T.check !sg ctx te ty
+    with e -> raise_as_env (get_loc te) e
+
+  let _unsafe_reduction red te =
+    R.reduction red !sg te
+
+  let _reduction ctx red te =
+    (* This is a safe reduction, so we check that [te] has a type
+       before attempting to normalize it, but we only do so if [te]
+       is not [Kind], because [Kind] does not have a type, but we
+       still want to be able to reduce it *)
+    if te <> mk_Kind then
+      ignore(T.infer !sg ctx te);
+    _unsafe_reduction red te
+
+  let reduction ?ctx:(ctx=[]) ?red:(red=Reduction.default_cfg) te =
+    try _reduction ctx red te
+    with e -> raise_as_env (get_loc te) e
+
+  let unsafe_reduction ?red:(red=Reduction.default_cfg) te =
+    try _unsafe_reduction red te
+    with e -> raise_as_env (get_loc te) e
+
+  let are_convertible ?ctx:(ctx=[]) te1 te2 =
+    try
+      let ty1 = T.infer !sg ctx te1 in
+      let ty2 = T.infer !sg ctx te2 in
+      R.are_convertible !sg ty1 ty2 &&
+      R.are_convertible !sg te1 te2
+    with e -> raise_as_env (get_loc te1) e
+
+end
+
+module Default = Make(Reduction.Default)

@@ -20,7 +20,7 @@ type signature_error =
   | GuardNotSatisfied     of loc * term * term
   | FailToCompileModule   of loc * mident
   | ExpectedACUSymbol     of loc * name
-  | CouldNotExportModule  of string
+  | CouldNotExportModule  of mident * string
 
 exception SignatureError of signature_error
 
