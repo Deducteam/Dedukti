@@ -193,12 +193,12 @@ pattern_wp:
 pattern:
   | ID  pattern_wp+          { PPattern (fst $1,None,snd $1,$2) }
   | QID pattern_wp+          { let (l,md,id)=$1 in PPattern (l,Some md,id,$2) }
-  | ID  FATARROW pattern     { PLambda (fst $1,snd $1,$3) }
+  | pid FATARROW pattern     { PLambda (fst $1,snd $1,$3) }
   | pattern_wp               { $1 }
 
 sterm:
   | QID                      { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
-  | pid                      { PreId (fst $1,snd $1) }
+  | ID                       { PreId (fst $1,snd $1) }
   | LEFTPAR term RIGHTPAR    { $2 }
   | TYPE                     { PreType $1 }
 
