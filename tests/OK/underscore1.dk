@@ -4,15 +4,22 @@ A : Type.
 a : A.
 
 def B : (A -> A) -> Type.
+C : (A -> A) -> Type.
 
 b : B (_ => a).
-(; This is equivalent to  b : B (x => a);)
+(; This is equivalent to  b : B (x => a) ;)
 
-[] B (_ => a) --> A.
-(; This is equivalent to  B (x => a) --> A ;)
+[] B (_ => a) --> C (_ => a).
+(; This is equivalent to  B (x => a) --> C (y => a) ;)
 
-[] B (_ => _) --> A.
-(; This is equivalent to  B (x => X) --> A    (with X fresh) ;)
+[] B _ --> A.
+(; This is equivalent to  B X --> A  (with X fresh) ;)
+
+[] B (x => _) --> A.
+(; This is equivalent to  B (x => X) --> A  (with X fresh) ;)
 
 [] B (x => _ x) --> A.
 (; This is equivalent to  B (x => X x) --> A  (with X fresh) ;)
+
+[] B (_ => _) --> A.
+(; This is equivalent to  B (x => X) --> A    (with x and X fresh) ;)
