@@ -18,7 +18,7 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
-  | CouldNotExportModule  of string
+  | CouldNotExportModule  of mident * string
 
 exception SignatureError of signature_error
 

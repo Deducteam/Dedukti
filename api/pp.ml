@@ -2,7 +2,6 @@ open Basic
 open Term
 open Rule
 open Entry
-open Env
 open Format
 
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
@@ -11,13 +10,36 @@ open Format
 let print_db_enabled = ref false
 let print_default_name = ref false
 
-let cur_md = ref None
-let get_module () =
-  match !cur_md with
-  | None -> get_name ()
-  | Some md -> md
+module type Sig =
+sig
+  val get_name : unit -> mident
+  (** [get_name] get the current module defined for printing functions. *)
+end
 
-let set_module md = cur_md := Some md
+module type Printer =
+sig
+  val print_list  : string -> 'a printer -> 'a list printer
+  (** [print_list sep printer] returns a printer for ['a list] using [printer] as
+      element printer and [sep] as separator between elements. *)
+
+  val print_ident         : ident               printer
+  val print_mident        : mident              printer
+  val print_name          : name                printer
+  val print_term          : term                printer
+  val print_typed_context : typed_context       printer
+  val print_err_ctxt      : typed_context       printer
+  val print_pattern       : Rule.pattern        printer
+  val print_untyped_rule  : Rule.untyped_rule   printer
+  val print_typed_rule    : Rule.typed_rule     printer
+  val print_rule_infos    : Rule.rule_infos     printer
+  val print_rule_name     : Rule.rule_name      printer
+  val print_red_cfg       : Reduction.red_cfg   printer
+  val print_entry         : Entry.entry         printer
+  val print_staticity     : Signature.staticity printer
+end
+
+module Make (S:Sig) : Printer =
+struct
 
 let print_list = pp_list
 
@@ -29,7 +51,7 @@ let print_name = pp_name
 
 let print_const out cst =
   let md = md cst in
-  if mident_eq md (get_module ()) then print_ident out (id cst)
+  if mident_eq md (S.get_name ()) then print_ident out (id cst)
   else fprintf out "%a" pp_name cst
 
 (* Idents generated from underscores by the parser start with a question mark.
@@ -65,7 +87,7 @@ let rec subst ctx = function
   (* a hack proposed by Raphael Cauderlier *)
   | Const (l,cst) as t ->
     let m,v = md cst, id cst in
-    if List.mem v ctx && mident_eq (get_module ()) m then
+    if List.mem v ctx && mident_eq (S.get_name ()) m then
       let v' = (mk_ident ((string_of_mident m) ^ "." ^ (string_of_ident v))) in
       mk_Const l (mk_name m v')
     else
@@ -175,7 +197,7 @@ let print_rule_name fmt rule =
   let aux b cst =
     if b || !print_default_name
     then
-      if mident_eq (md cst) (get_name ())
+      if mident_eq (md cst) (S.get_name ())
       then fprintf fmt "@[<h>{%a}@] " print_ident (id cst)
       else fprintf fmt "@[<h>{%a}@] " print_name cst
   in
@@ -268,3 +290,7 @@ let print_entry fmt e =
 let print_staticity fmt s =
   fprintf fmt "%s"
     (if s=Signature.Static then "Static" else "Definable")
+
+end
+
+module Default = Make(struct let get_name () = Basic.mk_mident "" end)
