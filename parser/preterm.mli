@@ -19,7 +19,7 @@ type prepattern =
   | PCondition  of preterm
   | PPattern    of loc * mident option * ident * prepattern list
   | PLambda     of loc * ident * prepattern
-  | PJoker      of loc
+  | PJoker      of loc * prepattern list
 
 val pp_prepattern : formatter -> prepattern -> unit
 
