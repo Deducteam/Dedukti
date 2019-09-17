@@ -8,6 +8,8 @@ val print_db_enabled    : bool ref
 val print_default_name  : bool ref
 (** Names for rules are optional. If this option is set to true, the printing functions will output default rule names given by Dedukti. *)
 
+val print_module_name : bool ref
+
 module type Sig =
 sig
   val get_name : unit -> mident

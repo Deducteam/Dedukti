@@ -3,6 +3,8 @@
 open Basic
 open Term
 
+type t
+
 (** {2 Error Datatype} *)
 
 type env_error =
@@ -17,7 +19,7 @@ type env_error =
   | BracketScopingError
   | AssertError
 
-exception EnvError of mident option * loc * env_error
+exception EnvError of t option * loc * env_error
 
 (** {2 Debugging} *)
 
@@ -43,78 +45,72 @@ val check_ll : bool ref
 (** Flag to check for rules left linearity. Default is false. *)
 
 (** {2 The Global Environment} *)
-module type S =
-sig
-  module Printer : Pp.Printer
-  val raise_env : loc -> env_error -> 'a
 
-  val init        : string -> mident
-  (** [init name] initializes a new global environement giving it the name of
-      the corresponding source file. The function returns the module identifier
-      corresponding to this file, built from its basename. Every toplevel
-      declaration will be qualified by this name. *)
+val raise_env : t -> loc -> env_error -> 'a
 
-  val get_signature : unit -> Signature.t
-  (** [get_signature ()] returns the signature used by this module. *)
+val init        : string -> t
+(** [init name] initializes a new global environement giving it the name of
+    the corresponding source file. The function returns the module identifier
+    corresponding to this file, built from its basename. Every toplevel
+    declaration will be qualified by this name. *)
 
-  val get_name    : unit -> mident
-  (** [get_name ()] returns the name of the module. *)
+val get_signature : t -> Signature.t
+(** [get_signature ()] returns the signature used by this module. *)
 
-  module HName : Hashtbl.S with type key = name
+val get_name    : t -> mident
+(** [get_name ()] returns the name of the module. *)
 
-  val get_symbols : unit -> Signature.rw_infos HName.t
-  (** [get_symbols ()] returns the content of the signature [sg]. *)
+val set_reduction_engine : t -> (module Reduction.S) -> t
 
-  val get_type    : loc -> name -> term
-  (** [get_type l md id] returns the type of the constant [md.id]. *)
+module HName : Hashtbl.S with type key = name
 
-  val is_static   : loc -> name -> bool
-  (** [is_static l cst] returns [true] if the symbol is declared as [static], [false] otherwise *)
+val get_symbols : t -> Signature.rw_infos HName.t
+(** [get_symbols ()] returns the content of the signature [sg]. *)
 
-  val get_dtree   : loc -> name -> Dtree.t
-  (** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
+val get_type    : t -> loc -> name -> term
+(** [get_type l md id] returns the type of the constant [md.id]. *)
 
-  val export      : unit -> unit
-  (** [export ()] saves the current environment in a [*.dko] file. *)
+val is_static   : t -> loc -> name -> bool
+(** [is_static l cst] returns [true] if the symbol is declared as [static], [false] otherwise *)
 
-  val import      : loc -> mident -> unit
-  (** [import lc md] the module [md] in the current environment. *)
+val get_dtree   : t -> loc -> name -> Dtree.t
+(** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
 
-  val declare     : loc -> ident -> Signature.staticity -> term -> unit
-  (** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
-      staticity [st]. *)
+val export      : t -> unit
+(** [export ()] saves the current environment in a [*.dko] file. *)
 
-  val define      : loc -> ident -> bool -> term -> term option -> unit
-  (** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
+val import      : t -> loc -> mident -> unit
+(** [import lc md] the module [md] in the current environment. *)
 
-  val add_rules   : Rule.untyped_rule list -> (Subst.Subst.t * Rule.typed_rule) list
-  (** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the
-      same symbol. *)
+val declare     : t -> loc -> ident -> Signature.staticity -> term -> unit
+(** [declare_constant l id st ty] declares the symbol [id] of type [ty] and
+    staticity [st]. *)
 
-  (** {2 Type checking/inference} *)
+val define      : t -> loc -> ident -> bool -> term -> term option -> unit
+(** [define l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
 
-  val infer : ?ctx:typed_context -> term         -> term
-  (** [infer ctx term] infers the type of [term] given the typed context [ctx] *)
+val add_rules   : t -> Rule.untyped_rule list -> (Subst.Subst.t * Rule.typed_rule) list
+(** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the
+    same symbol. *)
 
-  val check : ?ctx:typed_context -> term -> term -> unit
-  (** [infer ctx te ty] checks that [te] is of type [ty] given the typed context [ctx] *)
+(** {2 Type checking/inference} *)
 
-  (** {2 Safe Reduction/Conversion} *)
-  (** terms are typechecked before the reduction/conversion *)
+val infer : t -> ?ctx:typed_context -> term         -> term
+(** [infer ctx term] infers the type of [term] given the typed context [ctx] *)
 
-  val reduction : ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> term
-  (** [reduction ctx red te] checks first that [te] is well-typed then reduces it
-      according to the reduction configuration [red] *)
+val check : t -> ?ctx:typed_context -> term -> term -> unit
+(** [infer ctx te ty] checks that [te] is of type [ty] given the typed context [ctx] *)
 
-  val are_convertible : ?ctx:typed_context -> term -> term -> bool
-  (** [are_convertible ctx tl tr] checks first that [tl] [tr] have the same type,
-      and then that they are convertible *)
+(** {2 Safe Reduction/Conversion} *)
+(** terms are typechecked before the reduction/conversion *)
 
-  val unsafe_reduction : ?red:(Reduction.red_cfg) -> term -> term
-  (** [unsafe_reduction red te] reduces [te] according to the reduction configuration [red] *)
+val reduction : t -> ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> term
+(** [reduction ctx red te] checks first that [te] is well-typed then reduces it
+    according to the reduction configuration [red] *)
 
-end
+val are_convertible : t -> ?ctx:typed_context -> term -> term -> bool
+(** [are_convertible ctx tl tr] checks first that [tl] [tr] have the same type,
+    and then that they are convertible *)
 
-module Make (R:Reduction.S) : S
-
-module Default : S
+val unsafe_reduction : t -> ?red:(Reduction.red_cfg) -> term -> term
+(** [unsafe_reduction red te] reduces [te] according to the reduction configuration [red] *)

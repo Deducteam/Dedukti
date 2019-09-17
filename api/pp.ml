@@ -9,6 +9,7 @@ open Format
 (* TODO: make that debuging functions returns a string *)
 let print_db_enabled = ref false
 let print_default_name = ref false
+let print_module_name = ref false
 
 module type Sig =
 sig
@@ -51,7 +52,10 @@ let print_name = pp_name
 
 let print_const out cst =
   let md = md cst in
-  if mident_eq md (S.get_name ()) then print_ident out (id cst)
+  if not (!print_module_name)
+  && not (Basic.mident_eq (Basic.mk_mident "") (S.get_name ()))
+  && mident_eq md (S.get_name ())
+  then print_ident out (id cst)
   else fprintf out "%a" pp_name cst
 
 (* Idents generated from underscores by the parser start with a question mark.
@@ -87,7 +91,7 @@ let rec subst ctx = function
   (* a hack proposed by Raphael Cauderlier *)
   | Const (l,cst) as t ->
     let m,v = md cst, id cst in
-    if List.mem v ctx && mident_eq (S.get_name ()) m then
+    if not (!print_module_name) &&  List.mem v ctx && mident_eq (S.get_name ()) m then
       let v' = (mk_ident ((string_of_mident m) ^ "." ^ (string_of_ident v))) in
       mk_Const l (mk_name m v')
     else

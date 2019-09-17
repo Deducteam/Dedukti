@@ -2,28 +2,27 @@ open Term
 open Basic
 open Parser
 
-module E = Env.Make(Reduction.Default)
-module TypeChecker = Processor.TypeChecker(E)
-module Printer = E.Printer
-module ErrorHandler = Errors.Make(E)
-module Beautifier = Processor.EntryPrinter(E)
+module TypeChecker  = Processor.TypeChecker
+module Beautifier   = Processor.EntryPrinter
 
-let mk_entry beautify md =
+let mk_entry beautify env =
   if beautify
-  then Beautifier.handle_entry
-  else TypeChecker.handle_entry
+  then Beautifier.handle_entry env
+  else TypeChecker.handle_entry env
 
 let run_on_file beautify export file =
   let input = open_in file in
   Debug.(debug Signature.D_module "Processing file '%s'..." file);
-  let md = E.init file in
-  Confluence.initialize ();
-  Parse_channel.handle md (mk_entry beautify md) input;
-  if not beautify then
-    ErrorHandler.success "File '%s' was successfully checked." file;
-  if export then E.export ();
-  Confluence.finalize ();
-  close_in input
+  let env = Env.init file in
+  try
+    Confluence.initialize ();
+    Parse_channel.handle env (mk_entry beautify env) input;
+    if not beautify then
+      Errors.success "File '%s' was successfully checked." file;
+    if export then Env.export env;
+    Confluence.finalize ();
+    close_in input
+  with Env.EnvError(None,lc,e) -> raise @@ Env.EnvError(Some env, lc, e)
 
 let _ =
   let run_on_stdin = ref None  in
@@ -129,10 +128,10 @@ Available options:" Sys.argv.(0) in
     match !run_on_stdin with
     | None   -> ()
     | Some m ->
-      let md = E.init m in
-      Parse_channel.handle md (mk_entry !beautify md) stdin;
+      let env = Env.init m in
+      Parse_channel.handle env (mk_entry !beautify env) stdin;
       if not !beautify
-      then ErrorHandler.success "Standard input was successfully checked.\n"
+      then Errors.success "Standard input was successfully checked.\n"
   with
-  | Env.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
-  | Sys_error err          -> ErrorHandler.fail_sys_error err
+  | Env.EnvError (Some env,lc,e) -> Errors.fail_env_error env (lc,e)
+  | Sys_error err          -> Errors.fail_sys_error err

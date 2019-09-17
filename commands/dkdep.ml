@@ -2,19 +2,19 @@ open Basic
 open Term
 open Rule
 
-module E            = Env.Make(Reduction.Default)
-module ErrorHandler = Errors.Make(E)
-
 let handle_file : string -> unit = fun file ->
     (* Initialisation. *)
-    let md = E.init file in
+  let env = Env.init file in
+  try
     (* Actully parsing and gathering data. *)
     let input = open_in file in
-    Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
+    let md = Env.get_name env in
+    Dep.handle md (fun f -> Parser.Parse_channel.handle env f input);
     close_in input
+  with Env.EnvError(None,lc,e) -> raise @@ Env.EnvError(Some env, lc, e)
+     | Dep.Dep_error dep       -> raise @@ Env.EnvError(Some env,dloc,Env.EnvErrorDep dep)
 
 (** Output main program. *)
-
 let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
   let open Dep in
   let objfile src = Filename.chop_extension src ^ ".dko" in
@@ -88,6 +88,5 @@ Available options:" Sys.argv.(0) in
     Format.pp_print_flush formatter ();
     close_out !output
   with
-  | Env.EnvError  (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
-  | Dep.Dep_error dep -> ErrorHandler.fail_env_error (None,dloc,Env.EnvErrorDep dep)
-  | Sys_error     err -> ErrorHandler.fail_sys_error err
+  | Env.EnvError  (Some env,lc,e) -> Errors.fail_env_error env (lc,e)
+  | Sys_error     err -> Errors.fail_sys_error err

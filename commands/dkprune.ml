@@ -7,10 +7,6 @@ exception NoPruneFile
 
 let output_directory : string option ref = ref None
 
-module E = Env.Make(Reduction.Default)
-
-module ErrorHandler = Errors.Make(E)
-
 module CustomSig =
 struct
   let current = ref (Basic.mk_mident "")
@@ -43,13 +39,14 @@ let _ =
 let rec handle_file : string -> unit =
   let computed = ref Dep.MDepSet.empty in
   fun file ->
-    let md = Env.Default.init file in
+    let env = Env.init file in
+    let md = Env.get_name env in
     if not @@ Dep.MDepSet.mem (md,file) !computed then
       begin
         computed := Dep.MDepSet.add (md,file) !computed;
         log "[COMPUTE DEP] %s" file;
         let input = open_in file in
-        Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
+        Dep.handle md (fun f -> Parser.Parse_channel.handle env f input);
         close_in input;
         let md_deps = Hashtbl.find Dep.deps md in
         Dep.MDepSet.iter
@@ -93,13 +90,14 @@ let name_of_entry md = function
 
 let is_empty deps md in_file =
   let input = open_in in_file in
+  let env = Env.init in_file in
   let empty = ref true in
   let mk_entry e =
     let name = name_of_entry md e in
     if Dep.NameSet.mem name deps then
       empty := false;
   in
-  Parser.Parse_channel.handle md mk_entry input;
+  Parser.Parse_channel.handle env mk_entry input;
   close_in input;
   !empty
 
@@ -116,9 +114,14 @@ let mk_file deps (md,in_file,out_file) =
       if Dep.NameSet.mem name deps
       then Format.fprintf fmt "%a" Printer.print_entry e
     in
-    Parser.Parse_channel.handle md handle_entry input;
-    close_out output;
-    close_in input
+    let env = Env.init in_file in
+    try
+      Parser.Parse_channel.handle env handle_entry input;
+      close_out output;
+      close_in input
+    with Env.EnvError(None,lc,e) -> raise @@ Env.EnvError(Some env, lc, e)
+       | Dep.Dep_error dep       -> raise @@ Env.EnvError(Some env,dloc,Env.EnvErrorDep dep)
+
 
 let print_dependencies names =
   let open Dep in
@@ -133,14 +136,19 @@ let print_dependencies names =
 let names_of_md md =
   let file = Dep.get_file md in
   let input = open_in file in
-  let names = ref Dep.NameSet.empty in
-  let mk_entry e =
-    let n = name_of_entry md e in
-    names := Dep.NameSet.add n !names
-  in
-  Parser.Parse_channel.handle md mk_entry input;
-  close_in input;
-  !names
+  let env = Env.init file in
+  try
+    let names = ref Dep.NameSet.empty in
+    let mk_entry e =
+      let n = name_of_entry md e in
+      names := Dep.NameSet.add n !names
+    in
+    Parser.Parse_channel.handle env mk_entry input;
+    close_in input;
+    !names
+  with Env.EnvError(None,lc,e) -> raise @@ Env.EnvError(Some env, lc, e)
+     | Dep.Dep_error dep       -> raise @@ Env.EnvError(Some env,dloc,Env.EnvErrorDep dep)
+
 
 (* This gather all symbols *)
 let gather_names =
@@ -150,11 +158,14 @@ let gather_names =
   | _ -> raise BadFormat
 
 let parse_constraints file =
-  let md = mk_mident file in
   let input = open_in file in
-  let pcstr = List.map gather_names (Parser.Parse_channel.parse md input) in
-  close_in input;
-  List.fold_left Dep.NameSet.union Dep.NameSet.empty pcstr
+  let env = Env.init file in
+  try
+    let pcstr = List.map gather_names (Parser.Parse_channel.parse env input) in
+    close_in input;
+    List.fold_left Dep.NameSet.union Dep.NameSet.empty pcstr
+  with Env.EnvError(None,lc,e) -> raise @@ Env.EnvError(Some env, lc, e)
+     | Dep.Dep_error dep       -> raise @@ Env.EnvError(Some env,dloc,Env.EnvErrorDep dep)
 
 let _ =
   let args = Arg.align
@@ -183,6 +194,5 @@ Available options:" Sys.argv.(0) in
     handle_constraints cstr;
     print_dependencies cstr
   with
-  | Env.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
-  | Dep.Dep_error dep      -> ErrorHandler.fail_env_error (None,dloc,Env.EnvErrorDep dep)
-  | Sys_error err          -> ErrorHandler.fail_sys_error err
+  | Env.EnvError (Some env,lc,e) -> Errors.fail_env_error env (lc,e)
+  | Sys_error err          -> Errors.fail_sys_error err

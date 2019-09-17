@@ -35,7 +35,7 @@ let mk_config loc lid =
       nb_steps = (!nb_steps);
       target   = (match !target with None -> default_cfg.target | Some t -> t);
       strat    = (match !strat  with None -> default_cfg.strat  | Some s -> s) }
-  with _ -> raise (Env.EnvError (None, loc, Env.ParseError "invalid command configuration"))
+  with _ -> raise (EnvError(None,loc, ParseError "invalid command configuration"))
 
 let loc_of_rs = function
   | [] -> assert false
