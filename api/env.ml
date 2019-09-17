@@ -66,6 +66,9 @@ let raise_as_env env lc = function
 
 let get_signature env = env.sg
 
+let get_printer env : (module Pp.Printer) =
+  (module Pp.Make(struct let get_name () = get_name env end))
+
 let raise_env env lc err = raise (EnvError (Some env, lc, err))
 
 module HName = Hashtbl.Make(

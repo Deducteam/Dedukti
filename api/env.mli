@@ -62,6 +62,8 @@ val get_name    : t -> mident
 
 val set_reduction_engine : t -> (module Reduction.S) -> t
 
+val get_printer : t -> (module Pp.Printer)
+
 module HName : Hashtbl.S with type key = name
 
 val get_symbols : t -> Signature.rw_infos HName.t

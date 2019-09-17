@@ -19,7 +19,7 @@ struct
 
   let handle_entry env e =
     let open Entry in
-    let (module Pp:Pp.Printer) = (module Pp.Make(struct let get_name () = Env.get_name env end)) in
+    let (module Pp:Pp.Printer) = Env.get_printer env in
     match e with
     | Decl(lc,id,st,ty) ->
       D.debug D.D_notice "Declaration of constant '%a'." pp_ident id;
