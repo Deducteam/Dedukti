@@ -1,0 +1,25 @@
+(; OK ;)
+
+N : Type.
+A : Type.
+T : A -> Type.
+
+P : (N -> A) -> Type.
+p : f : (N -> A) -> P f.
+
+g : (x : N) -> f : (N -> A) -> T (f x).
+def h : f : (N -> A) -> (x : N -> T (f x)) -> P (x => f x).
+
+(; The following rules are well-typed because
+
+we infer the constraint
+  (under 1 lambda)  X x[0] = Y x[0]
+
+and we need to deduce
+  P (x => X x) = P (x => Y x)
+;)
+
+[X,Y] h       Y    (z => g z       X   ) --> p (x => X x).
+[X,Y] h (y => Y y) (z => g z       X   ) --> p (x => X x).
+[X,Y] h       Y    (z => g z (x => X x)) --> p (x => X x).
+[X,Y] h (y => Y y) (z => g z (x => X x)) --> p (x => X x).
