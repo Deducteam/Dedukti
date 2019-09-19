@@ -22,7 +22,7 @@ sig
       [env] given the input [ic]. *)
   val from : Env.t -> input -> stream
 
-  (** [handle env f ic] parses the input [ic] for the environment [env],  using
+  (** [handle env f ic] parses the input [ic] in the environment [env],  using
       the action [f] on each entry. Note that the input is parsed lazily. This
       function can thus be applied to [stdin]. *)
   val handle : Env.t -> (Entry.entry -> unit) -> input -> unit
@@ -31,6 +31,9 @@ sig
       and returns the corresponding list of entries. *)
   val parse : Env.t -> input -> Entry.entry list
 
+  (** [handle_processor env P ic] parses the input [ic] in the environment [env],
+      applies the processor P on the entries and returns the result. *)
+  val handle_processor : Env.t -> (module Processor.S) -> input -> unit
 end
 
 module Make : functor (C : CHANNEL) -> S with type input = C.t
@@ -38,3 +41,9 @@ module Make : functor (C : CHANNEL) -> S with type input = C.t
 module Parse_channel : S with type input = in_channel
 
 module Parse_string : S with type input = string
+
+val handle_file  : string -> ?hook_before:(Env.t -> unit) -> ?hook_after:(Env.t -> unit) ->
+  (module Processor.S with type t = 'a) -> Env.t * 'a
+
+val handle_files : string list -> ?hook_before:(Env.t -> unit) -> ?hook_after:(Env.t -> unit) ->
+  (module Processor.S with type t = 'a) -> 'a

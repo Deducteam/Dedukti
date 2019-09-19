@@ -22,6 +22,8 @@ sig
       and returns the corresponding list of entries. *)
   val parse : Env.t -> input -> Entry.entry list
 
+
+  val handle_processor : Env.t -> (module Processor.S) -> input -> unit
 end
 
 let read str =
@@ -59,6 +61,16 @@ module Make = functor (C : CHANNEL) -> struct
     handle env (fun e -> l := e::!l) ic;
     List.rev !l
 
+  let handle_processor : Env.t -> (module Processor.S) -> C.t -> unit  =
+    fun env (module P:Processor.S) ic ->
+    let s = from env ic in
+    try
+      while true do P.handle_entry env (read s) done;
+      assert false
+    with
+    | Env.EnvError (None, loc, e) -> raise (Env.EnvError (Some env,loc,e))
+    | Dep.Dep_error dep           -> raise (Env.EnvError (Some env,Basic.dloc, Env.EnvErrorDep dep))
+    | End_of_file -> ()
 end
 
 module Parse_channel =
@@ -74,3 +86,21 @@ module Parse_string =
 
       let lexing_from s = Lexing.from_string s
     end)
+
+let handle_file  : type a. string -> ?hook_before:(Env.t -> unit) -> ?hook_after:(Env.t -> unit) ->
+  (module Processor.S with type t = a) -> Env.t * a =
+  fun (type a) file ?hook_before ?hook_after (module P:Processor.S with type t = a) ->
+  let env  = Env.init file in
+  let ic   = open_in file in
+  begin match hook_before with None -> () | Some f -> f env end;
+  Parse_channel.handle_processor env (module P) ic;
+  begin match hook_after  with None -> () | Some f -> f env end;
+  let data = P.get_data () in
+  close_in ic;
+  env,data
+
+let handle_files : string list -> ?hook_before:(Env.t -> unit) -> ?hook_after:(Env.t -> unit) ->
+  (module Processor.S with type t = 'a) -> 'a =
+  fun (type a) files ?hook_before ?hook_after (module P:Processor.S with type t = a) ->
+  List.iter (fun file -> ignore(handle_file file ?hook_before ?hook_after (module P))) files;
+  P.get_data ()

@@ -2,21 +2,17 @@ open Term
 open Basic
 open Parser
 
-module TypeChecker  = Processor.TypeChecker
-module Beautifier   = Processor.EntryPrinter
+module P         = Processor
+module TC        = P.TypeChecker
+module Printer   = P.EntryPrinter
 
-let mk_entry beautify env =
-  if beautify
-  then Beautifier.handle_entry env
-  else TypeChecker.handle_entry env
-
-let run_on_file beautify export file =
+let run_on_file beautify (module P:P.S) export file =
   let input = open_in file in
   Debug.(debug Signature.D_module "Processing file '%s'..." file);
   let env = Env.init file in
   try
     Confluence.initialize ();
-    Parse_channel.handle env (mk_entry beautify env) input;
+    Parse_channel.handle_processor env (module P) input;
     if not beautify then
       Errors.success "File '%s' was successfully checked." file;
     if export then Env.export env;
@@ -124,12 +120,20 @@ Available options:" Sys.argv.(0) in
       exit 2
     end;
   try
-    List.iter (run_on_file !beautify !export) files;
+    let (module P:P.S with type t = unit) = if !beautify then (module Printer) else (module TC) in
+    let hook_before _ = Confluence.initialize () in
+    let hook_after env =
+      if not !beautify then
+        Errors.success "File '%s' was successfully checked." (Env.get_filename env);
+      if !export then Env.export env;
+      Confluence.finalize ()
+    in
+    handle_files files ~hook_before ~hook_after (module P);
     match !run_on_stdin with
     | None   -> ()
     | Some m ->
       let env = Env.init m in
-      Parse_channel.handle env (mk_entry !beautify env) stdin;
+      Parse_channel.handle_processor env (module P) stdin;
       if not !beautify
       then Errors.success "Standard input was successfully checked.\n"
   with

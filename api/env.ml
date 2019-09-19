@@ -19,6 +19,14 @@ let set_debug_mode =
       | c -> raise (DebugFlagNotRecognized c)
     )
 
+type t =
+  {
+    file  : string;
+    sg    : Signature.t;
+    red   : (module Reduction.S);
+    typer : (module Typing.S)
+  }
+
 type env_error =
   | EnvErrorType        of typing_error
   | EnvErrorSignature   of signature_error
@@ -35,20 +43,13 @@ let check_arity = ref true
 
 let check_ll = ref false
 
-type t =
-  {
-    sg    : Signature.t;
-    red   : (module Reduction.S);
-    typer : (module Typing.S)
-  }
-
 exception EnvError of t option * loc * env_error
 
 let init file =
   let sg =  Signature.make file in
   let red : (module Reduction.S) = (module Reduction.Default) in
   let typer : (module Typing.S) = (module Typing.Default) in
-  {sg;red;typer}
+  {file; sg;red;typer}
 
 let set_reduction_engine env (module R:Reduction.S) =
   let red = (module R:Reduction.S) in
@@ -58,6 +59,8 @@ let set_reduction_engine env (module R:Reduction.S) =
 let get_reduction_engine env = env.red
 
 let get_name env = Signature.get_name env.sg
+
+let get_filename env = env.file
 
 let get_signature env = env.sg
 

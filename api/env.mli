@@ -58,13 +58,16 @@ val init        : string -> t
 val get_signature : t -> Signature.t
 (** [get_signature env] returns the signature used by this module. *)
 
+val get_filename : t -> string
+(** [get_filename env] returns the filename used to create the environment *)
+
 val get_name    : t -> mident
 (** [get_name env] returns the name of the module. *)
 
 val set_reduction_engine : t -> (module Reduction.S) -> t
 (** [set_reduction_egine env] changes the reduction engine of [env] *)
 
-val get_reduction_egine : t -> (module Reduction.S)
+val get_reduction_engine : t -> (module Reduction.S)
 (** [get_reduction_engine env] returns the reduction engine of [env] *)
 
 val get_printer : t -> (module Pp.Printer)

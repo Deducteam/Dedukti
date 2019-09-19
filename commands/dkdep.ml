@@ -2,18 +2,6 @@ open Basic
 open Term
 open Rule
 
-let handle_file : string -> unit = fun file ->
-    (* Initialisation. *)
-  let env = Env.init file in
-  try
-    (* Actully parsing and gathering data. *)
-    let input = open_in file in
-    let md = Env.get_name env in
-    Dep.handle md (fun f -> Parser.Parse_channel.handle env f input);
-    close_in input
-  with Env.EnvError(None,lc,e) -> raise @@ Env.EnvError(Some env, lc, e)
-     | Dep.Dep_error dep       -> raise @@ Env.EnvError(Some env,dloc,Env.EnvErrorDep dep)
-
 (** Output main program. *)
 let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
   let open Dep in
@@ -81,10 +69,10 @@ Available options:" Sys.argv.(0) in
   in
   (* Actual work. *)
   try
-    List.iter handle_file files;
+    let deps = Parser.handle_files files (module (Processor.Dependencies)) in
     let formatter = Format.formatter_of_out_channel !output in
     let output_fun = if !sorted then output_sorted else output_deps in
-    output_fun formatter Dep.deps;
+    output_fun formatter deps;
     Format.pp_print_flush formatter ();
     close_out !output
   with
