@@ -12,9 +12,6 @@ end
 module TypeChecker : S with type t = unit =
 struct
 
-  module D = Debug
-
-
   type t = unit
 
   let handle_entry env e =
@@ -22,11 +19,11 @@ struct
     let (module Pp:Pp.Printer) = Env.get_printer env in
     match e with
     | Decl(lc,id,st,ty) ->
-      D.debug D.D_notice "Declaration of constant '%a'." pp_ident id;
+      Debug.debug Debug.D_notice "Declaration of constant '%a'." pp_ident id;
       Env.declare env lc id st ty
     | Def(lc,id,opaque,ty,te) ->
       let opaque_str = if opaque then " (opaque)" else "" in
-      D.debug D.D_notice "Definition of symbol '%a'%s." pp_ident id opaque_str;
+      Debug.debug Debug.D_notice "Definition of symbol '%a'%s." pp_ident id opaque_str;
       Env.define env lc id opaque te ty
     | Rules(l,rs) ->
       let open Rule in

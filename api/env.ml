@@ -55,14 +55,9 @@ let set_reduction_engine env (module R:Reduction.S) =
   let typer = (module Typing.Make(R):Typing.S) in
   {env with red;typer}
 
+let get_reduction_engine env = env.red
+
 let get_name env = Signature.get_name env.sg
-
-let raise_as_env env lc = function
-  | SignatureError e -> raise (EnvError (Some env, lc, (EnvErrorSignature e)))
-  | TypingError    e -> raise (EnvError (Some env, lc, (EnvErrorType      e)))
-  | RuleError      e -> raise (EnvError (Some env, lc, (EnvErrorRule      e)))
-  | ex               -> raise ex
-
 
 let get_signature env = env.sg
 
@@ -70,6 +65,12 @@ let get_printer env : (module Pp.Printer) =
   (module Pp.Make(struct let get_name () = get_name env end))
 
 let raise_env env lc err = raise (EnvError (Some env, lc, err))
+
+let raise_as_env env lc = function
+  | SignatureError e -> raise_env env lc (EnvErrorSignature e)
+  | TypingError    e -> raise_env env lc (EnvErrorType      e)
+  | RuleError      e -> raise_env env lc (EnvErrorRule      e)
+  | ex               -> raise ex
 
 module HName = Hashtbl.Make(
   struct

@@ -8,7 +8,6 @@ sig
   val get_data : unit -> t
 end
 
-
 (** Provide a type checker for entries *)
 module TypeChecker      : S with type t = unit
 
