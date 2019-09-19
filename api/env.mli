@@ -18,6 +18,7 @@ type env_error =
   | ParseError          of string
   | BracketScopingError
   | AssertError
+  | Misc                of exn
 
 exception EnvError of t option * loc * env_error
 

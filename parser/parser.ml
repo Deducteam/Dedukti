@@ -53,8 +53,15 @@ module Make = functor (C : CHANNEL) -> struct
     try
       while true do f (read s) done
     with
-    | Env.EnvError (None, loc, e) -> raise (Env.EnvError (Some env,loc,e))
-    | End_of_file -> ()
+    | Env.EnvError (env_opt, loc, e) ->
+      begin
+        match env_opt with
+        | None -> raise (Env.EnvError (Some env,loc,e))
+        | Some env -> raise (Env.EnvError (Some env,loc,e))
+      end
+    | Dep.Dep_error dep           -> raise (Env.EnvError (Some env,Basic.dloc, Env.EnvErrorDep dep))
+    | End_of_file                 -> ()
+    | exn                         -> raise (Env.EnvError (Some env, Basic.dloc, Env.Misc exn))
 
   let parse env ic =
     let l = ref [] in
@@ -68,9 +75,15 @@ module Make = functor (C : CHANNEL) -> struct
       while true do P.handle_entry env (read s) done;
       assert false
     with
-    | Env.EnvError (None, loc, e) -> raise (Env.EnvError (Some env,loc,e))
+    | Env.EnvError (env_opt, loc, e) ->
+      begin
+        match env_opt with
+        | None -> raise (Env.EnvError (Some env,loc,e))
+        | Some env -> raise (Env.EnvError (Some env,loc,e))
+      end
     | Dep.Dep_error dep           -> raise (Env.EnvError (Some env,Basic.dloc, Env.EnvErrorDep dep))
-    | End_of_file -> ()
+    | End_of_file                 -> ()
+    | exn                         -> raise (Env.EnvError (Some env, Basic.dloc, Env.Misc exn))
 end
 
 module Parse_channel =

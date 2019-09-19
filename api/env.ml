@@ -38,6 +38,7 @@ type env_error =
   | ParseError          of string
   | BracketScopingError
   | AssertError
+  | Misc                of exn
 
 let check_arity = ref true
 
