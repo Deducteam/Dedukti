@@ -19,3 +19,14 @@ module EntryPrinter     : S with type t = unit
 
 (** Computes dependencies *)
 module Dependencies     : S with type t = Dep.t
+
+
+(** [handle_processor env P ic] parses the input [ic] in the environment [env],
+    applies the processor P on the entries and returns the result. *)
+val handle_processor : Env.t -> (module S) -> unit
+
+val handle_input  : Parser.t -> ?hook_before:(Env.t -> unit) -> ?hook_after:(Env.t -> unit) ->
+  (module S with type t = 'a) -> 'a
+
+val handle_files : string list -> ?hook_before:(Env.t -> unit) -> ?hook_after:(Env.t -> unit) ->
+  (module S with type t = 'a) -> 'a

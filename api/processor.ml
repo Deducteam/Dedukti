@@ -98,7 +98,7 @@ struct
 
   let get_data () =
     match !sg with
-    | None -> Signature.make "<not initialized>"
+    | None -> Signature.make (mk_mident "") Dep.find_object_file (*TODO: raise an error? *)
     | Some sg -> sg
 
 end
@@ -124,3 +124,30 @@ struct
 
   let get_data () = Dep.deps
 end
+
+let handle_processor : Env.t -> (module S) -> unit  =
+  fun env (module P:S) ->
+  let input = Env.get_input env in
+  Parser.handle input (P.handle_entry env)
+
+
+let handle_input  : type a. Parser.t -> ?hook_before:(Env.t -> unit) -> ?hook_after:(Env.t -> unit) ->
+  (module S with type t = a) -> a =
+  fun (type a) input ?hook_before ?hook_after (module P:S with type t = a) ->
+  let env = Env.init input in
+  begin match hook_before with None -> () | Some f -> f env end;
+  handle_processor env (module P);
+  begin match hook_after  with None -> () | Some f -> f env end;
+  let data = P.get_data () in
+  data
+
+let handle_files : string list -> ?hook_before:(Env.t -> unit) -> ?hook_after:(Env.t -> unit) ->
+  (module S with type t = 'a) -> 'a =
+  fun (type a) files ?hook_before ?hook_after (module P:S with type t = a) ->
+  let handle_file file =
+    let input = Parser.input_from_file file in
+    ignore(handle_input input ?hook_before ?hook_after (module P));
+    Parser.close input
+  in
+  List.iter (handle_file) files;
+  P.get_data ()

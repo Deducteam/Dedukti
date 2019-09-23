@@ -6,20 +6,6 @@ module P         = Processor
 module TC        = P.TypeChecker
 module Printer   = P.EntryPrinter
 
-let run_on_file beautify (module P:P.S) export file =
-  let input = open_in file in
-  Debug.(debug Signature.D_module "Processing file '%s'..." file);
-  let env = Env.init file in
-  try
-    Confluence.initialize ();
-    Parse_channel.handle_processor env (module P) input;
-    if not beautify then
-      Errors.success "File '%s' was successfully checked." file;
-    if export then Env.export env;
-    Confluence.finalize ();
-    close_in input
-  with Env.EnvError(None,lc,e) -> raise @@ Env.EnvError(Some env, lc, e)
-
 let _ =
   let run_on_stdin = ref None  in
   let export       = ref false in
@@ -35,7 +21,7 @@ let _ =
       , Arg.Set export
       , " Generates an object file (\".dko\")" )
     ; ( "-I"
-      , Arg.String Basic.add_path
+      , Arg.String Dep.add_path
       , "DIR Adds the directory DIR to the load path" )
     ; ( "-d"
       , Arg.String Env.set_debug_mode
@@ -124,18 +110,20 @@ Available options:" Sys.argv.(0) in
     let hook_before _ = Confluence.initialize () in
     let hook_after env =
       if not !beautify then
-        Errors.success "File '%s' was successfully checked." (Env.get_filename env);
+        begin
+          match Parser.file_of_input (Env.get_input env) with
+          | None      -> Errors.success "Standard input was successfully checked.\n"
+          | Some file -> Errors.success "File '%s' was successfully checked." file
+        end;
       if !export then Env.export env;
       Confluence.finalize ()
     in
-    handle_files files ~hook_before ~hook_after (module P);
+    Processor.handle_files files  ~hook_before ~hook_after (module P);
     match !run_on_stdin with
     | None   -> ()
     | Some m ->
-      let env = Env.init m in
-      Parse_channel.handle_processor env (module P) stdin;
-      if not !beautify
-      then Errors.success "Standard input was successfully checked.\n"
+      let input = Parser.input_from_stdin (Basic.mk_mident m) in
+      Processor.handle_input input (module P);
   with
-  | Env.EnvError (Some env,lc,e) -> Errors.fail_env_error env (lc,e)
+  | Env.Env_error (Some env,lc,e) -> Errors.fail_env_error env (lc,e)
   | Sys_error err          -> Errors.fail_sys_error err

@@ -208,10 +208,6 @@ let fail_signature_error env errid def_loc err =
        Found: %a.@.\
        Expected: %a"
       pp_term (snf env t1) pp_term (snf env t2)
-  | CouldNotExportModule (md, file) ->
-    fail def_loc
-      "Fail to export module '%a' to file %s."
-      pp_mident md file
 
 let fail_dep_error env errid err =
   let md = Env.get_name env in
@@ -301,27 +297,30 @@ let code err =
   | AssertError           -> 39
 
 let fail_env_error env (lc,err) =
+  let open Env in
   let errid = string_of_int (code err) in
-  let md = Env.get_name env in
+  let md = get_name env in
   let fail lc = fail_exit md 3 errid (Some lc) in
   match err with
-  | Env.EnvErrorSignature e -> fail_signature_error env errid lc e
-  | Env.EnvErrorType      e -> fail_typing_error    env errid lc e
-  | Env.EnvErrorRule      e -> fail_rule_error      env errid    e
-  | Env.EnvErrorDep       e -> fail_dep_error       env errid    e
-  | Env.NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
+  | EnvErrorSignature e -> fail_signature_error env errid lc e
+  | EnvErrorType      e -> fail_typing_error    env errid lc e
+  | EnvErrorRule      e -> fail_rule_error      env errid    e
+  | EnvErrorDep       e -> fail_dep_error       env errid    e
+  | NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
     fail_exit md 3 errid (Some lc)
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
       pp_ident id nb_args exp_nb_args
-  | Env.NonLinearRule rule_name ->
+  | NonLinearRule rule_name ->
     fail lc "Non left-linear rewrite rule for symbol '%a'." Rule.pp_rule_name rule_name
-  | Env.KindLevelDefinition id ->
+  | KindLevelDefinition id ->
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
-  | Env.ParseError s ->
+  | ParseError s ->
     fail lc "Parse error: %s@." s
-  | Env.BracketScopingError ->
-    fail lc "Unused variables in context may create scoping ambiguity in bracket.@."
-  | Env.AssertError ->
+  | AssertError ->
     fail lc "Assertion failed."
+  | FailExportFile(md,file) ->
+    fail lc
+      "Fail to export module '%a' to file %s."
+      pp_mident md file
 
 let fail_sys_error msg = fail_exit (mk_mident "") 1 "SYSTEM" None "%s@." msg

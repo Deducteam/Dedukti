@@ -1,39 +1,24 @@
 open Basic
 
-type path = string
+module NameSet = Basic.NameSet
 
-module MDepSet = Set.Make(struct type t = Basic.mident * path let compare = compare end)
+module MSet    = Basic.MidentSet
 
-module NameSet = Set.Make(struct type t = Basic.name let compare = compare end)
-
-type data = {up: NameSet.t ; down: NameSet.t}
-(** up dependencies are the name that requires the current item.
-    down dependencies are the name that are required by the current item. *)
-
-type ideps = (ident, data) Hashtbl.t
-
-type deps =
-  {
-    file:path; (** path associated to the module *)
-    deps: MDepSet.t; (** pairs of module and its associated path *)
-    ideps: ideps; (** up/down item dependencies *)
+type data = {
+  up: NameSet.t ; (** dependencies are the name that requires the current item. *)
+  down: NameSet.t ; (** down dependencies are the name that are required by the current item. *)
 }
 
-type t = (mident, deps) Hashtbl.t
+type name_deps = (ident, data) Hashtbl.t
 
-let compute_ideps = ref false
+type file_deps =
+  {
+    file:string; (** path associated to the module *)
+    deps: MSet.t; (** pairs of module and its associated path *)
+    name_deps: name_deps; (** up/down item dependencies *)
+}
 
-let empty_deps () = {file="<not initialized>"; deps = MDepSet.empty; ideps=Hashtbl.create 81}
-
-let deps = Hashtbl.create 11
-
-
-(** [deps] contains the dependencies found so far, reset before each file. *)
-let current_mod   : mident    ref = ref (mk_mident "<not initialised>")
-let current_name  : name      ref = ref (mk_name (!current_mod) (mk_ident  "<not initialised>"))
-let current_deps  : deps      ref = ref (empty_deps ())
-let ignore        : bool      ref = ref false
-let process_items : bool      ref = ref false
+type t = (mident, file_deps) Hashtbl.t
 
 type dep_error =
   | ModuleNotFound of mident
@@ -41,14 +26,59 @@ type dep_error =
   | CircularDependencies of string * string list
   | NameNotFound of name
   | NoDep of mident
+  | FileNotFound        of mident
 
 exception Dep_error of dep_error
+
+let compute_all_deps = ref false
+
+let empty_deps () = {file="<not initialized>"; deps = MSet.empty; name_deps=Hashtbl.create 81}
+
+let deps = Hashtbl.create 11
+
+let path = ref []
+
+let get_path () = !path
+
+let add_path s = path := s :: !path
+
+let rec find_dko_in_path lc basename = function
+  | [] -> raise @@ Dep_error(FileNotFound (mk_mident basename))
+  | dir :: path ->
+    let filename = dir ^ "/" ^ basename ^ ".dko" in
+    if Sys.file_exists filename
+    then filename
+    else find_dko_in_path lc basename path
+
+let find_object_file lc md =
+  let basename = string_of_mident md in
+  let filename = basename ^ ".dko" in
+  if Sys.file_exists filename (* First check in the current directory *)
+  then filename
+  else find_dko_in_path lc basename (get_path())
+  (* If not found in the current directory, search in load-path *)
+
+let object_file_of_input input =
+    let filename =
+    match Parser.file_of_input input with
+    | None ->
+      string_of_mident (Parser.md_of_input input)
+    | Some f -> Filename.remove_extension f
+  in
+  filename ^ ".dko"
+
+(** [deps] contains the dependencies found so far, reset before each file. *)
+let current_mod   : mident    ref = ref (mk_mident "<not initialised>")
+let current_name  : name      ref = ref (mk_name (!current_mod) (mk_ident  "<not initialised>"))
+let current_deps  : file_deps ref = ref (empty_deps ())
+let ignore        : bool      ref = ref false
+let process_items : bool      ref = ref false
 
 (** [find_dk md path] looks for the ".dk" file corresponding to the module
     named [name] in the directories of [path]. If no corresponding file is
     found, or if there are several possibilities, the program fails with a
     graceful error message. *)
-let find_dk : mident -> path list -> path option = fun md path ->
+let find_dk : mident -> string list -> string option = fun md path ->
   let name = string_of_mident md in
   let file_name = name ^ ".dk" in
   let path = Filename.current_dir_name :: path in
@@ -80,8 +110,8 @@ let add_mdep : mident -> unit = fun md ->
     match (find_dk md (get_path ())) with
     | None -> ()
     | Some file ->
-      current_deps :=
-        {!current_deps with deps = MDepSet.add (md, file) !current_deps.deps}
+      current_deps  :=
+        {!current_deps with deps = MSet.add md !current_deps.deps}
 
 let update_up ideps item up =
   if Hashtbl.mem ideps item then
@@ -108,9 +138,9 @@ let find deps md =
 
 
 let update_ideps item dep =
-  let ideps = (find deps (md item)).ideps in
+  let ideps = (find deps (md item)).name_deps in
   update_down ideps (id item) dep;
-  let ideps = (find deps (md dep)).ideps in
+  let ideps = (find deps (md dep)).name_deps in
   update_up ideps (id dep) item
 
 
@@ -122,8 +152,7 @@ let add_idep : name -> unit = fun dep_name ->
 
 let mk_name c =
   add_mdep (md c);
-  if !compute_ideps then
-    add_idep c
+  if !compute_all_deps then add_idep c
 
 let rec mk_term t =
   let open Term in
@@ -171,7 +200,7 @@ let handle_entry e =
   | Name(_,_)                   -> ()
   | Require(_,md)               -> add_mdep md
 
-let initialize : mident -> path -> unit = fun md file ->
+let initialize : mident -> string -> unit = fun md file ->
   current_mod :=md;
   current_deps := find deps md;
   current_deps := {!current_deps with file}
@@ -190,7 +219,7 @@ let handle : mident -> ((Entry.entry -> unit) -> unit) -> unit = fun md process 
 
 let topological_sort deps =
   let to_graph _ deps graph =
-    (deps.file, MDepSet.elements deps.deps)::graph
+    (deps.file, MSet.elements deps.deps)::graph
   in
   let graph = Hashtbl.fold to_graph deps [] in
   let rec explore path visited node =
@@ -203,7 +232,7 @@ let topological_sort deps =
           else
             raise @@ Dep_error (NoDep (mk_mident node))
       in
-      node :: List.fold_left (explore (node :: path)) visited (List.map snd edges)
+      node :: List.fold_left (explore (node :: path)) visited (List.map get_file edges)
   in
   List.rev @@ List.fold_left (fun visited (n,_) -> explore [] visited n) [] graph
 
@@ -211,7 +240,7 @@ let get_data : Basic.name -> data = fun name ->
   try
     let md = Basic.md name in
     let id = Basic.id name in
-    Hashtbl.find (Hashtbl.find deps md).ideps id
+    Hashtbl.find (Hashtbl.find deps md).name_deps id
   with Not_found ->
     raise @@ Dep_error(NameNotFound name)
 
@@ -228,7 +257,7 @@ let rec transitive_closure_down =
           (fun name_dep down -> NameSet.union down (get_data name_dep).down) ideps.down ideps.down in
       let ideps' = {ideps with down} in
       let md_deps = Hashtbl.find deps md in
-      Hashtbl.replace md_deps.ideps id ideps'
+      Hashtbl.replace md_deps.name_deps id ideps'
 
 let rec transitive_closure_up =
   let computed = ref NameSet.empty in
@@ -243,7 +272,7 @@ let rec transitive_closure_up =
           (fun name_dep up -> NameSet.union up (get_data name_dep).down) ideps.up ideps.up in
       let ideps' = {ideps with up} in
       let md_deps = Hashtbl.find deps md in
-      Hashtbl.replace md_deps.ideps id ideps'
+      Hashtbl.replace md_deps.name_deps id ideps'
 
 let transitive_closure : Basic.name -> unit = fun name ->
   transitive_closure_down name;

@@ -9,24 +9,24 @@ let string_of_ident s = s
 
 let ident_eq s1 s2 = s1==s2 || s1=s2
 
-
 type mident = string
 
 let string_of_mident s = s
 
 let mident_eq = ident_eq
 
+module MidentSet = Set.Make(struct type t = mident let compare = compare end)
 
-(* TODO: rename ident *)
 type name = mident * ident
 
 let mk_name md id = (md,id)
 
 let name_eq (m,s) (m',s') = mident_eq m m' && ident_eq s s'
 
+module NameSet = Set.Make(struct type t = name let compare = compare end)
+
 let md = fst
 let id = snd
-
 
 module WS = Weak.Make(
 struct
@@ -70,10 +70,6 @@ type loc = int * int
 let dloc = (-1,-1)
 let mk_loc l c = (l,c)
 let of_loc l = l
-
-let path = ref []
-let get_path () = !path
-let add_path s = path := s :: !path
 
 (** {2 Debugging} *)
 

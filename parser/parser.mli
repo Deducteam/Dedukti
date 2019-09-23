@@ -3,47 +3,33 @@ open Basic
 (** Abstract parser stream representation. *)
 type stream
 
+type t
+
+val input_from_file : string -> t
+
+val input_from_stdin : Basic.mident -> t
+
+val input_from_string : Basic.mident -> string -> t
+
+val md_of_input : t -> Basic.mident
+
+val file_of_input : t -> string option
+
+val close : t -> unit
+
 (** [read str] reads a single entry from the parser stream [str]. When no more
     [entry] is available, the [End_of_file] exception is raised. *)
 val read : stream -> Entry.entry
 
-module type CHANNEL = sig
-  type t
+(** [from_channel in] creates a parser [stream] for the environment [env]
+    [env] given the input [in]. *)
+val from : t -> stream
 
-  val lexing_from : t -> Lexing.lexbuf
-end
+(** [handle in f] parses the input [in] in the environment [env],  using
+    the action [f] on each entry. Note that the input is parsed lazily. This
+    function can thus be applied to [stdin]. *)
+val handle : t -> (Entry.entry -> unit) -> unit
 
-module type S =
-sig
-
-  type input
-
-  (** [from_channel env ic] creates a parser [stream] for the environment [env]
-      [env] given the input [ic]. *)
-  val from : Env.t -> input -> stream
-
-  (** [handle env f ic] parses the input [ic] in the environment [env],  using
-      the action [f] on each entry. Note that the input is parsed lazily. This
-      function can thus be applied to [stdin]. *)
-  val handle : Env.t -> (Entry.entry -> unit) -> input -> unit
-
-  (** [parse env ic] completely parses the input [ic] for the environment [env]
-      and returns the corresponding list of entries. *)
-  val parse : Env.t -> input -> Entry.entry list
-
-  (** [handle_processor env P ic] parses the input [ic] in the environment [env],
-      applies the processor P on the entries and returns the result. *)
-  val handle_processor : Env.t -> (module Processor.S) -> input -> unit
-end
-
-module Make : functor (C : CHANNEL) -> S with type input = C.t
-
-module Parse_channel : S with type input = in_channel
-
-module Parse_string : S with type input = string
-
-val handle_file  : string -> ?hook_before:(Env.t -> unit) -> ?hook_after:(Env.t -> unit) ->
-  (module Processor.S with type t = 'a) -> Env.t * 'a
-
-val handle_files : string list -> ?hook_before:(Env.t -> unit) -> ?hook_after:(Env.t -> unit) ->
-  (module Processor.S with type t = 'a) -> 'a
+(** [parse [in] env] completely parses the input [in] for the environment [env]
+    and returns the corresponding list of entries. *)
+val parse : t -> Entry.entry list

@@ -1,21 +1,17 @@
 open Basic
 
+module NSet = Basic.NameSet
+module MSet = Basic.MidentSet
+
+module Printer = Pp.Default
+
+
 exception NoDirectory
 exception EntryNotHandled of Entry.entry
 exception BadFormat
 exception NoPruneFile
 
 let output_directory : string option ref = ref None
-
-module CustomSig =
-struct
-  let current = ref (Basic.mk_mident "")
-  let set md = current := md
-  let get_name () = !current
-end
-
-module Printer = Pp.Make(CustomSig)
-
 
 module D = Basic.Debug
 type D.flag += D_prune
@@ -28,144 +24,139 @@ let log fmt = D.debug D_prune (gre fmt)
 
 type constraints =
   {
-    names:Dep.NameSet.t;
+    names:Basic.NameSet.t;
     mds: mident list
   }
 
 let _ =
   Dep.ignore := true;
-  Dep.compute_ideps := true
+  Dep.compute_all_deps := true
 
-let rec handle_file : string -> unit =
-  let computed = ref Dep.MDepSet.empty in
-  fun file ->
-    let env = Env.init file in
-    let md = Env.get_name env in
-    if not @@ Dep.MDepSet.mem (md,file) !computed then
-      begin
-        computed := Dep.MDepSet.add (md,file) !computed;
-        log "[COMPUTE DEP] %s" file;
-        let input = open_in file in
-        Dep.handle md (fun f -> Parser.Parse_channel.handle env f input);
-        close_in input;
-        let md_deps = Hashtbl.find Dep.deps md in
-        Dep.MDepSet.iter
-          (fun (md,_) ->
-            try handle_file (Dep.get_file md)
-            with _ -> ())
-          Dep.(md_deps.deps)
-      end
-
-let handle_name : Basic.name -> unit = fun name ->
-  let md = Basic.md name in
-  let file = Dep.get_file md in
-  handle_file file
-
-let handle_constraints names =
-  Dep.NameSet.iter handle_name names
-
-let output_file : Dep.path -> Dep.path = fun file ->
+let output_file : string -> string = fun file ->
   let basename = Filename.basename file in
   match !output_directory with
   | None -> raise @@ NoDirectory
   | Some dir -> Filename.concat dir basename
 
-let get_files : unit -> (mident * Dep.path * Dep.path) list = fun () ->
-  Hashtbl.fold (fun md _ l ->
-      try
-        let f = Dep.get_file md in
-        (md, f, output_file f)::l
-    with _ -> l) Dep.deps []
+let computed = ref MSet.empty
 
 let name_of_entry md = function
-  | Entry.Decl(_,id,_,_) ->
-    mk_name md id
-  | Entry.Def(_,id,_,_,_) ->
-    mk_name md id
-  | Entry.Rules(_,r::_) ->
-    let open Rule in
-    let r' = to_rule_infos r in
-    r'.cst
-  | _ as e -> raise @@ EntryNotHandled e
+    | Entry.Decl(_,id,_,_) ->
+      Some (Basic.mk_name md id)
+    | Entry.Def(_,id,_,_,_) ->
+      Some (Basic.mk_name md id)
+    | Entry.Rules(_,r::_) ->
+      let open Rule in
+      let r' = to_rule_infos r in
+      Some r'.cst
+    | _ -> None
 
-let is_empty deps md in_file =
-  let input = open_in in_file in
-  let env = Env.init in_file in
-  let empty = ref true in
-  let mk_entry e =
-    let name = name_of_entry md e in
-    if Dep.NameSet.mem name deps then
-      empty := false;
+module PruneDepProcessor : Processor.S with type t = unit =
+struct
+
+  type t = unit
+
+  let handle_entry env entry =
+    let md = Env.get_name env in
+    if not @@ MSet.mem md !computed then
+      Processor.Dependencies.handle_entry env entry
+
+  let get_data () = ()
+end
+
+module GatherNames : Processor.S with type t = NSet.t =
+struct
+
+  type t = NSet.t
+
+  let names = ref NSet.empty
+
+  let handle_entry env =
+    let md = Env.get_name env in
+    let add_name n = names := NSet.add n !names in
+    fun entry ->
+      match name_of_entry md entry with
+      | None -> raise @@ EntryNotHandled entry
+      | Some md -> add_name md
+
+  let get_data () = !names
+end
+
+module ProcessConfigurationFile : Processor.S with type t = NSet.t =
+struct
+
+  type t = NSet.t
+
+  let names = ref NSet.empty
+
+  let handle_entry _ =
+    function
+    | Entry.Require(_,md) ->
+      let file = Dep.get_file md in
+      let snames = Processor.handle_files [file] (module GatherNames) in
+      names := NSet.union snames !names
+    | Entry.DTree(_,Some md, id) -> names := NSet.add (mk_name md id) !names
+    | _ -> raise BadFormat
+
+  let get_data () = !names
+
+end
+
+let rec run_on_files files =
+  let hook_before env =
+    match Parser.file_of_input (Env.get_input env) with
+    | None      -> log "[COMPUTE DEP] %s" (string_of_mident (Parser.md_of_input (Env.get_input env)))
+    | Some file -> log "[COMPUTE DEP] %s" file
   in
-  Parser.Parse_channel.handle env mk_entry input;
-  close_in input;
-  !empty
+  let hook_after env =
+    let md = Env.get_name env in
+    computed := MSet.add md !computed;
+    let deps = Hashtbl.find Dep.deps md in
+    let add_files md files = if MSet.mem md !computed then files else (Dep.get_file md)::files in
+    let new_files = MSet.fold add_files deps.deps [] in
+    if List.length new_files <> 0 then run_on_files new_files
+  in
+  Processor.handle_files files ~hook_before ~hook_after (module PruneDepProcessor)
 
-let mk_file deps (md,in_file,out_file) =
+let handle_constraints mds =
+  let files = List.map Dep.get_file mds in
+  run_on_files files
+
+let is_empty deps file =
+  let names = Processor.handle_files [file] (module GatherNames) in
+  NSet.disjoint names deps
+
+let write_file deps in_file =
+  let out_file = output_file in_file in
   log "[WRITING FILE] %s" out_file;
-  if not (is_empty deps md in_file)
+  if not (is_empty deps in_file)
   then
-    let input = open_in in_file in
+    let input  = Parser.input_from_file in_file in
+    let md     = Parser.md_of_input input in
     let output = open_out out_file in
-    let fmt = Format.formatter_of_out_channel output in
+    let fmt    = Format.formatter_of_out_channel output in
     let handle_entry e =
       let name = name_of_entry md e in
-      CustomSig.set md;
-      if Dep.NameSet.mem name deps
-      then Format.fprintf fmt "%a" Printer.print_entry e
+      match name with
+      | None   -> raise @@ EntryNotHandled e
+      | Some name -> if NSet.mem name deps then Format.fprintf fmt "%a" Printer.print_entry e
     in
-    let env = Env.init in_file in
-    try
-      Parser.Parse_channel.handle env handle_entry input;
-      close_out output;
-      close_in input
-    with Env.EnvError(None,lc,e) -> raise @@ Env.EnvError(Some env, lc, e)
-       | Dep.Dep_error dep       -> raise @@ Env.EnvError(Some env,dloc,Env.EnvErrorDep dep)
-
+    Parser.handle input handle_entry;
+    Parser.close input;
+    close_out output
 
 let print_dependencies names =
   let open Dep in
   NameSet.iter Dep.transitive_closure names;
-  let down = NameSet.fold
-      (fun name dependencies ->
-         NameSet.union (get_data name).down dependencies) names names in
-  let files = get_files () in
-  List.iter (mk_file down) files
-
-(* This opens a module and returns all the names of symbols declared inside *)
-let names_of_md md =
-  let file = Dep.get_file md in
-  let input = open_in file in
-  let env = Env.init file in
-  try
-    let names = ref Dep.NameSet.empty in
-    let mk_entry e =
-      let n = name_of_entry md e in
-      names := Dep.NameSet.add n !names
-    in
-    Parser.Parse_channel.handle env mk_entry input;
-    close_in input;
-    !names
-  with Env.EnvError(None,lc,e) -> raise @@ Env.EnvError(Some env, lc, e)
-     | Dep.Dep_error dep       -> raise @@ Env.EnvError(Some env,dloc,Env.EnvErrorDep dep)
-
-
-(* This gather all symbols *)
-let gather_names =
-  function
-  | Entry.Require(_,md) -> names_of_md md
-  | Entry.DTree(_,Some md, id) -> Dep.NameSet.singleton (mk_name md id)
-  | _ -> raise BadFormat
-
-let parse_constraints file =
-  let input = open_in file in
-  let env = Env.init file in
-  try
-    let pcstr = List.map gather_names (Parser.Parse_channel.parse env input) in
-    close_in input;
-    List.fold_left Dep.NameSet.union Dep.NameSet.empty pcstr
-  with Env.EnvError(None,lc,e) -> raise @@ Env.EnvError(Some env, lc, e)
-     | Dep.Dep_error dep       -> raise @@ Env.EnvError(Some env,dloc,Env.EnvErrorDep dep)
+  let down_deps = NameSet.fold
+      (fun name dependencies -> NameSet.union (get_data name).down dependencies) names names in
+  let mds = Hashtbl.fold (fun md _ set -> MSet.add md set) Dep.deps MSet.empty in
+  let in_files md files =
+    let file = Dep.get_file md in
+    if is_empty down_deps file then files else file::files
+  in
+  let in_files = MSet.fold in_files mds [] in
+  List.iter (write_file down_deps) in_files
 
 let _ =
   let args = Arg.align
@@ -173,7 +164,7 @@ let _ =
       , Arg.Unit enable_log
       , " Print log")
     ; ( "-I"
-      , Arg.String add_path
+      , Arg.String Dep.add_path
       , " DIR Add the directory DIR to the load path" )
     ; ( "-o"
       , Arg.String (fun s -> output_directory := Some s)
@@ -186,13 +177,12 @@ Available options:" Sys.argv.(0) in
   let files =
     let files = ref [] in
     Arg.parse args (fun f -> files := f :: !files) usage;
-    List.rev !files
+    !files
   in
-  let open Dep in
   try
-    let cstr = List.fold_left NameSet.union NameSet.empty (List.map parse_constraints files) in
-    handle_constraints cstr;
-    print_dependencies cstr
+    let run_on_constraints files = Processor.handle_files files (module ProcessConfigurationFile) in
+    let names = run_on_constraints files in
+    print_dependencies names
   with
-  | Env.EnvError (Some env,lc,e) -> Errors.fail_env_error env (lc,e)
-  | Sys_error err          -> Errors.fail_sys_error err
+  | Env.Env_error (Some env,lc,e) -> Errors.fail_env_error env (lc,e)
+  | Sys_error err                 -> Errors.fail_sys_error err

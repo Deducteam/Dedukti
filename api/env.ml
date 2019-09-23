@@ -21,7 +21,7 @@ let set_debug_mode =
 
 type t =
   {
-    file  : string;
+    input : Parser.t;
     sg    : Signature.t;
     red   : (module Reduction.S);
     typer : (module Typing.S)
@@ -39,18 +39,27 @@ type env_error =
   | BracketScopingError
   | AssertError
   | Misc                of exn
+  | FailExportFile      of mident * string
+
+exception Env_error of t option * loc * env_error
+
+let raise_env env lc err = raise (Env_error (Some env, lc, err))
+
+let raise_as_env env lc = function
+  | SignatureError e -> raise_env env lc (EnvErrorSignature e)
+  | TypingError    e -> raise_env env lc (EnvErrorType      e)
+  | RuleError      e -> raise_env env lc (EnvErrorRule      e)
+  | ex               -> raise ex
 
 let check_arity = ref true
 
 let check_ll = ref false
 
-exception EnvError of t option * loc * env_error
-
-let init file =
-  let sg =  Signature.make file in
+let init input =
+  let sg =  Signature.make (Parser.md_of_input input) Dep.find_object_file in
   let red : (module Reduction.S) = (module Reduction.Default) in
   let typer : (module Typing.S) = (module Typing.Default) in
-  {file; sg;red;typer}
+  {input; sg;red;typer}
 
 let set_reduction_engine env (module R:Reduction.S) =
   let red = (module R:Reduction.S) in
@@ -61,20 +70,12 @@ let get_reduction_engine env = env.red
 
 let get_name env = Signature.get_name env.sg
 
-let get_filename env = env.file
+let get_input env = env.input
 
 let get_signature env = env.sg
 
 let get_printer env : (module Pp.Printer) =
   (module Pp.Make(struct let get_name () = get_name env end))
-
-let raise_env env lc err = raise (EnvError (Some env, lc, err))
-
-let raise_as_env env lc = function
-  | SignatureError e -> raise_env env lc (EnvErrorSignature e)
-  | TypingError    e -> raise_env env lc (EnvErrorType      e)
-  | RuleError      e -> raise_env env lc (EnvErrorRule      e)
-  | ex               -> raise ex
 
 module HName = Hashtbl.Make(
   struct
@@ -97,8 +98,13 @@ let get_dtree env lc cst =
   with e -> raise_as_env env lc e
 
 let export env =
-  try Signature.export env.sg
-  with e -> raise_as_env env dloc e
+  let file = Dep.object_file_of_input env.input in
+  let oc = open_out file in
+  try Signature.export env.sg oc; close_out oc
+  with
+  | Signature.SignatureError (Signature.CouldNotExportModule e) ->
+    raise @@ Env_error(Some env, dloc, FailExportFile(e,file))
+  | e -> close_out oc; raise_as_env env dloc e
 
 let import env lc md =
   try Signature.import env.sg lc md
@@ -137,7 +143,7 @@ let _check_arity env (r:rule_infos) : unit =
 (** Checks that all rule are left-linear. *)
 let _check_ll env (r:rule_infos) : unit =
   List.iter
-    (function Linearity _ -> raise (EnvError (Some env, r.l, NonLinearRule r.name)) | _ -> ())
+    (function Linearity _ -> raise (Env_error (Some env, r.l, NonLinearRule r.name)) | _ -> ())
     r.constraints
 
 let _add_rules env rs =

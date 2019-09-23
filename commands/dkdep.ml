@@ -6,10 +6,10 @@ open Rule
 let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
   let open Dep in
   let objfile src = Filename.chop_extension src ^ ".dko" in
-  let output_line : mident -> deps -> unit =
+  let output_line : mident -> file_deps -> unit =
     fun md deps ->
        let file = deps.file in
-       let deps = List.map (fun (_,src) -> objfile src) (MDepSet.elements deps.deps) in
+       let deps = List.map (fun md -> objfile (Dep.get_file md)) (MidentSet.elements deps.deps) in
        let deps = String.concat " " deps in
        try
          Format.fprintf oc "%s : %s %s@." (objfile file) file deps
@@ -55,7 +55,7 @@ let _ =
       , Arg.Set Dep.ignore
       , " If some dependencies are not found, ignore them" )
     ; ( "-I"
-      , Arg.String add_path
+      , Arg.String Dep.add_path
       , "DIR Add the directory DIR to the load path" ) ]
   in
   let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...
@@ -69,12 +69,12 @@ Available options:" Sys.argv.(0) in
   in
   (* Actual work. *)
   try
-    let deps = Parser.handle_files files (module (Processor.Dependencies)) in
+    let deps = Processor.handle_files files (module (Processor.Dependencies)) in
     let formatter = Format.formatter_of_out_channel !output in
     let output_fun = if !sorted then output_sorted else output_deps in
     output_fun formatter deps;
     Format.pp_print_flush formatter ();
     close_out !output
   with
-  | Env.EnvError  (Some env,lc,e) -> Errors.fail_env_error env (lc,e)
+  | Env.Env_error  (Some env,lc,e) -> Errors.fail_env_error env (lc,e)
   | Sys_error     err -> Errors.fail_sys_error err

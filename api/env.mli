@@ -19,8 +19,9 @@ type env_error =
   | BracketScopingError
   | AssertError
   | Misc                of exn
+  | FailExportFile      of mident * string
 
-exception EnvError of t option * loc * env_error
+exception Env_error of t option * loc * env_error
 
 (** {2 Debugging} *)
 
@@ -50,17 +51,16 @@ val check_ll : bool ref
 val raise_env : t -> loc -> env_error -> 'a
 (** [raise_env env lc e] raise the exception [e] as an environment error *)
 
-val init        : string -> t
+val init        : Parser.t -> t
 (** [init name] initializes a new global environement giving it the name of
     the corresponding source file. The function returns the module identifier
     corresponding to this file, built from its basename. Every toplevel
     declaration will be qualified by this name. *)
 
+val get_input    : t -> Parser.t
+
 val get_signature : t -> Signature.t
 (** [get_signature env] returns the signature used by this module. *)
-
-val get_filename : t -> string
-(** [get_filename env] returns the filename used to create the environment *)
 
 val get_name    : t -> mident
 (** [get_name env] returns the name of the module. *)

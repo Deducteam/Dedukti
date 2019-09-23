@@ -3,6 +3,8 @@ open Preterm
 open Term
 open Rule
 
+exception Scoping_error of loc * string
+
 let get_db_index ctx id =
   let rec aux n = function
     | [] -> None
@@ -109,7 +111,8 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
     begin
       Debug.(debug D_warn "Local variables in the rule:\n%a\nare not used (%a)")
         pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
-      if has_brackets then raise (Env.EnvError (None,l,Env.BracketScopingError))
+      if has_brackets then
+        raise @@ Scoping_error(l,"Unused variables in context may create scoping ambiguity in bracket")
     end;
   let idents = List.map snd ctx in
   let b,id =

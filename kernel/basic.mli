@@ -47,6 +47,10 @@ val dmark : ident
 
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
 
+module MidentSet : Set.S with type elt = mident
+
+module NameSet : Set.S with type elt = name
+
 
 (** {2 Lists with Length} *)
 
@@ -76,9 +80,6 @@ val dloc : loc
 val mk_loc : int -> int -> loc
 
 val of_loc : loc -> int * int
-
-val add_path : string -> unit
-val get_path : unit -> string list
 
 (** {2 Debug} *)
 
