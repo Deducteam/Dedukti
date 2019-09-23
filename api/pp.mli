@@ -8,35 +8,41 @@ val print_db_enabled    : bool ref
 val print_default_name  : bool ref
 (** Names for rules are optional. If this option is set to true, the printing functions will output default rule names given by Dedukti. *)
 
-module type Sig =
-sig
-  val get_name : unit -> mident
-  (** [get_name] get the current module defined for printing functions. *)
-end
+
+(** {1 General use printing functions} *)
+
+val print_list  : string -> 'a printer -> 'a list printer
+(** [print_list sep printer] returns a printer for ['a list] using [printer] as
+    element printer and [sep] as separator between elements. *)
+
+val print_ident  : ident  printer
+val print_mident : mident printer
+val print_name   : name   printer
+val print_staticity : Signature.staticity printer
+val print_red_cfg   : Reduction.red_cfg   printer
 
 (** {2 Printing functions} *)
-module type Printer =
-sig
-  val print_list  : string -> 'a printer -> 'a list printer
-  (** [print_list sep printer] returns a printer for ['a list] using [printer] as
-      element printer and [sep] as separator between elements. *)
 
-  val print_ident         : ident               printer
-  val print_mident        : mident              printer
-  val print_name          : name                printer
-  val print_term          : term                printer
-  val print_typed_context : typed_context       printer
-  val print_err_ctxt      : typed_context       printer
-  val print_pattern       : Rule.pattern        printer
-  val print_untyped_rule  : Rule.untyped_rule   printer
-  val print_typed_rule    : Rule.typed_rule     printer
-  val print_rule_infos    : Rule.rule_infos     printer
-  val print_rule_name     : Rule.rule_name      printer
-  val print_red_cfg       : Reduction.red_cfg   printer
-  val print_entry         : Entry.entry         printer
-  val print_staticity     : Signature.staticity printer
+module type Sig =
+sig
+  type t
+  val get_name : t -> mident
 end
 
-module Make(S:Sig) : Printer
+module type Printer =
+sig
+  type t
+  val print_term          : t -> term                printer
+  val print_typed_context : t -> typed_context       printer
+  val print_err_ctxt      : t -> typed_context       printer
+  val print_pattern       : t -> Rule.pattern        printer
+  val print_untyped_rule  : t -> Rule.untyped_rule   printer
+  val print_typed_rule    : t -> Rule.typed_rule     printer
+  val print_rule_infos    : t -> Rule.rule_infos     printer
+  val print_rule_name     : t -> Rule.rule_name      printer
+  val print_entry         : t -> Entry.entry         printer
+end
 
-module Default : Printer
+module Make (S:Sig) : Printer with type t = S.t
+module Default      : Printer with type t = unit
+module WithModname  : Printer with type t = mident

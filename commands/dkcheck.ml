@@ -8,7 +8,7 @@ module Printer = E.Printer
 module ErrorHandler = Errors.Make(E)
 module Beautifier = Processor.EntryPrinter(E)
 
-let mk_entry beautify md =
+let mk_entry beautify =
   if beautify
   then Beautifier.handle_entry
   else TypeChecker.handle_entry
@@ -16,12 +16,17 @@ let mk_entry beautify md =
 let run_on_file beautify export file =
   let input = open_in file in
   Debug.(debug Signature.D_module "Processing file '%s'..." file);
-  let md = E.init file in
+  let sg = E.init file in
   Confluence.initialize ();
-  Parse_channel.handle md (mk_entry beautify md) input;
+  let _ =
+    try Parse_channel.handle (E.get_name sg) (mk_entry beautify sg) input;
+    with Env.EnvError (md,lc,e) ->
+      close_in input;
+      ErrorHandler.fail_env_error sg (md,lc,e)
+  in
   if not beautify then
     ErrorHandler.success "File '%s' was successfully checked." file;
-  if export then E.export ();
+  if export then E.export sg;
   Confluence.finalize ();
   close_in input
 
@@ -129,10 +134,11 @@ Available options:" Sys.argv.(0) in
     match !run_on_stdin with
     | None   -> ()
     | Some m ->
-      let md = E.init m in
-      Parse_channel.handle md (mk_entry !beautify md) stdin;
+      let sg = E.init m in
+      let _ =
+        try Parse_channel.handle (E.get_name sg) (mk_entry !beautify sg) stdin
+        with Env.EnvError (md,lc,e) -> ErrorHandler.fail_env_error sg (md,lc,e)
+      in
       if not !beautify
       then ErrorHandler.success "Standard input was successfully checked.\n"
-  with
-  | Env.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
-  | Sys_error err          -> ErrorHandler.fail_sys_error err
+  with Sys_error err -> ErrorHandler.fail_sys_error err

@@ -13,9 +13,10 @@ module ErrorHandler = Errors.Make(E)
 
 module CustomSig =
 struct
+  type t = unit
   let current = ref (Basic.mk_mident "")
   let set md = current := md
-  let get_name () = !current
+  let get_name _ = !current
 end
 
 module Printer = Pp.Make(CustomSig)
@@ -43,7 +44,8 @@ let _ =
 let rec handle_file : string -> unit =
   let computed = ref Dep.MDepSet.empty in
   fun file ->
-    let md = Env.Default.init file in
+    let sg = Env.Default.init file in
+    let md = Env.Default.get_name sg in
     if not @@ Dep.MDepSet.mem (md,file) !computed then
       begin
         computed := Dep.MDepSet.add (md,file) !computed;
@@ -114,7 +116,7 @@ let mk_file deps (md,in_file,out_file) =
       let name = name_of_entry md e in
       CustomSig.set md;
       if Dep.NameSet.mem name deps
-      then Format.fprintf fmt "%a" Printer.print_entry e
+      then Format.fprintf fmt "%a" (Printer.print_entry ()) e
     in
     Parser.Parse_channel.handle md handle_entry input;
     close_out output;
@@ -183,6 +185,6 @@ Available options:" Sys.argv.(0) in
     handle_constraints cstr;
     print_dependencies cstr
   with
-  | Env.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
-  | Dep.Dep_error dep      -> ErrorHandler.fail_env_error (None,dloc,Env.EnvErrorDep dep)
+  | Env.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (E.init "dkprune") (md,lc,e)
+  | Dep.Dep_error dep      -> ErrorHandler.fail_env_error (E.init "dkprune") (None,dloc,Env.EnvErrorDep dep)
   | Sys_error err          -> ErrorHandler.fail_sys_error err

@@ -6,12 +6,22 @@ module E            = Env.Make(Reduction.Default)
 module ErrorHandler = Errors.Make(E)
 
 let handle_file : string -> unit = fun file ->
-    (* Initialisation. *)
-    let md = E.init file in
-    (* Actully parsing and gathering data. *)
-    let input = open_in file in
-    Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
-    close_in input
+  (* Initialisation. *)
+  let sg = E.init file in
+  let md = E.get_name sg in
+  (* Actully parsing and gathering data. *)
+  let input = open_in file in
+
+  let _ =
+    try Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
+    with
+    | Env.EnvError  (md,lc,e) ->
+      close_in input;
+      ErrorHandler.fail_env_error sg (md,lc,e)
+    | Dep.Dep_error dep ->
+      close_in input;
+      ErrorHandler.fail_env_error sg (Some md,dloc,Env.EnvErrorDep dep)
+  in close_in input
 
 (** Output main program. *)
 
@@ -87,7 +97,4 @@ Available options:" Sys.argv.(0) in
     output_fun formatter Dep.deps;
     Format.pp_print_flush formatter ();
     close_out !output
-  with
-  | Env.EnvError  (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
-  | Dep.Dep_error dep -> ErrorHandler.fail_env_error (None,dloc,Env.EnvErrorDep dep)
-  | Sys_error     err -> ErrorHandler.fail_sys_error err
+  with Sys_error err -> ErrorHandler.fail_sys_error err

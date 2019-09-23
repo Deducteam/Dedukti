@@ -10,7 +10,7 @@ val color : bool ref
 
 module type ErrorHandler =
 sig
-
+type t
 val success : ('a, Format.formatter, unit) format -> 'a
 (** Print a success message. *)
 
@@ -19,7 +19,7 @@ val fail_exit : int -> string -> mident option -> loc option -> ('a, Format.form
     Prints the given error message prefixed with module and location details
     (when provided) as well as the error ID then exits with the given code. *)
 
-val fail_env_error : (mident option * loc * Env.env_error) -> 'a
+val fail_env_error : t -> (mident option * loc * Env.env_error) -> 'a
 (** [fail_env_error md lc err]
     Prints a message explaining the env_error then exits with code 3. *)
 
@@ -28,4 +28,4 @@ val fail_sys_error : string -> 'a
 
 end
 
-module Make (E:Env.S) : ErrorHandler
+module Make (E:Env.S) : ErrorHandler with type t = E.t

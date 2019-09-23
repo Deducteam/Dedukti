@@ -17,18 +17,21 @@ let red    = colored 1
 
 module type ErrorHandler =
 sig
+  type t
   val success : ('a, Format.formatter, unit) format -> 'a
   val fail_exit : int -> string -> mident option -> loc option -> ('a, Format.formatter, unit) format -> 'a
-  val fail_env_error : (mident option * loc * Env.env_error) -> 'a
+  val fail_env_error : t -> (mident option * loc * Env.env_error) -> 'a
   val fail_sys_error : string -> 'a
 end
 
-module Make (E:Env.S) : ErrorHandler =
+module Make (E:Env.S) : (ErrorHandler with type t = E.t) =
 struct
 module Printer = E.Printer
 open Printer
 
-let snf t = if !errors_in_snf then E.unsafe_reduction t else t
+type t = E.t
+
+let snf sg t = if !errors_in_snf then E.unsafe_reduction sg t else t
 
 let success fmt =
   eprintf "%s" (green "[SUCCESS] ");
@@ -44,14 +47,14 @@ let fail_exit code errid md lc fmt =
   end;
   kfprintf (fun _ -> pp_print_newline err_formatter () ; exit code) err_formatter fmt
 
-let try_print_oneliner fmt (te,ctxt) =
+let try_print_oneliner sg fmt (te,ctxt) =
   let one_liner = asprintf "%a" pp_term te in
   if String.length one_liner < 60
-  then Format.fprintf fmt "'%s'%a." one_liner print_err_ctxt ctxt
-  else if ctxt = [] then Format.fprintf fmt "@.%a@." print_term te
-  else Format.fprintf fmt "@.%a@.----%a" print_term te print_err_ctxt ctxt
+  then Format.fprintf fmt "'%s'%a." one_liner (print_err_ctxt sg) ctxt
+  else if ctxt = [] then Format.fprintf fmt "@.%a@." (print_term sg) te
+  else Format.fprintf fmt "@.%a@.----%a" (print_term sg) te (print_err_ctxt sg) ctxt
 
-let fail_typing_error md errid def_loc err =
+let fail_typing_error sg md errid def_loc err =
   let fail lc = fail_exit 3 errid md (Some lc) in
   let open Typing in
   match err with
@@ -60,31 +63,31 @@ let fail_typing_error md errid def_loc err =
       "Kind is not typable."
   | ConvertibilityError (te,ctx,exp,inf) ->
     fail (get_loc te)
-      "Error while typing %a@.---- Expected:@.%a@.---- Inferred:@.%a@."
-      try_print_oneliner (te,ctx) print_term (snf exp) print_term (snf inf)
+      "Error while typing %a@.---- Expected:@.%a@.---- Inferre<d:@.%a@."
+      (try_print_oneliner sg) (te,ctx) (print_term sg) (snf sg exp) (print_term sg) (snf sg inf)
   | VariableNotFound (lc,x,n,ctx) ->
     fail lc
       "The variable '%a' was not found in context:%a@."
-      pp_term (mk_DB lc x n) print_err_ctxt ctx
+      pp_term (mk_DB lc x n) (print_err_ctxt sg) ctx
   | SortExpected (te,ctx,inf) ->
     fail (Term.get_loc te)
       "Error while typing %a@.---- Expected: a sort.@.---- Inferred: %a."
-      try_print_oneliner (te,ctx) pp_term (snf inf)
+      (try_print_oneliner sg) (te,ctx) pp_term (snf sg inf)
   | ProductExpected (te,ctx,inf) ->
     fail (get_loc te)
       "Error while typing %a@.---- Expected: a product type.@.---- Inferred: %a."
-      try_print_oneliner (te,ctx) pp_term (snf inf)
+      (try_print_oneliner sg) (te,ctx) pp_term (snf sg inf)
   | InexpectedKind (te,ctx) ->
     fail (get_loc te)
       "Error while typing '%a'%a.@.---- Expected: anything but Kind.@.---- Inferred: Kind."
-      pp_term te print_err_ctxt ctx
+      pp_term te (print_err_ctxt sg)ctx
   | DomainFreeLambda lc ->
     fail lc "Cannot infer the type of domain-free lambda."
   | CannotInferTypeOfPattern (p,ctx) ->
     fail (Rule.get_loc_pat p)
       "Error while typing '%a'%a.@.The type could not be infered: \
        Probably it is not a Miller's pattern."
-      Rule.pp_pattern p print_err_ctxt ctx
+      Rule.pp_pattern p (print_err_ctxt sg) ctx
   | UnsatisfiableConstraints (r,(q,t1,t2)) ->
     fail (Rule.get_loc_rule r)
       "Error while typing rewrite rule.@.\
@@ -95,29 +98,29 @@ let fail_typing_error md errid def_loc err =
     fail (get_loc te)
       "Error while typing the term { %a }%a.@.\
        Brackets cannot contain bound variables."
-      pp_term te print_typed_context ctx
+      pp_term te (print_typed_context sg) ctx
   | BracketExpectedTypeBoundVar (te,ctx,ty) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.@.\
        The expected type of brackets cannot contains bound variables."
-      pp_term te print_typed_context ctx
+      pp_term te (print_typed_context sg) ctx
   | BracketExpectedTypeRightVar (te,ctx,ty) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.@.\
        The expected type of brackets can only contain variables occuring\
        to their left."
-      pp_term te print_typed_context ctx
+      pp_term te (print_typed_context sg) ctx
   | TypingCircularity (l,x,n,ctx,ty) ->
     fail l
       "Typing circularity found while typing variable '%a[%i]'%a.@.\
        The expected type of variable is not allowed to refer to itself.@.\
        This is due to bracket expressions refering to this variable.@.\
-       Expected type:%a." pp_ident x n print_typed_context ctx pp_term ty
+       Expected type:%a." pp_ident x n (print_typed_context sg) ctx pp_term ty
   | FreeVariableDependsOnBoundVariable (l,x,n,ctx,ty) ->
     fail l
       "Error while typing '%a[%i]'%a.@.\
        The type is not allowed to refer to bound variables.@.\
-       Infered type:%a." pp_ident x n print_err_ctxt ctx pp_term ty
+       Infered type:%a." pp_ident x n (print_err_ctxt sg) ctx pp_term ty
   | Unconvertible (l,t1,t2) ->
     fail l
       "Assertion error. Given terms are not convertible: '%a' and '%a'"
@@ -184,7 +187,7 @@ let pp_cerr out err =
     | CCFailure      cmd -> cmd, "ERROR" in
   fprintf out "Checker's answer: %s.@.Command: %s" ans cmd
 
-let fail_signature_error md errid def_loc err =
+let fail_signature_error sg md errid def_loc err =
   let fail lc = fail_exit 3 errid md (Some lc) in
   let open Signature in
   match err with
@@ -217,7 +220,7 @@ let fail_signature_error md errid def_loc err =
       "Error while reducing a term: a guard was not satisfied.@.\
        Found: %a.@.\
        Expected: %a"
-      pp_term (snf t1) pp_term (snf t2)
+      pp_term (snf sg t1) pp_term (snf sg t2)
   | CouldNotExportModule (md, file) ->
     fail def_loc
       "Fail to export module '%a' to file %s."
@@ -309,12 +312,12 @@ let code err =
   | KindLevelDefinition _ -> 38
   | AssertError           -> 39
 
-let fail_env_error (md,lc,err) =
+let fail_env_error sg (md,lc,err) =
   let errid = string_of_int (code err) in
   let fail lc = fail_exit 3 errid md (Some lc) in
   match err with
-  | Env.EnvErrorSignature e -> fail_signature_error md errid lc e
-  | Env.EnvErrorType      e -> fail_typing_error    md errid lc e
+  | Env.EnvErrorSignature e -> fail_signature_error sg md errid lc e
+  | Env.EnvErrorType      e -> fail_typing_error    sg md errid lc e
   | Env.EnvErrorRule      e -> fail_rule_error      md errid    e
   | Env.EnvErrorDep       e -> fail_dep_error       md errid    e
   | Env.NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
