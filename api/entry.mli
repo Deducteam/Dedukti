@@ -13,6 +13,8 @@ type test =
   (** Typability test, given a term and a type.   *)
   | HasType of term * term
 
+exception Assert_error of loc
+
 (** Single source file entry. *)
 type entry =
   (** Symbol declaration. *)

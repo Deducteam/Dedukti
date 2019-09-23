@@ -19,7 +19,6 @@ type dep_error =
   | CircularDependencies of string * string list
   | NameNotFound         of Basic.name
   | NoDep                of Basic.mident
-  | FileNotFound         of Basic.mident
 
 exception Dep_error of dep_error
 

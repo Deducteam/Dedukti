@@ -184,5 +184,5 @@ Available options:" Sys.argv.(0) in
     let names = run_on_constraints files in
     print_dependencies names
   with
-  | Env.Env_error (Some env,lc,e) -> Errors.fail_env_error env (lc,e)
+  | Env.Env_error (env,lc,e) -> Errors.fail_env_error env (lc,e)
   | Sys_error err                 -> Errors.fail_sys_error err

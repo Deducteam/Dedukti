@@ -40,20 +40,20 @@ struct
       let  ty = Env.infer env te in
       let rty = Env.reduction env ~red ty in
       Format.printf "%a@." Pp.print_term rty
-    | Check(l, assrt, neg, Convert(t1,t2)) ->
+    | Check(lc, assrt, neg, Convert(t1,t2)) ->
       let succ = (Env.are_convertible env t1 t2) <> neg in
       ( match succ, assrt with
         | true , false -> Format.printf "YES@."
         | true , true  -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> Env.raise_env env l Env.AssertError )
-    | Check(l, assrt, neg, HasType(te,ty)) ->
+        | false, true  -> raise @@ Entry.Assert_error lc)
+    | Check(lc, assrt, neg, HasType(te,ty)) ->
       let succ = try Env.check env te ty; not neg with _ -> neg in
       ( match succ, assrt with
         | true , false -> Format.printf "YES@."
         | true , true  -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> Env.raise_env env l Env.AssertError )
+        | false, true  -> raise @@ Entry.Assert_error lc)
     | DTree(lc,m,v) ->
       let m = match m with None -> Env.get_name env | Some m -> m in
       let cst = mk_name m v in
@@ -90,7 +90,7 @@ struct
       let rule = { name= Delta(cst) ; ctx = [] ; pat = Pattern(lc, cst, []); rhs = te ; } in
       Signature.add_rules sg [Rule.to_rule_infos rule]
     | Def(lc,id,op, None,te) ->
-      Env.raise_env env lc (Env.EnvErrorType(Typing.DomainFreeLambda lc))
+      raise @@ Typing.Typing_error (Typing.DomainFreeLambda lc) (* FIXME: It is not a typign error *)
     | Rules(lc,rs) ->
       Signature.add_rules sg (List.map Rule.to_rule_infos rs)
     | Require(lc,md) -> Signature.import sg lc md

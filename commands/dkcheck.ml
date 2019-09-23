@@ -125,5 +125,5 @@ Available options:" Sys.argv.(0) in
       let input = Parser.input_from_stdin (Basic.mk_mident m) in
       Processor.handle_input input (module P);
   with
-  | Env.Env_error (Some env,lc,e) -> Errors.fail_env_error env (lc,e)
+  | Env.Env_error (input,lc,e) -> Errors.fail_env_error input (lc,e)
   | Sys_error err          -> Errors.fail_sys_error err

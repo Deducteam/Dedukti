@@ -149,7 +149,7 @@ and test (rn:Rule.rule_name) (sg:Signature.t)
      let t2 = term_of_state { ctx; term=t; stack=[] } in
      if C.matching_test (Bracket (i,t)) rn sg t1 t2
      then test rn sg ctx tl
-     else raise (Signature.SignatureError(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
+     else raise (Signature.Signature_error(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
 
 and find_case (st:state) (cases:(case*dtree) list)
     (default:dtree option) : (dtree * stack) option =

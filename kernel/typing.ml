@@ -35,7 +35,7 @@ type typing_error =
   | Convertible                        of loc * term * term
   | Inhabit                            of loc * term * term
 
-exception TypingError of typing_error
+exception Typing_error of typing_error
 
 module type S = sig
   val infer       : Signature.t -> typed_context -> term -> typ
@@ -55,21 +55,21 @@ struct
 
   let get_type ctx l x n =
     try let (_,_,ty) = List.nth ctx n in Subst.shift (n+1) ty
-    with Failure _ -> raise (TypingError (VariableNotFound (l,x,n,ctx)))
+    with Failure _ -> raise (Typing_error (VariableNotFound (l,x,n,ctx)))
 
   let extend_ctx a ctx = function
     | Type _ -> a::ctx
     | Kind when !coc -> a::ctx
     | ty_a ->
       let (_,_,te) = a in
-      raise (TypingError (ConvertibilityError (te, ctx, mk_Type dloc, ty_a)))
+      raise (Typing_error (ConvertibilityError (te, ctx, mk_Type dloc, ty_a)))
 
   (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
   let rec infer sg (ctx:typed_context) (te:term) : typ =
     Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
     match te with
-    | Kind -> raise (TypingError KindIsNotTypable)
+    | Kind -> raise (Typing_error KindIsNotTypable)
     | Type l -> mk_Kind
     | DB (l,x,n) -> get_type ctx l x n
     | Const (l,cst) -> Signature.get_type sg l cst
@@ -81,15 +81,15 @@ struct
       let ty_b = infer sg ctx2 b in
       ( match ty_b with
         | Kind | Type _ -> ty_b
-        | _ -> raise (TypingError (SortExpected (b, ctx2, ty_b))) )
+        | _ -> raise (Typing_error (SortExpected (b, ctx2, ty_b))) )
     | Lam  (l,x,Some a,b) ->
       let ty_a = infer sg ctx a in
       let ctx2 = extend_ctx (l,x,a) ctx ty_a in
       let ty_b = infer sg ctx2 b in
       ( match ty_b with
-        | Kind -> raise (TypingError (InexpectedKind (b, ctx2)))
+        | Kind -> raise (Typing_error (InexpectedKind (b, ctx2)))
         | _ -> mk_Pi l x a ty_b )
-    | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
+    | Lam  (l,x,None,b) -> raise (Typing_error (DomainFreeLambda l))
 
   and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     Debug.(debug D_typeChecking "Checking (%a): %a : %a" pp_loc (get_loc te) pp_term te pp_term ty_exp);
@@ -98,7 +98,7 @@ struct
       begin
         match R.whnf sg ty_exp with
         | Pi (_,_,a,ty_b) -> check sg ((l,x,a)::ctx) b ty_b
-        | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
+        | _ -> raise (Typing_error (ProductExpected (te,ctx,ty_exp)))
       end
     | Lam (l,x,Some a,b) ->
       begin
@@ -106,9 +106,9 @@ struct
         | Pi (_,_,a',ty_b) ->
           ignore(infer sg ctx a);
           if not (R.are_convertible sg a a')
-          then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a',a)))
+          then raise (Typing_error (ConvertibilityError ((mk_DB l x 0),ctx,a',a)))
           else check sg ((l,x,a)::ctx) b ty_b
-        | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
+        | _ -> raise (Typing_error (ProductExpected (te,ctx,ty_exp)))
       end
     | _ ->
       let ty_inf = infer sg ctx te in
@@ -116,13 +116,13 @@ struct
                pp_term ty_inf pp_term ty_exp);
       if not (R.are_convertible sg ty_inf ty_exp) then
         let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
-        raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
+        raise (Typing_error (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
 
   and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
     match R.whnf sg ty_f with
     | Pi (_,_,a,b) ->
       let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
-    | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
+    | _ -> raise (Typing_error ( ProductExpected (f,ctx,ty_f)))
 
   let inference sg (te:term) : typ = infer sg [] te
 
@@ -302,7 +302,7 @@ let rec infer_pattern sg (delta:partial_context) (sigma:context2)
     in (ty,delta2,lst2)
   | Var _ | Brackets _ | Lambda _ ->
     let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-    raise (TypingError (CannotInferTypeOfPattern (pat,ctx)))
+    raise (Typing_error (CannotInferTypeOfPattern (pat,ctx)))
 
 and infer_pattern_aux sg
     (sigma,f,ty_f,delta,lst : context2*term*typ*partial_context*constraints)
@@ -314,7 +314,7 @@ and infer_pattern_aux sg
     ( sigma, Term.mk_App f arg' [], Subst.subst b arg', delta2 , lst2 )
   | ty_f ->
     let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
-    raise (TypingError (ProductExpected (f,ctx,ty_f)))
+    raise (Typing_error (ProductExpected (f,ctx,ty_f)))
 
 and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     (lst:constraints) (pat:pattern) : partial_context * constraints =
@@ -325,22 +325,22 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     begin
       match R.whnf sg exp_ty with
       | Pi (_,_,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
-      | exp_ty2 -> raise (TypingError ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
+      | exp_ty2 -> raise (Typing_error ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
     end
   | Brackets te ->
     let _ =
       try Subst.unshift (LList.len sigma) te
-      with Subst.UnshiftExn -> raise (TypingError (BracketExprBoundVar (te,ctx())))
+      with Subst.UnshiftExn -> raise (Typing_error (BracketExprBoundVar (te,ctx())))
     in
     let exp_ty2 =
       try unshift_n sg (LList.len sigma) exp_ty
       with Subst.UnshiftExn ->
-        raise (TypingError (BracketExpectedTypeBoundVar (te,ctx(),exp_ty)))
+        raise (Typing_error (BracketExpectedTypeBoundVar (te,ctx(),exp_ty)))
     in
     let _ =
       try unshift_n sg delta.padding exp_ty2
       with Subst.UnshiftExn ->
-        raise (TypingError (BracketExpectedTypeRightVar (te,ctx(),exp_ty)))
+        raise (Typing_error (BracketExpectedTypeRightVar (te,ctx(),exp_ty)))
     in
     ( {delta with bracket = true}, lst)
   | Var (l,x,n,[]) when n >= LList.len sigma ->
@@ -348,7 +348,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
       let k = LList.len sigma in
       (* Bracket may introduce circularity (variable's expected type depending on itself *)
       if delta.bracket && Subst.occurs (n-k) exp_ty
-      then raise (TypingError (TypingCircularity(l,x,n,ctx(),exp_ty)));
+      then raise (Typing_error (TypingCircularity(l,x,n,ctx(),exp_ty)));
       if pc_in delta (n-k)
       then
         let inf_ty = Subst.shift k (pc_get delta (n-k)) in
@@ -356,21 +356,21 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
       else
         ( try ( pc_add delta (n-k) l x (unshift_n sg k exp_ty), lst )
           with Subst.UnshiftExn ->
-            raise (TypingError (FreeVariableDependsOnBoundVariable (l,x,n,ctx(),exp_ty))) )
+            raise (Typing_error (FreeVariableDependsOnBoundVariable (l,x,n,ctx(),exp_ty))) )
     end
   | Var (l,x,n,args) when n >= LList.len sigma ->
     begin
       let k = LList.len sigma in
       (* Bracket may introduce circularity (variable's expected type depending on itself *)
       if delta.bracket && Subst.occurs (n-k) exp_ty
-      then raise (TypingError (TypingCircularity(l,x,n,ctx(),exp_ty)));
+      then raise (Typing_error (TypingCircularity(l,x,n,ctx(),exp_ty)));
       let (args2, last) = get_last args in
       match last with
       | Var (l2,x2,n2,[]) ->
         check_pattern sg delta sigma
           (mk_Pi l2 x2 (get_type (LList.lst sigma) l2 x2 n2) (Subst.subst_n n2 x2 exp_ty) )
           lst (Var(l,x,n,args2))
-      | _ -> raise (TypingError (CannotInferTypeOfPattern (pat,ctx ()))) (* not a pattern *)
+      | _ -> raise (Typing_error (CannotInferTypeOfPattern (pat,ctx ()))) (* not a pattern *)
     end
   | _ ->
     begin
@@ -392,7 +392,7 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
 
 let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
   let fail = if !fail_on_unsatisfiable_constraints
-    then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))
+    then (fun x -> raise (Typing_error (UnsatisfiableConstraints (rule,x))))
     else (fun (q,t1,t2) ->
         Debug.(debug D_warn "At %a: unsatisfiable constraint: %a ~ %a%s"
                  pp_loc (get_loc_rule rule)
@@ -414,7 +414,7 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
             pp_untyped_rule rule;
           let ctx_name n = let _,name,_ = List.nth ctx n in name in
           debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
-        raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
+        raise (Typing_error (NotImplementedFeature (get_loc_pat rule.pat) ) )
   in
   check sg ctx2 ri2 ty_le2;
   Debug.(debug D_rule "[ %a ] %a --> %a"

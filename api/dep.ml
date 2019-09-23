@@ -26,7 +26,6 @@ type dep_error =
   | CircularDependencies of string * string list
   | NameNotFound of name
   | NoDep of mident
-  | FileNotFound        of mident
 
 exception Dep_error of dep_error
 
@@ -43,7 +42,7 @@ let get_path () = !path
 let add_path s = path := s :: !path
 
 let rec find_dko_in_path lc basename = function
-  | [] -> raise @@ Dep_error(FileNotFound (mk_mident basename))
+  | [] -> raise @@ Dep_error(NoDep (mk_mident basename))
   | dir :: path ->
     let filename = dir ^ "/" ^ basename ^ ".dko" in
     if Sys.file_exists filename

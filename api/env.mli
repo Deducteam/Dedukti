@@ -8,20 +8,10 @@ type t
 (** {2 Error Datatype} *)
 
 type env_error =
-  | EnvErrorType        of Typing.typing_error
-  | EnvErrorSignature   of Signature.signature_error
-  | EnvErrorRule        of Rule.rule_error
-  | EnvErrorDep         of Dep.dep_error
-  | NonLinearRule       of Rule.rule_name
-  | NotEnoughArguments  of ident * int * int * int
-  | KindLevelDefinition of ident
-  | ParseError          of string
-  | BracketScopingError
-  | AssertError
+  | KindLevelDefinition of ident (** A definition of type Kind cannot be added in the environment *)
   | Misc                of exn
-  | FailExportFile      of mident * string
 
-exception Env_error of t option * loc * env_error
+exception Env_error of t * loc * env_error
 
 (** {2 Debugging} *)
 
@@ -47,9 +37,6 @@ val check_ll : bool ref
 (** Flag to check for rules left linearity. Default is false. *)
 
 (** {2 The Global Environment} *)
-
-val raise_env : t -> loc -> env_error -> 'a
-(** [raise_env env lc e] raise the exception [e] as an environment error *)
 
 val init        : Parser.t -> t
 (** [init name] initializes a new global environement giving it the name of

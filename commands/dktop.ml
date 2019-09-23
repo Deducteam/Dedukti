@@ -30,20 +30,20 @@ struct
       let  ty = Env.infer env te in
       let rty = Env.reduction env ~red ty in
       Format.printf "%a@." Printer.print_term rty
-    | Check(l, assrt, neg, Convert(t1,t2)) ->
+    | Check(lc, assrt, neg, Convert(t1,t2)) ->
       let succ = (Env.are_convertible env t1 t2) <> neg in
       ( match succ, assrt with
         | true , false -> Format.printf "YES@."
         | true , true  -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise (Env.Env_error (Some env,l,Env.AssertError)) )
-    | Check(l, assrt, neg, HasType(te,ty)) ->
+        | false, true  -> raise @@ Entry.Assert_error lc)
+    | Check(lc, assrt, neg, HasType(te,ty)) ->
       let succ = try Env.check env te ty; not neg with _ -> neg in
       ( match succ, assrt with
         | true , false -> Format.printf "YES@."
         | true , true  -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise (Env.Env_error (Some env,l,Env.AssertError)) )
+        | false, true  -> raise @@ Entry.Assert_error lc)
     | DTree(lc,m,v) ->
       let m = match m with None -> Env.get_name env | Some m -> m in
       let cst = mk_name m v in

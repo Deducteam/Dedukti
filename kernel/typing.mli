@@ -30,7 +30,7 @@ type typing_error =
   | Convertible                        of loc * term * term
   | Inhabit                            of loc * term * term
 
-exception TypingError of typing_error
+exception Typing_error of typing_error
 
 type typ = term
 

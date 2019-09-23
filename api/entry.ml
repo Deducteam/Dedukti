@@ -21,6 +21,8 @@ type entry =
   | Name  of loc * mident
   | Require of loc * mident
 
+exception Assert_error of loc
+
 let pp_entry fmt e =
   let open Format in
   match e with
