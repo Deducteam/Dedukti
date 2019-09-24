@@ -1,11 +1,7 @@
-type dep_error =
-  | ModuleNotFound of Basic.mident
-  | MultipleModules of string * string list
-  | CircularDependencies of string * string list
-  | NameNotFound of Basic.name
-  | NoDep of Basic.mident
+open Kernel
+open Parse
 
-exception Dep_error of dep_error
+exception Dep_error of Entry.dep_error
 
 type path = string
 

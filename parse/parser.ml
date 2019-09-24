@@ -1,6 +1,5 @@
+open Kernel
 open Basic
-open Term
-
 
 type stream = {mod_name : Basic.mident; lexbuf : Lexing.lexbuf}
 
@@ -30,7 +29,7 @@ let read str =
     let loc = Lexer.get_loc str.lexbuf in
     let lex = Lexing.lexeme str.lexbuf in
     let msg = Format.sprintf "Unexpected token '%s'." lex in
-    raise (Env.EnvError (None, loc, Env.ParseError msg))
+    raise (Entry.EnvError (None, loc, Entry.ParseError msg))
 
 module type CHANNEL = sig
   type t
@@ -50,7 +49,7 @@ module Make = functor (C : CHANNEL) -> struct
     try
       while true do f (read s) done
     with
-    | Env.EnvError (None, loc, e) -> raise (Env.EnvError (Some md,loc,e))
+    | Entry.EnvError (None, loc, e) -> raise (Entry.EnvError (Some md,loc,e))
     | End_of_file -> ()
 
   let parse md ic =

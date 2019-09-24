@@ -1,8 +1,8 @@
+open Kernel
 open Basic
 open Format
 open Term
-open Reduction
-open Pp
+open Parse
 
 let errors_in_snf = ref false
 
@@ -12,14 +12,14 @@ let colored n s =
   if !color then "\027[3" ^ string_of_int n ^ "m" ^ s ^ "\027[m" else s
 
 let green  = colored 2
-let orange = colored 3
+(* let orange = colored 3 *)
 let red    = colored 1
 
 module type ErrorHandler =
 sig
   val success : ('a, Format.formatter, unit) format -> 'a
   val fail_exit : int -> string -> mident option -> loc option -> ('a, Format.formatter, unit) format -> 'a
-  val fail_env_error : (mident option * loc * Env.env_error) -> 'a
+  val fail_env_error : (mident option * loc * Entry.env_error) -> 'a
   val fail_sys_error : string -> 'a
 end
 
@@ -96,12 +96,12 @@ let fail_typing_error md errid def_loc err =
       "Error while typing the term { %a }%a.@.\
        Brackets cannot contain bound variables."
       pp_term te print_typed_context ctx
-  | BracketExpectedTypeBoundVar (te,ctx,ty) ->
+  | BracketExpectedTypeBoundVar (te,ctx,_) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.@.\
        The expected type of brackets cannot contains bound variables."
       pp_term te print_typed_context ctx
-  | BracketExpectedTypeRightVar (te,ctx,ty) ->
+  | BracketExpectedTypeRightVar (te,ctx,_) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.@.\
        The expected type of brackets can only contain variables occuring\
@@ -167,7 +167,7 @@ let fail_rule_error md errid err =
     fail lc
       "The variables '%a' does not appear in the pattern '%a'."
       pp_ident x pp_pattern pat
-  | AVariableIsNotAPattern (lc,id) ->
+  | AVariableIsNotAPattern (lc,_) ->
     fail lc
       "A variable is not a valid pattern."
   | NonLinearNonEqArguments(lc,arg) ->
@@ -226,23 +226,22 @@ let fail_signature_error md errid def_loc err =
 let fail_dep_error md errid err =
   let fail lc = fail_exit 3 errid md (Some lc) in
   match err with
-  | Dep.ModuleNotFound md ->
+  | Entry.ModuleNotFound md ->
     fail dloc "No file for module %a in path...@." pp_mident md
-  | Dep.MultipleModules (s,ss) ->
+  | Entry.MultipleModules (s,ss) ->
     fail dloc "Several files correspond to module %S...@. %a" s
       (pp_list "@." (fun fmt s -> Format.fprintf fmt " - %s" s)) ss
-  | Dep.CircularDependencies (s,ss) ->
+  | Entry.CircularDependencies (s,ss) ->
     fail dloc "Circular Dependency dectected for module %S...%a" s
       (pp_list "@." (fun fmt s -> Format.fprintf fmt " -> %s" s)) ss
-  | Dep.NameNotFound n ->
+  | Entry.NameNotFound n ->
     fail dloc "No dependencies computed for name %a...@." pp_name n
-  | Dep.NoDep md ->
+  | Entry.NoDep md ->
     fail dloc "No dependencies computed for module %a...@." pp_mident md
 
 let code err =
-  let open Env in
   match err with
-  | ParseError _      -> 1
+  | Entry.ParseError _      -> 1
   | BracketScopingError -> 42
   | EnvErrorType e -> begin match e with
       | Typing.KindIsNotTypable -> 2
@@ -298,11 +297,11 @@ let code err =
       | Rule.NonLinearNonEqArguments (_,_) -> 45
     end
   | EnvErrorDep e -> begin match e with
-      | Dep.ModuleNotFound _ -> 46
-      | Dep.MultipleModules _ -> 47
-      | Dep.CircularDependencies _ -> 48
-      | Dep.NameNotFound _ -> 49
-      | Dep.NoDep _ -> 50
+      | Entry.ModuleNotFound _ -> 46
+      | Entry.MultipleModules _ -> 47
+      | Entry.CircularDependencies _ -> 48
+      | Entry.NameNotFound _ -> 49
+      | Entry.NoDep _ -> 50
     end
   | NotEnoughArguments _  -> 25
   | NonLinearRule _       -> 26
@@ -313,23 +312,23 @@ let fail_env_error (md,lc,err) =
   let errid = string_of_int (code err) in
   let fail lc = fail_exit 3 errid md (Some lc) in
   match err with
-  | Env.EnvErrorSignature e -> fail_signature_error md errid lc e
-  | Env.EnvErrorType      e -> fail_typing_error    md errid lc e
-  | Env.EnvErrorRule      e -> fail_rule_error      md errid    e
-  | Env.EnvErrorDep       e -> fail_dep_error       md errid    e
-  | Env.NotEnoughArguments (id,n,nb_args,exp_nb_args) ->
+  | Entry.EnvErrorSignature e -> fail_signature_error md errid lc e
+  | Entry.EnvErrorType      e -> fail_typing_error    md errid lc e
+  | Entry.EnvErrorRule      e -> fail_rule_error      md errid    e
+  | Entry.EnvErrorDep       e -> fail_dep_error       md errid    e
+  | Entry.NotEnoughArguments (id,_,nb_args,exp_nb_args) ->
     fail_exit 3 errid md (Some lc)
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
       pp_ident id nb_args exp_nb_args
-  | Env.NonLinearRule rule_name ->
+  | Entry.NonLinearRule rule_name ->
     fail lc "Non left-linear rewrite rule for symbol '%a'." Rule.pp_rule_name rule_name
-  | Env.KindLevelDefinition id ->
+  | Entry.KindLevelDefinition id ->
     fail lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
-  | Env.ParseError s ->
+  | Entry.ParseError s ->
     fail lc "Parse error: %s@." s
-  | Env.BracketScopingError ->
+  | Entry.BracketScopingError ->
     fail lc "Unused variables in context may create scoping ambiguity in bracket.@."
-  | Env.AssertError ->
+  | Entry.AssertError ->
     fail lc "Assertion failed."
 
 let fail_sys_error msg = fail_exit 1 "SYSTEM" None None "%s@." msg

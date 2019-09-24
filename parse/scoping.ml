@@ -1,7 +1,7 @@
-open Basic
+open Kernel.Basic
+open Kernel.Term
+open Kernel.Rule
 open Preterm
-open Term
-open Rule
 
 let get_db_index ctx id =
   let rec aux n = function
@@ -49,7 +49,7 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context*bool*bool
   let is_a_var id1 =
     let rec aux = function
       | [] -> None
-      | (l,id2)::lst when ident_eq id1 id2 -> Some l
+      | (l,id2)::_ when ident_eq id1 id2 -> Some l
       | _::lst -> aux lst
     in aux vars
   in
@@ -65,8 +65,8 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context*bool*bool
           | _ -> ctx
         ) in
         List.fold_left (aux bvar) ctx pargs
-    | PPattern (l,Some md,id,pargs) -> List.fold_left (aux bvar) ctx pargs
-    | PLambda (l,x,pp) -> aux (x::bvar) ctx pp
+    | PPattern (_,Some _,_,pargs) -> List.fold_left (aux bvar) ctx pargs
+    | PLambda (_,x,pp) -> aux (x::bvar) ctx pp
     | PCondition _ -> has_brackets := true; ctx
     | PJoker l -> (l, get_fresh_name ()) :: ctx
   in
@@ -109,7 +109,7 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
     begin
       Debug.(debug D_warn "Local variables in the rule:\n%a\nare not used (%a)")
         pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
-      if has_brackets then raise (Env.EnvError (Some md,l,Env.BracketScopingError))
+      if has_brackets then raise (Entry.EnvError (Some md,l,Entry.BracketScopingError))
     end;
   let idents = List.map snd ctx in
   let b,id =

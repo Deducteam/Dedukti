@@ -1,6 +1,8 @@
+open Kernel
 open Basic
-open Parser
+open Parse
 open Entry
+open Api
 
 module E = Env.Make(Reduction.Default)
 module Printer = E.Printer
@@ -20,7 +22,7 @@ let handle_entry md e =
   | Rules(_,rs) ->
     let _ = E.add_rules rs in
     List.iter (fun r -> print "%a" Rule.pp_untyped_rule r) rs
-  | Eval(lc,red,te) ->
+  | Eval(_,red,te) ->
     let te = E.reduction ~red te in
     Format.printf "%a@." Printer.print_term te
   | Infer(_,red,te) ->
@@ -33,14 +35,14 @@ let handle_entry md e =
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (Some md,l,Env.AssertError)) )
+      | false, true  -> raise (Entry.EnvError (Some md,l,Entry.AssertError)) )
   | Check(l, assrt, neg, HasType(te,ty)) ->
     let succ = try E.check te ty; not neg with _ -> neg in
     ( match succ, assrt with
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (Some md,l,Env.AssertError)) )
+      | false, true  -> raise (Entry.EnvError (Some md,l,Entry.AssertError)) )
   | DTree(lc,m,v) ->
     let m = match m with None -> E.get_name () | Some m -> m in
     let cst = mk_name m v in
@@ -52,13 +54,13 @@ let handle_entry md e =
 
 let  _ =
   let md = E.init "<toplevel>" in
-  let str = Parse_channel.from md stdin in
+  let str = Parser.Parse_channel.from md stdin in
   Format.printf "\tDedukti (%s)@.@." Version.version;
   while true do
     Format.printf ">> ";
-    try handle_entry md (read str) with
+    try handle_entry md (Parser.read str) with
     | End_of_file -> exit 0
-    | Env.EnvError (md,l,Env.ParseError s)->
-      ErrorHandler.fail_env_error (md,l,Env.ParseError s)
+    | Entry.EnvError (md,l,Entry.ParseError s)->
+      ErrorHandler.fail_env_error (md,l,Entry.ParseError s)
     | e -> Format.eprintf "Uncaught exception %S@." (Printexc.to_string e)
   done

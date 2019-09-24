@@ -1,4 +1,5 @@
 {
+  open Kernel
   open Basic
   open Lexing
   open Tokens
@@ -11,7 +12,7 @@
   let prerr_loc lc = eprintf "%a " pp_loc lc
 
   let fail lc msg =
-    raise (Env.EnvError (None, lc, Env.ParseError msg))
+    raise (Entry.EnvError (None, lc, Entry.ParseError msg))
 }
 
 let space   = [' ' '\t' '\r']

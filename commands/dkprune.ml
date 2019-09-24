@@ -1,4 +1,8 @@
+open Kernel
 open Basic
+open Parse
+open Api
+
 
 exception NoDirectory
 exception EntryNotHandled of Entry.entry
@@ -183,6 +187,6 @@ Available options:" Sys.argv.(0) in
     handle_constraints cstr;
     print_dependencies cstr
   with
-  | Env.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
-  | Dep.Dep_error dep      -> ErrorHandler.fail_env_error (None,dloc,Env.EnvErrorDep dep)
+  | Entry.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
+  | Dep.Dep_error dep      -> ErrorHandler.fail_env_error (None,dloc,Entry.EnvErrorDep dep)
   | Sys_error err          -> ErrorHandler.fail_sys_error err

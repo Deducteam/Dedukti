@@ -1,10 +1,12 @@
+open Kernel
 open Basic
+open Parse
 
 module type S =
 sig
   type t
 
-  val handle_entry : Entry.entry -> unit
+  val handle_entry : Parse.Entry.entry -> unit
 
   val get_data : unit -> t
 end
@@ -18,7 +20,7 @@ struct
   type t = unit
 
   let handle_entry e =
-    let open Entry in
+    let open Parse.Entry in
     match e with
     | Decl(lc,id,st,ty) ->
       debug D_notice "Declaration of constant '%a'." pp_ident id;
@@ -27,7 +29,7 @@ struct
       let opaque_str = if opaque then " (opaque)" else "" in
       debug D_notice "Definition of symbol '%a'%s." pp_ident id opaque_str;
       E.define lc id opaque te ty
-    | Rules(l,rs) ->
+    | Rules(_,rs) ->
       let open Rule in
       List.iter (fun (r:untyped_rule) ->
           Debug.(debug D_notice "Adding rewrite rules: '%a'" Printer.print_rule_name r.name)) rs;
@@ -48,14 +50,14 @@ struct
         | true , false -> Format.printf "YES@."
         | true , true  -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> E.raise_env l Env.AssertError )
+        | false, true  -> E.raise_env l Entry.AssertError )
     | Check(l, assrt, neg, HasType(te,ty)) ->
       let succ = try E.check te ty; not neg with _ -> neg in
       ( match succ, assrt with
         | true , false -> Format.printf "YES@."
         | true , true  -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> E.raise_env l Env.AssertError )
+        | false, true  -> E.raise_env l Entry.AssertError )
     | DTree(lc,m,v) ->
       let m = match m with None -> E.get_name () | Some m -> m in
       let cst = mk_name m v in
@@ -82,15 +84,15 @@ struct
     match e with
     | Decl(lc,id,st,ty) ->
       Signature.add_external_declaration sg lc (Basic.mk_name md id) st ty
-    | Def(lc,id,op,Some ty,te) ->
+    | Def(lc,id,_,Some ty,te) ->
       let open Rule in
       Signature.add_external_declaration sg lc (Basic.mk_name md id) Signature.Definable ty;
       let cst = Basic.mk_name md id in
       let rule = { name= Delta(cst) ; ctx = [] ; pat = Pattern(lc, cst, []); rhs = te ; } in
       Signature.add_rules sg [Rule.to_rule_infos rule]
-    | Def(lc,id,op, None,te) ->
-      E.raise_env lc (Env.EnvErrorType(Typing.DomainFreeLambda lc))
-    | Rules(lc,rs) ->
+    | Def(lc,_,_, None,_) ->
+      E.raise_env lc (Entry.EnvErrorType(Typing.DomainFreeLambda lc))
+    | Rules(_,rs) ->
       Signature.add_rules sg (List.map Rule.to_rule_infos rs)
     | Require(lc,md) -> Signature.import sg lc md
     | _ -> ()

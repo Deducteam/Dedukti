@@ -1,6 +1,7 @@
+open Kernel
 open Basic
-open Term
-open Rule
+open Parse
+open Api
 
 module E            = Env.Make(Reduction.Default)
 module ErrorHandler = Errors.Make(E)
@@ -19,7 +20,7 @@ let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
   let open Dep in
   let objfile src = Filename.chop_extension src ^ ".dko" in
   let output_line : mident -> deps -> unit =
-    fun md deps ->
+    fun _ deps ->
        let file = deps.file in
        let deps = List.map (fun (_,src) -> objfile src) (MDepSet.elements deps.deps) in
        let deps = String.concat " " deps in
@@ -29,7 +30,7 @@ let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
   in
   Hashtbl.iter output_line data
 
-let output_sorted : Format.formatter -> Dep.t -> unit = fun oc data ->
+let output_sorted : Format.formatter -> Dep.t -> unit = fun _ data ->
   let deps = Dep.topological_sort data in
   Format.printf "%s@." (String.concat " " deps)
 
@@ -88,6 +89,6 @@ Available options:" Sys.argv.(0) in
     Format.pp_print_flush formatter ();
     close_out !output
   with
-  | Env.EnvError  (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
-  | Dep.Dep_error dep -> ErrorHandler.fail_env_error (None,dloc,Env.EnvErrorDep dep)
+  | Entry.EnvError  (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
+  | Dep.Dep_error dep -> ErrorHandler.fail_env_error (None,dloc,Entry.EnvErrorDep dep)
   | Sys_error     err -> ErrorHandler.fail_sys_error err

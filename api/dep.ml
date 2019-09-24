@@ -1,4 +1,6 @@
+open Kernel
 open Basic
+open Parse
 
 type path = string
 
@@ -33,16 +35,9 @@ let current_mod   : mident    ref = ref (mk_mident "<not initialised>")
 let current_name  : name      ref = ref (mk_name (!current_mod) (mk_ident  "<not initialised>"))
 let current_deps  : deps      ref = ref (empty_deps ())
 let ignore        : bool      ref = ref false
-let process_items : bool      ref = ref false
 
-type dep_error =
-  | ModuleNotFound of mident
-  | MultipleModules of string * string list
-  | CircularDependencies of string * string list
-  | NameNotFound of name
-  | NoDep of mident
+exception Dep_error of Entry.dep_error
 
-exception Dep_error of dep_error
 
 (** [find_dk md path] looks for the ".dk" file corresponding to the module
     named [name] in the directories of [path]. If no corresponding file is
@@ -154,7 +149,7 @@ let find_rule_name r =
 | _ -> assert false
 
 let handle_entry e =
-  let open Entry in
+  let open Parse.Entry in
   let name_of_id id = Basic.mk_name !current_mod id in
   match e with
   | Decl(_,id,_,te)             -> current_name := name_of_id id; mk_term te

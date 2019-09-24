@@ -1,6 +1,8 @@
-open Term
+open Kernel
 open Basic
+open Parse
 open Parser
+open Api
 
 module E = Env.Make(Reduction.Default)
 module TypeChecker = Processor.TypeChecker(E)
@@ -8,7 +10,7 @@ module Printer = E.Printer
 module ErrorHandler = Errors.Make(E)
 module Beautifier = Processor.EntryPrinter(E)
 
-let mk_entry beautify md =
+let mk_entry beautify _ =
   if beautify
   then Beautifier.handle_entry
   else TypeChecker.handle_entry
@@ -134,5 +136,5 @@ Available options:" Sys.argv.(0) in
       if not !beautify
       then ErrorHandler.success "Standard input was successfully checked.\n"
   with
-  | Env.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
+  | Entry.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
   | Sys_error err          -> ErrorHandler.fail_sys_error err

@@ -1,6 +1,6 @@
 (** Errors handling *)
+open Kernel
 open Basic
-open Term
 
 val errors_in_snf : bool ref
 (** Flag to enable SNF forms of terms in errors. *)
@@ -19,7 +19,7 @@ val fail_exit : int -> string -> mident option -> loc option -> ('a, Format.form
     Prints the given error message prefixed with module and location details
     (when provided) as well as the error ID then exits with the given code. *)
 
-val fail_env_error : (mident option * loc * Env.env_error) -> 'a
+val fail_env_error : (mident option * loc * Parse.Entry.env_error) -> 'a
 (** [fail_env_error md lc err]
     Prints a message explaining the env_error then exits with code 3. *)
 
