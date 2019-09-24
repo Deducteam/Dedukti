@@ -7,11 +7,7 @@ type t
 
 (** {2 Error Datatype} *)
 
-type env_error =
-  | KindLevelDefinition of ident (** A definition of type Kind cannot be added in the environment *)
-  | Misc                of exn
-
-exception Env_error of t * loc * env_error
+exception Env_error of t * loc * exn
 
 (** {2 Debugging} *)
 

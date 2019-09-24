@@ -27,11 +27,7 @@ type t =
     typer : (module Typing.S)
   }
 
-type env_error =
-  | KindLevelDefinition of ident
-  | Misc                of exn
-
-exception Env_error of t * loc * env_error
+exception Env_error of t * loc * exn
 
 let get_input env = env.input
 
@@ -107,7 +103,7 @@ let _define env lc (id:ident) (opaque:bool) (te:term) (ty_opt:Typing.typ option)
     | Some ty -> T.checking env.sg te ty; ty
   in
   match ty with
-  | Kind -> raise @@ Env_error (env, lc, (KindLevelDefinition id))
+  | Kind -> raise @@ Typing_error (InexpectedKind (te,[]))
   | _ ->
     if opaque then Signature.add_declaration env.sg lc id Signature.Static ty
     else

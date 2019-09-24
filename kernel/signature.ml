@@ -23,7 +23,7 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
-  | CouldNotExportModule  of exn
+  | CannotExportModule    of mident * exn
 
 exception Signature_error of signature_error
 
@@ -78,15 +78,15 @@ let get_name sg = sg.md
 
 (******************************************************************************)
 
-let marshal : mident list -> rw_infos HId.t -> rule_infos list list -> out_channel -> unit =
-  fun deps env ext oc ->
+let marshal : mident -> mident list -> rw_infos HId.t -> rule_infos list list -> out_channel -> unit =
+  fun md deps env ext oc ->
   try
     Marshal.to_channel oc Version.version [];
     Marshal.to_channel oc deps [];
     Marshal.to_channel oc env [];
     Marshal.to_channel oc ext [];
     close_out oc
-  with e -> raise @@ Signature_error (CouldNotExportModule e)
+  with e -> raise @@ Signature_error (CannotExportModule(md,e))
 
 let unmarshal (lc:loc) (file:string) : mident list * rw_infos HId.t * rule_infos list list =
   try
@@ -205,7 +205,7 @@ let rec import_signature sg sg_ext =
 
 let export sg oc =
   let mod_table = HMd.find sg.tables sg.md in
-  marshal (get_deps sg) mod_table sg.external_rules oc
+  marshal sg.md (get_deps sg) mod_table sg.external_rules oc
 
 
 (******************************************************************************)

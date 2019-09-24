@@ -68,13 +68,9 @@ Available options:" Sys.argv.(0) in
     List.rev !files
   in
   (* Actual work. *)
-  try
-    let deps = Processor.handle_files files (module (Processor.Dependencies)) in
-    let formatter = Format.formatter_of_out_channel !output in
-    let output_fun = if !sorted then output_sorted else output_deps in
-    output_fun formatter deps;
-    Format.pp_print_flush formatter ();
-    close_out !output
-  with
-  | Env.Env_error  (env,lc,e) -> Errors.fail_env_error env (lc,e)
-  | Sys_error     err -> Errors.fail_sys_error err
+  let deps = Processor.handle_files files (module (Processor.Dependencies)) in
+  let formatter = Format.formatter_of_out_channel !output in
+  let output_fun = if !sorted then output_sorted else output_deps in
+  output_fun formatter deps;
+  Format.pp_print_flush formatter ();
+  close_out !output

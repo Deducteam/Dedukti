@@ -1,5 +1,5 @@
-(; KO 1 ;)
+(; KO 701 ;)
 
 def A : Type.
 
-#SNF[-1] A.
+#EVAL[-1] A.

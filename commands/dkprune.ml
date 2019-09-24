@@ -108,13 +108,16 @@ let rec run_on_files files =
     | None      -> log "[COMPUTE DEP] %s" (string_of_mident (Parser.md_of_input (Env.get_input env)))
     | Some file -> log "[COMPUTE DEP] %s" file
   in
-  let hook_after env =
-    let md = Env.get_name env in
-    computed := MSet.add md !computed;
-    let deps = Hashtbl.find Dep.deps md in
-    let add_files md files = if MSet.mem md !computed then files else (Dep.get_file md)::files in
-    let new_files = MSet.fold add_files deps.deps [] in
-    if List.length new_files <> 0 then run_on_files new_files
+  let hook_after env exn =
+    match exn with
+    | None ->
+      let md = Env.get_name env in
+      computed := MSet.add md !computed;
+      let deps = Hashtbl.find Dep.deps md in
+      let add_files md files = if MSet.mem md !computed then files else (Dep.get_file md)::files in
+      let new_files = MSet.fold add_files deps.deps [] in
+      if List.length new_files <> 0 then run_on_files new_files
+    | Some (env, lc, e) -> Errors.fail_env_error env lc e
   in
   Processor.handle_files files ~hook_before ~hook_after (module PruneDepProcessor)
 
@@ -179,10 +182,6 @@ Available options:" Sys.argv.(0) in
     Arg.parse args (fun f -> files := f :: !files) usage;
     !files
   in
-  try
-    let run_on_constraints files = Processor.handle_files files (module ProcessConfigurationFile) in
-    let names = run_on_constraints files in
-    print_dependencies names
-  with
-  | Env.Env_error (env,lc,e) -> Errors.fail_env_error env (lc,e)
-  | Sys_error err                 -> Errors.fail_sys_error err
+  let run_on_constraints files = Processor.handle_files files (module ProcessConfigurationFile) in
+  let names = run_on_constraints files in
+  print_dependencies names

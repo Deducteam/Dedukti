@@ -79,8 +79,8 @@ type rule_error =
   | AVariableIsNotAPattern         of loc * ident
   | NonLinearNonEqArguments        of loc * ident
   (* FIXME: the reason for this exception should be formalized on paper ! *)
-  | NotEnoughArguments             of ident * int * int * int
-  | NonLinearRule                  of rule_name
+  | NotEnoughArguments             of loc * ident * int * int * int
+  | NonLinearRule                  of loc * rule_name
 
 
 exception Rule_error of rule_error
@@ -295,7 +295,7 @@ let check_arity (r:rule_infos) : unit =
   let check l id n k nargs =
     let expected_args = r.arity.(n-k) in
     if nargs < expected_args
-    then raise @@ Rule_error (NotEnoughArguments (id,n,nargs,expected_args)) in
+    then raise @@ Rule_error (NotEnoughArguments (r.l, id,n,nargs,expected_args)) in
   let rec aux k = function
     | Kind | Type _ | Const _ -> ()
     | DB (l,id,n) ->
@@ -311,4 +311,5 @@ let check_arity (r:rule_infos) : unit =
 
 (** Checks that all rule are left-linear. *)
 let check_linearity (r:rule_infos) : unit =
-  List.iter (function Linearity _ -> raise (Rule_error (NonLinearRule r.name)) | _ -> ()) r.constraints
+  List.iter (function Linearity _ -> raise (Rule_error (NonLinearRule(r.l, r.name)))
+                    | _ -> ()) r.constraints

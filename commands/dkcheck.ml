@@ -105,10 +105,11 @@ Available options:" Sys.argv.(0) in
       Format.eprintf "Beautify and export cannot be set at the same time@.";
       exit 2
     end;
-  try
-    let (module P:P.S with type t = unit) = if !beautify then (module Printer) else (module TC) in
-    let hook_before _ = Confluence.initialize () in
-    let hook_after env =
+  let (module P:P.S with type t = unit) = if !beautify then (module Printer) else (module TC) in
+  let hook_before _ = Confluence.initialize () in
+  let hook_after env exn =
+    match exn with
+    | None ->
       if not !beautify then
         begin
           match Parser.file_of_input (Env.get_input env) with
@@ -117,13 +118,11 @@ Available options:" Sys.argv.(0) in
         end;
       if !export then Env.export env;
       Confluence.finalize ()
-    in
-    Processor.handle_files files  ~hook_before ~hook_after (module P);
-    match !run_on_stdin with
-    | None   -> ()
-    | Some m ->
-      let input = Parser.input_from_stdin (Basic.mk_mident m) in
-      Processor.handle_input input (module P);
-  with
-  | Env.Env_error (input,lc,e) -> Errors.fail_env_error input (lc,e)
-  | Sys_error err          -> Errors.fail_sys_error err
+    | Some (env, lc, e) -> Errors.fail_env_error env lc e
+  in
+  Processor.handle_files files ~hook_before ~hook_after (module P);
+  match !run_on_stdin with
+  | None   -> ()
+  | Some m ->
+    let input = Parser.input_from_stdin (Basic.mk_mident m) in
+    Processor.handle_input input (module P);

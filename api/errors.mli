@@ -17,7 +17,7 @@ val fail_exit : Basic.mident -> int -> string -> loc option
     Prints the given error message prefixed with module and location details
     (when provided) as well as the error ID then exits with the given code. *)
 
-val fail_env_error : Env.t -> (loc * Env.env_error) -> 'a
+val fail_env_error : Env.t -> loc -> exn -> 'a
 (** [fail_env_error env md lc err]
     Prints a message explaining the env_error then exits with code 3. *)
 

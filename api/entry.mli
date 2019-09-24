@@ -38,4 +38,6 @@ type entry =
   (** Require command. *)
   | Require  of loc * mident
 
+val loc_of_entry : entry -> loc
+
 val pp_entry : entry printer

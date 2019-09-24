@@ -1,5 +1,7 @@
 open Basic
 
+exception Parse_error of loc * string
+
 (** Abstract parser stream representation. *)
 type stream
 
