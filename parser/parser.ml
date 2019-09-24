@@ -64,12 +64,12 @@ module Parse_channel =
   Make(struct
       type t = in_channel
 
-      let lexing_from = Lexing.from_channel
+      let lexing_from s = Lexing.from_channel s
     end)
 
 module Parse_string =
   Make(struct
       type t = string
 
-      let lexing_from = Lexing.from_string
+      let lexing_from s = Lexing.from_string s
     end)
