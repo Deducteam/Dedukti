@@ -309,8 +309,12 @@ let code : exn -> int =
   | Entry.Assert_error _                                 -> 704
   | _                                                    -> -1
 
+let string_of_code exn =
+  let code = code exn in
+  if code = -1 then "UNCAUGHT EXCPETION" else string_of_int code
+
 let fail_env_error env lc exn =
-  let code = string_of_int (code exn) in
+  let code = string_of_code exn in
   let file = Env.get_filename env in
   let fail lc = fail_exit file 3 code (Some lc) in
   match exn with
@@ -331,8 +335,7 @@ let fail_env_error env lc exn =
   | Entry.Assert_error lc ->
     fail lc "An entry assertion has failed@."
   | e ->
-    let trace = Printexc.get_backtrace () in
     let exn   = Printexc.to_string e in
-    fail lc "%s@.%s" exn trace
+    fail lc "%s@." exn
 
 let fail_sys_error file msg = fail_exit file 1 "SYSTEM" None "%s@." msg
