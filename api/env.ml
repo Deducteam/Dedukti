@@ -50,6 +50,11 @@ let get_reduction_engine env = env.red
 
 let get_name env = Signature.get_name env.sg
 
+let get_filename env =
+  match Parser.file_of_input env.input with
+  | None -> "<not a file>"
+  | Some f -> f
+
 let get_signature env = env.sg
 
 let get_printer env : (module Pp.Printer) =

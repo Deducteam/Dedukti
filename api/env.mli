@@ -42,6 +42,8 @@ val init        : Parser.t -> t
 
 val get_input    : t -> Parser.t
 
+val get_filename : t -> string
+
 val get_signature : t -> Signature.t
 (** [get_signature env] returns the signature used by this module. *)
 
