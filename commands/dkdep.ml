@@ -68,10 +68,14 @@ Available options:" Sys.argv.(0) in
     List.rev !files
   in
   (* Actual work. *)
-  let deps = Processor.handle_files files (module (Processor.Dependencies)) in
+  let hook_after env exn =
+    match exn with
+    | None -> ()
+    | Some (env,lc,exn) -> Errors.fail_env_error env lc exn
+  in
+  let deps = Processor.handle_files ~hook_after files (module (Processor.Dependencies)) in
   let formatter = Format.formatter_of_out_channel !output in
   let output_fun = if !sorted then output_sorted else output_deps in
-  Format.eprintf "%d@." (Hashtbl.length deps);
   output_fun formatter deps;
   Format.pp_print_flush formatter ();
   close_out !output

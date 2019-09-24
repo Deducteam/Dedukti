@@ -153,7 +153,15 @@ let handle_input  : type a. Parser.t ->
     None
   with Env.Env_error(env,lc,e) -> Some (env,lc,e)
   in
-  begin match hook_after  with None -> () | Some f -> f env exn end;
+  begin
+    match hook_after  with
+    | None ->
+      begin
+        match exn with
+        | None -> ()
+        | Some(env,lc,exn) -> raise @@ Env.Env_error(env, Basic.dloc, exn)
+      end
+    | Some f -> f env exn end;
   let data = P.get_data () in
   data
 
