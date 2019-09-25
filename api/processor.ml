@@ -1,15 +1,17 @@
 open Basic
 
+module type CustomEnv = (module type of Env) with type t = Env.t
+
 module type S =
 sig
   type t
 
   val handle_entry : Env.t -> Entry.entry -> unit
 
-  val get_data : unit -> t
+  val get_data     : unit -> t
 end
 
-module TypeChecker : S with type t = unit =
+module MakeTypeChecker(Env:CustomEnv) : S with type t = unit =
 struct
 
   type t = unit
@@ -69,7 +71,9 @@ struct
 
 end
 
-module SignatureBuilder : S with type t = Signature.t =
+module TypeChecker = MakeTypeChecker(Env)
+
+module MakeSignatureBuilder(Env:CustomEnv) : S with type t = Signature.t =
 struct
   type t = Signature.t
 
@@ -103,7 +107,9 @@ struct
 
 end
 
-module EntryPrinter : S with type t = unit =
+module SignatureBuilder = MakeSignatureBuilder(Env)
+
+module MakeEntryPrinter(Env:CustomEnv) : S with type t = unit =
 struct
 
   type t = unit
@@ -116,7 +122,9 @@ struct
 
 end
 
-module Dependencies : S with type t = Dep.t =
+module EntryPrinter = MakeEntryPrinter(Env)
+
+module MakeDependencies(Env:CustomEnv) : S with type t = Dep.t =
 struct
   type t = Dep.t
 
@@ -125,58 +133,65 @@ struct
   let get_data () = Dep.deps
 end
 
-let handle_processor : Env.t -> (module S) -> unit  =
-  fun env (module P:S) ->
-  let input = Env.get_input env in
-  try
-    let handle_entry env entry =
+module Dependencies = MakeDependencies(Env)
+
+module MakeHandleProcessor(Env:CustomEnv) =
+struct
+  let handle_processor : Env.t -> (module S) -> unit  =
+    fun env (module P:S) ->
+      let input = Env.get_input env in
       try
-        P.handle_entry env entry
-      with exn -> raise @@ Env.Env_error(env, Entry.loc_of_entry entry, exn)
+        let handle_entry env entry =
+          try
+            P.handle_entry env entry
+          with exn -> raise @@ Env.Env_error(env, Entry.loc_of_entry entry, exn)
+        in
+        Parser.handle input (handle_entry env)
+      with
+      | Env.Env_error _ as exn -> raise @@ exn
+      |  exn                   -> raise @@ Env.Env_error(env, Basic.dloc, exn)
+
+
+  let handle_input  : type a. Parser.t ->
+    ?hook_before:(Env.t -> unit) ->
+    ?hook_after:(Env.t -> (Env.t * Basic.loc * exn) option -> unit) ->
+    (module S with type t = a) -> a =
+    fun (type a) input ?hook_before ?hook_after (module P:S with type t = a) ->
+    let env = Env.init input in
+    begin match hook_before with None -> () | Some f -> f env end;
+    let exn =
+      try
+        handle_processor env (module P);
+        None
+      with Env.Env_error(env,lc,e) -> Some (env,lc,e)
     in
-    Parser.handle input (handle_entry env)
-  with
-  | Env.Env_error _ as exn -> raise @@ exn
-  |  exn                   -> raise @@ Env.Env_error(env, Basic.dloc, exn)
+    begin
+      match hook_after  with
+      | None ->
+        begin
+          match exn with
+          | None -> ()
+          | Some(env,lc,exn) -> raise @@ Env.Env_error(env, Basic.dloc, exn)
+        end
+      | Some f -> f env exn end;
+    let data = P.get_data () in
+    data
 
 
-let handle_input  : type a. Parser.t ->
-  ?hook_before:(Env.t -> unit) ->
-  ?hook_after:(Env.t -> (Env.t * Basic.loc * exn) option -> unit) ->
-  (module S with type t = a) -> a =
-  fun (type a) input ?hook_before ?hook_after (module P:S with type t = a) ->
-  let env = Env.init input in
-  begin match hook_before with None -> () | Some f -> f env end;
-  let exn =
-  try
-    handle_processor env (module P);
-    None
-  with Env.Env_error(env,lc,e) -> Some (env,lc,e)
-  in
-  begin
-    match hook_after  with
-    | None ->
-      begin
-        match exn with
-        | None -> ()
-        | Some(env,lc,exn) -> raise @@ Env.Env_error(env, Basic.dloc, exn)
-      end
-    | Some f -> f env exn end;
-  let data = P.get_data () in
-  data
+  let handle_files : string list ->
+    ?hook_before:(Env.t -> unit) ->
+    ?hook_after:(Env.t -> (Env.t * Basic.loc * exn) option -> unit) ->
+    (module S with type t = 'a) -> 'a =
+    fun (type a) files ?hook_before ?hook_after (module P:S with type t = a) ->
+    let handle_file file =
+      try
+        let input = Parser.input_from_file file in
+        ignore(handle_input input ?hook_before ?hook_after (module P));
+        Parser.close input
+      with Sys_error msg -> Errors.fail_sys_error file msg
+    in
+    List.iter (handle_file) files;
+    P.get_data ()
+end
 
-
-let handle_files : string list ->
-  ?hook_before:(Env.t -> unit) ->
-  ?hook_after:(Env.t -> (Env.t * Basic.loc * exn) option -> unit) ->
-  (module S with type t = 'a) -> 'a =
-  fun (type a) files ?hook_before ?hook_after (module P:S with type t = a) ->
-  let handle_file file =
-    try
-      let input = Parser.input_from_file file in
-      ignore(handle_input input ?hook_before ?hook_after (module P));
-      Parser.close input
-    with Sys_error msg -> Errors.fail_sys_error file msg
-  in
-  List.iter (handle_file) files;
-  P.get_data ()
+include MakeHandleProcessor(Env)
