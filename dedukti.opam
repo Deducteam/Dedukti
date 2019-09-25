@@ -12,6 +12,6 @@ remove: [make "uninstall"]
 available: [ ocaml-version >= "4.02" ]
 depends: [
   "menhir"
-  "ocamlbuild" {build}
+  "dune"      {build}
   "ocamlfind" {build}
 ]
