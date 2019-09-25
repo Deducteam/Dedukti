@@ -151,7 +151,6 @@ struct
       | Env.Env_error _ as exn -> raise @@ exn
       |  exn                   -> raise @@ Env.Env_error(env, Basic.dloc, exn)
 
-
   let handle_input  : type a. Parser.t ->
     ?hook_before:(Env.t -> unit) ->
     ?hook_after:(Env.t -> (Env.t * Basic.loc * exn) option -> unit) ->
@@ -176,7 +175,6 @@ struct
       | Some f -> f env exn end;
     let data = P.get_data () in
     data
-
 
   let handle_files : string list ->
     ?hook_before:(Env.t -> unit) ->

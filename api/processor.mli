@@ -42,7 +42,6 @@ val handle_files :
 
 module type CustomEnv = (module type of Env) with type t = Env.t
 
-
 module MakeTypeChecker(E:CustomEnv)      : S with type t = unit
 
 module MakeSignatureBuilder(E:CustomEnv) : S with type t = Signature.t
