@@ -6,7 +6,7 @@ Q = @
 
 
 .PHONY: default
-default: all binaries
+default: all
 
 .PHONY: all
 all: bin binaries
