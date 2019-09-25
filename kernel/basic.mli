@@ -89,7 +89,7 @@ val of_loc : loc -> int * int
 module Debug : sig
 
   type flag  = ..
-  (** Extensible type {!section:8.10} for debug flags *)
+  (** Extensible type  for debug flags *)
 
   type flag += D_warn | D_notice
 

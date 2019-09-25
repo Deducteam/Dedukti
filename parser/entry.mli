@@ -8,35 +8,35 @@ type should_fail  = bool
 
 (** Possible tests in source files. *)
 type test =
-  (** Convertibility between the two given terms. *)
   | Convert of term * term
-  (** Typability test, given a term and a type.   *)
+  (** Convertibility between the two given terms. *)
   | HasType of term * term
+  (** Typability test, given a term and a type.   *)
 
 exception Assert_error of loc
 
 (** Single source file entry. *)
 type entry =
-  (** Symbol declaration. *)
   | Decl  of loc * ident * Signature.staticity * term
-  (** Definition (possibly opaque). *)
+  (** Symbol declaration. *)
   | Def   of loc * ident * is_opaque * term option * term
-  (** Reduction rules declaration. *)
+  (** Definition (possibly opaque). *)
   | Rules of loc * Rule.untyped_rule list
-  (** Evaluation command. *)
+  (** Reduction rules declaration. *)
   | Eval  of loc * Reduction.red_cfg * term
-  (** Test command. *)
+  (** Evaluation command. *)
   | Check of loc * is_assertion * should_fail * test
-  (** Type inference command. *)
+  (** Test command. *)
   | Infer of loc * Reduction.red_cfg * term
-  (** Printing command. *)
+  (** Type inference command. *)
   | Print of loc * string
-  (** Decision tree printing. *)
+  (** Printing command. *)
   | DTree of loc * mident option * ident
-  (** Obsolete #NAME command. *)
+  (** Decision tree printing. *)
   | Name  of loc * mident
-  (** Require command. *)
+  (** Obsolete #NAME command. *)
   | Require  of loc * mident
+  (** Require command. *)
 
 val loc_of_entry : entry -> loc
 

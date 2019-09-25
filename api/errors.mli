@@ -1,6 +1,6 @@
 (** Errors handling *)
+
 open Basic
-open Term
 
 val errors_in_snf : bool ref
 (** Flag to enable SNF forms of terms in errors. *)
