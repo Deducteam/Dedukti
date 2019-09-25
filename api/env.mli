@@ -1,11 +1,12 @@
-(** The main functionalities of Dedukti:
-    This is essentialy a wrapper around Signature, Typing and Reduction *)
+(** An environment is a wrapper around the kernel of Dedukti *)
 open Basic
 open Term
 
+(** {2 Error Datatype} *)
+
 type t
 
-(** {2 Error Datatype} *)
+(** An environment is create from a {!Parser.input}. Environment is the module which interacts with the kernel. An environment allows you to change at runtime the reduction engine and the printer. The current version of Dedukti offers you one reduction engine, but this feature is mainly aim to be used with the [dkmeta] tool. The printer of [Env] is different from [Pp] in a sense that the module of a constant is not printed if it is the same as the current module. *)
 
 exception Env_error of t * loc * exn
 
@@ -26,23 +27,24 @@ val set_debug_mode : string -> unit
     May raise DebugFlagNotRecognized.
 *)
 
+(**{2 Utilities} *)
+
 val check_arity : bool ref
 (** Flag to check for variables arity. Default is true. *)
 
 val check_ll : bool ref
-(** Flag to check for rules left linearity. Default is false. *)
+(** Flag to check for rules left linearity. Default is false *)
 
 (** {2 The Global Environment} *)
 
 val init        : Parser.t -> t
-(** [init name] initializes a new global environement giving it the name of
-    the corresponding source file. The function returns the module identifier
-    corresponding to this file, built from its basename. Every toplevel
-    declaration will be qualified by this name. *)
+(** [init input] initializes a new global environement from the [input] *)
 
 val get_input    : t -> Parser.t
+(** [get_input env] returns the input used to create [env] *)
 
 val get_filename : t -> string
+(** [get_input env] returns the filename associated to the input of [env]. We return a fake filename if the input was not create from a filename. *)
 
 val get_signature : t -> Signature.t
 (** [get_signature env] returns the signature used by this module. *)
@@ -51,7 +53,7 @@ val get_name    : t -> mident
 (** [get_name env] returns the name of the module. *)
 
 val set_reduction_engine : t -> (module Reduction.S) -> t
-(** [set_reduction_egine env] changes the reduction engine of [env] *)
+(** [set_reduction_egine env] changes the reduction engine of [env]. The new environment shares the same signature than [env]. *)
 
 val get_reduction_engine : t -> (module Reduction.S)
 (** [get_reduction_engine env] returns the reduction engine of [env] *)
