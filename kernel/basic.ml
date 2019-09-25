@@ -15,15 +15,11 @@ let string_of_mident s = s
 
 let mident_eq = ident_eq
 
-module MidentSet = Set.Make(struct type t = mident let compare = compare end)
-
 type name = mident * ident
 
 let mk_name md id = (md,id)
 
 let name_eq (m,s) (m',s') = mident_eq m m' && ident_eq s s'
-
-module NameSet = Set.Make(struct type t = name let compare = compare end)
 
 let md = fst
 let id = snd
@@ -35,17 +31,26 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-let shash        = WS.create 251
+let hash_ident   = WS.create 251
 
-let mk_ident     = WS.merge shash
+let mk_ident     = WS.merge hash_ident
+
+let hash_mident  = WS.create 251
 
 let mk_mident md =
   let base = Filename.basename md in
+  let base =
   if Filename.check_suffix base ".dk"
-  then Filename.chop_suffix base ".dk"
-  else base
+  then (Filename.chop_suffix base ".dk")
+  else base in
+  WS.merge hash_mident base
 
 let dmark       = mk_ident "$"
+
+module IdentSet  = Set.Make(struct type t = ident  let compare = compare end)
+module MidentSet = Set.Make(struct type t = mident let compare = compare end)
+module NameSet   = Set.Make(struct type t = name   let compare = compare end)
+
 
 (** {2 Lists with Length} *)
 

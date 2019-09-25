@@ -49,16 +49,18 @@ val dmark : ident
 
 module MidentSet : Set.S with type elt = mident
 
+module IdentSet : Set.S with type elt = mident
+
 module NameSet : Set.S with type elt = name
 
 
 (** {2 Lists with Length} *)
+(** A list where the method len is O(1). It is used by {!Matching}. *)
 
 module LList : sig
   type 'a t
   val nil : 'a t
   val cons : 'a -> 'a t -> 'a t
-
   val len : _ t -> int
   val lst : 'a t -> 'a list
   val is_empty : _ t -> bool
@@ -70,15 +72,16 @@ end
 
 (** {2 Localization} *)
 
-(** type of locations *)
 type loc
+(** Abstract type for a position (a line and a column) in a file *)
 
-(** a dummy location *)
 val dloc : loc
+(** a dummy location *)
 
 (** [mk_loc l c] builds the location where [l] is the line and [c] the column *)
 val mk_loc : int -> int -> loc
 
+(** [of_loc l] returns the line and the column associated to the position*)
 val of_loc : loc -> int * int
 
 (** {2 Debug} *)
@@ -86,6 +89,8 @@ val of_loc : loc -> int * int
 module Debug : sig
 
   type flag  = ..
+  (** Extensible type {!section:8.10} for debug flags *)
+
   type flag += D_warn | D_notice
 
   (** [register_flag fl m] set the header of error messages tagged by [f] to be [m] *)

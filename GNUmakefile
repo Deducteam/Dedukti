@@ -83,11 +83,11 @@ dkprune.native: kernel api parser commands/dkprune.ml
 #### Generation of the documentation #########################################
 
 .PHONY: doc
-doc: _build/kernel/kernel.docdir/index.html
+doc: _build/api/api.docdir/index.html $(KERNEL_MLI) $(API_MLI) $(PARSER_MLI)
 
-_build/kernel/kernel.docdir/index.html: $(KERNEL_MLI) $(KERNEL_ML)
+_build/api/api.docdir/index.html: $(KERNEL_MLI) $(API_MLI) $(PARSER_MLI)
 	@echo "[DOC] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.docdir/index.html
+	$(Q)ocamlbuild -quiet -use-ocamlfind api/api.docdir/index.html
 
 #### Generation of the META file #############################################
 
