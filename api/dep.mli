@@ -39,7 +39,8 @@ val ignore : bool ref
 (** (default: [false]) If [true], no exception is raised if a [module] is not in the path *)
 
 val compute_all_deps : bool ref
-(** (default: [false]) If [true], compute the fiel [name_deps] *)
+(** Whether to compute the dependencies of constants.  If set to
+   [false], only module dependencies are computed. *)
 
 val add_path : string -> unit
 (** [add_path p] add the [p] to the load path *)
@@ -48,7 +49,8 @@ val get_path : unit -> string list
 (** [get_path ()] returns all the paths in the load path *)
 
 val find_object_file : Basic.loc -> Basic.mident -> string
-(** [get_find_object_file lc md] returns the path assoiated to the module [md] or raise an exception *)
+(** [get_find_object_file lc md] returns the path assoiated to the module [md]
+    or raise an exception *)
 
 val object_file_of_input : Parser.t -> string
 (** [object_file_of_input] returns the filename associated to the input *)
