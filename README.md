@@ -4,10 +4,10 @@ USER MANUAL FOR DEDUKTI (DEVELOPMENT VERSION)
 ### INSTALLATION
 
 To compile (and optionally install) `Dedukti` you will need:
- - `OCaml >= 4.02`,
+ - `OCaml >= 4.02.3`,
  - `Menhir`,
- - `OCamlBuild` (build only),
- - `OCamlFind` (build only).
+ - `dune`,
+ - `odoc` (doc only).
 
 #### INSTALLATION WITH OPAM
 
