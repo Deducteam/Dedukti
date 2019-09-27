@@ -58,5 +58,5 @@ let  _ =
     Format.printf ">> ";
     try handle_entry md (read str) with
     | End_of_file -> exit 0
-    | e -> ErrorHandler.fail_env_error None e
+    | e -> ErrorHandler.graceful_fail None e
   done

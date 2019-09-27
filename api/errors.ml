@@ -17,8 +17,8 @@ let red    = colored 1
 
 module type ErrorHandler =
 sig
-  val success : ('a, Format.formatter, unit) format -> 'a
-  val fail_env_error : string option -> exn -> 'a
+  val print_success : string option -> unit
+  val graceful_fail : string option -> exn -> 'a
 end
 
 module Make (E:Env.S) : ErrorHandler =
@@ -28,9 +28,14 @@ open Printer
 
 let snf t = if !errors_in_snf then E.unsafe_reduction t else t
 
-let success fmt =
+let print_success file =
   eprintf "%s" (green "[SUCCESS] ");
-  kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter fmt
+  kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter
+    "%s was successfully checked."
+    ( match file with
+      | Some file -> "File '" ^ file ^ "'"
+      | None      -> "Standard input" )
+
 
 let fail_exit code (errid:string) file md lc fmt =
   let eid = red ("[ERROR:" ^ errid ^ "] ") in
@@ -314,7 +319,7 @@ let code : exn -> int =
   | Scoping.Scoping_error _                              -> 703
   | _                                                    -> -1
 
-let fail_env_error file exn =
+let graceful_fail file exn =
   let code = code exn in
   let errid = if code = -1 then "UNCAUGHT EXCEPTION" else string_of_int code in
   let fail md lc = fail_exit 3 errid file md (Some lc) in

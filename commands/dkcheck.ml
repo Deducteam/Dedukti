@@ -20,10 +20,9 @@ let run_on_file beautify export file =
   Confluence.initialize ();
   begin
     try Parse_channel.handle md (mk_entry beautify md) input;
-    with e -> ErrorHandler.fail_env_error (Some file) e
+    with e -> ErrorHandler.graceful_fail (Some file) e
   end;
-  if not beautify then
-    ErrorHandler.success "File '%s' was successfully checked." file;
+  if not beautify then ErrorHandler.print_success (Some file);
   if export then E.export ();
   Confluence.finalize ();
   close_in input
@@ -134,7 +133,7 @@ Available options:" Sys.argv.(0) in
     let md = E.init m in
     begin
       try Parse_channel.handle md (mk_entry !beautify md) stdin
-      with e -> ErrorHandler.fail_env_error None e
+      with e -> ErrorHandler.graceful_fail None e
     end;
     if not !beautify
-    then ErrorHandler.success "Standard input was successfully checked.\n"
+    then ErrorHandler.print_success None

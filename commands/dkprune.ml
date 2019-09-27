@@ -51,7 +51,7 @@ let rec handle_file : string -> unit =
         let input = open_in file in
         begin
           try Dep.handle md (fun f -> Parser.Parse_channel.handle md f input)
-          with e -> ErrorHandler.fail_env_error (Some file) e
+          with e -> ErrorHandler.graceful_fail (Some file) e
         end;
         close_in input;
         let md_deps = Hashtbl.find Dep.deps md in
