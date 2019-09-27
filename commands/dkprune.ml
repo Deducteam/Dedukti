@@ -127,7 +127,7 @@ let handle_constraints mds =
 
 let is_empty deps file =
   let names = Processor.handle_files [file] (module GatherNames) in
-  NSet.disjoint names deps
+  NSet.is_empty (NSet.inter names deps)
 
 let write_file deps in_file =
   let out_file = output_file in_file in
