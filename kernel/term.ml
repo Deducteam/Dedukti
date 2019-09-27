@@ -59,8 +59,7 @@ let rec term_eq t1 t2 =
     | App (f,a,l), App (f',a',l') ->
         ( try List.for_all2 term_eq (f::a::l) (f'::a'::l')
           with _ -> false )
-    | Lam (_,_,None,b), Lam (_,_,None,b') -> term_eq b b'
-    | Lam (_,_,Some a,b), Lam (_,_,Some a',b') -> term_eq a a' && term_eq b b'
+    | Lam (_,_,_,b), Lam (_,_,_,b') -> term_eq b b'
     | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false
 
