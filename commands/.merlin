@@ -1,5 +1,5 @@
 EXCLUDE_QUERY_DIR
-B /home/fthire/.opam/4.08.1/lib/ocaml
+B /home/gferey/.opam/4.04.0/lib/ocaml
 B ../_build/default/api/.api.objs/byte
 B ../_build/default/commands/.dkcheck.eobjs/byte
 B ../_build/default/commands/.dkdep.eobjs/byte
@@ -7,7 +7,7 @@ B ../_build/default/commands/.dkprune.eobjs/byte
 B ../_build/default/commands/.dktop.eobjs/byte
 B ../_build/default/kernel/.kernel.objs/byte
 B ../_build/default/parse/.parse.objs/byte
-S /home/fthire/.opam/4.08.1/lib/ocaml
+S /home/gferey/.opam/4.04.0/lib/ocaml
 S ../api
 S .
 S ../kernel
