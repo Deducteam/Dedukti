@@ -29,21 +29,23 @@ open Printer
 let snf t = if !errors_in_snf then E.unsafe_reduction t else t
 
 let print_success file =
-  eprintf "%s" (green "[SUCCESS] ");
-  kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter
-    "%s was successfully checked."
+  eprintf "%s %s was successfully checked.\n"
+    (green "[SUCCESS]")
     ( match file with
       | Some file -> "File '" ^ file ^ "'"
       | None      -> "Standard input" )
 
-
+(* Prints an error message with file, module and line details (if provided)
+   When module is provided, file is ignored. *)
 let fail_exit code (errid:string) file md lc fmt =
   let eid = red ("[ERROR:" ^ errid ^ "] ") in
-  begin match md, lc with
-    | Some md, None    -> eprintf "%sIn module %a: "        eid pp_mident md
-    | None   , Some lc -> eprintf "%sAt %a: "               eid pp_loc lc
-    | Some md, Some lc -> eprintf "%sIn module %a, at %a: " eid pp_mident md pp_loc lc
-    | None   , None    -> eprintf "%s"                      eid
+  begin match file, md, lc with
+    | None  , None   , Some lc -> eprintf "%sAt %a: "               eid pp_loc lc
+    | _     , Some md, Some lc -> eprintf "%sIn module %a, at %a: " eid pp_mident md pp_loc lc
+    | Some f, None   , Some lc -> eprintf "%sIn file %s, at %a: "   eid f pp_loc lc
+    | _     , Some md, None    -> eprintf "%sIn module %a: "        eid pp_mident md
+    | Some f, None   , None    -> eprintf "%sIn file %s: "          eid f
+    | None  , None   , None    -> eprintf "%s"                      eid
   end;
   kfprintf (fun _ -> pp_print_newline err_formatter () ; exit code) err_formatter fmt
 
