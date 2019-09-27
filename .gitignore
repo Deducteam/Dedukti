@@ -1,7 +1,9 @@
-# OCamlbuild files.
+# dune files.
 _build/
 *.native
 *.docdir
+*.install
+.merlin
 
 # Dedukti files.
 *.dko
