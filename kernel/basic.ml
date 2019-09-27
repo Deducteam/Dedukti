@@ -37,13 +37,7 @@ let mk_ident     = WS.merge hash_ident
 
 let hash_mident  = WS.create 251
 
-let mk_mident md =
-  let base = Filename.basename md in
-  let base =
-  if Filename.check_suffix base ".dk"
-  then (Filename.chop_suffix base ".dk")
-  else base in
-  WS.merge hash_mident base
+let mk_mident md = WS.merge hash_mident md
 
 let dmark       = mk_ident "$"
 

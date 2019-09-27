@@ -52,6 +52,7 @@ let rec find_dko_in_path lc basename = function
 let find_object_file lc md =
   let basename = string_of_mident md in
   let filename = basename ^ ".dko" in
+  Format.eprintf "%s@." filename;
   if Sys.file_exists filename (* First check in the current directory *)
   then filename
   else find_dko_in_path lc basename (get_path())
@@ -62,7 +63,7 @@ let object_file_of_input input =
     match Parser.file_of_input input with
     | None ->
       string_of_mident (Parser.md_of_input input)
-    | Some f -> Filename.remove_extension f
+    | Some f -> Filename.chop_extension f
   in
   filename ^ ".dko"
 

@@ -29,8 +29,14 @@ let lexing_from input =
   | String s -> Lexing.from_string s
   | Channel ic -> Lexing.from_channel ic
 
+let md_of_file file =
+  let open Filename in
+  let base = basename file in
+  let base = if check_suffix base ".dk" then (chop_suffix base ".dk") else base in
+  mk_mident base
+
 let input_from_file file =
-  let md = Basic.mk_mident file in
+  let md = md_of_file file in
   let input = Channel (open_in file) in
   {file=Some file;input;md}
 
