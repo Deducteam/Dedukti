@@ -22,7 +22,6 @@ type t = (Basic.mident, file_deps) Hashtbl.t
 (** {2 Debugging} *)
 
 type dep_error =
-  | ModuleNotFound       of Basic.mident
   | MultipleModules      of string * string list
   | CircularDependencies of string * string list
   | NameNotFound         of Basic.name
@@ -41,22 +40,6 @@ val ignore : bool ref
 val compute_all_deps : bool ref
 (** Whether to compute the dependencies of constants.  If set to
    [false], only module dependencies are computed. *)
-
-val add_path : string -> unit
-(** [add_path p] add the [p] to the load path *)
-
-val get_path : unit -> string list
-(** [get_path ()] returns all the paths in the load path *)
-
-val find_object_file : Basic.loc -> Basic.mident -> string
-(** [get_find_object_file lc md] returns the path assoiated to the module [md]
-    or raise an exception *)
-
-val object_file_of_input : Parser.t -> string
-(** [object_file_of_input] returns the filename associated to the input *)
-
-val get_file : Basic.mident -> string
-(** [get_file md] returns the path associated to module [md] *)
 
 val get_data : Basic.name -> data
 (** [get_data name] returns the data associated to name [name].

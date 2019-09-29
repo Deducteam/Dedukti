@@ -36,7 +36,7 @@ let check_arity = ref true
 let check_ll = ref false
 
 let init input =
-  let sg =  Signature.make (Parser.md_of_input input) Dep.find_object_file in
+  let sg =  Signature.make (Parser.md_of_input input) Files.find_object_file in
   let red : (module Reduction.S) = (module Reduction.Default) in
   let typer : (module Typing.S) = (module Typing.Default) in
   {input; sg;red;typer}
@@ -79,7 +79,7 @@ let get_dtree env lc cst =
   Signature.get_dtree env.sg lc cst
 
 let export env =
-  let file = Dep.object_file_of_input env.input in
+  let file = Files.object_file_of_input env.input in
   let oc = open_out file in
   Signature.export env.sg oc; close_out oc
 
@@ -176,3 +176,10 @@ let are_convertible env ?ctx:(ctx=[]) te1 te2 =
   let ty2 = T.infer env.sg ctx te2 in
   R.are_convertible env.sg ty1 ty2 &&
   R.are_convertible env.sg te1 te2
+
+let fail_env_error : t -> Basic.loc -> exn -> 'a = fun env lc exn ->
+  (* let code = Errors.string_of_code exn in *)
+  let code = "1" in
+  let file = get_filename env in
+  let lc,msg = Errors.use_exception_handlers env lc exn in
+  fail_exit file code (Some lc) "%s" msg

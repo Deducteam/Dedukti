@@ -63,9 +63,9 @@ type typed_rule = typed_context rule
 (** {2 Errors} *)
 
 type rule_error =
-  | BoundVariableExpected          of pattern
+  | BoundVariableExpected          of loc * pattern
   | DistinctBoundVariablesExpected of loc * ident
-  | VariableBoundOutsideTheGuard   of term
+  | VariableBoundOutsideTheGuard   of loc * term
   | UnboundVariable                of loc * ident * pattern
   | AVariableIsNotAPattern         of loc * ident
   | NonLinearNonEqArguments        of loc * ident

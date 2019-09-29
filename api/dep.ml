@@ -21,7 +21,6 @@ type file_deps =
 type t = (mident, file_deps) Hashtbl.t
 
 type dep_error =
-  | ModuleNotFound of mident
   | MultipleModules of string * string list
   | CircularDependencies of string * string list
   | NameNotFound of name
@@ -29,43 +28,44 @@ type dep_error =
 
 exception Dep_error of dep_error
 
+let fail_dep_error err =
+  match err with
+  | MultipleModules (s,ss) ->
+    None, Format.asprintf "Several files correspond to module %S...@. %a" s
+      (pp_list "@." (fun fmt s -> Format.fprintf fmt " - %s" s)) ss
+  | CircularDependencies (s,ss) ->
+    None, Format.asprintf "Circular Dependency dectected for module %S...%a" s
+      (pp_list "@." (fun fmt s -> Format.fprintf fmt " -> %s" s)) ss
+  | NameNotFound n ->
+    None, Format.asprintf "No dependencies computed for name %a...@." pp_name n
+  | NoDep md ->
+    None, Format.asprintf "No dependencies computed for module %a...@." pp_mident md
+
+let fail_dep_error ~red:_ exn =
+  match exn with
+  | Dep_error err -> Some(fail_dep_error err)
+  | _ -> None
+
+let _ = Errors.register_exception fail_dep_error
+
+let code_of_dep_error exn =
+  match exn with
+  | Dep_error e ->
+    begin match e with
+      | MultipleModules _                            -> Some 601
+      | CircularDependencies _                       -> Some 602
+      | NameNotFound _                               -> Some 603
+      | NoDep _                                      -> Some 604
+    end
+  | _ -> None
+
+let _ = Errors.register_exception_code code_of_dep_error
+
 let compute_all_deps = ref false
 
 let empty_deps () = {file="<not initialized>"; deps = MSet.empty; name_deps=Hashtbl.create 81}
 
 let deps = Hashtbl.create 11
-
-let path = ref []
-
-let get_path () = !path
-
-let add_path s = path := s :: !path
-
-let rec find_dko_in_path lc basename = function
-  | [] -> raise @@ Dep_error(NoDep (mk_mident basename))
-  | dir :: path ->
-    let filename = dir ^ "/" ^ basename ^ ".dko" in
-    if Sys.file_exists filename
-    then filename
-    else find_dko_in_path lc basename path
-
-let find_object_file lc md =
-  let basename = string_of_mident md in
-  let filename = basename ^ ".dko" in
-  Format.eprintf "%s@." filename;
-  if Sys.file_exists filename (* First check in the current directory *)
-  then filename
-  else find_dko_in_path lc basename (get_path())
-  (* If not found in the current directory, search in load-path *)
-
-let object_file_of_input input =
-    let filename =
-    match Parser.file_of_input input with
-    | None ->
-      string_of_mident (Parser.md_of_input input)
-    | Some f -> Filename.chop_extension f
-  in
-  filename ^ ".dko"
 
 (** [deps] contains the dependencies found so far, reset before each file. *)
 let current_mod   : mident    ref = ref (mk_mident "<not initialised>")
@@ -74,40 +74,12 @@ let current_deps  : file_deps ref = ref (empty_deps ())
 let ignore        : bool      ref = ref false
 let process_items : bool      ref = ref false
 
-(** [find_dk md path] looks for the ".dk" file corresponding to the module
-    named [name] in the directories of [path]. If no corresponding file is
-    found, or if there are several possibilities, the program fails with a
-    graceful error message. *)
-let find_dk : mident -> string list -> string option = fun md path ->
-  let name = string_of_mident md in
-  let file_name = name ^ ".dk" in
-  let path = Filename.current_dir_name :: path in
-  let path = List.sort_uniq String.compare path in
-  let add_dir dir =
-    if dir = Filename.current_dir_name then file_name
-    else Filename.concat dir file_name
-  in
-  let files = List.map add_dir path in
-  match List.filter Sys.file_exists files with
-  | []  ->
-    if !ignore then None
-    else
-      raise @@ Dep_error(ModuleNotFound md)
-  | [f] -> Some f
-  | fs  ->
-    raise @@ Dep_error(MultipleModules(name,fs))
-
-let get_file md =
-  match find_dk md (get_path ()) with
-  | None -> raise @@ Dep_error(ModuleNotFound md)
-  | Some f -> f
-
 (** [add_dep md] adds the module [md] to the list of dependencies if
     no corresponding ".dko" file is found in the load path. The dependency is
     not added either if it is already present. *)
 let add_mdep : mident -> unit = fun md ->
   if mident_eq md !current_mod then () else
-    match (find_dk md (get_path ())) with
+    match (Files.find_dk !ignore md (Files.get_path ())) with
     | None -> ()
     | Some file ->
       current_deps  :=
@@ -206,13 +178,13 @@ let initialize : mident -> string -> unit = fun md file ->
   current_deps := {!current_deps with file}
 
 let make : mident -> Entry.entry list -> unit = fun md entries ->
-  let file = get_file md in
+  let file = Files.get_file md in
   initialize md file;
   List.iter handle_entry entries;
   Hashtbl.replace deps md !current_deps
 
 let handle : mident -> ((Entry.entry -> unit) -> unit) -> unit = fun md process ->
-  let file = get_file md in
+  let file = Files.get_file md in
   initialize md file;
   process handle_entry;
   Hashtbl.replace deps md !current_deps
@@ -232,7 +204,7 @@ let topological_sort deps =
           else
             raise @@ Dep_error (NoDep (mk_mident node))
       in
-      node :: List.fold_left (explore (node :: path)) visited (List.map get_file edges)
+      node :: List.fold_left (explore (node :: path)) visited (List.map Files.get_file edges)
   in
   List.rev @@ List.fold_left (fun visited (n,_) -> explore [] visited n) [] graph
 

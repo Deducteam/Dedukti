@@ -92,7 +92,7 @@ struct
   let handle_entry _ =
     function
     | Entry.Require(_,md) ->
-      let file = Dep.get_file md in
+      let file = Files.get_file md in
       let snames = Processor.handle_files [file] (module GatherNames) in
       names := NSet.union snames !names
     | Entry.DTree(_,Some md, id) -> names := NSet.add (mk_name md id) !names
@@ -114,7 +114,7 @@ let rec run_on_files files =
       let md = Env.get_name env in
       computed := MSet.add md !computed;
       let deps = Hashtbl.find Dep.deps md in
-      let add_files md files = if MSet.mem md !computed then files else (Dep.get_file md)::files in
+      let add_files md files = if MSet.mem md !computed then files else (Files.get_file md)::files in
       let new_files = MSet.fold add_files deps.deps [] in
       if List.length new_files <> 0 then run_on_files new_files
     | Some (env, lc, e) -> Errors.fail_env_error env lc e
@@ -122,7 +122,7 @@ let rec run_on_files files =
   Processor.handle_files files ~hook_before ~hook_after (module PruneDepProcessor)
 
 let handle_constraints mds =
-  let files = List.map Dep.get_file mds in
+  let files = List.map Files.get_file mds in
   run_on_files files
 
 let is_empty deps file =
@@ -155,7 +155,7 @@ let print_dependencies names =
       (fun name dependencies -> NameSet.union (get_data name).down dependencies) names names in
   let mds = Hashtbl.fold (fun md _ set -> MSet.add md set) Dep.deps MSet.empty in
   let in_files md files =
-    let file = Dep.get_file md in
+    let file = Files.get_file md in
     if is_empty down_deps file then files else file::files
   in
   let in_files = MSet.fold in_files mds [] in
@@ -167,7 +167,7 @@ let _ =
       , Arg.Unit enable_log
       , " Print log")
     ; ( "-I"
-      , Arg.String Dep.add_path
+      , Arg.String Files.add_path
       , " DIR Add the directory DIR to the load path" )
     ; ( "-o"
       , Arg.String (fun s -> output_directory := Some s)

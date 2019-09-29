@@ -170,7 +170,7 @@ and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
   | None, (_::_ as rules) ->
     let trees =
       try Dtree.of_rules rules
-      with Dtree.DtreeError e -> raise (Signature_error (CannotBuildDtree e))
+      with Dtree.Dtree_error e -> raise (Signature_error (CannotBuildDtree e))
     in
     HId.replace env (id cst) {infos with decision_tree=Some trees};
     Some trees

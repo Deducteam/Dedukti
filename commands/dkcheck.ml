@@ -21,7 +21,7 @@ let _ =
       , Arg.Set export
       , " Generates an object file (\".dko\")" )
     ; ( "-I"
-      , Arg.String Dep.add_path
+      , Arg.String Files.add_path
       , "DIR Adds the directory DIR to the load path" )
     ; ( "-d"
       , Arg.String Env.set_debug_mode

@@ -102,7 +102,7 @@ struct
 
   let get_data () =
     match !sg with
-    | None -> Signature.make (mk_mident "") Dep.find_object_file (*TODO: raise an error? *)
+    | None -> Signature.make (mk_mident "") Files.find_object_file (*TODO: raise an error? *)
     | Some sg -> sg
 
 end
@@ -168,7 +168,7 @@ let handle_input  : type a. Parser.t ->
       begin
         match exn with
         | None -> ()
-        | Some(env,lc,exn) -> raise @@ Env.Env_error(env, Basic.dloc, exn)
+        | Some(env,lc,exn) -> Env.fail_env_error env lc exn
       end
     | Some f -> f env exn end;
   let data = P.get_data () in

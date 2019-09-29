@@ -9,7 +9,7 @@ let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
   let output_line : mident -> file_deps -> unit =
     fun md deps ->
        let file = deps.file in
-       let deps = List.map (fun md -> objfile (Dep.get_file md)) (MidentSet.elements deps.deps) in
+       let deps = List.map (fun md -> objfile (Files.get_file md)) (MidentSet.elements deps.deps) in
        let deps = String.concat " " deps in
        try
          Format.fprintf oc "%s : %s %s@." (objfile file) file deps
@@ -55,7 +55,7 @@ let _ =
       , Arg.Set Dep.ignore
       , " If some dependencies are not found, ignore them" )
     ; ( "-I"
-      , Arg.String Dep.add_path
+      , Arg.String Files.add_path
       , "DIR Add the directory DIR to the load path" ) ]
   in
   let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...

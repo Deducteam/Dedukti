@@ -71,9 +71,9 @@ let infer_rule_context ri =
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
 type rule_error =
-  | BoundVariableExpected          of pattern
+  | BoundVariableExpected          of loc * pattern
   | DistinctBoundVariablesExpected of loc * ident
-  | VariableBoundOutsideTheGuard   of term
+  | VariableBoundOutsideTheGuard   of loc * term
   | UnboundVariable                of loc * ident * pattern
   (* FIXME : this exception seems never to be raised *)
   | AVariableIsNotAPattern         of loc * ident
@@ -220,7 +220,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
   let extract_db k pat =
     match pat with
     | Var (_,_,n,[]) when n<k -> n
-    | p -> raise (Rule_error (BoundVariableExpected p))
+    | p -> raise (Rule_error (BoundVariableExpected(get_loc_pat p, p)))
   in
   let rec aux (k:int) (pat:pattern) : wf_pattern =
     match pat with
@@ -247,7 +247,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
     | Brackets t ->
       let unshifted =
         try Subst.unshift k t
-        with Subst.UnshiftExn -> raise (Rule_error (VariableBoundOutsideTheGuard t))
+        with Subst.UnshiftExn -> raise (Rule_error (VariableBoundOutsideTheGuard(get_loc t, t)))
         (* Note: A different exception is previously raised at rule type-checking for this. *)
       in
       let nvar = fresh_var 0 in
