@@ -1,3 +1,10 @@
+type files_error =
+  | ModuleNotFound     of Basic.mident
+  | MultipleModules    of string * string list
+  | ObjectFileNotFound of Basic.mident
+
+exception Files_error of files_error
+
 val add_path : string -> unit
 (** [add_path p] add the [p] to the load path *)
 

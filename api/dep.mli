@@ -22,10 +22,8 @@ type t = (Basic.mident, file_deps) Hashtbl.t
 (** {2 Debugging} *)
 
 type dep_error =
-  | MultipleModules      of string * string list
   | CircularDependencies of string * string list
   | NameNotFound         of Basic.name
-  | NoDep                of Basic.mident
 
 exception Dep_error of dep_error
 

@@ -1,38 +1,27 @@
-type file_error =
+type files_error =
   | ModuleNotFound     of Basic.mident
   | MultipleModules    of string * string list
   | ObjectFileNotFound of Basic.mident
 
-exception File_error of file_error
+exception Files_error of files_error
 
 let fail_file_error err =
   match err with
   | ModuleNotFound md ->
-    None, Format.asprintf "No file for module %a in path...@." Basic.pp_mident md
+    900, None, Format.asprintf "No file for module %a in path...@." Basic.pp_mident md
   | MultipleModules(s,ss) ->
-    None, Format.asprintf "Several files correspond to module %s...@. %a" s
+    901, None, Format.asprintf "Several files correspond to module %s...@. %a" s
       (Basic.pp_list "@." (fun fmt s -> Format.fprintf fmt " - %s" s)) ss
   | ObjectFileNotFound md ->
-    None, Format.asprintf "No object file (.dko) found for module %a@." Basic.pp_mident md
+    902, None, Format.asprintf "No object file (.dko) found for module %a@." Basic.pp_mident md
 
 let fail_file_error ~red:_ exn =
   match exn with
-  | File_error err -> Some(fail_file_error err)
+  | Files_error err -> Some(fail_file_error err)
   | _ -> None
 
 let _ = Errors.register_exception fail_file_error
 
-let code_of_file_error exn =
-  match exn with
-  | File_error e ->
-    begin match e with
-      | ModuleNotFound _                             -> Some 900
-      | MultipleModules _                            -> Some 901
-      | ObjectFileNotFound _                         -> Some 902
-    end
-  | _ -> None
-
-let _ = Errors.register_exception_code code_of_file_error
 
 let path = ref []
 
@@ -45,7 +34,7 @@ let file_extension        = ".dk"
 let object_file_extension = ".dko"
 
 let rec find_dko_in_path lc basename = function
-  | [] -> raise @@ File_error (ObjectFileNotFound (Basic.mk_mident basename))
+  | [] -> raise @@ Files_error (ObjectFileNotFound (Basic.mk_mident basename))
   | dir :: path ->
     let filename = dir ^ "/" ^ basename ^ object_file_extension in
     if Sys.file_exists filename
@@ -83,12 +72,12 @@ let find_dk : ignore:bool -> Basic.mident -> string list -> string option = fun 
   | []  ->
     if ignore then None
     else
-      raise @@ File_error (ModuleNotFound md)
+      raise @@ Files_error (ModuleNotFound md)
   | [f] -> Some f
   | fs  ->
-    raise @@ File_error(MultipleModules(name,fs))
+    raise @@ Files_error(MultipleModules(name,fs))
 
 let get_file md =
   match find_dk ~ignore:false md (get_path ()) with
-  | None -> raise @@ File_error(ModuleNotFound md)
+  | None -> raise @@ Files_error(ModuleNotFound md)
   | Some f -> f

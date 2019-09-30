@@ -16,16 +16,15 @@ val fail_exit : string -> string -> loc option -> ('a, Format.formatter, unit) f
 val fail_sys_error : string -> string -> 'a
 (** Print a system error message then exits with code 1. *)
 
-type error_msg = Basic.loc option * string
+type error_code = int
+
+type error_msg = error_code * Basic.loc option * string
 
 type error_handler = red:(Term.term -> Term.term) -> exn -> error_msg option
 
 val register_exception : (red:(Term.term -> Term.term) -> exn -> error_msg option) -> unit
 
-type error_code = int
-
-val register_exception_code : (exn -> error_code option) -> unit
-
-val string_of_exception : red:(Term.term -> Term.term) -> Basic.loc -> exn -> Basic.loc * string
-
-val code_of_exception : exn -> string
+val string_of_exception :
+  red:(Term.term -> Term.term) ->
+  Basic.loc -> exn ->
+  error_code * Basic.loc * string

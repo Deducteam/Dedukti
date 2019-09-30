@@ -21,25 +21,18 @@ type file_deps =
 type t = (mident, file_deps) Hashtbl.t
 
 type dep_error =
-  | MultipleModules of string * string list
   | CircularDependencies of string * string list
   | NameNotFound of name
-  | NoDep of mident
 
 exception Dep_error of dep_error
 
 let fail_dep_error err =
   match err with
-  | MultipleModules (s,ss) ->
-    None, Format.asprintf "Several files correspond to module %S...@. %a" s
-      (pp_list "@." (fun fmt s -> Format.fprintf fmt " - %s" s)) ss
   | CircularDependencies (s,ss) ->
-    None, Format.asprintf "Circular Dependency dectected for module %S...%a" s
+    602, None, Format.asprintf "Circular Dependency dectected for module %S...%a" s
       (pp_list "@." (fun fmt s -> Format.fprintf fmt " -> %s" s)) ss
   | NameNotFound n ->
-    None, Format.asprintf "No dependencies computed for name %a...@." pp_name n
-  | NoDep md ->
-    None, Format.asprintf "No dependencies computed for module %a...@." pp_mident md
+    603, None, Format.asprintf "No dependencies computed for name %a...@." pp_name n
 
 let fail_dep_error ~red:_ exn =
   match exn with
@@ -47,19 +40,6 @@ let fail_dep_error ~red:_ exn =
   | _ -> None
 
 let _ = Errors.register_exception fail_dep_error
-
-let code_of_dep_error exn =
-  match exn with
-  | Dep_error e ->
-    begin match e with
-      | MultipleModules _                            -> Some 601
-      | CircularDependencies _                       -> Some 602
-      | NameNotFound _                               -> Some 603
-      | NoDep _                                      -> Some 604
-    end
-  | _ -> None
-
-let _ = Errors.register_exception_code code_of_dep_error
 
 let compute_all_deps = ref false
 
@@ -202,7 +182,7 @@ let topological_sort deps =
         try List.assoc node graph with Not_found ->
           if !ignore then []
           else
-            raise @@ Dep_error (NoDep (mk_mident node))
+            raise @@ Files.Files_error (ObjectFileNotFound (mk_mident node))
       in
       node :: List.fold_left (explore (node :: path)) visited (List.map Files.get_file edges)
   in
