@@ -1,3 +1,7 @@
+open Kernel
+open Parsers
+open Api
+
 open Basic
 
 module NSet = Basic.NameSet
@@ -26,7 +30,7 @@ let fail_dkprune_error err =
 
 exception Dkprune_error of dkprune_error
 
-let fail_dkprune ~red exn =
+let fail_dkprune ~red:_ exn =
   match exn with
   | Dkprune_error err -> Some (fail_dkprune_error err)
   | _ -> None
@@ -203,7 +207,6 @@ let print_dependencies names =
       ~file:"configuration file" ~code:"DKPRUNE" None "The name %a does not exists@." Pp.Default.print_name name
   | exn ->
     Env.fail_env_error fake_env Basic.dloc exn
-
 
 let _ =
   let args = Arg.align

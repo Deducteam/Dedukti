@@ -1,6 +1,8 @@
 (** An environment is a wrapper around the kernel of Dedukti *)
+open Kernel
 open Basic
 open Term
+open Parsers
 
 (** {2 Error Datatype} *)
 

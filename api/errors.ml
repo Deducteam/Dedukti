@@ -1,9 +1,8 @@
+open Kernel
 open Basic
 open Format
 open Term
-open Reduction
-
-
+open Parsers
 
 let color = ref true
 
@@ -17,9 +16,9 @@ let violet = colored 5
 
 module Pp = Pp.Default
 
-let success fmt =
-  eprintf "%s" (green "[SUCCESS] ");
-  kfprintf (fun _ -> pp_print_newline err_formatter () ) err_formatter fmt
+let success input =
+  eprintf "%s %s was successfully checked.\n"
+    (green "[SUCCESS]") input
 
 let where file = orange (Format.asprintf "[%s]" file)
 
@@ -69,7 +68,7 @@ let register_exception : (red:(Term.term -> Term.term) -> exn -> error_msg optio
 
 (** {2: Typing error } *)
 
-let of_typing_error ~red err : error_msg =
+let of_typing_error red err : error_msg =
   let open Typing in
   match err with
   | KindIsNotTypable ->
@@ -112,12 +111,12 @@ let of_typing_error ~red err : error_msg =
       "Error while typing the term { %a }%a.@.\
        Brackets cannot contain bound variables."
       pp_term te Pp.print_typed_context ctx
-  | BracketExpectedTypeBoundVar (te,ctx,ty) ->
+  | BracketExpectedTypeBoundVar (te,ctx,_) ->
     200, Some (get_loc te), Format.asprintf
       "Error while typing the term { %a }%a.@.\
        The expected type of brackets cannot contains bound variables."
       pp_term te Pp.print_typed_context ctx
-  | BracketExpectedTypeRightVar (te,ctx,ty) ->
+  | BracketExpectedTypeRightVar (te,ctx,_) ->
     201, Some (get_loc te), Format.asprintf
       "Error while typing the term { %a }%a.@.\
        The expected type of brackets can only contain variables occuring\
@@ -154,7 +153,8 @@ let fail_typing_error ~red exn =
   | Typing.Typing_error err -> Some (of_typing_error red err)
   | _ -> None
 
-let of_dtree_error red err =
+
+let of_dtree_error _ err =
   let open Dtree in
   match err with
   | HeadSymbolMismatch (lc,cst1,cst2) ->
@@ -171,7 +171,7 @@ let fail_dtree_error ~red exn =
   | Dtree.Dtree_error err -> Some (of_dtree_error red err)
   | _ -> None
 
-let of_rule_error red err =
+let of_rule_error _ err =
   let open Rule in
   match err with
   | BoundVariableExpected(lc, pat) ->
@@ -190,14 +190,14 @@ let of_rule_error red err =
     503, Some lc, Format.asprintf
       "The variables '%a' does not appear in the pattern '%a'."
       pp_ident x pp_pattern pat
-  | AVariableIsNotAPattern (lc,id) ->
+  | AVariableIsNotAPattern (lc,_) ->
     504, Some lc, Format.asprintf
       "A variable is not a valid pattern."
   | NonLinearNonEqArguments(lc,arg) ->
     505, Some lc, Format.asprintf
       "For each occurence of the free variable %a, the symbol should be applied to the same number of arguments"
       pp_ident arg
-  | NotEnoughArguments (lc,id,n,nb_args,exp_nb_args) ->
+  | NotEnoughArguments (lc,id,_,nb_args,exp_nb_args) ->
     506, Some lc, Format.asprintf
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
       pp_ident id nb_args exp_nb_args
@@ -218,6 +218,7 @@ let pp_cerr out err =
     | MaybeConfluent cmd -> cmd, "MAYBE"
     | CCFailure      cmd -> cmd, "ERROR" in
   fprintf out "Checker's answer: %s.@.Command: %s" ans cmd
+
 
 let of_signature_error red err =
   let open Signature in
@@ -263,22 +264,22 @@ let fail_signature_error ~red exn =
   | Signature.Signature_error err -> Some (of_signature_error red err)
   | _ -> None
 
-let fail_lexer_error ~red = function
+let fail_lexer_error ~red:_ = function
  | Lexer.Lexer_error(lc, msg) ->
    Some (701, Some lc, Format.asprintf "Lexer error: %s@." msg)
  | _ -> None
 
-let fail_parser_error ~red = function
+let fail_parser_error ~red:_ = function
   | Parser.Parse_error(lc, msg) ->
    Some (702, Some lc, Format.asprintf "Parsing error: %s@." msg)
   | _ -> None
 
-let fail_scoping_error ~red = function
+let fail_scoping_error ~red:_ = function
   | Scoping.Scoping_error(lc, msg) ->
    Some (703, Some lc, Format.asprintf "Scoping error: %s@." msg)
   | _ -> None
 
-let fail_entry_error ~red = function
+let fail_entry_error ~red:_ = function
   | Entry.Assert_error lc ->
     Some (704, Some lc, Format.asprintf "An entry assertion has failed@.")
   | _ -> None

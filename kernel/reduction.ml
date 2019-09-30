@@ -1,5 +1,4 @@
 open Basic
-open Format
 open Rule
 open Term
 open Dtree
@@ -63,35 +62,28 @@ and term_of_state_ref r = term_of_state !r
 
 (**************** Pretty Printing ****************)
 
-let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
+(* let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
+ *
+ * let pp_stack fmt (st:stack) =
+ *   fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state_ref st) *)
 
-let pp_stack fmt (st:stack) =
-  fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state_ref st)
+(*let pp_stack_oneline fmt (st:stack) =
+    fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state_ref st) *)
 
-let pp_stack_oneline fmt (st:stack) =
-  fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state_ref st)
+(* let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
+ *   if if_ctx
+ *   then fprintf fmt "{ctx=[%a];@." pp_env ctx
+ *   else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx);
+ *   fprintf fmt "term=%a;@." pp_term term;
+ *   if if_stack
+ *   then fprintf fmt "stack=%a}@." pp_stack stack
+ *   else fprintf fmt "stack=[...](%i)}@." (List.length stack);
+ *   fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack}) *)
 
-let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
-  if if_ctx
-  then fprintf fmt "{ctx=[%a];@." pp_env ctx
-  else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx);
-  fprintf fmt "term=%a;@." pp_term term;
-  if if_stack
-  then fprintf fmt "stack=%a}@." pp_stack stack
-  else fprintf fmt "stack=[...](%i)}@." (List.length stack);
-  fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
-
-let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true
-
-
-(* ********************* *)
-
-type rw_strategy         = Signature.t -> term -> term
-type rw_state_strategy   = Signature.t -> state -> state
+(* let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true *)
 
 type matching_test = Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 type convertibility_test = Signature.t -> term -> term -> bool
-
 
 module type ConvChecker = sig
   val are_convertible : convertibility_test
@@ -155,20 +147,20 @@ and find_case (st:state) (cases:(case*dtree) list)
     (default:dtree option) : (dtree * stack) option =
   match st, cases with
   | _, [] -> map_opt (fun g -> (g,[])) default
-  | { term=Const (_,cst); stack } , (CConst (nargs,cst'),tr)::tl ->
+  | { term=Const (_,cst); stack ; _ } , (CConst (nargs,cst'),tr)::tl ->
      (* The case doesn't match if the identifiers differ or the stack is not
       * of the expected size. *)
      if name_eq cst cst' && List.length stack == nargs
      then Some (tr,stack)
      else find_case st tl default
-  | { ctx; term=DB (l,x,n); stack } , (CDB (nargs,n'),tr)::tl ->
+  | { ctx; term=DB (_,_,n); stack } , (CDB (nargs,n'),tr)::tl ->
     assert ( ctx = LList.nil ); (* no beta in patterns *)
     (* The case doesn't match if the DB indices differ or the stack is not
      * of the expected size. *)
     if n == n' && List.length stack == nargs
     then Some (tr,stack)
     else find_case st tl default
-  | { ctx; term=Lam _; stack } , ( CLam , tr )::tl ->
+  | { term=Lam _; _ } , ( CLam , tr )::_ ->
     begin
       match term_of_state st with (*TODO could be optimized*)
       | Lam (_,_,_,te) ->
@@ -222,8 +214,8 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
 and state_whnf (sg:Signature.t) (st:state) : state =
   match st with
   (* Weak heah beta normal terms *)
-  | { term=Type _ } | { term=Kind }
-  | { term=Pi _   } | { term=Lam _; stack=[] } -> st
+  | { term=Type _ ; _ } | { term=Kind ; _ }
+  | { term=Pi _ ; _  } | { term=Lam _; stack=[] ; _} -> st
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
     if n < LList.len ctx
@@ -239,7 +231,7 @@ and state_whnf (sg:Signature.t) (st:state) : state =
     let tl' = List.rev_map ( fun t -> ref {ctx;term=t;stack=[]} ) (a::lst) in
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
-  | { ctx; term=Const (l,n); stack } ->
+  | { term=Const (l,n); stack ; _} ->
     let trees = Signature.get_dtree sg l n in
     match find_dtree (List.length stack) trees with
     | None -> st
@@ -262,7 +254,8 @@ and snf sg (t:term) : term =
   | Pi  (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
-let rec conversion_step : (term * term) -> (term * term) list -> (term * term) list = fun (l,r) lst ->
+let conversion_step : (term * term) -> (term * term) list -> (term * term) list =
+  fun (l,r) lst ->
   match l,r with
   | Kind, Kind | Type _, Type _                 -> lst
   | Const (_,n), Const (_,n') when name_eq n n' -> lst
@@ -292,8 +285,6 @@ let are_convertible sg t1 t2 =
   try are_convertible_lst sg [(t1,t2)]
   with NotConvertible -> false
 
-let matching_test _ _ = are_convertible
-
 (* ************************************************************** *)
 
 type state_reducer = position -> state -> state
@@ -304,12 +295,12 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
     if stop () then st else
       match st, strat with
       (* Weak heah beta normal terms *)
-      | { term=Type _ }, _
-      | { term=Kind   }, _ -> st
+      | { term=Type _ ; _ }, _
+      | { term=Kind   ; _ }, _ -> st
 
-      | { term=Pi _ }  , ByName
-      | { term=Pi _ }  , ByValue -> st
-      | { ctx=ctx; term=Pi(l,x,a,b) }, ByStrongValue ->
+      | { term=Pi _   ; _ }, ByName
+      | { term=Pi _   ; _ }, ByValue -> st
+      | { ctx=ctx; term=Pi(l,x,a,b) ; _ }, ByStrongValue ->
         let a' = term_of_state (aux (0::pos) {ctx=ctx; term=a; stack=[]}) in
         (* Should we also reduce b ? *)
         {st with term=mk_Pi l x a' b }
@@ -319,7 +310,7 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
         let ty' = term_of_state (aux (0::pos) {ctx=ctx; term=ty; stack=[]}) in
         {st with term=mk_Lam l x (Some ty') t}
       (* Empty stack *)
-      | { term=Lam _; stack=[] }, _ -> st
+      | { term=Lam _; stack=[] ; _ }, _ -> st
       (* Beta redex with type annotation *)
       | { ctx; term=Lam (l,x,Some ty,t); stack=p::s }, ByStrongValue ->
         let ty' = term_of_state (aux (0::pos) {ctx=ctx; term=ty; stack=[]}) in
@@ -354,7 +345,7 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
         aux pos { ctx; term=f; stack=List.rev_append tl' s }
 
       (* Potential Gamma redex *)
-      | { ctx; term=Const (l,n); stack }, _ ->
+      | { term=Const (l,n); stack ; _ }, _ ->
         let trees = Signature.get_dtree sg l n in
         match find_dtree (List.length stack) trees with
         | None -> st

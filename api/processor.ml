@@ -1,4 +1,6 @@
+open Kernel
 open Basic
+open Parsers
 
 module type CustomEnv = (module type of Env) with type t = Env.t
 
@@ -27,7 +29,7 @@ struct
       let opaque_str = if opaque then " (opaque)" else "" in
       Debug.debug Debug.D_notice "Definition of symbol '%a'%s." pp_ident id opaque_str;
       Env.define env lc id opaque te ty
-    | Rules(l,rs) ->
+    | Rules(_,rs) ->
       let open Rule in
       List.iter (fun (r:untyped_rule) ->
           Debug.(debug D_notice "Adding rewrite rules: '%a'" Pp.print_rule_name r.name)) rs;
@@ -87,15 +89,15 @@ struct
     match e with
     | Decl(lc,id,st,ty) ->
       Signature.add_external_declaration sg lc (Basic.mk_name md id) st ty
-    | Def(lc,id,op,Some ty,te) ->
+    | Def(lc,id,_,Some ty,te) ->
       let open Rule in
       Signature.add_external_declaration sg lc (Basic.mk_name md id) Signature.Definable ty;
       let cst = Basic.mk_name md id in
       let rule = { name= Delta(cst) ; ctx = [] ; pat = Pattern(lc, cst, []); rhs = te ; } in
       Signature.add_rules sg [Rule.to_rule_infos rule]
-    | Def(lc,id,op, None,te) ->
+    | Def(lc,_,_, None,_) ->
       raise @@ Typing.Typing_error (Typing.DomainFreeLambda lc) (* FIXME: It is not a typign error *)
-    | Rules(lc,rs) ->
+    | Rules(_,rs) ->
       Signature.add_rules sg (List.map Rule.to_rule_infos rs)
     | Require(lc,md) -> Signature.import sg lc md
     | _ -> ()

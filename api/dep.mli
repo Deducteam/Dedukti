@@ -1,4 +1,6 @@
 (** Module which handle dependencies between Dedukti files *)
+open Kernel
+open Parsers
 
 (** {2 Type declaration} *)
 

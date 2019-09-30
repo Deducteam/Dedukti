@@ -1,6 +1,7 @@
-open Term
+open Kernel
+open Api
+
 open Basic
-open Parser
 
 module P         = Processor
 module TC        = P.TypeChecker
@@ -112,9 +113,7 @@ Available options:" Sys.argv.(0) in
     | None ->
       if not !beautify then
         begin
-          match Parser.file_of_input (Env.get_input env) with
-          | None      -> Errors.success "Standard input was successfully checked.\n"
-          | Some file -> Errors.success "File '%s' was successfully checked." file
+          Errors.success (Env.get_filename env)
         end;
       if !export then Env.export env;
       Confluence.finalize ()
@@ -124,5 +123,5 @@ Available options:" Sys.argv.(0) in
   match !run_on_stdin with
   | None   -> ()
   | Some m ->
-    let input = Parser.input_from_stdin (Basic.mk_mident m) in
+    let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
     Processor.handle_input input (module P);

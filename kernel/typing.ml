@@ -70,7 +70,7 @@ struct
     Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
     match te with
     | Kind -> raise (Typing_error KindIsNotTypable)
-    | Type l -> mk_Kind
+    | Type _ -> mk_Kind
     | DB (l,x,n) -> get_type ctx l x n
     | Const (l,cst) -> Signature.get_type sg l cst
     | App (f,a,args) ->
@@ -89,7 +89,7 @@ struct
       ( match ty_b with
         | Kind -> raise (Typing_error (InexpectedKind (b, ctx2)))
         | _ -> mk_Pi l x a ty_b )
-    | Lam  (l,x,None,b) -> raise (Typing_error (DomainFreeLambda l))
+    | Lam  (l,_,None,_) -> raise (Typing_error (DomainFreeLambda l))
 
   and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     Debug.(debug D_typeChecking "Checking (%a): %a : %a" pp_loc (get_loc te) pp_term te pp_term ty_exp);
@@ -269,12 +269,12 @@ let pc_to_context_wp (delta:partial_context) : typed_context =
   let rec aux lst = function 0 -> lst | n -> aux (dummy::lst) (n-1) in
   aux (pc_to_context delta) delta.padding
 
-let pp_pcontext fmt delta =
-  let lst = List.rev (LList.lst delta.pctx) in
-  List.iteri (fun i (_,x,ty) -> fprintf fmt "%a[%i]:%a\n" pp_ident x i pp_term ty) lst;
-  for i = 0 to delta.padding -1 do
-    fprintf fmt "?[%i]:?\n" (i+LList.len delta.pctx)
-  done
+(* let pp_pcontext fmt delta =
+ *   let lst = List.rev (LList.lst delta.pctx) in
+ *   List.iteri (fun i (_,x,ty) -> fprintf fmt "%a[%i]:%a\n" pp_ident x i pp_term ty) lst;
+ *   for i = 0 to delta.padding -1 do
+ *     fprintf fmt "?[%i]:?\n" (i+LList.len delta.pctx)
+ *   done *)
 
 (* *** *)
 
@@ -293,11 +293,11 @@ let rec infer_pattern sg (delta:partial_context) (sigma:context2)
     (lst:constraints) (pat:pattern) : typ * partial_context * constraints =
   match pat with
   | Pattern (l,cst,args) ->
-    let (sigma,_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg)
+    let (_,_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg)
         ( sigma, mk_Const l cst , Signature.get_type sg l cst , delta , lst ) args
     in (ty,delta2,lst2)
   | Var (l,x,n,args) when n < LList.len sigma ->
-    let (sigma,_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg)
+    let (_,_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg)
         ( sigma, mk_DB l x n, get_type (LList.lst sigma) l x n , delta , lst ) args
     in (ty,delta2,lst2)
   | Var _ | Brackets _ | Lambda _ ->
@@ -325,7 +325,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     begin
       match R.whnf sg exp_ty with
       | Pi (_,_,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
-      | exp_ty2 -> raise (Typing_error ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
+      | _ -> raise (Typing_error ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
     end
   | Brackets te ->
     let _ =

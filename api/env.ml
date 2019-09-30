@@ -1,8 +1,9 @@
+open Kernel
 open Basic
 open Term
 open Rule
 open Typing
-open Signature
+open Parsers
 
 exception DebugFlagNotRecognized of char
 

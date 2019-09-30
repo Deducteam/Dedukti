@@ -1,13 +1,14 @@
+open Kernel
+open Api
+
 open Basic
-open Term
-open Rule
 
 (** Output main program. *)
 let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
   let open Dep in
   let objfile src = Filename.chop_extension src ^ ".dko" in
   let output_line : mident -> file_deps -> unit =
-    fun md deps ->
+    fun _ deps ->
        let file = deps.file in
        let deps = List.map (fun md -> objfile (Files.get_file md)) (MidentSet.elements deps.deps) in
        let deps = String.concat " " deps in
@@ -17,7 +18,7 @@ let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
   in
   Hashtbl.iter output_line data
 
-let output_sorted : Format.formatter -> Dep.t -> unit = fun oc data ->
+let output_sorted : Format.formatter -> Dep.t -> unit = fun _ data ->
   let deps = Dep.topological_sort data in
   Format.printf "%s@." (String.concat " " deps)
 
@@ -68,7 +69,7 @@ Available options:" Sys.argv.(0) in
     List.rev !files
   in
   (* Actual work. *)
-  let hook_after env exn =
+  let hook_after _ exn =
     match exn with
     | None -> ()
     | Some (env,lc,exn) -> Env.fail_env_error env lc exn

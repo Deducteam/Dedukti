@@ -1,5 +1,5 @@
+open Kernel
 open Basic
-open Term
 
 type stream = {md : Basic.mident; lexbuf : Lexing.lexbuf}
 

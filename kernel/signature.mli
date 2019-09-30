@@ -65,10 +65,6 @@ val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
 
-val add_external_declaration : t -> loc -> name -> staticity -> term -> unit
-(** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
-    and staticity [st] in the environment [sg]. *)
-
 val add_rules           : t -> Rule.rule_infos list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)

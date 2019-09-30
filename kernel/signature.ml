@@ -44,8 +44,8 @@ module HId = Hashtbl.Make(
 type staticity = Static | Definable
 
 (** The pretty printer for the type [staticity] *)
-let pp_staticity fmt s =
-  Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable")
+(* let pp_staticity fmt s =
+ *   Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable") *)
 
 type rw_infos =
   {
@@ -197,7 +197,7 @@ let get_deps sg : mident list = (*only direct dependencies*)
     ) sg.tables []
 
 
-let rec import_signature sg sg_ext =
+let import_signature sg sg_ext =
   HMd.iter (fun m hid ->
       if not (HMd.mem sg.tables m) then
         HMd.replace sg.tables m (HId.copy hid)) sg_ext.tables;

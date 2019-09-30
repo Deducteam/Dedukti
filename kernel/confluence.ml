@@ -79,8 +79,8 @@ let pp_pattern ar fmt pat =
       fprintf fmt "c_%a" print_name cst;
       List.iter (fun pat -> fprintf fmt ",%a)" (aux k) pat) args
     end
-  | Var (_,x,n,[]) (* n>=k *) -> fprintf fmt "m_%a" pp_ident x ;
-  | Var (_,x,n,a::args) (* n>=k *) ->
+  | Var (_,x,_,[]) (* n>=k *) -> fprintf fmt "m_%a" pp_ident x ;
+  | Var (_,x,_,a::args) (* n>=k *) ->
     let arity = IdMap.find x ar in
       if arity == 0 then (
         List.iter (fun _ -> fprintf fmt "app(" ) (a::args);
@@ -105,7 +105,7 @@ let rec pp_term (ar:int IdMap.t) k fmt term =
   | Const (_,cst) -> fprintf fmt "c_%a" print_name cst;
   | Lam (_,x,Some a,b) ->
     fprintf fmt "lam(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
-  | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
+  | Lam (_,_,None,_) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
   | Pi (_,x,a,b) ->
     fprintf fmt "pi(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
   | DB (_,x,n) when n<k -> fprintf fmt "v_%a" pp_ident x
@@ -137,7 +137,7 @@ let get_bvars r =
   let pat = pattern_of_rule_infos r in
   let rec aux_t k bvars = function
     | Const _ | Kind | Type _ | DB _ -> bvars
-    | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
+    | Lam (_,_,None,_) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
     | Lam (_,x,Some a,b) | Pi (_,x,a,b) ->
       let bvars2 = aux_t k bvars a in aux_t (k+1) (x::bvars2) b
     | App (f,a,args) ->
@@ -154,9 +154,9 @@ let get_bvars r =
 
 let get_arities (p:pattern) : int IdMap.t =
   let rec aux k map = function
-    | Var (_,x,n,args) when (n<k) -> List.fold_left (aux k) map args
+    | Var (_,_,n,args) when (n<k) -> List.fold_left (aux k) map args
     | Pattern (_,_,args) -> List.fold_left (aux k) map args
-    | Var (_,x,n,args) (* n>=k *) ->
+    | Var (_,x,_,args) (* n>=k *) ->
       let map2 = List.fold_left (aux k) map args in
       let ar1 = List.length args in
       let ar = ( try
@@ -165,7 +165,7 @@ let get_arities (p:pattern) : int IdMap.t =
                  with Not_found -> ar1
                ) in
       IdMap.add x ar map2
-    | Lambda (_,x,p) -> aux (k+1) map p
+    | Lambda (_,_,p) -> aux (k+1) map p
     | Brackets _ -> map
   in
   aux 0 IdMap.empty p
@@ -211,11 +211,11 @@ let check () =
       raise (ConfluenceError error)
     )
 
-let add_constant cst = try_out (fun (file,out) ->
+let add_constant cst = try_out (fun (_,out) ->
     let fmt = formatter_of_out_channel out in
     fprintf fmt "(FUN c_%a : term)@." pp_name cst)
 
-let add_rules lst = try_out (fun (file,out) ->
+let add_rules lst = try_out (fun (_,out) ->
     let fmt = formatter_of_out_channel out in
     List.iter (pp_rule fmt) lst)
 

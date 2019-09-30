@@ -1,3 +1,5 @@
+open Kernel
+
 type stream
 (** Abstract parser stream representation. *)
 

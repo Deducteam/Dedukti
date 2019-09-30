@@ -1,5 +1,8 @@
+open Kernel
+open Parsers
+open Api
+
 open Basic
-open Parser
 open Entry
 
 module Printer = Pp.Default
@@ -23,7 +26,7 @@ struct
     | Rules(_,rs) ->
       let _ = Env.add_rules env rs in
       List.iter (fun r -> print "%a" Rule.pp_untyped_rule r) rs
-    | Eval(lc,red,te) ->
+    | Eval(_,red,te) ->
       let te = Env.reduction env ~red te in
       Format.printf "%a@." Printer.print_term te
     | Infer(_,red,te) ->

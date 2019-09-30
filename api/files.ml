@@ -1,3 +1,6 @@
+open Kernel
+open Parsers
+
 type files_error =
   | ModuleNotFound     of Basic.mident
   | MultipleModules    of string * string list

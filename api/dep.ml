@@ -1,4 +1,6 @@
+open Kernel
 open Basic
+open Parsers
 
 module NameSet = Basic.NameSet
 
@@ -52,16 +54,15 @@ let current_mod   : mident    ref = ref (mk_mident "<not initialised>")
 let current_name  : name      ref = ref (mk_name (!current_mod) (mk_ident  "<not initialised>"))
 let current_deps  : file_deps ref = ref (empty_deps ())
 let ignore        : bool      ref = ref false
-let process_items : bool      ref = ref false
 
 (** [add_dep md] adds the module [md] to the list of dependencies if
     no corresponding ".dko" file is found in the load path. The dependency is
     not added either if it is already present. *)
 let add_mdep : mident -> unit = fun md ->
   if mident_eq md !current_mod then () else
-    match (Files.find_dk !ignore md (Files.get_path ())) with
+    match (Files.find_dk ~ignore:!ignore md (Files.get_path ())) with
     | None -> ()
-    | Some file ->
+    | Some _ ->
       current_deps  :=
         {!current_deps with deps = MSet.add md !current_deps.deps}
 

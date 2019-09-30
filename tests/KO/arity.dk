@@ -1,5 +1,6 @@
 (; KO 506 ;)
 
+
 N : Type.
 
 def a : (N -> N) -> N -> N.

@@ -4,27 +4,14 @@ VERSION = devel
 # Compile with "make Q=" to display the commands that are run.
 Q = @
 
-
-.PHONY: default
-default: all
-
 .PHONY: all
 all: bin binaries
 
 .PHONY: binaries
 binaries: dkcheck.native dktop.native dkdep.native dkprune.native
 
-dkdep.native:
-	@ln -s _build/install/default/bin/dkdep dkdep.native 2>/dev/null || true
-
-dkcheck.native:
-	@ln -s _build/install/default/bin/dkcheck dkcheck.native 2>/dev/null || true
-
-dktop.native:
-	@ln -s _build/install/default/bin/dktop dktop.native 2>/dev/null || true
-
-dkprune.native:
-	@ln -s _build/install/default/bin/dkprune dkprune.native 2>/dev/null || true
+%.native:
+	@ln -fs _build/install/default/bin/$* $@
 
 .PHONY: bin
 bin: kernel/version.ml
@@ -37,6 +24,7 @@ doc:
 .PHONY: clean
 clean:
 	@dune clean
+	@rm -f *.native
 
 .PHONY: install
 install: all
@@ -47,7 +35,6 @@ uninstall: all
 	@dune uninstall
 
 kernel/version.ml: GNUmakefile
-	@echo "[GEN] $@ ($(VERSION))"
 	$(Q)echo 'let version = "$(VERSION)"' > $@
 
 

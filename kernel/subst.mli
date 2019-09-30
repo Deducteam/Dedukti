@@ -48,9 +48,11 @@ module Subst :
 sig
   type t
 
-  val identity : t (** Empty substitution *)
+  val identity : t
+  (** Empty substitution *)
 
-  val is_identity : t -> bool (** Checks emptyness *)
+  val is_identity : t -> bool
+  (** Checks emptyness *)
 
   val add : t -> int -> term -> t
   (** [add sigma n t] returns the substitution [sigma] with the extra mapping [n] -> [t]. *)

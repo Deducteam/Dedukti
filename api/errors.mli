@@ -1,11 +1,12 @@
 (** Errors handling *)
 
+open Kernel
 open Basic
 
 val color : bool ref
 (** Flag to disable colored output. *)
 
-val success : ('a, Format.formatter, unit) format -> 'a
+val success : string -> unit
 (** Print a success message. *)
 
 val fail_exit : file:string -> code:string -> loc option -> ('a, Format.formatter, unit) format -> 'a
