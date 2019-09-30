@@ -5,7 +5,7 @@ module MSet = Basic.MidentSet
 
 module Printer = Pp.Default
 
-
+(* TODO ensure that the names exists *)
 exception NoDirectory
 exception EntryNotHandled of Entry.entry
 exception BadFormat
@@ -49,7 +49,7 @@ let name_of_entry md = function
       let open Rule in
       let r' = to_rule_infos r in
       Some r'.cst
-    | _ -> None
+    | _  -> None
 
 module PruneDepProcessor : Processor.S with type t = unit =
 struct
@@ -76,7 +76,7 @@ struct
     let add_name n = names := NSet.add n !names in
     fun entry ->
       match name_of_entry md entry with
-      | None -> raise @@ EntryNotHandled entry
+      | None -> ()
       | Some md -> add_name md
 
   let get_data () = !names
@@ -121,9 +121,16 @@ let rec run_on_files files =
   in
   Processor.handle_files files ~hook_before ~hook_after (module PruneDepProcessor)
 
-let handle_constraints mds =
+
+(* TODO: catch error from Files, encapsulate this in a processor *)
+let handle_modules mds =
   let files = List.map Files.get_file mds in
   run_on_files files
+
+let handle_names names =
+  let open Basic.MidentSet in
+  let mds = NameSet.fold (fun name s -> add (Basic.md name) s) names empty  in
+  handle_modules (elements mds)
 
 let is_empty deps file =
   let names = Processor.handle_files [file] (module GatherNames) in
@@ -141,7 +148,7 @@ let write_file deps in_file =
     let handle_entry e =
       let name = name_of_entry md e in
       match name with
-      | None   -> raise @@ EntryNotHandled e
+      | None   -> Format.fprintf fmt "%a" Printer.print_entry e
       | Some name -> if NSet.mem name deps then Format.fprintf fmt "%a" Printer.print_entry e
     in
     Parser.handle input handle_entry;
@@ -150,16 +157,18 @@ let write_file deps in_file =
 
 let print_dependencies names =
   let open Dep in
-  NameSet.iter Dep.transitive_closure names;
-  let down_deps = NameSet.fold
-      (fun name dependencies -> NameSet.union (get_data name).down dependencies) names names in
-  let mds = Hashtbl.fold (fun md _ set -> MSet.add md set) Dep.deps MSet.empty in
-  let in_files md files =
-    let file = Files.get_file md in
-    if is_empty down_deps file then files else file::files
-  in
-  let in_files = MSet.fold in_files mds [] in
-  List.iter (write_file down_deps) in_files
+  try
+    NameSet.iter Dep.transitive_closure names;
+    let down_deps = NameSet.fold
+        (fun name dependencies -> NameSet.union (get_data name).down dependencies) names names in
+    let mds = Hashtbl.fold (fun md _ set -> MSet.add md set) Dep.deps MSet.empty in
+    let in_files md files =
+      let file = Files.get_file md in
+      if is_empty down_deps file then files else file::files
+    in
+    let in_files = MSet.fold in_files mds [] in
+    List.iter (write_file down_deps) in_files
+  with Dep.Dep_error(NameNotFound name) as e -> Format.eprintf "%a@." Pp.Default.print_name name; raise e
 
 let _ =
   let args = Arg.align
@@ -184,4 +193,5 @@ Available options:" Sys.argv.(0) in
   in
   let run_on_constraints files = Processor.handle_files files (module ProcessConfigurationFile) in
   let names = run_on_constraints files in
+  handle_names names;
   print_dependencies names
