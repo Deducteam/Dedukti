@@ -1,5 +1,11 @@
 (** A process module processes entries. It is parameterized by an environment. *)
 
+(** The file declares four processors which are used for type
+   checking, build a signature (without type checking), print an entry
+   or compute the dependencies. Other processor can be defined by the
+   user. Generally, a processor will be handled by the method
+   [handle_input] or [handle_files]. *)
+
 module type S =
 sig
   type t
@@ -10,12 +16,6 @@ sig
   val get_data : unit -> t
   (** [get_data ()] returns the data computed by the current processor *)
 end
-
-(** The file declares four processors which are used for type
-   checking, build a signature (without type checking), print an entry
-   or compute the dependencies. Other processor can be defined by the
-   user. Generally, a processor will be handled by the method
-   [handle_input] or [handle_files]. *)
 
 module TypeChecker      : S with type t = unit
 (** Provide a type checker for entries *)
