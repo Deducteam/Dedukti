@@ -2,7 +2,6 @@ open Kernel
 open Basic
 open Term
 
-
 type is_opaque    = bool
 type is_assertion = bool
 type should_fail  = bool
