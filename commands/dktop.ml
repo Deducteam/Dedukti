@@ -1,8 +1,10 @@
 open Kernel
-open Basic
 open Parsing
-open Entry
 open Api
+
+open Basic
+open Parser
+open Entry
 
 module E = Env.Make(Reduction.Default)
 module Printer = E.Printer
@@ -54,13 +56,11 @@ let handle_entry md e =
 
 let  _ =
   let md = E.init "<toplevel>" in
-  let str = Parser.Parse_channel.from md stdin in
+  let str = Parse_channel.from md stdin in
   Format.printf "\tDedukti (%s)@.@." Version.version;
   while true do
     Format.printf ">> ";
-    try handle_entry md (Parser.read str) with
+    try handle_entry md (read str) with
     | End_of_file -> exit 0
-    | Entry.EnvError (md,l,Entry.ParseError s)->
-      ErrorHandler.fail_env_error (md,l,Entry.ParseError s)
-    | e -> Format.eprintf "Uncaught exception %S@." (Printexc.to_string e)
+    | e -> ErrorHandler.graceful_fail None e
   done

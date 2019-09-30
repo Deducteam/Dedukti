@@ -1,7 +1,8 @@
 open Kernel
-open Basic
 open Parsing
 open Api
+
+open Basic
 
 module E            = Env.Make(Reduction.Default)
 module ErrorHandler = Errors.Make(E)
@@ -11,7 +12,10 @@ let handle_file : string -> unit = fun file ->
     let md = E.init file in
     (* Actully parsing and gathering data. *)
     let input = open_in file in
-    Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
+    begin
+      try Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
+      with e -> ErrorHandler.graceful_fail (Some file) e
+    end;
     close_in input
 
 (** Output main program. *)
@@ -81,14 +85,9 @@ Available options:" Sys.argv.(0) in
     List.rev !files
   in
   (* Actual work. *)
-  try
-    List.iter handle_file files;
-    let formatter = Format.formatter_of_out_channel !output in
-    let output_fun = if !sorted then output_sorted else output_deps in
-    output_fun formatter Dep.deps;
-    Format.pp_print_flush formatter ();
-    close_out !output
-  with
-  | Entry.EnvError  (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
-  | Dep.Dep_error dep -> ErrorHandler.fail_env_error (None,dloc,Entry.EnvErrorDep dep)
-  | Sys_error     err -> ErrorHandler.fail_sys_error err
+  List.iter handle_file files;
+  let formatter = Format.formatter_of_out_channel !output in
+  let output_fun = if !sorted then output_sorted else output_deps in
+  output_fun formatter Dep.deps;
+  Format.pp_print_flush formatter ();
+  close_out !output

@@ -1,8 +1,8 @@
 open Kernel
-open Basic
 open Parsing
 open Api
 
+open Basic
 
 exception NoDirectory
 exception EntryNotHandled of Entry.entry
@@ -53,7 +53,10 @@ let rec handle_file : string -> unit =
         computed := Dep.MDepSet.add (md,file) !computed;
         log "[COMPUTE DEP] %s" file;
         let input = open_in file in
-        Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
+        begin
+          try Dep.handle md (fun f -> Parser.Parse_channel.handle md f input)
+          with e -> ErrorHandler.graceful_fail (Some file) e
+        end;
         close_in input;
         let md_deps = Hashtbl.find Dep.deps md in
         Dep.MDepSet.iter
@@ -182,11 +185,6 @@ Available options:" Sys.argv.(0) in
     List.rev !files
   in
   let open Dep in
-  try
-    let cstr = List.fold_left NameSet.union NameSet.empty (List.map parse_constraints files) in
-    handle_constraints cstr;
-    print_dependencies cstr
-  with
-  | Entry.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
-  | Dep.Dep_error dep      -> ErrorHandler.fail_env_error (None,dloc,Entry.EnvErrorDep dep)
-  | Sys_error err          -> ErrorHandler.fail_sys_error err
+  let cstr = List.fold_left NameSet.union NameSet.empty (List.map parse_constraints files) in
+  handle_constraints cstr;
+  print_dependencies cstr
