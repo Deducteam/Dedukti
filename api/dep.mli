@@ -1,5 +1,5 @@
 open Kernel
-open Parse
+open Parsing
 
 exception Dep_error of Entry.dep_error
 

@@ -4,7 +4,7 @@ open Term
 open Rule
 open Typing
 open Signature
-open Parse
+open Parsing
 
 exception DebugFlagNotRecognized of char
 

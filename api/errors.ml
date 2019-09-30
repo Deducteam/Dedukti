@@ -2,7 +2,7 @@ open Kernel
 open Basic
 open Format
 open Term
-open Parse
+open Parsing
 
 let errors_in_snf = ref false
 

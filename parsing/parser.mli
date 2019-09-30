@@ -4,6 +4,9 @@ type stream
 (** Abstract parser stream representation. *)
 
 val read : stream -> Entry.entry
+
+exception Parse_error of Basic.loc * string
+
 (** [read str] reads a single entry from the parser stream [str]. When no more
     [entry] is available, the [End_of_file] exception is raised. *)
 

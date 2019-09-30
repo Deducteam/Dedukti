@@ -1,12 +1,12 @@
 open Kernel
 open Basic
-open Parse
+open Parsing
 
 module type S =
 sig
   type t
 
-  val handle_entry : Parse.Entry.entry -> unit
+  val handle_entry : Entry.entry -> unit
 
   val get_data : unit -> t
 end
@@ -20,7 +20,7 @@ struct
   type t = unit
 
   let handle_entry e =
-    let open Parse.Entry in
+    let open Entry in
     match e with
     | Decl(lc,id,st,ty) ->
       debug D_notice "Declaration of constant '%a'." pp_ident id;

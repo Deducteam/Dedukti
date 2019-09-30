@@ -1,4 +1,4 @@
 (library
-        (name api)
-	(public_name dedukti.api)
-	(libraries kernel parse))
+    (name api)
+    (public_name dedukti.api)
+    (libraries kernel parsing))

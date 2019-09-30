@@ -2,9 +2,9 @@ open Kernel
 open Basic
 open Term
 open Rule
-open Parse
-open Entry
+open Parsing
 open Format
+open Entry
 
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
 

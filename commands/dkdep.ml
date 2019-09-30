@@ -1,6 +1,6 @@
 open Kernel
 open Basic
-open Parse
+open Parsing
 open Api
 
 module E            = Env.Make(Reduction.Default)

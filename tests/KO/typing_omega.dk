@@ -1,5 +1,5 @@
-(; KO 8 ;)
+(; KO 104 ;)
 
 A : Type.
 B : A -> Type.
-C : B ( (x => x x)(x => x x) ).
+C : B ( (x : A => x x)(x : A => x x) ).

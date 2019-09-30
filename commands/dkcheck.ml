@@ -1,7 +1,6 @@
 open Kernel
 open Basic
-open Parse
-open Parser
+open Parsing.Parser
 open Api
 
 module E = Env.Make(Reduction.Default)
@@ -136,5 +135,5 @@ Available options:" Sys.argv.(0) in
       if not !beautify
       then ErrorHandler.success "Standard input was successfully checked.\n"
   with
-  | Entry.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
+  | Parsing.Entry.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
   | Sys_error err          -> ErrorHandler.fail_sys_error err

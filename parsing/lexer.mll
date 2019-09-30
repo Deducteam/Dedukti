@@ -5,6 +5,8 @@
   open Tokens
   open Format
 
+  exception Lexer_error of loc * string
+
   let loc_of_pos pos = mk_loc (pos.pos_lnum) (pos.pos_cnum - pos.pos_bol)
 
   let get_loc lexbuf = loc_of_pos lexbuf.lex_start_p
@@ -12,7 +14,7 @@
   let prerr_loc lc = eprintf "%a " pp_loc lc
 
   let fail lc msg =
-    raise (Entry.EnvError (None, lc, Entry.ParseError msg))
+    raise (Lexer_error(lc, msg))
 }
 
 let space   = [' ' '\t' '\r']
