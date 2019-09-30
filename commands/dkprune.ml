@@ -157,6 +157,7 @@ let write_file deps in_file =
 
 let print_dependencies names =
   let open Dep in
+  let fake_env = Env.init (Parser.input_from_string (Basic.mk_mident "dkprune") "") in
   try
     NameSet.iter Dep.transitive_closure names;
     let down_deps = NameSet.fold
@@ -168,7 +169,13 @@ let print_dependencies names =
     in
     let in_files = MSet.fold in_files mds [] in
     List.iter (write_file down_deps) in_files
-  with Dep.Dep_error(NameNotFound name) as e -> Format.eprintf "%a@." Pp.Default.print_name name; raise e
+  with
+  | Dep.Dep_error(NameNotFound (name)) ->
+    Errors.fail_exit
+      ~file:"configuration file" ~code:"DKPRUNE" None "The name %a does not exists@." Pp.Default.print_name name
+  | exn ->
+    Env.fail_env_error fake_env Basic.dloc exn
+
 
 let _ =
   let args = Arg.align

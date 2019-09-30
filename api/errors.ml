@@ -25,7 +25,7 @@ let where file = orange (Format.asprintf "[%s]" file)
 
 let loc_of lc  = violet (Format.asprintf "[%a]" pp_loc lc)
 
-let fail_exit file code lc fmt =
+let fail_exit ~file ~code lc fmt =
   let eid = red ("[ERROR CODE:" ^ code ^ "] ") in
   begin match lc with
     | None    -> eprintf "%s %s @."        eid (where file)
@@ -40,7 +40,7 @@ let try_print_oneliner fmt (te,ctxt) =
   else if ctxt = [] then Format.fprintf fmt "@.%a@." Pp.print_term te
   else Format.fprintf fmt "@.%a@.----%a" Pp.print_term te Pp.print_err_ctxt ctxt
 
-let fail_sys_error file msg = fail_exit file "SYSTEM" None "%s@." msg
+let fail_sys_error ~file ~msg = fail_exit ~file ~code:"SYSTEM" None "%s@." msg
 
 type error_code = int
 

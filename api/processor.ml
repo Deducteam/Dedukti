@@ -184,7 +184,7 @@ let handle_files : string list ->
       let input = Parser.input_from_file file in
       ignore(handle_input input ?hook_before ?hook_after (module P));
       Parser.close input
-    with Sys_error msg -> Errors.fail_sys_error file msg
+    with Sys_error msg -> Errors.fail_sys_error ~file ~msg
   in
   List.iter (handle_file) files;
   P.get_data ()

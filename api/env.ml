@@ -183,4 +183,4 @@ let fail_env_error : t -> Basic.loc -> exn -> 'a = fun env lc exn ->
   let snf env t    = if !errors_in_snf then unsafe_reduction env t else t in
   let file         = get_filename env in
   let code, lc,msg = Errors.string_of_exception ~red:(snf env) lc exn in
-  Errors.fail_exit file (string_of_int code) (Some lc) "%s" msg
+  Errors.fail_exit ~file ~code:(string_of_int code) (Some lc) "%s" msg
