@@ -47,6 +47,12 @@ val dmark : ident
 
 (** The kernel may introduce such identifiers when creating new de Bruijn indices *)
 
+module MidentSet : Set.S with type elt = mident
+
+module IdentSet : Set.S with type elt = mident
+
+module NameSet : Set.S with type elt = name
+
 
 (** {2 Lists with Length} *)
 (** A list where the method len is O(1). It is used by {!Matching}. *)
@@ -72,14 +78,11 @@ type loc
 val dloc : loc
 (** a dummy location *)
 
-val mk_loc : int -> int -> loc
 (** [mk_loc l c] builds the location where [l] is the line and [c] the column *)
+val mk_loc : int -> int -> loc
 
-val of_loc : loc -> int * int
 (** [of_loc l] returns the line and the column associated to the position*)
-
-val add_path : string -> unit
-val get_path : unit -> string list
+val of_loc : loc -> int * int
 
 (** {2 Debug} *)
 

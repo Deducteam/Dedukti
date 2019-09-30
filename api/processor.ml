@@ -1,6 +1,6 @@
 open Kernel
 open Basic
-open Parsing
+open Parsers
 
 module type S =
 sig

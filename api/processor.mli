@@ -3,7 +3,7 @@ module type S =
 sig
   type t
 
-  val handle_entry : Parsing.Entry.entry -> unit
+  val handle_entry : Parsers.Entry.entry -> unit
 
   val get_data : unit -> t
 end

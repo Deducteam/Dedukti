@@ -2,9 +2,8 @@ open Kernel
 open Basic
 open Term
 open Rule
-open Parsing
+open Parsers
 open Format
-open Entry
 
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
 
@@ -245,6 +244,7 @@ let print_red_cfg fmt cfg =
 
 let print_entry fmt e =
   let open Format in
+  let open Entry in
   match e with
   | Decl(_,id,Signature.Static,ty) ->
     fprintf fmt "@[<2>%a :@ %a.@]@.@." print_ident id print_term ty

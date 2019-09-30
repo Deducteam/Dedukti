@@ -71,16 +71,19 @@ let infer_rule_context ri =
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
 type rule_error =
-  | BoundVariableExpected          of pattern
+  | BoundVariableExpected          of loc * pattern
   | DistinctBoundVariablesExpected of loc * ident
-  | VariableBoundOutsideTheGuard   of term
+  | VariableBoundOutsideTheGuard   of loc * term
   | UnboundVariable                of loc * ident * pattern
   (* FIXME : this exception seems never to be raised *)
   | AVariableIsNotAPattern         of loc * ident
   | NonLinearNonEqArguments        of loc * ident
   (* FIXME: the reason for this exception should be formalized on paper ! *)
+  | NotEnoughArguments             of loc * ident * int * int * int
+  | NonLinearRule                  of loc * rule_name
 
-exception RuleError of rule_error
+
+exception Rule_error of rule_error
 
 let rec pp_pattern out pattern =
   match pattern with
@@ -217,7 +220,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
   let extract_db k pat =
     match pat with
     | Var (_,_,n,[]) when n<k -> n
-    | p -> raise (RuleError (BoundVariableExpected p))
+    | p -> raise (Rule_error (BoundVariableExpected(get_loc_pat p, p)))
   in
   let rec aux (k:int) (pat:pattern) : wf_pattern =
     match pat with
@@ -229,11 +232,11 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       let args' = List.map (extract_db k) args in
       (* Miller variables should be applied to distinct variables *)
       if not (all_distinct args')
-      then raise (RuleError (DistinctBoundVariablesExpected (l,x)));
+      then raise (Rule_error (DistinctBoundVariablesExpected (l,x)));
       let nb_args' = List.length args' in
       if IntHashtbl.mem arity (n-k)
       then if nb_args' <> IntHashtbl.find arity (n-k)
-        then raise (RuleError (NonLinearNonEqArguments(l,x)))
+        then raise (Rule_error (NonLinearNonEqArguments(l,x)))
         else
           let nvar = fresh_var nb_args' in
           constraints := Linearity(nvar, n-k) :: !constraints;
@@ -244,7 +247,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
     | Brackets t ->
       let unshifted =
         try Subst.unshift k t
-        with Subst.UnshiftExn -> raise (RuleError (VariableBoundOutsideTheGuard t))
+        with Subst.UnshiftExn -> raise (Rule_error (VariableBoundOutsideTheGuard(get_loc t, t)))
         (* Note: A different exception is previously raised at rule type-checking for this. *)
       in
       let nvar = fresh_var 0 in
@@ -263,7 +266,7 @@ let to_rule_infos (r:'a context rule) : rule_infos =
   let ctx_size = List.length r.ctx in
   let (l,cst,args) = match r.pat with
     | Pattern (l,cst,args) -> (l, cst, args)
-    | Var (l,x,_,_) ->  raise (RuleError (AVariableIsNotAPattern (l,x)))
+    | Var (l,x,_,_) ->  raise (Rule_error (AVariableIsNotAPattern (l,x)))
     | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
   in
   let (pats2,infos) = check_patterns ctx_size args in
@@ -283,3 +286,30 @@ let untyped_rule_of_rule_infos ri =
   ; ctx  = infer_rule_context ri
   ; pat  = pattern_of_rule_infos ri
   ; rhs  = ri.rhs}
+
+(*         Rule checking       *)
+
+(* Checks that all Miller variables are applied to at least
+   as many arguments on the rhs as they are on the lhs (their arity). *)
+let check_arity (r:rule_infos) : unit =
+  let check _ id n k nargs =
+    let expected_args = r.arity.(n-k) in
+    if nargs < expected_args
+    then raise @@ Rule_error (NotEnoughArguments (r.l, id,n,nargs,expected_args)) in
+  let rec aux k = function
+    | Kind | Type _ | Const _ -> ()
+    | DB (l,id,n) ->
+      if n >= k then check l id n k 0
+    | App(DB(l,id,n),a1,args) when n>=k ->
+      check l id n k (List.length args + 1);
+      List.iter (aux k) (a1::args)
+    | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
+    | Lam (_,_,None,b) -> aux (k+1) b
+    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
+  in
+  aux 0 r.rhs
+
+(** Checks that all rule are left-linear. *)
+let check_linearity (r:rule_infos) : unit =
+  List.iter (function Linearity _ -> raise (Rule_error (NonLinearRule(r.l, r.name)))
+                    | _ -> ()) r.constraints

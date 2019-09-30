@@ -1,5 +1,5 @@
 open Kernel
-open Parsing
+open Parsers
 open Api
 
 open Basic
@@ -45,7 +45,7 @@ let _ =
       , Arg.Set export
       , " Generates an object file (\".dko\")" )
     ; ( "-I"
-      , Arg.String Basic.add_path
+      , Arg.String Dep.add_path
       , "DIR Adds the directory DIR to the load path" )
     ; ( "-d"
       , Arg.String Env.set_debug_mode

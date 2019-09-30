@@ -1,6 +1,6 @@
 open Kernel
 open Basic
-open Parsing
+open Parsers
 
 type path = string
 
@@ -62,7 +62,14 @@ let find_dk : mident -> path list -> path option = fun md path ->
   | fs  ->
     raise @@ Dep_error(MultipleModules(name,fs))
 
-let get_file md =
+
+let path = ref []
+
+let get_path () = !path
+
+let add_path s = path := s :: !path
+
+let get_file _ md =
   match find_dk md (get_path ()) with
   | None -> raise @@ Dep_error(ModuleNotFound md)
   | Some f -> f
@@ -172,13 +179,13 @@ let initialize : mident -> path -> unit = fun md file ->
   current_deps := {!current_deps with file}
 
 let make : mident -> Entry.entry list -> unit = fun md entries ->
-  let file = get_file md in
+  let file = get_file Basic.dloc md in
   initialize md file;
   List.iter handle_entry entries;
   Hashtbl.replace deps md !current_deps
 
 let handle : mident -> ((Entry.entry -> unit) -> unit) -> unit = fun md process ->
-  let file = get_file md in
+  let file = get_file Basic.dloc md in
   initialize md file;
   process handle_entry;
   Hashtbl.replace deps md !current_deps

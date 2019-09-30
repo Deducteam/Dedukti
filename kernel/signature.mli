@@ -6,10 +6,12 @@ open Rule
 
 type Debug.flag += D_module
 
+type file = string
+
 type signature_error =
-  | UnmarshalBadVersionNumber of loc * string
-  | UnmarshalSysError     of loc * string * string
-  | UnmarshalUnknown      of loc * string
+  | UnmarshalBadVersionNumber of loc * file
+  | UnmarshalSysError     of loc * file * string
+  | UnmarshalUnknown      of loc * file
   | SymbolNotFound        of loc * name
   | AlreadyDefinedSymbol  of loc * name
   | CannotMakeRuleInfos   of Rule.rule_error
@@ -18,34 +20,28 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
-  | CouldNotExportModule  of mident * string
+  | CannotExportModule    of mident * exn
 
-exception SignatureError of signature_error
+exception Signature_error of signature_error
 
 type staticity = Static | Definable
 
-val pp_staticity : staticity printer
-
 type t
 
-val make                : string -> t
+val make                : mident -> (loc -> mident -> file) -> t
 (** [make file] creates a new signature corresponding to the file [file]. *)
 
 val get_name            : t -> mident
 (** [get_name sg] returns the name of the signature [sg]. *)
 
-val export              : t -> unit
-(** [export ()] saves the current environment in a [*.dko] file.*)
+val export              : t -> out_channel -> unit
+(** [export sg oc] saves the current environment in [oc] file.*)
 
 val import              : t -> loc -> mident -> unit
 (** [import sg md] impots the module [md] in the signature [sg]. *)
 
 val import_signature    : t -> t -> unit
 (** [import sg sg_ext] imports the signature [sg_ext] into the signature [sg]. *)
-
-val get_md_deps            : loc -> mident -> mident list
-(** [get_deps lc md] returns the list of direct dependencies of module [md].
-    This function makes the assumption that the file [md.dko] exists. *)
 
 val is_static           : t -> loc -> name -> bool
 (** [is_injective sg l cst] is true when [cst] is a static symbol. *)
@@ -61,11 +57,11 @@ val get_dtree           : t -> loc -> name -> Dtree.t
 val get_rules           : t -> loc -> name -> rule_infos list
 (** [get_rules sg lc cst] returns a list of rules that defines the symbol. *)
 
-val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
-(** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
-    and staticity [st] in the environment [sg]. *)
+val add_external_declaration     : t -> loc -> name -> staticity -> term -> unit
+(** [add_external_declaration sg l cst st ty] declares the symbol [id] of type
+    [ty] and staticity [st] in the environment [sg]. *)
 
-val add_external_declaration : t -> loc -> name -> staticity -> term -> unit
+val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
 
@@ -80,7 +76,6 @@ val fail_on_symbol_not_found : bool ref
        in the signature. However, a fresh symbol is added.
     This flag is intented to facilitate the use of the module Reduction
     when it is used without the module Typing such as in dkmeta. *)
-
 
 type rw_infos =
   {

@@ -1,5 +1,5 @@
 open Kernel
-open Parsing
+open Parsers
 open Api
 
 open Basic
@@ -61,14 +61,14 @@ let rec handle_file : string -> unit =
         let md_deps = Hashtbl.find Dep.deps md in
         Dep.MDepSet.iter
           (fun (md,_) ->
-            try handle_file (Dep.get_file md)
+            try handle_file (Dep.get_file Basic.dloc md)
             with _ -> ())
           Dep.(md_deps.deps)
       end
 
 let handle_name : Basic.name -> unit = fun name ->
   let md = Basic.md name in
-  let file = Dep.get_file md in
+  let file = Dep.get_file Basic.dloc md in
   handle_file file
 
 let handle_constraints names =
@@ -83,7 +83,7 @@ let output_file : Dep.path -> Dep.path = fun file ->
 let get_files : unit -> (mident * Dep.path * Dep.path) list = fun () ->
   Hashtbl.fold (fun md _ l ->
       try
-        let f = Dep.get_file md in
+        let f = Dep.get_file Basic.dloc md in
         (md, f, output_file f)::l
     with _ -> l) Dep.deps []
 
@@ -138,7 +138,7 @@ let print_dependencies names =
 
 (* This opens a module and returns all the names of symbols declared inside *)
 let names_of_md md =
-  let file = Dep.get_file md in
+  let file = Dep.get_file Basic.dloc md in
   let input = open_in file in
   let names = ref Dep.NameSet.empty in
   let mk_entry e =
@@ -169,7 +169,7 @@ let _ =
       , Arg.Unit enable_log
       , " Print log")
     ; ( "-I"
-      , Arg.String add_path
+      , Arg.String Dep.add_path
       , " DIR Add the directory DIR to the load path" )
     ; ( "-o"
       , Arg.String (fun s -> output_directory := Some s)

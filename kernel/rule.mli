@@ -61,14 +61,16 @@ type typed_rule = typed_context rule
 (** {2 Errors} *)
 
 type rule_error =
-  | BoundVariableExpected          of pattern
+  | BoundVariableExpected          of loc * pattern
   | DistinctBoundVariablesExpected of loc * ident
-  | VariableBoundOutsideTheGuard   of term
+  | VariableBoundOutsideTheGuard   of loc * term
   | UnboundVariable                of loc * ident * pattern
   | AVariableIsNotAPattern         of loc * ident
   | NonLinearNonEqArguments        of loc * ident
+  | NotEnoughArguments             of loc * ident * int * int * int
+  | NonLinearRule                  of loc * rule_name
 
-exception RuleError of rule_error
+exception Rule_error of rule_error
 
 (** {2 Rule infos} *)
 
@@ -114,3 +116,7 @@ val pp_typed_context   : typed_context   printer
 val pp_rule_infos      : rule_infos      printer
 
 val untyped_rule_of_rule_infos : rule_infos -> untyped_rule
+
+val check_arity : rule_infos -> unit
+
+val check_linearity : rule_infos -> unit

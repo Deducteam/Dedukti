@@ -1,5 +1,5 @@
 open Kernel
-open Parsing
+open Parsers
 
 exception Dep_error of Entry.dep_error
 
@@ -28,11 +28,18 @@ val deps : t
 
 val ignore : bool ref
 
+val add_path : string -> unit
+(** [add_path p] add the [p] to the load path *)
+
+val get_path : unit -> string list
+(** [get_path ()] returns all the paths in the load path *)
+
+
 val compute_ideps : bool ref
 (** Whether to compute dependencies of every element.  If set to
     [false], only module dependencies are computed. *)
 
-val get_file : Basic.mident -> path
+val get_file : Basic.loc -> Basic.mident -> path
 (** [get_file md] returns the path associated to module [md] *)
 
 val get_data : Basic.name -> data

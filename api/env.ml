@@ -4,7 +4,7 @@ open Term
 open Rule
 open Typing
 open Signature
-open Parsing
+open Parsers
 
 exception DebugFlagNotRecognized of char
 
@@ -22,9 +22,9 @@ let set_debug_mode =
     )
 
 let raise_as_env md lc = function
-  | SignatureError e -> raise (Entry.EnvError (Some md, lc, (EnvErrorSignature e)))
-  | TypingError    e -> raise (Entry.EnvError (Some md, lc, (EnvErrorType      e)))
-  | RuleError      e -> raise (Entry.EnvError (Some md, lc, (EnvErrorRule      e)))
+  | Signature_error e -> raise (Entry.EnvError (Some md, lc, (EnvErrorSignature e)))
+  | Typing_error    e -> raise (Entry.EnvError (Some md, lc, (EnvErrorType      e)))
+  | Rule_error      e -> raise (Entry.EnvError (Some md, lc, (EnvErrorRule      e)))
   | ex               -> raise ex
 
 let check_arity = ref true
@@ -64,10 +64,21 @@ module Make(R:Reduction.S) =
 struct
   module T = Typing.Make(R)
 
-  let sg = ref (Signature.make "noname")
+  let sg =
+    let md = Basic.mk_mident "noname" in
+    ref (Signature.make md Dep.get_file)
+
+  let current_file = ref "noname"
+
+  let md_of_file file =
+    let open Filename in
+    let base = basename file in
+    let base = if check_suffix base ".dk" then (chop_suffix base ".dk") else base in
+    mk_mident base
 
   let init file =
-    sg := Signature.make file;
+    current_file := file;
+    sg := Signature.make (md_of_file file) Dep.get_file;
     Signature.get_name !sg
 
   let get_name () = Signature.get_name !sg
@@ -99,8 +110,14 @@ struct
     try Signature.get_dtree !sg lc cst
     with e -> raise_as_env lc e
 
+  let object_file_of_input file =
+    let filename = Filename.chop_extension file in
+    filename ^ ".dko"
+
   let export () =
-    try Signature.export !sg
+    let file = object_file_of_input !current_file in
+    let oc = open_out file in
+    try Signature.export !sg oc; close_out oc
     with e -> raise_as_env dloc e
 
   let import lc md =
@@ -110,7 +127,7 @@ struct
   let _declare lc (id:ident) st ty : unit =
     match T.inference !sg ty with
     | Kind | Type _ -> Signature.add_declaration !sg lc id st ty
-    | s -> raise (Typing.TypingError (Typing.SortExpected (ty,[],s)))
+    | s -> raise (Typing.Typing_error (Typing.SortExpected (ty,[],s)))
 
   let is_static lc cst = Signature.is_static !sg lc cst
 

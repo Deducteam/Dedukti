@@ -9,7 +9,7 @@ type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
 
-exception DtreeError of dtree_error
+exception Dtree_error of dtree_error
 
 (** {2 Decision Trees} *)
 

@@ -3,7 +3,7 @@
 open Kernel
 open Basic
 open Term
-open Parsing
+open Parsers
 
 (** {2 Debugging} *)
 

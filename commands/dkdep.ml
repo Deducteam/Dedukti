@@ -1,5 +1,5 @@
 open Kernel
-open Parsing
+open Parsers
 open Api
 
 open Basic
@@ -72,7 +72,7 @@ let _ =
       , Arg.Set Dep.ignore
       , " If some dependencies are not found, ignore them" )
     ; ( "-I"
-      , Arg.String add_path
+      , Arg.String Dep.add_path
       , "DIR Add the directory DIR to the load path" ) ]
   in
   let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...

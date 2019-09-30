@@ -2,7 +2,7 @@ open Kernel
 open Basic
 open Format
 open Term
-open Parsing
+open Parsers
 
 let errors_in_snf = ref false
 
@@ -156,12 +156,12 @@ let fail_rule_error file md errid err =
   let fail lc = fail_exit 3 errid file md (Some lc) in
   let open Rule in
   match err with
-  | BoundVariableExpected pat ->
-    fail (get_loc_pat pat)
+  | BoundVariableExpected(lc, pat) ->
+    fail lc
       "The pattern of the rule is not a Miller pattern. The pattern '%a' is not a bound variable."
       pp_pattern pat
-  | VariableBoundOutsideTheGuard te ->
-    fail (get_loc te)
+  | VariableBoundOutsideTheGuard(lc, te) ->
+    fail lc
       "The term '%a' contains a variable bound outside the brackets."
       pp_term te
   | DistinctBoundVariablesExpected (lc,x) ->
@@ -179,6 +179,13 @@ let fail_rule_error file md errid err =
     fail lc
       "For each occurence of the free variable %a, the symbol should be applied to the same number of arguments"
       pp_ident arg
+ | NotEnoughArguments (lc,id,_,nb_args,exp_nb_args) ->
+    fail lc
+      "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
+      pp_ident id nb_args exp_nb_args
+  |NonLinearRule (lc,rule_name) ->
+    fail lc
+      "Non left-linear rewrite rule for symbol '%a'." Rule.pp_rule_name rule_name
 
 let pp_cerr out err =
   let open Confluence in
@@ -189,7 +196,7 @@ let pp_cerr out err =
     | CCFailure      cmd -> cmd, "ERROR" in
   fprintf out "Checker's answer: %s.@.Command: %s" ans cmd
 
-let fail_signature_error file md errid def_loc err =
+let fail_signature_error  file md errid def_loc err =
   let fail lc = fail_exit 3 errid file md (Some lc) in
   let open Signature in
   match err with
@@ -223,10 +230,10 @@ let fail_signature_error file md errid def_loc err =
        Found: %a.@.\
        Expected: %a"
       pp_term (snf t1) pp_term (snf t2)
-  | CouldNotExportModule (md, file) ->
+  | CannotExportModule (md, exn) ->
     fail def_loc
       "Fail to export module '%a' to file %s."
-      pp_mident md file
+      pp_mident md (Printexc.to_string exn)
 
 let fail_dep_error fail md errid err =
   let fail lc = fail_exit 3 errid fail md (Some lc) in
@@ -289,7 +296,7 @@ let code : exn -> int =
           | Signature.ConfluenceErrorRules _                 -> 309
           | Signature.ConfluenceErrorImport _                -> 400
           | Signature.GuardNotSatisfied _                    -> 401
-          | Signature.CouldNotExportModule _                 -> 402
+          | Signature.CannotExportModule _                 -> 402
         end
       | EnvErrorRule e ->
         begin
@@ -300,6 +307,8 @@ let code : exn -> int =
           | Rule.UnboundVariable _                           -> 503
           | Rule.AVariableIsNotAPattern _                    -> 504
           | Rule.NonLinearNonEqArguments _                   -> 505
+          | Rule.NotEnoughArguments _                        -> 506
+          | Rule.NonLinearRule _                             -> 507
         end
       | EnvErrorDep e ->
         begin match e with
@@ -319,9 +328,10 @@ let code : exn -> int =
   | Lexer.Lexer_error _                                  -> 701
   | Parser.Parse_error _                                 -> 702
   | Scoping.Scoping_error _                              -> 703
-  | _                                                    -> -1
+  | Dep.Dep_error _                                      -> 305 (* hackish, fix in another PR *)
+  | _                                                   -> -1
 
-let graceful_fail file exn =
+let graceful_fail (file:string option) (exn:exn) =
   let code = code exn in
   let errid = if code = -1 then "UNCAUGHT EXCEPTION" else string_of_int code in
   let fail md lc = fail_exit 3 errid file md (Some lc) in

@@ -34,7 +34,7 @@ sig
   val print_rule_infos    : Rule.rule_infos     printer
   val print_rule_name     : Rule.rule_name      printer
   val print_red_cfg       : Reduction.red_cfg   printer
-  val print_entry         : Parsing.Entry.entry   printer
+  val print_entry         : Parsers.Entry.entry printer
   val print_staticity     : Signature.staticity printer
 end
 

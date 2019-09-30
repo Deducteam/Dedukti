@@ -5,6 +5,6 @@
     (flags (--external-tokens Tokens)))
 
 (library
-    (name parsing)
-    (public_name dedukti.parsing)
+    (name parsers)
+    (public_name dedukti.parsers)
     (libraries kernel))
