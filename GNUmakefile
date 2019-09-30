@@ -10,17 +10,8 @@ all: bin binaries
 .PHONY: binaries
 binaries: dkcheck.native dktop.native dkdep.native dkprune.native
 
-dkdep.native:
-	@ln -fs _build/install/default/bin/dkdep dkdep.native
-
-dkcheck.native:
-	@ln -fs _build/install/default/bin/dkcheck dkcheck.native
-
-dktop.native:
-	@ln -fs _build/install/default/bin/dktop dktop.native
-
-dkprune.native:
-	@ln -fs _build/install/default/bin/dkprune dkprune.native
+%.native:
+	@ln -fs _build/install/default/bin/$* $@
 
 .PHONY: bin
 bin: kernel/version.ml
@@ -33,7 +24,7 @@ doc:
 .PHONY: clean
 clean:
 	@dune clean
-	@rm -f dkcheck.native dktop.native dkdep.native dkprune.native
+	@rm -f *.native
 
 .PHONY: install
 install: all
