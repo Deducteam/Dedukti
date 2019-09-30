@@ -39,22 +39,23 @@ let gre fmt = "\027[32m" ^^ fmt ^^ "\027[0m%!"
 
 let log fmt = D.debug D_prune (gre fmt)
 
-type constraints =
-  {
-    names:Basic.NameSet.t;
-    mds: mident list
-  }
-
 let _ =
   Dep.ignore := true;
+  (* If a dependency is missing this does not trigger an exception
+     because we do not want to compute dependencies from a logic file
+     *)
   Dep.compute_all_deps := true
+(* We want to compute items dependencies *)
 
+
+(* Get the output file from the input file *)
 let output_file : string -> string = fun file ->
   let basename = Filename.basename file in
   match !output_directory with
   | None -> raise @@ Dkprune_error NoDirectory
   | Some dir -> Filename.concat dir basename
 
+(* Memoize the modules already computed *)
 let computed = ref MSet.empty
 
 let name_of_entry md = function
@@ -68,6 +69,8 @@ let name_of_entry md = function
       Some r'.cst
     | _  -> None
 
+
+(* Wrapper around Processor.Dependencies to avoid to compute dependencies of a module already computed *)
 module PruneDepProcessor : Processor.S with type t = unit =
 struct
 
@@ -81,6 +84,7 @@ struct
   let get_data () = ()
 end
 
+(* Gather all the identifiers declared or defined in a module *)
 module GatherNames : Processor.S with type t = NSet.t =
 struct
 
@@ -99,6 +103,7 @@ struct
   let get_data () = !names
 end
 
+(* Add all the names that should be kept as outpud. Either an entire module or a specific name *)
 module ProcessConfigurationFile : Processor.S with type t = NSet.t =
 struct
 
@@ -119,6 +124,9 @@ struct
 
 end
 
+(* This is called on each module which appear in the configuration
+   files. This is called also on each module which is in the
+   transitive closure of the module dependencies *)
 let rec run_on_files files =
   let hook_before env =
     match Parser.file_of_input (Env.get_input env) with
@@ -138,21 +146,23 @@ let rec run_on_files files =
   in
   Processor.handle_files files ~hook_before ~hook_after (module PruneDepProcessor)
 
-
-(* TODO: catch error from Files, encapsulate this in a processor *)
+(* compute dependencies for each module which appear in the configuration files *)
 let handle_modules mds =
   let files = List.map Files.get_file mds in
   run_on_files files
 
+(* compute dependencies for eaach name which appear in the configuration files *)
 let handle_names names =
   let open Basic.MidentSet in
   let mds = NameSet.fold (fun name s -> add (Basic.md name) s) names empty  in
   handle_modules (elements mds)
 
+(* check if all the entry of a file are pruned *)
 let is_empty deps file =
   let names = Processor.handle_files [file] (module GatherNames) in
   NSet.is_empty (NSet.inter names deps)
 
+(* for each input file for which dependencies has been computed, we write an output file *)
 let write_file deps in_file =
   let out_file = output_file in_file in
   log "[WRITING FILE] %s" out_file;
@@ -172,9 +182,10 @@ let write_file deps in_file =
     Parser.close input;
     close_out output
 
+(* print_dependencies for all the names which are in the transitive closure of names specificed in the configuration files *)
 let print_dependencies names =
   let open Dep in
-  let fake_env = Env.init (Parser.input_from_string (Basic.mk_mident "dkprune") "") in
+  let fake_env = Env.init (Parser.input_from_string (Basic.mk_mident "dkprune") "") in (* We fake an environment to print an error *)
   try
     NameSet.iter Dep.transitive_closure names;
     let down_deps = NameSet.fold
