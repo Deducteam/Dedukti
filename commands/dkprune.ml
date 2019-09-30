@@ -5,18 +5,35 @@ module MSet = Basic.MidentSet
 
 module Printer = Pp.Default
 
-(* TODO ensure that the names exists *)
-exception NoDirectory
-exception EntryNotHandled of Entry.entry
-exception BadFormat
-exception NoPruneFile
 
-let output_directory : string option ref = ref None
-
+(** {2: Logging} *)
 module D = Basic.Debug
 type D.flag += D_prune
 let _ = D.register_flag D_prune "Dkprune"
 let enable_log : unit -> unit = fun () -> D.enable_flag D_prune
+
+
+type dkprune_error =
+  | BadFormat of Basic.loc
+  | NoDirectory
+
+let fail_dkprune_error err =
+  match err with
+  | BadFormat lc ->
+    1000, Some lc, Format.asprintf "Only commands #GDT and #REQUIRE are authorized"
+  | NoDirectory ->
+    1001, None, Format.asprintf "A directory output has to be specified (option -o, see --help)"
+
+exception Dkprune_error of dkprune_error
+
+let fail_dkprune ~red exn =
+  match exn with
+  | Dkprune_error err -> Some (fail_dkprune_error err)
+  | _ -> None
+
+let _ = Errors.register_exception fail_dkprune
+
+let output_directory : string option ref = ref None
 
 let gre fmt = "\027[32m" ^^ fmt ^^ "\027[0m%!"
 
@@ -35,7 +52,7 @@ let _ =
 let output_file : string -> string = fun file ->
   let basename = Filename.basename file in
   match !output_directory with
-  | None -> raise @@ NoDirectory
+  | None -> raise @@ Dkprune_error NoDirectory
   | Some dir -> Filename.concat dir basename
 
 let computed = ref MSet.empty
@@ -96,7 +113,7 @@ struct
       let snames = Processor.handle_files [file] (module GatherNames) in
       names := NSet.union snames !names
     | Entry.DTree(_,Some md, id) -> names := NSet.add (mk_name md id) !names
-    | _ -> raise BadFormat
+    | _ as e -> raise @@  Dkprune_error (BadFormat (Entry.loc_of_entry e))
 
   let get_data () = !names
 
