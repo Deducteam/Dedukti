@@ -114,4 +114,6 @@ val are_convertible : t -> ?ctx:typed_context -> term -> term -> bool
 val unsafe_reduction : t -> ?red:(Reduction.red_cfg) -> term -> term
 (** [unsafe_reduction env red te] reduces [te] according to the reduction configuration [red] *)
 
-val fail_env_error : t -> Basic.loc -> exn -> 'a
+val errors_in_snf : bool ref
+
+val fail_env_error : t -> Basic.loc -> exn -> unit

@@ -3,7 +3,7 @@ open Format
 open Term
 open Reduction
 
-let errors_in_snf = ref false
+
 
 let color = ref true
 
@@ -16,8 +16,6 @@ let red    = colored 1
 let violet = colored 5
 
 module Pp = Pp.Default
-
-let snf env t = if !errors_in_snf then Env.unsafe_reduction env t else t
 
 let success fmt =
   eprintf "%s" (green "[SUCCESS] ");
@@ -241,6 +239,25 @@ let fail_signature_error ~red exn =
   | Signature.Signature_error err -> Some (of_signature_error red err)
   | _ -> None
 
+let fail_lexer_error ~red = function
+ | Lexer.Lexer_error(lc, msg) ->
+   Some (Some lc, Format.asprintf "Lexer error: %s@." msg)
+ | _ -> None
+
+let fail_parse_error ~red = function
+  | Parser.Parse_error(lc, msg) ->
+    Some (Some lc, Format.asprintf "Parsing error: %s@." msg)
+  | _ -> None
+
+let fail_scoping_error ~red = function
+  | Scoping.Scoping_error(lc, msg) ->
+    Some (Some lc, Format.asprintf "Scoping error: %s@." msg)
+  | _ -> None
+
+let fail_entry_error ~red = function
+  | Entry.Assert_error lc ->
+    Some (Some lc, Format.asprintf "An entry assertion has failed@.")
+  | _ -> None
 
 type error_code = int
 
@@ -323,21 +340,20 @@ let code : exn -> int =
   | Entry.Assert_error _                                 -> 704
   | exn                                                  -> use_code_handlers exn
 
-let string_of_code exn =
+let code_of_exception exn =
   let code = code exn in
   if code = -1 then "UNKNOWN" else string_of_int code
 
 (* function which prints an exception. If not registered print default message *)
 let exception_handlers : error_handler list ref = ref []
 
-let use_exception_handlers =
-  fun env lc exn ->
-  let snf t = snf env t in
+let string_of_exception =
+  fun ~red lc exn ->
   let rec aux l =
     match l with
     | [] -> lc, Printexc.to_string exn
     | handler::l ->
-      match handler ~red:snf exn with
+      match handler ~red exn with
       | None -> aux l
       | Some(None,exn)     -> lc,exn
       | Some(Some lc,exn) -> lc,exn
@@ -352,20 +368,5 @@ let _ =
   register_exception fail_dtree_error;
   register_exception fail_rule_error;
   register_exception fail_signature_error
-
-let fail_env_error env lc exn =
-  let code = string_of_code exn in
-  let file = Env.get_filename env in
-  let fail lc = fail_exit file code (Some lc) in
-  match exn with
-  (* | Lexer.Lexer_error(lc, msg) ->
-   *   Some lc, Format.asprintf "Lexer error: %s@." msg
-   * | Parser.Parse_error(lc, msg) ->
-   *   Some lc, Format.asprintf "Parsing error: %s@." msg
-   * | Scoping.Scoping_error(lc, msg) ->
-   *   Some lc, Format.asprintf "Scoping error: %s@." msg
-   * | Entry.Assert_error lc ->
-   *   Some lc, Format.asprintf "An entry assertion has failed@." *)
-  | exn -> fail_env_error env lc exn
 
 let fail_sys_error file msg = fail_exit file "SYSTEM" None "%s@." msg

@@ -2,9 +2,6 @@
 
 open Basic
 
-val errors_in_snf : bool ref
-(** Flag to enable SNF forms of terms in errors. *)
-
 val color : bool ref
 (** Flag to disable colored output. *)
 
@@ -28,3 +25,7 @@ val register_exception : (red:(Term.term -> Term.term) -> exn -> error_msg optio
 type error_code = int
 
 val register_exception_code : (exn -> error_code option) -> unit
+
+val string_of_exception : red:(Term.term -> Term.term) -> Basic.loc -> exn -> Basic.loc * string
+
+val code_of_exception : exn -> string

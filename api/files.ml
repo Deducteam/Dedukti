@@ -9,7 +9,11 @@ let fail_file_error err =
   match err with
   | ModuleNotFound md ->
     None, Format.asprintf "No file for module %a in path...@." Basic.pp_mident md
-  | _ -> failwith "todo"
+  | MultipleModules(s,ss) ->
+    None, Format.asprintf "Several files correspond to module %s...@. %a" s
+      (Basic.pp_list "@." (fun fmt s -> Format.fprintf fmt " - %s" s)) ss
+  | ObjectFileNotFound md ->
+    None, Format.asprintf "No object file (.dko) found for module %a@." Basic.pp_mident md
 
 let fail_file_error ~red:_ exn =
   match exn with
@@ -24,7 +28,7 @@ let code_of_file_error exn =
     begin match e with
       | ModuleNotFound _                             -> Some 900
       | MultipleModules _                            -> Some 901
-      | _                                            -> failwith "todo"
+      | ObjectFileNotFound _                         -> Some 902
     end
   | _ -> None
 

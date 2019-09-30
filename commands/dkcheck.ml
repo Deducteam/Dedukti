@@ -67,7 +67,7 @@ let _ =
       , Arg.Set Typing.fail_on_unsatisfiable_constraints
       , " Forbids rules with untypable left-hand side" )
     ; ( "--snf"
-      , Arg.Set Errors.errors_in_snf
+      , Arg.Set Env.errors_in_snf
       , " Normalizes all terms printed in error messages" )
     ; ( "--db"
       , Arg.Set Pp.print_db_enabled
@@ -82,7 +82,7 @@ let _ =
       , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
       , " Prints the version number" )
     (* Deprecated flags. TODO: Remove them from the argument parsing. *)
-    ; deprecated "-errors-in-snf" "--snf" (Arg.Set Errors.errors_in_snf)
+    ; deprecated "-errors-in-snf" "--snf" (Arg.Set Env.errors_in_snf)
     ; deprecated "-cc" "--confluence" (Arg.String Confluence.set_cmd)
     ; deprecated "-eta" "--eta" (Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity])
     ; deprecated "-coc" "--coc" (Arg.Set Typing.coc)
@@ -118,7 +118,7 @@ Available options:" Sys.argv.(0) in
         end;
       if !export then Env.export env;
       Confluence.finalize ()
-    | Some (env, lc, e) -> Errors.fail_env_error env lc e
+    | Some (env, lc, e) -> Env.fail_env_error env lc e
   in
   Processor.handle_files files ~hook_before ~hook_after (module P);
   match !run_on_stdin with

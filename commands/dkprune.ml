@@ -117,7 +117,7 @@ let rec run_on_files files =
       let add_files md files = if MSet.mem md !computed then files else (Files.get_file md)::files in
       let new_files = MSet.fold add_files deps.deps [] in
       if List.length new_files <> 0 then run_on_files new_files
-    | Some (env, lc, e) -> Errors.fail_env_error env lc e
+    | Some (env, lc, e) -> Env.fail_env_error env lc e
   in
   Processor.handle_files files ~hook_before ~hook_after (module PruneDepProcessor)
 

@@ -71,7 +71,7 @@ Available options:" Sys.argv.(0) in
   let hook_after env exn =
     match exn with
     | None -> ()
-    | Some (env,lc,exn) -> Errors.fail_env_error env lc exn
+    | Some (env,lc,exn) -> Env.fail_env_error env lc exn
   in
   let deps = Processor.handle_files ~hook_after files (module (Processor.Dependencies)) in
   let formatter = Format.formatter_of_out_channel !output in

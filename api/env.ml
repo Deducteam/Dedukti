@@ -177,9 +177,11 @@ let are_convertible env ?ctx:(ctx=[]) te1 te2 =
   R.are_convertible env.sg ty1 ty2 &&
   R.are_convertible env.sg te1 te2
 
+let errors_in_snf = ref false
+
 let fail_env_error : t -> Basic.loc -> exn -> 'a = fun env lc exn ->
-  (* let code = Errors.string_of_code exn in *)
-  let code = "1" in
+  let snf env t = if !errors_in_snf then unsafe_reduction env t else t in
+  let code = Errors.code_of_exception exn in
   let file = get_filename env in
-  let lc,msg = Errors.use_exception_handlers env lc exn in
-  fail_exit file code (Some lc) "%s" msg
+  let lc,msg = Errors.string_of_exception ~red:(snf env) lc exn in
+  Errors.fail_exit file code (Some lc) "%s" msg
