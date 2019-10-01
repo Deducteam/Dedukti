@@ -7,14 +7,11 @@ open Rule
 type Debug.flag += D_module
 let _ = Debug.register_flag D_module "Module"
 
-type file = string
-
 let fail_on_symbol_not_found = ref true
 
 type signature_error =
-  | UnmarshalBadVersionNumber of loc * string
-  | UnmarshalSysError     of loc * string * string
-  | UnmarshalUnknown      of loc * string
+  | UnmarshalBadVersionNumber of loc * Basic.mident
+  | UnmarshalSysError     of loc * Basic.mident * string
   | SymbolNotFound        of loc * name
   | AlreadyDefinedSymbol  of loc * name
   | CannotMakeRuleInfos   of Rule.rule_error
@@ -65,14 +62,12 @@ type t =
     tables : (rw_infos HId.t) HMd.t;
 
     mutable external_rules:rule_infos list list;
-
-    get_file : loc -> mident -> string
   }
 
-let make md get_file =
+let make md =
   let tables = HMd.create 19 in
   HMd.replace tables md (HId.create 251);
-  { md; tables; external_rules=[]; get_file}
+  { md; tables; external_rules=[]}
 
 let get_name sg = sg.md
 
@@ -88,18 +83,18 @@ let marshal : mident -> mident list -> rw_infos HId.t -> rule_infos list list ->
     close_out oc
   with e -> raise @@ Signature_error (CannotExportModule(md,e))
 
-let unmarshal (lc:loc) (file:string) : mident list * rw_infos HId.t * rule_infos list list =
+let unmarshal (lc:loc) (md:mident) (ic:in_channel) :
+  mident list * rw_infos HId.t * rule_infos list list =
   try
-    let ic = open_in file in
     let ver:string = Marshal.from_channel ic in
     if String.compare ver Version.version <> 0
-    then raise (Signature_error (UnmarshalBadVersionNumber (lc,file)));
+    then raise (Signature_error (UnmarshalBadVersionNumber (lc,md)));
     let deps:mident list         = Marshal.from_channel ic in
     let ctx:rw_infos HId.t       = Marshal.from_channel ic in
     let ext:rule_infos list list = Marshal.from_channel ic in
-    close_in ic; (deps,ctx,ext)
+    (deps,ctx,ext)
   with
-  | Sys_error s -> raise (Signature_error (UnmarshalSysError (lc,file,s)))
+  | Sys_error s -> raise (Signature_error (UnmarshalSysError (lc,md,s)))
   | Signature_error s -> raise (Signature_error s)
 
 let fold_symbols f sg =
@@ -133,20 +128,22 @@ let add_external_declaration sg lc cst st ty =
     let env = HMd.find sg.tables (md cst) in
     HId.replace env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
 
-(* Recursively load a module and its dependencies*)
-let rec import sg lc md =
-  if HMd.mem sg.tables md
-  then Debug.(debug D_warn "Trying to import the already loaded module %s." (string_of_mident md))
-  else
-    let (deps,ctx,ext) = unmarshal lc (sg.get_file lc md) in
-    HMd.replace sg.tables md ctx;
-    List.iter ( fun dep ->
-        if not (HMd.mem sg.tables dep) then import sg lc dep
-      ) deps ;
-    Debug.(debug D_module "Loading module '%a'..." pp_mident md);
-    List.iter (fun rs -> add_rule_infos sg rs) ext;
-    check_confluence_on_import lc md ctx
+let is_imported sg md = HMd.mem sg.tables md
 
+let rec import sg lc md ic =
+  if not (is_imported sg md) then
+    let (deps,ctx,ext) = unmarshal lc md ic in
+    HMd.replace sg.tables md ctx;
+    check_confluence_on_import lc md ctx;
+    List.iter (fun rs -> add_rule_infos sg rs) ext;
+    deps
+  else
+    begin
+      Debug.(debug D_warn "Trying to import the already loaded module %s." (string_of_mident md));
+      []
+    end
+
+(* Recursively load a module and its dependencies*)
 and add_rule_infos sg (lst:rule_infos list) : unit =
   match lst with
   | [] -> ()
@@ -154,8 +151,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     let infos, env =
       try get_info_env sg r.l r.cst
       with
-      | Signature_error (SymbolNotFound _)
-      | Signature_error (UnmarshalUnknown _) when not !fail_on_symbol_not_found ->
+      | Signature_error (SymbolNotFound _) when not !fail_on_symbol_not_found ->
         add_external_declaration sg r.l r.cst Definable (mk_Kind);
         get_info_env sg r.l r.cst
     in
@@ -178,11 +174,8 @@ and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
 
 and get_info_env sg lc cst =
   let md = md cst in
-  let env =  (* Fetch module, import it if it's missing *)
-    try HMd.find sg.tables md
-    with Not_found -> import sg lc md; HMd.find sg.tables md
-  in
-  try (HId.find env (id cst), env)
+  try
+  let env = HMd.find sg.tables md in (HId.find env (id cst), env)
   with Not_found -> raise (Signature_error (SymbolNotFound (lc,cst)))
 
 and get_infos sg lc cst = fst (get_info_env sg lc cst)

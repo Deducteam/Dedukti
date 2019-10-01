@@ -99,12 +99,12 @@ struct
       raise @@ Typing.Typing_error (Typing.DomainFreeLambda lc) (* FIXME: It is not a typign error *)
     | Rules(_,rs) ->
       Signature.add_rules sg (List.map Rule.to_rule_infos rs)
-    | Require(lc,md) -> Signature.import sg lc md
+    | Require(lc,md) -> Env.import env lc md
     | _ -> ()
 
   let get_data () =
     match !sg with
-    | None -> Signature.make (mk_mident "") Files.find_object_file (*TODO: raise an error? *)
+    | None -> Signature.make (mk_mident "")
     | Some sg -> sg
 
 end

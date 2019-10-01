@@ -6,12 +6,9 @@ open Rule
 
 type Debug.flag += D_module
 
-type file = string
-
 type signature_error =
-  | UnmarshalBadVersionNumber of loc * file
-  | UnmarshalSysError     of loc * file * string
-  | UnmarshalUnknown      of loc * file
+  | UnmarshalBadVersionNumber of loc * Basic.mident
+  | UnmarshalSysError     of loc * Basic.mident * string
   | SymbolNotFound        of loc * name
   | AlreadyDefinedSymbol  of loc * name
   | CannotMakeRuleInfos   of Rule.rule_error
@@ -28,7 +25,7 @@ type staticity = Static | Definable
 
 type t
 
-val make                : mident -> (loc -> mident -> file) -> t
+val make                : mident -> t
 (** [make file] creates a new signature corresponding to the file [file]. *)
 
 val get_name            : t -> mident
@@ -37,8 +34,11 @@ val get_name            : t -> mident
 val export              : t -> out_channel -> unit
 (** [export sg oc] saves the current environment in [oc] file.*)
 
-val import              : t -> loc -> mident -> unit
+val import              : t -> loc -> mident -> in_channel -> mident list
 (** [import sg md] impots the module [md] in the signature [sg]. *)
+
+val is_imported         : t -> mident -> bool
+(** [is_imported sg md] returns [true] if the module [md] has been imported already *)
 
 val import_signature    : t -> t -> unit
 (** [import sg sg_ext] imports the signature [sg_ext] into the signature [sg]. *)

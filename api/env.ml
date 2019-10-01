@@ -37,7 +37,7 @@ let check_arity = ref true
 let check_ll = ref false
 
 let init input =
-  let sg =  Signature.make (Parser.md_of_input input) Files.find_object_file in
+  let sg =  Signature.make (Parser.md_of_input input) in
   let red : (module Reduction.S) = (module Reduction.Default) in
   let typer : (module Typing.S) = (module Typing.Default) in
   {input; sg;red;typer}
@@ -84,8 +84,14 @@ let export env =
   let oc = open_out file in
   Signature.export env.sg oc; close_out oc
 
-let import env lc md =
-  Signature.import env.sg lc md
+let rec import env lc md =
+  let file = Files.find_object_file lc md in
+  let ic   = open_in file in
+  let deps = List.filter
+      (fun md -> not (Signature.is_imported env.sg md)) (Signature.import env.sg lc md ic)
+  in
+  List.iter (import env lc) deps;
+  close_in ic
 
 let _declare env lc (id:ident) st ty : unit =
   let (module T) = env.typer in
