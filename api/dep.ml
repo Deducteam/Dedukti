@@ -1,6 +1,6 @@
 open Kernel
-open Basic
 open Parsing
+open Basic
 
 type path = string
 
@@ -36,8 +36,14 @@ let current_name  : name      ref = ref (mk_name (!current_mod) (mk_ident  "<not
 let current_deps  : deps      ref = ref (empty_deps ())
 let ignore        : bool      ref = ref false
 
-exception Dep_error of Entry.dep_error
+type dep_error =
+  | ModuleNotFound of mident
+  | MultipleModules of string * string list
+  | CircularDependencies of string * string list
+  | NameNotFound of name
+  | NoDep of mident
 
+exception Dep_error of dep_error
 
 (** [find_dk md path] looks for the ".dk" file corresponding to the module
     named [name] in the directories of [path]. If no corresponding file is

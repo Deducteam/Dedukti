@@ -231,22 +231,22 @@ let fail_signature_error file md errid def_loc err =
 let fail_dep_error fail md errid err =
   let fail lc = fail_exit 3 errid fail md (Some lc) in
   match err with
-  | Entry.ModuleNotFound md ->
+  | Dep.ModuleNotFound md ->
     fail dloc "No file for module %a in path...@." pp_mident md
-  | Entry.MultipleModules (s,ss) ->
+  | Dep.MultipleModules (s,ss) ->
     fail dloc "Several files correspond to module %S...@. %a" s
       (pp_list "@." (fun fmt s -> Format.fprintf fmt " - %s" s)) ss
-  | Entry.CircularDependencies (s,ss) ->
+  | Dep.CircularDependencies (s,ss) ->
     fail dloc "Circular Dependency dectected for module %S...%a" s
       (pp_list "@." (fun fmt s -> Format.fprintf fmt " -> %s" s)) ss
-  | Entry.NameNotFound n ->
+  | Dep.NameNotFound n ->
     fail dloc "No dependencies computed for name %a...@." pp_name n
-  | Entry.NoDep md ->
+  | Dep.NoDep md ->
     fail dloc "No dependencies computed for module %a...@." pp_mident md
 
 let code : exn -> int =
   function
-  | Entry.EnvError (_,_,err) ->
+  | Env.EnvError (_,_,err) ->
     begin
       match err with
       | EnvErrorType e ->
@@ -303,11 +303,11 @@ let code : exn -> int =
         end
       | EnvErrorDep e ->
         begin match e with
-          | Entry.ModuleNotFound _                             -> 600
-          | Entry.MultipleModules _                            -> 601
-          | Entry.CircularDependencies _                       -> 602
-          | Entry.NameNotFound _                               -> 603
-          | Entry.NoDep _                                      -> 604
+          | Dep.ModuleNotFound _                             -> 600
+          | Dep.MultipleModules _                            -> 601
+          | Dep.CircularDependencies _                       -> 602
+          | Dep.NameNotFound _                               -> 603
+          | Dep.NoDep _                                      -> 604
         end
       | NonLinearRule _                                      -> 506
       | NotEnoughArguments _                                 -> 507
@@ -326,26 +326,26 @@ let graceful_fail file exn =
   let errid = if code = -1 then "UNCAUGHT EXCEPTION" else string_of_int code in
   let fail md lc = fail_exit 3 errid file md (Some lc) in
   match exn with
-  | Entry.EnvError (md,lc,err) ->
+  | Env.EnvError (md,lc,err) ->
     begin
       match err with
-      | Entry.EnvErrorSignature e -> fail_signature_error file md errid lc e
-      | Entry.EnvErrorType      e -> fail_typing_error    file md errid lc e
-      | Entry.EnvErrorRule      e -> fail_rule_error      file md errid    e
-      | Entry.EnvErrorDep       e -> fail_dep_error       file md errid    e
-      | Entry.NotEnoughArguments (id,_,nb_args,exp_nb_args) ->
+      | Env.EnvErrorSignature e -> fail_signature_error file md errid lc e
+      | Env.EnvErrorType      e -> fail_typing_error    file md errid lc e
+      | Env.EnvErrorRule      e -> fail_rule_error      file md errid    e
+      | Env.EnvErrorDep       e -> fail_dep_error       file md errid    e
+      | Env.NotEnoughArguments (id,_,nb_args,exp_nb_args) ->
         fail_exit 3 errid file md (Some lc)
           "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
           pp_ident id nb_args exp_nb_args
-      | Entry.NonLinearRule rule_name ->
+      | Env.NonLinearRule rule_name ->
         fail md lc "Non left-linear rewrite rule for symbol '%a'." Rule.pp_rule_name rule_name
-      | Entry.KindLevelDefinition id ->
+      | Env.KindLevelDefinition id ->
         fail md lc "Cannot add a rewrite rule for '%a' since it is a kind." pp_ident id
-      | Entry.ParseError s ->
+      | Env.ParseError s ->
         fail md lc "Parse error: %s@." s
-      | Entry.BracketScopingError ->
+      | Env.BracketScopingError ->
         fail md lc "Unused variables in context may create scoping ambiguity in bracket.@."
-      | Entry.AssertError ->
+      | Env.AssertError ->
         fail md lc "Assertion failed."
     end
   | Lexer.Lexer_error(lc, msg) ->

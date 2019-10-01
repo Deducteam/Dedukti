@@ -6,28 +6,6 @@ type is_opaque    = bool
 type is_assertion = bool
 type should_fail  = bool
 
-type dep_error =
-  | ModuleNotFound of Basic.mident
-  | MultipleModules of string * string list
-  | CircularDependencies of string * string list
-  | NameNotFound of Basic.name
-  | NoDep of Basic.mident
-
-type env_error =
-  | EnvErrorType        of Typing.typing_error
-  | EnvErrorSignature   of Signature.signature_error
-  | EnvErrorRule        of Rule.rule_error
-  | EnvErrorDep         of dep_error
-  | NonLinearRule       of Rule.rule_name
-  | NotEnoughArguments  of ident * int * int * int
-  | KindLevelDefinition of ident
-  | ParseError          of string
-  | BracketScopingError
-  | AssertError
-
-exception EnvError of mident option * loc * env_error
-
-
 (** Possible tests in source files. *)
 type test =
   | Convert of term * term

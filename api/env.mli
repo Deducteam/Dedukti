@@ -3,7 +3,22 @@
 open Kernel
 open Basic
 open Term
-open Parsing
+
+(** {2 Error Datatype} *)
+
+type env_error =
+  | EnvErrorType        of Typing.typing_error
+  | EnvErrorSignature   of Signature.signature_error
+  | EnvErrorRule        of Rule.rule_error
+  | EnvErrorDep         of Dep.dep_error
+  | NonLinearRule       of Rule.rule_name
+  | NotEnoughArguments  of ident * int * int * int
+  | KindLevelDefinition of ident
+  | ParseError          of string
+  | BracketScopingError
+  | AssertError
+
+exception EnvError of mident option * loc * env_error
 
 (** {2 Debugging} *)
 
@@ -32,7 +47,7 @@ val check_ll : bool ref
 module type S =
 sig
   module Printer : Pp.Printer
-  val raise_env : loc -> Entry.env_error -> 'a
+  val raise_env : loc -> env_error -> 'a
 
   val init        : string -> mident
   (** [init name] initializes a new global environement giving it the name of

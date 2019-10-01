@@ -37,14 +37,14 @@ let handle_entry md e =
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Entry.EnvError (Some md,l,Entry.AssertError)) )
+      | false, true  -> raise (Env.EnvError (Some md,l,Env.AssertError)) )
   | Check(l, assrt, neg, HasType(te,ty)) ->
     let succ = try E.check te ty; not neg with _ -> neg in
     ( match succ, assrt with
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Entry.EnvError (Some md,l,Entry.AssertError)) )
+      | false, true  -> raise (Env.EnvError (Some md,l,Env.AssertError)) )
   | DTree(lc,m,v) ->
     let m = match m with None -> E.get_name () | Some m -> m in
     let cst = mk_name m v in

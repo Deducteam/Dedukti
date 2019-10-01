@@ -4,7 +4,6 @@ open Term
 open Rule
 open Typing
 open Signature
-open Parsing
 
 exception DebugFlagNotRecognized of char
 
@@ -21,10 +20,24 @@ let set_debug_mode =
       | c -> raise (DebugFlagNotRecognized c)
     )
 
+type env_error =
+  | EnvErrorType        of typing_error
+  | EnvErrorSignature   of signature_error
+  | EnvErrorRule        of rule_error
+  | EnvErrorDep         of Dep.dep_error
+  | NonLinearRule       of rule_name
+  | NotEnoughArguments  of ident * int * int * int
+  | KindLevelDefinition of ident
+  | ParseError          of string
+  | BracketScopingError
+  | AssertError
+
+exception EnvError of mident option * loc * env_error
+
 let raise_as_env md lc = function
-  | SignatureError e -> raise (Entry.EnvError (Some md, lc, (EnvErrorSignature e)))
-  | TypingError    e -> raise (Entry.EnvError (Some md, lc, (EnvErrorType      e)))
-  | RuleError      e -> raise (Entry.EnvError (Some md, lc, (EnvErrorRule      e)))
+  | SignatureError e -> raise (EnvError (Some md, lc, (EnvErrorSignature e)))
+  | TypingError    e -> raise (EnvError (Some md, lc, (EnvErrorType      e)))
+  | RuleError      e -> raise (EnvError (Some md, lc, (EnvErrorRule      e)))
   | ex               -> raise ex
 
 let check_arity = ref true
@@ -34,7 +47,7 @@ let check_ll = ref false
 module type S =
 sig
   module Printer : Pp.Printer
-  val raise_env : loc -> Entry.env_error -> 'a
+  val raise_env : loc -> env_error -> 'a
 
   val init        : string -> mident
 
@@ -75,7 +88,7 @@ struct
   let get_signature () = !sg
 
   let raise_as_env x = raise_as_env (get_name()) x
-  let raise_env lc err = raise (Entry.EnvError (Some (get_name()), lc, err))
+  let raise_env lc err = raise (EnvError (Some (get_name()), lc, err))
 
   module Printer = Pp.Make(struct let get_name = get_name end)
 
@@ -139,7 +152,7 @@ struct
   (** Checks that all rule are left-linear. *)
   let _check_ll (r:rule_infos) : unit =
     List.iter
-      (function Linearity _ -> raise (Entry.EnvError (Some (get_name()), r.l, NonLinearRule r.name)) | _ -> ())
+      (function Linearity _ -> raise (EnvError (Some (get_name()), r.l, NonLinearRule r.name)) | _ -> ())
       r.constraints
 
   let _add_rules rs =
