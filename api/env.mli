@@ -66,7 +66,7 @@ val get_printer : t -> (module Pp.Printer)
 module HName : Hashtbl.S with type key = name
 
 val get_symbols : t -> Signature.rw_infos HName.t
-(** [get_symbols env] returns the content of the signature [sg]. *)
+(** [get_symbols env] returns the content of the signature [sg]. Each [name] in the current signature is associated to a [rw_infos]. *)
 
 val get_type    : t -> loc -> name -> term
 (** [get_type env l md id] returns the type of the constant [md.id]. *)
