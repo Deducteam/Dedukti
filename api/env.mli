@@ -114,7 +114,8 @@ val are_convertible : t -> ?ctx:typed_context -> term -> term -> bool
     and then that they are convertible *)
 
 val unsafe_reduction : t -> ?red:(Reduction.red_cfg) -> term -> term
-(** [unsafe_reduction env red te] reduces [te] according to the reduction configuration [red] *)
+(** [unsafe_reduction env red te] reduces [te] according to the reduction configuration [red].
+    It is unsafe in the sense that [te] is not type checked first. *)
 
 val errors_in_snf : bool ref
 

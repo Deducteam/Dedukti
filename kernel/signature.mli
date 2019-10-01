@@ -80,9 +80,13 @@ val fail_on_symbol_not_found : bool ref
 type rw_infos =
   {
     stat          : staticity;
+    (** Whether a symbol is definable *)
     ty            : term;
+    (** The type of a symbol *)
     rules         : rule_infos list;
+    (** The list of rules associated to a symbol. They are ordored by their declaration within a file and in order they are imported in the signature *)
     decision_tree : Dtree.t option
+    (** The decision tree computed for the set of rules declared above *)
   }
 
 val fold_symbols : (mident -> ident -> rw_infos -> 'a -> 'a) -> t -> 'a -> 'a
