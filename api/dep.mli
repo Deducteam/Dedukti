@@ -33,6 +33,8 @@ val deps : t
 val ignore : bool ref
 
 val compute_ideps : bool ref
+(** Whether to compute dependencies of every element.  If set to
+    [false], only module dependencies are computed. *)
 
 val get_file : Basic.mident -> path
 (** [get_file md] returns the path associated to module [md] *)
