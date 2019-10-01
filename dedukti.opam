@@ -1,8 +1,15 @@
-opam-version: "1.2"
+opam-version: "2.0"
 name: "Dedukti"
 version: "devel"
-maintainer: "dedukti-dev@inria.fr"
-author: "Ronan Saillard"
+maintainer: "Deducteam <dedukti-dev@inria.fr>"
+authors: [ "Frédéric Blanqui"
+           "Mathieu Boespflug"
+           "Raphael Cauderlier"
+           "Gaspard Férey"
+           "Guillaume Genestier"
+           "Rodolphe Lepigre"
+           "Ronan Saillard"
+           "François Thiré" ]
 homepage: "https://deducteam.github.io"
 bug-reports: "https://github.com/Deducteam/Dedukti/issues"
 dev-repo: "https://github.com/Deducteam/Dedukti"
@@ -12,6 +19,5 @@ remove: [make "uninstall"]
 available: [ ocaml-version >= "4.02" ]
 depends: [
   "menhir"
-  "ocamlbuild" {build}
-  "ocamlfind" {build}
+  "dune" {build}
 ]
