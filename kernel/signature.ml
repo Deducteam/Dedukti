@@ -153,9 +153,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   | (r::_ as rs) ->
     let infos, env =
       try get_info_env sg r.l r.cst
-      with
-      | Signature_error (SymbolNotFound _)
-      | Signature_error (UnmarshalUnknown _) when not !fail_on_symbol_not_found ->
+      with _ when not !fail_on_symbol_not_found ->
         add_external_declaration sg r.l r.cst Definable (mk_Kind);
         get_info_env sg r.l r.cst
     in

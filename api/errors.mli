@@ -9,7 +9,8 @@ val color : bool ref
 val success : string -> unit
 (** Print a success message. *)
 
-val fail_exit : file:string -> code:string -> loc option -> ('a, Format.formatter, unit) format -> 'a
+val fail_exit : file:string -> code:string -> loc option ->
+  ('a, Format.formatter, unit, 'b) format4 -> 'a
 (** [fail_exit file error_id lc "..."]
     Prints the given error message prefixed with module and location details
     (when provided) as well as the error ID then exits with the given code. *)

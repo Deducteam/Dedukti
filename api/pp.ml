@@ -45,11 +45,21 @@ struct
 
 let print_list = pp_list
 
-let print_ident = pp_ident
-
 let print_mident = pp_mident
 
 let print_name = pp_name
+
+(* Idents generated from underscores by the parser start with a dollar.
+   We have sometimes to avoid to print them because they are not valid tokens. *)
+let is_dummy_ident i = (string_of_ident i).[0] = '$'
+
+let print_ident fmt id =
+  if is_dummy_ident id then
+    Format.fprintf fmt "__"
+  else
+    pp_ident fmt id
+
+let is_regular_ident i = (string_of_ident i).[0] <> '$'
 
 let print_const out cst =
   let md = md cst in
@@ -59,10 +69,6 @@ let print_const out cst =
   then print_ident out (id cst)
   else fprintf out "%a" pp_name cst
 
-(* Idents generated from underscores by the parser start with a question mark.
-   We have sometimes to avoid to print them because they are not valid tokens. *)
-let is_dummy_ident i = (string_of_ident i).[0] = '$'
-let is_regular_ident i = (string_of_ident i).[0] <> '$'
 
 let print_db out (x,n) =
   if !print_db_enabled then fprintf out "%a[%i]" print_ident x n
@@ -117,12 +123,12 @@ let rec pp_term fmt te =
   | DB  (_,x,n)        -> fprintf fmt "%a" print_db (x,n)
   | Const (_,n)        -> fprintf fmt "%a" print_const n
   | App (f,a,args)     -> pp_list " " pp_term_wp fmt (f::a::args)
-  | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" pp_ident x pp_term f
-  | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" pp_ident x pp_term_wp a pp_term f
+  | Lam (_,x,None,f)   -> fprintf fmt "%a => %a" print_ident x pp_term f
+  | Lam (_,x,Some a,f) -> fprintf fmt "%a:%a => %a" print_ident x pp_term_wp a pp_term f
   | Pi  (_,x,a,b)      ->
     if ident_eq x dmark
     then fprintf fmt "%a -> %a" pp_term_wp a pp_term b
-    else fprintf fmt "%a:%a -> %a" pp_ident x pp_term_wp a pp_term b
+    else fprintf fmt "%a:%a -> %a" print_ident x pp_term_wp a pp_term b
 
 and pp_term_wp fmt te =
   match te with

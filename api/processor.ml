@@ -190,3 +190,25 @@ let handle_files : string list ->
   in
   List.iter (handle_file) files;
   P.get_data ()
+
+let process_files : string list ->
+  ?hook_before:(Env.t -> unit) ->
+  ?hook_after:(Env.t -> (Env.t * Basic.loc * exn) option -> unit) ->
+  ('a -> 'b -> 'b) -> 'b ->
+  (module S with type t = 'a) -> 'b =
+  fun (type a b) files ?hook_before ?hook_after (fold:a -> b -> b) (neutral:b) (module P:S with type t = a) ->
+  let handle_file file =
+    try
+      let input = Parser.input_from_file file in
+      let data = handle_input input ?hook_before ?hook_after (module P) in
+      Parser.close input;
+      data
+    with Sys_error msg -> Errors.fail_sys_error ~file ~msg
+  in
+  let fold b file =
+    try fold (handle_file file) b
+    with exn ->
+      let env = Env.init (Parser.input_from_file file) in
+      Env.fail_env_error env Basic.dloc exn
+  in
+  List.fold_left fold neutral files

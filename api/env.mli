@@ -119,4 +119,4 @@ val unsafe_reduction : t -> ?red:(Reduction.red_cfg) -> term -> term
 
 val errors_in_snf : bool ref
 
-val fail_env_error : t -> Basic.loc -> exn -> unit
+val fail_env_error : t -> Basic.loc -> exn -> 'a
