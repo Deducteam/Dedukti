@@ -1,0 +1,16 @@
+type : Type.
+eps : type -> Type.
+
+A : Type.
+
+Bot : Type.
+
+(; A or not A ;)
+def B :=
+  (c : type ->
+   (A -> eps c) ->
+   ((A -> Bot) -> eps c) ->
+   eps c).
+
+def proof : (B -> Bot) -> Bot :=
+  f => f (c => l => r => r (a => f (c' => l' => r' => l' a))).
