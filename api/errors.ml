@@ -17,7 +17,7 @@ let violet = colored 5
 module Pp = Pp.Default
 
 let success input =
-  eprintf "%s %s was successfully checked.\n"
+  Format.eprintf "%s %s was successfully checked.@."
     (green "[SUCCESS]") input
 
 let where file = orange (Format.asprintf "[%s]" file)
