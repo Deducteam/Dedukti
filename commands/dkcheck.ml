@@ -18,9 +18,11 @@ let run_on_file beautify export file =
   Debug.(debug Signature.D_module "Processing file '%s'..." file);
   let md = E.init file in
   Confluence.initialize ();
-  Parse_channel.handle md (mk_entry beautify md) input;
-  if not beautify then
-    ErrorHandler.success "File '%s' was successfully checked." file;
+  begin
+    try Parse_channel.handle md (mk_entry beautify md) input;
+    with e -> ErrorHandler.graceful_fail (Some file) e
+  end;
+  if not beautify then ErrorHandler.print_success (Some file);
   if export then E.export ();
   Confluence.finalize ();
   close_in input
@@ -124,15 +126,14 @@ Available options:" Sys.argv.(0) in
       Format.eprintf "Beautify and export cannot be set at the same time@.";
       exit 2
     end;
-  try
-    List.iter (run_on_file !beautify !export) files;
-    match !run_on_stdin with
-    | None   -> ()
-    | Some m ->
-      let md = E.init m in
-      Parse_channel.handle md (mk_entry !beautify md) stdin;
-      if not !beautify
-      then ErrorHandler.success "Standard input was successfully checked.\n"
-  with
-  | Env.EnvError (md,lc,e) -> ErrorHandler.fail_env_error (md,lc,e)
-  | Sys_error err          -> ErrorHandler.fail_sys_error err
+  List.iter (run_on_file !beautify !export) files;
+  match !run_on_stdin with
+  | None   -> ()
+  | Some m ->
+    let md = E.init m in
+    begin
+      try Parse_channel.handle md (mk_entry !beautify md) stdin
+      with e -> ErrorHandler.graceful_fail None e
+    end;
+    if not !beautify
+    then ErrorHandler.print_success None

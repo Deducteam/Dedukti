@@ -1,0 +1,11 @@
+(ocamllex
+	(modules lexer))
+(menhir
+	(modules menhir_parser)
+	(flags (--external-tokens Tokens)))
+
+(library
+        (name parser)
+	(public_name dedukti.parser)
+	(libraries kernel)
+	(wrapped false))

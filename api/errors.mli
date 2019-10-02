@@ -11,20 +11,15 @@ val color : bool ref
 module type ErrorHandler =
 sig
 
-val success : ('a, Format.formatter, unit) format -> 'a
-(** Print a success message. *)
+val print_success : string option -> unit
+(** [print_success] Prints a success message after handling the
+    given file (or standard input in case of [None]). *)
 
-val fail_exit : int -> string -> mident option -> loc option -> ('a, Format.formatter, unit) format -> 'a
-(** [fail_exit c error_id md lc "..."]
-    Prints the given error message prefixed with module and location details
-    (when provided) as well as the error ID then exits with the given code. *)
-
-val fail_env_error : (mident option * loc * Env.env_error) -> 'a
-(** [fail_env_error md lc err]
-    Prints a message explaining the env_error then exits with code 3. *)
-
-val fail_sys_error : string -> 'a
-(** Print a system error message then exits with code 1. *)
+val graceful_fail : string option -> exn -> 'a
+(** [graceful_fail file err]
+    Prints a message explaining the given error
+    raised while handling the (optionnal) given file
+    then exits with code 3. *)
 
 end
 
