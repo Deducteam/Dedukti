@@ -31,8 +31,9 @@ type entry =
   (** Printing command. *)
   | DTree of loc * mident option * ident
   (** Decision tree printing. *)
-  | Name  of loc * mident
-  (** Obsolete #NAME command. *)
+  | Name of loc * mident
+  (** @deprecated Ignored #NAME command.
+      Module name defaults to the file name without extension. *)
   | Require  of loc * mident
   (** Require command. *)
 
