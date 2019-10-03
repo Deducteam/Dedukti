@@ -57,7 +57,7 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : pre_context*bool*bool =
       | _::lst -> aux lst
     in aux vars
   in
-  let rec aux (bvar:ident list) (ctx:preterm option context) : prepattern -> pre_context = function
+  let rec aux (bvar:ident list) (ctx:pre_context) : prepattern -> pre_context = function
     | PPattern (_,None,id,pargs) ->
       if List.exists (ident_eq id) bvar
       then List.fold_left (aux bvar) ctx pargs
@@ -104,7 +104,6 @@ let p_of_pp md (ctx:ident list) (ppat:prepattern) : pattern =
   aux ctx ppat
 
 (******************************************************************************)
-
 
 let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : partially_typed_rule =
   let top = PPattern(l,md_opt,id,pargs) in

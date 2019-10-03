@@ -2,7 +2,7 @@ open Kernel.Basic
 open Format
 
 (** {2 PreTerms} *)
-(** This module regroup types before the scoping.
+(** This module defines structures representing terms before their scoping.
     That is to say before variables are scoped with De Bruijn indices *)
 
 type preterm =

@@ -60,8 +60,7 @@ let pp_pdecl fmt = function
 
 type pcontext   = pdecl list
 
-let pp_pcontext fmt ctx =
-  pp_list ".\n" pp_pdecl fmt (List.rev ctx)
+let pp_pcontext fmt ctx = pp_list ".\n" pp_pdecl fmt (List.rev ctx)
 
 type prule      = loc * (mident option * ident) option * pdecl list * mident option * ident * prepattern list * preterm
 
