@@ -56,9 +56,6 @@ module type S = sig
 
   val check_rule  : Signature.t -> part_typed_rule -> Subst.Subst.t * typed_rule
   (** [check_rule sg ru] checks that a rule is well-typed. *)
-
-  val check_type_annotations : Signature.t -> Subst.Subst.t ->
-    typed_context -> part_typed_context -> unit
 end
 
 module Make(R:Reduction.S) : S

@@ -50,9 +50,6 @@ module type S = sig
   val inference   : Signature.t -> term -> typ
 
   val check_rule  : Signature.t -> part_typed_rule -> SS.t * typed_rule
-
-  val check_type_annotations : Signature.t -> SS.t ->
-    typed_context -> part_typed_context -> unit
 end
 
 (* ********************** CONTEXT *)
@@ -448,6 +445,7 @@ let check_rule sg (rule:part_typed_rule) : SS.t * typed_rule =
   in
   Debug.(debug D_rule "Typechecking rule");
   check sg ctx2 ri2 ty_le2;
+  check_type_annotations sg sub ctx2 rule.ctx;
   Debug.(debug D_rule "Fully checked rule:@.[ %a ] %a --> %a"
            pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
 

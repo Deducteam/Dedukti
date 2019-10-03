@@ -189,14 +189,9 @@ struct
     try _define lc id op te ty_opt
     with e -> raise_as_env lc e
 
-  let check_rule (rule:part_typed_rule) =
-    let (subst,typed) as res = T.check_rule !sg rule in
-    T.check_type_annotations !sg subst typed.ctx rule.ctx;
-    res
-
   let add_rules (rules: part_typed_rule list) : (Subst.Subst.t * typed_rule) list =
     try
-      let rs2 = List.map check_rule rules in
+      let rs2 = List.map (T.check_rule !sg) rules in
       _add_rules rules;
       rs2
     with e -> raise_as_env (get_loc_rule (List.hd rules)) e
