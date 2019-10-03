@@ -46,7 +46,7 @@ let pp_var_type fmt (i,args) =
   then fprintf fmt "%i" i
   else fprintf fmt "%i (%a)" i (pp_list " " pp_print_int) (LList.lst args)
 
-let rec pp_njoks fmt n = if n > 0 then fprintf fmt " + %i _" n
+let pp_njoks fmt n = if n > 0 then fprintf fmt " + %i _" n
 
 let pp_problem pp_a fmt = function
   | Eq(vp,t) -> fprintf fmt "%a = %a" pp_var_type vp pp_a t
@@ -310,9 +310,9 @@ let get_all_ac_symbols pb i =
   let set = ref [] in
   let is_in_set e s = List.exists (ac_ident_eq e) s in
   let add e = if not (is_in_set e !set) then set := e :: !set in
-  let rec aux (d,p) = match p with
-    | Eq _ -> assert false
-    | AC(aci,_,vars,_) -> if List.exists (fun (j,_) -> j == i) vars then add aci
+  let aux = function
+    | _, AC(aci,_,vars,_) -> if List.exists (fun (j,_) -> j == i) vars then add aci
+    | _ -> assert false
   in
   List.iter aux pb.problems;
   !set
@@ -324,10 +324,10 @@ let fetch_next_problem pb =
   | (d, p) :: other_problems ->
      match p with
      | Eq((i,args),_) -> Some ((d,p),other_problems,(i,args))
-     | AC(aci,joks,[],terms) -> Some ((d,p),other_problems,(-1,LList.nil))
-     | AC(aci,joks,first :: vars,terms) ->
+     | AC(_,_,[],_) -> Some ((d,p),other_problems,(-1,LList.nil))
+     | AC(aci,_,first :: vars,_) ->
         (* Look for most interesting variable in the set. *)
-        let score (i,args) =
+        let score (i,_) =
           match pb.status.(i) with
           | Unsolved -> 0
           | Partly(aci',sols) ->
@@ -381,7 +381,7 @@ let solve_problem reduce convertible whnf pb =
           (* Update the rest of the problems with the solved variable and keep solving *)
           try_solve_next npb
         end
-      | AC(aci,joks,[],terms) -> (* Left hand side empty. Fail or discard AC equation. *)
+      | AC(_,joks,[],terms) -> (* Left hand side empty. Fail or discard AC equation. *)
         if terms = [] || joks > 0
         then solve_next { pb with problems = other_problems }
         else None
