@@ -1,3 +1,5 @@
+(; OK ;)
+
 type : Type.
 eps : type -> Type.
 
