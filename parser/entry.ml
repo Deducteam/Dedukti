@@ -12,7 +12,7 @@ type test =
 type entry =
   | Decl  of loc * ident * Signature.staticity * term
   | Def   of loc * ident * is_opaque * term option * term
-  | Rules of loc * Rule.part_typed_rule list
+  | Rules of loc * Rule.partially_typed_rule list
   | Eval  of loc * Reduction.red_cfg * term
   | Check of loc * is_assertion * should_fail * test
   | Infer of loc * Reduction.red_cfg * term

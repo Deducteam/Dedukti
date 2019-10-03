@@ -53,15 +53,21 @@ type 'a rule =
     pat : pattern;
     rhs : term
   }
+(** A rule is formed with
+    - a name
+    - an annotated context
+    - a left-hand side pattern
+    - a right-hand side term
+*)
 
 val get_loc_rule : 'a rule -> loc
 
-type part_typed_rule = term option rule
-(** Rule where context is partially annotated *)
-type typed_rule      = term rule
-(** Rule where context is fully annotated *)
-type arity_rule      = int rule
-(** Rule where context is only annotated with arities *)
+type partially_typed_rule = term option rule
+(** Rule where context is partially annotated with types *)
+type typed_rule = term rule
+(** Rule where context is fully annotated with types *)
+type arity_rule = int rule
+(** Rule where context is annotated with variable arities *)
 
 (** {2 Errors} *)
 
@@ -118,7 +124,7 @@ val untyped_rule_of_rule_infos : rule_infos -> arity_rule
 val pp_rule_name       : rule_name       printer
 val pp_untyped_rule    : 'a rule         printer
 val pp_typed_rule      : typed_rule      printer
-val pp_part_typed_rule : part_typed_rule printer
+val pp_part_typed_rule : partially_typed_rule printer
 val pp_pattern         : pattern         printer
 val pp_wf_pattern      : wf_pattern      printer
 val pp_rule_infos      : rule_infos      printer

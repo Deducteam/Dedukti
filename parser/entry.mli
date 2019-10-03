@@ -19,7 +19,7 @@ type entry =
   (** Symbol declaration. *)
   | Def   of loc * ident * is_opaque * term option * term
   (** Definition (possibly opaque). *)
-  | Rules of loc * Rule.part_typed_rule list
+  | Rules of loc * Rule.partially_typed_rule list
   (** Reduction rules declaration. *)
   | Eval  of loc * Reduction.red_cfg * term
   (** Evaluation command. *)

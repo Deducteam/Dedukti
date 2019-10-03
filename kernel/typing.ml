@@ -27,7 +27,7 @@ type typing_error =
   | InexpectedKind                     of term * typed_context
   | DomainFreeLambda                   of loc
   | CannotInferTypeOfPattern           of pattern * typed_context
-  | UnsatisfiableConstraints           of part_typed_rule * (int * term * term)
+  | UnsatisfiableConstraints           of partially_typed_rule * (int * term * term)
   | BracketExprBoundVar                of term * typed_context
   | BracketExpectedTypeBoundVar        of term * typed_context * term
   | BracketExpectedTypeRightVar        of term * typed_context * term
@@ -49,7 +49,7 @@ module type S = sig
 
   val inference   : Signature.t -> term -> typ
 
-  val check_rule  : Signature.t -> part_typed_rule -> SS.t * typed_rule
+  val check_rule  : Signature.t -> partially_typed_rule -> SS.t * typed_rule
 end
 
 (* ********************** CONTEXT *)
@@ -394,7 +394,7 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
     let apply_subst i (l,x,ty) = (l,x,Subst.apply_subst (SS.subst2 sub i) 0 ty) in
     List.mapi apply_subst ctx
 
-let check_type_annotations sg (sub:SS.t) (typed_ctx:typed_context) (annot_ctx:part_typed_context) =
+let check_type_annotations sg sub typed_ctx annot_ctx =
   Debug.(debug D_rule "Typechecking type annotations");
   let rec aux ctx depth ctx1 ctx2 =
     match ctx1, ctx2 with
@@ -417,7 +417,7 @@ let check_type_annotations sg (sub:SS.t) (typed_ctx:typed_context) (annot_ctx:pa
     | _ -> assert false
   in aux [] 1 typed_ctx annot_ctx
 
-let check_rule sg (rule:part_typed_rule) : SS.t * typed_rule =
+let check_rule sg (rule:partially_typed_rule) : SS.t * typed_rule =
   Debug.(debug D_rule "Inferring variables type and constraints from LHS");
   let fail = if !fail_on_unsatisfiable_constraints
     then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))

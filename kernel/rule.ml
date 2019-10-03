@@ -31,9 +31,9 @@ type 'a rule =
     rhs:term
   }
 
-type part_typed_rule = term option rule
-type typed_rule      = term        rule
-type arity_rule      = int         rule
+type partially_typed_rule = term option rule
+type typed_rule           = term        rule
+type arity_rule           = int         rule
 
 (* TODO : maybe replace constr by Linearity | Bracket and constr list by a constr Map.t *)
 type constr =

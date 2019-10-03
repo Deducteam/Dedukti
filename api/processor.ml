@@ -29,7 +29,7 @@ struct
       E.define lc id opaque te ty
     | Rules(l,rs) ->
       let open Rule in
-      List.iter (fun (r:part_typed_rule) ->
+      List.iter (fun (r:partially_typed_rule) ->
           Debug.(debug D_notice "Adding rewrite rules: '%a'" Printer.print_rule_name r.name)) rs;
       let rs = E.add_rules rs in
       List.iter (fun (s,r) ->
