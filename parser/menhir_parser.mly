@@ -6,18 +6,17 @@ open Reduction
 open Signature
 open Entry
 
-let rec mk_lam : preterm -> (loc*ident*preterm) list -> preterm = fun te ps ->
+let rec mk_lam : preterm -> (loc * ident * preterm) list -> preterm = fun te ps ->
   match ps with
   | []           -> te
   | (l,x,ty)::ps -> PreLam(l, x, Some ty, mk_lam te ps)
 
-let rec mk_pi  : preterm -> (loc*ident*preterm) list -> preterm = fun ty ps ->
+let rec mk_pi  : preterm -> (loc * ident * preterm) list -> preterm = fun ty ps ->
   match ps with
   | []           -> ty
   | (l,x,aa)::ps -> PrePi(l, Some x, aa, mk_pi ty ps)
 
 let mk_config loc lid =
-  let open Env in
   let strat    = ref None in
   let target   = ref None in
   let nb_steps = ref None in
@@ -35,7 +34,7 @@ let mk_config loc lid =
       nb_steps = (!nb_steps);
       target   = (match !target with None -> default_cfg.target | Some t -> t);
       strat    = (match !strat  with None -> default_cfg.strat  | Some s -> s) }
-  with _ -> raise (Env.EnvError (None, loc, Env.ParseError "invalid command configuration"))
+  with _ -> raise (Scoping_error(loc, "invalid command configuration"))
 
 let loc_of_rs = function
   | [] -> assert false

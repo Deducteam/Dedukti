@@ -4,6 +4,8 @@ open Term
 
 type stream = {mod_name : Basic.mident; lexbuf : Lexing.lexbuf}
 
+exception Parse_error of loc * string
+
 module type S =
 sig
 
@@ -30,7 +32,7 @@ let read str =
     let loc = Lexer.get_loc str.lexbuf in
     let lex = Lexing.lexeme str.lexbuf in
     let msg = Format.sprintf "Unexpected token '%s'." lex in
-    raise (Env.EnvError (None, loc, Env.ParseError msg))
+    raise (Parse_error (loc,msg))
 
 module type CHANNEL = sig
   type t
@@ -49,9 +51,7 @@ module Make = functor (C : CHANNEL) -> struct
     let s = from md ic in
     try
       while true do f (read s) done
-    with
-    | Env.EnvError (None, loc, e) -> raise (Env.EnvError (Some md,loc,e))
-    | End_of_file -> ()
+    with End_of_file -> ()
 
   let parse md ic =
     let l = ref [] in
@@ -64,12 +64,12 @@ module Parse_channel =
   Make(struct
       type t = in_channel
 
-      let lexing_from = Lexing.from_channel
+      let lexing_from s = Lexing.from_channel s
     end)
 
 module Parse_string =
   Make(struct
       type t = string
 
-      let lexing_from = Lexing.from_string
+      let lexing_from s = Lexing.from_string s
     end)

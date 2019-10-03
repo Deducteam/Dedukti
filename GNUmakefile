@@ -4,155 +4,40 @@ VERSION = devel
 # Compile with "make Q=" to display the commands that are run.
 Q = @
 
-all: kernel api parser commands META
+.PHONY: all
+all: bin binaries
 
-#### Compilation of the kernel library #######################################
+.PHONY: binaries
+binaries: dkcheck.native dktop.native dkdep.native dkprune.native
 
-KERNEL_MLI := $(wildcard kernel/*.mli)
-KERNEL_ML  := $(KERNEL_MLI:.mli=.ml)
+%.native:
+	@ln -fs _build/install/default/bin/$* $@
 
-.PHONY: kernel
-kernel: _build/kernel/kernel.cma _build/kernel/kernel.cmxa
+.PHONY: bin
+bin: kernel/version.ml
+	@dune build
+
+.PHONY: doc
+doc:
+	@dune build @doc
+
+.PHONY: clean
+clean:
+	@dune clean
+	@rm -f *.native
+
+.PHONY: install
+install: all
+	@dune install
+
+.PHONY: uninstall
+uninstall: all
+	@dune uninstall
 
 kernel/version.ml: GNUmakefile
 	@echo "[GEN] $@ ($(VERSION))"
 	$(Q)echo 'let version = "$(VERSION)"' > $@
 
-_build/kernel/kernel.cma: $(KERNEL_MLI) $(KERNEL_ML)
-	@echo "[BYT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.cma
-
-_build/kernel/kernel.cmxa: $(KERNEL_MLI) $(KERNEL_ML)
-	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.cmxa
-
-#### Compilation of the API library #######################################
-
-API_MLI := $(wildcard api/*.mli)
-API_ML  := $(API_MLI:.mli=.ml)
-
-.PHONY: api
-api: kernel _build/api/api.cma _build/api/api.cmxa
-
-_build/api/api.cma: $(API_MLI) $(API_ML)
-	@echo "[BYT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind api/api.cma
-
-_build/api/api.cmxa: $(API_MLI) $(API_ML)
-	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind api/api.cmxa
-
-#### Compilation of the parser library #######################################
-
-PARSER_MLI := $(wildcard parser/*.mli)
-PARSER_ML  := $(PARSER_MLI:.mli=.ml)
-PARSER_GEN := parser/menhir_parser.mly parser/lexer.mll
-
-.PHONY: parser
-parser: kernel _build/parser/parser.cma _build/parser/parser.cmxa
-
-_build/parser/parser.cma: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
-	@echo "[BYT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind parser/parser.cma
-
-_build/parser/parser.cmxa: $(PARSER_MLI) $(PARSER_ML) $(PARSER_GEN)
-	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind parser/parser.cmxa
-
-#### Compilation of the dedukti suite ########################################
-
-.PHONY: commands
-commands: dkcheck.native dkdep.native dktop.native dkprune.native
-
-dkcheck.native: kernel api parser commands/dkcheck.ml
-	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkcheck.native
-
-dkdep.native: kernel api parser commands/dkdep.ml
-	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkdep.native
-
-dktop.native: kernel api parser commands/dktop.ml
-	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dktop.native
-
-dkprune.native: kernel api parser commands/dkprune.ml
-	@echo "[OPT] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind commands/dkprune.native
-
-#### Generation of the documentation #########################################
-
-.PHONY: doc
-doc: _build/kernel/kernel.docdir/index.html
-
-_build/kernel/kernel.docdir/index.html: $(KERNEL_MLI) $(KERNEL_ML)
-	@echo "[DOC] $@"
-	$(Q)ocamlbuild -quiet -use-ocamlfind kernel/kernel.docdir/index.html
-
-#### Generation of the META file #############################################
-
-META: GNUmakefile
-	@echo "[GEN] $@"
-	@echo 'name = "dedukti"'                                             > META
-	@echo 'version = "$(VERSION)"'                                      >> META
-	@echo 'description = "Dedukti library - λΠ-calculus modulo theory"' >> META
-	@echo 'requires = "unix"'                                           >> META
-	@echo 'archive(byte) = "kernel.cma, api.cma, parser.cma"'           >> META
-	@echo 'archive(native) = "kernel.cmxa, api.cmxa, parser.cmxa"'      >> META
-	@echo                                                               >> META
-	@echo 'package "kernel" ('                                          >> META
-	@echo '  version = "$(VERSION)"'                                    >> META
-	@echo '  description = "Dedukti kernel"'                            >> META
-	@echo '  requires = "unix"'                                         >> META
-	@echo '  archive(byte) = "kernel.cma"'                              >> META
-	@echo '  archive(native) = "kernel.cmxa"'                           >> META
-	@echo ')'                                                           >> META
-	@echo                                                               >> META
-	@echo 'package "api" ('                                             >> META
-	@echo '  version = "$(VERSION)"'                                    >> META
-	@echo '  description = "Dedukti API"'                               >> META
-	@echo '  requires = "unix, dedukti.kernel"'                         >> META
-	@echo '  archive(byte) = "api.cma"'                                 >> META
-	@echo '  archive(native) = "api.cmxa"'                              >> META
-	@echo ')'                                                           >> META
-	@echo                                                               >> META
-	@echo 'package "parser" ('                                          >> META
-	@echo '  version = "$(VERSION)"'                                    >> META
-	@echo '  description = "Dedukti parser"'                            >> META
-	@echo '  requires = "unix, dedukti.kernel, dedukti.api"'            >> META
-	@echo '  archive(byte) = "parser.cma"'                              >> META
-	@echo '  archive(native) = "parser.cmxa"'                           >> META
-	@echo ')'                                                           >> META
-
-#### Installation targets ####################################################
-
-BINDIR = $(dir $(shell which ocaml))
-
-.PHONY: uninstall
-uninstall:
-	@ocamlfind remove dedukti
-	@rm -f $(BINDIR)/dkcheck
-	@rm -f $(BINDIR)/dkdep
-	@rm -f $(BINDIR)/dktop
-	@rm -f $(BINDIR)/dkprune
-
-.PHONY: install
-install: uninstall all
-	@ocamlfind install dedukti META \
-		$(wildcard _build/kernel/*.mli) $(wildcard _build/kernel/*.cmi) \
-		$(wildcard _build/kernel/*.cmx) $(wildcard _build/kernel/*.o) \
-		$(wildcard _build/api/*.mli)    $(wildcard _build/api/*.cmi) \
-		$(wildcard _build/api/*.cmx)    $(wildcard _build/api/*.o) \
-		_build/parser/parser.mli _build/parser/parser.cmi \
-		$(wildcard _build/parser/*.cmx) $(wildcard _build/parser/*.o) \
-		_build/kernel/kernel.cma  _build/api/api.cma  _build/parser/parser.cma \
-		_build/kernel/kernel.cmxa _build/api/api.cmxa _build/parser/parser.cmxa \
-		_build/kernel/kernel.a    _build/api/api.a    _build/parser/parser.a
-	install -m 755 -d $(BINDIR)
-	install -m 755 -p dkcheck.native  $(BINDIR)/dkcheck
-	install -m 755 -p dkdep.native    $(BINDIR)/dkdep
-	install -m 755 -p dktop.native    $(BINDIR)/dktop
-	install -m 755 -p dkprune.native  $(BINDIR)/dkprune
 
 #### Test targets ############################################################
 
@@ -248,9 +133,6 @@ fullcleanlibs:
 	@cd $(TEST_LIBS) && ./dedukti-libraries.sh fullclean
 
 #### Cleaning targets ########################################################
-.PHONY: clean
-clean:
-	$(Q)ocamlbuild -quiet -clean
 
 .PHONY: distclean
 distclean: clean cleanlibs
