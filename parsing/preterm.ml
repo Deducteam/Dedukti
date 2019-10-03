@@ -52,15 +52,15 @@ let rec pp_prepattern fmt ppatern =
  *   | PPattern (_,_,_,_::_) as p  -> fprintf fmt "(%a)" pp_prepattern p
  *   | p                           -> pp_prepattern fmt p *)
 
-type pdecl      = loc * ident
+type pdecl = (loc * ident) * preterm option
 
-let pp_pdecl fmt (_,id) = pp_ident fmt id
+let pp_pdecl fmt = function
+  | (_,id), None -> pp_ident fmt id
+  | (_,id), Some ty -> fprintf fmt "%a : %a" pp_ident id pp_preterm ty
 
 type pcontext   = pdecl list
 
-let pp_pcontext fmt ctx =
-  pp_list ".\n" (fun _ (_,x) ->
-      fprintf fmt "%a" pp_ident x) fmt (List.rev ctx)
+let pp_pcontext fmt ctx = pp_list ".\n" pp_pdecl fmt (List.rev ctx)
 
 type prule      = loc * (mident option * ident) option * pdecl list * mident option * ident * prepattern list * preterm
 

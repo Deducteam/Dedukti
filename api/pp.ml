@@ -31,7 +31,7 @@ sig
   val print_typed_context : typed_context       printer
   val print_err_ctxt      : typed_context       printer
   val print_pattern       : Rule.pattern        printer
-  val print_untyped_rule  : Rule.untyped_rule   printer
+  val print_untyped_rule  : 'a Rule.rule        printer
   val print_typed_rule    : Rule.typed_rule     printer
   val print_rule_infos    : Rule.rule_infos     printer
   val print_rule_name     : Rule.rule_name      printer
@@ -59,7 +59,7 @@ let print_const out cst =
 (* Idents generated from underscores by the parser start with a question mark.
    We have sometimes to avoid to print them because they are not valid tokens. *)
 let is_dummy_ident i = (string_of_ident i).[0] = '$'
-let is_regular_ident i = (string_of_ident i).[0] <> '$'
+let is_regular_decl (_,i,_) = (string_of_ident i).[0] <> '$'
 
 let print_db out (x,n) =
   if !print_db_enabled then fprintf out "%a[%i]" print_ident x n
@@ -179,10 +179,6 @@ and print_pattern_wp out = function
   | Var (_,id,i,(_::_ as lst))     -> fprintf out "(%a %a)" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | p -> print_pattern out p
 
-(* let print_decl fmt (_,x,ty) =
- *   fprintf fmt "@[<v>%a : %a@]"
- *     print_ident x (n_print_term (line_length - 5 - String.length (string_of_ident x))) ty *)
-
 let rec print_typed_context fmt = function
   | [] -> ()
   | (_,x,ty) :: decls ->
@@ -208,26 +204,32 @@ let print_rule_name fmt rule =
   | Delta(cst)   -> aux true cst (* not printed *)
   | Gamma(b,cst) -> aux b    cst
 
-let print_untyped_rule fmt (rule:untyped_rule) =
-  let print_decl out (_,id) =
-    fprintf out "@[<hv>%a@]" print_ident id
-  in
+let print_decl fmt (_,id,_) =
+  fprintf fmt "@[<hv>%a@]" print_ident id
+let print_typed_decl fmt (_,id,ty) =
+  let l = line_length - 5 - String.length (string_of_ident id) in
+  fprintf fmt "@[<v>%a :@,%a@]" print_ident id (n_print_term l) ty
+let print_part_typed_decl fmt (l,id,ty) = match ty with
+  | None    -> print_decl       fmt (l,id,())
+  | Some ty -> print_typed_decl fmt (l,id,ty)
+
+let print_untyped_rule fmt (rule:'a rule) =
   fprintf fmt
     "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
     print_rule_name rule.name
-    (print_list ", " print_decl) (List.filter (fun (_, id) -> is_regular_ident id) rule.ctx)
+    (print_list ", " print_decl) (List.filter is_regular_decl rule.ctx)
     print_pattern rule.pat
     print_term rule.rhs
 
-let print_typed_rule out (rule:typed_rule) =
-  let print_decl out (_,id,ty) =
-    fprintf out "@[<hv>%a:@,%a@]" print_ident id print_term ty
-  in
-  fprintf out
+let print_rule (p:(loc*ident*'a) printer) fmt (rule:'a rule) =
+  fprintf fmt
     "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
-    (print_list ", " print_decl) rule.ctx
+    (print_list ", " p) rule.ctx
     print_pattern rule.pat
     print_term rule.rhs
+
+let print_typed_rule      = print_rule print_typed_decl
+let print_part_typed_rule = print_rule print_part_typed_decl
 
 let print_rule_infos out ri =
   let rule = { name = ri.name ;
@@ -260,7 +262,7 @@ let print_entry fmt e =
                      print_ident id print_term ty print_term te
     end
   | Rules(_,rs)               ->
-    fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_untyped_rule) rs
+    fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_part_typed_rule) rs
   | Eval(_,cfg,te)          ->
     fprintf fmt "#EVAL%a %a.@." print_red_cfg cfg print_term te
   | Infer(_,cfg,te)         ->

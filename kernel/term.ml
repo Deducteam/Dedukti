@@ -80,11 +80,27 @@ let subterm t i = match t with
 
 let subterm = List.fold_left subterm
 
-type 'a context = 'a list
 
-type untyped_context = (loc * ident) context
+(*********** Contexts} ***********)
 
-type typed_context = (loc * ident * term) context
+type 'a context = (loc * ident * 'a) list
+type partially_typed_context = term option context
+type typed_context           = term        context
+type arity_context           = int         context
+
+let pp_untyped_ident fmt (_,id,_) = Format.fprintf fmt "%a" pp_ident id
+
+let pp_typed_ident fmt (_,id,ty) = Format.fprintf fmt "%a:%a" pp_ident id pp_term ty
+
+let pp_maybe_typed_ident fmt (l,id,ty) = match ty with
+  | None    -> pp_untyped_ident fmt (l,id,())
+  | Some ty -> pp_typed_ident   fmt (l,id,ty)
+
+let pp_context pp_i fmt l = fprintf fmt "[%a]" (pp_list ", " pp_i) (List.rev l)
+
+let pp_untyped_context fmt = pp_context pp_untyped_ident fmt
+let pp_typed_context       = pp_context pp_typed_ident
+let pp_part_typed_context  = pp_context pp_maybe_typed_ident
 
 let get_name_from_typed_ctxt ctxt i =
   try let (_,v,_) = List.nth ctxt i in Some v with Failure _ -> None

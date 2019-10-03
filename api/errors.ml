@@ -67,9 +67,13 @@ let fail_typing_error file md errid def_loc err =
     fail (get_loc te)
       "Error while typing %a@.---- Expected:@.%a@.---- Inferred:@.%a@."
       try_print_oneliner (te,ctx) print_term (snf exp) print_term (snf inf)
+  | AnnotConvertibilityError (lc,x,ctx,exp,inf) ->
+    fail lc
+      "Error while checking type annotation of variable '%a'@.---- Annotation:@.%a@.---- Inferred:@.%a@."
+      try_print_oneliner (mk_DB lc x 0,ctx) print_term (snf exp) print_term (snf inf)
   | VariableNotFound (lc,x,n,ctx) ->
     fail lc
-      "The variable '%a' was not found in context:%a@."
+      "The variable '%a' was not found%a@."
       pp_term (mk_DB lc x n) print_err_ctxt ctx
   | SortExpected (te,ctx,inf) ->
     fail (Term.get_loc te)
@@ -270,6 +274,7 @@ let code : exn -> int =
           | Typing.Convertible _                             -> 205
           | Typing.Inhabit _                                 -> 206
           | Typing.NotImplementedFeature _                   -> 207
+          | Typing.AnnotConvertibilityError _                -> 208
         end
       | EnvErrorSignature e ->
         begin
