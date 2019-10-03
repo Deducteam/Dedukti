@@ -84,9 +84,9 @@ let subterm = List.fold_left subterm
 (*********** Contexts} ***********)
 
 type 'a context = (loc * ident * 'a) list
-type part_typed_context = term option context
-type typed_context      = term        context
-type arity_context      = int         context
+type partially_typed_context = term option context
+type typed_context           = term        context
+type arity_context           = int         context
 
 let pp_untyped_ident fmt (_,id,_) = Format.fprintf fmt "%a" pp_ident id
 

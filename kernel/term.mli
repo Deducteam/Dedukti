@@ -45,7 +45,7 @@ val subterm : term -> position -> term
 type 'a context = (loc * ident * 'a) list
 (** General context: variables have abstract annotations *)
 
-type part_typed_context = term option context
+type partially_typed_context = term option context
 (** Partially annotated context: as generated at rule parsing *)
 
 type typed_context = term context
@@ -54,9 +54,8 @@ type typed_context = term context
 type arity_context = int context
 (** Arity annotated context: used for rewriting in untyped setting *)
 
-val pp_untyped_context    : 'a context         printer
-val pp_typed_context      : typed_context      printer
-val pp_part_typed_context : part_typed_context printer
-
+val pp_untyped_context    : 'a context              printer
+val pp_typed_context      : typed_context           printer
+val pp_part_typed_context : partially_typed_context printer
 
 val rename_vars_with_typed_context : typed_context -> term -> term

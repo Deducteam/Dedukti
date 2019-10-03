@@ -246,7 +246,7 @@ type partial_context =
     bracket : bool
   }
 
-let pc_make (ctx:part_typed_context) : partial_context =
+let pc_make (ctx:partially_typed_context) : partial_context =
   let size = List.length ctx in
   assert ( size >= 0 );
   { padding=size; pctx=LList.nil; bracket=false }
