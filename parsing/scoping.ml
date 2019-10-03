@@ -1,7 +1,7 @@
-open Basic
+open Kernel.Basic
+open Kernel.Term
+open Kernel.Rule
 open Preterm
-open Term
-open Rule
 
 exception Scoping_error of loc * string
 
@@ -51,7 +51,7 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context*bool*bool
   let is_a_var id1 =
     let rec aux = function
       | [] -> None
-      | (l,id2)::lst when ident_eq id1 id2 -> Some l
+      | (l,id2)::_ when ident_eq id1 id2 -> Some l
       | _::lst -> aux lst
     in aux vars
   in
@@ -67,8 +67,8 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context*bool*bool
           | _ -> ctx
         ) in
         List.fold_left (aux bvar) ctx pargs
-    | PPattern (l,Some md,id,pargs) -> List.fold_left (aux bvar) ctx pargs
-    | PLambda (l,x,pp) -> aux (x::bvar) ctx pp
+    | PPattern (_,Some _,_,pargs) -> List.fold_left (aux bvar) ctx pargs
+    | PLambda (_,x,pp) -> aux (x::bvar) ctx pp
     | PCondition _ -> has_brackets := true; ctx
     | PJoker (l,_) -> (l, get_fresh_name ()) :: ctx
   in

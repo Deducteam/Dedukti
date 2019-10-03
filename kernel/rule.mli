@@ -44,8 +44,6 @@ type rule_name =
 
 val rule_name_eq : rule_name -> rule_name -> bool
 
-val pp_rule_name : rule_name printer
-
 type 'a rule =
   {
     name: rule_name;
@@ -75,26 +73,27 @@ exception RuleError of rule_error
 (** {2 Rule infos} *)
 
 type rule_infos =
-  { (** location of the rule *)
+  {
     l           : loc;
-    (** name of the rule *)
+    (** location of the rule *)
     name        : rule_name;
-    (** name of the pattern constant *)
+    (** name of the rule *)
     cst         : name;
-    (** arguments list of the pattern constant *)
+    (** name of the pattern constant *)
     args        : pattern list;
-    (** right hand side of the rule *)
+    (** arguments list of the pattern constant *)
     rhs         : term;
-    (** size of the context of the non-linear version of the rule *)
+    (** right hand side of the rule *)
     ctx_size    : int;
-    (** size of the context of the linearized, bracket free version of the rule *)
+    (** size of the context of the non-linear version of the rule *)
     esize       : int;
-    (** free patterns without constraint *)
+    (** size of the context of the linearized, bracket free version of the rule *)
     pats        : wf_pattern array;
-    (** arities of context variables *)
+    (** free patterns without constraint *)
     arity       : int array;
-    (** constraints generated from the pattern to the free pattern *)
+    (** arities of context variables *)
     constraints : constr list
+    (** constraints generated from the pattern to the free pattern *)
   }
 
 val infer_rule_context : rule_infos -> untyped_context

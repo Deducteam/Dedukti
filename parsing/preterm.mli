@@ -1,4 +1,4 @@
-open Basic
+open Kernel.Basic
 open Format
 
 (** {2 PreTerms} *)

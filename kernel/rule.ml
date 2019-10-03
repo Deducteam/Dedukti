@@ -59,7 +59,7 @@ let infer_rule_context ri =
   let rec aux k = function
     (* Since we have the guarantee that every lhs is a Miller pattern, we don't have to study args
     (they are locally bound variables) *)
-    | Var (_,name,n,args)  -> if n>=k then res.(n-k) <- name
+    | Var (_,name,n,_)  -> if n>=k then res.(n-k) <- name
     | Lambda (_,_,body)    -> aux (k+1) body
     | Pattern (_,_,args)   -> List.iter (aux k) args
     | Brackets(_)          -> ()
@@ -221,8 +221,8 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
   in
   let rec aux (k:int) (pat:pattern) : wf_pattern =
     match pat with
-    | Lambda (l,x,p) -> LLambda (x, aux (k+1) p)
-    | Var (l,x,n,args) when n<k ->
+    | Lambda (_,x,p) -> LLambda (x, aux (k+1) p)
+    | Var (_,x,n,args) when n<k ->
       LBoundVar(x, n, Array.of_list (List.map (aux k) args))
     | Var (l,x,n,args) (* Context variable (n>=k)  *) ->
       (* Miller variables should only be applied to locally bound variables *)

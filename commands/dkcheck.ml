@@ -1,4 +1,7 @@
-open Term
+open Kernel
+open Parsing
+open Api
+
 open Basic
 open Parser
 
@@ -8,7 +11,7 @@ module Printer = E.Printer
 module ErrorHandler = Errors.Make(E)
 module Beautifier = Processor.EntryPrinter(E)
 
-let mk_entry beautify md =
+let mk_entry beautify _ =
   if beautify
   then Beautifier.handle_entry
   else TypeChecker.handle_entry

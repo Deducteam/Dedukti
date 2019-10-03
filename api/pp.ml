@@ -1,8 +1,10 @@
+open Kernel
 open Basic
 open Term
 open Rule
-open Entry
+open Parsing
 open Format
+open Entry
 
 (* FIXME: this module is highly redondant with printing functions insides kernel modules *)
 
@@ -63,7 +65,7 @@ let print_db out (x,n) =
   if !print_db_enabled then fprintf out "%a[%i]" print_ident x n
   else print_ident out x
 
-let print_db_or_underscore out (x,n) =
+let print_db_or_underscore out (x,_) =
   if is_dummy_ident x then fprintf out "_"
   else print_ident out x
 
@@ -79,7 +81,7 @@ let fresh_name names base =
 
 let rec subst ctx = function
   | DB (_,x,_) as t when is_dummy_ident x -> t
-  | DB (l,x,n) as t -> ( try mk_DB l (List.nth ctx n) n with Failure _ -> t)
+  | DB (l,_,n) as t -> ( try mk_DB l (List.nth ctx n) n with Failure _ -> t)
   | Kind
   | Type _ as t -> t
   (* if there is a local variable that have the same name as a top level constant,
@@ -163,7 +165,7 @@ let line_length = 100
 (* Printing on default line length *)
 let print_term out t = n_print_term line_length out (subst [] t)
 
-let print_bv out (_,id,i) = print_db out (id,i)
+(* let print_bv out (_,id,i) = print_db out (id,i) *)
 
 let rec print_pattern out = function
   | Var (_,id,i,[]) -> print_db_or_underscore out (id,i)
@@ -177,9 +179,9 @@ and print_pattern_wp out = function
   | Var (_,id,i,(_::_ as lst))     -> fprintf out "(%a %a)" print_db_or_underscore (id,i) (print_list " " print_pattern_wp) lst
   | p -> print_pattern out p
 
-let print_decl fmt (_,x,ty) =
-  fprintf fmt "@[<v>%a : %a@]"
-    print_ident x (n_print_term (line_length - 5 - String.length (string_of_ident x))) ty
+(* let print_decl fmt (_,x,ty) =
+ *   fprintf fmt "@[<v>%a : %a@]"
+ *     print_ident x (n_print_term (line_length - 5 - String.length (string_of_ident x))) ty *)
 
 let rec print_typed_context fmt = function
   | [] -> ()
