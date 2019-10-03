@@ -186,19 +186,20 @@ top_pattern:
 pattern_wp:
   | ID                       { PPattern (fst $1,None,snd $1,[]) }
   | QID                      { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
-  | UNDERSCORE               { PJoker $1 }
+  | UNDERSCORE               { PJoker ($1,[]) }
   | LEFTBRA term RIGHTBRA    { PCondition $2 }
   | LEFTPAR pattern RIGHTPAR { $2 }
 
 pattern:
+  | pid FATARROW pattern     { PLambda (fst $1,snd $1,$3) }
   | ID  pattern_wp+          { PPattern (fst $1,None,snd $1,$2) }
   | QID pattern_wp+          { let (l,md,id)=$1 in PPattern (l,Some md,id,$2) }
-  | ID  FATARROW pattern     { PLambda (fst $1,snd $1,$3) }
+  | UNDERSCORE pattern_wp+   { PJoker ($1,$2) }
   | pattern_wp               { $1 }
 
 sterm:
   | QID                      { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
-  | pid                      { PreId (fst $1,snd $1) }
+  | ID                       { PreId (fst $1,snd $1) }
   | LEFTPAR term RIGHTPAR    { $2 }
   | TYPE                     { PreType $1 }
 

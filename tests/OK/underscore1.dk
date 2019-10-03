@@ -1,0 +1,10 @@
+(; OK ;)
+
+A : Type.
+a : A.
+def B : (A -> A) -> Type.
+
+b : B (_ => a).
+(; This is equivalent to  b : B (x => a) ;)
+
+#ASSERT b : B (x => a).

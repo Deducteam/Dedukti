@@ -182,6 +182,8 @@ The first rule can also be written:
 
     [ ] mult zero _ --> zero.
 
+Similarly underscores can replace unused abstracted variables in lambdas: `x => y => z => zero` can be written `_ => _ => _ => zero`. Be mindful that, in a pattern, the expression `_ => _` means `x => Y` where both `x` and `Y` are fresh variables occuring nowhere else.
+
 #### TYPING OF REWRITE RULES
 
 A typical example of the use of dependent types is the type of Vector defined as lists parametrized by their size:

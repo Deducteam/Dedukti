@@ -31,7 +31,7 @@ type prepattern =
   | PCondition  of preterm
   | PPattern    of loc * mident option * ident * prepattern list
   | PLambda     of loc * ident * prepattern
-  | PJoker      of loc
+  | PJoker      of loc * prepattern list
 
 
 let rec pp_prepattern fmt ppatern =
