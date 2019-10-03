@@ -59,7 +59,7 @@ let rec term_eq t1 t2 =
     | App (f,a,l), App (f',a',l') ->
         ( try List.for_all2 term_eq (f::a::l) (f'::a'::l')
           with _ -> false )
-    | Lam (_,_,a,b), Lam (_,_,a',b') -> term_eq b b'
+    | Lam (_,_,_,b), Lam (_,_,_,b') -> term_eq b b'
     | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false
 
@@ -73,7 +73,7 @@ let subterm t i = match t with
   | App (_,_,args)                ->
     ( try List.nth args (i-2) with _ -> raise (InvalidSubterm (t,i)) )
   | Lam (_,_,_     ,f) when i = 1 -> f
-  | Lam (_,_,Some a,f) when i = 0 -> a
+  | Lam (_,_,Some a,_) when i = 0 -> a
   | Pi  (_,_,a,_)      when i = 0 -> a
   | Pi  (_,_,_,b)      when i = 1 -> b
   | _ -> raise (InvalidSubterm (t,i))
@@ -86,13 +86,12 @@ type untyped_context = (loc * ident) context
 
 type typed_context = (loc * ident * term) context
 
-let rec get_name_from_typed_ctxt ctxt i =
-  try let (_,v,_) = List.nth ctxt i in Some v
-  with Failure _ -> None
+let get_name_from_typed_ctxt ctxt i =
+  try let (_,v,_) = List.nth ctxt i in Some v with Failure _ -> None
 
 let rename_vars_with_typed_context ctxt t =
   let rec aux d t = match t with
-    | DB(l,v,n) when n > d ->
+    | DB(l,_,n) when n > d ->
       (match get_name_from_typed_ctxt ctxt (n - d) with Some v' -> mk_DB l v' n | None -> t)
     | App (f,a,args) ->
       mk_App (aux d f) (aux d a) (List.map (aux d) args)

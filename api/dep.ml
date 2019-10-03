@@ -1,3 +1,5 @@
+open Kernel
+open Parsing
 open Basic
 
 type path = string
@@ -33,7 +35,6 @@ let current_mod   : mident    ref = ref (mk_mident "<not initialised>")
 let current_name  : name      ref = ref (mk_name (!current_mod) (mk_ident  "<not initialised>"))
 let current_deps  : deps      ref = ref (empty_deps ())
 let ignore        : bool      ref = ref false
-let process_items : bool      ref = ref false
 
 type dep_error =
   | ModuleNotFound of mident

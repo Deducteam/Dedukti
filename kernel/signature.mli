@@ -24,6 +24,8 @@ exception SignatureError of signature_error
 
 type staticity = Static | Definable
 
+val pp_staticity : staticity printer
+
 type t
 
 val make                : string -> t
@@ -58,10 +60,6 @@ val get_dtree           : t -> loc -> name -> Dtree.t
 
 val get_rules           : t -> loc -> name -> rule_infos list
 (** [get_rules sg lc cst] returns a list of rules that defines the symbol. *)
-
-val add_external_declaration     : t -> loc -> name -> staticity -> term -> unit
-(** [add_external_declaration sg l cst st ty] declares the symbol [id] of type
-    [ty] and staticity [st] in the environment [sg]. *)
 
 val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
