@@ -58,7 +58,5 @@ let  _ =
     Format.printf ">> ";
     try handle_entry md (read str) with
     | End_of_file -> exit 0
-    | Env.EnvError (md,l,Env.ParseError s)->
-      ErrorHandler.fail_env_error (md,l,Env.ParseError s)
-    | e -> Format.eprintf "Uncaught exception %S@." (Printexc.to_string e)
+    | e -> ErrorHandler.graceful_fail None e
   done
