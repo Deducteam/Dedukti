@@ -1,0 +1,17 @@
+(; KO 101 ;)
+
+N : Type.
+A : Type.
+T : A -> Type.
+
+P : (N -> A) -> Type.
+p : f : (N -> A) -> P f.
+
+g : (x : N) -> f : (N -> A) -> T (f x).
+def h : f : (N -> A) -> (x : N -> T (f x)) -> P f.
+
+[X,Y] h Y (x => g x X) --> p X.
+
+(; This rule is ill-typed because if k is of type N -> A, then
+h (x => k x) (x => g x k) is of type P (x => k x)
+but p k is of type P k ;)

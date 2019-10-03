@@ -4,10 +4,10 @@ USER MANUAL FOR DEDUKTI (DEVELOPMENT VERSION)
 ### INSTALLATION
 
 To compile (and optionally install) `Dedukti` you will need:
- - `OCaml >= 4.02`,
+ - `OCaml >= 4.02.3`,
  - `Menhir`,
- - `OCamlBuild` (build only),
- - `OCamlFind` (build only).
+ - `dune`,
+ - `odoc` (doc only).
 
 #### INSTALLATION WITH OPAM
 
@@ -41,7 +41,7 @@ The installation provides the following commands:
  - `dkcheck` is the type-checker for `Dedukti`,
  - `dktop` is an interactive wrapper around the type-checker,
  - `dkdep` is a dependency generator for `Dedukti` files,
- - `dkindent` is a program to indent `Dedukti` files.
+ - `dkprune` is a program to re-print only the strictly required subset of `Dedukti` files.
 
 ### OPTIONS
 

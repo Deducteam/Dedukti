@@ -1,4 +1,4 @@
-(; KO 3 ;)
+(; KO 101 ;)
 
 X:Type.
 Nat:Type.
@@ -16,5 +16,3 @@ f:Nat->X.
 def l1 := x:Nat => g (f x).
 def l2 := y:A => l1 y.
 def ap := l2 false.
-
-

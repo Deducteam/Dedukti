@@ -65,3 +65,15 @@ let pp_entry fmt e =
     ()
   | Require(_,m)            ->
     fprintf fmt "#REQUIRE %a.@." pp_mident m
+
+let loc_of_entry = function
+  | Decl(lc,_,_,_)
+  | Def(lc,_,_,_,_)
+  | Rules(lc,_)
+  | Eval(lc,_,_)
+  | Infer(lc,_,_)
+  | Check(lc,_,_,_)
+  | DTree(lc,_,_)
+  | Print(lc,_)
+  | Name(lc,_)
+  | Require(lc,_)    -> lc
