@@ -1,7 +1,7 @@
-open Basic
+open Kernel.Basic
+open Kernel.Term
+open Kernel.Rule
 open Preterm
-open Term
-open Rule
 
 exception Scoping_error of loc * string
 
@@ -69,10 +69,10 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : pre_context*bool*bool =
           | _ -> ctx
         ) in
         List.fold_left (aux bvar) new_ctx pargs
-    | PPattern (l,Some md,id,pargs) -> List.fold_left (aux bvar) ctx pargs
-    | PLambda (l,x,pp) -> aux (x::bvar) ctx pp
+    | PPattern (_,Some _,_,pargs) -> List.fold_left (aux bvar) ctx pargs
+    | PLambda (_,x,pp) -> aux (x::bvar) ctx pp
     | PCondition _ -> has_brackets := true; ctx
-    | PJoker l -> (l, get_fresh_name (),None) :: ctx
+    | PJoker (l,_) -> (l, get_fresh_name (),None) :: ctx
   in
   let ordered_ctx = aux [] [] ppat in
   ( ordered_ctx , List.length ordered_ctx <> List.length vars + !nb_jokers, !has_brackets )
@@ -93,11 +93,11 @@ let p_of_pp md (ctx:ident list) (ppat:prepattern) : pattern =
     | PPattern (l,Some md,id,pargs) -> Pattern (l,mk_name md id,List.map (aux ctx) pargs)
     | PLambda (l,x,pp) -> Lambda (l,x, aux (x::ctx) pp)
     | PCondition pte -> Brackets (t_of_pt md ctx pte)
-    | PJoker l ->
+    | PJoker (l,pargs) ->
       begin
         let id = get_fresh_name () in
         match get_db_index ctx id with
-        | Some n -> Var (l,id,n,[])
+        | Some n -> Var (l,id,n,List.map (aux ctx) pargs)
         | None -> assert false
       end
   in

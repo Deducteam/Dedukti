@@ -1,10 +1,10 @@
+open Kernel
 open Basic
 open Term
 
 type is_opaque    = bool
 type is_assertion = bool
 type should_fail  = bool
-
 
 (** Possible tests in source files. *)
 type test =
@@ -31,8 +31,9 @@ type entry =
   (** Printing command. *)
   | DTree of loc * mident option * ident
   (** Decision tree printing. *)
-  | Name  of loc * mident
-  (** Obsolete #NAME command. *)
+  | Name of loc * mident
+  (** @deprecated Ignored #NAME command.
+      Module name defaults to the file name without extension. *)
   | Require  of loc * mident
   (** Require command. *)
 

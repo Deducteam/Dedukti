@@ -262,7 +262,7 @@ let rec add l ar =
 
 let of_rules = function
   | [] -> []
-  | r::tl as rs ->
+  | r::_ as rs ->
     let name = r.cst in
     let arities = ref [] in
     List.iter
@@ -282,7 +282,7 @@ let of_rules = function
 
 (******************************************************************************)
 
-let pp_matching_problem fmt matching_problem = fprintf fmt "Mi"
+let pp_matching_problem fmt _ = fprintf fmt "Mi"
 
 let pp_var : int printer = fun fmt -> fprintf fmt "Var[%i]"
 

@@ -1,8 +1,8 @@
+open Kernel
 open Basic
 open Format
 open Term
-open Reduction
-open Pp
+open Parsing
 
 let errors_in_snf = ref false
 
@@ -12,7 +12,7 @@ let colored n s =
   if !color then "\027[3" ^ string_of_int n ^ "m" ^ s ^ "\027[m" else s
 
 let green  = colored 2
-let orange = colored 3
+(* let orange = colored 3 *)
 let red    = colored 1
 
 module type ErrorHandler =
@@ -105,12 +105,12 @@ let fail_typing_error file md errid def_loc err =
       "Error while typing the term { %a }%a.@.\
        Brackets cannot contain bound variables."
       pp_term te print_typed_context ctx
-  | BracketExpectedTypeBoundVar (te,ctx,ty) ->
+  | BracketExpectedTypeBoundVar (te,ctx,_) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.@.\
        The expected type of brackets cannot contains bound variables."
       pp_term te print_typed_context ctx
-  | BracketExpectedTypeRightVar (te,ctx,ty) ->
+  | BracketExpectedTypeRightVar (te,ctx,_) ->
     fail (get_loc te)
       "Error while typing the term { %a }%a.@.\
        The expected type of brackets can only contain variables occuring\
@@ -176,7 +176,7 @@ let fail_rule_error file md errid err =
     fail lc
       "The variables '%a' does not appear in the pattern '%a'."
       pp_ident x pp_pattern pat
-  | AVariableIsNotAPattern (lc,id) ->
+  | AVariableIsNotAPattern (lc,_) ->
     fail lc
       "A variable is not a valid pattern."
   | NonLinearNonEqArguments(lc,arg) ->

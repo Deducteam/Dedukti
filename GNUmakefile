@@ -35,7 +35,6 @@ uninstall: all
 	@dune uninstall
 
 kernel/version.ml: GNUmakefile
-	@echo "[GEN] $@ ($(VERSION))"
 	$(Q)echo 'let version = "$(VERSION)"' > $@
 
 

@@ -1,4 +1,4 @@
-open Basic
+open Kernel.Basic
 open Format
 
 type preterm =
@@ -31,7 +31,7 @@ type prepattern =
   | PCondition  of preterm
   | PPattern    of loc * mident option * ident * prepattern list
   | PLambda     of loc * ident * prepattern
-  | PJoker      of loc
+  | PJoker      of loc * prepattern list
 
 
 let rec pp_prepattern fmt ppatern =
@@ -47,10 +47,10 @@ let rec pp_prepattern fmt ppatern =
   | PJoker _                    -> fprintf fmt "_"
   | PLambda (_,id,p)            -> fprintf fmt "%a => %a" pp_ident id pp_prepattern p
 
-and pp_prepattern_wp fmt = function
-  | PLambda (_,_,_)
-  | PPattern (_,_,_,_::_) as p  -> fprintf fmt "(%a)" pp_prepattern p
-  | p                           -> pp_prepattern fmt p
+(* and pp_prepattern_wp fmt = function
+ *   | PLambda (_,_,_)
+ *   | PPattern (_,_,_,_::_) as p  -> fprintf fmt "(%a)" pp_prepattern p
+ *   | p                           -> pp_prepattern fmt p *)
 
 type pdecl = (loc * ident) * preterm option
 

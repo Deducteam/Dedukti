@@ -1,6 +1,8 @@
+open Kernel
+open Parsing
+open Api
+
 open Basic
-open Term
-open Rule
 
 module E            = Env.Make(Reduction.Default)
 module ErrorHandler = Errors.Make(E)
@@ -22,7 +24,7 @@ let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
   let open Dep in
   let objfile src = Filename.chop_extension src ^ ".dko" in
   let output_line : mident -> deps -> unit =
-    fun md deps ->
+    fun _ deps ->
        let file = deps.file in
        let deps = List.map (fun (_,src) -> objfile src) (MDepSet.elements deps.deps) in
        let deps = String.concat " " deps in
@@ -32,7 +34,7 @@ let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
   in
   Hashtbl.iter output_line data
 
-let output_sorted : Format.formatter -> Dep.t -> unit = fun oc data ->
+let output_sorted : Format.formatter -> Dep.t -> unit = fun _ data ->
   let deps = Dep.topological_sort data in
   Format.printf "%s@." (String.concat " " deps)
 

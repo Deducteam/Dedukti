@@ -62,11 +62,11 @@
 
 <pattern> ::= <ident> <pattern_wp>+
             | <qident> <pattern_wp>+
-            | <ident> '=>' <pattern>
+            | <pid> '=>' <pattern>
             | <pattern_wp>
 
 <sterm> ::= <qident>
-          | <pid>
+          | <ident>
           | '(' <term> ')'
           | 'Type'
 

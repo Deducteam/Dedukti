@@ -1,3 +1,4 @@
+open Kernel
 open Basic
 open Term
 open Rule
