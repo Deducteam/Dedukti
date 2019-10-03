@@ -57,7 +57,7 @@ type 'a rule =
 val get_loc_rule : 'a rule -> loc
 
 type part_typed_rule = term option rule
-type typed_rule      = term rule
+type typed_rule      = term        rule
 
 (** {2 Errors} *)
 

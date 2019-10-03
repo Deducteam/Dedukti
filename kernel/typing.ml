@@ -3,6 +3,8 @@ open Format
 open Rule
 open Term
 
+module SS = Subst.Subst
+
 type Debug.flag += D_typeChecking | D_rule
 let _ = Debug.register_flag D_typeChecking "TypeChecking"
 let _ = Debug.register_flag D_rule         "Rule"
@@ -47,7 +49,10 @@ module type S = sig
 
   val inference   : Signature.t -> term -> typ
 
-  val check_rule  : Signature.t -> part_typed_rule -> Subst.Subst.t * typed_rule
+  val check_rule  : Signature.t -> part_typed_rule -> SS.t * typed_rule
+
+  val check_type_annotations : Signature.t -> SS.t ->
+    typed_context -> part_typed_context -> unit
 end
 
 (* ********************** CONTEXT *)
@@ -143,8 +148,6 @@ struct
 let safe_add_to_list q lst args1 args2 =
   try Some (add_to_list q lst args1 args2)
   with Invalid_argument _ -> None
-
-module SS = Subst.Subst
 
 let unshift_reduce sg q t =
   try Some (Subst.unshift q t)
@@ -389,13 +392,16 @@ let pp_context_inline fmt ctx =
     fmt (List.rev ctx)
 
 let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
-  let apply_subst i (l,x,ty) = (l,x,Subst.apply_subst (SS.subst2 sub i) 0 ty) in
-  List.mapi apply_subst ctx
+  if SS.is_identity sub then ctx
+  else
+    let apply_subst i (l,x,ty) = (l,x,Subst.apply_subst (SS.subst2 sub i) 0 ty) in
+    List.mapi apply_subst ctx
 
-let check_type_annotations sg (sub:SS.t) (pctx:(loc * ident * typ) list) (annot:term option context) =
+let check_type_annotations sg (sub:SS.t) (typed_ctx:typed_context) (annot_ctx:part_typed_context) =
+  Debug.(debug D_rule "Typechecking type annotations");
   let rec aux ctx depth ctx1 ctx2 =
     match ctx1, ctx2 with
-    | (l,x,ty)::ctx1' , (l',x',ty')::ctx2' ->
+    | (l,x,ty)::ctx1' , (_,_,ty')::ctx2' ->
       begin
         match ty' with
         | None -> ()
@@ -412,8 +418,7 @@ let check_type_annotations sg (sub:SS.t) (pctx:(loc * ident * typ) list) (annot:
       aux ((l,x,ty)::ctx) (depth+1) ctx1' ctx2'
     | [], [] -> ()
     | _ -> assert false
-  in aux [] 1 pctx annot
-
+  in aux [] 1 typed_ctx annot_ctx
 
 let check_rule sg (rule:part_typed_rule) : SS.t * typed_rule =
   Debug.(debug D_rule "Inferring variables type and constraints from LHS");
@@ -432,20 +437,17 @@ let check_rule sg (rule:part_typed_rule) : SS.t * typed_rule =
   let ty_le2 = SS.apply sub 0 ty_le    in
   let ctx = LList.lst delta.pctx in
   let ctx2 =
-    if SS.is_identity sub then ctx
-    else try subst_context sub ctx
-      with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
-        Debug.(
-          debug D_rule "Failed to infer a typing context for the rule:\n%a"
-            pp_part_typed_rule rule;
-          let ctx_name n = let _,name,_ = List.nth ctx n in name in
-          debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
-        raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
+    try subst_context sub ctx
+    with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
+      Debug.(
+        debug D_rule "Failed to infer a typing context for the rule:\n%a"
+          pp_part_typed_rule rule;
+        let ctx_name n = let _,name,_ = List.nth ctx n in name in
+        debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
+      raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
   in
   Debug.(debug D_rule "Typechecking rule");
   check sg ctx2 ri2 ty_le2;
-  Debug.(debug D_rule "Typechecking type annotations");
-  check_type_annotations sg sub ctx rule.ctx;
   Debug.(debug D_rule "Fully checked rule:@.[ %a ] %a --> %a"
            pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
 
