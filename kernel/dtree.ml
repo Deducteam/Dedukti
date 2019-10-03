@@ -135,13 +135,13 @@ let pop mx =
   | [] -> None
   | f::o -> Some { mx with first=f; others=o; }
 
-let split_mx (f:rule_infos -> bool) (mx:matrix) : matrix option * matrix option =
-  let (l1,l2) = List.partition f (mx.first::mx.others) in
-  let aux = function
-    | [] -> None
-    | f::o -> Some { col_depth=mx.col_depth; first=f; others=o; }
-  in
-  (aux l1, aux l2)
+(* let split_mx (f:rule_infos -> bool) (mx:matrix) : matrix option * matrix option =
+ *   let (l1,l2) = List.partition f (mx.first::mx.others) in
+ *   let aux = function
+ *     | [] -> None
+ *     | f::o -> Some { col_depth=mx.col_depth; first=f; others=o; }
+ *   in
+ *   (aux l1, aux l2) *)
 
 let filter (f:rule_infos -> bool) (mx:matrix) : matrix option =
   match List.filter f (mx.first::mx.others) with
@@ -160,7 +160,7 @@ let filter_on_lambda = function
 let filter_on_bound_variable nargs n = function
   | LVar _ | LJoker -> true
   | LBoundVar (_,n',args) -> (n' == n && Array.length args == nargs)
-  | LACSet(_,s) -> assert false
+  | LACSet _ -> assert false
   | _ -> false
 
 (* Keeps only the rules with a pattern head by [cst]
@@ -168,7 +168,7 @@ let filter_on_bound_variable nargs n = function
 let filter_on_pattern nargs cst = function
   | LVar _ | LJoker -> true
   | LPattern (cst',ar') -> (name_eq cst cst' && Array.length ar' == nargs)
-  | LACSet (_,s) -> assert false
+  | LACSet _ -> assert false
   | _ -> false
 
 (* Keeps only the rules with a joker or a variable on column [c] *)
@@ -216,9 +216,9 @@ let filter_AC_on_pattern nargs cst s =
 
 let eq a b =
   match a, b with
-    | CLam              , CLam                  -> true
-    | CDB    (ar,n)     , CDB    (ar',n')       -> ar == ar' && n == n'
-    | CConst (ar,cst,ac), CConst (ar',cst',ac') -> ar == ar' && name_eq cst cst'
+    | CLam             , CLam                -> true
+    | CDB    (ar,n)    , CDB    (ar',n')     -> ar == ar' && n == n'
+    | CConst (ar,cst,_), CConst (ar',cst',_) -> ar == ar' && name_eq cst cst'
     | _, _ -> false
 
 let case_of_pattern (is_AC:name->bool) : wf_pattern -> case option = function
@@ -259,7 +259,7 @@ let specialize_AC_rule case (c:int) (nargs:int) (r:rule_infos) : rule_infos =
       if i==c then new_pats_c else r.pats.(i)
     else (* size <= i < size+nargs *)
       match pat, case with
-      | LPattern (cst,pats2), CConst(nargs',cst',true) ->
+      | LPattern (cst,pats2), CConst(_,cst',true) ->
          assert(name_eq cst cst');
          assert(nargs >= 1);
          assert(Array.length pats2 == (nargs+1) );
@@ -305,7 +305,7 @@ let specialize_rule case (c:int) (nargs:int) (r:rule_infos) : rule_infos =
       | LACSet _ -> assert false
       | LPattern  (cst , pats2) ->
         match case with
-        | CConst(nargs',cst',true) -> (* AC const *)
+        | CConst(_,cst',true) -> (* AC const *)
           assert(name_eq cst cst');
           assert(Array.length pats2 == (nargs+1) && nargs != 0);
           if i == size
@@ -401,7 +401,7 @@ let rec partition_AC (is_AC:name->bool) : wf_pattern list -> case = function
     | Some c -> c
     | None   -> partition_AC is_AC tl
 
-let partition (ignore_arity:bool) (is_AC:name->bool) (mx:matrix) (c:int) : case list =
+let partition (is_AC:name->bool) (mx:matrix) (c:int) : case list =
   let aux lst li =
     match case_of_pattern is_AC li.pats.(c) with
     | Some c -> if List.exists (eq c) lst then lst else c::lst
@@ -501,7 +501,7 @@ let rec to_dtree get_algebra (mx:matrix) : dtree =
       Fetch (c, case, to_dtree get_algebra mx_suc, map_opt (to_dtree get_algebra) mx_def)
     | _ ->
       (* Carry parameter (false) above  *)
-      let cases = partition true is_AC mx c in
+      let cases = partition is_AC mx c in
       let aux ca = ( ca , to_dtree get_algebra (specialize mx c ca) ) in
       Switch (c, List.map aux cases, map_opt (to_dtree get_algebra) (filter_default mx c) )
 
@@ -519,7 +519,7 @@ let rec add l ar =
 
 let of_rules get_algebra = function
   | [] -> []
-  | r::tl as rs ->
+  | r::_ as rs ->
     let name = r.cst in
     let ac = is_AC (get_algebra name) in
     let arities = ref [] in
@@ -549,15 +549,13 @@ let pp_AC_args fmt i =
   else if i == 2 then fprintf fmt "AC args"
   else fprintf fmt "AC args, %i args" (i-2)
 
-let pp_matching_problem fmt matching_problem = fprintf fmt "Mi"
-
-let pp_var : int printer = fun fmt -> fprintf fmt "Var[%i]"
+(* let pp_var : int printer = fun fmt -> fprintf fmt "Var[%i]" *)
 
 let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
   let tab = String.init (1 + t*2) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
-  | Test (name,mp,[],te,def) when List.length mp.pm_problems == 0 ->
+  | Test (_,mp,[],te,_) when List.length mp.pm_problems == 0 ->
     fprintf fmt "%s%a" tab pp_term te
   | Test (name,mp,[],te,def) ->
      fprintf fmt "%stry %a :%s    %a%sthen %a%selse %a"
@@ -599,13 +597,13 @@ let rec pp_dtree t fmt dtree =
        | CLam -> fprintf fmt "%sif $%i is AC applied to Lambda then %a%selse %a" tab i
      ) (pp_dtree (t+1)) tree_suc tab (pp_def (t+1)) tree_def
 
-and pp_case fmt = function
-  | CConst (nargs,cst,false) ->
-     fprintf fmt "CConst %a (%i args)" pp_name cst nargs
-  | CConst (nargs,cst,true) ->
-     fprintf fmt "AC CConst %a (%a)" pp_name cst pp_AC_args nargs
-  | CDB (nargs,n) -> fprintf fmt "DB[%i] (%i args)" n nargs
-  | CLam -> fprintf fmt "Lambda"
+(* and pp_case fmt = function
+ *   | CConst (nargs,cst,false) ->
+ *      fprintf fmt "CConst %a (%i args)" pp_name cst nargs
+ *   | CConst (nargs,cst,true) ->
+ *      fprintf fmt "AC CConst %a (%a)" pp_name cst pp_AC_args nargs
+ *   | CDB (nargs,n) -> fprintf fmt "DB[%i] (%i args)" n nargs
+ *   | CLam -> fprintf fmt "Lambda" *)
 
 and pp_def t fmt = function
   | None   -> fprintf fmt "FAIL"

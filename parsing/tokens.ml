@@ -1,4 +1,4 @@
-open Basic
+open Kernel.Basic
 
 type token =
   | UNDERSCORE of loc

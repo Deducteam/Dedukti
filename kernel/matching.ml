@@ -39,7 +39,7 @@ type matching_problem = {
 let pp_pos fmt p = fprintf fmt "stack.%a" pp_print_int p
 let pp_te fmt t = fprintf fmt "%a" pp_term (Lazy.force t)
 
-let pp_depthed pp_a fmt (d,a) = fprintf fmt "%a" pp_a a
+let pp_depthed pp_a fmt (_,a) = fprintf fmt "%a" pp_a a
 
 let pp_var_type fmt (i,args) =
   if LList.is_empty args
@@ -69,7 +69,7 @@ let pp_indexed_status fmt (i,st) = match st with
 
 let pp_mp_status sep fmt mp_s =
   let stl = Array.to_list (Array.mapi (fun i st -> (i,st)) mp_s) in
-  if List.exists (function (i,Unsolved) -> false | _ -> true) stl
+  if List.exists (function (_,Unsolved) -> false | _ -> true) stl
   then fprintf fmt "%swith [ %a ]" sep (pp_list " and " pp_indexed_status) stl
 
 let pp_pre_matching_problem sep fmt mp = pp_mp_problems sep pp_pos fmt mp.pm_problems
@@ -135,15 +135,15 @@ let solve (depth:int) (args:int LList.t) (te:term) : term =
   then try Subst.unshift depth te with Subst.UnshiftExn -> raise NotUnifiable
   else solve_miller depth args te
 
-let force_solve reduce d i args t =
+let force_solve reduce d args t =
   if d == 0 then (assert(LList.is_empty args); t)
   else
     let te = Lazy.force t in
     Lazy.from_val( try solve d args te
                    with NotUnifiable -> solve d args (reduce te) )
 
-let try_force_solve reduce d i args t =
-  try Some (force_solve reduce d i args t)
+let try_force_solve reduce d args t =
+  try Some (force_solve reduce d args t)
   with NotUnifiable -> None
 
 let rec add_n_lambdas n t =
@@ -255,7 +255,7 @@ let set_partly pb i aci =
   assert(pb.status.(i) == Unsolved);
   update_status i (Partly(aci,[])) pb
 
-let close_partly reduce convertible whnf pb d i =
+let close_partly reduce convertible whnf pb i =
   match pb.status.(i) with
   | Partly(aci,terms) ->
      (* Remove occurence of variable i from all m.v headed AC problems. *)
@@ -374,7 +374,7 @@ let solve_problem reduce convertible whnf pb =
         begin
           assert (j == i);
           assert (pb.status.(i) == Unsolved);
-          let solu = try_force_solve reduce d i args term in
+          let solu = try_force_solve reduce d args term in
           let npb = bind_opt
               (set_unsolved reduce convertible whnf {pb with problems=other_problems} i)
               solu in
@@ -389,15 +389,15 @@ let solve_problem reduce convertible whnf pb =
         match pb.status.(i) with
         | Partly(aci',sols) when ac_ident_eq aci aci' ->
           let rec try_add_terms = function
-            | [] -> try_solve_next (close_partly reduce convertible whnf pb d i)
+            | [] -> try_solve_next (close_partly reduce convertible whnf pb i)
             | t :: tl ->
-              let sol = try_force_solve reduce d i args t in
+              let sol = try_force_solve reduce d args t in
               let npb = bind_opt (add_partly convertible pb i) sol in
               match try_solve_next npb with
               | None -> try_add_terms tl
               | a -> a in
           try_add_terms terms
-        | Partly(acip',sols) -> assert false
+        | Partly _ -> assert false
         | Unsolved ->
           let rec try_eq_terms = function
             | [] -> (* If all terms have been tried unsucessfully, then
@@ -412,7 +412,7 @@ let solve_problem reduce convertible whnf pb =
               in
               try_symbols symbols
             | t :: tl ->
-              let sol = try_force_solve reduce d i args t in
+              let sol = try_force_solve reduce d args t in
               let npb = bind_opt (set_unsolved reduce convertible whnf pb i) sol in
               match try_solve_next npb with
               | None -> try_eq_terms tl

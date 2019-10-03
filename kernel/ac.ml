@@ -7,14 +7,14 @@ type ac_ident = name * algebra
 
 let is_acu = function _,ACU _ -> true | _ -> false
 
-let ac_ident_eq (name,ac) (name',ac') = name_eq name name'
+let ac_ident_eq (name,_) (name',_) = name_eq name name'
 
 let pp_ac_ident fmt (name,_) = Format.fprintf fmt "%a" pp_name name
 
 (* AC functions *)
 
 let get_AC_args name = function
-  | App( Const (l,name'), a1, [a2]) when name_eq name name' -> Some (a1, a2)
+  | App( Const (_,name'), a1, [a2]) when name_eq name name' -> Some (a1, a2)
   | _ -> None
 
 (* Reduces subterms with f to have a maximal set of elements. *)

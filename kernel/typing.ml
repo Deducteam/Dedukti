@@ -3,6 +3,8 @@ open Format
 open Rule
 open Term
 
+module SS = Subst.Subst
+
 type Debug.flag += D_typeChecking | D_rule
 let _ = Debug.register_flag D_typeChecking "TypeChecking"
 let _ = Debug.register_flag D_rule         "Rule"
@@ -18,13 +20,14 @@ type typ = term
 type typing_error =
   | KindIsNotTypable
   | ConvertibilityError                of term * typed_context * term * term
+  | AnnotConvertibilityError           of loc * ident * typed_context * term * term
   | VariableNotFound                   of loc * ident * int * typed_context
   | SortExpected                       of term * typed_context * term
   | ProductExpected                    of term * typed_context * term
   | InexpectedKind                     of term * typed_context
   | DomainFreeLambda                   of loc
   | CannotInferTypeOfPattern           of pattern * typed_context
-  | UnsatisfiableConstraints           of untyped_rule * (int * term * term)
+  | UnsatisfiableConstraints           of partially_typed_rule * (int * term * term)
   | BracketExprBoundVar                of term * typed_context
   | BracketExpectedTypeBoundVar        of term * typed_context * term
   | BracketExpectedTypeRightVar        of term * typed_context * term
@@ -46,7 +49,7 @@ module type S = sig
 
   val inference   : Signature.t -> term -> typ
 
-  val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
+  val check_rule  : Signature.t -> partially_typed_rule -> SS.t * typed_rule
 end
 
 (* ********************** CONTEXT *)
@@ -70,7 +73,7 @@ struct
     Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
     match te with
     | Kind -> raise (TypingError KindIsNotTypable)
-    | Type l -> mk_Kind
+    | Type _ -> mk_Kind
     | DB (l,x,n) -> get_type ctx l x n
     | Const (l,cst) -> Signature.get_type sg l cst
     | App (f,a,args) ->
@@ -89,7 +92,7 @@ struct
       ( match ty_b with
         | Kind -> raise (TypingError (InexpectedKind (b, ctx2)))
         | _ -> mk_Pi l x a ty_b )
-    | Lam  (l,x,None,b) -> raise (TypingError (DomainFreeLambda l))
+    | Lam  (l,_,None,_) -> raise (TypingError (DomainFreeLambda l))
 
   and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     Debug.(debug D_typeChecking "Checking (%a) [%a]: %a : %a"
@@ -148,8 +151,6 @@ let rec add_to_list q lst args1 args2 =
 let safe_add_to_list q lst args1 args2 =
   try Some (add_to_list q lst args1 args2)
   with Invalid_argument _ -> None
-
-module SS = Subst.Subst
 
 let unshift_reduce sg q t =
   try Some (Subst.unshift q t)
@@ -251,7 +252,7 @@ type partial_context =
     bracket : bool
   }
 
-let pc_make (ctx:(loc*ident) list) : partial_context =
+let pc_make (ctx:partially_typed_context) : partial_context =
   let size = List.length ctx in
   assert ( size >= 0 );
   { padding=size; pctx=LList.nil; bracket=false }
@@ -276,12 +277,12 @@ let pc_to_context_wp (delta:partial_context) : typed_context =
   let rec aux lst = function 0 -> lst | n -> aux (dummy::lst) (n-1) in
   aux (pc_to_context delta) delta.padding
 
-let pp_pcontext fmt delta =
-  let lst = List.rev (LList.lst delta.pctx) in
-  List.iteri (fun i (_,x,ty) -> fprintf fmt "%a[%i]:%a\n" pp_ident x i pp_term ty) lst;
-  for i = 0 to delta.padding -1 do
-    fprintf fmt "?[%i]:?\n" (i+LList.len delta.pctx)
-  done
+(* let pp_pcontext fmt delta =
+ *   let lst = List.rev (LList.lst delta.pctx) in
+ *   List.iteri (fun i (_,x,ty) -> fprintf fmt "%a[%i]:%a\n" pp_ident x i pp_term ty) lst;
+ *   for i = 0 to delta.padding -1 do
+ *     fprintf fmt "?[%i]:?\n" (i+LList.len delta.pctx)
+ *   done *)
 
 (* *** *)
 
@@ -301,11 +302,11 @@ let rec infer_pattern sg (delta:partial_context) (sigma:context2)
   Debug.(debug D_rule "Infer type for pattern: %a" pp_pattern pat);
   match pat with
   | Pattern (l,cst,args) ->
-    let (sigma,_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg)
+    let (_,_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg)
         ( sigma, mk_Const l cst , Signature.get_type sg l cst , delta , lst ) args
     in (ty,delta2,lst2)
   | Var (l,x,n,args) when n < LList.len sigma ->
-    let (sigma,_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg)
+    let (_,_,ty,delta2,lst2) = List.fold_left (infer_pattern_aux sg)
         ( sigma, mk_DB l x n, get_type (LList.lst sigma) l x n , delta , lst ) args
     in (ty,delta2,lst2)
   | Var _ | Brackets _ | Lambda _ ->
@@ -336,7 +337,7 @@ and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     begin
       match R.whnf sg exp_ty with
       | Pi (_,_,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
-      | exp_ty2 -> raise (TypingError ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
+      | _            -> raise (TypingError ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
     end
   | Brackets te ->
     let _ =
@@ -398,11 +399,36 @@ let pp_context_inline fmt ctx =
     fmt (List.rev ctx)
 
 let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
-  let apply_subst i (l,x,ty) = (l,x,Subst.apply_subst (SS.subst2 sub i) 0 ty) in
-  List.mapi apply_subst ctx
+  if SS.is_identity sub then ctx
+  else
+    let apply_subst i (l,x,ty) = (l,x,Subst.apply_subst (SS.subst2 sub i) 0 ty) in
+    List.mapi apply_subst ctx
 
-let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
-  Debug.(debug D_rule "Typechecking rule: %a" pp_untyped_rule rule);
+let check_type_annotations sg sub typed_ctx annot_ctx =
+  Debug.(debug D_rule "Typechecking type annotations");
+  let rec aux ctx depth ctx1 ctx2 =
+    match ctx1, ctx2 with
+    | (l,x,ty)::ctx1' , (_,_,ty')::ctx2' ->
+      begin
+        match ty' with
+        | None -> ()
+        | Some ty' ->
+          Debug.(debug D_typeChecking "Checking type annotation (%a): %a ~ %a"
+                   pp_loc l pp_term ty pp_term ty');
+          if not (R.are_convertible sg ty ty')
+          then
+            let ty2  = SS.apply sub 0 (Subst.shift depth ty ) in
+            let ty2' = SS.apply sub 0 (Subst.shift depth ty') in
+            if not (R.are_convertible sg ty2 ty2')
+            then raise (TypingError (AnnotConvertibilityError (l,x,ctx,ty',ty)))
+      end;
+      aux ((l,x,ty)::ctx) (depth+1) ctx1' ctx2'
+    | [], [] -> ()
+    | _ -> assert false
+  in aux [] 1 typed_ctx annot_ctx
+
+let check_rule sg (rule:partially_typed_rule) : SS.t * typed_rule =
+  Debug.(debug D_rule "Inferring variables type and constraints from LHS");
   let delta = pc_make rule.ctx in
   let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
   assert ( delta.padding == 0 );
@@ -413,27 +439,26 @@ let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
                  pp_loc (get_loc_rule rule)
                  pp_term t1 pp_term t2
                  (if q > 0 then Format.sprintf " (under %i abstractions)" q else ""))) in
-  let delta = pc_make rule.ctx in
-  let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
-  assert ( delta.padding == 0 );
   let sub = SS.mk_idempotent (pseudo_u sg fail SS.identity lst) in
   let ri2    = SS.apply sub 0 rule.rhs in
   let ty_le2 = SS.apply sub 0 ty_le    in
   let ctx = LList.lst delta.pctx in
   let ctx2 =
-    if SS.is_identity sub then ctx
-    else try subst_context sub ctx
-      with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
-        Debug.(
-          debug D_rule "Failed to infer a typing context for the rule:\n%a"
-            pp_untyped_rule rule;
-          let ctx_name n = let _,name,_ = List.nth ctx n in name in
-          debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
-        raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
+    try subst_context sub ctx
+    with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
+      Debug.(
+        debug D_rule "Failed to infer a typing context for the rule:\n%a"
+          pp_part_typed_rule rule;
+        let ctx_name n = let _,name,_ = List.nth ctx n in name in
+        debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
+      raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
   in
+  Debug.(debug D_rule "Typechecking rule");
   check sg ctx2 ri2 ty_le2;
-  Debug.(debug D_rule "[ %a ] %a --> %a"
+  check_type_annotations sg sub ctx2 rule.ctx;
+  Debug.(debug D_rule "Fully checked rule:@.[ %a ] %a --> %a"
            pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
+
   sub,
   { name = rule.name;
     ctx = ctx2;

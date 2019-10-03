@@ -1,4 +1,5 @@
 %{
+open Kernel
 open Basic
 open Preterm
 open Scoping
@@ -56,33 +57,33 @@ let loc_of_rs = function
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
-%token <Basic.loc> EVAL
-%token <Basic.loc> INFER
-%token <Basic.loc> CHECK
-%token <Basic.loc> CHECKNOT
-%token <Basic.loc> ASSERT
-%token <Basic.loc> ASSERTNOT
-%token <Basic.loc> PRINT
-%token <Basic.loc> GDT
-%token <Basic.loc> UNDERSCORE
-%token <Basic.loc*Basic.mident> NAME
-%token <Basic.loc*Basic.mident> REQUIRE
-%token <Basic.loc> TYPE
-%token <Basic.loc> KW_DEF
-%token <Basic.loc> KW_DEFAC
-%token <Basic.loc> KW_DEFACU
-%token <Basic.loc> KW_THM
-%token <Basic.loc*Basic.ident> ID
-%token <Basic.loc*Basic.mident*Basic.ident> QID
+%token <Kernel.Basic.loc> EVAL
+%token <Kernel.Basic.loc> INFER
+%token <Kernel.Basic.loc> CHECK
+%token <Kernel.Basic.loc> CHECKNOT
+%token <Kernel.Basic.loc> ASSERT
+%token <Kernel.Basic.loc> ASSERTNOT
+%token <Kernel.Basic.loc> PRINT
+%token <Kernel.Basic.loc> GDT
+%token <Kernel.Basic.loc> UNDERSCORE
+%token <Kernel.Basic.loc*Basic.mident> NAME
+%token <Kernel.Basic.loc*Basic.mident> REQUIRE
+%token <Kernel.Basic.loc> TYPE
+%token <Kernel.Basic.loc> KW_DEF
+%token <Kernel.Basic.loc> KW_DEFAC
+%token <Kernel.Basic.loc> KW_DEFACU
+%token <Kernel.Basic.loc> KW_THM
+%token <Kernel.Basic.loc*Kernel.Basic.ident> ID
+%token <Kernel.Basic.loc*Kernel.Basic.mident*Basic.ident> QID
 %token <string> STRING
 
 %start line
-%type <Basic.mident -> Entry.entry> line
+%type <Kernel.Basic.mident -> Entry.entry> line
 %type <Preterm.prule> rule
 %type <Preterm.pdecl> decl
-%type <Basic.loc*Basic.ident*Preterm.preterm> param
+%type <Kernel.Basic.loc*Kernel.Basic.ident*Preterm.preterm> param
 %type <Preterm.pdecl list> context
-%type <Basic.loc*Basic.mident option*Basic.ident*Preterm.prepattern list> top_pattern
+%type <Kernel.Basic.loc*Kernel.Basic.mident option*Kernel.Basic.ident*Preterm.prepattern list> top_pattern
 %type <Preterm.prepattern> pattern
 %type <Preterm.prepattern> pattern_wp
 %type <Preterm.preterm> sterm
@@ -177,12 +178,10 @@ rule:
         ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 decl:
-  | ID COLON term { Debug.(debug D_warn "Ignoring type declaration in rule context."); $1 }
-  | ID            { $1 }
+  | ID COLON term { ($1, Some $3) }
+  | ID            { ($1, None   ) }
 
-context:
-  | /* empty */                          { [] }
-  | separated_nonempty_list(COMMA, decl) { $1 }
+context: separated_list(COMMA, decl) { $1 }
 
 top_pattern:
   | ID  pattern_wp* { (fst $1,None,snd $1,$2) }
@@ -195,19 +194,20 @@ top_pattern:
 pattern_wp:
   | ID                       { PPattern (fst $1,None,snd $1,[]) }
   | QID                      { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
-  | UNDERSCORE               { PJoker $1 }
+  | UNDERSCORE               { PJoker ($1,[]) }
   | LEFTBRA term RIGHTBRA    { PCondition $2 }
   | LEFTPAR pattern RIGHTPAR { $2 }
 
 pattern:
+  | pid FATARROW pattern     { PLambda (fst $1,snd $1,$3) }
   | ID  pattern_wp+          { PPattern (fst $1,None,snd $1,$2) }
   | QID pattern_wp+          { let (l,md,id)=$1 in PPattern (l,Some md,id,$2) }
-  | ID  FATARROW pattern     { PLambda (fst $1,snd $1,$3) }
+  | UNDERSCORE pattern_wp+   { PJoker ($1,$2) }
   | pattern_wp               { $1 }
 
 sterm:
   | QID                      { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
-  | pid                      { PreId (fst $1,snd $1) }
+  | ID                       { PreId (fst $1,snd $1) }
   | LEFTPAR term RIGHTPAR    { $2 }
   | TYPE                     { PreType $1 }
 

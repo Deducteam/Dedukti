@@ -27,14 +27,14 @@ let rule_name_eq : rule_name -> rule_name -> bool = fun n1 n2 ->
 type 'a rule =
   {
     name: rule_name;
-    ctx: 'a;
+    ctx: 'a context;
     pat: pattern;
     rhs:term
   }
 
-type untyped_rule = untyped_context rule
-
-type typed_rule = typed_context rule
+type partially_typed_rule = term option rule
+type typed_rule           = term        rule
+type arity_rule           = int         rule
 
 type constr = int * term
 
@@ -56,17 +56,17 @@ type rule_infos =
   }
 
 let infer_rule_context ri =
-  let res = Array.make ri.ctx_size (mk_ident "_") in
+  let res = Array.make ri.ctx_size (dloc,mk_ident "_",-1) in
   let rec aux k = function
     | LJoker -> ()
-    | LVar (name,n,args) -> if n>=k then res.(n-k) <- name
+    | LVar (name,n,_) -> if n>=k then res.(n-k) <- (dloc,name,ri.arity.(n-k))
     | LLambda (_,body) -> aux (k+1) body
     | LPattern  (_  ,args) -> Array.iter (aux k) args
     | LBoundVar (_,_,args) -> Array.iter (aux k) args
     | LACSet    (_  ,args) ->  List.iter (aux k) args
   in
   Array.iter (aux 0) ri.pats;
-  List.map (fun i -> (dloc, i)) (Array.to_list res)
+  Array.to_list res
 
 
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
@@ -126,14 +126,6 @@ let get_loc_pat = function
 
 let get_loc_rule r = get_loc_pat r.pat
 
-let pp_typed_ident fmt (id,ty) = Format.fprintf fmt "%a:%a" pp_ident id pp_term ty
-
-let pp_context pp_i fmt l = fprintf fmt "[%a]" (pp_list ", " pp_i) (List.rev l)
-
-let pp_untyped_context fmt ctx =
-  pp_context pp_ident       fmt (List.map snd                      ctx)
-let pp_typed_context   fmt ctx =
-  pp_context pp_typed_ident fmt (List.map (fun (_,a,ty) -> (a,ty)) ctx)
 
 let pp_rule_name fmt = function
   | Beta            -> fprintf fmt "Beta"
@@ -148,8 +140,9 @@ let pp_rule pp_ctxt fmt (rule:'a rule) =
     pp_pattern rule.pat
     pp_term rule.rhs
 
-let pp_untyped_rule = pp_rule pp_untyped_context
-let pp_typed_rule   = pp_rule pp_typed_context
+let pp_untyped_rule fmt = pp_rule pp_untyped_context fmt
+let pp_typed_rule       = pp_rule pp_typed_context
+let pp_part_typed_rule  = pp_rule pp_part_typed_context
 
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
@@ -221,8 +214,8 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
   in
   let rec aux (k:int) (pat:pattern) : wf_pattern =
     match pat with
-    | Lambda (l,x,p) -> LLambda (x, aux (k+1) p)
-    | Var (l,x,n,args) when n<k ->
+    | Lambda (_,x,p) -> LLambda (x, aux (k+1) p)
+    | Var (_,x,n,args) when n<k ->
       LBoundVar(x, n, Array.of_list (List.map (aux k) args))
     | Var (l,x,n,args) (* Context variable (n>=k)  *) ->
       (* Miller variables should only be applied to locally bound variables *)
@@ -259,7 +252,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       linear = !linear
     } )
 
-let to_rule_infos (r:'a context rule) : rule_infos =
+let to_rule_infos (r:'a rule) : rule_infos =
   let ctx_size = List.length r.ctx in
   let (l,cst,args) = match r.pat with
     | Pattern (l,cst,args) -> (l, cst, args)

@@ -59,7 +59,7 @@ let rec term_eq t1 t2 =
     | App (f,a,l), App (f',a',l') ->
         ( try List.for_all2 term_eq (f::a::l) (f'::a'::l')
           with _ -> false )
-    | Lam (_,_,a,b), Lam (_,_,a',b') -> term_eq b b'
+    | Lam (_,_,_,b), Lam (_,_,_,b') -> term_eq b b'
     | Pi (_,_,a,b), Pi (_,_,a',b') -> term_eq a a' && term_eq b b'
     | _, _  -> false
 
@@ -98,8 +98,8 @@ let rec compare_term id_comp t1 t2 =
 and compare_term_list id_comp a b =
   match a,b with
   | [], [] -> 0
-  | l , [] -> 1
-  | [], l  -> -1
+  | _ , [] -> 1
+  | [], _  -> -1
   | h::t, h'::t' ->
      let c = compare_term id_comp h h' in
      if c = 0 then compare_term_list id_comp t t' else c
@@ -119,28 +119,43 @@ let subterm t i = match t with
   | App (_,_,args)                ->
     ( try List.nth args (i-2) with _ -> raise (InvalidSubterm (t,i)) )
   | Lam (_,_,_     ,f) when i = 1 -> f
-  | Lam (_,_,Some a,f) when i = 0 -> a
+  | Lam (_,_,Some a,_) when i = 0 -> a
   | Pi  (_,_,a,_)      when i = 0 -> a
   | Pi  (_,_,_,b)      when i = 1 -> b
   | _ -> raise (InvalidSubterm (t,i))
 
 let subterm = List.fold_left subterm
 
-type 'a context = 'a list
 
-type untyped_context = (loc * ident) context
+(*********** Contexts} ***********)
 
-type typed_context = (loc * ident * term) context
+type 'a context = (loc * ident * 'a) list
+type partially_typed_context = term option context
+type typed_context           = term        context
+type arity_context           = int         context
 
 type 'a depthed = int * 'a
 
-let rec get_name_from_typed_ctxt ctxt i =
-  try let (_,v,_) = List.nth ctxt i in Some v
-  with Failure _ -> None
+let pp_untyped_ident fmt (_,id,_) = Format.fprintf fmt "%a" pp_ident id
+
+let pp_typed_ident fmt (_,id,ty) = Format.fprintf fmt "%a:%a" pp_ident id pp_term ty
+
+let pp_maybe_typed_ident fmt (l,id,ty) = match ty with
+  | None    -> pp_untyped_ident fmt (l,id,())
+  | Some ty -> pp_typed_ident   fmt (l,id,ty)
+
+let pp_context pp_i fmt l = fprintf fmt "[%a]" (pp_list ", " pp_i) (List.rev l)
+
+let pp_untyped_context fmt = pp_context pp_untyped_ident fmt
+let pp_typed_context       = pp_context pp_typed_ident
+let pp_part_typed_context  = pp_context pp_maybe_typed_ident
+
+let get_name_from_typed_ctxt ctxt i =
+  try let (_,v,_) = List.nth ctxt i in Some v with Failure _ -> None
 
 let rename_vars_with_typed_context ctxt t =
   let rec aux d t = match t with
-    | DB(l,v,n) when n > d ->
+    | DB(l,_,n) when n > d ->
       (match get_name_from_typed_ctxt ctxt (n - d) with Some v' -> mk_DB l v' n | None -> t)
     | App (f,a,args) ->
       mk_App (aux d f) (aux d a) (List.map (aux d) args)

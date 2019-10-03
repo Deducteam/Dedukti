@@ -303,7 +303,7 @@ let get_deps sg : string list = (*only direct dependencies*)
     ) sg.tables []
 
 
-let rec import_signature sg sg_ext =
+let import_signature sg sg_ext =
   HMd.iter (fun m hid ->
       if not (HMd.mem sg.tables m) then
         HMd.replace sg.tables m (HId.copy hid)) sg_ext.tables;

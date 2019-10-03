@@ -1,4 +1,5 @@
 (** Pretty printing. *)
+open Kernel
 open Basic
 open Term
 
@@ -28,12 +29,12 @@ sig
   val print_typed_context : typed_context       printer
   val print_err_ctxt      : typed_context       printer
   val print_pattern       : Rule.pattern        printer
-  val print_untyped_rule  : Rule.untyped_rule   printer
+  val print_untyped_rule  : 'a Rule.rule        printer
   val print_typed_rule    : Rule.typed_rule     printer
   val print_rule_infos    : Rule.rule_infos     printer
   val print_rule_name     : Rule.rule_name      printer
   val print_red_cfg       : Reduction.red_cfg   printer
-  val print_entry         : Entry.entry         printer
+  val print_entry         : Parsing.Entry.entry printer
   val print_staticity     : Signature.staticity printer
 end
 

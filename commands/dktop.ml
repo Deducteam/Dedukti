@@ -1,3 +1,7 @@
+open Kernel
+open Parsing
+open Api
+
 open Basic
 open Parser
 open Entry
@@ -19,8 +23,8 @@ let handle_entry md e =
     Format.printf "%a is defined.@." pp_ident id
   | Rules(_,rs) ->
     let _ = E.add_rules rs in
-    List.iter (fun r -> print "%a" Rule.pp_untyped_rule r) rs
-  | Eval(lc,red,te) ->
+    List.iter (fun r -> print "%a" Rule.pp_part_typed_rule r) rs
+  | Eval(_,red,te) ->
     let te = E.reduction ~red te in
     Format.printf "%a@." Printer.print_term te
   | Infer(_,red,te) ->

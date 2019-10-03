@@ -26,6 +26,8 @@ exception SignatureError of signature_error
 
 type staticity = Static | Definable of algebra
 
+val pp_staticity : staticity printer
+
 type t
 
 val make                : string -> t
@@ -39,8 +41,10 @@ val export              : t -> unit
 
 val get_id_comparator   : t -> name comparator
 
+(*
 val import              : t -> loc -> mident -> unit
 (** [import sg md] impots the module [md] in the signature [sg]. *)
+*)
 
 val import_signature    : t -> t -> unit
 (** [import sg sg_ext] imports the signature [sg_ext] into the signature [sg]. *)
@@ -81,10 +85,6 @@ val get_dtree           : t -> loc -> name -> Dtree.t
 
 val get_rules           : t -> loc -> name -> rule_infos list
 (** [get_rules sg lc cst] returns a list of rules that defines the symbol. *)
-
-val add_external_declaration     : t -> loc -> name -> staticity -> term -> unit
-(** [add_external_declaration sg l cst st ty] declares the symbol [id] of type
-    [ty] and staticity [st] in the environment [sg]. *)
 
 val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]

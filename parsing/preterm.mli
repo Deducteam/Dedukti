@@ -1,9 +1,9 @@
-open Basic
+open Kernel.Basic
 open Format
 
 (** {2 PreTerms} *)
-(** This module regroup types before the scoping. That is to say before variables are scoped with De Bruijn indices *)
-
+(** This module defines structures representing terms before their scoping.
+    That is to say before variables are scoped with De Bruijn indices *)
 
 type preterm =
   | PreType of loc
@@ -19,11 +19,11 @@ type prepattern =
   | PCondition  of preterm
   | PPattern    of loc * mident option * ident * prepattern list
   | PLambda     of loc * ident * prepattern
-  | PJoker      of loc
+  | PJoker      of loc * prepattern list
 
 val pp_prepattern : formatter -> prepattern -> unit
 
-type pdecl      = loc * ident
+type pdecl      = (loc * ident) * preterm option
 
 val pp_pdecl : formatter -> pdecl -> unit
 

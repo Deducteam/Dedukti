@@ -1,4 +1,4 @@
-open Basic
+open Kernel.Basic
 open Format
 
 type preterm =
@@ -31,7 +31,7 @@ type prepattern =
   | PCondition  of preterm
   | PPattern    of loc * mident option * ident * prepattern list
   | PLambda     of loc * ident * prepattern
-  | PJoker      of loc
+  | PJoker      of loc * prepattern list
 
 
 let rec pp_prepattern fmt ppatern =
@@ -47,20 +47,20 @@ let rec pp_prepattern fmt ppatern =
   | PJoker _                    -> fprintf fmt "_"
   | PLambda (_,id,p)            -> fprintf fmt "%a => %a" pp_ident id pp_prepattern p
 
-and pp_prepattern_wp fmt = function
-  | PLambda (_,_,_)
-  | PPattern (_,_,_,_::_) as p  -> fprintf fmt "(%a)" pp_prepattern p
-  | p                           -> pp_prepattern fmt p
+(* and pp_prepattern_wp fmt = function
+ *   | PLambda (_,_,_)
+ *   | PPattern (_,_,_,_::_) as p  -> fprintf fmt "(%a)" pp_prepattern p
+ *   | p                           -> pp_prepattern fmt p *)
 
-type pdecl      = loc * ident
+type pdecl = (loc * ident) * preterm option
 
-let pp_pdecl fmt (_,id) = pp_ident fmt id
+let pp_pdecl fmt = function
+  | (_,id), None -> pp_ident fmt id
+  | (_,id), Some ty -> fprintf fmt "%a : %a" pp_ident id pp_preterm ty
 
 type pcontext   = pdecl list
 
-let pp_pcontext fmt ctx =
-  pp_list ".\n" (fun out (_,x) ->
-      fprintf fmt "%a" pp_ident x) fmt (List.rev ctx)
+let pp_pcontext fmt ctx = pp_list ".\n" pp_pdecl fmt (List.rev ctx)
 
 type prule      = loc * (mident option * ident) option * pdecl list * mident option * ident * prepattern list * preterm
 

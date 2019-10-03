@@ -1,0 +1,34 @@
+(; OK ;)
+
+A : Type.
+a : A.
+
+B : A -> Type.
+b : B a.
+
+def C : A -> A -> Type.
+[] C a --> B.
+
+def D : A -> A -> A -> Type.
+
+def f :
+    x:A ->
+    y:A ->
+    z:A ->
+    D x y z ->
+    C y z ->
+    C x y ->
+    B x -> Type.
+
+[x,y,z,t:D x y z] f x y z t b b b --> A
+
+[x,y,z,t:D a y z] f x y z t b b b --> A
+
+[x,y,z,t:D a a z] f x y z t b b b --> A
+
+[x,y,z,t:D a a a] f x y z t b b b --> A
+
+[x,y,z,t:D x y a] f x y z t b b b --> A.
+
+d : D a a a.
+[x,y,z] f x y z d b b b --> A.
