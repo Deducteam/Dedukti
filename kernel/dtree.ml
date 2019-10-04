@@ -549,8 +549,6 @@ let pp_AC_args fmt i =
   else if i == 2 then fprintf fmt "AC args"
   else fprintf fmt "AC args, %i args" (i-2)
 
-(* let pp_var : int printer = fun fmt -> fprintf fmt "Var[%i]" *)
-
 let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
   let tab = String.init (1 + t*2) (fun i -> if i == 0 then '\n' else ' ') in
@@ -596,14 +594,6 @@ let rec pp_dtree t fmt dtree =
                   tab i n nargs
        | CLam -> fprintf fmt "%sif $%i is AC applied to Lambda then %a%selse %a" tab i
      ) (pp_dtree (t+1)) tree_suc tab (pp_def (t+1)) tree_def
-
-(* and pp_case fmt = function
- *   | CConst (nargs,cst,false) ->
- *      fprintf fmt "CConst %a (%i args)" pp_name cst nargs
- *   | CConst (nargs,cst,true) ->
- *      fprintf fmt "AC CConst %a (%a)" pp_name cst pp_AC_args nargs
- *   | CDB (nargs,n) -> fprintf fmt "DB[%i] (%i args)" n nargs
- *   | CLam -> fprintf fmt "Lambda" *)
 
 and pp_def t fmt = function
   | None   -> fprintf fmt "FAIL"

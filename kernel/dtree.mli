@@ -19,15 +19,16 @@ exception DtreeError of dtree_error
 (** Arguments of a pattern may be the following:
     - a constant
     - a variable
-    - a lambda expression *)
+    - a lambda expression
+*)
 type case =
   | CConst of int * name * bool
-  (** [size c ac] where [size] is the number of arguments expected for the
+  (** [(size,name,ac)] where [size] is the number of arguments expected for the
       constant [c] and [ac] is true iff the constant is a definable AC(U) symbol. *)
   | CDB of int * int
-  (** [size i] where size is the number of *static* arguments expected for the
-      bounded variable [i] *)
-  | CLam (** A lambda term *)
+  (** [(size,db_index)] where [size] is the number of *static* arguments expected
+      for the bounded variable [db_index] *)
+  | CLam (** A lambda headed term *)
 
 
 (** An atomic matching problem.

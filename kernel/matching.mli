@@ -12,14 +12,21 @@ type Debug.flag += D_matching
 type var_p = int * int LList.t
 
 (* TODO: add loc to this to better handle errors *)
+(** Abstract matching problem. This can be instantiated with
+    - When building a decision tree ['a = int] refers to positions in the stack
+    - When matching against a term, ['a = term Lazy.t] refers to actual terms
+*)
 type 'a problem =
   | Eq of var_p * 'a
-  (** the variable is exactly the given term. *)
+  (** the variable is exactly the given term : [X\[x  ... z\] = t] *)
   | AC of ac_ident * int * (var_p list) * ('a list)
-  (** [(cst, joks, u, vars, terms)]
-   *  Represents the flattenned equality under AC([u]) symbol [cst] of:
+  (** [(cst, njoks, vars, terms)]
+   *  Represents the flattenned equality under AC symbol [cst] of:
    *  - [njoks] jokers and the given variables [vars]
-   *  - The given [terms] *)
+   *  - The given [terms]
+      e.g.
+        [ +{ X\[x\] , _, f(a) } = +{ f(a), f(y), f(x)} ]
+   *)
 
 (** Problem with int referencing stack indices *)
 type pre_matching_problem =
@@ -40,21 +47,22 @@ type status =
 
 type matching_problem =
   {
-    problems : te problem depthed list; (** A list of problems under a certain depth.       *)
-    (* TODO: This array should somehow be immutable *)
-    status   : status array;           (** Partial substituion. Initialized with Unsolved. *)
-    (* TODO: This array should somehow be immutable *)
-    miller   : int array               (** Variables Miller arity. *)
+    problems : te problem depthed list;
+    (** A list of problems under a certain depth.       *)
+    status   : status array;
+    (** Partial substitution. Initialized with Unsolved. *)
+    miller   : int array
+    (** Variables Miller arity. *)
   }
+(* TODO: These arrays should somehow be immutable *)
 
 val mk_matching_problem: (int -> te) -> (int list -> te list) ->
                          pre_matching_problem -> matching_problem
 
-
 (** Generic matching problem printing function (for debug). *)
 val pp_matching_problem : string -> matching_problem printer
 
-(** solve_problem [reduce] [conv] [pb] solves the given matching problem
+(** [solve_problem [reduce] [conv] [pb] solves the given matching problem
  * on lazy terms using:
  * - the [reduce] reduction strategy when necessary
  * - the [conv] convertability test

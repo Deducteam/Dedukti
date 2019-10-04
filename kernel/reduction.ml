@@ -262,7 +262,6 @@ let fetch_case (flattenner:loc->name->stack->stack)
      List.rev_append (f [] [] stack) def_s
    | _ -> assert false
 
-
 let find_cases (flattenner:loc->name->stack->stack)
     (st:state) (cases:(case * dtree) list)
     (default:dtree option) : (dtree*stack) list =
@@ -342,32 +341,30 @@ let rec gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
           (find_cases (flatten_AC_stack sg state_whnf) !arg_i cases def) in
       rw_list new_cases
     | Test (rule_name, problem, cstr, right, def) ->
-      let b =
+      let keep_rule =
         match filter with
         | None -> true
         | Some f -> f rule_name
       in
-      if b then
-        let pb = convert_problem stack problem in (* Convert problem with the stack *)
+      if keep_rule then
+        let pb = convert_problem stack problem in
+        (* Convert problem on stack indices to a problem on terms *)
         begin
           match solve_problem (snf sg) (C.are_convertible sg) (snf sg) pb with
-          | None ->
-            bind_opt (rw stack) def
+          | None -> bind_opt (rw stack) def
           | Some subst ->
-            begin
-              let aux e acc = match e with None -> assert false | Some e -> e :: acc in
-              let ctx_list = Array.fold_right aux subst [] in
-              let ctx = LList.of_list ctx_list in
-              List.iter
-                (fun (i,t2) ->
-                   let t1 = Lazy.force (LList.nth ctx i) in
-                   let t2 = term_of_state (mk_state ctx t2 []) in
-                   if not (C.are_convertible sg t1 t2)
-                   then raise (Signature.SignatureError
-                                 (Signature.GuardNotSatisfied(get_loc t1, t1, t2))))
-                cstr;
-              Some (rule_name, ctx, right)
-            end
+            let aux e acc = match e with None -> assert false | Some e -> e :: acc in
+            let ctx_list = Array.fold_right aux subst [] in
+            let ctx = LList.of_list ctx_list in
+            List.iter
+              (fun (i,t2) ->
+                 let t1 = Lazy.force (LList.nth ctx i) in
+                 let t2 = term_of_state (mk_state ctx t2 []) in
+                 if not (C.are_convertible sg t1 t2)
+                 then raise (Signature.SignatureError
+                               (Signature.GuardNotSatisfied(get_loc t1, t1, t2))))
+              cstr;
+            Some (rule_name, ctx, right)
         end
       else bind_opt (rw stack) def
   in rw

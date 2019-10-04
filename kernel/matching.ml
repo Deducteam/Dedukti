@@ -1,7 +1,6 @@
 open Basic
 open Format
 open Term
-open Rule
 open Ac
 
 type Debug.flag += D_matching
@@ -135,6 +134,8 @@ let solve (depth:int) (args:int LList.t) (te:term) : term =
   then try Subst.unshift depth te with Subst.UnshiftExn -> raise NotUnifiable
   else solve_miller depth args te
 
+(* Solves  lambda^[d]  X [args]1 ... [args]n = [t]
+   Raises NotUnifiable if no solution exists *)
 let force_solve reduce d args t =
   if d == 0 then (assert(LList.is_empty args); t)
   else
@@ -142,6 +143,7 @@ let force_solve reduce d args t =
     Lazy.from_val( try solve d args te
                    with NotUnifiable -> solve d args (reduce te) )
 
+(* Try to solve returns None if it fails *)
 let try_force_solve reduce d args t =
   try Some (force_solve reduce d args t)
   with NotUnifiable -> None
@@ -155,9 +157,9 @@ let lazy_add_n_lambdas n t =
 
 
 (** Returns term [t] applied to (local) variables [args] from a local context of size [d] *)
-let convert_solution t args d =
-  let args_DB = List.map (fun k -> mk_DB dloc dmark k) (LList.lst args) in
-  mk_App2 (Subst.shift d (Lazy.force t)) args_DB
+(* let convert_solution t args d =
+ *   let args_DB = List.map (fun k -> mk_DB dloc dmark k) (LList.lst args) in
+ *   mk_App2 (Subst.shift d (Lazy.force t)) args_DB *)
 
 (** Apply a Miller solution to variables *)
 let apply_args t l = mk_App2 t (List.map (fun k -> mk_DB dloc dmark k) (LList.lst l))
@@ -198,18 +200,26 @@ let rec remove_sols_occs convertible sols terms = match sols with
                           (remove_sol convertible sol terms)
 
 let filter_vars i = List.filter (fun (j,_) -> i != j)
-let var_exists  i = List.exists (fun (j,_) -> j == i)
+let var_exists  i = List.exists (fun (j,_) -> i == j)
 
-type 'a update_res = Fail | Throw | Keep of 'a
+
+(* Updating a matching_problem is done by updating successively
+   the atomic problems. While updating an atomic problems:
+   - [raise Fail_update] means the whole matching_problem is now unsolvable
+   - [Some a]            means the problem is replaced with [a]
+   - [None]              means the problem is now solved / trivial / irrelevant
+                         remove it from the matching_problem *)
+exception Fail_update
 
 let update_problems f pb =
   let rec update acc = function
     | [] -> Some {pb with problems = List.rev acc}
     | (d,p) :: tl ->
-       match f d p with
-       | Fail -> None
-       | Throw -> update acc tl
-       | Keep a -> update ( (d,a) :: acc) tl in
+      try match f d p with
+        | None         -> update acc          tl
+        | Some a       -> update ((d,a)::acc) tl
+      with Fail_update -> None
+  in
   update [] pb.problems
 
 let update_status i s pb =
@@ -221,12 +231,12 @@ let update_status i s pb =
 let set_unsolved reducer convertible whnf pb i sol =
   let filter d = function
     | Eq((vi,args),ti) as p ->
-       if vi <> i then Keep p
+       if vi <> i then Some p
        else
          let lambdaed = add_n_lambdas pb.miller.(i) (Lazy.force sol) in
          let shifted = Subst.shift d lambdaed in
          if convertible (Lazy.force ti) (apply_args shifted args)
-         then Throw else Fail
+         then None else raise Fail_update
     | AC(aci,joks,vars,terms) ->
        let sol = whnf (Lazy.force sol) in
        (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
@@ -240,14 +250,14 @@ let set_unsolved reducer convertible whnf pb i sol =
        let shifted = List.map (Subst.shift d) lambdaed in
        let sols = compute_all_sols i vars shifted in
        match remove_sols_occs convertible sols terms with
-       | None -> Fail
+       | None -> raise Fail_update
        | Some nterms ->
           let nvars = filter_vars i vars in
           if nvars = []
           then if nterms = [] || joks > 0
-               then Throw
-               else Fail
-          else Keep ( AC(aci,joks,nvars,nterms)) in
+               then None
+               else raise Fail_update
+          else Some ( AC(aci,joks,nvars,nterms)) in
   map_opt (update_status i (Solved sol))  (* update status of variable [i] *)
           (update_problems filter pb)     (* if the substitution is compatible *)
 
@@ -255,57 +265,60 @@ let set_partly pb i aci =
   assert(pb.status.(i) == Unsolved);
   update_status i (Partly(aci,[])) pb
 
+(* A problem of the shape +{X, Y, Z} = +{} has been found.
+   Partly solved variable   X = +{a,b,c}
+   May no longer be added extra arguments, it is in solved form.
+   For each other problem still containing it, remove this variable from the LHS
+*)
 let close_partly reduce convertible whnf pb i =
   match pb.status.(i) with
   | Partly(aci,terms) ->
      (* Remove occurence of variable i from all m.v headed AC problems. *)
-     let filter d = function
-       | AC(aci',joks,vars,terms)
-            when ac_ident_eq aci aci' && var_exists i vars ->
-          let nvars = filter_vars i vars in
-          if nvars = []
-          then if terms = [] || joks > 0 then Throw else Fail
-          else Keep( AC(aci,joks,nvars,terms) )
-       | p -> Keep p
+     let filter _ = function
+       | AC(aci',joks,vars,rhs) when ac_ident_eq aci aci' && var_exists i vars ->
+         ( match filter_vars i vars with
+           | [] -> if rhs = [] || joks > 0 then None else raise Fail_update
+           | filtered_vars -> Some( AC(aci,joks,filtered_vars,rhs) ) )
+       | p -> Some p
      in
      begin
        match update_problems filter pb with
        | None -> None (* If the substitution is incompatible, then fail *)
        | Some nprob ->
-          let (cst,alg) = aci in
-          if terms = [] then (* If [i] is closed on empty list *)
-            match alg with
-            | ACU neu ->
-               set_unsolved reduce convertible whnf nprob i (Lazy.from_val neu)
-            | _ -> None
-          else
-            let sol = Lazy.from_val (unflatten_AC aci (List.map Lazy.force terms)) in
-            set_unsolved reduce convertible whnf nprob i sol
+         if terms = [] then (* If [i] is closed on empty list: X = +{} *)
+           match aci with
+           | _, ACU neu -> (* When + is ACU, it's ok, X = neutral *)
+             set_unsolved reduce convertible whnf nprob i (Lazy.from_val neu)
+           | _ -> None (* Otherwise no solution *)
+         else
+           let sol = Lazy.from_val (unflatten_AC aci (List.map Lazy.force terms)) in
+           set_unsolved reduce convertible whnf nprob i sol
      end
   | _ -> assert false
 
 let add_partly convertible pb i sol =
   match pb.status.(i) with
   | Partly(aci,terms) ->
-     let filter d = function
-       | AC(aci',joks,vars,terms)
-            when ac_ident_eq aci aci' && var_exists i vars ->
-          let lambdaed = add_n_lambdas pb.miller.(i) (Lazy.force sol) in
-          let shifted = Subst.shift d lambdaed in
-          let sols = compute_sols i shifted vars in
-          begin
-            match remove_sols_occs convertible sols terms with
-            | None        -> Fail
-            | Some nterms -> Keep( AC(aci,joks,vars,nterms) )
-          end
-       | p -> Keep p
-     in
-     map_opt
-       (update_status i (Partly(aci,sol :: terms)))  (* Update status [i] *)
-       (update_problems filter pb)                   (* If update was a success. *)
+    let filter d = function
+      | AC(aci',joks,vars,terms)
+        when ac_ident_eq aci aci' && var_exists i vars ->
+        let lambdaed = add_n_lambdas pb.miller.(i) (Lazy.force sol) in
+        let shifted = Subst.shift d lambdaed in
+        let sols = compute_sols i shifted vars in
+        begin
+          match remove_sols_occs convertible sols terms with
+          | None        -> raise Fail_update
+          | Some nterms -> Some (AC (aci,joks,vars,nterms))
+        end
+      | p -> Some p
+    in
+    map_opt
+      (update_status i (Partly(aci,sol :: terms)))  (* Update status [i] *)
+      (update_problems filter pb)                   (* If update was a success. *)
   | _ -> assert false
 
 
+(*
 let get_all_ac_symbols pb i =
   let set = ref [] in
   let is_in_set e s = List.exists (ac_ident_eq e) s in
@@ -316,30 +329,43 @@ let get_all_ac_symbols pb i =
   in
   List.iter aux pb.problems;
   !set
+*)
 
-(** Fetches most interesting problem and most interesting variable in it. *)
+(* Fetches most interesting problem and most interesting variable in it.
+   Returns None iff the list of remaining problems is empty
+   Current implementation always returns the first problem
+   and select a variable in it based on the highest following score:
+*)
 let fetch_next_problem pb =
   match pb.problems with
   | [] -> None
   | (d, p) :: other_problems ->
-     match p with
-     | Eq((i,args),_) -> Some ((d,p),other_problems,(i,args))
-     | AC(_,_,[],_) -> Some ((d,p),other_problems,(-1,LList.nil))
-     | AC(aci,_,first :: vars,_) ->
-        (* Look for most interesting variable in the set. *)
-        let score (i,_) =
-          match pb.status.(i) with
-          | Unsolved -> 0
-          | Partly(aci',sols) ->
-             if ac_ident_eq aci aci' then 1 + List.length sols else max_int
-          | Solved _ -> assert false
-        in
-        let aux (bv,bs) v =
-          let s = score v in
-          if s < bs then (v,s) else (bv,bs) in
-        let (best,_) = List.fold_left aux (first, score first) vars in
-        Some ((d,p),other_problems,best)
+    Some ((d,p),other_problems,
+          match p with
+          | Eq((i,args),_) -> (i,args)
+          | AC(_,_,[],_) -> (-1,LList.nil)
+          | AC(aci,_,first :: vars,_) ->
+            (* Look for most interesting variable in the set. *)
+            let score (i,_) =
+              match pb.status.(i) with
+              | Unsolved -> 0
+              | Partly(aci',sols) ->
+                if ac_ident_eq aci aci' then 1 + List.length sols else max_int
+              | Solved _ -> assert false
+              (* Variables are removed from all problems when they are solved *)
+            in
+            let aux (bv,bs) v =
+              let s = score v in
+              if s < bs then (v,s) else (bv,bs) in
+            fst (List.fold_left aux (first, score first) vars)
+         )
 
+(* Put equationnal problems first, they can be deterministically solved right away
+   Then put AC problems
+   - Least number of variables first
+   - Least number of LHS terms first
+   - In case of a tie, problems with at least a joker should be handled second
+   *)
 let first_rearrange problems =
   (* TODO: better rearrange to have easiest AC sets first. *)
   let ac_f j v t = (List.length v, -List.length t, j > 0) in
@@ -350,7 +376,6 @@ let first_rearrange problems =
     | _ -> 0 in
   List.sort comp problems
 
-
 let get_subst pb =
   if pb.problems <> [] then None else
     let aux i = function
@@ -359,21 +384,23 @@ let get_subst pb =
     Some( Array.mapi aux pb.status )
 
 
-(** Main solving function *)
+(* Main solving function *)
 let solve_problem reduce convertible whnf pb =
   let problems = first_rearrange pb.problems in
   let rec solve_next pb =
-    if pb.problems <> []
-    then Debug.(debug D_matching "Problem: %a" (pp_matching_problem "    ") pb);
-    let try_solve_next pb = bind_opt solve_next pb in
     match fetch_next_problem pb with
-    | None -> get_subst pb (* If no problem left, compute substitution and return (success !) *)
-    | Some ((d, p), other_problems, (i,args)) -> (* Else explore the problem fetched... *)
+    | None -> get_subst pb
+    (* If no problem left, compute substitution and return (success !) *)
+
+    | Some ((d, p), other_problems, (i,args)) ->
+      (* Else explore the problem fetched... *)
+      Debug.(debug D_matching "Problem: %a" (pp_matching_problem "    ") pb);
+
       match p with
-      | Eq((j,_), term) -> (* If it's an easy equational problem*)
+      | Eq((j,_), term) -> (* If it's an easy equational problem: [X = t] *)
         begin
-          assert (j == i);
-          assert (pb.status.(i) == Unsolved);
+          assert (j == i); (* Selected var is X *)
+          assert (pb.status.(i) == Unsolved); (* Selected var is unsolved *)
           let solu = try_force_solve reduce d args term in
           let npb = bind_opt
               (set_unsolved reduce convertible whnf {pb with problems=other_problems} i)
@@ -381,43 +408,65 @@ let solve_problem reduce convertible whnf pb =
           (* Update the rest of the problems with the solved variable and keep solving *)
           try_solve_next npb
         end
-      | AC(_,joks,[],terms) -> (* Left hand side empty. Fail or discard AC equation. *)
+      | AC(_,joks,[],terms) -> (* If we've chosen an AC equation: +{ X ... } = +{} *)
+        (* Left hand side is now empty.
+           Either fail (non empty RHS and no joker to match it)
+           or simply discard AC equation. *)
         if terms = [] || joks > 0
         then solve_next { pb with problems = other_problems }
         else None
-      | AC(aci,joks,vars,terms) -> (* An AC equation *)
+      | AC(aci,_,_,rhs_terms) ->
+        (* If we've chosen an AC equation: +{ X, ... } = +{ ... } *)
         match pb.status.(i) with
-        | Partly(aci',sols) when ac_ident_eq aci aci' ->
+        | Partly(aci',_) -> (* If X = +{X' ... }*)
+          assert (ac_ident_eq aci aci'); (* It can't be the case that X = max{X' ... } *)
           let rec try_add_terms = function
             | [] -> try_solve_next (close_partly reduce convertible whnf pb i)
-            | t :: tl ->
+            | t :: tl -> (* Pick a term [t] in RHS set *)
               let sol = try_force_solve reduce d args t in
+              (* Solve  lambda^[d]  X [args]1 ... [args]n = [t] *)
               let npb = bind_opt (add_partly convertible pb i) sol in
-              match try_solve_next npb with
+              (* Add the solution found to the AC-set of partial solution for [i] *)
+              match try_solve_next npb with (* Keep solving *)
               | None -> try_add_terms tl
-              | a -> a in
-          try_add_terms terms
-        | Partly _ -> assert false
+              (* If it failed, backtrack and proceed with the other RHS terms *)
+              | a -> a in (* If it succeeds, return the solution *)
+          try_add_terms rhs_terms
         | Unsolved ->
           let rec try_eq_terms = function
+            | t :: tl ->  (* Pick a term [t] in the RHS set *)
+              let sol = try_force_solve reduce d args t in
+              (* Solve  lambda^[d]  X [args]1 ... [args]n = [t] *)
+              let npb = bind_opt (set_unsolved reduce convertible whnf pb i) sol in
+              (* Hope that we can just set X = solution and have solved for X *)
+              (* FIXME: This is highly inefficient !
+                 We first try X = sol then try again  X = +{sol ...}
+                 thus trying to solve twice the same problem *)
+              ( match try_solve_next npb with
+                | None -> try_eq_terms tl
+                (* If it failed, backtrack and proceed with the other RHS terms *)
+                | a -> a )  (* If it succeeds, return the solution *)
             | [] -> (* If all terms have been tried unsucessfully, then
                      * the variable [i] is a combination of terms under an AC symbol. *)
-              let symbols = [aci] in (*get_all_ac_symbols pb i in*)
+              (* NOTE: It seems the commented block should remain commented:
+                 At this point, the problem
+                     +{X ...} = +{a b ... z}
+                 Can only have a solution of the shape X = +{...} otherwise
+                 X would be equal to one of the a b ... z  which has already been checked.
+                 CAREFUL ! If we remove the check (cf FIXME above) then we need to try
+                 all possible AC symbols for X.
+              *)
+              (*
+              let possible_symbols = get_all_ac_symbols pb i in
               let rec try_symbols = function
                 | [] -> None
                 | aci :: tl ->
-                  match solve_next (set_partly pb i aci) with
-                  | None -> try_symbols tl
-                  | a -> a
               in
-              try_symbols symbols
-            | t :: tl ->
-              let sol = try_force_solve reduce d args t in
-              let npb = bind_opt (set_unsolved reduce convertible whnf pb i) sol in
-              match try_solve_next npb with
-              | None -> try_eq_terms tl
-              | a -> a in
-          try_eq_terms terms
+              try_symbols possible_symbols
+              *)
+              solve_next (set_partly pb i aci)
+          in
+          try_eq_terms rhs_terms
         | Solved _ -> assert false
-  in
+  and try_solve_next pb = bind_opt solve_next pb in
   solve_next { pb with problems = problems }
