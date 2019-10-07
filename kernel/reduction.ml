@@ -43,8 +43,8 @@ let rec zip_lists l1 l2 lst =
 type env = term Lazy.t LList.t
 
 (* A state {ctx; term; stack} is the state of an abstract machine that
-represents a term where [ctx] is a ctx that contains the free variables
-of [term] and [stack] represents the terms that [term] is applied to. *)
+   represents a term where [ctx] is a ctx that contains the free variables
+   of [term] and [stack] represents the terms that [term] is applied to. *)
 type state =
   {
     ctx   : env;    (* context *)
@@ -62,6 +62,7 @@ let rec term_of_state {ctx;term;stack;_} : term =
 
 and term_of_state_ref r = term_of_state !r
 
+let get_reduc st = !(st.reduc)
 
 (** Creates a fresh state with reduc pointing to itself. *)
 let mk_state ctx term stack =
@@ -86,8 +87,6 @@ let set_final st =
   st.reduc := (true, st)
 
 let as_final st = set_final st; st
-
-
 
 (**************** Pretty Printing ****************)
 
@@ -380,7 +379,7 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
  *     of that same constant
  *)
 and state_whnf (sg:Signature.t) (st:state) : state =
-  match !(st.reduc) with
+  match get_reduc st with
   | (true, st') -> st'
   | (false, st') when st' != st ->
     let _ = Debug.(debug D_reduce "Jumping %a ---> %a" pp_state_oneline st pp_state_oneline st') in
