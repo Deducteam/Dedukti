@@ -183,22 +183,21 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
        * When a column is specialized, the dtree makes the assumption
        * that new columns are pushed at the end of the stack
        * which is why s is added at the end. *)
-    | Test (rn, matching_pb, eqs, right, def) ->
-      let b =
+    | Test (rule_name, matching_pb, eqs, right, def) ->
+      let keep_rule =
         match filter with
         | None -> true
-        | Some f -> f rn
+        | Some f -> f rule_name
       in
-      if b then
+      if keep_rule then
         match get_context sg stack matching_pb with
         | None -> bind_opt (rw stack) def
         | Some ctx ->
-          if test rn sg ctx eqs then Some (rn, ctx, right)
+          if test rule_name sg ctx eqs
+          then Some (rule_name, ctx, right)
           else bind_opt (rw stack) def
-      else
-        bind_opt (rw stack) def
-  in
-  rw
+      else bind_opt (rw stack) def
+  in rw
 
 (* ************************************************************** *)
 
