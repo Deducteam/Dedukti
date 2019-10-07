@@ -44,7 +44,7 @@ type rule_infos =
   {
     l           : loc;
     name        : rule_name;
-    linear      : bool;
+    nonlinear   : int list;
     cst         : name;
     args        : pattern list;
     rhs         : term;
@@ -167,7 +167,7 @@ type pattern_info =
     constraints  : constr list;
     context_size : int;
     arity        : int array;
-    linear       : bool
+    nonlinear    : int list
   }
 
 (* ************************************************************************** *)
@@ -204,7 +204,7 @@ together with extracted pattern information:
 - Arity infered for all context variables
 *)
 let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_info =
-  let linear = ref true in
+  let nonlinear = ref [] in
   let constraints  = ref [] in
   let context_size = ref esize in
   let arity = IntHashtbl.create 10 in
@@ -228,7 +228,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       then
         if nb_args' <> IntHashtbl.find arity (n-k)
         then raise (RuleError (NonLinearNonEqArguments(l,x)))
-        else linear := false
+        else nonlinear := (n-k) :: !nonlinear
       else IntHashtbl.add arity (n-k) nb_args';
       LVar(x,n,args')
     | Brackets t ->
@@ -249,7 +249,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
   , { context_size = !context_size;
       constraints = !constraints;
       arity = Array.init !context_size (fun i -> IntHashtbl.find arity i);
-      linear = !linear
+      nonlinear = !nonlinear
     } )
 
 let to_rule_infos (r:'a rule) : rule_infos =
@@ -262,7 +262,7 @@ let to_rule_infos (r:'a rule) : rule_infos =
   let (pats2,infos) = check_patterns ctx_size args in
   { l ;
     name = r.name ;
-    linear = infos.linear;
+    nonlinear = infos.nonlinear;
     cst ; args ;
     rhs = r.rhs ;
     ctx_size ;

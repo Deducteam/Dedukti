@@ -66,7 +66,12 @@ type matrix =
     first    : rule_infos ;
     others   : rule_infos list ; }
 
-(** Merge the first two argument of AC headed patterns into the LACSet representation *)
+(** Merge and flatten the first two argument of AC headed patterns
+    into the LACSet representation:
+      + (+ r s) (t u) ...  --> ...
+    becomes
+      +{r s t u} ...  --> ...
+  *)
 let merge_AC_arguments =
   let aux r =
     let f = function 0 ->  mk_AC_set r.cst r.pats.(0) r.pats.(1) | i -> r.pats.(i-1) in
@@ -74,20 +79,24 @@ let merge_AC_arguments =
     {r with pats=npats} in
   List.map aux
 
-let is_var = function
-  | LJoker -> true
-  | LVar (_,_,[]) -> true
-  | _ -> false
-
+(** Append extra rule when necessary :
+      +{1 0} --> r    becomes  +{1 0 X} --> +{r X}
+      +{X X} --> r    becomes  +{X X Y} --> +{r Y}  (TODO)
+      +{X 0} --> r    is left unchanged (X already a "scraps collecting" variable)
+  *)
 let expand_AC_rules =
   let rec aux acc = function
     | [] -> List.rev acc
     | r :: tl ->
       assert (Array.length r.pats == 1);
+      let is_linear_var = function
+        | LJoker -> true
+        | LVar (_,i,[]) -> not (List.mem i r.nonlinear)
+        | _ -> false in
       match r.pats.(0) with
       | LACSet (cst,args) ->
         let new_acc =
-          if List.exists is_var args then r :: acc
+          if List.exists is_linear_var args then r :: acc
           else (* +{pats} --> r    where pats contains no variable. *)
             let newr = (* becomes  +{pats,x} --> + r x  with x fresh variable *)
               { r with
@@ -96,7 +105,6 @@ let expand_AC_rules =
                 pats = [| LACSet (cst, LVar(dmark,r.esize,[]) :: args) |]
               } in
             newr :: r :: acc
-      (* +{pats} where pats contains no variable. *)
         in aux (new_acc) tl
       | _ -> assert false
   in
@@ -528,8 +536,11 @@ let of_rules get_algebra = function
          if not (name_eq x.cst name)
          then raise (DtreeError (HeadSymbolMismatch (x.l,x.cst,name)));
          let arity = List.length x.args in
-         if ac && arity == 0
+         if ac && arity == 0  (* + --> ... is forbidden when + is AC  *)
          then raise (DtreeError (ACSymbolRewritten(x.l,x.cst,arity)));
+         (* The rule    + l   --> r
+            requires    + l x --> + r x
+            to behave as expected, ie matching (1+l) "below the AC head")  *)
          if ac && arity == 1
          then arities := add !arities 2; (* Also add a rule of arity 2. *)
          arities := add !arities arity)

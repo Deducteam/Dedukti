@@ -90,8 +90,8 @@ type rule_infos =
     (** location of the rule *)
     name        : rule_name;
     (** name of the rule *)
-    linear      : bool;
-    (** is the rule linear or not ? *)
+    nonlinear   : int list;
+    (** DB indices of non linear variables. Empty if the rule is linear ? *)
     cst         : name;
     (** name of the pattern constant *)
     args        : pattern list;

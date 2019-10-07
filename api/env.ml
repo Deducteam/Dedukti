@@ -159,7 +159,7 @@ struct
 
   (** Checks that all rule are left-linear. *)
   let _check_ll (r:rule_infos) : unit =
-    if not r.linear
+    if r.nonlinear <> []
     then raise (EnvError (Some (get_name()), r.l, NonLinearRule r.name))
 
   let _add_rules rs =
