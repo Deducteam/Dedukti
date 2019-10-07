@@ -28,8 +28,7 @@ type case =
   | CDB of int * int
   (** [(size,db_index)] where [size] is the number of *static* arguments expected
       for the bounded variable [db_index] *)
-  | CLam (** A lambda headed term *)
-
+  | CLam  (** A lambda headed term *)
 
 (** An atomic matching problem.
      stack.(pos) ~? X[ DB(args_0), ..., DB(args_n)]
