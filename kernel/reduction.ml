@@ -2,7 +2,6 @@ open Basic
 open Rule
 open Term
 open Dtree
-open Matching
 open Ac
 open Format
 
@@ -142,36 +141,12 @@ struct
 
 (*******      AC manipulating functions   *******)
 
-let filter_neutral conv sg l cst terms =
+let filter_neutral sg l cst terms =
   match Signature.get_algebra sg l cst with
   | ACU neu ->
-    (match List.filter (fun x -> not (conv neu x)) terms with
+    (match List.filter (fun x -> not (C.are_convertible sg neu x)) terms with
      | [] -> [neu] | s -> s)
   | _ -> terms
-
-(* Unfolds all occurences of the AC(U) symbol in the stack
- * Removes occurence of neutral element.  *)
-let flatten_AC_stack sg strategy
-    (l:loc) (cst:name) (stack:stack) : stack =
-  let rec flatten acc = function
-    | [] -> acc
-    | st :: tl ->
-      match !st with
-      | { term=Const (_,cst'); stack=[st1;st2] ; _ } when name_eq cst cst' ->
-        flatten acc (st1 :: st2 :: tl)
-      | _ ->
-        let whnf = strategy sg !st in
-        st := whnf;
-        match !st with
-        | { term=Const (_,cst'); stack=[st1;st2] ; _ } when name_eq cst cst' ->
-          flatten acc (st1 :: st2 :: tl)
-        | _ -> flatten (st::acc) tl
-  in
-  let stack = flatten [] stack in
-  match Signature.get_algebra sg l cst with
-  | ACU neu -> List.filter (fun st -> not (C.are_convertible sg (term_of_state_ref st) neu)) stack
-  | _ -> stack
-
 
 (** Builds a comb-shaped AC term from a list of arguments. *)
 let to_comb sg l cst ctx stack =
@@ -182,20 +157,41 @@ let to_comb sg l cst ctx stack =
   in
   f stack
 
-let comb_state_shape_if_AC sg strategy st =
+(* Unfolds all occurences of the AC(U) symbol in the stack
+ * Removes occurence of neutral element.  *)
+let rec flatten_AC_stack sg (l:loc) (cst:name) (stack:stack) : stack =
+  let rec flatten acc = function
+    | [] -> acc
+    | st :: tl ->
+      match !st with
+      | { term=Const (_,cst'); stack=[st1;st2] ; _ } when name_eq cst cst' ->
+        flatten acc (st1 :: st2 :: tl)
+      | _ ->
+        st := state_whnf sg !st;
+        match !st with
+        | { term=Const (_,cst'); stack=[st1;st2] ; _ } when name_eq cst cst' ->
+          flatten acc (st1 :: st2 :: tl)
+        | _ -> flatten (st::acc) tl
+  in
+  let stack = flatten [] stack in
+  match Signature.get_algebra sg l cst with
+  | ACU neu -> List.filter (fun st -> not (C.are_convertible sg (term_of_state_ref st) neu)) stack
+  | _ -> stack
+
+and comb_state_shape_if_AC sg st =
   match st with
   | { ctx; term=Const (l,cst); stack=(s1::s2::rstack) ; _ } when Signature.is_AC sg l cst ->
-    let nstack = flatten_AC_stack sg strategy l cst [s1;s2] in
+    let nstack = flatten_AC_stack sg l cst [s1;s2] in
     let s = to_comb sg l cst ctx nstack in
     let rstack = (match rstack with [] -> s.stack | l -> s.stack@l) in
     mk_reduc_state st s.ctx s.term rstack
   | st -> st
 
-let comb_term_shape_if_AC sg : term -> term = function
+and comb_term_shape_if_AC sg : term -> term = function
   | App(Const (l,cst), a1, a2::remain_args) when Signature.is_AC sg l cst ->
      let id_comp = Signature.get_id_comparator sg in
      let args = flatten_AC_terms cst [a1;a2] in
-     let args = filter_neutral (C.are_convertible sg) sg l cst args in
+     let args = filter_neutral sg l cst args in
      let args = List.sort (compare_term id_comp) args in
      let _ = assert (List.length args > 0) in
      mk_App2
@@ -204,12 +200,13 @@ let comb_term_shape_if_AC sg : term -> term = function
   (* mk_App2 (unflatten sg l cst args) remain_args *)
   | t -> t
 
-let find_case (flattenner:loc->name->stack->stack)
+and find_case (flattenner:loc->name->stack->stack)
     (st:state) (case:case) : stack option =
   match st, case with
-  (* This case is a bit tricky:
-     [] C (+ f g 1) --> plus (f 1) (g 1).
-     C (h 1) matche avec  +{f,g} ~ +{h}
+  (* This case is a bit tricky: when + is AC,
+     C (+ f g 1) can match C (h 1)
+     The matching problem is  +{f,g} = +{h}
+     Which is not unsolvable in general.
      Maybe + is acu, maybe h reduces to (+ i j), who knows...
      TODO: check that this case is used properly !
   *)
@@ -239,7 +236,7 @@ let find_case (flattenner:loc->name->stack->stack)
     end
   | _ -> None
 
-let fetch_case (flattenner:loc->name->stack->stack)
+and fetch_case (flattenner:loc->name->stack->stack)
                (state:state ref) (case:case)
                (dt_suc:dtree) (dt_def:dtree option) : (dtree*state ref*stack) list =
   let def_s = match dt_def with None -> [] | Some g -> [(g,state,[])] in
@@ -262,7 +259,7 @@ let fetch_case (flattenner:loc->name->stack->stack)
      List.rev_append (f [] [] stack) def_s
    | _ -> assert false
 
-let find_cases (flattenner:loc->name->stack->stack)
+and find_cases (flattenner:loc->name->stack->stack)
     (st:state) (cases:(case * dtree) list)
     (default:dtree option) : (dtree*stack) list =
   List.fold_left
@@ -277,7 +274,7 @@ let find_cases (flattenner:loc->name->stack->stack)
 
 (* Problem conversion *)
 
-let convert_problem (stack:state ref list) problem =
+and convert_problem (stack:state ref list) problem =
   let lazy_stack = List.map (fun s -> lazy (term_of_state_ref s)) stack in
   let lazy_array = Array.of_list lazy_stack in
   let convert i = lazy_array.(i) in
@@ -291,11 +288,11 @@ let convert_problem (stack:state ref list) problem =
         | _ -> assert false
       end
     | _ -> assert false in
-  mk_matching_problem convert convert_ac_sets problem
+  Matching.mk_matching_problem convert convert_ac_sets problem
 
 
 (* TODO implement the stack as an array ? (the size is known in advance). *)
-let rec gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
+and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
                   : stack -> dtree -> (rule_name*env*term) option =
   let rec rw_list : (stack*dtree) list -> (rule_name*env*term) option =
     function
@@ -317,7 +314,7 @@ let rec gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
         List.rev_append stack_h
           (new_s :: match s with [] -> stack_t | s  -> stack_t@s), g in
       let cases =  (* Generate all possible pick for the fetch... *)
-        fetch_case (flatten_AC_stack sg state_whnf) arg_i case dt_suc dt_def in
+        fetch_case (flatten_AC_stack sg) arg_i case dt_suc dt_def in
       let new_cases = List.map process cases in
       rw_list new_cases (* ... try them all *)
     | ACEmpty (i, dt_suc, dt_def) ->
@@ -338,7 +335,7 @@ let rec gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
       let new_cases =
         List.map
           (fun (g,l) -> ( (match l with | [] -> stack | s -> stack@s), g))
-          (find_cases (flatten_AC_stack sg state_whnf) !arg_i cases def) in
+          (find_cases (flatten_AC_stack sg) !arg_i cases def) in
       rw_list new_cases
     | Test (rule_name, problem, cstr, right, def) ->
       let keep_rule =
@@ -350,7 +347,7 @@ let rec gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
         let pb = convert_problem stack problem in
         (* Convert problem on stack indices to a problem on terms *)
         begin
-          match solve_problem (snf sg) (C.are_convertible sg) (snf sg) pb with
+          match Matching.solve_problem (snf sg) (C.are_convertible sg) (snf sg) pb with
           | None -> bind_opt (rw stack) def
           | Some subst ->
             let aux e acc = match e with None -> assert false | Some e -> e :: acc in
@@ -414,7 +411,7 @@ and state_whnf (sg:Signature.t) (st:state) : state =
   | { ctx; term=Const (l,n); stack ; _} ->
     let trees = Signature.get_dtree sg l n in
     match find_dtree (List.length stack) trees with
-    | None -> as_final (comb_state_shape_if_AC sg state_whnf st)
+    | None -> as_final (comb_state_shape_if_AC sg st)
     | Some (ar, tree) ->
       let s1, s2 = split ar stack in
       let s1 =
@@ -422,12 +419,12 @@ and state_whnf (sg:Signature.t) (st:state) : state =
         then
           match s1 with
           | t1 :: t2 :: tl ->
-            let flat = flatten_AC_stack sg state_whnf l n [t1;t2] in
+            let flat = flatten_AC_stack sg l n [t1;t2] in
             (mk_state_ref ctx (mk_Const l n) flat):: tl
           | _ -> assert false
         else s1 in
       match gamma_rw sg !selection s1 tree with
-      | None -> as_final (comb_state_shape_if_AC sg state_whnf st)
+      | None -> as_final (comb_state_shape_if_AC sg st)
       | Some (_,ctx,term) -> rec_call ctx term s2
 
 (* ************************************************************** *)
@@ -559,7 +556,7 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
       | { ctx; term=Const (l,n); stack ; _ }, _ ->
         let trees = Signature.get_dtree sg l n in
         match find_dtree (List.length stack) trees with
-        | None -> as_final (comb_state_shape_if_AC sg state_whnf st)
+        | None -> as_final (comb_state_shape_if_AC sg st)
         | Some (ar, tree) ->
           let s1, s2 = split ar stack in
           let s1 =
@@ -567,12 +564,12 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
             then
               match s1 with
               | t1 :: t2 :: tl ->
-                let flat = flatten_AC_stack sg state_whnf l n [t1;t2] in
+                let flat = flatten_AC_stack sg l n [t1;t2] in
                 (mk_state_ref ctx (mk_Const l n) flat):: tl
               | _ -> assert false
             else s1 in
           match gamma_rw sg !selection s1 tree with
-          | None -> as_final (comb_state_shape_if_AC sg state_whnf st)
+          | None -> as_final (comb_state_shape_if_AC sg st)
           | Some (rn,ctx,term) ->
             let st' = mk_state ctx term s2 in
             log pos rn st st';
