@@ -208,8 +208,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
     IntHashtbl.add arity !context_size ar;
     incr context_size;
     !context_size - 1 in
-  let extract_db k pat =
-    match pat with
+  let extract_db k = function
     | Var (_,_,n,[]) when n<k -> n
     | p -> raise (RuleError (BoundVariableExpected p))
   in
