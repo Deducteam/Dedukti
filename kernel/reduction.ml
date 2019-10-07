@@ -321,14 +321,14 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
           (fun (g,l) -> (concat stack l, g))
           (find_cases sg !arg_i cases def) in
       rw_list new_cases
-    | Test (rule_name, problem, cstr, right, def) ->
+    | Test (rule_name, matching_pb, cstr, right, def) ->
       let keep_rule =
         match filter with
         | None -> true
         | Some f -> f rule_name
       in
       if keep_rule then
-        let pb = convert_problem stack problem in
+        let pb = convert_problem stack matching_pb in
         (* Convert problem on stack indices to a problem on terms *)
         begin
           match Matching.solve_problem (snf sg) (C.are_convertible sg) (snf sg) pb with
