@@ -29,7 +29,7 @@ open Printer
 let snf t = if !errors_in_snf then E.unsafe_reduction t else t
 
 let print_success file =
-  eprintf "%s %s was successfully checked.\n"
+  eprintf "%s %s was successfully checked.@."
     (green "[SUCCESS]")
     ( match file with
       | Some file -> "File '" ^ file ^ "'"
