@@ -1,7 +1,7 @@
 open Term
 open Basic
 open Rule
-open Matching
+open Ac
 
 (** {2 Error} *)
 
@@ -11,6 +11,56 @@ type dtree_error =
   | ACSymbolRewritten   of loc * name * int
 
 exception DtreeError of dtree_error
+
+
+(** ([n], [vars]) represents the [n]-th variable applied to the [vars] bound variables. *)
+type var_p = int * int LList.t
+
+(** {2 Pre-Matching problems} *)
+
+(** Abstract matching problems. This can be instantiated with
+    - When building a decision tree ['a = int] refers to positions in the stack
+    - When matching against a term, ['a = term Lazy.t] refers to actual terms
+*)
+
+(* TODO: add loc to this to better handle errors *)
+
+type 'a eq_problem = int * int * int LList.t * 'a
+(** [(depth, X, \[x1...xn\], t)] is the higher order
+     equationnal problem: [X\[x1  ... xn\] = t]
+    under [depth] lambdas. *)
+
+type 'a ac_problem = int * ac_ident * int * (var_p list) * 'a
+  (** [(depth, symb, njoks, vars, terms)]
+   *  Represents the flattenned equality under AC symbol [symb] of:
+   *  - [njoks] jokers and the given variables [vars]
+   *  - The given [terms]
+      e.g.
+        [ +{ X\[x\] , _, Y\[y,z\] } = +{ f(a), f(y), f(x)} ]
+   *)
+
+(** Problem with int referencing stack indices *)
+type pre_matching_problem =
+  {
+    pm_eq_problems : int eq_problem list;
+    (** A list of problems under a certain depth *)
+    pm_ac_problems : int ac_problem list;
+    (** A list of problems under a certain depth *)
+    pm_arity       : int array
+    (** Miller variables arity *)
+  }
+
+
+val pp_var_type : var_p printer
+
+val pp_eq_problem : 'a printer -> 'a eq_problem printer
+
+val pp_ac_problem : 'a printer -> 'a ac_problem printer
+
+(** int matching problem printing function (for dtree). *)
+val pp_pre_matching_problem : string -> pre_matching_problem printer
+
+
 
 (** {2 Decision Trees} *)
 

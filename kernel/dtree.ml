@@ -2,7 +2,7 @@ open Basic
 open Term
 open Rule
 open Format
-open Matching
+open Ac
 
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
@@ -10,6 +10,42 @@ type dtree_error =
   | ACSymbolRewritten   of loc * name * int
 
 exception DtreeError of dtree_error
+
+type var_p = int * int LList.t
+
+(* TODO: add loc to this to better handle errors *)
+type 'a eq_problem = int * int * int LList.t * 'a
+
+type 'a ac_problem = int * ac_ident * int * (var_p list) * 'a
+
+type pre_matching_problem = {
+  pm_eq_problems : int eq_problem list;
+  pm_ac_problems : int ac_problem list;
+  pm_arity       : int array
+}
+
+let pp_var_type fmt (i,args) =
+  if LList.is_empty args
+  then fprintf fmt "%i" i
+  else fprintf fmt "%i[%a]" i (pp_list " " pp_print_int) (LList.lst args)
+
+let pp_eq_problem pp_a fmt (_,vp,args,t) =
+  fprintf fmt "%a = %a" pp_var_type (vp,args) pp_a t
+
+let pp_njoks fmt n = if n > 0 then fprintf fmt " + %i _" n
+
+let pp_ac_problem pp_rhs fmt (_,aci,joks,vars,terms) =
+  fprintf fmt "{ %a%a } =(%a) { %a }"
+    (pp_list " , " pp_var_type) vars
+    pp_njoks joks pp_ac_ident aci
+    pp_rhs terms
+
+let pp_pos fmt p = fprintf fmt "stack.%a" pp_print_int p
+let pp_pre_matching_problem sep fmt mp =
+  fprintf fmt "[ %a | %a ]"
+    (pp_list sep (pp_eq_problem pp_pos)) mp.pm_eq_problems
+    (pp_list sep (pp_ac_problem pp_pos)) mp.pm_ac_problems
+
 
 type case =
   | CConst of int * name * bool
@@ -423,7 +459,7 @@ let get_first_constraints mx = mx.first.constraints
 (* Extracts the matching_problem from the first line. *)
 let get_first_matching_problem (get_algebra:name->algebra) mx =
   let esize = mx.first.esize in
-  let miller = Array.make esize (-1) in
+  let arity = Array.make esize (-1) in
   let eq_pbs = ref [] in
   let ac_pbs = ref [] in
   Array.iteri
@@ -436,7 +472,7 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
            assert(depth <= n && n < esize + depth);
            let n = n - depth in
            let len = List.length lst in
-           if miller.(n) == -1 then miller.(n) <- len else assert(miller.(n) == len);
+           if arity.(n) == -1 then arity.(n) <- len else assert(arity.(n) == len);
            eq_pbs := (depth, n, LList.of_list lst, i) :: !eq_pbs
          end
       | LACSet (cst,patl) ->
@@ -448,23 +484,23 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
                    assert(depth <= n && n < esize + depth);
                    let n = n - depth in
                    let len = List.length lst in
-                   if miller.(n) == -1
-                   then miller.(n) <- len
-                   else assert(miller.(n) == len);
+                   if arity.(n) == -1
+                   then arity.(n) <- len
+                   else assert(arity.(n) == len);
                    let nvars = (n, LList.of_list lst) :: vars in
                    (joks,nvars)
                  end
               | _ -> assert false in
            let njoks, vars = List.fold_left fetch_vars (0,[]) patl in
-           ac_pbs := (depth,(cst,get_algebra cst),njoks,vars,[i]) :: !ac_pbs
+           ac_pbs := (depth,(cst,get_algebra cst),njoks,vars,i) :: !ac_pbs
          end
       | _ -> assert false
     ) mx.first.pats;
-  assert (Array.fold_left (fun a x -> a && x >= 0) true miller);
+  assert (Array.for_all (fun x -> x >= 0) arity);
   {
     pm_eq_problems = !eq_pbs;
     pm_ac_problems = !ac_pbs;
-    pm_miller = miller
+    pm_arity       = arity
   }
 
 

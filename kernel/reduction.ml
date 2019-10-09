@@ -115,7 +115,7 @@ let beta = ref true
 (* Rule filter *)
 let selection  = ref None
 
-module Make(C : ConvChecker) : S =
+module Make(C : ConvChecker) (M:Matching.Matcher) =
 struct
 
 (*******      AC manipulating functions   *******)
@@ -257,18 +257,13 @@ and convert_problem (stack:state ref list) problem =
   let lazy_stack = List.map (fun s -> lazy (term_of_state_ref s)) stack in
   let lazy_array = Array.of_list lazy_stack in
   let convert i = lazy_array.(i) in
-  let convert_ac_sets = function
-    | [i] ->
-      begin
-        let arg_i = List.nth stack i in
-        match !arg_i with
-        | { term=Const _; stack=st ; _ } ->
-          List.map (fun s -> lazy (term_of_state_ref s)) st
-        | _ -> assert false
-      end
+  let convert_ac_sets i =
+    let arg_i = List.nth stack i in
+    match !arg_i with
+    | { term=Const _; stack=st ; _ } ->
+      List.map (fun s -> lazy (term_of_state_ref s)) st
     | _ -> assert false in
   Matching.mk_matching_problem convert convert_ac_sets problem
-
 
 
 (* TODO implement the stack as an array ? (the size is known in advance). *)
@@ -331,7 +326,7 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
         let pb = convert_problem stack matching_pb in
         (* Convert problem on stack indices to a problem on terms *)
         begin
-          match Matching.solve_problem (snf sg) (C.are_convertible sg) (snf sg) pb with
+          match M.solve_problem sg pb with
           | None -> bind_opt (rw stack) def
           | Some subst ->
             let aux e acc = match e with None -> assert false | Some e -> e :: acc in
@@ -591,4 +586,4 @@ let reduction cfg sg te =
   let matching_test _ _ = are_convertible
 end
 
-module rec Default : S = Make(Default)
+module rec Default : S = Make(Default)(Matching.Make(Default))

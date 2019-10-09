@@ -95,6 +95,6 @@ module type S = sig
       This may loop whenever [t] is not strongly normalizing. *)
 end
 
-module Make(C : ConvChecker) : S
+module Make(C : ConvChecker) (M:Matching.Matcher) : S
 
 module Default : S

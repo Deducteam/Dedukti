@@ -3,50 +3,13 @@
 open Basic
 open Term
 open Ac
+open Dtree
 
 exception NotUnifiable
 
 type Debug.flag += D_matching
 
-(** ([n], [vars]) represents the [n]-th variable applied to the [vars] bound variables. *)
-type var_p = int * int LList.t
-
 (** {2 Matching problems} *)
-
-(** Abstract matching problems. This can be instantiated with
-    - When building a decision tree ['a = int] refers to positions in the stack
-    - When matching against a term, ['a = term Lazy.t] refers to actual terms
-*)
-
-(* TODO: add loc to this to better handle errors *)
-
-type 'a eq_problem = int * int * int LList.t * 'a
-(** [(depth, X, \[x1...xn\], t)] is the higher order
-     equationnal problem: [X\[x1  ... xn\] = t]
-    under [depth] lambdas. *)
-
-type 'a ac_problem = int * ac_ident * int * (var_p list) * ('a list)
-  (** [(depth, cst, njoks, vars, terms)]
-   *  Represents the flattenned equality under AC symbol [cst] of:
-   *  - [njoks] jokers and the given variables [vars]
-   *  - The given [terms]
-      e.g.
-        [ +{ X\[x\] , _, Y\[y,z\] } = +{ f(a), f(y), f(x)} ]
-   *)
-
-(** Problem with int referencing stack indices *)
-type pre_matching_problem =
-  {
-    pm_eq_problems : int eq_problem list;
-    (** A list of problems under a certain depth *)
-    pm_ac_problems : int ac_problem list;
-    (** A list of problems under a certain depth *)
-    pm_miller      : int array
-    (** Miller variables arity *)
-  }
-
-(** int matching problem printing function (for dtree). *)
-val pp_pre_matching_problem : string -> pre_matching_problem printer
 
 type te = term Lazy.t
 
@@ -59,38 +22,46 @@ type matching_problem =
   {
     eq_problems : te eq_problem list;
     (** A list of equationnal problems under a certain depth *)
-    ac_problems : te ac_problem list;
+    ac_problems : te list ac_problem list;
     (** A list of AC problems under a certain depth *)
-    status   : status array;
+    status      : status array;
     (** Partial substitution. Initialized with Unsolved *)
-    miller   : int array  (* TODO: is array should somehow be immutable *)
+    arity       : int array  (* TODO: is array should somehow be immutable *)
     (** Variables Miller arity. *)
   }
 
-val mk_matching_problem: (int -> te) -> (int list -> te list) ->
+val mk_matching_problem: (int -> te) -> (int -> te list) ->
                          pre_matching_problem -> matching_problem
 
 (** Generic matching problem printing function (for debug). *)
 val pp_matching_problem : string -> matching_problem printer
 
-(** [solve_problem [reduce] [conv] [pb] solves the given matching problem
- * on lazy terms using:
- * - the [reduce] reduction strategy when necessary
- * - the [conv] convertability test
- *)
-val solve_problem : (term -> term) ->
-                    (term -> term -> bool) ->
-                    (term -> term) ->
-                    matching_problem -> te option array option
 
-(** [solve n k_lst te] solves following the higher-order unification problem (modulo beta):
+(** {2 Matching solver} *)
+
+module type Checker = sig
+  val snf  : Signature.t -> term -> term
+  val whnf : Signature.t -> term -> term
+  val are_convertible : Signature.t -> term -> term -> bool
+end
+
+module type Matcher = sig
+  val solve_problem : Signature.t -> matching_problem -> te option array option
+  (** [solve_problem [reduce] [conv] [pb] solves the given matching problem
+   * on lazy terms using:
+   * - the [reduce] reduction strategy when necessary
+   * - the [conv] convertability test
+  *)
+
+  (** [solve n k_lst te] solves following the higher-order unification problem (modulo beta):
 
     x{_1} => x{_2} => ... x{_[n]} => X x{_i{_1}} .. x{_i{_m}}
     {b =}
     x{_1} => x{_2} => ... x{_[n]} => [te]
 
     where X is the unknown, x{_i{_1}}, ..., x{_i{_m}} are distinct bound variables. *)
-(**
+
+  (**
    If the free variables of [te] that are in x{_1}, ..., x{_[n]} are also in
    x{_i{_1}}, ..., x{_i{_m}} then the problem has a unique solution modulo beta that is
    x{_i{_1}} => .. => x{_i{_m}} => [te].
@@ -102,3 +73,6 @@ val solve_problem : (term -> term) ->
 
    and where [k_lst] = [\[]k{_0}[; ]k{_1}[; ]...[; ]k{_m}[\]].
 *)
+end
+
+module Make (C:Checker) : Matcher
