@@ -46,7 +46,7 @@ module type Checker = sig
 end
 
 module type Matcher = sig
-  val solve_problem : Signature.t -> matching_problem -> te option array option
+  val solve_problem : Signature.t -> matching_problem -> te array option
   (** [solve_problem [reduce] [conv] [pb] solves the given matching problem
    * on lazy terms using:
    * - the [reduce] reduction strategy when necessary

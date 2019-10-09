@@ -329,12 +329,10 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
           match M.solve_problem sg pb with
           | None -> bind_opt (rw stack) def
           | Some subst ->
-            let aux e acc = match e with None -> assert false | Some e -> e :: acc in
-            let ctx_list = Array.fold_right aux subst [] in
-            let ctx = LList.of_list ctx_list in
+            let ctx = LList.of_array subst in
             List.iter
               (fun (i,t2) ->
-                 let t1 = Lazy.force (LList.nth ctx i) in
+                 let t1 = Lazy.force subst.(i) in
                  let t2 = term_of_state (mk_state ctx t2 []) in
                  if not (C.are_convertible sg t1 t2)
                  then raise (Signature.SignatureError

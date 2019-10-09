@@ -115,7 +115,7 @@ module type Checker = sig
 end
 
 module type Matcher = sig
-  val solve_problem : Signature.t -> matching_problem -> te option array option
+  val solve_problem : Signature.t -> matching_problem -> te array option
 end
 
 module Make (C:Checker) =
@@ -367,14 +367,14 @@ let get_all_ac_symbols pb i =
     assert(pb.ac_problems = []);
     assert(pb.eq_problems = []);
     let aux i = function
-      | Solved sol -> Some (lazy_add_n_lambdas pb.arity.(i) sol)
-      | _          -> None in
-    Some( Array.mapi aux pb.status )
+      | Solved sol -> lazy_add_n_lambdas pb.arity.(i) sol
+      | _ -> assert false in
+    Array.mapi aux pb.status
 
   let solve_ac_problem sg =
     let rec solve_next pb =
       match fetch_next_problem pb with
-      | None -> get_subst pb
+      | None -> Some (get_subst pb)
       (* If no problem left, compute substitution and return (success !) *)
 
       | Some (p, other_problems, (i,args)) ->
@@ -404,14 +404,14 @@ let get_all_ac_symbols pb i =
                 (* If it failed, backtrack and proceed with the other RHS terms *)
                 | a -> a in (* If it succeeds, return the solution *)
             try_add_terms rhs_terms
-          | Unsolved ->
+          | Unsolved -> (* X ins unknown *)
             let rec try_eq_terms = function
               | t :: tl ->  (* Pick a term [t] in the RHS set *)
                 let sol = try_force_solve sg d args t in
                 (* Solve  lambda^[d]  X [args]1 ... [args]n = [t] *)
                 let npb = bind_opt (set_unsolved sg pb i) sol in
                 (* Hope that we can just set X = solution and have solved for X *)
-                (* FIXME: This is highly inefficient !
+                (* FIXME: This is probably highly inefficient !
                    We first try X = sol then try again  X = +{sol ...}
                    thus trying to solve twice the same problem *)
                 ( match try_solve_next npb with
