@@ -11,13 +11,14 @@ exception NotUnifiable
 type var_p = int * int LList.t
 
 (* TODO: add loc to this to better handle errors *)
-type 'a problem =
-  | Eq of var_p * 'a
-  | AC of ac_ident * int * (var_p list) * ('a list)
+type 'a eq_problem = int * int * int LList.t * 'a
+
+type 'a ac_problem = int * ac_ident * int * (var_p list) * ('a list)
 
 type pre_matching_problem = {
-  pm_problems : int problem depthed list;
-  pm_miller   : int array
+  pm_eq_problems : int eq_problem list;
+  pm_ac_problems : int ac_problem list;
+  pm_miller      : int array
 }
 
 type te = term Lazy.t
@@ -28,9 +29,10 @@ type status =
   | Partly of ac_ident * te list
 
 type matching_problem = {
-  problems : te problem depthed list;
-  status   : status array;
-  miller   : int array
+  eq_problems : te eq_problem list;
+  ac_problems : te ac_problem list;
+  status      : status array;
+  miller      : int array
 }
 
 (**     Printing functions       **)
@@ -38,25 +40,21 @@ type matching_problem = {
 let pp_pos fmt p = fprintf fmt "stack.%a" pp_print_int p
 let pp_te fmt t = fprintf fmt "%a" pp_term (Lazy.force t)
 
-let pp_depthed pp_a fmt (_,a) = fprintf fmt "%a" pp_a a
-
 let pp_var_type fmt (i,args) =
   if LList.is_empty args
   then fprintf fmt "%i" i
-  else fprintf fmt "%i (%a)" i (pp_list " " pp_print_int) (LList.lst args)
+  else fprintf fmt "%i[%a]" i (pp_list " " pp_print_int) (LList.lst args)
 
 let pp_njoks fmt n = if n > 0 then fprintf fmt " + %i _" n
 
-let pp_problem pp_a fmt = function
-  | Eq(vp,t) -> fprintf fmt "%a = %a" pp_var_type vp pp_a t
-  | AC(aci,joks,vars,terms) ->
-     fprintf fmt "{ %a%a } =(%a) { %a }"
-             (pp_list " , " pp_var_type) vars
-             pp_njoks joks pp_ac_ident aci
-             (pp_list " , " pp_a) terms
+let pp_eq_problem pp_a fmt (_,vp,args,t) =
+  fprintf fmt "%a = %a" pp_var_type (vp,args) pp_a t
 
-let pp_mp_problems sep pp_a fmt mp_p =
-  fprintf fmt "[ %a ]" (pp_list sep (pp_depthed (pp_problem pp_a))) mp_p
+let pp_ac_problem pp_a fmt (_,aci,joks,vars,terms) =
+  fprintf fmt "{ %a%a } =(%a) { %a }"
+    (pp_list " , " pp_var_type) vars
+    pp_njoks joks pp_ac_ident aci
+    (pp_list " , " pp_a) terms
 
 let pp_indexed_status fmt (i,st) = match st with
   | Unsolved -> ()
@@ -71,23 +69,30 @@ let pp_mp_status sep fmt mp_s =
   if List.exists (function (_,Unsolved) -> false | _ -> true) stl
   then fprintf fmt "%swith [ %a ]" sep (pp_list " and " pp_indexed_status) stl
 
-let pp_pre_matching_problem sep fmt mp = pp_mp_problems sep pp_pos fmt mp.pm_problems
+let pp_mp_problems sep pp_a fmt eq_p ac_p =
+  fprintf fmt "[ %a | %a ]"
+    (pp_list sep (pp_eq_problem pp_a)) eq_p
+    (pp_list sep (pp_ac_problem pp_a)) ac_p
+
+let pp_pre_matching_problem sep fmt mp =
+  pp_mp_problems sep pp_pos fmt mp.pm_eq_problems mp.pm_ac_problems
 
 let pp_matching_problem sep fmt mp =
-  fprintf fmt "%a%a" (pp_mp_problems sep pp_te) mp.problems
-                     (pp_mp_status   sep      ) mp.status
+  pp_mp_problems sep pp_te fmt mp.eq_problems mp.ac_problems;
+  pp_mp_status   sep       fmt mp.status
 
-(**  Problem conversion from pre_problem  **)
+(**  Problem conversion from pre_problem  *)
 let mk_matching_problem f g pre_problem =
-  let convert_problem = function
-    | Eq (vp,p)                -> Eq (vp, f p)
-    | AC (aci,joks,vars,terms) -> AC(aci,joks,vars,g terms) in
   {
-    problems =  List.map (fun (i,p) -> (i, convert_problem p)) pre_problem.pm_problems;
+    eq_problems =
+      List.map (fun (d,i,args,p) -> (d,i,args,f p))
+        pre_problem.pm_eq_problems;
+    ac_problems =
+      List.map (fun (d,aci,joks,vars,rhs) -> (d,aci,joks,vars,g rhs))
+        pre_problem.pm_ac_problems;
     status   = Array.make (Array.length pre_problem.pm_miller) Unsolved;
     miller   = Array.copy pre_problem.pm_miller
   }
-
 
 (** Solve the following problem for lambda term X:
  *    (lambda^[depth]. X) [args] = [t] where [args] are distincts bound variables
@@ -211,16 +216,30 @@ let var_exists  i = List.exists (fun (j,_) -> i == j)
                          remove it from the matching_problem *)
 exception Fail_update
 
-let update_problems f pb =
+let update f =
   let rec update acc = function
-    | [] -> Some {pb with problems = List.rev acc}
-    | (d,p) :: tl ->
-      try match f d p with
-        | None         -> update acc          tl
-        | Some a       -> update ((d,a)::acc) tl
+    | [] -> Some (List.rev acc)
+    | hd :: tl ->
+      try match f hd with
+        | None         -> update acc      tl
+        | Some a       -> update (a::acc) tl
       with Fail_update -> None
   in
-  update [] pb.problems
+  update []
+
+let update_ac_problems ac_f pb =
+  map_opt
+    (fun nac -> { pb with ac_problems = nac  })
+    (update ac_f pb.ac_problems)
+
+let update_problems eq_f ac_f pb =
+  bind_opt
+    (fun neq ->
+       map_opt
+         (fun nac -> { pb with eq_problems = neq ; ac_problems = nac  })
+         (update ac_f pb.ac_problems))
+    (update eq_f pb.eq_problems)
+
 
 let update_status i s pb =
   let nstat = Array.copy pb.status in
@@ -229,37 +248,38 @@ let update_status i s pb =
 
 (** Resolves variable [i] = [t] *)
 let set_unsolved reducer convertible whnf pb i sol =
-  let filter d = function
-    | Eq((vi,args),ti) as p ->
-       if vi <> i then Some p
-       else
-         let lambdaed = add_n_lambdas pb.miller.(i) (Lazy.force sol) in
-         let shifted = Subst.shift d lambdaed in
-         if convertible (Lazy.force ti) (apply_args shifted args)
-         then None else raise Fail_update
-    | AC(aci,joks,vars,terms) ->
-       let sol = whnf (Lazy.force sol) in
-       (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
-       let flat_sols = force_flatten_AC_term reducer (fst aci) sol in
-       (* If aci represent ACU symbol, remove corresponding neutral element. *)
-       let flat_sols =
-         match snd aci with
-         | ACU neu -> List.filter (fun x -> not (convertible neu x)) flat_sols
-         | _ -> flat_sols in
-       let lambdaed = List.map (add_n_lambdas pb.miller.(i)) flat_sols in
-       let shifted = List.map (Subst.shift d) lambdaed in
-       let sols = compute_all_sols i vars shifted in
-       match remove_sols_occs convertible sols terms with
-       | None -> raise Fail_update
-       | Some nterms ->
-          let nvars = filter_vars i vars in
-          if nvars = []
-          then if nterms = [] || joks > 0
-               then None
-               else raise Fail_update
-          else Some ( AC(aci,joks,nvars,nterms)) in
+  let filter_eq p =
+    let (d, vi, args, ti) = p in
+      if vi <> i then Some p
+      else
+        let lambdaed = add_n_lambdas pb.miller.(i) (Lazy.force sol) in
+        let shifted = Subst.shift d lambdaed in
+        if convertible (Lazy.force ti) (apply_args shifted args)
+        then None else raise Fail_update
+  in
+  let filter_ac (d,aci,joks,vars,terms) =
+    let sol = whnf (Lazy.force sol) in
+    (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
+    let flat_sols = force_flatten_AC_term reducer (fst aci) sol in
+    (* If aci represent ACU symbol, remove corresponding neutral element. *)
+    let flat_sols =
+      match snd aci with
+      | ACU neu -> List.filter (fun x -> not (convertible neu x)) flat_sols
+      | _ -> flat_sols in
+    let lambdaed = List.map (add_n_lambdas pb.miller.(i)) flat_sols in
+    let shifted = List.map (Subst.shift d) lambdaed in
+    let sols = compute_all_sols i vars shifted in
+    match remove_sols_occs convertible sols terms with
+    | None -> raise Fail_update
+    | Some nterms ->
+      let nvars = filter_vars i vars in
+      if nvars = []
+      then if nterms = [] || joks > 0
+        then None
+        else raise Fail_update
+      else Some (d,aci,joks,nvars,nterms) in
   map_opt (update_status i (Solved sol))  (* update status of variable [i] *)
-          (update_problems filter pb)     (* if the substitution is compatible *)
+    (update_problems filter_eq filter_ac pb)     (* if the substitution is compatible *)
 
 let set_partly pb i aci =
   assert(pb.status.(i) == Unsolved);
@@ -274,15 +294,17 @@ let close_partly reduce convertible whnf pb i =
   match pb.status.(i) with
   | Partly(aci,terms) ->
      (* Remove occurence of variable i from all m.v headed AC problems. *)
-     let filter _ = function
-       | AC(aci',joks,vars,rhs) when ac_ident_eq aci aci' && var_exists i vars ->
+    let filter p =
+      let (d,aci',joks,vars,rhs) = p in
+      if ac_ident_eq aci aci' && var_exists i vars
+      then
          ( match filter_vars i vars with
            | [] -> if rhs = [] || joks > 0 then None else raise Fail_update
-           | filtered_vars -> Some( AC(aci,joks,filtered_vars,rhs) ) )
-       | p -> Some p
+           | filtered_vars -> Some (d,aci,joks,filtered_vars,rhs) )
+      else Some p
      in
      begin
-       match update_problems filter pb with
+       match update_ac_problems filter pb with
        | None -> None (* If the substitution is incompatible, then fail *)
        | Some nprob ->
          if terms = [] then (* If [i] is closed on empty list: X = +{} *)
@@ -299,22 +321,23 @@ let close_partly reduce convertible whnf pb i =
 let add_partly convertible pb i sol =
   match pb.status.(i) with
   | Partly(aci,terms) ->
-    let filter d = function
-      | AC(aci',joks,vars,terms)
-        when ac_ident_eq aci aci' && var_exists i vars ->
+    let filter p =
+      let (d,aci',joks,vars,terms) = p in
+      if ac_ident_eq aci aci' && var_exists i vars
+      then
         let lambdaed = add_n_lambdas pb.miller.(i) (Lazy.force sol) in
         let shifted = Subst.shift d lambdaed in
         let sols = compute_sols i shifted vars in
         begin
           match remove_sols_occs convertible sols terms with
           | None        -> raise Fail_update
-          | Some nterms -> Some (AC (aci,joks,vars,nterms))
+          | Some nterms -> Some (d,aci,joks,vars,nterms)
         end
-      | p -> Some p
+      else Some p
     in
     map_opt
-      (update_status i (Partly(aci,sol :: terms)))  (* Update status [i] *)
-      (update_problems filter pb)                   (* If update was a success. *)
+      (update_status i (Partly(aci,sol :: terms))) (* Update status [i] *)
+      (update_ac_problems filter pb)               (* If update was a success. *)
   | _ -> assert false
 
 
@@ -337,85 +360,50 @@ let get_all_ac_symbols pb i =
    and select a variable in it based on the highest following score:
 *)
 let fetch_next_problem pb =
-  match pb.problems with
+  match pb.ac_problems with
   | [] -> None
-  | (d, p) :: other_problems ->
-    Some ((d,p),other_problems,
-          match p with
-          | Eq((i,args),_) -> (i,args)
-          | AC(_,_,[],_) -> (-1,LList.nil)
-          | AC(aci,_,first :: vars,_) ->
-            (* Look for most interesting variable in the set. *)
-            let score (i,_) =
-              match pb.status.(i) with
-              | Unsolved -> 0
-              | Partly(aci',sols) ->
-                if ac_ident_eq aci aci' then 1 + List.length sols else max_int
-              | Solved _ -> assert false
-              (* Variables are removed from all problems when they are solved *)
-            in
-            let aux (bv,bs) v =
-              let s = score v in
-              if s < bs then (v,s) else (bv,bs) in
-            fst (List.fold_left aux (first, score first) vars)
+  | p :: other_problems ->
+    Some (p, other_problems,
+          let (_,aci,_,vars,_) = p in
+          (* Look for most interesting variable in the set. *)
+          let score (i,_) =
+            match pb.status.(i) with
+            | Unsolved -> 0
+            | Partly(aci',sols) ->
+              if ac_ident_eq aci aci' then 1 + List.length sols else max_int-1
+            | Solved _ -> assert false
+            (* Variables are removed from all problems when they are solved *)
+          in
+          let aux (bv,bs) v =
+            let s = score v in
+            if s < bs then (v,s) else (bv,bs) in
+          fst (List.fold_left aux ((-1,LList.nil),max_int) vars)
          )
 
-(* Put equationnal problems first, they can be deterministically solved right away
-   Then put AC problems
-   - Least number of variables first
-   - Least number of LHS terms first
-   - In case of a tie, problems with at least a joker should be handled second
-   *)
-let first_rearrange problems =
-  (* TODO: better rearrange to have easiest AC sets first. *)
-  let ac_f j v t = (List.length v, -List.length t, j > 0) in
-  let comp (_,a) (_,b) = match a, b with
-    | Eq _, AC _ -> -1
-    | AC _, Eq _ -> 1
-    | AC(_,j1,v1,t1), AC(_,j2,v2,t2) -> compare (ac_f j1 v1 t1) (ac_f j2 v2 t2)
-    | _ -> 0 in
-  List.sort comp problems
-
 let get_subst pb =
-  if pb.problems <> [] then None else
+  if pb.ac_problems <> [] then None else
     let aux i = function
       | Solved sol -> Some (lazy_add_n_lambdas pb.miller.(i) sol)
       | _ -> None in
     Some( Array.mapi aux pb.status )
 
-
-(* Main solving function *)
-let solve_problem reduce convertible whnf pb =
-  let problems = first_rearrange pb.problems in
+let solve_ac_problem reduce convertible whnf =
   let rec solve_next pb =
     match fetch_next_problem pb with
     | None -> get_subst pb
     (* If no problem left, compute substitution and return (success !) *)
 
-    | Some ((d, p), other_problems, (i,args)) ->
+    | Some (p, other_problems, (i,args)) ->
       (* Else explore the problem fetched... *)
-      Debug.(debug D_matching "Problem: %a" (pp_matching_problem "    ") pb);
-
       match p with
-      | Eq((j,_), term) -> (* If it's an easy equational problem: [X = t] *)
-        begin
-          assert (j == i); (* Selected var is X *)
-          assert (pb.status.(i) == Unsolved); (* Selected var is unsolved *)
-          let solu = try_force_solve reduce d args term in
-          let npb = bind_opt
-              (set_unsolved reduce convertible whnf {pb with problems=other_problems} i)
-              solu in
-          (* Update the rest of the problems with the solved variable and keep solving *)
-          try_solve_next npb
-        end
-      | AC(_,joks,[],terms) -> (* If we've chosen an AC equation: +{ X ... } = +{} *)
+      | (_,_,joks,[],terms) -> (* If we've chosen an AC equation: +{ X ... } = +{} *)
         (* Left hand side is now empty.
            Either fail (non empty RHS and no joker to match it)
            or simply discard AC equation. *)
         if terms = [] || joks > 0
-        then solve_next { pb with problems = other_problems }
+        then solve_next { pb with ac_problems = other_problems }
         else None
-      | AC(aci,_,_,rhs_terms) ->
+      | (d,aci,_,_,rhs_terms) ->
         (* If we've chosen an AC equation: +{ X, ... } = +{ ... } *)
         match pb.status.(i) with
         | Partly(aci',_) -> (* If X = +{X' ... }*)
@@ -469,4 +457,35 @@ let solve_problem reduce convertible whnf pb =
           try_eq_terms rhs_terms
         | Solved _ -> assert false
   and try_solve_next pb = bind_opt solve_next pb in
-  solve_next { pb with problems = problems }
+  solve_next
+
+
+(* Rearranges to have easiest AC sets first.
+   - Least number of variables first
+   - Least number of LHS terms first
+   - In case of a tie, problems with at least a joker should be handled second
+   *)
+let ac_rearrange problems =
+  let ac_f j v t = (List.length v, -List.length t, j > 0) in
+  let comp (_,_,j1,v1,t1) (_,_,j2,v2,t2) =
+    compare (ac_f j1 v1 t1) (ac_f j2 v2 t2) in
+  List.sort comp problems
+
+(* Main solving function.
+   Processes equationnal problems as they can be deterministically solved right away
+   then hands over to non deterministic AC solver. *)
+let rec solve_problem reduce convertible whnf pb =
+  Debug.(debug D_matching "Problem: %a@." (pp_matching_problem "    ") pb);
+  match pb.eq_problems with
+  | [] ->
+    (* Call AC solver on rearranged AC problems (easiest first) *)
+    solve_ac_problem reduce convertible whnf
+      {pb with ac_problems = ac_rearrange pb.ac_problems }
+  | (d,v,args,rhs) :: other_problems ->
+    assert (pb.status.(v) == Unsolved); (* Selected var is unsolved *)
+    let solu = try_force_solve reduce d args rhs in
+    let npb = bind_opt
+        (set_unsolved reduce convertible whnf {pb with eq_problems=other_problems} v)
+        solu in
+    (* Update the rest of the problems with the solved variable and keep solving *)
+    bind_opt (solve_problem reduce convertible whnf) npb

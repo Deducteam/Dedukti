@@ -389,7 +389,7 @@ and state_whnf (sg:Signature.t) (st:state) : state =
   | { ctx; term=Const (l,n); stack ; _} ->
     let trees = Signature.get_dtree sg l n in
     match find_dtree (List.length stack) trees with
-    | None -> (comb_state_shape_if_AC sg st)
+    | None -> comb_state_shape_if_AC sg st
     | Some (ar, tree) ->
       let s1, s2 = split ar stack in
       let s1 =

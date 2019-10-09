@@ -16,7 +16,7 @@ let set_debug_mode =
       | 'u' -> Debug.enable_flag  Typing.D_rule
       | 't' -> Debug.enable_flag  Typing.D_typeChecking
       | 'r' -> Debug.enable_flag  Reduction.D_reduce
-      | 'm' -> Debug.enable_flag  Dtree.D_matching
+      | 'm' -> Debug.enable_flag  Matching.D_matching
       | c -> raise (DebugFlagNotRecognized c)
     )
 

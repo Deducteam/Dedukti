@@ -3,8 +3,6 @@ open Basic
 open Rule
 open Matching
 
-type Debug.flag += D_matching
-
 (** {2 Error} *)
 
 type dtree_error =

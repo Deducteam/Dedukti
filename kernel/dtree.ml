@@ -4,9 +4,6 @@ open Rule
 open Format
 open Matching
 
-type Debug.flag += D_matching
-let _ = Debug.register_flag D_matching "Matching"
-
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
@@ -427,7 +424,8 @@ let get_first_constraints mx = mx.first.constraints
 let get_first_matching_problem (get_algebra:name->algebra) mx =
   let esize = mx.first.esize in
   let miller = Array.make esize (-1) in
-  let pbs = ref [] in
+  let eq_pbs = ref [] in
+  let ac_pbs = ref [] in
   Array.iteri
     (fun i p ->
       let depth = mx.col_depth.(i) in
@@ -439,7 +437,7 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
            let n = n - depth in
            let len = List.length lst in
            if miller.(n) == -1 then miller.(n) <- len else assert(miller.(n) == len);
-           pbs := (depth, Eq( (n, LList.of_list lst), i)) :: !pbs
+           eq_pbs := (depth, n, LList.of_list lst, i) :: !eq_pbs
          end
       | LACSet (cst,patl) ->
          begin
@@ -458,13 +456,14 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
                  end
               | _ -> assert false in
            let njoks, vars = List.fold_left fetch_vars (0,[]) patl in
-           pbs := (depth, AC((cst,get_algebra cst),njoks,vars,[i]) ) :: !pbs
+           ac_pbs := (depth,(cst,get_algebra cst),njoks,vars,[i]) :: !ac_pbs
          end
       | _ -> assert false
     ) mx.first.pats;
   assert (Array.fold_left (fun a x -> a && x >= 0) true miller);
   {
-    pm_problems = !pbs;
+    pm_eq_problems = !eq_pbs;
+    pm_ac_problems = !ac_pbs;
     pm_miller = miller
   }
 
@@ -564,7 +563,7 @@ let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
   let tab = String.init (1 + t*2) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
-  | Test (_,mp,[],te,_) when List.length mp.pm_problems == 0 ->
+  | Test (_,mp,[],te,_) when mp.pm_ac_problems = [] && mp.pm_eq_problems = [] ->
     fprintf fmt "%s%a" tab pp_term te
   | Test (name,mp,[],te,def) ->
      fprintf fmt "%stry %a :%s    %a%sthen %a%selse %a"
