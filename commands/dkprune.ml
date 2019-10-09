@@ -133,9 +133,12 @@ end
    transitive closure of the module dependencies *)
 let rec run_on_files files =
   let hook_before env =
-    match Parser.file_of_input (Env.get_input env) with
-    | None      -> log "[COMPUTE DEP] %s" (string_of_mident (Parser.md_of_input (Env.get_input env)))
-    | Some file -> log "[COMPUTE DEP] %s" file
+    let md = Env.get_name env in
+    if not @@ MSet.mem md !computed then
+      match Parser.file_of_input (Env.get_input env) with
+      | None      -> log "[COMPUTE DEP] %s"
+                       (string_of_mident (Parser.md_of_input (Env.get_input env)))
+      | Some file -> log "[COMPUTE DEP] %s" file
   in
   let hook_after env exn =
     match exn with
@@ -196,8 +199,10 @@ let print_dependencies names =
         (fun name dependencies -> NameSet.union (get_data name).down dependencies) names names in
     let mds = Hashtbl.fold (fun md _ set -> MSet.add md set) Dep.deps MSet.empty in
     let in_files md files =
-      let file = Files.get_file md in
-      if is_empty down_deps file then files else file::files
+      try
+        let file = Files.get_file md in
+        if is_empty down_deps file then files else file::files
+      with Files.Files_error(Files.ModuleNotFound _) -> files
     in
     let in_files = MSet.fold in_files mds [] in
     List.iter (write_file down_deps) in_files

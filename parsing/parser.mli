@@ -16,6 +16,8 @@ val input_from_string : Basic.mident -> string -> t
 
 val md_of_input : t -> Basic.mident
 
+val md_of_file  : string -> Basic.mident
+
 val file_of_input : t -> string option
 
 val close : t -> unit
