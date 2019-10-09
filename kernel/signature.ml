@@ -4,8 +4,7 @@ open Basic
 open Term
 open Rule
 
-type Debug.flag += D_module
-let _ = Debug.register_flag D_module "Module"
+let d_module = Debug.register_flag "Module"
 
 let fail_on_symbol_not_found = ref true
 
@@ -208,7 +207,7 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
       | _ -> ()
   in
   HId.iter aux ctx;
-  Debug.debug Confluence.D_confluence
+  Debug.debug Confluence.d_confluence
     "Checking confluence after loading module '%a'..." pp_mident md;
   try Confluence.check () with
   | Confluence.ConfluenceError e -> raise (SignatureError (ConfluenceErrorImport (lc,md,e)))
@@ -227,7 +226,7 @@ let add_external_declaration sg lc cst st ty =
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
   if HMd.mem sg.tables m
-  then Debug.(debug D_warn "Trying to import the already loaded module %s." (string_of_mident m))
+  then Debug.(debug d_warn "Trying to import the already loaded module %s." (string_of_mident m))
   else
     let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
     HMd.replace sg.tables m ctx;
@@ -235,7 +234,7 @@ let rec import sg lc m =
         let dep = mk_mident dep0 in
         if not (HMd.mem sg.tables dep) then import sg lc dep
       ) deps ;
-    Debug.(debug D_module "Loading module '%a'..." pp_mident m);
+    Debug.(debug d_module "Loading module '%a'..." pp_mident m);
     List.iter (fun rs -> add_rule_infos sg rs) ext;
     check_confluence_on_import lc m ctx
 
@@ -373,7 +372,7 @@ let add_rules sg = function
       if not (mident_eq sg.name (md r.cst)) then
         sg.external_rules <- rs::sg.external_rules;
       Confluence.add_rules rs;
-      Debug.(debug Confluence.D_confluence
+      Debug.(debug Confluence.d_confluence
                "Checking confluence after adding rewrite rules on symbol '%a'"
                pp_name r.cst);
       try Confluence.check ()

@@ -4,8 +4,7 @@ open Term
 open Dtree
 open Ac
 
-type Debug.flag += D_matching
-let _ = Debug.register_flag D_matching "Matching"
+let d_matching = Debug.register_flag "Matching"
 
 exception NotUnifiable
 
@@ -459,7 +458,9 @@ let get_all_ac_symbols pb i =
      Processes equationnal problems as they can be deterministically solved right away
      then hands over to non deterministic AC solver. *)
   let rec solve_problem sg pb =
-    Debug.(debug D_matching "Problem: %a@." (pp_matching_problem "    ") pb);
+    (*
+    Debug.(debug d_matching "Problem: %a@." (pp_matching_problem "    ") pb);
+    *)
     match pb.eq_problems with
     | [] ->
       (* Call AC solver on rearranged AC problems (easiest first) *)

@@ -26,13 +26,12 @@ module Printer = Pp.Make(CustomSig)
 
 
 module D = Basic.Debug
-type D.flag += D_prune
-let _ = D.register_flag D_prune "Dkprune"
-let enable_log : unit -> unit = fun () -> D.enable_flag D_prune
+let d_prune = D.register_flag "Dkprune"
+let enable_log : unit -> unit = fun () -> D.enable_flag d_prune
 
 let gre fmt = "\027[32m" ^^ fmt ^^ "\027[0m%!"
 
-let log fmt = D.debug D_prune (gre fmt)
+let log fmt = D.debug d_prune (gre fmt)
 
 type constraints =
   {

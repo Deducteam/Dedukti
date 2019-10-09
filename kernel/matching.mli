@@ -7,7 +7,7 @@ open Dtree
 
 exception NotUnifiable
 
-type Debug.flag += D_matching
+val d_matching : Debug.flag
 
 (** {2 Matching problems} *)
 

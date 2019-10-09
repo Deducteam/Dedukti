@@ -3,10 +3,8 @@ open Rule
 open Term
 open Dtree
 open Ac
-open Format
 
-type Debug.flag += D_reduce
-let _ = Debug.register_flag D_reduce "Reduce"
+let d_reduce = Debug.register_flag "Reduce"
 
 type red_target   = Snf | Whnf
 type red_strategy = ByName | ByValue | ByStrongValue
@@ -70,6 +68,9 @@ let state_ref_of_term t = mk_state_ref LList.nil t []
 
 (**************** Pretty Printing ****************)
 
+(*
+open Format
+
 let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
 
 let pp_stack fmt (st:stack) =
@@ -88,6 +89,7 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack ; _ } =
   else fprintf fmt "stack=[...](%i)}@." (List.length stack)
 
 let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true
+*)
 
 type matching_test = Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 type convertibility_test = Signature.t -> term -> term -> bool
@@ -272,10 +274,8 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
   let rec rw_list : (stack*dtree) list -> (rule_name*env*term) option =
     function
     | [] -> None
-    | [(stack, tree)] -> rw stack tree
-    | (stack, tree) :: tl ->
-      match rw stack tree with
-      | None -> rw_list tl | x -> x
+    | (stack, tree) :: [] -> rw stack tree
+    | (stack, tree) :: tl -> match rw stack tree with None -> rw_list tl | x -> x
   and rw (stack:stack) : dtree -> (rule_name*env*term) option =
     function
     (* Fetch case from AC-headed i-th state
@@ -357,7 +357,9 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
  *     of that same constant
  *)
 and state_whnf (sg:Signature.t) (st:state) : state =
-  let _ = Debug.(debug D_reduce "Reducing %a" pp_state_oneline st) in
+  (*
+  Debug.(debug d_reduce "Reducing %a" pp_state_oneline st);
+  *)
   let rec_call c t s = state_whnf sg (mk_state c t s) in
   match st with
   (* Weak heah beta normal terms *)
@@ -449,7 +451,7 @@ and conversion_step sg : (term * term) -> (term * term) list -> (term * term) li
     (b,b')::lst
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
   | t1, t2 -> begin
-      Debug.(debug D_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
+      Debug.(debug d_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
       raise NotConvertible end
 
 let rec are_convertible_lst sg : (term*term) list -> bool =

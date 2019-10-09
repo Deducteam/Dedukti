@@ -85,13 +85,12 @@ val get_path : unit -> string list
 
 module Debug : sig
 
-  type flag  = ..
-  (** Extensible type  for debug flags *)
+  type flag
+  val d_warn   : flag
+  val d_notice : flag
 
-  type flag += D_warn | D_notice
-
-  (** [register_flag fl m] set the header of error messages tagged by [f] to be [m] *)
-  val register_flag : flag -> string -> unit
+  (** [register_flag msg] generates a new flag with error message [msg] *)
+  val register_flag : string -> flag
 
   (** Activates error messages associated to a flag *)
   val enable_flag : flag -> unit

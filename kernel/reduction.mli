@@ -2,7 +2,7 @@
 open Basic
 open Term
 
-type Debug.flag += D_reduce
+val d_reduce : Debug.flag
 
 type red_target   = Snf | Whnf
 type red_strategy = ByName | ByValue | ByStrongValue
