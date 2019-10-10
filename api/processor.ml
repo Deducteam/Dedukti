@@ -212,3 +212,14 @@ let process_files : string list ->
       Env.fail_env_error env Basic.dloc exn
   in
   List.fold_left fold neutral files
+
+let of_pure (type a) ~f ~init : (module S with type t = a) =
+  (module struct
+    type t = a
+
+    let _d = ref init
+
+    let handle_entry env entry = _d := f !_d env entry
+
+    let get_data () = !_d
+  end)

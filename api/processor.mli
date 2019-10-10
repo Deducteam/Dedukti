@@ -62,6 +62,11 @@ val process_files : string list ->
   ('a -> 'b -> 'b) -> 'b ->
   (module S with type t = 'a) -> 'b
 
+val of_pure : f:('a -> Env.t -> Entry.entry -> 'a) -> init:'a
+  -> (module S with type t = 'a)
+(** [of_pure ~f ~init] returns processor from the fold-like function [f]. [f acc
+    env ent] folds entry [ent] on accumulator [acc] in environment [env]. *)
+
 (** {2 Custom processor} *)
 
 (** Implements the same processor as above with a custom environment. *)
