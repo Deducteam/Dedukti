@@ -30,9 +30,9 @@ let pp_indexed_status fmt (i,st) = match st with
   | Unsolved -> ()
   | Solved a -> fprintf fmt "%i = %a" i pp_te a
   | Partly(aci,terms) ->
-     fprintf fmt "%i = %a{ %i', %a }" i
-             pp_ac_ident aci i
-             (pp_list " ; " pp_te) terms
+    fprintf fmt "%i = %a{ %i', %a }" i
+      pp_ac_ident aci i
+      (pp_list " ; " pp_te) terms
 
 let pp_mp_status sep fmt mp_s =
   let stl = Array.to_list (Array.mapi (fun i st -> (i,st)) mp_s) in
@@ -198,16 +198,15 @@ struct
      - [Keep a] means the problem is replaced with [a]
      - [Drop]   means the problem is now solved / trivial / irrelevant
                 remove it from the matching_problem *)
+(*
   type 'a update_status = Fail | Drop | Keep of 'a
+*)
 
   let update f =
     let rec update acc = function
       | [] -> Some (List.rev acc)
       | hd :: tl ->
-        match f hd with
-        | Fail   -> None
-        | Drop   -> update acc      tl
-        | Keep a -> update (a::acc) tl
+        f hd (fun () -> update acc tl) (fun a -> update (a::acc) tl)
     in
     update []
 
@@ -229,14 +228,14 @@ struct
     nstat.(i) <- s;
     {pb with status = nstat}
 
-  let filter_eq sg arity i sol p =
+  let filter_eq sg arity i sol p drop keep =
     let (d, vi, args, ti) = p in
-    if vi <> i then Keep p
+    if vi <> i then keep p
     else
       let lambdaed = add_n_lambdas arity (Lazy.force sol) in
       let shifted = Subst.shift d lambdaed in
       if C.are_convertible sg (Lazy.force ti) (apply_args shifted args)
-      then Drop else Fail
+      then drop () else None
 
   let get_occs i =
     let rec aux acc = function
@@ -245,11 +244,11 @@ struct
     in
     aux []
 
-  let filter_ac sg arity i sol p =
+  let filter_ac sg arity i sol p drop keep =
     let (d,aci,joks,vars,terms) = p in
     (* Fetch occurences of [i] in [vars] *)
     match get_occs i vars with
-    | [] -> Keep p
+    | [] -> keep p
     | occs ->
       let sol = C.whnf sg (Lazy.force sol) in
       (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
@@ -263,14 +262,14 @@ struct
       let shifted = List.map (Subst.shift d) lambdaed in
       let sols = compute_all_sols shifted occs in
       match remove_sols_occs sg sols terms with
-      | None -> Fail
+      | None -> None
       | Some nterms ->
         let nvars = filter_vars i vars in
         if nvars = []
         then if nterms = [] || joks > 0
-          then Drop
-          else Fail
-        else Keep (d,aci,joks,nvars,nterms)
+          then drop ()
+          else None
+        else keep (d,aci,joks,nvars,nterms)
 
 (** Resolves variable [i] = [t] *)
   let set_unsolved sg pb i sol =
@@ -293,14 +292,14 @@ struct
     match pb.status.(i) with
     | Partly(aci,terms) ->
       (* Remove occurence of variable i from all m.v headed AC problems. *)
-      let filter p =
+      let filter p drop keep =
         let (d,aci',joks,vars,rhs) = p in
         if ac_ident_eq aci aci' && var_exists i vars
         then
           ( match filter_vars i vars with
-            | [] -> if rhs = [] || joks > 0 then Drop else Fail
-            | filtered_vars -> Keep (d,aci,joks,filtered_vars,rhs) )
-        else Keep p
+            | [] -> if rhs = [] || joks > 0 then drop () else None
+            | filtered_vars -> keep (d,aci,joks,filtered_vars,rhs) )
+        else keep p
       in
       begin
         match update_ac_problems filter pb with
@@ -320,7 +319,7 @@ struct
   let add_partly sg pb i sol =
     match pb.status.(i) with
     | Partly(aci,terms) ->
-      let filter p =
+      let filter p _ keep =
         let (d,aci',joks,vars,terms) = p in
         if ac_ident_eq aci aci' && var_exists i vars
         then
@@ -329,9 +328,9 @@ struct
           let occs = get_occs i vars in
           let sols = compute_sols shifted occs in
           match remove_sols_occs sg sols terms with
-          | None        -> Fail
-          | Some nterms -> Keep (d,aci,joks,vars,nterms)
-        else Keep p
+          | None        -> None
+          | Some nterms -> keep (d,aci,joks,vars,nterms)
+        else keep p
       in
       map_opt
         (update_status i (Partly(aci,sol :: terms))) (* Update status [i] *)
