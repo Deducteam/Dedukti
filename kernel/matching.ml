@@ -103,7 +103,8 @@ let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
 *)
 let solve (depth:int) (args:int LList.t) (te:term) : term =
   if LList.is_empty args
-  then try Subst.unshift depth te with Subst.UnshiftExn -> raise NotUnifiable
+  then try Subst.unshift depth te
+    with Subst.UnshiftExn -> raise NotUnifiable
   else solve_miller depth args te
 
 
@@ -143,23 +144,33 @@ struct
   (** Apply a Miller solution to variables *)
   let apply_args t l = mk_App2 t (List.map (fun k -> mk_DB dloc dmark k) (LList.lst l))
 
-  (** Compute all right hand terms fixed by substitution i = t *)
-  let compute_sols i sol =
-    let rec aux acc = function
+    (** [compute_all_sols vars i sols] computes the AC list of all right hand terms
+      fixed by substitution  [i] = [sol]  in the left-hand side of
+      +{ [i]\[[vars]_1\] ... [i]\[[vars]_n\] } = ...
+  *)
+  let compute_sols sol =
+    let rec loop_vars acc = function
       | [] -> acc
-      | (v,args) :: tl when v == i ->
-        aux ( (apply_args sol args) :: acc) tl
-      | _ :: tl -> aux acc tl in
-    aux []
-
-  (** Compute AC list of all right hand terms fixed by substitution i = +{ [terms] } *)
-  let compute_all_sols i vars =
-    let rec aux acc = function
-      | [] -> acc
-      | sol :: osol ->
-        aux (List.rev_append (compute_sols i sol vars) acc) osol
+      | var_args :: other_var_args ->
+        loop_vars ((apply_args sol var_args) :: acc) other_var_args
     in
-    aux []
+    loop_vars []
+
+  (** [compute_all_sols vars i sols] computes the AC list of all right hand terms
+      fixed by substitution  [i] = +{ [sols] }  in the left-hand side of
+      +{ [i]\[[vars]_1\] ... [i]\[[vars]_n\] } = ...
+  *)
+  let compute_all_sols sols =
+    let rec loop_sols acc args = function
+      | []           -> acc
+      | sol :: osols -> loop_sols ( (apply_args sol args) :: acc) args osols
+    in
+    let rec loop_term acc = function
+      | [] -> acc
+      | var_args :: other_var_args ->
+        loop_term (List.rev_append (loop_sols [] var_args sols) acc) other_var_args
+    in
+    loop_term []
 
   (** Remove term [sol] once from list [l]  *)
   let remove_sol sg sol l =
@@ -173,7 +184,7 @@ struct
 
   (** Remove each term in [sols] once from the [terms] list. *)
   let rec remove_sols_occs sg sols terms = match sols with
-    | [] -> Some(terms)
+    | [] -> Some terms
     | sol :: tl ->
       bind_opt (remove_sols_occs sg tl)
         (remove_sol sg sol terms)
@@ -183,31 +194,35 @@ struct
 
   (* Updating a matching_problem is done by updating successively
      the atomic problems. While updating an atomic problems:
-     - [raise Fail_update] means the whole matching_problem is now unsolvable
-     - [Some a]            means the problem is replaced with [a]
-     - [None]              means the problem is now solved / trivial / irrelevant
-                         remove it from the matching_problem *)
-  exception Fail_update
+     - [Fail]   means the whole matching_problem is now unsolvable
+     - [Keep a] means the problem is replaced with [a]
+     - [Drop]   means the problem is now solved / trivial / irrelevant
+                remove it from the matching_problem *)
+  type 'a update_status = Fail | Drop | Keep of 'a
 
   let update f =
     let rec update acc = function
-      | [] -> List.rev acc
+      | [] -> Some (List.rev acc)
       | hd :: tl ->
         match f hd with
-        | None         -> update acc      tl
-        | Some a       -> update (a::acc) tl
+        | Fail   -> None
+        | Drop   -> update acc      tl
+        | Keep a -> update (a::acc) tl
     in
     update []
 
   let update_ac_problems ac_f pb =
-    try Some { pb with ac_problems = update ac_f pb.ac_problems }
-    with Fail_update -> None
+    map_opt
+      (fun ac_pbs -> { pb with ac_problems = ac_pbs })
+      (update ac_f pb.ac_problems)
 
   let update_problems eq_f ac_f pb =
-    try Some { pb with
-               ac_problems = update ac_f pb.ac_problems ;
-               eq_problems = update eq_f pb.eq_problems }
-    with Fail_update -> None
+    bind_opt
+      (fun eq_pbs ->
+         map_opt
+           (fun ac_pbs -> { pb with ac_problems = ac_pbs; eq_problems = eq_pbs })
+           (update ac_f pb.ac_problems))
+      (update eq_f pb.eq_problems)
 
   let update_status i s pb =
     let nstat = Array.copy pb.status in
@@ -216,12 +231,12 @@ struct
 
   let filter_eq sg arity i sol p =
     let (d, vi, args, ti) = p in
-    if vi <> i then Some p
+    if vi <> i then Keep p
     else
       let lambdaed = add_n_lambdas arity (Lazy.force sol) in
       let shifted = Subst.shift d lambdaed in
       if C.are_convertible sg (Lazy.force ti) (apply_args shifted args)
-      then None else raise Fail_update
+      then Drop else Fail
 
   let get_occs i =
     let rec aux acc = function
@@ -234,8 +249,8 @@ struct
     let (d,aci,joks,vars,terms) = p in
     (* Fetch occurences of [i] in [vars] *)
     match get_occs i vars with
-    | [] -> Some p
-    | _ ->
+    | [] -> Keep p
+    | occs ->
       let sol = C.whnf sg (Lazy.force sol) in
       (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
       let flat_sols = force_flatten_AC_term (C.snf sg) (fst aci) sol in
@@ -246,16 +261,16 @@ struct
         | _ -> flat_sols in
       let lambdaed = List.map (add_n_lambdas arity) flat_sols in
       let shifted = List.map (Subst.shift d) lambdaed in
-      let sols = compute_all_sols i vars shifted in
+      let sols = compute_all_sols shifted occs in
       match remove_sols_occs sg sols terms with
-      | None -> raise Fail_update
+      | None -> Fail
       | Some nterms ->
         let nvars = filter_vars i vars in
         if nvars = []
         then if nterms = [] || joks > 0
-          then None
-          else raise Fail_update
-        else Some (d,aci,joks,nvars,nterms)
+          then Drop
+          else Fail
+        else Keep (d,aci,joks,nvars,nterms)
 
 (** Resolves variable [i] = [t] *)
   let set_unsolved sg pb i sol =
@@ -283,9 +298,9 @@ struct
         if ac_ident_eq aci aci' && var_exists i vars
         then
           ( match filter_vars i vars with
-            | [] -> if rhs = [] || joks > 0 then None else raise Fail_update
-            | filtered_vars -> Some (d,aci,joks,filtered_vars,rhs) )
-        else Some p
+            | [] -> if rhs = [] || joks > 0 then Drop else Fail
+            | filtered_vars -> Keep (d,aci,joks,filtered_vars,rhs) )
+        else Keep p
       in
       begin
         match update_ac_problems filter pb with
@@ -311,13 +326,12 @@ struct
         then
           let lambdaed = add_n_lambdas pb.arity.(i) (Lazy.force sol) in
           let shifted = Subst.shift d lambdaed in
-          let sols = compute_sols i shifted vars in
-          begin
-            match remove_sols_occs sg sols terms with
-            | None        -> raise Fail_update
-            | Some nterms -> Some (d,aci,joks,vars,nterms)
-          end
-        else Some p
+          let occs = get_occs i vars in
+          let sols = compute_sols shifted occs in
+          match remove_sols_occs sg sols terms with
+          | None        -> Fail
+          | Some nterms -> Keep (d,aci,joks,vars,nterms)
+        else Keep p
       in
       map_opt
         (update_status i (Partly(aci,sol :: terms))) (* Update status [i] *)
