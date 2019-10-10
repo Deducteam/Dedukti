@@ -115,9 +115,9 @@ type t
 (** Type mapping arities to decision trees (also called "forest") *)
 
 val empty : t
-(** Empty forest *)
+(** Empty forest for a free algebra *)
 
-val find_dtree : int -> t -> (int * dtree) option
+val find_dtree : int -> t -> algebra * (int * dtree) option
 (** [find_dtree ar forest] returns a pair (arity,dtree) in given forest
     such that arity <= ar. Returns [None] when not found. *)
 
@@ -127,7 +127,7 @@ val pp_dtree : dtree printer
 val pp_dforest : t printer
 (** Printer for forests of decision trees. *)
 
-val of_rules : (name -> algebra) -> rule_infos list -> t
+val of_rules : name -> (name -> algebra) -> rule_infos list -> t
 (** Compilation of rewrite rules into decision trees.
     Returns a list of arities and corresponding decision trees.
     Invariant : arities must be sorted in decreasing order.

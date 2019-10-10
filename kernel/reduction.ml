@@ -140,7 +140,7 @@ let to_comb sg l cst ctx stack =
 
 (* Unfolds all occurences of the AC(U) symbol in the stack
  * Removes occurence of neutral element.  *)
-let rec flatten_AC_stack sg (l:loc) (cst:name) (stack:stack) : stack =
+let rec flatten_AC_stack sg (cst:name) : stack -> stack =
   let rec flatten acc = function
     | [] -> acc
     | st :: tl ->
@@ -154,31 +154,35 @@ let rec flatten_AC_stack sg (l:loc) (cst:name) (stack:stack) : stack =
           flatten acc (st1 :: st2 :: tl)
         | _ -> flatten (st::acc) tl
   in
-  let stack = flatten [] stack in
-  match Signature.get_algebra sg l cst with
-  | ACU neu -> List.filter (fun st -> not (C.are_convertible sg (term_of_state_ref st) neu)) stack
-  | _ -> stack
+  flatten []
 
-and comb_state_shape_if_AC sg st =
-  match st with
-  | { ctx; term=Const (l,cst); stack=(s1::s2::rstack) ; _ } when Signature.is_AC sg l cst ->
-    let nstack = flatten_AC_stack sg l cst [s1;s2] in
-    let combed = to_comb sg l cst ctx nstack in
-    let fstack = match rstack with [] -> combed.stack | l -> combed.stack@l in
-    { combed with stack = fstack }
-  | st -> st
+and comb_state_if_AC alg sg st =
+  if Term.is_AC alg then
+    match st with
+    | { ctx; term=Const (l,cst); stack=(s1::s2::rstack) ; _ } ->
+      let nstack = flatten_AC_stack sg cst [s1;s2] in
+      let nstack = match alg with
+        | ACU neu ->
+          List.filter
+            (fun st -> not (C.are_convertible sg (term_of_state_ref st) neu)) nstack
+        | _ -> nstack in
+      let combed = to_comb sg l cst ctx nstack in
+      let fstack = match rstack with [] -> combed.stack | l -> combed.stack@l in
+      { combed with stack = fstack }
+    | st -> st
+  else st
 
-and comb_term_shape_if_AC sg : term -> term = function
-  | App(Const (l,cst), a1, a2::remain_args) when Signature.is_AC sg l cst ->
-     let id_comp = Signature.get_id_comparator sg in
-     let args = flatten_AC_terms cst [a1;a2] in
-     let args = filter_neutral sg l cst args in
-     let args = List.sort (compare_term id_comp) args in
-     let _ = assert (List.length args > 0) in
-     mk_App2
-       (unflatten_AC (cst, Signature.get_algebra sg l cst) args)
-       remain_args
-  (* mk_App2 (unflatten sg l cst args) remain_args *)
+and comb_term_if_AC sg : term -> term = function
+  | App(Const (l,cst), a1, a2::remain_args) as t ->
+    let alg = Signature.get_algebra sg l cst in
+    if is_AC alg then
+      let id_comp = Signature.get_id_comparator sg in
+      let args = flatten_AC_terms cst [a1;a2] in
+      let args = filter_neutral sg l cst args in
+      let args = List.sort (compare_term id_comp) args in
+      let _ = assert (List.length args > 0) in
+      mk_App2 (unflatten_AC (cst, alg) args) remain_args
+    else t
   | t -> t
 
 and find_case sg
@@ -194,12 +198,12 @@ and find_case sg
   | { ctx; term; stack } , CConst (nargs,cst,true)
     when List.length stack == nargs - 2 -> (* should we also check for the type of t ? *)
     let new_st = ref {ctx;term;stack=[]} in
-    let new_stack = flatten_AC_stack sg dloc cst [new_st] in
+    let new_stack = flatten_AC_stack sg cst [new_st] in
     Some ( (mk_state_ref ctx (mk_Const dloc cst) new_stack) :: stack)
 
-  | { term=Const (l,cst); stack=t1::t2::s ; _ } , CConst (nargs,cst',true)
+  | { term=Const (_,cst); stack=t1::t2::s ; _ } , CConst (nargs,cst',true)
     when name_eq cst cst' && nargs == List.length s + 2 ->
-    Some ( (mk_state_ref st.ctx st.term (flatten_AC_stack sg l cst [t1;t2]))::s)
+    Some ( (mk_state_ref st.ctx st.term (flatten_AC_stack sg cst [t1;t2]))::s)
 
   | { term=Const (_,cst); stack ; _ } , CConst (nargs,cst',false) ->
     if name_eq cst cst' && List.length stack == nargs
@@ -384,20 +388,20 @@ and state_whnf (sg:Signature.t) (st:state) : state =
   | { ctx; term=Const (l,n); stack ; _} ->
     let trees = Signature.get_dtree sg l n in
     match find_dtree (List.length stack) trees with
-    | None -> comb_state_shape_if_AC sg st
-    | Some (ar, tree) ->
+    | alg, None -> comb_state_if_AC alg sg st
+    | alg, Some (ar, tree) ->
       let s1, s2 = split ar stack in
       let s1 =
-        if Signature.is_AC sg l n && ar > 1
+        if ar > 1 && Term.is_AC alg
         then
           match s1 with
           | t1 :: t2 :: tl ->
-            let flat = flatten_AC_stack sg l n [t1;t2] in
-            (mk_state_ref ctx (mk_Const l n) flat):: tl
+            let flat = flatten_AC_stack sg n [t1;t2] in
+            (mk_state_ref ctx (mk_Const l n) flat) :: tl
           | _ -> assert false
         else s1 in
       match gamma_rw sg !selection s1 tree with
-      | None -> (comb_state_shape_if_AC sg st)
+      | None -> comb_state_if_AC alg sg st
       | Some (_,ctx,term) -> rec_call ctx term s2
 
 (* ************************************************************** *)
@@ -411,7 +415,7 @@ and snf sg (t:term) : term =
   | Kind | Const _ | DB _ | Type _ as t' -> t'
   | App (f,a,lst) ->
      let res = mk_App (snf sg f) (snf sg a) (List.map (snf sg) lst) in
-     comb_term_shape_if_AC sg res
+     comb_term_if_AC sg res
   | Pi (_,x,a,b) -> mk_Pi dloc x (snf sg a) (snf sg b)
   | Lam (_,x,a,b) -> mk_Lam dloc x (map_opt (snf sg) a) (snf sg b)
 
@@ -529,20 +533,20 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
       | { ctx; term=Const (l,n); stack ; _ }, _ ->
         let trees = Signature.get_dtree sg l n in
         match find_dtree (List.length stack) trees with
-        | None -> comb_state_shape_if_AC sg st
-        | Some (ar, tree) ->
+        | alg, None -> comb_state_if_AC alg sg st
+        | alg, Some (ar, tree) ->
           let s1, s2 = split ar stack in
           let s1 =
-            if Signature.is_AC sg l n && ar > 1
+            if ar > 1 && Term.is_AC alg
             then
               match s1 with
               | t1 :: t2 :: tl ->
-                let flat = flatten_AC_stack sg l n [t1;t2] in
+                let flat = flatten_AC_stack sg n [t1;t2] in
                 (mk_state_ref ctx (mk_Const l n) flat):: tl
               | _ -> assert false
             else s1 in
           match gamma_rw sg !selection s1 tree with
-          | None -> comb_state_shape_if_AC sg st
+          | None -> comb_state_if_AC alg sg st
           | Some (rn,ctx,term) ->
             let st' = mk_state ctx term s2 in
             log pos rn st st';

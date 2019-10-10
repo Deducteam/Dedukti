@@ -62,15 +62,17 @@ type dtree =
   | ACEmpty of int * dtree * dtree option
 
 (** Type of decision forests *)
-type t = (int * dtree) list
+type t = algebra * ((int * dtree) list)
 
-let empty = []
+let empty = (Free, [])
 
 (** Return first pair (ar,tree) in given list such that ar <= stack_size *)
-let rec find_dtree stack_size = function
+let find_dtree stack_size (alg,l) =
+  let rec aux = function
   | [] -> None
-  | hd :: tl -> if fst hd <= stack_size then Some hd
-    else find_dtree stack_size tl
+  | hd :: tl ->
+    if fst hd <= stack_size then Some hd else aux tl
+  in alg, (aux l)
 
 let mk_AC_set cst pat1 pat2 =
   let rec flatten acc = function
@@ -560,11 +562,9 @@ let rec add l ar =
     else if ar == hd then l (* ar is already in l *)
     else hd :: (add tl ar)
 
-let of_rules get_algebra = function
-  | [] -> []
-  | r::_ as rs ->
-    let name = r.cst in
-    let ac = is_AC (get_algebra name) in
+let of_rules name get_algebra rs : t =
+    let alg = get_algebra name in
+    let ac = is_AC alg in
     let arities = ref [] in
     List.iter
       (fun x ->
@@ -585,8 +585,7 @@ let of_rules get_algebra = function
     let aux ar =
       let m = mk_matrix ac ar rs in
       (ar, to_dtree get_algebra m) in
-    List.map aux sorted_arities
-
+    (alg, List.map aux sorted_arities)
 
 (******************************************************************************)
 
@@ -651,5 +650,7 @@ let pp_rw fmt (i,g) =
   fprintf fmt "When applied to %i argument(s): %a" i pp_dtree g
 
 let pp_dforest fmt = function
-  | []    -> fprintf fmt "No GDT.@."
-  | trees -> fprintf fmt "%a@." (pp_list "\n" pp_rw) trees
+  | Free , []    -> fprintf fmt "No GDT.@."
+  | AC   , []    -> fprintf fmt "No GDT for AC symbol.@."
+  | ACU _, []    -> fprintf fmt "No GDT for ACU symbol.@."
+  | _, trees -> fprintf fmt "%a@." (pp_list "\n" pp_rw) trees

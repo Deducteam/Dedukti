@@ -42,6 +42,10 @@ module HId = Hashtbl.Make(
 
 type staticity = Static | Definable of algebra
 
+let algebra_of_staticity = function
+  | Static -> Free
+  | Definable a -> a
+
 (** The pretty printer for the type [staticity] *)
 let pp_staticity fmt s =
   Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable")
@@ -194,23 +198,23 @@ let neu2_rule (name:name) (neu:term) =
     }
 
 let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
+  let open Confluence in
   let aux id infos =
     let cst = mk_name md id in
-    Confluence.add_constant cst;
-    match infos.rules with
-    | [] -> ()
-    | rs -> Confluence.add_rules rs;
-      match infos.stat with
-      | Definable AC -> Confluence.add_rules [ comm_rule cst; asso_rule cst ]
-      | Definable(ACU neu) -> Confluence.add_rules [ comm_rule cst    ; asso_rule cst;
-                                                     neu1_rule cst neu; neu2_rule cst neu ]
-      | _ -> ()
+    add_constant cst;
+    add_rules infos.rules;
+    match infos.stat with
+    | Definable AC -> add_rules [ comm_rule cst; asso_rule cst ]
+    | Definable(ACU neu) ->
+      add_rules [ comm_rule cst    ; asso_rule cst;
+                  neu1_rule cst neu; neu2_rule cst neu ]
+    | _ -> ()
   in
   HId.iter aux ctx;
-  Debug.debug Confluence.d_confluence
+  Debug.debug d_confluence
     "Checking confluence after loading module '%a'..." pp_mident md;
-  try Confluence.check () with
-  | Confluence.ConfluenceError e -> raise (SignatureError (ConfluenceErrorImport (lc,md,e)))
+  try check ()
+  with ConfluenceError e -> raise (SignatureError (ConfluenceErrorImport (lc,md,e)))
 
 let add_external_declaration sg lc cst st ty =
   try
@@ -254,18 +258,18 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     then raise (SignatureError (CannotAddRewriteRules (r.l,r.cst)));
     HId.replace env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None}
 
-and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
+and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t =
   let infos, env = get_info_env sg lc cst in
   match infos.decision_tree, infos.rules with
   (* Non-empty set of rule but decision trees not computed *)
-  | None, (_::_ as rules) ->
+  | None, rules ->
     let trees =
-      try Dtree.of_rules (get_algebra sg dloc) rules
+      try Dtree.of_rules cst (get_algebra sg dloc) rules
       with Dtree.DtreeError e -> raise (SignatureError (CannotBuildDtree e))
     in
     HId.replace env (id cst) {infos with decision_tree=Some trees};
-    Some trees
-| t, _ -> t
+    trees
+  | Some t, _ -> t
 
 and get_info_env sg lc cst =
   let md = md cst in
@@ -282,9 +286,7 @@ and get_infos sg lc cst = fst (get_info_env sg lc cst)
 
 and get_staticity sg lc name = (get_infos sg lc name).stat
 
-and get_algebra sg lc name =
-  match get_staticity sg lc name with
-  | Definable a -> a | Static -> Free
+and get_algebra sg lc name = algebra_of_staticity (get_staticity sg lc name)
 
 and is_AC sg lc name = Term.is_AC (get_algebra sg lc name)
 
@@ -351,12 +353,8 @@ let get_type sg lc cst = (get_infos sg lc cst).ty
 let get_rules sg lc cst = (get_infos sg lc cst).rules
 
 let get_dtree sg lc cst =
-  try
-    match compute_dtree sg lc cst with
-    | None -> Dtree.empty
-    | Some trees -> trees
-  with e ->
-    if not !fail_on_symbol_not_found then Dtree.empty else raise e
+  try compute_dtree sg lc cst
+  with e -> if not !fail_on_symbol_not_found then Dtree.empty else raise e
 
 (******************************************************************************)
 
