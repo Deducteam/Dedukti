@@ -29,14 +29,14 @@ type t =
   }
 
 let dummy ?md () =
+  let dummy_md = match md with
+    | None    -> Basic.mk_mident ""
+    | Some(m) -> m
+  in
   let dummy_sig =
-    let dummy_md = match md with
-      | None    -> Basic.mk_mident ""
-      | Some(m) -> m
-    in
     Signature.make dummy_md (fun _ _ -> "")
   in
-  { input = Parser.input_from_file ""
+  { input = Parser.input_from_string dummy_md ""
   ; sg = dummy_sig
   ; red = (module Reduction.Default)
   ; typer = (module Typing.Default) }
