@@ -7,8 +7,17 @@ open Parsers
 (** {2 Error Datatype} *)
 
 type t
+(** An environment is created from a {!Parser.input}. Environment is the module
+    which interacts with the kernel. An environment allows you to change at
+    runtime the reduction engine and the printer. The current version of Dedukti
+    offers you one reduction engine, but this feature is mainly aim to be used
+    with the [dkmeta] tool. The printer of [Env] is different from [Pp] in a
+    sense that the module of a constant is not printed if it is the same as the
+    current module. *)
 
-(** An environment is create from a {!Parser.input}. Environment is the module which interacts with the kernel. An environment allows you to change at runtime the reduction engine and the printer. The current version of Dedukti offers you one reduction engine, but this feature is mainly aim to be used with the [dkmeta] tool. The printer of [Env] is different from [Pp] in a sense that the module of a constant is not printed if it is the same as the current module. *)
+val dummy : ?md:mident -> unit -> t
+(** [dummy ?m ()] returns a dummy environment. If [m] is provided, the
+    environment is built from module [m], but without file. *)
 
 exception Env_error of t * loc * exn
 

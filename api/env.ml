@@ -28,6 +28,19 @@ type t =
     typer : (module Typing.S)
   }
 
+let dummy ?md () =
+  let dummy_sig =
+    let dummy_md = match md with
+      | None    -> Basic.mk_mident ""
+      | Some(m) -> m
+    in
+    Signature.make dummy_md (fun _ _ -> "")
+  in
+  { input = Parser.input_from_file ""
+  ; sg = dummy_sig
+  ; red = (module Reduction.Default)
+  ; typer = (module Typing.Default) }
+
 exception Env_error of t * loc * exn
 
 let get_input env = env.input
