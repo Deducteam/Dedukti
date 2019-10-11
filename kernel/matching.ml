@@ -204,14 +204,29 @@ struct
     in
     aux []
 
-  let update_problems sg arity i sol pb =
-    let rec update_ac eq_pbs acc = function
-      | [] -> Some { pb with ac_problems = List.rev acc; eq_problems = eq_pbs }
+  let update_eq_problems sg arity i sol =
+    let rec update_eq acc = function
+      | [] -> Some (List.rev acc)
+      | p :: tl ->
+        let (d, vi, args, ti) = p in
+        if vi <> i then update_eq (p::acc) tl
+        else
+          let lambdaed = add_n_lambdas arity (Lazy.force sol) in
+          let shifted = Subst.shift d lambdaed in
+          if C.are_convertible sg (Lazy.force ti) (apply_args shifted args)
+          then update_eq acc tl
+          else None
+    in
+    update_eq []
+
+  let update_ac_problems sg arity i sol =
+    let rec update_ac acc = function
+      | [] -> Some (List.rev acc)
       | p :: tl ->
         let (d,aci,joks,vars,terms) = p in
         (* Fetch occurences of [i] in [vars] *)
         match get_occs i vars with
-        | [] -> update_ac eq_pbs (p::acc) tl
+        | [] -> update_ac (p::acc) tl
         | occs ->
           let sol = C.whnf sg (Lazy.force sol) in
           (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
@@ -230,28 +245,20 @@ struct
             let nvars = filter_vars i vars in
             if nvars = []
             then if nterms = [] || joks > 0
-              then update_ac eq_pbs acc tl
+              then update_ac acc tl
               else None
-            else update_ac eq_pbs ((d,aci,joks,nvars,nterms)::acc) tl
+            else update_ac ((d,aci,joks,nvars,nterms)::acc) tl
     in
-    let rec update_eq acc = function
-      | [] -> update_ac (List.rev acc) [] pb.ac_problems
-      | p :: tl ->
-        let (d, vi, args, ti) = p in
-        if vi <> i then update_eq (p::acc) tl
-        else
-          let lambdaed = add_n_lambdas arity (Lazy.force sol) in
-          let shifted = Subst.shift d lambdaed in
-          if C.are_convertible sg (Lazy.force ti) (apply_args shifted args)
-          then update_eq acc tl
-          else None
-    in
-    update_eq [] pb.eq_problems
+    update_ac []
 
   (** Resolves variable [i] = [t] *)
   let set_unsolved sg pb i sol =
-    map_opt (update_status i (Solved sol))       (* update status of variable [i] *)
-      (update_problems sg pb.arity.(i) i sol pb) (* if the substitution is compatible *)
+    map_opt
+      (* update status of variable [i] *)
+      (fun ac_pbs ->
+         update_status i (Solved sol) {pb with ac_problems = ac_pbs})
+      (* if the substitution is compatible *)
+      (update_ac_problems sg pb.arity.(i) i sol pb.ac_problems)
 
   let set_partly pb i aci =
     assert(pb.status.(i) == Unsolved);
@@ -337,24 +344,20 @@ let get_all_ac_symbols pb i =
      Current implementation always returns the first problem
      and select a variable in it based on the highest following score:
   *)
-  let fetch_next_problem pb =
-    match pb.ac_problems with
-    | [] -> None
-    | p :: other_problems ->
-      let (_,aci,_,vars,_) = p in
-      (* Look for most interesting variable in the set. *)
-      let score (i,_) =
-        match pb.status.(i) with
-        | Unsolved -> 0
-        | Partly(aci',sols) ->
-          if ac_ident_eq aci aci' then 1 + List.length sols else max_int-1
-        | Solved _ -> assert false
+  let fetch_var pb (_,aci,_,vars,_) =
+    (* Look for most interesting variable in the set. *)
+    let score (i,_) =
+      match pb.status.(i) with
+      | Unsolved -> 0
+      | Partly(aci',sols) ->
+        if ac_ident_eq aci aci' then 1 + List.length sols else max_int-1
+      | Solved _ -> assert false
         (* Variables are removed from all problems when they are solved *)
-      in
-      let aux (bv,bs) v =
-        let s = score v in
-        if s < bs then (v,s) else (bv,bs) in
-      Some (p, other_problems, fst (List.fold_left aux ((-1,LList.nil),max_int) vars))
+    in
+    let aux (bv,bs) v =
+      let s = score v in
+      if s < bs then (v,s) else (bv,bs) in
+    fst (List.fold_left aux ((-1,LList.nil),max_int) vars)
 
   let get_subst pb =
     assert(pb.ac_problems = []);
@@ -366,12 +369,13 @@ let get_all_ac_symbols pb i =
 
   let solve_ac_problem sg =
     let rec solve_next pb =
-      match fetch_next_problem pb with
-      | None -> Some (get_subst pb)
+      match pb.ac_problems with
+      | [] -> Some (get_subst pb)
       (* If no problem left, compute substitution and return (success !) *)
-
-      | Some (p, other_problems, (i,args)) ->
-        (* Else explore the problem fetched... *)
+      | p :: other_problems ->
+        (* Else pick an interesting variable... *)
+        let (i,args) = fetch_var pb p in
+        (* Then explore the problem fetched... *)
         match p with
         | (_,_,joks,[],terms) -> (* If we've chosen an AC equation: +{ X ... } = +{} *)
           (* Left hand side is now empty.
@@ -453,20 +457,26 @@ let get_all_ac_symbols pb i =
   let rec solve_problem sg pb =
     match pb.eq_problems with
     | [] ->
-      (* Call AC solver on rearranged AC problems (easiest first) *)
-      solve_ac_problem sg
-        {pb with ac_problems = ac_rearrange pb.ac_problems }
+      if pb.ac_problems = []
+      then Some (get_subst pb)
+      else
+        (* Call AC solver on rearranged AC problems (easiest first) *)
+        solve_ac_problem sg
+          {pb with ac_problems = ac_rearrange pb.ac_problems }
     | (d,v,args,rhs) :: other_problems ->
       assert (pb.status.(v) == Unsolved); (* Selected var is unsolved *)
       match try_force_solve sg d args rhs with
       | None -> None
       | Some solu ->
-        bind_opt
-          (fun npb ->
-             (* (3) Then in place update status of variable [v] as solved *)
-             npb.status.(v) <- Solved solu;
-             (* (4) Finally keep solving the problem *)
-             solve_problem sg npb)
-          (update_problems sg pb.arity.(v) v solu
-             {pb with eq_problems=other_problems})
+        (* Update other problems with found solution *)
+        match update_eq_problems sg pb.arity.(v) v solu other_problems with
+        | None -> None
+        | Some eq_pbs ->
+          match update_ac_problems sg pb.arity.(v) v solu pb.ac_problems with
+          | None -> None
+          | Some ac_pbs ->
+            (* (3) Then in place update status of variable [v] as solved *)
+            pb.status.(v) <- Solved solu;
+            (* (4) Finally keep solving the problem *)
+            solve_problem sg {pb with ac_problems=ac_pbs; eq_problems=eq_pbs }
 end

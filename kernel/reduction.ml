@@ -260,15 +260,12 @@ and find_cases sg
 (* Problem conversion *)
 
 and convert_problem (stack:state ref list) problem =
-  let lazy_stack = List.map (fun s -> lazy (term_of_state_ref s)) stack in
-  let lazy_array = Array.of_list lazy_stack in
-  let convert i = lazy_array.(i) in
+  let array_stack = Array.of_list stack in
+  let array_lazy_stack = Array.map (fun c -> lazy (term_of_state_ref c)) array_stack in
+  let convert i = array_lazy_stack.(i) in
   let convert_ac_sets i =
-    let arg_i = List.nth stack i in
-    match !arg_i with
-    | { term=Const _; stack=st ; _ } ->
-      List.map (fun s -> lazy (term_of_state_ref s)) st
-    | _ -> assert false in
+    List.map (fun s -> lazy (term_of_state_ref s)) !(array_stack.(i)).stack
+  in
   Matching.mk_matching_problem convert convert_ac_sets problem
 
 
