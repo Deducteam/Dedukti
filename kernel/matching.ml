@@ -192,45 +192,10 @@ struct
   let filter_vars i = List.filter (fun (j,_) -> i != j)
   let var_exists  i = List.exists (fun (j,_) -> i == j)
 
-  (* Updating a matching_problem is done by updating successively
-     the atomic problems. While updating an atomic problems:
-     - [Fail]   means the whole matching_problem is now unsolvable
-     - [Keep a] means the problem is replaced with [a]
-     - [Drop]   means the problem is now solved / trivial / irrelevant
-                remove it from the matching_problem *)
-(*
-  type 'a update_status = Fail | Drop | Keep of 'a
-*)
-
-  let update f =
-    let rec update acc = function
-      | [] -> Some (List.rev acc)
-      | hd :: tl ->
-        f hd (fun () -> update acc tl) (fun a -> update (a::acc) tl)
-    in
-    update []
-
-  let update_ac_problems ac_f pb =
-    map_opt
-      (fun ac_pbs -> { pb with ac_problems = ac_pbs })
-      (update ac_f pb.ac_problems)
-
-
   let update_status i s pb =
     let nstat = Array.copy pb.status in
     nstat.(i) <- s;
     {pb with status = nstat}
-
-  (*
-  let filter_eq sg arity i sol p drop keep =
-    let (d, vi, args, ti) = p in
-    if vi <> i then keep p
-    else
-      let lambdaed = add_n_lambdas arity (Lazy.force sol) in
-      let shifted = Subst.shift d lambdaed in
-      if C.are_convertible sg (Lazy.force ti) (apply_args shifted args)
-      then drop () else None
-*)
 
   let get_occs i =
     let rec aux acc = function
@@ -239,37 +204,7 @@ struct
     in
     aux []
 
-  (*
-  let filter_ac sg arity i sol p drop keep =
-    let (d,aci,joks,vars,terms) = p in
-    (* Fetch occurences of [i] in [vars] *)
-    match get_occs i vars with
-    | [] -> keep p
-    | occs ->
-      let sol = C.whnf sg (Lazy.force sol) in
-      (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
-      let flat_sols = force_flatten_AC_term (C.snf sg) (fst aci) sol in
-      (* If aci represent ACU symbol, remove corresponding neutral element. *)
-      let flat_sols =
-        match snd aci with
-        | ACU neu -> List.filter (fun x -> not (C.are_convertible sg neu x)) flat_sols
-        | _ -> flat_sols in
-      let lambdaed = List.map (add_n_lambdas arity) flat_sols in
-      let shifted = List.map (Subst.shift d) lambdaed in
-      let sols = compute_all_sols shifted occs in
-      match remove_sols_occs sg sols terms with
-      | None -> None
-      | Some nterms ->
-        let nvars = filter_vars i vars in
-        if nvars = []
-        then if nterms = [] || joks > 0
-          then drop ()
-          else None
-        else keep (d,aci,joks,nvars,nterms)
-*)
-
   let update_problems sg arity i sol pb =
-
     let rec update_ac eq_pbs acc = function
       | [] -> Some { pb with ac_problems = List.rev acc; eq_problems = eq_pbs }
       | p :: tl ->
@@ -299,7 +234,6 @@ struct
               else None
             else update_ac eq_pbs ((d,aci,joks,nvars,nterms)::acc) tl
     in
-
     let rec update_eq acc = function
       | [] -> update_ac (List.rev acc) [] pb.ac_problems
       | p :: tl ->
@@ -313,7 +247,6 @@ struct
           else None
     in
     update_eq [] pb.eq_problems
-
 
   (** Resolves variable [i] = [t] *)
   let set_unsolved sg pb i sol =
@@ -365,22 +298,24 @@ struct
   let add_partly sg pb i sol =
     match pb.status.(i) with
     | Partly(aci,terms) ->
-      let filter p _ keep =
-        let (d,aci',joks,vars,terms) = p in
-        if ac_ident_eq aci aci' && var_exists i vars
-        then
-          let lambdaed = add_n_lambdas pb.arity.(i) (Lazy.force sol) in
-          let shifted = Subst.shift d lambdaed in
-          let occs = get_occs i vars in
-          let sols = compute_sols shifted occs in
-          match remove_sols_occs sg sols terms with
-          | None        -> None
-          | Some nterms -> keep (d,aci,joks,vars,nterms)
-        else keep p
+      let rec update_ac acc = function
+        | [] -> Some
+                  (update_status i (Partly(aci,sol :: terms))
+                     {pb with ac_problems = List.rev acc})
+        | p :: tl ->
+          let (d,aci',joks,vars,terms) = p in
+          if ac_ident_eq aci aci' && var_exists i vars
+          then
+            let lambdaed = add_n_lambdas pb.arity.(i) (Lazy.force sol) in
+            let shifted = Subst.shift d lambdaed in
+            let occs = get_occs i vars in
+            let sols = compute_sols shifted occs in
+            match remove_sols_occs sg sols terms with
+            | None        -> None
+            | Some nterms -> update_ac ((d,aci,joks,vars,nterms)::acc) tl
+          else update_ac (p::acc) tl
       in
-      map_opt
-        (update_status i (Partly(aci,sol :: terms))) (* Update status [i] *)
-        (update_ac_problems filter pb)               (* If update was a success. *)
+      update_ac [] pb.ac_problems
     | _ -> assert false
 
 
@@ -501,7 +436,6 @@ let get_all_ac_symbols pb i =
     and try_solve_next pb = bind_opt solve_next pb in
     solve_next
 
-
   (* Rearranges to have easiest AC sets first.
      - Least number of variables first
      - Least number of LHS terms first
@@ -517,9 +451,6 @@ let get_all_ac_symbols pb i =
      Processes equationnal problems as they can be deterministically solved right away
      then hands over to non deterministic AC solver. *)
   let rec solve_problem sg pb =
-    (*
-    Debug.(debug d_matching "Problem: %a@." (pp_matching_problem "    ") pb);
-    *)
     match pb.eq_problems with
     | [] ->
       (* Call AC solver on rearranged AC problems (easiest first) *)
