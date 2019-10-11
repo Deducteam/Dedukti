@@ -215,19 +215,13 @@ struct
       (fun ac_pbs -> { pb with ac_problems = ac_pbs })
       (update ac_f pb.ac_problems)
 
-  let update_problems eq_f ac_f pb =
-    bind_opt
-      (fun eq_pbs ->
-         map_opt
-           (fun ac_pbs -> { pb with ac_problems = ac_pbs; eq_problems = eq_pbs })
-           (update ac_f pb.ac_problems))
-      (update eq_f pb.eq_problems)
 
   let update_status i s pb =
     let nstat = Array.copy pb.status in
     nstat.(i) <- s;
     {pb with status = nstat}
 
+  (*
   let filter_eq sg arity i sol p drop keep =
     let (d, vi, args, ti) = p in
     if vi <> i then keep p
@@ -236,6 +230,7 @@ struct
       let shifted = Subst.shift d lambdaed in
       if C.are_convertible sg (Lazy.force ti) (apply_args shifted args)
       then drop () else None
+*)
 
   let get_occs i =
     let rec aux acc = function
@@ -244,6 +239,7 @@ struct
     in
     aux []
 
+  (*
   let filter_ac sg arity i sol p drop keep =
     let (d,aci,joks,vars,terms) = p in
     (* Fetch occurences of [i] in [vars] *)
@@ -270,14 +266,59 @@ struct
           then drop ()
           else None
         else keep (d,aci,joks,nvars,nterms)
+*)
 
-(** Resolves variable [i] = [t] *)
+  let update_problems sg arity i sol pb =
+
+    let rec update_ac eq_pbs acc = function
+      | [] -> Some { pb with ac_problems = List.rev acc; eq_problems = eq_pbs }
+      | p :: tl ->
+        let (d,aci,joks,vars,terms) = p in
+        (* Fetch occurences of [i] in [vars] *)
+        match get_occs i vars with
+        | [] -> update_ac eq_pbs (p::acc) tl
+        | occs ->
+          let sol = C.whnf sg (Lazy.force sol) in
+          (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
+          let flat_sols = force_flatten_AC_term (C.snf sg) (fst aci) sol in
+          (* If aci represent ACU symbol, remove corresponding neutral element. *)
+          let flat_sols =
+            match snd aci with
+            | ACU neu -> List.filter (fun x -> not (C.are_convertible sg neu x)) flat_sols
+            | _ -> flat_sols in
+          let lambdaed = List.map (add_n_lambdas arity) flat_sols in
+          let shifted = List.map (Subst.shift d) lambdaed in
+          let sols = compute_all_sols shifted occs in
+          match remove_sols_occs sg sols terms with
+          | None -> None
+          | Some nterms ->
+            let nvars = filter_vars i vars in
+            if nvars = []
+            then if nterms = [] || joks > 0
+              then update_ac eq_pbs acc tl
+              else None
+            else update_ac eq_pbs ((d,aci,joks,nvars,nterms)::acc) tl
+    in
+
+    let rec update_eq acc = function
+      | [] -> update_ac (List.rev acc) [] pb.ac_problems
+      | p :: tl ->
+        let (d, vi, args, ti) = p in
+        if vi <> i then update_eq (p::acc) tl
+        else
+          let lambdaed = add_n_lambdas arity (Lazy.force sol) in
+          let shifted = Subst.shift d lambdaed in
+          if C.are_convertible sg (Lazy.force ti) (apply_args shifted args)
+          then update_eq acc tl
+          else None
+    in
+    update_eq [] pb.eq_problems
+
+
+  (** Resolves variable [i] = [t] *)
   let set_unsolved sg pb i sol =
-    map_opt (update_status i (Solved sol))  (* update status of variable [i] *)
-      (update_problems
-         (filter_eq sg pb.arity.(i) i sol)
-         (filter_ac sg pb.arity.(i) i sol)
-         pb)     (* if the substitution is compatible *)
+    map_opt (update_status i (Solved sol))       (* update status of variable [i] *)
+      (update_problems sg pb.arity.(i) i sol pb) (* if the substitution is compatible *)
 
   let set_partly pb i aci =
     assert(pb.status.(i) == Unsolved);
@@ -305,15 +346,11 @@ struct
                 update (a::acc) tl )
           else update (p::acc) tl
       in
-      let update_ac_problems pb =
-        map_opt
-          (fun ac_pbs -> { pb with ac_problems = ac_pbs })
-          (update [] pb.ac_problems)
-      in
       begin
-        match update_ac_problems pb with
+        match update [] pb.ac_problems with
         | None -> None (* If the substitution is incompatible, then fail *)
-        | Some nprob ->
+        | Some ac_pbs ->
+          let nprob = { pb with ac_problems = ac_pbs } in
           if terms = [] then (* If [i] is closed on empty list: X = +{} *)
             match aci with
             | _, ACU neu -> (* When + is ACU, it's ok, X = neutral *)
@@ -499,9 +536,6 @@ let get_all_ac_symbols pb i =
              npb.status.(v) <- Solved solu;
              (* (4) Finally keep solving the problem *)
              solve_problem sg npb)
-          (update_problems (* (2) Then update remaining AC and Eq problems with [v] = [solu] *)
-             (filter_eq sg pb.arity.(v) v solu)
-             (filter_ac sg pb.arity.(v) v solu)
-             (* (1) Start by removing current problem from list of problems*)
+          (update_problems sg pb.arity.(v) v solu
              {pb with eq_problems=other_problems})
 end
