@@ -498,7 +498,7 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
          end
       | _ -> assert false
     ) mx.first.pats;
-  assert (Array.for_all (fun x -> x >= 0) arity);
+  assert (Array.fold_left (fun a x -> a && x >= 0) true arity);
   {
     pm_eq_problems = !eq_pbs;
     pm_ac_problems = !ac_pbs;
