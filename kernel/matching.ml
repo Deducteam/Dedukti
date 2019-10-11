@@ -292,17 +292,26 @@ struct
     match pb.status.(i) with
     | Partly(aci,terms) ->
       (* Remove occurence of variable i from all m.v headed AC problems. *)
-      let filter p drop keep =
-        let (d,aci',joks,vars,rhs) = p in
-        if ac_ident_eq aci aci' && var_exists i vars
-        then
-          ( match filter_vars i vars with
-            | [] -> if rhs = [] || joks > 0 then drop () else None
-            | filtered_vars -> keep (d,aci,joks,filtered_vars,rhs) )
-        else keep p
+      let rec update acc = function
+        | [] -> Some (List.rev acc)
+        | p :: tl ->
+          let (d,aci',joks,vars,rhs) = p in
+          if ac_ident_eq aci aci' && var_exists i vars
+          then
+            ( match filter_vars i vars with
+              | [] -> if rhs = [] || joks > 0 then update acc tl else None
+              | filtered_vars ->
+                let a = (d,aci,joks,filtered_vars,rhs) in
+                update (a::acc) tl )
+          else update (p::acc) tl
+      in
+      let update_ac_problems pb =
+        map_opt
+          (fun ac_pbs -> { pb with ac_problems = ac_pbs })
+          (update [] pb.ac_problems)
       in
       begin
-        match update_ac_problems filter pb with
+        match update_ac_problems pb with
         | None -> None (* If the substitution is incompatible, then fail *)
         | Some nprob ->
           if terms = [] then (* If [i] is closed on empty list: X = +{} *)
