@@ -75,10 +75,9 @@ let empty = (Free, [])
 (** Return first pair (ar,tree) in given list such that ar <= stack_size *)
 let find_dtree stack_size (alg,l) =
   let rec aux = function
-  | [] -> None
-  | hd :: tl ->
-    if fst hd <= stack_size then Some hd else aux tl
-  in alg, (aux l)
+  | []       -> None
+  | hd :: tl -> if fst hd <= stack_size then Some hd else aux tl
+  in (alg, aux l)
 
 let mk_AC_set cst pat1 pat2 =
   let rec flatten acc = function

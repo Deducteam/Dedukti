@@ -185,26 +185,8 @@ and comb_term_if_AC sg : term -> term = function
     else t
   | t -> t
 
-and find_case sg
-    (st:state) (case:case) : stack option =
+and find_case sg (st:state) (case:case) : stack option =
   match st, case with
-  (* This case is a bit tricky: when + is AC,
-     C (+ f g 1) can match C (h 1)
-     The corresponding matching problem is  +{f,g} = +{h}
-     which is not necessarily unsolvable in general:
-     maybe + is acu and a solution is {f = u, g = h}
-     TODO: check that this case is used properly !
-  *)
-  | { ctx; term; stack } , CConst (nargs,cst,true)
-    when List.length stack == nargs - 2 -> (* should we also check for the type of t ? *)
-    let new_st = ref {ctx;term;stack=[]} in
-    let new_stack = flatten_AC_stack sg cst [new_st] in
-    Some ( (mk_state_ref ctx (mk_Const dloc cst) new_stack) :: stack)
-
-  | { term=Const (_,cst); stack=t1::t2::s ; _ } , CConst (nargs,cst',true)
-    when name_eq cst cst' && nargs == List.length s + 2 ->
-    Some ( (mk_state_ref st.ctx st.term (flatten_AC_stack sg cst [t1;t2]))::s)
-
   | { term=Const (_,cst); stack ; _ } , CConst (nargs,cst',false) ->
     if name_eq cst cst' && List.length stack == nargs
     then Some stack
@@ -220,6 +202,23 @@ and find_case sg
       | Lam (_,_,_,te) -> Some [state_ref_of_term te]
       | _ -> assert false
     end
+
+  | { term=Const (_,cst); stack=t1::t2::s ; _ } , CConst (nargs,cst',true)
+    when name_eq cst cst' && nargs == List.length s + 2 ->
+    Some ( (mk_state_ref st.ctx st.term (flatten_AC_stack sg cst [t1;t2]))::s)
+
+  (* This case is a bit tricky: when + is AC,
+     C (+ f g 1) can match C (h 1)
+     The corresponding matching problem is  +{f,g} = +{h}
+     which is not necessarily unsolvable in general:
+     maybe + is acu and a solution is {f = u, g = h}
+     TODO: check that this case is used properly !
+  *)
+  | { ctx; term; stack } , CConst (nargs,cst,true)
+    when List.length stack == nargs - 2 ->
+    let new_st = ref {ctx;term;stack=[]} in
+    let new_stack = flatten_AC_stack sg cst [new_st] in
+    Some ( (mk_state_ref ctx (mk_Const dloc cst) new_stack) :: stack)
   | _ -> None
 
 and fetch_case sg (state:state ref) (case:case)
@@ -299,6 +298,15 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
     | Switch (i,cases,def) ->
       let arg_i = List.nth stack i in
       arg_i := state_whnf sg !arg_i;
+      (* Several cases may match !!
+         when max and plus are ACU symbols, they can match anything
+         (max  f g) ... = x ...
+         (plus f g) ... = x ...
+         x          ... = x ...
+         FIXME: This should really be handled by the decision tree.
+         It impacts performance a bit to have a list of size 1 computed then mapped
+         then matched upon (instead of just jumping to the recursive call).
+      *)
       let new_cases =
         List.map
           (fun (g,l) -> (concat stack l, g))
@@ -311,12 +319,19 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
         | Some f -> f rule_name
       in
       if keep_rule then
+        (*
         let array_stack = Array.of_list stack in
         let array_lazy_stack = Array.map (fun c -> lazy (term_of_state_ref c)) array_stack in
         let convert i = array_lazy_stack.(i) in
         let convert_ac i =
           List.map (fun s -> lazy (term_of_state_ref s)) !(array_stack.(i)).stack
         in
+*)
+        let convert i = lazy (term_of_state_ref (List.nth stack i)) in
+        let convert_ac i =
+          List.map (fun s -> lazy (term_of_state_ref s)) !(List.nth stack i).stack
+        in
+
         (* Convert problem on stack indices to a problem on terms *)
         begin
           match M.solve_problem sg convert convert_ac matching_pb with

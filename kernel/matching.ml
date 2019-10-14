@@ -480,7 +480,7 @@ let get_all_ac_symbols pb i =
             | None -> raise NotSolvable
             | Some solu ->
               List.iter
-                (fun (d, args, rhs) ->
+                (fun (d,args,rhs) ->
                    let lambdaed = add_n_lambdas pb.pm_arity.(i) (Lazy.force (convert rhs)) in
                    let shifted = Subst.shift d lambdaed in
                    if not (C.are_convertible sg (Lazy.force solu) (apply_args shifted args))
