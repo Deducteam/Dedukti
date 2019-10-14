@@ -256,19 +256,6 @@ and find_cases sg
     (match default with None -> [] | Some g -> [(g,[])])
     cases
 
-
-(* Problem conversion *)
-
-and convert_problem (stack:state ref list) problem =
-  let array_stack = Array.of_list stack in
-  let array_lazy_stack = Array.map (fun c -> lazy (term_of_state_ref c)) array_stack in
-  let convert i = array_lazy_stack.(i) in
-  let convert_ac_sets i =
-    List.map (fun s -> lazy (term_of_state_ref s)) !(array_stack.(i)).stack
-  in
-  Matching.mk_matching_problem convert convert_ac_sets problem
-
-
 (* TODO implement the stack as an array ? (the size is known in advance). *)
 and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
   : stack -> dtree -> (rule_name*env*term) option =
@@ -324,10 +311,15 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
         | Some f -> f rule_name
       in
       if keep_rule then
-        let pb = convert_problem stack matching_pb in
+        let array_stack = Array.of_list stack in
+        let array_lazy_stack = Array.map (fun c -> lazy (term_of_state_ref c)) array_stack in
+        let convert i = array_lazy_stack.(i) in
+        let convert_ac i =
+          List.map (fun s -> lazy (term_of_state_ref s)) !(array_stack.(i)).stack
+        in
         (* Convert problem on stack indices to a problem on terms *)
         begin
-          match M.solve_problem sg pb with
+          match M.solve_problem sg convert convert_ac matching_pb with
           | None -> bind_opt (rw stack) def
           | Some subst ->
             let ctx = LList.of_array subst in

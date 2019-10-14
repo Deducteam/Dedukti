@@ -1,5 +1,4 @@
 open Basic
-open Format
 open Term
 open Dtree
 open Ac
@@ -23,6 +22,7 @@ type matching_problem = {
   arity       : int array
 }
 
+(*
 (**     Printing functions       **)
 
 let pp_te fmt t = fprintf fmt "%a" pp_term (Lazy.force t)
@@ -48,23 +48,28 @@ let pp_mp_problems sep pp_eq pp_ac fmt eq_p ac_p =
 let pp_matching_problem sep fmt mp =
   pp_mp_problems sep pp_te (pp_list " , " pp_te) fmt mp.eq_problems mp.ac_problems;
   pp_mp_status sep fmt mp.status
+*)
 
-(**  Problem conversion from pre_problem  *)
-let mk_matching_problem f g pre_problem =
-  {
-    eq_problems =
-      Array.map (List.map (fun (d,args,p) -> (d,args,f p)))
-        pre_problem.pm_eq_problems;
-    ac_problems =
-      List.map (fun (d,aci,joks,vars,rhs) -> (d,aci,joks,vars,g rhs))
-        pre_problem.pm_ac_problems;
-    status   = Array.make (Array.length pre_problem.pm_arity) Unsolved;
-    arity    = Array.copy pre_problem.pm_arity
-  }
 
-(** Solve the following problem for lambda term X:
- *    (lambda^[depth]. X) [args] = [t] where [args] are distincts bound variables
- * Raises NotUnifiable if [t] contains variables not in [args]. *)
+(* [solve_miller n k_lst te] solves following the higher-order unification problem (modulo beta):
+
+    x{_1} => x{_2} => ... x{_[n]} => X x{_i{_1}} .. x{_i{_m}}
+    {b =}
+    x{_1} => x{_2} => ... x{_[n]} => [te]
+
+    where X is the unknown, x{_i{_1}}, ..., x{_i{_m}} are distinct bound variables.
+
+   If the free variables of [te] that are in x{_1}, ..., x{_[n]} are also in
+   x{_i{_1}}, ..., x{_i{_m}} then the problem has a unique solution modulo beta that is
+   x{_i{_1}} => .. => x{_i{_m}} => [te].
+   Otherwise this problem has no solution and the function raises [NotUnifiable].
+
+   Since we use deBruijn indexes, the problem is given as the equation
+
+   x{_1} => ... => x{_[n]} => X DB(k{_0}) ... DB(k{_m}) =~ x{_1} => ... => x{_[n]} => [te]
+
+   and where [k_lst] = [\[]k{_0}[; ]k{_1}[; ]...[; ]k{_m}[\]].
+*)
 let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
   let size = LList.len args in
   let arr = Array.make depth None in
@@ -81,27 +86,7 @@ let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
   in
   aux 0 te
 
-(** [solve n k_lst te] solves the following higher-order unification problem:
-    (unification modulo beta)
-
-    x{_1} => x{_2} => ... x{_[n]} => X x{_i{_1}} .. x{_i{_m}}
-    {b =}
-    x{_1} => x{_2} => ... x{_[n]} => [te]
-
-    where X is the unknown, x{_i{_1}}, ..., x{_i{_m}} are distinct bound variables
-    in the local context and [te] is a term.
-
-   If the free variables of [te] that are in x{_1}, ..., x{_[n]} are also in
-   x{_i{_1}}, ..., x{_i{_m}} then the problem has a unique solution modulo beta that is
-   x{_i{_1}} => .. => x{_i{_m}} => [te].
-   Otherwise this problem has no solution and the function raises [NotUnifiable].
-
-   Since we use deBruijn indexes, the problem is given as the equation
-
-   x{_1} => ... => x{_[n]} => X DB(k{_0}) ... DB(k{_m}) =~ x{_1} => ... => x{_[n]} => [te]
-
-   and where [k_lst] = [\[]k{_0}[; ]k{_1}[; ]...[; ]k{_m}[\]].
-*)
+(* Fast solve for unapplied Miller variables *)
 let solve (depth:int) (args:int LList.t) (te:term) : term =
   if LList.is_empty args
   then try Subst.unshift depth te
@@ -116,13 +101,13 @@ module type Checker = sig
 end
 
 module type Matcher = sig
-  val solve_problem : Signature.t -> matching_problem -> te array option
+  val solve_problem :
+    Signature.t -> (int -> te) -> (int -> te list) -> pre_matching_problem -> te array option
 end
 
 module Make (C:Checker) =
 struct
-  (* Solves  lambda^[d]  X [args]1 ... [args]n = [t]
-     Raises NotUnifiable if no solution exists *)
+  (* Complete solve using a reduction function *)
   let force_solve sg d args t =
     if d == 0 then (assert(LList.is_empty args); t)
     else
@@ -130,7 +115,7 @@ struct
       Lazy.from_val( try solve d args te
                      with NotUnifiable -> solve d args (C.snf sg te) )
 
-  (* Try to solve returns None if it fails *)
+  (* Try to solve returns None if it fails (from exception monad to Option monad) *)
   let try_force_solve sg d args t =
     try Some (force_solve sg d args t)
     with NotUnifiable -> None
@@ -348,7 +333,7 @@ let get_all_ac_symbols pb i =
   let get_subst arities status =
     let aux i = function
       | Solved sol -> lazy_add_n_lambdas arities.(i) sol
-      | _ -> printf "Status: %a@." (pp_mp_status " , ") status; assert false in
+      | _ -> assert false in
     Array.mapi aux status
 
   let solve_ac_problem sg =
@@ -481,22 +466,20 @@ let get_all_ac_symbols pb i =
     in
     update_ac []
 
-
-
   (* Main solving function.
      Processes equationnal problems as they can be deterministically solved right away
      then hands over to non deterministic AC solver. *)
-  let solve_problem sg pb =
+  let solve_problem sg convert convert_ac pb =
     (* First solve equational problems*)
     let solve_eq i = function
       | [] -> Unsolved
       | (depth, args, rhs) :: opbs ->
-        match try_force_solve sg depth args rhs with
+        match try_force_solve sg depth args (convert rhs) with
         | None -> raise NotSolvable
         | Some solu ->
           List.iter
             (fun (d, args, rhs) ->
-               let lambdaed = add_n_lambdas pb.arity.(i) (Lazy.force rhs) in
+               let lambdaed = add_n_lambdas pb.pm_arity.(i) (Lazy.force (convert rhs)) in
                let shifted = Subst.shift d lambdaed in
                if not (C.are_convertible sg (Lazy.force solu) (apply_args shifted args))
                then raise NotSolvable
@@ -505,13 +488,16 @@ let get_all_ac_symbols pb i =
           Solved solu
     in
     try
-      let status = Array.mapi solve_eq pb.eq_problems in
-      if pb.ac_problems = []
-      then Some (get_subst pb.arity status)
+      let status = Array.mapi solve_eq pb.pm_eq_problems in
+      if pb.pm_ac_problems = []
+      then Some (get_subst pb.pm_arity status)
       else
+        let ac_problems =
+          List.map (fun (d,aci,joks,vars,rhs) -> (d,aci,joks,vars,convert_ac rhs))
+            pb.pm_ac_problems in
         (* Update AC problems according to partial solution found *)
-        let ac_pbs = init_ac_problems sg pb.arity status pb.ac_problems in
-        let pb = { arity = pb.arity;
+        let ac_pbs = init_ac_problems sg pb.pm_arity status ac_problems in
+        let pb = { arity = pb.pm_arity;
                    status = status;
                    ac_problems = ac_rearrange ac_pbs;
                    eq_problems=[||] } in
