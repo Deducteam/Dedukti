@@ -51,7 +51,7 @@ type rw_infos =
   {
     stat          : staticity;
     ty            : term;
-    rules         : rule_infos list;
+    rules         : rule_infos list list;
     decision_tree : Dtree.t option
   }
 
@@ -114,7 +114,7 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
   let aux id infos =
     let cst = mk_name md id in
     Confluence.add_constant cst;
-    Confluence.add_rules infos.rules
+    Confluence.add_rules (List.flatten (infos.rules))
   in
   HId.iter aux ctx;
   Debug.debug Confluence.D_confluence
@@ -159,7 +159,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     in
     if infos.stat = Static && !fail_on_symbol_not_found
     then raise (Signature_error (CannotAddRewriteRules (r.l,r.cst)));
-    HId.replace env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None}
+    HId.replace env (id r.cst) {infos with rules = (List.rev rs) :: infos.rules; decision_tree= None}
 
 and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
   let infos, env = get_info_env sg lc cst in
@@ -167,7 +167,7 @@ and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
   (* Non-empty set of rule but decision trees not computed *)
   | None, (_::_ as rules) ->
     let trees =
-      try Dtree.of_rules rules
+      try Dtree.of_rules (List.concat (List.rev rules))
       with Dtree.Dtree_error e -> raise (Signature_error (CannotBuildDtree e))
     in
     HId.replace env (id cst) {infos with decision_tree=Some trees};
@@ -215,7 +215,7 @@ let is_static sg lc cst =
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 
-let get_rules sg lc cst = (get_infos sg lc cst).rules
+let get_rules sg lc cst = List.flatten (List.rev (get_infos sg lc cst).rules)
 
 let get_dtree sg lc cst =
   try

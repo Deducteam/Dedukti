@@ -83,7 +83,7 @@ type rw_infos =
     (** Whether a symbol is definable *)
     ty            : term;
     (** The type of a symbol *)
-    rules         : rule_infos list;
+    rules         : (rule_infos list) list;
     (** The list of rules associated to a symbol. They are ordored by their declaration within a file and in order they are imported in the signature *)
     decision_tree : Dtree.t option
     (** The decision tree computed for the set of rules declared above *)
