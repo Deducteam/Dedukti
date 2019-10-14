@@ -25,9 +25,9 @@ type var_p = int * int LList.t
 
 (* TODO: add loc to this to better handle errors *)
 
-type 'a eq_problem = int * int * int LList.t * 'a
-(** [(depth, X, \[x1...xn\], t)] is the higher order
-     equationnal problem: [X\[x1  ... xn\] = t]
+type 'a eq_problem = int * int LList.t * 'a
+(** [(depth, \[x1...xn\], t)] is the higher order
+    equational problem: [X\[x1  ... xn\] = t]
     under [depth] lambdas. *)
 
 type 'a ac_problem = int * ac_ident * int * (var_p list) * 'a
@@ -42,8 +42,9 @@ type 'a ac_problem = int * ac_ident * int * (var_p list) * 'a
 (** Problem with int referencing stack indices *)
 type pre_matching_problem =
   {
-    pm_eq_problems : int eq_problem list;
-    (** A list of problems under a certain depth *)
+    pm_eq_problems : int eq_problem list array;
+    (** A list of equational problems under various depths for
+        each variable *)
     pm_ac_problems : int ac_problem list;
     (** A list of problems under a certain depth *)
     pm_arity       : int array
@@ -53,7 +54,7 @@ type pre_matching_problem =
 
 val pp_var_type : var_p printer
 
-val pp_eq_problem : 'a printer -> 'a eq_problem printer
+val pp_eq_problems : string -> 'a printer -> (int * 'a eq_problem list) printer
 
 val pp_ac_problem : 'a printer -> 'a ac_problem printer
 

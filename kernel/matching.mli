@@ -5,7 +5,6 @@ open Term
 open Ac
 open Dtree
 
-exception NotUnifiable
 
 val d_matching : Debug.flag
 
@@ -20,13 +19,14 @@ type status =
 
 type matching_problem =
   {
-    eq_problems : te eq_problem list;
-    (** A list of equationnal problems under a certain depth *)
+    eq_problems : te eq_problem list array;
+    (** A list of equational problems under various depths for
+        each variable *)
     ac_problems : te list ac_problem list;
     (** A list of AC problems under a certain depth *)
     status      : status array;
     (** Partial substitution. Initialized with Unsolved *)
-    arity       : int array  (* TODO: is array should somehow be immutable *)
+    arity       : int array  (* TODO: is array should be immutable *)
     (** Variables Miller arity. *)
   }
 

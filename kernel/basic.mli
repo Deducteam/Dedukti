@@ -115,14 +115,14 @@ val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 
 val map_opt : ('a -> 'b) -> 'a option -> 'b option
 
-val array_for_all : ('a -> bool) -> 'a array -> bool
-
 val split : int -> 'a list -> 'a list * 'a list
 
 val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
 
 val concat : 'a list -> 'a list -> 'a list
 (** [concat l1 l2] returns [l1 @ l2] (testing on l2 empty first) *)
+
+val array_for_all : ('a -> bool) -> 'a array -> bool
 
 (** {2 Printing functions} *)
 

@@ -14,12 +14,12 @@ exception DtreeError of dtree_error
 type var_p = int * int LList.t
 
 (* TODO: add loc to this to better handle errors *)
-type 'a eq_problem = int * int * int LList.t * 'a
+type 'a eq_problem = int * int LList.t * 'a
 
 type 'a ac_problem = int * ac_ident * int * (var_p list) * 'a
 
 type pre_matching_problem = {
-  pm_eq_problems : int eq_problem list;
+  pm_eq_problems : int eq_problem list array;
   pm_ac_problems : int ac_problem list;
   pm_arity       : int array
 }
@@ -29,8 +29,12 @@ let pp_var_type fmt (i,args) =
   then fprintf fmt "%i" i
   else fprintf fmt "%i[%a]" i (pp_list " " pp_print_int) (LList.lst args)
 
-let pp_eq_problem pp_a fmt (_,vp,args,t) =
+let pp_eq_problem vp pp_a fmt (_,args,t) =
   fprintf fmt "%a = %a" pp_var_type (vp,args) pp_a t
+
+let pp_eq_problems sep pp_a fmt (vp,prbs) =
+  fprintf fmt "%a"
+    (pp_list sep (pp_eq_problem vp pp_a)) prbs
 
 let pp_njoks fmt n = if n > 0 then fprintf fmt " + %i _" n
 
@@ -43,8 +47,10 @@ let pp_ac_problem pp_rhs fmt (_,aci,joks,vars,terms) =
 let pp_pos fmt p = fprintf fmt "stack.%a" pp_print_int p
 let pp_pre_matching_problem sep fmt mp =
   fprintf fmt "[ %a | %a ]"
-    (pp_list sep (pp_eq_problem pp_pos)) mp.pm_eq_problems
-    (pp_list sep (pp_ac_problem pp_pos)) mp.pm_ac_problems
+    (pp_arr  sep (pp_eq_problems sep pp_pos))
+    (Array.mapi (fun i c -> (i,c)) mp.pm_eq_problems)
+    (pp_list sep (pp_ac_problem     pp_pos))
+    mp.pm_ac_problems
 
 
 type case =
@@ -462,7 +468,7 @@ let get_first_constraints mx = mx.first.constraints
 let get_first_matching_problem (get_algebra:name->algebra) mx =
   let esize = mx.first.esize in
   let arity = Array.make esize (-1) in
-  let eq_pbs = ref [] in
+  let eq_pbs = Array.make esize [] in
   let ac_pbs = ref [] in
   Array.iteri
     (fun i p ->
@@ -475,7 +481,7 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
            let n = n - depth in
            let len = List.length lst in
            if arity.(n) == -1 then arity.(n) <- len else assert(arity.(n) == len);
-           eq_pbs := (depth, n, LList.of_list lst, i) :: !eq_pbs
+           eq_pbs.(n) <- (depth, LList.of_list lst, i) :: eq_pbs.(n)
          end
       | LACSet (cst,patl) ->
          begin
@@ -498,9 +504,9 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
          end
       | _ -> assert false
     ) mx.first.pats;
-  assert (Array.fold_left (fun a x -> a && x >= 0) true arity);
+  assert (Basic.array_for_all (fun x -> x >= 0) arity);
   {
-    pm_eq_problems = !eq_pbs;
+    pm_eq_problems = eq_pbs;
     pm_ac_problems = !ac_pbs;
     pm_arity       = arity
   }
@@ -598,7 +604,8 @@ let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
   let tab = String.init (1 + t*2) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
-  | Test (_,mp,[],te,_) when mp.pm_ac_problems = [] && mp.pm_eq_problems = [] ->
+  | Test (_,mp,[],te,_) when mp.pm_ac_problems = [] &&
+                             (array_for_all (fun c -> c = []) mp.pm_eq_problems) ->
     fprintf fmt "%s%a" tab pp_term te
   | Test (name,mp,[],te,def) ->
      fprintf fmt "%stry %a :%s    %a%sthen %a%selse %a"

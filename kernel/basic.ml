@@ -112,11 +112,6 @@ let map_opt f = function
   | None -> None
   | Some x -> Some (f x)
 
-let array_for_all f arr =
-  let l = Array.length arr in
-  let rec aux i = i == l || (f arr.(i) && aux (i+1)) in
-  aux 0
-
 let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
   let (clst,b2) =
     List.fold_left (fun (accu,b1) a -> let (c,b2) = f b1 a in (c::accu,b2))
@@ -137,6 +132,8 @@ let rev_mapi f l =
   rmap_f 0 [] l
 
 let concat l1 = function [] -> l1 | l2 -> l1@l2
+
+let array_for_all f arr = Array.fold_left (fun a x -> a && f x) true arr
 
 (** {2 Printing functions} *)
 
