@@ -470,28 +470,45 @@ let get_all_ac_symbols pb i =
      Processes equationnal problems as they can be deterministically solved right away
      then hands over to non deterministic AC solver. *)
   let solve_problem sg convert convert_ac pb =
-    (* First solve equational problems*)
-    let solve_eq i = function
-      | [] -> Unsolved
-      | (depth, args, rhs) :: opbs ->
-        match try_force_solve sg depth args (convert rhs) with
-        | None -> raise NotSolvable
-        | Some solu ->
-          List.iter
-            (fun (d, args, rhs) ->
-               let lambdaed = add_n_lambdas pb.pm_arity.(i) (Lazy.force (convert rhs)) in
-               let shifted = Subst.shift d lambdaed in
-               if not (C.are_convertible sg (Lazy.force solu) (apply_args shifted args))
-               then raise NotSolvable
-            )
-            opbs;
-          Solved solu
-    in
     try
-      let status = Array.mapi solve_eq pb.pm_eq_problems in
       if pb.pm_ac_problems = []
-      then Some (get_subst pb.pm_arity status)
+      then
+        let solve_eq i = function
+          | [] -> assert false
+          | (depth, args, rhs) :: opbs ->
+            match try_force_solve sg depth args (convert rhs) with
+            | None -> raise NotSolvable
+            | Some solu ->
+              List.iter
+                (fun (d, args, rhs) ->
+                   let lambdaed = add_n_lambdas pb.pm_arity.(i) (Lazy.force (convert rhs)) in
+                   let shifted = Subst.shift d lambdaed in
+                   if not (C.are_convertible sg (Lazy.force solu) (apply_args shifted args))
+                   then raise NotSolvable
+                )
+                opbs;
+              lazy_add_n_lambdas pb.pm_arity.(i) solu
+        in
+        Some (Array.mapi solve_eq pb.pm_eq_problems)
       else
+        (* First solve equational problems*)
+        let solve_eq i = function
+          | [] -> Unsolved
+          | (depth, args, rhs) :: opbs ->
+            match try_force_solve sg depth args (convert rhs) with
+            | None -> raise NotSolvable
+            | Some solu ->
+              List.iter
+                (fun (d, args, rhs) ->
+                   let lambdaed = add_n_lambdas pb.pm_arity.(i) (Lazy.force (convert rhs)) in
+                   let shifted = Subst.shift d lambdaed in
+                   if not (C.are_convertible sg (Lazy.force solu) (apply_args shifted args))
+                   then raise NotSolvable
+                )
+                opbs;
+              Solved solu
+        in
+        let status = Array.mapi solve_eq pb.pm_eq_problems in
         let ac_problems =
           List.map (fun (d,aci,joks,vars,rhs) -> (d,aci,joks,vars,convert_ac rhs))
             pb.pm_ac_problems in
