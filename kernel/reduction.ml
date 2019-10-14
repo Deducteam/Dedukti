@@ -319,19 +319,12 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
         | Some f -> f rule_name
       in
       if keep_rule then
-        (*
-        let array_stack = Array.of_list stack in
-        let array_lazy_stack = Array.map (fun c -> lazy (term_of_state_ref c)) array_stack in
-        let convert i = array_lazy_stack.(i) in
-        let convert_ac i =
-          List.map (fun s -> lazy (term_of_state_ref s)) !(array_stack.(i)).stack
-        in
-*)
+        (* FIXME: Several calls to [convert(_ac) i] generates different lazy values.
+           Whnf may be computed several times in case of non linearity. *)
         let convert i = lazy (term_of_state_ref (List.nth stack i)) in
         let convert_ac i =
           List.map (fun s -> lazy (term_of_state_ref s)) !(List.nth stack i).stack
         in
-
         (* Convert problem on stack indices to a problem on terms *)
         begin
           match M.solve_problem sg convert convert_ac matching_pb with
