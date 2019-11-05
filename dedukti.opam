@@ -16,8 +16,8 @@ dev-repo: "https://github.com/Deducteam/Dedukti"
 build: [make]
 install: [make "install"]
 remove: [make "uninstall"]
-available: [ ocaml-version >= "4.02" ]
 depends: [
+  "ocaml" { >= "4.02" }
   "menhir"
   "dune" {build}
 ]
