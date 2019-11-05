@@ -185,6 +185,8 @@ Available options:" Sys.argv.(0) in
     List.rev !files
   in
   let open Dep in
-  let cstr = List.fold_left NameSet.union NameSet.empty (List.map parse_constraints files) in
-  handle_constraints cstr;
-  print_dependencies cstr
+  try
+    let cstr = List.fold_left NameSet.union NameSet.empty (List.map parse_constraints files) in
+    handle_constraints cstr;
+    print_dependencies cstr
+  with e -> ErrorHandler.graceful_fail None e
