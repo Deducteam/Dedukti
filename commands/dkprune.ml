@@ -7,7 +7,6 @@ open Basic
 exception NoDirectory
 exception EntryNotHandled of Entry.entry
 exception BadFormat
-exception NoPruneFile
 
 let output_directory : string option ref = ref None
 
