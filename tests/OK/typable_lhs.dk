@@ -1,0 +1,13 @@
+(; OK ;)
+
+A : Type.
+def f : A -> A.
+def g : A -> A.
+
+B : A -> Type.
+C : A -> Type.
+consB : a : A -> B (f a).
+consC : a : A -> C (g a).
+
+def calc : a : A -> B a -> C a -> A.
+[a,b,c] calc a (consB b) (consC c) --> a.
