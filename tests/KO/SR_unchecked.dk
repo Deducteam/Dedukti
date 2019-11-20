@@ -6,6 +6,10 @@ f : a:A -> B a -> A.
 
 cons  : a : A -> b : B a -> B (f a b).
 
-def calc : a : A -> b : A -> B a -> B b -> B a -> B b -> Type.
+def calc : a : A -> b : A -> B a -> B b -> Type.
 
 [a,b,c,d] calc a b (cons b d) (cons a c) --> A.
+(;
+a = f b d = f (f a c) d
+b = f a c
+;)

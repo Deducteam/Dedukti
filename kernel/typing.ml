@@ -152,6 +152,56 @@ let unshift_reduce sg q t =
     ( try Some (Subst.unshift q (R.snf sg t))
       with Subst.UnshiftExn -> None )
 
+exception VarSurelyOccurs
+
+(** Under [d] lambdas, checks whether term [te] *must* contain an occurence
+    of any variable that satisfies the given predicate [p],
+    *even when substituted or reduced*.
+    This check make no assumption on the rewrite system or possible substitution
+    - any definable symbol are "safe" as they may reduce to a term where no variable occur
+    - any applied meta variable (DB index > [d]) are "safe" as they may be
+      substituted and the reduce to a term where no variable occur
+    Raises VarSurelyOccurs if the term [te] *surely* contains an occurence of one
+    of the [vars].
+ *)
+let sure_occur_check sg (d:int) (p:int -> bool) : term -> unit =
+  let rec aux k = function (* k counts the number of local lambda abstractions *)
+    | Kind | Type _ -> ()
+    | Const _ -> ()
+    | Pi  (_,_,     a,b) -> ( aux k a; aux (k+1) b )
+    | Lam (_,_,None  ,b) -> (          aux (k+1) b )
+    | Lam (_,_,Some a,b) -> ( aux k a; aux (k+1) b )
+    | DB (_,_,n) -> if n >= k && p (n-k) then raise VarSurelyOccurs
+    | App (f,a,args) ->
+      begin
+        match f with
+        | DB (_,_,n) when n >= k + d -> (* a matching variable *)
+          if p (n-k) then raise VarSurelyOccurs
+        | DB (_,_,n) when n < k + d -> (* a locally bound variable *)
+          if n >= k && p (n-k)
+          then raise VarSurelyOccurs
+          else ( aux k a; List.iter (aux k) args )
+        | Const (l,cst) when Signature.is_static sg l cst ->
+          ( aux k a; List.iter (aux k) args )
+        | _ -> ()
+        (* Default case encompasses:
+           - Meta variables: DB(_,_,n) with n >= k + d
+           - Definable symbols
+           - Lambdas (FIXME: when can this happen ?)
+           - Illegal applications  *)
+      end
+  in aux 0
+
+let gather_free_vars (d:int) (vars:bool array) : term -> unit =
+  let rec aux k = function (* k counts the number of local lambda abstractions *)
+    | DB (_,_,n) -> if n >= k && n - k < d then vars.(n-k) <- true
+    | Pi  (_,_,     a,b) -> ( aux k a; aux (k+1) b )
+    | Lam (_,_,None  ,b) -> (          aux (k+1) b )
+    | Lam (_,_,Some a,b) -> ( aux k a; aux (k+1) b )
+    | App (f,a,args)     -> ( aux k f; aux k a; List.iter (aux k) args )
+    | _ -> ()
+  in aux 0
+
 let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) list -> SS.t = function
   | [] -> sigma
   | (q,t1,t2)::lst ->
@@ -180,45 +230,75 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
           let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
           pseudo_u sg fail sigma ((q+1,b,b')::lst)
 
-        | Const (_,c), Const (_,c') when name_eq c c' -> keepon ()
+        (* A definable symbol is only be convertible with closed terms *)
         | Const (l,cst), t when not (Signature.is_static sg l cst) ->
-          ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
+          ( try sure_occur_check sg q (fun k -> k <= q) t; keepon ()
+            with VarSurelyOccurs -> warn () )
         | t, Const (l,cst) when not (Signature.is_static sg l cst) ->
-          ( match unshift_reduce sg q t with None -> warn () | Some _ -> keepon ())
+          ( try sure_occur_check sg q (fun k -> k <= q) t; keepon ()
+            with VarSurelyOccurs -> warn () )
 
+        (* X = Y :  map either X to Y or Y to X *)
         | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
            let (n,t) = if n1<n2
                        then (n1,mk_DB l2 x2 (n2-q))
                        else (n2,mk_DB l1 x1 (n1-q)) in
            pseudo_u sg fail (SS.add sigma (n-q) t) lst
+
+        (* X = t :
+           1) make sure that t is possibly closed
+           2) if by chance t already is closed, map X to t  *)
         | DB (_,_,n), t when n>=q ->
           begin
-            let n' = n-q in
-            match unshift_reduce sg q t with
-            | None -> warn ()
-            | Some ut ->
-               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-               if Subst.occurs n' t' then warn ()
-               else pseudo_u sg fail (SS.add sigma n' t') lst
+            try
+              sure_occur_check sg q (fun k -> k <= q) t;
+              match unshift_reduce sg q t with
+              | None -> keepon ()
+              | Some ut ->
+                let n' = n-q in
+                let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
+                if Subst.occurs n' t' then warn ()
+                else pseudo_u sg fail (SS.add sigma n' t') lst
+            with VarSurelyOccurs -> warn ()
           end
         | t, DB (_,_,n) when n>=q ->
           begin
-            let n' = n-q in
-            match unshift_reduce sg q t with
-            | None -> warn ()
-            | Some ut ->
-               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-               if Subst.occurs n' t' then warn ()
-               else pseudo_u sg fail (SS.add sigma n' t') lst
+            try
+              sure_occur_check sg q (fun k -> k <= q) t;
+              match unshift_reduce sg q t with
+              | None -> keepon ()
+              | Some ut ->
+                let n' = n-q in
+                let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
+                if Subst.occurs n' t' then warn ()
+                else pseudo_u sg fail (SS.add sigma n' t') lst
+            with VarSurelyOccurs -> warn ()
           end
 
-        | App (DB (_,_,n),_,_), _  when n >= q ->
-          if R.are_convertible sg t1' t2' then keepon () else warn ()
-        | _ , App (DB (_,_,n),_,_) when n >= q ->
-          if R.are_convertible sg t1' t2' then keepon () else warn ()
-
-        | App (Const (l,cst),_,_), _ when not (Signature.is_static sg l cst) -> keepon ()
-        | _, App (Const (l,cst),_,_) when not (Signature.is_static sg l cst) -> keepon ()
+        (* f t1 ... tn    /    X t1 ... tn  =  u
+           1) Gather all free variables in t1 ... tn
+           2) Make sure u only relies on these variables
+        *)
+        | App (DB (_,_,n),a,args), t when n >= q ->
+          let occs = Array.make q false in
+          List.iter (gather_free_vars q occs) (a::args);
+          ( try sure_occur_check sg q (fun k -> occs.(k)) t; keepon ()
+            with VarSurelyOccurs -> warn () )
+        | t, App (DB (_,_,n),a,args) when n >= q ->
+          let occs = Array.make q false in
+          List.iter (gather_free_vars q occs) (a::args);
+          ( try sure_occur_check sg q (fun k -> occs.(k)) t; keepon ()
+            with VarSurelyOccurs -> warn () )
+        | App (Const (l,cst),a,args), t when not (Signature.is_static sg l cst) ->
+          let occs = Array.make q false in
+          List.iter (gather_free_vars q occs) (a::args);
+          ( try sure_occur_check sg q (fun k -> occs.(k)) t; keepon ()
+            with VarSurelyOccurs -> warn () )
+        | t, App (Const (l,cst),a,args) when not (Signature.is_static sg l cst) ->
+          let occs = Array.make q false in
+          List.iter (gather_free_vars q occs) (a::args);
+          ( try sure_occur_check sg q (fun k -> occs.(k)) t; keepon ()
+            with VarSurelyOccurs -> warn () )
 
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
