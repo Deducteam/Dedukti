@@ -251,7 +251,7 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
         | DB (_,_,n), t when n>=q ->
           begin
             try
-              sure_occur_check sg q (fun k -> k <= q) t;
+              sure_occur_check sg q (fun k -> k <= q || k = n) t;
               match unshift_reduce sg q t with
               | None -> keepon ()
               | Some ut ->
@@ -264,7 +264,7 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
         | t, DB (_,_,n) when n>=q ->
           begin
             try
-              sure_occur_check sg q (fun k -> k <= q) t;
+              sure_occur_check sg q (fun k -> k <= q || k = n) t;
               match unshift_reduce sg q t with
               | None -> keepon ()
               | Some ut ->
