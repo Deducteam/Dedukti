@@ -160,7 +160,7 @@ exception VarSurelyOccurs
     This check make no assumption on the rewrite system or possible substitution
     - any definable symbol are "safe" as they may reduce to a term where no variable occur
     - any applied meta variable (DB index > [d]) are "safe" as they may be
-      substituted and the reduce to a term where no variable occur
+      substituted and reduce to a term where no variable occur
     Raises VarSurelyOccurs if the term [te] *surely* contains an occurence of one
     of the [vars].
  *)
@@ -195,6 +195,17 @@ let sure_occur_check sg (d:int) (p:int -> bool) (te:term) : unit =
         end
   in aux [(0,te)]
 
+(** Under [d] lambdas, gather all free variables that are *surely*
+    contained in term [te]. That is to say term [te] will contain
+    an occurence of these variables *even when substituted or reduced*.
+    This check make no assumption on the rewrite system or possible substitutions
+    - applied definable symbols *surely* contain no variable as they may
+      reduce to terms where their arguments are erased
+    - applied meta variable (DB index > [d]) *surely* contain no variable as they
+      may be substituted and reduce to a term where their arguments are erased
+    Sets the indices of *surely* contained variables to [true] in the [vars]
+    boolean array which is expected to be of size (at least) [d].
+ *)
 let gather_free_vars (d:int) (vars:bool array) (te:term) : unit =
   let rec aux = function
     | [] -> ()
