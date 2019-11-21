@@ -1,4 +1,4 @@
-(; KO 207 ;)
+(; KO 108 --type-lhs ;)
 
 A : Type.
 B : A -> Type.
@@ -10,6 +10,11 @@ def calc : a : A -> b : A -> B a -> B b -> Type.
 
 [a,b,c,d] calc a b (cons b d) (cons a c) --> A.
 (;
-a = f b d = f (f a c) d
-b = f a c
+Inferred constraints:
+  a  ==  f b d
+  b  ==  f a c
+
+This rule is well-typed because constraints imply
+  a  ==  f (f a c) d
+which is only possible in a system allowing non terminating terms.
 ;)

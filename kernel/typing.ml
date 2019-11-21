@@ -194,7 +194,7 @@ let sure_occur_check sg (d:int) (p:int -> bool) : term -> unit =
 
 let gather_free_vars (d:int) (vars:bool array) : term -> unit =
   let rec aux k = function (* k counts the number of local lambda abstractions *)
-    | DB (_,_,n) -> if n >= k && n - k < d then vars.(n-k) <- true
+    | DB (_,_,n) -> if n >= k && n < k + d then vars.(n-k) <- true
     | Pi  (_,_,     a,b) -> ( aux k a; aux (k+1) b )
     | Lam (_,_,None  ,b) -> (          aux (k+1) b )
     | Lam (_,_,Some a,b) -> ( aux k a; aux (k+1) b )
@@ -282,22 +282,22 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
         | App (DB (_,_,n),a,args), t when n >= q ->
           let occs = Array.make q false in
           List.iter (gather_free_vars q occs) (a::args);
-          ( try sure_occur_check sg q (fun k -> occs.(k)) t; keepon ()
+          ( try sure_occur_check sg q (fun k -> k >= q || occs.(k)) t; keepon ()
             with VarSurelyOccurs -> warn () )
         | t, App (DB (_,_,n),a,args) when n >= q ->
           let occs = Array.make q false in
           List.iter (gather_free_vars q occs) (a::args);
-          ( try sure_occur_check sg q (fun k -> occs.(k)) t; keepon ()
+          ( try sure_occur_check sg q (fun k -> k >= q || occs.(k)) t; keepon ()
             with VarSurelyOccurs -> warn () )
         | App (Const (l,cst),a,args), t when not (Signature.is_static sg l cst) ->
           let occs = Array.make q false in
           List.iter (gather_free_vars q occs) (a::args);
-          ( try sure_occur_check sg q (fun k -> occs.(k)) t; keepon ()
+          ( try sure_occur_check sg q (fun k -> k >= q || occs.(k)) t; keepon ()
             with VarSurelyOccurs -> warn () )
         | t, App (Const (l,cst),a,args) when not (Signature.is_static sg l cst) ->
           let occs = Array.make q false in
           List.iter (gather_free_vars q occs) (a::args);
-          ( try sure_occur_check sg q (fun k -> occs.(k)) t; keepon ()
+          ( try sure_occur_check sg q (fun k -> k >= q || occs.(k)) t; keepon ()
             with VarSurelyOccurs -> warn () )
 
         | App (f,a,args), App (f',a',args') ->
