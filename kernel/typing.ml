@@ -164,43 +164,49 @@ exception VarSurelyOccurs
     Raises VarSurelyOccurs if the term [te] *surely* contains an occurence of one
     of the [vars].
  *)
-let sure_occur_check sg (d:int) (p:int -> bool) : term -> unit =
-  let rec aux k = function (* k counts the number of local lambda abstractions *)
-    | Kind | Type _ -> ()
-    | Const _ -> ()
-    | Pi  (_,_,     a,b) -> ( aux k a; aux (k+1) b )
-    | Lam (_,_,None  ,b) -> (          aux (k+1) b )
-    | Lam (_,_,Some a,b) -> ( aux k a; aux (k+1) b )
-    | DB (_,_,n) -> if n >= k && p (n-k) then raise VarSurelyOccurs
-    | App (f,a,args) ->
-      begin
-        match f with
-        | DB (_,_,n) when n >= k + d -> (* a matching variable *)
-          if p (n-k) then raise VarSurelyOccurs
-        | DB (_,_,n) when n < k + d -> (* a locally bound variable *)
-          if n >= k && p (n-k)
-          then raise VarSurelyOccurs
-          else ( aux k a; List.iter (aux k) args )
-        | Const (l,cst) when Signature.is_static sg l cst ->
-          ( aux k a; List.iter (aux k) args )
-        | _ -> ()
-        (* Default case encompasses:
-           - Meta variables: DB(_,_,n) with n >= k + d
-           - Definable symbols
-           - Lambdas (FIXME: when can this happen ?)
-           - Illegal applications  *)
-      end
-  in aux 0
+let sure_occur_check sg (d:int) (p:int -> bool) (te:term) : unit =
+  let rec aux = function
+    | [] -> ()
+    | (k,t) :: tl -> (* k counts the number of local lambda abstractions *)
+      match t with
+      | Kind | Type _ -> ()
+      | Const _ -> ()
+      | Pi  (_,_,     a,b) -> aux ((k,a)::(k+1,b)::tl)
+      | Lam (_,_,None  ,b) -> aux (       (k+1,b)::tl)
+      | Lam (_,_,Some a,b) -> aux ((k,a)::(k+1,b)::tl)
+      | DB (_,_,n) -> if n >= k && p (n-k) then raise VarSurelyOccurs
+      | App (f,a,args) ->
+        begin
+          match f with
+          | DB (_,_,n) when n >= k + d -> (* a matching variable *)
+            if p (n-k) then raise VarSurelyOccurs
+          | DB (_,_,n) when n < k + d -> (* a locally bound variable *)
+            if n >= k && p (n-k)
+            then raise VarSurelyOccurs
+            else aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl)
+          | Const (l,cst) when Signature.is_static sg l cst ->
+            (  aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl) )
+          | _ -> ()
+          (* Default case encompasses:
+             - Meta variables: DB(_,_,n) with n >= k + d
+             - Definable symbols
+             - Lambdas (FIXME: when can this happen ?)
+             - Illegal applications  *)
+        end
+  in aux [(0,te)]
 
-let gather_free_vars (d:int) (vars:bool array) : term -> unit =
-  let rec aux k = function (* k counts the number of local lambda abstractions *)
-    | DB (_,_,n) -> if n >= k && n < k + d then vars.(n-k) <- true
-    | Pi  (_,_,     a,b) -> ( aux k a; aux (k+1) b )
-    | Lam (_,_,None  ,b) -> (          aux (k+1) b )
-    | Lam (_,_,Some a,b) -> ( aux k a; aux (k+1) b )
-    | App (f,a,args)     -> ( aux k f; aux k a; List.iter (aux k) args )
-    | _ -> ()
-  in aux 0
+let gather_free_vars (d:int) (vars:bool array) (te:term) : unit =
+  let rec aux = function
+    | [] -> ()
+    | (k,t) :: tl -> (* k counts the number of local lambda abstractions *)
+      match t with
+      | DB (_,_,n) -> if n >= k && n < k + d then vars.(n-k) <- true
+      | Pi  (_,_,     a,b) -> aux ((k,a)::(k+1,b)::tl)
+      | Lam (_,_,None  ,b) -> aux (       (k+1,b)::tl)
+      | Lam (_,_,Some a,b) -> aux ((k,a)::(k+1,b)::tl)
+      | App (f,a,args)     -> aux ((k,f)::(k,a):: (List.map (fun t -> (k,t)) args) @ tl)
+      | _ -> ()
+  in aux [(0,te)]
 
 let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) list -> SS.t = function
   | [] -> sigma
