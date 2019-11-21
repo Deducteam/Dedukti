@@ -19,11 +19,11 @@ def c2 : (x:A -> T (b x a)) -> Type.
 
 def   c3 : F : (A -> A) -> (x:A -> y: A -> T (F x)) -> Type.
 [F,G] c3   F               (x   => y    => t (G x)) --> A.
-(;  B (F x)  ==  B (G x) is dropped   ;)
+(;  F x  ==  G x is dropped   ;)
 
 def   c4 : F : (A -> A) -> (x:A -> y: A -> T (F x)) -> Type.
 [F,G] c4   F               (x   => y    => t (G y)) --> A.
-(; B (F x)  ==  B (G y) is dropped ;)
+(; F x  ==  G y is dropped ;)
 
 def g1:(x:A -> T (b a a))  -> Type.
 []  g1 (x   => t (c a a)) --> A.
@@ -33,3 +33,4 @@ def g2:(x:A -> T (b a a))  -> Type.
 
 def g3:(x:A -> T (b a a))  -> Type.
 []  g3 (x   => t (c a a)) --> A.
+(; b a a  ==  t[a]  is dropped ;)
