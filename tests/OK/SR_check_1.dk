@@ -1,14 +1,35 @@
 (; OK -q ;)
 
 A : Type.
-B : A -> Type.
-b : a:A -> B a.
+T : A -> Type.
+t : a:A -> T a.
 
-def c : f : (A -> A) -> (x: A -> B (f x)) -> Type.
+a : A.
+def b : A -> A -> A.
+    c : A -> A -> A.
 
-[F,G] c F (x => b (G x)) --> A.
-(;
-Inferred constraints:
-  B (F x)  ==  B (G x)
-is dropped
-;)
+(; Rules with inferred constraints: ;)
+
+def c1 : (x:A -> T x    ) -> Type.
+[]  c1   (x   => t (b a x)) --> A.
+
+def c2 : (x:A -> T (b x a)) -> Type.
+[]  c2   (x   => t x      ) --> A.
+(; x  ==  b ...[x]  is dropped ;)
+
+def   c3 : F : (A -> A) -> (x:A -> y: A -> T (F x)) -> Type.
+[F,G] c3   F               (x   => y    => t (G x)) --> A.
+(;  B (F x)  ==  B (G x) is dropped   ;)
+
+def   c4 : F : (A -> A) -> (x:A -> y: A -> T (F x)) -> Type.
+[F,G] c4   F               (x   => y    => t (G y)) --> A.
+(; B (F x)  ==  B (G y) is dropped ;)
+
+def g1:(x:A -> T (b a a))  -> Type.
+[]  g1 (x   => t (c a a)) --> A.
+
+def g2:(x:A -> T (b a a))  -> Type.
+[]  g2 (x   => t       a) --> A.
+
+def g3:(x:A -> T (b a a))  -> Type.
+[]  g3 (x   => t (c a a)) --> A.
