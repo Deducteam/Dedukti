@@ -1,4 +1,4 @@
-(; OK ;)
+(; OK -q ;)
 
 A : Type.
 B : A -> Type.
@@ -7,7 +7,6 @@ b : a:A -> B a.
 def c : f : (A -> A) -> (x: A -> B (f x)) -> Type.
 
 [F,G] c F (x => b (G x)) --> A.
-
 (;
 Inferred constraints:
   B (F x)  ==  B (G x)
