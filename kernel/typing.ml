@@ -152,7 +152,6 @@ let unshift_reduce sg q t =
     ( try Some (Subst.unshift q (R.snf sg t))
       with Subst.UnshiftExn -> None )
 
-exception VarSurelyOccurs
 
 (** Under [d] lambdas, checks whether term [te] *must* contain an occurence
     of any variable that satisfies the given predicate [p],
@@ -164,7 +163,8 @@ exception VarSurelyOccurs
     Raises VarSurelyOccurs if the term [te] *surely* contains an occurence of one
     of the [vars].
  *)
-let sure_occur_check sg (d:int) (p:int -> bool) (te:term) : unit =
+let sure_occur_check sg (d:int) (p:int -> bool) (te:term) : bool =
+  let exception VarSurelyOccurs in
   let rec aux = function
     | [] -> ()
     | (k,t) :: tl -> (* k counts the number of local lambda abstractions *)
@@ -193,7 +193,9 @@ let sure_occur_check sg (d:int) (p:int -> bool) (te:term) : unit =
              - Lambdas (FIXME: when can this happen ?)
              - Illegal applications  *)
         end
-  in aux [(0,te)]
+  in
+  try aux [(0,te)]; false
+  with VarSurelyOccurs -> true
 
 (** Under [d] lambdas, gather all free variables that are *surely*
     contained in term [te]. That is to say term [te] will contain
@@ -249,11 +251,9 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
 
         (* A definable symbol is only be convertible with closed terms *)
         | Const (l,cst), t when not (Signature.is_static sg l cst) ->
-          ( try sure_occur_check sg q (fun k -> k <= q) t; keepon ()
-            with VarSurelyOccurs -> warn () )
+          if sure_occur_check sg q (fun k -> k <= q) t then warn() else keepon()
         | t, Const (l,cst) when not (Signature.is_static sg l cst) ->
-          ( try sure_occur_check sg q (fun k -> k <= q) t; keepon ()
-            with VarSurelyOccurs -> warn () )
+          if sure_occur_check sg q (fun k -> k <= q) t then warn() else keepon()
 
         (* X = Y :  map either X to Y or Y to X *)
         | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
@@ -263,33 +263,32 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
            pseudo_u sg fail (SS.add sigma (n-q) t) lst
 
         (* X = t :
-           1) make sure that t is possibly closed
-           2) if by chance t already is closed, map X to t  *)
+           1) make sure that t is possibly closed and without occurence of X
+           2) if by chance t already is so, then map X to t
+           3) otherwise drop the constraint *)
         | DB (_,_,n), t when n>=q ->
-          begin
-            try
-              sure_occur_check sg q (fun k -> k <= q || k = n) t;
-              match unshift_reduce sg q t with
-              | None -> keepon ()
-              | Some ut ->
-                let n' = n-q in
-                let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-                if Subst.occurs n' t' then warn ()
-                else pseudo_u sg fail (SS.add sigma n' t') lst
-            with VarSurelyOccurs -> warn ()
+          if sure_occur_check sg q (fun k -> k <= q || k = n) t
+          then warn()
+          else begin
+            match unshift_reduce sg q t with
+            | None    -> keepon()
+            | Some ut ->
+              let n' = n-q in
+              let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
+              if Subst.occurs n' t' then warn()
+              else pseudo_u sg fail (SS.add sigma n' t') lst
           end
         | t, DB (_,_,n) when n>=q ->
-          begin
-            try
-              sure_occur_check sg q (fun k -> k <= q || k = n) t;
-              match unshift_reduce sg q t with
-              | None -> keepon ()
-              | Some ut ->
-                let n' = n-q in
-                let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-                if Subst.occurs n' t' then warn ()
-                else pseudo_u sg fail (SS.add sigma n' t') lst
-            with VarSurelyOccurs -> warn ()
+          if sure_occur_check sg q (fun k -> k <= q || k = n) t
+          then warn()
+          else begin
+            match unshift_reduce sg q t with
+            | None    -> keepon()
+            | Some ut ->
+              let n' = n-q in
+              let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
+              if Subst.occurs n' t' then warn()
+              else pseudo_u sg fail (SS.add sigma n' t') lst
           end
 
         (* f t1 ... tn    /    X t1 ... tn  =  u
@@ -299,23 +298,19 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
         | App (DB (_,_,n),a,args), t when n >= q ->
           let occs = Array.make q false in
           List.iter (gather_free_vars q occs) (a::args);
-          ( try sure_occur_check sg q (fun k -> k >= q || occs.(k)) t; keepon ()
-            with VarSurelyOccurs -> warn () )
+          if sure_occur_check sg q (fun k -> k >= q || occs.(k)) t then warn() else keepon()
         | t, App (DB (_,_,n),a,args) when n >= q ->
           let occs = Array.make q false in
           List.iter (gather_free_vars q occs) (a::args);
-          ( try sure_occur_check sg q (fun k -> k >= q || occs.(k)) t; keepon ()
-            with VarSurelyOccurs -> warn () )
+          if sure_occur_check sg q (fun k -> k >= q || occs.(k)) t then warn() else keepon()
         | App (Const (l,cst),a,args), t when not (Signature.is_static sg l cst) ->
           let occs = Array.make q false in
           List.iter (gather_free_vars q occs) (a::args);
-          ( try sure_occur_check sg q (fun k -> k >= q || occs.(k)) t; keepon ()
-            with VarSurelyOccurs -> warn () )
+          if sure_occur_check sg q (fun k -> k >= q || occs.(k)) t then warn() else keepon()
         | t, App (Const (l,cst),a,args) when not (Signature.is_static sg l cst) ->
           let occs = Array.make q false in
           List.iter (gather_free_vars q occs) (a::args);
-          ( try sure_occur_check sg q (fun k -> k >= q || occs.(k)) t; keepon ()
-            with VarSurelyOccurs -> warn () )
+          if sure_occur_check sg q (fun k -> k >= q || occs.(k)) t then warn() else keepon()
 
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
