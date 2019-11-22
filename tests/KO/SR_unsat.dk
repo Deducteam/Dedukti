@@ -6,8 +6,9 @@ f : a:A -> B a -> A.
 
 cons  : a : A -> b : B a -> B (f a b).
 
-def calc : a : A -> b : A -> B a -> B b -> Type.
+(; This example relies on substitution to generate the unsatisfiable constraint ;)
 
+def calc : a : A -> b : A -> B a -> B b -> Type.
 [a,b,c,d] calc a b (cons b d) (cons a c) --> A.
 (;
 Inferred constraints:

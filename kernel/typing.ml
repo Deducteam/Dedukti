@@ -169,24 +169,23 @@ let sure_occur_check sg (d:int) (p:int -> bool) (te:term) : bool =
     | [] -> ()
     | (k,t) :: tl -> (* k counts the number of local lambda abstractions *)
       match t with
-      | Kind | Type _ -> ()
-      | Const _ -> ()
+      | Kind | Type _ | Const _ -> aux tl
       | Pi  (_,_,     a,b) -> aux ((k,a)::(k+1,b)::tl)
       | Lam (_,_,None  ,b) -> aux (       (k+1,b)::tl)
       | Lam (_,_,Some a,b) -> aux ((k,a)::(k+1,b)::tl)
-      | DB (_,_,n) -> if n >= k && p (n-k) then raise VarSurelyOccurs
+      | DB (_,_,n) -> if n >= k && p (n-k) then raise VarSurelyOccurs else aux tl
       | App (f,a,args) ->
         begin
           match f with
           | DB (_,_,n) when n >= k + d -> (* a matching variable *)
-            if p (n-k) then raise VarSurelyOccurs
+            if p (n-k) then raise VarSurelyOccurs else aux tl
           | DB (_,_,n) when n < k + d -> (* a locally bound variable *)
             if n >= k && p (n-k)
             then raise VarSurelyOccurs
             else aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl)
           | Const (l,cst) when Signature.is_static sg l cst ->
             (  aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl) )
-          | _ -> ()
+          | _ -> aux tl
           (* Default case encompasses:
              - Meta variables: DB(_,_,n) with n >= k + d
              - Definable symbols
@@ -208,18 +207,19 @@ let sure_occur_check sg (d:int) (p:int -> bool) (te:term) : bool =
     Sets the indices of *surely* contained variables to [true] in the [vars]
     boolean array which is expected to be of size (at least) [d].
  *)
-let gather_free_vars (d:int) (vars:bool array) (te:term) : unit =
+let gather_free_vars (d:int) (terms:term list) : bool array =
+  let vars = Array.make d false in
   let rec aux = function
     | [] -> ()
     | (k,t) :: tl -> (* k counts the number of local lambda abstractions *)
       match t with
-      | DB (_,_,n) -> if n >= k && n < k + d then vars.(n-k) <- true
+      | DB (_,_,n) -> (if n >= k && n < k + d then vars.(n-k) <- true); aux tl
       | Pi  (_,_,     a,b) -> aux ((k,a)::(k+1,b)::tl)
       | Lam (_,_,None  ,b) -> aux (       (k+1,b)::tl)
       | Lam (_,_,Some a,b) -> aux ((k,a)::(k+1,b)::tl)
       | App (f,a,args)     -> aux ((k,f)::(k,a):: (List.map (fun t -> (k,t)) args) @ tl)
-      | _ -> ()
-  in aux [(0,te)]
+      | _ -> aux tl
+  in aux (List.map (fun t -> (0,t)) terms); vars
 
 let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) list -> SS.t = function
   | [] -> sigma
@@ -296,21 +296,17 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
            2) Make sure u only relies on these variables
         *)
         | App (DB (_,_,n),a,args), t when n >= q ->
-          let occs = Array.make q false in
-          List.iter (gather_free_vars q occs) (a::args);
-          if sure_occur_check sg q (fun k -> k >= q || occs.(k)) t then warn() else keepon()
+          let occs = gather_free_vars q (a::args) in
+          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t then warn() else keepon()
         | t, App (DB (_,_,n),a,args) when n >= q ->
-          let occs = Array.make q false in
-          List.iter (gather_free_vars q occs) (a::args);
-          if sure_occur_check sg q (fun k -> k >= q || occs.(k)) t then warn() else keepon()
+          let occs = gather_free_vars q (a::args) in
+          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t then warn() else keepon()
         | App (Const (l,cst),a,args), t when not (Signature.is_static sg l cst) ->
-          let occs = Array.make q false in
-          List.iter (gather_free_vars q occs) (a::args);
-          if sure_occur_check sg q (fun k -> k >= q || occs.(k)) t then warn() else keepon()
+          let occs = gather_free_vars q (a::args) in
+          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t then warn() else keepon()
         | t, App (Const (l,cst),a,args) when not (Signature.is_static sg l cst) ->
-          let occs = Array.make q false in
-          List.iter (gather_free_vars q occs) (a::args);
-          if sure_occur_check sg q (fun k -> k >= q || occs.(k)) t then warn() else keepon()
+          let occs = gather_free_vars q (a::args) in
+          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t then warn() else keepon()
 
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
