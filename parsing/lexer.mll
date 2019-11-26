@@ -58,7 +58,9 @@ rule token = parse
   { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id
   { ID  ( get_loc lexbuf , mk_ident id ) }
-  | '{' '|' { sident (Buffer.create 42) lexbuf }
+  | '{' '|' { sident None (Buffer.create 42) lexbuf }
+  | mident as md '.' '{' '|'
+  {sident (Some (mk_mident md)) (Buffer.create 42) lexbuf}
   | '"' { string (Buffer.create 42) lexbuf }
   | _   as s
   { let msg = sprintf "Unexpected characters '%s'." (String.make 1 s) in
@@ -84,16 +86,18 @@ and string buf = parse
   | eof
   { fail (get_loc lexbuf) "Unexpected end of file in string." }
 
-and sident buf = parse
+and sident op buf = parse
   | '\\' (_ as c)
-  { Buffer.add_char buf '\\'; Buffer.add_char buf c; sident buf lexbuf }
+  { Buffer.add_char buf '\\'; Buffer.add_char buf c; sident op buf lexbuf }
   | '|' '}'
-  { ID  ( get_loc lexbuf , mk_ident ("{|" ^ (Buffer.contents buf) ^ "|}") ) }
+  { match op with
+    | None ->  ID  ( get_loc lexbuf , mk_ident ("{|" ^ (Buffer.contents buf) ^ "|}") )
+    | Some md -> QID ( get_loc lexbuf , md, mk_ident ("{|" ^ (Buffer.contents buf) ^ "|}") )}
   | '\n'
   { fail (get_loc lexbuf) "Unexpected new line in ident." }
   | ' '
   { fail (get_loc lexbuf) "Unexpected space in ident." }
   | _ as c
-  { Buffer.add_char buf c; sident buf lexbuf }
+  { Buffer.add_char buf c; sident op buf lexbuf }
   | eof
   { fail (get_loc lexbuf) "Unexpected end of file in ident." }
