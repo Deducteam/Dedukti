@@ -1,4 +1,3 @@
-(; OK ;)
+(; OK -I tests/OK ;)
 
-{|∀∃“ç^°}|} : Type.
-a : special_idents2.{|∀∃“ç^°}|}.
+a : special_idents1.{|∀∃“ç^°}|}.
