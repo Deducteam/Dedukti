@@ -8,15 +8,16 @@ module E            = Env.Make(Reduction.Default)
 module ErrorHandler = Errors.Make(E)
 
 let handle_file : string -> unit = fun file ->
-    (* Initialisation. *)
-    let md = E.init file in
-    (* Actully parsing and gathering data. *)
-    let input = open_in file in
-    begin
-      try Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
-      with e -> ErrorHandler.graceful_fail (Some file) e
-    end;
-    close_in input
+  let input =
+    try open_in file
+    with e -> ErrorHandler.graceful_fail (Some file) e in
+  (* Initialisation. *)
+  let md = E.init file in
+  begin
+    try Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
+    with e -> ErrorHandler.graceful_fail (Some file) e
+  end;
+  close_in input
 
 (** Output main program. *)
 
@@ -42,7 +43,7 @@ let _ =
   (* Parsing of command line arguments. *)
   let output  = ref stdout in
   let sorted  = ref false  in
-  let args = Arg.align
+  let options = Arg.align
     [ ( "-d"
       , Arg.String Env.set_debug_mode
       , "FLAGS enables debugging for all given flags:
@@ -80,9 +81,11 @@ Compute the dependencies of the given Dedukti FILE(s).
 For more information see https://github.com/Deducteam/Dedukti.
 Available options:" Sys.argv.(0) in
   let files =
-    let files = ref [] in
-    Arg.parse args (fun f -> files := f :: !files) usage;
-    List.rev !files
+    try
+      let files = ref [] in
+      Arg.parse options (fun f -> files := f :: !files) usage;
+      List.rev !files
+    with e -> ErrorHandler.graceful_fail None e
   in
   (* Actual work. *)
   List.iter handle_file files;

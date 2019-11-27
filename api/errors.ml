@@ -361,6 +361,8 @@ let graceful_fail file exn =
     fail None lc "Scoping error: %s@." msg
   | Dep.Dep_error dep ->
     fail_dep_error file None errid dep
+  | Basic.NotDirectory ndir ->
+    fail_exit 1 "OPTIONS" None None None "Invalid option for -I: %s is not a directory@." ndir
   | Sys_error err ->
     fail_exit 1 "SYSTEM" None None None "%s@." err
   | e ->
