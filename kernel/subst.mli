@@ -48,15 +48,20 @@ module Subst :
 sig
   type t
 
-  val identity : t (** Empty substitution *)
+  val identity : t
+  (** Empty substitution *)
 
-  val is_identity : t -> bool (** Checks emptyness *)
+  val is_identity : t -> bool
+  (** Checks emptyness *)
 
   val add : t -> int -> term -> t
   (** [add sigma n t] returns the substitution [sigma] with the extra mapping [n] -> [t]. *)
 
-  val subst : t -> substitution (** Provides substitution from Subst instance. *)
-  val subst2 : t -> int -> substitution (** Provides special substitution from Subst instance. *)
+  val subst : t -> substitution
+  (** Provides substitution from Subst instance. *)
+
+  val subst2 : t -> int -> substitution
+  (** Provides special substitution from Subst instance. *)
 
   val apply : t -> int -> term -> term
   (** [apply sigma n t] applies the subsitution [sigma] to [t] considered under [n] lambda abstractions. *)

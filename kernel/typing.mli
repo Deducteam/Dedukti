@@ -13,13 +13,14 @@ val fail_on_unsatisfiable_constraints : bool ref
 type typing_error =
   | KindIsNotTypable
   | ConvertibilityError                of term * typed_context * term * term
+  | AnnotConvertibilityError           of loc * ident * typed_context * term * term
   | VariableNotFound                   of loc * ident * int * typed_context
   | SortExpected                       of term * typed_context * term
   | ProductExpected                    of term * typed_context * term
   | InexpectedKind                     of term * typed_context
   | DomainFreeLambda                   of loc
   | CannotInferTypeOfPattern           of pattern * typed_context
-  | UnsatisfiableConstraints           of untyped_rule * (int * term * term)
+  | UnsatisfiableConstraints           of partially_typed_rule * (int * term * term)
   | BracketExprBoundVar                of term * typed_context
   | BracketExpectedTypeBoundVar        of term * typed_context * term
   | BracketExpectedTypeRightVar        of term * typed_context * term
@@ -33,8 +34,6 @@ type typing_error =
 exception TypingError of typing_error
 
 type typ = term
-
-
 
 (** {2 Type Inference/Checking} *)
 module type S = sig
@@ -55,7 +54,7 @@ module type S = sig
   val inference   : Signature.t -> term -> typ
   (** [inference sg ctx te] infers a type for the term [te] in empty context. *)
 
-  val check_rule  : Signature.t -> untyped_rule -> Subst.Subst.t * typed_rule
+  val check_rule  : Signature.t -> partially_typed_rule -> Subst.Subst.t * typed_rule
   (** [check_rule sg ru] checks that a rule is well-typed. *)
 end
 

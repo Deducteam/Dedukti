@@ -18,11 +18,13 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
-  | CouldNotExportModule  of string
+  | CouldNotExportModule  of mident * string
 
 exception SignatureError of signature_error
 
 type staticity = Static | Definable
+
+val pp_staticity : staticity printer
 
 type t
 
@@ -59,10 +61,6 @@ val get_dtree           : t -> loc -> name -> Dtree.t
 val get_rules           : t -> loc -> name -> rule_infos list
 (** [get_rules sg lc cst] returns a list of rules that defines the symbol. *)
 
-val add_external_declaration     : t -> loc -> name -> staticity -> term -> unit
-(** [add_external_declaration sg l cst st ty] declares the symbol [id] of type
-    [ty] and staticity [st] in the environment [sg]. *)
-
 val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
@@ -87,9 +85,15 @@ val fail_on_symbol_not_found : bool ref
 type rw_infos =
   {
     stat          : staticity;
+    (** Whether a symbol is definable *)
     ty            : term;
+    (** The type of a symbol *)
     rules         : rule_infos list;
+    (** The list of rules associated to a symbol.
+        They are ordored by their declaration within a file and in order they are imported
+        in the signature *)
     decision_tree : Dtree.t option
+    (** The decision tree computed for the set of rules declared above *)
   }
 
 val fold_symbols : (mident -> ident -> rw_infos -> 'a -> 'a) -> t -> 'a -> 'a

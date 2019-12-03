@@ -9,15 +9,12 @@ let string_of_ident s = s
 
 let ident_eq s1 s2 = s1==s2 || s1=s2
 
-
 type mident = string
 
 let string_of_mident s = s
 
 let mident_eq = ident_eq
 
-
-(* TODO: rename ident *)
 type name = mident * ident
 
 let mk_name md id = (md,id)
@@ -26,7 +23,6 @@ let name_eq (m,s) (m',s') = mident_eq m m' && ident_eq s s'
 
 let md = fst
 let id = snd
-
 
 module WS = Weak.Make(
 struct
@@ -71,9 +67,13 @@ let dloc = (-1,-1)
 let mk_loc l c = (l,c)
 let of_loc l = l
 
+exception NotDirectory of string
 let path = ref []
 let get_path () = !path
-let add_path s = path := s :: !path
+let add_path s =
+  if not (Sys.is_directory s)
+  then raise (NotDirectory s)
+  else path := s :: !path
 
 (** {2 Debugging} *)
 

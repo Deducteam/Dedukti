@@ -1,0 +1,28 @@
+(; OK ;)
+
+Nat: Type.
+zero: Nat.
+succ: Nat -> Nat.
+
+def plus: Nat -> Nat -> Nat.
+[ n ] plus zero n --> n
+[ n ] plus n zero --> n
+[ n, m ] plus (succ n) m --> succ (plus n m)
+[ n, m ] plus n (succ m) --> succ (plus n m).
+
+Elt: Type.
+
+Vector: Nat -> Type.
+nil: Vector zero.
+cons: n:Nat -> Elt -> Vector n -> Vector (succ n).
+
+def append: n:Nat -> Vector n -> m:Nat -> Vector m -> Vector (plus n m).
+
+[ n : Nat
+, v1 : Vector n
+, m : Nat
+, e : Elt
+, v2  : Vector m ]
+  append _ (cons n e v1) m v2
+  -->
+  cons (plus n m) e (append n v1 m v2).
