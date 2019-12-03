@@ -152,8 +152,6 @@ let unshift_reduce sg q t =
     ( try Some (Subst.unshift q (R.snf sg t))
       with Subst.UnshiftExn -> None )
 
-exception VarSurelyOccurs
-
 (** Under [d] lambdas, checks whether term [te] *must* contain an occurence
     of any variable that satisfies the given predicate [p],
     *even when substituted or reduced*.
@@ -165,6 +163,7 @@ exception VarSurelyOccurs
     of the [vars].
  *)
 let sure_occur_check sg (d:int) (p:int -> bool) (te:term) : bool =
+  let exception VarSurelyOccurs in
   let rec aux = function
     | [] -> ()
     | (k,t) :: tl -> (* k counts the number of local lambda abstractions *)
