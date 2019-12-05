@@ -11,28 +11,28 @@ all: bin binaries
 binaries: dkcheck.native dktop.native dkdep.native dkprune.native
 
 %.native:
-	@ln -fs _build/install/default/bin/$* $@
+	$(Q)ln -fs _build/install/default/bin/$* $@
 
 .PHONY: bin
 bin: kernel/version.ml
-	@dune build
+	$(Q)dune build
 
 .PHONY: doc
 doc:
-	@dune build @doc
+	$(Q)dune build @doc
 
 .PHONY: clean
 clean:
-	@dune clean
-	@rm -f *.native
+	$(Q)dune clean
+	$(Q)rm -f *.native
 
 .PHONY: install
 install: all
-	@dune install
+	$(Q)dune install
 
 .PHONY: uninstall
 uninstall: all
-	@dune uninstall
+	$(Q)dune uninstall
 
 kernel/version.ml: GNUmakefile
 	$(Q)echo 'let version = "$(VERSION)"' > $@
@@ -42,7 +42,7 @@ kernel/version.ml: GNUmakefile
 
 .PHONY: tests
 tests: all tests/tests.sh
-	@./tests/tests.sh
+	$(Q)./tests/tests.sh
 
 #### Library tests ###########################################################
 
@@ -50,53 +50,53 @@ TEST_LIBS=libraries
 
 .PHONY: matita
 matita: all
-	@echo "## Compiling the Matita's arithmetic library ##"
-	@cd $(TEST_LIBS) && ./matita.sh
+	$(Q)echo "## Compiling the Matita's arithmetic library ##"
+	$(Q)cd $(TEST_LIBS) && ./matita.sh
 
 .PHONY: matita-light
 matita-light: all
-	@echo "## Compiling the Matita's arithmetic library (light) ##"
-	@cd $(TEST_LIBS) && ./matita-light.sh
+	$(Q)echo "## Compiling the Matita's arithmetic library (light) ##"
+	$(Q)cd $(TEST_LIBS) && ./matita-light.sh
 
 .PHONY: plein_de_dks
 plein_de_dks: all
-	@echo "## Compiling “plein de dks” ##"
-	@cd $(TEST_LIBS) && ./plein_de_dks.sh
+	$(Q)echo "## Compiling “plein de dks” ##"
+	$(Q)cd $(TEST_LIBS) && ./plein_de_dks.sh
 
 .PHONY: focalide
 focalide: all
-	@echo "## Compiling focalide library ##"
-	@cd $(TEST_LIBS) && ./focalide.sh
+	$(Q)echo "## Compiling focalide library ##"
+	$(Q)cd $(TEST_LIBS) && ./focalide.sh
 
 .PHONY: holide
 holide: all
-	@echo "## Compiling holide library ##"
-	@cd $(TEST_LIBS) && ./holide.sh
+	$(Q)echo "## Compiling holide library ##"
+	$(Q)cd $(TEST_LIBS) && ./holide.sh
 
 .PHONY: dedukti-libraries
 dedukti-libraries: all
-	@echo "## Compiling the Dedukti Libraries folder ##"
-	@cd $(TEST_LIBS) && ./dedukti-libraries.sh
+	$(Q)echo "## Compiling the Dedukti Libraries folder ##"
+	$(Q)cd $(TEST_LIBS) && ./dedukti-libraries.sh
 
 .PHONY: verine
 verine: all
-	@echo "## Compiling verine library ##"
-	@cd $(TEST_LIBS) && ./verine.sh
+	$(Q)echo "## Compiling verine library ##"
+	$(Q)cd $(TEST_LIBS) && ./verine.sh
 
 .PHONY: iprover
 iprover: all
-	@echo "## Compiling iProverModulo library ##"
-	@cd $(TEST_LIBS) && ./iprover.sh
+	$(Q)echo "## Compiling iProverModulo library ##"
+	$(Q)cd $(TEST_LIBS) && ./iprover.sh
 
 .PHONY: dklib
 dklib: all
-	@echo "## Compiling the dklib library ##"
-	@cd $(TEST_LIBS) && ./dklib.sh
+	$(Q)echo "## Compiling the dklib library ##"
+	$(Q)cd $(TEST_LIBS) && ./dklib.sh
 
 .PHONY: zenon_modulo
 zenon_modulo: all
-	@echo "## Compiling the zenon library ##"
-	@cd $(TEST_LIBS) && ./zenon_modulo.sh
+	$(Q)echo "## Compiling the zenon library ##"
+	$(Q)cd $(TEST_LIBS) && ./zenon_modulo.sh
 
 
 .PHONY: light_tests
@@ -107,29 +107,29 @@ full_tests: light_tests iprover focalide dedukti-libraries verine # zenon_modulo
 
 .PHONY: cleanlibs
 cleanlibs:
-	@cd $(TEST_LIBS) && ./matita.sh            clean
-	@cd $(TEST_LIBS) && ./matita-light.sh      clean
-	@cd $(TEST_LIBS) && ./plein_de_dks.sh      clean
-	@cd $(TEST_LIBS) && ./focalide.sh          clean
-	@cd $(TEST_LIBS) && ./holide.sh            clean
-	@cd $(TEST_LIBS) && ./verine.sh            clean
-	@cd $(TEST_LIBS) && ./iprover.sh           clean
-	@cd $(TEST_LIBS) && ./dklib.sh             clean
-	@cd $(TEST_LIBS) && ./zenon_modulo.sh      clean
-	@cd $(TEST_LIBS) && ./dedukti-libraries.sh clean
+	$(Q)cd $(TEST_LIBS) && ./matita.sh            clean
+	$(Q)cd $(TEST_LIBS) && ./matita-light.sh      clean
+	$(Q)cd $(TEST_LIBS) && ./plein_de_dks.sh      clean
+	$(Q)cd $(TEST_LIBS) && ./focalide.sh          clean
+	$(Q)cd $(TEST_LIBS) && ./holide.sh            clean
+	$(Q)cd $(TEST_LIBS) && ./verine.sh            clean
+	$(Q)cd $(TEST_LIBS) && ./iprover.sh           clean
+	$(Q)cd $(TEST_LIBS) && ./dklib.sh             clean
+	$(Q)cd $(TEST_LIBS) && ./zenon_modulo.sh      clean
+	$(Q)cd $(TEST_LIBS) && ./dedukti-libraries.sh clean
 
 .PHONY: fullcleanlibs
 fullcleanlibs:
-	@cd $(TEST_LIBS) && ./matita.sh            fullclean
-	@cd $(TEST_LIBS) && ./matita-light.sh      fullclean
-	@cd $(TEST_LIBS) && ./plein_de_dks.sh      fullclean
-	@cd $(TEST_LIBS) && ./focalide.sh          fullclean
-	@cd $(TEST_LIBS) && ./holide.sh            fullclean
-	@cd $(TEST_LIBS) && ./verine.sh            fullclean
-	@cd $(TEST_LIBS) && ./iprover.sh           fullclean
-	@cd $(TEST_LIBS) && ./dklib.sh             fullclean
-	@cd $(TEST_LIBS) && ./zenon_modulo.sh      fullclean
-	@cd $(TEST_LIBS) && ./dedukti-libraries.sh fullclean
+	$(Q)cd $(TEST_LIBS) && ./matita.sh            fullclean
+	$(Q)cd $(TEST_LIBS) && ./matita-light.sh      fullclean
+	$(Q)cd $(TEST_LIBS) && ./plein_de_dks.sh      fullclean
+	$(Q)cd $(TEST_LIBS) && ./focalide.sh          fullclean
+	$(Q)cd $(TEST_LIBS) && ./holide.sh            fullclean
+	$(Q)cd $(TEST_LIBS) && ./verine.sh            fullclean
+	$(Q)cd $(TEST_LIBS) && ./iprover.sh           fullclean
+	$(Q)cd $(TEST_LIBS) && ./dklib.sh             fullclean
+	$(Q)cd $(TEST_LIBS) && ./zenon_modulo.sh      fullclean
+	$(Q)cd $(TEST_LIBS) && ./dedukti-libraries.sh fullclean
 
 #### Cleaning targets ########################################################
 
@@ -145,11 +145,11 @@ fullclean: distclean fullcleanlibs
 
 .PHONY: bnf
 bnf:
-	@echo "<ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*"
-	@echo "          | '{|' <string> '|}'"
-	@echo ""
-	@echo "<mident> ::= [a-zA-Z0-9_]*"
-	@echo ""
-	@echo "<qident> ::= <mident> '.' <ident>"
-	@echo ""
-	@obelisk parser/menhir_parser.mly | sed "s/ COLON / ':' /g ; s/ RIGHTPAR/ ')'/g ; s/ FATARROW / '=>' /g ; s/ DEF / ':=' /g ; s/ LEFTPAR / '(' /g ; s/ ARROW / '->' /g ; s/ ID/ <ident>/g ; s/ TYPE/ 'Type'/g; s/ QID/ <qident>/g ; s/ LEFTBRA / '{' /g ; s/ RIGHTBRA/ '}' /g ; s/ UNDERSCORE/ '_'/g ; s/COMMA/','/g ; s/ LONGARROW / '-->' /g ; s/ LEFTSQU / '[' /g ; s/ RIGHTSQU/ ']'/g ; s/ DOT/ '.'/g ; s/KW_DEF/'def'/g ; s/KW_THM/'thm'/g ; s/ EVAL / '#EVAL' /g ; s/ INFER / '#INFER' /g ; s/ CHECK / '#CHECK' /g ; s/ CHECKNOT / '#CHECKNOT' /g ; s/ ASSERT / '#ASSERT' /g ; s/ ASSERTNOT / '#ASSERTNOT' /g ; s/ PRINT / '#PRINT' /g ; s/ GDT / '#GDT' /g ; s/ REQUIRE / '#REQUIRE' /g ; s/ NAME / '#NAME' /g ; s/ EQUAL / '=' /g ; s/ STRING / '\"' <string> '\"' /g"
+	$(Q)echo "<ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*"
+	$(Q)echo "          | '{|' <string> '|}'"
+	$(Q)echo ""
+	$(Q)echo "<mident> ::= [a-zA-Z0-9_]*"
+	$(Q)echo ""
+	$(Q)echo "<qident> ::= <mident> '.' <ident>"
+	$(Q)echo ""
+	$(Q)obelisk parser/menhir_parser.mly | sed "s/ COLON / ':' /g ; s/ RIGHTPAR/ ')'/g ; s/ FATARROW / '=>' /g ; s/ DEF / ':=' /g ; s/ LEFTPAR / '(' /g ; s/ ARROW / '->' /g ; s/ ID/ <ident>/g ; s/ TYPE/ 'Type'/g; s/ QID/ <qident>/g ; s/ LEFTBRA / '{' /g ; s/ RIGHTBRA/ '}' /g ; s/ UNDERSCORE/ '_'/g ; s/COMMA/','/g ; s/ LONGARROW / '-->' /g ; s/ LEFTSQU / '[' /g ; s/ RIGHTSQU/ ']'/g ; s/ DOT/ '.'/g ; s/KW_DEF/'def'/g ; s/KW_THM/'thm'/g ; s/ EVAL / '#EVAL' /g ; s/ INFER / '#INFER' /g ; s/ CHECK / '#CHECK' /g ; s/ CHECKNOT / '#CHECKNOT' /g ; s/ ASSERT / '#ASSERT' /g ; s/ ASSERTNOT / '#ASSERTNOT' /g ; s/ PRINT / '#PRINT' /g ; s/ GDT / '#GDT' /g ; s/ REQUIRE / '#REQUIRE' /g ; s/ NAME / '#NAME' /g ; s/ EQUAL / '=' /g ; s/ STRING / '\"' <string> '\"' /g"

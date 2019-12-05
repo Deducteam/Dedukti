@@ -17,7 +17,7 @@ build: [make]
 install: [make "install"]
 remove: [make "uninstall"]
 depends: [
-  "ocaml" { >= "4.02" }
+  "ocaml" { >= "4.04" }
   "menhir"
   "dune" {build}
 ]

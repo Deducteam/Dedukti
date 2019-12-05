@@ -17,7 +17,9 @@ let mk_entry beautify _ =
   else TypeChecker.handle_entry
 
 let run_on_file beautify export file =
-  let input = open_in file in
+  let input =
+    try open_in file
+    with e -> ErrorHandler.graceful_fail (Some file) e in
   Debug.(debug Signature.d_module "Processing file '%s'..." file);
   let md = E.init file in
   Confluence.initialize ();
@@ -120,9 +122,11 @@ Type checks the given Dedukti FILE(s).
 For more information see https://github.com/Deducteam/Dedukti.
 Available options:" Sys.argv.(0) in
   let files =
-    let files = ref [] in
-    Arg.parse options (fun f -> files := f :: !files) usage;
-    List.rev !files
+    try
+      let files = ref [] in
+      Arg.parse options (fun f -> files := f :: !files) usage;
+      List.rev !files
+    with e -> ErrorHandler.graceful_fail None e
   in
   if !beautify && !export then
     begin

@@ -7,7 +7,6 @@ open Basic
 exception NoDirectory
 exception EntryNotHandled of Entry.entry
 exception BadFormat
-exception NoPruneFile
 
 let output_directory : string option ref = ref None
 
@@ -51,7 +50,9 @@ let rec handle_file : string -> unit =
       begin
         computed := Dep.MDepSet.add (md,file) !computed;
         log "[COMPUTE DEP] %s" file;
-        let input = open_in file in
+        let input =
+          try open_in file
+          with e -> ErrorHandler.graceful_fail (Some file) e in
         begin
           try Dep.handle md (fun f -> Parser.Parse_channel.handle md f input)
           with e -> ErrorHandler.graceful_fail (Some file) e
@@ -98,7 +99,9 @@ let name_of_entry md = function
   | _ as e -> raise @@ EntryNotHandled e
 
 let is_empty deps md in_file =
-  let input = open_in in_file in
+  let input =
+    try open_in in_file
+    with e -> ErrorHandler.graceful_fail (Some in_file) e in
   let empty = ref true in
   let mk_entry e =
     let name = name_of_entry md e in
@@ -113,7 +116,9 @@ let mk_file deps (md,in_file,out_file) =
   log "[WRITING FILE] %s" out_file;
   if not (is_empty deps md in_file)
   then
-    let input = open_in in_file in
+    let input =
+      try open_in in_file
+      with e -> ErrorHandler.graceful_fail (Some in_file) e in
     let output = open_out out_file in
     let fmt = Format.formatter_of_out_channel output in
     let handle_entry e =
@@ -138,7 +143,9 @@ let print_dependencies names =
 (* This opens a module and returns all the names of symbols declared inside *)
 let names_of_md md =
   let file = Dep.get_file md in
-  let input = open_in file in
+  let input =
+    try open_in file
+    with e -> ErrorHandler.graceful_fail (Some file) e in
   let names = ref Dep.NameSet.empty in
   let mk_entry e =
     let n = name_of_entry md e in
@@ -156,14 +163,16 @@ let gather_names =
   | _ -> raise BadFormat
 
 let parse_constraints file =
+  let input =
+    try open_in file
+    with e -> ErrorHandler.graceful_fail (Some file) e in
   let md = mk_mident file in
-  let input = open_in file in
   let pcstr = List.map gather_names (Parser.Parse_channel.parse md input) in
   close_in input;
   List.fold_left Dep.NameSet.union Dep.NameSet.empty pcstr
 
 let _ =
-  let args = Arg.align
+  let options = Arg.align
     [ ( "-l"
       , Arg.Unit enable_log
       , " Print log")
@@ -179,11 +188,15 @@ Compute the dependencies of the given Dedukti FILE(s).
 For more information see https://github.com/Deducteam/Dedukti.
 Available options:" Sys.argv.(0) in
   let files =
-    let files = ref [] in
-    Arg.parse args (fun f -> files := f :: !files) usage;
-    List.rev !files
+    try
+      let files = ref [] in
+      Arg.parse options (fun f -> files := f :: !files) usage;
+      List.rev !files
+    with e -> ErrorHandler.graceful_fail None e
   in
   let open Dep in
-  let cstr = List.fold_left NameSet.union NameSet.empty (List.map parse_constraints files) in
-  handle_constraints cstr;
-  print_dependencies cstr
+  try
+    let cstr = List.fold_left NameSet.union NameSet.empty (List.map parse_constraints files) in
+    handle_constraints cstr;
+    print_dependencies cstr
+  with e -> ErrorHandler.graceful_fail None e
