@@ -55,16 +55,15 @@ struct
     let (argmin,t) = IntMap.find (n+i+1-k) sigma in
     if nargs >= argmin then Subst.shift k (Subst.unshift (i+1) t) else raise Not_found
 
-  let apply (sigma:t) : int -> int*term -> int*term =
-    if is_identity sigma then (fun _ t -> t) else
-      (fun i (n,t) -> n,apply_exsubst (subst sigma) i t)
+  let apply (sigma:t) : int -> term -> term =
+    if is_identity sigma then (fun _ t -> t) else apply_exsubst (subst sigma)
 
   let add (sigma:t) (n:int) (nargs:int) (t:term) : t =
-    assert ( not (IntMap.mem n sigma) );
+    assert ( not (IntMap.mem n sigma) || fst (IntMap.find n sigma) > nargs );
     IntMap.add n (nargs,t) sigma
 
   let rec mk_idempotent (sigma:t) : t =
-    let sigma2:t = IntMap.map (apply sigma 0) sigma in
+    let sigma2:t = IntMap.map (fun (n,t) -> n,apply sigma 0 t) sigma in
     if IntMap.equal (fun (n1,t1) (n2,t2) -> n1 = n2 && term_eq t1 t2) sigma sigma2 then sigma
     else mk_idempotent sigma2
 

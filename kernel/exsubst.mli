@@ -38,7 +38,7 @@ sig
   val subst2 : t -> int -> ex_substitution
   (** Provides special substitution from Subst instance. *)
 
-  val apply : t -> int -> int*term -> int*term
+  val apply : t -> int -> term -> term
   (** [apply sigma n t] applies the subsitution [sigma] to [t] considered
       under [n] lambda abstractions. *)
 

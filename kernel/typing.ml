@@ -3,7 +3,7 @@ open Format
 open Rule
 open Term
 
-module SS = Subst.Subst
+module SS = Exsubst.ExSubst
 
 type Debug.flag += D_typeChecking | D_rule
 let _ = Debug.register_flag D_typeChecking "TypeChecking"
@@ -271,7 +271,7 @@ let rec pseudo_u sg flag (s:solver) : cstr list -> bool*solver = function
            let (n,t) = if n1<n2
                        then (n1,mk_DB l2 x2 (n2-q))
                        else (n2,mk_DB l1 x1 (n1-q)) in
-           pseudo_u sg true {s with subst=SS.add s.subst (n-q) t} lst
+           pseudo_u sg true {s with subst=SS.add s.subst (n-q) 0 t} lst
 
         (* X = t :
            1) make sure that t is possibly closed and without occurence of X
@@ -287,7 +287,7 @@ let rec pseudo_u sg flag (s:solver) : cstr list -> bool*solver = function
               let n' = n-q in
               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
               if Subst.occurs n' t' then unsatisf()
-              else pseudo_u sg true {s with subst=SS.add s.subst n' t'} lst
+              else pseudo_u sg true {s with subst=SS.add s.subst n' 0 t'} lst
           end
         | t, DB (_,_,n) when n>=q ->
           if sure_occur_check sg q (fun k -> k <= q || k = n) t
@@ -299,7 +299,7 @@ let rec pseudo_u sg flag (s:solver) : cstr list -> bool*solver = function
               let n' = n-q in
               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
               if Subst.occurs n' t' then unsatisf()
-              else pseudo_u sg true {s with subst=SS.add s.subst n' t'} lst
+              else pseudo_u sg true {s with subst=SS.add s.subst n' 0 t'} lst
           end
 
         (* f t1 ... tn    /    X t1 ... tn  =  u
@@ -431,8 +431,6 @@ and infer_pattern_aux sg
     let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
     raise (TypingError (ProductExpected (f,ctx,ty_f)))
 
-
-
 and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     (lst:constraints) (pat:pattern) : partial_context * constraints =
   Debug.(debug D_rule "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty);
@@ -506,7 +504,7 @@ let pp_context_inline fmt ctx =
 let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
   if SS.is_identity sub then ctx
   else
-    let apply_subst i (l,x,ty) = (l,x,Subst.apply_subst (SS.subst2 sub i) 0 ty) in
+    let apply_subst i (l,x,ty) = (l,x,Exsubst.apply_exsubst (SS.subst2 sub i) 0 ty) in
     List.mapi apply_subst ctx
 
 let check_type_annotations sg sub typed_ctx annot_ctx =
