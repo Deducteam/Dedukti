@@ -127,14 +127,6 @@ val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
 val concat : 'a list -> 'a list -> 'a list
 (** [concat l1 l2] returns [l1 @ l2] (testing on l2 empty first) *)
 
-val apply_n_times : int -> ('a -> 'a) -> 'a -> 'a
-(** [apply_n_times n f x] returns [f (f... (f x)...)] with [n] application of [f]. *)
-
-val index : 'a -> 'a list -> int
-(** [index x l] returns the index of the first occurrence of [x] in [l] if any.
-    Raises [Not_found] otherwise.
- *)
-
 (** {2 Printing functions} *)
 
 type 'a printer = Format.formatter -> 'a -> unit

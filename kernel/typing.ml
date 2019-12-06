@@ -152,8 +152,6 @@ let unshift_reduce sg q t =
     ( try Some (Subst.unshift q (R.snf sg t))
       with Subst.UnshiftExn -> None )
 
-exception VarSurelyOccurs
-
 (** Under [d] lambdas, checks whether term [te] *must* contain an occurence
     of any variable that satisfies the given predicate [p],
     *even when substituted or reduced*.
@@ -165,6 +163,7 @@ exception VarSurelyOccurs
     of the [vars].
  *)
 let sure_occur_check sg (d:int) (p:int -> bool) (te:term) : bool =
+  let exception VarSurelyOccurs in
   let rec aux = function
     | [] -> ()
     | (k,t) :: tl -> (* k counts the number of local lambda abstractions *)
@@ -231,48 +230,6 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
       if term_eq t1' t2' then keepon ()
       else
         let warn () = fail (q,t1,t2); keepon () in
-        let varCase def n t =
-          let n' = n-q in
-          match unshift_reduce sg q t with
-          | None -> def
-          | Some ut ->
-             let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-             if Subst.occurs n' t' then warn ()
-             else pseudo_u sg fail (SS.add sigma n' t') lst
-        in
-        let applyDBCase t n x l =
-          (* [lambdaLift [x1,...,xn] q t] generates x1 => ... => xn => t
-             if all the [xi]s are variables of De Bruijn index below [q] and
-             [t] does not contain any other variable which has a De Bruijn below
-             [q] *)
-          let lambdaLift (l : term list) (q : int) (t : term) : term =
-            (* If [l] is a list of distinct variables with an index smaller
-               than [q], [allDistinctBounds q [] l] returns the list of the
-               De Bruijn indices. Otherwise raises [Not_found].
-             *)
-            let rec allDistinctBounds q acc = function
-              | []             -> acc
-              | DB (_,_,i)::tl ->
-                 if i <q && not (List.mem i acc)
-                 then allDistinctBounds q (i::acc) tl
-                 else raise Not_found
-              | _              -> raise Not_found
-            in
-            let l_DBInd = allDistinctBounds q [] l in
-            let r = List.length l in
-            let sub lc id i k =
-              if i-k < q
-              then mk_DB lc id ((index (i-k) l_DBInd) + k)
-              else mk_DB lc id (i+r-q)
-            in
-            apply_n_times r (mk_Lam dloc dmark None) (Subst.apply_subst sub 0 t)
-          in
-          try (* Because of the [index] and [allDistinctBounds],
-                 [lambdaLift] can raise [Not_found] *)
-            let t' = lambdaLift (x::l) q t in
-            pseudo_u sg fail (SS.add sigma (n-q) t') lst
-          with Not_found -> keepon ()
-        in
         match t1', t2' with
         | Kind, Kind | Type _, Type _       -> assert false (* Equal terms *)
         | DB (_,_,n), DB (_,_,n') when n=n' -> assert false (* Equal terms *)

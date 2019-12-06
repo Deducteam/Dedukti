@@ -150,16 +150,6 @@ let rev_mapi f l =
 
 let concat l1 = function [] -> l1 | l2 -> l1@l2
 
-let rec apply_n_times (n : int) (f : 'a -> 'a) (x : 'a) : 'a =
-  if n <= 0 then x else apply_n_times (n-1) f (f x)
-
-let index x =
-  let rec index_bis i a = function
-    | []                 -> raise Not_found
-    | x :: tl when x = a -> i
-    | _ :: tl            -> index_bis (i+1) a tl
-  in index_bis 0 x
-
 (** {2 Printing functions} *)
 
 type 'a printer = Format.formatter -> 'a -> unit
