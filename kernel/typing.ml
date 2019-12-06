@@ -220,46 +220,58 @@ let gather_free_vars (d:int) (terms:term list) : bool array =
       | _ -> aux tl
   in aux (List.map (fun t -> (0,t)) terms); vars
 
-let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) list -> SS.t = function
-  | [] -> sigma
+type cstr = int*term*term
+(* Constraints [(n,t,u)] are [t]=[u] under [n] lambdas *)
+
+type solver =
+  {
+    subst    : SS.t;
+    ho_subst : (int*int*term) list;
+    unsolved : cstr list;
+    unsatisf : cstr list
+  }
+
+let rec pseudo_u sg flag (s:solver) : cstr list -> bool*solver = function
+  | [] -> (flag, s)
   | (q,t1,t2)::lst ->
     begin
-      let t1' = R.whnf sg (SS.apply sigma q t1) in
-      let t2' = R.whnf sg (SS.apply sigma q t2) in
-      let keepon () = pseudo_u sg fail sigma lst in
-      if term_eq t1' t2' then keepon ()
+      let t1' = R.whnf sg (SS.apply s.subst q t1) in
+      let t2' = R.whnf sg (SS.apply s.subst q t2) in
+      let dropped () = pseudo_u sg flag s lst in
+      let unsolved () = pseudo_u sg flag { s with unsolved=(q,t1',t2')::s.unsolved } lst in
+      let unsatisf () = pseudo_u sg true { s with unsatisf=(q,t1',t2')::s.unsolved } lst in
+      if term_eq t1' t2' then dropped ()
       else
-        let warn () = fail (q,t1,t2); keepon () in
         match t1', t2' with
         | Kind, Kind | Type _, Type _       -> assert false (* Equal terms *)
         | DB (_,_,n), DB (_,_,n') when n=n' -> assert false (* Equal terms *)
-        | _, Kind | Kind, _ |_, Type _ | Type _, _ -> warn ()
+        | _, Kind | Kind, _ |_, Type _ | Type _, _ -> unsatisf ()
 
         | Pi (_,_,a,b), Pi (_,_,a',b') ->
-          pseudo_u sg fail sigma ((q,a,a')::(q+1,b,b')::lst)
+          pseudo_u sg true s ((q,a,a')::(q+1,b,b')::lst)
         | Lam (_,_,_,b), Lam (_,_,_,b') ->
-          pseudo_u sg fail sigma ((q+1,b,b')::lst)
+          pseudo_u sg true s ((q+1,b,b')::lst)
 
         (* Potentially eta-equivalent terms *)
         | Lam (_,i,_,b), a when !Reduction.eta ->
           let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
-          pseudo_u sg fail sigma ((q+1,b,b')::lst)
+          pseudo_u sg true s ((q+1,b,b')::lst)
         | a, Lam (_,i,_,b) when !Reduction.eta ->
           let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
-          pseudo_u sg fail sigma ((q+1,b,b')::lst)
+          pseudo_u sg true s ((q+1,b,b')::lst)
 
         (* A definable symbol is only be convertible with closed terms *)
         | Const (l,cst), t when not (Signature.is_static sg l cst) ->
-          if sure_occur_check sg q (fun k -> k <= q) t then warn() else keepon()
+          if sure_occur_check sg q (fun k -> k <= q) t then unsatisf() else unsolved()
         | t, Const (l,cst) when not (Signature.is_static sg l cst) ->
-          if sure_occur_check sg q (fun k -> k <= q) t then warn() else keepon()
+          if sure_occur_check sg q (fun k -> k <= q) t then unsatisf() else unsolved()
 
         (* X = Y :  map either X to Y or Y to X *)
         | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
            let (n,t) = if n1<n2
                        then (n1,mk_DB l2 x2 (n2-q))
                        else (n2,mk_DB l1 x1 (n1-q)) in
-           pseudo_u sg fail (SS.add sigma (n-q) t) lst
+           pseudo_u sg true {s with subst=SS.add s.subst (n-q) t} lst
 
         (* X = t :
            1) make sure that t is possibly closed and without occurence of X
@@ -267,27 +279,27 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
            3) otherwise drop the constraint *)
         | DB (_,_,n), t when n>=q ->
           if sure_occur_check sg q (fun k -> k <= q || k = n) t
-          then warn()
+          then unsatisf()
           else begin
             match unshift_reduce sg q t with
-            | None    -> keepon()
+            | None    -> unsolved()
             | Some ut ->
               let n' = n-q in
               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-              if Subst.occurs n' t' then warn()
-              else pseudo_u sg fail (SS.add sigma n' t') lst
+              if Subst.occurs n' t' then unsatisf()
+              else pseudo_u sg true {s with subst=SS.add s.subst n' t'} lst
           end
         | t, DB (_,_,n) when n>=q ->
           if sure_occur_check sg q (fun k -> k <= q || k = n) t
-          then warn()
+          then unsatisf()
           else begin
             match unshift_reduce sg q t with
-            | None    -> keepon()
+            | None    -> unsolved()
             | Some ut ->
               let n' = n-q in
               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-              if Subst.occurs n' t' then warn()
-              else pseudo_u sg fail (SS.add sigma n' t') lst
+              if Subst.occurs n' t' then unsatisf()
+              else pseudo_u sg true {s with subst=SS.add s.subst n' t'} lst
           end
 
         (* f t1 ... tn    /    X t1 ... tn  =  u
@@ -296,28 +308,42 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
         *)
         | App (DB (_,_,n),a,args), t when n >= q ->
           let occs = gather_free_vars q (a::args) in
-          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t then warn() else keepon()
+          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
+          then unsatisf() else unsolved()
         | t, App (DB (_,_,n),a,args) when n >= q ->
           let occs = gather_free_vars q (a::args) in
-          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t then warn() else keepon()
+          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
+          then unsatisf() else unsolved()
         | App (Const (l,cst),a,args), t when not (Signature.is_static sg l cst) ->
           let occs = gather_free_vars q (a::args) in
-          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t then warn() else keepon()
+          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
+          then unsatisf() else unsolved()
         | t, App (Const (l,cst),a,args) when not (Signature.is_static sg l cst) ->
           let occs = gather_free_vars q (a::args) in
-          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t then warn() else keepon()
+          if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
+          then unsatisf() else unsolved()
 
         | App (f,a,args), App (f',a',args') ->
           (* f = Kind | Type | DB n when n<q | Pi _
            * | Const name when (is_static name) *)
           begin
             match safe_add_to_list q lst args args' with
-            | None -> warn () (* Different number of arguments. *)
-            | Some lst2 -> pseudo_u sg fail sigma ((q,f,f')::(q,a,a')::lst2)
+            | None -> unsatisf() (* Different number of arguments. *)
+            | Some lst2 -> pseudo_u sg true s ((q,f,f')::(q,a,a')::lst2)
           end
 
-        | _, _ -> warn ()
+        | _, _ -> unsatisf()
     end
+
+let solve_cstr sg cstr =
+  let rec process_solver sol =
+    match pseudo_u sg false { sol with unsolved = [] } sol.unsolved with
+    | false, s -> s
+    | true, sol' -> process_solver {sol' with subst=SS.mk_idempotent sol'.subst}
+  in
+  process_solver {subst=SS.identity;ho_subst=[];unsolved=cstr;unsatisf=[]}
+
+
 
 (* **** TYPE CHECKING/INFERENCE FOR PATTERNS ******************************** *)
 
@@ -404,6 +430,8 @@ and infer_pattern_aux sg
   | ty_f ->
     let ctx = (LList.lst sigma)@(pc_to_context_wp delta) in
     raise (TypingError (ProductExpected (f,ctx,ty_f)))
+
+
 
 and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     (lst:constraints) (pat:pattern) : partial_context * constraints =
@@ -506,17 +534,21 @@ let check_type_annotations sg sub typed_ctx annot_ctx =
 
 let check_rule sg (rule:partially_typed_rule) : SS.t * typed_rule =
   Debug.(debug D_rule "Inferring variables type and constraints from LHS");
-  let fail = if !fail_on_unsatisfiable_constraints
-    then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))
-    else (fun (q,t1,t2) ->
-        Debug.(debug D_warn "At %a: unsatisfiable constraint: %a ~ %a%s"
-                 pp_loc (get_loc_rule rule)
-                 pp_term t1 pp_term t2
-                 (if q > 0 then Format.sprintf " (under %i abstractions)" q else ""))) in
   let delta = pc_make rule.ctx in
   let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
   assert ( delta.padding == 0 );
-  let sub = SS.mk_idempotent (pseudo_u sg fail SS.identity lst) in
+  let sol = solve_cstr sg lst in
+  ( match sol.unsatisf with
+    | [] -> ()
+    | (q,t1,t2)::_ ->
+      if !fail_on_unsatisfiable_constraints
+      then raise (TypingError (UnsatisfiableConstraints (rule,(q,t1,t2))))
+      else Debug.(debug D_warn "At %a: unsatisfiable constraint: %a ~ %a%s"
+                    pp_loc (get_loc_rule rule)
+                    pp_term t1 pp_term t2
+                    (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")));
+
+  let sub = sol.subst in
   let ri2    = SS.apply sub 0 rule.rhs in
   let ty_le2 = SS.apply sub 0 ty_le    in
   let ctx = LList.lst delta.pctx in
