@@ -231,6 +231,12 @@ type solver =
     unsatisf : cstr list
   }
 
+let try_solve q args t =
+  try
+    let dbs = List.map (function DB(_,_,n) -> n | _ -> raise Matching.NotUnifiable) args in
+    Some (Matching.solve q (LList.of_list dbs) t)
+  with Matching.NotUnifiable -> None
+
 let rec pseudo_u sg flag (s:solver) : cstr list -> bool*solver = function
   | [] -> (flag, s)
   | (q,t1,t2)::lst ->
@@ -309,11 +315,31 @@ let rec pseudo_u sg flag (s:solver) : cstr list -> bool*solver = function
         | App (DB (_,_,n),a,args), t when n >= q ->
           let occs = gather_free_vars q (a::args) in
           if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
-          then unsatisf() else unsolved()
+          then unsatisf()
+          else begin
+            match try_solve q (a::args) t with
+            | None    -> unsolved()
+            | Some ut ->
+              let n' = n-q in
+              let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
+              if Subst.occurs n' t' then unsatisf()
+              else pseudo_u sg true
+                  {s with subst=SS.add s.subst n' (1+(List.length args)) t'} lst
+          end
         | t, App (DB (_,_,n),a,args) when n >= q ->
           let occs = gather_free_vars q (a::args) in
           if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
-          then unsatisf() else unsolved()
+          then unsatisf()
+          else begin
+            match try_solve q (a::args) t with
+            | None    -> unsolved()
+            | Some ut ->
+              let n' = n-q in
+              let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
+              if Subst.occurs n' t' then unsatisf()
+              else pseudo_u sg true
+                  {s with subst=SS.add s.subst n' (1+(List.length args)) t'} lst
+          end
         | App (Const (l,cst),a,args), t when not (Signature.is_static sg l cst) ->
           let occs = gather_free_vars q (a::args) in
           if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t

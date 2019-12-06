@@ -59,8 +59,11 @@ struct
     if is_identity sigma then (fun _ t -> t) else apply_exsubst (subst sigma)
 
   let add (sigma:t) (n:int) (nargs:int) (t:term) : t =
+(*
     assert ( not (IntMap.mem n sigma) || fst (IntMap.find n sigma) > nargs );
-    IntMap.add n (nargs,t) sigma
+*)
+    if not (IntMap.mem n sigma)  || fst (IntMap.find n sigma) > nargs
+    then IntMap.add n (nargs,t) sigma else sigma
 
   let rec mk_idempotent (sigma:t) : t =
     let sigma2:t = IntMap.map (fun (n,t) -> n,apply sigma 0 t) sigma in
