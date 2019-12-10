@@ -92,8 +92,8 @@ struct
 
   (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
-  (* The functions [check'] and [infer'] have an additional argument compared [check] and [infer]
-     which is a list of additional equality, which are useful when checking subject reduction *)
+  (* The functions [check'] and [infer'] have an additional argument compared to [check] and [infer]
+     which is a list of additional equalities, which are useful when checking subject reduction *)
   let rec infer' sg (ctx:typed_context) (te:term) (addi_eq:cstr list) : typ =
     Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
     match te with
