@@ -601,7 +601,6 @@ struct
            (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")
     );
     let sub = sol.subst in
-    let ri2    = SS.apply sub 0 rule.rhs in
     let ty_le2 = SS.apply sub 0 ty_le    in
     let ctx = LList.lst delta.pctx in
     let ctx2 =
@@ -614,6 +613,11 @@ struct
           debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
 	raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
     in
+    (* FIXME: Why is the RHS substituted ?!
+       Instead we should keep the original RHS and perform a check *modulo a substitution*
+       This simply means extend the check function to apply the substitution to all infered
+       types. *)
+    let ri2    = SS.apply sub 0 rule.rhs in
     Debug.(debug D_rule "Typechecking rule");
     check' sg ctx2 ri2 ty_le2 sol.unsolved;
     check_type_annotations sg sub ctx2 rule.ctx;
