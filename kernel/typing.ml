@@ -322,7 +322,7 @@ let rec pseudo_u sg flag (s:solver) : cstr list -> bool*solver = function
             | Some ut ->
               let n' = n-q in
               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-              if Subst.occurs n' t' then unsatisf()
+              if Subst.occurs n' t' then unsolved()   (* X = t[X]  cannot be turned into a (extended-)substitution *)
               else pseudo_u sg true
                   {s with subst=SS.add s.subst n' (1+(List.length args)) t'} lst
           end
@@ -336,7 +336,7 @@ let rec pseudo_u sg flag (s:solver) : cstr list -> bool*solver = function
             | Some ut ->
               let n' = n-q in
               let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-              if Subst.occurs n' t' then unsatisf()
+              if Subst.occurs n' t' then unsolved()   (* X = t[X]  cannot be turned into a (extended-)substitution *)
               else pseudo_u sg true
                   {s with subst=SS.add s.subst n' (1+(List.length args)) t'} lst
           end
