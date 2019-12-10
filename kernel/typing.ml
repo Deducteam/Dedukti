@@ -67,9 +67,34 @@ struct
        let (_,_,te) = a in
        raise (TypingError (ConvertibilityError (te, ctx, mk_Type dloc, ty_a)))
 
+  type cstr = int*term*term
+  (* Constraints [(n,t,u)] are [t]=[u] under [n] lambdas *)
+
+  let csq_of_eq (sg:Signature.t) (ty_inf:typ) (ty_exp:typ) (addi_eq:cstr list) : bool =
+    let is_same_cstr ((n1,t1,u1):cstr) ((n2,t2,u2):cstr) =
+      let t1',u1' = Subst.shift n2 t1, Subst.shift n2 u1 in
+      let t2',u2' = Subst.shift n1 t2, Subst.shift n1 u2 in
+      (term_eq t1' t2' && term_eq u1' u2') ||
+	(term_eq t1' u2' && term_eq u1' t2')
+    in
+    let addi_eq_nrm = List.map (fun (n,t,u) -> (n,R.snf sg t,R.snf sg u)) addi_eq in
+    let rec bis n ty1 ty2 =
+      List.exists (is_same_cstr (n,ty1,ty2)) addi_eq_nrm ||
+      match ty1,ty2 with
+      | App(h1,a1,l1), App(h2,a2,l2) ->
+	 List.for_all2 (bis n) (h1::a1::l1) (h2::a2::l2)
+      | Lam(_,_,_,t1), Lam(_,_,_,t2) -> bis (n+1) t1 t2
+      | Pi(_,_,a1,b1), Pi(_,_,a2,b2) -> bis n a1 a2 && bis (n+1) b1 b2
+      | _ -> false
+    in
+    R.are_convertible sg ty_inf ty_exp ||
+      bis 0 (R.snf sg ty_inf) (R.snf sg ty_exp)
+
   (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
-  let rec infer sg (ctx:typed_context) (te:term) : typ =
+  (* The functions [check'] and [infer'] have an additional argument compared [check] and [infer]
+     which is a list of additional equality, which are useful when checking subject reduction *)
+  let rec infer' sg (ctx:typed_context) (te:term) (addi_eq:cstr list) : typ =
     Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
     match te with
     | Kind -> raise (TypingError KindIsNotTypable)
@@ -77,56 +102,60 @@ struct
     | DB (l,x,n) -> get_type ctx l x n
     | Const (l,cst) -> Signature.get_type sg l cst
     | App (f,a,args) ->
-       snd (List.fold_left (check_app sg ctx) (f,infer sg ctx f) (a::args))
+       snd (List.fold_left (check_app sg ctx addi_eq) (f,infer' sg ctx f addi_eq) (a::args))
     | Pi (l,x,a,b) ->
-       let ty_a = infer sg ctx a in
+       let ty_a = infer' sg ctx a addi_eq in
        let ctx2 = extend_ctx (l,x,a) ctx ty_a in
-       let ty_b = infer sg ctx2 b in
+       let ty_b = infer' sg ctx2 b addi_eq in
        ( match ty_b with
        | Kind | Type _ -> ty_b
        | _ -> raise (TypingError (SortExpected (b, ctx2, ty_b))) )
     | Lam  (l,x,Some a,b) ->
-       let ty_a = infer sg ctx a in
+       let ty_a = infer' sg ctx a addi_eq in
        let ctx2 = extend_ctx (l,x,a) ctx ty_a in
-       let ty_b = infer sg ctx2 b in
+       let ty_b = infer' sg ctx2 b addi_eq in
        ( match ty_b with
        | Kind -> raise (TypingError (InexpectedKind (b, ctx2)))
        | _ -> mk_Pi l x a ty_b )
     | Lam  (l,_,None,_) -> raise (TypingError (DomainFreeLambda l))
 
-  and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
+  and check' sg (ctx:typed_context) (te:term) (ty_exp:typ) (addi_eq:cstr list) : unit =
     Debug.(debug D_typeChecking "Checking (%a): %a : %a"
              pp_loc (get_loc te) pp_term te pp_term ty_exp);
     match te with
     | Lam (l,x,None,b) ->
        begin
          match R.whnf sg ty_exp with
-         | Pi (_,_,a,ty_b) -> check sg ((l,x,a)::ctx) b ty_b
+         | Pi (_,_,a,ty_b) -> check' sg ((l,x,a)::ctx) b ty_b addi_eq
          | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
        end
     | Lam (l,x,Some a,b) ->
        begin
          match R.whnf sg ty_exp with
          | Pi (_,_,a',ty_b) ->
-            ignore(infer sg ctx a);
-           if not (R.are_convertible sg a a')
+            ignore(infer' sg ctx a addi_eq);
+           if not (csq_of_eq sg a a' addi_eq)
            then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a',a)))
-           else check sg ((l,x,a)::ctx) b ty_b
+           else check' sg ((l,x,a)::ctx) b ty_b addi_eq
          | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
        end
     | _ ->
-       let ty_inf = infer sg ctx te in
+       let ty_inf = infer' sg ctx te addi_eq in
        Debug.(debug D_typeChecking "Checking convertibility: %a ~ %a"
 		pp_term ty_inf pp_term ty_exp);
-       if not (R.are_convertible sg ty_inf ty_exp) then
+       if not (csq_of_eq sg ty_inf ty_exp addi_eq)
+       then
          let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
          raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
 
-  and check_app sg (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
+  and check_app sg (ctx:typed_context) (addi_eq:cstr list) (f,ty_f:term*typ) (arg:term) : term*typ =
     match R.whnf sg ty_f with
     | Pi (_,_,a,b) ->
-       let _ = check sg ctx arg a in (mk_App f arg [], Subst.subst b arg )
+       let _ = check' sg ctx arg a addi_eq in (mk_App f arg [], Subst.subst b arg )
     | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
+
+  let check sg ctx te ty = check' sg ctx te ty []
+  let infer sg ctx te = infer' sg ctx te []
 
   let inference sg (te:term) : typ = infer sg [] te
 
@@ -152,16 +181,16 @@ struct
       ( try Some (Subst.unshift q (R.snf sg t))
 	with Subst.UnshiftExn -> None )
 
-(** Under [d] lambdas, checks whether term [te] *must* contain an occurence
-    of any variable that satisfies the given predicate [p],
-    *even when substituted or reduced*.
-    This check make no assumption on the rewrite system or possible substitution
-    - any definable symbol are "safe" as they may reduce to a term where no variable occur
-    - any applied meta variable (DB index > [d]) are "safe" as they may be
-    substituted and reduce to a term where no variable occur
-    Raises VarSurelyOccurs if the term [te] *surely* contains an occurence of one
-    of the [vars].
-*)
+  (** Under [d] lambdas, checks whether term [te] *must* contain an occurence
+      of any variable that satisfies the given predicate [p],
+      *even when substituted or reduced*.
+      This check make no assumption on the rewrite system or possible substitution
+      - any definable symbol are "safe" as they may reduce to a term where no variable occur
+      - any applied meta variable (DB index > [d]) are "safe" as they may be
+      substituted and reduce to a term where no variable occur
+      Raises VarSurelyOccurs if the term [te] *surely* contains an occurence of one
+      of the [vars].
+  *)
   let sure_occur_check sg (d:int) (p:int -> bool) (te:term) : bool =
     let exception VarSurelyOccurs in
     let rec aux = function
@@ -219,9 +248,6 @@ struct
 	 | App (f,a,args)     -> aux ((k,f)::(k,a):: (List.map (fun t -> (k,t)) args) @ tl)
 	 | _ -> aux tl
     in aux (List.map (fun t -> (0,t)) terms); vars
-
-  type cstr = int*term*term
-(* Constraints [(n,t,u)] are [t]=[u] under [n] lambdas *)
 
   type solver =
     {
@@ -361,7 +387,7 @@ struct
            | _, _ -> unsatisf()
        end
 
-  let solve_cstr sg cstr =
+  let solve_cstr (sg : Signature.t) (cstr : cstr list) : solver =
     let rec process_solver sol =
       match pseudo_u sg false { sol with unsolved = [] } sol.unsolved with
       | false, s -> s
@@ -567,13 +593,16 @@ struct
     | (q,t1,t2)::_ ->
        if !fail_on_unsatisfiable_constraints
        then raise (TypingError (UnsatisfiableConstraints (rule,(q,t1,t2))))
-       else Debug.(debug D_warn "At %a: unsatisfiable constraint: %a ~ %a%s"
-                     pp_loc (get_loc_rule rule)
-                     pp_term t1 pp_term t2
-                     (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")));
-
+       else
+	 Debug.(debug D_warn)
+	   "At %a: unsatisfiable constraint: %a ~ %a%s"
+           pp_loc (get_loc_rule rule)
+           pp_term t1 pp_term t2
+           (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")
+    );
     let sub = sol.subst in
-    let ty_le2 = SS.apply sub 0 ty_le in
+    let ri2    = SS.apply sub 0 rule.rhs in
+    let ty_le2 = SS.apply sub 0 ty_le    in
     let ctx = LList.lst delta.pctx in
     let ctx2 =
       try subst_context sub ctx
@@ -585,13 +614,8 @@ struct
           debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
 	raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
     in
-  (* FIXME: Why is the RHS substituted ?!
-     Instead we should keep the original RHS and perform a check *modulo a substitution*
-     This simply means extend the check function to apply the substitution to all infered
-     types. *)
-    let ri2    = SS.apply sub 0 rule.rhs in
     Debug.(debug D_rule "Typechecking rule");
-    check sg ctx2 ri2 ty_le2;
+    check' sg ctx2 ri2 ty_le2 sol.unsolved;
     check_type_annotations sg sub ctx2 rule.ctx;
     Debug.(debug D_rule "Fully checked rule:@.[ %a ] %a --> %a"
              pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
