@@ -6,6 +6,7 @@ t : a:A -> T a.
 
 a : A.
 def b : A -> A -> A.
+def b': A -> A -> A.
     c : A -> A -> A.
 
 (; We build definitions with types containing an expression relying on
@@ -30,29 +31,29 @@ def a1 : X:(A->A->A) -> Y:(A->A) ->
             (c (b x y)
                (b a a))))))) -> Type.
 
-[X,Y] a1 X Y (x => y =>
- t (c x
-   (c y
-   (c (b x x)
-   (c (b a y)
-   (c (b x y)
-      (b a a))))))) --> A.
+[X,Y] a1 (x=>y=>X x y) (x=>Y x) (x=>y=>t
+  (c x
+  (c y
+  (c (b x x)
+  (c (b a y)
+  (c (b x y)
+     (b a a))))))) --> A.
 
-[X,Y] a1 X Y (x => y =>
- t (c (b a (c x x))
-   (c y
-   (c (b x x)
-   (c (b a y)
-   (c (b x y)
-      (b a a))))))) --> A.
+[X,Y] a1 (x=>y=>X x y) (x=>Y x) (x=>y=>t
+  (c (b a (c x x))
+  (c (Y y)
+  (c (b' (c x x) a)
+  (c (b' y y)
+  (c (b' (c x x) (b y y))
+     (b' x y))))))) --> A.
 
-[X,Y] a1 X (x => Y x) (x => y =>
- t (c (Y x)
-   (c y
-   (c (b x x)
-   (c (b a y)
-   (c (b x y)
-      (b a a))))))) --> A.
+[X,Y] a1 (x=>y=>X x y) (x=>Y x) (x=>y=>t
+  (c (X x y)
+  (c (b (c y y) (c x x))
+  (c x
+  (c y
+  (c y
+     (c (Y x) a))))))) --> A.
 
 (; Terms that *must* contain x and *must* contain y
    are convertible with
