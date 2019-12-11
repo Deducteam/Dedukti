@@ -70,6 +70,11 @@ struct
   type cstr = int*term*term
   (* Constraints [(n,t,u)] are [t]=[u] under [n] lambdas *)
 
+  (*
+  let pp_cstr fmt (n,t1,t2) =
+    fprintf fmt "[%i] %a ~ %a" n pp_term t1 pp_term t2
+  *)
+
   let is_same_cstr ((n1,t1,u1):cstr) ((n2,t2,u2):cstr) =
     let t1',u1' = Subst.shift n2 t1, Subst.shift n2 u1 in
     let t2',u2' = Subst.shift n1 t2, Subst.shift n1 u2 in
@@ -83,7 +88,7 @@ struct
       | App(h1,a1,l1), App(h2,a2,l2) -> List.for_all2 (bis n) (h1::a1::l1) (h2::a2::l2)
       | Lam(_,_,_,t1), Lam(_,_,_,t2) -> bis (n+1) t1 t2
       | Pi(_,_,a1,b1), Pi(_,_,a2,b2) -> bis n a1 a2 && bis (n+1) b1 b2
-      | _ -> false
+      | _ -> term_eq ty1 ty2
     in
     R.are_convertible sg ty_inf ty_exp ||
     (addi_eq <> [] && bis 0 (R.snf sg ty_inf) (R.snf sg ty_exp))
@@ -622,7 +627,6 @@ struct
     check_type_annotations sg sub ctx2 rule.ctx;
     Debug.(debug D_rule "Fully checked rule:@.[ %a ] %a --> %a"
              pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
-
     sub,
     { name = rule.name;
       ctx = ctx2;
