@@ -70,25 +70,23 @@ struct
   type cstr = int*term*term
   (* Constraints [(n,t,u)] are [t]=[u] under [n] lambdas *)
 
-  let csq_of_eq (sg:Signature.t) (ty_inf:typ) (ty_exp:typ) (addi_eq:cstr list) : bool =
-    let is_same_cstr ((n1,t1,u1):cstr) ((n2,t2,u2):cstr) =
-      let t1',u1' = Subst.shift n2 t1, Subst.shift n2 u1 in
-      let t2',u2' = Subst.shift n1 t2, Subst.shift n1 u2 in
-      (term_eq t1' t2' && term_eq u1' u2') ||
+  let is_same_cstr ((n1,t1,u1):cstr) ((n2,t2,u2):cstr) =
+    let t1',u1' = Subst.shift n2 t1, Subst.shift n2 u1 in
+    let t2',u2' = Subst.shift n1 t2, Subst.shift n1 u2 in
+    (term_eq t1' t2' && term_eq u1' u2') ||
 	(term_eq t1' u2' && term_eq u1' t2')
-    in
-    let addi_eq_nrm = List.map (fun (n,t,u) -> (n,R.snf sg t,R.snf sg u)) addi_eq in
+
+  let csq_of_eq (sg:Signature.t) (ty_inf:typ) (ty_exp:typ) (addi_eq:cstr list) : bool =
     let rec bis n ty1 ty2 =
-      List.exists (is_same_cstr (n,ty1,ty2)) addi_eq_nrm ||
+      List.exists (is_same_cstr (n,ty1,ty2)) addi_eq ||
       match ty1,ty2 with
-      | App(h1,a1,l1), App(h2,a2,l2) ->
-	 List.for_all2 (bis n) (h1::a1::l1) (h2::a2::l2)
+      | App(h1,a1,l1), App(h2,a2,l2) -> List.for_all2 (bis n) (h1::a1::l1) (h2::a2::l2)
       | Lam(_,_,_,t1), Lam(_,_,_,t2) -> bis (n+1) t1 t2
       | Pi(_,_,a1,b1), Pi(_,_,a2,b2) -> bis n a1 a2 && bis (n+1) b1 b2
       | _ -> false
     in
     R.are_convertible sg ty_inf ty_exp ||
-      bis 0 (R.snf sg ty_inf) (R.snf sg ty_exp)
+    (addi_eq <> [] && bis 0 (R.snf sg ty_inf) (R.snf sg ty_exp))
 
   (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
@@ -619,7 +617,8 @@ struct
        types. *)
     let ri2    = SS.apply sub 0 rule.rhs in
     Debug.(debug D_rule "Typechecking rule");
-    check' sg ctx2 ri2 ty_le2 sol.unsolved;
+    let cstr_nf = List.map (fun (n,t,u) -> (n,R.snf sg t,R.snf sg u)) sol.unsolved in
+    check' sg ctx2 ri2 ty_le2 cstr_nf;
     check_type_annotations sg sub ctx2 rule.ctx;
     Debug.(debug D_rule "Fully checked rule:@.[ %a ] %a --> %a"
              pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
