@@ -81,7 +81,7 @@ struct
     (term_eq t1' t2' && term_eq u1' u2') ||
 	(term_eq t1' u2' && term_eq u1' t2')
 
-  let csq_of_eq (sg:Signature.t) (ty_inf:typ) (ty_exp:typ) (addi_eq:cstr list) : bool =
+  let convertible_under_cstr (sg:Signature.t) (sub:SS.t) (addi_eq:cstr list) (depth:int) (ty_inf:typ) (ty_exp:typ) : bool =
     let rec bis n ty1 ty2 =
       List.exists (is_same_cstr (n,ty1,ty2)) addi_eq ||
       match ty1,ty2 with
@@ -90,14 +90,16 @@ struct
       | Pi(_,_,a1,b1), Pi(_,_,a2,b2) -> bis n a1 a2 && bis (n+1) b1 b2
       | _ -> term_eq ty1 ty2
     in
-    R.are_convertible sg ty_inf ty_exp ||
-    (addi_eq <> [] && bis 0 (R.snf sg ty_inf) (R.snf sg ty_exp))
+    let subst_ty_inf = SS.apply sub depth ty_inf in
+    let subst_ty_exp = SS.apply sub depth ty_exp in
+    R.are_convertible sg subst_ty_inf subst_ty_exp ||
+    (addi_eq <> [] && bis 0 (R.snf sg subst_ty_inf) (R.snf sg subst_ty_exp))
 
   (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
   (* The functions [check'] and [infer'] have an additional argument compared to [check] and [infer]
      which is a list of additional equalities, which are useful when checking subject reduction *)
-  let rec infer' sg (ctx:typed_context) (te:term) (addi_eq:cstr list) : typ =
+  let rec infer' sg (sub:SS.t) (addi_eq:cstr list) (d:int) (ctx:typed_context) (te:term) : typ =
     Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
     match te with
     | Kind -> raise (TypingError KindIsNotTypable)
@@ -105,60 +107,62 @@ struct
     | DB (l,x,n) -> get_type ctx l x n
     | Const (l,cst) -> Signature.get_type sg l cst
     | App (f,a,args) ->
-       snd (List.fold_left (check_app sg ctx addi_eq) (f,infer' sg ctx f addi_eq) (a::args))
+       snd (List.fold_left (check_app sg sub addi_eq d ctx)
+              (f,infer' sg sub addi_eq d ctx f) (a::args))
     | Pi (l,x,a,b) ->
-       let ty_a = infer' sg ctx a addi_eq in
+       let ty_a = infer' sg sub addi_eq d ctx a in
        let ctx2 = extend_ctx (l,x,a) ctx ty_a in
-       let ty_b = infer' sg ctx2 b addi_eq in
+       let ty_b = infer' sg sub addi_eq (d+1) ctx2 b in
        ( match ty_b with
        | Kind | Type _ -> ty_b
        | _ -> raise (TypingError (SortExpected (b, ctx2, ty_b))) )
     | Lam  (l,x,Some a,b) ->
-       let ty_a = infer' sg ctx a addi_eq in
+       let ty_a = infer' sg sub addi_eq d ctx a in
        let ctx2 = extend_ctx (l,x,a) ctx ty_a in
-       let ty_b = infer' sg ctx2 b addi_eq in
+       let ty_b = infer' sg sub addi_eq (d+1) ctx2 b in
        ( match ty_b with
        | Kind -> raise (TypingError (InexpectedKind (b, ctx2)))
        | _ -> mk_Pi l x a ty_b )
     | Lam  (l,_,None,_) -> raise (TypingError (DomainFreeLambda l))
 
-  and check' sg (ctx:typed_context) (te:term) (ty_exp:typ) (addi_eq:cstr list) : unit =
+  and check' sg (sub:SS.t) (addi_eq:cstr list) (d:int) (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     Debug.(debug D_typeChecking "Checking (%a): %a : %a"
              pp_loc (get_loc te) pp_term te pp_term ty_exp);
     match te with
     | Lam (l,x,None,b) ->
        begin
          match R.whnf sg ty_exp with
-         | Pi (_,_,a,ty_b) -> check' sg ((l,x,a)::ctx) b ty_b addi_eq
+         | Pi (_,_,a,ty_b) -> check' sg sub addi_eq (d+1) ((l,x,a)::ctx) b ty_b
          | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
        end
     | Lam (l,x,Some a,b) ->
        begin
          match R.whnf sg ty_exp with
          | Pi (_,_,a',ty_b) ->
-            ignore(infer' sg ctx a addi_eq);
-           if not (csq_of_eq sg a a' addi_eq)
-           then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a',a)))
-           else check' sg ((l,x,a)::ctx) b ty_b addi_eq
+            ignore(infer' sg sub addi_eq d ctx a);
+            if not (convertible_under_cstr sg sub addi_eq d a a')
+            then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a',a)))
+            else check' sg sub addi_eq (d+1) ((l,x,a)::ctx) b ty_b
          | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
        end
     | _ ->
-       let ty_inf = infer' sg ctx te addi_eq in
-       Debug.(debug D_typeChecking "Checking convertibility: %a ~ %a"
-		pp_term ty_inf pp_term ty_exp);
-       if not (csq_of_eq sg ty_inf ty_exp addi_eq)
-       then
-         let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
-         raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
+      let ty_inf = infer' sg sub addi_eq d ctx te in
+      Debug.(debug D_typeChecking "Checking convertibility: %a ~ %a"
+		       pp_term ty_inf pp_term ty_exp);
+      if not (convertible_under_cstr sg sub addi_eq d ty_inf ty_exp)
+      then
+        let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
+        raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
 
-  and check_app sg (ctx:typed_context) (addi_eq:cstr list) (f,ty_f:term*typ) (arg:term) : term*typ =
+  and check_app sg (sub:SS.t) (addi_eq:cstr list) (d:int) (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
     match R.whnf sg ty_f with
     | Pi (_,_,a,b) ->
-       let _ = check' sg ctx arg a addi_eq in (mk_App f arg [], Subst.subst b arg )
+       let _ = check' sg sub addi_eq d ctx arg a in
+       (mk_App f arg [], Subst.subst b arg )
     | _ -> raise (TypingError ( ProductExpected (f,ctx,ty_f)))
 
-  let check sg ctx te ty = check' sg ctx te ty []
-  let infer sg ctx te = infer' sg ctx te []
+  let check sg = check' sg SS.identity [] 0
+  let infer sg = infer' sg SS.identity [] 0
 
   let inference sg (te:term) : typ = infer sg [] te
 
@@ -255,7 +259,9 @@ struct
   type solver =
     {
       subst    : SS.t;
+      (*
       ho_subst : (int*int*term) list;
+*)
       unsolved : cstr list;
       unsatisf : cstr list
     }
@@ -396,7 +402,7 @@ struct
       | false, s -> s
       | true, sol' -> process_solver {sol' with subst=SS.mk_idempotent sol'.subst}
     in
-    process_solver {subst=SS.identity;ho_subst=[];unsolved=cstr;unsatisf=[]}
+    process_solver {subst=SS.identity;unsolved=cstr;unsatisf=[]}
 
 
 
@@ -604,29 +610,28 @@ struct
            (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")
     );
     let sub = sol.subst in
+    (*
     let ty_le2 = SS.apply sub 0 ty_le    in
+    *)
     let ctx = LList.lst delta.pctx in
     let ctx2 =
       try subst_context sub ctx
       with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
-	Debug.(
-          debug D_rule "Failed to infer a typing context for the rule:\n%a"
+	    begin
+          Debug.(debug D_rule) "Failed to infer a typing context for the rule:\n%a"
             pp_part_typed_rule rule;
           let ctx_name n = let _,name,_ = List.nth ctx n in name in
-          debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
-	raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
+          Debug.(debug D_rule) "Tried inferred typing substitution: %a"
+            (SS.pp ctx_name) sub;
+          raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ))
+        end
     in
-    (* FIXME: Why is the RHS substituted ?!
-       Instead we should keep the original RHS and perform a check *modulo a substitution*
-       This simply means extend the check function to apply the substitution to all infered
-       types. *)
-    let ri2    = SS.apply sub 0 rule.rhs in
     Debug.(debug D_rule "Typechecking rule");
     let cstr_nf = List.map (fun (n,t,u) -> (n,R.snf sg t,R.snf sg u)) sol.unsolved in
-    check' sg ctx2 ri2 ty_le2 cstr_nf;
+    check' sg sub cstr_nf 0 ctx2 rule.rhs ty_le;
     check_type_annotations sg sub ctx2 rule.ctx;
     Debug.(debug D_rule "Fully checked rule:@.[ %a ] %a --> %a"
-             pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
+             pp_context_inline ctx pp_pattern rule.pat pp_term rule.rhs);
     sub,
     { name = rule.name;
       ctx = ctx2;

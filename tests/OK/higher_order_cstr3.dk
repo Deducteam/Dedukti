@@ -29,26 +29,26 @@ def g1 : x:(A->A) -> y:(A->A) -> (z:A -> R (x z) (y z)) -> (z:A -> T (x z)) -> z
 [x,y] g1 x y (z => t a) (z => t a) --> z => t a.
 
 def g2 : x:(A->A) -> y:(A->A) -> (z:A -> R (x z) (y z)) -> (z:A -> T (x z)) -> T (y b).
-[x,y] g2 x y (z => t a) (z => t a) --> z => t a.
+[x,y] g2 x y (z => t a) (z => t a) --> t a.
 
 def g3 : x:(A->A) -> y:(A->A) -> (z:A -> R (x z) (y z)) -> (z:A -> T (x z)) -> z:A -> T (y z).
 [x,y] g3 x y (z => t z) (z => t a) --> z => t z.
 
 def g4 : x:(A->A) -> y:(A->A) -> (z:A -> R (x z) (y z)) -> (z:A -> T (x z)) -> T (y b).
-[x,y] g4 x y (z => t z) (z => t a) --> z => t b.
+[x,y] g4 x y (z => t z) (z => t a) --> t b.
 
 
 def h1 : x:(A->A) -> y:(A->A) -> (z:A -> R (x z) (y z)) -> (z:A -> T a) -> z:A -> T (y z).
-[x,y] h1 x y (z => t a) (z => t (x z)) --> z => t a.
+[x,y] h1 (z => x z) y (z => t a) (z => t (x z)) --> z => t a.
 
 def h2 : x:(A->A) -> y:(A->A) -> (z:A -> R (x z) (y z)) -> (z:A -> T a) -> T (y b).
-[x,y] h2 x y (z => t a) (z => t (x z)) --> z => t a.
+[x,y] h2 (z => x z) y (z => t a) (z => t (x z)) --> t a.
 
 def h3 : x:(A->A) -> y:(A->A) -> (z:A -> R (x z) (y z)) -> (z:A -> T a) -> z:A -> T (y z).
-[x,y] h3 x y (z => t z) (z => t (x z)) --> z => t z.
+[x,y] h3 (z => x z) y (z => t z) (z => t (x z)) --> z => t z.
 
 def h4 : x:(A->A) -> y:(A->A) -> (z:A -> R (x z) (y z)) -> (z:A -> T a) -> T (y b).
-[x,y] h4 x y (z => t z) (z => t (x z)) --> z => t b.
+[x,y] h4 (z=>x z) y (z => t z) (z => t (x z)) --> t b.
 
 
 
@@ -57,23 +57,23 @@ def g'1 : x:(A->A) -> y:(A->A) -> (z:A -> T (x z)) -> (z:A -> R (x z) (y z)) -> 
 [x,y] g'1 x y (z => t a) (z => t a) --> z => t a.
 
 def g'2 : x:(A->A) -> y:(A->A) -> (z:A -> T (x z)) -> (z:A -> R (x z) (y z)) -> T (y b).
-[x,y] g'2 x y (z => t a) (z => t a) --> z => t a.
+[x,y] g'2 x y (z => t a) (z => t a) --> t a.
 
 def g'3 : x:(A->A) -> y:(A->A) -> (z:A -> T (x z)) -> (z:A -> R (x z) (y z)) -> z:A -> T (y z).
 [x,y] g'3 x y (z => t a) (z => t z) --> z => t z.
 
 def g'4 : x:(A->A) -> y:(A->A) -> (z:A -> T (x z)) -> (z:A -> R (x z) (y z)) -> T (y b).
-[x,y] g'4 x y (z => t a) (z => t z) --> z => t b.
+[x,y] g'4 x y (z => t a) (z => t z) --> t b.
 
 
 def h'1 : x:(A->A) -> y:(A->A) -> (z:A -> T a) -> (z:A -> R (x z) (y z)) -> z:A -> T (y z).
-[x,y] h'1 x y (z => t (x z)) (z => t a) --> z => t a.
+[x,y] h'1 (z=>x z) y (z => t (x z)) (z => t a) --> z => t a.
 
 def h'2 : x:(A->A) -> y:(A->A) -> (z:A -> T a) -> (z:A -> R (x z) (y z)) -> T (y b).
-[x,y] h'2 x y (z => t (x z)) (z => t a) --> z => t a.
+[x,y] h'2 (z=>x z) y (z => t (x z)) (z => t a) --> t a.
 
 def h'3 : x:(A->A) -> y:(A->A) -> (z:A -> T a) -> (z:A -> R (x z) (y z)) -> z:A -> T (y z).
-[x,y] h'3 x y (z => t (x z)) (z => t z) --> z => t z.
+[x,y] h'3 (z=>x z) y (z => t (x z)) (z => t z) --> z => t z.
 
 def h'4 : x:(A->A) -> y:(A->A) -> (z:A -> T a) -> (z:A -> R (x z) (y z)) -> T (y b).
-[x,y] h'4 x y (z => t (x z)) (z => t z) --> z => t b.
+[x,y] h'4 (z=>x z) y (z => t (x z)) (z => t z) --> t b.
