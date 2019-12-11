@@ -11,13 +11,16 @@ let apply_exsubst (subst:ex_substitution) : int -> term -> term =
   let rec aux k t = match t with  (* k counts the number of local lambda abstractions *)
     | DB (l,x,n) when n >= k -> (* a free variable *)
        ( try let res = subst l x n 0 k in incr ct; res with Not_found -> t)
-    | App (DB (l,x,n),a,args) when n >= k -> (* an applied free variable *)
-      ( try
+    | App (DB (l,x,n) as db,a,args) when n >= k -> (* an applied free variable *)
+      let ct' = !ct in
+      let f' =
+        try
           let res = subst l x n (1+(List.length args)) k in
           incr ct;
-          let a', args' = aux k a, List.map (aux k) args in
-          mk_App res a' args'
-        with Not_found -> t)
+          res
+        with Not_found -> db in
+      let a', args' = aux k a, List.map (aux k) args in
+      if !ct = ct' then t else mk_App f' a' args'
     | App (f,a,args) ->
       let ct' = !ct in
       let f', a', args' = aux k f, aux k a, List.map (aux k) args in
