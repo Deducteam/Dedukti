@@ -129,22 +129,20 @@ struct
     Debug.(debug D_typeChecking "Checking (%a): %a : %a"
              pp_loc (get_loc te) pp_term te pp_term ty_exp);
     match te with
-    | Lam (l,x,None,b) ->
-       begin
-         match R.whnf sg ty_exp with
-         | Pi (_,_,a,ty_b) -> check' sg sub addi_eq (d+1) ((l,x,a)::ctx) b ty_b
-         | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
-       end
-    | Lam (l,x,Some a,b) ->
-       begin
-         match R.whnf sg ty_exp with
-         | Pi (_,_,a',ty_b) ->
-            ignore(infer' sg sub addi_eq d ctx a);
-            if not (convertible_under_cstr sg sub addi_eq d a a')
-            then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a',a)))
-            else check' sg sub addi_eq (d+1) ((l,x,a)::ctx) b ty_b
-         | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
-       end
+    | Lam (l,x,op,b) ->
+      begin
+        match R.whnf sg ty_exp with
+        | Pi (_,_,a,ty_b) ->
+          ( match op with
+            | Some a' ->
+               ignore(infer' sg sub addi_eq d ctx a');
+               if not (convertible_under_cstr sg sub addi_eq d a a')
+               then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a,a')))
+            | _ -> ()
+          );
+          check' sg sub addi_eq (d+1) ((l,x,a)::ctx) b ty_b
+        | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
+      end
     | _ ->
       let ty_inf = infer' sg sub addi_eq d ctx te in
       Debug.(debug D_typeChecking "Checking convertibility: %a ~ %a"
