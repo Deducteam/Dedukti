@@ -8,10 +8,11 @@ open Term
     A substitution raises Not_found meaning that the variable is not subsituted. *)
 type ex_substitution = Basic.loc -> Basic.ident -> int -> int -> int -> term
 
-(** [apply_subst subst n t] applies [subst] to [t] under [n] lambda abstractions.
+(** [apply_exsubst subst n t] applies [subst] to [t] under [n] lambda abstractions.
       - Variables with DB index [k] <  [n] are considered "locally bound" and are never substituted.
-      - Variables with DB index [k] >= [n] may be substituted if [k-n] is mapped in [sigma]. *)
-val apply_exsubst : ex_substitution -> int -> term -> term
+      - Variables with DB index [k] >= [n] may be substituted if [k-n] is mapped in [sigma]
+          and if they occur applied to enough arguments (substitution's arity). *)
+val apply_exsubst : ex_substitution -> int -> term -> term*bool
 
 (** This modules implements extended substitution of DB variables in a term.
     This is typically used to:
@@ -48,7 +49,7 @@ sig
       variables of Gamma' refers to variables of Delta.
   *)
 
-  val apply : t -> int -> term -> term
+  val apply : t -> int -> term -> term*bool
   (** [apply sigma n t] applies the subsitution [sigma] to [t] considered
       under [n] lambda abstractions. *)
 

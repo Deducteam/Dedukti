@@ -1,0 +1,49 @@
+(; OK ;)
+
+A : Type.
+a : A. a' : A.
+c : A -> A -> A.
+
+T : A -> Type.
+t  : a : A -> T a.
+
+U : (A -> A) -> Type.
+u  : a : (A -> A) -> U a.
+
+V : (A -> A -> A) -> Type.
+v  : a : (A -> A -> A) -> V a.
+
+def flip : A -> A.
+[X,Y] flip (c X Y) --> c Y X.
+
+def test1 : f : (A -> A -> A) ->
+           (x:A -> U (f x)) ->
+           (x:A -> y:A -> T (f x y)) ->
+           V (x => y => f y x).
+(; Constraints:
+   x,y |- F x y = c x y
+   x   |- G x   = F x     ;)
+[F,G]
+  test1 F (x => u (G x)) (x => y => t (c x y))
+  -->
+  v (x => y => flip (G x y)).
+
+
+d : (A -> A -> A) -> (A -> A -> A).
+def e : (A -> A -> A) -> (A -> A -> A).
+[X] e (d X) --> X.
+
+
+def test2 : f : (A -> A -> A) ->
+           (x:A -> U (e f x)) ->
+           (x:A -> y:A -> T (e f x y)) ->
+           V f ->
+           V (x => y => flip (e f y x)).
+(; Constraints:
+       |- F     = d H
+   x,y |- H x y = c x y
+   x   |- G x   = H x     ;)
+[F,G,H]
+  test2 F (x => u (G x)) (x => y => t (c x y)) (v (d H))
+  -->
+  v (x => y => G x y).

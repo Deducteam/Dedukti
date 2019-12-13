@@ -73,8 +73,7 @@ struct
   let cstr_eq ((n1,t1,u1):cstr) ((n2,t2,u2):cstr) =
     let t1',u1' = Subst.shift n2 t1, Subst.shift n2 u1 in
     let t2',u2' = Subst.shift n1 t2, Subst.shift n1 u2 in
-    (term_eq t1' t2' && term_eq u1' u2') ||
-    (term_eq t1' u2' && term_eq u1' t2')
+    (term_eq t1' t2' && term_eq u1' u2') || (term_eq t1' u2' && term_eq u1' t2')
 
   let term_eq_under_cstr (eq_cstr:cstr list) : typ -> typ -> bool =
     let rec aux = function
@@ -83,17 +82,27 @@ struct
         List.exists (cstr_eq (n,t1,t2)) eq_cstr ||
         match t1,t2 with
         | App(h1,a1,l1), App(h2,a2,l2) ->
+          List.length l1 = List.length l2 &&
           aux ((n,h1,h2)::(n,a1,a2)::(List.map2 (fun x y -> (n,x,y)) l1 l2)@tl)
         | Lam(_,_,_,t1), Lam(_,_,_,t2) -> aux ((n+1,t1,t2)::tl)
         | Pi(_,_,a1,b1), Pi(_,_,a2,b2) -> aux ((n,a1,a2)::(n+1,b1,b2)::tl)
         | _ -> term_eq t1 t2 && aux tl
       in fun t1 t2 -> eq_cstr <> [] && aux [(0,t1,t2)]
 
+  let rec full_snf sg subst d t =
+    let t1 = R.snf sg t in
+    let t2,flag = SS.apply subst d t1 in
+    if flag then full_snf sg subst d t2 else R.snf sg t2
+
   let convertible_under_cstr (sg:Signature.t) (sub:SS.t) (eq_cstr:cstr list) (depth:int) (ty_inf:typ) (ty_exp:typ) : bool =
-    let subst_ty_inf = SS.apply sub depth ty_inf in
-    let subst_ty_exp = SS.apply sub depth ty_exp in
-    R.are_convertible sg subst_ty_inf subst_ty_exp ||
-    term_eq_under_cstr eq_cstr (R.snf sg subst_ty_inf) (R.snf sg subst_ty_exp)
+    let subst_ty_inf,_ = SS.apply sub depth ty_inf in
+    let subst_ty_exp,_ = SS.apply sub depth ty_exp in
+    if R.are_convertible sg subst_ty_inf subst_ty_exp then true
+    else
+      let snf_ty_inf = full_snf sg sub depth subst_ty_inf in
+      let snf_ty_exp = full_snf sg sub depth subst_ty_exp in
+      R.are_convertible sg snf_ty_inf snf_ty_exp ||
+      term_eq_under_cstr eq_cstr snf_ty_inf snf_ty_exp
 
   (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
@@ -151,7 +160,6 @@ struct
       then
         let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
         raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
-
   and check_app sg (sub:SS.t) (addi_eq:cstr list) (d:int) (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
     match R.whnf sg ty_f with
     | Pi (_,_,a,b) ->
@@ -208,23 +216,23 @@ struct
      | Lam (_,_,Some a,b) -> aux ((k,a)::(k+1,b)::tl)
      | DB (_,_,n) -> if n >= k && p (n-k) then raise VarSurelyOccurs else aux tl
      | App (f,a,args) ->
-            begin
-              match f with
-              | DB (_,_,n) when n >= k + d -> (* a matching variable *)
-         if p (n-k) then raise VarSurelyOccurs else aux tl
-              | DB (_,_,n) when n < k + d -> (* a locally bound variable *)
-         if n >= k && p (n-k)
-         then raise VarSurelyOccurs
-         else aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl)
-              | Const (l,cst) when Signature.is_static sg l cst ->
-         (  aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl) )
-              | _ -> aux tl
-        (* Default case encompasses:
-           - Meta variables: DB(_,_,n) with n >= k + d
-           - Definable symbols
-           - Lambdas (FIXME: when can this happen ?)
-           - Illegal applications  *)
-            end
+       begin
+         match f with
+         | DB (_,_,n) ->
+           if n >= k && p (n-k)
+           then raise VarSurelyOccurs
+           else if n >= k + d (* a matching variable *)
+           then aux tl
+           else aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl)
+         | Const (l,cst) when Signature.is_static sg l cst ->
+           (  aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl) )
+         | _ -> aux tl
+         (* Default case encompasses:
+            - Meta variables: DB(_,_,n) with n >= k + d
+            - Definable symbols
+            - Lambdas (FIXME: when can this happen ?)
+            - Illegal applications  *)
+       end
     in
     try aux [(0,te)]; false
     with VarSurelyOccurs -> true
@@ -267,15 +275,22 @@ struct
       Some (Matching.solve q (LList.of_list dbs) t)
     with Matching.NotUnifiable -> None
 
+  let rec full_whnf sg subst d t =
+    let t1 = R.whnf sg t in
+    let t2,flag = SS.apply subst d t1 in
+    if flag then full_whnf sg subst d t2 else R.whnf sg t2
+
   let rec pseudo_u sg flag (s:solver) : cstr list -> bool*solver = function
     | [] -> (flag, s)
     | (q,t1,t2)::lst -> begin
-        let t1' = R.whnf sg (SS.apply s.subst q t1) in
-        let t2' = R.whnf sg (SS.apply s.subst q t2) in
+        let t1' = full_whnf sg s.subst q t1 in
+        let t2' = full_whnf sg s.subst q t2 in
         let dropped ()     = pseudo_u sg flag s lst in
         let unsolved ()    = pseudo_u sg flag { s with unsolved=(q,t1',t2')::s.unsolved } lst in
         let unsatisf ()    = pseudo_u sg true { s with unsatisf=(q,t1',t2')::s.unsolved } lst in
-        let subst db ar te = pseudo_u sg true { s with subst=SS.add s.subst db ar te    } lst in
+        let subst db ar te =
+          let subst' = SS.add s.subst db ar te in
+          pseudo_u sg true { s with subst=subst' } lst in
         if term_eq t1' t2' then dropped ()
         else
           match t1', t2' with
@@ -392,8 +407,8 @@ struct
   let solve_cstr (sg : Signature.t) (cstr : cstr list) : solver =
     let rec process_solver sol =
       match pseudo_u sg false { sol with unsolved = [] } sol.unsolved with
-      | false, s -> s
-      | true, sol' -> process_solver {sol' with subst=SS.mk_idempotent sol'.subst}
+      | false, s    -> s
+      | true , sol' -> process_solver {sol' with subst=SS.mk_idempotent sol'.subst}
     in
     process_solver {subst=SS.identity;unsolved=cstr;unsatisf=[]}
 
@@ -558,7 +573,7 @@ struct
   let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
     if SS.is_identity sub then ctx
     else
-      let apply_subst i (l,x,ty) = (l,x,Exsubst.apply_exsubst (SS.subst2 sub i) 0 ty) in
+      let apply_subst i (l,x,ty) = (l,x,fst (Exsubst.apply_exsubst (SS.subst2 sub i) 0 ty)) in
       List.mapi apply_subst ctx
 
   let check_type_annotations sg sub typed_ctx annot_ctx =
@@ -574,8 +589,8 @@ struct
                        pp_loc l pp_term ty pp_term ty');
              if not (R.are_convertible sg ty ty')
              then
-               let ty2  = SS.apply sub 0 (Subst.shift depth ty ) in
-               let ty2' = SS.apply sub 0 (Subst.shift depth ty') in
+               let ty2  = fst (SS.apply sub 0 (Subst.shift depth ty )) in
+               let ty2' = fst (SS.apply sub 0 (Subst.shift depth ty')) in
                if not (R.are_convertible sg ty2 ty2')
                then raise (TypingError (AnnotConvertibilityError (l,x,ctx,ty',ty)))
      end;
@@ -596,8 +611,8 @@ struct
        if !fail_on_unsatisfiable_constraints
        then raise (TypingError (UnsatisfiableConstraints (rule,(q,t1,t2))))
        else
-     Debug.(debug D_warn)
-       "At %a: unsatisfiable constraint: %a ~ %a%s"
+         Debug.(debug D_warn)
+           "At %a: unsatisfiable constraint: %a ~ %a%s"
            pp_loc (get_loc_rule rule)
            pp_term t1 pp_term t2
            (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")

@@ -4,7 +4,7 @@ open Term
 
 type ex_substitution = loc -> ident -> int -> int -> int -> term
 
-let apply_exsubst (subst:ex_substitution) : int -> term -> term =
+let apply_exsubst (subst:ex_substitution) (n:int) (te:term) : term*bool =
   let ct = ref 0 in
   (* aux increments this counter every time a substitution occurs.
    * Terms are reused when no substitution occurs in recursive calls. *)
@@ -34,7 +34,7 @@ let apply_exsubst (subst:ex_substitution) : int -> term -> term =
       let a', b' = aux k a, aux (k+1) b in
       if !ct = ct' then t else mk_Pi  l x a' b'
     | _ -> t
-  in aux
+  in (aux n te, !ct > 0)
 
 module IntMap = Map.Make(
   struct
@@ -59,24 +59,32 @@ struct
     let (argmin,t) = IntMap.find (n+i+1-k) sigma in
     if nargs >= argmin then Subst.shift k (Subst.unshift (i+1) t) else raise Not_found
 
-  let apply (sigma:t) : int -> term -> term =
-    if is_identity sigma then (fun _ t -> t) else apply_exsubst (subst sigma)
+  let apply (sigma:t) : int -> term -> term*bool =
+    if is_identity sigma then (fun _ t -> t,false) else apply_exsubst (subst sigma)
 
   let add (sigma:t) (n:int) (nargs:int) (t:term) : t =
-(*
     assert ( not (IntMap.mem n sigma) || fst (IntMap.find n sigma) > nargs );
-*)
     if not (IntMap.mem n sigma)  || fst (IntMap.find n sigma) > nargs
     then IntMap.add n (nargs,t) sigma else sigma
 
+  let applys (sigma:t)  : t -> t*bool =
+    if is_identity sigma then (fun t -> t,false)
+    else fun sigma' ->
+      let modified = ref false in
+      let applysigma (n,t) =
+        let res,flag = apply sigma 0 t in
+        if flag then modified := true;
+        (n,res)
+      in
+      IntMap.map applysigma sigma', !modified
+
   let rec mk_idempotent (sigma:t) : t =
-    let sigma2:t = IntMap.map (fun (n,t) -> n,apply sigma 0 t) sigma in
-    if IntMap.equal (fun (n1,t1) (n2,t2) -> n1 = n2 && term_eq t1 t2) sigma sigma2 then sigma
-    else mk_idempotent sigma2
+    let sigma', flag = applys sigma sigma in
+    if flag then mk_idempotent sigma' else sigma
 
   let pp (name:(int->ident)) (fmt:formatter) (sigma:t) : unit =
     let pp_aux i (n,t) =
-      fprintf fmt "  %a[%i](...%i...) -> %a(...)\n" pp_ident (name i) i n pp_term t in
+      fprintf fmt "  %a[%i](%i args) -> %a\n" pp_ident (name i) i n pp_term t in
     IntMap.iter pp_aux sigma
 
 end
