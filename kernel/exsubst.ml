@@ -45,14 +45,15 @@ module IntMap = Map.Make(
 module ExSubst =
 struct
   type t = (int*term) IntMap.t
+  (* Maps a DB index to an arity and a lambda-lifted substitute *)
   let identity = IntMap.empty
-
   let is_identity = IntMap.is_empty
 
   let subst (sigma:t) =
     fun _ _ n nargs k ->
-    let (argmin,t) = IntMap.find (n-k) sigma in
-    if nargs >= argmin then Subst.shift k t else raise Not_found
+    let (arity,t) = IntMap.find (n-k) sigma in
+    if nargs >= arity then Subst.shift k t else raise Not_found
+
   let subst2 (sigma:t) (i:int) =
     fun _ _ n nargs k ->
     let (argmin,t) = IntMap.find (n+i+1-k) sigma in

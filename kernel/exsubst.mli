@@ -33,10 +33,20 @@ sig
   (** [add sigma n t] returns the substitution [sigma] with the extra mapping [n] -> [t]. *)
 
   val subst : t -> ex_substitution
-  (** Provides substitution from Subst instance. *)
+  (** Substitution function corresponding to given ExSubst.t instance [sigma].
+      We lookup the table at index: (DB index) [n] - (nb of local binders) [k]
+      When the variable is under applied it is simply not substituted.
+      Otherwise we return the reduct is shifted up by (nb of local binders) [k] *)
 
   val subst2 : t -> int -> ex_substitution
-  (** Provides special substitution from Subst instance. *)
+  (** Special substitution function corresponding to given ExSubst.t instance [sigma]
+      "in a smaller context":
+      Assume [sigma] a substitution in a context Gamma = Gamma' ; Delta with |Delta|=[i].
+      Then this function represents the substitution [sigma] in the context Gamma'.
+      All variables of Delta are ignored and substitutes of the variables of Gamma'
+      are unshifted. This may therefore raise UnshiftExn in case substitutes of
+      variables of Gamma' refers to variables of Delta.
+  *)
 
   val apply : t -> int -> term -> term
   (** [apply sigma n t] applies the subsitution [sigma] to [t] considered
