@@ -70,30 +70,30 @@ struct
   type cstr = int*term*term
   (* Constraints [(n,t,u)] are [t]=[u] under [n] lambdas *)
 
-  (*
-  let pp_cstr fmt (n,t1,t2) =
-    fprintf fmt "[%i] %a ~ %a" n pp_term t1 pp_term t2
-  *)
-
-  let is_same_cstr ((n1,t1,u1):cstr) ((n2,t2,u2):cstr) =
+  let cstr_eq ((n1,t1,u1):cstr) ((n2,t2,u2):cstr) =
     let t1',u1' = Subst.shift n2 t1, Subst.shift n2 u1 in
     let t2',u2' = Subst.shift n1 t2, Subst.shift n1 u2 in
     (term_eq t1' t2' && term_eq u1' u2') ||
-	(term_eq t1' u2' && term_eq u1' t2')
+    (term_eq t1' u2' && term_eq u1' t2')
 
-  let convertible_under_cstr (sg:Signature.t) (sub:SS.t) (addi_eq:cstr list) (depth:int) (ty_inf:typ) (ty_exp:typ) : bool =
-    let rec bis n ty1 ty2 =
-      List.exists (is_same_cstr (n,ty1,ty2)) addi_eq ||
-      match ty1,ty2 with
-      | App(h1,a1,l1), App(h2,a2,l2) -> List.for_all2 (bis n) (h1::a1::l1) (h2::a2::l2)
-      | Lam(_,_,_,t1), Lam(_,_,_,t2) -> bis (n+1) t1 t2
-      | Pi(_,_,a1,b1), Pi(_,_,a2,b2) -> bis n a1 a2 && bis (n+1) b1 b2
-      | _ -> term_eq ty1 ty2
-    in
+  let term_eq_under_cstr (eq_cstr:cstr list) : typ -> typ -> bool =
+    let rec aux = function
+      | [] -> true
+      | (n,t1,t2)::tl ->
+        List.exists (cstr_eq (n,t1,t2)) eq_cstr ||
+        match t1,t2 with
+        | App(h1,a1,l1), App(h2,a2,l2) ->
+          aux ((n,h1,h2)::(n,a1,a2)::(List.map2 (fun x y -> (n,x,y)) l1 l2)@tl)
+        | Lam(_,_,_,t1), Lam(_,_,_,t2) -> aux ((n+1,t1,t2)::tl)
+        | Pi(_,_,a1,b1), Pi(_,_,a2,b2) -> aux ((n,a1,a2)::(n+1,b1,b2)::tl)
+        | _ -> term_eq t1 t2 && aux tl
+      in fun t1 t2 -> eq_cstr <> [] && aux [(0,t1,t2)]
+
+  let convertible_under_cstr (sg:Signature.t) (sub:SS.t) (eq_cstr:cstr list) (depth:int) (ty_inf:typ) (ty_exp:typ) : bool =
     let subst_ty_inf = SS.apply sub depth ty_inf in
     let subst_ty_exp = SS.apply sub depth ty_exp in
     R.are_convertible sg subst_ty_inf subst_ty_exp ||
-    (addi_eq <> [] && bis 0 (R.snf sg subst_ty_inf) (R.snf sg subst_ty_exp))
+    term_eq_under_cstr eq_cstr (R.snf sg subst_ty_inf) (R.snf sg subst_ty_exp)
 
   (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
@@ -117,7 +117,7 @@ struct
        | Kind | Type _ -> ty_b
        | _ -> raise (TypingError (SortExpected (b, ctx2, ty_b))) )
     | Lam  (l,x,Some a,b) ->
-       let ty_a = infer' sg sub addi_eq d ctx a in
+      let ty_a = infer' sg sub addi_eq d ctx a in
        let ctx2 = extend_ctx (l,x,a) ctx ty_a in
        let ty_b = infer' sg sub addi_eq (d+1) ctx2 b in
        ( match ty_b with
@@ -146,7 +146,7 @@ struct
     | _ ->
       let ty_inf = infer' sg sub addi_eq d ctx te in
       Debug.(debug D_typeChecking "Checking convertibility: %a ~ %a"
-		       pp_term ty_inf pp_term ty_exp);
+               pp_term ty_inf pp_term ty_exp);
       if not (convertible_under_cstr sg sub addi_eq d ty_inf ty_exp)
       then
         let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
@@ -184,7 +184,7 @@ struct
     try Some (Subst.unshift q t)
     with Subst.UnshiftExn ->
       ( try Some (Subst.unshift q (R.snf sg t))
-	with Subst.UnshiftExn -> None )
+    with Subst.UnshiftExn -> None )
 
   (** Under [d] lambdas, checks whether term [te] *must* contain an occurence
       of any variable that satisfies the given predicate [p],
@@ -201,23 +201,23 @@ struct
     let rec aux = function
       | [] -> ()
       | (k,t) :: tl -> (* k counts the number of local lambda abstractions *)
-	 match t with
-	 | Kind | Type _ | Const _ -> aux tl
-	 | Pi  (_,_,     a,b) -> aux ((k,a)::(k+1,b)::tl)
-	 | Lam (_,_,None  ,b) -> aux (       (k+1,b)::tl)
-	 | Lam (_,_,Some a,b) -> aux ((k,a)::(k+1,b)::tl)
-	 | DB (_,_,n) -> if n >= k && p (n-k) then raise VarSurelyOccurs else aux tl
-	 | App (f,a,args) ->
+     match t with
+     | Kind | Type _ | Const _ -> aux tl
+     | Pi  (_,_,     a,b) -> aux ((k,a)::(k+1,b)::tl)
+     | Lam (_,_,None  ,b) -> aux (       (k+1,b)::tl)
+     | Lam (_,_,Some a,b) -> aux ((k,a)::(k+1,b)::tl)
+     | DB (_,_,n) -> if n >= k && p (n-k) then raise VarSurelyOccurs else aux tl
+     | App (f,a,args) ->
             begin
               match f with
               | DB (_,_,n) when n >= k + d -> (* a matching variable *)
-		 if p (n-k) then raise VarSurelyOccurs else aux tl
+         if p (n-k) then raise VarSurelyOccurs else aux tl
               | DB (_,_,n) when n < k + d -> (* a locally bound variable *)
-		 if n >= k && p (n-k)
-		 then raise VarSurelyOccurs
-		 else aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl)
+         if n >= k && p (n-k)
+         then raise VarSurelyOccurs
+         else aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl)
               | Const (l,cst) when Signature.is_static sg l cst ->
-		 (  aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl) )
+         (  aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl) )
               | _ -> aux tl
         (* Default case encompasses:
            - Meta variables: DB(_,_,n) with n >= k + d
@@ -245,21 +245,18 @@ struct
     let rec aux = function
       | [] -> ()
       | (k,t) :: tl -> (* k counts the number of local lambda abstractions *)
-	 match t with
-	 | DB (_,_,n) -> (if n >= k && n < k + d then vars.(n-k) <- true); aux tl
-	 | Pi  (_,_,     a,b) -> aux ((k,a)::(k+1,b)::tl)
-	 | Lam (_,_,None  ,b) -> aux (       (k+1,b)::tl)
-	 | Lam (_,_,Some a,b) -> aux ((k,a)::(k+1,b)::tl)
-	 | App (f,a,args)     -> aux ((k,f)::(k,a):: (List.map (fun t -> (k,t)) args) @ tl)
-	 | _ -> aux tl
+     match t with
+     | DB (_,_,n) -> (if n >= k && n < k + d then vars.(n-k) <- true); aux tl
+     | Pi  (_,_,     a,b) -> aux ((k,a)::(k+1,b)::tl)
+     | Lam (_,_,None  ,b) -> aux (       (k+1,b)::tl)
+     | Lam (_,_,Some a,b) -> aux ((k,a)::(k+1,b)::tl)
+     | App (f,a,args)     -> aux ((k,f)::(k,a):: (List.map (fun t -> (k,t)) args) @ tl)
+     | _ -> aux tl
     in aux (List.map (fun t -> (0,t)) terms); vars
 
   type solver =
     {
       subst    : SS.t;
-      (*
-      ho_subst : (int*int*term) list;
-*)
       unsolved : cstr list;
       unsatisf : cstr list
     }
@@ -272,124 +269,122 @@ struct
 
   let rec pseudo_u sg flag (s:solver) : cstr list -> bool*solver = function
     | [] -> (flag, s)
-    | (q,t1,t2)::lst ->
-       begin
-	 let t1' = R.whnf sg (SS.apply s.subst q t1) in
-	 let t2' = R.whnf sg (SS.apply s.subst q t2) in
-	 let dropped () = pseudo_u sg flag s lst in
-	 let unsolved () = pseudo_u sg flag { s with unsolved=(q,t1',t2')::s.unsolved } lst in
-	 let unsatisf () = pseudo_u sg true { s with unsatisf=(q,t1',t2')::s.unsolved } lst in
-	 if term_eq t1' t2' then dropped ()
-	 else
-           match t1', t2' with
-           | Kind, Kind | Type _, Type _       -> assert false (* Equal terms *)
-           | DB (_,_,n), DB (_,_,n') when n=n' -> assert false (* Equal terms *)
-           | _, Kind | Kind, _ |_, Type _ | Type _, _ -> unsatisf ()
+    | (q,t1,t2)::lst -> begin
+        let t1' = R.whnf sg (SS.apply s.subst q t1) in
+        let t2' = R.whnf sg (SS.apply s.subst q t2) in
+        let dropped ()     = pseudo_u sg flag s lst in
+        let unsolved ()    = pseudo_u sg flag { s with unsolved=(q,t1',t2')::s.unsolved } lst in
+        let unsatisf ()    = pseudo_u sg true { s with unsatisf=(q,t1',t2')::s.unsolved } lst in
+        let subst db ar te = pseudo_u sg true { s with subst=SS.add s.subst db ar te    } lst in
+        if term_eq t1' t2' then dropped ()
+        else
+          match t1', t2' with
+          | Kind, Kind | Type _, Type _       -> assert false (* Equal terms *)
+          | DB (_,_,n), DB (_,_,n') when n=n' -> assert false (* Equal terms *)
+          | _, Kind | Kind, _ |_, Type _ | Type _, _ -> unsatisf ()
 
-           | Pi (_,_,a,b), Pi (_,_,a',b') ->
-              pseudo_u sg true s ((q,a,a')::(q+1,b,b')::lst)
-           | Lam (_,_,_,b), Lam (_,_,_,b') ->
-              pseudo_u sg true s ((q+1,b,b')::lst)
+          | Pi (_,_,a,b), Pi (_,_,a',b') ->
+            pseudo_u sg true s ((q,a,a')::(q+1,b,b')::lst)
+          | Lam (_,_,_,b), Lam (_,_,_,b') ->
+            pseudo_u sg true s ((q+1,b,b')::lst)
 
-        (* Potentially eta-equivalent terms *)
-           | Lam (_,i,_,b), a when !Reduction.eta ->
-              let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
-              pseudo_u sg true s ((q+1,b,b')::lst)
+          (* Potentially eta-equivalent terms *)
+          | Lam (_,i,_,b), a when !Reduction.eta ->
+            let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+            pseudo_u sg true s ((q+1,b,b')::lst)
            | a, Lam (_,i,_,b) when !Reduction.eta ->
-              let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
-              pseudo_u sg true s ((q+1,b,b')::lst)
+             let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
+             pseudo_u sg true s ((q+1,b,b')::lst)
 
-        (* A definable symbol is only be convertible with closed terms *)
+           (* A definable symbol is only be convertible with closed terms *)
            | Const (l,cst), t when not (Signature.is_static sg l cst) ->
-              if sure_occur_check sg q (fun k -> k <= q) t then unsatisf() else unsolved()
+             if sure_occur_check sg q (fun k -> k <= q) t then unsatisf() else unsolved()
            | t, Const (l,cst) when not (Signature.is_static sg l cst) ->
-              if sure_occur_check sg q (fun k -> k <= q) t then unsatisf() else unsolved()
+             if sure_occur_check sg q (fun k -> k <= q) t then unsatisf() else unsolved()
 
-        (* X = Y :  map either X to Y or Y to X *)
+           (* X = Y :  map either X to Y or Y to X *)
            | DB (l1,x1,n1), DB (l2,x2,n2) when n1>=q && n2>=q ->
-              let (n,t) = if n1<n2
-                then (n1,mk_DB l2 x2 (n2-q))
-                else (n2,mk_DB l1 x1 (n1-q)) in
-              pseudo_u sg true {s with subst=SS.add s.subst (n-q) 0 t} lst
+             let (n,t) = if n1<n2
+               then (n1,mk_DB l2 x2 (n2-q))
+               else (n2,mk_DB l1 x1 (n1-q)) in
+             subst (n-q) 0 t
 
-        (* X = t :
-           1) make sure that t is possibly closed and without occurence of X
+           (* X = t :
+              1) make sure that t is possibly closed and without occurence of X
            2) if by chance t already is so, then map X to t
-           3) otherwise drop the constraint *)
+              3) otherwise drop the constraint *)
            | DB (_,_,n), t when n>=q ->
-              if sure_occur_check sg q (fun k -> k <= q || k = n) t
-              then unsatisf()
-              else begin
-		match unshift_reduce sg q t with
-		| None    -> unsolved()
-		| Some ut ->
-		   let n' = n-q in
-		   let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-		   if Subst.occurs n' t' then unsatisf()
-		   else pseudo_u sg true {s with subst=SS.add s.subst n' 0 t'} lst
-              end
+             if sure_occur_check sg q (fun k -> k <= q || k = n) t
+             then unsatisf()
+             else begin
+               match unshift_reduce sg q t with
+               | None    -> unsolved()
+               | Some ut ->
+                 let n' = n-q in
+                 let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
+                 if Subst.occurs n' t' then unsatisf() else subst n' 0 t'
+             end
            | t, DB (_,_,n) when n>=q ->
-              if sure_occur_check sg q (fun k -> k <= q || k = n) t
-              then unsatisf()
-              else begin
-		match unshift_reduce sg q t with
-		| None    -> unsolved()
-		| Some ut ->
-		   let n' = n-q in
-		   let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-		   if Subst.occurs n' t' then unsatisf()
-		   else pseudo_u sg true {s with subst=SS.add s.subst n' 0 t'} lst
-              end
+             if sure_occur_check sg q (fun k -> k <= q || k = n) t
+             then unsatisf()
+             else begin
+               match unshift_reduce sg q t with
+               | None    -> unsolved()
+               | Some ut ->
+                 let n' = n-q in
+                 let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
+                 if Subst.occurs n' t' then unsatisf() else subst n' 0 t'
+             end
 
-        (* f t1 ... tn    /    X t1 ... tn  =  u
-           1) Gather all free variables in t1 ... tn
-           2) Make sure u only relies on these variables
-        *)
+           (* f t1 ... tn    /    X t1 ... tn  =  u
+              1) Gather all free variables in t1 ... tn
+              2) Make sure u only relies on these variables
+           *)
            | App (DB (_,_,n),a,args), t when n >= q ->
-              let occs = gather_free_vars q (a::args) in
-              if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
-              then unsatisf()
-              else begin
-		match try_solve q (a::args) t with
-		| None    -> unsolved()
-		| Some ut ->
-		   let n' = n-q in
-		   let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-		   if Subst.occurs n' t' then unsolved()   (* X = t[X]  cannot be turned into a (extended-)substitution *)
-		   else pseudo_u sg true
-                     {s with subst=SS.add s.subst n' (1+(List.length args)) t'} lst
+             let occs = gather_free_vars q (a::args) in
+             if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
+             then unsatisf()
+             else begin
+               match try_solve q (a::args) t with
+               | None    -> unsolved()
+               | Some ut ->
+                 let n' = n-q in
+                 let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
+                 if Subst.occurs n' t' then unsolved()
+                 (* X = t[X]  cannot be turned into a (extended-)substitution *)
+                 else subst n' (1+(List.length args)) t'
               end
            | t, App (DB (_,_,n),a,args) when n >= q ->
               let occs = gather_free_vars q (a::args) in
               if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
               then unsatisf()
               else begin
-		match try_solve q (a::args) t with
-		| None    -> unsolved()
-		| Some ut ->
-		   let n' = n-q in
-		   let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-		   if Subst.occurs n' t' then unsolved()   (* X = t[X]  cannot be turned into a (extended-)substitution *)
-		   else pseudo_u sg true
-                     {s with subst=SS.add s.subst n' (1+(List.length args)) t'} lst
+                match try_solve q (a::args) t with
+                | None    -> unsolved()
+                | Some ut ->
+                  let n' = n-q in
+                  let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
+                  if Subst.occurs n' t' then unsolved()
+                  (* X = t[X]  cannot be turned into a (extended-)substitution *)
+                  else subst n' (1+(List.length args)) t'
               end
            | App (Const (l,cst),a,args), t when not (Signature.is_static sg l cst) ->
-              let occs = gather_free_vars q (a::args) in
-              if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
-              then unsatisf() else unsolved()
+             let occs = gather_free_vars q (a::args) in
+             if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
+             then unsatisf() else unsolved()
            | t, App (Const (l,cst),a,args) when not (Signature.is_static sg l cst) ->
-              let occs = gather_free_vars q (a::args) in
-              if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
-              then unsatisf() else unsolved()
+             let occs = gather_free_vars q (a::args) in
+             if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
+             then unsatisf() else unsolved()
 
            | App (f,a,args), App (f',a',args') ->
-          (* f = Kind | Type | DB n when n<q | Pi _
-           * | Const name when (is_static name) *)
-              begin
-		match safe_add_to_list q lst args args' with
-		| None -> unsatisf() (* Different number of arguments. *)
-		| Some lst2 -> pseudo_u sg true s ((q,f,f')::(q,a,a')::lst2)
-              end
+             (* f = Kind | Type | DB n when n<q | Pi _
+              * | Const name when (is_static name) *)
+             begin
+               match safe_add_to_list q lst args args' with
+               | None -> unsatisf() (* Different number of arguments. *)
+               | Some lst2 -> pseudo_u sg true s ((q,f,f')::(q,a,a')::lst2)
+             end
 
            | _, _ -> unsatisf()
        end
@@ -497,60 +492,60 @@ struct
     match pat with
     | Lambda (l,x,p) ->
        begin
-	 match R.whnf sg exp_ty with
-	 | Pi (_,_,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
-	 | _            -> raise (TypingError ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
+     match R.whnf sg exp_ty with
+     | Pi (_,_,a,b) -> check_pattern sg delta (LList.cons (l,x,a) sigma) b lst p
+     | _            -> raise (TypingError ( ProductExpected (pattern_to_term pat,ctx (),exp_ty)))
        end
     | Brackets te ->
        let _ =
-	 try Subst.unshift (LList.len sigma) te
-	 with Subst.UnshiftExn -> raise (TypingError (BracketExprBoundVar (te,ctx())))
+     try Subst.unshift (LList.len sigma) te
+     with Subst.UnshiftExn -> raise (TypingError (BracketExprBoundVar (te,ctx())))
        in
        let exp_ty2 =
-	 try unshift_n sg (LList.len sigma) exp_ty
-	 with Subst.UnshiftExn ->
+     try unshift_n sg (LList.len sigma) exp_ty
+     with Subst.UnshiftExn ->
            raise (TypingError (BracketExpectedTypeBoundVar (te,ctx(),exp_ty)))
        in
        let _ =
-	 try unshift_n sg delta.padding exp_ty2
-	 with Subst.UnshiftExn ->
+     try unshift_n sg delta.padding exp_ty2
+     with Subst.UnshiftExn ->
            raise (TypingError (BracketExpectedTypeRightVar (te,ctx(),exp_ty)))
        in
        ( {delta with bracket = true}, lst)
     | Var (l,x,n,[]) when n >= LList.len sigma ->
        begin
-	 let k = LList.len sigma in
+     let k = LList.len sigma in
       (* Bracket may introduce circularity (variable's expected type depending on itself *)
-	 if delta.bracket && Subst.occurs (n-k) exp_ty
-	 then raise (TypingError (TypingCircularity(l,x,n,ctx(),exp_ty)));
-	 if pc_in delta (n-k)
-	 then
+     if delta.bracket && Subst.occurs (n-k) exp_ty
+     then raise (TypingError (TypingCircularity(l,x,n,ctx(),exp_ty)));
+     if pc_in delta (n-k)
+     then
            let inf_ty = Subst.shift k (pc_get delta (n-k)) in
            ( delta, (k,inf_ty,exp_ty)::lst )
-	 else
+     else
            ( try ( pc_add delta (n-k) l x (unshift_n sg k exp_ty), lst )
              with Subst.UnshiftExn ->
                raise (TypingError (FreeVariableDependsOnBoundVariable (l,x,n,ctx(),exp_ty))) )
        end
     | Var (l,x,n,args) when n >= LList.len sigma ->
        begin
-	 let k = LList.len sigma in
+     let k = LList.len sigma in
       (* Bracket may introduce circularity (variable's expected type depending on itself *)
-	 if delta.bracket && Subst.occurs (n-k) exp_ty
-	 then raise (TypingError (TypingCircularity(l,x,n,ctx(),exp_ty)));
-	 let (args2, last) = get_last args in
-	 match last with
-	 | Var (l2,x2,n2,[]) ->
+     if delta.bracket && Subst.occurs (n-k) exp_ty
+     then raise (TypingError (TypingCircularity(l,x,n,ctx(),exp_ty)));
+     let (args2, last) = get_last args in
+     match last with
+     | Var (l2,x2,n2,[]) ->
             check_pattern sg delta sigma
               (mk_Pi l2 x2 (get_type (LList.lst sigma) l2 x2 n2) (Subst.subst_n n2 x2 exp_ty) )
               lst (Var(l,x,n,args2))
-	 | _ -> raise (TypingError (CannotInferTypeOfPattern (pat,ctx ()))) (* not a pattern *)
+     | _ -> raise (TypingError (CannotInferTypeOfPattern (pat,ctx ()))) (* not a pattern *)
        end
     | _ ->
        begin
-	 let (inf_ty,delta2,lst2) = infer_pattern sg delta sigma lst pat in
-	 let q = LList.len sigma in
-	 ( delta2 , (q,inf_ty,exp_ty)::lst2 )
+     let (inf_ty,delta2,lst2) = infer_pattern sg delta sigma lst pat in
+     let q = LList.len sigma in
+     ( delta2 , (q,inf_ty,exp_ty)::lst2 )
        end
 
 (* ************************************************************************** *)
@@ -571,7 +566,7 @@ struct
     let rec aux ctx depth ctx1 ctx2 =
       match ctx1, ctx2 with
       | (l,x,ty)::ctx1' , (_,_,ty')::ctx2' ->
-	 begin
+     begin
            match ty' with
            | None -> ()
            | Some ty' ->
@@ -583,8 +578,8 @@ struct
                let ty2' = SS.apply sub 0 (Subst.shift depth ty') in
                if not (R.are_convertible sg ty2 ty2')
                then raise (TypingError (AnnotConvertibilityError (l,x,ctx,ty',ty)))
-	 end;
-	aux ((l,x,ty)::ctx) (depth+1) ctx1' ctx2'
+     end;
+    aux ((l,x,ty)::ctx) (depth+1) ctx1' ctx2'
       | [], [] -> ()
       | _ -> assert false
     in aux [] 1 typed_ctx annot_ctx
@@ -601,21 +596,18 @@ struct
        if !fail_on_unsatisfiable_constraints
        then raise (TypingError (UnsatisfiableConstraints (rule,(q,t1,t2))))
        else
-	 Debug.(debug D_warn)
-	   "At %a: unsatisfiable constraint: %a ~ %a%s"
+     Debug.(debug D_warn)
+       "At %a: unsatisfiable constraint: %a ~ %a%s"
            pp_loc (get_loc_rule rule)
            pp_term t1 pp_term t2
            (if q > 0 then Format.sprintf " (under %i abstractions)" q else "")
     );
     let sub = sol.subst in
-    (*
-    let ty_le2 = SS.apply sub 0 ty_le    in
-    *)
     let ctx = LList.lst delta.pctx in
     let ctx2 =
       try subst_context sub ctx
       with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
-	    begin
+        begin
           Debug.(debug D_rule) "Failed to infer a typing context for the rule:\n%a"
             pp_part_typed_rule rule;
           let ctx_name n = let _,name,_ = List.nth ctx n in name in
