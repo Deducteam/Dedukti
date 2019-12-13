@@ -95,12 +95,14 @@ struct
     if flag then full_snf sg subst d t2 else R.snf sg t2
 
   let convertible_under_cstr (sg:Signature.t) (sub:SS.t) (eq_cstr:cstr list) (depth:int) (ty_inf:typ) (ty_exp:typ) : bool =
-    let subst_ty_inf,_ = SS.apply sub depth ty_inf in
-    let subst_ty_exp,_ = SS.apply sub depth ty_exp in
-    if R.are_convertible sg subst_ty_inf subst_ty_exp then true
-    else
-      let snf_ty_inf = full_snf sg sub depth subst_ty_inf in
-      let snf_ty_exp = full_snf sg sub depth subst_ty_exp in
+    R.are_convertible sg ty_inf ty_exp ||
+    match SS.is_identity sub, eq_cstr with
+    | true, [] -> false
+    | true, _ -> term_eq_under_cstr eq_cstr (R.snf sg ty_inf) (R.snf sg ty_exp)
+    | false,_ ->
+      let snf_ty_inf = full_snf sg sub depth ty_inf in
+      let snf_ty_exp = full_snf sg sub depth ty_exp in
+      Debug.(debug D_warn) "Test %a ~ %a" pp_term snf_ty_inf pp_term snf_ty_exp;
       R.are_convertible sg snf_ty_inf snf_ty_exp ||
       term_eq_under_cstr eq_cstr snf_ty_inf snf_ty_exp
 
@@ -288,9 +290,7 @@ struct
         let dropped ()     = pseudo_u sg flag s lst in
         let unsolved ()    = pseudo_u sg flag { s with unsolved=(q,t1',t2')::s.unsolved } lst in
         let unsatisf ()    = pseudo_u sg true { s with unsatisf=(q,t1',t2')::s.unsolved } lst in
-        let subst db ar te =
-          let subst' = SS.add s.subst db ar te in
-          pseudo_u sg true { s with subst=subst' } lst in
+        let subst db ar te = pseudo_u sg true { s with subst   =SS.add s.subst db ar te } lst in
         if term_eq t1' t2' then dropped ()
         else
           match t1', t2' with
