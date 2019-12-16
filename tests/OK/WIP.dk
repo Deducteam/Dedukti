@@ -22,7 +22,10 @@ def test1 : f : (A -> A -> A) ->
            V (x => y => f y x).
 (; Constraints:
    x,y |- F x y = c x y
-   x   |- G x   = F x     ;)
+   x   |- G x   = F x
+-------------------------
+   x,y |- flip (G x y) = c y x
+;)
 [F,G]
   test1 F (x => u (G x)) (x => y => t (c x y))
   -->
@@ -42,7 +45,10 @@ def test2 : f : (A -> A -> A) ->
 (; Constraints:
        |- F     = d H
    x,y |- H x y = c x y
-   x   |- G x   = H x     ;)
+   x   |- G x   = H x
+-----------------------------
+   x,y |-
+;)
 [F,G,H]
   test2 F (x => u (G x)) (x => y => t (c x y)) (v (d H))
   -->

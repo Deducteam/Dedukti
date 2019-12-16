@@ -92,6 +92,11 @@ let _ =
     ; ( "--type-lhs"
       , Arg.Set Typing.fail_on_unsatisfiable_constraints
       , " Forbids rules with untypable left-hand side" )
+    ; ( "--sr-check"
+      , Arg.Int (fun i -> Srcheck.srfuel := i)
+      , "LVL Sets the level of subject reduction checking to LVL.
+                   Default value is 3. Values < 0 may not terminate on
+                   rules that do not preserve typing. " )
     ; ( "--snf"
       , Arg.Set Errors.errors_in_snf
       , " Normalizes all terms printed in error messages" )

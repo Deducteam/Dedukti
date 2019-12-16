@@ -212,26 +212,32 @@ end = struct
            2) if by chance t already is so, then map X to t
               3) otherwise drop the constraint *)
            | DB (_,_,n), t when n>=q ->
-             if sure_occur_check sg q (fun k -> k <= q || k = n) t
+             if sure_occur_check sg q (fun k -> k < q || k = n) t
              then unsatisf()
              else begin
                match unshift_reduce sg q t with
                | None    -> unsolved()
                | Some ut ->
                  let n' = n-q in
-                 let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-                 if Subst.occurs n' t' then unsatisf() else subst n' 0 t'
+                 if Subst.occurs n' ut
+                 then
+                   let t' = R.snf sg ut in
+                   if Subst.occurs n' t' then unsatisf() else subst n' 0 t'
+                 else subst n' 0 ut
              end
            | t, DB (_,_,n) when n>=q ->
-             if sure_occur_check sg q (fun k -> k <= q || k = n) t
+             if sure_occur_check sg q (fun k -> k < q || k = n) t
              then unsatisf()
              else begin
                match unshift_reduce sg q t with
                | None    -> unsolved()
                | Some ut ->
                  let n' = n-q in
-                 let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
-                 if Subst.occurs n' t' then unsatisf() else subst n' 0 t'
+                 if Subst.occurs n' ut
+                 then
+                   let t' = R.snf sg ut in
+                   if Subst.occurs n' t' then unsatisf() else subst n' 0 t'
+                 else subst n' 0 ut
              end
 
            (* f t1 ... tn    /    X t1 ... tn  =  u
