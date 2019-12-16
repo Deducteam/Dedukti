@@ -47,7 +47,7 @@ def test2 : f : (A -> A -> A) ->
    x,y |- H x y = c x y
    x   |- G x   = H x
 -----------------------------
-   x,y |-
+   x,y |- flip (e F y x) = G x y
 ;)
 [F,G,H]
   test2 F (x => u (G x)) (x => y => t (c x y)) (v (d H))
