@@ -80,6 +80,8 @@ let subterm t i = match t with
 
 let subterm = List.fold_left subterm
 
+type cstr = int*term*term
+
 
 (*********** Contexts} ***********)
 

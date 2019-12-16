@@ -53,6 +53,10 @@ sig
   (** [apply sigma n t] applies the subsitution [sigma] to [t] considered
       under [n] lambda abstractions. *)
 
+  val head_apply : t -> int -> term -> term*bool
+  (** [head_apply sigma n t] applies the subsitution [sigma] *at the head* of [t]
+      considered under [n] lambda abstractions. *)
+
   val mk_idempotent : t -> t
   (** [mk_idempotent sigma] successively applies sigma to its mapped terms until this operation
       has no effect anymore. *)
