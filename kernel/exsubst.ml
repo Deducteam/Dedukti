@@ -36,16 +36,6 @@ let apply_exsubst (subst:ex_substitution) (n:int) (te:term) : term*bool =
     | _ -> t
   in (aux n te, !ct > 0)
 
-let head_apply_exsubst (subst:ex_substitution) (k:int) (te:term) : term*bool =
-  match te with
-  | DB (l,x,n) when n >= k ->
-    ( try ( subst l x n 0 k, true)
-      with Not_found -> (te,false) )
-  | App (DB (l,x,n),a,args) when n >= k ->
-    ( try ( mk_App (subst l x n (1+(List.length args)) k) a args, true)
-      with Not_found -> (te,false) )
-  | _ -> (te, false)
-
 module IntMap = Map.Make(
   struct
     type t = int
@@ -71,9 +61,6 @@ struct
 
   let apply (sigma:t) : int -> term -> term*bool =
     if is_identity sigma then (fun _ t -> t,false) else apply_exsubst (subst sigma)
-
-  let head_apply (sigma:t) : int -> term -> term*bool =
-    if is_identity sigma then (fun _ t -> t,false) else head_apply_exsubst (subst sigma)
 
   let add (sigma:t) (n:int) (nargs:int) (t:term) : t =
     assert ( not (IntMap.mem n sigma) || fst (IntMap.find n sigma) > nargs );

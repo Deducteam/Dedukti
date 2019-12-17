@@ -3,7 +3,7 @@ open Term
 
 module SS = Exsubst.ExSubst
 
-let srfuel = ref 3
+let srfuel = ref 1
 
 (* Check whether two pairs of terms are unifiable (one way or the other) *)
 let cstr_eq ((n1,t1,u1):cstr) ((n2,t2,u2):cstr) =
@@ -11,16 +11,8 @@ let cstr_eq ((n1,t1,u1):cstr) ((n2,t2,u2):cstr) =
   let t2',u2' = Subst.shift n1 t2, Subst.shift n1 u2 in
   (term_eq t1' t2' && term_eq u1' u2') || (term_eq t1' u2' && term_eq u1' t2')
 
-module SRChecker(R:Reduction.S) :
-sig
-  type t
-  val  empty : t
-  val get_subst : t -> SS.t
-  val get_unsat : t -> cstr option
-  val convertible  : Signature.t -> t -> int -> term -> term -> bool
-  val compile_cstr : Signature.t -> cstr list -> t
-  val optimize     : Signature.t -> t -> t
-end = struct
+module SRChecker(R:Reduction.S) =
+struct
   type t =
     {
       subst    : SS.t;
@@ -47,19 +39,19 @@ end = struct
       if flag && fuel <> 0 then aux (fuel-1) t2 else t2 in
     aux !srfuel
 
-  (* Applies *)
+  (* Syntactical match against all unsolved equations *)
   let term_eq_under_cstr (eq_cstr:cstr list) : term -> term -> bool =
     let rec aux = function
       | [] -> true
       | (n,t1,t2)::tl ->
          List.exists (cstr_eq (n,t1,t2)) eq_cstr ||
-        match t1,t2 with
-        | App(h1,a1,l1), App(h2,a2,l2) ->
-           List.length l1 = List.length l2 &&
-           aux ((n,h1,h2)::(n,a1,a2)::(List.map2 (fun x y -> (n,x,y)) l1 l2)@tl)
-        | Lam(_,_,_,t1), Lam(_,_,_,t2) -> aux ((n+1,t1,t2)::tl)
-        | Pi(_,_,a1,b1), Pi(_,_,a2,b2) -> aux ((n,a1,a2)::(n+1,b1,b2)::tl)
-        | _ -> term_eq t1 t2 && aux tl
+         match t1,t2 with
+         | App(h1,a1,l1), App(h2,a2,l2) ->
+            List.length l1 = List.length l2 &&
+            aux ((n,h1,h2)::(n,a1,a2)::(List.map2 (fun x y -> (n,x,y)) l1 l2)@tl)
+         | Lam(_,_,_,t1), Lam(_,_,_,t2) -> aux ((n+1,t1,t2)::tl)
+         | Pi(_,_,a1,b1), Pi(_,_,a2,b2) -> aux ((n,a1,a2)::(n+1,b1,b2)::tl)
+         | _ -> term_eq t1 t2 && aux tl
     in fun t1 t2 -> eq_cstr <> [] && aux [(0,t1,t2)]
 
   let convertible (sg:Signature.t) (c:t) (depth:int) (ty_inf:term) (ty_exp:term) : bool =
@@ -75,15 +67,11 @@ end = struct
 
     (* **** PSEUDO UNIFICATION ********************** *)
 
-  let rec add_to_list q lst args1 args2 =
-    match args1,args2 with
-    | [], [] -> lst
-    | a1::args1, a2::args2 -> add_to_list q ((q,a1,a2)::lst) args1 args2
-    | _, _ -> raise (Invalid_argument "add_to_list")
 
-  let safe_add_to_list q lst args1 args2 =
-    try Some (add_to_list q lst args1 args2)
-    with Invalid_argument _ -> None
+  let rec add_to_list q acc l1 l2 = match l1, l2 with
+    | [], [] -> Some acc
+    | h1::t1, h2::t2 -> add_to_list q ((q,h1,h2)::acc) t1 t2
+    | _, _ -> None
 
   let unshift_reduce sg q t =
     try Some (Subst.unshift q t)
@@ -285,7 +273,7 @@ end = struct
              (* f = Kind | Type | DB n when n<q | Pi _
               * | Const name when (is_static name) *)
              begin
-               match safe_add_to_list q lst args args' with
+               match add_to_list q lst args args' with
                | None -> unsatisf() (* Different number of arguments. *)
                | Some lst2 -> pseudo_u sg true s ((q,f,f')::(q,a,a')::lst2)
              end
@@ -294,13 +282,21 @@ end = struct
        end
 
   let compile_cstr (sg : Signature.t) (cstr : cstr list) : t =
-    let rec process_solver sol =
+    (* Successively runs pseudo_u to apply solved constraints to the remaining
+       unsolved constraints in the hope to deduce more constraints in solved form *)
+    let rec process_solver fuel sol =
       match pseudo_u sg false { sol with unsolved = [] } sol.unsolved with
-      | false, s    -> s
-      | true , sol' -> process_solver {sol' with subst=SS.mk_idempotent sol'.subst}
+      | false, s    -> s (* When pseudo_u did nothing *)
+      | true , sol' ->
+        if fuel = 0 then sol'
+        else process_solver (fuel-1) {sol' with subst=SS.mk_idempotent sol'.subst}
     in
-    process_solver {subst=SS.identity;unsolved=cstr;unsatisf=[]}
+    (* TODO: this function is given some fuel. In practice 1 is enough for all tests.
+       We should write a test to force a second reentry in the loop. *)
+    let res = process_solver (!srfuel) {subst=SS.identity;unsolved=cstr;unsatisf=[]} in
+    res
 
-  let optimize sg c =
+
+  let optimize sg c = (* Substitutes are put in SNF *)
     { c with unsolved=List.map (fun (n,t,u) -> (n,R.snf sg t,R.snf sg u)) c.unsolved }
 end
