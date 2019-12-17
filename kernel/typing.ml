@@ -87,13 +87,14 @@ struct
         | Lam(_,_,_,t1), Lam(_,_,_,t2) -> aux ((n+1,t1,t2)::tl)
         | Pi(_,_,a1,b1), Pi(_,_,a2,b2) -> aux ((n,a1,a2)::(n+1,b1,b2)::tl)
         | _ -> term_eq t1 t2 && aux tl
-      in fun t1 t2 -> eq_cstr <> [] && aux [(0,t1,t2)]
+      in fun t1 t2 -> aux [(0,t1,t2)]
 
   let convertible_under_cstr (sg:Signature.t) (sub:SS.t) (eq_cstr:cstr list) (depth:int) (ty_inf:typ) (ty_exp:typ) : bool =
     let subst_ty_inf = SS.apply sub depth ty_inf in
     let subst_ty_exp = SS.apply sub depth ty_exp in
     R.are_convertible sg subst_ty_inf subst_ty_exp ||
-    term_eq_under_cstr eq_cstr (R.snf sg subst_ty_inf) (R.snf sg subst_ty_exp)
+      eq_cstr <> [] &&
+        term_eq_under_cstr eq_cstr (R.snf sg subst_ty_inf) (R.snf sg subst_ty_exp)
 
   (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
