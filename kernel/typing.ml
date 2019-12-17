@@ -350,15 +350,15 @@ struct
     );
     let sub = SR.get_subst unif in
     let ctx = LList.lst delta.pctx in
+    let ctx_name n = let _,name,_ = List.nth ctx n in name in
+    Debug.(debug D_rule) "Inferred typing substitution:@.%a"
+      (SS.pp ctx_name) sub;
     let ctx2 =
       try subst_context sub ctx
       with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
         begin
           Debug.(debug D_rule) "Failed to infer a typing context for the rule:\n%a"
             pp_part_typed_rule rule;
-          let ctx_name n = let _,name,_ = List.nth ctx n in name in
-          Debug.(debug D_rule) "Tried inferred typing substitution: %a"
-            (SS.pp ctx_name) sub;
           raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ))
         end
     in
