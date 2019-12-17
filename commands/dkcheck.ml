@@ -60,7 +60,8 @@ let _ =
       c : (confluence) notifies about information provided to the confluence
                      checker (when option --confluence used)
       u : (rule)     provides information about type checking of rules
-      t : (typing)   provides information about type-checking of terms
+      t : (typing)   provides information about type checking of terms
+      s : (SR)       provides information about subject reduction checking of terms
       r : (reduce)   provides information about reduction performed in terms
       m : (matching) provides information about pattern matching" )
     ; ( "-v"

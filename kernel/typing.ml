@@ -362,7 +362,7 @@ struct
           raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ))
         end
     in
-    Debug.(debug D_rule "Typechecking rule");
+    Debug.(debug D_rule "Typechecking rule %a" pp_rule_name rule.name);
     (* Optimize the unifier then use it to check the type of the RHS *)
     check' sg (SR.optimize sg unif) 0 ctx2 rule.rhs ty_le;
     check_type_annotations sg sub ctx2 rule.ctx;

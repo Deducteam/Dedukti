@@ -15,6 +15,7 @@ let set_debug_mode =
       | 'c' -> Debug.enable_flag  Confluence.D_confluence
       | 'u' -> Debug.enable_flag  Typing.D_rule
       | 't' -> Debug.enable_flag  Typing.D_typeChecking
+      | 's' -> Debug.enable_flag  Srcheck.D_SRChecking
       | 'r' -> Debug.enable_flag  Reduction.D_reduce
       | 'm' -> Debug.enable_flag  Dtree.D_matching
       | c -> raise (DebugFlagNotRecognized c)

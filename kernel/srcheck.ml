@@ -3,6 +3,9 @@ open Term
 
 module SS = Exsubst.ExSubst
 
+type Debug.flag += D_SRChecking
+let _ = Debug.register_flag D_SRChecking "SRChecking"
+
 let srfuel = ref 1
 
 (* Check whether two pairs of terms are unifiable (one way or the other) *)
@@ -158,6 +161,7 @@ struct
     | (q,t1,t2)::lst -> begin
         let t1' = whnf sg s q t1 in
         let t2' = whnf sg s q t2 in
+        Debug.(debug D_SRChecking) "Processing: %a = %a" pp_term t1' pp_term t2';
         let dropped ()     = pseudo_u sg flag s lst in
         let unsolved ()    = pseudo_u sg flag { s with unsolved=(q,t1',t2')::s.unsolved } lst in
         let unsatisf ()    = pseudo_u sg true { s with unsatisf=(q,t1',t2')::s.unsolved } lst in
@@ -293,9 +297,7 @@ struct
     in
     (* TODO: this function is given some fuel. In practice 1 is enough for all tests.
        We should write a test to force a second reentry in the loop. *)
-    let res = process_solver (!srfuel) {subst=SS.identity;unsolved=cstr;unsatisf=[]} in
-    res
-
+    process_solver (!srfuel) {subst=SS.identity;unsolved=cstr;unsatisf=[]}
 
   let optimize sg c = (* Substitutes are put in SNF *)
     { c with unsolved=List.map (fun (n,t,u) -> (n,R.snf sg t,R.snf sg u)) c.unsolved }

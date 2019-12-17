@@ -1,4 +1,7 @@
 open Term
+open Basic
+
+type Debug.flag += D_SRChecking
 
 val srfuel : int ref
 
