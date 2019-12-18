@@ -55,7 +55,7 @@ struct
          | Lam(_,_,_,t1), Lam(_,_,_,t2) -> aux ((n+1,t1,t2)::tl)
          | Pi(_,_,a1,b1), Pi(_,_,a2,b2) -> aux ((n,a1,a2)::(n+1,b1,b2)::tl)
          | _ -> term_eq t1 t2 && aux tl
-    in fun t1 t2 -> eq_cstr <> [] && aux [(0,t1,t2)]
+    in fun t1 t2 -> aux [(0,t1,t2)]
 
   let convertible (sg:Signature.t) (c:t) (depth:int) (ty_inf:term) (ty_exp:term) : bool =
     R.are_convertible sg ty_inf ty_exp ||
@@ -66,7 +66,7 @@ struct
        let snf_ty_inf = snf sg c depth ty_inf in
        let snf_ty_exp = snf sg c depth ty_exp in
        R.are_convertible sg snf_ty_inf snf_ty_exp ||
-       term_eq_under_cstr c.unsolved snf_ty_inf snf_ty_exp
+       (c.unsolved <> [] && term_eq_under_cstr c.unsolved snf_ty_inf snf_ty_exp)
 
     (* **** PSEUDO UNIFICATION ********************** *)
 
