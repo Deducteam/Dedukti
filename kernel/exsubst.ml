@@ -34,7 +34,7 @@ let apply_exsubst (subst:ex_substitution) (n:int) (te:term) : term*bool =
       let a', b' = aux k a, aux (k+1) b in
       if !ct = ct' then t else mk_Pi  l x a' b'
     | _ -> t
-  in (aux n te, !ct > 0)
+  in let res = aux n te in (res, !ct > 0)
 
 module IntMap = Map.Make(
   struct
