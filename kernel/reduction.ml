@@ -212,7 +212,7 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
  *)
 and state_whnf (sg:Signature.t) (st:state) : state =
   match st with
-  (* Weak heah beta normal terms *)
+  (* Weak head beta normal terms *)
   | { term=Type _ ; _ } | { term=Kind ; _ }
   | { term=Pi _ ; _  } | { term=Lam _; stack=[] ; _} -> st
   (* DeBruijn index: environment lookup *)
@@ -293,7 +293,7 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
   let rec aux : state_reducer = fun (pos:position) (st:state) ->
     if stop () then st else
       match st, strat with
-      (* Weak heah beta normal terms *)
+      (* Weak head beta normal terms *)
       | { term=Type _ ; _ }, _
       | { term=Kind   ; _ }, _ -> st
 
