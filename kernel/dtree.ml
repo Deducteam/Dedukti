@@ -503,7 +503,7 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
          end
       | _ -> assert false
     ) mx.first.pats;
-  assert (Basic.array_for_all (fun x -> x >= 0) arity);
+  assert (Array.for_all (fun x -> x >= 0) arity);
   {
     pm_eq_problems = eq_pbs;
     pm_ac_problems = !ac_pbs;
@@ -604,7 +604,7 @@ let rec pp_dtree t fmt dtree =
   let tab = String.init (1 + t*2) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
   | Test (_,mp,[],te,_) when mp.pm_ac_problems = [] &&
-                             (array_for_all (fun c -> c = []) mp.pm_eq_problems) ->
+                             (Array.for_all (fun c -> c = []) mp.pm_eq_problems) ->
     fprintf fmt "%s%a" tab pp_term te
   | Test (name,mp,[],te,def) ->
      fprintf fmt "%stry %a :%s    %a%sthen %a%selse %a"

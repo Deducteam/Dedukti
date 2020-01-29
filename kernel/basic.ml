@@ -137,8 +137,6 @@ let rev_mapi f l =
 
 let concat l1 = function [] -> l1 | l2 -> l1@l2
 
-let array_for_all f arr = Array.fold_left (fun a x -> a && f x) true arr
-
 (** {2 Printing functions} *)
 
 type 'a printer = Format.formatter -> 'a -> unit

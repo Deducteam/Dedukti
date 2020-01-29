@@ -126,8 +126,6 @@ val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
 val concat : 'a list -> 'a list -> 'a list
 (** [concat l1 l2] returns [l1 @ l2] (testing on l2 empty first) *)
 
-val array_for_all : ('a -> bool) -> 'a array -> bool
-
 (** {2 Printing functions} *)
 
 type 'a printer = Format.formatter -> 'a -> unit

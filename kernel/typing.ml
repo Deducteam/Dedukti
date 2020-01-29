@@ -8,7 +8,6 @@ module SS = Subst.Subst
 let d_typeChecking = Debug.register_flag "TypeChecking"
 let d_rule         = Debug.register_flag  "Rule"
 
-
 let coc = ref false
 
 let fail_on_unsatisfiable_constraints = ref false
