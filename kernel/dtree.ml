@@ -183,14 +183,6 @@ let pop mx =
   | [] -> None
   | f::o -> Some { mx with first=f; others=o; }
 
-(* let split_mx (f:rule_infos -> bool) (mx:matrix) : matrix option * matrix option =
- *   let (l1,l2) = List.partition f (mx.first::mx.others) in
- *   let aux = function
- *     | [] -> None
- *     | f::o -> Some { col_depth=mx.col_depth; first=f; others=o; }
- *   in
- *   (aux l1, aux l2) *)
-
 let filter (f:rule_infos -> bool) (mx:matrix) : matrix option =
   match List.filter f (mx.first::mx.others) with
   | [] -> None
@@ -262,7 +254,7 @@ let filter_AC_on_pattern nargs cst s =
       | _ -> false)
     s
 
-let eq a b =
+let case_eq a b =
   match a, b with
     | CLam             , CLam                -> true
     | CDB    (ar,n)    , CDB    (ar',n')     -> ar == ar' && n == n'
@@ -452,7 +444,7 @@ let rec partition_AC (is_AC:name->bool) : wf_pattern list -> case = function
 let partition (is_AC:name->bool) (mx:matrix) (c:int) : case list =
   let aux lst li =
     match case_of_pattern is_AC li.pats.(c) with
-    | Some c -> if List.exists (eq c) lst then lst else c::lst
+    | Some c -> if List.exists (case_eq c) lst then lst else c::lst
     | None   -> lst
   in
   List.fold_left aux [] (mx.first::mx.others)
@@ -526,8 +518,7 @@ let choose_column mx =
     if i < Array.length mx.first.pats then
       if non_var_pat mx.first.pats.(i) then Some i else aux (i+1)
     else None
-  in
-  aux 0
+  in aux 0
 
 (* Construct a decision tree out of a matrix *)
 let rec to_dtree get_algebra (mx:matrix) : dtree =
