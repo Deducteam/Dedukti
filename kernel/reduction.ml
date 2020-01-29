@@ -454,9 +454,9 @@ and conversion_step sg : (term * term) -> (term * term) list -> (term * term) li
     let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
     (b,b')::lst
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
-  | t1, t2 -> begin
-      Debug.(debug d_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
-      raise NotConvertible end
+  | t1, t2 ->
+    Debug.(debug D_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
+    raise NotConvertible
 
 let rec are_convertible_lst sg : (term*term) list -> bool =
   function
