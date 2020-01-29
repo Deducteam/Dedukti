@@ -3,7 +3,6 @@ open Rule
 open Term
 open Dtree
 
-
 type Debug.flag += D_reduce
 let _ = Debug.register_flag D_reduce "Reduce"
 
@@ -42,8 +41,8 @@ let rec zip_lists l1 l2 lst =
 type env = term Lazy.t LList.t
 
 (* A state {ctx; term; stack} is the state of an abstract machine that
-represents a term where [ctx] is a ctx that contains the free variables
-of [term] and [stack] represents the terms that [term] is applied to. *)
+   represents a term where [ctx] is a ctx that contains the free variables
+   of [term] and [stack] represents the terms that [term] is applied to. *)
 type state =
   {
     ctx   : env;    (* context *)
@@ -234,7 +233,7 @@ and state_whnf (sg:Signature.t) (st:state) : state =
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
-    let tl' = List.rev_map ( fun t -> ref {ctx;term=t;stack=[]} ) (a::lst) in
+    let tl' = List.rev_map (fun t -> ref {ctx;term=t;stack=[]}) (a::lst) in
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
   | { term=Const (l,n); stack ; _} ->
@@ -277,7 +276,9 @@ let conversion_step : (term * term) -> (term * term) list -> (term * term) list 
     let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
     (b,b')::lst
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
-  | _ -> raise NotConvertible
+  | t1, t2 ->
+    Debug.(debug D_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
+    raise NotConvertible
 
 let rec are_convertible_lst sg : (term*term) list -> bool =
   function
