@@ -321,7 +321,10 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
       if keep_rule then
         (* FIXME: Several calls to [convert(_ac) i] generates different lazy values.
            Whnf may be computed several times in case of non linearity. *)
-        let convert i = lazy (term_of_state_ref (List.nth stack i)) in
+        let convert i =
+          let te = List.nth stack i in
+          lazy (term_of_state_ref te)
+        in
         let convert_ac i =
           List.map (fun s -> lazy (term_of_state_ref s)) !(List.nth stack i).stack
         in

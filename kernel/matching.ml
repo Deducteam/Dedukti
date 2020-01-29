@@ -23,7 +23,7 @@ type matching_problem = {
 }
 
 (*
-(**     Printing functions       **)
+(**     Printing functions for debugging purposes      **)
 
 let pp_te fmt t = fprintf fmt "%a" pp_term (Lazy.force t)
 
