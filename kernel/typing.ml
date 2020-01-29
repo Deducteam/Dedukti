@@ -5,9 +5,8 @@ open Term
 
 module SS = Subst.Subst
 
-type Debug.flag += D_typeChecking | D_rule
-let _ = Debug.register_flag D_typeChecking "TypeChecking"
-let _ = Debug.register_flag D_rule         "Rule"
+let d_typeChecking = Debug.register_flag "TypeChecking"
+let d_rule         = Debug.register_flag  "Rule"
 
 let coc = ref false
 
@@ -70,7 +69,7 @@ struct
   (* ********************** TYPE CHECKING/INFERENCE FOR TERMS  *)
 
   let rec infer sg (ctx:typed_context) (te:term) : typ =
-    Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
+    Debug.(debug d_typeChecking "Inferring: %a" pp_term te);
     match te with
     | Kind -> raise (TypingError KindIsNotTypable)
     | Type _ -> mk_Kind
@@ -95,7 +94,7 @@ struct
     | Lam  (l,_,None,_) -> raise (TypingError (DomainFreeLambda l))
 
   and check sg (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
-    Debug.(debug D_typeChecking "Checking (%a): %a : %a"
+    Debug.(debug d_typeChecking "Checking (%a): %a : %a"
              pp_loc (get_loc te) pp_term te pp_term ty_exp);
     match te with
     | Lam (l,x,op,b) ->
@@ -114,7 +113,7 @@ struct
       end
     | _ ->
       let ty_inf = infer sg ctx te in
-      Debug.(debug D_typeChecking "Checking convertibility: %a ~ %a"
+      Debug.(debug d_typeChecking "Checking convertibility: %a ~ %a"
                pp_term ty_inf pp_term ty_exp);
       if not (R.are_convertible sg ty_inf ty_exp) then
         let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
@@ -405,7 +404,7 @@ and infer_pattern_aux sg
 
 and check_pattern sg (delta:partial_context) (sigma:context2) (exp_ty:typ)
     (lst:constraints) (pat:pattern) : partial_context * constraints =
-  Debug.(debug D_rule "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty);
+  Debug.(debug d_rule "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty);
   let ctx () = (LList.lst sigma)@(pc_to_context_wp delta) in
   match pat with
   | Lambda (l,x,p) ->
@@ -480,7 +479,7 @@ let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
     List.mapi apply_subst ctx
 
 let check_type_annotations sg sub typed_ctx annot_ctx =
-  Debug.(debug D_rule "Typechecking type annotations");
+  Debug.(debug d_rule "Typechecking type annotations");
   let rec aux ctx depth ctx1 ctx2 =
     match ctx1, ctx2 with
     | (l,x,ty)::ctx1' , (_,_,ty')::ctx2' ->
@@ -488,7 +487,7 @@ let check_type_annotations sg sub typed_ctx annot_ctx =
         match ty' with
         | None -> ()
         | Some ty' ->
-          Debug.(debug D_typeChecking "Checking type annotation (%a): %a ~ %a"
+          Debug.(debug d_typeChecking "Checking type annotation (%a): %a ~ %a"
                    pp_loc l pp_term ty pp_term ty');
           if not (R.are_convertible sg ty ty')
           then
@@ -503,11 +502,11 @@ let check_type_annotations sg sub typed_ctx annot_ctx =
   in aux [] 1 typed_ctx annot_ctx
 
 let check_rule sg (rule:partially_typed_rule) : SS.t * typed_rule =
-  Debug.(debug D_rule "Inferring variables type and constraints from LHS");
+  Debug.(debug d_rule "Inferring variables type and constraints from LHS");
   let fail = if !fail_on_unsatisfiable_constraints
     then (fun x -> raise (TypingError (UnsatisfiableConstraints (rule,x))))
     else (fun (q,t1,t2) ->
-        Debug.(debug D_warn "At %a: unsatisfiable constraint: %a ~ %a%s"
+        Debug.(debug d_warn "At %a: unsatisfiable constraint: %a ~ %a%s"
                  pp_loc (get_loc_rule rule)
                  pp_term t1 pp_term t2
                  (if q > 0 then Format.sprintf " (under %i abstractions)" q else ""))) in
@@ -522,16 +521,16 @@ let check_rule sg (rule:partially_typed_rule) : SS.t * typed_rule =
     try subst_context sub ctx
     with Subst.UnshiftExn -> (* TODO make Dedukti handle this case *)
       Debug.(
-        debug D_rule "Failed to infer a typing context for the rule:\n%a"
+        debug d_rule "Failed to infer a typing context for the rule:\n%a"
           pp_part_typed_rule rule;
         let ctx_name n = let _,name,_ = List.nth ctx n in name in
-        debug D_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
+        debug d_rule "Tried inferred typing substitution: %a" (SS.pp ctx_name) sub);
       raise (TypingError (NotImplementedFeature (get_loc_pat rule.pat) ) )
   in
-  Debug.(debug D_rule "Typechecking rule");
+  Debug.(debug d_rule "Typechecking rule");
   check sg ctx2 ri2 ty_le2;
   check_type_annotations sg sub ctx2 rule.ctx;
-  Debug.(debug D_rule "Fully checked rule:@.[ %a ] %a --> %a"
+  Debug.(debug d_rule "Fully checked rule:@.[ %a ] %a --> %a"
            pp_context_inline ctx2 pp_pattern rule.pat pp_term ri2);
 
   sub,
