@@ -94,7 +94,7 @@ let solve (depth:int) (args:int LList.t) (te:term) : term =
   else solve_miller depth args te
 
 
-module type Checker = sig
+module type Reducer = sig
   val snf  : Signature.t -> term -> term
   val whnf : Signature.t -> term -> term
   val are_convertible : Signature.t -> term -> term -> bool
@@ -105,7 +105,7 @@ module type Matcher = sig
     Signature.t -> (int -> te) -> (int -> te list) -> pre_matching_problem -> te array option
 end
 
-module Make (C:Checker) =
+module Make (R:Reducer) : Matcher =
 struct
   (* Complete solve using a reduction function *)
   let force_solve sg d args t =
@@ -113,7 +113,7 @@ struct
     else
       let te = Lazy.force t in
       Lazy.from_val( try solve d args te
-                     with NotUnifiable -> solve d args (C.snf sg te) )
+                     with NotUnifiable -> solve d args (R.snf sg te) )
 
   (* Try to solve returns None if it fails (from exception monad to Option monad) *)
   let try_force_solve sg d args t =
@@ -163,7 +163,7 @@ struct
     let rec aux acc = function
       | [] -> None
       | hd :: tl ->
-        if C.are_convertible sg (Lazy.force hd) sol
+        if R.are_convertible sg (Lazy.force hd) sol
         then Some (List.rev_append acc tl)
         else aux (hd::acc) tl in
     aux [] l
@@ -199,13 +199,13 @@ struct
         match get_occs i vars with
         | [] -> update_ac (p::acc) tl
         | occs ->
-          let sol = C.whnf sg (Lazy.force sol) in
+          let sol = R.whnf sg (Lazy.force sol) in
           (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
-          let flat_sols = force_flatten_AC_term (C.snf sg) (fst aci) sol in
+          let flat_sols = force_flatten_AC_term (R.snf sg) (fst aci) sol in
           (* If aci represent ACU symbol, remove corresponding neutral element. *)
           let flat_sols =
             match snd aci with
-            | ACU neu -> List.filter (fun x -> not (C.are_convertible sg neu x)) flat_sols
+            | ACU neu -> List.filter (fun x -> not (R.are_convertible sg neu x)) flat_sols
             | _ -> flat_sols in
           let lambdaed = List.map (add_n_lambdas arity) flat_sols in
           let shifted = List.map (Subst.shift d) lambdaed in
@@ -425,7 +425,7 @@ let get_all_ac_symbols pb i =
     let whnfs i =
       ( match whnfs.(i), status.(i) with
         | Some _ , _ -> ()
-        | None, Solved soli -> whnfs.(i) <- Some (C.whnf sg (Lazy.force soli));
+        | None, Solved soli -> whnfs.(i) <- Some (R.whnf sg (Lazy.force soli));
         | _ -> () );
       whnfs.(i) in
     let rec update_ac acc = function
@@ -438,12 +438,12 @@ let get_all_ac_symbols pb i =
               ( match whnfs v with
                 | Some sol ->
                   (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
-                  let flat_sols = force_flatten_AC_term (C.snf sg) (fst aci) sol in
+                  let flat_sols = force_flatten_AC_term (R.snf sg) (fst aci) sol in
                   (* If aci represent ACU symbol, remove corresponding neutral element. *)
                   let flat_sols =
                     match snd aci with
                     | ACU neu ->
-                      List.filter (fun x -> not (C.are_convertible sg neu x)) flat_sols
+                      List.filter (fun x -> not (R.are_convertible sg neu x)) flat_sols
                     | _ -> flat_sols in
                   let lambdaed = List.map (add_n_lambdas arity.(v)) flat_sols in
                   let shifted = List.map (Subst.shift d) lambdaed in
@@ -483,7 +483,7 @@ let get_all_ac_symbols pb i =
                 (fun (d,args,rhs) ->
                    let lambdaed = add_n_lambdas pb.pm_arity.(i) (Lazy.force (convert rhs)) in
                    let shifted = Subst.shift d lambdaed in
-                   if not (C.are_convertible sg (Lazy.force solu) (apply_args shifted args))
+                   if not (R.are_convertible sg (Lazy.force solu) (apply_args shifted args))
                    then raise NotSolvable
                 )
                 opbs;
@@ -502,7 +502,7 @@ let get_all_ac_symbols pb i =
                 (fun (d, args, rhs) ->
                    let lambdaed = add_n_lambdas pb.pm_arity.(i) (Lazy.force (convert rhs)) in
                    let shifted = Subst.shift d lambdaed in
-                   if not (C.are_convertible sg (Lazy.force solu) (apply_args shifted args))
+                   if not (R.are_convertible sg (Lazy.force solu) (apply_args shifted args))
                    then raise NotSolvable
                 )
                 opbs;

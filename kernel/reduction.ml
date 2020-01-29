@@ -117,7 +117,7 @@ let beta = ref true
 (* Rule filter *)
 let selection  = ref None
 
-module Make(C : ConvChecker) (M:Matching.Matcher) =
+module Make(C : ConvChecker) (M:Matching.Matcher) : S =
 struct
 
 (*******      AC manipulating functions   *******)

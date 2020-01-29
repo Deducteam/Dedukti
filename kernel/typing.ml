@@ -53,7 +53,7 @@ module type S = sig
 end
 
 (* ********************** CONTEXT *)
-module Make(R:Reduction.S) =
+module Make(R:Reduction.S) : S =
 struct
 
   let get_type ctx l x n =
@@ -555,4 +555,4 @@ let check_rule sg (rule:partially_typed_rule) : SS.t * typed_rule =
 
 end
 
-module Default = Make(Reduction.Default)
+module Default : S = Make(Reduction.Default)

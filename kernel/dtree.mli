@@ -39,18 +39,17 @@ type 'a ac_problem = int * ac_ident * int * (var_p list) * 'a
         [ +{ X\[x\] , _, Y\[y,z\] } = +{ f(a), f(y), f(x)} ]
    *)
 
-(** Problem with int referencing stack indices *)
 type pre_matching_problem =
   {
     pm_eq_problems : int eq_problem list array;
-    (** A list of equational problems under various depths for
-        each variable *)
+    (** For each variable of a rewrite rule (array),
+        a list of equational problems under various depths *)
     pm_ac_problems : int ac_problem list;
-    (** A list of problems under a certain depth *)
+    (** A list of AC-matching problems under a certain depth *)
     pm_arity       : int array
-    (** Miller variables arity *)
+    (** Constant time access to a variable's arity *)
   }
-
+(** A problem with int indices referencing positions in the stack  *)
 
 val pp_var_type : var_p printer
 
@@ -60,7 +59,6 @@ val pp_ac_problem : 'a printer -> 'a ac_problem printer
 
 (** int matching problem printing function (for dtree). *)
 val pp_pre_matching_problem : string -> pre_matching_problem printer
-
 
 
 (** {2 Decision Trees} *)
