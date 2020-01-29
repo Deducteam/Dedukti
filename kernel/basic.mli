@@ -78,7 +78,7 @@ val mk_loc : int -> int -> loc
 val of_loc : loc -> int * int
 (** [of_loc l] returns the line and the column associated to the position*)
 
-exception NotDirectory of string
+exception Not_directory of string
 
 val add_path : string -> unit
 (** Raises NotDirectory when given string is not a path to a directory *)

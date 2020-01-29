@@ -67,12 +67,12 @@ let dloc = (-1,-1)
 let mk_loc l c = (l,c)
 let of_loc l = l
 
-exception NotDirectory of string
+exception Not_directory of string
 let path = ref []
 let get_path () = !path
 let add_path s =
   if not (Sys.is_directory s)
-  then raise (NotDirectory s)
+  then raise (Not_directory s)
   else path := s :: !path
 
 (** {2 Debugging} *)
@@ -86,11 +86,11 @@ module Debug = struct
 
   let set = Hashtbl.replace flag_message
 
-  exception DebugMessageNotSet of flag
+  exception Debug_message_not_set of flag
 
   let get (fl:flag ) : (string*bool) =
     try Hashtbl.find flag_message fl
-    with Not_found -> raise (DebugMessageNotSet fl)
+    with Not_found -> raise (Debug_message_not_set fl)
 
   let message   (fl : flag ) : string = fst (get fl)
   let is_active (fl : flag ) : bool   = snd (get fl)

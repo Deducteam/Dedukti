@@ -14,7 +14,7 @@ type confluence_error =
   | MaybeConfluent of string
   | CCFailure      of string
 
-exception ConfluenceError of confluence_error
+exception Confluence_error of confluence_error
 
 module IdMap = Map.Make(
   struct
@@ -199,7 +199,7 @@ let check () =
         let answer = input_line input in
         let _ = Unix.close_process_in input in
         answer
-      with End_of_file -> raise (ConfluenceError (CCFailure cmd))
+      with End_of_file -> raise (Confluence_error (CCFailure cmd))
     in
     if String.compare answer "YES" != 0
     then (
@@ -208,7 +208,7 @@ let check () =
         | "NO"    -> NotConfluent   cmd
         | "MAYBE" -> MaybeConfluent cmd
         | _       -> CCFailure      cmd in
-      raise (ConfluenceError error)
+      raise (Confluence_error error)
     )
 
 let add_constant cst = try_out (fun (_,out) ->
