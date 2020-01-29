@@ -72,21 +72,21 @@ let state_ref_of_term t = mk_state_ref LList.nil t []
 open Format
 
 let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
-
 let pp_stack fmt (st:stack) =
   fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state_ref st)
 
-(* let pp_stack_oneline fmt (st:stack) =
- *   fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state_ref st) *)
+let pp_stack_oneline fmt (st:stack) =
+  fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state_ref st)
 
-let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack ; _ } =
+let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
   if if_ctx
   then fprintf fmt "{ctx=[%a];@." pp_env ctx
   else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx);
   fprintf fmt "term=%a;@." pp_term term;
   if if_stack
   then fprintf fmt "stack=%a}@." pp_stack stack
-  else fprintf fmt "stack=[...](%i)}@." (List.length stack)
+  else fprintf fmt "stack=[...](%i)}@." (List.length stack);
+  fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
 
 let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true
 *)
@@ -362,15 +362,15 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
  *)
 and state_whnf (sg:Signature.t) (st:state) : state =
   (*
-  Debug.(debug d_reduce "Reducing %a" pp_state_oneline st);
+  Debug.(debug D_reduce "Reducing %a" pp_state_oneline st);
   *)
   let rec_call c t s = state_whnf sg (mk_state c t s) in
   match st with
-  (* Weak heah beta normal terms *)
+  (* Weak head beta normal terms *)
   | { term=Type _ ; _ } | { term=Kind ; _ }
   | { term=Pi   _ ; _ } | { term=Lam _; stack=[] ; _ } -> st
   (* DeBruijn index: environment lookup *)
-  | { ctx; term=DB (l,x,n); stack ; _ } ->
+  | { ctx; term=DB (l,x,n); stack } ->
     if LList.is_empty ctx then st
     else if n < LList.len ctx
     then rec_call LList.nil (Lazy.force (LList.nth ctx n)) stack
@@ -479,7 +479,7 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
   let rec aux : state_reducer = fun (pos:position) (st:state) ->
     if stop () then st else
       match st, strat with
-      (* Weak heah beta normal terms *)
+      (* Weak head beta normal terms *)
       | { term=Type _ ; _ }, _
       | { term=Kind   ; _ }, _ -> st
 

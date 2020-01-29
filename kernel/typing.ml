@@ -100,20 +100,18 @@ struct
              pp_typed_context ctx
              pp_term te pp_term ty_exp);
     match te with
-    | Lam (l,x,None,b) ->
+    | Lam (l,x,op,b) ->
       begin
         match R.whnf sg ty_exp with
-        | Pi (_,_,a,ty_b) -> check sg ((l,x,a)::ctx) b ty_b
-        | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
-      end
-    | Lam (l,x,Some a,b) ->
-      begin
-        match R.whnf sg ty_exp with
-        | Pi (_,_,a',ty_b) ->
-          ignore(infer sg ctx a);
-          if R.are_convertible sg a a'
-          then check sg ((l,x,a)::ctx) b ty_b
-          else raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a',a)))
+        | Pi (_,_,a,ty_b) ->
+          ( match op with
+            | Some a' ->
+               ignore(infer sg ctx a');
+               if not (R.are_convertible sg a a')
+               then raise (TypingError (ConvertibilityError ((mk_DB l x 0),ctx,a,a')))
+            | _ -> ()
+          );
+          check sg ((l,x,a)::ctx) b ty_b
         | _ -> raise (TypingError (ProductExpected (te,ctx,ty_exp)))
       end
     | _ ->

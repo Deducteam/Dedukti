@@ -1,3 +1,5 @@
+Note that a new interactive version of Dedukti is under development on https://github.com/Deducteam/lambdapi.
+
 USER MANUAL FOR DEDUKTI (DEVELOPMENT VERSION)
 =============================================
 
