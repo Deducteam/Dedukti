@@ -62,25 +62,28 @@ and term_of_state_ref r = term_of_state !r
 
 (**************** Pretty Printing ****************)
 
-(* let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
- *
- * let pp_stack fmt (st:stack) =
- *   fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state_ref st) *)
+(*
+open Format
 
-(*let pp_stack_oneline fmt (st:stack) =
-    fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state_ref st) *)
+let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
+let pp_stack fmt (st:stack) =
+  fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state_ref st)
 
-(* let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
- *   if if_ctx
- *   then fprintf fmt "{ctx=[%a];@." pp_env ctx
- *   else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx);
- *   fprintf fmt "term=%a;@." pp_term term;
- *   if if_stack
- *   then fprintf fmt "stack=%a}@." pp_stack stack
- *   else fprintf fmt "stack=[...](%i)}@." (List.length stack);
- *   fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack}) *)
+let pp_stack_oneline fmt (st:stack) =
+  fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state_ref st)
 
-(* let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true *)
+let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
+  if if_ctx
+  then fprintf fmt "{ctx=[%a];@." pp_env ctx
+  else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx);
+  fprintf fmt "term=%a;@." pp_term term;
+  if if_stack
+  then fprintf fmt "stack=%a}@." pp_stack stack
+  else fprintf fmt "stack=[...](%i)}@." (List.length stack);
+  fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
+
+let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true
+*)
 
 type matching_test = Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 type convertibility_test = Signature.t -> term -> term -> bool
@@ -211,13 +214,17 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
  *    (and therefore this variable is free in the corresponding term)
  *)
 and state_whnf (sg:Signature.t) (st:state) : state =
+  (*
+  Debug.(debug D_reduce "Reducing %a" pp_state_oneline st);
+  *)
   match st with
   (* Weak head beta normal terms *)
   | { term=Type _ ; _ } | { term=Kind ; _ }
-  | { term=Pi _ ; _  } | { term=Lam _; stack=[] ; _} -> st
+  | { term=Pi   _ ; _ } | { term=Lam _; stack=[] ; _ } -> st
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
-    if n < LList.len ctx
+    if LList.is_empty ctx then st
+    else if n < LList.len ctx
     then state_whnf sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
     else { ctx=LList.nil; term=mk_DB l x (n-LList.len ctx); stack }
   (* Beta redex *)
