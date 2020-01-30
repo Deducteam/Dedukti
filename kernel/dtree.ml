@@ -19,7 +19,7 @@ type 'a eq_problem = int * int LList.t * 'a
 type 'a ac_problem = int * ac_ident * int * (var_p list) * 'a
 
 type pre_matching_problem = {
-  pm_eq_problems : int eq_problem list array;
+  pm_eq_problems : int eq_problem list LList.t;
   pm_ac_problems : int ac_problem list;
   pm_arity       : int array
 }
@@ -47,8 +47,8 @@ let pp_ac_problem pp_rhs fmt (_,aci,joks,vars,terms) =
 let pp_pos fmt p = fprintf fmt "stack.%a" pp_print_int p
 let pp_pre_matching_problem sep fmt mp =
   fprintf fmt "[ %a | %a ]"
-    (pp_arr  sep (pp_eq_problems sep pp_pos))
-    (Array.mapi (fun i c -> (i,c)) mp.pm_eq_problems)
+    (pp_llist sep (pp_eq_problems sep pp_pos))
+    (LList.mapi (fun i c -> (i,c)) mp.pm_eq_problems)
     (pp_list sep (pp_ac_problem     pp_pos))
     mp.pm_ac_problems
 
@@ -497,7 +497,7 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
     ) mx.first.pats;
   assert (Array.for_all (fun x -> x >= 0) arity);
   {
-    pm_eq_problems = eq_pbs;
+    pm_eq_problems = LList.of_array eq_pbs;
     pm_ac_problems = !ac_pbs;
     pm_arity       = arity
   }
@@ -595,7 +595,7 @@ let rec pp_dtree t fmt dtree =
   let tab = String.init (1 + t*2) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
   | Test (_,mp,[],te,_) when mp.pm_ac_problems = [] &&
-                             (Array.for_all (fun c -> c = []) mp.pm_eq_problems) ->
+                             (LList.for_all (fun c -> c = []) mp.pm_eq_problems) ->
     fprintf fmt "%s%a" tab pp_term te
   | Test (name,mp,[],te,def) ->
      fprintf fmt "%stry %a :%s    %a%sthen %a%selse %a"

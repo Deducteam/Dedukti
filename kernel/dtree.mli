@@ -26,7 +26,7 @@ type var_p = int * int LList.t
 (* TODO: add loc to this to better handle errors *)
 
 type 'a eq_problem = int * int LList.t * 'a
-(** [(depth, \[x1...xn\], t)] is the higher order
+(** [(db, depth, \[x1...xn\], t)] is the higher order
     equational problem: [X\[x1  ... xn\] = t]
     under [depth] lambdas. *)
 
@@ -41,7 +41,7 @@ type 'a ac_problem = int * ac_ident * int * (var_p list) * 'a
 
 type pre_matching_problem =
   {
-    pm_eq_problems : int eq_problem list array;
+    pm_eq_problems : int eq_problem list LList.t;
     (** For each variable of a rewrite rule (array),
         a list of equational problems under various depths *)
     pm_ac_problems : int ac_problem list;

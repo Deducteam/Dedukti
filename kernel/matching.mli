@@ -16,7 +16,7 @@ end
 module type Matcher = sig
   val solve_problem :
     Signature.t -> (int -> term Lazy.t) -> (int -> term Lazy.t list) ->
-    pre_matching_problem -> term Lazy.t array option
+    pre_matching_problem -> term Lazy.t LList.t option
   (** [solve_problem sg eq_conv ac_conv pb] solves the [pb] matching problem
       using the given functions to convert positions in the stack to actual
       (lazy) terms.

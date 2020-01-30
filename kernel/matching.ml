@@ -102,7 +102,8 @@ end
 
 module type Matcher = sig
   val solve_problem :
-    Signature.t -> (int -> te) -> (int -> te list) -> pre_matching_problem -> te array option
+    Signature.t -> (int -> te) -> (int -> te list) ->
+    pre_matching_problem -> te LList.t option
 end
 
 module Make (R:Reducer) : Matcher =
@@ -124,8 +125,7 @@ struct
     if n == 0 then t else add_n_lambdas (n-1) (mk_Lam dloc dmark None t)
 
   let lazy_add_n_lambdas n t =
-    if n == 0 then t
-    else Lazy.from_val (add_n_lambdas n (Lazy.force t))
+    if n == 0 then t else lazy(add_n_lambdas n (Lazy.force t))
 
   (** Apply a Miller solution to variables *)
   let apply_args t l = mk_App2 t (List.map (fun k -> mk_DB dloc dmark k) (LList.lst l))
@@ -334,7 +334,7 @@ let get_all_ac_symbols pb i =
     let aux i = function
       | Solved sol -> lazy_add_n_lambdas arities.(i) sol
       | _ -> assert false in
-    Array.mapi aux status
+    LList.of_array (Array.mapi aux status)
 
   let solve_ac_problem sg =
     let rec solve_next pb =
@@ -470,45 +470,59 @@ let get_all_ac_symbols pb i =
      Processes equationnal problems as they can be deterministically solved right away
      then hands over to non deterministic AC solver. *)
   let solve_problem sg convert convert_ac pb =
-    try
-      if pb.pm_ac_problems = []
-      then
-        let solve_eq i = function
-          | [] -> assert false
-          | (depth, args, rhs) :: opbs ->
-            match try_force_solve sg depth args (convert rhs) with
-            | None -> raise NotSolvable
-            | Some solu ->
-              List.iter
-                (fun (d,args,rhs) ->
-                   let lambdaed = add_n_lambdas pb.pm_arity.(i) (Lazy.force (convert rhs)) in
-                   let shifted = Subst.shift d lambdaed in
-                   if not (R.are_convertible sg (Lazy.force solu) (apply_args shifted args))
-                   then raise NotSolvable
-                )
-                opbs;
-              lazy_add_n_lambdas pb.pm_arity.(i) solu
-        in
-        Some (Array.mapi solve_eq pb.pm_eq_problems)
-      else
-        (* First solve equational problems*)
-        let solve_eq i = function
-          | [] -> Unsolved
-          | (depth, args, rhs) :: opbs ->
-            match try_force_solve sg depth args (convert rhs) with
-            | None -> raise NotSolvable
-            | Some solu ->
-              List.iter
-                (fun (d, args, rhs) ->
-                   let lambdaed = add_n_lambdas pb.pm_arity.(i) (Lazy.force (convert rhs)) in
-                   let shifted = Subst.shift d lambdaed in
-                   if not (R.are_convertible sg (Lazy.force solu) (apply_args shifted args))
-                   then raise NotSolvable
-                )
-                opbs;
-              Solved solu
-        in
-        let status = Array.mapi solve_eq pb.pm_eq_problems in
+    if pb.pm_ac_problems = []
+    then
+      let solve_eq = function
+        | [] -> assert false
+        | [depth, args, rhs] ->
+          lazy_add_n_lambdas (LList.len args)
+            (force_solve sg depth args (convert rhs))
+        | (depth, args, rhs) :: opbs ->
+          let solu = Lazy.force (force_solve sg depth args (convert rhs)) in
+          let arity = LList.len args in
+          List.iter
+            (fun (depth,args,rhs) ->
+               (*
+               let subst l x n d =
+                 if n - d <= depth
+                 then mk_DB l x n
+                 else raise Not_found in
+               let subst_sol = Subst.apply_subst subst 0 solu in
+               *)
+               let lambdaed = add_n_lambdas arity (Lazy.force (convert rhs)) in
+               let shifted = Subst.shift depth lambdaed in
+               let subst_sol = apply_args shifted args in
+               if not (R.are_convertible sg solu subst_sol)
+               then raise NotSolvable
+            )
+            opbs;
+          Lazy.from_val (add_n_lambdas arity solu)
+      in
+      try Some (LList.map solve_eq pb.pm_eq_problems)
+      with NotUnifiable | NotSolvable -> None
+
+    else
+      (* First solve equational problems*)
+      let solve_eq = function
+        | [] -> Unsolved
+        | (depth, args, rhs) :: opbs ->
+          let arity = LList.len args in
+          match try_force_solve sg depth args (convert rhs) with
+          | None -> raise NotSolvable
+          | Some solu ->
+            List.iter
+              (fun (d, args, rhs) ->
+                 let lambdaed = add_n_lambdas arity (Lazy.force (convert rhs)) in
+                 let shifted = Subst.shift d lambdaed in
+                 if not (R.are_convertible sg (Lazy.force solu) (apply_args shifted args))
+                 then raise NotSolvable
+              )
+              opbs;
+            Solved solu
+      in
+      try
+        let status = LList.map solve_eq pb.pm_eq_problems in
+        let status = Array.of_list (LList.lst status) in
         let ac_problems =
           List.map (fun (d,aci,joks,vars,rhs) -> (d,aci,joks,vars,convert_ac rhs))
             pb.pm_ac_problems in
@@ -519,6 +533,6 @@ let get_all_ac_symbols pb i =
                    ac_problems = ac_rearrange ac_pbs;
                    eq_problems=[||] } in
         (* Rearrange AC problems then solve them *)
-       solve_ac_problem sg pb
-    with NotSolvable -> None
+        solve_ac_problem sg pb
+      with NotUnifiable | NotSolvable -> None
 end
