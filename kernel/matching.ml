@@ -133,10 +133,6 @@ struct
   let lazy_add_n_lambdas n t =
     if n == 0 then t else lazy(add_n_lambdas n (Lazy.force t))
 
-  (** Apply a Miller solution to variables *)
-  let apply_args t args =
-    mk_App2 t (List.map (fun k -> mk_DB dloc dmark k) args)
-
     (** [compute_all_sols vars i sols] computes the AC list of all right hand terms
       fixed by substitution  [i] = [sol]  in the left-hand side of
       +{ [i]\[[vars]_1\] ... [i]\[[vars]_n\] } = ...
@@ -145,7 +141,7 @@ struct
     let rec loop_vars acc = function
       | [] -> acc
       | mvar :: other_var_args ->
-        loop_vars ((apply_args sol mvar.vars) :: acc) other_var_args
+        loop_vars ((apply_sol sol mvar) :: acc) other_var_args
     in
     loop_vars []
 
@@ -156,12 +152,12 @@ struct
   let compute_all_sols sols =
     let rec loop_sols acc args = function
       | []           -> acc
-      | sol :: osols -> loop_sols ( (apply_args sol args) :: acc) args osols
+      | sol :: osols -> loop_sols ( (apply_sol sol args) :: acc) args osols
     in
     let rec loop_term acc = function
       | [] -> acc
-      | var :: other_var_args ->
-        loop_term (List.rev_append (loop_sols [] var.vars sols) acc) other_var_args
+      | vars :: other_var_args ->
+        loop_term (List.rev_append (loop_sols [] vars sols) acc) other_var_args
     in
     loop_term []
 
@@ -197,7 +193,7 @@ struct
     in
     aux []
 
-  let update_ac_problems sg arity i sol :
+  let update_ac_problems sg i sol :
     te list ac_problem list -> te list ac_problem list option =
     let rec update_ac acc : te list ac_problem list -> te list ac_problem list option
       = function
@@ -216,9 +212,7 @@ struct
             match snd aci with
             | ACU neu -> List.filter (fun x -> not (R.are_convertible sg neu x)) flat_sols
             | _ -> flat_sols in
-          let lambdaed = List.map (add_n_lambdas arity) flat_sols in
-          let shifted = List.map (Subst.shift d) lambdaed in
-          let sols = compute_all_sols shifted occs in
+          let sols = compute_all_sols flat_sols occs in
           match remove_sols_occs sg sols terms with
           | None -> None
           | Some nterms ->
@@ -238,7 +232,7 @@ struct
       (fun ac_pbs ->
          { pb with ac_problems = ac_pbs; status= update_status pb.status i (Solved sol) })
       (* if the substitution is compatible *)
-      (update_ac_problems sg pb.arities.(i) i sol pb.ac_problems)
+      (update_ac_problems sg i sol pb.ac_problems)
 
   let set_partly pb i aci =
     assert(pb.status.(i) == Unsolved);
@@ -292,10 +286,9 @@ struct
         | (d,aci',joks,vars,terms as p) :: tl ->
           if ac_ident_eq aci aci' &&  var_exists i vars
           then
-            let lambdaed = add_n_lambdas pb.arities.(i) (Lazy.force sol) in
-            let shifted = Subst.shift d lambdaed in
-            let occs = get_occs i vars in
-            let sols = compute_sols shifted occs in
+            (* Apply solution for variable X to all occurences of X *)
+            let sols = compute_sols (Lazy.force sol) (get_occs i vars) in
+            (* Remove found solutions from RHS *)
             match remove_sols_occs sg sols terms with
             | None        -> None
             | Some nterms -> update_ac ((d,aci,joks,vars,nterms)::acc) tl
@@ -303,20 +296,6 @@ struct
       in
       update_ac [] pb.ac_problems
     | _ -> assert false
-
-
-(*
-let get_all_ac_symbols pb i =
-  let set = ref [] in
-  let is_in_set e s = List.exists (ac_ident_eq e) s in
-  let add e = if not (is_in_set e !set) then set := e :: !set in
-  let aux = function
-    | _, AC(aci,_,vars,_) -> if List.exists (fun (j,_) -> j == i) vars then add aci
-    | _ -> assert false
-  in
-  List.iter aux pb.problems;
-  !set
-*)
 
   (* Fetches most interesting problem and most interesting variable in it.
      Returns None iff the list of remaining problems is empty
@@ -428,7 +407,7 @@ let get_all_ac_symbols pb i =
       compare (ac_f j1 v1 t1) (ac_f j2 v2 t2) in
     List.sort comp problems
 
-  let init_ac_problems sg arity status =
+  let init_ac_problems sg status =
     let whnfs = Array.make (Array.length status) None in
     let whnfs i =
       ( match whnfs.(i), status.(i) with
@@ -453,9 +432,7 @@ let get_all_ac_symbols pb i =
                     | ACU neu ->
                       List.filter (fun x -> not (R.are_convertible sg neu x)) flat_sols
                     | _ -> flat_sols in
-                  let lambdaed = List.map (add_n_lambdas arity.(v)) flat_sols in
-                  let shifted = List.map (Subst.shift d) lambdaed in
-                  let sols = List.map (fun sol -> apply_args sol args.vars) shifted in
+                  let sols = List.map (fun sol -> apply_sol sol args) flat_sols in
                   sols @ acc
                 | _ -> acc) tl
         in
@@ -521,7 +498,7 @@ let get_all_ac_symbols pb i =
           List.map (fun (d,aci,joks,vars,rhs) -> (d,aci,joks,vars,convert_ac rhs))
             pb.pm_ac_problems in
         (* Update AC problems according to partial solution found *)
-        let ac_pbs = init_ac_problems sg pb.pm_arity status ac_problems in
+        let ac_pbs = init_ac_problems sg status ac_problems in
         let pb = { arities = pb.pm_arity;
                    status = status;
                    ac_problems = ac_rearrange ac_pbs;
