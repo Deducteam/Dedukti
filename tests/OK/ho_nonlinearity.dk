@@ -7,11 +7,11 @@ A : Type.
 c : A -> A -> A.
 
 def f : (A -> A -> A -> A -> A) -> (A -> A -> A -> A -> A) -> A.
-[V] f (x => y => z => V x y z) (x => y => z => V z x y) --> V 1 2 3 4.
+[V] f (y => x => z => V x y z) (x => y => z => V z x y) --> V 1 2 3 4.
 
 #ASSERT
 ( f
-  (x => y => z => u =>
+  (y => x => z => u =>
    c (c (c y x) (c u y))
      (c (c z y) (c x 1)))
   (x => y => z => u =>
