@@ -11,10 +11,31 @@ type dtree_error =
 
 exception DtreeError of dtree_error
 
-type var_p = int * int LList.t
+type miller_var =
+  {
+    arity : int;
+    (** Arity of the meta variable *)
+    depth : int;
+    (** Depth under which this occurence of the meta variable is considered *)
+    vars : int list;
+    (** The list of local DB indices of argument variables*)
+    mapping : int array
+    (** The mapping from all local DB indices for either -1 or position
+        in the list of argument variables
+    *)
+  }
+
+let fo_var : miller_var = { arity=0; depth=0; vars=[]; mapping=[||] }
+
+let mapping_of_vars (depth:int) (arity:int) (vars:int list) : int array =
+  let arr = Array.make depth (-1) in
+  List.iteri ( fun i n -> arr.(n) <- arity-i-1) vars;
+  arr
+
+type var_p = int * miller_var
 
 (* TODO: add loc to this to better handle errors *)
-type 'a eq_problem = int * int LList.t * 'a
+type 'a eq_problem = miller_var * 'a
 
 type 'a ac_problem = int * ac_ident * int * (var_p list) * 'a
 
@@ -24,12 +45,12 @@ type pre_matching_problem = {
   pm_arity       : int array
 }
 
-let pp_var_type fmt (i,args) =
-  if LList.is_empty args
+let pp_var_type fmt (i, { arity; vars; _ }) =
+  if arity = 0
   then fprintf fmt "%i" i
-  else fprintf fmt "%i[%a]" i (pp_list " " pp_print_int) (LList.lst args)
+  else fprintf fmt "%i[%a]" i (pp_list " " pp_print_int) vars
 
-let pp_eq_problem vp pp_a fmt (_,args,t) =
+let pp_eq_problem vp pp_a fmt (args,t) =
   fprintf fmt "%a = %a" pp_var_type (vp,args) pp_a t
 
 let pp_eq_problems sep pp_a fmt (vp,prbs) =
@@ -58,7 +79,7 @@ type case =
   | CDB    of int * int
   | CLam
 
-type atomic_problem = { pos:int; depth:int; args_db:int LList.t }
+type atomic_problem = { a_pos:int; a_depth:int; a_args:int array }
 type matching_problem = atomic_problem LList.t
 
 type dtree =
@@ -466,32 +487,36 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
       let depth = mx.col_depth.(i) in
       match p with
       | LJoker -> ()
-      | LVar (_,n,lst) ->
+      | LVar (_,n,args) ->
          begin
            assert(depth <= n && n < esize + depth);
            let n = n - depth in
-           let len = List.length lst in
+           let len = List.length args in
            if arity.(n) == -1 then arity.(n) <- len else assert(arity.(n) == len);
-           eq_pbs.(n) <- (depth, LList.of_list lst, i) :: eq_pbs.(n)
+           let miller = {depth=depth; arity=len; vars=args;
+                         mapping=mapping_of_vars depth len args} in
+           eq_pbs.(n) <- (miller, i) :: eq_pbs.(n)
          end
       | LACSet (cst,patl) ->
          begin
-           let fetch_vars (joks,vars) = function
+           let fetch_metavars (joks,vars) = function
               | LJoker -> (joks+1,vars)
-              | LVar (_,n,lst) ->
+              | LVar (_,n,args) ->
                  begin
                    assert(depth <= n && n < esize + depth);
                    let n = n - depth in
-                   let len = List.length lst in
+                   let len = List.length args in
                    if arity.(n) == -1
                    then arity.(n) <- len
                    else assert(arity.(n) == len);
-                   let nvars = (n, LList.of_list lst) :: vars in
+                   let miller = {depth=depth; arity=len; vars=args;
+                                 mapping=mapping_of_vars depth len args} in
+                   let nvars = (n,miller) :: vars in
                    (joks,nvars)
                  end
               | _ -> assert false in
-           let njoks, vars = List.fold_left fetch_vars (0,[]) patl in
-           ac_pbs := (depth,(cst,get_algebra cst),njoks,vars,i) :: !ac_pbs
+           let njoks, metavars = List.fold_left fetch_metavars (0,[]) patl in
+           ac_pbs := (depth,(cst,get_algebra cst),njoks,metavars,i) :: !ac_pbs
          end
       | _ -> assert false
     ) mx.first.pats;

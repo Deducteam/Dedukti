@@ -12,9 +12,46 @@ type dtree_error =
 
 exception DtreeError of dtree_error
 
+type miller_var =
+  {
+    arity : int;
+    (** Arity of the meta variable *)
+    depth : int;
+    (** Depth under which this occurence of the meta variable is considered *)
+    vars : int list;
+    (** The list of local DB indices of argument variables*)
+    mapping : int array
+    (** The mapping from all local DB indices for either -1 or position
+        in the list of argument variables (starting from the end)
+    *)
+  }
+(** This represent a meta variables applied to distinct
+    locally bounded variables:  X x_1 ... x_n.
+    - [arity] is the number of arguments
+    - [depth] is the number of locally bounded variables available
+    - [vars] is the list of successive arguments in order
+    - [mapping] is a mapping for all available bounded variable n to
+      - either -1 is this variable is absent from the list of arguments
+      - or the index of that integer in the [vars] list
 
-(** ([n], [vars]) represents the [n]-th variable applied to the [vars] bound variables. *)
-type var_p = int * int LList.t
+    The following invariants should therefore be verified:
+    - [arity] is the length of vars
+    - [depth] is the length of mapping
+    - All elements of [vars] are between 0 and [depth]-1
+    - Non negative elements of [mapping] are between 0 and [arity]-1
+    - [mapping].(i) = n >= 0  iff  List.nth [vars] ([arity]-n-1) = i
+    - This means exactly [arity] elements of [mapping] are non negative
+
+    An example:
+    {
+      arity   = 2;
+      depth   = 5;
+      vars    = [4; 2];
+      mapping = [| (-1) ; (-1) ; 0 ; (-1) ; 1 |]
+    }
+*)
+
+val fo_var : miller_var
 
 (** {2 Pre-Matching problems} *)
 
@@ -24,19 +61,23 @@ type var_p = int * int LList.t
 *)
 
 (* TODO: add loc to this to better handle errors *)
+type 'a eq_problem = miller_var * 'a
+(** [(vars, t)] is the higher order equational problem:
+       X x1  ... xn = [t]   with [vars]=\[x1  ... xn\] *)
 
-type 'a eq_problem = int * int LList.t * 'a
-(** [(db, depth, \[x1...xn\], t)] is the higher order
-    equational problem: [X\[x1  ... xn\] = t]
-    under [depth] lambdas. *)
+type var_p = int * miller_var
+(** ([n], [vars]) represents the [n]-th variable applied
+    to the [vars] bound variables. *)
 
 type 'a ac_problem = int * ac_ident * int * (var_p list) * 'a
   (** [(depth, symb, njoks, vars, terms)]
-   *  Represents the flattenned equality under AC symbol [symb] of:
-   *  - [njoks] jokers and the given variables [vars]
-   *  - The given [terms]
+      Represents the flattenned equality under AC symbol [symb] of:
+      - [njoks] jokers and the given variables [vars]
+      - The given [terms]
       e.g.
         [ +{ X\[x\] , _, Y\[y,z\] } = +{ f(a), f(y), f(x)} ]
+      the [depth] field in all elements of [vars] should be equal to [depth]
+      FIXME: do we need [depth] here then ?
    *)
 
 type pre_matching_problem =
@@ -82,9 +123,9 @@ type case =
   where X is the variable and the problem is considered under depth abstractions.*)
 type atomic_problem =
   {
-    pos     : int; (** position of the term to match in the stack. *)
-    depth   : int; (** depth of the argument regarding absractions *)
-    args_db : int LList.t (** Arguments DB indices (distinct bound variables) *)
+    a_pos   : int; (** position of the term to match in the stack. *)
+    a_depth : int; (** depth of the argument regarding absractions *)
+    a_args  : int array (** Arguments DB indices (distinct bound variables) *)
   }
 
 (** A matching problem to build a solution context from the stack *)

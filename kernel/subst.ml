@@ -10,7 +10,8 @@ let apply_subst (subst:substitution) : int -> term -> term =
   let ct = ref 0 in
   (* aux increments this counter every time a substitution occurs.
    * Terms are reused when no substitution occurs in recursive calls. *)
-  let rec aux k t = match t with  (* k counts the number of local lambda abstractions *)
+  let rec aux k t = match t with
+    (* k counts the number of local lambda abstractions *)
     | DB (l,x,n) when n >= k -> (* a free variable *)
        ( try let res = subst l x n k in incr ct; res with Not_found -> t)
     | App (f,a,args) ->

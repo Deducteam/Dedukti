@@ -19,7 +19,7 @@ type matching_problem = {
   eq_problems : te eq_problem list array;
   ac_problems : te list ac_problem list;
   status      : status array;
-  arity       : int array
+  arities       : int array
 }
 
 (*
@@ -51,7 +51,7 @@ let pp_matching_problem sep fmt mp =
 *)
 
 
-(* [solve_miller n k_lst te] solves following the higher-order unification problem (modulo beta):
+(* [solve_miller args te] solves following the higher-order unification problem (modulo beta):
 
     x{_1} => x{_2} => ... x{_[n]} => X x{_i{_1}} .. x{_i{_m}}
     {b =}
@@ -68,30 +68,31 @@ let pp_matching_problem sep fmt mp =
 
    x{_1} => ... => x{_[n]} => X DB(k{_0}) ... DB(k{_m}) =~ x{_1} => ... => x{_[n]} => [te]
 
-   and where [k_lst] = [\[]k{_0}[; ]k{_1}[; ]...[; ]k{_m}[\]].
+   and where [args] = [\[]k{_0}[; ]k{_1}[; ]...[; ]k{_m}[\]].
 *)
-let solve_miller (depth:int) (args:int LList.t) (te:term) : term =
-  let size = LList.len args in
-  let arr = Array.make depth None in
-  List.iteri ( fun i n -> arr.(n) <- Some (size-i-1) ) (LList.lst args);
-  let rec aux k = function
-    | Type _ | Kind | Const _ as t -> t
-    | DB (l,x,n) as t ->
-      if n < k             (* var bound in te *) then t
-      else if n >= k+depth (* var free  in te *) then mk_DB l x (n-depth+size)
-      else mk_DB l x (match arr.(n-k) with None -> raise NotUnifiable | Some n' -> n'+k)
-    | Lam (l,x,a,b) -> mk_Lam l x (map_opt (aux k) a) (aux (k+1) b)
-    | Pi  (l,x,a,b) -> mk_Pi  l x (aux k a) (aux (k+1) b)
-    | App (f,a,lst) -> mk_App (aux k f) (aux k a) (List.map (aux k) lst)
-  in
-  aux 0 te
+let solve_miller (var:miller_var) (te:term) : term =
+  let depth = var.depth in
+  let arity = var.arity in
+  let arr = var.mapping in
+  let subst l x n k =
+    mk_DB l x
+      (if n >= k+depth
+       (* the var is free  in te:
+          - unshift by local [depth]
+          - then shift by the [arity] of the meta variable *)
+       then (n-depth+arity)
+       else
+         let n' = arr.(n-k) in
+         if n' < 0 then raise NotUnifiable else n' + k
+      ) in
+  Subst.apply_subst subst 0 te
 
 (* Fast solve for unapplied Miller variables *)
-let solve (depth:int) (args:int LList.t) (te:term) : term =
-  if LList.is_empty args
-  then try Subst.unshift depth te
+let solve (args:miller_var) (te:term) : term =
+  if args.arity = 0
+  then try Subst.unshift args.depth te
     with Subst.UnshiftExn -> raise NotUnifiable
-  else solve_miller depth args te
+  else solve_miller args te
 
 
 module type Reducer = sig
@@ -109,16 +110,16 @@ end
 module Make (R:Reducer) : Matcher =
 struct
   (* Complete solve using a reduction function *)
-  let force_solve sg d args t =
-    if d == 0 then (assert(LList.is_empty args); t)
+  let force_solve sg (args:miller_var) t =
+    if args.depth = 0 then t
     else
       let te = Lazy.force t in
-      Lazy.from_val( try solve d args te
-                     with NotUnifiable -> solve d args (R.snf sg te) )
+      Lazy.from_val( try solve args te
+                     with NotUnifiable -> solve args (R.snf sg te) )
 
   (* Try to solve returns None if it fails (from exception monad to Option monad) *)
-  let try_force_solve sg d args t =
-    try Some (force_solve sg d args t)
+  let try_force_solve sg args t =
+    try Some (force_solve sg args t)
     with NotUnifiable -> None
 
   let rec add_n_lambdas n t =
@@ -128,17 +129,18 @@ struct
     if n == 0 then t else lazy(add_n_lambdas n (Lazy.force t))
 
   (** Apply a Miller solution to variables *)
-  let apply_args t l = mk_App2 t (List.map (fun k -> mk_DB dloc dmark k) (LList.lst l))
+  let apply_args t args =
+    mk_App2 t (List.map (fun k -> mk_DB dloc dmark k) args)
 
     (** [compute_all_sols vars i sols] computes the AC list of all right hand terms
       fixed by substitution  [i] = [sol]  in the left-hand side of
       +{ [i]\[[vars]_1\] ... [i]\[[vars]_n\] } = ...
   *)
-  let compute_sols sol =
+  let compute_sols (sol:term) : miller_var list -> term list =
     let rec loop_vars acc = function
       | [] -> acc
-      | var_args :: other_var_args ->
-        loop_vars ((apply_args sol var_args) :: acc) other_var_args
+      | mvar :: other_var_args ->
+        loop_vars ((apply_args sol mvar.vars) :: acc) other_var_args
     in
     loop_vars []
 
@@ -153,8 +155,8 @@ struct
     in
     let rec loop_term acc = function
       | [] -> acc
-      | var_args :: other_var_args ->
-        loop_term (List.rev_append (loop_sols [] var_args sols) acc) other_var_args
+      | var :: other_var_args ->
+        loop_term (List.rev_append (loop_sols [] var.vars sols) acc) other_var_args
     in
     loop_term []
 
@@ -190,8 +192,10 @@ struct
     in
     aux []
 
-  let update_ac_problems sg arity i sol =
-    let rec update_ac acc = function
+  let update_ac_problems sg arity i sol :
+    te list ac_problem list -> te list ac_problem list option =
+    let rec update_ac acc : te list ac_problem list -> te list ac_problem list option
+      = function
       | [] -> Some (List.rev acc)
       | p :: tl ->
         let (d,aci,joks,vars,terms) = p in
@@ -223,13 +227,13 @@ struct
     update_ac []
 
   (** Resolves variable [i] = [t] *)
-  let set_unsolved sg pb i sol =
+  let set_unsolved sg (pb:matching_problem) i sol =
     map_opt
       (* update status of variable [i] *)
       (fun ac_pbs ->
          { pb with ac_problems = ac_pbs; status= update_status pb.status i (Solved sol) })
       (* if the substitution is compatible *)
-      (update_ac_problems sg pb.arity.(i) i sol pb.ac_problems)
+      (update_ac_problems sg pb.arities.(i) i sol pb.ac_problems)
 
   let set_partly pb i aci =
     assert(pb.status.(i) == Unsolved);
@@ -276,15 +280,14 @@ struct
   let add_partly sg pb i sol =
     match pb.status.(i) with
     | Partly(aci,terms) ->
-      let rec update_ac acc = function
-        | [] -> Some
-                  {pb with ac_problems = List.rev acc ;
-                           status = update_status pb.status i (Partly(aci,sol :: terms)) }
-        | p :: tl ->
-          let (d,aci',joks,vars,terms) = p in
-          if ac_ident_eq aci aci' && var_exists i vars
+      let rec update_ac acc : te list ac_problem list -> matching_problem option = function
+        | [] ->
+          let new_status = update_status pb.status i (Partly(aci,sol :: terms)) in
+          Some { pb with ac_problems = List.rev acc ; status = new_status }
+        | (d,aci',joks,vars,terms as p) :: tl ->
+          if ac_ident_eq aci aci' &&  var_exists i vars
           then
-            let lambdaed = add_n_lambdas pb.arity.(i) (Lazy.force sol) in
+            let lambdaed = add_n_lambdas pb.arities.(i) (Lazy.force sol) in
             let shifted = Subst.shift d lambdaed in
             let occs = get_occs i vars in
             let sols = compute_sols shifted occs in
@@ -328,7 +331,7 @@ let get_all_ac_symbols pb i =
     let aux (bv,bs) v =
       let s = score v in
       if s < bs then (v,s) else (bv,bs) in
-    fst (List.fold_left aux ((-1,LList.nil),max_int) vars)
+    fst (List.fold_left aux ((-1,fo_var),max_int) vars)
 
   let get_subst arities status =
     let aux i = function
@@ -339,7 +342,7 @@ let get_all_ac_symbols pb i =
   let solve_ac_problem sg =
     let rec solve_next pb =
       match pb.ac_problems with
-      | [] -> Some (get_subst pb.arity pb.status)
+      | [] -> Some (get_subst pb.arities pb.status)
       (* If no problem left, compute substitution and return (success !) *)
       | p :: other_problems ->
         (* Else pick an interesting variable... *)
@@ -353,7 +356,7 @@ let get_all_ac_symbols pb i =
           if terms = [] || joks > 0
           then solve_next { pb with ac_problems = other_problems }
           else None
-        | (d,aci,_,_,rhs_terms) ->
+        | (_,aci,_,_,rhs_terms) ->
           (* If we've chosen an AC equation: +{ X, ... } = +{ ... } *)
           match pb.status.(i) with
           | Partly(aci',_) -> (* If X = +{X' ... }*)
@@ -361,7 +364,7 @@ let get_all_ac_symbols pb i =
             let rec try_add_terms = function
               | [] -> try_solve_next (close_partly sg pb i)
               | t :: tl -> (* Pick a term [t] in RHS set *)
-                let sol = try_force_solve sg d args t in
+                let sol = try_force_solve sg args t in
                 (* Solve  lambda^[d]  X [args]1 ... [args]n = [t] *)
                 let npb = bind_opt (add_partly sg pb i) sol in
                 (* Add the solution found to the AC-set of partial solution for [i] *)
@@ -373,7 +376,7 @@ let get_all_ac_symbols pb i =
           | Unsolved -> (* X ins unknown *)
             let rec try_eq_terms = function
               | t :: tl ->  (* Pick a term [t] in the RHS set *)
-                let sol = try_force_solve sg d args t in
+                let sol = try_force_solve sg args t in
                 (* Solve  lambda^[d]  X [args]1 ... [args]n = [t] *)
                 let npb = bind_opt (set_unsolved sg pb i) sol in
                 (* Hope that we can just set X = solution and have solved for X *)
@@ -447,7 +450,7 @@ let get_all_ac_symbols pb i =
                     | _ -> flat_sols in
                   let lambdaed = List.map (add_n_lambdas arity.(v)) flat_sols in
                   let shifted = List.map (Subst.shift d) lambdaed in
-                  let sols = List.map (fun sol -> apply_args sol args) shifted in
+                  let sols = List.map (fun sol -> apply_args sol args.vars) shifted in
                   sols @ acc
                 | _ -> acc) tl
         in
@@ -474,29 +477,21 @@ let get_all_ac_symbols pb i =
     then
       let solve_eq = function
         | [] -> assert false
-        | [depth, args, rhs] ->
-          lazy_add_n_lambdas (LList.len args)
-            (force_solve sg depth args (convert rhs))
-        | (depth, args, rhs) :: opbs ->
-          let solu = Lazy.force (force_solve sg depth args (convert rhs)) in
-          let arity = LList.len args in
+        | [ (args, rhs) ] ->
+          lazy_add_n_lambdas args.arity
+            (force_solve sg args (convert rhs))
+        | (args, rhs) :: opbs ->
+          let solu = Lazy.force (force_solve sg args (convert rhs)) in
           List.iter
-            (fun (depth,args,rhs) ->
-               (*
+            (fun (args,rhs) ->
                let subst l x n d =
-                 if n - d <= depth
-                 then mk_DB l x n
-                 else raise Not_found in
-               let subst_sol = Subst.apply_subst subst 0 solu in
-               *)
-               let lambdaed = add_n_lambdas arity (Lazy.force (convert rhs)) in
-               let shifted = Subst.shift depth lambdaed in
-               let subst_sol = apply_args shifted args in
+                 if n - d <= args.depth then mk_DB l x n else raise Not_found in
+               let subst_sol = Subst.apply_subst subst 0 (Lazy.force (convert rhs)) in
                if not (R.are_convertible sg solu subst_sol)
                then raise NotSolvable
             )
             opbs;
-          Lazy.from_val (add_n_lambdas arity solu)
+          Lazy.from_val (add_n_lambdas args.arity solu)
       in
       try Some (LList.map solve_eq pb.pm_eq_problems)
       with NotUnifiable | NotSolvable -> None
@@ -505,16 +500,15 @@ let get_all_ac_symbols pb i =
       (* First solve equational problems*)
       let solve_eq = function
         | [] -> Unsolved
-        | (depth, args, rhs) :: opbs ->
-          let arity = LList.len args in
-          match try_force_solve sg depth args (convert rhs) with
+        | (args, rhs) :: opbs ->
+          match try_force_solve sg args (convert rhs) with
           | None -> raise NotSolvable
           | Some solu ->
             List.iter
-              (fun (d, args, rhs) ->
-                 let lambdaed = add_n_lambdas arity (Lazy.force (convert rhs)) in
-                 let shifted = Subst.shift d lambdaed in
-                 if not (R.are_convertible sg (Lazy.force solu) (apply_args shifted args))
+              (fun (args, rhs) ->
+                 let lambdaed = add_n_lambdas args.arity (Lazy.force (convert rhs)) in
+                 let shifted = Subst.shift args.depth lambdaed in
+                 if not (R.are_convertible sg (Lazy.force solu) (apply_args shifted args.vars))
                  then raise NotSolvable
               )
               opbs;
@@ -528,7 +522,7 @@ let get_all_ac_symbols pb i =
             pb.pm_ac_problems in
         (* Update AC problems according to partial solution found *)
         let ac_pbs = init_ac_problems sg pb.pm_arity status ac_problems in
-        let pb = { arity = pb.pm_arity;
+        let pb = { arities = pb.pm_arity;
                    status = status;
                    ac_problems = ac_rearrange ac_pbs;
                    eq_problems=[||] } in
