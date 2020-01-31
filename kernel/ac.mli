@@ -5,8 +5,6 @@ type ac_ident = name * algebra
 
 val ac_ident_eq : ac_ident -> ac_ident -> bool
 
-val is_acu : ac_ident -> bool
-
 val pp_ac_ident : ac_ident printer
 
 val force_flatten_AC_terms : (term -> term) ->

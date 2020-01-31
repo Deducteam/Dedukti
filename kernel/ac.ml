@@ -5,8 +5,6 @@ open Term
 
 type ac_ident = name * algebra
 
-let is_acu = function _,ACU _ -> true | _ -> false
-
 let ac_ident_eq (name,_) (name',_) = name_eq name name'
 
 let pp_ac_ident fmt (name,_) = Format.fprintf fmt "%a" pp_name name

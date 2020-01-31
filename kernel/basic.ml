@@ -58,7 +58,6 @@ module LList = struct
   let of_array arr = {len=Array.length arr; lst=Array.to_list arr}
   let map  f {len;lst} = {len; lst=List.map  f lst}
   let mapi f {len;lst} = {len; lst=List.mapi f lst}
-  let for_all f {lst;_} = List.for_all f lst
   let nth l i = assert (i<l.len); List.nth l.lst i
 end
 

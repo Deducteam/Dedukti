@@ -62,7 +62,6 @@ module LList : sig
   val of_array : 'a array -> 'a t
   val map : ('a -> 'b) -> 'a t -> 'b t
   val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
-  val for_all : ('a -> bool) -> 'a t -> bool
   val nth : 'a t -> int -> 'a
 end
 

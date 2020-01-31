@@ -619,8 +619,9 @@ let rec pp_dtree t fmt dtree =
   (* FIXME: Use format boxes here instead of manual tabs. *)
   let tab = String.init (1 + t*2) (fun i -> if i == 0 then '\n' else ' ') in
   match dtree with
-  | Test (_,mp,[],te,_) when mp.pm_ac_problems = [] &&
-                             (LList.for_all (fun c -> c = []) mp.pm_eq_problems) ->
+  | Test (_,mp,[],te,_)
+    when mp.pm_ac_problems = [] &&
+         (List.for_all (fun c -> c = []) (LList.lst mp.pm_eq_problems)) ->
     fprintf fmt "%s%a" tab pp_term te
   | Test (name,mp,[],te,def) ->
      fprintf fmt "%stry %a :%s    %a%sthen %a%selse %a"

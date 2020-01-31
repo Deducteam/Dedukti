@@ -18,7 +18,6 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
-  | FailToCompileModule   of loc * mident
   | ExpectedACUSymbol     of loc * name
   | CouldNotExportModule  of mident * string
 

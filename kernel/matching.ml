@@ -23,7 +23,7 @@ type matching_problem = {
 }
 
 (*
-(**     Printing functions for debugging purposes      **)
+(*     Printing functions for debugging purposes      *)
 
 let pp_te fmt t = fprintf fmt "%a" pp_term (Lazy.force t)
 
@@ -128,15 +128,14 @@ struct
     with NotUnifiable -> None
 
   let rec add_n_lambdas n t =
-    if n == 0 then t else add_n_lambdas (n-1) (mk_Lam dloc dmark None t)
+    if n = 0 then t else add_n_lambdas (n-1) (mk_Lam dloc dmark None t)
 
   let lazy_add_n_lambdas n t =
-    if n == 0 then t else lazy(add_n_lambdas n (Lazy.force t))
+    if n = 0 then t else lazy(add_n_lambdas n (Lazy.force t))
 
-    (** [compute_all_sols vars i sols] computes the AC list of all right hand terms
-      fixed by substitution  [i] = [sol]  in the left-hand side of
-      +{ [i]\[[vars]_1\] ... [i]\[[vars]_n\] } = ...
-  *)
+  (* [compute_all_sols vars i sols] computes the AC list of all right hand terms
+     fixed by substitution  [i] = [sol]  in the left-hand side of
+       +{ [i]\[[vars]_1\] ... [i]\[[vars]_n\] } = ...   *)
   let compute_sols (sol:term) : miller_var list -> term list =
     let rec loop_vars acc = function
       | [] -> acc
@@ -145,11 +144,10 @@ struct
     in
     loop_vars []
 
-  (** [compute_all_sols vars i sols] computes the AC list of all right hand terms
-      fixed by substitution  [i] = +{ [sols] }  in the left-hand side of
-      +{ [i]\[[vars]_1\] ... [i]\[[vars]_n\] } = ...
-  *)
-  let compute_all_sols sols =
+  (* [compute_all_sols vars i sols] computes the AC list of all right hand terms
+     fixed by substitution  [i] = +{ [sols] }  in the left-hand side of
+     +{ [i]\[[vars]_1\] ... [i]\[[vars]_n\] } = ...     *)
+  let compute_all_sols (sols:term list) : miller_var list -> term list =
     let rec loop_sols acc args = function
       | []           -> acc
       | sol :: osols -> loop_sols ( (apply_sol sol args) :: acc) args osols
@@ -161,8 +159,8 @@ struct
     in
     loop_term []
 
-  (** Remove term [sol] once from list [l]  *)
-  let remove_sol sg sol l =
+  (* Remove term [sol] once from list [l]  *)
+  let remove_sol sg (sol:term) (l:te list) : te list option =
     let rec aux acc = function
       | [] -> None
       | hd :: tl ->
@@ -171,8 +169,9 @@ struct
         else aux (hd::acc) tl in
     aux [] l
 
-  (** Remove each term in [sols] once from the [terms] list. *)
-  let rec remove_sols_occs sg sols terms = match sols with
+  (* Remove each term in [sols] once from the [terms] list. *)
+  let rec remove_sols_occs sg (sols:term list) (terms:te list) : te list option =
+    match sols with
     | [] -> Some terms
     | sol :: tl ->
       bind_opt (remove_sols_occs sg tl)
@@ -181,6 +180,7 @@ struct
   let filter_vars i = List.filter (fun (j,_) -> i != j)
   let var_exists  i = List.exists (fun (j,_) -> i == j)
 
+  (* Makes a copy of current status and update index [i] with [s] *)
   let update_status status i s =
     let nstat = Array.copy status in
     nstat.(i) <- s;
@@ -193,7 +193,7 @@ struct
     in
     aux []
 
-  let update_ac_problems sg i sol :
+  let update_ac_problems sg (i:int) (sol:te) :
     te list ac_problem list -> te list ac_problem list option =
     let rec update_ac acc : te list ac_problem list -> te list ac_problem list option
       = function
@@ -225,8 +225,8 @@ struct
     in
     update_ac []
 
-  (** Resolves variable [i] = [t] *)
-  let set_unsolved sg (pb:matching_problem) i sol =
+  (* Resolves variable [i] = [t] *)
+  let set_unsolved sg (pb:matching_problem) (i:int) (sol:te) =
     map_opt
       (* update status of variable [i] *)
       (fun ac_pbs ->
@@ -234,7 +234,7 @@ struct
       (* if the substitution is compatible *)
       (update_ac_problems sg i sol pb.ac_problems)
 
-  let set_partly pb i aci =
+  let set_partly pb i (aci:ac_ident) =
     assert(pb.status.(i) == Unsolved);
     { pb with status = update_status pb.status i (Partly(aci,[]))}
 
@@ -279,7 +279,7 @@ struct
   let add_partly sg pb i sol =
     match pb.status.(i) with
     | Partly(aci,terms) ->
-      let rec update_ac acc : te list ac_problem list -> matching_problem option = function
+      let rec update_ac acc = function
         | [] ->
           let new_status = update_status pb.status i (Partly(aci,sol :: terms)) in
           Some { pb with ac_problems = List.rev acc ; status = new_status }
@@ -302,13 +302,13 @@ struct
      Current implementation always returns the first problem
      and select a variable in it based on the highest following score:
   *)
-  let fetch_var pb (_,aci,_,vars,_) =
+  let fetch_var' pb x vars =
     (* Look for most interesting variable in the set. *)
     let score (i,_) =
       match pb.status.(i) with
       | Unsolved -> 0
-      | Partly(aci',sols) ->
-        if ac_ident_eq aci aci' then 1 + List.length sols else max_int-1
+      | Partly(x',sols) ->
+        if ac_ident_eq x x' then 1 + List.length sols else max_int-1
       | Solved _ -> assert false
         (* Variables are removed from all problems when they are solved *)
     in
@@ -327,72 +327,57 @@ struct
     let rec solve_next pb =
       match pb.ac_problems with
       | [] -> Some (get_subst pb.arities pb.status)
-      (* If no problem left, compute substitution and return (success !) *)
-      | p :: other_problems ->
-        (* Else pick an interesting variable... *)
-        let (i,args) = fetch_var pb p in
-        (* Then explore the problem fetched... *)
-        match p with
-        | (_,_,joks,[],terms) -> (* If we've chosen an AC equation: +{ X ... } = +{} *)
-          (* Left hand side is now empty.
-             Either fail (non empty RHS and no joker to match it)
-             or simply discard AC equation. *)
-          if terms = [] || joks > 0
-          then solve_next { pb with ac_problems = other_problems }
-          else None
-        | (_,aci,_,_,rhs_terms) ->
-          (* If we've chosen an AC equation: +{ X, ... } = +{ ... } *)
-          match pb.status.(i) with
-          | Partly(aci',_) -> (* If X = +{X' ... }*)
-            assert (ac_ident_eq aci aci'); (* It can't be the case that X = max{X' ... } *)
-            let rec try_add_terms = function
-              | [] -> try_solve_next (close_partly sg pb i)
-              | t :: tl -> (* Pick a term [t] in RHS set *)
-                let sol = try_force_solve sg args t in
-                (* Solve  lambda^[d]  X [args]1 ... [args]n = [t] *)
-                let npb = bind_opt (add_partly sg pb i) sol in
-                (* Add the solution found to the AC-set of partial solution for [i] *)
-                match try_solve_next npb with (* Keep solving *)
-                | None -> try_add_terms tl
+      (* If no AC problem left, compute substitution and return (success !) *)
+      | (_,_,joks,[],terms) :: other_problems ->
+        (* If the first AC problem is an equation: +{ } = +{ ... } (empty LHS)
+           Either fail (non empty RHS and no joker to match it)
+           or simply discard this problem. *)
+        if terms = [] || joks > 0
+        then solve_next { pb with ac_problems = other_problems }
+        else None
+      | (_,ac_symb,_,vars,rhs) :: _ ->
+        let (x,args) = fetch_var' pb ac_symb vars in
+        (* Else pick an interesting variable X
+           in the first problem: +{ X, ... } = +{ ... } *)
+        match pb.status.(x) with
+        | Partly(ac_symb',_) -> (* If X = +{X' ... }*)
+          assert (ac_ident_eq ac_symb ac_symb');
+          (* It can't be the case that X = max{X' ... } *)
+          let rec try_add_terms = function
+            | [] -> try_solve_next (close_partly sg pb x)
+            (* This variable is fully solved, remove it from the equation *)
+            | t :: tl -> (* Pick a term [t] in RHS set *)
+              let sol = try_force_solve sg args t in
+              (* Try to solve  X [args]1 ... [args]n = [t]  *)
+              let npb = bind_opt (add_partly sg pb x) sol in
+              (* Add the solution found to the AC-set of partial solution for X *)
+              match try_solve_next npb with (* Keep on solving *)
+              | None -> try_add_terms tl
+              (* If it failed, backtrack from here
+                 and proceed with the other RHS terms *)
+              | a -> a in (* If it succeeds, return the solution *)
+          try_add_terms rhs
+        | Unsolved -> (* X is unknown *)
+          let rec try_eq_terms = function
+            | t :: tl ->  (* Pick a term [t] in the RHS set *)
+              let sol = try_force_solve sg args t in
+              (* Solve  lambda^[d]  X [args]1 ... [args]n = [t] *)
+              let npb = bind_opt (set_unsolved sg pb x) sol in
+              (* Hope that we can just set X = solution and have solved for X *)
+              (* FIXME: This is probably highly inefficient !
+                 We first try X = sol then try again  X = +{sol ...}
+                 thus trying to solve twice the same problem *)
+              ( match try_solve_next npb with
+                | None -> try_eq_terms tl
                 (* If it failed, backtrack and proceed with the other RHS terms *)
-                | a -> a in (* If it succeeds, return the solution *)
-            try_add_terms rhs_terms
-          | Unsolved -> (* X ins unknown *)
-            let rec try_eq_terms = function
-              | t :: tl ->  (* Pick a term [t] in the RHS set *)
-                let sol = try_force_solve sg args t in
-                (* Solve  lambda^[d]  X [args]1 ... [args]n = [t] *)
-                let npb = bind_opt (set_unsolved sg pb i) sol in
-                (* Hope that we can just set X = solution and have solved for X *)
-                (* FIXME: This is probably highly inefficient !
-                   We first try X = sol then try again  X = +{sol ...}
-                   thus trying to solve twice the same problem *)
-                ( match try_solve_next npb with
-                  | None -> try_eq_terms tl
-                  (* If it failed, backtrack and proceed with the other RHS terms *)
-                  | a -> a )  (* If it succeeds, return the solution *)
-              | [] -> (* If all terms have been tried unsucessfully, then
-                       * the variable [i] is a combination of terms under an AC symbol. *)
-                (* NOTE: It seems the commented block should remain commented:
-                   At this point, the problem
-                     +{X ...} = +{a b ... z}
-                   Can only have a solution of the shape X = +{...} otherwise
-                   X would be equal to one of the a b ... z  which has already been checked.
-                   CAREFUL ! If we remove the check (cf FIXME above) then we need to try
-                   all possible AC symbols for X.
-                *)
-              (*
-              let possible_symbols = get_all_ac_symbols pb i in
-              let rec try_symbols = function
-                | [] -> None
-                | aci :: tl ->
-              in
-              try_symbols possible_symbols
-              *)
-                solve_next (set_partly pb i aci)
-            in
-            try_eq_terms rhs_terms
-          | Solved _ -> assert false
+                | a -> a )  (* If it succeeds, return the solution *)
+            | [] ->
+              (* If all terms have been tried unsucessfully, then
+                 the variable [x] is a combination of terms under an AC symbol. *)
+              solve_next (set_partly pb x ac_symb)
+          in
+          try_eq_terms rhs
+        | Solved _ -> assert false
     and try_solve_next pb = bind_opt solve_next pb in
     solve_next
 
@@ -462,15 +447,14 @@ struct
         | [ (args, rhs) ] ->
           lazy_add_n_lambdas args.arity
             (force_solve sg args (convert rhs))
-        | (args, rhs) :: opbs ->
+        | (args, rhs) :: other_pbs ->
           let solu = Lazy.force (force_solve sg args (convert rhs)) in
           List.iter
             (fun (args,rhs) ->
                let exp = apply_sol solu args in
                if not (R.are_convertible sg (Lazy.force (convert rhs)) exp)
-               then raise NotSolvable
-            )
-            opbs;
+               then raise NotSolvable)
+            other_pbs;
           Lazy.from_val (add_n_lambdas args.arity solu)
       in
       try Some (LList.map solve_eq pb.pm_eq_problems)

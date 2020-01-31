@@ -122,16 +122,14 @@ struct
 
   let _declare lc (id:ident) st ty : unit =
     Signature.add_declaration !sg lc id st
-      (
-        match T.inference !sg ty, st with
+      ( match T.inference !sg ty, st with
         | Kind  , Definable AC
         | Kind  , Definable (ACU _)   -> raise (TypingError (SortExpected (ty,[],mk_Kind) ))
         | Type _, Definable AC        -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
         | Type _, Definable (ACU neu) -> ignore(T.checking !sg neu ty);
           mk_Arrow dloc ty (mk_Arrow dloc ty ty)
         | Kind, _ | Type _, _ -> ty
-        | s, _ -> raise (TypingError (SortExpected (ty,[],s)))
-      )
+        | s, _ -> raise (TypingError (SortExpected (ty,[],s)))  )
 
   let is_static lc cst = Signature.is_static !sg lc cst
 
