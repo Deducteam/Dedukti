@@ -71,18 +71,16 @@ let pp_matching_problem sep fmt mp =
    and where [args] = [\[]k{_0}[; ]k{_1}[; ]...[; ]k{_m}[\]].
 *)
 let solve_miller (var:miller_var) (te:term) : term =
-  let depth = var.depth in
-  let arity = var.arity in
-  let arr = var.mapping in
-  let subst l x n k =
-    mk_DB l x
-      (if n >= k+depth
-       (* the var is free  in te:
-          - unshift by local [depth]
-          - then shift by the [arity] of the meta variable *)
-       then (n-depth+arity)
+  let depth   = var.depth in
+  let arity   = var.arity in
+  let mapping = var.mapping in
+  let subst l x n k = mk_DB l x
+      (if n >= k + depth then n - depth + arity
+      (* the var is free in te:
+         - unshift by local [depth]
+         - then shift by the [arity] of the meta variable *)
        else
-         let n' = arr.(n-k) in
+         let n' = mapping.(n-k) in
          if n' < 0 then raise NotUnifiable else n' + k
       ) in
   Subst.apply_subst subst 0 te
@@ -91,8 +89,15 @@ let solve_miller (var:miller_var) (te:term) : term =
 let solve (args:miller_var) (te:term) : term =
   if args.arity = 0
   then try Subst.unshift args.depth te
-    with Subst.UnshiftExn -> raise NotUnifiable
+       with Subst.UnshiftExn -> raise NotUnifiable
   else solve_miller args te
+
+(* Apply a computed solutions to a different list of arguments *)
+let apply_sol (sol:term) (args:miller_var) : term =
+  let vars_ar = Array.of_list args.vars in
+  let subst l x n k = mk_DB l x
+      (if n - k < args.arity then vars_ar.(args.arity-1-n+k)+k else n) in
+  Subst.apply_subst subst 0 sol
 
 
 module type Reducer = sig
@@ -110,7 +115,7 @@ end
 module Make (R:Reducer) : Matcher =
 struct
   (* Complete solve using a reduction function *)
-  let force_solve sg (args:miller_var) t =
+  let force_solve sg (args:miller_var) (t:te) =
     if args.depth = 0 then t
     else
       let te = Lazy.force t in
@@ -118,7 +123,7 @@ struct
                      with NotUnifiable -> solve args (R.snf sg te) )
 
   (* Try to solve returns None if it fails (from exception monad to Option monad) *)
-  let try_force_solve sg args t =
+  let try_force_solve sg (args:miller_var) (t:te) =
     try Some (force_solve sg args t)
     with NotUnifiable -> None
 
@@ -484,10 +489,8 @@ let get_all_ac_symbols pb i =
           let solu = Lazy.force (force_solve sg args (convert rhs)) in
           List.iter
             (fun (args,rhs) ->
-               let subst l x n d =
-                 if n - d <= args.depth then mk_DB l x n else raise Not_found in
-               let subst_sol = Subst.apply_subst subst 0 (Lazy.force (convert rhs)) in
-               if not (R.are_convertible sg solu subst_sol)
+               let exp = apply_sol solu args in
+               if not (R.are_convertible sg (Lazy.force (convert rhs)) exp)
                then raise NotSolvable
             )
             opbs;
@@ -501,18 +504,15 @@ let get_all_ac_symbols pb i =
       let solve_eq = function
         | [] -> Unsolved
         | (args, rhs) :: opbs ->
-          match try_force_solve sg args (convert rhs) with
-          | None -> raise NotSolvable
-          | Some solu ->
-            List.iter
-              (fun (args, rhs) ->
-                 let lambdaed = add_n_lambdas args.arity (Lazy.force (convert rhs)) in
-                 let shifted = Subst.shift args.depth lambdaed in
-                 if not (R.are_convertible sg (Lazy.force solu) (apply_args shifted args.vars))
-                 then raise NotSolvable
-              )
-              opbs;
-            Solved solu
+          let solu = Lazy.force (force_solve sg args (convert rhs)) in
+          List.iter
+            (fun (args, rhs) ->
+               let exp = apply_sol solu args in
+               if not (R.are_convertible sg (Lazy.force (convert rhs)) exp)
+               then raise NotSolvable
+            )
+            opbs;
+          Solved (Lazy.from_val solu)
       in
       try
         let status = LList.map solve_eq pb.pm_eq_problems in
