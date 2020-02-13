@@ -237,9 +237,8 @@ let export sg =
 
 let is_injective sg lc cst =
   match (get_infos sg lc cst).stat with
-  | Static
-  | Injective   -> true
-  | Definable   -> false
+  | Static | Injective -> true
+  | Definable          -> false
 
 let get_type sg lc cst = (get_infos sg lc cst).ty
 

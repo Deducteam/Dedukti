@@ -227,6 +227,16 @@ Using underscores, we can write:
     [ v ] append _ nil _ v --> v
     [ n, v1, m, e, v2 ] append _ (cons n e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
 
+#### DECLARED INJECTIVITY
+
+Defined symbols may remain injective even with rewrite rules.
+If this injectivity is required to typecheck other rules, it is possible to declare a symbol injective.
+No injectivity check is performed by the typechecker but the injectivity will be assumed and used when typechecking rules defined later on.
+
+    inj double : Nat -> Nat.
+    [   ] double zero     --> zero.
+    [ n ] double (succ n) --> succ (succ (double n)).
+
 #### TYPE ANNOTATIONS
 
 Variables in the context of a rule may be annotated with their expected type.
@@ -264,8 +274,6 @@ occuring in bracket expression need to also occur in an other part of the patter
 the bracket.
 - the bracket expression may contain variable occuring for the first time "after" (to the right of) the bracket on
 the condition that the inferred types for these variables do not depend on the bracket's fresh variable (no circularity).
-
-
 
 #### NON-LEFT-LINEAR REWRITE RULES
 
