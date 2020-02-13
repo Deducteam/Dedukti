@@ -275,6 +275,8 @@ the bracket.
 - the bracket expression may contain variable occuring for the first time "after" (to the right of) the bracket on
 the condition that the inferred types for these variables do not depend on the bracket's fresh variable (no circularity).
 
+
+
 #### NON-LEFT-LINEAR REWRITE RULES
 
 By default, `Dedukti` accepts non-left-linear rewrite rules
