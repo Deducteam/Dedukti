@@ -297,7 +297,7 @@ let code : exn -> int =
           | Signature.ConfluenceErrorImport _                -> 400
           | Signature.GuardNotSatisfied _                    -> 401
           | Signature.CouldNotExportModule _                 -> 402
-          | Signature.Private               _ -> 403
+          | Signature.Private                              _ -> 403
         end
       | EnvErrorRule e ->
         begin
