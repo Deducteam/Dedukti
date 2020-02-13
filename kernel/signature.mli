@@ -43,7 +43,7 @@ val import              : t -> loc -> mident -> unit
 val import_signature    : t -> t -> unit
 (** [import sg sg_ext] imports the signature [sg_ext] into the signature [sg]. *)
 
-val get_md_deps            : loc -> mident -> mident list
+val get_md_deps         : loc -> mident -> mident list
 (** [get_deps lc md] returns the list of direct dependencies of module [md].
     This function makes the assumption that the file [md.dko] exists. *)
 
