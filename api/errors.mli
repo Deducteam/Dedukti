@@ -1,4 +1,4 @@
-open Basic
+(** Errors handling *)
 
 val errors_in_snf : bool ref
 (** Flag to enable SNF forms of terms in errors. *)
@@ -6,14 +6,19 @@ val errors_in_snf : bool ref
 val color : bool ref
 (** Flag to disable colored output. *)
 
-val success : ('a, Format.formatter, unit) format -> 'a
-(** Print a success message. *)
+module type ErrorHandler =
+sig
 
-val fail_exit : int -> loc -> ('a, Format.formatter, unit) format -> 'a
-(** Print an error message with given code and and exit. *)
+val print_success : string option -> unit
+(** [print_success] Prints a success message after handling the
+    given file (or standard input in case of [None]). *)
 
-val fail_env_error : loc -> Env.env_error -> 'a
-(** Prints a message explaining the env_error then exits with code 3. *)
+val graceful_fail : string option -> exn -> 'a
+(** [graceful_fail file err]
+    Prints a message explaining the given error
+    raised while handling the (optionnal) given file
+    then exits with code 3. *)
 
-val fail_sys_error : string -> 'a
-(** Print a system error message then exits with code 1. *)
+end
+
+module Make (E:Env.S) : ErrorHandler

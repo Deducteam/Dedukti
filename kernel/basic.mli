@@ -49,12 +49,12 @@ val dmark : ident
 
 
 (** {2 Lists with Length} *)
+(** A list where the method len is O(1). It is used by {!Matching}. *)
 
 module LList : sig
   type 'a t
   val nil : 'a t
   val cons : 'a -> 'a t -> 'a t
-
   val len : _ t -> int
   val lst : 'a t -> 'a list
   val is_empty : _ t -> bool
@@ -66,18 +66,23 @@ end
 
 (** {2 Localization} *)
 
-(** type of locations *)
 type loc
+(** Abstract type for a position (a line and a column) in a file *)
 
-(** a dummy location *)
 val dloc : loc
+(** a dummy location *)
 
-(** [mk_loc l c] builds the location where [l] is the line and [c] the column *)
 val mk_loc : int -> int -> loc
+(** [mk_loc l c] builds the location where [l] is the line and [c] the column *)
 
 val of_loc : loc -> int * int
+(** [of_loc l] returns the line and the column associated to the position*)
+
+exception NotDirectory of string
 
 val add_path : string -> unit
+(** Raises NotDirectory when given string is not a path to a directory *)
+
 val get_path : unit -> string list
 
 (** {2 Debug} *)
@@ -85,6 +90,8 @@ val get_path : unit -> string list
 module Debug : sig
 
   type flag  = ..
+  (** Extensible type  for debug flags *)
+
   type flag += D_warn | D_notice
 
   (** [register_flag fl m] set the header of error messages tagged by [f] to be [m] *)
@@ -95,7 +102,7 @@ module Debug : sig
 
   (** Desactivates error messages associated to a flag *)
   val disable_flag : flag -> unit
-      
+
   (** [debug f] prints information on the standard error channel
       if the given flag [f] is currently active. *)
   val debug : flag -> ('a, Format.formatter, unit, unit) format4 -> 'a
@@ -116,6 +123,9 @@ val map_opt : ('a -> 'b) -> 'a option -> 'b option
 val split : int -> 'a list -> 'a list * 'a list
 
 val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
+
+val concat : 'a list -> 'a list -> 'a list
+(** [concat l1 l2] returns [l1 @ l2] (testing on l2 empty first) *)
 
 (** {2 Printing functions} *)
 

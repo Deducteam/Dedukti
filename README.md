@@ -1,13 +1,15 @@
+Note that a new interactive version of Dedukti is under development on https://github.com/Deducteam/lambdapi.
+
 USER MANUAL FOR DEDUKTI (DEVELOPMENT VERSION)
 =============================================
 
 ### INSTALLATION
 
 To compile (and optionally install) `Dedukti` you will need:
- - `OCaml >= 4.02`,
+ - `OCaml >= 4.04`,
  - `Menhir`,
- - `OCamlBuild` (build only),
- - `OCamlFind` (build only).
+ - `dune`,
+ - `odoc` (doc only).
 
 #### INSTALLATION WITH OPAM
 
@@ -41,11 +43,13 @@ The installation provides the following commands:
  - `dkcheck` is the type-checker for `Dedukti`,
  - `dktop` is an interactive wrapper around the type-checker,
  - `dkdep` is a dependency generator for `Dedukti` files,
- - `dkindent` is a program to indent `Dedukti` files.
+ - `dkprune` is a program to re-print only the strictly required subset of `Dedukti` files.
 
 ### OPTIONS
 
 `dkcheck` provides the following options:
+ - `-e` Generates an object file `.dko`;
+ - `-I DIR` Adds the directory `DIR` to the load path;
  - `-d FLAGS` enables debugging for all given flags:
    * `q` (*q*uiet) disables all warnings,
    * `n` (*n*otice) notifies about which symbol or rule is currently treated,
@@ -55,18 +59,16 @@ The installation provides the following commands:
    * `t` (*t*yping) provides information about type-checking of terms,
    * `r` (*r*educe) provides information about reduction performed in terms,
    * `m` (*m*atching) provides information about pattern matching;
+ - `-v` Verbose mode (equivalent to `-d montru`;
  - `-q` Quiet mode (equivalent to `-d q`;
- - `-e` Generates an object file `.dko`;
- - `-nc` Disables colors in the output;
- - `-stdin MOD` Parses standard input using module name `MOD`;
- - `-version` Prints the version number;
- - `-coc` Allows to declare a symbol whose type contains `Type` in the left-hand side of a product (useful for the Calculus of Construction);
- - `-I DIR` Adds the directory `DIR` to the load path;
- - `-ccs` Forbids rules with unsatisfiable constraints;
- - `-errors-in-snf` Normalizes the types in error messages;
- - `-cc CMD` Sets the external confluence checker command to `CMD`
- - `-nl` Allows non left-linear rewriting rules ([DEPRECATED] default behavior now);
+ - `--no-color` Disables colors in the output;
+ - `--stdin MOD` Parses standard input using module name `MOD`;
+ - `--coc` [Experimental] Allows to declare a symbol whose type contains `Type` in the left-hand side of a product (useful for the Calculus of Construction);
+ - `--type-lhs` Forbids rules with untypable left-hand side;
+ - `--snf` Normalizes the types in error messages;
+ - `--confluence CMD` Sets the external confluence checker command to `CMD`;
  - `--beautify` Pretty printer. Prints on the standard output;
+ - `--version` Prints the version number;
  - `--help` Prints the list of available options.
 
 ### A SMALL EXAMPLE
@@ -139,8 +141,8 @@ Supported commands are:
     #PRINT s.            (; print the string s. ;)
 
 The supported evaluation strategies are:
- - `SNF` (strong normal form),
- - `WHNF` (weak head normal form).
+ - `SNF` (strong normal form: a term `t` is in `SNF` if no reduction can occur in `t`),
+ - `WHNF` (weak head normal form: a term `t` is said in `WHNF` if there is a finite sequence `t=t0`, `t2`, ..., `tn` such that `tn` is in normal form and for all `i`, `ti` reduces to `t(i+1)` and this reduction does not occur at the head).
 
 Note that the `#INFER` command accepts the same form of configuration as
 the `#EVAL` command. When given, it is used to evaluate the obtained type.
@@ -182,6 +184,8 @@ The first rule can also be written:
 
     [ ] mult zero _ --> zero.
 
+Similarly underscores can replace unused abstracted variables in lambdas: `x => y => z => zero` can be written `_ => _ => _ => zero`. Be mindful that, in a pattern, the expression `_ => _` means `x => Y` where both `x` and `Y` are fresh variables occuring nowhere else.
+
 #### TYPING OF REWRITE RULES
 
 A typical example of the use of dependent types is the type of Vector defined as lists parametrized by their size:
@@ -199,7 +203,9 @@ and a typical operation on vectors is concatenation:
 
 These rules verify the typing constraint given above: both left-hand and right-hand sides have the same type.
 
-Also, the second rule is non-left-linear; this is usually an issue because non-left-linear rewrite rules usually generate
+Also, the second rule is non-left-linear;
+this is usually an issue because in an untyped setting,
+non-left-linear rewrite rules usually generate
 a non-confluent rewrite system when combined with beta-reduction.
 
 However, because we only intend to rewrite *well-typed* terms, the rule above is computationally equivalent to the following left-linear rule:
@@ -221,6 +227,19 @@ Using underscores, we can write:
     [ v ] append _ nil _ v --> v
     [ n, v1, m, e, v2 ] append _ (cons n e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
 
+#### TYPE ANNOTATIONS
+
+Variables in the context of a rule may be annotated with their expected type.
+It is checked that the inferred type for annotated rule variables are convertible
+with the provided annotation.
+
+    [ n : Nat
+    , v1 : Vector n
+    , m : Nat
+    , e : Elt
+    , v2  : Vector m ]
+      append _ (cons n e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
+
 #### BRACKET PATTERNS
 
 A different solution to the same problem is to mark with brackets the parts of the left-hand
@@ -229,19 +248,34 @@ side of the rewrite rules that are constrained by typing.
     [ n, v1, m, e, v2 ] append (succ n) (cons {n} e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
 
 The information between brackets will be used when typing the rule but they will not be match against when
-using the rule (as if they were replaced by fresh variables).
+using the rule (as if they were replaced by unapplied fresh variables).
 
-**Remark:** in order to make this feature type-safe, `Dedukti` checks that the typing constraint is verified when using the rule and fails otherwise.
-
-**Remark:** a variable can occur inside brackets only if it also occurs outside brackets and on the left of the brackets.
+**Remarks:**
+- in order to make this feature type-safe, `Dedukti` checks at runtime that the bracket constraint is verified
+whenever the rule may be used and fails otherwise.
+- This feature is not conditional rewriting. When a constraints is not satisfied, Dedukti doesn't just ignore
+the rule and proceed, it actually raises an error.
+- because they are replaced with *unapplied* fresh variables, bracket expressions may not contain variables
+locally bounded previously in the pattern.
+- since they are not used during matching, bracket expressions may not "introduce" variables. All rule variables
+occuring in bracket expression need to also occur in an other part of the pattern, outside a bracket.
+- bracket expressions and their type may contain variables occuring "before" (to the left of) the pattern.
+- the type of a bracket expression may not contain variables occuring for the first time "after" (to the right of)
+the bracket.
+- the bracket expression may contain variable occuring for the first time "after" (to the right of) the bracket on
+the condition that the inferred types for these variables do not depend on the bracket's fresh variable (no circularity).
 
 #### NON-LEFT-LINEAR REWRITE RULES
 
-By default, `Dedukti` rejects non-left-linear rewrite rules because they usually generated non confluent rewrite systems
-when combined with beta-reduction. This behaviour can be changed by invoking `dkcheck` with the option `-nl`.
+By default, `Dedukti` accepts non-left-linear rewrite rules
+even though they usually generated non confluent rewrite systems
+when combined with beta-reduction.
 
     eq: Nat -> Nat -> Bool.
     [ n ] eq n n --> true.
+
+This behaviour can be changed by invoking `dkcheck` with the option `--ll` (left-linear)
+to guarantee that non-left-linear rewrite rules are never added to the system.
 
 #### HIGHER-ORDER REWRITE RULES
 

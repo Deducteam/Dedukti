@@ -1,0 +1,12 @@
+(; OK ;)
+
+A : Type.
+a : A.
+
+def U : A -> Type.
+def V : A -> Type.
+Ua : U a.
+Va : V a.
+
+def f : x : A -> U x -> V x.
+[] f {a} Ua --> Va.

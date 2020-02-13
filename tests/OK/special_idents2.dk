@@ -1,0 +1,3 @@
+(; OK -I tests/OK ;)
+
+a : special_idents1.{|∀∃“ç^°}|}.

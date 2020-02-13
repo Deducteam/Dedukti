@@ -9,15 +9,12 @@ let string_of_ident s = s
 
 let ident_eq s1 s2 = s1==s2 || s1=s2
 
-
 type mident = string
 
 let string_of_mident s = s
 
 let mident_eq = ident_eq
 
-
-(* TODO: rename ident *)
 type name = mident * ident
 
 let mk_name md id = (md,id)
@@ -26,7 +23,6 @@ let name_eq (m,s) (m',s') = mident_eq m m' && ident_eq s s'
 
 let md = fst
 let id = snd
-
 
 module WS = Weak.Make(
 struct
@@ -41,7 +37,9 @@ let mk_ident     = WS.merge shash
 
 let mk_mident md =
   let base = Filename.basename md in
-  try Filename.chop_extension base with _ -> base
+  if Filename.check_suffix base ".dk"
+  then Filename.chop_suffix base ".dk"
+  else base
 
 let dmark       = mk_ident "$"
 
@@ -69,9 +67,13 @@ let dloc = (-1,-1)
 let mk_loc l c = (l,c)
 let of_loc l = l
 
+exception NotDirectory of string
 let path = ref []
 let get_path () = !path
-let add_path s = path := s :: !path
+let add_path s =
+  if not (Sys.is_directory s)
+  then raise (NotDirectory s)
+  else path := s :: !path
 
 (** {2 Debugging} *)
 
@@ -102,7 +104,7 @@ module Debug = struct
     set D_notice ("Notice" , false)
 
   let do_debug fmt =
-    Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
+    Format.(kfprintf (fun _ -> pp_print_newline err_formatter (); pp_print_flush err_formatter ()) err_formatter fmt)
 
   let ignore_debug fmt =
     Format.(ifprintf err_formatter) fmt
@@ -146,6 +148,7 @@ let rev_mapi f l =
   in
   rmap_f 0 [] l
 
+let concat l1 = function [] -> l1 | l2 -> l1@l2
 
 (** {2 Printing functions} *)
 

@@ -16,15 +16,15 @@ exception DtreeError of dtree_error
 (** Arguments of a pattern may be the following:
     - a constant
     - a variable
-    - a lambda expression *)
+    - a lambda expression
+*)
 type case =
   | CConst of int * name
   (** [size c] where [size] is the number of *static* arguments expected for the constant [c] *)
   | CDB of int * int
-  (** [size i] where size is the number of *static* arguments expected for the
-      bounded variable [i] *)
-  | CLam (** A lambda term *)
-
+  (** [(size,db_index)] where [size] is the number of *static* arguments expected
+      for the bounded variable [db_index] *)
+  | CLam  (** A lambda headed term *)
 
 (** An atomic matching problem.
      stack.(pos) ~? X[ DB(args_0), ..., DB(args_n)]

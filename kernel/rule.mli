@@ -44,21 +44,30 @@ type rule_name =
 
 val rule_name_eq : rule_name -> rule_name -> bool
 
-val pp_rule_name : rule_name printer
-
 type 'a rule =
   {
     name: rule_name;
-    ctx : 'a;
+    ctx : 'a context;
     pat : pattern;
     rhs : term
   }
+(** A rule is formed with
+    - a name
+    - an annotated context
+    - a left-hand side pattern
+    - a right-hand side term
+*)
 
 val get_loc_rule : 'a rule -> loc
 
-type untyped_rule = untyped_context rule
+type partially_typed_rule = term option rule
+(** Rule where context is partially annotated with types *)
 
-type typed_rule = typed_context rule
+type typed_rule = term rule
+(** Rule where context is fully annotated with types *)
+
+type arity_rule = int rule
+(** Rule where context is annotated with variable arities *)
 
 (** {2 Errors} *)
 
@@ -74,31 +83,49 @@ exception RuleError of rule_error
 
 (** {2 Rule infos} *)
 
-type rule_infos = {
-  l           : loc;              (** location of the rule *)
-  name        : rule_name;        (** name of the rule *)
-  cst         : name;             (** name of the pattern constant *)
-  args        : pattern list;     (** arguments list of the pattern constant *)
-  rhs         : term;             (** right hand side of the rule *)
-  esize       : int;              (** size of the context *)
-  pats        : wf_pattern array; (** free patterns without constraint *)
-  arity       : int array;        (** arities of context variables *)
-  constraints : constr list;
-  (** constraints generated from the pattern to the free pattern *)
-}
+type rule_infos =
+  {
+    l           : loc;
+    (** location of the rule *)
+    name        : rule_name;
+    (** name of the rule *)
+    cst         : name;
+    (** name of the pattern constant *)
+    args        : pattern list;
+    (** arguments list of the pattern constant *)
+    rhs         : term;
+    (** right hand side of the rule *)
+    ctx_size    : int;
+    (** size of the context of the non-linear version of the rule *)
+    esize       : int;
+    (** size of the context of the linearized, bracket free version of the rule *)
+    pats        : wf_pattern array;
+    (** free patterns without constraint *)
+    arity       : int array;
+    (** arities of context variables *)
+    constraints : constr list
+    (** constraints generated from the pattern to the free pattern *)
+  }
+
+val infer_rule_context : rule_infos -> arity_context
+(** Extracts arity context from a rule info *)
 
 val pattern_of_rule_infos : rule_infos -> pattern
+(** Extracts LHS pattern from a rule info *)
 
-val to_rule_infos : untyped_rule -> rule_infos
-(** Converts untyped_rule to rule_infos *)
+val to_rule_infos : 'a rule -> rule_infos
+(** Converts any rule (typed or untyped) to rule_infos *)
+
+val untyped_rule_of_rule_infos : rule_infos -> arity_rule
+(** Converts rule_infos representation to a rule where
+    the context is annotated with the variables' arity *)
 
 (** {2 Printing} *)
 
 val pp_rule_name       : rule_name       printer
-val pp_untyped_rule    : untyped_rule    printer
+val pp_untyped_rule    : 'a rule         printer
 val pp_typed_rule      : typed_rule      printer
+val pp_part_typed_rule : partially_typed_rule printer
 val pp_pattern         : pattern         printer
 val pp_wf_pattern      : wf_pattern      printer
-val pp_untyped_context : untyped_context printer
-val pp_typed_context   : typed_context   printer
 val pp_rule_infos      : rule_infos      printer

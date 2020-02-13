@@ -1,0 +1,5 @@
+(; KO 506 --ll ;)
+
+A : Type.
+def eq : A -> A -> Type.
+[x] eq x x --> A.
