@@ -1,0 +1,14 @@
+(; OK ;)
+
+A : Type.
+def B : (A -> A) -> Type.
+
+[] B (_ => _) --> A.
+(; This is equivalent to  B (x => X) --> A    (with x and X fresh) ;)
+
+a : A.
+#ASSERT B (y => a) == A.
+
+#ASSERT (z:A => B (y => z)) == (z:A => A).
+
+#ASSERTNOT B (y => y) == A.

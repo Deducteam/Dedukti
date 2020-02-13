@@ -1,12 +1,14 @@
-# OCamlbuild files.
+# dune files.
 _build/
 *.native
 *.docdir
+*.install
+.merlin
 
 # Dedukti files.
 *.dko
-tests/libraries/**/*.dk
-tests/libraries/**
+*.depend
+libraries/*/**
 # archives
 *.tar.gz
 *.zip

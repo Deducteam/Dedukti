@@ -24,13 +24,14 @@ module IdMap = Map.Make(
   )
 
 let confluence_command = ref ""
-let file_out = ref None
 let do_not_erase_confluence_file = ref false
+let file_out = ref None
+let try_out f = match !file_out with None -> () | Some x -> f x
 
 let set_cmd cmd =
-  ( if not (Sys.file_exists cmd) then
-      raise (Sys_error ("'" ^ cmd ^ "' does not exist")));
-  confluence_command := cmd
+  if not (Sys.file_exists cmd)
+  then raise (Sys_error ("'" ^ cmd ^ "' does not exist"))
+  else confluence_command := cmd
 
 let initialize () =
   do_not_erase_confluence_file := false;
@@ -61,15 +62,6 @@ let initialize () =
 )@.";
     end
 
-
-let rec split n lst =
-  let rec aux n acc lst =
-    if n <= 0 then (List.rev acc, lst)
-    else match lst with
-      | [] -> assert false
-      | hd::tl -> aux (n-1) (hd :: acc) tl in
-  aux n [] lst
-
 let print_name fmt cst = fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
 
 let pp_pattern ar fmt pat =
@@ -87,8 +79,8 @@ let pp_pattern ar fmt pat =
       fprintf fmt "c_%a" print_name cst;
       List.iter (fun pat -> fprintf fmt ",%a)" (aux k) pat) args
     end
-  | Var (_,x,n,[]) (* n>=k *) -> fprintf fmt "m_%a" pp_ident x ;
-  | Var (_,x,n,a::args) (* n>=k *) ->
+  | Var (_,x,_,[]) (* n>=k *) -> fprintf fmt "m_%a" pp_ident x ;
+  | Var (_,x,_,a::args) (* n>=k *) ->
     let arity = IdMap.find x ar in
       if arity == 0 then (
         List.iter (fun _ -> fprintf fmt "app(" ) (a::args);
@@ -113,7 +105,7 @@ let rec pp_term (ar:int IdMap.t) k fmt term =
   | Const (_,cst) -> fprintf fmt "c_%a" print_name cst;
   | Lam (_,x,Some a,b) ->
     fprintf fmt "lam(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
-  | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
+  | Lam (_,_,None,_) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
   | Pi (_,x,a,b) ->
     fprintf fmt "pi(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x (pp_term ar (k+1)) b
   | DB (_,x,n) when n<k -> fprintf fmt "v_%a" pp_ident x
@@ -145,7 +137,7 @@ let get_bvars r =
   let pat = pattern_of_rule_infos r in
   let rec aux_t k bvars = function
     | Const _ | Kind | Type _ | DB _ -> bvars
-    | Lam (_,x,None,b) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
+    | Lam (_,_,None,_) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
     | Lam (_,x,Some a,b) | Pi (_,x,a,b) ->
       let bvars2 = aux_t k bvars a in aux_t (k+1) (x::bvars2) b
     | App (f,a,args) ->
@@ -162,9 +154,9 @@ let get_bvars r =
 
 let get_arities (p:pattern) : int IdMap.t =
   let rec aux k map = function
-    | Var (_,x,n,args) when (n<k) -> List.fold_left (aux k) map args
+    | Var (_,_,n,args) when (n<k) -> List.fold_left (aux k) map args
     | Pattern (_,_,args) -> List.fold_left (aux k) map args
-    | Var (_,x,n,args) (* n>=k *) ->
+    | Var (_,x,_,args) (* n>=k *) ->
       let map2 = List.fold_left (aux k) map args in
       let ar1 = List.length args in
       let ar = ( try
@@ -173,7 +165,7 @@ let get_arities (p:pattern) : int IdMap.t =
                  with Not_found -> ar1
                ) in
       IdMap.add x ar map2
-    | Lambda (_,x,p) -> aux (k+1) map p
+    | Lambda (_,_,p) -> aux (k+1) map p
     | Brackets _ -> map
   in
   aux 0 IdMap.empty p
@@ -212,34 +204,21 @@ let check () =
     if String.compare answer "YES" != 0
     then (
       do_not_erase_confluence_file := true;
-      let error =
-        if      String.compare answer "NO"    == 0 then NotConfluent   cmd
-        else if String.compare answer "MAYBE" == 0 then MaybeConfluent cmd
-        else                                            CCFailure      cmd
-      in raise (ConfluenceError error)
+      let error = match answer with
+        | "NO"    -> NotConfluent   cmd
+        | "MAYBE" -> MaybeConfluent cmd
+        | _       -> CCFailure      cmd in
+      raise (ConfluenceError error)
     )
 
-let add_constant cst =
-  match !file_out with
-  | None -> ()
-  | Some (file,out) ->
+let add_constant cst = try_out (fun (_,out) ->
     let fmt = formatter_of_out_channel out in
-    fprintf fmt "(FUN c_%a : term)@." pp_name cst
+    fprintf fmt "(FUN c_%a : term)@." pp_name cst)
 
-let add_rules lst =
-  match !file_out with
-  | None -> ()
-  | Some (file,out) ->
+let add_rules lst = try_out (fun (_,out) ->
     let fmt = formatter_of_out_channel out in
-    List.iter (pp_rule fmt) lst
+    List.iter (pp_rule fmt) lst)
 
-let finalize () =
-  match !file_out with
-  | None -> ()
-  | Some (file, fmt) ->
-    begin
-      close_out fmt;
-      ( if !do_not_erase_confluence_file then ()
-        else Sys.remove file );
-
-    end
+let finalize () = try_out (fun (file,out) ->
+    close_out out;
+    if not !do_not_erase_confluence_file then Sys.remove file)

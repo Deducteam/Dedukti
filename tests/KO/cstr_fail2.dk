@@ -1,4 +1,4 @@
-(; KO 10 -ccs ;)
+(; KO 108 --type-lhs ;)
 
 A : Type.
 a : A.

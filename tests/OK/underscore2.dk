@@ -1,0 +1,11 @@
+(; OK ;)
+
+A : Type.
+a : A.
+def B : (A -> A) -> Type.
+C : (A -> A) -> Type.
+
+[] B (_ => a) --> C (_ => a).
+(; This is equivalent to  B (x => a) --> C (y => a) ;)
+
+#ASSERT B (x => a) == C (y => a).

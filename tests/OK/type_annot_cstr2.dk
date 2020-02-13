@@ -1,0 +1,14 @@
+(; OK ;)
+
+A : Type.
+a : A.
+
+B : A -> Type.
+b : B a.
+
+def C : A -> Type.
+[] C a --> B a.
+
+def f : x : A -> B x -> B x -> A.
+[x,y:B x] f x b y --> x.
+[x,y:B a] f x b y --> x.

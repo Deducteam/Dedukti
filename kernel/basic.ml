@@ -9,15 +9,12 @@ let string_of_ident s = s
 
 let ident_eq s1 s2 = s1==s2 || s1=s2
 
-
 type mident = string
 
 let string_of_mident s = s
 
 let mident_eq = ident_eq
 
-
-(* TODO: rename ident *)
 type name = mident * ident
 
 let mk_name md id = (md,id)
@@ -26,8 +23,6 @@ let name_eq (m,s) (m',s') = mident_eq m m' && ident_eq s s'
 
 let md = fst
 let id = snd
-
-
 
 module WS = Weak.Make(
 struct
@@ -42,46 +37,27 @@ let mk_ident     = WS.merge shash
 
 let mk_mident md =
   let base = Filename.basename md in
-  try Filename.chop_extension base with _ -> base
+  if Filename.check_suffix base ".dk"
+  then Filename.chop_suffix base ".dk"
+  else base
 
 let dmark       = mk_ident "$"
 
 (** {2 Lists with Length} *)
 
 module LList = struct
-  type 'a t= {
-    len : int;
-    lst : 'a list;
-  }
+  type 'a t = { len : int; lst : 'a list }
 
+  let nil = {len=0;lst=[]}
   let cons x {len;lst} = {len=len+1; lst=x::lst}
-  let nil = {len=0;lst=[];}
-
-  let make ~len lst =
-    assert (List.length lst = len);
-    {lst;len}
-
-  let make_unsafe ~len lst = {len;lst}
-  (** make_unsafe [n] [l] is as make [n] [l] without checking that the length of [l] is [n] *)
-
-  let of_list  lst = {len=List.length lst ; lst}
-  let of_array arr = {len=Array.length arr; lst=Array.to_list arr}
 
   let len x = x.len
   let lst x = x.lst
   let is_empty x = x.len = 0
-
+  let of_list  lst = {len=List.length lst ; lst}
+  let of_array arr = {len=Array.length arr; lst=Array.to_list arr}
   let map f {len;lst} = {len; lst=List.map f lst}
-  let append_l {len;lst} l = {len=len+List.length l; lst=lst@l}
-
   let nth l i = assert (i<l.len); List.nth l.lst i
-
-  let remove i {len;lst} =
-    let rec aux c lst = match lst with
-      | []        -> assert false
-      | x::lst'   -> if c==0 then lst' else x::(aux (c-1) lst')
-    in
-    {len=len-1; lst=aux i lst}
 end
 
 (** {2 Localization} *)
@@ -91,9 +67,13 @@ let dloc = (-1,-1)
 let mk_loc l c = (l,c)
 let of_loc l = l
 
+exception NotDirectory of string
 let path = ref []
 let get_path () = !path
-let add_path s = path := s :: !path
+let add_path s =
+  if not (Sys.is_directory s)
+  then raise (NotDirectory s)
+  else path := s :: !path
 
 (** {2 Debugging} *)
 
@@ -124,7 +104,7 @@ module Debug = struct
     set D_notice ("Notice" , false)
 
   let do_debug fmt =
-    Format.(kfprintf (fun _ -> pp_print_newline err_formatter ()) err_formatter fmt)
+    Format.(kfprintf (fun _ -> pp_print_newline err_formatter (); pp_print_flush err_formatter ()) err_formatter fmt)
 
   let ignore_debug fmt =
     Format.(ifprintf err_formatter) fmt
@@ -155,12 +135,20 @@ let fold_map (f:'b->'a->('c*'b)) (b0:'b) (alst:'a list) : ('c list*'b) =
       ([],b0) alst in
     ( List.rev clst , b2 )
 
-let rec split_list i l =
-  if i = 0 then ([],l)
-  else
-    let s1, s2 = split_list (i-1) (List.tl l) in
-    (List.hd l)::s1, s2
+let split x =
+  let rec aux acc n l =
+    if n <= 0 then (List.rev acc, l)
+    else aux ((List.hd l) :: acc) (n-1) (List.tl l) in
+  aux [] x
 
+let rev_mapi f l =
+  let rec rmap_f i accu = function
+    | [] -> accu
+    | a::l -> rmap_f (i+1) (f i a :: accu) l
+  in
+  rmap_f 0 [] l
+
+let concat l1 = function [] -> l1 | l2 -> l1@l2
 
 (** {2 Printing functions} *)
 
@@ -186,3 +174,9 @@ let pp_lazy pp fmt l = Format.fprintf fmt "%a" pp (Lazy.force l)
 let pp_option def pp fmt = function
   | None   -> Format.fprintf fmt "%s" def
   | Some a -> Format.fprintf fmt "%a" pp a
+
+let pp_pair pp_fst pp_snd fmt x =
+  Format.fprintf fmt "(%a, %a)" pp_fst (fst x) pp_snd (snd x)
+
+let pp_triple pp_fst pp_snd pp_thd fmt (x,y,z) =
+  Format.fprintf fmt "(%a, %a, %a)" pp_fst x pp_snd y pp_thd z

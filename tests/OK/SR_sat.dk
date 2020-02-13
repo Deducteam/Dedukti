@@ -1,0 +1,581 @@
+(; OK --type-lhs ;)
+
+A : Type.
+T : A -> Type.
+t : a:A -> T a.
+
+a : A.
+def b : A -> A -> A.
+    c : A -> A -> A.
+
+(; We build definitions with types containing an expression relying on
+     2 matching variables + 2 locally bound variables
+   Generated constraints are not necessary to check the rules but should
+   be discarded without generating any warning (satisfiable constraints).
+
+   See SR_unsat_cstr_i.dk for examples of unsatisfiable constraints.
+;)
+
+
+(; Terms that *must* contain x and *must* contain y
+   are convertible with
+   terms that *must* or *may* contain x
+          and *must* or *may* contain y ;)
+def a1 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c x y                  )) -> Type.
+def a2 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c (c (c a x) a) (c a y))) -> Type.
+
+(; Terms that *must* contain x and *may* contain y
+   are convertible with
+   terms that *must* or *may* contain x
+          and *must*, *may* or *may not* contain y ;)
+def b1 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c x (X (c y y) a)      )) -> Type.
+def b2 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c (c (b y y) a) (c a x))) -> Type.
+
+(; Terms that *must* contain x and *may not* contain y
+   are convertible with
+   terms that *must* or *may* contain x
+          and *may* or *may not* contain y ;)
+def c1 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T  x                 ) -> Type.
+def c2 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c a (c a x)      )) -> Type.
+def c3 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c (c a x) (c a a))) -> Type.
+
+(; Terms that *may* contain x and *may* contain y
+   are convertible with
+   terms that *must*, *may* or *may not* contain x
+          and *must*, *may* or *may not* contain y ;)
+def d1 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (b x y          )) -> Type.
+def d2 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (X (c x x) y    )) -> Type.
+def d3 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c (Y y) (b x x))) -> Type.
+
+(; Terms that *may* contain x and *may not* contain y
+   are convertible with
+   terms that *must*, *may* or *may not* contain x
+          and *may* or *may not* contain y ;)
+def e1 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (b x a      )) -> Type.
+def e2 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (X a (c x x))) -> Type.
+
+(; Terms that *may not* contain x or y
+   are convertible with
+   terms that *may* or *may not* contain x or y ;)
+def f1 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T  a     ) -> Type.
+def f2 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (b a a)) -> Type.
+def f3 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c a a)) -> Type.
+
+
+
+(; ------------------------------------------------------------------------ ;)
+(;                                    TESTS                                 ;)
+(; ------------------------------------------------------------------------ ;)
+
+(; must / must ;)
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x y)) --> A.
+(; must / may ;)
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y y)  ))                   --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (X x y)))                   --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b y y)))                   --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b x y)))                   --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b (c y a) y)))             --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b x (c y a))))             --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b (X x y) a)))             --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b x (Y y))))               --> A.
+(; may / may ;)
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (Y y)     )) --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x y) (Y y)   )) --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x x) (X x y) )) --> A.
+[X,Y] a1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y x) (b (c y y) a) )) --> A.
+
+
+(; must / must ;)
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c (c a x) a) (c a y))) --> A.
+(; must / may ;)
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x)   (Y y)  ))                   --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x)   (X x y)))                   --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x)   (b y y)))                   --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x)   (b x y)))                   --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x x) (b (c y a) y)))             --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x x) (b x (c y a))))             --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x x) (b (X x y) a)))             --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x x) (b x (Y y))))               --> A.
+(; may / may ;)
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (Y y)     )) --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x y) (Y y)   )) --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x x) (X x y) )) --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y x) (b (c y y) a) )) --> A.
+
+
+(; must / must ;)
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x y))                   --> A.
+(; must / may ;)
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y y)  ))                         --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b y y)))                         --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (X x y)))                         --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b x y)))                         --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b a (c a (c (b a y) x)))))       --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b x (c a (c (b x (c y a)) a))))) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b a (c a (c (X x y) a)))))       --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b a (c a (c (Y y)   a)))))       --> A.
+(; must / may not;)
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x a))             --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b a a)))       --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b a (c x x)))) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y x)))         --> A.
+(; may / may ;)
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (c (X x y) a) )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (Y y)     )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x x) (Y y)   )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b a x) (X x y) )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y x) (c a a) )) --> A.
+(; may / may not ;)
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) a        )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] b1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+
+(; must / may ;)
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y y)   (c a x)))                         --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y y) (c a x)))                         --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (X x y) (c a x)))                         --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x y) (c a x)))                         --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b a (c a (c (b a y) x))) (c a x)))       --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x (c a (c (b x (c y a)) a))) (c a x))) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b a (c a (c (X x y) a))) (c a x)))       --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b a (c a (c (Y y)   a))) (c a x)))       --> A.
+(; must / may not;)
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b (c a a) a) (c a x))) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b a a)       (c a x))) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b a (c x x)) (c a x))) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x)         (c a x))) --> A.
+(; may / may ;)
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c (X x y) a) (Y x))) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y y) (Y x)     )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y y) (b x x)   )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (X x y) (b a x) )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (b y x) )) --> A.
+(; may / may not ;)
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (Y x)        )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+
+(; must / may not;)
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t x) --> A.
+(; may / may ;)
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a (c (X x y) a) )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y x) (Y y)     )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b x y) (Y y)   )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (X y x) (X x y) )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y x) (c a a) )) --> A.
+(; may / may not ;)
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y x) a        )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] c1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+
+(; must / may not;)
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a (c a x) )) --> A.
+(; may / may ;)
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a (c (X x y) a) )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y x) (Y y)     )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b x y) (Y y)   )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (X y x) (X x y) )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y x) (c a a) )) --> A.
+(; may / may not ;)
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y x) a        )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] c2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+
+(; must / may not;)
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a x) (c a a) )) --> A.
+(; may / may ;)
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a (c (X x y) a) )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y x) (Y y)     )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b x y) (Y y)   )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (X y x) (X x y) )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y x) (c a a) )) --> A.
+(; may / may not ;)
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y x) a        )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] c3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+
+(; must / must ;)
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x y))                               --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c y x))                               --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c x (c y x)))))       --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a (c x a)) (c a (c a (c a y))))) --> A.
+(; must / may ;)
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y y)  ))                               --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b y y)))                               --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b a y) x))                               --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (X x y) x))                               --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c a (c (b a y) x)))))       --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c x (c a (c (b x (c y a)) a))))) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c x a) (c a (c a (c (X x y) a)))))       --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a x) (c a (c a (c (Y y)   a)))))       --> A.
+(; must / may not;)
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a x))                   --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x x))                   --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t x)                         --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c x x)))) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y x)))               --> A.
+(; may / may ;)
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a (c (X x y) a) )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (Y y)     )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y y) (Y y)   )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (X x y) )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y x) (c a a) )) --> A.
+(; may / may not ;)
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) a        )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+(; may not / may not ;)
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t a            ) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a a      )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a a      )) --> A.
+[X,Y] d1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) a)) --> A.
+
+(; must / must ;)
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x y))                               --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c y x))                               --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c x (c y x)))))       --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a (c x a)) (c a (c a (c a y))))) --> A.
+(; must / may ;)
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y y)  ))                               --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b y y)))                               --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b a y) x))                               --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (X x y) x))                               --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c a (c (b a y) x)))))       --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c x (c a (c (b x (c y a)) a))))) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c x a) (c a (c a (c (X x y) a)))))       --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a x) (c a (c a (c (Y y)   a)))))       --> A.
+(; must / may not;)
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a x))                   --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x x))                   --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t x)                         --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c x x)))) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y x)))               --> A.
+(; may / may ;)
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a (c (X x y) a) )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (Y y)     )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y y) (Y y)   )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (X x y) )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y x) (c a a) )) --> A.
+(; may / may not ;)
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) a        )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+(; may not / may not ;)
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t a            ) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a a      )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a a      )) --> A.
+[X,Y] d2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) a)) --> A.
+
+(; may / may ;)
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (Y y)     )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y y) (Y y)   )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (X x y) )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y x) (c a a) )) --> A.
+(; may / may not ;)
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) a        )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+(; may not / may not ;)
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a a      )) --> A.
+[X,Y] d3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) a)) --> A.
+
+(; must / may ;)
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y y)  ))                               --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b y y)))                               --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b a y) x))                               --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (X x y) x))                               --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c a (c (b a y) x)))))       --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c x (c a (c (b x (c y a)) a))))) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c x a) (c a (c a (c (X x y) a)))))       --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a x) (c a (c a (c (Y y)   a)))))       --> A.
+(; must / may not;)
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a x))                   --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x x))                   --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t x)                         --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c x x)))) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y x)))               --> A.
+(; may / may ;)
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a (c (X x y) a) )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (Y y)     )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y y) (Y y)   )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (X x y) )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y x) (c a a) )) --> A.
+(; may / may not ;)
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) a        )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+(; may not / may not ;)
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t a            ) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a a      )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a a      )) --> A.
+[X,Y] e1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) a)) --> A.
+
+(; must / may ;)
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y y)  ))                               --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b y y)))                               --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b a y) x))                               --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (X x y) x))                               --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c a (c (b a y) x)))))       --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c x (c a (c (b x (c y a)) a))))) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c x a) (c a (c a (c (X x y) a)))))       --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a x) (c a (c a (c (Y y)   a)))))       --> A.
+(; must / may not;)
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a x))                   --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x x))                   --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t x)                         --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c x x)))) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y x)))               --> A.
+(; may / may ;)
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a (c (X x y) a) )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (Y y)     )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y y) (Y y)   )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (X x y) )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y x) (c a a) )) --> A.
+(; may / may not ;)
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) a        )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+(; may not / may not ;)
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t a            ) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a a      )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a a      )) --> A.
+[X,Y] e2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) a)) --> A.
+
+(; may / may ;)
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+(; may / may not ;)
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+(; may not / may not ;)
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t a            ) --> A.
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a a      )) --> A.
+[X,Y] f1  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) a)) --> A.
+
+(; may / may ;)
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+(; may / may not ;)
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) a        )) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+(; may not / may not ;)
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t a            ) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a a      )) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a a      )) --> A.
+[X,Y] f2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) a)) --> A.
+
+(; may / may ;)
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+(; may / may not ;)
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) a        )) --> A.
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+(; may not / may not ;)
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a a      )) --> A.
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a a      )) --> A.
+[X,Y] f3  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) a)) --> A.
+
+
+
+
+(; ------------------------------------------------------------------------ ;)
+(;                                   LEGACY                                 ;)
+(; ------------------------------------------------------------------------ ;)
+
+def   g1 : F : (A -> A) -> (x:A -> y: A -> T (F x)) -> Type.
+[F,G] g1   F               (x   => y    => t (G x)) --> A.
+(;  F x  ==  G x is dropped   ;)
+
+def   g2 : F : (A -> A) -> (x:A -> y: A -> T (F x)) -> Type.
+[F,G] g2   F               (x   => y    => t (G y)) --> A.
+(; F x  ==  G y is dropped ;)
+
+
+
+def g3:(x:A -> T (b a a))  -> Type.
+[]  g3 (x   => t (c a a)) --> A.
+
+def g4:(x:A -> T (b a a))  -> Type.
+[]  g4 (x   => t       a) --> A.
+
+def g5:(x:A -> T (b a a))  -> Type.
+[]  g5 (x   => t (c a a)) --> A.
+(; b a a  ==  t[a]  is dropped ;)
+
+def g6:(x:A -> T (b a x))  -> Type.
+[]  g6 (x   => t (c x a)) --> A.
+[]  g6 (x   => t x      ) --> A.
+
+def g7:(x:A -> T (b (b (c a x) a) a))  -> Type.
+[]  g7 (x   => t (c x a)) --> A.
+[]  g7 (x   => t       x) --> A.
+
+
+
+
+
+(; ------------------------------------------------------------------------ ;)
+(;                                GENERATOR                                 ;)
+(; ------------------------------------------------------------------------ ;)
+(;
+
+(; must / must ;)
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x y))                               --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c y x))                               --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c x (c y x)))))       --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a (c x a)) (c a (c a (c a y))))) --> A.
+
+(; must / may ;)
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y y)  ))                               --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (b y y)))                               --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b a y) x))                               --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (X x y) x))                               --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c a (c (b a y) x)))))       --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c x (c a (c (b x (c y a)) a))))) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c x a) (c a (c a (c (X x y) a)))))       --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a x) (c a (c a (c (Y y)   a)))))       --> A.
+
+(; must / may not;)
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a x))                   --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x x))                   --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t x)                         --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (c a (c x x)))) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c x (Y x)))               --> A.
+
+(; may / may ;)
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x y             )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (X x y             )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a (c (X x y) a) )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (Y y)     )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y y) (Y y)   )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (X x y) )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y x) (c a a) )) --> A.
+
+(; may / may not ;)
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b x a            )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a x            )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (Y x              )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) a        )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) x      )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b a a) (c a x))) --> A.
+
+(; may not / may not ;)
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t a            ) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a a      )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b a a      )) --> A.
+[X,Y] xx  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a a) a)) --> A.
+
+;)

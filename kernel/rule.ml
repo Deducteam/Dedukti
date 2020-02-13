@@ -1,4 +1,3 @@
-
 open Basic
 open Format
 open Term
@@ -16,48 +15,58 @@ type wf_pattern =
   | LPattern  of name * wf_pattern array
   | LBoundVar of ident * int * wf_pattern array
 
-type rule_name = Delta of name | Gamma of bool * name
+type rule_name = Beta | Delta of name | Gamma of bool * name
+
+let rule_name_eq : rule_name -> rule_name -> bool = fun n1 n2 ->
+  match n1,n2 with
+  | Delta x    , Delta y       -> name_eq x y
+  | Gamma (b1,x), Gamma (b2,y) -> b1=b2 && name_eq x y
+  | _,_                        -> false
 
 type 'a rule =
   {
     name: rule_name;
-    ctx: 'a;
+    ctx: 'a context;
     pat: pattern;
     rhs:term
   }
 
-type untyped_rule = untyped_context rule
-
-type typed_rule = typed_context rule
+type partially_typed_rule = term option rule
+type typed_rule           = term        rule
+type arity_rule           = int         rule
 
 (* TODO : maybe replace constr by Linearity | Bracket and constr list by a constr Map.t *)
 type constr =
   | Linearity of int * int
   | Bracket   of int * term
 
-type rule_infos = {
-  l           : loc;
-  name        : rule_name;
-  cst         : name;
-  args        : pattern list;
-  rhs         : term;
-  esize       : int;
-  pats        : wf_pattern array;
-  arity       : int array;
-  constraints : constr list;
-}
+type rule_infos =
+  {
+    l           : loc;
+    name        : rule_name;
+    cst         : name;
+    args        : pattern list;
+    rhs         : term;
+    ctx_size    : int;
+    esize       : int;
+    pats        : wf_pattern array;
+    arity       : int array;
+    constraints : constr list;
+  }
 
 let infer_rule_context ri =
-  let res = Array.make ri.esize (mk_ident "_") in
+  let res = Array.make ri.ctx_size (dloc,mk_ident "_",-1) in
   let rec aux k = function
-    | LJoker -> ()
-    | LVar (name,n,args) -> res.(n-k) <- name
-    | LLambda (_,body) -> aux (k+1) body
-    | LPattern  (_  ,args) -> Array.iter (aux k) args
-    | LBoundVar (_,_,args) -> Array.iter (aux k) args
+    (* Since we have the guarantee that every lhs is a Miller pattern,
+       we don't have to study args
+       (they are locally bound variables) *)
+    | Var (_,name,n,_)  -> if n>=k then res.(n-k) <- (dloc,name,ri.arity.(n-k))
+    | Lambda (_,_,body)    -> aux (k+1) body
+    | Pattern (_,_,args)   -> List.iter (aux k) args
+    | Brackets(_)          -> ()
   in
-  Array.iter (aux 0) ri.pats;
-  List.map (fun i -> (dloc, i)) (Array.to_list res)
+  List.iter (aux 0) ri.args;
+  Array.to_list res
 
 
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
@@ -115,23 +124,12 @@ let get_loc_pat = function
 
 let get_loc_rule r = get_loc_pat r.pat
 
-let pp_typed_ident fmt (id,ty) = Format.fprintf fmt "%a:%a" pp_ident id pp_term ty
 
-let pp_context pp_i fmt l = fprintf fmt "[%a]" (pp_list ", " pp_i) (List.rev l)
-
-let pp_untyped_context fmt ctx =
-  pp_context pp_ident       fmt (List.map snd                      ctx)
-let pp_typed_context   fmt ctx =
-  pp_context pp_typed_ident fmt (List.map (fun (_,a,ty) -> (a,ty)) ctx)
-
-let pp_rule_name fmt rule_name =
-  let sort,n =
-    match rule_name with
-    | Delta(n)        -> "Delta"          , n
-    | Gamma(true , n) -> "Gamma"          , n
-    | Gamma(false, n) -> "Gamma (default)", n
-  in
-  fprintf fmt "%s: %a" sort pp_name n
+let pp_rule_name fmt = function
+  | Beta            -> fprintf fmt "Beta"
+  | Delta(n)        -> fprintf fmt "Delta: %a"           pp_name n
+  | Gamma(true , n) -> fprintf fmt "Gamma: %a"           pp_name n
+  | Gamma(false, n) -> fprintf fmt "Gamma (default): %a" pp_name n
 
 let pp_rule pp_ctxt fmt (rule:'a rule) =
   fprintf fmt " {%a} [%a] %a --> %a"
@@ -140,8 +138,9 @@ let pp_rule pp_ctxt fmt (rule:'a rule) =
     pp_pattern rule.pat
     pp_term rule.rhs
 
-let pp_untyped_rule = pp_rule pp_untyped_context
-let pp_typed_rule   = pp_rule pp_typed_context
+let pp_untyped_rule fmt = pp_rule pp_untyped_context fmt
+let pp_typed_rule       = pp_rule pp_typed_context
+let pp_part_typed_rule  = pp_rule pp_part_typed_context
 
 (* FIXME: do not print all the informations because it is used in utils/errors *)
 let pp_rule_infos out r =
@@ -209,15 +208,14 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
     IntHashtbl.add arity !context_size ar;
     incr context_size;
     !context_size - 1 in
-  let extract_db k pat =
-    match pat with
+  let extract_db k = function
     | Var (_,_,n,[]) when n<k -> n
     | p -> raise (RuleError (BoundVariableExpected p))
   in
   let rec aux (k:int) (pat:pattern) : wf_pattern =
     match pat with
-    | Lambda (l,x,p) -> LLambda (x, aux (k+1) p)
-    | Var (l,x,n,args) when n<k ->
+    | Lambda (_,x,p) -> LLambda (x, aux (k+1) p)
+    | Var (_,x,n,args) when n<k ->
       LBoundVar(x, n, Array.of_list (List.map (aux k) args))
     | Var (l,x,n,args) (* Context variable (n>=k)  *) ->
       (* Miller variables should only be applied to locally bound variables *)
@@ -240,6 +238,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       let unshifted =
         try Subst.unshift k t
         with Subst.UnshiftExn -> raise (RuleError (VariableBoundOutsideTheGuard t))
+        (* Note: A different exception is previously raised at rule type-checking for this. *)
       in
       let nvar = fresh_var 0 in
       constraints := Bracket (nvar, unshifted) :: !constraints;
@@ -253,19 +252,27 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       arity = Array.init !context_size (fun i -> IntHashtbl.find arity i)
     } )
 
-let to_rule_infos (r:untyped_rule) : rule_infos =
-  let esize = List.length r.ctx in
+let to_rule_infos (r:'a rule) : rule_infos =
+  let ctx_size = List.length r.ctx in
   let (l,cst,args) = match r.pat with
     | Pattern (l,cst,args) -> (l, cst, args)
-    | Var (l,x,_,_) -> raise (RuleError (AVariableIsNotAPattern (l,x)))
+    | Var (l,x,_,_) ->  raise (RuleError (AVariableIsNotAPattern (l,x)))
     | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
   in
-  let (pats2,infos) = check_patterns esize args in
+  let (pats2,infos) = check_patterns ctx_size args in
   { l ;
     name = r.name ;
-    cst ; args ; rhs = r.rhs ;
+    cst ; args ;
+    rhs = r.rhs ;
+    ctx_size ;
     esize = infos.context_size ;
     pats = Array.of_list pats2 ;
     arity = infos.arity ;
     constraints = infos.constraints
   }
+
+let untyped_rule_of_rule_infos ri =
+  { name = ri.name
+  ; ctx  = infer_rule_context ri
+  ; pat  = pattern_of_rule_infos ri
+  ; rhs  = ri.rhs}
