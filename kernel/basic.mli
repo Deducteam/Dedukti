@@ -96,6 +96,9 @@ module Debug : sig
   (** [register_flag msg] generates a new flag with error message [msg] *)
   val register_flag : string -> flag
 
+  (** Same as register flag, but with a bool enbling the flag by default *)
+  val new_flag : bool -> string -> flag
+
   (** Activates error messages associated to a flag *)
   val enable_flag : flag -> unit
 

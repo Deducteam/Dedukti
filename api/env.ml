@@ -38,7 +38,7 @@ let raise_as_env md lc = function
   | Signature_error e -> raise (Env_error (Some md, lc, (EnvErrorSignature e)))
   | Typing_error    e -> raise (Env_error (Some md, lc, (EnvErrorType      e)))
   | Rule_error      e -> raise (Env_error (Some md, lc, (EnvErrorRule      e)))
-  | ex               -> raise ex
+  | ex                -> raise ex
 
 let check_arity = ref true
 
