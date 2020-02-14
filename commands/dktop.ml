@@ -15,11 +15,11 @@ let print fmt =
 
 let handle_entry md e =
   match e with
-  | Decl(lc,id,st,ty) ->
-    E.declare lc id st ty;
+  | Decl(lc,id,scope,st,ty) ->
+    E.declare lc id scope st ty;
     Format.printf "%a is declared.@." pp_ident id
-  | Def(lc,id,op,ty,te) ->
-    E.define lc id op te ty;
+  | Def(lc,id,scope,op,ty,te) ->
+    E.define lc id scope op te ty;
     Format.printf "%a is defined.@." pp_ident id
   | Rules(_,rs) ->
     let _ = E.add_rules rs in
@@ -37,14 +37,14 @@ let handle_entry md e =
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (Some md,l,Env.AssertError)) )
+      | false, true  -> raise (Env.Env_error (Some md,l,Env.AssertError)) )
   | Check(l, assrt, neg, HasType(te,ty)) ->
     let succ = try E.check te ty; not neg with _ -> neg in
     ( match succ, assrt with
       | true , false -> Format.printf "YES@."
       | true , true  -> ()
       | false, false -> Format.printf "NO@."
-      | false, true  -> raise (Env.EnvError (Some md,l,Env.AssertError)) )
+      | false, true  -> raise (Env.Env_error (Some md,l,Env.AssertError)) )
   | DTree(lc,m,v) ->
     let m = match m with None -> E.get_name () | Some m -> m in
     let cst = mk_name m v in

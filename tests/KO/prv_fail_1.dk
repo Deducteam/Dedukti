@@ -1,0 +1,3 @@
+(; KO 403 -I tests/LIB -e tests/LIB/prv.dk ;)
+
+def foo : prv.A := prv.f' prv.A.

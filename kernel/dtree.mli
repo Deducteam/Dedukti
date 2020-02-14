@@ -1,15 +1,13 @@
 open Basic
 open Rule
 
-type Debug.flag += D_matching
-
 (** {2 Error} *)
 
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
 
-exception DtreeError of dtree_error
+exception Dtree_error of dtree_error
 
 (** {2 Decision Trees} *)
 
@@ -72,5 +70,5 @@ val of_rules : rule_infos list -> t
     Returns a list of arities and corresponding decision trees.
     Invariant : arities must be sorted in decreasing order.
     (see use case in [state_whnf] in [reduction.ml])
-    May raise DtreeError.
+    May raise Dtree_error.
 *)

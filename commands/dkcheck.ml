@@ -20,7 +20,7 @@ let run_on_file beautify export file =
   let input =
     try open_in file
     with e -> ErrorHandler.graceful_fail (Some file) e in
-  Debug.(debug Signature.D_module "Processing file '%s'..." file);
+  Debug.debug Signature.d_module "Processing file '%s'..." file;
   let md = E.init file in
   Confluence.initialize ();
   begin
@@ -38,7 +38,7 @@ let _ =
   let beautify     = ref false in
   let deprecated old_flag new_flag spec =
     let warning () =
-      Debug.(debug D_warn)
+      Debug.(debug d_warn)
         "[DEPRECATED] Flag %s is deprecated ! Use %s instead.@." old_flag new_flag in
     (old_flag,Arg.Tuple [Arg.Unit warning; spec], "")
   in

@@ -3,8 +3,7 @@ open Term
 
 module SS = Exsubst.ExSubst
 
-type Debug.flag += D_SRChecking
-let _ = Debug.register_flag D_SRChecking "SRChecking"
+let d_SR = Debug.register_flag "SR Checking"
 
 let srfuel = ref 1
 
@@ -112,7 +111,7 @@ struct
            else if n >= k + d (* a matching variable *)
            then aux tl
            else aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl)
-         | Const (l,cst) when Signature.is_static sg l cst ->
+         | Const (l,cst) when Signature.is_injective sg l cst ->
            (  aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl) )
          | _ -> aux tl
          (* Default case encompasses:
@@ -161,7 +160,7 @@ struct
     | (q,t1,t2)::lst -> begin
         let t1' = whnf sg s q t1 in
         let t2' = whnf sg s q t2 in
-        Debug.(debug D_SRChecking) "Processing: %a = %a" pp_term t1' pp_term t2';
+        Debug.(debug d_SR) "Processing: %a = %a" pp_term t1' pp_term t2';
         let dropped ()     = pseudo_u sg flag s lst in
         let unsolved ()    = pseudo_u sg flag { s with unsolved=(q,t1',t2')::s.unsolved } lst in
         let unsatisf ()    = pseudo_u sg true { s with unsatisf=(q,t1',t2')::s.unsolved } lst in
@@ -187,9 +186,9 @@ struct
              pseudo_u sg true s ((q+1,b,b')::lst)
 
            (* A definable symbol is only be convertible with closed terms *)
-           | Const (l,cst), t when not (Signature.is_static sg l cst) ->
+           | Const (l,cst), t when not (Signature.is_injective sg l cst) ->
              if sure_occur_check sg q (fun k -> k <= q) t then unsatisf() else unsolved()
-           | t, Const (l,cst) when not (Signature.is_static sg l cst) ->
+           | t, Const (l,cst) when not (Signature.is_injective sg l cst) ->
              if sure_occur_check sg q (fun k -> k <= q) t then unsatisf() else unsolved()
 
            (* X = Y :  map either X to Y or Y to X *)
@@ -264,11 +263,11 @@ struct
                   (* X = t[X]  cannot be turned into a (extended-)substitution *)
                   else subst n' (1+(List.length args)) t'
               end
-           | App (Const (l,cst),a,args), t when not (Signature.is_static sg l cst) ->
+           | App (Const (l,cst),a,args), t when not (Signature.is_injective sg l cst) ->
              let occs = gather_free_vars q (a::args) in
              if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
              then unsatisf() else unsolved()
-           | t, App (Const (l,cst),a,args) when not (Signature.is_static sg l cst) ->
+           | t, App (Const (l,cst),a,args) when not (Signature.is_injective sg l cst) ->
              let occs = gather_free_vars q (a::args) in
              if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t
              then unsatisf() else unsolved()

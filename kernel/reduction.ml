@@ -3,9 +3,7 @@ open Rule
 open Term
 open Dtree
 
-
-type Debug.flag += D_reduce
-let _ = Debug.register_flag D_reduce "Reduce"
+let d_reduce = Debug.register_flag "Reduce"
 
 type red_target   = Snf | Whnf
 type red_strategy = ByName | ByValue | ByStrongValue
@@ -42,8 +40,8 @@ let rec zip_lists l1 l2 lst =
 type env = term Lazy.t LList.t
 
 (* A state {ctx; term; stack} is the state of an abstract machine that
-represents a term where [ctx] is a ctx that contains the free variables
-of [term] and [stack] represents the terms that [term] is applied to. *)
+   represents a term where [ctx] is a ctx that contains the free variables
+   of [term] and [stack] represents the terms that [term] is applied to. *)
 type state =
   {
     ctx   : env;    (* context *)
@@ -62,25 +60,28 @@ and term_of_state_ref r = term_of_state !r
 
 (**************** Pretty Printing ****************)
 
-(* let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
- *
- * let pp_stack fmt (st:stack) =
- *   fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state_ref st) *)
+(*
+open Format
 
-(*let pp_stack_oneline fmt (st:stack) =
-    fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state_ref st) *)
+let pp_env fmt (env:env) = pp_list ", " pp_term fmt (List.map Lazy.force (LList.lst env))
+let pp_stack fmt (st:stack) =
+  fprintf fmt "[ %a ]\n" (pp_list "\n | " pp_term) (List.map term_of_state_ref st)
 
-(* let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
- *   if if_ctx
- *   then fprintf fmt "{ctx=[%a];@." pp_env ctx
- *   else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx);
- *   fprintf fmt "term=%a;@." pp_term term;
- *   if if_stack
- *   then fprintf fmt "stack=%a}@." pp_stack stack
- *   else fprintf fmt "stack=[...](%i)}@." (List.length stack);
- *   fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack}) *)
+let pp_stack_oneline fmt (st:stack) =
+  fprintf fmt "[ %a ]" (pp_list " | " pp_term) (List.map term_of_state_ref st)
 
-(* let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true *)
+let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
+  if if_ctx
+  then fprintf fmt "{ctx=[%a];@." pp_env ctx
+  else fprintf fmt "{ctx=[...](%i);@." (LList.len ctx);
+  fprintf fmt "term=%a;@." pp_term term;
+  if if_stack
+  then fprintf fmt "stack=%a}@." pp_stack stack
+  else fprintf fmt "stack=[...](%i)}@." (List.length stack);
+  fprintf fmt "@.%a@." pp_term (term_of_state {ctx; term; stack})
+
+let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true
+*)
 
 type matching_test = Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 type convertibility_test = Signature.t -> term -> term -> bool
@@ -141,7 +142,7 @@ and test (rn:Rule.rule_name) (sg:Signature.t)
      let t2 = term_of_state { ctx; term=t; stack=[] } in
      if C.matching_test (Bracket (i,t)) rn sg t1 t2
      then test rn sg ctx tl
-     else raise (Signature.SignatureError(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
+     else raise (Signature.Signature_error(Signature.GuardNotSatisfied(get_loc t1, t1, t2)))
 
 and find_case (st:state) (cases:(case*dtree) list)
     (default:dtree option) : (dtree * stack) option =
@@ -211,13 +212,17 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
  *    (and therefore this variable is free in the corresponding term)
  *)
 and state_whnf (sg:Signature.t) (st:state) : state =
+  (*
+  Debug.(debug D_reduce "Reducing %a" pp_state_oneline st);
+  *)
   match st with
-  (* Weak heah beta normal terms *)
+  (* Weak head beta normal terms *)
   | { term=Type _ ; _ } | { term=Kind ; _ }
-  | { term=Pi _ ; _  } | { term=Lam _; stack=[] ; _} -> st
+  | { term=Pi   _ ; _ } | { term=Lam _; stack=[] ; _ } -> st
   (* DeBruijn index: environment lookup *)
   | { ctx; term=DB (l,x,n); stack } ->
-    if n < LList.len ctx
+    if LList.is_empty ctx then st
+    else if n < LList.len ctx
     then state_whnf sg { ctx=LList.nil; term=Lazy.force (LList.nth ctx n); stack }
     else { ctx=LList.nil; term=mk_DB l x (n-LList.len ctx); stack }
   (* Beta redex *)
@@ -227,7 +232,7 @@ and state_whnf (sg:Signature.t) (st:state) : state =
   (* Application: arguments go on the stack *)
   | { ctx; term=App (f,a,lst); stack=s } ->
     (* rev_map + rev_append to avoid map + append*)
-    let tl' = List.rev_map ( fun t -> ref {ctx;term=t;stack=[]} ) (a::lst) in
+    let tl' = List.rev_map (fun t -> ref {ctx;term=t;stack=[]}) (a::lst) in
     state_whnf sg { ctx; term=f; stack=List.rev_append tl' s }
   (* Potential Gamma redex *)
   | { term=Const (l,n); stack ; _} ->
@@ -270,7 +275,9 @@ let conversion_step : (term * term) -> (term * term) list -> (term * term) list 
     let b' = mk_App (Subst.shift 1 a) (mk_DB dloc i 0) [] in
     (b,b')::lst
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
-  | _ -> raise NotConvertible
+  | t1, t2 ->
+    Debug.(debug d_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
+    raise NotConvertible
 
 let rec are_convertible_lst sg : (term*term) list -> bool =
   function
@@ -293,7 +300,7 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
   let rec aux : state_reducer = fun (pos:position) (st:state) ->
     if stop () then st else
       match st, strat with
-      (* Weak heah beta normal terms *)
+      (* Weak head beta normal terms *)
       | { term=Type _ ; _ }, _
       | { term=Kind   ; _ }, _ -> st
 

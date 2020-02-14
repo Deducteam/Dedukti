@@ -231,6 +231,8 @@ let fail_signature_error file md errid def_loc err =
     fail def_loc
       "Fail to export module '%a' to file %s."
       pp_mident md file
+  | PrivateSymbol (lc,cst) ->
+     fail lc "The symbol '%a' is private." pp_name cst
 
 let fail_dep_error fail md errid err =
   let fail lc = fail_exit 3 errid fail md (Some lc) in
@@ -250,7 +252,7 @@ let fail_dep_error fail md errid err =
 
 let code : exn -> int =
   function
-  | Env.EnvError (_,_,err) ->
+  | Env.Env_error (_,_,err) ->
     begin
       match err with
       | EnvErrorType e ->
@@ -295,6 +297,7 @@ let code : exn -> int =
           | Signature.ConfluenceErrorImport _                -> 400
           | Signature.GuardNotSatisfied _                    -> 401
           | Signature.CouldNotExportModule _                 -> 402
+          | Signature.PrivateSymbol _                        -> 403
         end
       | EnvErrorRule e ->
         begin
@@ -331,7 +334,7 @@ let graceful_fail file exn =
   let errid = if code = -1 then "UNCAUGHT EXCEPTION" else string_of_int code in
   let fail md lc = fail_exit 3 errid file md (Some lc) in
   match exn with
-  | Env.EnvError (md,lc,err) ->
+  | Env.Env_error (md,lc,err) ->
     begin
       match err with
       | Env.EnvErrorSignature e -> fail_signature_error file md errid lc e
@@ -361,7 +364,7 @@ let graceful_fail file exn =
     fail None lc "Scoping error: %s@." msg
   | Dep.Dep_error dep ->
     fail_dep_error file None errid dep
-  | Basic.NotDirectory ndir ->
+  | Basic.Not_directory ndir ->
     fail_exit 1 "OPTIONS" None None None "Invalid option for -I: %s is not a directory@." ndir
   | Sys_error err ->
     fail_exit 1 "SYSTEM" None None None "%s@." err

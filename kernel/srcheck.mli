@@ -1,7 +1,7 @@
 open Term
 open Basic
 
-type Debug.flag += D_SRChecking
+val d_SR : Debug.flag
 
 val srfuel : int ref
 

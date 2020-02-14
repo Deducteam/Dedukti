@@ -23,15 +23,12 @@ end
 
 module Printer = Pp.Make(CustomSig)
 
-
-module D = Basic.Debug
-type D.flag += D_prune
-let _ = D.register_flag D_prune "Dkprune"
-let enable_log : unit -> unit = fun () -> D.enable_flag D_prune
+let d_prune = Debug.register_flag "Dkprune"
+let enable_log : unit -> unit = fun () -> Debug.enable_flag d_prune
 
 let gre fmt = "\027[32m" ^^ fmt ^^ "\027[0m%!"
 
-let log fmt = D.debug D_prune (gre fmt)
+let log fmt = Debug.debug d_prune (gre fmt)
 
 type constraints =
   {
@@ -89,9 +86,9 @@ let get_files : unit -> (mident * Dep.path * Dep.path) list = fun () ->
     with _ -> l) Dep.deps []
 
 let name_of_entry md = function
-  | Entry.Decl(_,id,_,_) ->
+  | Entry.Decl(_,id,_,_,_) ->
     mk_name md id
-  | Entry.Def(_,id,_,_,_) ->
+  | Entry.Def(_,id,_,_,_,_) ->
     mk_name md id
   | Entry.Rules(_,r::_) ->
     let open Rule in

@@ -9,15 +9,15 @@ exception DebugFlagNotRecognized of char
 
 let set_debug_mode =
   String.iter (function
-      | 'q' -> Debug.disable_flag Debug.D_warn
-      | 'n' -> Debug.enable_flag  Debug.D_notice
-      | 'o' -> Debug.enable_flag  Signature.D_module
-      | 'c' -> Debug.enable_flag  Confluence.D_confluence
-      | 'u' -> Debug.enable_flag  Typing.D_rule
-      | 't' -> Debug.enable_flag  Typing.D_typeChecking
-      | 's' -> Debug.enable_flag  Srcheck.D_SRChecking
-      | 'r' -> Debug.enable_flag  Reduction.D_reduce
-      | 'm' -> Debug.enable_flag  Dtree.D_matching
+      | 'q' -> Debug.disable_flag Debug.d_warn
+      | 'n' -> Debug.enable_flag  Debug.d_notice
+      | 'o' -> Debug.enable_flag  Signature.d_module
+      | 'c' -> Debug.enable_flag  Confluence.d_confluence
+      | 'u' -> Debug.enable_flag  Typing.d_rule
+      | 't' -> Debug.enable_flag  Typing.d_typeChecking
+      | 's' -> Debug.enable_flag  Srcheck.d_SR
+      | 'r' -> Debug.enable_flag  Reduction.d_reduce
+      | 'm' -> Debug.enable_flag  Matching.d_matching
       | c -> raise (DebugFlagNotRecognized c)
     )
 
@@ -33,12 +33,12 @@ type env_error =
   | BracketScopingError
   | AssertError
 
-exception EnvError of mident option * loc * env_error
+exception Env_error of mident option * loc * env_error
 
 let raise_as_env md lc = function
-  | SignatureError e -> raise (EnvError (Some md, lc, (EnvErrorSignature e)))
-  | TypingError    e -> raise (EnvError (Some md, lc, (EnvErrorType      e)))
-  | RuleError      e -> raise (EnvError (Some md, lc, (EnvErrorRule      e)))
+  | Signature_error e -> raise (Env_error (Some md, lc, (EnvErrorSignature e)))
+  | Typing_error    e -> raise (Env_error (Some md, lc, (EnvErrorType      e)))
+  | Rule_error      e -> raise (Env_error (Some md, lc, (EnvErrorRule      e)))
   | ex               -> raise ex
 
 let check_arity = ref true
@@ -57,13 +57,16 @@ sig
   module HName : Hashtbl.S with type key = name
   val get_symbols : unit -> Signature.rw_infos HName.t
   val get_type    : loc -> name -> term
-  val is_static   : loc -> name -> bool
+  val is_injective: loc -> name -> bool
   val get_dtree   : loc -> name -> Dtree.t
   val export      : unit -> unit
   val import      : loc -> mident -> unit
-  val declare     : loc -> ident -> Signature.staticity -> term -> unit
-  val define      : loc -> ident -> bool -> term -> term option -> unit
-  val add_rules   : Rule.partially_typed_rule list -> (Exsubst.ExSubst.t * Rule.typed_rule) list
+  val declare     : loc -> ident -> Signature.scope ->
+                    Signature.staticity -> term -> unit
+  val define      : loc -> ident -> Signature.scope ->
+                    bool -> term -> term option -> unit
+  val add_rules   : Rule.partially_typed_rule list ->
+                    (Exsubst.ExSubst.t * Rule.typed_rule) list
 
   val infer            : ?ctx:typed_context -> term         -> term
   val check            : ?ctx:typed_context -> term -> term -> unit
@@ -89,7 +92,7 @@ struct
   let get_signature () = !sg
 
   let raise_as_env x = raise_as_env (get_name()) x
-  let raise_env lc err = raise (EnvError (Some (get_name()), lc, err))
+  let raise_env lc err = raise (Env_error (Some (get_name()), lc, err))
 
   module Printer = Pp.Make(struct let get_name = get_name end)
 
@@ -121,12 +124,12 @@ struct
     try Signature.import !sg lc md
     with e -> raise_as_env lc e
 
-  let _declare lc (id:ident) st ty : unit =
+  let _declare lc (id:ident) scope st ty : unit =
     match T.inference !sg ty with
-    | Kind | Type _ -> Signature.add_declaration !sg lc id st ty
-    | s -> raise (Typing.TypingError (Typing.SortExpected (ty,[],s)))
+    | Kind | Type _ -> Signature.add_declaration !sg lc id scope st ty
+    | s -> raise (Typing.Typing_error (Typing.SortExpected (ty,[],s)))
 
-  let is_static lc cst = Signature.is_static !sg lc cst
+  let is_injective lc cst = Signature.is_injective !sg lc cst
 
   (*         Rule checking       *)
 
@@ -153,7 +156,7 @@ struct
   (** Checks that all rule are left-linear. *)
   let _check_ll (r:rule_infos) : unit =
     List.iter
-      (function Linearity _ -> raise (EnvError (Some (get_name()), r.l, NonLinearRule r.name)) | _ -> ())
+      (function Linearity _ -> raise (Env_error (Some (get_name()), r.l, NonLinearRule r.name)) | _ -> ())
       r.constraints
 
   let _add_rules rs =
@@ -162,7 +165,7 @@ struct
     if !check_ll    then List.iter _check_ll    ris;
     Signature.add_rules !sg ris
 
-  let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:Typing.typ option) : unit =
+  let _define lc (id:ident) (scope:scope) (opaque:bool) (te:term) (ty_opt:Typing.typ option) : unit =
     let ty = match ty_opt with
       | None -> T.inference !sg te
       | Some ty -> T.checking !sg te ty; ty
@@ -170,9 +173,9 @@ struct
     match ty with
     | Kind -> raise_env lc (KindLevelDefinition id)
     | _ ->
-      if opaque then Signature.add_declaration !sg lc id Signature.Static ty
+      if opaque then Signature.add_declaration !sg lc id scope Signature.Static ty
       else
-        let _ = Signature.add_declaration !sg lc id Signature.Definable ty in
+        let _ = Signature.add_declaration !sg lc id scope Signature.Definable ty in
         let cst = mk_name (get_name ()) id in
         let rule =
           { name= Delta(cst) ;
@@ -183,12 +186,12 @@ struct
         in
         _add_rules [rule]
 
-  let declare lc id st ty : unit =
-    try _declare lc id st ty
+  let declare lc id scope st ty : unit =
+    try _declare lc id scope st ty
     with e -> raise_as_env lc e
 
-  let define lc id op te ty_opt : unit =
-    try _define lc id op te ty_opt
+  let define lc id scope op te ty_opt : unit =
+    try _define lc id scope op te ty_opt
     with e -> raise_as_env lc e
 
   let add_rules (rules: partially_typed_rule list) : (Exsubst.ExSubst.t * typed_rule) list =

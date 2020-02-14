@@ -79,7 +79,7 @@ type rule_error =
   | AVariableIsNotAPattern         of loc * ident
   | NonLinearNonEqArguments        of loc * ident
 
-exception RuleError of rule_error
+exception Rule_error of rule_error
 
 (** {2 Rule infos} *)
 
