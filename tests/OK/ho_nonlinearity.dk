@@ -1,0 +1,23 @@
+(; OK ;)
+A : Type.
+1 : A.
+2 : A.
+3 : A.
+4 : A.
+c : A -> A -> A.
+
+def f : (A -> A -> A -> A -> A) -> (A -> A -> A -> A -> A) -> A.
+[V] f (y => x => z => V x y z) (x => y => z => V z x y) --> V 1 2 3 4.
+
+#ASSERT
+( f
+  (y => x => z => u =>
+   c (c (c y x) (c u y))
+     (c (c z y) (c x 1)))
+  (x => y => z => u =>
+   c (c (c x z) (c u x))
+     (c (c y x) (c z 1)))
+) == (
+   c (c (c 2 1) (c 4 2))
+     (c (c 3 2) (c 1 1))
+).

@@ -3,8 +3,7 @@ open Rule
 open Term
 open Dtree
 
-type Debug.flag += D_reduce
-let _ = Debug.register_flag D_reduce "Reduce"
+let d_reduce = Debug.register_flag "Reduce"
 
 type red_target   = Snf | Whnf
 type red_strategy = ByName | ByValue | ByStrongValue
@@ -277,7 +276,7 @@ let conversion_step : (term * term) -> (term * term) list -> (term * term) list 
     (b,b')::lst
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
   | t1, t2 ->
-    Debug.(debug D_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
+    Debug.(debug d_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
     raise NotConvertible
 
 let rec are_convertible_lst sg : (term*term) list -> bool =

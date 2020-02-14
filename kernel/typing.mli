@@ -4,7 +4,8 @@ open Basic
 
 (** Type checking/inference *)
 
-type Debug.flag += D_typeChecking | D_rule
+val d_typeChecking : Debug.flag
+val d_rule         : Debug.flag
 
 val coc : bool ref
 

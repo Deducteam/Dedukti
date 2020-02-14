@@ -12,7 +12,7 @@ authors: [ "Frédéric Blanqui"
            "François Thiré" ]
 homepage: "https://deducteam.github.io"
 bug-reports: "https://github.com/Deducteam/Dedukti/issues"
-dev-repo: "https://github.com/Deducteam/Dedukti"
+dev-repo: "git+https://github.com/Deducteam/Dedukti"
 build: [make]
 install: [make "install"]
 remove: [make "uninstall"]

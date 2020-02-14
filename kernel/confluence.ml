@@ -3,8 +3,7 @@ open Basic
 open Term
 open Rule
 
-type Debug.flag += D_confluence
-let _ = Debug.register_flag D_confluence "Confluence"
+let d_confluence = Debug.register_flag "Confluence"
 
 let pp_name fmt cst =
   fprintf fmt "%a_%a" pp_mident (md cst) pp_ident (id cst)
@@ -40,7 +39,7 @@ let initialize () =
     begin
       let (file,out) = Filename.open_temp_file "dkcheck" ".trs" in
       let fmt = formatter_of_out_channel out in
-      Debug.(debug D_confluence "Temporary file:%s" file);
+      Debug.(debug d_confluence "Temporary file:%s" file);
       file_out := (Some (file,out));
       fprintf fmt "\
 (FUN
@@ -192,7 +191,7 @@ let check () =
   | Some (file,out) ->
     flush out;
     let cmd = !confluence_command ^ " -p " ^ file in
-    Debug.(debug D_confluence "Checking confluence : %s" cmd);
+    Debug.(debug d_confluence "Checking confluence : %s" cmd);
     let input = Unix.open_process_in cmd in
     let answer =
       try

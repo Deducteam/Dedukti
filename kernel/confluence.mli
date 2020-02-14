@@ -3,7 +3,7 @@
 open Basic
 open Rule
 
-type Debug.flag += D_confluence
+val d_confluence : Debug.flag
 
 type confluence_error =
   | NotConfluent   of string
