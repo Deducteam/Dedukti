@@ -4,7 +4,7 @@ open Basic
 open Term
 open Rule
 
-type Debug.flag += D_module
+val d_module : Debug.flag
 
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
@@ -21,7 +21,7 @@ type signature_error =
   | CouldNotExportModule  of mident * string
   | PrivateSymbol         of loc * name
 
-exception SignatureError of signature_error
+exception Signature_error of signature_error
 (** Wrapper exception for errors occuring while handling a signature. *)
 
 type staticity = Static | Definable

@@ -67,41 +67,25 @@ let dloc = (-1,-1)
 let mk_loc l c = (l,c)
 let of_loc l = l
 
-exception NotDirectory of string
+exception Not_directory of string
 let path = ref []
 let get_path () = !path
 let add_path s =
   if not (Sys.is_directory s)
-  then raise (NotDirectory s)
+  then raise (Not_directory s)
   else path := s :: !path
 
 (** {2 Debugging} *)
 
 module Debug = struct
 
-  type flag  = ..
-  type flag += D_warn | D_notice
+  type flag = string * bool ref
+  let new_flag v m = m, ref v
+  let set value (_  ,fl) = fl := value
 
-  let flag_message : (flag, string * bool) Hashtbl.t = Hashtbl.create 8
-
-  let set = Hashtbl.replace flag_message
-
-  exception DebugMessageNotSet of flag
-
-  let get (fl:flag ) : (string*bool) =
-    try Hashtbl.find flag_message fl
-    with Not_found -> raise (DebugMessageNotSet fl)
-
-  let message   (fl : flag ) : string = fst (get fl)
-  let is_active (fl : flag ) : bool   = snd (get fl)
-
-  let register_flag fl m = set fl (m         , false)
-  let  enable_flag  fl   = set fl (message fl, true )
-  let disable_flag  fl   = set fl (message fl, false)
-
-  let _ =
-    set D_warn   ("Warning", true );
-    set D_notice ("Notice" , false)
+  let register_flag = new_flag false
+  let   enable_flag = set true
+  let  disable_flag = set false
 
   let do_debug fmt =
     Format.(kfprintf (fun _ -> pp_print_newline err_formatter (); pp_print_flush err_formatter ()) err_formatter fmt)
@@ -109,13 +93,16 @@ module Debug = struct
   let ignore_debug fmt =
     Format.(ifprintf err_formatter) fmt
 
-  let debug f =
-    if is_active f
-    then fun fmt -> do_debug ("[%s] " ^^ fmt) (message f)
+  let debug (msg,fl) =
+    if !fl
+    then fun fmt -> do_debug ("[%s] " ^^ fmt) msg
     else ignore_debug
   [@@inline]
 
-  let debug_eval f clos = if is_active f then clos ()
+  let debug_eval (_,fl) clos = if !fl then clos ()
+
+  let d_warn   = new_flag true  "Warning"
+  let d_notice = new_flag false "Notice"
 
 end
 

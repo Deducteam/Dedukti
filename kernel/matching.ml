@@ -1,6 +1,8 @@
 open Basic
 open Term
 
+let d_matching = Debug.register_flag "Matching"
+
 exception NotUnifiable
 
 (** Solve the following problem for lambda term X:
