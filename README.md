@@ -315,6 +315,10 @@ To enable confluence checking you need to call `dkcheck` with the option `-cc` f
     $ dkcheck -cc /path/to/csiho.sh examples/append.dk
     > File examples/append.dk was successfully checked.
 
+### PRIVATE SYMBOLS
+
+Some theories may rely on symbols for conversion that should be guaranteed never to be used in proofs defined in this theory. To achieve this, `Dedukti` allows to flag symbols as "private". These symbols may freely occur in type annotation, definitions and rewrite rules within the file they are defined, however they are completely inaccessible to outside developments. Note that they may still appear in the normal forms or inferred types of terms that were defined without relying on them.
+
 ### LICENSE
 
 `Dedukti` is distributed under the CeCILL-B License.

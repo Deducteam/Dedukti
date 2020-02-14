@@ -19,17 +19,21 @@ type signature_error =
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
   | CouldNotExportModule  of mident * string
-  | Private               of loc * name
+  | PrivateSymbol         of loc * name
 
 exception SignatureError of signature_error
+(** Wrapper exception for errors occuring while handling a signature. *)
 
 type staticity = Static | Definable
+(** Is the symbol allowed to have rewrite rules or not ? *)
 
 type scope = Public | Private
+(** Should the symbol be accessible from outside its definition file ? *)
 
 val pp_staticity : staticity printer
 
 type t
+(** A collection of well-typed symbols and rewrite rules. *)
 
 val make                : string -> t
 (** [make file] creates a new signature corresponding to the file [file]. *)

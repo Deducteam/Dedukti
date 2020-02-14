@@ -22,7 +22,7 @@ type signature_error =
   | ConfluenceErrorRules      of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied         of loc * term * term
   | CouldNotExportModule      of mident * string
-  | Private                   of loc * name
+  | PrivateSymbol             of loc * name
 
 exception SignatureError of signature_error
 
@@ -247,7 +247,7 @@ let get_type sg lc cst =
   let infos = get_infos sg lc cst in
   if infos.scope = Public || md cst = sg.name
   then infos.ty
-  else raise (SignatureError (Private(lc,cst)))
+  else raise (SignatureError (PrivateSymbol(lc,cst)))
 
 let get_rules sg lc cst = (get_infos sg lc cst).rules
 
