@@ -111,7 +111,7 @@ line:
       {fun md -> Def(fst id, snd id, true, Some(scope_term md [] (mk_pi ty ps)),
                      scope_term md [] (mk_lam te ps))}
   | rs=rule+ DOT
-      {fun md -> Rules(loc_of_rs rs,(List.map (scope_rule md) rs))}
+      {fun md -> Rules(loc_of_rs rs,(List.rev_map (scope_rule md) rs))}
 
   | EVAL te=term DOT
       {fun md -> Eval($1, default_cfg, scope_term md [] te)}

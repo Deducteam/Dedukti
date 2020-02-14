@@ -159,7 +159,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     in
     if infos.stat = Static && !fail_on_symbol_not_found
     then raise (Signature_error (CannotAddRewriteRules (r.l,r.cst)));
-    HId.replace env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None}
+    HId.replace env (id r.cst) {infos with rules = rs @ infos.rules; decision_tree= None}
 
 and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
   let infos, env = get_info_env sg lc cst in
@@ -167,7 +167,7 @@ and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
   (* Non-empty set of rule but decision trees not computed *)
   | None, (_::_ as rules) ->
     let trees =
-      try Dtree.of_rules rules
+      try Dtree.of_rules (List.rev rules)
       with Dtree.Dtree_error e -> raise (Signature_error (CannotBuildDtree e))
     in
     HId.replace env (id cst) {infos with decision_tree=Some trees};
