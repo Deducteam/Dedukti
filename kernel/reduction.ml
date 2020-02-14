@@ -28,13 +28,13 @@ let pp_red_cfg fmt cfg =
 let default_cfg =
   {select=None; nb_steps=None; target=Snf; strat=ByName; beta=true; logger=fun _ _ _ _ -> () }
 
-exception NotConvertible
+exception Not_convertible
 
 let rec zip_lists l1 l2 lst =
   match l1, l2 with
   | [], [] -> lst
   | s1::l1, s2::l2 -> zip_lists l1 l2 ((s1,s2)::lst)
-  | _,_ -> raise NotConvertible
+  | _,_ -> raise Not_convertible
 
 (* State *)
 
@@ -333,7 +333,7 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
                  let t1 = Lazy.force (LList.nth ctx i) in
                  let t2 = term_of_state {ctx;term=t2;stack=[]} in
                  if not (C.are_convertible sg t1 t2)
-                 then raise (Signature.SignatureError
+                 then raise (Signature.Signature_error
                                (Signature.GuardNotSatisfied(get_loc t1, t1, t2))))
               cstr;
             Some (rule_name, ctx, right)
@@ -450,7 +450,7 @@ and conversion_step sg : (term * term) -> (term * term) list -> (term * term) li
   | Pi  (_,_,a,b), Pi  (_,_,a',b') -> (a,a') :: (b,b') :: lst
   | t1, t2 ->
     Debug.(debug d_reduce "Not convertible: %a / %a" pp_term t1 pp_term t2 );
-    raise NotConvertible
+    raise Not_convertible
 
 let rec are_convertible_lst sg : (term*term) list -> bool =
   function
@@ -462,7 +462,7 @@ let rec are_convertible_lst sg : (term*term) list -> bool =
 (* Convertibility Test *)
 let are_convertible sg t1 t2 =
   try are_convertible_lst sg [(t1,t2)]
-  with NotConvertible | Invalid_argument _ -> false
+  with Not_convertible | Invalid_argument _ -> false
 
 (* ************************************************************** *)
 

@@ -41,7 +41,7 @@ val default_cfg : red_cfg
 type convertibility_test = Signature.t -> term -> term -> bool
 type matching_test = Rule.constr -> Rule.rule_name -> convertibility_test
 
-exception NotConvertible
+exception Not_convertible
 
 val eta : bool ref
 (** Set to [true] to allow eta expansion at conversion check *)

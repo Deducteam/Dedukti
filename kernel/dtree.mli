@@ -10,7 +10,7 @@ type dtree_error =
   | ArityInnerMismatch  of loc * ident * ident
   | ACSymbolRewritten   of loc * name * int
 
-exception DtreeError of dtree_error
+exception Dtree_error of dtree_error
 
 type miller_var =
   {
@@ -172,5 +172,5 @@ val of_rules : name -> (name -> algebra) -> rule_infos list -> t
     Returns a list of arities and corresponding decision trees.
     Invariant : arities must be sorted in decreasing order.
     (see use case in [state_whnf] in [reduction.ml])
-    May raise DtreeError.
+    May raise Dtree_error.
 *)

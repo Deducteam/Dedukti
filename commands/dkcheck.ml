@@ -20,7 +20,7 @@ let run_on_file beautify export file =
   let input =
     try open_in file
     with e -> ErrorHandler.graceful_fail (Some file) e in
-  Debug.(debug Signature.d_module "Processing file '%s'..." file);
+  Debug.debug Signature.d_module "Processing file '%s'..." file;
   let md = E.init file in
   Confluence.initialize ();
   begin

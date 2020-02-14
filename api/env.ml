@@ -32,12 +32,12 @@ type env_error =
   | BracketScopingError
   | AssertError
 
-exception EnvError of mident option * loc * env_error
+exception Env_error of mident option * loc * env_error
 
 let raise_as_env md lc = function
-  | SignatureError e -> raise (EnvError (Some md, lc, (EnvErrorSignature e)))
-  | TypingError    e -> raise (EnvError (Some md, lc, (EnvErrorType      e)))
-  | RuleError      e -> raise (EnvError (Some md, lc, (EnvErrorRule      e)))
+  | Signature_error e -> raise (Env_error (Some md, lc, (EnvErrorSignature e)))
+  | Typing_error    e -> raise (Env_error (Some md, lc, (EnvErrorType      e)))
+  | Rule_error      e -> raise (Env_error (Some md, lc, (EnvErrorRule      e)))
   | ex               -> raise ex
 
 let check_arity = ref true
@@ -88,7 +88,7 @@ struct
   let get_signature () = !sg
 
   let raise_as_env x = raise_as_env (get_name()) x
-  let raise_env lc err = raise (EnvError (Some (get_name()), lc, err))
+  let raise_env lc err = raise (Env_error (Some (get_name()), lc, err))
 
   module Printer = Pp.Make(struct let get_name = get_name end)
 
@@ -124,12 +124,13 @@ struct
     Signature.add_declaration !sg lc id st
       ( match T.inference !sg ty, st with
         | Kind  , Definable AC
-        | Kind  , Definable (ACU _)   -> raise (TypingError (SortExpected (ty,[],mk_Kind) ))
+        | Kind  , Definable (ACU _)   ->
+           raise (Typing_error (SortExpected (ty,[],mk_Kind) ))
         | Type _, Definable AC        -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
         | Type _, Definable (ACU neu) -> ignore(T.checking !sg neu ty);
           mk_Arrow dloc ty (mk_Arrow dloc ty ty)
         | Kind, _ | Type _, _ -> ty
-        | s, _ -> raise (TypingError (SortExpected (ty,[],s)))  )
+        | s, _ -> raise (Typing_error (SortExpected (ty,[],s)))  )
 
   let is_static lc cst = Signature.is_static !sg lc cst
 
@@ -158,7 +159,7 @@ struct
   (** Checks that all rule are left-linear. *)
   let _check_ll (r:rule_infos) : unit =
     if r.nonlinear <> []
-    then raise (EnvError (Some (get_name()), r.l, NonLinearRule r.name))
+    then raise (Env_error (Some (get_name()), r.l, NonLinearRule r.name))
 
   let _add_rules rs =
     let ris = List.map Rule.to_rule_infos rs in

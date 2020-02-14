@@ -9,7 +9,7 @@ type dtree_error =
   | ArityInnerMismatch  of loc * ident * ident
   | ACSymbolRewritten   of loc * name * int
 
-exception DtreeError of dtree_error
+exception Dtree_error of dtree_error
 
 type miller_var =
   {
@@ -356,7 +356,7 @@ let specialize_rule case (c:int) (nargs:int) (r:rule_infos) : rule_infos =
     else (* size <= i < size+nargs *)
       let check_args id pats =
         if ( Array.length pats != nargs ) then
-          raise (DtreeError(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
+          raise (Dtree_error(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
         pats.( i - size)
       in
       match r.pats.(c) with
@@ -590,10 +590,10 @@ let of_rules name get_algebra rs : t =
     List.iter
       (fun x ->
          if not (name_eq x.cst name)
-         then raise (DtreeError (HeadSymbolMismatch (x.l,x.cst,name)));
+         then raise (Dtree_error (HeadSymbolMismatch (x.l,x.cst,name)));
          let arity = List.length x.args in
          if ac && arity == 0  (* + --> ... is forbidden when + is AC  *)
-         then raise (DtreeError (ACSymbolRewritten(x.l,x.cst,arity)));
+         then raise (Dtree_error (ACSymbolRewritten(x.l,x.cst,arity)));
          (* The rule    + l   --> r
             requires    + l x --> + r x
             to behave as expected, ie matching (1+l) "below the AC head")  *)

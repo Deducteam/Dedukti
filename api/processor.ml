@@ -15,19 +15,17 @@ module TypeChecker (E:Env.S) : S with type t = unit =
 struct
   module Printer = E.Printer
 
-  open Debug
-
   type t = unit
 
   let handle_entry e =
     let open Entry in
     match e with
     | Decl(lc,id,st,ty) ->
-      debug d_notice "Declaration of constant '%a'." pp_ident id;
+      Debug.(debug d_notice) "Declaration of constant '%a'." pp_ident id;
       E.declare lc id st ty
     | Def(lc,id,opaque,ty,te) ->
       let opaque_str = if opaque then " (opaque)" else "" in
-      debug d_notice "Definition of symbol '%a'%s." pp_ident id opaque_str;
+      Debug.(debug d_notice) "Definition of symbol '%a'%s." pp_ident id opaque_str;
       E.define lc id opaque te ty
     | Rules(_,rs) ->
       let open Rule in
