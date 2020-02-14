@@ -96,7 +96,7 @@ let _ =
     ; ( "--sr-check"
       , Arg.Int (fun i -> Srcheck.srfuel := i)
       , "LVL Sets the level of subject reduction checking to LVL.
-                   Default value is 3. Values < 0 may not terminate on
+                   Default value is 1. Values < 0 may not terminate on
                    rules that do not preserve typing. " )
     ; ( "--snf"
       , Arg.Set Errors.errors_in_snf

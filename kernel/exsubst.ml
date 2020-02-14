@@ -2,8 +2,18 @@ open Basic
 open Format
 open Term
 
+(** An extended substitution is a function mapping
+    - a variable (location, identifier and DB index)
+    - applied to a given number of arguments
+    - under a given number of lambda abstractions
+    to a term.
+    A substitution raises Not_found meaning that the variable is not subsituted. *)
 type ex_substitution = loc -> ident -> int -> int -> int -> term
 
+(** [apply_exsubst subst n t] applies [subst] to [t] under [n] lambda abstractions.
+      - Variables with DB index [k] <  [n] are considered "locally bound" and are never substituted.
+      - Variables with DB index [k] >= [n] may be substituted if [k-n] is mapped in [sigma]
+          and if they occur applied to enough arguments (substitution's arity). *)
 let apply_exsubst (subst:ex_substitution) (n:int) (te:term) : term*bool =
   let ct = ref 0 in
   (* aux increments this counter every time a substitution occurs.
@@ -49,18 +59,37 @@ struct
   let identity = IntMap.empty
   let is_identity = IntMap.is_empty
 
+  (** Substitution function corresponding to given ExSubst.t instance [sigma].
+      We lookup the table at index: (DB index) [n] - (nb of local binders) [k]
+      When the variable is under applied it is simply not substituted.
+      Otherwise we return the reduct is shifted up by (nb of local binders) [k] *)
   let subst (sigma:t) =
     fun _ _ n nargs k ->
     let (arity,t) = IntMap.find (n-k) sigma in
     if nargs >= arity then Subst.shift k t else raise Not_found
 
+  (** Special substitution function corresponding to given ExSubst.t instance [sigma]
+      "in a smaller context":
+      Assume [sigma] a substitution in a context Gamma = Gamma' ; Delta with |Delta|=[i].
+      Then this function represents the substitution [sigma] in the context Gamma'.
+      All variables of Delta are ignored and substitutes of the variables of Gamma'
+      are unshifted. This may therefore raise UnshiftExn in case substitutes of
+      variables of Gamma' refers to variables of Delta.
+  *)
   let subst2 (sigma:t) (i:int) =
     fun _ _ n nargs k ->
     let (argmin,t) = IntMap.find (n+i+1-k) sigma in
     if nargs >= argmin then Subst.shift k (Subst.unshift (i+1) t) else raise Not_found
 
-  let apply (sigma:t) : int -> term -> term*bool =
+  let apply' (sigma:t) : int -> term -> term*bool =
     if is_identity sigma then (fun _ t -> t,false) else apply_exsubst (subst sigma)
+
+  let apply2' (sigma:t) (i:int) : int -> term -> term*bool =
+    if is_identity sigma then (fun _ t -> t,false) else apply_exsubst (subst2 sigma i)
+
+  let apply = fun sigma i t -> fst (apply' sigma i t)
+
+  let apply2 = fun sigma n i t -> fst (apply2' sigma n i t)
 
   let add (sigma:t) (n:int) (nargs:int) (t:term) : t =
     assert ( not (IntMap.mem n sigma) || fst (IntMap.find n sigma) > nargs );
@@ -72,7 +101,7 @@ struct
     else fun sigma' ->
       let modified = ref false in
       let applysigma (n,t) =
-        let res,flag = apply sigma 0 t in
+        let res,flag = apply' sigma 0 t in
         if flag then modified := true;
         (n,res)
       in

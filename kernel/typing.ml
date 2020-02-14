@@ -72,7 +72,7 @@ struct
 
   (* The functions [check'] and [infer'] have an additional argument compared to [check] and [infer]
      which is a list of additional equalities, which are useful when checking subject reduction *)
-  let rec infer' sg (c:SR.t) (d:int) (ctx:typed_context) (te:term) : typ =
+  let rec infer' sg (c:SR.lhs_typing_cstr) (d:int) (ctx:typed_context) (te:term) : typ =
     Debug.(debug D_typeChecking "Inferring: %a" pp_term te);
     match te with
     | Kind -> raise (TypingError KindIsNotTypable)
@@ -98,7 +98,7 @@ struct
        | _ -> mk_Pi l x a ty_b )
     | Lam  (l,_,None,_) -> raise (TypingError (DomainFreeLambda l))
 
-  and check' sg (c:SR.t) (d:int) (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
+  and check' sg (c:SR.lhs_typing_cstr) (d:int) (ctx:typed_context) (te:term) (ty_exp:typ) : unit =
     Debug.(debug D_typeChecking "Checking (%a): %a : %a"
              pp_loc (get_loc te) pp_term te pp_term ty_exp);
     match te with
@@ -125,7 +125,7 @@ struct
         let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
         raise (TypingError (ConvertibilityError (te,ctx,ty_exp',ty_inf)))
 
-  and check_app sg (c:SR.t) (d:int) (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
+  and check_app sg (c:SR.lhs_typing_cstr) (d:int) (ctx:typed_context) (f,ty_f:term*typ) (arg:term) : term*typ =
     match R.whnf sg ty_f with
     | Pi (_,_,a,b) ->
        let _ = check' sg c d ctx arg a in
@@ -303,7 +303,7 @@ struct
   let subst_context (sub:SS.t) (ctx:typed_context) : typed_context =
     if SS.is_identity sub then ctx
     else
-      let apply_subst i (l,x,ty) = (l,x,fst (Exsubst.apply_exsubst (SS.subst2 sub i) 0 ty)) in
+      let apply_subst i (l,x,ty) = (l,x,SS.apply2 sub i 0 ty) in
       List.mapi apply_subst ctx
 
   let check_type_annotations sg sub typed_ctx annot_ctx =
@@ -319,8 +319,8 @@ struct
                       pp_loc l pp_term ty pp_term ty');
              if not (R.are_convertible sg ty ty')
              then
-               let ty2  = fst (SS.apply sub 0 (Subst.shift depth ty )) in
-               let ty2' = fst (SS.apply sub 0 (Subst.shift depth ty')) in
+               let ty2  = SS.apply sub 0 (Subst.shift depth ty ) in
+               let ty2' = SS.apply sub 0 (Subst.shift depth ty') in
                if not (R.are_convertible sg ty2 ty2')
                then raise (TypingError (AnnotConvertibilityError (l,x,ctx,ty',ty)))
          end;

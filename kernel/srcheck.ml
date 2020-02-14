@@ -16,28 +16,28 @@ let cstr_eq ((n1,t1,u1):cstr) ((n2,t2,u2):cstr) =
 
 module SRChecker(R:Reduction.S) =
 struct
-  type t =
+  type lhs_typing_cstr =
     {
       subst    : SS.t;
       unsolved : cstr list;
       unsatisf : cstr list
     }
 
-  let empty : t = { subst = SS.identity; unsolved=[]; unsatisf=[] }
+  let empty : lhs_typing_cstr = { subst = SS.identity; unsolved=[]; unsatisf=[] }
 
   let get_subst c = c.subst
   let get_unsat c = match c.unsatisf with [] -> None | c::_ -> Some c
 
-  let snf sg c d =
+  let snf sg c depth =
     let rec aux fuel t =
-      let t1,flag = SS.apply c.subst d t in
+      let t1,flag = SS.apply' c.subst depth t in
       let t2 = R.snf sg t1 in
       if flag && fuel <> 0 then aux (fuel-1) t2 else t2 in
     aux !srfuel
 
-  let whnf sg c d =
+  let whnf sg c depth =
     let rec aux fuel t =
-      let t1,flag = SS.apply c.subst d t in
+      let t1,flag = SS.apply' c.subst depth t in
       let t2 = R.whnf sg t1 in
       if flag && fuel <> 0 then aux (fuel-1) t2 else t2 in
     aux !srfuel
@@ -57,7 +57,7 @@ struct
          | _ -> term_eq t1 t2 && aux tl
     in fun t1 t2 -> aux [(0,t1,t2)]
 
-  let convertible (sg:Signature.t) (c:t) (depth:int) (ty_inf:term) (ty_exp:term) : bool =
+  let convertible (sg:Signature.t) (c:lhs_typing_cstr) (depth:int) (ty_inf:term) (ty_exp:term) : bool =
     R.are_convertible sg ty_inf ty_exp ||
     match SS.is_identity c.subst, c.unsolved with
     | true, [] -> false
@@ -156,7 +156,7 @@ struct
       Some (Matching.solve q (LList.of_list dbs) t)
     with Matching.NotUnifiable -> None
 
-  let rec pseudo_u sg flag (s:t) : cstr list -> bool*t = function
+  let rec pseudo_u sg flag (s:lhs_typing_cstr) : cstr list -> bool*lhs_typing_cstr = function
     | [] -> (flag, s)
     | (q,t1,t2)::lst -> begin
         let t1' = whnf sg s q t1 in
@@ -285,7 +285,7 @@ struct
            | _, _ -> unsatisf()
        end
 
-  let compile_cstr (sg : Signature.t) (cstr : cstr list) : t =
+  let compile_cstr (sg : Signature.t) (cstr : cstr list) : lhs_typing_cstr =
     (* Successively runs pseudo_u to apply solved constraints to the remaining
        unsolved constraints in the hope to deduce more constraints in solved form *)
     let rec process_solver fuel sol =

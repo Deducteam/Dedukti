@@ -7,17 +7,17 @@ val srfuel : int ref
 
 module SRChecker(R:Reduction.S) :
 sig
-  type t
+  type lhs_typing_cstr
   (** Representation of LHS typing constraints *)
 
-  val empty : t
+  val empty : lhs_typing_cstr
   (** No constraints *)
 
-  val get_subst : t -> Exsubst.ExSubst.t
+  val get_subst : lhs_typing_cstr -> Exsubst.ExSubst.t
   (** Retrieve extended substitution *)
 
-  val get_unsat : t -> cstr option
-  val convertible  : Signature.t -> t -> int -> term -> term -> bool
-  val compile_cstr : Signature.t -> cstr list -> t
-  val optimize     : Signature.t -> t -> t
+  val get_unsat : lhs_typing_cstr -> cstr option
+  val convertible  : Signature.t -> lhs_typing_cstr -> int -> term -> term -> bool
+  val compile_cstr : Signature.t -> cstr list -> lhs_typing_cstr
+  val optimize     : Signature.t -> lhs_typing_cstr -> lhs_typing_cstr
 end

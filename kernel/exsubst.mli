@@ -1,19 +1,5 @@
 open Term
 
-(** An extended substitution is a function mapping
-    - a variable (location, identifier and DB index)
-    - applied to a given number of arguments
-    - under a given number of lambda abstractions
-    to a term.
-    A substitution raises Not_found meaning that the variable is not subsituted. *)
-type ex_substitution = Basic.loc -> Basic.ident -> int -> int -> int -> term
-
-(** [apply_exsubst subst n t] applies [subst] to [t] under [n] lambda abstractions.
-      - Variables with DB index [k] <  [n] are considered "locally bound" and are never substituted.
-      - Variables with DB index [k] >= [n] may be substituted if [k-n] is mapped in [sigma]
-          and if they occur applied to enough arguments (substitution's arity). *)
-val apply_exsubst : ex_substitution -> int -> term -> term*bool
-
 (** This modules implements extended substitution of DB variables in a term.
     This is typically used to:
     1) infer a "most general" typing substitution from constraints gathered while
@@ -33,13 +19,15 @@ sig
   val add : t -> int -> int -> term -> t
   (** [add sigma n t] returns the substitution [sigma] with the extra mapping [n] -> [t]. *)
 
-  val subst : t -> ex_substitution
-  (** Substitution function corresponding to given ExSubst.t instance [sigma].
-      We lookup the table at index: (DB index) [n] - (nb of local binders) [k]
-      When the variable is under applied it is simply not substituted.
-      Otherwise we return the reduct is shifted up by (nb of local binders) [k] *)
+  val apply : t -> int -> term -> term
+  (** [apply sigma n t] applies the subsitution [sigma] to [t] considered
+      under [n] lambda abstractions. *)
 
-  val subst2 : t -> int -> ex_substitution
+  val apply' : t -> int -> term -> term*bool
+  (** Same as apply, but outputting a boolean [true] if the term is modified
+      by the substitution. *)
+
+  val apply2 : t -> int -> int -> term -> term
   (** Special substitution function corresponding to given ExSubst.t instance [sigma]
       "in a smaller context":
       Assume [sigma] a substitution in a context Gamma = Gamma' ; Delta with |Delta|=[i].
@@ -48,10 +36,6 @@ sig
       are unshifted. This may therefore raise UnshiftExn in case substitutes of
       variables of Gamma' refers to variables of Delta.
   *)
-
-  val apply : t -> int -> term -> term*bool
-  (** [apply sigma n t] applies the subsitution [sigma] to [t] considered
-      under [n] lambda abstractions. *)
 
   val mk_idempotent : t -> t
   (** [mk_idempotent sigma] successively applies sigma to its mapped terms until this operation
