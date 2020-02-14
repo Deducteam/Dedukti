@@ -2,9 +2,19 @@ open Basic
 open Format
 open Term
 
+(** An extended substitution is a function mapping
+    - a variable (location, identifier and DB index)
+    - applied to a given number of arguments
+    - under a given number of lambda abstractions
+    to a term.
+    A substitution raises Not_found meaning that the variable is not subsituted. *)
 type ex_substitution = loc -> ident -> int -> int -> int -> term
 
-let apply_exsubst (subst:ex_substitution) : int -> term -> term =
+(** [apply_exsubst subst n t] applies [subst] to [t] under [n] lambda abstractions.
+      - Variables with DB index [k] <  [n] are considered "locally bound" and are never substituted.
+      - Variables with DB index [k] >= [n] may be substituted if [k-n] is mapped in [sigma]
+          and if they occur applied to enough arguments (substitution's arity). *)
+let apply_exsubst (subst:ex_substitution) (n:int) (te:term) : term*bool =
   let ct = ref 0 in
   (* aux increments this counter every time a substitution occurs.
    * Terms are reused when no substitution occurs in recursive calls. *)
@@ -34,7 +44,7 @@ let apply_exsubst (subst:ex_substitution) : int -> term -> term =
       let a', b' = aux k a, aux (k+1) b in
       if !ct = ct' then t else mk_Pi  l x a' b'
     | _ -> t
-  in aux
+  in let res = aux n te in (res, !ct > 0)
 
 module IntMap = Map.Make(
   struct
@@ -49,34 +59,61 @@ struct
   let identity = IntMap.empty
   let is_identity = IntMap.is_empty
 
+  (** Substitution function corresponding to given ExSubst.t instance [sigma].
+      We lookup the table at index: (DB index) [n] - (nb of local binders) [k]
+      When the variable is under applied it is simply not substituted.
+      Otherwise we return the reduct is shifted up by (nb of local binders) [k] *)
   let subst (sigma:t) =
     fun _ _ n nargs k ->
     let (arity,t) = IntMap.find (n-k) sigma in
     if nargs >= arity then Subst.shift k t else raise Not_found
 
+  (** Special substitution function corresponding to given ExSubst.t instance [sigma]
+      "in a smaller context":
+      Assume [sigma] a substitution in a context Gamma = Gamma' ; Delta with |Delta|=[i].
+      Then this function represents the substitution [sigma] in the context Gamma'.
+      All variables of Delta are ignored and substitutes of the variables of Gamma'
+      are unshifted. This may therefore raise UnshiftExn in case substitutes of
+      variables of Gamma' refers to variables of Delta.
+  *)
   let subst2 (sigma:t) (i:int) =
     fun _ _ n nargs k ->
     let (argmin,t) = IntMap.find (n+i+1-k) sigma in
     if nargs >= argmin then Subst.shift k (Subst.unshift (i+1) t) else raise Not_found
 
-  let apply (sigma:t) : int -> term -> term =
-    if is_identity sigma then (fun _ t -> t) else apply_exsubst (subst sigma)
+  let apply' (sigma:t) : int -> term -> term*bool =
+    if is_identity sigma then (fun _ t -> t,false) else apply_exsubst (subst sigma)
+
+  let apply2' (sigma:t) (i:int) : int -> term -> term*bool =
+    if is_identity sigma then (fun _ t -> t,false) else apply_exsubst (subst2 sigma i)
+
+  let apply = fun sigma i t -> fst (apply' sigma i t)
+
+  let apply2 = fun sigma n i t -> fst (apply2' sigma n i t)
 
   let add (sigma:t) (n:int) (nargs:int) (t:term) : t =
-(*
     assert ( not (IntMap.mem n sigma) || fst (IntMap.find n sigma) > nargs );
-*)
     if not (IntMap.mem n sigma)  || fst (IntMap.find n sigma) > nargs
     then IntMap.add n (nargs,t) sigma else sigma
 
+  let applys (sigma:t)  : t -> t*bool =
+    if is_identity sigma then (fun t -> t,false)
+    else fun sigma' ->
+      let modified = ref false in
+      let applysigma (n,t) =
+        let res,flag = apply' sigma 0 t in
+        if flag then modified := true;
+        (n,res)
+      in
+      IntMap.map applysigma sigma', !modified
+
   let rec mk_idempotent (sigma:t) : t =
-    let sigma2:t = IntMap.map (fun (n,t) -> n,apply sigma 0 t) sigma in
-    if IntMap.equal (fun (n1,t1) (n2,t2) -> n1 = n2 && term_eq t1 t2) sigma sigma2 then sigma
-    else mk_idempotent sigma2
+    let sigma', flag = applys sigma sigma in
+    if flag then mk_idempotent sigma' else sigma
 
   let pp (name:(int->ident)) (fmt:formatter) (sigma:t) : unit =
     let pp_aux i (n,t) =
-      fprintf fmt "  %a[%i](...%i...) -> %a(...)\n" pp_ident (name i) i n pp_term t in
+      fprintf fmt "  %a[%i](%i args) -> %a\n" pp_ident (name i) i n pp_term t in
     IntMap.iter pp_aux sigma
 
 end

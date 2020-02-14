@@ -29,4 +29,4 @@ P : numeral -> Type.
 P2: n:numeral -> P n -> Type.
 
 y : P 2_13.
-z: P2 2_17 y.
+z : P2 2_17 y.
