@@ -10,7 +10,7 @@ type confluence_error =
   | MaybeConfluent of string
   | CCFailure      of string
 
-exception ConfluenceError of confluence_error
+exception Confluence_error of confluence_error
 
 val set_cmd : string -> unit
 val initialize : unit -> unit

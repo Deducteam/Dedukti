@@ -20,7 +20,7 @@ type signature_error =
   | GuardNotSatisfied     of loc * term * term
   | CouldNotExportModule  of mident * string
 
-exception SignatureError of signature_error
+exception Signature_error of signature_error
 
 type staticity = Static | Definable
 

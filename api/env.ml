@@ -32,12 +32,12 @@ type env_error =
   | BracketScopingError
   | AssertError
 
-exception EnvError of mident option * loc * env_error
+exception Env_error of mident option * loc * env_error
 
 let raise_as_env md lc = function
-  | SignatureError e -> raise (EnvError (Some md, lc, (EnvErrorSignature e)))
-  | TypingError    e -> raise (EnvError (Some md, lc, (EnvErrorType      e)))
-  | RuleError      e -> raise (EnvError (Some md, lc, (EnvErrorRule      e)))
+  | Signature_error e -> raise (Env_error (Some md, lc, (EnvErrorSignature e)))
+  | Typing_error    e -> raise (Env_error (Some md, lc, (EnvErrorType      e)))
+  | Rule_error      e -> raise (Env_error (Some md, lc, (EnvErrorRule      e)))
   | ex               -> raise ex
 
 let check_arity = ref true
@@ -88,7 +88,7 @@ struct
   let get_signature () = !sg
 
   let raise_as_env x = raise_as_env (get_name()) x
-  let raise_env lc err = raise (EnvError (Some (get_name()), lc, err))
+  let raise_env lc err = raise (Env_error (Some (get_name()), lc, err))
 
   module Printer = Pp.Make(struct let get_name = get_name end)
 
@@ -123,7 +123,7 @@ struct
   let _declare lc (id:ident) st ty : unit =
     match T.inference !sg ty with
     | Kind | Type _ -> Signature.add_declaration !sg lc id st ty
-    | s -> raise (Typing.TypingError (Typing.SortExpected (ty,[],s)))
+    | s -> raise (Typing.Typing_error (Typing.SortExpected (ty,[],s)))
 
   let is_static lc cst = Signature.is_static !sg lc cst
 
@@ -152,7 +152,7 @@ struct
   (** Checks that all rule are left-linear. *)
   let _check_ll (r:rule_infos) : unit =
     List.iter
-      (function Linearity _ -> raise (EnvError (Some (get_name()), r.l, NonLinearRule r.name)) | _ -> ())
+      (function Linearity _ -> raise (Env_error (Some (get_name()), r.l, NonLinearRule r.name)) | _ -> ())
       r.constraints
 
   let _add_rules rs =
