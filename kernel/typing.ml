@@ -179,7 +179,7 @@ let sure_occur_check sg (d:int) (p:int -> bool) (te:term) : bool =
             if n >= k && p (n-k)
             then raise VarSurelyOccurs
             else aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl)
-          | Const (l,cst) when Signature.is_static sg l cst ->
+          | Const (l,cst) when Signature.is_injective sg l cst ->
             (  aux ( (k, a):: (List.map (fun t -> (k,t)) args) @ tl) )
           | _ -> aux tl
           (* Default case encompasses:
@@ -246,9 +246,9 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
           pseudo_u sg fail sigma ((q+1,b,b')::lst)
 
         (* A definable symbol is only be convertible with closed terms *)
-        | Const (l,cst), t when not (Signature.is_static sg l cst) ->
+        | Const (l,cst), t when not (Signature.is_injective sg l cst) ->
           if sure_occur_check sg q (fun k -> k <= q) t then warn() else keepon()
-        | t, Const (l,cst) when not (Signature.is_static sg l cst) ->
+        | t, Const (l,cst) when not (Signature.is_injective sg l cst) ->
           if sure_occur_check sg q (fun k -> k <= q) t then warn() else keepon()
 
         (* X = Y :  map either X to Y or Y to X *)
@@ -297,10 +297,10 @@ let rec pseudo_u sg (fail: int*term*term-> unit) (sigma:SS.t) : (int*term*term) 
         | t, App (DB (_,_,n),a,args) when n >= q ->
           let occs = gather_free_vars q (a::args) in
           if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t then warn() else keepon()
-        | App (Const (l,cst),a,args), t when not (Signature.is_static sg l cst) ->
+        | App (Const (l,cst),a,args), t when not (Signature.is_injective sg l cst) ->
           let occs = gather_free_vars q (a::args) in
           if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t then warn() else keepon()
-        | t, App (Const (l,cst),a,args) when not (Signature.is_static sg l cst) ->
+        | t, App (Const (l,cst),a,args) when not (Signature.is_injective sg l cst) ->
           let occs = gather_free_vars q (a::args) in
           if sure_occur_check sg q (fun k -> k < q && not occs.(k)) t then warn() else keepon()
 

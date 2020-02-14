@@ -253,7 +253,11 @@ let print_entry fmt e =
   | Decl(_,id,Public,Signature.Definable,ty) ->
     fprintf fmt "@[<2>def %a :@ %a.@]@.@." print_ident id print_term ty
   | Decl(_,id,Private,Signature.Definable,ty) ->
-    fprintf fmt "@[<2>private def %a :@ %a.@]@.@." print_ident id print_term ty
+     fprintf fmt "@[<2>private def %a :@ %a.@]@.@." print_ident id print_term ty
+  | Decl(_,id,Public,Signature.Injective,ty) ->
+    fprintf fmt "@[<2>injective %a :@ %a.@]@.@." print_ident id print_term ty
+  | Decl(_,id,Private,Signature.Injective,ty) ->
+    fprintf fmt "@[<2>private injective %a :@ %a.@]@.@." print_ident id print_term ty
   | Def(_,id,scope,opaque,ty,te)  ->
      let key =
        match scope, opaque with
@@ -266,7 +270,7 @@ let print_entry fmt e =
        match ty with
        | None    -> fprintf fmt "@[<hv2>%s %a@ :=@ %a.@]@.@." key
                      print_ident id print_term te
-      | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
+       | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
                      print_ident id print_term ty print_term te
     end
   | Rules(_,rs)             ->

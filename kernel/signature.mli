@@ -24,8 +24,15 @@ type signature_error =
 exception Signature_error of signature_error
 (** Wrapper exception for errors occuring while handling a signature. *)
 
-type staticity = Static | Definable
-(** Is the symbol allowed to have rewrite rules or not ? *)
+type staticity = Static | Definable | Injective
+(** Is the symbol allowed to have rewrite rules or not ?
+    And if it has, can it be considered injective by the type-checker ? *)
+(*  FIXME With the current implementation, one is not allowed to write
+    [injective f := t], making the syntax not homogeneous.
+    However, it would be useless to declare such a definition as injective,
+    since a defined symbol cannot occur at the head of a WHNF,
+    hence, the conversion test will never wonder if the convertibility between
+    the arguments of [f] implies the convertibility of the whole term. *)
 
 type scope = Public | Private
 (** Should the symbol be accessible from outside its definition file ? *)
@@ -54,7 +61,7 @@ val get_md_deps         : loc -> mident -> mident list
 (** [get_deps lc md] returns the list of direct dependencies of module [md].
     This function makes the assumption that the file [md.dko] exists. *)
 
-val is_static           : t -> loc -> name -> bool
+val is_injective        : t -> loc -> name -> bool
 (** [is_injective sg l cst] is true when [cst] is a static symbol. *)
 
 val get_type            : t -> loc -> name -> term

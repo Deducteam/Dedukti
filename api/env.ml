@@ -56,7 +56,7 @@ sig
   module HName : Hashtbl.S with type key = name
   val get_symbols : unit -> Signature.rw_infos HName.t
   val get_type    : loc -> name -> term
-  val is_static   : loc -> name -> bool
+  val is_injective: loc -> name -> bool
   val get_dtree   : loc -> name -> Dtree.t
   val export      : unit -> unit
   val import      : loc -> mident -> unit
@@ -128,7 +128,7 @@ struct
     | Kind | Type _ -> Signature.add_declaration !sg lc id scope st ty
     | s -> raise (Typing.Typing_error (Typing.SortExpected (ty,[],s)))
 
-  let is_static lc cst = Signature.is_static !sg lc cst
+  let is_injective lc cst = Signature.is_injective !sg lc cst
 
   (*         Rule checking       *)
 

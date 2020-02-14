@@ -33,6 +33,10 @@ let pp_entry fmt e =
     fprintf fmt "@[<2>def %a :@ %a.@]@.@." pp_ident id pp_term ty
   | Decl(_,id,Private,Signature.Definable,ty) ->
     fprintf fmt "@[<2>private def %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Public,Signature.Injective,ty) ->
+     fprintf fmt "@[<2>injective %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Private,Signature.Injective,ty) ->
+     fprintf fmt "@[<2>private injective %a :@ %a.@]@.@." pp_ident id pp_term ty
   | Def(_,id,scope,opaque,ty,te)  ->
      let key =
        match scope, opaque with

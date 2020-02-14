@@ -43,6 +43,7 @@ rule token = parse
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE       ( get_loc lexbuf ) }
   | "def"       { KW_DEF     ( get_loc lexbuf ) }
+  | "injective" { KW_INJ     ( get_loc lexbuf ) }
   | "thm"       { KW_THM     ( get_loc lexbuf ) }
   | "private"   { KW_PRV     ( get_loc lexbuf ) }
   | "#NAME"    space+ (mident as md) { NAME    (get_loc lexbuf , mk_mident md) }

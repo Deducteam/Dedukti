@@ -39,7 +39,7 @@ module HId = Hashtbl.Make(
     let hash  = Hashtbl.hash
   end )
 
-type staticity = Static | Definable
+type staticity = Static | Definable | Injective
 type scope     = Public | Private
 
 (** The pretty printer for the type [staticity] *)
@@ -237,10 +237,10 @@ let export sg =
 
 (******************************************************************************)
 
-let is_static sg lc cst =
+let is_injective sg lc cst =
   match (get_infos sg lc cst).stat with
-  | Static    -> true
-  | Definable -> false
+  | Static | Injective -> true
+  | Definable          -> false
 
 let get_type sg lc cst =
   let infos = get_infos sg lc cst in

@@ -69,8 +69,8 @@ sig
   val get_type    : loc -> name -> term
   (** [get_type l md id] returns the type of the constant [md.id]. *)
 
-  val is_static   : loc -> name -> bool
-  (** [is_static l cst] returns [true] if the symbol is declared as [static], [false] otherwise *)
+  val is_injective : loc -> name -> bool
+  (** [is_injective l cst] returns [true] if the symbol is declared as [static] or [injective], [false] otherwise *)
 
   val get_dtree   : loc -> name -> Dtree.t
   (** [get_dtree l md id] returns the decision/matching tree associated with [md.id]. *)
