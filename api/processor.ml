@@ -15,27 +15,25 @@ module TypeChecker (E:Env.S) : S with type t = unit =
 struct
   module Printer = E.Printer
 
-  open Debug
-
   type t = unit
 
   let handle_entry e =
     let open Entry in
     match e with
     | Decl(lc,id,st,ty) ->
-      debug D_notice "Declaration of constant '%a'." pp_ident id;
+      Debug.(debug d_notice) "Declaration of constant '%a'." pp_ident id;
       E.declare lc id st ty
     | Def(lc,id,opaque,ty,te) ->
       let opaque_str = if opaque then " (opaque)" else "" in
-      debug D_notice "Definition of symbol '%a'%s." pp_ident id opaque_str;
+      Debug.(debug d_notice) "Definition of symbol '%a'%s." pp_ident id opaque_str;
       E.define lc id opaque te ty
     | Rules(_,rs) ->
       let open Rule in
       List.iter (fun (r:partially_typed_rule) ->
-          Debug.(debug D_notice "Adding rewrite rules: '%a'" Printer.print_rule_name r.name)) rs;
+          Debug.(debug d_notice "Adding rewrite rules: '%a'" Printer.print_rule_name r.name)) rs;
       let rs = E.add_rules rs in
       List.iter (fun (s,r) ->
-          Debug.debug Debug.D_notice "%a@.with the following constraints: %a"
+          Debug.debug Debug.d_notice "%a@.with the following constraints: %a"
             pp_typed_rule r (Subst.Subst.pp (fun n -> let _,n,_ = List.nth r.ctx n in n)) s) rs
     | Eval(_,red,te) ->
       let te = E.reduction ~red te in
@@ -66,7 +64,7 @@ struct
     | Print(_,s) -> Format.printf "%s@." s
     | Name(_,n) ->
       if not (mident_eq n (E.get_name()))
-      then Debug.(debug D_warn "Invalid #NAME directive ignored.@.")
+      then Debug.(debug d_warn "Invalid #NAME directive ignored.@.")
     | Require(lc,md) -> E.import lc md
 
   let get_data () = ()

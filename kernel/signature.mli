@@ -4,7 +4,7 @@ open Basic
 open Term
 open Rule
 
-type Debug.flag += D_module
+val d_module : Debug.flag
 
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
