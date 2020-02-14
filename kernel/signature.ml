@@ -10,17 +10,18 @@ let fail_on_symbol_not_found = ref true
 
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
-  | UnmarshalSysError     of loc * string * string
-  | UnmarshalUnknown      of loc * string
-  | SymbolNotFound        of loc * name
-  | AlreadyDefinedSymbol  of loc * name
-  | CannotMakeRuleInfos   of Rule.rule_error
-  | CannotBuildDtree      of Dtree.dtree_error
-  | CannotAddRewriteRules of loc * name
-  | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
-  | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
-  | GuardNotSatisfied     of loc * term * term
-  | CouldNotExportModule  of mident * string
+  | UnmarshalSysError         of loc * string * string
+  | UnmarshalUnknown          of loc * string
+  | SymbolNotFound            of loc * name
+  | AlreadyDefinedSymbol      of loc * name
+  | CannotMakeRuleInfos       of Rule.rule_error
+  | CannotBuildDtree          of Dtree.dtree_error
+  | CannotAddRewriteRules     of loc * name
+  | ConfluenceErrorImport     of loc * mident * Confluence.confluence_error
+  | ConfluenceErrorRules      of loc * rule_infos list * Confluence.confluence_error
+  | GuardNotSatisfied         of loc * term * term
+  | CouldNotExportModule      of mident * string
+  | PrivateSymbol             of loc * name
 
 exception Signature_error of signature_error
 
@@ -39,6 +40,7 @@ module HId = Hashtbl.Make(
   end )
 
 type staticity = Static | Definable
+type scope     = Public | Private
 
 (** The pretty printer for the type [staticity] *)
 let pp_staticity fmt s =
@@ -48,6 +50,7 @@ type rw_infos =
   {
     stat          : staticity;
     ty            : term;
+    scope         : scope;
     rules         : rule_infos list;
     decision_tree : Dtree.t option
   }
@@ -141,16 +144,16 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
   try Confluence.check () with
   | Confluence.Confluence_error e -> raise (Signature_error (ConfluenceErrorImport (lc,md,e)))
 
-let add_external_declaration sg lc cst st ty =
+let add_external_declaration sg lc cst scope stat ty =
   try
     let env = HMd.find sg.tables (md cst) in
     if HId.mem env (id cst)
     then raise (Signature_error (AlreadyDefinedSymbol (lc, cst)))
-    else HId.replace env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
+    else HId.replace env (id cst) {stat; ty; scope; rules=[]; decision_tree=None}
   with Not_found ->
     HMd.replace sg.tables (md cst) (HId.create 11);
     let env = HMd.find sg.tables (md cst) in
-    HId.replace env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
+    HId.replace env (id cst) {stat; ty; scope; rules=[]; decision_tree=None}
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
@@ -176,8 +179,8 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       with
       | Signature_error (SymbolNotFound _)
       | Signature_error (UnmarshalUnknown _) when not !fail_on_symbol_not_found ->
-        add_external_declaration sg r.l r.cst Definable (mk_Kind);
-        get_info_env sg r.l r.cst
+         add_external_declaration sg r.l r.cst Public Definable (mk_Kind);
+         get_info_env sg r.l r.cst
     in
     if infos.stat = Static && !fail_on_symbol_not_found
     then raise (Signature_error (CannotAddRewriteRules (r.l,r.cst)));
@@ -239,7 +242,11 @@ let is_static sg lc cst =
   | Static    -> true
   | Definable -> false
 
-let get_type sg lc cst = (get_infos sg lc cst).ty
+let get_type sg lc cst =
+  let infos = get_infos sg lc cst in
+  if infos.scope = Public || md cst = sg.name
+  then infos.ty
+  else raise (Signature_error (PrivateSymbol(lc,cst)))
 
 let get_rules sg lc cst = (get_infos sg lc cst).rules
 
@@ -253,9 +260,9 @@ let get_dtree sg lc cst =
 
 (******************************************************************************)
 
-let add_declaration sg lc v st ty =
+let add_declaration sg lc v scope stat ty =
   let cst = mk_name sg.name v in
-  add_external_declaration sg lc cst st ty
+  add_external_declaration sg lc cst scope stat ty
 
 let add_rules sg = function
   | [] -> ()

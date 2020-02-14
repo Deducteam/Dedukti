@@ -19,14 +19,21 @@ type signature_error =
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
   | CouldNotExportModule  of mident * string
+  | PrivateSymbol         of loc * name
 
 exception Signature_error of signature_error
+(** Wrapper exception for errors occuring while handling a signature. *)
 
 type staticity = Static | Definable
+(** Is the symbol allowed to have rewrite rules or not ? *)
+
+type scope = Public | Private
+(** Should the symbol be accessible from outside its definition file ? *)
 
 val pp_staticity : staticity printer
 
 type t
+(** A collection of well-typed symbols and rewrite rules. *)
 
 val make                : string -> t
 (** [make file] creates a new signature corresponding to the file [file]. *)
@@ -61,11 +68,12 @@ val get_dtree           : t -> loc -> name -> Dtree.t
 val get_rules           : t -> loc -> name -> rule_infos list
 (** [get_rules sg lc cst] returns a list of rules that defines the symbol. *)
 
-val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
-(** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
-    and staticity [st] in the environment [sg]. *)
+val add_declaration     : t -> loc -> ident -> scope -> staticity -> term -> unit
+(** [add_declaration sg l id sc st ty] declares the symbol [id] of type [ty]
+    and staticity [st] in the environment [sg].
+    If [sc] is [Private] then the symbol cannot be used in other modules *)
 
-val add_external_declaration : t -> loc -> name -> staticity -> term -> unit
+val add_external_declaration : t -> loc -> name -> scope -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
 
@@ -88,6 +96,8 @@ type rw_infos =
     (** Whether a symbol is definable *)
     ty            : term;
     (** The type of a symbol *)
+    scope         : scope;
+    (** The scope of the symbol ([Public]/[Private]) *)
     rules         : rule_infos list;
     (** The list of rules associated to a symbol.
         They are ordored by their declaration within a file and in order they are imported

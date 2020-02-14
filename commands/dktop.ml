@@ -15,11 +15,11 @@ let print fmt =
 
 let handle_entry md e =
   match e with
-  | Decl(lc,id,st,ty) ->
-    E.declare lc id st ty;
+  | Decl(lc,id,scope,st,ty) ->
+    E.declare lc id scope st ty;
     Format.printf "%a is declared.@." pp_ident id
-  | Def(lc,id,op,ty,te) ->
-    E.define lc id op te ty;
+  | Def(lc,id,scope,op,ty,te) ->
+    E.define lc id scope op te ty;
     Format.printf "%a is defined.@." pp_ident id
   | Rules(_,rs) ->
     let _ = E.add_rules rs in

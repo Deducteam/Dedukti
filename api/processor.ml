@@ -20,13 +20,13 @@ struct
   let handle_entry e =
     let open Entry in
     match e with
-    | Decl(lc,id,st,ty) ->
+    | Decl(lc,id,scope,st,ty) ->
       Debug.(debug d_notice) "Declaration of constant '%a'." pp_ident id;
-      E.declare lc id st ty
-    | Def(lc,id,opaque,ty,te) ->
+      E.declare lc id scope st ty
+    | Def(lc,id,scope,opaque,ty,te) ->
       let opaque_str = if opaque then " (opaque)" else "" in
       Debug.(debug d_notice) "Definition of symbol '%a'%s." pp_ident id opaque_str;
-      E.define lc id opaque te ty
+      E.define lc id scope opaque te ty
     | Rules(_,rs) ->
       let open Rule in
       List.iter (fun (r:partially_typed_rule) ->
@@ -80,15 +80,15 @@ struct
     let md = E.get_name      () in
     let open Entry in
     match e with
-    | Decl(lc,id,st,ty) ->
-      Signature.add_external_declaration sg lc (Basic.mk_name md id) st ty
-    | Def(lc,id,_,Some ty,te) ->
+    | Decl(lc,id,scope,st,ty) ->
+      Signature.add_external_declaration sg lc (Basic.mk_name md id) scope st ty
+    | Def(lc,id,scope,_,Some ty,te) ->
       let open Rule in
-      Signature.add_external_declaration sg lc (Basic.mk_name md id) Signature.Definable ty;
+      Signature.add_external_declaration sg lc (Basic.mk_name md id) scope Signature.Definable ty;
       let cst = Basic.mk_name md id in
       let rule = { name= Delta(cst) ; ctx = [] ; pat = Pattern(lc, cst, []); rhs = te ; } in
       Signature.add_rules sg [Rule.to_rule_infos rule]
-    | Def(lc,_,_, None,_) ->
+    | Def(lc,_,_,_, None,_) ->
       E.raise_env lc (Env.EnvErrorType(Typing.DomainFreeLambda lc))
     | Rules(_,rs) ->
       Signature.add_rules sg (List.map Rule.to_rule_infos rs)

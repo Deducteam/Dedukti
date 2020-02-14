@@ -60,9 +60,12 @@ sig
   val get_dtree   : loc -> name -> Dtree.t
   val export      : unit -> unit
   val import      : loc -> mident -> unit
-  val declare     : loc -> ident -> Signature.staticity -> term -> unit
-  val define      : loc -> ident -> bool -> term -> term option -> unit
-  val add_rules   : Rule.partially_typed_rule list -> (Subst.Subst.t * Rule.typed_rule) list
+  val declare     : loc -> ident -> Signature.scope ->
+                    Signature.staticity -> term -> unit
+  val define      : loc -> ident -> Signature.scope ->
+                    bool -> term -> term option -> unit
+  val add_rules   : Rule.partially_typed_rule list ->
+                    (Subst.Subst.t * Rule.typed_rule) list
 
   val infer            : ?ctx:typed_context -> term         -> term
   val check            : ?ctx:typed_context -> term -> term -> unit
@@ -120,9 +123,9 @@ struct
     try Signature.import !sg lc md
     with e -> raise_as_env lc e
 
-  let _declare lc (id:ident) st ty : unit =
+  let _declare lc (id:ident) scope st ty : unit =
     match T.inference !sg ty with
-    | Kind | Type _ -> Signature.add_declaration !sg lc id st ty
+    | Kind | Type _ -> Signature.add_declaration !sg lc id scope st ty
     | s -> raise (Typing.Typing_error (Typing.SortExpected (ty,[],s)))
 
   let is_static lc cst = Signature.is_static !sg lc cst
@@ -161,7 +164,7 @@ struct
     if !check_ll    then List.iter _check_ll    ris;
     Signature.add_rules !sg ris
 
-  let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:Typing.typ option) : unit =
+  let _define lc (id:ident) (scope:scope) (opaque:bool) (te:term) (ty_opt:Typing.typ option) : unit =
     let ty = match ty_opt with
       | None -> T.inference !sg te
       | Some ty -> T.checking !sg te ty; ty
@@ -169,9 +172,9 @@ struct
     match ty with
     | Kind -> raise_env lc (KindLevelDefinition id)
     | _ ->
-      if opaque then Signature.add_declaration !sg lc id Signature.Static ty
+      if opaque then Signature.add_declaration !sg lc id scope Signature.Static ty
       else
-        let _ = Signature.add_declaration !sg lc id Signature.Definable ty in
+        let _ = Signature.add_declaration !sg lc id scope Signature.Definable ty in
         let cst = mk_name (get_name ()) id in
         let rule =
           { name= Delta(cst) ;
@@ -182,12 +185,12 @@ struct
         in
         _add_rules [rule]
 
-  let declare lc id st ty : unit =
-    try _declare lc id st ty
+  let declare lc id scope st ty : unit =
+    try _declare lc id scope st ty
     with e -> raise_as_env lc e
 
-  let define lc id op te ty_opt : unit =
-    try _define lc id op te ty_opt
+  let define lc id scope op te ty_opt : unit =
+    try _define lc id scope op te ty_opt
     with e -> raise_as_env lc e
 
   let add_rules (rules: partially_typed_rule list) : (Subst.Subst.t * typed_rule) list =

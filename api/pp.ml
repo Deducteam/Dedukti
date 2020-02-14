@@ -232,14 +232,12 @@ let print_typed_rule      = print_rule print_typed_decl
 let print_part_typed_rule = print_rule print_part_typed_decl
 
 let print_rule_infos out ri =
-  let rule = { name = ri.name ;
-               ctx = [] ;
-               (* TODO: here infer context from named variable inside left hand side pattern *)
-               pat =  pattern_of_rule_infos ri;
-               rhs = ri.rhs
-             }
-  in
-  print_untyped_rule out rule
+  print_untyped_rule out
+    { name = ri.name
+    ; ctx = []
+    (* TODO: here infer context from named variable inside LHS pattern *)
+    ; pat =  pattern_of_rule_infos ri
+    ; rhs = ri.rhs  }
 
 let print_red_cfg fmt cfg =
   let open Reduction in
@@ -248,20 +246,30 @@ let print_red_cfg fmt cfg =
 let print_entry fmt e =
   let open Format in
   match e with
-  | Decl(_,id,Signature.Static,ty) ->
+  | Decl(_,id,Public,Signature.Static,ty) ->
     fprintf fmt "@[<2>%a :@ %a.@]@.@." print_ident id print_term ty
-  | Decl(_,id,Signature.Definable,ty) ->
+  | Decl(_,id,Private,Signature.Static,ty) ->
+    fprintf fmt "@[<2>private %a :@ %a.@]@.@." print_ident id print_term ty
+  | Decl(_,id,Public,Signature.Definable,ty) ->
     fprintf fmt "@[<2>def %a :@ %a.@]@.@." print_ident id print_term ty
-  | Def(_,id,opaque,ty,te) ->
-    let key = if opaque then "thm" else "def" in
-    begin
-      match ty with
-      | None    -> fprintf fmt "@[<hv2>%s %a@ :=@ %a.@]@.@." key
+  | Decl(_,id,Private,Signature.Definable,ty) ->
+    fprintf fmt "@[<2>private def %a :@ %a.@]@.@." print_ident id print_term ty
+  | Def(_,id,scope,opaque,ty,te)  ->
+     let key =
+       match scope, opaque with
+       | Public , true  -> "thm"
+       | Public , false -> "def"
+       | Private, true  -> "private thm"
+       | Private, false -> "private def"
+     in
+     begin
+       match ty with
+       | None    -> fprintf fmt "@[<hv2>%s %a@ :=@ %a.@]@.@." key
                      print_ident id print_term te
       | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
                      print_ident id print_term ty print_term te
     end
-  | Rules(_,rs)               ->
+  | Rules(_,rs)             ->
     fprintf fmt "@[<v0>%a@].@.@." (print_list "" print_part_typed_rule) rs
   | Eval(_,cfg,te)          ->
     fprintf fmt "#EVAL%a %a.@." print_red_cfg cfg print_term te
@@ -273,22 +281,21 @@ let print_entry fmt e =
     begin
       match test with
       | Convert(t1,t2) ->
-        fprintf fmt "%s%s %a ==@ %a.@." cmd neg print_term t1 print_term t2
+         fprintf fmt "%s%s %a ==@ %a.@." cmd neg print_term t1 print_term t2
       | HasType(te,ty) ->
-        fprintf fmt "%s%s %a ::@ %a.@." cmd neg print_term te print_term ty
+         fprintf fmt "%s%s %a ::@ %a.@." cmd neg print_term te print_term ty
     end
   | DTree(_,m,v)            ->
-    begin
-      match m with
-      | None   -> fprintf fmt "#GDT %a.@." print_ident v
-      | Some m -> fprintf fmt "#GDT %a.%a.@." print_mident m print_ident v
-    end
+     begin
+       match m with
+       | None   -> fprintf fmt "#GDT %a.@." print_ident v
+       | Some m -> fprintf fmt "#GDT %a.%a.@." print_mident m print_ident v
+     end
   | Print(_, str)           ->
-    fprintf fmt "#PRINT %S.@." str
-  | Name(_,_)               ->
-    ()
+     fprintf fmt "#PRINT %S.@." str
+  | Name(_,_)               -> ()
   | Require(_, md) ->
-    fprintf fmt "#REQUIRE %a.@." print_mident md
+     fprintf fmt "#REQUIRE %a.@." print_mident md
 
 (** The pretty printer for the type [Signature.staticity] *)
 let print_staticity fmt s =
