@@ -3,14 +3,11 @@ open Term
 open Rule
 open Format
 
-type Debug.flag += D_matching
-let _ = Debug.register_flag D_matching "Matching"
-
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
 
-exception DtreeError of dtree_error
+exception Dtree_error of dtree_error
 
 type case =
   | CConst of int * name
@@ -136,7 +133,7 @@ let specialize_rule (c:int) (nargs:int) (r:rule_infos) : rule_infos =
     else (* size <= i < size+nargs *)
       let check_args id pats =
         if ( Array.length pats != nargs ) then
-          raise (DtreeError(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
+          raise (Dtree_error(ArityInnerMismatch(r.l, Basic.id r.cst, id)));
         pats.( i - size)
       in
       match r.pats.(c) with
@@ -268,7 +265,7 @@ let of_rules = function
     List.iter
       (fun x ->
          if not (name_eq x.cst name)
-         then raise (DtreeError (HeadSymbolMismatch (x.l,x.cst,name)));
+         then raise (Dtree_error (HeadSymbolMismatch (x.l,x.cst,name)));
          let arity = List.length x.args in
          arities := add !arities arity)
       rs;

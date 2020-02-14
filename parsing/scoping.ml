@@ -111,7 +111,7 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : partially_typed_rul
   if unused_vars
   then
     begin
-      Debug.(debug D_warn "Local variables in the rule:\n%a\nare not used (%a)")
+      Debug.(debug d_warn "Local variables in the rule:\n%a\nare not used (%a)")
         pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
       if has_brackets then
         raise @@ Scoping_error(l,"Unused variables in context may create scoping ambiguity in bracket")

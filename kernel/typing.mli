@@ -4,7 +4,8 @@ open Basic
 
 (** Type checking/inference *)
 
-type Debug.flag += D_typeChecking | D_rule
+val d_typeChecking : Debug.flag
+val d_rule         : Debug.flag
 
 val coc : bool ref
 
@@ -31,7 +32,7 @@ type typing_error =
   | Convertible                        of loc * term * term
   | Inhabit                            of loc * term * term
 
-exception TypingError of typing_error
+exception Typing_error of typing_error
 
 type typ = term
 

@@ -1,7 +1,8 @@
 (** Matching on terms *)
-
 open Basic
 open Term
+
+val d_matching : Debug.flag
 
 exception NotUnifiable
 
