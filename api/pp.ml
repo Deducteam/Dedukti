@@ -272,7 +272,7 @@ let print_entry fmt e =
       | None    -> fprintf fmt "@[<hv2>%s%s %a@ :=@ %a.@]@.@."
                      (scope_to_string scope) key
                      print_ident id print_term te
-      | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@."
+      | Some ty -> fprintf fmt "@[<hv2>%s%s %a :@ %a@ :=@ %a.@]@.@."
                      (scope_to_string scope) key
                      print_ident id print_term ty print_term te
     end

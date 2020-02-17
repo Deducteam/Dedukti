@@ -51,7 +51,7 @@ let pp_entry fmt e =
       | None    -> fprintf fmt "@[<hv2>%s%s %a@ :=@ %a.@]@.@."
                      (scope_to_string scope) key
                      pp_ident id pp_term te
-      | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@."
+      | Some ty -> fprintf fmt "@[<hv2>%s%s %a :@ %a@ :=@ %a.@]@.@."
                      (scope_to_string scope) key
                      pp_ident id pp_term ty pp_term te
     end
