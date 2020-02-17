@@ -159,7 +159,9 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
     in
     if infos.stat = Static && !fail_on_symbol_not_found
     then raise (Signature_error (CannotAddRewriteRules (r.l,r.cst)));
-    HId.replace env (id r.cst) {infos with rules = rs @ infos.rules; decision_tree= None}
+    HId.replace env (id r.cst) {infos with rules = List.rev_append rs infos.rules; decision_tree= None}
+    (* [rs] is in the order the user declared the rules,
+       but a [rw_infos] is a Lifo pile, hence the [rev_append]. *)
 
 and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t option =
   let infos, env = get_info_env sg lc cst in
