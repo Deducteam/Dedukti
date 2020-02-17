@@ -22,6 +22,7 @@ type signature_error =
   | GuardNotSatisfied     of loc * term * term
   | ExpectedACUSymbol     of loc * name
   | CouldNotExportModule  of mident * string
+  | PrivateSymbol             of loc * name
 
 exception Signature_error of signature_error
 
@@ -39,11 +40,14 @@ module HId = Hashtbl.Make(
     let hash  = Hashtbl.hash
   end )
 
-type staticity = Static | Definable of algebra
+type staticity = Static | Definable of algebra | Injective
 
 let algebra_of_staticity = function
-  | Static -> Free
+  | Static
+  | Injective   -> Free
   | Definable a -> a
+
+type scope     = Public | Private
 
 (** The pretty printer for the type [staticity] *)
 let pp_staticity fmt s =
@@ -53,6 +57,7 @@ type rw_infos =
   {
     stat          : staticity;
     ty            : term;
+    scope         : scope;
     rules         : rule_infos list;
     decision_tree : Dtree.t option
   }
@@ -215,16 +220,16 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
   try check ()
   with Confluence_error e -> raise (Signature_error (ConfluenceErrorImport (lc,md,e)))
 
-let add_external_declaration sg lc cst st ty =
+let add_external_declaration sg lc cst scope stat ty =
   try
     let env = HMd.find sg.tables (md cst) in
     if HId.mem env (id cst)
     then raise (Signature_error (AlreadyDefinedSymbol (lc, cst)))
-    else HId.replace env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
+    else HId.replace env (id cst) {stat; ty; scope; rules=[]; decision_tree=None}
   with Not_found ->
     HMd.replace sg.tables (md cst) (HId.create 11);
     let env = HMd.find sg.tables (md cst) in
-    HId.replace env (id cst) {stat=st; ty=ty; rules=[]; decision_tree=None}
+    HId.replace env (id cst) {stat; ty; scope; rules=[]; decision_tree=None}
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
@@ -250,7 +255,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       with
       | Signature_error (SymbolNotFound _)
       | Signature_error (UnmarshalUnknown _) when not !fail_on_symbol_not_found ->
-        add_external_declaration sg r.l r.cst (Definable Free) mk_Kind;
+        add_external_declaration sg r.l r.cst Public (Definable Free) mk_Kind;
         get_info_env sg r.l r.cst
     in
     if infos.stat = Static && !fail_on_symbol_not_found
@@ -321,12 +326,11 @@ let stat_code = function
   | Definable Free    -> 1
   | Definable AC      -> 2
   | Definable (ACU _) -> 3
+  | Injective         -> 4
 
 let get_id_comparator sg cst cst' =
   compare (stat_code (get_staticity sg dloc cst ), cst )
           (stat_code (get_staticity sg dloc cst'), cst')
-
-let is_injective sg lc cst = (get_staticity sg lc cst) == Static
 
 let get_neutral sg lc cst =
   match get_algebra sg lc cst with
@@ -342,12 +346,16 @@ let get_infos sg lc cst =
   try HId.find (get_env sg lc cst) (id cst)
   with Not_found -> raise (Signature_error (SymbolNotFound (lc,cst)))
 
-let is_static sg lc cst =
+let is_injective sg lc cst =
   match (get_infos sg lc cst).stat with
-  | Static      -> true
-  | Definable _ -> false
+  | Static | Injective -> true
+  | Definable _        -> false
 
-let get_type sg lc cst = (get_infos sg lc cst).ty
+let get_type sg lc cst =
+  let infos = get_infos sg lc cst in
+  if infos.scope = Public || md cst = sg.name
+  then infos.ty
+  else raise (Signature_error (PrivateSymbol(lc,cst)))
 
 let get_rules sg lc cst = (get_infos sg lc cst).rules
 
@@ -357,9 +365,9 @@ let get_dtree sg lc cst =
 
 (******************************************************************************)
 
-let add_declaration sg lc v st ty =
+let add_declaration sg lc v scope stat ty =
   let cst = mk_name sg.name v in
-  add_external_declaration sg lc cst st ty
+  add_external_declaration sg lc cst scope stat ty
 
 let add_rules sg = function
   | [] -> ()

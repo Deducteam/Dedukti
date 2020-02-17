@@ -20,14 +20,28 @@ type signature_error =
   | GuardNotSatisfied     of loc * term * term
   | ExpectedACUSymbol     of loc * name
   | CouldNotExportModule  of mident * string
+  | PrivateSymbol         of loc * name
 
 exception Signature_error of signature_error
+(** Wrapper exception for errors occuring while handling a signature. *)
 
-type staticity = Static | Definable of algebra
+type staticity = Static | Definable of algebra | Injective
+(** Is the symbol allowed to have rewrite rules or not ?
+    And if it has, can it be considered injective by the type-checker ? *)
+(*  FIXME With the current implementation, one is not allowed to write
+    [injective f := t], making the syntax not homogeneous.
+    However, it would be useless to declare such a definition as injective,
+    since a defined symbol cannot occur at the head of a WHNF,
+    hence, the conversion test will never wonder if the convertibility between
+    the arguments of [f] implies the convertibility of the whole term. *)
+
+type scope = Public | Private
+(** Should the symbol be accessible from outside its definition file ? *)
 
 val pp_staticity : staticity printer
 
 type t
+(** A collection of well-typed symbols and rewrite rules. *)
 
 val make                : string -> t
 (** [make file] creates a new signature corresponding to the file [file]. *)
@@ -52,8 +66,9 @@ val get_md_deps         : loc -> mident -> mident list
 (** [get_deps lc md] returns the list of direct dependencies of module [md].
     This function makes the assumption that the file [md.dko] exists. *)
 
-val is_static           : t -> loc -> name -> bool
-(** [is_injective sg l cst] is true when [cst] is a static symbol. *)
+val is_injective        : t -> loc -> name -> bool
+(** [is_injective sg l cst] is true when [cst] is either static
+    or declared as injective. *)
 
 val get_type            : t -> loc -> name -> term
 (** [get_type sg l md id] returns the type of the constant [md.id] inside the
@@ -64,10 +79,6 @@ val get_staticity       : t -> loc -> name -> staticity
 
 val get_algebra         : t -> loc -> name -> algebra
 (** [get_algebra sg l md id] returns the algebra of the symbol [md.id]. *)
-
-val is_injective        : t -> loc -> name -> bool
-(** [is_injective sg l md id] returns true when [md.id] is either static
-    or declared as injective. *)
 
 val get_neutral         : t -> loc -> name -> term
 (** [get_neutral sg l md id] returns the neutral element of the ACU symbol [md.id]. *)
@@ -85,11 +96,12 @@ val get_dtree           : t -> loc -> name -> Dtree.t
 val get_rules           : t -> loc -> name -> rule_infos list
 (** [get_rules sg lc cst] returns a list of rules that defines the symbol. *)
 
-val add_declaration     : t -> loc -> ident -> staticity -> term -> unit
-(** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
-    and staticity [st] in the environment [sg]. *)
+val add_declaration     : t -> loc -> ident -> scope -> staticity -> term -> unit
+(** [add_declaration sg l id sc st ty] declares the symbol [id] of type [ty]
+    and staticity [st] in the environment [sg].
+    If [sc] is [Private] then the symbol cannot be used in other modules *)
 
-val add_external_declaration : t -> loc -> name -> staticity -> term -> unit
+val add_external_declaration : t -> loc -> name -> scope -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
 
@@ -112,6 +124,8 @@ type rw_infos =
     (** Whether a symbol is definable *)
     ty            : term;
     (** The type of a symbol *)
+    scope         : scope;
+    (** The scope of the symbol ([Public]/[Private]) *)
     rules         : rule_infos list;
     (** The list of rules associated to a symbol.
         They are ordored by their declaration within a file and in order they are imported

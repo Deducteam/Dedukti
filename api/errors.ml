@@ -237,6 +237,8 @@ let fail_signature_error file md errid def_loc err =
     fail def_loc
       "Fail to export module '%a' to file %s."
       pp_mident md file
+  | PrivateSymbol (lc,cst) ->
+     fail lc "The symbol '%a' is private." pp_name cst
 
 let fail_dep_error fail md errid err =
   let fail lc = fail_exit 3 errid fail md (Some lc) in
@@ -302,6 +304,7 @@ let code : exn -> int =
           | Signature.ConfluenceErrorImport _                -> 400
           | Signature.GuardNotSatisfied _                    -> 401
           | Signature.CouldNotExportModule _                 -> 402
+          | Signature.PrivateSymbol _                        -> 403
           | Signature.ExpectedACUSymbol _                    -> 404
         end
       | EnvErrorRule e ->

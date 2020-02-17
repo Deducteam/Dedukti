@@ -38,7 +38,7 @@ let raise_as_env md lc = function
   | Signature_error e -> raise (Env_error (Some md, lc, (EnvErrorSignature e)))
   | Typing_error    e -> raise (Env_error (Some md, lc, (EnvErrorType      e)))
   | Rule_error      e -> raise (Env_error (Some md, lc, (EnvErrorRule      e)))
-  | ex               -> raise ex
+  | ex                -> raise ex
 
 let check_arity = ref true
 
@@ -56,13 +56,16 @@ sig
   module HName : Hashtbl.S with type key = name
   val get_symbols : unit -> Signature.rw_infos HName.t
   val get_type    : loc -> name -> term
-  val is_static   : loc -> name -> bool
+  val is_injective: loc -> name -> bool
   val get_dtree   : loc -> name -> Dtree.t
   val export      : unit -> unit
   val import      : loc -> mident -> unit
-  val declare     : loc -> ident -> Signature.staticity -> term -> unit
-  val define      : loc -> ident -> bool -> term -> term option -> unit
-  val add_rules   : Rule.partially_typed_rule list -> (Subst.Subst.t * Rule.typed_rule) list
+  val declare     : loc -> ident -> Signature.scope ->
+                    Signature.staticity -> term -> unit
+  val define      : loc -> ident -> Signature.scope ->
+                    bool -> term -> term option -> unit
+  val add_rules   : Rule.partially_typed_rule list ->
+                    (Subst.Subst.t * Rule.typed_rule) list
 
   val infer            : ?ctx:typed_context -> term         -> term
   val check            : ?ctx:typed_context -> term -> term -> unit
@@ -120,8 +123,8 @@ struct
     try Signature.import !sg lc md
     with e -> raise_as_env lc e
 
-  let _declare lc (id:ident) st ty : unit =
-    Signature.add_declaration !sg lc id st
+  let _declare lc (id:ident) scope st ty : unit =
+    Signature.add_declaration !sg lc id scope st
       ( match T.inference !sg ty, st with
         | Kind  , Definable AC
         | Kind  , Definable (ACU _)   ->
@@ -132,7 +135,7 @@ struct
         | Kind, _ | Type _, _ -> ty
         | s, _ -> raise (Typing_error (SortExpected (ty,[],s)))  )
 
-  let is_static lc cst = Signature.is_static !sg lc cst
+  let is_injective lc cst = Signature.is_injective !sg lc cst
 
   (*         Rule checking       *)
 
@@ -167,7 +170,7 @@ struct
     if !check_ll    then List.iter _check_ll    ris;
     Signature.add_rules !sg ris
 
-  let _define lc (id:ident) (opaque:bool) (te:term) (ty_opt:Typing.typ option) : unit =
+  let _define lc (id:ident) (scope:scope) (opaque:bool) (te:term) (ty_opt:Typing.typ option) : unit =
     let ty = match ty_opt with
       | None -> T.inference !sg te
       | Some ty -> T.checking !sg te ty; ty
@@ -175,9 +178,9 @@ struct
     match ty with
     | Kind -> raise_env lc (KindLevelDefinition id)
     | _ ->
-      if opaque then Signature.add_declaration !sg lc id Signature.Static ty
+      if opaque then Signature.add_declaration !sg lc id scope Signature.Static ty
       else
-        let _ = Signature.add_declaration !sg lc id (Signature.Definable Free) ty in
+        let _ = Signature.add_declaration !sg lc id scope (Signature.Definable Free) ty in
         let cst = mk_name (get_name ()) id in
         let rule =
           { name= Delta(cst) ;
@@ -188,12 +191,12 @@ struct
         in
         _add_rules [rule]
 
-  let declare lc id st ty : unit =
-    try _declare lc id st ty
+  let declare lc id scope st ty : unit =
+    try _declare lc id scope st ty
     with e -> raise_as_env lc e
 
-  let define lc id op te ty_opt : unit =
-    try _define lc id op te ty_opt
+  let define lc id scope op te ty_opt : unit =
+    try _define lc id scope op te ty_opt
     with e -> raise_as_env lc e
 
   let add_rules (rules: partially_typed_rule list) : (Subst.Subst.t * typed_rule) list =
