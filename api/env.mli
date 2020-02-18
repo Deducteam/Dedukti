@@ -81,11 +81,13 @@ sig
   val import      : loc -> mident -> unit
   (** [import lc md] the module [md] in the current environment. *)
 
-  val declare     : loc -> ident -> Signature.scope -> Signature.staticity -> term -> unit
+  val declare     : loc -> ident -> Signature.scope -> Signature.locality ->
+                    Signature.staticity -> term -> unit
   (** [declare_constant l id scope st ty] declares the symbol [id] of type [ty] and
       staticity [st]. If [scope] is Public, then the symbol can be used by other modules. *)
 
-  val define      : loc -> ident -> Signature.scope -> bool -> term -> term option -> unit
+  val define      : loc -> ident -> Signature.scope -> Signature.locality -> bool ->
+                    term -> term option -> unit
   (** [define l id scope body ty] defines the symbol [id] of type [ty] to be an alias of [body]. *)
 
   val add_rules   : Rule.partially_typed_rule list -> (Subst.Subst.t * Rule.typed_rule) list

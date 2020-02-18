@@ -158,9 +158,9 @@ let handle_entry e =
   let open Entry in
   let name_of_id id = Basic.mk_name !current_mod id in
   match e with
-  | Decl(_,id,_,_,te)           -> current_name := name_of_id id; mk_term te
-  | Def(_,id,_,_,None,te)       -> current_name := name_of_id id; mk_term te
-  | Def(_,id,_,_,Some(ty),te)   -> current_name := name_of_id id; mk_term ty; mk_term te
+  | Decl(_,id,_,_,_,te)           -> current_name := name_of_id id; mk_term te
+  | Def(_,id,_,_,_,None,te)       -> current_name := name_of_id id; mk_term te
+  | Def(_,id,_,_,_,Some(ty),te)   -> current_name := name_of_id id; mk_term ty; mk_term te
   | Rules(_,[])                 -> ()
   | Rules(_,(r::_ as rs))       -> current_name := find_rule_name r; List.iter mk_rule rs
   | Eval(_,_,te)                -> mk_term te

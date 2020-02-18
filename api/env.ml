@@ -61,9 +61,10 @@ sig
   val export      : unit -> unit
   val import      : loc -> mident -> unit
   val declare     : loc -> ident -> Signature.scope ->
-                    Signature.staticity -> term -> unit
+                    Signature.locality -> Signature.staticity ->
+                    term -> unit
   val define      : loc -> ident -> Signature.scope ->
-                    bool -> term -> term option -> unit
+                    Signature.locality -> bool -> term -> term option -> unit
   val add_rules   : Rule.partially_typed_rule list ->
                     (Subst.Subst.t * Rule.typed_rule) list
 
@@ -123,9 +124,9 @@ struct
     try Signature.import !sg lc md
     with e -> raise_as_env lc e
 
-  let _declare lc (id:ident) scope st ty : unit =
+  let _declare lc (id:ident) scope locality st ty : unit =
     match T.inference !sg ty with
-    | Kind | Type _ -> Signature.add_declaration !sg lc id scope st ty
+    | Kind | Type _ -> Signature.add_declaration !sg lc id scope locality st ty
     | s -> raise (Typing.Typing_error (Typing.SortExpected (ty,[],s)))
 
   let is_injective lc cst = Signature.is_injective !sg lc cst
@@ -164,7 +165,8 @@ struct
     if !check_ll    then List.iter _check_ll    ris;
     Signature.add_rules !sg ris
 
-  let _define lc (id:ident) (scope:scope) (opaque:bool) (te:term) (ty_opt:Typing.typ option) : unit =
+  let _define lc (id:ident) (scope:scope) (locality:locality) (opaque:bool) (te:term)
+    (ty_opt:Typing.typ option) : unit =
     let ty = match ty_opt with
       | None -> T.inference !sg te
       | Some ty -> T.checking !sg te ty; ty
@@ -172,9 +174,9 @@ struct
     match ty with
     | Kind -> raise_env lc (KindLevelDefinition id)
     | _ ->
-      if opaque then Signature.add_declaration !sg lc id scope Signature.Static ty
+      if opaque then Signature.add_declaration !sg lc id scope locality Signature.Static ty
       else
-        let _ = Signature.add_declaration !sg lc id scope Signature.Definable ty in
+        let _ = Signature.add_declaration !sg lc id scope locality Signature.Definable ty in
         let cst = mk_name (get_name ()) id in
         let rule =
           { name= Delta(cst) ;
@@ -185,12 +187,12 @@ struct
         in
         _add_rules [rule]
 
-  let declare lc id scope st ty : unit =
-    try _declare lc id scope st ty
+  let declare lc id scope locality st ty : unit =
+    try _declare lc id scope locality st ty
     with e -> raise_as_env lc e
 
-  let define lc id scope op te ty_opt : unit =
-    try _define lc id scope op te ty_opt
+  let define lc id scope locality op te ty_opt : unit =
+    try _define lc id scope locality op te ty_opt
     with e -> raise_as_env lc e
 
   let add_rules (rules: partially_typed_rule list) : (Subst.Subst.t * typed_rule) list =

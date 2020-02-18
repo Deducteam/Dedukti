@@ -86,9 +86,9 @@ let get_files : unit -> (mident * Dep.path * Dep.path) list = fun () ->
     with _ -> l) Dep.deps []
 
 let name_of_entry md = function
-  | Entry.Decl(_,id,_,_,_) ->
+  | Entry.Decl(_,id,_,_,_,_) ->
     mk_name md id
-  | Entry.Def(_,id,_,_,_,_) ->
+  | Entry.Def(_,id,_,_,_,_,_) ->
     mk_name md id
   | Entry.Rules(_,r::_) ->
     let open Rule in
