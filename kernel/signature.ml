@@ -41,6 +41,7 @@ module HId = Hashtbl.Make(
 
 type staticity = Static | Definable | Injective
 type scope     = Public | Private
+type locality  = Global | Local
 
 (** The pretty printer for the type [staticity] *)
 let pp_staticity fmt s =
@@ -51,6 +52,7 @@ type rw_infos =
     stat          : staticity;
     ty            : term;
     scope         : scope;
+    locality      : locality;
     rules         : rule_infos list;
     decision_tree : Dtree.t option
   }
@@ -144,16 +146,16 @@ let check_confluence_on_import lc (md:mident) (ctx:rw_infos HId.t) : unit =
   try Confluence.check () with
   | Confluence.Confluence_error e -> raise (Signature_error (ConfluenceErrorImport (lc,md,e)))
 
-let add_external_declaration sg lc cst scope stat ty =
+let add_external_declaration sg lc cst scope locality stat ty =
   try
     let env = HMd.find sg.tables (md cst) in
     if HId.mem env (id cst)
     then raise (Signature_error (AlreadyDefinedSymbol (lc, cst)))
-    else HId.replace env (id cst) {stat; ty; scope; rules=[]; decision_tree=None}
+    else HId.replace env (id cst) {stat; ty; scope; locality; rules=[]; decision_tree=None}
   with Not_found ->
     HMd.replace sg.tables (md cst) (HId.create 11);
     let env = HMd.find sg.tables (md cst) in
-    HId.replace env (id cst) {stat; ty; scope; rules=[]; decision_tree=None}
+    HId.replace env (id cst) {stat; ty; scope; locality; rules=[]; decision_tree=None}
 
 (* Recursively load a module and its dependencies*)
 let rec import sg lc m =
@@ -179,7 +181,7 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
       with
       | Signature_error (SymbolNotFound _)
       | Signature_error (UnmarshalUnknown _) when not !fail_on_symbol_not_found ->
-         add_external_declaration sg r.l r.cst Public Definable (mk_Kind);
+         add_external_declaration sg r.l r.cst Public Global Definable (mk_Kind);
          get_info_env sg r.l r.cst
     in
     if infos.stat = Static && !fail_on_symbol_not_found
@@ -232,6 +234,9 @@ let import_signature sg sg_ext =
 
 let export sg =
   let mod_table = HMd.find sg.tables sg.name in
+  HId.iter
+    (fun id t -> if t.locality = Local then HId.remove mod_table id)
+    mod_table;
   if not (marshal sg.file (get_deps sg) mod_table sg.external_rules)
   then raise (Signature_error (CouldNotExportModule (sg.name, sg.file)))
 
@@ -260,9 +265,9 @@ let get_dtree sg lc cst =
 
 (******************************************************************************)
 
-let add_declaration sg lc v scope stat ty =
+let add_declaration sg lc v scope locality stat ty =
   let cst = mk_name sg.name v in
-  add_external_declaration sg lc cst scope stat ty
+  add_external_declaration sg lc cst scope locality stat ty
 
 let add_rules sg = function
   | [] -> ()

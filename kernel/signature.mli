@@ -37,6 +37,9 @@ type staticity = Static | Definable | Injective
 type scope = Public | Private
 (** Should the symbol be accessible from outside its definition file ? *)
 
+type locality = Global | Local
+(** Accessibility outside of definition file *)
+
 val pp_staticity : staticity printer
 
 type t
@@ -75,12 +78,12 @@ val get_dtree           : t -> loc -> name -> Dtree.t
 val get_rules           : t -> loc -> name -> rule_infos list
 (** [get_rules sg lc cst] returns a list of rules that defines the symbol. *)
 
-val add_declaration     : t -> loc -> ident -> scope -> staticity -> term -> unit
+val add_declaration     : t -> loc -> ident -> scope -> locality -> staticity -> term -> unit
 (** [add_declaration sg l id sc st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg].
     If [sc] is [Private] then the symbol cannot be used in other modules *)
 
-val add_external_declaration : t -> loc -> name -> scope -> staticity -> term -> unit
+val add_external_declaration : t -> loc -> name -> scope -> locality -> staticity -> term -> unit
 (** [add_declaration sg l id st ty] declares the symbol [id] of type [ty]
     and staticity [st] in the environment [sg]. *)
 
@@ -105,6 +108,8 @@ type rw_infos =
     (** The type of a symbol *)
     scope         : scope;
     (** The scope of the symbol ([Public]/[Private]) *)
+    locality      : locality;
+    (** The locality of the symbol ([Local/[Global]]) *)
     rules         : rule_infos list;
     (** The list of rules associated to a symbol.
         They are ordored by their declaration within a file and in order they are imported
