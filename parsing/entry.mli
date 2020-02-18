@@ -15,9 +15,9 @@ type test =
 
 (** Single source file entry. *)
 type entry =
-  | Decl  of loc * ident * Signature.scope * Signature.staticity * term
+  | Decl  of loc * ident * Signature.scope * Signature.locality * Signature.staticity * term
   (** Symbol declaration. *)
-  | Def   of loc * ident * Signature.scope * is_opaque * term option * term
+  | Def   of loc * ident * Signature.scope * Signature.locality * is_opaque * term option * term
   (** Definition (possibly opaque). *)
   | Rules of loc * Rule.partially_typed_rule list
   (** Reduction rules declaration. *)

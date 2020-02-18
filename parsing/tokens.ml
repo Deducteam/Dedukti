@@ -7,6 +7,7 @@ type token =
   | KW_THM     of loc
   | KW_INJ     of loc
   | KW_PRV     of loc
+  | KW_LOCAL   of loc
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA

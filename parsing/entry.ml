@@ -11,8 +11,8 @@ type test =
   | HasType of term * term
 
 type entry =
-  | Decl  of loc * ident * Signature.scope * Signature.staticity * term
-  | Def   of loc * ident * Signature.scope * is_opaque * term option * term
+  | Decl  of loc * ident * Signature.scope * Signature.locality * Signature.staticity * term
+  | Def   of loc * ident * Signature.scope * Signature.locality * is_opaque * term option * term
   | Rules of loc * Rule.partially_typed_rule list
   | Eval  of loc * Reduction.red_cfg * term
   | Check of loc * is_assertion * should_fail * test
@@ -25,25 +25,42 @@ type entry =
 let pp_entry fmt e =
   let open Format in
   match e with
-  | Decl(_,id,Public,Signature.Static,ty) ->
+  | Decl(_,id,Public,Global,Signature.Static,ty) ->
     fprintf fmt "@[<2>%a :@ %a.@]@.@." pp_ident id pp_term ty
-  | Decl(_,id,Private,Signature.Static,ty) ->
+  | Decl(_,id,Private,Global,Signature.Static,ty) ->
     fprintf fmt "@[<2>private %a :@ %a.@]@.@." pp_ident id pp_term ty
-  | Decl(_,id,Public,Signature.Definable,ty) ->
+  | Decl(_,id,Public,Global,Signature.Definable,ty) ->
     fprintf fmt "@[<2>def %a :@ %a.@]@.@." pp_ident id pp_term ty
-  | Decl(_,id,Private,Signature.Definable,ty) ->
+  | Decl(_,id,Private,Global,Signature.Definable,ty) ->
     fprintf fmt "@[<2>private def %a :@ %a.@]@.@." pp_ident id pp_term ty
-  | Decl(_,id,Public,Signature.Injective,ty) ->
+  | Decl(_,id,Public,Global,Signature.Injective,ty) ->
      fprintf fmt "@[<2>injective %a :@ %a.@]@.@." pp_ident id pp_term ty
-  | Decl(_,id,Private,Signature.Injective,ty) ->
+  | Decl(_,id,Private,Global,Signature.Injective,ty) ->
      fprintf fmt "@[<2>private injective %a :@ %a.@]@.@." pp_ident id pp_term ty
-  | Def(_,id,scope,opaque,ty,te)  ->
+  | Decl(_,id,Public,Local,Signature.Static,ty) ->
+    fprintf fmt "@[<2>local %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Private,Local,Signature.Static,ty) ->
+    fprintf fmt "@[<2>local private %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Public,Local,Signature.Definable,ty) ->
+    fprintf fmt "@[<2>local def %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Private,Local,Signature.Definable,ty) ->
+    fprintf fmt "@[<2>local private def %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Public,Local,Signature.Injective,ty) ->
+     fprintf fmt "@[<2>local injective %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Private,Local,Signature.Injective,ty) ->
+     fprintf fmt "@[<2>local private injective %a :@ %a.@]@.@." pp_ident id pp_term ty
+
+  | Def(_,id,scope,locality,opaque,ty,te)  ->
      let key =
-       match scope, opaque with
-       | Public , true  -> "thm"
-       | Public , false -> "def"
-       | Private, true  -> "private thm"
-       | Private, false -> "private def"
+       match scope, locality, opaque with
+       | Public , Global , true  -> "thm"
+       | Public , Global , false -> "def"
+       | Private, Global , true  -> "private thm"
+       | Private, Global , false -> "private def"
+       | Public , Local  , true  -> "local thm"
+       | Public , Local  , false -> "local def"
+       | Private, Local  , true  -> "local private thm"
+       | Private, Local  , false -> "local private def"
      in
      begin
        match ty with
@@ -81,8 +98,8 @@ let pp_entry fmt e =
      fprintf fmt "#REQUIRE %a.@." pp_mident md
 
 let loc_of_entry = function
-  | Decl(lc,_,_,_,_)
-  | Def(lc,_,_,_,_,_)
+  | Decl(lc,_,_,_,_,_)
+  | Def(lc,_,_,_,_,_,_)
   | Rules(lc,_)
   | Eval(lc,_,_)
   | Infer(lc,_,_)
