@@ -62,8 +62,8 @@ val fo_var : miller_var
 
 (* TODO: add loc to this to better handle errors *)
 type 'a eq_problem = miller_var * 'a
-(** [(vars, t)] is the higher order equational problem:
-       X x1  ... xn = [t]   with [vars]=\[x1  ... xn\] *)
+(** [(vars, matched)] is the higher order equational problem:
+       X x1  ... xn = [matched]   with [vars]=\[ x1 ; ... ; xn \] *)
 
 type var_p = int * miller_var
 (** ([n], [vars]) represents the [n]-th variable applied

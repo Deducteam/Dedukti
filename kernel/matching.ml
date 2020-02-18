@@ -439,20 +439,20 @@ struct
   (* Main solving function.
      Processes equationnal problems as they can be deterministically solved right away
      then hands over to non deterministic AC solver. *)
-  let solve_problem sg convert convert_ac pb =
+  let solve_problem sg from_stack from_stack_ac pb =
     if pb.pm_ac_problems = []
     then
       let solve_eq = function
         | [] -> assert false
-        | [ (args, rhs) ] ->
+        | [ (args, index_to_match) ] ->
           lazy_add_n_lambdas args.arity
-            (force_solve sg args (convert rhs))
+            (force_solve sg args (from_stack index_to_match))
         | (args, rhs) :: other_pbs ->
-          let solu = Lazy.force (force_solve sg args (convert rhs)) in
+          let solu = Lazy.force (force_solve sg args (from_stack rhs)) in
           List.iter
             (fun (args,rhs) ->
                let exp = apply_sol solu args in
-               if not (R.are_convertible sg (Lazy.force (convert rhs)) exp)
+               if not (R.are_convertible sg (Lazy.force (from_stack rhs)) exp)
                then raise NotSolvable)
             other_pbs;
           Lazy.from_val (add_n_lambdas args.arity solu)
@@ -465,11 +465,11 @@ struct
       let solve_eq = function
         | [] -> Unsolved
         | (args, rhs) :: opbs ->
-          let solu = Lazy.force (force_solve sg args (convert rhs)) in
+          let solu = Lazy.force (force_solve sg args (from_stack rhs)) in
           List.iter
             (fun (args, rhs) ->
                let exp = apply_sol solu args in
-               if not (R.are_convertible sg (Lazy.force (convert rhs)) exp)
+               if not (R.are_convertible sg (Lazy.force (from_stack rhs)) exp)
                then raise NotSolvable
             )
             opbs;
@@ -479,7 +479,8 @@ struct
         let status = LList.map solve_eq pb.pm_eq_problems in
         let status = Array.of_list (LList.lst status) in
         let ac_problems =
-          List.map (fun (d,aci,joks,vars,rhs) -> (d,aci,joks,vars,convert_ac rhs))
+          List.map (fun (d,aci,joks,vars,to_match) ->
+              (d,aci,joks,vars,from_stack_ac to_match))
             pb.pm_ac_problems in
         (* Update AC problems according to partial solution found *)
         let ac_pbs = init_ac_problems sg status ac_problems in

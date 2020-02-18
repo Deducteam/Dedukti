@@ -180,6 +180,8 @@ and comb_term_if_AC sg : term -> term = function
     else t
   | t -> t
 
+(*******   Matching with a decision tree  *******)
+
 and find_case sg (st:state) (case:case) : stack option =
   match st, case with
   | { term=Const (_,cst); stack ; _ } , CConst (nargs,cst',false) ->
