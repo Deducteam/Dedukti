@@ -57,8 +57,6 @@ struct
     in fun t1 t2 -> aux [(0,t1,t2)]
 
   let convertible (sg:Signature.t) (c:lhs_typing_cstr) (depth:int) (ty_inf:term) (ty_exp:term) : bool =
-    Debug.(debug d_warn) "Convertible? %a ~ %a@." pp_term ty_inf pp_term ty_exp;
-    Debug.(debug d_warn) "Is identity : %b"  (SS.is_identity c.subst);
     R.are_convertible sg ty_inf ty_exp ||
     match SS.is_identity c.subst, c.unsolved with
     | true, [] -> false
@@ -161,7 +159,8 @@ struct
               ; vars   = dbs
               ; mapping= mapping_of_vars q arity dbs
         } in
-      Some (Matching.solve_miller var t)
+      let sol = Matching.solve_miller var t in
+      Some (Term.add_n_lambdas arity sol)
     with Matching.NotUnifiable -> None
 
   let rec pseudo_u sg flag (s:lhs_typing_cstr) : cstr list -> bool*lhs_typing_cstr = function

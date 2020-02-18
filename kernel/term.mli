@@ -28,6 +28,10 @@ val mk_App2     : term -> term list -> term
 val mk_Pi       : loc -> ident -> term -> term -> term
 val mk_Arrow    : loc -> term -> term -> term
 
+val add_n_lambdas : int -> term -> term
+(** [add_n_lambdas n t] returns the term [t] with [n] (extra) anonymous
+    lambda abstraction. Doesn't shift free variables of [t]. *)
+
 val term_eq : term -> term -> bool
 (** [term_eq t t'] is [true] if [t] = [t'] (up to alpha equivalence) *)
 

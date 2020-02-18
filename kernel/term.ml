@@ -50,6 +50,9 @@ let mk_App2 f = function
   | [] -> f
   | hd :: tl -> mk_App f hd tl
 
+let rec add_n_lambdas n t =
+  if n = 0 then t else add_n_lambdas (n-1) (mk_Lam dloc dmark None t)
+
 let rec term_eq t1 t2 =
   (* t1 == t2 || *)
   match t1, t2 with

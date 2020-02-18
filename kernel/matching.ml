@@ -127,9 +127,6 @@ struct
     try Some (force_solve sg args t)
     with NotUnifiable -> None
 
-  let rec add_n_lambdas n t =
-    if n = 0 then t else add_n_lambdas (n-1) (mk_Lam dloc dmark None t)
-
   let lazy_add_n_lambdas n t =
     if n = 0 then t else lazy(add_n_lambdas n (Lazy.force t))
 
