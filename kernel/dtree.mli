@@ -43,12 +43,12 @@ type miller_var =
     - This means exactly [arity] elements of [mapping] are non negative
 
     An example:
-    {
+    \{
       arity   = 2;
       depth   = 5;
       vars    = [4; 2];
       mapping = [| (-1) ; (-1) ; 0 ; (-1) ; 1 |]
-    }
+    \}
 *)
 
 val mapping_of_vars : int -> int -> int list -> int array
