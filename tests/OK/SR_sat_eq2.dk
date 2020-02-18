@@ -1,0 +1,32 @@
+(; OK --type-lhs ;)
+
+A : Type.
+a : A.
+c : A -> A -> A.
+
+T : A -> Type.
+t : x : A -> T x.
+
+def f : A -> A.
+def g : A -> A.
+
+def   test0 : x : A -> T (f x)   -> T (f (f x)).
+[X,Y] test0   X       (t Y    ) --> t (f Y    ).
+
+def   test0': x : A -> T (c (f x) a)   -> T (f (f x)).
+[X,Y] test0'  X       (t (c Y     a)) --> t (f Y    ).
+
+def   test1 : x : A -> T (c (g x) a)   -> T (f (g x)).
+[X,Y] test1   X       (t (c (f Y) a)) --> t (f (f Y)).
+
+def   test2 : x : A -> T (g (c (f x) (f (f x))))  -> T (g (c (f x) (f (f x)))).
+[X,Y] test2   X       (t (f Y)                 ) --> t (f Y).
+
+def   test3 : x : A -> T (c a (g (c (f x) (f (f x)))))  -> T (g (g (c (f x) (f (f x))))).
+[X,Y] test3   X       (t (c a (f Y)                 )) --> t (g (f Y)).
+
+def h : A -> A.
+[X] h (g X) --> X.
+
+def   test4 : x : A -> T (c a (g (c (f x) (f (f x)))))  -> T (g (c (f x) (f (f x)))).
+[X,Y] test4   X       (t (c a (f Y)                 )) --> t (h (g (f Y))).

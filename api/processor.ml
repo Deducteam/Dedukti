@@ -34,7 +34,7 @@ struct
       let rs = E.add_rules rs in
       List.iter (fun (s,r) ->
           Debug.debug Debug.d_notice "%a@.with the following constraints: %a"
-            pp_typed_rule r (Subst.Subst.pp (fun n -> let _,n,_ = List.nth r.ctx n in n)) s) rs
+            pp_typed_rule r (Exsubst.ExSubst.pp (fun n -> let _,n,_ = List.nth r.ctx n in n)) s) rs
     | Eval(_,red,te) ->
       let te = E.reduction ~red te in
       Format.printf "%a@." Printer.print_term te

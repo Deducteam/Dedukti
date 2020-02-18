@@ -15,6 +15,7 @@ let set_debug_mode =
       | 'c' -> Debug.enable_flag  Confluence.d_confluence
       | 'u' -> Debug.enable_flag  Typing.d_rule
       | 't' -> Debug.enable_flag  Typing.d_typeChecking
+      | 's' -> Debug.enable_flag  Srcheck.d_SR
       | 'r' -> Debug.enable_flag  Reduction.d_reduce
       | 'm' -> Debug.enable_flag  Matching.d_matching
       | c -> raise (DebugFlagNotRecognized c)
@@ -65,7 +66,7 @@ sig
   val define      : loc -> ident -> Signature.scope ->
                     bool -> term -> term option -> unit
   val add_rules   : Rule.partially_typed_rule list ->
-                    (Subst.Subst.t * Rule.typed_rule) list
+                    (Exsubst.ExSubst.t * Rule.typed_rule) list
 
   val infer            : ?ctx:typed_context -> term         -> term
   val check            : ?ctx:typed_context -> term -> term -> unit
@@ -199,7 +200,7 @@ struct
     try _define lc id scope op te ty_opt
     with e -> raise_as_env lc e
 
-  let add_rules (rules: partially_typed_rule list) : (Subst.Subst.t * typed_rule) list =
+  let add_rules (rules: partially_typed_rule list) : (Exsubst.ExSubst.t * typed_rule) list =
     try
       let rs2 = List.map (T.check_rule !sg) rules in
       _add_rules rules;

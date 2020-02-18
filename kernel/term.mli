@@ -61,6 +61,9 @@ type algebra = Free | AC | ACU of term
 val is_AC : algebra -> bool
 (** Return true iff given algebra is AC or ACU. *)
 
+type cstr = int*term*term
+(** Constraints [(n,t,u)] are [t]=[u] under [n] lambdas *)
+
 (** {2 Contexts} *)
 
 type 'a context = (loc * ident * 'a) list

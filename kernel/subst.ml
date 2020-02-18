@@ -1,5 +1,4 @@
 open Basic
-open Format
 open Term
 
 exception UnshiftExn
@@ -61,8 +60,8 @@ let subst (te:term) (u:term) =
 let subst_n m y =
   apply_subst (fun l x n k -> if n = m+k then mk_DB l y k else mk_DB l x (n+1)) 0
 
-exception Occurs
 let occurs (n:int) (te:term) : bool =
+  let exception Occurs in
   let rec aux depth = function
     | Kind | Type _ | Const _ -> ()
     | DB (_,_,k) -> if k = n + depth then raise Occurs else ()
@@ -72,37 +71,3 @@ let occurs (n:int) (te:term) : bool =
     | Pi (_,_,a,b) -> aux depth a; aux (depth+1) b
   in
   try aux 0 te; false with Occurs -> true
-
-module IntMap = Map.Make(
-  struct
-    type t = int
-    let compare = compare
-  end)
-
-module Subst =
-struct
-  type t = term IntMap.t
-  let identity = IntMap.empty
-
-  let is_identity = IntMap.is_empty
-
-  let subst (sigma:t) = fun _ _ n k -> shift k (IntMap.find (n-k) sigma)
-  let subst2 (sigma:t) (i:int) = fun _ _ n k -> shift k (unshift (i+1) (IntMap.find (n+i+1-k) sigma))
-
-  let apply (sigma:t) : int -> term -> term =
-    if is_identity sigma then (fun _ t -> t) else apply_subst (subst sigma)
-
-  let add (sigma:t) (n:int) (t:term) : t =
-    assert ( not (IntMap.mem n sigma) );
-    IntMap.add n t sigma
-
-  let rec mk_idempotent (sigma:t) : t =
-    let sigma2:t = IntMap.map (apply sigma 0) sigma in
-    if IntMap.equal term_eq sigma sigma2 then sigma
-    else mk_idempotent sigma2
-
-  let pp (name:(int->ident)) (fmt:formatter) (sigma:t) : unit =
-    let pp_aux i t = fprintf fmt "  %a[%i] -> %a\n" pp_ident (name i) i pp_term t in
-    IntMap.iter pp_aux sigma
-
-end

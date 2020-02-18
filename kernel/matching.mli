@@ -7,6 +7,15 @@ val d_matching : Debug.flag
 
 (** {2 Matching solver} *)
 
+exception NotUnifiable
+
+val solve_miller : miller_var -> term -> term
+(** [solve_miller var t]
+    Solves the matching problem X x1 ... xn = [t]
+    where [var] represents the applied Miller variable X x1 ... xn.
+    Raises NotUnifiable in case there is no solution.
+*)
+
 module type Reducer = sig
   val snf  : Signature.t -> term -> term
   val whnf : Signature.t -> term -> term

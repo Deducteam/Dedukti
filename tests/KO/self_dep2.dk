@@ -1,7 +1,7 @@
 (; KO 101 ;)
 
 def A : Type.
-U : A -> Type.
+def U : A -> Type.
 def a : A.
 
 def B : Type.
