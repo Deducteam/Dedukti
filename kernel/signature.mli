@@ -104,9 +104,9 @@ type rw_infos =
     scope         : scope;
     (** The scope of the symbol ([Public]/[Private]) *)
     rules         : rule_infos list;
-    (** The list of rules associated to a symbol.
-        They are ordored by their declaration within a file and in order they are imported
-        in the signature *)
+    (** The stack pile of rules associated to a symbol.
+        They are imported in the signature in the order by they are declared
+        within the file *)
     decision_tree : Dtree.t option
     (** The decision tree computed for the set of rules declared above *)
   }
