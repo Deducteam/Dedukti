@@ -103,9 +103,9 @@ line:
   | KW_PRV KW_DEF id=ID COLON ty=term DOT
     {fun md -> Decl(fst id, snd id, Private, Definable, scope_term md [] ty)}
   | KW_INJ id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Public, Definable, scope_term md [] ty)}
+    {fun md -> Decl(fst id, snd id, Public, Injective, scope_term md [] ty)}
   | KW_PRV KW_INJ id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Private, Definable, scope_term md [] ty)}
+    {fun md -> Decl(fst id, snd id, Private, Injective, scope_term md [] ty)}
   | KW_DEF id=ID COLON ty=term DEF te=term DOT
     {fun md -> Def(fst id, snd id, Public, false, Some(scope_term md [] ty), scope_term md [] te)}
   | KW_DEF id=ID DEF te=term DOT
