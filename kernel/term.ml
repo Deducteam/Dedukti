@@ -131,6 +131,8 @@ let subterm = List.fold_left subterm
 
 type cstr = int*term*term
 
+let pp_cstr fmt (depth,t1,t2) =
+  Format.fprintf fmt "[%i] %a = %a" depth pp_term t1 pp_term t2
 
 (*********** Contexts} ***********)
 

@@ -13,6 +13,8 @@ sig
   type lhs_typing_cstr
   (** Representation of LHS typing constraints *)
 
+  val pp_lhs_typing_cstr : lhs_typing_cstr printer
+
   val empty : lhs_typing_cstr
   (** No constraints *)
 

@@ -22,6 +22,12 @@ struct
       unsatisf : cstr list
     }
 
+  let pp_lhs_typing_cstr fmt {subst;unsolved;unsatisf} =
+    Format.fprintf fmt "TypingConstraint:@.{@.%a@.[%a]@.[%a]@.}"
+      (SS.pp (fun _ -> mk_ident "")) subst
+      (pp_list ", " pp_cstr) unsolved
+      (pp_list ", " pp_cstr) unsatisf
+
   let empty : lhs_typing_cstr = { subst = SS.identity; unsolved=[]; unsatisf=[] }
 
   let get_subst c = c.subst

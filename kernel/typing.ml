@@ -337,6 +337,7 @@ struct
     assert ( delta.padding == 0 );
     (* Compile a unifier for the generated type checking constraints *)
     let unif = SR.compile_cstr sg lst in
+    Debug.debug Srcheck.d_SR "Unifier: %a" SR.pp_lhs_typing_cstr unif;
     ( match SR.get_unsat unif with (* Fetch unsatisfiable conditions... *)
     | None -> ()
     | Some (q,t1,t2)-> (* ...if any warn or fail *)

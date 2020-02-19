@@ -68,6 +68,8 @@ val is_AC : algebra -> bool
 type cstr = int*term*term
 (** Constraints [(n,t,u)] are [t]=[u] under [n] lambdas *)
 
+val pp_cstr : cstr printer
+
 (** {2 Contexts} *)
 
 type 'a context = (loc * ident * 'a) list
