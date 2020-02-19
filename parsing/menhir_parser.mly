@@ -105,9 +105,9 @@ line:
   | KW_PRV KW_DEF id=ID COLON ty=term DOT
     {fun md -> Decl(fst id, snd id, Private, Definable Term.Free, scope_term md [] ty)}
   | KW_INJ id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Public, Definable Term.Free, scope_term md [] ty)}
+    {fun md -> Decl(fst id, snd id, Public, Injective, scope_term md [] ty)}
   | KW_PRV KW_INJ id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Private, Definable Term.Free, scope_term md [] ty)}
+    {fun md -> Decl(fst id, snd id, Private,Injective, scope_term md [] ty)}
   | KW_DEFAC id=ID LEFTSQU ty=term RIGHTSQU DOT
     {fun md -> Decl(fst id, snd id, Public, Definable Term.AC, scope_term md [] ty)}
   | KW_PRV KW_DEFAC id=ID LEFTSQU ty=term RIGHTSQU DOT
