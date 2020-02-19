@@ -10,10 +10,12 @@ type test =
   | Convert of term * term
   | HasType of term * term
 
+exception Assert_error of loc
+
 type entry =
-  | Decl  of loc * ident * Signature.staticity * term
-  | Def   of loc * ident * is_opaque * term option * term
-  | Rules of loc * Rule.untyped_rule list
+  | Decl  of loc * ident * Signature.scope * Signature.staticity * term
+  | Def   of loc * ident * Signature.scope * is_opaque * term option * term
+  | Rules of loc * Rule.partially_typed_rule list
   | Eval  of loc * Reduction.red_cfg * term
   | Check of loc * is_assertion * should_fail * test
   | Infer of loc * Reduction.red_cfg * term
@@ -22,26 +24,38 @@ type entry =
   | Name  of loc * mident
   | Require of loc * mident
 
-exception Assert_error of loc
-
 let pp_entry fmt e =
   let open Format in
   match e with
-  | Decl(_,id,Signature.Static,ty) ->
+  | Decl(_,id,Public,Signature.Static,ty) ->
     fprintf fmt "@[<2>%a :@ %a.@]@.@." pp_ident id pp_term ty
-  | Decl(_,id,Signature.Definable,ty) ->
+  | Decl(_,id,Private,Signature.Static,ty) ->
+    fprintf fmt "@[<2>private %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Public,Signature.Definable,ty) ->
     fprintf fmt "@[<2>def %a :@ %a.@]@.@." pp_ident id pp_term ty
-  | Def(_,id,opaque,ty,te)  ->
-    let key = if opaque then "thm" else "def" in
-    begin
-      match ty with
-      | None    -> fprintf fmt "@[<hv2>%s %a@ :=@ %a.@]@.@." key
+  | Decl(_,id,Private,Signature.Definable,ty) ->
+    fprintf fmt "@[<2>private def %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Public,Signature.Injective,ty) ->
+     fprintf fmt "@[<2>injective %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Decl(_,id,Private,Signature.Injective,ty) ->
+     fprintf fmt "@[<2>private injective %a :@ %a.@]@.@." pp_ident id pp_term ty
+  | Def(_,id,scope,opaque,ty,te)  ->
+     let key =
+       match scope, opaque with
+       | Public , true  -> "thm"
+       | Public , false -> "def"
+       | Private, true  -> "private thm"
+       | Private, false -> "private def"
+     in
+     begin
+       match ty with
+       | None    -> fprintf fmt "@[<hv2>%s %a@ :=@ %a.@]@.@." key
                      pp_ident id pp_term te
       | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
                      pp_ident id pp_term ty pp_term te
     end
   | Rules(_,rs)             ->
-    fprintf fmt "@[<v0>%a@].@.@." (pp_list "" Rule.pp_untyped_rule) rs
+    fprintf fmt "@[<v0>%a@].@.@." (pp_list "" Rule.pp_part_typed_rule) rs
   | Eval(_,cfg,te)          ->
     fprintf fmt "#EVAL%a %a.@." Reduction.pp_red_cfg cfg pp_term te
   | Infer(_,cfg,te)         ->
@@ -50,28 +64,27 @@ let pp_entry fmt e =
     let cmd = if assrt then "#ASSERT" else "#CHECK" in
     let neg = if neg then "NOT" else "" in
     begin
-        match test with
-          | Convert(t1,t2) ->
-            fprintf fmt "%s%s %a ==@ %a.@." cmd neg pp_term t1 pp_term t2
-          | HasType(te,ty) ->
-            fprintf fmt "%s%s %a ::@ %a.@." cmd neg pp_term te pp_term ty
-      end
-  | DTree(_,m,v)            ->
-    begin
-      match m with
-      | None   -> fprintf fmt "#GDT %a.@." pp_ident v
-      | Some m -> fprintf fmt "#GDT %a.%a.@." pp_mident m pp_ident v
+      match test with
+      | Convert(t1,t2) ->
+         fprintf fmt "%s%s %a ==@ %a.@." cmd neg pp_term t1 pp_term t2
+      | HasType(te,ty) ->
+         fprintf fmt "%s%s %a ::@ %a.@." cmd neg pp_term te pp_term ty
     end
+  | DTree(_,m,v)            ->
+     begin
+       match m with
+       | None   -> fprintf fmt "#GDT %a.@." pp_ident v
+       | Some m -> fprintf fmt "#GDT %a.%a.@." pp_mident m pp_ident v
+     end
   | Print(_, str)           ->
-    fprintf fmt "#PRINT %S.@." str
-  | Name(_,_)               ->
-    ()
-  | Require(_,m)            ->
-    fprintf fmt "#REQUIRE %a.@." pp_mident m
+     fprintf fmt "#PRINT %S.@." str
+  | Name(_,_)               -> ()
+  | Require(_, md) ->
+     fprintf fmt "#REQUIRE %a.@." pp_mident md
 
 let loc_of_entry = function
-  | Decl(lc,_,_,_)
-  | Def(lc,_,_,_,_)
+  | Decl(lc,_,_,_,_)
+  | Def(lc,_,_,_,_,_)
   | Rules(lc,_)
   | Eval(lc,_,_)
   | Infer(lc,_,_)

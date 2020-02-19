@@ -9,13 +9,8 @@ module MSet = Basic.MidentSet
 
 module Printer = Pp.Default
 
-
-(** {2: Logging} *)
-module D = Basic.Debug
-type D.flag += D_prune
-let _ = D.register_flag D_prune "Dkprune"
-let enable_log : unit -> unit = fun () -> D.enable_flag D_prune
-
+let d_prune = Debug.register_flag "Dkprune"
+let enable_log : unit -> unit = fun () -> Debug.enable_flag d_prune
 
 type dkprune_error =
   | BadFormat of Basic.loc
@@ -41,7 +36,7 @@ let output_directory : string option ref = ref None
 
 let gre fmt = "\027[32m" ^^ fmt ^^ "\027[0m%!"
 
-let log fmt = D.debug D_prune (gre fmt)
+let log fmt = Debug.debug d_prune (gre fmt)
 
 let _ =
   Dep.ignore := true;
@@ -63,9 +58,9 @@ let output_file : string -> string = fun file ->
 let computed = ref MSet.empty
 
 let name_of_entry md = function
-    | Entry.Decl(_,id,_,_) ->
+    | Entry.Decl(_,id,_,_,_) ->
       Some (Basic.mk_name md id)
-    | Entry.Def(_,id,_,_,_) ->
+    | Entry.Def(_,id,_,_,_,_) ->
       Some (Basic.mk_name md id)
     | Entry.Rules(_,r::_) ->
       let open Rule in
@@ -192,7 +187,7 @@ let write_file deps in_file =
 (* print_dependencies for all the names which are in the transitive closure of names specificed in the configuration files *)
 let print_dependencies names =
   let open Dep in
-  let fake_env = Env.init (Parser.input_from_string (Basic.mk_mident "dkprune") "") in (* We fake an environment to print an error *)
+  let fake_env = Env.dummy ~md:(mk_mident "dkprune") () in (* We fake an environment to print an error *)
   try
     NameSet.iter Dep.transitive_closure names;
     let down_deps = NameSet.fold
@@ -214,7 +209,7 @@ let print_dependencies names =
     Env.fail_env_error fake_env Basic.dloc exn
 
 let _ =
-  let args = Arg.align
+  let options = Arg.align
     [ ( "-l"
       , Arg.Unit enable_log
       , " Print log")
@@ -231,7 +226,7 @@ For more information see https://github.com/Deducteam/Dedukti.
 Available options:" Sys.argv.(0) in
   let files =
     let files = ref [] in
-    Arg.parse args (fun f -> files := f :: !files) usage;
+    Arg.parse options (fun f -> files := f :: !files) usage;
     !files
   in
   let run_on_constraints files = Processor.handle_files files (module ProcessConfigurationFile) in

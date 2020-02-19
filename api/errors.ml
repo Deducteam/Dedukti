@@ -147,6 +147,10 @@ let of_typing_error red err : error_msg =
       pp_term t1 pp_term t2
   | NotImplementedFeature l ->
     207, Some l, Format.asprintf "Feature not implemented."
+  | AnnotConvertibilityError (lc,x,ctx,exp,inf) ->
+    208, Some lc, Format.asprintf
+      "Error while checking type annotation of variable '%a'@.---- Annotation:@.%a@.---- Inferred:@.%a@."
+      try_print_oneliner (mk_DB lc x 0,ctx) Pp.print_term (red exp) Pp.print_term (red inf)
 
 let fail_typing_error ~red exn =
   match exn with
@@ -258,6 +262,9 @@ let of_signature_error red err =
     402, None, Format.asprintf
       "Cannot export module %a. The following exception was raised:@.\
        %s@." pp_mident md (Printexc.to_string exn)
+  | PrivateSymbol (lc,cst) ->
+    403, Some lc, Format.asprintf "The symbol '%a' is private." pp_name cst
+
 
 let fail_signature_error ~red exn =
   match exn with

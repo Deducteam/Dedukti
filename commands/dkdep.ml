@@ -26,7 +26,7 @@ let _ =
   (* Parsing of command line arguments. *)
   let output  = ref stdout in
   let sorted  = ref false  in
-  let args = Arg.align
+  let options = Arg.align
     [ ( "-d"
       , Arg.String Env.set_debug_mode
       , "FLAGS enables debugging for all given flags:
@@ -64,9 +64,9 @@ Compute the dependencies of the given Dedukti FILE(s).
 For more information see https://github.com/Deducteam/Dedukti.
 Available options:" Sys.argv.(0) in
   let files =
-    let files = ref [] in
-    Arg.parse args (fun f -> files := f :: !files) usage;
-    List.rev !files
+      let files = ref [] in
+      Arg.parse options (fun f -> files := f :: !files) usage;
+      List.rev !files
   in
   (* Actual work. *)
   let hook_after _ exn =

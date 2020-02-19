@@ -2,6 +2,7 @@
 open Kernel
 open Basic
 open Term
+
 open Parsers
 
 (** {2 Error Datatype} *)
@@ -80,6 +81,9 @@ val get_symbols : t -> Signature.rw_infos HName.t
 val get_type    : t -> loc -> name -> term
 (** [get_type env l md id] returns the type of the constant [md.id]. *)
 
+val is_injective : t -> loc -> name -> bool
+(** [is_injective env l cst] returns [true] if the symbol is declared as [static] or [injective], [false] otherwise *)
+
 val is_static   : t -> loc -> name -> bool
 (** [is_static env l cst] returns [true] if the symbol is declared as [static], [false] otherwise *)
 
@@ -92,14 +96,14 @@ val export      : t -> unit
 val import      : t -> loc -> mident -> unit
 (** [import env lc md] the module [md] in the current environment. *)
 
-val declare     : t -> loc -> ident -> Signature.staticity -> term -> unit
+val declare     : t -> loc -> ident -> Signature.scope -> Signature.staticity -> term -> unit
 (** [declare_constant env l id st ty] declares the symbol [id] of type [ty] and
     staticity [st]. *)
 
-val define      : t -> loc -> ident -> bool -> term -> term option -> unit
-(** [define env l id body ty] defined the symbol [id] of type [ty] to be an alias of [body]. *)
+val define      : t -> loc -> ident -> Signature.scope -> bool -> term -> term option -> unit
+(** [define l id scope body ty] defines the symbol [id] of type [ty] to be an alias of [body]. *)
 
-val add_rules   : t -> Rule.untyped_rule list -> (Subst.Subst.t * Rule.typed_rule) list
+val add_rules   : t -> Rule.partially_typed_rule list -> (Subst.Subst.t * Rule.typed_rule) list
 (** [add_rules env rule_lst] adds a list of rule to a symbol. All rules must be on the
     same symbol. *)
 

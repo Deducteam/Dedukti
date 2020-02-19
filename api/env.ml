@@ -5,18 +5,19 @@ open Rule
 open Typing
 open Parsers
 
+
 exception DebugFlagNotRecognized of char
 
 let set_debug_mode =
   String.iter (function
-      | 'q' -> Debug.disable_flag Debug.D_warn
-      | 'n' -> Debug.enable_flag  Debug.D_notice
-      | 'o' -> Debug.enable_flag  Signature.D_module
-      | 'c' -> Debug.enable_flag  Confluence.D_confluence
-      | 'u' -> Debug.enable_flag  Typing.D_rule
-      | 't' -> Debug.enable_flag  Typing.D_typeChecking
-      | 'r' -> Debug.enable_flag  Reduction.D_reduce
-      | 'm' -> Debug.enable_flag  Dtree.D_matching
+      | 'q' -> Debug.disable_flag Debug.d_warn
+      | 'n' -> Debug.enable_flag  Debug.d_notice
+      | 'o' -> Debug.enable_flag  Signature.d_module
+      | 'c' -> Debug.enable_flag  Confluence.d_confluence
+      | 'u' -> Debug.enable_flag  Typing.d_rule
+      | 't' -> Debug.enable_flag  Typing.d_typeChecking
+      | 'r' -> Debug.enable_flag  Reduction.d_reduce
+      | 'm' -> Debug.enable_flag  Matching.d_matching
       | c -> raise (DebugFlagNotRecognized c)
     )
 
@@ -100,14 +101,15 @@ let export env =
 let import env lc md =
   Signature.import env.sg lc md
 
-let _declare env lc (id:ident) st ty : unit =
+let _declare env lc (id:ident) scope st ty : unit =
   let (module T) = env.typer in
   match T.inference env.sg ty with
-  | Kind | Type _ -> Signature.add_declaration env.sg lc id st ty
+  | Kind | Type _ -> Signature.add_declaration env.sg lc id scope st ty
   | s -> raise (Typing.Typing_error (Typing.SortExpected (ty,[],s)))
 
-let is_static env lc cst = Signature.is_static env.sg lc cst
+let is_injective env lc cst = Signature.is_injective env.sg lc cst
 
+let is_static env lc cst = Signature.is_static env.sg lc cst
 
 let _add_rules env rs =
   let ris = List.map Rule.to_rule_infos rs in
@@ -115,7 +117,7 @@ let _add_rules env rs =
   if !check_ll    then List.iter (Rule.check_linearity) ris;
   Signature.add_rules env.sg ris
 
-let _define env lc (id:ident) (opaque:bool) (te:term) (ty_opt:Typing.typ option) : unit =
+let _define env lc (id:ident) (scope:Signature.scope) (opaque:bool) (te:term) (ty_opt:Typing.typ option) : unit =
   let (module T) = env.typer in
   let ty = match ty_opt with
     | None -> T.inference env.sg te
@@ -124,9 +126,9 @@ let _define env lc (id:ident) (opaque:bool) (te:term) (ty_opt:Typing.typ option)
   match ty with
   | Kind -> raise @@ Typing_error (InexpectedKind (te,[]))
   | _ ->
-    if opaque then Signature.add_declaration env.sg lc id Signature.Static ty
+    if opaque then Signature.add_declaration env.sg lc id scope Signature.Static ty
     else
-      let _ = Signature.add_declaration env.sg lc id Signature.Definable ty in
+      let _ = Signature.add_declaration env.sg lc id scope Signature.Definable ty in
       let cst = mk_name (get_name env) id in
       let rule =
         { name= Delta(cst) ;
@@ -137,13 +139,13 @@ let _define env lc (id:ident) (opaque:bool) (te:term) (ty_opt:Typing.typ option)
       in
       _add_rules env [rule]
 
-let declare env lc id st ty : unit =
-  _declare env lc id st ty
+let declare env lc id scope st ty : unit =
+  _declare env lc id scope st ty
 
-let define env lc id op te ty_opt : unit =
-  _define env lc id op te ty_opt
+let define env lc id scope op te ty_opt : unit =
+  _define env lc id scope op te ty_opt
 
-let add_rules env (rules: untyped_rule list) : (Subst.Subst.t * typed_rule) list =
+let add_rules env (rules: partially_typed_rule list) : (Subst.Subst.t * typed_rule) list =
   let (module T) = env.typer in
   let rs2 = List.map (T.check_rule env.sg) rules in
   _add_rules env rules;

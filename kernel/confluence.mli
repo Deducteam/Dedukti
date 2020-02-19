@@ -3,14 +3,14 @@
 open Basic
 open Rule
 
-type Debug.flag += D_confluence
+val d_confluence : Debug.flag
 
 type confluence_error =
   | NotConfluent   of string
   | MaybeConfluent of string
   | CCFailure      of string
 
-exception ConfluenceError of confluence_error
+exception Confluence_error of confluence_error
 
 val set_cmd : string -> unit
 val initialize : unit -> unit

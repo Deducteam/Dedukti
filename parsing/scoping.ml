@@ -38,10 +38,12 @@ let scope_term md ctx (pte:preterm) : term =
 
 (******************************************************************************)
 
+type pre_context = preterm option context
+
 (* [get_vars_order vars p] traverses the pattern [p] from left to right and
  * builds the list of variables, turning jokers into unapplied fresh variables.
  * Return false as second argument if some variables never occur (warning needed). *)
-let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context*bool*bool =
+let get_vars_order (vars:pcontext) (ppat:prepattern) : pre_context*bool*bool =
   let nb_jokers = ref 0 in
   let has_brackets = ref false in
   let get_fresh_name () =
@@ -51,26 +53,26 @@ let get_vars_order (vars:pcontext) (ppat:prepattern) : untyped_context*bool*bool
   let is_a_var id1 =
     let rec aux = function
       | [] -> None
-      | (l,id2)::_ when ident_eq id1 id2 -> Some l
+      | ((l,id2),ty)::_ when ident_eq id1 id2 -> Some (l,id2,ty)
       | _::lst -> aux lst
     in aux vars
   in
-  let rec aux (bvar:ident list) (ctx:(loc*ident) list) : prepattern -> untyped_context = function
+  let rec aux (bvar:ident list) (ctx:pre_context) : prepattern -> pre_context = function
     | PPattern (_,None,id,pargs) ->
       if List.exists (ident_eq id) bvar
       then List.fold_left (aux bvar) ctx pargs
       else
-        let ctx = (
+        let new_ctx = (
           match is_a_var id with
-          | Some l when not (List.exists (fun (_,a) -> ident_eq id a) ctx)
-            -> (l,id)::ctx
+          | Some l when not (List.exists (fun (_,a,_) -> ident_eq id a) ctx)
+            -> l::ctx
           | _ -> ctx
         ) in
-        List.fold_left (aux bvar) ctx pargs
+        List.fold_left (aux bvar) new_ctx pargs
     | PPattern (_,Some _,_,pargs) -> List.fold_left (aux bvar) ctx pargs
     | PLambda (_,x,pp) -> aux (x::bvar) ctx pp
     | PCondition _ -> has_brackets := true; ctx
-    | PJoker l -> (l, get_fresh_name ()) :: ctx
+    | PJoker (l,_) -> (l, get_fresh_name (),None) :: ctx
   in
   let ordered_ctx = aux [] [] ppat in
   ( ordered_ctx , List.length ordered_ctx <> List.length vars + !nb_jokers, !has_brackets )
@@ -91,11 +93,11 @@ let p_of_pp md (ctx:ident list) (ppat:prepattern) : pattern =
     | PPattern (l,Some md,id,pargs) -> Pattern (l,mk_name md id,List.map (aux ctx) pargs)
     | PLambda (l,x,pp) -> Lambda (l,x, aux (x::ctx) pp)
     | PCondition pte -> Brackets (t_of_pt md ctx pte)
-    | PJoker l ->
+    | PJoker (l,pargs) ->
       begin
         let id = get_fresh_name () in
         match get_db_index ctx id with
-        | Some n -> Var (l,id,n,[])
+        | Some n -> Var (l,id,n,List.map (aux ctx) pargs)
         | None -> assert false
       end
   in
@@ -103,18 +105,18 @@ let p_of_pp md (ctx:ident list) (ppat:prepattern) : pattern =
 
 (******************************************************************************)
 
-let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
+let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : partially_typed_rule =
   let top = PPattern(l,md_opt,id,pargs) in
   let ctx, unused_vars, has_brackets = get_vars_order pctx top in
   if unused_vars
   then
     begin
-      Debug.(debug D_warn "Local variables in the rule:\n%a\nare not used (%a)")
+      Debug.(debug d_warn "Local variables in the rule:\n%a\nare not used (%a)")
         pp_prule (l,pname,pctx,md_opt,id,pargs,pri) pp_loc l;
       if has_brackets then
         raise @@ Scoping_error(l,"Unused variables in context may create scoping ambiguity in bracket")
     end;
-  let idents = List.map snd ctx in
+  let idents = List.map (fun (_,x,_) -> x) ctx in
   let b,id =
     match pname with
     | None ->
@@ -124,4 +126,17 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   in
   let name = Gamma(b,mk_name md id)
   in
-  { name ; ctx= ctx; pat = p_of_pp md idents top; rhs = t_of_pt md idents pri }
+  let rec ctx_of_pctx ctx acc = function
+    | [] -> acc
+    | (l,x,ty)::tl ->
+      ctx_of_pctx
+        (x::ctx)
+        ( (l,x,map_opt (t_of_pt md ctx) ty) :: acc )
+        tl
+  in
+  {
+    name = name ;
+    ctx  = ctx_of_pctx [] [] (List.rev ctx);
+    pat  = p_of_pp md idents top;
+    rhs  = t_of_pt md idents pri
+  }

@@ -10,9 +10,16 @@ p : f : (N -> A) -> P f.
 g : (x : N) -> f : (N -> A) -> T (f x).
 def h : f : (N -> A) -> (x : N -> T (f x)) -> P f.
 
-[X,Y] h (x => Y x) (x => g x X) --> p X.
+[X,Y] h (y => Y y) (x => g x X) --> p X.
+(;
+Inferred constraints:
+  T (X x) = T ((y => Y y) x)
+LHS Type : P (y => Y y)
+RHS Type : P X
 
-
-(; This rule is ill-typed because if k is of type N -> A, then
-h (x => k x) (x => g x k) is of type P (x => k x)
-but p k is of type P k ;)
+This rule is ill-typed because
+  X x  ==  (y => Y y) x
+doesn't necessarily imply
+  X    ==  (y => Y y)
+which is necessary to type check the RHS
+;)

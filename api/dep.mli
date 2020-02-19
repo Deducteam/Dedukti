@@ -2,6 +2,15 @@
 open Kernel
 open Parsers
 
+(** {2 Debugging} *)
+
+type dep_error =
+  | CircularDependencies of string * string list
+  | NameNotFound of Basic.name
+
+exception Dep_error of dep_error
+
+
 (** {2 Type declaration} *)
 
 type data = {up: Basic.NameSet.t ; down: Basic.NameSet.t}
@@ -20,14 +29,6 @@ type file_deps =
 
 type t = (Basic.mident, file_deps) Hashtbl.t
 (** Map to a module a file dependencies which contains all the dependencies *)
-
-(** {2 Debugging} *)
-
-type dep_error =
-  | CircularDependencies of string * string list
-  | NameNotFound         of Basic.name
-
-exception Dep_error of dep_error
 
 (** {2 Dependencies function} *)
 

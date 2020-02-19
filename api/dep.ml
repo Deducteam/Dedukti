@@ -1,6 +1,6 @@
 open Kernel
-open Basic
 open Parsers
+open Basic
 
 module NameSet = Basic.NameSet
 
@@ -20,13 +20,14 @@ type file_deps =
     name_deps: name_deps; (** up/down item dependencies *)
 }
 
-type t = (mident, file_deps) Hashtbl.t
-
 type dep_error =
   | CircularDependencies of string * string list
   | NameNotFound of name
 
+
 exception Dep_error of dep_error
+
+type t = (mident, file_deps) Hashtbl.t
 
 let fail_dep_error err =
   match err with
@@ -139,9 +140,9 @@ let handle_entry e =
   let open Entry in
   let name_of_id id = Basic.mk_name !current_mod id in
   match e with
-  | Decl(_,id,_,te)             -> current_name := name_of_id id; mk_term te
-  | Def(_,id,_,None,te)         -> current_name := name_of_id id; mk_term te
-  | Def(_,id,_,Some(ty),te)     -> current_name := name_of_id id; mk_term ty; mk_term te
+  | Decl(_,id,_,_,te)           -> current_name := name_of_id id; mk_term te
+  | Def(_,id,_,_,None,te)       -> current_name := name_of_id id; mk_term te
+  | Def(_,id,_,_,Some(ty),te)   -> current_name := name_of_id id; mk_term ty; mk_term te
   | Rules(_,[])                 -> ()
   | Rules(_,(r::_ as rs))       -> current_name := find_rule_name r; List.iter mk_rule rs
   | Eval(_,_,te)                -> mk_term te

@@ -22,20 +22,20 @@ struct
     let open Entry in
     let (module Pp:Pp.Printer) = Env.get_printer env in
     match e with
-    | Decl(lc,id,st,ty) ->
-      Debug.debug Debug.D_notice "Declaration of constant '%a'." pp_ident id;
-      Env.declare env lc id st ty
-    | Def(lc,id,opaque,ty,te) ->
+    | Decl(lc,id,scope,st,ty) ->
+      Debug.(debug d_notice) "Declaration of constant '%a'." pp_ident id;
+      Env.declare env lc id scope st ty
+    | Def(lc,id,scope,opaque,ty,te) ->
       let opaque_str = if opaque then " (opaque)" else "" in
-      Debug.debug Debug.D_notice "Definition of symbol '%a'%s." pp_ident id opaque_str;
-      Env.define env lc id opaque te ty
+      Debug.(debug d_notice) "Definition of symbol '%a'%s." pp_ident id opaque_str;
+      Env.define env lc id scope opaque te ty
     | Rules(_,rs) ->
       let open Rule in
-      List.iter (fun (r:untyped_rule) ->
-          Debug.(debug D_notice "Adding rewrite rules: '%a'" Pp.print_rule_name r.name)) rs;
+      List.iter (fun (r:partially_typed_rule) ->
+          Debug.(debug d_notice "Adding rewrite rules: '%a'" Pp.print_rule_name r.name)) rs;
       let rs = Env.add_rules env rs in
       List.iter (fun (s,r) ->
-          Debug.debug Debug.D_notice "%a@.with the following constraints: %a"
+          Debug.debug Debug.d_notice "%a@.with the following constraints: %a"
             pp_typed_rule r (Subst.Subst.pp (fun n -> let _,n,_ = List.nth r.ctx n in n)) s) rs
     | Eval(_,red,te) ->
       let te = Env.reduction env ~red te in
@@ -66,7 +66,7 @@ struct
     | Print(_,s) -> Format.printf "%s@." s
     | Name(_,n) ->
       if not (mident_eq n (Env.get_name env))
-      then Debug.(debug D_warn "Invalid #NAME directive ignored.@.")
+      then Debug.(debug d_warn "Invalid #NAME directive ignored.@.")
     | Require(lc,md) -> Env.import env lc md
 
   let get_data () = ()
@@ -87,15 +87,15 @@ struct
     let md = Env.get_name      env in
     let open Entry in
     match e with
-    | Decl(lc,id,st,ty) ->
-      Signature.add_external_declaration sg lc (Basic.mk_name md id) st ty
-    | Def(lc,id,_,Some ty,te) ->
+    | Decl(lc,id,scope,st,ty) ->
+      Signature.add_external_declaration sg lc (Basic.mk_name md id) scope st ty
+    | Def(lc,id,scope,_,Some ty,te) ->
       let open Rule in
-      Signature.add_external_declaration sg lc (Basic.mk_name md id) Signature.Definable ty;
+      Signature.add_external_declaration sg lc (Basic.mk_name md id) scope Signature.Definable ty;
       let cst = Basic.mk_name md id in
       let rule = { name= Delta(cst) ; ctx = [] ; pat = Pattern(lc, cst, []); rhs = te ; } in
       Signature.add_rules sg [Rule.to_rule_infos rule]
-    | Def(lc,_,_, None,_) ->
+    | Def(lc,_,_, _, None,_) ->
       raise @@ Typing.Typing_error (Typing.DomainFreeLambda lc) (* FIXME: It is not a typign error *)
     | Rules(_,rs) ->
       Signature.add_rules sg (List.map Rule.to_rule_infos rs)

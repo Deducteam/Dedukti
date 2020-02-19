@@ -33,8 +33,10 @@
 #
 ############################################################################################
 
-all_tests=$(find tests -name "*.dk")
+all_tests=$(find tests -name "*.dk" | sort)
 total=$(wc -w <<< "$all_tests")
+
+find -name "*.dko" -exec rm {}
 
 echo ""
 echo "------------------------"

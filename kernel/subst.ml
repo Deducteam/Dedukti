@@ -28,9 +28,8 @@ let apply_subst (subst:substitution) : int -> term -> term =
     | _ -> t
   in aux
 
-let shift_rec (r:int) : term -> term = apply_subst (fun l x n _ -> mk_DB l x (n+r)) 0
-
-let shift r t = if r = 0 then t else shift_rec r t
+let shift r t = if r = 0 then t
+  else apply_subst (fun l x n _ -> mk_DB l x (n+r)) 0 t
 
 (* All free variables are shifted down by [q]. If their index is less than [q], raises UnshiftExn. *)
 let unshift q =

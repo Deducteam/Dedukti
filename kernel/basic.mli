@@ -82,19 +82,22 @@ val dloc : loc
 val mk_loc : int -> int -> loc
 
 (** [of_loc l] returns the line and the column associated to the position*)
+
 val of_loc : loc -> int * int
 
 (** {2 Debug} *)
 
 module Debug : sig
 
-  type flag  = ..
-  (** Extensible type  for debug flags *)
+  type flag
+  val d_warn   : flag
+  val d_notice : flag
 
-  type flag += D_warn | D_notice
+  (** [register_flag msg] generates a new flag with error message [msg] *)
+  val register_flag : string -> flag
 
-  (** [register_flag fl m] set the header of error messages tagged by [f] to be [m] *)
-  val register_flag : flag -> string -> unit
+  (** Same as register flag, but with a bool enbling the flag by default *)
+  val new_flag : bool -> string -> flag
 
   (** Activates error messages associated to a flag *)
   val enable_flag : flag -> unit

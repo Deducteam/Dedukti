@@ -13,7 +13,7 @@ let _ =
   let beautify     = ref false in
   let deprecated old_flag new_flag spec =
     let warning () =
-      Debug.(debug D_warn)
+      Debug.(debug d_warn)
         "[DEPRECATED] Flag %s is deprecated ! Use %s instead.@." old_flag new_flag in
     (old_flag,Arg.Tuple [Arg.Unit warning; spec], "")
   in

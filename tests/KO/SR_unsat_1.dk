@@ -1,0 +1,25 @@
+(; KO 108 --type-lhs ;)
+
+A : Type.
+T : A -> Type.
+t : a:A -> T a.
+
+a : A.
+def b : A -> A -> A.
+    c : A -> A -> A.
+
+(; We build definitions with types containing an expression relying on
+     2 matching variables + 2 locally bound variables
+   Generated constraints are not necessary to check the rules but should
+   generating an "unsatisfiable constraints" warning and fail
+   when using the --type-lhs flag.
+
+   See SR_sat.dk for examples of satisfiable constraints.
+;)
+
+(; Terms that *must* contain x and *must* contain y
+   are convertible with
+   terms that *must* or *may* contain x
+          and *must* or *may* contain y ;)
+def   d : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (b x a)) -> Type.
+[X,Y] d  (x=>y=>X x y)   (y=>Y y)    ( x => y => t y      ) --> A.

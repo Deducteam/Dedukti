@@ -1,8 +1,6 @@
 open Basic
 open Rule
 
-type Debug.flag += D_matching
-
 (** {2 Error} *)
 
 type dtree_error =
@@ -16,15 +14,15 @@ exception Dtree_error of dtree_error
 (** Arguments of a pattern may be the following:
     - a constant
     - a variable
-    - a lambda expression *)
+    - a lambda expression
+*)
 type case =
   | CConst of int * name
   (** [size c] where [size] is the number of *static* arguments expected for the constant [c] *)
   | CDB of int * int
-  (** [size i] where size is the number of *static* arguments expected for the
-      bounded variable [i] *)
-  | CLam (** A lambda term *)
-
+  (** [(size,db_index)] where [size] is the number of *static* arguments expected
+      for the bounded variable [db_index] *)
+  | CLam  (** A lambda headed term *)
 
 (** An atomic matching problem.
      stack.(pos) ~? X[ DB(args_0), ..., DB(args_n)]
@@ -72,5 +70,5 @@ val of_rules : rule_infos list -> t
     Returns a list of arities and corresponding decision trees.
     Invariant : arities must be sorted in decreasing order.
     (see use case in [state_whnf] in [reduction.ml])
-    May raise DtreeError.
+    May raise Dtree_error.
 *)

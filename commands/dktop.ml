@@ -17,11 +17,11 @@ struct
 
   let handle_entry env e =
     match e with
-    | Decl(lc,id,st,ty) ->
-      Env.declare env lc id st ty;
+    | Decl(lc,id,scope,st,ty) ->
+      Env.declare env lc id scope st ty;
       Format.printf "%a is declared.@." pp_ident id
-    | Def(lc,id,op,ty,te) ->
-      Env.define env lc id op te ty;
+    | Def(lc,id,scope,op,ty,te) ->
+      Env.define env lc id scope op te ty;
       Format.printf "%a is defined.@." pp_ident id
     | Rules(_,rs) ->
       let _ = Env.add_rules env rs in

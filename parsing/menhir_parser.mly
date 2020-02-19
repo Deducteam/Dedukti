@@ -71,6 +71,8 @@ let loc_of_rs = function
 %token <Kernel.Basic.loc> TYPE
 %token <Kernel.Basic.loc> KW_DEF
 %token <Kernel.Basic.loc> KW_THM
+%token <Kernel.Basic.loc> KW_INJ
+%token <Kernel.Basic.loc> KW_PRV
 %token <Kernel.Basic.loc*Kernel.Basic.ident> ID
 %token <Kernel.Basic.loc*Kernel.Basic.mident*Kernel.Basic.ident> QID
 %token <string> STRING
@@ -93,22 +95,39 @@ let loc_of_rs = function
 
 line:
   | id=ID ps=param* COLON ty=term DOT
-      {fun md -> Decl(fst id, snd id, Static, scope_term md [] (mk_pi ty ps))}
+    {fun md -> Decl(fst id, snd id, Public, Static, scope_term md [] (mk_pi ty ps))}
+  | KW_PRV id=ID ps=param* COLON ty=term DOT
+    {fun md -> Decl(fst id, snd id, Private, Static, scope_term md [] (mk_pi ty ps))}
   | KW_DEF id=ID COLON ty=term DOT
-      {fun md -> Decl(fst id, snd id, Definable, scope_term md [] ty)}
+    {fun md -> Decl(fst id, snd id, Public, Definable, scope_term md [] ty)}
+  | KW_PRV KW_DEF id=ID COLON ty=term DOT
+    {fun md -> Decl(fst id, snd id, Private, Definable, scope_term md [] ty)}
+  | KW_INJ id=ID COLON ty=term DOT
+    {fun md -> Decl(fst id, snd id, Public, Definable, scope_term md [] ty)}
+  | KW_PRV KW_INJ id=ID COLON ty=term DOT
+    {fun md -> Decl(fst id, snd id, Private, Definable, scope_term md [] ty)}
   | KW_DEF id=ID COLON ty=term DEF te=term DOT
-      {fun md -> Def(fst id, snd id, false, Some(scope_term md [] ty), scope_term md [] te)}
+    {fun md -> Def(fst id, snd id, Public, false, Some(scope_term md [] ty), scope_term md [] te)}
   | KW_DEF id=ID DEF te=term DOT
-      {fun md -> Def(fst id, snd id, false, None, scope_term md [] te)}
+    {fun md -> Def(fst id, snd id, Public, false, None, scope_term md [] te)}
   | KW_DEF id=ID ps=param+ COLON ty=term DEF te=term DOT
-      {fun md -> Def(fst id, snd id, false, Some(scope_term md [] (mk_pi ty ps)),
+    {fun md -> Def(fst id, snd id, Public, false, Some(scope_term md [] (mk_pi ty ps)),
                      scope_term md [] (mk_lam te ps))}
   | KW_DEF id=ID ps=param+ DEF te=term DOT
-      {fun md -> Def(fst id, snd id, false, None, scope_term md [] (mk_lam te ps))}
+    {fun md -> Def(fst id, snd id, Public, false, None, scope_term md [] (mk_lam te ps))}
+  | KW_PRV KW_DEF id=ID COLON ty=term DEF te=term DOT
+      {fun md -> Def(fst id, snd id, Private, false, Some(scope_term md [] ty), scope_term md [] te)}
+  | KW_PRV KW_DEF id=ID DEF te=term DOT
+      {fun md -> Def(fst id, snd id, Private, false, None, scope_term md [] te)}
+  | KW_PRV KW_DEF id=ID ps=param+ COLON ty=term DEF te=term DOT
+      {fun md -> Def(fst id, snd id, Private, false, Some(scope_term md [] (mk_pi ty ps)),
+                     scope_term md [] (mk_lam te ps))}
+  | KW_PRV KW_DEF id=ID ps=param+ DEF te=term DOT
+      {fun md -> Def(fst id, snd id, Private, false, None, scope_term md [] (mk_lam te ps))}
   | KW_THM id=ID COLON ty=term DEF te=term DOT
-      {fun md -> Def(fst id, snd id, true, Some(scope_term md [] ty), scope_term md [] te)}
+      {fun md -> Def(fst id, snd id, Public, true, Some(scope_term md [] ty), scope_term md [] te)}
   | KW_THM id=ID ps=param+ COLON ty=term DEF te=term DOT
-      {fun md -> Def(fst id, snd id, true, Some(scope_term md [] (mk_pi ty ps)),
+      {fun md -> Def(fst id, snd id, Public, true, Some(scope_term md [] (mk_pi ty ps)),
                      scope_term md [] (mk_lam te ps))}
   | rs=rule+ DOT
       {fun md -> Rules(loc_of_rs rs,(List.map (scope_rule md) rs))}
@@ -168,12 +187,10 @@ rule:
         ( l , Some (Some m,v), $5 , md_opt, id , args , $9)}
 
 decl:
-  | ID COLON term { Debug.(debug D_warn "Ignoring type declaration in rule context."); $1 }
-  | ID            { $1 }
+  | ID COLON term { ($1, Some $3) }
+  | ID            { ($1, None   ) }
 
-context:
-  | /* empty */                          { [] }
-  | separated_nonempty_list(COMMA, decl) { $1 }
+context: separated_list(COMMA, decl) { $1 }
 
 top_pattern:
   | ID  pattern_wp* { (fst $1,None,snd $1,$2) }
@@ -186,19 +203,20 @@ top_pattern:
 pattern_wp:
   | ID                       { PPattern (fst $1,None,snd $1,[]) }
   | QID                      { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
-  | UNDERSCORE               { PJoker $1 }
+  | UNDERSCORE               { PJoker ($1,[]) }
   | LEFTBRA term RIGHTBRA    { PCondition $2 }
   | LEFTPAR pattern RIGHTPAR { $2 }
 
 pattern:
+  | pid FATARROW pattern     { PLambda (fst $1,snd $1,$3) }
   | ID  pattern_wp+          { PPattern (fst $1,None,snd $1,$2) }
   | QID pattern_wp+          { let (l,md,id)=$1 in PPattern (l,Some md,id,$2) }
-  | ID  FATARROW pattern     { PLambda (fst $1,snd $1,$3) }
+  | UNDERSCORE pattern_wp+   { PJoker ($1,$2) }
   | pattern_wp               { $1 }
 
 sterm:
   | QID                      { let (l,md,id)=$1 in PreQId(l,mk_name md id) }
-  | pid                      { PreId (fst $1,snd $1) }
+  | ID                       { PreId (fst $1,snd $1) }
   | LEFTPAR term RIGHTPAR    { $2 }
   | TYPE                     { PreType $1 }
 
