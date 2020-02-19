@@ -16,21 +16,32 @@ let get_AC_args name = function
   | _ -> None
 
 (* Reduces subterms with f to have a maximal set of elements. *)
-let force_flatten_AC_terms f name =
+let force_flatten_AC_terms
+      (snf:term -> term)
+      (are_convertible:term -> term -> bool)
+      (name,aci) terms =
   let rec aux acc = function
   | [] -> acc
   | hd :: tl ->
      match get_AC_args name hd with
      | Some (a1,a2) -> aux acc (a1 :: a2 :: tl)
      | None         ->
-        let fhd = f hd in
-        match get_AC_args name fhd with
+        let snfhd = snf hd in
+        match get_AC_args name snfhd with
         | Some (a1,a2) -> aux acc (a1 :: a2 :: tl)
-        | None         -> aux (fhd :: acc) tl in
-  aux []
+        | None         -> aux (snfhd :: acc) tl in
+  let res = aux [] terms in
+  (* If aci is an ACU symbol, remove corresponding neutral element. *)
+  match aci with
+  | ACU neu -> List.filter (fun x -> not (are_convertible neu x)) res
+  | _ -> res
+
 
 (* Reduces subterms with f to have a maximal set of elements. *)
-let force_flatten_AC_term f name t = force_flatten_AC_terms f name [t]
+let force_flatten_AC_term
+      (snf:term -> term)
+      (are_convertible:term -> term -> bool)
+      aci t = force_flatten_AC_terms snf are_convertible aci [t]
 
 let flatten_AC_terms name =
   let rec aux acc = function

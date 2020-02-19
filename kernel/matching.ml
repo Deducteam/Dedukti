@@ -190,10 +190,10 @@ struct
     in
     aux []
 
+  (* Updates AC problems assuming variable [i] is fully solved with sol *)
   let update_ac_problems sg (i:int) (sol:te) :
-    te list ac_problem list -> te list ac_problem list option =
-    let rec update_ac acc : te list ac_problem list -> te list ac_problem list option
-      = function
+        te list ac_problem list -> te list ac_problem list option =
+    let rec update_ac acc = function
       | [] -> Some (List.rev acc)
       | p :: tl ->
         let (d,aci,joks,vars,terms) = p in
@@ -201,44 +201,57 @@ struct
         match get_occs i vars with
         | [] -> update_ac (p::acc) tl
         | occs ->
+           (* FIXME: aren't we computing the solution's WHNF several time ? *)
           let sol = R.whnf sg (Lazy.force sol) in
-          (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
-          let flat_sols = force_flatten_AC_term (R.snf sg) (fst aci) sol in
-          (* If aci represent ACU symbol, remove corresponding neutral element. *)
-          let flat_sols =
-            match snd aci with
-            | ACU neu -> List.filter (fun x -> not (R.are_convertible sg neu x)) flat_sols
-            | _ -> flat_sols in
+          (* In case sol's whnf is headed by the same AC-symbol: flatten it. *)
+          let flat_sols = force_flatten_AC_term
+                            (R.whnf sg) (R.are_convertible sg) aci sol in
           let sols = compute_all_sols flat_sols occs in
+          (* Assuming sol is  y1 => ... => yn => t
+            For each X x1 ... xn in the LHS of the AC problem,
+            Remove t{x1/y1 ... xn/yn} from the RHS *)
           match remove_sols_occs sg sols terms with
-          | None -> None
+          | None -> None (* If it failed, fail *)
           | Some nterms ->
+             (* Otherwise, remove occurences of [i] from the LHS *)
             let nvars = filter_vars i vars in
             if nvars = []
-            then if nterms = [] || joks > 0
-              then update_ac acc tl
-              else None
-            else update_ac ((d,aci,joks,nvars,nterms)::acc) tl
+            then (* If the LHS is now empty *)
+              if nterms = [] || joks > 0
+              then (* The RHS is empty too: this equation is solved *)
+                update_ac acc tl
+              else None (* The RHS is non empty: fail *)
+            else (* Push the updated equation back and proceed *)
+              update_ac ((d,aci,joks,nvars,nterms)::acc) tl
     in
     update_ac []
 
   (* Resolves variable [i] = [t] *)
   let set_unsolved sg (pb:matching_problem) (i:int) (sol:te) =
-    map_opt
-      (* update status of variable [i] *)
-      (fun ac_pbs ->
-         { pb with ac_problems = ac_pbs; status= update_status pb.status i (Solved sol) })
-      (* if the substitution is compatible *)
-      (update_ac_problems sg i sol pb.ac_problems)
+    (* Try and update AC problems *)
+    match update_ac_problems sg i sol pb.ac_problems with
+    | None        -> None
+    | Some ac_pbs -> Some
+                       { pb with
+                         (* Update *)
+                         ac_problems = ac_pbs
+                       ; (* Update status of variable [i] *)
+                         status      = update_status pb.status i (Solved sol)
 
+                       }
+
+  (* Set variable [i] to be progressively solved.
+     From now on, [i] = +{ ... } where partial solutions are going to be
+     added to the set (cf [add_partly]) until it is "closed" (cf [close_partly]).
+   *)
   let set_partly pb i (aci:ac_ident) =
     assert(pb.status.(i) == Unsolved);
     { pb with status = update_status pb.status i (Partly(aci,[]))}
 
   (* A problem of the shape +{X, Y, Z} = +{} has been found.
-     Partly solved variable   X = +{a,b,c}
-     May no longer be added extra arguments, it is in solved form.
-     For each other problem still containing it, remove this variable from the LHS
+     Partly solved variables   X = +{a,b,c}
+     May no longer be added extra arguments: they must be in solved form.
+     For each other problem still containing them, remove this variable from the LHS
   *)
   let close_partly sg pb i =
     match pb.status.(i) with
@@ -273,7 +286,11 @@ struct
       end
     | _ -> assert false
 
-  let add_partly sg pb i sol =
+  (* Variable [i] is partly solved : X = +{ ... }
+     and it was guessed from one of the equations that X's partial
+     solution can be added an extra term:   X = +{ ... sol }
+   *)
+  let add_partly sg (pb:matching_problem) (i:int) (sol:te) : matching_problem option=
     match pb.status.(i) with
     | Partly(aci,terms) ->
       let rec update_ac acc = function
@@ -406,14 +423,9 @@ struct
             get_sols
               ( match whnfs v with
                 | Some sol ->
-                  (* If sol's whnf is still headed by the same AC-symbol then flatten it. *)
-                  let flat_sols = force_flatten_AC_term (R.snf sg) (fst aci) sol in
-                  (* If aci represent ACU symbol, remove corresponding neutral element. *)
-                  let flat_sols =
-                    match snd aci with
-                    | ACU neu ->
-                      List.filter (fun x -> not (R.are_convertible sg neu x)) flat_sols
-                    | _ -> flat_sols in
+                   (* In case sol's whnf is headed by the same AC-symbol: flatten it. *)
+                   let flat_sols = force_flatten_AC_term
+                                     (R.whnf sg) (R.are_convertible sg) aci sol in
                   let sols = List.map (fun sol -> apply_sol sol args) flat_sols in
                   sols @ acc
                 | _ -> acc) tl
@@ -434,8 +446,8 @@ struct
     update_ac []
 
   (* Main solving function.
-     Processes equationnal problems as they can be deterministically solved right away
-     then hands over to non deterministic AC solver. *)
+     Processes equationnal problems as they can be deterministically solved
+     right away then hands over to non deterministic AC solver. *)
   let solve_problem sg from_stack from_stack_ac pb =
     if pb.pm_ac_problems = []
     then
