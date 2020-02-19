@@ -1,0 +1,67 @@
+(; OK ;)
+
+A : Type.
+a : A.
+b : A.
+c : A.
+d : A.
+
+T :   A -> Type.
+t : x:A -> T x.
+
+def f : A -> A.
+[X] f X --> a
+[X] f X --> b
+[X] f X --> c
+[X] f X --> d.
+def test_f (x:A) : T a := t (f x).
+
+def g : A -> A.
+[X] g X --> a
+[X] g X --> b.
+[X] g X --> c
+[X] g X --> d.
+def test_g (x:A) : T a := t (g x).
+
+def h : A -> A.
+[X] h X --> a.
+[X] h X --> b.
+[X] h X --> c.
+[X] h X --> d.
+def test_h (x:A) : T a := t (h x).
+
+
+cons : A -> A.
+
+def f' : A -> A.
+[X] f' (cons X) --> a
+[X] f' (cons X) --> b
+[X] f' (cons X) --> c
+[X] f' (cons X) --> d
+[X] f' X --> a
+[X] f' X --> b
+[X] f' X --> c
+[X] f' X --> d.
+def test_f' (x:A) : T a := t (f' x).
+
+def g' : A -> A.
+[X] g' (cons X) --> c
+[X] g' (cons X) --> d
+[X] g' X --> a
+[X] g' X --> b.
+[X] g' (cons X) --> a
+[X] g' (cons X) --> b.
+[X] g' X --> c
+[X] g' X --> d.
+def test_g' (x:A) : T a := t (g' x).
+
+def h' : A -> A.
+[X] h' (cons X) --> a.
+[X] h' (cons X) --> b.
+[X] h' (cons X) --> c.
+[X] h' (cons X) --> d.
+[X] h' X --> a.
+[X] h' X --> b.
+[X] h' X --> c.
+[X] h' X --> d.
+def test_h' (x:A) : T a := t (h' x).
