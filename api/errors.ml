@@ -155,6 +155,10 @@ let fail_dtree_error file md errid err =
     fail lc
       "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
       pp_ident id pp_ident rid
+  | ACSymbolRewritten (lc, cst, _) ->
+    fail lc
+      "Rewrite rules for AC definable symbol '%a' should not have arity 0."
+      pp_name cst
 
 let fail_rule_error file md errid err =
   let fail lc = fail_exit 3 errid file md (Some lc) in
@@ -204,6 +208,8 @@ let fail_signature_error file md errid def_loc err =
     fail lc "Fail to open module '%s'." md
   | SymbolNotFound (lc,cst) ->
     fail lc "Cannot find symbol '%a'." pp_name cst
+  | ExpectedACUSymbol (lc,cst) ->
+    fail lc "Expected ACU symbol '%a'." pp_name cst
   | AlreadyDefinedSymbol (lc,n) ->
     fail lc "Already declared symbol '%a'." pp_name n
   | CannotBuildDtree err -> fail_dtree_error file md errid err
@@ -285,6 +291,7 @@ let code : exn -> int =
             begin match e with
               | Dtree.HeadSymbolMismatch _                   -> 300
               | Dtree.ArityInnerMismatch _                   -> 301
+              | Dtree.ACSymbolRewritten _                    -> 310
             end
           | Signature.CannotMakeRuleInfos _                  -> 302
           | Signature.UnmarshalBadVersionNumber _            -> 303
@@ -298,6 +305,7 @@ let code : exn -> int =
           | Signature.GuardNotSatisfied _                    -> 401
           | Signature.CouldNotExportModule _                 -> 402
           | Signature.PrivateSymbol _                        -> 403
+          | Signature.ExpectedACUSymbol _                    -> 404
         end
       | EnvErrorRule e ->
         begin

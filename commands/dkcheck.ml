@@ -60,7 +60,8 @@ let _ =
       c : (confluence) notifies about information provided to the confluence
                      checker (when option --confluence used)
       u : (rule)     provides information about type checking of rules
-      t : (typing)   provides information about type-checking of terms
+      t : (typing)   provides information about type checking of terms
+      s : (SR)       provides information about subject reduction checking of terms
       r : (reduce)   provides information about reduction performed in terms
       m : (matching) provides information about pattern matching" )
     ; ( "-v"
@@ -92,6 +93,11 @@ let _ =
     ; ( "--type-lhs"
       , Arg.Set Typing.fail_on_unsatisfiable_constraints
       , " Forbids rules with untypable left-hand side" )
+    ; ( "--sr-check"
+      , Arg.Int (fun i -> Srcheck.srfuel := i)
+      , "LVL Sets the level of subject reduction checking to LVL.
+                   Default value is 1. Values < 0 may not terminate on
+                   rules that do not preserve typing. " )
     ; ( "--snf"
       , Arg.Set Errors.errors_in_snf
       , " Normalizes all terms printed in error messages" )

@@ -43,6 +43,8 @@ rule token = parse
   | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE       ( get_loc lexbuf ) }
   | "def"       { KW_DEF     ( get_loc lexbuf ) }
+  | "defac"     { KW_DEFAC   ( get_loc lexbuf ) }
+  | "defacu"    { KW_DEFACU  ( get_loc lexbuf ) }
   | "injective" { KW_INJ     ( get_loc lexbuf ) }
   | "thm"       { KW_THM     ( get_loc lexbuf ) }
   | "private"   { KW_PRV     ( get_loc lexbuf ) }

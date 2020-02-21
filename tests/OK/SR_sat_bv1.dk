@@ -93,8 +93,8 @@ def f3 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c a a)) -> Type.
 (; must / must ;)
 [X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c (c a x) a) (c a y))) --> A.
 (; must / may ;)
-[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x)   (Y y)  ))                   --> A.
 [X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x)   (X x y)))                   --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x)   (b y y)))                   --> A.
 [X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x)   (b y y)))                   --> A.
 [X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x)   (b x y)))                   --> A.
 [X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x x) (b (c y a) y)))             --> A.
@@ -107,7 +107,7 @@ def f3 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c a a)) -> Type.
 [X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
 [X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
 [X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
-[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (Y y)     )) --> A.
+[X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y x) (X x y)   )) --> A.
 [X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x y) (Y y)   )) --> A.
 [X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b x x) (X x y) )) --> A.
 [X,Y] a2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (b y x) (b (c y y) a) )) --> A.
@@ -169,7 +169,7 @@ def f3 : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c a a)) -> Type.
 [X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (c a x) y       )) --> A.
 [X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (b y y) x       )) --> A.
 [X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (b (Y y) x         )) --> A.
-[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y y) (Y x)     )) --> A.
+[X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (X x y) (Y x)   )) --> A.
 [X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (Y y) (b x x)   )) --> A.
 [X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (X x y) (b a x) )) --> A.
 [X,Y] b2  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c (c a a) (b y x) )) --> A.

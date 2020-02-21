@@ -1,28 +1,41 @@
 (** Matching on terms *)
 open Basic
 open Term
+open Dtree
 
 val d_matching : Debug.flag
 
+(** {2 Matching solver} *)
+
 exception NotUnifiable
 
-(** [solve n args te] solves following the higher-order unification problem (modulo beta):
+val solve_miller : miller_var -> term -> term
+(** [solve_miller var t]
+    Solves the matching problem X x1 ... xn = [t]
+    where [var] represents the applied Miller variable X x1 ... xn.
+    Raises NotUnifiable in case there is no solution.
+*)
 
-    x{_1} => x{_2} => ... x{_[n]} => X x{_i{_1}} .. x{_i{_m}}
-    {b =}
-    x{_1} => x{_2} => ... x{_[n]} => [te]
+module type Reducer = sig
+  val snf  : Signature.t -> term -> term
+  val whnf : Signature.t -> term -> term
+  val are_convertible : Signature.t -> term -> term -> bool
+end
 
-    where X is the unknown, x{_i{_1}}, ..., x{_i{_m}} are distinct bound variables. *)
-val solve : int -> int LList.t -> term -> term
-(**
-   If the free variables of [te] that are in x{_1}, ..., x{_[n]} are also in
-   x{_i{_1}}, ..., x{_i{_m}} then the problem has a unique solution modulo beta that is
-   x{_i{_1}} => .. => x{_i{_m}} => [te].
-   Otherwise this problem has no solution and the function raises [NotUnifiable].
+module type Matcher = sig
+  val solve_problem :
+    Signature.t -> (int -> term Lazy.t) -> (int -> term Lazy.t list) ->
+    pre_matching_problem -> term Lazy.t LList.t option
+  (** [solve_problem sg eq_conv ac_conv pb] solves the [pb] matching problem
+      using the given functions to convert positions in the stack to actual
+      (lazy) terms.
+  *)
+end
 
-   Since we use deBruijn indexes, the problem is given as the equation
-
-   x{_1} => ... => x{_[n]} => X DB(k{_0}) ... DB(k{_m}) =~ x{_1} => ... => x{_[n]} => [te]
-
-   and where [k_lst] = [\[]k{_0}[; ]k{_1}[; ]...[; ]k{_m}[\]].
+module Make (R:Reducer) : Matcher
+(** This is the default implementation.
+ * It relies on the provided :
+ * - [whnf] reduction strategy to flatten AC terms without digging to deep inside
+ * - [snf] reduction strategy to perform higher order matching when necessary
+ * - [are_convertible] convertibility test
 *)

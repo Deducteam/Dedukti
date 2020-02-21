@@ -4,6 +4,8 @@ type token =
   | UNDERSCORE of loc
   | TYPE       of loc
   | KW_DEF     of loc
+  | KW_DEFAC   of loc
+  | KW_DEFACU  of loc
   | KW_THM     of loc
   | KW_INJ     of loc
   | KW_PRV     of loc

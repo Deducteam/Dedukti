@@ -41,7 +41,7 @@ val default_cfg : red_cfg
 type convertibility_test = Signature.t -> term -> term -> bool
 type matching_test = Rule.constr -> Rule.rule_name -> convertibility_test
 
-exception NotConvertible
+exception Not_convertible
 
 val eta : bool ref
 (** Set to [true] to allow eta expansion at conversion check *)
@@ -53,8 +53,8 @@ module type ConvChecker = sig
 
   val matching_test : matching_test
 
-  val conversion_step : term * term -> (term * term) list -> (term * term) list
-  (** [conversion_step (l,r) lst] returns a list [lst'] containing
+  val conversion_step : Signature.t -> term * term -> (term * term) list -> (term * term) list
+  (** [conversion_step sg (l,r) lst] returns a list [lst'] containing
       new convertibility obligations.
       Raise [NotConvertible] if the two terms are not convertible. *)
 end
@@ -95,6 +95,6 @@ module type S = sig
       This may loop whenever [t] is not strongly normalizing. *)
 end
 
-module Make(C : ConvChecker) : S
+module Make(C : ConvChecker) (M:Matching.Matcher) : S
 
 module Default : S

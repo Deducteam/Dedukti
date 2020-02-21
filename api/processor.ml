@@ -34,7 +34,7 @@ struct
       let rs = E.add_rules rs in
       List.iter (fun (s,r) ->
           Debug.debug Debug.d_notice "%a@.with the following constraints: %a"
-            pp_typed_rule r (Subst.Subst.pp (fun n -> let _,n,_ = List.nth r.ctx n in n)) s) rs
+            pp_typed_rule r (Exsubst.ExSubst.pp (fun n -> let _,n,_ = List.nth r.ctx n in n)) s) rs
     | Eval(_,red,te) ->
       let te = E.reduction ~red te in
       Format.printf "%a@." Printer.print_term te
@@ -84,7 +84,7 @@ struct
       Signature.add_external_declaration sg lc (Basic.mk_name md id) scope st ty
     | Def(lc,id,scope,_,Some ty,te) ->
       let open Rule in
-      Signature.add_external_declaration sg lc (Basic.mk_name md id) scope Signature.Definable ty;
+      Signature.add_external_declaration sg lc (Basic.mk_name md id) scope (Signature.Definable Term.Free) ty;
       let cst = Basic.mk_name md id in
       let rule = { name= Delta(cst) ; ctx = [] ; pat = Pattern(lc, cst, []); rhs = te ; } in
       Signature.add_rules sg [Rule.to_rule_infos rule]

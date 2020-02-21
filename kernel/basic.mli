@@ -61,6 +61,7 @@ module LList : sig
   val of_list  : 'a list  -> 'a t
   val of_array : 'a array -> 'a t
   val map : ('a -> 'b) -> 'a t -> 'b t
+  val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
   val nth : 'a t -> int -> 'a
 end
 

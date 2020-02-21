@@ -15,6 +15,7 @@ let set_debug_mode =
       | 'c' -> Debug.enable_flag  Confluence.d_confluence
       | 'u' -> Debug.enable_flag  Typing.d_rule
       | 't' -> Debug.enable_flag  Typing.d_typeChecking
+      | 's' -> Debug.enable_flag  Srcheck.d_SR
       | 'r' -> Debug.enable_flag  Reduction.d_reduce
       | 'm' -> Debug.enable_flag  Matching.d_matching
       | c -> raise (DebugFlagNotRecognized c)
@@ -65,7 +66,7 @@ sig
   val define      : loc -> ident -> Signature.scope ->
                     bool -> term -> term option -> unit
   val add_rules   : Rule.partially_typed_rule list ->
-                    (Subst.Subst.t * Rule.typed_rule) list
+                    (Exsubst.ExSubst.t * Rule.typed_rule) list
 
   val infer            : ?ctx:typed_context -> term         -> term
   val check            : ?ctx:typed_context -> term -> term -> unit
@@ -124,9 +125,16 @@ struct
     with e -> raise_as_env lc e
 
   let _declare lc (id:ident) scope st ty : unit =
-    match T.inference !sg ty with
-    | Kind | Type _ -> Signature.add_declaration !sg lc id scope st ty
-    | s -> raise (Typing.Typing_error (Typing.SortExpected (ty,[],s)))
+    Signature.add_declaration !sg lc id scope st
+      ( match T.inference !sg ty, st with
+        | Kind  , Definable AC
+        | Kind  , Definable (ACU _)   ->
+           raise (Typing_error (SortExpected (ty,[],mk_Kind) ))
+        | Type _, Definable AC        -> mk_Arrow dloc ty (mk_Arrow dloc ty ty)
+        | Type _, Definable (ACU neu) -> ignore(T.checking !sg neu ty);
+          mk_Arrow dloc ty (mk_Arrow dloc ty ty)
+        | Kind, _ | Type _, _ -> ty
+        | s, _ -> raise (Typing_error (SortExpected (ty,[],s)))  )
 
   let is_injective lc cst = Signature.is_injective !sg lc cst
 
@@ -154,9 +162,8 @@ struct
 
   (** Checks that all rule are left-linear. *)
   let _check_ll (r:rule_infos) : unit =
-    List.iter
-      (function Linearity _ -> raise (Env_error (Some (get_name()), r.l, NonLinearRule r.name)) | _ -> ())
-      r.constraints
+    if r.nonlinear <> []
+    then raise (Env_error (Some (get_name()), r.l, NonLinearRule r.name))
 
   let _add_rules rs =
     let ris = List.map Rule.to_rule_infos rs in
@@ -174,7 +181,7 @@ struct
     | _ ->
       if opaque then Signature.add_declaration !sg lc id scope Signature.Static ty
       else
-        let _ = Signature.add_declaration !sg lc id scope Signature.Definable ty in
+        let _ = Signature.add_declaration !sg lc id scope (Signature.Definable Free) ty in
         let cst = mk_name (get_name ()) id in
         let rule =
           { name= Delta(cst) ;
@@ -193,7 +200,7 @@ struct
     try _define lc id scope op te ty_opt
     with e -> raise_as_env lc e
 
-  let add_rules (rules: partially_typed_rule list) : (Subst.Subst.t * typed_rule) list =
+  let add_rules (rules: partially_typed_rule list) : (Exsubst.ExSubst.t * typed_rule) list =
     try
       let rs2 = List.map (T.check_rule !sg) rules in
       _add_rules rules;

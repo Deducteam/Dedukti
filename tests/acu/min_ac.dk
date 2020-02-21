@@ -1,0 +1,24 @@
+(; OK ;)
+
+N : Type.
+0 : N.
+S : N -> N.
+
+def 1 := S 0.
+def 2 := S 1.
+def 3 := S 2.
+def 4 := S 3.
+
+
+defac min [N].
+[]    min 0           --> (x : N => 0)
+[x,y] min (S x) (S y) --> S (min x y).
+
+#ASSERT min 3 (min 1 2) == 1.
+
+
+defac max [N].
+[]    min 0           --> (x : N => x)
+[x,y] min (S x) (S y) --> S (min x y).
+
+#ASSERT min 3 (min 1 2) == 3.

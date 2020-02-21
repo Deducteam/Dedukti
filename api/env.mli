@@ -88,7 +88,7 @@ sig
   val define      : loc -> ident -> Signature.scope -> bool -> term -> term option -> unit
   (** [define l id scope body ty] defines the symbol [id] of type [ty] to be an alias of [body]. *)
 
-  val add_rules   : Rule.partially_typed_rule list -> (Subst.Subst.t * Rule.typed_rule) list
+  val add_rules   : Rule.partially_typed_rule list -> (Exsubst.ExSubst.t * Rule.typed_rule) list
   (** [add_rules rule_lst] adds a list of rule to a symbol. All rules must be on the
       same symbol. *)
 

@@ -1,0 +1,10 @@
+(; KO 310 ;)
+
+N : Type.
+f : N -> N -> N.
+
+defac g [N].
+[] g --> f.
+
+#EVAL[WHNF] g.
+(; This forces impossible computation of g's decision tree ;)
