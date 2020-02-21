@@ -57,6 +57,10 @@ struct
     | Require _  -> Format.printf "\"#REQUIRE\" directive ignored.@."
 
   let get_data () = ()
+
+  let hook_before _ = ()
+  let hook_error _ (env, lc, e) = Env.fail_env_error env lc e
+  let hook_success _ _ = ()
 end
 
 let  _ =

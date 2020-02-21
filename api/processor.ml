@@ -2,7 +2,7 @@ open Kernel
 open Basic
 open Parsers
 
-module type CustomEnv = (module type of Env) with type t = Env.t
+module type ENV = (module type of Env with type t = Env.t)
 
 module type S =
 sig
@@ -11,9 +11,12 @@ sig
   val handle_entry : Env.t -> Entry.entry -> unit
 
   val get_data : unit -> t
+  val hook_before  : Env.t -> unit
+  val hook_error   : Env.t -> (Env.t * Kernel.Basic.loc * exn) -> unit
+  val hook_success : Env.t -> t -> unit
 end
 
-module MakeTypeChecker(Env:CustomEnv) : S with type t = unit =
+module MakeTypeChecker(Env:ENV) : S with type t = unit =
 struct
 
   type t = unit
@@ -71,11 +74,14 @@ struct
 
   let get_data () = ()
 
+  let hook_before _ = ()
+  let hook_error _ (env, lc, e) = Env.fail_env_error env lc e
+  let hook_success _ _ = ()
 end
 
 module TypeChecker = MakeTypeChecker(Env)
 
-module MakeSignatureBuilder(Env:CustomEnv) : S with type t = Signature.t =
+module MakeSignatureBuilder(Env:ENV) : S with type t = Signature.t =
 struct
   type t = Signature.t
 
@@ -96,7 +102,8 @@ struct
       let rule = { name= Delta(cst) ; ctx = [] ; pat = Pattern(lc, cst, []); rhs = te ; } in
       Signature.add_rules sg [Rule.to_rule_infos rule]
     | Def(lc,_,_, _, None,_) ->
-      raise @@ Typing.Typing_error (Typing.DomainFreeLambda lc) (* FIXME: It is not a typign error *)
+      raise @@ Typing.Typing_error (Typing.DomainFreeLambda lc)
+    (* FIXME: It is not a typign error *)
     | Rules(_,rs) ->
       Signature.add_rules sg (List.map Rule.to_rule_infos rs)
     | Require(lc,md) -> Signature.import sg lc md
@@ -104,14 +111,18 @@ struct
 
   let get_data () =
     match !sg with
-    | None -> Signature.make (mk_mident "") Files.find_object_file (*TODO: raise an error? *)
+    | None -> Signature.make (mk_mident "") Files.find_object_file
+    (*TODO: raise an error? *)
     | Some sg -> sg
 
+  let hook_before _ = ()
+  let hook_error _ (env, lc, e) = Env.fail_env_error env lc e
+  let hook_success _ _ = ()
 end
 
 module SignatureBuilder = MakeSignatureBuilder(Env)
 
-module MakeEntryPrinter(Env:CustomEnv) : S with type t = unit =
+module MakeEntryPrinter(Env:ENV) : S with type t = unit =
 struct
 
   type t = unit
@@ -122,17 +133,24 @@ struct
 
   let get_data () = ()
 
+  let hook_before _ = ()
+  let hook_error _ (env, lc, e) = Env.fail_env_error env lc e
+  let hook_success _ _ = ()
 end
 
 module EntryPrinter = MakeEntryPrinter(Env)
 
-module MakeDependencies(Env:CustomEnv) : S with type t = Dep.t =
+module MakeDependencies(Env:ENV) : S with type t = Dep.t =
 struct
   type t = Dep.t
 
   let handle_entry env e = Dep.handle (Env.get_name env) (fun f -> f e)
 
   let get_data () = Dep.deps
+
+  let hook_before _ = ()
+  let hook_error _ (env, lc, e) = Env.fail_env_error env lc e
+  let hook_success _ _ = ()
 end
 
 module Dependencies = MakeDependencies(Env)
@@ -152,12 +170,10 @@ let handle_processor : Env.t -> (module S) -> unit  =
   |  exn                   -> raise @@ Env.Env_error(env, Basic.dloc, exn)
 
 let handle_input  : type a. Parser.t ->
-  ?hook_before:(Env.t -> unit) ->
-  ?hook_after:(Env.t -> (Env.t * Basic.loc * exn) option -> unit) ->
   (module S with type t = a) -> a =
-  fun (type a) input ?hook_before ?hook_after (module P:S with type t = a) ->
+  fun (type a) input (module P:S with type t = a) ->
   let env = Env.init input in
-  begin match hook_before with None -> () | Some f -> f env end;
+  P.hook_before env;
   let exn =
     try
       handle_processor env (module P);
@@ -165,26 +181,20 @@ let handle_input  : type a. Parser.t ->
     with Env.Env_error(env,lc,e) -> Some (env,lc,e)
   in
   begin
-    match hook_after  with
-    | None ->
-      begin
-        match exn with
-        | None -> ()
-        | Some(env,lc,exn) -> Env.fail_env_error env lc exn
-      end
-    | Some f -> f env exn end;
+    match exn with
+    | None -> P.hook_success env (P.get_data ())
+    | Some e -> P.hook_error env e
+  end;
   let data = P.get_data () in
   data
 
 let handle_files : string list ->
-  ?hook_before:(Env.t -> unit) ->
-  ?hook_after:(Env.t -> (Env.t * Basic.loc * exn) option -> unit) ->
   (module S with type t = 'a) -> 'a =
-  fun (type a) files ?hook_before ?hook_after (module P:S with type t = a) ->
+  fun (type a) files (module P:S with type t = a) ->
   let handle_file file =
     try
       let input = Parser.input_from_file file in
-      ignore(handle_input input ?hook_before ?hook_after (module P));
+      ignore(handle_input input (module P));
       Parser.close input
     with Sys_error msg -> Errors.fail_sys_error ~file ~msg
   in
@@ -192,15 +202,13 @@ let handle_files : string list ->
   P.get_data ()
 
 let process_files : string list ->
-  ?hook_before:(Env.t -> unit) ->
-  ?hook_after:(Env.t -> (Env.t * Basic.loc * exn) option -> unit) ->
   ('a -> 'b -> 'b) -> 'b ->
   (module S with type t = 'a) -> 'b =
-  fun (type a b) files ?hook_before ?hook_after (fold:a -> b -> b) (neutral:b) (module P:S with type t = a) ->
+  fun (type a b) files (fold:a -> b -> b) (neutral:b) (module P:S with type t = a) ->
   let handle_file file =
     try
       let input = Parser.input_from_file file in
-      let data = handle_input input ?hook_before ?hook_after (module P) in
+      let data = handle_input input (module P) in
       Parser.close input;
       data
     with Sys_error msg -> Errors.fail_sys_error ~file ~msg
@@ -222,4 +230,15 @@ let of_pure (type a) ~f ~init : (module S with type t = a) =
     let handle_entry env entry = _d := f !_d env entry
 
     let get_data () = !_d
+
+    let hook_before _ = ()
+    let hook_error _ (env, lc, e) = Env.fail_env_error env lc e
+    let hook_success _ _ = ()
   end)
+
+module MakeEnv (R:Reduction.S) = struct
+  include Env
+  let init env =
+    let env = init env in
+    set_reduction_engine env (module R)
+end

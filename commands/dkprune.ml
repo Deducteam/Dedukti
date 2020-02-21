@@ -81,6 +81,23 @@ struct
       Processor.Dependencies.handle_entry env entry
 
   let get_data () = ()
+  let hook_before env =
+    let md = Env.get_name env in
+    if not @@ MSet.mem md !computed then
+      match Parser.file_of_input (Env.get_input env) with
+      | None      -> log "[COMPUTE DEP] %s"
+                       (string_of_mident (Parser.md_of_input (Env.get_input env)))
+      | Some file -> log "[COMPUTE DEP] %s" file
+
+  let hook_success env _ =
+    let md = Env.get_name env in
+    computed := MSet.add md !computed;
+    let deps = Hashtbl.find Dep.deps md in
+    let add_files md files = if MSet.mem md !computed then files else (Files.get_file md)::files in
+    let new_files = MSet.fold add_files deps.deps [] in
+    if List.length new_files <> 0 then run_on_files new_files
+
+  let hook_error _ (env, lc, e) = Env.fail_env_error env lc e
 end
 
 (* Gather all the identifiers declared or defined in a module *)
@@ -100,6 +117,9 @@ struct
       | Some md -> add_name md
 
   let get_data () = !names
+  let hook_before _ = ()
+  let hook_error _ (env, lc, e) = Env.fail_env_error env lc e
+  let hook_success _ _ = ()
 end
 
 (* Add all the names that should be kept as outpud. Either an entire module or a specific name *)
@@ -121,32 +141,16 @@ struct
 
   let get_data () = !names
 
+  let hook_before _ = ()
+  let hook_error _ (env, lc, e) = Env.fail_env_error env lc e
+  let hook_success _ _ = ()
 end
 
 (* This is called on each module which appear in the configuration
    files. This is called also on each module which is in the
    transitive closure of the module dependencies *)
 let rec run_on_files files =
-  let hook_before env =
-    let md = Env.get_name env in
-    if not @@ MSet.mem md !computed then
-      match Parser.file_of_input (Env.get_input env) with
-      | None      -> log "[COMPUTE DEP] %s"
-                       (string_of_mident (Parser.md_of_input (Env.get_input env)))
-      | Some file -> log "[COMPUTE DEP] %s" file
-  in
-  let hook_after env exn =
-    match exn with
-    | None ->
-      let md = Env.get_name env in
-      computed := MSet.add md !computed;
-      let deps = Hashtbl.find Dep.deps md in
-      let add_files md files = if MSet.mem md !computed then files else (Files.get_file md)::files in
-      let new_files = MSet.fold add_files deps.deps [] in
-      if List.length new_files <> 0 then run_on_files new_files
-    | Some (env, lc, e) -> Env.fail_env_error env lc e
-  in
-  Processor.handle_files files ~hook_before ~hook_after (module PruneDepProcessor)
+  Processor.handle_files files (module PruneDepProcessor)
 
 (* compute dependencies for each module which appear in the configuration files *)
 let handle_modules mds =

@@ -106,20 +106,19 @@ Available options:" Sys.argv.(0) in
       Format.eprintf "Beautify and export cannot be set at the same time@.";
       exit 2
     end;
-  let (module P:P.S with type t = unit) = if !beautify then (module Printer) else (module TC) in
-  let hook_before _ = Confluence.initialize () in
-  let hook_after env exn =
-    match exn with
-    | None ->
-      if not !beautify then
-        begin
-          Errors.success (Env.get_filename env)
-        end;
-      if !export then Env.export env;
-      Confluence.finalize ()
-    | Some (env, lc, e) -> Env.fail_env_error env lc e
-  in
-  Processor.handle_files files ~hook_before ~hook_after (module P);
+  let (module P:P.S with type t = unit) =
+    if !beautify then (module Printer)
+    else
+      (module struct
+        include TC
+        let hook_before _ =
+          Confluence.initialize ()
+        let hook_success env _ =
+          Errors.success (Env.get_filename env);
+          if !export then Env.export env;
+          Confluence.finalize ()
+      end) in
+  Processor.handle_files files (module P);
   match !run_on_stdin with
   | None   -> ()
   | Some m ->

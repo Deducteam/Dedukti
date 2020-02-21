@@ -69,12 +69,14 @@ Available options:" Sys.argv.(0) in
       List.rev !files
   in
   (* Actual work. *)
-  let hook_after _ exn =
-    match exn with
-    | None -> ()
-    | Some (env,lc,exn) -> Env.fail_env_error env lc exn
-  in
-  let deps = Processor.handle_files ~hook_after files (module (Processor.Dependencies)) in
+  let (module P:Processor.S) =
+    (module struct
+       include Processor.Dependencies
+       let hook_before _ = ()
+       let hook_error _ (env, lc, e) = Env.fail_env_error env lc e
+       let hook_success _ _ = ()
+     end) in
+  let deps = Processor.handle_files files (module P) in
   let formatter = Format.formatter_of_out_channel !output in
   let output_fun = if !sorted then output_sorted else output_deps in
   output_fun formatter deps;
