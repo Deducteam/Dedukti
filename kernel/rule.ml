@@ -14,6 +14,7 @@ type wf_pattern =
   | LLambda   of ident * wf_pattern
   | LPattern  of name * wf_pattern array
   | LBoundVar of ident * int * wf_pattern array
+  | LACSet    of name * wf_pattern list
 
 type rule_name = Beta | Delta of name | Gamma of bool * name
 
@@ -35,15 +36,15 @@ type partially_typed_rule = term option rule
 type typed_rule           = term        rule
 type arity_rule           = int         rule
 
-(* TODO : maybe replace constr by Linearity | Bracket and constr list by a constr Map.t *)
-type constr =
-  | Linearity of int * int
-  | Bracket   of int * term
+type constr = int * term
+
+let pp_constr fmt (i,t) = fprintf fmt "%i =b %a" i pp_term t
 
 type rule_infos =
   {
     l           : loc;
     name        : rule_name;
+    nonlinear   : int list;
     cst         : name;
     args        : pattern list;
     rhs         : term;
@@ -57,15 +58,14 @@ type rule_infos =
 let infer_rule_context ri =
   let res = Array.make ri.ctx_size (dloc,mk_ident "_",-1) in
   let rec aux k = function
-    (* Since we have the guarantee that every lhs is a Miller pattern,
-       we don't have to study args
-       (they are locally bound variables) *)
-    | Var (_,name,n,_)  -> if n>=k then res.(n-k) <- (dloc,name,ri.arity.(n-k))
-    | Lambda (_,_,body)    -> aux (k+1) body
-    | Pattern (_,_,args)   -> List.iter (aux k) args
-    | Brackets(_)          -> ()
+    | LJoker -> ()
+    | LVar (name,n,_) -> if n>=k then res.(n-k) <- (dloc,name,ri.arity.(n-k))
+    | LLambda (_,body) -> aux (k+1) body
+    | LPattern  (_  ,args) -> Array.iter (aux k) args
+    | LBoundVar (_,_,args) -> Array.iter (aux k) args
+    | LACSet    (_  ,args) ->  List.iter (aux k) args
   in
-  List.iter (aux 0) ri.args;
+  Array.iter (aux 0) ri.pats;
   Array.to_list res
 
 
@@ -113,6 +113,8 @@ let rec pp_wf_pattern fmt wf_pattern =
   | LBoundVar(x, n, pats) when Array.length pats = 0 -> fprintf fmt "%a[%i]" pp_ident x n
   | LBoundVar(x,n, pats) ->
     fprintf fmt "%a[%i] %a" pp_ident x n (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
+  | LACSet(cst,l) ->
+    fprintf fmt "%a{%a}" pp_name cst (pp_list "; " pp_wf_pattern_wp) l
 
 and pp_wf_pattern_wp fmt wf_pattern =
   match wf_pattern with
@@ -167,6 +169,7 @@ type pattern_info =
     constraints  : constr list;
     context_size : int;
     arity        : int array;
+    nonlinear    : int list
   }
 
 (* ************************************************************************** *)
@@ -203,13 +206,10 @@ together with extracted pattern information:
 - Arity infered for all context variables
 *)
 let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_info =
+  let nonlinear = ref [] in
   let constraints  = ref [] in
   let context_size = ref esize in
   let arity = IntHashtbl.create 10 in
-  let fresh_var ar = (* DB indice for a fresh context variable with given arity *)
-    IntHashtbl.add arity !context_size ar;
-    incr context_size;
-    !context_size - 1 in
   let extract_db k = function
     | Var (_,_,n,[]) when n<k -> n
     | p -> raise (Rule_error (BoundVariableExpected(get_loc_pat p, p)))
@@ -227,23 +227,22 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       then raise (Rule_error (DistinctBoundVariablesExpected (l,x)));
       let nb_args' = List.length args' in
       if IntHashtbl.mem arity (n-k)
-      then if nb_args' <> IntHashtbl.find arity (n-k)
+      then
+        if nb_args' <> IntHashtbl.find arity (n-k)
         then raise (Rule_error (NonLinearNonEqArguments(l,x)))
-        else
-          let nvar = fresh_var nb_args' in
-          constraints := Linearity(nvar, n-k) :: !constraints;
-          LVar(x, nvar + k, args')
-      else
-        let _ = IntHashtbl.add arity (n-k) nb_args' in
-        LVar(x,n,args')
+        else nonlinear := (n-k) :: !nonlinear
+      else IntHashtbl.add arity (n-k) nb_args';
+      LVar(x,n,args')
     | Brackets t ->
       let unshifted =
         try Subst.unshift k t
         with Subst.UnshiftExn -> raise (Rule_error (VariableBoundOutsideTheGuard(get_loc t, t)))
         (* Note: A different exception is previously raised at rule type-checking for this. *)
       in
-      let nvar = fresh_var 0 in
-      constraints := Bracket (nvar, unshifted) :: !constraints;
+      IntHashtbl.add arity !context_size 0;  (* Brackets are variable with arity 0 *)
+      incr context_size;
+      let nvar = !context_size - 1 in (* DB indice for a fresh context variable *)
+      constraints := (nvar, unshifted) :: !constraints;
       LVar(bracket_ident, nvar + k, [])
     | Pattern (_,n,args) -> LPattern(n, Array.of_list  (List.map (aux k) args))
   in
@@ -251,7 +250,8 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
   ( wf_pats
   , { context_size = !context_size;
       constraints = !constraints;
-      arity = Array.init !context_size (fun i -> IntHashtbl.find arity i)
+      arity = Array.init !context_size (fun i -> IntHashtbl.find arity i);
+      nonlinear = !nonlinear
     } )
 
 let to_rule_infos (r:'a rule) : rule_infos =
@@ -264,6 +264,7 @@ let to_rule_infos (r:'a rule) : rule_infos =
   let (pats2,infos) = check_patterns ctx_size args in
   { l ;
     name = r.name ;
+    nonlinear = infos.nonlinear;
     cst ; args ;
     rhs = r.rhs ;
     ctx_size ;
@@ -303,5 +304,4 @@ let check_arity (r:rule_infos) : unit =
 
 (** Checks that all rule are left-linear. *)
 let check_linearity (r:rule_infos) : unit =
-  List.iter (function Linearity _ -> raise (Rule_error (NonLinearRule(r.l, r.name)))
-                    | _ -> ()) r.constraints
+  if r.nonlinear <> [] then raise (Rule_error (NonLinearRule(r.l, r.name)))

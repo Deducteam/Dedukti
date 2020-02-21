@@ -1,0 +1,38 @@
+(; OK ;)
+
+T : Type.
+
+def f : T -> T.
+
+defac o [T].
+
+[X] o X X --> f X.
+
+(; The following rule is silently added:
+     o{X X Y} --> o{ (f X)    Y }
+;)
+
+[X,Y] o (f X) (f Y) --> f (o X Y).
+
+
+t : T.
+u : T.
+
+#ASSERT o t t == f t.
+#ASSERT o u u == f u.
+#ASSERT o u t == o t u.
+
+#ASSERT f (o u t) == o (f u) (f t).
+
+#ASSERT o (o t u) (o u t) == o (f u) (f t).
+#ASSERT o t (o u (o u t)) == o (f u) (f t).
+
+#ASSERT o t (o t (o t t)) == f (f t).
+
+#ASSERT (x:T => o (o t x) t) == (x:T => o (f t) x).
+#ASSERT (x:T => o (o x t) t) == (x:T => o (f t) x).
+#ASSERT (x:T => o t (o t x)) == (x:T => o x (f t)).
+#ASSERT (x:T => o t (o x t)) == (x:T => o x (f t)).
+
+#ASSERT (x:T => o x (o t x)) == (x:T => o t (f x)).
+#ASSERT (x:T => o t (o x x)) == (x:T => o t (f x)).

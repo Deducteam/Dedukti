@@ -257,32 +257,35 @@ let print_red_cfg fmt cfg =
 let print_entry fmt e =
   let open Format in
   let open Entry in
+  let scope_to_string = function
+    | Signature.Public  -> ""
+    | Signature.Private -> "private "
+  in
   match e with
-  | Decl(_,id,Public,Signature.Static,ty) ->
-    fprintf fmt "@[<2>%a :@ %a.@]@.@." print_ident id print_term ty
-  | Decl(_,id,Private,Signature.Static,ty) ->
-    fprintf fmt "@[<2>private %a :@ %a.@]@.@." print_ident id print_term ty
-  | Decl(_,id,Public,Signature.Definable,ty) ->
-    fprintf fmt "@[<2>def %a :@ %a.@]@.@." print_ident id print_term ty
-  | Decl(_,id,Private,Signature.Definable,ty) ->
-     fprintf fmt "@[<2>private def %a :@ %a.@]@.@." print_ident id print_term ty
-  | Decl(_,id,Public,Signature.Injective,ty) ->
-    fprintf fmt "@[<2>injective %a :@ %a.@]@.@." print_ident id print_term ty
-  | Decl(_,id,Private,Signature.Injective,ty) ->
-    fprintf fmt "@[<2>private injective %a :@ %a.@]@.@." print_ident id print_term ty
-  | Def(_,id,scope,opaque,ty,te)  ->
-     let key =
-       match scope, opaque with
-       | Public , true  -> "thm"
-       | Public , false -> "def"
-       | Private, true  -> "private thm"
-       | Private, false -> "private def"
-     in
-     begin
-       match ty with
-       | None    -> fprintf fmt "@[<hv2>%s %a@ :=@ %a.@]@.@." key
+  | Decl(_,id,scope,Static,ty) ->
+     fprintf fmt "@[<2>%s%a :@ %a.@]@.@." (scope_to_string scope)
+       print_ident id print_term ty
+  | Decl(_,id,scope,Definable Free,ty) ->
+     fprintf fmt "@[<2>%sdef %a :@ %a.@]@.@." (scope_to_string scope)
+       print_ident id print_term ty
+  | Decl(_,id,scope,Injective,ty) ->
+     fprintf fmt "@[<2>%sinjective %a :@ %a.@]@.@." (scope_to_string scope)
+       print_ident id print_term ty
+  | Decl(_,id,scope,Definable AC,ty) ->
+     fprintf fmt "@[<2>%sdefac %a [@ %a].@]@.@."(scope_to_string scope)
+       print_ident id print_term ty
+  | Decl(_,id,scope,Definable ACU(neu),ty) ->
+     fprintf fmt "@[<2>%sdefacu %a [@ %a, %a].@]@.@."(scope_to_string scope)
+       print_ident id print_term ty print_term neu
+  | Def(_,id,scope,opaque,ty,te) ->
+    let key = if opaque then "thm" else "def" in
+    begin
+      match ty with
+      | None    -> fprintf fmt "@[<hv2>%s%s %a@ :=@ %a.@]@.@."
+                     (scope_to_string scope) key
                      print_ident id print_term te
-       | Some ty -> fprintf fmt "@[<hv2>%s %a :@ %a@ :=@ %a.@]@.@." key
+      | Some ty -> fprintf fmt "@[<hv2>%s%s %a :@ %a@ :=@ %a.@]@.@."
+                     (scope_to_string scope) key
                      print_ident id print_term ty print_term te
     end
   | Rules(_,rs)             ->

@@ -22,11 +22,12 @@ type signature_error =
   | GuardNotSatisfied     of loc * term * term
   | CannotExportModule    of mident * exn
   | PrivateSymbol         of loc * name
+  | ExpectedACUSymbol     of loc * name
 
 exception Signature_error of signature_error
 (** Wrapper exception for errors occuring while handling a signature. *)
 
-type staticity = Static | Definable | Injective
+type staticity = Static | Definable of algebra | Injective
 (** Is the symbol allowed to have rewrite rules or not ?
     And if it has, can it be considered injective by the type-checker ? *)
 (*  FIXME With the current implementation, one is not allowed to write
@@ -51,8 +52,12 @@ val get_name            : t -> mident
 val export              : t -> out_channel -> unit
 (** [export sg oc] saves the current environment in [oc] file.*)
 
+val get_id_comparator   : t -> name comparator
+
+(*
 val import              : t -> loc -> mident -> unit
 (** [import sg md] impots the module [md] in the signature [sg]. *)
+*)
 
 val import_signature    : t -> t -> unit
 (** [import sg sg_ext] imports the signature [sg_ext] into the signature [sg]. *)
@@ -61,11 +66,27 @@ val is_static           : t -> loc -> name -> bool
 (** [is_static sg l cst] is true when [cst] is a static symbol. *)
 
 val is_injective        : t -> loc -> name -> bool
-(** [is_injective sg l cst] is true when [cst] is an injective symbol. *)
+(** [is_injective sg l cst] is true when [cst] is either static
+    or declared as injective. *)
 
 val get_type            : t -> loc -> name -> term
 (** [get_type sg l md id] returns the type of the constant [md.id] inside the
     environement [sg]. *)
+
+val get_staticity       : t -> loc -> name -> staticity
+(** [get_staticity sg l md id] returns the staticity of the symbol [md.id] *)
+
+val get_algebra         : t -> loc -> name -> algebra
+(** [get_algebra sg l md id] returns the algebra of the symbol [md.id]. *)
+
+val get_neutral         : t -> loc -> name -> term
+(** [get_neutral sg l md id] returns the neutral element of the ACU symbol [md.id]. *)
+
+val is_AC               : t -> loc -> name -> bool
+(** [is_AC sg l na] returns true when [na] is declared as AC symbol *)
+
+val import              : t -> loc -> mident -> unit
+(** [import sg md] the module [md] in the signature [sg]. *)
 
 val get_dtree           : t -> loc -> name -> Dtree.t
 (** [get_dtree sg filter l cst] returns the decision/matching tree associated

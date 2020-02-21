@@ -59,7 +59,8 @@ module LList = struct
   let is_empty x = x.len = 0
   let of_list  lst = {len=List.length lst ; lst}
   let of_array arr = {len=Array.length arr; lst=Array.to_list arr}
-  let map f {len;lst} = {len; lst=List.map f lst}
+  let map  f {len;lst} = {len; lst=List.map  f lst}
+  let mapi f {len;lst} = {len; lst=List.mapi f lst}
   let nth l i = assert (i<l.len); List.nth l.lst i
 end
 

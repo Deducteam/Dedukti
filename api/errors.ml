@@ -169,6 +169,10 @@ let of_dtree_error _ err =
     301, Some lc, Format.asprintf
       "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
       pp_ident id pp_ident rid
+  | ACSymbolRewritten (lc, cst, _) ->
+    302, Some lc, Format.asprintf
+      "Rewrite rules for AC definable symbol '%a' should not have arity 0."
+      pp_name cst
 
 let fail_dtree_error ~red exn =
   match exn with
@@ -264,7 +268,8 @@ let of_signature_error red err =
        %s@." pp_mident md (Printexc.to_string exn)
   | PrivateSymbol (lc,cst) ->
     403, Some lc, Format.asprintf "The symbol '%a' is private." pp_name cst
-
+  | ExpectedACUSymbol (lc,cst) ->
+    404, Some lc, Format.asprintf "Expected ACU symbol '%a'." pp_name cst
 
 let fail_signature_error ~red exn =
   match exn with

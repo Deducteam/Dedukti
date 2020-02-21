@@ -1,0 +1,77 @@
+(; OK --type-lhs ;)
+
+A : Type.
+T : A -> Type.
+t : a:A -> T a.
+
+a : A.
+def b : A -> A -> A.
+def b': A -> A -> A.
+    c : A -> A -> A.
+
+(; We build definitions with types containing an expression relying on
+     2 matching variables + 2 locally bound variables
+   Generated constraints are not necessary to check the rules but should
+   be discarded without generating any warning (satisfiable constraints).
+
+   See SR_unsat_cstr_i.dk for examples of unsatisfiable constraints.
+;)
+
+
+(; Terms that *must* contain x and *must* contain y
+   are convertible with
+   terms that *must* or *may* contain x
+          and *must* or *may* contain y ;)
+def a1 : X:(A->A->A) -> Y:(A->A) ->
+         (x:A -> y:A ->
+          T (c x
+            (c y
+            (c (b x x)
+            (c (b a y)
+            (c (b x y)
+               (b a a))))))) -> Type.
+
+[X,Y] a1 (x=>y=>X x y) (x=>Y x) (x=>y=>t
+  (c x
+  (c y
+  (c (b x x)
+  (c (b a y)
+  (c (b x y)
+     (b a a))))))) --> A.
+
+[X,Y] a1 (x=>y=>X x y) (x=>Y x) (x=>y=>t
+  (c (b a (c x x))
+  (c (Y y)
+  (c (b' (c x x) a)
+  (c (b' y y)
+  (c (b' (c x x) (b y y))
+     (b' x y))))))) --> A.
+
+[X,Y] a1 (x=>y=>X x y) (x=>Y x) (x=>y=>t
+  (c (X x y)
+  (c (b (c y y) (c x x))
+  (c x
+  (c y
+  (c y
+     (c (Y x) a))))))) --> A.
+
+(; Terms that *must* contain x and *must* contain y
+   are convertible with
+   terms that *must* or *may* contain x
+          and *must* or *may* contain y ;)
+def a2 : X1:(A->A->A) -> X2:(A->A->A) -> X3:(A->A->A) -> X4:(A->A->A) ->
+         (x:A -> y:A ->
+          T (c x
+            (c y
+            (c (X1 x x)
+            (c (X2 a y)
+            (c (X3 x y)
+               (X4 a a))))))) -> Type.
+
+
+def b1 : X:(A->A->A) -> Y:(A->A) ->
+         (x:A -> y:A -> f : (A->A->A) ->
+          T (f (c x y)
+               (f
+                 (c (b x x) (b a y))
+                 (f (b x y) (b a a))))) -> Type.

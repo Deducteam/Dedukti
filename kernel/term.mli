@@ -28,6 +28,10 @@ val mk_App2     : term -> term list -> term
 val mk_Pi       : loc -> ident -> term -> term -> term
 val mk_Arrow    : loc -> term -> term -> term
 
+val add_n_lambdas : int -> term -> term
+(** [add_n_lambdas n t] returns the term [t] with [n] (extra) anonymous
+    lambda abstraction. Doesn't shift free variables of [t]. *)
+
 val term_eq : term -> term -> bool
 (** [term_eq t t'] is [true] if [t] = [t'] (up to alpha equivalence) *)
 
@@ -39,6 +43,32 @@ exception InvalidSubterm of term * int
 val subterm : term -> position -> term
 (** [subterm t p] returns the subterm of [t] at position [p].
     Raises InvalidSubterm in case of invalid position in given term. *)
+
+type 'a comparator = 'a -> 'a -> int
+(** Type for comparison functions *)
+
+val compare_term : name comparator -> term comparator
+(** compare_term [id_comp] [t] [t'] compares both terms (up to alpha equivalence).
+ * The order relation goes :
+ * Kind < Type < Const < DB < App < Lam < Pi
+ * Besides
+ * Const m v < Const m' v' iif (m,v) < (m',v')
+ * DB n < DB n' iif n < n'
+ * App f a args < App f' a' args' iif (f,a,args) < (f',a',args')
+ * Lam x ty t < Lam x' ty' t'  iif t < t'
+ * Pi  x a  b < Pi  x' a'  b'  iif (a,b) < (a',b')
+ *)
+
+type algebra = Free | AC | ACU of term
+(** Symbols' algebra *)
+
+val is_AC : algebra -> bool
+(** Return true iff given algebra is AC or ACU. *)
+
+type cstr = int*term*term
+(** Constraints [(n,t,u)] are [t]=[u] under [n] lambdas *)
+
+val pp_cstr : cstr printer
 
 (** {2 Contexts} *)
 
@@ -59,3 +89,7 @@ val pp_typed_context      : typed_context           printer
 val pp_part_typed_context : partially_typed_context printer
 
 val rename_vars_with_typed_context : typed_context -> term -> term
+
+(** ([n], [t]) represents the term represented by [t]
+  * (whichever its representation) under [n] lambda abstractions. *)
+type 'a depthed = int * 'a

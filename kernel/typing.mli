@@ -55,7 +55,7 @@ module type S = sig
   val inference   : Signature.t -> term -> typ
   (** [inference sg ctx te] infers a type for the term [te] in empty context. *)
 
-  val check_rule  : Signature.t -> partially_typed_rule -> Subst.Subst.t * typed_rule
+  val check_rule  : Signature.t -> partially_typed_rule -> Exsubst.ExSubst.t * typed_rule
   (** [check_rule sg ru] checks that a rule is well-typed. *)
 end
 
