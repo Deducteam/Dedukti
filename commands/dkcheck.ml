@@ -3,10 +3,6 @@ open Api
 
 open Basic
 
-module P         = Processor
-module TC        = P.TypeChecker
-module Printer   = P.EntryPrinter
-
 let _ =
   let run_on_stdin = ref None  in
   let export       = ref false in
@@ -112,8 +108,8 @@ Available options:" Sys.argv.(0) in
       Format.eprintf "Beautify and export cannot be set at the same time@.";
       exit 2
     end;
-  let (module P:P.S with type t = unit) = if !beautify then (module Printer) else (module TC) in
-  let hook_before _ = Confluence.initialize () in
+  let open Processor in
+  let processor = if !beautify then PrettyPrinter else TypeChecker in
   let hook_after env exn =
     match exn with
     | None ->
@@ -125,9 +121,15 @@ Available options:" Sys.argv.(0) in
       Confluence.finalize ()
     | Some (env, lc, e) -> Env.fail_env_error env lc e
   in
-  Processor.handle_files files ~hook_before ~hook_after (module P);
+  let hook =
+    {
+      before = (fun _ -> Confluence.initialize ());
+      after = hook_after
+    }
+  in
+  Processor.handle_files files ~hook processor;
   match !run_on_stdin with
   | None   -> ()
   | Some m ->
     let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
-    Processor.handle_input input (module P);
+    Processor.handle_input input processor

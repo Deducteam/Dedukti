@@ -18,7 +18,7 @@ val find_object_file : Basic.loc -> Basic.mident -> string
 (** [get_find_object_file lc md] returns the path assoiated to the module [md]
     or raise an exception *)
 
-val object_file_of_input : Parser.t -> string
+val object_file_of_input : Parser.input -> string
 (** [object_file_of_input] returns the filename associated to the input *)
 
 val get_file : Basic.mident -> string

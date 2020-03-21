@@ -132,6 +132,8 @@ type rw_infos =
     (** The decision tree computed for the set of rules declared above *)
   }
 
+val get_rw_infos : t -> mident -> ident -> rw_infos option
+
 val fold_symbols : (mident -> ident -> rw_infos -> 'a -> 'a) -> t -> 'a -> 'a
 (** [fold_symbols f sg t] folds the function [f] on all symbol_infos in the signature
     starting from [t]. *)

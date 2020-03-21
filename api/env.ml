@@ -24,7 +24,7 @@ let set_debug_mode =
 
 type t =
   {
-    input : Parser.t;
+    input : Parser.input;
     sg    : Signature.t;
     red   : (module Reduction.S);
     typer : (module Typing.S)
@@ -97,11 +97,12 @@ let get_dtree env lc cst =
 let export env =
   let file = Files.object_file_of_input env.input in
   let oc = open_out file in
-  Signature.export env.sg oc; close_out oc
+  Signature.export env.sg oc; close_out oc;
+  (* FIXME: Not closed if Signature raises an error *)
+  close_out oc
 
 let import env lc md =
   Signature.import env.sg lc md
-
 
 let is_injective env lc cst = Signature.is_injective env.sg lc cst
 

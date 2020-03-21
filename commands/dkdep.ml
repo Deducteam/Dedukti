@@ -68,13 +68,17 @@ Available options:" Sys.argv.(0) in
       Arg.parse options (fun f -> files := f :: !files) usage;
       List.rev !files
   in
-  (* Actual work. *)
-  let hook_after _ exn =
-    match exn with
-    | None -> ()
-    | Some (env,lc,exn) -> Env.fail_env_error env lc exn
+  let open Processor in
+  let hook = {
+    before =  (fun _ -> ());
+    after = fun _ exn ->
+      match exn with
+      | None -> ()
+      | Some (env,lc,exn) -> Env.fail_env_error env lc exn
+  }
   in
-  let deps = Processor.handle_files ~hook_after files (module (Processor.Dependencies)) in
+  (* Actual work. *)
+  let deps = Processor.handle_files ~hook files Dependencies in
   let formatter = Format.formatter_of_out_channel !output in
   let output_fun = if !sorted then output_sorted else output_deps in
   output_fun formatter deps;

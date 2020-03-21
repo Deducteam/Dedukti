@@ -76,12 +76,26 @@ struct
   type t = unit
 
   let handle_entry env entry =
+    let open Processor in
     let md = Env.get_name env in
+    let (module Dep) = get_processor Dependencies in
     if not @@ MSet.mem md !computed then
-      Processor.Dependencies.handle_entry env entry
+      Dep.handle_entry env entry
 
-  let get_data () = ()
+  let get_data _ = ()
 end
+
+type _ Processor.t += PruneDepProcessor : unit Processor.t
+
+let _ =
+  let open Processor in
+  let open Registration  in
+  let equal_prune_dep_processor (type a b) : (a t * b t) -> (a t,b t) equal option =
+    function
+    | PruneDepProcessor, PruneDepProcessor -> Some (Refl (PruneDepProcessor))
+    | _ -> None
+  in
+  register_processor PruneDepProcessor {equal = equal_prune_dep_processor} (module PruneDepProcessor)
 
 (* Gather all the identifiers declared or defined in a module *)
 module GatherNames : Processor.S with type t = NSet.t =
@@ -99,8 +113,20 @@ struct
       | None -> ()
       | Some md -> add_name md
 
-  let get_data () = !names
+  let get_data _ = !names
 end
+
+type _ Processor.t += GatherNames : NSet.t Processor.t
+
+let _ =
+  let open Processor in
+  let open Registration  in
+  let equal_gather_names (type a b) : (a t * b t) -> (a t,b t) equal option =
+    function
+    | GatherNames, GatherNames -> Some (Refl (GatherNames))
+    | _ -> None
+  in
+  register_processor GatherNames {equal = equal_gather_names} (module GatherNames)
 
 (* Add all the names that should be kept as outpud. Either an entire module or a specific name *)
 module ProcessConfigurationFile : Processor.S with type t = NSet.t =
@@ -114,20 +140,32 @@ struct
     function
     | Entry.Require(_,md) ->
       let file = Files.get_file md in
-      let snames = Processor.handle_files [file] (module GatherNames) in
+      let snames = Processor.handle_files [file] GatherNames in
       names := NSet.union snames !names
     | Entry.DTree(_,Some md, id) -> names := NSet.add (mk_name md id) !names
     | _ as e -> raise @@  Dkprune_error (BadFormat (Entry.loc_of_entry e))
 
-  let get_data () = !names
+  let get_data _ = !names
 
 end
+
+type _ Processor.t += PruneProcessConfigurationFile : NSet.t Processor.t
+
+let _ =
+  let open Processor in
+  let open Registration  in
+  let equal_ppcf (type a b) : (a t * b t) -> (a t,b t) equal option =
+    function
+    | PruneProcessConfigurationFile, PruneProcessConfigurationFile -> Some (Refl (PruneProcessConfigurationFile))
+    | _ -> None
+  in
+  register_processor PruneProcessConfigurationFile {equal = equal_ppcf} (module ProcessConfigurationFile)
 
 (* This is called on each module which appear in the configuration
    files. This is called also on each module which is in the
    transitive closure of the module dependencies *)
 let rec run_on_files files =
-  let hook_before env =
+  let before env =
     let md = Env.get_name env in
     if not @@ MSet.mem md !computed then
       match Parser.file_of_input (Env.get_input env) with
@@ -135,7 +173,7 @@ let rec run_on_files files =
                        (string_of_mident (Parser.md_of_input (Env.get_input env)))
       | Some file -> log "[COMPUTE DEP] %s" file
   in
-  let hook_after env exn =
+  let after env exn =
     match exn with
     | None ->
       let md = Env.get_name env in
@@ -146,7 +184,8 @@ let rec run_on_files files =
       if List.length new_files <> 0 then run_on_files new_files
     | Some (env, lc, e) -> Env.fail_env_error env lc e
   in
-  Processor.handle_files files ~hook_before ~hook_after (module PruneDepProcessor)
+  let hook = Processor.({before; after}) in
+  Processor.handle_files files ~hook PruneDepProcessor
 
 (* compute dependencies for each module which appear in the configuration files *)
 let handle_modules mds =
@@ -161,7 +200,7 @@ let handle_names names =
 
 (* check if all the entry of a file are pruned *)
 let is_empty deps file =
-  let names = Processor.handle_files [file] (module GatherNames) in
+  let names = Processor.handle_files [file] GatherNames in
   NSet.is_empty (NSet.inter names deps)
 
 (* for each input file for which dependencies has been computed, we write an output file *)
@@ -229,7 +268,7 @@ Available options:" Sys.argv.(0) in
     Arg.parse options (fun f -> files := f :: !files) usage;
     !files
   in
-  let run_on_constraints files = Processor.handle_files files (module ProcessConfigurationFile) in
+  let run_on_constraints files = Processor.handle_files files PruneProcessConfigurationFile in
   let names = run_on_constraints files in
   handle_names names;
   print_dependencies names

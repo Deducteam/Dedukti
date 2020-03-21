@@ -93,8 +93,7 @@ let marshal : mident -> mident list -> rw_infos HId.t -> rule_infos list list ->
     Marshal.to_channel oc Version.version [];
     Marshal.to_channel oc deps [];
     Marshal.to_channel oc env [];
-    Marshal.to_channel oc ext [];
-    close_out oc
+    Marshal.to_channel oc ext []
   with e -> raise @@ Signature_error (CannotExportModule(md,e))
 
 let unmarshal (lc:loc) (file:string) : mident list * rw_infos HId.t * rule_infos list list =
@@ -110,6 +109,7 @@ let unmarshal (lc:loc) (file:string) : mident list * rw_infos HId.t * rule_infos
   with
   | Sys_error s -> raise (Signature_error (UnmarshalSysError (lc,file,s)))
   | Signature_error s -> raise (Signature_error s)
+
 
 let fold_symbols f sg =
   HMd.fold (fun md table t -> HId.fold (f md) table t) sg.tables
@@ -363,3 +363,14 @@ let add_rules sg = function
       try Confluence.check ()
       with Confluence.Confluence_error e -> raise (Signature_error (ConfluenceErrorRules (r.l,rs,e)))
     with Rule_error e -> raise (Signature_error (CannotMakeRuleInfos e))
+
+
+let get_rw_infos sg md id =
+  if HMd.mem sg.tables md then
+    let sig_md = HMd.find sg.tables md in
+    if HId.mem sig_md id then
+      Some (HId.find sig_md id)
+    else
+      None
+  else
+    None

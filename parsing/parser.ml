@@ -3,15 +3,15 @@ open Basic
 
 type stream = {md : Basic.mident; lexbuf : Lexing.lexbuf}
 
-type input =
+type from =
   | Channel of in_channel
   | String of string (* String of Dedukti code *)
 
-type t =
+type input =
   {
     file: string option;
     md: Basic.mident;
-    input: input
+    from:from
   }
 
 exception Parse_error of loc * string
@@ -37,25 +37,25 @@ let md_of_file file =
 
 let input_from_file file =
   let md = md_of_file file in
-  let input = Channel (open_in file) in
-  {file=Some file;input;md}
+  let from = Channel (open_in file) in
+  {file=Some file;from;md}
 
-let input_from_stdin md = {file=None;input=Channel stdin;md}
+let input_from_stdin md = {file=None;from=Channel stdin;md}
 
-let input_from_string md s = {file=None; input=String s;md}
+let input_from_string md s = {file=None; from=String s;md}
 
 let md_of_input t = t.md
 
 let file_of_input t = t.file
 
 let close input =
-  match input.input with
+  match input.from with
   | String  _  -> ()
   | Channel ic -> close_in ic
 
 let from input =
   let md = input.md in
-  {md; lexbuf = lexing_from input.input}
+  {md; lexbuf = lexing_from input.from}
 
 let handle input f =
   let s = from input in

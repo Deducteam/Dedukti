@@ -3,38 +3,38 @@ open Kernel
 type stream
 (** Abstract parser stream representation. *)
 
-type t
+type input
 (** Abstract type for input. *)
 
 exception Parse_error of Basic.loc * string
 
-val input_from_file : string -> t
+val input_from_file : string -> input
 
-val input_from_stdin : Basic.mident -> t
+val input_from_stdin : Basic.mident -> input
 
-val input_from_string : Basic.mident -> string -> t
+val input_from_string : Basic.mident -> string -> input
 
-val md_of_input : t -> Basic.mident
+val md_of_input : input -> Basic.mident
 
 val md_of_file  : string -> Basic.mident
 
-val file_of_input : t -> string option
+val file_of_input : input -> string option
 
-val close : t -> unit
+val close : input -> unit
 
 val read : stream -> Entry.entry
 (** [read str] reads a single entry from the parser stream [str]. When no more
     [entry] is available, the [End_of_file] exception is raised. *)
 
-val from : t -> stream
+val from : input -> stream
 (** [from_channel in] creates a parser [stream] for the environment [env]
     [env] given the input [in]. *)
 
-val handle : t -> (Entry.entry -> unit) -> unit
+val handle : input -> (Entry.entry -> unit) -> unit
 (** [handle in f] parses the input [in] in the environment [env],  using
     the action [f] on each entry. Note that the input is parsed lazily. This
     function can thus be applied to [stdin]. *)
 
-val parse : t -> Entry.entry list
+val parse : input -> Entry.entry list
 (** [parse [in] env] completely parses the input [in] for the environment [env]
     and returns the corresponding list of entries. *)

@@ -49,10 +49,10 @@ val check_ll : bool ref
 
 (** {2 The Global Environment} *)
 
-val init        : Parser.t -> t
+val init        : Parser.input -> t
 (** [init input] initializes a new global environement from the [input] *)
 
-val get_input    : t -> Parser.t
+val get_input    : t -> Parser.input
 (** [get_input env] returns the input used to create [env] *)
 
 val get_filename : t -> string
