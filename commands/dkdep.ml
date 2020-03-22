@@ -1,33 +1,16 @@
 open Kernel
-open Parsing
 open Api
 
 open Basic
 
-module E            = Env.Make(Reduction.Default)
-module ErrorHandler = Errors.Make(E)
-
-let handle_file : string -> unit = fun file ->
-  let input =
-    try open_in file
-    with e -> ErrorHandler.graceful_fail (Some file) e in
-  (* Initialisation. *)
-  let md = E.init file in
-  begin
-    try Dep.handle md (fun f -> Parser.Parse_channel.handle md f input);
-    with e -> ErrorHandler.graceful_fail (Some file) e
-  end;
-  close_in input
-
 (** Output main program. *)
-
 let output_deps : Format.formatter -> Dep.t -> unit = fun oc data ->
   let open Dep in
   let objfile src = Filename.chop_extension src ^ ".dko" in
-  let output_line : mident -> deps -> unit =
+  let output_line : mident -> file_deps -> unit =
     fun _ deps ->
        let file = deps.file in
-       let deps = List.map (fun (_,src) -> objfile src) (MDepSet.elements deps.deps) in
+       let deps = List.map (fun md -> objfile (Files.get_file md)) (MidentSet.elements deps.deps) in
        let deps = String.concat " " deps in
        try
          Format.fprintf oc "%s : %s %s@." (objfile file) file deps
@@ -73,7 +56,7 @@ let _ =
       , Arg.Set Dep.ignore
       , " If some dependencies are not found, ignore them" )
     ; ( "-I"
-      , Arg.String add_path
+      , Arg.String Files.add_path
       , "DIR Add the directory DIR to the load path" ) ]
   in
   let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...
@@ -81,16 +64,23 @@ Compute the dependencies of the given Dedukti FILE(s).
 For more information see https://github.com/Deducteam/Dedukti.
 Available options:" Sys.argv.(0) in
   let files =
-    try
       let files = ref [] in
       Arg.parse options (fun f -> files := f :: !files) usage;
       List.rev !files
-    with e -> ErrorHandler.graceful_fail None e
+  in
+  let open Processor in
+  let hook = {
+    before =  (fun _ -> ());
+    after = fun _ exn ->
+      match exn with
+      | None -> ()
+      | Some (env,lc,exn) -> Env.fail_env_error env lc exn
+  }
   in
   (* Actual work. *)
-  List.iter handle_file files;
+  let deps = Processor.handle_files ~hook files Dependencies in
   let formatter = Format.formatter_of_out_channel !output in
   let output_fun = if !sorted then output_sorted else output_deps in
-  output_fun formatter Dep.deps;
+  output_fun formatter deps;
   Format.pp_print_flush formatter ();
   close_out !output

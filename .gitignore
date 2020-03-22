@@ -4,7 +4,7 @@ _build/
 *.docdir
 *.install
 .merlin
-
+*.opam
 # Dedukti files.
 *.dko
 *.depend

@@ -72,14 +72,16 @@ let infer_rule_context ri =
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
 type rule_error =
-  | BoundVariableExpected          of pattern
+  | BoundVariableExpected          of loc * pattern
   | DistinctBoundVariablesExpected of loc * ident
-  | VariableBoundOutsideTheGuard   of term
+  | VariableBoundOutsideTheGuard   of loc * term
   | UnboundVariable                of loc * ident * pattern
   (* FIXME : this exception seems never to be raised *)
   | AVariableIsNotAPattern         of loc * ident
   | NonLinearNonEqArguments        of loc * ident
   (* FIXME: the reason for this exception should be formalized on paper ! *)
+  | NotEnoughArguments             of loc * ident * int * int * int
+  | NonLinearRule                  of loc * rule_name
 
 exception Rule_error of rule_error
 
@@ -210,7 +212,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
   let arity = IntHashtbl.create 10 in
   let extract_db k = function
     | Var (_,_,n,[]) when n<k -> n
-    | p -> raise (Rule_error (BoundVariableExpected p))
+    | p -> raise (Rule_error (BoundVariableExpected(get_loc_pat p, p)))
   in
   let rec aux (k:int) (pat:pattern) : wf_pattern =
     match pat with
@@ -234,7 +236,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
     | Brackets t ->
       let unshifted =
         try Subst.unshift k t
-        with Subst.UnshiftExn -> raise (Rule_error (VariableBoundOutsideTheGuard t))
+        with Subst.UnshiftExn -> raise (Rule_error (VariableBoundOutsideTheGuard(get_loc t, t)))
         (* Note: A different exception is previously raised at rule type-checking for this. *)
       in
       IntHashtbl.add arity !context_size 0;  (* Brackets are variable with arity 0 *)
@@ -277,3 +279,29 @@ let untyped_rule_of_rule_infos ri =
   ; ctx  = infer_rule_context ri
   ; pat  = pattern_of_rule_infos ri
   ; rhs  = ri.rhs}
+
+(*         Rule checking       *)
+
+(* Checks that all Miller variables are applied to at least
+   as many arguments on the rhs as they are on the lhs (their arity). *)
+let check_arity (r:rule_infos) : unit =
+  let check _ id n k nargs =
+    let expected_args = r.arity.(n-k) in
+    if nargs < expected_args
+    then raise @@ Rule_error (NotEnoughArguments (r.l, id,n,nargs,expected_args)) in
+  let rec aux k = function
+    | Kind | Type _ | Const _ -> ()
+    | DB (l,id,n) ->
+      if n >= k then check l id n k 0
+    | App(DB(l,id,n),a1,args) when n>=k ->
+      check l id n k (List.length args + 1);
+      List.iter (aux k) (a1::args)
+    | App (f,a1,args) -> List.iter (aux k) (f::a1::args)
+    | Lam (_,_,None,b) -> aux (k+1) b
+    | Lam (_,_,Some a,b) | Pi (_,_,a,b) -> (aux k a;  aux (k+1) b)
+  in
+  aux 0 r.rhs
+
+(** Checks that all rule are left-linear. *)
+let check_linearity (r:rule_infos) : unit =
+  if r.nonlinear <> [] then raise (Rule_error (NonLinearRule(r.l, r.name)))

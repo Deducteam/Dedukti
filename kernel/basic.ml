@@ -31,17 +31,20 @@ struct
   let hash      = Hashtbl.hash
 end )
 
-let shash        = WS.create 251
+let hash_ident   = WS.create 251
 
-let mk_ident     = WS.merge shash
+let mk_ident     = WS.merge hash_ident
 
-let mk_mident md =
-  let base = Filename.basename md in
-  if Filename.check_suffix base ".dk"
-  then Filename.chop_suffix base ".dk"
-  else base
+let hash_mident  = WS.create 251
+
+let mk_mident md = WS.merge hash_mident md
 
 let dmark       = mk_ident "$"
+
+module IdentSet  = Set.Make(struct type t = ident  let compare = compare end)
+module MidentSet = Set.Make(struct type t = mident let compare = compare end)
+module NameSet   = Set.Make(struct type t = name   let compare = compare end)
+
 
 (** {2 Lists with Length} *)
 
@@ -67,14 +70,6 @@ type loc = int * int
 let dloc = (-1,-1)
 let mk_loc l c = (l,c)
 let of_loc l = l
-
-exception Not_directory of string
-let path = ref []
-let get_path () = !path
-let add_path s =
-  if not (Sys.is_directory s)
-  then raise (Not_directory s)
-  else path := s :: !path
 
 (** {2 Debugging} *)
 

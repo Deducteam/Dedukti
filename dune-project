@@ -1,3 +1,18 @@
-(lang dune 1.2)
+(lang dune 1.10)
 (name dedukti)
 (using menhir 2.0)
+
+(generate_opam_files true)
+
+(license MIT)
+(maintainers "dedukti-dev@inria.fr")
+(authors "dedukti-dev@inria.fr")
+(source (github Deducteam/Dedukti))
+
+(package
+    (name dedukti)
+    (depends
+      (ocaml (>= 4.02))
+      menhir)
+    (synopsis "An implementation of The Lambda-Pi modulo Calculus")
+    (description "An implementation of The Lambda-Pi modulo Calculus"))

@@ -1,4 +1,4 @@
-(; KO 506 --ll ;)
+(; KO 507 --ll ;)
 
 A : Type.
 def eq : A -> A -> Type.

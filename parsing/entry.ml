@@ -10,6 +10,8 @@ type test =
   | Convert of term * term
   | HasType of term * term
 
+exception Assert_error of loc
+
 type entry =
   | Decl  of loc * ident * Signature.scope * Signature.staticity * term
   | Def   of loc * ident * Signature.scope * is_opaque * term option * term

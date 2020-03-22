@@ -3,40 +3,38 @@ open Kernel
 type stream
 (** Abstract parser stream representation. *)
 
-val read : stream -> Entry.entry
+type input
+(** Abstract type for input. *)
 
 exception Parse_error of Basic.loc * string
 
+val input_from_file : string -> input
+
+val input_from_stdin : Basic.mident -> input
+
+val input_from_string : Basic.mident -> string -> input
+
+val md_of_input : input -> Basic.mident
+
+val md_of_file  : string -> Basic.mident
+
+val file_of_input : input -> string option
+
+val close : input -> unit
+
+val read : stream -> Entry.entry
 (** [read str] reads a single entry from the parser stream [str]. When no more
     [entry] is available, the [End_of_file] exception is raised. *)
 
-module type CHANNEL = sig
-  type t
+val from : input -> stream
+(** [from_channel in] creates a parser [stream] for the environment [env]
+    [env] given the input [in]. *)
 
-  val lexing_from : t -> Lexing.lexbuf
-end
+val handle : input -> (Entry.entry -> unit) -> unit
+(** [handle in f] parses the input [in] in the environment [env],  using
+    the action [f] on each entry. Note that the input is parsed lazily. This
+    function can thus be applied to [stdin]. *)
 
-module type S =
-sig
-
-  type input
-
-  val from : Basic.mident -> input -> stream
-  (** [from_channel mod ic] creates a parser [stream] for the module named
-      [mod] given the input [ic]. *)
-
-  val handle : Basic.mident -> (Entry.entry -> unit) -> input -> unit
-  (** [handle mod f ic] parses the input [ic] for module [mod],  using
-      the action [f] on each entry. Note that the input is parsed lazily. This
-      function can thus be applied to [stdin]. *)
-
-  val parse : Basic.mident -> input -> Entry.entry list
-  (** [parse mod ic] completely parses the input [ic] for module [mod]
-      and returns the corresponding list of entries. *)
-end
-
-module Make : functor (C : CHANNEL) -> S with type input = C.t
-
-module Parse_channel : S with type input = in_channel
-
-module Parse_string : S with type input = string
+val parse : input -> Entry.entry list
+(** [parse [in] env] completely parses the input [in] for the environment [env]
+    and returns the corresponding list of entries. *)
