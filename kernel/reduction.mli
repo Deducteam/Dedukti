@@ -38,20 +38,25 @@ val default_cfg : red_cfg
     - [logger]   = [fun _ _ _ -> ()]
 *)
 
-type convertibility_test = Signature.t -> term -> term -> bool
-type matching_test = Rule.constr -> Rule.rule_name -> convertibility_test
 
-exception Not_convertible
+
 
 val eta : bool ref
 (** Set to [true] to allow eta expansion at conversion check *)
+
+exception Not_convertible
+
+type convertibility_test = Signature.t -> term -> term -> bool
 
 module type ConvChecker = sig
   val are_convertible  : convertibility_test
   (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
       or not in the signature [sg]. *)
 
-  val matching_test : matching_test
+  val constraint_convertibility : Rule.constr -> Rule.rule_name -> convertibility_test
+  (** [constraint_convertibility cstr r sg [t1] [t2] checks wehther the [cstr] of the rule [r]
+      is satisfiable. Because constraints are checked once a term has matched the pattern,
+      satisfying a constraint comes back to check that two terms are convertible *)
 
   val conversion_step : Signature.t -> term * term -> (term * term) list -> (term * term) list
   (** [conversion_step sg (l,r) lst] returns a list [lst'] containing

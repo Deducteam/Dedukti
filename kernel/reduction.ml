@@ -86,12 +86,11 @@ let pp_state ?(if_ctx=true) ?(if_stack=true) fmt { ctx; term; stack } =
 let pp_state_oneline = pp_state ~if_ctx:true ~if_stack:true
 *)
 
-type matching_test = Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 type convertibility_test = Signature.t -> term -> term -> bool
 
 module type ConvChecker = sig
   val are_convertible : convertibility_test
-  val matching_test   : matching_test
+  val constraint_convertibility : Rule.constr -> Rule.rule_name -> convertibility_test
   val conversion_step : Signature.t -> term * term -> (term * term) list -> (term * term) list
 end
 
@@ -334,7 +333,7 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
               (fun (i,t2) ->
                  let t1 = Lazy.force (LList.nth ctx i) in
                  let t2 = term_of_state {ctx;term=t2;stack=[]} in
-                 if not (C.are_convertible sg t1 t2)
+                 if not (C.constraint_convertibility (i,t2) rule_name sg t1 t2)
                  then raise (Signature.Signature_error
                                (Signature.GuardNotSatisfied(get_loc t1, t1, t2))))
               cstr;
@@ -587,7 +586,7 @@ let reduction cfg sg te =
   te'
 
   let are_convertible = are_convertible
-  let matching_test _ _ = are_convertible
+  let constraint_convertibility _ _ = are_convertible
 end
 
 module rec Default : S = Make(Default)(Matching.Make(Default))
