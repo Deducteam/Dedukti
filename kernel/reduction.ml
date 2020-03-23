@@ -326,7 +326,7 @@ and gamma_rw (sg:Signature.t) (filter:(Rule.rule_name -> bool) option)
         in
         (* Convert problem on stack indices to a problem on terms *)
         begin
-          match M.solve_problem sg convert convert_ac matching_pb with
+          match M.solve_problem rule_name sg convert convert_ac matching_pb with
           | None -> bind_opt (rw stack) def
           | Some ctx ->
             List.iter

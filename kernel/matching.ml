@@ -104,10 +104,11 @@ module type Reducer = sig
   val snf  : Signature.t -> term -> term
   val whnf : Signature.t -> term -> term
   val are_convertible : Signature.t -> term -> term -> bool
+  val constraint_convertibility : Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 end
 
 module type Matcher = sig
-  val solve_problem :
+  val solve_problem : Rule.rule_name ->
     Signature.t -> (int -> te) -> (int -> te list) ->
     pre_matching_problem -> te LList.t option
 end
@@ -448,7 +449,7 @@ struct
   (* Main solving function.
      Processes equationnal problems as they can be deterministically solved
      right away then hands over to non deterministic AC solver. *)
-  let solve_problem sg from_stack from_stack_ac pb =
+  let solve_problem rule_name sg from_stack from_stack_ac pb =
     if pb.pm_ac_problems = []
     then
       let solve_eq = function
@@ -461,7 +462,7 @@ struct
           List.iter
             (fun (args,rhs) ->
                let exp = apply_sol solu args in
-               if not (R.are_convertible sg (Lazy.force (from_stack rhs)) exp)
+               if not (R.constraint_convertibility (rhs,exp)  rule_name sg (Lazy.force (from_stack rhs)) exp)
                then raise NotSolvable)
             other_pbs;
           Lazy.from_val (add_n_lambdas args.arity solu)
@@ -478,7 +479,7 @@ struct
           List.iter
             (fun (args, rhs) ->
                let exp = apply_sol solu args in
-               if not (R.are_convertible sg (Lazy.force (from_stack rhs)) exp)
+               if not (R.constraint_convertibility (rhs,exp)  rule_name sg (Lazy.force (from_stack rhs)) exp)
                then raise NotSolvable
             )
             opbs;
