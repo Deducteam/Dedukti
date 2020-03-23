@@ -14,7 +14,7 @@
   let prerr_loc lc = eprintf "%a " pp_loc lc
 
   let fail lc msg =
-    raise (Lexer_error(lc, msg))
+    raise @@ Lexer_error(lc, msg)
 }
 
 let space   = [' ' '\t' '\r']

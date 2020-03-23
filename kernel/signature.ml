@@ -6,6 +6,8 @@ open Rule
 
 let d_module = Debug.register_flag "Module"
 
+type file = string
+
 let fail_on_symbol_not_found = ref true
 
 type signature_error =
@@ -20,9 +22,9 @@ type signature_error =
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
   | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
+  | CannotExportModule    of mident * exn
+  | PrivateSymbol         of loc * name
   | ExpectedACUSymbol     of loc * name
-  | CouldNotExportModule  of mident * string
-  | PrivateSymbol             of loc * name
 
 exception Signature_error of signature_error
 
@@ -50,8 +52,8 @@ let algebra_of_staticity = function
 type scope     = Public | Private
 
 (** The pretty printer for the type [staticity] *)
-let pp_staticity fmt s =
-  Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable")
+(* let pp_staticity fmt s =
+ *   Format.fprintf fmt "%s" (if s=Static then "Static" else "Definable") *)
 
 type rw_infos =
   {
@@ -64,8 +66,7 @@ type rw_infos =
 
 type t =
   {
-    name   : mident;
-    file   : string;
+    md     : mident;
     (** [tables] maps module ident to the hastable of their symbols.
         It should only contain a single entry for each module.
         Each module's hashtable should only contain a single entry
@@ -73,60 +74,41 @@ type t =
     tables : (rw_infos HId.t) HMd.t;
 
     mutable external_rules:rule_infos list list;
+
+    get_file : loc -> mident -> string
   }
 
-let make file =
-  let name = mk_mident file in
+let make md get_file =
   let tables = HMd.create 19 in
-  HMd.replace tables name (HId.create 251);
-  { name; file; tables; external_rules=[]; }
+  HMd.replace tables md (HId.create 251);
+  { md; tables; external_rules=[]; get_file}
 
-let get_name sg = sg.name
+let get_name sg = sg.md
 
 (******************************************************************************)
 
-let marshal (file:string) (deps:string list) (env:rw_infos HId.t) (ext:rule_infos list list) : bool =
+let marshal : mident -> mident list -> rw_infos HId.t -> rule_infos list list -> out_channel -> unit =
+  fun md deps env ext oc ->
   try
-    let file = (try Filename.chop_extension file with _ -> file) ^ ".dko" in
-    let oc = open_out file in
     Marshal.to_channel oc Version.version [];
     Marshal.to_channel oc deps [];
     Marshal.to_channel oc env [];
-    Marshal.to_channel oc ext [];
-    close_out oc; true
-  with _ -> false
+    Marshal.to_channel oc ext []
+  with e -> raise @@ Signature_error (CannotExportModule(md,e))
 
-let file_exists = Sys.file_exists
-
-let rec find_dko_in_path name = function
-  | [] -> failwith "find_dko"  (* Captured by the unmarshal function *)
-  | dir :: path ->
-      let filename = dir ^ "/" ^ name ^ ".dko" in
-      if file_exists filename
-      then open_in filename
-      else find_dko_in_path name path
-
-let find_dko name =
-  let filename = name ^ ".dko" in
-  if file_exists filename (* First check in the current directory *)
-  then open_in filename
-  else find_dko_in_path name (get_path())
-  (* If not found in the current directory, search in load-path *)
-
-let unmarshal (lc:loc) (m:string) : string list * rw_infos HId.t * rule_infos list list =
+let unmarshal (lc:loc) (file:string) : mident list * rw_infos HId.t * rule_infos list list =
   try
-    let chan = find_dko m in
-    let ver:string = Marshal.from_channel chan in
+    let ic = open_in file in
+    let ver:string = Marshal.from_channel ic in
     if String.compare ver Version.version <> 0
-    then raise (Signature_error (UnmarshalBadVersionNumber (lc,m)));
-    let deps:string list         = Marshal.from_channel chan in
-    let ctx:rw_infos HId.t       = Marshal.from_channel chan in
-    let ext:rule_infos list list = Marshal.from_channel chan in
-    close_in chan; (deps,ctx,ext)
+    then raise (Signature_error (UnmarshalBadVersionNumber (lc,file)));
+    let deps:mident list         = Marshal.from_channel ic in
+    let ctx:rw_infos HId.t       = Marshal.from_channel ic in
+    let ext:rule_infos list list = Marshal.from_channel ic in
+    close_in ic; (deps,ctx,ext)
   with
-  | Sys_error s -> raise (Signature_error (UnmarshalSysError (lc,m,s)))
+  | Sys_error s -> raise (Signature_error (UnmarshalSysError (lc,file,s)))
   | Signature_error s -> raise (Signature_error s)
-  | _ -> raise (Signature_error (UnmarshalUnknown (lc,m)))
 
 
 let fold_symbols f sg =
@@ -134,8 +116,6 @@ let fold_symbols f sg =
 
 let iter_symbols f sg =
   fold_symbols (fun md id rw () -> f md id rw) sg ()
-
-
 
 (******************************************************************************)
 
@@ -232,19 +212,18 @@ let add_external_declaration sg lc cst scope stat ty =
     HId.replace env (id cst) {stat; ty; scope; rules=[]; decision_tree=None}
 
 (* Recursively load a module and its dependencies*)
-let rec import sg lc m =
-  if HMd.mem sg.tables m
-  then Debug.(debug d_warn "Trying to import the already loaded module %s." (string_of_mident m))
+let rec import sg lc md =
+  if HMd.mem sg.tables md
+  then Debug.(debug d_warn "Trying to import the already loaded module %s." (string_of_mident md))
   else
-    let (deps,ctx,ext) = unmarshal lc (string_of_mident m) in
-    HMd.replace sg.tables m ctx;
-    List.iter ( fun dep0 ->
-        let dep = mk_mident dep0 in
+    let (deps,ctx,ext) = unmarshal lc (sg.get_file lc md) in
+    HMd.replace sg.tables md ctx;
+    List.iter ( fun dep ->
         if not (HMd.mem sg.tables dep) then import sg lc dep
       ) deps ;
-    Debug.(debug d_module "Loading module '%a'..." pp_mident m);
+    Debug.(debug d_module "Loading module '%a'..." pp_mident md);
     List.iter (fun rs -> add_rule_infos sg rs) ext;
-    check_confluence_on_import lc m ctx
+    check_confluence_on_import lc md ctx
 
 and add_rule_infos sg (lst:rule_infos list) : unit =
   match lst with
@@ -252,15 +231,15 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   | (r::_ as rs) ->
     let infos, env =
       try get_info_env sg r.l r.cst
-      with
-      | Signature_error (SymbolNotFound _)
-      | Signature_error (UnmarshalUnknown _) when not !fail_on_symbol_not_found ->
-        add_external_declaration sg r.l r.cst Public (Definable Free) mk_Kind;
+      with _ when not !fail_on_symbol_not_found ->
+        add_external_declaration sg r.l r.cst Public (Definable Free) (mk_Kind);
         get_info_env sg r.l r.cst
     in
     if infos.stat = Static && !fail_on_symbol_not_found
     then raise (Signature_error (CannotAddRewriteRules (r.l,r.cst)));
-    HId.replace env (id r.cst) {infos with rules = infos.rules @ rs; decision_tree= None}
+    HId.replace env (id r.cst) {infos with rules = List.rev_append rs infos.rules; decision_tree= None}
+    (* [rs] is in the order the user declared the rules,
+       but a [rw_infos] is a Lifo pile, hence the [rev_append]. *)
 
 and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t =
   let infos, env = get_info_env sg lc cst in
@@ -268,7 +247,7 @@ and compute_dtree sg (lc:Basic.loc) (cst:Basic.name) : Dtree.t =
   (* Non-empty set of rule but decision trees not computed *)
   | None, rules ->
     let trees =
-      try Dtree.of_rules cst (get_algebra sg dloc) rules
+      try Dtree.of_rules cst (get_algebra sg dloc) (List.rev rules)
       with Dtree.Dtree_error e -> raise (Signature_error (CannotBuildDtree e))
     in
     HId.replace env (id cst) {infos with decision_tree=Some trees};
@@ -296,15 +275,11 @@ and is_AC sg lc name = Term.is_AC (get_algebra sg lc name)
 
 (******************************************************************************)
 
-let get_md_deps (lc:loc) (md:mident) =
-  let (deps,_,_) = unmarshal lc (string_of_mident md) in
-  List.map mk_mident deps
-
-let get_deps sg : string list = (*only direct dependencies*)
+let get_deps sg : mident list = (*only direct dependencies*)
   HMd.fold (
     fun md _ lst ->
-      if mident_eq md sg.name then lst
-      else (string_of_mident md)::lst
+      if mident_eq md sg.md then lst
+      else md::lst
     ) sg.tables []
 
 
@@ -314,12 +289,16 @@ let import_signature sg sg_ext =
         HMd.replace sg.tables m (HId.copy hid)) sg_ext.tables;
   List.iter (fun rs -> add_rule_infos sg rs) sg_ext.external_rules
 
-let export sg =
-  let mod_table = HMd.find sg.tables sg.name in
-  if not (marshal sg.file (get_deps sg) mod_table sg.external_rules)
-  then raise (Signature_error (CouldNotExportModule (sg.name, sg.file)))
+let export sg oc =
+  let mod_table = HMd.find sg.tables sg.md in
+  marshal sg.md (get_deps sg) mod_table sg.external_rules oc
 
 (******************************************************************************)
+
+let is_static sg lc cst =
+  match (get_infos sg lc cst).stat with
+  | Static                  -> true
+  | Definable _ | Injective -> false
 
 let stat_code = function
   | Static            -> 0
@@ -353,7 +332,7 @@ let is_injective sg lc cst =
 
 let get_type sg lc cst =
   let infos = get_infos sg lc cst in
-  if infos.scope = Public || md cst = sg.name
+  if infos.scope = Public || md cst = sg.md
   then infos.ty
   else raise (Signature_error (PrivateSymbol(lc,cst)))
 
@@ -365,16 +344,17 @@ let get_dtree sg lc cst =
 
 (******************************************************************************)
 
-let add_declaration sg lc v scope stat ty =
-  let cst = mk_name sg.name v in
-  add_external_declaration sg lc cst scope stat ty
+let add_declaration sg lc v st ty =
+  let cst = mk_name sg.md v in
+  add_external_declaration sg lc cst st ty
+
 
 let add_rules sg = function
   | [] -> ()
   | r :: _ as rs ->
     try
       add_rule_infos sg rs;
-      if not (mident_eq sg.name (md r.cst)) then
+      if not (mident_eq sg.md (md r.cst)) then
         sg.external_rules <- rs::sg.external_rules;
       Confluence.add_rules rs;
       Debug.(debug Confluence.d_confluence
@@ -383,3 +363,14 @@ let add_rules sg = function
       try Confluence.check ()
       with Confluence.Confluence_error e -> raise (Signature_error (ConfluenceErrorRules (r.l,rs,e)))
     with Rule_error e -> raise (Signature_error (CannotMakeRuleInfos e))
+
+
+let get_rw_infos sg md id =
+  if HMd.mem sg.tables md then
+    let sig_md = HMd.find sg.tables md in
+    if HId.mem sig_md id then
+      Some (HId.find sig_md id)
+    else
+      None
+  else
+    None

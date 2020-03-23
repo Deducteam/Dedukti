@@ -13,6 +13,8 @@ type test =
   | HasType of term * term
   (** Typability test, given a term and a type.   *)
 
+exception Assert_error of loc
+
 (** Single source file entry. *)
 type entry =
   | Decl  of loc * ident * Signature.scope * Signature.staticity * term

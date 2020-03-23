@@ -74,12 +74,14 @@ type arity_rule = int rule
 (** {2 Errors} *)
 
 type rule_error =
-  | BoundVariableExpected          of pattern
+  | BoundVariableExpected          of loc * pattern
   | DistinctBoundVariablesExpected of loc * ident
-  | VariableBoundOutsideTheGuard   of term
+  | VariableBoundOutsideTheGuard   of loc * term
   | UnboundVariable                of loc * ident * pattern
   | AVariableIsNotAPattern         of loc * ident
   | NonLinearNonEqArguments        of loc * ident
+  | NotEnoughArguments             of loc * ident * int * int * int
+  | NonLinearRule                  of loc * rule_name
 
 exception Rule_error of rule_error
 
@@ -133,3 +135,7 @@ val pp_part_typed_rule : partially_typed_rule printer
 val pp_pattern         : pattern         printer
 val pp_wf_pattern      : wf_pattern      printer
 val pp_rule_infos      : rule_infos      printer
+
+val check_arity : rule_infos -> unit
+
+val check_linearity : rule_infos -> unit

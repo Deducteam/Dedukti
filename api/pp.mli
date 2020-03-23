@@ -9,6 +9,8 @@ val print_db_enabled    : bool ref
 val print_default_name  : bool ref
 (** Names for rules are optional. If this option is set to true, the printing functions will output default rule names given by Dedukti. *)
 
+val print_module_name : bool ref
+
 module type Sig =
 sig
   val get_name : unit -> mident
@@ -34,7 +36,7 @@ sig
   val print_rule_infos    : Rule.rule_infos     printer
   val print_rule_name     : Rule.rule_name      printer
   val print_red_cfg       : Reduction.red_cfg   printer
-  val print_entry         : Parsing.Entry.entry printer
+  val print_entry         : Parsers.Entry.entry printer
   val print_staticity     : Signature.staticity printer
 end
 

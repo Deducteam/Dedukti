@@ -2,22 +2,22 @@
     (name dkcheck)
     (public_name dkcheck)
     (modules dkcheck)
-    (libraries kernel parsing api))
+    (libraries kernel parsers api))
 
 (executable
     (name dkdep)
     (public_name dkdep)
     (modules dkdep)
-    (libraries kernel parsing api))
+    (libraries kernel parsers api))
 
 (executable
     (name dktop)
     (public_name dktop)
     (modules dktop)
-    (libraries kernel parsing api))
+    (libraries kernel parsers api))
 
 (executable
     (name dkprune)
     (public_name dkprune)
     (modules dkprune)
-    (libraries kernel parsing api))
+    (libraries kernel parsers api))

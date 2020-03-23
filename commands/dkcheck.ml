@@ -1,36 +1,7 @@
 open Kernel
-open Parsing
 open Api
 
 open Basic
-open Parser
-
-module E = Env.Make(Reduction.Default)
-module TypeChecker = Processor.TypeChecker(E)
-module Printer = E.Printer
-module ErrorHandler = Errors.Make(E)
-module Beautifier = Processor.EntryPrinter(E)
-
-let mk_entry beautify _ =
-  if beautify
-  then Beautifier.handle_entry
-  else TypeChecker.handle_entry
-
-let run_on_file beautify export file =
-  let input =
-    try open_in file
-    with e -> ErrorHandler.graceful_fail (Some file) e in
-  Debug.debug Signature.d_module "Processing file '%s'..." file;
-  let md = E.init file in
-  Confluence.initialize ();
-  begin
-    try Parse_channel.handle md (mk_entry beautify md) input;
-    with e -> ErrorHandler.graceful_fail (Some file) e
-  end;
-  if not beautify then ErrorHandler.print_success (Some file);
-  if export then E.export ();
-  Confluence.finalize ();
-  close_in input
 
 let _ =
   let run_on_stdin = ref None  in
@@ -47,7 +18,7 @@ let _ =
       , Arg.Set export
       , " Generates an object file (\".dko\")" )
     ; ( "-I"
-      , Arg.String Basic.add_path
+      , Arg.String Files.add_path
       , "DIR Adds the directory DIR to the load path" )
     ; ( "-d"
       , Arg.String Env.set_debug_mode
@@ -99,7 +70,7 @@ let _ =
                    Default value is 1. Values < 0 may not terminate on
                    rules that do not preserve typing. " )
     ; ( "--snf"
-      , Arg.Set Errors.errors_in_snf
+      , Arg.Set Env.errors_in_snf
       , " Normalizes all terms printed in error messages" )
     ; ( "--db"
       , Arg.Set Pp.print_db_enabled
@@ -114,7 +85,7 @@ let _ =
       , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
       , " Prints the version number" )
     (* Deprecated flags. TODO: Remove them from the argument parsing. *)
-    ; deprecated "-errors-in-snf" "--snf" (Arg.Set Errors.errors_in_snf)
+    ; deprecated "-errors-in-snf" "--snf" (Arg.Set Env.errors_in_snf)
     ; deprecated "-cc" "--confluence" (Arg.String Confluence.set_cmd)
     ; deprecated "-eta" "--eta" (Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity])
     ; deprecated "-coc" "--coc" (Arg.Set Typing.coc)
@@ -128,25 +99,37 @@ Type checks the given Dedukti FILE(s).
 For more information see https://github.com/Deducteam/Dedukti.
 Available options:" Sys.argv.(0) in
   let files =
-    try
-      let files = ref [] in
-      Arg.parse options (fun f -> files := f :: !files) usage;
-      List.rev !files
-    with e -> ErrorHandler.graceful_fail None e
+    let files = ref [] in
+    Arg.parse options (fun f -> files := f :: !files) usage;
+    List.rev !files
   in
   if !beautify && !export then
     begin
       Format.eprintf "Beautify and export cannot be set at the same time@.";
       exit 2
     end;
-  List.iter (run_on_file !beautify !export) files;
+  let open Processor in
+  let processor = if !beautify then PrettyPrinter else TypeChecker in
+  let hook_after env exn =
+    match exn with
+    | None ->
+      if not !beautify then
+        begin
+          Errors.success (Env.get_filename env)
+        end;
+      if !export then Env.export env;
+      Confluence.finalize ()
+    | Some (env, lc, e) -> Env.fail_env_error env lc e
+  in
+  let hook =
+    {
+      before = (fun _ -> Confluence.initialize ());
+      after = hook_after
+    }
+  in
+  Processor.handle_files files ~hook processor;
   match !run_on_stdin with
   | None   -> ()
   | Some m ->
-    let md = E.init m in
-    begin
-      try Parse_channel.handle md (mk_entry !beautify md) stdin
-      with e -> ErrorHandler.graceful_fail None e
-    end;
-    if not !beautify
-    then ErrorHandler.print_success None
+    let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
+    Processor.handle_input input processor

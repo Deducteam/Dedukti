@@ -1,24 +1,32 @@
 (** Errors handling *)
 
-val errors_in_snf : bool ref
-(** Flag to enable SNF forms of terms in errors. *)
+open Kernel
+open Basic
 
 val color : bool ref
 (** Flag to disable colored output. *)
 
-module type ErrorHandler =
-sig
+val success : string -> unit
+(** Print a success message. *)
 
-val print_success : string option -> unit
-(** [print_success] Prints a success message after handling the
-    given file (or standard input in case of [None]). *)
+val fail_exit : file:string -> code:string -> loc option ->
+  ('a, Format.formatter, unit, 'b) format4 -> 'a
+(** [fail_exit file error_id lc "..."]
+    Prints the given error message prefixed with module and location details
+    (when provided) as well as the error ID then exits with the given code. *)
 
-val graceful_fail : string option -> exn -> 'a
-(** [graceful_fail file err]
-    Prints a message explaining the given error
-    raised while handling the (optionnal) given file
-    then exits with code 3. *)
+val fail_sys_error : file:string -> msg:string -> 'a
+(** Print a system error message then exits with code 1. *)
 
-end
+type error_code = int
 
-module Make (E:Env.S) : ErrorHandler
+type error_msg = error_code * Basic.loc option * string
+
+type error_handler = red:(Term.term -> Term.term) -> exn -> error_msg option
+
+val register_exception : (red:(Term.term -> Term.term) -> exn -> error_msg option) -> unit
+
+val string_of_exception :
+  red:(Term.term -> Term.term) ->
+  Basic.loc -> exn ->
+  error_code * Basic.loc * string

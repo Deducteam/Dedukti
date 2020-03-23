@@ -44,9 +44,13 @@ val default_cfg : red_cfg
 val eta : bool ref
 (** Set to [true] to allow eta expansion at conversion check *)
 
+
 exception Not_convertible
 
 type convertibility_test = Signature.t -> term -> term -> bool
+
+val selection : (Rule.rule_name -> bool) option ref
+(** This predicate restrict the rules which can be used by the rewrite engine. Default is None meaning that every rules in Signature are used *)
 
 module type ConvChecker = sig
   val are_convertible  : convertibility_test

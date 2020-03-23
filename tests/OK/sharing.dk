@@ -1,0 +1,63 @@
+(; OK ;)
+
+N : Type.
+z : N.
+s : N -> N.
+
+def x2 : N -> N.
+[ ] x2 z --> z
+[n] x2 (s n) --> s (s (x2 n)).
+
+def pw2 : N -> N.
+[ ] pw2 z     --> s z
+[n] pw2 (s n) --> x2 (pw2 n).
+
+def 1  := pw2 z.
+def 2  := pw2 1.
+def 4  := pw2 2.
+def 16 := pw2 4.
+def 32 := x2 16.
+def 65536 := pw2 16.
+
+T : Type.
+t : T.
+c : T -> T -> T.
+
+def bin : T -> T.
+[X] bin X --> c X X.
+
+def f : N -> T.
+[ ] f z     --> t.
+[n] f (s n) --> bin (f n).
+(;
+[n] f (s n) --> (x:T => c x x) (f n).
+;)
+
+def test : T -> N.
+[ ] test t --> z.
+[X] test (c (c X X) (c X X)) --> test X.
+[X] test (c X X) --> test X.
+
+#EVAL z.
+#EVAL test (f 16).
+
+#EVAL z.
+#EVAL test (f 32).
+
+#EVAL z.
+#EVAL test (f 65536).
+
+
+def f2 : N -> N -> T.
+[   ] f2 _ z     --> t.
+[x,n] f2 x (s n) --> (x:T => c x x) (f2 x n).
+
+def test2 : (N -> T) -> N.
+[X] test2 (x => X) --> z.
+
+#EVAL z.
+#EVAL test2 (x => f2 x 16).
+(;
+#EVAL test2 (x => f2 x 32).
+#EVAL test2 (x => f2 x 65536).
+;)
