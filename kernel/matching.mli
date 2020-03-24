@@ -20,11 +20,12 @@ module type Reducer = sig
   val snf  : Signature.t -> term -> term
   val whnf : Signature.t -> term -> term
   val are_convertible : Signature.t -> term -> term -> bool
+  val constraint_convertibility : Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 end
 
 module type Matcher = sig
   val solve_problem :
-    Signature.t -> (int -> term Lazy.t) -> (int -> term Lazy.t list) ->
+    Rule.rule_name -> Signature.t -> (int -> term Lazy.t) -> (int -> term Lazy.t list) ->
     pre_matching_problem -> term Lazy.t LList.t option
   (** [solve_problem sg eq_conv ac_conv pb] solves the [pb] matching problem
       using the given functions to convert positions in the stack to actual
