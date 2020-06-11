@@ -36,5 +36,5 @@ val handle : input -> (Entry.entry -> unit) -> unit
     function can thus be applied to [stdin]. *)
 
 val parse : input -> Entry.entry list
-(** [parse [in] env] completely parses the input [in] for the environment [env]
-    and returns the corresponding list of entries. *)
+(** [parse in] completely parses the input [in] and returns the corresponding
+    list of entries. *)

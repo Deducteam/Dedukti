@@ -36,7 +36,7 @@
 
 type signature_entry = Kernel.Basic.name * Kernel.Signature.rw_infos
 
-(** A signatuire builder takes a consumer function as input and returns unit.
+(** A signature builder takes a consumer function as input and returns unit.
     We use CPS style here for large signatures so that the memory size is not
     duplicated. *)
 type signature_builder = (signature_entry -> unit) -> unit
@@ -104,7 +104,7 @@ val fold_files : string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b -
 
     These are the three things you need to define to declare a new processor.
     Once your processor has been defined, to be able to use the API above, you need
-    to register you processor. Thhe registration step is actually really easy.
+    to register you processor. The registration step is actually really easy.
     To register a processor, you need to do three things.
     1. First, you need to extend the type [t] with a new constructor for your processor
     2. Declare a trivial equality function for your new constructor (see below)
@@ -130,7 +130,7 @@ val fold_files : string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b -
 
     And then you are ready to go!
 
-    The current version allows you to shadow a previously known [Processor], becareful with that.
+    The current version allows you to shadow a previously known [Processor], be careful with that.
 
     Finally, in this section we declare an [of pure] function which allows you to define a processor
     by calling a function and without using the syntax of modules.
