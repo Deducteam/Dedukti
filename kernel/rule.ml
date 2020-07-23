@@ -68,6 +68,8 @@ let infer_rule_context ri =
   Array.iter (aux 0) ri.pats;
   Array.to_list res
 
+let infer_rule_context_without_arity ri =
+  ri |> infer_rule_context |> List.map (fun (loc,id,_) -> (loc,id,None))
 
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
@@ -274,9 +276,9 @@ let to_rule_infos (r:'a rule) : rule_infos =
     constraints = infos.constraints
   }
 
-let untyped_rule_of_rule_infos ri =
+let untyped_rule_of_rule_infos ri : partially_typed_rule =
   { name = ri.name
-  ; ctx  = infer_rule_context ri
+  ; ctx  = infer_rule_context_without_arity ri
   ; pat  = pattern_of_rule_infos ri
   ; rhs  = ri.rhs}
 

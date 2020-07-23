@@ -122,7 +122,7 @@ val pattern_of_rule_infos : rule_infos -> pattern
 val to_rule_infos : 'a rule -> rule_infos
 (** Converts any rule (typed or untyped) to rule_infos *)
 
-val untyped_rule_of_rule_infos : rule_infos -> arity_rule
+val untyped_rule_of_rule_infos : rule_infos -> partially_typed_rule
 (** Converts rule_infos representation to a rule where
     the context is annotated with the variables' arity *)
 
