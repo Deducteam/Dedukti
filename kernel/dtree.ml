@@ -40,10 +40,10 @@ type miller_var =
 
 let fo_var : miller_var = { arity=0; depth=0; vars=[]; mapping=[||] }
 
-let mapping_of_vars (depth:int) (arity:int) (vars:int list) : int array =
-  let arr = Array.make depth (-1) in
-  List.iteri ( fun i n -> arr.(n) <- arity-i-1) vars;
-  arr
+let to_miller_var (depth:int) (arity:int) (vars:int list) : miller_var =
+  let mapping = Array.make depth (-1) in
+  List.iteri ( fun i n -> mapping.(n) <- arity-i-1) vars;
+  {arity; depth; vars; mapping}
 
 type var_p = int * miller_var
 
@@ -735,8 +735,7 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
            let n = n - depth in
            let len = List.length args in
            if arity.(n) == -1 then arity.(n) <- len else assert(arity.(n) == len);
-           let miller = {depth=depth; arity=len; vars=args;
-                         mapping=mapping_of_vars depth len args} in
+           let miller = to_miller_var depth len args in
            eq_pbs.(n) <- (miller, i) :: eq_pbs.(n)
          end
       | LACSet (cst,patl) ->
@@ -751,8 +750,7 @@ let get_first_matching_problem (get_algebra:name->algebra) mx =
                    if arity.(n) == -1
                    then arity.(n) <- len
                    else assert(arity.(n) == len);
-                   let miller = {depth=depth; arity=len; vars=args;
-                                 mapping=mapping_of_vars depth len args} in
+                   let miller = to_miller_var depth len args in
                    let nvars = (n,miller) :: vars in
                    (joks,nvars)
                  end

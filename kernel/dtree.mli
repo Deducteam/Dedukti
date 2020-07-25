@@ -23,7 +23,7 @@ type dtree_error =
 
 exception Dtree_error of dtree_error
 
-type miller_var =
+type miller_var = private
   {
     arity : int;
     (** Arity of the meta variable *)
@@ -62,8 +62,8 @@ type miller_var =
     \}
 *)
 
-val mapping_of_vars : int -> int -> int list -> int array
-(** [mapping_of_vars depth arity vars] build a reverse mapping
+val to_miller_var : int -> int -> int list -> miller_var
+(** [to_miller_var depth arity vars] build a reverse mapping
     from the list [vars] of DB indices arguments of a Miller variable.
     For instance the pattern x => y => z => F y x produces a call to
     [mapping_of_vars 3 2 \[1; 0\] ] which returns the array

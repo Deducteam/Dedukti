@@ -159,12 +159,7 @@ struct
     try
       let dbs = List.map (function DB(_,_,n) -> n | _ -> raise Matching.NotUnifiable) args in
       let arity = List.length dbs in
-      let var =
-        Dtree.{ arity
-              ; depth  = q
-              ; vars   = dbs
-              ; mapping= mapping_of_vars q arity dbs
-        } in
+      let var = Dtree.to_miller_var q arity dbs in
       let sol = Matching.solve_miller var t in
       Some (Term.add_n_lambdas arity sol)
     with Matching.NotUnifiable -> None
