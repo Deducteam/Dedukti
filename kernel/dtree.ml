@@ -15,6 +15,7 @@ type rule_infos_error =
   (* FIXME: the reason for this exception should be formalized on paper ! *)
   | NotEnoughArguments             of loc * ident * int * int * int
   | NonLinearRule                  of loc * rule_name
+  | NotAPattern                    of loc * term
 
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
@@ -150,7 +151,7 @@ let pp_rule_infos out r =
   pp_untyped_rule out
     { name = r.name;
       ctx = r.ctx;
-      pat = pattern_of_rule_infos r;
+      lhs = Rule.pattern_to_term (pattern_of_rule_infos r);
       rhs = r.rhs
     }
 
@@ -245,9 +246,16 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       nonlinear = !nonlinear
     } )
 
+let get_pattern term =
+  try
+    Rule.pattern_of_term term
+  with Not_a_pattern ->
+    raise (Dtree_error (RuleInfos(NotAPattern(Term.get_loc term,term))))
+
 let to_rule_infos (r:'a rule) : rule_infos =
   let ctx_size = List.length r.ctx in
-  let (l,cst,args) = match r.pat with
+  let pat = get_pattern r.lhs in
+  let (l,cst,args) = match pat with
     | Pattern (l,cst,args) -> (l, cst, args)
     | Var (l,x,_,_) ->  raise (Dtree_error (RuleInfos(AVariableIsNotAPattern (l,x))))
     | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
@@ -269,7 +277,7 @@ let to_rule_infos (r:'a rule) : rule_infos =
 let untyped_rule_of_rule_infos ri : untyped_rule =
   { name = ri.name
   ; ctx  = ri.ctx
-  ; pat  = pattern_of_rule_infos ri
+  ; lhs  = Rule.pattern_to_term (pattern_of_rule_infos ri)
   ; rhs  = ri.rhs}
 
 

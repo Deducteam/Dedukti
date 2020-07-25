@@ -14,6 +14,8 @@ type rule_infos_error =
   | NonLinearNonEqArguments        of loc * ident
   | NotEnoughArguments             of loc * ident * int * int * int
   | NonLinearRule                  of loc * rule_name
+  | NotAPattern                    of loc * term
+
 
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
@@ -169,6 +171,9 @@ type rule_infos  = private
     ctx         : term option context;
     (** context given by the user *)
   }
+
+val get_pattern : term -> pattern
+(** Extract a pattern from a term, may raise NotAPattern *)
 
 val pattern_of_rule_infos : rule_infos -> pattern
 (** Extracts LHS pattern from a rule info *)

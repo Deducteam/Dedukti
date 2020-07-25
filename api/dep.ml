@@ -51,10 +51,10 @@ let empty_deps () = {file="<not initialized>"; deps = MSet.empty; name_deps=Hash
 let deps = Hashtbl.create 11
 
 (** [deps] contains the dependencies found so far, reset before each file. *)
-let current_mod   : mident    ref = ref (mk_mident "<not initialised>")
-let current_name  : name      ref = ref (mk_name (!current_mod) (mk_ident  "<not initialised>"))
-let current_deps  : file_deps ref = ref (empty_deps ())
-let ignore        : bool      ref = ref false
+let current_mod   : mident      ref = ref (mk_mident "<not initialised>")
+let current_name  : name option ref = ref None
+let current_deps  : file_deps   ref = ref (empty_deps ())
+let ignore        : bool        ref = ref false
 
 (** [add_dep md] adds the module [md] to the list of dependencies if
     no corresponding ".dko" file is found in the load path. The dependency is
@@ -99,8 +99,11 @@ let update_ideps item dep =
 
 
 let add_idep : name -> unit = fun dep_name ->
-  if not @@ Basic.name_eq dep_name !current_name then
-    update_ideps !current_name dep_name
+  match !current_name with
+  | None -> ()
+  | Some current_name ->
+    if not @@ Basic.name_eq dep_name current_name then
+      update_ideps current_name dep_name
 
 (** Term / pattern / entry traversal commands. *)
 
@@ -118,37 +121,29 @@ let rec mk_term t =
   | Lam(_,_,Some(ty),te) -> mk_term ty; mk_term te
   | Pi (_,_,a,b)         -> mk_term a; mk_term b
 
-let rec mk_pattern p =
-  let open Rule in
-  match p with
-  | Var(_,_,_,args)   -> List.iter mk_pattern args
-  | Pattern(_,c,args) -> mk_name c; List.iter mk_pattern args
-  | Lambda(_,_,te)    -> mk_pattern te
-  | Brackets(t)       -> mk_term t
-
 let mk_rule r =
   let open Rule in
-  mk_pattern r.pat; mk_term r.rhs
-
-let find_rule_name r =
-  let open Rule in
-  match r.pat with
-  | Pattern(_,n,_) -> n
-| _ -> assert false
+  mk_term r.lhs; mk_term r.rhs
 
 let handle_entry e =
   let open Entry in
   let name_of_id id = Basic.mk_name !current_mod id in
+  let update_name_with_rule r =
+    let open Rule in
+    match r.lhs with
+    | App(Const(_,n) ,_, _) -> current_name := Some n
+    | _ -> current_name := None
+  in
   match e with
-  | Decl(_,id,_,_,te)           -> current_name := name_of_id id; mk_term te
-  | Def(_,id,_,_,None,te)       -> current_name := name_of_id id; mk_term te
-  | Def(_,id,_,_,Some(ty),te)   -> current_name := name_of_id id; mk_term ty; mk_term te
+  | Decl(_,id,_,_,te)           -> current_name := Some (name_of_id id); mk_term te
+  | Def(_,id,_,_,None,te)       -> current_name := Some (name_of_id id); mk_term te
+  | Def(_,id,_,_,Some(ty),te)   -> current_name := Some (name_of_id id); mk_term ty; mk_term te
   | Rules(_,[])                 -> ()
-  | Rules(_,(r::_ as rs))       -> current_name := find_rule_name r; List.iter mk_rule rs
-  | Eval(_,_,te)                -> mk_term te
-  | Infer (_,_,te)              -> mk_term te
-  | Check(_,_,_,Convert(t1,t2)) -> mk_term t1; mk_term t2
-  | Check(_,_,_,HasType(te,ty)) -> mk_term te; mk_term ty
+  | Rules(_,(r::_ as rs))       -> update_name_with_rule r; List.iter mk_rule rs
+  | Eval(_,_,te)                -> current_name := None; mk_term te
+  | Infer (_,_,te)              -> current_name := None; mk_term te
+  | Check(_,_,_,Convert(t1,t2)) -> current_name := None; mk_term t1; mk_term t2
+  | Check(_,_,_,HasType(te,ty)) -> current_name := None; mk_term te; mk_term ty
   | DTree(_,_,_)                -> ()
   | Print(_,_)                  -> ()
   | Name(_,_)                   -> ()

@@ -13,6 +13,9 @@ type pattern =
   | Lambda   of loc * ident * pattern            (** Lambda abstraction.  *)
   | Brackets of term                             (** Bracket of a term.   *)
 
+exception Not_a_pattern
+
+val pattern_of_term : term -> pattern
 
 val get_loc_pat : pattern -> loc
 (** [get_loc_pat pat] returns the location of a pattern. *)
@@ -38,8 +41,8 @@ type 'a rule =
     (** name of the rule *)
     ctx : 'a context;
     (** context of the rule *)
-    pat : pattern;
-    (** pattern of the rule *)
+    lhs : term;
+    (** lhs of the rule *)
     rhs : term
     (** Right-hand side of the rule *)
   }

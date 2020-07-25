@@ -147,7 +147,7 @@ let _define env lc (id:ident) (scope:Signature.scope) (opaque:bool) (te:term) (t
       let rule =
         { name= Delta(cst) ;
           ctx = [] ;
-          pat = Pattern(lc, cst, []);
+          lhs = mk_Const lc cst;
           rhs = te ;
         }
       in

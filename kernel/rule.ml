@@ -20,12 +20,28 @@ type 'a rule =
   {
     name: rule_name;
     ctx: 'a context;
-    pat: pattern;
+    lhs: term;
     rhs:term
   }
 
 type untyped_rule         = term option rule
 type typed_rule           = term        rule
+
+
+exception Not_a_pattern
+
+let rec pattern_of_term t =
+  let open Term in
+  match t with
+  | Kind | Type _ | Pi _ -> raise Not_a_pattern
+  | Lam (lc, x, _, te) -> Lambda (lc, x, pattern_of_term te)
+  | App (Const (lc, name), a, args) ->
+      Pattern (lc, name, List.map pattern_of_term (a :: args))
+  | App (DB (lc, x, n), a, args) ->
+      Var (lc, x, n, List.map pattern_of_term (a :: args))
+  | Const (lc, name) -> Pattern (lc, name, [])
+  | DB (lc, x, n) -> Var (lc, x, n, [])
+  | _ -> raise Not_a_pattern
 
 let rec pp_pattern out pattern =
   match pattern with
@@ -37,6 +53,7 @@ let rec pp_pattern out pattern =
   | Lambda (_, x, p) -> fprintf out "%a => %a" pp_ident x pp_pattern p
   | Brackets t -> fprintf out "{ %a }" pp_term t
 
+
 and pp_pattern_wp out pattern =
   match pattern with
   | Var (_, _, _, _::_) | Pattern _ | Lambda _ as p -> fprintf out "(%a)" pp_pattern p
@@ -47,7 +64,7 @@ let get_loc_pat = function
   | Lambda (l,_,_) -> l
   | Brackets t -> get_loc t
 
-let get_loc_rule r = get_loc_pat r.pat
+let get_loc_rule r = Term.get_loc r.lhs
 
 
 let pp_rule_name fmt = function
@@ -60,7 +77,7 @@ let pp_rule pp_ctxt fmt (rule:'a rule) =
   fprintf fmt " {%a} [%a] %a --> %a"
     pp_rule_name rule.name
     pp_ctxt rule.ctx
-    pp_pattern rule.pat
+    pp_term rule.lhs
     pp_term rule.rhs
 
 let pp_untyped_rule fmt = pp_rule pp_untyped_context fmt

@@ -333,7 +333,9 @@ struct
   let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
     Debug.(debug d_rule "Inferring variables type and constraints from LHS");
     let delta = pc_make rule.ctx in
-    let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in
+    (* FIXME: encapsulate the error raised by dtree *)
+    let pat = Dtree.get_pattern rule.lhs in
+    let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] pat in
     assert ( delta.padding == 0 );
     (* Compile a unifier for the generated type checking constraints *)
     let unif = SR.compile_cstr sg lst in
@@ -361,7 +363,7 @@ struct
         begin
           Debug.(debug d_rule) "Failed to infer a typing context for the rule:\n%a"
             pp_part_typed_rule rule;
-          raise (Typing_error (NotImplementedFeature (get_loc_pat rule.pat) ))
+          raise (Typing_error (NotImplementedFeature (get_loc_pat pat) ))
         end
     in
     Debug.(debug d_rule "Typechecking rule %a" pp_rule_name rule.name);
@@ -369,11 +371,11 @@ struct
     check' sg (SR.optimize sg unif) 0 ctx2 rule.rhs ty_le;
     check_type_annotations sg sub ctx2 rule.ctx;
     Debug.(debug d_rule "Fully checked rule:@.[ %a ] %a --> %a"
-             pp_context_inline ctx pp_pattern rule.pat pp_term rule.rhs);
+             pp_context_inline ctx pp_pattern pat pp_term rule.rhs);
     sub,
     { name = rule.name;
       ctx = ctx2;
-      pat = rule.pat;
+      lhs = rule.lhs;
       rhs = rule.rhs
     }
 

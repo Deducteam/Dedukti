@@ -188,9 +188,14 @@ let of_rule_error _ err =
     506, Some lc, Format.asprintf
       "The variable '%a' is applied to %i argument(s) (expected: at least %i)."
       pp_ident id nb_args exp_nb_args
-  |NonLinearRule (lc,rule_name) ->
+  | NonLinearRule (lc,rule_name) ->
     507, Some lc, Format.asprintf
       "Non left-linear rewrite rule for symbol '%a'." Rule.pp_rule_name rule_name
+  | NotAPattern (lc,term) ->
+    (* FIXME: Have a better error message *)
+    508, Some lc, Format.asprintf
+      "The term '%a' is not a valid pattern for a rewrite rule.@."
+      pp_term term
 
 let of_dtree_error sg err =
   let open Dtree in

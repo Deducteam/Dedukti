@@ -137,6 +137,6 @@ let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   {
     name = name ;
     ctx  = ctx_of_pctx [] [] (List.rev ctx);
-    pat  = p_of_pp md idents top;
+    lhs  = (Kernel.Rule.pattern_to_term (p_of_pp md idents top));
     rhs  = t_of_pt md idents pri
   }

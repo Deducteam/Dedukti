@@ -229,14 +229,14 @@ let print_untyped_rule fmt (rule:'a rule) =
     "@[<hov2>%a@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
     print_rule_name rule.name
     (print_list ", " print_decl) (List.filter is_regular_decl rule.ctx)
-    print_pattern rule.pat
+    print_term rule.lhs
     print_term rule.rhs
 
 let print_rule (p:(loc*ident*'a) printer) fmt (rule:'a rule) =
   fprintf fmt
     "@[<hov2>@[<h>[%a]@]@ @[<hv>@[<hov2>%a@]@ -->@ @[<hov2>%a@]@]@]@]"
     (print_list ", " p) rule.ctx
-    print_pattern rule.pat
+    print_term rule.lhs
     print_term rule.rhs
 
 let print_typed_rule      = print_rule print_typed_decl
@@ -247,7 +247,7 @@ let print_rule_infos out (ri:Dtree.rule_infos) =
     { name = ri.name
     ; ctx = []
     (* TODO: here infer context from named variable inside LHS pattern *)
-    ; pat =  Dtree.pattern_of_rule_infos ri
+    ; lhs =  Rule.pattern_to_term (Dtree.pattern_of_rule_infos ri)
     ; rhs = ri.rhs  }
 
 let print_red_cfg fmt cfg =

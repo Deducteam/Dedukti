@@ -132,9 +132,9 @@ let comm_rule (name:name) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("comm_" ^ (string_of_ident (id name)))));
       ctx=[(dloc,mk_ident "x", None); (dloc,mk_ident "y", None)];
-      pat=Pattern (dloc, name,
-                   [ Var (dloc,mk_ident "x",0,[]);
-                     Var (dloc,mk_ident "y",1,[]) ]);
+      lhs=mk_App (mk_Const dloc name)
+                   (mk_DB dloc (mk_ident "x") 0)
+                   [(mk_DB dloc (mk_ident "y") 1)];
       rhs=mk_App (mk_Const dloc name)
                  (mk_DB dloc (mk_ident "y") 1)
                  [mk_DB dloc (mk_ident "x") 0]
@@ -146,11 +146,11 @@ let asso_rule (name:name) =
       ctx=[ (dloc, (mk_ident "x"), None);
             (dloc, (mk_ident "y"), None);
             (dloc, (mk_ident "z"), None) ];
-      pat=Pattern (dloc, name,
-                   [ Pattern (dloc, name,
-                              [ Var (dloc,mk_ident "x",0,[]);
-                                Var (dloc,mk_ident "y",1,[]) ] );
-                     Var (dloc,(mk_ident "z"),2,[]) ] );
+      lhs=mk_App (mk_Const dloc name)
+          (mk_App (mk_Const dloc name)
+             (mk_DB dloc (mk_ident "x") 0)
+             [(mk_DB dloc (mk_ident "y") 1)])
+          [mk_DB dloc (mk_ident "z") 2];
       rhs=mk_App (mk_Const dloc name)
                  (mk_DB dloc (mk_ident "x") 0)
                  [mk_App (mk_Const dloc name)
@@ -158,24 +158,24 @@ let asso_rule (name:name) =
                          [(mk_DB dloc (mk_ident "z") 2)] ]
     }
 
-let neu1_rule (name:name) (_:term) =
+let neu1_rule (name:name) (neu:term) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("neut_" ^ (string_of_ident (id name)))));
       ctx=[(dloc, (mk_ident "x"), None)];
-      pat=Pattern (dloc, name,
-                   [ Var (dloc,mk_ident "x",0,[]);
-                     (* FIXME: Translate term argument to pattern here  *) ]);
-      rhs=mk_App (mk_Const dloc name)
-                 (mk_DB dloc (mk_ident "x") 0)
-                 []
+      lhs=mk_App (mk_Const dloc name)
+          (mk_DB dloc (mk_ident "x") 0)
+          [neu];
+      rhs=mk_App2 (mk_Const dloc name)
+                 [(mk_DB dloc (mk_ident "x") 0)]
     }
 
 let neu2_rule (name:name) (neu:term) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("neut_" ^ (string_of_ident (id name)))));
       ctx=[(dloc, (mk_ident "x"), None)];
-      pat=Pattern (dloc, name,
-                   [ Var (dloc,(mk_ident "x"),0,[]) ]);
+      lhs=mk_App2 (mk_Const dloc name)
+          [mk_DB dloc (mk_ident "x") 0];
+
       rhs=mk_App (mk_Const dloc name)
                  (mk_DB dloc (mk_ident "x") 0)
                  [neu]
