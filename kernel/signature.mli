@@ -2,7 +2,6 @@
 
 open Basic
 open Term
-open Rule
 
 val d_module : Debug.flag
 

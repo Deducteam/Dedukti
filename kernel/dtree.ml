@@ -82,6 +82,38 @@ type case =
 type atomic_problem = { a_pos:int; a_depth:int; a_args:int array }
 type matching_problem = atomic_problem LList.t
 
+(** Efficient representation for well-formed linear Miller pattern *)
+type wf_pattern =
+  | LJoker
+  | LVar      of ident * int * int list         (** Applied Miller variable *)
+  | LLambda   of ident * wf_pattern             (** Lambda abstraction      *)
+  | LPattern  of name * wf_pattern array        (** Applied constant        *)
+  | LBoundVar of ident * int * wf_pattern array (** Locally bound variable  *)
+  | LACSet    of name * wf_pattern list
+
+
+let rec pp_wf_pattern fmt wf_pattern =
+  match wf_pattern with
+  | LJoker -> fprintf fmt "_"
+  | LVar (x, n, []) -> fprintf fmt "%a[%i]" pp_ident x n
+  | LVar (x, n, lst) ->
+    fprintf fmt "%a[%i] %a" pp_ident x n (pp_list " " pp_print_int) lst
+  | LPattern (n, pats) when Array.length pats = 0 -> fprintf fmt "%a" pp_name n
+  | LPattern (n, pats) -> fprintf fmt "%a %a" pp_name n
+                            (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
+  | LLambda (x, p) -> fprintf fmt "%a => %a" pp_ident x pp_wf_pattern p
+  | LBoundVar(x, n, pats) when Array.length pats = 0 -> fprintf fmt "%a[%i]" pp_ident x n
+  | LBoundVar(x,n, pats) ->
+    fprintf fmt "%a[%i] %a" pp_ident x n (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
+  | LACSet(cst,l) ->
+    fprintf fmt "%a{%a}" pp_name cst (pp_list "; " pp_wf_pattern_wp) l
+
+and pp_wf_pattern_wp fmt wf_pattern =
+  match wf_pattern with
+  | LVar(_, _, _::_) | LPattern _ | LLambda _ as p -> fprintf fmt "(%a)" pp_wf_pattern p
+  | _ -> pp_wf_pattern fmt wf_pattern
+
+
 type rule_infos =
   {
     l           : loc;

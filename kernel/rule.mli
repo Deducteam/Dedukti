@@ -16,15 +16,6 @@ val get_loc_pat : pattern -> loc
 
 val pattern_to_term : pattern -> term
 
-(** Efficient representation for well-formed linear Miller pattern *)
-type wf_pattern =
-  | LJoker
-  | LVar      of ident * int * int list         (** Applied Miller variable *)
-  | LLambda   of ident * wf_pattern             (** Lambda abstraction      *)
-  | LPattern  of name * wf_pattern array        (** Applied constant        *)
-  | LBoundVar of ident * int * wf_pattern array (** Locally bound variable  *)
-  | LACSet    of name * wf_pattern list
-
 (** {2 Brackets} *)
 
 (** [constr] is the type of brackets (aka "dot") pattern constraints.
@@ -89,4 +80,3 @@ val pp_untyped_rule    : 'a rule         printer
 val pp_typed_rule      : typed_rule      printer
 val pp_part_typed_rule : untyped_rule    printer
 val pp_pattern         : pattern         printer
-val pp_wf_pattern      : wf_pattern      printer

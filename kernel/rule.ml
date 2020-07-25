@@ -8,14 +8,6 @@ type pattern =
   | Lambda   of loc * ident * pattern
   | Brackets of term
 
-type wf_pattern =
-  | LJoker
-  | LVar      of ident * int * int list
-  | LLambda   of ident * wf_pattern
-  | LPattern  of name * wf_pattern array
-  | LBoundVar of ident * int * wf_pattern array
-  | LACSet    of name * wf_pattern list
-
 type rule_name = Beta | Delta of name | Gamma of bool * name
 
 let rule_name_eq : rule_name -> rule_name -> bool = fun n1 n2 ->
@@ -34,7 +26,6 @@ type 'a rule =
 
 type untyped_rule         = term option rule
 type typed_rule           = term        rule
-type arity_rule           = int         rule
 
 type constr = int * term
 
@@ -68,27 +59,6 @@ and pp_pattern_wp out pattern =
   match pattern with
   | Var (_, _, _, _::_) | Pattern _ | Lambda _ as p -> fprintf out "(%a)" pp_pattern p
   | p -> pp_pattern out p
-
-let rec pp_wf_pattern fmt wf_pattern =
-  match wf_pattern with
-  | LJoker -> fprintf fmt "_"
-  | LVar (x, n, []) -> fprintf fmt "%a[%i]" pp_ident x n
-  | LVar (x, n, lst) ->
-    fprintf fmt "%a[%i] %a" pp_ident x n (pp_list " " pp_print_int) lst
-  | LPattern (n, pats) when Array.length pats = 0 -> fprintf fmt "%a" pp_name n
-  | LPattern (n, pats) -> fprintf fmt "%a %a" pp_name n
-                            (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
-  | LLambda (x, p) -> fprintf fmt "%a => %a" pp_ident x pp_wf_pattern p
-  | LBoundVar(x, n, pats) when Array.length pats = 0 -> fprintf fmt "%a[%i]" pp_ident x n
-  | LBoundVar(x,n, pats) ->
-    fprintf fmt "%a[%i] %a" pp_ident x n (pp_list " " pp_wf_pattern_wp) (Array.to_list pats)
-  | LACSet(cst,l) ->
-    fprintf fmt "%a{%a}" pp_name cst (pp_list "; " pp_wf_pattern_wp) l
-
-and pp_wf_pattern_wp fmt wf_pattern =
-  match wf_pattern with
-  | LVar(_, _, _::_) | LPattern _ | LLambda _ as p -> fprintf fmt "(%a)" pp_wf_pattern p
-  | _ -> pp_wf_pattern fmt wf_pattern
 
 let get_loc_pat = function
   | Var (l,_,_,_) | Pattern (l,_,_)

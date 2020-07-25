@@ -111,6 +111,18 @@ val pp_pre_matching_problem : string -> pre_matching_problem printer
 
 (** {2 Rule_infos} *)
 
+(** Efficient representation for well-formed linear Miller pattern *)
+type wf_pattern = private
+  | LJoker
+  | LVar      of ident * int * int list         (** Applied Miller variable *)
+  | LLambda   of ident * wf_pattern             (** Lambda abstraction      *)
+  | LPattern  of name * wf_pattern array        (** Applied constant        *)
+  | LBoundVar of ident * int * wf_pattern array (** Locally bound variable  *)
+  | LACSet    of name * wf_pattern list
+
+
+val pp_wf_pattern      : wf_pattern      printer
+
 type rule_infos  = private
   {
     l           : loc;
