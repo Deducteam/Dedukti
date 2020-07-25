@@ -27,10 +27,6 @@ type 'a rule =
 type untyped_rule         = term option rule
 type typed_rule           = term        rule
 
-type constr = int * term
-
-let pp_constr fmt (i,t) = fprintf fmt "%i =b %a" i pp_term t
-
 type rule_error =
   | BoundVariableExpected          of loc * pattern
   | DistinctBoundVariablesExpected of loc * ident

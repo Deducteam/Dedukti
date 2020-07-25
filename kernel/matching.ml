@@ -19,7 +19,7 @@ type matching_problem = {
   eq_problems : te eq_problem list array;
   ac_problems : te list ac_problem list;
   status      : status array;
-  arities       : int array
+  arities     : int array
 }
 
 (*
@@ -104,7 +104,7 @@ module type Reducer = sig
   val snf  : Signature.t -> term -> term
   val whnf : Signature.t -> term -> term
   val are_convertible : Signature.t -> term -> term -> bool
-  val constraint_convertibility : Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
+  val constraint_convertibility : Dtree.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 end
 
 module type Matcher = sig

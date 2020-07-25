@@ -20,7 +20,7 @@ module type Reducer = sig
   val snf  : Signature.t -> term -> term
   val whnf : Signature.t -> term -> term
   val are_convertible : Signature.t -> term -> term -> bool
-  val constraint_convertibility : Rule.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
+  val constraint_convertibility : Dtree.constr -> Rule.rule_name -> Signature.t -> term -> term -> bool
 end
 
 module type Matcher = sig

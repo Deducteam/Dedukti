@@ -113,6 +113,9 @@ and pp_wf_pattern_wp fmt wf_pattern =
   | LVar(_, _, _::_) | LPattern _ | LLambda _ as p -> fprintf fmt "(%a)" pp_wf_pattern p
   | _ -> pp_wf_pattern fmt wf_pattern
 
+type constr = int * term
+
+let pp_constr fmt (i,t) = fprintf fmt "%i =b %a" i pp_term t
 
 type rule_infos =
   {

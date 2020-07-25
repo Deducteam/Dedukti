@@ -57,7 +57,7 @@ module type ConvChecker = sig
   (** [are_convertible sg t1 t2] checks whether [t1] and [t2] are convertible
       or not in the signature [sg]. *)
 
-  val constraint_convertibility : Rule.constr -> Rule.rule_name -> convertibility_test
+  val constraint_convertibility : Dtree.constr -> Rule.rule_name -> convertibility_test
   (** [constraint_convertibility cstr r sg [t1] [t2] checks wehther the [cstr] of the rule [r]
       is satisfiable. Because constraints are checked once a term has matched the pattern,
       satisfying a constraint comes back to check that two terms are convertible *)

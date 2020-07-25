@@ -90,7 +90,7 @@ type convertibility_test = Signature.t -> term -> term -> bool
 
 module type ConvChecker = sig
   val are_convertible : convertibility_test
-  val constraint_convertibility : Rule.constr -> Rule.rule_name -> convertibility_test
+  val constraint_convertibility : Dtree.constr -> Rule.rule_name -> convertibility_test
   val conversion_step : Signature.t -> term * term -> (term * term) list -> (term * term) list
 end
 
