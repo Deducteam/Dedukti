@@ -33,7 +33,7 @@ struct
       Env.define env lc id scope opaque te ty
     | Rules(_,rs) ->
       let open Rule in
-      List.iter (fun (r:partially_typed_rule) ->
+      List.iter (fun (r:untyped_rule) ->
           Debug.(debug d_notice "Adding rewrite rules: '%a'" Pp.print_rule_name r.name)) rs;
       let rs = Env.add_rules env rs in
       List.iter (fun (s,r) ->

@@ -105,7 +105,7 @@ let p_of_pp md (ctx:ident list) (ppat:prepattern) : pattern =
 
 (******************************************************************************)
 
-let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : partially_typed_rule =
+let scope_rule md (l,pname,pctx,md_opt,id,pargs,pri:prule) : untyped_rule =
   let top = PPattern(l,md_opt,id,pargs) in
   let ctx, unused_vars, has_brackets = get_vars_order pctx top in
   if unused_vars

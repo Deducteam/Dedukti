@@ -124,14 +124,14 @@ let iter_symbols f sg =
  *   | Pi(_,_,t,_) -> t
  *   | _ -> assert false *)
 
-let to_rule_infos_aux (r:unit rule) =
+let to_rule_infos_aux (r:untyped_rule) =
   try Rule.to_rule_infos r
   with Rule_error e -> raise (Signature_error (CannotMakeRuleInfos e))
 
 let comm_rule (name:name) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("comm_" ^ (string_of_ident (id name)))));
-      ctx=[(dloc,mk_ident "x",()); (dloc,mk_ident "y",())];
+      ctx=[(dloc,mk_ident "x", None); (dloc,mk_ident "y", None)];
       pat=Pattern (dloc, name,
                    [ Var (dloc,mk_ident "x",0,[]);
                      Var (dloc,mk_ident "y",1,[]) ]);
@@ -143,9 +143,9 @@ let comm_rule (name:name) =
 let asso_rule (name:name) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("asso_" ^ (string_of_ident (id name)))));
-      ctx=[ (dloc, (mk_ident "x"),());
-            (dloc, (mk_ident "y"),());
-            (dloc, (mk_ident "z"),()) ];
+      ctx=[ (dloc, (mk_ident "x"), None);
+            (dloc, (mk_ident "y"), None);
+            (dloc, (mk_ident "z"), None) ];
       pat=Pattern (dloc, name,
                    [ Pattern (dloc, name,
                               [ Var (dloc,mk_ident "x",0,[]);
@@ -161,7 +161,7 @@ let asso_rule (name:name) =
 let neu1_rule (name:name) (_:term) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("neut_" ^ (string_of_ident (id name)))));
-      ctx=[(dloc, (mk_ident "x"),())];
+      ctx=[(dloc, (mk_ident "x"), None)];
       pat=Pattern (dloc, name,
                    [ Var (dloc,mk_ident "x",0,[]);
                      (* FIXME: Translate term argument to pattern here  *) ]);
@@ -173,7 +173,7 @@ let neu1_rule (name:name) (_:term) =
 let neu2_rule (name:name) (neu:term) =
   to_rule_infos_aux
     { name=Gamma(true,mk_name (md name) (mk_ident ("neut_" ^ (string_of_ident (id name)))));
-      ctx=[(dloc, (mk_ident "x"), ())];
+      ctx=[(dloc, (mk_ident "x"), None)];
       pat=Pattern (dloc, name,
                    [ Var (dloc,(mk_ident "x"),0,[]) ]);
       rhs=mk_App (mk_Const dloc name)

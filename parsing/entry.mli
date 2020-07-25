@@ -21,7 +21,7 @@ type entry =
   (** Symbol declaration. *)
   | Def   of loc * ident * Signature.scope * is_opaque * term option * term
   (** Definition (possibly opaque). *)
-  | Rules of loc * Rule.partially_typed_rule list
+  | Rules of loc * Rule.untyped_rule list
   (** Reduction rules declaration. *)
   | Eval  of loc * Reduction.red_cfg * term
   (** Evaluation command. *)

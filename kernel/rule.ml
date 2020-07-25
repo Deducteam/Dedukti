@@ -32,7 +32,7 @@ type 'a rule =
     rhs:term
   }
 
-type partially_typed_rule = term option rule
+type untyped_rule         = term option rule
 type typed_rule           = term        rule
 type arity_rule           = int         rule
 
@@ -276,7 +276,7 @@ let to_rule_infos (r:'a rule) : rule_infos =
     constraints = infos.constraints
   }
 
-let untyped_rule_of_rule_infos ri : partially_typed_rule =
+let untyped_rule_of_rule_infos ri : untyped_rule =
   { name = ri.name
   ; ctx  = infer_rule_context_without_arity ri
   ; pat  = pattern_of_rule_infos ri

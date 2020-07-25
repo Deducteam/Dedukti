@@ -62,7 +62,7 @@ type 'a rule =
 
 val get_loc_rule : 'a rule -> loc
 
-type partially_typed_rule = term option rule
+type untyped_rule = term option rule
 (** Rule where context is partially annotated with types *)
 
 type typed_rule = term rule
@@ -122,7 +122,7 @@ val pattern_of_rule_infos : rule_infos -> pattern
 val to_rule_infos : 'a rule -> rule_infos
 (** Converts any rule (typed or untyped) to rule_infos *)
 
-val untyped_rule_of_rule_infos : rule_infos -> partially_typed_rule
+val untyped_rule_of_rule_infos : rule_infos -> untyped_rule
 (** Converts rule_infos representation to a rule where
     the context is annotated with the variables' arity *)
 
@@ -131,7 +131,7 @@ val untyped_rule_of_rule_infos : rule_infos -> partially_typed_rule
 val pp_rule_name       : rule_name       printer
 val pp_untyped_rule    : 'a rule         printer
 val pp_typed_rule      : typed_rule      printer
-val pp_part_typed_rule : partially_typed_rule printer
+val pp_part_typed_rule : untyped_rule    printer
 val pp_pattern         : pattern         printer
 val pp_wf_pattern      : wf_pattern      printer
 val pp_rule_infos      : rule_infos      printer

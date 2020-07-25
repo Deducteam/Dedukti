@@ -26,7 +26,7 @@ type typing_error =
   | InexpectedKind                     of term * typed_context
   | DomainFreeLambda                   of loc
   | CannotInferTypeOfPattern           of pattern * typed_context
-  | UnsatisfiableConstraints           of partially_typed_rule * (int * term * term)
+  | UnsatisfiableConstraints           of untyped_rule * (int * term * term)
   | BracketExprBoundVar                of term * typed_context
   | BracketExpectedTypeBoundVar        of term * typed_context * term
   | BracketExpectedTypeRightVar        of term * typed_context * term
@@ -48,7 +48,7 @@ module type S = sig
 
   val inference   : Signature.t -> term -> typ
 
-  val check_rule  : Signature.t -> partially_typed_rule -> SS.t * typed_rule
+  val check_rule  : Signature.t -> untyped_rule -> SS.t * typed_rule
 end
 
 (* ********************** CONTEXT *)
@@ -330,7 +330,7 @@ struct
       | _ -> assert false
     in aux [] 1 typed_ctx annot_ctx
 
-  let check_rule sg (rule:partially_typed_rule) : SS.t * typed_rule =
+  let check_rule sg (rule:untyped_rule) : SS.t * typed_rule =
     Debug.(debug d_rule "Inferring variables type and constraints from LHS");
     let delta = pc_make rule.ctx in
     let (ty_le,delta,lst) = infer_pattern sg delta LList.nil [] rule.pat in

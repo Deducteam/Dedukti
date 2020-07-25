@@ -15,7 +15,7 @@ exception Assert_error of loc
 type entry =
   | Decl  of loc * ident * Signature.scope * Signature.staticity * term
   | Def   of loc * ident * Signature.scope * is_opaque * term option * term
-  | Rules of loc * Rule.partially_typed_rule list
+  | Rules of loc * Rule.untyped_rule list
   | Eval  of loc * Reduction.red_cfg * term
   | Check of loc * is_assertion * should_fail * test
   | Infer of loc * Reduction.red_cfg * term

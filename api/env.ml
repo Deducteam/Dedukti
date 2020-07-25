@@ -156,7 +156,7 @@ let _define env lc (id:ident) (scope:Signature.scope) (opaque:bool) (te:term) (t
 let define env lc id scope op te ty_opt : unit =
   _define env lc id scope op te ty_opt
 
-let add_rules env (rules: partially_typed_rule list) : (Exsubst.ExSubst.t * typed_rule) list =
+let add_rules env (rules: untyped_rule list) : (Exsubst.ExSubst.t * typed_rule) list =
   let (module T) = env.typer in
   let rs2 = List.map (T.check_rule env.sg) rules in
   _add_rules env rules;
