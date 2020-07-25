@@ -13,7 +13,7 @@ type signature_error =
   | UnmarshalUnknown      of loc * file
   | SymbolNotFound        of loc * name
   | AlreadyDefinedSymbol  of loc * name
-  | CannotMakeRuleInfos   of Rule.rule_error
+  | CannotMakeRuleInfos   of Dtree.rule_infos_error
   | CannotBuildDtree      of Dtree.dtree_error
   | CannotAddRewriteRules of loc * name
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error

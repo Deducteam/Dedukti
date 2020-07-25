@@ -157,29 +157,8 @@ let fail_typing_error ~red exn =
   | Typing.Typing_error err -> Some (of_typing_error red err)
   | _ -> None
 
-
-let of_dtree_error _ err =
-  let open Dtree in
-  match err with
-  | HeadSymbolMismatch (lc,cst1,cst2) ->
-    300, Some lc, Format.asprintf
-      "Unexpected head symbol '%a' \ (expected '%a')."
-      pp_name cst1 pp_name cst2
-  | ArityInnerMismatch (lc, rid, id) ->
-    301, Some lc, Format.asprintf
-      "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
-      pp_ident id pp_ident rid
-  | ACSymbolRewritten (lc, cst, _) ->
-    302, Some lc, Format.asprintf
-      "Rewrite rules for AC definable symbol '%a' should not have arity 0."
-      pp_name cst
-
-let fail_dtree_error ~red exn =
-  match exn with
-  | Dtree.Dtree_error err -> Some (of_dtree_error red err)
-  | _ -> None
-
 let of_rule_error _ err =
+  let open Dtree in
   let open Rule in
   match err with
   | BoundVariableExpected(lc, pat) ->
@@ -213,9 +192,27 @@ let of_rule_error _ err =
     507, Some lc, Format.asprintf
       "Non left-linear rewrite rule for symbol '%a'." Rule.pp_rule_name rule_name
 
-let fail_rule_error ~red exn =
+let of_dtree_error sg err =
+  let open Dtree in
+  match err with
+  | HeadSymbolMismatch (lc,cst1,cst2) ->
+    300, Some lc, Format.asprintf
+      "Unexpected head symbol '%a' \ (expected '%a')."
+      pp_name cst1 pp_name cst2
+  | ArityInnerMismatch (lc, rid, id) ->
+    301, Some lc, Format.asprintf
+      "The definable symbol '%a' inside the rewrite rules for \ '%a' should have the same arity when they are on the same column."
+      pp_ident id pp_ident rid
+  | ACSymbolRewritten (lc, cst, _) ->
+    302, Some lc, Format.asprintf
+      "Rewrite rules for AC definable symbol '%a' should not have arity 0."
+      pp_name cst
+  | RuleInfos e ->
+    of_rule_error sg e
+
+let fail_dtree_error ~red exn =
   match exn with
-  | Rule.Rule_error err -> Some (of_rule_error red err)
+  | Dtree.Dtree_error err -> Some (of_dtree_error red err)
   | _ -> None
 
 let pp_cerr out err =
@@ -299,7 +296,6 @@ let fail_entry_error ~red:_ = function
 let _ =
   register_exception fail_typing_error;
   register_exception fail_dtree_error;
-  register_exception fail_rule_error;
   register_exception fail_signature_error
 
 let _ =

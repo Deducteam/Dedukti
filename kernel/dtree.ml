@@ -4,10 +4,23 @@ open Rule
 open Format
 open Ac
 
+type rule_infos_error =
+  | BoundVariableExpected          of loc * pattern
+  | DistinctBoundVariablesExpected of loc * ident
+  | VariableBoundOutsideTheGuard   of loc * term
+  | UnboundVariable                of loc * ident * pattern
+  (* FIXME : this exception seems never to be raised *)
+  | AVariableIsNotAPattern         of loc * ident
+  | NonLinearNonEqArguments        of loc * ident
+  (* FIXME: the reason for this exception should be formalized on paper ! *)
+  | NotEnoughArguments             of loc * ident * int * int * int
+  | NonLinearRule                  of loc * rule_name
+
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
   | ACSymbolRewritten   of loc * name * int
+  | RuleInfos           of rule_infos_error
 
 exception Dtree_error of dtree_error
 
@@ -212,7 +225,7 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
   let arity = IntHashtbl.create 10 in
   let extract_db k = function
     | Var (_,_,n,[]) when n<k -> n
-    | p -> raise (Rule_error (BoundVariableExpected(get_loc_pat p, p)))
+    | p -> raise (Dtree_error (RuleInfos(BoundVariableExpected(get_loc_pat p, p))))
   in
   let rec aux (k:int) (pat:pattern) : wf_pattern =
     match pat with
@@ -224,19 +237,19 @@ let check_patterns (esize:int) (pats:pattern list) : wf_pattern list * pattern_i
       let args' = List.map (extract_db k) args in
       (* Miller variables should be applied to distinct variables *)
       if not (all_distinct args')
-      then raise (Rule_error (DistinctBoundVariablesExpected (l,x)));
+      then raise (Dtree_error (RuleInfos(DistinctBoundVariablesExpected (l,x))));
       let nb_args' = List.length args' in
       if IntHashtbl.mem arity (n-k)
       then
         if nb_args' <> IntHashtbl.find arity (n-k)
-        then raise (Rule_error (NonLinearNonEqArguments(l,x)))
+        then raise (Dtree_error (RuleInfos(NonLinearNonEqArguments(l,x))))
         else nonlinear := (n-k) :: !nonlinear
       else IntHashtbl.add arity (n-k) nb_args';
       LVar(x,n,args')
     | Brackets t ->
       let unshifted =
         try Subst.unshift k t
-        with Subst.UnshiftExn -> raise (Rule_error (VariableBoundOutsideTheGuard(get_loc t, t)))
+        with Subst.UnshiftExn -> raise (Dtree_error (RuleInfos(VariableBoundOutsideTheGuard(get_loc t, t))))
         (* Note: A different exception is previously raised at rule type-checking for this. *)
       in
       IntHashtbl.add arity !context_size 0;  (* Brackets are variable with arity 0 *)
@@ -258,7 +271,7 @@ let to_rule_infos (r:'a rule) : rule_infos =
   let ctx_size = List.length r.ctx in
   let (l,cst,args) = match r.pat with
     | Pattern (l,cst,args) -> (l, cst, args)
-    | Var (l,x,_,_) ->  raise (Rule_error (AVariableIsNotAPattern (l,x)))
+    | Var (l,x,_,_) ->  raise (Dtree_error (RuleInfos(AVariableIsNotAPattern (l,x))))
     | Lambda _ | Brackets _ -> assert false (* already raised at the parsing level *)
   in
   let (pats2,infos) = check_patterns ctx_size args in
@@ -291,7 +304,7 @@ let check_arity (r:rule_infos) : unit =
   let check _ id n k nargs =
     let expected_args = r.arity.(n-k) in
     if nargs < expected_args
-    then raise @@ Rule_error (NotEnoughArguments (r.l, id,n,nargs,expected_args)) in
+    then raise @@ Dtree_error (RuleInfos(NotEnoughArguments (r.l, id,n,nargs,expected_args))) in
   let rec aux k = function
     | Kind | Type _ | Const _ -> ()
     | DB (l,id,n) ->
@@ -307,7 +320,7 @@ let check_arity (r:rule_infos) : unit =
 
 (** Checks that all rule are left-linear. *)
 let check_linearity (r:rule_infos) : unit =
-  if r.nonlinear <> [] then raise (Rule_error (NonLinearRule(r.l, r.name)))
+  if r.nonlinear <> [] then raise (Dtree_error (RuleInfos(NonLinearRule(r.l, r.name))))
 
 
 

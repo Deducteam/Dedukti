@@ -27,20 +27,6 @@ type 'a rule =
 type untyped_rule         = term option rule
 type typed_rule           = term        rule
 
-type rule_error =
-  | BoundVariableExpected          of loc * pattern
-  | DistinctBoundVariablesExpected of loc * ident
-  | VariableBoundOutsideTheGuard   of loc * term
-  | UnboundVariable                of loc * ident * pattern
-  (* FIXME : this exception seems never to be raised *)
-  | AVariableIsNotAPattern         of loc * ident
-  | NonLinearNonEqArguments        of loc * ident
-  (* FIXME: the reason for this exception should be formalized on paper ! *)
-  | NotEnoughArguments             of loc * ident * int * int * int
-  | NonLinearRule                  of loc * rule_name
-
-exception Rule_error of rule_error
-
 let rec pp_pattern out pattern =
   match pattern with
   | Var (_, x, n, []) -> fprintf out "%a[%i]" pp_ident x n

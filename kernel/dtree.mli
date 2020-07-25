@@ -5,10 +5,21 @@ open Ac
 
 (** {2 Error} *)
 
+type rule_infos_error =
+  | BoundVariableExpected          of loc * pattern
+  | DistinctBoundVariablesExpected of loc * ident
+  | VariableBoundOutsideTheGuard   of loc * term
+  | UnboundVariable                of loc * ident * pattern
+  | AVariableIsNotAPattern         of loc * ident
+  | NonLinearNonEqArguments        of loc * ident
+  | NotEnoughArguments             of loc * ident * int * int * int
+  | NonLinearRule                  of loc * rule_name
+
 type dtree_error =
   | HeadSymbolMismatch  of loc * name * name
   | ArityInnerMismatch  of loc * ident * ident
   | ACSymbolRewritten   of loc * name * int
+  | RuleInfos            of rule_infos_error
 
 exception Dtree_error of dtree_error
 

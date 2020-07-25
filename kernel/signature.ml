@@ -16,7 +16,7 @@ type signature_error =
   | UnmarshalUnknown      of loc * string
   | SymbolNotFound        of loc * name
   | AlreadyDefinedSymbol  of loc * name
-  | CannotMakeRuleInfos   of Rule.rule_error
+  | CannotMakeRuleInfos   of Dtree.rule_infos_error
   | CannotBuildDtree      of Dtree.dtree_error
   | CannotAddRewriteRules of loc * name
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
@@ -126,7 +126,7 @@ let iter_symbols f sg =
 
 let to_rule_infos_aux (r:untyped_rule) =
   try Dtree.to_rule_infos r
-  with Rule_error e -> raise (Signature_error (CannotMakeRuleInfos e))
+  with Dtree.Dtree_error (RuleInfos e) -> raise (Signature_error (CannotMakeRuleInfos e))
 
 let comm_rule (name:name) =
   to_rule_infos_aux
@@ -362,7 +362,7 @@ let add_rules sg = function
                pp_name r.cst);
       try Confluence.check ()
       with Confluence.Confluence_error e -> raise (Signature_error (ConfluenceErrorRules (r.l,rs,e)))
-    with Rule_error e -> raise (Signature_error (CannotMakeRuleInfos e))
+    with Dtree.Dtree_error (RuleInfos e) -> raise (Signature_error (CannotMakeRuleInfos e))
 
 
 let get_rw_infos sg md id =
