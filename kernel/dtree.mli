@@ -180,9 +180,6 @@ val untyped_rule_of_rule_infos : rule_infos -> untyped_rule
 (** Converts rule_infos representation to a rule where
     the context is annotated with the variables' arity *)
 
-val arities_of_rule : rule_infos -> arity_context
-(** Rule where context is annotated with variable arities *)
-
 val pp_rule_infos      : rule_infos      printer
 
 val check_arity : rule_infos -> unit

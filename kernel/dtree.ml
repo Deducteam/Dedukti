@@ -166,25 +166,6 @@ type pattern_info =
   }
 
 
-
-(* ************************************************************************** *)
-
-(* FIXME: Deadcode? *)
-let arities_of_rule ri =
-  let res = Array.make ri.ctx_size (dloc,mk_ident "_",-1) in
-  let rec aux k = function
-    | LJoker -> ()
-    | LVar (name,n,_) -> if n>=k then res.(n-k) <- (dloc,name,ri.arity.(n-k))
-    | LLambda (_,body) -> aux (k+1) body
-    | LPattern  (_  ,args) -> Array.iter (aux k) args
-    | LBoundVar (_,_,args) -> Array.iter (aux k) args
-    | LACSet    (_  ,args) ->  List.iter (aux k) args
-  in
-  Array.iter (aux 0) ri.pats;
-  Array.to_list res
-
-
-
 (* ************************************************************************** *)
 
 let bracket_ident = mk_ident "{_}"  (* FIXME: can this be replaced by dmark? *)
@@ -318,8 +299,6 @@ let check_arity (r:rule_infos) : unit =
 (** Checks that all rule are left-linear. *)
 let check_linearity (r:rule_infos) : unit =
   if r.nonlinear <> [] then raise (Dtree_error (RuleInfos(NonLinearRule(r.l, r.name))))
-
-
 
 type dtree =
   | Switch  of int * (case*dtree) list * dtree option
