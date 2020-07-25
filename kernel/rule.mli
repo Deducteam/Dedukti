@@ -68,9 +68,6 @@ type untyped_rule = term option rule
 type typed_rule = term rule
 (** Rule where context is fully annotated with types *)
 
-type arity_rule = int rule
-(** Rule where context is annotated with variable arities *)
-
 (** {2 Errors} *)
 
 type rule_error =
@@ -109,22 +106,25 @@ type rule_infos =
     (** free patterns without constraint *)
     arity       : int array;
     (** arities of context variables *)
-    constraints : constr list
+    constraints : constr list;
     (** constraints generated from the pattern to the free pattern *)
+    ctx         : term option context;
+    (** context given by the user *)
   }
-
-val infer_rule_context : rule_infos -> arity_context
-(** Extracts arity context from a rule info *)
 
 val pattern_of_rule_infos : rule_infos -> pattern
 (** Extracts LHS pattern from a rule info *)
 
-val to_rule_infos : 'a rule -> rule_infos
+val to_rule_infos : untyped_rule -> rule_infos
 (** Converts any rule (typed or untyped) to rule_infos *)
 
 val untyped_rule_of_rule_infos : rule_infos -> untyped_rule
 (** Converts rule_infos representation to a rule where
     the context is annotated with the variables' arity *)
+
+val arities_of_rule : rule_infos -> arity_context
+(** Rule where context is annotated with variable arities *)
+
 
 (** {2 Printing} *)
 

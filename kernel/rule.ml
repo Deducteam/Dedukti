@@ -53,9 +53,10 @@ type rule_infos =
     pats        : wf_pattern array;
     arity       : int array;
     constraints : constr list;
+    ctx         : term option context;
   }
 
-let infer_rule_context ri =
+let arities_of_rule ri =
   let res = Array.make ri.ctx_size (dloc,mk_ident "_",-1) in
   let rec aux k = function
     | LJoker -> ()
@@ -67,9 +68,6 @@ let infer_rule_context ri =
   in
   Array.iter (aux 0) ri.pats;
   Array.to_list res
-
-let infer_rule_context_without_arity ri =
-  ri |> infer_rule_context |> List.map (fun (loc,id,_) -> (loc,id,None))
 
 let pattern_of_rule_infos r = Pattern (r.l,r.cst,r.args)
 
@@ -152,7 +150,7 @@ let pp_part_typed_rule  = pp_rule pp_part_typed_context
 let pp_rule_infos out r =
   pp_untyped_rule out
     { name = r.name;
-      ctx = infer_rule_context r;
+      ctx = r.ctx;
       pat = pattern_of_rule_infos r;
       rhs = r.rhs
     }
@@ -273,12 +271,13 @@ let to_rule_infos (r:'a rule) : rule_infos =
     esize = infos.context_size ;
     pats = Array.of_list pats2 ;
     arity = infos.arity ;
-    constraints = infos.constraints
+    constraints = infos.constraints;
+    ctx = r.ctx
   }
 
 let untyped_rule_of_rule_infos ri : untyped_rule =
   { name = ri.name
-  ; ctx  = infer_rule_context_without_arity ri
+  ; ctx  = ri.ctx
   ; pat  = pattern_of_rule_infos ri
   ; rhs  = ri.rhs}
 
