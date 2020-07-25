@@ -20,7 +20,7 @@ type signature_error =
   | CannotBuildDtree      of Dtree.dtree_error
   | CannotAddRewriteRules of loc * name
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
-  | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
+  | ConfluenceErrorRules  of loc * Dtree.rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
   | CannotExportModule    of mident * exn
   | PrivateSymbol         of loc * name
@@ -60,7 +60,7 @@ type rw_infos =
     stat          : staticity;
     ty            : term;
     scope         : scope;
-    rules         : rule_infos list;
+    rules         : Dtree.rule_infos list;
     decision_tree : Dtree.t option
   }
 
@@ -73,7 +73,7 @@ type t =
         for each of its symbols. *)
     tables : (rw_infos HId.t) HMd.t;
 
-    mutable external_rules:rule_infos list list;
+    mutable external_rules: Dtree.rule_infos list list;
 
     get_file : loc -> mident -> string
   }
@@ -87,7 +87,7 @@ let get_name sg = sg.md
 
 (******************************************************************************)
 
-let marshal : mident -> mident list -> rw_infos HId.t -> rule_infos list list -> out_channel -> unit =
+let marshal : mident -> mident list -> rw_infos HId.t -> Dtree.rule_infos list list -> out_channel -> unit =
   fun md deps env ext oc ->
   try
     Marshal.to_channel oc Version.version [];
@@ -96,7 +96,7 @@ let marshal : mident -> mident list -> rw_infos HId.t -> rule_infos list list ->
     Marshal.to_channel oc ext []
   with e -> raise @@ Signature_error (CannotExportModule(md,e))
 
-let unmarshal (lc:loc) (file:string) : mident list * rw_infos HId.t * rule_infos list list =
+let unmarshal (lc:loc) (file:string) : mident list * rw_infos HId.t * Dtree.rule_infos list list =
   try
     let ic = open_in file in
     let ver:string = Marshal.from_channel ic in
@@ -104,7 +104,7 @@ let unmarshal (lc:loc) (file:string) : mident list * rw_infos HId.t * rule_infos
     then raise (Signature_error (UnmarshalBadVersionNumber (lc,file)));
     let deps:mident list         = Marshal.from_channel ic in
     let ctx:rw_infos HId.t       = Marshal.from_channel ic in
-    let ext:rule_infos list list = Marshal.from_channel ic in
+    let ext:Dtree.rule_infos list list = Marshal.from_channel ic in
     close_in ic; (deps,ctx,ext)
   with
   | Sys_error s -> raise (Signature_error (UnmarshalSysError (lc,file,s)))
@@ -125,7 +125,7 @@ let iter_symbols f sg =
  *   | _ -> assert false *)
 
 let to_rule_infos_aux (r:untyped_rule) =
-  try Rule.to_rule_infos r
+  try Dtree.to_rule_infos r
   with Rule_error e -> raise (Signature_error (CannotMakeRuleInfos e))
 
 let comm_rule (name:name) =
@@ -225,7 +225,7 @@ let rec import sg lc md =
     List.iter (fun rs -> add_rule_infos sg rs) ext;
     check_confluence_on_import lc md ctx
 
-and add_rule_infos sg (lst:rule_infos list) : unit =
+and add_rule_infos sg (lst:Dtree.rule_infos list) : unit =
   match lst with
   | [] -> ()
   | (r::_ as rs) ->

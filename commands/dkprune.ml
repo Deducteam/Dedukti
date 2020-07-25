@@ -63,8 +63,7 @@ let name_of_entry md = function
     | Entry.Def(_,id,_,_,_,_) ->
       Some (Basic.mk_name md id)
     | Entry.Rules(_,r::_) ->
-      let open Rule in
-      let r' = to_rule_infos r in
+      let r' = Dtree.to_rule_infos r in
       Some r'.cst
     | _  -> None
 

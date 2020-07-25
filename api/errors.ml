@@ -251,7 +251,7 @@ let of_signature_error red err =
   | ConfluenceErrorRules (lc,rs,cerr) ->
     309, Some lc, Format.asprintf
       "Confluence checking failed when adding the rewrite rules below.@.%a@.%a"
-      pp_cerr cerr (pp_list "\n" Rule.pp_rule_infos) rs
+      pp_cerr cerr (pp_list "\n" Dtree.pp_rule_infos) rs
   | ConfluenceErrorImport (lc,md,cerr) ->
     310, Some lc, Format.asprintf
       "Confluence checking failed when importing the module '%a'.@.%a"

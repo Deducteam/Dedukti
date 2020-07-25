@@ -97,11 +97,11 @@ struct
       Signature.add_external_declaration sg lc (Basic.mk_name md id) scope (Signature.Definable Term.Free) ty;
       let cst = Basic.mk_name md id in
       let rule = { name= Delta(cst) ; ctx = [] ; pat = Pattern(lc, cst, []); rhs = te ; } in
-      Signature.add_rules sg [Rule.to_rule_infos rule]
+      Signature.add_rules sg [Dtree.to_rule_infos rule]
     | Def(lc,_,_, _, None,_) ->
       raise @@ Typing.Typing_error (Typing.DomainFreeLambda lc) (* FIXME: It is not a typign error *)
     | Rules(_,rs) ->
-      Signature.add_rules sg (List.map Rule.to_rule_infos rs)
+      Signature.add_rules sg (List.map Dtree.to_rule_infos rs)
     | Require(lc,md) -> Signature.import sg lc md
     | _ -> ()
 

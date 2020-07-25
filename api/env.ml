@@ -109,9 +109,9 @@ let is_injective env lc cst = Signature.is_injective env.sg lc cst
 let is_static env lc cst = Signature.is_static env.sg lc cst
 
 let _add_rules env rs =
-  let ris = List.map Rule.to_rule_infos rs in
-  if !check_arity then List.iter (Rule.check_arity) ris;
-  if !check_ll    then List.iter (Rule.check_linearity) ris;
+  let ris = List.map Dtree.to_rule_infos rs in
+  if !check_arity then List.iter (Dtree.check_arity) ris;
+  if !check_ll    then List.iter (Dtree.check_linearity) ris;
   Signature.add_rules env.sg ris
 
 

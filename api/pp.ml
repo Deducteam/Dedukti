@@ -33,7 +33,7 @@ sig
   val print_pattern       : Rule.pattern        printer
   val print_untyped_rule  : 'a Rule.rule        printer
   val print_typed_rule    : Rule.typed_rule     printer
-  val print_rule_infos    : Rule.rule_infos     printer
+  val print_rule_infos    : Dtree.rule_infos    printer
   val print_rule_name     : Rule.rule_name      printer
   val print_red_cfg       : Reduction.red_cfg   printer
   val print_entry         : Entry.entry         printer
@@ -242,12 +242,12 @@ let print_rule (p:(loc*ident*'a) printer) fmt (rule:'a rule) =
 let print_typed_rule      = print_rule print_typed_decl
 let print_part_typed_rule = print_rule print_part_typed_decl
 
-let print_rule_infos out ri =
+let print_rule_infos out (ri:Dtree.rule_infos) =
   print_untyped_rule out
     { name = ri.name
     ; ctx = []
     (* TODO: here infer context from named variable inside LHS pattern *)
-    ; pat =  pattern_of_rule_infos ri
+    ; pat =  Dtree.pattern_of_rule_infos ri
     ; rhs = ri.rhs  }
 
 let print_red_cfg fmt cfg =

@@ -109,6 +109,55 @@ val pp_ac_problem : 'a printer -> 'a ac_problem printer
 val pp_pre_matching_problem : string -> pre_matching_problem printer
 
 
+(** {2 Rule_infos} *)
+
+type rule_infos  = private
+  {
+    l           : loc;
+    (** location of the rule *)
+    name        : rule_name;
+    (** name of the rule *)
+    nonlinear   : int list;
+    (** DB indices of non linear variables. Empty if the rule is linear ? *)
+    cst         : name;
+    (** name of the pattern constant *)
+    args        : pattern list;
+    (** arguments list of the pattern constant *)
+    rhs         : term;
+    (** right hand side of the rule *)
+    ctx_size    : int;
+    (** size of the context of the non-linear version of the rule *)
+    esize       : int;
+    (** size of the context of the linearized, bracket free version of the rule *)
+    pats        : wf_pattern array;
+    (** free patterns without constraint *)
+    arity       : int array;
+    (** arities of context variables *)
+    constraints : constr list;
+    (** constraints generated from the pattern to the free pattern *)
+    ctx         : term option context;
+    (** context given by the user *)
+  }
+
+val pattern_of_rule_infos : rule_infos -> pattern
+(** Extracts LHS pattern from a rule info *)
+
+val to_rule_infos : untyped_rule -> rule_infos
+(** Converts any rule (typed or untyped) to rule_infos *)
+
+val untyped_rule_of_rule_infos : rule_infos -> untyped_rule
+(** Converts rule_infos representation to a rule where
+    the context is annotated with the variables' arity *)
+
+val arities_of_rule : rule_infos -> arity_context
+(** Rule where context is annotated with variable arities *)
+
+val pp_rule_infos      : rule_infos      printer
+
+val check_arity : rule_infos -> unit
+
+val check_linearity : rule_infos -> unit
+
 (** {2 Decision Trees} *)
 
 (** Arguments of a pattern may be the following:

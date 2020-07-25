@@ -18,7 +18,7 @@ type signature_error =
   | CannotBuildDtree      of Dtree.dtree_error
   | CannotAddRewriteRules of loc * name
   | ConfluenceErrorImport of loc * mident * Confluence.confluence_error
-  | ConfluenceErrorRules  of loc * rule_infos list * Confluence.confluence_error
+  | ConfluenceErrorRules  of loc * Dtree.rule_infos list * Confluence.confluence_error
   | GuardNotSatisfied     of loc * term * term
   | CannotExportModule    of mident * exn
   | PrivateSymbol         of loc * name
@@ -92,7 +92,7 @@ val get_dtree           : t -> loc -> name -> Dtree.t
 (** [get_dtree sg filter l cst] returns the decision/matching tree associated
     with [cst] inside the environment [sg]. *)
 
-val get_rules           : t -> loc -> name -> rule_infos list
+val get_rules           : t -> loc -> name -> Dtree.rule_infos list
 (** [get_rules sg lc cst] returns a list of rules that defines the symbol. *)
 
 val add_external_declaration     : t -> loc -> name -> scope -> staticity -> term -> unit
@@ -104,7 +104,7 @@ val add_declaration     : t -> loc -> ident -> scope -> staticity -> term -> uni
     and staticity [st] in the environment [sg].
     If [sc] is [Private] then the symbol cannot be used in other modules *)
 
-val add_rules           : t -> Rule.rule_infos list -> unit
+val add_rules           : t -> Dtree.rule_infos list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)
 
@@ -124,7 +124,7 @@ type rw_infos =
     (** The type of a symbol *)
     scope         : scope;
     (** The scope of the symbol ([Public]/[Private]) *)
-    rules         : rule_infos list;
+    rules         : Dtree.rule_infos list;
     (** The stack pile of rules associated to a symbol.
         They are imported in the signature in the order by they are declared
         within the file *)

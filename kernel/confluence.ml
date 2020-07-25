@@ -132,8 +132,8 @@ let rec pp_term (ar:int IdMap.t) k fmt term =
   | Type _  -> fprintf fmt "type"
   | Kind  -> assert false
 
-let get_bvars r =
-  let pat = pattern_of_rule_infos r in
+let get_bvars (r:Dtree.rule_infos) =
+  let pat = Dtree.pattern_of_rule_infos r in
   let rec aux_t k bvars = function
     | Const _ | Kind | Type _ | DB _ -> bvars
     | Lam (_,_,None,_) -> failwith "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
@@ -169,18 +169,18 @@ let get_arities (p:pattern) : int IdMap.t =
   in
   aux 0 IdMap.empty p
 
-let pp_rule fmt (r:rule_infos) =
+let pp_rule fmt (r:Dtree.rule_infos) =
   let rec pp_type fmt n =
     fprintf fmt "term";
     if n > 0 then (fprintf fmt " -> "; pp_type fmt (n-1))
   in
-  let pat = pattern_of_rule_infos r in
+  let pat = Dtree.pattern_of_rule_infos r in
   let arities = get_arities pat in
   (* Variables*)
   fprintf fmt "(VAR\n";
   IdMap.iter (fun x n -> fprintf fmt "  m_%a : %a\n" pp_ident x pp_type n) arities;
   List.iter  (fun x   -> fprintf fmt "  v_%a : term\n" pp_ident x) (get_bvars r) ;
-  List.iteri (fun i _ -> fprintf fmt "  b_%i : term\n" (i+1)) (r.constraints) ;
+  List.iteri (fun i _ -> fprintf fmt "  b_%i : term\n" (i+1)) r.constraints ;
   fprintf fmt ")@.";
   (* Rule *)
   fprintf fmt "(RULES %a -> %a )@.@." (pp_pattern arities) pat (pp_term arities 0) r.rhs

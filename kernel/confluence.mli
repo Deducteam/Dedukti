@@ -1,7 +1,6 @@
 (** Confluence checker *)
 
 open Basic
-open Rule
 
 val d_confluence : Debug.flag
 
@@ -16,7 +15,7 @@ val set_cmd : string -> unit
 val initialize : unit -> unit
 
 val add_constant : name -> unit
-val add_rules : rule_infos list -> unit
+val add_rules : Dtree.rule_infos list -> unit
 
 (** Runs confluence checker. May raise Confluence Error. *)
 val check : unit -> unit

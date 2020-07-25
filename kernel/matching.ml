@@ -452,7 +452,8 @@ struct
   let solve_problem rule_name sg from_stack from_stack_ac pb =
     if pb.pm_ac_problems = []
     then
-      let solve_eq = function
+      let solve_eq (eqs : int eq_problem list) =
+        match eqs with
         | [] -> assert false
         | [ (args, index_to_match) ] ->
           lazy_add_n_lambdas args.arity
