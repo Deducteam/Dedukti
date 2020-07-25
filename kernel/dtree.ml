@@ -92,9 +92,6 @@ type case =
   | CDB    of int * int
   | CLam
 
-type atomic_problem = { a_pos:int; a_depth:int; a_args:int array }
-type matching_problem = atomic_problem LList.t
-
 (** Efficient representation for well-formed linear Miller pattern *)
 type wf_pattern =
   | LJoker

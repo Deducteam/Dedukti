@@ -205,19 +205,6 @@ type case =
       for the bounded variable [db_index] *)
   | CLam  (** A lambda headed term *)
 
-(** An atomic matching problem.
-     stack.(pos) ~? X[ DB(args_0), ..., DB(args_n)]
-  where X is the variable and the problem is considered under depth abstractions.*)
-type atomic_problem =
-  {
-    a_pos   : int; (** position of the term to match in the stack. *)
-    a_depth : int; (** depth of the argument regarding absractions *)
-    a_args  : int array (** Arguments DB indices (distinct bound variables) *)
-  }
-
-(** A matching problem to build a solution context from the stack *)
-type matching_problem = atomic_problem LList.t
-
 (** Type of decision trees *)
 type dtree =
   | Switch of int * (case*dtree) list * dtree option
