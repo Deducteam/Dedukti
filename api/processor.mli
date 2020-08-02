@@ -34,13 +34,6 @@
     this documentation.
 *)
 
-type signature_entry = Kernel.Basic.name * Kernel.Signature.rw_infos
-
-(** A signature builder takes a consumer function as input and returns unit.
-    We use CPS style here for large signatures so that the memory size is not
-    duplicated. *)
-type signature_builder = (signature_entry -> unit) -> unit
-
 (** Each constructor corresponds to a processor. This type is extensible so that
     we can use this API with your own processors. *)
 type _ t = ..
@@ -48,7 +41,7 @@ type _ t = ..
 
 type _ t +=
   | TypeChecker : unit t (** TypeCheck *)
-  | SignatureBuilder : signature_builder t (** Build a signature without type checking *)
+  | SignatureBuilder : Kernel.Signature.t t (** Build a signature without type checking *)
   | PrettyPrinter : unit t (** Pretty print *)
   | Dependencies : Dep.t t (** Compute dependencies *)
   | TopLevel : unit t (** TypeCheck and prints result on standard output *)
@@ -197,7 +190,7 @@ module type CustomEnv = (module type of Env) with type t = Env.t
 
 module MakeTypeChecker(E:CustomEnv)      : S with type t = unit
 
-module MakeSignatureBuilder(E:CustomEnv) : S with type t = signature_builder
+module MakeSignatureBuilder(E:CustomEnv) : S with type t = Kernel.Signature.t
 
 module MakeEntryPrinter(E:CustomEnv)     : S with type t = unit
 

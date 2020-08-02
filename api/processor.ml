@@ -77,13 +77,9 @@ end
 
 module TypeChecker = MakeTypeChecker(Env)
 
-type signature_entry = Kernel.Basic.name * Kernel.Signature.rw_infos
-
-type signature_builder = (signature_entry -> unit) -> unit
-
-module MakeSignatureBuilder(Env:CustomEnv) : S with type t = signature_builder =
+module MakeSignatureBuilder(Env:CustomEnv) : S with type t = Signature.t =
 struct
-  type t = signature_builder
+  type t = Signature.t
 
   let handle_entry env e =
     let sg = Env.get_signature env in
@@ -105,12 +101,9 @@ struct
     | Require(lc,md) -> Signature.import sg lc md
     | _ -> ()
 
-  let get_data env f =
-    let f' = fun md id rw_infos ->
-      f ((Basic.mk_name md id), rw_infos)
-    in
-    let sg = Env.get_signature env in
-    Signature.iter_symbols f' sg
+  let get_data env =
+   Env.get_signature env
+
 end
 
 module SignatureBuilder = MakeSignatureBuilder(Env)
@@ -329,7 +322,7 @@ let of_pure (type a) ~f ~init : (module S with type t = a) =
 
 type _ t += TypeChecker : unit t
 
-type _ t += SignatureBuilder : signature_builder t
+type _ t += SignatureBuilder : Signature.t t
 
 type _ t += PrettyPrinter : unit t
 
