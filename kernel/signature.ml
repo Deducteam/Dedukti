@@ -269,7 +269,9 @@ and get_infos sg lc cst = fst (get_info_env sg lc cst)
 
 and get_staticity sg lc name = (get_infos sg lc name).stat
 
-and get_algebra sg lc name = algebra_of_staticity (get_staticity sg lc name)
+and get_algebra sg lc name =
+  try algebra_of_staticity (get_staticity sg lc name)
+  with e -> if not !fail_on_symbol_not_found then Free  else raise e
 
 and is_AC sg lc name = Term.is_AC (get_algebra sg lc name)
 
