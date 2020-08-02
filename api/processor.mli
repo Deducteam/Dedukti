@@ -58,19 +58,27 @@ type hook =
     (** hook_after is executed by the processor after processing the output *)
   }
 
-val handle_input : Parsers.Parser.input -> ?hook:hook -> 'a t -> 'a
-(** [handle_input input hook processor] applies the processor [processor]
-    on the [input]. [hook.hook_before] is executed  once before the processor
-    and [hook.hook_after] is executed once after the processor.
-    By default (without hooks), if an exception [exn] has been raised while
-    processing the data it is raised at top-level. *)
+module type Interface =
+sig
+  type 'a t
 
-val handle_files : string list -> ?hook:hook -> 'a t -> 'a
-(** [handle_files files hook processor] apply a processor on each file of [files].
-    [hook] is used once by file. The result is the one given once each file has
-    been processed. *)
+  val handle_input : Parsers.Parser.input -> ?hook:hook -> 'a t -> 'a
+  (** [handle_input input hook processor] applies the processor [processor]
+      on the [input]. [hook.hook_before] is executed  once before the processor
+      and [hook.hook_after] is executed once after the processor.
+      By default (without hooks), if an exception [exn] has been raised while
+      processing the data it is raised at top-level. *)
 
-val fold_files : string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b ->'a t -> 'b
+  val handle_files : string list -> ?hook:hook -> 'a t -> 'a
+  (** [handle_files files hook processor] apply a processor on each file of [files].
+      [hook] is used once by file. The result is the one given once each file has
+      been processed. *)
+
+  val fold_files : string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b ->'a t -> 'b
+end
+
+include Interface with type 'a t := 'a t
+
 (** [fold_files files fold default processor] is similar to [handle_files]
     except that the result of a processor is given to the function [fold] every
     time a file is processed. *)
@@ -175,6 +183,8 @@ val of_pure : f:('a -> Env.t -> Parsers.Entry.entry -> 'a) -> init:'a
   -> (module S with type t = 'a)
 (** [of_pure ~f ~init] returns processor from the fold-like function [f]. [f acc
     env ent] folds entry [ent] on accumulator [acc] in environment [env]. *)
+
+module T : Interface with type 'a t := (module S with type t = 'a)
 
 
 (** {3 Define processors with a custom environement} *)

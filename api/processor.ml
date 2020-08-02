@@ -15,6 +15,7 @@ sig
   (** [get_data ()] returns the data computed by the current processor *)
 end
 
+
 module MakeTypeChecker(Env:CustomEnv) : S with type t = unit =
 struct
 
@@ -245,65 +246,90 @@ type hook =
     after  : Env.t -> processor_error option -> unit
   }
 
-let handle_processor : Env.t -> (module S) -> unit  =
-  fun env (module P:S) ->
-  let input = Env.get_input env in
-  try
-    let handle_entry env entry =
+
+module type Interface =
+sig
+  type 'a t
+
+  val handle_input : Parsers.Parser.input -> ?hook:hook -> 'a t -> 'a
+  (** [handle_input input hook processor] applies the processor [processor]
+      on the [input]. [hook.hook_before] is executed  once before the processor
+      and [hook.hook_after] is executed once after the processor.
+      By default (without hooks), if an exception [exn] has been raised while
+      processing the data it is raised at top-level. *)
+
+  val handle_files : string list -> ?hook:hook -> 'a t -> 'a
+  (** [handle_files files hook processor] apply a processor on each file of [files].
+      [hook] is used once by file. The result is the one given once each file has
+      been processed. *)
+
+  val fold_files : string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b ->'a t -> 'b
+end
+
+module Make (C: sig type 'a t val get_processor : 'a t -> (module S with type t = 'a) end) : Interface with type 'a t := 'a C.t =
+struct
+  type 'a t = 'a C.t
+
+  let handle_processor : Env.t -> (module S) -> unit  =
+    fun env (module P:S) ->
+      let input = Env.get_input env in
       try
-        P.handle_entry env entry
-      with exn -> raise @@ Env.Env_error(env, Entry.loc_of_entry entry, exn)
+        let handle_entry env entry =
+          try
+            P.handle_entry env entry
+          with exn -> raise @@ Env.Env_error(env, Entry.loc_of_entry entry, exn)
+        in
+        Parser.handle input (handle_entry env)
+      with
+      | Env.Env_error _ as exn -> raise @@ exn
+      |  exn                   -> raise @@ Env.Env_error(env, Basic.dloc, exn)
+
+  let handle_input  : Parser.input -> ?hook:hook -> 'a t -> 'a =
+    fun (type a) input ?hook processor ->
+    let (module P: S with type t = a) = C.get_processor processor in
+    let env = Env.init input in
+    begin match hook with None -> () | Some hook -> hook.before env end;
+    let exn =
+      try
+        handle_processor env (module P);
+        None
+      with Env.Env_error(env,lc,e) -> Some (env,lc,e)
     in
-    Parser.handle input (handle_entry env)
-  with
-  | Env.Env_error _ as exn -> raise @@ exn
-  |  exn                   -> raise @@ Env.Env_error(env, Basic.dloc, exn)
+    begin
+      match hook with
+      | None ->
+        begin
+          match exn with
+          | None -> ()
+          | Some(env,lc,exn) -> Env.fail_env_error env lc exn
+        end
+      | Some hook -> hook.after env exn end;
+    let data = P.get_data env in
+    data
 
-let handle_input  : Parser.input -> ?hook:hook -> 'a t -> 'a =
-  fun (type a) input ?hook processor ->
-  let (module P: S with type t = a) = get_processor processor in
-  let env = Env.init input in
-  begin match hook with None -> () | Some hook -> hook.before env end;
-  let exn =
-    try
-      handle_processor env (module P);
-      None
-    with Env.Env_error(env,lc,e) -> Some (env,lc,e)
-  in
-  begin
-    match hook with
-    | None ->
-      begin
-        match exn with
-        | None -> ()
-        | Some(env,lc,exn) -> Env.fail_env_error env lc exn
-      end
-    | Some hook -> hook.after env exn end;
-  let data = P.get_data env in
-  data
+  let fold_files : string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b -> 'a t -> 'b =
+    fun files ?hook ~f ~default processor ->
+    let handle_file file =
+      try
+        let input = Parser.input_from_file file in
+        let data = handle_input input ?hook processor in
+        Parser.close input;
+        data
+      with Sys_error msg -> Errors.fail_sys_error ~file ~msg
+    in
+    let fold b file =
+      try f (handle_file file) b
+      with exn ->
+        let env = Env.init (Parser.input_from_file file) in
+        Env.fail_env_error env Basic.dloc exn
+    in
+    List.fold_left fold default files
 
-let fold_files : string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b -> 'a t -> 'b =
-  fun files ?hook ~f ~default processor ->
-  let handle_file file =
-    try
-      let input = Parser.input_from_file file in
-      let data = handle_input input ?hook processor in
-      Parser.close input;
-      data
-    with Sys_error msg -> Errors.fail_sys_error ~file ~msg
-  in
-  let fold b file =
-    try f (handle_file file) b
-    with exn ->
-      let env = Env.init (Parser.input_from_file file) in
-      Env.fail_env_error env Basic.dloc exn
-  in
-  List.fold_left fold default files
-
-let handle_files : string list -> ?hook:hook -> 'a t -> 'a =
-  fun (type a) files ?hook processor ->
-  let (module P: S with type t = a) = get_processor processor in
-  fold_files files ?hook ~f:(fun data _ -> data) ~default:(P.get_data (Env.dummy ())) processor
+  let handle_files : string list -> ?hook:hook -> 'a t -> 'a =
+    fun (type a) files ?hook processor ->
+    let (module P: S with type t = a) = C.get_processor processor in
+    fold_files files ?hook ~f:(fun data _ -> data) ~default:(P.get_data (Env.dummy ())) processor
+end
 
 let of_pure (type a) ~f ~init : (module S with type t = a) =
   (module struct
@@ -315,10 +341,6 @@ let of_pure (type a) ~f ~init : (module S with type t = a) =
 
     let get_data _ = !_d
   end)
-
-
-
-
 
 type _ t += TypeChecker : unit t
 
@@ -367,3 +389,7 @@ let () =
     (module Dependencies);
   register_processor TopLevel {equal = equal_top_level}
     (module TopLevel)
+
+include Make(struct type nonrec 'a t = 'a t let get_processor = get_processor end)
+
+module T = Make(struct type 'a t = (module S with type t = 'a) let get_processor x = x end)
