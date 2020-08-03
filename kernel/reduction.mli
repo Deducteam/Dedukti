@@ -7,13 +7,16 @@ val d_reduce : Debug.flag
 type red_target   = Snf | Whnf
 type red_strategy = ByName | ByValue | ByStrongValue
 
+type dtree_finder = Signature.t -> Basic.loc -> Basic.name -> Dtree.t
+
 type red_cfg = {
   select   : (Rule.rule_name -> bool) option;
   nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
   target   : red_target;
   strat    : red_strategy;
   beta     : bool;
-  logger   : position -> Rule.rule_name -> term Lazy.t -> term Lazy.t -> unit
+  logger   : position -> Rule.rule_name -> term Lazy.t -> term Lazy.t -> unit ;
+  finder   : dtree_finder ;
 }
 (** Configuration for reduction.
     [select] = [Some f] restreins rules according to the given filter on names.
@@ -24,6 +27,7 @@ type red_cfg = {
     [strat] is the reduction strategy.
     [beta] flag enables/disables beta reductions.
     [logger] is the function to call upon applying a reduction rule.
+    [finder] specifies where to find the decision tree.
 *)
 
 val pp_red_cfg : red_cfg printer
@@ -36,6 +40,7 @@ val default_cfg : red_cfg
     - [target]   = [Snf]
     - [beta]     = [true]
     - [logger]   = [fun _ _ _ -> ()]
+    - [finder]   = [Signature.get_dtree]
 *)
 
 

@@ -9,6 +9,8 @@ let d_reduce = Debug.register_flag "Reduce"
 type red_target   = Snf | Whnf
 type red_strategy = ByName | ByValue | ByStrongValue
 
+type dtree_finder = Signature.t -> Basic.loc -> Basic.name -> t
+
 type red_cfg = {
   select   : (Rule.rule_name -> bool) option;
   nb_steps : int option; (* [Some 0] for no evaluation, [None] for no bound *)
@@ -16,6 +18,7 @@ type red_cfg = {
   strat    : red_strategy;
   beta     : bool;
   logger   : position -> Rule.rule_name -> term Lazy.t -> term Lazy.t -> unit;
+  finder   : dtree_finder ;
 }
 
 let pp_red_cfg fmt cfg =
@@ -26,7 +29,7 @@ let pp_red_cfg fmt cfg =
   Format.fprintf fmt "[%a]" (pp_list "," Format.pp_print_string) args
 
 let default_cfg =
-  {select=None; nb_steps=None; target=Snf; strat=ByName; beta=true; logger=fun _ _ _ _ -> () }
+  {select=None; nb_steps=None; target=Snf; strat=ByName; beta=true; logger=(fun _ _ _ _ -> ()); finder = Signature.get_dtree}
 
 exception Not_convertible
 
@@ -110,6 +113,9 @@ let beta = ref true
 
 (* Rule filter *)
 let selection  = ref None
+
+(* Where to find the dtree associated to a symbol *)
+let dtree_finder : dtree_finder ref = ref Signature.get_dtree
 
 module Make(C : ConvChecker) (M:Matching.Matcher) : S =
 struct
@@ -381,7 +387,7 @@ and state_whnf (sg:Signature.t) (st:state) : state =
     rec_call ctx f (List.rev_append tl' s)
   (* Potential Gamma redex *)
   | { ctx; term=Const (l,n); stack ; _} ->
-    let trees = Signature.get_dtree sg l n in
+    let trees = !dtree_finder sg l  n in
     match find_dtree (List.length stack) trees with
     | alg, None -> comb_state_if_AC alg sg st
     | alg, Some (ar, tree) ->
@@ -530,7 +536,7 @@ let logged_state_whnf log stop (strat:red_strategy) (sg:Signature.t) : state_red
 
       (* Potential Gamma redex *)
       | { ctx; term=Const (l,n); stack ; _ }, _ ->
-        let trees = Signature.get_dtree sg l n in
+        let trees = !dtree_finder sg l n in
         match find_dtree (List.length stack) trees with
         | alg, None -> comb_state_if_AC alg sg st
         | alg, Some (ar, tree) ->
@@ -578,11 +584,13 @@ let reduction cfg sg te =
     cfg.logger p rn (lazy (term_of_state stb)) (lazy (term_of_state sta)) in
   let st_red = logged_state_whnf st_logger stop cfg.strat sg in
   let term_red = match cfg.target with Snf -> term_snf | Whnf -> term_whnf in
-  selection := cfg.select;
-  beta      := cfg.beta;
+  selection    := cfg.select;
+  beta         := cfg.beta;
+  dtree_finder := cfg.finder;
   let te' = term_red st_red [] te in
-  selection := default_cfg.select;
-  beta      := default_cfg.beta;
+  selection    := default_cfg.select;
+  beta         := default_cfg.beta;
+  dtree_finder := default_cfg.finder;
   te'
 
   let are_convertible = are_convertible
