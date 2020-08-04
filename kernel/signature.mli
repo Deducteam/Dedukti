@@ -108,14 +108,6 @@ val add_rules           : t -> Rule.rule_infos list -> unit
 (** [add_rules sg rule_lst] adds a list of rule to a symbol in the environement [sg].
     All rules must be on the same symbol. *)
 
-val fail_on_symbol_not_found : bool ref
-(** if [false], does 2 things:
-    1. [get_dtree] won't fail if the symbol has not be found
-    2. [add_rules] won't fail if a rule is added on a symbol not present
-       in the signature. However, a fresh symbol is added.
-    This flag is intented to facilitate the use of the module Reduction
-    when it is used without the module Typing such as in dkmeta. *)
-
 type rw_infos =
   {
     stat          : staticity;

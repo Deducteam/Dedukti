@@ -8,8 +8,6 @@ let d_module = Debug.register_flag "Module"
 
 type file = string
 
-let fail_on_symbol_not_found = ref true
-
 type signature_error =
   | UnmarshalBadVersionNumber of loc * string
   | UnmarshalSysError     of loc * string * string
@@ -229,15 +227,12 @@ and add_rule_infos sg (lst:rule_infos list) : unit =
   match lst with
   | [] -> ()
   | (r::_ as rs) ->
-    let infos, env =
-      try get_info_env sg r.l r.cst
-      with _ when not !fail_on_symbol_not_found ->
-        add_external_declaration sg r.l r.cst Public (Definable Free) (mk_Kind);
-        get_info_env sg r.l r.cst
+    let infos, env = get_info_env sg r.l r.cst
     in
-    if infos.stat = Static && !fail_on_symbol_not_found
-    then raise (Signature_error (CannotAddRewriteRules (r.l,r.cst)));
-    HId.replace env (id r.cst) {infos with rules = List.rev_append rs infos.rules; decision_tree= None}
+    if infos.stat = Static then
+      raise (Signature_error (CannotAddRewriteRules (r.l,r.cst)));
+    HId.replace env (id r.cst)
+      {infos with rules = List.rev_append rs infos.rules; decision_tree= None}
     (* [rs] is in the order the user declared the rules,
        but a [rw_infos] is a Lifo pile, hence the [rev_append]. *)
 
@@ -269,9 +264,8 @@ and get_infos sg lc cst = fst (get_info_env sg lc cst)
 
 and get_staticity sg lc name = (get_infos sg lc name).stat
 
-and get_algebra sg lc name =
-  try algebra_of_staticity (get_staticity sg lc name)
-  with e -> if not !fail_on_symbol_not_found then Free  else raise e
+and get_algebra sg lc name = algebra_of_staticity (get_staticity sg lc name)
+
 
 and is_AC sg lc name = Term.is_AC (get_algebra sg lc name)
 
@@ -340,9 +334,8 @@ let get_type sg lc cst =
 
 let get_rules sg lc cst = (get_infos sg lc cst).rules
 
-let get_dtree sg lc cst =
-  try compute_dtree sg lc cst
-  with e -> if not !fail_on_symbol_not_found then Dtree.empty else raise e
+let get_dtree sg lc cst = compute_dtree sg lc cst
+
 
 (******************************************************************************)
 
