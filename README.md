@@ -42,6 +42,10 @@ should output the following.
 SUCCESS File 'examples/append.dk' was successfully checked.
 ```
 
+### EDITOR MODES
+
+See the `editors` directory. Only the emacs mode is maitained currently.
+
 ### COMMAND LINE PROGRAMS
 
 The installation provides the following commands:
