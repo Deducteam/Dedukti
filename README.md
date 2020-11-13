@@ -1,5 +1,7 @@
 Note that a new interactive version of Dedukti is under development on https://github.com/Deducteam/lambdapi.
 
+For interoperability developement, the current version of Dedukti is still used.
+
 USER MANUAL FOR DEDUKTI (DEVELOPMENT VERSION)
 =============================================
 
@@ -13,9 +15,12 @@ To compile (and optionally install) `Dedukti` you will need:
 
 #### INSTALLATION WITH OPAM
 
+
 ```bash
 opam install dedukti
 ```
+
+The current version on `opam` is too old and we recommand to install Dedukti by cloning this repository.
 
 #### INSTALLATION FROM SOURCE
 
@@ -174,13 +179,13 @@ a useless rewrite rule.
 #### JOKERS
 
 When a variable is not used on the right-hand side of a rewrite rule, it can be
-replaced by an underscore on the left-hand side.
+replaced by an underscore on the left-hand side. In the following definition:
 
     def mult : Nat -> Nat -> Nat.
     [ n ] mult zero n --> zero
     [ n, m ] mult (succ n) m --> plus m (mult n m).
 
-The first rule can also be written:
+the first rule can also be written:
 
     [ ] mult zero _ --> zero.
 
@@ -227,15 +232,16 @@ Using underscores, we can write:
     [ v ] append _ nil _ v --> v
     [ n, v1, m, e, v2 ] append _ (cons n e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
 
-#### DECLARED INJECTIVITY
+#### INJECTIVITY
 
-Defined symbols may remain injective even with rewrite rules.
-If this injectivity is required to typecheck other rules, it is possible to declare a symbol injective.
-No injectivity check is performed by the typechecker but the injectivity will be assumed and used when typechecking rules defined later on.
+Declaring a symbol as `injective` may help the type checker. Hence, it is possible to declare a symbol injective.
+However, no injectivity check is performed by the typechecker but the injectivity will be assumed and used when typechecking rules defined later on.
 
     inj double : Nat -> Nat.
     [   ] double zero     --> zero.
     [ n ] double (succ n) --> succ (succ (double n)).
+
+Declaring a non-injective symbol as injective may break the injectivity of product, and therefore may break subjection reduction.
 
 #### TYPE ANNOTATIONS
 
@@ -249,31 +255,6 @@ with the provided annotation.
     , e : Elt
     , v2  : Vector m ]
       append _ (cons n e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
-
-#### BRACKET PATTERNS
-
-A different solution to the same problem is to mark with brackets the parts of the left-hand
-side of the rewrite rules that are constrained by typing.
-
-    [ n, v1, m, e, v2 ] append (succ n) (cons {n} e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
-
-The information between brackets will be used when typing the rule but they will not be match against when
-using the rule (as if they were replaced by unapplied fresh variables).
-
-**Remarks:**
-- in order to make this feature type-safe, `Dedukti` checks at runtime that the bracket constraint is verified
-whenever the rule may be used and fails otherwise.
-- This feature is not conditional rewriting. When a constraints is not satisfied, Dedukti doesn't just ignore
-the rule and proceed, it actually raises an error.
-- because they are replaced with *unapplied* fresh variables, bracket expressions may not contain variables
-locally bounded previously in the pattern.
-- since they are not used during matching, bracket expressions may not "introduce" variables. All rule variables
-occuring in bracket expression need to also occur in an other part of the pattern, outside a bracket.
-- bracket expressions and their type may contain variables occuring "before" (to the left of) the pattern.
-- the type of a bracket expression may not contain variables occuring for the first time "after" (to the right of)
-the bracket.
-- the bracket expression may contain variable occuring for the first time "after" (to the right of) the bracket on
-the condition that the inferred types for these variables do not depend on the bracket's fresh variable (no circularity).
 
 #### NON-LEFT-LINEAR REWRITE RULES
 
@@ -314,6 +295,31 @@ of the rule.
 **Remark:** with such rewrite rules, matching is done modulo beta in order to preserve confluence.
 This means that, in the context `(o: type)(c:term o)`, the term `App o o (Lam o o (x => x)) c` reduces to `c`.
 
+#### BRACKET PATTERNS
+
+A different solution to the same problem is to mark with brackets the parts of the left-hand
+side of the rewrite rules that are constrained by typing.
+
+    [ n, v1, m, e, v2 ] append (succ n) (cons {n} e v1) m v2 --> cons (plus n m) e (append n v1 m v2).
+
+The information between brackets will be used when typing the rule but they will not be match against when
+using the rule (as if they were replaced by unapplied fresh variables).
+
+**Remarks:**
+- In order to make this feature type-safe, `Dedukti` checks at runtime that the bracket constraint is verified
+whenever the rule may be used and fails otherwise.
+- This feature is not conditional rewriting. When a constraints is not satisfied, Dedukti doesn't just ignore
+the rule and proceed, it actually raises an error.
+- Because they are replaced with *unapplied* fresh variables, bracket expressions may not contain variables
+locally bounded previously in the pattern.
+- Since they are not used during matching, bracket expressions may not "introduce" variables. All rule variables
+occuring in bracket expression need to also occur in an other part of the pattern, outside a bracket.
+- Bracket expressions and their type may contain variables occuring "before" (to the left of) the pattern.
+- The type of a bracket expression may not contain variables occuring for the first time "after" (to the right of)
+the bracket.
+- The bracket expression may contain variable occuring for the first time "after" (to the right of) the bracket on
+the condition that the inferred types for these variables do not depend on the bracket's fresh variable (no circularity).
+
 #### CONFLUENCE CHECKING
 
 `Dedukti` can check the confluence of the rewrite system generated by the rewrite rules and beta-reduction,
@@ -327,7 +333,12 @@ To enable confluence checking you need to call `dkcheck` with the option `-cc` f
 
 ### PRIVATE SYMBOLS
 
-Some theories may rely on symbols for conversion that should be guaranteed never to be used in proofs defined in this theory. To achieve this, `Dedukti` allows to flag symbols as "private". These symbols may freely occur in type annotation, definitions and rewrite rules within the file they are defined, however they are completely inaccessible to outside developments. Note that they may still appear in the normal forms or inferred types of terms that were defined without relying on them.
+A user can declare a symbol as private. A private symbol cannot be
+used outside the module it is defined. These symbols may freely occur
+in type annotation, definitions and rewrite rules within the file they
+are defined, however they are completely inaccessible to outside
+developments. Note that they may still appear in the normal forms or
+inferred types of terms that were defined without relying on them.
 
 ### LICENSE
 
