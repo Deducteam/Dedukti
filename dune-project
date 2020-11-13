@@ -1,4 +1,4 @@
-(lang dune 1.10)
+(lang dune 2.0)
 (name dedukti)
 (using menhir 2.0)
 
@@ -12,7 +12,7 @@
 (package
     (name dedukti)
     (depends
-      (ocaml (>= 4.02))
+      (ocaml (>= 4.04))
       menhir)
-    (synopsis "An implementation of The Lambda-Pi modulo Calculus")
-    (description "An implementation of The Lambda-Pi modulo Calculus"))
+    (synopsis "An implementation of The Lambda-Pi Modulo Theory")
+    (description "An implementation of The Lambda-Pi Modulo Theory"))
