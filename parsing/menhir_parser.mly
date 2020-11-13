@@ -91,8 +91,6 @@ let loc_of_rs = function
 %type <Preterm.preterm> sterm
 %type <Preterm.preterm> term
 
-%right ARROW FATARROW
-
 %%
 
 line:
@@ -243,7 +241,7 @@ term:
       { PrePi (fst $1,Some (snd $1), $3, $5) }
   | LEFTPAR ID COLON aterm RIGHTPAR ARROW term
       { PrePi (fst $2,Some (snd $2), $4 ,$7) }
-  | term ARROW term
+  | aterm ARROW term
       { PrePi (Lexer.loc_of_pos $startpos,None,$1,$3) }
   | pid FATARROW term
       {PreLam (fst $1, snd $1, None, $3)}
