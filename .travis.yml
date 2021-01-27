@@ -26,6 +26,8 @@ env:
   - OCAML_VERSION=4.07.1
   - OCAML_VERSION=4.08.1
   - OCAML_VERSION=4.09.0
+  - OCAML_VERSION=4.10.0
+  - OCAML_VERSION=4.11.1
 
 before_install:
   # Obtain and install opam locally.
@@ -45,7 +47,7 @@ install:
 
 script:
   - make tests
-  - if [[ "$OCAML_VERSION" == "4.09.0" ]];
+  - if [[ "$OCAML_VERSION" == "4.11.1" ]];
       then
         if [[ "$TRAVIS_EVENT_TYPE" == "cron" ]];
           then make full_tests;
