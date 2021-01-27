@@ -12,7 +12,7 @@
 (package
     (name dedukti)
     (depends
-      (ocaml (>= 4.04))
+      (ocaml (>= 4.06))
       menhir)
     (synopsis "An implementation of The Lambda-Pi Modulo Theory")
     (description "An implementation of The Lambda-Pi Modulo Theory"))
