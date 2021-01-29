@@ -4,7 +4,7 @@
 
 (generate_opam_files true)
 
-(license MIT)
+(license CECILL-B)
 (maintainers "dedukti-dev@inria.fr")
 (authors "dedukti-dev@inria.fr")
 (source (github Deducteam/Dedukti))
