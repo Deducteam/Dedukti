@@ -1,0 +1,6 @@
+(; OK --sukerujo ;)
+T : nat -> Type.
+U : n : nat -> T n -> Type.
+V : n : nat -> t : T n -> U n t -> Type.
+
+Record t (n : nat) := make { p1 : T n, p2 : U n p1, p3 : V n p1 p2 }.

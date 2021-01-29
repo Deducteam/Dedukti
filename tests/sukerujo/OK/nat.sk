@@ -1,0 +1,48 @@
+(; OK --sukerujo ;)
+bool : Type.
+true : bool.
+false : bool.
+
+def is0 : nat -> bool.
+[] is0 0 --> true
+[] is0 (S _) --> false.
+
+def plus : nat -> nat -> nat.
+[ n ]       plus 0 n       --> n
+[ m ]       plus m 0       --> m
+[ m, n ]    plus (S m) n   --> S (plus m n)
+[ m, n ]    plus m (S n)   --> S (plus m n)
+[ m, n, p ] plus m (plus n p) --> plus (plus m n) p.
+
+def eq : nat -> nat -> bool.
+[]       eq 0 0         --> true
+[]       eq 0 (S _)     --> false
+[]       eq (S _) 0     --> false
+[ m, n ] eq (S m) (S n) --> eq m n.
+
+def leq : nat -> nat -> bool.
+[]       leq 0 _         --> true
+[]       leq (S _) 0     --> false
+[ m, n ] leq (S m) (S n) --> leq m n.
+
+def geq : nat -> nat -> bool.
+[]       geq _ 0         --> true
+[]       geq 0 (S _)     --> false
+[ m, n ] geq (S m) (S n) --> geq m n.
+
+def lt : nat -> nat -> bool.
+[]       lt _ 0         --> false
+[]       lt 0 (S _)     --> true
+[ m, n ] lt (S m) (S n) --> lt m n.
+
+def gt : nat -> nat -> bool.
+[]       gt 0 _         --> false
+[]       gt (S _) 0     --> true
+[ m, n ] gt (S m) (S n) --> gt m n.
+
+def times : nat -> nat -> nat.
+[]          times 0 _       --> 0
+[]          times _ 0       --> 0
+[ m, n ]    times (S m) n   --> plus (times m n) n
+[ m, n ]    times m (S n)   --> plus m (times m n)
+[ m, n, p ] times m (times n p) --> times (times m n) p.

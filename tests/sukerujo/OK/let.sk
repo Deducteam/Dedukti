@@ -1,0 +1,8 @@
+(; OK --sukerujo ;)
+plus : nat -> nat -> nat.
+y : nat.
+
+#ASSERT plus y y == (x : nat := y) => plus x x.
+(; #ASSERT (x := y => x) == (x := y => y). ;)
+#ASSERT (plus y y) == (x : nat := y) => (y : nat := x) => plus x y.
+#ASSERT (x : nat => y) == (x : nat := y) => (x : nat => y).
