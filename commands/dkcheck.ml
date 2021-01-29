@@ -7,6 +7,7 @@ let _ =
   let run_on_stdin = ref None  in
   let export       = ref false in
   let beautify     = ref false in
+  let parser       = ref Parsers.Parser.Legacy in
   let deprecated old_flag new_flag spec =
     let warning () =
       Debug.(debug d_warn)
@@ -81,6 +82,9 @@ let _ =
     ; ( "--beautify"
       , Arg.Set beautify
       , " Pretty printer. Print on the standard output" )
+    ; ( "--sukerujo"
+      , Arg.Unit (fun () -> parser := Parsers.Parser.Sukerujo)
+      , " Use sukerujo syntax" )
     ; ( "--version"
       , Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version)
       , " Prints the version number" )
@@ -127,9 +131,10 @@ Available options:" Sys.argv.(0) in
       after = hook_after
     }
   in
-  Processor.handle_files files ~hook processor;
+  let parser = !parser in
+  Processor.handle_files ~parser files ~hook processor;
   match !run_on_stdin with
   | None   -> ()
   | Some m ->
-    let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
+    let input = Parsers.Parser.input_from_stdin ~parser (Basic.mk_mident m) in
     Processor.handle_input input processor

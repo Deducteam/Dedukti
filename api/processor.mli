@@ -69,12 +69,12 @@ sig
       By default (without hooks), if an exception [exn] has been raised while
       processing the data it is raised at top-level. *)
 
-  val handle_files : string list -> ?hook:hook -> 'a t -> 'a
-  (** [handle_files files hook processor] apply a processor on each file of [files].
+  val handle_files : ?parser:Parsers.Parser.parser -> string list -> ?hook:hook -> 'a t -> 'a
+  (** [handle_files parser files hook processor] apply a processor on each file of [files].
       [hook] is used once by file. The result is the one given once each file has
       been processed. *)
 
-  val fold_files : string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b ->'a t -> 'b
+  val fold_files : ?parser:Parsers.Parser.parser -> string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b ->'a t -> 'b
 end
 
 include Interface with type 'a t := 'a t
