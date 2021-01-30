@@ -8,7 +8,7 @@ Q = @
 all: bin binaries
 
 .PHONY: binaries
-binaries: dkcheck.native dktop.native dkdep.native dkprune.native
+binaries: dkcheck.native dktop.native dkdep.native dkprune.native dkmeta.native
 
 %.native:
 	$(Q)ln -fs _build/install/default/bin/$* $@
