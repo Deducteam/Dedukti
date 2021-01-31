@@ -1,0 +1,6 @@
+(library
+	(name universo_api)
+        (public_name universo.api)
+	(synopsis "Universo API")
+	(libraries common elaboration checking solving)
+	(library_flags (-cclib -lstdc++)))

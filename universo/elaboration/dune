@@ -1,0 +1,4 @@
+(library
+        (name elaboration)
+	(public_name universo.elaboration)
+        (libraries common dedukti.api))
