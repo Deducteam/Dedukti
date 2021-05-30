@@ -388,7 +388,7 @@ let () =
   register_processor Dependencies {equal = equal_dep}
     (module Dependencies);
   register_processor TopLevel {equal = equal_top_level}
-    (module TopLevel)
+    (module TopLevel);
 
 include Make(struct type nonrec 'a t = 'a t let get_processor = get_processor end)
 

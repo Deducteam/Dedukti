@@ -17,6 +17,12 @@
     (libraries kernel parsers api))
 
 (executable
+    (name dkmeta)
+    (public_name dkmeta)
+    (modules dkmeta)
+    (libraries kernel parsers api))
+
+(executable
     (name dkprune)
     (public_name dkprune)
     (modules dkprune)
