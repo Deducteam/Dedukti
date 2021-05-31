@@ -2,28 +2,40 @@
     (name dkcheck)
     (public_name dkcheck)
     (modules dkcheck)
+    (package dedukti)
     (libraries kernel parsers api))
 
 (executable
     (name dkdep)
     (public_name dkdep)
     (modules dkdep)
+    (package dedukti)
     (libraries kernel parsers api))
 
 (executable
     (name dktop)
     (public_name dktop)
     (modules dktop)
+    (package dedukti)
     (libraries kernel parsers api))
 
 (executable
     (name dkmeta)
     (public_name dkmeta)
     (modules dkmeta)
+    (package dedukti)
     (libraries kernel parsers api))
 
 (executable
     (name dkprune)
     (public_name dkprune)
     (modules dkprune)
+    (package dedukti)
     (libraries kernel parsers api))
+
+(executable
+        (name universo)
+        (public_name universo)
+        (modules universo)
+        (package universo)
+        (libraries common elaboration checking solving dedukti.api dedukti.kernel))

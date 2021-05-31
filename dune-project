@@ -16,3 +16,6 @@
       menhir)
     (synopsis "An implementation of The Lambda-Pi Modulo Theory")
     (description "An implementation of The Lambda-Pi Modulo Theory"))
+
+(package
+        (name universo))
