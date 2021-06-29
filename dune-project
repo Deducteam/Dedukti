@@ -18,4 +18,5 @@
     (description "An implementation of The Lambda-Pi Modulo Theory"))
 
 (package
-        (name universo))
+        (name universo)
+        (depends z3))
