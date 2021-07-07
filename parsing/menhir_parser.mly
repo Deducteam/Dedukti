@@ -246,7 +246,9 @@ term:
   | pid FATARROW term
       {PreLam (fst $1, snd $1, None, $3)}
   | pid COLON aterm FATARROW term
-      {PreLam (fst $1, snd $1, Some $3, $5)}
+    {PreLam (fst $1, snd $1, Some $3, $5)}
+  | LEFTPAR pid DEF aterm RIGHTPAR FATARROW term
+      { PreApp (PreLam (fst $2, snd $2, None, $7), $4, []) }
   | LEFTPAR pid COLON aterm DEF aterm RIGHTPAR FATARROW term
       { PreApp (PreLam (fst $2, snd $2, Some $4, $9), $6, []) }
 %%

@@ -258,12 +258,12 @@ sig
       By default (without hooks), if an exception [exn] has been raised while
       processing the data it is raised at top-level. *)
 
-  val handle_files : string list -> ?hook:hook -> 'a t -> 'a
-  (** [handle_files files hook processor] apply a processor on each file of [files].
+  val handle_files : ?parser:Parsers.Parser.parser -> string list -> ?hook:hook -> 'a t -> 'a
+  (** [handle_files parser files hook processor] apply a processor on each file of [files].
       [hook] is used once by file. The result is the one given once each file has
       been processed. *)
 
-  val fold_files : string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b ->'a t -> 'b
+  val fold_files : ?parser:Parsers.Parser.parser -> string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b ->'a t -> 'b
 end
 
 module Make (C: sig type 'a t val get_processor : 'a t -> (module S with type t = 'a) end) : Interface with type 'a t := 'a C.t =
@@ -284,10 +284,10 @@ struct
       | Env.Env_error _ as exn -> raise @@ exn
       |  exn                   -> raise @@ Env.Env_error(env, Basic.dloc, exn)
 
-  let handle_input  : Parser.input -> ?hook:hook -> 'a t -> 'a =
+  let handle_input : Parser.input -> ?hook:hook -> 'a t -> 'a =
     fun (type a) input ?hook processor ->
     let (module P: S with type t = a) = C.get_processor processor in
-    let env = Env.init input in
+    let env =  Env.init input in
     begin match hook with None -> () | Some hook -> hook.before env end;
     let exn =
       try
@@ -307,11 +307,11 @@ struct
     let data = P.get_data env in
     data
 
-  let fold_files : string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b -> 'a t -> 'b =
-    fun files ?hook ~f ~default processor ->
+  let fold_files : ?parser:Parsers.Parser.parser -> string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b -> 'a t -> 'b =
+    fun ?(parser=Parsers.Parser.Legacy) files ?hook ~f ~default processor ->
     let handle_file file =
       try
-        let input = Parser.input_from_file file in
+        let input = Parser.input_from_file ~parser file in
         let data = handle_input input ?hook processor in
         Parser.close input;
         data
@@ -325,10 +325,10 @@ struct
     in
     List.fold_left fold default files
 
-  let handle_files : string list -> ?hook:hook -> 'a t -> 'a =
-    fun (type a) files ?hook processor ->
+  let handle_files : ?parser:Parsers.Parser.parser -> string list -> ?hook:hook -> 'a t -> 'a =
+    fun (type a) ?parser files ?hook processor ->
     let (module P: S with type t = a) = C.get_processor processor in
-    fold_files files ?hook ~f:(fun data _ -> data) ~default:(P.get_data (Env.dummy ())) processor
+    fold_files ?parser files ?hook ~f:(fun data _ -> data) ~default:(P.get_data (Env.dummy ())) processor
 end
 
 let of_pure (type a) ~f ~init : (module S with type t = a) =

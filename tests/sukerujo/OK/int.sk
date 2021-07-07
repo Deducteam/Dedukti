@@ -1,0 +1,10 @@
+(; OK --sukerujo ;)
+int : Type.
+def make : nat -> nat -> int.
+[ n, m ] make (S n) (S m) --> make n m.
+
+def pos : nat -> int.
+[ n ] pos n --> make n 0.
+
+def neg : nat -> int.
+[ n ] neg n --> make 0 n.

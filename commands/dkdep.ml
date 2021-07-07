@@ -26,6 +26,7 @@ let _ =
   (* Parsing of command line arguments. *)
   let output  = ref stdout in
   let sorted  = ref false  in
+  let parser  = ref Parsers.Parser.Legacy in
   let options = Arg.align
     [ ( "-d"
       , Arg.String Env.set_debug_mode
@@ -57,7 +58,10 @@ let _ =
       , " If some dependencies are not found, ignore them" )
     ; ( "-I"
       , Arg.String Files.add_path
-      , "DIR Add the directory DIR to the load path" ) ]
+      , "DIR Add the directory DIR to the load path" )
+    ; ( "--sukerujo"
+      , Arg.Unit (fun () -> parser := Parsers.Parser.Sukerujo)
+      , " Use sukerujo syntax" ) ]
   in
   let usage = Format.sprintf "Usage: %s [OPTION]... [FILE]...
 Compute the dependencies of the given Dedukti FILE(s).
@@ -78,7 +82,8 @@ Available options:" Sys.argv.(0) in
   }
   in
   (* Actual work. *)
-  let deps = Processor.handle_files ~hook files Dependencies in
+  let parser = !parser in
+  let deps = Processor.handle_files ~parser ~hook files Dependencies in
   let formatter = Format.formatter_of_out_channel !output in
   let output_fun = if !sorted then output_sorted else output_deps in
   output_fun formatter deps;
