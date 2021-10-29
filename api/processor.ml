@@ -227,13 +227,13 @@ end
 let get_processor (type a) : a t -> (module S with type t = a)  = fun processor ->
   let open Registration in
   let dispatch = !dispatch in
-  let rec unpack' list =
+  let rec unpack' list : (module S with type t = a) =
     match list with
     | [] -> raise Not_registered_processor
-    | Pack (processor', (module P))::list' ->
+    | Pack (processor', (module P : (S with type t = _)))::list' ->
       match !equal.equal (processor, processor') with
-      | Some (Refl _) ->  (module P : ( S with type t = a))
-        | None -> unpack' list'
+      | Some (Refl _) ->  (module (struct include P end) : (S with type t = _))
+      | None -> unpack' list'
   in
   unpack' dispatch
 
