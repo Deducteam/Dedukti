@@ -34,7 +34,7 @@ install: all
 uninstall: all
 	$(Q)dune uninstall
 
-kernel/version.ml: GNUmakefile
+kernel/version.ml: Makefile
 	$(Q)echo 'let version = "$(VERSION)"' > $@
 
 

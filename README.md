@@ -29,7 +29,7 @@ The current version on `opam` is too old and we recommand to install Dedukti by 
 git clone https://github.com/Deducteam/Dedukti.git
 cd Dedukti
 make
-sudo make install
+make install
 ```
 
 ### QUICK START (ASSUMING INSTALLATION)
