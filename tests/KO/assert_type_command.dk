@@ -1,7 +1,0 @@
-(; KO 704 ;)
-
-A : Type.
-B : Type.
-a : A.
-
-#ASSERT a : B.

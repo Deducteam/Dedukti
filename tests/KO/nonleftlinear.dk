@@ -1,5 +1,0 @@
-(; KO 507 --ll ;)
-
-A : Type.
-def eq : A -> A -> Type.
-[x] eq x x --> A.

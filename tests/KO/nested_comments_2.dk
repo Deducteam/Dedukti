@@ -1,7 +1,0 @@
-(; KO 701 ;)
-
-A : Type.
-(; This is a first comment
-B : Type.
-(; This is not a legal way to comment B definition anymore;)
-a : A.

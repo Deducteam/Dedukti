@@ -1,6 +1,0 @@
-(; KO 704 ;)
-
-A : Type.
-def B := A.
-
-#ASSERTNOT B == A.

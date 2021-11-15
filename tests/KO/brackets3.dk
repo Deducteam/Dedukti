@@ -1,9 +1,0 @@
-(; KO 202 ;)
-
-A : Type.
-a : A.
-
-def U : A -> Type.
-
-def f : x : A -> U x -> U x.
-[X] f {X} X --> X.

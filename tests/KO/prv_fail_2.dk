@@ -1,5 +1,0 @@
-(; KO 403  -I tests/LIB -e tests/LIB/prv.dk ;)
-
-def foo : prv.A -> prv.A.
-
-[] foo (prv.f' prv.a) --> prv.a.

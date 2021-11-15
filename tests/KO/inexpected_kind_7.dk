@@ -1,5 +1,0 @@
-(; KO 105 ;)
-
-A : Type.
-
-def t := x : A => Type.

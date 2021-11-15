@@ -1,7 +1,0 @@
-(; KO 108 --type-lhs ;)
-
-A : Type.
-def B : Type.
-
-def f : B -> Type.
-[] f A --> A.

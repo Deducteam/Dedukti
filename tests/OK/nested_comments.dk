@@ -1,6 +1,0 @@
-(; OK ;)
-
-A : Type.
-(; This is a dummy comment
-(; ;)
-This line is still in the comment ;)

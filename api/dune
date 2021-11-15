@@ -1,4 +1,0 @@
-(library
-    (name api)
-    (public_name dedukti.api)
-    (libraries kernel parsers))

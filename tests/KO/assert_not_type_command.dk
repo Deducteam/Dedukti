@@ -1,6 +1,0 @@
-(; KO 704 ;)
-
-A : Type.
-a : A.
-
-#ASSERTNOT a : A.

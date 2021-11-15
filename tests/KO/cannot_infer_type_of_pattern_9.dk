@@ -1,9 +1,0 @@
-(; KO 107 ;)
-
-A : Type.
-
-a : A.
-
-def f : (A -> A) -> A.
-
-[y] f (x => y a) --> a.

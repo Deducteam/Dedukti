@@ -1,4 +1,0 @@
-(library
-        (name checking)
-	(public_name universo.checking)
-        (libraries str common elaboration dedukti.api))

@@ -1,7 +1,0 @@
-(; KO 103 ;)
-
-nat : Type.
-
-x : nat.
-
-y : x.

@@ -1,8 +1,0 @@
-(; OK ;)
-
-A : Type.
-x : A.
-t1 : (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A =>
-    (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A =>
-    (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => A) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x) x.
-t2 : (x:A => x:A => x:A => x:A => x:A => x:A => x:A => A) x x x x x x x.

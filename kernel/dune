@@ -1,4 +1,0 @@
-(library
-    (name kernel)
-    (public_name dedukti.kernel)
-    (libraries unix))

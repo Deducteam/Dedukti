@@ -1,8 +1,0 @@
-(; OK --type-lhs ;)
-
-A : Type.
-def T : A -> Type.
-t : x : A -> T x.
-
-def f : x : A -> T x -> T x.
-[X,Y] f X (t Y) --> t Y.

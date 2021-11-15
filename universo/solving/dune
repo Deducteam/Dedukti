@@ -1,6 +1,0 @@
-(library
-        (name solving)
-	(public_name universo.solving)
-        (libraries dedukti.api checking z3)
-	(flags (:standard -w -34-37))
-	(library_flags (-cclib -lstdc++)))

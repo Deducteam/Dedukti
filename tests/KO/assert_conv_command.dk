@@ -1,6 +1,0 @@
-(; KO 704 ;)
-
-A : Type.
-B : Type.
-
-#ASSERT A == B.

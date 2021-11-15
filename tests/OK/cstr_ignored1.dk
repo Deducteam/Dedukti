@@ -1,8 +1,0 @@
-(; OK ;)
-
-def A : Type.
-B : Type.
-b : B.
-def f : A -> B.
-
-[] f b --> b.

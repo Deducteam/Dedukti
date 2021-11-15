@@ -1,9 +1,0 @@
-(; KO 506 ;)
-
-
-N : Type.
-
-def a : (N -> N) -> N -> N.
-[f] a (x => f x) --> f.
-
-#SNF a (z => z).
