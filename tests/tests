@@ -36,7 +36,7 @@
 all_tests=$(find tests -name "*.dk" | sort)
 total=$(wc -w <<< "$all_tests")
 
-find -name "*.dko" -exec rm {} +
+find -name "*.dko" -exec rm {}
 
 echo ""
 echo "------------------------"
@@ -49,8 +49,8 @@ for i in $all_tests ; do
 	echo -n "$i... " ;
 	instructions=$(head -n 1 $i | sed -e "s/^ *(;//g" | sed -e "s/;) *$//g" | tr -s ' ')
 	cmd=$(echo $instructions | cut -d ' ' -f 1-1)
-	flags=$(echo $instructions | cut -s -d ' ' -f 2-)        
-	if bash "./tests/scripts/$cmd.sh" $1 $i $flags $i;
+	flags=$(echo $instructions | cut -s -d ' ' -f 2-)
+	if bash "./tests/scripts/$cmd.sh" $flags $i;
 	then
 		passed=$((passed+1)) ;
 		echo -e "\033[0;32mPassed\033[0m"

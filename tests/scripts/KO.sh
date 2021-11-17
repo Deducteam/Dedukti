@@ -1,5 +1,8 @@
+
 #!/bin/bash
 
+shift #Remove the reset regression parameter
+shift #Remove the filename (which is duplicated anyway)
 err_code=$1
 shift
 
