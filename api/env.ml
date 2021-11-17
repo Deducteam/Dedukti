@@ -30,15 +30,11 @@ type t =
     typer : (module Typing.S)
   }
 
-let dummy ?md () =
-  let dummy_md = match md with
-    | None    -> Basic.mk_mident ""
-    | Some(m) -> m
-  in
+let dummy ?(md=Basic.mk_mident "") () =
   let dummy_sig =
-    Signature.make dummy_md (fun _ _ -> "")
+    Signature.make md (fun _ _ -> "")
   in
-  { input = Parser.input_from_string dummy_md ""
+  { input = Parser.input_from_string md ""
   ; sg = dummy_sig
   ; red = (module Reduction.Default)
   ; typer = (module Typing.Default) }

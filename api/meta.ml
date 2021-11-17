@@ -524,6 +524,7 @@ let log fmt = D.debug debug_flag (bmag fmt)
 let mk_entry env = fun cfg entry ->
   let open Entry in
   let open Rule in
+  let cfg = {cfg with env = env} in
   let sg = Env.get_signature env in
   let md = Env.get_name env in
   match entry with
