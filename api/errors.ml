@@ -39,7 +39,8 @@ let try_print_oneliner fmt (te,ctxt) =
   else if ctxt = [] then Format.fprintf fmt "@.%a@." Pp.print_term te
   else Format.fprintf fmt "@.%a@.----%a" Pp.print_term te Pp.print_err_ctxt ctxt
 
-let fail_sys_error ~file ~msg = fail_exit ~file ~code:"SYSTEM" None "%s@." msg
+let fail_sys_error ?(file="<initialisation>") ~msg () =
+  fail_exit ~file ~code:"SYSTEM" None "%s@." msg
 
 type error_code = int
 

@@ -315,7 +315,7 @@ struct
         let data = handle_input input ?hook processor in
         Parser.close input;
         data
-      with Sys_error msg -> Errors.fail_sys_error ~file ~msg
+      with Sys_error msg -> Errors.fail_sys_error ~file ~msg ()
     in
     let fold b file =
       try f (handle_file file) b
