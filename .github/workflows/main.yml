@@ -1,0 +1,33 @@
+on:
+  pull_request:
+    types: [opened, synchronize, edited, reopened]
+  workflow_dispatch:
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        ocaml-version: [4.13.1]
+    runs-on: ubuntu-latest
+    steps:
+      - name: checking out lambdapi repo...
+        uses: actions/checkout@v2
+      - name: recovering cached opam files...
+        uses: actions/cache@v2
+        with:
+          path: ~/.opam
+          key: ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}
+      - name: setting up opam...
+        uses: avsm/setup-ocaml@v1
+        with:
+          ocaml-version: ${{ matrix.ocaml-version }}
+      - name: installing dependencies...
+        run: |          
+          opam update
+          opam upgrade
+          opam pin add -n -k path dedukti .
+          opam install --deps-only -d -t dedukti
+      - name: running tests...
+        run: |
+          eval $(opam env)
+          make tests
