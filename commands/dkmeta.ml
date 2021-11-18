@@ -75,7 +75,7 @@ let _ =
     ; ("--register-before"
       , Arg.Unit (fun () -> register_before := true)
       , " With a typed encoding, entries are registered before they are metaified")
-    ; ("--switch-beta-off"
+    ; ("--no-beta"
       , Arg.Unit switch_beta_off,
       " switch off beta while normalizing terms")
     ; ( "-stdin"
