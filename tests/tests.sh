@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# See https://gist.github.com/mohanpedala/1e2ff5661761d3abd0385e8223e16425
+# We don't use '-x' to get a nice report
+set -euo pipefail
+
 ################################ Test conventions ##########################################
 #
 # - Test files are prefixed with a comment describing the expected behavior.
