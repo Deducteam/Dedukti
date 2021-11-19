@@ -1,0 +1,5 @@
+(executable
+        (name universo)
+        (public_name universo)
+        (package universo)
+        (libraries common elaboration checking solving dedukti.api dedukti.kernel))

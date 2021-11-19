@@ -32,10 +32,3 @@
     (modules dkprune)
     (package dedukti)
     (libraries kernel parsers api))
-
-(executable
-        (name universo)
-        (public_name universo)
-        (modules universo)
-        (package universo)
-        (libraries common elaboration checking solving dedukti.api dedukti.kernel))
