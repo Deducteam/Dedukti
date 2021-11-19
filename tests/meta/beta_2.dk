@@ -1,0 +1,5 @@
+(; META --no-beta ;)
+
+A : Type.
+
+def f : A -> A := y : A => (x : A => x) y.

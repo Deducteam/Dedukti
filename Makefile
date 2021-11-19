@@ -48,9 +48,11 @@ kernel/version.ml: Makefile
 
 #### Test targets ############################################################
 
+RESET_REGRESSION?=false
+
 .PHONY: tests
 tests: bin binaries tests/tests.sh
-	$(Q)./tests/tests.sh
+	$(Q)./tests/tests.sh $(RESET_REGRESSION)
 
 #### Library tests ###########################################################
 

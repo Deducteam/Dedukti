@@ -46,6 +46,7 @@ let _ =
   let register_before     = ref false in
   let encode_meta_rules   = ref false in
   let decoding            = ref true  in
+  let no_meta             = ref false in
   let options = Arg.align
     [ ( "-l"
       , Arg.Unit (fun () -> (set_debug_mode "a"))
@@ -59,6 +60,9 @@ let _ =
     ; ("-m"
       , Arg.String add_meta_file
       , " The file containing the meta rules.")
+    ; ("--no-meta"
+      , Arg.Unit (fun () -> no_meta := true)
+      , " Do not reduce terms.")
     ; ("--quoting"
       , Arg.String set_encoding
       , " Encoding the Dedukti file.")
@@ -71,7 +75,7 @@ let _ =
     ; ("--register-before"
       , Arg.Unit (fun () -> register_before := true)
       , " With a typed encoding, entries are registered before they are metaified")
-    ; ("--switch-beta-off"
+    ; ("--no-beta"
       , Arg.Unit switch_beta_off,
       " switch off beta while normalizing terms")
     ; ( "-stdin"
@@ -91,6 +95,8 @@ let _ =
     Arg.parse options (fun f -> files := f :: !files) usage;
     List.rev !files
   in
+  if !no_meta && !meta_files <> [] then
+    Errors.fail_sys_error ~msg:"Incompatible options: '--no-meta' with '-m'" () ;
   let cfg = Meta.(
     { default_config with
       beta = !beta;
@@ -109,8 +115,11 @@ let _ =
       Signature.import_signature sg E.signature
   end;
   begin
-    let cfg = Meta.meta_of_files ~cfg !meta_files in
-    Errors.success "Meta files parsed.";
+    let cfg = if !no_meta then {cfg with meta_rules = Some []} else
+        let cfg = Meta.meta_of_files ~cfg !meta_files in
+        Errors.success "Meta files parsed.";
+        cfg
+    in
     let post_processing env entry =
       let (module Printer) = Env.get_printer env in
       Format.printf "%a" Printer.print_entry entry in

@@ -15,7 +15,7 @@ val fail_exit : file:string -> code:string -> loc option ->
     Prints the given error message prefixed with module and location details
     (when provided) as well as the error ID then exits with the given code. *)
 
-val fail_sys_error : file:string -> msg:string -> 'a
+val fail_sys_error : ?file:string -> msg:string -> unit -> 'a
 (** Print a system error message then exits with code 1. *)
 
 type error_code = int
