@@ -4,18 +4,25 @@ VERSION = devel
 # Compile with "make Q=" to display the commands that are run.
 Q = @
 
+.PHONY: default
+default: bin binaries
+
 .PHONY: all
-all: bin binaries
+all: bin binaries universo
 
 .PHONY: binaries
-binaries: dkcheck.native dktop.native dkdep.native dkprune.native dkmeta.native universo.native
+binaries: dkcheck.native dktop.native dkdep.native dkprune.native dkmeta.native
+
+.PHONY: universo
+universo:
+	$(Q)dune build universo
 
 %.native:
 	$(Q)ln -fs _build/install/default/bin/$* $@
 
 .PHONY: bin
 bin: kernel/version.ml
-	$(Q)dune build
+	$(Q)dune build --only-package dedukti @install
 
 .PHONY: doc
 doc:
@@ -28,6 +35,7 @@ clean:
 
 .PHONY: install
 install: all
+	$(Q)dune build @install
 	$(Q)dune install
 
 .PHONY: uninstall
@@ -41,7 +49,7 @@ kernel/version.ml: Makefile
 #### Test targets ############################################################
 
 .PHONY: tests
-tests: all tests/tests.sh
+tests: bin binaries tests/tests.sh
 	$(Q)./tests/tests.sh
 
 #### Library tests ###########################################################

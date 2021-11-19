@@ -4,3 +4,4 @@
 	(synopsis "Universo API")
 	(libraries common elaboration checking solving)
 	(library_flags (-cclib -lstdc++)))
+
