@@ -38,44 +38,42 @@
     we can use this API with your own processors. *)
 type _ t = ..
 
-
 type _ t +=
-  | TypeChecker : unit t (** TypeCheck *)
-  | SignatureBuilder : Kernel.Signature.t t (** Build a signature without type checking *)
-  | PrettyPrinter : unit t (** Pretty print *)
-  | Dependencies : Dep.t t (** Compute dependencies *)
-  | TopLevel : unit t (** TypeCheck and prints result on standard output *)
-
+  | TypeChecker : unit t  (** TypeCheck *)
+  | SignatureBuilder : Kernel.Signature.t t
+        (** Build a signature without type checking *)
+  | PrettyPrinter : unit t  (** Pretty print *)
+  | Dependencies : Dep.t t  (** Compute dependencies *)
+  | TopLevel : unit t  (** TypeCheck and prints result on standard output *)
 
 (** This is the type of errors returned by a processor *)
 type processor_error = Env.t * Kernel.Basic.loc * exn
 
 (** To hook an input before and after it is being processed *)
-type hook =
-  {
-    before : Env.t -> unit ;
-    (** hook_before is executed by the processor before processing the input *)
-    after : Env.t -> processor_error option -> unit
-    (** hook_after is executed by the processor after processing the output *)
-  }
+type hook = {
+  before : Env.t -> unit;
+      (** hook_before is executed by the processor before processing the input *)
+  after : Env.t -> processor_error option -> unit;
+      (** hook_after is executed by the processor after processing the output *)
+}
 
-module type Interface =
-sig
+module type Interface = sig
   type 'a t
 
-  val handle_input : Parsers.Parser.input -> ?hook:hook -> 'a t -> 'a
   (** [handle_input input hook processor] applies the processor [processor]
       on the [input]. [hook.hook_before] is executed  once before the processor
       and [hook.hook_after] is executed once after the processor.
       By default (without hooks), if an exception [exn] has been raised while
       processing the data it is raised at top-level. *)
+  val handle_input : Parsers.Parser.input -> ?hook:hook -> 'a t -> 'a
 
-  val handle_files : string list -> ?hook:hook -> 'a t -> 'a
   (** [handle_files files hook processor] apply a processor on each file of [files].
       [hook] is used once by file. The result is the one given once each file has
       been processed. *)
+  val handle_files : string list -> ?hook:hook -> 'a t -> 'a
 
-  val fold_files : string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b ->'a t -> 'b
+  val fold_files :
+    string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b -> 'a t -> 'b
 end
 
 include Interface with type 'a t := 'a t
@@ -139,54 +137,49 @@ include Interface with type 'a t := 'a t
 *)
 
 (** The actual type of the processor as a module *)
-module type S =
-sig
-
-  type t
+module type S = sig
   (** result type of the processor *)
+  type t
 
-  val handle_entry : Env.t -> Parsers.Entry.entry -> unit
   (** [handle_entry env entry] processed the entry [entry] in the environment [env] *)
+  val handle_entry : Env.t -> Parsers.Entry.entry -> unit
 
-  val get_data : Env.t -> t
   (** [get_data ()] returns the data computed by the current processor *)
+  val get_data : Env.t -> t
 end
 
-module Registration :
-sig
-  exception Not_registered_processor
+module Registration : sig
   (** raise by get_processor if the processor has not be registered *)
+  exception Not_registered_processor
 
   (** we used GADTs of OCaml to declare an equality type *)
-  type (_,_) equal =
-    | Refl : 'a -> ('a,'a) equal
+  type (_, _) equal = Refl : 'a -> ('a, 'a) equal
 
   (** This record uses polymorism of rank 2. This is because internally we need to compare
       values of types ['a t] and ['b t]. Hence the "for all quantifier" on types cannot be
       in prenex form in the function [register_processor]. We use the GADT above to keep
       track of the dependency. *)
-  type equality =
-    {
-      equal: 'a 'b. ('a t * 'b t) -> ('a t,'b t) equal option
-    }
+  type equality = {equal : 'a 'b. 'a t * 'b t -> ('a t, 'b t) equal option}
 
   (** [register_processor processor f_eq (module P) associate the [processor] to the module [P].
       ASSERT: f_eq processor processor = (Some Refl processor)
       ASSERT: f_eq _         _         = None *)
-  val register_processor : 'a t -> equality -> (module S with type t = 'a) -> unit
+  val register_processor :
+    'a t -> equality -> (module S with type t = 'a) -> unit
 end
 
-val get_processor : 'a t -> (module S with type t = 'a)
 (** [get_processor processor] returns the module associated to the processor.
     Raise [Not_registered_processor] if the processor has not been registered. *)
+val get_processor : 'a t -> (module S with type t = 'a)
 
-val of_pure : f:('a -> Env.t -> Parsers.Entry.entry -> 'a) -> init:'a
-  -> (module S with type t = 'a)
 (** [of_pure ~f ~init] returns processor from the fold-like function [f]. [f acc
     env ent] folds entry [ent] on accumulator [acc] in environment [env]. *)
+val of_pure :
+  f:('a -> Env.t -> Parsers.Entry.entry -> 'a) ->
+  init:'a ->
+  (module S with type t = 'a)
 
 module T : Interface with type 'a t := (module S with type t = 'a)
-
 
 (** {3 Define processors with a custom environement} *)
 
@@ -197,12 +190,12 @@ module T : Interface with type 'a t := (module S with type t = 'a)
     needed because you can already do it. The only requirement is to keep the same
     [Env.t] type. *)
 
-module type CustomEnv = (module type of Env) with type t = Env.t
+module type CustomEnv = module type of Env with type t = Env.t
 
-module MakeTypeChecker(E:CustomEnv)      : S with type t = unit
+module MakeTypeChecker (E : CustomEnv) : S with type t = unit
 
-module MakeSignatureBuilder(E:CustomEnv) : S with type t = Kernel.Signature.t
+module MakeSignatureBuilder (E : CustomEnv) : S with type t = Kernel.Signature.t
 
-module MakeEntryPrinter(E:CustomEnv)     : S with type t = unit
+module MakeEntryPrinter (E : CustomEnv) : S with type t = unit
 
-module MakeDependencies(E:CustomEnv)     : S with type t = Dep.t
+module MakeDependencies (E : CustomEnv) : S with type t = Dep.t

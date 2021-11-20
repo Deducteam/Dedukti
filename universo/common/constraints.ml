@@ -6,7 +6,7 @@ module T = Kernel.Term
 module U = Universes
 module M = Api.Meta
 
-type t = { file : F.cout F.t; meta : M.cfg }
+type t = {file : F.cout F.t; meta : M.cfg}
 
 type print_cstrs = {
   eqvar : (B.name * B.name) list;
@@ -22,8 +22,8 @@ let dummy_name =
 let add_rule sg vl vr =
   let pat = R.Pattern (B.dloc, vl, []) in
   let rhs = T.mk_Const B.dloc vr in
-  let rule = R.{ ctx = []; pat; rhs; name = dummy_name } in
-  S.add_rules sg [ R.to_rule_infos rule ]
+  let rule = R.{ctx = []; pat; rhs; name = dummy_name} in
+  S.add_rules sg [R.to_rule_infos rule]
 
 let print_rule pp fmt (l, r) = Format.fprintf fmt "@.[] %a --> %a" pp l pp r
 
@@ -44,26 +44,16 @@ let mk_var_cstr f l r =
   let ir = B.string_of_ident @@ B.id r in
   let nl = get_number il in
   let nr = get_number ir in
-  if nl = 0 && nr = 0 then
-    if r < l then (
-      f l r;
-      (l, r) )
-    else (
-      f r l;
-      (r, l) )
-  else if nr < nl then (
-    f l r;
-    (l, r) )
-  else (
-    f r l;
-    (r, l) )
+  if nl = 0 && nr = 0 then if r < l then (f l r; (l, r)) else (f r l; (r, l))
+  else if nr < nl then (f l r; (l, r))
+  else (f r l; (r, l))
 
 let deps = ref []
 
 let mk_cstr env f cstr =
   let fmt = F.fmt_of_file env.file in
   match cstr with
-  | U.Pred p ->
+  | U.Pred p       ->
       Format.fprintf fmt "%a@." print_predicate p;
       true
   | U.EqVar (l, r) ->

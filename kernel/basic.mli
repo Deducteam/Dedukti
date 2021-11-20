@@ -1,6 +1,7 @@
 (** Basic Datatypes *)
 
 (** {2 Identifiers (hashconsed strings)} *)
+
 (** Internal representation of identifiers as hashconsed strings. *)
 
 (** Type of identifiers (hash-consing) *)
@@ -53,31 +54,41 @@ module IdentSet : Set.S with type elt = mident
 
 module NameSet : Set.S with type elt = name
 
-
 (** {2 Lists with Length} *)
+
 (** A list where the method len is O(1). It is used by {!Matching}. *)
 
 module LList : sig
   type 'a t
+
   val nil : 'a t
+
   val cons : 'a -> 'a t -> 'a t
+
   val len : _ t -> int
+
   val lst : 'a t -> 'a list
+
   val is_empty : _ t -> bool
-  val of_list  : 'a list  -> 'a t
+
+  val of_list : 'a list -> 'a t
+
   val of_array : 'a array -> 'a t
+
   val map : ('a -> 'b) -> 'a t -> 'b t
+
   val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
+
   val nth : 'a t -> int -> 'a
 end
 
 (** {2 Localization} *)
 
-type loc
 (** Abstract type for a position (a line and a column) in a file *)
+type loc
 
-val dloc : loc
 (** a dummy location *)
+val dloc : loc
 
 (** [mk_loc l c] builds the location where [l] is the line and [c] the column *)
 val mk_loc : int -> int -> loc
@@ -89,9 +100,10 @@ val of_loc : loc -> int * int
 (** {2 Debug} *)
 
 module Debug : sig
-
   type flag
-  val d_warn   : flag
+
+  val d_warn : flag
+
   val d_notice : flag
 
   (** [register_flag msg] generates a new flag with error message [msg] *)
@@ -117,7 +129,7 @@ end
 
 (** {2 Misc} *)
 
-val fold_map : ('b->'a-> ('c*'b)) -> 'b -> 'a list -> ('c list*'b)
+val fold_map : ('b -> 'a -> 'c * 'b) -> 'b -> 'a list -> 'c list * 'b
 
 val bind_opt : ('a -> 'b option) -> 'a option -> 'b option
 
@@ -127,32 +139,39 @@ val split : int -> 'a list -> 'a list * 'a list
 
 val rev_mapi : (int -> 'a -> 'b) -> 'a list -> 'b list
 
-val concat : 'a list -> 'a list -> 'a list
 (** [concat l1 l2] returns [l1 @ l2] (testing on l2 empty first) *)
+val concat : 'a list -> 'a list -> 'a list
 
 (** {2 Printing functions} *)
 
-type 'a printer = Format.formatter -> 'a -> unit
 (** Functions printing objects on the given formatter. *)
+type 'a printer = Format.formatter -> 'a -> unit
 
-val string_of : 'a printer -> 'a -> string
 (** Prints to a string *)
+val string_of : 'a printer -> 'a -> string
 
 (* Printing identifiers and names *)
-val pp_ident  : ident  printer
+val pp_ident : ident printer
+
 val pp_mident : mident printer
-val pp_name   : name   printer
-val pp_loc    : loc    printer
+
+val pp_name : name printer
+
+val pp_loc : loc printer
 
 (* Printing each elements of arrays / lists using the separator [sep] between elements. *)
-val pp_list   : string -> 'a printer -> 'a list printer
-val pp_llist  : string -> 'a printer -> 'a LList.t printer
-val pp_arr    : string -> 'a printer -> 'a array printer
+val pp_list : string -> 'a printer -> 'a list printer
 
-val pp_option : string -> 'a printer -> 'a option printer
+val pp_llist : string -> 'a printer -> 'a LList.t printer
+
+val pp_arr : string -> 'a printer -> 'a array printer
+
 (** Printing object with printer or default string when None. *)
+val pp_option : string -> 'a printer -> 'a option printer
 
 (* Printing basic structures *)
-val pp_lazy   : 'a printer -> 'a Lazy.t printer
-val pp_pair   : 'a printer -> 'b printer -> ('a * 'b) printer
+val pp_lazy : 'a printer -> 'a Lazy.t printer
+
+val pp_pair : 'a printer -> 'b printer -> ('a * 'b) printer
+
 val pp_triple : 'a printer -> 'b printer -> 'c printer -> ('a * 'b * 'c) printer

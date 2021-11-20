@@ -8,32 +8,31 @@
    encoding. However, you might create your own encoding for your own
    goals. *)
 
-
 open Kernel
 open Parsers
 
-module type ENCODING =
-sig
-  val md : Basic.mident
+module type ENCODING = sig
   (** module name of the encoding *)
+  val md : Basic.mident
 
-  val entries : unit -> Entry.entry list
   (** List of declarations *)
+  val entries : unit -> Entry.entry list
 
-  val safe : bool
   (** If [safe], the encoding needs type checking. Type checking is done before encoding. *)
+  val safe : bool
 
-  val signature : Signature.t
   (** Signature of the encoding. Redudant with [entries] *)
+  val signature : Signature.t
 
-  val encode_term : ?sg:Signature.t -> ?ctx:Term.typed_context -> Term.term -> Term.term
   (** [encode_term sg ctx t] encodes a term [t]. [sg] and [ctx] are used only if [safe] is true *)
+  val encode_term :
+    ?sg:Signature.t -> ?ctx:Term.typed_context -> Term.term -> Term.term
 
-  val decode_term : Term.term -> Term.term
   (** [decode_term t] decodes a term [t] *)
+  val decode_term : Term.term -> Term.term
 
-  val encode_rule : ?sg:Signature.t -> 'a Rule.rule -> 'a Rule.rule
   (** [encode_rule sg r] encodes a rule [r]. [sg] is used only if [safe] is true *)
+  val encode_rule : ?sg:Signature.t -> 'a Rule.rule -> 'a Rule.rule
 end
 
 module RNS : Set.S with type elt = Rule.rule_name
@@ -52,19 +51,16 @@ module RNS : Set.S with type elt = Rule.rule_name
    normalize terms is not the same than the one you will use to type
    check your terms. *)
 type cfg = {
-  mutable meta_rules  : RNS.t list option;
-  (** Contains all the meta_rules. *)
-  beta                : bool;
-  (** If off, no beta reduction is allowed *)
-  register_before     : bool;
-  (** entries are registered before they have been normalized *)
-  encode_meta_rules   : bool;
-  (** The encoding is used on the meta rules first except for products *)
-  encoding            : (module ENCODING) option;
-  (** Set an encoding before normalization *)
-  decoding            : bool;
-  (** If false, the term is not decoded after normalization *)
-  env                 : Env.t
+  mutable meta_rules : RNS.t list option;  (** Contains all the meta_rules. *)
+  beta : bool;  (** If off, no beta reduction is allowed *)
+  register_before : bool;
+      (** entries are registered before they have been normalized *)
+  encode_meta_rules : bool;
+      (** The encoding is used on the meta rules first except for products *)
+  encoding : (module ENCODING) option;
+      (** Set an encoding before normalization *)
+  decoding : bool;  (** If false, the term is not decoded after normalization *)
+  env : Env.t;
 }
 
 (** Initliaze a configuration with the following parameters:
@@ -78,38 +74,40 @@ val default_config : cfg
    Rewrite Engine of Dedukti. *)
 val red_cfg : cfg -> Reduction.red_cfg list
 
-module LF : ENCODING
 (** Prefix each subterm with its construtor *)
+module LF : ENCODING
 
-module PROD : ENCODING
 (** Encodes products with HOAS *)
+module PROD : ENCODING
 
-module APP : ENCODING
 (** Same as [LF] with type informations for application on product
    only. *)
+module APP : ENCODING
 
 val debug_flag : Basic.Debug.flag
 
-module MetaConfiguration : Processor.S with type t = Rule.partially_typed_rule list
+module MetaConfiguration :
+  Processor.S with type t = Rule.partially_typed_rule list
 
-val meta_of_rules: ?staged:bool -> Rule.partially_typed_rule list -> cfg -> cfg
 (** [meta_of_rules rs cfg] adds the meta_rules [rs] in the
    configuration [cfg] *)
+val meta_of_rules : ?staged:bool -> Rule.partially_typed_rule list -> cfg -> cfg
 
-val meta_of_files : ?cfg:cfg -> string list -> cfg
 (** [meta_of_files ?cfg files] returns a configuration from the meta
    rules declares in the files [files]*)
+val meta_of_files : ?cfg:cfg -> string list -> cfg
 
 val make_meta_processor :
-  cfg -> post_processing:(Env.t -> Entry.entry -> unit) ->
+  cfg ->
+  post_processing:(Env.t -> Entry.entry -> unit) ->
   (module Processor.S with type t = unit)
 
-val mk_term      : cfg -> ?env:Env.t -> Term.term -> Term.term
 (** [mk_term cfg ?env term] normalize a term according to the
    configuration [cfg] *)
+val mk_term : cfg -> ?env:Env.t -> Term.term -> Term.term
 
-val mk_entry : Env.t -> cfg -> Entry.entry -> Entry.entry
 (** [mk_entry env cfg entry] processes an entry according the meta
    configuration [cfg] and the current environment [env] *)
+val mk_entry : Env.t -> cfg -> Entry.entry -> Entry.entry
 
 type _ Processor.t += MetaRules : Rule.partially_typed_rule list Processor.t
