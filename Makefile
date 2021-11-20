@@ -58,6 +58,10 @@ RESET_REGRESSION?=false
 tests: bin binaries tests/tests.sh
 	$(Q)./tests/tests.sh $(RESET_REGRESSION)
 
+.PHONY: tezt
+tezt: bin binaries
+	dune exec tests/main.exe
+
 #### Library tests ###########################################################
 
 TEST_LIBS=libraries
