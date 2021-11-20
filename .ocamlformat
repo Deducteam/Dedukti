@@ -1,0 +1,8 @@
+version=0.19.0
+doc-comments=before
+space-around-arrays=false
+space-around-lists=false
+space-around-records=false
+space-around-variants=false
+align-cases=true
+break-sequences=false

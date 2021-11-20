@@ -19,7 +19,7 @@ let is_uvar t =
       let s = B.string_of_ident (B.id n) in
       let n = String.length basename in
       String.length s > n && String.sub s 0 n = basename
-  | _ -> false
+  | _              -> false
 
 (** [name_of_uvar t] returns the name of universe variable if [t] is a universe variable, raise [Not_uvar] otherwise *)
 let name_of_uvar t =
@@ -31,8 +31,7 @@ let counter = ref 0
 (** Generate a fresh name for a universe variable *)
 let fresh () =
   let name = Format.sprintf "%s%d" basename !counter in
-  incr counter;
-  B.mk_ident name
+  incr counter; B.mk_ident name
 
 (** [fresh_uvar env ()] returns a fresh term representing a universe variable. Add a new declaration into the module env.md *)
 let fresh_uvar : F.cout F.t -> unit -> T.term =

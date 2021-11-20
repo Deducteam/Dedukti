@@ -24,7 +24,7 @@ val unshift : int -> term -> term
 (** [psubst_l l k t] substitutes the first {i n} De Bruijn variables
     (with {i n} = [length l]) in [t] with the corresponding term in [l].
     Unshifts {i n} times the free variables with greater indices. *)
-val psubst_l : (term Lazy.t) Basic.LList.t -> term -> term
+val psubst_l : term Lazy.t Basic.LList.t -> term -> term
 
 (** [subst t u] substitutes the first free De Bruijn variable with [u] in [t].
     Unshifts the other free variables. *)

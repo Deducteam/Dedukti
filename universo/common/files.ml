@@ -3,8 +3,8 @@ module S = Kernel.Signature
 module P = Parsers.Parser
 module Processor = Api.Processor
 
-type path = string
 (** path to a file *)
+type path = string
 
 type cin
 
@@ -39,6 +39,7 @@ let solution_suffix = "_sol"
 (** Suffix used for elaborated file where sorts are replaced by fresh variables *)
 let normal_suffix = ""
 
+(** The steps used to refer the files used by Universo *)
 type step =
   [ `Input  (** Input module *)
   | `Output  (** Output module *)
@@ -47,7 +48,6 @@ type step =
   | `Solution  (** File containing the solution *)
   | `Simplify
     (** Output file where the variables are replaced by the solution *) ]
-(** The steps used to refer the files used by Universo *)
 
 (** [add_sufix file suffix] returns the string [file'] where suffix is_added at then end of [file] *)
 let add_suffix : path -> string -> string =
@@ -85,17 +85,17 @@ let get_out_path : path -> step -> path =
  fun path step ->
   let file_suffix = add_suffix path (suffix_of_step step) in
   match step with
-  | `Input -> file_suffix
+  | `Input    -> file_suffix
   | `Simplify -> (
       match !simplify_directory with
-      | None -> assert false
-      | Some dir -> add_dir dir file_suffix )
-  | _ -> (
+      | None     -> assert false
+      | Some dir -> add_dir dir file_suffix)
+  | _         -> (
       match !output_directory with
-      | None ->
+      | None     ->
           failwith
             "Output_directory must be set. See --help for more information"
-      | Some dir -> add_dir dir file_suffix )
+      | Some dir -> add_dir dir file_suffix)
 
 (** [from_string f s] returns the filename that corresponds to the step [s] for file [f] *)
 let out_from_string : path -> step -> cout t =
@@ -104,7 +104,7 @@ let out_from_string : path -> step -> cout t =
   let md = P.md_of_file path in
   let oc = open_out path in
   let fmt = Format.formatter_of_out_channel oc in
-  { path; md; channel = Out (oc, fmt) }
+  {path; md; channel = Out (oc, fmt)}
 
 (** [from_string f s] returns the filename that corresponds to the step [s] for file [f] *)
 let in_from_string : path -> step -> cin t =
@@ -112,7 +112,7 @@ let in_from_string : path -> step -> cin t =
   let path = get_out_path path step in
   let md = P.md_of_file path in
   let ic = open_in path in
-  { path; md; channel = In ic }
+  {path; md; channel = In ic}
 
 (* (\** [signature_of_file f] returns a signature that contains all the declarations in [f]. *\) *)
 (* let signature_of_file : path -> S.t = *)
@@ -166,5 +166,5 @@ let export : path -> step -> unit =
 
     let get_data env = env
   end in
-  let env = Api.Processor.T.handle_files [ out_file ] (module P) in
+  let env = Api.Processor.T.handle_files [out_file] (module P) in
   Api.Env.export env

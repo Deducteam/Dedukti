@@ -40,13 +40,13 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
                 (fun (r : R.partially_typed_rule) -> from_rule r.pat r.rhs)
                 rs
               :: !cstrs
-        | E.Require _ -> ()
-        | _ -> assert false
+        | E.Require _     -> ()
+        | _               -> assert false
 
       let get_data _ = List.flatten !cstrs
     end in
     let cstr_file = F.get_out_path in_path `Checking in
-    let cstrs = Api.Processor.T.handle_files [ cstr_file ] (module P) in
+    let cstrs = Api.Processor.T.handle_files [cstr_file] (module P) in
     List.iter Solver.add cstrs
 
   (** [print_model meta model f] print the model associated to the universes elaborated in file [f]. Each universe are elaborated to the original universe theory thanks to the dkmeta [meta] configuration. *)
@@ -55,7 +55,7 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
     let sol_file = F.out_from_string in_path `Solution in
     let fmt = F.fmt_of_file sol_file in
     let md_theory = P.md_of_file (F.get_theory ()) in
-    F.add_requires fmt [ F.md_of in_path `Elaboration; md_theory ];
+    F.add_requires fmt [F.md_of in_path `Elaboration; md_theory];
     let module P = struct
       type t = unit
 
@@ -69,11 +69,11 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
             let rhs' = M.mk_term meta rhs in
             Format.fprintf fmt "[] %a --> %a.@." Printer.print_name name
               Printer.print_term rhs'
-        | _ -> ()
+        | _                       -> ()
 
       let get_data _ = ()
     end in
-    Api.Processor.T.handle_files [ elab_file ] (module P);
+    Api.Processor.T.handle_files [elab_file] (module P);
     F.close sol_file
 
   let print_model meta model files = List.iter (print_model meta model) files
@@ -97,8 +97,8 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
    fun r ->
     let sg = Api.Env.get_signature env in
     match from_rule r.pat r.rhs with
-    | U.EqVar _ -> S.add_rules sg [ R.to_rule_infos r ]
-    | U.Pred p -> sp := SP.add p !sp
+    | U.EqVar _ -> S.add_rules sg [R.to_rule_infos r]
+    | U.Pred p  -> sp := SP.add p !sp
 
   (** [parse meta s] parses a constraint file. *)
   let parse : string -> unit =
@@ -108,13 +108,13 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
 
       let handle_entry _ = function
         | E.Rules (_, rs) -> List.iter mk_rule rs
-        | E.Require _ -> ()
-        | _ -> assert false
+        | E.Require _     -> ()
+        | _               -> assert false
 
       let get_data _ = ()
     end in
     let cstr_file = F.get_out_path in_path `Checking in
-    Api.Processor.T.handle_files [ cstr_file ] (module P)
+    Api.Processor.T.handle_files [cstr_file] (module P)
 
   (* List.iter S.add entries' *)
   (* TODO: This should be factorized. the normalization should be done after solve and return a correct model *)
@@ -125,7 +125,7 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
     let sol_file = F.out_from_string in_path `Solution in
     let fmt = F.fmt_of_file sol_file in
     let md_theory = P.md_of_file (F.get_theory ()) in
-    F.add_requires fmt [ F.md_of in_path `Elaboration; md_theory ];
+    F.add_requires fmt [F.md_of in_path `Elaboration; md_theory];
     let module P = struct
       type t = unit
 
@@ -134,7 +134,7 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
         let find name =
           match M.mk_term meta_constraints (T.mk_Const B.dloc name) with
           | T.Const (_, name) -> name
-          | _ -> assert false
+          | _                 -> assert false
         in
         function
         | E.Decl (_, id, _, _, _) ->
@@ -144,11 +144,11 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
             let rhs' = M.mk_term meta_output rhs in
             Format.fprintf fmt "[] %a --> %a.@." Printer.print_name name
               Printer.print_term rhs'
-        | _ -> ()
+        | _                       -> ()
 
       let get_data _ = ()
     end in
-    Api.Processor.T.handle_files [ elab_file ] (module P);
+    Api.Processor.T.handle_files [elab_file] (module P);
     F.close sol_file
 
   let print_model meta model files =
@@ -159,7 +159,7 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
     List.iter (print_model meta_constraints meta model) files
 
   let solve solver_env =
-    let meta = { M.default_config with env } in
+    let meta = {M.default_config with env} in
     let normalize : U.pred -> U.pred =
      fun p -> U.extract_pred (M.mk_term meta (U.term_of_pred p))
     in

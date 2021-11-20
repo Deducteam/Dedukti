@@ -27,9 +27,9 @@ module Make (Spec : L.LRA_SPECIFICATION) = struct
   let mk_univ : ctx -> U.univ -> t =
    fun ctx u ->
     match u with
-    | Sinf -> to_int ctx (-1)
+    | Sinf     -> to_int ctx (-1)
     | Var name -> mk_var ctx (mk_name name)
-    | Enum n -> to_int ctx n
+    | Enum n   -> to_int ctx n
 
   let mk_max : ctx -> t -> t -> t =
    fun ctx l r -> ZB.mk_ite ctx (ZA.mk_le ctx l r) r l
@@ -43,18 +43,18 @@ module Make (Spec : L.LRA_SPECIFICATION) = struct
   let mk : type a. (ctx, a) L.op -> (a, t) L.arrow =
    fun op ->
     match op with
-    | L.True ctx -> L.Zero (ZB.mk_true ctx)
+    | L.True ctx  -> L.Zero (ZB.mk_true ctx)
     | L.False ctx -> L.Zero (ZB.mk_false ctx)
-    | L.Zero ctx -> L.Zero (to_int ctx 0)
-    | L.Succ ctx -> L.One (fun a -> ZA.mk_add ctx [ a; to_int ctx 1 ])
+    | L.Zero ctx  -> L.Zero (to_int ctx 0)
+    | L.Succ ctx  -> L.One (fun a -> ZA.mk_add ctx [a; to_int ctx 1])
     | L.Minus ctx -> L.One (fun a -> ZA.mk_unary_minus ctx a)
-    | L.Eq ctx -> L.Two (ZB.mk_eq ctx)
-    | L.Max ctx -> L.Two (mk_max ctx)
-    | L.IMax ctx -> L.Two (mk_imax ctx)
-    | L.Le ctx -> L.Two (ZA.mk_le ctx)
-    | L.Ite ctx -> L.Three (ZB.mk_ite ctx)
+    | L.Eq ctx    -> L.Two (ZB.mk_eq ctx)
+    | L.Max ctx   -> L.Two (mk_max ctx)
+    | L.IMax ctx  -> L.Two (mk_imax ctx)
+    | L.Le ctx    -> L.Two (ZA.mk_le ctx)
+    | L.Ite ctx   -> L.Three (ZB.mk_ite ctx)
 
-  let mk = { L.mk }
+  let mk = {L.mk}
 
   let mk_axiom = Spec.mk_axiom mk
 
@@ -68,12 +68,12 @@ module Make (Spec : L.LRA_SPECIFICATION) = struct
       else ZB.mk_true ctx
     in
     let left = ZA.mk_le ctx (to_int ctx 0) (mk_var ctx string) in
-    ZB.mk_and ctx [ left; right ]
+    ZB.mk_and ctx [left; right]
 
   let solution_of_var : ctx -> int -> Z3.Model.model -> string -> U.univ =
    fun ctx _ model var ->
     match Z3.Model.get_const_interp_e model (mk_var ctx var) with
-    | None ->
+    | None   ->
         Format.eprintf "%s@." var;
         assert false
     | Some e ->

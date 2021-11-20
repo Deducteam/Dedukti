@@ -22,11 +22,16 @@ jobs:
         with:
           ocaml-version: ${{ matrix.ocaml-version }}
       - name: installing dependencies...
-        run: |          
+        run: |
           opam update
           opam upgrade
           opam pin add -n -k path dedukti .
           opam install --deps-only -d -t dedukti
+          opam install ocamlformat
+      - name: Checking formatting...
+        run: |
+          eval $(opam env)
+          make fmt
       - name: running tests...
         run: |
           eval $(opam env)

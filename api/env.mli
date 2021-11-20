@@ -1,13 +1,12 @@
 (** An environment is a wrapper around the kernel of Dedukti *)
 open Kernel
+
 open Basic
 open Term
-
 open Parsers
 
 (** {2 Error Datatype} *)
 
-type t
 (** An environment is created from a {!Parser.input}. Environment is the module
     which interacts with the kernel. An environment allows you to change at
     runtime the reduction engine and the printer. The current version of Dedukti
@@ -15,10 +14,11 @@ type t
     with the [dkmeta] tool. The printer of [Env] is different from [Pp] in a
     sense that the module of a constant is not printed if it is the same as the
     current module. *)
+type t
 
-val dummy : ?md:mident -> unit -> t
 (** [dummy ?m ()] returns a dummy environment. If [m] is provided, the
     environment is built from module [m], but without file. *)
+val dummy : ?md:mident -> unit -> t
 
 exception Env_error of t * loc * exn
 
@@ -26,7 +26,6 @@ exception Env_error of t * loc * exn
 
 exception DebugFlagNotRecognized of char
 
-val set_debug_mode : string -> unit
 (** Sets multiple debugging flags from a string:
       q : disables d_Warn
       n : enables  d_Notice
@@ -38,97 +37,105 @@ val set_debug_mode : string -> unit
       m : enables  d_Matching
     May raise DebugFlagNotRecognized.
 *)
+val set_debug_mode : string -> unit
 
 (**{2 Utilities} *)
 
-val check_arity : bool ref
 (** Flag to check for variables arity. Default is true. *)
+val check_arity : bool ref
 
-val check_ll : bool ref
 (** Flag to check for rules left linearity. Default is false *)
+val check_ll : bool ref
 
 (** {2 The Global Environment} *)
 
-val init        : Parser.input -> t
 (** [init input] initializes a new global environement from the [input] *)
+val init : Parser.input -> t
 
-val get_input    : t -> Parser.input
 (** [get_input env] returns the input used to create [env] *)
+val get_input : t -> Parser.input
 
-val get_filename : t -> string
 (** [get_input env] returns the filename associated to the input of [env]. We return a fake filename if the input was not create from a filename. *)
+val get_filename : t -> string
 
-val get_signature : t -> Signature.t
 (** [get_signature env] returns the signature used by this module. *)
+val get_signature : t -> Signature.t
 
-val get_name    : t -> mident
 (** [get_name env] returns the name of the module. *)
+val get_name : t -> mident
 
-val set_reduction_engine : t -> (module Reduction.S) -> t
 (** [set_reduction_egine env] changes the reduction engine of [env]. The new environment shares the same signature than [env]. *)
+val set_reduction_engine : t -> (module Reduction.S) -> t
 
-val get_reduction_engine : t -> (module Reduction.S)
 (** [get_reduction_engine env] returns the reduction engine of [env] *)
+val get_reduction_engine : t -> (module Reduction.S)
 
-val get_printer : t -> (module Pp.Printer)
 (** [get_print env] returns a pretty printer associated to [env] *)
+val get_printer : t -> (module Pp.Printer)
 
 module HName : Hashtbl.S with type key = name
 
-val get_symbols : t -> Signature.rw_infos HName.t
 (** [get_symbols env] returns the content of the signature [sg]. Each [name] in the current signature is associated to a [rw_infos]. *)
+val get_symbols : t -> Signature.rw_infos HName.t
 
-val get_type    : t -> loc -> name -> term
 (** [get_type env l md id] returns the type of the constant [md.id]. *)
+val get_type : t -> loc -> name -> term
 
-val is_injective : t -> loc -> name -> bool
 (** [is_injective env l cst] returns [true] if the symbol is declared as [static] or [injective], [false] otherwise *)
+val is_injective : t -> loc -> name -> bool
 
-val is_static   : t -> loc -> name -> bool
 (** [is_static env l cst] returns [true] if the symbol is declared as [static], [false] otherwise *)
+val is_static : t -> loc -> name -> bool
 
-val get_dtree   : t -> loc -> name -> Dtree.t
 (** [get_dtree env l md id] returns the decision/matching tree associated with [md.id]. *)
+val get_dtree : t -> loc -> name -> Dtree.t
 
-val export      : t -> unit
 (** [export env] saves the current environment in a [*.dko] file. *)
+val export : t -> unit
 
-val import      : t -> loc -> mident -> unit
 (** [import env lc md] the module [md] in the current environment. *)
+val import : t -> loc -> mident -> unit
 
-val declare     : t -> loc -> ident -> Signature.scope -> Signature.staticity -> term -> unit
 (** [declare_constant env l id st ty] declares the symbol [id] of type [ty] and
     staticity [st]. *)
+val declare :
+  t -> loc -> ident -> Signature.scope -> Signature.staticity -> term -> unit
 
-val define      : t -> loc -> ident -> Signature.scope -> bool -> term -> term option -> unit
 (** [define env l id scope body ty] defines the symbol [id] of type [ty] to be an alias of [body]. *)
+val define :
+  t -> loc -> ident -> Signature.scope -> bool -> term -> term option -> unit
 
-val add_rules   : t -> Rule.partially_typed_rule list -> (Exsubst.ExSubst.t * Rule.typed_rule) list
 (** [add_rules env rule_lst] adds a list of rule to a symbol. All rules must be on the
     same symbol. *)
+val add_rules :
+  t ->
+  Rule.partially_typed_rule list ->
+  (Exsubst.ExSubst.t * Rule.typed_rule) list
 
 (** {2 Type checking/inference} *)
 
-val infer : t -> ?ctx:typed_context -> term         -> term
 (** [infer env ctx term] infers the type of [term] given the typed context [ctx] *)
+val infer : t -> ?ctx:typed_context -> term -> term
 
-val check : t -> ?ctx:typed_context -> term -> term -> unit
 (** [infer env ctx te ty] checks that [te] is of type [ty] given the typed context [ctx] *)
+val check : t -> ?ctx:typed_context -> term -> term -> unit
 
 (** {2 Safe Reduction/Conversion} *)
+
 (** terms are typechecked before the reduction/conversion *)
 
-val reduction : t -> ?ctx:typed_context -> ?red:(Reduction.red_cfg) -> term -> term
 (** [reduction env ctx red te] checks first that [te] is well-typed then reduces it
     according to the reduction configuration [red] *)
+val reduction :
+  t -> ?ctx:typed_context -> ?red:Reduction.red_cfg -> term -> term
 
-val are_convertible : t -> ?ctx:typed_context -> term -> term -> bool
 (** [are_convertible env ctx tl tr] checks first that [tl] [tr] have the same type,
     and then that they are convertible *)
+val are_convertible : t -> ?ctx:typed_context -> term -> term -> bool
 
-val unsafe_reduction : t -> ?red:(Reduction.red_cfg) -> term -> term
 (** [unsafe_reduction env red te] reduces [te] according to the reduction configuration [red].
     It is unsafe in the sense that [te] is not type checked first. *)
+val unsafe_reduction : t -> ?red:Reduction.red_cfg -> term -> term
 
 val errors_in_snf : bool ref
 

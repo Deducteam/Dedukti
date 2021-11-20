@@ -25,10 +25,10 @@ type t = {
 let global_env : t option ref = ref None
 
 let get = function
-  | None -> failwith "Environment not initialized"
+  | None     -> failwith "Environment not initialized"
   | Some env -> env
 
-let of_global_env env = { C.file = env.out_file; C.meta = env.meta_out }
+let of_global_env env = {C.file = env.out_file; C.meta = env.meta_out}
 
 module MakeRE (Conv : Kernel.Reduction.ConvChecker) : Kernel.Reduction.S =
 struct
@@ -48,9 +48,9 @@ struct
   let rec add_rule vl vr =
     let pat = Rule.Pattern (B.dloc, vl, []) in
     let rhs = T.mk_Const B.dloc vr in
-    let rule = Rule.{ ctx = []; pat; rhs; name = dummy_name } in
+    let rule = Rule.{ctx = []; pat; rhs; name = dummy_name} in
     let sg = Api.Env.get_signature (get !global_env).env in
-    S.add_rules sg [ Rule.to_rule_infos rule ]
+    S.add_rules sg [Rule.to_rule_infos rule]
 
   and univ_conversion l r =
     let sg = Api.Env.get_signature (get !global_env).env in
@@ -74,7 +74,7 @@ struct
       C.mk_cstr
         (of_global_env (get !global_env))
         add_rule
-        (U.Pred (U.Cumul (r, Var (V.name_of_uvar l)))) )
+        (U.Pred (U.Cumul (r, Var (V.name_of_uvar l)))))
     else if V.is_uvar r && U.is_enum l then (
       let l = U.extract_univ l in
       ignore
@@ -86,8 +86,7 @@ struct
         (of_global_env (get !global_env))
         add_rule
         (U.Pred (U.Cumul (l, Var (V.name_of_uvar r))))
-      (* The witness of a universe constraint is always I. It's type should should be convertible to true. Knowing Dedukti behavior, the expected type is the left one (true) and the right one is the predicate to satisfy *)
-      )
+      (* The witness of a universe constraint is always I. It's type should should be convertible to true. Knowing Dedukti behavior, the expected type is the left one (true) and the right one is the predicate to satisfy *))
     else if T.term_eq (U.true_ ()) l then
       if U.is_subtype r then
         let s = U.extract_subtype r in
@@ -112,7 +111,7 @@ struct
       false
 
   and are_convertible_lst sg : (T.term * T.term) list -> bool = function
-    | [] -> true
+    | []            -> true
     | (l, r) :: lst ->
         if T.term_eq l r then are_convertible_lst sg lst
         else
@@ -125,7 +124,7 @@ struct
           else are_convertible_lst sg (R.conversion_step sg (l', r') lst)
 
   and are_convertible sg t1 t2 =
-    try are_convertible_lst sg [ (t1, t2) ]
+    try are_convertible_lst sg [(t1, t2)]
     with Kernel.Reduction.Not_convertible -> false
 
   and constraint_convertibility _cstr r sg t1 t2 =
@@ -136,7 +135,7 @@ struct
           (* We need to avoid non linear rule of the theory otherwise we may produce inconsistent constraints: lift s s' a should not always reduce to a.*)
           if B.string_of_ident (B.id rn) = "id_cast" then false
           else are_convertible sg t1 t2
-      | _ -> are_convertible sg t1 t2
+      | _                  -> are_convertible sg t1 t2
 end
 
 module rec RE : Kernel.Reduction.S = MakeRE (RE)
@@ -156,12 +155,12 @@ let check_user_constraints :
     let pred = Hashtbl.find constraints name in
     let uvar = get_uvar ty in
     let replace_univ : U.univ -> U.univ = function
-      | Var _ -> Var uvar
+      | Var _  -> Var uvar
       | _ as t -> t
     in
     let replace : U.pred -> U.pred = function
-      | Axiom (s, s') -> Axiom (replace_univ s, replace_univ s')
-      | Cumul (s, s') -> Cumul (replace_univ s, replace_univ s')
+      | Axiom (s, s')     -> Axiom (replace_univ s, replace_univ s')
+      | Cumul (s, s')     -> Cumul (replace_univ s, replace_univ s')
       | Rule (s, s', s'') ->
           Rule (replace_univ s, replace_univ s', replace_univ s'')
     in
@@ -195,7 +194,7 @@ let mk_entry : t -> Api.Env.t -> Parsers.Entry.entry -> unit =
         "@.(; %a ;)@." P.print_ident id;
       match Typing.inference sg ty with
       | Kind | Type _ -> S.add_declaration sg lc id sc st ty
-      | s ->
+      | s             ->
           raise
             (Kernel.Typing.Typing_error (Kernel.Typing.SortExpected (ty, [], s)))
       )
@@ -207,10 +206,8 @@ let mk_entry : t -> Api.Env.t -> Parsers.Entry.entry -> unit =
       let open Rule in
       let ty =
         match mty with
-        | None -> Typing.inference sg te
-        | Some ty ->
-            Typing.checking sg te ty;
-            ty
+        | None    -> Typing.inference sg te
+        | Some ty -> Typing.checking sg te ty; ty
       in
       match ty with
       | Kind ->
@@ -219,7 +216,7 @@ let mk_entry : t -> Api.Env.t -> Parsers.Entry.entry -> unit =
                ( env,
                  lc,
                  Kernel.Typing.Typing_error Kernel.Typing.KindIsNotTypable ))
-      | _ ->
+      | _    ->
           if opaque then S.add_declaration sg lc id sc S.Static ty
           else
             let _ = S.add_declaration sg lc id sc (S.Definable T.Free) ty in
@@ -234,7 +231,7 @@ let mk_entry : t -> Api.Env.t -> Parsers.Entry.entry -> unit =
                 rhs = te;
               }
             in
-            _add_rules [ rule ] )
+            _add_rules [rule])
   | Rules (_, rs) ->
       let open Rule in
       let _ =
