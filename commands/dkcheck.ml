@@ -1,132 +1,152 @@
 open Kernel
 open Api
-open Basic
+open Cmdliner
 
-let _ =
-  let run_on_stdin = ref None in
-  let export = ref false in
-  let beautify = ref false in
-  let quiet = ref false in
-  let deprecated old_flag new_flag spec =
-    let warning () =
-      Debug.(debug d_warn)
-        "[DEPRECATED] Flag %s is deprecated ! Use %s instead.@." old_flag
-        new_flag
-    in
-    (old_flag, Arg.Tuple [Arg.Unit warning; spec], "")
-  in
-  let options =
-    Arg.align
-      [
-        ("-e", Arg.Set export, " Generates an object file (\".dko\")");
-        ( "-I",
-          Arg.String Files.add_path,
-          "DIR Adds the directory DIR to the load path" );
-        ( "-d",
-          Arg.String Env.set_debug_mode,
-          "FLAGS Enables debugging for the given flags.\n\
-          \    Available flags:\n\
-          \      q : (quiet)    disables all warnings\n\
-          \      n : (notice)   notifies about which symbol or rule is \
-           currently treated\n\
-          \      o : (module)   notifies about loading of an external module \
-           (associated\n\
-          \                     to the command #REQUIRE)\n\
-          \      c : (confluence) notifies about information provided to the \
-           confluence\n\
-          \                     checker (when option --confluence used)\n\
-          \      u : (rule)     provides information about type checking of \
-           rules\n\
-          \      t : (typing)   provides information about type checking of \
-           terms\n\
-          \      s : (SR)       provides information about subject reduction \
-           checking of terms\n\
-          \      r : (reduce)   provides information about reduction performed \
-           in terms\n\
-          \      m : (matching) provides information about pattern matching" );
-        ( "-v",
-          Arg.Unit (fun () -> Env.set_debug_mode "montru"),
-          " Verbose mode (equivalent to -d 'montru')" );
-        ( "-q",
-          Arg.Unit
-            (fun () ->
-              quiet := true;
-              Env.set_debug_mode "q"),
-          " Quiet mode (equivalent to -d 'q')" );
-        ("--no-color", Arg.Clear Errors.color, " Disables colors in the output");
-        ("-nc", Arg.Clear Errors.color, "");
-        ( "--stdin",
-          Arg.String (fun n -> run_on_stdin := Some n),
-          "MOD Parses standard input using module name MOD" );
-        ( "--coc",
-          Arg.Set Typing.coc,
-          " [EXPERIMENTAL] Allows the declaration of symbols whose type\n\
-          \                   contains Type in the left-hand side of a product\n\
-          \                   (Similar to the logic of the Calculus of \
-           Constructions)" );
-        ("--ll", Arg.Set Env.check_ll, " Checks left linearity of rules.");
-        ( "--eta",
-          Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity],
-          " Allows the conversion test to use eta." );
-        ( "--type-lhs",
-          Arg.Set Typing.fail_on_unsatisfiable_constraints,
-          " Forbids rules with untypable left-hand side" );
-        ( "--sr-check",
-          Arg.Int (fun i -> Srcheck.srfuel := i),
-          "LVL Sets the level of subject reduction checking to LVL.\n\
-          \                   Default value is 1. Values < 0 may not terminate \
-           on\n\
-          \                   rules that do not preserve typing. " );
-        ( "--snf",
-          Arg.Set Env.errors_in_snf,
-          " Normalizes all terms printed in error messages" );
-        ( "--db",
-          Arg.Set Pp.print_db_enabled,
-          " Prints De Bruijn indices in error messages" );
-        ( "--confluence",
-          Arg.String Confluence.set_cmd,
-          "CMD Set the external confluence checker command to CMD" );
-        ( "--beautify",
-          Arg.Set beautify,
-          " Pretty printer. Print on the standard output" );
-        ( "--version",
-          Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version),
-          " Prints the version number" )
-        (* Deprecated flags. TODO: Remove them from the argument parsing. *);
-        deprecated "-errors-in-snf" "--snf" (Arg.Set Env.errors_in_snf);
-        deprecated "-cc" "--confluence" (Arg.String Confluence.set_cmd);
-        deprecated "-eta" "--eta"
-          (Arg.Tuple [Arg.Set Reduction.eta; Arg.Clear Env.check_arity]);
-        deprecated "-coc" "--coc" (Arg.Set Typing.coc);
-        deprecated "-nl" "no flag" (Arg.Unit ignore);
-        deprecated "-version" "--version"
-          (Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version));
-      ]
-  in
+(** Common options *)
+type config = {no_color : bool; debug : string}
 
-  let usage =
-    Format.sprintf
-      "Usage: %s [OPTION]... [FILE]...\n\
-       Type checks the given Dedukti FILE(s).\n\
-       For more information see https://github.com/Deducteam/Dedukti.\n\
-       Available options:" Sys.argv.(0)
+let no_color =
+  let doc = "Disable colors in output" in
+  let docs = Manpage.s_common_options in
+  Arg.(value & flag & info ["no-color"] ~doc ~docs)
+
+let debug =
+  let docs = Manpage.s_common_options in
+  let doc =
+    "Enable debugging for flags in $(docv), overriding -q/--quiet. Available \
+     flags: $(i,q) (quiet): disables all warnings, $(i,n) (notice): notifies \
+     about which symbol or rule is currently treated, $(i,o) (module): \
+     notifies about loading of an external module (associated to the command \
+     #REQUIRE), $(i,c) (confluence): notifies about information provided to \
+     the confluence checker (when option --confluence used), $(i,u) (rule): \
+     provides information about type checking of rules, $(i,t) (typing): \
+     provides information about type checking of terms, $(i,s) (subject \
+     reduction) provides information about subject reduction checking of \
+     terms, $(i,r) (reduce): provides information about reduction performed in \
+     terms, $(i,m) (matching): provides information about pattern matching."
   in
-  let files =
-    let files = ref [] in
-    Arg.parse options (fun f -> files := f :: !files) usage;
-    List.rev !files
+  Arg.(value & opt string "" & info ["d"; "debug"] ~docv:"FLAGS" ~doc ~docs)
+
+let quiet =
+  let doc = "Do not print anything (same as -d q)" in
+  let docs = Manpage.s_common_options in
+  Arg.(value & flag & info ["q"; "quiet"] ~doc ~docs)
+
+let verbose =
+  let doc = "Verbose mode (equivalent to -d montru). Overrides -d/--debug." in
+  let docs = Manpage.s_common_options in
+  Arg.(value & flag & info ["v"; "verbose"] ~doc ~docs)
+
+let config no_color debug quiet verbose =
+  let debug =
+    let d = ref "" in
+    if quiet then d := "q";
+    if debug <> "" then d := debug;
+    if verbose then d := "montru";
+    !d
   in
-  if !beautify && !export then (
+  {no_color; debug}
+
+let config_t = Term.(const config $ no_color $ debug $ quiet $ verbose)
+
+let init (c : config) : unit =
+  (* Verbose overrides debug that overrides quiet. *)
+  Env.set_debug_mode c.debug;
+  Errors.color := not c.no_color
+
+(** dkcheck options *)
+
+let incl =
+  let doc = "Add directory $(docv) to the load path" in
+  Arg.(value & opt_all dir [] & info ["I"; "include"] ~docv:"DIR" ~doc)
+
+let export =
+  let doc =
+    "Generate object files (\".dko\"). Object files are written in the same \
+     directory as the source file."
+  in
+  Arg.(value & flag & info ["e"] ~doc)
+
+let beautify =
+  (* TODO put in a separate command. *)
+  let doc = "Pretty print a file on the standard input" in
+  Arg.(value & flag & info ["beautify"] ~doc)
+
+let run_on_stdin =
+  let doc = "Parses standard input using module name $(docv)" in
+  Arg.(value & opt (some string) None & info ["stdin"] ~docv:"MOD" ~doc)
+
+let de_bruijn =
+  let doc = "Print de Bruijn indices in error messages" in
+  Arg.(value & flag & info ["db"] ~doc)
+
+let confluence =
+  let doc =
+    "Use $(docv) as external confluence checker. $(docv) must be a readable \
+     file."
+  in
+  Arg.(
+    value & opt (some string) None & info ["cc"; "confluence"] ~doc ~docv:"CMD")
+
+let files =
+  let doc = "Dedukti files to type check" in
+  Arg.(value & pos_all string [] & info [] ~docv:"FILE" ~doc)
+
+let eta =
+  let doc = "Enable conversion modulo eta" in
+  Arg.(value & flag & info ["eta"] ~doc)
+
+let ll =
+  let doc = "Check left linearity of rewrite rules" in
+  Arg.(value & flag & info ["ll"] ~doc)
+
+let sr_check =
+  let doc =
+    "Set the level of subject reduction checking to $(docv). Default value is \
+     1, values < 0 may not terminate on rules that do not preserve typing."
+  in
+  Arg.(value & opt int 1 & info ["sr-check"] ~doc ~docv:"LVL")
+
+let errors_in_snf =
+  let doc = "Normalize terms in error messages" in
+  Arg.(value & flag & info ["errors-in-snf"] ~doc)
+
+let coc =
+  let doc =
+    "$(b,EXPERIMENTAL) Allows declaring symbols whose type contains Type in \
+     the left-hand side of a product (similar to the logic of the Calculus of \
+     Constructions)"
+  in
+  Arg.(value & flag & info ["coc"] ~doc)
+
+let type_lhs =
+  let doc = "Forbid rules with untypable left-hand side" in
+  Arg.(value & flag & info ["type-lhs"] ~doc)
+
+let dkcheck config confluence de_bruijn incl export beautify quiet run_on_stdin
+    files eta ll sr_check errors_in_snf coc type_lhs =
+  init config;
+  Pp.print_db_enabled := de_bruijn;
+  Option.iter Confluence.set_cmd confluence;
+  List.iter Files.add_path incl;
+  Env.check_ll := ll;
+  Reduction.eta := eta;
+  Env.check_arity := not eta;
+  Srcheck.srfuel := sr_check;
+  Env.errors_in_snf := errors_in_snf;
+  Typing.coc := coc;
+  Typing.fail_on_unsatisfiable_constraints := type_lhs;
+  if beautify && export then (
     Format.eprintf "Beautify and export cannot be set at the same time@.";
     exit 2);
   let open Processor in
-  let processor = if !beautify then PrettyPrinter else TypeChecker in
+  let processor = if beautify then PrettyPrinter else TypeChecker in
   let hook_after env exn =
     match exn with
     | None              ->
-        if (not !beautify) && not !quiet then
+        if (not beautify) && not quiet then
           Errors.success (Env.get_filename env);
-        if !export then Env.export env;
+        if export then Env.export env;
         Confluence.finalize ()
     | Some (env, lc, e) -> Env.fail_env_error env lc e
   in
@@ -134,8 +154,34 @@ let _ =
     {before = (fun _ -> Confluence.initialize ()); after = hook_after}
   in
   Processor.handle_files files ~hook processor;
-  match !run_on_stdin with
+  match run_on_stdin with
   | None   -> ()
   | Some m ->
       let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
       Processor.handle_input input processor
+
+let cmd =
+  let doc = "Type check a list of Dedukti files" in
+  let exits = Term.default_exits in
+  let man =
+    [
+      `S Manpage.s_description;
+      `P
+        "Minimal proof checker for the lambdaPi calculus modulo rewriting. For \
+         more information, see https://github.com/Deducteam/Dedukti.";
+      `S Manpage.s_examples;
+      `P "Given a Dedukti file $(i,examples/append.dk), the command";
+      `Pre "dkcheck examples/append.dk";
+      `P "should exit with 0 and output (on stderr)";
+      `Pre "[SUCCESS] examples/append.dk was successfully checked.";
+      `S Manpage.s_bugs;
+      `P "Report bugs to <dedukti-dev@inria.fr>.";
+    ]
+  in
+  ( Term.(
+      const dkcheck $ config_t $ confluence $ de_bruijn $ incl $ export
+      $ beautify $ quiet $ run_on_stdin $ files $ eta $ ll $ sr_check
+      $ errors_in_snf $ coc $ type_lhs),
+    Term.info "dkcheck" ~version:"%%VERSION%%" ~doc ~exits ~man )
+
+let () = Term.(exit @@ eval cmd)

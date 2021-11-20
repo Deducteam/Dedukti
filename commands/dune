@@ -3,7 +3,7 @@
  (public_name dkcheck)
  (modules dkcheck)
  (package dedukti)
- (libraries kernel parsers api))
+ (libraries cmdliner kernel parsers api))
 
 (executable
  (name dkdep)

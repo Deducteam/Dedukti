@@ -16,8 +16,8 @@ let run ~regression ~error ~title ~tags ~filename command arguments =
   in
   register (fun () ->
       let output_options =
-        (* -nc: Do not print color characters in regression output. *)
-        if regression <> None then ["-nc"; "-q"]
+        (* --no-color: Do not print color characters in regression output. *)
+        if regression <> None then ["--no-color"; "-q"]
         else if Cli.options.log_level = Cli.Report then ["-q"]
         else if Cli.options.log_level = Cli.Debug then ["-d"; "montru"]
         else if Cli.options.log_level = Cli.Info then ["-d"; "n"]
