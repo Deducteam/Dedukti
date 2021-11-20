@@ -28,6 +28,10 @@ bin: kernel/version.ml
 doc:
 	$(Q)dune build @doc
 
+.PHONY: fmt
+fmt:
+	$(Q)dune build @fmt
+
 .PHONY: clean
 clean:
 	$(Q)dune clean
