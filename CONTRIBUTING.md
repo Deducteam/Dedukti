@@ -25,8 +25,10 @@ you have to run the following command:
 git config --local blame.ignoreRevsFile .git-blame-ignore-revs
 ```
 
-## Change the formatting
+### Change the formatting
 
 If there is a consensus between the developpers, the formatting can be
 changed. Do not hesitate to make suggestions. In that case, do not
 forget to edit the `.git-blame-ignore-revs` file.
+
+
