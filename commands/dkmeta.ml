@@ -33,7 +33,6 @@ let _ =
         enc
   in
   let register_before = ref false in
-  let encode_meta_rules = ref false in
   let decoding = ref true in
   let no_meta = ref false in
   let quiet = ref false in
@@ -70,14 +69,10 @@ let _ =
           Arg.Unit (fun () -> no_meta := true),
           " Do not reduce terms." );
         ("--quoting", Arg.String set_encoding, " Encoding the Dedukti file.");
-        ( "--no-quoting",
+        ( "--no-unquoting",
           Arg.Unit (fun () -> decoding := false),
           " Terms are not decoded after. Usage is mainly for debugging purpose."
         );
-        ( "--quoting-meta",
-          Arg.Unit (fun () -> encode_meta_rules := true),
-          " Meta rules are also encoded. However this does not work with \
-           product encoding" );
         ( "--register-before",
           Arg.Unit (fun () -> register_before := true),
           " With a typed encoding, entries are registered before they are \
@@ -96,37 +91,38 @@ let _ =
   in
   if !no_meta && !meta_files <> [] then
     Errors.fail_sys_error ~msg:"Incompatible options: '--no-meta' with '-m'" ();
-  let env =
-    match !encoding with
-    | None            -> None
-    | Some (module E) ->
+  if !no_meta && !encoding <> None then
+    Errors.fail_sys_error
+      ~msg:"Incompatible options: '--no-meta' with '--encoding'" ();
+  let env, meta_rules =
+    match (!meta_files, !encoding) with
+    | [], None        ->
+        if !no_meta then
+          (* No rewrite rules is allowed *)
+          (None, Some Meta.RNS.empty)
+        else (* No meta rule. Normalise everything. *)
+          (None, None)
+    | [], Some _      ->
+        Errors.fail_sys_error
+          ~msg:"The option '--encoding' was given without meta rules" ()
+    | files, encoding ->
         let env =
           Env.init
             (Parsers.Parser.input_from_string (Basic.mk_mident "meta") "")
         in
-        (* The signature of the encoding should be added to the current signature *)
-        let sg = Env.get_signature env in
-        Signature.import_signature sg E.signature;
-        Some env
+        (* This can import recursively dependencies *)
+        let rules = Meta.meta_of_files ~env files in
+        Meta.log "[SUCCESS] Meta rules registered successfuly";
+        (match encoding with
+        | None            -> ()
+        | Some (module E) ->
+            let sg = Env.get_signature env in
+            Signature.import_signature sg E.signature);
+        (Some env, Some rules)
   in
   let cfg =
-    Meta.
-      {
-        default_config with
-        beta = !beta;
-        encoding = !encoding;
-        register_before = !register_before;
-        encode_meta_rules = !encode_meta_rules;
-        decoding = !decoding;
-        env;
-      }
-  in
-  let cfg =
-    if !no_meta then {cfg with meta_rules = Some []}
-    else
-      let cfg = Meta.meta_of_files ~cfg !meta_files in
-      if not !quiet then Errors.success "Meta files parsed.";
-      cfg
+    Meta.default_config ?env ?meta_rules ~beta:!beta ?encoding:!encoding
+      ~decoding:!decoding ~register_before:!register_before ()
   in
   let post_processing env entry =
     let (module Printer) = Env.get_printer env in
@@ -140,9 +136,8 @@ let _ =
           match exn with
           | None                ->
               if not !quiet then
-                Errors.success
-                  (Format.asprintf "File '%s' was successfully metaified."
-                     (Env.get_filename env))
+                Meta.log "[SUCCESS] File '%s' was successfully metaified."
+                  (Env.get_filename env)
           | Some (env, lc, exn) -> Env.fail_env_error env lc exn);
     }
   in

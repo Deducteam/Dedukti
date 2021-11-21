@@ -51,28 +51,36 @@ module RNS : Set.S with type elt = Rule.rule_name
    normalize terms is not the same than the one you will use to type
    check your terms. *)
 type cfg = {
-  mutable meta_rules : RNS.t list option;  (** Contains all the meta_rules. *)
+  env : Env.t option;
+  mutable meta_rules : RNS.t option;  (** Contains all the meta_rules. *)
   beta : bool;  (** If off, no beta reduction is allowed *)
   register_before : bool;
       (** entries are registered before they have been normalized *)
-  encode_meta_rules : bool;
-      (** The encoding is used on the meta rules first except for products *)
   encoding : (module ENCODING) option;
       (** Set an encoding before normalization *)
   decoding : bool;  (** If false, the term is not decoded after normalization *)
-  env : Env.t option;
 }
 
 (** Initliaze a configuration with the following parameters:
+    [env]        = None
     [meta_rules] = None
     [beta]       = true
     [encoding]   = None
-    [env]        = empty_signature (in particular the name is the empty string) *)
-val default_config : cfg
+    [decoding]   = true
+    [register_before] = true *)
+val default_config :
+  ?env:Env.t ->
+  ?meta_rules:RNS.t ->
+  ?beta:bool ->
+  ?encoding:(module ENCODING) ->
+  ?decoding:bool ->
+  ?register_before:bool ->
+  unit ->
+  cfg
 
 (** Transform a [dkmeta] cfg to a [red_cfg] that can be used by the
    Rewrite Engine of Dedukti. *)
-val red_cfg : cfg -> Reduction.red_cfg list
+val red_cfg : cfg -> Reduction.red_cfg
 
 (** Prefix each subterm with its construtor *)
 module LF : ENCODING
@@ -86,16 +94,20 @@ module APP : ENCODING
 
 val debug_flag : Basic.Debug.flag
 
+val log : ('a, Format.formatter, unit, unit) format4 -> 'a
+
 module MetaConfiguration :
   Processor.S with type t = Rule.partially_typed_rule list
 
 (** [meta_of_rules rs cfg] adds the meta_rules [rs] in the
    configuration [cfg] *)
-val meta_of_rules : ?staged:bool -> Rule.partially_typed_rule list -> cfg -> cfg
+val meta_of_rules : Env.t -> Rule.partially_typed_rule list -> RNS.t
 
-(** [meta_of_files ?cfg files] returns a configuration from the meta
-   rules declares in the files [files]*)
-val meta_of_files : ?cfg:cfg -> string list -> cfg
+(** [meta_of_files ?env files] returns a set of rules declares in the
+   files [files]. [env] is the environment that should contain the
+   [meta] rewrite rules. If no environment is provided, an empty one
+   with the mident ["meta"] is created. *)
+val meta_of_files : ?env:Env.t -> string list -> RNS.t
 
 val make_meta_processor :
   cfg ->

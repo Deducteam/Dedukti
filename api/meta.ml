@@ -25,38 +25,28 @@ module RNS = Set.Make (struct
 end)
 
 type cfg = {
-  mutable meta_rules : RNS.t list option;
+  env : Env.t option;
+  (* The meta environment contain meta rules. *)
+  mutable meta_rules : RNS.t option;
   (* Set of meta_rules used to normalize *)
   beta : bool;
   (* Allows beta doing normalization *)
   register_before : bool;
   (* entries are registered before they have been normalized *)
-  encode_meta_rules : bool;
-  (* The encoding is used on the meta rules first except for products *)
   encoding : (module ENCODING) option;
   (* Encoding specify a quoting mechanism *)
-  decoding : bool;
-  (* If false, the term is not decoded after normalization *)
-  env : Env.t option;
-      (* The current environment (if the encoding needs type checking *)
+  decoding : bool; (* If false, the term is not decoded after normalization *)
 }
 
-let default_config =
-  {
-    meta_rules = None;
-    beta = true;
-    encoding = None;
-    register_before = true;
-    encode_meta_rules = false;
-    env = None;
-    decoding = true;
-  }
+let default_config ?env ?meta_rules ?(beta = true) ?encoding ?(decoding = true)
+    ?(register_before = true) () =
+  {env; meta_rules; beta; encoding; decoding; register_before}
 
 let unsafe_finder sg l name =
   try Kernel.Signature.get_dtree sg l name with _ -> Dtree.empty
 
 (* A dkmeta configuration to a reduction configuration *)
-let red_cfg : cfg -> Reduction.red_cfg list =
+let red_cfg : cfg -> Reduction.red_cfg =
  fun cfg ->
   let open Reduction in
   let red_cfg =
@@ -69,12 +59,9 @@ let red_cfg : cfg -> Reduction.red_cfg list =
     }
   in
   match cfg.meta_rules with
-  | None   -> [{red_cfg with select = Some (fun _ -> true)}]
-  | Some l ->
-      List.map
-        (fun meta_rules ->
-          {red_cfg with select = Some (fun r -> RNS.mem r meta_rules)})
-        l
+  | None            -> {red_cfg with select = Some (fun _ -> true)}
+  | Some meta_rules ->
+      {red_cfg with select = Some (fun r -> RNS.mem r meta_rules)}
 
 module PROD = struct
   open Basic
@@ -493,11 +480,9 @@ let decode cfg term =
   | Some (module E : ENCODING) -> E.decode_term term
 
 let normalize cfg env term =
-  let reds = red_cfg cfg in
+  let red = red_cfg cfg in
   let sg = Env.get_signature env in
-  List.fold_left
-    (fun term red -> Reduction.Default.reduction red sg term)
-    term reds
+  Reduction.Default.reduction red sg term
 
 let mk_term cfg env term =
   let sg = Env.get_signature env in
@@ -602,33 +587,13 @@ let add_rule sg r = Signature.add_rules sg [Rule.to_rule_infos r]
 (* Several rules might be bound to different constants *)
 let add_rules sg rs = List.iter (add_rule sg) rs
 
-let default_env = Env.init (Parser.input_from_string (Basic.mk_mident "") "")
-
-let meta_of_rules : ?staged:bool -> Rule.partially_typed_rule list -> cfg -> cfg
-    =
- fun ?(staged = false) rules cfg ->
+let meta_of_rules : Env.t -> Rule.partially_typed_rule list -> RNS.t =
+ fun env rules ->
   let rule_names =
     List.map (fun (r : Rule.partially_typed_rule) -> r.Rule.name) rules
   in
-  let cfg, sg =
-    match cfg.env with
-    | None     ->
-        let env = default_env in
-        ({cfg with env = Some default_env}, Env.get_signature env)
-    | Some env -> (cfg, Env.get_signature env)
-  in
-  add_rules sg rules;
-  match cfg.meta_rules with
-  | None           -> {cfg with meta_rules = Some [RNS.of_list rule_names]}
-  | Some []        -> assert false
-  | Some (rs :: l) ->
-      if staged then
-        {cfg with meta_rules = Some (RNS.of_list rule_names :: rs :: l)}
-      else
-        {
-          cfg with
-          meta_rules = Some (RNS.union (RNS.of_list rule_names) rs :: l);
-        }
+  let sg = Env.get_signature env in
+  add_rules sg rules; RNS.of_list rule_names
 
 module MetaConfiguration :
   Processor.S with type t = Rule.partially_typed_rule list = struct
@@ -660,10 +625,13 @@ let _ =
   Processor.Registration.register_processor MetaRules {equal}
     (module MetaConfiguration)
 
-let meta_of_files ?(cfg = default_config) files =
+let meta_of_files
+    ?(env =
+      Env.init (Parsers.Parser.input_from_string (Basic.mk_mident "meta") ""))
+    files =
   Processor.fold_files files
-    ~f:(meta_of_rules ~staged:true)
-    ~default:cfg MetaRules
+    ~f:(fun rules acc -> RNS.union acc (meta_of_rules env rules))
+    ~default:RNS.empty MetaRules
 
 let make_meta_processor cfg ~post_processing =
   let module Meta = struct

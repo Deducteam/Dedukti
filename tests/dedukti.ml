@@ -104,7 +104,7 @@ module Meta = struct
   let tag_of_argument = function
     | No_meta      -> "no_meta"
     | No_beta      -> "no_beta"
-    | Meta _file   -> "meta"
+    | Meta _file   -> "meta_file"
     | Import _path -> "import"
 
   let run ?(dep = []) ~filename arguments =
