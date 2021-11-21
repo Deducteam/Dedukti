@@ -1,6 +1,6 @@
 tests/tezt/_regressions/tests/meta/rewrite_prod.dk_dkmeta_meta_file_quoting_prod.out
 
-./dkmeta.native -nc -q -I tests/meta -m tests/meta_files/prod_meta.dk --quoting prod tests/meta/rewrite_prod.dk
+./dkmeta.native --no-color -q -I tests/meta -m tests/meta_files/prod_meta.dk --quoting prod tests/meta/rewrite_prod.dk
 type : Type.
 
 el : type -> Type.
