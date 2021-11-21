@@ -47,7 +47,15 @@ module Meta : sig
      command. Either because the module is a dependency of [filename],
      or because it is a dependency of a file given with the option
      [Meta]. For every file in [dep], their directory is imported
-     using the option [Import]. *)
+     using the option [Import].
 
-  val run : ?dep:string list -> filename:string -> argument list -> unit
+     If [check_output] is provided, [dkcheck] is called on the output
+     produced by [dkmeta]. The test fails if the output does not type
+     checks. *)
+  val run :
+    ?dep:string list ->
+    ?check_output:bool ->
+    filename:string ->
+    argument list ->
+    unit
 end

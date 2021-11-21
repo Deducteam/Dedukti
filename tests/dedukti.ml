@@ -10,14 +10,15 @@ let remove_dkos () =
   Process.spawn "find" ["."; "-name"; "*.dko"; "-type"; "f"; "-delete"]
   |> Process.check
 
-let run ?(preprocess = return) ~regression ~error ~title ~tags ~filename command
-    arguments =
+let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
+    ~error ~title ~tags ~filename command arguments =
+  let regression_output_path = "tests/tezt/_regressions" in
   let register f =
     match regression with
     | None             -> Test.register ~__FILE__:filename ~title ~tags f
     | Some output_file ->
         Regression.register ~__FILE__:filename ~output_file
-          ~regression_output_path:"tests/tezt/_regressions" ~title ~tags f
+          ~regression_output_path ~title ~tags f
   in
   register (fun () ->
       let* () = preprocess () in
@@ -30,13 +31,24 @@ let run ?(preprocess = return) ~regression ~error ~title ~tags ~filename command
         else []
       in
       let arguments = output_options @ arguments in
-      (* In [Info] mode, we have to tell to Tezt which lines need to
-         be reported. By default, in [Debug] mode, Tezt will report
-         all the logged lines. Nothing should be printed in [Report]
-         mode. *)
+      let output_acc = ref [] in
       let hooks =
-        if regression <> None then Some Regression.hooks
+        if regression <> None then
+          (* We record the standard output so that we can postprocess it. *)
+          Some
+            Regression.
+              {
+                hooks with
+                on_log =
+                  (fun line ->
+                    output_acc := line :: !output_acc;
+                    hooks.on_log line);
+              }
         else if Cli.options.log_level = Cli.Info then
+          (* In [Info] mode, we have to tell to Tezt which lines need to
+             be reported. By default, in [Debug] mode, Tezt will report
+             all the logged lines. Nothing should be printed in [Report]
+             mode. *)
           Some
             Process.
               {
@@ -51,7 +63,9 @@ let run ?(preprocess = return) ~regression ~error ~title ~tags ~filename command
       let command = Command.path command in
       let process = Process.spawn ?hooks command (arguments @ [filename]) in
       match error with
-      | None              -> Process.check process
+      | None              ->
+          let* () = Process.check process in
+          postprocess (List.rev !output_acc)
       | Some (`Code code) ->
           (* We check the process returned on [stderr] the expected error code *)
           Process.check_error
@@ -94,6 +108,14 @@ module Check = struct
   let ko ~error = run ~regression:false ~error:(Some error)
 
   let export filename = Process.run Command.(path Dkcheck) ["-e"; filename]
+
+  let check ~dep filename =
+    let imported_paths =
+      List.map (fun dep -> Import (Filename.dirname dep) |> mk_argument) dep
+      |> List.concat
+    in
+    Process.spawn Command.(path Dkcheck) (imported_paths @ [filename])
+    |> Process.check
 end
 
 module Meta = struct
@@ -121,7 +143,7 @@ module Meta = struct
     | Quoting `Prod -> "quoting_prod"
     | No_unquoting  -> "no_unquoting"
 
-  let run ?(dep = []) ~filename arguments =
+  let run ?(dep = []) ?(check_output = true) ~filename arguments =
     let tags = List.map tag_of_argument arguments in
     let arguments = List.map mk_argument arguments |> List.concat in
     let title =
@@ -129,17 +151,31 @@ module Meta = struct
     in
     let tags = "dkmeta" :: tags in
     let regression = Some (String.concat "_" (filename :: tags)) in
+    let import_arguments =
+      List.map (fun dir -> ["-I"; Filename.dirname dir]) dep |> List.concat
+    in
     let preprocess () =
       (* Ensure we are not using old generated artifacts. *)
       let* () = remove_dkos () in
       Lwt_list.iter_s Check.export dep
     in
-    let import_arguments =
-      List.map (fun dir -> ["-I"; Filename.dirname dir]) dep |> List.concat
+    let postprocess lines =
+      if not check_output then return ()
+      else
+        let file = Temp.file (Filename.basename filename) in
+        let oc = open_out file in
+        let fmt = Format.formatter_of_out_channel oc in
+        List.iter
+          (fun line ->
+            Log.info "%s" line;
+            Format.fprintf fmt "%s@." line)
+          lines;
+        close_out oc;
+        Check.check ~dep file
     in
     (* Add verbose logs from [dkmeta] if we are in debug mode. *)
     let log_dkmeta = if Cli.options.log_level = Cli.Debug then ["-v"] else [] in
     run ~regression ~error:None ~title ~tags ~filename Dkmeta
       (import_arguments @ log_dkmeta @ arguments)
-      ~preprocess
+      ~preprocess ~postprocess
 end
