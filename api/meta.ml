@@ -37,7 +37,8 @@ type cfg = {
   (* Encoding specify a quoting mechanism *)
   decoding : bool;
   (* If false, the term is not decoded after normalization *)
-  env : Env.t; (* The current environment (if the encoding needs type checking *)
+  env : Env.t option;
+      (* The current environment (if the encoding needs type checking *)
 }
 
 let default_config =
@@ -47,7 +48,7 @@ let default_config =
     encoding = None;
     register_before = true;
     encode_meta_rules = false;
-    env = Env.init (Parser.input_from_string (Basic.mk_mident "") "");
+    env = None;
     decoding = true;
   }
 
@@ -491,18 +492,18 @@ let decode cfg term =
   | None                       -> term
   | Some (module E : ENCODING) -> E.decode_term term
 
-let normalize cfg term =
+let normalize cfg env term =
   let reds = red_cfg cfg in
-  let sg = Env.get_signature cfg.env in
+  let sg = Env.get_signature env in
   List.fold_left
     (fun term red -> Reduction.Default.reduction red sg term)
     term reds
 
-let mk_term cfg ?(env = cfg.env) term =
-  (* Format.eprintf "b:%a@." Pp.print_term term; *)
+let mk_term cfg env term =
   let sg = Env.get_signature env in
   let term' = encode sg cfg term in
-  let term'' = normalize cfg term' in
+  let env = Option.value cfg.env ~default:env in
+  let term'' = normalize cfg env term' in
   if cfg.decoding then decode cfg term'' else term''
 
 exception Not_a_pattern
@@ -523,23 +524,18 @@ let rec pattern_of_term t =
 let mk_rule env cfg (r : Rule.partially_typed_rule) =
   let open Rule in
   match cfg.encoding with
-  | None                       -> {r with rhs = normalize cfg r.rhs}
+  | None                       -> {r with rhs = normalize cfg env r.rhs}
   | Some (module E : ENCODING) ->
       let sg = Env.get_signature env in
       let r' = E.encode_rule ~sg r in
-      let pat' = normalize cfg (Rule.pattern_to_term r'.pat) in
+      let pat' = normalize cfg env (Rule.pattern_to_term r'.pat) in
       let pat'' =
         if cfg.decoding then pattern_of_term (E.decode_term pat')
         else pattern_of_term pat'
       in
-      let rhs' = normalize cfg r'.rhs in
+      let rhs' = normalize cfg env r'.rhs in
       let rhs'' = if cfg.decoding then decode cfg rhs' else rhs' in
       {pat = pat''; rhs = rhs''; ctx = r.ctx; name = r.name}
-
-(*
-  let t = Rule.pattern_to_term pat in
-  let t' = mk_term cfg t in
-  pattern_of_term t' *)
 
 module D = Basic.Debug
 
@@ -552,13 +548,12 @@ let log fmt = D.debug debug_flag (bmag fmt)
 let mk_entry env cfg entry =
   let open Entry in
   let open Rule in
-  let cfg = {cfg with env} in
   let sg = Env.get_signature env in
   let md = Env.get_name env in
   match entry with
   | Decl (lc, id, sc, st, ty) ->
       log "[NORMALIZE] %a" Basic.pp_ident id;
-      let ty' = mk_term cfg ~env ty in
+      let ty' = mk_term cfg env ty in
       if cfg.register_before then Signature.add_declaration sg lc id sc st ty
       else Signature.add_declaration sg lc id sc st ty';
       Decl (lc, id, sc, st, ty')
@@ -570,12 +565,12 @@ let mk_entry env cfg entry =
       in
       let safe_ty =
         match (cfg.encoding, ty) with
-        | Some (module E : ENCODING), None when E.safe -> Env.infer cfg.env te
+        | Some (module E : ENCODING), None when E.safe -> Env.infer env te
         | _, Some ty -> ty
         | _, _ -> Term.mk_Type Basic.dloc
       in
-      let safe_ty' = mk_term cfg ~env safe_ty in
-      let te' = mk_term cfg ~env te in
+      let safe_ty' = mk_term cfg env safe_ty in
+      let te' = mk_term cfg env te in
       (if cfg.register_before then
        let _ =
          Signature.add_declaration sg lc id sc (Signature.Definable Free)
@@ -607,13 +602,21 @@ let add_rule sg r = Signature.add_rules sg [Rule.to_rule_infos r]
 (* Several rules might be bound to different constants *)
 let add_rules sg rs = List.iter (add_rule sg) rs
 
+let default_env = Env.init (Parser.input_from_string (Basic.mk_mident "") "")
+
 let meta_of_rules : ?staged:bool -> Rule.partially_typed_rule list -> cfg -> cfg
     =
  fun ?(staged = false) rules cfg ->
   let rule_names =
     List.map (fun (r : Rule.partially_typed_rule) -> r.Rule.name) rules
   in
-  let sg = Env.get_signature cfg.env in
+  let cfg, sg =
+    match cfg.env with
+    | None     ->
+        let env = default_env in
+        ({cfg with env = Some default_env}, Env.get_signature env)
+    | Some env -> (cfg, Env.get_signature env)
+  in
   add_rules sg rules;
   match cfg.meta_rules with
   | None           -> {cfg with meta_rules = Some [RNS.of_list rule_names]}

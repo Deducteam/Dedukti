@@ -101,6 +101,19 @@ let _ =
   in
   if !no_meta && !meta_files <> [] then
     Errors.fail_sys_error ~msg:"Incompatible options: '--no-meta' with '-m'" ();
+  let env =
+    match !encoding with
+    | None            -> None
+    | Some (module E) ->
+        let env =
+          Env.init
+            (Parsers.Parser.input_from_string (Basic.mk_mident "meta") "")
+        in
+        (* The signature of the encoding should be added to the current signature *)
+        let sg = Env.get_signature env in
+        Signature.import_signature sg E.signature;
+        Some env
+  in
   let cfg =
     Meta.
       {
@@ -110,17 +123,9 @@ let _ =
         register_before = !register_before;
         encode_meta_rules = !encode_meta_rules;
         decoding = !decoding;
-        env =
-          Env.init
-            (Parsers.Parser.input_from_string (Basic.mk_mident "meta") "");
+        env;
       }
   in
-  (match !encoding with
-  | None            -> ()
-  | Some (module E) ->
-      (* The signature of the encoding should be added to the current signature *)
-      let sg = Env.get_signature cfg.env in
-      Signature.import_signature sg E.signature);
   let cfg =
     if !no_meta then {cfg with meta_rules = Some []}
     else

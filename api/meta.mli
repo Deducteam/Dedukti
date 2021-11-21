@@ -60,7 +60,7 @@ type cfg = {
   encoding : (module ENCODING) option;
       (** Set an encoding before normalization *)
   decoding : bool;  (** If false, the term is not decoded after normalization *)
-  env : Env.t;
+  env : Env.t option;
 }
 
 (** Initliaze a configuration with the following parameters:
@@ -104,7 +104,7 @@ val make_meta_processor :
 
 (** [mk_term cfg ?env term] normalize a term according to the
    configuration [cfg] *)
-val mk_term : cfg -> ?env:Env.t -> Term.term -> Term.term
+val mk_term : cfg -> Env.t -> Term.term -> Term.term
 
 (** [mk_entry env cfg entry] processes an entry according the meta
    configuration [cfg] and the current environment [env] *)
