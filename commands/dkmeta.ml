@@ -80,6 +80,7 @@ let _ =
         ( "--no-beta",
           Arg.Unit switch_beta_off,
           " switch off beta while normalizing terms" );
+        ("-nc", Arg.Clear Errors.color, "");
         ( "-stdin",
           Arg.String (fun n -> run_on_stdin := Some n),
           " MOD Parses standard input using module name MOD" );
