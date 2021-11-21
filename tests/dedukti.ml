@@ -6,6 +6,10 @@ module Command = struct
     | Dkmeta  -> "./dkmeta.native"
 end
 
+let remove_dkos () =
+  Process.spawn "find" ["."; "-name"; "\"*.dko\""; "-type"; "f"; "-delete"]
+  |> Process.check
+
 let run ?(preprocess = return) ~regression ~error ~title ~tags ~filename command
     arguments =
   let register f =
@@ -115,10 +119,15 @@ module Meta = struct
     in
     let tags = "dkmeta" :: tags in
     let regression = Some (String.concat "_" (filename :: tags)) in
-    let preprocess () = Lwt_list.iter_s Check.export dep in
+    let preprocess () =
+      let* () = Lwt_list.iter_s Check.export dep in
+      (* Ensure we are not using old generated artifacts. *)
+      remove_dkos ()
+    in
     let import_arguments =
       List.map (fun dir -> ["-I"; Filename.dirname dir]) dep |> List.concat
     in
+    (* Add verbose logs from [dkmeta] if we are in debug mode. *)
     let log_dkmeta = if Cli.options.log_level = Cli.Debug then ["-v"] else [] in
     run ~regression ~error:None ~title ~tags ~filename Dkmeta
       (import_arguments @ log_dkmeta @ arguments)
