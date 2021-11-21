@@ -32,7 +32,7 @@ module Check : sig
 end
 
 module Meta : sig
-  type argument = No_meta | No_beta
+  type argument = No_meta | No_beta | Meta of string
 
   val run : filename:string -> argument list -> unit
 end

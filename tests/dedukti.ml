@@ -89,15 +89,21 @@ module Check = struct
 end
 
 module Meta = struct
-  type argument = No_meta | No_beta
+  type argument = No_meta | No_beta | Meta of string
 
-  let mk_argument = function No_meta -> "--no-meta" | No_beta -> "--no-beta"
+  let mk_argument = function
+    | No_meta   -> ["--no-meta"]
+    | No_beta   -> ["--no-beta"]
+    | Meta file -> ["-m"; file]
 
-  let tag_of_argument = function No_meta -> "no_meta" | No_beta -> "no_beta"
+  let tag_of_argument = function
+    | No_meta    -> "no_meta"
+    | No_beta    -> "no_beta"
+    | Meta _file -> "meta"
 
   let run ~filename arguments =
     let tags = List.map tag_of_argument arguments in
-    let arguments = List.map mk_argument arguments in
+    let arguments = List.map mk_argument arguments |> List.concat in
     let title =
       title ~action:"metaify" ~result:"succeeds" ~options:tags filename
     in
