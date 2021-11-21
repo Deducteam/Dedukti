@@ -5,7 +5,9 @@ A : Type.
 
 def a : A.
 
-b : A.
+def b : A.
+
+c : A.
 
 def foo := b.
 

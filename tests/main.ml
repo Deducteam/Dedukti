@@ -11,4 +11,7 @@ let _ =
   Dedukti.Meta.run ~dep:["tests/meta/simple_2.dk"]
     ~filename:"tests/meta/simple_2.dk"
     [Meta "tests/meta_files/meta.dk"];
+  Dedukti.Meta.run ~dep:["tests/meta/simple_2.dk"]
+    ~filename:"tests/meta/simple_2.dk"
+    [Meta "tests/meta_files/meta.dk"; Meta "tests/meta_files/meta2.dk"];
   Test.run ()
