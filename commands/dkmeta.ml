@@ -2,14 +2,6 @@ open Kernel
 open Basic
 open Api
 
-let meta_files : string list ref = ref []
-
-let add_meta_file s = meta_files := s :: !meta_files
-
-let meta_mds : Basic.mident list ref = ref []
-
-let add_meta_md md = meta_mds := md :: !meta_mds
-
 let set_debug_mode opts =
   try Env.set_debug_mode opts
   with Env.DebugFlagNotRecognized c ->
@@ -45,12 +37,10 @@ let _ =
   let decoding = ref true in
   let no_meta = ref false in
   let quiet = ref false in
+  let meta_files = ref [] in
   let options =
     Arg.align
       [
-        ( "-l",
-          Arg.Unit (fun () -> set_debug_mode "a"),
-          " Active the debug flag specific to dkmeta" );
         ( "-d",
           Arg.String set_debug_mode,
           " flags enables debugging for all given flags" );
@@ -60,7 +50,22 @@ let _ =
               quiet := true;
               Env.set_debug_mode "q"),
           " Quiet mode (equivalent to -d 'q'" );
-        ("-m", Arg.String add_meta_file, " The file containing the meta rules.");
+        ("--no-color", Arg.Clear Errors.color, "");
+        ( "-stdin",
+          Arg.String (fun n -> run_on_stdin := Some n),
+          " MOD Parses standard input using module name MOD" );
+        ( "-version",
+          Arg.Unit (fun () -> Format.printf "Meta Dedukti %s@." version),
+          " Print the version number" );
+        ( "-I",
+          Arg.String Files.add_path,
+          " DIR Add the directory DIR to the load path" );
+        ( "-v",
+          Arg.Unit (fun () -> set_debug_mode "a"),
+          " Active the debug flag specific to dkmeta" );
+        ( "-m",
+          Arg.String (fun s -> meta_files := s :: !meta_files),
+          " The file containing the meta rules." );
         ( "--no-meta",
           Arg.Unit (fun () -> no_meta := true),
           " Do not reduce terms." );
@@ -80,16 +85,6 @@ let _ =
         ( "--no-beta",
           Arg.Unit switch_beta_off,
           " switch off beta while normalizing terms" );
-        ("--no-color", Arg.Clear Errors.color, "");
-        ( "-stdin",
-          Arg.String (fun n -> run_on_stdin := Some n),
-          " MOD Parses standard input using module name MOD" );
-        ( "-version",
-          Arg.Unit (fun () -> Format.printf "Meta Dedukti %s@." version),
-          " Print the version number" );
-        ( "-I",
-          Arg.String Files.add_path,
-          " DIR Add the directory DIR to the load path" );
       ]
   in
   let usage = "Usage: " ^ Sys.argv.(0) ^ " [OPTION]... [FILE]...\n" in

@@ -119,7 +119,8 @@ module Meta = struct
     let import_arguments =
       List.map (fun dir -> ["-I"; Filename.dirname dir]) dep |> List.concat
     in
+    let log_dkmeta = if Cli.options.log_level = Cli.Debug then ["-v"] else [] in
     run ~regression ~error:None ~title ~tags ~filename Dkmeta
-      (import_arguments @ arguments)
+      (import_arguments @ log_dkmeta @ arguments)
       ~preprocess
 end
