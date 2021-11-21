@@ -1,28 +1,17 @@
 (; IGNORE ;)
 
-nat : Type.
+A : Type.
 
-0 : nat.
+def a : A.
 
-S : nat -> nat.
+def b : A.
 
-def 1 := S 0.
-def 2 := S 1.
-def 3 := S 2.
-def 4 := S 3.
-def 5 := S 4.
-def 6 := S 5.
-def 7 := S 6.
-def 8 := S 7.
+c : A.
 
-def ack : nat -> nat -> nat.
+def foo := a.
 
-[n] ack 0 n --> S n.
+B : A -> Type.
 
-[m] ack (S m) 0 --> ack m 1.
-
-[m,n] ack (S m) (S n) --> ack m (ack (S m) n).
-
-def foo : nat := ack 3 3.
+bar : B a.
 
 

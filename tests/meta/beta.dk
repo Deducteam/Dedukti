@@ -1,5 +1,9 @@
-(; META ;)
+(; IGNORE ;)
 
-A : Type.
+def A : Type.
+
+B : Type.
+
+[] A --> B.
 
 def f : A -> A := y : A => (x : A => x) y.

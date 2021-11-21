@@ -1,0 +1,21 @@
+(; IGNORE ;)
+
+type : Type.
+
+el : type -> Type.
+
+pi : A:type -> (x: el A -> type) -> type.
+
+nat : type.
+
+foo : el (pi nat (x : el nat => nat)).
+
+foo' : el nat -> el nat.
+
+Vec : el nat -> type.
+
+bar : el (pi nat (x : el nat => Vec x)).
+
+bar' : x:el nat -> el (Vec x).
+
+

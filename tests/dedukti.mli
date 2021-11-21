@@ -1,5 +1,5 @@
 module Check : sig
-  type argument = Eta
+  type argument = Eta | Import of string
 
   (** [ok ?regression ~filename arguments] runs [dkcheck] on
      [filename] with [arguments].
@@ -32,7 +32,30 @@ module Check : sig
 end
 
 module Meta : sig
-  type argument = No_meta
+  type argument =
+    | No_meta
+    | No_beta
+    | Meta of string
+    | Import of string
+    | Quoting of [`Prod]
+    | No_unquoting
 
-  val run : filename:string -> argument list -> unit
+  (** [run ?dep ~filename arguments] runs [dkmeta] on [filename] with
+     [arguments].
+
+      [dep] should contain files which are required for executing the
+     command. Either because the module is a dependency of [filename],
+     or because it is a dependency of a file given with the option
+     [Meta]. For every file in [dep], their directory is imported
+     using the option [Import].
+
+     If [check_output] is provided, [dkcheck] is called on the output
+     produced by [dkmeta]. The test fails if the output does not type
+     checks. *)
+  val run :
+    ?dep:string list ->
+    ?check_output:bool ->
+    filename:string ->
+    argument list ->
+    unit
 end

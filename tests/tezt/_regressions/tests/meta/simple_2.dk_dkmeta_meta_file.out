@@ -1,0 +1,17 @@
+tests/tezt/_regressions/tests/meta/simple_2.dk_dkmeta_meta_file.out
+
+./dkmeta.native --no-color -q -I tests/meta -m tests/meta_files/meta.dk tests/meta/simple_2.dk
+A : Type.
+
+def a : A.
+
+def b : A.
+
+c : A.
+
+def foo := b.
+
+B : A -> Type.
+
+bar : B b.
+
