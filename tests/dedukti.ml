@@ -89,11 +89,11 @@ module Check = struct
 end
 
 module Meta = struct
-  type argument = No_meta
+  type argument = No_meta | No_beta
 
-  let mk_argument = function No_meta -> "--no-meta"
+  let mk_argument = function No_meta -> "--no-meta" | No_beta -> "--no-beta"
 
-  let tag_of_argument = function No_meta -> "no_meta"
+  let tag_of_argument = function No_meta -> "no_meta" | No_beta -> "no_beta"
 
   let run ~filename arguments =
     let tags = List.map tag_of_argument arguments in
