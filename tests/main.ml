@@ -5,4 +5,7 @@ let _ =
   Dedukti.Check.ok ~regression:true ~filename:"tests/OK/nsteps3.dk" [];
   Dedukti.Meta.run ~filename:"tests/meta/simple.dk" [];
   Dedukti.Meta.run ~filename:"tests/meta/simple.dk" [No_meta];
+  Dedukti.Meta.run ~filename:"tests/meta/beta.dk" [];
+  Dedukti.Meta.run ~filename:"tests/meta/beta.dk" [No_beta];
+  Dedukti.Meta.run ~filename:"tests/meta/beta.dk" [No_beta; No_meta];
   Test.run ()

@@ -1,0 +1,11 @@
+tests/tezt/_regressions/tests/meta/beta.dk_dkmeta_no_beta.out
+
+./dkmeta.native -nc -q --no-beta tests/meta/beta.dk
+def A : Type.
+
+B : Type.
+
+[] A --> B.
+
+def f : B -> B := y:B => (x:B => x) y.
+
