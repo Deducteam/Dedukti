@@ -1,4 +1,4 @@
-(; OK ;)
+(; IGNORE ;)
 
 N : Type.
 1 : N.

@@ -6,6 +6,7 @@ let _ =
   let run_on_stdin = ref None in
   let export = ref false in
   let beautify = ref false in
+  let quiet = ref false in
   let deprecated old_flag new_flag spec =
     let warning () =
       Debug.(debug d_warn)
@@ -47,7 +48,10 @@ let _ =
           Arg.Unit (fun () -> Env.set_debug_mode "montru"),
           " Verbose mode (equivalent to -d 'montru')" );
         ( "-q",
-          Arg.Unit (fun () -> Env.set_debug_mode "q"),
+          Arg.Unit
+            (fun () ->
+              quiet := true;
+              Env.set_debug_mode "q"),
           " Quiet mode (equivalent to -d 'q')" );
         ("--no-color", Arg.Clear Errors.color, " Disables colors in the output");
         ("-nc", Arg.Clear Errors.color, "");
@@ -120,7 +124,8 @@ let _ =
   let hook_after env exn =
     match exn with
     | None              ->
-        if not !beautify then Errors.success (Env.get_filename env);
+        if (not !beautify) && not !quiet then
+          Errors.success (Env.get_filename env);
         if !export then Env.export env;
         Confluence.finalize ()
     | Some (env, lc, e) -> Env.fail_env_error env lc e

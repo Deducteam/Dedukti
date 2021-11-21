@@ -28,11 +28,17 @@ jobs:
           opam pin add -n -k path dedukti .
           opam install --deps-only -d -t dedukti
           opam install ocamlformat
+          opam install tezt --no-checksums --keep-build-dir
+          opam install ~/.opam/4.13.1/.opam-switch/sources/tezt.1.0.0/tezt/lib
       - name: Checking formatting...
         run: |
           eval $(opam env)
           make fmt
-      - name: running tests...
+      - name: running legacy tests...
         run: |
           eval $(opam env)
           make tests
+      - name: running Tezt tests...
+        run: |
+          eval $(opam env)
+          make tezt

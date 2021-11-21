@@ -1,4 +1,4 @@
-(; META  --no-meta ;)
+(; IGNORE ;)
 
 nat : Type.
 

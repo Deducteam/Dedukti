@@ -1,4 +1,4 @@
-(; KO 704 ;)
+(; IGNORE ;)
 
 A : Type.
 x : A -> A.

@@ -44,6 +44,7 @@ let _ =
   let encode_meta_rules = ref false in
   let decoding = ref true in
   let no_meta = ref false in
+  let quiet = ref false in
   let options =
     Arg.align
       [
@@ -54,7 +55,10 @@ let _ =
           Arg.String set_debug_mode,
           " flags enables debugging for all given flags" );
         ( "-q",
-          Arg.Unit (fun () -> Env.set_debug_mode "q"),
+          Arg.Unit
+            (fun () ->
+              quiet := true;
+              Env.set_debug_mode "q"),
           " Quiet mode (equivalent to -d 'q'" );
         ("-m", Arg.String add_meta_file, " The file containing the meta rules.");
         ( "--no-meta",
@@ -76,6 +80,7 @@ let _ =
         ( "--no-beta",
           Arg.Unit switch_beta_off,
           " switch off beta while normalizing terms" );
+        ("-nc", Arg.Clear Errors.color, "");
         ( "-stdin",
           Arg.String (fun n -> run_on_stdin := Some n),
           " MOD Parses standard input using module name MOD" );
@@ -120,7 +125,7 @@ let _ =
     if !no_meta then {cfg with meta_rules = Some []}
     else
       let cfg = Meta.meta_of_files ~cfg !meta_files in
-      Errors.success "Meta files parsed.";
+      if not !quiet then Errors.success "Meta files parsed.";
       cfg
   in
   let post_processing env entry =
@@ -134,9 +139,10 @@ let _ =
         (fun env exn ->
           match exn with
           | None                ->
-              Errors.success
-                (Format.asprintf "File '%s' was successfully metaified."
-                   (Env.get_filename env))
+              if not !quiet then
+                Errors.success
+                  (Format.asprintf "File '%s' was successfully metaified."
+                     (Env.get_filename env))
           | Some (env, lc, exn) -> Env.fail_env_error env lc exn);
     }
   in

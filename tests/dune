@@ -1,0 +1,5 @@
+(executable
+ (name main)
+ (libraries tezt lwt)
+ (flags
+  (:standard -open Tezt -open Tezt.Base)))
