@@ -530,7 +530,7 @@ let bmag fmt = "\027[90m" ^^ fmt ^^ "\027[0m%!"
 
 let log fmt = D.debug debug_flag (bmag fmt)
 
-let mk_entry env cfg entry =
+let mk_entry cfg env entry =
   let open Entry in
   let open Rule in
   let sg = Env.get_signature env in
@@ -637,7 +637,7 @@ let make_meta_processor cfg ~post_processing =
   let module Meta = struct
     type t = unit
 
-    let handle_entry env entry = post_processing env (mk_entry env cfg entry)
+    let handle_entry env entry = post_processing env (mk_entry cfg env entry)
 
     let get_data _ = ()
   end in

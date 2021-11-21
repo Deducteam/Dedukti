@@ -8,6 +8,7 @@ let set_debug_mode opts =
     if c = 'a' then Debug.enable_flag Meta.debug_flag
     else raise (Env.DebugFlagNotRecognized c)
 
+(* The main processor which normalises entries. *)
 type _ Processor.t += Meta : unit Processor.t
 
 let equal (type a b) :
@@ -16,8 +17,6 @@ let equal (type a b) :
   function
   | Meta, Meta -> Some (Processor.Registration.Refl Meta)
   | _          -> None
-
-let version = "0.1"
 
 let _ =
   let run_on_stdin = ref None in
@@ -53,8 +52,8 @@ let _ =
         ( "-stdin",
           Arg.String (fun n -> run_on_stdin := Some n),
           " MOD Parses standard input using module name MOD" );
-        ( "-version",
-          Arg.Unit (fun () -> Format.printf "Meta Dedukti %s@." version),
+        ( "--version",
+          Arg.Unit (fun () -> Format.printf "Dedukti %s@." Version.version),
           " Print the version number" );
         ( "-I",
           Arg.String Files.add_path,
@@ -68,15 +67,17 @@ let _ =
         ( "--no-meta",
           Arg.Unit (fun () -> no_meta := true),
           " Do not reduce terms." );
-        ("--quoting", Arg.String set_encoding, " Encoding the Dedukti file.");
+        ( "--quoting",
+          Arg.String set_encoding,
+          " [EXPERIMENTAL] Encoding the Dedukti file." );
         ( "--no-unquoting",
           Arg.Unit (fun () -> decoding := false),
-          " Terms are not decoded after. Usage is mainly for debugging purpose."
-        );
+          " [EXPERIMENTAL] Terms are not decoded after. Usage is mainly for \
+           debugging purpose." );
         ( "--register-before",
           Arg.Unit (fun () -> register_before := true),
-          " With a typed encoding, entries are registered before they are \
-           metaified" );
+          " [EXPERIMENTAL] With a typed encoding, entries are registered \
+           before they are metaified" );
         ( "--no-beta",
           Arg.Unit switch_beta_off,
           " switch off beta while normalizing terms" );

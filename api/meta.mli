@@ -1,16 +1,21 @@
-(** The [dkmeta] library is an extension of [dedukti] that allows the
-   user to normalize terms according to meta rules. Meta rules are
-   written in the [dedukti] syntax. [dkmeta] also offers a way to
-   reify the syntax of [dedukti] in [dedukti]. This allows you to get
-   around the limitations of the rewrite engine offers par Dedukti:
-   you can rewrite products, static symbols... The overhead introduced
-   by this reification is linear if you choose the [LF]
-   encoding. However, you might create your own encoding for your own
-   goals. *)
+(** {2 Meta Dedukti}
+
+   This file declares utilities which allows to use the rewrite rules
+   of [dedukti] as a language to transform [dedukti] terms.
+
+   [dkmeta] also offers a way to reify the syntax of [dedukti] in
+   [dedukti]. This refication can be used to get around the
+   limitations of the rewrite engine offers par [dedukti]. Using a
+   reification, one can rewrite a product for example. The reification
+   process is extensible in a way that any user of the library can
+   write its own reification function. *)
 
 open Kernel
 open Parsers
 
+(** {2 Reification } *)
+
+(** The signature which implements a reification function. *)
 module type ENCODING = sig
   (** module name of the encoding *)
   val md : Basic.mident
@@ -35,27 +40,43 @@ module type ENCODING = sig
   val encode_rule : ?sg:Signature.t -> 'a Rule.rule -> 'a Rule.rule
 end
 
+(** {2 Meta } *)
+
+(** The type of set which aims to contain meta rewrite rules. *)
 module RNS : Set.S with type elt = Rule.rule_name
 
-(** [cfg] configures [dkmeta]. [meta_rules] contains all the rules
-   used for normalization. If [meta_rules] = None, then all the rules
-   in the signature [sg] are used. It is left to the user to add the
-   [meta_rules] in the signature. If you use an encoding, you have to
-   add manually the signature of the encoding in the meta signature
-   [sg]. Besides, all the meta_rules should be encoded beforethey are
-   added in the signature. At the moment, [dkmeta] offers only one
-   encoding. [dkmeta] nor [dedukti] won't check that the [meta rules]
-   you add can be applied or not. If the normalization succeeded but
-   you did not get the exepected result, probably that the rule was
-   not in the signature. Be careful that the signature you use to
-   normalize terms is not the same than the one you will use to type
-   check your terms. *)
-type cfg = {
+(** The [cfg] type parameterise how the meta rewrite rules will act on
+   [dedukti] terms.
+
+   If [meta_rules] is [None] then there is no meta rewrite rule but
+   the strong normal form of every term will be computed.
+
+   If [meta-rules] is [Some rules] then all the terms will be
+   normalised according to this set of rewrite rules.
+
+   Beta-reduction can be deactivated by setting [beta] to [false].
+
+   If [encoding] is [Some (module E)] then the term will be reified
+   according the function [E.encode_term] before being normalised.
+
+   If [decoding] is [false] then after normalising terms, the term
+   won't be unreified.
+
+   If [register_before] is set to [false], terms will be registered in
+   the signatured only after being normalised and reified if
+   applicable. This aims to be used for terms which are not well-typed
+   before normalisation but are after normalisation. This can be used
+   to implement macros for example.
+
+   The environment contains the internal representation of all the
+   meta rewrite rules. This module maintains an invariant that the
+   environment is consistent with the set of rewrite rules. *)
+type cfg = private {
   env : Env.t option;
   mutable meta_rules : RNS.t option;  (** Contains all the meta_rules. *)
   beta : bool;  (** If off, no beta reduction is allowed *)
   register_before : bool;
-      (** entries are registered before they have been normalized *)
+      (** Entries are registered before they have been normalized *)
   encoding : (module ENCODING) option;
       (** Set an encoding before normalization *)
   decoding : bool;  (** If false, the term is not decoded after normalization *)
@@ -78,29 +99,39 @@ val default_config :
   unit ->
   cfg
 
-(** Transform a [dkmeta] cfg to a [red_cfg] that can be used by the
-   Rewrite Engine of Dedukti. *)
+(** [red_cfg cfg] computes a rewrite engine configuration from the
+   meta configuration [cfg]. This function is called every time we
+   normalise a term. *)
 val red_cfg : cfg -> Reduction.red_cfg
 
-(** Prefix each subterm with its construtor *)
+(** Reification which prefixes all the terms with its constructor. *)
 module LF : ENCODING
 
-(** Encodes products with HOAS *)
+(** A shallow encoding of products. This encoding allows to rewrite
+   products. *)
 module PROD : ENCODING
 
 (** Same as [LF] with type informations for application on product
    only. *)
 module APP : ENCODING
 
+(** A debug flag to register logs specific for [dkmeta]. *)
 val debug_flag : Basic.Debug.flag
 
+(** A logging function for [dkmeta]. *)
 val log : ('a, Format.formatter, unit, unit) format4 -> 'a
 
+(** A processor which processes files containing the meta
+   rewrite-rules. It is assumed that such file contains only rewrite
+   rules. *)
 module MetaConfiguration :
   Processor.S with type t = Rule.partially_typed_rule list
 
-(** [meta_of_rules rs cfg] adds the meta_rules [rs] in the
-   configuration [cfg] *)
+(** The processor associated to [MetaConfiguration]. *)
+type _ Processor.t += MetaRules : Rule.partially_typed_rule list Processor.t
+
+(** [meta_of_rules env rs] adds the meta_rules [rs] to the environment
+   and returns the name of those rules as a set. *)
 val meta_of_rules : Env.t -> Rule.partially_typed_rule list -> RNS.t
 
 (** [meta_of_files ?env files] returns a set of rules declares in the
@@ -109,17 +140,20 @@ val meta_of_rules : Env.t -> Rule.partially_typed_rule list -> RNS.t
    with the mident ["meta"] is created. *)
 val meta_of_files : ?env:Env.t -> string list -> RNS.t
 
+(** [make_meta_processor cfg ~post_processing] returns a processor
+   which will normalise every entry and for each entry after being
+   processed, the function [post_processing] will be called. The
+   normalisation is done according to the configuration [cfg]. *)
 val make_meta_processor :
   cfg ->
   post_processing:(Env.t -> Entry.entry -> unit) ->
   (module Processor.S with type t = unit)
 
-(** [mk_term cfg ?env term] normalize a term according to the
-   configuration [cfg] *)
+(** [mk_term cfg env term] normalize a term according to the
+   configuration [cfg]. [env] is the environment used for type
+   checking the term. *)
 val mk_term : cfg -> Env.t -> Term.term -> Term.term
 
-(** [mk_entry env cfg entry] processes an entry according the meta
+(** [mk_entry cfg env entry] processes an entry according the meta
    configuration [cfg] and the current environment [env] *)
-val mk_entry : Env.t -> cfg -> Entry.entry -> Entry.entry
-
-type _ Processor.t += MetaRules : Rule.partially_typed_rule list Processor.t
+val mk_entry : cfg -> Env.t -> Entry.entry -> Entry.entry
