@@ -1,5 +1,5 @@
 module Check : sig
-  type argument = Eta
+  type argument = Eta | Import of string
 
   (** [ok ?regression ~filename arguments] runs [dkcheck] on
      [filename] with [arguments].
@@ -32,7 +32,7 @@ module Check : sig
 end
 
 module Meta : sig
-  type argument = No_meta | No_beta | Meta of string
+  type argument = No_meta | No_beta | Meta of string | Import of string
 
-  val run : filename:string -> argument list -> unit
+  val run : ?dep:string list -> filename:string -> argument list -> unit
 end
