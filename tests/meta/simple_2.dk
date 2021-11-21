@@ -1,0 +1,15 @@
+(; IGNORE ;)
+
+A : Type.
+
+def a : A.
+
+b : A.
+
+def foo := a.
+
+B : A -> Type.
+
+bar : B a.
+
+

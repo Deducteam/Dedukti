@@ -1,0 +1,15 @@
+tests/tezt/_regressions/tests/meta/simple_2.dk_dkmeta_meta.out
+
+./dkmeta.native -nc -q -I tests/meta -m tests/meta_files/meta.dk tests/meta/simple_2.dk
+A : Type.
+
+def a : A.
+
+b : A.
+
+def foo := b.
+
+B : A -> Type.
+
+bar : B b.
+

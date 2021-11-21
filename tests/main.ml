@@ -8,4 +8,7 @@ let _ =
   Dedukti.Meta.run ~filename:"tests/meta/beta.dk" [];
   Dedukti.Meta.run ~filename:"tests/meta/beta.dk" [No_beta];
   Dedukti.Meta.run ~filename:"tests/meta/beta.dk" [No_beta; No_meta];
+  Dedukti.Meta.run ~dep:["tests/meta/simple_2.dk"]
+    ~filename:"tests/meta/simple_2.dk"
+    [Meta "tests/meta_files/meta.dk"];
   Test.run ()
