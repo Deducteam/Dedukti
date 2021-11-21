@@ -32,7 +32,13 @@ module Check : sig
 end
 
 module Meta : sig
-  type argument = No_meta | No_beta | Meta of string | Import of string
+  type argument =
+    | No_meta
+    | No_beta
+    | Meta of string
+    | Import of string
+    | Quoting of [`Prod]
+    | No_unquoting
 
   (** [run ?dep ~filename arguments] runs [dkmeta] on [filename] with
      [arguments].

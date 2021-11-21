@@ -111,14 +111,14 @@ let _ =
           Env.init
             (Parsers.Parser.input_from_string (Basic.mk_mident "meta") "")
         in
-        (* This can import recursively dependencies *)
-        let rules = Meta.meta_of_files ~env files in
-        Meta.log "[SUCCESS] Meta rules registered successfuly";
         (match encoding with
         | None            -> ()
         | Some (module E) ->
             let sg = Env.get_signature env in
             Signature.import_signature sg E.signature);
+        (* This can import recursively dependencies *)
+        let rules = Meta.meta_of_files ~env files in
+        Meta.log "[SUCCESS] Meta rules registered successfuly";
         (Some env, Some rules)
   in
   let cfg =

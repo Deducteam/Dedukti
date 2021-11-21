@@ -1,0 +1,21 @@
+tests/tezt/_regressions/tests/meta/rewrite_prod.dk_dkmeta_meta_file_quoting_prod.out
+
+./dkmeta.native -nc -q -I tests/meta -m tests/meta_files/prod_meta.dk --quoting prod tests/meta/rewrite_prod.dk
+type : Type.
+
+el : type -> Type.
+
+pi : A:type -> (x:(el A) -> type) -> type.
+
+nat : type.
+
+foo : el (pi nat (x:(el nat) => nat)).
+
+foo' : el (pi nat (__ => nat)).
+
+Vec : (el nat) -> type.
+
+bar : el (pi nat (x:(el nat) => Vec x)).
+
+bar' : el (pi nat (__ => Vec __)).
+

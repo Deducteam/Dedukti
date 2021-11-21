@@ -7,7 +7,7 @@ module Command = struct
 end
 
 let remove_dkos () =
-  Process.spawn "find" ["."; "-name"; "\"*.dko\""; "-type"; "f"; "-delete"]
+  Process.spawn "find" ["."; "-name"; "*.dko"; "-type"; "f"; "-delete"]
   |> Process.check
 
 let run ?(preprocess = return) ~regression ~error ~title ~tags ~filename command
@@ -97,19 +97,29 @@ module Check = struct
 end
 
 module Meta = struct
-  type argument = No_meta | No_beta | Meta of string | Import of string
+  type argument =
+    | No_meta
+    | No_beta
+    | Meta of string
+    | Import of string
+    | Quoting of [`Prod]
+    | No_unquoting
 
   let mk_argument = function
-    | No_meta     -> ["--no-meta"]
-    | No_beta     -> ["--no-beta"]
-    | Meta file   -> ["-m"; file]
-    | Import path -> ["-I"; path]
+    | No_meta       -> ["--no-meta"]
+    | No_beta       -> ["--no-beta"]
+    | Meta file     -> ["-m"; file]
+    | Import path   -> ["-I"; path]
+    | Quoting `Prod -> ["--quoting"; "prod"]
+    | No_unquoting  -> ["--no-unquoting"]
 
   let tag_of_argument = function
-    | No_meta      -> "no_meta"
-    | No_beta      -> "no_beta"
-    | Meta _file   -> "meta_file"
-    | Import _path -> "import"
+    | No_meta       -> "no_meta"
+    | No_beta       -> "no_beta"
+    | Meta _file    -> "meta_file"
+    | Import _path  -> "import"
+    | Quoting `Prod -> "quoting_prod"
+    | No_unquoting  -> "no_unquoting"
 
   let run ?(dep = []) ~filename arguments =
     let tags = List.map tag_of_argument arguments in
@@ -120,9 +130,9 @@ module Meta = struct
     let tags = "dkmeta" :: tags in
     let regression = Some (String.concat "_" (filename :: tags)) in
     let preprocess () =
-      let* () = Lwt_list.iter_s Check.export dep in
       (* Ensure we are not using old generated artifacts. *)
-      remove_dkos ()
+      let* () = remove_dkos () in
+      Lwt_list.iter_s Check.export dep
     in
     let import_arguments =
       List.map (fun dir -> ["-I"; Filename.dirname dir]) dep |> List.concat

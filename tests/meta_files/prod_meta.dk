@@ -1,0 +1,3 @@
+(; IGNORE ;)
+
+[A, B] prod.prod (rewrite_prod.el A) (x => (rewrite_prod.el (B x))) --> rewrite_prod.el (rewrite_prod.pi A B).
