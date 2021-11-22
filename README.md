@@ -11,6 +11,7 @@ To compile (and optionally install) `Dedukti` you will need:
  - `OCaml >= 4.06`,
  - `Menhir`,
  - `dune`,
+ - `cmdliner`,
  - `z3` (universo only),
  - `odoc` (doc only).
 

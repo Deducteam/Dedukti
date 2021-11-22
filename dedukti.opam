@@ -10,6 +10,7 @@ bug-reports: "https://github.com/Deducteam/Dedukti/issues"
 depends: [
   "dune" {>= "2.0"}
   "ocaml" {>= "4.06"}
+  "cmdliner"
   "menhir"
 ]
 build: [
