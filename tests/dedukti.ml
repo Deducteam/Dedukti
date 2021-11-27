@@ -1,9 +1,10 @@
 module Command = struct
-  type t = Dkcheck | Dkmeta
+  type t = Dkcheck | Dkmeta | Dkpretty
 
   let path = function
-    | Dkcheck -> "./dkcheck.native"
-    | Dkmeta  -> "./dkmeta.native"
+    | Dkcheck  -> "./dkcheck.native"
+    | Dkmeta   -> "./dkmeta.native"
+    | Dkpretty -> "./dkpretty.native"
 end
 
 let remove_dkos () =
@@ -202,4 +203,34 @@ module Meta = struct
     run ~regression ~error:None ~title ~tags ~filename Dkmeta
       (import_arguments @ log_dkmeta @ arguments)
       ~preprocess ~postprocess
+end
+
+module Pretty = struct
+  type argument = |
+
+  let mk_argument : argument -> _ = function _ -> .
+
+  let tag_of_argument : argument -> _ = function _ -> .
+
+  let run ?(dep = []) ~filename arguments =
+    let tags = "pretty" :: List.map tag_of_argument arguments in
+    let arguments = List.map mk_argument arguments |> List.concat in
+    let title =
+      title ~action:"pretty print" ~options:tags ~result:"succeeds" filename
+    in
+    let regression = Some (String.concat "_" (filename :: tags)) in
+    let postprocess lines =
+      let file = Temp.file ("pretty." ^ Filename.basename filename) in
+      let oc = open_out file in
+      let fmt = Format.formatter_of_out_channel oc in
+      List.iter
+        (fun line ->
+          Log.info "%s" line;
+          Format.fprintf fmt "%s@." line)
+        lines;
+      close_out oc;
+      Check.check ~dep file
+    in
+    run ~regression ~error:None ~title ~tags ~filename Dkpretty arguments
+      ~postprocess
 end

@@ -55,7 +55,8 @@ The installation provides the following commands:
  - `dktop` is an interactive wrapper around the type-checker,
  - `dkdep` is a dependency generator for `Dedukti` files,
  - `dkprune` is a program to re-print only the strictly required subset of `Dedukti` files,
- - `dkmeta` is a tool which used `Dedukti` rewrite rules to rewrite a `Dedukti` file,
+ - `dkpretty` is a source code beautifier for `Dedukti`,
+ - `dkmeta` is a tool which uses `Dedukti` rewrite rules to rewrite a `Dedukti` file,
  - `universo` is a tool which allows to work with universes using the encoding of `The Calculus of Inductive Constructions` in `Dedukti`.
 
 ### OPTIONS
