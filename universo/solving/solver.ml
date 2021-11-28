@@ -89,15 +89,15 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
     let compare = compare
   end)
 
-  let env = Api.Env.init (P.input_from_string (B.mk_mident "solver") "")
+  (* FIXME: imperative code should be considered as harmful *)
+  let rules = ref []
 
   let sp = ref SP.empty
 
   let mk_rule : R.partially_typed_rule -> unit =
    fun r ->
-    let sg = Api.Env.get_signature env in
     match from_rule r.pat r.rhs with
-    | U.EqVar _ -> S.add_rules sg [R.to_rule_infos r]
+    | U.EqVar _ -> rules := r :: !rules
     | U.Pred p  -> sp := SP.add p !sp
 
   (** [parse meta s] parses a constraint file. *)
@@ -155,11 +155,13 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
     let cstr_files =
       List.map (fun file -> F.get_out_path file `Checking) files
     in
-    let meta_constraints = M.meta_of_files cstr_files in
+    let meta_constraints = M.parse_meta_files cstr_files in
+    (* FIXME: clean this: why two meta configuration? *)
+    let meta_constraints = M.default_config ~meta_rules:meta_constraints () in
     List.iter (print_model meta_constraints meta model) files
 
   let solve solver_env =
-    let meta = {M.default_config with env} in
+    let meta = M.default_config ~meta_rules:!rules () in
     let normalize : U.pred -> U.pred =
      fun p -> U.extract_pred (M.mk_term meta (U.term_of_pred p))
     in

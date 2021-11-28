@@ -38,6 +38,8 @@ type cfg = {
   decoding : bool; (* If false, the term is not decoded after normalization *)
 }
 
+let rule_name (Rule.{name; _} : Rule.partially_typed_rule) = name
+
 let default_config ?meta_rules ?(beta = true) ?encoding ?(decoding = true)
     ?(register_before = true) () =
   let meta_mident = Basic.mk_mident "<meta>" in
@@ -46,6 +48,10 @@ let default_config ?meta_rules ?(beta = true) ?encoding ?(decoding = true)
     (fun (module E : ENCODING) ->
       Signature.import_signature meta_signature E.signature)
     encoding;
+  (* FIXME: only one traversal is needed instead of 2 *)
+  let meta_rules =
+    Option.map (fun rules -> RNS.of_list (List.map rule_name rules)) meta_rules
+  in
   {meta_signature; meta_rules; beta; encoding; decoding; register_before}
 
 let signature_add_rule sg r = Signature.add_rules sg [Rule.to_rule_infos r]
@@ -55,10 +61,7 @@ let signature_add_rules sg rs = List.iter (signature_add_rule sg) rs
 
 let add_rules cfg rules =
   signature_add_rules cfg.meta_signature rules;
-  let rules_name =
-    List.map (fun (Rule.{name; _} : Rule.partially_typed_rule) -> name) rules
-  in
-  let rules = RNS.of_list rules_name in
+  let rules = RNS.of_list (List.map rule_name rules) in
   match cfg.meta_rules with
   | None                -> cfg.meta_rules <- Some rules
   | Some previous_rules ->

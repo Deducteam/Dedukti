@@ -30,10 +30,15 @@ jobs:
           opam install ocamlformat
           opam install tezt --no-checksums --keep-build-dir
           opam install ~/.opam/4.13.1/.opam-switch/sources/tezt.1.0.0/tezt/lib
+          opam install z3          
       - name: Checking formatting...
         run: |
           eval $(opam env)
           make fmt
+      - name: Check universo compiles...
+        run: |
+          eval $(opam env)
+          make universo
       - name: running legacy tests...
         run: |
           eval $(opam env)
