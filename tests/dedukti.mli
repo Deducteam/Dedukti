@@ -76,6 +76,7 @@ module Universo : sig
     | Theory of string
     | Output_directory of string
     | Import of string
+    | Simplify of string
 
   val run :
     ?fails:bool -> ?regression:bool -> filename:string -> argument list -> unit

@@ -30,7 +30,16 @@ let _ =
       Import "tests/universo/theory";
       Output_directory "tests/universo/output";
     ];
-  (* TODO: make this one passes *)
+  (* TODO: fix this one *)
+  (* Dedukti.Universo.run ~filename:"tests/universo/simple_ok.dk"
+   *   [
+   *     Config "tests/universo/config/universo_cfg.dk";
+   *     Theory "tests/universo/theory/cts.dk";
+   *     Import "tests/universo/theory";
+   *     Output_directory "tests/universo/output";
+   *     Simplify "tests/universo/simplified_output";
+   *   ]; *)
+  (* TODO: fix this one too *)
   (* Dedukti.Universo.run ~fails:true ~filename:"tests/universo/simple_ko.dk"
    *   [
    *     Config "tests/universo/config/universo_cfg.dk";

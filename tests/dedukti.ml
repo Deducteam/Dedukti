@@ -243,21 +243,37 @@ module Universo = struct
     | Theory of string
     | Output_directory of string
     | Import of string
+    | Simplify of string
 
   let mk_argument = function
     | Config filename -> ["--config"; filename]
     | Theory filename -> ["--theory"; filename]
     | Output_directory dirname -> ["-o"; dirname]
     | Import dirname -> ["-I"; dirname]
+    | Simplify dirname -> ["--simplify"; dirname]
 
   let tag_of_argument = function
-    | Config _ | Output_directory _ | Import _ -> []
+    | Config _ | Output_directory _ | Import _ | Simplify _ -> []
     | Theory filename -> [Filename.basename filename |> Filename.chop_extension]
 
   let run ?(fails = false) ?(regression = false) ~filename arguments =
     let preprocess () =
       Lwt_list.iter_s
         (function Theory filename -> Check.export filename | _ -> return ())
+        arguments
+    in
+    let postprocess _ =
+      let dep =
+        List.map (function Theory filename -> [filename] | _ -> []) arguments
+        |> List.concat
+      in
+      Lwt_list.iter_s
+        (function
+          | Simplify dirname ->
+              let output_filename = dirname // Filename.basename filename in
+              Format.eprintf "DEBUG: %s@." output_filename;
+              Check.check ~dep output_filename
+          | _ -> return ())
         arguments
     in
     let tags = List.map tag_of_argument arguments |> List.concat in
@@ -270,5 +286,6 @@ module Universo = struct
       if regression then Some (String.concat "_" (filename :: tags)) else None
     in
     let error = if fails then Some `System else None in
-    run ~preprocess ~regression ~error ~title ~tags ~filename Universo arguments
+    run ~preprocess ~postprocess ~regression ~error ~title ~tags ~filename
+      Universo arguments
 end
