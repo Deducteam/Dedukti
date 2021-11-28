@@ -18,12 +18,10 @@ type print_cstrs = {
 let dummy_name =
   R.Gamma (false, B.mk_name (B.mk_mident "dummy") (B.mk_ident "dummy"))
 
-(* FIXME: copy/paste from checker.ml *)
-let add_rule sg vl vr =
+let mk_rule vl vr =
   let pat = R.Pattern (B.dloc, vl, []) in
   let rhs = T.mk_Const B.dloc vr in
-  let rule = R.{ctx = []; pat; rhs; name = dummy_name} in
-  S.add_rules sg [R.to_rule_infos rule]
+  R.{ctx = []; pat; rhs; name = dummy_name}
 
 let print_rule pp fmt (l, r) = Format.fprintf fmt "@.[] %a --> %a" pp l pp r
 
@@ -58,8 +56,8 @@ let mk_cstr env f cstr =
       true
   | U.EqVar (l, r) ->
       let l, r = mk_var_cstr f l r in
-      let sg = Api.Env.get_signature env.meta.env in
-      add_rule sg l r;
+      (* FIXME: explain the rationale. *)
+      Api.Meta.add_rules env.meta [mk_rule l r];
       if not (List.mem (B.md r) !deps) then deps := B.md r :: !deps;
       Format.fprintf fmt "%a@." print_eq_var (l, r);
       true

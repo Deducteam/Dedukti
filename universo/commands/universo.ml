@@ -100,19 +100,19 @@ module Cmd = struct
 
   let elaboration_meta_cfg : unit -> M.cfg =
    fun () ->
-    let rules =
+    let meta_rules =
       try Hashtbl.find config "elaboration"
       with _ -> raise @@ Cmd_error NoElaborationSection
     in
-    M.meta_of_rules rules M.default_config
+    M.default_config ~meta_rules ()
 
   let output_meta_cfg : unit -> M.cfg =
    fun () ->
-    let rules =
+    let meta_rules =
       try Hashtbl.find config "output"
       with _ -> raise @@ Cmd_error NoOutputSection
     in
-    M.meta_of_rules rules M.default_config
+    M.default_config ~meta_rules ()
 
   let mk_constraints : unit -> (B.name, U.pred) Hashtbl.t =
    fun () ->
@@ -172,8 +172,9 @@ module Cmd = struct
   let mk_smt_theory : unit -> int -> O.theory =
    fun () ->
     try
-      let rules = Hashtbl.find config "qfuf_specification" in
-      let meta = M.meta_of_rules rules (output_meta_cfg ()) in
+      let meta_rules = Hashtbl.find config "qfuf_specification" in
+      let meta = output_meta_cfg () in
+      M.add_rules meta meta_rules;
       O.mk_theory meta
     with Not_found -> raise @@ Cmd_error NoTargetSpecification
 
@@ -335,10 +336,11 @@ let simplify : string list -> unit =
  fun in_paths ->
   B.Debug.enable_flag M.debug_flag;
   let normalize_file out_cfg in_path =
-    let meta =
+    let solution_rules =
       let path = F.get_out_path in_path `Solution in
-      M.meta_of_files ~cfg:out_cfg [path]
+      M.parse_meta_files [path]
     in
+    M.add_rules out_cfg solution_rules;
     let file = F.get_out_path in_path `Output in
     let input = P.input_from_file file in
     let env = Api.Env.init input in
@@ -349,7 +351,7 @@ let simplify : string list -> unit =
       | Parsers.Entry.Require (_, _) -> ()
       | e ->
           Format.fprintf fmt "%a@." Api.Pp.Default.print_entry
-            (M.mk_entry env meta e)
+            (M.mk_entry out_cfg env e)
     in
     P.handle input mk_entry; P.close input; F.close output
   in
