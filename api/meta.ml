@@ -40,6 +40,11 @@ type cfg = {
 
 let rule_name (Rule.{name; _} : Rule.partially_typed_rule) = name
 
+let signature_add_rule sg r = Signature.add_rules sg [Rule.to_rule_infos r]
+
+(* Several rules might be bound to different constants *)
+let signature_add_rules sg rs = List.iter (signature_add_rule sg) rs
+
 let default_config ?meta_rules ?(beta = true) ?encoding ?(decoding = true)
     ?(register_before = true) () =
   let meta_mident = Basic.mk_mident "<meta>" in
@@ -50,14 +55,13 @@ let default_config ?meta_rules ?(beta = true) ?encoding ?(decoding = true)
     encoding;
   (* FIXME: only one traversal is needed instead of 2 *)
   let meta_rules =
-    Option.map (fun rules -> RNS.of_list (List.map rule_name rules)) meta_rules
+    Option.map
+      (fun rules ->
+        signature_add_rules meta_signature rules;
+        RNS.of_list (List.map rule_name rules))
+      meta_rules
   in
   {meta_signature; meta_rules; beta; encoding; decoding; register_before}
-
-let signature_add_rule sg r = Signature.add_rules sg [Rule.to_rule_infos r]
-
-(* Several rules might be bound to different constants *)
-let signature_add_rules sg rs = List.iter (signature_add_rule sg) rs
 
 let add_rules cfg rules =
   signature_add_rules cfg.meta_signature rules;
