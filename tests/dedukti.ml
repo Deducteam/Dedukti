@@ -1,10 +1,11 @@
 module Command = struct
-  type t = Dkcheck | Dkmeta | Dkpretty
+  type t = Dkcheck | Dkmeta | Dkpretty | Universo
 
   let path = function
     | Dkcheck -> ("./dk.native", fun args -> "check" :: args)
     | Dkmeta -> ("./dk.native", fun args -> "meta" :: args)
     | Dkpretty -> ("./dk.native", fun args -> "beautify" :: args)
+    | Universo -> ("./universo.native", fun args -> args)
 end
 
 let remove_dkos () =
@@ -234,4 +235,40 @@ module Pretty = struct
     in
     run ~regression ~error:None ~title ~tags ~filename Dkpretty arguments
       ~postprocess
+end
+
+module Universo = struct
+  type argument =
+    | Config of string
+    | Theory of string
+    | Output_directory of string
+    | Import of string
+
+  let mk_argument = function
+    | Config filename -> ["--config"; filename]
+    | Theory filename -> ["--theory"; filename]
+    | Output_directory dirname -> ["-o"; dirname]
+    | Import dirname -> ["-I"; dirname]
+
+  let tag_of_argument = function
+    | Config _ | Output_directory _ | Import _ -> []
+    | Theory filename -> [Filename.basename filename |> Filename.chop_extension]
+
+  let run ?(fails = false) ?(regression = false) ~filename arguments =
+    let preprocess () =
+      Lwt_list.iter_s
+        (function Theory filename -> Check.export filename | _ -> return ())
+        arguments
+    in
+    let tags = List.map tag_of_argument arguments |> List.concat in
+    let arguments = List.map mk_argument arguments |> List.concat in
+    let result = if fails then "fails" else "succeeds" in
+    let result_tag = if fails then "ko" else "ok" in
+    let title = title ~action:"universo" ~result ~options:tags filename in
+    let tags = "universo" :: result_tag :: tags in
+    let regression =
+      if regression then Some (String.concat "_" (filename :: tags)) else None
+    in
+    let error = if fails then Some `System else None in
+    run ~preprocess ~regression ~error ~title ~tags ~filename Universo arguments
 end
