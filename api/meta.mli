@@ -53,9 +53,6 @@ module APP : ENCODING
 
 (** {2 Meta configuration } *)
 
-(** The type of set which aims to contain meta rewrite rules. *)
-module RNS : Set.S with type elt = Rule.rule_name
-
 (** The [cfg] type parameterise how the meta rewrite rules will act on
    [dedukti] terms.
 
@@ -91,7 +88,7 @@ type cfg
     [decoding]   = true
     [register_before] = true *)
 val default_config :
-  ?meta_rules:RNS.t ->
+  ?meta_rules:Rule.partially_typed_rule list ->
   ?beta:bool ->
   ?encoding:(module ENCODING) ->
   ?decoding:bool ->
