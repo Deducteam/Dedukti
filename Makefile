@@ -63,7 +63,7 @@ tests: bin binaries tests/tests.sh
 	$(Q)./tests/tests.sh $(RESET_REGRESSION)
 
 .PHONY: tezt
-tezt: bin binaries
+tezt: bin binaries universo.native
 	dune exec tests/main.exe
 
 #### Library tests ###########################################################
