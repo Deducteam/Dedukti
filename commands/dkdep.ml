@@ -1,6 +1,9 @@
+(** Print the dependencies of a list of modules *)
 open Kernel
+
 open Api
 open Basic
+open Cmdliner
 
 (** Output main program. *)
 let output_deps : Format.formatter -> Dep.t -> unit =
@@ -22,68 +25,14 @@ let output_deps : Format.formatter -> Dep.t -> unit =
   Hashtbl.iter output_line data
 
 let output_sorted : Format.formatter -> Dep.t -> unit =
- fun _ data ->
+ fun ppf data ->
   let deps = Dep.topological_sort data in
-  Format.printf "%s@." (String.concat " " deps)
+  Format.fprintf ppf "%s@." (String.concat " " deps)
 
-let _ =
-  (* Parsing of command line arguments. *)
-  let output = ref stdout in
-  let sorted = ref false in
-  let options =
-    Arg.align
-      [
-        ( "-d",
-          Arg.String Env.set_debug_mode,
-          "FLAGS enables debugging for all given flags:\n\
-          \      q : (quiet)    disables all warnings\n\
-          \      n : (notice)   notifies about which symbol or rule is \
-           currently treated\n\
-          \      o : (module)   notifies about loading of an external module \
-           (associated\n\
-          \                     to the command #REQUIRE)\n\
-          \      c : (confluence) notifies about information provided to the \
-           confluence\n\
-          \                     checker (when option -cc used)\n\
-          \      u : (rule)     provides information about type checking of \
-           rules\n\
-          \      t : (typing)   provides information about type-checking of \
-           terms\n\
-          \      r : (reduce)   provides information about reduction performed \
-           in terms\n\
-          \      m : (matching) provides information about pattern matching" );
-        ( "-v",
-          Arg.Unit (fun () -> Env.set_debug_mode "montru"),
-          " Verbose mode (equivalent to -d 'montru')" );
-        ( "-q",
-          Arg.Unit (fun () -> Env.set_debug_mode "q"),
-          " Quiet mode (equivalent to -d 'q')" );
-        ( "-o",
-          Arg.String (fun n -> output := open_out n),
-          "FILE Outputs to file FILE" );
-        ( "-s",
-          Arg.Set sorted,
-          " Sort the source files according to their dependencies" );
-        ( "--ignore",
-          Arg.Set Dep.ignore,
-          " If some dependencies are not found, ignore them" );
-        ( "-I",
-          Arg.String Files.add_path,
-          "DIR Add the directory DIR to the load path" );
-      ]
-  in
-  let usage =
-    Format.sprintf
-      "Usage: %s [OPTION]... [FILE]...\n\
-       Compute the dependencies of the given Dedukti FILE(s).\n\
-       For more information see https://github.com/Deducteam/Dedukti.\n\
-       Available options:" Sys.argv.(0)
-  in
-  let files =
-    let files = ref [] in
-    Arg.parse options (fun f -> files := f :: !files) usage;
-    List.rev !files
-  in
+let dkdep config ignore output sorted files =
+  Config.init config;
+  Dep.ignore := ignore;
+  let output = match output with Some f -> open_out f | None -> stdout in
   let open Processor in
   let hook =
     {
@@ -97,8 +46,32 @@ let _ =
   in
   (* Actual work. *)
   let deps = Processor.handle_files ~hook files Dependencies in
-  let formatter = Format.formatter_of_out_channel !output in
-  let output_fun = if !sorted then output_sorted else output_deps in
+  let formatter = Format.formatter_of_out_channel output in
+  let output_fun = if sorted then output_sorted else output_deps in
   output_fun formatter deps;
   Format.pp_print_flush formatter ();
-  close_out !output
+  close_out output
+
+let files =
+  let doc = "Print dependencies of Dedukti file FILE" in
+  Arg.(value & pos_all string [] & info [] ~docv:"FILE" ~doc)
+
+let output =
+  let doc = "Output to $(docv)" in
+  Arg.(value & opt (some string) None & info ["output"; "o"] ~docv:"FILE" ~doc)
+
+let sorted =
+  let doc = "Sort the source files according to their dependencies" in
+  Arg.(value & flag & info ["sort"; "s"] ~doc)
+
+let ignore =
+  let doc = "Ignore not found dependencies" in
+  Arg.(value & flag & info ["ignore"; "i"] ~doc)
+
+let cmd =
+  let doc = "Dependency list generator for Dedukti files" in
+  let exits = Term.default_exits in
+  ( Term.(const dkdep $ Config.t $ ignore $ output $ sorted $ files),
+    Term.info "dkdep" ~version:"%%VERSION%%" ~doc ~exits )
+
+let () = Term.(exit @@ eval cmd)

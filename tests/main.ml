@@ -22,4 +22,5 @@ let _ =
     ~dep:["tests/meta/rewrite_prod.dk"]
     ~filename:"tests/meta/rewrite_prod.dk"
     [Meta "tests/meta_files/prod_meta.dk"; Quoting `Prod];
+  Dedukti.Pretty.run ~filename:"tests/OK/hott.dk" [];
   Test.run ()
