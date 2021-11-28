@@ -23,4 +23,19 @@ let _ =
     ~filename:"tests/meta/rewrite_prod.dk"
     [Meta "tests/meta_files/prod_meta.dk"; Quoting `Prod];
   Dedukti.Pretty.run ~filename:"tests/OK/hott.dk" [];
+  Dedukti.Universo.run ~filename:"tests/universo/simple_ok.dk"
+    [
+      Config "tests/universo/config/universo_cfg.dk";
+      Theory "tests/universo/theory/cts.dk";
+      Import "tests/universo/theory";
+      Output_directory "tests/universo/output";
+    ];
+  (* TODO: make this one passes *)
+  (* Dedukti.Universo.run ~fails:true ~filename:"tests/universo/simple_ko.dk"
+   *   [
+   *     Config "tests/universo/config/universo_cfg.dk";
+   *     Theory "tests/universo/theory/cts.dk";
+   *     Import "tests/universo/theory";
+   *     Output_directory "tests/universo/output";
+   *   ]; *)
   Test.run ()
