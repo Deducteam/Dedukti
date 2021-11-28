@@ -25,8 +25,8 @@ module RNS = Set.Make (struct
 end)
 
 type cfg = {
-  env : Env.t option;
-  (* The meta environment contain meta rules. *)
+  meta_signature : Signature.t;
+  (* Signature containing meta rules *)
   mutable meta_rules : RNS.t option;
   (* Set of meta_rules used to normalize *)
   beta : bool;
@@ -38,11 +38,35 @@ type cfg = {
   decoding : bool; (* If false, the term is not decoded after normalization *)
 }
 
-let default_config ?env ?meta_rules ?(beta = true) ?encoding ?(decoding = true)
+let default_config ?meta_rules ?(beta = true) ?encoding ?(decoding = true)
     ?(register_before = true) () =
-  {env; meta_rules; beta; encoding; decoding; register_before}
+  let meta_mident = Basic.mk_mident "<meta>" in
+  let meta_signature = Signature.make meta_mident Files.find_object_file in
+  Option.iter
+    (fun (module E : ENCODING) ->
+      Signature.import_signature meta_signature E.signature)
+    encoding;
+  {meta_signature; meta_rules; beta; encoding; decoding; register_before}
 
+let signature_add_rule sg r = Signature.add_rules sg [Rule.to_rule_infos r]
+
+(* Several rules might be bound to different constants *)
+let signature_add_rules sg rs = List.iter (signature_add_rule sg) rs
+
+let add_rules cfg rules =
+  signature_add_rules cfg.meta_signature rules;
+  let rules_name =
+    List.map (fun (Rule.{name; _} : Rule.partially_typed_rule) -> name) rules
+  in
+  let rules = RNS.of_list rules_name in
+  match cfg.meta_rules with
+  | None                -> cfg.meta_rules <- Some rules
+  | Some previous_rules ->
+      cfg.meta_rules <- Some (RNS.union rules previous_rules)
+
+(* This is a shortcut so that if a symbol is not found in the signature, we can still reduce. *)
 let unsafe_finder sg l name =
+  (* FIXME: pattern match properly on the error. *)
   try Kernel.Signature.get_dtree sg l name with _ -> Dtree.empty
 
 (* A dkmeta configuration to a reduction configuration *)
@@ -468,27 +492,52 @@ module APP = struct
   and decode_Pi _ _ _ _ = assert false
 end
 
-let encode sg cfg term =
+let encode cfg env term =
   match cfg.encoding with
   | None                       -> term
   | Some (module E : ENCODING) ->
-      if E.safe then E.encode_term ~sg term else E.encode_term term
+      if E.safe then
+        match env with
+        | None     ->
+            Errors.fail_sys_error
+              ~msg:
+                "A type checking environment must be provided when a safe \
+                 encoding is used."
+              ()
+        | Some env ->
+            let sg = Env.get_signature env in
+            E.encode_term ~sg term
+      else E.encode_term term
 
 let decode cfg term =
   match cfg.encoding with
   | None                       -> term
   | Some (module E : ENCODING) -> E.decode_term term
 
-let normalize cfg env term =
+let normalize cfg sg term =
   let red = red_cfg cfg in
-  let sg = Env.get_signature env in
   Reduction.Default.reduction red sg term
 
-let mk_term cfg env term =
-  let sg = Env.get_signature env in
-  let term' = encode sg cfg term in
-  let env = Option.value cfg.env ~default:env in
-  let term'' = normalize cfg env term' in
+(* [cfg.meta_rules = None] means we use the type checking environment
+       for normalisation. *)
+let get_meta_signature cfg env =
+  match cfg.meta_rules with
+  | Some _ -> cfg.meta_signature
+  | None   -> (
+      match env with
+      | None     ->
+          Errors.fail_sys_error
+            ~msg:
+              "A type checking environment must be provided when the \
+               normalisation strategy is done via the type checking \
+               environmenet"
+            ()
+      | Some env -> Env.get_signature env)
+
+let mk_term ?env cfg term =
+  let term' = encode cfg env term in
+  let sg = get_meta_signature cfg env in
+  let term'' = normalize cfg sg term' in
   if cfg.decoding then decode cfg term'' else term''
 
 exception Not_a_pattern
@@ -508,17 +557,21 @@ let rec pattern_of_term t =
 
 let mk_rule env cfg (r : Rule.partially_typed_rule) =
   let open Rule in
+  let meta_signature = get_meta_signature cfg (Some env) in
   match cfg.encoding with
-  | None                       -> {r with rhs = normalize cfg env r.rhs}
+  | None                       -> {
+                                    r with
+                                    rhs = normalize cfg meta_signature r.rhs;
+                                  }
   | Some (module E : ENCODING) ->
       let sg = Env.get_signature env in
       let r' = E.encode_rule ~sg r in
-      let pat' = normalize cfg env (Rule.pattern_to_term r'.pat) in
+      let pat' = normalize cfg meta_signature (Rule.pattern_to_term r'.pat) in
       let pat'' =
         if cfg.decoding then pattern_of_term (E.decode_term pat')
         else pattern_of_term pat'
       in
-      let rhs' = normalize cfg env r'.rhs in
+      let rhs' = normalize cfg meta_signature r'.rhs in
       let rhs'' = if cfg.decoding then decode cfg rhs' else rhs' in
       {pat = pat''; rhs = rhs''; ctx = r.ctx; name = r.name}
 
@@ -538,7 +591,7 @@ let mk_entry cfg env entry =
   match entry with
   | Decl (lc, id, sc, st, ty) ->
       log "[NORMALIZE] %a" Basic.pp_ident id;
-      let ty' = mk_term cfg env ty in
+      let ty' = mk_term ~env cfg ty in
       if cfg.register_before then Signature.add_declaration sg lc id sc st ty
       else Signature.add_declaration sg lc id sc st ty';
       Decl (lc, id, sc, st, ty')
@@ -554,8 +607,8 @@ let mk_entry cfg env entry =
         | _, Some ty -> ty
         | _, _ -> Term.mk_Type Basic.dloc
       in
-      let safe_ty' = mk_term cfg env safe_ty in
-      let te' = mk_term cfg env te in
+      let safe_ty' = mk_term ~env cfg safe_ty in
+      let te' = mk_term ~env cfg te in
       (if cfg.register_before then
        let _ =
          Signature.add_declaration sg lc id sc (Signature.Definable Free)
@@ -581,19 +634,6 @@ let mk_entry cfg env entry =
       else Signature.add_rules sg (List.map Rule.to_rule_infos rs');
       Rules (lc, rs')
   | _ -> entry
-
-let add_rule sg r = Signature.add_rules sg [Rule.to_rule_infos r]
-
-(* Several rules might be bound to different constants *)
-let add_rules sg rs = List.iter (add_rule sg) rs
-
-let meta_of_rules : Env.t -> Rule.partially_typed_rule list -> RNS.t =
- fun env rules ->
-  let rule_names =
-    List.map (fun (r : Rule.partially_typed_rule) -> r.Rule.name) rules
-  in
-  let sg = Env.get_signature env in
-  add_rules sg rules; RNS.of_list rule_names
 
 module MetaConfiguration :
   Processor.S with type t = Rule.partially_typed_rule list = struct
@@ -625,13 +665,11 @@ let _ =
   Processor.Registration.register_processor MetaRules {equal}
     (module MetaConfiguration)
 
-let meta_of_files
-    ?(env =
-      Env.init (Parsers.Parser.input_from_string (Basic.mk_mident "meta") ""))
-    files =
+let parse_meta_files files =
   Processor.fold_files files
-    ~f:(fun rules acc -> RNS.union acc (meta_of_rules env rules))
-    ~default:RNS.empty MetaRules
+    ~f:(fun rules acc -> rules :: acc)
+    ~default:[] MetaRules
+  |> List.concat
 
 let make_meta_processor cfg ~post_processing =
   let module Meta = struct

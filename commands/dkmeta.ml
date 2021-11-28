@@ -95,36 +95,18 @@ let _ =
   if !no_meta && !encoding <> None then
     Errors.fail_sys_error
       ~msg:"Incompatible options: '--no-meta' with '--encoding'" ();
-  let env, meta_rules =
-    match (!meta_files, !encoding) with
-    | [], None        ->
-        if !no_meta then
-          (* No rewrite rules is allowed *)
-          (None, Some Meta.RNS.empty)
-        else (* No meta rule. Normalise everything. *)
-          (None, None)
-    | [], Some _      ->
-        Errors.fail_sys_error
-          ~msg:"The option '--encoding' was given without meta rules" ()
-    | files, encoding ->
-        let env =
-          Env.init
-            (Parsers.Parser.input_from_string (Basic.mk_mident "meta") "")
-        in
-        (match encoding with
-        | None            -> ()
-        | Some (module E) ->
-            let sg = Env.get_signature env in
-            Signature.import_signature sg E.signature);
-        (* This can import recursively dependencies *)
-        let rules = Meta.meta_of_files ~env files in
-        Meta.log "[SUCCESS] Meta rules registered successfuly";
-        (Some env, Some rules)
-  in
   let cfg =
-    Meta.default_config ?env ?meta_rules ~beta:!beta ?encoding:!encoding
-      ~decoding:!decoding ~register_before:!register_before ()
+    Meta.default_config ~beta:!beta ?encoding:!encoding ~decoding:!decoding
+      ~register_before:!register_before ()
   in
+  (* Adding normalisation will be done with an empty list of meta rules. *)
+  if !no_meta then Meta.add_rules cfg [];
+  (match !meta_files with
+  | []    -> ()
+  | files ->
+      let rules = Meta.parse_meta_files files in
+      Meta.add_rules cfg rules;
+      Meta.log "[SUCCESS] Meta rules registered successfuly");
   let post_processing env entry =
     let (module Printer) = Env.get_printer env in
     Format.printf "%a" Printer.print_entry entry
