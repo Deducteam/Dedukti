@@ -20,11 +20,9 @@ let files =
   let doc = "Pretty print Dedukti file FILE" in
   Arg.(value & pos_all string [] & info [] ~docv:"FILE" ~doc)
 
+let cmd_t = Term.(const beautify $ Config.t $ files)
+
 let cmd =
   let doc = "Pretty print Dedukti files" in
-  let exits = Term.default_exits in
   let man = [] in
-  ( Term.(const beautify $ Config.t $ files),
-    Term.(info "dkpretty" ~version:"%%VERSION%%" ~doc ~exits ~man) )
-
-let () = Term.(exit @@ eval cmd)
+  Cmd.(v (info "beautify" ~version:"%%VERSION%%" ~doc ~man) cmd_t)

@@ -5,7 +5,7 @@ set -f
 shift #Remove the reset regression parameter
 shift #Remove the filename (which is duplicated anyway)
 
-OUT=$(./dkcheck.native --no-color "$@" 2>&1 | uniq -c | egrep "^ *[0-9]*(1|3|5|7|9) .*")
+OUT=$(./dkcheck.native check --no-color "$@" 2>&1 | uniq -c | egrep "^ *[0-9]*(1|3|5|7|9) .*")
 LINES=$(echo $OUT | wc -l)
 SUCCESSLINES=$(echo $OUT | grep "^ *1 \[SUCCESS\].*" | wc -l)
 

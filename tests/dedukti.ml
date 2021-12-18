@@ -2,9 +2,9 @@ module Command = struct
   type t = Dkcheck | Dkmeta | Dkpretty
 
   let path = function
-    | Dkcheck  -> "./dkcheck.native"
-    | Dkmeta   -> "./dkmeta.native"
-    | Dkpretty -> "./dkpretty.native"
+    | Dkcheck  -> ("./dkcheck.native", fun args -> "check" :: args)
+    | Dkmeta   -> ("./dkmeta.native", Fun.id)
+    | Dkpretty -> ("./dkcheck.native", fun args -> "beautify" :: args)
 end
 
 let remove_dkos () =
@@ -85,8 +85,8 @@ let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
               }
         else None
       in
-      let command = Command.path command in
-      let process = Process.spawn ?hooks command (arguments @ [filename]) in
+      let path, carg = Command.path command in
+      let process = Process.spawn ?hooks path (carg (arguments @ [filename])) in
       match error with
       | None              ->
           let* () = Process.check process in
@@ -132,15 +132,18 @@ module Check = struct
 
   let ko ~error = run ~regression:false ~error:(Some error)
 
-  let export filename = Process.run Command.(path Dkcheck) ["-e"; filename]
+  let export filename =
+    let open Command in
+    Process.run (fst (path Dkcheck)) (snd (path Dkcheck) ["-e"; filename])
 
   let check ~dep filename =
     let imported_paths =
       List.map (fun dep -> Import (Filename.dirname dep) |> mk_argument) dep
       |> List.concat
     in
-    Process.spawn Command.(path Dkcheck) (imported_paths @ [filename])
-    |> Process.check
+    let open Command in
+    let path, edit_arg = path Dkcheck in
+    Process.spawn path (edit_arg (imported_paths @ [filename])) |> Process.check
 end
 
 module Meta = struct
@@ -213,8 +216,8 @@ module Pretty = struct
   let tag_of_argument : argument -> _ = function _ -> .
 
   let run ?(dep = []) ~filename arguments =
-    let tags = "pretty" :: List.map tag_of_argument arguments in
-    let arguments = List.map mk_argument arguments |> List.concat in
+    let tags = "beautify" :: List.map tag_of_argument arguments in
+    let arguments = List.(map mk_argument arguments |> concat) in
     let title =
       title ~action:"pretty print" ~options:tags ~result:"succeeds" filename
     in

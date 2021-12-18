@@ -1,7 +1,7 @@
-(executables
- (names dkcheck dkdep dkpretty)
- (public_names dkcheck dkdep dkpretty)
- (modules dkcheck dkdep dkpretty config)
+(executable
+ (name main)
+ (modules main dkcheck dkdep dkpretty config)
+ (public_name dkcheck)
  (package dedukti)
  (libraries cmdliner kernel parsers api))
 
