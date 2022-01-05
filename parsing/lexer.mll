@@ -97,10 +97,6 @@ and sident op buf = parse
   { match op with
     | None ->  ID  ( get_loc lexbuf , mk_ident ("{|" ^ (Buffer.contents buf) ^ "|}") )
     | Some md -> QID ( get_loc lexbuf , md, mk_ident ("{|" ^ (Buffer.contents buf) ^ "|}") )}
-  | '\n'
-  { fail (get_loc lexbuf) "Unexpected new line in ident." }
-  | ' '
-  { fail (get_loc lexbuf) "Unexpected space in ident." }
   | _ as c
   { Buffer.add_char buf c; sident op buf lexbuf }
   | eof

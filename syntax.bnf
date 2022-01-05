@@ -6,11 +6,23 @@
 <qident> ::= <mident> '.' <ident>
 
 <line> ::= <ident> <param>* ':' <term> '.'
+         | 'private' <ident> <param>* ':' <term> '.'
          | 'def' <ident> ':' <term> '.'
+         | 'private' 'def' <ident> ':' <term> '.'
+         | 'injective' <ident> ':' <term> '.'
+         | 'private' 'injective' <ident> ':' <term> '.'
+         | 'def'AC <ident> '[' <term> ']' '.'
+         | 'private' 'def'AC <ident> '[' <term> ']' '.'
+         | 'def'ACU <ident> '[' <term> ',' <term> ']' '.'
+         | 'private' 'def'ACU <ident> '[' <term> ',' <term> ']' '.'
          | 'def' <ident> ':' <term> ':=' <term> '.'
          | 'def' <ident> ':=' <term> '.'
          | 'def' <ident> <param>+ ':' <term> ':=' <term> '.'
          | 'def' <ident> <param>+ ':=' <term> '.'
+         | 'private' 'def' <ident> ':' <term> ':=' <term> '.'
+         | 'private' 'def' <ident> ':=' <term> '.'
+         | 'private' 'def' <ident> <param>+ ':' <term> ':=' <term> '.'
+         | 'private' 'def' <ident> <param>+ ':=' <term> '.'
          | 'thm' <ident> ':' <term> ':=' <term> '.'
          | 'thm' <ident> <param>+ ':' <term> ':=' <term> '.'
          | <rule>+ '.'
@@ -60,10 +72,8 @@
                | '{' <term> '}' 
                | '(' <pattern> ')'
 
-<pattern> ::= <ident> <pattern_wp>+
-            | <qident> <pattern_wp>+
-            | <pid> '=>' <pattern>
-            | <pattern_wp>
+<pattern> ::= <pid> '=>' <pattern>
+            | <pattern_wp>+
 
 <sterm> ::= <qident>
           | <ident>
@@ -75,7 +85,7 @@
 <term> ::= <aterm>
          | <pid> ':' <aterm> '->' <term>
          | '(' <ident> ':' <aterm> ')' '->' <term>
-         | <term> '->' <term>
+         | <aterm> '->' <term>
          | <pid> '=>' <term>
          | <pid> ':' <aterm> '=>' <term>
          | '(' <pid> ':' <aterm> ':=' <aterm> ')' '=>' <term>

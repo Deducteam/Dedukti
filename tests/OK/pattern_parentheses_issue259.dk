@@ -1,3 +1,5 @@
+(; OK ;)
+
 Set : Type.
 Prop : Type.
 def El : (Set -> Type).
