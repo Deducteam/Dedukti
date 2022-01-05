@@ -37,7 +37,7 @@ def equiv: Prop -> Prop -> Prop :=
 
 
 [] prf True --> P:Prop -> (prf P -> prf P)
-[] prf False --> P:Prop -> prf P.
+[] prf False --> P:Prop -> prf P
 [A, B] prf (and A B) --> P:Prop -> (prf A -> prf B -> prf P) -> prf P
 [A, B] prf (or A B) --> P:Prop -> (prf A -> prf P) -> (prf B -> prf P) -> prf P
 [A, B] prf (imply A B) --> prf A -> prf B
