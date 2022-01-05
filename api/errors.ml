@@ -365,6 +365,10 @@ let fail_lexer_error ~red:_ = function
 let fail_parser_error ~red:_ = function
   | Parser.Parse_error (lc, msg) ->
       Some (702, Some lc, Format.asprintf "Parsing error: %s@." msg)
+  | Preterm.BetaRedexInLHS lc ->
+      Some (705, Some lc, Format.asprintf "Parsing error: Beta-redex are not allowed in the left-hand side of rewriting rule@.")
+  | Preterm.AppliedGuardedTerm lc ->
+    Some (706, Some lc, Format.asprintf "Parsing error: Applying a guarded term in the LHS of a rule is not allowed@.")
   | _ -> None
 
 let fail_scoping_error ~red:_ = function

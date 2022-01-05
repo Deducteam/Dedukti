@@ -79,6 +79,7 @@ let get_vars_order (vars : pcontext) (ppat : prepattern) :
         has_brackets := true;
         ctx
     | PJoker (l, _) -> (l, get_fresh_name (), None) :: ctx
+    | PApp plist -> List.fold_left (aux bvar) ctx plist
   in
   let ordered_ctx = aux [] [] ppat in
   ( ordered_ctx,
@@ -105,8 +106,10 @@ let p_of_pp md (ctx : ident list) (ppat : prepattern) : pattern =
         match get_db_index ctx id with
         | Some n -> Var (l, id, n, List.map (aux ctx) pargs)
         | None   -> assert false)
+    (* The cleaning of prepatterns suppress all the PApp *)
+    | PApp _ -> assert false
   in
-  aux ctx ppat
+  aux ctx (clean_pre_pattern ppat)
 
 (******************************************************************************)
 
