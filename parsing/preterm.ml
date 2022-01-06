@@ -2,6 +2,7 @@ open Kernel.Basic
 open Format
 
 exception AppliedGuardedTerm of loc
+
 exception BetaRedexInLHS of loc
 
 type preterm =
@@ -34,12 +35,12 @@ and pp_preterm_wp fmt preterm =
 
 let rec loc_of_preterm (pte : preterm) : loc =
   match pte with
-  | PreType l -> l
-  | PreId (l, _) -> l
-  | PreQId (l, _) -> l
-  | PreApp (t, _, _) -> loc_of_preterm t
+  | PreType l           -> l
+  | PreId (l, _)        -> l
+  | PreQId (l, _)       -> l
+  | PreApp (t, _, _)    -> loc_of_preterm t
   | PreLam (l, _, _, _) -> l
-  | PrePi (l, _, _, _) -> l
+  | PrePi (l, _, _, _)  -> l
 
 type prepattern =
   | PCondition of preterm
@@ -63,52 +64,44 @@ let rec pp_prepattern fmt ppatern =
   | PLambda (_, id, p)        -> fprintf fmt "%a => %a" pp_ident id
                                    pp_prepattern p
   | PApp plist                -> fprintf fmt "(%a)"
-                                   (pp_list " " pp_prepattern) plist
+                                   (pp_list " " pp_prepattern)
+                                   plist
 
 let rec loc_of_prepat (ppat : prepattern) : loc =
-match ppat with
+  match ppat with
   | PPattern (l, _, _, _) -> l
   | PCondition pte        ->
-      let (l,c) = of_loc (loc_of_preterm pte) in
-      mk_loc l (c-1)
+      let l, c = of_loc (loc_of_preterm pte) in
+      mk_loc l (c - 1)
   | PJoker (l, _)         -> l
   | PLambda (l, _, _)     -> l
   | PApp []               -> assert false
-  | PApp (h::_)          ->
-      let (l,c) = of_loc (loc_of_prepat h) in
-      mk_loc l (c-1)
+  | PApp (h :: _)         ->
+      let l, c = of_loc (loc_of_prepat h) in
+      mk_loc l (c - 1)
 
 let rec clean_pre_pattern (ppat : prepattern) : prepattern =
   match ppat with
   (* The grammar ensures that the list cannot be empty. *)
   | PApp [] -> assert false
-  | PApp (h::tl) ->
-      begin
-        match clean_pre_pattern h with
-        | PPattern (l,md,id,args) ->
-            PPattern(l,md,id,List.map clean_pre_pattern (args @ tl))
-        | PCondition pte ->
-            if tl = []
-            then PCondition pte
-            else
-              raise (AppliedGuardedTerm (loc_of_prepat ppat))
-        | PJoker (l, args) ->
-            PJoker(l, List.map clean_pre_pattern (args @ tl))
-        | PLambda (l, id, p) ->
-            if tl = []
-            then PLambda (l, id, clean_pre_pattern p)
-            else
-              raise (BetaRedexInLHS (loc_of_prepat ppat))
-        (* clean_pre_pattern suppresses all PApp*)
-        | PApp _ -> assert false
-      end
-  | PPattern (l,md,id,args) ->
-      PPattern(l,md,id,List.map clean_pre_pattern args)
+  | PApp (h :: tl) -> (
+      match clean_pre_pattern h with
+      | PPattern (l, md, id, args) ->
+          PPattern (l, md, id, List.map clean_pre_pattern (args @ tl))
+      | PCondition pte ->
+          if tl = [] then PCondition pte
+          else raise (AppliedGuardedTerm (loc_of_prepat ppat))
+      | PJoker (l, args) -> PJoker (l, List.map clean_pre_pattern (args @ tl))
+      | PLambda (l, id, p) ->
+          if tl = [] then PLambda (l, id, clean_pre_pattern p)
+          else raise (BetaRedexInLHS (loc_of_prepat ppat))
+      (* clean_pre_pattern suppresses all PApp*)
+      | PApp _ -> assert false)
+  | PPattern (l, md, id, args) ->
+      PPattern (l, md, id, List.map clean_pre_pattern args)
   | PCondition pte -> PCondition pte
-  | PJoker (l, args) ->
-      PJoker(l, List.map clean_pre_pattern args)
-  | PLambda (l, id, p) ->
-      PLambda (l, id, clean_pre_pattern p)
+  | PJoker (l, args) -> PJoker (l, List.map clean_pre_pattern args)
+  | PLambda (l, id, p) -> PLambda (l, id, clean_pre_pattern p)
 
 (* and pp_prepattern_wp fmt = function
  *   | PLambda (_,_,_)

@@ -2,6 +2,7 @@ open Kernel.Basic
 open Format
 
 exception AppliedGuardedTerm of loc
+
 exception BetaRedexInLHS of loc
 
 (** {2 PreTerms} *)
