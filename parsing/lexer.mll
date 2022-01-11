@@ -93,10 +93,22 @@ and string buf = parse
 and sident op buf = parse
   | '\\' (_ as c)
   { Buffer.add_char buf '\\'; Buffer.add_char buf c; sident op buf lexbuf }
+  | '|' '}' '.' (ident as id)
+  { match op with
+    | None -> QID (get_loc lexbuf , mk_mident (Buffer.contents buf), mk_ident id)
+    | Some _ -> fail (get_loc lexbuf) "The current module system of Dedukti does not allow module inside module, it does not make sense to try to load one."
+  }
+  | '|' '}' '.' '{' '|'
+  { match op with
+    | None -> sident (Some (mk_mident (Buffer.contents buf))) (Buffer.create 42) lexbuf
+    | Some _ -> fail (get_loc lexbuf) "The current module system of Dedukti does not allow module inside module, it does not make sense to try to load one."
+  }
   | '|' '}'
   { match op with
     | None ->  ID  ( get_loc lexbuf , mk_ident ("{|" ^ (Buffer.contents buf) ^ "|}") )
     | Some md -> QID ( get_loc lexbuf , md, mk_ident ("{|" ^ (Buffer.contents buf) ^ "|}") )}
+  | '\n'
+  { fail (get_loc lexbuf) "Unexpected new line in ident." }
   | _ as c
   { Buffer.add_char buf c; sident op buf lexbuf }
   | eof

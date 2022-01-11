@@ -1,0 +1,4 @@
+(; OK -I tests/OK ;)
+
+a : {|dep C|}.A.
+b : {|dep C|}.{|∀|}.
