@@ -2,6 +2,8 @@ on:
   pull_request:
     types: [opened, synchronize, edited, reopened]
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 1 * *'
 jobs:
   build:
     strategy:
@@ -30,7 +32,7 @@ jobs:
           opam install ocamlformat
           opam install tezt --no-checksums --keep-build-dir
           opam install ~/.opam/4.13.1/.opam-switch/sources/tezt.1.0.0/tezt/lib
-          opam install z3          
+          opam install z3
       - name: Checking formatting...
         run: |
           eval $(opam env)
@@ -47,3 +49,13 @@ jobs:
         run: |
           eval $(opam env)
           make tezt
+      - name: running light libraries...
+        if: github.event_name != 'schedule'
+        run: |
+          eval $(opam env)
+          make light_tests
+      - name: running all libraries...
+        if: github.event_name == 'schedule'
+        run: |
+          eval $(opam env)
+          make full_tests

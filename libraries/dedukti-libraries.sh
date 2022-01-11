@@ -2,7 +2,7 @@
 
 DKCHECK="$(pwd)/../dkcheck.native"
 DKDEP="$(pwd)/../dkdep.native"
-DKFLAGS="-q"
+DKFLAGS=""
 
 SRC="https://github.com/Deducteam/Libraries/archive/master.zip"
 DIR="Libraries-master"
