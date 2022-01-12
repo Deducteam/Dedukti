@@ -193,7 +193,6 @@ module Cmd = struct
         | R.Var (_, id, _, _) -> B.string_of_ident id
         | _                   -> assert false
       in
-      let _ = Format.printf "r.pat = %a\n" R.pp_pattern r.pat in
       match r.pat with
       | R.Pattern (_, _, l) -> (List.map to_string l, r.rhs)
       | _                   -> assert false
