@@ -3,7 +3,7 @@ on:
     types: [opened, synchronize, edited, reopened]
   workflow_dispatch:
   schedule:
-    - cron: '0 0 1 * *'
+    - cron: '0 10 12 * *'
 jobs:
   build:
     strategy:
