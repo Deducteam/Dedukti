@@ -172,7 +172,7 @@ module Cmd = struct
   let mk_smt_theory : unit -> int -> O.theory =
    fun () ->
     try
-      (* FIXME : dynamically change to use LRA specification *)
+      (* FIXME : dynamically change to use LRA or QFUF specification *)
       let meta_rules = Hashtbl.find config "lra_specification" in
       let meta = output_meta_cfg () in
       M.add_rules meta meta_rules;
@@ -196,7 +196,7 @@ module Cmd = struct
       match r.pat with
       | R.Pattern (_, _, l) -> (List.map to_string l, r.rhs)
       | _                   -> assert false
-    with _ -> raise @@ Cmd_error (Misc ("Wrong solver specification : "^s))
+    with _ -> raise @@ Cmd_error (Misc "Wrong solver specification : ")
 
   let mk_lra_reification : unit -> (module L.LRA_REIFICATION) =
    fun () ->
