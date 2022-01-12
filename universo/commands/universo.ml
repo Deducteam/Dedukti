@@ -172,7 +172,8 @@ module Cmd = struct
   let mk_smt_theory : unit -> int -> O.theory =
    fun () ->
     try
-      let meta_rules = Hashtbl.find config "qfuf_specification" in
+      (* FIXME : dynamically change to use LRA specification *)
+      let meta_rules = Hashtbl.find config "lra_specification" in
       let meta = output_meta_cfg () in
       M.add_rules meta meta_rules;
       O.mk_theory meta
@@ -192,19 +193,20 @@ module Cmd = struct
         | R.Var (_, id, _, _) -> B.string_of_ident id
         | _                   -> assert false
       in
+      let _ = Format.printf "r.pat = %a\n" R.pp_pattern r.pat in
       match r.pat with
       | R.Pattern (_, _, l) -> (List.map to_string l, r.rhs)
       | _                   -> assert false
-    with _ -> raise @@ Cmd_error (Misc "Wrong solver specification")
+    with _ -> raise @@ Cmd_error (Misc ("Wrong solver specification : "^s))
 
   let mk_lra_reification : unit -> (module L.LRA_REIFICATION) =
    fun () ->
     (module struct
-      let axiom_specification = get_lra_specification_config "axiom"
+      let axiom_specification = get_lra_specification_config "Axiom"
 
-      let rule_specification = get_lra_specification_config "rule"
+      let rule_specification = get_lra_specification_config "Rule"
 
-      let cumul_specification = get_lra_specification_config "cumul"
+      let cumul_specification = get_lra_specification_config "Cumul"
     end)
 
   let mk_solver : unit -> (module Solving.Utils.SOLVER) * Solving.Utils.env =
