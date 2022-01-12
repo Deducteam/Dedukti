@@ -55,7 +55,6 @@ while IFS= read -r i; do
 	instructions=$(head -n 1 "$i" | sed -e "s/^ *(;//g" | sed -e "s/;) *$//g" | tr -s ' ')
 	cmd=$(echo $instructions | cut -d ' ' -f 1-1)
 	flags=$(echo $instructions | cut -s -d ' ' -f 2-)
-	echo ${i@Q}
 	if bash "./tests/scripts/$cmd.sh" $1 "$i" $flags "$i";
 	then
 		passed=$((passed+1)) ;
