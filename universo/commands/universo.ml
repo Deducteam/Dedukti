@@ -195,7 +195,7 @@ module Cmd = struct
       match r.pat with
       | R.Pattern (_, _, l) -> (List.map to_string l, r.rhs)
       | _                   -> assert false
-    with _ -> raise @@ Cmd_error (Misc "Wrong solver specification : ")
+    with _ -> raise @@ Cmd_error (Misc "Wrong solver specification")
 
   let mk_lra_reification : unit -> (module L.LRA_REIFICATION) =
    fun () ->
