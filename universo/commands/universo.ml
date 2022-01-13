@@ -169,11 +169,10 @@ module Cmd = struct
     {env; in_path; meta_out = output_meta_cfg (); constraints; out_file}
 
   (** [theory_meta f] returns the meta configuration that allows to elaborate a theory for the SMT solver *)
-  let mk_smt_theory : unit -> int -> O.theory =
-   fun () ->
+  let mk_smt_theory : string -> unit -> int -> O.theory =
+   fun spec () ->
     try
-      (* FIXME : dynamically change to use LRA or QFUF specification *)
-      let meta_rules = Hashtbl.find config "lra_specification" in
+      let meta_rules = Hashtbl.find config spec in
       let meta = output_meta_cfg () in
       M.add_rules meta meta_rules;
       O.mk_theory meta
@@ -249,7 +248,8 @@ module Cmd = struct
     let min = int_of_string (find "minimum" "1") in
     let max = int_of_string (find "maximum" "6") in
     let print = find "print" "false" = "true" in
-    let mk_theory = mk_smt_theory () in
+    let spec = logic ^ "_specification" in
+    let mk_theory = mk_smt_theory spec () in
     let env = {min; max; print; mk_theory} in
     ((module S : Utils.SOLVER), env)
 end
