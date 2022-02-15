@@ -74,8 +74,7 @@ module Make (Spec : L.LRA_SPECIFICATION) = struct
    fun ctx _ model var ->
     match Z3.Model.get_const_interp_e model (mk_var ctx var) with
     | None   ->
-        Format.eprintf "%s@." var;
-        assert false
+        U.Enum 0 (* The Variable probably doesn't have any constraints on it *)
     | Some e ->
         let v = Z.to_int (ZI.get_big_int e) in
         U.Enum v

@@ -370,7 +370,9 @@ let get_env sg lc cst =
 
 let get_infos sg lc cst =
   try HId.find (get_env sg lc cst) (id cst)
-  with Not_found -> raise (Signature_error (SymbolNotFound (lc, cst)))
+  with Not_found -> 
+  Format.eprintf "can't find %a\n%!" pp_name cst;
+  raise (Signature_error (SymbolNotFound (lc, cst)))
 
 let is_injective sg lc cst =
   match (get_infos sg lc cst).stat with
