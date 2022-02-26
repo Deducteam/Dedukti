@@ -6,11 +6,23 @@
 <qident> ::= <mident> '.' <ident>
 
 <line> ::= <ident> <param>* ':' <term> '.'
+         | 'private' <ident> <param>* ':' <term> '.'
          | 'def' <ident> ':' <term> '.'
+         | 'private' 'def' <ident> ':' <term> '.'
+         | 'injective' <ident> ':' <term> '.'
+         | 'private' 'injective' <ident> ':' <term> '.'
+         | 'defac' <ident> '[' <term> ']' '.'
+         | 'private' 'defac' <ident> '[' <term> ']' '.'
+         | 'defacu' <ident> '[' <term> ',' <term> ']' '.'
+         | 'private' 'defacu' <ident> '[' <term> ',' <term> ']' '.'
          | 'def' <ident> ':' <term> ':=' <term> '.'
          | 'def' <ident> ':=' <term> '.'
          | 'def' <ident> <param>+ ':' <term> ':=' <term> '.'
          | 'def' <ident> <param>+ ':=' <term> '.'
+         | 'private' 'def' <ident> ':' <term> ':=' <term> '.'
+         | 'private' 'def' <ident> ':=' <term> '.'
+         | 'private' 'def' <ident> <param>+ ':' <term> ':=' <term> '.'
+         | 'private' 'def' <ident> <param>+ ':=' <term> '.'
          | 'thm' <ident> ':' <term> ':=' <term> '.'
          | 'thm' <ident> <param>+ ':' <term> ':=' <term> '.'
          | <rule>+ '.'
@@ -22,10 +34,10 @@
          | '#CHECKNOT' <aterm> ':' <term> '.'
          | '#ASSERT' <aterm> ':' <term> '.'
          | '#ASSERTNOT' <aterm> ':' <term> '.'
-         | '#CHECK' <aterm> '=' <term> '.'
-         | '#CHECKNOT' <aterm> '=' <term> '.'
-         | '#ASSERT' <aterm> '=' <term> '.'
-         | '#ASSERTNOT' <aterm> '=' <term> '.'
+         | '#CHECK' <aterm> '==' <term> '.'
+         | '#CHECKNOT' <aterm> '==' <term> '.'
+         | '#ASSERT' <aterm> '==' <term> '.'
+         | '#ASSERTNOT' <aterm> '==' <term> '.'
          | '#PRINT' '"' <string> '"' '.'
          | '#GDT' <ident> '.'
          | '#GDT' <qident> '.'
@@ -60,9 +72,10 @@
                | '{' <term> '}' 
                | '(' <pattern> ')'
 
-<pattern> ::= <ident> <pattern_wp>+
+<pattern> ::= <pid> '=>' <pattern>
+            | <ident> <pattern_wp>+
             | <qident> <pattern_wp>+
-            | <pid> '=>' <pattern>
+            | '_' <pattern_wp>+
             | <pattern_wp>
 
 <sterm> ::= <qident>
@@ -75,7 +88,7 @@
 <term> ::= <aterm>
          | <pid> ':' <aterm> '->' <term>
          | '(' <ident> ':' <aterm> ')' '->' <term>
-         | <term> '->' <term>
+         | <aterm> '->' <term>
          | <pid> '=>' <term>
          | <pid> ':' <aterm> '=>' <term>
          | '(' <pid> ':' <aterm> ':=' <aterm> ')' '=>' <term>
