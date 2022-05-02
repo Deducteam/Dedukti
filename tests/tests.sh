@@ -38,7 +38,8 @@ set -euo pipefail
 ############################################################################################
 
 all_tests=$(find tests -name "*.dk" | sort)
-total=$(wc -w <<< "$all_tests")
+
+total=$(wc -l <<< "$all_tests")
 
 find -name "*.dko" -exec rm {} +
 
@@ -49,19 +50,19 @@ echo "------------------------"
 
 passed=0
 
-for i in $all_tests ; do
+while IFS= read -r i; do
 	echo -n "$i... " ;
-	instructions=$(head -n 1 $i | sed -e "s/^ *(;//g" | sed -e "s/;) *$//g" | tr -s ' ')
+	instructions=$(head -n 1 "$i" | sed -e "s/^ *(;//g" | sed -e "s/;) *$//g" | tr -s ' ')
 	cmd=$(echo $instructions | cut -d ' ' -f 1-1)
-	flags=$(echo $instructions | cut -s -d ' ' -f 2-)        
-	if bash "./tests/scripts/$cmd.sh" $1 $i $flags $i;
+	flags=$(echo $instructions | cut -s -d ' ' -f 2-)
+	if bash "./tests/scripts/$cmd.sh" $1 "$i" $flags "$i";
 	then
 		passed=$((passed+1)) ;
 		echo -e "\033[0;32mPassed\033[0m"
 	else
 		echo -e "\033[0;31mFailed !\033[0m"
 	fi ;
-done
+done <<< "$all_tests"
 
 echo "------------------------"
 if [ "$passed" -eq "$total" ]

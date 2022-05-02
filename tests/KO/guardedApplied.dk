@@ -1,0 +1,6 @@
+(; KO 706 ;)
+
+T : Type.
+f : T -> T.
+def app : T -> T.
+[x] app ({(x => x) f} x) --> x.

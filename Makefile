@@ -166,7 +166,7 @@ bnf:
 	$(Q)echo "<ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*"
 	$(Q)echo "          | '{|' <string> '|}'"
 	$(Q)echo ""
-	$(Q)echo "<mident> ::= [a-zA-Z0-9_]*"
+	$(Q)echo "<mident> ::= [a-zA-Z0-9_]*  | '{|' <string> '|}'"
 	$(Q)echo ""
 	$(Q)echo "<qident> ::= <mident> '.' <ident>"
 	$(Q)echo ""

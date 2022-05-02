@@ -1,6 +1,10 @@
 open Kernel.Basic
 open Format
 
+exception AppliedGuardedTerm of loc
+
+exception BetaRedexInLHS of loc
+
 (** {2 PreTerms} *)
 
 (** This module defines structures representing terms before their scoping.
@@ -21,8 +25,11 @@ type prepattern =
   | PPattern of loc * mident option * ident * prepattern list
   | PLambda of loc * ident * prepattern
   | PJoker of loc * prepattern list
+  | PApp of prepattern list
 
 val pp_prepattern : formatter -> prepattern -> unit
+
+val clean_pre_pattern : prepattern -> prepattern
 
 type pdecl = (loc * ident) * preterm option
 
