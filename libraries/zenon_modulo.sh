@@ -6,6 +6,7 @@ DKCHECK="$(pwd)/../dkcheck.native"
 DKDEP="$(pwd)/../dkdep.native"
 DKFLAGS="-q"
 
+# This source file is not valid anymore
 SRC="http://deducteam.gforge.inria.fr/lib/zenon_modulo.tar"
 DIR="zenon_modulo"
 

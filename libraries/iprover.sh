@@ -40,6 +40,13 @@ if [[ ! -d ${DIR} ]]; then
   echo -n "  - extracting...       "
   tar xf iprover.tar.gz
   mv iProverModulo_dk ${DIR}
+  # Escaping the injective function, since it became a keyword since last update of the generator.
+  sed -i 's/\([ \.]\)injective\([ \.]\)/\1{|injective|}\2/g' $DIR/*.dk
+  sed -i 's/\([ \.]\)injective$/\1{|injective|}/g' $DIR/*.dk
+  sed -i 's/^injective\([ \.\n]\)/{|injective|}\1/g' $DIR/*.dk
+  # The options given to dkcheck also changed
+  sed -i 's/-nl//g' $DIR/Makefile
+  sed -i 's/-errors/--errors/g' $DIR/Makefile
   echo "OK"
 
   # All done.

@@ -43,6 +43,11 @@ if [[ ! -d ${DIR} ]]; then
   # Applying the changes (add "#REQUIRE" and create "focalide.dk").
   echo -n "  - applying changes... "
   mv ${DIR}/modulogic.dk ${DIR}/zen.dk
+  # The options given to dkcheck also changed
+  sed -i 's/-nl//g' $DIR/Makefile
+  sed -i 's/-errors/--errors/g' $DIR/Makefile
+  # The command to evaluate changed
+  sed -i 's/#SNF/#EVAL/g' $DIR/*.dk
   echo "OK"
 
   # All done.

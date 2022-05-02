@@ -42,6 +42,10 @@ if [[ ! -d ${DIR} ]]; then
   sed -i '30816,33252d'                      $DIR/matita_arithmetics_factorial.dk
   sed -i '30815s/.*/\./'                     $DIR/matita_arithmetics_factorial.dk
   sed -i 's/def le_fact_10 :/le_fact_10 :/'  $DIR/matita_arithmetics_factorial.dk
+  # Escaping the injective function, since it became a keyword since last update of the generator.
+  sed -i 's/\([ \.]\)injective\([ \.\n]\)/\1{|injective|}\2/g' $DIR/*.dk
+  # The options given to dkcheck also changed
+  sed -i 's/-nl//g' $DIR/Makefile
   echo "OK"
 fi
 

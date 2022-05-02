@@ -44,6 +44,10 @@ if [[ ! -d ${DIR} ]]; then
   # Cleaning up.
   echo -n "  - cleaning up...      "
   rm ${DIR}/.gitignore ${DIR}/README.org
+  # The options given to dkcheck also changed
+  sed -i 's/-nl//g' $DIR/Makefile
+  sed -i 's/-coc/--coc/g' $DIR/Makefile
+  sed -i 's/-cc/--confluence/g' $DIR/Makefile
   echo "OK"
 
   # All done.

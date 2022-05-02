@@ -46,6 +46,9 @@ if [[ ! -d ${DIR} ]]; then
       sed -i 's/^[{]\([a-zA-Z0-9_-]*\)[}]/thm \1/g' ${FILE}
     fi
   done
+  # The options given to dkcheck also changed
+  sed -i 's/-nl//g' $DIR/Makefile
+  sed -i 's/-error/--error/g' $DIR/Makefile
   echo "OK"
 
   # All done.

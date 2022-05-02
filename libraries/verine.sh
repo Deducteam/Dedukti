@@ -37,6 +37,9 @@ if [[ ! -d ${DIR} ]]; then
   # Extracting the source files.
   echo -n "  - extracting...       "
   tar xf verine.tar.gz
+  # The options given to dkcheck also changed
+  sed -i 's/-nl//g' $DIR/Makefile
+  sed -i 's/-errors/--errors/g' $DIR/Makefile
   echo "OK"
 
   # All done.
