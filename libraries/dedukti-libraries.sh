@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DKCHECK="$(pwd)/../dkcheck.native"
-DKDEP="$(pwd)/../dkdep.native"
+DKCHECK="$(pwd)/../dkcheck.native check"
+DKDEP="$(pwd)/../dkcheck.native dep"
 DKFLAGS=""
 
 SRC="https://github.com/Deducteam/Libraries/archive/master.zip"
@@ -44,14 +44,15 @@ if [[ ! -d ${DIR} ]]; then
   echo ""
 fi
 
-cd ${DIR}
+cd ${DIR} || exit 1
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
 # Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
+	command time make DKCHECK="$DKCHECK" DKDEP="$DKDEP" DKFLAGS="$DKFLAGS"
 else
-	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
+	command time -a -o $OUT make DKCHECK="$DKCHECK" DKDEP="$DKDEP" \
+		DKFLAGS="$DKFLAGS"
 fi

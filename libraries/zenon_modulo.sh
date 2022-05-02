@@ -2,8 +2,8 @@
 
 NBWORKERS="4"
 
-DKCHECK="$(pwd)/../dkcheck.native"
-DKDEP="$(pwd)/../dkdep.native"
+DKCHECK="$(pwd)/../dkcheck.native check"
+DKDEP="$(pwd)/../dkcheck.native dep"
 DKFLAGS="-q"
 
 # This source file is not valid anymore
@@ -97,8 +97,8 @@ function check() {
   }
 
   export -f check_gz
-  export readonly DKCHECK=${DKCHECK}
-  export readonly DKFLAGS=${DKFLAGS}
+  export readonly DKCHECK="${DKCHECK}"
+  export readonly DKFLAGS="${DKFLAGS}"
 
   echo "Compiling the library files with ${NBWORKERS} processes..."
   find ../files -type f \
@@ -106,19 +106,19 @@ function check() {
 }
 
 # Exporting necessary things.
-export readonly DKCHECK=${DKCHECK}
-export readonly DKFLAGS=${DKFLAGS}
+export readonly DKCHECK="${DKCHECK}"
+export readonly DKFLAGS="${DKFLAGS}"
 export readonly NBWORKERS=${NBWORKERS}
 export -f check
 
-cd ${DIR}
+cd ${DIR} || exit 1
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
 # Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time bash -c "check"
+	command -v time bash -c "check"
 else
-	\time -a -o $OUT bash -c "check"
+	command -v time -a -o "$OUT" bash -c "check"
 fi
