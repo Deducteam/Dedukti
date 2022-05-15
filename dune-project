@@ -12,9 +12,10 @@
 (package
     (name dedukti)
     (depends
-      (ocaml (>= 4.06))
-      cmdliner
-      menhir)
+     (ocaml (>= 4.06))
+     cmdliner
+     menhir
+     (tezt :with-test))
     (synopsis "An implementation of The Lambda-Pi Modulo Theory")
     (description "An implementation of The Lambda-Pi Modulo Theory"))
 
