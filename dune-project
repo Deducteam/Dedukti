@@ -12,8 +12,8 @@
 (package
     (name dedukti)
     (depends
-      (ocaml (>= 4.06))
-      cmdliner
+      (ocaml (>= 4.08))
+      (cmdliner (>= 1.1.0))
       menhir)
     (synopsis "An implementation of The Lambda-Pi Modulo Theory")
     (description "An implementation of The Lambda-Pi Modulo Theory"))

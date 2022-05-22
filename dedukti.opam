@@ -9,8 +9,8 @@ homepage: "https://github.com/Deducteam/Dedukti"
 bug-reports: "https://github.com/Deducteam/Dedukti/issues"
 depends: [
   "dune" {>= "2.0"}
-  "ocaml" {>= "4.06"}
-  "cmdliner"
+  "ocaml" {>= "4.08"}
+  "cmdliner" {>= "1.1.0"}
   "menhir"
 ]
 build: [

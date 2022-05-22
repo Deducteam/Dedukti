@@ -1,27 +1,6 @@
-(executables
- (names dkcheck dkdep dkpretty)
- (public_names dkcheck dkdep dkpretty)
- (modules dkcheck dkdep dkpretty config)
+(executable
+ (name main)
+ (modules main dkcheck dkdep dkpretty dkprune dkmeta dktop config)
+ (public_name dk)
  (package dedukti)
  (libraries cmdliner kernel parsers api))
-
-(executable
- (name dktop)
- (public_name dktop)
- (modules dktop)
- (package dedukti)
- (libraries kernel parsers api))
-
-(executable
- (name dkmeta)
- (public_name dkmeta)
- (modules dkmeta)
- (package dedukti)
- (libraries kernel parsers api))
-
-(executable
- (name dkprune)
- (public_name dkprune)
- (modules dkprune)
- (package dedukti)
- (libraries kernel parsers api))

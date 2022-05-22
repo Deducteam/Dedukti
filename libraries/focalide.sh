@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DKCHECK="$(pwd)/../dkcheck.native"
-DKDEP="$(pwd)/../dkdep.native"
+DKCHECK="$(pwd)/../dk.native check"
+DKDEP="$(pwd)/../dk.native dep"
 DKFLAGS="-q"
 
 SRC="https://deducteam.github.io/data/libraries/focalide.tar.gz"
@@ -43,7 +43,7 @@ if [[ ! -d ${DIR} ]]; then
   # Applying the changes (add "#REQUIRE" and create "focalide.dk").
   echo -n "  - applying changes... "
   mv ${DIR}/modulogic.dk ${DIR}/zen.dk
-  # The options given to dkcheck also changed
+  # The options given to 'dk check' also changed
   sed -i 's/-nl//g' $DIR/Makefile
   sed -i 's/-errors/--errors/g' $DIR/Makefile
   # The command to evaluate changed
@@ -55,14 +55,14 @@ if [[ ! -d ${DIR} ]]; then
   echo ""
 fi
 
-cd ${DIR}
+cd "${DIR}" || exit 1
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
 # Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
+	command time make DKCHECK="$DKCHECK" DKDEP="$DKDEP" DKFLAGS="$DKFLAGS"
 else
-	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
+	command time -a -o "$OUT" make DKCHECK="$DKCHECK" DKDEP="$DKDEP" DKFLAGS="$DKFLAGS"
 fi

@@ -63,9 +63,9 @@ end
 module Pretty : sig
   type argument = |
 
-  (** [run ~dep ~filename arguments] runs [dkpretty] on file [filename] passing
-      arguments [arguments]. The resulting file is type checked. If the
-      file depends on other Dedukti files, these files must appear in
-      [dep] so that their directory is added to the load path. *)
+  (** [run ~dep ~filename arguments] runs [dkcheck beautify] on file [filename]
+      passing arguments [arguments]. The resulting file is type checked. If the
+      file depends on other Dedukti files, these files must appear in [dep] so
+      that their directory is added to the load path. *)
   val run : ?dep:string list -> filename:string -> argument list -> unit
 end

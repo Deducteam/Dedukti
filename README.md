@@ -37,7 +37,7 @@ make install
 
 The command
 ```bash
-dkcheck examples/append.dk
+dk check examples/append.dk
 ```
 should output the following.
 ```
@@ -51,17 +51,17 @@ See the `editors` directory. Only the emacs mode is maitained currently.
 ### COMMAND LINE PROGRAMS
 
 The installation provides the following commands:
- - `dkcheck` is the type-checker for `Dedukti`,
- - `dktop` is an interactive wrapper around the type-checker,
- - `dkdep` is a dependency generator for `Dedukti` files,
- - `dkprune` is a program to re-print only the strictly required subset of `Dedukti` files,
- - `dkpretty` is a source code beautifier for `Dedukti`,
- - `dkmeta` is a tool which uses `Dedukti` rewrite rules to rewrite a `Dedukti` file,
+ - `dk check` is the type-checker for `Dedukti`,
+ - `dk top` is an interactive wrapper around the type-checker,
+ - `dk dep` is a dependency generator for `Dedukti` files,
+ - `dk prune` is a program to re-print only the strictly required subset of `Dedukti` files,
+ - `dk pretty` is a source code beautifier for `Dedukti`,
+ - `dk meta` is a tool which uses `Dedukti` rewrite rules to rewrite a `Dedukti` file,
  - `universo` is a tool which allows to work with universes using the encoding of `The Calculus of Inductive Constructions` in `Dedukti`.
 
 ### OPTIONS
 
-`dkcheck` provides the following options:
+`dk check` provides the following options:
  - `-e` Generates an object file `.dko`;
  - `-I DIR` Adds the directory `DIR` to the load path;
  - `-d FLAGS` enables debugging for all given flags:
@@ -125,7 +125,7 @@ termination is not checked (yet?).
 #### SPLITTING A DEVELOPMENT BETWEEN SEVERAL FILES
 
 A development in `Dedukti` is usually composed of several files corresponding to different modules.
-Using `dkcheck` with the option `-e` will produce a file `my_module.dko` that exports the constants
+Using `dk check` with the option `-e` will produce a file `my_module.dko` that exports the constants
 and rewrite rules declared in the module `my_module`.
 Then you can use these symbols in other files/modules using the prefix notation `my_module.identifier`.
 
@@ -274,7 +274,7 @@ when combined with beta-reduction.
     eq: Nat -> Nat -> Bool.
     [ n ] eq n n --> true.
 
-This behaviour can be changed by invoking `dkcheck` with the option `--ll` (left-linear)
+This behaviour can be changed by invoking `dk check` with the option `--ll` (left-linear)
 to guarantee that non-left-linear rewrite rules are never added to the system.
 
 #### HIGHER-ORDER REWRITE RULES
@@ -335,9 +335,9 @@ the condition that the inferred types for these variables do not depend on the b
 using an external confluence checker. For this you need to install a confluence checker for higher-order rewrite systems
 supporting the TPDB format, for instance [CSI^HO](http://cl-informatik.uibk.ac.at/software/csi/ho/) or ACPH.
 
-To enable confluence checking you need to call `dkcheck` with the option `-cc` followed by the path to the confluence checker:
+To enable confluence checking you need to call `dk check` with the option `-cc` followed by the path to the confluence checker:
 
-    $ dkcheck -cc /path/to/csiho.sh examples/append.dk
+    $ dk check -cc /path/to/csiho.sh examples/append.dk
     > File examples/append.dk was successfully checked.
 
 ### PRIVATE SYMBOLS

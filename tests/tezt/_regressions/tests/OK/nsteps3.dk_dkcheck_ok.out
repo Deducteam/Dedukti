@@ -1,6 +1,6 @@
 tests/tezt/_regressions/tests/OK/nsteps3.dk_dkcheck_ok.out
 
-./dkcheck.native --no-color -q tests/OK/nsteps3.dk
+./dk.native check --no-color -q tests/OK/nsteps3.dk
 plus 2 3
 plus 1 (S (S 2))
 plus 0 (S (S (S 2)))

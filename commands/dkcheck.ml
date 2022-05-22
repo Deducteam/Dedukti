@@ -92,9 +92,13 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
   in
   Option.iter f config.Config.run_on_stdin
 
+let cmd_t =
+  Term.(
+    const dkcheck $ Config.t $ confluence $ de_bruijn $ export $ files $ eta
+    $ ll $ sr_check $ errors_in_snf $ coc $ type_lhs)
+
 let cmd =
   let doc = "Type check a list of Dedukti files" in
-  let exits = Term.default_exits in
   let man =
     [
       `S Manpage.s_description;
@@ -111,9 +115,4 @@ let cmd =
       `P "Report bugs to <dedukti-dev@inria.fr>.";
     ]
   in
-  ( Term.(
-      const dkcheck $ Config.t $ confluence $ de_bruijn $ export $ files $ eta
-      $ ll $ sr_check $ errors_in_snf $ coc $ type_lhs),
-    Term.info "dkcheck" ~version:"%%VERSION%%" ~doc ~exits ~man )
-
-let () = Term.(exit @@ eval cmd)
+  Cmd.v (Cmd.info "check" ~version:"%%VERSION%%" ~doc ~man) cmd_t

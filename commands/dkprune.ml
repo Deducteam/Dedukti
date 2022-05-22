@@ -249,33 +249,31 @@ let print_dependencies names =
         "The name %a does not exists@." Pp.Default.print_name name
   | exn -> Env.fail_env_error fake_env Basic.dloc exn
 
-let _ =
-  let options =
-    Arg.align
-      [
-        ("-l", Arg.Unit enable_log, " Print log");
-        ( "-I",
-          Arg.String Files.add_path,
-          " DIR Add the directory DIR to the load path" );
-        ( "-o",
-          Arg.String (fun s -> output_directory := Some s),
-          " Set the output directory" );
-      ]
-  in
-  let usage =
-    Format.sprintf
-      "Usage: %s [OPTION]... [FILE]...\n\
-       Compute the dependencies of the given Dedukti FILE(s).\n\
-       For more information see https://github.com/Deducteam/Dedukti.\n\
-       Available options:" Sys.argv.(0)
-  in
-  let files =
-    let files = ref [] in
-    Arg.parse options (fun f -> files := f :: !files) usage;
-    !files
-  in
+let files =
+  let doc = "Dedukti files to process" in
+  Cmdliner.Arg.(value & pos_all string [] & info [] ~docv:"FILE" ~doc)
+
+let output =
+  let doc = "Output files in directory $(docv)" in
+  Cmdliner.Arg.(
+    value & opt (some dir) None & info ["o"; "output"] ~doc ~docv:"DIR")
+
+let log =
+  let doc = "Print log" in
+  Cmdliner.Arg.(value & flag & info ["l"; "log"] ~doc)
+
+let prune config log output files =
+  Config.init config;
+  if log then enable_log ();
+  output_directory := output;
   let run_on_constraints files =
     Processor.handle_files files PruneProcessConfigurationFile
   in
   let names = run_on_constraints files in
   handle_names names; print_dependencies names
+
+let cmd_t = Cmdliner.Term.(const prune $ Config.t $ log $ output $ files)
+
+let cmd =
+  let doc = "Compute dependencies of a set of Dedukti files." in
+  Cmdliner.Cmd.(v (info "prune" ~version:"%%VERSION%%" ~doc) cmd_t)

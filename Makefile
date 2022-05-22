@@ -11,7 +11,7 @@ default: bin binaries
 all: bin binaries universo
 
 .PHONY: binaries
-binaries: dkcheck.native dktop.native dkdep.native dkprune.native dkmeta.native dkpretty.native
+binaries: dk.native
 
 .PHONY: universo
 universo:

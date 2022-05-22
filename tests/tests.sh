@@ -9,7 +9,7 @@ set -euo pipefail
 # - Test files are prefixed with a comment describing the expected behavior.
 #   This comment should have the following shape:
 #     (;  TEST flag1 flag2 ... flagn  ;)
-# - All tests consist in the run of the dkcheck command with given flag1 ... flagn
+# - All tests consist in the run of the dk check command with given flag1 ... flagn
 #   on the corresponding .dk test file.
 # - Tests with comment TEST=KO n  (for n an integer error code) pass only when they:
 #   - output the "[ERROR:n]" keyword.

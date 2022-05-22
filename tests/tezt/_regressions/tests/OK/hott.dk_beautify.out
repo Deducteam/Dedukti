@@ -1,6 +1,6 @@
-tests/tezt/_regressions/tests/OK/hott.dk_pretty.out
+tests/tezt/_regressions/tests/OK/hott.dk_beautify.out
 
-./dkpretty.native --no-color -q tests/OK/hott.dk
+./dk.native beautify --no-color -q tests/OK/hott.dk
 Nat : Type.
 
 Fin : Nat -> Type.
