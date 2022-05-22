@@ -15,6 +15,6 @@ let default_i =
   in
   Cmd.info "dkcheck" ~version:"%%VERSION%%" ~doc ~sdocs ~man
 
-let cmds = [Dkcheck.cmd; Dkdep.cmd; Dkpretty.cmd; Dkprune.cmd]
+let cmds = [Dkcheck.cmd; Dkdep.cmd; Dkpretty.cmd; Dkprune.cmd; Dkmeta.cmd]
 
 let () = exit Cmd.(eval @@ group ~default:default_t default_i cmds)
