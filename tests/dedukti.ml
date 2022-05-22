@@ -3,7 +3,7 @@ module Command = struct
 
   let path = function
     | Dkcheck  -> ("./dkcheck.native", fun args -> "check" :: args)
-    | Dkmeta   -> ("./dkmeta.native", Fun.id)
+    | Dkmeta   -> ("./dkcheck.native", fun args -> "meta" :: args)
     | Dkpretty -> ("./dkcheck.native", fun args -> "beautify" :: args)
 end
 
