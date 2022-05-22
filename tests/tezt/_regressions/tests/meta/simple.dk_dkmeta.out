@@ -1,6 +1,6 @@
 tests/tezt/_regressions/tests/meta/simple.dk_dkmeta.out
 
-./dkmeta.native --no-color -q tests/meta/simple.dk
+./dkcheck.native meta --no-color -q tests/meta/simple.dk
 nat : Type.
 
 0 : nat.

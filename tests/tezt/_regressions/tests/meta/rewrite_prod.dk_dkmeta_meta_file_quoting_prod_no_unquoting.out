@@ -1,6 +1,6 @@
 tests/tezt/_regressions/tests/meta/rewrite_prod.dk_dkmeta_meta_file_quoting_prod_no_unquoting.out
 
-./dkmeta.native --no-color -q -I tests/meta -m tests/meta_files/prod_meta.dk --quoting prod --no-unquoting tests/meta/rewrite_prod.dk
+./dkcheck.native meta --no-color -q -I tests/meta -m tests/meta_files/prod_meta.dk --quoting prod --no-unquoting tests/meta/rewrite_prod.dk
 type : prod.ty.
 
 el : prod.prod type (__:type => prod.ty).
