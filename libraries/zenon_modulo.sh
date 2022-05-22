@@ -2,8 +2,8 @@
 
 NBWORKERS="4"
 
-DKCHECK="$(pwd)/../dkcheck.native check"
-DKDEP="$(pwd)/../dkcheck.native dep"
+DKCHECK="$(pwd)/../dk.native check"
+DKDEP="$(pwd)/../dk.native dep"
 DKFLAGS="-q"
 
 # This source file is not valid anymore

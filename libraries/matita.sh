@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DKCHECK="$(pwd)/../dkcheck.native"
-DKDEP="$(pwd)/../dkdep.native"
+DKCHECK="$(pwd)/../dk.native check"
+DKDEP="$(pwd)/../dk.native dep"
 DKFLAGS="-q"
 
 SRC="https://deducteam.github.io/data/libraries/matita.tar.gz"

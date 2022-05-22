@@ -2,9 +2,9 @@ module Command = struct
   type t = Dkcheck | Dkmeta | Dkpretty
 
   let path = function
-    | Dkcheck  -> ("./dkcheck.native", fun args -> "check" :: args)
-    | Dkmeta   -> ("./dkcheck.native", fun args -> "meta" :: args)
-    | Dkpretty -> ("./dkcheck.native", fun args -> "beautify" :: args)
+    | Dkcheck  -> ("./dk.native", fun args -> "check" :: args)
+    | Dkmeta   -> ("./dk.native", fun args -> "meta" :: args)
+    | Dkpretty -> ("./dk.native", fun args -> "beautify" :: args)
 end
 
 let remove_dkos () =

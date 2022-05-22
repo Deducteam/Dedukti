@@ -1,6 +1,6 @@
 (executable
  (name main)
  (modules main dkcheck dkdep dkpretty dkprune dkmeta dktop config)
- (public_name dkcheck)
+ (public_name dk)
  (package dedukti)
  (libraries cmdliner kernel parsers api))
