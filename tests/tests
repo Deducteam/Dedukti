@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ################################ Test conventions ##########################################
 #
@@ -17,10 +17,10 @@
 # using the #PRINT command.
 # For instance:
 #     ...
-#     #PRINT "YES".      (; Expected output ;)
-#     #CHECK plus 1 1, nat.
-#     #PRINT "NO".       (; Expected output ;)
-#     #CONV plus 1 1, 3.
+#     (;# print "YES" #;)      (; Expected output ;)
+#     (;# check plus 1 1, nat #;)
+#     (;# print "NO" #;)       (; Expected output ;)
+#     (;# conv plus 1 1, 3 #;)
 # Should output
 #     YES
 #     YES

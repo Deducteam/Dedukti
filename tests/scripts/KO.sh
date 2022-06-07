@@ -1,5 +1,5 @@
 
-#!/bin/bash
+#!/usr/bin/env bash
 
 shift #Remove the reset regression parameter
 shift #Remove the filename (which is duplicated anyway)
