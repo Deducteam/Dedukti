@@ -8,14 +8,14 @@ N : Type.
 
 defac mset [N].
 
-#ASSERT mset 1 0 == mset 0 1.
-#ASSERT mset 0 1 == mset 1 0.
+(;# assert  mset 1 0 == mset 0 1 #;)
+(;# assert  mset 0 1 == mset 1 0 #;)
 
-#ASSERT mset 0 (mset 1 2) == mset (mset 0 1) 2.
-#ASSERT mset 1 (mset 0 2) == mset (mset 0 1) 2.
-#ASSERT mset 1 (mset 2 0) == mset (mset 0 1) 2.
+(;# assert  mset 0 (mset 1 2) == mset (mset 0 1) 2 #;)
+(;# assert  mset 1 (mset 0 2) == mset (mset 0 1) 2 #;)
+(;# assert  mset 1 (mset 2 0) == mset (mset 0 1) 2 #;)
 
-#ASSERT
+assert |-
   mset 1
  (mset 2
  (mset 2
@@ -36,6 +36,6 @@ defac mset [N].
  (mset 2 2
  ))))))).
 
-#ASSERTNOT mset 1 0 == mset 0 0.
-#ASSERTNOT mset 1 0 == mset 1 1.
-#ASSERTNOT mset 1 1 == mset 1 0.
+(;# assertnot  mset 1 0 == mset 0 0 #;)
+(;# assertnot  mset 1 0 == mset 1 1 #;)
+(;# assertnot  mset 1 1 == mset 1 0 #;)

@@ -1,8 +1,8 @@
 (; OK ;)
 
 A : Type.
-#INFER A -> Type.
-#PRINT "Kind".
+(;# infer  A -> Type #;)
+(;# print  "Kind" #;)
 
-#INFER (A -> A) -> A -> Type.
-#PRINT "Kind".
+(;# infer  (A -> A) -> A -> Type #;)
+(;# print  "Kind" #;)

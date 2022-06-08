@@ -5,6 +5,6 @@ def B := A.
 def C := A.
 D : Type.
 
-#ASSERT    B == A.
-#ASSERT    B == C.
-#ASSERTNOT A == D.
+assert |- B == A.
+assert |- B == C.
+(;# assertnot A == D #;)

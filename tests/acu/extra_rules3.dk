@@ -13,19 +13,19 @@ defac o [T].
 t : T.
 u : T.
 
-#ASSERT o t t == t.
-#ASSERT o u u == u.
-#ASSERT o u t == o t u.
+(;# assert  o t t == t #;)
+(;# assert  o u u == u #;)
+(;# assert  o u t == o t u #;)
 
-#ASSERT o (o t u) (o u t) == o u t.
-#ASSERT o t (o u (o u t)) == o u t.
-#ASSERT o t (o t (o t t)) == t.
+(;# assert  o (o t u) (o u t) == o u t #;)
+(;# assert  o t (o u (o u t)) == o u t #;)
+(;# assert  o t (o t (o t t)) == t #;)
 
-#ASSERT o t (o t u) == o u t.
-#ASSERT o (o t u) t == o u t.
-#ASSERT o (o u t) t == o u t.
+(;# assert  o t (o t u) == o u t #;)
+(;# assert  o (o t u) t == o u t #;)
+(;# assert  o (o u t) t == o u t #;)
 
-#ASSERT (x:T => o (o t x) t) == (x:T => o t x).
-#ASSERT (x:T => o (o x t) t) == (x:T => o t x).
-#ASSERT (x:T => o t (o t x)) == (x:T => o x t).
-#ASSERT (x:T => o t (o x t)) == (x:T => o x t).
+(;# assert  (x:T => o (o t x) t) == (x:T => o t x) #;)
+(;# assert  (x:T => o (o x t) t) == (x:T => o t x) #;)
+(;# assert  (x:T => o t (o t x)) == (x:T => o x t) #;)
+(;# assert  (x:T => o t (o x t)) == (x:T => o x t) #;)

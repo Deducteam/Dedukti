@@ -3,4 +3,4 @@
 A : Type.
 def B := A.
 
-#ASSERTNOT B == A.
+(;# assertnot  B == A #;)

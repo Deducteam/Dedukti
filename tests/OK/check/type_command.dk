@@ -4,14 +4,14 @@ A : Type.
 B : Type.
 a : A.
 
-#CHECK a : A.
-#PRINT "YES".
+(;# check  a : A #;)
+(;# print  "YES" #;)
 
-#CHECKNOT a : B.
-#PRINT "YES".
+(;# checknot  a : B #;)
+(;# print  "YES" #;)
 
-#CHECKNOT a : A.
-#PRINT "NO".
+(;# checknot  a : A #;)
+(;# print  "NO" #;)
 
-#CHECK a : B.
-#PRINT "NO".
+(;# check  a : B #;)
+(;# print  "NO" #;)

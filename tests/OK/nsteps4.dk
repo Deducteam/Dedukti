@@ -7,45 +7,45 @@ def B := A.
 a : A.
 f : A -> A -> A.
 
-#EVAL[CBN ,WHNF] (y:A => f y y) ( (x:B => x) a ).
-#EVAL[0] f ((x:B => x) a) ((x:B => x) a).
+(;# eval [CBN ,WHNF] (y:A => f y y) ( (x:B => x) a ) #;)
+(;# eval [0] f ((x:B => x) a) ((x:B => x) a) #;)
 
-#EVAL[CBN ,SNF] (y:A => f y y) ( (x:B => x) a ).
-#EVAL[0] f a a.
+(;# eval [CBN ,SNF] (y:A => f y y) ( (x:B => x) a ) #;)
+(;# eval [0] f a a #;)
 
-#EVAL[CBV ,WHNF] (y:A => f y y) ( (x:B => x) a ).
-#EVAL[0] f a a.
+(;# eval [CBV ,WHNF] (y:A => f y y) ( (x:B => x) a ) #;)
+(;# eval [0] f a a #;)
 
-#EVAL[CBSV,WHNF] (y:A => f y y) ( (x:B => x) a ).
-#EVAL[0] f a a.
-
-
-#EVAL[CBN,1,WHNF] (y:A => f y y) ( (x:B => x) a ).
-#EVAL[CBN  ,WHNF] (y:A => f y y) ( (x:B => x) a ).
-
-#EVAL[CBN,2,SNF] (y:B => f y y) ( (x:B => x) a ).
-#EVAL[0] f ((x:B => x) a) a.
-
-#EVAL[CBN,3,SNF] (y:B => f y y) ( (x:B => x) a ).
-#EVAL[CBN  ,SNF] (y:B => f y y) ( (x:B => x) a ).
+(;# eval [CBSV,WHNF] (y:A => f y y) ( (x:B => x) a ) #;)
+(;# eval [0] f a a #;)
 
 
-#EVAL[CBV,1,WHNF] (y:B => f y y) ( (x:B => x) a ).
-#EVAL[0] (y:B => f y y) a.
+(;# eval [CBN,1,WHNF] (y:A => f y y) ( (x:B => x) a ) #;)
+(;# eval [CBN  ,WHNF] (y:A => f y y) ( (x:B => x) a ) #;)
 
-#EVAL[CBV,2,WHNF] (y:A => f y y) ( (x:B => x) a ).
-#EVAL[CBV  ,WHNF] (y:B => f y y) ( (x:B => x) a ).
+(;# eval [CBN,2,SNF] (y:B => f y y) ( (x:B => x) a ) #;)
+(;# eval [0] f ((x:B => x) a) a #;)
+
+(;# eval [CBN,3,SNF] (y:B => f y y) ( (x:B => x) a ) #;)
+(;# eval [CBN  ,SNF] (y:B => f y y) ( (x:B => x) a ) #;)
+
+
+(;# eval [CBV,1,WHNF] (y:B => f y y) ( (x:B => x) a ) #;)
+(;# eval [0] (y:B => f y y) a #;)
+
+(;# eval [CBV,2,WHNF] (y:A => f y y) ( (x:B => x) a ) #;)
+(;# eval [CBV  ,WHNF] (y:B => f y y) ( (x:B => x) a ) #;)
 
 
 
-#EVAL[CBSV,1,SNF] (y:B => f y y) ( (x:B => x) a ).
-#EVAL[0] (y:B => f y y) ((x:A => x) a).
+(;# eval [CBSV,1,SNF] (y:B => f y y) ( (x:B => x) a ) #;)
+(;# eval [0] (y:B => f y y) ((x:A => x) a) #;)
 
-#EVAL[CBSV,2,SNF] (y:B => f y y) ( (x:B => x) a ).
-#EVAL[0] (y:B => f y y) a.
+(;# eval [CBSV,2,SNF] (y:B => f y y) ( (x:B => x) a ) #;)
+(;# eval [0] (y:B => f y y) a #;)
 
-#EVAL[CBSV,3,SNF] (y:B => f y y) ( (x:B => x) a ).
-#EVAL[0] (y:A => f y y) a.
+(;# eval [CBSV,3,SNF] (y:B => f y y) ( (x:B => x) a ) #;)
+(;# eval [0] (y:A => f y y) a #;)
 
-#EVAL[CBSV,4,SNF] (y:B => f y y) ( (x:B => x) a ).
-#EVAL[CBSV  ,SNF] (y:B => f y y) ( (x:B => x) a ).
+(;# eval [CBSV,4,SNF] (y:B => f y y) ( (x:B => x) a ) #;)
+(;# eval [CBSV  ,SNF] (y:B => f y y) ( (x:B => x) a ) #;)

@@ -10,20 +10,20 @@ def plus : N -> N -> N.
 [x,y] plus (S x) y --> S (plus x y).
 
 
-#ASSERT S (S 0) ==
+assert |- S (S 0) ==
  (x1 : N := 0   ) =>
  (x2 : N := S x1) =>
  (x3 : N := plus x1 x2) =>
    plus x3 x2.
 
-#ASSERT S (S (S 0)) ==
+assert |- S (S (S 0)) ==
  (x1 : N := 0   ) =>
  (x2 : N := S x1) =>
  (x3 : N := plus x1 x2) =>
  (x4 : N := plus x2 x3) =>
    plus x4 x3.
 
-#ASSERT S (S (S (S (S 0)))) ==
+assert |- S (S (S (S (S 0)))) ==
  (x1 : N := 0   ) =>
  (x2 : N := S x1) =>
  (x3 : N := plus x1 x2) =>
@@ -31,14 +31,14 @@ def plus : N -> N -> N.
  (x5 : N := plus x3 x4) =>
    plus x5 x4.
 
-#ASSERT S (S (S 0)) ==
+assert |- S (S (S 0)) ==
  (x : N := 0  ) =>
  (x : N := S x) =>
  (x : N := S x) =>
  (x : N := S x) =>
    x.
 
-#ASSERT S (S (S (S 0))) ==
+assert |- S (S (S (S 0))) ==
   (succ   : (N -> N)      := S) =>
   (zero   : N             := 0) =>
   (one    : N             := succ zero) =>

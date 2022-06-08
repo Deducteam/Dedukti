@@ -9,5 +9,5 @@ g : A -> B.
 def f : (A -> B) -> B.
 [F] f (x => g F) --> g a.
 
-#EVAL[WHNF] f (x => f (y => g x)).
-#EVAL[WHNF] g a.
+(;# eval [WHNF] f (x => f (y => g x)) #;)
+(;# eval [WHNF] g a #;)

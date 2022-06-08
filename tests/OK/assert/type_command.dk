@@ -4,5 +4,5 @@ A : Type.
 B : Type.
 a : A.
 
-#ASSERT    a : A.
-#ASSERTNOT a : B.
+assert |- a : A.
+(;# assertnot a : B #;)

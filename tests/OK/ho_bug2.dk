@@ -10,7 +10,7 @@ a : A.
 g : A -> A.
 def test (b : A) := F (x => g x) b.
 
-#PRINT "b:A => a".
-#EVAL test.
+(;# print  "b:A => a" #;)
+(;# eval  test #;)
 
-#ASSERT test == b : A => a.
+(;# assert  test == b : A => a #;)

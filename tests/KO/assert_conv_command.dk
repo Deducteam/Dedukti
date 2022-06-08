@@ -3,4 +3,4 @@
 A : Type.
 B : Type.
 
-#ASSERT A == B.
+(;# assert  A == B #;)

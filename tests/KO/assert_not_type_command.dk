@@ -3,4 +3,4 @@
 A : Type.
 a : A.
 
-#ASSERTNOT a : A.
+(;# assertnot  a : A #;)

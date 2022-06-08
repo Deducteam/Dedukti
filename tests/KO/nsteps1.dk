@@ -2,4 +2,4 @@
 
 def A : Type.
 
-#EVAL[-1] A.
+(;# eval [-1] A #;)

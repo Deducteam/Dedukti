@@ -14,11 +14,11 @@ defac min [N].
 []    min 0           --> (x : N => 0)
 [x,y] min (S x) (S y) --> S (min x y).
 
-#ASSERT min 3 (min 1 2) == 1.
+(;# assert  min 3 (min 1 2) == 1 #;)
 
 
 defac max [N].
 []    min 0           --> (x : N => x)
 [x,y] min (S x) (S y) --> S (min x y).
 
-#ASSERT min 3 (min 1 2) == 3.
+(;# assert  min 3 (min 1 2) == 3 #;)

@@ -26,7 +26,7 @@ def rule : Sort -> Sort -> Sort.
 [i,j,k] max (rule i j) (rule i k) --> rule i (max j k).
 [i,j,k] max (rule j i) (rule k i) --> rule (max j k) i.
 
-#ASSERT (
+assert |- (
   u : Sort =>
   v : Sort =>
   w : Sort =>
@@ -38,7 +38,7 @@ def rule : Sort -> Sort -> Sort.
     plus (max w v) u
   ).
 
-#ASSERT (
+assert |- (
   x : Sort =>
   y : Sort =>
     rule 0 (rule (plus (plus x 1) (plus y 0)) (plus (plus 0 (plus 0 1)) (plus x y)))
@@ -48,7 +48,7 @@ def rule : Sort -> Sort -> Sort.
     plus (plus y x) 1
   ).
 
-#ASSERT (
+assert |- (
   x : Sort =>
   y : Sort =>
     rule (rule (plus (plus x 1) (plus y 0)) (plus (plus 0 (plus 0 1)) (plus x y))) 0
@@ -58,7 +58,7 @@ def rule : Sort -> Sort -> Sort.
     0
   ).
 
-#ASSERT
+assert |-
   ( i : Sort => rule (plus 1 i) 1 )
   ==
   ( i : Sort =>  plus i 1).

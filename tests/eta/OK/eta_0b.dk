@@ -2,4 +2,4 @@
 
 A : Type.
 x : A -> A.
-#ASSERTNOT x == y : A => x y.
+(;# assertnot  x == y : A => x y #;)

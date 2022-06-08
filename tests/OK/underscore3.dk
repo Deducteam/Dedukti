@@ -7,6 +7,6 @@ def B : A -> Type.
 (; This is equivalent to  B X --> A  (with X fresh) ;)
 
 a : A.
-#ASSERT B a == A.
+(;# assert  B a == A #;)
 
-#ASSERT (x:A => B x) == (x:A => A).
+(;# assert  (x:A => B x) == (x:A => A) #;)

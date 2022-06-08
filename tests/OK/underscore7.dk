@@ -7,8 +7,8 @@ def B : (A -> A -> A) -> Type.
 (; This is equivalent to  B (x => y => X x) --> A  (with X fresh) ;)
 
 a : A.
-#ASSERT B (_ => _ => a) == A.
+(;# assert  B (_ => _ => a) == A #;)
 
-#ASSERT B (u => v => u) == A.
+(;# assert  B (u => v => u) == A #;)
 
-#ASSERTNOT B (u => v => v) == A.
+(;# assertnot  B (u => v => v) == A #;)
