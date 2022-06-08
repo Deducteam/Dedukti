@@ -326,7 +326,9 @@ module Make (S : Sig) : Printer = struct
         | Convert (t1, t2) ->
             fprintf fmt "%s%s %a ==@ %a.@." cmd neg print_term t1 print_term t2
         | HasType (te, ty) ->
-            fprintf fmt "%s%s %a ::@ %a.@." cmd neg print_term te print_term ty)
+            fprintf fmt "%s%s %a ::@ %a.@." cmd neg print_term te print_term ty
+        | Typeable te ->
+            fprintf fmt "%s%s %a.@." cmd neg pp_term te)
     | DTree (_, m, v) -> (
         match m with
         | None   -> fprintf fmt "#GDT %a.@." print_ident v

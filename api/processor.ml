@@ -68,6 +68,13 @@ module MakeTypeChecker (Env : CustomEnv) : S with type t = unit = struct
         | true, true   -> ()
         | false, false -> Format.printf "NO@."
         | false, true  -> raise @@ Entry.Assert_error lc)
+    | Check (lc, assrt, neg, Typeable te) -> (
+        let succ = try ignore (Env.infer env te); not neg with _ -> neg in
+        match (succ,assrt) with
+        | true, false -> Format.printf "YES@."
+        | true, true -> ()
+        | false, false -> Format.printf "NO@."
+        | false, true -> raise @@ Entry.Assert_error lc)
     | DTree (lc, m, v) ->
         let m = match m with None -> Env.get_name env | Some m -> m in
         let cst = mk_name m v in
@@ -185,6 +192,13 @@ module MakeTopLevel (Env : CustomEnv) : S with type t = unit = struct
         | true, true   -> ()
         | false, false -> Format.printf "NO@."
         | false, true  -> raise @@ Entry.Assert_error lc)
+    | Check (lc, assrt, neg, Typeable te) -> (
+        let succ = try ignore (Env.infer env te); not neg with _ -> neg in
+        match (succ,assrt) with
+        | true, false -> Format.printf "YES@."
+        | true, true -> ()
+        | false, false -> Format.printf "NO@."
+        | false, true -> raise @@ Entry.Assert_error lc)
     | DTree (lc, m, v) ->
         let m = match m with None -> Env.get_name env | Some m -> m in
         let cst = mk_name m v in

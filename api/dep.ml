@@ -159,6 +159,7 @@ let handle_entry e =
   | Infer (_, _, te) -> mk_term te
   | Check (_, _, _, Convert (t1, t2)) -> mk_term t1; mk_term t2
   | Check (_, _, _, HasType (te, ty)) -> mk_term te; mk_term ty
+  | Check (_, _, _, Typeable te) -> mk_term te
   | DTree (_, _, _) -> ()
   | Print (_, _) -> ()
   | Name (_, _) -> ()
