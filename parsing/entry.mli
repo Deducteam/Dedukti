@@ -10,8 +10,9 @@ type should_fail = bool
 
 (** Possible tests in source files. *)
 type test =
-  | Convert of term * term  (** Convertibility between the two given terms. *)
-  | HasType of term * term  (** Typability test, given a term and a type.   *)
+  | Convert  of term * term (** Convertibility between the two given terms. *)
+  | HasType  of term * term (** Typability test, given a term and a type.   *)
+  | Typeable of term        (** Typability test, without the type *)
 
 exception Assert_error of loc
 

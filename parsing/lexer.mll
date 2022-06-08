@@ -23,53 +23,56 @@ let ident   = ['a'-'z' 'A'-'Z' '0'-'9' '_' '!' '?']['a'-'z' 'A'-'Z' '0'-'9' '_' 
 let capital = ['A'-'Z']+
 
 rule token = parse
-  | space       { token lexbuf  }
-  | '\n'        { new_line lexbuf ; token lexbuf }
-  | "(;"        { comment 0 lexbuf}
-  | '.'         { DOT           }
-  | ','         { COMMA         }
-  | ':'         { COLON         }
-  | "=="        { EQUAL         }
-  | '['         { LEFTSQU       }
-  | ']'         { RIGHTSQU      }
-  | '{'         { LEFTBRA       }
-  | '}'         { RIGHTBRA      }
-  | '('         { LEFTPAR       }
-  | ')'         { RIGHTPAR      }
-  | "-->"       { LONGARROW     }
-  | "->"        { ARROW         }
-  | "=>"        { FATARROW      }
-  | ":="        { DEF           }
-  | "_"         { UNDERSCORE ( get_loc lexbuf ) }
-  | "Type"      { TYPE       ( get_loc lexbuf ) }
-  | "def"       { KW_DEF     ( get_loc lexbuf ) }
-  | "defac"     { KW_DEFAC   ( get_loc lexbuf ) }
-  | "defacu"    { KW_DEFACU  ( get_loc lexbuf ) }
-  | "injective" { KW_INJ     ( get_loc lexbuf ) }
-  | "thm"       { KW_THM     ( get_loc lexbuf ) }
-  | "private"   { KW_PRV     ( get_loc lexbuf ) }
-  | "#NAME"    space+ (mident as md) { NAME    (get_loc lexbuf , mk_mident md) }
-  | "#REQUIRE" space+ (mident as md) { REQUIRE (get_loc lexbuf , mk_mident md) }
-  | "#EVAL"     { EVAL       ( get_loc lexbuf ) }
-  | "#INFER"    { INFER      ( get_loc lexbuf ) }
-  | "#CHECK"    { CHECK      ( get_loc lexbuf ) }
-  | "#CHECKNOT" { CHECKNOT   ( get_loc lexbuf ) }
-  | "#ASSERT"   { ASSERT     ( get_loc lexbuf ) }
-  | "#ASSERTNOT"{ ASSERTNOT  ( get_loc lexbuf ) }
-  | "#PRINT"    { PRINT      ( get_loc lexbuf ) }
-  | "#GDT"      { GDT        ( get_loc lexbuf ) }
+  | space             { token lexbuf  }
+  | '\n'              { new_line lexbuf ; token lexbuf }
+  | "(;# eval"        { PRAGMA_EVAL ( get_loc lexbuf ) }
+  | "(;# infer"       { PRAGMA_INFER ( get_loc lexbuf ) }
+  | "(;# check"       { PRAGMA_CHECK ( get_loc lexbuf ) }
+  | "(;# checknot"    { PRAGMA_CHECKNOT ( get_loc lexbuf ) }
+  | "(;# assert"      { PRAGMA_ASSERT ( get_loc lexbuf ) }
+  | "(;# assertnot"   { PRAGMA_ASSERTNOT ( get_loc lexbuf ) }
+  | "(;# print"       { PRAGMA_PRINT ( get_loc lexbuf ) }
+  | "(;# gdt"         { PRAGMA_GDT ( get_loc lexbuf ) }
+  | "(;#"             { generic_pragma lexbuf }
+  | "#;)"             { PRAGMA_END ( get_loc lexbuf ) }
+  | "(;"              { comment 0 lexbuf}
+  | '.'               { DOT           }
+  | ','               { COMMA         }
+  | ':'               { COLON         }
+  | "=="              { EQUAL         }
+  | '['               { LEFTSQU       }
+  | ']'               { RIGHTSQU      }
+  | '{'               { LEFTBRA       }
+  | '}'               { RIGHTBRA      }
+  | '('               { LEFTPAR       }
+  | ')'               { RIGHTPAR      }
+  | "-->"             { LONGARROW     }
+  | "->"              { ARROW         }
+  | "=>"              { FATARROW      }
+  | ":="              { DEF           }
+  | "|-"              { VDASH         }
+  | "?"               { QUESTION      }
+  | "_"               { UNDERSCORE ( get_loc lexbuf ) }
+  | "Type"            { TYPE       ( get_loc lexbuf ) }
+  | "def"             { KW_DEF     ( get_loc lexbuf ) }
+  | "defac"           { KW_DEFAC   ( get_loc lexbuf ) }
+  | "defacu"          { KW_DEFACU  ( get_loc lexbuf ) }
+  | "injective"       { KW_INJ     ( get_loc lexbuf ) }
+  | "thm"             { KW_THM     ( get_loc lexbuf ) }
+  | "private"         { KW_PRV     ( get_loc lexbuf ) }
+  | "assert"          { ASSERT     ( get_loc lexbuf ) }
   | mident as md '.' (ident as id)
-  { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
+                      { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id
-  { ID  ( get_loc lexbuf , mk_ident id ) }
-  | '{' '|' { sident None (Buffer.create 42) lexbuf }
+                      { ID  ( get_loc lexbuf , mk_ident id ) }
+  | '{' '|'           { sident None (Buffer.create 42) lexbuf }
   | mident as md '.' '{' '|'
-  {sident (Some (mk_mident md)) (Buffer.create 42) lexbuf}
-  | '"' { string (Buffer.create 42) lexbuf }
+                      {sident (Some (mk_mident md)) (Buffer.create 42) lexbuf}
+  | '"'               { string (Buffer.create 42) lexbuf }
   | _   as s
-  { let msg = sprintf "Unexpected characters '%s'." (String.make 1 s) in
+                      { let msg = sprintf "Unexpected characters '%s'." (String.make 1 s) in
     fail (get_loc lexbuf) msg }
-  | eof { EOF }
+  | eof               { EOF }
 
 and comment i = parse
   | ";)" { if (i=0) then token lexbuf else comment (i-1) lexbuf }
@@ -77,6 +80,12 @@ and comment i = parse
   | "(;" { comment (i+1) lexbuf }
   | _    { comment i lexbuf }
   | eof  { fail (get_loc lexbuf) "Unexpected end of file."  }
+
+and generic_pragma = parse
+  | "#;)" { token lexbuf }
+  | "\n"  { new_line lexbuf; generic_pragma lexbuf }
+  | _     { generic_pragma lexbuf }
+  | eof   { fail (get_loc lexbuf) "Unexpected end of file." }
 
 and string buf = parse
   | '\\' (_ as c)

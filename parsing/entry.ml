@@ -8,7 +8,9 @@ type is_assertion = bool
 
 type should_fail = bool
 
-type test = Convert of term * term | HasType of term * term
+type test = Convert of term * term
+          | HasType of term * term
+          | Typeable of term
 
 exception Assert_error of loc
 
@@ -68,7 +70,9 @@ let pp_entry fmt e =
       | Convert (t1, t2) ->
           fprintf fmt "%s%s %a ==@ %a.@." cmd neg pp_term t1 pp_term t2
       | HasType (te, ty) ->
-          fprintf fmt "%s%s %a ::@ %a.@." cmd neg pp_term te pp_term ty)
+          fprintf fmt "%s%s %a ::@ %a.@." cmd neg pp_term te pp_term ty
+      | Typeable te ->
+          fprintf fmt "%s%s %a.@." cmd neg pp_term te)
   | DTree (_, m, v) -> (
       match m with
       | None   -> fprintf fmt "#GDT %a.@." pp_ident v
