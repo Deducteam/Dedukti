@@ -129,6 +129,9 @@ module Make (R : Reduction.S) : S = struct
             pp_term ty_exp);
         if not (SR.convertible sg c d ty_inf ty_exp) then
           let ty_exp' = rename_vars_with_typed_context ctx ty_exp in
+          Format.eprintf 
+            "Error while checking:\n\nctx:   %a\n\nte:  %a\n\nty_exp:  %a\n\nty_inf:  %a\n\n\n" 
+              pp_typed_context ctx pp_term te pp_term ty_exp pp_term ty_inf;
           raise (Typing_error (ConvertibilityError (te, ctx, ty_exp', ty_inf)))
 
   and check_app sg (c : SR.lhs_typing_cstr) (d : int) (ctx : typed_context)
