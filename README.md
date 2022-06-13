@@ -1,37 +1,38 @@
 Note that a new interactive version of Dedukti is under development on https://github.com/Deducteam/lambdapi.
 
-For interoperability developement, the current version of Dedukti is still used.
+For interoperability development, the current version of Dedukti is still used.
 
 USER MANUAL FOR DEDUKTI (DEVELOPMENT VERSION)
 =============================================
 
-### INSTALLATION
+### INSTALL
 
-To compile (and optionally install) `Dedukti` you will need:
- - `OCaml >= 4.06`,
- - `Menhir`,
- - `dune`,
- - `cmdliner`,
- - `z3` (universo only),
- - `odoc` (doc only).
-
-#### INSTALLATION WITH OPAM
-
+#### INSTALL WITH OPAM
 
 ```bash
 opam install dedukti
 ```
 
-The current version on `opam` is too old and we recommand to install Dedukti by cloning this repository.
+The current version on `opam` is too old and we recommend to install Dedukti by cloning this repository.
 
-#### INSTALLATION FROM SOURCE
+#### INSTALL FROM SOURCES
 
-```bash
+```sh
 git clone https://github.com/Deducteam/Dedukti.git
 cd Dedukti
-make
-make install
+opam install .
 ```
+
+#### COMPILE SOURCES
+
+```sh
+git clone https://github.com/Deducteam/Dedukti.git
+cd Dedukti
+opam install . --deps-only # Install only dependencies with Opam
+make
+```
+
+Dependencies to compile Dedukti are listed in `dedukti.opam`.
 
 ### QUICK START (ASSUMING INSTALLATION)
 
@@ -46,7 +47,7 @@ SUCCESS File 'examples/append.dk' was successfully checked.
 
 ### EDITOR MODES
 
-See the `editors` directory. Only the emacs mode is maitained currently.
+See the `editors` directory. Only the emacs mode is maintained currently.
 
 ### COMMAND LINE PROGRAMS
 
@@ -322,11 +323,11 @@ the rule and proceed, it actually raises an error.
 - Because they are replaced with *unapplied* fresh variables, bracket expressions may not contain variables
 locally bounded previously in the pattern.
 - Since they are not used during matching, bracket expressions may not "introduce" variables. All rule variables
-occuring in bracket expression need to also occur in an other part of the pattern, outside a bracket.
-- Bracket expressions and their type may contain variables occuring "before" (to the left of) the pattern.
-- The type of a bracket expression may not contain variables occuring for the first time "after" (to the right of)
+occurring in bracket expression need to also occur in an other part of the pattern, outside a bracket.
+- Bracket expressions and their type may contain variables occurring "before" (to the left of) the pattern.
+- The type of a bracket expression may not contain variables occurring for the first time "after" (to the right of)
 the bracket.
-- The bracket expression may contain variable occuring for the first time "after" (to the right of) the bracket on
+- The bracket expression may contain variable occurring for the first time "after" (to the right of) the bracket on
 the condition that the inferred types for these variables do not depend on the bracket's fresh variable (no circularity).
 
 #### CONFLUENCE CHECKING
