@@ -1,0 +1,7 @@
+(; OK ;)
+
+assert A : Type ? A.
+assert A : Type |- A : Type.
+assert A : Type, a : A |- A : Type.
+assert A : Type, a : A |- a : A.
+assert A : Type, a : A |- a == a.

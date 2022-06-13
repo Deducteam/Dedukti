@@ -323,11 +323,11 @@ module Make (S : Sig) : Printer = struct
         let cmd = if assrt then "#ASSERT" else "#CHECK" in
         let neg = if neg then "NOT" else "" in
         match test with
-        | Convert (t1, t2) ->
+        | Convert (_, t1, t2) ->
             fprintf fmt "%s%s %a ==@ %a.@." cmd neg print_term t1 print_term t2
-        | HasType (te, ty) ->
+        | HasType (_, te, ty) ->
             fprintf fmt "%s%s %a ::@ %a.@." cmd neg print_term te print_term ty
-        | Typeable te ->
+        | Typeable (_, te) ->
             fprintf fmt "%s%s %a.@." cmd neg pp_term te)
     | DTree (_, m, v) -> (
         match m with

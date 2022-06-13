@@ -146,12 +146,18 @@ line:
   | rs=rule+ DOT
       {fun md -> Rules(loc_of_rs rs,(List.map (scope_rule md) rs))}
 
-  | ASSERT QUESTION te=term DOT
-      {fun md -> Check($1, true, false, Typeable(scope_term md [] te))}
-  | ASSERT VDASH t1=aterm EQUAL t2=term DOT
-      {fun md -> Check($1, true , false, Convert(scope_term md [] t1, scope_term md [] t2))}
-  | ASSERT VDASH te=aterm COLON ty=term DOT
-      {fun md -> Check($1, true, false, HasType(scope_term md [] te, scope_term md [] ty))}
+  | ASSERT ctx=assert_ctx QUESTION te=term DOT
+    {fun md -> Check($1, true, false,
+                     let ctx = scope_ctx md ctx in
+                     Typeable(ctx, scope_term md ctx te))}
+  | ASSERT ctx=assert_ctx VDASH t1=aterm EQUAL t2=term DOT
+    {fun md -> Check($1, true , false,
+                     let ctx = scope_ctx md ctx in
+                     Convert(ctx, scope_term md ctx t1, scope_term md ctx t2))}
+  | ASSERT ctx=assert_ctx VDASH te=aterm COLON ty=term DOT
+    {fun md -> Check($1, true, false,
+                     let ctx = scope_ctx md ctx in
+                     HasType(ctx, scope_term md ctx te, scope_term md ctx ty))}
 
   | PRAGMA_EVAL te=term PRAGMA_END
       {fun md -> Eval($1, default_cfg, scope_term md [] te)}
@@ -163,22 +169,22 @@ line:
       {fun md -> Infer($1, cfg, scope_term md [] te)}
 
   | PRAGMA_CHECK te=aterm COLON ty=term PRAGMA_END
-      {fun md -> Check($1, false, false, HasType(scope_term md [] te, scope_term md [] ty))}
+      {fun md -> Check($1, false, false, HasType([], scope_term md [] te, scope_term md [] ty))}
   | PRAGMA_CHECKNOT te=aterm COLON ty=term PRAGMA_END
-      {fun md -> Check($1, false, true , HasType(scope_term md [] te, scope_term md [] ty))}
+      {fun md -> Check($1, false, true , HasType([], scope_term md [] te, scope_term md [] ty))}
   | PRAGMA_ASSERT te=aterm COLON ty=term PRAGMA_END
-      {fun md -> Check($1, true , false, HasType(scope_term md [] te, scope_term md [] ty))}
+      {fun md -> Check($1, true , false, HasType([], scope_term md [] te, scope_term md [] ty))}
   | PRAGMA_ASSERTNOT te=aterm COLON ty=term PRAGMA_END
-      {fun md -> Check($1, true , true , HasType(scope_term md [] te, scope_term md [] ty))}
+      {fun md -> Check($1, true , true , HasType([], scope_term md [] te, scope_term md [] ty))}
 
   | PRAGMA_CHECK t1=aterm EQUAL t2=term PRAGMA_END
-      {fun md -> Check($1, false, false, Convert(scope_term md [] t1, scope_term md [] t2))}
+      {fun md -> Check($1, false, false, Convert([], scope_term md [] t1, scope_term md [] t2))}
   | PRAGMA_CHECKNOT t1=aterm EQUAL t2=term PRAGMA_END
-      {fun md -> Check($1, false, true , Convert(scope_term md [] t1, scope_term md [] t2))}
+      {fun md -> Check($1, false, true , Convert([], scope_term md [] t1, scope_term md [] t2))}
   | PRAGMA_ASSERT t1=aterm EQUAL t2=term PRAGMA_END
-      {fun md -> Check($1, true , false, Convert(scope_term md [] t1, scope_term md [] t2))}
+      {fun md -> Check($1, true , false, Convert([], scope_term md [] t1, scope_term md [] t2))}
   | PRAGMA_ASSERTNOT t1=aterm EQUAL t2=term PRAGMA_END
-      {fun md -> Check($1, true , true , Convert(scope_term md [] t1, scope_term md [] t2))}
+      {fun md -> Check($1, true , true , Convert([], scope_term md [] t1, scope_term md [] t2))}
 
   | PRAGMA_PRINT STRING PRAGMA_END
     {fun _ -> Print($1, $2)}
@@ -261,4 +267,10 @@ term:
       {PreLam (fst $1, snd $1, Some $3, $5)}
   | LEFTPAR pid COLON aterm DEF aterm RIGHTPAR FATARROW term
       { PreApp (PreLam (fst $2, snd $2, Some $4, $9), $6, []) }
+
+assert_ctx: separated_list(COMMA, assert_decl) { $1 }
+
+assert_decl:
+  | id=ID COLON ty=term
+      { (fst id, snd id, ty) }
 %%

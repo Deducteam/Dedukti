@@ -8,4 +8,6 @@ exception Scoping_error of loc * string
 
 val scope_term : mident -> typed_context -> Preterm.preterm -> term
 
+val scope_ctx : mident -> Preterm.preterm context -> typed_context
+
 val scope_rule : mident -> Preterm.prule -> Rule.partially_typed_rule

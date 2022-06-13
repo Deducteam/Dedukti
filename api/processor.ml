@@ -54,22 +54,22 @@ module MakeTypeChecker (Env : CustomEnv) : S with type t = unit = struct
         let ty = Env.infer env te in
         let rty = Env.reduction env ~red ty in
         Format.printf "%a@." Pp.print_term rty
-    | Check (lc, assrt, neg, Convert (t1, t2)) -> (
-        let succ = Env.are_convertible env t1 t2 <> neg in
+    | Check (lc, assrt, neg, Convert (ctx, t1, t2)) -> (
+        let succ = Env.are_convertible env ~ctx:ctx t1 t2 <> neg in
         match (succ, assrt) with
         | true, false  -> Format.printf "YES@."
         | true, true   -> ()
         | false, false -> Format.printf "NO@."
         | false, true  -> raise @@ Entry.Assert_error lc)
-    | Check (lc, assrt, neg, HasType (te, ty)) -> (
-        let succ = try Env.check env te ty; not neg with _ -> neg in
+    | Check (lc, assrt, neg, HasType (ctx, te, ty)) -> (
+        let succ = try Env.check env ~ctx:ctx te ty; not neg with _ -> neg in
         match (succ, assrt) with
         | true, false  -> Format.printf "YES@."
         | true, true   -> ()
         | false, false -> Format.printf "NO@."
         | false, true  -> raise @@ Entry.Assert_error lc)
-    | Check (lc, assrt, neg, Typeable te) -> (
-        let succ = try ignore (Env.infer env te); not neg with _ -> neg in
+    | Check (lc, assrt, neg, Typeable (ctx,te)) -> (
+        let succ = try ignore (Env.infer env ~ctx:ctx te); not neg with _ -> neg in
         match (succ,assrt) with
         | true, false -> Format.printf "YES@."
         | true, true -> ()
@@ -178,22 +178,22 @@ module MakeTopLevel (Env : CustomEnv) : S with type t = unit = struct
         let ty = Env.infer env te in
         let rty = Env.reduction env ~red ty in
         Format.printf "%a@." Printer.print_term rty
-    | Check (lc, assrt, neg, Convert (t1, t2)) -> (
-        let succ = Env.are_convertible env t1 t2 <> neg in
+    | Check (lc, assrt, neg, Convert (ctx, t1, t2)) -> (
+        let succ = Env.are_convertible env ~ctx:ctx t1 t2 <> neg in
         match (succ, assrt) with
         | true, false  -> Format.printf "YES@."
         | true, true   -> ()
         | false, false -> Format.printf "NO@."
         | false, true  -> raise @@ Entry.Assert_error lc)
-    | Check (lc, assrt, neg, HasType (te, ty)) -> (
-        let succ = try Env.check env te ty; not neg with _ -> neg in
+    | Check (lc, assrt, neg, HasType (ctx, te, ty)) -> (
+        let succ = try Env.check env ~ctx:ctx te ty; not neg with _ -> neg in
         match (succ, assrt) with
         | true, false  -> Format.printf "YES@."
         | true, true   -> ()
         | false, false -> Format.printf "NO@."
         | false, true  -> raise @@ Entry.Assert_error lc)
-    | Check (lc, assrt, neg, Typeable te) -> (
-        let succ = try ignore (Env.infer env te); not neg with _ -> neg in
+    | Check (lc, assrt, neg, Typeable (ctx,te)) -> (
+        let succ = try ignore (Env.infer env ~ctx:ctx te); not neg with _ -> neg in
         match (succ,assrt) with
         | true, false -> Format.printf "YES@."
         | true, true -> ()
