@@ -16,31 +16,31 @@ def plus : N -> N -> N.
 def a := plus 2 3.
 
 
-#EVAL[WHNF,1,CBN] a.
+(;# eval [WHNF,1,CBN] a #;)
 
-#EVAL[WHNF,2,CBN] a.
+(;# eval [WHNF,2,CBN] a #;)
 
-#EVAL[WHNF,3,CBN] a.
+(;# eval [WHNF,3,CBN] a #;)
 
-#EVAL[WHNF,4,CBN] a.
+(;# eval [WHNF,4,CBN] a #;)
 
-#EVAL[SNF,6,CBN] a.
+(;# eval [SNF,6,CBN] a #;)
 
-#EVAL[1,CBV] a.
+(;# eval [1,CBV] a #;)
 
-#EVAL[2,CBV] a.
+(;# eval [2,CBV] a #;)
 
-#EVAL[3,CBV] a.
+(;# eval [3,CBV] a #;)
 
-#EVAL[4,CBV] a.
+(;# eval [4,CBV] a #;)
 
-#EVAL[5,CBV] a.
+(;# eval [5,CBV] a #;)
 
-#EVAL[6,CBV] a.
+(;# eval [6,CBV] a #;)
 
-#EVAL[7,CBV] a.
+(;# eval [7,CBV] a #;)
 
-#EVAL[8,CBV] a.
+(;# eval [8,CBV] a #;)
 
-#EVAL[9,CBV] a.
+(;# eval [9,CBV] a #;)
 

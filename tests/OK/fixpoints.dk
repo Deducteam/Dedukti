@@ -999,10 +999,10 @@ def nat__rect__proj := fix_proj (type z) 1 nat__rect__MA nat__rect__FP 0.
 
 
 (;
-#PRINT "  nat_rect : Nat -> P n ?".
-#CHECK nat__rect__proj  :  ( n : T set nat -> T (type z) (P n) ).
+(;# print  "  nat_rect : Nat -> P n ?" #;)
+(;# check  nat__rect__proj  :  ( n : T set nat -> T (type z) (P n) ) #;)
 ;)
-#ASSERT nat__rect__proj  :  ( n : T set nat -> T (type z) (P n) ).
+(;# assert  nat__rect__proj  :  ( n : T set nat -> T (type z) (P n) ) #;)
 
 
 def nat__rect :
@@ -1067,10 +1067,10 @@ def plus :
     0.
 
 (;
-#PRINT "  2+3 = 5 ?".
-#CHECK plus _2 _3 == _5.
+(;# print  "  2+3 = 5 ?" #;)
+(;# check  plus _2 _3 == _5 #;)
 ;)
-#ASSERT plus _2 _3 == _5.
+(;# assert  plus _2 _3 == _5 #;)
 
 
 def times :
@@ -1088,10 +1088,10 @@ def times :
     0.
 
 (;
-#PRINT "  2*3 = 6 ?".
-#CHECK times _2 _3 == _6.
+(;# print  "  2*3 = 6 ?" #;)
+(;# check  times _2 _3 == _6 #;)
 ;)
-#ASSERT times _2 _3 == _6.
+(;# assert  times _2 _3 == _6 #;)
 
 
 def _10    := plus _5 _5.
@@ -1100,14 +1100,14 @@ def _1000  := times _10 _100.
 def _10000 := times _10 _1000.
 
 (;
-#PRINT "  100*10=10*100 ?".
-#CHECK times _100 _10 == times _10 _100.
+(;# print  "  100*10=10*100 ?" #;)
+(;# check  times _100 _10 == times _10 _100 #;)
 ;)
-#ASSERT times _100 _10 == times _10 _100.
+(;# assert  times _100 _10 == times _10 _100 #;)
 
 (;
-#PRINT "  1000*10=10*1000 ?".
-#CHECK times _1000 _10 == times _10 _1000.
+(;# print  "  1000*10=10*1000 ?" #;)
+(;# check  times _1000 _10 == times _10 _1000 #;)
 ;)
 
 vect :
@@ -1291,14 +1291,14 @@ def g := fix_proj set 2 fg_MA fg_FP 1.
 
 (;   f 0 3 [3,2,1] = 7   ;)
 (;  #PRINT "  f 0 3 [3,2,1] = 7 ?".  ;)
-#ASSERT
+assert |-
   f Z _3
     (cons _2 _3 (cons _1 _2 (cons Z _1 nil)))
   ==
   plus _3 _4.
 
 (;  #PRINT "  f acc (n+1) (cons n a l) = g (acc+a) n l".  ;)
-#ASSERT
+assert |-
 (
   acc:T set nat =>
   n : T set nat =>
@@ -1334,6 +1334,6 @@ def bug_FP :=
 def bug := fix_proj set 1 bug_MA bug_FP 0.
 
 (; This loops ;)
-#EVAL[SNF]  x : T set nat => bug (Succ x).
+(;# eval [SNF]  x : T set nat => bug (Succ x) #;)
 ;)
 (; Coqine readable = true ;)

@@ -14,16 +14,16 @@ defac o [T].
      o{u u X} --> o{t X}
 ;)
 
-#ASSERT o t t == u.
-#ASSERT o u u == t.
-#ASSERT o u t == o t u.
+(;# assert  o t t == u #;)
+(;# assert  o u u == t #;)
+(;# assert  o u t == o t u #;)
 
-#ASSERT o (o t u) (o u t) == o u t.
-#ASSERT o t (o u (o u t)) == o u t.
+(;# assert  o (o t u) (o u t) == o u t #;)
+(;# assert  o t (o u (o u t)) == o u t #;)
 
-#ASSERT o t (o t (o t t)) == t.
+(;# assert  o t (o t (o t t)) == t #;)
 
-#ASSERT (x:T => o (o t x) t) == (x:T => o u x).
-#ASSERT (x:T => o (o x t) t) == (x:T => o u x).
-#ASSERT (x:T => o t (o t x)) == (x:T => o x u).
-#ASSERT (x:T => o t (o x t)) == (x:T => o x u).
+(;# assert  (x:T => o (o t x) t) == (x:T => o u x) #;)
+(;# assert  (x:T => o (o x t) t) == (x:T => o u x) #;)
+(;# assert  (x:T => o t (o t x)) == (x:T => o x u) #;)
+(;# assert  (x:T => o t (o x t)) == (x:T => o x u) #;)

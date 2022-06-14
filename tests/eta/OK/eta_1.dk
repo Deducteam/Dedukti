@@ -14,4 +14,4 @@ f1 : B.
 def f2 := x:A => f1 x.
 def f3 := x:A => f2 x.
 
-#ASSERT T f2 (c f3) == c f1.
+(;# assert  T f2 (c f3) == c f1 #;)

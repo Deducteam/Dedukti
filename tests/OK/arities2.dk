@@ -15,6 +15,6 @@ def g : N -> N.
 [] g (f (S (S 0)) 0 0) --> S (S 0).
 
 
-#ASSERT g (f 0            ) == 0.
-#ASSERT g (f (S 0)     0  ) == S 0.
-#ASSERT g (f (S (S 0)) 0 0) == S (S 0).
+(;# assert  g (f 0            ) == 0 #;)
+(;# assert  g (f (S 0)     0  ) == S 0 #;)
+(;# assert  g (f (S (S 0)) 0 0) == S (S 0) #;)

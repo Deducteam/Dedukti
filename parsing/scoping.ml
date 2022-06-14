@@ -36,6 +36,16 @@ let rec t_of_pt md (ctx : ident list) (pte : preterm) : term =
 let scope_term md ctx (pte : preterm) : term =
   t_of_pt md (List.map (fun (_, x, _) -> x) ctx) pte
 
+(* Expects the preterm list in reverse *)
+let rec scope_ctx' md : Preterm.preterm context -> typed_context = function
+  | [] -> []
+  | (l,id,ty) :: tl ->
+    let scp_ctx = scope_ctx' md tl in
+    let ty = scope_term md scp_ctx ty in
+    (l, id, ty) :: scp_ctx
+
+let scope_ctx md ctx = scope_ctx' md (List.rev ctx)
+
 (******************************************************************************)
 
 type pre_context = preterm option context

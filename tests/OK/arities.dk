@@ -16,10 +16,10 @@ def f : A -> A -> A -> A -> A.
 [] f --> i.
 
 
-#ASSERT f a a a b == g b.
-#ASSERT f c a b == i c a b.
-#ASSERT f b a b == h a b.
-#ASSERT f b a == h a.
-#ASSERT f a a == i a a.
-#ASSERT f a == i a.
-#ASSERT f == i.
+(;# assert  f a a a b == g b #;)
+(;# assert  f c a b == i c a b #;)
+(;# assert  f b a b == h a b #;)
+(;# assert  f b a == h a #;)
+(;# assert  f a a == i a a #;)
+(;# assert  f a == i a #;)
+(;# assert  f == i #;)

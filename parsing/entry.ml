@@ -8,7 +8,9 @@ type is_assertion = bool
 
 type should_fail = bool
 
-type test = Convert of term * term | HasType of term * term
+type test = Convert  of typed_context * term * term
+          | HasType  of typed_context * term * term
+          | Typeable of typed_context * term
 
 exception Assert_error of loc
 
@@ -65,10 +67,12 @@ let pp_entry fmt e =
       let cmd = if assrt then "#ASSERT" else "#CHECK" in
       let neg = if neg then "NOT" else "" in
       match test with
-      | Convert (t1, t2) ->
+      | Convert (_, t1, t2) ->
           fprintf fmt "%s%s %a ==@ %a.@." cmd neg pp_term t1 pp_term t2
-      | HasType (te, ty) ->
-          fprintf fmt "%s%s %a ::@ %a.@." cmd neg pp_term te pp_term ty)
+      | HasType (_, te, ty) ->
+          fprintf fmt "%s%s %a ::@ %a.@." cmd neg pp_term te pp_term ty
+      | Typeable (_, te) ->
+          fprintf fmt "%s%s %a.@." cmd neg pp_term te)
   | DTree (_, m, v) -> (
       match m with
       | None   -> fprintf fmt "#GDT %a.@." pp_ident v

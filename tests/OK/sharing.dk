@@ -38,14 +38,14 @@ def test : T -> N.
 [X] test (c (c X X) (c X X)) --> test X.
 [X] test (c X X) --> test X.
 
-#EVAL z.
-#EVAL test (f 16).
+(;# eval  z #;)
+(;# eval  test (f 16) #;)
 
-#EVAL z.
-#EVAL test (f 32).
+(;# eval  z #;)
+(;# eval  test (f 32) #;)
 
-#EVAL z.
-#EVAL test (f 65536).
+(;# eval  z #;)
+(;# eval  test (f 65536) #;)
 
 
 def f2 : N -> N -> T.
@@ -55,9 +55,9 @@ def f2 : N -> N -> T.
 def test2 : (N -> T) -> N.
 [X] test2 (x => X) --> z.
 
-#EVAL z.
-#EVAL test2 (x => f2 x 16).
+(;# eval  z #;)
+(;# eval  test2 (x => f2 x 16) #;)
 (;
-#EVAL test2 (x => f2 x 32).
-#EVAL test2 (x => f2 x 65536).
+(;# eval  test2 (x => f2 x 32) #;)
+(;# eval  test2 (x => f2 x 65536) #;)
 ;)

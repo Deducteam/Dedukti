@@ -121,6 +121,11 @@ let rec mk_term t =
   | Lam (_, _, Some ty, te) -> mk_term ty; mk_term te
   | Pi (_, _, a, b)         -> mk_term a; mk_term b
 
+let rec mk_typed_context ctx =
+  match ctx with
+  | [] -> ()
+  | (_,_,ty) :: tl -> mk_term ty; mk_typed_context tl
+
 let rec mk_pattern p =
   let open Rule in
   match p with
@@ -157,8 +162,9 @@ let handle_entry e =
       List.iter mk_rule rs
   | Eval (_, _, te) -> mk_term te
   | Infer (_, _, te) -> mk_term te
-  | Check (_, _, _, Convert (t1, t2)) -> mk_term t1; mk_term t2
-  | Check (_, _, _, HasType (te, ty)) -> mk_term te; mk_term ty
+  | Check (_, _, _, Convert (ctx, t1, t2)) -> mk_typed_context ctx; mk_term t1; mk_term t2
+  | Check (_, _, _, HasType (ctx, te, ty)) -> mk_typed_context ctx; mk_term te; mk_term ty
+  | Check (_, _, _, Typeable (ctx, te)) -> mk_typed_context ctx; mk_term te
   | DTree (_, _, _) -> ()
   | Print (_, _) -> ()
   | Name (_, _) -> ()

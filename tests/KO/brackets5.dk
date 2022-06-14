@@ -18,4 +18,4 @@ def g : x : A -> eta (V a) -> eta (V a) -> eta (V a).
 
 [x,N] g x N {N} --> g x N N.
 
-#EVAL[WHNF,1] (g a N C).
+(;# eval [WHNF,1] (g a N C) #;)

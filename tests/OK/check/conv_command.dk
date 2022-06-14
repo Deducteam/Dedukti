@@ -5,14 +5,14 @@ def B := A.
 def C := A.
 D : Type.
 
-#CHECK B == A.
-#PRINT "YES".
+(;# check  B == A #;)
+(;# print  "YES" #;)
 
-#CHECKNOT D == A.
-#PRINT "YES".
+(;# checknot  D == A #;)
+(;# print  "YES" #;)
 
-#CHECKNOT B == C.
-#PRINT "NO".
+(;# checknot  B == C #;)
+(;# print  "NO" #;)
 
-#CHECK C == D.
-#PRINT "NO".
+(;# check  C == D #;)
+(;# print  "NO" #;)

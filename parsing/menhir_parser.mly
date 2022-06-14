@@ -57,14 +57,18 @@ let loc_of_rs = function
 %token RIGHTBRA
 %token LEFTSQU
 %token RIGHTSQU
-%token <Kernel.Basic.loc> EVAL
-%token <Kernel.Basic.loc> INFER
-%token <Kernel.Basic.loc> CHECK
-%token <Kernel.Basic.loc> CHECKNOT
+%token VDASH
+%token QUESTION
+%token <Kernel.Basic.loc> PRAGMA_EVAL
+%token <Kernel.Basic.loc> PRAGMA_INFER
+%token <Kernel.Basic.loc> PRAGMA_CHECK
+%token <Kernel.Basic.loc> PRAGMA_CHECKNOT
+%token <Kernel.Basic.loc> PRAGMA_ASSERT
+%token <Kernel.Basic.loc> PRAGMA_ASSERTNOT
+%token <Kernel.Basic.loc> PRAGMA_PRINT
+%token <Kernel.Basic.loc> PRAGMA_GDT
+%token <Kernel.Basic.loc> PRAGMA_END
 %token <Kernel.Basic.loc> ASSERT
-%token <Kernel.Basic.loc> ASSERTNOT
-%token <Kernel.Basic.loc> PRINT
-%token <Kernel.Basic.loc> GDT
 %token <Kernel.Basic.loc> UNDERSCORE
 %token <Kernel.Basic.loc*Basic.mident> NAME
 %token <Kernel.Basic.loc*Basic.mident> REQUIRE
@@ -142,36 +146,53 @@ line:
   | rs=rule+ DOT
       {fun md -> Rules(loc_of_rs rs,(List.map (scope_rule md) rs))}
 
-  | EVAL te=term DOT
+  | ASSERT ctx=assert_ctx QUESTION te=term DOT
+    {fun md -> Check($1, true, false,
+                     let ctx = scope_ctx md ctx in
+                     Typeable(ctx, scope_term md ctx te))}
+  | ASSERT ctx=assert_ctx VDASH t1=aterm EQUAL t2=term DOT
+    {fun md -> Check($1, true , false,
+                     let ctx = scope_ctx md ctx in
+                     Convert(ctx, scope_term md ctx t1, scope_term md ctx t2))}
+  | ASSERT ctx=assert_ctx VDASH te=aterm COLON ty=term DOT
+    {fun md -> Check($1, true, false,
+                     let ctx = scope_ctx md ctx in
+                     HasType(ctx, scope_term md ctx te, scope_term md ctx ty))}
+
+  | PRAGMA_EVAL te=term PRAGMA_END
       {fun md -> Eval($1, default_cfg, scope_term md [] te)}
-  | EVAL cfg=eval_config te=term DOT
+  | PRAGMA_EVAL cfg=eval_config te=term PRAGMA_END
       {fun md -> Eval($1, cfg, scope_term md [] te)}
-  | INFER te=term DOT
+  | PRAGMA_INFER te=term PRAGMA_END
       {fun md -> Infer($1, default_cfg, scope_term md [] te)}
-  | INFER cfg=eval_config te=term DOT
+  | PRAGMA_INFER cfg=eval_config te=term PRAGMA_END
       {fun md -> Infer($1, cfg, scope_term md [] te)}
 
-  | CHECK te=aterm COLON ty=term DOT
-      {fun md -> Check($1, false, false, HasType(scope_term md [] te, scope_term md [] ty))}
-  | CHECKNOT te=aterm COLON ty=term DOT
-      {fun md -> Check($1, false, true , HasType(scope_term md [] te, scope_term md [] ty))}
-  | ASSERT te=aterm COLON ty=term DOT
-      {fun md -> Check($1, true , false, HasType(scope_term md [] te, scope_term md [] ty))}
-  | ASSERTNOT te=aterm COLON ty=term DOT
-      {fun md -> Check($1, true , true , HasType(scope_term md [] te, scope_term md [] ty))}
+  | PRAGMA_CHECK te=aterm COLON ty=term PRAGMA_END
+      {fun md -> Check($1, false, false, HasType([], scope_term md [] te, scope_term md [] ty))}
+  | PRAGMA_CHECKNOT te=aterm COLON ty=term PRAGMA_END
+      {fun md -> Check($1, false, true , HasType([], scope_term md [] te, scope_term md [] ty))}
+  | PRAGMA_ASSERT te=aterm COLON ty=term PRAGMA_END
+      {fun md -> Check($1, true , false, HasType([], scope_term md [] te, scope_term md [] ty))}
+  | PRAGMA_ASSERTNOT te=aterm COLON ty=term PRAGMA_END
+      {fun md -> Check($1, true , true , HasType([], scope_term md [] te, scope_term md [] ty))}
 
-  | CHECK t1=aterm EQUAL t2=term DOT
-      {fun md -> Check($1, false, false, Convert(scope_term md [] t1, scope_term md [] t2))}
-  | CHECKNOT t1=aterm EQUAL t2=term DOT
-      {fun md -> Check($1, false, true , Convert(scope_term md [] t1, scope_term md [] t2))}
-  | ASSERT t1=aterm EQUAL t2=term DOT
-      {fun md -> Check($1, true , false, Convert(scope_term md [] t1, scope_term md [] t2))}
-  | ASSERTNOT t1=aterm EQUAL t2=term DOT
-      {fun md -> Check($1, true , true , Convert(scope_term md [] t1, scope_term md [] t2))}
+  | PRAGMA_CHECK t1=aterm EQUAL t2=term PRAGMA_END
+      {fun md -> Check($1, false, false, Convert([], scope_term md [] t1, scope_term md [] t2))}
+  | PRAGMA_CHECKNOT t1=aterm EQUAL t2=term PRAGMA_END
+      {fun md -> Check($1, false, true , Convert([], scope_term md [] t1, scope_term md [] t2))}
+  | PRAGMA_ASSERT t1=aterm EQUAL t2=term PRAGMA_END
+      {fun md -> Check($1, true , false, Convert([], scope_term md [] t1, scope_term md [] t2))}
+  | PRAGMA_ASSERTNOT t1=aterm EQUAL t2=term PRAGMA_END
+      {fun md -> Check($1, true , true , Convert([], scope_term md [] t1, scope_term md [] t2))}
 
-  | PRINT STRING DOT {fun _ -> Print($1, $2)}
-  | GDT   ID     DOT {fun _ -> DTree($1, None, snd $2)}
-  | GDT   QID    DOT {fun _ -> let (_,m,v) = $2 in DTree($1, Some m, v)}
+  | PRAGMA_PRINT STRING PRAGMA_END
+    {fun _ -> Print($1, $2)}
+  | PRAGMA_GDT ID PRAGMA_END
+    {fun _ -> DTree($1, None, snd $2)}
+  | PRAGMA_GDT QID PRAGMA_END
+    {fun _ -> let (_,m,v) = $2 in DTree($1, Some m, v)}
+
   | n=NAME       DOT {fun _ -> Name(fst n, snd n)}
   | r=REQUIRE    DOT {fun _ -> Require(fst r,snd r)}
   | EOF              {raise End_of_file}
@@ -246,4 +267,10 @@ term:
       {PreLam (fst $1, snd $1, Some $3, $5)}
   | LEFTPAR pid COLON aterm DEF aterm RIGHTPAR FATARROW term
       { PreApp (PreLam (fst $2, snd $2, Some $4, $9), $6, []) }
+
+assert_ctx: separated_list(COMMA, assert_decl) { $1 }
+
+assert_decl:
+  | id=ID COLON ty=term
+      { (fst id, snd id, ty) }
 %%

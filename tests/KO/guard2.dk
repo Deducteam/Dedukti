@@ -8,4 +8,4 @@ g : A -> A.
 def ff : A -> (A -> A) -> A.
 [x] ff x (y => {g x}) --> a.
 
-#CHECK (ff a (y => a)) == a.
+(;# check  (ff a (y => a)) == a #;)

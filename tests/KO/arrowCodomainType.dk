@@ -1,4 +1,4 @@
 (; KO 101 ;)
 
 A : Type.
-#INFER (A -> Type) -> A.
+(;# infer  (A -> Type) -> A #;)

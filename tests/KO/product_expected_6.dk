@@ -4,4 +4,4 @@ A : Type.
 
 f : A.
 
-#INFER (x : A => f x).
+(;# infer  (x : A => f x) #;)

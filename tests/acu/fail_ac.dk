@@ -6,5 +6,5 @@ f : N -> N -> N.
 defac g [N].
 [] g --> f.
 
-#EVAL[WHNF] g.
+(;# eval [WHNF] g #;)
 (; This forces impossible computation of g's decision tree ;)

@@ -2,4 +2,4 @@
 
 A : Type.
 x : A -> A.
-#ASSERT x == y : A => x y.
+(;# assert  x == y : A => x y #;)

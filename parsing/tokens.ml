@@ -3,6 +3,7 @@ open Kernel.Basic
 type token =
   | UNDERSCORE of loc
   | TYPE of loc
+  (* Update *)
   | KW_DEF of loc
   | KW_DEFAC of loc
   | KW_DEFACU of loc
@@ -28,12 +29,18 @@ type token =
   | COLON
   | EQUAL
   | ARROW
-  | EVAL of loc
-  | INFER of loc
-  | CHECK of loc
+  | QUESTION
+  (* New pragma system *)
+  | PRAGMA_END of loc
+  | PRAGMA_EVAL of loc
+  | PRAGMA_INFER of loc
+  | PRAGMA_CHECK of loc
+  | PRAGMA_CHECKNOT of loc
+  | PRAGMA_ASSERT of loc
+  | PRAGMA_ASSERTNOT of loc
+  | PRAGMA_PRINT of loc
+  | PRAGMA_GDT of loc
   | ASSERT of loc
-  | CHECKNOT of loc
-  | ASSERTNOT of loc
-  | PRINT of loc
-  | GDT of loc
+  | VDASH
+  (* End of pragma system *)
   | STRING of string

@@ -35,7 +35,7 @@ def flip : (R -> R -> R2) -> (R -> R -> R2).
 
 def f : R -> R -> R := x : R => y : R => ch x.
 
-#EVAL grad (trans f).
-#EVAL flip (grad f).
+(;# eval  grad (trans f) #;)
+(;# eval  flip (grad f) #;)
 
-#ASSERT grad (trans f) == flip (grad f).
+(;# assert  grad (trans f) == flip (grad f) #;)

@@ -9,7 +9,7 @@ c : A -> A -> A.
 def f : (A -> A -> A -> A -> A) -> (A -> A -> A -> A -> A) -> A.
 [V] f (y => x => z => V x y z) (x => y => z => V z x y) --> V 1 2 3 4.
 
-#ASSERT
+assert |-
 ( f
   (y => x => z => u =>
    c (c (c y x) (c u y))

@@ -2,17 +2,17 @@
 
 {|∀∃“ç^°}|} : Type.
 
-#EVAL[SNF] {|∀∃“ç^°}|}.
-#PRINT "{|∀∃“ç^°}|}".
+(;# eval [SNF] {|∀∃“ç^°}|} #;)
+(;# print  "{|∀∃“ç^°}|}" #;)
 
 {|ç^°}|} : Type.
 def {|\\~~&œe|} : Type.
 [] {|\\~~&œe|} --> {|ç^°}|}.
 
-#EVAL[SNF] {|\\~~&œe|}.
-#PRINT "{|ç^°}|}".
+(;# eval [SNF] {|\\~~&œe|} #;)
+(;# print  "{|ç^°}|}" #;)
 
 def {|a|} : Type.
 def a : Type.
 
-#ASSERTNOT {|a|} == a.
+(;# assertnot  {|a|} == a #;)

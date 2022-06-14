@@ -11,11 +11,11 @@ defac o [T].
      o{t X} --> (x => x) X
 ;)
 
-#ASSERT o t == y:T => y.
-#ASSERT o t t == t.
+(;# assert  o t == y:T => y #;)
+(;# assert  o t t == t #;)
 
 u : T.
-#ASSERT o t u == u.
-#ASSERT o u t == u.
+(;# assert  o t u == u #;)
+(;# assert  o u t == u #;)
 
-#ASSERT (x:T => o x t) == (z:T => z).
+(;# assert  (x:T => o x t) == (z:T => z) #;)
