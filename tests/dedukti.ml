@@ -37,13 +37,11 @@ let remove_dkos () =
 
 let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
     ~error ~title ~tags ~filename command arguments =
-  let regression_output_path = "tests/tezt/_regressions" in
   let register f =
     match regression with
     | None -> Test.register ~__FILE__:filename ~title ~tags f
     | Some output_file ->
-        Regression.register ~__FILE__:filename ~output_file
-          ~regression_output_path ~title ~tags f
+        Regression.register ~__FILE__:filename ~output_file ~title ~tags f
   in
   register (fun () ->
       let* () = preprocess () in

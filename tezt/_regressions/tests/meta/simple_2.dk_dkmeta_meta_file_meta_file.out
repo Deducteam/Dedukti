@@ -1,4 +1,4 @@
-tests/tezt/_regressions/tests/meta/simple_2.dk_dkmeta_meta_file_meta_file.out
+tests/meta/simple_2.dk_dkmeta_meta_file_meta_file.out
 
 ./dk.native meta --no-color -q -I tests/meta -m tests/meta_files/meta.dk -m tests/meta_files/meta2.dk tests/meta/simple_2.dk
 A : Type.
