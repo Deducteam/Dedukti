@@ -57,7 +57,7 @@ let mk_Arrow l a b = Pi (l, dmark, a, b)
 let mk_App f a1 args =
   match f with
   | App (f', a1', args') -> App (f', a1', args' @ (a1 :: args))
-  | _                    -> App (f, a1, args)
+  | _ -> App (f, a1, args)
 
 let mk_App2 f = function [] -> f | hd :: tl -> mk_App f hd tl
 
@@ -109,9 +109,9 @@ let rec compare_term id_comp t1 t2 =
 
 and compare_term_list id_comp a b =
   match (a, b) with
-  | [], []           -> 0
-  | _, []            -> 1
-  | [], _            -> -1
+  | [], [] -> 0
+  | _, [] -> 1
+  | [], _ -> -1
   | h :: t, h' :: t' ->
       let c = compare_term id_comp h h' in
       if c = 0 then compare_term_list id_comp t t' else c
@@ -162,7 +162,7 @@ let pp_typed_ident fmt (_, id, ty) =
 
 let pp_maybe_typed_ident fmt (l, id, ty) =
   match ty with
-  | None    -> pp_untyped_ident fmt (l, id, ())
+  | None -> pp_untyped_ident fmt (l, id, ())
   | Some ty -> pp_typed_ident fmt (l, id, ty)
 
 let pp_context pp_i fmt l = fprintf fmt "[%a]" (pp_list ", " pp_i) (List.rev l)
@@ -185,7 +185,7 @@ let rename_vars_with_typed_context ctxt t =
     | DB (l, _, n) when n > d -> (
         match get_name_from_typed_ctxt ctxt (n - d) with
         | Some v' -> mk_DB l v' n
-        | None    -> t)
+        | None -> t)
     | App (f, a, args) -> mk_App (aux d f) (aux d a) (List.map (aux d) args)
     | Lam (l, x, ty, f) -> mk_Lam l x (map_opt (aux d) ty) (aux (d + 1) f)
     | Pi (l, x, ty, b) -> mk_Pi l x (aux d ty) (aux (d + 1) b)

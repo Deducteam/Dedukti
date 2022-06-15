@@ -54,13 +54,13 @@ type rule_infos = {
 let infer_rule_context ri =
   let res = Array.make ri.ctx_size (dloc, mk_ident "_", -1) in
   let rec aux k = function
-    | LJoker                 -> ()
-    | LVar (name, n, _)      ->
+    | LJoker -> ()
+    | LVar (name, n, _) ->
         if n >= k then res.(n - k) <- (dloc, name, ri.arity.(n - k))
-    | LLambda (_, body)      -> aux (k + 1) body
-    | LPattern (_, args)     -> Array.iter (aux k) args
+    | LLambda (_, body) -> aux (k + 1) body
+    | LPattern (_, args) -> Array.iter (aux k) args
     | LBoundVar (_, _, args) -> Array.iter (aux k) args
-    | LACSet (_, args)       -> List.iter (aux k) args
+    | LACSet (_, args) -> List.iter (aux k) args
   in
   Array.iter (aux 0) ri.pats;
   Array.to_list res
@@ -86,14 +86,14 @@ exception Rule_error of rule_error
 
 let rec pp_pattern out pattern =
   match pattern with
-  | Var (_, x, n, [])    -> fprintf out "%a[%i]" pp_ident x n
-  | Var (_, x, n, lst)   ->
+  | Var (_, x, n, []) -> fprintf out "%a[%i]" pp_ident x n
+  | Var (_, x, n, lst) ->
       fprintf out "%a[%i] %a" pp_ident x n (pp_list " " pp_pattern_wp) lst
-  | Pattern (_, n, [])   -> fprintf out "%a" pp_name n
+  | Pattern (_, n, []) -> fprintf out "%a" pp_name n
   | Pattern (_, n, pats) ->
       fprintf out "%a %a" pp_name n (pp_list " " pp_pattern_wp) pats
-  | Lambda (_, x, p)     -> fprintf out "%a => %a" pp_ident x pp_pattern p
-  | Brackets t           -> fprintf out "{ %a }" pp_term t
+  | Lambda (_, x, p) -> fprintf out "%a => %a" pp_ident x pp_pattern p
+  | Brackets t -> fprintf out "{ %a }" pp_term t
 
 and pp_pattern_wp out pattern =
   match pattern with
@@ -135,9 +135,9 @@ let get_loc_pat = function
 let get_loc_rule r = get_loc_pat r.pat
 
 let pp_rule_name fmt = function
-  | Beta             -> fprintf fmt "Beta"
-  | Delta n          -> fprintf fmt "Delta: %a" pp_name n
-  | Gamma (true, n)  -> fprintf fmt "Gamma: %a" pp_name n
+  | Beta -> fprintf fmt "Beta"
+  | Delta n -> fprintf fmt "Delta: %a" pp_name n
+  | Gamma (true, n) -> fprintf fmt "Gamma: %a" pp_name n
   | Gamma (false, n) -> fprintf fmt "Gamma (default): %a" pp_name n
 
 let pp_rule pp_ctxt fmt (rule : 'a rule) =
@@ -162,10 +162,10 @@ let pp_rule_infos out r =
 
 let pattern_to_term p =
   let rec aux k = function
-    | Brackets t           -> t
+    | Brackets t -> t
     | Pattern (l, n, args) -> mk_App2 (mk_Const l n) (List.map (aux k) args)
-    | Var (l, x, n, args)  -> mk_App2 (mk_DB l x n) (List.map (aux k) args)
-    | Lambda (l, x, pat)   -> mk_Lam l x None (aux (k + 1) pat)
+    | Var (l, x, n, args) -> mk_App2 (mk_DB l x n) (List.map (aux k) args)
+    | Lambda (l, x, pat) -> mk_Lam l x None (aux (k + 1) pat)
   in
   aux 0 p
 
@@ -183,7 +183,7 @@ type pattern_info = {
 let bracket_ident = mk_ident "{_}" (* FIXME: can this be replaced by dmark? *)
 
 let rec all_distinct = function
-  | []       -> true
+  | [] -> true
   | hd :: tl -> if List.mem hd tl then false else all_distinct tl
 
 module IntHashtbl = Hashtbl.Make (struct
@@ -267,9 +267,8 @@ let to_rule_infos (r : 'a rule) : rule_infos =
   let l, cst, args =
     match r.pat with
     | Pattern (l, cst, args) -> (l, cst, args)
-    | Var (l, x, _, _)       -> raise
-                                  (Rule_error (AVariableIsNotAPattern (l, x)))
-    | Lambda _ | Brackets _  -> assert false
+    | Var (l, x, _, _) -> raise (Rule_error (AVariableIsNotAPattern (l, x)))
+    | Lambda _ | Brackets _ -> assert false
     (* already raised at the parsing level *)
   in
   let pats2, infos = check_patterns ctx_size args in

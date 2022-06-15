@@ -51,7 +51,7 @@ let deps = ref []
 let mk_cstr env f cstr =
   let fmt = F.fmt_of_file env.file in
   match cstr with
-  | U.Pred p       ->
+  | U.Pred p ->
       Format.fprintf fmt "%a@." print_predicate p;
       true
   | U.EqVar (l, r) ->

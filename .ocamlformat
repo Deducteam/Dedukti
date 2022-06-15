@@ -1,8 +1,9 @@
-version=0.19.0
+version=0.22.4
+profile=default
 doc-comments=before
 space-around-arrays=false
 space-around-lists=false
 space-around-records=false
 space-around-variants=false
-align-cases=true
+module-item-spacing=sparse
 break-sequences=false

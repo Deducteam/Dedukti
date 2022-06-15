@@ -46,7 +46,7 @@ type staticity = Static | Definable of algebra | Injective
 
 let algebra_of_staticity = function
   | Static | Injective -> Free
-  | Definable a        -> a
+  | Definable a -> a
 
 type scope = Public | Private
 
@@ -109,8 +109,7 @@ let unmarshal (lc : loc) (file : string) :
     let ext : rule_infos list list = Marshal.from_channel ic in
     close_in ic; (deps, ctx, ext)
   with
-  | Sys_error s       -> raise
-                           (Signature_error (UnmarshalSysError (lc, file, s)))
+  | Sys_error s -> raise (Signature_error (UnmarshalSysError (lc, file, s)))
   | Signature_error s -> raise (Signature_error s)
 
 let fold_symbols f sg =
@@ -202,8 +201,8 @@ let neu1_rule (name : name) (_ : term) =
           ( dloc,
             name,
             [
-              Var (dloc, mk_ident "x", 0, []);
-              (* FIXME: Translate term argument to pattern here  *)
+              Var (dloc, mk_ident "x", 0, [])
+              (* FIXME: Translate term argument to pattern here  *);
             ] );
       rhs = mk_App (mk_Const dloc name) (mk_DB dloc (mk_ident "x") 0) [];
     }
@@ -228,11 +227,11 @@ let check_confluence_on_import lc (md : mident) (ctx : rw_infos HId.t) : unit =
     add_constant cst;
     add_rules infos.rules;
     match infos.stat with
-    | Definable AC        -> add_rules [comm_rule cst; asso_rule cst]
+    | Definable AC -> add_rules [comm_rule cst; asso_rule cst]
     | Definable (ACU neu) ->
         add_rules
           [comm_rule cst; asso_rule cst; neu1_rule cst neu; neu2_rule cst neu]
-    | _                   -> ()
+    | _ -> ()
   in
   HId.iter aux ctx;
   Debug.debug d_confluence "Checking confluence after loading module '%a'..."
@@ -272,7 +271,7 @@ let rec import sg lc md =
 
 and add_rule_infos sg (lst : rule_infos list) : unit =
   match lst with
-  | []           -> ()
+  | [] -> ()
   | r :: _ as rs ->
       let infos, env = get_info_env sg r.l r.cst in
       if infos.stat = Static then
@@ -343,15 +342,15 @@ let export sg oc =
 
 let is_static sg lc cst =
   match (get_infos sg lc cst).stat with
-  | Static                  -> true
+  | Static -> true
   | Definable _ | Injective -> false
 
 let stat_code = function
-  | Static            -> 0
-  | Definable Free    -> 1
-  | Definable AC      -> 2
+  | Static -> 0
+  | Definable Free -> 1
+  | Definable AC -> 2
   | Definable (ACU _) -> 3
-  | Injective         -> 4
+  | Injective -> 4
 
 let get_id_comparator sg cst cst' =
   compare
@@ -361,7 +360,7 @@ let get_id_comparator sg cst cst' =
 let get_neutral sg lc cst =
   match get_algebra sg lc cst with
   | ACU neu -> neu
-  | _       -> raise (Signature_error (ExpectedACUSymbol (lc, cst)))
+  | _ -> raise (Signature_error (ExpectedACUSymbol (lc, cst)))
 
 let get_env sg lc cst =
   let md = md cst in
@@ -375,7 +374,7 @@ let get_infos sg lc cst =
 let is_injective sg lc cst =
   match (get_infos sg lc cst).stat with
   | Static | Injective -> true
-  | Definable _        -> false
+  | Definable _ -> false
 
 let get_type sg lc cst =
   let infos = get_infos sg lc cst in
@@ -393,7 +392,7 @@ let add_declaration sg lc v st ty =
   add_external_declaration sg lc cst st ty
 
 let add_rules sg = function
-  | []           -> ()
+  | [] -> ()
   | r :: _ as rs -> (
       try
         add_rule_infos sg rs;

@@ -75,13 +75,13 @@ let occurs (n : int) (te : term) : bool =
   let exception Occurs in
   let rec aux depth = function
     | Kind | Type _ | Const _ -> ()
-    | DB (_, _, k)            -> if k = n + depth then raise Occurs else ()
-    | App (f, a, args)        -> List.iter (aux depth) (f :: a :: args)
-    | Lam (_, _, None, te)    -> aux (depth + 1) te
+    | DB (_, _, k) -> if k = n + depth then raise Occurs else ()
+    | App (f, a, args) -> List.iter (aux depth) (f :: a :: args)
+    | Lam (_, _, None, te) -> aux (depth + 1) te
     | Lam (_, _, Some ty, te) ->
         aux depth ty;
         aux (depth + 1) te
-    | Pi (_, _, a, b)         ->
+    | Pi (_, _, a, b) ->
         aux depth a;
         aux (depth + 1) b
   in

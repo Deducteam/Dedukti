@@ -160,7 +160,7 @@ let split x =
 
 let rev_mapi f l =
   let rec rmap_f i accu = function
-    | []     -> accu
+    | [] -> accu
     | a :: l -> rmap_f (i + 1) (f i a :: accu) l
   in
   rmap_f 0 [] l
@@ -181,8 +181,8 @@ let pp_name fmt (md, id) = Format.fprintf fmt "%a.%a" pp_mident md pp_ident id
 
 let pp_loc fmt = function
   | -1, -1 -> Format.fprintf fmt "unspecified location"
-  | l, -1  -> Format.fprintf fmt "line:%i" l
-  | l, c   -> Format.fprintf fmt "line:%i column:%i" l c
+  | l, -1 -> Format.fprintf fmt "line:%i" l
+  | l, c -> Format.fprintf fmt "line:%i column:%i" l c
 
 let format_of_sep str fmt () : unit = Format.fprintf fmt "%s" str
 
@@ -196,7 +196,7 @@ let pp_arr sep pp fmt a = pp_list sep pp fmt (Array.to_list a)
 let pp_lazy pp fmt l = Format.fprintf fmt "%a" pp (Lazy.force l)
 
 let pp_option def pp fmt = function
-  | None   -> Format.fprintf fmt "%s" def
+  | None -> Format.fprintf fmt "%s" def
   | Some a -> Format.fprintf fmt "%a" pp a
 
 let pp_pair pp_fst pp_snd fmt x =

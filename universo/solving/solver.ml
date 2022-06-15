@@ -40,8 +40,8 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
                 (fun (r : R.partially_typed_rule) -> from_rule r.pat r.rhs)
                 rs
               :: !cstrs
-        | E.Require _     -> ()
-        | _               -> assert false
+        | E.Require _ -> ()
+        | _ -> assert false
 
       let get_data _ = List.flatten !cstrs
     end in
@@ -69,7 +69,7 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
             let rhs' = M.mk_term meta rhs in
             Format.fprintf fmt "[] %a --> %a.@." Printer.print_name name
               Printer.print_term rhs'
-        | _                       -> ()
+        | _ -> ()
 
       let get_data _ = ()
     end in
@@ -98,7 +98,7 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
    fun r ->
     match from_rule r.pat r.rhs with
     | U.EqVar _ -> rules := r :: !rules
-    | U.Pred p  -> sp := SP.add p !sp
+    | U.Pred p -> sp := SP.add p !sp
 
   (** [parse meta s] parses a constraint file. *)
   let parse : string -> unit =
@@ -108,8 +108,8 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
 
       let handle_entry _ = function
         | E.Rules (_, rs) -> List.iter mk_rule rs
-        | E.Require _     -> ()
-        | _               -> assert false
+        | E.Require _ -> ()
+        | _ -> assert false
 
       let get_data _ = ()
     end in
@@ -134,7 +134,7 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
         let find name =
           match M.mk_term meta_constraints (T.mk_Const B.dloc name) with
           | T.Const (_, name) -> name
-          | _                 -> assert false
+          | _ -> assert false
         in
         function
         | E.Decl (_, id, _, _, _) ->
@@ -144,7 +144,7 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
             let rhs' = M.mk_term meta_output rhs in
             Format.fprintf fmt "[] %a --> %a.@." Printer.print_name name
               Printer.print_term rhs'
-        | _                       -> ()
+        | _ -> ()
 
       let get_data _ = ()
     end in

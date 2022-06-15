@@ -2,8 +2,8 @@ module Command = struct
   type t = Dkcheck | Dkmeta | Dkpretty
 
   let path = function
-    | Dkcheck  -> ("./dk.native", fun args -> "check" :: args)
-    | Dkmeta   -> ("./dk.native", fun args -> "meta" :: args)
+    | Dkcheck -> ("./dk.native", fun args -> "check" :: args)
+    | Dkmeta -> ("./dk.native", fun args -> "meta" :: args)
     | Dkpretty -> ("./dk.native", fun args -> "beautify" :: args)
 end
 
@@ -40,7 +40,7 @@ let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
   let regression_output_path = "tests/tezt/_regressions" in
   let register f =
     match regression with
-    | None             -> Test.register ~__FILE__:filename ~title ~tags f
+    | None -> Test.register ~__FILE__:filename ~title ~tags f
     | Some output_file ->
         Regression.register ~__FILE__:filename ~output_file
           ~regression_output_path ~title ~tags f
@@ -88,7 +88,7 @@ let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
       let path, carg = Command.path command in
       let process = Process.spawn ?hooks path (carg (arguments @ [filename])) in
       match error with
-      | None              ->
+      | None ->
           let* () = Process.check process in
           postprocess (List.rev !output_acc)
       | Some (`Code code) ->
@@ -96,17 +96,17 @@ let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
           Process.check_error
             ~msg:Base.(rex (sf "[ERROR CODE:%d]" code))
             process
-      | Some `System      ->
+      | Some `System ->
           Process.check_error ~msg:(Base.rex "[ERROR CODE:SYSTEM]") process)
 
 let title ~action ~result ~options filename =
   let options_str = String.concat ", " options in
   let basename = Filename.basename filename in
   match options with
-  | []       -> Format.asprintf "%s '%s' %s" action basename result
+  | [] -> Format.asprintf "%s '%s' %s" action basename result
   | [option] ->
       Format.asprintf "%s '%s' %s with '%s'" action basename result option
-  | _ :: _   ->
+  | _ :: _ ->
       Format.asprintf "%s '%s' %s with '%s'" action basename result options_str
 
 module Check = struct
@@ -156,20 +156,20 @@ module Meta = struct
     | No_unquoting
 
   let mk_argument = function
-    | No_meta       -> ["--no-meta"]
-    | No_beta       -> ["--no-beta"]
-    | Meta file     -> ["-m"; file]
-    | Import path   -> ["-I"; path]
+    | No_meta -> ["--no-meta"]
+    | No_beta -> ["--no-beta"]
+    | Meta file -> ["-m"; file]
+    | Import path -> ["-I"; path]
     | Quoting `Prod -> ["--quoting"; "prod"]
-    | No_unquoting  -> ["--no-unquoting"]
+    | No_unquoting -> ["--no-unquoting"]
 
   let tag_of_argument = function
-    | No_meta       -> "no_meta"
-    | No_beta       -> "no_beta"
-    | Meta _file    -> "meta_file"
-    | Import _path  -> "import"
+    | No_meta -> "no_meta"
+    | No_beta -> "no_beta"
+    | Meta _file -> "meta_file"
+    | Import _path -> "import"
     | Quoting `Prod -> "quoting_prod"
-    | No_unquoting  -> "no_unquoting"
+    | No_unquoting -> "no_unquoting"
 
   let run ?(dep = []) ?(check_output = true) ~filename arguments =
     let tags = List.map tag_of_argument arguments in

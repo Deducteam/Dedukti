@@ -12,15 +12,14 @@ let cfg =
     (* Generate a model *)
     `Proof false;
     (* Give a proof if unsatisfiable *)
-    `Trace false;
-    (* Do not generate trace *)
+    `Trace false (* Do not generate trace *);
   ]
 
 let string_of_cfg_item item =
   match item with
-  | `Model b        -> ("model", string_of_bool b)
-  | `Proof b        -> ("proof", string_of_bool b)
-  | `Trace b        -> ("trace", string_of_bool b)
+  | `Model b -> ("model", string_of_bool b)
+  | `Proof b -> ("proof", string_of_bool b)
+  | `Trace b -> ("trace", string_of_bool b)
   | `TraceFile file -> ("trace_file_name", file)
 
 let string_of_cfg cfg = List.map string_of_cfg_item cfg
@@ -59,13 +58,13 @@ module Make (ZL : Z3LOGIC) = struct
   let vars_of_univs univs =
     let f = function
       | U.Var name -> vars := SSet.add (ZL.mk_name name) !vars
-      | _          -> ()
+      | _ -> ()
     in
     List.iter f univs
 
   let vars_of_pred = function
-    | U.Axiom (s, s')     -> vars_of_univs [s; s']
-    | U.Cumul (s, s')     -> vars_of_univs [s; s']
+    | U.Axiom (s, s') -> vars_of_univs [s; s']
+    | U.Cumul (s, s') -> vars_of_univs [s; s']
     | U.Rule (s, s', s'') -> vars_of_univs [s; s'; s'']
 
   (** [mk_pred p] construct the Z3 predicate from a universe predicate *)
@@ -73,10 +72,8 @@ module Make (ZL : Z3LOGIC) = struct
     (* register variables first to add bounds constraints afterward *)
     vars_of_pred p;
     match p with
-    | U.Axiom (s, s')     -> ZL.mk_axiom ctx (ZL.mk_univ ctx s)
-                               (ZL.mk_univ ctx s')
-    | U.Cumul (s, s')     -> ZL.mk_cumul ctx (ZL.mk_univ ctx s)
-                               (ZL.mk_univ ctx s')
+    | U.Axiom (s, s') -> ZL.mk_axiom ctx (ZL.mk_univ ctx s) (ZL.mk_univ ctx s')
+    | U.Cumul (s, s') -> ZL.mk_cumul ctx (ZL.mk_univ ctx s) (ZL.mk_univ ctx s')
     | U.Rule (s, s', s'') ->
         ZL.mk_rule ctx (ZL.mk_univ ctx s) (ZL.mk_univ ctx s')
           (ZL.mk_univ ctx s'')
@@ -96,7 +93,7 @@ module Make (ZL : Z3LOGIC) = struct
   let mk_cstr c =
     let open U in
     match c with
-    | Pred p       -> mk_pred p
+    | Pred p -> mk_pred p
     | EqVar (l, r) ->
         Z.Boolean.mk_eq ctx (mk_var (ZL.mk_name l)) (mk_var (ZL.mk_name r))
 
@@ -112,10 +109,10 @@ module Make (ZL : Z3LOGIC) = struct
         L.log_solver "[SOLVER] No solution found with %d universes" i;
         ZS.pop solver 1;
         check env (i + 1)
-    | ZS.UNKNOWN       -> assert false
-    | ZS.SATISFIABLE   -> (
+    | ZS.UNKNOWN -> assert false
+    | ZS.SATISFIABLE -> (
         match ZS.get_model solver with
-        | None       -> assert false
+        | None -> assert false
         | Some model ->
             let model (cst : B.name) : U.univ =
               let var = ZL.mk_name cst in

@@ -18,7 +18,7 @@ let set_debug_mode =
     | 's' -> Debug.enable_flag Srcheck.d_SR
     | 'r' -> Debug.enable_flag Reduction.d_reduce
     | 'm' -> Debug.enable_flag Matching.d_matching
-    | c   -> raise (DebugFlagNotRecognized c))
+    | c -> raise (DebugFlagNotRecognized c))
 
 type t = {
   input : Parser.input;
@@ -61,7 +61,7 @@ let get_name env = Signature.get_name env.sg
 
 let get_filename env =
   match Parser.file_of_input env.input with
-  | None   -> "<not a file>"
+  | None -> "<not a file>"
   | Some f -> f
 
 let get_signature env = env.sg
@@ -128,12 +128,12 @@ let _define env lc (id : ident) (scope : Signature.scope) (opaque : bool)
   let (module T) = env.typer in
   let ty =
     match ty_opt with
-    | None    -> T.inference env.sg te
+    | None -> T.inference env.sg te
     | Some ty -> T.checking env.sg te ty; ty
   in
   match ty with
   | Kind -> raise @@ Typing_error (InexpectedKind (te, []))
-  | _    ->
+  | _ ->
       if opaque then
         Signature.add_declaration env.sg lc id scope Signature.Static ty
       else

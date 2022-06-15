@@ -85,14 +85,14 @@ let get_out_path : path -> step -> path =
  fun path step ->
   let file_suffix = add_suffix path (suffix_of_step step) in
   match step with
-  | `Input    -> file_suffix
+  | `Input -> file_suffix
   | `Simplify -> (
       match !simplify_directory with
-      | None     -> assert false
+      | None -> assert false
       | Some dir -> add_dir dir file_suffix)
-  | _         -> (
+  | _ -> (
       match !output_directory with
-      | None     ->
+      | None ->
           failwith
             "Output_directory must be set. See --help for more information"
       | Some dir -> add_dir dir file_suffix)

@@ -20,7 +20,7 @@ let read str =
 
 let lexing_from input =
   match input with
-  | String s   -> Lexing.from_string s
+  | String s -> Lexing.from_string s
   | Channel ic -> Lexing.from_channel ic
 
 let md_of_file file =
