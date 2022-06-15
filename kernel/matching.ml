@@ -141,7 +141,7 @@ module Make (R : Reducer) : Matcher = struct
        +{ [i]\[[vars]_1\] ... [i]\[[vars]_n\] } = ... *)
   let compute_sols (sol : term) : miller_var list -> term list =
     let rec loop_vars acc = function
-      | []                     -> acc
+      | [] -> acc
       | mvar :: other_var_args ->
           loop_vars (apply_sol sol mvar :: acc) other_var_args
     in
@@ -152,11 +152,11 @@ module Make (R : Reducer) : Matcher = struct
      +{ [i]\[[vars]_1\] ... [i]\[[vars]_n\] } = ... *)
   let compute_all_sols (sols : term list) : miller_var list -> term list =
     let rec loop_sols acc args = function
-      | []           -> acc
+      | [] -> acc
       | sol :: osols -> loop_sols (apply_sol sol args :: acc) args osols
     in
     let rec loop_term acc = function
-      | []                     -> acc
+      | [] -> acc
       | vars :: other_var_args ->
           loop_term
             (List.rev_append (loop_sols [] vars sols) acc)
@@ -167,7 +167,7 @@ module Make (R : Reducer) : Matcher = struct
   (* Remove term [sol] once from list [l]  *)
   let remove_sol sg (sol : term) (l : te list) : te list option =
     let rec aux acc = function
-      | []       -> None
+      | [] -> None
       | hd :: tl ->
           if R.are_convertible sg (Lazy.force hd) sol then
             Some (List.rev_append acc tl)
@@ -179,7 +179,7 @@ module Make (R : Reducer) : Matcher = struct
   let rec remove_sols_occs sg (sols : term list) (terms : te list) :
       te list option =
     match sols with
-    | []        -> Some terms
+    | [] -> Some terms
     | sol :: tl -> bind_opt (remove_sols_occs sg tl) (remove_sol sg sol terms)
 
   let filter_vars i = List.filter (fun (j, _) -> i != j)
@@ -193,7 +193,7 @@ module Make (R : Reducer) : Matcher = struct
 
   let get_occs i =
     let rec aux acc = function
-      | []              -> acc
+      | [] -> acc
       | (v, args) :: tl -> aux (if v == i then args :: acc else acc) tl
     in
     aux []
@@ -202,12 +202,12 @@ module Make (R : Reducer) : Matcher = struct
   let update_ac_problems sg (i : int) (sol : te) :
       te list ac_problem list -> te list ac_problem list option =
     let rec update_ac acc = function
-      | []      -> Some (List.rev acc)
+      | [] -> Some (List.rev acc)
       | p :: tl -> (
           let d, aci, joks, vars, terms = p in
           (* Fetch occurences of [i] in [vars] *)
           match get_occs i vars with
-          | []   -> update_ac (p :: acc) tl
+          | [] -> update_ac (p :: acc) tl
           | occs -> (
               (* FIXME: aren't we computing the solution's WHNF several time ? *)
               let sol = R.whnf sg (Lazy.force sol) in
@@ -217,10 +217,10 @@ module Make (R : Reducer) : Matcher = struct
               in
               let sols = compute_all_sols flat_sols occs in
               (* Assuming sol is  y1 => ... => yn => t
-                 For each X x1 ... xn in the LHS of the AC problem,
-                 Remove t{x1/y1 ... xn/yn} from the RHS *)
+                             For each X x1 ... xn in the LHS of the AC problem,
+                             Remove t{x1/y1 ... xn/yn} from the RHS *)
               match remove_sols_occs sg sols terms with
-              | None        -> None (* If it failed, fail *)
+              | None -> None (* If it failed, fail *)
               | Some nterms ->
                   (* Otherwise, remove occurences of [i] from the LHS *)
                   let nvars = filter_vars i vars in
@@ -240,7 +240,7 @@ module Make (R : Reducer) : Matcher = struct
   let set_unsolved sg (pb : matching_problem) (i : int) (sol : te) =
     (* Try and update AC problems *)
     match update_ac_problems sg i sol pb.ac_problems with
-    | None        -> None
+    | None -> None
     | Some ac_pbs ->
         Some
           {
@@ -269,21 +269,19 @@ module Make (R : Reducer) : Matcher = struct
     | Partly (aci, terms) -> (
         (* Remove occurence of variable i from all m.v headed AC problems. *)
         let rec update acc = function
-          | []      -> Some (List.rev acc)
+          | [] -> Some (List.rev acc)
           | p :: tl ->
               let d, aci', joks, vars, rhs = p in
               if ac_ident_eq aci aci' && var_exists i vars then
                 match filter_vars i vars with
-                | []            -> if rhs = [] || joks > 0 then update acc tl
-                                   else None
+                | [] -> if rhs = [] || joks > 0 then update acc tl else None
                 | filtered_vars ->
                     let a = (d, aci, joks, filtered_vars, rhs) in
                     update (a :: acc) tl
               else update (p :: acc) tl
         in
         match update [] pb.ac_problems with
-        | None        -> None
-                         (* If the substitution is incompatible, then fail *)
+        | None -> None (* If the substitution is incompatible, then fail *)
         | Some ac_pbs ->
             let nprob = {pb with ac_problems = ac_pbs} in
             if terms = [] then
@@ -292,13 +290,13 @@ module Make (R : Reducer) : Matcher = struct
               | _, ACU neu ->
                   (* When + is ACU, it's ok, X = neutral *)
                   set_unsolved sg nprob i (Lazy.from_val neu)
-              | _          -> None (* Otherwise no solution *)
+              | _ -> None (* Otherwise no solution *)
             else
               let sol =
                 Lazy.from_val (unflatten_AC aci (List.map Lazy.force terms))
               in
               set_unsolved sg nprob i sol)
-    | _                   -> assert false
+    | _ -> assert false
 
   (* Variable [i] is partly solved : X = +{ ... }
      and it was guessed from one of the equations that X's partial
@@ -320,13 +318,13 @@ module Make (R : Reducer) : Matcher = struct
                 let sols = compute_sols (Lazy.force sol) (get_occs i vars) in
                 (* Remove found solutions from RHS *)
                 match remove_sols_occs sg sols terms with
-                | None        -> None
+                | None -> None
                 | Some nterms ->
                     update_ac ((d, aci, joks, vars, nterms) :: acc) tl
               else update_ac (p :: acc) tl
         in
         update_ac [] pb.ac_problems
-    | _                   -> assert false
+    | _ -> assert false
 
   (* Fetches most interesting problem and most interesting variable in it.
      Returns None iff the list of remaining problems is empty
@@ -337,10 +335,10 @@ module Make (R : Reducer) : Matcher = struct
     (* Look for most interesting variable in the set. *)
     let score (i, _) =
       match pb.status.(i) with
-      | Unsolved          -> 0
+      | Unsolved -> 0
       | Partly (x', sols) ->
           if ac_ident_eq x x' then 1 + List.length sols else max_int - 1
-      | Solved _          -> assert false
+      | Solved _ -> assert false
       (* Variables are removed from all problems when they are solved *)
     in
     let aux (bv, bs) v =
@@ -352,7 +350,7 @@ module Make (R : Reducer) : Matcher = struct
   let get_subst arities status =
     let aux i = function
       | Solved sol -> lazy_add_n_lambdas arities.(i) sol
-      | _          -> assert false
+      | _ -> assert false
     in
     LList.of_array (Array.mapi aux status)
 
@@ -363,15 +361,15 @@ module Make (R : Reducer) : Matcher = struct
       (* If no AC problem left, compute substitution and return (success !) *)
       | (_, _, joks, [], terms) :: other_problems ->
           (* If the first AC problem is an equation: +{ } = +{ ... } (empty LHS)
-             Either fail (non empty RHS and no joker to match it)
-             or simply discard this problem. *)
+                   Either fail (non empty RHS and no joker to match it)
+                   or simply discard this problem. *)
           if terms = [] || joks > 0 then
             solve_next {pb with ac_problems = other_problems}
           else None
       | (_, ac_symb, _, vars, rhs) :: _ -> (
           let x, args = fetch_var' pb ac_symb vars in
           (* Else pick an interesting variable X
-             in the first problem: +{ X, ... } = +{ ... } *)
+                   in the first problem: +{ X, ... } = +{ ... } *)
           match pb.status.(x) with
           | Partly (ac_symb', _) ->
               (* If X = +{X' ... }*)
@@ -390,12 +388,12 @@ module Make (R : Reducer) : Matcher = struct
                     (* Keep on solving *)
                     | None -> try_add_terms tl
                     (* If it failed, backtrack from here
-                       and proceed with the other RHS terms *)
+                                         and proceed with the other RHS terms *)
                     | a -> a)
               in
               (* If it succeeds, return the solution *)
               try_add_terms rhs
-          | Unsolved             ->
+          | Unsolved ->
               (* X is unknown *)
               let rec try_eq_terms = function
                 | t :: tl -> (
@@ -405,20 +403,20 @@ module Make (R : Reducer) : Matcher = struct
                     let npb = bind_opt (set_unsolved sg pb x) sol in
                     (* Hope that we can just set X = solution and have solved for X *)
                     (* FIXME: This is probably highly inefficient !
-                       We first try X = sol then try again  X = +{sol ...}
-                       thus trying to solve twice the same problem *)
+                                         We first try X = sol then try again  X = +{sol ...}
+                                         thus trying to solve twice the same problem *)
                     match try_solve_next npb with
                     | None -> try_eq_terms tl
                     (* If it failed, backtrack and proceed with the other RHS terms *)
                     | a -> a
                     (* If it succeeds, return the solution *))
-                | []      ->
+                | [] ->
                     (* If all terms have been tried unsucessfully, then
-                       the variable [x] is a combination of terms under an AC symbol. *)
+                                         the variable [x] is a combination of terms under an AC symbol. *)
                     solve_next (set_partly pb x ac_symb)
               in
               try_eq_terms rhs
-          | Solved _             -> assert false)
+          | Solved _ -> assert false)
     and try_solve_next pb = bind_opt solve_next pb in
     solve_next
 
@@ -438,16 +436,16 @@ module Make (R : Reducer) : Matcher = struct
     let whnfs = Array.make (Array.length status) None in
     let whnfs i =
       (match (whnfs.(i), status.(i)) with
-      | Some _, _         -> ()
+      | Some _, _ -> ()
       | None, Solved soli -> whnfs.(i) <- Some (R.whnf sg (Lazy.force soli))
-      | _                 -> ());
+      | _ -> ());
       whnfs.(i)
     in
     let rec update_ac acc = function
       | [] -> List.rev acc
       | (d, aci, joks, vars, terms) :: tl -> (
           let rec get_sols acc = function
-            | []              -> acc
+            | [] -> acc
             | (v, args) :: tl ->
                 get_sols
                   (match whnfs v with
@@ -461,12 +459,12 @@ module Make (R : Reducer) : Matcher = struct
                         List.map (fun sol -> apply_sol sol args) flat_sols
                       in
                       sols @ acc
-                  | _        -> acc)
+                  | _ -> acc)
                   tl
           in
           (* Fetch occurences of [i] in [vars] *)
           match remove_sols_occs sg (get_sols [] vars) terms with
-          | None        -> raise NotSolvable
+          | None -> raise NotSolvable
           | Some nterms ->
               (* Compute remaining unsolved variables in ac_problem *)
               let nvars =
@@ -488,7 +486,7 @@ module Make (R : Reducer) : Matcher = struct
   let solve_problem rule_name sg from_stack from_stack_ac pb =
     if pb.pm_ac_problems = [] then
       let solve_eq = function
-        | []                       -> assert false
+        | [] -> assert false
         | [(args, index_to_match)] ->
             lazy_add_n_lambdas args.arity
               (force_solve sg args (from_stack index_to_match))
@@ -511,7 +509,7 @@ module Make (R : Reducer) : Matcher = struct
     else
       (* First solve equational problems*)
       let solve_eq = function
-        | []                  -> Unsolved
+        | [] -> Unsolved
         | (args, rhs) :: opbs ->
             let solu = Lazy.force (force_solve sg args (from_stack rhs)) in
             List.iter

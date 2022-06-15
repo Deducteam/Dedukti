@@ -29,7 +29,7 @@ let loc_of lc = violet (Format.asprintf "[%a]" pp_loc lc)
 let fail_exit ~file ~code lc fmt =
   let eid = red ("[ERROR CODE:" ^ code ^ "] ") in
   (match lc with
-  | None    -> eprintf "%s %s @." eid (where file)
+  | None -> eprintf "%s %s @." eid (where file)
   | Some lc -> eprintf "%s %s %s @." eid (where file) (loc_of lc));
   kfprintf
     (fun _ ->
@@ -59,11 +59,11 @@ let exception_handlers : error_handler list ref = ref []
 let string_of_exception ~red lc exn =
   let rec aux l =
     match l with
-    | []           -> (-1, lc, Printexc.to_string exn)
+    | [] -> (-1, lc, Printexc.to_string exn)
     | handler :: l -> (
         match handler ~red exn with
-        | None                      -> aux l
-        | Some (code, None, exn)    -> (code, lc, exn)
+        | None -> aux l
+        | Some (code, None, exn) -> (code, lc, exn)
         | Some (code, Some lc, exn) -> (code, lc, exn))
   in
   aux !exception_handlers
@@ -198,7 +198,7 @@ let of_typing_error red err : error_msg =
 let fail_typing_error ~red exn =
   match exn with
   | Typing.Typing_error err -> Some (of_typing_error red err)
-  | _                       -> None
+  | _ -> None
 
 let of_dtree_error _ err =
   let open Dtree in
@@ -225,7 +225,7 @@ let of_dtree_error _ err =
 let fail_dtree_error ~red exn =
   match exn with
   | Dtree.Dtree_error err -> Some (of_dtree_error red err)
-  | _                     -> None
+  | _ -> None
 
 let of_rule_error _ err =
   let open Rule in
@@ -281,15 +281,15 @@ let of_rule_error _ err =
 let fail_rule_error ~red exn =
   match exn with
   | Rule.Rule_error err -> Some (of_rule_error red err)
-  | _                   -> None
+  | _ -> None
 
 let pp_cerr out err =
   let open Confluence in
   let cmd, ans =
     match err with
-    | NotConfluent cmd   -> (cmd, "NO")
+    | NotConfluent cmd -> (cmd, "NO")
     | MaybeConfluent cmd -> (cmd, "MAYBE")
-    | CCFailure cmd      -> (cmd, "ERROR")
+    | CCFailure cmd -> (cmd, "ERROR")
   in
   fprintf out "Checker's answer: %s.@.Command: %s" ans cmd
 
@@ -389,7 +389,7 @@ let fail_scoping_error ~red:_ = function
 let fail_entry_error ~red:_ = function
   | Entry.Assert_error lc ->
       Some (704, Some lc, Format.asprintf "An entry assertion has failed@.")
-  | _                     -> None
+  | _ -> None
 
 let _ =
   register_exception fail_typing_error;

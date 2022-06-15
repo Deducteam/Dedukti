@@ -18,7 +18,7 @@ let fail_dkprune_error err =
       ( 1000,
         Some lc,
         Format.asprintf "Only commands #GDT and #REQUIRE are authorized" )
-  | NoDirectory  ->
+  | NoDirectory ->
       ( 1001,
         None,
         Format.asprintf
@@ -29,7 +29,7 @@ exception Dkprune_error of dkprune_error
 let fail_dkprune ~red:_ exn =
   match exn with
   | Dkprune_error err -> Some (fail_dkprune_error err)
-  | _                 -> None
+  | _ -> None
 
 let _ = Errors.register_exception fail_dkprune
 
@@ -45,6 +45,7 @@ let _ =
      because we do not want to compute dependencies from a logic file
   *)
   Dep.compute_all_deps := true
+
 (* We want to compute items dependencies *)
 
 (* Get the output file from the input file *)
@@ -52,7 +53,7 @@ let output_file : string -> string =
  fun file ->
   let basename = Filename.basename file in
   match !output_directory with
-  | None     -> raise @@ Dkprune_error NoDirectory
+  | None -> raise @@ Dkprune_error NoDirectory
   | Some dir -> Filename.concat dir basename
 
 (* Memoize the modules already computed *)
@@ -117,7 +118,7 @@ let _ =
   let equal_gather_names (type a b) : a t * b t -> (a t, b t) equal option =
     function
     | GatherNames, GatherNames -> Some (Refl GatherNames)
-    | _                        -> None
+    | _ -> None
   in
   register_processor GatherNames
     {equal = equal_gather_names}
@@ -161,14 +162,14 @@ let rec run_on_files files =
     let md = Env.get_name env in
     if not @@ MSet.mem md !computed then
       match Parser.file_of_input (Env.get_input env) with
-      | None      ->
+      | None ->
           log "[COMPUTE DEP] %s"
             (string_of_mident (Parser.md_of_input (Env.get_input env)))
       | Some file -> log "[COMPUTE DEP] %s" file
   in
   let after env exn =
     match exn with
-    | None              ->
+    | None ->
         let md = Env.get_name env in
         computed := MSet.add md !computed;
         let deps = Hashtbl.find Dep.deps md in
@@ -210,7 +211,7 @@ let write_file deps in_file =
     let handle_entry e =
       let name = name_of_entry md e in
       match name with
-      | None      -> Format.fprintf fmt "%a" Printer.print_entry e
+      | None -> Format.fprintf fmt "%a" Printer.print_entry e
       | Some name ->
           if NSet.mem name deps then
             Format.fprintf fmt "%a" Printer.print_entry e

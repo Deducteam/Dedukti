@@ -27,9 +27,9 @@ let pp_red_cfg fmt cfg =
   let args =
     (match cfg.target with Snf -> ["SNF"] | _ -> [])
     @ (match cfg.strat with
-      | ByValue       -> ["CBV"]
+      | ByValue -> ["CBV"]
       | ByStrongValue -> ["CBSV"]
-      | _             -> [])
+      | _ -> [])
     @ match cfg.nb_steps with Some i -> [string_of_int i] | _ -> []
   in
   Format.fprintf fmt "[%a]" (pp_list "," Format.pp_print_string) args
@@ -49,9 +49,9 @@ exception Not_convertible
 
 let rec zip_lists l1 l2 lst =
   match (l1, l2) with
-  | [], []             -> lst
+  | [], [] -> lst
   | s1 :: l1, s2 :: l2 -> zip_lists l1 l2 ((s1, s2) :: lst)
-  | _, _               -> raise Not_convertible
+  | _, _ -> raise Not_convertible
 
 (* State *)
 
@@ -148,15 +148,15 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
     | ACU neu -> (
         match List.filter (fun x -> not (C.are_convertible sg neu x)) terms with
         | [] -> [neu]
-        | s  -> s)
-    | _       -> terms
+        | s -> s)
+    | _ -> terms
 
   (** Builds a comb-shaped AC term from a list of arguments. *)
   let to_comb sg l cst ctx stack =
     let rec f = function
-      | []             ->
+      | [] ->
           {ctx = LList.nil; term = Signature.get_neutral sg l cst; stack = []}
-      | [t]            -> !t
+      | [t] -> !t
       | t1 :: t2 :: tl ->
           f (ref {ctx; term = mk_Const l cst; stack = [t1; t2]} :: tl)
     in
@@ -166,7 +166,7 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
    * Removes occurence of neutral element. *)
   let rec flatten_AC_stack sg (cst : name) : stack -> stack =
     let rec flatten acc = function
-      | []       -> acc
+      | [] -> acc
       | st :: tl -> (
           match !st with
           | {term = Const (_, cst'); stack = [st1; st2]; _}
@@ -194,7 +194,7 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
                   (fun st ->
                     not (C.are_convertible sg (term_of_state_ref st) neu))
                   nstack
-            | _       -> nstack
+            | _ -> nstack
           in
           let combed = to_comb sg l cst ctx nstack in
           let fstack =
@@ -259,12 +259,12 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
     | Const _ ->
         let rec f acc (stack_acc : state ref list) st =
           match (st, case) with
-          | [], _       -> acc
+          | [], _ -> acc
           | hd :: tl, _ ->
               let new_stack_acc = hd :: stack_acc in
               let new_acc =
                 match find_case sg !hd case with
-                | None   -> acc
+                | None -> acc
                 | Some s ->
                     let new_stack = List.rev_append stack_acc tl in
                     (* Remove hd from stack *)
@@ -274,14 +274,14 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
               f new_acc new_stack_acc tl
         in
         List.rev_append (f [] [] stack) def_s
-    | _       -> assert false
+    | _ -> assert false
 
   and find_cases sg (st : state) (cases : (case * dtree) list)
       (default : dtree option) : (dtree * stack) list =
     List.fold_left
       (fun acc (case, tr) ->
         match find_case sg st case with
-        | None       -> acc
+        | None -> acc
         | Some stack -> (tr, stack) :: acc)
       (match default with None -> [] | Some g -> [(g, [])])
       cases
@@ -291,8 +291,8 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
       stack -> dtree -> (rule_name * env * term) option =
     let rec rw_list : (stack * dtree) list -> (rule_name * env * term) option =
       function
-      | []                  -> None
-      | [(stack, tree)]     -> rw stack tree
+      | [] -> None
+      | [(stack, tree)] -> rw stack tree
       | (stack, tree) :: tl -> (
           match rw stack tree with None -> rw_list tl | x -> x)
     and rw (stack : stack) : dtree -> (rule_name * env * term) option = function
@@ -304,13 +304,13 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
             match (i, l) with
             | 0, h :: t -> (acc, h, t)
             | i, h :: t -> split_ith (h :: acc) (i - 1) t
-            | _         -> assert false
+            | _ -> assert false
           in
           let stack_h, arg_i, stack_t = split_ith [] i stack in
           assert (
             match !arg_i.term with
             | Const (l, cst) -> Signature.is_AC sg l cst
-            | _              -> false);
+            | _ -> false);
           let process (g, new_s, s) =
             ( List.rev_append stack_h
                 (new_s :: (match s with [] -> stack_t | s -> stack_t @ s)),
@@ -333,13 +333,13 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
           let arg_i = List.nth stack i in
           arg_i := state_whnf sg !arg_i;
           (* Several cases may match !!
-             when max and plus are ACU symbols, they can match anything
-             (max  f g) ... = x ...
-             (plus f g) ... = x ...
-             x          ... = x ...
-             FIXME: This should really be handled by the decision tree.
-             It impacts performance a bit to have a list of size 1 computed then mapped
-             then matched upon (instead of just jumping to the recursive call).
+                   when max and plus are ACU symbols, they can match anything
+                   (max  f g) ... = x ...
+                   (plus f g) ... = x ...
+                   x          ... = x ...
+                   FIXME: This should really be handled by the decision tree.
+                   It impacts performance a bit to have a list of size 1 computed then mapped
+                   then matched upon (instead of just jumping to the recursive call).
           *)
           let new_cases =
             List.map
@@ -353,7 +353,7 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
           in
           if keep_rule then (
             (* FIXME: Several calls to [convert(_ac) i] generates different lazy values.
-               Whnf may be computed several times in case of non linearity. *)
+                     Whnf may be computed several times in case of non linearity. *)
             let convert i =
               let te = List.nth stack i in
               lazy (term_of_state_ref te)
@@ -367,7 +367,7 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
             match
               M.solve_problem rule_name sg convert convert_ac matching_pb
             with
-            | None     -> bind_opt (rw stack) def
+            | None -> bind_opt (rw stack) def
             | Some ctx ->
                 List.iter
                   (fun (i, t2) ->
@@ -433,7 +433,7 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
     | {ctx; term = Const (l, n); stack; _} -> (
         let trees = !dtree_finder sg l n in
         match find_dtree (List.length stack) trees with
-        | alg, None            -> comb_state_if_AC alg sg st
+        | alg, None -> comb_state_if_AC alg sg st
         | alg, Some (ar, tree) -> (
             let s1, s2 = split ar stack in
             let s1 =
@@ -442,11 +442,11 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
                 | t1 :: t2 :: tl ->
                     let flat = flatten_AC_stack sg n [t1; t2] in
                     ref {ctx; term = mk_Const l n; stack = flat} :: tl
-                | _              -> assert false
+                | _ -> assert false
               else s1
             in
             match gamma_rw sg !selection s1 tree with
-            | None                -> comb_state_if_AC alg sg st
+            | None -> comb_state_if_AC alg sg st
             | Some (_, ctx, term) -> rec_call ctx term s2))
 
   (* ************************************************************** *)
@@ -502,7 +502,7 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
         raise Not_convertible
 
   let rec are_convertible_lst sg : (term * term) list -> bool = function
-    | []              -> true
+    | [] -> true
     | (t1, t2) :: lst ->
         are_convertible_lst sg
           (if term_eq t1 t2 then lst
@@ -598,7 +598,7 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
         | {ctx; term = Const (l, n); stack; _}, _ -> (
             let trees = !dtree_finder sg l n in
             match find_dtree (List.length stack) trees with
-            | alg, None            -> comb_state_if_AC alg sg st
+            | alg, None -> comb_state_if_AC alg sg st
             | alg, Some (ar, tree) -> (
                 let s1, s2 = split ar stack in
                 let s1 =
@@ -607,11 +607,11 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
                     | t1 :: t2 :: tl ->
                         let flat = flatten_AC_stack sg n [t1; t2] in
                         ref {ctx; term = mk_Const l n; stack = flat} :: tl
-                    | _              -> assert false
+                    | _ -> assert false
                   else s1
                 in
                 match gamma_rw sg !selection s1 tree with
-                | None                 -> comb_state_if_AC alg sg st
+                | None -> comb_state_if_AC alg sg st
                 | Some (rn, ctx, term) ->
                     let st' = {ctx; term; stack = s2} in
                     log pos rn st st'; aux pos st'))
@@ -639,7 +639,7 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
   let reduction cfg sg te =
     let log, stop =
       match cfg.nb_steps with
-      | None   -> ((fun _ _ _ _ -> ()), fun () -> false)
+      | None -> ((fun _ _ _ _ -> ()), fun () -> false)
       | Some n ->
           let aux = ref n in
           ((fun _ _ _ _ -> decr aux), fun () -> !aux <= 0)

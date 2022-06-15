@@ -77,30 +77,30 @@ module Make (R : Reduction.S) : S = struct
       (te : term) : typ =
     Debug.(debug d_typeChecking "Inferring: %a" pp_term te);
     match te with
-    | Kind                  -> raise (Typing_error KindIsNotTypable)
-    | Type _                -> mk_Kind
-    | DB (l, x, n)          -> get_type ctx l x n
-    | Const (l, cst)        -> Signature.get_type sg l cst
-    | App (f, a, args)      ->
+    | Kind -> raise (Typing_error KindIsNotTypable)
+    | Type _ -> mk_Kind
+    | DB (l, x, n) -> get_type ctx l x n
+    | Const (l, cst) -> Signature.get_type sg l cst
+    | App (f, a, args) ->
         snd
           (List.fold_left (check_app sg c d ctx)
              (f, infer' sg c d ctx f)
              (a :: args))
-    | Pi (l, x, a, b)       -> (
+    | Pi (l, x, a, b) -> (
         let ty_a = infer' sg c d ctx a in
         let ctx2 = extend_ctx (l, x, a) ctx ty_a in
         let ty_b = infer' sg c (d + 1) ctx2 b in
         match ty_b with
         | Kind | Type _ -> ty_b
-        | _             -> raise (Typing_error (SortExpected (b, ctx2, ty_b))))
+        | _ -> raise (Typing_error (SortExpected (b, ctx2, ty_b))))
     | Lam (l, x, Some a, b) -> (
         let ty_a = infer' sg c d ctx a in
         let ctx2 = extend_ctx (l, x, a) ctx ty_a in
         let ty_b = infer' sg c (d + 1) ctx2 b in
         match ty_b with
         | Kind -> raise (Typing_error (InexpectedKind (b, ctx2)))
-        | _    -> mk_Pi l x a ty_b)
-    | Lam (l, _, None, _)   -> raise (Typing_error (DomainFreeLambda l))
+        | _ -> mk_Pi l x a ty_b)
+    | Lam (l, _, None, _) -> raise (Typing_error (DomainFreeLambda l))
 
   and check' sg (c : SR.lhs_typing_cstr) (d : int) (ctx : typed_context)
       (te : term) (ty_exp : typ) : unit =
@@ -117,12 +117,10 @@ module Make (R : Reduction.S) : S = struct
                   raise
                     (Typing_error
                        (ConvertibilityError (mk_DB l x 0, ctx, a, a')))
-            | _       -> ());
+            | _ -> ());
             check' sg c (d + 1) ((l, x, a) :: ctx) b ty_b
-        | _                  -> raise
-                                  (Typing_error
-                                     (ProductExpected (te, ctx, ty_exp))))
-    | _                 ->
+        | _ -> raise (Typing_error (ProductExpected (te, ctx, ty_exp))))
+    | _ ->
         let ty_inf = infer' sg c d ctx te in
         Debug.(
           debug d_typeChecking "Checking convertibility: %a ~ %a" pp_term ty_inf
@@ -140,7 +138,7 @@ module Make (R : Reduction.S) : S = struct
     | Pi (_, _, a, b) ->
         let _ = check' sg c d ctx arg a in
         (mk_App f arg [], Subst.subst b arg)
-    | _               -> raise (Typing_error (ProductExpected (f, ctx, ty_f)))
+    | _ -> raise (Typing_error (ProductExpected (f, ctx, ty_f)))
 
   let check sg = check' sg SR.empty 0
 
@@ -208,8 +206,8 @@ module Make (R : Reduction.S) : S = struct
 
   let get_last =
     let rec aux acc = function
-      | []       -> assert false
-      | [a]      -> (List.rev acc, a)
+      | [] -> assert false
+      | [a] -> (List.rev acc, a)
       | hd :: tl -> aux (hd :: acc) tl
     in
     aux []
@@ -249,7 +247,7 @@ module Make (R : Reduction.S) : S = struct
         let delta2, lst2 = check_pattern sg delta sigma a lst arg in
         let arg' = pattern_to_term arg in
         (sigma, Term.mk_App f arg' [], Subst.subst b arg', delta2, lst2)
-    | ty_f            ->
+    | ty_f ->
         let ctx = LList.lst sigma @ pc_to_context_wp delta in
         raise (Typing_error (ProductExpected (f, ctx, ty_f)))
 
@@ -263,7 +261,7 @@ module Make (R : Reduction.S) : S = struct
         match R.whnf sg exp_ty with
         | Pi (_, _, a, b) ->
             check_pattern sg delta (LList.cons (l, x, a) sigma) b lst p
-        | _               ->
+        | _ ->
             raise
               (Typing_error
                  (ProductExpected (pattern_to_term pat, ctx (), exp_ty))))
@@ -315,9 +313,7 @@ module Make (R : Reduction.S) : S = struct
                  (Subst.subst_n n2 x2 exp_ty))
               lst
               (Var (l, x, n, args2))
-        | _                    -> raise
-                                    (Typing_error
-                                       (CannotInferTypeOfPattern (pat, ctx ())))
+        | _ -> raise (Typing_error (CannotInferTypeOfPattern (pat, ctx ())))
         (* not a pattern *))
     | _ ->
         let inf_ty, delta2, lst2 = infer_pattern sg delta sigma lst pat in
@@ -343,7 +339,7 @@ module Make (R : Reduction.S) : S = struct
       match (ctx1, ctx2) with
       | (l, x, ty) :: ctx1', (_, _, ty') :: ctx2' ->
           (match ty' with
-          | None     -> ()
+          | None -> ()
           | Some ty' ->
               Debug.(
                 debug d_typeChecking "Checking type annotation (%a): %a ~ %a"

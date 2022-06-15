@@ -50,7 +50,7 @@ module SRChecker (R : Reduction.S) = struct
   (* Syntactical match against all unsolved equations *)
   let term_eq_under_cstr (eq_cstr : cstr list) : term -> term -> bool =
     let rec aux = function
-      | []                -> true
+      | [] -> true
       | (n, t1, t2) :: tl -> (
           List.exists (cstr_eq (n, t1, t2)) eq_cstr
           ||
@@ -74,7 +74,7 @@ module SRChecker (R : Reduction.S) = struct
     ||
     match (SS.is_identity c.subst, c.unsolved) with
     | true, [] -> false
-    | true, _  ->
+    | true, _ ->
         term_eq_under_cstr c.unsolved (R.snf sg ty_inf) (R.snf sg ty_exp)
     | false, _ ->
         let snf_ty_inf = snf sg c depth ty_inf in
@@ -87,9 +87,9 @@ module SRChecker (R : Reduction.S) = struct
 
   let rec add_to_list q acc l1 l2 =
     match (l1, l2) with
-    | [], []             -> Some acc
+    | [], [] -> Some acc
     | h1 :: t1, h2 :: t2 -> add_to_list q ((q, h1, h2) :: acc) t1 t2
-    | _, _               -> None
+    | _, _ -> None
 
   let unshift_reduce sg q t =
     try Some (Subst.unshift q t)
@@ -109,17 +109,17 @@ module SRChecker (R : Reduction.S) = struct
   let sure_occur_check sg (d : int) (p : int -> bool) (te : term) : bool =
     let exception VarSurelyOccurs in
     let rec aux = function
-      | []           -> ()
+      | [] -> ()
       | (k, t) :: tl -> (
           (* k counts the number of local lambda abstractions *)
           match t with
           | Kind | Type _ | Const _ -> aux tl
-          | Pi (_, _, a, b)         -> aux ((k, a) :: (k + 1, b) :: tl)
-          | Lam (_, _, None, b)     -> aux ((k + 1, b) :: tl)
-          | Lam (_, _, Some a, b)   -> aux ((k, a) :: (k + 1, b) :: tl)
-          | DB (_, _, n)            ->
+          | Pi (_, _, a, b) -> aux ((k, a) :: (k + 1, b) :: tl)
+          | Lam (_, _, None, b) -> aux ((k + 1, b) :: tl)
+          | Lam (_, _, Some a, b) -> aux ((k, a) :: (k + 1, b) :: tl)
+          | DB (_, _, n) ->
               if n >= k && p (n - k) then raise VarSurelyOccurs else aux tl
-          | App (f, a, args)        -> (
+          | App (f, a, args) -> (
               match f with
               | DB (_, _, n) ->
                   if n >= k && p (n - k) then raise VarSurelyOccurs
@@ -130,10 +130,10 @@ module SRChecker (R : Reduction.S) = struct
               | _ ->
                   aux tl
                   (* Default case encompasses:
-                     - Meta variables: DB(_,_,n) with n >= k + d
-                     - Definable symbols
-                     - Lambdas (FIXME: when can this happen ?)
-                     - Illegal applications *)))
+                           - Meta variables: DB(_,_,n) with n >= k + d
+                           - Definable symbols
+                           - Lambdas (FIXME: when can this happen ?)
+                           - Illegal applications *)))
     in
     try
       aux [(0, te)];
@@ -154,19 +154,19 @@ module SRChecker (R : Reduction.S) = struct
   let gather_free_vars (d : int) (terms : term list) : bool array =
     let vars = Array.make d false in
     let rec aux = function
-      | []           -> ()
+      | [] -> ()
       | (k, t) :: tl -> (
           (* k counts the number of local lambda abstractions *)
           match t with
-          | DB (_, _, n)          ->
+          | DB (_, _, n) ->
               if n >= k && n < k + d then vars.(n - k) <- true;
               aux tl
-          | Pi (_, _, a, b)       -> aux ((k, a) :: (k + 1, b) :: tl)
-          | Lam (_, _, None, b)   -> aux ((k + 1, b) :: tl)
+          | Pi (_, _, a, b) -> aux ((k, a) :: (k + 1, b) :: tl)
+          | Lam (_, _, None, b) -> aux ((k + 1, b) :: tl)
           | Lam (_, _, Some a, b) -> aux ((k, a) :: (k + 1, b) :: tl)
-          | App (f, a, args)      ->
+          | App (f, a, args) ->
               aux (((k, f) :: (k, a) :: List.map (fun t -> (k, t)) args) @ tl)
-          | _                     -> aux tl)
+          | _ -> aux tl)
     in
     aux (List.map (fun t -> (0, t)) terms);
     vars
@@ -189,7 +189,7 @@ module SRChecker (R : Reduction.S) = struct
 
   let rec pseudo_u sg flag (s : lhs_typing_cstr) :
       cstr list -> bool * lhs_typing_cstr = function
-    | []                 -> (flag, s)
+    | [] -> (flag, s)
     | (q, t1, t2) :: lst -> (
         let t1' = whnf sg s q t1 in
         let t2' = whnf sg s q t2 in
@@ -237,15 +237,15 @@ module SRChecker (R : Reduction.S) = struct
               in
               subst (n - q) 0 t
           (* X = t :
-                1) make sure that t is possibly closed and without occurence of X
-             2) if by chance t already is so, then map X to t
-                3) otherwise drop the constraint *)
+                      1) make sure that t is possibly closed and without occurence of X
+                   2) if by chance t already is so, then map X to t
+                      3) otherwise drop the constraint *)
           | DB (_, _, n), t when n >= q -> (
               if sure_occur_check sg q (fun k -> k < q || k = n) t then
                 unsatisf ()
               else
                 match unshift_reduce sg q t with
-                | None    -> unsolved ()
+                | None -> unsolved ()
                 | Some ut ->
                     let n' = n - q in
                     if Subst.occurs n' ut then
@@ -257,7 +257,7 @@ module SRChecker (R : Reduction.S) = struct
                 unsatisf ()
               else
                 match unshift_reduce sg q t with
-                | None    -> unsolved ()
+                | None -> unsolved ()
                 | Some ut ->
                     let n' = n - q in
                     if Subst.occurs n' ut then
@@ -265,8 +265,8 @@ module SRChecker (R : Reduction.S) = struct
                       if Subst.occurs n' t' then unsatisf () else subst n' 0 t'
                     else subst n' 0 ut)
           (* f t1 ... tn    /    X t1 ... tn  =  u
-             1) Gather all free variables in t1 ... tn
-             2) Make sure u only relies on these variables
+                   1) Gather all free variables in t1 ... tn
+                   2) Make sure u only relies on these variables
           *)
           | App (DB (_, _, n), a, args), t when n >= q -> (
               let occs = gather_free_vars q (a :: args) in
@@ -274,7 +274,7 @@ module SRChecker (R : Reduction.S) = struct
                 unsatisf ()
               else
                 match try_solve q (a :: args) t with
-                | None    -> unsolved ()
+                | None -> unsolved ()
                 | Some ut ->
                     let n' = n - q in
                     let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
@@ -287,7 +287,7 @@ module SRChecker (R : Reduction.S) = struct
                 unsatisf ()
               else
                 match try_solve q (a :: args) t with
-                | None    -> unsolved ()
+                | None -> unsolved ()
                 | Some ut ->
                     let n' = n - q in
                     let t' = if Subst.occurs n' ut then ut else R.snf sg ut in
@@ -310,7 +310,7 @@ module SRChecker (R : Reduction.S) = struct
               (* f = Kind | Type | DB n when n<q | Pi _
                * | Const name when (is_static name) *)
               match add_to_list q lst args args' with
-              | None      -> unsatisf () (* Different number of arguments. *)
+              | None -> unsatisf () (* Different number of arguments. *)
               | Some lst2 ->
                   pseudo_u sg true s ((q, f, f') :: (q, a, a') :: lst2))
           | _, _ -> unsatisf ())
@@ -320,7 +320,7 @@ module SRChecker (R : Reduction.S) = struct
        unsolved constraints in the hope to deduce more constraints in solved form *)
     let rec process_solver fuel sol =
       match pseudo_u sg false {sol with unsolved = []} sol.unsolved with
-      | false, s   -> s (* When pseudo_u did nothing *)
+      | false, s -> s (* When pseudo_u did nothing *)
       | true, sol' ->
           if fuel = 0 then sol'
           else

@@ -40,7 +40,7 @@ let dkdep config ignore output sorted files =
       after =
         (fun _ exn ->
           match exn with
-          | None                -> ()
+          | None -> ()
           | Some (env, lc, exn) -> Env.fail_env_error env lc exn);
     }
   in

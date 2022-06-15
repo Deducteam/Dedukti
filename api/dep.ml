@@ -70,7 +70,7 @@ let add_mdep : mident -> unit =
   if mident_eq md !current_mod then ()
   else
     match Files.find_dk ~ignore:!ignore md (Files.get_path ()) with
-    | None   -> ()
+    | None -> ()
     | Some _ ->
         current_deps :=
           {!current_deps with deps = MSet.add md !current_deps.deps}
@@ -114,20 +114,20 @@ let mk_name c =
 let rec mk_term t =
   let open Term in
   match t with
-  | Kind | Type _ | DB _    -> ()
-  | Const (_, c)            -> mk_name c
-  | App (f, a, args)        -> List.iter mk_term (f :: a :: args)
-  | Lam (_, _, None, te)    -> mk_term te
+  | Kind | Type _ | DB _ -> ()
+  | Const (_, c) -> mk_name c
+  | App (f, a, args) -> List.iter mk_term (f :: a :: args)
+  | Lam (_, _, None, te) -> mk_term te
   | Lam (_, _, Some ty, te) -> mk_term ty; mk_term te
-  | Pi (_, _, a, b)         -> mk_term a; mk_term b
+  | Pi (_, _, a, b) -> mk_term a; mk_term b
 
 let rec mk_pattern p =
   let open Rule in
   match p with
-  | Var (_, _, _, args)  -> List.iter mk_pattern args
+  | Var (_, _, _, args) -> List.iter mk_pattern args
   | Pattern (_, c, args) -> mk_name c; List.iter mk_pattern args
-  | Lambda (_, _, te)    -> mk_pattern te
-  | Brackets t           -> mk_term t
+  | Lambda (_, _, te) -> mk_pattern te
+  | Brackets t -> mk_term t
 
 let mk_rule r =
   let open Rule in

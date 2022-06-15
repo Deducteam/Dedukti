@@ -62,16 +62,16 @@ let rec term_of_level i =
 let term_of_univ u =
   let lc = B.dloc in
   match u with
-  | Sinf   -> T.mk_Const lc (sinf ())
-  | Var n  -> T.mk_Const lc n
+  | Sinf -> T.mk_Const lc (sinf ())
+  | Var n -> T.mk_Const lc n
   | Enum i -> T.mk_App (T.mk_Const B.dloc (enum ())) (term_of_level i) []
 
 let term_of_pred p =
   let lc = B.dloc in
   match p with
-  | Axiom (s, s')     ->
+  | Axiom (s, s') ->
       T.mk_App2 (T.mk_Const lc (axiom ())) [term_of_univ s; term_of_univ s']
-  | Cumul (s, s')     ->
+  | Cumul (s, s') ->
       T.mk_App2 (T.mk_Const lc (cumul ())) [term_of_univ s; term_of_univ s']
   | Rule (s, s', s'') ->
       T.mk_App2

@@ -131,15 +131,15 @@ module Make (S : Sig) : Printer = struct
   (* This overrides Term.pp_term with above aoptimizations *)
   let rec pp_term fmt te =
     match te with
-    | Kind                  -> fprintf fmt "Kind"
-    | Type _                -> fprintf fmt "Type"
-    | DB (_, x, n)          -> fprintf fmt "%a" print_db (x, n)
-    | Const (_, n)          -> fprintf fmt "%a" print_const n
-    | App (f, a, args)      -> pp_list " " pp_term_wp fmt (f :: a :: args)
-    | Lam (_, x, None, f)   -> fprintf fmt "%a => %a" print_ident x pp_term f
+    | Kind -> fprintf fmt "Kind"
+    | Type _ -> fprintf fmt "Type"
+    | DB (_, x, n) -> fprintf fmt "%a" print_db (x, n)
+    | Const (_, n) -> fprintf fmt "%a" print_const n
+    | App (f, a, args) -> pp_list " " pp_term_wp fmt (f :: a :: args)
+    | Lam (_, x, None, f) -> fprintf fmt "%a => %a" print_ident x pp_term f
     | Lam (_, x, Some a, f) ->
         fprintf fmt "%a:%a => %a" print_ident x pp_term_wp a pp_term f
-    | Pi (_, x, a, b)       ->
+    | Pi (_, x, a, b) ->
         if ident_eq x dmark then fprintf fmt "%a -> %a" pp_term_wp a pp_term b
         else fprintf fmt "%a:%a -> %a" print_ident x pp_term_wp a pp_term b
 
@@ -191,18 +191,18 @@ module Make (S : Sig) : Printer = struct
   (* let print_bv out (_,id,i) = print_db out (id,i) *)
 
   let rec print_pattern out = function
-    | Var (_, id, i, [])     -> print_db_or_underscore out (id, i)
-    | Var (_, id, i, lst)    ->
+    | Var (_, id, i, []) -> print_db_or_underscore out (id, i)
+    | Var (_, id, i, lst) ->
         fprintf out "%a %a" print_db_or_underscore (id, i)
           (print_list " " print_pattern_wp)
           lst
-    | Brackets t             -> fprintf out "{ %a }" print_term t
-    | Pattern (_, cst, [])   -> fprintf out "%a" print_const cst
+    | Brackets t -> fprintf out "{ %a }" print_term t
+    | Pattern (_, cst, []) -> fprintf out "%a" print_const cst
     | Pattern (_, cst, pats) ->
         fprintf out "%a %a" print_const cst
           (print_list " " print_pattern_wp)
           pats
-    | Lambda (_, x, p)       ->
+    | Lambda (_, x, p) ->
         fprintf out "@[%a => %a@]" print_ident x print_pattern p
 
   and print_pattern_wp out = function
@@ -214,14 +214,14 @@ module Make (S : Sig) : Printer = struct
     | p -> print_pattern out p
 
   let rec print_typed_context fmt = function
-    | []                  -> ()
+    | [] -> ()
     | (_, x, ty) :: decls ->
         fprintf fmt "  @[<hv2>%a : %a@]" print_ident x print_term ty;
         (match decls with [] -> () | _ -> fprintf fmt ",@.");
         print_typed_context fmt decls
 
   let print_err_ctxt fmt = function
-    | []  -> ()
+    | [] -> ()
     | ctx ->
         fprintf fmt " in context:@.[\n%a@.]" print_typed_context (List.rev ctx)
 
@@ -233,8 +233,8 @@ module Make (S : Sig) : Printer = struct
         else fprintf fmt "@[<h>{%a}@] " print_name cst
     in
     match rule with
-    | Beta           -> ()
-    | Delta cst      -> aux true cst (* not printed *)
+    | Beta -> ()
+    | Delta cst -> aux true cst (* not printed *)
     | Gamma (b, cst) -> aux b cst
 
   let print_decl fmt (_, id, _) = fprintf fmt "@[<hv>%a@]" print_ident id
@@ -245,7 +245,7 @@ module Make (S : Sig) : Printer = struct
 
   let print_part_typed_decl fmt (l, id, ty) =
     match ty with
-    | None    -> print_decl fmt (l, id, ())
+    | None -> print_decl fmt (l, id, ())
     | Some ty -> print_typed_decl fmt (l, id, ty)
 
   let print_untyped_rule fmt (rule : 'a rule) =
@@ -284,7 +284,7 @@ module Make (S : Sig) : Printer = struct
     let open Format in
     let open Entry in
     let scope_to_string = function
-      | Signature.Public  -> ""
+      | Signature.Public -> ""
       | Signature.Private -> "private "
     in
     match e with
@@ -306,7 +306,7 @@ module Make (S : Sig) : Printer = struct
     | Def (_, id, scope, opaque, ty, te) -> (
         let key = if opaque then "thm" else "def" in
         match ty with
-        | None    ->
+        | None ->
             fprintf fmt "@[<hv2>%s%s %a@ :=@ %a.@]@.@." (scope_to_string scope)
               key print_ident id print_term te
         | Some ty ->
@@ -329,7 +329,7 @@ module Make (S : Sig) : Printer = struct
             fprintf fmt "%s%s %a ::@ %a.@." cmd neg print_term te print_term ty)
     | DTree (_, m, v) -> (
         match m with
-        | None   -> fprintf fmt "#GDT %a.@." print_ident v
+        | None -> fprintf fmt "#GDT %a.@." print_ident v
         | Some m -> fprintf fmt "#GDT %a.%a.@." print_mident m print_ident v)
     | Print (_, str) -> fprintf fmt "#PRINT %S.@." str
     | Name (_, _) -> ()

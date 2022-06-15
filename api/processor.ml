@@ -57,17 +57,17 @@ module MakeTypeChecker (Env : CustomEnv) : S with type t = unit = struct
     | Check (lc, assrt, neg, Convert (t1, t2)) -> (
         let succ = Env.are_convertible env t1 t2 <> neg in
         match (succ, assrt) with
-        | true, false  -> Format.printf "YES@."
-        | true, true   -> ()
+        | true, false -> Format.printf "YES@."
+        | true, true -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise @@ Entry.Assert_error lc)
+        | false, true -> raise @@ Entry.Assert_error lc)
     | Check (lc, assrt, neg, HasType (te, ty)) -> (
         let succ = try Env.check env te ty; not neg with _ -> neg in
         match (succ, assrt) with
-        | true, false  -> Format.printf "YES@."
-        | true, true   -> ()
+        | true, false -> Format.printf "YES@."
+        | true, true -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise @@ Entry.Assert_error lc)
+        | false, true -> raise @@ Entry.Assert_error lc)
     | DTree (lc, m, v) ->
         let m = match m with None -> Env.get_name env | Some m -> m in
         let cst = mk_name m v in
@@ -174,17 +174,17 @@ module MakeTopLevel (Env : CustomEnv) : S with type t = unit = struct
     | Check (lc, assrt, neg, Convert (t1, t2)) -> (
         let succ = Env.are_convertible env t1 t2 <> neg in
         match (succ, assrt) with
-        | true, false  -> Format.printf "YES@."
-        | true, true   -> ()
+        | true, false -> Format.printf "YES@."
+        | true, true -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise @@ Entry.Assert_error lc)
+        | false, true -> raise @@ Entry.Assert_error lc)
     | Check (lc, assrt, neg, HasType (te, ty)) -> (
         let succ = try Env.check env te ty; not neg with _ -> neg in
         match (succ, assrt) with
-        | true, false  -> Format.printf "YES@."
-        | true, true   -> ()
+        | true, false -> Format.printf "YES@."
+        | true, true -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise @@ Entry.Assert_error lc)
+        | false, true -> raise @@ Entry.Assert_error lc)
     | DTree (lc, m, v) ->
         let m = match m with None -> Env.get_name env | Some m -> m in
         let cst = mk_name m v in
@@ -227,7 +227,7 @@ module Registration = struct
           (fun pair ->
             match f.equal pair with
             | Some refl -> Some refl
-            | None      -> old_equal.equal pair);
+            | None -> old_equal.equal pair);
       }
 end
 
@@ -245,7 +245,7 @@ let get_processor (type a) : a t -> (module S with type t = a) =
               include P
             end : S
               with type t = _)
-        | None          -> unpack' list')
+        | None -> unpack' list')
   in
   unpack' dispatch
 
@@ -293,7 +293,7 @@ end) : Interface with type 'a t := 'a C.t = struct
       Parser.handle input (handle_entry env)
     with
     | Env.Env_error _ as exn -> raise @@ exn
-    | exn                    -> raise @@ Env.Env_error (env, Basic.dloc, exn)
+    | exn -> raise @@ Env.Env_error (env, Basic.dloc, exn)
 
   let handle_input : Parser.input -> ?hook:hook -> 'a t -> 'a =
     fun (type a) input ?hook processor ->
@@ -307,9 +307,9 @@ end) : Interface with type 'a t := 'a C.t = struct
        with Env.Env_error (env, lc, e) -> Some (env, lc, e)
      in
      (match hook with
-     | None      -> (
+     | None -> (
          match exn with
-         | None                -> ()
+         | None -> ()
          | Some (env, lc, exn) -> Env.fail_env_error env lc exn)
      | Some hook -> hook.after env exn);
      let data = P.get_data env in
@@ -371,7 +371,7 @@ type _ t += TopLevel : unit t
 let equal_tc (type a b) : a t * b t -> (a t, b t) Registration.equal option =
   function
   | TypeChecker, TypeChecker -> Some (Registration.Refl TypeChecker)
-  | _                        -> None
+  | _ -> None
 
 let equal_sb (type a b) : a t * b t -> (a t, b t) Registration.equal option =
   function
@@ -386,12 +386,12 @@ let equal_pp (type a b) : a t * b t -> (a t, b t) Registration.equal option =
 let equal_dep (type a b) : a t * b t -> (a t, b t) Registration.equal option =
   function
   | Dependencies, Dependencies -> Some (Refl Dependencies)
-  | _                          -> None
+  | _ -> None
 
 let equal_top_level (type a b) :
     a t * b t -> (a t, b t) Registration.equal option = function
   | TopLevel, TopLevel -> Some (Refl TopLevel)
-  | _                  -> None
+  | _ -> None
 
 let () =
   let open Registration in

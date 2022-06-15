@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ocaml-version: [4.13.1]
+        ocaml-version: [4.14.0]
     runs-on: ubuntu-latest
     steps:
       - name: checking out lambdapi repo...
@@ -32,9 +32,9 @@ jobs:
           opam upgrade
           opam pin add -n -k path dedukti .
           opam install --deps-only -d -t dedukti
-          opam install ocamlformat.0.19.0
+          opam install ocamlformat.0.22.4
           opam install tezt.1.0.0 --no-checksums --keep-build-dir
-          opam install ~/.opam/4.13.1/.opam-switch/sources/tezt.1.0.0/tezt/lib
+          opam install ~/.opam/4.14.0/.opam-switch/sources/tezt.1.0.0/tezt/lib
           opam install z3
       - name: Checking formatting...
         run: |

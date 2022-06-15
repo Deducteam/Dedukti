@@ -10,7 +10,7 @@ let equal (type a b) :
     (a Processor.t, b Processor.t) Processor.Registration.equal option =
   function
   | Meta, Meta -> Some (Processor.Registration.Refl Meta)
-  | _          -> None
+  | _ -> None
 
 let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
     register_before no_beta files =
@@ -19,10 +19,10 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
     Option.map
       Meta.(
         function
-        | "lf"     -> (module LF : ENCODING)
-        | "prod"   -> (module PROD : ENCODING)
+        | "lf" -> (module LF : ENCODING)
+        | "prod" -> (module PROD : ENCODING)
         | "ltyped" -> (module APP : ENCODING)
-        | s        ->
+        | s ->
             Errors.fail_exit ~file:"" ~code:"-1" (Some dloc)
               "Unknown encoding '%s'" s)
       quoting
@@ -40,7 +40,7 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
   (* Adding normalisation will be done with an empty list of meta rules. *)
   if no_meta then Meta.add_rules cfg [];
   (match meta_rules_files with
-  | []    -> ()
+  | [] -> ()
   | files ->
       let rules = Meta.parse_meta_files files in
       Meta.add_rules cfg rules;
@@ -55,7 +55,7 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
       after =
         (fun env exn ->
           match exn with
-          | None                ->
+          | None ->
               if not (Config.quiet config) then
                 Meta.log "[SUCCESS] File '%s' was successfully metaified."
                   (Env.get_filename env)
@@ -65,7 +65,7 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
   let processor = Meta.make_meta_processor cfg ~post_processing in
   Processor.Registration.register_processor Meta {equal} processor;
   match config.Config.run_on_stdin with
-  | None   -> Processor.handle_files files ~hook Meta
+  | None -> Processor.handle_files files ~hook Meta
   | Some m ->
       let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
       Api.Processor.handle_input input ~hook Meta

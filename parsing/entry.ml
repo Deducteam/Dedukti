@@ -27,7 +27,7 @@ type entry =
 let pp_entry fmt e =
   let open Format in
   let scope_to_string = function
-    | Signature.Public  -> ""
+    | Signature.Public -> ""
     | Signature.Private -> "private "
   in
   match e with
@@ -49,7 +49,7 @@ let pp_entry fmt e =
   | Def (_, id, scope, opaque, ty, te) -> (
       let key = if opaque then "thm" else "def" in
       match ty with
-      | None    ->
+      | None ->
           fprintf fmt "@[<hv2>%s%s %a@ :=@ %a.@]@.@." (scope_to_string scope)
             key pp_ident id pp_term te
       | Some ty ->
@@ -71,7 +71,7 @@ let pp_entry fmt e =
           fprintf fmt "%s%s %a ::@ %a.@." cmd neg pp_term te pp_term ty)
   | DTree (_, m, v) -> (
       match m with
-      | None   -> fprintf fmt "#GDT %a.@." pp_ident v
+      | None -> fprintf fmt "#GDT %a.@." pp_ident v
       | Some m -> fprintf fmt "#GDT %a.%a.@." pp_mident m pp_ident v)
   | Print (_, str) -> fprintf fmt "#PRINT %S.@." str
   | Name (_, _) -> ()

@@ -122,8 +122,7 @@ module Cmd = struct
       let name =
         match r.pat with
         | R.Pattern (_, name, []) -> name
-        | _                       -> failwith
-                                       "Constraints are not in correct format"
+        | _ -> failwith "Constraints are not in correct format"
       in
       (* let pred = try U.extract_pred (M.mk_term meta r.rhs) *)
       let pred =
@@ -181,7 +180,7 @@ module Cmd = struct
   let find_predicate s r =
     match r.R.pat with
     | Pattern (_, n', _) -> B.string_of_ident (B.id n') = s
-    | _                  -> false
+    | _ -> false
 
   let get_lra_specification_config : string -> string list * T.term =
    fun s ->
@@ -190,11 +189,11 @@ module Cmd = struct
       let r = List.find (find_predicate s) rs in
       let to_string = function
         | R.Var (_, id, _, _) -> B.string_of_ident id
-        | _                   -> assert false
+        | _ -> assert false
       in
       match r.pat with
       | R.Pattern (_, _, l) -> (List.map to_string l, r.rhs)
-      | _                   -> assert false
+      | _ -> assert false
     with _ -> raise @@ Cmd_error (Misc "Wrong solver specification")
 
   let mk_lra_reification : unit -> (module L.LRA_REIFICATION) =
@@ -213,14 +212,12 @@ module Cmd = struct
     let get_rhs (r : R.partially_typed_rule) =
       match r.rhs with
       | T.Const (_, n) -> B.string_of_ident (B.id n)
-      | _              -> raise
-                          @@ Cmd_error
-                               (WrongConfiguration (E.Rules (B.dloc, [r])))
+      | _ -> raise @@ Cmd_error (WrongConfiguration (E.Rules (B.dloc, [r])))
     in
     let find_lhs opt r =
       match r.R.pat with
       | Pattern (_, n, _) -> B.string_of_ident (B.id n) = opt
-      | _                 -> false
+      | _ -> false
     in
     let options = try Hashtbl.find config "solver" with _ -> [] in
     let find key default =
@@ -305,7 +302,7 @@ let check : string -> unit =
             S.import_signature sg (Cmd.mk_theory ()));
         after =
           (fun _ -> function
-            | None                -> ()
+            | None -> ()
             | Some (env, lc, exn) -> Api.Env.fail_env_error env lc exn);
       }
   in
@@ -361,11 +358,11 @@ let simplify : string list -> unit =
 (** [run_on_file file] process steps 1 and 2 (depending the mode selected on [file] *)
 let run_on_file file =
   match !mode with
-  | Normal        -> elaborate file; check file
+  | Normal -> elaborate file; check file
   | JustElaborate -> elaborate file
-  | JustCheck     -> check file
-  | JustSolve     -> ()
-  | Simplify      -> ()
+  | JustCheck -> check file
+  | JustSolve -> ()
+  | Simplify -> ()
 
 let cmd_options =
   [

@@ -76,7 +76,7 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
   let open Processor in
   let hook_after env exn =
     match exn with
-    | None              ->
+    | None ->
         if not (Config.quiet config) then Errors.success (Env.get_filename env);
         if export then Env.export env;
         Confluence.finalize ()
