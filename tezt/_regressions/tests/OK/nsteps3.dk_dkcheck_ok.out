@@ -1,4 +1,4 @@
-tests/tezt/_regressions/tests/OK/nsteps3.dk_dkcheck_ok.out
+tests/OK/nsteps3.dk_dkcheck_ok.out
 
 ./dk.native check --no-color -q tests/OK/nsteps3.dk
 plus 2 3
