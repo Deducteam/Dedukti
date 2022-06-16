@@ -504,8 +504,12 @@ module Make (C : ConvChecker) (M : Matching.Matcher) : S = struct
   let rec are_convertible_lst sg : (term * term) list -> bool = function
     | [] -> true
     | (t1, t2) :: lst ->
+        (* Check physical equality first for optimisation. *)
         are_convertible_lst sg
-          (if term_eq t1 t2 then lst
+          (if t1 == t2 then lst
+           (* This test can be less expensive than computing the `whnf` if the
+              two terms are equal. *)
+          else if term_eq t1 t2 then lst
           else conversion_step sg (whnf sg t1, whnf sg t2) lst)
 
   (* Convertibility Test *)
