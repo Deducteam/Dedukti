@@ -23,4 +23,7 @@
         (name universo)
 	(synopsis "A tool for Dedukti to play with universes")
 	(description "A tool for Dedukti to play with universes")			
-        (depends z3 (tezt (and :with-test (>= 2.0)))))
+        (depends
+          (ocaml (>= 4.08))
+          z3
+          (tezt (and :with-test (>= 2.0)))))
