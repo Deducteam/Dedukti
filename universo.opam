@@ -8,6 +8,7 @@ bug-reports: "https://github.com/Deducteam/Dedukti/issues"
 depends: [
   "dune" {>= "2.0"}
   "z3"
+  "tezt" {>= "2.0"} {with-test}
 ]
 build: [
   ["dune" "subst"] {pinned}

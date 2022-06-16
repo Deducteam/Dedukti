@@ -12,6 +12,7 @@ depends: [
   "ocaml" {>= "4.08"}
   "cmdliner" {>= "1.1.0"}
   "menhir"
+  "tezt" {>= "2.0"} {with-test}  
 ]
 build: [
   ["dune" "subst"] {pinned}
