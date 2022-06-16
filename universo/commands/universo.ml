@@ -366,6 +366,9 @@ let run_on_file file =
 
 let cmd_options =
   [
+    ( "-q",
+      Arg.Unit (fun () -> Api.Env.set_debug_mode "q"),
+      " Quiet mode (equivalent to -d 'q'" );
     ( "-o",
       Arg.String
         (fun s ->
@@ -434,11 +437,9 @@ let _ =
     if !mode = Normal || !mode = JustSolve then solve files;
     if !mode = Simplify then simplify files
   with
-  (* | Env.EnvError(md,l,e) -> Errors.fail_env_error(md,l,e)
-   * | Signature.SignatureError e ->
-   *    Errors.fail_env_error(None,Basic.dloc, Env.EnvErrorSignature e)
-   * | Typing.TypingError e ->
-   *   Errors.fail_env_error(None,Basic.dloc, Env.EnvErrorType e) *)
+  (* FIXME: ugly, should be handled by universo via processor. *)
+  | (Kernel.Signature.Signature_error _ | Kernel.Typing.Typing_error _) as e ->
+      Api.Env.fail_env_error (Api.Env.dummy ()) Kernel.Basic.dloc e
   | Cmd.Cmd_error (Misc s) ->
       Api.Errors.fail_exit ~code:"-1" ~file:"" None "%s@." s
   | Sys_error err ->

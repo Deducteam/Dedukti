@@ -1,0 +1,45 @@
+#REQUIRE simple_ok_univ.
+
+(; ex ;)
+
+[] cts.Rule simple_ok_univ.?1 simple_ok_univ.?2 simple_ok_univ.?3 --> cts.true.
+
+
+[] cts.Axiom simple_ok_univ.?4 cts.sinf --> cts.true.
+
+
+[] cts.Axiom simple_ok_univ.?5 cts.sinf --> cts.true.
+
+
+[] cts.Cumul simple_ok_univ.?4 simple_ok_univ.?5 --> cts.true.
+
+
+[] cts.Axiom simple_ok_univ.?6 simple_ok_univ.?7 --> cts.true.
+
+
+[] simple_ok_univ.?7 --> simple_ok_univ.?4.
+
+
+[] simple_ok_univ.?5 --> simple_ok_univ.?1.
+
+
+[] cts.Axiom simple_ok_univ.?8 cts.sinf --> cts.true.
+
+
+[] cts.Axiom simple_ok_univ.?9 cts.sinf --> cts.true.
+
+
+[] cts.Cumul simple_ok_univ.?8 simple_ok_univ.?9 --> cts.true.
+
+
+[] cts.Axiom simple_ok_univ.?10 simple_ok_univ.?11 --> cts.true.
+
+
+[] simple_ok_univ.?11 --> simple_ok_univ.?8.
+
+
+[] simple_ok_univ.?9 --> simple_ok_univ.?2.
+
+
+[] simple_ok_univ.?3 --> simple_ok_univ.?0.
+

@@ -37,7 +37,8 @@ set -euo pipefail
 #
 ############################################################################################
 
-all_tests=$(find tests -name "*.dk" | sort)
+## Exclude universo directory.
+all_tests=$(find tests -name "*.dk" | grep -v "universo" | sort)
 
 total=$(wc -l <<< "$all_tests")
 

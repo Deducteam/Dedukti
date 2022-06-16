@@ -20,4 +20,6 @@
 
 (package
         (name universo)
+	(synopsis "A tool for Dedukti to play with universes")
+	(description "A tool for Dedukti to play with universes")			
         (depends z3))

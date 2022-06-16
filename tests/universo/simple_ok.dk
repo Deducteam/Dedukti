@@ -1,0 +1,23 @@
+def ex :
+  cts.Univ cts.s2
+  :=
+  cts.prod
+    cts.s2
+    cts.s2
+    cts.s2
+    cts.I
+    (cts.cast
+       cts.sinf
+       cts.sinf
+       (cts.univ cts.s2 cts.sinf cts.I)
+       (cts.univ cts.s2 cts.sinf cts.I)
+       cts.I
+       (cts.univ cts.s1 cts.s2 cts.I))
+    (__ =>
+     cts.cast
+       cts.sinf
+       cts.sinf
+       (cts.univ cts.s2 cts.sinf cts.I)
+       (cts.univ cts.s2 cts.sinf cts.I)
+       cts.I
+       (cts.univ cts.s1 cts.s2 cts.I)).

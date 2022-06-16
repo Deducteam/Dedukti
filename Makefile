@@ -8,17 +8,21 @@ Q = @
 default: bin binaries
 
 .PHONY: all
-all: bin binaries universo
+all: bin binaries universo.native
 
 .PHONY: binaries
 binaries: dk.native
 
 .PHONY: universo
 universo:
-	$(Q)dune build universo
+	$(Q)dune build @install
 
 %.native:
 	$(Q)ln -fs _build/install/default/bin/$* $@
+
+universo.native: universo
+	$(Q)ln -fs _build/install/default/bin/universo $@
+
 
 .PHONY: bin
 bin: kernel/version.ml
@@ -59,7 +63,7 @@ tests: bin binaries tests/tests.sh
 	$(Q)./tests/tests.sh $(RESET_REGRESSION)
 
 .PHONY: tezt
-tezt: bin binaries
+tezt: bin binaries universo.native
 	dune exec tests/main.exe
 
 #### Library tests ###########################################################

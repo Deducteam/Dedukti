@@ -69,3 +69,15 @@ module Pretty : sig
       that their directory is added to the load path. *)
   val run : ?dep:string list -> filename:string -> argument list -> unit
 end
+
+module Universo : sig
+  type argument =
+    | Config of string
+    | Theory of string
+    | Output_directory of string
+    | Import of string
+    | Simplify of string
+
+  val run :
+    ?fails:bool -> ?regression:bool -> filename:string -> argument list -> unit
+end
