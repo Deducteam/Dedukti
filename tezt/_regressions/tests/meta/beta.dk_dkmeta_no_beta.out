@@ -1,4 +1,4 @@
-tests/meta/beta.dk_dkmeta_no_beta.out
+tezt/_regressions/tests/meta/beta.dk_dkmeta_no_beta.out
 
 ./dk.native meta --no-color -q --no-beta tests/meta/beta.dk
 def A : Type.

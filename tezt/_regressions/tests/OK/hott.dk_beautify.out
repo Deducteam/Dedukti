@@ -1,4 +1,4 @@
-tests/OK/hott.dk_beautify.out
+tezt/_regressions/tests/OK/hott.dk_beautify.out
 
 ./dk.native beautify --no-color -q tests/OK/hott.dk
 Nat : Type.
