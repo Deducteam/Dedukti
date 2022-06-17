@@ -10,6 +10,7 @@ bug-reports: "https://github.com/Deducteam/Dedukti/issues"
 depends: [
   "dune" {>= "2.0"}
   "ocaml" {>= "4.08"}
+  "dedukti" {>= "2.7"}
   "z3"
   "tezt" {with-test & >= "2.0"}
 ]
