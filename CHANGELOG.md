@@ -6,7 +6,7 @@
 
 ### Added
 
-- Rewriting modulo AC
+- [EXPERIMENTAL] Rewriting modulo ACU
 - Universo
 
 ### Changed
