@@ -25,6 +25,6 @@
 	(description "A tool for Dedukti to play with universes")
         (depends
           (ocaml (>= 4.08))
-          (dedukti (>= 2.7))
+          (dedukti (>= version))
           z3
           (tezt (and :with-test (>= 2.0)))))
