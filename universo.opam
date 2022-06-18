@@ -8,14 +8,15 @@ license: "CECILL-B"
 homepage: "https://github.com/Deducteam/Dedukti"
 bug-reports: "https://github.com/Deducteam/Dedukti/issues"
 depends: [
-  "dune" {>= "2.0"}
+  "dune" {>= "2.7"}
   "ocaml" {>= "4.08"}
-  "dedukti" {>= "version"}
-  "z3"
+  "dedukti" {>= "2.7"}
+  "z3" {>= "4.8.11"}
   "tezt" {with-test & >= "2.0"}
+  "odoc" {with-doc}
 ]
 build: [
-  ["dune" "subst"] {pinned}
+  ["dune" "subst"] {dev}
   [
     "dune"
     "build"
