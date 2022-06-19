@@ -1,4 +1,4 @@
-(lang dune 2.0)
+(lang dune 2.7)
 (name dedukti)
 (using menhir 2.0)
 
@@ -25,6 +25,6 @@
 	(description "A tool for Dedukti to play with universes")
         (depends
           (ocaml (>= 4.08))
-          (dedukti (>= version))
-          z3
+          (dedukti (>= 2.7))
+          (z3 (>= 4.8.11))
           (tezt (and :with-test (>= 2.0)))))
