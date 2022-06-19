@@ -1,0 +1,35 @@
+def elaboration : Type.
+    [] cts.box --> cts.var.
+    [] cts.diamond --> cts.var.
+    [] cts.triangle --> cts.var.
+
+def output : Type.
+    [] cts.enum cts.uzero                                        --> cts.prop.
+    [] cts.enum (cts.usucc cts.uzero)                            --> cts.type0.
+    [] cts.enum (cts.usucc (cts.usucc cts.uzero))                --> cts.type1.
+    [] cts.enum (cts.usucc (cts.usucc (cts.usucc cts.uzero)))    --> cts.type2.
+    [] cts.star --> cts.prop.
+
+def qfuf_specification : Type.
+    []  cts.Axiom cts.prop cts.type0           --> cts.true.
+    []  cts.Axiom cts.type0 cts.type1          --> cts.true.
+    
+    []  cts.Rule cts.prop cts.prop cts.prop    --> cts.true.
+    []  cts.Rule cts.prop cts.type0 cts.type0  --> cts.true.
+    []  cts.Rule cts.prop cts.type1 cts.type1  --> cts.true.
+    []  cts.Rule cts.type0 cts.type0 cts.type0 --> cts.true.                
+    []  cts.Rule cts.type0 cts.type1 cts.type1 --> cts.true.
+    []  cts.Rule cts.type0 cts.prop cts.prop   --> cts.true.
+    []  cts.Rule cts.type1 cts.prop cts.prop   --> cts.true.        
+    
+    []  cts.Cumul cts.prop cts.type0           --> cts.true.    
+    []  cts.Cumul cts.type0 cts.type1          --> cts.true.
+    []  cts.Cumul cts.prop cts.type1           --> cts.true.
+
+(; Are all of this specification necessary? If not, which ones can be removed? ;)
+
+def solver : Type.
+    [] minimum --> 3.
+    [] maximum --> 3.
+
+def end : Type.

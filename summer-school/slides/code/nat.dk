@@ -1,0 +1,26 @@
+nat : Type.
+
+0 : nat.
+
+S : nat -> nat.
+
+def plus : nat -> nat -> nat.
+
+[m] plus 0 m --> m.
+
+[n,m] plus (S n) m --> S (plus n m).
+
+(; Vector of singletons. ;)
+vec : nat -> Type.
+
+nil : vec 0.
+
+cons : (n : nat) -> vec n -> vec (S n).
+
+def append : (n : nat) -> (m : nat) -> vec n -> vec m -> vec (plus n m).
+
+[r] append _ _ nil r --> r.
+[n,m,l,r] append _ m (cons n l) r --> cons (plus n m) (append n m l r).
+
+(; The rule below is also valid ;)
+[n,m,l,r] append (S n) m (cons n l) r --> cons (plus n m) (append n m l r).

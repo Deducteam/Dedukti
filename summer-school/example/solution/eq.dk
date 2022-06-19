@@ -1,0 +1,39 @@
+(; A hack to get around the lack of an "OPEN" directive. ;)
+def type := sttfa.type.
+def etap := sttfa.etap.
+def eta := sttfa.eta.
+def p := sttfa.p.
+def bool := sttfa.bool.
+def eps := sttfa.eps.
+def arr := sttfa.arr.
+def impl := sttfa.impl.
+def forallK := sttfa.forallK.
+def forallP := sttfa.forallP.
+def forall := sttfa.forall.
+
+(; How to represent the proposition [[⊤]] in sttfa? ;)
+def T : eta bool := forall bool (P : eta bool => impl P P).
+
+(; How to prove that [[⊤]] is indeed inhabited? ;)
+def I : eps T :=  P : eta bool => h : eps P => h.
+
+(; How to represent the equality [[=]] in sttfa? ;)
+def eq : etap (forallK (A : type => p (arr A (arr A bool)))) :=
+A : type =>
+x : eta A =>
+y : eta A =>
+forall (arr A bool) (P : (eta (arr A bool)) => impl (P x) (P y)).
+
+(; How to prove that [[=]] is reflexive? ;)
+def refl : eps (forallP (A : type => forall A (a : eta A => eq A a a))) :=
+A : type =>
+a : eta A =>
+P : eta (arr A bool) =>
+h : eps (P a) =>
+h.
+
+
+
+
+
+

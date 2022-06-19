@@ -1,0 +1,71 @@
+(; Those symbols are marked as [def] because of a UX bug in [dkmeta]. ;)
+
+(; [type] is the type for the monomorphic types of the object logic.  ;)
+def type : Type.
+
+(; [arr] is a value which builds an arrow type of the object logic.
+   For example: [arr A B] aims to represent [[A → B]] (an arrow type
+   of the object logic.) ;)
+def arr : type -> type -> type.
+
+(; [bool] is the type for propositions of the object logic. ;)
+def bool : type.
+
+(; [ptype] is the type for the polymorphic types of the object logic. ;)
+def ptype : Type.
+
+(; [p] is a cast operator that builds a polymorphic type from a
+   monomorphic one.  [p (arr A B)] also represents [[A → B]] but as a
+   polymorphic type. ;)
+def p : type -> ptype.
+
+(; [etap] is a decoding function. It decodes polymorphic types of the
+object logic into a λΠ modulo type ;)
+def etap : ptype -> Type.
+
+(; [forallK] is a value which builds the polymorphism quantification
+of the object logic.  For example: [forallK (X => arr X X)] represents
+[[∀ X, X → X)]] ;)
+def forallK : (type -> ptype) -> ptype.
+
+(; [eta] is a syntactic suggar to build monomorphic type without
+writing explicitly the cast operator [p]. ;)
+def eta : type -> Type.
+
+(; The rewrite rule defines the [eta] operator. ;)
+[] eta --> t : type => etap (p t).
+
+(; [eps] is a decoding function. It decodes propositions of the object
+logic into λΠ types. ;)
+def eps : eta bool -> Type.
+
+(; [impl] is a value which builds an implication. For example: [impl P
+P] aims to represent the proposition [[P ⇒ P]]. ;)
+def impl : eta bool -> eta bool -> eta bool.
+
+(; [forall] is a value which builds a forall quantification. For
+example: [forall A (x => P)] aims to represent the proposition [[∀ (x
+: A), P]] ;)
+def forall : t:type -> (eta t -> eta bool) -> eta bool.
+
+(; [forall] is a value which builds a polymorphic proposition. For
+example: [forall (X => P)] aims to represent the proposition [[∀ (X :
+Type), P]]. ;)
+def forallP : (type -> eta bool) -> eta bool.
+
+(; This rewrite rule decodes an arrow type as a λΠ type. ;)
+[l,r] etap (p (arr l r)) --> eta l -> eta r.
+
+(; Decodes the polymorphic quantification as a λΠ type. ;)
+[f] etap (forallK f) --> x : type -> etap (f x).
+
+(; Decodes a forall proposition into a λΠ type. ;)
+[t,f] eps (forall t f) --> x:eta t -> eps (f x).
+
+(; Decodes an implication into a λΠ type. ;)
+[l,r] eps (impl l r) --> eps l -> eps r.
+
+(; Decodes a polymorphic proposition into a λΠ type. ;)
+[f] eps (forallP f) --> x:type -> eps (f x).
+
+

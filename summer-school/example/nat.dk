@@ -1,0 +1,151 @@
+(; A hack to get around the lack of an "OPEN" directive. ;)
+def type := sttfa.type.
+def etap := sttfa.etap.
+def eta := sttfa.eta.
+def p := sttfa.p.
+def bool := sttfa.bool.
+def eps := sttfa.eps.
+def arr := sttfa.arr.
+def impl := sttfa.impl.
+def forallK := sttfa.forallK.
+def forallP := sttfa.forallP.
+def forall := sttfa.forall.
+
+def eq := eq.eq.
+def refl := eq.refl.
+
+(; This file gives an example on how to encode inductive types in
+Dedukti and more particularly in sttfa. This is not exhaustive and
+only aims to give some ideas. ;)
+
+(; How to represent an inductive type in sttfa? Such as [[nat]]? ;)
+
+(; We follow a pattern similar to the system T of Gödel: We axiomatize
+the inductive. ;)
+
+(; We declare a new type. ;)
+nat : type.
+
+(; We declare the associated constructors. ;)
+0 : eta nat.
+S : eta (arr nat nat).
+
+(; In OCaml we would write [[type nat = 0 | S of n]] ;)
+
+(; We define the recursor. ;)
+def nat_rec : etap (forallK (A : type => p (arr A (arr (arr A A) (arr nat A))))).
+
+(; We can use rewrite rules to encode the reductions rules of the recursor. ;)
+[p0]        nat_rec _ p0 _  0     --> p0.
+[A,p0,pS,n] nat_rec A p0 pS (S n) --> pS (nat_rec A p0 pS n).
+
+(; The function plus can be defined via the recursor. Note that
+eta-reduce this term may change the computational behavior. ;)
+def plus : eta (arr nat (arr nat nat)) :=
+n : eta nat =>
+m : eta nat =>
+nat_rec nat m S n.
+
+(; We can see that, by computation, this prove is trivial. 
+   Exercise: Which rules/definitions are involved? ;)
+def plus_0_n : eps (forall nat (n => eq nat (plus 0 n) n)) :=
+n : eta nat =>
+P : eta (arr nat bool) =>
+h : eps (P (plus 0 n)) =>
+h.
+
+TODO_PROOF (A : eta bool) : eps A.
+
+(; We can define similarly the induction principle. ;)
+def nat_ind : eps (forall (arr nat bool) (P =>
+                  impl (P 0) (impl (forall nat (n => impl (P n) (P (S n))))
+		  (forall nat (n => P n))))).
+
+[p0]        nat_ind _ p0 _  0     --> p0.
+[P,p0,pS,n] nat_ind P p0 pS (S n) --> pS n (nat_ind P p0 pS n).
+
+(; It is left as an exercice to prove this one. I invite you to
+introduce intermediate lemmas. This can be done without adding more
+rewrite rules. ;)
+def plus_n_0 := TODO_PROOF (forall nat (n => eq nat (plus n 0) n)).
+
+(; The problem with this encoding is that we are not really in
+sttfa. We are in a logic plus some rewrite rules defined in
+Dedukti. The original logic does not enable the definition of rewrite
+rules. To overcome this issue, we can translate each rewrite rule as an equality. ;)
+
+nat_rec2 : etap (forallK (A : type => p (arr A (arr (arr A A) (arr nat A))))).
+
+nat_rec_axiom_0 : eps (forallP          (A =>
+		       forall A         (p0 =>
+		       forall (arr A A) (pS =>
+                       eq A (nat_rec2 A p0 pS 0) p0)))).
+
+nat_rec_axiom_S : eps (forallP          (A =>
+                       forall A         (p0 =>
+		       forall (arr A A) (pS =>
+		       forall nat       (n =>
+		       eq A (nat_rec2 A p0 pS (S n)) (pS (nat_rec2 A p0 pS n))))))).
+
+(; Note that the translation of those rewrite rules as an equality
+could be done automatically. ;)
+
+(; We can define [[plus]] as usual. ;)
+def plus2 : eta (arr nat (arr nat nat)) :=
+n : eta nat =>
+m : eta nat =>
+nat_rec2 nat m S n.
+
+def statement := eps (forall nat (n => eq nat (plus2 0 n) n)). 
+
+def proof := (n : eta nat =>
+P : eta (arr nat bool) =>
+h : eps (P (plus2 0 n)) =>
+h).
+
+(; The proof that [0 + n = 0] cannot be done by computation anymore. ;)
+#CHECKNOT proof : statement. (; YES ;)
+
+(; We explicit the use of the rewrite rule which was implicit above by an axiom. ;)
+def plus2_0_n : statement :=
+n : eta nat =>
+P : eta (arr nat bool) =>
+h : eps (P (plus2 0 n)) =>
+nat_rec_axiom_0 nat n S P h.
+
+(; This proof can be achieved in a similar way. ;)
+def plus2_n_0 := TODO_PROOF (forall nat (n => eq nat (plus2 n 0) n)).
+
+(; What can we conclude from this? While Dedukti shines to write
+shallow encodings for higher-order logics, the story become a bit more
+complicated when we talk about inductive types. For translators coming
+from an object logic to Dedukti, it is way easier to introduce new
+rewrite rules. This is correct if those rewrite rules are part of the
+original logic. This can also be done when the object logic does not
+have those computation rules like sttfa. In that case, the encodings
+are not done in this object logic but in an extension of this
+logic. For sttfa, one can show this is safe (under reasonable
+assumptions), aka the expressivity is not changed since each rewrite
+rule can be translated as an axiom. This is what we have done for the
+[nat] inductive. But this is not the case in general. ;)
+
+(; A fun fact, and this could be done with [dkmeta] is that [nat_rec2]
+can be encoded by [nat_rec]: ;)
+
+(; You can uncomment those lines but you should add the keyword [def]
+in front of the symbols rewritten. ;)
+
+(; [] nat_rec2 --> nat_rec. ;)
+(; [] nat_rec_axiom_0 --> A => p0 => pS => refl A p0. ;)
+(; [] nat_rec_axiom_S --> A => p0 => pS => n => refl A (pS (nat_rec2 A p0 pS n)). ;)
+
+(; Hence there is an equivalence between the two encodings which could
+be achieved automatically. The other translation however is more
+difficult to write, and currently cannot be done via [dkmeta] since it
+requires to have access to convertibility proofs. ;)
+
+
+
+
+
+

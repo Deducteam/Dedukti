@@ -1,0 +1,35 @@
+(; A hack to get around the lack of an "OPEN" directive. ;)
+def type := sttfa.type.
+def etap := sttfa.etap.
+def eta := sttfa.eta.
+def p := sttfa.p.
+def bool := sttfa.bool.
+def eps := sttfa.eps.
+def arr := sttfa.arr.
+def impl := sttfa.impl.
+def forallK := sttfa.forallK.
+def forallP := sttfa.forallP.
+def forall := sttfa.forall.
+
+(; A hack for place holders. ;)
+def TODO_TYPE : Type.
+
+def TODO : TODO_TYPE.
+
+(; How to represent the proposition [[⊤]] in sttfa? ;)
+def T : TODO_TYPE := TODO.
+
+(; How to prove that [[⊤]] is indeed inhabited? ;)
+def I :TODO_TYPE := TODO.
+
+(; How to represent the equality [[=]] in sttfa? ;)
+def eq : TODO_TYPE := TODO.
+
+(; How to prove that [[=]] is reflexive? ;)
+def refl : TODO_TYPE := TODO.
+
+
+
+
+
+

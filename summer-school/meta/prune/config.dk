@@ -1,0 +1,6 @@
+(; Only export this constant and all its backward dependencies. ;)
+(; The weird syntax is a hack of [dk prune] which reuses the Dedukti
+syntax. This comes from the lack of standard for configuration
+files. ;)
+#GDT eq.I.
+#GDT eq.refl.
