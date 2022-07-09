@@ -60,11 +60,6 @@ val export : t -> out_channel -> unit
 
 val get_id_comparator : t -> name comparator
 
-(*
-val import              : t -> loc -> mident -> unit
-(** [import sg md] impots the module [md] in the signature [sg]. *)
-*)
-
 (** [import sg sg_ext] imports the signature [sg_ext] into the signature [sg]. *)
 val import_signature : t -> t -> unit
 
