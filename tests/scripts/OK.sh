@@ -14,6 +14,7 @@ if [ $LINES -eq 1 ] && [ $SUCCESSLINES -eq 1 ]
 then
 	exit 0
 else
+    echo $OUT    
     exit 1
 fi
 

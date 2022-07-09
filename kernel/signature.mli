@@ -49,8 +49,8 @@ type scope =
 (** A collection of well-typed symbols and rewrite rules. *)
 type t
 
-(** [make file] creates a new signature corresponding to the file [file]. *)
-val make : mident -> (loc -> mident -> file) -> t
+(** [make name] creates a new signature under the name [name]. *)
+val make : mident -> t
 
 (** [get_name sg] returns the name of the signature [sg]. *)
 val get_name : t -> mident
@@ -86,8 +86,10 @@ val get_neutral : t -> loc -> name -> term
 (** [is_AC sg l na] returns true when [na] is declared as AC symbol *)
 val is_AC : t -> loc -> name -> bool
 
-(** [import sg md] the module [md] in the signature [sg]. *)
-val import : t -> loc -> mident -> unit
+(** [import sg md filename] the module [filename] as [md] in the signature [sg]. *)
+val import : t -> loc -> mident -> string -> mident list
+
+val mem : t -> mident -> bool
 
 (** [get_dtree sg filter l cst] returns the decision/matching tree associated
     with [cst] inside the environment [sg]. *)

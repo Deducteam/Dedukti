@@ -70,13 +70,12 @@ type t = {
         for each of its symbols. *)
   tables : rw_infos HId.t HMd.t;
   mutable external_rules : rule_infos list list;
-  get_file : loc -> mident -> string;
 }
 
-let make md get_file =
+let make md =
   let tables = HMd.create 19 in
   HMd.replace tables md (HId.create 251);
-  {md; tables; external_rules = []; get_file}
+  {md; tables; external_rules = []}
 
 let get_name sg = sg.md
 
@@ -253,23 +252,7 @@ let add_external_declaration sg lc cst scope stat ty =
     let env = HMd.find sg.tables (md cst) in
     HId.replace env (id cst) {stat; ty; scope; rules = []; decision_tree = None}
 
-(* Recursively load a module and its dependencies*)
-let rec import sg lc md =
-  if HMd.mem sg.tables md then
-    Debug.(
-      debug d_warn "Trying to import the already loaded module %s."
-        (string_of_mident md))
-  else
-    let deps, ctx, ext = unmarshal lc (sg.get_file lc md) in
-    HMd.replace sg.tables md ctx;
-    List.iter
-      (fun dep -> if not (HMd.mem sg.tables dep) then import sg lc dep)
-      deps;
-    Debug.(debug d_module "Loading module '%a'..." pp_mident md);
-    List.iter (fun rs -> add_rule_infos sg rs) ext;
-    check_confluence_on_import lc md ctx
-
-and add_rule_infos sg (lst : rule_infos list) : unit =
+let rec add_rule_infos sg (lst : rule_infos list) : unit =
   match lst with
   | [] -> ()
   | r :: _ as rs ->
@@ -301,12 +284,12 @@ and compute_dtree sg (lc : Basic.loc) (cst : Basic.name) : Dtree.t =
 
 and get_info_env sg lc cst =
   let md = md cst in
-  let env =
-    (* Fetch module, import it if it's missing *)
-    try HMd.find sg.tables md
-    with Not_found -> import sg lc md; HMd.find sg.tables md
-  in
-  try (HId.find env (id cst), env)
+  try
+    let env =
+      (* Fetch module, import it if it's missing *)
+      HMd.find sg.tables md
+    in
+    (HId.find env (id cst), env)
   with Not_found -> raise (Signature_error (SymbolNotFound (lc, cst)))
 
 and get_infos sg lc cst = fst (get_info_env sg lc cst)
@@ -365,7 +348,7 @@ let get_neutral sg lc cst =
 let get_env sg lc cst =
   let md = md cst in
   try HMd.find sg.tables md
-  with Not_found -> import sg lc md; HMd.find sg.tables md
+  with Not_found -> raise (Signature_error (SymbolNotFound (lc, cst)))
 
 let get_infos sg lc cst =
   try HId.find (get_env sg lc cst) (id cst)
@@ -413,3 +396,20 @@ let get_rw_infos sg md id =
     let sig_md = HMd.find sg.tables md in
     if HId.mem sig_md id then Some (HId.find sig_md id) else None
   else None
+
+(* Load a module and return its dependencies. *)
+let import sg lc md filename =
+  if HMd.mem sg.tables md then (
+    Debug.(
+      debug d_warn "Trying to import the already loaded module %s."
+        (string_of_mident md));
+    [])
+  else
+    let deps, ctx, ext = unmarshal lc filename in
+    HMd.replace sg.tables md ctx;
+    Debug.(debug d_module "Loading module '%a'..." pp_mident md);
+    List.iter (fun rs -> add_rule_infos sg rs) ext;
+    check_confluence_on_import lc md ctx;
+    deps
+
+let mem sg md = HMd.mem sg.tables md
