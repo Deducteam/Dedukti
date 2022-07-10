@@ -93,8 +93,11 @@ val get_dtree : t -> loc -> name -> Dtree.t
 (** [export env] saves the current environment in a [*.dko] file. *)
 val export : t -> unit
 
-(** [import env lc md] the module [md] in the current environment. *)
-val import : t -> loc -> mident -> unit
+(** [import env lc md filename] imports [filename] as module [md] in
+   the current environment. *)
+val import : t -> loc -> mident -> string -> mident list
+
+val mem : t -> mident -> bool
 
 (** [declare_constant env l id st ty] declares the symbol [id] of type [ty] and
     staticity [st]. *)

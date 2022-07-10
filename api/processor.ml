@@ -17,9 +17,32 @@ end
 module MakeTypeChecker (Env : CustomEnv) : S with type t = unit = struct
   type t = unit
 
+  let rec import_deps env loc md deps =
+    let load = ref false in
+    let import md =
+      if not (Env.mem env md) then (
+        load := true;
+        Files.find_object_file loc md |> Env.import env loc md)
+      else []
+    in
+    let deps_list = List.map import deps in
+    if !load then List.iter (fun deps -> import_deps env loc md deps) deps_list
+
   let handle_entry env e =
     let open Entry in
     let (module Pp : Pp.Printer) = Env.get_printer env in
+    let md = Env.get_name env in
+    let deps =
+      try
+        if Basic.mident_eq md (Env.get_name env) then
+          Dep.make ~filename:(Env.get_filename env) md [e]
+        else Dep.make md [e];
+        Hashtbl.find Dep.deps md |> fun {deps; _} -> deps
+      with exn -> raise exn
+    in
+    let deps = Basic.MidentSet.elements deps in
+    let loc = Entry.loc_of_entry e in
+    import_deps env loc md deps;
     match e with
     | Decl (lc, id, scope, st, ty) ->
         Debug.(debug d_notice) "Declaration of constant '%a'." pp_ident id;
@@ -78,7 +101,13 @@ module MakeTypeChecker (Env : CustomEnv) : S with type t = unit = struct
     | Name (_, n) ->
         if not (mident_eq n (Env.get_name env)) then
           Debug.(debug d_warn "Invalid #NAME directive ignored.@.")
-    | Require (lc, md) -> Env.import env lc md
+    | Require (lc, md) ->
+        let rec import lc md =
+          let filename = Files.find_object_file lc md in
+          let deps = Env.import env lc md filename in
+          List.iter (fun dep -> import lc dep) deps
+        in
+        import lc md
 
   let get_data _ = ()
 end
@@ -110,7 +139,13 @@ struct
         raise @@ Typing.Typing_error (Typing.DomainFreeLambda lc)
         (* FIXME: It is not a typign error *)
     | Rules (_, rs) -> Signature.add_rules sg (List.map Rule.to_rule_infos rs)
-    | Require (lc, md) -> Signature.import sg lc md
+    | Require (lc, md) ->
+        let rec import lc md =
+          let filename = Files.find_object_file lc md in
+          let deps = Signature.import sg lc md filename in
+          List.iter (fun dep -> import lc dep) deps
+        in
+        import lc md
     | _ -> ()
 
   let get_data env = Env.get_signature env

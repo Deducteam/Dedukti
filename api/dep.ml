@@ -135,7 +135,7 @@ let mk_rule r =
 
 let find_rule_name r =
   let open Rule in
-  match r.pat with Pattern (_, n, _) -> n | _ -> assert false
+  match r.pat with Pattern (_, n, _) -> Some n | _ -> None
 
 let handle_entry e =
   let open Entry in
@@ -152,9 +152,12 @@ let handle_entry e =
       mk_term ty;
       mk_term te
   | Rules (_, []) -> ()
-  | Rules (_, (r :: _ as rs)) ->
-      current_name := find_rule_name r;
-      List.iter mk_rule rs
+  | Rules (_, (r :: _ as rs)) -> (
+      match find_rule_name r with
+      | None -> ()
+      | Some rule_name ->
+          current_name := rule_name;
+          List.iter mk_rule rs)
   | Eval (_, _, te) -> mk_term te
   | Infer (_, _, te) -> mk_term te
   | Check (_, _, _, Convert (t1, t2)) -> mk_term t1; mk_term t2
@@ -170,9 +173,11 @@ let initialize : mident -> string -> unit =
   current_deps := find deps md;
   current_deps := {!current_deps with file}
 
-let make : mident -> Entry.entry list -> unit =
- fun md entries ->
-  let file = Files.get_file md in
+let make : ?filename:string -> mident -> Entry.entry list -> unit =
+ fun ?filename md entries ->
+  let file =
+    match filename with None -> Files.get_file md | Some filename -> filename
+  in
   initialize md file;
   List.iter handle_entry entries;
   Hashtbl.replace deps md !current_deps

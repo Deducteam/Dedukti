@@ -47,7 +47,7 @@ val compute_all_deps : bool ref
 val get_data : Basic.name -> data
 
 (** [make md es] computes dependencies for the entries [es] in module [md] *)
-val make : Basic.mident -> Entry.entry list -> unit
+val make : ?filename:string -> Basic.mident -> Entry.entry list -> unit
 
 (** [handle md f] computes dependencies on the fly for the entries in module [md] *)
 val handle : Basic.mident -> ((Entry.entry -> unit) -> unit) -> unit

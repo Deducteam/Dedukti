@@ -28,7 +28,7 @@ type t = {
 }
 
 let dummy ?(md = Basic.mk_mident "") () =
-  let dummy_sig = Signature.make md (fun _ _ -> "") in
+  let dummy_sig = Signature.make md in
   {
     input = Parser.input_from_string md "";
     sg = dummy_sig;
@@ -45,7 +45,7 @@ let check_arity = ref true
 let check_ll = ref false
 
 let init input =
-  let sg = Signature.make (Parser.md_of_input input) Files.find_object_file in
+  let sg = Signature.make (Parser.md_of_input input) in
   let red : (module Reduction.S) = (module Reduction.Default) in
   let typer : (module Typing.S) = (module Typing.Default) in
   {input; sg; red; typer}
@@ -203,3 +203,5 @@ let fail_env_error : t -> Basic.loc -> exn -> 'a =
   let file = get_filename env in
   let code, lc, msg = Errors.string_of_exception ~red:(snf env) lc exn in
   Errors.fail_exit ~file ~code:(string_of_int code) (Some lc) "%s" msg
+
+let mem {sg; _} md = Signature.mem sg md
