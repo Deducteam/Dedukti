@@ -134,12 +134,13 @@ end
 
 module EntryPrinter = MakeEntryPrinter (Env)
 
-module MakeDependencies (Env : CustomEnv) : S with type t = Dep.t = struct
-  type t = Dep.t
+module MakeDependencies (Env : CustomEnv) : S with type t = Dep_legacy.t =
+struct
+  type t = Dep_legacy.t
 
-  let handle_entry env e = Dep.handle (Env.get_name env) (fun f -> f e)
+  let handle_entry env e = Dep_legacy.handle (Env.get_name env) (fun f -> f e)
 
-  let get_data _ = Dep.deps
+  let get_data _ = Dep_legacy.deps
 end
 
 module Dependencies = MakeDependencies (Env)
@@ -364,7 +365,7 @@ type _ t += SignatureBuilder : Signature.t t
 
 type _ t += PrettyPrinter : unit t
 
-type _ t += Dependencies : Dep.t t
+type _ t += Dependencies : Dep_legacy.t t
 
 type _ t += TopLevel : unit t
 

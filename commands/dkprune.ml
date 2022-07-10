@@ -40,11 +40,11 @@ let gre fmt = "\027[32m" ^^ fmt ^^ "\027[0m%!"
 let log fmt = Debug.debug d_prune (gre fmt)
 
 let _ =
-  Dep.ignore := true;
+  Dep_legacy.ignore := true;
   (* If a dependency is missing this does not trigger an exception
      because we do not want to compute dependencies from a logic file
   *)
-  Dep.compute_all_deps := true
+  Dep_legacy.compute_all_deps := true
 
 (* We want to compute items dependencies *)
 
@@ -132,7 +132,7 @@ module ProcessConfigurationFile : Processor.S with type t = NSet.t = struct
 
   let handle_entry _ = function
     | Entry.Require (_, md) ->
-        let file = Files.get_file md in
+        let file = Files_legacy.get_file md in
         let snames = Processor.handle_files [file] GatherNames in
         names := NSet.union snames !names
     | Entry.DTree (_, Some md, id) -> names := NSet.add (mk_name md id) !names
@@ -172,9 +172,10 @@ let rec run_on_files files =
     | None ->
         let md = Env.get_name env in
         computed := MSet.add md !computed;
-        let deps = Hashtbl.find Dep.deps md in
+        let deps = Hashtbl.find Dep_legacy.deps md in
         let add_files md files =
-          if MSet.mem md !computed then files else Files.get_file md :: files
+          if MSet.mem md !computed then files
+          else Files_legacy.get_file md :: files
         in
         let new_files = MSet.fold add_files deps.deps [] in
         if List.length new_files <> 0 then run_on_files new_files
@@ -185,7 +186,7 @@ let rec run_on_files files =
 
 (* compute dependencies for each module which appear in the configuration files *)
 let handle_modules mds =
-  let files = List.map Files.get_file mds in
+  let files = List.map Files_legacy.get_file mds in
   run_on_files files
 
 (* compute dependencies for eaach name which appear in the configuration files *)
@@ -222,11 +223,11 @@ let write_file deps in_file =
 
 (* print_dependencies for all the names which are in the transitive closure of names specificed in the configuration files *)
 let print_dependencies names =
-  let open Dep in
+  let open Dep_legacy in
   let fake_env = Env.dummy ~md:(mk_mident "dkprune") () in
   (* We fake an environment to print an error *)
   try
-    NameSet.iter Dep.transitive_closure names;
+    NameSet.iter Dep_legacy.transitive_closure names;
     let down_deps =
       NameSet.fold
         (fun name dependencies ->
@@ -234,18 +235,18 @@ let print_dependencies names =
         names names
     in
     let mds =
-      Hashtbl.fold (fun md _ set -> MSet.add md set) Dep.deps MSet.empty
+      Hashtbl.fold (fun md _ set -> MSet.add md set) Dep_legacy.deps MSet.empty
     in
     let in_files md files =
       try
-        let file = Files.get_file md in
+        let file = Files_legacy.get_file md in
         if is_empty down_deps file then files else file :: files
-      with Files.Files_error (Files.ModuleNotFound _) -> files
+      with Files_legacy.Files_error (Files_legacy.ModuleNotFound _) -> files
     in
     let in_files = MSet.fold in_files mds [] in
     List.iter (write_file down_deps) in_files
   with
-  | Dep.Dep_error (NameNotFound name) ->
+  | Dep_legacy.Dep_error (NameNotFound name) ->
       Errors.fail_exit ~file:"configuration file" ~code:"DKPRUNE" None
         "The name %a does not exists@." Pp.Default.print_name name
   | exn -> Env.fail_env_error fake_env Basic.dloc exn

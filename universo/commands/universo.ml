@@ -373,7 +373,7 @@ let cmd_options =
       Arg.String
         (fun s ->
           F.mk_dir F.output_directory s;
-          Api.Files.add_path s),
+          Api.Files_legacy.add_path s),
       " (MANDATORY) Set the output directory" );
     ( "--theory",
       Arg.String
@@ -406,7 +406,7 @@ let cmd_options =
           F.mk_dir F.simplify_directory s),
       " output is simplified so that only usual dk files remain" );
     ( "-I",
-      Arg.String Api.Files.add_path,
+      Arg.String Api.Files_legacy.add_path,
       " DIR Add the directory DIR to the load path" );
   ]
 

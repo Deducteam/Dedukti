@@ -43,7 +43,7 @@ type _ t +=
   | SignatureBuilder : Kernel.Signature.t t
         (** Build a signature without type checking *)
   | PrettyPrinter : unit t  (** Pretty print *)
-  | Dependencies : Dep.t t  (** Compute dependencies *)
+  | Dependencies : Dep_legacy.t t  (** Compute dependencies *)
   | TopLevel : unit t  (** TypeCheck and prints result on standard output *)
 
 (** This is the type of errors returned by a processor *)
@@ -198,4 +198,4 @@ module MakeSignatureBuilder (E : CustomEnv) : S with type t = Kernel.Signature.t
 
 module MakeEntryPrinter (E : CustomEnv) : S with type t = unit
 
-module MakeDependencies (E : CustomEnv) : S with type t = Dep.t
+module MakeDependencies (E : CustomEnv) : S with type t = Dep_legacy.t

@@ -6,16 +6,16 @@ open Basic
 open Cmdliner
 
 (** Output main program. *)
-let output_deps : Format.formatter -> Dep.t -> unit =
+let output_deps : Format.formatter -> Dep_legacy.t -> unit =
  fun oc data ->
-  let open Dep in
+  let open Dep_legacy in
   let objfile src = Filename.chop_extension src ^ ".dko" in
   let output_line : mident -> file_deps -> unit =
    fun _ deps ->
     let file = deps.file in
     let deps =
       List.map
-        (fun md -> objfile (Files.get_file md))
+        (fun md -> objfile (Files_legacy.get_file md))
         (MidentSet.elements deps.deps)
     in
     let deps = String.concat " " deps in
@@ -24,14 +24,14 @@ let output_deps : Format.formatter -> Dep.t -> unit =
   in
   Hashtbl.iter output_line data
 
-let output_sorted : Format.formatter -> Dep.t -> unit =
+let output_sorted : Format.formatter -> Dep_legacy.t -> unit =
  fun ppf data ->
-  let deps = Dep.topological_sort data in
+  let deps = Dep_legacy.topological_sort data in
   Format.fprintf ppf "%s@." (String.concat " " deps)
 
 let dkdep config ignore output sorted files =
   Config.init config;
-  Dep.ignore := ignore;
+  Dep_legacy.ignore := ignore;
   let output = match output with Some f -> open_out f | None -> stdout in
   let open Processor in
   let hook =

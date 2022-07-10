@@ -70,7 +70,7 @@ let init (c : t) : unit =
   (* Verbose overrides debug that overrides quiet. *)
   Env.set_debug_mode c.debug;
   Errors.color := not c.no_color;
-  List.iter Files.add_path c.incl
+  List.iter Files_legacy.add_path c.incl
 
 (** [quiet c] returns [true] if quiet mode has been activated. *)
 let quiet (c : t) : bool = c.debug = "q"

@@ -45,7 +45,9 @@ let check_arity = ref true
 let check_ll = ref false
 
 let init input =
-  let sg = Signature.make (Parser.md_of_input input) Files.find_object_file in
+  let sg =
+    Signature.make (Parser.md_of_input input) Files_legacy.find_object_file
+  in
   let red : (module Reduction.S) = (module Reduction.Default) in
   let typer : (module Typing.S) = (module Typing.Default) in
   {input; sg; red; typer}
@@ -89,7 +91,7 @@ let get_type env lc cst = Signature.get_type env.sg lc cst
 let get_dtree env lc cst = Signature.get_dtree env.sg lc cst
 
 let export env =
-  let file = Files.object_file_of_input env.input in
+  let file = Files_legacy.object_file_of_input env.input in
   let oc = open_out file in
   Signature.export env.sg oc;
   close_out oc;
