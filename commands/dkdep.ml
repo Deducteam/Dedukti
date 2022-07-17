@@ -6,18 +6,20 @@ open Basic
 open Cmdliner
 
 (** Output main program. *)
-let output_deps : Format.formatter -> Dep_legacy.t -> unit =
- fun oc data ->
+let output_deps :
+    load_path:Api.Files.t -> Format.formatter -> Dep_legacy.t -> unit =
+ fun ~load_path oc data ->
   let open Dep_legacy in
+  let as_object_file md =
+    let file = Files.get_file_exn load_path Kernel.Basic.dloc md in
+    let (File file) = Files.as_object_file file in
+    file
+  in
   let objfile src = Filename.chop_extension src ^ ".dko" in
   let output_line : mident -> file_deps -> unit =
    fun _ deps ->
     let file = deps.file in
-    let deps =
-      List.map
-        (fun md -> objfile (Files_legacy.get_file md))
-        (MidentSet.elements deps.deps)
-    in
+    let deps = List.map as_object_file (MidentSet.elements deps.deps) in
     let deps = String.concat " " deps in
     try Format.fprintf oc "%s : %s %s@." (objfile file) file deps with _ -> ()
    (* Dependency is missing *)
@@ -48,7 +50,7 @@ let dkdep config ignore output sorted files =
   (* Actual work. *)
   let deps = Processor.handle_files ~hook ~load_path ~files Dependencies in
   let formatter = Format.formatter_of_out_channel output in
-  let output_fun = if sorted then output_sorted else output_deps in
+  let output_fun = if sorted then output_sorted else output_deps ~load_path in
   output_fun formatter deps;
   Format.pp_print_flush formatter ();
   close_out output
