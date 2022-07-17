@@ -84,7 +84,8 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
     Api.Processor.T.handle_files ~load_path ~files:[elab_file] (module P);
     F.close sol_file
 
-  let print_model meta model files = List.iter (print_model meta model) files
+  let print_model ~load_path:_ meta model files =
+    List.iter (print_model meta model) files
 
   let solve = Solver.solve
 end
@@ -165,17 +166,19 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
     Api.Processor.T.handle_files ~load_path ~files:[elab_file] (module P);
     F.close sol_file
 
-  let print_model meta model files =
+  let print_model ~load_path meta model files =
     let cstr_files =
       List.map (fun file -> F.get_out_path file `Checking) files
     in
     let meta_constraints = M.parse_meta_files cstr_files in
     (* FIXME: clean this: why two meta configuration? *)
-    let meta_constraints = M.default_config ~meta_rules:meta_constraints () in
+    let meta_constraints =
+      M.default_config ~meta_rules:meta_constraints ~load_path ()
+    in
     List.iter (print_model meta_constraints meta model) files
 
-  let solve solver_env =
-    let meta = M.default_config ~meta_rules:!rules () in
+  let solve ~load_path solver_env =
+    let meta = M.default_config ~meta_rules:!rules ~load_path () in
     let normalize : U.pred -> U.pred =
      fun p -> U.extract_pred (M.mk_term meta (U.term_of_pred p))
     in
@@ -183,5 +186,5 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
     let sp' = SP.map normalize !sp in
     L.log_solver "[NORMALIZE DONE]";
     SP.iter (fun p -> Solver.add (Pred p)) sp';
-    Solver.solve solver_env
+    Solver.solve ~load_path solver_env
 end
