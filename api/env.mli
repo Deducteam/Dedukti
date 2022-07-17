@@ -66,6 +66,9 @@ val get_signature : t -> Signature.t
 (** [get_name env] returns the name of the module. *)
 val get_name : t -> mident
 
+(** [get_load_path env] returns the current [load_path] associated to the environment. *)
+val get_load_path : t -> Files.t
+
 (** [set_reduction_egine env] changes the reduction engine of [env]. The new environment shares the same signature than [env]. *)
 val set_reduction_engine : t -> (module Reduction.S) -> t
 

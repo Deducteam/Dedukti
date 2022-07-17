@@ -40,6 +40,8 @@ let dummy ?(md = Basic.mk_mident "") () =
 
 exception Env_error of t * loc * exn
 
+let get_load_path env = env.load_path
+
 let get_input env = env.input
 
 let check_arity = ref true
