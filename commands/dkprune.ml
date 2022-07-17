@@ -130,9 +130,10 @@ module ProcessConfigurationFile : Processor.S with type t = NSet.t = struct
 
   let names = ref NSet.empty
 
-  let handle_entry _ = function
-    | Entry.Require (_, md) ->
-        let file = Files_legacy.get_file md in
+  let handle_entry env = function
+    | Entry.Require (loc, md) ->
+        let load_path = Env.get_load_path env in
+        let (File file) = Files.get_file_exn load_path loc md in
         (* Load path is not needed since no importation is done by the
            [GatherNames] processor. *)
         let load_path = Files.empty in
@@ -180,7 +181,9 @@ let rec run_on_files ~load_path files =
         let deps = Hashtbl.find Dep_legacy.deps md in
         let add_files md files =
           if MSet.mem md !computed then files
-          else Files_legacy.get_file md :: files
+          else
+            let (File file) = Files.get_file_exn load_path Basic.dloc md in
+            file :: files
         in
         let new_files = MSet.fold add_files deps.deps [] in
         if List.length new_files <> 0 then run_on_files ~load_path new_files
@@ -194,7 +197,13 @@ let rec run_on_files ~load_path files =
 
 (* compute dependencies for each module which appear in the configuration files *)
 let handle_modules ~load_path mds =
-  let files = List.map Files_legacy.get_file mds in
+  let files =
+    List.map
+      (fun md ->
+        let (File file) = Files.get_file_exn load_path Basic.dloc md in
+        file)
+      mds
+  in
   run_on_files ~load_path files
 
 (* compute dependencies for eaach name which appear in the configuration files *)
@@ -233,7 +242,7 @@ let write_file deps in_file =
     close_out output)
 
 (* print_dependencies for all the names which are in the transitive closure of names specificed in the configuration files *)
-let print_dependencies names =
+let print_dependencies ~load_path names =
   let open Dep_legacy in
   let fake_env = Env.dummy ~md:(mk_mident "dkprune") () in
   (* We fake an environment to print an error *)
@@ -249,10 +258,10 @@ let print_dependencies names =
       Hashtbl.fold (fun md _ set -> MSet.add md set) Dep_legacy.deps MSet.empty
     in
     let in_files md files =
-      try
-        let file = Files_legacy.get_file md in
-        if is_empty down_deps file then files else file :: files
-      with Files_legacy.Files_error (Files_legacy.ModuleNotFound _) -> files
+      match Files.file_status load_path md with
+      | Files.File_not_found | Files.File_found_multiple_time _ -> files
+      | Files.File_found_once (File file) ->
+          if is_empty down_deps file then files else file :: files
     in
     let in_files = MSet.fold in_files mds [] in
     List.iter (write_file down_deps) in_files
@@ -288,7 +297,7 @@ let prune config log output files =
   let names = run_on_constraints files in
   let load_path = Config.load_path config in
   handle_names ~load_path names;
-  print_dependencies names
+  print_dependencies ~load_path names
 
 let cmd_t = Cmdliner.Term.(const prune $ Config.t $ log $ output $ files)
 
