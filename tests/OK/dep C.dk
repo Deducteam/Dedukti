@@ -1,4 +1,4 @@
-(; OK -e ;)
+(; IGNORE ;)
 
 {|∀|} : Type.
 A : Type.

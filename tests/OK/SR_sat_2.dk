@@ -1,4 +1,4 @@
-(; OK --type-lhs ;)
+(; IGNORE ;)
 
 type : Type.
 def Term : type -> Type.

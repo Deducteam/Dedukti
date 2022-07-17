@@ -1,4 +1,4 @@
-(; OK ;)
+(; IGNORE ;)
 
 A:Type.
 F:(A->A)->A.

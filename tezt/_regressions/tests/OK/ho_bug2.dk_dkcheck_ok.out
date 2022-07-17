@@ -1,0 +1,5 @@
+tests/OK/ho_bug2.dk_dkcheck_ok.out
+
+./dk.native check --no-color -q tests/OK/ho_bug2.dk
+b:A => a
+b:A => a

@@ -1,4 +1,4 @@
-(; OK --type-lhs ;)
+(; IGNORE ;)
 
 A : Type.
 a : A.

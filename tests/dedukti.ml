@@ -109,11 +109,21 @@ let title ~action ~result ~options filename =
       Format.asprintf "%s '%s' %s with '%s'" action basename result options_str
 
 module Check = struct
-  type argument = Eta | Import of string
+  type argument = Eta | Import of string | Sr_check of int | Export | Type_lhs
 
-  let mk_argument = function Eta -> ["--eta"] | Import path -> ["-I"; path]
+  let mk_argument = function
+    | Eta -> ["--eta"]
+    | Import path -> ["-I"; path]
+    | Sr_check n -> ["--sr-check"; string_of_int n]
+    | Export -> ["-e"]
+    | Type_lhs -> ["--type-lhs"]
 
-  let tag_of_argument = function Eta -> "eta" | Import _ -> "import"
+  let tag_of_argument = function
+    | Eta -> "eta"
+    | Import _ -> "import"
+    | Sr_check _ -> "srcheck"
+    | Export -> "export"
+    | Type_lhs -> "typelhs"
 
   let run ~regression ~error ~filename arguments =
     let tags = List.map tag_of_argument arguments in

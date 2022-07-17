@@ -1,4 +1,4 @@
-(; OK ;)
+(; IGNORE ;)
 
 Set : Type.
 Prop : Type.

@@ -1,4 +1,4 @@
-(; OK ;)
+(; IGNORE ;)
 
 type : Type.
 eps : type -> Type.

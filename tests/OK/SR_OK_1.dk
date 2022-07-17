@@ -1,4 +1,4 @@
-(; OK --sr-check 1 ;)
+(; IGNORE ;)
 
 A : Type.
 a : A.
