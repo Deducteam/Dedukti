@@ -666,7 +666,8 @@ let _ =
     (module MetaConfiguration)
 
 let parse_meta_files files =
-  (* FIXME in a later commit: Use a real load path.  *)
+  (* Load path is not needed since no importation is done via the
+     [MetaRules] processor. *)
   let load_path = Files.empty in
   Processor.fold_files ~load_path ~files
     ~f:(fun rules acc -> rules :: acc)

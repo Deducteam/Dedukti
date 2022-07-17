@@ -44,8 +44,7 @@ let dkdep config ignore output sorted files =
           | Some (env, lc, exn) -> Env.fail_env_error env lc exn);
     }
   in
-  (* FIXME in a later commit: Use a real load path.  *)
-  let load_path = Files.empty in
+  let load_path = Config.load_path config in
   (* Actual work. *)
   let deps = Processor.handle_files ~hook ~load_path ~files Dependencies in
   let formatter = Format.formatter_of_out_channel output in

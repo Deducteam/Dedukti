@@ -64,8 +64,7 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
   in
   let processor = Meta.make_meta_processor cfg ~post_processing in
   Processor.Registration.register_processor Meta {equal} processor;
-  (* FIXME in a later commit: Use a real load path.  *)
-  let load_path = Files.empty in
+  let load_path = Config.load_path config in
   match config.Config.run_on_stdin with
   | None -> Processor.handle_files ~load_path ~files ~hook Meta
   | Some m ->

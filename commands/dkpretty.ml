@@ -9,7 +9,8 @@ let beautify config files =
     Option.iter (fun (env, lc, e) -> Env.fail_env_error env lc e) exn
   in
   let hook = {before = ignore; after} in
-  (* FIXME in a later commit: Use a real load path.  *)
+  (* Load path is not needed since no importation is done by the
+      [PrettyPrinter] processor. *)
   let load_path = Files.empty in
   Processor.handle_files ~hook ~load_path ~files PrettyPrinter;
   let f m =

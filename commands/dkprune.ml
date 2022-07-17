@@ -133,7 +133,8 @@ module ProcessConfigurationFile : Processor.S with type t = NSet.t = struct
   let handle_entry _ = function
     | Entry.Require (_, md) ->
         let file = Files_legacy.get_file md in
-        (* FIXME in a later commit: Use a real load path.  *)
+        (* Load path is not needed since no importation is done by the
+           [GatherNames] processor. *)
         let load_path = Files.empty in
         let snames =
           Processor.handle_files ~load_path ~files:[file] GatherNames
@@ -161,7 +162,7 @@ let _ =
 (* This is called on each module which appear in the configuration
    files. This is called also on each module which is in the
    transitive closure of the module dependencies *)
-let rec run_on_files files =
+let rec run_on_files ~load_path files =
   let before env =
     let md = Env.get_name env in
     if not @@ MSet.mem md !computed then
@@ -182,28 +183,30 @@ let rec run_on_files files =
           else Files_legacy.get_file md :: files
         in
         let new_files = MSet.fold add_files deps.deps [] in
-        if List.length new_files <> 0 then run_on_files new_files
+        if List.length new_files <> 0 then run_on_files ~load_path new_files
     | Some (env, lc, e) -> Env.fail_env_error env lc e
   in
   let hook = Processor.{before; after} in
-  (* FIXME in a later commit: Use a real load path.  *)
+  (* Load path is not needed since no importation is done by the
+     [PruneDepProcessor] processor. *)
   let load_path = Files.empty in
   Processor.handle_files ~hook ~load_path ~files PruneDepProcessor
 
 (* compute dependencies for each module which appear in the configuration files *)
-let handle_modules mds =
+let handle_modules ~load_path mds =
   let files = List.map Files_legacy.get_file mds in
-  run_on_files files
+  run_on_files ~load_path files
 
 (* compute dependencies for eaach name which appear in the configuration files *)
-let handle_names names =
+let handle_names ~load_path names =
   let open Basic.MidentSet in
   let mds = NameSet.fold (fun name s -> add (Basic.md name) s) names empty in
-  handle_modules (elements mds)
+  handle_modules ~load_path (elements mds)
 
 (* check if all the entry of a file are pruned *)
 let is_empty deps file =
-  (* FIXME in a later commit: Use a real load path.  *)
+  (* Load path is not needed since no importation is done by the
+     [GatherNames] processor. *)
   let load_path = Files.empty in
   let names = Processor.handle_files ~load_path ~files:[file] GatherNames in
   NSet.is_empty (NSet.inter names deps)
@@ -277,12 +280,15 @@ let prune config log output files =
   if log then enable_log ();
   output_directory := output;
   let run_on_constraints files =
-    (* FIXME in a later commit: Use a real load path.  *)
+    (* Load path is not needed since no importation is done by the
+       [GatherNames] processor. *)
     let load_path = Files.empty in
     Processor.handle_files ~load_path ~files PruneProcessConfigurationFile
   in
   let names = run_on_constraints files in
-  handle_names names; print_dependencies names
+  let load_path = Config.load_path config in
+  handle_names ~load_path names;
+  print_dependencies names
 
 let cmd_t = Cmdliner.Term.(const prune $ Config.t $ log $ output $ files)
 

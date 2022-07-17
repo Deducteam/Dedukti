@@ -81,3 +81,5 @@ let init (c : t) : unit =
 
 (** [quiet c] returns [true] if quiet mode has been activated. *)
 let quiet (c : t) : bool = c.debug = "q"
+
+let load_path (c : t) : Files.t = c.load_path

@@ -46,7 +46,8 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
       let get_data _ = List.flatten !cstrs
     end in
     let cstr_file = F.get_out_path in_path `Checking in
-    (* FIXME in a later commit: Use a real load path.  *)
+    (* Load path is not needed since no importation is done by the
+       [P] processor. *)
     let load_path = Api.Files.empty in
     let cstrs =
       Api.Processor.T.handle_files ~load_path ~files:[cstr_file] (module P)
@@ -77,7 +78,8 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
 
       let get_data _ = ()
     end in
-    (* FIXME in a later commit: Use a real load path.  *)
+    (* Load path is not needed since no importation is done by the
+       [P] processor. *)
     let load_path = Api.Files.empty in
     Api.Processor.T.handle_files ~load_path ~files:[elab_file] (module P);
     F.close sol_file
@@ -119,7 +121,8 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
 
       let get_data _ = ()
     end in
-    (* FIXME in a later commit: Use a real load path.  *)
+    (* Load path is not needed since no importation is done by the
+       [P] processor. *)
     let load_path = Api.Files.empty in
     let cstr_file = F.get_out_path in_path `Checking in
     Api.Processor.T.handle_files ~load_path ~files:[cstr_file] (module P)
@@ -156,7 +159,8 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
 
       let get_data _ = ()
     end in
-    (* FIXME in a later commit: Use a real load path.  *)
+    (* Load path is not needed since no importation is done by the
+       [P] processor. *)
     let load_path = Api.Files.empty in
     Api.Processor.T.handle_files ~load_path ~files:[elab_file] (module P);
     F.close sol_file
