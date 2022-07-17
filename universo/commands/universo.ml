@@ -372,6 +372,7 @@ let run_on_file ~load_path file =
   | JustSolve -> ()
   | Simplify -> ()
 
+(* FIXME: Use cmdliner *)
 let cmd_options =
   [
     ( "-q",
