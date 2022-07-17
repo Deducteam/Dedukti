@@ -144,8 +144,8 @@ let add_requires : Format.formatter -> B.mident list -> unit =
 
 type _ Processor.t += FilterSignature : Api.Env.t Processor.t
 
-let export : path -> step -> unit =
- fun in_path step ->
+let export : load_path:Api.Files.t -> path -> step -> unit =
+ fun ~load_path in_path step ->
   let out_file = get_out_path in_path step in
   let is_eq_rule r =
     let open Kernel.Rule in
@@ -166,5 +166,7 @@ let export : path -> step -> unit =
 
     let get_data env = env
   end in
-  let env = Api.Processor.T.handle_files [out_file] (module P) in
+  let env =
+    Api.Processor.T.handle_files ~load_path ~files:[out_file] (module P)
+  in
   Api.Env.export env

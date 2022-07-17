@@ -1,257 +1,238 @@
-open Kernel
-open Parsers
-open Basic
-module NameSet = Basic.NameSet
-module MSet = Basic.MidentSet
+type mident = Kernel.Basic.mident
 
-type data = {
-  up : NameSet.t;
-      (** dependencies are the name that requires the current item. *)
-  down : NameSet.t;
-      (** down dependencies are the name that are required by the current item. *)
+module MidentSet = Kernel.Basic.MidentSet
+
+type name = Kernel.Basic.name
+
+module NameSet = Kernel.Basic.NameSet
+
+module Md_map = Map.Make (struct
+  type t = mident
+
+  let compare = compare
+end)
+
+module Name_map = Map.Make (struct
+  type t = name
+
+  let compare = compare
+end)
+
+type t = {
+  module_dependencies : MidentSet.t Md_map.t;
+  name_dependencies : NameSet.t Name_map.t;
+  transitive : bool;
+  reverse : bool;
 }
 
-type name_deps = (ident, data) Hashtbl.t
+type deps = {modules : Kernel.Basic.MidentSet.t; names : Kernel.Basic.NameSet.t}
 
-type file_deps = {
-  file : string;  (** path associated to the module *)
-  deps : MSet.t;  (** pairs of module and its associated path *)
-  name_deps : name_deps;  (** up/down item dependencies *)
-}
+let empty = {modules = MidentSet.empty; names = NameSet.empty}
 
-type dep_error =
-  | CircularDependencies of string * string list
-  | NameNotFound of name
-
-exception Dep_error of dep_error
-
-type t = (mident, file_deps) Hashtbl.t
-
-let fail_dep_error err =
-  match err with
-  | CircularDependencies (s, ss) ->
-      ( 602,
-        None,
-        Format.asprintf "Circular Dependency dectected for module %S...%a" s
-          (pp_list "@." (fun fmt s -> Format.fprintf fmt " -> %s" s))
-          ss )
-  | NameNotFound n ->
-      ( 603,
-        None,
-        Format.asprintf "No dependencies computed for name %a...@." pp_name n )
-
-let fail_dep_error ~red:_ exn =
-  match exn with Dep_error err -> Some (fail_dep_error err) | _ -> None
-
-let _ = Errors.register_exception fail_dep_error
-
-let compute_all_deps = ref false
-
-let empty_deps () =
-  {file = "<not initialized>"; deps = MSet.empty; name_deps = Hashtbl.create 81}
-
-let deps = Hashtbl.create 11
-
-(** [deps] contains the dependencies found so far, reset before each file. *)
-let current_mod : mident ref = ref (mk_mident "<not initialised>")
-
-let current_name : name ref =
-  ref (mk_name !current_mod (mk_ident "<not initialised>"))
-
-let current_deps : file_deps ref = ref (empty_deps ())
-
-let ignore : bool ref = ref false
-
-(** [add_dep md] adds the module [md] to the list of dependencies if
-    no corresponding ".dko" file is found in the load path. The dependency is
-    not added either if it is already present. *)
-let add_mdep : mident -> unit =
- fun md ->
-  if mident_eq md !current_mod then ()
-  else
-    match Files.find_dk ~ignore:!ignore md (Files.get_path ()) with
-    | None -> ()
-    | Some _ ->
-        current_deps :=
-          {!current_deps with deps = MSet.add md !current_deps.deps}
-
-let update_up ideps item up =
-  if Hashtbl.mem ideps item then
-    let idep = Hashtbl.find ideps item in
-    Hashtbl.replace ideps item {idep with up = NameSet.add up idep.up}
-  else Hashtbl.add ideps item {up = NameSet.singleton up; down = NameSet.empty}
-
-let update_down ideps item down =
-  if Hashtbl.mem ideps item then
-    let idep = Hashtbl.find ideps item in
-    Hashtbl.replace ideps item {idep with down = NameSet.add down idep.down}
-  else
-    Hashtbl.add ideps item {down = NameSet.singleton down; up = NameSet.empty}
-
-let find deps md =
-  if Hashtbl.mem deps md then Hashtbl.find deps md
-  else (
-    Hashtbl.add deps md (empty_deps ());
-    Hashtbl.find deps md)
-
-let update_ideps item dep =
-  let ideps = (find deps (md item)).name_deps in
-  update_down ideps (id item) dep;
-  let ideps = (find deps (md dep)).name_deps in
-  update_up ideps (id dep) item
-
-let add_idep : name -> unit =
- fun dep_name ->
-  if not @@ Basic.name_eq dep_name !current_name then
-    update_ideps !current_name dep_name
-
-(** Term / pattern / entry traversal commands. *)
+let merge left right =
+  {
+    modules = MidentSet.union left.modules right.modules;
+    names = NameSet.union left.names right.names;
+  }
 
 let mk_name c =
-  add_mdep (md c);
-  if !compute_all_deps then add_idep c
+  {
+    modules = MidentSet.singleton (Kernel.Basic.md c);
+    names = NameSet.singleton c;
+  }
 
 let rec mk_term t =
-  let open Term in
+  let open Kernel.Term in
   match t with
-  | Kind | Type _ | DB _ -> ()
+  | Kind | Type _ | DB _ -> empty
   | Const (_, c) -> mk_name c
-  | App (f, a, args) -> List.iter mk_term (f :: a :: args)
+  | App (f, a, args) ->
+      List.fold_left
+        (fun deps t -> merge deps (mk_term t))
+        empty (f :: a :: args)
   | Lam (_, _, None, te) -> mk_term te
-  | Lam (_, _, Some ty, te) -> mk_term ty; mk_term te
-  | Pi (_, _, a, b) -> mk_term a; mk_term b
+  | Lam (_, _, Some ty, te) -> merge (mk_term ty) (mk_term te)
+  | Pi (_, _, a, b) -> merge (mk_term a) (mk_term b)
 
 let rec mk_pattern p =
-  let open Rule in
+  let open Kernel.Rule in
   match p with
-  | Var (_, _, _, args) -> List.iter mk_pattern args
-  | Pattern (_, c, args) -> mk_name c; List.iter mk_pattern args
+  | Var (_, _, _, args) ->
+      List.fold_left (fun deps args -> merge deps (mk_pattern args)) empty args
+  | Pattern (_, c, args) ->
+      List.fold_left (fun deps args -> merge deps (mk_pattern args)) empty args
+      |> merge (mk_name c)
   | Lambda (_, _, te) -> mk_pattern te
   | Brackets t -> mk_term t
 
 let mk_rule r =
-  let open Rule in
-  mk_pattern r.pat; mk_term r.rhs
+  let open Kernel.Rule in
+  merge (mk_pattern r.pat) (mk_term r.rhs)
 
-let find_rule_name r =
-  let open Rule in
-  match r.pat with Pattern (_, n, _) -> n | _ -> assert false
-
-let handle_entry e =
-  let open Entry in
-  let name_of_id id = Basic.mk_name !current_mod id in
-  match e with
-  | Decl (_, id, _, _, te) ->
-      current_name := name_of_id id;
-      mk_term te
-  | Def (_, id, _, _, None, te) ->
-      current_name := name_of_id id;
-      mk_term te
-  | Def (_, id, _, _, Some ty, te) ->
-      current_name := name_of_id id;
-      mk_term ty;
-      mk_term te
-  | Rules (_, []) -> ()
-  | Rules (_, (r :: _ as rs)) ->
-      current_name := find_rule_name r;
-      List.iter mk_rule rs
+let dep_of_entry md entry =
+  let open Parsers.Entry in
+  match entry with
+  | Decl (_, _, _, _, te) -> mk_term te
+  | Def (_, _, _, _, None, te) -> mk_term te
+  | Def (_, _, _, _, Some ty, te) -> merge (mk_term ty) (mk_term te)
+  | Rules (_, rs) ->
+      List.fold_left (fun deps r -> merge deps (mk_rule r)) empty rs
   | Eval (_, _, te) -> mk_term te
   | Infer (_, _, te) -> mk_term te
-  | Check (_, _, _, Convert (t1, t2)) -> mk_term t1; mk_term t2
-  | Check (_, _, _, HasType (te, ty)) -> mk_term te; mk_term ty
-  | DTree (_, _, _) -> ()
-  | Print (_, _) -> ()
-  | Name (_, _) -> ()
-  | Require (_, md) -> add_mdep md
+  | Check (_, _, _, Convert (t1, t2)) -> merge (mk_term t1) (mk_term t2)
+  | Check (_, _, _, HasType (te, ty)) -> merge (mk_term te) (mk_term ty)
+  | DTree (_, md_opt, id) ->
+      let md = Option.value md_opt ~default:md in
+      mk_name (Kernel.Basic.mk_name md id)
+  | Print (_, _) -> empty
+  | Name (_, _) -> empty
+  | Require (_, md) -> {modules = MidentSet.singleton md; names = NameSet.empty}
 
-let initialize : mident -> string -> unit =
- fun md file ->
-  current_mod := md;
-  current_deps := find deps md;
-  current_deps := {!current_deps with file}
-
-let make : mident -> Entry.entry list -> unit =
- fun md entries ->
-  let file = Files.get_file md in
-  initialize md file;
-  List.iter handle_entry entries;
-  Hashtbl.replace deps md !current_deps
-
-let handle : mident -> ((Entry.entry -> unit) -> unit) -> unit =
- fun md process ->
-  let file = Files.get_file md in
-  initialize md file;
-  process handle_entry;
-  Hashtbl.replace deps md !current_deps
-
-let topological_sort deps =
-  let to_graph _ deps graph = (deps.file, MSet.elements deps.deps) :: graph in
-  let graph = Hashtbl.fold to_graph deps [] in
-  let rec explore path visited node =
-    if List.mem node path then
-      raise @@ Dep_error (CircularDependencies (node, path));
-    if List.mem node visited then visited
-    else
-      let edges =
-        try List.assoc node graph
-        with Not_found ->
-          if !ignore then []
-          else raise @@ Files.Files_error (ObjectFileNotFound (mk_mident node))
-      in
-      node
-      :: List.fold_left
-           (explore (node :: path))
-           visited
-           (List.map Files.get_file edges)
+let dep_of_entry :
+    ?strict:bool -> Kernel.Basic.mident -> Parsers.Entry.entry -> deps =
+ fun ?(strict = true) md entry ->
+  let name_of_id id = Kernel.Basic.mk_name md id in
+  let name_opt =
+    match entry with
+    | Decl (_, id, _, _, _) | Def (_, id, _, _, _, _) -> Some (name_of_id id)
+    | Rules (_, {pat = Pattern (_, name, _); _} :: _) -> Some name
+    | DTree (_, md_opt, id) ->
+        let md = Option.value md_opt ~default:md in
+        Some (Kernel.Basic.mk_name md id)
+    | _ -> None
   in
-  List.rev
-  @@ List.fold_left (fun visited (n, _) -> explore [] visited n) [] graph
+  let deps = dep_of_entry md entry in
+  (* If [strict] we ensure the dependency relation is not reflexive. *)
+  if strict then
+    {
+      modules = MidentSet.remove md deps.modules;
+      names =
+        Option.fold ~none:deps.names
+          ~some:(fun name -> NameSet.remove name deps.names)
+          name_opt;
+    }
+  else deps
 
-let get_data : Basic.name -> data =
- fun name ->
-  try
-    let md = Basic.md name in
-    let id = Basic.id name in
-    Hashtbl.find (Hashtbl.find deps md).name_deps id
-  with Not_found -> raise @@ Dep_error (NameNotFound name)
+let empty ?(reverse = false) ?(transitive = false) () =
+  {
+    module_dependencies = Md_map.empty;
+    name_dependencies = Name_map.empty;
+    transitive;
+    reverse;
+  }
 
-let rec transitive_closure_down =
-  let computed = ref NameSet.empty in
-  fun name ->
-    if not (NameSet.mem name !computed) then (
-      let md = Basic.md name in
-      let id = Basic.id name in
-      let ideps = get_data name in
-      computed := NameSet.add name !computed;
-      NameSet.iter transitive_closure_down ideps.down;
-      let down =
-        NameSet.fold
-          (fun name_dep down -> NameSet.union down (get_data name_dep).down)
-          ideps.down ideps.down
-      in
-      let ideps' = {ideps with down} in
-      let md_deps = Hashtbl.find deps md in
-      Hashtbl.replace md_deps.name_deps id ideps')
+module type PARAMETERS = sig
+  type elt
 
-let rec transitive_closure_up =
-  let computed = ref NameSet.empty in
-  fun name ->
-    if not (NameSet.mem name !computed) then (
-      let md = Basic.md name in
-      let id = Basic.id name in
-      let ideps = get_data name in
-      computed := NameSet.add name !computed;
-      NameSet.iter transitive_closure_up ideps.up;
-      let up =
-        NameSet.fold
-          (fun name_dep up -> NameSet.union up (get_data name_dep).down)
-          ideps.up ideps.up
-      in
-      let ideps' = {ideps with up} in
-      let md_deps = Hashtbl.find deps md in
-      Hashtbl.replace md_deps.name_deps id ideps')
+  module Set : Set.S with type elt = elt
 
-let transitive_closure : Basic.name -> unit =
- fun name ->
-  transitive_closure_down name;
-  transitive_closure_up name
+  module Map : Map.S with type key = elt
+
+  val get : t -> Set.t Map.t
+
+  val update : t -> Set.t Map.t -> t
+end
+
+module type S = sig
+  type elt
+
+  module Set : Set.S with type elt = elt
+
+  val add : t -> elt -> Set.t -> t
+
+  val sort : t -> (elt list, [`Circular of elt * elt list]) Result.t
+
+  val get : t -> elt -> Set.t
+end
+
+module Make (P : PARAMETERS) : S with type elt = P.elt = struct
+  type elt = P.elt
+
+  module Set = P.Set
+  module Map = P.Map
+
+  let sort t =
+    let dependencies = P.get t in
+    let find elt =
+      match Map.find_opt elt dependencies with
+      | None -> Set.empty
+      | Some deps -> deps
+    in
+    (* Compute the list (in reverse) order from [node]. [path] is the
+       current [path] explored in the implicit graph represented by
+       the map [t.module_dependencies]. [visited] is the current list
+       of sorted nodes (in the reverse order). A node is added into
+       this [list] once all its downward dependencies were visited. *)
+    let rec explore path visited node =
+      if List.mem node path then Error (`Circular (node, path))
+      else
+        let step visited =
+          if List.mem node visited then Ok visited
+          else
+            Set.fold
+              (fun node visited ->
+                explore (node :: path) visited node
+                |> Result.map (fun visited -> node :: visited))
+              (find node) (Ok visited)
+        in
+        Result.bind visited step
+    in
+    (* Compute the dependency list for all the modules and reverse the
+       list to get the modules in the correct order. *)
+    Map.to_seq dependencies |> Seq.map fst
+    |> Seq.fold_left (fun visited node -> explore [] visited node) (Ok [])
+    |> Result.map List.rev
+
+  let get t elt = Map.find_opt elt (P.get t) |> Option.value ~default:Set.empty
+
+  let rec add t elt deps =
+    let updater deps = function
+      | None -> Some deps
+      | Some old_deps -> Set.union old_deps deps |> Option.some
+    in
+    let t =
+      match t.reverse with
+      | false ->
+          (* The only dependency to store is [elt -> deps] *)
+          P.get t |> Map.update elt (updater deps) |> P.update t
+      | true ->
+          (* The dependencies to store are [dep -> elt]  *)
+          let reverse_deps = Set.singleton elt in
+          P.get t
+          |> Set.fold
+               (fun dep map -> Map.update dep (updater reverse_deps) map)
+               deps
+          |> P.update t
+    in
+    match t.transitive with
+    | false -> t
+    | true ->
+        let folder dep t =
+          match Map.find_opt dep (P.get t) with
+          | None -> t
+          | Some deps -> add t elt deps
+        in
+        Set.fold folder deps t
+end
+
+module Modules = Make (struct
+  type elt = mident
+
+  module Set = Kernel.Basic.MidentSet
+  module Map = Md_map
+
+  let get t = t.module_dependencies
+
+  let update t module_dependencies = {t with module_dependencies}
+end)
+
+module Names = Make (struct
+  type elt = name
+
+  module Set = Kernel.Basic.NameSet
+  module Map = Name_map
+
+  let get t = t.name_dependencies
+
+  let update t name_dependencies = {t with name_dependencies}
+end)

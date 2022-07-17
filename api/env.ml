@@ -21,6 +21,7 @@ let set_debug_mode =
     | c -> raise (DebugFlagNotRecognized c))
 
 type t = {
+  load_path : Files.t; (* Directories where object files can be found. *)
   input : Parser.input;
   sg : Signature.t;
   red : (module Reduction.S);
@@ -30,6 +31,7 @@ type t = {
 let dummy ?(md = Basic.mk_mident "") () =
   let dummy_sig = Signature.make md (fun _ _ -> "") in
   {
+    load_path = Files.empty;
     input = Parser.input_from_string md "";
     sg = dummy_sig;
     red = (module Reduction.Default);
@@ -38,17 +40,20 @@ let dummy ?(md = Basic.mk_mident "") () =
 
 exception Env_error of t * loc * exn
 
+let get_load_path env = env.load_path
+
 let get_input env = env.input
 
 let check_arity = ref true
 
 let check_ll = ref false
 
-let init input =
-  let sg = Signature.make (Parser.md_of_input input) Files.find_object_file in
+let init ~load_path ~input =
+  let find_object_file = Files.find_object_file_exn load_path in
+  let sg = Signature.make (Parser.md_of_input input) find_object_file in
   let red : (module Reduction.S) = (module Reduction.Default) in
   let typer : (module Typing.S) = (module Typing.Default) in
-  {input; sg; red; typer}
+  {load_path; input; sg; red; typer}
 
 let set_reduction_engine env (module R : Reduction.S) =
   let red = (module R : Reduction.S) in
@@ -89,7 +94,8 @@ let get_type env lc cst = Signature.get_type env.sg lc cst
 let get_dtree env lc cst = Signature.get_dtree env.sg lc cst
 
 let export env =
-  let file = Files.object_file_of_input env.input in
+  let file = Files.input_as_file env.input in
+  let (File file) = Files.as_object_file file in
   let oc = open_out file in
   Signature.export env.sg oc;
   close_out oc;

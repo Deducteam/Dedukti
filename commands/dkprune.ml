@@ -40,11 +40,11 @@ let gre fmt = "\027[32m" ^^ fmt ^^ "\027[0m%!"
 let log fmt = Debug.debug d_prune (gre fmt)
 
 let _ =
-  Dep.ignore := true;
+  Dep_legacy.ignore := true;
   (* If a dependency is missing this does not trigger an exception
      because we do not want to compute dependencies from a logic file
   *)
-  Dep.compute_all_deps := true
+  Dep_legacy.compute_all_deps := true
 
 (* We want to compute items dependencies *)
 
@@ -130,10 +130,16 @@ module ProcessConfigurationFile : Processor.S with type t = NSet.t = struct
 
   let names = ref NSet.empty
 
-  let handle_entry _ = function
-    | Entry.Require (_, md) ->
-        let file = Files.get_file md in
-        let snames = Processor.handle_files [file] GatherNames in
+  let handle_entry env = function
+    | Entry.Require (loc, md) ->
+        let load_path = Env.get_load_path env in
+        let (File file) = Files.get_file_exn load_path loc md in
+        (* Load path is not needed since no importation is done by the
+           [GatherNames] processor. *)
+        let load_path = Files.empty in
+        let snames =
+          Processor.handle_files ~load_path ~files:[file] GatherNames
+        in
         names := NSet.union snames !names
     | Entry.DTree (_, Some md, id) -> names := NSet.add (mk_name md id) !names
     | _ as e -> raise @@ Dkprune_error (BadFormat (Entry.loc_of_entry e))
@@ -157,7 +163,7 @@ let _ =
 (* This is called on each module which appear in the configuration
    files. This is called also on each module which is in the
    transitive closure of the module dependencies *)
-let rec run_on_files files =
+let rec run_on_files ~load_path files =
   let before env =
     let md = Env.get_name env in
     if not @@ MSet.mem md !computed then
@@ -172,31 +178,46 @@ let rec run_on_files files =
     | None ->
         let md = Env.get_name env in
         computed := MSet.add md !computed;
-        let deps = Hashtbl.find Dep.deps md in
+        let deps = Hashtbl.find Dep_legacy.deps md in
         let add_files md files =
-          if MSet.mem md !computed then files else Files.get_file md :: files
+          if MSet.mem md !computed then files
+          else
+            let (File file) = Files.get_file_exn load_path Basic.dloc md in
+            file :: files
         in
         let new_files = MSet.fold add_files deps.deps [] in
-        if List.length new_files <> 0 then run_on_files new_files
+        if List.length new_files <> 0 then run_on_files ~load_path new_files
     | Some (env, lc, e) -> Env.fail_env_error env lc e
   in
   let hook = Processor.{before; after} in
-  Processor.handle_files files ~hook PruneDepProcessor
+  (* Load path is not needed since no importation is done by the
+     [PruneDepProcessor] processor. *)
+  let load_path = Files.empty in
+  Processor.handle_files ~hook ~load_path ~files PruneDepProcessor
 
 (* compute dependencies for each module which appear in the configuration files *)
-let handle_modules mds =
-  let files = List.map Files.get_file mds in
-  run_on_files files
+let handle_modules ~load_path mds =
+  let files =
+    List.map
+      (fun md ->
+        let (File file) = Files.get_file_exn load_path Basic.dloc md in
+        file)
+      mds
+  in
+  run_on_files ~load_path files
 
 (* compute dependencies for eaach name which appear in the configuration files *)
-let handle_names names =
+let handle_names ~load_path names =
   let open Basic.MidentSet in
   let mds = NameSet.fold (fun name s -> add (Basic.md name) s) names empty in
-  handle_modules (elements mds)
+  handle_modules ~load_path (elements mds)
 
 (* check if all the entry of a file are pruned *)
 let is_empty deps file =
-  let names = Processor.handle_files [file] GatherNames in
+  (* Load path is not needed since no importation is done by the
+     [GatherNames] processor. *)
+  let load_path = Files.empty in
+  let names = Processor.handle_files ~load_path ~files:[file] GatherNames in
   NSet.is_empty (NSet.inter names deps)
 
 (* for each input file for which dependencies has been computed, we write an output file *)
@@ -221,12 +242,12 @@ let write_file deps in_file =
     close_out output)
 
 (* print_dependencies for all the names which are in the transitive closure of names specificed in the configuration files *)
-let print_dependencies names =
-  let open Dep in
+let print_dependencies ~load_path names =
+  let open Dep_legacy in
   let fake_env = Env.dummy ~md:(mk_mident "dkprune") () in
   (* We fake an environment to print an error *)
   try
-    NameSet.iter Dep.transitive_closure names;
+    NameSet.iter Dep_legacy.transitive_closure names;
     let down_deps =
       NameSet.fold
         (fun name dependencies ->
@@ -234,18 +255,18 @@ let print_dependencies names =
         names names
     in
     let mds =
-      Hashtbl.fold (fun md _ set -> MSet.add md set) Dep.deps MSet.empty
+      Hashtbl.fold (fun md _ set -> MSet.add md set) Dep_legacy.deps MSet.empty
     in
     let in_files md files =
-      try
-        let file = Files.get_file md in
-        if is_empty down_deps file then files else file :: files
-      with Files.Files_error (Files.ModuleNotFound _) -> files
+      match Files.file_status load_path md with
+      | Files.File_not_found | Files.File_found_multiple_time _ -> files
+      | Files.File_found_once (File file) ->
+          if is_empty down_deps file then files else file :: files
     in
     let in_files = MSet.fold in_files mds [] in
     List.iter (write_file down_deps) in_files
   with
-  | Dep.Dep_error (NameNotFound name) ->
+  | Dep_legacy.Dep_error (NameNotFound name) ->
       Errors.fail_exit ~file:"configuration file" ~code:"DKPRUNE" None
         "The name %a does not exists@." Pp.Default.print_name name
   | exn -> Env.fail_env_error fake_env Basic.dloc exn
@@ -268,10 +289,15 @@ let prune config log output files =
   if log then enable_log ();
   output_directory := output;
   let run_on_constraints files =
-    Processor.handle_files files PruneProcessConfigurationFile
+    (* Load path is not needed since no importation is done by the
+       [GatherNames] processor. *)
+    let load_path = Files.empty in
+    Processor.handle_files ~load_path ~files PruneProcessConfigurationFile
   in
   let names = run_on_constraints files in
-  handle_names names; print_dependencies names
+  let load_path = Config.load_path config in
+  handle_names ~load_path names;
+  print_dependencies ~load_path names
 
 let cmd_t = Cmdliner.Term.(const prune $ Config.t $ log $ output $ files)
 

@@ -9,10 +9,13 @@ let beautify config files =
     Option.iter (fun (env, lc, e) -> Env.fail_env_error env lc e) exn
   in
   let hook = {before = ignore; after} in
-  Processor.handle_files files ~hook PrettyPrinter;
+  (* Load path is not needed since no importation is done by the
+      [PrettyPrinter] processor. *)
+  let load_path = Files.empty in
+  Processor.handle_files ~hook ~load_path ~files PrettyPrinter;
   let f m =
     let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
-    Processor.handle_input input PrettyPrinter
+    Processor.handle_input ~load_path ~input PrettyPrinter
   in
   Option.iter f config.Config.run_on_stdin
 

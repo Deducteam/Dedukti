@@ -46,9 +46,10 @@ let signature_add_rule sg r = Signature.add_rules sg [Rule.to_rule_infos r]
 let signature_add_rules sg rs = List.iter (signature_add_rule sg) rs
 
 let default_config ?meta_rules ?(beta = true) ?encoding ?(decoding = true)
-    ?(register_before = true) () =
+    ?(register_before = true) ~load_path () =
   let meta_mident = Basic.mk_mident "<meta>" in
-  let meta_signature = Signature.make meta_mident Files.find_object_file in
+  let find_object_file = Files.find_object_file_exn load_path in
+  let meta_signature = Signature.make meta_mident find_object_file in
   Option.iter
     (fun (module E : ENCODING) ->
       Signature.import_signature meta_signature E.signature)
@@ -112,7 +113,8 @@ module PROD = struct
     List.map mk_decl ["ty"; "prod"]
 
   let signature =
-    let sg = Signature.make md Files.find_object_file in
+    let find_object_file = Files.find_object_file_exn Files.empty in
+    let sg = Signature.make md find_object_file in
     let mk_decl id =
       Signature.add_declaration sg dloc (mk_ident id) Signature.Public
         (Signature.Definable Free) (mk_Type dloc)
@@ -214,7 +216,8 @@ module LF = struct
     List.map mk_decl ["ty"; "var"; "sym"; "lam"; "app"; "prod"]
 
   let signature =
-    let sg = Signature.make md Files.find_object_file in
+    let find_object_file = Files.find_object_file_exn Files.empty in
+    let sg = Signature.make md find_object_file in
     let mk_decl id =
       Signature.add_declaration sg dloc (mk_ident id) Signature.Public
         (Signature.Definable Free) (mk_Type dloc)
@@ -346,7 +349,8 @@ module APP = struct
     List.map mk_decl ["ty"; "var"; "sym"; "lam"; "app"; "prod"]
 
   let signature =
-    let sg = Signature.make md Files.find_object_file in
+    let find_object_file = Files.find_object_file_exn Files.empty in
+    let sg = Signature.make md find_object_file in
     let mk_decl id =
       Signature.add_declaration sg dloc (mk_ident id) Signature.Public
         (Signature.Definable Free) (mk_Type dloc)
@@ -443,7 +447,9 @@ module APP = struct
       rhs = encode_term sg r''.ctx r.rhs;
     }
 
-  let fake_sig () = Signature.make (Basic.mk_mident "") Files.find_object_file
+  let fake_sig () =
+    let find_object_file = Files.find_object_file_exn Files.empty in
+    Signature.make (Basic.mk_mident "") find_object_file
 
   let encode_term ?(sg = fake_sig ()) ?(ctx = []) t = encode_term sg ctx t
 
@@ -663,7 +669,10 @@ let _ =
     (module MetaConfiguration)
 
 let parse_meta_files files =
-  Processor.fold_files files
+  (* Load path is not needed since no importation is done via the
+     [MetaRules] processor. *)
+  let load_path = Files.empty in
+  Processor.fold_files ~load_path ~files
     ~f:(fun rules acc -> rules :: acc)
     ~default:[] MetaRules
   |> List.concat

@@ -4,10 +4,11 @@ open Api
 open Cmdliner
 
 type t = {
+  load_path : Api.Files.t;
+  load_path_legacy : string list;
   run_on_stdin : string option;
   no_color : bool;
   debug : string;
-  incl : string list;
 }
 
 let no_color =
@@ -47,12 +48,12 @@ let run_on_stdin =
   let docs = Manpage.s_common_options in
   Arg.(value & opt (some string) None & info ["stdin"] ~docv:"MOD" ~doc ~docs)
 
-let incl =
+let included_directories =
   let doc = "Add directory $(docv) to the load path" in
   let docs = Manpage.s_common_options in
   Arg.(value & opt_all dir [] & info ["I"; "include"] ~docv:"DIR" ~doc ~docs)
 
-let config no_color debug incl run_on_stdin quiet verbose =
+let config no_color debug included_directories run_on_stdin quiet verbose =
   let debug =
     let d = ref "" in
     if quiet then d := "q";
@@ -60,17 +61,25 @@ let config no_color debug incl run_on_stdin quiet verbose =
     if verbose then d := "montru";
     !d
   in
-  {run_on_stdin; no_color; debug; incl}
+  let load_path_legacy = included_directories in
+  let load_path =
+    Api.Files.(List.fold_left add_path empty included_directories)
+  in
+  {load_path; run_on_stdin; no_color; debug; load_path_legacy}
 
 let t : t Term.t =
-  Term.(const config $ no_color $ debug $ incl $ run_on_stdin $ quiet $ verbose)
+  Term.(
+    const config $ no_color $ debug $ included_directories $ run_on_stdin
+    $ quiet $ verbose)
 
 (** [init c] sets up environment with configuration [c]. *)
 let init (c : t) : unit =
   (* Verbose overrides debug that overrides quiet. *)
   Env.set_debug_mode c.debug;
   Errors.color := not c.no_color;
-  List.iter Files.add_path c.incl
+  List.iter Files_legacy.add_path c.load_path_legacy
 
 (** [quiet c] returns [true] if quiet mode has been activated. *)
 let quiet (c : t) : bool = c.debug = "q"
+
+let load_path (c : t) : Files.t = c.load_path

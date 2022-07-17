@@ -1,59 +1,71 @@
-(** Module which handle dependencies between Dedukti files *)
-open Kernel
+(** {2 Dependencies} *)
 
-open Parsers
+(** This module aims to provide helpers to compute dependencies
+   between Dedukti terms. There are two kind of dependencies which are
+   handled:
 
-(** {2 Debugging} *)
+   1. Dependencies between modules
 
-type dep_error =
-  | CircularDependencies of string * string list
-  | NameNotFound of Basic.name
+   2. Dependencies between names
 
-exception Dep_error of dep_error
+   For each of those dependencies, two flavors are allowed:
 
-(** {2 Type declaration} *)
+   - [reverse] allows to compute the reverse relation
 
-(** up dependencies are the name that requires the current item.
-    down dependencies are the name that are required by the current item. *)
-type data = {up : Basic.NameSet.t; down : Basic.NameSet.t}
+   - [transitive] allows to compute the transitive closure of the
+   relation   
+*)
 
-(** A map from an identifiers to its up and down dependencies *)
-type name_deps = (Basic.ident, data) Hashtbl.t
+(** Type of dependencies for an entry. *)
+type deps = {modules : Kernel.Basic.MidentSet.t; names : Kernel.Basic.NameSet.t}
 
-type file_deps = {
-  file : string;  (** path associated to the module *)
-  deps : Basic.MidentSet.t;  (** pairs of module and its associated path *)
-  name_deps : name_deps;
-      (** up/down item dependencies. Not computed by default. *)
-}
+(** [dep_of_entry ?(strict=true) md entry] computes the dependencies
+   [deps] of [entry] assuming the module is [md]. If [strict], then we
+   have:
 
-(** Map to a module a file dependencies which contains all the dependencies *)
-type t = (Basic.mident, file_deps) Hashtbl.t
+    1. md ∉ deps.modules
 
-(** {2 Dependencies function} *)
+    2. name ∉ deps.names where [name] is the name of the entry (if it
+   applies). *)
+val dep_of_entry :
+  ?strict:bool -> Kernel.Basic.mident -> Parsers.Entry.entry -> deps
 
-(** [deps] contains the dependencies computed by the function [handle] *)
-val deps : t
+(** General type to handle dependencies for a list of entries. *)
+type t
 
-(** (default: [false]) If [true], no exception is raised if a [module] is not in the path *)
-val ignore : bool ref
+(** [empty ?(reverse=false) ?(transitive=false) ()] builds an empty
+   data-structre. If [reverse], then dependencies will be added in a
+   backward way. If [transitive], dependencies will be added
+   transitively (this can be costly).      
+*)
+val empty : ?reverse:bool -> ?transitive:bool -> unit -> t
 
-(** Whether to compute the dependencies of constants.  If set to
-   [false], only module dependencies are computed. *)
-val compute_all_deps : bool ref
+module type S = sig
+  (** Element for which dependencies are computed. *)
+  type elt
 
-(** [get_data name] returns the data associated to name [name].
-    Raise [NameNotfound] if the dependencies for name have not been computed. *)
-val get_data : Basic.name -> data
+  (** Set containing those elements. *)
+  module Set : Set.S with type elt = elt
 
-(** [make md es] computes dependencies for the entries [es] in module [md] *)
-val make : Basic.mident -> Entry.entry list -> unit
+  (** [add t elt deps] adds the dependency [elt -> deps] into [t]. Or
+     the opposite relation if [t.reverse] is [true]. This transitive
+     closure is computed if [t.transitive] is [true]. *)
+  val add : t -> elt -> Set.t -> t
 
-(** [handle md f] computes dependencies on the fly for the entries in module [md] *)
-val handle : Basic.mident -> ((Entry.entry -> unit) -> unit) -> unit
+  (** [sort t] sorts the dependencies of [t] with respect to the
+     dependency relation. Return an error if this dependency relation
+     is not irreflexive. This can happen if [add md deps] was called
+     such that [md ∈ deps] or that [md] appears in the transitive
+     closure. *)
+  val sort : t -> (elt list, [`Circular of elt * elt list]) Result.t
 
-(** [topological_sort f] returns a list of files sorted by their dependencies *)
-val topological_sort : t -> string list
+  (** [get t elt] allows to get the dependencies of [elt] contained in [t]. *)
+  val get : t -> elt -> Set.t
+end
 
-(** [transitive_closure n] compute the transitive closure for [n] *)
-val transitive_closure : Basic.name -> unit
+(** Handle modules dependencies. *)
+module Modules : S with type elt = Kernel.Basic.mident
+
+(** Handle names dependencies. This can be costly in practice,
+   especially if [transitive=true]. *)
+module Names : S with type elt = Kernel.Basic.name

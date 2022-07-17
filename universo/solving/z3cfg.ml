@@ -121,7 +121,7 @@ module Make (ZL : Z3LOGIC) = struct
             (i, model))
 
   (** [solve mk_theory] tries to solve the constraints *)
-  let solve env =
+  let solve ~load_path:_ env =
     L.log_solver "[SOLVER] Solving...";
     check env env.min
 
