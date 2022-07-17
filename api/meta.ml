@@ -666,7 +666,9 @@ let _ =
     (module MetaConfiguration)
 
 let parse_meta_files files =
-  Processor.fold_files files
+  (* FIXME in a later commit: Use a real load path.  *)
+  let load_path = Files.empty in
+  Processor.fold_files ~load_path ~files
     ~f:(fun rules acc -> rules :: acc)
     ~default:[] MetaRules
   |> List.concat

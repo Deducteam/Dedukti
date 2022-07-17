@@ -21,6 +21,7 @@ let set_debug_mode =
     | c -> raise (DebugFlagNotRecognized c))
 
 type t = {
+  load_path : Files.t; (* Directories where object files can be found. *)
   input : Parser.input;
   sg : Signature.t;
   red : (module Reduction.S);
@@ -30,6 +31,7 @@ type t = {
 let dummy ?(md = Basic.mk_mident "") () =
   let dummy_sig = Signature.make md (fun _ _ -> "") in
   {
+    load_path = Files.empty;
     input = Parser.input_from_string md "";
     sg = dummy_sig;
     red = (module Reduction.Default);
@@ -44,13 +46,13 @@ let check_arity = ref true
 
 let check_ll = ref false
 
-let init input =
+let init ~load_path ~input =
   let sg =
     Signature.make (Parser.md_of_input input) Files_legacy.find_object_file
   in
   let red : (module Reduction.S) = (module Reduction.Default) in
   let typer : (module Typing.S) = (module Typing.Default) in
-  {input; sg; red; typer}
+  {load_path; input; sg; red; typer}
 
 let set_reduction_engine env (module R : Reduction.S) =
   let red = (module R : Reduction.S) in

@@ -64,11 +64,13 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
   in
   let processor = Meta.make_meta_processor cfg ~post_processing in
   Processor.Registration.register_processor Meta {equal} processor;
+  (* FIXME in a later commit: Use a real load path.  *)
+  let load_path = Files.empty in
   match config.Config.run_on_stdin with
-  | None -> Processor.handle_files files ~hook Meta
+  | None -> Processor.handle_files ~load_path ~files ~hook Meta
   | Some m ->
       let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
-      Api.Processor.handle_input input ~hook Meta
+      Api.Processor.handle_input ~hook ~load_path ~input Meta
 
 let meta_debug =
   let doc = "Activate meta-specific debug flag" in

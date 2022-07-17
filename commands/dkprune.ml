@@ -133,7 +133,11 @@ module ProcessConfigurationFile : Processor.S with type t = NSet.t = struct
   let handle_entry _ = function
     | Entry.Require (_, md) ->
         let file = Files_legacy.get_file md in
-        let snames = Processor.handle_files [file] GatherNames in
+        (* FIXME in a later commit: Use a real load path.  *)
+        let load_path = Files.empty in
+        let snames =
+          Processor.handle_files ~load_path ~files:[file] GatherNames
+        in
         names := NSet.union snames !names
     | Entry.DTree (_, Some md, id) -> names := NSet.add (mk_name md id) !names
     | _ as e -> raise @@ Dkprune_error (BadFormat (Entry.loc_of_entry e))
@@ -182,7 +186,9 @@ let rec run_on_files files =
     | Some (env, lc, e) -> Env.fail_env_error env lc e
   in
   let hook = Processor.{before; after} in
-  Processor.handle_files files ~hook PruneDepProcessor
+  (* FIXME in a later commit: Use a real load path.  *)
+  let load_path = Files.empty in
+  Processor.handle_files ~hook ~load_path ~files PruneDepProcessor
 
 (* compute dependencies for each module which appear in the configuration files *)
 let handle_modules mds =
@@ -197,7 +203,9 @@ let handle_names names =
 
 (* check if all the entry of a file are pruned *)
 let is_empty deps file =
-  let names = Processor.handle_files [file] GatherNames in
+  (* FIXME in a later commit: Use a real load path.  *)
+  let load_path = Files.empty in
+  let names = Processor.handle_files ~load_path ~files:[file] GatherNames in
   NSet.is_empty (NSet.inter names deps)
 
 (* for each input file for which dependencies has been computed, we write an output file *)
@@ -269,7 +277,9 @@ let prune config log output files =
   if log then enable_log ();
   output_directory := output;
   let run_on_constraints files =
-    Processor.handle_files files PruneProcessConfigurationFile
+    (* FIXME in a later commit: Use a real load path.  *)
+    let load_path = Files.empty in
+    Processor.handle_files ~load_path ~files PruneProcessConfigurationFile
   in
   let names = run_on_constraints files in
   handle_names names; print_dependencies names

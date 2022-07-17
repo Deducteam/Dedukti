@@ -44,8 +44,10 @@ let dkdep config ignore output sorted files =
           | Some (env, lc, exn) -> Env.fail_env_error env lc exn);
     }
   in
+  (* FIXME in a later commit: Use a real load path.  *)
+  let load_path = Files.empty in
   (* Actual work. *)
-  let deps = Processor.handle_files ~hook files Dependencies in
+  let deps = Processor.handle_files ~hook ~load_path ~files Dependencies in
   let formatter = Format.formatter_of_out_channel output in
   let output_fun = if sorted then output_sorted else output_deps in
   output_fun formatter deps;

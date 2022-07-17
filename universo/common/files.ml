@@ -166,5 +166,9 @@ let export : path -> step -> unit =
 
     let get_data env = env
   end in
-  let env = Api.Processor.T.handle_files [out_file] (module P) in
+  (* FIXME in a later commit: Use a real load path.  *)
+  let load_path = Api.Files.empty in
+  let env =
+    Api.Processor.T.handle_files ~load_path ~files:[out_file] (module P)
+  in
   Api.Env.export env

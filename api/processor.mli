@@ -60,20 +60,32 @@ type hook = {
 module type Interface = sig
   type 'a t
 
-  (** [handle_input input hook processor] applies the processor [processor]
-      on the [input]. [hook.hook_before] is executed  once before the processor
-      and [hook.hook_after] is executed once after the processor.
-      By default (without hooks), if an exception [exn] has been raised while
-      processing the data it is raised at top-level. *)
-  val handle_input : Parsers.Parser.input -> ?hook:hook -> 'a t -> 'a
+  (** [handle_input ?hook ~load_path ~input processor] applies the
+     processor [processor] on the [input] using [load_path] (see
+     {!module:Files}). [hook.hook_before] is executed once before the
+     processor and [hook.hook_after] is executed once after the
+     processor.  By default (without hooks), if an exception [exn] has
+     been raised while processing the data it is raised at
+     top-level. *)
+  val handle_input :
+    ?hook:hook -> load_path:Files.t -> input:Parsers.Parser.input -> 'a t -> 'a
 
-  (** [handle_files files hook processor] apply a processor on each file of [files].
-      [hook] is used once by file. The result is the one given once each file has
-      been processed. *)
-  val handle_files : string list -> ?hook:hook -> 'a t -> 'a
+  (** [handle_files ?hook files processor] apply a processor on each file of
+     [files].  [hook] is used once by file. The result is the one
+     given once each file has been processed. *)
+  val handle_files :
+    ?hook:hook -> load_path:Files.t -> files:string list -> 'a t -> 'a
 
+  (** [fold_files ?hook ~load_path ~files ~f ~default processor] is the
+   [fold] variant of [handle_files]. *)
   val fold_files :
-    string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b -> 'a t -> 'b
+    ?hook:hook ->
+    load_path:Files.t ->
+    files:string list ->
+    f:('a -> 'b -> 'b) ->
+    default:'b ->
+    'a t ->
+    'b
 end
 
 include Interface with type 'a t := 'a t

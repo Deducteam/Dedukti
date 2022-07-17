@@ -96,7 +96,9 @@ module Cmd = struct
 
       let get_data _ = ()
     end in
-    Api.Processor.T.handle_files [!config_path] (module P)
+    (* FIXME in a later commit: Use a real load path.  *)
+    let load_path = Api.Files.empty in
+    Api.Processor.T.handle_files ~load_path ~files:[!config_path] (module P)
 
   let elaboration_meta_cfg : unit -> M.cfg =
    fun () ->
@@ -149,8 +151,12 @@ module Cmd = struct
   (** [mk_theory ()] returns the theory used by universo. *)
   let mk_theory : unit -> S.t =
    fun () ->
+    (* FIXME in a later commit: Use a real load path.  *)
+    let load_path = Api.Files.empty in
     Api.Processor.(
-      handle_files [F.get_theory ()] Api.Processor.SignatureBuilder)
+      handle_files ~load_path
+        ~files:[F.get_theory ()]
+        Api.Processor.SignatureBuilder)
 
   (* (\** [elab_signature f] returns the signature containing all the universes declaration associated to *)
   (*     file [f] *\) *)
@@ -162,7 +168,9 @@ module Cmd = struct
    fun in_path ->
     (* FIXME: UGLY, rework to match the new API *)
     let out = F.get_out_path in_path `Output in
-    let env = Api.Env.init (P.input_from_file out) in
+    (* FIXME in a later commit: Use a real load path.  *)
+    let load_path = Api.Files.empty in
+    let env = Api.Env.init ~load_path ~input:(P.input_from_file out) in
     let constraints = mk_constraints () in
     let out_file = F.out_from_string in_path `Checking in
     {env; in_path; meta_out = output_meta_cfg (); constraints; out_file}
@@ -306,7 +314,9 @@ let check : string -> unit =
             | Some (env, lc, exn) -> Api.Env.fail_env_error env lc exn);
       }
   in
-  Api.Processor.T.handle_files ~hook [file] (module P);
+  (* FIXME in a later commit: Use a real load path.  *)
+  let load_path = Api.Files.empty in
+  Api.Processor.T.handle_files ~hook ~load_path ~files:[file] (module P);
   Api.Env.export universo_env.env;
   C.flush ();
   F.close universo_env.out_file;
@@ -338,9 +348,11 @@ let simplify : string list -> unit =
       M.parse_meta_files [path]
     in
     M.add_rules out_cfg solution_rules;
+    (* FIXME in a later commit: Use a real load path.  *)
+    let load_path = Api.Files.empty in
     let file = F.get_out_path in_path `Output in
     let input = P.input_from_file file in
-    let env = Api.Env.init input in
+    let env = Api.Env.init ~load_path ~input in
     let output = F.out_from_string in_path `Simplify in
     let fmt = F.fmt_of_file output in
     let mk_entry e =

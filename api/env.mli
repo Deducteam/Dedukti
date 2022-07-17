@@ -49,8 +49,10 @@ val check_ll : bool ref
 
 (** {2 The Global Environment} *)
 
-(** [init input] initializes a new global environement from the [input] *)
-val init : Parser.input -> t
+(** [init ~load_path ~input] initializes a new global environement from
+   the [input] and [load_path]. [load_path] is used to find object
+   files that can be imported during type checking. *)
+val init : load_path:Files.t -> input:Parser.input -> t
 
 (** [get_input env] returns the input used to create [env] *)
 val get_input : t -> Parser.input

@@ -46,7 +46,11 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
       let get_data _ = List.flatten !cstrs
     end in
     let cstr_file = F.get_out_path in_path `Checking in
-    let cstrs = Api.Processor.T.handle_files [cstr_file] (module P) in
+    (* FIXME in a later commit: Use a real load path.  *)
+    let load_path = Api.Files.empty in
+    let cstrs =
+      Api.Processor.T.handle_files ~load_path ~files:[cstr_file] (module P)
+    in
     List.iter Solver.add cstrs
 
   (** [print_model meta model f] print the model associated to the universes elaborated in file [f]. Each universe are elaborated to the original universe theory thanks to the dkmeta [meta] configuration. *)
@@ -73,7 +77,9 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
 
       let get_data _ = ()
     end in
-    Api.Processor.T.handle_files [elab_file] (module P);
+    (* FIXME in a later commit: Use a real load path.  *)
+    let load_path = Api.Files.empty in
+    Api.Processor.T.handle_files ~load_path ~files:[elab_file] (module P);
     F.close sol_file
 
   let print_model meta model files = List.iter (print_model meta model) files
@@ -113,8 +119,10 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
 
       let get_data _ = ()
     end in
+    (* FIXME in a later commit: Use a real load path.  *)
+    let load_path = Api.Files.empty in
     let cstr_file = F.get_out_path in_path `Checking in
-    Api.Processor.T.handle_files [cstr_file] (module P)
+    Api.Processor.T.handle_files ~load_path ~files:[cstr_file] (module P)
 
   (* List.iter S.add entries' *)
   (* TODO: This should be factorized. the normalization should be done after solve and return a correct model *)
@@ -148,7 +156,9 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
 
       let get_data _ = ()
     end in
-    Api.Processor.T.handle_files [elab_file] (module P);
+    (* FIXME in a later commit: Use a real load path.  *)
+    let load_path = Api.Files.empty in
+    Api.Processor.T.handle_files ~load_path ~files:[elab_file] (module P);
     F.close sol_file
 
   let print_model meta model files =
