@@ -1,4 +1,4 @@
-(; OK ;)
+(; IGNORE ;)
 
 Nat: Type.
 Fin : Nat -> Type.

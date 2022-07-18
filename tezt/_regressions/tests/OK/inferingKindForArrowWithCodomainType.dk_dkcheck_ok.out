@@ -1,0 +1,7 @@
+tests/OK/inferingKindForArrowWithCodomainType.dk_dkcheck_ok.out
+
+./dk.native check --no-color -q tests/OK/inferingKindForArrowWithCodomainType.dk
+Kind
+Kind
+Kind
+Kind

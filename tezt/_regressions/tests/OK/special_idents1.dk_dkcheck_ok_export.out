@@ -1,0 +1,7 @@
+tests/OK/special_idents1.dk_dkcheck_ok_export.out
+
+./dk.native check --no-color -q -e tests/OK/special_idents1.dk
+{|∀∃“ç^°}|}
+{|∀∃“ç^°}|}
+{|ç^°}|}
+{|ç^°}|}

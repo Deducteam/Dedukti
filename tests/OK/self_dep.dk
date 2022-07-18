@@ -1,4 +1,4 @@
-(; OK ;)
+(; IGNORE ;)
 
 def A : Type.
 U : A -> Type.

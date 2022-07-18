@@ -1,0 +1,19 @@
+tests/OK/nsteps1.dk_dkcheck_ok.out
+
+./dk.native check --no-color -q tests/OK/nsteps1.dk
+A -> A
+A -> A
+A -> A
+A -> A
+A -> A -> A
+A -> A -> A
+A -> A -> A -> A
+A -> A -> A -> A
+A -> A -> A
+A -> A -> A
+A -> A -> A -> A
+A -> A -> A -> A
+(A -> A) -> A
+(A -> A) -> A
+((A -> A) -> A) -> A
+((A -> A) -> A) -> A

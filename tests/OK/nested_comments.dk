@@ -1,4 +1,4 @@
-(; OK ;)
+(; IGNORE ;)
 
 A : Type.
 (; This is a dummy comment

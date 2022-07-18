@@ -1,4 +1,4 @@
-(; OK ;)
+(; IGNORE ;)
 
 A : Type.
 #INFER A -> Type.

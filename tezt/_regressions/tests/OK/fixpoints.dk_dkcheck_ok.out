@@ -1,0 +1,3 @@
+tests/OK/fixpoints.dk_dkcheck_ok.out
+
+./dk.native check --no-color -q tests/OK/fixpoints.dk

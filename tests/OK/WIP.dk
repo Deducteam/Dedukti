@@ -1,4 +1,4 @@
-(; OK ;)
+(; IGNORE ;)
 
 A : Type.
 a : A. a' : A.
