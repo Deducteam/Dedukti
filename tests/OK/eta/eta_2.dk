@@ -1,5 +1,3 @@
-(; OK --eta ;)
-
 type : Type.
 def T : type -> Type.
 

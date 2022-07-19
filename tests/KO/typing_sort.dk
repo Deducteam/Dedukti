@@ -1,5 +1,3 @@
-(; KO 103 ;)
-
 nat : Type.
 
 x : nat.

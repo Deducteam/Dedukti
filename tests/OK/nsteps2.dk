@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 Bool : Type.
 T : Bool.
 F : Bool.

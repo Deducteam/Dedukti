@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 type : Type.
 
 injective eta : type -> Type.

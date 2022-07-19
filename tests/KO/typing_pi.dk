@@ -1,5 +1,3 @@
-(; KO 101 ;)
-
 T : Type.
 x : T.
 f : x -> Type.

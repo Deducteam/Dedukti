@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 R : Type.
 0 : R.
 

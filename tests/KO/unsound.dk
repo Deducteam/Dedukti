@@ -1,5 +1,3 @@
-(; KO 101 ;)
-
 X:Type.
 Nat:Type.
 Bool:Type.

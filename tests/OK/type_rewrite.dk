@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 def A : Type.
 B : Type.
 def x : A.

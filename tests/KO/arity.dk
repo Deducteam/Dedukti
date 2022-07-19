@@ -1,6 +1,3 @@
-(; IGNORE ;)
-
-
 N : Type.
 
 def a : (N -> N) -> N -> N.

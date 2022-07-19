@@ -43,10 +43,6 @@ jobs:
         run: |
           eval $(opam env)
           make universo
-      - name: running legacy tests...
-        run: |
-          eval $(opam env)
-          make tests
       - name: running Tezt tests...
         run: |
           eval $(opam env)

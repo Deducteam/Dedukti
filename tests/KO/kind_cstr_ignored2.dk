@@ -1,5 +1,3 @@
-(; KO 108 --type-lhs ;)
-
 A : Type.
 a : A.
 

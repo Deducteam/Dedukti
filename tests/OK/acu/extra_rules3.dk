@@ -1,5 +1,3 @@
-(; OK ;)
-
 T : Type.
 
 defac o [T].
