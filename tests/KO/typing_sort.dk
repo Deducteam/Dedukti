@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 nat : Type.
 
 x : nat.

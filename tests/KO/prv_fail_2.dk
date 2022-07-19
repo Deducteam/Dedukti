@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 def foo : prv.A -> prv.A.
 
 [] foo (prv.f' prv.a) --> prv.a.

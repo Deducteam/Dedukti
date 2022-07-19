@@ -1,3 +1,1 @@
-(; IGNORE ;)
-
 def foo : prv.A := prv.f' prv.A.

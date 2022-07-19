@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 X:Type.
 Nat:Type.
 Bool:Type.

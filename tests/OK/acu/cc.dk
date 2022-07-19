@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 Sort : Type.
 0 : Sort.
 1 : Sort.

@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 N : Type.
 1 : N.
 plus : N -> N -> N.

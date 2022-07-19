@@ -1,4 +1,3 @@
-(; IGNORE ;)
 
 a : {|dep C|}.A.
 b : {|dep C|}.{|∀|}.

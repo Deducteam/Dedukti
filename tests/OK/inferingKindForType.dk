@@ -1,4 +1,2 @@
-(; IGNORE ;)
-
 #INFER Type.
 #PRINT "Kind".

@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 def A : Type.
 
 #EVAL[-1] A.

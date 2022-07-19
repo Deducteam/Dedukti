@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 T : Type.
 
 def f : T -> T.

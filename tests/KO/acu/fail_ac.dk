@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 N : Type.
 f : N -> N -> N.
 

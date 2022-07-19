@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 def A : Type.
 eA : A -> Type.
 a : A.

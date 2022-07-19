@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 A : Type.
 def eq : A -> A -> Type.
 [x] eq x x --> A.

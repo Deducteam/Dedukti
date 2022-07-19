@@ -1,5 +1,3 @@
-(; IGNORE ;)
-
 T : Type.
 f : T -> T.
 def app : T -> T.

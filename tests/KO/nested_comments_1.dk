@@ -1,5 +1,3 @@
-(; KO 306 ;)
-
 A : Type.
 (; This is a first comment
 (; Here is a nested one ;)
