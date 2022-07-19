@@ -116,12 +116,97 @@ module Check = struct
       ok ~regression:true ~basename:"nsteps4.dk" [];
       ok ~basename:"dotpat.dk" [];
       ok ~basename:"type_rewrite.dk" []
+
+    module Assert = struct
+      let ok ~basename =
+        let filename = "tests/OK/assert/" ^ basename in
+        Dedukti.Check.ok ~filename
+
+      let _ =
+        ok ~regression:true ~basename:"conv_command.dk" [];
+        ok ~regression:true ~basename:"type_command.dk" []
+    end
+
+    module Check = struct
+      let ok ~basename =
+        let filename = "tests/OK/check/" ^ basename in
+        Dedukti.Check.ok ~filename
+
+      let _ =
+        ok ~regression:true ~basename:"conv_command2.dk" [];
+        ok ~regression:true ~basename:"type_command2.dk" [];
+        ok ~basename:"typed_lambda.dk" []
+    end
+
+    module Eta = struct
+      let ok ~basename =
+        let filename = "tests/OK/eta/" ^ basename in
+        Dedukti.Check.ok ~filename
+
+      let _ =
+        ok ~basename:"eta_0b.dk" [];
+        ok ~basename:"eta_0.dk" [Eta];
+        ok ~basename:"eta_1.dk" [Eta];
+        ok ~basename:"eta_2b.dk" [];
+        ok ~basename:"eta_2.dk" [Eta];
+        ok ~basename:"eta_arity.dk" [Eta]
+    end
+  end
+
+  module Ko = struct
+    let ko ~error ~basename =
+      let filename = "tests/KO/" ^ basename in
+      Dedukti.Check.ko ~error ~filename
+
+    let _ =
+      ko ~error:(`Code 506) ~basename:"arity.dk" [];
+      ko ~error:(`Code 101) ~basename:"arrowCodomainType.dk" [];
+      ko ~error:(`Code 101) ~basename:"arrowDomainType2.dk" [];
+      ko ~error:(`Code 101) ~basename:"arrowDomainType.dk" [];
+      ko ~error:(`Code 704) ~basename:"assert_conv_command.dk" [];
+      ko ~error:(`Code 704) ~basename:"assert_not_conv_command.dk" [];
+      ko ~error:(`Code 704) ~basename:"assert_not_type_command.dk" [];
+      ko ~error:(`Code 704) ~basename:"assert_type_command.dk" [];
+      ko ~error:(`Code 705) ~basename:"betaLHS.dk" [];
+      ko ~error:(`Code 108) ~basename:"binded_cstr_fail1.dk" [Type_lhs];
+      ko ~error:(`Code 109) ~basename:"brackets1.dk" [];
+      ko ~error:(`Code 202) ~basename:"brackets2.dk" [];
+      ko ~error:(`Code 202) ~basename:"brackets3.dk" [];
+      ko ~error:(`Code 703) ~basename:"brackets4.dk" [];
+      ko ~error:(`Code 401) ~basename:"brackets5.dk" [];
+      ko ~error:(`Code 703) ~basename:"brackets6.dk" [];
+      ko ~error:(`Code 107) ~basename:"cannot_infer_type_of_pattern_9.dk" [];
+      ko ~error:(`Code 101) ~basename:"church.dk" [];
+      ko ~error:(`Code 108) ~basename:"constraint_unsat.dk" [Type_lhs];
+      ko ~error:(`Code 704) ~basename:"convertibility_check_types.dk" [];
+      ko ~error:(`Code 108) ~basename:"cstr_fail1.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"cstr_fail2.dk" [Type_lhs];
+      ko ~error:(`Code 101) ~basename:"def.dk" [];
+      ko ~error:(`Code 106) ~basename:"domain_free_lambda_8.dk" [];
+      ko ~error:(`Code 101) ~basename:"EtaInConstraints_183.dk" [];
+      ko ~error:(`Code 101) ~basename:"EtaInConstraints_MoreEta_183.dk" [];
+      ko ~error:(`Code 401) ~basename:"guard1.dk" [];
+      ko ~error:(`Code 401) ~basename:"guard2.dk" [];
+      ko ~error:(`Code 706) ~basename:"guardedApplied.dk" [];
+      ko ~error:(`Code 101) ~basename:"illTypedPi.dk" [];
+      ko ~error:(`Code 105) ~basename:"inexpected_kind_7.dk" []
+
+    module Eta = struct
+      let ko ~error ~basename =
+        let filename = "tests/KO/eta/" ^ basename in
+        Dedukti.Check.ko ~error ~filename
+
+      let _ =
+        ko ~error:(`Code 704) ~basename:"eta_0.dk" [];
+        ko ~error:(`Code 704) ~basename:"eta_1b.dk" [];
+        ko ~error:(`Code 101) ~basename:"eta_1.dk" [];
+        ko ~error:(`Code 704) ~basename:"eta_2.dk" [];
+        ko ~error:(`Code 506) ~basename:"eta_arity.dk" []
+    end
   end
 end
 
 let _ =
-  Dedukti.Check.ok ~filename:"tests/eta/OK/eta_0.dk" [Eta];
-  Dedukti.Check.ko ~error:(`Code 704) ~filename:"tests/eta/KO/eta_0.dk" [];
   Dedukti.Meta.run ~filename:"tests/meta/simple.dk" [];
   Dedukti.Meta.run ~filename:"tests/meta/simple.dk" [No_meta];
   Dedukti.Meta.run ~filename:"tests/meta/beta.dk" [];

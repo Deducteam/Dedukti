@@ -92,11 +92,9 @@ let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
           postprocess (List.rev !output_acc)
       | Some (`Code code) ->
           (* We check the process returned on [stderr] the expected error code *)
-          Process.check_error
-            ~msg:Base.(rex (sf "[ERROR CODE:%d]" code))
-            process
+          Process.check_error ~msg:Base.(rex (sf "ERROR CODE:%d" code)) process
       | Some `System ->
-          Process.check_error ~msg:(Base.rex "[ERROR CODE:SYSTEM]") process)
+          Process.check_error ~msg:(Base.rex "ERROR CODE:SYSTEM") process)
 
 let title ~action ~result ~options filename =
   let options_str = String.concat ", " options in
