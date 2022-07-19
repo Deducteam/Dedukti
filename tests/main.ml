@@ -1,4 +1,12 @@
 module Check = struct
+  module Lib = struct
+    let ok ~basename =
+      let filename = "tests/LIB/" ^ basename in
+      Dedukti.Check.ok ~filename
+
+    let _ = ok ~basename:"prv.dk" [Export]
+  end
+
   module Ok = struct
     let ok ~basename =
       let filename = "tests/OK/" ^ basename in
@@ -117,6 +125,21 @@ module Check = struct
       ok ~basename:"dotpat.dk" [];
       ok ~basename:"type_rewrite.dk" []
 
+    module Acu = struct
+      let ok ~basename =
+        let filename = "tests/OK/acu/" ^ basename in
+        Dedukti.Check.ok ~filename
+
+      let _ =
+        ok ~basename:"cc.dk" [];
+        ok ~basename:"easy_ac.dk" [];
+        ok ~basename:"extra_rules.dk" [];
+        ok ~basename:"extra_rules2.dk" [];
+        ok ~basename:"extra_rules3.dk" [];
+        ok ~basename:"extra_rules4.dk" [];
+        ok ~basename:"min_ac.dk" []
+    end
+
     module Assert = struct
       let ok ~basename =
         let filename = "tests/OK/assert/" ^ basename in
@@ -189,7 +212,59 @@ module Check = struct
       ko ~error:(`Code 401) ~basename:"guard2.dk" [];
       ko ~error:(`Code 706) ~basename:"guardedApplied.dk" [];
       ko ~error:(`Code 101) ~basename:"illTypedPi.dk" [];
-      ko ~error:(`Code 105) ~basename:"inexpected_kind_7.dk" []
+      ko ~error:(`Code 105) ~basename:"inexpected_kind_7.dk" [];
+      ko ~error:(`Code 108) ~basename:"kind_cstr_ignored1.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"kind_cstr_ignored2.dk" [Type_lhs];
+      ko ~error:(`Code 306) ~basename:"lambdas_type_in_type.dk" [];
+      ko ~error:(`Code 701) ~basename:"lexing_id.dk" [];
+      ko ~error:(`Code 306) ~basename:"nested_comments_1.dk" [];
+      ko ~error:(`Code 701) ~basename:"nested_comments_2.dk" [];
+      ko ~error:(`Code 101) ~basename:"noninjectivity.dk" [];
+      ko ~error:(`Code 507) ~basename:"nonleftlinear.dk" [Left_linear];
+      ko ~error:(`Code 701) ~basename:"nsteps1.dk" [];
+      ko ~error:(`Code 702) ~basename:"parsing_eof.dk" [];
+      ko ~error:(`Code 104) ~basename:"product_expected_6.dk" [];
+      ko ~error:(`Code 403) ~basename:"prv_fail_1.dk" [Import "tests/LIB"];
+      ko ~error:(`Code 403) ~basename:"prv_fail_2.dk" [Import "tests/LIB"];
+      ko ~error:(`Code 107) ~basename:"rule_var.dk" [];
+      ko ~error:(`Code 900) ~basename:"scoping_ext.dk" [];
+      ko ~error:(`Code 101) ~basename:"self_dep2.dk" [];
+      ko ~error:(`Code 101) ~basename:"self_dep.dk" [];
+      ko ~error:(`Code 103) ~basename:"sort_expected_5.dk" [];
+      ko ~error:(`Code 701) ~basename:"special_idents.dk" [];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_1.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_2.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_a1.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_a2_2.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_a2.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_b1.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_b2.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_b3.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_c1.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_c2.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_e1.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_e2.dk" [Type_lhs];
+      ko ~error:(`Code 108) ~basename:"SR_unsat_f1.dk" [Type_lhs];
+      ko ~error:(`Code 306) ~basename:"symbol_not_found_31.dk" [];
+      ko ~error:(`Code 208) ~basename:"type_annot1.dk" [];
+      ko ~error:(`Code 208) ~basename:"type_annot2.dk" [];
+      ko ~error:(`Code 101) ~basename:"typeArrowType.dk" [];
+      ko ~error:(`Code 101) ~basename:"typing_abstraction.dk" [];
+      ko ~error:(`Code 104) ~basename:"typing_omega.dk" [];
+      ko ~error:(`Code 101) ~basename:"typing_pi.dk" [];
+      ko ~error:(`Code 103) ~basename:"typing_sort.dk" [];
+      ko ~error:(`Code 101) ~basename:"unsound.dk" [];
+      ko ~error:(`Code 101) ~basename:"untypable_lhs2.dk" [];
+      ko ~error:(`Code 101) ~basename:"untypable_lhs.dk" []
+
+    module Acu = struct
+      let ko ~error ~basename =
+        let filename = "tests/KO/acu/" ^ basename in
+        Dedukti.Check.ko ~error ~filename
+
+      let _ = ko ~error:(`Code 302) ~basename:"fail_ac.dk" []
+    end
 
     module Eta = struct
       let ko ~error ~basename =

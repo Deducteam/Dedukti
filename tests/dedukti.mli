@@ -1,5 +1,11 @@
 module Check : sig
-  type argument = Eta | Import of string | Sr_check of int | Export | Type_lhs
+  type argument =
+    | Eta
+    | Import of string
+    | Sr_check of int
+    | Export
+    | Type_lhs
+    | Left_linear
 
   (** [ok ?regression ~filename arguments] runs [dkcheck] on
      [filename] with [arguments].

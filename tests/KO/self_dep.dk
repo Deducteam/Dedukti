@@ -1,4 +1,4 @@
-(; KO 101 ;)
+(; IGNORE ;)
 
 def A : Type.
 def U : A -> Type.

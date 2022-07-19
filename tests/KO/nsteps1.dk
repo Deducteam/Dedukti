@@ -1,4 +1,4 @@
-(; KO 701 ;)
+(; IGNORE ;)
 
 def A : Type.
 

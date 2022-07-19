@@ -1,4 +1,4 @@
-(; OK ;)
+(; IGNORE ;)
 
 Sort : Type.
 0 : Sort.

@@ -1,4 +1,4 @@
-(; KO 101 ;)
+(; IGNORE ;)
 
 A : Type.
 def f : A -> A.
