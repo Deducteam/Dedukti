@@ -1,4 +1,4 @@
-(; KO 101 ;)
+(; IGNORE ;)
 
 A : Type.
 def B := A -> A -> A.
@@ -9,3 +9,9 @@ c : b : B -> C b.
 def T : b : B -> C b -> C b.
 
 [b] T b (c b) --> c (x => y => b x y).
+
+f1 : B.
+def f2 := x:A => f1 x.
+def f3 := x:A => f2 x.
+
+#ASSERT T f2 (c f3) == c f1.

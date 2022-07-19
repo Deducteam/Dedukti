@@ -1,3 +1,3 @@
-(; KO 106 ;)
+(; IGNORE ;)
 
 def f := x => x.

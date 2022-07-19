@@ -1,4 +1,4 @@
-(; KO 109 ;)
+(; IGNORE ;)
 
 A : Type.
 a : A.

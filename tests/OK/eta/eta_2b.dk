@@ -1,4 +1,4 @@
-(; KO 704 ;)
+(; IGNORE ;)
 
 type : Type.
 def T : type -> Type.
@@ -14,4 +14,4 @@ def l := (X:type => x:(T X) => g X x) paa foo.
 
 def r := (f:(T paa) => g paa (x:T a => f x)) foo.
 
-#ASSERT l == r.
+#ASSERTNOT l == r.
