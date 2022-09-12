@@ -47,8 +47,14 @@ let rec file_status load_path md candidates =
 
 let file_status load_path md = file_status load_path md []
 
-let as_object_file ?(prefix = Filename.current_dir_name) (File file) =
-  File (Filename.concat prefix (Filename.chop_extension file ^ "." ^ "dko"))
+let as_object_file ?prefix (File file) =
+  let basename = Filename.chop_extension file ^ ".dko" in
+  let filename =
+    match prefix with
+    | None -> basename
+    | Some path -> Filename.concat path basename
+  in
+  File filename
 
 let input_as_file ?(default_path = Filename.current_dir_name) input =
   match Parsers.Parser.file_of_input input with
