@@ -181,7 +181,7 @@ eval_config:
   {mk_config (Lexer.loc_of_pos $startpos) (List.map (fun x -> string_of_ident (snd x)) l) }
 
 param:
-  | LEFTPAR id=ID COLON te=term RIGHTPAR
+  | LEFTPAR id=pid COLON te=term RIGHTPAR
       {(fst id, snd id, te)}
 
 rule:
@@ -236,7 +236,7 @@ term:
       { t }
   | pid COLON aterm ARROW term
       { PrePi (fst $1,Some (snd $1), $3, $5) }
-  | LEFTPAR ID COLON aterm RIGHTPAR ARROW term
+  | LEFTPAR pid COLON aterm RIGHTPAR ARROW term
       { PrePi (fst $2,Some (snd $2), $4 ,$7) }
   | aterm ARROW term
       { PrePi (Lexer.loc_of_pos $startpos,None,$1,$3) }
