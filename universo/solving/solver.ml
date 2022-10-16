@@ -40,13 +40,18 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
                 (fun (r : R.partially_typed_rule) -> from_rule r.pat r.rhs)
                 rs
               :: !cstrs
-        | E.Require _     -> ()
-        | _               -> assert false
+        | E.Require _ -> ()
+        | _ -> assert false
 
       let get_data _ = List.flatten !cstrs
     end in
     let cstr_file = F.get_out_path in_path `Checking in
-    let cstrs = Api.Processor.T.handle_files [cstr_file] (module P) in
+    (* Load path is not needed since no importation is done by the
+       [P] processor. *)
+    let load_path = Api.Files.empty in
+    let cstrs =
+      Api.Processor.T.handle_files ~load_path ~files:[cstr_file] (module P)
+    in
     List.iter Solver.add cstrs
 
   (** [print_model meta model f] print the model associated to the universes elaborated in file [f]. Each universe are elaborated to the original universe theory thanks to the dkmeta [meta] configuration. *)
@@ -69,14 +74,18 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
             let rhs' = M.mk_term meta rhs in
             Format.fprintf fmt "[] %a --> %a.@." Printer.print_name name
               Printer.print_term rhs'
-        | _                       -> ()
+        | _ -> ()
 
       let get_data _ = ()
     end in
-    Api.Processor.T.handle_files [elab_file] (module P);
+    (* Load path is not needed since no importation is done by the
+       [P] processor. *)
+    let load_path = Api.Files.empty in
+    Api.Processor.T.handle_files ~load_path ~files:[elab_file] (module P);
     F.close sol_file
 
-  let print_model meta model files = List.iter (print_model meta model) files
+  let print_model ~load_path:_ meta model files =
+    List.iter (print_model meta model) files
 
   let solve = Solver.solve
 end
@@ -98,7 +107,7 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
    fun r ->
     match from_rule r.pat r.rhs with
     | U.EqVar _ -> rules := r :: !rules
-    | U.Pred p  -> sp := SP.add p !sp
+    | U.Pred p -> sp := SP.add p !sp
 
   (** [parse meta s] parses a constraint file. *)
   let parse : string -> unit =
@@ -108,13 +117,16 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
 
       let handle_entry _ = function
         | E.Rules (_, rs) -> List.iter mk_rule rs
-        | E.Require _     -> ()
-        | _               -> assert false
+        | E.Require _ -> ()
+        | _ -> assert false
 
       let get_data _ = ()
     end in
+    (* Load path is not needed since no importation is done by the
+       [P] processor. *)
+    let load_path = Api.Files.empty in
     let cstr_file = F.get_out_path in_path `Checking in
-    Api.Processor.T.handle_files [cstr_file] (module P)
+    Api.Processor.T.handle_files ~load_path ~files:[cstr_file] (module P)
 
   (* List.iter S.add entries' *)
   (* TODO: This should be factorized. the normalization should be done after solve and return a correct model *)
@@ -134,7 +146,7 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
         let find name =
           match M.mk_term meta_constraints (T.mk_Const B.dloc name) with
           | T.Const (_, name) -> name
-          | _                 -> assert false
+          | _ -> assert false
         in
         function
         | E.Decl (_, id, _, _, _) ->
@@ -144,24 +156,29 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
             let rhs' = M.mk_term meta_output rhs in
             Format.fprintf fmt "[] %a --> %a.@." Printer.print_name name
               Printer.print_term rhs'
-        | _                       -> ()
+        | _ -> ()
 
       let get_data _ = ()
     end in
-    Api.Processor.T.handle_files [elab_file] (module P);
+    (* Load path is not needed since no importation is done by the
+       [P] processor. *)
+    let load_path = Api.Files.empty in
+    Api.Processor.T.handle_files ~load_path ~files:[elab_file] (module P);
     F.close sol_file
 
-  let print_model meta model files =
+  let print_model ~load_path meta model files =
     let cstr_files =
       List.map (fun file -> F.get_out_path file `Checking) files
     in
     let meta_constraints = M.parse_meta_files cstr_files in
     (* FIXME: clean this: why two meta configuration? *)
-    let meta_constraints = M.default_config ~meta_rules:meta_constraints () in
+    let meta_constraints =
+      M.default_config ~meta_rules:meta_constraints ~load_path ()
+    in
     List.iter (print_model meta_constraints meta model) files
 
-  let solve solver_env =
-    let meta = M.default_config ~meta_rules:!rules () in
+  let solve ~load_path solver_env =
+    let meta = M.default_config ~meta_rules:!rules ~load_path () in
     let normalize : U.pred -> U.pred =
      fun p -> U.extract_pred (M.mk_term meta (U.term_of_pred p))
     in
@@ -169,5 +186,5 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
     let sp' = SP.map normalize !sp in
     L.log_solver "[NORMALIZE DONE]";
     SP.iter (fun p -> Solver.add (Pred p)) sp';
-    Solver.solve solver_env
+    Solver.solve ~load_path solver_env
 end

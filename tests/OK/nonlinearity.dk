@@ -1,4 +1,3 @@
-(; OK ;)
 A : Type.
 
 def f : A -> A -> A.

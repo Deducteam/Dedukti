@@ -1,5 +1,3 @@
-(; OK ;)
-
 nat : Type.
 
 0 : nat.

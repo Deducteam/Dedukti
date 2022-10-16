@@ -76,7 +76,7 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
   let open Processor in
   let hook_after env exn =
     match exn with
-    | None              ->
+    | None ->
         if not (Config.quiet config) then Errors.success (Env.get_filename env);
         if export then Env.export env;
         Confluence.finalize ()
@@ -85,16 +85,21 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
   let hook =
     {before = (fun _ -> Confluence.initialize ()); after = hook_after}
   in
-  Processor.handle_files files ~hook TypeChecker;
+  let load_path = Config.load_path config in
+  Processor.handle_files ~hook ~load_path ~files TypeChecker;
   let f m =
     let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
-    Processor.handle_input input TypeChecker
+    Processor.handle_input ~load_path ~input TypeChecker
   in
   Option.iter f config.Config.run_on_stdin
 
+let cmd_t =
+  Term.(
+    const dkcheck $ Config.t $ confluence $ de_bruijn $ export $ files $ eta
+    $ ll $ sr_check $ errors_in_snf $ coc $ type_lhs)
+
 let cmd =
   let doc = "Type check a list of Dedukti files" in
-  let exits = Term.default_exits in
   let man =
     [
       `S Manpage.s_description;
@@ -111,9 +116,4 @@ let cmd =
       `P "Report bugs to <dedukti-dev@inria.fr>.";
     ]
   in
-  ( Term.(
-      const dkcheck $ Config.t $ confluence $ de_bruijn $ export $ files $ eta
-      $ ll $ sr_check $ errors_in_snf $ coc $ type_lhs),
-    Term.info "dkcheck" ~version:"%%VERSION%%" ~doc ~exits ~man )
-
-let () = Term.(exit @@ eval cmd)
+  Cmd.v (Cmd.info "check" ~version:"%%VERSION%%" ~doc ~man) cmd_t

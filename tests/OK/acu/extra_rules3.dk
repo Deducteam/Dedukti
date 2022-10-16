@@ -1,0 +1,29 @@
+T : Type.
+
+defac o [T].
+
+[X] o X X --> X.
+
+(; The following rule is silently added:
+     o{X X Y} --> o{X Y}
+;)
+
+t : T.
+u : T.
+
+#ASSERT o t t == t.
+#ASSERT o u u == u.
+#ASSERT o u t == o t u.
+
+#ASSERT o (o t u) (o u t) == o u t.
+#ASSERT o t (o u (o u t)) == o u t.
+#ASSERT o t (o t (o t t)) == t.
+
+#ASSERT o t (o t u) == o u t.
+#ASSERT o (o t u) t == o u t.
+#ASSERT o (o u t) t == o u t.
+
+#ASSERT (x:T => o (o t x) t) == (x:T => o t x).
+#ASSERT (x:T => o (o x t) t) == (x:T => o t x).
+#ASSERT (x:T => o t (o t x)) == (x:T => o x t).
+#ASSERT (x:T => o t (o x t)) == (x:T => o x t).

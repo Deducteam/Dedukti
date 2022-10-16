@@ -18,18 +18,18 @@ let empty = mk_ident ""
 let rec t_of_pt md (ctx : ident list) (pte : preterm) : term =
   let t_of_pt = t_of_pt md in
   match pte with
-  | PreType l                 -> mk_Type l
-  | PreId (l, id)             -> (
+  | PreType l -> mk_Type l
+  | PreId (l, id) -> (
       match get_db_index ctx id with
-      | None   -> mk_Const l (mk_name md id)
+      | None -> mk_Const l (mk_name md id)
       | Some n -> mk_DB l id n)
-  | PreQId (l, cst)           -> mk_Const l cst
-  | PreApp (f, a, args)       ->
+  | PreQId (l, cst) -> mk_Const l cst
+  | PreApp (f, a, args) ->
       mk_App (t_of_pt ctx f) (t_of_pt ctx a) (List.map (t_of_pt ctx) args)
-  | PrePi (l, None, a, b)     ->
+  | PrePi (l, None, a, b) ->
       mk_Arrow l (t_of_pt ctx a) (t_of_pt (empty :: ctx) b)
-  | PrePi (l, Some x, a, b)   -> mk_Pi l x (t_of_pt ctx a) (t_of_pt (x :: ctx) b)
-  | PreLam (l, id, None, b)   -> mk_Lam l id None (t_of_pt (id :: ctx) b)
+  | PrePi (l, Some x, a, b) -> mk_Pi l x (t_of_pt ctx a) (t_of_pt (x :: ctx) b)
+  | PreLam (l, id, None, b) -> mk_Lam l id None (t_of_pt (id :: ctx) b)
   | PreLam (l, id, Some a, b) ->
       mk_Lam l id (Some (t_of_pt ctx a)) (t_of_pt (id :: ctx) b)
 
@@ -79,6 +79,7 @@ let get_vars_order (vars : pcontext) (ppat : prepattern) :
         has_brackets := true;
         ctx
     | PJoker (l, _) -> (l, get_fresh_name (), None) :: ctx
+    | PApp plist -> List.fold_left (aux bvar) ctx plist
   in
   let ordered_ctx = aux [] [] ppat in
   ( ordered_ctx,
@@ -95,7 +96,7 @@ let p_of_pp md (ctx : ident list) (ppat : prepattern) : pattern =
     | PPattern (l, None, id, pargs) -> (
         match get_db_index ctx id with
         | Some n -> Var (l, id, n, List.map (aux ctx) pargs)
-        | None   -> Pattern (l, mk_name md id, List.map (aux ctx) pargs))
+        | None -> Pattern (l, mk_name md id, List.map (aux ctx) pargs))
     | PPattern (l, Some md, id, pargs) ->
         Pattern (l, mk_name md id, List.map (aux ctx) pargs)
     | PLambda (l, x, pp) -> Lambda (l, x, aux (x :: ctx) pp)
@@ -104,9 +105,11 @@ let p_of_pp md (ctx : ident list) (ppat : prepattern) : pattern =
         let id = get_fresh_name () in
         match get_db_index ctx id with
         | Some n -> Var (l, id, n, List.map (aux ctx) pargs)
-        | None   -> assert false)
+        | None -> assert false)
+    (* The cleaning of prepatterns suppress all the PApp *)
+    | PApp _ -> assert false
   in
-  aux ctx ppat
+  aux ctx (clean_pre_pattern ppat)
 
 (******************************************************************************)
 
@@ -128,14 +131,14 @@ let scope_rule md ((l, pname, pctx, md_opt, id, pargs, pri) : prule) :
   let idents = List.map (fun (_, x, _) -> x) ctx in
   let b, id =
     match pname with
-    | None         ->
+    | None ->
         let id = Format.sprintf "%s!%d" (string_of_ident id) (fst (of_loc l)) in
         (false, mk_ident id)
     | Some (_, id) -> (true, id)
   in
   let name = Gamma (b, mk_name md id) in
   let rec ctx_of_pctx ctx acc = function
-    | []               -> acc
+    | [] -> acc
     | (l, x, ty) :: tl ->
         ctx_of_pctx (x :: ctx) ((l, x, map_opt (t_of_pt md ctx) ty) :: acc) tl
   in

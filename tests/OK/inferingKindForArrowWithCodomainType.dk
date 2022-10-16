@@ -1,5 +1,3 @@
-(; OK ;)
-
 A : Type.
 #INFER A -> Type.
 #PRINT "Kind".

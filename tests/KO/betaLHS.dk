@@ -1,0 +1,4 @@
+T : Type.
+
+def f : T -> T.
+[a] f ((x => x) a) --> a.

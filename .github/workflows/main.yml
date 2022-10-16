@@ -2,21 +2,26 @@ on:
   pull_request:
     types: [opened, synchronize, edited, reopened]
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 15 * *'
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        ocaml-version: [4.13.1]
+        ocaml-version: [4.14.0]
     runs-on: ubuntu-latest
     steps:
-      - name: checking out lambdapi repo...
+      - name: checking out dedukti repo...
         uses: actions/checkout@v2
       - name: recovering cached opam files...
         uses: actions/cache@v2
         with:
           path: ~/.opam
-          key: ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}
+          key: |
+            ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}-
       - name: setting up opam...
         uses: avsm/setup-ocaml@v1
         with:
@@ -27,10 +32,9 @@ jobs:
           opam upgrade
           opam pin add -n -k path dedukti .
           opam install --deps-only -d -t dedukti
-          opam install ocamlformat
-          opam install tezt --no-checksums --keep-build-dir
-          opam install ~/.opam/4.13.1/.opam-switch/sources/tezt.1.0.0/tezt/lib
-          opam install z3          
+          opam install ocamlformat.0.22.4
+          opam install tezt
+          opam install z3
       - name: Checking formatting...
         run: |
           eval $(opam env)
@@ -39,11 +43,17 @@ jobs:
         run: |
           eval $(opam env)
           make universo
-      - name: running legacy tests...
-        run: |
-          eval $(opam env)
-          make tests
       - name: running Tezt tests...
         run: |
           eval $(opam env)
           make tezt
+      - name: running light libraries...
+        if: github.event_name != 'schedule'
+        run: |
+          eval $(opam env)
+          make light_tests
+      - name: running all libraries...
+        if: github.event_name == 'schedule'
+        run: |
+          eval $(opam env)
+          make full_tests

@@ -1,5 +1,3 @@
-(; OK ;)
-
 Nat: Type.
 Fin : Nat -> Type.
 

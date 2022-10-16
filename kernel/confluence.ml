@@ -101,8 +101,8 @@ let rec pp_term (ar : int IdMap.t) k fmt term =
         (pp_term ar (k + 1))
         b
   | Lam (_, _, None, _) ->
-      failwith "Not implemented: TPDB export for non-annotated abstractions."
-      (*FIXME*)
+      failwith
+        "Not implemented: TPDB export for non-annotated abstractions." (*FIXME*)
   | Pi (_, x, a, b) ->
       fprintf fmt "pi(%a,\\v_%a.%a)" (pp_term ar k) a pp_ident x
         (pp_term ar (k + 1))
@@ -192,7 +192,7 @@ let pp_rule fmt (r : rule_infos) =
 
 let check () =
   match !file_out with
-  | None             -> ()
+  | None -> ()
   | Some (file, out) ->
       flush out;
       let cmd = !confluence_command ^ " -p " ^ file in
@@ -209,9 +209,9 @@ let check () =
         do_not_erase_confluence_file := true;
         let error =
           match answer with
-          | "NO"    -> NotConfluent cmd
+          | "NO" -> NotConfluent cmd
           | "MAYBE" -> MaybeConfluent cmd
-          | _       -> CCFailure cmd
+          | _ -> CCFailure cmd
         in
         raise (Confluence_error error))
 

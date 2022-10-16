@@ -1,0 +1,27 @@
+tests/meta/rewrite_prod.dk_dkmeta_meta_file_quoting_prod_no_unquoting.out
+
+./dk.native meta --no-color -q -I tests/meta -m tests/meta_files/prod_meta.dk --quoting prod --no-unquoting tests/meta/rewrite_prod.dk
+type : prod.ty.
+
+el : prod.prod type (__:type => prod.ty).
+
+pi :
+  prod.prod
+    type
+    (A:type =>
+     prod.prod
+       (prod.prod (el A) (x:(el A) => type))
+       (__:(prod.prod (el A) (x:(el A) => type)) => type)).
+
+nat : type.
+
+foo : el (pi nat (x:(el nat) => nat)).
+
+foo' : el (pi nat (__ => nat)).
+
+Vec : prod.prod (el nat) (__:(el nat) => type).
+
+bar : el (pi nat (x:(el nat) => Vec x)).
+
+bar' : el (pi nat (__ => Vec __)).
+

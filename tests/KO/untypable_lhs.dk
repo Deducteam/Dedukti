@@ -1,5 +1,3 @@
-(; KO 101 ;)
-
 A : Type.
 def f : A -> A.
 def g : A -> A.

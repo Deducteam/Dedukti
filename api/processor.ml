@@ -57,17 +57,17 @@ module MakeTypeChecker (Env : CustomEnv) : S with type t = unit = struct
     | Check (lc, assrt, neg, Convert (t1, t2)) -> (
         let succ = Env.are_convertible env t1 t2 <> neg in
         match (succ, assrt) with
-        | true, false  -> Format.printf "YES@."
-        | true, true   -> ()
+        | true, false -> Format.printf "YES@."
+        | true, true -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise @@ Entry.Assert_error lc)
+        | false, true -> raise @@ Entry.Assert_error lc)
     | Check (lc, assrt, neg, HasType (te, ty)) -> (
         let succ = try Env.check env te ty; not neg with _ -> neg in
         match (succ, assrt) with
-        | true, false  -> Format.printf "YES@."
-        | true, true   -> ()
+        | true, false -> Format.printf "YES@."
+        | true, true -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise @@ Entry.Assert_error lc)
+        | false, true -> raise @@ Entry.Assert_error lc)
     | DTree (lc, m, v) ->
         let m = match m with None -> Env.get_name env | Some m -> m in
         let cst = mk_name m v in
@@ -134,12 +134,13 @@ end
 
 module EntryPrinter = MakeEntryPrinter (Env)
 
-module MakeDependencies (Env : CustomEnv) : S with type t = Dep.t = struct
-  type t = Dep.t
+module MakeDependencies (Env : CustomEnv) : S with type t = Dep_legacy.t =
+struct
+  type t = Dep_legacy.t
 
-  let handle_entry env e = Dep.handle (Env.get_name env) (fun f -> f e)
+  let handle_entry env e = Dep_legacy.handle (Env.get_name env) (fun f -> f e)
 
-  let get_data _ = Dep.deps
+  let get_data _ = Dep_legacy.deps
 end
 
 module Dependencies = MakeDependencies (Env)
@@ -174,17 +175,17 @@ module MakeTopLevel (Env : CustomEnv) : S with type t = unit = struct
     | Check (lc, assrt, neg, Convert (t1, t2)) -> (
         let succ = Env.are_convertible env t1 t2 <> neg in
         match (succ, assrt) with
-        | true, false  -> Format.printf "YES@."
-        | true, true   -> ()
+        | true, false -> Format.printf "YES@."
+        | true, true -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise @@ Entry.Assert_error lc)
+        | false, true -> raise @@ Entry.Assert_error lc)
     | Check (lc, assrt, neg, HasType (te, ty)) -> (
         let succ = try Env.check env te ty; not neg with _ -> neg in
         match (succ, assrt) with
-        | true, false  -> Format.printf "YES@."
-        | true, true   -> ()
+        | true, false -> Format.printf "YES@."
+        | true, true -> ()
         | false, false -> Format.printf "NO@."
-        | false, true  -> raise @@ Entry.Assert_error lc)
+        | false, true -> raise @@ Entry.Assert_error lc)
     | DTree (lc, m, v) ->
         let m = match m with None -> Env.get_name env | Some m -> m in
         let cst = mk_name m v in
@@ -227,7 +228,7 @@ module Registration = struct
           (fun pair ->
             match f.equal pair with
             | Some refl -> Some refl
-            | None      -> old_equal.equal pair);
+            | None -> old_equal.equal pair);
       }
 end
 
@@ -245,7 +246,7 @@ let get_processor (type a) : a t -> (module S with type t = a) =
               include P
             end : S
               with type t = _)
-        | None          -> unpack' list')
+        | None -> unpack' list')
   in
   unpack' dispatch
 
@@ -259,20 +260,20 @@ type hook = {
 module type Interface = sig
   type 'a t
 
-  (** [handle_input input hook processor] applies the processor [processor]
-      on the [input]. [hook.hook_before] is executed  once before the processor
-      and [hook.hook_after] is executed once after the processor.
-      By default (without hooks), if an exception [exn] has been raised while
-      processing the data it is raised at top-level. *)
-  val handle_input : Parsers.Parser.input -> ?hook:hook -> 'a t -> 'a
+  val handle_input :
+    ?hook:hook -> load_path:Files.t -> input:Parsers.Parser.input -> 'a t -> 'a
 
-  (** [handle_files files hook processor] apply a processor on each file of [files].
-      [hook] is used once by file. The result is the one given once each file has
-      been processed. *)
-  val handle_files : string list -> ?hook:hook -> 'a t -> 'a
+  val handle_files :
+    ?hook:hook -> load_path:Files.t -> files:string list -> 'a t -> 'a
 
   val fold_files :
-    string list -> ?hook:hook -> f:('a -> 'b -> 'b) -> default:'b -> 'a t -> 'b
+    ?hook:hook ->
+    load_path:Files.t ->
+    files:string list ->
+    f:('a -> 'b -> 'b) ->
+    default:'b ->
+    'a t ->
+    'b
 end
 
 module Make (C : sig
@@ -293,12 +294,13 @@ end) : Interface with type 'a t := 'a C.t = struct
       Parser.handle input (handle_entry env)
     with
     | Env.Env_error _ as exn -> raise @@ exn
-    | exn                    -> raise @@ Env.Env_error (env, Basic.dloc, exn)
+    | exn -> raise @@ Env.Env_error (env, Basic.dloc, exn)
 
-  let handle_input : Parser.input -> ?hook:hook -> 'a t -> 'a =
-    fun (type a) input ?hook processor ->
+  let handle_input :
+      ?hook:hook -> load_path:Files.t -> input:Parser.input -> 'a t -> 'a =
+    fun (type a) ?hook ~load_path ~input processor ->
      let (module P : S with type t = a) = C.get_processor processor in
-     let env = Env.init input in
+     let env = Env.init ~load_path ~input in
      (match hook with None -> () | Some hook -> hook.before env);
      let exn =
        try
@@ -307,41 +309,43 @@ end) : Interface with type 'a t := 'a C.t = struct
        with Env.Env_error (env, lc, e) -> Some (env, lc, e)
      in
      (match hook with
-     | None      -> (
+     | None -> (
          match exn with
-         | None                -> ()
+         | None -> ()
          | Some (env, lc, exn) -> Env.fail_env_error env lc exn)
      | Some hook -> hook.after env exn);
      let data = P.get_data env in
      data
 
   let fold_files :
-      string list ->
       ?hook:hook ->
+      load_path:Files.t ->
+      files:string list ->
       f:('a -> 'b -> 'b) ->
       default:'b ->
       'a t ->
       'b =
-   fun files ?hook ~f ~default processor ->
+   fun ?hook ~load_path ~files ~f ~default processor ->
     let handle_file file =
       try
         let input = Parser.input_from_file file in
-        let data = handle_input input ?hook processor in
+        let data = handle_input ?hook ~load_path ~input processor in
         Parser.close input; data
       with Sys_error msg -> Errors.fail_sys_error ~file ~msg ()
     in
     let fold b file =
       try f (handle_file file) b
       with exn ->
-        let env = Env.init (Parser.input_from_file file) in
+        let env = Env.init ~load_path ~input:(Parser.input_from_file file) in
         Env.fail_env_error env Basic.dloc exn
     in
     List.fold_left fold default files
 
-  let handle_files : string list -> ?hook:hook -> 'a t -> 'a =
-    fun (type a) files ?hook processor ->
+  let handle_files :
+      ?hook:hook -> load_path:Files.t -> files:string list -> 'a t -> 'a =
+    fun (type a) ?hook ~load_path ~files processor ->
      let (module P : S with type t = a) = C.get_processor processor in
-     fold_files files ?hook
+     fold_files ~load_path ~files ?hook
        ~f:(fun data _ -> data)
        ~default:(P.get_data (Env.dummy ()))
        processor
@@ -364,14 +368,14 @@ type _ t += SignatureBuilder : Signature.t t
 
 type _ t += PrettyPrinter : unit t
 
-type _ t += Dependencies : Dep.t t
+type _ t += Dependencies : Dep_legacy.t t
 
 type _ t += TopLevel : unit t
 
 let equal_tc (type a b) : a t * b t -> (a t, b t) Registration.equal option =
   function
   | TypeChecker, TypeChecker -> Some (Registration.Refl TypeChecker)
-  | _                        -> None
+  | _ -> None
 
 let equal_sb (type a b) : a t * b t -> (a t, b t) Registration.equal option =
   function
@@ -386,12 +390,12 @@ let equal_pp (type a b) : a t * b t -> (a t, b t) Registration.equal option =
 let equal_dep (type a b) : a t * b t -> (a t, b t) Registration.equal option =
   function
   | Dependencies, Dependencies -> Some (Refl Dependencies)
-  | _                          -> None
+  | _ -> None
 
 let equal_top_level (type a b) :
     a t * b t -> (a t, b t) Registration.equal option = function
   | TopLevel, TopLevel -> Some (Refl TopLevel)
-  | _                  -> None
+  | _ -> None
 
 let () =
   let open Registration in

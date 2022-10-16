@@ -46,9 +46,10 @@ let signature_add_rule sg r = Signature.add_rules sg [Rule.to_rule_infos r]
 let signature_add_rules sg rs = List.iter (signature_add_rule sg) rs
 
 let default_config ?meta_rules ?(beta = true) ?encoding ?(decoding = true)
-    ?(register_before = true) () =
+    ?(register_before = true) ~load_path () =
   let meta_mident = Basic.mk_mident "<meta>" in
-  let meta_signature = Signature.make meta_mident Files.find_object_file in
+  let find_object_file = Files.find_object_file_exn load_path in
+  let meta_signature = Signature.make meta_mident find_object_file in
   Option.iter
     (fun (module E : ENCODING) ->
       Signature.import_signature meta_signature E.signature)
@@ -67,7 +68,7 @@ let add_rules cfg rules =
   signature_add_rules cfg.meta_signature rules;
   let rules = RNS.of_list (List.map rule_name rules) in
   match cfg.meta_rules with
-  | None                -> cfg.meta_rules <- Some rules
+  | None -> cfg.meta_rules <- Some rules
   | Some previous_rules ->
       cfg.meta_rules <- Some (RNS.union rules previous_rules)
 
@@ -90,7 +91,7 @@ let red_cfg : cfg -> Reduction.red_cfg =
     }
   in
   match cfg.meta_rules with
-  | None            -> {red_cfg with select = Some (fun _ -> true)}
+  | None -> {red_cfg with select = Some (fun _ -> true)}
   | Some meta_rules ->
       {red_cfg with select = Some (fun r -> RNS.mem r meta_rules)}
 
@@ -112,7 +113,8 @@ module PROD = struct
     List.map mk_decl ["ty"; "prod"]
 
   let signature =
-    let sg = Signature.make md Files.find_object_file in
+    let find_object_file = Files.find_object_file_exn Files.empty in
+    let sg = Signature.make md find_object_file in
     let mk_decl id =
       Signature.add_declaration sg dloc (mk_ident id) Signature.Public
         (Signature.Definable Free) (mk_Type dloc)
@@ -128,13 +130,13 @@ module PROD = struct
 
   let rec encode_term t =
     match t with
-    | Kind                 -> assert false
-    | Type lc              -> encode_type lc
-    | DB (lc, x, n)        -> encode_DB lc x n
-    | Const (lc, name)     -> encode_Const lc name
+    | Kind -> assert false
+    | Type lc -> encode_type lc
+    | DB (lc, x, n) -> encode_DB lc x n
+    | Const (lc, name) -> encode_Const lc name
     | Lam (lc, x, mty, te) -> encode_Lam lc x mty te
-    | App (f, a, args)     -> encode_App f a args
-    | Pi (lc, x, a, b)     -> encode_Pi lc x a b
+    | App (f, a, args) -> encode_App f a args
+    | Pi (lc, x, a, b) -> encode_Pi lc x a b
 
   and encode_type lc = mk_Const lc (name_of "ty")
 
@@ -168,12 +170,12 @@ module PROD = struct
 
   let rec decode_term t =
     match t with
-    | Kind                 -> assert false
-    | Pi _                 -> assert false
-    | App (f, a, args)     -> decode_App f a args
+    | Kind -> assert false
+    | Pi _ -> assert false
+    | App (f, a, args) -> decode_App f a args
     | Lam (lc, x, mty, te) -> decode_Lam lc x mty te
-    | Const (lc, name)     -> decode_Const lc name
-    | Type _ | DB _        -> t
+    | Const (lc, name) -> decode_Const lc name
+    | Type _ | DB _ -> t
 
   and decode_Const lc name =
     if name_eq name (name_of "ty") then mk_Type lc else mk_Const lc name
@@ -191,10 +193,9 @@ module PROD = struct
           match args with
           | [Lam (_, x, Some a, b)] ->
               mk_Pi dloc x (decode_term a) (decode_term b)
-          | _                       -> assert false
+          | _ -> assert false
         else mk_App (decode_term f) (decode_term a) (List.map decode_term args)
-    | _               -> mk_App (decode_term f) (decode_term a)
-                           (List.map decode_term args)
+    | _ -> mk_App (decode_term f) (decode_term a) (List.map decode_term args)
 end
 
 module LF = struct
@@ -215,7 +216,8 @@ module LF = struct
     List.map mk_decl ["ty"; "var"; "sym"; "lam"; "app"; "prod"]
 
   let signature =
-    let sg = Signature.make md Files.find_object_file in
+    let find_object_file = Files.find_object_file_exn Files.empty in
+    let sg = Signature.make md find_object_file in
     let mk_decl id =
       Signature.add_declaration sg dloc (mk_ident id) Signature.Public
         (Signature.Definable Free) (mk_Type dloc)
@@ -231,13 +233,13 @@ module LF = struct
 
   let rec encode_term t =
     match t with
-    | Kind                 -> assert false
-    | Type lc              -> encode_type lc
-    | DB (lc, x, n)        -> encode_DB lc x n
-    | Const (lc, name)     -> encode_Const lc name
+    | Kind -> assert false
+    | Type lc -> encode_type lc
+    | DB (lc, x, n) -> encode_DB lc x n
+    | Const (lc, name) -> encode_Const lc name
     | Lam (lc, x, mty, te) -> encode_Lam lc x mty te
-    | App (f, a, args)     -> encode_App f a args
-    | Pi (lc, x, a, b)     -> encode_Pi lc x a b
+    | App (f, a, args) -> encode_App f a args
+    | Pi (lc, x, a, b) -> encode_Pi lc x a b
 
   and encode_type _ = const_of "ty"
 
@@ -254,8 +256,8 @@ module LF = struct
   and encode_App f a args =
     let rec encode_app2 a args =
       match (a, args) with
-      | _, []     -> assert false
-      | a, [x]    -> mk_App (const_of "app") a [encode_term x]
+      | _, [] -> assert false
+      | a, [x] -> mk_App (const_of "app") a [encode_term x]
       | a, x :: l -> encode_app2 (mk_App (const_of "app") a [encode_term x]) l
     in
     encode_app2 (encode_term f) (a :: args)
@@ -269,8 +271,8 @@ module LF = struct
     let open Rule in
     match pattern with
     | Var (lc, id, n, ps) -> Var (lc, id, n, List.map encode_pattern ps)
-    | Brackets term       -> Brackets (encode_term term)
-    | Lambda (lc, id, p)  ->
+    | Brackets term -> Brackets (encode_term term)
+    | Lambda (lc, id, p) ->
         Pattern (lc, name_of "lam", [Lambda (lc, id, encode_pattern p)])
     | Pattern (lc, n, []) -> Pattern (lc, name_of "sym", [Pattern (lc, n, [])])
     | Pattern (lc, n, ps) ->
@@ -290,13 +292,13 @@ module LF = struct
 
   let rec decode_term t =
     match t with
-    | Kind                 -> assert false
-    | Type _               -> assert false
-    | DB (lc, x, n)        -> decode_DB lc x n
-    | Const (lc, name)     -> decode_Const lc name
+    | Kind -> assert false
+    | Type _ -> assert false
+    | DB (lc, x, n) -> decode_DB lc x n
+    | Const (lc, name) -> decode_Const lc name
     | Lam (lc, x, mty, te) -> decode_Lam lc x mty te
-    | App (f, a, args)     -> decode_App f a args
-    | Pi (lc, x, a, b)     -> decode_Pi lc x a b
+    | App (f, a, args) -> decode_App f a args
+    | Pi (lc, x, a, b) -> decode_Pi lc x a b
 
   and decode_DB lc x n = mk_DB lc x n
 
@@ -316,14 +318,14 @@ module LF = struct
           match (a, args) with
           | a, [Lam (_, x, None, b)] ->
               mk_Pi dloc x (decode_term a) (decode_term b)
-          | _                        -> assert false
+          | _ -> assert false
         else if name_eq name (name_of "sym") then decode_term a
         else if name_eq name (name_of "var") then decode_term a
         else if name_eq name (name_of "app") then
           mk_App2 (decode_term a) (List.map decode_term args)
         else if name_eq name (name_of "lam") then decode_term a
         else mk_App (decode_term f) (decode_term a) (List.map decode_term args)
-    | _               ->
+    | _ ->
         decode_App (decode_term f) (decode_term a) (List.map decode_term args)
 
   and decode_Pi _ _ _ _ = assert false
@@ -347,7 +349,8 @@ module APP = struct
     List.map mk_decl ["ty"; "var"; "sym"; "lam"; "app"; "prod"]
 
   let signature =
-    let sg = Signature.make md Files.find_object_file in
+    let find_object_file = Files.find_object_file_exn Files.empty in
+    let sg = Signature.make md find_object_file in
     let mk_decl id =
       Signature.add_declaration sg dloc (mk_ident id) Signature.Public
         (Signature.Definable Free) (mk_Type dloc)
@@ -363,14 +366,14 @@ module APP = struct
 
   let rec encode_term sg ctx t =
     match t with
-    | Kind                     -> assert false
-    | Type lc                  -> encode_type sg ctx lc
-    | DB (lc, x, n)            -> encode_DB sg ctx lc x n
-    | Const (lc, name)         -> encode_Const sg ctx lc name
+    | Kind -> assert false
+    | Type lc -> encode_type sg ctx lc
+    | DB (lc, x, n) -> encode_DB sg ctx lc x n
+    | Const (lc, name) -> encode_Const sg ctx lc name
     | Lam (lc, x, Some ty, te) -> encode_Lam sg ctx lc x ty te
-    | Lam _                    -> assert false
-    | App (f, a, args)         -> encode_App sg ctx f a args
-    | Pi (lc, x, a, b)         -> encode_Pi sg ctx lc x a b
+    | Lam _ -> assert false
+    | App (f, a, args) -> encode_App sg ctx f a args
+    | Pi (lc, x, a, b) -> encode_Pi sg ctx lc x a b
 
   and encode_type _ _ _ = const_of "ty"
 
@@ -413,18 +416,13 @@ module APP = struct
       Pattern (Basic.dloc, name_of "app", [dummy; l; encode_pattern sg ctx r])
     in
     match pattern with
-    | Var (lc, id, n, ps)     -> Var
-                                   ( lc,
-                                     id,
-                                     n,
-                                     List.map (encode_pattern sg ctx) ps )
-    | Brackets term           -> Brackets (encode_term sg ctx term)
-    | Lambda (lc, id, p)      ->
+    | Var (lc, id, n, ps) -> Var (lc, id, n, List.map (encode_pattern sg ctx) ps)
+    | Brackets term -> Brackets (encode_term sg ctx term)
+    | Lambda (lc, id, p) ->
         Pattern
           (lc, name_of "lam", [dummy; Lambda (lc, id, encode_pattern sg ctx p)])
-    | Pattern (lc, n, [])     -> Pattern
-                                   (lc, name_of "sym", [Pattern (lc, n, [])])
-    | Pattern (lc, n, [a])    ->
+    | Pattern (lc, n, []) -> Pattern (lc, name_of "sym", [Pattern (lc, n, [])])
+    | Pattern (lc, n, [a]) ->
         Pattern
           ( lc,
             name_of "app",
@@ -449,7 +447,9 @@ module APP = struct
       rhs = encode_term sg r''.ctx r.rhs;
     }
 
-  let fake_sig () = Signature.make (Basic.mk_mident "") Files.find_object_file
+  let fake_sig () =
+    let find_object_file = Files.find_object_file_exn Files.empty in
+    Signature.make (Basic.mk_mident "") find_object_file
 
   let encode_term ?(sg = fake_sig ()) ?(ctx = []) t = encode_term sg ctx t
 
@@ -457,13 +457,13 @@ module APP = struct
 
   let rec decode_term t =
     match t with
-    | Kind                 -> assert false
-    | Type _               -> assert false
-    | DB (lc, x, n)        -> decode_DB lc x n
-    | Const (lc, name)     -> decode_Const lc name
+    | Kind -> assert false
+    | Type _ -> assert false
+    | DB (lc, x, n) -> decode_DB lc x n
+    | Const (lc, name) -> decode_Const lc name
     | Lam (lc, x, mty, te) -> decode_Lam lc x mty te
-    | App (f, a, args)     -> decode_App f a args
-    | Pi (lc, x, a, b)     -> decode_Pi lc x a b
+    | App (f, a, args) -> decode_App f a args
+    | Pi (lc, x, a, b) -> decode_Pi lc x a b
 
   and decode_DB lc x n = mk_DB lc x n
 
@@ -483,29 +483,28 @@ module APP = struct
           match a with
           | Lam (_, x, Some a, b) ->
               mk_Pi dloc x (decode_term a) (decode_term b)
-          | _                     -> assert false
+          | _ -> assert false
         else if name_eq name (name_of "sym") then decode_term a
         else if name_eq name (name_of "var") then decode_term a
         else if name_eq name (name_of "app") then
           match args with
           | [f; a] -> Term.mk_App2 (decode_term f) [decode_term a]
-          | _      -> assert false
+          | _ -> assert false
         else if name_eq name (name_of "lam") then
           match args with [a] -> decode_term a | _ -> assert false
         else mk_App (decode_term f) (decode_term a) (List.map decode_term args)
-    | _               -> mk_App (decode_term f) (decode_term a)
-                           (List.map decode_term args)
+    | _ -> mk_App (decode_term f) (decode_term a) (List.map decode_term args)
 
   and decode_Pi _ _ _ _ = assert false
 end
 
 let encode cfg env term =
   match cfg.encoding with
-  | None                       -> term
+  | None -> term
   | Some (module E : ENCODING) ->
       if E.safe then
         match env with
-        | None     ->
+        | None ->
             Errors.fail_sys_error
               ~msg:
                 "A type checking environment must be provided when a safe \
@@ -518,7 +517,7 @@ let encode cfg env term =
 
 let decode cfg term =
   match cfg.encoding with
-  | None                       -> term
+  | None -> term
   | Some (module E : ENCODING) -> E.decode_term term
 
 let normalize cfg sg term =
@@ -530,9 +529,9 @@ let normalize cfg sg term =
 let get_meta_signature cfg env =
   match cfg.meta_rules with
   | Some _ -> cfg.meta_signature
-  | None   -> (
+  | None -> (
       match env with
-      | None     ->
+      | None ->
           Errors.fail_sys_error
             ~msg:
               "A type checking environment must be provided when the \
@@ -566,10 +565,7 @@ let mk_rule env cfg (r : Rule.partially_typed_rule) =
   let open Rule in
   let meta_signature = get_meta_signature cfg (Some env) in
   match cfg.encoding with
-  | None                       -> {
-                                    r with
-                                    rhs = normalize cfg meta_signature r.rhs;
-                                  }
+  | None -> {r with rhs = normalize cfg meta_signature r.rhs}
   | Some (module E : ENCODING) ->
       let sg = Env.get_signature env in
       let r' = E.encode_rule ~sg r in
@@ -631,7 +627,7 @@ let mk_entry cfg env entry =
         Signature.add_rules sg
           (List.map Rule.to_rule_infos [{rule with rhs = te'}]));
       match ty with
-      | None   -> Def (lc, id, sc, opaque, None, te')
+      | None -> Def (lc, id, sc, opaque, None, te')
       | Some _ -> Def (lc, id, sc, opaque, Some safe_ty', te'))
   | Rules (lc, rs) ->
       (* Signature.add_rules !sg (List.map Rule.to_rule_infos rs); *)
@@ -667,13 +663,16 @@ let _ =
       (a Processor.t, b Processor.t) Processor.Registration.equal option =
     function
     | MetaRules, MetaRules -> Some (Processor.Registration.Refl MetaRules)
-    | _                    -> None
+    | _ -> None
   in
   Processor.Registration.register_processor MetaRules {equal}
     (module MetaConfiguration)
 
 let parse_meta_files files =
-  Processor.fold_files files
+  (* Load path is not needed since no importation is done via the
+     [MetaRules] processor. *)
+  let load_path = Files.empty in
+  Processor.fold_files ~load_path ~files
     ~f:(fun rules acc -> rules :: acc)
     ~default:[] MetaRules
   |> List.concat

@@ -1,5 +1,3 @@
-(; OK --type-lhs ;)
-
 type : Type.
 def Term : type -> Type.
 

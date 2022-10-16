@@ -1,5 +1,3 @@
-(; OK ;)
-
 A : Type.
 (; This is a dummy comment
 (; ;)

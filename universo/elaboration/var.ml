@@ -19,7 +19,7 @@ let is_uvar t =
       let s = B.string_of_ident (B.id n) in
       let n = String.length basename in
       String.length s > n && String.sub s 0 n = basename
-  | _              -> false
+  | _ -> false
 
 (** [name_of_uvar t] returns the name of universe variable if [t] is a universe variable, raise [Not_uvar] otherwise *)
 let name_of_uvar t =

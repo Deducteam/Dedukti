@@ -1,0 +1,11 @@
+tests/OK/sharing.dk_dkcheck_ok.out
+
+./dk.native check --no-color -q tests/OK/sharing.dk
+z
+z
+z
+z
+z
+z
+z
+z

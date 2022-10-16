@@ -1,5 +1,0 @@
-(; IGNORE ;)
-
-A : Type.
-x : A -> A.
-#ASSERT x == y : A => x y.

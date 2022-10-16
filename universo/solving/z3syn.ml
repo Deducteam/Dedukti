@@ -26,8 +26,8 @@ let mk_sinf ctx = Z.Expr.mk_const_s ctx "Sinf" (sort ctx)
 
 (** [mk_univ ctx u] construct a Z3 expression from a universe. *)
 let mk_univ ctx = function
-  | U.Sinf   -> mk_sinf ctx
-  | U.Var x  -> mk_var ctx (mk_name x)
+  | U.Sinf -> mk_sinf ctx
+  | U.Var x -> mk_var ctx (mk_name x)
   | U.Enum i -> mk_enum ctx i
 
 let bool_sort ctx = Z.Boolean.mk_sort ctx
@@ -70,11 +70,11 @@ let solution_of_var ctx i model var =
   let exception Found of U.univ in
   let find_univ e u =
     match Z.Model.get_const_interp_e model (mk_univ ctx u) with
-    | None    -> assert false
+    | None -> assert false
     | Some u' -> if e = u' then raise (Found u) else ()
   in
   match Z.Model.get_const_interp_e model (mk_var ctx var) with
-  | None   -> assert false
+  | None -> assert false
   | Some e -> (
       try
         List.iter (find_univ e) univs;

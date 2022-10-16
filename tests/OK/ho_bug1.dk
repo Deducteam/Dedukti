@@ -1,5 +1,3 @@
-(; OK ;)
-
 A : Type.
 
 def e0 : A -> A.

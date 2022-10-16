@@ -1,0 +1,3 @@
+tests/OK/assert/conv_command.dk_dkcheck_ok.out
+
+./dk.native check --no-color -q tests/OK/assert/conv_command.dk

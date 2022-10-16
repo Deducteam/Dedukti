@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DKCHECK="$(pwd)/../dkcheck.native"
-DKDEP="$(pwd)/../dkdep.native"
+DKCHECK="$(pwd)/../dk.native check"
+DKDEP="$(pwd)/../dk.native dep"
 DKFLAGS="-q"
 
 SRC="https://github.com/rafoo/dklib/archive/v2.6.zip"
@@ -44,6 +44,10 @@ if [[ ! -d ${DIR} ]]; then
   # Cleaning up.
   echo -n "  - cleaning up...      "
   rm ${DIR}/.gitignore ${DIR}/README.org
+  # The options given to dkcheck also changed
+  sed -i 's/-nl//g' $DIR/Makefile
+  sed -i 's/-coc/--coc/g' $DIR/Makefile
+  sed -i 's/-cc/--confluence/g' $DIR/Makefile
   echo "OK"
 
   # All done.
@@ -51,14 +55,15 @@ if [[ ! -d ${DIR} ]]; then
   echo ""
 fi
 
-cd ${DIR}
+cd "${DIR}" || exit 1
 if [[ $TIME = "" ]]; then
 	export TIME="Finished in %E at %P with %MKb of RAM"
 fi
 
 # Run the actual checks.
 if [[ $OUT = "" ]]; then
-	\time make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
+	command time make DKCHECK="$DKCHECK" DKDEP="$DKDEP" DKFLAGS="$DKFLAGS"
 else
-	\time -a -o $OUT make DKCHECK=$DKCHECK DKDEP=$DKDEP DKFLAGS=$DKFLAGS
+	command time -a -o "$OUT" make DKCHECK="$DKCHECK" DKDEP="$DKDEP" \
+	    DKFLAGS="$DKFLAGS"
 fi

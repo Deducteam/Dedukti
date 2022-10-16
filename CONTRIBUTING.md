@@ -41,6 +41,23 @@ which is a test framework originally designed for
 We invite and recommend developers to write new integration tests
 using this framework.
 
+**Adding a non-regression test on an already existing command:**
+
+1. Identify which module of [`tests/dedukti.mli`](tests/dedukti.mli)
+   corresponds to the command. For instance, `Dedukti.Check` allows to
+   test the command `dkcheck`.
+2. Find the function from the module that tests the behaviour you
+   want. For instance, to check that a Dedukti file *does not* type check,
+   use `Dedukti.Check.ko`.
+3. Register your test by adding a call to the latter function in the file
+   [`tests/main.ml`](tests/main.ml) *before* `Test.run ()`. The
+   arguments passed to the binary are collected in the last argument
+   of the function call as a list of `argument`. The `argument`
+   type is defined in the command module, and documented in
+   [`tests/dedukti.mli`](tests/dedukti.mli).
+4. Test with `make tezt`.
+
+
 ### Useful tips with Tezt
 
 - You can run `Tezt` tests with `dune exec tests/main.exe`

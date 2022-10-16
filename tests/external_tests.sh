@@ -1,8 +1,8 @@
 #!/bin/bash
 
 TMPDIR=/tmp/dedukti_tmp_testdir/
-DKCHECK=$(pwd)/dkcheck.native
-DKDEP=$(pwd)/dkdep.native
+DKCHECK="$(pwd)/dk.native check"
+DKDEP="$(pwd)/dk.native dep"
 
 export DKCHECK
 export DKDEP

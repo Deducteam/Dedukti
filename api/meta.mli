@@ -93,6 +93,7 @@ val default_config :
   ?encoding:(module ENCODING) ->
   ?decoding:bool ->
   ?register_before:bool ->
+  load_path:Files.t ->
   unit ->
   cfg
 

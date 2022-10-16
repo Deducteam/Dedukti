@@ -1,5 +1,3 @@
-(; OK ;)
-
 R : Type.
 0 : R.
 def p : R -> R -> R.

@@ -1,5 +1,3 @@
-(; OK ;)
-
 A : Type.
 B : Type.
 a : A.

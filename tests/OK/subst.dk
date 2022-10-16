@@ -1,5 +1,3 @@
-(; OK ;)
-
 A : Type.
 x : A.
 t1 : (x : A => (x : A => (x : A => (x : A => (x : A => (x : A => (x : A =>

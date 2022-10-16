@@ -1,5 +1,3 @@
-(; KO 101 ;)
-
 N : Type.
 A : Type.
 T : A -> Type.

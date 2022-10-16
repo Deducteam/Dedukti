@@ -1,0 +1,39 @@
+N : Type.
+0 : N.
+1 : N.
+2 : N.
+
+
+defac mset [N].
+
+#ASSERT mset 1 0 == mset 0 1.
+#ASSERT mset 0 1 == mset 1 0.
+
+#ASSERT mset 0 (mset 1 2) == mset (mset 0 1) 2.
+#ASSERT mset 1 (mset 0 2) == mset (mset 0 1) 2.
+#ASSERT mset 1 (mset 2 0) == mset (mset 0 1) 2.
+
+#ASSERT
+  mset 1
+ (mset 2
+ (mset 2
+ (mset 1
+ (mset 2
+ (mset 2
+ (mset 0
+ (mset 2 1
+ )))))))
+ ==
+  mset 0
+ (mset 1
+ (mset 1
+ (mset 1
+ (mset 2
+ (mset 2
+ (mset 2
+ (mset 2 2
+ ))))))).
+
+#ASSERTNOT mset 1 0 == mset 0 0.
+#ASSERTNOT mset 1 0 == mset 1 1.
+#ASSERTNOT mset 1 1 == mset 1 0.

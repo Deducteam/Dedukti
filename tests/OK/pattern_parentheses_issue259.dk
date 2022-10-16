@@ -1,0 +1,8 @@
+Set : Type.
+Prop : Type.
+def El : (Set -> Type).
+def Prf : (Prop -> Type).
+o : Set.
+[] El o --> Prop.
+forall : (x : Set -> (((El x) -> (El o)) -> Prop)).
+[v0_X, v1_P] Prf ((forall (v0_X)) (v1_P)) --> (x : (El v0_X) -> (Prf (v1_P x))).

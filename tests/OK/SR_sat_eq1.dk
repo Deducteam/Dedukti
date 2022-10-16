@@ -1,5 +1,3 @@
-(; OK --type-lhs ;)
-
 A : Type.
 def T : A -> Type.
 t : x : A -> T x.

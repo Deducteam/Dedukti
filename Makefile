@@ -8,17 +8,21 @@ Q = @
 default: bin binaries
 
 .PHONY: all
-all: bin binaries universo
+all: bin binaries universo.native
 
 .PHONY: binaries
-binaries: dkcheck.native dktop.native dkdep.native dkprune.native dkmeta.native dkpretty.native
+binaries: dk.native
 
 .PHONY: universo
 universo:
-	$(Q)dune build universo
+	$(Q)dune build @install
 
 %.native:
 	$(Q)ln -fs _build/install/default/bin/$* $@
+
+universo.native: universo
+	$(Q)ln -fs _build/install/default/bin/universo $@
+
 
 .PHONY: bin
 bin: kernel/version.ml
@@ -59,7 +63,7 @@ tests: bin binaries tests/tests.sh
 	$(Q)./tests/tests.sh $(RESET_REGRESSION)
 
 .PHONY: tezt
-tezt: bin binaries
+tezt: bin binaries universo.native
 	dune exec tests/main.exe
 
 #### Library tests ###########################################################
@@ -118,10 +122,10 @@ zenon_modulo: all
 
 
 .PHONY: light_tests
-light_tests: all matita-light dklib holide
+light_tests: all matita-light dklib focalide
 
 .PHONY: full_tests
-full_tests: light_tests iprover focalide dedukti-libraries verine # zenon_modulo
+full_tests: all dklib focalide matita iprover holide dedukti-libraries verine # zenon_modulo
 
 .PHONY: cleanlibs
 cleanlibs:
@@ -163,13 +167,13 @@ fullclean: distclean fullcleanlibs
 
 .PHONY: bnf
 bnf:
-	$(Q)echo "<ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*" > syntax.bnf
-	$(Q)echo "          | '{|' <string> '|}'"              >> syntax.bnf
-	$(Q)echo ""                                            >> syntax.bnf
-	$(Q)echo "<mident> ::= [a-zA-Z0-9_]*"                  >> syntax.bnf
-	$(Q)echo ""                                            >> syntax.bnf
-	$(Q)echo "<qident> ::= <mident> '.' <ident>"           >> syntax.bnf
-	$(Q)echo ""                                            >> syntax.bnf
+	$(Q)echo "<ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*"      > syntax.bnf
+	$(Q)echo "          | '{|' <string> '|}'"                   >> syntax.bnf
+	$(Q)echo ""                                                 >> syntax.bnf
+	$(Q)echo "<mident> ::= [a-zA-Z0-9_]* | '{|' <string> '|}'"  >> syntax.bnf
+	$(Q)echo ""                                                 >> syntax.bnf
+	$(Q)echo "<qident> ::= <mident> '.' <ident>"                >> syntax.bnf
+	$(Q)echo ""                                                 >> syntax.bnf
 	$(Q)obelisk parsing/menhir_parser.mly | sed \
 	"s/ COLON / ':' /g ; \
 	 s/ RIGHTPAR/ ')'/g ; \

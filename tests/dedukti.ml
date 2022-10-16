@@ -1,10 +1,11 @@
 module Command = struct
-  type t = Dkcheck | Dkmeta | Dkpretty
+  type t = Dkcheck | Dkmeta | Dkpretty | Universo
 
   let path = function
-    | Dkcheck  -> "./dkcheck.native"
-    | Dkmeta   -> "./dkmeta.native"
-    | Dkpretty -> "./dkpretty.native"
+    | Dkcheck -> ("./dk.native", fun args -> "check" :: args)
+    | Dkmeta -> ("./dk.native", fun args -> "meta" :: args)
+    | Dkpretty -> ("./dk.native", fun args -> "beautify" :: args)
+    | Universo -> ("./universo.native", fun args -> args)
 end
 
 let remove_dkos () =
@@ -37,13 +38,11 @@ let remove_dkos () =
 
 let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
     ~error ~title ~tags ~filename command arguments =
-  let regression_output_path = "tests/tezt/_regressions" in
   let register f =
     match regression with
-    | None             -> Test.register ~__FILE__:filename ~title ~tags f
+    | None -> Test.register ~__FILE__:filename ~title ~tags f
     | Some output_file ->
-        Regression.register ~__FILE__:filename ~output_file
-          ~regression_output_path ~title ~tags f
+        Regression.register ~__FILE__:filename ~output_file ~title ~tags f
   in
   register (fun () ->
       let* () = preprocess () in
@@ -85,36 +84,52 @@ let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
               }
         else None
       in
-      let command = Command.path command in
-      let process = Process.spawn ?hooks command (arguments @ [filename]) in
+      let path, carg = Command.path command in
+      let process = Process.spawn ?hooks path (carg (arguments @ [filename])) in
       match error with
-      | None              ->
+      | None ->
           let* () = Process.check process in
           postprocess (List.rev !output_acc)
       | Some (`Code code) ->
           (* We check the process returned on [stderr] the expected error code *)
-          Process.check_error
-            ~msg:Base.(rex (sf "[ERROR CODE:%d]" code))
-            process
-      | Some `System      ->
-          Process.check_error ~msg:(Base.rex "[ERROR CODE:SYSTEM]") process)
+          Process.check_error ~msg:Base.(rex (sf "ERROR CODE:%d" code)) process
+      | Some `System ->
+          Process.check_error ~msg:(Base.rex "ERROR CODE:SYSTEM") process)
 
 let title ~action ~result ~options filename =
   let options_str = String.concat ", " options in
   let basename = Filename.basename filename in
   match options with
-  | []       -> Format.asprintf "%s '%s' %s" action basename result
+  | [] -> Format.asprintf "%s '%s' %s" action basename result
   | [option] ->
       Format.asprintf "%s '%s' %s with '%s'" action basename result option
-  | _ :: _   ->
+  | _ :: _ ->
       Format.asprintf "%s '%s' %s with '%s'" action basename result options_str
 
 module Check = struct
-  type argument = Eta | Import of string
+  type argument =
+    | Eta
+    | Import of string
+    | Sr_check of int
+    | Export
+    | Type_lhs
+    | Left_linear
 
-  let mk_argument = function Eta -> ["--eta"] | Import path -> ["-I"; path]
+  let mk_argument = function
+    | Eta -> ["--eta"]
+    | Import path -> ["-I"; path]
+    | Sr_check n -> ["--sr-check"; string_of_int n]
+    | Export -> ["-e"]
+    | Type_lhs -> ["--type-lhs"]
+    | Left_linear -> ["--ll"]
 
-  let tag_of_argument = function Eta -> "eta" | Import _ -> "import"
+  let tag_of_argument = function
+    | Eta -> "eta"
+    | Import _ -> "import"
+    | Sr_check _ -> "srcheck"
+    | Export -> "export"
+    | Type_lhs -> "typelhs"
+    | Left_linear -> "ll"
 
   let run ~regression ~error ~filename arguments =
     let tags = List.map tag_of_argument arguments in
@@ -132,15 +147,18 @@ module Check = struct
 
   let ko ~error = run ~regression:false ~error:(Some error)
 
-  let export filename = Process.run Command.(path Dkcheck) ["-e"; filename]
+  let export filename =
+    let open Command in
+    Process.run (fst (path Dkcheck)) (snd (path Dkcheck) ["-e"; filename])
 
   let check ~dep filename =
     let imported_paths =
       List.map (fun dep -> Import (Filename.dirname dep) |> mk_argument) dep
       |> List.concat
     in
-    Process.spawn Command.(path Dkcheck) (imported_paths @ [filename])
-    |> Process.check
+    let open Command in
+    let path, edit_arg = path Dkcheck in
+    Process.spawn path (edit_arg (imported_paths @ [filename])) |> Process.check
 end
 
 module Meta = struct
@@ -153,20 +171,20 @@ module Meta = struct
     | No_unquoting
 
   let mk_argument = function
-    | No_meta       -> ["--no-meta"]
-    | No_beta       -> ["--no-beta"]
-    | Meta file     -> ["-m"; file]
-    | Import path   -> ["-I"; path]
+    | No_meta -> ["--no-meta"]
+    | No_beta -> ["--no-beta"]
+    | Meta file -> ["-m"; file]
+    | Import path -> ["-I"; path]
     | Quoting `Prod -> ["--quoting"; "prod"]
-    | No_unquoting  -> ["--no-unquoting"]
+    | No_unquoting -> ["--no-unquoting"]
 
   let tag_of_argument = function
-    | No_meta       -> "no_meta"
-    | No_beta       -> "no_beta"
-    | Meta _file    -> "meta_file"
-    | Import _path  -> "import"
+    | No_meta -> "no_meta"
+    | No_beta -> "no_beta"
+    | Meta _file -> "meta_file"
+    | Import _path -> "import"
     | Quoting `Prod -> "quoting_prod"
-    | No_unquoting  -> "no_unquoting"
+    | No_unquoting -> "no_unquoting"
 
   let run ?(dep = []) ?(check_output = true) ~filename arguments =
     let tags = List.map tag_of_argument arguments in
@@ -213,8 +231,8 @@ module Pretty = struct
   let tag_of_argument : argument -> _ = function _ -> .
 
   let run ?(dep = []) ~filename arguments =
-    let tags = "pretty" :: List.map tag_of_argument arguments in
-    let arguments = List.map mk_argument arguments |> List.concat in
+    let tags = "beautify" :: List.map tag_of_argument arguments in
+    let arguments = List.(map mk_argument arguments |> concat) in
     let title =
       title ~action:"pretty print" ~options:tags ~result:"succeeds" filename
     in
@@ -233,4 +251,57 @@ module Pretty = struct
     in
     run ~regression ~error:None ~title ~tags ~filename Dkpretty arguments
       ~postprocess
+end
+
+module Universo = struct
+  type argument =
+    | Config of string
+    | Theory of string
+    | Output_directory of string
+    | Import of string
+    | Simplify of string
+
+  let mk_argument = function
+    | Config filename -> ["--config"; filename]
+    | Theory filename -> ["--theory"; filename]
+    | Output_directory dirname -> ["-o"; dirname]
+    | Import dirname -> ["-I"; dirname]
+    | Simplify dirname -> ["--simplify"; dirname]
+
+  let tag_of_argument = function
+    | Config _ | Output_directory _ | Import _ | Simplify _ -> []
+    | Theory filename -> [Filename.basename filename |> Filename.chop_extension]
+
+  let run ?(fails = false) ?(regression = false) ~filename arguments =
+    let preprocess () =
+      Lwt_list.iter_s
+        (function Theory filename -> Check.export filename | _ -> return ())
+        arguments
+    in
+    let postprocess _ =
+      let dep =
+        List.map (function Theory filename -> [filename] | _ -> []) arguments
+        |> List.concat
+      in
+      Lwt_list.iter_s
+        (function
+          | Simplify dirname ->
+              let output_filename = dirname // Filename.basename filename in
+              Format.eprintf "DEBUG: %s@." output_filename;
+              Check.check ~dep output_filename
+          | _ -> return ())
+        arguments
+    in
+    let tags = List.map tag_of_argument arguments |> List.concat in
+    let arguments = List.map mk_argument arguments |> List.concat in
+    let result = if fails then "fails" else "succeeds" in
+    let result_tag = if fails then "ko" else "ok" in
+    let title = title ~action:"universo" ~result ~options:tags filename in
+    let tags = "universo" :: result_tag :: tags in
+    let regression =
+      if regression then Some (String.concat "_" (filename :: tags)) else None
+    in
+    let error = if fails then Some `System else None in
+    run ~preprocess ~postprocess ~regression ~error ~title ~tags ~filename
+      Universo arguments
 end

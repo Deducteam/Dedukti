@@ -1,6 +1,0 @@
-(; OK --eta ;)
-
-A : Type.
-
-def id : (A -> A) -> (A -> A).
-[F] id (x => F x) --> F.

@@ -1,7 +1,7 @@
 <ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*
           | '{|' <string> '|}'
 
-<mident> ::= [a-zA-Z0-9_]*
+<mident> ::= [a-zA-Z0-9_]* | '{|' <string> '|}
 
 <qident> ::= <mident> '.' <ident>
 
@@ -73,10 +73,7 @@
                | '(' <pattern> ')'
 
 <pattern> ::= <pid> '=>' <pattern>
-            | <ident> <pattern_wp>+
-            | <qident> <pattern_wp>+
-            | '_' <pattern_wp>+
-            | <pattern_wp>
+            | <pattern_wp>+
 
 <sterm> ::= <qident>
           | <ident>
@@ -92,5 +89,4 @@
          | <pid> '=>' <term>
          | <pid> ':' <aterm> '=>' <term>
          | '(' <pid> ':' <aterm> ':=' <aterm> ')' '=>' <term>
-
 

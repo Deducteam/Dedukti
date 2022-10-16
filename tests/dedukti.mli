@@ -1,5 +1,11 @@
 module Check : sig
-  type argument = Eta | Import of string
+  type argument =
+    | Eta
+    | Import of string
+    | Sr_check of int
+    | Export
+    | Type_lhs
+    | Left_linear
 
   (** [ok ?regression ~filename arguments] runs [dkcheck] on
      [filename] with [arguments].
@@ -63,9 +69,21 @@ end
 module Pretty : sig
   type argument = |
 
-  (** [run ~dep ~filename arguments] runs [dkpretty] on file [filename] passing
-      arguments [arguments]. The resulting file is type checked. If the
-      file depends on other Dedukti files, these files must appear in
-      [dep] so that their directory is added to the load path. *)
+  (** [run ~dep ~filename arguments] runs [dkcheck beautify] on file [filename]
+      passing arguments [arguments]. The resulting file is type checked. If the
+      file depends on other Dedukti files, these files must appear in [dep] so
+      that their directory is added to the load path. *)
   val run : ?dep:string list -> filename:string -> argument list -> unit
+end
+
+module Universo : sig
+  type argument =
+    | Config of string
+    | Theory of string
+    | Output_directory of string
+    | Import of string
+    | Simplify of string
+
+  val run :
+    ?fails:bool -> ?regression:bool -> filename:string -> argument list -> unit
 end

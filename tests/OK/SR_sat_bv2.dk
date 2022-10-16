@@ -1,5 +1,3 @@
-(; OK --type-lhs ;)
-
 A : Type.
 T : A -> Type.
 t : a:A -> T a.

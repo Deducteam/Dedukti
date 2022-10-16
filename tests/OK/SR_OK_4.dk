@@ -1,5 +1,3 @@
-(; OK --sr-check 4 ;)
-
 A : Type.
 a : A.
 

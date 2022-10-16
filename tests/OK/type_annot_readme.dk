@@ -1,5 +1,3 @@
-(; OK ;)
-
 Nat: Type.
 zero: Nat.
 succ: Nat -> Nat.
