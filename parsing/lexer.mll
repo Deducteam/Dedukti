@@ -49,7 +49,7 @@ rule token = parse
   | "thm"       { KW_THM     ( get_loc lexbuf ) }
   | "private"   { KW_PRV     ( get_loc lexbuf ) }
   | "require"   space+ (mident as md) { REQUIRE (get_loc lexbuf , mk_mident md) }
-  | "assert"    { ASSERT     ( get_loc lexbuf ) }    
+  | "assert"    { ASSERT     ( get_loc lexbuf ) }
   | "#NAME"     space+ (mident as md) { NAME    (get_loc lexbuf , mk_mident md) }
   | "#REQUIRE"  space+ (mident as md) { REQUIRE (get_loc lexbuf , mk_mident md) }    
   | "#EVAL"     { EVAL       ( get_loc lexbuf ) }
@@ -60,6 +60,7 @@ rule token = parse
   | "#ASSERTNOT"{ ASSERTNOT  ( get_loc lexbuf ) }
   | "#PRINT"    { PRINT      ( get_loc lexbuf ) }
   | "#GDT"      { GDT        ( get_loc lexbuf ) }
+  | "#" { pragma lexbuf }    
   | mident as md '.' (ident as id)
   { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id
@@ -72,6 +73,13 @@ rule token = parse
   { let msg = sprintf "Unexpected characters '%s'." (String.make 1 s) in
     fail (get_loc lexbuf) msg }
   | eof { EOF }
+
+and pragma = parse
+  | "." space { token lexbuf }
+  | ".\n" { new_line lexbuf ; token lexbuf }
+  | '\n' { new_line lexbuf ; pragma lexbuf }
+  | _    { pragma lexbuf }
+  | "."eof { token lexbuf }
 
 and comment i = parse
   | ";)" { if (i=0) then token lexbuf else comment (i-1) lexbuf }
