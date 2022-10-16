@@ -32,6 +32,7 @@ type entry =
       (** @deprecated Ignored #NAME command.
       Module name defaults to the file name without extension. *)
   | Require of loc * mident  (** Require command. *)
+  | Pragma of loc * string
 
 val loc_of_entry : entry -> loc
 

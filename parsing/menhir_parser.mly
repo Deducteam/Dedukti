@@ -78,6 +78,8 @@ let loc_of_rs = function
 %token <Kernel.Basic.loc*Kernel.Basic.ident> ID
 %token <Kernel.Basic.loc*Kernel.Basic.mident*Basic.ident> QID
 %token <string> STRING
+%token <Kernel.Basic.loc*string> PRAGMA
+
 
 %start line
 %type <Kernel.Basic.mident -> Entry.entry> line
@@ -174,6 +176,7 @@ line:
   | GDT   QID    DOT {fun _ -> let (_,m,v) = $2 in DTree($1, Some m, v)}
   | n=NAME       DOT {fun _ -> Name(fst n, snd n)}
   | r=REQUIRE    DOT {fun _ -> Require(fst r,snd r)}
+  | PRAGMA {fun _ -> Pragma (fst $1, snd $1) }
   | EOF              {raise End_of_file}
 
 eval_config:

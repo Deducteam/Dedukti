@@ -86,6 +86,7 @@ let dep_of_entry md entry =
       mk_name (Kernel.Basic.mk_name md id)
   | Print (_, _) -> empty
   | Name (_, _) -> empty
+  | Pragma _ -> empty
   | Require (_, md) -> {modules = MidentSet.singleton md; names = NameSet.empty}
 
 let dep_of_entry :

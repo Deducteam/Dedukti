@@ -37,4 +37,4 @@ type token =
   | PRINT of loc
   | GDT of loc
   | STRING of string
-
+  | PRAGMA of (loc * string)

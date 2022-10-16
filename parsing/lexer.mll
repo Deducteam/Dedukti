@@ -15,6 +15,9 @@
 
   let fail lc msg =
     raise @@ Lexer_error(lc, msg)
+
+  let string_of_chars chars =
+       List.rev chars |> List.to_seq |> String.of_seq
 }
 
 let space   = [' ' '\t' '\r']
@@ -60,7 +63,7 @@ rule token = parse
   | "#ASSERTNOT"{ ASSERTNOT  ( get_loc lexbuf ) }
   | "#PRINT"    { PRINT      ( get_loc lexbuf ) }
   | "#GDT"      { GDT        ( get_loc lexbuf ) }
-  | "#" { pragma lexbuf }    
+  | "#" { pragma [] lexbuf }    
   | mident as md '.' (ident as id)
   { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id
@@ -74,12 +77,12 @@ rule token = parse
     fail (get_loc lexbuf) msg }
   | eof { EOF }
 
-and pragma = parse
-  | "." space { token lexbuf }
-  | ".\n" { new_line lexbuf ; token lexbuf }
-  | '\n' { new_line lexbuf ; pragma lexbuf }
-  | _    { pragma lexbuf }
-  | "."eof { token lexbuf }
+and pragma buf = parse
+  | "." space {PRAGMA (get_loc lexbuf, string_of_chars buf) }
+  | ".\n" { new_line lexbuf ; PRAGMA (get_loc lexbuf, string_of_chars buf) }
+  | '\n' { new_line lexbuf ; pragma ('\n'::buf) lexbuf }
+  | _ as c { pragma (c::buf) lexbuf }
+  | "."eof { PRAGMA (get_loc lexbuf, string_of_chars buf) }
 
 and comment i = parse
   | ";)" { if (i=0) then token lexbuf else comment (i-1) lexbuf }

@@ -124,7 +124,7 @@ module Check = struct
       ok ~regression:true ~basename:"nsteps4.dk" [];
       ok ~basename:"dotpat.dk" [];
       ok ~basename:"type_rewrite.dk" [];
-      ok ~basename:"pragma.dk" []        
+      ok ~basename:"pragma.dk" []
 
     module Acu = struct
       let ok ~basename =
@@ -257,8 +257,8 @@ module Check = struct
       ko ~error:(`Code 103) ~basename:"typing_sort.dk" [];
       ko ~error:(`Code 101) ~basename:"unsound.dk" [];
       ko ~error:(`Code 101) ~basename:"untypable_lhs2.dk" [];
-      ko ~error:(`Code 101) ~basename:"untypable_lhs.dk" [] ;
-      ko ~error:(`Code 306) ~basename:"pragma.dk" []        
+      ko ~error:(`Code 101) ~basename:"untypable_lhs.dk" [];
+      ko ~error:(`Code 306) ~basename:"pragma.dk" []
 
     module Acu = struct
       let ko ~error ~basename =

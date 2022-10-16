@@ -79,6 +79,8 @@ module MakeTypeChecker (Env : CustomEnv) : S with type t = unit = struct
         if not (mident_eq n (Env.get_name env)) then
           Debug.(debug d_warn "Invalid #NAME directive ignored.@.")
     | Require (lc, md) -> Env.import env lc md
+    | Pragma (lc, str) ->
+        Format.eprintf "Unsupported pragma at position %a: '%s'@." pp_loc lc str
 
   let get_data _ = ()
 end
@@ -195,6 +197,7 @@ module MakeTopLevel (Env : CustomEnv) : S with type t = unit = struct
     | Print (_, s) -> Format.printf "%s@." s
     | Name _ -> Format.printf "\"#NAME\" directive ignored.@."
     | Require _ -> Format.printf "\"#REQUIRE\" directive ignored.@."
+    | Pragma _ -> Format.printf "Pragma directive ignored.@."
 
   let get_data _ = ()
 end

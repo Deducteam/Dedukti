@@ -334,6 +334,7 @@ module Make (S : Sig) : Printer = struct
     | Print (_, str) -> fprintf fmt "#PRINT %S.@." str
     | Name (_, _) -> ()
     | Require (_, md) -> fprintf fmt "#REQUIRE %a.@." print_mident md
+    | Pragma (_, str) -> fprintf fmt "#%s.@." str
 
   (** The pretty printer for the type [Signature.staticity] *)
   let print_staticity fmt s =
