@@ -48,8 +48,9 @@ rule token = parse
   | "injective" { KW_INJ     ( get_loc lexbuf ) }
   | "thm"       { KW_THM     ( get_loc lexbuf ) }
   | "private"   { KW_PRV     ( get_loc lexbuf ) }
-  | "#NAME"    space+ (mident as md) { NAME    (get_loc lexbuf , mk_mident md) }
-  | "#REQUIRE" space+ (mident as md) { REQUIRE (get_loc lexbuf , mk_mident md) }
+  | "require"   space+ (mident as md) { REQUIRE (get_loc lexbuf , mk_mident md) }  
+  | "#NAME"     space+ (mident as md) { NAME    (get_loc lexbuf , mk_mident md) }
+  | "#REQUIRE"  space+ (mident as md) { REQUIRE (get_loc lexbuf , mk_mident md) }    
   | "#EVAL"     { EVAL       ( get_loc lexbuf ) }
   | "#INFER"    { INFER      ( get_loc lexbuf ) }
   | "#CHECK"    { CHECK      ( get_loc lexbuf ) }
