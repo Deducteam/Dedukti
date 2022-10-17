@@ -32,7 +32,7 @@ jobs:
           opam upgrade
           opam pin add -n -k path dedukti .
           opam install --deps-only -d -t dedukti
-          opam install ocamlformat.0.22.4
+          opam install ocamlformat.0.23.0
           opam install tezt
           opam install z3
       - name: Checking formatting...
