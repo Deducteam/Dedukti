@@ -1,0 +1,10 @@
+A : Type.
+
+a : A.
+
+thm f : A := a.
+
+assert f == a.
+
+thm g (a : A) : A := a.
+

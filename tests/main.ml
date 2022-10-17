@@ -258,7 +258,9 @@ module Check = struct
       ko ~error:(`Code 101) ~basename:"unsound.dk" [];
       ko ~error:(`Code 101) ~basename:"untypable_lhs2.dk" [];
       ko ~error:(`Code 101) ~basename:"untypable_lhs.dk" [];
-      ko ~error:(`Code 306) ~basename:"pragma.dk" []
+      ko ~error:(`Code 306) ~basename:"pragma.dk" [];
+      ko ~error:(`Code 704) ~basename:"opacity.dk" [];
+      ko ~error:(`Code 704) ~basename:"opacity2.dk" []
 
     module Acu = struct
       let ko ~error ~basename =
