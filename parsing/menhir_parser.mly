@@ -65,7 +65,6 @@ let loc_of_rs = function
 %token <Kernel.Basic.loc> ASSERTNOT
 %token <Kernel.Basic.loc> PRINT
 %token <Kernel.Basic.loc> GDT
-%token <Kernel.Basic.loc> UNDERSCORE
 %token <Kernel.Basic.loc*Basic.mident> NAME
 %token <Kernel.Basic.loc*Basic.mident> REQUIRE
 %token <Kernel.Basic.loc> TYPE
@@ -210,13 +209,12 @@ top_pattern:
   | QID pattern_wp* { let (l,md,id)=$1 in (l,Some md,id,$2) }
 
 %inline pid:
-  | UNDERSCORE { ($1, mk_ident "_") }
   | ID { $1 }
 
 pattern_wp:
-  | ID                       { PPattern (fst $1,None,snd $1,[]) }
+  | ID                       { if snd $1 = mk_ident "_" then PJoker (fst $1,[]) else
+				 PPattern (fst $1,None,snd $1,[]) }
   | QID                      { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
-  | UNDERSCORE               { PJoker ($1,[]) }
   | LEFTBRA term RIGHTBRA    { PCondition $2 }
   | LEFTPAR pattern RIGHTPAR { $2 }
 

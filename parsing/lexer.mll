@@ -43,7 +43,6 @@ rule token = parse
   | "->"        { ARROW         }
   | "=>"        { FATARROW      }
   | ":="        { DEF           }
-  | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE       ( get_loc lexbuf ) }
   | "def"       { KW_DEF     ( get_loc lexbuf ) }
   | "defac"     { KW_DEFAC   ( get_loc lexbuf ) }
