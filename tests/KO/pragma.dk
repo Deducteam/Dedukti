@@ -1,0 +1,5 @@
+#PRAGMA I can write anything here.
+
+#CACA PROUT CHECK B.a # A.
+
+a : A. (; should fail because A is not defined. ;)

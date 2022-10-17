@@ -4,7 +4,8 @@
 (menhir
  (modules menhir_parser)
  (flags
-  (--external-tokens Tokens)))
+  (--external-tokens Tokens)
+  (--explain)))
 
 (library
  (name parsers)

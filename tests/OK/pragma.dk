@@ -1,0 +1,5 @@
+#PRAGMA I can write anything here.
+
+#PRAGMA CHECK B.a # A.
+
+A : Type.

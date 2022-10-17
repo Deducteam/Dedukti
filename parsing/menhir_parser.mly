@@ -40,6 +40,21 @@ let mk_config loc lid =
 let loc_of_rs = function
   | [] -> assert false
   | (l,_,_,_,_,_,_) :: _ -> l
+
+let make_definition ~lid ~parameters ~staticity ~is_opaque ~ty_opt ~te md =
+  let loc = fst lid in
+  let id = snd lid in
+  let ty_opt =
+    Option.map (fun ty -> scope_term md [] (mk_pi ty parameters)) ty_opt in
+  let te = scope_term md [] (mk_lam te parameters) in
+  Def(loc, id,  staticity, is_opaque, ty_opt, te)
+
+let make_declaration ~lid ~parameters ~definibility ~ty md =
+  let loc = fst lid in
+  let id = snd lid in
+  let visibility,staticity = Option.value definibility ~default:(Public, Static) in
+  let ty = scope_term md [] (mk_pi ty parameters) in
+  Decl(loc, id, visibility, staticity, ty)
 %}
 
 %token EOF
@@ -65,7 +80,6 @@ let loc_of_rs = function
 %token <Kernel.Basic.loc> ASSERTNOT
 %token <Kernel.Basic.loc> PRINT
 %token <Kernel.Basic.loc> GDT
-%token <Kernel.Basic.loc> UNDERSCORE
 %token <Kernel.Basic.loc*Basic.mident> NAME
 %token <Kernel.Basic.loc*Basic.mident> REQUIRE
 %token <Kernel.Basic.loc> TYPE
@@ -78,6 +92,8 @@ let loc_of_rs = function
 %token <Kernel.Basic.loc*Kernel.Basic.ident> ID
 %token <Kernel.Basic.loc*Kernel.Basic.mident*Basic.ident> QID
 %token <string> STRING
+%token <Kernel.Basic.loc*string> PRAGMA
+
 
 %start line
 %type <Kernel.Basic.mident -> Entry.entry> line
@@ -91,21 +107,31 @@ let loc_of_rs = function
 %type <Preterm.preterm> sterm
 %type <Preterm.preterm> term
 
+
 %%
 
+%inline definibility:
+  | KW_INJ
+    { Public, Injective }
+  | KW_PRV
+    { Private, Definable Term.Free }
+  | KW_PRV KW_INJ
+    { Private, Injective }
+  | KW_DEF { Public, Definable Term.Free}
+
+let ilist(x) ==
+  | l = ioption(x+) ;  { match l with | None -> [] | Some x -> x }
+
 line:
-  | id=ID ps=param* COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Public, Static, scope_term md [] (mk_pi ty ps))}
-  | KW_PRV id=ID ps=param* COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Private, Static, scope_term md [] (mk_pi ty ps))}
-  | KW_DEF id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Public, Definable Term.Free, scope_term md [] ty)}
-  | KW_PRV KW_DEF id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Private, Definable Term.Free, scope_term md [] ty)}
-  | KW_INJ id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Public, Injective, scope_term md [] ty)}
-  | KW_PRV KW_INJ id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Private, Injective, scope_term md [] ty)}
+  | rs=rule+ DOT
+      {fun md -> Rules(loc_of_rs rs,(List.map (scope_rule md) rs))}
+  | KW_DEF lid=ID parameters=ilist(param) ty_opt=ioption(of_ty) DEF te=term DOT
+    {make_definition ~lid ~parameters ~staticity:Public ~is_opaque:false ~ty_opt ~te}
+  | KW_THM lid=ID parameters=ilist(param) COLON ty=term DEF te=term DOT
+    {make_definition ~lid ~parameters ~staticity:Public ~is_opaque:true ~ty_opt:(Some ty) ~te}
+  | definibility=ioption(definibility) lid=ID parameters=ilist(param) ty=of_ty DOT
+    {make_declaration ~lid ~parameters ~definibility ~ty}
+
   | KW_DEFAC id=ID LEFTSQU ty=term RIGHTSQU DOT
     {fun md -> Decl(fst id, snd id, Public, Definable Term.AC, scope_term md [] ty)}
   | KW_PRV KW_DEFAC id=ID LEFTSQU ty=term RIGHTSQU DOT
@@ -116,31 +142,6 @@ line:
   | KW_PRV KW_DEFACU id=ID LEFTSQU ty=term COMMA neu=term RIGHTSQU DOT
     {fun md -> Decl(fst id, snd id, Private, Definable(Term.ACU(scope_term md [] neu)),
 	            scope_term md [] ty)}
-  | KW_DEF id=ID COLON ty=term DEF te=term DOT
-    {fun md -> Def(fst id, snd id, Public, false, Some(scope_term md [] ty), scope_term md [] te)}
-  | KW_DEF id=ID DEF te=term DOT
-    {fun md -> Def(fst id, snd id, Public, false, None, scope_term md [] te)}
-  | KW_DEF id=ID ps=param+ COLON ty=term DEF te=term DOT
-    {fun md -> Def(fst id, snd id, Public, false, Some(scope_term md [] (mk_pi ty ps)),
-                     scope_term md [] (mk_lam te ps))}
-  | KW_DEF id=ID ps=param+ DEF te=term DOT
-    {fun md -> Def(fst id, snd id, Public, false, None, scope_term md [] (mk_lam te ps))}
-  | KW_PRV KW_DEF id=ID COLON ty=term DEF te=term DOT
-      {fun md -> Def(fst id, snd id, Private, false, Some(scope_term md [] ty), scope_term md [] te)}
-  | KW_PRV KW_DEF id=ID DEF te=term DOT
-      {fun md -> Def(fst id, snd id, Private, false, None, scope_term md [] te)}
-  | KW_PRV KW_DEF id=ID ps=param+ COLON ty=term DEF te=term DOT
-      {fun md -> Def(fst id, snd id, Private, false, Some(scope_term md [] (mk_pi ty ps)),
-                     scope_term md [] (mk_lam te ps))}
-  | KW_PRV KW_DEF id=ID ps=param+ DEF te=term DOT
-      {fun md -> Def(fst id, snd id, Private, false, None, scope_term md [] (mk_lam te ps))}
-  | KW_THM id=ID COLON ty=term DEF te=term DOT
-      {fun md -> Def(fst id, snd id, Public, true, Some(scope_term md [] ty), scope_term md [] te)}
-  | KW_THM id=ID ps=param+ COLON ty=term DEF te=term DOT
-      {fun md -> Def(fst id, snd id, Public, true, Some(scope_term md [] (mk_pi ty ps)),
-                     scope_term md [] (mk_lam te ps))}
-  | rs=rule+ DOT
-      {fun md -> Rules(loc_of_rs rs,(List.map (scope_rule md) rs))}
 
   | EVAL te=term DOT
       {fun md -> Eval($1, default_cfg, scope_term md [] te)}
@@ -174,14 +175,18 @@ line:
   | GDT   QID    DOT {fun _ -> let (_,m,v) = $2 in DTree($1, Some m, v)}
   | n=NAME       DOT {fun _ -> Name(fst n, snd n)}
   | r=REQUIRE    DOT {fun _ -> Require(fst r,snd r)}
+  | PRAGMA {fun _ -> Pragma (fst $1, snd $1) }
   | EOF              {raise End_of_file}
 
 eval_config:
   | LEFTSQU l=separated_nonempty_list(COMMA, ID) RIGHTSQU
   {mk_config (Lexer.loc_of_pos $startpos) (List.map (fun x -> string_of_ident (snd x)) l) }
 
+of_ty:
+  | COLON te=term { te }
+
 param:
-  | LEFTPAR id=ID COLON te=term RIGHTPAR
+  | LEFTPAR id=pid COLON te=term RIGHTPAR
       {(fst id, snd id, te)}
 
 rule:
@@ -207,13 +212,12 @@ top_pattern:
   | QID pattern_wp* { let (l,md,id)=$1 in (l,Some md,id,$2) }
 
 %inline pid:
-  | UNDERSCORE { ($1, mk_ident "_") }
   | ID { $1 }
 
 pattern_wp:
-  | ID                       { PPattern (fst $1,None,snd $1,[]) }
+  | ID                       { if snd $1 = mk_ident "_" then PJoker (fst $1,[]) else
+				 PPattern (fst $1,None,snd $1,[]) }
   | QID                      { let (l,md,id)=$1 in PPattern (l,Some md,id,[]) }
-  | UNDERSCORE               { PJoker ($1,[]) }
   | LEFTBRA term RIGHTBRA    { PCondition $2 }
   | LEFTPAR pattern RIGHTPAR { $2 }
 
@@ -236,7 +240,7 @@ term:
       { t }
   | pid COLON aterm ARROW term
       { PrePi (fst $1,Some (snd $1), $3, $5) }
-  | LEFTPAR ID COLON aterm RIGHTPAR ARROW term
+  | LEFTPAR pid COLON aterm RIGHTPAR ARROW term
       { PrePi (fst $2,Some (snd $2), $4 ,$7) }
   | aterm ARROW term
       { PrePi (Lexer.loc_of_pos $startpos,None,$1,$3) }

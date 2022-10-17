@@ -15,6 +15,9 @@
 
   let fail lc msg =
     raise @@ Lexer_error(lc, msg)
+
+  let string_of_chars chars =
+       List.rev chars |> List.to_seq |> String.of_seq
 }
 
 let space   = [' ' '\t' '\r']
@@ -40,7 +43,6 @@ rule token = parse
   | "->"        { ARROW         }
   | "=>"        { FATARROW      }
   | ":="        { DEF           }
-  | "_"         { UNDERSCORE ( get_loc lexbuf ) }
   | "Type"      { TYPE       ( get_loc lexbuf ) }
   | "def"       { KW_DEF     ( get_loc lexbuf ) }
   | "defac"     { KW_DEFAC   ( get_loc lexbuf ) }
@@ -48,16 +50,19 @@ rule token = parse
   | "injective" { KW_INJ     ( get_loc lexbuf ) }
   | "thm"       { KW_THM     ( get_loc lexbuf ) }
   | "private"   { KW_PRV     ( get_loc lexbuf ) }
-  | "#NAME"    space+ (mident as md) { NAME    (get_loc lexbuf , mk_mident md) }
-  | "#REQUIRE" space+ (mident as md) { REQUIRE (get_loc lexbuf , mk_mident md) }
+  | "require"   space+ (mident as md) { REQUIRE (get_loc lexbuf , mk_mident md) }
+  | "assert"    { ASSERT     ( get_loc lexbuf ) }
+  | "#NAME"     space+ (mident as md) { NAME    (get_loc lexbuf , mk_mident md) }
+  | "#REQUIRE"  space+ (mident as md) { REQUIRE (get_loc lexbuf , mk_mident md) }    
   | "#EVAL"     { EVAL       ( get_loc lexbuf ) }
   | "#INFER"    { INFER      ( get_loc lexbuf ) }
   | "#CHECK"    { CHECK      ( get_loc lexbuf ) }
   | "#CHECKNOT" { CHECKNOT   ( get_loc lexbuf ) }
-  | "#ASSERT"   { ASSERT     ( get_loc lexbuf ) }
+  | "#ASSERT"   { ASSERT     ( get_loc lexbuf ) }  
   | "#ASSERTNOT"{ ASSERTNOT  ( get_loc lexbuf ) }
   | "#PRINT"    { PRINT      ( get_loc lexbuf ) }
   | "#GDT"      { GDT        ( get_loc lexbuf ) }
+  | "#" { pragma [] lexbuf }    
   | mident as md '.' (ident as id)
   { QID ( get_loc lexbuf , mk_mident md , mk_ident id ) }
   | ident  as id
@@ -70,6 +75,13 @@ rule token = parse
   { let msg = sprintf "Unexpected characters '%s'." (String.make 1 s) in
     fail (get_loc lexbuf) msg }
   | eof { EOF }
+
+and pragma buf = parse
+  | "." space {PRAGMA (get_loc lexbuf, string_of_chars buf) }
+  | ".\n" { new_line lexbuf ; PRAGMA (get_loc lexbuf, string_of_chars buf) }
+  | '\n' { new_line lexbuf ; pragma ('\n'::buf) lexbuf }
+  | _ as c { pragma (c::buf) lexbuf }
+  | "."eof { PRAGMA (get_loc lexbuf, string_of_chars buf) }
 
 and comment i = parse
   | ";)" { if (i=0) then token lexbuf else comment (i-1) lexbuf }

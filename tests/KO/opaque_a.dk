@@ -1,0 +1,11 @@
+A : Type.
+
+a : A.
+
+thm f : A := a.
+
+assert opaque_a.f == opaque_a.a.
+
+thm g (a : A) : A := a.
+
+assert opaque_a.g == opaque_a.a.

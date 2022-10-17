@@ -164,6 +164,7 @@ let handle_entry e =
   | DTree (_, _, _) -> ()
   | Print (_, _) -> ()
   | Name (_, _) -> ()
+  | Pragma _ -> ()
   | Require (_, md) -> add_mdep md
 
 let initialize : mident -> string -> unit =

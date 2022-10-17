@@ -1,7 +1,6 @@
 open Kernel.Basic
 
 type token =
-  | UNDERSCORE of loc
   | TYPE of loc
   | KW_DEF of loc
   | KW_DEFAC of loc
@@ -37,3 +36,4 @@ type token =
   | PRINT of loc
   | GDT of loc
   | STRING of string
+  | PRAGMA of (loc * string)

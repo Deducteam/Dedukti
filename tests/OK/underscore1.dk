@@ -6,3 +6,7 @@ b : B (_ => a).
 (; This is equivalent to  b : B (x => a) ;)
 
 #ASSERT b : B (x => a).
+
+def x (_ : A) := a.
+
+foo : (_ : A) ->  A -> A -> A.

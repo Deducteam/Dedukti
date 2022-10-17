@@ -23,6 +23,7 @@ type entry =
   | DTree of loc * mident option * ident
   | Name of loc * mident
   | Require of loc * mident
+  | Pragma of loc * string
 
 let pp_entry fmt e =
   let open Format in
@@ -76,6 +77,7 @@ let pp_entry fmt e =
   | Print (_, str) -> fprintf fmt "#PRINT %S.@." str
   | Name (_, _) -> ()
   | Require (_, md) -> fprintf fmt "#REQUIRE %a.@." pp_mident md
+  | Pragma (_, str) -> fprintf fmt "#PRAGMA %str.@." str
 
 let loc_of_entry = function
   | Decl (lc, _, _, _, _)
@@ -87,5 +89,6 @@ let loc_of_entry = function
   | DTree (lc, _, _)
   | Print (lc, _)
   | Name (lc, _)
-  | Require (lc, _) ->
+  | Require (lc, _)
+  | Pragma (lc, _) ->
       lc
