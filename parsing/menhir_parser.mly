@@ -40,6 +40,21 @@ let mk_config loc lid =
 let loc_of_rs = function
   | [] -> assert false
   | (l,_,_,_,_,_,_) :: _ -> l
+
+let make_definition ~lid ~parameters ~staticity ~is_opaque ~ty_opt ~te md =
+  let loc = fst lid in
+  let id = snd lid in
+  let ty_opt =
+    Option.map (fun ty -> scope_term md [] (mk_pi ty parameters)) ty_opt in
+  let te = scope_term md [] (mk_lam te parameters) in
+  Def(loc, id,  staticity, is_opaque, ty_opt, te)
+
+let make_declaration ~lid ~parameters ~definibility ~ty md =
+  let loc = fst lid in
+  let id = snd lid in
+  let visibility,staticity = Option.value definibility ~default:(Public, Static) in
+  let ty = scope_term md [] (mk_pi ty parameters) in
+  Decl(loc, id, visibility, staticity, ty)
 %}
 
 %token EOF
@@ -95,52 +110,28 @@ let loc_of_rs = function
 
 %%
 
-visibility:
-  | KW_PRV { Private }
+%inline definibility:
+  | KW_INJ
+    { Public, Injective }
+  | KW_PRV
+    { Private, Definable Term.Free }
+  | KW_PRV KW_INJ
+    { Private, Injective }
+  | KW_DEF { Public, Definable Term.Free}
 
-definibility:
-  | visibility? KW_INJ
-    { (match $1 with None -> Public | Some Private -> Private), Injective }
-  | KW_DEF { Public, Definable }
+let ilist(x) ==
+  | l = ioption(x+) ;  { match l with | None -> [] | Some x -> x }
 
 line:
-  | id=ID ps=param* COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Public, Static, scope_term md [] (mk_pi ty ps))}
-  | KW_DEF id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Public, Definable Term.Free, scope_term md [] ty)}
-  | KW_DEF id=ID COLON ty=term? DEF te=term DOT
-    {fun md ->
-     let ps = [] in
-     Def(fst id, snd id, Public, false,
-		   Option.map (fun ty -> scope_term md [] (mk_pi ty ps)) ty,
-                     scope_term md [] (mk_lam te ps))}
-  | KW_DEF id=ID ps=param+ COLON ty=term? DEF te=term DOT
-    {fun md ->
-     Def(fst id, snd id, Public, false,
-		   Option.map (fun ty -> scope_term md [] (mk_pi ty ps)) ty,
-                   scope_term md [] (mk_lam te ps))}
-  | KW_THM id=ID COLON ty=term DEF te=term DOT
-    {fun md ->
-     let ty = Some ty in
-     let ps = [] in
-     Def(fst id, snd id, Public, true,
-		   Option.map (fun ty -> scope_term md [] (mk_pi ty ps)) ty,
-                     scope_term md [] (mk_lam te ps))}
-  | KW_THM id=ID ps=param+ COLON ty=term DEF te=term DOT
-    {fun md ->
-     let ty = Some ty in
-     Def(fst id, snd id, Public, true,
-		   Option.map (fun ty -> scope_term md [] (mk_pi ty ps)) ty,
-                     scope_term md [] (mk_lam te ps))}
+  | rs=rule+ DOT
+      {fun md -> Rules(loc_of_rs rs,(List.map (scope_rule md) rs))}
+  | KW_DEF lid=ID parameters=ilist(param) ty_opt=ioption(of_ty) DEF te=term DOT
+    {make_definition ~lid ~parameters ~staticity:Public ~is_opaque:false ~ty_opt ~te}
+  | KW_THM lid=ID parameters=ilist(param) COLON ty=term DEF te=term DOT
+    {make_definition ~lid ~parameters ~staticity:Public ~is_opaque:true ~ty_opt:(Some ty) ~te}
+  | definibility=ioption(definibility) lid=ID parameters=ilist(param) ty=of_ty DOT
+    {make_declaration ~lid ~parameters ~definibility ~ty}
 
-  | KW_PRV id=ID ps=param* COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Private, Static, scope_term md [] (mk_pi ty ps))}
-  | KW_PRV KW_DEF id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Private, Definable Term.Free, scope_term md [] ty)}
-  | KW_INJ id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Public, Injective, scope_term md [] ty)}
-  | KW_PRV KW_INJ id=ID COLON ty=term DOT
-    {fun md -> Decl(fst id, snd id, Private, Injective, scope_term md [] ty)}
   | KW_DEFAC id=ID LEFTSQU ty=term RIGHTSQU DOT
     {fun md -> Decl(fst id, snd id, Public, Definable Term.AC, scope_term md [] ty)}
   | KW_PRV KW_DEFAC id=ID LEFTSQU ty=term RIGHTSQU DOT
@@ -151,19 +142,6 @@ line:
   | KW_PRV KW_DEFACU id=ID LEFTSQU ty=term COMMA neu=term RIGHTSQU DOT
     {fun md -> Decl(fst id, snd id, Private, Definable(Term.ACU(scope_term md [] neu)),
 	            scope_term md [] ty)}
-
-  | KW_PRV KW_DEF id=ID COLON ty=term DEF te=term DOT
-      {fun md -> Def(fst id, snd id, Private, false, Some(scope_term md [] ty), scope_term md [] te)}
-  | KW_PRV KW_DEF id=ID DEF te=term DOT
-      {fun md -> Def(fst id, snd id, Private, false, None, scope_term md [] te)}
-  | KW_PRV KW_DEF id=ID ps=param+ COLON ty=term DEF te=term DOT
-      {fun md -> Def(fst id, snd id, Private, false, Some(scope_term md [] (mk_pi ty ps)),
-                     scope_term md [] (mk_lam te ps))}
-  | KW_PRV KW_DEF id=ID ps=param+ DEF te=term DOT
-      {fun md -> Def(fst id, snd id, Private, false, None, scope_term md [] (mk_lam te ps))}
-
-  | rs=rule+ DOT
-      {fun md -> Rules(loc_of_rs rs,(List.map (scope_rule md) rs))}
 
   | EVAL te=term DOT
       {fun md -> Eval($1, default_cfg, scope_term md [] te)}
@@ -203,6 +181,9 @@ line:
 eval_config:
   | LEFTSQU l=separated_nonempty_list(COMMA, ID) RIGHTSQU
   {mk_config (Lexer.loc_of_pos $startpos) (List.map (fun x -> string_of_ident (snd x)) l) }
+
+of_ty:
+  | COLON te=term { te }
 
 param:
   | LEFTPAR id=pid COLON te=term RIGHTPAR
