@@ -47,6 +47,10 @@ val check_arity : bool ref
 (** Flag to check for rules left linearity. Default is false *)
 val check_ll : bool ref
 
+(** If [true], a symbol from an external module cannot be imported
+   implicitely. The [require] directive must be used. *)
+val explicit_import : bool ref
+
 (** {2 The Global Environment} *)
 
 (** [init ~load_path ~input] initializes a new global environement from

@@ -103,6 +103,8 @@ module Check = struct
       ok ~basename:"firstOrder.dk" [];
       ok ~basename:"recursive.dk" [];
       ok ~regression:true ~basename:"sharing.dk" [];
+      ok ~basename:"def.dk" [Export];
+      ok ~basename:"require.dk" [Import "tests/OK"; Standard];
       ok ~regression:true ~basename:"inferingKindForType.dk" [];
       ok ~basename:"ho_match.dk" [];
       ok ~basename:"tptp.dk" [];
@@ -247,6 +249,7 @@ module Check = struct
       ko ~error:(`Code 108) ~basename:"SR_unsat_e1.dk" [Type_lhs];
       ko ~error:(`Code 108) ~basename:"SR_unsat_e2.dk" [Type_lhs];
       ko ~error:(`Code 108) ~basename:"SR_unsat_f1.dk" [Type_lhs];
+      ko ~error:(`Code 306) ~basename:"require.dk" [Standard];
       ko ~error:(`Code 306) ~basename:"symbol_not_found_31.dk" [];
       ko ~error:(`Code 208) ~basename:"type_annot1.dk" [];
       ko ~error:(`Code 208) ~basename:"type_annot2.dk" [];

@@ -29,7 +29,7 @@ type t = {
 }
 
 let dummy ?(md = Basic.mk_mident "") () =
-  let dummy_sig = Signature.make md (fun _ _ -> "") in
+  let dummy_sig = Signature.make ~explicit_import:false md (fun _ _ -> "") in
   {
     load_path = Files.empty;
     input = Parser.input_from_string md "";
@@ -48,9 +48,14 @@ let check_arity = ref true
 
 let check_ll = ref false
 
+let explicit_import = ref false
+
 let init ~load_path ~input =
   let find_object_file = Files.find_object_file_exn load_path in
-  let sg = Signature.make (Parser.md_of_input input) find_object_file in
+  let explicit_import = !explicit_import in
+  let sg =
+    Signature.make ~explicit_import (Parser.md_of_input input) find_object_file
+  in
   let red : (module Reduction.S) = (module Reduction.Default) in
   let typer : (module Typing.S) = (module Typing.Default) in
   {load_path; input; sg; red; typer}

@@ -61,8 +61,26 @@ let type_lhs =
   let doc = "Forbid rules with untypable left-hand side" in
   Arg.(value & flag & info ["type-lhs"] ~doc)
 
+let explicit_import =
+  let doc =
+    "For compliance with the Dedukti standard, the require directive should be \
+     mandatory. However, this was not the case in the past. Because many \
+     Dedukti files used the former, by default implicit imports are allowed \
+     but this aim to be changed in the future."
+  in
+  Arg.(value & flag & info ["explicit-import"] ~doc)
+
+let standard_check =
+  let doc =
+    "This parameter is used to ensure development are compliant with the \
+     Dedukti standard. This is not active by default but should be in the \
+     future. For the moment, this parameter is an alias for 'explicit-import' \
+     option."
+  in
+  Arg.(value & flag & info ["standard"] ~doc)
+
 let dkcheck config confluence de_bruijn export files eta ll sr_check
-    errors_in_snf coc type_lhs =
+    errors_in_snf coc type_lhs explicit_import standard_check =
   Config.init config;
   Pp.print_db_enabled := de_bruijn;
   Option.iter Confluence.set_cmd confluence;
@@ -71,6 +89,7 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
   Env.check_arity := not eta;
   Srcheck.srfuel := sr_check;
   Env.errors_in_snf := errors_in_snf;
+  Env.explicit_import := explicit_import || standard_check;
   Typing.coc := coc;
   Typing.fail_on_unsatisfiable_constraints := type_lhs;
   let open Processor in
@@ -96,7 +115,8 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
 let cmd_t =
   Term.(
     const dkcheck $ Config.t $ confluence $ de_bruijn $ export $ files $ eta
-    $ ll $ sr_check $ errors_in_snf $ coc $ type_lhs)
+    $ ll $ sr_check $ errors_in_snf $ coc $ type_lhs $ explicit_import
+    $ standard_check)
 
 let cmd =
   let doc = "Type check a list of Dedukti files" in

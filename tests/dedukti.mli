@@ -6,6 +6,7 @@ module Check : sig
     | Export
     | Type_lhs
     | Left_linear
+    | Standard
 
   (** [ok ?regression ~filename arguments] runs [dkcheck] on
      [filename] with [arguments].
