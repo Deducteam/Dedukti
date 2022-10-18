@@ -23,7 +23,7 @@ val pp_preterm : formatter -> preterm -> unit
 type prepattern =
   | PCondition of preterm
   | PPattern of loc * mident option * ident * prepattern list
-  | PLambda of loc * ident * prepattern
+  | PLambda of loc * ident * preterm option * prepattern
   | PJoker of loc * prepattern list
   | PApp of prepattern list
 

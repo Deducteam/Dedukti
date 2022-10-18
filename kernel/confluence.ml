@@ -87,7 +87,7 @@ let pp_pattern ar fmt pat =
           List.iter (fprintf fmt ",%a" (aux k)) args1;
           fprintf fmt ")";
           List.iter (fprintf fmt ",%a)" (aux k)) args2
-    | Lambda (_, x, p) ->
+    | Lambda (_, x, _, p) ->
         fprintf fmt "lam(m_typ,\\v_%a.%a)" pp_ident x (aux (k + 1)) p
     | Brackets _ -> incr nb; fprintf fmt "b_%i" !nb
   in
@@ -144,7 +144,7 @@ let get_bvars r =
   let rec aux_p k bvars = function
     | Var (_, _, _, args) | Pattern (_, _, args) ->
         List.fold_left (aux_p k) bvars args
-    | Lambda (_, x, p) -> aux_p (k + 1) (x :: bvars) p
+    | Lambda (_, x, _, p) -> aux_p (k + 1) (x :: bvars) p
     | Brackets te -> aux_t k bvars te
   in
   let bvars0 = aux_p 0 [] pat in
@@ -164,7 +164,7 @@ let get_arities (p : pattern) : int IdMap.t =
           with Not_found -> ar1
         in
         IdMap.add x ar map2
-    | Lambda (_, _, p) -> aux (k + 1) map p
+    | Lambda (_, _, _, p) -> aux (k + 1) map p
     | Brackets _ -> map
   in
   aux 0 IdMap.empty p

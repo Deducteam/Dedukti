@@ -62,7 +62,7 @@ let rec mk_pattern p =
   | Pattern (_, c, args) ->
       List.fold_left (fun deps args -> merge deps (mk_pattern args)) empty args
       |> merge (mk_name c)
-  | Lambda (_, _, te) -> mk_pattern te
+  | Lambda (_, _, _, te) -> mk_pattern te
   | Brackets t -> mk_term t
 
 let mk_rule r =

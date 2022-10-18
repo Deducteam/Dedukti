@@ -74,7 +74,7 @@ let get_vars_order (vars : pcontext) (ppat : prepattern) :
           in
           List.fold_left (aux bvar) new_ctx pargs
     | PPattern (_, Some _, _, pargs) -> List.fold_left (aux bvar) ctx pargs
-    | PLambda (_, x, pp) -> aux (x :: bvar) ctx pp
+    | PLambda (_, x, _, pp) -> aux (x :: bvar) ctx pp
     | PCondition _ ->
         has_brackets := true;
         ctx
@@ -99,7 +99,9 @@ let p_of_pp md (ctx : ident list) (ppat : prepattern) : pattern =
         | None -> Pattern (l, mk_name md id, List.map (aux ctx) pargs))
     | PPattern (l, Some md, id, pargs) ->
         Pattern (l, mk_name md id, List.map (aux ctx) pargs)
-    | PLambda (l, x, pp) -> Lambda (l, x, aux (x :: ctx) pp)
+    | PLambda (l, x, None, pp) -> Lambda (l, x, None, aux (x :: ctx) pp)
+    | PLambda (l, x, Some ty, pp) ->
+        Lambda (l, x, Some (t_of_pt md ctx ty), aux (x :: ctx) pp)
     | PCondition pte -> Brackets (t_of_pt md ctx pte)
     | PJoker (l, pargs) -> (
         let id = get_fresh_name () in

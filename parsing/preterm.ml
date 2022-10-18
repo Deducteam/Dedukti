@@ -45,7 +45,7 @@ let rec loc_of_preterm (pte : preterm) : loc =
 type prepattern =
   | PCondition of preterm
   | PPattern of loc * mident option * ident * prepattern list
-  | PLambda of loc * ident * prepattern
+  | PLambda of loc * ident * preterm option * prepattern
   | PJoker of loc * prepattern list
   | PApp of prepattern list
 
@@ -61,7 +61,10 @@ let rec pp_prepattern fmt ppatern =
       fprintf fmt "%a %a" pp_pconst (md, id) (pp_list " " pp_prepattern) lst
   | PCondition pte -> fprintf fmt "{ %a }" pp_preterm pte
   | PJoker _ -> fprintf fmt "_"
-  | PLambda (_, id, p) -> fprintf fmt "%a => %a" pp_ident id pp_prepattern p
+  | PLambda (_, id, None, p) ->
+      fprintf fmt "%a => %a" pp_ident id pp_prepattern p
+  | PLambda (_, id, Some ty, p) ->
+      fprintf fmt "%a : %a => %a" pp_ident id pp_preterm ty pp_prepattern p
   | PApp plist -> fprintf fmt "(%a)" (pp_list " " pp_prepattern) plist
 
 let rec loc_of_prepat (ppat : prepattern) : loc =
@@ -71,7 +74,7 @@ let rec loc_of_prepat (ppat : prepattern) : loc =
       let l, c = of_loc (loc_of_preterm pte) in
       mk_loc l (c - 1)
   | PJoker (l, _) -> l
-  | PLambda (l, _, _) -> l
+  | PLambda (l, _, _, _) -> l
   | PApp [] -> assert false
   | PApp (h :: _) ->
       let l, c = of_loc (loc_of_prepat h) in
@@ -89,8 +92,8 @@ let rec clean_pre_pattern (ppat : prepattern) : prepattern =
           if tl = [] then PCondition pte
           else raise (AppliedGuardedTerm (loc_of_prepat ppat))
       | PJoker (l, args) -> PJoker (l, List.map clean_pre_pattern (args @ tl))
-      | PLambda (l, id, p) ->
-          if tl = [] then PLambda (l, id, clean_pre_pattern p)
+      | PLambda (l, id, ty_opt, p) ->
+          if tl = [] then PLambda (l, id, ty_opt, clean_pre_pattern p)
           else raise (BetaRedexInLHS (loc_of_prepat ppat))
       (* clean_pre_pattern suppresses all PApp*)
       | PApp _ -> assert false)
@@ -98,12 +101,7 @@ let rec clean_pre_pattern (ppat : prepattern) : prepattern =
       PPattern (l, md, id, List.map clean_pre_pattern args)
   | PCondition pte -> PCondition pte
   | PJoker (l, args) -> PJoker (l, List.map clean_pre_pattern args)
-  | PLambda (l, id, p) -> PLambda (l, id, clean_pre_pattern p)
-
-(* and pp_prepattern_wp fmt = function
- *   | PLambda (_,_,_)
- *   | PPattern (_,_,_,_::_) as p  -> fprintf fmt "(%a)" pp_prepattern p
- *   | p                           -> pp_prepattern fmt p *)
+  | PLambda (l, id, ty_opt, p) -> PLambda (l, id, ty_opt, clean_pre_pattern p)
 
 type pdecl = (loc * ident) * preterm option
 

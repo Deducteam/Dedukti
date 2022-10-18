@@ -257,10 +257,19 @@ module Make (R : Reduction.S) : S = struct
     Debug.(debug d_rule "Checking pattern %a:%a" pp_pattern pat pp_term exp_ty);
     let ctx () = LList.lst sigma @ pc_to_context_wp delta in
     match pat with
-    | Lambda (l, x, p) -> (
+    | Lambda (l, x, ty_opt, p) -> (
         match R.whnf sg exp_ty with
-        | Pi (_, _, a, b) ->
-            check_pattern sg delta (LList.cons (l, x, a) sigma) b lst p
+        | Pi (_, _, a, b) -> (
+            match ty_opt with
+            | None ->
+                check_pattern sg delta (LList.cons (l, x, a) sigma) b lst p
+            | Some ty ->
+                if R.are_convertible sg ty a then
+                  check_pattern sg delta (LList.cons (l, x, a) sigma) b lst p
+                else
+                  raise
+                    (Typing_error
+                       (AnnotConvertibilityError (l, x, ctx (), ty, a))))
         | _ ->
             raise
               (Typing_error

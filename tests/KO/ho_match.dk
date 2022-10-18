@@ -1,0 +1,10 @@
+N : Type.
+0 : N.
+
+def f : N -> N.
+[x] f x --> 0.
+
+#ASSERT (y:N => f y) == (y:N => 0).
+
+def g : (N -> N) -> N.
+[h] g (x : (N -> N) => h x) --> 0.

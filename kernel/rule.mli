@@ -9,7 +9,7 @@ open Term
 type pattern =
   | Var of loc * ident * int * pattern list  (** Applied DB variable *)
   | Pattern of loc * name * pattern list  (** Applied constant    *)
-  | Lambda of loc * ident * pattern  (** Lambda abstraction  *)
+  | Lambda of loc * ident * term option * pattern  (** Lambda abstraction  *)
   | Brackets of term  (** Bracket of a term   *)
 
 val get_loc_pat : pattern -> loc

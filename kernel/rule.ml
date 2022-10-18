@@ -5,7 +5,7 @@ open Term
 type pattern =
   | Var of loc * ident * int * pattern list (* Y x1 ... xn *)
   | Pattern of loc * name * pattern list
-  | Lambda of loc * ident * pattern
+  | Lambda of loc * ident * term option * pattern
   | Brackets of term
 
 type wf_pattern =
@@ -92,7 +92,9 @@ let rec pp_pattern out pattern =
   | Pattern (_, n, []) -> fprintf out "%a" pp_name n
   | Pattern (_, n, pats) ->
       fprintf out "%a %a" pp_name n (pp_list " " pp_pattern_wp) pats
-  | Lambda (_, x, p) -> fprintf out "%a => %a" pp_ident x pp_pattern p
+  | Lambda (_, x, None, p) -> fprintf out "%a => %a" pp_ident x pp_pattern p
+  | Lambda (_, x, Some ty, p) ->
+      fprintf out "%a : %a => %a" pp_ident x pp_term ty pp_pattern p
   | Brackets t -> fprintf out "{ %a }" pp_term t
 
 and pp_pattern_wp out pattern =
@@ -129,7 +131,7 @@ and pp_wf_pattern_wp fmt wf_pattern =
   | _ -> pp_wf_pattern fmt wf_pattern
 
 let get_loc_pat = function
-  | Var (l, _, _, _) | Pattern (l, _, _) | Lambda (l, _, _) -> l
+  | Var (l, _, _, _) | Pattern (l, _, _) | Lambda (l, _, _, _) -> l
   | Brackets t -> get_loc t
 
 let get_loc_rule r = get_loc_pat r.pat
@@ -165,7 +167,7 @@ let pattern_to_term p =
     | Brackets t -> t
     | Pattern (l, n, args) -> mk_App2 (mk_Const l n) (List.map (aux k) args)
     | Var (l, x, n, args) -> mk_App2 (mk_DB l x n) (List.map (aux k) args)
-    | Lambda (l, x, pat) -> mk_Lam l x None (aux (k + 1) pat)
+    | Lambda (l, x, ty_opt, pat) -> mk_Lam l x ty_opt (aux (k + 1) pat)
   in
   aux 0 p
 
@@ -221,7 +223,7 @@ let check_patterns (esize : int) (pats : pattern list) :
   in
   let rec aux (k : int) (pat : pattern) : wf_pattern =
     match pat with
-    | Lambda (_, x, p) -> LLambda (x, aux (k + 1) p)
+    | Lambda (_, x, _, p) -> LLambda (x, aux (k + 1) p)
     | Var (_, x, n, args) when n < k ->
         LBoundVar (x, n, Array.of_list (List.map (aux k) args))
     | Var (l, x, n, args) (* Context variable (n>=k)  *) ->

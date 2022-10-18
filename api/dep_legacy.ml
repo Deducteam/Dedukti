@@ -128,7 +128,7 @@ let rec mk_pattern p =
   match p with
   | Var (_, _, _, args) -> List.iter mk_pattern args
   | Pattern (_, c, args) -> mk_name c; List.iter mk_pattern args
-  | Lambda (_, _, te) -> mk_pattern te
+  | Lambda (_, _, _, te) -> mk_pattern te
   | Brackets t -> mk_term t
 
 let mk_rule r =

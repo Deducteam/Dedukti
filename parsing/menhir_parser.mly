@@ -221,8 +221,12 @@ pattern_wp:
   | LEFTBRA term RIGHTBRA    { PCondition $2 }
   | LEFTPAR pattern RIGHTPAR { $2 }
 
+of_aty:
+  | COLON te=aterm { te }
+
 pattern:
-  | pid FATARROW pattern     { PLambda (fst $1,snd $1,$3) }
+  | pid=pid ty_opt=ioption(of_aty) FATARROW pattern=pattern
+    { PLambda (fst pid, snd pid, ty_opt, pattern) }
   | pattern_wp+              { PApp($1) }
 
 sterm:

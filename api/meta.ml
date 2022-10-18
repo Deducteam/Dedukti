@@ -274,8 +274,8 @@ module LF = struct
     match pattern with
     | Var (lc, id, n, ps) -> Var (lc, id, n, List.map encode_pattern ps)
     | Brackets term -> Brackets (encode_term term)
-    | Lambda (lc, id, p) ->
-        Pattern (lc, name_of "lam", [Lambda (lc, id, encode_pattern p)])
+    | Lambda (lc, id, ty_opt, p) ->
+        Pattern (lc, name_of "lam", [Lambda (lc, id, ty_opt, encode_pattern p)])
     | Pattern (lc, n, []) -> Pattern (lc, name_of "sym", [Pattern (lc, n, [])])
     | Pattern (lc, n, ps) ->
         Pattern
@@ -420,9 +420,11 @@ module APP = struct
     match pattern with
     | Var (lc, id, n, ps) -> Var (lc, id, n, List.map (encode_pattern sg ctx) ps)
     | Brackets term -> Brackets (encode_term sg ctx term)
-    | Lambda (lc, id, p) ->
+    | Lambda (lc, id, ty_opt, p) ->
         Pattern
-          (lc, name_of "lam", [dummy; Lambda (lc, id, encode_pattern sg ctx p)])
+          ( lc,
+            name_of "lam",
+            [dummy; Lambda (lc, id, ty_opt, encode_pattern sg ctx p)] )
     | Pattern (lc, n, []) -> Pattern (lc, name_of "sym", [Pattern (lc, n, [])])
     | Pattern (lc, n, [a]) ->
         Pattern
@@ -554,7 +556,7 @@ let rec pattern_of_term t =
   let open Term in
   match t with
   | Kind | Type _ | Pi _ -> raise Not_a_pattern
-  | Lam (lc, x, _, te) -> Rule.Lambda (lc, x, pattern_of_term te)
+  | Lam (lc, x, ty_opt, te) -> Rule.Lambda (lc, x, ty_opt, pattern_of_term te)
   | App (Const (lc, name), a, args) ->
       Rule.Pattern (lc, name, List.map pattern_of_term (a :: args))
   | App (DB (lc, x, n), a, args) ->

@@ -13,3 +13,6 @@ def g : (N -> N) -> N.
 #ASSERT ( y:N => g (x => x  ) ) == (y:N => 0).
 #ASSERT ( y:N => g (x => y  ) ) == (y:N => 0).
 #ASSERT ( y:N => g (x => f y) ) == (y:N => 0).
+
+def gg : (N -> N) -> N.
+[h] gg (x : N => h x) --> 0.

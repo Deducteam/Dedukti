@@ -202,8 +202,11 @@ module Make (S : Sig) : Printer = struct
         fprintf out "%a %a" print_const cst
           (print_list " " print_pattern_wp)
           pats
-    | Lambda (_, x, p) ->
+    | Lambda (_, x, None, p) ->
         fprintf out "@[%a => %a@]" print_ident x print_pattern p
+    | Lambda (_, x, Some ty, p) ->
+        fprintf out "@[%a : %a => %a@]" print_ident x print_term ty
+          print_pattern p
 
   and print_pattern_wp out = function
     | (Pattern _ | Lambda _) as p -> fprintf out "(%a)" print_pattern p
