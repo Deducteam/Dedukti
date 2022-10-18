@@ -49,8 +49,12 @@ type scope =
 (** A collection of well-typed symbols and rewrite rules. *)
 type t
 
-(** [make file] creates a new signature corresponding to the file [file]. *)
-val make : mident -> (loc -> mident -> file) -> t
+(** [make ~explicit_import md get_object_file] creates a new signature
+   corresponding to the module [md]. [get_object_file] is used to get
+   an object file from a module identifier. if [explicit_import] is
+   [true], the only way to import an external symbol is via the
+   [import] or [import_signature] functions. *)
+val make : explicit_import:bool -> mident -> (loc -> mident -> file) -> t
 
 (** [get_name sg] returns the name of the signature [sg]. *)
 val get_name : t -> mident
@@ -60,10 +64,8 @@ val export : t -> out_channel -> unit
 
 val get_id_comparator : t -> name comparator
 
-(*
-val import              : t -> loc -> mident -> unit
-(** [import sg md] impots the module [md] in the signature [sg]. *)
-*)
+(** [import lc sg md] the module [md] in the signature [sg]. *)
+val import : t -> loc -> mident -> unit
 
 (** [import sg sg_ext] imports the signature [sg_ext] into the signature [sg]. *)
 val import_signature : t -> t -> unit
@@ -90,9 +92,6 @@ val get_neutral : t -> loc -> name -> term
 
 (** [is_AC sg l na] returns true when [na] is declared as AC symbol *)
 val is_AC : t -> loc -> name -> bool
-
-(** [import sg md] the module [md] in the signature [sg]. *)
-val import : t -> loc -> mident -> unit
 
 (** [get_dtree sg filter l cst] returns the decision/matching tree associated
     with [cst] inside the environment [sg]. *)

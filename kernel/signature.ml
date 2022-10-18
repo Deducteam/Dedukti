@@ -71,12 +71,13 @@ type t = {
   tables : rw_infos HId.t HMd.t;
   mutable external_rules : rule_infos list list;
   get_file : loc -> mident -> string;
+  explicit_import : bool;
 }
 
-let make md get_file =
+let make ~explicit_import md get_file =
   let tables = HMd.create 19 in
   HMd.replace tables md (HId.create 251);
-  {md; tables; external_rules = []; get_file}
+  {md; tables; external_rules = []; get_file; explicit_import}
 
 let get_name sg = sg.md
 
@@ -304,7 +305,9 @@ and get_info_env sg lc cst =
   let env =
     (* Fetch module, import it if it's missing *)
     try HMd.find sg.tables md
-    with Not_found -> import sg lc md; HMd.find sg.tables md
+    with Not_found ->
+      if sg.explicit_import then raise Not_found else import sg lc md;
+      HMd.find sg.tables md
   in
   try (HId.find env (id cst), env)
   with Not_found -> raise (Signature_error (SymbolNotFound (lc, cst)))
@@ -365,7 +368,9 @@ let get_neutral sg lc cst =
 let get_env sg lc cst =
   let md = md cst in
   try HMd.find sg.tables md
-  with Not_found -> import sg lc md; HMd.find sg.tables md
+  with Not_found ->
+    if sg.explicit_import then raise Not_found
+    else (import sg lc md; HMd.find sg.tables md)
 
 let get_infos sg lc cst =
   try HId.find (get_env sg lc cst) (id cst)
