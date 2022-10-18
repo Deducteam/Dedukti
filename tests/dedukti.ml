@@ -114,6 +114,7 @@ module Check = struct
     | Export
     | Type_lhs
     | Left_linear
+    | Standard
 
   let mk_argument = function
     | Eta -> ["--eta"]
@@ -122,6 +123,7 @@ module Check = struct
     | Export -> ["-e"]
     | Type_lhs -> ["--type-lhs"]
     | Left_linear -> ["--ll"]
+    | Standard -> ["--standard"]
 
   let tag_of_argument = function
     | Eta -> "eta"
@@ -130,6 +132,7 @@ module Check = struct
     | Export -> "export"
     | Type_lhs -> "typelhs"
     | Left_linear -> "ll"
+    | Standard -> "standard"
 
   let run ~regression ~error ~filename arguments =
     let tags = List.map tag_of_argument arguments in
