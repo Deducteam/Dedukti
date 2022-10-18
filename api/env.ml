@@ -48,6 +48,8 @@ let check_arity = ref true
 
 let check_ll = ref false
 
+let explicit_import = ref false
+
 let init ~load_path ~input =
   let find_object_file = Files.find_object_file_exn load_path in
   let sg = Signature.make (Parser.md_of_input input) find_object_file in
