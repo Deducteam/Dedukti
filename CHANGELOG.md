@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Fix path printing: no longer prepend paths with `./`
+
 ## [2.7] -- 2022-06-16
 
 ### Added
