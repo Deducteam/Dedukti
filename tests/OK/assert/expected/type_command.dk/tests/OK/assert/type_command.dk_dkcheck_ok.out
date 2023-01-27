@@ -1,0 +1,2 @@
+
+./dk.native check --no-color -q tests/OK/assert/type_command.dk

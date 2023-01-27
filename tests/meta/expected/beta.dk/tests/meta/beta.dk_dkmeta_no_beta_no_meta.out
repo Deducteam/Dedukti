@@ -1,0 +1,10 @@
+
+./dk.native meta --no-color -q --no-beta --no-meta tests/meta/beta.dk
+def A : Type.
+
+B : Type.
+
+[] A --> B.
+
+def f : A -> A := y:A => (x:A => x) y.
+

@@ -1,0 +1,10 @@
+
+./dk.native check --no-color -q tests/OK/check/conv_command2.dk
+YES
+YES
+YES
+YES
+NO
+NO
+NO
+NO

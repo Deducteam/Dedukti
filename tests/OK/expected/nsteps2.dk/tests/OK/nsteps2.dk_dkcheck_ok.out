@@ -1,0 +1,10 @@
+
+./dk.native check --no-color -q tests/OK/nsteps2.dk
+P a
+P a
+P T
+P T
+T
+T
+T
+T

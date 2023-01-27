@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ocaml-version: [4.14.0]
+        ocaml-version: [5.0.0]
     runs-on: ubuntu-latest
     steps:
       - name: checking out dedukti repo...
@@ -32,7 +32,7 @@ jobs:
           opam upgrade
           opam pin add -n -k path dedukti .
           opam install --deps-only -d -t dedukti
-          opam install ocamlformat.0.23.0
+          opam install ocamlformat.0.24.1
           opam install tezt
           opam install z3
       - name: Checking formatting...

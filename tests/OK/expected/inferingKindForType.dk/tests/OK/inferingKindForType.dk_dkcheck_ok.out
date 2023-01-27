@@ -1,0 +1,4 @@
+
+./dk.native check --no-color -q tests/OK/inferingKindForType.dk
+Kind
+Kind

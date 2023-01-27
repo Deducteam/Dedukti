@@ -41,8 +41,7 @@ let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
   let register f =
     match regression with
     | None -> Test.register ~__FILE__:filename ~title ~tags f
-    | Some output_file ->
-        Regression.register ~__FILE__:filename ~output_file ~title ~tags f
+    | Some file -> Regression.register ~__FILE__:filename ~file ~title ~tags f
   in
   register (fun () ->
       let* () = preprocess () in

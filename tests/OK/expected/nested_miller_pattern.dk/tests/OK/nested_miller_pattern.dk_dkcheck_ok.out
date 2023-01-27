@@ -1,0 +1,4 @@
+
+./dk.native check --no-color -q tests/OK/nested_miller_pattern.dk
+g a
+g a

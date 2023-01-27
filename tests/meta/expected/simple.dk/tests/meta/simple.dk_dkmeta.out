@@ -1,0 +1,98 @@
+
+./dk.native meta --no-color -q tests/meta/simple.dk
+nat : Type.
+
+0 : nat.
+
+S : nat -> nat.
+
+def 1 := S 0.
+
+def 2 := S (S 0).
+
+def 3 := S (S (S 0)).
+
+def 4 := S (S (S (S 0))).
+
+def 5 := S (S (S (S (S 0)))).
+
+def 6 := S (S (S (S (S (S 0))))).
+
+def 7 := S (S (S (S (S (S (S 0)))))).
+
+def 8 := S (S (S (S (S (S (S (S 0))))))).
+
+def ack : nat -> nat -> nat.
+
+[n] ack (0) n --> S n.
+
+[m] ack (S m) (0) --> ack m (S 0).
+
+[n, m] ack (S m) (S n) --> ack m (ack (S m) n).
+
+def foo :
+  nat
+  :=
+  S
+    (S
+       (S
+          (S
+             (S
+                (S
+                   (S
+                      (S
+                         (S
+                            (S
+                               (S
+                                  (S
+                                     (S
+                                        (S
+                                           (S
+                                              (S
+                                                 (S
+                                                    (S
+                                                       (S
+                                                          (S
+                                                             (S
+                                                                (S
+                                                                   (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    (S
+                                                                    0)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))).
+

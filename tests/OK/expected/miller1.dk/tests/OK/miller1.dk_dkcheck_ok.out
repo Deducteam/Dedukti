@@ -1,0 +1,4 @@
+
+./dk.native check --no-color -q tests/OK/miller1.dk
+x => y => pair 0 (sh x)
+x => y => pair 0 (sh x)
