@@ -48,7 +48,7 @@ let dkdep config ignore output_file_opt sorted files =
   let load_path = Config.load_path config in
   if (not sorted) && ignore then
     Errors.fail_exit ~file:"<none>" ~code:"" None
-      "--ignore option can be used only with --sorted option"
+      "--ignore option can be used only with --sort option"
   else
     let output_fun = if sorted then output_sorted else output_deps ~load_path in
     let open Processor in
@@ -91,7 +91,7 @@ let output =
   let doc = "Output to $(docv)" in
   Arg.(value & opt (some string) None & info ["output"; "o"] ~docv:"FILE" ~doc)
 
-let sorted =
+let sort =
   let doc = "Sort the source files according to their dependencies" in
   Arg.(value & flag & info ["sort"; "s"] ~doc)
 
@@ -99,7 +99,7 @@ let ignore =
   let doc = "Ignore not found dependencies" in
   Arg.(value & flag & info ["ignore"; "i"] ~doc)
 
-let cmd_t = Term.(const dkdep $ Config.t $ ignore $ output $ sorted $ files)
+let cmd_t = Term.(const dkdep $ Config.t $ ignore $ output $ sort $ files)
 
 let cmd =
   let doc = "Dependency list generator for Dedukti files" in
