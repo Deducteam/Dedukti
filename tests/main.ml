@@ -289,6 +289,8 @@ module Check = struct
 end
 
 let _ =
+  Dedukti.Dep.ko ~regression:true ~error:`Cli ~filename:"tests/OK/typing_p1.dk"
+    [Ignore];
   Dedukti.Meta.run ~filename:"tests/meta/simple.dk" [];
   Dedukti.Meta.run ~filename:"tests/meta/simple.dk" [No_meta];
   Dedukti.Meta.run ~filename:"tests/meta/beta.dk" [];
