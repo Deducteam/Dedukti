@@ -1,7 +1,8 @@
 module Command = struct
-  type t = Dkcheck | Dkmeta | Dkpretty | Universo
+  type t = Dkdep | Dkcheck | Dkmeta | Dkpretty | Universo
 
   let path = function
+    | Dkdep -> ("./dk.native", fun args -> "dep" :: args)
     | Dkcheck -> ("./dk.native", fun args -> "check" :: args)
     | Dkmeta -> ("./dk.native", fun args -> "meta" :: args)
     | Dkpretty -> ("./dk.native", fun args -> "beautify" :: args)
@@ -92,6 +93,8 @@ let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
       | Some (`Code code) ->
           (* We check the process returned on [stderr] the expected error code *)
           Process.check_error ~msg:Base.(rex (sf "ERROR CODE:%d" code)) process
+      | Some `Cli ->
+          Process.check_error ~msg:(Base.rex "ERROR CODE:CLI") process
       | Some `System ->
           Process.check_error ~msg:(Base.rex "ERROR CODE:SYSTEM") process)
 
@@ -104,6 +107,28 @@ let title ~action ~result ~options filename =
       Format.asprintf "%s '%s' %s with '%s'" action basename result option
   | _ :: _ ->
       Format.asprintf "%s '%s' %s with '%s'" action basename result options_str
+
+module Dep = struct
+  type argument = Ignore
+
+  let mk_argument = function Ignore -> ["--ignore"]
+
+  let tag_of_argument = function Ignore -> "ignore"
+
+  let run ~regression ~error ~filename arguments =
+    let tags = List.map tag_of_argument arguments in
+    let arguments = List.map mk_argument arguments |> List.concat in
+    let result = if error <> None then "fails" else "succeeds" in
+    let result_tag = if error <> None then "ko" else "ok" in
+    let title = title ~action:"dep" ~result ~options:tags filename in
+    let tags = "dkdep" :: result_tag :: tags in
+    let regression =
+      if regression then Some (String.concat "_" (filename :: tags)) else None
+    in
+    run ~regression ~error ~title ~tags ~filename Dkdep arguments
+
+  let ko ?(regression = false) ~error = run ~regression ~error:(Some error)
+end
 
 module Check = struct
   type argument =

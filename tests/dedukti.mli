@@ -1,3 +1,10 @@
+module Dep : sig
+  type argument = Ignore
+
+  val ko :
+    ?regression:bool -> error:[`Cli] -> filename:string -> argument list -> unit
+end
+
 module Check : sig
   type argument =
     | Eta

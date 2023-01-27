@@ -47,7 +47,7 @@ let dkdep config ignore output_file_opt sorted files =
   Dep_legacy.ignore := ignore;
   let load_path = Config.load_path config in
   if (not sorted) && ignore then
-    Errors.fail_exit ~file:"<none>" ~code:"" None
+    Errors.fail_exit ~file:"<none>" ~code:"CLI" None
       "--ignore option can be used only with --sort option"
   else
     let output_fun = if sorted then output_sorted else output_deps ~load_path in

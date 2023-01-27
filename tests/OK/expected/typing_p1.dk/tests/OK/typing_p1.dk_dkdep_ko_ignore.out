@@ -1,0 +1,4 @@
+
+./dk.native dep --no-color -q --ignore tests/OK/typing_p1.dk
+[ERROR CODE:CLI]  [<none>] 
+--ignore option can be used only with --sort option
