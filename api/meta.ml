@@ -507,11 +507,10 @@ let encode cfg env term =
       if E.safe then
         match env with
         | None ->
-            Errors.fail_sys_error
+            Errors.fail_cli
               ~msg:
                 "A type checking environment must be provided when a safe \
                  encoding is used."
-              ()
         | Some env ->
             let sg = Env.get_signature env in
             E.encode_term ~sg term
@@ -534,12 +533,11 @@ let get_meta_signature cfg env =
   | None -> (
       match env with
       | None ->
-          Errors.fail_sys_error
+          Errors.fail_cli
             ~msg:
               "A type checking environment must be provided when the \
                normalisation strategy is done via the type checking \
                environmenet"
-            ()
       | Some env -> Env.get_signature env)
 
 let mk_term ?env cfg term =

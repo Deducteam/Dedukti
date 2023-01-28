@@ -27,7 +27,7 @@ let fail_file_error err =
         Format.asprintf "No object file (.dko) found for module %a@."
           Basic.pp_mident md )
 
-let fail_file_error ~red:_ exn =
+let fail_file_error ~reduce:_ exn =
   match exn with Files_error err -> Some (fail_file_error err) | _ -> None
 
 let _ = Errors.register_exception fail_file_error

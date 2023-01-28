@@ -88,7 +88,6 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
   Reduction.eta := eta;
   Env.check_arity := not eta;
   Srcheck.srfuel := sr_check;
-  Env.errors_in_snf := errors_in_snf;
   Env.explicit_import := explicit_import || standard_check;
   Typing.coc := coc;
   Typing.fail_on_unsatisfiable_constraints := type_lhs;
@@ -99,7 +98,15 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
         if not (Config.quiet config) then Errors.success (Env.get_filename env);
         if export then Env.export env;
         Confluence.finalize ()
-    | Some (env, lc, e) -> Env.fail_env_error env lc e
+    | Some (env, loc, exn) ->
+        let reduce term =
+          Env.unsafe_reduction env
+            ~red:{Reduction.default_cfg with target = Snf}
+            term
+        in
+        if errors_in_snf then Errors.reduce := reduce;
+        let file = Env.get_filename env in
+        Errors.fail_exn ~file loc exn
   in
   let hook =
     {before = (fun _ -> Confluence.initialize ()); after = hook_after}

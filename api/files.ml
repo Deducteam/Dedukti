@@ -106,7 +106,7 @@ let string_of_error = function
 
 exception File_error of file_error
 
-let fail_file_error ~red:_ exn =
+let fail_file_error ~reduce:_ exn =
   match exn with File_error err -> Some (string_of_error err) | _ -> None
 
 let _ = Errors.register_exception fail_file_error

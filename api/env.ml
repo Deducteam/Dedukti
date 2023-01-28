@@ -205,12 +205,3 @@ let are_convertible env ?(ctx = []) te1 te2 =
   let ty1 = T.infer env.sg ctx te1 in
   let ty2 = T.infer env.sg ctx te2 in
   R.are_convertible env.sg ty1 ty2 && R.are_convertible env.sg te1 te2
-
-let errors_in_snf = ref false
-
-let fail_env_error : t -> Basic.loc -> exn -> 'a =
- fun env lc exn ->
-  let snf env t = if !errors_in_snf then unsafe_reduction env t else t in
-  let file = get_filename env in
-  let code, lc, msg = Errors.string_of_exception ~red:(snf env) lc exn in
-  Errors.fail_exit ~file ~code:(string_of_int code) (Some lc) "%s" msg

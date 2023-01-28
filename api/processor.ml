@@ -315,7 +315,7 @@ end) : Interface with type 'a t := 'a C.t = struct
      | None -> (
          match exn with
          | None -> ()
-         | Some (env, lc, exn) -> Env.fail_env_error env lc exn)
+         | Some (_env, loc, exn) -> Errors.fail_exn ~file:"<input>" loc exn)
      | Some hook -> hook.after env exn);
      let data = P.get_data env in
      data
@@ -334,13 +334,11 @@ end) : Interface with type 'a t := 'a C.t = struct
         let input = Parser.from_file ~file in
         let data = handle_input ?hook ~load_path ~input processor in
         Parser.close input; data
-      with Sys_error msg -> Errors.fail_sys_error ~file ~msg ()
+      with Sys_error msg -> Errors.fail_sys_error ~file ~msg
     in
     let fold b file =
       try f (handle_file file) b
-      with exn ->
-        let env = Env.init ~load_path ~input:(Parser.from_file ~file) in
-        Env.fail_env_error env Basic.dloc exn
+      with exn -> Errors.fail_exn ~file Basic.dloc exn
     in
     List.fold_left fold default files
 

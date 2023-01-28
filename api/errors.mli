@@ -6,6 +6,8 @@ open Basic
 (** Flag to disable colored output. *)
 val color : bool ref
 
+val reduce : (Term.term -> Term.term) ref
+
 (** Print a success message. *)
 val success : string -> unit
 
@@ -20,19 +22,23 @@ val fail_exit :
   'a
 
 (** Print a system error message then exits with code 1. *)
-val fail_sys_error : ?file:string -> msg:string -> unit -> 'a
+val fail_sys_error : file:string -> msg:string -> 'a
+
+val fail_exn : file:string -> Basic.loc -> exn -> 'a
+
+val fail_cli : msg:string -> 'a
 
 type error_code = int
 
 type error_msg = error_code * Basic.loc option * string
 
-type error_handler = red:(Term.term -> Term.term) -> exn -> error_msg option
+type error_handler = reduce:(Term.term -> Term.term) -> exn -> error_msg option
 
 val register_exception :
-  (red:(Term.term -> Term.term) -> exn -> error_msg option) -> unit
+  (reduce:(Term.term -> Term.term) -> exn -> error_msg option) -> unit
 
 val string_of_exception :
-  red:(Term.term -> Term.term) ->
+  reduce:(Term.term -> Term.term) ->
   Basic.loc ->
   exn ->
   error_code * Basic.loc * string

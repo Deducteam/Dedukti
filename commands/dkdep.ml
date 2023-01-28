@@ -59,7 +59,9 @@ let dkdep config ignore output_file_opt sorted files =
           (fun _ exn ->
             match exn with
             | None -> ()
-            | Some (env, lc, exn) -> Env.fail_env_error env lc exn);
+            | Some (env, loc, exn) ->
+                let file = Env.get_filename env in
+                Errors.fail_exn ~file loc exn);
       }
     in
     (* Actual work. *)
@@ -73,7 +75,7 @@ let dkdep config ignore output_file_opt sorted files =
     | Error (md, exn) ->
         close_out oc;
         let code, _loc, exn_str =
-          Errors.string_of_exception ~red:(fun x -> x) Kernel.Basic.dloc exn
+          Errors.string_of_exception ~reduce:(fun x -> x) Kernel.Basic.dloc exn
         in
         let file =
           Format.asprintf "No file. While printing dependencies of module %a"

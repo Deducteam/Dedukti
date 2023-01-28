@@ -29,10 +29,9 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
   in
   if meta_debug then Debug.enable_flag Meta.debug_flag;
   if no_meta && meta_rules_files <> [] then
-    Errors.fail_sys_error ~msg:"Incompatible options: '--no-meta' with '-m'" ();
+    Errors.fail_cli ~msg:"Incompatible options: '--no-meta' with '-m'";
   if no_meta && encoding <> None then
-    Errors.fail_sys_error
-      ~msg:"Incompatible options: '--no-meta' with '--encoding'" ();
+    Errors.fail_cli ~msg:"Incompatible options: '--no-meta' with '--encoding'";
   let load_path = Config.load_path config in
   let cfg =
     Meta.default_config ~beta:(not no_beta) ?encoding
@@ -60,7 +59,9 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
               if not (Config.quiet config) then
                 Meta.log "[SUCCESS] File '%s' was successfully metaified."
                   (Env.get_filename env)
-          | Some (env, lc, exn) -> Env.fail_env_error env lc exn);
+          | Some (env, loc, exn) ->
+              let file = Env.get_filename env in
+              Errors.fail_exn ~file loc exn);
     }
   in
   let processor = Meta.make_meta_processor cfg ~post_processing in

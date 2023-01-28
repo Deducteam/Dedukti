@@ -40,7 +40,7 @@ let fail_dep_error err =
         None,
         Format.asprintf "No dependencies computed for name %a...@." pp_name n )
 
-let fail_dep_error ~red:_ exn =
+let fail_dep_error ~reduce:_ exn =
   match exn with Dep_error err -> Some (fail_dep_error err) | _ -> None
 
 let _ = Errors.register_exception fail_dep_error

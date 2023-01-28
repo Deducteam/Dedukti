@@ -6,6 +6,8 @@ open Parsers
 
 let color = ref true
 
+let reduce : (Term.term -> Term.term) ref = ref (fun x -> x)
+
 let colored n s =
   if !color then "\027[3" ^ string_of_int n ^ "m" ^ s ^ "\027[m" else s
 
@@ -44,32 +46,37 @@ let try_print_oneliner fmt (te, ctxt) =
   else if ctxt = [] then Format.fprintf fmt "@.%a@." Pp.print_term te
   else Format.fprintf fmt "@.%a@.----%a" Pp.print_term te Pp.print_err_ctxt ctxt
 
-let fail_sys_error ?(file = "<initialisation>") ~msg () =
-  fail_exit ~file ~code:"SYSTEM" None "%s@." msg
+let fail_sys_error ~file ~msg = fail_exit ~file ~code:"SYSTEM" None "%s@." msg
+
+let fail_cli ~msg = fail_exit ~file:"cli" ~code:"CLI" None "%s@." msg
 
 type error_code = int
 
 type error_msg = error_code * Basic.loc option * string
 
-type error_handler = red:(Term.term -> Term.term) -> exn -> error_msg option
+type error_handler = reduce:(Term.term -> Term.term) -> exn -> error_msg option
 
 (* function which prints an exception. If not registered print default message *)
 let exception_handlers : error_handler list ref = ref []
 
-let string_of_exception ~red lc exn =
+let string_of_exception ~reduce lc exn =
   let rec aux l =
     match l with
     | [] -> (-1, lc, Printexc.to_string exn)
     | handler :: l -> (
-        match handler ~red exn with
+        match handler ~reduce exn with
         | None -> aux l
         | Some (code, None, exn) -> (code, lc, exn)
         | Some (code, Some lc, exn) -> (code, lc, exn))
   in
   aux !exception_handlers
 
+let fail_exn ~file loc exn =
+  let code, lc, msg = string_of_exception ~reduce:!reduce loc exn in
+  fail_exit ~file ~code:(string_of_int code) (Some lc) "%s" msg
+
 let register_exception :
-    (red:(Term.term -> Term.term) -> exn -> error_msg option) -> unit =
+    (reduce:(Term.term -> Term.term) -> exn -> error_msg option) -> unit =
  fun f -> exception_handlers := f :: !exception_handlers
 
 (** {2: Typing error } *)
@@ -195,9 +202,9 @@ let of_typing_error red err : error_msg =
           (mk_DB lc x 0, ctx)
           Pp.print_term (red exp) Pp.print_term (red inf) )
 
-let fail_typing_error ~red exn =
+let fail_typing_error ~reduce exn =
   match exn with
-  | Typing.Typing_error err -> Some (of_typing_error red err)
+  | Typing.Typing_error err -> Some (of_typing_error reduce err)
   | _ -> None
 
 let of_dtree_error _ err =
@@ -222,9 +229,9 @@ let of_dtree_error _ err =
           "Rewrite rules for AC definable symbol '%a' should not have arity 0."
           pp_name cst )
 
-let fail_dtree_error ~red exn =
+let fail_dtree_error ~reduce exn =
   match exn with
-  | Dtree.Dtree_error err -> Some (of_dtree_error red err)
+  | Dtree.Dtree_error err -> Some (of_dtree_error reduce err)
   | _ -> None
 
 let of_rule_error _ err =
@@ -278,9 +285,9 @@ let of_rule_error _ err =
         Format.asprintf "Non left-linear rewrite rule for symbol '%a'."
           Rule.pp_rule_name rule_name )
 
-let fail_rule_error ~red exn =
+let fail_rule_error ~reduce exn =
   match exn with
-  | Rule.Rule_error err -> Some (of_rule_error red err)
+  | Rule.Rule_error err -> Some (of_rule_error reduce err)
   | _ -> None
 
 let pp_cerr out err =
@@ -352,17 +359,17 @@ let of_signature_error red err =
   | ExpectedACUSymbol (lc, cst) ->
       (404, Some lc, Format.asprintf "Expected ACU symbol '%a'." pp_name cst)
 
-let fail_signature_error ~red exn =
+let fail_signature_error ~reduce exn =
   match exn with
-  | Signature.Signature_error err -> Some (of_signature_error red err)
+  | Signature.Signature_error err -> Some (of_signature_error reduce err)
   | _ -> None
 
-let fail_lexer_error ~red:_ = function
+let fail_lexer_error ~reduce:_ = function
   | Lexer.Lexer_error (lc, msg) ->
       Some (701, Some lc, Format.asprintf "Lexer error: %s@." msg)
   | _ -> None
 
-let fail_parser_error ~red:_ = function
+let fail_parser_error ~reduce:_ = function
   | Parser.Parser_error {loc; lexbuf} ->
       Some
         ( 702,
@@ -385,12 +392,12 @@ let fail_parser_error ~red:_ = function
              not allowed@." )
   | _ -> None
 
-let fail_scoping_error ~red:_ = function
+let fail_scoping_error ~reduce:_ = function
   | Scoping.Scoping_error (lc, msg) ->
       Some (703, Some lc, Format.asprintf "Scoping error: %s@." msg)
   | _ -> None
 
-let fail_entry_error ~red:_ = function
+let fail_entry_error ~reduce:_ = function
   | Entry.Assert_error lc ->
       Some (704, Some lc, Format.asprintf "An entry assertion has failed@.")
   | _ -> None

@@ -311,7 +311,9 @@ let check : load_path:Api.Files.t -> string -> unit =
         after =
           (fun _ -> function
             | None -> ()
-            | Some (env, lc, exn) -> Api.Env.fail_env_error env lc exn);
+            | Some (env, loc, exn) ->
+                let file = Api.Env.get_filename env in
+                Api.Errors.fail_exn ~file loc exn);
       }
   in
   Api.Processor.T.handle_files ~hook ~load_path ~files:[file] (module P);
@@ -453,7 +455,8 @@ let _ =
   with
   (* FIXME: ugly, should be handled by universo via processor. *)
   | (Kernel.Signature.Signature_error _ | Kernel.Typing.Typing_error _) as e ->
-      Api.Env.fail_env_error (Api.Env.dummy ()) Kernel.Basic.dloc e
+      let file = "unknown" in
+      Api.Errors.fail_exn ~file Kernel.Basic.dloc e
   | Cmd.Cmd_error (Misc s) ->
       Api.Errors.fail_exit ~code:"-1" ~file:"" None "%s@." s
   | Sys_error err ->

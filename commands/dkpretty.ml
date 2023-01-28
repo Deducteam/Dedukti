@@ -6,7 +6,11 @@ let beautify config files =
   Config.init config;
   let open Processor in
   let after _ exn =
-    Option.iter (fun (env, lc, e) -> Env.fail_env_error env lc e) exn
+    Option.iter
+      (fun (env, loc, e) ->
+        let file = Env.get_filename env in
+        Errors.fail_exn ~file loc e)
+      exn
   in
   let hook = {before = ignore; after} in
   (* Load path is not needed since no importation is done by the

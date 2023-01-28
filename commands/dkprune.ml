@@ -26,7 +26,7 @@ let fail_dkprune_error err =
 
 exception Dkprune_error of dkprune_error
 
-let fail_dkprune ~red:_ exn =
+let fail_dkprune ~reduce:_ exn =
   match exn with
   | Dkprune_error err -> Some (fail_dkprune_error err)
   | _ -> None
@@ -187,7 +187,9 @@ let rec run_on_files ~load_path files =
         in
         let new_files = MSet.fold add_files deps.deps [] in
         if List.length new_files <> 0 then run_on_files ~load_path new_files
-    | Some (env, lc, e) -> Env.fail_env_error env lc e
+    | Some (env, loc, exn) ->
+        let file = Env.get_filename env in
+        Errors.fail_exn ~file loc exn
   in
   let hook = Processor.{before; after} in
   (* Load path is not needed since no importation is done by the
@@ -244,7 +246,6 @@ let write_file deps in_file =
 (* print_dependencies for all the names which are in the transitive closure of names specificed in the configuration files *)
 let print_dependencies ~load_path names =
   let open Dep_legacy in
-  let fake_env = Env.dummy ~md:(mk_mident "dkprune") () in
   (* We fake an environment to print an error *)
   try
     NameSet.iter Dep_legacy.transitive_closure names;
@@ -269,7 +270,7 @@ let print_dependencies ~load_path names =
   | Dep_legacy.Dep_error (NameNotFound name) ->
       Errors.fail_exit ~file:"configuration file" ~code:"DKPRUNE" None
         "The name %a does not exists@." Pp.Default.print_name name
-  | exn -> Env.fail_env_error fake_env Basic.dloc exn
+  | exn -> Errors.fail_exn ~file:"dkprune configuration file" Basic.dloc exn
 
 let files =
   let doc = "Dedukti files to process" in
