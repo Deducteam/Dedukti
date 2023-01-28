@@ -126,7 +126,9 @@ module Check = struct
       ok ~regression:true ~basename:"nsteps4.dk" [];
       ok ~basename:"dotpat.dk" [];
       ok ~basename:"type_rewrite.dk" [];
-      ok ~basename:"pragma.dk" []
+      ok ~basename:"pragma.dk" [];
+
+      ok ~basename:"backslash.dk" []
 
     module Acu = struct
       let ok ~basename =
