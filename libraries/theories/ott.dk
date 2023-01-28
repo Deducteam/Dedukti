@@ -1,0 +1,323 @@
+(; Author: Raphaël Cauderlier ;)
+(; License: CC0 ;)
+(; Source: Observational Equality, Now!, Thorsten Altenkirch Conor McBride Wouter Swierstra ;)
+
+type : Type.
+def term : type -> Type.
+
+0 : type.
+1 : type.
+2 : type.
+pi : A : type -> (term A -> type) -> type.
+sig : A : type -> (term A -> type) -> type.
+Sig : A : type -> (term A -> type) -> Type.
+w : A : type -> (term A -> type) -> type.
+W : A : type -> (term A -> type) -> Type.
+def tif : term 2 -> type -> type -> type.
+def Tif (t : term 2) (A : type) (B : type) := term (tif t A B).
+
+[A,B] term (pi A B) --> a : term A -> term (B a)
+[A,B] term (sig A B) --> Sig A B
+[A,B] term (w A B) --> W A B.
+
+I : term 1.
+tt : term 2.
+ff : term 2.
+pair : A : type -> B : (term A -> type) -> a : term A -> term (B a) -> Sig A B.
+node : A : type -> B : (term A -> type) -> a : term A -> f : (term (B a) -> W A B) -> W A B.
+bang : term 0 -> A : type -> term A.
+def if : a : term 2 -> P : (term 2 -> type) -> term (P tt) -> term (P ff) -> term (P a).
+def fst : A : type -> B : (term A -> type) -> Sig A B -> term A.
+def snd : A : type -> B : (term A -> type) -> p : Sig A B -> term (B (fst A B p)).
+def rec : A : type -> B : (term A -> type) -> P : (W A B -> type) -> u : W A B ->
+          (a : term A -> f : (term (B a) -> W A B) -> (b : term (B a) -> term (P (f b))) -> term (P (node A B a f))) ->
+          term (P u).
+
+[A] tif tt A _ --> A
+[A] tif ff _ A --> A.
+[t] if tt _ t _ --> t
+[t] if ff _ _ t --> t.
+[a] fst _ _ (pair _ _ a _) --> a.
+[b] snd _ _ (pair _ _ _ b) --> b.
+[A,B,P,a,f,p] rec A B P (node _ _ a f) p --> p a f (b : term (B a) => rec A B P (f b) p).
+
+def arr (A : type) (B : type) : type := pi A (__ : term A => B).
+
+def sum (A : type) (B : type) : type := sig 2 (b : term 2 => tif b A B).
+def left (A : type) (B : type) (a : term A) : term (sum A B) := pair 2 (b : term 2 => tif b A B) tt a.
+def right (A : type) (B : type) (b : term B) : term (sum A B) := pair 2 (b : term 2 => tif b A B) ff b.
+def sum_elim (A : type) (B : type) (C : type) (ab : term (sum A B)) (fa : term A -> term C) (fb : term B -> term C) : term C :=
+  if (fst 2 (b : term 2 => tif b A B) ab) (b : term 2 => arr (tif b A B) C) fa fb (snd 2 (b : term 2 => tif b A B) ab).
+
+def nat : type := w 2 (b : term 2 => tif b 1 0).
+def zero : term nat := node 2 (b : term 2 => tif b 1 0) ff (z : term 0 => bang z nat).
+def suc (n : term nat) : term nat := node 2 (b : term 2 => tif b 1 0) tt (__ : term 1 => n).
+
+def plus (x : term nat) (y : term nat) : term nat :=
+  rec 2 (b : term 2 => tif b 1 0) (__ : (W 2 (b : term 2 => tif b 1 0)) => nat) x
+     (b : term 2 =>
+      if b (b : term 2 => arr (arr (tif b 1 0) nat) (arr (arr (tif b 1 0) nat) nat))
+        (f : (term 1 -> term nat) => h : (term 1 -> term nat) => suc (h I))
+        (f : (term 0 -> term nat) => h : (term 0 -> term nat) => y)).
+
+(; Prop is a proof-irrelevant syntactic fragment of type. ;)
+Prop : Type.
+false : Prop.
+true : Prop.
+and : Prop -> Prop -> Prop.
+all : A : type -> (term A -> Prop) -> Prop.
+
+(; The injection from Prop to type. ;)
+def proof : Prop -> type.
+def Proof (A : Prop) : Type := term (proof A).
+[] proof false --> 0
+[] proof true --> 1
+[A,B] proof (and A B) --> sig (proof A) (__ : Proof A => proof B)
+[A,B] proof (all A B) --> pi A (x : term A => proof (B x)).
+
+def imp (A : Prop) (B : Prop) := all (proof A) (__ : Proof A => B).
+
+def EQ : type -> type -> Prop.
+def coe : A : type -> B : type -> Proof (EQ A B) -> term A -> term B.
+def eq : A : type -> term A -> B : type -> term B -> Prop.
+coh : A : type -> B : type -> Q : Proof (EQ A B) -> a : term A ->
+      Proof (eq A a B (coe A B Q a)).
+(; Remark: coh is proof irrelevant so we do not need to define it.  ;)
+
+[] EQ 0 0 --> true
+[] EQ 1 1 --> true
+[] EQ 2 2 --> true
+[A0,B0,A1,B1] EQ (sig A0 B0) (sig A1 B1) -->
+  and (EQ A0 A1)
+    (all A0 (x0 : (term A0) =>
+     all A1 (x1 : (term A1) =>
+     imp (eq A0 x0 A1 x1) (EQ (B0 x0) (B1 x1)))))
+[A0,B0,A1,B1] EQ (pi A0 B0) (pi A1 B1) -->
+  and (EQ A1 A0)
+    (all A1 (x1 : (term A1) =>
+     all A0 (x0 : (term A0) =>
+     imp (eq A1 x1 A0 x0) (EQ (B0 x0) (B1 x1)))))
+[A0,B0,A1,B1] EQ (w A0 B0) (w A1 B1) -->
+  and (EQ A0 A1)
+    (all A0 (x0 : (term A0) =>
+     all A1 (x1 : (term A1) =>
+     imp (eq A0 x0 A1 x1) (EQ (B1 x1) (B0 x0)))))
+[] EQ 0 1 --> false
+[] EQ 0 2 --> false
+[] EQ 0 (sig _ _) --> false
+[] EQ 0 (pi _ _) --> false
+[] EQ 0 (w _ _) --> false
+[] EQ 1 0 --> false
+[] EQ 1 2 --> false
+[] EQ 1 (sig _ _) --> false
+[] EQ 1 (pi _ _) --> false
+[] EQ 1 (w _ _) --> false
+[] EQ 2 0 --> false
+[] EQ 2 1 --> false
+[] EQ 2 (sig _ _) --> false
+[] EQ 2 (pi _ _) --> false
+[] EQ 2 (w _ _) --> false
+[] EQ (sig _ _) 0 --> false
+[] EQ (sig _ _) 1 --> false
+[] EQ (sig _ _) 2 --> false
+[] EQ (sig _ _) (pi _ _) --> false
+[] EQ (sig _ _) (w _ _) --> false
+[] EQ (pi _ _) 0 --> false
+[] EQ (pi _ _) 1 --> false
+[] EQ (pi _ _) 2 --> false
+[] EQ (pi _ _) (sig _ _) --> false
+[] EQ (pi _ _) (w _ _) --> false
+[] EQ (w _ _) 0 --> false
+[] EQ (w _ _) 1 --> false
+[] EQ (w _ _) 2 --> false
+[] EQ (w _ _) (sig _ _) --> false
+[] EQ (w _ _) (pi _ _) --> false.
+
+
+[x] coe 0 0 _ x --> x
+[x] coe 1 1 _ x --> x
+[x] coe 2 2 _ x --> x
+[A0,B0,A1,B1,Q,x] coe (sig A0 B0) (sig A1 B1) Q x -->
+  (a0 : term A0 =>
+   b0 : term (B0 a0) =>
+   Qa : Proof (EQ A0 A1) =>
+   a1 : (term A0 -> Proof (EQ A0 A1) -> term A1) =>
+   H : (a0 : term A0 -> Q : Proof (EQ A0 A1) ->
+        Proof (eq A0 a0 A1 (a1 a0 Q))) =>
+   Qb : (a0 : term A0 -> a1 : term A1 -> Proof (eq A0 a0 A1 a1) ->
+         Proof (EQ (B0 a0) (B1 a1))) =>
+   b1 : (a0 : term A0 -> a1 : term A1 -> Proof (EQ (B0 a0) (B1 a1)) ->
+        term (B0 a0) -> term (B1 a1)) =>
+   pair A1 B1 (a1 a0 Qa) (b1 a0 (a1 a0 Qa) (Qb a0 (a1 a0 Qa) (H a0 Qa)) b0))
+  (fst A0 B0 x)
+  (snd A0 B0 x)
+  (fst (proof (EQ A0 A1))
+       (__ : Proof (EQ A0 A1) =>
+        proof (all A0 (x0 : term A0 => all A1 (x1 : term A1 =>
+               imp (eq A0 x0 A1 x1) (EQ (B0 x0) (B1 x1))))))
+       Q)
+  (a0 : term A0 => Q : Proof (EQ A0 A1) => coe A0 A1 Q a0)
+  (a0 : term A0 => Q : Proof (EQ A0 A1) => coh A0 A1 Q a0)
+  (snd (proof (EQ A0 A1))
+       (__ : Proof (EQ A0 A1) =>
+         proof (all A0 (x0 : term A0 => all A1 (x1 : term A1 =>
+                imp (eq A0 x0 A1 x1) (EQ (B0 x0) (B1 x1))))))
+       Q)
+  (a0 : term A0 => a1 : term A1 => coe (B0 a0) (B1 a1))
+[A0,B0,A1,B1,Q,x] coe (pi A0 B0) (pi A1 B1) Q x -->
+  (Qa : Proof (EQ A1 A0) =>
+   a0 : (term A1 -> Proof (EQ A1 A0) -> term A0) =>
+   H : (a1 : term A1 -> Q : Proof (EQ A1 A0) ->
+        Proof (eq A1 a1 A0 (a0 a1 Q))) =>
+   Qb : (a1 : term A1 -> a0 : term A0 -> Proof (eq A1 a1 A0 a0) ->
+         Proof (EQ (B0 a0) (B1 a1))) =>
+   b1 : (a1 : term A1 -> a0 : term A0 -> Proof (EQ (B0 a0) (B1 a1)) ->
+        term (B0 a0) -> term (B1 a1)) =>
+   a1 : term A1 =>
+   b1 a1 (a0 a1 Qa) (Qb a1 (a0 a1 Qa) (H a1 Qa)) (x (a0 a1 Qa)))
+  (fst (proof (EQ A1 A0))
+       (__ : Proof (EQ A1 A0) =>
+        proof (all A1 (x1 : term A1=> all A0 (x0 : term A0 =>
+               imp (eq A1 x1 A0 x0) (EQ (B0 x0) (B1 x1))))))
+       Q)
+  (a1 : term A1 => Q : Proof (EQ A1 A0) => coe A1 A0 Q a1)
+  (a1 : term A1 => Q : Proof (EQ A1 A0) => coh A1 A0 Q a1)
+  (snd (proof (EQ A1 A0))
+       (__ : Proof (EQ A1 A0) =>
+        proof (all A1 (x1 : term A1 => all A0 (x0 : term A0 =>
+               imp (eq A1 x1 A0 x0) (EQ (B0 x0) (B1 x1))))))
+       Q)
+  (a1 : term A1 => a0 : term A0 => coe (B0 a0) (B1 a1))
+[A0,B0,A1,B1,Q,a0,f0] coe (w A0 B0) (w A1 B1) Q (node _ _ a0 f0) -->
+(; Why isn't this defined from rec for an abstract x : W A0 B0? ;)
+  (Qa : Proof (EQ A0 A1) =>
+   a1 : (Proof (EQ A0 A1) -> term A0 -> term A1) =>
+   H : (Q : Proof (EQ A0 A1) -> a0 : term A0 -> Proof (eq A0 a0 A1 (a1 Q a0))) =>
+   Qb : (a0 : term A0 -> a1 : term A1 -> Proof (eq A0 a0 A1 a1) ->
+         Proof (EQ (B1 a1) (B0 a0))) =>
+   node A1 B1 (a1 Qa a0) (b1 : term (B1 (a1 Qa a0)) =>
+     coe (w A0 B0) (w A1 B1) Q (f0 (coe (B1 (a1 Qa a0)) (B0 a0) (Qb a0 (a1 Qa a0) (H Qa a0)) b1))))
+  (fst (proof (EQ A0 A1))
+       (__ : Proof (EQ A0 A1) =>
+        proof (all A0 (x0 : term A0 => all A1 (x1 : term A1 =>
+               imp (eq A0 x0 A1 x1) (EQ (B1 x1) (B0 x0))))))
+       Q)
+  (coe A0 A1)
+  (coh A0 A1)
+  (snd (proof (EQ A0 A1))
+       (__ : Proof (EQ A0 A1) =>
+        proof (all A0 (x0 : term A0 => all A1 (x1 : term A1 =>
+               imp (eq A0 x0 A1 x1) (EQ (B1 x1) (B0 x0))))))
+       Q)
+[Q] coe 0 1 Q _ --> bang Q 1
+[Q] coe 0 2 Q _ --> bang Q 2
+[A,B,Q] coe 0 (sig A B) Q _ --> bang Q (sig A B)
+[A,B,Q] coe 0 (pi A B) Q _ --> bang Q (pi A B)
+[A,B,Q] coe 0 (w A B) Q _ --> bang Q (w A B)
+[Q] coe 1 0 Q _ --> bang Q 0
+[Q] coe 1 2 Q _ --> bang Q 2
+[A,B,Q] coe 1 (sig A B) Q _ --> bang Q (sig A B)
+[A,B,Q] coe 1 (pi A B) Q _ --> bang Q (pi A B)
+[A,B,Q] coe 1 (w A B) Q _ --> bang Q (w A B)
+[Q] coe 2 0 Q _ --> bang Q 0
+[Q] coe 2 1 Q _ --> bang Q 1
+[A,B,Q] coe 2 (sig A B) Q _ --> bang Q (sig A B)
+[A,B,Q] coe 2 (pi A B) Q _ --> bang Q (pi A B)
+[A,B,Q] coe 2 (w A B) Q _ --> bang Q (w A B)
+[Q] coe (sig _ _) 0 Q _ --> bang Q 0
+[Q] coe (sig _ _) 1 Q _ --> bang Q 1
+[Q] coe (sig _ _) 2 Q _ --> bang Q 2
+[A,B,Q] coe (sig _ _) (pi A B) Q _ --> bang Q (pi A B)
+[A,B,Q] coe (sig _ _) (w A B) Q _ --> bang Q (w A B)
+[Q] coe (pi _ _) 0 Q _ --> bang Q 0
+[Q] coe (pi _ _) 1 Q _ --> bang Q 1
+[Q] coe (pi _ _) 2 Q _ --> bang Q 2
+[A,B,Q] coe (pi _ _) (sig A B) Q _ --> bang Q (sig A B)
+[A,B,Q] coe (pi _ _) (w A B) Q _ --> bang Q (w A B)
+[Q] coe (w _ _) 0 Q _ --> bang Q 0
+[Q] coe (w _ _) 1 Q _ --> bang Q 1
+[Q] coe (w _ _) 2 Q _ --> bang Q 2
+[A,B,Q] coe (w _ _) (sig A B) Q _ --> bang Q (sig A B)
+[A,B,Q] coe (w _ _) (pi A B) Q _ --> bang Q (pi A B).
+
+[] eq 0 _ 0 _ --> true
+[] eq 1 _ 1 _ --> true
+[] eq 2 tt 2 tt --> true
+[] eq 2 tt 2 ff --> false
+[] eq 2 ff 2 tt --> false
+[] eq 2 ff 2 ff --> true
+[A0,B0,f0,A1,B1,f1] eq (pi A0 B0) f0 (pi A1 B1) f1 -->
+  all A0 (x0 : term A0 => all A1 (x1 : term A1 =>
+    imp (eq A0 x0 A1 x1) (eq (B0 x0) (f0 x0) (B1 x1) (f1 x1))))
+[A0,B0,p0,A1,B1,p1] eq (sig A0 B0) p0 (sig A1 B1) p1 -->
+  and (eq A0 (fst A0 B0 p0) A1 (fst A1 B1 p1))
+    (eq (B0 (fst A0 B0 p0)) (snd A0 B0 p0) (B1 (fst A1 B1 p1)) (snd A1 B1 p1))
+[A0,B0,a0,f0,A1,B1,a1,f1]
+  eq (w A0 B0) (node _ _ a0 f0) (w A1 B1) (node _ _ a1 f1) -->
+  and (eq A0 a0 A1 a1)
+    (all (B0 a0) (y0 : term (B0 a0) => all (B1 a1) (y1 : term (B1 a1) =>
+      imp (eq (B0 a0) y0 (B1 a1) y1)
+        (eq (w A0 B0) (f0 y0) (w A1 B1) (f1 y1)))))
+[] eq 0 _ 1 _ --> false
+[] eq 0 _ 2 _ --> false
+[] eq 0 _ (sig _ _) _ --> false
+[] eq 0 _ (pi _ _) _ --> false
+[] eq 0 _ (w _ _) _ --> false
+[] eq 1 _ 0 _ --> false
+[] eq 1 _ 2 _ --> false
+[] eq 1 _ (sig _ _) _ --> false
+[] eq 1 _ (pi _ _) _ --> false
+[] eq 1 _ (w _ _) _ --> false
+[] eq 2 _ 0 _ --> false
+[] eq 2 _ 1 _ --> false
+[] eq 2 _ (sig _ _) _ --> false
+[] eq 2 _ (pi _ _) _ --> false
+[] eq 2 _ (w _ _) _ --> false
+[] eq (sig _ _) _ 0 _ --> false
+[] eq (sig _ _) _ 1 _ --> false
+[] eq (sig _ _) _ 2 _ --> false
+[] eq (sig _ _) _ (pi _ _) _ --> false
+[] eq (sig _ _) _ (w _ _) _ --> false
+[] eq (pi _ _) _ 0 _ --> false
+[] eq (pi _ _) _ 1 _ --> false
+[] eq (pi _ _) _ 2 _ --> false
+[] eq (pi _ _) _ (sig _ _) _ --> false
+[] eq (pi _ _) _ (w _ _) _ --> false
+[] eq (w _ _) _ 0 _ --> false
+[] eq (w _ _) _ 1 _ --> false
+[] eq (w _ _) _ 2 _ --> false
+[] eq (w _ _) _ (sig _ _) _ --> false
+[] eq (w _ _) _ (pi _ _) _ --> false.
+
+
+
+refl : A : type -> a : term A -> Proof (eq A a A a).
+R : A : type -> B : (term A -> type) ->
+  Proof (all A (x : term A => all A (y : term A => imp (eq A x A y) (EQ (B x) (B y))))).
+def subst (A : type) (B : term A -> type) (x : term A) (y : term A)
+  (q : Proof (eq A x A y)) (t : term (B x)) : term (B y) :=
+  coe (B x) (B y) (R A B x y q) t.
+
+def REFL (A : type) : Proof (EQ A A) :=
+  R 1 (__ : term 1 => A) I I I.
+
+PAR : A : type -> B : type -> C : type -> D : type ->
+      Proof (EQ A C) -> Proof (EQ B D) ->
+      Proof (EQ (proof (EQ A B)) (proof (EQ C D))).
+
+par : A : type -> a : term A -> B : type -> b : term B ->
+      C : type -> c : term C -> D : type -> d : term D ->
+      Proof (EQ A C) -> Proof (eq A a C c) ->
+      Proof (EQ B D) -> Proof (eq B b D d) ->
+      Proof (EQ (proof (eq A a B b)) (proof (eq C c D d))).
+
+def SYM (A : type) (B : type) (Q : Proof (EQ A B)) : Proof (EQ B A) :=
+  coe (proof (EQ A A)) (proof (EQ B A)) (PAR A A B A Q (REFL A)) (REFL A).
+
+def TRANS (A : type) (B : type) (C : type) (Q : Proof (EQ A B)) (Q' : Proof (EQ B C)) : Proof (EQ A C) :=
+  coe (proof (EQ A B)) (proof (EQ A C)) (PAR A B A C (REFL A) Q') Q.
+
+Irr : A : Prop -> B : Prop -> Proof (EQ (proof A) (proof B)) ->
+      Proof (all (proof A) (a : term (proof A) => all (proof B) (b : term (proof B) =>
+        eq (proof A) a (proof B) b))).
+

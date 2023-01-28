@@ -1,0 +1,115 @@
+#REQUIRE dpll.
+#REQUIRE p.
+
+def Formula  := dpll.Formula.
+def Variable := dpll.Variable.
+def or       := dpll.For.
+def and      := dpll.Fand.
+def not      := dpll.Fnot.
+def true     := dpll.Ftrue.
+def var      := dpll.Fvar.
+
+1 : Variable.
+2 : Variable.
+3 : Variable.
+4 : Variable.
+5 : Variable.
+6 : Variable.
+7 : Variable.
+8 : Variable.
+9 : Variable.
+10 : Variable.
+11 : Variable.
+12 : Variable.
+13 : Variable.
+14 : Variable.
+15 : Variable.
+16 : Variable.
+17 : Variable.
+18 : Variable.
+19 : Variable.
+20 : Variable.
+21 : Variable.
+22 : Variable.
+23 : Variable.
+24 : Variable.
+25 : Variable.
+26 : Variable.
+27 : Variable.
+28 : Variable.
+29 : Variable.
+30 : Variable.
+31 : Variable.
+32 : Variable.
+33 : Variable.
+34 : Variable.
+35 : Variable.
+36 : Variable.
+37 : Variable.
+38 : Variable.
+39 : Variable.
+40 : Variable.
+41 : Variable.
+42 : Variable.
+43 : Variable.
+44 : Variable.
+45 : Variable.
+46 : Variable.
+47 : Variable.
+48 : Variable.
+49 : Variable.
+50 : Variable.
+
+[x  ] dpll.eq x x --> dpll.T.
+[x,y] dpll.eq x y --> dpll.F.
+
+def f : Formula :=
+and (or (not (var 50)) (or (not (var 35)) (not (var 29)))) (and (or (not (var 50)) (or (not (var 35)) (not (var 17)))) (and (or (not (var 50)) (or (not (var 1)) (var 29))) (and (or (not (var 49)) (or (not (var 23)) (var 3))) (and (or (not (var 49)) (or (not (var 13)) (var 3))) (and (or (not (var 48)) (or (not (var 25)) (not (var 6)))) (and (or (not (var 48)) (or (var 20) (var 29))) (and (or (not (var 47)) (or (not (var 33)) (not (var 14)))) (and (or (not (var 47)) (or (not (var 30)) (var 16))) (and (or (not (var 46)) (or (not (var 37)) (var 33))) (and (or (not (var 46)) (or (not (var 33)) (var 41))) (and (or (not (var 45)) (or (not (var 15)) (var 14))) (and (or (not (var 45)) (or (not (var 11)) (var 17))) (and (or (not (var 45)) (or (var 15) (var 25))) (and (or (not (var 44)) (or (not (var 12)) (var 8))) (and (or (not (var 44)) (or (not (var 8)) (var 31))) (and (or (not (var 43)) (or (not (var 24)) (var 42))) (and (or (not (var 43)) (or (var 6) (var 42))) (and (or (not (var 42)) (or (not (var 24)) (not (var 5)))) (and (or (not (var 42)) (or (var 5) (var 20))) (and (or (not (var 41)) (or (not (var 13)) (var 43))) (and (or (not (var 41)) (or (not (var 10)) (var 7))) (and (or (not (var 40)) (or (not (var 4)) (var 27))) (and (or (not (var 40)) (or (var 12) (var 23))) (and (or (not (var 39)) (or (not (var 15)) (var 14))) (and (or (not (var 39)) (or (not (var 11)) (var 15))) (and (or (not (var 38)) (or (not (var 18)) (var 13))) (and (or (not (var 38)) (or (var 9) (var 14))) (and (or (not (var 37)) (or (var 23) (var 35))) (and (or (not (var 36)) (or (not (var 30)) (var 34))) (and (or (not (var 36)) (or (not (var 24)) (var 43))) (and (or (not (var 36)) (or (var 24) (var 34))) (and (or (not (var 35)) (or (not (var 22)) (var 50))) (and (or (not (var 35)) (or (not (var 2)) (var 22))) (and (or (not (var 34)) (or (not (var 12)) (var 26))) (and (or (not (var 34)) (or (var 12) (var 49))) (and (or (not (var 33)) (or (var 2) (var 18))) (and (or (not (var 32)) (or (not (var 6)) (var 25))) (and (or (not (var 32)) (or (var 6) (var 37))) (and (or (not (var 31)) (or (not (var 29)) (var 1))) (and (or (not (var 31)) (or (not (var 21)) (not (var 16)))) (and (or (not (var 31)) (or (not (var 18)) (var 13))) (and (or (not (var 30)) (or (var 16) (var 47))) (and (or (not (var 28)) (or (not (var 25)) (not (var 9)))) (and (or (not (var 28)) (or (not (var 16)) (var 21))) (and (or (not (var 27)) (or (not (var 15)) (var 14))) (and (or (not (var 27)) (or (var 8) (var 12))) (and (or (not (var 26)) (or (not (var 23)) (var 49))) (and (or (not (var 26)) (or (not (var 3)) (var 45))) (and (or (not (var 26)) (or (var 39) (var 45))) (and (or (not (var 25)) (or (var 19) (var 48))) (and (or (not (var 23)) (or (not (var 3)) (var 4))) (and (or (not (var 22)) (or (not (var 17)) (var 30))) (and (or (not (var 21)) (or (not (var 16)) (var 31))) (and (or (not (var 20)) (or (not (var 7)) (var 5))) (and (or (not (var 20)) (or (not (var 4)) (var 10))) (and (or (not (var 19)) (or (not (var 2)) (var 35))) (and (or (not (var 19)) (or (var 2) (var 9))) (and (or (not (var 19)) (or (var 26) (var 36))) (and (or (not (var 17)) (or (var 22) (var 30))) (and (or (not (var 16)) (or (var 13) (var 18))) (and (or (not (var 15)) (or (not (var 14)) (var 47))) (and (or (not (var 13)) (or (not (var 3)) (var 46))) (and (or (not (var 13)) (or (var 21) (var 28))) (and (or (not (var 11)) (or (var 39) (var 45))) (and (or (not (var 10)) (or (var 41) (var 46))) (and (or (not (var 9)) (or (var 28) (var 48))) (and (or (not (var 8)) (or (not (var 1)) (var 2))) (and (or (not (var 7)) (or (var 32) (var 38))) (and (or (not (var 5)) (or (var 11) (var 50))) (and (or (var 1) (or (var 11) (var 29))) (and (or (var 4) (or (var 7) (var 10))) (and (or (var 12) (or (var 27) (var 40))) (and (or (var 16) (or (var 17) (var 30))) (and (or (var 17) (var 40)) (and (or (var 19) (or (var 34) (var 36))) (and (or (var 21) (var 24)) (and (or (var 31) (or (var 38) (var 44))) (and (or (var 32) (or (var 33) (var 37))) (or (var 35) (or (var 43) (var 44))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))).
+
+
+(;
+#EVAL[SNF] p.Print f.
+#EVAL[SNF] p.Print (dpll.solve f).
+;)
+
+[b] dpll.Lit b 3 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 26 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 23 --> dpll.Cst b.
+[b] dpll.Lit b 22 --> dpll.Cst b.
+[b] dpll.Lit b 18 --> dpll.Cst b.
+[b] dpll.Lit b 10 --> dpll.Cst b.
+[b] dpll.Lit b 2 --> dpll.Cst b.
+[b] dpll.Lit b 4 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 27 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 12 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 8 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 9 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 13 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 28 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 21 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 7 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 20 --> dpll.Cst b.
+[b] dpll.Lit b 5 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 24 --> dpll.Cst b.
+[b] dpll.Lit b 16 --> dpll.Cst b.
+[b] dpll.Lit b 30 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 14 --> dpll.Cst b.
+[b] dpll.Lit b 15 --> dpll.Cst b.
+[b] dpll.Lit b 11 --> dpll.Cst b.
+[b] dpll.Lit b 1 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 17 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 29 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 19 --> dpll.Cst b.
+[b] dpll.Lit b 25 --> dpll.Cst b.
+[b] dpll.Lit b 6 --> dpll.Cst b.
+[b] dpll.Lit b 32 --> dpll.Cst b.
+[b] dpll.Lit b 37 --> dpll.Cst (dpll.not b).
+[b] dpll.Lit b 33 --> dpll.Cst (dpll.not b).
+(;
+;)
+
+
+(;
+#EVAL[SNF] p.Print (dpll.solve f).
+#EVAL[SNF] p.Print f.
+;)

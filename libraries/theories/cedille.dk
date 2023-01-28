@@ -1,0 +1,158 @@
+(; CoC encoding ;)
+(; The Higher-order product is missing because it is not useful (yet!) ;)
+
+
+Sort : Type.
+
+star : Sort. (; ⋆ ;)
+box  : Sort. (; □ ;)
+
+(; Compute R(s1,s2) since we are in a functional PTS ;)
+def rule : Sort -> Sort -> Sort.
+[s] rule _ s --> s.
+
+(; Decoding function for sorts ;)
+Univ : Sort -> Type.
+
+(; Decoding function for types ;)
+def Term : s:Sort -> Univ s -> Type.
+
+(; code for ⋆ ;)
+ustar : Univ box.
+
+(; Decoding a star as a type ;)
+[] Term _ ustar --> Univ star.
+
+(; no code is needed for □ since we can't quantify on it ;)
+
+(; code for a dependent product a la Church ;)
+def prod  : s1 : Sort  -> s2 : Sort -> A : Univ s1 -> (Term s1 A -> Univ s2) -> Univ (rule s1 s2).
+
+(; Decoding a product a la Church ;)
+[s1,s2,A,B] Term _ (prod s1 s2 A B) --> x:Term s1 A -> Term s2 (B x).
+
+(; code for a dependent product a la Curry ;)
+def iprod  : s1 : Sort -> s2 : Sort -> A : Univ s1 -> (Term s1 A -> Univ s2) -> Univ (rule s1 s2).
+
+(; Decoding a product a la Curry ;)
+[s1,s2,A,B] Term _ (iprod s1 s2 A B) --> x:Term s1 A -> Term s2 (B x).
+
+(; Some shortcut ;)
+
+(; R(⋆,⋆,⋆) ;)
+def forall : t:Univ star -> (Term star t -> Univ star) -> Univ star :=
+    A => B => prod star star A B.
+
+def iforall : t:Univ star -> (Term star t -> Univ star) -> Univ star :=
+    A => B => iprod star star A B.
+
+def arrow : Univ star -> Univ star -> Univ star := A => B => forall A (__ => B).
+
+(; R(□,⋆,⋆) ;)
+def forallk : K:Univ box -> (Term box K -> Univ star) -> Univ star :=
+A => B => prod box star A B.
+
+def iforallk : K:Univ box -> (Term box K -> Univ star) -> Univ star :=
+A => B => iprod box star A B.
+
+(; R(⋆,□,□) ;)
+def pi : t:Univ star -> (Term star t -> Univ box) -> Univ box :=
+A => B => prod star box A B.
+
+(;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;)
+
+(; Erasure ;)
+
+(; True is a type with one inhabitant ;)
+True : Type.
+I : True.
+
+(; pure is the type computed by the erasure function (code) ;)
+pure : Type.
+
+(; constructors ;)
+lam : (pure -> pure) -> pure.
+def app : pure -> pure -> pure.
+
+(; β ;)
+[f,x] app (lam f) x --> f x.
+
+(; Equality for pure terms. Here we use rewrite rules at the type level.
+   The benefit is that we leave Dedukti computes the erasure for us, we only need to provide
+   the witness I to trigger the computation ;)
+def Eq : pure -> pure -> Type.
+[x] Eq x x --> True.
+
+(; code computes the erasure ;)
+def code : s : Sort -> t:Univ s -> Term s t -> pure.
+
+(; decode is a trick here to define properly the erasure function ;)
+def uncode : s : Sort -> t : Univ s -> pure -> Term s t.
+
+(; decoding a lambda a la Church ;)
+[A,B,f,s1,s2] code _ (prod s1 s2 A B) (x => f x) --> lam (x : pure =>
+	     	      	     	      code s2 (B (uncode s1 A x)) (f (uncode s1 A x))).
+
+(; decoding a lambda a la Curry ;)
+(; dummy is an other trick so that Dedukti accepts the rule. At the end of the computation, dummy should disappear ;)
+dummy : pure.
+[A,B,f,s1,s2] code _ (iprod s1 s2 A B) (x => f x) -->
+	     	      	     	      code s2 (B (uncode s1 A dummy)) (f (uncode s1 A dummy)).
+(; code/uncode are inverse ;)
+[x] code _ _ (uncode _ _ x) --> x.
+[s,t,x] uncode s t (code s t x) --> x.
+
+(; uncode generates applications: *Beautiful* ;)
+[s1,s2,A,B,f,x] uncode _ (prod s1 s2 A B) f x --> uncode s2 (B x) (app f (code s1 A x)).
+
+(; Not here since its a product a la Curry ;)
+[s1,s2,A,B,f,x] uncode _ (iprod s1 s2 A B) f x --> uncode s2 (B x) f.
+
+(;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;)
+(; Intersection type ;)
+
+(; code for intersection type: ι x:t.f~x ;)
+iota : t:Univ star -> (Term star t -> Univ star) -> Univ star.
+
+(; destructors for intersection type ;)
+def left : T : Univ star -> f : (Term star T -> Univ star) -> Term star (iota T f) -> Term star T.
+
+def right : T : Univ star -> f : (Term star T -> Univ star) -> i:Term star (iota T f) -> Term star (f (left T f i)).
+
+(; the destructors are interpreted! This is the trick to make the encoding works! Notice that the constructors remain injective! ;)
+
+[T,f,t] left T f t --> uncode star T (code star (iota T f) t).
+
+[T,f,t] right T f t --> uncode star (f (left T f t)) (code star (iota T f) t).
+
+(; mk_iota _ (t₁:T) (t₂:f(t₁)) I. I is a witness that we have |t₁| = |t₂| because if it is indeed the case, the latter should reduce to True. ;)
+def mk_iota :
+	t1 : Univ star ->
+	t : Term star t1 ->
+	t2 : (Term box (pi t1 (__ => ustar))) ->
+	t' : (Term star (t2 t)) ->
+	Eq (code star t1 t) (code star (t2 t) t') -> Term star (iota t1 t2).
+
+(; Same remark as for the destructors ;)
+[t1,t,t2] mk_iota t1 t t2 _ _ --> uncode star (iota t1 t2) (code star t1 t).
+
+(;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;)
+(; untyped equality ;)
+
+(; untyped equality takes code as arguments ;)
+ueq : pure -> pure -> Univ star.
+
+(; β construction ;)
+beta : t : pure -> t' : pure -> Eq t t' -> Term star (ueq t t').
+
+(; σ construction ;)
+sigma : t : pure -> t' : pure -> Term star (ueq t t') -> Term star (ueq t' t).
+
+(; ρ construction ;)
+(; We are a little bit restrictive here because we force that t and t' have the same type ;)
+(; I used a trick to prove induction principle for natural numbers by proving equalities between equalities, so HOTT! ;)
+rho : s1 : Sort -> s2 : Sort -> A : Univ s1 ->
+      t  : Term s1 A ->
+      t' : Term s1 A ->
+      Term star (ueq (code s1 A t) (code s1 A t')) ->
+      T  : (Term s1 A -> Univ s2) -> Term s2 (T t') -> Term s2 (T t).

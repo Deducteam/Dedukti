@@ -7,7 +7,7 @@ _build/
 # Dedukti files.
 *.dko
 *.depend
-libraries/*/**
+big-libraries/*/**
 # archives
 *.tar.gz
 *.zip

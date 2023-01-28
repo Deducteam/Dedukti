@@ -1,0 +1,42 @@
+#REQUIRE dpll.
+
+Printed : Type.
+Unsatisfiable : Printed.
+
+Assignment : Type.
+isFalse : dpll.Variable -> Assignment.
+isTrue  : dpll.Variable -> Assignment.
+E : Assignment.
+
+
+def F : Assignment -> Type.
+[] F (isFalse _) -->  a:Assignment -> F a.
+[] F (isTrue  _) -->  a:Assignment -> F a.
+[] F E             -->  Printed.
+Satisfiable : a:Assignment -> F a.
+
+
+def Unsolved : (f : dpll.Formula) -> a:Assignment -> F a.
+[] Unsolved dpll.Ffalse E --> Unsatisfiable.
+[] Unsolved dpll.Ftrue  --> Satisfiable.
+[v,F]
+  Unsolved (dpll.Fcons (dpll.Ccons (dpll.Lit dpll.T v) dpll.Cfalse) F)
+  -->
+  (Unsolved F) (isTrue v)
+  .
+[v,F]
+  Unsolved (dpll.Fcons (dpll.Ccons (dpll.Lit dpll.F v) dpll.Cfalse) F)
+  -->
+  (Unsolved F) (isFalse v)
+  .
+
+def Print (f : dpll.Formula) : Printed := Unsolved f E.
+
+def Nat : Type.
+0 : Nat.
+S : Nat -> Nat.
+
+def size : dpll.Formula -> Nat.
+[] size  dpll.Ffalse --> 0
+[] size  dpll.Ftrue  --> 0
+[tl] size (dpll.Fcons _ tl) --> S (size tl).

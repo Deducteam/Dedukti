@@ -1,0 +1,88 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; An expression of Russell Paradox.
+
+   This uses three inductive types: Leibnitz equality, Sigma types and
+   sets represented as trees with arbitrary branching (indexed by a type).
+
+   Based on https://people.cs.kuleuven.be/~bart.jacobs/coq-essence.pdf, but with
+ a simpler definition of sets.  ;)
+
+
+(; usual encoding of polymorphism ;)
+type : Type.
+def term : type -> Type.
+(; We do not need Type : Type here, just the ability to define the
+inductive type for Set in an impredicative way. ;)
+
+(; Remark: we do not need universal quantification ;)
+false : Type.
+Not : type -> type.
+[A] term (Not A) --> term A -> false.
+
+(; Equality ;)
+Eq : A : type -> term A -> term A -> type.
+eq : A : type -> term A -> term A -> Type.
+[A,a,b] term (Eq A a b) --> eq A a b.
+refl : A : type -> a : term A -> eq A a a.
+(; To eliminate equalities, we need only Leibnitz's principle. ;)
+def leibnitz : A : type -> a : term A -> b : term A -> eq A a b ->
+  P : (term A -> type) -> term (P a) -> term (P b).
+(; This rewrite rule is not needed for deriving the Paradox but only to make the final term of type false diverge. ;)
+[A,a,P,H] leibnitz _ _ _ (refl A a) P H --> H.
+
+(; Sigma types ;)
+Ex : A : type -> (term A -> type) -> type.
+ex : A : type -> (term A -> type) -> Type.
+[A,B] term (Ex A B) --> ex A B.
+pair : A : type -> B : (term A -> type) -> a : term A -> term (B a) -> ex A B.
+def fst : A : type -> B : (term A -> type) -> ex A B -> term A.
+def snd : A : type -> B : (term A -> type) -> e : ex A B -> term (B (fst A B e)).
+[a] fst _ _ (pair _ _ a _) --> a.
+[b] snd _ _ (pair _ _ _ b) --> b.
+
+(; Sets ;)
+(; A set is an arbitrary-branching tree. We write "C" the constructor for sets. ;)
+Set : type.
+set : Type.
+[] term Set --> set.
+C : A : type -> (term A -> set) -> set.
+
+(; We do not need a full elimination principle for sets, it is enough
+to define membership in the case of sets constructed with C. ;)
+def In : set -> set -> type.
+[x,A,f] In x (C A f) --> Ex A (a => Eq Set (f a) x).
+
+
+
+(; From now on, we have only definitions and we culminate with one
+inhabiting false. ;)
+
+def in (A : set) (B : set) := term (In A B).
+
+def NotIn (A : set) (B : set) := Not (In A B).
+def Notinself (A : set) := NotIn A A.
+(; Notinselfs is the type of all sets satisifying Notinself ;)
+def Notinselfs := Ex Set Notinself.
+
+(; Russell set, Coq rejects this definition due to an universe inconsistency. ;)
+def R : set := C Notinselfs (fst Set Notinself).
+
+def eqR (a : term Notinselfs) := Eq Set (fst Set Notinself a) R.
+
+def r1 (H : in R R) : false :=
+  (; By definition of "In",
+     H : ex Notinselfs eqR
+     snd Notinselfs eqR H : eqR (fst Notinselfs eqR H)
+                            == Eq Set (fst Set Notinself (fst Notinselfs eqR H)) R
+     snd Set Notinself (fst Notinselfs eqR H) : Notinself (fst Set Notinself (fst Notinselfs eqR H)
+
+     so by the Leibnitz property, H2 : Notinself R
+     hence H2 H : false.
+     ;)
+   leibnitz Set (fst Set Notinself (fst Notinselfs eqR H)) R (snd Notinselfs eqR H) Notinself (snd Set Notinself (fst Notinselfs eqR H)) H.
+
+def r2 : in R R :=
+  pair Notinselfs eqR (pair Set Notinself R r1) (refl Set R).
+
+def r3 : false := r1 r2.

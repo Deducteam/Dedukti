@@ -1,0 +1,26 @@
+nat : Type.
+
+z : nat.
+
+s : nat -> nat.
+
+def max : nat -> nat -> nat.
+
+[i] max z i --> i
+[i] max i z --> i
+[i,j] max (s i) (s j) --> s (max i j).
+
+type : nat -> Type.
+
+def eta : i : nat -> type i -> Type.
+
+def darr : i : nat -> j : nat -> A : type i -> (eta i A -> type j) -> type (max i j).
+
+[i,j,A,f] eta _ (darr i j A f) --> x : eta i A -> eta j (f x).
+
+def arr : i : nat -> j : nat -> type i -> type j -> type (max i j) :=
+i : nat => j : nat => A : type i => B : type j => darr i j A (_ => B).
+
+def univ : i : nat -> type (s i).
+
+[i] eta _ (univ i) --> type i.

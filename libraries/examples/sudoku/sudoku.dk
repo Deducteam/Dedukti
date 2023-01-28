@@ -1,0 +1,206 @@
+
+ind : Type.
+1 : ind.
+2 : ind.
+3 : ind.
+4 : ind.
+5 : ind.
+6 : ind.
+7 : ind.
+8 : ind.
+9 : ind.
+X : ind.
+
+def P : ind -> ind.
+[] P 1 --> X.
+[] P 2 --> 1.
+[] P 3 --> 2.
+[] P 4 --> 3.
+[] P 5 --> 4.
+[] P 6 --> 5.
+[] P 7 --> 6.
+[] P 8 --> 7.
+[] P 9 --> 8.
+
+def S : ind -> ind.
+[] S 1 --> 2.
+[] S 2 --> 3.
+[] S 3 --> 4.
+[] S 4 --> 5.
+[] S 5 --> 6.
+[] S 6 --> 7.
+[] S 7 --> 8.
+[] S 8 --> 9.
+[] S 9 --> X.
+
+def trunc3 : ind -> ind.
+[]  trunc3 1 --> 1
+[]  trunc3 2 --> 1
+[]  trunc3 3 --> 1
+[]  trunc3 4 --> 4
+[]  trunc3 5 --> 4
+[]  trunc3 6 --> 4
+[]  trunc3 7 --> 7
+[]  trunc3 8 --> 7
+[]  trunc3 9 --> 7.
+
+bool : Type.
+T : bool.
+F : bool.
+
+def and : bool -> bool -> bool.
+[x] and T x --> x
+[x] and F x --> F.
+
+def or : bool -> bool -> bool.
+[x] or T x --> T
+[x] or F x --> x.
+
+def not : bool -> bool.
+[] not T --> F
+[] not F --> T.
+
+def eq : ind -> ind -> bool.
+[x]   eq x x --> T
+[x,y] eq x y --> F.
+
+
+
+
+line : Type.
+l : ind -> ind -> ind -> ind -> ind -> ind -> ind -> ind -> ind -> line.
+
+def sudo : Type.
+def c : line -> line -> line -> line -> line -> line -> line -> line -> line -> sudo.
+
+def getl : ind -> line -> ind.
+[x] getl 1 (l x _ _ _ _ _ _ _ _) --> x
+[x] getl 2 (l _ x _ _ _ _ _ _ _) --> x
+[x] getl 3 (l _ _ x _ _ _ _ _ _) --> x
+[x] getl 4 (l _ _ _ x _ _ _ _ _) --> x
+[x] getl 5 (l _ _ _ _ x _ _ _ _) --> x
+[x] getl 6 (l _ _ _ _ _ x _ _ _) --> x
+[x] getl 7 (l _ _ _ _ _ _ x _ _) --> x
+[x] getl 8 (l _ _ _ _ _ _ _ x _) --> x
+[x] getl 9 (l _ _ _ _ _ _ _ _ x) --> x.
+
+def getc : ind -> sudo -> line.
+[x] getc 1 (c x _ _ _ _ _ _ _ _) --> x
+[x] getc 2 (c _ x _ _ _ _ _ _ _) --> x
+[x] getc 3 (c _ _ x _ _ _ _ _ _) --> x
+[x] getc 4 (c _ _ _ x _ _ _ _ _) --> x
+[x] getc 5 (c _ _ _ _ x _ _ _ _) --> x
+[x] getc 6 (c _ _ _ _ _ x _ _ _) --> x
+[x] getc 7 (c _ _ _ _ _ _ x _ _) --> x
+[x] getc 8 (c _ _ _ _ _ _ _ x _) --> x
+[x] getc 9 (c _ _ _ _ _ _ _ _ x) --> x.
+
+
+
+
+def setl : ind -> ind -> line -> line.
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setl 1 k (l x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (l k  x2 x3 x4 x5 x6 x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setl 2 k (l x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (l x1 k  x3 x4 x5 x6 x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setl 3 k (l x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (l x1 x2 k  x4 x5 x6 x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setl 4 k (l x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (l x1 x2 x3 k  x5 x6 x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setl 5 k (l x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (l x1 x2 x3 x4 k  x6 x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setl 6 k (l x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (l x1 x2 x3 x4 x5 k  x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setl 7 k (l x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (l x1 x2 x3 x4 x5 x6 k  x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setl 8 k (l x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (l x1 x2 x3 x4 x5 x6 x7 k  x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setl 9 k (l x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (l x1 x2 x3 x4 x5 x6 x7 x8 k ).
+
+def setc : ind -> (line -> line) -> sudo -> sudo.
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setc 1 k (c x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (c (k x1) x2 x3 x4 x5 x6 x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setc 2 k (c x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (c x1 (k x2) x3 x4 x5 x6 x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setc 3 k (c x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (c x1 x2 (k x3) x4 x5 x6 x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setc 4 k (c x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (c x1 x2 x3 (k x4) x5 x6 x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setc 5 k (c x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (c x1 x2 x3 x4 (k x5) x6 x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setc 6 k (c x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (c x1 x2 x3 x4 x5 (k x6) x7 x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setc 7 k (c x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (c x1 x2 x3 x4 x5 x6 (k x7) x8 x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setc 8 k (c x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (c x1 x2 x3 x4 x5 x6 x7 (k x8) x9)
+[k,x1,x2,x3,x4,x5,x6,x7,x8,x9] setc 9 k (c x1 x2 x3 x4 x5 x6 x7 x8 x9) --> (c x1 x2 x3 x4 x5 x6 x7 x8 (k x9) ).
+
+
+
+
+def E : line := l X X X X X X X X X.
+def empty_sudo : sudo := c E E E E E E E E E.
+
+
+def get : ind -> ind -> sudo -> ind.
+[i,j,s] get i j s --> getl j (getc i s).
+
+def set : ind -> ind -> ind -> sudo -> sudo.
+[i,j,k,s] set i j k s --> setc i (setl j k) s.
+
+
+def exists' : (ind -> bool) -> ind -> bool.
+[f  ] exists' f X --> F
+[f,i] exists' f i --> or (f i) (exists' f (S i)).
+
+def exists : (ind -> bool) -> bool := f => exists' f 1.
+
+
+
+def mem_line : ind -> ind -> ind -> sudo -> bool.
+[i,j,k,s] mem_line i j k s --> exists (i':ind => eq (get i' j s) k).
+
+def mem_col  : ind -> ind -> ind -> sudo -> bool.
+[i,j,k,s] mem_col i j k s --> exists (j':ind => eq (get i j' s) k).
+
+def mem_squ  : ind -> ind -> ind -> sudo -> bool.
+[i,j,k,s] mem_squ i j k s -->
+  (i':ind =>
+   j':ind =>
+    (or (eq (get i'         j'         s) k)
+    (or (eq (get (S i')     j'         s) k)
+	(or (eq (get (S (S i')) j'         s) k)
+    (or (eq (get i'         (S j')     s) k)
+	(or (eq (get (S i')     (S j')     s) k)
+	(or (eq (get (S (S i')) (S j')     s) k)
+    (or (eq (get i'         (S (S j')) s) k)
+	(or (eq (get (S i')     (S (S j')) s) k)
+	    (eq (get (S (S i')) (S (S j')) s) k)))))))))
+  )
+  (trunc3 i) (trunc3 j).
+
+
+def check : ind -> ind -> ind -> sudo -> bool :=
+i => j => k => s =>
+     and (not (mem_line i j k s))
+   ( and (not (mem_col  i j k s))
+         (not (mem_squ  i j k s))).
+
+
+solution : Type.
+success : sudo -> solution.
+fail : solution.
+
+
+def ite : bool -> solution -> solution -> solution.
+[x] ite T x _ --> x
+[x] ite F _ x --> x.
+
+def iffail : solution -> solution -> solution.
+[x] iffail (success x) _ --> success x
+[d] iffail fail     d --> d.
+
+def solve : ind -> ind -> ind -> sudo -> solution.
+[i,s]     solve i X _ s --> solve (S i) 1 1 s.
+[  s]     solve X _ _ s --> success s.
+[i,j,s]   solve i j X s --> fail.
+[i,j,k,s] solve i j k s -->
+  ite
+    (eq (get i j s) X)
+    (ite
+      (check i j k s)
+      (iffail
+        (solve i (S j) 1 (set i j k s))
+        (solve i j (S k) s)
+      )
+      (solve i j (S k) s)
+    )
+    (solve i (S j) 1 s).
+
+
+def solve_sudo : sudo -> solution := s => solve 1 1 1 s.

@@ -1,0 +1,46 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; A variant of Russell paradox in Deduction Modulo a convergent
+rewrite system from the article /Proof Normalization Modulo/ by Gilles
+Dowek and Benjamin Werner. ;)
+
+set : Type.
+prop : Type.
+proof : prop -> Type.
+false : prop.
+imp : prop -> prop -> prop.
+all : (set -> prop) -> prop.
+def in : set -> set -> prop.
+R : set.
+def eq (y : set) (z : set) : prop := all (x => imp (in y x) (in z x)).
+
+lam : a : prop -> b : prop -> (proof a -> proof b) -> proof (imp a b).
+def app : a : prop -> b : prop -> proof (imp a b) -> proof a -> proof b.
+alam : a : (set -> prop) -> (s : set -> proof (a s)) -> proof (all a).
+def aapp : a : (set -> prop) -> proof (all a) -> s : set -> proof (a s).
+(; uncomment the following two lines to make the final term diverge ;)
+(; [f,a] app _ _ (lam _ _ f) a --> f a. ;)
+(; [f,a] aapp _ (alam _ f) a --> f a. ;)
+
+[z] in z R --> all (y => imp (eq y z) (imp (in y z) false)).
+
+def refl (y : set) : proof (eq y y) :=
+  alam (x => imp (in y x) (in y x))
+    (x => lam (in y x) (in y x) (h => h)).
+
+def pi (alpha : proof (in R R)) : proof false :=
+  app (in R R) false
+  (app (eq R R) (imp (in R R) false)
+    (aapp (y => imp (eq y R) (imp (in y R) false)) alpha R)
+    (refl R))
+  alpha.
+
+def pi' : proof (in R R) :=
+  alam (y => imp (eq y R) (imp (in y R) false))
+    (y => lam (eq y R) (imp (in y R) false)
+      (heq => lam (in y R) false
+        (hin => pi (app (in y R) (in R R)
+                     (aapp (x => imp (in y x) (in R x)) heq R)
+                     hin)))).
+
+def paradox : proof false := pi pi'.

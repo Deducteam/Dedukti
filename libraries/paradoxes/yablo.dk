@@ -1,0 +1,68 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; An implementation of Yablo paradox, a non-autoreferential
+   adaptation of the liar paradox. ;)
+
+nat : Type.
+0 : nat.
+S : nat -> nat.
+
+prop : Type.
+true : prop.
+false : prop.
+
+def lt : nat -> nat -> prop.
+[] lt _ 0 --> false
+[] lt 0 (S _) --> true
+[m,n] lt (S m) (S n) --> lt m n.
+
+proof : prop -> Type.
+tt : proof true.
+fe : a : prop -> proof false -> proof a.
+
+(; φₙ := ∀ m > n, ¬φₘ ;)
+(; To avoid non-termination in the definition of φ or proof, we split
+   the definition of φ into an introduction and an elimination
+   rule. ;)
+
+phi : nat -> prop.
+phi_intro : n : nat ->
+            (m : nat -> proof (lt n m) -> proof (phi m) -> proof false) ->
+            proof (phi n).
+def phi_elim : n : nat -> m : nat ->
+               proof (lt n m) -> proof (phi n) -> proof (phi m) -> proof false.
+
+[m,hlt,f,hm] phi_elim _ m hlt (phi_intro _ f) hm --> f m hlt hm.
+
+(; two inductive properties of lt ;)
+(; ∀n, n < n + 1 ;)
+def lt_n : n : nat -> proof (lt n (S n)).
+[] lt_n 0 --> tt
+[m] lt_n (S m) --> lt_n m.
+
+(; ∀m n, m < n ⇒ m < n + 1 ;)
+def lt_nm : m : nat -> n : nat -> proof (lt m n) -> proof (lt m (S n)).
+[] lt_nm 0 _ _ --> tt
+[m,h] lt_nm m 0 h --> fe (lt m (S 0)) h.
+[m,n,h] lt_nm (S m) (S n) h --> lt_nm m n h.
+
+(; The paradox ;)
+
+(; ∀n, φₙ ⇒ φₙ₊₁;)
+def lemma_1 (n : nat) (h : proof (phi n)) : proof (phi (S n)) :=
+  phi_intro (S n)
+    (m : nat => h0 : proof (lt (S n) m) => phi_elim n m (lt_nm (S n) m h0) h).
+
+(; ∀n, φₙ ⇒ ¬φₙ₊₁ ;)
+def lemma_2 (n : nat) (h : proof (phi n)) (h0 : proof (phi (S n))) : proof false :=
+  phi_elim n (S n) (lt_n n) h h0.
+
+(; ∀n, ¬φₙ ;)
+def lemma_3 (n : nat) (h : proof (phi n)) : proof false := lemma_2 n h (lemma_1 n h).
+
+(; φ₀ ;)
+def lemma_4 : proof (phi 0) :=
+  phi_intro 0 (m : nat => __ : proof (lt 0 m) => lemma_3 m).
+
+(; ⊥ ;)
+def lemma_5 : proof false := lemma_3 0 lemma_4.

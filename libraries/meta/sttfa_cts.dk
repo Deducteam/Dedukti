@@ -1,0 +1,24 @@
+[] sttfa.type --> cts.Term cts.triangle (cts.univ cts.box cts.triangle cts.I).
+
+[] sttfa.ptype --> cts.Term cts.sinf (cts.univ cts.diamond cts.sinf cts.I).
+
+[] sttfa.bool --> cts.univ cts.star cts.box cts.I.
+
+[A] sttfa.p A --> cts.cast cts.triangle cts.sinf
+    (cts.univ cts.box cts.triangle cts.I) (cts.univ cts.diamond cts.sinf cts.I) cts.I A.
+
+[A] sttfa.etap A --> cts.Term cts.diamond A.
+
+[A] sttfa.eps A --> cts.Term cts.star A.
+
+[A,B] sttfa.arrow A B --> cts.prod cts.box cts.box cts.box cts.I A (x => B).
+
+[A,B] sttfa.impl A B --> cts.prod cts.star cts.star cts.star cts.I A (x => B).
+
+[A,B] sttfa.forall A (x => B x) --> cts.prod cts.box cts.star cts.star cts.I A (x => B x).
+
+[B] sttfa.forallP (x => B x) -->
+    cts.prod cts.triangle cts.star cts.star cts.I (cts.univ cts.box cts.triangle cts.I) (x => B x).
+
+[B] sttfa.forallK (x => B x) -->
+    cts.prod cts.triangle cts.diamond cts.diamond cts.I (cts.univ cts.box cts.triangle cts.I) (x => B x).

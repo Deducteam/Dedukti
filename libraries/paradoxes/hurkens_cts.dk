@@ -1,0 +1,133 @@
+Sort : Type.
+
+sinf : Sort.
+
+Univ : Sort -> Type.
+
+def Term : s : Sort -> Univ s -> Type.
+
+Bool : Type.
+eps : Bool -> Type.
+true : Bool.
+def forall : s : Sort -> a : Univ s -> (Term s a -> Bool) -> Bool.
+[] forall _ _ (x => true) --> true.
+I : eps true.
+
+def Axiom : Sort -> Sort -> Bool.
+def Rule : Sort -> Sort -> Sort -> Bool.
+def Cumul : Sort -> Sort -> Bool.
+
+def univ : s : Sort -> s' : Sort ->
+           p : eps (Axiom s s') -> Univ s'.
+
+def prod : s1 : Sort -> s2 : Sort -> s3 : Sort ->
+           p : eps (Rule s1 s2 s3) ->
+           a : Univ s1 -> b : (Term s1 a -> Univ s2) -> Univ s3.
+
+def SubType : s : Sort -> s' : Sort -> Univ s -> Univ s' -> Bool.
+
+def cast : s : Sort -> s' : Sort ->
+           a : Univ s -> b  : Univ s' ->
+           p : eps (SubType s s' a b) ->
+           Term s a -> Term s' b.
+
+univ' (s : Sort) (s' : Sort) : Univ s'.
+
+[s] Term _ (univ' s _) --> Univ s.
+
+[s,s',p] univ s s' p --> univ' s s'.
+
+def prod' : s1 : Sort -> s2 : Sort -> s3 : Sort ->
+            a : Univ s1 -> b : (Term s1 a -> Univ s2) -> Univ s3.
+
+[s1, s2, a, b] Term _ (prod' s1 s2 _ a b) --> x : Term s1 a -> Term s2 (b x).
+
+[s1, s2,s3,p] prod s1 s2 s3 p --> prod' s1 s2 s3.
+
+[s1, s2]           SubType _  _  (univ' s1 _)       (univ' s2 _ )        --> Cumul s1 s2
+[s1,s2,s2',a,b,b'] SubType _  _ (prod' s1 s2 _ a b) (prod' _ s2' _ a b') -->
+                  forall s1 a (x => SubType s2 s2' (b x) (b' x)).
+[a]          SubType _ _ a a --> true.
+
+def cast' : s : Sort -> s' : Sort ->
+            a : Univ s -> b : Univ s' ->
+            Term s a -> Term s' b.
+
+[s, a] Term _ (cast' _ _ (univ' s _) _ a) --> Term s a.
+
+[s1,s2,a,b,t] cast s1 s2 a b _ t --> cast' s1 s2 a b t.
+
+
+[A,t] cast' _ _ A A t --> t.
+
+[s, s', a, c, t]
+  cast' _ s' _ c (cast' s _ a _ t) -->
+  cast' s s' a c t.
+
+
+(;;;;;;;;;;;;;;;;;; PARADOX ;;;;;;;;;;;;;;;;;;;;;)
+
+(; Speci ;)
+
+triangle : Sort.
+box : Sort.
+star : Sort.
+
+[] Axiom star triangle --> true.
+[] Axiom box triangle --> true.
+
+[] Rule star star star --> true.
+[] Rule star box box --> true.
+[] Rule box star star --> true.
+[] Rule box box box --> true.
+[] Rule triangle box box --> true.
+[] Rule box triangle box --> true.
+[] Rule triangle star star --> true.
+
+[] Cumul star box --> true.
+
+def Box := Univ box.
+def Star := Univ star.
+def Triangle := Univ triangle.
+
+def arr (A : Box) (B : Box) := prod box box box I A (_ => B).
+
+def all (A : Box) (B : Term box A -> Star) : Star := prod box star star I A B.
+
+def imp (A : Star) (B : Star) := prod star star star I A (_ => B).
+
+def pi (A : Triangle) (B : (Term triangle A) -> Box) : Box := prod triangle box box I A B.
+
+def pow (s : Box) : Box := prod box triangle box I s (_ => univ star triangle I).
+
+def ppow (s : Box) : Box := pow (pow s).
+
+def false : Star := prod triangle star star I (univ star triangle I) (p => p).
+
+def not (phi : Star) : Star := imp phi false.
+
+def U : Box := pi (univ box triangle I) (X => arr (arr (ppow X) X) (ppow X)).
+
+def tau (t : Term box (ppow U)) : Term box U :=
+    X : Box =>
+    f : (Term box (arr (ppow X) X)) =>
+    p : Term box (pow X) =>
+    t (x : Term box U => p (f (x X f))).
+
+def sig (s : Term box U) : Term box (ppow U) := s U (t : Term box (ppow U) => tau t).
+
+def Delta : Term box (pow U) := y : Term box U =>
+    not (all (pow U) ( p =>  imp (sig y p) (p (tau (sig y))))).
+
+def Omega : Term box U := tau ( p : Term box (pow U) => all U (x => imp (sig x p) (p x))).
+
+def contradiction : Term star false :=
+    (0 : Term star (all (pow U) (p => imp (all U (x => imp (sig x p) (p x))) (p Omega))) =>
+    (0 Delta (x : Term box U =>
+       	      2 : Term star (sig x Delta) =>
+	      3 : Term star (all (pow U) (p => (imp (sig x p) (p (tau (sig x)))))) =>
+	      3 Delta 2 (p : Term box (pow U) => 3 (y : Term box U => p (tau (sig y)))))
+		(p : Term box (pow U) => 0 (y : Term box U => p (tau (sig y))))))
+    (p : Term box (pow U) =>
+     1 : Term star (all U (x => imp  (sig x p) (p x))) =>
+     1 Omega (x : Term box U => 1 (tau (sig x)))).

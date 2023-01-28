@@ -1,0 +1,20 @@
+(; Encoding of Barendregt's Calculus of Construction with 2 universes ;)
+
+K : Type.
+T : Type.
+
+def eps : T -> Type.
+def eta : K -> Type.
+
+t : K.
+[] eta t --> T.
+
+Pitt : a : T -> (eps a -> T) -> T.
+Pitk : a : T -> (eps a -> K) -> K.
+Pikt : a : K -> (eta a -> T) -> T.
+Pikk : a : K -> (eta a -> K) -> K.
+
+[a, b] eps (Pitt a b) --> x : eps a -> eps (b x).
+[a, b] eta (Pitk a b) --> x : eps a -> eta (b x).
+[a, b] eps (Pikt a b) --> x : eta a -> eps (b x).
+[a, b] eta (Pikk a b) --> x : eta a -> eta (b x).

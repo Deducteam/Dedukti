@@ -1,0 +1,786 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; Miquel encoding of Russell paradox in System U⁻ ;)
+
+(; Encoding of λU⁻ ;)
+
+type : Type.
+def term : type -> Type.
+
+prop : type.
+def Prop := term prop.
+def proof : Prop -> Type.
+
+imp : Prop -> Prop -> Prop.     (; ⇒ ;)
+[phi,psi] proof (imp phi psi) --> proof phi -> proof psi.
+arr : type -> type -> type.     (; → ;)
+[A,B] term (arr A B) --> term A -> term B.
+all : A : type -> (term A -> Prop) -> Prop. (; ∀ ;)
+[A,phi] proof (all A phi) --> x : term A -> proof (phi x).
+pi : (type -> type) -> type.    (; Π ;)
+[A] term (pi A) --> x : type -> term (A x).
+
+(; Paradox ;)
+
+def true : Prop := all prop (a => imp a a).
+def false : Prop := all prop (a => a).
+def not (phi : Prop) : Prop := imp phi false.
+def and (phi : Prop) (psi : Prop) : Prop :=
+  all prop (a => imp (imp phi (imp psi a)) a).
+def or (phi : Prop) (psi : Prop) : Prop :=
+  all prop (a => imp (imp phi a) (imp (imp psi a) a)).
+
+def true_intro : proof true := a : Prop => 0 : proof a => 0.
+def false_elim (a : Prop) (0 : proof false) : proof a := 0 a.
+def and_intro (a : Prop) (b : Prop) (0 : proof a) (1 : proof b) : proof (and a b) :=
+  c : Prop =>
+  f : (proof a -> proof b -> proof c) =>
+  f 0 1.
+def and_elim1 (a : Prop) (b : Prop) (0 : proof (and a b)) : proof a :=
+  0 a (1 : proof a => 2 : proof b => 1).
+def and_elim2 (a : Prop) (b : Prop) (0 : proof (and a b)) : proof b :=
+  0 b (1 : proof a => 2 : proof b => 2).
+def or_intro1 (a : Prop) (b : Prop) (0 : proof a) : proof (or a b) :=
+  c : Prop =>
+  fa : (proof a -> proof c) =>
+  fb : (proof b -> proof c) =>
+  fa 0.
+def or_intro2 (a : Prop) (b : Prop) (0 : proof b) : proof (or a b) :=
+  c : Prop =>
+  fa : (proof a -> proof c) =>
+  fb : (proof b -> proof c) =>
+  fb 0.
+def or_elim (a : Prop) (b : Prop) (c : Prop) (fa : proof a -> proof c) (fb : proof b -> proof c) (0 : proof (or a b)) : proof c :=
+  0 c fa fb.
+
+def ex (A : type) (phi : term A -> Prop) :=
+  all prop (a => imp (all A (x => imp (phi x) a)) a).
+
+def ex_intro (A : type) (phi : term A -> Prop) (x : term A) (0 : proof (phi x)) :
+  proof (ex A phi) :=
+  a : Prop =>
+  f : (x : term A -> proof (phi x) -> proof a) =>
+  f x 0.
+
+def ex_elim (A : type) (phi : term A -> Prop) (c : Prop)
+    (f : x : term A -> proof (phi x) -> proof c)
+    (0 : proof (ex A phi)) : proof c :=
+  0 c f.
+
+def eq (A : type) (a : term A) (b : term A) : Prop :=
+  all (arr A prop) (phi => imp (phi a) (phi b)).
+
+def eq_intro (A : type) (x : term A) : proof (eq A x x) :=
+  phi : (term A -> Prop) => 0 : proof (phi x) => 0.
+
+def eq_elim (A : type) (phi : term A -> Prop) (x : term A) (y : term A)
+            (0 : proof (phi x)) (1 : proof (eq A x y)) : proof (phi y) :=
+  1 phi 0.
+
+def eq_sym (A : type) (a : term A) (b : term A) (0 : proof (eq A a b)) : proof (eq A b a) := 0 (x : term A => eq A x a) (eq_intro A a).
+
+def U : type := arr (pi (X : type => arr (arr X (arr X prop)) (arr X prop))) prop.
+
+def rel : type := arr U (arr U prop).
+def Rel : Type := term U -> term U -> Prop.
+
+def gex (phi : Rel -> term U -> Prop) : Prop :=
+  ex rel (A => ex U (a => phi A a)).
+
+def gex_intro (phi : Rel -> term U -> Prop) (A : Rel) (a : term U)
+              (0 : proof (phi A a)) : proof (gex phi) :=
+  ex_intro rel (A : Rel => ex U (a => phi A a)) A
+      (ex_intro U (a => phi A a) a 0).
+
+def gex_elim (phi : Rel -> term U -> Prop) (c : Prop)
+             (0 : proof (gex phi))
+             (1 : A : Rel -> a : term U -> proof (phi A a) -> proof c) : proof c :=
+  0 c (A : Rel => 2 : proof (ex U (a => phi A a)) => 2 c (1 A)).
+
+def PSIM (X : type) (A : term X -> term X -> Prop)
+         (Y : type) (B : term Y -> term Y -> Prop)
+         (R : term X -> term Y -> Prop) : Prop :=
+  all X (x => all X (x' => all Y (y =>
+     imp (A x' x) (imp (R x y) (ex Y (y' => and (R x' y') (B y' y))))))).
+
+def SIM (A : Rel) (B : Rel) (R : Rel) : Prop := PSIM U A U B R.
+
+def SIM_intro (B : Rel) (R : Rel) (x' : term U) (y : term U) (y' : term U)
+              (0 : proof (R x' y')) (1 : proof (B y' y))
+              : proof (ex U (y' => and (R x' y') (B y' y))) :=
+  ex_intro U (y' => and (R x' y') (B y' y)) y'
+    (and_intro (R x' y') (B y' y) 0 1).
+
+def SIM_elim (A : Rel) (B : Rel) (R : Rel) (phi : Prop)
+             (0 : proof (SIM A B R))
+             (x : term U) (x' : term U) (y : term U)
+             (1 : proof (A x' x))
+             (2 : proof (R x y))
+             (3 : y' : term U -> proof (R x' y') -> proof (B y' y) -> proof phi)
+             : proof phi :=
+  0 x x' y 1 2 phi (y' : term U => 4 : proof (and (R x' y') (B y' y)) =>
+    4 phi (3 y')).
+
+def rev (R : Rel) (y : term U) (x : term U) : Prop := R x y.
+
+def rSIM (A : Rel) (B : Rel) (R : Rel) : Prop := SIM B A (rev R).
+
+def PEQV (X : type) (A : term X -> term X -> Prop) (a : term X)
+         (Y : type) (B : term Y -> term Y -> Prop) (b : term Y) : Prop :=
+  ex (arr X (arr Y prop)) (R =>
+    and (PSIM X A Y B R)
+     (and (PSIM Y B X A (y : term Y => x : term X => R x y)) (R a b))).
+
+def EQV (A : Rel) (a : term U) (B : Rel) (b : term U) : Prop :=
+  PEQV U A a U B b.
+
+def EQV_intro (A : Rel) (a : term U) (B : Rel) (b : term U)
+              (R : Rel)
+              (0 : proof (SIM A B R))
+              (1 : proof (rSIM A B R))
+              (2 : proof (R a b)) : proof (EQV A a B b) :=
+  ex_intro rel (R =>
+    and (SIM A B R) (and (rSIM A B R) (R a b))) R
+  (and_intro (SIM A B R) (and (rSIM A B R) (R a b))
+    0
+    (and_intro (rSIM A B R) (R a b) 1 2)).
+
+def EQV_elim (A : Rel) (a : term U) (B : Rel) (b : term U)
+             (0 : proof (EQV A a B b)) (phi : Prop)
+             (1 : R : Rel ->
+                  proof (SIM A B R) ->
+                  proof (rSIM A B R) ->
+                  proof (R a b) -> proof phi) : proof phi :=
+  0 phi
+    (R : Rel =>
+     2 : proof (and (SIM A B R) (and (rSIM A B R) (R a b))) =>
+     2 phi (21 : proof (SIM A B R) =>
+      22 : proof (and (rSIM A B R) (R a b)) =>
+      22 phi (221 : proof (rSIM A B R) =>
+        222 : proof (R a b) =>
+        1 R 21 221 222))).
+
+def SIM_refl (A : Rel) : proof (SIM A A (eq U))
+  :=
+  x : term U =>
+  x' : term U =>
+  y : term U =>
+  0 : proof (A x' x) =>
+  1 : proof (eq U x y) =>
+  SIM_intro A (eq U) x' y x' (eq_intro U x') (1 (A x') 0).
+
+def rSIM_refl (A : Rel) : proof (rSIM A A (eq U))
+  :=
+  x : term U =>
+  x' : term U =>
+  y : term U =>
+  0 : proof (A x' x) =>
+  1 : proof (eq U y x) =>
+  SIM_intro A (rev (eq U)) x' y x' (eq_intro U x') (eq_sym U y x 1 (A x') 0).
+
+def EQV_refl (A : Rel) (a : term U) :
+  proof (EQV A a A a) :=
+  EQV_intro A a A a (eq U) (SIM_refl A) (rSIM_refl A) (eq_intro U a).
+
+def EQV_sym (A : Rel) (a : term U) (B : Rel) (b : term U)
+            (0 : proof (EQV A a B b)) : proof (EQV B b A a) :=
+  EQV_elim A a B b 0 (EQV B b A a)
+    (R : Rel =>
+     0 : proof (SIM A B R) =>
+     1 : proof (rSIM A B R) =>
+     2 : proof (R a b) =>
+     EQV_intro B b A a
+       (rev R)
+       1 0 2).
+
+def comp (R : Rel) (S : Rel) (x : term U) (z : term U) : Prop :=
+  ex U (y => and (R x y) (S y z)).
+
+def comp_intro (R : Rel) (S : Rel) (x : term U) (y : term U) (z : term U)
+               (0 : proof (R x y)) (1 : proof (S y z)) :
+               proof (comp R S x z) :=
+  ex_intro U (y => and (R x y) (S y z)) y
+    (and_intro (R x y) (S y z) 0 1).
+
+def SIM_trans_aux (A : Rel) (B : Rel) (C : Rel) (R : Rel) (S : Rel)
+                  (0 : proof (SIM A B R)) (1 : proof (SIM B C S))
+                  (COMP : Rel)
+                  (COMP_intro : x : term U -> y : term U -> z : term U ->
+                                proof (R x y) -> proof (S y z) -> proof (COMP x z))
+                  (COMP_elim : x : term U -> z : term U -> phi : Prop ->
+                               proof (COMP x z) ->
+                               (y : term U -> proof (R x y) -> proof (S y z) ->
+                                proof phi) ->
+                               proof phi)
+                  : proof (SIM A C COMP) :=
+  x : term U =>
+  x' : term U =>
+  z : term U =>
+  2 : proof (A x' x) =>
+  3 : proof (COMP x z) =>
+  COMP_elim x z (ex U (z' => and (COMP x' z') (C z' z))) 3
+   (y : term U =>
+    41 : proof (R x y) =>
+    42 : proof (S y z) =>
+    SIM_elim A B R (ex U (z' => and (COMP x' z') (C z' z))) 0
+       x x' y 2 41
+       (y' : term U =>
+        5 : proof (R x' y') =>
+        6 : proof (B y' y) =>
+        SIM_elim B C S (ex U (z' => and (COMP x' z') (C z' z))) 1
+          y y' z 6 42
+          (z' : term U =>
+           7 : proof (S y' z') =>
+           8 : proof (C z' z) =>
+           ex_intro U (z' => and (COMP x' z') (C z' z)) z'
+             (and_intro (COMP x' z') (C z' z)
+               (COMP_intro x' y' z' 5 7)
+               8)))).
+
+def SIM_trans (A : Rel) (B : Rel) (C : Rel) (R : Rel) (S : Rel)
+              (0 : proof (SIM A B R))
+              (1 : proof (SIM B C S)) : proof (SIM A C (comp R S)) :=
+  SIM_trans_aux A B C R S 0 1 (comp R S)
+    (comp_intro R S)
+    (x : term U => z : term U => phi : Prop =>
+     0 : proof (comp R S x z) =>
+     1 : (y : term U -> proof (R x y) -> proof (S y z) -> proof phi) =>
+     0 phi (y : term U => 2 : proof (and (R x y) (S y z)) =>
+       2 phi (1 y))).
+
+def rSIM_trans (A : Rel) (B : Rel) (C : Rel) (R : Rel) (S : Rel)
+               (0 : proof (rSIM A B R))
+               (1 : proof (rSIM B C S)) : proof (rSIM A C (comp R S))
+  :=
+  SIM_trans_aux C B A (rev S) (rev R) 1 0 (rev (comp R S))
+    (z : term U => y : term U => x : term U =>
+     1 : proof (S y z) => 0 : proof (R x y) =>
+     ex_intro U (y => and (R x y) (S y z)) y
+       (and_intro (R x y) (S y z) 0 1))
+    (z : term U => x : term U => phi : Prop =>
+     0 : proof (comp R S x z) =>
+     1 : (y : term U -> proof (S y z) -> proof (R x y) -> proof phi) =>
+     0 phi (y : term U => 2 : proof (and (R x y) (S y z)) =>
+       2 phi (3 : proof (R x y) => 4 : proof (S y z) => 1 y 4 3))).
+
+
+def EQV_trans (A : Rel) (a : term U)
+              (B : Rel) (b : term U)
+              (C : Rel) (c : term U)
+              (0 : proof (EQV A a B b))
+              (1 : proof (EQV B b C c)) : proof (EQV A a C c) :=
+  EQV_elim A a B b 0 (EQV A a C c)
+    (R : Rel =>
+     2 : proof (SIM A B R) =>
+     3 : proof (rSIM A B R) =>
+     4 : proof (R a b) =>
+     EQV_elim B b C c 1 (EQV A a C c)
+       (S : Rel =>
+        5 : proof (SIM B C S) =>
+        6 : proof (rSIM B C S) =>
+        7 : proof (S b c) =>
+        EQV_intro A a C c
+          (comp R S)
+          (SIM_trans A B C R S 2 5)
+          (rSIM_trans A B C R S 3 6)
+          (comp_intro R S a b c 4 7))).
+
+def lemma_8_4_2 (A : Rel) (a : term U) (B : Rel) (b : term U)
+                (0 : proof (EQV A a B b)) (a' : term U) (1 : proof (A a' a)) :
+                proof (ex U (b' => and (B b' b) (EQV A a' B b'))) :=
+  EQV_elim A a B b 0 (ex U (b' => and (B b' b) (EQV A a' B b')))
+    (R : Rel =>
+     2 : proof (SIM A B R) =>
+     3 : proof (rSIM A B R) =>
+     4 : proof (R a b) =>
+     SIM_elim A B R (ex U (b' => and (B b' b) (EQV A a' B b'))) 2 a a' b
+       1 4
+       (b' : term U =>
+        5 : proof (R a' b') =>
+        6 : proof (B b' b) =>
+        ex_intro U (b' => and (B b' b) (EQV A a' B b')) b'
+          (and_intro (B b' b) (EQV A a' B b')
+            6 (EQV_intro A a' B b' R 2 3 5)))).
+
+def ELT (A : Rel) (a : term U) (B : Rel) (b : term U) :=
+  ex U (b' => and (B b' b) (EQV A a B b')).
+
+def ELT_intro (A : Rel) (a : term U)
+              (B : Rel) (b : term U)
+              (b' : term U) (0 : proof (B b' b)) (1 : proof (EQV A a B b')) :
+              proof (ELT A a B b) :=
+  ex_intro U (b' => and (B b' b) (EQV A a B b')) b'
+    (and_intro (B b' b) (EQV A a B b') 0 1).
+
+def ELT_elim (A : Rel) (a : term U) (B : Rel) (b : term U)
+             (phi : Prop) (0 : proof (ELT A a B b))
+             (1 : b' : term U -> proof (B b' b) -> proof (EQV A a B b') ->
+                  proof phi) : proof phi :=
+  ex_elim U (b' => and (B b' b) (EQV A a B b')) phi
+    (b' : term U =>
+     2 : proof (and (B b' b) (EQV A a B b')) =>
+     2 phi (1 b')) 0.
+
+def compat_left (A : Rel) (a : term U) (B : Rel) (b : term U) (C : Rel) (c : term U)
+                (0 : proof (EQV A a B b)) (1 : proof (ELT B b C c)) :
+                proof (ELT A a C c) :=
+  ELT_elim B b C c (ELT A a C c) 1
+    (c' : term U =>
+     2 : proof (C c' c) =>
+     3 : proof (EQV B b C c') =>
+     ELT_intro A a C c c' 2 (EQV_trans A a B b C c' 0 3)).
+
+def compat_right (A : Rel) (a : term U) (B : Rel) (b : term U) (C : Rel) (c : term U)
+                 (0 : proof (ELT A a B b)) (1 : proof (EQV B b C c)) :
+                 proof (ELT A a C c) :=
+  ELT_elim A a B b (ELT A a C c) 0
+    (b' : term U =>
+     2 : proof (B b' b) =>
+     3 : proof (EQV A a B b') =>
+     lemma_8_4_2 B b C c 1 b' 2 (ELT A a C c)
+       (c' : term U =>
+        4 : proof (and (C c' c) (EQV B b' C c')) =>
+        4 (ELT A a C c)
+        (5 : proof (C c' c) =>
+         6 : proof (EQV B b' C c') =>
+         ELT_intro A a C c c' 5
+           (EQV_trans A a B b' C c' 3 6)))).
+
+def i (A : Rel) (a : term U) : term U :=
+  f : (X : type -> (term X -> term X -> Prop) -> term X -> Prop) => f U A a.
+
+def inj (A : Rel) (a : term U) (B : Rel) (b : term U)
+        (0 : proof (eq U (i A a) (i B b))) : proof (EQV A a B b) :=
+  0 (u : term U => u (Z : type => C : (term Z -> term Z -> Prop) => c : term Z =>
+     PEQV U A a Z C c)) (EQV_refl A a).
+
+def set (u : term U) : Prop :=
+  gex (A : Rel => a : term U => eq U u (i A a)).
+
+def set_intro (u : term U) :=
+  gex_intro (A : Rel => a : term U => eq U u (i A a)).
+
+def set_elim (u : term U) :=
+  gex_elim (A : Rel => a : term U => eq U u (i A a)).
+
+def set_i (A : Rel) (a : term U) : proof (set (i A a)) :=
+  set_intro (i A a) A a (eq_intro U (i A a)).
+
+def out : term U :=
+  f : (X : type -> (term X -> term X -> Prop) -> term X -> Prop) => false.
+
+def nonset_out : proof (not (set out)) :=
+  0 : proof (set out) =>
+  set_elim out false 0
+  (A : Rel => a : term U => 1 : proof (eq U out (i A a)) =>
+   eq_sym U out (i A a) 1
+     (u : term U =>
+      u (X : type => B : (term X -> term X -> Prop) => b : term X => true))
+     true_intro).
+
+def eqv (u : term U) (v : term U) : Prop :=
+  gex (A : Rel => a : term U =>
+  gex (B : Rel => b : term U =>
+  and (eq U u (i A a)) (and (eq U v (i B b)) (EQV A a B b)))).
+
+def eqv_intro (u : term U) (v : term U) (A : Rel) (a : term U) (B : Rel) (b : term U)
+              (0 : proof (eq U u (i A a)))
+              (1 : proof (eq U v (i B b)))
+              (2 : proof (EQV A a B b)) :
+              proof (eqv u v) :=
+  gex_intro (A : Rel => a : term U => gex (B : Rel => b : term U =>
+             and (eq U u (i A a)) (and (eq U v (i B b)) (EQV A a B b))))
+    A a
+    (gex_intro (B : Rel => b : term U =>
+                and (eq U u (i A a)) (and (eq U v (i B b)) (EQV A a B b)))
+       B b
+       (and_intro (eq U u (i A a)) (and (eq U v (i B b)) (EQV A a B b))
+         0 (and_intro (eq U v (i B b)) (EQV A a B b) 1 2))).
+
+def eqv_elim (u : term U) (v : term U) (phi : Prop)
+             (0 : proof (eqv u v))
+             (1 : A : Rel -> a : term U -> B : Rel -> b : term U ->
+                  proof (eq U u (i A a)) -> proof (eq U v (i B b)) ->
+                  proof (EQV A a B b) -> proof phi) : proof phi :=
+  gex_elim (A : Rel => a : term U => gex (B : Rel => b : term U =>
+            and (eq U u (i A a)) (and (eq U v (i B b)) (EQV A a B b))))
+     phi 0
+       (A : Rel => a : term U =>
+        2 : proof (gex (B : Rel => b : term U =>
+            and (eq U u (i A a)) (and (eq U v (i B b)) (EQV A a B b)))) =>
+        gex_elim (B : Rel => b : term U =>
+                  and (eq U u (i A a)) (and (eq U v (i B b)) (EQV A a B b)))
+           phi 2
+             (B : Rel => b : term U =>
+              3 : proof (and (eq U u (i A a))
+                    (and (eq U v (i B b)) (EQV A a B b))) =>
+              3 phi
+                (4 : proof (eq U u (i A a)) =>
+                 5 : proof (and (eq U v (i B b)) (EQV A a B b)) =>
+                 5 phi (1 A a B b 4)))).
+
+def eqv_dom_left (u : term U) (v : term U) (0 : proof (eqv u v)) : proof (set u) :=
+  eqv_elim u v (set u) 0
+    (A : Rel => a : term U =>
+     B : Rel => b : term U =>
+     1 : proof (eq U u (i A a)) =>
+     2 : proof (eq U v (i B b)) =>
+     3 : proof (EQV A a B b) =>
+     set_intro u A a 1).
+
+def eqv_dom_right (u : term U) (v : term U) (0 : proof (eqv u v)) : proof (set v) :=
+  eqv_elim u v (set v) 0
+    (A : Rel => a : term U =>
+     B : Rel => b : term U =>
+     1 : proof (eq U u (i A a)) =>
+     2 : proof (eq U v (i B b)) =>
+     3 : proof (EQV A a B b) =>
+     set_intro v B b 2).
+
+def elt (u : term U) (v : term U) : Prop :=
+  gex (A : Rel => a : term U =>
+  gex (B : Rel => b : term U =>
+  and (eq U u (i A a)) (and (eq U v (i B b)) (ELT A a B b)))).
+
+
+def elt_intro (u : term U) (v : term U) (A : Rel) (a : term U) (B : Rel) (b : term U)
+              (0 : proof (eq U u (i A a)))
+              (1 : proof (eq U v (i B b)))
+              (2 : proof (ELT A a B b)) :
+              proof (elt u v) :=
+  gex_intro (A : Rel => a : term U => gex (B : Rel => b : term U =>
+             and (eq U u (i A a)) (and (eq U v (i B b)) (ELT A a B b))))
+    A a
+    (gex_intro (B : Rel => b : term U =>
+                and (eq U u (i A a)) (and (eq U v (i B b)) (ELT A a B b)))
+       B b
+       (and_intro (eq U u (i A a)) (and (eq U v (i B b)) (ELT A a B b))
+         0 (and_intro (eq U v (i B b)) (ELT A a B b) 1 2))).
+
+def elt_elim (u : term U) (v : term U) (phi : Prop)
+             (0 : proof (elt u v))
+             (1 : A : Rel -> a : term U ->
+                  B : Rel -> b : term U ->
+                  proof (eq U u (i A a)) -> proof (eq U v (i B b)) ->
+                  proof (ELT A a B b) -> proof phi) : proof phi :=
+  gex_elim (A : Rel => a : term U => gex (B : Rel => b : term U =>
+            and (eq U u (i A a)) (and (eq U v (i B b)) (ELT A a B b))))
+     phi 0
+       (A : Rel => a : term U =>
+        2 : proof (gex (B : Rel => b : term U =>
+            and (eq U u (i A a)) (and (eq U v (i B b)) (ELT A a B b)))) =>
+        gex_elim (B : Rel => b : term U =>
+                  and (eq U u (i A a)) (and (eq U v (i B b)) (ELT A a B b)))
+           phi 2
+             (B : Rel => b : term U =>
+              3 : proof (and (eq U u (i A a))
+                    (and (eq U v (i B b)) (ELT A a B b))) =>
+              3 phi
+                (4 : proof (eq U u (i A a)) =>
+                 5 : proof (and (eq U v (i B b)) (ELT A a B b)) =>
+                 5 phi (1 A a B b 4)))).
+
+def elt_dom_left (u : term U) (v : term U) (0 : proof (elt u v)) : proof (set u) :=
+  elt_elim u v (set u) 0
+    (A : Rel => a : term U =>
+     B : Rel => b : term U =>
+     1 : proof (eq U u (i A a)) =>
+     2 : proof (eq U v (i B b)) =>
+     3 : proof (ELT A a B b) =>
+     set_intro u A a 1).
+
+def elt_dom_right (u : term U) (v : term U) (0 : proof (elt u v)) : proof (set v) :=
+  elt_elim u v (set v) 0
+    (A : Rel => a : term U =>
+     B : Rel => b : term U =>
+     1 : proof (eq U u (i A a)) =>
+     2 : proof (eq U v (i B b)) =>
+     3 : proof (ELT A a B b) =>
+     set_intro v B b 2).
+
+def eqv_refl (u : term U) (0 : proof (set u)) : proof (eqv u u) :=
+  set_elim u (eqv u u) 0
+    (A : Rel => a : term U =>
+     1 : proof (eq U u (i A a)) =>
+     eqv_intro u u A a A a 1 1 (EQV_refl A a)).
+
+def eqv_refl_i (A : Rel) (a : term U) : proof (eqv (i A a) (i A a)) :=
+  eqv_intro (i A a) (i A a) A a A a (eq_intro U (i A a)) (eq_intro U (i A a))
+    (EQV_refl A a).
+
+def eqv_sym (u : term U) (v : term U) (0 : proof (eqv u v)) : proof (eqv v u) :=
+  eqv_elim u v (eqv v u) 0
+    (A : Rel => a : term U =>
+     B : Rel => b : term U =>
+     1 : proof (eq U u (i A a)) =>
+     2 : proof (eq U v (i B b)) =>
+     3 : proof (EQV A a B b) =>
+     eqv_intro v u B b A a 2 1 (EQV_sym A a B b 3)).
+
+def eqv_trans (u : term U) (v : term U) (w : term U)
+              (0 : proof (eqv u v)) (1 : proof (eqv v w)) : proof (eqv u w) :=
+  eqv_elim u v (eqv u w) 0
+    (A : Rel => a : term U =>
+     B : Rel => b : term U =>
+     2 : proof (eq U u (i A a)) =>
+     3 : proof (eq U v (i B b)) =>
+     4 : proof (EQV A a B b) =>
+     eqv_elim v w (eqv u w) 1
+       (B' : Rel => b' : term U =>
+        C : Rel => c : term U =>
+        5 : proof (eq U v (i B' b')) =>
+        6 : proof (eq U w (i C c)) =>
+        7 : proof (EQV B' b' C c) =>
+        eqv_intro u w A a C c 2 6
+          (EQV_trans A a B b C c 4
+             (EQV_trans B b B' b' C c
+               (inj B b B' b' (3 (v : term U => eq U v (i B' b')) 5))
+               7)))).
+
+def elt_compat_left (u : term U) (v : term U) (w : term U)
+                    (0 : proof (eqv u v)) (1 : proof (elt v w)) : proof (elt u w) :=
+  eqv_elim u v (elt u w) 0
+    (A : Rel => a : term U =>
+     B : Rel => b : term U =>
+     2 : proof (eq U u (i A a)) =>
+     3 : proof (eq U v (i B b)) =>
+     4 : proof (EQV A a B b) =>
+     elt_elim v w (elt u w) 1
+       (B' : Rel => b' : term U =>
+        C : Rel => c : term U =>
+        5 : proof (eq U v (i B' b')) =>
+        6 : proof (eq U w (i C c)) =>
+        7 : proof (ELT B' b' C c) =>
+        elt_intro u w A a C c 2 6
+          (compat_left A a B b C c 4
+             (compat_left B b B' b' C c
+               (inj B b B' b' (3 (v : term U => eq U v (i B' b')) 5))
+               7)))).
+
+def elt_compat_right (u : term U) (v : term U) (w : term U)
+                     (0 : proof (elt u v)) (1 : proof (eqv v w)) : proof (elt u w) :=
+  elt_elim u v (elt u w) 0
+    (A : Rel => a : term U =>
+     B : Rel => b : term U =>
+     2 : proof (eq U u (i A a)) =>
+     3 : proof (eq U v (i B b)) =>
+     4 : proof (ELT A a B b) =>
+     eqv_elim v w (elt u w) 1
+       (B' : Rel => b' : term U =>
+        C : Rel => c : term U =>
+        5 : proof (eq U v (i B' b')) =>
+        6 : proof (eq U w (i C c)) =>
+        7 : proof (EQV B' b' C c) =>
+        elt_intro u w A a C c 2 6
+          (compat_right A a B b C c 4
+             (EQV_trans B b B' b' C c
+               (inj B b B' b' (3 (v : term U => eq U v (i B' b')) 5))
+               7)))).
+
+def Reqv (A : Rel) (x : term U) (u : term U) : Prop :=
+      eqv (i A x) u.
+
+def elt_i (A : Rel) (a : term U) (b : term U) (0 : proof (A a b)) :
+          proof (elt (i A a) (i A b)) :=
+  elt_intro (i A a) (i A b) A a A b
+    (eq_intro U (i A a)) (eq_intro U (i A b))
+    (ELT_intro A a A b a 0 (EQV_refl A a)).
+
+def plongement_SIM (A : Rel) : proof (SIM A elt (Reqv A)) :=
+  x : term U =>
+  x' : term U =>
+  u : term U =>
+  0 : proof (A x' x) =>
+  1 : proof (eqv (i A x) u) =>
+  SIM_intro elt (Reqv A) x' u (i A x')
+    (eqv_refl_i A x')
+    (elt_compat_right (i A x') (i A x) u (elt_i A x' x 0) 1).
+
+def plongement_rSIM (A : Rel) : proof (rSIM A elt (Reqv A)) :=
+  u : term U =>
+  u' : term U =>
+  x : term U =>
+  0 : proof (elt u' u) =>
+  1 : proof (eqv (i A x) u) =>
+  elt_elim u' (i A x) (ex U (x' => and (eqv (i A x') u') (A x' x)))
+    (elt_compat_right u' u (i A x) 0 (eqv_sym (i A x) u 1))
+  (B : Rel => b : term U =>
+   C : Rel => c : term U =>
+   2 : proof (eq U u' (i B b)) =>
+   3 : proof (eq U (i A x) (i C c)) =>
+   4 : proof (ELT B b C c) =>
+   ELT_elim B b A x (ex U (x' => and (eqv (i A x') u') (A x' x)))
+     (compat_right B b C c A x 4
+       (inj C c A x (eq_sym U (i A x) (i C c) 3)))
+     (x' : term U =>
+      5 : proof (A x' x) =>
+      6 : proof (EQV B b A x') =>
+      ex_intro U (x' => and (eqv (i A x') u') (A x' x)) x'
+        (and_intro (eqv (i A x') u') (A x' x)
+          (eqv_intro (i A x') u' A x' B b
+             (eq_intro U (i A x'))
+             2
+             (EQV_sym B b A x' 6)) 5))).
+
+def plongement (A : Rel) (a : term U) : proof (EQV A a elt (i A a)) :=
+  EQV_intro A a elt (i A a) (Reqv A)
+    (plongement_SIM A)
+    (plongement_rSIM A)
+    (eqv_refl_i A a).
+
+def compat (P : term U -> Prop) :=
+  all U (u => all U (v => imp (P u) (imp (eqv u v) (P v)))).
+
+def FOLD (P : term U -> Prop) (u : term U) (v : term U) :=
+  or (elt u v) (and (set u) (and (P u) (eq U v out))).
+
+def FOLD_set (P : term U -> Prop) (u : term U) (v : term U)
+             (0 : proof (FOLD P u v)) : proof (set u) :=
+  0 (set u)
+    (elt_dom_left u v)
+    (and_elim1 (set u) (and (P u) (eq U v out))).
+
+def FOLD_elim_set (P : term U -> Prop) (u : term U) (v : term U)
+                  (0 : proof (FOLD P u v))
+                  (1 : proof (set v)) : proof (elt u v) :=
+  0 (elt u v)
+    (2 : proof (elt u v) => 2)
+    (2 : proof (and (set u) (and (P u) (eq U v out))) =>
+     2 (elt u v)
+     (3 : proof (set u) =>
+      4 : proof (and (P u) (eq U v out)) =>
+      4 (elt u v)
+      (5 : proof (P u) =>
+       6 : proof (eq U v out) =>
+       nonset_out (6 set 1) (elt u v)))).
+
+def FOLD_intro_set (P : term U -> Prop) (u : term U) (v : term U)
+                   (0 : proof (elt u v)) : proof (FOLD P u v) :=
+  or_intro1 (elt u v) (and (set u) (and (P u) (eq U v out))) 0.
+
+def FOLD_elim_out1 (P : term U -> Prop) (u : term U)
+                   (0 : proof (FOLD P u out)) : proof (set u) :=
+  FOLD_set P u out 0.
+
+def FOLD_elim_out2 (P : term U -> Prop) (u : term U)
+                   (0 : proof (FOLD P u out)) : proof (P u) :=
+  0 (P u)
+    (1 : proof (elt u out) =>
+     nonset_out (elt_dom_right u out 1) (P u))
+    (1 : proof (and (set u) (and (P u) (eq U out out))) =>
+     1 (P u)
+     (2 : proof (set u) =>
+      and_elim1 (P u) (eq U out out))).
+
+def FOLD_intro_out (P : term U -> Prop) (u : term U)
+                   (0 : proof (set u)) (1 : proof (P u)) : proof (FOLD P u out) :=
+  or_intro2 (elt u out) (and (set u) (and (P u) (eq U out out)))
+    (and_intro (set u) (and (P u) (eq U out out))
+      0
+      (and_intro (P u) (eq U out out)
+        1 (eq_intro U out))).
+
+def FER (v : term U) (w : term U) : Prop := and (set v) (eq U v w).
+
+def FOLD_EQV (P : term U -> Prop) (u : term U) (0 : proof (set u)) :
+             proof (EQV elt u (FOLD P) u) :=
+  EQV_intro elt u (FOLD P) u FER
+    (x : term U =>
+     x' : term U =>
+     y : term U =>
+     1 : proof (elt x' x) =>
+     2 : proof (FER x y) =>
+     SIM_intro (FOLD P) FER x' y x'
+       (and_intro (set x') (eq U x' x') (elt_dom_left x' x 1) (eq_intro U x'))
+       (FOLD_intro_set P x' y (and_elim2 (set x) (eq U x y) 2 (elt x') 1)))
+    (y : term U =>
+     y' : term U =>
+     x : term U =>
+     1 : proof (FOLD P y' y) =>
+     2 : proof (FER x y) =>
+     SIM_intro elt (rev FER) y' x y'
+       (and_intro (set y') (eq U y' y') (FOLD_set P y' y 1) (eq_intro U y'))
+       (2 (elt y' x)
+         (3 : proof (set x) =>
+          4 : proof (eq U x y) =>
+          eq_sym U x y 4 (elt y') (FOLD_elim_set P y' y 1 (4 set 3)))))
+    (and_intro (set u) (eq U u u) 0 (eq_intro U u)).
+
+def fold (P : term U -> Prop) : term U := i (FOLD P) out.
+
+def fold_set (P : term U -> Prop) : proof (set (fold P)) :=
+  set_i (FOLD P) out.
+
+def fold_intro (P : term U -> Prop) (u : term U)
+               (0 : proof (set u)) (1 : proof (P u)) : proof (elt u (fold P)) :=
+  set_elim u (elt u (fold P)) 0
+    (A : Rel => a : term U =>
+     2 : proof (eq U u (i A a)) =>
+     elt_intro u (fold P) A a (FOLD P) out 2 (eq_intro U (fold P))
+       (ELT_intro A a (FOLD P) out u
+         (FOLD_intro_out P u 0 1)
+         (EQV_trans A a elt u (FOLD P) u
+           (eq_sym U u (i A a) 2 (EQV A a elt) (plongement A a))
+           (FOLD_EQV P u 0)))).
+
+def fold_elim (P : term U -> Prop) (u : term U)
+              (0 : proof (compat P)) (1 : proof (elt u (fold P))) : proof (P u) :=
+  elt_elim u (fold P) (P u) 1
+    (A : Rel => a : term U => C : Rel => c : term U =>
+     2 : proof (eq U u (i A a)) =>
+     3 : proof (eq U (fold P) (i C c)) =>
+     4 : proof (ELT A a C c) =>
+     ELT_elim A a (FOLD P) out (P u)
+       (compat_right A a C c (FOLD P) out 4
+          (EQV_sym (FOLD P) out C c (inj (FOLD P) out C c 3)))
+       (v : term U =>
+        6 : proof (FOLD P v out) =>
+        5 : proof (EQV A a (FOLD P) v) =>
+        set_elim v (P u) (FOLD_elim_out1 P v 6)
+        (B : Rel => b : term U =>
+         7 : proof (eq U v (i B b)) =>
+         0 v u (FOLD_elim_out2 P v 6)
+           (eqv_intro v u B b A a 7 2
+             (EQV_sym A a B b
+               (EQV_trans A a (FOLD P) v B b 5
+                  (EQV_trans (FOLD P) v elt v B b
+                    (EQV_sym elt v (FOLD P) v (FOLD_EQV P v (FOLD_elim_out1 P v 6)))
+                    (EQV_sym B b elt v
+                       (eq_sym U v (i B b) 7 (EQV B b elt)
+                          (plongement B b)))))))))).
+
+def Russell (u : term U) := not (elt u u).
+
+def compat_not (P : term U -> Prop) (0 : proof (compat P)) :
+               proof (compat (u : term U => not (P u))) :=
+  u : term U =>
+  v : term U =>
+  1 : proof (not (P u)) =>
+  2 : proof (eqv u v) =>
+  3 : proof (P v) =>
+  1 (0 v u 3 (eqv_sym u v 2)).
+
+def compat_elt : proof (compat (u : term U => elt u u)) :=
+  u : term U =>
+  v : term U =>
+  0 : proof (elt u u) =>
+  1 : proof (eqv u v) =>
+  elt_compat_left v u v (eqv_sym u v 1)
+    (elt_compat_right u u v 0 1).
+
+def compat_russell : proof (compat Russell) :=
+  compat_not (u : term U => elt u u) compat_elt.
+
+def R : term U := fold Russell.
+
+def Rset : proof (set R) := fold_set Russell.
+
+def p (0 : proof (not (elt R R))) : proof (elt R R) :=
+  fold_intro Russell R Rset 0.
+
+def q (1 : proof (elt R R)) : proof (not (elt R R)) :=
+  fold_elim Russell R compat_russell 1.
+
+def paradox : proof false :=
+  (0 : proof (elt R R) => q 0 0)
+  (p (0 : proof (elt R R) => q 0 0)).

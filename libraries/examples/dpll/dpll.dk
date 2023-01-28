@@ -1,0 +1,309 @@
+(; -------------------------    Booleans    ----------------------- ;)
+(; -------------------------    Variable    ----------------------- ;)
+Bool : Type.
+T : Bool.
+F : Bool.
+
+def and : Bool -> Bool -> Bool.
+[] and F _ --> F
+[] and _ F --> F
+[] and T T --> T.
+
+def or : Bool -> Bool -> Bool.
+[] or T _ --> T
+[] or _ T --> T
+[] or F F --> F.
+
+def not : Bool -> Bool.
+[] not T --> F
+[] not F --> T.
+
+def iif : Bool -> Bool -> Bool.
+[] iif T T --> T
+[] iif T F --> F
+[] iif F T --> F
+[] iif F F --> T.
+
+def impl : Bool -> Bool -> Bool.
+[] impl F _ --> T
+[] impl T T --> T
+[] impl T F --> F.
+
+
+
+(; -------------------------    Variable    ----------------------- ;)
+
+Variable : Type.
+(; We need decidable equality on variables ;)
+def eq : Variable -> Variable -> Bool.
+
+
+(; -------------------------    Formulas    ----------------------- ;)
+
+Literal : Type.
+Ltrue : Literal.
+Lfalse : Literal.
+
+def Lit : Bool -> Variable -> Literal.
+Cst : Bool -> Literal.
+
+Clause : Type.
+Cfalse : Clause.
+Ctrue  : Clause.
+def Ccons  : Literal -> Clause -> Clause.
+[] Ccons _ Ctrue --> Ctrue.
+[ ] Ccons (Cst T) _ --> Ctrue.
+[A] Ccons (Cst F) A --> A.
+
+def iteC : Bool -> Clause -> Clause -> Clause.
+[A] iteC T A _ --> A.
+[A] iteC F _ A --> A.
+
+
+Formula : Type.
+Ftrue : Formula.
+Ffalse : Formula.
+def Fcons : Clause -> Formula -> Formula.
+[  ] Fcons _      Ffalse --> Ffalse
+[  ] Fcons Cfalse _      --> Ffalse
+[tl] Fcons Ctrue  tl     --> tl.
+
+def iteF : Bool -> Formula -> Formula -> Formula.
+[A] iteF T A _ --> A.
+[A] iteF F _ A --> A.
+
+
+
+
+(; ------------------------    Formulas CNF    -------------------- ;)
+
+def Fvar : Variable -> Formula.
+def Fnot : Formula -> Formula.
+def Fand : Formula -> Formula -> Formula.
+def For  : Formula -> Formula -> Formula.
+
+
+[A,B] Fnot (For   A B) --> Fand (Fnot A) (Fnot B)
+[A,B] Fnot (Fand  A B) --> For  (Fnot A) (Fnot B)
+[A  ] Fnot (Fnot A )   --> A
+[   ] Fnot Ffalse      --> Ftrue
+[   ] Fnot Ftrue       --> Ffalse.
+
+
+[A,B,C] For (Fand A B) C --> Fand (For A B) (For B C).
+[A,B,C] For A (Fand B C) --> Fand (For A B) (For A C).
+
+
+[v] Fvar v --> Fcons (Ccons (Lit T v) Cfalse) Ftrue.
+
+[A] Fand A     Ftrue  --> A
+[ ] Fand _     Ffalse --> Ffalse
+[A] Fand Ftrue A      --> A
+[ ] Fand Ffalse _     --> Ffalse.
+
+[ ] For _ Ftrue  --> Ftrue
+[ ] For Ftrue _  --> Ftrue
+[A] For A Ffalse --> A
+[A] For Ffalse A --> A.
+
+def Cor : Clause -> Clause -> Clause.
+[A] Cor Cfalse A      --> A
+[A] Cor A      Cfalse --> A
+[ ] Cor _      Ctrue  --> Ctrue
+[ ] Cor Ctrue  _      --> Ctrue.
+[l,l',A,B]
+  Cor (Ccons l A) (Ccons l' B)
+  -->
+  Ccons l (Ccons l' (Cor A B)).
+
+def Cnot : Clause -> Formula.
+[] Cnot Cfalse --> Ftrue
+[] Cnot Ctrue  --> Ffalse
+[p,v,A]
+  Cnot (Ccons (Lit p v) A)
+  -->
+  Fcons (Ccons (Lit (not p) v) Cfalse) (Cnot A).
+
+[A,B      ] Fnot (Fcons A B) -->
+            For (Cnot A) (Fnot B).
+[A,B,A',B'] For  (Fcons A A') (Fcons B B') -->
+            Fcons
+			  (Cor A B)
+		      (Fand
+			    (For (Fcons A Ftrue) B')
+			    (Fand
+                  (For (Fcons B Ftrue) A')
+			      (For A' B')
+			    )
+			   ).
+[A,B,A',B'] Fand (Fcons A A') (Fcons B B') -->
+            Fcons A (Fcons B (Fand A' B')).
+
+
+
+
+(; ---------------------------------------------------------------- ;)
+(; ------------------------    Resolution    ---------------------- ;)
+(; ---------------------------------------------------------------- ;)
+
+
+(; --------------------    Contradiction test    ------------------ ;)
+
+def no_contradict : Bool -> Variable -> Formula -> Bool.
+
+[] no_contradict _ _ Ftrue                           --> T
+[] no_contradict _ _ (Fcons (Ccons _ (Ccons _ _)) _) --> F (; Should never happen ;)
+[p,v,p',v',tl]
+  no_contradict p v (Fcons (Ccons (Lit p' v') Cfalse) tl)
+  -->
+  and (impl (eq v v') (iif p p')) (no_contradict p v tl).
+
+
+(; ---------------------    Consistency test    ------------------- ;)
+
+def consistent : Formula -> Bool.
+
+(; The empty formula is consistent ;)
+[] consistent Ftrue     --> T
+[] consistent Ffalse    --> F
+
+(; A formula with a non-unit clause is not consistent (yet) ;)
+[] consistent (Fcons (Ccons _ (Ccons _ _)) _) --> F.
+
+(; A formula starting with a unit clause is consistent if the rest is
+   and the unit clause doesn't contradict the rest. ;)
+[p,v,tl]
+  consistent (Fcons (Ccons (Lit p v) Cfalse) tl)
+  -->
+  and (consistent tl) (no_contradict p v tl)
+
+(; A formula with a non-unit clause is not trivially consistent (yet) ;)
+[] consistent (Fcons (Ccons _ (Ccons _ _)) _) --> F.
+
+
+(; Any formula containing Ffalse reduces to Ffalse automatically ;)
+def inconsistent : Formula -> Bool.
+[] inconsistent Ffalse      --> T
+[] inconsistent Ftrue       --> F
+[] inconsistent (Fcons _ _) --> F.
+
+
+
+
+
+
+(; ---------------------    Unit propagation    ------------------- ;)
+
+def unit_propagate_clause : Bool -> Variable -> Clause -> Clause.
+[] unit_propagate_clause _ _ Cfalse --> Cfalse
+[] unit_propagate_clause _ _ Ctrue  --> Ctrue
+[p,v,p',v',tl]
+  unit_propagate_clause p v (Ccons (Lit p' v') tl)
+  -->
+  iteC (eq v v')
+    (iteC (iif p p') Ctrue tl)
+    (Ccons (Lit p' v') (unit_propagate_clause p v tl)).
+
+def unit_propagate        : Bool -> Variable -> Formula -> Formula.
+[]    unit_propagate _ _ Ffalse --> Ffalse
+[p,v] unit_propagate p v Ftrue  --> Fcons (Ccons (Lit p v) Cfalse) Ftrue
+[p,v,clause,tl]
+  unit_propagate p v (Fcons clause tl)
+  -->
+  Fcons (unit_propagate_clause p v clause) (unit_propagate p v tl).
+
+(; Lists of variables ;)
+VarList : Type.
+Vnil : VarList.
+Vcons : Variable -> VarList -> VarList.
+def is_in_varlist : Variable -> VarList -> Bool.
+[       ] is_in_varlist _ Vnil          --> F
+[v,hd,tl] is_in_varlist v (Vcons hd tl) --> or (eq v hd) (is_in_varlist v tl).
+
+def full_unit_propagate : VarList -> Formula -> Formula -> Formula.
+[f] full_unit_propagate _ f Ftrue  --> f.
+[f] full_unit_propagate _ f Ffalse --> f.
+[visited,f,p,v,formula]
+    full_unit_propagate visited f
+      (Fcons (Ccons (Lit p v) Cfalse) formula)
+    -->
+    iteF (is_in_varlist v visited)
+      (full_unit_propagate visited f formula)
+      (
+        (new_f : Formula => full_unit_propagate (Vcons v visited) new_f new_f)
+        (unit_propagate p v f)
+      ).
+[visited,f,formula]
+    full_unit_propagate visited f
+      (Fcons (Ccons _ (Ccons _ _)) formula)
+    -->
+    full_unit_propagate visited f formula.
+
+def units_propagate (f:Formula) : Formula := full_unit_propagate Vnil f f.
+
+
+
+(; -------------------    Variable selection    ------------------- ;)
+
+VarOpt : Type.
+VOnone : VarOpt.
+VOsome : Variable -> VarOpt.
+
+def select_var : Formula -> VarOpt.
+[  ] select_var Ffalse --> VOnone
+[  ] select_var Ftrue  --> VOnone
+[tl] select_var (Fcons (Ccons _ Cfalse) tl)  --> select_var tl
+[v ] select_var (Fcons (Ccons (Lit _ v) (Ccons _ _)) _)  --> VOsome v.
+
+
+(; ---------------------------    Solver    ----------------------- ;)
+
+def solve : Formula -> Formula.
+def try_solve : Formula -> Formula -> Formula.
+def solve_specialize : Formula -> VarOpt -> Formula.
+
+[f] solve f
+    -->
+    solve_specialize f (select_var f).
+
+[f  ] solve_specialize f VOnone --> f
+[f,v] solve_specialize f (VOsome v) -->
+  try_solve
+    (units_propagate (Fcons (Ccons (Lit T v) Cfalse) f))
+    (units_propagate (Fcons (Ccons (Lit F v) Cfalse) f)).
+
+[f      ] try_solve Ffalse        f --> solve f
+[f,hd,tl] try_solve (Fcons hd tl) f --> solve (Fcons hd tl).
+
+
+
+
+
+
+
+
+(; WIP: Pure litteral elimination ;)
+
+Occ : Type.
+Onil  : Occ.
+Ook   : Bool -> Variable -> Occ -> Occ.
+Ofail : Variable -> Occ -> Occ.
+
+def iteO : Bool -> Occ -> Occ -> Occ.
+[A] iteO T A _ --> A
+[A] iteO F _ A --> A.
+
+def add_occ : Bool -> Variable -> Occ -> Occ.
+[p,v] add_occ p v Onil --> Ook p v Onil.
+[p,v,v',tl]
+  add_occ p v (Ofail v' tl)
+  -->
+  Ofail v' (iteO (eq v v') tl (add_occ p v tl))
+[p,v,p',v',tl]
+  add_occ p v (Ook p' v' tl)
+  -->
+  iteO (eq v v')
+    (iteO (iif p p')
+      (Ook p' v' tl)
+      (Ofail v' tl))
+    (Ook p' v' (add_occ p v tl)).

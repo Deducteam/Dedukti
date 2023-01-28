@@ -1,0 +1,141 @@
+(; ---------------------    Digits     ------------------ ;)
+Digit : Type.
+0 : Digit.
+1 : Digit.
+2 : Digit.
+3 : Digit.
+4 : Digit.
+5 : Digit.
+6 : Digit.
+7 : Digit.
+8 : Digit.
+9 : Digit.
+
+(; -----------------    Readable nats     --------------- ;)
+def N : Digit -> Type.
+def PNat : Type := a:Digit -> N a.
+
+[] N 0 --> PNat
+[] N 1 --> PNat
+[] N 2 --> PNat
+[] N 3 --> PNat
+[] N 4 --> PNat
+[] N 5 --> PNat
+[] N 6 --> PNat
+[] N 7 --> PNat
+[] N 8 --> PNat
+[] N 9 --> PNat.
+
+def Nat := PNat -> PNat.
+
+
+(; -----------------    Folding function     ------------ ;)
+
+def fold_left : (d:Digit) -> (Digit -> N d -> N d) -> N d -> PNat.
+[d,f,a] fold_left d f a d --> a.
+[d,f,a] fold_left d f a 0 --> fold_left d f (f 0 a).
+[d,f,a] fold_left d f a 1 --> fold_left d f (f 1 a).
+[d,f,a] fold_left d f a 2 --> fold_left d f (f 2 a).
+[d,f,a] fold_left d f a 3 --> fold_left d f (f 3 a).
+[d,f,a] fold_left d f a 4 --> fold_left d f (f 4 a).
+[d,f,a] fold_left d f a 5 --> fold_left d f (f 5 a).
+[d,f,a] fold_left d f a 6 --> fold_left d f (f 6 a).
+[d,f,a] fold_left d f a 7 --> fold_left d f (f 7 a).
+[d,f,a] fold_left d f a 8 --> fold_left d f (f 8 a).
+[d,f,a] fold_left d f a 9 --> fold_left d f (f 9 a).
+
+(; fold_left d f a x0...xn   reduces to    f xn (f ... (f x0 a))   ;)
+
+def fold_right : (d:Digit) -> (d:Digit -> N d -> N d) -> N d -> PNat.
+[d,a,f] fold_right d f a d --> a.
+[d,a,f] fold_right d f a 0 --> f 0 (fold_right d f a).
+[d,a,f] fold_right d f a 1 --> f 1 (fold_right d f a).
+[d,a,f] fold_right d f a 2 --> f 2 (fold_right d f a).
+[d,a,f] fold_right d f a 3 --> f 3 (fold_right d f a).
+[d,a,f] fold_right d f a 4 --> f 4 (fold_right d f a).
+[d,a,f] fold_right d f a 5 --> f 5 (fold_right d f a).
+[d,a,f] fold_right d f a 6 --> f 6 (fold_right d f a).
+[d,a,f] fold_right d f a 7 --> f 7 (fold_right d f a).
+[d,a,f] fold_right d f a 8 --> f 8 (fold_right d f a).
+[d,a,f] fold_right d f a 9 --> f 9 (fold_right d f a).
+
+(; fold_right d f a x0...xn   reduces to    f x0 (f ... (f xn a))   ;)
+
+
+
+(; Building Nats from digits ;)
+
+def 10n_i : n:Nat -> d:Digit -> x:PNat -> N d
+         := n     => d       => x      => n x d.
+
+def as_d : Digit -> Digit.
+[d] N (as_d d) --> PNat.
+[] as_d 0 --> 0.
+[] as_d 1 --> 1.
+[] as_d 2 --> 2.
+[] as_d 3 --> 3.
+[] as_d 4 --> 4.
+[] as_d 5 --> 5.
+[] as_d 6 --> 6.
+[] as_d 7 --> 7.
+[] as_d 8 --> 8.
+[] as_d 9 --> 9.
+
+
+def carry : PNat -> PNat.
+
+def rebuild : d:Digit -> N d -> N d.
+[n]   rebuild 0 (x => carry (n x))  --> x => n 1 x.
+[n]   rebuild 1 (x => carry (n x))  --> x => n 2 x.
+[n]   rebuild 2 (x => carry (n x))  --> x => n 3 x.
+[n]   rebuild 3 (x => carry (n x))  --> x => n 4 x.
+[n]   rebuild 4 (x => carry (n x))  --> x => n 5 x.
+[n]   rebuild 5 (x => carry (n x))  --> x => n 6 x.
+[n]   rebuild 6 (x => carry (n x))  --> x => n 7 x.
+[n]   rebuild 7 (x => carry (n x))  --> x => n 8 x.
+[n]   rebuild 8 (x => carry (n x))  --> x => n 9 x.
+[n]   rebuild 9 (x => carry (n x))  --> carry (n 0).
+[d,n] rebuild d n --> n.
+
+def nat : Digit.
+[] N nat --> Nat.
+
+def inc : Nat -> Nat := n:Nat => n (fold_right nat rebuild (x => carry x)) nat.
+
+
+
+(; Conversion to a list of digits ;)
+DigitList : Type.
+nil  : DigitList.
+cons : Digit -> DigitList -> DigitList.
+
+dl : Digit.
+[] N dl --> DigitList.
+
+def to_list : Nat -> DigitList := n => n (fold_left dl cons nil) dl.
+
+def of_list : DigitList -> Nat.
+[ ] of_list nil        --> x => x
+[l] of_list (cons 0 l) --> x => (of_list l) x 0
+[l] of_list (cons 1 l) --> x => (of_list l) x 1
+[l] of_list (cons 2 l) --> x => (of_list l) x 2
+[l] of_list (cons 3 l) --> x => (of_list l) x 3
+[l] of_list (cons 4 l) --> x => (of_list l) x 4
+[l] of_list (cons 5 l) --> x => (of_list l) x 5
+[l] of_list (cons 6 l) --> x => (of_list l) x 6
+[l] of_list (cons 7 l) --> x => (of_list l) x 7
+[l] of_list (cons 8 l) --> x => (of_list l) x 8
+[l] of_list (cons 9 l) --> x => (of_list l) x 9.
+
+
+def number : Nat := (x => x 9 2 3 4 5 3).
+
+def zero : Nat := (x => x 0).
+def one  : Nat := (x => x 1).
+
+
+#EVAL[SNF] 10n_i number 0.
+#EVAL[SNF] number.
+#EVAL[SNF] of_list (to_list number).
+
+#EVAL[SNF] inc number.
