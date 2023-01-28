@@ -106,9 +106,6 @@ val add_rules : cfg -> Rule.partially_typed_rule list -> unit
 module MetaConfiguration :
   Processor.S with type output = Rule.partially_typed_rule list
 
-(** The processor associated to [MetaConfiguration]. *)
-type _ Processor.t += MetaRules : Rule.partially_typed_rule list Processor.t
-
 (** [parse_meta_files files] returns the list of rules declares in the
    files [files].  *)
 val parse_meta_files : string list -> Rule.partially_typed_rule list

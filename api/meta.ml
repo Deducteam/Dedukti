@@ -659,26 +659,14 @@ module MetaConfiguration :
     rs
 end
 
-type _ Processor.t += MetaRules : Rule.partially_typed_rule list Processor.t
-
-let _ =
-  let equal (type a b) :
-      a Processor.t * b Processor.t ->
-      (a Processor.t, b Processor.t) Processor.Registration.equal option =
-    function
-    | MetaRules, MetaRules -> Some (Processor.Registration.Refl MetaRules)
-    | _ -> None
-  in
-  Processor.Registration.register_processor MetaRules {equal}
-    (module MetaConfiguration)
-
 let parse_meta_files files =
   (* Load path is not needed since no importation is done via the
      [MetaRules] processor. *)
   let load_path = Files.empty in
   Processor.fold_files load_path ~files
     ~f:(fun rules acc -> rules :: acc)
-    ~default:[] MetaRules
+    ~default:[]
+    (module MetaConfiguration)
   |> List.concat
 
 let make_meta_processor cfg ~post_processing =

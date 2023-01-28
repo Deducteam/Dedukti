@@ -103,7 +103,7 @@ module Cmd = struct
     (* Load path is not needed since no importation is done by the
        [P] processor. *)
     let load_path = Api.Files.empty in
-    Api.Processor.T.handle_files load_path ~files:[!config_path] (module P)
+    Api.Processor.handle_files load_path ~files:[!config_path] (module P)
 
   let elaboration_meta_cfg : Api.Files.load_path -> M.cfg =
    fun load_path ->
@@ -160,7 +160,7 @@ module Cmd = struct
     Api.Processor.(
       handle_files load_path
         ~files:[F.get_theory ()]
-        Api.Processor.SignatureBuilder)
+        Api.Processor.get_signature)
 
   (** [to_checking_env f] returns the type checking environement for the file [f] *)
   let to_checking_env : Api.Files.load_path -> string -> Checking.Checker.t =
@@ -317,7 +317,7 @@ let check : Api.Files.load_path -> string -> unit =
             | Some (_env, loc, exn) -> Api.Errors.fail_exn input loc exn);
       }
   in
-  Api.Processor.T.handle_files ~hook load_path ~files:[file] (module P);
+  Api.Processor.handle_files ~hook load_path ~files:[file] (module P);
   let file = Api.Files.input_as_file (Parsers.Parser.from_file ~file:in_path) in
   Api.Env.export universo_env.env ~file;
   C.flush ();

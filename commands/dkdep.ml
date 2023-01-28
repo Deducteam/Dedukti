@@ -63,7 +63,7 @@ let dkdep config ignore output_file_opt sorted files =
       }
     in
     (* Actual work. *)
-    let deps = Processor.handle_files ~hook load_path ~files Dependencies in
+    let deps = Processor.handle_files ~hook load_path ~files get_deps in
     let oc = Option.fold ~none:stdout ~some:open_out output_file_opt in
     let fmt = Format.formatter_of_out_channel oc in
     match output_fun fmt deps with

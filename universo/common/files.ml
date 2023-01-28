@@ -142,8 +142,6 @@ let add_requires : Format.formatter -> B.mident list -> unit =
       Format.fprintf fmt "#REQUIRE %a.@." Api.Pp.Default.print_mident md)
     mds
 
-type _ Processor.t += FilterSignature : Api.Env.t Processor.t
-
 let export : Api.Files.load_path -> path -> step -> unit =
  fun load_path in_path step ->
   let out_file = get_out_path in_path step in
@@ -151,14 +149,14 @@ let export : Api.Files.load_path -> path -> step -> unit =
     let open Kernel.Rule in
     match r.pat with Pattern (_, _, []) -> true | _ -> false
   in
-  let (module SB) = Processor.get_processor Processor.SignatureBuilder in
+  let (module SB) = Processor.get_signature in
   let module P = struct
     type t = Api.Env.t
 
     type output = Api.Env.t
 
     let handle_entry env entry =
-      let (module SB) = Processor.get_processor Processor.SignatureBuilder in
+      let (module SB) = Processor.get_signature in
       match (step, entry) with
       (* TODO: don't remember why only equality constraints are exported *)
       | `Checking, Parsers.Entry.Rules (_, r :: _) when is_eq_rule r ->
@@ -168,9 +166,7 @@ let export : Api.Files.load_path -> path -> step -> unit =
 
     let output env = env
   end in
-  let env =
-    Api.Processor.T.handle_files load_path ~files:[out_file] (module P)
-  in
+  let env = Api.Processor.handle_files load_path ~files:[out_file] (module P) in
   (* FIXME! *)
   let file =
     Api.Files.input_as_file (Parsers.Parser.from_file ~file:out_file)

@@ -54,7 +54,7 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
        [P] processor. *)
     let load_path = Api.Files.empty in
     let cstrs =
-      Api.Processor.T.handle_files load_path ~files:[cstr_file] (module P)
+      Api.Processor.handle_files load_path ~files:[cstr_file] (module P)
     in
     List.iter Solver.add cstrs
 
@@ -89,7 +89,7 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
     (* Load path is not needed since no importation is done by the
        [P] processor. *)
     let load_path = Api.Files.empty in
-    Api.Processor.T.handle_files load_path ~files:[elab_file] (module P);
+    Api.Processor.handle_files load_path ~files:[elab_file] (module P);
     F.close sol_file
 
   let print_model _load_path meta model files =
@@ -138,7 +138,7 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
        [P] processor. *)
     let load_path = Api.Files.empty in
     let cstr_file = F.get_out_path in_path `Checking in
-    Api.Processor.T.handle_files load_path ~files:[cstr_file] (module P)
+    Api.Processor.handle_files load_path ~files:[cstr_file] (module P)
 
   (* List.iter S.add entries' *)
   (* TODO: This should be factorized. the normalization should be done after solve and return a correct model *)
@@ -179,7 +179,7 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
     (* Load path is not needed since no importation is done by the
        [P] processor. *)
     let load_path = Api.Files.empty in
-    Api.Processor.T.handle_files load_path ~files:[elab_file] (module P);
+    Api.Processor.handle_files load_path ~files:[elab_file] (module P);
     F.close sol_file
 
   let print_model load_path meta model files =

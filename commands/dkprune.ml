@@ -75,29 +75,14 @@ module PruneDepProcessor : Processor.S with type output = unit = struct
   type output = unit
 
   let handle_entry env entry =
-    let open Processor in
     let md = Env.get_name env in
-    let (module Dep) = get_processor Dependencies in
+    let (module Dep) = Processor.get_deps in
     if not @@ MSet.mem md !computed then ignore (Dep.handle_entry env entry)
 
   let handle_entry env entry = handle_entry env entry; env
 
   let output _ = ()
 end
-
-type _ Processor.t += PruneDepProcessor : unit Processor.t
-
-let _ =
-  let open Processor in
-  let open Registration in
-  let equal_prune_dep_processor (type a b) :
-      a t * b t -> (a t, b t) equal option = function
-    | PruneDepProcessor, PruneDepProcessor -> Some (Refl PruneDepProcessor)
-    | _ -> None
-  in
-  register_processor PruneDepProcessor
-    {equal = equal_prune_dep_processor}
-    (module PruneDepProcessor)
 
 (* Gather all the identifiers declared or defined in a module *)
 module GatherNames : Processor.S with type output = NSet.t = struct
@@ -118,20 +103,6 @@ module GatherNames : Processor.S with type output = NSet.t = struct
   let output _ = !names
 end
 
-type _ Processor.t += GatherNames : NSet.t Processor.t
-
-let _ =
-  let open Processor in
-  let open Registration in
-  let equal_gather_names (type a b) : a t * b t -> (a t, b t) equal option =
-    function
-    | GatherNames, GatherNames -> Some (Refl GatherNames)
-    | _ -> None
-  in
-  register_processor GatherNames
-    {equal = equal_gather_names}
-    (module GatherNames)
-
 (* Add all the names that should be kept as outpud. Either an entire module or a specific name *)
 module ProcessConfigurationFile : Processor.S with type output = NSet.t = struct
   type t = Env.t
@@ -148,7 +119,7 @@ module ProcessConfigurationFile : Processor.S with type output = NSet.t = struct
            [GatherNames] processor. *)
         let load_path = Files.empty in
         let snames =
-          Processor.handle_files load_path ~files:[file] GatherNames
+          Processor.handle_files load_path ~files:[file] (module GatherNames)
         in
         names := NSet.union snames !names
     | Entry.DTree (_, Some md, id) -> names := NSet.add (mk_name md id) !names
@@ -158,19 +129,6 @@ module ProcessConfigurationFile : Processor.S with type output = NSet.t = struct
 
   let output _ = !names
 end
-
-type _ Processor.t += PruneProcessConfigurationFile : NSet.t Processor.t
-
-let _ =
-  let open Processor in
-  let open Registration in
-  let equal_ppcf (type a b) : a t * b t -> (a t, b t) equal option = function
-    | PruneProcessConfigurationFile, PruneProcessConfigurationFile ->
-        Some (Refl PruneProcessConfigurationFile)
-    | _ -> None
-  in
-  register_processor PruneProcessConfigurationFile {equal = equal_ppcf}
-    (module ProcessConfigurationFile)
 
 (* This is called on each module which appear in the configuration
    files. This is called also on each module which is in the
@@ -204,7 +162,7 @@ let rec run_on_files ~load_path files =
   (* Load path is not needed since no importation is done by the
      [PruneDepProcessor] processor. *)
   let load_path = Files.empty in
-  Processor.handle_files ~hook load_path ~files PruneDepProcessor
+  Processor.handle_files ~hook load_path ~files (module PruneDepProcessor)
 
 (* compute dependencies for each module which appear in the configuration files *)
 let handle_modules load_path mds =
@@ -227,7 +185,9 @@ let handle_names load_path names =
 let is_empty deps file =
   (* Load path is not needed since no importation is done by the
      [GatherNames] processor. *)
-  let names = Processor.handle_files Files.empty ~files:[file] GatherNames in
+  let names =
+    Processor.handle_files Files.empty ~files:[file] (module GatherNames)
+  in
   NSet.is_empty (NSet.inter names deps)
 
 (* for each input file for which dependencies has been computed, we write an output file *)
@@ -308,7 +268,7 @@ let prune config log output files =
     (* Load path is not needed since no importation is done by the
        [GatherNames] processor. *)
     let load_path = Files.empty in
-    Processor.handle_files load_path ~files PruneProcessConfigurationFile
+    Processor.handle_files load_path ~files (module ProcessConfigurationFile)
   in
   let names = run_on_constraints files in
   let load_path = Config.load_path config in
