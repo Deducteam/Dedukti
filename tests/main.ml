@@ -288,6 +288,14 @@ module Check = struct
   end
 end
 
+module Libraries = struct
+  let makefile_path = "libraries/Makefile"
+
+  let _ =
+    Test.register ~__FILE__ ~title:"libraries" ~tags:["library"] @@ fun () ->
+    Process.run "make" ["-f"; makefile_path]
+end
+
 let _ =
   Dedukti.Dep.ko ~regression:true ~error:`Cli ~filename:"tests/OK/typing_p1.dk"
     [Ignore];

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DKCHECK="$(pwd)/../dk.native check"
-DKDEP="$(pwd)/../dk.native dep"
+DKCHECK="$(pwd)/../../dk.native check"
+DKDEP="$(pwd)/../../dk.native dep"
 DKFLAGS=""
 
 SRC="https://github.com/Deducteam/Libraries/archive/master.zip"

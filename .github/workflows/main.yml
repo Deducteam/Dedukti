@@ -1,40 +1,28 @@
 on:
   pull_request:
-    types: [opened, synchronize, edited, reopened]
-  workflow_dispatch:
-  schedule:
-    - cron: '0 0 15 * *'
+
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        ocaml-version: [5.0.0]
+        ocaml-compiler:
+          - 5.0.x
     runs-on: ubuntu-latest
     steps:
       - name: checking out dedukti repo...
-        uses: actions/checkout@v2
-      - name: recovering cached opam files...
-        uses: actions/cache@v2
-        with:
-          path: ~/.opam
-          key: |
-            ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}-
+        uses: actions/checkout@v3
       - name: setting up opam...
-        uses: avsm/setup-ocaml@v1
+        uses: ocaml/setup-ocaml@v2
         with:
-          ocaml-version: ${{ matrix.ocaml-version }}
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          dune-cache: true
       - name: installing dependencies...
         run: |
           opam update
           opam upgrade
-          opam pin add -n -k path dedukti .
-          opam install --deps-only -d -t dedukti
+          opam install . --deps-only -t
           opam install ocamlformat.0.24.1
-          opam install tezt
-          opam install z3
       - name: Checking formatting...
         run: |
           eval $(opam env)
@@ -46,14 +34,9 @@ jobs:
       - name: running Tezt tests...
         run: |
           eval $(opam env)
-          make tezt
+          make tezt	  
       - name: running light libraries...
         if: github.event_name != 'schedule'
         run: |
           eval $(opam env)
           make light_tests
-      - name: running all libraries...
-        if: github.event_name == 'schedule'
-        run: |
-          eval $(opam env)
-          make full_tests
