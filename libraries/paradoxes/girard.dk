@@ -1,0 +1,333 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; This is a formulation by Per Martin-Löf of Girard Paradox. It comes
+from pp. 7 to 9 of the 1972 presentation of MLTT.
+
+Girard Paradox itself derives from Burali-Forti paradox, an older
+paradox in set theory related to ordinals.
+
+This paradox shows that Martin-Löf Type Theory is not consistent with
+the assumption of an universe of all types V such that V : V.
+
+Only a fragment of the inductive types defined in MLTT are actually
+used. The paradox uses dependent products and sums, the empty type,
+and natural numbers (to formalize the notion of infinite descending
+chain). ;)
+
+type : Type.
+def term : type -> Type.
+V : type.
+[] term V --> type.
+(; note that V : term V. ;)
+
+Empty : Type.
+empty : type.
+[] term empty --> Empty.
+
+pi : A : type -> (term A -> type) -> type.
+[A,B] term (pi A B) --> a : term A -> term (B a).
+
+Sig : A : type -> (term A -> type) -> Type.
+sig : A : type -> (term A -> type) -> type.
+[A,B] term (sig A B) --> Sig A B.
+Pair : A : type -> B : (term A -> type) -> a : term A -> term (B a) -> Sig A B.
+def fst : A : type -> B : (term A -> type) -> Sig A B -> term A.
+[a] fst _ _ (Pair _ _ a _) --> a.
+def snd : A : type -> B : (term A -> type) -> p : Sig A B -> term (B (fst A B p)).
+[b] snd _ _ (Pair _ _ _ b) --> b.
+
+
+N : Type.
+n : type.
+[] term n --> N.
+O : N.
+Succ : N -> N.
+
+def Prod (A : type) (B : type) := Sig A (__ => B).
+def prod (A : type) (B : type) := sig A (__ => B).
+def arr (A : type) (B : type) := pi A (__ => B).
+def Not (A : type) := term A -> Empty.
+def not (A : type) := arr A empty.
+
+(; Starting point of the formalisation of Girard Paradox ;)
+(; From now on, we have only definitions and the last definition
+inhabits the empty type.
+
+The only exceptions to this rule are a pair of functions defined by
+induction on natural numbers: gn and gn_increases. ;)
+
+
+def rel (A : type) := arr A (arr A V).
+def Rel (A : type) := term A -> term A -> type.
+
+(; Transitivity ;)
+def P (A : type) (lt : Rel A) :=
+  pi A (x : term A =>
+  pi A (y : term A =>
+  pi A (z : term A =>
+  arr (lt x y) (arr (lt y z) (lt x z))))).
+
+(; No infinite descending chain. Remark that N is used here ;)
+def Q (A : type) (lt : Rel A) :=
+  pi (arr n A) (f : (N -> term A) =>
+  not (pi n (n : N => lt (f (Succ n)) (f n)))).
+
+def PQ (A : type) (lt : Rel A) := prod (P A lt) (Q A lt).
+
+(; "Note that an ordering without descending chains is necessarily irreflexive" ;)
+(; In fact, transitivity is not required here. ;)
+def irrefl (A : type) (lt : Rel A) (q : term (Q A lt)) (a : term A) (H : term (lt a a)) : Empty :=
+  q (n : N => a) (n : N => H).
+
+(; "U is the type of all orderings without infinite descending chains". ;)
+def U_tail (A : type) := sig (rel A) (PQ A).
+def U := sig V U_tail.
+
+def mk_U (A : type) (ltA : Rel A) (pA : term (P A ltA)) (qA : term (Q A ltA)) : term U :=
+  Pair V U_tail A
+       (Pair (rel A) (PQ A) ltA
+             (Pair (P A ltA) (__ => Q A ltA) pA qA)).
+
+(; First projection: carrier type ;)
+def U_type : term U -> type := fst V U_tail.
+def U_term (u : term U) := term (U_type u).
+def U_arr (uA : term U) (uB : term U) := arr (U_type uA) (U_type uB).
+def U_Arr (uA : term U) (uB : term U) := term (U_type uA) -> term (U_type uB).
+def U_rel (u : term U) := rel (U_type u).
+def U_Rel (u : term U) := Rel (U_type u).
+
+def U_fst_tail := snd V U_tail.
+
+(; Second projection: ordering relation ;)
+def U_lt (u : term U) : U_Rel u := fst (U_rel u) (PQ (U_type u)) (U_fst_tail u).
+def U_Lt (u : term U) (x : U_term u) (y : U_term u) := term (U_lt u x y).
+
+def U_p (u : term U) := P (U_type u) (U_lt u).
+def U_P (u : term U) := term (U_p u).
+
+def U_snd_tail (u : term U) := snd (U_rel u) (PQ (U_type u)) (U_fst_tail u).
+
+(; Third projection: proof of transitivity ;)
+def U_getP (u : term U) : term (P (U_type u) (U_lt u)) :=
+  fst (P (U_type u) (U_lt u)) (__ => Q (U_type u) (U_lt u)) (U_snd_tail u).
+
+(; Fourth projection: proof that there is no infinite descending chain ;)
+def U_getQ (u : term U) : term (Q (U_type u) (U_lt u)) :=
+  snd (P (U_type u) (U_lt u)) (__ => Q (U_type u) (U_lt u)) (U_snd_tail u).
+
+(; Proof of irreflexivity (this is not a projection) ;)
+def irreflexive (u : term U) (a : U_term u) (H : U_Lt u a a) : Empty := irrefl (U_type u) (U_lt u) (U_getQ u) a H.
+
+(; Definition of monotonicity for a function between two U-orderings ;)
+def increases (uA : term U) (uB : term U)
+              (f : term (U_type uA) -> term (U_type uB)) :=
+  pi (U_type uA) (x : U_term uA =>
+  pi (U_type uA) (y : U_term uA =>
+  arr (U_lt uA x y) (U_lt uB (f x) (f y)))).
+
+(; Definition of beeing a bound for such a function ;)
+def bounded (uA : term U) (uB : term U)
+            (f : U_Arr uA uB)
+            (b : U_term uB) :=
+  pi (U_type uA) (x : U_term uA => U_lt uB (f x) b).
+
+(; "On U we define a binary relation \lt_U" ;)
+def ltU (uA : term U) (uB : term U) :=
+  sig (U_arr uA uB) (f : U_Arr uA uB =>
+  sig (U_type uB) (b : U_term uB =>
+  prod (increases uA uB f) (bounded uA uB f b))).
+
+def LtU (uA : term U) (uB : term U) := term (ltU uA uB).
+
+(; Constructor of LtU ;)
+def mk_ltU (uA : term U) (uB : term U)
+           (f : U_Arr uA uB)
+           (b : U_term uB)
+           (morph : term (increases uA uB f))
+           (bound : term (bounded uA uB f b)) :=
+  Pair (U_arr uA uB)
+       (f : U_Arr uA uB =>
+        sig (U_type uB) (b : U_term uB =>
+        prod (increases uA uB f)
+             (bounded uA uB f b)))
+       f
+       (Pair (U_type uB) (b : U_term uB =>
+        prod (increases uA uB f)
+             (bounded uA uB f b))
+        b
+        (Pair (increases uA uB f)
+              (__ => bounded uA uB f b)
+              morph bound)).
+
+(; First projection of LtU: the increasing function ;)
+def ltU_fun (uA : term U) (uB : term U) (lt : LtU uA uB) : U_Arr uA uB :=
+  fst (U_arr uA uB) (f : U_Arr uA uB =>
+     sig (U_type uB) (b : U_term uB =>
+     prod (increases uA uB f)
+          (bounded uA uB f b))) lt.
+
+def ltU_fst_tail (uA : term U) (uB : term U) (lt : LtU uA uB) :=
+  snd (U_arr uA uB) (f : U_Arr uA uB =>
+     sig (U_type uB) (b : U_term uB =>
+     prod (increases uA uB f)
+          (bounded uA uB f b))) lt.
+
+(; Second projection of LtU: the bound ;)
+def ltU_b (uA : term U) (uB : term U) (lt : LtU uA uB) : U_term uB :=
+  fst (U_type uB) (b : U_term uB =>
+    prod (increases uA uB (ltU_fun uA uB lt))
+          (bounded uA uB (ltU_fun uA uB lt) b))
+    (ltU_fst_tail uA uB lt).
+
+def ltU_snd_tail (uA : term U) (uB : term U) (lt : LtU uA uB) :=
+  snd (U_type uB) (b : U_term uB =>
+    prod (increases uA uB (ltU_fun uA uB lt))
+          (bounded uA uB (ltU_fun uA uB lt) b))
+    (ltU_fst_tail uA uB lt).
+
+(; Third projection of LtU: the proof of monotonicity ;)
+def ltU_increases (uA : term U) (uB : term U) (lt : LtU uA uB) :=
+  fst (increases uA uB (ltU_fun uA uB lt)) (__ => bounded uA uB (ltU_fun uA uB lt) (ltU_b uA uB lt)) (ltU_snd_tail uA uB lt).
+
+(; Fourth projection of LtU: the proof of bound ;)
+def ltU_bounded (uA : term U) (uB : term U) (lt : LtU uA uB) :=
+  snd (increases uA uB (ltU_fun uA uB lt)) (__ : term (increases uA uB (ltU_fun uA uB lt)) => bounded uA uB (ltU_fun uA uB lt) (ltU_b uA uB lt)) (ltU_snd_tail uA uB lt).
+
+(; Now we prove that LtU is transitive ;)
+
+def transU_fun (uA : term U) (uB : term U) (uC : term U) (ltAB : LtU uA uB) (ltBC : LtU uB uC) (a : U_term uA) :=
+  ltU_fun uB uC ltBC (ltU_fun uA uB ltAB a).
+
+def transU_increases (uA : term U) (uB : term U) (uC : term U) (ltAB : LtU uA uB) (ltBC : LtU uB uC) (x : U_term uA) (y : U_term uA) (H : U_Lt uA x y) : U_Lt uC (transU_fun uA uB uC ltAB ltBC x) (transU_fun uA uB uC ltAB ltBC y) :=
+  ltU_increases uB uC ltBC (ltU_fun uA uB ltAB x) (ltU_fun uA uB ltAB y) (ltU_increases uA uB ltAB x y H).
+
+def transU_bounded (uA : term U) (uB : term U) (uC : term U) (ltAB : LtU uA uB) (ltBC : LtU uB uC) (x : U_term uA) : U_Lt uC (transU_fun uA uB uC ltAB ltBC x) (ltU_b uB uC ltBC) :=
+  ltU_bounded uB uC ltBC (ltU_fun uA uB ltAB x).
+
+def transU : term (P U ltU) :=
+  uA : term U =>
+  uB : term U =>
+  uC : term U =>
+  ltAB : LtU uA uB =>
+  ltBC : LtU uB uC =>
+  mk_ltU uA uC (transU_fun uA uB uC ltAB ltBC) (ltU_b uB uC ltBC) (transU_increases uA uB uC ltAB ltBC) (transU_bounded uA uB uC ltAB ltBC).
+
+(; Now we prove that LtU has no infinite descending chain. To do so,
+we show that from an infinite descending chain F in U, we can build an
+infinite descending chain hn in the first ordering. ;)
+
+def tAn (F : N -> term U) (n : N) :=
+  U_type (F n).
+
+def An (F : N -> term U) (n : N) :=
+  U_term (F n).
+
+def ltn (F : N -> term U) (n : N) :=
+  U_lt (F n).
+
+def pn (F : N -> term U) (n : N) :=
+  U_getP (F n).
+
+def qn (F : N -> term U) (n : N) :=
+  U_getQ (F n).
+
+def fn (F : N -> term U) (Hlt : n : N -> LtU (F (Succ n)) (F n)) (n : N) :=
+  ltU_fun (F (Succ n)) (F n) (Hlt n).
+
+def an (F : N -> term U) (Hlt : n : N -> LtU (F (Succ n)) (F n)) (n : N) :=
+  ltU_b (F (Succ n)) (F n) (Hlt n).
+
+(; We define gn := f_0 \circ f_1 ... \circ f_{n-1}. This function has no
+name in Martin-Löf's formalisation. ;)
+def gn : F : (N -> term U) -> (n : N -> LtU (F (Succ n)) (F n)) ->
+         n : N -> An F n -> An F O.
+[F,Hlt,x] gn F Hlt O x --> x
+[F,Hlt,n,x] gn F Hlt (Succ n) x --> gn F Hlt n (fn F Hlt n x).
+
+def gn_increases : F : (N -> term U) ->
+                   Hlt : (n : N -> LtU (F (Succ n)) (F n)) ->
+                   n : N ->
+                   term (increases (F n) (F O) (gn F Hlt n)).
+[F,Hlt,x,y,H] gn_increases F Hlt O x y H --> H
+[F,Hlt,n,x,y,H] gn_increases F Hlt (Succ n) x y H --> gn_increases F Hlt n (fn F Hlt n x) (fn F Hlt n y) (ltU_increases (F (Succ n)) (F n) (Hlt n) x y H).
+
+(; We define hn := gn (an). ;)
+def hn (F : N -> term U) (Hlt : n : N -> LtU (F (Succ n)) (F n)) (n : N) : An F O :=
+  gn F Hlt n (an F Hlt n).
+
+(; We prove that hn is an infinite descending chain in A0. ;)
+def hn_inf_desc (F : N -> term U) (Hlt : n : N -> LtU (F (Succ n)) (F n)) (n : N) :
+  term (ltn F O (hn F Hlt (Succ n)) (hn F Hlt n)) :=
+  (; We have to prove h_{n+1} <0 h_n,
+     that is by definition g_n (f_n(a_{n+1})) <0 g_n (a_n),
+     this holds by the fact that a_n is a bound and g_n is increasing ;)
+     gn_increases F Hlt n (fn F Hlt n (an F Hlt (Succ n)))
+        (an F Hlt n) (ltU_bounded (F (Succ n)) (F n) (Hlt n) (an F Hlt (Succ n))).
+
+def no_inf_desc_chain_U : term (Q U ltU) :=
+  F : (N -> term U) =>
+  Hlt : (n : N -> LtU (F (Succ n)) (F n)) =>
+  qn F O (hn F Hlt) (hn_inf_desc F Hlt).
+
+def U2 : term U := mk_U U ltU transU no_inf_desc_chain_U.
+
+def U_gt (A : term U) (a : U_term A) (x : U_term A) := U_lt A x a.
+
+def truncate (A : term U) (a : U_term A) : type :=
+  sig (U_type A) (U_gt A a).
+
+def truncate_lt (A : term U) (a : U_term A) : Rel (truncate A a) :=
+  x : term (truncate A a) =>
+  y : term (truncate A a) =>
+  U_lt A (fst (U_type A) (U_gt A a) x) (fst (U_type A) (U_gt A a) y).
+
+def truncate_p (A : term U) (a : U_term A) : term (P (truncate A a) (truncate_lt A a)) :=
+  x : term (truncate A a) =>
+  y : term (truncate A a) =>
+  z : term (truncate A a) =>
+  U_getP A
+    (fst (U_type A) (U_gt A a) x)
+    (fst (U_type A) (U_gt A a) y)
+    (fst (U_type A) (U_gt A a) z).
+
+def truncate_q (A : term U) (a : U_term A) : term (Q (truncate A a) (truncate_lt A a)) :=
+  f : (N -> term (truncate A a)) =>
+  Hlt : (n : N -> term (truncate_lt A a (f (Succ n)) (f n))) =>
+  U_getQ A
+    (n : N => fst (U_type A) (U_gt A a) (f n))
+    Hlt.
+
+def truncate_U (A : term U) (a : U_term A) : term U :=
+  mk_U (truncate A a) (truncate_lt A a) (truncate_p A a) (truncate_q A a).
+
+def truncate_increases (A : term U) (a : U_term A) (b : U_term A) (H : U_Lt A a b) :
+  LtU (truncate_U A a) (truncate_U A b) :=
+  mk_ltU (truncate_U A a) (truncate_U A b)
+    (x : term (truncate A a) =>
+      Pair (U_type A) (U_gt A b)
+        (fst (U_type A) (U_gt A a) x)
+        (U_getP A (fst (U_type A) (U_gt A a) x) a b (snd (U_type A) (U_gt A a) x) H))
+    (Pair (U_type A) (U_gt A b) a H)
+    (x : term (truncate A a) =>
+     y : term (truncate A a) =>
+     H : term (truncate_lt A a x y) => H)
+    (snd (U_type A) (U_gt A a)).
+
+def truncate_bounded (A : term U) (a : U_term A) : LtU (truncate_U A a) A :=
+  mk_ltU (truncate_U A a) A
+    (fst (U_type A) (U_gt A a))
+    a
+    (x : term (truncate A a) =>
+     y : term (truncate A a) =>
+     H : term (truncate_lt A a x y) => H)
+    (snd (U_type A) (U_gt A a)).
+
+def U2_max (A : term U) : LtU A U2 :=
+  mk_ltU A U2
+    (truncate_U A)
+    A
+    (truncate_increases A)
+    (truncate_bounded A).
+
+def contradiction : Empty :=
+  irreflexive U2 U2 (U2_max U2).

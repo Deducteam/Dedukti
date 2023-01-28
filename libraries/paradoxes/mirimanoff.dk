@@ -1,0 +1,43 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+nat : Type.
+O : nat.
+S : nat -> nat.
+(; This paradox is so simple that we do not need the induction principle on nat. ;)
+
+prop : Type.
+false : prop.
+def proof : prop -> Type.
+
+set : Type.
+def in : set -> set -> prop.
+
+(; The set A is well-founded if no infinite chain A ∋ u₀ ∋ u₁ ∋ … exists ;)
+wf : set -> prop.
+[A] proof (wf A) -->
+  u : (nat -> set) ->
+  (n : nat -> proof (in (u (S n)) (u n))) ->
+  proof (in (u O) A) ->
+  proof false.
+
+(; Let WF be the set of all well-founded sets ;)
+WF : set.
+[x] in x WF --> wf x.
+
+(; The set WF is well-founded ;)
+def wf_WF : proof (wf WF) :=
+  u : (nat -> set) =>
+  chain : (n : nat -> proof (in (u (S n)) (u n))) =>
+  u0 : proof (wf (u O)) =>
+  u0
+    (n : nat => u (S n))
+    (n : nat => chain (S n))
+    (chain O).
+
+(; Hence WF ∈ WF so we have an infinite chain WF ∋ WF ∋ …
+contradicting that WF is well-founded. ;)
+def paradox : proof false :=
+  wf_WF
+    (n : nat => WF)
+    (n : nat => wf_WF)
+    wf_WF.

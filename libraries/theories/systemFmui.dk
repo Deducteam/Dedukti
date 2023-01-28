@@ -1,0 +1,88 @@
+(; Implementation of a system presented in:             ;)
+(; Typed self-evaluation via intensional type functions ;)
+
+kind : Type.
+
+def eta : kind -> Type.
+
+ty : kind.
+
+arrK : kind -> kind -> kind.
+
+[a,b] eta (arrK a b) --> eta a -> eta b.
+
+def eps : (eta ty) -> Type.
+
+arr : eta ty -> eta ty -> eta ty.
+
+[a,b] eps (arr a b) --> eps a -> eps b.
+
+forallK : A : kind -> (eta A -> eta ty) -> eta ty.
+
+[A, f] eps (forallK A f) --> a:eta A -> eps (f a).
+
+def mu : eta (arrK (arrK (arrK ty ty) (arrK ty ty)) (arrK ty ty)).
+
+fold : F:(eta (arrK (arrK ty ty) (arrK ty ty))) -> T:(eta ty) -> eps (F (mu F) T) -> eps (mu F T).
+
+def unfold : F:(eta (arrK (arrK ty ty) (arrK ty ty))) -> T:(eta ty) ->
+         eps (mu F T) -> eps (F (mu F) T).
+
+[F, T,e] unfold F T (fold F T e) --> e.
+
+def Typecase : eta (arrK (arrK ty (arrK ty ty)) (arrK (arrK ty ty) (arrK (arrK ty ty) (arrK (arrK (arrK (arrK ty ty) (arrK ty ty)) (arrK ty ty)) (arrK ty ty))))).
+
+[F1, F2, F3, F4, T1, T2] Typecase F1 F2 F3 F4 (arr T1 T2) --> F1 T1 T2.
+
+[F1, F2, F3, F4, T1, T2] Typecase F1 F2 F3 F4 (mu T1 T2) --> F4 T1 T2.
+
+[F1, F2, F3, F4, A, T] Typecase F1 F2 F3 F4 (forallK A T) --> F2 (forallK A (X => F3 (T X))).
+
+
+def False : eta ty := forallK ty (X => X).
+
+def ArrL : eta (arrK ty ty) := Typecase (A => B => A) (A => False) (A => False) (F => A => False).
+
+def ArrR : eta (arrK ty ty) := Typecase (A => B => B) (A => False) (A => False) (F => A => False).
+
+def All : eta (arrK (arrK ty ty) (arrK (arrK ty ty) (arrK ty ty))) := Out => In => Typecase (A => B => B) Out In (F => A => False).
+
+def Unfold : eta (arrK ty ty) := Typecase (A => B => False) (A => False) (A => False) (F => A => F (mu F) A).
+
+def Eq : eta (arrK ty (arrK ty ty)) := A => B => (forallK (arrK ty ty) (F => arr (F A) (F B))).
+
+def refl : eps (forallK ty (A => Eq A A)) := A => F => x => x.
+
+def sym : eps (forallK ty (A => forallK ty (B => arr (Eq A B) (Eq B A)))) :=
+A => B => eq => eq (T => Eq T A) (refl A).
+
+def trans : eps (forallK ty (A => forallK ty (B => forallK ty (C => arr (Eq A B) (arr (Eq B C) (Eq A C)))))) := A => B => C => eqAB => eqBC => F => Fa => eqBC F (eqAB F Fa).
+
+def eqApp : eps (forallK ty ( A => forallK ty (B => forallK (arrK ty ty) (F => arr (Eq A B) (Eq (F A) (F B)))))) := A => B => F => eq => eq (T => Eq (F A) (F T)) (refl (F A)).
+
+def arrL : eps (forallK ty (A1 => forallK ty (A2 => forallK ty (B1 => forallK ty (B2 => arr (Eq (arr A1 A2) (arr B1 B2)) (Eq A1 B1)))))) := A1 => A2 => B1 => B2 => eqApp (arr A1 A2) (arr B1 B2) ArrL.
+
+def arrR : eps (forallK ty (A1 => forallK ty (A2 => forallK ty (B1 => forallK ty (B2 => arr (Eq (arr A1 A2) (arr B1 B2)) (Eq A2 B2)))))) := A1 => A2 => B1 => B2 => eqApp (arr A1 A2) (arr B1 B2) ArrR.
+
+def coerce : eps (forallK ty (A => forallK ty (B => arr (Eq A B) (arr A B)))) := A => B => eq => eq (X => X).
+
+def ExpF : eta (arrK (arrK ty ty) (arrK ty ty)) := Exp => T => forallK ty (R => arr (forallK ty (A => forallK ty (B => (arr (Eq (arr A B) T) (arr (arr (Exp A) (Exp B)) R))))) (arr (forallK ty (S => arr (Exp (arr S T)) (arr (Exp S) R))) R)).
+
+def Exp : eta (arrK ty ty) := mu ExpF.
+
+def abs : eps (forallK ty (A => forallK ty (B => arr (arr (Exp A) (Exp B)) (Exp (arr A B))))) :=
+A => B => f => fold ExpF (arr A B) (R => fAbs => fapp => fAbs A B (refl (arr A B)) f).
+
+def app : eps (forallK ty (A => forallK ty (B => arr (Exp (arr A B)) (arr (Exp A) (Exp B))))) :=
+A => B => e1 => e2 => fold ExpF B (R => fAbs => fApp => fApp A e1 e2).
+
+def matchExp : eps (forallK ty (T => arr (Exp T) (ExpF Exp T))) := T => e => unfold ExpF T e.
+
+
+def eval : eps (forallK ty (T => arr (Exp T) (Exp T))).
+
+[] eval --> T => e =>
+      matchExp T e (Exp T) (T1 => T2 => eq => f => e)
+         (S => e1 => e2 => matchExp (arr S T) (eval (arr S T) e1) (Exp T)
+         (A => B => eq => f =>
+         eval T (coerce (Exp B) (Exp T) (eqApp B T Exp (arrR A B S T eq)) (f (coerce (Exp S) (Exp A) (eqApp S A Exp (sym A S (arrL A B S T eq))) e2)))) (T2 => e3 => e4 => app S T (eval (arr S T) e1) e2)).

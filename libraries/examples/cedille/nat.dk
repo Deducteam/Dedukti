@@ -1,0 +1,104 @@
+#REQUIRE cedille.
+
+(; we don't have an open directive yet :'( ;)
+def Univ     := cedille.Univ.
+def star     := cedille.star.
+def box      := cedille.box.
+def iforallk := cedille.iforallk.
+def forall   := cedille.forall.
+def iforall  := cedille.iforall.
+def ustar    := cedille.ustar.
+def arrow    := cedille.arrow.
+def Term     := cedille.Term.
+def pi       := cedille.pi.
+def iota     := cedille.iota.
+def mk_iota  := cedille.mk_iota.
+def beta     := cedille.beta.
+def rho      := cedille.rho.
+def sigma    := cedille.sigma.
+def I        := cedille.I.
+def left     := cedille.left.
+def right    := cedille.right.
+def ueq      := cedille.ueq.
+def code     := cedille.code. (; probably this symbol should be private ;)
+
+
+(; Computational natural numbers (impredicative encoding) ;)
+
+def cnat : Univ star := iforallk ustar (X => arrow X (arrow (arrow X X) X)).
+
+def cz : Term star cnat := X => z => s => z.
+
+def cs : Term star (arrow cnat cnat) := n => X => z => s => s (n X z s).
+
+(; Inductive natural numbers ;)
+def inat : Term box (pi cnat (__ => ustar)):= x : Term star cnat => iforallk (pi cnat (__ => ustar))
+(P => arrow (P cz) (arrow (iforall cnat (m => arrow (P m) (P (cs m)))) (P x))).
+
+def iz : Term star (inat cz) := P => pz => __ => pz.
+
+def is : Term star (iforall cnat (n => arrow (inat n) (inat (cs n)))) :=
+       	 n => pn => P => pz => ps => ps n (pn P pz ps).
+
+(; Final type for natural numbers ;)
+def nat : Univ star := iota cnat inat.
+
+def Z : Term star nat := mk_iota cnat cz inat iz I.
+
+def S : Term star (arrow nat nat) :=
+n =>
+mk_iota cnat (cs (left cnat inat n)) inat (is (left cnat inat n) (right cnat inat n)) I.
+
+
+(; These things are not in the paper... I think it is a workaround due to my encoding of \rho ;)
+(; It could be generalized for any type I think ;)
+def congruence_left_helper :
+    n : Term star nat ->
+    m : Term star nat ->
+      	Term star (ueq (code box ustar ((ueq (code star nat n) (code star nat m))))
+    	               (code box ustar (ueq (code star cnat (left cnat inat n))
+		       	       	   	    (code star cnat (left cnat inat m))))) :=
+n =>
+m =>
+beta (code box ustar ((ueq (code star nat n) (code star nat m))))
+     (code box ustar (ueq  (code star cnat (left cnat inat n))
+     	       	     	   (code star cnat (left cnat inat m)))) I.
+
+def congruence_left :
+    n : Term star nat ->
+    m : Term star nat ->
+        Term star (ueq (code star cnat (left cnat inat n)) (code star cnat (left cnat inat m))) ->
+        Term star (ueq (code star nat n) (code star nat m)) :=
+n : Term star nat =>
+m : Term star nat =>
+e : Term star (ueq (code star cnat (left cnat inat n)) (code star cnat (left cnat inat m))) =>
+rho box star ustar (ueq (code star nat n) (code star nat m))
+    	     	   (ueq (code star cnat (left cnat inat n)) (code star cnat (left cnat inat m)))
+    	     	   (congruence_left_helper n m)
+		   (y => y)
+		   e.
+
+
+def induction : Term star (forall nat (n =>
+      iforallk (pi nat (__ => ustar)) (P =>
+      arrow (P Z) (arrow (iforall nat (m => arrow (P m) (P (S m)))) (P n))))) :=
+n =>
+P =>
+z =>
+s =>
+(right cnat inat n) (x => iforallk ustar (X =>
+       	       	    	  arrow (forall nat (m =>
+			  arrow (ueq (code star cnat x) (code star cnat (left cnat inat m)))
+			  (arrow (P m) X))) X))
+(; base case ;)
+(X => c => c Z (beta (code star cnat cz) (code star cnat (left cnat inat Z)) I) z)
+
+(; inductive case ;)
+(x => ih => X => c => ih X (m => e => u => c (S m)
+   (rho star star cnat x (left cnat inat m) e
+   	(y => ueq (code star cnat (cs y)) (code star cnat (left cnat inat (S m))))
+	      (beta (code star cnat (cs (left cnat inat m)))
+	      	    (code star cnat (left cnat inat (S m))) I)) (s m u)))
+(; Hence we have the property for (P n) ;)
+(P n) (m => e => u =>
+rho star star nat n m (congruence_left n m e) (y => P y) u).

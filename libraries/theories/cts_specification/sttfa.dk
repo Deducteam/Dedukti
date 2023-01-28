@@ -1,0 +1,37 @@
+(; propositions ;)
+star     : Sort.
+
+(; simple types ;)
+box      : Sort.
+
+(; type of simple types ;)
+triangle : Sort.
+(; Invariant: If Γ ⊢ t : ▵ then t = □ ;)
+
+(; polymorphic types ;)
+diamond  : Sort.
+
+(; star : box : triangle ;)
+[] Axiom box triangle  --> true.
+[] Axiom star box      --> true.
+
+(; top-sorts ;)
+[] Axiom diamond sinf  --> true.
+[] Axiom triangle sinf --> true.
+
+(; ⇒ ;)
+[] Rule star     star     star   --> true.
+(; → ;)
+[] Rule box      box     box     --> true.
+
+(; ∀ ;)
+[] Rule box      star    star    --> true.
+
+(; ∀ with type variable ;)
+[] Rule triangle star    star    --> true.
+
+(; ∀ polymorphic (ML) ;)
+[] Rule triangle diamond diamond --> true.
+
+(; a simple types is a prenex polymorphic types ;)
+[] Cumul box diamond   --> true.

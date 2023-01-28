@@ -1,0 +1,128 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; This is a variation of Mirimanoff Paradox proposed by Frédéric
+Gilbert,
+
+  A set is transitive if it contains the elements of its elements:
+  trans(x) := ∀y∈x, ∀z∈y, z∈x
+
+  A set x well-founded if the restriction of ∈ on x is a well-founded relation:
+  wf(x) := ∀u∈xᴺ, ¬(∀n, uₙ₊₁ ∈ uₙ)
+
+  Let G be the set G := {x | trans(x) ∧ (∀y∈x, trans(y)) ∧ wf(x)},
+  - G is well-founded
+  - G is also transitive and its elements are transitive,
+    therefore G ∈ G
+  - the sequence n ↦ G contradicts the well-foundedness of G.
+
+;)
+
+nat : Type.
+O : nat.
+S : nat -> nat.
+
+prop : Type.
+false : prop.
+and : prop -> prop -> prop.
+imp : prop -> prop -> prop.
+def proof : prop -> Type.
+
+set : Type.
+def in : set -> set -> prop.
+
+all_in : set -> (set -> prop) -> prop.
+all_nat : (nat -> prop) -> prop.
+all_seq : set -> ((nat -> set) -> prop) -> prop.
+
+
+[A,B] proof (and A B) --> C : prop -> (proof A -> proof B -> proof C) -> proof C
+[A,B] proof (imp A B) --> proof A -> proof B
+[A,P] proof (all_in A P) --> x : set -> proof (in x A) -> proof (P x)
+[P] proof (all_nat P) --> n : nat -> proof (P n)
+[A,P] proof (all_seq A P) -->
+  u : (nat -> set) ->
+  (n : nat -> proof (in (u n) A)) ->
+  proof (P u).
+
+def induction : P : (nat -> prop) ->
+    proof (P O) -> (n : nat -> proof (P n) -> proof (P (S n))) ->
+    n : nat -> proof (P n).
+[HO] induction _ HO _ O --> HO
+[P,HO,HS,n] induction P HO HS (S n) --> HS n (induction P HO HS n).
+
+(; The set A is transitive if it contains the elements of its elements ;)
+def trans (x : set) : prop := all_in x (y => all_in y (z => in z x)).
+
+(; The set A is well-founded if no infinite chain u₀ ∋ u₁ ∋ … of
+elements of A exists ;)
+def wf (A : set) :=
+  all_seq A (u : (nat -> set) =>
+    imp (all_nat (n : nat => in (u (S n)) (u n))) false).
+
+(; Let G be the set {x | trans(x) ∧ (∀y∈x, trans(y)) ∧ wf(x)} ;)
+
+G : set.
+[x] in x G --> and (trans x) (and (all_in x trans) (wf x)).
+
+def and_intro (A : prop) (B : prop) (HA : proof A) (HB : proof B) : proof (and A B) :=
+  C : prop => f : (proof A -> proof B -> proof C) => f HA HB.
+
+def and_elim1 (A : prop) (B : prop) (H : proof (and A B)) : proof A :=
+  H A (HA : proof A => HB : proof B => HA).
+
+def and_elim2 (A : prop) (B : prop) (H : proof (and A B)) : proof B :=
+  H B (HA : proof A => HB : proof B => HB).
+
+def G_intro (x : set) (H1 : proof (trans x)) (H2 : proof (all_in x trans))
+            (H3 : proof (wf x)) : proof (in x G) :=
+  and_intro (trans x) (and (all_in x trans) (wf x))
+    H1
+    (and_intro (all_in x trans) (wf x) H2 H3).
+
+def G_trans (x : set) (H : proof (in x G)) : proof (trans x) :=
+  and_elim1 (trans x) (and (all_in x trans) (wf x)) H.
+
+def G_in_trans (x : set) (H : proof (in x G)) : proof (all_in x trans) :=
+  and_elim1 (all_in x trans) (wf x)
+    (and_elim2 (trans x) (and (all_in x trans) (wf x)) H).
+
+def G_wf (x : set) (H : proof (in x G)) : proof (wf x) :=
+  and_elim2 (all_in x trans) (wf x)
+    (and_elim2 (trans x) (and (all_in x trans) (wf x)) H).
+
+def trans_G : proof (trans G) :=
+  x : set =>
+  Hx : proof (in x G) =>
+  y : set =>
+  Hy : proof (in y x) =>
+  G_intro y
+    (G_in_trans x Hx y Hy)
+    (z : set => Hz : proof (in z y) =>
+     G_in_trans x Hx z (G_trans x Hx y Hy z Hz))
+    (u : (nat -> set) =>
+     Huy : (n : nat -> proof (in (u n) y)) =>
+     Huu : (n : nat -> proof (in (u (S n)) (u n))) =>
+     G_wf x Hx u (n : nat => G_trans x Hx y Hy (u n) (Huy n)) Huu).
+
+def in_trans_G (x : set) (Hx : proof (in x G)) : proof (trans x) :=
+  G_trans x Hx.
+
+def wf_G : proof (wf G) :=
+  u : (nat -> set) =>
+  HuG : (n : nat -> proof (in (u n) G)) =>
+  Huu : (n : nat -> proof (in (u (S n)) (u n))) =>
+  G_wf (u O) (HuG O)
+    (n : nat => u (S n))
+    (induction (n : nat => in (u (S n)) (u O))
+      (Huu O)
+      (n : nat => HI : proof (in (u (S n)) (u O)) =>
+       G_trans (u O) (HuG O) (u (S n)) HI (u (S (S n))) (Huu (S n))))
+    (n : nat => Huu (S n)).
+
+def G_in_G : proof (in G G) := G_intro G trans_G in_trans_G wf_G.
+
+def paradox : proof false :=
+  wf_G
+    (n : nat => G)
+    (n : nat => G_in_G)
+    (n : nat => G_in_G).

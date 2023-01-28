@@ -1,0 +1,19 @@
+type : Type.
+
+prop : type.
+
+arrow : type -> type -> type.
+
+def eta : type -> Type.
+
+forall : A:type -> (eta A -> eta prop) -> eta prop.
+
+impl : eta prop -> eta prop -> eta prop.
+
+def eps : eta prop -> Type.
+
+[a, b] eta (arrow a b) --> eta a -> eta b.
+
+[A, f] eps (forall A f) --> x:eta A -> eps (f x).
+
+[l, r] eps (impl l r) --> eps l -> eps r.

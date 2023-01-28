@@ -1,0 +1,69 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; Hurkens paradox from the original paper "A Simplification of
+Girard's Paradox" ;)
+
+(; We start by encoding System U⁻ using the Cousineau-Dowek encoding
+of functional PTSs. ;)
+
+(; Note that we do not need the ▵ sort ;)
+
+type : Type.                    (; □ ;)
+def term : type -> Type.
+
+prop : type.                    (; ∗ ;)
+def Prop := term prop.
+def proof : Prop -> Type.
+
+(; We do not need all dependencies in the products, here is what we really need ;)
+
+imp : Prop -> Prop -> Prop.     (; ⇒ ;)
+[phi,psi] proof (imp phi psi) --> proof phi -> proof psi.
+arr : type -> type -> type.     (; → ;)
+[A,B] term (arr A B) --> term A -> term B.
+all : A : type -> (term A -> Prop) -> Prop. (; ∀ ;)
+[A,phi] proof (all A phi) --> x : term A -> proof (phi x).
+pi : (type -> type) -> type.    (; Π ;)
+[A] term (pi A) --> x : type -> term (A x).
+
+(; End of encoding. Starting from here, we only have definitions and
+the last one is a diverging term of type (proof false). ;)
+
+def pow (s : type) : type := arr s prop. (; ℘ ;)
+def ppow (s : type) : type := pow (pow s). (; ℘℘ ;)
+
+def false : Prop := all prop (p => p). (; ⊥ ;)
+def not (phi : Prop) : Prop := imp phi false. (; ¬ ;)
+
+def U : type := pi (X : type => arr (arr (ppow X) X) (ppow X)).
+def tau (t : term (ppow U)) : term U := (; τ ;)
+  X : type =>
+  f : (term (ppow X) -> term X) =>
+  p : term (pow X) =>
+  t (x : term U => p (f (x X f))).
+
+def sig (s : term U) : term (ppow U) := (; σ ;)
+  s U (t : term (ppow U) => tau t).
+
+def Delta : term (pow U) :=     (; Δ ;)
+  y : term U =>
+  not (all (pow U) (p => imp (sig y p) (p (tau (sig y))))).
+
+def Omega : term U :=           (; Ω ;)
+  tau (p : term (pow U) => all U (x => imp (sig x p) (p x))).
+
+def contradiction : proof false :=
+  (0 : (p : term (pow U) ->
+        (x : term U -> proof (sig x p) -> proof (p x)) ->
+        proof (p Omega)) =>
+   (0 Delta
+     (x : term U =>
+      2 : proof (sig x Delta) =>
+      3 : (p : term (pow U) -> proof (sig x p) -> proof (p (tau (sig x)))) =>
+      3 Delta 2
+        (p : term (pow U) =>
+         3 (y : term U => p (tau (sig y)))))
+     (p : term (pow U) => 0 (y : term U => p (tau (sig y))))))
+  (p : term (pow U) =>
+   1 : (x : term U -> proof (sig x p) -> proof (p x)) =>
+   1 Omega (x : term U => 1 (tau (sig x)))).

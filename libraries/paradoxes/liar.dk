@@ -1,0 +1,11 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; An implementation of the liar paradox ;)
+
+false : Type.
+def liar : Type.
+[] liar --> liar -> false.
+
+def paradox : false :=
+ (h : liar => h h) (h : liar => h h).
+

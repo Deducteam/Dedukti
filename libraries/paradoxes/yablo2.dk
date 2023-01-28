@@ -1,0 +1,55 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; A variant on Yablo paradox. We basically define the < relation by
+addition of a positive number. ;)
+
+pnat : Type.
+1 : pnat.
+S : pnat -> pnat.
+
+(; Symmetric and confuent definition of addition ;)
+def add : pnat -> pnat -> pnat.
+[n] add 1 n --> S n
+[m] add m 1 --> S m
+[m,n] add (S m) n --> S (add m n)
+[m,n] add m (S n) --> S (add m n).
+
+prop : Type.
+false : prop.
+
+proof : prop -> Type.
+
+(; φₙ := ∀ m > n, ¬φₘ ;)
+(; To avoid non-termination in the definition of φ or proof, we split
+   the definition of φ into an introduction and an elimination
+   rule. ;)
+
+phi : pnat -> prop.
+phi_intro : n : pnat ->
+            (m : pnat -> proof (phi (add m n)) -> proof false) ->
+            proof (phi n).
+def phi_elim : n : pnat -> m : pnat ->
+               proof (phi n) -> proof (phi (add m n)) -> proof false.
+
+[m,f,hm] phi_elim _ m (phi_intro _ f) hm --> f m hm.
+
+(; The paradox ;)
+
+(; ∀n, φₙ ⇒ φₙ₊₁;)
+def lemma_1 (n : pnat) (h : proof (phi n)) : proof (phi (S n)) :=
+  phi_intro (S n)
+    (m : pnat => phi_elim n (S m) h).
+
+(; ∀n, φₙ ⇒ ¬φₙ₊₁ ;)
+def lemma_2 (n : pnat) (h : proof (phi n)) (h0 : proof (phi (S n))) : proof false :=
+  phi_elim n 1 h h0.
+
+(; ∀n, ¬φₙ ;)
+def lemma_3 (n : pnat) (h : proof (phi n)) : proof false := lemma_2 n h (lemma_1 n h).
+
+(; φ₁ ;)
+def lemma_4 : proof (phi 1) :=
+  phi_intro 1 (m : pnat => lemma_3 (S m)).
+
+(; ⊥ ;)
+def lemma_5 : proof false := lemma_3 1 lemma_4.

@@ -1,0 +1,562 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; This is a variant of Girard/Martin-Löf paradox aimed to get closer
+to Mirimanoff paradox. Instead of considering the type of all
+well-founded orders, showing that it can be equiiped with a
+well-ordered and showing that it is maximal for this order, we
+consider the type V of all well-founded *relations*, not only the
+transitive ones.
+
+What we gain: we do not have to prove that the relation we define over V is transitive.
+
+What we lose: we have to distinguish the relations from their
+transitive closures and reason about transitive closures.
+Transitivity is used in the proof of Girard/Martin-Löf paradox in the following lemma :
+
+For any (A, R) ∈ V and a ∈ A, let A_a be the type of R-antecedants of
+a and R_a be the restriction of R to A_a. For any a, b ∈ A such that a
+R b we have (A_a, R_a) < (A_b, R_b):
+- take as morphism the identity,
+- take as bound the value a ∈ A_b.
+
+To show that the identity indeed defines a morphism from A_a to A_b,
+we have to show that all a-antecedents are b-antecedents, this is exactly transitivity of R.
+
+;)
+
+(; Martin-Löf type theory with the following inductives: ⊥, Π, Σ, ℕ
+and a single universe U such that U : U ;)
+
+type : Type.
+def term : type -> Type.
+
+false : type.
+
+pi : A : type -> (term A -> type) -> type.
+[A,B] term (pi A B) --> x : term A -> term (B x).
+
+sig : A : type -> (term A -> type) -> type.
+Sig : A : type -> (term A -> type) -> Type.
+[A,B] term (sig A B) --> Sig A B.
+pair : A : type -> B : (term A -> type) -> a : term A -> term (B a) -> Sig A B.
+def fst : A : type -> B : (term A -> type) -> Sig A B -> term A.
+def snd : A : type -> B : (term A -> type) -> p : Sig A B -> term (B (fst A B p)).
+[a] fst _ _ (pair _ _ a _) --> a.
+[b] snd _ _ (pair _ _ _ b) --> b.
+
+nat : type.
+Nat : Type.
+[] term nat --> Nat.
+O : Nat.
+succ : Nat -> Nat.
+
+def induction : P : (Nat -> type) ->
+    term (P O) -> (n : Nat -> term (P n) -> term (P (succ n))) ->
+    n : Nat -> term (P n).
+[H0] induction _ H0 _ O --> H0
+[P,H0,HS,n] induction P H0 HS (succ n) --> HS n (induction P H0 HS n).
+
+U : type.
+[] term U --> type.
+
+(; Beggining of the paradox. Everything from here is defined and the
+last definition inhabits ⊥ ;)
+
+def arr (A : type) (B : type) := pi A (__ : term A => B).
+def not (A : type) := arr A false.
+def prod (A : type) (B : type) := sig A (__ : term A => B).
+def comp (A : type) (B : type) (C : type)
+         (f : term A -> term B) (g : term B -> term C) (x : term A) := g (f x).
+
+def Rel (A : type) := term A -> term A -> type.
+def rel (A : type) := arr A (arr A U).
+
+def chain (A : type) (R : Rel A) (u : Nat -> term A) :=
+ pi nat (n => R (u (succ n)) (u n)).
+
+(; (wf A R) means that R is well-founded. ;)
+def wf (A : type) (R : Rel A) :=
+  pi (arr nat A) (u => not (chain A R u)).
+
+(; V is the type of all well-founded relations ;)
+def v : type := sig U (A => sig (rel A) (wf A)).
+def V := term v.
+
+(; Projections ;)
+def V_ty : V -> type := fst U (A => sig (rel A) (wf A)).
+def V_rel (AR : V) : Rel (V_ty AR) :=
+  fst (rel (V_ty AR)) (wf (V_ty AR)) (snd U (A => sig (rel A) (wf A)) AR).
+def V_wf (AR : V) : term (wf (V_ty AR) (V_rel AR)) :=
+  snd (rel (V_ty AR)) (wf (V_ty AR)) (snd U (A => sig (rel A) (wf A)) AR).
+def V_intro (A : type) (R : Rel A) (H : term (wf A R)) : V :=
+  pair U (A => sig (rel A) (wf A)) A (pair (rel A) (wf A) R H).
+
+(; We now fomalize the notion of transitive closure and prove that the
+transitive closure of a well-founded relation is well-founded ;)
+
+(; (iter A R n a b) means that there are terms x₁, …, xₙ such that
+   a R x₁ R … R xₙ R b.
+
+   Note in particular that this sequence is of length (succ n). ;)
+
+def iter (A : type) (R : Rel A) (n : Nat) (a : term A) (b : term A) :=
+  induction (n : Nat => rel A)
+    R
+    (n : Nat => S : Rel A => a : term A => b : term A =>
+      sig A (c : term A => prod (S a c) (R c b))) n a b.
+
+(; The transitive closure of R is the union of all the (iter A R n) ;)
+def trans_closure (A : type) (R : Rel A) (a : term A) (b : term A) :=
+  sig nat (n => iter A R n a b).
+
+(; a R b ⇒ a R⁺ b ;)
+def trans_single (A : type) (R : Rel A) (a1 : term A) (a2 : term A)
+                 (H : term (R a1 a2)) : term (trans_closure A R a1 a2) :=
+  pair nat (n => iter A R n a1 a2) O H.
+
+(; a R⁺ b R c ⇒ a R⁺ c ;)
+def trans_closure_plus_one (A : type) (R : Rel A)
+                           (a : term A) (b : term A) (c : term A)
+                           (H1 : term (trans_closure A R a b)) (H2 : term (R b c)) :
+                           term (trans_closure A R a c) :=
+  (n : Nat =>
+   H1' : term (iter A R n a b) =>
+   pair nat (n => iter A R n a c) (succ n)
+     (pair A (d : term A => prod (iter A R n a d) (R d c))
+       b
+       (pair (iter A R n a b) (__ => R b c) H1' H2)))
+  (fst nat (n => iter A R n a b) H1)
+  (snd nat (n => iter A R n a b) H1).
+
+(; a R⁺ b Rᵐ⁺¹ c ⇒ a R⁺ c ;)
+def iter_comp (A : type) (R : Rel A) (a : term A) (b : term A) (c : term A)
+              (H1 : term (trans_closure A R a b))
+              (m : Nat) (H2 : term (iter A R m b c)) :
+              term (trans_closure A R a c) :=
+  induction (m : Nat => pi A (a => pi A (b => pi A (c =>
+    arr (trans_closure A R a b) (arr (iter A R m b c) (trans_closure A R a c))))))
+    (trans_closure_plus_one A R)
+    (m : Nat =>
+     IH : (a : term A -> b : term A -> c : term A ->
+           term (trans_closure A R a b) -> term (iter A R m b c) ->
+           term (trans_closure A R a c)) =>
+     a : term A => b : term A => c : term A =>
+     H1 : term (trans_closure A R a b) =>
+     H2 : term (iter A R (succ m) b c) =>
+     (d : term A =>
+      H34 : term (prod (iter A R m b d) (R d c)) =>
+      (H3 : term (iter A R m b d) =>
+       H4 : term (R d c) =>
+       trans_closure_plus_one A R a d c (IH a b d H1 H3) H4)
+      (fst (iter A R m b d) (__ => R d c) H34)
+      (snd (iter A R m b d) (__ => R d c) H34))
+     (fst A (d : term A => prod (iter A R m b d) (R d c)) H2)
+     (snd A (d : term A => prod (iter A R m b d) (R d c)) H2))
+    m a b c H1 H2.
+
+(; The transitive closure of a relation is transitive. ;)
+def trans_closure_trans (A : type) (R : Rel A) (a : term A) (b : term A) (c : term A)
+                        (H1 : term (trans_closure A R a b))
+                        (H2 : term (trans_closure A R b c)) :
+                        term (trans_closure A R a c) :=
+  iter_comp A R a b c H1
+   (fst nat (n => iter A R n b c) H2)
+   (snd nat (n => iter A R n b c) H2).
+
+(; This is a helper function for trans_chain_get;
+   from n and … u₂ R⁺ u₁ R⁺ u₀ Rᵐ⁺¹ a, it returns a b such that
+   b Rⁿ a ;)
+def trans_chain_get_iter (A : type) (R : Rel A) :
+  n : Nat -> u : (Nat -> term A) ->
+  term (chain A (trans_closure A R) u) ->
+  a : term A -> m : Nat -> term (iter A R m (u O) a) -> term A :=
+  induction (n => pi (arr nat A) (u =>
+               arr (chain A (trans_closure A R) u) (
+               pi A (a =>
+               pi nat (m =>
+               arr (iter A R m (u O) a) A)))))
+    (u => Hu => a => m => Hm => a)
+    (n => IH => u => Hu => a =>
+      induction (m => arr (iter A R m (u O) a) A)
+        (Hm =>
+          IH (n => u (succ n)) (n => Hu (succ n)) (u O)
+            (fst nat (n : Nat => iter A R n (u (succ O)) (u O)) (Hu O))
+            (snd nat (n : Nat => iter A R n (u (succ O)) (u O)) (Hu O)))
+        (m => __ => Hm =>
+          IH u Hu (fst A (c => prod (iter A R m (u O) c) (R c a)) Hm) m
+            (fst (iter A R m (u O) (fst A (c => prod (iter A R m (u O) c) (R c a)) Hm)) (__ => R (fst A (c => prod (iter A R m (u O) c) (R c a)) Hm) a)
+               (snd A (c => prod (iter A R m (u O) c) (R c a)) Hm)))).
+
+(; From n and … u₂ R⁺ u₁ R⁺ u₀, return a b such that b Rⁿ u₀. ;)
+def trans_chain_get (A : type) (R : Rel A) (u : Nat -> term A)
+                    (Hu : term (chain A (trans_closure A R) u)) (n : Nat) : term A :=
+  trans_chain_get_iter A R n (n => u (succ n)) (n => Hu (succ n))
+    (u O) (fst nat (n => iter A R n (u (succ O)) (u O)) (Hu O))
+      (snd nat (n => iter A R n (u (succ O)) (u O)) (Hu O)).
+
+(; trans_chain_get_iter is an R-chain ;)
+def trans_chain_chain_iter (A : type) (R : Rel A) :
+  n : Nat -> u : (Nat -> term A) ->
+  Hu : term (chain A (trans_closure A R) u) ->
+  a : term A -> m : Nat -> Hm : term (iter A R m (u O) a) ->
+  term (R (trans_chain_get_iter A R (succ n) u Hu a m Hm)
+          (trans_chain_get_iter A R n u Hu a m Hm)) :=
+  induction (n => pi (arr nat A) (u =>
+               pi (chain A (trans_closure A R) u) (Hu =>
+               pi A (a =>
+               pi nat (m =>
+               pi (iter A R m (u O) a) (Hm =>
+               R (trans_chain_get_iter A R (succ n) u Hu a m Hm)
+                 (trans_chain_get_iter A R n u Hu a m Hm)))))))
+    (u => Hu => a =>
+      induction (m => pi (iter A R m (u O) a) (Hm =>
+                         R (trans_chain_get_iter A R (succ O) u Hu a m Hm)
+                           a))
+        (Hm => Hm)
+        (m => __ => Hm =>
+         (c : term A =>
+          p : term (prod (iter A R m (u O) c) (R c a)) =>
+          snd (iter A R m (u O) c) (__ => R c a) p)
+        (fst A (c => prod (iter A R m (u O) c) (R c a)) Hm)
+        (snd A (c => prod (iter A R m (u O) c) (R c a)) Hm)))
+    (n => IH => u => Hu => a =>
+      induction (m => pi (iter A R m (u O) a) (Hm =>
+                         R (trans_chain_get_iter A R (succ (succ n)) u Hu a m Hm)
+                           (trans_chain_get_iter A R (succ n) u Hu a m Hm)))
+        (Hm =>
+          IH (n => u (succ n)) (n => Hu (succ n)) (u O)
+            (fst nat (n : Nat => iter A R n (u (succ O)) (u O)) (Hu O))
+            (snd nat (n : Nat => iter A R n (u (succ O)) (u O)) (Hu O)))
+        (m => __ => Hm =>
+          IH u Hu (fst A (c => prod (iter A R m (u O) c) (R c a)) Hm) m
+            (fst (iter A R m (u O) (fst A (c => prod (iter A R m (u O) c) (R c a)) Hm)) (__ => R (fst A (c => prod (iter A R m (u O) c) (R c a)) Hm) a)
+               (snd A (c => prod (iter A R m (u O) c) (R c a)) Hm)))).
+
+(; trans_chain_get is an R-chain ;)
+def trans_chain_chain (A : type) (R : Rel A) (u : Nat -> term A)
+                      (Hu : term (chain A (trans_closure A R) u)) :
+                      term (chain A R (trans_chain_get A R u Hu)) :=
+  n : Nat =>
+  trans_chain_chain_iter A R n (n => u (succ n)) (n => Hu (succ n))
+    (u O) (fst nat (n => iter A R n (u (succ O)) (u O)) (Hu O))
+      (snd nat (n => iter A R n (u (succ O)) (u O)) (Hu O)).
+
+(; if R is well-founded, then so is R⁺ ;)
+def wf_trans_closure (A : type) (R : Rel A) (H : term (wf A R)) : term (wf A (trans_closure A R)) :=
+  u : (Nat -> term A) =>
+  Hu : term (chain A (trans_closure A R) u) =>
+  H (trans_chain_get A R u Hu) (trans_chain_chain A R u Hu).
+
+(; Back to Girard Paradox. ;)
+
+(; A morphism between R and S maps R-related pairs to S⁺-related ones:
+   f is a morphism := (if a R b then f(a) S⁺ f(b)) ;)
+def morph (A : type) (R : Rel A) (B : type) (S : Rel B) (f : term A -> term B) :=
+  pi A (a1 => pi A (a2 => arr (R a1 a2) (trans_closure B S (f a1) (f a2)))).
+
+(; if a Rⁿ⁺¹ b and f is a morphism then f(a) S⁺ f(b) ;)
+def morph_iter (A : type) (R : Rel A) (B : type) (S : Rel B)
+               (f : term A -> term B) (Hf : term (morph A R B S f)) :
+               n : Nat -> a1 : term A -> a2 : term A ->
+               term (iter A R n a1 a2) -> term (trans_closure B S (f a1) (f a2)) :=
+  induction (n : Nat => pi A (a1 => pi A (a2 =>
+             arr (iter A R n a1 a2) (trans_closure B S (f a1) (f a2)))))
+    Hf
+    (n : Nat =>
+     IH : (a1 : term A -> a2 : term A ->
+           term (iter A R n a1 a2) -> term (trans_closure B S (f a1) (f a2))) =>
+     a1 : term A =>
+     a2 : term A =>
+     H : term (iter A R (succ n) a1 a2) =>
+     (c : term A =>
+      H12 : term (prod (iter A R n a1 c) (R c a2)) =>
+      (H2 : term (iter A R n a1 c) =>
+       H1 : term (R c a2) =>
+       trans_closure_trans B S (f a1) (f c) (f a2)
+         (IH a1 c H2) (Hf c a2 H1))
+      (fst (iter A R n a1 c) (__ => R c a2) H12)
+      (snd (iter A R n a1 c) (__ => R c a2) H12))
+     (fst A (c => prod (iter A R n a1 c) (R c a2)) H)
+     (snd A (c => prod (iter A R n a1 c) (R c a2)) H)).
+
+(; if a R⁺ b and f is a morphism then f(a) S⁺ f(b) ;)
+def morph_trans (A : type) (R : Rel A) (B : type) (S : Rel B)
+                (f : term A -> term B) (Hf : term (morph A R B S f))
+                (a1 : term A) (a2 : term A) (H : term (trans_closure A R a1 a2)) :
+                term (trans_closure B S (f a1) (f a2)) :=
+  morph_iter A R B S f Hf (fst nat (n => iter A R n a1 a2) H)
+             a1 a2 (snd nat (n => iter A R n a1 a2) H).
+
+(; if f and g are morphisms, then g ∘ f is a morphism ;)
+def morph_comp (A : type) (R : Rel A) (B : type) (S : Rel B) (C : type) (T : Rel C)
+               (f : term A -> term B) (Hf : term (morph A R B S f))
+               (g : term B -> term C) (Hg : term (morph B S C T g)) :
+               term (morph A R C T (comp A B C f g)) :=
+  a1 : term A =>
+  a2 : term A =>
+  H : term (R a1 a2) =>
+  morph_trans B S C T g Hg (f a1) (f a2) (Hf a1 a2 H).
+
+(; An f-bound is a b such that for all x, f(x) S⁺ b ;)
+def bound (A : type) (B : type) (S : Rel B) (f : term A -> term B) (b : term B) :=
+  pi A (a => trans_closure B S (f a) b).
+
+(; < := there exists a bounded morphism ;)
+def lt (AR : V) (BS : V) : type :=
+  (A : type =>
+   R : Rel A =>
+   B : type =>
+   S : Rel B =>
+   sig B (b =>
+   sig (arr A B) (f =>
+     prod (bound A B S f b)
+       (morph A R B S f))))
+  (V_ty AR)
+  (V_rel AR)
+  (V_ty BS)
+  (V_rel BS).
+
+def lt_intro (A : type) (R : Rel A) (HR : term (wf A R))
+             (B : type) (S : Rel B) (HS : term (wf B S))
+             (b : term B) (f : term A -> term B)
+             (Hbound : term (bound A B S f b))
+             (Hmorph : term (morph A R B S f)) :
+             term (lt (V_intro A R HR) (V_intro B S HS)) :=
+  pair B (b => sig (arr A B) (f => prod (bound A B S f b) (morph A R B S f)))
+    b
+    (pair (arr A B) (f => prod (bound A B S f b) (morph A R B S f))
+      f
+      (pair (bound A B S f b) (__ => morph A R B S f) Hbound Hmorph)).
+
+def lt_b (A : type) (R : Rel A) (HR : term (wf A R))
+         (B : type) (S : Rel B) (HS : term (wf B S))
+         (Hlt : term (lt (V_intro A R HR) (V_intro B S HS))) : term B :=
+  fst B (b => sig (arr A B) (f => prod (bound A B S f b) (morph A R B S f)))
+    Hlt.
+
+def lt_f (A : type) (R : Rel A) (HR : term (wf A R))
+         (B : type) (S : Rel B) (HS : term (wf B S))
+         (Hlt : term (lt (V_intro A R HR) (V_intro B S HS))) : term A -> term B :=
+  fst (arr A B)
+    (f => prod (bound A B S f (lt_b A R HR B S HS Hlt)) (morph A R B S f))
+    (snd B (b => sig (arr A B) (f => prod (bound A B S f b) (morph A R B S f)))
+      Hlt).
+
+def lt_Hbound (A : type) (R : Rel A) (HR : term (wf A R))
+              (B : type) (S : Rel B) (HS : term (wf B S))
+              (Hlt : term (lt (V_intro A R HR) (V_intro B S HS))) :
+              term (bound A B S (lt_f A R HR B S HS Hlt) (lt_b A R HR B S HS Hlt)) :=
+  (b : term B =>
+   f : (term A -> term B) =>
+   H : term (prod (bound A B S f (lt_b A R HR B S HS Hlt)) (morph A R B S f)) =>
+   fst (bound A B S f (lt_b A R HR B S HS Hlt)) (__ => morph A R B S f) H)
+  (lt_b A R HR B S HS Hlt)
+  (lt_f A R HR B S HS Hlt)
+  (snd (arr A B)
+    (f => prod (bound A B S f (lt_b A R HR B S HS Hlt)) (morph A R B S f))
+    (snd B (b => sig (arr A B) (f => prod (bound A B S f b) (morph A R B S f)))
+      Hlt)).
+
+def lt_Hmorph (A : type) (R : Rel A) (HR : term (wf A R))
+              (B : type) (S : Rel B) (HS : term (wf B S))
+              (Hlt : term (lt (V_intro A R HR) (V_intro B S HS))) :
+              term (morph A R B S (lt_f A R HR B S HS Hlt)) :=
+  (b : term B =>
+   f : (term A -> term B) =>
+   H : term (prod (bound A B S f (lt_b A R HR B S HS Hlt)) (morph A R B S f)) =>
+   snd (bound A B S f (lt_b A R HR B S HS Hlt)) (__ => morph A R B S f) H)
+  (lt_b A R HR B S HS Hlt)
+  (lt_f A R HR B S HS Hlt)
+  (snd (arr A B)
+    (f => prod (bound A B S f  (lt_b A R HR B S HS Hlt)) (morph A R B S f))
+    (snd B (b => sig (arr A B) (f => prod (bound A B S f b) (morph A R B S f)))
+      Hlt)).
+
+(; Let's now prove that < is well-founded, given a chain (Aₙ, Rₙ) we obtain a sequence of bounded morphisms fₙ : Aₙ₊₁ → Aₙ. We build a chain in A₀ by taking
+ aₙ := gₙ(bₙ) where gₙ : Aₙ → A₀ := f₀ ∘ f₁ … ∘ fₙ₋₁. ;)
+def g (A : Nat -> type) (f : n : Nat -> term (A (succ n)) -> term (A n)) :
+      n : Nat -> term (A n) -> term (A O) :=
+  induction (n => arr (A n) (A O))
+    (a => a)
+    (n : Nat => h : (term (A n) -> term (A O)) =>
+     comp (A (succ n)) (A n) (A O) (f n) h).
+
+(; for all n, gₙ is a composition of morphisms, therefore gₙ is a morphism ;)
+def g_morph (A : Nat -> type) (R : n : Nat -> Rel (A n))
+            (f : n : Nat -> term (A (succ n)) -> term (A n))
+            (Hf : n : Nat -> term (morph (A (succ n)) (R (succ n)) (A n) (R n) (f n))) :
+            n : Nat -> term (morph (A n) (R n) (A O) (R O) (g A f n)) :=
+  induction (n => morph (A n) (R n) (A O) (R O) (g A f n))
+    (trans_single (A O) (R O))
+    (n => IH : term (morph (A n) (R n) (A O) (R O) (g A f n)) =>
+     morph_comp (A (succ n)) (R (succ n)) (A n) (R n) (A O) (R O)
+       (f n) (Hf n) (g A f n) IH).
+
+(; aₙ := gₙ(bₙ) ;)
+def an (A : Nat -> type) (f : n : Nat -> term (A (succ n)) -> term (A n))
+       (b : n : Nat -> term (A n)) (n : Nat) : term (A O) :=
+       g A f n (b n).
+
+(; aₙ is an R₀⁺-chain ;)
+def an_chain (A : Nat -> type) (R : n : Nat -> Rel (A n))
+         (f : n : Nat -> term (A (succ n)) -> term (A n))
+         (Hf : n : Nat -> term (morph (A (succ n)) (R (succ n)) (A n) (R n) (f n)))
+         (b : n : Nat -> term (A n))
+         (Ha : n : Nat -> term (bound (A (succ n)) (A n) (R n) (f n) (b n))) :
+         term (chain (A O) (trans_closure (A O) (R O)) (an A f b)) :=
+  n : Nat =>
+  morph_trans (A n) (R n) (A O) (R O) (g A f n)
+    (g_morph A R f Hf n) (f n (b (succ n))) (b n)
+    (Ha n (b (succ n))).
+
+(; lt is well-founded ;)
+def wf_V : term (wf v lt) :=
+  u : (Nat -> V) =>
+  H : term (chain v lt u) =>
+  (A : (Nat -> type) =>
+   R : (n : Nat -> Rel (A n)) =>
+   Hwf : (n : Nat -> term (wf (A n) (R n))) =>
+   H' : term (chain v lt (n => V_intro (A n) (R n) (Hwf n))) =>
+   (b : (n : Nat -> term (A n)) =>
+    f : (n : Nat -> term (A (succ n)) -> term (A n)) =>
+    Hb : (n : Nat -> term (bound (A (succ n)) (A n) (R n) (f n) (b n))) =>
+    Hf : (n : Nat -> term (morph (A (succ n)) (R (succ n)) (A n) (R n) (f n))) =>
+    wf_trans_closure (A O) (R O) (Hwf O)
+      (an A f b) (an_chain A R f Hf b Hb))
+   (n => lt_b (A (succ n)) (R (succ n)) (Hwf (succ n))
+              (A n) (R n) (Hwf n) (H' n))
+   (n => lt_f (A (succ n)) (R (succ n)) (Hwf (succ n))
+              (A n) (R n) (Hwf n) (H' n))
+   (n => lt_Hbound (A (succ n)) (R (succ n)) (Hwf (succ n))
+                   (A n) (R n) (Hwf n) (H' n))
+   (n => lt_Hmorph (A (succ n)) (R (succ n)) (Hwf (succ n))
+                   (A n) (R n) (Hwf n) (H' n)))
+  (n : Nat => V_ty (u n))
+  (n : Nat => V_rel (u n))
+  (n : Nat => V_wf (u n))
+  (n : Nat => H n).
+
+(; segment A R a means Aₐ, the type of R⁺-antecedents of a ;)
+def segment (A : type) (R : Rel A) (a : term A) : type :=
+  sig A (b => trans_closure A R b a).
+
+def seg_intro (A : type) (R : Rel A) (a : term A) (x : term A)
+              (H : term (trans_closure A R x a)) : term (segment A R a) :=
+  pair A (b => trans_closure A R b a) x H.
+
+def seg_w (A : type) (R : Rel A) (a : term A) (x : term (segment A R a)) : term A :=
+  fst A (b => trans_closure A R b a) x.
+
+def seg_p (A : type) (R : Rel A) (a : term A) (x : term (segment A R a)) :
+          term (trans_closure A R (seg_w A R a x) a) :=
+  snd A (b => trans_closure A R b a) x.
+
+(; (segR A R a) meand Rₐ, the restriction of R on Aₐ ;)
+def segR (A : type) (R : Rel A) (a : term A) : Rel (segment A R a) :=
+  x : term (segment A R a) =>
+  y : term (segment A R a) =>
+  R (seg_w A R a x) (seg_w A R a y).
+
+(; Technical detail: (Rₐ)⁺ is not convertible with (R⁺)ₐ, we prove the
+   needed implication ;)
+def seg_commute_iter (A : type) (R : Rel A) (a : term A) :
+                     n : Nat -> x : term (segment A R a) ->
+                     y : term (segment A R a) ->
+                     term (iter A R n (seg_w A R a x) (seg_w A R a y)) ->
+                     term (trans_closure (segment A R a) (segR A R a) x y) :=
+  induction (n => pi (segment A R a) (x =>
+                  pi (segment A R a) (y =>
+                  arr (iter A R n (seg_w A R a x) (seg_w A R a y))
+                  (trans_closure (segment A R a) (segR A R a) x y))))
+    (x => y => H => trans_single (segment A R a) (segR A R a) x y H)
+    (n => IH => x => y => H =>
+     (z : term A =>
+      Hz : term (prod (iter A R n (seg_w A R a x) z) (R z (seg_w A R a y))) =>
+      (Hzi : term (iter A R n (seg_w A R a x) z) =>
+       HzR : term (R z (seg_w A R a y)) =>
+       (Hza : term (trans_closure A R z a) =>
+        trans_closure_plus_one (segment A R a) (segR A R a) x
+           (seg_intro A R a z Hza) y
+           (IH x (seg_intro A R a z Hza) Hzi) HzR)
+       (trans_closure_trans A R z (seg_w A R a y) a
+         (trans_single A R z (seg_w A R a y) HzR)
+         (seg_p A R a y)))
+       (fst (iter A R n (seg_w A R a x) z) (__ => R z (seg_w A R a y)) Hz)
+       (snd (iter A R n (seg_w A R a x) z) (__ => R z (seg_w A R a y)) Hz))
+      (fst A (z => prod (iter A R n (seg_w A R a x) z) (R z (seg_w A R a y))) H)
+      (snd A (z => prod (iter A R n (seg_w A R a x) z) (R z (seg_w A R a y))) H)).
+
+def seg_commute_trans_closure (A : type) (R : Rel A) (a : term A)
+   (x : term (segment A R a)) (y : term (segment A R a))
+   (H : term (trans_closure A R (seg_w A R a x) (seg_w A R a y))) :
+   term (trans_closure (segment A R a) (segR A R a) x y) :=
+   seg_commute_iter A R a
+     (fst nat (n => iter A R n (seg_w A R a x) (seg_w A R a y)) H) x y
+     (snd nat (n => iter A R n (seg_w A R a x) (seg_w A R a y)) H).
+
+(; Rₐ is well-founded ;)
+def seg_wf (A : type) (R : Rel A) (H : term (wf A R)) (a : term A) :
+           term (wf (segment A R a) (segR A R a)) :=
+  u : (Nat -> term (segment A R a)) =>
+  Hu : term (chain (segment A R a) (segR A R a) u) =>
+  H (n : Nat => seg_w A R a (u n)) Hu.
+
+(; (Aₐ, Rₐ) < (A, R) ;)
+def lt_seg (A : type) (R : Rel A) (H : term (wf A R)) (a : term A) :
+  term (lt (V_intro (segment A R a) (segR A R a) (seg_wf A R H a))
+           (V_intro A R H)) :=
+  lt_intro (segment A R a) (segR A R a) (seg_wf A R H a) A R H
+    a (seg_w A R a) (seg_p A R a)
+      (a1 => a2 => trans_single A R (seg_w A R a a1) (seg_w A R a a2)).
+
+(; a R b ⇒ (Aₐ, Rₐ) < (A_b, R_b) ;)
+def seg_morph (A : type) (R : Rel A) (H : term (wf A R)) (a : term A) (b : term A)
+              (Hab : term (R a b)) :
+              term (lt (V_intro (segment A R a) (segR A R a) (seg_wf A R H a))
+                       (V_intro (segment A R b) (segR A R b) (seg_wf A R H b))) :=
+  lt_intro (segment A R a) (segR A R a) (seg_wf A R H a)
+           (segment A R b) (segR A R b) (seg_wf A R H b)
+    (seg_intro A R b a (trans_single A R a b Hab))
+    (x : term (segment A R a) =>
+      seg_intro A R b (seg_w A R a x)
+        (trans_closure_plus_one A R (seg_w A R a x) a b (seg_p A R a x) Hab))
+    (x : term (segment A R a) =>
+      seg_commute_trans_closure A R b
+        (seg_intro A R b (seg_w A R a x)
+          (trans_closure_plus_one A R (seg_w A R a x) a b (seg_p A R a x) Hab))
+        (seg_intro A R b a (trans_single A R a b Hab))
+        (seg_p A R a x))
+    (x : term (segment A R a) =>
+     y : term (segment A R a) =>
+     H : term (R (seg_w A R a x) (seg_w A R a y)) =>
+     trans_single (segment A R b) (segR A R b)
+       (seg_intro A R b (seg_w A R a x)
+          (trans_closure_plus_one A R (seg_w A R a x) a b (seg_p A R a x) Hab))
+       (seg_intro A R b (seg_w A R a y)
+          (trans_closure_plus_one A R (seg_w A R a y) a b (seg_p A R a y) Hab))
+       H).
+
+(; (A, R) < (V, <) ;)
+def Vmax (A : type) (R : Rel A) (H : term (wf A R)) :
+         term (lt (V_intro A R H) (V_intro v lt wf_V)) :=
+  lt_intro A R H v lt wf_V
+    (V_intro A R H)
+    (a : term A => V_intro (segment A R a) (segR A R a) (seg_wf A R H a))
+    (a : term A =>
+      trans_single v lt
+        (V_intro (segment A R a) (segR A R a) (seg_wf A R H a))
+        (V_intro A R H)
+        (lt_seg A R H a))
+    (a : term A => b : term A => Hab : term (R a b) =>
+      trans_single v lt
+         (V_intro (segment A R a) (segR A R a) (seg_wf A R H a))
+         (V_intro (segment A R b) (segR A R b) (seg_wf A R H b))
+         (seg_morph A R H a b Hab)).
+
+(; (V, <) < (V, <) ;)
+def Vrefl : term (lt (V_intro v lt wf_V) (V_intro v lt wf_V)) := Vmax v lt wf_V.
+
+def paradox : term false :=
+  wf_V
+    (n : Nat => V_intro v lt wf_V)
+    (n : Nat => Vrefl).

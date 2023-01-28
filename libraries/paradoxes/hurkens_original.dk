@@ -1,0 +1,203 @@
+(;-----------------------------------------------------------------;)
+(;----------------------  PUBLIC DEFINITIONS  ---------------------;)
+(;-----------------------------------------------------------------;)
+
+(;---------------------------  Sorts  -----------------------------;)
+
+Sort : Type.
+
+
+(;---------------------  Types and terms  -------------------------;)
+
+(; Type for encoded type codes ;)
+Univ : s : Sort -> Type.
+
+(; Type decoding function ;)
+def Term : s : Sort -> a : Univ s -> Type.
+
+
+(;------------------------  CTS predicates  -----------------------;)
+
+Bool : Type.
+eps : Bool -> Type.
+true : Bool.
+I : eps true.
+
+def Axiom : Sort -> Sort -> Bool.
+def Rule  : Sort -> Sort -> Sort -> Bool.
+
+
+(;--------------------  Term public constructors  -----------------;)
+
+def univ : s : Sort -> s' : Sort ->
+           p : eps (Axiom s s') -> Univ s'.
+
+def prod : s1 : Sort -> s2 : Sort -> s3 : Sort ->
+           p : eps (Rule s1 s2 s3) ->
+           a : Univ s1 -> b : (Term s1 a -> Univ s2) -> Univ s3.
+
+
+(;-----------------------------------------------------------------;)
+(;---------------------  PRIVATE DEFINITIONS  ---------------------;)
+(;-----------------------------------------------------------------;)
+
+(;----------------------------  Axiom  ----------------------------;)
+
+univ' (s : Sort) (s' : Sort) : Univ s'.
+
+[s] Term _ (univ' s _) --> Univ s.
+
+[s,s',p] univ s s' p --> univ' s s'.
+
+
+(;----------------------------  Rule  -----------------------------;)
+
+def prod' : s1 : Sort -> s2 : Sort -> s3 : Sort ->
+            a : Univ s1 -> b : (Term s1 a -> Univ s2) -> Univ s3.
+
+[s1, s2, a, b] Term _ (prod' s1 s2 _ a b) --> x : Term s1 a -> Term s2 (b x).
+
+[s1, s2,s3,p] prod s1 s2 s3 p --> prod' s1 s2 s3.
+
+
+
+(;-----------------------------------------------------------------;)
+(;-------------------------  Coq encoding  ------------------------;)
+(;-----------------------------------------------------------------;)
+
+(;----------------------  CTS Sorts definition  -------------------;)
+
+_prop : Sort.
+_type : Sort.
+_kind : Sort.
+
+
+(;---------------------  CTS Axiom definition  --------------------;)
+
+[] Axiom _prop _type --> true.
+[] Axiom _type _kind --> true.
+
+
+(;-----------------------  CTS Rule definition  -------------------;)
+
+[] Rule _prop _prop _prop --> true.
+[] Rule _type _type _type --> true.
+
+[] Rule _type _prop _prop --> true. (; prop impredicativity ;)
+[] Rule _kind _type _type --> true. (; type impredicativity ;)
+
+
+
+(;-----------------------------------------------------------------;)
+(;------------------------  Logic encoding  -----------------------;)
+(;-----------------------------------------------------------------;)
+
+def type : Type         := Univ _type.   (;  Term _kind (univ _type _kind I)  ;)
+def term : type -> Type := Term _type.
+def prop : type         := univ _prop _type I.
+def Prop                := term prop.
+
+def proof : Prop -> Type := Term _prop.
+
+def imp : Prop -> Prop -> Prop := (; ⇒ ;)
+  A : Prop => B : Prop => prod _prop _prop _prop I A (x => B).
+
+
+
+def arr : type -> type -> type := (; → ;)
+  A : type => B : type => prod _type _type _type I A (x => B).
+def all : A : type -> (term A -> Prop) -> Prop := (; ∀ ;)
+  A : type => B : (term A -> Prop) => prod _type _prop _prop I A B.
+def pi : (type -> type) -> type := (; Π ;)
+  B : (type -> type) => prod _kind _type _type I (univ _type _kind I) B.
+
+#CHECK
+(
+  phi : Prop =>
+  psi : Prop =>
+    proof (imp phi psi)
+) == (
+  phi : Prop =>
+  psi : Prop =>
+    proof phi -> proof psi
+).
+
+#CHECK
+(
+  A : type =>
+  B : type =>
+    term (arr A B)
+) == (
+  A : type =>
+  B : type =>
+    term A -> term B
+).
+
+#CHECK
+(
+  A : type =>
+  phi : (term A -> Prop) =>
+    proof (all A phi)
+) == (
+  A : type =>
+  phi : (term A -> Prop) =>
+    x : term A -> proof (phi x)
+).
+
+#CHECK
+(
+  A : (type -> type) =>
+    term (pi A)
+) == (
+  A : (type -> type) =>
+    x : type -> term (A x)
+).
+
+
+
+(;-----------------------------------------------------------------;)
+(;----------------------  Paradoxe encoding  ----------------------;)
+(;-----------------------------------------------------------------;)
+
+(; Starting from here, we only have definitions and
+the last one is a diverging term of type (proof false). ;)
+
+def pow (s : type) : type := arr s prop. (; ℘ ;)
+def ppow (s : type) : type := pow (pow s). (; ℘℘ ;)
+
+def false : Prop := all prop (p => p). (; ⊥ ;)
+def not (phi : Prop) : Prop := imp phi false. (; ¬ ;)
+
+def U : type := pi (X : type => arr (arr (ppow X) X) (ppow X)).
+def tau (t : term (ppow U)) : term U := (; τ ;)
+  X : type =>
+  f : (term (ppow X) -> term X) =>
+  p : term (pow X) =>
+  t (x : term U => p (f (x X f))).
+
+def sig (s : term U) : term (ppow U) := (; σ ;)
+  s U (t : term (ppow U) => tau t).
+
+def Delta : term (pow U) :=     (; Δ ;)
+  y : term U =>
+  not (all (pow U) (p => imp (sig y p) (p (tau (sig y))))).
+
+def Omega : term U :=           (; Ω ;)
+  tau (p : term (pow U) => all U (x => imp (sig x p) (p x))).
+
+def contradiction : proof false :=
+  (0 : (p : term (pow U) ->
+        (x : term U -> proof (sig x p) -> proof (p x)) ->
+        proof (p Omega)) =>
+   (0 Delta
+     (x : term U =>
+      2 : proof (sig x Delta) =>
+      3 : (p : term (pow U) -> proof (sig x p) -> proof (p (tau (sig x)))) =>
+      3 Delta 2
+        (p : term (pow U) =>
+         3 (y : term U => p (tau (sig y)))))
+     (p : term (pow U) => 0 (y : term U => p (tau (sig y))))))
+  (p : term (pow U) =>
+   1 : (x : term U -> proof (sig x p) -> proof (p x)) =>
+   1 Omega (x : term U => 1 (tau (sig x)))).
+

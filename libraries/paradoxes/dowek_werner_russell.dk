@@ -1,0 +1,15 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; Russell Paradox in Deduction Modulo from the article /Proof
+Normalization Modulo/ by Gilles Dowek and Benjamin Werner ;)
+
+false : Type.
+set : Type.
+def in : set -> set -> Type.
+f : set.
+
+[z] in z f --> in z z -> false.
+
+def R : Type := in f f.
+
+def paradox : false := (h : R => h h) (h : R => h h).

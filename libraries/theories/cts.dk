@@ -1,0 +1,67 @@
+Sort     : Type.
+Univ     : s : Sort -> Type.
+def Term : s : Sort -> a : Univ s -> Type.
+
+bool : Type.
+eps  : bool -> Type.
+true : bool.
+
+def Axiom   :     Sort -> Sort -> bool.
+def Rule    :     Sort -> Sort -> Sort -> bool.
+def Cumul   :     Sort -> Sort -> bool.
+def SubType : s : Sort -> s' : Sort -> Univ s -> Univ s' -> bool.
+
+sinf : Sort.
+
+def univ : s  : Sort -> s' : Sort -> eps (Axiom s s') -> Univ s'.
+def prod : s1 : Sort -> s2 : Sort -> s3 : Sort -> eps (Rule s1 s2 s3) ->
+           a : Univ s1 -> b : (Term s1 a -> Univ s2) -> Univ s3.
+def cast : s : Sort -> s' : Sort -> a : Univ s -> b  : Univ s' ->
+           eps (SubType s s' a b) -> Term s a -> Term s' b.
+
+univ' (s : Sort) (s' : Sort) : Univ s'.
+def prod' : s1 : Sort -> s2 : Sort -> s3 : Sort ->
+            a : Univ s1 -> b : (Term s1 a -> Univ s2) -> Univ s3.
+def cast' : s : Sort -> s' : Sort -> a : Univ s -> b : Univ s' ->
+            Term s a -> Term s' b.
+
+[s,s',p]      univ s s' p        --> univ' s s'.
+[s1, s2,s3,p] prod s1 s2 s3 p    --> prod' s1 s2 s3.
+[s1,s2,a,b,t] cast s1 s2 a b _ t --> cast' s1 s2 a b t.
+
+[s]            Term _ (univ' s _)                 --> Univ s.
+[s1, s2, a, b] Term _ (prod' s1 s2 _ a b)         --> x : Term s1 a -> Term s2 (b x).
+[s, a]         Term _ (cast' _ _ (univ' s _) _ a) --> Term s a.
+
+
+def forall : s : Sort -> a : Univ s -> (Term s a -> bool) -> bool.
+[] forall _ _ (x => true) --> true.
+I : eps true.
+
+[a]                SubType _ _   a                a                       --> true.
+[s1, s2]           SubType _  _  (univ' s1 _)     (univ' s2 _ )           --> Cumul s1 s2
+[s1,s2,s2',a,b,b'] SubType _  _  (prod' s1 s2 _ a b) (prod' _ s2' _ a b') -->
+                  forall s1 a (x => SubType s2 s2' (b x) (b' x)).
+
+[A,t]             cast' _ _ A A t                  --> t.
+[s, s', a, c, t]  cast' _ s' _ c (cast' s _ a _ t) --> cast' s s' a c t.
+
+[s1,s2,A,B,a]     cast' _ s2 (cast' _ _ (univ' s1 _) _ A) B a --> cast' s1 s2 A B a.
+[s1,s2,A,B,a]     cast' s1 _ A (cast' _ _ (univ' s2 _) _ B) a --> cast' s1 s2 A B a.
+
+[s1,s2,s3,s4,a,b]
+  cast' _ _ (univ' _ _) (univ' s4 _) (prod' s1 s2 s3 a b) --> prod' s1 s2 s4 a b.
+[s1,s2,s3, a, b]
+  prod' _ s2 s3 (cast' _ _ (univ' s1 _) (univ' _ _) a) b -->
+  prod' s1 s2 s3 a b.
+
+[s1, s2, s3, a, b]
+  prod' s1 _  s3 a (x => cast' _ _ (univ' s2 _) (univ' _ _) (b x)) -->
+  prod' s1 s2 s3 a (x => b x).
+
+[s1,s2,s3,A,B,C,b]
+  cast' _ _ (prod' s1 s2 _ A B) (prod' {s1} s3 _ {A} C) (x => b x) -->
+  x : Term s1 A => cast' s2 s3 (B x) (C x) (b x).
+[s1,s2,s3,A,B,C,b,a]
+  cast' _ _ (prod' s1 s2 _ A B) (prod' {s1} s3 _ {A} C) b a -->
+  cast' s2 s3 (B a) (C a) (b a).

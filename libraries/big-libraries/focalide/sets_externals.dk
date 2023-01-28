@@ -1,0 +1,7 @@
+#NAME sets_externals.
+
+def i_failed :
+  A:cc.uT -> s:(cc.eT builtins.string) -> e:(cc.eT A) -> cc.eT A
+  :=
+  A:cc.uT => s:(cc.eT builtins.string) => e:(cc.eT A) => e.
+

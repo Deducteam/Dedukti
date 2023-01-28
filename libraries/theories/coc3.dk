@@ -1,0 +1,36 @@
+(; Encoding of Calculus of Construction with 3 universes ;)
+
+P : Type.
+T : Type.
+K : Type.
+
+def eP : P -> Type.
+def eT : T -> Type.
+def eK : K -> Type.
+
+t : K.
+[] eK t --> T.
+
+p : T.
+[] eT p --> P.
+
+Pipp : a : P -> (eP a -> P) -> P.
+Pitp : a : T -> (eT a -> P) -> P.
+Pipt : a : P -> (eP a -> T) -> T.
+Pitt : a : T -> (eT a -> T) -> T.
+
+Pipk : a : P -> (eP a -> K) -> K.
+Pikp : a : K -> (eK a -> P) -> P.
+Pitk : a : T -> (eT a -> K) -> K.
+Pikt : a : K -> (eK a -> T) -> K.
+Pikk : a : K -> (eK a -> K) -> K.
+
+[a, b] eP (Pipp a b) --> x : eP a -> eP (b x).
+[a, b] eP (Pitp a b) --> x : eT a -> eP (b x).
+[a, b] eT (Pipt a b) --> x : eP a -> eT (b x).
+[a, b] eT (Pitt a b) --> x : eT a -> eT (b x).
+[a, b] eK (Pipk a b) --> x : eP a -> eK (b x).
+[a, b] eP (Pikp a b) --> x : eK a -> eP (b x).
+[a, b] eK (Pitk a b) --> x : eT a -> eK (b x).
+[a, b] eK (Pikt a b) --> x : eK a -> eT (b x).
+[a, b] eK (Pikk a b) --> x : eK a -> eK (b x).

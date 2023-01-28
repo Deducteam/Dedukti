@@ -1,0 +1,32 @@
+
+#REQUIRE sudoku.
+
+def 1 := sudoku.1.
+def 2 := sudoku.2.
+def 3 := sudoku.3.
+def 4 := sudoku.4.
+def 5 := sudoku.5.
+def 6 := sudoku.6.
+def 7 := sudoku.7.
+def 8 := sudoku.8.
+def 9 := sudoku.9.
+def X := sudoku.X.
+
+def l := sudoku.l.
+def c := sudoku.c.
+
+
+def sudoku :=
+ c (l 8 X X   X X X   X X X)
+   (l X X 3   6 X X   X X X)
+   (l X 7 X   X 9 X   2 X X)
+
+   (l X 5 X   X X 7   X X X)
+   (l X X X   X 4 5   7 X X)
+   (l X X X   1 X X   X 3 X)
+
+   (l X X 1   X X X   X 6 8)
+   (l X X 8   5 X X   X 1 X)
+   (l X 9 X   X X X   4 X X).
+
+#EVAL sudoku.solve_sudo sudoku.

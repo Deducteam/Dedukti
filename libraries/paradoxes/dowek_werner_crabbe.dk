@@ -1,0 +1,31 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; Crabbé Paradox in Deduction Modulo from the article /Proof
+Normalization Modulo/ by Gilles Dowek and Benjamin Werner ;)
+
+prop : Type.
+proof : prop -> Type.
+
+true : prop.
+false : prop.
+and : prop -> prop -> prop.
+imp : prop -> prop -> prop.
+def C : prop.
+[] C --> and true (imp C false).
+
+I : proof true.
+pair : a : prop -> b : prop -> proof a -> proof b -> proof (and a b).
+def snd : a : prop -> b : prop -> proof (and a b) -> proof b.
+[b] snd _ _ (pair _ _ _ b) --> b.
+lam : a : prop -> b : prop -> (proof a -> proof b) -> proof (imp a b).
+def app : a : prop -> b : prop -> proof (imp a b) -> proof a -> proof b.
+[f,a] app _ _ (lam _ _ f) a --> f a.
+
+def not_C : proof (imp C false) :=
+  lam C false (alpha : proof C =>
+    app C false
+      (snd true (imp C false) alpha)
+      alpha).
+
+def paradox : proof false :=
+  app C false not_C (pair true (imp C false) I not_C).

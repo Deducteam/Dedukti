@@ -1,0 +1,39 @@
+#REQUIRE dpll.
+#REQUIRE p.
+
+def Formula  := dpll.Formula.
+def Variable := dpll.Variable.
+def or  := dpll.For.
+def and := dpll.Fand.
+def not := dpll.Fnot.
+def var := dpll.Fvar.
+
+
+a : Variable.
+b : Variable.
+c : Variable.
+d : Variable.
+e : Variable.
+
+[x  ] dpll.eq x x --> dpll.T.
+[x,y] dpll.eq x y --> dpll.F.
+
+def sat_f : Formula :=
+  and
+   (not (var a))
+   (or
+     (and (var a) (var b))
+     (not (or (var c) (var a)))).
+
+def unsat_f : Formula :=
+  and
+    (var c)
+    (and
+      (not (var a))
+        (or
+          (and (var a) (var b))
+          (not (or (var c) (var a))))).
+
+#EVAL[SNF] p.Print sat_f.
+#EVAL[SNF] p.Print (dpll.solve sat_f).
+#EVAL[SNF] p.Print (dpll.solve unsat_f).

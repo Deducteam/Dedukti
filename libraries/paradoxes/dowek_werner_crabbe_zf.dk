@@ -1,0 +1,35 @@
+(; Author: Raphaël Cauderlier, License: CC0 ;)
+
+(; Crabbé Paradox in a fragment of ZF from the article /Proof
+Normalization Modulo/ by Gilles Dowek and Benjamin Werner. The final
+term is not a contradiction but it does not normalize. ;)
+
+set : Type.
+prop : Type.
+proof : prop -> Type.
+false : prop.
+and : prop -> prop -> prop.
+imp : prop -> prop -> prop.
+def in : set -> set -> prop.
+compr : set -> (set -> prop) -> set.
+
+pair : a : prop -> b : prop -> proof a -> proof b -> proof (and a b).
+def snd : a : prop -> b : prop -> proof (and a b) -> proof b.
+[b] snd _ _ (pair _ _ _ b) --> b.
+lam : a : prop -> b : prop -> (proof a -> proof b) -> proof (imp a b).
+def app : a : prop -> b : prop -> proof (imp a b) -> proof a -> proof b.
+[f,a] app _ _ (lam _ _ f) a --> f a.
+[z,w,P] in z (compr w P) --> and (in z w) (P z).
+
+def R (z : set) : prop := imp (in z z) false.
+def C (z : set) (w : set) : prop := in (compr w R) (compr w R).
+def E (z : set) (w : set) : prop := in (compr w R) w.
+
+def not_C (z : set) (w : set) : proof (imp (C z w) false) :=
+  lam (C z w) false (alpha : proof (C z w) =>
+    app (C z w) false
+      (snd (E z w) (imp (C z w) false) alpha)
+      alpha).
+
+def paradox (z : set) (w : set) (h : proof (E z w)) : proof false :=
+  app (C z w) false (not_C z w) (pair (E z w) (imp (C z w) false) h (not_C z w)).

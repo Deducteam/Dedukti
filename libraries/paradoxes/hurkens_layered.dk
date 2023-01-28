@@ -1,0 +1,226 @@
+(;-----------------------------------------------------------------;)
+(;----------------------  PUBLIC DEFINITIONS  ---------------------;)
+(;-----------------------------------------------------------------;)
+
+(;-----------------------------  Nat  -----------------------------;)
+
+
+Nat : Type.
+0 : Nat.
+S : Nat -> Nat.
+
+def 1 := S 0.
+def 2 := S 1.
+def 3 := S 2.
+def 4 := S 3.
+def 5 := S 4.
+def 6 := S 5.
+
+def max : Nat -> Nat -> Nat.
+[i  ] max i     0     --> i.
+[j  ] max 0     j     --> j.
+[i,j] max (S i) (S j) --> S (max i j).
+
+
+(;---------------------------  Sorts  -----------------------------;)
+
+Sort : Type.
+
+
+(;---------------------  Types and terms  -------------------------;)
+
+(; Type for encoded type codes ;)
+Univ : Nat -> s : Sort -> Type.
+
+(; Type decoding function ;)
+def Term : n : Nat -> s : Sort -> a : Univ n s -> Type.
+
+(;------------------------  CTS predicates  -----------------------;)
+
+Bool : Type.
+eps : Bool -> Type.
+true : Bool.
+I : eps true.
+
+def Axiom : Sort -> Sort -> Bool.
+def Rule  : Sort -> Sort -> Sort -> Bool.
+
+
+(;--------------------  Term public constructors  -----------------;)
+
+def univ : n : Nat ->
+           s : Sort -> s' : Sort ->
+           p : eps (Axiom s s') -> Univ n s'.
+
+def prod : n : Nat -> k : Nat ->
+           s1 : Sort -> s2 : Sort -> s3 : Sort ->
+           p : eps (Rule s1 s2 s3) ->
+           a : Univ n s1 -> b : (Term n s1 a -> Univ k s2) -> Univ (max n k) s3.
+
+
+(;-----------------------------------------------------------------;)
+(;---------------------  PRIVATE DEFINITIONS  ---------------------;)
+(;-----------------------------------------------------------------;)
+
+(;----------------------------  Axiom  ----------------------------;)
+
+univ' (n : Nat) (s : Sort) (s' : Sort) : Univ n s'.
+
+[n,s] Term n _ (univ' n s _) --> Univ (S n) s.
+
+[n,s,s',p] univ n s s' p --> univ' n s s'.
+
+
+(;----------------------------  Rule  -----------------------------;)
+
+def prod' :
+  n : Nat -> k : Nat ->
+  s1 : Sort -> s2 : Sort -> s3 : Sort ->
+  a : Univ n s1 -> b : (Term n s1 a -> Univ k s2) -> Univ (max n k) s3.
+
+[n,k,m,s1,s2,a,b] Term m _ (prod' n k s1 s2 _ a b) --> x : Term n s1 a -> Term k s2 (b x).
+
+[n,k,s1,s2,s3,p] prod n k s1 s2 s3 p --> prod' n k s1 s2 s3.
+
+
+
+(;-----------------------------------------------------------------;)
+(;-------------------------  Coq encoding  ------------------------;)
+(;-----------------------------------------------------------------;)
+
+(;----------------------  CTS Sorts definition  -------------------;)
+
+_prop : Sort.
+_type : Sort.
+_kind : Sort.
+
+
+(;---------------------  CTS Axiom definition  --------------------;)
+
+[] Axiom _prop _type --> true.
+[] Axiom _type _kind --> true.
+
+
+(;-----------------------  CTS Rule definition  -------------------;)
+
+[] Rule _prop _prop _prop --> true.
+[] Rule _type _type _type --> true.
+
+[] Rule _type _prop _prop --> true. (; prop impredicativity ;)
+[] Rule _kind _type _type --> true. (; type impredicativity ;)
+
+
+
+(;-----------------------------------------------------------------;)
+(;------------------------  Logic encoding  -----------------------;)
+(;-----------------------------------------------------------------;)
+
+def type : Type         := Term 0 _kind (univ 0 _type _kind I).
+def term : type -> Type := Term 1 _type.
+def prop : type         := univ 1 _prop _type I.
+def Prop : Type         := term prop.
+
+def proof : Prop -> Type := Term 2 _prop.
+
+def imp : Prop -> Prop -> Prop := (; ⇒ ;)
+  A : Prop => B : Prop => prod 2 2 _prop _prop _prop I A (x => B).
+
+def arr : type -> type -> type := (; → ;)
+  A : type => B : type => prod 1 1 _type _type _type I A (x => B).
+
+def all : A : type -> (term A -> Prop) -> Prop := (; ∀ ;)
+  A : type => B : (term A -> Prop) => prod 1 2 _type _prop _prop I A B.
+
+def pi : (type -> type) -> type := (; Π ;)
+  B : (type -> type) => prod 0 1 _kind _type _type I (univ 0 _type _kind I) B.
+
+#CHECK
+(
+  phi : Prop =>
+  psi : Prop =>
+    proof (imp phi psi)
+) == (
+  phi : Prop =>
+  psi : Prop =>
+    proof phi -> proof psi
+).
+
+#CHECK
+(
+  A : type =>
+  B : type =>
+    term (arr A B)
+) == (
+  A : type =>
+  B : type =>
+    term A -> term B
+).
+
+#CHECK
+(
+  A : type =>
+  phi : (term A -> Prop) =>
+    proof (all A phi)
+) == (
+  A : type =>
+  phi : (term A -> Prop) =>
+    x : term A -> proof (phi x)
+).
+
+#CHECK
+(
+  A : (type -> type) =>
+    term (pi A)
+) == (
+  A : (type -> type) =>
+    x : type -> term (A x)
+).
+
+
+
+(;-----------------------------------------------------------------;)
+(;----------------------  Paradoxe encoding  ----------------------;)
+(;-----------------------------------------------------------------;)
+
+(; Starting from here, we only have definitions and
+the last one is a diverging term of type (proof false). ;)
+
+def pow (s : type) : type := arr s prop. (; ℘ ;)
+def ppow (s : type) : type := pow (pow s). (; ℘℘ ;)
+
+def false : Prop := all prop (p => p). (; ⊥ ;)
+def not (phi : Prop) : Prop := imp phi false. (; ¬ ;)
+
+def U : type := pi (X : type => arr (arr (ppow X) X) (ppow X)).
+def tau (t : term (ppow U)) : term U := (; τ ;)
+  X : type =>
+  f : (term (ppow X) -> term X) =>
+  p : term (pow X) =>
+  t (x : term U => p (f (x X f))).
+
+def sig (s : term U) : term (ppow U) := (; σ ;)
+  s U (t : term (ppow U) => tau t).
+
+def Delta : term (pow U) :=     (; Δ ;)
+  y : term U =>
+  not (all (pow U) (p => imp (sig y p) (p (tau (sig y))))).
+
+def Omega : term U :=           (; Ω ;)
+  tau (p : term (pow U) => all U (x => imp (sig x p) (p x))).
+
+def contradiction : proof false :=
+  (0 : (p : term (pow U) ->
+        (x : term U -> proof (sig x p) -> proof (p x)) ->
+        proof (p Omega)) =>
+   (0 Delta
+     (x : term U =>
+      2 : proof (sig x Delta) =>
+      3 : (p : term (pow U) -> proof (sig x p) -> proof (p (tau (sig x)))) =>
+      3 Delta 2
+        (p : term (pow U) =>
+         3 (y : term U => p (tau (sig y)))))
+     (p : term (pow U) => 0 (y : term U => p (tau (sig y))))))
+  (p : term (pow U) =>
+   1 : (x : term U -> proof (sig x p) -> proof (p x)) =>
+   1 Omega (x : term U => 1 (tau (sig x)))).
+

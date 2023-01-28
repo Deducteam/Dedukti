@@ -1,0 +1,71 @@
+#REQUIRE dpll.
+#REQUIRE p.
+
+def Formula  := dpll.Formula.
+def Variable := dpll.Variable.
+def or  := dpll.For.
+def and := dpll.Fand.
+def not := dpll.Fnot.
+def var := dpll.Fvar.
+
+
+def impl (A:Formula) (B:Formula) : Formula := or (not A) B.
+def iif  (A:Formula) (B:Formula) : Formula := and (impl A B) (impl B A).
+
+
+0 : Variable.
+S : Variable -> Variable.
+[x  ] dpll.eq x x --> dpll.T.
+[x,y] dpll.eq x y --> dpll.F.
+
+
+def 1 := S 0.
+def 2 := S 1.
+def 3 := S 2.
+def 4 := S 3.
+def 5 := S 4.
+def 6 := S 5.
+def 7 := S 6.
+def 8 := S 7.
+def 9 := S 8.
+
+def plus : Variable -> Variable -> Variable.
+[  y] plus 0     y     --> y
+[x,y] plus (S x) y     --> S (plus x y).
+
+def times : Variable -> Variable -> Variable.
+[  y] times 0     y     --> y
+[x,y] times (S x) y     --> plus y (times x y).
+
+
+def prb : Variable -> Formula.
+[] prb 0     --> var 0.
+[v] prb (S v) -->
+  and (prb v) (iif (not (var v)) (var (S v))).
+
+#EVAL[SNF] p.Print (prb 0).
+#EVAL[SNF] p.Print (prb 5).
+
+(;
+#EVAL[WHNF] (dpll.solve (prb 0)).
+#EVAL[WHNF] (dpll.solve (prb 1)).
+#EVAL[WHNF] (dpll.solve (prb 2)).
+#EVAL[WHNF] (dpll.solve (prb 3)).
+#EVAL[WHNF] (dpll.solve (prb 4)).
+
+#EVAL[SNF] p.Print (dpll.solve (prb 5)).
+#EVAL[SNF] p.Print (dpll.solve (prb 6)).
+#EVAL[SNF] p.Print (dpll.solve (prb 7)).
+#EVAL[SNF] p.Print (dpll.solve (prb 8)).
+
+#EVAL[SNF] p.size (prb 0).
+#EVAL[SNF] p.size (prb 1).
+#EVAL[SNF] p.size (prb 2).
+#EVAL[SNF] p.size (prb 3).
+#EVAL[SNF] p.size (prb 9).
+;)
+
+#EVAL[SNF] p.Print (dpll.solve (prb 9)).
+(;
+#EVAL[SNF] p.Print (dpll.solve (prb (plus 9 9))).
+;)
