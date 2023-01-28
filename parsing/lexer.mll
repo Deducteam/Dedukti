@@ -103,8 +103,6 @@ and string buf = parse
   { fail (get_loc lexbuf) "Unexpected end of file in string." }
 
 and sident op buf = parse
-  | '\\' (_ as c)
-  { Buffer.add_char buf '\\'; Buffer.add_char buf c; sident op buf lexbuf }
   | '|' '}' '.' (ident as id)
   { match op with
     | None -> QID (get_loc lexbuf , mk_mident (Buffer.contents buf), mk_ident id)
