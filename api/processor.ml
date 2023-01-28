@@ -294,7 +294,7 @@ end) : Interface with type 'a t := 'a C.t = struct
         try P.handle_entry env entry
         with exn -> raise @@ Env.Env_error (env, Entry.loc_of_entry entry, exn)
       in
-      Parser.handle input (handle_entry env)
+      Parser.to_seq_exn input |> Seq.iter (handle_entry env)
     with
     | Env.Env_error _ as exn -> raise @@ exn
     | exn -> raise @@ Env.Env_error (env, Basic.dloc, exn)
@@ -331,7 +331,7 @@ end) : Interface with type 'a t := 'a C.t = struct
    fun ?hook ~load_path ~files ~f ~default processor ->
     let handle_file file =
       try
-        let input = Parser.input_from_file file in
+        let input = Parser.from_file ~file in
         let data = handle_input ?hook ~load_path ~input processor in
         Parser.close input; data
       with Sys_error msg -> Errors.fail_sys_error ~file ~msg ()
@@ -339,7 +339,7 @@ end) : Interface with type 'a t := 'a C.t = struct
     let fold b file =
       try f (handle_file file) b
       with exn ->
-        let env = Env.init ~load_path ~input:(Parser.input_from_file file) in
+        let env = Env.init ~load_path ~input:(Parser.from_file ~file) in
         Env.fail_env_error env Basic.dloc exn
     in
     List.fold_left fold default files

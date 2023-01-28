@@ -68,7 +68,7 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
   match config.Config.run_on_stdin with
   | None -> Processor.handle_files ~load_path ~files ~hook Meta
   | Some m ->
-      let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
+      let input = Parsers.Parser.from_stdin (Basic.mk_mident m) in
       Api.Processor.handle_input ~hook ~load_path ~input Meta
 
 let meta_debug =

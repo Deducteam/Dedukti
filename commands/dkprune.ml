@@ -225,7 +225,7 @@ let write_file deps in_file =
   let out_file = output_file in_file in
   log "[WRITING FILE] %s" out_file;
   if not (is_empty deps in_file) then (
-    let input = Parser.input_from_file in_file in
+    let input = Parser.from_file ~file:in_file in
     let md = Parser.md_of_input input in
     let output = open_out out_file in
     let fmt = Format.formatter_of_out_channel output in
@@ -237,7 +237,7 @@ let write_file deps in_file =
           if NSet.mem name deps then
             Format.fprintf fmt "%a" Printer.print_entry e
     in
-    Parser.handle input handle_entry;
+    Parser.to_seq_exn input |> Seq.iter handle_entry;
     Parser.close input;
     close_out output)
 

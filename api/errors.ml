@@ -363,8 +363,12 @@ let fail_lexer_error ~red:_ = function
   | _ -> None
 
 let fail_parser_error ~red:_ = function
-  | Parser.Parse_error (lc, msg) ->
-      Some (702, Some lc, Format.asprintf "Parsing error: %s@." msg)
+  | Parser.Parser_error {loc; lexbuf} ->
+      Some
+        ( 702,
+          Some loc,
+          Format.asprintf "While parsing, unexpected lexeme '%s'@."
+            (Lexing.lexeme lexbuf) )
   | Preterm.BetaRedexInLHS lc ->
       Some
         ( 705,

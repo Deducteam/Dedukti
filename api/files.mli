@@ -1,6 +1,8 @@
-(** This module aims to be used to associated physical paths to module
-   identifiers {!type:Kernel.Basic.mident}. Two kind of physical paths
-   can be computed:
+(** {1 Files}
+
+    This module aims to be used to associated physical paths to module
+    identifiers {!type:Kernel.Basic.mident}. Two kind of physical
+    paths can be computed:
 
     - Usual files  (see {!val:regular_file_extension})
 
@@ -13,6 +15,11 @@ type t
 
 (** A path is just a string *)
 type path = string
+
+(** [md path] returns the module identifier associated with the path
+    given. This path is the basename (without extension) of the path
+    given. *)
+val md : path -> Kernel.Basic.mident
 
 (** A file is a string. The type is private so to have guarantees
     about the extension. *)

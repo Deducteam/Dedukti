@@ -32,7 +32,7 @@ let dummy ?(md = Basic.mk_mident "") () =
   let dummy_sig = Signature.make ~explicit_import:false md (fun _ _ -> "") in
   {
     load_path = Files.empty;
-    input = Parser.input_from_string md "";
+    input = Parser.from_string md "";
     sg = dummy_sig;
     red = (module Reduction.Default);
     typer = (module Typing.Default);

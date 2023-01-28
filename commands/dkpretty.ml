@@ -14,7 +14,7 @@ let beautify config files =
   let load_path = Files.empty in
   Processor.handle_files ~hook ~load_path ~files PrettyPrinter;
   let f m =
-    let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
+    let input = Parsers.Parser.from_stdin (Basic.mk_mident m) in
     Processor.handle_input ~load_path ~input PrettyPrinter
   in
   Option.iter f config.Config.run_on_stdin

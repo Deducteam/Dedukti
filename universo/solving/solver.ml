@@ -59,7 +59,7 @@ module Make (Solver : SMTSOLVER) : SOLVER = struct
     let elab_file = F.get_out_path in_path `Elaboration in
     let sol_file = F.out_from_string in_path `Solution in
     let fmt = F.fmt_of_file sol_file in
-    let md_theory = P.md_of_file (F.get_theory ()) in
+    let md_theory = Api.Files.md (F.get_theory ()) in
     F.add_requires fmt [F.md_of in_path `Elaboration; md_theory];
     let module P = struct
       type t = unit
@@ -136,7 +136,7 @@ module MakeUF (Solver : SMTSOLVER) : SOLVER = struct
     let elab_file = F.get_out_path in_path `Elaboration in
     let sol_file = F.out_from_string in_path `Solution in
     let fmt = F.fmt_of_file sol_file in
-    let md_theory = P.md_of_file (F.get_theory ()) in
+    let md_theory = Api.Files.md (F.get_theory ()) in
     F.add_requires fmt [F.md_of in_path `Elaboration; md_theory];
     let module P = struct
       type t = unit

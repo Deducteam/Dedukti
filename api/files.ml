@@ -1,5 +1,9 @@
 type path = string
 
+let md file =
+  let open Filename in
+  basename file |> remove_extension |> Kernel.Basic.mk_mident
+
 type t = path list
 
 type file = File of string [@@unboxed]

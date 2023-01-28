@@ -101,7 +101,7 @@ let get_out_path : path -> step -> path =
 let out_from_string : path -> step -> cout t =
  fun path step ->
   let path = get_out_path path step in
-  let md = P.md_of_file path in
+  let md = Api.Files.md path in
   let oc = open_out path in
   let fmt = Format.formatter_of_out_channel oc in
   {path; md; channel = Out (oc, fmt)}
@@ -110,7 +110,7 @@ let out_from_string : path -> step -> cout t =
 let in_from_string : path -> step -> cin t =
  fun path step ->
   let path = get_out_path path step in
-  let md = P.md_of_file path in
+  let md = Api.Files.md path in
   let ic = open_in path in
   {path; md; channel = In ic}
 
@@ -133,7 +133,7 @@ let close : type a. a t -> unit =
 
 (** [md_of path step] returns the mident associated to the Universo file [file] for step [step]. *)
 let md_of : path -> step -> B.mident =
- fun in_path step -> P.md_of_file (get_out_path in_path step)
+ fun in_path step -> Api.Files.md (get_out_path in_path step)
 
 let add_requires : Format.formatter -> B.mident list -> unit =
  fun fmt mds ->

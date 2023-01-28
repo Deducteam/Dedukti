@@ -168,7 +168,7 @@ module Cmd = struct
    fun ~load_path in_path ->
     (* FIXME: UGLY, rework to match the new API *)
     let out = F.get_out_path in_path `Output in
-    let env = Api.Env.init ~load_path ~input:(P.input_from_file out) in
+    let env = Api.Env.init ~load_path ~input:(P.from_file ~file:out) in
     let constraints = mk_constraints () in
     let out_file = F.out_from_string in_path `Checking in
     {env; in_path; meta_out = output_meta_cfg ~load_path; constraints; out_file}
@@ -266,7 +266,7 @@ let elaborate : load_path:Api.Files.t -> string -> unit =
   L.log_univ "[ELAB] %s" (F.get_out_path in_path `Elaboration);
   let in_file = F.get_out_path in_path `Input in
   let env = Cmd.to_elaboration_env ~load_path in_file in
-  let entries = P.parse (P.input_from_file in_file) in
+  let entries = P.from_file ~file:in_file |> P.to_seq_exn |> List.of_seq in
   (* This steps generates the fresh universe variables *)
   let entries' = List.map (E.mk_entry env) entries in
   (* Write the elaborated terms in the normal file (in the output directory) *)
@@ -347,7 +347,7 @@ let simplify : load_path:Api.Files.t -> string list -> unit =
     in
     M.add_rules out_cfg solution_rules;
     let file = F.get_out_path in_path `Output in
-    let input = P.input_from_file file in
+    let input = P.from_file ~file in
     let env = Api.Env.init ~load_path ~input in
     let output = F.out_from_string in_path `Simplify in
     let fmt = F.fmt_of_file output in
@@ -358,7 +358,9 @@ let simplify : load_path:Api.Files.t -> string list -> unit =
           Format.fprintf fmt "%a@." Api.Pp.Default.print_entry
             (M.mk_entry out_cfg env e)
     in
-    P.handle input mk_entry; P.close input; F.close output
+    P.to_seq_exn input |> Seq.iter mk_entry;
+    P.close input;
+    F.close output
   in
   let out_cfg = Cmd.output_meta_cfg ~load_path in
   List.iter (normalize_file out_cfg) in_paths
@@ -388,7 +390,7 @@ let cmd_options =
       Arg.String
         (fun s ->
           F.mk_theory s;
-          U.md_theory := P.md_of_file s),
+          U.md_theory := Api.Files.md s),
       " (MANDATORY) Theory file" );
     ( "--config",
       Arg.String (fun s -> Cmd.config_path := s),
@@ -424,7 +426,7 @@ let cmd_options =
 let generate_empty_sol_file : string -> unit =
  fun in_path ->
   let sol_file = F.get_out_path in_path `Solution in
-  let check_md = P.md_of_file (F.get_out_path in_path `Checking) in
+  let check_md = Api.Files.md (F.get_out_path in_path `Checking) in
   let oc = open_out sol_file in
   let fmt = Format.formatter_of_out_channel oc in
   Format.fprintf fmt "#REQUIRE %a.@.@." Api.Pp.Default.print_mident check_md;

@@ -107,7 +107,7 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
   let load_path = Config.load_path config in
   Processor.handle_files ~hook ~load_path ~files TypeChecker;
   let f m =
-    let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
+    let input = Parsers.Parser.from_stdin (Basic.mk_mident m) in
     Processor.handle_input ~load_path ~input TypeChecker
   in
   Option.iter f config.Config.run_on_stdin
