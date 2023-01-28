@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DKCHECK="$(pwd)/../dk.native check"
-DKDEP="$(pwd)/../dk.native dep"
+DKCHECK="$(pwd)/../../dk.native check"
+DKDEP="$(pwd)/../../dk.native dep"
 DKFLAGS="-q"
 
 SRC="https://github.com/rafoo/dklib/archive/v2.6.zip"

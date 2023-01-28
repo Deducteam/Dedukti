@@ -62,7 +62,7 @@ tezt: bin binaries universo.native
 
 #### Library tests ###########################################################
 
-TEST_LIBS=libraries
+TEST_LIBS=libraries/big-libraries
 
 .PHONY: matita
 matita: all
