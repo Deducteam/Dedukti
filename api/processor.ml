@@ -232,14 +232,9 @@ type hook = {
 let handle_processor : Parsers.Parser.input -> Env.t -> (module S) -> unit =
  fun input env (module P : S) ->
   try
-    let handle_entry env entry =
-      try P.handle_entry env entry
-      with exn -> raise @@ Env.Env_error (env, Entry.loc_of_entry entry, exn)
-    in
+    let handle_entry env entry = P.handle_entry env entry in
     ignore @@ (Parser.to_seq_exn input |> Seq.fold_left handle_entry env)
-  with
-  | Env.Env_error _ as exn -> raise @@ exn
-  | exn -> raise @@ Env.Env_error (env, Basic.dloc, exn)
+  with exn -> raise @@ Env.Env_error (env, Basic.dloc, exn)
 
 let handle_input :
     ?hook:hook -> Files.load_path -> input:Parser.input -> 'a t -> 'a =
