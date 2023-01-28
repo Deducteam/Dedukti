@@ -293,18 +293,3 @@ let handle_files :
      ~f:(fun data _ -> data)
      ~default:(P.output (Env.dummy ()))
      processor
-
-let of_pure (type a) ~f ~init : (module S with type output = a) =
-  (module struct
-    type t = Env.t
-
-    type output = a
-
-    let _d = ref init
-
-    let handle_entry env entry =
-      _d := f !_d env entry;
-      env
-
-    let output _ = !_d
-  end)

@@ -141,15 +141,6 @@ val fold_files :
   'a t ->
   'b
 
-(** The actual type of the processor as a module *)
-
-(** [of_pure ~f ~init] returns processor from the fold-like function [f]. [f acc
-    env ent] folds entry [ent] on accumulator [acc] in environment [env]. *)
-val of_pure :
-  f:('a -> Env.t -> Parsers.Entry.entry -> 'a) ->
-  init:'a ->
-  (module S with type output = 'a)
-
 val typecheck : unit t
 
 val get_signature : Kernel.Signature.t t
