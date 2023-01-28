@@ -229,11 +229,6 @@ type hook = {
   after : Parsers.Parser.input -> Env.t -> processor_error option -> unit;
 }
 
-let handle_processor : Parsers.Parser.input -> Env.t -> (module S) -> unit =
- fun input env (module P : S) ->
-  let handle_entry env entry = P.handle_entry env entry in
-  ignore @@ (Parser.to_seq_exn input |> Seq.fold_left handle_entry env)
-
 let handle_input :
     ?hook:hook -> Files.load_path -> input:Parser.input -> 'a t -> 'a =
   fun (type a) ?hook load_path ~input processor ->
@@ -243,7 +238,7 @@ let handle_input :
    (match hook with None -> () | Some hook -> hook.before input env);
    let exn =
      try
-       handle_processor input env (module P);
+       ignore @@ (Parser.to_seq_exn input |> Seq.fold_left P.handle_entry env);
        None
      with exn -> Some exn
    in
