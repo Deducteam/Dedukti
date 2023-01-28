@@ -19,8 +19,6 @@ type t
     environment is built from module [m], but without file. *)
 val dummy : ?md:mident -> unit -> t
 
-exception Env_error of t * loc * exn
-
 (** {2 Debugging} *)
 
 exception DebugFlagNotRecognized of char

@@ -36,8 +36,6 @@ let dummy ?(md = Basic.mk_mident "") () =
     typer = (module Typing.Default);
   }
 
-exception Env_error of t * loc * exn
-
 let get_load_path env = env.load_path
 
 let check_arity = ref true
