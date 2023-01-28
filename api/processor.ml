@@ -2,8 +2,6 @@ open Kernel
 open Basic
 open Parsers
 
-module type CustomEnv = module type of Env with type t = Env.t
-
 module type S = sig
   type t
 
@@ -14,7 +12,7 @@ module type S = sig
   val get_data : Env.t -> t
 end
 
-module MakeTypeChecker (Env : CustomEnv) : S with type t = unit = struct
+module TypeChecker : S with type t = unit = struct
   type t = unit
 
   let handle_entry env e =
@@ -85,10 +83,7 @@ module MakeTypeChecker (Env : CustomEnv) : S with type t = unit = struct
   let get_data _ = ()
 end
 
-module TypeChecker = MakeTypeChecker (Env)
-
-module MakeSignatureBuilder (Env : CustomEnv) : S with type t = Signature.t =
-struct
+module SignatureBuilder : S with type t = Signature.t = struct
   type t = Signature.t
 
   let handle_entry env e =
@@ -118,9 +113,7 @@ struct
   let get_data env = Env.get_signature env
 end
 
-module SignatureBuilder = MakeSignatureBuilder (Env)
-
-module MakeEntryPrinter (Env : CustomEnv) : S with type t = unit = struct
+module EntryPrinter : S with type t = unit = struct
   type t = unit
 
   let handle_entry env e =
@@ -134,10 +127,7 @@ module MakeEntryPrinter (Env : CustomEnv) : S with type t = unit = struct
   let get_data _ = ()
 end
 
-module EntryPrinter = MakeEntryPrinter (Env)
-
-module MakeDependencies (Env : CustomEnv) : S with type t = Dep_legacy.t =
-struct
+module Dependencies : S with type t = Dep_legacy.t = struct
   type t = Dep_legacy.t
 
   let handle_entry env e = Dep_legacy.handle (Env.get_name env) (fun f -> f e)
@@ -145,9 +135,7 @@ struct
   let get_data _ = Dep_legacy.deps
 end
 
-module Dependencies = MakeDependencies (Env)
-
-module MakeTopLevel (Env : CustomEnv) : S with type t = unit = struct
+module TopLevel : S with type t = unit = struct
   type t = unit
 
   module Printer = Pp.Default
@@ -201,8 +189,6 @@ module MakeTopLevel (Env : CustomEnv) : S with type t = unit = struct
 
   let get_data _ = ()
 end
-
-module TopLevel = MakeTopLevel (Env)
 
 type _ t = ..
 

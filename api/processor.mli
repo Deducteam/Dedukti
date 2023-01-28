@@ -192,22 +192,3 @@ val of_pure :
   (module S with type t = 'a)
 
 module T : Interface with type 'a t := (module S with type t = 'a)
-
-(** {3 Define processors with a custom environement} *)
-
-(** It may be possible that for the default processors defined in this API,
-    you want to use them with another module [Env] (for example for debugging or
-    to hook yourself in one of the functions declared by the module). This is
-    possible using the functors below. For your custom processors, this is not
-    needed because you can already do it. The only requirement is to keep the same
-    [Env.t] type. *)
-
-module type CustomEnv = module type of Env with type t = Env.t
-
-module MakeTypeChecker (E : CustomEnv) : S with type t = unit
-
-module MakeSignatureBuilder (E : CustomEnv) : S with type t = Kernel.Signature.t
-
-module MakeEntryPrinter (E : CustomEnv) : S with type t = unit
-
-module MakeDependencies (E : CustomEnv) : S with type t = Dep_legacy.t
