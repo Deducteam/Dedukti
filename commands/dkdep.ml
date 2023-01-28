@@ -54,14 +54,12 @@ let dkdep config ignore output_file_opt sorted files =
     let open Processor in
     let hook =
       {
-        before = (fun _ -> ());
+        before = (fun _input _env -> ());
         after =
-          (fun _ exn ->
+          (fun input _env exn ->
             match exn with
             | None -> ()
-            | Some (env, loc, exn) ->
-                let file = Env.get_filename env in
-                Errors.fail_exn ~file loc exn);
+            | Some (_env, loc, exn) -> Errors.fail_exn input loc exn);
       }
     in
     (* Actual work. *)

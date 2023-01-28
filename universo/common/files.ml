@@ -169,4 +169,8 @@ let export : load_path:Api.Files.t -> path -> step -> unit =
   let env =
     Api.Processor.T.handle_files ~load_path ~files:[out_file] (module P)
   in
-  Api.Env.export env
+  (* FIXME! *)
+  let file =
+    Api.Files.input_as_file (Parsers.Parser.from_file ~file:out_file)
+  in
+  Api.Env.export env ~file

@@ -51,17 +51,16 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
   in
   let hook =
     {
-      Processor.before = (fun _ -> ());
+      Processor.before = (fun _input _env -> ());
       after =
-        (fun env exn ->
+        (fun input _env exn ->
           match exn with
           | None ->
               if not (Config.quiet config) then
                 Meta.log "[SUCCESS] File '%s' was successfully metaified."
-                  (Env.get_filename env)
-          | Some (env, loc, exn) ->
-              let file = Env.get_filename env in
-              Errors.fail_exn ~file loc exn);
+                  (Parsers.Parser.md_of_input input
+                  |> Kernel.Basic.string_of_mident)
+          | Some (_env, loc, exn) -> Errors.fail_exn input loc exn);
     }
   in
   let processor = Meta.make_meta_processor cfg ~post_processing in

@@ -5,14 +5,10 @@ open Cmdliner
 let beautify config files =
   Config.init config;
   let open Processor in
-  let after _ exn =
-    Option.iter
-      (fun (env, loc, e) ->
-        let file = Env.get_filename env in
-        Errors.fail_exn ~file loc e)
-      exn
+  let after input _ exn =
+    Option.iter (fun (_env, loc, e) -> Errors.fail_exn input loc e) exn
   in
-  let hook = {before = ignore; after} in
+  let hook = {before = (fun _input _env -> ()); after} in
   (* Load path is not needed since no importation is done by the
       [PrettyPrinter] processor. *)
   let load_path = Files.empty in

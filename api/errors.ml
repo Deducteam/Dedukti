@@ -46,7 +46,11 @@ let try_print_oneliner fmt (te, ctxt) =
   else if ctxt = [] then Format.fprintf fmt "@.%a@." Pp.print_term te
   else Format.fprintf fmt "@.%a@.----%a" Pp.print_term te Pp.print_err_ctxt ctxt
 
-let fail_sys_error ~file ~msg = fail_exit ~file ~code:"SYSTEM" None "%s@." msg
+let fail_sys_error input ~msg =
+  let file =
+    Parsers.Parser.file_of_input input |> Option.value ~default:"<none>"
+  in
+  fail_exit ~file ~code:"SYSTEM" None "%s@." msg
 
 let fail_cli ~msg = fail_exit ~file:"cli" ~code:"CLI" None "%s@." msg
 
@@ -71,7 +75,10 @@ let string_of_exception ~reduce lc exn =
   in
   aux !exception_handlers
 
-let fail_exn ~file loc exn =
+let fail_exn input loc exn =
+  let file =
+    Parsers.Parser.file_of_input input |> Option.value ~default:"<none>"
+  in
   let code, lc, msg = string_of_exception ~reduce:!reduce loc exn in
   fail_exit ~file ~code:(string_of_int code) (Some lc) "%s" msg
 

@@ -22,9 +22,9 @@ val fail_exit :
   'a
 
 (** Print a system error message then exits with code 1. *)
-val fail_sys_error : file:string -> msg:string -> 'a
+val fail_sys_error : Parsers.Parser.input -> msg:string -> 'a
 
-val fail_exn : file:string -> Basic.loc -> exn -> 'a
+val fail_exn : Parsers.Parser.input -> Basic.loc -> exn -> 'a
 
 val fail_cli : msg:string -> 'a
 

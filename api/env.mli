@@ -3,7 +3,6 @@ open Kernel
 
 open Basic
 open Term
-open Parsers
 
 (** {2 Error Datatype} *)
 
@@ -56,13 +55,7 @@ val explicit_import : bool ref
 (** [init ~load_path ~input] initializes a new global environement from
    the [input] and [load_path]. [load_path] is used to find object
    files that can be imported during type checking. *)
-val init : load_path:Files.t -> input:Parser.input -> t
-
-(** [get_input env] returns the input used to create [env] *)
-val get_input : t -> Parser.input
-
-(** [get_input env] returns the filename associated to the input of [env]. We return a fake filename if the input was not create from a filename. *)
-val get_filename : t -> string
+val init : load_path:Files.t -> Kernel.Basic.mident -> t
 
 (** [get_signature env] returns the signature used by this module. *)
 val get_signature : t -> Signature.t
@@ -99,8 +92,8 @@ val is_static : t -> loc -> name -> bool
 (** [get_dtree env l md id] returns the decision/matching tree associated with [md.id]. *)
 val get_dtree : t -> loc -> name -> Dtree.t
 
-(** [export env] saves the current environment in a [*.dko] file. *)
-val export : t -> unit
+(** [export env ~file] saves the current environment in a [*.dko] file. *)
+val export : t -> file:Files.file -> unit
 
 (** [import env lc md] the module [md] in the current environment. *)
 val import : t -> loc -> mident -> unit

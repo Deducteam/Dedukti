@@ -92,11 +92,14 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
   Typing.coc := coc;
   Typing.fail_on_unsatisfiable_constraints := type_lhs;
   let open Processor in
-  let hook_after env exn =
+  let hook_after input env exn =
     match exn with
     | None ->
-        if not (Config.quiet config) then Errors.success (Env.get_filename env);
-        if export then Env.export env;
+        let file = Files.input_as_file input in
+        let (File filename) = file in
+        if not (Config.quiet config) then Errors.success filename;
+        let file = Files.input_as_file input in
+        if export then Env.export env ~file;
         Confluence.finalize ()
     | Some (env, loc, exn) ->
         let reduce term =
@@ -105,11 +108,10 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
             term
         in
         if errors_in_snf then Errors.reduce := reduce;
-        let file = Env.get_filename env in
-        Errors.fail_exn ~file loc exn
+        Errors.fail_exn input loc exn
   in
   let hook =
-    {before = (fun _ -> Confluence.initialize ()); after = hook_after}
+    {before = (fun _input _env -> Confluence.initialize ()); after = hook_after}
   in
   let load_path = Config.load_path config in
   Processor.handle_files ~hook ~load_path ~files TypeChecker;

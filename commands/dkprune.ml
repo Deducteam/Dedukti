@@ -164,16 +164,15 @@ let _ =
    files. This is called also on each module which is in the
    transitive closure of the module dependencies *)
 let rec run_on_files ~load_path files =
-  let before env =
+  let before input env =
     let md = Env.get_name env in
     if not @@ MSet.mem md !computed then
-      match Parser.file_of_input (Env.get_input env) with
+      match Parser.file_of_input input with
       | None ->
-          log "[COMPUTE DEP] %s"
-            (string_of_mident (Parser.md_of_input (Env.get_input env)))
+          log "[COMPUTE DEP] %s" (string_of_mident (Parser.md_of_input input))
       | Some file -> log "[COMPUTE DEP] %s" file
   in
-  let after env exn =
+  let after input env exn =
     match exn with
     | None ->
         let md = Env.get_name env in
@@ -187,9 +186,7 @@ let rec run_on_files ~load_path files =
         in
         let new_files = MSet.fold add_files deps.deps [] in
         if List.length new_files <> 0 then run_on_files ~load_path new_files
-    | Some (env, loc, exn) ->
-        let file = Env.get_filename env in
-        Errors.fail_exn ~file loc exn
+    | Some (_env, loc, exn) -> Errors.fail_exn input loc exn
   in
   let hook = Processor.{before; after} in
   (* Load path is not needed since no importation is done by the
@@ -270,7 +267,14 @@ let print_dependencies ~load_path names =
   | Dep_legacy.Dep_error (NameNotFound name) ->
       Errors.fail_exit ~file:"configuration file" ~code:"DKPRUNE" None
         "The name %a does not exists@." Pp.Default.print_name name
-  | exn -> Errors.fail_exn ~file:"dkprune configuration file" Basic.dloc exn
+  | exn ->
+      (* Ugly!!! *)
+      let input =
+        Parsers.Parser.from_string
+          (Kernel.Basic.mk_mident "configuration file")
+          ""
+      in
+      Errors.fail_exn input Basic.dloc exn
 
 let files =
   let doc = "Dedukti files to process" in

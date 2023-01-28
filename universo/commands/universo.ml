@@ -168,7 +168,8 @@ module Cmd = struct
    fun ~load_path in_path ->
     (* FIXME: UGLY, rework to match the new API *)
     let out = F.get_out_path in_path `Output in
-    let env = Api.Env.init ~load_path ~input:(P.from_file ~file:out) in
+    let input = P.from_file ~file:out in
+    let env = Api.Env.init ~load_path (P.md_of_input input) in
     let constraints = mk_constraints () in
     let out_file = F.out_from_string in_path `Checking in
     {env; in_path; meta_out = output_meta_cfg ~load_path; constraints; out_file}
@@ -305,19 +306,18 @@ let check : load_path:Api.Files.t -> string -> unit =
     Api.Processor.
       {
         before =
-          (fun env ->
+          (fun _input env ->
             let sg = Api.Env.get_signature env in
             S.import_signature sg (Cmd.mk_theory ~load_path));
         after =
-          (fun _ -> function
+          (fun input _ -> function
             | None -> ()
-            | Some (env, loc, exn) ->
-                let file = Api.Env.get_filename env in
-                Api.Errors.fail_exn ~file loc exn);
+            | Some (_env, loc, exn) -> Api.Errors.fail_exn input loc exn);
       }
   in
   Api.Processor.T.handle_files ~hook ~load_path ~files:[file] (module P);
-  Api.Env.export universo_env.env;
+  let file = Api.Files.input_as_file (Parsers.Parser.from_file ~file:in_path) in
+  Api.Env.export universo_env.env ~file;
   C.flush ();
   F.close universo_env.out_file;
   F.export in_path ~load_path `Checking;
@@ -350,7 +350,7 @@ let simplify : load_path:Api.Files.t -> string list -> unit =
     M.add_rules out_cfg solution_rules;
     let file = F.get_out_path in_path `Output in
     let input = P.from_file ~file in
-    let env = Api.Env.init ~load_path ~input in
+    let env = Api.Env.init ~load_path (P.md_of_input input) in
     let output = F.out_from_string in_path `Simplify in
     let fmt = F.fmt_of_file output in
     let mk_entry e =
@@ -455,8 +455,8 @@ let _ =
   with
   (* FIXME: ugly, should be handled by universo via processor. *)
   | (Kernel.Signature.Signature_error _ | Kernel.Typing.Typing_error _) as e ->
-      let file = "unknown" in
-      Api.Errors.fail_exn ~file Kernel.Basic.dloc e
+      let input = P.from_string (Kernel.Basic.mk_mident "<universo>") "" in
+      Api.Errors.fail_exn input Kernel.Basic.dloc e
   | Cmd.Cmd_error (Misc s) ->
       Api.Errors.fail_exit ~code:"-1" ~file:"" None "%s@." s
   | Sys_error err ->

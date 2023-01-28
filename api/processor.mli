@@ -51,9 +51,9 @@ type processor_error = Env.t * Kernel.Basic.loc * exn
 
 (** To hook an input before and after it is being processed *)
 type hook = {
-  before : Env.t -> unit;
+  before : Parsers.Parser.input -> Env.t -> unit;
       (** hook_before is executed by the processor before processing the input *)
-  after : Env.t -> processor_error option -> unit;
+  after : Parsers.Parser.input -> Env.t -> processor_error option -> unit;
       (** hook_after is executed by the processor after processing the output *)
 }
 

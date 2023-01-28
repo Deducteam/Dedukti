@@ -256,8 +256,8 @@ let get_processor (type a) : a t -> (module S with type t = a) =
 type processor_error = Env.t * Kernel.Basic.loc * exn
 
 type hook = {
-  before : Env.t -> unit;
-  after : Env.t -> processor_error option -> unit;
+  before : Parsers.Parser.input -> Env.t -> unit;
+  after : Parsers.Parser.input -> Env.t -> processor_error option -> unit;
 }
 
 module type Interface = sig
@@ -286,9 +286,8 @@ module Make (C : sig
 end) : Interface with type 'a t := 'a C.t = struct
   type 'a t = 'a C.t
 
-  let handle_processor : Env.t -> (module S) -> unit =
-   fun env (module P : S) ->
-    let input = Env.get_input env in
+  let handle_processor : Parsers.Parser.input -> Env.t -> (module S) -> unit =
+   fun input env (module P : S) ->
     try
       let handle_entry env entry =
         try P.handle_entry env entry
@@ -303,11 +302,12 @@ end) : Interface with type 'a t := 'a C.t = struct
       ?hook:hook -> load_path:Files.t -> input:Parser.input -> 'a t -> 'a =
     fun (type a) ?hook ~load_path ~input processor ->
      let (module P : S with type t = a) = C.get_processor processor in
-     let env = Env.init ~load_path ~input in
-     (match hook with None -> () | Some hook -> hook.before env);
+     let md = Parsers.Parser.md_of_input input in
+     let env = Env.init ~load_path md in
+     (match hook with None -> () | Some hook -> hook.before input env);
      let exn =
        try
-         handle_processor env (module P);
+         handle_processor input env (module P);
          None
        with Env.Env_error (env, lc, e) -> Some (env, lc, e)
      in
@@ -315,8 +315,8 @@ end) : Interface with type 'a t := 'a C.t = struct
      | None -> (
          match exn with
          | None -> ()
-         | Some (_env, loc, exn) -> Errors.fail_exn ~file:"<input>" loc exn)
-     | Some hook -> hook.after env exn);
+         | Some (_env, loc, exn) -> Errors.fail_exn input loc exn)
+     | Some hook -> hook.after input env exn);
      let data = P.get_data env in
      data
 
@@ -329,16 +329,16 @@ end) : Interface with type 'a t := 'a C.t = struct
       'a t ->
       'b =
    fun ?hook ~load_path ~files ~f ~default processor ->
-    let handle_file file =
+    let handle_input input =
       try
-        let input = Parser.from_file ~file in
         let data = handle_input ?hook ~load_path ~input processor in
         Parser.close input; data
-      with Sys_error msg -> Errors.fail_sys_error ~file ~msg
+      with Sys_error msg -> Errors.fail_sys_error input ~msg
     in
     let fold b file =
-      try f (handle_file file) b
-      with exn -> Errors.fail_exn ~file Basic.dloc exn
+      let input = Parser.from_file ~file in
+      try f (handle_input input) b
+      with exn -> Errors.fail_exn input Basic.dloc exn
     in
     List.fold_left fold default files
 

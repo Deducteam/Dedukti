@@ -3,7 +3,6 @@ open Basic
 open Term
 open Rule
 open Typing
-open Parsers
 
 exception DebugFlagNotRecognized of char
 
@@ -22,7 +21,6 @@ let set_debug_mode =
 
 type t = {
   load_path : Files.t; (* Directories where object files can be found. *)
-  input : Parser.input;
   sg : Signature.t;
   red : (module Reduction.S);
   typer : (module Typing.S);
@@ -32,7 +30,6 @@ let dummy ?(md = Basic.mk_mident "") () =
   let dummy_sig = Signature.make ~explicit_import:false md (fun _ _ -> "") in
   {
     load_path = Files.empty;
-    input = Parser.from_string md "";
     sg = dummy_sig;
     red = (module Reduction.Default);
     typer = (module Typing.Default);
@@ -42,23 +39,19 @@ exception Env_error of t * loc * exn
 
 let get_load_path env = env.load_path
 
-let get_input env = env.input
-
 let check_arity = ref true
 
 let check_ll = ref false
 
 let explicit_import = ref false
 
-let init ~load_path ~input =
+let init ~load_path md =
   let find_object_file = Files.find_object_file_exn load_path in
   let explicit_import = !explicit_import in
-  let sg =
-    Signature.make ~explicit_import (Parser.md_of_input input) find_object_file
-  in
+  let sg = Signature.make ~explicit_import md find_object_file in
   let red : (module Reduction.S) = (module Reduction.Default) in
   let typer : (module Typing.S) = (module Typing.Default) in
-  {load_path; input; sg; red; typer}
+  {load_path; sg; red; typer}
 
 let set_reduction_engine env (module R : Reduction.S) =
   let red = (module R : Reduction.S) in
@@ -68,11 +61,6 @@ let set_reduction_engine env (module R : Reduction.S) =
 let get_reduction_engine env = env.red
 
 let get_name env = Signature.get_name env.sg
-
-let get_filename env =
-  match Parser.file_of_input env.input with
-  | None -> "<not a file>"
-  | Some f -> f
 
 let get_signature env = env.sg
 
@@ -98,8 +86,7 @@ let get_type env lc cst = Signature.get_type env.sg lc cst
 
 let get_dtree env lc cst = Signature.get_dtree env.sg lc cst
 
-let export env =
-  let file = Files.input_as_file env.input in
+let export env ~file =
   let (File file) = Files.as_object_file file in
   let oc = open_out file in
   Signature.export env.sg oc;
