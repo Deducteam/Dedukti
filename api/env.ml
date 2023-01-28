@@ -20,7 +20,8 @@ let set_debug_mode =
     | c -> raise (DebugFlagNotRecognized c))
 
 type t = {
-  load_path : Files.t; (* Directories where object files can be found. *)
+  load_path : Files.load_path;
+      (* Directories where object files can be found. *)
   sg : Signature.t;
   red : (module Reduction.S);
   typer : (module Typing.S);
@@ -45,7 +46,7 @@ let check_ll = ref false
 
 let explicit_import = ref false
 
-let init ~load_path md =
+let init load_path md =
   let find_object_file = Files.find_object_file_exn load_path in
   let explicit_import = !explicit_import in
   let sg = Signature.make ~explicit_import md find_object_file in

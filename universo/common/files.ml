@@ -144,8 +144,8 @@ let add_requires : Format.formatter -> B.mident list -> unit =
 
 type _ Processor.t += FilterSignature : Api.Env.t Processor.t
 
-let export : load_path:Api.Files.t -> path -> step -> unit =
- fun ~load_path in_path step ->
+let export : Api.Files.load_path -> path -> step -> unit =
+ fun load_path in_path step ->
   let out_file = get_out_path in_path step in
   let is_eq_rule r =
     let open Kernel.Rule in
@@ -155,19 +155,21 @@ let export : load_path:Api.Files.t -> path -> step -> unit =
   let module P = struct
     type t = Api.Env.t
 
+    type output = Api.Env.t
+
     let handle_entry env entry =
       let (module SB) = Processor.get_processor Processor.SignatureBuilder in
       match (step, entry) with
       (* TODO: don't remember why only equality constraints are exported *)
       | `Checking, Parsers.Entry.Rules (_, r :: _) when is_eq_rule r ->
           SB.handle_entry env entry
-      | `Checking, _ -> ()
+      | `Checking, _ -> env
       | _, _ -> SB.handle_entry env entry
 
-    let get_data env = env
+    let output env = env
   end in
   let env =
-    Api.Processor.T.handle_files ~load_path ~files:[out_file] (module P)
+    Api.Processor.T.handle_files load_path ~files:[out_file] (module P)
   in
   (* FIXME! *)
   let file =

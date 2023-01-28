@@ -35,7 +35,7 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
   let load_path = Config.load_path config in
   let cfg =
     Meta.default_config ~beta:(not no_beta) ?encoding
-      ~decoding:(not no_unquoting) ~register_before ~load_path ()
+      ~decoding:(not no_unquoting) ~register_before load_path ()
   in
   (* Adding normalisation will be done with an empty list of meta rules. *)
   if no_meta then Meta.add_rules cfg [];
@@ -66,10 +66,10 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
   let processor = Meta.make_meta_processor cfg ~post_processing in
   Processor.Registration.register_processor Meta {equal} processor;
   match config.Config.run_on_stdin with
-  | None -> Processor.handle_files ~load_path ~files ~hook Meta
+  | None -> Processor.handle_files load_path ~files ~hook Meta
   | Some m ->
       let input = Parsers.Parser.from_stdin (Basic.mk_mident m) in
-      Api.Processor.handle_input ~hook ~load_path ~input Meta
+      Api.Processor.handle_input ~hook load_path ~input Meta
 
 let meta_debug =
   let doc = "Activate meta-specific debug flag" in

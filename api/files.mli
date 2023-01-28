@@ -11,7 +11,7 @@
 *)
 
 (** The load path *)
-type t
+type load_path
 
 (** A path is just a string *)
 type path = string
@@ -26,13 +26,13 @@ val md : path -> Kernel.Basic.mident
 type file = private File of string [@@unboxed]
 
 (** [empty] represents the empty load path. *)
-val empty : t
+val empty : load_path
 
 (** [add_path load_path path] adds [path] the [load_path]. *)
-val add_path : t -> path -> t
+val add_path : load_path -> path -> load_path
 
 (** [pp] is a pretty-printer for [t]. *)
-val pp : t Kernel.Basic.printer
+val pp : load_path Kernel.Basic.printer
 
 (** Extension of regular files. *)
 val regular_file_extension : string
@@ -54,12 +54,12 @@ type status =
 
    This function expects that a file associated to a module [md] uses
    the same extension as {!val:regular_file_extension}. *)
-val file_status : t -> Kernel.Basic.mident -> status
+val file_status : load_path -> Kernel.Basic.mident -> status
 
 (** [get_status_exn t] is similar to [file_status] except an exception
    is raised if [find_stauts] returned [File_not_found] or
    [File_found_multiple_time].  *)
-val get_file_exn : t -> Kernel.Basic.loc -> Kernel.Basic.mident -> file
+val get_file_exn : load_path -> Kernel.Basic.loc -> Kernel.Basic.mident -> file
 
 (** [as_object_file ?prefix file] returns the object file associated
    to [file]. Every path of an object file is prefixed with [prefix].
@@ -75,4 +75,4 @@ val as_object_file : ?prefix:path -> file -> file
 val input_as_file : ?default_path:path -> Parsers.Parser.input -> file
 
 val find_object_file_exn :
-  ?prefix:path -> t -> Kernel.Basic.loc -> Kernel.Basic.mident -> string
+  ?prefix:path -> load_path -> Kernel.Basic.loc -> Kernel.Basic.mident -> string

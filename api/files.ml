@@ -4,7 +4,7 @@ let md file =
   let open Filename in
   basename file |> remove_extension |> Kernel.Basic.mk_mident
 
-type t = path list
+type load_path = path list
 
 type file = File of string [@@unboxed]
 
@@ -70,7 +70,7 @@ let input_as_file ?(default_path = Filename.current_dir_name) input =
 type file_error =
   | Error_file_not_found of {
       loc : Kernel.Basic.loc;
-      load_path : t;
+      load_path : load_path;
       md : Kernel.Basic.mident;
     }
   | Error_file_found_multiple_times of {

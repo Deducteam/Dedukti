@@ -55,7 +55,7 @@ val explicit_import : bool ref
 (** [init ~load_path ~input] initializes a new global environement from
    the [input] and [load_path]. [load_path] is used to find object
    files that can be imported during type checking. *)
-val init : load_path:Files.t -> Kernel.Basic.mident -> t
+val init : Files.load_path -> Kernel.Basic.mident -> t
 
 (** [get_signature env] returns the signature used by this module. *)
 val get_signature : t -> Signature.t
@@ -64,7 +64,7 @@ val get_signature : t -> Signature.t
 val get_name : t -> mident
 
 (** [get_load_path env] returns the current [load_path] associated to the environment. *)
-val get_load_path : t -> Files.t
+val get_load_path : t -> Files.load_path
 
 (** [set_reduction_egine env] changes the reduction engine of [env]. The new environment shares the same signature than [env]. *)
 val set_reduction_engine : t -> (module Reduction.S) -> t

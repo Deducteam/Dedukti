@@ -4,7 +4,7 @@ open Api
 open Cmdliner
 
 type t = {
-  load_path : Api.Files.t;
+  load_path : Api.Files.load_path;
   load_path_legacy : string list;
   run_on_stdin : string option;
   no_color : bool;
@@ -82,4 +82,4 @@ let init (c : t) : unit =
 (** [quiet c] returns [true] if quiet mode has been activated. *)
 let quiet (c : t) : bool = c.debug = "q"
 
-let load_path (c : t) : Files.t = c.load_path
+let load_path (c : t) : Files.load_path = c.load_path

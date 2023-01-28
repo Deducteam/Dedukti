@@ -69,16 +69,20 @@ let name_of_entry md = function
   | _ -> None
 
 (* Wrapper around Processor.Dependencies to avoid to compute dependencies of a module already computed *)
-module PruneDepProcessor : Processor.S with type t = unit = struct
-  type t = unit
+module PruneDepProcessor : Processor.S with type output = unit = struct
+  type t = Env.t
+
+  type output = unit
 
   let handle_entry env entry =
     let open Processor in
     let md = Env.get_name env in
     let (module Dep) = get_processor Dependencies in
-    if not @@ MSet.mem md !computed then Dep.handle_entry env entry
+    if not @@ MSet.mem md !computed then ignore (Dep.handle_entry env entry)
 
-  let get_data _ = ()
+  let handle_entry env entry = handle_entry env entry; env
+
+  let output _ = ()
 end
 
 type _ Processor.t += PruneDepProcessor : unit Processor.t
@@ -96,8 +100,10 @@ let _ =
     (module PruneDepProcessor)
 
 (* Gather all the identifiers declared or defined in a module *)
-module GatherNames : Processor.S with type t = NSet.t = struct
-  type t = NSet.t
+module GatherNames : Processor.S with type output = NSet.t = struct
+  type t = Env.t
+
+  type output = NSet.t
 
   let names = ref NSet.empty
 
@@ -107,7 +113,9 @@ module GatherNames : Processor.S with type t = NSet.t = struct
     fun entry ->
       match name_of_entry md entry with None -> () | Some md -> add_name md
 
-  let get_data _ = !names
+  let handle_entry env entry = handle_entry env entry; env
+
+  let output _ = !names
 end
 
 type _ Processor.t += GatherNames : NSet.t Processor.t
@@ -125,8 +133,10 @@ let _ =
     (module GatherNames)
 
 (* Add all the names that should be kept as outpud. Either an entire module or a specific name *)
-module ProcessConfigurationFile : Processor.S with type t = NSet.t = struct
-  type t = NSet.t
+module ProcessConfigurationFile : Processor.S with type output = NSet.t = struct
+  type t = Env.t
+
+  type output = NSet.t
 
   let names = ref NSet.empty
 
@@ -138,13 +148,15 @@ module ProcessConfigurationFile : Processor.S with type t = NSet.t = struct
            [GatherNames] processor. *)
         let load_path = Files.empty in
         let snames =
-          Processor.handle_files ~load_path ~files:[file] GatherNames
+          Processor.handle_files load_path ~files:[file] GatherNames
         in
         names := NSet.union snames !names
     | Entry.DTree (_, Some md, id) -> names := NSet.add (mk_name md id) !names
     | _ as e -> raise @@ Dkprune_error (BadFormat (Entry.loc_of_entry e))
 
-  let get_data _ = !names
+  let handle_entry env entry = handle_entry env entry; env
+
+  let output _ = !names
 end
 
 type _ Processor.t += PruneProcessConfigurationFile : NSet.t Processor.t
@@ -192,10 +204,10 @@ let rec run_on_files ~load_path files =
   (* Load path is not needed since no importation is done by the
      [PruneDepProcessor] processor. *)
   let load_path = Files.empty in
-  Processor.handle_files ~hook ~load_path ~files PruneDepProcessor
+  Processor.handle_files ~hook load_path ~files PruneDepProcessor
 
 (* compute dependencies for each module which appear in the configuration files *)
-let handle_modules ~load_path mds =
+let handle_modules load_path mds =
   let files =
     List.map
       (fun md ->
@@ -206,17 +218,16 @@ let handle_modules ~load_path mds =
   run_on_files ~load_path files
 
 (* compute dependencies for eaach name which appear in the configuration files *)
-let handle_names ~load_path names =
+let handle_names load_path names =
   let open Basic.MidentSet in
   let mds = NameSet.fold (fun name s -> add (Basic.md name) s) names empty in
-  handle_modules ~load_path (elements mds)
+  handle_modules load_path (elements mds)
 
 (* check if all the entry of a file are pruned *)
 let is_empty deps file =
   (* Load path is not needed since no importation is done by the
      [GatherNames] processor. *)
-  let load_path = Files.empty in
-  let names = Processor.handle_files ~load_path ~files:[file] GatherNames in
+  let names = Processor.handle_files Files.empty ~files:[file] GatherNames in
   NSet.is_empty (NSet.inter names deps)
 
 (* for each input file for which dependencies has been computed, we write an output file *)
@@ -297,11 +308,11 @@ let prune config log output files =
     (* Load path is not needed since no importation is done by the
        [GatherNames] processor. *)
     let load_path = Files.empty in
-    Processor.handle_files ~load_path ~files PruneProcessConfigurationFile
+    Processor.handle_files load_path ~files PruneProcessConfigurationFile
   in
   let names = run_on_constraints files in
   let load_path = Config.load_path config in
-  handle_names ~load_path names;
+  handle_names load_path names;
   print_dependencies ~load_path names
 
 let cmd_t = Cmdliner.Term.(const prune $ Config.t $ log $ output $ files)

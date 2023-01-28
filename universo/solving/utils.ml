@@ -66,7 +66,7 @@ module type SMTSOLVER = sig
   val add : Common.Universes.cstr -> unit
 
   (** [solve mk_theory] call the solver and returns the mimimum number of universes needed to solve the constraints as long as the model. The theory used by solver depends on the number of universes needed. Hence one needs to provide a function [mk_theory] that builds a theory when at most [i] are used.*)
-  val solve : load_path:Api.Files.t -> env -> int * model
+  val solve : Api.Files.load_path -> env -> int * model
 end
 
 (** Generic solver for Universo *)
@@ -76,10 +76,10 @@ module type SOLVER = sig
 
   (** [print_model meta model file] prints the model into the solution file associated to [file]. Universes are translated to terms via the [meta] rules. *)
   val print_model :
-    load_path:Api.Files.t -> M.cfg -> model -> Common.Files.path list -> unit
+    Api.Files.load_path -> M.cfg -> model -> Common.Files.path list -> unit
 
   (** [solve env] solves all the files parsed and returns a model as long as [i], the number of universes needed. As postconditions, [i >= env.minimum && i <= maximum]. Moreover forall [j < i], the solver did not found a solution. *)
-  val solve : load_path:Api.Files.t -> env -> int * model
+  val solve : Api.Files.load_path -> env -> int * model
 end
 
 exception NoSolution

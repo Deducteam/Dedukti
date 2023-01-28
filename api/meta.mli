@@ -93,7 +93,7 @@ val default_config :
   ?encoding:(module ENCODING) ->
   ?decoding:bool ->
   ?register_before:bool ->
-  load_path:Files.t ->
+  Files.load_path ->
   unit ->
   cfg
 
@@ -104,7 +104,7 @@ val add_rules : cfg -> Rule.partially_typed_rule list -> unit
    rewrite-rules. It is assumed that such file contains only rewrite
    rules. *)
 module MetaConfiguration :
-  Processor.S with type t = Rule.partially_typed_rule list
+  Processor.S with type output = Rule.partially_typed_rule list
 
 (** The processor associated to [MetaConfiguration]. *)
 type _ Processor.t += MetaRules : Rule.partially_typed_rule list Processor.t
@@ -124,7 +124,7 @@ val parse_meta_files : string list -> Rule.partially_typed_rule list
 val make_meta_processor :
   cfg ->
   post_processing:(Env.t -> Entry.entry -> unit) ->
-  (module Processor.S with type t = unit)
+  (module Processor.S with type output = unit)
 
 (** [mk_term ?env cfg term] normalize a term according to the
    configuration [cfg]. [env] is the environment used for type

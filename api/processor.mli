@@ -68,19 +68,19 @@ module type Interface = sig
      been raised while processing the data it is raised at
      top-level. *)
   val handle_input :
-    ?hook:hook -> load_path:Files.t -> input:Parsers.Parser.input -> 'a t -> 'a
+    ?hook:hook -> Files.load_path -> input:Parsers.Parser.input -> 'a t -> 'a
 
   (** [handle_files ?hook files processor] apply a processor on each file of
      [files].  [hook] is used once by file. The result is the one
      given once each file has been processed. *)
   val handle_files :
-    ?hook:hook -> load_path:Files.t -> files:string list -> 'a t -> 'a
+    ?hook:hook -> Files.load_path -> files:string list -> 'a t -> 'a
 
   (** [fold_files ?hook ~load_path ~files ~f ~default processor] is the
    [fold] variant of [handle_files]. *)
   val fold_files :
     ?hook:hook ->
-    load_path:Files.t ->
+    Files.load_path ->
     files:string list ->
     f:('a -> 'b -> 'b) ->
     default:'b ->
@@ -151,13 +151,15 @@ include Interface with type 'a t := 'a t
 (** The actual type of the processor as a module *)
 module type S = sig
   (** result type of the processor *)
-  type t
+  type t = Env.t
+
+  type output
 
   (** [handle_entry env entry] processed the entry [entry] in the environment [env] *)
-  val handle_entry : Env.t -> Parsers.Entry.entry -> unit
+  val handle_entry : t -> Parsers.Entry.entry -> t
 
   (** [get_data ()] returns the data computed by the current processor *)
-  val get_data : Env.t -> t
+  val output : t -> output
 end
 
 module Registration : sig
@@ -177,18 +179,18 @@ module Registration : sig
       ASSERT: f_eq processor processor = (Some Refl processor)
       ASSERT: f_eq _         _         = None *)
   val register_processor :
-    'a t -> equality -> (module S with type t = 'a) -> unit
+    'a t -> equality -> (module S with type output = 'a) -> unit
 end
 
 (** [get_processor processor] returns the module associated to the processor.
     Raise [Not_registered_processor] if the processor has not been registered. *)
-val get_processor : 'a t -> (module S with type t = 'a)
+val get_processor : 'a t -> (module S with type output = 'a)
 
 (** [of_pure ~f ~init] returns processor from the fold-like function [f]. [f acc
     env ent] folds entry [ent] on accumulator [acc] in environment [env]. *)
 val of_pure :
   f:('a -> Env.t -> Parsers.Entry.entry -> 'a) ->
   init:'a ->
-  (module S with type t = 'a)
+  (module S with type output = 'a)
 
-module T : Interface with type 'a t := (module S with type t = 'a)
+module T : Interface with type 'a t := (module S with type output = 'a)

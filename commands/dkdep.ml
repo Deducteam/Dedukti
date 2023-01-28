@@ -8,11 +8,11 @@ open Cmdliner
 (** Output main program. This function assumes that all modules are in
    the [load_path]. *)
 let output_deps :
-    load_path:Api.Files.t ->
+    Api.Files.load_path ->
     Format.formatter ->
     Dep_legacy.t ->
     (unit, mident * exn) result =
- fun ~load_path fmt data ->
+ fun load_path fmt data ->
   let open Dep_legacy in
   let as_object_file_exn md =
     let file = Files.get_file_exn load_path Kernel.Basic.dloc md in
@@ -50,7 +50,7 @@ let dkdep config ignore output_file_opt sorted files =
     Errors.fail_exit ~file:"<none>" ~code:"CLI" None
       "--ignore option can be used only with --sort option"
   else
-    let output_fun = if sorted then output_sorted else output_deps ~load_path in
+    let output_fun = if sorted then output_sorted else output_deps load_path in
     let open Processor in
     let hook =
       {
@@ -63,7 +63,7 @@ let dkdep config ignore output_file_opt sorted files =
       }
     in
     (* Actual work. *)
-    let deps = Processor.handle_files ~hook ~load_path ~files Dependencies in
+    let deps = Processor.handle_files ~hook load_path ~files Dependencies in
     let oc = Option.fold ~none:stdout ~some:open_out output_file_opt in
     let fmt = Format.formatter_of_out_channel oc in
     match output_fun fmt deps with

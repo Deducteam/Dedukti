@@ -97,7 +97,9 @@ module Make (ZL : Z3LOGIC) = struct
     | EqVar (l, r) ->
         Z.Boolean.mk_eq ctx (mk_var (ZL.mk_name l)) (mk_var (ZL.mk_name r))
 
-  (** [check theory_of i] solves the current constraints with at most [i] universes. If no solution is found, [check] is called recursively on [i+1]. *)
+  (** [check theory_of i] solves the current constraints with at most
+      [i] universes. If no solution is found, [check] is called
+      recursively on [i+1]. *)
   let rec check env i =
     if i > env.max then raise NoSolution;
     ZS.push solver;
@@ -121,7 +123,7 @@ module Make (ZL : Z3LOGIC) = struct
             (i, model))
 
   (** [solve mk_theory] tries to solve the constraints *)
-  let solve ~load_path:_ env =
+  let solve _load_path env =
     L.log_solver "[SOLVER] Solving...";
     check env env.min
 
