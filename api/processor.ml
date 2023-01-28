@@ -14,6 +14,66 @@ end
 
 type 'a t = (module S with type output = 'a)
 
+type processor_error = exn
+
+type hook = {
+  before : Parsers.Parser.input -> Env.t -> unit;
+  after : Parsers.Parser.input -> Env.t -> processor_error option -> unit;
+}
+
+let handle_input :
+    ?hook:hook -> Files.load_path -> input:Parser.input -> 'a t -> 'a =
+  fun (type a) ?hook load_path ~input processor ->
+   let (module P : S with type output = a) = processor in
+   let md = Parsers.Parser.md_of_input input in
+   let env = Env.init load_path md in
+   (match hook with None -> () | Some hook -> hook.before input env);
+   let exn =
+     try
+       ignore @@ (Parser.to_seq_exn input |> Seq.fold_left P.handle_entry env);
+       None
+     with exn -> Some exn
+   in
+   (match hook with
+   | None -> (
+       match exn with
+       | None -> ()
+       | Some exn -> Errors.fail_exn input Kernel.Basic.dloc exn)
+   | Some hook -> hook.after input env exn);
+   let data = P.output env in
+   data
+
+let fold_files :
+    ?hook:hook ->
+    Files.load_path ->
+    files:string list ->
+    f:('a -> 'b -> 'b) ->
+    default:'b ->
+    'a t ->
+    'b =
+ fun ?hook load_path ~files ~f ~default processor ->
+  let handle_input input =
+    try
+      let data = handle_input ?hook load_path ~input processor in
+      Parser.close input; data
+    with Sys_error msg -> Errors.fail_sys_error input ~msg
+  in
+  let fold b file =
+    let input = Parser.from_file ~file in
+    try f (handle_input input) b
+    with exn -> Errors.fail_exn input Basic.dloc exn
+  in
+  List.fold_left fold default files
+
+let handle_files :
+    ?hook:hook -> Files.load_path -> files:string list -> 'a t -> 'a =
+  fun (type a) ?hook load_path ~files processor ->
+   let (module P : S with type output = a) = processor in
+   fold_files load_path ~files ?hook
+     ~f:(fun data _ -> data)
+     ~default:(P.output (Env.dummy ()))
+     processor
+
 module TypeChecker : S with type output = unit = struct
   type t = Env.t
 
@@ -221,63 +281,3 @@ module TopLevel : S with type output = unit = struct
 end
 
 let top_level : unit t = (module TopLevel)
-
-type processor_error = exn
-
-type hook = {
-  before : Parsers.Parser.input -> Env.t -> unit;
-  after : Parsers.Parser.input -> Env.t -> processor_error option -> unit;
-}
-
-let handle_input :
-    ?hook:hook -> Files.load_path -> input:Parser.input -> 'a t -> 'a =
-  fun (type a) ?hook load_path ~input processor ->
-   let (module P : S with type output = a) = processor in
-   let md = Parsers.Parser.md_of_input input in
-   let env = Env.init load_path md in
-   (match hook with None -> () | Some hook -> hook.before input env);
-   let exn =
-     try
-       ignore @@ (Parser.to_seq_exn input |> Seq.fold_left P.handle_entry env);
-       None
-     with exn -> Some exn
-   in
-   (match hook with
-   | None -> (
-       match exn with
-       | None -> ()
-       | Some exn -> Errors.fail_exn input Kernel.Basic.dloc exn)
-   | Some hook -> hook.after input env exn);
-   let data = P.output env in
-   data
-
-let fold_files :
-    ?hook:hook ->
-    Files.load_path ->
-    files:string list ->
-    f:('a -> 'b -> 'b) ->
-    default:'b ->
-    'a t ->
-    'b =
- fun ?hook load_path ~files ~f ~default processor ->
-  let handle_input input =
-    try
-      let data = handle_input ?hook load_path ~input processor in
-      Parser.close input; data
-    with Sys_error msg -> Errors.fail_sys_error input ~msg
-  in
-  let fold b file =
-    let input = Parser.from_file ~file in
-    try f (handle_input input) b
-    with exn -> Errors.fail_exn input Basic.dloc exn
-  in
-  List.fold_left fold default files
-
-let handle_files :
-    ?hook:hook -> Files.load_path -> files:string list -> 'a t -> 'a =
-  fun (type a) ?hook load_path ~files processor ->
-   let (module P : S with type output = a) = processor in
-   fold_files load_path ~files ?hook
-     ~f:(fun data _ -> data)
-     ~default:(P.output (Env.dummy ()))
-     processor
