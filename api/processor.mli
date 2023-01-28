@@ -35,7 +35,7 @@
 *)
 
 (** This is the type of errors returned by a processor *)
-type processor_error = Env.t * Kernel.Basic.loc * exn
+type processor_error = exn
 
 (** To hook an input before and after it is being processed *)
 type hook = {

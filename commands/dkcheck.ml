@@ -101,14 +101,14 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
         let file = Files.input_as_file input in
         if export then Env.export env ~file;
         Confluence.finalize ()
-    | Some (env, loc, exn) ->
+    | Some exn ->
         let reduce term =
           Env.unsafe_reduction env
             ~red:{Reduction.default_cfg with target = Snf}
             term
         in
         if errors_in_snf then Errors.reduce := reduce;
-        Errors.fail_exn input loc exn
+        Errors.fail_exn input Kernel.Basic.dloc exn
   in
   let hook =
     {before = (fun _input _env -> Confluence.initialize ()); after = hook_after}

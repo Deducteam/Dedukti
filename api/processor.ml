@@ -222,7 +222,7 @@ end
 
 let top_level : unit t = (module TopLevel)
 
-type processor_error = Env.t * Kernel.Basic.loc * exn
+type processor_error = exn
 
 type hook = {
   before : Parsers.Parser.input -> Env.t -> unit;
@@ -245,13 +245,13 @@ let handle_input :
      try
        handle_processor input env (module P);
        None
-     with exn -> Some (env, Kernel.Basic.dloc, exn)
+     with exn -> Some exn
    in
    (match hook with
    | None -> (
        match exn with
        | None -> ()
-       | Some (_env, loc, exn) -> Errors.fail_exn input loc exn)
+       | Some exn -> Errors.fail_exn input Kernel.Basic.dloc exn)
    | Some hook -> hook.after input env exn);
    let data = P.output env in
    data

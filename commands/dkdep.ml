@@ -59,7 +59,7 @@ let dkdep config ignore output_file_opt sorted files =
           (fun input _env exn ->
             match exn with
             | None -> ()
-            | Some (_env, loc, exn) -> Errors.fail_exn input loc exn);
+            | Some exn -> Errors.fail_exn input Kernel.Basic.dloc exn);
       }
     in
     (* Actual work. *)

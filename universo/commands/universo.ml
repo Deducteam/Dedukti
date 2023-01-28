@@ -314,7 +314,7 @@ let check : Api.Files.load_path -> string -> unit =
         after =
           (fun input _ -> function
             | None -> ()
-            | Some (_env, loc, exn) -> Api.Errors.fail_exn input loc exn);
+            | Some exn -> Api.Errors.fail_exn input Kernel.Basic.dloc exn);
       }
   in
   Api.Processor.handle_files ~hook load_path ~files:[file] (module P);

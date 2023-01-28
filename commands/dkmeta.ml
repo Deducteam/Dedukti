@@ -50,7 +50,7 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
                 Meta.log "[SUCCESS] File '%s' was successfully metaified."
                   (Parsers.Parser.md_of_input input
                   |> Kernel.Basic.string_of_mident)
-          | Some (_env, loc, exn) -> Errors.fail_exn input loc exn);
+          | Some exn -> Errors.fail_exn input Kernel.Basic.dloc exn);
     }
   in
   let processor = Meta.make_meta_processor cfg ~post_processing in

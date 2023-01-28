@@ -156,7 +156,7 @@ let rec run_on_files ~load_path files =
         in
         let new_files = MSet.fold add_files deps.deps [] in
         if List.length new_files <> 0 then run_on_files ~load_path new_files
-    | Some (_env, loc, exn) -> Errors.fail_exn input loc exn
+    | Some exn -> Errors.fail_exn input Kernel.Basic.dloc exn
   in
   let hook = Processor.{before; after} in
   (* Load path is not needed since no importation is done by the
