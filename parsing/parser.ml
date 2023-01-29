@@ -69,6 +69,7 @@ type ('kind, 'entries) unit = {
   kind : 'kind;
   entries : 'entries Seq.t;
 }
+  constraint 'kind = [< kind]
 
 let to_unit input =
   let lexbuf = lexing_from input.from in

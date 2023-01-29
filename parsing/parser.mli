@@ -45,6 +45,7 @@ type ('kind, 'entries) unit = {
   kind : 'kind;
   entries : 'entries Seq.t;
 }
+  constraint 'kind = [< kind]
 
 val raise_on_error :
   ('kind, (Entry.entry, error) result) unit -> ('kind, Entry.entry) unit
@@ -53,4 +54,4 @@ val to_unit : 'kind input -> ('kind, (Entry.entry, error) result) unit
 
 val units_of_files :
   files:string list ->
-  ([`File of string], (Entry.entry, error) result) unit Seq.t
+  ([> `File of string], (Entry.entry, error) result) unit Seq.t
