@@ -31,13 +31,12 @@ let default_hook =
         | Some exn -> Errors.fail_exn kind Kernel.Basic.dloc exn);
   }
 
-let handle_input :
-    ?hook:'kind hook -> Files.load_path -> 'kind Parser.input -> 'a t -> 'a =
-  fun (type a) ?(hook = default_hook) load_path input processor ->
+let handle_unit :
+    ?hook:'kind hook -> Files.load_path -> _ Parser.unit -> 'a t -> 'a =
+  fun (type a) ?(hook = default_hook) load_path unit processor ->
    let (module P : S with type output = a) = processor in
    let open Parser in
-   (* FIXME: The call below could fail. *)
-   let {md; kind; entries} = Parser.to_unit input |> Parser.raise_on_error in
+   let {md; kind; entries} = Parser.raise_on_error unit in
    let env = Env.init load_path md in
    hook.before md kind env;
    let exn =
@@ -49,6 +48,13 @@ let handle_input :
    hook.after md kind env exn;
    let data = P.output env in
    data
+
+let handle_input :
+    ?hook:'kind hook -> Files.load_path -> 'kind Parser.input -> 'a t -> 'a =
+  fun (type a) ?hook load_path input processor ->
+   let (module P : S with type output = a) = processor in
+   (* FIXME: The call below could fail. *)
+   handle_unit ?hook load_path (Parser.to_unit input) processor
 
 let fold_files :
     ?hook:'kind hook ->

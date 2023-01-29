@@ -113,6 +113,13 @@ end
 
 type 'a t = (module S with type output = 'a)
 
+val handle_unit :
+  ?hook:([< Parsers.Parser.kind] as 'b) hook ->
+  Files.load_path ->
+  ('b, (Parsers.Entry.entry, Parsers.Parser.error) result) Parsers.Parser.unit ->
+  'a t ->
+  'a
+
 (** [handle_input ?hook ~load_path ~input processor] applies the
      processor [processor] on the [input] using [load_path] (see
      {!module:Files}). [hook.hook_before] is executed once before the
