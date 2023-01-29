@@ -60,7 +60,7 @@ let as_object_file ?prefix (File file) =
   in
   File filename
 
-let input_as_file input = File (Parsers.Parser.file_of_input input)
+let file_of_kind (`File file) = File file
 
 type file_error =
   | Error_file_not_found of {

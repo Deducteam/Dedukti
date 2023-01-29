@@ -54,12 +54,12 @@ let dkdep config ignore output_file_opt sorted files =
     let open Processor in
     let hook =
       {
-        before = (fun _input _env -> ());
+        before = (fun _md _kind _env -> ());
         after =
-          (fun input _env exn ->
+          (fun _md kind _env exn ->
             match exn with
             | None -> ()
-            | Some exn -> Errors.fail_exn input Kernel.Basic.dloc exn);
+            | Some exn -> Errors.fail_exn kind Kernel.Basic.dloc exn);
       }
     in
     (* Actual work. *)

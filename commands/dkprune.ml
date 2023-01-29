@@ -134,16 +134,12 @@ end
    files. This is called also on each module which is in the
    transitive closure of the module dependencies *)
 let rec run_on_files ~load_path files =
-  let before input env =
-    let md = Env.get_name env in
-    if not @@ MSet.mem md !computed then
-      let file = Parser.file_of_input input in
-      log "[COMPUTE DEP] %s" file
+  let before md (`File filename) _env =
+    if not @@ MSet.mem md !computed then log "[COMPUTE DEP] %s" filename
   in
-  let after input env exn =
+  let after md kind _env exn =
     match exn with
     | None ->
-        let md = Env.get_name env in
         computed := MSet.add md !computed;
         let deps = Hashtbl.find Dep_legacy.deps md in
         let add_files md files =
@@ -154,7 +150,7 @@ let rec run_on_files ~load_path files =
         in
         let new_files = MSet.fold add_files deps.deps [] in
         if List.length new_files <> 0 then run_on_files ~load_path new_files
-    | Some exn -> Errors.fail_exn input Kernel.Basic.dloc exn
+    | Some exn -> Errors.fail_exn kind Kernel.Basic.dloc exn
   in
   let hook = Processor.{before; after} in
   (* Load path is not needed since no importation is done by the
@@ -197,15 +193,17 @@ let write_file deps in_file =
     let md = Parser.md_of_input input in
     let output = open_out out_file in
     let fmt = Format.formatter_of_out_channel output in
-    let handle_entry e =
-      let name = name_of_entry md e in
+    let handle_entry entry =
+      let name = name_of_entry md entry in
       match name with
-      | None -> Format.fprintf fmt "%a" Printer.print_entry e
+      | None -> Format.fprintf fmt "%a" Printer.print_entry entry
       | Some name ->
           if NSet.mem name deps then
-            Format.fprintf fmt "%a" Printer.print_entry e
+            Format.fprintf fmt "%a" Printer.print_entry entry
     in
-    Parser.to_seq input |> Parser.raise_on_error |> Seq.iter handle_entry;
+    Parser.(
+      to_unit input |> raise_on_error |> fun {entries; _} ->
+      Seq.iter handle_entry entries);
     close_out output)
 
 (* print_dependencies for all the names which are in the transitive closure of names specificed in the configuration files *)
@@ -236,13 +234,8 @@ let print_dependencies ~load_path names =
       Errors.fail_exit ~file:"configuration file" ~code:"DKPRUNE" None
         "The name %a does not exists@." Pp.Default.print_name name
   | exn ->
-      (* Ugly!!! *)
-      let input =
-        Parsers.Parser.from_string
-          (Kernel.Basic.mk_mident "configuration file")
-          ""
-      in
-      Errors.fail_exn input Basic.dloc exn
+      let kind = `String in
+      Errors.fail_exn kind Basic.dloc exn
 
 let files =
   let doc = "Dedukti files to process" in

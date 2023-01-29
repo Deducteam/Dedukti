@@ -266,7 +266,9 @@ let elaborate : Api.Files.load_path -> string -> unit =
   let in_file = F.get_out_path in_path `Input in
   let env = Cmd.to_elaboration_env load_path in_file in
   let entries =
-    P.from_file ~file:in_file |> P.to_seq |> P.raise_on_error |> List.of_seq
+    P.from_file ~file:in_file |> P.to_unit |> P.raise_on_error
+    |> (fun {entries; _} -> entries)
+    |> List.of_seq
   in
   (* This steps generates the fresh universe variables *)
   let entries' = List.map (E.mk_entry env) entries in
@@ -310,17 +312,17 @@ let check : Api.Files.load_path -> string -> unit =
     Api.Processor.
       {
         before =
-          (fun _input env ->
+          (fun _md _kind env ->
             let sg = Api.Env.get_signature env in
             S.import_signature sg (Cmd.mk_theory load_path));
         after =
-          (fun input _ -> function
+          (fun _md kind _ -> function
             | None -> ()
-            | Some exn -> Api.Errors.fail_exn input Kernel.Basic.dloc exn);
+            | Some exn -> Api.Errors.fail_exn kind Kernel.Basic.dloc exn);
       }
   in
   Api.Processor.handle_files ~hook load_path ~files:[file] (module P);
-  let file = Api.Files.input_as_file (Parsers.Parser.from_file ~file:in_path) in
+  let file = Api.Files.file_of_kind (`File in_path) in
   Api.Env.export universo_env.env ~file;
   C.flush ();
   F.close universo_env.out_file;
@@ -364,7 +366,9 @@ let simplify : Api.Files.load_path -> string list -> unit =
           Format.fprintf fmt "%a@." Api.Pp.Default.print_entry
             (M.mk_entry out_cfg env e)
     in
-    P.to_seq input |> P.raise_on_error |> Seq.iter mk_entry;
+    P.to_unit input |> P.raise_on_error
+    |> (fun {entries; _} -> entries)
+    |> Seq.iter mk_entry;
     F.close output
   in
   let out_cfg = Cmd.output_meta_cfg load_path in
@@ -458,8 +462,7 @@ let _ =
   with
   (* FIXME: ugly, should be handled by universo via processor. *)
   | (Kernel.Signature.Signature_error _ | Kernel.Typing.Typing_error _) as e ->
-      let input = P.from_string (Kernel.Basic.mk_mident "<universo>") "" in
-      Api.Errors.fail_exn input Kernel.Basic.dloc e
+      Api.Errors.fail_exn `String Kernel.Basic.dloc e
   | Cmd.Cmd_error (Misc s) ->
       Api.Errors.fail_exit ~code:"-1" ~file:"" None "%s@." s
   | Sys_error err ->

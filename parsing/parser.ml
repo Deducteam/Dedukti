@@ -4,12 +4,14 @@ open Basic
 type from = Channel of in_channel | String of string
 (* String of Dedukti code *)
 
+type kind = [`File of string | `Stdin | `String]
+
 type 'kind input = {
   kind : 'kind;
   md : Basic.mident;
   from : from;
 }
-  constraint 'kind = [< `File of string | `Stdin | `String]
+  constraint 'kind = [< kind]
 
 type error =
   | E : {loc : loc; input : 'kind input; lexbuf : Lexing.lexbuf} -> error
@@ -56,27 +58,41 @@ let kind_of_input (input : 'kind input) : 'kind = input.kind
 let close input =
   match input.from with String _ -> () | Channel ic -> close_in ic
 
-let rec to_seq md input lexbuf =
+let unfold input md lexbuf =
   match read input lexbuf md with
-  | Ok None -> close input; Seq.empty
-  | Ok (Some entry) -> Seq.cons (Ok entry) (to_seq md input lexbuf)
-  | Error err -> Seq.cons (Error err) (to_seq md input lexbuf)
+  | Ok None -> None
+  | Ok (Some entry) -> Some (Ok entry, lexbuf)
+  | Error err -> Some (Error err, lexbuf)
 
-let to_seq input =
-  let md = input.md in
+type ('kind, 'entries) unit = {
+  md : Kernel.Basic.mident;
+  kind : 'kind;
+  entries : 'entries Seq.t;
+}
+
+let to_unit input =
   let lexbuf = lexing_from input.from in
-  to_seq md input lexbuf
+  let kind = kind_of_input input in
+  let md = input.md in
+  let entries = Seq.unfold (unfold input md) lexbuf in
+  {md; kind; entries}
 
 exception Parser_error of error
 
-let raise_on_error =
-  Seq.map (function
-    | Ok entry -> entry
-    | Error (E {input; _} as error) ->
-        close input;
-        raise @@ Parser_error error)
+let raise_on_error unit =
+  {
+    unit with
+    entries =
+      Seq.map
+        (function
+          | Ok entry -> entry
+          | Error (E {input; _} as error) ->
+              close input;
+              raise @@ Parser_error error)
+        unit.entries;
+  }
 
-let seq_of_files ~files =
+let units_of_files ~files =
   let seq = List.to_seq files in
   let input_seq = Seq.map (fun file -> from_file ~file) seq in
-  Seq.flat_map (fun input -> to_seq input) input_seq
+  Seq.map (fun input -> to_unit input) input_seq

@@ -92,13 +92,11 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
   Typing.coc := coc;
   Typing.fail_on_unsatisfiable_constraints := type_lhs;
   let open Processor in
-  let hook_after input env exn =
+  let hook_after _md (`File filename as kind) env exn =
     match exn with
     | None ->
-        let file = Files.input_as_file input in
-        let (File filename) = file in
         if not (Config.quiet config) then Errors.success filename;
-        let file = Files.input_as_file input in
+        let file = Files.file_of_kind kind in
         if export then Env.export env ~file;
         Confluence.finalize ()
     | Some exn ->
@@ -108,16 +106,19 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
             term
         in
         if errors_in_snf then Errors.reduce := reduce;
-        Errors.fail_exn input Kernel.Basic.dloc exn
+        Errors.fail_exn kind Kernel.Basic.dloc exn
   in
   let hook =
-    {before = (fun _input _env -> Confluence.initialize ()); after = hook_after}
+    {
+      before = (fun _md _kind _env -> Confluence.initialize ());
+      after = hook_after;
+    }
   in
   let load_path = Config.load_path config in
   Processor.(handle_files ~hook load_path ~files typecheck);
   let f m =
     let input = Parsers.Parser.from_stdin (Basic.mk_mident m) in
-    Processor.handle_input load_path ~input typecheck
+    Processor.handle_input load_path input typecheck
   in
   Option.iter f config.Config.run_on_stdin
 

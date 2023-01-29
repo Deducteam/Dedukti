@@ -41,16 +41,15 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
   in
   let hook =
     {
-      Processor.before = (fun _input _env -> ());
+      Processor.before = (fun _md _kind _env -> ());
       after =
-        (fun input _env exn ->
+        (fun md kind _env exn ->
           match exn with
           | None ->
               if not (Config.quiet config) then
                 Meta.log "[SUCCESS] File '%s' was successfully metaified."
-                  (Parsers.Parser.md_of_input input
-                  |> Kernel.Basic.string_of_mident)
-          | Some exn -> Errors.fail_exn input Kernel.Basic.dloc exn);
+                  (md |> Kernel.Basic.string_of_mident)
+          | Some exn -> Errors.fail_exn kind Kernel.Basic.dloc exn);
     }
   in
   let processor = Meta.make_meta_processor cfg ~post_processing in
@@ -58,7 +57,7 @@ let meta config meta_debug meta_rules_files no_meta quoting no_unquoting
   | None -> Processor.handle_files load_path ~files ~hook processor
   | Some m ->
       let input = Parsers.Parser.from_stdin (Basic.mk_mident m) in
-      Api.Processor.handle_input ~hook load_path ~input processor
+      Api.Processor.handle_input ~hook load_path input processor
 
 let meta_debug =
   let doc = "Activate meta-specific debug flag" in
