@@ -1,39 +1,40 @@
-(** {2 Parser}
+open Kernel
 
-    This module produces [Entry.t] from various kinds of inputs. The
-    inputs supported are:
+(** Abstract parser stream representation. *)
+type stream
 
-    - Files (see {!val:input_from_file})
+(** Abstract type for input. *)
+type input
 
-    - string (see {!val:input_from_string})
+exception Parse_error of Basic.loc * string
 
-    - stdin (see {!val:input_from_stding})
+val input_from_file : string -> input
 
-    Entries are produced as a sequence of entries.
-*)
+val input_from_stdin : Basic.mident -> input
 
-(** Abstract representation of an input. *)
-type 'kind input constraint 'kind = [< `File of string | `Stdin | `String]
+val input_from_string : Basic.mident -> string -> input
 
-(** [from_file ~file] returns an [input]. Entries are read from the
-    content of the file given by [file]. *)
-val from_file : file:string -> [> `File of string] input
+val md_of_input : input -> Basic.mident
 
-(** [from_stdin md] returns [input] from a module name *)
-val from_stdin : Kernel.Basic.mident -> [> `Stdin] input
+val md_of_file : string -> Basic.mident
 
-val from_string : Kernel.Basic.mident -> string -> [> `String] input
+val file_of_input : input -> string option
 
-val md_of_input : 'kind input -> Kernel.Basic.mident
+val close : input -> unit
 
-val file_of_input : [`File of string] input -> string
+(** [read str] reads a single entry from the parser stream [str]. When no more
+    [entry] is available, the [End_of_file] exception is raised. *)
+val read : stream -> Entry.entry
 
-val kind_of_input : 'kind input -> 'kind
+(** [from_channel in] creates a parser [stream] for the environment [env]
+    [env] given the input [in]. *)
+val from : input -> stream
 
-type error = {loc : Kernel.Basic.loc; lexbuf : Lexing.lexbuf}
+(** [handle in f] parses the input [in] in the environment [env],  using
+    the action [f] on each entry. Note that the input is parsed lazily. This
+    function can thus be applied to [stdin]. *)
+val handle : input -> (Entry.entry -> unit) -> unit
 
-exception Parser_error of error
-
-val to_seq_exn : 'a input -> Entry.entry Seq.t
-
-val to_seq : 'a input -> (Entry.entry, error) result Seq.t
+(** [parse in] completely parses the input [in] and returns the corresponding
+    list of entries. *)
+val parse : input -> Entry.entry list

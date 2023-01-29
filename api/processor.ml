@@ -2,84 +2,20 @@ open Kernel
 open Basic
 open Parsers
 
+module type CustomEnv = module type of Env with type t = Env.t
+
 module type S = sig
-  type t = Env.t
+  type t
 
-  type output
+  (** [handle_entry env entry] processed the entry [entry] in the environment [env] *)
+  val handle_entry : Env.t -> Parsers.Entry.entry -> unit
 
-  val handle_entry : t -> Parsers.Entry.entry -> t
-
-  val output : t -> output
+  (** [get_data ()] returns the data computed by the current processor *)
+  val get_data : Env.t -> t
 end
 
-type 'a t = (module S with type output = 'a)
-
-type processor_error = exn
-
-type 'kind hook = {
-  before : 'kind Parsers.Parser.input -> Env.t -> unit;
-  after : 'kind Parsers.Parser.input -> Env.t -> processor_error option -> unit;
-}
-
-let handle_input :
-    ?hook:'kind hook ->
-    Files.load_path ->
-    input:'kind Parser.input ->
-    'a t ->
-    'a =
-  fun (type a) ?hook load_path ~input processor ->
-   let (module P : S with type output = a) = processor in
-   let md = Parsers.Parser.md_of_input input in
-   let env = Env.init load_path md in
-   (match hook with None -> () | Some hook -> hook.before input env);
-   let exn =
-     try
-       ignore @@ (Parser.to_seq_exn input |> Seq.fold_left P.handle_entry env);
-       None
-     with exn -> Some exn
-   in
-   (match hook with
-   | None -> (
-       match exn with
-       | None -> ()
-       | Some exn -> Errors.fail_exn input Kernel.Basic.dloc exn)
-   | Some hook -> hook.after input env exn);
-   let data = P.output env in
-   data
-
-let fold_files :
-    ?hook:'kind hook ->
-    Files.load_path ->
-    files:string list ->
-    f:('a -> 'b -> 'b) ->
-    default:'b ->
-    'a t ->
-    'b =
- fun ?hook load_path ~files ~f ~default processor ->
-  let handle_input input =
-    try handle_input ?hook load_path ~input processor
-    with Sys_error msg -> Errors.fail_sys_error input ~msg
-  in
-  let fold b file =
-    let input = Parser.from_file ~file in
-    try f (handle_input input) b
-    with exn -> Errors.fail_exn input Basic.dloc exn
-  in
-  List.fold_left fold default files
-
-let handle_files :
-    ?hook:'kind hook -> Files.load_path -> files:string list -> 'a t -> 'a =
-  fun (type a) ?hook load_path ~files processor ->
-   let (module P : S with type output = a) = processor in
-   fold_files load_path ~files ?hook
-     ~f:(fun data _ -> data)
-     ~default:(P.output (Env.dummy ()))
-     processor
-
-module TypeChecker : S with type output = unit = struct
-  type t = Env.t
-
-  type output = unit
+module MakeTypeChecker (Env : CustomEnv) : S with type t = unit = struct
+  type t = unit
 
   let handle_entry env e =
     let open Entry in
@@ -146,17 +82,14 @@ module TypeChecker : S with type output = unit = struct
     | Pragma (lc, str) ->
         Format.eprintf "Unsupported pragma at position %a: '%s'@." pp_loc lc str
 
-  let handle_entry env entry = handle_entry env entry; env
-
-  let output _env = ()
+  let get_data _ = ()
 end
 
-let typecheck : unit t = (module TypeChecker)
+module TypeChecker = MakeTypeChecker (Env)
 
-module SignatureBuilder : S with type output = Signature.t = struct
-  type t = Env.t
-
-  type output = Signature.t
+module MakeSignatureBuilder (Env : CustomEnv) : S with type t = Signature.t =
+struct
+  type t = Signature.t
 
   let handle_entry env e =
     let sg = Env.get_signature env in
@@ -182,17 +115,13 @@ module SignatureBuilder : S with type output = Signature.t = struct
     | Require (lc, md) -> Signature.import sg lc md
     | _ -> ()
 
-  let handle_entry env entry = handle_entry env entry; env
-
-  let output env = Env.get_signature env
+  let get_data env = Env.get_signature env
 end
 
-let get_signature : Signature.t t = (module SignatureBuilder)
+module SignatureBuilder = MakeSignatureBuilder (Env)
 
-module EntryPrinter : S with type output = unit = struct
-  type t = Env.t
-
-  type output = unit
+module MakeEntryPrinter (Env : CustomEnv) : S with type t = unit = struct
+  type t = unit
 
   let handle_entry env e =
     let (module Pp : Pp.Printer) =
@@ -202,31 +131,24 @@ module EntryPrinter : S with type output = unit = struct
     in
     Pp.print_entry Format.std_formatter e
 
-  let handle_entry env entry = handle_entry env entry; env
-
-  let output _env = ()
+  let get_data _ = ()
 end
 
-let print : unit t = (module EntryPrinter)
+module EntryPrinter = MakeEntryPrinter (Env)
 
-module Dependencies : S with type output = Dep_legacy.t = struct
-  type t = Env.t
-
-  type output = Dep_legacy.t
+module MakeDependencies (Env : CustomEnv) : S with type t = Dep_legacy.t =
+struct
+  type t = Dep_legacy.t
 
   let handle_entry env e = Dep_legacy.handle (Env.get_name env) (fun f -> f e)
 
-  let handle_entry env entry = handle_entry env entry; env
-
-  let output _ = Dep_legacy.deps
+  let get_data _ = Dep_legacy.deps
 end
 
-let get_deps : Dep_legacy.t t = (module Dependencies)
+module Dependencies = MakeDependencies (Env)
 
-module TopLevel : S with type output = unit = struct
-  type output = unit
-
-  type t = Env.t
+module MakeTopLevel (Env : CustomEnv) : S with type t = unit = struct
+  type t = unit
 
   module Printer = Pp.Default
 
@@ -277,9 +199,224 @@ module TopLevel : S with type output = unit = struct
     | Require _ -> Format.printf "\"#REQUIRE\" directive ignored.@."
     | Pragma _ -> Format.printf "Pragma directive ignored.@."
 
-  let handle_entry env entry = handle_entry env entry; env
-
-  let output _ = ()
+  let get_data _ = ()
 end
 
-let top_level : unit t = (module TopLevel)
+module TopLevel = MakeTopLevel (Env)
+
+type _ t = ..
+
+module Registration = struct
+  type pack_processor =
+    | Pack : 'a t * (module S with type t = 'a) -> pack_processor
+
+  let dispatch : pack_processor list ref = ref []
+
+  exception Not_registered_processor
+
+  type (_, _) equal = Refl : 'a -> ('a, 'a) equal
+
+  type equality = {equal : 'a 'b. 'a t * 'b t -> ('a t, 'b t) equal option}
+
+  let equal : equality ref = ref {equal = (fun _ -> None)}
+
+  let register_processor (type a) :
+      a t -> equality -> (module S with type t = a) -> unit =
+   fun (processor : a t) f (module P : S with type t = a) ->
+    dispatch := Pack (processor, (module P : S with type t = a)) :: !dispatch;
+    let old_equal = !equal in
+    equal :=
+      {
+        equal =
+          (fun pair ->
+            match f.equal pair with
+            | Some refl -> Some refl
+            | None -> old_equal.equal pair);
+      }
+end
+
+let get_processor (type a) : a t -> (module S with type t = a) =
+ fun processor ->
+  let open Registration in
+  let dispatch = !dispatch in
+  let rec unpack' list : (module S with type t = a) =
+    match list with
+    | [] -> raise Not_registered_processor
+    | Pack (processor', (module P : S with type t = _)) :: list' -> (
+        match !equal.equal (processor, processor') with
+        | Some (Refl _) ->
+            (module struct
+              include P
+            end : S
+              with type t = _)
+        | None -> unpack' list')
+  in
+  unpack' dispatch
+
+type processor_error = Env.t * Kernel.Basic.loc * exn
+
+type hook = {
+  before : Env.t -> unit;
+  after : Env.t -> processor_error option -> unit;
+}
+
+module type Interface = sig
+  type 'a t
+
+  val handle_input :
+    ?hook:hook -> load_path:Files.t -> input:Parsers.Parser.input -> 'a t -> 'a
+
+  val handle_files :
+    ?hook:hook -> load_path:Files.t -> files:string list -> 'a t -> 'a
+
+  val fold_files :
+    ?hook:hook ->
+    load_path:Files.t ->
+    files:string list ->
+    f:('a -> 'b -> 'b) ->
+    default:'b ->
+    'a t ->
+    'b
+end
+
+module Make (C : sig
+  type 'a t
+
+  val get_processor : 'a t -> (module S with type t = 'a)
+end) : Interface with type 'a t := 'a C.t = struct
+  type 'a t = 'a C.t
+
+  let handle_processor : Env.t -> (module S) -> unit =
+   fun env (module P : S) ->
+    let input = Env.get_input env in
+    try
+      let handle_entry env entry =
+        try P.handle_entry env entry
+        with exn -> raise @@ Env.Env_error (env, Entry.loc_of_entry entry, exn)
+      in
+      Parser.handle input (handle_entry env)
+    with
+    | Env.Env_error _ as exn -> raise @@ exn
+    | exn -> raise @@ Env.Env_error (env, Basic.dloc, exn)
+
+  let handle_input :
+      ?hook:hook -> load_path:Files.t -> input:Parser.input -> 'a t -> 'a =
+    fun (type a) ?hook ~load_path ~input processor ->
+     let (module P : S with type t = a) = C.get_processor processor in
+     let env = Env.init ~load_path ~input in
+     (match hook with None -> () | Some hook -> hook.before env);
+     let exn =
+       try
+         handle_processor env (module P);
+         None
+       with Env.Env_error (env, lc, e) -> Some (env, lc, e)
+     in
+     (match hook with
+     | None -> (
+         match exn with
+         | None -> ()
+         | Some (env, lc, exn) -> Env.fail_env_error env lc exn)
+     | Some hook -> hook.after env exn);
+     let data = P.get_data env in
+     data
+
+  let fold_files :
+      ?hook:hook ->
+      load_path:Files.t ->
+      files:string list ->
+      f:('a -> 'b -> 'b) ->
+      default:'b ->
+      'a t ->
+      'b =
+   fun ?hook ~load_path ~files ~f ~default processor ->
+    let handle_file file =
+      try
+        let input = Parser.input_from_file file in
+        let data = handle_input ?hook ~load_path ~input processor in
+        Parser.close input; data
+      with Sys_error msg -> Errors.fail_sys_error ~file ~msg ()
+    in
+    let fold b file =
+      try f (handle_file file) b
+      with exn ->
+        let env = Env.init ~load_path ~input:(Parser.input_from_file file) in
+        Env.fail_env_error env Basic.dloc exn
+    in
+    List.fold_left fold default files
+
+  let handle_files :
+      ?hook:hook -> load_path:Files.t -> files:string list -> 'a t -> 'a =
+    fun (type a) ?hook ~load_path ~files processor ->
+     let (module P : S with type t = a) = C.get_processor processor in
+     fold_files ~load_path ~files ?hook
+       ~f:(fun data _ -> data)
+       ~default:(P.get_data (Env.dummy ()))
+       processor
+end
+
+let of_pure (type a) ~f ~init : (module S with type t = a) =
+  (module struct
+    type t = a
+
+    let _d = ref init
+
+    let handle_entry env entry = _d := f !_d env entry
+
+    let get_data _ = !_d
+  end)
+
+type _ t += TypeChecker : unit t
+
+type _ t += SignatureBuilder : Signature.t t
+
+type _ t += PrettyPrinter : unit t
+
+type _ t += Dependencies : Dep_legacy.t t
+
+type _ t += TopLevel : unit t
+
+let equal_tc (type a b) : a t * b t -> (a t, b t) Registration.equal option =
+  function
+  | TypeChecker, TypeChecker -> Some (Registration.Refl TypeChecker)
+  | _ -> None
+
+let equal_sb (type a b) : a t * b t -> (a t, b t) Registration.equal option =
+  function
+  | SignatureBuilder, SignatureBuilder -> Some (Refl SignatureBuilder)
+  | _ -> None
+
+let equal_pp (type a b) : a t * b t -> (a t, b t) Registration.equal option =
+  function
+  | PrettyPrinter, PrettyPrinter -> Some (Refl PrettyPrinter)
+  | _ -> None
+
+let equal_dep (type a b) : a t * b t -> (a t, b t) Registration.equal option =
+  function
+  | Dependencies, Dependencies -> Some (Refl Dependencies)
+  | _ -> None
+
+let equal_top_level (type a b) :
+    a t * b t -> (a t, b t) Registration.equal option = function
+  | TopLevel, TopLevel -> Some (Refl TopLevel)
+  | _ -> None
+
+let () =
+  let open Registration in
+  register_processor TypeChecker {equal = equal_tc} (module TypeChecker);
+  register_processor SignatureBuilder {equal = equal_sb}
+    (module SignatureBuilder);
+  register_processor PrettyPrinter {equal = equal_pp} (module EntryPrinter);
+  register_processor Dependencies {equal = equal_dep} (module Dependencies);
+  register_processor TopLevel {equal = equal_top_level} (module TopLevel)
+
+include Make (struct
+  type nonrec 'a t = 'a t
+
+  let get_processor = get_processor
+end)
+
+module T = Make (struct
+  type 'a t = (module S with type t = 'a)
+
+  let get_processor x = x
+end)

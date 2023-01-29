@@ -34,29 +34,65 @@
     this documentation.
 *)
 
+(** Each constructor corresponds to a processor. This type is extensible so that
+    we can use this API with your own processors. *)
+type _ t = ..
+
+type _ t +=
+  | TypeChecker : unit t  (** TypeCheck *)
+  | SignatureBuilder : Kernel.Signature.t t
+        (** Build a signature without type checking *)
+  | PrettyPrinter : unit t  (** Pretty print *)
+  | Dependencies : Dep_legacy.t t  (** Compute dependencies *)
+  | TopLevel : unit t  (** TypeCheck and prints result on standard output *)
+
 (** This is the type of errors returned by a processor *)
-type processor_error = exn
+type processor_error = Env.t * Kernel.Basic.loc * exn
 
 (** To hook an input before and after it is being processed *)
-type 'a hook = {
-  before : 'a Parsers.Parser.input -> Env.t -> unit;
+type hook = {
+  before : Env.t -> unit;
       (** hook_before is executed by the processor before processing the input *)
-  after : 'a Parsers.Parser.input -> Env.t -> processor_error option -> unit;
+  after : Env.t -> processor_error option -> unit;
       (** hook_after is executed by the processor after processing the output *)
 }
 
-module type S = sig
-  (** result type of the processor *)
-  type t = Env.t
+module type Interface = sig
+  type 'a t
 
-  type output
+  (** [handle_input ?hook ~load_path ~input processor] applies the
+     processor [processor] on the [input] using [load_path] (see
+     {!module:Files}). [hook.hook_before] is executed once before the
+     processor and [hook.hook_after] is executed once after the
+     processor.  By default (without hooks), if an exception [exn] has
+     been raised while processing the data it is raised at
+     top-level. *)
+  val handle_input :
+    ?hook:hook -> load_path:Files.t -> input:Parsers.Parser.input -> 'a t -> 'a
 
-  (** [handle_entry env entry] processed the entry [entry] in the environment [env] *)
-  val handle_entry : t -> Parsers.Entry.entry -> t
+  (** [handle_files ?hook files processor] apply a processor on each file of
+     [files].  [hook] is used once by file. The result is the one
+     given once each file has been processed. *)
+  val handle_files :
+    ?hook:hook -> load_path:Files.t -> files:string list -> 'a t -> 'a
 
-  (** [get_data ()] returns the data computed by the current processor *)
-  val output : t -> output
+  (** [fold_files ?hook ~load_path ~files ~f ~default processor] is the
+   [fold] variant of [handle_files]. *)
+  val fold_files :
+    ?hook:hook ->
+    load_path:Files.t ->
+    files:string list ->
+    f:('a -> 'b -> 'b) ->
+    default:'b ->
+    'a t ->
+    'b
 end
+
+include Interface with type 'a t := 'a t
+
+(** [fold_files files fold default processor] is similar to [handle_files]
+    except that the result of a processor is given to the function [fold] every
+    time a file is processed. *)
 
 (** {2 Implement its own processor} *)
 
@@ -112,49 +148,66 @@ end
     by calling a function and without using the syntax of modules.
 *)
 
-type 'a t = (module S with type output = 'a)
+(** The actual type of the processor as a module *)
+module type S = sig
+  (** result type of the processor *)
+  type t
 
-(** [handle_input ?hook ~load_path ~input processor] applies the
-     processor [processor] on the [input] using [load_path] (see
-     {!module:Files}). [hook.hook_before] is executed once before the
-     processor and [hook.hook_after] is executed once after the
-     processor.  By default (without hooks), if an exception [exn] has
-     been raised while processing the data it is raised at
-     top-level. *)
-val handle_input :
-  ?hook:'kind hook ->
-  Files.load_path ->
-  input:'kind Parsers.Parser.input ->
-  'a t ->
-  'a
+  (** [handle_entry env entry] processed the entry [entry] in the environment [env] *)
+  val handle_entry : Env.t -> Parsers.Entry.entry -> unit
 
-(** [handle_files ?hook files processor] apply a processor on each file of
-     [files].  [hook] is used once by file. The result is the one
-     given once each file has been processed. *)
-val handle_files :
-  ?hook:[> `File of string] hook ->
-  Files.load_path ->
-  files:string list ->
-  'a t ->
-  'a
+  (** [get_data ()] returns the data computed by the current processor *)
+  val get_data : Env.t -> t
+end
 
-(** [fold_files ?hook ~load_path ~files ~f ~default processor] is the
-   [fold] variant of [handle_files]. *)
-val fold_files :
-  ?hook:[> `File of string] hook ->
-  Files.load_path ->
-  files:string list ->
-  f:('a -> 'b -> 'b) ->
-  default:'b ->
-  'a t ->
-  'b
+module Registration : sig
+  (** raise by get_processor if the processor has not be registered *)
+  exception Not_registered_processor
 
-val typecheck : unit t
+  (** we used GADTs of OCaml to declare an equality type *)
+  type (_, _) equal = Refl : 'a -> ('a, 'a) equal
 
-val get_signature : Kernel.Signature.t t
+  (** This record uses polymorism of rank 2. This is because internally we need to compare
+      values of types ['a t] and ['b t]. Hence the "for all quantifier" on types cannot be
+      in prenex form in the function [register_processor]. We use the GADT above to keep
+      track of the dependency. *)
+  type equality = {equal : 'a 'b. 'a t * 'b t -> ('a t, 'b t) equal option}
 
-val top_level : unit t
+  (** [register_processor processor f_eq (module P) associate the [processor] to the module [P].
+      ASSERT: f_eq processor processor = (Some Refl processor)
+      ASSERT: f_eq _         _         = None *)
+  val register_processor :
+    'a t -> equality -> (module S with type t = 'a) -> unit
+end
 
-val get_deps : Dep_legacy.t t
+(** [get_processor processor] returns the module associated to the processor.
+    Raise [Not_registered_processor] if the processor has not been registered. *)
+val get_processor : 'a t -> (module S with type t = 'a)
 
-val print : unit t
+(** [of_pure ~f ~init] returns processor from the fold-like function [f]. [f acc
+    env ent] folds entry [ent] on accumulator [acc] in environment [env]. *)
+val of_pure :
+  f:('a -> Env.t -> Parsers.Entry.entry -> 'a) ->
+  init:'a ->
+  (module S with type t = 'a)
+
+module T : Interface with type 'a t := (module S with type t = 'a)
+
+(** {3 Define processors with a custom environement} *)
+
+(** It may be possible that for the default processors defined in this API,
+    you want to use them with another module [Env] (for example for debugging or
+    to hook yourself in one of the functions declared by the module). This is
+    possible using the functors below. For your custom processors, this is not
+    needed because you can already do it. The only requirement is to keep the same
+    [Env.t] type. *)
+
+module type CustomEnv = module type of Env with type t = Env.t
+
+module MakeTypeChecker (E : CustomEnv) : S with type t = unit
+
+module MakeSignatureBuilder (E : CustomEnv) : S with type t = Kernel.Signature.t
+
+module MakeEntryPrinter (E : CustomEnv) : S with type t = unit
+
+module MakeDependencies (E : CustomEnv) : S with type t = Dep_legacy.t

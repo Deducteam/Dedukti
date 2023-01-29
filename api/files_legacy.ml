@@ -27,7 +27,7 @@ let fail_file_error err =
         Format.asprintf "No object file (.dko) found for module %a@."
           Basic.pp_mident md )
 
-let fail_file_error ~reduce:_ exn =
+let fail_file_error ~red:_ exn =
   match exn with Files_error err -> Some (fail_file_error err) | _ -> None
 
 let _ = Errors.register_exception fail_file_error
@@ -59,7 +59,11 @@ let find_object_file lc md =
 (* If not found in the current directory, search in load-path *)
 
 let object_file_of_input input =
-  let filename = Parser.file_of_input input |> Filename.chop_extension in
+  let filename =
+    match Parser.file_of_input input with
+    | None -> Basic.string_of_mident (Parser.md_of_input input)
+    | Some f -> Filename.chop_extension f
+  in
   filename ^ ".dko"
 
 let find_dk : ignore:bool -> Basic.mident -> string list -> string option =

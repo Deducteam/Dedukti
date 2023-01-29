@@ -1,8 +1,6 @@
-(** {1 Files}
-
-    This module aims to be used to associated physical paths to module
-    identifiers {!type:Kernel.Basic.mident}. Two kind of physical
-    paths can be computed:
+(** This module aims to be used to associated physical paths to module
+   identifiers {!type:Kernel.Basic.mident}. Two kind of physical paths
+   can be computed:
 
     - Usual files  (see {!val:regular_file_extension})
 
@@ -11,28 +9,23 @@
 *)
 
 (** The load path *)
-type load_path
+type t
 
 (** A path is just a string *)
 type path = string
-
-(** [md path] returns the module identifier associated with the path
-    given. This path is the basename (without extension) of the path
-    given. *)
-val md : path -> Kernel.Basic.mident
 
 (** A file is a string. The type is private so to have guarantees
     about the extension. *)
 type file = private File of string [@@unboxed]
 
 (** [empty] represents the empty load path. *)
-val empty : load_path
+val empty : t
 
 (** [add_path load_path path] adds [path] the [load_path]. *)
-val add_path : load_path -> path -> load_path
+val add_path : t -> path -> t
 
 (** [pp] is a pretty-printer for [t]. *)
-val pp : load_path Kernel.Basic.printer
+val pp : t Kernel.Basic.printer
 
 (** Extension of regular files. *)
 val regular_file_extension : string
@@ -54,12 +47,12 @@ type status =
 
    This function expects that a file associated to a module [md] uses
    the same extension as {!val:regular_file_extension}. *)
-val file_status : load_path -> Kernel.Basic.mident -> status
+val file_status : t -> Kernel.Basic.mident -> status
 
 (** [get_status_exn t] is similar to [file_status] except an exception
    is raised if [find_stauts] returned [File_not_found] or
    [File_found_multiple_time].  *)
-val get_file_exn : load_path -> Kernel.Basic.loc -> Kernel.Basic.mident -> file
+val get_file_exn : t -> Kernel.Basic.loc -> Kernel.Basic.mident -> file
 
 (** [as_object_file ?prefix file] returns the object file associated
    to [file]. Every path of an object file is prefixed with [prefix].
@@ -72,7 +65,7 @@ val as_object_file : ?prefix:path -> file -> file
    concatenation of [default_path] with the string representation of
    the module identifier. File extension is given by
    {!val:regular_file_extension}. *)
-val input_as_file : [`File of string] Parsers.Parser.input -> file
+val input_as_file : ?default_path:path -> Parsers.Parser.input -> file
 
 val find_object_file_exn :
-  ?prefix:path -> load_path -> Kernel.Basic.loc -> Kernel.Basic.mident -> string
+  ?prefix:path -> t -> Kernel.Basic.loc -> Kernel.Basic.mident -> string

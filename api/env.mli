@@ -3,6 +3,7 @@ open Kernel
 
 open Basic
 open Term
+open Parsers
 
 (** {2 Error Datatype} *)
 
@@ -18,6 +19,8 @@ type t
 (** [dummy ?m ()] returns a dummy environment. If [m] is provided, the
     environment is built from module [m], but without file. *)
 val dummy : ?md:mident -> unit -> t
+
+exception Env_error of t * loc * exn
 
 (** {2 Debugging} *)
 
@@ -53,7 +56,13 @@ val explicit_import : bool ref
 (** [init ~load_path ~input] initializes a new global environement from
    the [input] and [load_path]. [load_path] is used to find object
    files that can be imported during type checking. *)
-val init : Files.load_path -> Kernel.Basic.mident -> t
+val init : load_path:Files.t -> input:Parser.input -> t
+
+(** [get_input env] returns the input used to create [env] *)
+val get_input : t -> Parser.input
+
+(** [get_input env] returns the filename associated to the input of [env]. We return a fake filename if the input was not create from a filename. *)
+val get_filename : t -> string
 
 (** [get_signature env] returns the signature used by this module. *)
 val get_signature : t -> Signature.t
@@ -62,7 +71,7 @@ val get_signature : t -> Signature.t
 val get_name : t -> mident
 
 (** [get_load_path env] returns the current [load_path] associated to the environment. *)
-val get_load_path : t -> Files.load_path
+val get_load_path : t -> Files.t
 
 (** [set_reduction_egine env] changes the reduction engine of [env]. The new environment shares the same signature than [env]. *)
 val set_reduction_engine : t -> (module Reduction.S) -> t
@@ -90,8 +99,8 @@ val is_static : t -> loc -> name -> bool
 (** [get_dtree env l md id] returns the decision/matching tree associated with [md.id]. *)
 val get_dtree : t -> loc -> name -> Dtree.t
 
-(** [export env ~file] saves the current environment in a [*.dko] file. *)
-val export : t -> file:Files.file -> unit
+(** [export env] saves the current environment in a [*.dko] file. *)
+val export : t -> unit
 
 (** [import env lc md] the module [md] in the current environment. *)
 val import : t -> loc -> mident -> unit
@@ -136,3 +145,7 @@ val are_convertible : t -> ?ctx:typed_context -> term -> term -> bool
 (** [unsafe_reduction env red te] reduces [te] according to the reduction configuration [red].
     It is unsafe in the sense that [te] is not type checked first. *)
 val unsafe_reduction : t -> ?red:Reduction.red_cfg -> term -> term
+
+val errors_in_snf : bool ref
+
+val fail_env_error : t -> Basic.loc -> exn -> 'a

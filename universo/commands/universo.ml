@@ -70,9 +70,7 @@ module Cmd = struct
   let parse_config : unit -> unit =
    fun () ->
     let module P = struct
-      type t = Api.Env.t
-
-      type output = unit
+      type t = unit
 
       let section = ref ""
 
@@ -96,30 +94,28 @@ module Cmd = struct
                        "Configuration file (entry not recognized): %a"
                        Printer.print_entry e))
 
-      let handle_entry env entry = handle_entry env entry; env
-
-      let output _ = ()
+      let get_data _ = ()
     end in
     (* Load path is not needed since no importation is done by the
        [P] processor. *)
     let load_path = Api.Files.empty in
-    Api.Processor.handle_files load_path ~files:[!config_path] (module P)
+    Api.Processor.T.handle_files ~load_path ~files:[!config_path] (module P)
 
-  let elaboration_meta_cfg : Api.Files.load_path -> M.cfg =
-   fun load_path ->
+  let elaboration_meta_cfg : load_path:Api.Files.t -> M.cfg =
+   fun ~load_path ->
     let meta_rules =
       try Hashtbl.find config "elaboration"
       with _ -> raise @@ Cmd_error NoElaborationSection
     in
-    M.default_config ~meta_rules load_path ()
+    M.default_config ~meta_rules ~load_path ()
 
-  let output_meta_cfg : Api.Files.load_path -> M.cfg =
-   fun load_path ->
+  let output_meta_cfg : load_path:Api.Files.t -> M.cfg =
+   fun ~load_path ->
     let meta_rules =
       try Hashtbl.find config "output"
       with _ -> raise @@ Cmd_error NoOutputSection
     in
-    M.default_config ~meta_rules load_path ()
+    M.default_config ~meta_rules ~load_path ()
 
   let mk_constraints : unit -> (B.name, U.pred) Hashtbl.t =
    fun () ->
@@ -149,36 +145,40 @@ module Cmd = struct
 
   (** [to_elaboration_env f] generates a fresh environement to elaborate file [f]. *)
   let to_elaboration_env :
-      Api.Files.load_path -> F.path -> Elaboration.Elaborate.t =
-   fun load_path in_path ->
+      load_path:Api.Files.t -> F.path -> Elaboration.Elaborate.t =
+   fun ~load_path in_path ->
     let file = F.out_from_string in_path `Elaboration in
-    {file; meta = elaboration_meta_cfg load_path}
+    {file; meta = elaboration_meta_cfg ~load_path}
 
   (** [mk_theory ()] returns the theory used by universo. *)
-  let mk_theory : Api.Files.load_path -> S.t =
-   fun load_path ->
+  let mk_theory : load_path:Api.Files.t -> S.t =
+   fun ~load_path ->
     Api.Processor.(
-      handle_files load_path
+      handle_files ~load_path
         ~files:[F.get_theory ()]
-        Api.Processor.get_signature)
+        Api.Processor.SignatureBuilder)
+
+  (* (\** [elab_signature f] returns the signature containing all the universes declaration associated to *)
+  (*     file [f] *\) *)
+  (* let elab_signature : string -> S.t = fun in_path -> *)
+  (*   F.signature_of_file (F.get_out_path in_path `Elaboration) *)
 
   (** [to_checking_env f] returns the type checking environement for the file [f] *)
-  let to_checking_env : Api.Files.load_path -> string -> Checking.Checker.t =
-   fun load_path in_path ->
+  let to_checking_env : load_path:Api.Files.t -> string -> Checking.Checker.t =
+   fun ~load_path in_path ->
     (* FIXME: UGLY, rework to match the new API *)
     let out = F.get_out_path in_path `Output in
-    let input = P.from_file ~file:out in
-    let env = Api.Env.init load_path (P.md_of_input input) in
+    let env = Api.Env.init ~load_path ~input:(P.input_from_file out) in
     let constraints = mk_constraints () in
     let out_file = F.out_from_string in_path `Checking in
-    {env; in_path; meta_out = output_meta_cfg load_path; constraints; out_file}
+    {env; in_path; meta_out = output_meta_cfg ~load_path; constraints; out_file}
 
   (** [theory_meta f] returns the meta configuration that allows to elaborate a theory for the SMT solver *)
-  let mk_smt_theory : Api.Files.load_path -> int -> O.theory =
-   fun load_path ->
+  let mk_smt_theory : load_path:Api.Files.t -> int -> O.theory =
+   fun ~load_path ->
     try
       let meta_rules = Hashtbl.find config "qfuf_specification" in
-      let meta = output_meta_cfg load_path in
+      let meta = output_meta_cfg ~load_path in
       M.add_rules meta meta_rules;
       O.mk_theory meta
     with Not_found -> raise @@ Cmd_error NoTargetSpecification
@@ -213,8 +213,9 @@ module Cmd = struct
     end)
 
   let mk_solver :
-      Api.Files.load_path -> (module Solving.Utils.SOLVER) * Solving.Utils.env =
-   fun load_path ->
+      load_path:Api.Files.t -> (module Solving.Utils.SOLVER) * Solving.Utils.env
+      =
+   fun ~load_path ->
     let open Solving in
     let get_rhs (r : R.partially_typed_rule) =
       match r.rhs with
@@ -252,7 +253,7 @@ module Cmd = struct
     let min = int_of_string (find "minimum" "1") in
     let max = int_of_string (find "maximum" "6") in
     let print = find "print" "false" = "true" in
-    let mk_theory = mk_smt_theory load_path in
+    let mk_theory = mk_smt_theory ~load_path in
     let env = {min; max; print; mk_theory} in
     ((module S : Utils.SOLVER), env)
 end
@@ -260,12 +261,12 @@ end
 (** [elaborate file] generates two new files [file'] and [file_univ].
     [file'] is the same as [file] except that all universes are replaced by fresh variables.
     [file_univ] contains the declaration of these variables. Everything is done modulo the logic. *)
-let elaborate : Api.Files.load_path -> string -> unit =
- fun load_path in_path ->
+let elaborate : load_path:Api.Files.t -> string -> unit =
+ fun ~load_path in_path ->
   L.log_univ "[ELAB] %s" (F.get_out_path in_path `Elaboration);
   let in_file = F.get_out_path in_path `Input in
-  let env = Cmd.to_elaboration_env load_path in_file in
-  let entries = P.from_file ~file:in_file |> P.to_seq_exn |> List.of_seq in
+  let env = Cmd.to_elaboration_env ~load_path in_file in
+  let entries = P.parse (P.input_from_file in_file) in
   (* This steps generates the fresh universe variables *)
   let entries' = List.map (E.mk_entry env) entries in
   (* Write the elaborated terms in the normal file (in the output directory) *)
@@ -277,15 +278,15 @@ let elaborate : Api.Files.load_path -> string -> unit =
   List.iter (Api.Pp.Default.print_entry out_fmt) entries';
   F.close out_file;
   F.close env.file;
-  F.export load_path in_path `Elaboration
+  F.export in_path ~load_path `Elaboration
 
 (** [check ~load_path file] type checks the file [file] and write the generated constraints in the file [file_cstr]. ASSUME that [file_univ] has been generated previously.
     ASSUME also that the dependencies have been type checked before. *)
-let check : Api.Files.load_path -> string -> unit =
- fun load_path in_path ->
+let check : load_path:Api.Files.t -> string -> unit =
+ fun ~load_path in_path ->
   L.log_univ "[CHECKING] %s" (F.get_out_path in_path `Output);
   let file = F.get_out_path in_path `Output in
-  let universo_env = Cmd.to_checking_env load_path in_path in
+  let universo_env = Cmd.to_checking_env ~load_path in_path in
   let requires_mds =
     let deps = C.get_deps () in
     let elab_dep = F.md_of in_path `Elaboration in
@@ -293,56 +294,51 @@ let check : Api.Files.load_path -> string -> unit =
   in
   F.add_requires (F.fmt_of_file universo_env.out_file) requires_mds;
   let module P = struct
-    type t = Api.Env.t
-
-    type output = unit
+    type t = unit
 
     let handle_entry env entry =
       Checking.Checker.mk_entry universo_env env entry
 
-    let handle_entry env entry = handle_entry env entry; env
-
-    let output _ = ()
+    let get_data _ = ()
   end in
   let hook =
     Api.Processor.
       {
         before =
-          (fun _input env ->
+          (fun env ->
             let sg = Api.Env.get_signature env in
-            S.import_signature sg (Cmd.mk_theory load_path));
+            S.import_signature sg (Cmd.mk_theory ~load_path));
         after =
-          (fun input _ -> function
+          (fun _ -> function
             | None -> ()
-            | Some exn -> Api.Errors.fail_exn input Kernel.Basic.dloc exn);
+            | Some (env, lc, exn) -> Api.Env.fail_env_error env lc exn);
       }
   in
-  Api.Processor.handle_files ~hook load_path ~files:[file] (module P);
-  let file = Api.Files.input_as_file (Parsers.Parser.from_file ~file:in_path) in
-  Api.Env.export universo_env.env ~file;
+  Api.Processor.T.handle_files ~hook ~load_path ~files:[file] (module P);
+  Api.Env.export universo_env.env;
   C.flush ();
   F.close universo_env.out_file;
-  F.export load_path in_path `Checking;
-  F.export load_path in_path `Solution;
-  F.export load_path in_path `Output
+  F.export in_path ~load_path `Checking;
+  F.export in_path ~load_path `Solution;
+  F.export in_path ~load_path `Output
 
 (** [solve files] call a SMT solver on the constraints generated for all the files [files].
     ASSUME that [file_cstr] and [file_univ] have been generated for all [file] in [files]. *)
-let solve : Api.Files.load_path -> string list -> unit =
- fun load_path in_paths ->
-  let (module S : Solving.Utils.SOLVER), env = Cmd.mk_solver load_path in
+let solve : load_path:Api.Files.t -> string list -> unit =
+ fun ~load_path in_paths ->
+  let (module S : Solving.Utils.SOLVER), env = Cmd.mk_solver ~load_path in
   let add_constraints in_path =
     L.log_univ "[PARSE] %s" (F.get_out_path in_path `Checking);
     S.parse in_path
   in
   List.iter add_constraints in_paths;
   L.log_univ "[SOLVING CONSTRAINTS...]";
-  let i, model = S.solve load_path env in
+  let i, model = S.solve ~load_path env in
   L.log_univ "[SOLVED] Solution found with %d universes." i;
-  S.print_model load_path (Cmd.output_meta_cfg load_path) model in_paths
+  S.print_model ~load_path (Cmd.output_meta_cfg ~load_path) model in_paths
 
-let simplify : Api.Files.load_path -> string list -> unit =
- fun load_path in_paths ->
+let simplify : load_path:Api.Files.t -> string list -> unit =
+ fun ~load_path in_paths ->
   B.Debug.enable_flag M.debug_flag;
   let normalize_file out_cfg in_path =
     let solution_rules =
@@ -351,8 +347,8 @@ let simplify : Api.Files.load_path -> string list -> unit =
     in
     M.add_rules out_cfg solution_rules;
     let file = F.get_out_path in_path `Output in
-    let input = P.from_file ~file in
-    let env = Api.Env.init load_path (P.md_of_input input) in
+    let input = P.input_from_file file in
+    let env = Api.Env.init ~load_path ~input in
     let output = F.out_from_string in_path `Simplify in
     let fmt = F.fmt_of_file output in
     let mk_entry e =
@@ -362,18 +358,17 @@ let simplify : Api.Files.load_path -> string list -> unit =
           Format.fprintf fmt "%a@." Api.Pp.Default.print_entry
             (M.mk_entry out_cfg env e)
     in
-    P.to_seq_exn input |> Seq.iter mk_entry;
-    F.close output
+    P.handle input mk_entry; P.close input; F.close output
   in
-  let out_cfg = Cmd.output_meta_cfg load_path in
+  let out_cfg = Cmd.output_meta_cfg ~load_path in
   List.iter (normalize_file out_cfg) in_paths
 
 (** [run_on_file ~load_path file] process steps 1 and 2 (depending the mode selected on [file] *)
-let run_on_file load_path file =
+let run_on_file ~load_path file =
   match !mode with
-  | Normal -> elaborate load_path file; check load_path file
-  | JustElaborate -> elaborate load_path file
-  | JustCheck -> check load_path file
+  | Normal -> elaborate ~load_path file; check ~load_path file
+  | JustElaborate -> elaborate ~load_path file
+  | JustCheck -> check ~load_path file
   | JustSolve -> ()
   | Simplify -> ()
 
@@ -393,7 +388,7 @@ let cmd_options =
       Arg.String
         (fun s ->
           F.mk_theory s;
-          U.md_theory := Api.Files.md s),
+          U.md_theory := P.md_of_file s),
       " (MANDATORY) Theory file" );
     ( "--config",
       Arg.String (fun s -> Cmd.config_path := s),
@@ -429,7 +424,7 @@ let cmd_options =
 let generate_empty_sol_file : string -> unit =
  fun in_path ->
   let sol_file = F.get_out_path in_path `Solution in
-  let check_md = Api.Files.md (F.get_out_path in_path `Checking) in
+  let check_md = P.md_of_file (F.get_out_path in_path `Checking) in
   let oc = open_out sol_file in
   let fmt = Format.formatter_of_out_channel oc in
   Format.fprintf fmt "#REQUIRE %a.@.@." Api.Pp.Default.print_mident check_md;
@@ -450,14 +445,13 @@ let _ =
       Api.Files.(List.fold_left add_path empty @@ Api.Files_legacy.get_path ())
     in
     if !mode <> Simplify then List.iter generate_empty_sol_file files;
-    List.iter (run_on_file load_path) files;
-    if !mode = Normal || !mode = JustSolve then solve load_path files;
-    if !mode = Simplify then simplify load_path files
+    List.iter (run_on_file ~load_path) files;
+    if !mode = Normal || !mode = JustSolve then solve ~load_path files;
+    if !mode = Simplify then simplify ~load_path files
   with
   (* FIXME: ugly, should be handled by universo via processor. *)
   | (Kernel.Signature.Signature_error _ | Kernel.Typing.Typing_error _) as e ->
-      let input = P.from_string (Kernel.Basic.mk_mident "<universo>") "" in
-      Api.Errors.fail_exn input Kernel.Basic.dloc e
+      Api.Env.fail_env_error (Api.Env.dummy ()) Kernel.Basic.dloc e
   | Cmd.Cmd_error (Misc s) ->
       Api.Errors.fail_exit ~code:"-1" ~file:"" None "%s@." s
   | Sys_error err ->

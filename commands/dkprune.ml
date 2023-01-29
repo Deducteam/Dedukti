@@ -26,7 +26,7 @@ let fail_dkprune_error err =
 
 exception Dkprune_error of dkprune_error
 
-let fail_dkprune ~reduce:_ exn =
+let fail_dkprune ~red:_ exn =
   match exn with
   | Dkprune_error err -> Some (fail_dkprune_error err)
   | _ -> None
@@ -69,26 +69,35 @@ let name_of_entry md = function
   | _ -> None
 
 (* Wrapper around Processor.Dependencies to avoid to compute dependencies of a module already computed *)
-module PruneDepProcessor : Processor.S with type output = unit = struct
-  type t = Env.t
-
-  type output = unit
+module PruneDepProcessor : Processor.S with type t = unit = struct
+  type t = unit
 
   let handle_entry env entry =
+    let open Processor in
     let md = Env.get_name env in
-    let (module Dep) = Processor.get_deps in
-    if not @@ MSet.mem md !computed then ignore (Dep.handle_entry env entry)
+    let (module Dep) = get_processor Dependencies in
+    if not @@ MSet.mem md !computed then Dep.handle_entry env entry
 
-  let handle_entry env entry = handle_entry env entry; env
-
-  let output _ = ()
+  let get_data _ = ()
 end
 
-(* Gather all the identifiers declared or defined in a module *)
-module GatherNames : Processor.S with type output = NSet.t = struct
-  type t = Env.t
+type _ Processor.t += PruneDepProcessor : unit Processor.t
 
-  type output = NSet.t
+let _ =
+  let open Processor in
+  let open Registration in
+  let equal_prune_dep_processor (type a b) :
+      a t * b t -> (a t, b t) equal option = function
+    | PruneDepProcessor, PruneDepProcessor -> Some (Refl PruneDepProcessor)
+    | _ -> None
+  in
+  register_processor PruneDepProcessor
+    {equal = equal_prune_dep_processor}
+    (module PruneDepProcessor)
+
+(* Gather all the identifiers declared or defined in a module *)
+module GatherNames : Processor.S with type t = NSet.t = struct
+  type t = NSet.t
 
   let names = ref NSet.empty
 
@@ -98,16 +107,26 @@ module GatherNames : Processor.S with type output = NSet.t = struct
     fun entry ->
       match name_of_entry md entry with None -> () | Some md -> add_name md
 
-  let handle_entry env entry = handle_entry env entry; env
-
-  let output _ = !names
+  let get_data _ = !names
 end
 
-(* Add all the names that should be kept as outpud. Either an entire module or a specific name *)
-module ProcessConfigurationFile : Processor.S with type output = NSet.t = struct
-  type t = Env.t
+type _ Processor.t += GatherNames : NSet.t Processor.t
 
-  type output = NSet.t
+let _ =
+  let open Processor in
+  let open Registration in
+  let equal_gather_names (type a b) : a t * b t -> (a t, b t) equal option =
+    function
+    | GatherNames, GatherNames -> Some (Refl GatherNames)
+    | _ -> None
+  in
+  register_processor GatherNames
+    {equal = equal_gather_names}
+    (module GatherNames)
+
+(* Add all the names that should be kept as outpud. Either an entire module or a specific name *)
+module ProcessConfigurationFile : Processor.S with type t = NSet.t = struct
+  type t = NSet.t
 
   let names = ref NSet.empty
 
@@ -119,28 +138,42 @@ module ProcessConfigurationFile : Processor.S with type output = NSet.t = struct
            [GatherNames] processor. *)
         let load_path = Files.empty in
         let snames =
-          Processor.handle_files load_path ~files:[file] (module GatherNames)
+          Processor.handle_files ~load_path ~files:[file] GatherNames
         in
         names := NSet.union snames !names
     | Entry.DTree (_, Some md, id) -> names := NSet.add (mk_name md id) !names
     | _ as e -> raise @@ Dkprune_error (BadFormat (Entry.loc_of_entry e))
 
-  let handle_entry env entry = handle_entry env entry; env
-
-  let output _ = !names
+  let get_data _ = !names
 end
+
+type _ Processor.t += PruneProcessConfigurationFile : NSet.t Processor.t
+
+let _ =
+  let open Processor in
+  let open Registration in
+  let equal_ppcf (type a b) : a t * b t -> (a t, b t) equal option = function
+    | PruneProcessConfigurationFile, PruneProcessConfigurationFile ->
+        Some (Refl PruneProcessConfigurationFile)
+    | _ -> None
+  in
+  register_processor PruneProcessConfigurationFile {equal = equal_ppcf}
+    (module ProcessConfigurationFile)
 
 (* This is called on each module which appear in the configuration
    files. This is called also on each module which is in the
    transitive closure of the module dependencies *)
 let rec run_on_files ~load_path files =
-  let before input env =
+  let before env =
     let md = Env.get_name env in
     if not @@ MSet.mem md !computed then
-      let file = Parser.file_of_input input in
-      log "[COMPUTE DEP] %s" file
+      match Parser.file_of_input (Env.get_input env) with
+      | None ->
+          log "[COMPUTE DEP] %s"
+            (string_of_mident (Parser.md_of_input (Env.get_input env)))
+      | Some file -> log "[COMPUTE DEP] %s" file
   in
-  let after input env exn =
+  let after env exn =
     match exn with
     | None ->
         let md = Env.get_name env in
@@ -154,16 +187,16 @@ let rec run_on_files ~load_path files =
         in
         let new_files = MSet.fold add_files deps.deps [] in
         if List.length new_files <> 0 then run_on_files ~load_path new_files
-    | Some exn -> Errors.fail_exn input Kernel.Basic.dloc exn
+    | Some (env, lc, e) -> Env.fail_env_error env lc e
   in
   let hook = Processor.{before; after} in
   (* Load path is not needed since no importation is done by the
      [PruneDepProcessor] processor. *)
   let load_path = Files.empty in
-  Processor.handle_files ~hook load_path ~files (module PruneDepProcessor)
+  Processor.handle_files ~hook ~load_path ~files PruneDepProcessor
 
 (* compute dependencies for each module which appear in the configuration files *)
-let handle_modules load_path mds =
+let handle_modules ~load_path mds =
   let files =
     List.map
       (fun md ->
@@ -174,18 +207,17 @@ let handle_modules load_path mds =
   run_on_files ~load_path files
 
 (* compute dependencies for eaach name which appear in the configuration files *)
-let handle_names load_path names =
+let handle_names ~load_path names =
   let open Basic.MidentSet in
   let mds = NameSet.fold (fun name s -> add (Basic.md name) s) names empty in
-  handle_modules load_path (elements mds)
+  handle_modules ~load_path (elements mds)
 
 (* check if all the entry of a file are pruned *)
 let is_empty deps file =
   (* Load path is not needed since no importation is done by the
      [GatherNames] processor. *)
-  let names =
-    Processor.handle_files Files.empty ~files:[file] (module GatherNames)
-  in
+  let load_path = Files.empty in
+  let names = Processor.handle_files ~load_path ~files:[file] GatherNames in
   NSet.is_empty (NSet.inter names deps)
 
 (* for each input file for which dependencies has been computed, we write an output file *)
@@ -193,7 +225,7 @@ let write_file deps in_file =
   let out_file = output_file in_file in
   log "[WRITING FILE] %s" out_file;
   if not (is_empty deps in_file) then (
-    let input = Parser.from_file ~file:in_file in
+    let input = Parser.input_from_file in_file in
     let md = Parser.md_of_input input in
     let output = open_out out_file in
     let fmt = Format.formatter_of_out_channel output in
@@ -205,12 +237,14 @@ let write_file deps in_file =
           if NSet.mem name deps then
             Format.fprintf fmt "%a" Printer.print_entry e
     in
-    Parser.to_seq_exn input |> Seq.iter handle_entry;
+    Parser.handle input handle_entry;
+    Parser.close input;
     close_out output)
 
 (* print_dependencies for all the names which are in the transitive closure of names specificed in the configuration files *)
 let print_dependencies ~load_path names =
   let open Dep_legacy in
+  let fake_env = Env.dummy ~md:(mk_mident "dkprune") () in
   (* We fake an environment to print an error *)
   try
     NameSet.iter Dep_legacy.transitive_closure names;
@@ -235,14 +269,7 @@ let print_dependencies ~load_path names =
   | Dep_legacy.Dep_error (NameNotFound name) ->
       Errors.fail_exit ~file:"configuration file" ~code:"DKPRUNE" None
         "The name %a does not exists@." Pp.Default.print_name name
-  | exn ->
-      (* Ugly!!! *)
-      let input =
-        Parsers.Parser.from_string
-          (Kernel.Basic.mk_mident "configuration file")
-          ""
-      in
-      Errors.fail_exn input Basic.dloc exn
+  | exn -> Env.fail_env_error fake_env Basic.dloc exn
 
 let files =
   let doc = "Dedukti files to process" in
@@ -265,11 +292,11 @@ let prune config log output files =
     (* Load path is not needed since no importation is done by the
        [GatherNames] processor. *)
     let load_path = Files.empty in
-    Processor.handle_files load_path ~files (module ProcessConfigurationFile)
+    Processor.handle_files ~load_path ~files PruneProcessConfigurationFile
   in
   let names = run_on_constraints files in
   let load_path = Config.load_path config in
-  handle_names load_path names;
+  handle_names ~load_path names;
   print_dependencies ~load_path names
 
 let cmd_t = Cmdliner.Term.(const prune $ Config.t $ log $ output $ files)

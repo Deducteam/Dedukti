@@ -174,7 +174,7 @@ let check_user_constraints :
 
 (** [mk_entry env e] type checks the entry e in the same way then dkcheck does. However, the convertibility tests is hacked so that we can add constraints dynamically while type checking the term. This is really close to what is done with typical ambiguity in Coq. *)
 let mk_entry : t -> Api.Env.t -> Parsers.Entry.entry -> unit =
- fun universo_env _env e ->
+ fun universo_env env e ->
   let module E = Parsers.Entry in
   let module Rule = Kernel.Rule in
   global_env := Some universo_env;
@@ -210,7 +210,12 @@ let mk_entry : t -> Api.Env.t -> Parsers.Entry.entry -> unit =
         | Some ty -> Typing.checking sg te ty; ty
       in
       match ty with
-      | Kind -> raise @@ Kernel.Typing.Typing_error (InexpectedKind (te, []))
+      | Kind ->
+          raise
+            (Api.Env.Env_error
+               ( env,
+                 lc,
+                 Kernel.Typing.Typing_error Kernel.Typing.KindIsNotTypable ))
       | _ ->
           if opaque then S.add_declaration sg lc id sc S.Static ty
           else

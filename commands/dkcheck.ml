@@ -88,36 +88,27 @@ let dkcheck config confluence de_bruijn export files eta ll sr_check
   Reduction.eta := eta;
   Env.check_arity := not eta;
   Srcheck.srfuel := sr_check;
+  Env.errors_in_snf := errors_in_snf;
   Env.explicit_import := explicit_import || standard_check;
   Typing.coc := coc;
   Typing.fail_on_unsatisfiable_constraints := type_lhs;
   let open Processor in
-  let hook_after input env exn =
+  let hook_after env exn =
     match exn with
     | None ->
-        let file = Files.input_as_file input in
-        let (File filename) = file in
-        if not (Config.quiet config) then Errors.success filename;
-        let file = Files.input_as_file input in
-        if export then Env.export env ~file;
+        if not (Config.quiet config) then Errors.success (Env.get_filename env);
+        if export then Env.export env;
         Confluence.finalize ()
-    | Some exn ->
-        let reduce term =
-          Env.unsafe_reduction env
-            ~red:{Reduction.default_cfg with target = Snf}
-            term
-        in
-        if errors_in_snf then Errors.reduce := reduce;
-        Errors.fail_exn input Kernel.Basic.dloc exn
+    | Some (env, lc, e) -> Env.fail_env_error env lc e
   in
   let hook =
-    {before = (fun _input _env -> Confluence.initialize ()); after = hook_after}
+    {before = (fun _ -> Confluence.initialize ()); after = hook_after}
   in
   let load_path = Config.load_path config in
-  Processor.(handle_files ~hook load_path ~files typecheck);
+  Processor.handle_files ~hook ~load_path ~files TypeChecker;
   let f m =
-    let input = Parsers.Parser.from_stdin (Basic.mk_mident m) in
-    Processor.handle_input load_path ~input typecheck
+    let input = Parsers.Parser.input_from_stdin (Basic.mk_mident m) in
+    Processor.handle_input ~load_path ~input TypeChecker
   in
   Option.iter f config.Config.run_on_stdin
 

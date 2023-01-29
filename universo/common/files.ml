@@ -101,7 +101,7 @@ let get_out_path : path -> step -> path =
 let out_from_string : path -> step -> cout t =
  fun path step ->
   let path = get_out_path path step in
-  let md = Api.Files.md path in
+  let md = P.md_of_file path in
   let oc = open_out path in
   let fmt = Format.formatter_of_out_channel oc in
   {path; md; channel = Out (oc, fmt)}
@@ -110,7 +110,7 @@ let out_from_string : path -> step -> cout t =
 let in_from_string : path -> step -> cin t =
  fun path step ->
   let path = get_out_path path step in
-  let md = Api.Files.md path in
+  let md = P.md_of_file path in
   let ic = open_in path in
   {path; md; channel = In ic}
 
@@ -133,7 +133,7 @@ let close : type a. a t -> unit =
 
 (** [md_of path step] returns the mident associated to the Universo file [file] for step [step]. *)
 let md_of : path -> step -> B.mident =
- fun in_path step -> Api.Files.md (get_out_path in_path step)
+ fun in_path step -> P.md_of_file (get_out_path in_path step)
 
 let add_requires : Format.formatter -> B.mident list -> unit =
  fun fmt mds ->
@@ -142,33 +142,31 @@ let add_requires : Format.formatter -> B.mident list -> unit =
       Format.fprintf fmt "#REQUIRE %a.@." Api.Pp.Default.print_mident md)
     mds
 
-let export : Api.Files.load_path -> path -> step -> unit =
- fun load_path in_path step ->
+type _ Processor.t += FilterSignature : Api.Env.t Processor.t
+
+let export : load_path:Api.Files.t -> path -> step -> unit =
+ fun ~load_path in_path step ->
   let out_file = get_out_path in_path step in
   let is_eq_rule r =
     let open Kernel.Rule in
     match r.pat with Pattern (_, _, []) -> true | _ -> false
   in
-  let (module SB) = Processor.get_signature in
+  let (module SB) = Processor.get_processor Processor.SignatureBuilder in
   let module P = struct
     type t = Api.Env.t
 
-    type output = Api.Env.t
-
     let handle_entry env entry =
-      let (module SB) = Processor.get_signature in
+      let (module SB) = Processor.get_processor Processor.SignatureBuilder in
       match (step, entry) with
       (* TODO: don't remember why only equality constraints are exported *)
       | `Checking, Parsers.Entry.Rules (_, r :: _) when is_eq_rule r ->
           SB.handle_entry env entry
-      | `Checking, _ -> env
+      | `Checking, _ -> ()
       | _, _ -> SB.handle_entry env entry
 
-    let output env = env
+    let get_data env = env
   end in
-  let env = Api.Processor.handle_files load_path ~files:[out_file] (module P) in
-  (* FIXME! *)
-  let file =
-    Api.Files.input_as_file (Parsers.Parser.from_file ~file:out_file)
+  let env =
+    Api.Processor.T.handle_files ~load_path ~files:[out_file] (module P)
   in
-  Api.Env.export env ~file
+  Api.Env.export env

@@ -1,10 +1,6 @@
 type path = string
 
-let md file =
-  let open Filename in
-  basename file |> remove_extension |> Kernel.Basic.mk_mident
-
-type load_path = path list
+type t = path list
 
 type file = File of string [@@unboxed]
 
@@ -60,12 +56,17 @@ let as_object_file ?prefix (File file) =
   in
   File filename
 
-let input_as_file input = File (Parsers.Parser.file_of_input input)
+let input_as_file ?(default_path = Filename.current_dir_name) input =
+  match Parsers.Parser.file_of_input input with
+  | None ->
+      let md = Parsers.Parser.md_of_input input in
+      File (Filename.concat default_path (basename_of_mident md))
+  | Some file -> File file
 
 type file_error =
   | Error_file_not_found of {
       loc : Kernel.Basic.loc;
-      load_path : load_path;
+      load_path : t;
       md : Kernel.Basic.mident;
     }
   | Error_file_found_multiple_times of {
@@ -101,7 +102,7 @@ let string_of_error = function
 
 exception File_error of file_error
 
-let fail_file_error ~reduce:_ exn =
+let fail_file_error ~red:_ exn =
   match exn with File_error err -> Some (string_of_error err) | _ -> None
 
 let _ = Errors.register_exception fail_file_error

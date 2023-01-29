@@ -1,30 +1,27 @@
 open Kernel
 open Basic
 
+type stream = {md : Basic.mident; lexbuf : Lexing.lexbuf}
+
 type from = Channel of in_channel | String of string
 (* String of Dedukti code *)
 
-type 'kind input = {
-  kind : 'kind;
-  md : Basic.mident;
-  from : from;
-}
-  constraint 'kind = [< `File of string | `Stdin | `String]
+type input = {file : string option; md : Basic.mident; from : from}
 
-type error = {loc : loc; lexbuf : Lexing.lexbuf}
+exception Parse_error of loc * string
 
-let read lexbuf md =
-  match Menhir_parser.line Lexer.token lexbuf md with
-  | exception Menhir_parser.Error ->
-      let loc = Lexer.get_loc lexbuf in
-      Error {loc; lexbuf}
-  | exception End_of_file -> Ok None
-  | entry -> Ok (Some entry)
+let read str =
+  try Menhir_parser.line Lexer.token str.lexbuf str.md
+  with Menhir_parser.Error ->
+    let loc = Lexer.get_loc str.lexbuf in
+    let lex = Lexing.lexeme str.lexbuf in
+    let msg = Format.sprintf "Unexpected token '%s'." lex in
+    raise @@ Parse_error (loc, msg)
 
 let lexing_from input =
   match input with
-  | Channel ic -> Lexing.from_channel ic
   | String s -> Lexing.from_string s
+  | Channel ic -> Lexing.from_channel ic
 
 let md_of_file file =
   let open Filename in
@@ -32,42 +29,35 @@ let md_of_file file =
   let base = if check_suffix base ".dk" then chop_suffix base ".dk" else base in
   mk_mident base
 
-let from_file ~file : [> `File of string] input =
+let input_from_file file =
   let md = md_of_file file in
   let from = Channel (open_in file) in
-  {kind = `File file; from; md}
+  {file = Some file; from; md}
 
-let from_stdin md : [> `Stdin] input = {kind = `Stdin; from = Channel stdin; md}
+let input_from_stdin md = {file = None; from = Channel stdin; md}
 
-let from_string md s : [> `String] input = {kind = `String; from = String s; md}
+let input_from_string md s = {file = None; from = String s; md}
 
 let md_of_input t = t.md
 
-let file_of_input (t : [`File of string] input) : string =
-  match t.kind with `File file -> file
-
-let kind_of_input (input : 'kind input) : 'kind = input.kind
+let file_of_input t = t.file
 
 let close input =
   match input.from with String _ -> () | Channel ic -> close_in ic
 
-let rec to_seq md input lexbuf =
-  match read lexbuf md with
-  | Ok None -> close input; Seq.empty
-  | Ok (Some entry) -> Seq.cons (Ok entry) (to_seq md input lexbuf)
-  | Error err -> Seq.cons (Error err) (to_seq md input lexbuf)
-
-let to_seq input =
+let from input =
   let md = input.md in
-  let lexbuf = lexing_from input.from in
-  to_seq md input lexbuf
+  {md; lexbuf = lexing_from input.from}
 
-exception Parser_error of error
+let handle input f =
+  let s = from input in
+  try
+    while true do
+      f (read s)
+    done
+  with Parsing.Parse_error | End_of_file -> ()
 
-let to_seq_exn input =
-  to_seq input
-  |> Seq.map (function
-       | Ok entry -> entry
-       | Error error ->
-           close input;
-           raise @@ Parser_error error)
+let parse input =
+  let l = ref [] in
+  handle input (fun e -> l := e :: !l);
+  List.rev !l

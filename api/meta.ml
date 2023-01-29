@@ -46,7 +46,7 @@ let signature_add_rule sg r = Signature.add_rules sg [Rule.to_rule_infos r]
 let signature_add_rules sg rs = List.iter (signature_add_rule sg) rs
 
 let default_config ?meta_rules ?(beta = true) ?encoding ?(decoding = true)
-    ?(register_before = true) load_path () =
+    ?(register_before = true) ~load_path () =
   let meta_mident = Basic.mk_mident "<meta>" in
   let find_object_file = Files.find_object_file_exn load_path in
   let meta_signature =
@@ -507,10 +507,11 @@ let encode cfg env term =
       if E.safe then
         match env with
         | None ->
-            Errors.fail_cli
+            Errors.fail_sys_error
               ~msg:
                 "A type checking environment must be provided when a safe \
                  encoding is used."
+              ()
         | Some env ->
             let sg = Env.get_signature env in
             E.encode_term ~sg term
@@ -533,11 +534,12 @@ let get_meta_signature cfg env =
   | None -> (
       match env with
       | None ->
-          Errors.fail_cli
+          Errors.fail_sys_error
             ~msg:
               "A type checking environment must be provided when the \
                normalisation strategy is done via the type checking \
                environmenet"
+            ()
       | Some env -> Env.get_signature env)
 
 let mk_term ?env cfg term =
@@ -639,10 +641,8 @@ let mk_entry cfg env entry =
   | _ -> entry
 
 module MetaConfiguration :
-  Processor.S with type output = Rule.partially_typed_rule list = struct
-  type t = Env.t
-
-  type output = Rule.partially_typed_rule list
+  Processor.S with type t = Rule.partially_typed_rule list = struct
+  type t = Rule.partially_typed_rule list
 
   let rules = ref []
 
@@ -651,34 +651,40 @@ module MetaConfiguration :
     (* TODO: Handle definitions *)
     | _ -> ()
 
-  let handle_entry env entry = handle_entry env entry; env
-
-  let output _ =
+  let get_data _ =
     let rs = List.flatten !rules in
     rules := [];
     rs
 end
 
+type _ Processor.t += MetaRules : Rule.partially_typed_rule list Processor.t
+
+let _ =
+  let equal (type a b) :
+      a Processor.t * b Processor.t ->
+      (a Processor.t, b Processor.t) Processor.Registration.equal option =
+    function
+    | MetaRules, MetaRules -> Some (Processor.Registration.Refl MetaRules)
+    | _ -> None
+  in
+  Processor.Registration.register_processor MetaRules {equal}
+    (module MetaConfiguration)
+
 let parse_meta_files files =
   (* Load path is not needed since no importation is done via the
      [MetaRules] processor. *)
   let load_path = Files.empty in
-  Processor.fold_files load_path ~files
+  Processor.fold_files ~load_path ~files
     ~f:(fun rules acc -> rules :: acc)
-    ~default:[]
-    (module MetaConfiguration)
+    ~default:[] MetaRules
   |> List.concat
 
 let make_meta_processor cfg ~post_processing =
   let module Meta = struct
-    type t = Env.t
-
-    type output = unit
+    type t = unit
 
     let handle_entry env entry = post_processing env (mk_entry cfg env entry)
 
-    let handle_entry env entry = handle_entry env entry; env
-
-    let output _ = ()
+    let get_data _ = ()
   end in
-  (module Meta : Processor.S with type output = unit)
+  (module Meta : Processor.S with type t = unit)
