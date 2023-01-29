@@ -379,7 +379,9 @@ let fail_lexer_error ~reduce:_ = function
   | _ -> None
 
 let fail_parser_error ~reduce:_ = function
-  | Parser.Parser_error {loc; lexbuf} ->
+  | Parser.Parser_error error ->
+      let loc = Parser.loc_of_error error in
+      let lexbuf = Parser.lexbuf_of_error error in
       Some
         ( 702,
           Some loc,

@@ -11,13 +11,18 @@ type 'kind input = {
 }
   constraint 'kind = [< `File of string | `Stdin | `String]
 
-type error = {loc : loc; lexbuf : Lexing.lexbuf}
+type error =
+  | E : {loc : loc; input : 'kind input; lexbuf : Lexing.lexbuf} -> error
 
-let read lexbuf md =
+let loc_of_error (E {loc; _}) = loc
+
+let lexbuf_of_error (E {lexbuf; _}) = lexbuf
+
+let read input lexbuf md =
   match Menhir_parser.line Lexer.token lexbuf md with
   | exception Menhir_parser.Error ->
       let loc = Lexer.get_loc lexbuf in
-      Error {loc; lexbuf}
+      Error (E {loc; input; lexbuf})
   | exception End_of_file -> Ok None
   | entry -> Ok (Some entry)
 
@@ -52,7 +57,7 @@ let close input =
   match input.from with String _ -> () | Channel ic -> close_in ic
 
 let rec to_seq md input lexbuf =
-  match read lexbuf md with
+  match read input lexbuf md with
   | Ok None -> close input; Seq.empty
   | Ok (Some entry) -> Seq.cons (Ok entry) (to_seq md input lexbuf)
   | Error err -> Seq.cons (Error err) (to_seq md input lexbuf)
@@ -64,10 +69,14 @@ let to_seq input =
 
 exception Parser_error of error
 
-let to_seq_exn input =
-  to_seq input
-  |> Seq.map (function
-       | Ok entry -> entry
-       | Error error ->
-           close input;
-           raise @@ Parser_error error)
+let raise_on_error =
+  Seq.map (function
+    | Ok entry -> entry
+    | Error (E {input; _} as error) ->
+        close input;
+        raise @@ Parser_error error)
+
+let seq_of_files ~files =
+  let seq = List.to_seq files in
+  let input_seq = Seq.map (fun file -> from_file ~file) seq in
+  Seq.flat_map (fun input -> to_seq input) input_seq

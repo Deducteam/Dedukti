@@ -205,7 +205,7 @@ let write_file deps in_file =
           if NSet.mem name deps then
             Format.fprintf fmt "%a" Printer.print_entry e
     in
-    Parser.to_seq_exn input |> Seq.iter handle_entry;
+    Parser.to_seq input |> Parser.raise_on_error |> Seq.iter handle_entry;
     close_out output)
 
 (* print_dependencies for all the names which are in the transitive closure of names specificed in the configuration files *)

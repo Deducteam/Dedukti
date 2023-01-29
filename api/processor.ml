@@ -34,7 +34,9 @@ let handle_input :
    (match hook with None -> () | Some hook -> hook.before input env);
    let exn =
      try
-       ignore @@ (Parser.to_seq_exn input |> Seq.fold_left P.handle_entry env);
+       ignore
+       @@ (Parser.to_seq input |> Parser.raise_on_error
+          |> Seq.fold_left P.handle_entry env);
        None
      with exn -> Some exn
    in

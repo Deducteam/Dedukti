@@ -265,7 +265,9 @@ let elaborate : Api.Files.load_path -> string -> unit =
   L.log_univ "[ELAB] %s" (F.get_out_path in_path `Elaboration);
   let in_file = F.get_out_path in_path `Input in
   let env = Cmd.to_elaboration_env load_path in_file in
-  let entries = P.from_file ~file:in_file |> P.to_seq_exn |> List.of_seq in
+  let entries =
+    P.from_file ~file:in_file |> P.to_seq |> P.raise_on_error |> List.of_seq
+  in
   (* This steps generates the fresh universe variables *)
   let entries' = List.map (E.mk_entry env) entries in
   (* Write the elaborated terms in the normal file (in the output directory) *)
@@ -362,7 +364,7 @@ let simplify : Api.Files.load_path -> string list -> unit =
           Format.fprintf fmt "%a@." Api.Pp.Default.print_entry
             (M.mk_entry out_cfg env e)
     in
-    P.to_seq_exn input |> Seq.iter mk_entry;
+    P.to_seq input |> P.raise_on_error |> Seq.iter mk_entry;
     F.close output
   in
   let out_cfg = Cmd.output_meta_cfg load_path in

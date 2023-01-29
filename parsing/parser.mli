@@ -30,10 +30,16 @@ val file_of_input : [`File of string] input -> string
 
 val kind_of_input : 'kind input -> 'kind
 
-type error = {loc : Kernel.Basic.loc; lexbuf : Lexing.lexbuf}
+type error
+
+val loc_of_error : error -> Kernel.Basic.loc
+
+val lexbuf_of_error : error -> Lexing.lexbuf
 
 exception Parser_error of error
 
-val to_seq_exn : 'a input -> Entry.entry Seq.t
+val raise_on_error : (Entry.entry, error) result Seq.t -> Entry.entry Seq.t
 
-val to_seq : 'a input -> (Entry.entry, error) result Seq.t
+val to_seq : 'kind input -> (Entry.entry, error) result Seq.t
+
+val seq_of_files : files:string list -> (Entry.entry, error) result Seq.t
