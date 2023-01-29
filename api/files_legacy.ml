@@ -59,11 +59,7 @@ let find_object_file lc md =
 (* If not found in the current directory, search in load-path *)
 
 let object_file_of_input input =
-  let filename =
-    match Parser.file_of_input input with
-    | None -> Basic.string_of_mident (Parser.md_of_input input)
-    | Some f -> Filename.chop_extension f
-  in
+  let filename = Parser.file_of_input input |> Filename.chop_extension in
   filename ^ ".dko"
 
 let find_dk : ignore:bool -> Basic.mident -> string list -> string option =

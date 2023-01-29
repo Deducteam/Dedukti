@@ -4,7 +4,12 @@ open Basic
 type from = Channel of in_channel | String of string
 (* String of Dedukti code *)
 
-type input = {file : string option; md : Basic.mident; from : from}
+type 'kind input = {
+  kind : 'kind;
+  md : Basic.mident;
+  from : from;
+}
+  constraint 'kind = [< `File of string | `Stdin | `String]
 
 type error = {loc : loc; lexbuf : Lexing.lexbuf}
 
@@ -18,8 +23,8 @@ let read lexbuf md =
 
 let lexing_from input =
   match input with
-  | String s -> Lexing.from_string s
   | Channel ic -> Lexing.from_channel ic
+  | String s -> Lexing.from_string s
 
 let md_of_file file =
   let open Filename in
@@ -27,32 +32,35 @@ let md_of_file file =
   let base = if check_suffix base ".dk" then chop_suffix base ".dk" else base in
   mk_mident base
 
-let from_file ~file =
+let from_file ~file : [> `File of string] input =
   let md = md_of_file file in
   let from = Channel (open_in file) in
-  {file = Some file; from; md}
+  {kind = `File file; from; md}
 
-let from_stdin md = {file = None; from = Channel stdin; md}
+let from_stdin md : [> `Stdin] input = {kind = `Stdin; from = Channel stdin; md}
 
-let from_string md s = {file = None; from = String s; md}
+let from_string md s : [> `String] input = {kind = `String; from = String s; md}
 
 let md_of_input t = t.md
 
-let file_of_input t = t.file
+let file_of_input (t : [`File of string] input) : string =
+  match t.kind with `File file -> file
+
+let kind_of_input (input : 'kind input) : 'kind = input.kind
 
 let close input =
   match input.from with String _ -> () | Channel ic -> close_in ic
 
-let rec to_seq md lexbuf =
+let rec to_seq md input lexbuf =
   match read lexbuf md with
-  | Ok None -> Seq.empty
-  | Ok (Some entry) -> Seq.cons (Ok entry) (to_seq md lexbuf)
-  | Error err -> Seq.cons (Error err) (to_seq md lexbuf)
+  | Ok None -> close input; Seq.empty
+  | Ok (Some entry) -> Seq.cons (Ok entry) (to_seq md input lexbuf)
+  | Error err -> Seq.cons (Error err) (to_seq md input lexbuf)
 
 let to_seq input =
   let md = input.md in
   let lexbuf = lexing_from input.from in
-  to_seq md lexbuf
+  to_seq md input lexbuf
 
 exception Parser_error of error
 
@@ -60,4 +68,6 @@ let to_seq_exn input =
   to_seq input
   |> Seq.map (function
        | Ok entry -> entry
-       | Error error -> raise @@ Parser_error error)
+       | Error error ->
+           close input;
+           raise @@ Parser_error error)

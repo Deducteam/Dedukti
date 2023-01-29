@@ -60,12 +60,7 @@ let as_object_file ?prefix (File file) =
   in
   File filename
 
-let input_as_file ?(default_path = Filename.current_dir_name) input =
-  match Parsers.Parser.file_of_input input with
-  | None ->
-      let md = Parsers.Parser.md_of_input input in
-      File (Filename.concat default_path (basename_of_mident md))
-  | Some file -> File file
+let input_as_file input = File (Parsers.Parser.file_of_input input)
 
 type file_error =
   | Error_file_not_found of {

@@ -38,10 +38,10 @@
 type processor_error = exn
 
 (** To hook an input before and after it is being processed *)
-type hook = {
-  before : Parsers.Parser.input -> Env.t -> unit;
+type 'a hook = {
+  before : 'a Parsers.Parser.input -> Env.t -> unit;
       (** hook_before is executed by the processor before processing the input *)
-  after : Parsers.Parser.input -> Env.t -> processor_error option -> unit;
+  after : 'a Parsers.Parser.input -> Env.t -> processor_error option -> unit;
       (** hook_after is executed by the processor after processing the output *)
 }
 
@@ -122,18 +122,26 @@ type 'a t = (module S with type output = 'a)
      been raised while processing the data it is raised at
      top-level. *)
 val handle_input :
-  ?hook:hook -> Files.load_path -> input:Parsers.Parser.input -> 'a t -> 'a
+  ?hook:'kind hook ->
+  Files.load_path ->
+  input:'kind Parsers.Parser.input ->
+  'a t ->
+  'a
 
 (** [handle_files ?hook files processor] apply a processor on each file of
      [files].  [hook] is used once by file. The result is the one
      given once each file has been processed. *)
 val handle_files :
-  ?hook:hook -> Files.load_path -> files:string list -> 'a t -> 'a
+  ?hook:[> `File of string] hook ->
+  Files.load_path ->
+  files:string list ->
+  'a t ->
+  'a
 
 (** [fold_files ?hook ~load_path ~files ~f ~default processor] is the
    [fold] variant of [handle_files]. *)
 val fold_files :
-  ?hook:hook ->
+  ?hook:[> `File of string] hook ->
   Files.load_path ->
   files:string list ->
   f:('a -> 'b -> 'b) ->

@@ -363,7 +363,6 @@ let simplify : Api.Files.load_path -> string list -> unit =
             (M.mk_entry out_cfg env e)
     in
     P.to_seq_exn input |> Seq.iter mk_entry;
-    P.close input;
     F.close output
   in
   let out_cfg = Cmd.output_meta_cfg load_path in

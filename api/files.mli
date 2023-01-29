@@ -72,7 +72,7 @@ val as_object_file : ?prefix:path -> file -> file
    concatenation of [default_path] with the string representation of
    the module identifier. File extension is given by
    {!val:regular_file_extension}. *)
-val input_as_file : ?default_path:path -> Parsers.Parser.input -> file
+val input_as_file : [`File of string] Parsers.Parser.input -> file
 
 val find_object_file_exn :
   ?prefix:path -> load_path -> Kernel.Basic.loc -> Kernel.Basic.mident -> string

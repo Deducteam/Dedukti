@@ -19,7 +19,7 @@ val get_path : unit -> string list
 val find_object_file : Basic.loc -> Basic.mident -> string
 
 (** [object_file_of_input] returns the filename associated to the input *)
-val object_file_of_input : Parser.input -> string
+val object_file_of_input : [`File of string] Parser.input -> string
 
 (** [get_file md] returns the path associated to module [md] *)
 val get_file : Basic.mident -> string

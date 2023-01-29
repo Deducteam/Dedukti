@@ -16,13 +16,17 @@ type 'a t = (module S with type output = 'a)
 
 type processor_error = exn
 
-type hook = {
-  before : Parsers.Parser.input -> Env.t -> unit;
-  after : Parsers.Parser.input -> Env.t -> processor_error option -> unit;
+type 'kind hook = {
+  before : 'kind Parsers.Parser.input -> Env.t -> unit;
+  after : 'kind Parsers.Parser.input -> Env.t -> processor_error option -> unit;
 }
 
 let handle_input :
-    ?hook:hook -> Files.load_path -> input:Parser.input -> 'a t -> 'a =
+    ?hook:'kind hook ->
+    Files.load_path ->
+    input:'kind Parser.input ->
+    'a t ->
+    'a =
   fun (type a) ?hook load_path ~input processor ->
    let (module P : S with type output = a) = processor in
    let md = Parsers.Parser.md_of_input input in
@@ -44,7 +48,7 @@ let handle_input :
    data
 
 let fold_files :
-    ?hook:hook ->
+    ?hook:'kind hook ->
     Files.load_path ->
     files:string list ->
     f:('a -> 'b -> 'b) ->
@@ -53,9 +57,7 @@ let fold_files :
     'b =
  fun ?hook load_path ~files ~f ~default processor ->
   let handle_input input =
-    try
-      let data = handle_input ?hook load_path ~input processor in
-      Parser.close input; data
+    try handle_input ?hook load_path ~input processor
     with Sys_error msg -> Errors.fail_sys_error input ~msg
   in
   let fold b file =
@@ -66,7 +68,7 @@ let fold_files :
   List.fold_left fold default files
 
 let handle_files :
-    ?hook:hook -> Files.load_path -> files:string list -> 'a t -> 'a =
+    ?hook:'kind hook -> Files.load_path -> files:string list -> 'a t -> 'a =
   fun (type a) ?hook load_path ~files processor ->
    let (module P : S with type output = a) = processor in
    fold_files load_path ~files ?hook
