@@ -77,7 +77,7 @@ let pp_entry fmt e =
   | Print (_, str) -> fprintf fmt "#PRINT %S.@." str
   | Name (_, _) -> ()
   | Require (_, md) -> fprintf fmt "#REQUIRE %a.@." pp_mident md
-  | Pragma (_, str) -> fprintf fmt "#PRAGMA %str.@." str
+  | Pragma (_, str) -> fprintf fmt "#PRAGMA %s.@." str
 
 let loc_of_entry = function
   | Decl (lc, _, _, _, _)
