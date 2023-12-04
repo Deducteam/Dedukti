@@ -1,10 +1,12 @@
 Each file of this directory is an encoding of one theory in Dedukti.
 
+Most theories are presented in [A Modular Construction of Type Theories](https://lmcs.episciences.org/10959/pdf)
+
 ## FOL
 
 Dedukti file: *fol.dk*
 
-An encoding of First-Order logic (see Section. 5 of [Dedukti: a Logical Framework based on the λΠ-Calculus Modulo Theory](http://www.lsv.fr/~dowek/Publi/expressing.pdf)).
+An encoding of First-Order logic (see Section. 5 of [Dedukti: a Logical Framework based on the λΠ-Calculus Modulo Theory](https://arxiv.org/abs/2311.07185)).
 
 ## CiC
 
@@ -26,7 +28,7 @@ An encoding of OpenTheory (see [Ali Assaf Thesis](https://hal.inria.fr/tel-01235
 
 Dedukti file: *stt.dk*
 
-An encoding of Simple Type Theory (see Section. 6 of [Dedukti: a Logical Framework based on the λΠ-Calculus Modulo Theory](http://www.lsv.fr/~dowek/Publi/expressing.pdf))
+An encoding of Simple Type Theory (see Section. 6 of [Dedukti: a Logical Framework based on the λΠ-Calculus Modulo Theory](https://arxiv.org/abs/2311.07185))
 
 ## STTforall
 
@@ -34,4 +36,4 @@ Dedukti file: *sttforall.dk*
 
 Generator: From Dedukti[CiC] files (coming soon)
 
-An encoding of Simple Type Theory with prenex polymorphism (see [Sharing a library between proof assistants: Reaching out to the HOL family](http://www.lsv.fr/~fthire/research/sttforall/index.php) (paper submitted to FSCD 2018))
+An encoding of Simple Type Theory with prenex polymorphism (see [Sharing a library between proof assistants: Reaching out to the HOL family](https://arxiv.org/abs/1807.01873))
