@@ -14,7 +14,7 @@
     (depends
       (ocaml (>= 4.08))
       (cmdliner (>= 1.1.0))
-      (tezt (and :with-test (>= 4.0)))
+      (tezt (and :with-test (= 4.0.0)))
       (menhir (>= 20180528)))
     (synopsis "An implementation of The Lambda-Pi Modulo Theory")
     (description "An implementation of The Lambda-Pi Modulo Theory"))
@@ -27,4 +27,4 @@
           (ocaml (>= 4.08))
           (dedukti (>= 2.7))
           (z3 (>= 4.8.11))
-          (tezt (and :with-test (>= 4.0)))))
+          (tezt (and :with-test (= 4.0.0)))))

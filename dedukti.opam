@@ -11,7 +11,7 @@ depends: [
   "dune" {>= "2.7"}
   "ocaml" {>= "4.08"}
   "cmdliner" {>= "1.1.0"}
-  "tezt" {with-test & >= "4.0"}
+  "tezt" {with-test & = "4.0.0"}
   "menhir" {>= "20180528"}
   "odoc" {with-doc}
 ]
