@@ -49,9 +49,9 @@ let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
       let output_options =
         (* --no-color: Do not print color characters for regression output. *)
         if regression <> None then ["--no-color"; "-q"]
-        else if Cli.options.log_level = Cli.Report then ["-q"]
-        else if Cli.options.log_level = Cli.Debug then ["-d"; "montru"]
-        else if Cli.options.log_level = Cli.Info then ["-d"; "n"]
+        else if Cli.Logs.level = Cli.Logs.Report then ["-q"]
+        else if Cli.Logs.level = Cli.Logs.Debug then ["-d"; "montru"]
+        else if Cli.Logs.level = Cli.Logs.Info then ["-d"; "n"]
         else []
       in
       let arguments = output_options @ arguments in
@@ -68,7 +68,7 @@ let run ?(preprocess = return) ?(postprocess = fun _ -> return ()) ~regression
                     output_acc := line :: !output_acc;
                     hooks.on_log line);
               }
-        else if Cli.options.log_level = Cli.Info then
+        else if Cli.Logs.level = Cli.Logs.Info then
           (* In [Info] mode, we have to tell to Tezt which lines need to
              be reported. By default, in [Debug] mode, Tezt will report
              all the logged lines. Nothing should be printed in [Report]
@@ -244,7 +244,7 @@ module Meta = struct
         Check.check ~dep file
     in
     (* Add verbose logs from [dkmeta] if we are in debug mode. *)
-    let log_dkmeta = if Cli.options.log_level = Cli.Debug then ["-v"] else [] in
+    let log_dkmeta = if Cli.Logs.level = Cli.Logs.Debug then ["-v"] else [] in
     run ~regression ~error:None ~title ~tags ~filename Dkmeta
       (import_arguments @ log_dkmeta @ arguments)
       ~preprocess ~postprocess
