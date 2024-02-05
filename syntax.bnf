@@ -1,7 +1,7 @@
 <ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*
           | '{|' <string> '|}'
 
-<mident> ::= [a-zA-Z0-9_]*
+<mident> ::= [a-zA-Z0-9_]* | '{|' <string> '|}
 
 <qident> ::= <mident> '.' <ident>
 
@@ -11,10 +11,10 @@
          | 'private' 'def' <ident> ':' <term> '.'
          | 'injective' <ident> ':' <term> '.'
          | 'private' 'injective' <ident> ':' <term> '.'
-         | 'def'AC <ident> '[' <term> ']' '.'
-         | 'private' 'def'AC <ident> '[' <term> ']' '.'
-         | 'def'ACU <ident> '[' <term> ',' <term> ']' '.'
-         | 'private' 'def'ACU <ident> '[' <term> ',' <term> ']' '.'
+         | 'defac' <ident> '[' <term> ']' '.'
+         | 'private' 'defac' <ident> '[' <term> ']' '.'
+         | 'defacu' <ident> '[' <term> ',' <term> ']' '.'
+         | 'private' 'defacu' <ident> '[' <term> ',' <term> ']' '.'
          | 'def' <ident> ':' <term> ':=' <term> '.'
          | 'def' <ident> ':=' <term> '.'
          | 'def' <ident> <param>+ ':' <term> ':=' <term> '.'
@@ -34,10 +34,10 @@
          | '#CHECKNOT' <aterm> ':' <term> '.'
          | '#ASSERT' <aterm> ':' <term> '.'
          | '#ASSERTNOT' <aterm> ':' <term> '.'
-         | '#CHECK' <aterm> '=' <term> '.'
-         | '#CHECKNOT' <aterm> '=' <term> '.'
-         | '#ASSERT' <aterm> '=' <term> '.'
-         | '#ASSERTNOT' <aterm> '=' <term> '.'
+         | '#CHECK' <aterm> '==' <term> '.'
+         | '#CHECKNOT' <aterm> '==' <term> '.'
+         | '#ASSERT' <aterm> '==' <term> '.'
+         | '#ASSERTNOT' <aterm> '==' <term> '.'
          | '#PRINT' '"' <string> '"' '.'
          | '#GDT' <ident> '.'
          | '#GDT' <qident> '.'
@@ -89,5 +89,4 @@
          | <pid> '=>' <term>
          | <pid> ':' <aterm> '=>' <term>
          | '(' <pid> ':' <aterm> ':=' <aterm> ')' '=>' <term>
-
 
