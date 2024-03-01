@@ -127,8 +127,9 @@ module Check = struct
       ok ~basename:"dotpat.dk" [];
       ok ~basename:"type_rewrite.dk" [];
       ok ~basename:"pragma.dk" [];
-
-      ok ~basename:"backslash.dk" []
+      ok ~basename:"backslash.dk" [];
+      ok ~basename:"invalid-name.dk" [Export];
+      ok ~basename:"require_invalid.dk" [Import "tests/OK"]
 
     module Acu = struct
       let ok ~basename =
