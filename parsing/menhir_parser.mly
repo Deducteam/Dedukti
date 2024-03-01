@@ -127,8 +127,8 @@ line:
       {fun md -> Rules(loc_of_rs rs,(List.map (scope_rule md) rs))}
   | KW_DEF lid=ID parameters=ilist(param) ty_opt=ioption(of_ty) DEF te=term DOT
     {make_definition ~lid ~parameters ~staticity:Public ~is_opaque:false ~ty_opt ~te}
-  | KW_THM lid=ID parameters=ilist(param) COLON ty=term DEF te=term DOT
-    {make_definition ~lid ~parameters ~staticity:Public ~is_opaque:true ~ty_opt:(Some ty) ~te}
+  | KW_THM lid=ID parameters=ilist(param) ty_opt=ioption(of_ty) DEF te=term DOT
+    {make_definition ~lid ~parameters ~staticity:Public ~is_opaque:true ~ty_opt ~te}
   | definibility=ioption(definibility) lid=ID parameters=ilist(param) ty=of_ty DOT
     {make_declaration ~lid ~parameters ~definibility ~ty}
 
