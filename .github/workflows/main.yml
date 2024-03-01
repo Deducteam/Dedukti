@@ -33,8 +33,9 @@ jobs:
           make universo
       - name: running Tezt tests...
         run: |
+          tests/check_test_list.py
           eval $(opam env)
-          make tezt	  
+          make tezt
       - name: running light libraries...
         if: github.event_name != 'schedule'
         run: |
