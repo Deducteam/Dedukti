@@ -1,0 +1,3 @@
+#REQUIRE {|invalid-name|}.
+
+1 : 0.

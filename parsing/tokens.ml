@@ -11,14 +11,12 @@ type token =
   | RIGHTSQU
   | RIGHTPAR
   | RIGHTBRA
+  | ID of (loc * ident)
   | QID of (loc * mident * ident)
-  | NAME of (loc * mident)
-  | REQUIRE of (loc * mident)
   | LONGARROW
   | LEFTSQU
   | LEFTPAR
   | LEFTBRA
-  | ID of (loc * ident)
   | FATARROW
   | EOF
   | DOT
@@ -27,6 +25,8 @@ type token =
   | COLON
   | EQUAL
   | ARROW
+  | NAME of loc
+  | REQUIRE of loc
   | EVAL of loc
   | INFER of loc
   | CHECK of loc

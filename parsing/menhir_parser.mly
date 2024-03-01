@@ -80,8 +80,8 @@ let make_declaration ~lid ~parameters ~definibility ~ty md =
 %token <Kernel.Basic.loc> ASSERTNOT
 %token <Kernel.Basic.loc> PRINT
 %token <Kernel.Basic.loc> GDT
-%token <Kernel.Basic.loc*Basic.mident> NAME
-%token <Kernel.Basic.loc*Basic.mident> REQUIRE
+%token <Kernel.Basic.loc> NAME
+%token <Kernel.Basic.loc> REQUIRE
 %token <Kernel.Basic.loc> TYPE
 %token <Kernel.Basic.loc> KW_DEF
 %token <Kernel.Basic.loc> KW_DEFAC
@@ -173,8 +173,8 @@ line:
   | PRINT STRING DOT {fun _ -> Print($1, $2)}
   | GDT   ID     DOT {fun _ -> DTree($1, None, snd $2)}
   | GDT   QID    DOT {fun _ -> let (_,m,v) = $2 in DTree($1, Some m, v)}
-  | n=NAME       DOT {fun _ -> Name(fst n, snd n)}
-  | r=REQUIRE    DOT {fun _ -> Require(fst r,snd r)}
+  | NAME  ID    DOT {fun _ -> Name($1, mident_of_ident (snd $2))}
+  | REQUIRE ID  DOT {fun _ -> Require($1, mident_of_ident (snd $2))}
   | PRAGMA {fun _ -> Pragma (fst $1, snd $1) }
   | EOF              {raise End_of_file}
 
