@@ -14,6 +14,10 @@ let string_of_mident s = s
 
 let mident_eq = ident_eq
 
+let mident_of_ident = function
+  | s when String.starts_with ~prefix:"{|" s -> String.(sub s 2 (length s - 4))
+  | s -> s
+
 type name = mident * ident
 
 let mk_name md id = (md, id)
