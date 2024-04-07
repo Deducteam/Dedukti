@@ -210,6 +210,7 @@ context: separated_list(COMMA, decl) { $1 }
 top_pattern:
   | ID  pattern_wp* { (fst $1,None,snd $1,$2) }
   | QID pattern_wp* { let (l,md,id)=$1 in (l,Some md,id,$2) }
+  | LEFTPAR top_pattern RIGHTPAR pattern_wp* { let (loc, md, id, args) = $2 in (loc, md, id, List.append args $4) }
 
 %inline pid:
   | ID { $1 }
