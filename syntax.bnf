@@ -59,6 +59,7 @@
 
 <top_pattern> ::= <ident> <pattern_wp>*
                 | <qident> <pattern_wp>*
+                | '(' <top_pattern> ')' <pattern_wp>*
 
 <pid> ::= <ident>
 
