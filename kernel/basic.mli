@@ -25,8 +25,11 @@ val mk_mident : string -> mident
 (** [mident_eq md md'] checks if the two modules identifiers [mid] and [mid'] are equals *)
 val mident_eq : mident -> mident -> bool
 
-(** [string_of_ident id] returns a string of the identifier [id] *)
+(** [string_of_mident id] returns a string of the module identifier [id] *)
 val string_of_mident : mident -> string
+
+(** [mident_of_ident id] transform the identifier [id] into a module identifier *)
+val mident_of_ident : ident -> mident
 
 (** type for constant names such as [foo.bar] *)
 type name
