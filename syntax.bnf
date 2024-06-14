@@ -14,7 +14,7 @@
 
 <line> ::= <rule>+ '.'
          | 'def' <ident> <ilist(<param>)> [<of_ty>] ':=' <term> '.'
-         | 'thm' <ident> <ilist(<param>)> ':' <term> ':=' <term> '.'
+         | 'thm' <ident> <ilist(<param>)> [<of_ty>] ':=' <term> '.'
          | [<definibility>] <ident> <ilist(<param>)> <of_ty> '.'
          | 'def'AC <ident> '[' <term> ']' '.'
          | 'private' 'def'AC <ident> '[' <term> ']' '.'
