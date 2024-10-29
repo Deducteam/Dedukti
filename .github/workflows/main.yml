@@ -7,7 +7,7 @@ jobs:
       fail-fast: false
       matrix:
         ocaml-version: [5.2.0, 5.1.1, 5.0.0, 4.14.1, 4.13.1] # does not compile with: 4.12.1, 4.11.2, 4.10.2, 4.09.1, 4.08.1
-        ocaml-format-version: [0.26.2] # 0.24.1 incompatible with ocaml 5.2.0
+        ocaml-format-version: [0.24.1] # 0.24.1 is incompatible with ocaml 5.2.0
     runs-on: ubuntu-latest
     steps:
       - name: checking out dedukti repo...
