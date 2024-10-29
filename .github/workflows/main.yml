@@ -14,7 +14,7 @@ jobs:
       - name: setting up opam...
         uses: ocaml/setup-ocaml@v3
         with:
-          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          ocaml-compiler: ${{ matrix.ocaml-version }}
           dune-cache: true
       - name: installing dependencies...
         run: |
