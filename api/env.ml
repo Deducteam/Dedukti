@@ -101,7 +101,7 @@ let get_dtree env lc cst = Signature.get_dtree env.sg lc cst
 let export env =
   let file = Files.input_as_file env.input in
   let (File file) = Files.as_object_file file in
-  let oc = open_out file in
+  let oc = open_out_bin file in
   Signature.export env.sg oc;
   close_out oc;
   (* FIXME: Not closed if Signature raises an error *)

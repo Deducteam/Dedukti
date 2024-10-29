@@ -101,7 +101,7 @@ let marshal :
 let unmarshal (lc : loc) (file : string) :
     mident list * rw_infos HId.t * rule_infos list list =
   try
-    let ic = open_in file in
+    let ic = open_in_bin file in
     let ver : string = Marshal.from_channel ic in
     if String.compare ver Version.version <> 0 then
       raise (Signature_error (UnmarshalBadVersionNumber (lc, file)));
