@@ -161,11 +161,11 @@ fullclean: distclean fullcleanlibs
 
 .PHONY: bnf
 bnf:
-	$(Q)echo "<ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*"
-	$(Q)echo "          | '{|' <string> '|}'"
-	$(Q)echo ""
-	$(Q)echo "<mident> ::= [a-zA-Z0-9_]*  | '{|' <string> '|}'"
-	$(Q)echo ""
-	$(Q)echo "<qident> ::= <mident> '.' <ident>"
-	$(Q)echo ""
-	$(Q)obelisk parsing/menhir_parser.mly | sed "s/ COLON / ':' /g ; s/ RIGHTPAR/ ')'/g ; s/ FATARROW / '=>' /g ; s/ DEF / ':=' /g ; s/ LEFTPAR / '(' /g ; s/ ARROW / '->' /g ; s/ ID/ <ident>/g ; s/ TYPE/ 'Type'/g; s/ QID/ <qident>/g ; s/ LEFTBRA / '{' /g ; s/ RIGHTBRA/ '}' /g ; s/ UNDERSCORE/ '_'/g ; s/COMMA/','/g ; s/ LONGARROW / '-->' /g ; s/ LEFTSQU / '[' /g ; s/ RIGHTSQU/ ']'/g ; s/ DOT/ '.'/g ; s/KW_DEF/'def'/g ; s/KW_INJ/'injective'/g ; s/KW_PRV/'private'/g ; s/KW_THM/'thm'/g ; s/ EVAL / '#EVAL' /g ; s/ INFER / '#INFER' /g ; s/ CHECK / '#CHECK' /g ; s/ CHECKNOT / '#CHECKNOT' /g ; s/ ASSERT / '#ASSERT' /g ; s/ ASSERTNOT / '#ASSERTNOT' /g ; s/ PRINT / '#PRINT' /g ; s/ GDT / '#GDT' /g ; s/ REQUIRE / '#REQUIRE' /g ; s/ NAME / '#NAME' /g ; s/ EQUAL / '=' /g ; s/ STRING / '\"' <string> '\"' /g"
+	$(Q)echo "<ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*" > syntax.bnf
+	$(Q)echo "          | '{|' <string> '|}'" >> syntax.bnf
+	$(Q)echo "" >> syntax.bnf
+	$(Q)echo "<mident> ::= [a-zA-Z0-9_]*  | '{|' <string> '|}'"  >> syntax.bnf
+	$(Q)echo "" >> syntax.bnf
+	$(Q)echo "<qident> ::= <mident> '.' <ident>" >> syntax.bnf
+	$(Q)echo "" >> syntax.bnf
+	$(Q)obelisk parsing/menhir_parser.mly | sed "s/ COLON / ':' /g ; s/ RIGHTPAR/ ')'/g ; s/ FATARROW / '=>' /g ; s/ DEF / ':=' /g ; s/ LEFTPAR / '(' /g ; s/ ARROW / '->' /g ; s/ ID/ <ident>/g ; s/ TYPE/ 'Type'/g; s/ QID/ <qident>/g ; s/ LEFTBRA / '{' /g ; s/ RIGHTBRA/ '}' /g ; s/ UNDERSCORE/ '_'/g ; s/COMMA/','/g ; s/ LONGARROW / '-->' /g ; s/ LEFTSQU / '[' /g ; s/ RIGHTSQU/ ']'/g ; s/ DOT/ '.'/g ; s/KW_DEFACU/'defacu'/g ; s/KW_DEFAC/'defac'/g ; s/KW_DEF/'def'/g ; s/KW_INJ/'injective'/g ; s/KW_PRV/'private'/g ; s/KW_THM/'thm'/g ; s/ EVAL / '#EVAL' /g ; s/ INFER / '#INFER' /g ; s/ CHECK / '#CHECK' /g ; s/ CHECKNOT / '#CHECKNOT' /g ; s/ ASSERT / '#ASSERT' /g ; s/ ASSERTNOT / '#ASSERTNOT' /g ; s/ PRINT / '#PRINT' /g ; s/ GDT / '#GDT' /g ; s/ REQUIRE / '#REQUIRE' /g ; s/ NAME / '#NAME' /g ; s/ EQUAL / '=' /g ; s/ STRING / '\"' <string> '\"' /g" >> syntax.bnf
