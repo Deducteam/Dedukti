@@ -35,8 +35,8 @@
          | '#PRINT' '"' <string> '"' '.'
          | '#GDT' <ident> '.'
          | '#GDT' <qident> '.'
-         | '#NAME' '.'
-         | '#REQUIRE' '.'
+         | '#NAME' <ident> '.'
+         | '#REQUIRE' <ident> '.'
          | PRAGMA
          | EOF
 
