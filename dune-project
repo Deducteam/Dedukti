@@ -12,9 +12,9 @@
 (package
     (name dedukti)
     (depends
-      (ocaml (>= 4.08))
+      (ocaml (>= 4.13.1))
       (cmdliner (>= 1.1.0))
-      (tezt (and :with-test (= 4.0.0)))
+      (tezt (and :with-test (>= 4.0.0)))
       (menhir (>= 20180528)))
     (synopsis "An implementation of The Lambda-Pi Modulo Theory")
     (description "An implementation of The Lambda-Pi Modulo Theory"))
@@ -24,7 +24,7 @@
 	(synopsis "A tool for Dedukti to play with universes")
 	(description "A tool for Dedukti to play with universes")
         (depends
-          (ocaml (>= 4.08))
+          (ocaml (>= 4.13.1))
           (dedukti (>= 2.7))
           (z3 (>= 4.8.11))
-          (tezt (and :with-test (= 4.0.0)))))
+          (tezt (and :with-test (>= 4.0.0)))))

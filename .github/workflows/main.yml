@@ -6,27 +6,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ocaml-compiler:
-          - 5.0.x
+        ocaml-version: [5.2.0, 5.1.1, 5.0.0, 4.14.2, 4.13.1] # does not compile with: 4.12.1, 4.11.2, 4.10.2, 4.09.1, 4.08.1
+#        ocaml-format-version: [0.24.1] # 0.24.1 is incompatible with ocaml 5.2.0
     runs-on: ubuntu-latest
     steps:
       - name: checking out dedukti repo...
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: setting up opam...
-        uses: ocaml/setup-ocaml@v2
+        uses: ocaml/setup-ocaml@v3
         with:
-          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          ocaml-compiler: ${{ matrix.ocaml-version }}
           dune-cache: true
       - name: installing dependencies...
         run: |
           opam update
           opam upgrade
           opam install . --deps-only -t
-          opam install ocamlformat.0.24.1
-      - name: Checking formatting...
-        run: |
-          eval $(opam env)
-          make fmt
+#      - name: Checking formatting...
+#        run: |
+#          eval $(opam env)
+#          opam install ocamlformat.${{ matrix.ocaml-format-version }}
+#          make fmt
       - name: Check universo compiles...
         run: |
           eval $(opam env)

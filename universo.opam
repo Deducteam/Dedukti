@@ -9,10 +9,10 @@ homepage: "https://github.com/Deducteam/Dedukti"
 bug-reports: "https://github.com/Deducteam/Dedukti/issues"
 depends: [
   "dune" {>= "2.7"}
-  "ocaml" {>= "4.08"}
+  "ocaml" {>= "4.13.1"}
   "dedukti" {>= "2.7"}
   "z3" {>= "4.8.11"}
-  "tezt" {with-test & = "4.0.0"}
+  "tezt" {with-test & >= "4.0.0"}
   "odoc" {with-doc}
 ]
 build: [
