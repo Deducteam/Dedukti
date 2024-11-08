@@ -27,7 +27,9 @@ let mk_config loc lid =
     | "CBN"  when !strat    = None -> strat    := Some ByName
     | "CBV"  when !strat    = None -> strat    := Some ByValue
     | "CBSV" when !strat    = None -> strat    := Some ByStrongValue
-    | i      when !nb_steps = None -> nb_steps := Some (int_of_string i)
+    | i      when !nb_steps = None ->
+       let n = int_of_string i in
+       if n < 0 then raise Exit else nb_steps := Some n
     | _ -> raise Exit in
   try
     List.iter proc lid;

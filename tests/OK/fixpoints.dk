@@ -1055,10 +1055,10 @@ def plus :
   y : T set nat ->
   T set nat :=
   fixproj set 1
-    (c=>c
+    (c => c
       (SA 0 set
         (prod set set set I nat (x => prod set set set I nat (y => nat)))))
-    (c=>c
+    (c => c
       (plus => x => y =>
          match____nat set (x0 : T set nat => nat) y
            (x' : T set nat => Succ (plus x' y)) x))
@@ -1076,10 +1076,10 @@ def times :
   y : T set nat ->
   T set nat :=
   fixproj set 1
-    (c=>c
+    (c => c
       (SA 0 set
         (prod set set set I nat (x => prod set set set I nat (y => nat)))))
-    (c=>c
+    (c => c
       (times => x => y =>
          match____nat set (x0 : T set nat => nat) Z
            (x' : T set nat => plus y (times x' y)) x))
@@ -1187,11 +1187,11 @@ def vect__rect :
      T (type z) (P (Succ n) (cons n n0 v))) =>
 
   fixproj (type z) 1
-    (c=>c
+    (c => c
       (SA 0 (type z)
         (prod set (type z) (type z) I nat
           (n => prod set (type z) (type z) I (vect n) (v => P n v)))))
-    (c=>c
+    (c => c
       (vect__rect => n => v =>
         match____vect (type z)
           (n0 : T set nat => v0 : T set (vect n0) => P n0 v0)

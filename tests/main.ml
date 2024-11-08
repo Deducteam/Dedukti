@@ -228,7 +228,7 @@ module Check = struct
       ko ~error:(`Code 701) ~basename:"nested_comments_2.dk" [];
       ko ~error:(`Code 101) ~basename:"noninjectivity.dk" [];
       ko ~error:(`Code 507) ~basename:"nonleftlinear.dk" [Left_linear];
-      ko ~error:(`Code 701) ~basename:"nsteps1.dk" [];
+      ko ~error:(`Code 703) ~basename:"nsteps1.dk" [];
       ko ~error:(`Code 702) ~basename:"parsing_eof.dk" [];
       ko ~error:(`Code 104) ~basename:"product_expected_6.dk" [];
       ko ~error:(`Code 403) ~basename:"prv_fail_1.dk" [Import "tests/LIB"];

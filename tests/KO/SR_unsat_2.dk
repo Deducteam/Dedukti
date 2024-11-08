@@ -15,5 +15,5 @@ def b : A -> A -> A.
    See SR_sat.dk for examples of satisfiable constraints.
 ;)
 
-def   d : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (b x a)) -> Type.
-[X,Y] d  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c a (c a y))) --> A.
+def   d : X:(A -> A -> A) -> Y:(A -> A) -> (x:A -> y:A ->  T (b x a)) -> Type.
+[X,Y] d  (x => y => X x y)   (y => Y y)    (x => y => t (c a (c a y))) --> A.
