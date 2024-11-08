@@ -177,7 +177,7 @@ coh : A : type -> B : type -> Q : Proof (EQ A B) -> a : term A ->
    b1 a1 (a0 a1 Qa) (Qb a1 (a0 a1 Qa) (H a1 Qa)) (x (a0 a1 Qa)))
   (fst (proof (EQ A1 A0))
        (__ : Proof (EQ A1 A0) =>
-        proof (all A1 (x1 : term A1=> all A0 (x0 : term A0 =>
+        proof (all A1 (x1 : term A1 => all A0 (x0 : term A0 =>
                imp (eq A1 x1 A0 x0) (EQ (B0 x0) (B1 x1))))))
        Q)
   (a1 : term A1 => Q : Proof (EQ A1 A0) => coe A1 A0 Q a1)
