@@ -8,8 +8,8 @@ def A:Type.
 [] A --> Nat.
 
 
-g:X->Nat.
-f:Nat->X.
+g:X -> Nat.
+f:Nat -> X.
 
 def l1 := x:Nat => g (f x).
 def l2 := y:A => l1 y.
