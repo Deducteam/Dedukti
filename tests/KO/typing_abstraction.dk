@@ -1,6 +1,6 @@
 A : Type.
 y : A.
-P : A->Type.
+P : A -> Type.
 p : P y.
 id : x:A -> P x -> P x.
 def T : P y.

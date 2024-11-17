@@ -19,5 +19,5 @@ def b : A -> A -> A.
    are convertible with
    terms that *must* or *may* contain x
           and *must*, *may* or *may not* contain y ;)
-def   d : X:(A->A->A) -> Y:(A->A) -> (x:A->y:A-> T (c x (X (c y y) a))) -> Type.
-[X,Y] d  (x=>y=>X x y)   (y=>Y y)    ( x => y => t (c y x)) --> A.
+def   d : X:(A -> A -> A) -> Y:(A -> A) -> (x:A -> y:A ->  T (c x (X (c y y) a))) -> Type.
+[X,Y] d  (x => y => X x y)   (y => Y y)    (x => y => t (c y x)) --> A.
