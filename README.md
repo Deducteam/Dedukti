@@ -247,7 +247,7 @@ Using underscores, we can write:
 Declaring a symbol as `injective` may help the type checker. Hence, it is possible to declare a symbol injective.
 However, no injectivity check is performed by the typechecker but the injectivity will be assumed and used when typechecking rules defined later on.
 
-    inj double : Nat -> Nat.
+    injective double : Nat -> Nat.
     [   ] double zero     --> zero.
     [ n ] double (succ n) --> succ (succ (double n)).
 
