@@ -1,12 +1,13 @@
-(executable
- (name main)
- (modules main dkcheck dkdep dkpretty dkprune dkmeta dktop config)
- (public_name dk)
- (package dedukti)
- (rule
+(rule
  (targets version.ml)
  (action
   (with-stdout-to version.ml
     (run ocaml -I +unix unix.cma %{dep:../misc/gen_version.ml})))
  (mode fallback))
+
+(executable
+ (name main)
+ (modules main dkcheck dkdep dkpretty dkprune dkmeta dktop config version)
+ (public_name dk)
+ (package dedukti)
  (libraries cmdliner kernel parsers api))
