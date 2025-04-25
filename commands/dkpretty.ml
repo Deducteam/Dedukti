@@ -28,4 +28,5 @@ let cmd_t = Term.(const beautify $ Config.t $ files)
 let cmd =
   let doc = "Pretty print Dedukti files" in
   let man = [] in
-  Cmd.(v (info "beautify" ~version:"%%VERSION%%" ~doc ~man) cmd_t)
+  let version = Version.version in
+  Cmd.(v (info "beautify" ~version ~doc ~man) cmd_t)

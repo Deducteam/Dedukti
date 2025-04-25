@@ -103,4 +103,5 @@ let cmd_t = Term.(const dkdep $ Config.t $ ignore $ output $ sort $ files)
 
 let cmd =
   let doc = "Dependency list generator for Dedukti files" in
-  Cmd.(v (info "dep" ~version:"%%VERSION%%" ~doc) cmd_t)
+  let version = Version.version in
+  Cmd.(v (info "dep" ~version ~doc) cmd_t)
