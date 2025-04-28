@@ -161,8 +161,9 @@ fullclean: distclean fullcleanlibs
 
 .PHONY: bnf
 bnf:
-	$(Q)echo "<ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*" > syntax.bnf
-	$(Q)echo "          | '{|' <string> '|}'" >> syntax.bnf
+	$(Q)echo "<letter> ::= [a-zA-Z0-9_!?'+*~&^@=$%/<|-\>]*" > syntax.bnf
+	$(Q)echo "<ident> ::= <letter><letter>*" >> syntax.bnf
+#	$(Q)echo "          | '{|' <string> '|}'" >> syntax.bnf
 	$(Q)echo "" >> syntax.bnf
 	$(Q)echo "<mident> ::= [a-zA-Z0-9_]*  | '{|' <string> '|}'"  >> syntax.bnf
 	$(Q)echo "" >> syntax.bnf
