@@ -13,7 +13,7 @@ let default_i =
          Dedukti language.";
     ]
   in
-  Cmd.info "dkcheck" ~version:"%%VERSION%%" ~doc ~sdocs ~man
+  Cmd.info "dk" ~version:"%%VERSION%%" ~doc ~sdocs ~man
 
 let cmds =
   [Dkcheck.cmd; Dkdep.cmd; Dkpretty.cmd; Dkprune.cmd; Dkmeta.cmd; Dktop.cmd]

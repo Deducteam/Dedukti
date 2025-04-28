@@ -45,7 +45,7 @@ using this framework.
 
 1. Identify which module of [`tests/dedukti.mli`](tests/dedukti.mli)
    corresponds to the command. For instance, `Dedukti.Check` allows to
-   test the command `dkcheck`.
+   test the command `dk check`.
 2. Find the function from the module that tests the behaviour you
    want. For instance, to check that a Dedukti file *does not* type check,
    use `Dedukti.Check.ko`.

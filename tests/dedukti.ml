@@ -31,8 +31,8 @@ let remove_dkos () =
 
    - [filename] is the filename on which the test is run.
 
-   - [command] is the command that should be run such as [dkcheck],
-   [dkmeta], ...
+   - [command] is the command that should be run such as [Dkcheck],
+   [Dkmeta], ...
 
    - [arguments] are the various arguments (as a list of strings)
    given to the command. *)
