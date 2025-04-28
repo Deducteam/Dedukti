@@ -14,7 +14,7 @@ let default_i =
     ]
   in
   let version = Version.version in
-  Cmd.info "dk" ~version:"%%VERSION%%" ~doc ~sdocs ~man
+  Cmd.info "dk" ~version ~doc ~sdocs ~man
 
 let cmds =
   [Dkcheck.cmd; Dkdep.cmd; Dkpretty.cmd; Dkprune.cmd; Dkmeta.cmd; Dktop.cmd]
