@@ -303,5 +303,4 @@ let cmd_t = Cmdliner.Term.(const prune $ Config.t $ log $ output $ files)
 
 let cmd =
   let doc = "Compute dependencies of a set of Dedukti files." in
-  let version = Version.version in
-  Cmdliner.Cmd.(v (info "prune" ~version ~doc) cmd_t)
+  Cmdliner.Cmd.(v (info "prune" ~doc) cmd_t)

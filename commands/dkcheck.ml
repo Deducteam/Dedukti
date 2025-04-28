@@ -136,5 +136,4 @@ let cmd =
       `P "Report bugs to <dedukti-dev@inria.fr>.";
     ]
   in
-  let version = Version.version in
-  Cmd.v (Cmd.info "check" ~version ~doc ~man) cmd_t
+  Cmd.v (Cmd.info "check" ~doc ~man) cmd_t
