@@ -15,7 +15,7 @@ module Check : sig
     | Left_linear
     | Standard
 
-  (** [ok ?regression ~filename arguments] runs [dkcheck] on
+  (** [ok ?regression ~filename arguments] runs [dk check] on
      [filename] with [arguments].
 
       If [regression] is set to [true], the standard output of the
@@ -31,7 +31,7 @@ module Check : sig
 
      - [Debug] (option "-v" (see {Tezt.Cli})), the test is run with
      argument "-d montru" (default value for verbose mode with
-     [dkcheck]).
+     [dk check]).
 
      - [Info] (option "-i" (see {Tezt.Cli})), the test is run with
      argument "-d n". Each top-level symbol is logged as well as the
@@ -39,8 +39,8 @@ module Check : sig
   val ok : ?regression:bool -> filename:string -> argument list -> unit
 
   (** [ko error ~filename arguments] is similar to [ok] but a failure
-     is expected when running [dkcheck]. It is checked that the error
-     returned by [dkcheck] is [error]. *)
+     is expected when running [dk check]. It is checked that the error
+     returned by [dk check] is [error]. *)
   val ko :
     error:[`Code of int | `System] -> filename:string -> argument list -> unit
 end
@@ -54,7 +54,7 @@ module Meta : sig
     | Quoting of [`Prod]
     | No_unquoting
 
-  (** [run ?dep ~filename arguments] runs [dkmeta] on [filename] with
+  (** [run ?dep ~filename arguments] runs [dk meta] on [filename] with
      [arguments].
 
       [dep] should contain files which are required for executing the
@@ -63,8 +63,8 @@ module Meta : sig
      [Meta]. For every file in [dep], their directory is imported
      using the option [Import].
 
-     If [check_output] is provided, [dkcheck] is called on the output
-     produced by [dkmeta]. The test fails if the output does not type
+     If [check_output] is provided, [dk check] is called on the output
+     produced by [dk meta]. The test fails if the output does not type
      checks. *)
   val run :
     ?dep:string list ->
@@ -77,7 +77,7 @@ end
 module Pretty : sig
   type argument = |
 
-  (** [run ~dep ~filename arguments] runs [dkcheck beautify] on file [filename]
+  (** [run ~dep ~filename arguments] runs [dk beautify] on file [filename]
       passing arguments [arguments]. The resulting file is type checked. If the
       file depends on other Dedukti files, these files must appear in [dep] so
       that their directory is added to the load path. *)
