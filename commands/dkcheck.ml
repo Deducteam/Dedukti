@@ -128,7 +128,7 @@ let cmd =
          more information, see https://github.com/Deducteam/Dedukti.";
       `S Manpage.s_examples;
       `P "Given a Dedukti file $(i,examples/append.dk), the command";
-      `Pre "dkcheck examples/append.dk";
+      `Pre "dk check examples/append.dk";
       `P "should exit with 0 and output (on stderr)";
       `Pre "[SUCCESS] examples/append.dk was successfully checked.";
       (* TODO: exit status *)

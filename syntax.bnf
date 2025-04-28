@@ -1,5 +1,5 @@
-<ident> ::= [a-zA-Z0-9_!?] [a-zA-Z0-9_!?']*
-          | '{|' <string> '|}'
+<letter> ::= [a-zA-Z0-9_!?'+*~&^@=/<|-\>]*
+<ident> ::= <letter><letter>*
 
 <mident> ::= [a-zA-Z0-9_]*  | '{|' <string> '|}'
 
@@ -16,10 +16,10 @@
          | 'def' <ident> <ilist(<param>)> [<of_ty>] ':=' <term> '.'
          | 'thm' <ident> <ilist(<param>)> [<of_ty>] ':=' <term> '.'
          | [<definibility>] <ident> <ilist(<param>)> <of_ty> '.'
-         | 'def'AC <ident> '[' <term> ']' '.'
-         | 'private' 'def'AC <ident> '[' <term> ']' '.'
-         | 'def'ACU <ident> '[' <term> ',' <term> ']' '.'
-         | 'private' 'def'ACU <ident> '[' <term> ',' <term> ']' '.'
+         | 'defac' <ident> '[' <term> ']' '.'
+         | 'private' 'defac' <ident> '[' <term> ']' '.'
+         | 'defacu' <ident> '[' <term> ',' <term> ']' '.'
+         | 'private' 'defacu' <ident> '[' <term> ',' <term> ']' '.'
          | '#EVAL' <term> '.'
          | '#EVAL' <eval_config> <term> '.'
          | '#INFER' <term> '.'
@@ -35,8 +35,8 @@
          | '#PRINT' '"' <string> '"' '.'
          | '#GDT' <ident> '.'
          | '#GDT' <qident> '.'
-         | '#NAME' '.'
-         | '#REQUIRE' '.'
+         | '#NAME' <ident> '.'
+         | '#REQUIRE' <ident> '.'
          | PRAGMA
          | EOF
 
