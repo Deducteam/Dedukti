@@ -13,4 +13,4 @@ let cmd_t = Cmdliner.Term.(const top $ Config.t)
 
 let cmd =
   let doc = "Run a read-eval-print-loop using dk-check." in
-  Cmdliner.Cmd.(v (info "top" ~doc ~version:"%%VERSION%%") cmd_t)
+  Cmdliner.Cmd.(v (info "top" ~doc) cmd_t)

@@ -115,4 +115,4 @@ let cmd_t =
 
 let cmd =
   let doc = "Transform dk signatures using dk." in
-  Cmdliner.Cmd.(v (info "meta" ~doc ~version:"%%VERSION%%") cmd_t)
+  Cmdliner.Cmd.(v (info "meta" ~doc) cmd_t)
