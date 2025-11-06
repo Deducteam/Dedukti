@@ -80,6 +80,8 @@ The installation provides the following commands:
  - `--stdin MOD` Parses standard input using module name `MOD`;
  - `--coc` [Experimental] Allows to declare a symbol whose type contains `Type` in the left-hand side of a product (useful for the Calculus of Construction);
  - `--type-lhs` Forbids rules with untypable left-hand side;
+ - `--eta` Enables conversion modulo eta;
+ - `--ll` Checks left linearity of rewrite rules;
  - `--snf` Normalizes the types in error messages;
  - `--confluence CMD` Sets the external confluence checker command to `CMD`;
  - `--beautify` Pretty printer. Prints on the standard output;
