@@ -1,9 +1,5 @@
-Note that a new interactive version of Dedukti is under development on https://github.com/Deducteam/lambdapi.
-
-For interoperability development, the current version of Dedukti is still used.
-
-USER MANUAL FOR DEDUKTI (DEVELOPMENT VERSION)
-=============================================
+USER MANUAL
+===========
 
 ### INSTALL
 
@@ -44,6 +40,10 @@ should output the following.
 ```
 SUCCESS File 'examples/append.dk' was successfully checked.
 ```
+
+### TUTORIAL
+
+A tutorial for Dedukti 2.5 is available [here](https://github.com/Deducteam/Dedukti/blob/master/TUTORIAL.md)
 
 ### EDITOR MODES
 
