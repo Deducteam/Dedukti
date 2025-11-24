@@ -6,37 +6,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ocaml-version: [5.2.0, 5.1.1, 5.0.0, 4.14.2, 4.13.1] # does not compile with: 4.12.1, 4.11.2, 4.10.2, 4.09.1, 4.08.1
+        ocaml-version: [5.4.0]
 #        ocaml-format-version: [0.24.1] # 0.24.1 is incompatible with ocaml 5.2.0
     runs-on: ubuntu-latest
     steps:
-      - name: checking out dedukti repo...
+      - name: check out
         uses: actions/checkout@v6
-      - name: setting up opam...
+      - name: set up opam
         uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: ${{ matrix.ocaml-version }}
           dune-cache: true
-      - name: installing dependencies...
+      - name: install
         run: |
-          opam update
-          opam upgrade
-          opam install . --deps-only -t
-#      - name: Checking formatting...
+          opam install --with-test .
+#      - name: check formatting
 #        run: |
-#          eval $(opam env)
 #          opam install ocamlformat.${{ matrix.ocaml-format-version }}
+#          eval $(opam env)
 #          make fmt
-      - name: Check universo compiles...
+      - name: tests
         run: |
           eval $(opam env)
-          make universo
-      - name: running Tezt tests...
-        run: |
           tests/check_test_list.py
-          eval $(opam env)
           make tezt
-      - name: running light libraries...
+      - name: light libraries
         if: github.event_name != 'schedule'
         run: |
           eval $(opam env)

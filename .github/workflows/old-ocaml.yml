@@ -1,0 +1,21 @@
+on:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        ocaml-version: [5.3.0, 5.2.1, 4.14.2]
+    runs-on: ubuntu-latest
+    steps:
+      - name: check out
+        uses: actions/checkout@v5
+      - name: set up opam
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-version }}
+          dune-cache: true
+      - name: install
+        run: |
+          opam install .
