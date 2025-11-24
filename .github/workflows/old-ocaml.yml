@@ -19,7 +19,3 @@ jobs:
       - name: install
         run: |
           opam install .
-      - name: universo
-        run: |
-          eval $(opam env)
-          make universo
