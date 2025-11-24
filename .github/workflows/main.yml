@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checking out dedukti repo...
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: setting up opam...
         uses: ocaml/setup-ocaml@v3
         with:
