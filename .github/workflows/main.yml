@@ -19,7 +19,7 @@ jobs:
           dune-cache: true
       - name: install
         run: |
-          opam install .
+          opam install --with-test .
 #      - name: check formatting
 #        run: |
 #          opam install ocamlformat.${{ matrix.ocaml-format-version }}
@@ -27,7 +27,6 @@ jobs:
 #          make fmt
       - name: tests
         run: |
-          opam install --deps-only --with-test .
           eval $(opam env)
           tests/check_test_list.py
           make tezt
