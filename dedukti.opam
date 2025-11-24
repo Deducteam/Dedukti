@@ -2,6 +2,7 @@
 opam-version: "2.0"
 synopsis: "An implementation of The Lambda-Pi Modulo Theory"
 description: "An implementation of The Lambda-Pi Modulo Theory"
+x-maintenance-intent: ["(latest)"]
 maintainer: ["dedukti-dev@inria.fr"]
 authors: ["dedukti-dev@inria.fr"]
 license: "CECILL-B"
