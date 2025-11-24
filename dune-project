@@ -15,6 +15,7 @@
       (ocaml (>= 4.13.1))
       (cmdliner (>= 1.1.0))
       (tezt (and :with-test (>= 4.0.0)))
+      (lwt (and :with-test (>= 4.2.0)))
       (menhir (>= 20180528)))
     (synopsis "An implementation of The Lambda-Pi Modulo Theory")
     (description "An implementation of The Lambda-Pi Modulo Theory"))

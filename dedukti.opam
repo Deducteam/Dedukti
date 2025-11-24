@@ -13,6 +13,7 @@ depends: [
   "ocaml" {>= "4.13.1"}
   "cmdliner" {>= "1.1.0"}
   "tezt" {with-test & >= "4.0.0"}
+  "lwt" {with-test & >= "4.2.0"}
   "menhir" {>= "20180528"}
   "odoc" {with-doc}
 ]
