@@ -53,7 +53,7 @@ Getting started
 
 To get started, visit (open) a new file with the `.dk` extension, say `foo.dk`. Emacs should select `dedukti-mode` for the buffer major mode and indicate this by the string "Dedukti" in the mode line. If flycheck is enabled, it indicates that the buffer is not accepted by Dedukti with the following error message: `Unexpected token ''.`.
 
-A Dedukti file should always start with a line of the form `#NAME <module_name>.` where `<module_name>` is the name of the module beeing defined by the file. This name will be used to refer to constants and functions defined in the file from other Dedukti developments. If the file is named `foo.dk` then `foo` is a good candidate for the module name.
+A Dedukti file should always start with a line of the form `#NAME <module_name>.` where `<module_name>` is the name of the module being defined by the file. This name will be used to refer to constants and functions defined in the file from other Dedukti developments. If the file is named `foo.dk` then `foo` is a good candidate for the module name.
 
 Add the following line:
 
