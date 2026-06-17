@@ -2,14 +2,13 @@
 opam-version: "2.0"
 synopsis: "A tool for Dedukti to play with universes"
 description: "A tool for Dedukti to play with universes"
-x-maintenance-intent: ["(latest)"]
 maintainer: ["dedukti-dev@inria.fr"]
 authors: ["dedukti-dev@inria.fr"]
 license: "CECILL-B"
 homepage: "https://github.com/Deducteam/Dedukti"
 bug-reports: "https://github.com/Deducteam/Dedukti/issues"
 depends: [
-  "dune" {>= "2.7"}
+  "dune" {>= "3.18"}
   "ocaml" {>= "4.13.1"}
   "dedukti" {>= "2.7"}
   "z3" {>= "4.8.11"}
@@ -31,3 +30,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/Deducteam/Dedukti.git"
+x-maintenance-intent: ["(latest)"]

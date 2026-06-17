@@ -8,7 +8,7 @@ val d_SR : Debug.flag
     typing. *)
 val srfuel : int ref
 
-module SRChecker (R : Reduction.S) : sig
+module SRChecker : Reduction.S -> sig
   (** Representation of LHS typing constraints *)
   type lhs_typing_cstr
 

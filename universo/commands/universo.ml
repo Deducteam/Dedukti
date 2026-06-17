@@ -47,7 +47,6 @@ module Cmd = struct
   let config = Hashtbl.create 11
 
   type cmd_error =
-    | ConfigurationFileNotFound of string
     | NoTargetSpecification
     | WrongConfiguration of E.entry
     | NoOutputSection
@@ -136,12 +135,6 @@ module Cmd = struct
     in
     (try List.iter mk_rule (Hashtbl.find config "constraints") with _ -> ());
     table
-
-  (** [add_rules sg rs] add the rewrite rules [rs] to the signature [sg] *)
-  let add_rules sg rs =
-    (* Several rules might be bound to different constant *)
-    let add_rule sg r = S.add_rules sg [R.to_rule_infos r] in
-    List.iter (add_rule sg) rs
 
   (** [to_elaboration_env f] generates a fresh environement to elaborate file [f]. *)
   let to_elaboration_env :

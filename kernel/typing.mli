@@ -62,6 +62,6 @@ module type S = sig
     Signature.t -> partially_typed_rule -> Exsubst.ExSubst.t * typed_rule
 end
 
-module Make (R : Reduction.S) : S
+module Make : Reduction.S -> S
 
 module Default : S

@@ -2,14 +2,13 @@
 opam-version: "2.0"
 synopsis: "An implementation of The Lambda-Pi Modulo Theory"
 description: "An implementation of The Lambda-Pi Modulo Theory"
-x-maintenance-intent: ["(latest)"]
 maintainer: ["dedukti-dev@inria.fr"]
 authors: ["dedukti-dev@inria.fr"]
 license: "CECILL-B"
 homepage: "https://github.com/Deducteam/Dedukti"
 bug-reports: "https://github.com/Deducteam/Dedukti/issues"
 depends: [
-  "dune" {>= "2.7"}
+  "dune" {>= "3.18"}
   "ocaml" {>= "4.13.1"}
   "cmdliner" {>= "1.1.0"}
   "tezt" {with-test & >= "4.0.0"}
@@ -32,3 +31,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/Deducteam/Dedukti.git"
+x-maintenance-intent: ["(latest)"]

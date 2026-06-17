@@ -1,9 +1,8 @@
-(lang dune 2.7)
+(lang dune 3.18)
 (name dedukti)
 (using menhir 2.0)
-
 (generate_opam_files true)
-
+(maintenance_intent "(latest)")
 (license CECILL-B)
 (maintainers "dedukti-dev@inria.fr")
 (authors "dedukti-dev@inria.fr")

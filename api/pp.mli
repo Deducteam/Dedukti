@@ -52,6 +52,6 @@ module type Printer = sig
   val print_staticity : Signature.staticity printer
 end
 
-module Make (S : Sig) : Printer
+module Make : Sig -> Printer
 
 module Default : Printer

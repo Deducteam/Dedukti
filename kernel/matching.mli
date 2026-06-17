@@ -48,4 +48,4 @@ end
  * - [snf] reduction strategy to perform higher order matching when necessary
  * - [are_convertible] convertibility test
 *)
-module Make (R : Reducer) : Matcher
+module Make : Reducer -> Matcher

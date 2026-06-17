@@ -204,10 +204,10 @@ module T : Interface with type 'a t := (module S with type t = 'a)
 
 module type CustomEnv = module type of Env with type t = Env.t
 
-module MakeTypeChecker (E : CustomEnv) : S with type t = unit
+module MakeTypeChecker : CustomEnv -> S with type t = unit
 
-module MakeSignatureBuilder (E : CustomEnv) : S with type t = Kernel.Signature.t
+module MakeSignatureBuilder : CustomEnv -> S with type t = Kernel.Signature.t
 
-module MakeEntryPrinter (E : CustomEnv) : S with type t = unit
+module MakeEntryPrinter : CustomEnv -> S with type t = unit
 
-module MakeDependencies (E : CustomEnv) : S with type t = Dep_legacy.t
+module MakeDependencies : CustomEnv -> S with type t = Dep_legacy.t

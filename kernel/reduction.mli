@@ -110,6 +110,6 @@ module type S = sig
   val snf : Signature.t -> term -> term
 end
 
-module Make (C : ConvChecker) (M : Matching.Matcher) : S
+module Make : ConvChecker -> Matching.Matcher -> S
 
 module Default : S
