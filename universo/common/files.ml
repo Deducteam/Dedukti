@@ -119,17 +119,23 @@ let in_from_string : path -> step -> cin t =
 (*  fun file -> Api.Processor.handle_files [ file ] Api.Processor.SignatureBuilder *)
 
 (** [fmt_of_file out_file] returns the formatter associated to an [out_file] *)
-let fmt_of_file : cout t -> Format.formatter =
- fun file -> match file.channel with Out (_, fmt) -> fmt
+let fmt_of_file : cout t -> Format.formatter = fun file ->
+  match file.channel with
+  | Out (_, fmt) -> fmt
+  | _ -> assert false
 
 (** [in_channel_of_file in_file] returns the channel associated to an [in_file] *)
-let in_channel_of_file : cin t -> in_channel =
- fun file -> match file.channel with In ic -> ic
+let in_channel_of_file : cin t -> in_channel = fun file ->
+  match file.channel with
+  | In ic -> ic
+  | _ -> assert false
 
 (** [close file] closes [file] *)
-let close : type a. a t -> unit =
- fun file ->
-  match file.channel with Out (oc, _) -> close_out oc | In ic -> close_in ic
+let close : type a. a t -> unit = fun file ->
+  match file.channel with
+  | Out (oc, _) -> close_out oc
+  | In ic -> close_in ic
+  | _ -> assert false
 
 (** [md_of path step] returns the mident associated to the Universo file [file] for step [step]. *)
 let md_of : path -> step -> B.mident =
