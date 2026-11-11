@@ -14,7 +14,6 @@ type te = term Lazy.t
 type status = Unsolved | Solved of te | Partly of ac_ident * te list
 
 type matching_problem = {
-  eq_problems : te eq_problem list array;
   ac_problems : te list ac_problem list;
   status : status array;
   arities : int array;
@@ -540,7 +539,6 @@ module Make (R : Reducer) : Matcher = struct
             arities = pb.pm_arity;
             status;
             ac_problems = ac_rearrange ac_pbs;
-            eq_problems = [||];
           }
         in
         (* Rearrange AC problems then solve them *)
