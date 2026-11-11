@@ -135,7 +135,6 @@ let close : type a. a t -> unit = fun file ->
   match file.channel with
   | Out (oc, _) -> close_out oc
   | In ic -> close_in ic
-  | _ -> assert false
 
 (** [md_of path step] returns the mident associated to the Universo file [file] for step [step]. *)
 let md_of : path -> step -> B.mident =
