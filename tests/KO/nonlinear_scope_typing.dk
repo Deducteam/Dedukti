@@ -1,0 +1,23 @@
+A : Type.
+a0 : A.
+c : A -> A -> A.
+B : Type.
+ok : B.
+bad : B.
+
+def g : (A -> A) -> B.
+[F] g (x => c F F) --> ok.
+[] g (u => c u a0) --> bad.
+
+Prop : Type.
+def prf : Prop -> Type.
+top : Prop.
+[] prf top --> A.
+
+def P : Prop -> B -> Prop.
+[Z] P Z ok --> top.
+[Z] P Z bad --> Z.
+
+(; Reject this invalid conversion before it can prove every proposition. ;)
+def leak : Z : Prop -> q : A -> prf (P Z (g (u => c u q))) := Z : Prop => q : A => a0.
+def absurd : Z : Prop -> prf Z := Z : Prop => leak Z a0.

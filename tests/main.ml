@@ -68,6 +68,8 @@ module Check = struct
       ok ~regression:true ~basename:"miller2.dk" [];
 
       ok ~basename:"nonlinearity.dk" [];
+      ok ~basename:"nonlinear_scope.dk" [];
+      ok ~basename:"nonlinear_scope.dk" [Type_lhs];
 
       ok ~regression:true ~basename:"nsteps1.dk" [];
       ok ~regression:true ~basename:"nsteps2.dk" [];
@@ -228,6 +230,8 @@ module Check = struct
       ko ~error:(`Code 701) ~basename:"nested_comments_2.dk" [];
       ko ~error:(`Code 101) ~basename:"noninjectivity.dk" [];
       ko ~error:(`Code 507) ~basename:"nonleftlinear.dk" [Left_linear];
+      ko ~error:(`Code 101) ~basename:"nonlinear_scope_typing.dk" [];
+      ko ~error:(`Code 101) ~basename:"nonlinear_scope_typing.dk" [Type_lhs];
       ko ~error:(`Code 703) ~basename:"nsteps1.dk" [];
       ko ~error:(`Code 702) ~basename:"parsing_eof.dk" [];
       ko ~error:(`Code 104) ~basename:"product_expected_6.dk" [];
