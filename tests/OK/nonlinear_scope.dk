@@ -1,0 +1,37 @@
+A : Type.
+ok : A.
+c : A -> A -> A.
+
+def g : (A -> A) -> A.
+[F] g (x => c F F) --> ok.
+
+(; An unapplied F may depend on the outer q, but not on the pattern binder. ;)
+#ASSERT (q : A => g (u => c q q)) == (q : A => ok).
+#ASSERTNOT (q : A => g (u => c u q)) == (q : A => ok).
+#ASSERTNOT (q : A => g (u => c q u)) == (q : A => ok).
+#ASSERTNOT (q : A => g (u => c u u)) == (q : A => ok).
+#ASSERT (g (u => c ok ok)) == ok.
+
+(; F uses one of two pattern binders; its ambient variables still need shifting. ;)
+def h : (A -> A -> A) -> A.
+[F] h (x => y => c (F x) (F x)) --> ok.
+#ASSERT (q : A => h (u => v => c (c q u) (c q u))) == (q : A => ok).
+#ASSERTNOT (q : A => h (u => v => c v v)) == (q : A => ok).
+
+(; Reapply a solution at a different depth. ;)
+def j : (A -> A) -> (A -> A -> A) -> A.
+[F] j (x => F) (y => z => F) --> ok.
+#ASSERT (q : A => j (u => q) (v => w => q)) == (q : A => ok).
+
+(; Variables bound inside the solution must retain their indices. ;)
+cc : (A -> A) -> (A -> A) -> A.
+def k : (A -> A) -> A.
+[F] k (x => cc F F) --> ok.
+#ASSERT (q : A => k (u => cc (v => c q v) (w => c q w))) == (q : A => ok).
+
+(; The same transport is used by nonlinear AC matching. ;)
+defac plus [A].
+def l : (A -> A) -> A.
+[F] l (x => plus F F) --> ok.
+#ASSERT (q : A => l (u => plus q q)) == (q : A => ok).
+#ASSERTNOT (q : A => l (u => plus u q)) == (q : A => ok).

@@ -95,7 +95,9 @@ let apply_sol (sol : term) (args : miller_var) : term =
   let vars_ar = Array.of_list args.vars in
   let subst l x n k =
     mk_DB l x
-      (if n - k < args.arity then vars_ar.(args.arity - 1 - n + k) + k else n)
+      (if n - k < args.arity then vars_ar.(args.arity - 1 - n + k) + k
+       (* Shift ambient variables back from parameter to pattern scope. *)
+       else n + args.depth - args.arity)
   in
   Subst.apply_subst subst 0 sol
 
